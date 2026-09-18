@@ -116,10 +116,10 @@ def crude_permission_gate(manager, request, response, verb,
         # the act RUNS, the would-deny is recorded as a SecurityEvent and the notice bar
         # counts it. The decision is the security module's; the gate only asks.
         try:
-            from security.custom.security_observe import decide
-            who = ''
-            if isinstance(user_info, dict):
-                who = user_info.get('preferred_username') or user_info.get('sub') or ''
+            from security.custom.security_observe import actor_of, decide
+            # D18-1 (his PII rule, 2026-09-18): the SecurityEvent's actor is the caller's opaque Keycloak `sub`
+            # and nothing else — a login name never reaches a Polari row.
+            who = actor_of(user_info)
             proceed, outcome = decide(manager, 'authz', f'{verb} {class_name}', class_name,
                                       denied=True, reason=str(verdict.get('reason') or verdict.get('why') or 'permission refused')[:300],
                                       actor=who, source='crude permission gate')

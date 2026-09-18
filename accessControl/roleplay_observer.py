@@ -41,8 +41,12 @@ class RoleplayObserverMiddleware:
             manager = getattr(self.server, 'manager', None)
             if manager is None or not recording_on(manager):
                 return
-            user_info = getattr(req.context, 'user_info', None)
-            actor = (user_info or {}).get('preferred_username') or (user_info or {}).get('sub') or '' if isinstance(user_info, dict) else ''
-            observe_usage(manager, role, 'endpoint', f'{req.method} {path}', actor=actor, detail=str(getattr(resp, 'status', ''))[:12])
+            # D18-1 (his PII rule): the endpoint ledger keys the caller by their opaque Keycloak `sub` alone —
+            # never preferred_username, never an e-mail. A name is resolved at render time, through
+            # GET /api/security/people/{sub}, and never lands in a row.
+            from security.custom.security_observe import actor_of
+            observe_usage(manager, role, 'endpoint', f'{req.method} {path}',
+                          actor=actor_of(getattr(req.context, 'user_info', None)),
+                          detail=str(getattr(resp, 'status', ''))[:12])
         except Exception:
             pass

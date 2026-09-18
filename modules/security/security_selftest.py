@@ -150,6 +150,127 @@ def _claims_checks(api, m, O, _Res, _types, check):
     O.set_claim_denied('data-scientist', False); O.set_claimable_groups([])
 
 
+def _pii_checks(api, O, _Res, _types, check):
+    """THE PII BOUNDARY (his rule D18-1, 2026-09-18) — rg-0a.
+
+    Keycloak exists to keep personal data AWAY from Polari, so every person in a row, an event or a log line is the
+    opaque Keycloak `sub` and nothing else. Three halves are proven here: the four ledgers store the sub even when
+    the token carries a name; the one-shot scrub clears the names that earlier builds wrote; and the single gated
+    door resolves a sub to a name LIVE, for the callers allowed to ask and nobody else."""
+    import os
+    import tempfile
+    from security.custom import kc_admin as KC
+    from security.custom import security_claims as C          # noqa: F401  (the door's admin test uses its is_admin)
+
+    class _M:
+        pass
+
+    class _Req:
+        def __init__(self, ui, media=None, **params):
+            self.params = params
+            self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    SUB_J = '3f2b1c8a-9d4e-4a71-8b2c-5e6f7a8b9c0d'      # a Keycloak sub is an opaque UUID, as the scrub's regex knows
+    named = {'preferred_username': 'demo-journalist', 'email': 'demo-journalist@example.invalid',
+             'username': 'demo-journalist', 'sub': SUB_J, 'roles': ['journalist']}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json')
+        os.environ['POLARI_POSTURE'] = 'dev'
+        try:
+            m = _M(); m.objectTables = {'PermissionObservation': {}, 'SecurityEvent': {}, 'UsageObservation': {}, 'ObservationSession': {}}
+            m.persistTree = lambda: None
+            O.observe_permission(m, named, 'Article', 'read', verdict={'allowed': True, 'why': 'granted by profile(s)', 'via': ['journalist']}, roleplay='journalist')
+            O.record(m, 'authz', 'update Article', 'Article', actor=O.actor_of(named), reason='no verb grant')
+            O.observe_usage(m, 'journalist', 'page', '/journalist/articles', actor=O.actor_of(named))
+            O.start_session(m, 'journalist', actor=O.actor_of(named))
+            blob = repr(O.observations(m)) + repr(O.events(m)) + repr(O.usages(m)) + repr(O.sessions(m))
+            check('the four ledgers store the caller\'s opaque Keycloak `sub`, never the name the token also carries '
+                  '(his rule D18-1: Keycloak exists to keep PII away from Polari)',
+                  O.observations(m)[0]['actor'] == SUB_J and O.events(m)[0]['actor'] == SUB_J
+                  and O.usages(m)[0]['actor'] == SUB_J and O.sessions(m)[0]['actor'] == SUB_J
+                  and 'demo-journalist' not in blob and 'example.invalid' not in blob, blob[:300])
+            check('actor_of() is the one resolution: a sub when there is one, \'\' otherwise — never a fallback to '
+                  'preferred_username / username / e-mail',
+                  O.actor_of(named) == SUB_J and O.actor_of({'preferred_username': 'x'}) == ''
+                  and O.actor_of(None) == '' and O.actor_of({'sub': 'u-2'}) == 'u-2')
+            rv = O.review(m, 'journalist')
+            check('the review counts DISTINCT subs and names none of them beyond the sub',
+                  rv['actors'] == [SUB_J] and rv['actor_count'] == 1 and 'demo-journalist' not in repr(rv), rv['actors'])
+            der = O.derive_profiles(m)
+            check('the derived profile counts distinct subjects, not people',
+                  der and der[0]['evidence']['actors'] == [SUB_J] and der[0]['evidence']['actor_count'] == 1
+                  and 'distinct Keycloak subject' in der[0]['description'], der and der[0]['description'])
+            # ---- the scrub: rows written before the rule existed
+            real_sub = '11111111-2222-3333-4444-555555555555'
+            m.objectTables['PermissionObservation']['x1'] = _types.SimpleNamespace(
+                name='journalist|Terms|read', actor='demo-journalist', groups='journalist', profiles='', verb='read',
+                class_name='TermsDocument', app='', verdict='would-deny', count=1, first_seen='', last_seen='', posture='dev')
+            m.objectTables['SecurityEvent']['x2'] = _types.SimpleNamespace(
+                name='authz|read Terms|Terms', control='authz', action='read Terms', target='Terms',
+                actor=real_sub, app='', outcome='observed', would_deny=True, reason='', posture='dev', count=1,
+                first_seen='', last_seen='', source='')
+            m.objectTables['UsageObservation']['x3'] = _types.SimpleNamespace(
+                name='journalist|page|/x', role='journalist', kind='page', item='/x', app='', page='', detail='',
+                actor='someone@example.invalid', count=1, first_seen='', last_seen='')
+            n = O.scrub_actor_pii(m)
+            check('the PII scrub clears every actor that is NOT a Keycloak subject id (a username, an e-mail) and '
+                  'leaves a real sub alone — and running it again clears nothing (idempotent)',
+                  n == 2 and m.objectTables['PermissionObservation']['x1'].actor == ''
+                  and m.objectTables['UsageObservation']['x3'].actor == ''
+                  and m.objectTables['SecurityEvent']['x2'].actor == real_sub
+                  and O.scrub_actor_pii(m) == 0, n)
+            check('looks_like_sub: 8-4-4-4-12 hex only', O.looks_like_sub(real_sub) and not O.looks_like_sub('demo-admin')
+                  and not O.looks_like_sub('') and not O.looks_like_sub('u-1'))
+            # ---- the one gated door: GET /api/security/people/{sub}
+            os.environ['POLARI_KEYCLOAK_ADMIN_URL'] = 'http://pol-keycloak:8080'
+            os.environ['POLARI_KEYCLOAK_REALM'] = 'Polari'
+            os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = 'sekrit'
+            asked = []
+            real_get_user = KC.get_user
+
+            def _fake_get_user(sub, env=None):
+                asked.append(sub)
+                return {'ok': True, 'user': {'id': sub, 'username': 'demo-journalist', 'first_name': 'Demo',
+                                             'last_name': 'Journalist', 'enabled': True}}
+            KC.get_user = _fake_get_user
+            api.manager = m
+            try:
+                r = _Res(); api.on_get_people(_Req(None), r, 'u-2')
+                check('the people door without an identity is 401 — resolving somebody\'s name needs one of your own',
+                      r.status.startswith('401') and not asked, r.media)
+                r = _Res(); api.on_get_people(_Req({'sub': 'u-9', 'roles': ['polari-viewer']}), r, 'u-2')
+                check('a stranger is 403, and the refusal explains the boundary and how an operator opens it',
+                      r.status.startswith('403') and 'people_viewers' in r.media['refusal'] and not asked, r.media)
+                r = _Res(); api.on_get_people(_Req(named), r, SUB_J)
+                check('your OWN sub resolves: {ok, sub, display_name, username} straight from Keycloak',
+                      r.media['ok'] and r.media['sub'] == SUB_J and r.media['display_name'] == 'Demo Journalist'
+                      and r.media['username'] == 'demo-journalist' and r.media['why'] == 'your own account'
+                      and asked == [SUB_J], r.media)
+                r = _Res(); api.on_get_people(_Req({'sub': 'u-9', 'roles': ['polari-admin']}), r, SUB_J)
+                check('an ADMIN resolves anyone\'s sub', r.media['ok'] and r.media['display_name'] == 'Demo Journalist'
+                      and r.media['why'] == 'administrator', r.media)
+                O.set_people_viewers(['approvers'], by='u-9')
+                r = _Res(); api.on_get_people(_Req({'sub': 'u-7', 'roles': ['approvers']}), r, SUB_J)
+                check('a member of a group named in the people_viewers knob resolves it too, and the answer says which '
+                      'group granted it', r.media['ok'] and 'approvers' in r.media['why'] and O.people_viewers() == ['approvers'], r.media)
+                r = _Res(); api.on_get_people(_Req({'sub': 'u-8', 'roles': ['nobody']}), r, SUB_J)
+                check('...and nobody else: a group NOT on the list is still 403', r.status.startswith('403'))
+                os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = ''
+                r = _Res(); api.on_get_people(_Req(named), r, SUB_J)
+                check('on a stack with no Keycloak credential the door is 503 "no identity provider" — it never falls '
+                      'back to a stored name, because there is none', r.status.startswith('503')
+                      and r.media['refusal'].startswith('no identity provider'), r.media)
+                check('the door is never a write: nothing it returned reached a row',
+                      'Demo Journalist' not in (repr(O.observations(m)) + repr(O.events(m)) + repr(O.usages(m)) + repr(O.sessions(m))))
+            finally:
+                KC.get_user = real_get_user
+                O.set_people_viewers([])
+        finally:
+            os.environ.clear(); os.environ.update(old_env)
+
+
 def main():
     from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
     from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
@@ -321,7 +442,8 @@ def main():
         def __init__(self): self.h = {}; self.status = ''; self.media = None
         def set_header(self, k, v): self.h[k] = v
     class _ReqU:
-        context = _types.SimpleNamespace(user_info={'preferred_username': 'dev1'})
+        # a REAL caller: Keycloak hands down both a name and a sub. Only the sub may ever reach a row (D18-1).
+        context = _types.SimpleNamespace(user_info={'preferred_username': 'dev1', 'sub': 'u-dev1'})
     import sys as _sys, types as _t
     fake = _t.ModuleType('polariapps.apps_permissions_basis'); fake.permission_verdict = lambda *a, **k: {'allowed': False, 'reason': 'no grant'}
     pkg = _t.ModuleType('polariapps'); pkg.apps_permissions_basis = fake
@@ -338,7 +460,10 @@ def main():
             if v is None: _sys.modules.pop(k, None)
             else: _sys.modules[k] = v
     check('the CRUDE permission gate in ENFORCE: a dev build lets the refused act through with an "observed" header + a SecurityEvent; production still 403s',
-          g1 is True and 'observed Person:update' in h.h.get('X-Polari-Permission-Advisory', '') and len(O.events(m3)) == 1 and O.events(m3)[0]['actor'] == 'dev1' and g2 is False and h2.status == '403 Forbidden')
+          g1 is True and 'observed Person:update' in h.h.get('X-Polari-Permission-Advisory', '') and len(O.events(m3)) == 1 and O.events(m3)[0]['actor'] == 'u-dev1' and g2 is False and h2.status == '403 Forbidden')
+    check('...and the event the gate wrote names the caller by their Keycloak `sub` ONLY (D18-1): the token\'s '
+          'preferred_username reaches no column', 'dev1' not in repr([e for e in O.events(m3)]).replace('u-dev1', ''),
+          O.events(m3))
     # ---- his ask 2026-09-15: in dev mode, log which roles / profiles perform which acts → the profiles are WORKED OUT from that
     import json
     m4 = _M(); m4.objectTables = {'PermissionObservation': {}}; m4.persistTree = lambda: None
@@ -527,6 +652,7 @@ def main():
     pg = permission_group_updates('n', inv_u)
     check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')
     check('members merge per device (this device replaced, others kept)', merge_members('a: x; n: old', 'n', 'n: u') == 'a: x; n: u')
+    _pii_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

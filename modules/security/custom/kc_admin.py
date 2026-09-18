@@ -193,6 +193,39 @@ def create_group(name, env=None):
     return {'ok': True, 'created': status != 409, 'group': after['group']}
 
 
+# ---- one user, by sub (the PII boundary's single door) ---------------------------------------------------------------
+
+def get_user(sub, env=None):
+    """{ok, user: {id, username, first_name, last_name, enabled}} — the Keycloak account `sub`, read LIVE.
+
+    This is the ONE place Polari may learn a person's name (his rule D18-1, 2026-09-18: names live in Keycloak and
+    stay there). The answer is handed straight to the caller of `GET /api/security/people/{sub}` and is NEVER written
+    into a Polari row, a log line or a cache. The service account already holds `view-users`.
+
+    No e-mail is returned: the door exists so a page can show a human-readable name, not so Polari can hold contact
+    details."""
+    if not sub:
+        return {'ok': False, 'refusal': 'no user id (a Keycloak `sub` is required)'}
+    status, body, why = _admin('GET', f'/users/{urllib.parse.quote(str(sub))}', env=env)
+    if why:
+        return {'ok': False, 'refusal': why}
+    if status == 404:
+        return {'ok': False, 'status': 404, 'refusal': 'that user does not exist in this realm'}
+    if status != 200 or not isinstance(body, dict):
+        return _bad(status, body, 'read the user')
+    return {'ok': True, 'user': {'id': body.get('id') or str(sub), 'username': body.get('username') or '',
+                                 'first_name': body.get('firstName') or '', 'last_name': body.get('lastName') or '',
+                                 'enabled': bool(body.get('enabled', True))}}
+
+
+def display_name(user):
+    """The name a page shows for a Keycloak account: "First Last", else the username, else ''."""
+    if not isinstance(user, dict):
+        return ''
+    full = ' '.join(x for x in (user.get('first_name'), user.get('last_name')) if x).strip()
+    return full or str(user.get('username') or '')
+
+
 # ---- a user's groups ------------------------------------------------------------------------------------------------
 
 def user_groups(sub, env=None):

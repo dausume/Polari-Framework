@@ -17,6 +17,9 @@
                          blocked it, and the counterexample (the actor/group/permission that legitimately reaches the same target)
 /api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
 /api/security/roles/claim      POST {role} join that group; DELETE ?role= leave it — self-service, never an admin role (§17b D17-5)
+/api/security/people/{sub}     GET a Keycloak subject id → {display_name, username}, resolved LIVE from Keycloak and never stored.
+                               THE ONE DOOR through the PII boundary (his rule D18-1, 2026-09-18: Polari rows key a person by
+                               `sub` alone). Gated: an admin, or your own sub, or a group named in the `people_viewers` knob.
 The scenario defaults to the one this deployment is (POLARI_DEPLOY_ROUTE: isle → isle, swarm → lean/full by
 profile, else dev). Pure reads over security_topology; nothing here changes the machine.
 """
@@ -77,6 +80,7 @@ class SecurityAPI(treeObject):
             add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced; {self_claimable} admin-only
             add('/api/security/roles/claimable', self, suffix='roles_claimable')    # GET the roles THIS caller may take for themselves (his ask 2026-09-18)
             add('/api/security/roles/claim', self, suffix='roles_claim')            # POST {role} join the KC group; DELETE ?role= leave it
+            add('/api/security/people/{sub}', self, suffix='people')                # THE ONE GATED DOOR: a Keycloak `sub` → a display name, resolved LIVE, never stored (D18-1)
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -234,32 +238,33 @@ class SecurityAPI(treeObject):
         except Exception:
             return {}
 
-    def _actor(self, request):
-        ui = getattr(getattr(request, 'context', None), 'user_info', None)
-        return ((ui.get('preferred_username') or ui.get('sub') or '') if isinstance(ui, dict) else '')
-
     def on_get_observe(self, request, response):
-        from security.custom.security_observe import knob_state, recording_on, sessions, summary, roleplay_groups_allowed, claimable_groups, claim_denied_roles
+        from security.custom.security_observe import knob_state, recording_on, sessions, summary, roleplay_groups_allowed, claimable_groups, claim_denied_roles, people_viewers
         s = summary(self.manager)
         response.media = {'ok': True, 'posture': s['posture'], 'recording': recording_on(self.manager), 'knob': knob_state(), 'open_sessions': sessions(self.manager, active=True),
                           'roleplay_groups': roleplay_groups_allowed(), 'claimable_groups': claimable_groups(), 'claim_denied': claim_denied_roles(),
+                          'people_viewers': people_viewers(),
                           'how': 'POST {"recording": false} here turns the observation ledgers off on the fly (and true back on); recording never happens outside dev posture. '
-                                 '{"claimable_groups": [...]} names KC groups anyone signed in may claim at /api/security/roles/claim'}
+                                 '{"claimable_groups": [...]} names KC groups anyone signed in may claim at /api/security/roles/claim; '
+                                 '{"people_viewers": [...]} names KC groups that may resolve any `sub` to a name at /api/security/people/{sub}'}
 
     def on_post_observe(self, request, response):
         from security.custom.security_observe import set_recording, recording_on
-        from security.custom.security_observe import set_roleplay_groups, set_claimable_groups
+        from security.custom.security_observe import set_roleplay_groups, set_claimable_groups, set_people_viewers
         body = self._body(request)
         out = {}
+        if 'people_viewers' in body:
+            # the PII boundary's allow-list (D18-1): KC groups whose members may resolve ANY sub to a name
+            out['people_viewers'] = set_people_viewers(body.get('people_viewers') or [], by=self._sub(request))
         if 'roleplay_groups' in body:
-            out['roleplay'] = set_roleplay_groups(body.get('roleplay_groups') or [], by=self._actor(request))
+            out['roleplay'] = set_roleplay_groups(body.get('roleplay_groups') or [], by=self._sub(request))
         if 'claimable_groups' in body:
             # the knob beside roleplay_groups: KC groups anyone signed in may take for themselves, in ANY posture
             out['claimable'] = set_claimable_groups(body.get('claimable_groups') or [], by=self._sub(request))
         if 'recording' in body:
-            out.update(set_recording(bool(body['recording']), by=self._actor(request)))
+            out.update(set_recording(bool(body['recording']), by=self._sub(request)))
         if not out:
-            return self._bad(response, 'body: {"recording": true|false} and/or {"roleplay_groups": [...]} and/or {"claimable_groups": [...]}')
+            return self._bad(response, 'body: {"recording": true|false} and/or {"roleplay_groups": [...]} and/or {"claimable_groups": [...]} and/or {"people_viewers": [...]}')
         response.media = {**out, 'ok': True, 'recording_now': recording_on(self.manager)}
 
     def on_post_observe_session(self, request, response):
@@ -269,7 +274,9 @@ class SecurityAPI(treeObject):
         ok, why = can_roleplay(getattr(getattr(request, 'context', None), 'user_info', None))
         if not ok:
             response.status = '403 Forbidden'; response.media = {'ok': False, 'refusal': why}; return
-        r = start_session(self.manager, body.get('role', ''), actor=body.get('actor') or self._actor(request), note=body.get('note', ''))
+        # D18-1: the session's actor is the CALLER'S OWN Keycloak `sub`, never a name and never something the body
+        # supplied — a body-supplied `actor` used to be able to write any string (a username) into the ledger.
+        r = start_session(self.manager, body.get('role', ''), actor=self._sub(request), note=body.get('note', ''))
         if not r.get('ok'):
             return self._bad(response, r.get('refusal', ''))
         response.media = r
@@ -289,7 +296,7 @@ class SecurityAPI(treeObject):
         for it in items:
             if not isinstance(it, dict) or it.get('kind') not in USAGE_KINDS or not it.get('item'):
                 continue
-            if observe_usage(self.manager, it.get('role') or role, it['kind'], it['item'], app=it.get('app', ''), page=it.get('page', ''), detail=it.get('detail', ''), actor=self._actor(request)) is not None:
+            if observe_usage(self.manager, it.get('role') or role, it['kind'], it['item'], app=it.get('app', ''), page=it.get('page', ''), detail=it.get('detail', ''), actor=self._sub(request)) is not None:
                 n += 1
         response.media = {'ok': True, 'recorded': n, 'kinds': list(USAGE_KINDS)}
 
@@ -312,7 +319,7 @@ class SecurityAPI(treeObject):
         if not ok:
             return self._json(response, {'ok': False, 'refusal': why}, '403 Forbidden') if hasattr(self, '_json') else self._bad(response, why)
         body = self._body(request)
-        r = create_prototype(self.manager, body.get('name', ''), title=body.get('title', ''), description=body.get('description', ''), by=self._actor(request))
+        r = create_prototype(self.manager, body.get('name', ''), title=body.get('title', ''), description=body.get('description', ''), by=self._sub(request))
         if not r.get('ok'):
             return self._bad(response, r.get('refusal', ''))
         response.media = r
@@ -407,6 +414,54 @@ class SecurityAPI(treeObject):
     def _status_of(result):
         return {401: '401 Unauthorized', 403: '403 Forbidden', 502: '502 Bad Gateway',
                 503: '503 Service Unavailable'}.get(int(result.get('status') or 403), '403 Forbidden')
+
+    # ---- THE PII BOUNDARY'S ONE DOOR (his rule D18-1, 2026-09-18) -------------------------------------------------
+    # Polari rows key a person by their opaque Keycloak `sub`, never by a name. A page that must show a human-
+    # readable name asks HERE, at render time, and the answer is never written back into the tree.
+
+    def _may_see_people(self, request, sub):
+        """(allowed, why) — admin, or asking about your own sub, or a member of a `people_viewers` group."""
+        from security.custom.security_claims import is_admin, caller
+        from security.custom.security_observe import people_viewers
+        ui = self._user_info(request)
+        caller_sub, _username, groups = caller(ui)
+        if not caller_sub:
+            return False, 'sign in first: resolving a Keycloak subject id to a name needs an identity of your own'
+        if caller_sub == str(sub or ''):
+            return True, 'your own account'
+        if is_admin(ui):
+            return True, 'administrator'
+        viewers = people_viewers() or []
+        hit = sorted(groups & set(viewers))
+        if hit:
+            return True, f'granted by group(s) {", ".join(hit)}'
+        return False, ('names are behind the PII boundary: Polari stores only the opaque Keycloak subject id. You may '
+                       'resolve your own, an administrator may resolve any, and so may a member of a group named in '
+                       'the people_viewers knob (POST /api/security/observe {"people_viewers": [...]}). '
+                       f'You are in {sorted(groups) or "no group"}.')
+
+    def on_get_people(self, request, response, sub):
+        """GET /api/security/people/{sub} → {ok, sub, display_name, username}. Resolved LIVE from Keycloak through
+        the polari-backend service account (view-users), and stored NOWHERE."""
+        from security.custom import kc_admin
+        allowed, why = self._may_see_people(request, sub)
+        if not allowed:
+            status = '401 Unauthorized' if 'sign in first' in why else '403 Forbidden'
+            return self._refuse(response, status, why, sub=str(sub or ''))
+        ok, kc_why = kc_admin.configured()
+        if not ok:
+            return self._refuse(response, '503 Service Unavailable', f'no identity provider: {kc_why}', sub=str(sub or ''),
+                                how='names live in Keycloak; without a Keycloak credential this instance cannot resolve one, '
+                                    'and it will not keep a copy to fall back on')
+        r = kc_admin.get_user(sub)
+        if not r.get('ok'):
+            return self._refuse(response, '404 Not Found' if int(r.get('status') or 0) == 404 else '502 Bad Gateway',
+                                r.get('refusal', 'could not resolve that subject id'), sub=str(sub or ''))
+        user = r['user']
+        response.media = {'ok': True, 'sub': str(sub or ''), 'display_name': kc_admin.display_name(user),
+                          'username': user.get('username') or '', 'why': why,
+                          'how': 'resolved live from Keycloak for this request only — Polari rows key a person by `sub` '
+                                 'alone (D18-1) and never cache a name'}
 
     def on_get_observe_review(self, request, response):
         from security.custom.security_observe import review

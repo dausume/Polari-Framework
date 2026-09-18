@@ -13,7 +13,15 @@ nothing is denied, and each would-have-been-denial becomes a WARNING a person an
 
 The contract is the point: OBSERVED_CONTROLS is what warns-but-never-blocks in dev; INVARIANT_CONTROLS is what still
 refuses. A control not in either list is treated as an invariant (refuse) — new relaxations are added on purpose.
+
+THE PII BOUNDARY (his ruling D18-1, 2026-09-18) — Keycloak exists to keep personal data AWAY from Polari. Every
+person in a row, an event or a log line here is identified ONLY by their opaque Keycloak subject id (`sub`): never a
+preferred_username, never an e-mail, never a display name. The four ledgers keep their column NAME (`actor`) — it
+now holds a sub. A name is resolved at RENDER time, once, through the single gated door
+`GET /api/security/people/{sub}`, and is never cached back into the tree. `scrub_actor_pii()` clears rows written
+before the rule existed.
 """
+import re
 import time
 
 from moduleService import posture as _posture
@@ -38,6 +46,99 @@ def _now():
     return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
 
+# ---- the PII boundary (D18-1): a person is a Keycloak `sub` and nothing else -------------------------------------
+
+#: the Keycloak subject id as Keycloak issues it — 8-4-4-4-12 hex. Anything else in an `actor` column is PII
+#: (a username, an e-mail, a display name) written before the rule existed, and the scrub clears it.
+SUB_RE = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+
+#: the four ledgers whose `actor` column holds a person
+PII_TABLES = ('PermissionObservation', 'SecurityEvent', 'ObservationSession', 'UsageObservation')
+
+
+def looks_like_sub(value):
+    """True when `value` is shaped like a Keycloak subject id (the only person-identifier Polari may store)."""
+    return bool(SUB_RE.match(str(value or '').strip()))
+
+
+def actor_of(user_info):
+    """The ONE actor resolution in this module: the caller's opaque Keycloak `sub`, or '' when there is nobody.
+
+    His rule D18-1 (2026-09-18): never preferred_username, never username, never e-mail — those live in Keycloak and
+    stay there. A name for a `sub` is resolved live through GET /api/security/people/{sub}."""
+    if not isinstance(user_info, dict):
+        return ''
+    return str(user_info.get('sub') or '')
+
+
+_SCRUBBED = {'done': False, 'count': 0}
+
+
+def scrub_actor_pii(manager, save=True):
+    """One-shot, idempotent: clear every `actor` value in the four ledgers that is not a Keycloak `sub`.
+
+    The live stack's rows were written before D18-1 and hold usernames from this week's role-play tests. A value that
+    is empty stays empty; a value shaped like a sub is kept; anything else IS a name or an e-mail and is cleared to
+    ''. Running it twice clears nothing the second time (the rows are already sub-only). Never raises."""
+    n = 0
+    try:
+        if getattr(manager, 'objectTables', None) is None:
+            return 0
+        for table in PII_TABLES:
+            for row in _all_rows(manager, table):
+                value = str(getattr(row, 'actor', '') or '')
+                if value and not looks_like_sub(value):
+                    row.actor = ''
+                    n += 1
+        if n and save:
+            _schedule_persist(manager)
+    except Exception:
+        return n
+    return n
+
+
+def scrub_actor_pii_once(manager):
+    """Run the scrub once per process and say so in the log — the count is the proof it ran."""
+    if _SCRUBBED['done']:
+        return _SCRUBBED['count']
+    _SCRUBBED['done'] = True                    # set FIRST: scrub_actor_pii reads the same tables, no re-entry
+    n = scrub_actor_pii(manager)
+    _SCRUBBED['count'] = n
+    print('[security] PII scrub: %d actor values cleared (D18-1)' % n, flush=True)
+    return n
+
+
+def _ledger_rows(manager):
+    return sum(len(_all_rows(manager, t)) for t in PII_TABLES)
+
+
+def start_pii_scrub(manager, polServer=None, wait_s=300, rows_wait_s=120, tick=2.0):
+    """Schedule the one-shot scrub for AFTER this module's rows are on the tree.
+
+    The endpoint constructor runs while falcon's routes are built — Phase A/B of the lazy boot (restore + seeds) has
+    not happened yet, so scrubbing there would walk an empty tree and clear nothing. This waits for the boot registry
+    to stop calling `security` pending (and, when there is no registry, for rows to actually appear), then scrubs
+    once. A daemon thread: it can never hold the boot up, and it never raises into it."""
+    import threading
+
+    def _run():
+        start = time.time()
+        while time.time() - start < wait_s:
+            registry = getattr(polServer, 'bootRegistry', None)
+            try:
+                pending = bool(registry.is_data_pending('security')) if registry is not None else False
+            except Exception:
+                pending = False
+            if not pending and (_ledger_rows(manager) or time.time() - start >= rows_wait_s):
+                break
+            time.sleep(tick)
+        scrub_actor_pii_once(manager)
+
+    t = threading.Thread(target=_run, name='security-pii-scrub', daemon=True)
+    t.start()
+    return t
+
+
 def observable(control):
     return control in OBSERVED_CONTROLS
 
@@ -47,7 +148,10 @@ def event_name(control, action, target):
 
 
 def record(manager, control, action, target, reason='', actor='', app='', outcome='observed', would_deny=True, source='', save=True):
-    """Count one decision into its SecurityEvent row (upsert by control|action|target). Never raises."""
+    """Count one decision into its SecurityEvent row (upsert by control|action|target). Never raises.
+
+    `actor` is the caller's opaque Keycloak `sub` — D18-1: never a username, an e-mail or a display name. Callers
+    resolve it with `actor_of(user_info)`; nothing else may be passed."""
     try:
         tables = getattr(manager, 'objectTables', None)
         if tables is None:
@@ -153,13 +257,10 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
         except Exception:
             groups = set((user_info or {}).get('roles') or []) if isinstance(user_info, dict) else set()
         groups = roleplay_groups(groups, roleplay)
-        groups_s = ','.join(sorted(groups)); actor = ''
-        if isinstance(user_info, dict):
-            # the backend's jwt_validator hands the caller down as `username`; Keycloak's own claim is
-            # `preferred_username`. Without the middle fallback the actor column showed the KC `sub` UUID.
-            actor = (user_info.get('preferred_username')
-                     or user_info.get('username')
-                     or user_info.get('sub') or '')
+        groups_s = ','.join(sorted(groups))
+        # D18-1: the actor column holds the opaque Keycloak `sub` and NOTHING else. (It used to prefer
+        # preferred_username → username → sub, which put a person's login name in a Polari row.)
+        actor = actor_of(user_info)
         if verdict is None:
             vd = 'ungated' if user_info else 'unauthenticated'; profiles = ''
         elif verdict.get('allowed'):
@@ -214,12 +315,14 @@ def derive_profiles(manager):
     out = []
     for g, d in sorted(by_group.items()):
         groups = g.split(','); verbs = sorted({v for cv in d['classes'].values() for v in cv})
+        # D18-1: `actors` is a set of DISTINCT Keycloak subject ids — how many people, never who they are.
         out.append({'name': 'observed-' + '-'.join(groups)[:60], 'title': f"Observed: {', '.join(groups)}",
-                    'description': f"derived from {d['acts']} observed act(s) by {len(d['actors'])} caller(s) between {d['first_seen']} and {d['last_seen']} in dev posture",
+                    'description': f"derived from {d['acts']} observed act(s) by {len(d['actors'])} distinct Keycloak subject(s) between {d['first_seen']} and {d['last_seen']} in dev posture",
                     'app_name': '', 'kc_groups_json': _json.dumps(groups), 'verbs_json': _json.dumps(verbs), 'extra_classes_json': _json.dumps(sorted(d['classes'])),
                     'published': False, 'is_prior': False,
                     'notes': 'SUGGESTION from /api/security/observations — review the classes and verbs, narrow them, then create the AppPermissionProfile row; nothing is applied automatically',
-                    'evidence': {'classes': d['classes'], 'acts': d['acts'], 'would_deny_today': d['would_deny'], 'actors': sorted(d['actors'])}})
+                    'evidence': {'classes': d['classes'], 'acts': d['acts'], 'would_deny_today': d['would_deny'],
+                                 'actors': sorted(d['actors']), 'actor_count': len(d['actors'])}})
     return out
 
 
@@ -307,6 +410,8 @@ def sessions(manager, role=None, active=None):
 
 
 def start_session(manager, role, actor='', note=''):
+    """Open a role-play window. `actor` is the caller's Keycloak `sub` (D18-1) as the API resolves it — the API
+    never takes it from the request body, so nobody can write a name into this column."""
     role = (role or '').strip().lower()
     if not role:
         return {'ok': False, 'refusal': 'role required — the group you are acting as (journalist, operator, …)'}
@@ -347,7 +452,10 @@ USAGE_KEYS = ('name', 'role', 'kind', 'item', 'app', 'page', 'detail', 'actor', 
 
 
 def observe_usage(manager, role, kind, item, app='', page='', detail='', actor='', save=True):
-    """Count one usage into its UsageObservation row (role × kind × item). Never raises."""
+    """Count one usage into its UsageObservation row (role × kind × item). Never raises.
+
+    `actor` is the caller's opaque Keycloak `sub` (D18-1) — the API resolves it with `actor_of()`; a name never
+    reaches this column."""
     try:
         tables = getattr(manager, 'objectTables', None)
         if tables is None or kind not in USAGE_KINDS or not item:
@@ -396,6 +504,10 @@ def review(manager, role):
     for o in obs:
         objects.setdefault(o['class_name'], {})[o['verb']] = objects.get(o['class_name'], {}).get(o['verb'], 0) + int(o.get('count') or 0)
     verbs = sorted({o['verb'] for o in obs})
+    # D18-1: who acted as the role is a set of DISTINCT Keycloak subject ids — resolve one to a name at render time
+    # through GET /api/security/people/{sub}, never from a stored column.
+    actors = sorted({a for a in ([o.get('actor') for o in obs] + [u.get('actor') for u in use] +
+                                 [s.get('actor') for s in sessions(manager, role)]) if a})
     apps_of_objects = {}
     for o in obs:
         apps_of_objects.setdefault(o.get('app') or app_of_class(o['class_name']) or 'core', set()).add(o['class_name'])
@@ -404,6 +516,7 @@ def review(manager, role):
                 'published': False, 'is_prior': False,
                 'notes': 'PROPOSAL from /api/security/observe/review — the permissions admin reviews, narrows, creates the AppPermissionProfile row and publishes it; then /api/security/observe/verify replays the recording against it'}
     return {'ok': True, 'role': role, 'sessions': sessions(manager, role), 'recording': recording_on(manager),
+            'actors': actors, 'actor_count': len(actors),
             'apps': by_kind.get('app', []), 'pages': by_kind.get('page', []), 'components': by_kind.get('component', []), 'actions': by_kind.get('action', []),
             'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'objects_by_app': {k: sorted(v) for k, v in sorted(apps_of_objects.items())}, 'acts': sum(int(o.get('count') or 0) for o in obs),
             'would_deny_today': sum(int(o.get('count') or 0) for o in obs if o.get('verdict') == 'would-deny'),
@@ -423,7 +536,8 @@ def verify(manager, role, group=None):
         from polariapps.objects.apps_permissions._shared import permission_verdict
     except Exception:
         return {'ok': False, 'refusal': 'the permissions model (polariapps) is not on this instance; nothing to verify against'}
-    user = {'preferred_username': f'verify:{group}', 'roles': [group], 'raw_claims': {'groups': [group]}}
+    # a synthetic caller for the replay: groups only, no identity at all (D18-1 — not even a fake username)
+    user = {'sub': '', 'roles': [group], 'raw_claims': {'groups': [group]}}
     allowed = []; denied = []
     for o in obs:
         v = permission_verdict(manager, user, o['class_name'], o['verb'])
@@ -491,6 +605,33 @@ def set_claimable_groups(groups, by=''):
     try:
         _os.makedirs(_os.path.dirname(p), exist_ok=True); tmp = p + '.tmp'; _json.dump(d, open(tmp, 'w')); _os.replace(tmp, p)
         return {'ok': True, 'claimable_groups': d['claimable_groups']}
+    except Exception as exc:
+        return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
+
+
+def people_viewers():
+    """The knob's list of KC groups whose members may resolve ANY `sub` to a name through the one gated door
+    `GET /api/security/people/{sub}` (D18-1). None = never set. Admins always may; everybody may look up their own
+    sub. Nobody else resolves a name at all. Mirrors claimable_groups() exactly — same file, same shape."""
+    try:
+        d = _json.load(open(_knob_path()))
+        g = d.get('people_viewers') if isinstance(d, dict) else None
+        return [str(x).lstrip('/') for x in g] if isinstance(g, list) else None
+    except Exception:
+        return None
+
+
+def set_people_viewers(groups, by=''):
+    p = _knob_path()
+    try:
+        d = _json.load(open(p))
+        d = d if isinstance(d, dict) else {}
+    except Exception:
+        d = {}
+    d['people_viewers'] = [str(g).lstrip('/') for g in (groups or [])]; d['people_viewers_changed_at'] = _now(); d['people_viewers_by'] = by
+    try:
+        _os.makedirs(_os.path.dirname(p), exist_ok=True); tmp = p + '.tmp'; _json.dump(d, open(tmp, 'w')); _os.replace(tmp, p)
+        return {'ok': True, 'people_viewers': d['people_viewers']}
     except Exception as exc:
         return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
 
