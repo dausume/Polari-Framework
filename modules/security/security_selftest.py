@@ -1027,6 +1027,365 @@ def _trace_env(td):
     os.environ['POLARI_POSTURE'] = 'dev'
 
 
+def _ct9_checks(_types, check):
+    """ct-9 — THE TRAFFIC POLICIES (design §5a): closed by default, suggested from dev monitoring, confirmed by
+    a person, enforced in production.
+
+    Everything runs against a manager DOUBLE with dev posture and a temporary knob, exactly as the ct-1 checks
+    do. The two halves are proven at their real seams: the OUTBOUND half through `polariApiServer.outbound`
+    (the wrapper every send passes) and the INBOUND half through `accessControl.traffic_middleware` (the
+    middleware every request passes), so what is proven is the ladder as it actually runs."""
+    import json
+    import os
+    import tempfile
+
+    import falcon
+
+    from accessControl import traffic_middleware as TM
+    from polariApiServer import outbound as OB
+    from security.custom import security_traffic as TR
+
+    class _M:
+        def __init__(self):
+            self.objectTables = {'OutboundPolicy': {}, 'InboundPolicy': {}, 'SecurityEvent': {},
+                                 'PeerNode': {}}
+            self.persistTree = lambda: None
+
+        def noteTreeDeletion(self, className, instanceId):
+            return 0
+
+    class _Req:
+        """The half of a falcon request the gate touches — headers, path, method, template, context."""
+
+        def __init__(self, headers=None, path='/api/MealEntry/m-1', method='GET', template=''):
+            self._h = {k.lower(): v for k, v in (headers or {}).items()}
+            self.path = path
+            self.method = method
+            self.uri_template = template
+            self.params = {}
+            self.media = {}
+            self.context = _types.SimpleNamespace(user_info=None, roleplay='')
+
+        def get_header(self, name):
+            return self._h.get(str(name).lower())
+
+    class _Resp:
+        def __init__(self):
+            self.h = {}
+            self.status = '200 OK'
+            self.media = None
+
+        def set_header(self, k, v):
+            self.h[k] = v
+
+    class _ApiReq:
+        def __init__(self, ui=None, media=None, **params):
+            self.params = params
+            self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    SUB = 'eeeeeeee-5555-4555-8555-eeeeeeeeeeee'
+    admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    plain = {'sub': 'ffffffff-6666-4666-8666-ffffffffffff', 'roles': ['polari-viewer'],
+             'raw_claims': {'groups': []}}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json')
+            os.environ['POLARI_TRACE_KNOB'] = os.path.join(td, 'trace.json')
+            os.environ['POLARI_PERSIST_DEBOUNCE_SECONDS'] = '0'
+            os.environ['POLARI_POSTURE'] = 'dev'
+            os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+
+            # ---- THE MONITORING: one observed send with no row writes ONE suggested row; the second bumps it
+            m = _M()
+            TM.drain_advisories()
+            r1 = OB.send('odoo', 'main', 'json-rpc', lambda: 'ok',
+                         payload_classes=('ProductOrder',), manager=m)
+            r2 = OB.send('odoo', 'main', 'json-rpc', lambda: 'ok',
+                         payload_classes=('StockMove',), manager=m)
+            rows = TR.policies(m)['outbound']
+            check('ct-9 THE MONITORING: an observed send with NO policy row writes ONE `suggested` row from the '
+                  'observation itself (his "suggest outbound and inbounds based on our monitoring of traffic in '
+                  'and out of polari"); the SECOND send of the same edge bumps the count instead of duplicating, '
+                  'and the payload CLASSES accumulate — never a payload, never a URL',
+                  r1 == 'ok' and r2 == 'ok' and len(rows) == 1 and rows[0]['name'] == 'odoo|main|json-rpc'
+                  and rows[0]['state'] == 'suggested' and rows[0]['count'] == 2
+                  and json.loads(rows[0]['payload_classes_json']) == ['ProductOrder', 'StockMove']
+                  and rows[0]['confirmed_by'] == '', rows)
+            adv = TM.advisories()
+            check('ct-9 ADVISORY: an unconfirmed send under `advisory` goes through and parks its would-deny for '
+                  'the response (dev warns, never blocks — §17); the line names the system, never the URL',
+                  r1 == 'ok' and adv == ['would-deny outbound odoo:main'], adv)
+
+            # ---- the advisory reaches the caller through the ONE header, drained by the cause middleware
+            from accessControl.cause_middleware import CauseContextMiddleware
+            hdr_req, hdr_resp = _Req(), _Resp()
+            CauseContextMiddleware().process_response(hdr_req, hdr_resp, None, True)
+            check('ct-9: `CauseContextMiddleware.process_response` drains the parked lines into ONE header, '
+                  'X-Polari-Traffic-Advisory, and the drain empties them so nothing leaks into the next response',
+                  hdr_resp.h.get(TM.TRAFFIC_ADVISORY_HEADER) == 'would-deny outbound odoo:main'
+                  and TM.advisories() == [], hdr_resp.h)
+
+            # ---- ENFORCE: the same unconfirmed send is REFUSED before `fn` runs
+            os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+            ran = {'n': 0}
+
+            def _fn():
+                ran['n'] += 1
+                return 'should not happen'
+
+            try:
+                OB.send('odoo', 'main', 'json-rpc', _fn, payload_classes=('ProductOrder',), manager=m)
+                refused = None
+            except OB.OutboundRefused as exc:
+                refused = exc
+            check('ct-9 CLOSED BY DEFAULT under `enforce`: an unconfirmed send raises OutboundRefused and the '
+                  'call NEVER runs; the refusal names the policy row, its state and the door that confirms it',
+                  refused is not None and ran['n'] == 0 and 'odoo|main|json-rpc' in str(refused)
+                  and 'suggested' in str(refused) and '/api/security/traffic/outbound/' in str(refused),
+                  str(refused))
+
+            # ---- A PERSON RULES: 401 without a sub, 403 without an admin role, the `sub` alone is stored
+            no_sub = TR.confirm_outbound(m, 'odoo|main|json-rpc', None, 'confirmed')
+            not_admin = TR.confirm_outbound(m, 'odoo|main|json-rpc', plain, 'confirmed')
+            bad = TR.confirm_outbound(m, 'odoo|main|json-rpc', admin, 'maybe')
+            missing = TR.confirm_outbound(m, 'nope|nope|nope', admin, 'confirmed')
+            ok = TR.confirm_outbound(m, 'odoo|main|json-rpc', admin, 'confirmed')
+            row = TR.policies(m)['outbound'][0]
+            check('ct-9 NOTHING CONFIRMS ITSELF: confirming needs a signed-in PERSON (401 without a `sub`) who '
+                  'is an administrator (403 otherwise); the decision must be confirmed|denied (400); a row '
+                  'nothing proposed is 404; and the row stores the opaque Keycloak `sub` ALONE (D18-1)',
+                  no_sub['status'] == 401 and not_admin['status'] == 403 and bad['status'] == 400
+                  and missing['status'] == 404 and ok['ok'] and row['state'] == 'confirmed'
+                  and row['confirmed_by'] == SUB and row['confirmed_at']
+                  and 'preferred_username' not in json.dumps(row),
+                  (no_sub.get('status'), not_admin.get('status'), row))
+
+            went = OB.send('odoo', 'main', 'json-rpc', lambda: 'through', payload_classes=('ProductOrder',),
+                           manager=m)
+            v_ok = TR.outbound_verdict(m, 'odoo', 'main', 'json-rpc', ['ProductOrder'])
+            check('ct-9: once a person has CONFIRMED it, the same send goes through under `enforce` and the '
+                  'verdict says which rule allowed it', went == 'through' and v_ok['allowed'] is True
+                  and v_ok['rule'] == 'confirmed', v_ok)
+
+            # ---- DENIED: refused under enforce, advisory-only under advisory, untouched under off
+            TR.confirm_outbound(m, 'odoo|main|json-rpc', admin, 'denied')
+            try:
+                OB.send('odoo', 'main', 'json-rpc', lambda: 'x', manager=m)
+                den_enf = None
+            except OB.OutboundRefused as exc:
+                den_enf = exc
+            os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+            TM.drain_advisories()
+            den_adv = OB.send('odoo', 'main', 'json-rpc', lambda: 'still sent', manager=m)
+            adv2 = TM.advisories()
+            os.environ['POLARI_APP_PERMISSIONS'] = 'off'
+            TM.drain_advisories()
+            den_off = OB.send('odoo', 'main', 'json-rpc', lambda: 'sent', manager=m)
+            off_adv = TM.advisories()
+            v_off = TR.outbound_verdict(m, 'odoo', 'main', 'json-rpc')
+            check('ct-9 THE LADDER, one knob (POLARI_APP_PERMISSIONS, the same one every other gate reads): a '
+                  'DENIED policy refuses under `enforce`, warns-and-proceeds under `advisory`, and under `off` '
+                  'the verdict is still computed (so the monitoring never stops) and NOTHING acts on it',
+                  den_enf is not None and den_adv == 'still sent' and adv2 == ['would-deny outbound odoo:main']
+                  and den_off == 'sent' and off_adv == [] and v_off['allowed'] is False
+                  and v_off['rule'] == 'denied' and v_off['knob'] == 'off', (adv2, off_adv, v_off['rule']))
+            os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+
+            # ---- NO TRACING IN PRODUCTION: a missing row is refused, and no row is written
+            mp = _M()
+            os.environ['POLARI_POSTURE'] = 'production'
+            try:
+                OB.send('livekit', 'meetings', 'rest', lambda: 'x', manager=mp)
+                prod_refused = None
+            except OB.OutboundRefused as exc:
+                prod_refused = exc
+            prod_rows = TR.policies(mp)['outbound']
+            prod_events = [e for e in O_events(mp) if e['control'] == 'traffic']
+            check('ct-9 NO TRACING IN PRODUCTION (his ruling 2026-09-18): a send with no confirmed row is simply '
+                  'REFUSED under enforce — no `suggested` row is derived there, because production carries the '
+                  'finalized rows and derives nothing; the refusal is still accountable as a counted SecurityEvent',
+                  prod_refused is not None and prod_rows == [] and len(prod_events) == 1
+                  and prod_events[0]['outcome'] == 'denied' and prod_events[0]['target'] == 'livekit|meetings|rest',
+                  (len(prod_rows), prod_events))
+            os.environ['POLARI_POSTURE'] = 'dev'
+
+            # ---- an instance with NO security rows is never blocked by a policy it does not have
+            class _NoTables:
+                objectTables = None
+            v_none = TR.outbound_verdict(_NoTables(), 'odoo', 'main', 'json-rpc')
+            check('ct-9: an instance with no security rows answers `no-security` and ALLOWS — a guard that '
+                  'cannot be consulted must not be able to take the outbound path down (outbound.py rule 3)',
+                  v_none['allowed'] is True and v_none['rule'] == 'no-security', v_none)
+
+            # ---- THE INBOUND HALF: the classification, and never an address
+            mi = _M()
+            # a PeerNode row straight on the table: the gate is CORE-resident and reads the manager's own
+            # tables, never the security module's test fallback
+            mi.objectTables['PeerNode']['p-1'] = _types.SimpleNamespace(
+                name='kitchen-node', base_url='http://kitchen-node:3000')
+            os.environ['POLARI_APP_PERMISSIONS'] = 'off'
+            mw = TM.TrafficPolicyMiddleware(_types.SimpleNamespace(manager=mi))
+            origin_req = _Req({'Origin': 'https://app.example:4200/some/path?token=sekrit'})
+            anon_req = _Req({})
+            peer_req = _Req({'X-Polari-Trace': 'abc/def'})
+            named_peer = _Req({'Origin': 'http://kitchen-node:3000'})
+            ip_req = _Req({'Origin': 'http://192.168.7.9:4200'})
+            for q in (origin_req, anon_req, peer_req, named_peer, ip_req):
+                mw.process_request(q, _Resp())
+            names = sorted(r['name'] for r in TR.policies(mi)['inbound'])
+            sources = {r['name']: (r['source_kind'], r['source']) for r in TR.policies(mi)['inbound']}
+            check('ct-9 INBOUND CLASSIFICATION: an Origin becomes `origin:<scheme>://<host>` with the port, the '
+                  'path and the query STRIPPED; a registered peer is its NAME; an `X-Polari-Trace` with no '
+                  'registered sender is still a peer (`unregistered`); no Origin at all is the class '
+                  '`anonymous`; and an IP-LITERAL Origin collapses to the class `ip-literal` — a raw address '
+                  'NEVER lands in a row',
+                  names == ['anonymous|anonymous', 'origin|https://app.example', 'origin|ip-literal',
+                            'peer|kitchen-node', 'peer|unregistered']
+                  and sources['origin|https://app.example'] == ('origin', 'https://app.example')
+                  and sources['origin|ip-literal'] == ('origin', 'ip-literal')
+                  and not any('192.168' in v[1] for v in sources.values()),
+                  names)
+            check('ct-9: the normaliser itself — scheme + host only, a bare IPv4 or IPv6 host is `ip-literal`, '
+                  'and a `null` Origin is nothing at all',
+                  TM.normalise_origin('https://App.Example:8443/x?y=1') == 'https://app.example'
+                  and TM.normalise_origin('http://10.0.0.4') == 'ip-literal'
+                  and TM.normalise_origin('http://[fe80::1]:80') == 'ip-literal'
+                  and TM.normalise_origin('null') == '' and TM.normalise_origin('') == '',
+                  TM.normalise_origin('https://App.Example:8443/x?y=1'))
+
+            # ---- the paths are TEMPLATES, refined in process_resource, and capped at 50
+            res_req = _Req({'Origin': 'https://app.example'}, path='/api/MealEntry/m-1')
+            mw.process_request(res_req, _Resp())     # falcon has not routed yet: no template, no path recorded
+            res_req.uri_template = '/api/MealEntry/{id}'
+            mw.process_resource(res_req, _Resp(), None, {})
+            for i in range(60):
+                TR.note_inbound_path(mi, 'origin|https://app.example', 'GET /api/Thing%d/{id}' % i)
+            paths = json.loads([r for r in TR.policies(mi)['inbound']
+                                if r['name'] == 'origin|https://app.example'][0]['paths_json'])
+            check('ct-9: an inbound row remembers the endpoint TEMPLATE falcon resolved (refined in '
+                  '`process_resource`, exactly as ct-0 refines the cause), never the real path — and the list '
+                  'is capped at 50 so a crawler cannot grow a row without bound',
+                  paths[0] == 'GET /api/MealEntry/{id}' and not any('m-1' in p for p in paths)
+                  and len(paths) == TR.MAX_PATHS, (len(paths), paths[:3]))
+
+            # ---- the inbound ladder at the middleware: advisory warns, enforce refuses BEFORE the responder
+            os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+            TM.drain_advisories()
+            adv_req, adv_resp = _Req({'Origin': 'https://app.example'}), _Resp()
+            mw.process_request(adv_req, adv_resp)
+            in_adv = TM.advisories()
+            os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+            enf_req = _Req({'Origin': 'https://app.example'})
+            try:
+                mw.process_request(enf_req, _Resp())
+                in_refused = None
+            except falcon.HTTPForbidden as exc:
+                in_refused = exc
+            health_req = _Req({'Origin': 'https://app.example'}, path='/api/health')
+            door_req = _Req({'Origin': 'https://app.example'}, path='/api/security/traffic')
+            never = []
+            for q in (health_req, door_req):
+                try:
+                    mw.process_request(q, _Resp())
+                except falcon.HTTPForbidden:
+                    never.append(q.path)
+            check('ct-9 THE INBOUND LADDER: `advisory` lets the caller in and parks the would-deny; `enforce` is '
+                  'a 403 raised from `process_request`, BEFORE the responder runs, with the evidence — and two '
+                  'doors are never refused whatever the mode, so an enforcing instance cannot lock its own '
+                  'administrator out of the door that confirms the policy',
+                  in_adv == ['would-deny inbound origin:https://app.example'] and in_refused is not None
+                  and 'would-deny inbound origin:https://app.example' in str(in_refused.description)
+                  and '/api/security/traffic/inbound/' in str(in_refused.description) and never == [],
+                  (in_adv, never))
+
+            # ---- confirming an inbound source, and the DECLARED flows the topology draws
+            TR.confirm_inbound(mi, 'origin|https://app.example', admin, 'confirmed')
+            allowed_req = _Req({'Origin': 'https://app.example'})
+            mw.process_request(allowed_req, _Resp())
+            flows = TR.declared_flows(mi)
+            out_flows = TR.declared_flows(m)
+            check('ct-9: a CONFIRMED inbound source is let in under `enforce`, and `declared_flows` answers the '
+                  'topology (design §7) one entry per confirmed row — direction, the counterpart, the wire, the '
+                  'classes and the §2 node string; an inbound entry carries its templates and an honestly EMPTY '
+                  'class list, because what a caller sends is an object edge, not traffic',
+                  allowed_req.context.traffic['allowed'] is True and len(flows) == 1
+                  and flows[0]['direction'] == 'inbound' and flows[0]['source'] == 'origin:https://app.example'
+                  and flows[0]['node'] == 'inbound:origin:https://app.example' and flows[0]['classes'] == []
+                  and 'GET /api/MealEntry/{id}' in flows[0]['paths'] and flows[0]['confirmed_by'] == SUB
+                  and out_flows == [], (flows, out_flows))
+            TR.confirm_outbound(m, 'odoo|main|json-rpc', admin, 'confirmed')
+            of = TR.declared_flows(m)
+            check('ct-9: a confirmed OUTBOUND row declares its edge with the system, the wire and the payload '
+                  'CLASSES that were observed crossing it — the `declared` half of the §7 drift report',
+                  len(of) == 1 and of[0]['direction'] == 'outbound' and of[0]['system'] == 'odoo:main'
+                  and of[0]['node'] == 'external:odoo:main' and of[0]['means'] == 'json-rpc'
+                  and of[0]['classes'] == ['ProductOrder', 'StockMove'] and of[0]['provenance'] == 'declared',
+                  of)
+
+            # ---- the suggestion list IS the monitoring
+            sug = TR.suggestions(mi)
+            check('ct-9: `suggestions` is the monitoring — every row nobody has ruled on, busiest first, with '
+                  'its count and what derived it, and it does NOT list the one already confirmed',
+                  all(r['state'] == 'suggested' for r in sug['inbound'])
+                  and 'origin|https://app.example' not in [r['name'] for r in sug['inbound']]
+                  and sug['inbound'][0]['count'] >= sug['inbound'][-1]['count']
+                  and 'dev posture' in sug['inbound'][0]['derived_from'], [r['name'] for r in sug['inbound']])
+
+            # ---- the doors, and the §54 route guard for the four new suffixes
+            class _Falcon:
+                def __init__(self): self.routes = []
+                def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+            class _Srv:
+                def __init__(self): self.falconServer = _Falcon()
+            srv = _Srv()
+            from security.security_api import SecurityAPI as _API
+            probe = _API(polServer=srv, manager=None)
+            traffic_routes = [(u, sfx) for u, sfx in srv.falconServer.routes
+                              if u.startswith('/api/security/traffic')]
+            check('§54 guard: the four ct-9 doors register and each has its on_<method>_<suffix> responder — a '
+                  'drifted suffix RAISES from add_route() and takes the backend down at boot',
+                  traffic_routes == [('/api/security/traffic', 'traffic'),
+                                     ('/api/security/traffic/declared', 'traffic_declared'),
+                                     ('/api/security/traffic/outbound/{name}', 'traffic_outbound'),
+                                     ('/api/security/traffic/inbound/{name}', 'traffic_inbound')]
+                  and all(any(hasattr(probe, 'on_%s_%s' % (mm, sfx)) for mm in ('get', 'post'))
+                          for _u, sfx in traffic_routes), traffic_routes)
+            probe.manager = mi
+            anon_r = _Resp(); probe.on_get_traffic(_ApiReq(), anon_r)
+            get_r = _Resp(); probe.on_get_traffic(_ApiReq(admin), get_r)
+            dec_r = _Resp(); probe.on_get_traffic_declared(_ApiReq(admin), dec_r)
+            no_r = _Resp(); probe.on_post_traffic_inbound(_ApiReq(plain, {'decision': 'confirmed'}),
+                                                         no_r, 'anonymous|anonymous')
+            yes_r = _Resp(); probe.on_post_traffic_inbound(_ApiReq(admin, {'decision': 'denied'}),
+                                                          yes_r, 'anonymous|anonymous')
+            check('ct-9 THE DOORS: GET /api/security/traffic needs a signed-in caller (401) and answers the '
+                  'policies, the suggestions, the declared flows and the mode; POST .../inbound/<name> is an '
+                  'administrator\'s ruling (403 otherwise) and lands the state with the person on it',
+                  anon_r.status.startswith('401') and get_r.media['ok']
+                  and get_r.media['mode'] == 'enforce' and 'suggestions' in get_r.media
+                  and 'closed by default' in get_r.media['how'] and dec_r.media['ok']
+                  and no_r.status.startswith('403') and yes_r.media['ok']
+                  and yes_r.media['policy']['state'] == 'denied'
+                  and yes_r.media['policy']['confirmed_by'] == SUB,
+                  (anon_r.status, no_r.status, yes_r.media))
+
+            # ---- the CORS expose list (a browser cannot READ a header that is not exposed — §51)
+            from polariApiServer.polariServer import CORSExtraHeadersMiddleware
+            cors = _Resp()
+            CORSExtraHeadersMiddleware().process_response(None, cors, None, True)
+            exposed = [h.strip() for h in cors.h.get('Access-Control-Expose-Headers', '').split(',')]
+            check('ct-9: the traffic advisory header is on the CORS EXPOSE list — a browser cannot read a '
+                  'response header cross-origin unless it is exposed, so an advisory nobody can read is no '
+                  'advisory at all (§51, the same reason the permission and owner advisories are there)',
+                  TM.TRAFFIC_ADVISORY_HEADER in exposed, exposed)
+        finally:
+            TM.drain_advisories()
+            os.environ.clear(); os.environ.update(old_env)
+
+
 def _ct2_checks(_types, check):
     """ct-2 — THE REMAINING EVENT EDGES (design §3): emit, nested solution → solution, ws-publish, shared-db,
     bundle-export / bundle-install. Every hook is proven twice: it records under a TRACED chain, and records
@@ -1315,7 +1674,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('thirty-four row classes', len(SECURITY_CLASSES) == 34, str(len(SECURITY_CLASSES)))
+    check('thirty-six row classes (ct-9 added OutboundPolicy + InboundPolicy)', len(SECURITY_CLASSES) == 36, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -1345,7 +1704,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 34, all rows named', len(SECURITY_SEED_PAIRS) == 34 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 36, all rows named', len(SECURITY_SEED_PAIRS) == 36 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     # §54: every `actor` column on the security-events page is marked `person`, and the pages CONVERGE.
@@ -1741,6 +2100,7 @@ def main():
     _owned_checks(api, O, _Res, _types, check)
     _trace_checks(api, _Res, _types, check)
     _ct2_checks(_types, check)
+    _ct9_checks(_types, check)
     _closure_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)

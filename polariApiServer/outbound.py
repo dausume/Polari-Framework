@@ -38,12 +38,29 @@ The straggler guard (`selftest_outbound.py`) greps the tree for bare
 that is neither migrated nor listed with a reason — the migration is visible
 rather than assumed.
 
-NOT this slice: `OutboundPolicy` / `InboundPolicy` (closed-by-default traffic
-policies) are ct-9 and consult this seam later; ct-3 only observes.
+ct-9 (2026-09-19) added the fourth rule: **the policy is consulted BEFORE the
+call runs.** `security.custom.security_traffic.outbound_verdict` answers from
+the `OutboundPolicy` rows — closed by default, derived in dev from these very
+observations, confirmed by a person — and the mode (`POLARI_APP_PERMISSIONS`)
+decides what happens to the answer: `off` nothing, `advisory` a `would-deny`
+line on `X-Polari-Traffic-Advisory`, `enforce` an `OutboundRefused`. Rule 3
+still holds: an absent or broken policy allows the send, exactly as before.
 """
 
 import functools
 import inspect
+
+
+class OutboundRefused(RuntimeError):
+    """This send was refused by the ct-9 traffic policy before it ran.
+
+    Raised from `send()` / `wrap.__enter__()` ONLY when the gate mode is
+    `enforce` and no `confirmed` `OutboundPolicy` row allows the edge — his
+    "closed by default" (design §5a). It is a plain exception on the send
+    path, which every call site already handles: a refused send fails the way
+    an unreachable system fails, and says which row would have allowed it.
+    Under `advisory` nothing is raised and the send proceeds; under `off` the
+    verdict is not acted on at all."""
 
 #: design §2 — the external node kinds a `kind:ref` edge can name.
 SYSTEM_KINDS = ('keycloak', 'odoo', 'livekit', 'reticulum', 'engine',
@@ -127,6 +144,45 @@ def _record(system_kind, system_name, means, payload_classes, manager,
         pass
 
 
+# ---- the ct-9 traffic policy (lazy, tolerant, closed by default) --------
+
+def _policy_check(system_kind, system_name, means, payload_classes, manager):
+    """Consult `OutboundPolicy` BEFORE the send. Returns the verdict dict, or
+    None when there is no policy to consult (the module is not installed, or
+    it failed) — in which case the send proceeds exactly as it did in ct-3.
+
+    Refusing is the CALLER's job (`_refuse_if_enforced`) so that `send` and
+    `wrap` share one rule; recording the advisory under `advisory` mode is
+    done inside the verdict, which is the only frame that knows the reason."""
+    try:
+        from security.custom.security_traffic import outbound_verdict
+    except Exception:       # noqa: BLE001 — no security module: no policy
+        return None
+    try:
+        mgr = manager if manager is not None else process_manager()
+        return outbound_verdict(mgr, system_kind, system_name, means,
+                                list(payload_classes or ()))
+    except Exception:       # noqa: BLE001 — a broken gate never blocks a send
+        return None
+
+
+def _refuse_if_enforced(verdict, system_kind, system_name, means):
+    """Raise `OutboundRefused` when the policy says no AND the mode is
+    `enforce`. Every other combination returns None and the send proceeds."""
+    if not verdict or verdict.get('allowed'):
+        return None
+    if str(verdict.get('knob') or 'off') != 'enforce':
+        return None
+    raise OutboundRefused(
+        'outbound refused by policy: %s:%s over %s — %s '
+        '(POLARI_APP_PERMISSIONS=enforce, policy row %r is %s). An '
+        'administrator confirms it at POST /api/security/traffic/outbound/%s '
+        '{"decision": "confirmed"}.'
+        % (system_kind, system_name, means, verdict.get('why', ''),
+           verdict.get('name', ''), verdict.get('state') or 'absent',
+           verdict.get('name', '')))
+
+
 # ---- the seam -----------------------------------------------------------
 
 def send(system_kind, system_name, means, fn, *, payload_classes=(), url='',
@@ -137,7 +193,20 @@ def send(system_kind, system_name, means, fn, *, payload_classes=(), url='',
 
     `url` is accepted so call sites can pass what they are dialling without
     stashing it anywhere: it is NOT recorded (a URL can carry a key — see
-    `polariApiProfiler.endpoint_fetch.redact`) and never leaves this frame."""
+    `polariApiProfiler.endpoint_fetch.redact`) and never leaves this frame.
+
+    ct-9: the traffic policy is consulted FIRST. Under `enforce` a send no
+    confirmed row allows raises `OutboundRefused` and `fn` is never called —
+    the refusal is recorded as its own edge outcome, so the map shows the
+    send that did not happen."""
+    verdict = _policy_check(system_kind, system_name, means, payload_classes,
+                            manager)
+    try:
+        _refuse_if_enforced(verdict, system_kind, system_name, means)
+    except OutboundRefused:
+        _record(system_kind, system_name, means, payload_classes, manager,
+                'refused-by-policy')
+        raise
     try:
         result = fn()
     except BaseException as exc:
@@ -163,6 +232,17 @@ class wrap:
         self.manager = manager
 
     def __enter__(self):
+        """ct-9: the policy is consulted on the way IN, so an SDK send no
+        confirmed row allows never reaches the library under `enforce`."""
+        verdict = _policy_check(self.system_kind, self.system_name, self.means,
+                                self.payload_classes, self.manager)
+        try:
+            _refuse_if_enforced(verdict, self.system_kind, self.system_name,
+                                self.means)
+        except OutboundRefused:
+            _record(self.system_kind, self.system_name, self.means,
+                    self.payload_classes, self.manager, 'refused-by-policy')
+            raise
         return self
 
     def __exit__(self, exc_type, exc, tb):

@@ -544,11 +544,113 @@ def test_vocabulary():
           repr(outbound.MEANS))
 
 
+# =====================================================================
+# 6. THE ct-9 TRAFFIC POLICY (closed by default, consulted BEFORE the send)
+# =====================================================================
+
+def _install_traffic(verdict=None, raises=False):
+    """Stand in for ct-9's `security.custom.security_traffic`. The wrapper
+    must work with it, without it, and with a broken one."""
+    mod = types.ModuleType('security.custom.security_traffic')
+    calls = []
+
+    def outbound_verdict(manager, system_kind, system_name, means,
+                         payload_classes=()):
+        calls.append((system_kind, system_name, means, list(payload_classes)))
+        if raises:
+            raise RuntimeError('policy exploded')
+        return dict(verdict or {})
+
+    mod.outbound_verdict = outbound_verdict
+    for name in ('security', 'security.custom'):
+        if name not in sys.modules:
+            pkg = types.ModuleType(name)
+            pkg.__path__ = []
+            sys.modules[name] = pkg
+    sys.modules['security.custom'].security_traffic = mod
+    sys.modules['security.custom.security_traffic'] = mod
+    return calls
+
+
+def _uninstall_traffic():
+    sys.modules.pop('security.custom.security_traffic', None)
+    custom = sys.modules.get('security.custom')
+    if custom is not None and hasattr(custom, 'security_traffic'):
+        del custom.security_traffic
+
+
+REFUSED = {'allowed': False, 'rule': 'suggested', 'knob': 'enforce',
+           'name': 'odoo|main|json-rpc', 'state': 'suggested',
+           'why': 'closed by default'}
+
+
+def test_traffic_policy():
+    rec = FakeRecorder().install()
+    calls = _install_traffic(REFUSED)
+    ran = []
+    try:
+        outbound.send('odoo', 'main', 'json-rpc', lambda: ran.append(1),
+                      payload_classes=('ProductOrder',), manager='MGR')
+        refused = None
+    except outbound.OutboundRefused as exc:
+        refused = exc
+    check('ENFORCE: an unconfirmed send raises OutboundRefused and the call '
+          'never runs', refused is not None and not ran, repr(refused))
+    check('the refusal names the policy row and the door that confirms it',
+          'odoo|main|json-rpc' in str(refused)
+          and '/api/security/traffic/outbound/' in str(refused), str(refused))
+    check('the policy saw the same edge the recorder does',
+          calls == [('odoo', 'main', 'json-rpc', ['ProductOrder'])],
+          repr(calls))
+    check('a refused send is still an EDGE, recorded as refused-by-policy '
+          '(the map must show the send that did not happen)',
+          rec.calls and rec.calls[0][4] == 'refused-by-policy', repr(rec.calls))
+
+    rec = FakeRecorder().install()
+    ran = []
+    try:
+        with outbound.wrap('s3', 'artifacts', 's3', ('Artifact',)):
+            ran.append(1)
+        refused = None
+    except outbound.OutboundRefused as exc:
+        refused = exc
+    check('ENFORCE at `wrap`: an SDK send is refused on the way IN, so the '
+          'library is never reached, and it is recorded ONCE',
+          refused is not None and not ran and len(rec.calls) == 1
+          and rec.calls[0][4] == 'refused-by-policy', repr(rec.calls))
+
+    _install_traffic(dict(REFUSED, knob='advisory'))
+    out = outbound.send('odoo', 'main', 'json-rpc', lambda: 'sent')
+    check('ADVISORY: the same refusal proceeds (dev warns, never blocks)',
+          out == 'sent', repr(out))
+
+    _install_traffic(dict(REFUSED, knob='off'))
+    out = outbound.send('odoo', 'main', 'json-rpc', lambda: 'sent')
+    check('OFF: nothing acts on the verdict', out == 'sent', repr(out))
+
+    _install_traffic({'allowed': True, 'rule': 'confirmed', 'knob': 'enforce'})
+    out = outbound.send('odoo', 'main', 'json-rpc', lambda: 'sent')
+    check('ENFORCE + a CONFIRMED row: the send goes through', out == 'sent',
+          repr(out))
+
+    _install_traffic(REFUSED, raises=True)
+    out = outbound.send('odoo', 'main', 'json-rpc', lambda: 'sent')
+    check('a policy that BLOWS UP never blocks a send (a guard must not be '
+          'able to take the outbound path down)', out == 'sent', repr(out))
+
+    _uninstall_traffic()
+    out = outbound.send('odoo', 'main', 'json-rpc', lambda: 'sent')
+    check('an ABSENT traffic policy never changes the result (ct-3 behaviour '
+          'exactly)', out == 'sent', repr(out))
+    _uninstall_security_module()
+
+
 def main():
     for fn in (test_straggler_guard, test_recorder_contract, test_wrap,
                test_trace_header, test_http_request_urllib,
                test_http_request_requests, test_unknown_lib,
-               test_migrated_sites_import, test_vocabulary):
+               test_migrated_sites_import, test_vocabulary,
+               test_traffic_policy):
         try:
             fn()
         except Exception as exc:      # noqa: BLE001

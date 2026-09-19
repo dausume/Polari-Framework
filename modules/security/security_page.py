@@ -142,6 +142,19 @@ SEED_SECURITY_PAGE_DISPLAYS = [
                        '/api/security/observe/closure', pick='events')], min_height=280),
         _row(8, [_sapi('security-closure-flows', 0, 12, 'Where the objects GO — peer edges (shared-DB reads, lease writes, module bundles) and external sends, with the CLASSES that rode each one. Beyond the wrapper Polari cannot see, and does not pretend to',
                        '/api/security/observe/closure', pick='flows')], min_height=240),
+        # ---- ct-9: the TRAFFIC POLICIES. Closed by default; the rows are derived from dev monitoring, ruled
+        # on by a person, enforced in production. Configured tables over the rows themselves + one structured
+        # panel over the suggestion list (no raw JSON, no new component).
+        _row(9, [_sapi('security-traffic-suggestions', 0, 12, 'Traffic suggestions — the sends and the callers this instance OBSERVED that nobody has ruled on yet. This list IS the monitoring: confirm the ones that belong and deny the rest on the record, because under enforce everything unconfirmed is refused (closed by default)',
+                       '/api/security/traffic', pick='suggestions')], min_height=280),
+        _row(10, [_table('security-traffic-outbound', 0, 6, 'OutboundPolicy — what may leave this instance, per system and wire: the payload CLASSES observed crossing (never a payload, never a URL), the state, and the person who ruled. suggested = proposed and unruled, which is NOT a grant', 'OutboundPolicy',
+                         columns='system_kind,system_name,means,payload_classes_json,state,count,confirmed_by,confirmed_at,derived_from,first_seen,last_seen',
+                         column_formats='confirmed_by:person'),
+                  _table('security-traffic-inbound', 1, 6, 'InboundPolicy — who may call this instance: a peer NAME, an Origin host, or a class such as anonymous — never a raw address — with the endpoint TEMPLATES it was seen at', 'InboundPolicy',
+                         columns='source_kind,source,paths_json,state,count,confirmed_by,confirmed_at,derived_from,first_seen,last_seen',
+                         column_formats='confirmed_by:person')], min_height=280),
+        _row(11, [_sapi('security-traffic-declared', 0, 12, 'Declared flows — the CONFIRMED traffic policies as the object topology draws them: direction, the counterpart, the wire and the classes. An observed flow with no row here is drift',
+                        '/api/security/traffic/declared', pick='flows')], min_height=240),
     ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),

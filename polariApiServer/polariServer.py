@@ -373,6 +373,7 @@ from accessControl.polariUser import User
 from accessControl.auth_middleware import AuthContextMiddleware
 from accessControl.cause_middleware import CauseContextMiddleware
 from accessControl.roleplay_observer import RoleplayObserverMiddleware
+from accessControl.traffic_middleware import TrafficPolicyMiddleware
 from wsgiref import simple_server
 import falcon
 import secrets
@@ -411,10 +412,12 @@ class CORSExtraHeadersMiddleware:
         # X-Polari-Auth says the bearer was refused (expired session, not a
         # permission problem) and X-Polari-Permission-Advisory says what an
         # enforcing instance would have denied. X-Polari-Owner-Advisory (op-0)
-        # says the same for the per-row owner rules.
+        # says the same for the per-row owner rules. X-Polari-Traffic-Advisory
+        # (ct-9) says which outbound send or inbound caller an ENFORCING
+        # instance would have refused for want of a confirmed traffic policy.
         resp.set_header('Access-Control-Expose-Headers',
                         'X-Polari-Auth, X-Polari-Permission-Advisory, '
-                        'X-Polari-Owner-Advisory')
+                        'X-Polari-Owner-Advisory, X-Polari-Traffic-Advisory')
         resp.set_header('Access-Control-Max-Age', '86400')
 
 class apiError(Exception):
@@ -481,6 +484,13 @@ class polariServer(treeObject):
                 # and BEFORE RoleplayObserverMiddleware and the CRUDE gate
                 # (they run inside the chain).
                 CauseContextMiddleware(),
+                # ct-9 (2026-09-19): the INBOUND half of the traffic policy
+                # — classify the caller (peer name / Origin host / anonymous,
+                # NEVER an address), count it into an InboundPolicy row in
+                # dev, and follow the one gate ladder: off nothing, advisory
+                # a would-deny header, enforce a 403 before the responder.
+                # Right after the cause so a refusal is still inside a chain.
+                TrafficPolicyMiddleware(self),
                 # dev-mode role-play (2026-09-16): X-Polari-Roleplay → req.context.roleplay; endpoints used are counted per role
                 RoleplayObserverMiddleware(self),
                 ModuleLoadingMiddleware(self),
@@ -1242,6 +1252,9 @@ class polariServer(treeObject):
             OwnedClassPolicy,
             # ct-1: causal tracing — the one armed target and the causal map
             TraceTarget, CausalEdge,
+            # ct-9: the traffic policies — what may leave and who may call,
+            # closed by default, suggested from dev monitoring (design §5a)
+            OutboundPolicy, InboundPolicy,
             # iso-1: the ISO arc's rows
             IsoBase, DeviceProbe, IsoBuild]
         # modsplit-1: each instance registers ONLY its assigned

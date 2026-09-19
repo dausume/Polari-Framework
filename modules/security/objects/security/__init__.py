@@ -35,3 +35,5 @@ from security.objects.security.RolePrototype import RolePrototype  # noqa: F401
 from security.objects.security.OwnedClassPolicy import OwnedClassPolicy  # noqa: F401
 from security.objects.security.TraceTarget import TraceTarget  # noqa: F401
 from security.objects.security.CausalEdge import CausalEdge  # noqa: F401
+from security.objects.security.OutboundPolicy import OutboundPolicy  # noqa: F401
+from security.objects.security.InboundPolicy import InboundPolicy  # noqa: F401

@@ -27,6 +27,13 @@
                                coverage block + `not_traced`: a class nobody armed answers NOT TRACED, never "nothing".
 /api/security/trace/edges      [?target=|cause=|effect=|means=] Ledger A — the causal MAP: cause → effect by means, counted, class-level only
 /api/security/trace/journal    [?trace_id=|class=] Ledger B — the effect JOURNAL: which instances a traced chain wrote, cleared on the next arm
+/api/security/traffic          ct-9, design §5a — the traffic policies, CLOSED BY DEFAULT: `OutboundPolicy`
+                               (what may leave, per system × wire) and `InboundPolicy` (who may call), each
+                               suggested | confirmed | denied, plus the `suggestions` derived from dev-posture
+                               monitoring and the gate mode that decides what they mean. Signed in to read.
+/api/security/traffic/outbound/{name}   POST {"decision": "confirmed"|"denied"} — a PERSON rules (admins only;
+/api/security/traffic/inbound/{name}    the `sub` alone is stored; nothing confirms itself, 401 without one)
+/api/security/traffic/declared ct-9 — the confirmed rows as DECLARED flows for the object topology (§7)
 /api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
 /api/security/roles/claim      POST {role} join that group; DELETE ?role= leave it — self-service, never an admin role (§17b D17-5)
 /api/security/people/{sub}     GET a Keycloak subject id → {display_name, username}, resolved LIVE from Keycloak and never stored.
@@ -110,6 +117,10 @@ class SecurityAPI(treeObject):
             add('/api/security/roles/claim', self, suffix='roles_claim')            # POST {role} join the KC group; DELETE ?role= leave it
             add('/api/security/people', self, suffix='people_batch')                # the SAME door, for a page: POST {subs: [...]} (max 200), the gate applied per sub
             add('/api/security/people/{sub}', self, suffix='people')                # THE ONE GATED DOOR: a Keycloak `sub` → a display name, resolved LIVE, never stored (D18-1)
+            add('/api/security/traffic', self, suffix='traffic')                    # ct-9: the traffic policies + the suggestions derived from dev monitoring + the mode
+            add('/api/security/traffic/declared', self, suffix='traffic_declared')  # ct-9: the CONFIRMED rows as declared flows (the §7 topology's declared edges)
+            add('/api/security/traffic/outbound/{name}', self, suffix='traffic_outbound')  # ct-9: POST {decision: confirmed|denied} — a PERSON rules (admins only)
+            add('/api/security/traffic/inbound/{name}', self, suffix='traffic_inbound')    # ct-9: the same, for who may call this instance
             add('/api/security/owned', self, suffix='owned')                        # op-0: the classes whose OWNER defines the rules, and their policies
             add('/api/security/owned/{class_name}', self, suffix='owned_class')     # GET one policy; POST (ADMIN_ROLES) set or replace it
             add('/api/security/owned/{class_name}/{object_id}', self, suffix='owned_instance')   # GET the CALLER's verdict on one instance
@@ -804,6 +815,52 @@ class SecurityAPI(treeObject):
     # "Owner defined permissions would be something we typically want specifically enabled per object though,
     # not something we enable by default." So: nothing is owned until a policy row here says so, and the
     # verdict door explains, per instance, what the caller may do and which fields they would see.
+
+    # ---- THE TRAFFIC POLICIES (ct-9, design §5a) ---------------------------------------------------------
+    # "Outbound guard should be tracked in dev as well, and it should be closed by default; we should suggest
+    # outbound and inbounds based on our monitoring of traffic in and out of polari" (2026-09-18). Reading is
+    # for anyone signed in; RULING is an administrator's act and stores their `sub` alone — nothing confirms
+    # itself, and a `suggested` row is a proposal, never a grant.
+
+    def on_get_traffic(self, request, response):
+        from security.custom.security_traffic import summary
+        if not self._sub(request):
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: the traffic policies say what may leave this instance and who '
+                                'may call it, which is not an anonymous question')
+        response.media = summary(self.manager)
+
+    def on_get_traffic_declared(self, request, response):
+        """The CONFIRMED rows as declared flows — what the §7 object topology draws as `declared` edges beside
+        the `observed` ones from the causal map, and what ct-8 rules on as `flow-declared` / `inbound`."""
+        from security.custom.security_traffic import declared_flows, mode
+        rows = declared_flows(self.manager)
+        response.media = {
+            'ok': True, 'mode': mode(), 'count': len(rows), 'flows': rows,
+            'how': ('one entry per CONFIRMED policy row: outbound entries carry the system and the payload '
+                    'CLASSES that were observed crossing; inbound entries carry the source and the endpoint '
+                    'templates it was seen at, and their `classes` are honestly empty — what a caller sends is '
+                    'known only once it reaches a class, and the causal map records that as an object edge, '
+                    'not as traffic. Nothing here is observed: an observed flow with no confirmed row is drift, '
+                    'and the topology says so by comparing this list with the map.')}
+
+    def _rule_traffic(self, request, response, direction, name):
+        from security.custom import security_traffic as TR
+        fn = TR.confirm_outbound if direction == 'outbound' else TR.confirm_inbound
+        r = fn(self.manager, name, self._user_info(request), (self._body(request).get('decision') or ''))
+        if not r.get('ok'):
+            status = {400: '400 Bad Request', 401: '401 Unauthorized', 403: '403 Forbidden',
+                      404: '404 Not Found'}.get(int(r.get('status') or 403), '403 Forbidden')
+            return self._refuse(response, status, r.get('refusal', ''), **{'policy': name})
+        response.media = r
+
+    def on_post_traffic_outbound(self, request, response, name):
+        """POST {"decision": "confirmed"|"denied"} — a person rules on what may leave, on the record."""
+        self._rule_traffic(request, response, 'outbound', name)
+
+    def on_post_traffic_inbound(self, request, response, name):
+        """POST {"decision": "confirmed"|"denied"} — a person rules on who may call."""
+        self._rule_traffic(request, response, 'inbound', name)
 
     def on_get_owned(self, request, response):
         from security.custom.security_owned import policies

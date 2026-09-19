@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, TraceTarget, CausalEdge, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, TraceTarget, CausalEdge, OutboundPolicy, InboundPolicy, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -168,6 +168,11 @@ SECURITY_SEED_PAIRS = [
     ('OwnedClassPolicy', OwnedClassPolicy, SEED_OWNED_CLASS_POLICIES),   # op-0: the classes whose OWNER defines the rules
     ('TraceTarget', TraceTarget, []),                       # ct-1: the ONE armed class, its budgets and its counters (a row per class ever traced = the coverage)
     ('CausalEdge', CausalEdge, []),                         # ct-1: Ledger A, the causal MAP — cause → effect by means, counted, never duplicated
+    # ct-9 (design §5a): the traffic policies. NEVER seeded — closed by default means the table starts EMPTY and
+    # every row is either derived from dev monitoring (state `suggested`) or ruled on by a person. A seeded
+    # allow-list would be a grant nobody made.
+    ('OutboundPolicy', OutboundPolicy, []),
+    ('InboundPolicy', InboundPolicy, []),
 ]
 
 if __name__ == '__main__':

@@ -27,6 +27,8 @@ from accessControl.cause_context import (
     root_cause,
 )
 from accessControl.roleplay_observer import roleplay_of
+from accessControl.traffic_middleware import (TRAFFIC_ADVISORY_HEADER,
+                                              drain_advisories)
 
 
 class CauseContextMiddleware:
@@ -78,10 +80,25 @@ class CauseContextMiddleware:
             pass
 
     def process_response(self, req, resp, resource, req_succeeded):
+        """Pop the cause, and emit ct-9's traffic advisories.
+
+        A `would-deny` from the outbound wrapper happens deep inside a send
+        with no response in reach, and one from the inbound gate happens
+        before the responder runs; both park a line through
+        `traffic_middleware.advise()` (on the cause dict when there is one,
+        and always on a contextvar, because production posture mints no cause
+        at all). Draining here is the ONE place they reach the caller."""
         try:
             pop_cause(getattr(req.context, self.TOKEN_ATTR, None))
             setattr(req.context, self.TOKEN_ATTR, None)
         except Exception:      # noqa: BLE001
+            pass
+        try:
+            lines = drain_advisories()
+            if lines:
+                resp.set_header(TRAFFIC_ADVISORY_HEADER,
+                                '; '.join(lines)[:400])
+        except Exception:      # noqa: BLE001 — an advisory is never a failure mode
             pass
 
     @staticmethod
