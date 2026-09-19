@@ -703,6 +703,35 @@ def _owned_checks(api, O, _Res, _types, check):
         r = _Res(); api.on_get_owned_instance(_ReqO(owner_ui), r, 'Ballot', 'nope')
         check('an instance that does not exist is an honest 404, not a stack trace', r.status.startswith('404'))
 
+        # ---- N-6 (round-5 live proof): THE WAY BACK OUT. The door offered POST only, so `DELETE
+        # /api/security/owned/<Class>` was 405 and a throwaway opt-in was permanent — the live proof had to
+        # leave a disabled `TraceTarget` row behind, still counted in the listing, with no way to remove it.
+        r = _Res(); api.on_delete_owned_class(_ReqO(owner_ui), r, 'Ballot')
+        check('N-6: DELETE /api/security/owned/<Class> from a NON-admin is 403 — removing a policy changes what '
+              'every caller may do to every instance of the class, exactly as setting one does',
+              r.status.startswith('403') and 'administrator' in r.media['refusal'], r.media)
+        r = _Res(); api.on_delete_owned_class(_ReqO(admin_ui), r, 'NoSuchClass')
+        check('...a class nobody opted in is an honest 404, not a silent success',
+              r.status.startswith('404') and 'never opted in' in r.media['refusal'], r.media)
+        r = _Res(); api.on_delete_owned_class(_ReqO(admin_ui), r, 'UserAppPreference')
+        check('...and a class a MANIFEST still declares is REFUSED with the act that really removes it: op-4 '
+              'converges `app.owned` into a row on every read of GET /api/security/owned, so a delete here '
+              'would look like it worked and come straight back on the next read',
+              r.status.startswith('409') and 'polariapps' in r.media['refusal']
+              and 'app.owned' in r.media['refusal']
+              and W.policy_for(m, 'UserAppPreference') is not None, r.media)
+        W.set_policy(m, 'ThrowawayClass', {'enabled': True, 'owner_field': 'sub'}, by='admin-0')
+        before_throwaway = [p['class_name'] for p in W.policies(m, converge=False)]
+        r = _Res(); api.on_delete_owned_class(_ReqO(admin_ui), r, 'ThrowawayClass')
+        after_throwaway = [p['class_name'] for p in W.policies(m, converge=False)]
+        check('...while an ADMIN-set policy nothing declares is really removed — the row is gone from the '
+              'listing (not merely disabled), the class behaves exactly as it did before it was opted in, and '
+              'the removal is tombstoned so a persist in flight cannot write it back',
+              'ThrowawayClass' in before_throwaway and 'ThrowawayClass' not in after_throwaway
+              and r.media['ok'] and r.media['removed'] is True
+              and W.policy_for(m, 'ThrowawayClass') is None,
+              (before_throwaway, after_throwaway, r.media))
+
         # ---- §54 guard: the three new routes register against a fake falconServer
         class _Falcon:
             def __init__(self): self.routes = []
@@ -724,7 +753,10 @@ def _owned_checks(api, O, _Res, _types, check):
                                ('/api/security/owned/{class_name}/{object_id}/transfer', 'owned_transfer')]
               and all(any(hasattr(probe, 'on_%s_%s' % (mm, s)) for mm in ('get', 'post', 'put', 'delete'))
                       for _u, s in owned_routes)
-              and all(hasattr(probe, 'on_%s_owned_grants' % mm) for mm in ('get', 'post', 'delete')),
+              and all(hasattr(probe, 'on_%s_owned_grants' % mm) for mm in ('get', 'post', 'delete'))
+              # N-6: the class door now answers all three verbs, and a responder falcon cannot find raises
+              # from add_route() at boot — which is exactly why this guard exists
+              and all(hasattr(probe, 'on_%s_owned_class' % mm) for mm in ('get', 'post', 'delete')),
               owned_routes)
     finally:
         os.environ.clear(); os.environ.update(old_env)
@@ -1994,6 +2026,54 @@ def _ct9_checks(_types, check):
                   and TR.tree_ready(_types.SimpleNamespace(objectTables={}, definitionsRestored=False)) is False
                   and TR.tree_ready(None) is False)
 
+            # ---- §66 addendum 6: THE FLAG IS NOT PER-CLASS, AND THAT IS WHAT BEAT §66b.
+            # Round-5 live proof, twice: two `confirmed` InboundPolicy rows verified in sqlite, a forced
+            # restart, and the next boot logged `[DB] Restoring 1 instances of InboundPolicy` — this boot's
+            # `suggested` row, with this boot's count. `definitionsRestored` goes True after the CORE restore,
+            # but `InboundPolicy` belongs to the SECURITY module and comes back later at admission. In that
+            # window the swarm's anonymous health probe wrote a row, the debounce persisted it over the two on
+            # disk, and the restore that followed had nothing left to restore or merge. The core half of the
+            # fix holds the PERSIST back; this half stops the row being written at all, so the parked count
+            # lands ON the restored ruling instead of beside it.
+            TR._PENDING.clear()
+            late = _M()
+            late.definitionsRestored = True             # the CORE restore is done…
+            late.classesPendingRestore = lambda names=None: (        # …but this class's is not
+                {'InboundPolicy'} & set(names if names is not None else ('InboundPolicy',)))
+            late_mw = TM.TrafficPolicyMiddleware(_types.SimpleNamespace(manager=late))
+            for _ in range(3):
+                late_mw.process_request(_Req({}, path='/api/health'), _Resp())
+            late_during = TR._rows(late, 'inbound')
+            late_parked = dict(TR._PENDING)
+            out_ok = TR.outbound_verdict(late, 'keycloak', 'Polari', 'rest')   # the OTHER table is ready
+            late_held, out_ready = (TR.tree_ready(late, 'InboundPolicy'),
+                                    TR.tree_ready(late, 'OutboundPolicy'))
+            late.classesPendingRestore = lambda names=None: set()   # admission has now restored it
+            _nr2(late, late.objectTables, 'InboundPolicy', _IP,
+                 {'name': 'anonymous|anonymous', 'source_kind': 'anonymous', 'source': 'anonymous',
+                  'paths_json': '[]', 'state': 'confirmed', 'derived_from': 'restored', 'confirmed_by': SUB,
+                  'confirmed_at': '2026-09-19T00:00:00Z', 'count': 43,
+                  'first_seen': '2026-09-18T00:00:00Z', 'last_seen': ''})
+            late_mw.process_request(_Req({}, path='/api/health'), _Resp())
+            late_rows = TR.policies(late)['inbound']
+            check('ct-9 §66 addendum 6 (round-5 live proof, reproduced twice): `definitionsRestored` is ONE '
+                  'flag for the core restore, and `InboundPolicy` is the security module\'s — so between '
+                  'core-ready and security-admitted the flag said "ready" while the table was still on disk '
+                  'unread. `tree_ready` now asks the manager whether THIS class is still owed a restore: the '
+                  'health probe is parked instead of written, and its count lands ON the restored confirmed '
+                  'row (43 + 4 = 47) rather than replacing it',
+                  late_held is False
+                  and late_during == [] and list(late_parked) == [('inbound', 'anonymous|anonymous')]
+                  and len(late_rows) == 1 and late_rows[0]['state'] == 'confirmed'
+                  and late_rows[0]['confirmed_by'] == SUB and late_rows[0]['count'] == 47,
+                  (late_during, list(late_parked), late_rows))
+            check('ct-9 §66 addendum 6: the hold is PER CLASS, not a boot-wide stop — `OutboundPolicy`, whose '
+                  'own table IS restored, keeps deriving its suggestions in the very same window, and a '
+                  'manager that carries no such bookkeeping at all (every test double, every module holding '
+                  'its own tree) is ready by definition',
+                  out_ok['state'] == 'suggested' and out_ready is True
+                  and TR.tree_ready(_M(), 'InboundPolicy') is True, out_ok)
+
             # ---- §66d: ONE ROW PER NAME. Found live after a restart: `anonymous|anonymous` existed TWICE,
             # ('confirmed', 14) beside ('suggested', 7) — the boot-time flush found no restored row YET (the
             # class's own restore had not run) and made its own. The readiness flag cannot be trusted to be
@@ -2358,6 +2438,7 @@ def _ct5_checks(api, _Res, _types, check):
     from security.custom import security_objects_view as OV
     from security.custom import security_topology as TP
     from security.custom import security_trace as T
+    from security.custom import security_traffic as TR9
 
     class _Req:
         def __init__(self, ui=None, **params):
@@ -2476,7 +2557,7 @@ def _ct5_checks(api, _Res, _types, check):
                   'row',
                   ('s3', 'appstore') in undeclared and ('peer', 'kitchen-node') in undeclared
                   and ('odoo', 'main') not in undeclared
-                  and ('keycloak', 'realm') in unexercised
+                  and ('keycloak', '') in unexercised
                   and all('FINDING' in u['finding'].upper() for u in _drift_items(d, 'observed_not_declared')),
                   (sorted(undeclared), sorted(unexercised)))
             by_app = {a['app']: a for a in d['by_app']}
@@ -2499,6 +2580,97 @@ def _ct5_checks(api, _Res, _types, check):
                   'm-1' not in blob and '://' not in blob and '192.168' not in blob
                   and all(':' not in (e['payload'] or '') for e in g['edges'])
                   and all('×' in e['payload'] or not e['payload'] for e in g['edges']))
+
+            # ---- D-2 (round-5 live proof): the check above could not catch it, because the declared sources
+            # this fixture carried had no ORIGIN row. The moment a browser uses the stack and an admin confirms
+            # the origin — the normal outcome — the view printed the URL verbatim:
+            #     external:origin:https://prf.<lan>.nip.io   as a node, a node TITLE, an edge target,
+            #                                                a drift entry AND a summary row
+            # and on a nip.io host that string is a hostname AND the LAN address it encodes. So the fixture now
+            # carries both shapes of origin and the whole answer is walked recursively.
+            os.environ['CORS_ORIGINS'] = 'https://mine.example,https://www.mine.example'
+            OV.own_origins(refresh=True)
+            _inb = {'paths_json': '["GET /api/health"]', 'state': 'confirmed',
+                    'derived_from': 'observed request', 'confirmed_by': SUB, 'count': 43,
+                    'confirmed_at': '2026-09-19T00:00:00Z', 'first_seen': '2026-09-19T00:00:00Z',
+                    'last_seen': '2026-09-19T00:00:00Z'}
+            m.objectTables['InboundPolicy']['i1'] = _types.SimpleNamespace(
+                name='origin|https://prf.192-168-0-9.nip.io', source_kind='origin',
+                source='https://prf.192-168-0-9.nip.io', **_inb)
+            m.objectTables['InboundPolicy']['i2'] = _types.SimpleNamespace(
+                name='origin|https://mine.example', source_kind='origin',
+                source='https://mine.example', **_inb)
+            m.objectTables['InboundPolicy']['i3'] = _types.SimpleNamespace(
+                name='anonymous|anonymous', source_kind='anonymous', source='anonymous', **_inb)
+            check('ct-5 D-2: an inbound ORIGIN is COARSENED before it is rendered — `<scheme>:this-instance` '
+                  'when the host is one this deployment configured as its own (the CORS allow-list is that '
+                  'statement) and `<scheme>:other` otherwise. Every other source kind is already a NAME or a '
+                  'CLASS (a PeerNode name, `anonymous`, `ip-literal`) and passes through untouched',
+                  OV.coarsen_source('origin', 'https://mine.example') == 'https:this-instance'
+                  and OV.coarsen_source('origin', 'http://www.mine.example:4200') == 'http:this-instance'
+                  and OV.coarsen_source('origin', 'https://prf.192-168-0-9.nip.io') == 'https:other'
+                  and OV.coarsen_source('origin', 'ip-literal') == 'ip-literal'
+                  and OV.coarsen_source('anonymous', 'anonymous') == 'anonymous'
+                  and OV.coarsen_source('peer', 'kitchen-node') == 'kitchen-node'
+                  and OV.coarsen_source('origin', 'not a url at all') == 'other',
+                  (OV.own_origins(), OV.coarsen_source('origin', 'https://mine.example')))
+            _answers = {'build': TP.build('objects', 'dev', 'today', manager=m),
+                        'drift': OV.drift(m),
+                        'simulate': TP.simulate('objects', 'dev', 'this instance', 'today', manager=m),
+                        'compare': TP.compare('objects', 'today', manager=m)}
+            _leaks = {}
+            for _name, _answer in _answers.items():
+                _bad = [s for s in _strings_in(_answer)
+                        if 'nip.io' in s or '192-168-0-9' in s or '192.168' in s or 'mine.example' in s
+                        or '://' in s]
+                if _bad:
+                    _leaks[_name] = _bad[:3]
+            _titles = {n['title'] for n in _answers['build']['nodes'] if n['kind'] == 'external'}
+            check('ct-5 D-2: with TWO confirmed origin rows on the tree, NOTHING host-like survives anywhere in '
+                  '`build`, `drift`, `simulate` or `compare` — walked recursively, node titles, edge targets, '
+                  'drift entries, summary rows, readings and all. The view keeps its own promise ("no hostname '
+                  'and no address appears on this view"), and the exact origin stays where a person rules on '
+                  'it: GET /api/security/traffic, signed in',
+                  _leaks == {} and 'external:origin:https:this-instance' in _titles
+                  and 'external:origin:https:other' in _titles, (_leaks, sorted(_titles)))
+            check('ct-5 D-2: and the traffic door still carries the EXACT origin — coarsening the topology must '
+                  'not blind the one reading a person confirms on',
+                  any(row['source'] == 'https://prf.192-168-0-9.nip.io'
+                      for row in TR9.policies(m)['inbound']),
+                  [r['source'] for r in TR9.policies(m)['inbound']])
+
+            # ---- N-3: a manifest declaration names a system KIND, never a host — so it must match the system
+            # the instance really talks to instead of standing up a node of its own. Live, `app.flows:security`
+            # said `name: "realm"` and the traffic said `Polari`: two nodes for one Keycloak, the declared one
+            # permanently `blocked` under enforce and permanently listed as DECLARED, NEVER OBSERVED.
+            m.objectTables['OutboundPolicy']['o3'] = _types.SimpleNamespace(
+                name='keycloak|Polari|rest', system_kind='keycloak', system_name='Polari', means='rest',
+                payload_classes_json='[]', state='confirmed', derived_from='observed send',
+                confirmed_by=SUB, confirmed_at='2026-09-19T00:00:00Z', count=12,
+                first_seen='2026-09-19T00:00:00Z', last_seen='2026-09-19T00:00:00Z')
+            g2 = TP.build('objects', 'dev', 'enforce', manager=m)
+            _kc_nodes = sorted(n['node'] for n in g2['nodes'] if n['node'].startswith('external:keycloak'))
+            _kc_chain = next((e['chain'] for e in g2['edges'] if e['target'] == 'external:keycloak:Polari'), [])
+            check('ct-5 N-3: a manifest flow that names NO system matches every system of that kind the '
+                  'instance really talks to — ONE `external:keycloak:Polari` node carrying both statements, not '
+                  'a phantom `external:keycloak:realm` beside it that no traffic could ever match',
+                  _kc_nodes == ['external:keycloak:Polari']
+                  and any(s['system'] == 'app-flows' and s['decision'] == 'allowed' for s in _kc_chain),
+                  (_kc_nodes, [(s['system'], s['decision']) for s in _kc_chain]))
+
+            # ---- N-4: `app.flows` is an OUTBOUND vocabulary (design §9), so nothing in a manifest can ever
+            # declare who may CALL a deployment. Live, that left every person-confirmed INBOUND row reading
+            # `logged` under enforce — the app-flows step logged a finding before the traffic policy allowed it.
+            _in_edges = [e for e in g2['edges'] if e['target'].startswith('external:origin:')
+                         or e['target'] == 'external:anonymous:anonymous']
+            check('ct-5 N-4: under ENFORCE a person-confirmed INBOUND flow reads `allowed`, not `logged`. '
+                  'Design §7 counts "a traffic policy a person confirmed" as a declaration in its own right, '
+                  'and for an inbound flow it is the ONLY declaration there can be — so the app-flows step '
+                  'names the confirmed row instead of logging a finding nobody could ever answer',
+                  _in_edges and all(e['verdict'] == 'allowed' for e in _in_edges)
+                  and all(any(s['system'] == 'app-flows' and s['decision'] == 'allowed'
+                              and 'OUTBOUND vocabulary' in s['note'] for s in e['chain']) for e in _in_edges),
+                  [(e['target'], e['verdict']) for e in _in_edges])
 
             # ---- simulate, incl. the per-profile reading design §7 asks for
             m.objectTables['AppPermissionProfile']['p1'] = _types.SimpleNamespace(
@@ -2560,6 +2732,46 @@ def _ct5_checks(api, _Res, _types, check):
                   and r_sim.media['ok'] and r_sim.media['actor'] == 'this instance',
                   (r_top.media.get('view'), r_dr.media.get('counts')))
 
+            # ---- N-2 (round-5 live proof): the OBSERVED half could not be exercised by ANY door.
+            # `record_edge` is a no-op unless the chain is already traced; a chain becomes traced only where
+            # `touch` is called; and `touch` lived at the CRUDE gate, the STOMP gate, the dispatcher, the
+            # transport mux and remote hydration — none of which an outbound send passes. So an observed
+            # external edge needed one request that BOTH passes the gate for the armed class AND sends
+            # outbound, and no door on the instance did both: `/api/security/people/{sub}` reads no Polari
+            # class at all, and the claim doors read `RolePrototype` DIRECTLY rather than through CRUDE
+            # (`traces_opened 0, edges_written 0`, `drift.counts.observed` 0 for the whole live run).
+            from polariApiServer import outbound as OB5
+            from security.custom import security_claims as C5
+            T.disarm(m, 'manual')
+            m2 = _TraceM()
+            m2.objectTables.setdefault('RolePrototype', {})
+            T.arm(m2, 'RolePrototype', user_info=admin)
+            os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+            tok2 = CC.root_cause('api', 'DELETE /api/security/roles/claim', actor=SUB)
+            try:
+                allowed_claim, _why_claim, _entry = C5.may_claim(
+                    m2, {'sub': SUB, 'roles': ['polari-viewer'], 'raw_claims': {'groups': []}}, 'journalist')
+                OB5.send('keycloak', 'Polari', 'rest', lambda: 'resolved', manager=m2)
+            finally:
+                CC.pop_cause(tok2)
+            target2 = T.coverage(m2)[0] if T.coverage(m2) else {}
+            obs2 = OV.observed(m2)
+            d2 = OV.drift(m2)
+            check('ct-5 N-2: the ONE door that both reads an armable class and leaves the instance now OPENS the '
+                  'chain where it really reads it — `security_claims` touches `RolePrototype`, the class the '
+                  'claim/release path actually reads. With it armed, a claim records the endpoint→object edge '
+                  'AND the keycloak send, so the observed half of this view is provable with a single request '
+                  'instead of being unreachable',
+                  allowed_claim is False                      # the role is not claimable on this double…
+                  and int(target2.get('traces_opened') or 0) >= 1    # …and the chain was traced all the same
+                  and any(o['kind'] == 'keycloak' for o in obs2)
+                  and d2['counts']['observed'] >= 1
+                  and any(e['cause'].startswith('endpoint:') and 'RolePrototype' in e['effect']
+                          for e in T.edges(m2)),
+                  (target2.get('traces_opened'), [(o['kind'], o['name']) for o in obs2],
+                   d2['counts'].get('observed')))
+            T.disarm(m2, 'manual')
+
             class _Falcon:
                 def __init__(self): self.routes = []
                 def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
@@ -2590,9 +2802,28 @@ def _drift_items(drift_report, key):
     return drift_report.get(key) or []
 
 
+def _strings_in(value):
+    """Every string anywhere inside a nested answer — the only honest way to assert "this never appears on the
+    view". The round-5 live proof found a hostname in FOUR places at once (a node, a node title, an edge target,
+    a drift entry and a summary row) and a spot check on two of them would have passed."""
+    out = []
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            out.append(item)
+        elif isinstance(item, dict):
+            stack.extend(item.keys())
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple, set)):
+            stack.extend(item)
+    return out
+
+
 def _ct7_checks(api, O, _Res, _types, check):
     """ct-7 — TASKS AND NEEDS (design §8/§9): the session's task, the acts that carry it, the review grouped by
     task, the per-task verify verdict, and the `app.flows` manifest stanza with its validation."""
+    import json
     import os
     import tempfile
 
@@ -2696,6 +2927,14 @@ def _ct7_checks(api, O, _Res, _types, check):
                   and door['tasks'] == {'publish an article': 1, 'score a source': 1}
                   and TK.clean_task('  a\tb  ') == 'a b' and len(TK.clean_task('x' * 400)) == TK.TASK_MAX,
                   (article['tasks'], article['count'], door['tasks']))
+            check('ct-7 N-5 (round-5 live proof): the projection the DOORS send carries `tasks_json` too. The '
+                  'column was on the row and the CRUDE listing showed it, but `OBS_KEYS` / `USAGE_KEYS` left it '
+                  'out — so /api/security/observations answered `tasks_json: null` for every row and the ct-7 '
+                  'answer was invisible on the one door named for observations',
+                  json.loads(article['tasks_json']) == article['tasks']
+                  and json.loads(door['tasks_json']) == door['tasks']
+                  and 'tasks_json' in O.OBS_KEYS and 'tasks_json' in O.USAGE_KEYS,
+                  (article.get('tasks_json'), door.get('tasks_json')))
 
             # ---- the review, grouped by task
             rev = O.review(m, 'journalist')

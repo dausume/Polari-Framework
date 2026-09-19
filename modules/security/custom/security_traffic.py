@@ -229,16 +229,32 @@ PENDING_MAX = 200
 _PENDING = {}
 
 
-def tree_ready(manager):
+def tree_ready(manager, table=''):
     """Is the object tree restored enough to write a policy row?
 
     `polariServer` sets `definitionsRestored` False in its constructor and True after
     `_restoreDefinitionInstances` (§66b). A manager that never carries the attribute is not a server's — a
     test double, or a module holding its own — and is ready by definition: only an explicit False means
-    "this tree is still coming back from the database, do not touch it"."""
+    "this tree is still coming back from the database, do not touch it".
+
+    §66 addendum 6 adds the PER-CLASS half, and it is the one that was load-bearing live. That flag is one
+    boolean for the CORE restore; `InboundPolicy` belongs to the security module, whose rows come back later
+    at admission (`lazy_boot._admit`). So between core-ready and security-admitted the flag said "ready" while
+    this very table was still on disk unread — the swarm's anonymous health probe wrote a `suggested` row, the
+    debounce persisted it over the two rows the DB held, and the restore that followed found one row where
+    there had been two. Asking the manager whether THIS class is still owed a restore parks the observation
+    for those few seconds instead, and the parked count then lands ON the restored row through `_find`."""
     if manager is None or getattr(manager, 'objectTables', None) is None:
         return False
-    return getattr(manager, 'definitionsRestored', True) is not False
+    if getattr(manager, 'definitionsRestored', True) is False:
+        return False
+    if table:
+        try:
+            if table in (manager.classesPendingRestore((table,)) or ()):
+                return False
+        except Exception:               # noqa: BLE001 — a manager without the bookkeeping is ready
+            pass
+    return True
 
 
 def _park(direction, name, fields):
@@ -265,9 +281,18 @@ def flush_pending(manager):
     the buffer is cleared either way so it can never grow across a long production run. Never raises."""
     if not _PENDING or not tree_ready(manager):
         return 0
-    parked = list(_PENDING.items())
-    _PENDING.clear()
+    # §66 addendum 6: flush only the directions whose table is actually back.
+    # Flushing an unrestored one would put the parked count in the very place
+    # the restore is about to merge, which is the race this buffer exists to
+    # avoid — so those entries stay parked for one more read.
+    ready = {d for d in TABLES if tree_ready(manager, TABLES[d][0])}
+    if not ready:
+        return 0
+    parked = [item for item in _PENDING.items() if item[0][0] in ready]
+    for key, _entry in parked:
+        _PENDING.pop(key, None)
     if not observing():
+        _PENDING.clear()                # production derives nothing and parks nothing
         return 0
     heal_duplicates(manager)                # §66d: land ON the restored row, never beside it
     n = 0
@@ -314,7 +339,7 @@ def _verdict(manager, direction, name, observe_fn, park_fields):
     """The shared ladder. `observe_fn(row)` does the dev-posture write and returns the row (or None);
     `park_fields` is what to remember instead when there is no tree to write to yet (§66a/§66b)."""
     table, _keys = TABLES[direction]
-    if not tree_ready(manager):
+    if not tree_ready(manager, table):
         _park(direction, name, park_fields)
         return _answer(True, 'no-security',
                        'the object tree is not restored yet (a send before the manager exists at boot, a '
@@ -506,7 +531,8 @@ def note_inbound_path(manager, name, path_template):
 
     Falcon routes after `process_request`, so the template is only known in `process_resource` — the same
     two-step refinement ct-0 does for the cause's `entry_ref`. Dev posture only; never raises."""
-    if not observing() or not name or not path_template or not tree_ready(manager):
+    if (not observing() or not name or not path_template
+            or not tree_ready(manager, 'InboundPolicy')):
         return None
     try:
         row = _find(manager, 'InboundPolicy', name)

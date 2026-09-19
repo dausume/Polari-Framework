@@ -291,7 +291,11 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
         return None
 
 
-OBS_KEYS = ('name', 'actor', 'groups', 'profiles', 'verb', 'class_name', 'app', 'verdict', 'count', 'first_seen', 'last_seen', 'posture')
+#: ct-7's `tasks_json` is on the row and the CRUDE listing shows it, but the security door that is NAMED for
+#: observations projected this tuple and left it out — so `/api/security/observations` answered `tasks_json:
+#: null` for every row while `GET /PermissionObservation` answered the map (round-5 live proof, N-5). Both are
+#: sent now: `tasks_json` is the column as stored, `tasks` is it parsed.
+OBS_KEYS = ('name', 'actor', 'groups', 'profiles', 'verb', 'class_name', 'app', 'verdict', 'count', 'first_seen', 'last_seen', 'posture', 'tasks_json')
 
 
 def observations(manager):
@@ -469,7 +473,7 @@ def _touch_session(manager, role, field):
 # ---- usages (frontend apps / pages / components / actions; backend endpoints)
 
 USAGE_KINDS = ('app', 'page', 'component', 'action', 'endpoint', 'object')
-USAGE_KEYS = ('name', 'role', 'kind', 'item', 'app', 'page', 'detail', 'actor', 'count', 'first_seen', 'last_seen')
+USAGE_KEYS = ('name', 'role', 'kind', 'item', 'app', 'page', 'detail', 'actor', 'count', 'first_seen', 'last_seen', 'tasks_json')
 
 
 def observe_usage(manager, role, kind, item, app='', page='', detail='', actor='', save=True):

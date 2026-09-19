@@ -108,6 +108,27 @@ def _managerTreePathIndex(mgr):
         return None
 
 
+def _managerNoteRestored(mgr, className):
+    """Mark one class read-back, degrading for a double that has not been
+    taught the bookkeeping (§66 addendum 6)."""
+    try:
+        return mgr.noteClassRestored(className)
+    except Exception:
+        return False
+
+
+def _managerPendingRestore(mgr, classNames):
+    """Which of `classNames` still have UNREAD persisted rows (§66 addendum 6).
+
+    Degrades to "none" for any double that has not been taught the
+    bookkeeping, exactly like the tombstone helpers above — a selftest's
+    SimpleNamespace manager persists as it always did."""
+    try:
+        return mgr.classesPendingRestore(classNames)
+    except Exception:
+        return set()
+
+
 def _captureResourceCheckpoint():
     """Capture a snapshot of current system memory for boot profiling."""
     mem = psutil.virtual_memory()
@@ -438,6 +459,11 @@ class managerObject:
         self.db.Path = dbPath
         self.db.loadDB_byFile(dbPath)
 
+        # §66 addendum 6: this is a WARM boot — there are persisted rows on
+        # disk that this process has not read yet. From here until each class
+        # is restored, a flush must not rewrite that class's table.
+        self.armRestoreTracking()
+
         print(f'[DB] Found {len(self.db.tables)} tables: {self.db.tables}')
 
         # Restore dynamic class definitions BEFORE instance restore
@@ -468,7 +494,9 @@ class managerObject:
             tables.append(tName)
         if deferred:
             print(f'[DB] Deferred restore of {deferred} module-owned '
-                  'tables (lazy boot — restored at admission)',
+                  'tables (lazy boot — restored at admission). Until each '
+                  'one is restored a persist will NOT rewrite it '
+                  '(§66 addendum 6)',
                   flush=True)
         self._restoreTableRows(tables)
 
@@ -509,6 +537,11 @@ class managerObject:
 
             # Check if this table maps to a known class
             if tName not in self.objectTypingDict:
+                # §66 addendum 6: NOT marked restored. This is how a
+                # definition class looks here — registered after this pass —
+                # and its rows are read later by
+                # `polariServer._restoreDefinitionInstances`. A flush before
+                # that would write a half-booted tree over them.
                 print(f'[DB] Skipping unknown table: {tName}')
                 continue
 
@@ -517,10 +550,13 @@ class managerObject:
             try:
                 columnNames, dataTuples = self.db.getAllInTable(tName)
             except Exception as e:
+                # left un-restored on purpose (§66 addendum 6): a table we
+                # could not read is a table we must not overwrite.
                 print(f'[DB] Error reading table {tName}: {e}')
                 continue
 
             if not dataTuples:
+                _managerNoteRestored(self, tName)  # nothing on disk to lose
                 continue
 
             # Get seed IDs to skip for this class (rows matching runtime instances)
@@ -552,6 +588,9 @@ class managerObject:
                         if paramName != 'manager' and paramName not in columnNames:
                             nonRestorableArgs.add(paramName)
                 if nonRestorableArgs:
+                    # A DECISION, not a gap: this class is re-created at
+                    # runtime, so its table is the runtime's to rewrite.
+                    _managerNoteRestored(self, tName)
                     print(f'[DB] Skipping {tName}: constructor requires {nonRestorableArgs} (not in DB, re-created at runtime)', flush=True)
                     continue
 
@@ -627,6 +666,10 @@ class managerObject:
 
                 restoredInstances.append((instance, branchPath))
 
+            # §66 addendum 6: every persisted row of this class has now been
+            # read back into the process — a flush may rewrite the table.
+            _managerNoteRestored(self, tName)
+
         # 3. Confirm registration — instances were already registered in
         # objectTables by treeObjectInit during CreateMethod() above.
         # Count how many actually made it in.
@@ -686,6 +729,92 @@ class managerObject:
         Kept in `__dict__` directly so it never becomes a persisted/typed
         attribute of the manager (the `_persistState` idiom)."""
         return self.__dict__.setdefault('mergeRestoredClasses', set())
+
+    # ------------------------------------------------------------------
+    # §66 addendum 6 — A PERSIST NEVER WRITES A CLASS IT HAS NOT READ BACK.
+    #
+    # `persistTree` is DELETE+REPLACE per class: it rewrites a table from
+    # whatever `objectTables` holds. That is correct once the tree IS the
+    # tree, and catastrophic before. Live on `polari-lean` 2026-09-19: the
+    # swarm's anonymous health probe hits `/api/health` seconds into a boot,
+    # ct-9's inbound middleware writes ONE `suggested` InboundPolicy row and
+    # schedules the 3-second debounce persist — and that persist ran BEFORE
+    # the security module's admission restored the table. The flush wrote its
+    # single boot-time row over the two rows the DB held, a person's
+    # `confirmed` ruling among them. The restore that came afterwards read
+    # what was left (`[DB] Restoring 1 instances of InboundPolicy` for a table
+    # that had two at shutdown) and had nothing to merge. §66e made restore
+    # able to run beside an observer; this makes the PERSIST wait for it.
+    #
+    # `OutboundPolicy` did not lose its ruling in the same restart only
+    # because nothing wrapped sends before that restore — the hazard is the
+    # write ordering, not the class.
+    #
+    # Tracking is armed ONLY on a warm boot (`restoreFromDatabase`). A fresh
+    # database has nothing persisted to protect, and a manager double in a
+    # selftest never arms it — both behave exactly as they did before.
+    # ------------------------------------------------------------------
+    def restoredClasses(self):
+        """Class names whose persisted rows this process HAS read back, by
+        either restore path. `__dict__` for the `_persistState` reason."""
+        return self.__dict__.setdefault('restoredClassNames', set())
+
+    def noteClassRestored(self, className):
+        """This class's persisted rows have been considered — restored,
+        deliberately declined, or provably absent. Never raises."""
+        try:
+            self.restoredClasses().add(str(className))
+        except Exception:
+            pass
+        return True
+
+    def armRestoreTracking(self):
+        """A warm boot is underway: from here on a persist checks before it
+        rewrites a table. Called by `restoreFromDatabase` and nowhere else."""
+        self.__dict__['restoreTrackingOn'] = True
+        return True
+
+    def restoreTrackingArmed(self):
+        return bool(self.__dict__.get('restoreTrackingOn'))
+
+    def classesPendingRestore(self, classNames=None):
+        """Of `classNames` (default: everything in `objectTables`), those whose
+        DB table still holds rows this process has never read.
+
+        A class is cleared the moment its table is known to be EMPTY — there is
+        nothing to overwrite — so the only names that stay in the answer are
+        the ones a flush would really destroy. A table that cannot be read at
+        all stays pending: not knowing what is on disk is not a licence to
+        replace it."""
+        if not self.restoreTrackingArmed() or self.db is None:
+            return set()
+        names = list(classNames if classNames is not None
+                     else list(self.objectTables.keys()))
+        restored = self.restoredClasses()
+        pending = set()
+        for className in names:
+            if className in restored:
+                continue
+            try:
+                if className not in self.db.tables:
+                    self.noteClassRestored(className)
+                    continue
+            except Exception:
+                continue
+            try:
+                _columns, rows = self.db.getAllInTable(className)
+            except Exception as exc:
+                print(f'[DB] {className}: cannot read the persisted table to '
+                      f'tell whether its restore is still owed ({exc}) — '
+                      f'treating it as NOT restored (§66 addendum 6)',
+                      flush=True)
+                pending.add(className)
+                continue
+            if rows:
+                pending.add(className)
+            else:
+                self.noteClassRestored(className)
+        return pending
 
     def _persistState(self):
         """Lazily-created bookkeeping. Kept in __dict__ directly so it
@@ -961,9 +1090,16 @@ class managerObject:
         # ---- group classes by owning module ----
         from polariApiServer.module_gating import CORE_PACKAGES
         groups = {}
+        # §66 addendum 6 — a class whose persisted rows this process has not
+        # read back yet is NOT ours to rewrite. See noteClassRestored().
+        pendingRestore = _managerPendingRestore(self, list(tables))
+        unrestoredRows = 0
         for className, instancesDict in tables.items():
             if className not in self.db.tables:
                 skippedCount += len(instancesDict)
+                continue
+            if className in pendingRestore:
+                unrestoredRows += len(instancesDict)
                 continue
             module = ''
             sample = next(iter(instancesDict.values()), None)
@@ -972,6 +1108,14 @@ class managerObject:
             if not module or module in CORE_PACKAGES:
                 module = '(core)'
             groups.setdefault(module, []).append(className)
+        if pendingRestore:
+            print(f'[DB] Persist HELD BACK for {len(pendingRestore)} classes '
+                  f'whose persisted rows this process has not restored yet '
+                  f'({sorted(pendingRestore)[:8]}{"…" if len(pendingRestore) > 8 else ""}) '
+                  f'— {unrestoredRows} boot-time row(s) stay in memory rather '
+                  f'than overwriting the database (§66 addendum 6). They '
+                  f'persist on the first flush after their restore.',
+                  flush=True)
         feature_mods = sorted(m for m in groups if m != '(core)')
         try:
             from moduleService.module_boot_records import (
@@ -1234,6 +1378,8 @@ class managerObject:
             'persistLock', 'deletedSinceSnapshot', 'persistGeneration',
             # §66 addendum 5: which classes the definition merge governs
             'mergeRestoredClasses',
+            # §66 addendum 6: which classes this process has read back
+            'restoredClassNames', 'restoreTrackingOn',
             # User: random per boot
             'sessionSecret', 'sessionCookie', 'sessionJWT',
             # isoSys: Docker container changes hostname each restart

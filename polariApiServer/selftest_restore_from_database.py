@@ -168,7 +168,13 @@ class FakeManager:
         self.tombstoned = []
         from objectTreeManagerDecorators import managerObject
         for method in ('identifySeedDBIds', '_restoreTableRows',
-                       'mergeGovernedClasses'):
+                       'mergeGovernedClasses',
+                       # §66 addendum 6 — the restore paths mark what they
+                       # have read back, so a persist knows what it may
+                       # rewrite. Real methods, so the marking is real.
+                       'restoredClasses', 'noteClassRestored',
+                       'armRestoreTracking', 'restoreTrackingArmed',
+                       'classesPendingRestore'):
             setattr(self, method,
                     getattr(managerObject, method).__get__(self, type(self)))
         # what polariServer._noteMergeGovernedClasses publishes at boot

@@ -226,6 +226,67 @@ def set_policy(manager, class_name, fields, by='', source='admin', derived_from=
             {**{k: row_fields.get(k) for k in ('class_name', 'enabled')}, 'note': 'stored but disabled'}}
 
 
+def delete_policy(manager, class_name, by=''):
+    """REMOVE one class's owner policy — the way back out of an opt-in (round-5 live proof, N-6).
+
+    `POST` could only ever set or disable, so a throwaway or a mistaken opt-in was permanent: the row stayed
+    in `GET /api/security/owned`'s count forever, reading `enabled False`. Deleting it is the honest undo —
+    a class with no row behaves exactly as it did before op-0 touched anything.
+
+    It REFUSES for a class a manifest still declares, and says what to do instead: op-4's convergence re-derives
+    that row on the very next read of the door, so a delete there would look like it worked and silently come
+    back. Removing the `app.owned` entry (or setting `enabled: false` on it) is the act that really removes it.
+
+    Returns {'ok', 'removed', 'class'} or {'ok': False, 'status', 'refusal'}."""
+    class_name = str(class_name or '').strip()
+    if not class_name:
+        return {'ok': False, 'status': 400, 'refusal': 'a class name: the policy to remove'}
+    try:
+        from security.custom.security_owned_manifest import declarations
+        declared = next((d for d in declarations() if d['class'] == class_name and not d['duplicate_of']), None)
+    except Exception:                       # noqa: BLE001 — no manifest layer: nothing declares anything
+        declared = None
+    if declared is not None:
+        return {'ok': False, 'status': 409,
+                'refusal': ('%s is DECLARED by the module `%s` in its `app.owned` stanza, and op-4 converges '
+                            'that declaration into a row on every read of GET /api/security/owned — deleting '
+                            'the row here would come straight back. Set `enabled: false` on the manifest entry, '
+                            'or remove the `app.owned` entry, and the declaration stops being made at all.'
+                            % (class_name, declared.get('module') or 'a module'))}
+    row = next((r for r in _rows(manager, 'OwnedClassPolicy')
+                if str(getattr(r, 'class_name', '') or getattr(r, 'name', '')) == class_name), None)
+    if row is None:
+        return {'ok': False, 'status': 404,
+                'refusal': 'no OwnedClassPolicy names %s — it was never opted in' % class_name}
+    removed = False
+    tables = getattr(manager, 'objectTables', None) or {}
+    live = tables.get('OwnedClassPolicy')
+    if isinstance(live, dict):
+        for key, value in list(live.items()):
+            if value is row:
+                live.pop(key, None)
+                removed = True
+                try:
+                    # tombstoned, or a persist already in flight writes it straight back (§51 addendum 3)
+                    manager.noteTreeDeletion('OwnedClassPolicy', key)
+                except Exception:           # noqa: BLE001
+                    pass
+    try:                                    # the module's own fallback table, for a manager holding no tree
+        from security.custom import security_observe as _obs
+        if _obs._FALLBACK.get(id(tables), {}).get('OwnedClassPolicy', {}).pop(class_name, None) is not None:
+            removed = True
+    except Exception:                       # noqa: BLE001
+        pass
+    _schedule_persist(manager)
+    record(manager, 'authz', 'remove owned policy %s' % class_name, class_name,
+           reason='owner-defined permissions removed: the class behaves as it did before it was opted in',
+           actor=by, outcome='allowed', would_deny=False, source='owner policy door')
+    return {'ok': True, 'removed': removed, 'class': class_name,
+            'how': ('the class is no longer owned: no owner is stamped on a create, the owner gate does not '
+                    'run for it, and any OwnerGrant rows it had are inert (a grant only widens an owned '
+                    'class). POST /api/security/owned/%s opts it back in.' % class_name)}
+
+
 # ---- the owner stamp --------------------------------------------------------------------------------------
 
 def owner_of(manager, instance, policy=None):

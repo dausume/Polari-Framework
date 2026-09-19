@@ -25,10 +25,9 @@
   "flows": [
    {
     "to": "keycloak",
-    "name": "realm",
     "classes": [],
     "direction": "both",
-    "why": "kc_admin resolves a Keycloak subject id to a name and manages group membership through the polari-backend service account (all of it through the outbound wrapper). NO Polari row ever leaves: names live in Keycloak and stay there (D18-1), and this instance keeps no copy."
+    "why": "kc_admin resolves a Keycloak subject id to a name and manages group membership through the polari-backend service account (all of it through the outbound wrapper). NO Polari row ever leaves: names live in Keycloak and stay there (D18-1), and this instance keeps no copy. No `name`: a manifest speaks at system-KIND level — the realm is the DEPLOYMENT's (a confirmed OutboundPolicy names it), and the placeholder `realm` made a second node the real traffic could never match (live proof round 5, N-3)."
    }
   ]
  },

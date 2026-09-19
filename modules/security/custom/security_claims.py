@@ -102,12 +102,39 @@ def _prototype_claimable(p, dev, denied):
     return False, 'production posture: only roles flagged self_claimable may be taken'
 
 
+def trace_prototype_read(manager):
+    """ct-1's `touch` seam for the ONE class these doors really read: `RolePrototype`.
+
+    Why it is here (round-5 live proof, N-2). The observed half of the ct-5 objects view could not be exercised
+    by any single door on the instance. `security_trace.record_edge` is a no-op unless the chain is ALREADY
+    traced, a chain becomes traced only where `touch` is called, and `touch` was called only at the CRUDE gate,
+    the STOMP gate, the dispatcher, the transport mux and remote hydration. The claim/release doors read
+    `RolePrototype` DIRECTLY (this module, not through CRUDE) and then send to Keycloak through the outbound
+    wrapper — so they are exactly the one request that both reads an armable class and leaves the instance, and
+    with nothing opening the chain the keycloak edge was never recorded. `traces_opened 0, edges_written 0`.
+
+    Same shape as the CRUDE gate's seam: touch first (the SCOPE RULE decides), then record the edge that
+    reached the class, so the map says what got TO the target as well as what it reached. A no-op with nothing
+    armed, and it never raises into a door."""
+    try:
+        from security.custom.security_trace import record_edge, touch
+        if not touch(manager, 'RolePrototype', 'read'):
+            return False
+        from accessControl.cause_context import current_cause
+        entry = str((current_cause() or {}).get('entry_ref') or 'unknown')
+        record_edge(manager, 'endpoint:%s' % entry, 'object:RolePrototype:read', 'crude')
+        return True
+    except Exception:                       # noqa: BLE001 — a recorder never raises into the thing it observes
+        return False
+
+
 def claimable_roles(manager, user_info, env=None):
     """[{role, title, description, source, held, state, why}] — every role THIS caller may claim or release, plus the
     ones they already hold. Anonymous callers get an empty list (nothing is claimable without an identity)."""
     sub, _username, groups = caller(user_info)
     if not sub:
         return []
+    trace_prototype_read(manager)
     dev = _posture.is_dev(env)
     denied = set(_observe.claim_denied_roles())
     protos = _observe.prototypes(manager)
@@ -139,6 +166,7 @@ def may_claim(manager, user_info, role, env=None):
     sub, _u, _g = caller(user_info)
     if not sub:
         return False, 'sign in first: a role is claimed for a Keycloak account, and you have none here', None
+    trace_prototype_read(manager)           # N-2: the chain reads RolePrototype, so the chain is traceable
     role = (role or '').strip().lstrip('/')
     denied = set(_observe.claim_denied_roles())
     ban = forbidden_reason(role, [p['name'] for p in _observe.prototypes(manager)

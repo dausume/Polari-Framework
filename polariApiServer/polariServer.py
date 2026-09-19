@@ -1890,9 +1890,15 @@ class polariServer(treeObject):
         if db is None:
             print('[DefRestore] No database, skipping restore', flush=True)
             return
+        # §66 addendum 6: every branch below that has SEEN what the database
+        # holds for a class marks it restored, so `persistTree` may rewrite
+        # that table again. The one branch that does NOT is the read error —
+        # a table we could not read is a table we must not overwrite.
+        note = getattr(self.manager, 'noteClassRestored', lambda _c: True)
         for defClass in defClassList:
             className = defClass.__name__
             if className not in db.tables:
+                note(className)                 # nothing persisted at all
                 print(f'[DefRestore] {className}: not in db.tables, skipping', flush=True)
                 continue
             try:
@@ -1901,10 +1907,12 @@ class polariServer(treeObject):
                 print(f'[DefRestore] {className}: Error reading table: {e}', flush=True)
                 continue
             if not dataTuples:
+                note(className)                 # the table is empty
                 print(f'[DefRestore] {className}: no rows in DB', flush=True)
                 continue
             self._mergeRestoredRows(defClass, className, columnNames,
                                     dataTuples)
+            note(className)
 
     def _mergeRestoredRows(self, defClass, className, columnNames, dataTuples):
         """One class's worth of the merge described on

@@ -141,7 +141,7 @@ class SecurityAPI(treeObject):
             add('/api/security/traffic/outbound/{name}', self, suffix='traffic_outbound')  # ct-9: POST {decision: confirmed|denied} — a PERSON rules (admins only)
             add('/api/security/traffic/inbound/{name}', self, suffix='traffic_inbound')    # ct-9: the same, for who may call this instance
             add('/api/security/owned', self, suffix='owned')                        # op-0: the classes whose OWNER defines the rules, and their policies
-            add('/api/security/owned/{class_name}', self, suffix='owned_class')     # GET one policy; POST (ADMIN_ROLES) set or replace it
+            add('/api/security/owned/{class_name}', self, suffix='owned_class')     # GET one policy; POST (ADMIN_ROLES) set or replace it; DELETE (ADMIN_ROLES) remove it — refused while a manifest declares the class
             add('/api/security/owned/{class_name}/{object_id}', self, suffix='owned_instance')   # GET the CALLER's verdict on one instance (+ the Sharing tab's answer)
             add('/api/security/owned/{class_name}/{object_id}/grants', self, suffix='owned_grants')      # op-1: GET the instance's grants + bounds; POST one; DELETE one (the OWNER, or an admin)
             add('/api/security/owned/{class_name}/{object_id}/transfer', self, suffix='owned_transfer')  # op-2: POST {"to": "<sub>"} hand the row to somebody else, inside the policy's transfer mode
@@ -960,6 +960,28 @@ class SecurityAPI(treeObject):
             return self._bad(response, r.get('refusal', ''))
         response.media = {**r, 'how': 'GET /api/security/owned/%s/<id> answers what a caller may do to one '
                                       'instance, and why' % class_name}
+
+    def on_delete_owned_class(self, request, response, class_name):
+        """REMOVE one class's owner policy — the way back out of an opt-in (round-5 live proof, N-6).
+
+        The door offered POST only, so a throwaway policy was permanent: `DELETE` answered 405 and the best a
+        person could do was set `enabled: false`, leaving the row in the listing's count for good. ADMIN_ROLES,
+        like the POST, and refused for a class a manifest still declares — op-4's convergence would re-create
+        that row on the very next read of `GET /api/security/owned`, so a delete there would look like it
+        worked and silently come back."""
+        from security.custom.security_claims import is_admin
+        from security.custom.security_owned import delete_policy
+        if not is_admin(self._user_info(request)):
+            return self._refuse(response, '403 Forbidden',
+                                'only an administrator may remove a class from owner-defined permissions '
+                                '(ADMIN_ROLES: admin, polari-admin)', **{'class': class_name})
+        r = delete_policy(self.manager, class_name, by=self._sub(request))
+        if not r.get('ok'):
+            return self._refuse(response,
+                                {400: '400 Bad Request', 404: '404 Not Found',
+                                 409: '409 Conflict'}.get(int(r.get('status') or 400), '400 Bad Request'),
+                                r.get('refusal', ''), **{'class': class_name})
+        response.media = r
 
     def on_get_owned_instance(self, request, response, class_name, object_id):
         """The CALLER's verdict on ONE instance: what they may do, which fields they see, which rule decided.

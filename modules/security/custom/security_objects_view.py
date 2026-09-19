@@ -141,6 +141,90 @@ def manifest_flows(packages=None, refresh=False):
     return out
 
 
+# ---- the origin, coarsened (D-2, round-5 live proof) ------------------------------------------------------
+#
+# ct-9 stores an inbound `origin` row as `scheme://host` — deliberately, because a person confirming a source
+# has to be able to tell one browser origin from another, and that door is behind an admin bearer. This VIEW is
+# not that door. It promises, in its own node description, that *"no hostname and no address appears on this
+# view"*, and §67 lists "no instance ids, no addresses, no hostnames anywhere on the view" among its selftested
+# checks. The live proof found the promise broken the moment an origin row is confirmed, which is the normal
+# outcome of a browser using the stack: `external:origin:https://prf.<lan>.nip.io` appeared as a node, a node
+# TITLE, an edge target, a drift entry and a summary row — and on a nip.io host that string is a hostname AND
+# the LAN address it encodes.
+#
+# So the view renders an origin at the only resolution it actually needs: is this one of the hosts this
+# deployment configured as its own, or somebody else? The exact origin stays available, signed in, at
+# GET /api/security/traffic (and /traffic/declared) where a person rules on it.
+
+#: the `scheme://host` values this deployment calls its own — the CORS allow-list is the authoritative list
+#: (it is literally "the origins this API answers"), plus the configured frontend and backend names.
+_OWN_ORIGINS = {}
+
+
+def own_origins(refresh=False):
+    """`{host}` — the hosts this instance serves itself on, lower-cased, ports stripped.
+
+    Read from the runtime config: `api.cors_origins` (the CORS allow-list, the one place a deployment states
+    which front ends are its own), plus `frontend.url` and `backend.url`. Never raises; an instance that
+    configures none of them simply calls every origin `other`, which is the safe answer."""
+    if _OWN_ORIGINS and not refresh:
+        return set(_OWN_ORIGINS.get('hosts') or ())
+    hosts = set()
+    try:
+        from config_loader import config
+        values = []
+        raw = config.get('api.cors_origins', []) or []
+        values += ([v.strip() for v in raw.split(',')] if isinstance(raw, str) else list(raw))
+        for key in ('frontend.url', 'backend.url'):
+            one = config.get(key, '')
+            if one:
+                values.append(str(one))
+        for value in values:
+            host = _host_of(value)
+            if host and host != '*':
+                hosts.add(host)
+    except Exception:                       # noqa: BLE001 — no config is "nothing is mine", not a failure
+        pass
+    _OWN_ORIGINS['hosts'] = set(hosts)
+    return set(hosts)
+
+
+def _host_of(value):
+    """`https://app.example:4200/x` → `app.example`. '' when there is no host to find."""
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    rest = raw.partition('://')[2] or raw
+    host = rest.split('/')[0].split('?')[0].strip().lower()
+    if host.startswith('['):                # [::1]:4200
+        return host.split(']')[0] + ']'
+    return host.split(':')[0] if host.count(':') == 1 else host
+
+
+#: source names that are already a CLASS rather than an identity — ct-9 writes these on purpose and they carry
+#: nothing to leak, so they pass through unchanged.
+SAFE_SOURCE_NAMES = ('anonymous', 'ip-literal', 'unregistered', '')
+
+
+def coarsen_source(kind, name):
+    """What this view is allowed to RENDER for an inbound source (D-2).
+
+    An `origin` becomes `<scheme>:this-instance` when its host is one this deployment configured as its own,
+    and `<scheme>:other` otherwise — never the host. Every other source kind is already a NAME or a CLASS
+    (a `PeerNode`'s name, `anonymous`, `ip-literal`) and is left exactly as ct-9 wrote it."""
+    value = str(name or '')
+    if str(kind or '') != 'origin':
+        return value
+    if value in SAFE_SOURCE_NAMES:
+        return value
+    scheme = (value.partition('://')[0] or '').strip().lower() if '://' in value else ''
+    host = _host_of(value)
+    if not scheme or not host:
+        # not a shape we can read — say so rather than printing whatever it is
+        return 'other'
+    return '%s:%s' % (scheme, 'this-instance' if host in own_origins() else 'other')
+
+
 def policy_flows(manager):
     """The CONFIRMED `OutboundPolicy` / `InboundPolicy` rows as declared flows — ct-9's `declared_flows()`,
     which has been waiting for exactly this caller, translated into this view's vocabulary."""
@@ -159,8 +243,12 @@ def policy_flows(manager):
                         'declared_by': 'OutboundPolicy (confirmed by %s)' % (row.get('confirmed_by') or '-'),
                         'why': ''})
         else:
+            kind = row.get('source_kind', '')
             out.append({'provenance': 'declared', 'origin': 'InboundPolicy', 'module': '',
-                        'kind': row.get('source_kind', ''), 'name': row.get('source_name', ''),
+                        'kind': kind,
+                        # D-2: what the view may PRINT. The exact origin is on the row and reaches a person
+                        # through GET /api/security/traffic, signed in — never through a topology read.
+                        'name': coarsen_source(kind, row.get('source_name', '')),
                         'means': 'request', 'direction': 'pull',
                         'classes': sorted(row.get('classes') or []), 'count': int(row.get('count') or 0),
                         'declared_by': 'InboundPolicy (confirmed by %s)' % (row.get('confirmed_by') or '-'),
@@ -302,7 +390,7 @@ def _policy_decision(mode, state):
         state or 'nothing has proposed it yet')
 
 
-def _flow_chain(mode, flow, state, is_declared_by_manifest, traced):
+def _flow_chain(mode, flow, state, is_declared_by_manifest, traced, inbound_declared=False):
     """The systems consulted for ONE flow, in order, each with its decision under `mode`."""
     chain = []
     if flow['kind'] == 'broadcast':
@@ -313,10 +401,18 @@ def _flow_chain(mode, flow, state, is_declared_by_manifest, traced):
                            'with the same permission_verdict(read) as CRUDE — so this view names the gate '
                            'instead of inventing one verdict for everybody'))
     else:
+        if inbound_declared:
+            note = ('%s IS the declaration for an inbound flow: `app.flows` is an OUTBOUND vocabulary '
+                    '(design §9), so no module can declare who may CALL a deployment — design §7 counts the '
+                    'traffic policy a PERSON confirmed as the declaration instead'
+                    % (flow.get('declared_by') or 'a confirmed InboundPolicy row'))
+        elif is_declared_by_manifest:
+            note = '%s declares it' % (flow.get('declared_by') or 'a declaration')
+        else:
+            note = 'NO manifest declares this flow (design §9): a finding, never a block — dev warns'
         chain.append(_step('app-flows',
                            'n/a' if mode == 'stock' else ('allowed' if is_declared_by_manifest else 'logged'),
-                           ('%s declares it' % flow.get('declared_by') or 'declared') if is_declared_by_manifest
-                           else 'NO manifest declares this flow (design §9): a finding, never a block — dev warns'))
+                           note))
         decision, note = _policy_decision(mode, state)
         chain.append(_step('traffic-policy', decision, note))
     chain.append(_step('outbound-wrapper', 'allowed',
@@ -374,38 +470,65 @@ def build(manager, scenario='', mode='today'):
                       'description': description, 'system': system})
 
     _node(INSTANCE_NODE, 'instance', 0, 'This Polari instance',
-          'every flow below starts or ends here; no hostname and no address appears on this view')
+          'every flow below starts or ends here; no hostname and no address appears on this view — an '
+          'inbound browser ORIGIN is coarsened to this-instance / other, and the exact one is read signed in '
+          'at GET /api/security/traffic')
     for system, meta in OBJECT_SYSTEMS.items():
         _node(system, 'boundary', 2, meta['title'], meta['note'], system=system)
 
+    # N-3 (round-5 live proof): a manifest declaration speaks at system-KIND level — an app author cannot know
+    # which Keycloak realm or which Odoo a deployment runs. When it names no system, it therefore matches EVERY
+    # system of that kind this instance really talks to, instead of standing up a second node of its own
+    # (`external:keycloak:realm` beside `external:keycloak:Polari`, which is what the live proof found and which
+    # no traffic could ever match).
+    named_by_kind = {}
+    for f in flows:
+        if f['kind'] != 'broadcast' and f.get('name') and f.get('origin') != 'app.flows':
+            named_by_kind.setdefault(f['kind'], set()).add(_counterpart(f))
+
     for flow in flows:
-        counterpart = _counterpart(flow)
-        counterparts.setdefault(counterpart, flow)
+        targets = [_counterpart(flow)]
+        if flow.get('origin') == 'app.flows' and not flow.get('name'):
+            targets = sorted(named_by_kind.get(flow['kind'], ())) or targets
         state = ('' if flow['kind'] == 'broadcast' else
                  states['outbound'].get((flow['kind'], flow.get('name') or '', flow.get('means') or ''), ''))
-        if not state and flow.get('origin') == 'InboundPolicy':
-            state = states['inbound'].get((flow['kind'], flow.get('name') or ''), 'confirmed')
-        is_declared = flow.get('origin') == 'app.flows' or flow['kind'] in manifest_kinds
+        if flow.get('origin') == 'InboundPolicy':
+            # `declared_flows()` emits CONFIRMED inbound rows and nothing else, so the state is known without
+            # looking the row up by name — which matters because the name this view carries is COARSENED (D-2)
+            # and could no longer find the row anyway. `states['inbound']` stays keyed by the real source and
+            # is only consulted where the exact source is legitimately in hand.
+            state = 'confirmed'
+        # N-4: `app.flows` is an OUTBOUND vocabulary, so no module can ever declare who may CALL a deployment —
+        # which used to leave every inbound edge logging a permanent finding even after a person had confirmed
+        # it. Design §7 counts "a traffic policy a person confirmed" as a declaration in its own right, and for
+        # an inbound flow it is the ONLY one there can be.
+        inbound_declared = flow.get('origin') == 'InboundPolicy' and state == 'confirmed'
+        is_declared = (flow.get('origin') == 'app.flows' or flow['kind'] in manifest_kinds
+                       or inbound_declared)
         classes = flow.get('classes') or []
-        chain = _flow_chain(mode, flow, state, is_declared, bool(set(classes) & traced) if classes else False)
+        chain = _flow_chain(mode, flow, state, is_declared, bool(set(classes) & traced) if classes else False,
+                            inbound_declared=inbound_declared)
         verdict, decided_by, provenance = _verdict(chain)
-        for cls in (classes or [None]):
-            source = INSTANCE_NODE if cls is None else 'class:%s' % cls
-            if cls is not None:
-                class_nodes.setdefault(cls, 0)
-                class_nodes[cls] += int(flow.get('count') or 0)
-            payload = ('%s×%d' % (cls, int(flow.get('count') or 0))) if (cls and flow.get('count')) else (cls or '')
-            edges.append({
-                'source': source, 'target': counterpart,
-                'means': '%s (%s)' % (flow.get('means') or 'send', flow.get('direction') or 'both'),
-                'chain': chain, 'verdict': verdict, 'decided_by': decided_by, 'provenance': provenance,
-                'payload': payload,
-                'flow_provenance': flow['provenance'],
-                'declared_by': flow.get('declared_by', ''),
-                'count': int(flow.get('count') or 0),
-                'traced': bool(cls and cls in traced),
-                'why': _why(flow, cls, traced),
-            })
+        for counterpart in targets:
+            counterparts.setdefault(counterpart, flow)
+            for cls in (classes or [None]):
+                source = INSTANCE_NODE if cls is None else 'class:%s' % cls
+                if cls is not None:
+                    class_nodes.setdefault(cls, 0)
+                    class_nodes[cls] += int(flow.get('count') or 0)
+                payload = (('%s×%d' % (cls, int(flow.get('count') or 0)))
+                           if (cls and flow.get('count')) else (cls or ''))
+                edges.append({
+                    'source': source, 'target': counterpart,
+                    'means': '%s (%s)' % (flow.get('means') or 'send', flow.get('direction') or 'both'),
+                    'chain': chain, 'verdict': verdict, 'decided_by': decided_by, 'provenance': provenance,
+                    'payload': payload,
+                    'flow_provenance': flow['provenance'],
+                    'declared_by': flow.get('declared_by', ''),
+                    'count': int(flow.get('count') or 0),
+                    'traced': bool(cls and cls in traced),
+                    'why': _why(flow, cls, traced),
+                })
 
     for cls, count in sorted(class_nodes.items()):
         _node('class:%s' % cls, 'class', 1, cls,
@@ -430,7 +553,9 @@ def build(manager, scenario='', mode='today'):
         'description': ('the fourth security view (design §7): nodes are this instance, its classes and the '
                         'systems it talks to; every edge says WHICH CLASSES cross it. Declared = the manifests\' '
                         'app.flows and the confirmed traffic policies; observed = the causal map. The difference '
-                        'is the drift report. Classes and counts only — an instance id never appears here.'),
+                        'is the drift report. Classes and counts only — an instance id never appears here, and '
+                        'neither does a hostname: an inbound origin reads `origin:<scheme>:this-instance` or '
+                        '`origin:<scheme>:other`.'),
         'mac_attach': '', 'apps_run': '', 'scenario_source': '',
         'counts': counts, 'layers': sorted({n['layer'] for n in nodes}), 'nodes': nodes, 'edges': edges,
         'payload_column': True,
@@ -676,7 +801,9 @@ HOW_OBJECTS = ('the fourth security view (design §7). DECLARED edges come from 
                'the causal map, which records only while a TraceTarget is armed — one class at a time, dev '
                'posture only. Every edge carries its PAYLOAD (the classes, with counts) and never an instance id: '
                'an instance is looked up in the effect journal, not here. `drift` is declared − observed and '
-               'observed − declared; an undeclared flow is a FINDING and dev warns, never blocks.')
+               'observed − declared; an undeclared flow is a FINDING and dev warns, never blocks. An inbound '
+               'browser ORIGIN is rendered coarsened (this-instance / other): the exact one is a person\'s to '
+               'rule on at GET /api/security/traffic, not a topology read\'s to print.')
 
 HOW_DRIFT = ('an observed flow nothing declares is a finding for the app author (add the `app.flows` stanza) or '
              'for the deployment (confirm the traffic policy row); a declaration nothing has exercised is noise '
