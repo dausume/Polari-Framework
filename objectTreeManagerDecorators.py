@@ -1217,7 +1217,16 @@ class managerObject:
             'serverInstance', 'publicFrontendKey', 'privateFrontendKey'
         }
 
-        for className, runtimeInstances in self.objectTables.items():
+        # SNAPSHOT, not the live view (§66 addendum 5, 2026-09-19). Lazy boot
+        # serves requests WHILE this runs, and a request that creates a row of
+        # a class nobody had touched yet adds a KEY to objectTables mid-walk —
+        # `RuntimeError: dictionary changed size during iteration`, which is
+        # raised out of restoreTables() and fails the whole module admission
+        # (`[LazyBoot] islemesh FAILED: dictionary changed size during
+        # iteration`, live on polari-lean twice in a row, taking polariapps
+        # and its dependents down with it). The same snapshot the merge in
+        # polariServer._mergeRestoredRows already takes.
+        for className, runtimeInstances in list(self.objectTables.items()):
             if not runtimeInstances:
                 continue
             if className not in self.db.tables:
@@ -1260,7 +1269,10 @@ class managerObject:
             for row in dataTuples:
                 rowDict = dict(zip(columnNames, row))
 
-                for instId, instance in runtimeInstances.items():
+                # Snapshot for the same reason as the outer loop: an
+                # observer bumping a counter creates a SIBLING instance of
+                # the class being fingerprinted while we walk it.
+                for instId, instance in list(runtimeInstances.items()):
                     matchCount = 0
                     compareCount = 0
 

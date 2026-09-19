@@ -1906,11 +1906,23 @@ class polariServer(treeObject):
                     initKwargs[colName] = row[i]
             rowId = str(initKwargs.get('id') or '')
             rowName = str(initKwargs.get('name') or '')
-            # Already restored (this pass is not the first): leave it alone.
-            # Without this, a second pass would re-insert every row and sum
-            # the counters into themselves.
+            # Already restored (this pass is not the first): leave the ROW
+            # alone. Without this, a second pass would re-insert every row and
+            # sum the counters into themselves.
+            #
+            # §66 addendum 5: "already restored" does NOT mean "nothing to
+            # merge". The OTHER restore path
+            # (objectTreeManagerDecorators._restoreTableRows) runs FIRST at
+            # module admission (lazy_boot._admit: restoreTables() then
+            # ensureDefinitionTables()) and it has no name logic at all — so it
+            # can put the persisted row in beside a boot-time row of the same
+            # name and leave a DUPLICATE. Folding still applies; only the
+            # insert is skipped.
             if rowId and rowId in byId:
                 alreadyThere += 1
+                folded += self._foldNameDuplicates(
+                    className, byName, rowName, rowId,
+                    table.get(byId[rowId]))
                 continue
             if not rowId and rowName and byName.get(rowName):
                 # No id to tell "the same row" from "a different row" with.
@@ -1924,15 +1936,30 @@ class polariServer(treeObject):
                       f'{e}', flush=True)
                 continue
             merged += 1
-            for key, bootRow in byName.pop(rowName, []) if rowName else []:
-                if str(getattr(bootRow, 'id', '') or '') == rowId:
-                    continue
-                folded += self._foldBootRow(className, key, bootRow, instance)
+            folded += self._foldNameDuplicates(className, byName, rowName,
+                                               rowId, instance)
         note = (f'[DefRestore] {className}: merged {merged} persisted rows, '
                 f'{folded} boot-time rows folded')
         if alreadyThere:
             note += f', {alreadyThere} already restored'
         print(note, flush=True)
+
+    def _foldNameDuplicates(self, className, byName, rowName, rowId, instance):
+        """Fold every boot-time row that shares `rowName` with the persisted
+        row `instance` (a DIFFERENT id) into it. Returns how many folded.
+
+        Shared by both branches of the merge: a row this pass inserted and a
+        row an earlier pass — or the main table restore — had already put in.
+        The name entry is POPPED, so a later pass finds nothing to fold and a
+        counter is never summed twice."""
+        if not rowName or instance is None:
+            return 0
+        folded = 0
+        for key, bootRow in byName.pop(rowName, []):
+            if str(getattr(bootRow, 'id', '') or '') == rowId:
+                continue
+            folded += self._foldBootRow(className, key, bootRow, instance)
+        return folded
 
     def _foldBootRow(self, className, key, bootRow, instance):
         """Absorb one boot-time row's counters into the persisted row that

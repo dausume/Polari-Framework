@@ -111,6 +111,8 @@ def server_with(manager):
         polariServer._restoreDefinitionInstances.__get__(obj, type(obj)))
     obj._mergeRestoredRows = (
         polariServer._mergeRestoredRows.__get__(obj, type(obj)))
+    obj._foldNameDuplicates = (
+        polariServer._foldNameDuplicates.__get__(obj, type(obj)))
     obj._foldBootRow = polariServer._foldBootRow.__get__(obj, type(obj))
     return obj
 
