@@ -420,6 +420,15 @@ class CORSExtraHeadersMiddleware:
                         'X-Polari-Owner-Advisory, X-Polari-Traffic-Advisory')
         resp.set_header('Access-Control-Max-Age', '86400')
 
+#: Fields that COUNT things. When a persisted row and a boot-time row of the
+#: same name are merged by _restoreDefinitionInstances (§66e), every other
+#: field comes from the database — these are SUMMED, because both halves
+#: really were observed. A MODULE constant, not a class attribute: the tree's
+#: identifier scan walks a treeObject's attributes and logs anything it cannot
+#: type as an invalid instance value.
+RESTORE_COUNT_FIELDS = ('count', 'traces_opened', 'edges_written',
+                        'journal_written', 'dropped')
+
 class apiError(Exception):
     @staticmethod
     async def handle(ex, req, resp, params):
@@ -1824,57 +1833,136 @@ class polariServer(treeObject):
             print(f'[polariServer] Migration check failed for {className}: {e}', flush=True)
 
     def _restoreDefinitionInstances(self, defClassList):
-        """Restore Definition instances (Table/Graph/Display/GeoJson) from DB.
+        """Restore Definition instances from the DB, MERGING with whatever is
+        already in memory (§66e, 2026-09-19).
 
         These classes are registered in objectTypingDict after
-        jumpstartDatabase() → restoreFromDatabase() has already run,
-        so their table rows were skipped during the main restore pass.
-        This method performs a targeted restore for those classes only.
+        jumpstartDatabase() → restoreFromDatabase() has already run, so their
+        table rows were skipped during the main restore pass. This method
+        performs a targeted restore for those classes only.
+
+        **Why it merges.** This used to SKIP any class that already had one
+        instance in `objectTables` — and lazy boot serves requests while this
+        runs, so a single boot-time write (the ct-9 traffic middleware on the
+        first request, ct-8's converge-on-read, any observer at all) made the
+        whole class's persisted rows unreachable. They were not corrupted;
+        they were simply never loaded, and the next persist wrote the
+        half-booted tree over them. Live on polari-lean 2026-09-19: a
+        `confirmed` InboundPolicy ruling disappeared across a restart while
+        the DB still held it. A class is data, not a flag — restore must be
+        able to run beside an observer.
+
+        **The rule.** Every persisted row is inserted. A row already in memory
+        with the SAME `id` IS that persisted row (an earlier restore pass put
+        it there) and is left alone — this is what keeps repeated passes
+        idempotent instead of doubling every counter. A row in memory with the
+        same `name` but a different id is a BOOT-TIME row: the persisted row
+        is the truth for every field, its count-like fields absorb the
+        boot-time row's, and the boot-time row is removed through
+        `noteTreeDeletion` so a persist in flight cannot write it back. A
+        boot-time row whose name matches nothing in the database survives
+        untouched — it is a real observation nobody had persisted yet.
         """
         db = self.manager.db
         if db is None:
             print('[DefRestore] No database, skipping restore', flush=True)
             return
-        import json as jsonLib
         for defClass in defClassList:
             className = defClass.__name__
             if className not in db.tables:
                 print(f'[DefRestore] {className}: not in db.tables, skipping', flush=True)
-                continue
-            # Skip if instances already exist (e.g. from another restore path)
-            existing = self.manager.objectTables.get(className, {})
-            if existing:
-                print(f'[DefRestore] {className}: {len(existing)} instances already in objectTables, skipping', flush=True)
                 continue
             try:
                 columnNames, dataTuples = db.getAllInTable(className)
             except Exception as e:
                 print(f'[DefRestore] {className}: Error reading table: {e}', flush=True)
                 continue
-            print(f'[DefRestore] {className}: columns={columnNames}, rows={len(dataTuples)}', flush=True)
             if not dataTuples:
                 print(f'[DefRestore] {className}: no rows in DB', flush=True)
                 continue
-            restoredCount = 0
-            for row in dataTuples:
-                # Build kwargs from DB columns matching constructor params
-                initKwargs = {'manager': self.manager}
-                for i, colName in enumerate(columnNames):
-                    if colName == '_branch_path':
-                        continue
-                    if row[i] is not None:
-                        initKwargs[colName] = row[i]
-                print(f'[DefRestore] {className}: restoring with kwargs keys={list(initKwargs.keys())}', flush=True)
+            self._mergeRestoredRows(defClass, className, columnNames,
+                                    dataTuples)
+
+    def _mergeRestoredRows(self, defClass, className, columnNames, dataTuples):
+        """One class's worth of the merge described on
+        `_restoreDefinitionInstances`. Never raises: a class that cannot be
+        merged logs and leaves the tree exactly as it found it."""
+        table = self.manager.objectTables.get(className, {}) or {}
+        byId, byName = {}, {}
+        for key, row in list(table.items()):
+            rowId = str(getattr(row, 'id', '') or '')
+            if rowId:
+                byId[rowId] = key
+            rowName = str(getattr(row, 'name', '') or '')
+            if rowName:
+                byName.setdefault(rowName, []).append((key, row))
+        merged = folded = alreadyThere = 0
+        for row in dataTuples:
+            initKwargs = {'manager': self.manager}
+            for i, colName in enumerate(columnNames):
+                if colName == '_branch_path':
+                    continue
+                if row[i] is not None:
+                    initKwargs[colName] = row[i]
+            rowId = str(initKwargs.get('id') or '')
+            rowName = str(initKwargs.get('name') or '')
+            # Already restored (this pass is not the first): leave it alone.
+            # Without this, a second pass would re-insert every row and sum
+            # the counters into themselves.
+            if rowId and rowId in byId:
+                alreadyThere += 1
+                continue
+            if not rowId and rowName and byName.get(rowName):
+                # No id to tell "the same row" from "a different row" with.
+                # Refusing to guess is the honest move: leave what is there.
+                alreadyThere += 1
+                continue
+            try:
+                instance = defClass(**initKwargs)
+            except Exception as e:
+                print(f'[DefRestore] {className}: Error restoring instance: '
+                      f'{e}', flush=True)
+                continue
+            merged += 1
+            for key, bootRow in byName.pop(rowName, []) if rowName else []:
+                if str(getattr(bootRow, 'id', '') or '') == rowId:
+                    continue
+                folded += self._foldBootRow(className, key, bootRow, instance)
+        note = (f'[DefRestore] {className}: merged {merged} persisted rows, '
+                f'{folded} boot-time rows folded')
+        if alreadyThere:
+            note += f', {alreadyThere} already restored'
+        print(note, flush=True)
+
+    def _foldBootRow(self, className, key, bootRow, instance):
+        """Absorb one boot-time row's counters into the persisted row that
+        replaces it, then delete it. Returns 1 when a row was folded."""
+        try:
+            for field in RESTORE_COUNT_FIELDS:
+                if not hasattr(instance, field):
+                    continue
                 try:
-                    instance = defClass(**initKwargs)
-                    restoredCount += 1
-                    print(f'[DefRestore] {className}: restored instance id={getattr(instance, "id", "?")}', flush=True)
-                except Exception as e:
-                    print(f'[DefRestore] {className}: Error restoring instance: {e}', flush=True)
-                    import traceback
-                    traceback.print_exc()
-            if restoredCount > 0:
-                print(f'[DefRestore] Restored {restoredCount} {className} instances from DB', flush=True)
+                    extra = int(getattr(bootRow, field, 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if not extra:
+                    continue
+                try:
+                    base = int(getattr(instance, field, 0) or 0)
+                except (TypeError, ValueError):
+                    base = 0
+                setattr(instance, field, base + extra)
+            self.manager.objectTables.get(className, {}).pop(key, None)
+            try:
+                self.manager.noteTreeDeletion(className, key)
+            except Exception as e:
+                print(f'[DefRestore] {className}: could not tombstone the '
+                      f'folded boot-time row {key}: {e}', flush=True)
+            return 1
+        except Exception as e:
+            print(f'[DefRestore] {className}: fold failed for {key}: {e}',
+                  flush=True)
+            return 0
 
     def _seedBoundClasses(self):
         """Register every seeded solution's `boundClass` as a real Polari class.
