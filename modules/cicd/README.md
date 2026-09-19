@@ -40,6 +40,25 @@ may ship.
 | `IsleTestResult` | the pipeline, per run × stage |
 | `ReleaseRecord` | the pipeline — what shipped, and what did not, with the reason |
 
+### ci-9 added five settings columns and two record columns
+
+`PipelineDevice` gained `cache` / `cache_dir` / `cache_max_gb` /
+`cache_proxies` — the offline-first build cache (`CI_CACHE*`) — and
+`route_target` (`CI_ROUTE_TARGET`), **where an app-mode device's own releases
+go**. `route_target` equal to the upstream owner is a **FAIL**, in the row's
+validation and again in `routes/_lib.sh`: a fork is never republished under
+an upstream name.
+
+`ReleaseRecord` gained `route_target` and `cache_report_json` — the bytes
+served from the cache vs fetched, and the seconds, for the build that made
+that release. Kept with the release itself, so *"did the cache save us
+anything?"* is answerable from the rows rather than a log.
+
+All five settings keys are RENDERED into `device_env`, so a `pull` from this
+core adds them to an older `device.env` instead of erasing them — and
+`CI_CACHE` renders as `on` by default, because a pull from a core that never
+heard of ci-9 must not silently turn a device's cache off.
+
 ## The doors
 
     GET  /api/cicd                  everything for one device in ONE read (settings + stages + routes +
@@ -92,7 +111,9 @@ pipeline device.
 ## Selftest
 
     cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/cicd/cicd_selftest.py
+    # 140/140 (ci-8's 128 + ci-9's cache, route-target and device_env cases)
 
 and the shell half:
 
     bash polari-jenkins/selftest.sh
+    # 235/235

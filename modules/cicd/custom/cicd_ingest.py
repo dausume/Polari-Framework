@@ -156,6 +156,12 @@ def device_rows(body, existing=None, posted_by=''):
         'min_ram_headroom_gb': _int(s.get('min_ram_headroom_gb'), 1),
         'executors': _int(s.get('executors'), 1),
         'routes_json': _j([str(r) for r in (s.get('routes') or [])]),
+        # ci-9: the offline-first cache, and where this device's own releases go
+        'cache': str(s.get('cache') or 'on'),
+        'cache_dir': str(s.get('cache_dir') or ''),
+        'cache_max_gb': _int(s.get('cache_max_gb'), 40),
+        'cache_proxies': str(s.get('cache_proxies') or 'off'),
+        'route_target': str(s.get('route_target') or ''),
         'stages_summary': render(body.get('stages') or []),
     })
     return reported, True
@@ -261,6 +267,9 @@ def release_row(body, posted_by=''):
             # his addendum: an app release must name the CORE it passed against, or "it passed" is unfalsifiable
             'mode': str(body.get('mode') or 'suite'), 'app_name': str(body.get('app_name') or ''),
             'tested_against': str(body.get('tested_against') or ''),
+            # ci-9: where it went, and whether the offline cache actually saved anything
+            'route_target': str(body.get('route_target') or ''),
+            'cache_report_json': _j(body.get('cache_report') or {}, '{}'),
             'published_routes_json': _j([str(r) for r in (body.get('published_routes') or [])]),
             'dry_routes_json': _j(body.get('dry_routes') or {}, '{}'),
             'released_json': _j([str(a) for a in (body.get('released') or [])]),

@@ -373,21 +373,53 @@ def _fetch_wheels(libraries, dest):
     pinned to their measured versions, unmeasured ones by name.
     Returns sorted wheel filenames; raises RuntimeError with pip's
     words on failure (caller renders the named refusal). Module-
-    level seam so selftests can substitute a fake fetcher."""
+    level seam so selftests can substitute a fake fetcher.
+
+    ci-9, his ask 2026-09-19 (*"the jenkins pipeline should try and
+    use offline artifacts for building where possible, that way we
+    are taking less time when repeatedly using the same data"*):
+    POLARI_WHEEL_CACHE — when the pipeline points it at its
+    `<cache>/wheels`, that directory is offered to pip as
+    `--find-links` FIRST, so a repeat build downloads only what is
+    genuinely new, and everything fetched is folded back in for the
+    next build. POLARI_PIP_INDEX_URL does the same for tier two's
+    devpi proxy.
+
+    THE RULE: the cache is an OPTIMISATION, never a precondition.
+    Unset, or empty, and this is exactly the old behaviour — pip
+    goes to the index. Nothing here ever refuses for a cache miss.
+    """
     specs = [f'{l["name"]}=={l["version"]}' if l['installed']
              else l['name'] for l in libraries]
     if not specs:
         return []
     os.makedirs(dest, exist_ok=True)
+    cache = os.environ.get('POLARI_WHEEL_CACHE', '').strip()
+    index = os.environ.get('POLARI_PIP_INDEX_URL', '').strip()
+    extra = []
+    if cache:
+        os.makedirs(cache, exist_ok=True)
+        extra += ['--find-links', cache]
+    if index:
+        extra += ['--index-url', index]
     result = subprocess.run(
         ['python3', '-m', 'pip', 'download', '--no-deps',
-         '-d', dest] + specs,
+         '-d', dest] + extra + specs,
         capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(
             'wheel download failed: '
             + (result.stderr or result.stdout).strip()[-400:])
-    return sorted(os.listdir(dest))
+    names = sorted(os.listdir(dest))
+    if cache:
+        for name in names:
+            target = os.path.join(cache, name)
+            if not os.path.exists(target):
+                try:
+                    shutil.copyfile(os.path.join(dest, name), target)
+                except OSError:
+                    pass
+    return names
 
 
 def generate(module, root=None, analysis=None, flavor='online',

@@ -238,9 +238,47 @@ def _mode_checks():
     check('  …and without the app\'s own repo → FAIL naming polari-module-<name> and the pol project loop',
           v['CI_APP_REPO'][0] == 'FAIL' and 'polari-module-' in v['CI_APP_REPO'][1], v.get('CI_APP_REPO'))
     v = verdicts(mode='app', app_name='security', app_repo='https://example.invalid/polari-module-security.git',
-                 stages=[[], ['security']])
+                 route_target='some-developer', stages=[[], ['security']])
     check('a complete APP-mode device validates clean',
           not [k for k, (s, _) in v.items() if s == 'FAIL'], {k: x for k, x in v.items() if x[0] == 'FAIL'})
+
+    # ---- ci-9: CI_ROUTE_TARGET — where an app-mode device's OWN releases go
+    v = verdicts(mode='app', app_name='security', app_repo='x', stages=[[], ['security']])
+    check('ci-9: APP mode with no CI_ROUTE_TARGET → FAIL: "publish it somewhere" is not a release, and the '
+          'one place it may NOT go is upstream',
+          v['CI_ROUTE_TARGET'][0] == 'FAIL' and 'names none' in v['CI_ROUTE_TARGET'][1], v.get('CI_ROUTE_TARGET'))
+    v = verdicts(mode='app', app_name='security', app_repo='x', route_target='dausume',
+                 stages=[[], ['security']])
+    check('  …CI_ROUTE_TARGET = the UPSTREAM owner → FAIL, in the device settings as well as in the routes',
+          v['CI_ROUTE_TARGET'][0] == 'FAIL' and 'UPSTREAM owner' in v['CI_ROUTE_TARGET'][1], v.get('CI_ROUTE_TARGET'))
+    v = verdicts(mode='suite', route_target='some-developer')
+    check('  …set while the mode is suite → WARN, it is ignored (the suite publishes to the suite\'s routes)',
+          v['CI_ROUTE_TARGET'][0] == 'WARN' and 'it is ignored' in v['CI_ROUTE_TARGET'][1], v.get('CI_ROUTE_TARGET'))
+
+    # ---- ci-9: the offline-first cache is ADVISORY — a bad knob slows a build, never stops it
+    v = verdicts(cache='on')
+    check('ci-9: CI_CACHE=on says plainly what it does — read first, fetch only what is missing',
+          v['CI_CACHE'][0] == 'OK' and 'fetch only what is missing' in v['CI_CACHE'][1], v.get('CI_CACHE'))
+    v = verdicts(cache='off')
+    check('  …CI_CACHE=off is a WARN, not a FAIL: turning the cache off is legal, just slow',
+          v['CI_CACHE'][0] == 'WARN' and 're-downloads' in v['CI_CACHE'][1], v.get('CI_CACHE'))
+    v = verdicts(cache='maybe')
+    check('  …a value outside on|off IS a FAIL — a device that cannot read its own knob is unpredictable, '
+          'which is worse than slow',
+          v['CI_CACHE'][0] == 'FAIL' and 'on|off' in v['CI_CACHE'][1], v.get('CI_CACHE'))
+    v = verdicts(cache_max_gb='lots')
+    check('  …a non-numeric CI_CACHE_MAX_GB → FAIL', v['CI_CACHE_MAX_GB'][0] == 'FAIL')
+    v = verdicts(cache_proxies='on')
+    check('  …CI_CACHE_PROXIES=on names the four proxies and the command that shows them',
+          v['CI_CACHE_PROXIES'][0] == 'OK' and 'cache proxies status' in v['CI_CACHE_PROXIES'][1],
+          v.get('CI_CACHE_PROXIES'))
+    v = verdicts(cache_proxies='off')
+    check('  …and OFF is the default and is stated as the whole of tier one',
+          v['CI_CACHE_PROXIES'][0] == 'OK' and 'no services to keep alive' in v['CI_CACHE_PROXIES'][1])
+    v = verdicts()
+    check('  …an empty CI_CACHE_DIR is OK and explains WHY the default is relative to the pool '
+          '(an ssh isle target caches on its own disk)',
+          v['CI_CACHE_DIR'][0] == 'OK' and 'own disk' in v['CI_CACHE_DIR'][1], v.get('CI_CACHE_DIR'))
     v = verdicts(mode='wat')
     check('a mode outside suite|app is a WARN and reads as suite — an unknown mode from a newer core must '
           'not stop an older device running the pipeline it already has',
@@ -296,17 +334,28 @@ def _mode_checks():
     r = V.validate_routes([{'route': 'github-release', 'target': 'dausume/polari-suite'}], mode='suite')
     check('  …and in SUITE mode the upstream owner is exactly right', r and r[0]['status'] == 'OK', r)
 
-    # device.env carries the four new keys, in device.sh's own order
+    # device.env carries the mode keys (ci-8) and the cache + route-target keys (ci-9),
+    # in device.sh's own order
     env = V.device_env(dict(mode='app', app_name='security', app_repo='https://example.invalid/r.git',
                             core_source='release:latest', isle_target='local', vm_ram_gb=4, vm_vcpus=2,
                             vm_disk_gb=30, nested='auto', min_free_gb=20, min_ram_headroom_gb=1,
-                            executors=1, routes=['ghcr']), [[], ['security']])
+                            executors=1, routes=['ghcr'], cache='on', cache_max_gb=40,
+                            cache_proxies='off', route_target='some-developer'), [[], ['security']])
     keys = [line.split('=', 1)[0] for line in env.strip().splitlines()]
     check('the rendered device.env exports the mode keys FIRST and every device.sh key exactly once',
           keys[:4] == ['CI_MODE', 'CI_APP_NAME', 'CI_APP_REPO', 'CI_CORE_SOURCE']
-          and len(keys) == len(set(keys)) == 19, keys)
+          and len(keys) == len(set(keys)) == 24, keys)
     check('  …and the stages knob is rendered from the rows, not copied from a string',
           'CI_ISLE_STAGES=core; security\n' in env, env)
+    # ci-9: a pull must not ERASE a key the core knows nothing about — the five new
+    # keys are rendered, so an older device.env gains them instead of losing them.
+    check('ci-9: the rendered device.env carries the cache knobs and the route target',
+          all(('\n%s=' % k) in ('\n' + env) for k in
+              ('CI_CACHE', 'CI_CACHE_DIR', 'CI_CACHE_MAX_GB', 'CI_CACHE_PROXIES', 'CI_ROUTE_TARGET')), keys)
+    check('  …with the cache ON by default, because a pull from a core that never heard of ci-9 must not '
+          'silently turn a device\'s cache off',
+          'CI_CACHE=on\n' in V.device_env(dict(mode='suite'), [[]]),
+          V.device_env(dict(mode='suite'), [[]]))
 
 
 # -------------------------------------------------------- the mirror's refusals

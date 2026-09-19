@@ -1,6 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # Multi-stage build for optimized image size and faster rebuilds
+
+# ci-9: the DEFAULT for the named build context `wheels`. A build that passes
+#   --build-context wheels=<the pipeline's wheelhouse>
+# overrides this stage with that directory; a build that does not gets an empty
+# one and pip falls through to the network. Declaring the default here is what
+# makes the offline path optional instead of a flag every caller must remember.
+FROM scratch AS wheels
+
 # Stage 1: Builder - Install build dependencies and compile packages
 
 FROM python:3.12-alpine AS builder
@@ -69,11 +77,38 @@ ENV LD_LIBRARY_PATH="$FREETYPE_DIR/builds/unix/:$LD_LIBRARY_PATH"
 # This layer only rebuilds when requirements.txt changes
 COPY requirements.txt /build/requirements.txt
 
-# Install Python dependencies using cache mount for faster rebuilds
+# ---------------------------------------------------------------------------
+# ci-9 — OFFLINE-FIRST (his ask 2026-09-19: "the jenkins pipeline should try
+# and use offline artifacts for building where possible").
+#
+# Three layers of reuse, each one optional and each one falling straight
+# through to the network when it is not there:
+#
+#  1. --mount=type=cache,target=/root/.cache/pip — pip's own HTTP/wheel cache,
+#     kept by BuildKit between builds on the same daemon.
+#  2. --mount=type=bind,from=wheels,target=/wheels — the PIPELINE's wheelhouse
+#     (polari-jenkins <cache>/wheels), handed in as a named build context:
+#         docker buildx build --build-context wheels=/var/polari-pool/cache/wheels …
+#     `FROM scratch AS wheels` above is the DEFAULT for that name, so a plain
+#     `docker build` / `docker compose build` with no --build-context binds an
+#     EMPTY directory and pip simply finds nothing there. No breakage, no flag.
+#  3. PIP_INDEX_URL — tier two's devpi proxy, passed by the pipeline only when
+#     the proxy actually answers (polari-jenkins/cache.sh build-args).
+#
+# THE RULE: an empty cache must still build. Nothing below is a precondition.
+# ---------------------------------------------------------------------------
+ARG PIP_INDEX_URL=
+ARG PIP_FIND_LINKS=
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && \
-    pip install -r /build/requirements.txt && \
-    pip install psutil
+    --mount=type=bind,from=wheels,target=/wheels \
+    set -eu; \
+    LINKS="--find-links=/wheels"; \
+    for d in ${PIP_FIND_LINKS}; do LINKS="$LINKS --find-links=$d"; done; \
+    INDEX=""; [ -n "${PIP_INDEX_URL}" ] && INDEX="--index-url=${PIP_INDEX_URL}" || true; \
+    echo "pip: $(ls /wheels 2>/dev/null | wc -l) wheel(s) offered from the pipeline cache${PIP_INDEX_URL:+, index ${PIP_INDEX_URL}}"; \
+    pip install --upgrade pip $INDEX; \
+    pip install $INDEX $LINKS -r /build/requirements.txt; \
+    pip install $INDEX $LINKS psutil
 
 # Stage 2: Runtime - Minimal image with only runtime dependencies
 

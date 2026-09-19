@@ -64,6 +64,8 @@ class PipelineDevice(treeObject):
                  vm_name: str = 'polari-ci-isle', vm_ram_gb: int = 4, vm_vcpus: int = 2, vm_disk_gb: int = 30,
                  nested: str = 'auto', isle_pool: str = '', image_url: str = '',
                  min_free_gb: int = 20, min_ram_headroom_gb: int = 1, executors: int = 1,
+                 cache: str = 'on', cache_dir: str = '', cache_max_gb: int = 40,
+                 cache_proxies: str = 'off', route_target: str = '',
                  routes_json: str = '[]', stages_summary: str = 'core',
                  setup_steps_done: int = 0, setup_steps_total: int = 8, setup_ready: bool = False,
                  setup_verdict: str = '', doctor_warnings: int = 0, preflight_verdict: str = '',
@@ -88,6 +90,18 @@ class PipelineDevice(treeObject):
         self.min_free_gb = min_free_gb          # CI_MIN_FREE_GB — the retention floor
         self.min_ram_headroom_gb = min_ram_headroom_gb   # CI_MIN_RAM_HEADROOM_GB
         self.executors = executors              # CI_EXECUTORS — casc numExecutors follows it
+        # ci-9 — THE OFFLINE-FIRST CACHE (his ask 2026-09-19: "the jenkins pipeline should try and use
+        # offline artifacts for building where possible, that way we are taking less time when repeatedly
+        # using the same data"). Tier one is a DIRECTORY the builders read first; tier two is four opt-in
+        # caching proxies on 127.0.0.1. Every knob here is advisory: a misconfigured cache makes a build
+        # slower, never refuses one.
+        self.cache = cache                      # CI_CACHE — on | off
+        self.cache_dir = cache_dir              # CI_CACHE_DIR — empty = <pool>/cache
+        self.cache_max_gb = cache_max_gb        # CI_CACHE_MAX_GB — the doctor warns past it; it never deletes
+        self.cache_proxies = cache_proxies      # CI_CACHE_PROXIES — off | on (tier two, opt-in)
+        # ci-9 — WHERE THIS DEVICE'S OWN RELEASES GO. Unused in suite mode. In app mode it is required and
+        # it may never be the upstream owner: a fork is never republished under an upstream name.
+        self.route_target = route_target        # CI_ROUTE_TARGET
         self.routes_json = routes_json          # CI_ROUTES as a JSON list — the routes that MAY publish
         self.stages_summary = stages_summary    # CI_ISLE_STAGES rendered — the PipelineStage rows are the truth
         self.setup_steps_done = setup_steps_done        # SETUP_STATUS.md: steps N of M complete

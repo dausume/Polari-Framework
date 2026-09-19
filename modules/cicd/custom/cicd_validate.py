@@ -158,9 +158,96 @@ def validate_settings(settings, modules_dir=None):
         rows.append(_row('CI_EXECUTORS', s.get('executors'), WARN,
                          'more than one executor on a home box overlaps builds → set CI_EXECUTORS=1'))
 
+    rows.extend(validate_cache(s))
+    rows.extend(validate_route_target(s))
     rows.extend(validate_stages(s.get('stages'), modules_dir=modules_dir,
                                 mode=str(s.get('mode') or 'suite'), app_name=str(s.get('app_name') or '')))
     return rows
+
+
+#: the owner nothing in `app` mode may publish under — a fork is never
+#: republished under an upstream name (ci-8's rule, ci-9's key).
+UPSTREAM_OWNER = 'dausume'
+
+
+def validate_cache(settings):
+    """CI_CACHE / CI_CACHE_DIR / CI_CACHE_MAX_GB / CI_CACHE_PROXIES (ci-9).
+
+    His ask 2026-09-19: *"the jenkins pipeline should try and use offline artifacts for building where
+    possible, that way we are taking less time when repeatedly using the same data."*
+
+    Every row here is advisory on purpose. The cache is an OPTIMISATION: a misconfigured one must make a
+    build slower, never refuse it. Only a value outside the vocabulary is a FAIL, and only because a
+    device that cannot read its own knob would behave unpredictably rather than slowly.
+
+    The exact counterpart of `device.sh device_validate_cache` — the same keys, the same verdicts, the
+    same sentences. (A PORT, not a call: the core is not on the pipeline device.)
+    """
+    s = dict(settings or {})
+    rows = []
+    cache = str(s.get('cache', 'on') or 'on')
+    if cache == 'on':
+        rows.append(_row('CI_CACHE', 'on', OK,
+                         'builds read the cache first and fetch only what is missing'))
+    elif cache == 'off':
+        rows.append(_row('CI_CACHE', 'off', WARN,
+                         'every build re-downloads its wheels, npm packages, debs and base images '
+                         '→ set CI_CACHE=on (the default)'))
+    else:
+        rows.append(_row('CI_CACHE', cache, FAIL, 'unknown value → on|off'))
+
+    max_gb = s.get('cache_max_gb', 40)
+    if _is_positive_int(max_gb):
+        rows.append(_row('CI_CACHE_MAX_GB', max_gb, OK,
+                         'the budget the doctor warns past (it never deletes: pol jenkins cache prune does)'))
+    else:
+        rows.append(_row('CI_CACHE_MAX_GB', max_gb, FAIL, 'not a positive whole number'))
+
+    proxies = str(s.get('cache_proxies', 'off') or 'off')
+    if proxies == 'off':
+        rows.append(_row('CI_CACHE_PROXIES', 'off', OK,
+                         'tier one only — one directory, no services to keep alive'))
+    elif proxies == 'on':
+        rows.append(_row('CI_CACHE_PROXIES', 'on', OK,
+                         'tier two: registry/devpi/verdaccio/apt-cacher-ng on 127.0.0.1 '
+                         '(pol jenkins cache proxies status)'))
+    else:
+        rows.append(_row('CI_CACHE_PROXIES', proxies, FAIL, 'unknown value → off|on'))
+
+    cdir = str(s.get('cache_dir', '') or '')
+    rows.append(_row('CI_CACHE_DIR', cdir, OK,
+                     'the default: <pool>/cache (relative to the pool, so an ssh target caches on its own disk)'
+                     if not cdir else 'an explicit cache root'))
+    return rows
+
+
+def validate_route_target(settings):
+    """CI_ROUTE_TARGET — WHERE this device's own releases go (ci-9).
+
+    In `suite` mode it is unused: the suite publishes to the suite's routes. In `app` mode it is required
+    and it is checked, because the whole point of app mode is that somebody else's fork of the pipeline
+    publishes THEIR app under THEIR name. A target equal to the upstream owner is a FAIL, not a warning:
+    republishing a fork under an upstream name is the one thing this mode must make impossible.
+    """
+    s = dict(settings or {})
+    mode = str(s.get('mode') or 'suite')
+    target = str(s.get('route_target', '') or '')
+    if mode != 'app':
+        if target:
+            return [_row('CI_ROUTE_TARGET', target, WARN,
+                         'set but the mode is suite → it is ignored; set CI_MODE=app to publish to your own routes')]
+        return [_row('CI_ROUTE_TARGET', '', OK,
+                     'not used (suite mode publishes to the suite\'s own routes)')]
+    if not target:
+        return [_row('CI_ROUTE_TARGET', '', FAIL,
+                     'app mode releases to YOUR routes but names none '
+                     '→ set CI_ROUTE_TARGET to your own owner/namespace')]
+    if target == UPSTREAM_OWNER or target.startswith(UPSTREAM_OWNER + '/'):
+        return [_row('CI_ROUTE_TARGET', target, FAIL,
+                     'that is the UPSTREAM owner — a fork is never republished under an upstream name '
+                     '→ set CI_ROUTE_TARGET to your own owner/namespace')]
+    return [_row('CI_ROUTE_TARGET', target, OK,
+                 'this device\'s releases go to %s, never upstream' % target)]
 
 
 def validate_mode(settings, modules_dir=None):
@@ -371,6 +458,13 @@ def device_env(settings, stages):
         ('CI_EXECUTORS', s.get('executors')),
         ('CI_ROUTES', routes),
         ('CI_ISLE_STAGES', render(stages)),
+        # ci-9: the offline-first cache, and where an app-mode device's own releases go.
+        # They are rendered LAST so an older device.env gains them at the end of the file.
+        ('CI_CACHE', s.get('cache') or 'on'),
+        ('CI_CACHE_DIR', s.get('cache_dir') or ''),
+        ('CI_CACHE_MAX_GB', 40 if s.get('cache_max_gb') is None else s.get('cache_max_gb')),
+        ('CI_CACHE_PROXIES', s.get('cache_proxies') or 'off'),
+        ('CI_ROUTE_TARGET', s.get('route_target') or ''),
     ]
     return ''.join('%s=%s\n' % (k, '' if v is None else v) for k, v in pairs)
 
@@ -401,4 +495,10 @@ def settings_from_device(row):
         'min_ram_headroom_gb': getattr(row, 'min_ram_headroom_gb', 1),
         'executors': getattr(row, 'executors', 1),
         'routes': _list(getattr(row, 'routes_json', '[]')),
+        # ci-9
+        'cache': getattr(row, 'cache', 'on'),
+        'cache_dir': getattr(row, 'cache_dir', ''),
+        'cache_max_gb': getattr(row, 'cache_max_gb', 40),
+        'cache_proxies': getattr(row, 'cache_proxies', 'off'),
+        'route_target': getattr(row, 'route_target', ''),
     }

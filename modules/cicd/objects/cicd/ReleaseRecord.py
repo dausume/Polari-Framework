@@ -30,6 +30,7 @@ class ReleaseRecord(treeObject):
     def __init__(self, name: str = '', device: str = '', version: str = '', tag: str = '',
                  tag_pushed: bool = False, results_present: bool = False, core_ok: bool = False,
                  mode: str = 'suite', app_name: str = '', tested_against: str = '',
+                 route_target: str = '', cache_report_json: str = '{}',
                  published_routes_json: str = '[]', dry_routes_json: str = '{}',
                  released_json: str = '[]', not_released_json: str = '{}',
                  run: str = '', released_at: str = '', why_not: str = '', posted_by: str = ''):
@@ -43,6 +44,12 @@ class ReleaseRecord(treeObject):
         self.mode = mode                        # suite | app — what this device's pipeline is for
         self.app_name = app_name                # the one app this release is of (app mode)
         self.tested_against = tested_against    # the CORE release this passed against (app mode: release:<tag>)
+        # ci-9: WHERE it went (app mode publishes to the developer's own owner/namespace, never upstream)
+        self.route_target = route_target        # CI_ROUTE_TARGET at release time
+        # ci-9: the offline cache's arithmetic for the build that produced this release —
+        # bytes served from the cache vs fetched, and the seconds, per area. The honest
+        # answer to "did the cache actually save us anything?", kept with the release itself.
+        self.cache_report_json = cache_report_json
         self.published_routes_json = published_routes_json   # routes that published FOR REAL
         self.dry_routes_json = dry_routes_json  # {route: why it stayed dry} — the honest other half
         self.released_json = released_json      # the assets that shipped
