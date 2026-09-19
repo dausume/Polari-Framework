@@ -657,6 +657,36 @@ class managerObject:
     # tombstoned AND still absent from the LIVE objectTables — the live
     # table is the truth, the tombstone only says where to look.
     # ------------------------------------------------------------------
+    def mergeGovernedClasses(self):
+        """The class names the §66e DEFINITION MERGE governs — every class in
+        `polariServer.defClassList` — filled in where those classes are
+        registered (`polariServer.__init__`, and again per scope in
+        `ensureDefinitionTables`, which is what keeps live-admitted classes in).
+
+        §66 addendum 5 (D2). Two restore paths walk the same tables: this
+        module's `_restoreTableRows` and the server's `_restoreDefinitionInstances`.
+        They had two different ideas of "this row is already here" —
+        `identifySeedDBIds`'s property FINGERPRINT, and the merge's id/name
+        rule. The fingerprint drops a persisted row that merely RESEMBLES a
+        live one, so a row that has DIVERGED from its boot-time twin (a person's
+        `confirmed` ruling beside the observer's `suggested` guess) is dropped
+        as if it were a re-created seed. Where the merge runs it puts the row
+        back; where it does not — a module whose admission died between
+        `restoreTables()` and `ensureDefinitionTables()`, which D1's crash did
+        four times on `polari-lean` — the ruling is simply gone, and the next
+        persist writes the half-booted tree over it.
+
+        So for these classes ONE rule governs both paths: restore by id, and let
+        the name-merge fold the boot-time twin (persisted wins every field,
+        counters summed, the twin tombstoned). Classes the merge does NOT govern
+        keep the fingerprint exactly as it was — a pure seed whose code
+        definition changed must still lose to the code, and only the merge knows
+        how to make that call by name.
+
+        Kept in `__dict__` directly so it never becomes a persisted/typed
+        attribute of the manager (the `_persistState` idiom)."""
+        return self.__dict__.setdefault('mergeRestoredClasses', set())
+
     def _persistState(self):
         """Lazily-created bookkeeping. Kept in __dict__ directly so it
         never becomes a persisted/typed attribute of the manager."""
@@ -1202,6 +1232,8 @@ class managerObject:
             'polServer', 'hostSys', 'subManagers', 'db',
             # §51 addendum 3: flush bookkeeping, never data
             'persistLock', 'deletedSinceSnapshot', 'persistGeneration',
+            # §66 addendum 5: which classes the definition merge governs
+            'mergeRestoredClasses',
             # User: random per boot
             'sessionSecret', 'sessionCookie', 'sessionJWT',
             # isoSys: Docker container changes hostname each restart
@@ -1226,8 +1258,18 @@ class managerObject:
         # iteration`, live on polari-lean twice in a row, taking polariapps
         # and its dependents down with it). The same snapshot the merge in
         # polariServer._mergeRestoredRows already takes.
+        # §66 addendum 5 (D2): the classes the definition MERGE governs are
+        # EXEMPT from the fingerprint — see mergeGovernedClasses(). Their rows
+        # restore by id and the merge folds the boot-time twin by name, so one
+        # rule decides "already here" on both paths instead of two rules that
+        # disagree. Everything else keeps the fingerprint unchanged.
+        governed = self.mergeGovernedClasses()
+        exempted = []
         for className, runtimeInstances in list(self.objectTables.items()):
             if not runtimeInstances:
+                continue
+            if className in governed:
+                exempted.append(className)
                 continue
             if className not in self.db.tables:
                 continue
@@ -1333,6 +1375,10 @@ class managerObject:
                 seedIds[className] = matchedDbIds
                 print(f'[DB] Found {len(matchedDbIds)} seed IDs for {className}', flush=True)
 
+        if exempted:
+            print(f'[DB] {len(exempted)} classes exempt from the seed '
+                  f'fingerprint — the definition merge governs them and '
+                  f'restores them by id (§66 addendum 5)', flush=True)
         return seedIds
 
     def __delete__(self, instance):

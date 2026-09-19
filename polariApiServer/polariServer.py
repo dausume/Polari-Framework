@@ -1309,6 +1309,10 @@ class polariServer(treeObject):
         # mlb-1: the middleware resolves each CRUDE route's owning
         # module through this map.
         self.bootRegistry.register_classes(self.defClassList)
+        # §66 addendum 5 (D2): tell the manager which classes the definition
+        # MERGE governs, so the main restore path stops second-guessing it with
+        # the seed fingerprint. See managerObject.mergeGovernedClasses().
+        self._noteMergeGovernedClasses(self.defClassList)
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -1713,6 +1717,11 @@ class polariServer(treeObject):
         def in_scope(class_name):
             return only_classes is None or class_name in only_classes
 
+        # §66 addendum 5 (D2): re-assert it here too — this is the call that
+        # ACTUALLY ends in `_restoreDefinitionInstances`, so a class admitted
+        # live (dyn-2 extends defClassList after boot) is covered the first
+        # time the merge is asked to govern it.
+        self._noteMergeGovernedClasses(self.defClassList)
         print(f'[DefInit] ensureDefinitionTables: db.tables={db.tables}', flush=True)
         for defClass in scoped:
             className = defClass.__name__
@@ -1831,6 +1840,19 @@ class polariServer(treeObject):
                     typingObj.makeTypedTableFromAnalysis()
         except Exception as e:
             print(f'[polariServer] Migration check failed for {className}: {e}', flush=True)
+
+    def _noteMergeGovernedClasses(self, defClassList):
+        """Publish the merge's remit to the manager (§66 addendum 5, D2).
+
+        Never raises and never blocks a boot: a manager too old to carry the
+        set simply keeps the fingerprint for everything, which is the
+        behaviour this fix replaces."""
+        try:
+            self.manager.mergeGovernedClasses().update(
+                c.__name__ for c in (defClassList or ()) if c is not None)
+        except Exception as e:                                  # noqa: BLE001
+            print(f'[DefInit] could not publish the merge-governed class set '
+                  f'({e}) — the seed fingerprint stays in charge', flush=True)
 
     def _restoreDefinitionInstances(self, defClassList):
         """Restore Definition instances from the DB, MERGING with whatever is

@@ -32,14 +32,24 @@ serves requests WHILE the restore walks the tree.
      from the restore rather than from the observer. The fold now runs on that
      branch too.
 
-What is NOT fixed here, and is deliberately left as a described hazard: the
-seed FINGERPRINT itself (`identifySeedDBIds`, a >=60% property match) can
-classify a persisted row that has DIVERGED from its boot-time twin — a
-`confirmed` row beside a `suggested` one — as a re-created seed and drop it.
-For a Definition class the merge puts it back; for a class outside
-`defClassList` (`User`, `managedExecutable`, `isoSys`, every dynamic class)
-nothing does. Changing a heuristic that every boot depends on is not this
-slice's call. The demonstration of it lives in the scratchpad, not in the tree.
+  3. **The two paths disagreed about what "already here" means.** The seed
+     FINGERPRINT (`identifySeedDBIds`, a >=60% property match) drops a
+     persisted row that merely RESEMBLES a live one — so a row that has
+     DIVERGED from its boot-time twin, which is exactly what a person's
+     `confirmed` ruling beside an observer's `suggested` guess looks like, was
+     dropped as if it were a re-created seed. Live every boot on `polari-lean`:
+     `[DB] Found 1 seed IDs for InboundPolicy`, and no restore of that table.
+     Where the merge runs afterwards it puts the row back; where it does not —
+     a module whose admission died between `restoreTables()` and
+     `ensureDefinitionTables()`, which defect 1 did four times — the ruling is
+     gone and the next persist writes the half-booted tree over it.
+
+     So for the classes the MERGE governs (`polariServer.defClassList`,
+     published to `manager.mergeGovernedClasses()`) one rule now decides it on
+     both paths: restore by id, fold the boot-time twin by name. Every other
+     class keeps the fingerprint exactly as it was — a pure seed whose code
+     definition changed must still lose to the code, and only the merge knows
+     how to make that call by name.
 
 No server, no database, no network: a fake `db` answers `getAllInTable` the way
 the real one does, and the REAL methods are bound to a double.
@@ -65,6 +75,14 @@ def check(name, cond, detail=''):
 
 COLUMNS = ['_branch_path', 'id', 'name', 'state', 'confirmed_by', 'count']
 
+# SecurityDecision's real column set (modules/polariapps/objects/apps_security/
+# SecurityDecision.py). It is the shape the fingerprint gets WRONG: converge
+# recomputes the descriptive half identically, so a persisted row differs from
+# its boot-time twin only in the ruling half and clears 60% easily.
+DECISION_COLUMNS = ['_branch_path', 'id', 'name', 'app', 'app_version',
+                    'release', 'kind', 'subject', 'evidence_json',
+                    'derived_from', 'state', 'confirmed_by', 'confirmed_at']
+
 
 class Row:
     """A row shaped like the policy/decision rows: `name` is the dedup key,
@@ -78,6 +96,31 @@ class Row:
         self.state = state
         self.confirmed_by = confirmed_by
         self.count = int(count or 0)
+        if manager is not None:
+            manager.objectTables.setdefault(
+                type(self).__name__, {})[id or name] = self
+
+
+class Decision:
+    """A row with a wide descriptive half and a narrow ruling half."""
+
+    def __init__(self, manager=None, id='', name='', app='', app_version='',
+                 release='', kind='', subject='', evidence_json='',
+                 derived_from='', state='', confirmed_by='', confirmed_at='',
+                 **_ignored):
+        self.manager = manager
+        self.id = id
+        self.name = name
+        self.app = app
+        self.app_version = app_version
+        self.release = release
+        self.kind = kind
+        self.subject = subject
+        self.evidence_json = evidence_json
+        self.derived_from = derived_from
+        self.state = state
+        self.confirmed_by = confirmed_by
+        self.confirmed_at = confirmed_at
         if manager is not None:
             manager.objectTables.setdefault(
                 type(self).__name__, {})[id or name] = self
@@ -99,34 +142,37 @@ class FakeDb:
     """`onRead` is the REQUEST arriving mid-restore: the live stack's health
     probe, ct-9's traffic middleware, ct-8's converge-on-read."""
 
-    def __init__(self, rows, onRead=None):
+    def __init__(self, rows, onRead=None, columns=None):
         self.rows = rows
         self.tables = list(rows)
         self.onRead = onRead
+        self.columns = columns or COLUMNS
         self.reads = 0
 
     def getAllInTable(self, className):
         self.reads += 1
         if self.onRead is not None:
             self.onRead(self.reads, className)
-        return COLUMNS, list(self.rows.get(className, []))
+        return self.columns, list(self.rows.get(className, []))
 
 
 class FakeManager:
     """Only what the two restore paths touch. The real methods are bound on,
     so the code under test is the shipped code."""
 
-    def __init__(self, db, classes):
+    def __init__(self, db, classes, merged=()):
         self.db = db
         self.objectTables = {}
         self.objectTypingDict = {name: Typing(cls)
                                  for name, cls in classes.items()}
         self.tombstoned = []
         from objectTreeManagerDecorators import managerObject
-        self.identifySeedDBIds = (
-            managerObject.identifySeedDBIds.__get__(self, type(self)))
-        self._restoreTableRows = (
-            managerObject._restoreTableRows.__get__(self, type(self)))
+        for method in ('identifySeedDBIds', '_restoreTableRows',
+                       'mergeGovernedClasses'):
+            setattr(self, method,
+                    getattr(managerObject, method).__get__(self, type(self)))
+        # what polariServer._noteMergeGovernedClasses publishes at boot
+        self.mergeGovernedClasses().update(merged)
 
     def noteTreeDeletion(self, className, instanceId):
         self.tombstoned.append((className, instanceId))
@@ -135,6 +181,14 @@ class FakeManager:
 
 def persisted(rowId, name, state, by, count):
     return [None, rowId, name, state, by, count]
+
+
+def decision(rowId, state, by, at):
+    """One subject, twice: the descriptive half is what converge recomputes
+    identically on every read, the last three are the ruling."""
+    return [None, rowId, 'app-policy|v1|owner-policy|MealEntry', 'app-policy',
+            'v1', 'set-862f3c1e', 'owner-policy', 'MealEntry',
+            '{"policy_row": false}', 'enumerate', state, by, at]
 
 
 def server_with(manager):
@@ -316,6 +370,111 @@ def test_persist_bookkeeping_table_is_never_restored():
           'instance', m.objectTables == {}, repr(m.objectTables))
 
 
+# ---- 3. the fingerprint, and the line the fix draws --------------------
+
+def _decision_case(merged):
+    """The live shape: a person's `confirmed` ruling in the database and the
+    boot-time `open` row converge-on-read wrote for the same subject."""
+    db = FakeDb({'Decision': [decision('db-1', 'confirmed', 'sub-9',
+                                       '2026-09-19T02:15:01')]},
+                columns=DECISION_COLUMNS)
+    m = FakeManager(db, {'Decision': Decision}, merged=merged)
+    Decision(manager=m, id='boot-1',
+             name='app-policy|v1|owner-policy|MealEntry', app='app-policy',
+             app_version='v1', release='set-862f3c1e', kind='owner-policy',
+             subject='MealEntry', evidence_json='{"policy_row": false}',
+             derived_from='enumerate', state='open')
+    return db, m
+
+
+def test_a_confirmed_row_of_a_MERGED_class_survives_the_fingerprint():
+    """D2. The persisted row matches its boot-time twin on 8 of 11 comparable
+    columns — 72%, well over the 60% the fingerprint calls a seed. For a class
+    the merge governs it must be restored anyway, and the twin folded."""
+    db, m = _decision_case({'Decision'})
+    seeds = m.identifySeedDBIds()
+    check('a merge-governed class is exempt from the fingerprint entirely',
+          not seeds.get('Decision'), f'seeds={seeds}')
+    m._restoreTableRows(['Decision'])
+    check('so the table restore actually loads the confirmed row',
+          any(r.state == 'confirmed'
+              for r in rows_of(m, 'Decision')),
+          repr([(r.id, r.state) for r in rows_of(m, 'Decision')]))
+    server_with(m)._restoreDefinitionInstances([Decision])
+    rows = rows_of(m, 'Decision')
+    check('and the merge leaves ONE row — the person\'s ruling, intact',
+          len(rows) == 1 and rows[0].id == 'db-1'
+          and rows[0].state == 'confirmed'
+          and rows[0].confirmed_by == 'sub-9',
+          repr([(r.id, r.state, r.confirmed_by) for r in rows]))
+    check('the boot-time twin is tombstoned',
+          ('Decision', 'boot-1') in m.tombstoned, repr(m.tombstoned))
+
+
+def test_the_ruling_survives_an_admission_that_dies_before_the_merge():
+    """Why the exemption matters rather than being cosmetic. `_admit` is
+    `restoreTables()` then `ensureDefinitionTables()`; defect 1 killed the
+    worker BETWEEN them four times on `polari-lean`. With the fingerprint in
+    charge the only copy of the ruling was dropped and the next persist wrote
+    the half-booted tree over it. The table restore alone must now be enough."""
+    db, m = _decision_case({'Decision'})
+    m._restoreTableRows(['Decision'])          # ...and then the worker dies
+    states = {r.state for r in rows_of(m, 'Decision')}
+    check('the confirmed ruling is in the tree with no merge pass at all',
+          'confirmed' in states, repr(states))
+
+
+def test_the_same_row_of_a_NON_merge_class_is_STILL_dropped():
+    """The bound of the fix, stated rather than implied: nothing changes for a
+    class the merge does not govern. It is still the fingerprint's call, and
+    the fingerprint still drops this row — which is why the exemption is the
+    fix and not a tweak to the threshold."""
+    db, m = _decision_case(())
+    seeds = m.identifySeedDBIds()
+    check('a class outside the merge keeps today\'s fingerprint behaviour '
+          '(the row IS taken for a seed)',
+          'db-1' in seeds.get('Decision', set()), f'seeds={seeds}')
+
+
+def test_a_pure_seed_duplicate_of_a_NON_merge_class_is_still_dropped():
+    """What the fingerprint is FOR: a seed instance the code re-creates every
+    boot with a fresh id, and last boot's row for it in the database. Dropping
+    that row is correct — the code's definition of a seed is the truth, and
+    restoring it would duplicate the seed on every boot forever."""
+    db = FakeDb({'Row': [persisted('seed-old', 'a pure seed', 'fixed', '', 0)]})
+    m = FakeManager(db, {'Row': Row})
+    Row(manager=m, id='seed-new', name='a pure seed', state='fixed',
+        confirmed_by='', count=0)
+    seeds = m.identifySeedDBIds()
+    check('last boot\'s row for a re-created seed is recognised as a seed',
+          'seed-old' in seeds.get('Row', set()), f'seeds={seeds}')
+    m._restoreTableRows(['Row'])
+    rows = rows_of(m, 'Row')
+    check('so the seed is NOT duplicated by the restore',
+          len(rows) == 1 and rows[0].id == 'seed-new',
+          repr([(r.id, r.name) for r in rows]))
+
+
+def test_a_pure_seed_of_a_MERGED_class_is_not_duplicated_either():
+    """The exemption must not reintroduce the duplicate the fingerprint was
+    protecting against. For a merge-governed class the persisted row IS
+    restored — and then the merge folds the code-created seed into it by name,
+    so there is still exactly one row."""
+    db = FakeDb({'Row': [persisted('seed-old', 'a pure seed', 'fixed', '', 0)]})
+    m = FakeManager(db, {'Row': Row}, merged={'Row'})
+    Row(manager=m, id='seed-new', name='a pure seed', state='fixed',
+        confirmed_by='', count=0)
+    m._restoreTableRows(['Row'])
+    server_with(m)._restoreDefinitionInstances([Row])
+    rows = rows_of(m, 'Row')
+    check('one row, not two — the merge deduplicates by name where the '
+          'fingerprint used to deduplicate by resemblance',
+          len(rows) == 1 and rows[0].id == 'seed-old',
+          repr([(r.id, r.name) for r in rows]))
+    check('the code-created seed is tombstoned, not left as a ghost',
+          ('Row', 'seed-new') in m.tombstoned, repr(m.tombstoned))
+
+
 def main():
     for fn in (test_a_request_adding_a_CLASS_does_not_crash_the_restore,
                test_a_request_adding_an_INSTANCE_does_not_crash_the_restore,
@@ -323,7 +482,12 @@ def main():
                test_admission_order_leaves_ONE_row_per_name,
                test_admission_order_is_idempotent,
                test_a_clean_boot_restores_exactly_as_before,
-               test_persist_bookkeeping_table_is_never_restored):
+               test_persist_bookkeeping_table_is_never_restored,
+               test_a_confirmed_row_of_a_MERGED_class_survives_the_fingerprint,
+               test_the_ruling_survives_an_admission_that_dies_before_the_merge,
+               test_the_same_row_of_a_NON_merge_class_is_STILL_dropped,
+               test_a_pure_seed_duplicate_of_a_NON_merge_class_is_still_dropped,
+               test_a_pure_seed_of_a_MERGED_class_is_not_duplicated_either):
         try:
             fn()
         except Exception as exc:                               # noqa: BLE001
