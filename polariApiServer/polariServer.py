@@ -410,9 +410,11 @@ class CORSExtraHeadersMiddleware:
         # is exposed. Both of these exist to be read by the caller:
         # X-Polari-Auth says the bearer was refused (expired session, not a
         # permission problem) and X-Polari-Permission-Advisory says what an
-        # enforcing instance would have denied.
+        # enforcing instance would have denied. X-Polari-Owner-Advisory (op-0)
+        # says the same for the per-row owner rules.
         resp.set_header('Access-Control-Expose-Headers',
-                        'X-Polari-Auth, X-Polari-Permission-Advisory')
+                        'X-Polari-Auth, X-Polari-Permission-Advisory, '
+                        'X-Polari-Owner-Advisory')
         resp.set_header('Access-Control-Max-Age', '86400')
 
 class apiError(Exception):
