@@ -1418,8 +1418,8 @@ def _ct9_checks(_types, check):
                   'at :780, and the EARLIEST sends — Keycloak, JWKS — run before that) is PARKED, counted, and '
                   'becomes a row at the first verdict or door read with a real tree; it is allowed meanwhile, '
                   'because a guard with nowhere to write must not block a boot',
-                  boot == 'jwks' and list(parked) == ['keycloak|Polari|rest'] and TR._PENDING == {}
-                  and len(flushed) == 1 and flushed[0]['count'] == 2
+                  boot == 'jwks' and list(parked) == [('outbound', 'keycloak|Polari|rest')]
+                  and TR._PENDING == {} and len(flushed) == 1 and flushed[0]['count'] == 2
                   and json.loads(flushed[0]['payload_classes_json']) == ['Token']
                   and flushed[0]['state'] == 'suggested' and '§66a' in flushed[0]['derived_from'],
                   (parked, flushed))
@@ -1430,6 +1430,61 @@ def _ct9_checks(_types, check):
             check('ct-9 §66a: in PRODUCTION the parked sends are DROPPED, never written — the buffer is cleared '
                   'either way so it cannot grow across a long run, and production still derives nothing',
                   prod_flush == [] and TR._PENDING == {}, (prod_flush, TR._PENDING))
+
+            # ---- §66b: THE RESTORE RACE. Found live on polari-lean: a CONFIRMED InboundPolicy row came
+            # back `suggested` after a redeploy, while SecurityDecision and TraceTarget rows survived the same
+            # one. Cause: lazy boot serves requests while the tree is restoring, and
+            # `_restoreDefinitionInstances` SKIPS a class that already has instances — so the first request of
+            # a boot created row 1 and restore then discarded everything InboundPolicy had persisted.
+            TR._PENDING.clear()
+            booting = _M()
+            booting.definitionsRestored = False          # exactly what polariServer sets in its constructor
+            boot_mw = TM.TrafficPolicyMiddleware(_types.SimpleNamespace(manager=booting))
+            os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+            boot_req = _Req({'Origin': 'https://app.example'})
+            boot_mw.process_request(boot_req, _Resp())    # a request served DURING lazy boot
+            during = TR._rows(booting, 'inbound')
+            parked_in = dict(TR._PENDING)
+            # restore now lands the persisted row, the way it would have if nothing had raced it
+            from security.objects.security.InboundPolicy import InboundPolicy as _IP
+            from security.custom.security_observe import _new_row as _nr2
+            _nr2(booting, booting.objectTables, 'InboundPolicy', _IP,
+                 {'name': 'origin|https://app.example', 'source_kind': 'origin',
+                  'source': 'https://app.example', 'paths_json': '[]', 'state': 'confirmed',
+                  'derived_from': 'restored', 'confirmed_by': SUB, 'confirmed_at': '2026-09-19T00:00:00Z',
+                  'count': 50, 'first_seen': '', 'last_seen': ''})
+            booting.definitionsRestored = True
+            after_req = _Req({'Origin': 'https://app.example'})
+            boot_mw.process_request(after_req, _Resp())   # the first request AFTER restore
+            restored = {r['name']: r for r in TR._rows(booting, 'inbound')}
+            kept = restored['origin|https://app.example']
+            check('ct-9 §66b (found live on polari-lean: a confirmed row came back `suggested` after a '
+                  'redeploy): a request served DURING lazy boot writes NOTHING — restore skips a class that '
+                  'already has instances, so writing early would discard everything that class had persisted, '
+                  'a person\'s ruling included. The observation is parked, the caller is let in, and once the '
+                  'tree is restored the parked count lands ON the restored row instead of replacing it',
+                  during == [] and list(parked_in) == [('inbound', 'origin|https://app.example')]
+                  and boot_req.context.traffic['rule'] == 'no-security'
+                  and boot_req.context.traffic['allowed'] is True
+                  and kept['state'] == 'confirmed' and kept['confirmed_by'] == SUB
+                  and kept['count'] == 52 and TR._PENDING == {},
+                  (during, list(parked_in), kept.get('state'), kept.get('count')))
+            check('ct-9 §66b: `tree_ready` is False ONLY for a manager that says so — a manager with no '
+                  '`definitionsRestored` attribute at all (a test double, a module holding its own) is ready '
+                  'by definition, so nothing outside a polariServer boot is ever parked forever',
+                  TR.tree_ready(_M()) is True and TR.tree_ready(booting) is True
+                  and TR.tree_ready(_types.SimpleNamespace(objectTables={}, definitionsRestored=False)) is False
+                  and TR.tree_ready(None) is False)
+
+            # ---- §66c: kc_admin is through the seam, so the Keycloak calls that REALLY happen are governed
+            import security.custom.kc_admin as _KCA
+            import inspect as _inspect
+            src = _inspect.getsource(_KCA._http)
+            check('ct-9 §66c: `kc_admin._http` goes through the ONE outbound seam — it was the last straggler '
+                  'of design §5, and it is what a live instance actually calls Keycloak WITH (resolving a sub '
+                  'to a name, claiming a role), so unwrapped it left OutboundPolicy empty while Keycloak '
+                  'traffic flowed',
+                  'outbound.urlopen(' in src and 'urllib.request.urlopen(' not in src, src[-200:])
 
             # ---- the CORS expose list (a browser cannot READ a header that is not exposed — §51)
             from polariApiServer.polariServer import CORSExtraHeadersMiddleware

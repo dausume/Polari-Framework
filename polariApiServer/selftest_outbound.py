@@ -67,11 +67,6 @@ PATTERNS = re.compile(
 #: not fit yet. Each line is a commitment: it gets migrated or it gets a
 #: standing reason, and the guard fails the day one is added without either.
 KNOWN_STRAGGLERS = {
-    # --- owned elsewhere this round -----------------------------------
-    'modules/security/custom/kc_admin.py':
-        'owned by ct-1\'s agent this round (modules/security is theirs) — '
-        'migrate in the slice that lands security_trace',
-
     # --- in-tree proof / test harnesses (they dial a LIVE server on '
     #     purpose; wrapping them would record the harness, not the product)
     'moduleService/dyn_proofs/collab_proof.py': 'dyn proof harness',
@@ -515,12 +510,19 @@ MIGRATED = [
     'polariApiServer.ai_tools', 'polariApiServer.reasoning_provider',
     'polariApiServer.voiceAPI', 'polariDBmanagement.managedObjectStore',
     'appstore.custom.appstore_minio', 'mqttbridge.mqtt_api',
-    'polariApiProfiler.endpoint_fetch',
+    'polariApiProfiler.endpoint_fetch', 'security.custom.kc_admin',
 ]
 
 
 def test_migrated_sites_import():
     import importlib
+    # The recorder/policy fakes above install a STUB `security` package with an
+    # empty __path__; it would shadow the real modules/security tree. Drop the
+    # stubs (and anything imported under them) before importing for real.
+    for name in [n for n in list(sys.modules)
+                 if n == 'security' or n.startswith('security.')]:
+        if getattr(sys.modules[name], '__file__', None) is None:
+            sys.modules.pop(name, None)
     bad = []
     for name in MIGRATED:
         try:

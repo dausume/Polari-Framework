@@ -112,54 +112,89 @@ def _find(manager, table, name):
     return next((r for r in _all_rows(manager, table) if getattr(r, 'name', '') == name), None)
 
 
-# ---- the sends that happen before there IS a manager (§66a) -----------------------------------------------
-# Found by the live proof on `polari-lean` (2026-09-19): outbound rows were EMPTY on an instance whose
-# Keycloak and JWKS sends demonstrably happen. `polariApiServer.outbound.process_manager()` answers None until
-# `polariServer` injects the manager at boot (polariServer.py:780), and a send before that had nowhere to write
-# — so the very sends that run earliest, which are exactly the ones a person most wants to rule on, were the
-# ones that never appeared. They are PARKED here instead, counted, and flushed into rows the first time any
-# verdict or door is asked with a real manager. Bounded, in-process, and lost on a restart on purpose: a parked
-# send is an observation, and observations do not outlive the process that made them.
+# ---- BEFORE THE TREE IS THE TREE: the parking lot (§66a, §66b) -------------------------------------------
+# Two live findings on `polari-lean` (2026-09-19), one mechanism:
+#
+# §66a — outbound rows were EMPTY. `polariApiServer.outbound.process_manager()` answers None until
+#        `polariServer` injects the manager at boot, and a send before that had nowhere to write.
+# §66b — a CONFIRMED inbound row came back `suggested` after a redeploy. Lazy boot serves requests while the
+#        definition tables are still restoring, and `_restoreDefinitionInstances` SKIPS a class that already
+#        has instances ("N instances already in objectTables, skipping", polariServer.py:1820). So the first
+#        request of a boot created row 1, restore then skipped `InboundPolicy` wholesale, and a person's
+#        ruling was silently replaced by what the observation had just made up. An observer that writes before
+#        restore does not merely lose its own row — it discards the whole class.
+#
+# Both answers are the same: when there is no tree to write to YET, PARK the observation, allow the traffic,
+# and turn the parked observations into rows at the first verdict or door read that finds a restored tree.
+# Bounded, in-process, and lost on a restart on purpose — a parked observation is an observation, and
+# observations do not outlive the process that made them.
 
 PENDING_MAX = 200
 _PENDING = {}
 
 
-def _park(name, system_kind, system_name, means, classes):
-    entry = _PENDING.get(name)
+def tree_ready(manager):
+    """Is the object tree restored enough to write a policy row?
+
+    `polariServer` sets `definitionsRestored` False in its constructor and True after
+    `_restoreDefinitionInstances` (§66b). A manager that never carries the attribute is not a server's — a
+    test double, or a module holding its own — and is ready by definition: only an explicit False means
+    "this tree is still coming back from the database, do not touch it"."""
+    if manager is None or getattr(manager, 'objectTables', None) is None:
+        return False
+    return getattr(manager, 'definitionsRestored', True) is not False
+
+
+def _park(direction, name, fields):
+    """Remember one observation until there is somewhere to put it. Counted, never duplicated."""
+    key = (direction, name)
+    entry = _PENDING.get(key)
     if entry is None:
         if len(_PENDING) >= PENDING_MAX:
             return None
-        _PENDING[name] = {'system_kind': system_kind, 'system_name': system_name, 'means': means,
-                          'classes': list(classes), 'count': 1}
-        return _PENDING[name]
+        _PENDING[key] = dict(fields, count=1)
+        return _PENDING[key]
     entry['count'] += 1
-    entry['classes'] = sorted(set(entry['classes']) | set(classes))[:MAX_CLASSES]
+    entry['classes'] = sorted(set(entry.get('classes') or []) | set(fields.get('classes') or []))[:MAX_CLASSES]
+    entry['paths'] = (entry.get('paths') or []) + [p for p in (fields.get('paths') or [])
+                                                   if p not in (entry.get('paths') or [])]
     return entry
 
 
+DERIVED_PARKED = ('observed before the tree was restored (boot-time; flushed at the first request — §66a/§66b)')
+
+
 def flush_pending(manager):
-    """Write the parked sends as rows, then forget them. Dev posture only (production derives nothing); the
-    buffer is cleared either way so it can never grow across a long production run. Never raises."""
-    if not _PENDING:
+    """Write the parked observations as rows, then forget them. Dev posture only (production derives nothing);
+    the buffer is cleared either way so it can never grow across a long production run. Never raises."""
+    if not _PENDING or not tree_ready(manager):
         return 0
     parked = list(_PENDING.items())
     _PENDING.clear()
     if not observing():
         return 0
     n = 0
-    for name, entry in parked:
+    for (direction, name), entry in parked:
         try:
-            row = _find(manager, 'OutboundPolicy', name)
+            table = TABLES[direction][0]
+            row = _find(manager, table, name)
             for _ in range(int(entry.get('count') or 1)):
-                row = _observe_outbound(manager, name, entry['system_kind'], entry['system_name'],
-                                        entry['means'], entry['classes'], row) or row
+                if direction == 'outbound':
+                    row = _observe_outbound(manager, name, entry['system_kind'], entry['system_name'],
+                                            entry['means'], entry.get('classes') or [], row) or row
+                else:
+                    paths = entry.get('paths') or ['']
+                    row = _observe_inbound(manager, name, entry['source_kind'], entry['source'],
+                                           paths[0], row) or row
             if row is not None:
-                row.derived_from = ('observed send before the manager existed (boot-time, flushed at the first '
-                                    'request — §66a)')
+                if direction == 'inbound':
+                    _merge_paths(row, entry.get('paths') or [])
+                row.derived_from = DERIVED_PARKED
                 n += 1
         except Exception:                   # noqa: BLE001 — a flush never raises into its caller
             continue
+    if n:
+        _schedule_persist(manager)
     return n
 
 
@@ -178,18 +213,20 @@ WHY_UNCONFIRMED = ('closed by default (design §5a): only a CONFIRMED policy row
                    '`suggested` row is a proposal nobody has ruled on yet')
 
 
-def _verdict(manager, direction, name, observe_fn):
-    """The shared ladder. `observe_fn(row)` does the dev-posture write and returns the row (or None)."""
+def _verdict(manager, direction, name, observe_fn, park_fields):
+    """The shared ladder. `observe_fn(row)` does the dev-posture write and returns the row (or None);
+    `park_fields` is what to remember instead when there is no tree to write to yet (§66a/§66b)."""
     table, _keys = TABLES[direction]
-    tables = getattr(manager, 'objectTables', None) if manager is not None else None
-    if tables is None:
+    if not tree_ready(manager):
+        _park(direction, name, park_fields)
         return _answer(True, 'no-security',
-                       'there is no object tree to consult yet (a send before the manager exists at boot, or an '
-                       'instance carrying no security rows at all) — the traffic proceeds exactly as it did '
-                       'before ct-9. A boot-time OUTBOUND send is PARKED and becomes a row at the first request '
-                       '(§66a), so nothing that leaves goes unlisted.',
+                       'the object tree is not restored yet (a send before the manager exists at boot, a '
+                       'request served during lazy boot, or an instance carrying no security rows at all) — '
+                       'the traffic proceeds exactly as it did before ct-9. The observation is PARKED and '
+                       'becomes a row at the first request that finds a restored tree (§66a/§66b), so nothing '
+                       'goes unlisted and nothing a person confirmed is overwritten by a half-booted guess.',
                        name=name)
-    flush_pending(manager)                  # §66a: the boot-time sends, now that there is somewhere to write
+    flush_pending(manager)                  # §66a/§66b: the parked observations, now that there is a tree
     row = _find(manager, table, name)
     state = _clean(getattr(row, 'state', '')) if row is not None else ''
     row = observe_fn(row) or row
@@ -257,13 +294,12 @@ def outbound_verdict(manager, system_kind, system_name, means, payload_classes=(
     try:
         name = outbound_name(system_kind, system_name, means)
         classes = sorted({str(c) for c in (payload_classes or []) if c})[:MAX_CLASSES]
-        if manager is None or getattr(manager, 'objectTables', None) is None:
-            # §66a: no tree yet (a boot-time send). Park it so the first request turns it into a row.
-            _park(name, _clean(system_kind, 'other'), _clean(system_name, 'unnamed'), _clean(means, 'send'),
-                  classes)
         ans = _verdict(manager, 'outbound', name,
                        lambda row: _observe_outbound(manager, name, system_kind, system_name, means,
-                                                     classes, row))
+                                                     classes, row),
+                       {'system_kind': _clean(system_kind, 'other'),
+                        'system_name': _clean(system_name, 'unnamed'),
+                        'means': _clean(means, 'send'), 'classes': list(classes)})
         if not ans['allowed'] and ans['knob'] == 'advisory':
             _advise('would-deny outbound %s:%s' % (_clean(system_kind, 'other'), _clean(system_name, 'unnamed')))
         return ans
@@ -277,7 +313,10 @@ def inbound_verdict(manager, source_kind, source, path_template=''):
     try:
         name = inbound_name(source_kind, source)
         ans = _verdict(manager, 'inbound', name,
-                       lambda row: _observe_inbound(manager, name, source_kind, source, path_template, row))
+                       lambda row: _observe_inbound(manager, name, source_kind, source, path_template, row),
+                       {'source_kind': _clean(source_kind, 'anonymous'),
+                        'source': _clean(source, 'anonymous'),
+                        'paths': [p for p in [_clean(path_template)] if p]})
         return ans
     except Exception:                       # noqa: BLE001
         return _answer(True, 'no-security', 'the traffic policy could not be consulted; the request proceeds')
@@ -370,7 +409,7 @@ def note_inbound_path(manager, name, path_template):
 
     Falcon routes after `process_request`, so the template is only known in `process_resource` — the same
     two-step refinement ct-0 does for the cause's `entry_ref`. Dev posture only; never raises."""
-    if not observing() or not name or not path_template:
+    if not observing() or not name or not path_template or not tree_ready(manager):
         return None
     try:
         row = _find(manager, 'InboundPolicy', name)

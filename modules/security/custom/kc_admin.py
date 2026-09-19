@@ -83,7 +83,17 @@ def _http(method, url, headers=None, data=None, form=False):
                 body = json.dumps(data).encode()
                 hdrs.setdefault('Content-Type', 'application/json')
         req = urllib.request.Request(url, data=body, headers=hdrs, method=method)
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        # §66c (2026-09-19): through the ONE outbound seam. This was the last straggler of design §5, and the
+        # live proof showed why it mattered: the Keycloak calls that actually happen on a running instance are
+        # THESE (resolving a `sub` to a name, claiming a role), so with them unwrapped the outbound policy saw
+        # nothing and `OutboundPolicy` stayed empty while Keycloak traffic flowed. `outbound.urlopen` returns
+        # the same open response this line always returned, so the `with` block below is unchanged; under
+        # `enforce` an unconfirmed Keycloak edge raises, and the except-all below turns it into the honest
+        # (0, 'OutboundRefused: …') this function already returns for every other failure.
+        # The realm is the system NAME; no Polari class crosses (a name comes back, nothing of ours goes).
+        from polariApiServer import outbound
+        with outbound.urlopen('keycloak', (config().get('realm') or 'Polari'), req,
+                              means='rest', timeout=TIMEOUT) as resp:
             raw = resp.read()
             status = resp.getcode()
         if not raw:

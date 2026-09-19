@@ -520,6 +520,18 @@ class polariServer(treeObject):
         # serialization issues — use get_stomp_server() to access it.
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)
+        # §66b: "the tree is not the tree yet". Lazy boot serves requests
+        # while the definition tables are still being restored, and restore
+        # SKIPS any class that already has instances — so an observer that
+        # writes a row from a request can silently replace everything that
+        # class had persisted, a person's confirmed ruling included. Set
+        # False here and True after `_restoreDefinitionInstances`; a manager
+        # that is not a polariServer's (a test double, a module's own) never
+        # carries the attribute at all, and absent reads as ready.
+        try:
+            self.manager.definitionsRestored = False
+        except Exception:      # noqa: BLE001 — never a boot failure
+            pass
         self.objectEndpoints = {}
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access through dataChannel specifications on a server's manager as well as it's subordinate manager objects.
         self.dataChannelEndpoints = {}
@@ -1727,6 +1739,21 @@ class polariServer(treeObject):
         print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
         # Now restore any saved Definition instances
         self._restoreDefinitionInstances(scoped)
+        # §66b: restore SKIPS a class that already has instances in
+        # objectTables ("N instances already in objectTables, skipping",
+        # _restoreDefinitionInstances above). Anything that writes a row
+        # from a REQUEST therefore races the tree: a request served during
+        # lazy boot creates row 1, restore then skips the whole class, and
+        # the persisted rows — including a person's confirmed ruling — are
+        # silently replaced by what the observation just made up. Seen live
+        # on polari-lean 2026-09-19: a `confirmed` InboundPolicy came back
+        # `suggested` after a redeploy. This flag is the "the tree is the
+        # tree now" signal an observer waits for before it writes.
+        try:
+            self.manager.definitionsRestored = True
+        except Exception as exc:      # noqa: BLE001 — a flag is never a boot failure
+            print(f'[DefRestore] could not mark definitions restored: {exc}',
+                  flush=True)
         # Register each seeded solution's `boundClass` as a real Polari class
         # so it appears in the Class Manager / Class Selector and can be
         # referenced by Equation bindings. Must run before
