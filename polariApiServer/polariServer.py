@@ -1092,6 +1092,10 @@ class polariServer(treeObject):
             # needs, and one person's refinement of them (keyed by
             # the Keycloak sub alone — D18-1).
             RoleAppBinding, UserAppPreference,
+            # ct-8 (design §6): one row per subject an app VERSION owes
+            # a ruling on — enumerated from the app, confirmed by a
+            # person (their Keycloak sub) with the proposal's hash.
+            SecurityDecision,
             # App Store (appstore-1): installable shells, artifact
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
@@ -2149,6 +2153,8 @@ class polariServer(treeObject):
              + SEED_SSP_PAGE_DISPLAYS
              + (SEED_CASTING_PAGE_DISPLAYS or [])
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
+             # ct-8: /display/apps-security — coverage per app × version
+             + (SEED_APPS_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
              + (SEED_VPN_PAGE_DISPLAYS or [])
              # vpn-4: /display/topology-archipelago + /display/topology-mesh

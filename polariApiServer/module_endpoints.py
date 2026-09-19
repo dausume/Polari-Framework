@@ -287,6 +287,14 @@ def construct_polariapps_endpoints(polServer):
     manager = polServer.manager
     from polariapps.apps_api import AppsAPI
     appsEndpoint = AppsAPI(polServer=polServer, manager=manager)
+    # ct-8: converge /display/apps-security AFTER the display rows are
+    # restored — the insert-only seed never delivers an edited page
+    # to a live instance (§54's gotcha).
+    try:
+        from polariapps.apps_page import start_page_converge
+        start_page_converge(manager, polServer)
+    except Exception as e:  # noqa: BLE001
+        print(f'[AppsPagesSeed] converge not started: {e}', flush=True)
 
 
 def construct_appstore_endpoints(polServer):

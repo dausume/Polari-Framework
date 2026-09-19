@@ -36,12 +36,15 @@
    "objects/apps_permissions/_shared",
    "objects/apps_roles/RoleAppBinding",
    "objects/apps_roles/UserAppPreference",
-   "objects/apps_roles/_shared"
+   "objects/apps_roles/_shared",
+   "objects/apps_security/SecurityDecision",
+   "objects/apps_security/_shared"
   ],
   "basis": [
    "apps_basis",
    "apps_permissions_basis",
-   "apps_roles_basis"
+   "apps_roles_basis",
+   "apps_security_basis"
   ],
   "api": [
    "apps_api"
@@ -49,13 +52,20 @@
   "seed": [
    "apps_seed"
   ],
+  "page": [
+   "apps_page"
+  ],
   "selftests": [
    "apps_selftest"
   ],
   "custom": [
    "custom/apps_analysis",
    "custom/apps_nav",
-   "custom/apps_roles"
+   "custom/apps_roles",
+   "custom/security_confirm",
+   "custom/security_coverage",
+   "custom/security_decisions",
+   "custom/security_subjects"
   ]
  },
  "classes": [
@@ -64,6 +74,7 @@
   "AppsAPI",
   "PolariAppDefinition",
   "RoleAppBinding",
+  "SecurityDecision",
   "UserAppPreference"
  ],
  "imports": [
@@ -93,11 +104,25 @@
     "RoleAppBinding",
     "UserAppPreference"
    ]
+  ],
+  [
+   "polariapps.apps_security_basis",
+   [
+    "SecurityDecision"
+   ]
+  ],
+  [
+   "polariapps.apps_page",
+   [
+    "SEED_APPS_PAGE_DISPLAYS"
+   ]
   ]
  ],
  "endpoints": "polariApiServer.module_endpoints:construct_polariapps_endpoints",
  "seedPairs": null,
- "pages": [],
+ "pages": [
+  "polariapps.apps_page:SEED_APPS_PAGE_DISPLAYS"
+ ],
  "derivedSeeds": false,
  "initialData": false,
  "selftests": [

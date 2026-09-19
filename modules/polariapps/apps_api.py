@@ -75,6 +75,19 @@ class AppsAPI(treeObject):
             add('/api/apps/roles/{role}/suggested', self,
                 suffix='role_suggested')
             add('/api/apps/mine', self, suffix='mine')
+            # ct-8 (design §6): the security DECISION ledger per app ×
+            # version, its coverage, and the ONE human confirmation.
+            # Same falcon gotcha as above — every suffix here has its
+            # on_<verb>_<suffix> responder, proven by the selftest.
+            add('/api/apps/security/decisions', self,
+                suffix='security_decisions')
+            add('/api/apps/security/decisions/confirm', self,
+                suffix='security_decisions_confirm')
+            add('/api/apps/security/confirm-profile', self,
+                suffix='security_confirm_profile')
+            add('/api/apps/security/bump', self, suffix='security_bump')
+            add('/api/apps/security/coverage', self,
+                suffix='security_coverage')
 
     # ---- helpers ----------------------------------------------------
 
@@ -295,6 +308,137 @@ class AppsAPI(treeObject):
             return self._refuse(response, err)
         result = update_my_apps(
             self.manager, self._user_info(request), payload)
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    # ---- ct-8: security decisions per app × version (design §6) ------
+
+    def _signed_in(self, request, response, why):
+        """The caller's token, or None with a 401 already written.
+
+        Every door below answers ABOUT rulings and their confirmers, so
+        an anonymous caller is refused on reads as well as writes — not
+        because the rows are secret, but because a decision ledger read
+        by nobody in particular cannot tell you what YOU still owe."""
+        user_info = self._user_info(request)
+        if not user_info or not str(user_info.get('sub') or ''):
+            self._refuse(response, why, '401 Unauthorized')
+            return None
+        return user_info
+
+    def on_get_security_decisions(self, request, response):
+        """`?app=&kind=&state=` — what an app version owes a ruling on.
+
+        The subjects are enumerated FROM THE APP (every class × verb ×
+        group, every trigger, every declared flow and role, every
+        observed outbound edge, every class as a trace target), so an
+        `open` row is a real gap rather than silence. Reading converges
+        first, so the list is about the app as it is now."""
+        from polariapps.custom.security_decisions import decisions
+        if self._signed_in(
+                request, response,
+                'sign in first — the decision ledger says who confirmed '
+                'what, and a person here is a Keycloak subject id') is None:
+            return
+        result = decisions(self.manager, request.params.get('app', ''),
+                           request.params.get('kind', ''),
+                           request.params.get('state', ''))
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    def on_post_security_decisions_confirm(self, request, response):
+        """`{app, kind, subject, decision?, proposal_hash?, note?}` —
+        ONE subject, confirmed or denied by a PERSON.
+
+        401 without a Keycloak `sub`, 403 without ADMIN_ROLES: nothing
+        confirms itself, and a ruling nobody is accountable for is not a
+        ruling (his ruling, design §6). The row records the `sub` alone
+        (D18-1) plus the hash of the proposal that was seen."""
+        from polariapps.custom.security_decisions import confirm
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        payload = payload or {}
+        result = confirm(
+            self.manager, payload.get('app', ''), payload.get('kind', ''),
+            payload.get('subject', ''), self._user_info(request),
+            decision=payload.get('decision', 'confirmed'),
+            proposal_hash=payload.get('proposal_hash', ''),
+            note=payload.get('note', ''))
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    def on_post_security_confirm_profile(self, request, response):
+        """`{profile, role?, proposed_profile?}` — THE ONE HUMAN
+        CONFIRMATION of what an analysis suggested (design §6).
+
+        Verifies the person, hashes what they were shown, records one
+        `SecurityDecision` per class × verb × group as `confirmed` with
+        that hash, and only THEN calls the security module's existing
+        concrete mark for the role. Nothing here enforces or widens
+        anything: enforcement stays the app-permissions gate's posture
+        knob, which only a person sets."""
+        from polariapps.custom.security_confirm import confirm_profile
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        payload = payload or {}
+        result = confirm_profile(
+            self.manager, payload.get('profile', ''),
+            self._user_info(request), role=payload.get('role', ''),
+            proposed_profile=payload.get('proposed_profile'))
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    def on_post_security_bump(self, request, response):
+        """`?app=&from=&to=` (or the same keys in the body) — carry a
+        version's rulings forward.
+
+        ADMIN ONLY: unchanged subjects become `inherited` (keeping the
+        confirmer), changed ones become `stale` and must be re-ruled, so
+        a release never ships on last release's rulings for something it
+        changed."""
+        from polariapps.custom.security_decisions import bump_version
+        from polariapps.objects.apps_permissions._shared import (
+            ADMIN_ROLES, caller_groups)
+        user_info = self._signed_in(
+            request, response,
+            'sign in first — bumping an app version rewrites what the '
+            'release owes, so it records who asked')
+        if user_info is None:
+            return
+        groups, _sources = caller_groups(user_info)
+        if not (set(ADMIN_ROLES) & set(groups)):
+            return self._refuse(
+                response, 'administrators only (ADMIN_ROLES: '
+                + ', '.join(sorted(ADMIN_ROLES)) + ')', '403 Forbidden')
+        payload, err = self._payload(request)
+        payload = {} if err else (payload or {})
+        app = request.params.get('app', '') or payload.get('app', '')
+        old = request.params.get('from', '') or payload.get('from', '')
+        new = request.params.get('to', '') or payload.get('to', '')
+        result = bump_version(self.manager, app, old, new,
+                              changed=payload.get('changed'))
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    def on_get_security_coverage(self, request, response):
+        """`?app=` — coverage per app × version: counts by kind × state,
+        the live instance count under each class, and none / partial /
+        full (full = no `open` and no `stale` rows of any kind), plus
+        the totals across every app."""
+        from polariapps.custom.security_coverage import coverage
+        if self._signed_in(
+                request, response,
+                'sign in first — coverage says what this release still '
+                'owes, and the doors that answer it are identified') is None:
+            return
+        result = coverage(self.manager, request.params.get('app', ''))
         if not result.get('ok'):
             response.status = self._status(result)
         response.media = result

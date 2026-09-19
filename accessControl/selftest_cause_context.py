@@ -90,6 +90,8 @@ KNOWN_THREAD_SITES = {
         'the security-pages converge worker — root `boot` cause',
     'security_observe.py':
         'the D18-1 PII scrub, one-shot at boot — root `boot` cause',
+    'apps_page.py':
+        'the polariapps-pages converge worker (ct-8) — root `boot` cause',
 }
 
 _THREAD_RE = re.compile(r'threading\.Thread\(|threading\.Timer\(|[^.\w]Thread\(target')

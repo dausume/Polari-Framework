@@ -763,6 +763,511 @@ if __name__ == '__main__':
           all(getattr(r, 'updated_by', '') in ('', 'sub-admin')
               for r in bind_rows))
 
+    # ------------------------------------------------------------------
+    print('\n== suite: ct-8 security decisions per app x version '
+          '(design CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md §6) ==')
+    import sys
+    from polariapps.custom import security_decisions as D
+    from polariapps.custom import security_subjects as S
+    from polariapps.custom.security_confirm import (
+        confirm_profile, proposal_hash)
+    from polariapps.custom.security_coverage import coverage
+
+    CT8_CLASSES = {'MealEntry', 'Ballot'}
+
+    def _ct8_mgr(**extra):
+        """One app carrying one module, with a row of every source the
+        enumeration reads — including the three that live in the
+        SECURITY module (OwnedClassPolicy, TraceTarget, CausalEdge) and
+        the one that does not exist yet (InboundPolicy, ct-9). They are
+        plain namespaces in the manager's tables, which is exactly how
+        polariapps reads them on a live instance: by table name, never
+        by importing security."""
+        tables = {
+            'PolariAppDefinition': {'ct8-app': _ns(
+                name='ct8-app', title='CT8 app', use_case='proving ct-8',
+                modules_json='["polariapps"]', pages_json='[]',
+                nav_json='[]', personas_json='["kitchen-operator"]',
+                discipline='', engine_page='', is_prior=True, notes='')},
+            'AppPermissionProfile': {'ct8-operator': _ns(
+                name='ct8-operator', app_name='ct8-app',
+                kc_groups_json='["operators"]',
+                verbs_json='["read", "update"]',
+                extra_classes_json='[]', published=True)},
+            'PermissionObservation': {'obs': _ns(
+                name='operators|MealEntry|delete', groups='operators',
+                class_name='MealEntry', verb='delete', count=4)},
+            'OwnedClassPolicy': {'MealEntry': _ns(
+                name='MealEntry', class_name='MealEntry', enabled=True,
+                owner_field='sub')},
+            'EventTrigger': {'daily-rollup': _ns(
+                name='daily-rollup', solution_name='roll-up',
+                source_json='{"class": "MealEntry"}', inputs_json='{}',
+                description='', notes='', run_as='definer',
+                enabled=True, fire_count=3)},
+            'CausalEdge': {'edge': _ns(
+                name='e', cause='object:MealEntry:update',
+                effect='external:odoo:main', means='send',
+                detail='json-rpc', count=12, last_seen='2026-09-18',
+                target='MealEntry', sample_trace_id='trace-1')},
+            'TraceTarget': {'MealEntry': _ns(
+                name='MealEntry', class_name='MealEntry',
+                traces_opened=3, edges_written=5,
+                stopped_because='window')},
+            'InboundPolicy': {'anon': _ns(
+                name='anonymous', source_kind='anonymous',
+                source='anonymous', state='suggested',
+                paths_json='["GET /api/MealEntry"]')},
+            'MealEntry': {'m1': _ns(name='m1'), 'm2': _ns(name='m2')},
+        }
+        tables.update(extra)
+        return _ns(objectTables=tables)
+
+    ct8 = _ct8_mgr()
+    report = S.enumerate_subjects(ct8, 'ct8-app', classes=CT8_CLASSES)
+    kinds = {s['kind'] for s in report['subjects']}
+    by_subject = {(s['kind'], s['subject']): s for s in report['subjects']}
+    check('ct-8: the enumeration covers ALL EIGHT kinds for one app — '
+          'class x verb x group, owner policy, trigger run-as, declared '
+          'flow, role binding, outbound, inbound, trace coverage',
+          kinds == set(D.DECISION_KINDS), sorted(kinds))
+    check('ct-8: subjects come FROM THE APP, not from what was observed '
+          '— every class x every CRUDE verb is enumerated, including '
+          'the verbs nobody has ever used',
+          all(('profile-verb', f'{cls}:{verb}@operators') in by_subject
+              for cls in CT8_CLASSES
+              for verb in ('read', 'create', 'update', 'delete',
+                           'events')))
+    check('ct-8: `open` is a REAL GAP — a class with no owner policy '
+          'and no trace target is open, while the ones with evidence '
+          'are suggested (never confirmed: evidence never confirms)',
+          not by_subject[('owner-policy', 'Ballot')]['suggested']
+          and not by_subject[('trace-coverage', 'trace:Ballot')]['suggested']
+          and by_subject[('owner-policy', 'MealEntry')]['suggested']
+          and by_subject[('trace-coverage', 'trace:MealEntry')]['suggested'])
+    check('ct-8: an observed send nothing declares is a flow-declared '
+          'FINDING (design §9), open rather than suggested',
+          ('flow-declared', 'flow:undeclared:odoo') in by_subject
+          and not by_subject[('flow-declared',
+                              'flow:undeclared:odoo')]['suggested'])
+    check('ct-8: the trigger subject carries the AUTHORITY the solution '
+          'runs with — a definer-run trigger is the implicit permission '
+          'the person confirming has to see',
+          by_subject[('trigger-run-as', 'trigger:daily-rollup')]
+          ['evidence']['run_as'] == 'definer')
+    bare_sources = S.enumerate_subjects(
+        _ns(objectTables={'PolariAppDefinition':
+                          ct8.objectTables['PolariAppDefinition']}),
+        'ct8-app', classes=CT8_CLASSES)['sources']
+    check('ct-8: every kind names the SOURCE it read, and a kind with '
+          'no rows says WHY rather than reading as "nothing there" — '
+          'inbound rows are ct-9, the app.flows stanza is designed and '
+          'not yet written by any manifest, and the outbound wrapper '
+          'publishes no registry of known sites',
+          set(report['sources']) == set(D.DECISION_KINDS)
+          and 'InboundPolicy' in report['sources']['inbound']
+          and 'ct-9' in bare_sources['inbound']
+          and 'not yet written by any manifest' in
+          bare_sources['flow-declared']
+          and 'no registry of known sites' in
+          report['sources']['outbound'])
+    check('ct-8: the app VERSION is derived from its module set (a '
+          'Polari-App is a configuration of modules, so it rarely has a '
+          'manifest of its own) and the source says so; the release is '
+          'honestly unstamped rather than invented',
+          report['app_version'].startswith('set-')
+          and report['app_version_source'].startswith('module-set:polariapps@')
+          and report['release'] == ''
+          and 'ReleaseManifest' in report['release_source'],
+          report['app_version_source'])
+
+    # ---- converge: idempotent, and a person's ruling outranks it
+    first = D.converge(ct8, 'ct8-app', classes=CT8_CLASSES)
+    version = first['app_version']
+    rows = {r.name: r for r in D._rows(ct8, D.DECISION_TABLE)}
+    check('ct-8 converge: one row per enumerated subject, keyed '
+          '`app|app_version|kind|subject` so the same subject at two '
+          'versions is deliberately two rows',
+          len(first['created']) == len(report['subjects'])
+          and len(rows) == len(report['subjects'])
+          and all(r.name == '|'.join([r.app, r.app_version, r.kind,
+                                      r.subject]) for r in rows.values()))
+    check('ct-8 converge: evidence makes a row `suggested`; nothing '
+          'else is written — no row is created confirmed',
+          {r.state for r in rows.values()} == {'open', 'suggested'}
+          and len(first['suggested']) == sum(
+              1 for s in report['subjects'] if s['suggested']))
+    second = D.converge(ct8, 'ct8-app', classes=CT8_CLASSES)
+    check('ct-8 converge is IDEMPOTENT: a second pass creates nothing '
+          'and keeps every row (the RoleAppBinding discipline)',
+          second['created'] == []
+          and len(second['kept']) == len(rows)
+          and len(D._rows(ct8, D.DECISION_TABLE)) == len(rows))
+
+    ct8_admin = {'sub': 'sub-admin', 'raw_claims':
+                 {'groups': ['polari-admin'],
+                  'preferred_username': 'the-admin'}, 'roles': []}
+    ct8_plain = {'sub': 'sub-operator',
+                 'raw_claims': {'groups': ['operators']}, 'roles': []}
+    check('ct-8 confirm: ANONYMOUS is 401 — a ruling nobody is '
+          'accountable for is not a ruling',
+          D.confirm(ct8, 'ct8-app', 'owner-policy', 'MealEntry', None,
+                    classes=CT8_CLASSES)['status'] == 401)
+    check('ct-8 confirm: a signed-in NON-ADMIN is 403 — confirming what '
+          'an analysis proposed is an administrative act',
+          D.confirm(ct8, 'ct8-app', 'owner-policy', 'MealEntry',
+                    ct8_plain, classes=CT8_CLASSES)['status'] == 403)
+    confirmed = D.confirm(ct8, 'ct8-app', 'owner-policy', 'MealEntry',
+                          ct8_admin, proposal_hash='sha256:deadbeef',
+                          classes=CT8_CLASSES)
+    denied = D.confirm(ct8, 'ct8-app', 'trigger-run-as',
+                       'trigger:daily-rollup', ct8_admin,
+                       decision='denied', classes=CT8_CLASSES)
+    check('ct-8 confirm: an admin writes `confirmed` / `denied` with '
+          'the proposal HASH and the timestamp — the hash is what makes '
+          'a later change visible',
+          confirmed['ok'] and confirmed['decision']['state'] == 'confirmed'
+          and confirmed['decision']['evidence']['proposal_hash']
+          == 'sha256:deadbeef' and confirmed['decision']['confirmedAt']
+          and denied['decision']['state'] == 'denied')
+    check('ct-8 / D18-1: the decision records the confirmer by Keycloak '
+          '`sub` ALONE — the username on the token never reaches a row',
+          confirmed['decision']['confirmedBy'] == 'sub-admin'
+          and 'the-admin' not in ' '.join(
+              str(v) for r in D._rows(ct8, D.DECISION_TABLE)
+              for v in vars(r).values()))
+    third = D.converge(ct8, 'ct8-app', classes=CT8_CLASSES)
+    ruled = {r.name: r for r in D._rows(ct8, D.DECISION_TABLE)}
+    check('ct-8 converge NEVER overwrites a person: the confirmed and '
+          'denied rows are skipped whole — state, evidence and hash '
+          'intact (an admin RoleAppBinding follows the same rule)',
+          len(third['skipped_human']) == 2
+          and ruled[confirmed['decision']['name']].state == 'confirmed'
+          and json.loads(ruled[confirmed['decision']['name']].evidence_json)
+          ['proposal_hash'] == 'sha256:deadbeef'
+          and ruled[denied['decision']['name']].state == 'denied')
+
+    # ---- the version bump: inherited, and stale for what changed
+    ct8.objectTables['EventTrigger']['daily-rollup'].run_as = 'caller'
+    changed = D.changed_subjects(ct8, 'ct8-app', version,
+                                 classes=CT8_CLASSES)
+    check('ct-8 bump: the CHANGED set is computed from the evidence '
+          'diff — a trigger that changed the authority it runs with is '
+          'a different thing to rule on (counts and timestamps are not)',
+          changed == {'trigger:daily-rollup'}, str(changed))
+    bumped = D.bump_version(ct8, 'ct8-app', version, 'v2',
+                            classes=CT8_CLASSES | {'NewThing'})
+    v2 = {(r.kind, r.subject): r for r in D._rows(ct8, D.DECISION_TABLE)
+          if r.app_version == 'v2'}
+    check('ct-8 bump: every unchanged subject carries forward as '
+          '`inherited`, keeping the confirmer — that IS the ruling '
+          'being carried',
+          len(bumped['inherited']) == len(rows) - 1
+          and v2[('owner-policy', 'MealEntry')].state == 'inherited'
+          and v2[('owner-policy', 'MealEntry')].confirmed_by == 'sub-admin')
+    check('ct-8 bump: the changed subject is `stale` with the confirmer '
+          'CLEARED — a release never ships on last version\'s ruling '
+          'for something it changed',
+          bumped['stale'] and v2[('trigger-run-as',
+                                  'trigger:daily-rollup')].state == 'stale'
+          and v2[('trigger-run-as',
+                  'trigger:daily-rollup')].confirmed_by == ''
+          and 'confirmed_by_previously' in json.loads(
+              v2[('trigger-run-as',
+                  'trigger:daily-rollup')].evidence_json))
+    check('ct-8 bump: a class ADDED in the new version shows `open` — '
+          'its subjects were enumerated from the app, so nobody has '
+          'ruled on them rather than nobody having noticed',
+          all(v2[(k, s)].state == 'open' for k, s in
+              (('owner-policy', 'NewThing'),
+               ('trace-coverage', 'trace:NewThing'),
+               ('profile-verb', 'NewThing:delete@operators'))))
+
+    # ---- coverage: none / partial / full, and the instance counts
+    cov = coverage(ct8, 'ct8-app', converge_first=False,
+                   classes=CT8_CLASSES | {'NewThing'})
+    at = {a['appVersion']: a for a in cov['apps']}
+    check('ct-8 coverage: per app x version, counted by kind AND by '
+          'state, with the LIVE instance count under each class — '
+          '"how many objects" answered in rows of data, not only in '
+          'classes',
+          at[version]['instances']['MealEntry'] == 2
+          and at[version]['instances']['Ballot'] == 0
+          and at[version]['instanceTotal'] == 2
+          and at[version]['byKind']['owner-policy']['confirmed'] == 1)
+    check('ct-8 coverage: a version with open and stale rows reads '
+          'PARTIAL; `full` requires no open and no stale row of any '
+          'kind (the only state a release gate may treat as covered)',
+          at[version]['coverage'] == 'partial'
+          and at['v2']['coverage'] == 'partial'
+          and at['v2']['unruled']['stale'] == 1)
+    fresh = _ct8_mgr()
+    D.converge(fresh, 'ct8-app', classes={'Ballot'})
+    none_cov = coverage(fresh, 'ct8-app', converge_first=False,
+                        classes={'Ballot'})['apps'][0]
+    for row in D._rows(fresh, D.DECISION_TABLE):
+        D.confirm(fresh, 'ct8-app', row.kind, row.subject, ct8_admin,
+                  classes={'Ballot'})
+    full_cov = coverage(fresh, 'ct8-app', converge_first=False,
+                        classes={'Ballot'})['apps'][0]
+    check('ct-8 coverage: an app version nobody has ruled on at all '
+          'reads NONE (suggestions are not rulings); confirming every '
+          'subject reads FULL',
+          none_cov['coverage'] == 'none' and none_cov['byState']['open']
+          and full_cov['coverage'] == 'full'
+          and full_cov['byState']['open'] == 0
+          and full_cov['byState']['confirmed'] == full_cov['total'])
+
+    # ---- the ONE human confirmation on the concrete step
+    marks = []
+    fake_observe = types.ModuleType('security.custom.security_observe')
+
+    def _mark_prototype(manager, name, state, profile='', verdict='',
+                        self_claimable=None, by=''):
+        marks.append((name, state, profile, by))
+        return {'ok': True, 'role': {'name': name, 'state': state}}
+
+    fake_observe.mark_prototype = _mark_prototype
+    saved_observe = sys.modules.get('security.custom.security_observe')
+    sys.modules['security.custom.security_observe'] = fake_observe
+    try:
+        concrete_mgr = _ct8_mgr()
+        result = confirm_profile(concrete_mgr, 'ct8-operator', ct8_admin,
+                                 role='operators', classes=CT8_CLASSES)
+        rows_c = {r.name: r for r in D._rows(concrete_mgr, D.DECISION_TABLE)}
+        expected = proposal_hash({
+            'profile': 'ct8-operator', 'app': 'ct8-app',
+            'groups': ['operators'], 'verbs': ['read', 'update'],
+            'extraClasses': [], 'published': True})
+        check('ct-8 confirm-profile: the proposal is HASHED and the hash '
+              'lands on every decision it confirmed — what was agreed '
+              'to can be shown to have changed since',
+              result['ok'] and result['proposalHash'] == expected
+              and all(json.loads(rows_c[n].evidence_json)['proposal_hash']
+                      == expected for n in result['confirmed']))
+        check('ct-8 confirm-profile: ONE decision per class x verb x '
+              'group of the profile, all `confirmed` by the person\'s '
+              'sub — a published profile is a PROPOSAL until then',
+              len(result['confirmed']) == len(CT8_CLASSES) * 2
+              and all(rows_c[n].state == 'confirmed'
+                      and rows_c[n].confirmed_by == 'sub-admin'
+                      for n in result['confirmed'])
+              and result['refused'] == [])
+        check('ct-8 confirm-profile: the security module\'s EXISTING '
+              'concrete mark is called AFTER the decisions are recorded '
+              '(mark_prototype(role, "concreted", profile, by=sub)) — '
+              'this slice does not change that function',
+              marks == [('operators', 'concreted', 'ct8-operator',
+                         'sub-admin')]
+              and result['securityMark']['ok'] is True)
+        check('ct-8 confirm-profile: anonymous 401, non-admin 403 — the '
+              'concrete step is the ONE human confirmation, so it is '
+              'the one act that cannot happen without a person',
+              confirm_profile(concrete_mgr, 'ct8-operator', None)['status']
+              == 401
+              and confirm_profile(concrete_mgr, 'ct8-operator',
+                                  ct8_plain)['status'] == 403)
+    finally:
+        if saved_observe is None:
+            sys.modules.pop('security.custom.security_observe', None)
+        else:
+            sys.modules['security.custom.security_observe'] = saved_observe
+
+    # the security module may be absent entirely: the decisions still land
+    broken = types.ModuleType('security.custom.security_observe')
+    sys.modules['security.custom.security_observe'] = broken
+    try:
+        absent_mgr = _ct8_mgr()
+        absent = confirm_profile(absent_mgr, 'ct8-operator', ct8_admin,
+                                 role='operators', classes=CT8_CLASSES)
+        check('ct-8 confirm-profile: with the security module\'s mark '
+              'unavailable the decisions are STILL recorded and the '
+              'answer says the mark could not run — never a pretended '
+              'success (polariapps works without security at all)',
+              absent['ok'] and absent['confirmed']
+              and absent['securityMark']['ok'] is False
+              and 'unavailable' in absent['securityMark']['why'])
+    finally:
+        if saved_observe is None:
+            sys.modules.pop('security.custom.security_observe', None)
+        else:
+            sys.modules['security.custom.security_observe'] = saved_observe
+
+    # ---- ct-4's closure is read through a guarded import: absent is fine
+    fake_trace = types.ModuleType('security.custom.security_trace')
+    fake_trace.closure = lambda manager, start: {
+        'objects': [1, 2, 3], 'events': [1], 'solutions': [],
+        'peers': [], 'external': [1]}
+    saved_trace = sys.modules.get('security.custom.security_trace')
+    sys.modules['security.custom.security_trace'] = fake_trace
+    try:
+        traced = S.trace_subjects(_ct8_mgr(), {'MealEntry'})[0]
+        check('ct-8: when the security module offers ct-4\'s closure, a '
+              'traced class carries what it REACHES as evidence; when '
+              'it does not, the subject is still enumerated (the '
+              'guarded-import rule — a missing security module means '
+              'less evidence, never a crash)',
+              traced['evidence']['closure']['objects'] == 3
+              and S._closure_size(_ct8_mgr(), 'MealEntry') is not None)
+    finally:
+        if saved_trace is None:
+            sys.modules.pop('security.custom.security_trace', None)
+        else:
+            sys.modules['security.custom.security_trace'] = saved_trace
+    no_closure = types.ModuleType('security.custom.security_trace')
+    sys.modules['security.custom.security_trace'] = no_closure
+    try:
+        check('ct-8: a security module with NO closure function yet '
+              '(ct-4 has not landed) simply contributes no reach '
+              'evidence — tolerated, not caught as an error',
+              S._closure_size(_ct8_mgr(), 'MealEntry') is None
+              and 'closure' not in S.trace_subjects(
+                  _ct8_mgr(), {'MealEntry'})[0]['evidence'])
+    finally:
+        if saved_trace is None:
+            sys.modules.pop('security.custom.security_trace', None)
+        else:
+            sys.modules['security.custom.security_trace'] = saved_trace
+
+    # ---- the doors
+    class _ApiS:
+        """The ct-8 responders over a test double manager."""
+        def __init__(self, manager):
+            self.manager = manager
+        _payload = AppsAPI._payload
+        _refuse = AppsAPI._refuse
+        _user_info = AppsAPI._user_info
+        _status = AppsAPI._status
+        _signed_in = AppsAPI._signed_in
+        on_get_security_decisions = AppsAPI.on_get_security_decisions
+        on_post_security_decisions_confirm = \
+            AppsAPI.on_post_security_decisions_confirm
+        on_post_security_confirm_profile = \
+            AppsAPI.on_post_security_confirm_profile
+        on_post_security_bump = AppsAPI.on_post_security_bump
+        on_get_security_coverage = AppsAPI.on_get_security_coverage
+
+    door_mgr = _ct8_mgr()
+    apis = _ApiS(door_mgr)
+
+    class _ReqQ(_Req):
+        def __init__(self, user_info=None, body=None, params=None):
+            _Req.__init__(self, user_info, body)
+            self.params = params or {}
+
+    def _callq(method, user=None, body=None, params=None):
+        req, rsp = _ReqQ(user, body, params), _Rsp()
+        getattr(apis, method)(req, rsp)
+        return rsp
+
+    rsp = _callq('on_get_security_decisions', params={'app': 'ct8-app'})
+    check('GET /api/apps/security/decisions: anonymous is 401 — a '
+          'ledger of who confirmed what cannot tell an anonymous '
+          'caller what THEY still owe',
+          rsp.status.startswith('401') and not rsp.media['ok'])
+    rsp = _callq('on_get_security_decisions', user=ct8_plain,
+                 params={'app': 'ct8-app', 'state': 'open'})
+    check('GET /api/apps/security/decisions?app=&state=: a signed-in '
+          'caller reads the ledger, converged first and filtered by '
+          'state, with the vocabulary beside it',
+          rsp.media['ok'] and rsp.media['decisions']
+          and {d['state'] for d in rsp.media['decisions']} == {'open'}
+          and rsp.media['kinds'] == list(D.DECISION_KINDS)
+          and rsp.media['appVersion'].startswith('set-'))
+    rsp = _callq('on_get_security_decisions', user=ct8_plain,
+                 params={'app': 'ct8-app', 'kind': 'not-a-kind'})
+    check('GET /api/apps/security/decisions: an unknown kind is refused '
+          '400 with the vocabulary, never silently empty',
+          rsp.status.startswith('400') and not rsp.media['ok'])
+    rsp = _callq('on_post_security_decisions_confirm',
+                 body={'app': 'ct8-app', 'kind': 'owner-policy',
+                       'subject': 'MealEntry'})
+    check('POST /api/apps/security/decisions/confirm: anonymous 401',
+          rsp.status.startswith('401'))
+    rsp = _callq('on_post_security_decisions_confirm', user=ct8_plain,
+                 body={'app': 'ct8-app', 'kind': 'owner-policy',
+                       'subject': 'MealEntry'})
+    check('POST /api/apps/security/decisions/confirm: signed-in '
+          'non-admin 403', rsp.status.startswith('403'))
+    rsp = _callq('on_post_security_decisions_confirm', user=ct8_admin,
+                 body={'app': 'ct8-app', 'kind': 'outbound',
+                       'subject': 'nothing:enumerates:this'})
+    check('POST /api/apps/security/decisions/confirm: a subject nothing '
+          'ENUMERATES is a 404 naming the enumeration — a row is never '
+          'invented to match a request',
+          rsp.status.startswith('404') and 'enumerates' in
+          rsp.media['error'])
+    rsp = _callq('on_post_security_bump', user=ct8_plain,
+                 params={'app': 'ct8-app', 'from': 'a', 'to': 'b'})
+    check('POST /api/apps/security/bump: administrators only (403) — '
+          'bumping rewrites what the release owes',
+          rsp.status.startswith('403'))
+    rsp = _callq('on_get_security_coverage', user=ct8_admin,
+                 params={'app': 'ct8-app'})
+    check('GET /api/apps/security/coverage?app=: per app x version plus '
+          'the totals across apps, with none/partial/full stated',
+          rsp.media['ok'] and rsp.media['apps']
+          and rsp.media['apps'][0]['coverage'] in ('none', 'partial',
+                                                   'full')
+          and sum(rsp.media['totals'].values())
+          == rsp.media['apps'][0]['total'])
+    rsp = _callq('on_get_security_coverage')
+    check('GET /api/apps/security/coverage: anonymous 401',
+          rsp.status.startswith('401'))
+
+    # §54 guard: the five ct-8 routes register and each has its responder
+    class _FalconS:
+        def __init__(self):
+            self.routes = []
+
+        def add_route(self, uri, resource, suffix=None):
+            self.routes.append((uri, suffix))
+
+    class _SrvS:
+        def __init__(self):
+            self.falconServer = _FalconS()
+
+    srv = _SrvS()
+    probe = AppsAPI(polServer=srv, manager=None)
+    ct8_routes = [(u, s) for u, s in srv.falconServer.routes
+                  if u.startswith('/api/apps/security')]
+    check('§54 guard: the five ct-8 doors register and each has its '
+          'on_<method>_<suffix> responder — a drifted suffix RAISES '
+          'from add_route() and takes the backend down at boot, so it '
+          'is proven here rather than in a browser',
+          ct8_routes == [
+              ('/api/apps/security/decisions', 'security_decisions'),
+              ('/api/apps/security/decisions/confirm',
+               'security_decisions_confirm'),
+              ('/api/apps/security/confirm-profile',
+               'security_confirm_profile'),
+              ('/api/apps/security/bump', 'security_bump'),
+              ('/api/apps/security/coverage', 'security_coverage')]
+          and all(any(hasattr(probe, f'on_{verb}_{suffix}')
+                      for verb in ('get', 'post', 'put', 'delete'))
+                  for _u, suffix in ct8_routes), ct8_routes)
+
+    # the page: configured tables only, converged rather than inserted
+    from polariapps.apps_page import (
+        SEED_APPS_PAGE_DISPLAYS, seed_apps_pages, start_page_converge)
+    page = SEED_APPS_PAGE_DISPLAYS[0]
+    check('ct-8 page: /display/apps-security is a CONFIGURED page — no '
+          'api-json-panel, no new component, and the confirmer column '
+          'renders through the `person` format so a sub is resolved on '
+          'screen and never stored as a name',
+          len(SEED_APPS_PAGE_DISPLAYS) == 1
+          and page['pageRoute'] == 'apps-security'
+          and 'api-json-panel' not in page['definition']
+          and 'confirmed_by:person' in page['definition']
+          and 'class-rows-table' in page['definition'])
+    check('ct-8 page: it CONVERGES (§54 gotcha — the core seed only '
+          'inserts a missing page, so an edited definition never '
+          'reaches a live instance) and the converge is started from '
+          'the polariapps endpoint constructor',
+          callable(seed_apps_pages) and callable(start_page_converge)
+          and 'start_page_converge' in open(
+              'polariApiServer/module_endpoints.py').read())
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

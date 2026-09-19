@@ -826,6 +826,13 @@ FEATURE_IMPORT_BLOCKS = (
         ('polariapps.apps_roles_basis', (
             'RoleAppBinding', 'UserAppPreference',
         )),
+        # ct-8 (design §6): security decisions per app × version.
+        ('polariapps.apps_security_basis', (
+            'SecurityDecision',
+        )),
+        ('polariapps.apps_page', (
+            'SEED_APPS_PAGE_DISPLAYS',
+        )),
     )),
     ('appstore', (
         ('appstore.appstore_basis', (
