@@ -26,6 +26,13 @@ SEED_SECURITY_DOMAINS = [
      'description': 'How bytes get in, between and out, and who can forge them.'},
     {'name': 'os', 'title': 'OS', 'order': 3, 'view_route': '/display/security-os',
      'description': 'What a process can touch on the machine: DAC (who runs as whom) and MAC (what it may touch regardless).'},
+    # ct-5 (design §7): the fourth domain. The other three answer "who can reach what"; this one answers "where
+    # do the ROWS go" — the only view with a payload column.
+    {'name': 'objects', 'title': 'Objects', 'order': 4, 'view_route': '/display/security-objects',
+     'description': 'Where object instances propagate: which CLASSES cross to which system, by which wire, '
+                    'declared (the modules\' app.flows and the confirmed traffic policies) beside observed (the '
+                    'causal map) — and the drift between them. Classes and counts only; an instance id never '
+                    'appears here.'},
 ]
 
 SEED_SECURITY_AREAS = [
@@ -44,6 +51,11 @@ SEED_SECURITY_AREAS = [
     {'name': 'boot', 'domain': 'os', 'title': 'Boot', 'generated': False, 'docs_page': 'os-security', 'description': 'Secure Boot: the firmware runs only a signed boot chain (Ubuntu\'s shim + kernel); off only deliberately at ISO build with a written reason.'},
     {'name': 'at-rest', 'domain': 'os', 'title': 'At rest', 'generated': False, 'docs_page': 'os-security', 'description': 'Disk encryption (LUKS): the one protection against someone who takes the drive or the machine; an option, off by default, never on headless.'},
     {'name': 'groups', 'domain': 'os', 'title': 'Groups', 'generated': True, 'docs_page': 'os-security', 'description': 'polari-remote, polari-app and the hardware groups.'},
+    # ct-5: the two areas beneath the `objects` domain — what is declared, and what was actually seen.
+    {'name': 'object-flow', 'domain': 'objects', 'title': 'Object flow', 'generated': True, 'docs_page': 'app-security',
+     'description': 'Declared flows (module manifests\' app.flows, design §9) and confirmed traffic policies, against the causal map\'s observed peer and external edges — the drift report.'},
+    {'name': 'trace-coverage', 'domain': 'objects', 'title': 'Trace coverage', 'generated': True, 'docs_page': 'app-security',
+     'description': 'Which classes have ever been armed as a TraceTarget. One class at a time, dev posture only: a class with no coverage answers NOT TRACED, which is not the same as nothing flowing.'},
 ]
 
 

@@ -26,7 +26,15 @@ Pure functions over security_facts; no I/O beyond reading the scenario file.
 """
 from security.custom.security_facts import APPLIED_TODAY, SYSTEMS, load_scenario
 
+#: the three SCENARIO views: each is derived purely from a scenario file, so each builds without a manager and
+#: each seeds a `SecurityTopologyNode`/`Edge` row per scenario (`security_seed._view_rows`).
 VIEWS = ('os', 'network', 'app')
+#: ct-5 (design §7): the fourth view, `objects` — where the rows GO. It is NOT in `VIEWS` on purpose: it is built
+#: from the INSTANCE (its manifests, its confirmed traffic policies, its causal map), so it needs a manager, it
+#: does not vary by scenario, and seeding it per scenario would be four copies of one answer derived from an
+#: empty tree. `ALL_VIEWS` is what the doors accept; `VIEWS` is what the seed walks.
+OBJECT_VIEW = 'objects'
+ALL_VIEWS = VIEWS + (OBJECT_VIEW,)
 MODES = ('stock', 'today', 'complain', 'enforce')
 LOGGABLE = ('polari-apparmor', 'polari-seccomp')
 
@@ -302,11 +310,16 @@ def app_view(sc, mode, applied):
 BUILDERS = {'os': os_view, 'network': network_view, 'app': app_view}
 
 
-def build(view, scenario, mode='today'):
-    if view not in VIEWS:
-        raise ValueError(f'view must be one of {VIEWS}')
+def build(view, scenario, mode='today', manager=None):
+    """One view of one scenario under one mode. `manager` is used only by the `objects` view (ct-5), which reads
+    the instance's own manifests, traffic policies and causal map; the three scenario views ignore it."""
+    if view not in ALL_VIEWS:
+        raise ValueError(f'view must be one of {ALL_VIEWS}')
     if mode not in MODES:
         raise ValueError(f'mode must be one of {MODES}')
+    if view == OBJECT_VIEW:
+        from security.custom.security_objects_view import build as _objects_build
+        return _objects_build(manager, scenario, mode)
     sc = load_scenario(scenario)
     if sc is None:
         raise ValueError(f'unknown scenario {scenario!r}')
@@ -324,8 +337,11 @@ def build(view, scenario, mode='today'):
                          'decided_by': e['decided_by'], 'provenance': e['provenance'], 'why': e['why']} for e in edges]}
 
 
-def simulate(view, scenario, actor, mode='today'):
+def simulate(view, scenario, actor, mode='today', manager=None):
     """Everything one actor can reach in a view, hop by hop, with the deciding system named."""
+    if view == OBJECT_VIEW:
+        from security.custom.security_objects_view import simulate as _objects_simulate
+        return _objects_simulate(manager, scenario, actor, mode)
     g = build(view, scenario, mode)
     steps = []
     for e in g['edges']:
@@ -347,10 +363,16 @@ ROLE_OF = {'prf-backend': 'the Polari backend', 'prf-isle-backend': 'the Polari 
            'pol-keycloak': 'a service', 'pol-mariadb': 'a service', 'pol-file-store': 'a service', 'psc-redis': 'a service'}
 
 
-def compare(view, mode='today'):
+def compare(view, mode='today', manager=None):
     """The same view across every scenario: one row per (source role, means, target) with each scenario's
     verdict(s). Sources are compared by ROLE (the Polari backend is prf-backend on the swarm and
-    prf-isle-backend on the isle) so a row lines up across routes."""
+    prf-isle-backend on the isle) so a row lines up across routes.
+
+    The `objects` view compares MODES instead (its own `compare`, `COMPARE_AXIS`): what may leave an instance is
+    decided by its policies and its manifests, not by the machine a scenario describes."""
+    if view == OBJECT_VIEW:
+        from security.custom.security_objects_view import compare as _objects_compare
+        return _objects_compare(manager, mode)
     from security.custom.security_facts import scenario_names
     rows = {}
     names = scenario_names()

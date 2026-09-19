@@ -15,12 +15,18 @@ class SecurityTopologyEdge(treeObject):
     the row's `mode` (stock = only what docker/qemu give; complain = Polari's
     rings loaded warn-only, today; enforce = every Polari ring on); `decided_by`
     is the first system that blocks, or the one that logs; `verdict` is the
-    outcome; `why` says it in one sentence."""
+    outcome; `why` says it in one sentence.
+
+    ct-5 (design §7) adds ONE column, `payload`: *what* crosses. The os /
+    network / app views leave it empty — they answer who can reach what — and
+    the `objects` view fills it with the CLASSES an edge carries and how often
+    (`MealEntry×12`). Class names and counts only: an instance id never appears
+    on a topology, and the effect journal is where one is looked up."""
 
     @treeObjectInit
     def __init__(self, name: str = '', view: str = '', scenario: str = '', mode: str = 'complain',
                  source: str = '', target: str = '', means: str = '', chain: str = '', decided_by: str = '',
-                 provenance: str = '', verdict: str = 'allowed', why: str = ''):
+                 provenance: str = '', verdict: str = 'allowed', why: str = '', payload: str = ''):
         self.name = name
         self.view = view
         self.scenario = scenario
@@ -33,3 +39,4 @@ class SecurityTopologyEdge(treeObject):
         self.provenance = provenance
         self.verdict = verdict
         self.why = why
+        self.payload = payload      # ct-5: the CLASSES this edge carries, with counts ('' on the other views)

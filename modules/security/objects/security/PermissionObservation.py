@@ -14,7 +14,8 @@ class PermissionObservation(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', actor: str = '', groups: str = '', profiles: str = '', verb: str = '', class_name: str = '',
-                 app: str = '', verdict: str = '', count: int = 0, first_seen: str = '', last_seen: str = '', posture: str = 'dev'):
+                 app: str = '', verdict: str = '', count: int = 0, first_seen: str = '', last_seen: str = '', posture: str = 'dev',
+                 tasks_json: str = '{}'):
         self.name = name                # groups|class|verb (one row per role-set × act)
         self.actor = actor              # the last caller (username / sub) — the ROLES are what profiles are derived from
         self.groups = groups            # the caller's KC groups + realm/client roles, comma-joined, sorted
@@ -27,3 +28,7 @@ class PermissionObservation(treeObject):
         self.first_seen = first_seen
         self.last_seen = last_seen
         self.posture = posture
+        # ct-7 (design §8): {task: count} — how many of this act's occurrences happened while a role-play session
+        # stated that task. The row's NAME stays `groups|class|verb`, so adding tasks never multiplies the
+        # ledger; an act performed under two tasks is ONE row that says so, and `review` groups by the key.
+        self.tasks_json = tasks_json

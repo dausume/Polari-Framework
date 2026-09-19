@@ -22,6 +22,14 @@
     "tags": [
       "odoo",
       "erp"
+    ],
+    "flows": [
+      {
+        "to": "odoo",
+        "classes": [],
+        "direction": "both",
+        "why": "odoo_client.jsonrpc is the ONE Odoo wire seam and odoo_sync pushes/pulls whatever the OdooModelBinding rows map. The CLASSES are a deployment's bindings, not the module's, so they are left empty here on purpose: the confirmed OutboundPolicy row is where a deployment names what it really sends."
+      }
     ]
   },
   "requires": {

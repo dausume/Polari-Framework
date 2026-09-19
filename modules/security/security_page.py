@@ -120,8 +120,10 @@ SEED_SECURITY_PAGE_DISPLAYS = [
                        '/api/security/observations', pick='derived')], min_height=300),
         _row(3, [_table('security-usage-table', 0, 8, 'UsageObservation — role-play: the apps, pages, components, actions and endpoints each role USED, counted (the "functionality" half of the review)', 'UsageObservation',
                         columns='role,kind,item,app,page,count,actor,first_seen,last_seen', column_formats=ACTOR_FORMAT),
-                 _table('security-sessions-table', 1, 4, 'Role-play sessions — who acted as which role, when; acts and usages attributed', 'ObservationSession',
-                        columns='role,actor,active,started_at,ended_at,acts,usages', column_formats=ACTOR_FORMAT)], min_height=260),
+                 # ct-7 (design §8): the session states the TASK being performed, so the review reads as
+                 # tasks → doors → objects × verbs → closure rather than as one flat class list.
+                 _table('security-sessions-table', 1, 4, 'Role-play sessions — who acted as which role, on which TASK ("publish an article"), when; acts and usages attributed', 'ObservationSession',
+                        columns='role,task,actor,active,started_at,ended_at,acts,usages', column_formats=ACTOR_FORMAT)], min_height=260),
         # ---- ct-1: causal tracing. ONE class at a time, dev posture only, budgets that disarm themselves.
         _row(4, [_sapi('security-trace-status', 0, 5, 'Causal tracing — the ONE class armed right now, its budgets and live counters, and the coverage: which classes have ever been traced',
                        '/api/security/observe/trace', hide='defaults,knob'),
@@ -156,6 +158,69 @@ SEED_SECURITY_PAGE_DISPLAYS = [
         _row(11, [_sapi('security-traffic-declared', 0, 12, 'Declared flows — the CONFIRMED traffic policies as the object topology draws them: direction, the counterpart, the wire and the classes. An observed flow with no row here is drift',
                         '/api/security/traffic/declared', pick='flows')], min_height=240),
     ]),
+    # ---- ct-5 (design §7): the FOURTH view. The other three answer "who can reach what"; this one answers
+    # "where do the ROWS go". Configured structured panels over the same doors the other view pages use, plus
+    # configured tables over the rows that back it — no new component, nothing raw.
+    _page('security-objects', 'security-objects',
+          'Objects — where the rows go: which CLASSES cross to which system, declared beside observed, and the drift between them',
+          'SecurityTopologyEdge', [
+              _row(0, [
+                  _sapi('security-objects-summary', 0, 12,
+                        'Object flow on this instance — every edge with its PAYLOAD (the classes it carries, and how often), its provenance (declared = a manifest app.flows entry or a traffic policy a person confirmed; observed = the causal map) and the system that decides it',
+                        '/api/security/topology?view=objects', pick='summary'),
+              ], min_height=300),
+              _row(1, [
+                  _sapi('security-objects-undeclared', 0, 6,
+                        'OBSERVED, DECLARED BY NOTHING — classes seen crossing that no manifest app.flows entry and no confirmed traffic policy covers. A finding the first time something flows, never a block: dev warns (§17)',
+                        '/api/security/objects/drift', pick='observed_not_declared'),
+                  _sapi('security-objects-unexercised', 1, 6,
+                        'DECLARED, NEVER OBSERVED — what somebody said may flow and the map has never recorded. Noise to prune, UNLESS its classes have never been traced, in which case the honest reading is NOT TRACED: arm one and ask again',
+                        '/api/security/objects/drift', pick='declared_not_observed'),
+              ], min_height=280),
+              _row(2, [
+                  _sapi('security-objects-by-app', 0, 7,
+                        'Per app: how many observed flows nothing declares, how many declarations nothing exercises, and the trace coverage of the classes involved (none / partial / full)',
+                        '/api/security/objects/drift', pick='by_app'),
+                  _sapi('security-objects-not-traced', 1, 5,
+                        'NOT TRACED — classes on this view that have never been armed as a TraceTarget. The map cannot say what they really send, and "not traced" is not the same as "nothing flows"',
+                        '/api/security/objects/drift', pick='not_traced_detail'),
+              ], min_height=280),
+              _row(3, [
+                  _sapi('security-objects-simulate', 0, 6,
+                        'What leaves this instance as things stand today — every flow, its payload, and the system that decided it',
+                        '/api/security/simulate?view=objects&actor=this%20instance', pick='steps'),
+                  _sapi('security-objects-enforce', 1, 6,
+                        'The same flows under ENFORCE — production, closed by default: only a traffic policy row a person confirmed lets anything leave',
+                        '/api/security/simulate?view=objects&actor=this%20instance&mode=enforce', pick='steps'),
+              ], min_height=280),
+              _row(4, [
+                  _sapi('security-objects-compare', 0, 12,
+                        'The same flows across all four modes — stock (no policy at all), today (this instance\'s knob), complain (dev: warn, never block), enforce (production: closed by default)',
+                        '/api/security/compare?view=objects', pick='rows'),
+              ], min_height=260),
+              _row(5, [
+                  _sapi('security-objects-declared', 0, 6,
+                        'DECLARED flows — the modules\' manifest app.flows stanzas (the app author\'s statement: a system KIND, never a host) and the traffic policy rows a person confirmed (the deployment\'s)',
+                        '/api/security/objects/flows', pick='declared'),
+                  _sapi('security-objects-observed', 1, 6,
+                        'OBSERVED flows — what the causal map recorded crossing, while a TraceTarget was armed. One class at a time, dev posture only',
+                        '/api/security/objects/flows', pick='observed'),
+              ], min_height=280),
+              _row(6, [
+                  _table('security-objects-map', 0, 7,
+                         'CausalEdge — the map these observed edges are read from: one counted row per cause → effect by means, with the classes in `detail`. Class level only; an instance id never appears here',
+                         'CausalEdge', columns='cause,effect,means,detail,count,run_as,target,first_seen,last_seen'),
+                  _table('security-objects-coverage', 1, 5,
+                         'TraceTarget — the coverage: one row per class ever armed. A class with NO row here has not been traced, which is not the same as nothing flowing from it',
+                         'TraceTarget', columns='class_name,active,started_by,started_at,stopped_at,stopped_because,edges_written,journal_written,dropped',
+                         column_formats=TRACE_ACTOR_FORMAT),
+              ], min_height=280),
+              _row(7, [
+                  _sapi('security-objects-nodes', 0, 12,
+                        'The boundaries on this view: the app\'s own declaration, the traffic policy, the outbound wrapper (the edge of what Polari can see), the permission gate and the causal map',
+                        '/api/security/topology?view=objects', pick='nodes'),
+              ], min_height=240),
+          ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),
     _view_page('app', 'App', 'who gets access to what, through which means', 'visitor'),

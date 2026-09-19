@@ -53,6 +53,76 @@ APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-exte
 #: a custom route handler) is designed, not built. A role name here is a group name, never a person.
 ROLE_NAME_MAX = 64
 
+#: app.flows (ct-7; CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md §9): the object flows this module DECLARES — where its
+#: rows GO, which classes ride, and in which direction. HAND-SET like `app.roles` and the security stanza:
+#: nothing derives it, and a regeneration must never drop it. The `objects` security topology view (ct-5) draws
+#: these as the `declared` half beside the `observed` edges of the causal map, and the difference between the two
+#: IS the drift report. A module that declares nothing is never refused — an undeclared flow is a FINDING and dev
+#: warns, never blocks (§17). `to` mirrors `polariApiServer.outbound.SYSTEM_KINDS` (the wrapper's own vocabulary,
+#: which is what actually records a flow); the security selftest checks the two lists still agree, because a
+#: manifest that may not name a kind the wrapper can record would make a real flow undeclarable.
+FLOW_TARGETS = ('keycloak', 'odoo', 'livekit', 'reticulum', 'engine', 'provider', 'peer', 'self', 's3', 'mqtt',
+                'profiler', 'other')
+FLOW_DIRECTIONS = ('push', 'pull', 'both')
+#: one declaration may name at most this many classes — the same ceiling `OutboundPolicy` keeps for the same
+#: reason (a declaration is a statement about a capability, not a dump of the data model)
+FLOW_CLASSES_MAX = 50
+
+
+def flow_findings(flows):
+    """Findings for a manifest's OPTIONAL `app.flows` list ([] = fine, including absent) — design §9.
+
+    One entry per declared flow: `{to, classes, direction}`, plus an optional `name` (the CONFIGURED system's
+    name, when the module knows it) and an optional `why`. `to` is a system KIND, not a URL and not a host: a
+    declaration says *this capability sends `MealEntry` to an Odoo*, and which Odoo is a deployment's business,
+    not a manifest's. Absent is fine and is NOT a finding here — the finding is raised where a flow is actually
+    observed with nothing declaring it (the `objects` view's drift report), because that is the first moment
+    the silence is known to be wrong."""
+    if flows is None:
+        return []
+    if not isinstance(flows, list):
+        return ['app.flows must be a list of {to, classes, direction} objects (omit the key when there are none)']
+    out = []
+    seen = set()
+    for flow in flows:
+        if not isinstance(flow, dict):
+            out.append('app.flows entries must be objects {to, classes, direction}, got %r' % (flow,))
+            continue
+        to = flow.get('to')
+        if not isinstance(to, str) or to not in FLOW_TARGETS:
+            out.append('app.flows `to` %r is not one of %s — the system KIND, never a URL or a host'
+                       % (to, FLOW_TARGETS))
+        direction = flow.get('direction', 'both')
+        if direction not in FLOW_DIRECTIONS:
+            out.append('app.flows `direction` %r is not one of %s' % (direction, FLOW_DIRECTIONS))
+        name = flow.get('name', '')
+        if not isinstance(name, str):
+            out.append('app.flows `name` must be the configured system\'s name as a string, got %r' % (name,))
+        elif '://' in name or '/' in name:
+            out.append('app.flows `name` %r looks like a URL — a declaration names a CONFIGURED system, and a '
+                       'URL can carry a credential' % (name,))
+        classes = flow.get('classes', [])
+        if not isinstance(classes, list):
+            out.append('app.flows `classes` must be a list of class names (an empty list = a call that carries '
+                       'no rows), got %r' % (classes,))
+        else:
+            if len(classes) > FLOW_CLASSES_MAX:
+                out.append('app.flows declares %d classes for %r; %d is the most one flow may name'
+                           % (len(classes), to, FLOW_CLASSES_MAX))
+            for cls in classes:
+                if not isinstance(cls, str) or not cls.strip():
+                    out.append('app.flows `classes` entries must be non-empty class names, got %r' % (cls,))
+                elif cls != cls.strip():
+                    out.append('app.flows class %r has surrounding whitespace' % (cls,))
+                elif not cls.replace('_', '').isalnum():
+                    out.append('app.flows class %r is not a plain class name' % (cls,))
+        key = (str(to), str(name), str(direction))
+        if key in seen:
+            out.append('app.flows declares %r twice (to=%r, name=%r, direction=%r) — merge the class lists'
+                       % (key, to, name, direction))
+        seen.add(key)
+    return out
+
 
 # sec-3: the security stanza vocabulary (mirrors os-security/render.py; conform refuses anything else)
 SECURITY_PROFILES = ('web-app', 'worker', 'gateway', 'vpn-gateway', 'hardware-extension')
@@ -417,8 +487,9 @@ def _preserve_hand_set(pkg, manifest):
                 manifest[k] = old[k]
         app = dict(manifest['app'])
         # `roles` joins the hand-set keys (his ask 2026-09-18): nothing derives which roles a capability serves,
-        # so a regeneration must never drop it.
-        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles')})
+        # so a regeneration must never drop it. `flows` joins them for the same reason (ct-7, design §9):
+        # nothing can derive where an app's rows are MEANT to go — only where they were seen going.
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles', 'flows')})
         manifest['app'] = app
     return manifest
 
@@ -455,6 +526,7 @@ def validate(manifest):
     if app.get('kind') in ('hardware-app', 'hardware-extension-app') and app.get('agentTier') != 'hardware':
         problems.append('hardware kinds need app.agentTier = hardware')
     problems.extend(role_findings(app.get('roles')))
+    problems.extend(flow_findings(app.get('flows')))
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:

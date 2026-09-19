@@ -14,7 +14,7 @@ class UsageObservation(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', role: str = '', kind: str = '', item: str = '', app: str = '', page: str = '', detail: str = '',
-                 actor: str = '', count: int = 0, first_seen: str = '', last_seen: str = ''):
+                 actor: str = '', count: int = 0, first_seen: str = '', last_seen: str = '', tasks_json: str = '{}'):
         self.name = name        # role|kind|item
         self.role = role        # the role-played group ('journalist'); '' = the caller's real groups only
         self.kind = kind        # app | page | component | action | endpoint
@@ -26,3 +26,7 @@ class UsageObservation(treeObject):
         self.count = count
         self.first_seen = first_seen
         self.last_seen = last_seen
+        # ct-7 (design §8): {task: count} — which stated task walked through this door, and how often. Same rule
+        # as PermissionObservation: the row's name is still `role|kind|item`, so a door used by three tasks is
+        # one counted row that names all three rather than three rows.
+        self.tasks_json = tasks_json

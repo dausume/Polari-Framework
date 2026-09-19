@@ -21,6 +21,15 @@
   "tags": [
    "security",
    "audit"
+  ],
+  "flows": [
+   {
+    "to": "keycloak",
+    "name": "realm",
+    "classes": [],
+    "direction": "both",
+    "why": "kc_admin resolves a Keycloak subject id to a name and manages group membership through the polari-backend service account (all of it through the outbound wrapper). NO Polari row ever leaves: names live in Keycloak and stay there (D18-1), and this instance keeps no copy."
+   }
   ]
  },
  "requires": {
@@ -95,12 +104,14 @@
    "custom/security_ledger",
    "custom/security_network_rows",
    "custom/security_notices",
+   "custom/security_objects_view",
    "custom/security_observe",
    "custom/security_os_rows",
    "custom/security_owned",
    "custom/security_people",
    "custom/security_proposals",
    "custom/security_ssh",
+   "custom/security_tasks",
    "custom/security_threats",
    "custom/security_topology",
    "custom/security_trace",

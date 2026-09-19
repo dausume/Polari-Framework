@@ -1012,7 +1012,8 @@ class _TraceM:
     def __init__(self):
         self.objectTables = {'TraceTarget': {}, 'CausalEdge': {}, 'WriteJournalEntry': {}, 'SecurityEvent': {},
                              'OwnedClassPolicy': {}, 'AppPermissionProfile': {}, 'PermissionObservation': {},
-                             'UsageObservation': {}, 'ObservationSession': {}}
+                             'UsageObservation': {}, 'ObservationSession': {},
+                             'OutboundPolicy': {}, 'InboundPolicy': {}}
         self.persistTree = lambda: None
 
     def noteTreeDeletion(self, className, instanceId):
@@ -1828,6 +1829,421 @@ def _closure_checks(api, O, _Res, _types, check):
             os.environ.clear(); os.environ.update(old_env)
 
 
+def _ct5_checks(api, _Res, _types, check):
+    """ct-5 — THE `objects` TOPOLOGY VIEW (design §7): the fourth view, the only one with a PAYLOAD column.
+
+    Everything runs against the same manager double the ct-4 checks use, with dev posture and a temporary knob,
+    so the declared half (manifest `app.flows` + confirmed traffic policy rows) and the observed half (the causal
+    map) are both exercised through their real readers."""
+    import json
+    import os
+    import tempfile
+
+    from accessControl import cause_context as CC
+    from security.custom import security_objects_view as OV
+    from security.custom import security_topology as TP
+    from security.custom import security_trace as T
+
+    class _Req:
+        def __init__(self, ui=None, **params):
+            self.params = params
+            self.media = {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    SUB = 'cccccccc-5555-4555-8555-cccccccccccc'
+    admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            _trace_env(td)
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._TRACED.clear(); T._CREATED.clear()
+
+            # ---- the view is the FOURTH one, and it is deliberately not in the seeded three
+            from security.security_basis import SecurityTopologyEdge
+            built = {m: TP.build('objects', 'dev', m) for m in TP.MODES}
+            check('ct-5: `objects` is a FOURTH security topology view — accepted by the doors (`ALL_VIEWS`), '
+                  'built for every mode, and deliberately NOT in `VIEWS`, which is what the seed walks: this '
+                  'view is derived from the INSTANCE (its manifests, its confirmed policies, its causal map), so '
+                  'seeding it once per scenario would be four copies of one answer taken from an empty tree. '
+                  'The one schema change is `SecurityTopologyEdge.payload` — what crosses, which no other view '
+                  'can say',
+                  TP.OBJECT_VIEW == 'objects' and 'objects' not in TP.VIEWS
+                  and TP.ALL_VIEWS == TP.VIEWS + ('objects',)
+                  and all(b['view'] == 'objects' and b['payload_column'] for b in built.values())
+                  and SecurityTopologyEdge(name='x').payload == ''
+                  and hasattr(SecurityTopologyEdge(name='x', payload='MealEntry×3'), 'payload'),
+                  (TP.ALL_VIEWS, sorted(built)))
+
+            # ---- DECLARED half A: the modules' manifest app.flows (ct-7's stanza, read here)
+            flows = OV.manifest_flows()
+            by_module = {f['module']: f for f in flows}
+            check('ct-5 DECLARED (the app author): every module manifest\'s `app.flows` stanza is read as a '
+                  'declared flow — a system KIND and a direction, never a host. `security` declares it talks to '
+                  'Keycloak carrying NO Polari rows (names live in Keycloak and stay there, D18-1) and '
+                  '`odooconnect` declares the Odoo wire',
+                  {'security', 'odooconnect'} <= set(by_module)
+                  and by_module['security']['kind'] == 'keycloak'
+                  and by_module['security']['classes'] == []
+                  and by_module['odooconnect']['kind'] == 'odoo'
+                  and all('://' not in (f.get('name') or '') for f in flows)
+                  and all(f['provenance'] == 'declared' and f['origin'] == 'app.flows' for f in flows),
+                  sorted(by_module))
+
+            # ---- DECLARED half B: the CONFIRMED traffic policy rows (ct-9's declared_flows, which waited for this)
+            m = _TraceM()
+            m.objectTables['OutboundPolicy']['o1'] = _types.SimpleNamespace(
+                name='odoo|main|json-rpc', system_kind='odoo', system_name='main', means='json-rpc',
+                payload_classes_json='["MealEntry"]', state='confirmed', derived_from='observed send',
+                confirmed_by=SUB, confirmed_at='2026-09-19T00:00:00Z', count=7,
+                first_seen='2026-09-19T00:00:00Z', last_seen='2026-09-19T00:00:00Z')
+            m.objectTables['OutboundPolicy']['o2'] = _types.SimpleNamespace(
+                name='s3|appstore|s3', system_kind='s3', system_name='appstore', means='s3',
+                payload_classes_json='["Artifact"]', state='suggested', derived_from='observed send',
+                confirmed_by='', confirmed_at='', count=2,
+                first_seen='2026-09-19T00:00:00Z', last_seen='2026-09-19T00:00:00Z')
+            policy = OV.policy_flows(m)
+            check('ct-5 DECLARED (the deployment): a traffic policy row a PERSON confirmed becomes a declared '
+                  'flow with its payload classes; a `suggested` row does NOT — a proposal nobody ruled on is '
+                  'never a declaration (design §5a, closed by default)',
+                  [(p['kind'], p['name'], p['classes']) for p in policy] == [('odoo', 'main', ['MealEntry'])],
+                  [(p['kind'], p['name']) for p in policy])
+
+            # ---- OBSERVED half: the causal map's peer / external / broadcast edges, and nothing else
+            T.arm(m, 'MealEntry', user_info=admin)
+            tok = CC.root_cause('api', 'PUT /api/MealEntry/{id}', actor=SUB)
+            try:
+                T.touch(m, 'MealEntry', 'update')
+                T.record_edge(m, 'endpoint:PUT /api/MealEntry/{id}', 'object:MealEntry:update', 'crude')
+                T.record_outbound(m, 'odoo', 'main', 'json-rpc', ['MealEntry'])
+                T.record_outbound(m, 'peer', 'kitchen-node', 'shared-db', ['MealEntry'])
+                T.record_outbound(m, 's3', 'appstore', 's3', ['Artifact'])
+                T.record_edge(m, 'object:MealEntry:update', 'event:topic:MealEntry', 'ws-publish')
+            finally:
+                CC.pop_cause(tok)
+            obs = OV.observed(m)
+            seen = {(o['kind'], o['name'], o['means'], tuple(o['classes'])) for o in obs}
+            check('ct-5 OBSERVED: the causal map\'s `external:` / `peer:` edges and the two `ws-*` means become '
+                  'flows whose PAYLOAD is the classes the wrapper recorded; a `crude` edge does NOT — causation '
+                  'INSIDE the instance is the closure\'s answer (ct-4) and this view deliberately does not repeat '
+                  'it',
+                  seen == {('odoo', 'main', 'json-rpc', ('MealEntry',)),
+                           ('peer', 'kitchen-node', 'shared-db', ('MealEntry',)),
+                           ('s3', 'appstore', 's3', ('Artifact',)),
+                           ('broadcast', 'stomp', 'ws-publish', ('MealEntry',))}
+                  and all(o['provenance'] == 'observed' for o in obs), sorted(seen))
+
+            # ---- the MODES mean the traffic policy's ladder for this view
+            edges = {m_: {(e['target'], e['payload']): e['verdict'] for e in TP.build('objects', 'dev', m_,
+                                                                                      manager=m)['edges']}
+                     for m_ in TP.MODES}
+            odoo_key = ('external:odoo:main', 'MealEntry×1')
+            s3_key = ('external:s3:appstore', 'Artifact×1')
+            check('ct-5 THE MODES, for THIS view: `stock` is an instance with no traffic policy at all (every '
+                  'flow leaves), `complain` is dev (a confirmed flow is allowed, everything else is LOGGED and '
+                  'proceeds — warn, never block) and `enforce` is production, closed by default (only a '
+                  'CONFIRMED row allows). The confirmed Odoo flow is allowed in all three; the unconfirmed S3 '
+                  'one is not',
+                  edges['stock'][odoo_key] == 'allowed' and edges['stock'][s3_key] == 'allowed'
+                  and edges['complain'][odoo_key] == 'allowed' and edges['complain'][s3_key] == 'logged'
+                  and edges['enforce'][odoo_key] == 'allowed' and edges['enforce'][s3_key] == 'blocked',
+                  {k: {kk: vv for kk, vv in v.items() if kk in (odoo_key, s3_key)} for k, v in edges.items()})
+
+            # ---- the DRIFT report
+            d = OV.drift(m)
+            undeclared = {(u['kind'], u['name']) for u in _drift_items(d, 'observed_not_declared')}
+            unexercised = {(u['kind'], u['name']) for u in _drift_items(d, 'declared_not_observed')}
+            check('ct-5 DRIFT (design §7): observed − declared names what flows with NOTHING declaring it — the '
+                  'S3 send (its policy row is only `suggested`) and the peer read — as a FINDING, never a block '
+                  '(dev warns, §17); declared − observed names what somebody declared and the map has never '
+                  'seen. The Odoo flow is in neither: a manifest declares the kind AND a person confirmed the '
+                  'row',
+                  ('s3', 'appstore') in undeclared and ('peer', 'kitchen-node') in undeclared
+                  and ('odoo', 'main') not in undeclared
+                  and ('keycloak', 'realm') in unexercised
+                  and all('FINDING' in u['finding'].upper() for u in _drift_items(d, 'observed_not_declared')),
+                  (sorted(undeclared), sorted(unexercised)))
+            by_app = {a['app']: a for a in d['by_app']}
+            check('ct-5 COVERAGE, NOT SILENCE (design §2): the drift is grouped PER APP with the trace coverage '
+                  'of the classes involved — `Artifact` has never been armed as a TraceTarget, so it is named in '
+                  '`not_traced` and its app reads coverage `none`, while `MealEntry` (the armed class) does not. '
+                  'An untraced class answers NOT TRACED, never "nothing flows"',
+                  d['not_traced'] == ['Artifact'] and 'MealEntry' not in d['not_traced']
+                  and d['not_traced_detail'][0]['class_name'] == 'Artifact'
+                  and 'NOT TRACED' in d['not_traced_detail'][0]['reading']
+                  and any(a['coverage'] == 'none' and 'Artifact' in a['not_traced'] for a in by_app.values())
+                  and 'NEVER been traced' in d['reading'], (d['not_traced'], sorted(by_app)))
+
+            # ---- no instance ids, no addresses, anywhere on the view (design §7's last line)
+            g = TP.build('objects', 'dev', 'today', manager=m)
+            blob = json.dumps({'nodes': g['nodes'], 'summary': g['summary']})
+            check('ct-5 NO INSTANCE IDS: the object topology is CLASSES AND COUNTS. Nothing on it carries an '
+                  'instance id, a raw address or a hostname — an instance is looked up in the effect journal, '
+                  'which is dev-only and cleared on the next arm (design §7)',
+                  'm-1' not in blob and '://' not in blob and '192.168' not in blob
+                  and all(':' not in (e['payload'] or '') for e in g['edges'])
+                  and all('×' in e['payload'] or not e['payload'] for e in g['edges']))
+
+            # ---- simulate, incl. the per-profile reading design §7 asks for
+            m.objectTables['AppPermissionProfile']['p1'] = _types.SimpleNamespace(
+                name='kitchen', app_name='', published=True, kc_groups_json='["operator"]',
+                verbs_json='["read", "update"]', extra_classes_json='["MealEntry"]')
+            s_all = TP.simulate('objects', 'dev', 'this instance', 'today', manager=m)
+            s_cls = TP.simulate('objects', 'dev', 'class:MealEntry', 'today', manager=m)
+            s_prof = TP.simulate('objects', 'dev', 'profile:kitchen', 'enforce', manager=m)
+            s_bad = TP.simulate('objects', 'dev', 'nobody', 'today', manager=m)
+            check('ct-5 SIMULATE: what can leave from `this instance`, from one `class:<C>`, and — the reading '
+                  'design §7 asks for — from a person holding an `AppPermissionProfile`, whose classes are '
+                  'expanded to their flows. An actor the view does not have is an honest refusal that lists the '
+                  'ones it does',
+                  s_all['ok'] and s_cls['ok'] and s_prof['ok'] and s_bad['ok'] is False
+                  and {st['target'] for st in s_cls['steps']}
+                  == {'external:odoo:main', 'peer:kitchen-node:shared-db', 'subscribers (STOMP)'}
+                  and {st['target'] for st in s_prof['steps']} == {st['target'] for st in s_cls['steps']}
+                  and 'kitchen' in s_prof['note']
+                  # under ENFORCE the profile's own classes reach exactly the CONFIRMED flow; the peer read has
+                  # no confirmed row and is blocked, the broadcast is the permission gate's per-subscriber call,
+                  # and the S3 send belongs to a class this profile does not grant at all
+                  and s_prof['reach']['allowed'] == ['external:odoo:main']
+                  and s_prof['reach']['blocked'] == ['peer:kitchen-node:shared-db']
+                  and 'external:s3:appstore' not in sum(s_prof['reach'].values(), [])
+                  and {st['target'] for st in s_all['steps']} > {st['target'] for st in s_cls['steps']},
+                  (s_cls.get('reading'), s_prof.get('note'), s_prof.get('reach')))
+            check('ct-5 SIMULATE, the refusals and the honesty: an unknown actor names the ones that exist and '
+                  'says a profile may be asked for; a profile nothing has published is a refusal, not an empty '
+                  'answer; and a class that has never been traced is named in the answer',
+                  'profile:' in s_bad['error'] and 'this instance' in s_bad['actors']
+                  and TP.simulate('objects', 'dev', 'profile:nope', 'today', manager=m)['ok'] is False
+                  and s_all['not_traced'] == ['Artifact'], (s_bad.get('error'), s_all.get('not_traced')))
+
+            # ---- compare puts the MODES on the columns, and says so
+            c = TP.compare('objects', 'today', manager=m)
+            check('ct-5 COMPARE: the other three views compare MACHINES (a column per scenario); this one '
+                  'compares POSTURES, because what may leave an instance is decided by its policies and its '
+                  'manifests, not by the machine layout a scenario describes. `axis` says so rather than leaving '
+                  'four identical columns to be misread',
+                  c['axis'] == 'mode' and c['scenarios'] == list(TP.MODES)
+                  and all(all(mm in row for mm in TP.MODES) for row in c['rows']) and c['rows'],
+                  (c['axis'], len(c['rows'])))
+
+            # ---- the doors
+            api.manager = m
+            r_top = _Res(); api.on_get_topology(_Req(admin, view='objects'), r_top)
+            r_dr = _Res(); api.on_get_objects_drift(_Req(admin), r_dr)
+            r_fl = _Res(); api.on_get_objects_flows(_Req(admin), r_fl)
+            r_an = _Res(); api.on_get_objects_drift(_Req(None), r_an)
+            r_sim = _Res(); api.on_get_simulate(_Req(admin, view='objects'), r_sim)
+            check('ct-5 THE DOORS: `?view=objects` builds through the SAME /topology, /simulate and /compare '
+                  'doors as the other three views (the manager is handed through for this one); '
+                  '/api/security/objects/drift and /flows are the two readings a person acts on, and both refuse '
+                  'an anonymous caller — where this instance\'s rows go is not an anonymous question',
+                  r_top.media['ok'] and r_top.media['view'] == 'objects' and r_top.media['summary']
+                  and r_dr.media['ok'] and r_dr.media['counts']['observed'] == 4
+                  and r_fl.media['ok'] and r_fl.media['counts']['manifests'] >= 2
+                  and r_an.status.startswith('401')
+                  and r_sim.media['ok'] and r_sim.media['actor'] == 'this instance',
+                  (r_top.media.get('view'), r_dr.media.get('counts')))
+
+            class _Falcon:
+                def __init__(self): self.routes = []
+                def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+            class _Srv:
+                def __init__(self): self.falconServer = _Falcon()
+            srv = _Srv()
+            from security.security_api import SecurityAPI as _API
+            probe = _API(polServer=srv, manager=None)
+            obj_routes = [(u, s) for u, s in srv.falconServer.routes if '/objects/' in u]
+            check('§54 guard: the two ct-5 doors register and have their on_get_<suffix> responders — a suffix '
+                  'that has drifted from its method name RAISES from add_route() and takes the backend down at '
+                  'boot, so it is proven here rather than in a browser',
+                  obj_routes == [('/api/security/objects/drift', 'objects_drift'),
+                                 ('/api/security/objects/flows', 'objects_flows')]
+                  and hasattr(probe, 'on_get_objects_drift') and hasattr(probe, 'on_get_objects_flows'),
+                  obj_routes)
+            T.disarm(m, 'manual')
+        finally:
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': True,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._set_armed_flag(False, '')
+            os.environ.clear(); os.environ.update(old_env)
+
+
+def _drift_items(drift_report, key):
+    """One side of ct-5's drift report (`observed_not_declared` / `declared_not_observed`), defended."""
+    return drift_report.get(key) or []
+
+
+def _ct7_checks(api, O, _Res, _types, check):
+    """ct-7 — TASKS AND NEEDS (design §8/§9): the session's task, the acts that carry it, the review grouped by
+    task, the per-task verify verdict, and the `app.flows` manifest stanza with its validation."""
+    import os
+    import tempfile
+
+    from moduleService import manifests as M
+    from security.custom import security_tasks as TK
+
+    class _Req:
+        def __init__(self, ui=None, body=None, **params):
+            self.params = params
+            self.media = body or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    # ---- app.flows: the vocabulary, the validation, and the hand-set survival
+    from polariApiServer.outbound import SYSTEM_KINDS
+    good = [{'to': 'odoo', 'classes': ['MealEntry'], 'direction': 'push'},
+            {'to': 'peer', 'name': 'kitchen-node', 'classes': [], 'direction': 'both'}]
+    check('ct-7 `app.flows` (design §9): a well-formed stanza passes, and the `to` vocabulary is exactly the '
+          'outbound wrapper\'s `SYSTEM_KINDS` — a manifest that could not name a kind the wrapper records would '
+          'make a real flow undeclarable, which is the one way this stanza could lie',
+          M.flow_findings(None) == [] and M.flow_findings([]) == [] and M.flow_findings(good) == []
+          and set(M.FLOW_TARGETS) == set(SYSTEM_KINDS)
+          and M.FLOW_DIRECTIONS == ('push', 'pull', 'both'),
+          (M.flow_findings(good), sorted(set(M.FLOW_TARGETS) ^ set(SYSTEM_KINDS))))
+    bad = {
+        'not a list': 'odoo',
+        'unknown kind': [{'to': 'hadoop', 'classes': []}],
+        'a URL, not a configured name': [{'to': 'odoo', 'name': 'https://odoo.example/jsonrpc', 'classes': []}],
+        'a direction nobody defined': [{'to': 'odoo', 'classes': [], 'direction': 'sideways'}],
+        'classes that are not class names': [{'to': 'odoo', 'classes': ['Meal Entry']}],
+        'the same flow twice': [{'to': 'odoo', 'classes': ['A']}, {'to': 'odoo', 'classes': ['B']}],
+        'too many classes': [{'to': 'odoo', 'classes': ['C%d' % i for i in range(M.FLOW_CLASSES_MAX + 1)]}],
+    }
+    results = {label: M.flow_findings(v) for label, v in bad.items()}
+    check('ct-7 `app.flows` refuses, each with the reason: a bare string, a system kind nobody can record, a URL '
+          'where a CONFIGURED name belongs (a URL can carry a credential), an invented direction, something that '
+          'is not a class name, one flow declared twice, and more classes than a declaration may name',
+          all(results.values()) and 'not one of' in results['unknown kind'][0]
+          and 'URL' in results['a URL, not a configured name'][0]
+          and 'twice' in results['the same flow twice'][0],
+          {k: v[:1] for k, v in results.items()})
+    check('ct-7: `validate()` carries the findings, so `manifests conform` reports a bad stanza; and the two '
+          'manifests that DO declare a flow today (security → keycloak carrying no rows, odooconnect → odoo) are '
+          'valid and survive a regeneration — `flows` is HAND-SET, like `roles` and the security stanza, because '
+          'nothing can derive where an app\'s rows are MEANT to go',
+          any('app.flows' in p for p in M.validate({'schema': M.SCHEMA, 'id': 'x', 'package': 'x', 'title': 'x',
+                                                    'requires': [], 'files': {}, 'classes': [],
+                                                    'app': {'kind': 'library', 'agentTier': 'core',
+                                                            'flows': 'odoo'}}))
+          and M.flow_findings((M.load('security') or {}).get('app', {}).get('flows')) == []
+          and M.flow_findings((M.load('odooconnect') or {}).get('app', {}).get('flows')) == []
+          and (M.load('security') or {})['app']['flows'][0]['to'] == 'keycloak')
+
+    # ---- the session's task, and the acts that carry it
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            _trace_env(td)
+            m = _TraceM()
+            SUB = 'dddddddd-5555-4555-8555-dddddddddddd'
+            journalist = {'sub': SUB, 'roles': ['journalist'], 'raw_claims': {'groups': ['journalist']}}
+            s1 = O.start_session(m, 'journalist', actor=SUB, task='  publish   an article ')
+            s2 = O.start_session(m, 'journalist', actor=SUB, task='score a source')
+            sess = O.sessions(m, 'journalist')[0]
+            check('ct-7 THE TASK (design §8): a role-play session states the task being performed, cleaned to one '
+                  'line; posting to the SAME door again with a different task CHANGES it mid-session (it does not '
+                  'open a second session) and the history keeps the one before, so a changed task never erases '
+                  'what was done under it',
+                  s1['ok'] and s1['task'] == 'publish an article' and s1['already_open'] is False
+                  and s2['already_open'] is True and s2['task_changed'] is True
+                  and s2['task'] == 'score a source'
+                  and [t['task'] for t in sess['tasks']] == ['publish an article', 'score a source']
+                  and sess['task'] == 'score a source' and sess['actor'] == SUB,
+                  (s1.get('task'), s2.get('task'), sess.get('tasks')))
+
+            # acts under task 1
+            O.start_session(m, 'journalist', actor=SUB, task='publish an article')
+            O.observe_permission(m, journalist, 'Article', 'update', roleplay='journalist')
+            O.observe_permission(m, journalist, 'Article', 'update', roleplay='journalist')
+            O.observe_usage(m, 'journalist', 'endpoint', 'PUT /api/Article/{id}', actor=SUB)
+            O.observe_usage(m, 'journalist', 'page', 'article-editor', actor=SUB)
+            # the SAME act under task 2 — one row, two tasks, not two rows
+            O.start_session(m, 'journalist', actor=SUB, task='score a source')
+            O.observe_permission(m, journalist, 'Article', 'update', roleplay='journalist')
+            O.observe_permission(m, journalist, 'Source', 'read', roleplay='journalist')
+            O.observe_usage(m, 'journalist', 'endpoint', 'PUT /api/Article/{id}', actor=SUB)
+            # an act with NO session open at all
+            O.end_session(m, role='journalist')
+            O.observe_permission(m, journalist, 'Article', 'read', roleplay='journalist')
+            obs = {o['name']: o for o in O.observations(m)}
+            use = {u['name']: u for u in O.usages(m, 'journalist')}
+            article = obs['default-roles-polari,journalist,roleplay:journalist|Article|update'] \
+                if 'default-roles-polari,journalist,roleplay:journalist|Article|update' in obs else \
+                next(o for k, o in obs.items() if k.endswith('|Article|update'))
+            door = next(u for k, u in use.items() if k.endswith('|endpoint|PUT /api/Article/{id}'))
+            check('ct-7: every act and every door recorded while a session is open carries the TASK, as a counted '
+                  '{task: count} map on the SAME row — the row\'s name is still groups|class|verb and '
+                  'role|kind|item, so attributing tasks never multiplies the ledger. One act performed under two '
+                  'tasks is ONE row that names both, with the evidence of how often',
+                  article['tasks'] == {'publish an article': 2, 'score a source': 1}
+                  and article['count'] == 3
+                  and door['tasks'] == {'publish an article': 1, 'score a source': 1}
+                  and TK.clean_task('  a\tb  ') == 'a b' and len(TK.clean_task('x' * 400)) == TK.TASK_MAX,
+                  (article['tasks'], article['count'], door['tasks']))
+
+            # ---- the review, grouped by task
+            rev = O.review(m, 'journalist')
+            tasks = {t['task']: t for t in rev['tasks']}
+            check('ct-7 THE REVIEW (design §8): the recording reads as TASKS → doors → objects × verbs → closure '
+                  'per task, which is the shape a profile is actually worked out from. Acts recorded with NO task '
+                  'stated are their own bucket, shown last and as themselves — never folded into a task that did '
+                  'not do them',
+                  rev['ok'] and list(tasks) == ['publish an article', 'score a source', '']
+                  and tasks['publish an article']['objects'] == {'Article': {'update': 2}}
+                  and tasks['score a source']['objects'] == {'Article': {'update': 1}, 'Source': {'read': 1}}
+                  and tasks['']['objects'] == {'Article': {'read': 1}}
+                  and [d['item'] for d in tasks['publish an article']['doors']['endpoint']]
+                  == ['PUT /api/Article/{id}']
+                  and 'article-editor' in [d['item'] for d in tasks['publish an article']['doors']['page']]
+                  and 'NO task stated' in tasks['']['reading'],
+                  (list(tasks), {k: v['objects'] for k, v in tasks.items()}))
+            check('ct-7: each task carries its own CLOSURE, reusing ct-4\'s walk from that task\'s own start '
+                  'nodes (its class × verb acts and the endpoints it walked through) — so "what this task really '
+                  'needs" is the transitive answer, and a class nobody has armed says NOT TRACED rather than '
+                  'reading as an empty need',
+                  tasks['publish an article']['closure'] is not None
+                  and {s['node'] for s in tasks['publish an article']['closure']['start']}
+                  == {'object:Article:update', 'endpoint:PUT /api/Article/{id}'}
+                  and tasks['publish an article']['closure']['not_traced'] == ['Article']
+                  and 'NOT TRACED' in tasks['publish an article']['reading']
+                  and 'goes on to reach' in tasks['publish an article']['reading'],
+                  tasks['publish an article'].get('closure', {}) and
+                  [s['node'] for s in tasks['publish an article']['closure']['start']])
+
+            # ---- verify: which TASKS would break
+            m.objectTables['AppPermissionProfile']['p1'] = _types.SimpleNamespace(
+                name='journalist', app_name='', published=True, kc_groups_json='["journalist"]',
+                verbs_json='["read", "update"]', extra_classes_json='["Article"]')
+            ver = O.verify(m, 'journalist', 'journalist')
+            vt = {t['task']: t for t in ver['tasks']}
+            check('ct-7 VERIFY, the sentence a person can act on: `verify` now says which TASKS enforcement would '
+                  'BREAK, not only how many verbs it would take away. The published profile covers Article but '
+                  'not Source, so "score a source" breaks and "publish an article" does not',
+                  ver['ok'] and vt['score a source']['breaks'] is True
+                  and vt['publish an article']['breaks'] is False
+                  and [d['class'] for d in vt['score a source']['denied']] == ['Source']
+                  and ver['tasks_broken'] == ['score a source']
+                  and 'would BREAK' in ver['tasks_verdict'],
+                  (ver.get('tasks_broken'), ver.get('tasks_verdict')))
+
+            # ---- the door, and the PII rule
+            api.manager = m
+            r = _Res()
+            api.on_post_observe_session(_Req(journalist, body={'role': 'journalist', 'task': 'file a correction',
+                                                               'actor': 'not-a-sub'}), r)
+            check('ct-7 THE DOOR: `POST /api/security/observe/session {"role", "task"}` states the task, and the '
+                  'session\'s actor is still the CALLER\'S OWN Keycloak `sub` — a body-supplied `actor` is '
+                  'ignored exactly as before (D18-1: a person is a sub and nothing else, and a task is a job, '
+                  'never a who)',
+                  r.media['ok'] and r.media['task'] == 'file a correction'
+                  and all(s['actor'] in (SUB, '') for s in O.sessions(m, 'journalist'))
+                  and not any('not-a-sub' == s['actor'] for s in O.sessions(m, 'journalist')),
+                  r.media.get('task'))
+        finally:
+            os.environ.clear(); os.environ.update(old_env)
+
+
 def O_events(manager):
     from security.custom.security_observe import events
     return events(manager)
@@ -1871,7 +2287,22 @@ def main():
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
     check('seed pairs: 36, all rows named', len(SECURITY_SEED_PAIRS) == 36 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
-    check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    check('nine pages (ct-5 added security-objects), none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 9 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    # ct-5: the `objects` page is configured panels and configured tables over the doors and the rows — no new
+    # component, and every component it names is one that already exists on the other security pages.
+    import json as _json_pages
+    _objects_page = [p for p in SEED_SECURITY_PAGE_DISPLAYS if p['name'] == 'security-objects']
+    _obj_def = _json_pages.loads(_objects_page[0]['definition']) if _objects_page else {'rows': []}
+    _obj_items = [it for r in _obj_def['rows'] for it in r['items']]
+    _obj_components = {(it.get('componentProps') or {}).get('componentName') for it in _obj_items}
+    check('ct-5: the `security-objects` page is configured structured panels + configured class tables ONLY — '
+          'the same two components every other security page uses, no new one, and the drift, the coverage and '
+          'the NOT-TRACED list are each their own panel rather than a JSON wall',
+          bool(_objects_page) and _objects_page[0]['pageRoute'] == 'security-objects'
+          and _obj_components == {'api-structured-panel', 'class-rows-table'}
+          and any('objects/drift' in (it['componentProps']['inputs'].get('path') or '') for it in _obj_items)
+          and any(it['componentProps']['inputs'].get('className') == 'CausalEdge' for it in _obj_items),
+          sorted(_obj_components))
     # §54: every `actor` column on the security-events page is marked `person`, and the pages CONVERGE.
     import json as _json_pages
     _ev = _json_pages.loads([p for p in SEED_SECURITY_PAGE_DISPLAYS if p['name'] == 'security-events'][0]['definition'])
@@ -2267,6 +2698,8 @@ def main():
     _ct2_checks(_types, check)
     _ct9_checks(_types, check)
     _closure_checks(api, O, _Res, _types, check)
+    _ct5_checks(api, _Res, _types, check)
+    _ct7_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

@@ -3,9 +3,16 @@
 
 /api/security            the taxonomy, the scenario in force here, the systems with provenance
 /api/security/scenarios  every scenario (route, attach, rings, fixed pieces)
-/api/security/topology   ?view=os|network|app [&scenario=…] [&mode=stock|today|complain|enforce] — one view, one scenario
+/api/security/topology   ?view=os|network|app|objects [&scenario=…] [&mode=stock|today|complain|enforce] — one view
 /api/security/simulate   ?view=… &actor=… [&scenario=…] [&mode=…] — everything one actor can reach, hop by hop
+                         (view=objects: actor is `this instance`, `class:<C>` or `profile:<AppPermissionProfile>`)
 /api/security/compare    ?view=… [&mode=…] — the same view across every scenario, verdict per scenario
+                         (view=objects: across every MODE instead — an object flow belongs to the instance, not
+                          to the machine layout a scenario describes)
+/api/security/objects/drift   ct-5, design §7 — declared − observed and observed − declared, per app, with the
+                              coverage block: an untraced class reads NOT TRACED, never "nothing flows"
+/api/security/objects/flows   ct-5 — both halves as lists: every DECLARED flow (the modules' manifest `app.flows`
+                              stanzas + the CONFIRMED traffic policy rows) and every OBSERVED one (the causal map)
 /api/security/ssh        ssh capabilities across Polari devices (exposed / keys-only / closed, who reaches whom) — the isle topology shows it
 /api/security/inventory  GET each device's installed footprint (deb / images / stacks / checkouts / guests / units); POST inventory.sh JSON
 /api/security/notices    what a user should be told now: expired / expiring certificates (live TLS probe of this instance's hosts),
@@ -54,7 +61,7 @@ import os
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from security.custom.security_facts import SYSTEMS, load_scenario, scenario_names
-from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
+from security.custom.security_topology import MODES, VIEWS, build, compare, simulate  # noqa: F401 (VIEWS: the module's stated vocabulary)
 from security.custom.security_threats import threats
 from security.custom.security_ledger import app_security_records, ledger_summary
 from security.custom.security_audit_feed import applied_for, run_row_from_audit, verdicts_for, latest_runs
@@ -75,6 +82,10 @@ def default_scenario():
         return 'swarm-full' if os.environ.get('POLARI_AUTH', '').lower() == 'keycloak' or os.environ.get('KEYCLOAK_ISSUER') else 'swarm-lean'
     return 'dev'
 
+
+#: the actor `?view=` simulates when none is asked for. ct-5's `objects` view has no people on it — its nodes are
+#: classes and systems — so its default is THIS INSTANCE: everything that leaves, whoever asked for it.
+DEFAULT_ACTOR = {'os': 'prf-backend', 'network': 'internet', 'app': 'visitor', 'objects': 'this instance'}
 
 #: ct-4: the reading every closure answer carries. A module constant, not a class attribute — the tree's
 #: identifier scan walks a treeObject's attributes and logs anything it cannot type as an invalid instance value.
@@ -97,6 +108,8 @@ class SecurityAPI(treeObject):
             add('/api/security/topology', self, suffix='topology')
             add('/api/security/simulate', self, suffix='simulate')
             add('/api/security/compare', self, suffix='compare')
+            add('/api/security/objects/drift', self, suffix='objects_drift')    # ct-5: declared − observed and observed − declared, per app, with coverage
+            add('/api/security/objects/flows', self, suffix='objects_flows')    # ct-5: both halves as lists — the raw material behind the drift
             add('/api/security/threats', self, suffix='threats')
             add('/api/security/ledger', self, suffix='ledger')
             add('/api/security/notices', self, suffix='notices')
@@ -107,7 +120,7 @@ class SecurityAPI(treeObject):
             add('/api/security/events', self, suffix='events')        # observe mode (§17): what production would have denied, counted; the contract
             add('/api/security/observations', self, suffix='observations')   # dev mode: who (roles/profiles) did what (class × verb) + the DERIVED profile suggestions
             add('/api/security/observe', self, suffix='observe')                    # GET the recording knob + open sessions; POST {recording: true|false} — on/off on the fly
-            add('/api/security/observe/session', self, suffix='observe_session')    # POST {role, actor, note} start role-playing; DELETE ?role= (or ?name=) end it
+            add('/api/security/observe/session', self, suffix='observe_session')    # POST {role, note, task} start role-playing (ct-7: `task` states the job, and posting again changes it mid-session); DELETE ?role= (or ?name=) end it
             add('/api/security/observe/usage', self, suffix='observe_usage')        # POST {role, kind: app|page|component|action|object, item, app, page, detail} from the frontend
             add('/api/security/observe/review', self, suffix='observe_review')      # GET ?role= everything the role used + the proposed profile (the handoff)
             add('/api/security/observe/verify', self, suffix='observe_verify')      # GET ?role=&group= replay the recording against the enforced profiles
@@ -148,7 +161,8 @@ class SecurityAPI(treeObject):
             'views': [{'view': v, 'route': f'/display/security-{v}', 'question': q} for v, q in (
                 ('os', 'what can a process touch on the machine, and which system stops it'),
                 ('network', 'how do bytes get in, between and out'),
-                ('app', 'who gets access to what, through which means'))],
+                ('app', 'who gets access to what, through which means'),
+                ('objects', 'where do the ROWS go — which classes cross to which system, declared vs observed'))],
             'modes': list(MODES),
             'systems': [{'system': k, 'title': v['title'], 'provenance': v['provenance'], 'domain': v['domain'], 'area': v['area']} for k, v in SYSTEMS.items()],
             'reading': 'stock = docker/the kernel already give it to every container; qemu = every guest has it; polari = rendered by Polari (mode says whether it is loaded)',
@@ -167,15 +181,17 @@ class SecurityAPI(treeObject):
     def on_get_topology(self, request, response):
         view = request.params.get('view', 'os'); scn = request.params.get('scenario') or default_scenario(); mode = request.params.get('mode', 'today')
         try:
-            response.media = {'ok': True, **build(view, scn, mode)}
+            # ct-5: the `objects` view is built from THIS instance (its manifests, its confirmed traffic
+            # policies, its causal map), so it needs the manager; the three scenario views ignore it.
+            response.media = {'ok': True, **build(view, scn, mode, manager=self.manager)}
         except ValueError as exc:
             self._bad(response, str(exc))
 
     def on_get_simulate(self, request, response):
         view = request.params.get('view', 'os'); scn = request.params.get('scenario') or default_scenario(); mode = request.params.get('mode', 'today')
-        actor = request.params.get('actor') or ('prf-backend' if view != 'app' else 'visitor')
+        actor = request.params.get('actor') or DEFAULT_ACTOR.get(view, 'prf-backend')
         try:
-            response.media = simulate(view, scn, actor, mode)
+            response.media = simulate(view, scn, actor, mode, manager=self.manager)
         except ValueError as exc:
             self._bad(response, str(exc))
 
@@ -325,7 +341,10 @@ class SecurityAPI(treeObject):
             response.status = '403 Forbidden'; response.media = {'ok': False, 'refusal': why}; return
         # D18-1: the session's actor is the CALLER'S OWN Keycloak `sub`, never a name and never something the body
         # supplied — a body-supplied `actor` used to be able to write any string (a username) into the ledger.
-        r = start_session(self.manager, body.get('role', ''), actor=self._sub(request), note=body.get('note', ''))
+        # ct-7 (design §8): `task` is the free-text job the role-player states ("publish an article"). Posting
+        # here again with the same role and a different task CHANGES it mid-session — the same door, as designed.
+        r = start_session(self.manager, body.get('role', ''), actor=self._sub(request), note=body.get('note', ''),
+                          task=body.get('task', ''))
         if not r.get('ok'):
             return self._bad(response, r.get('refusal', ''))
         response.media = r
@@ -944,6 +963,37 @@ class SecurityAPI(treeObject):
     def on_get_compare(self, request, response):
         view = request.params.get('view', 'os'); mode = request.params.get('mode', 'today')
         try:
-            response.media = {'ok': True, **compare(view, mode)}
+            response.media = {'ok': True, **compare(view, mode, manager=self.manager)}
         except ValueError as exc:
             self._bad(response, str(exc))
+
+    # ---- ct-5: the `objects` view's own reading — the DRIFT report (design §7) --------------------------
+    # "a class that flows with no knob declaring it is a finding; a knob that declares a flow never seen is
+    # noise to prune." Same data as ?view=objects, said as the two differences instead of as a graph, because
+    # that is what a person acts on. Signed in to read: what leaves this instance is not an anonymous question.
+
+    def on_get_objects_drift(self, request, response):
+        from security.custom.security_objects_view import drift
+        if not self._sub(request):
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: where this instance\'s rows go, and what nothing declares, is a '
+                                'permissions-administration reading')
+        response.media = {'ok': True, **drift(self.manager)}
+
+    def on_get_objects_flows(self, request, response):
+        """Both halves in one list — every DECLARED flow (manifest `app.flows` + confirmed traffic policies) and
+        every OBSERVED one (the causal map), each with its classes. The raw material behind the drift."""
+        from security.custom.security_objects_view import declared, manifest_flows, observed
+        if not self._sub(request):
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: the object flows say what leaves this instance and with which '
+                                'classes aboard')
+        decl, obs = declared(self.manager), observed(self.manager)
+        response.media = {
+            'ok': True, 'declared': decl, 'observed': obs,
+            'counts': {'declared': len(decl), 'observed': len(obs), 'manifests': len(manifest_flows())},
+            'how': ('declared = what somebody SAID may flow: a module manifest\'s `app.flows` stanza (the app '
+                    'author, at the level an author can honestly speak — a system KIND, never a host) and a '
+                    'traffic policy row a PERSON confirmed (the deployment). observed = what the causal map '
+                    'recorded while a TraceTarget was armed. Neither is the whole truth on its own, and the '
+                    'difference between them is GET /api/security/objects/drift.')}

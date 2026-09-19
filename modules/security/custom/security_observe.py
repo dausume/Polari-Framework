@@ -274,10 +274,15 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
             row.verdict = vd; row.profiles = profiles or row.profiles
         else:
             fields = {'name': name, 'actor': actor, 'groups': groups_s, 'profiles': profiles, 'verb': verb, 'class_name': class_name, 'app': app or app_of_class(class_name),
-                      'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
+                      'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture(),
+                      'tasks_json': '{}'}
             from security.objects.security.PermissionObservation import PermissionObservation
             row = _new_row(manager, tables, 'PermissionObservation', PermissionObservation, fields)
         if roleplay:
+            # ct-7 (design §8): the act is attributed to the TASK the open session states, so the review can read
+            # as tasks → doors → objects × verbs instead of as one flat class list.
+            from security.custom.security_tasks import bump_task, current_task
+            bump_task(row, current_task(manager, roleplay))
             _touch_session(manager, roleplay.strip().lower(), 'acts')
         if save:
             _schedule_persist(manager)
@@ -290,8 +295,9 @@ OBS_KEYS = ('name', 'actor', 'groups', 'profiles', 'verb', 'class_name', 'app', 
 
 
 def observations(manager):
+    from security.custom.security_tasks import tasks_of
     rows = _all_rows(manager, 'PermissionObservation')
-    out = [{k: getattr(r, k, '') for k in OBS_KEYS} for r in rows]
+    out = [{**{k: getattr(r, k, '') for k in OBS_KEYS}, 'tasks': tasks_of(r)} for r in rows]
     out.sort(key=lambda d: (d.get('groups') or '', d.get('class_name') or '', d.get('verb') or ''))
     return out
 
@@ -398,9 +404,10 @@ def roleplay_groups(groups, roleplay):
 # ---- sessions
 
 def sessions(manager, role=None, active=None):
+    from security.custom.security_tasks import session_tasks
     rows = _all_rows(manager, 'ObservationSession')
-    keys = ('name', 'role', 'actor', 'started_at', 'ended_at', 'active', 'note', 'acts', 'usages')
-    out = [{k: getattr(r, k, '') for k in keys} for r in rows]
+    keys = ('name', 'role', 'actor', 'started_at', 'ended_at', 'active', 'note', 'acts', 'usages', 'task')
+    out = [{**{k: getattr(r, k, '') for k in keys}, 'tasks': session_tasks(r)} for r in rows]
     if role:
         out = [s for s in out if s['role'] == role]
     if active is not None:
@@ -409,24 +416,38 @@ def sessions(manager, role=None, active=None):
     return out
 
 
-def start_session(manager, role, actor='', note=''):
-    """Open a role-play window. `actor` is the caller's Keycloak `sub` (D18-1) as the API resolves it — the API
-    never takes it from the request body, so nobody can write a name into this column."""
+def start_session(manager, role, actor='', note='', task=''):
+    """Open a role-play window, optionally stating the TASK being performed (ct-7, design §8).
+
+    `actor` is the caller's Keycloak `sub` (D18-1) as the API resolves it — the API never takes it from the
+    request body, so nobody can write a name into this column. `task` is free text ("publish an article"); it may
+    be CHANGED mid-session by posting here again with the same role and a different task, which is why an already
+    open session is not simply echoed back."""
+    from security.custom.security_tasks import HOW_TASKS, clean_task, session_tasks, state_task
     role = (role or '').strip().lower()
     if not role:
         return {'ok': False, 'refusal': 'role required — the group you are acting as (journalist, operator, …)'}
     tables = getattr(manager, 'objectTables', None)
     if tables is None:
         return {'ok': False, 'refusal': 'no manager'}
-    now = _now()
+    now = _now(); task = clean_task(task)
     for s in _all_rows(manager, 'ObservationSession'):
         if getattr(s, 'role', '') == role and getattr(s, 'actor', '') == actor and getattr(s, 'active', False):
-            return {'ok': True, 'session': getattr(s, 'name', ''), 'role': role, 'already_open': True, 'header': {'X-Polari-Roleplay': role}}
+            changed, current = state_task(manager, s, task, now)
+            if changed:
+                _schedule_persist(manager)
+            return {'ok': True, 'session': getattr(s, 'name', ''), 'role': role, 'already_open': True,
+                    'task': current, 'task_changed': changed, 'tasks': session_tasks(s),
+                    'header': {'X-Polari-Roleplay': role},
+                    'how': HOW_TASKS if task else 'post here again with a "task" to say what job you are doing'}
     from security.objects.security.ObservationSession import ObservationSession
-    fields = {'name': f'{role}|{now}', 'role': role, 'actor': actor, 'started_at': now, 'ended_at': '', 'active': True, 'note': note, 'acts': 0, 'usages': 0}
+    fields = {'name': f'{role}|{now}', 'role': role, 'actor': actor, 'started_at': now, 'ended_at': '', 'active': True, 'note': note, 'acts': 0, 'usages': 0,
+              'task': task, 'tasks_json': _json.dumps([{'task': task, 'at': now}] if task else [])}
     row = _new_row(manager, tables, 'ObservationSession', ObservationSession, fields); _schedule_persist(manager)
     return {'ok': True, 'session': fields['name'], 'role': role, 'already_open': False, 'header': {'X-Polari-Roleplay': role},
-            'recording': recording_on(manager), 'how': 'send the header on every request while acting as the role; the frontend posts its apps/pages/actions to /api/security/observe/usage'}
+            'task': task, 'task_changed': bool(task), 'tasks': session_tasks(row),
+            'recording': recording_on(manager),
+            'how': 'send the header on every request while acting as the role; the frontend posts its apps/pages/actions to /api/security/observe/usage. ' + HOW_TASKS}
 
 
 def end_session(manager, role=None, name=None):
@@ -469,9 +490,12 @@ def observe_usage(manager, role, kind, item, app='', page='', detail='', actor='
         else:
             from security.objects.security.UsageObservation import UsageObservation
             fields = {'name': name, 'role': role, 'kind': kind, 'item': str(item)[:160], 'app': app, 'page': page, 'detail': str(detail)[:200], 'actor': actor,
-                      'count': 1, 'first_seen': now, 'last_seen': now}
+                      'count': 1, 'first_seen': now, 'last_seen': now, 'tasks_json': '{}'}
             row = _new_row(manager, tables, 'UsageObservation', UsageObservation, fields)
         if role:
+            # ct-7: the DOOR this task walked through — the other half of tasks → doors → objects × verbs.
+            from security.custom.security_tasks import bump_task, current_task
+            bump_task(row, current_task(manager, role))
             _touch_session(manager, role, 'usages')
         if save:
             _schedule_persist(manager)
@@ -481,8 +505,9 @@ def observe_usage(manager, role, kind, item, app='', page='', detail='', actor='
 
 
 def usages(manager, role=None, kind=None):
+    from security.custom.security_tasks import tasks_of
     rows = _all_rows(manager, 'UsageObservation')
-    out = [{k: getattr(r, k, '') for k in USAGE_KEYS} for r in rows]
+    out = [{**{k: getattr(r, k, '') for k in USAGE_KEYS}, 'tasks': tasks_of(r)} for r in rows]
     if role:
         out = [u for u in out if u['role'] == role]
     if kind:
@@ -534,8 +559,18 @@ def review(manager, role):
     # through triggers, emitted events, nested solutions, broadcasts, peers and external systems. Never raises
     # and never widens anything: a closure is DISCLOSURE, and the class it cannot speak for says "not traced".
     closure = _role_closure(manager, role)
+    # ct-7 (design §8): the same recording read as TASKS → doors → objects × verbs → closure per task. A person's
+    # needs are the union of the tasks their roles perform, so this is the shape a profile is actually worked out
+    # from; the flat lists below stay, because a task nobody stated still has to be visible.
+    try:
+        from security.custom.security_tasks import HOW_TASKS, group_by_task
+        tasks = group_by_task(manager, obs, use)
+        tasks_how = HOW_TASKS
+    except Exception as exc:                    # noqa: BLE001 — the review is the important half
+        tasks, tasks_how = [], ('the task grouping could not be computed here (%s: %s) — the flat lists below '
+                                'stand on their own' % (type(exc).__name__, exc))
     return {'ok': True, 'role': role, 'sessions': sessions(manager, role), 'recording': recording_on(manager),
-            'closure': closure,
+            'closure': closure, 'tasks': tasks, 'tasks_how': tasks_how,
             'actors': actors, 'actor_count': len(actors),
             'apps': by_kind.get('app', []), 'pages': by_kind.get('page', []), 'components': by_kind.get('component', []), 'actions': by_kind.get('action', []),
             'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'objects_by_app': {k: sorted(v) for k, v in sorted(apps_of_objects.items())}, 'acts': sum(int(o.get('count') or 0) for o in obs),
@@ -572,7 +607,24 @@ def verify(manager, role, group=None):
         transitive = {'covered': 0, 'total': 0, 'definer_only': 0, 'not_traced': [], 'uncovered': [],
                       'reading': 'the transitive verdict could not be computed here (%s: %s)'
                                  % (type(exc).__name__, exc)}
+    # ct-7 (design §8): the THIRD verdict — which TASKS enforcement would break. "3 of 11 acts denied" is a
+    # number; "the journalist can no longer publish an article" is a decision somebody can make.
+    try:
+        from security.custom.security_tasks import group_by_task, verify_tasks
+        tasks = verify_tasks(manager, group_by_task(manager, obs, usages(manager, role), with_closure=False),
+                             user, permission_verdict)
+    except Exception as exc:                    # noqa: BLE001 — the direct verdict must still answer
+        tasks = [{'task': '', 'acts': 0, 'allowed': [], 'denied': [], 'breaks': False,
+                  'reading': 'the per-task verdict could not be computed here (%s: %s)'
+                             % (type(exc).__name__, exc)}]
+    broken = [t['task'] for t in tasks if t['breaks']]
     return {'ok': True, 'role': role, 'group': group, 'recorded_acts': len(obs), 'allowed': allowed, 'denied': denied,
+            'tasks': tasks, 'tasks_broken': broken,
+            'tasks_verdict': ('no task would break: every task this role was recorded performing is still covered'
+                              if not broken else
+                              '%d task(s) would BREAK under this profile: %s'
+                              % (len(broken), ', '.join(repr(t) if t else '(acts with no task stated)'
+                                                        for t in broken))),
             'verdict': ('the role can still do everything it was recorded doing' if obs and not denied else ('nothing recorded for this role yet' if not obs else f'{len(denied)} recorded act(s) would now be DENIED — the profile is narrower than the job')),
             'transitive': transitive,
             'how': 'after the admin publishes the AppPermissionProfile for the group, run this; every recorded class × verb is replayed through permission_verdict as a member of the group, and `transitive` replays everything those acts REACH (the closure) so a trigger running as definer is not a blind spot'}
