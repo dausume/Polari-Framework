@@ -49,7 +49,8 @@ SEED_CICD_PERMISSION_PROFILES = [
         'kc_groups_json': '[]',
         'verbs_json': '["read"]',
         'extra_classes_json': '["PipelineDevice", "PipelineStage", "PipelineRoute", '
-                              '"PipelineSecretPresence", "PipelineRun", "IsleTestResult", "ReleaseRecord"]',
+                              '"PipelineSecretPresence", "PipelineRun", "IsleTestResult", "ReleaseRecord", '
+                              '"TestVerdict"]',
         'published': False,
         'is_prior': True,
         'notes': 'TEMPLATE, the shipped convention: it grants nothing until a real Keycloak group is bound '

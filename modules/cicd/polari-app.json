@@ -42,7 +42,8 @@
    "objects/cicd/PipelineSecretPresence",
    "objects/cicd/PipelineSetupStep",
    "objects/cicd/PipelineStage",
-   "objects/cicd/ReleaseRecord"
+   "objects/cicd/ReleaseRecord",
+   "objects/cicd/TestVerdict"
   ],
   "basis": [
    "cicd_basis"
@@ -59,15 +60,15 @@
   "page": [
    "cicd_page"
   ],
+  "selftests": [
+   "cicd_selftest"
+  ],
   "custom": [
    "custom/cicd_auth",
    "custom/cicd_ingest",
    "custom/cicd_rows",
    "custom/cicd_stages",
    "custom/cicd_validate"
-  ],
-  "selftests": [
-   "cicd_selftest"
   ]
  },
  "classes": [
@@ -79,7 +80,8 @@
   "PipelineSecretPresence",
   "PipelineSetupStep",
   "PipelineStage",
-  "ReleaseRecord"
+  "ReleaseRecord",
+  "TestVerdict"
  ],
  "imports": [
   [
@@ -92,8 +94,9 @@
     "PipelineRun",
     "IsleTestResult",
     "ReleaseRecord",
-    "CICD_CLASSES",
-    "PipelineSetupStep"
+    "PipelineSetupStep",
+    "TestVerdict",
+    "CICD_CLASSES"
    ]
   ],
   [

@@ -30,6 +30,7 @@ class ReleaseRecord(treeObject):
     def __init__(self, name: str = '', device: str = '', version: str = '', tag: str = '',
                  tag_pushed: bool = False, results_present: bool = False, core_ok: bool = False,
                  mode: str = 'suite', app_name: str = '', tested_against: str = '',
+                 tested_verdict: str = '', tested_sha: str = '',
                  route_target: str = '', cache_report_json: str = '{}',
                  published_routes_json: str = '[]', dry_routes_json: str = '{}',
                  released_json: str = '[]', not_released_json: str = '{}',
@@ -44,6 +45,14 @@ class ReleaseRecord(treeObject):
         self.mode = mode                        # suite | app — what this device's pipeline is for
         self.app_name = app_name                # the one app this release is of (app mode)
         self.tested_against = tested_against    # the CORE release this passed against (app mode: release:<tag>)
+        # ci-12 — THE BRANCH MODEL's linkage. `tested_verdict` names the TestVerdict row
+        # (<device>:<sha>) that allowed this release, and `tested_sha` is that superproject sha.
+        # They answer "which test run was this released on the strength of?" — a different question
+        # from `tested_against` ("which CORE did the app pass against?"), which is why they are
+        # different columns. A release with an empty `tested_verdict` was not allowed by any test
+        # run, and the routes will have published nothing.
+        self.tested_verdict = tested_verdict
+        self.tested_sha = tested_sha
         # ci-9: WHERE it went (app mode publishes to the developer's own owner/namespace, never upstream)
         self.route_target = route_target        # CI_ROUTE_TARGET at release time
         # ci-9: the offline cache's arithmetic for the build that produced this release —

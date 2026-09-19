@@ -3,11 +3,12 @@
 
 THE MIRROR — what `POST /api/cicd/ingest` accepts, and everything it refuses.
 
-SIX KINDS, and nothing else: `device` (the device reporting its own readings), `secrets` (presence, never
+SEVEN KINDS, and nothing else: `device` (the device reporting its own readings), `secrets` (presence, never
 a value), `run` (a Jenkins build at start and at end), `isle-test` (one stage of one run), `release` (what a
-version was allowed to ship, and what it was not) and `setup` (ci-11a — the walkthrough `pol jenkins setup
---json` produced on that device). An unknown kind is a 400 naming the six — never a shrug, and never a row
-written from a body nobody designed.
+version was allowed to ship, and what it was not), `setup` (ci-11a — the walkthrough `pol jenkins setup
+--json` produced on that device) and `test-verdict` (ci-12 — the ONE answer a test run reached for one
+superproject sha). An unknown kind is a 400 naming the seven — never a shrug, and never a row written from
+a body nobody designed.
 
 THREE REFUSALS THAT MATTER:
 
@@ -35,7 +36,9 @@ import re
 #: `setup` (ci-11a) is the walkthrough itself — the document `pol jenkins setup --json` produced on the
 #: device, so a browser with no desktop shell can still see where that device got to. The core cannot run
 #: `pol`; only the device can, and this is the one way that state arrives.
-KINDS = ('device', 'secrets', 'run', 'isle-test', 'release', 'setup')
+#: ci-12: `test-verdict` is the product of the TEST pipeline — one row per superproject sha, and the thing
+#: `pol jenkins promote main` and every publish route refuse on.
+KINDS = ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict')
 
 #: a field name that could carry a secret. Matched on the key itself and on any `_`-suffixed form.
 VALUE_LIKE = re.compile(r'(?:^|_)(value|token|key|secret|password|passphrase|credential|privkey)s?$', re.I)
@@ -146,6 +149,18 @@ def check(body):
             return False, ('refused: url %r is not the controller\'s loopback UI — the Jenkins port is bound '
                            'to 127.0.0.1 only, and a row that is persisted and rendered may not carry a host '
                            '(pol jenkins doctor: "port binding")' % url)
+    if kind == 'test-verdict':
+        from cicd.cicd_basis import TestVerdict
+        verdict = str(body.get('verdict') or '')
+        if verdict not in TestVerdict.VERDICTS:
+            return False, ('unknown verdict %r — a test run reaches exactly one of: %s'
+                           % (verdict, ', '.join(TestVerdict.VERDICTS)))
+        if not str(body.get('sha') or '').strip():
+            return False, ('a test verdict is ABOUT a superproject sha: {"sha": "<40 hex>"}. Without one it '
+                           'names nothing, and `promote main` could never find it')
+        if verdict != 'passed' and not str(body.get('why') or '').strip():
+            return False, ('refused: a verdict that is not `passed` must say WHY in words — a bare "failed" '
+                           'is a result nobody can act on')
     if kind == 'release' and str(body.get('mode') or 'suite') == 'app' and not str(body.get('tested_against') or ''):
         return False, ('refused: an app-mode release must name the CORE release it was tested against '
                        '("tested_against": "release:<tag>") — a deb that passed against an unnamed core is '
@@ -380,3 +395,35 @@ def release_row(body, posted_by=''):
             'not_released_json': _j(body.get('not_released') or {}, '{}'),
             'run': str(body.get('run') or ''), 'released_at': str(body.get('released_at') or ''),
             'why_not': str(body.get('why_not') or ''), 'posted_by': posted_by}
+
+
+def test_verdict_row(body, posted_by=''):
+    """ci-12 — ONE SHA, ONE ANSWER → the TestVerdict row.
+
+    The three summaries arrive already shaped by `polari-jenkins/verdict.py` (the one place the arithmetic
+    lives) and are stored as JSON STRINGS: they are opaque to the row, and the page renders them as
+    configured columns rather than as a raw-JSON panel. Nothing here recomputes the verdict — a mirror that
+    second-guessed the pipeline would be a second implementation of the rule, and the two would drift.
+
+    `core_ok` is lifted out of the isle summary into a column of its own because it is the half the release
+    rule turns on, and because it is the half that is still `false` everywhere until ci-3 lands.
+    """
+    device = str(body.get('device')).strip()
+    sha = str(body.get('sha') or '')
+    selftests = body.get('selftests') or {}
+    isle = body.get('isle') or {}
+    return {'name': '%s:%s' % (device, sha), 'device': device, 'sha': sha,
+            'git_branch': str(body.get('branch') or 'test'),
+            'verdict': str(body.get('verdict') or 'partial'),
+            'why': str(body.get('why') or ''),
+            'built': bool(body.get('built')),
+            'scans_json': _j(body.get('scans') or {}, '{}'),
+            'selftests_json': _j(selftests, '{}'),
+            'isle_json': _j(isle, '{}'),
+            'selftest_suites': _int(selftests.get('suites')),
+            'selftest_passed': _int(selftests.get('passed')),
+            'selftest_failed': _int(selftests.get('failed')),
+            'core_ok': bool(isle.get('core_ok')),
+            'run': str(body.get('run') or ''),
+            'decided_by': str(body.get('decided_by') or 'pipeline'),
+            'at': str(body.get('at') or ''), 'posted_by': posted_by}

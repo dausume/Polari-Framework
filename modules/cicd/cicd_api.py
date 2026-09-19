@@ -17,7 +17,7 @@
                              document `polari-pipeline-setup/1`, reassembled from PipelineSetupStep rows, so
                              a browser with NO desktop shell still sees where that device got to. `live` is
                              always false: it is a mirror of the last push, never a live reading.
-/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release|setup, …} with the
+/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release|setup|test-verdict, …} with the
                              posting-only token. Six kinds, nothing else; a value-shaped field is a 400 and
                              nothing is stored.
 /api/cicd/runs               GET the mirrored Jenkins builds
@@ -77,6 +77,7 @@ class CicdAPI(treeObject):
             add('/api/cicd/runs', self, suffix='runs')
             add('/api/cicd/results', self, suffix='results')
             add('/api/cicd/releases', self, suffix='releases')
+            add('/api/cicd/verdicts', self, suffix='verdicts')   # ci-12: one answer per tested sha
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -461,6 +462,25 @@ class CicdAPI(treeObject):
         response.media = {'ok': True, 'kind': 'isle-test', 'result': row['name'], 'stored': report,
                           'release_rule': R.RELEASE_RULE}
 
+    def _ingest_test_verdict(self, body, dev, posted_by, response):
+        """ci-12 — the TEST pipeline's one answer for one sha.
+
+        Mirrored, never judged: the verdict was computed by `polari-jenkins/verdict.py` on the device that
+        ran the tests, and this door stores what it was told. `pol jenkins promote main` and
+        `routes/_lib.sh` read the file on the device itself, so this row is the legible copy a person
+        reads — it is not in the enforcement path, and a core that is down can never block a release
+        decision.
+        """
+        from cicd.cicd_basis import TestVerdict
+        from cicd.custom.cicd_ingest import test_verdict_row
+        row = test_verdict_row(body, posted_by)
+        report = self._upsert('TestVerdict', TestVerdict, [row])
+        response.media = {'ok': True, 'kind': 'test-verdict', 'verdict': row['name'],
+                          'says': row['verdict'], 'stored': report,
+                          'release_rule': R.RELEASE_RULE,
+                          'how': 'only a sha whose verdict is `passed` may be promoted to main; scans are '
+                                 'carried in this row and change nothing'}
+
     def _ingest_release(self, body, dev, posted_by, response):
         from cicd.cicd_basis import ReleaseRecord
         from cicd.custom.cicd_ingest import release_row
@@ -481,6 +501,28 @@ class CicdAPI(treeObject):
              'url': str(getattr(r, 'url', ''))} for r in rows],
             'how': 'mirrored in by the pipeline; nothing here drives Jenkins. The url is the controller\'s '
                    'loopback console — reach it with ssh -L 8080:127.0.0.1:8080 <alias>.'}
+
+    def on_get_verdicts(self, request, response):
+        """ci-12 — the test verdicts, newest first. The column a person reads first is `why`."""
+        import json as _json
+        device = (request.params.get('device') or '').strip()
+        sha = (request.params.get('sha') or '').strip()
+        rows = R.verdicts(self.manager, device, sha)
+        out = []
+        for r in rows:
+            out.append({'verdict': str(getattr(r, 'verdict', '')), 'sha': str(getattr(r, 'sha', '')),
+                        'branch': str(getattr(r, 'git_branch', '')), 'why': str(getattr(r, 'why', '')),
+                        'built': bool(getattr(r, 'built', False)),
+                        'core_ok': bool(getattr(r, 'core_ok', False)),
+                        'selftests': {'suites': int(getattr(r, 'selftest_suites', 0) or 0),
+                                      'passed': int(getattr(r, 'selftest_passed', 0) or 0),
+                                      'failed': int(getattr(r, 'selftest_failed', 0) or 0)},
+                        'scans': _json.loads(getattr(r, 'scans_json', '{}') or '{}'),
+                        'run': str(getattr(r, 'run', '')), 'at': str(getattr(r, 'at', ''))})
+        response.media = {'ok': True, 'count': len(out), 'verdicts': out,
+                          'how': 'ONE answer per superproject sha on the test branch. `passed` is the only '
+                                 'one that may be promoted to main; scans are advisory and are carried here '
+                                 'without ever changing a verdict.'}
 
     def on_get_results(self, request, response):
         device = (request.params.get('device') or '').strip()

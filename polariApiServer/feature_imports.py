@@ -1262,8 +1262,12 @@ FEATURE_IMPORT_BLOCKS = (
     ('cicd', (
         # ci-8: the pipeline's settings as rows (Polari is the source of truth, device.env the fallback)
         # and its runs / isle-test results / releases mirrored in through one posting-only credential.
+        # ci-11a's PipelineSetupStep and ci-12's TestVerdict were missing from this tuple: the classes
+        # existed, their pages existed, and the server never imported them — so no row of either could
+        # ever be typed, persisted or restored. Fixed here with ci-12 rather than left as a silent hole.
         ('cicd.cicd_basis', ('PipelineDevice', 'PipelineStage', 'PipelineRoute', 'PipelineSecretPresence',
-                             'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'CICD_CLASSES')),
+                             'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'PipelineSetupStep',
+                             'TestVerdict', 'CICD_CLASSES')),
         ('cicd.cicd_seed', ('CICD_SEED_PAIRS',)),
         ('cicd.cicd_page', ('SEED_CICD_PAGE_DISPLAYS',)),
     )),

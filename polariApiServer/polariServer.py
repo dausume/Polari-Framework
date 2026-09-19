@@ -1281,8 +1281,11 @@ class polariServer(treeObject):
             IsoBase, DeviceProbe, IsoBuild,
             # ci-8: the pipeline's settings (Polari is the source of truth, device.env the fallback)
             # and the runs / isle-test results / releases the pipeline mirrors in
+            # ci-12: TestVerdict is the ONE answer per tested sha that `promote main` and every
+            # publish route refuse on; PipelineSetupStep is ci-11a's walkthrough mirror, which was
+            # never registered here (its rows could not type or persist until now).
             PipelineDevice, PipelineStage, PipelineRoute, PipelineSecretPresence,
-            PipelineRun, IsleTestResult, ReleaseRecord]
+            PipelineRun, IsleTestResult, ReleaseRecord, PipelineSetupStep, TestVerdict]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing

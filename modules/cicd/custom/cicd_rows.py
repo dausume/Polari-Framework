@@ -204,3 +204,17 @@ def everything(manager, device_row):
                 'answer, the device keeps the file it has and says so. Edits happen on the rows\' own '
                 'pages (/display/cicd-overview, /display/cicd-stages) — admins only.'),
     }
+
+
+def verdicts(manager, device='', sha=''):
+    """ci-12 — the TestVerdict rows, newest first.
+
+    Filtered by device and/or sha the way every other read here is. Sorted on `at` descending because the
+    question a person brings to this table is almost always "what did the last test run say?".
+    """
+    rows = _table(manager, 'TestVerdict')
+    if device:
+        rows = [r for r in rows if str(getattr(r, 'device', '')) == device]
+    if sha:
+        rows = [r for r in rows if str(getattr(r, 'sha', '')).startswith(sha)]
+    return sorted(rows, key=lambda r: str(getattr(r, 'at', '')), reverse=True)

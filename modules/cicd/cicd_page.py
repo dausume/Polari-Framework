@@ -184,18 +184,37 @@ SEED_CICD_PAGE_DISPLAYS = [
 
     _page('cicd-runs', 'cicd-runs',
           'CI/CD — the builds, mirrored in from the pipeline (nothing here drives Jenkins; the mirror flows '
-          'one way, inward)',
+          'one way, inward). dev iterate · test decide · main release.',
           'PipelineRun', [
+              # ci-12: THE VERDICT COLUMN, first on the page, because it is the one thing a person comes
+              # here to read — "may this sha go to main?". Everything below it is the evidence.
               _row(0, [
+                  _sapi('cicd-verdicts-list', 0, 12,
+                        'Test verdicts — ONE answer per superproject sha on the test branch. `passed` is '
+                        'the only one that may be promoted to main; `partial` means nothing said no but '
+                        'something that should have answered did not (today: the isle stages, still ci-3). '
+                        'The scan counts are carried here and never change a verdict.',
+                        '/api/cicd/verdicts', pick='verdicts'),
+              ], min_height=260),
+              _row(1, [
+                  _table('cicd-verdict-rows', 0, 12,
+                         'Verdict rows — sha, branch, verdict and the reason in words; the selftest '
+                         'arithmetic; core_ok (the half the release rule turns on, and the half that stays '
+                         'false until the ci-3 install cycle lands); and the advisory scan counts.',
+                         'TestVerdict',
+                         columns='sha,git_branch,verdict,why,built,selftest_suites,selftest_passed,'
+                                 'selftest_failed,core_ok,scans_json,selftests_json,isle_json,run,at'),
+              ]),
+              _row(2, [
                   _sapi('cicd-runs-list', 0, 12,
                         'Recent runs — job, number, version, status and what the run said about itself',
                         '/api/cicd/runs', pick='runs'),
               ], min_height=300),
-              _row(1, [
+              _row(3, [
                   _table('cicd-run-rows', 0, 12, 'Run rows', 'PipelineRun',
                          columns='job,number,version,status,started,finished,duration_seconds,commit,summary'),
               ]),
-              _row(2, [
+              _row(4, [
                   _table('cicd-result-rows', 0, 12,
                          'Isle test results — per run × stage: did the core install and verify, and what did '
                          'each app\'s selftest say inside the throwaway isle; then the TEARDOWN in its two '
@@ -220,8 +239,8 @@ SEED_CICD_PAGE_DISPLAYS = [
               _row(1, [
                   _table('cicd-release-rows', 0, 12, 'Release rows', 'ReleaseRecord',
                          columns='version,mode,app_name,tag,tag_pushed,results_present,core_ok,'
-                                 'tested_against,published_routes_json,dry_routes_json,released_json,'
-                                 'not_released_json,why_not,released_at'),
+                                 'tested_verdict,tested_sha,tested_against,published_routes_json,'
+                                 'dry_routes_json,released_json,not_released_json,why_not,released_at'),
               ]),
           ]),
 ]

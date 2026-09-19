@@ -22,8 +22,11 @@ class PipelineRun(treeObject):
     rather than storing a LAN address into a row that a page could render.
     """
 
-    #: the four jobs seeded by polari-jenkins/jobs/seed.groovy
-    JOBS = ('dev-build', 'release', 'publish', 'isle-test')
+    #: the jobs seeded by polari-jenkins/jobs/seed.groovy. ci-12 added `test` — the TESTING pipeline that
+    #: the `test` branch drives (wipe → build → scan → test → one verdict) — and `release-manual`, the
+    #: hand-driven twin of `release` that exists so the POLLED release job can stay unparameterised and
+    #: therefore coalesce its queued items.
+    JOBS = ('dev-build', 'test', 'release', 'release-manual', 'publish', 'isle-test')
     #: a run's state — `running` is what a start post writes
     STATUSES = ('running', 'success', 'unstable', 'failure', 'aborted')
 

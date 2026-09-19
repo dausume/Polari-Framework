@@ -65,14 +65,14 @@ def _row_checks():
     from cicd.cicd_basis import (CICD_CLASSES, CICD_MIRROR_CLASSES, CICD_SETTINGS_CLASSES, IsleTestResult,
                                  PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence,
                                  PipelineStage, ReleaseRecord)
-    check('the module registers exactly EIGHT row classes — the count is asserted so a class added without a '
+    check('the module registers exactly NINE row classes — the count is asserted so a class added without a '
           'manifest entry, a feature-import entry and a defClassList entry cannot ride in unnoticed',
-          len(CICD_CLASSES) == 8, [c.__name__ for c in CICD_CLASSES])
+          len(CICD_CLASSES) == 9, [c.__name__ for c in CICD_CLASSES])
     check('the classes split into the SETTINGS a person owns and the rows the pipeline mirrors in',
           [c.__name__ for c in CICD_SETTINGS_CLASSES] == ['PipelineDevice', 'PipelineStage', 'PipelineRoute']
           and [c.__name__ for c in CICD_MIRROR_CLASSES] == ['PipelineSecretPresence', 'PipelineRun',
                                                             'IsleTestResult', 'ReleaseRecord',
-                                                            'PipelineSetupStep'])
+                                                            'PipelineSetupStep', 'TestVerdict'])
     check('every class is one file under objects/cicd/ and re-exported by cicd_basis (the module convention)',
           all(c.__module__ == 'cicd.objects.cicd.%s' % c.__name__ for c in CICD_CLASSES),
           [c.__module__ for c in CICD_CLASSES])
@@ -107,9 +107,9 @@ def _row_checks():
     check('  …the leak fields are NOT value-shaped, so the mirror door cannot refuse its own results',
           not value_like_fields({'leaks_json': [], 'leak_verdict': '', 'ram_delta_mb': 0,
                                  'disk_delta_mb': 0, 'uninstall_verdict': '', 'uninstall_json': {}}))
-    check('PipelineRun knows the four jobs and the five statuses the pipeline can be in',
-          PipelineRun.JOBS == ('dev-build', 'release', 'publish', 'isle-test')
-          and 'running' in PipelineRun.STATUSES and 'success' in PipelineRun.STATUSES)
+    check('PipelineRun knows the SIX jobs (ci-12 added `test` and `release-manual`) and the five statuses',
+          PipelineRun.JOBS == ('dev-build', 'test', 'release', 'release-manual', 'publish', 'isle-test')
+          and 'running' in PipelineRun.STATUSES and 'success' in PipelineRun.STATUSES, PipelineRun.JOBS)
 
     # ---- THE PRESENCE CLASS MAY NOT HAVE A VALUE-SHAPED FIELD. Asserted, not assumed.
     from cicd.custom.cicd_ingest import VALUE_LIKE, VALUE_LIKE_EXEMPT
@@ -396,8 +396,8 @@ def _ingest_checks():
           res.status.startswith('401'))
 
     # ---- the five kinds, and nothing else
-    check('the mirror accepts exactly six kinds',
-          KINDS == ('device', 'secrets', 'run', 'isle-test', 'release', 'setup'), KINDS)
+    check('the mirror accepts exactly seven kinds (ci-12 added test-verdict)',
+          KINDS == ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict'), KINDS)
     res = _Res(); api.on_post_ingest(_Req(media={'kind': 'whatever', 'device': 'pipe-1'}, headers=hdr), res)
     check('an unknown kind is a 400 that NAMES the five — never a shrug, never a row from a body nobody designed',
           res.status.startswith('400') and 'unknown kind' in res.media['error']
@@ -537,6 +537,7 @@ def _ingest_checks():
 def _admin_checks():
     from cicd.cicd_api import CicdAPI
     from cicd.cicd_basis import PipelineDevice
+    from cicd.cicd_api import CicdAPI
     from cicd.custom.cicd_auth import hash_token
 
     TABLES = ('PipelineDevice', 'PipelineStage', 'PipelineRoute', 'PipelineSecretPresence',
@@ -661,8 +662,8 @@ def _route_guard_checks():
     check('§54 guard: every /api/cicd route registered has a responder named for its suffix — a drifted '
           'suffix RAISES from add_route() and takes the backend down at boot',
           orphans == [], orphans)
-    check('  …and all ten doors are registered',
-          len(srv.falconServer.routes) == 10
+    check('  …and all eleven doors are registered (ci-12 added /api/cicd/verdicts)',
+          len(srv.falconServer.routes) == 11
           and ('/api/cicd/ingest', 'ingest') in srv.falconServer.routes
           and ('/api/cicd/device/token', 'device_token') in srv.falconServer.routes,
           srv.falconServer.routes)
@@ -735,15 +736,119 @@ def _manifest_checks():
     from moduleService.manifests import validate
     problems = validate(man)
     check('the manifest is valid against the standard (moduleService.manifests.validate)', problems == [], problems)
-    check('the manifest declares the eight classes plus the API, the endpoints constructor, the seed pairs '
+    check('the manifest declares the nine classes plus the API, the endpoints constructor, the seed pairs '
           'and the pages',
-          len([c for c in man['classes'] if c != 'CicdAPI']) == 8
+          len([c for c in man['classes'] if c != 'CicdAPI']) == 9
           and man['endpoints'] == 'cicd.cicd_endpoints:construct_cicd_endpoints'
           and man['seedPairs'] == 'cicd.cicd_seed:CICD_SEED_PAIRS'
           and man['pages'] == ['cicd.cicd_page:SEED_CICD_PAGE_DISPLAYS'], man['classes'])
     check('it declares NO outbound flows: this module receives a mirror, it does not send rows anywhere',
           man['app'].get('flows') == [], man['app'].get('flows'))
     check('it names its selftest, so `manifests conform` is clean', man['selftests'] == ['cicd_selftest'])
+
+    # ------------------------------------------------------------------ ci-12
+    # THE BRANCH MODEL's row: one answer per tested sha, and the linkage a
+    # release carries back to it.
+    print('-- ci-12: the test verdict — ONE answer per sha, and what a release is allowed by')
+    from cicd.cicd_basis import CICD_CLASSES, PipelineDevice, ReleaseRecord
+    from cicd.cicd_basis import TestVerdict
+    from cicd.cicd_api import CicdAPI
+    from cicd.custom.cicd_auth import hash_token
+    from cicd.custom.cicd_ingest import VALUE_LIKE, VALUE_LIKE_EXEMPT
+    from cicd.custom.cicd_ingest import check as _icheck, test_verdict_row
+
+    check('TestVerdict knows exactly three answers — passed, failed and the honest middle one',
+          TestVerdict.VERDICTS == ('passed', 'failed', 'partial'), TestVerdict.VERDICTS)
+    check('  …and it carries no value-shaped field, like every other row class here',
+          not [p for p in inspect.signature(TestVerdict.__init__).parameters
+               if VALUE_LIKE.search(p) and p not in VALUE_LIKE_EXEMPT],
+          list(inspect.signature(TestVerdict.__init__).parameters))
+    check('  …it is keyed on the SUPERPROJECT sha, not on a version: most tested shas are never released',
+          'sha' in inspect.signature(TestVerdict.__init__).parameters
+          and 'version' not in inspect.signature(TestVerdict.__init__).parameters)
+    check('  …and its git branch column is `git_branch`: `branch` is a treeObject INTERNAL var, and a row '
+          'field of that name silently breaks every construction of the class',
+          'branch' not in inspect.signature(TestVerdict.__init__).parameters
+          and 'git_branch' in inspect.signature(TestVerdict.__init__).parameters,
+          list(inspect.signature(TestVerdict.__init__).parameters))
+    check('  …the three summaries are JSON STRING columns, so the page renders configured columns and '
+          'never a raw-JSON panel (his rule)',
+          all(k in inspect.signature(TestVerdict.__init__).parameters
+              for k in ('scans_json', 'selftests_json', 'isle_json')))
+
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'a' * 40,
+                         'verdict': 'passed'})
+    check('a passing verdict with a sha is accepted', ok_, why_)
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'a' * 40, 'verdict': 'green'})
+    check('an unknown verdict is refused and NAMES the three', not ok_ and 'passed' in why_ and 'partial' in why_, why_)
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'verdict': 'passed'})
+    check('a verdict about NO sha is refused — `promote main` could never find it', not ok_ and 'sha' in why_, why_)
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'b' * 40, 'verdict': 'partial'})
+    check('a non-passing verdict with no `why` is refused: a bare "failed" is a result nobody can act on',
+          not ok_ and 'why' in why_.lower(), why_)
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'b' * 40, 'verdict': 'partial',
+                         'why': 'the isle stages are still ci-3'})
+    check('  …and it is accepted the moment it says why', ok_, why_)
+    ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'c' * 40, 'verdict': 'passed',
+                         'token': 'shhh'})
+    check('a verdict carrying a value-shaped field is refused whole, like every other kind', not ok_, why_)
+
+    row = test_verdict_row({'device': 'pipe-1', 'sha': 'd' * 40, 'verdict': 'partial',
+                            'why': 'isle skipped', 'built': True,
+                            'selftests': {'modules': {'core': 'pass'}, 'suites': 88, 'passed': 88,
+                                          'failed': 0},
+                            'isle': {'core_ok': False, 'stages': 1},
+                            'scans': {'totals': {'high': 3}}}, posted_by='cicd-ingest:pipe-1')
+    check('the row is keyed <device>:<sha>', row['name'] == 'pipe-1:' + 'd' * 40, row['name'])
+    check('  …the selftest arithmetic is lifted into columns a table can show',
+          (row['selftest_suites'], row['selftest_passed'], row['selftest_failed']) == (88, 88, 0))
+    check('  …core_ok is lifted out of the isle summary: it is the half the release rule turns on',
+          row['core_ok'] is False and 'core_ok' in row['isle_json'])
+    check('  …the ADVISORY scan counts are carried and are NOT in the verdict arithmetic',
+          '"high": 3' in row['scans_json'] and row['verdict'] == 'partial')
+    check('  …the mirror NEVER recomputes the verdict: it stores what the device decided',
+          row['verdict'] == 'partial' and row['decided_by'] == 'pipeline')
+
+    check('ReleaseRecord gained the branch-model linkage, and did NOT overload tested_against',
+          {'tested_verdict', 'tested_sha', 'tested_against'}
+          <= set(inspect.signature(ReleaseRecord.__init__).parameters),
+          list(inspect.signature(ReleaseRecord.__init__).parameters))
+
+    from cicd.custom.cicd_auth import TOKEN_HEADER, mint_token
+    _m = _M(*[c.__name__ for c in CICD_CLASSES])
+    _api = CicdAPI(polServer=None, manager=_m)
+    _tok = mint_token()
+    PipelineDevice(manager=_m, name='pipe-1', ingest_token_hash=hash_token(_tok))
+    _res = _Res()
+    _api.on_post_ingest(_Req(media={'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'e' * 40,
+                                    'verdict': 'partial', 'why': 'the isle stages are still ci-3',
+                                    'selftests': {'modules': {'core': 'pass'}, 'suites': 3, 'passed': 3,
+                                                  'failed': 0},
+                                    'isle': {'core_ok': False}, 'scans': {'totals': {'medium': 2}}},
+                             headers={TOKEN_HEADER: _tok}), _res)
+    check('POST /api/cicd/ingest stores a test verdict and echoes what it says',
+          _res.media and _res.media.get('ok') and _res.media.get('says') == 'partial', _res.media)
+    _res = _Res(); _api.on_get_verdicts(_Req(), _res)
+    check('GET /api/cicd/verdicts answers with the verdicts and the rule, in words',
+          _res.media['count'] == 1 and _res.media['verdicts'][0]['verdict'] == 'partial'
+          and 'passed' in _res.media['how'], _res.media)
+    check('  …and the answer carries the advisory scan counts without them changing a verdict',
+          _res.media['verdicts'][0]['scans'].get('totals', {}).get('medium') == 2)
+
+    _pages = {p['pageRoute']: p for p in __import__(
+        'cicd.cicd_page', fromlist=['SEED_CICD_PAGE_DISPLAYS']).SEED_CICD_PAGE_DISPLAYS}
+    _runs = json.loads(_pages['cicd-runs']['definition'])
+    _items = [i for r in _runs['rows'] for i in r['items']]
+    _inp = lambda i: (i.get('componentProps') or {}).get('inputs') or {}
+    _cmp = lambda i: (i.get('componentProps') or {}).get('componentName')
+    check('the cicd-runs page shows the VERDICT column, from a configured table + the structured panel',
+          any(_inp(i).get('className') == 'TestVerdict' and 'verdict' in (_inp(i).get('columns') or '')
+              for i in _items)
+          and any('/api/cicd/verdicts' in str(_inp(i).get('path') or '') for i in _items),
+          [(i.get('id'), _cmp(i)) for i in _items])
+    check('  …and still uses ONLY the two generic components — no raw-JSON panel anywhere (his rule)',
+          all(_cmp(i) in ('class-rows-table', 'api-structured-panel') for i in _items),
+          sorted({_cmp(i) for i in _items}))
 
     # the admission knob, by file: the pipeline-device prod profile ends in ,cicd
     prof = os.path.abspath(os.path.join(here, '..', '..', '..', '..',
@@ -817,6 +922,7 @@ def _setup_protocol_checks():
     """
     from cicd.cicd_api import CicdAPI
     from cicd.cicd_basis import PipelineDevice, PipelineSetupStep
+    from cicd.cicd_api import CicdAPI
     from cicd.custom.cicd_auth import hash_token
     from cicd.custom.cicd_ingest import KINDS, SETUP_PROTOCOL, check as ingest_check, setup_value_leak
 
