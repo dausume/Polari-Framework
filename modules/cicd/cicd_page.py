@@ -3,6 +3,7 @@
 
 /display/cicd            the pipeline: which device, is it ready, which routes may publish, and the rule
                          that decides what may ever ship
+/display/cicd-setup      THE WIZARD (ci-11a) — the setup walkthrough, step by step, with its buttons
 /display/cicd-stages     the isle testing stages — the ordered list that IS what can be released
 /display/cicd-runs       the mirrored Jenkins builds and what each isle stage recorded
 /display/cicd-releases   per version: what shipped, and what did not, with the reason
@@ -13,6 +14,18 @@ showing on the screens, everything should be configured tables, graphs, or visua
 per-object display rule: a setting is edited on its OWN row's page, through CRUDE, not on a bespoke
 settings screen).
 
+ci-11a adds exactly ONE component, `pipeline-setup-panel`, and only because his ask needs a thing no
+configured table can be: a button that runs a command on the machine the browser is sitting on. The
+store's own surface could not be extended with a mode — `app-isle-store` is a routed page with no
+`@Input()` at all, hard-wired to catalogue fetching and installs — so the panel follows the
+`security-threat-sim` shape instead (a registered panel with typed inputs). Everything ELSE on the page
+below is still a configured table or the structured panel.
+
+THE LAYER BOUNDARY (his rule 2026-09-19 — "keep different pieces logically separate, like CLI vs JavaFX").
+The page talks to the bridge contract and to `/api/cicd/setup`. It never composes a command: an action
+carries a VERB id from `polari-jenkins/shell-verbs.json` and the shell resolves it. And when no shell is
+present the panel shows the same state read-only, with the exact command beside each step.
+
 That is also WHY the settings tables are on these pages: the `class-rows-table` over `PipelineDevice`,
 `PipelineStage` and `PipelineRoute` IS the editing surface, gated by the `cicd-settings` permission profile
 (cicd_seed) — admins change a knob, everybody else reads it.
@@ -22,6 +35,28 @@ from polariApiServer.module_pages_seed import _page, _row, _sapi, _table
 #: the rule, short enough for a panel title
 RULE = ('the pipeline only ships what it TESTED in a throwaway isle — no results for a version means '
         'nothing is published and the tag is not pushed')
+
+
+def _setup_panel(item_id, index, segments, title, step='', path='/api/cicd/setup'):
+    """The ONE new component of ci-11a — `pipeline-setup-panel`.
+
+    `step` empty renders the whole walkthrough; naming a step renders that one. The panel reads `path`
+    for the mirrored state (so a plain browser sees something), and asks the desktop shell whether it can
+    drive the device live. It never builds a command: an action names a verb id from the tracked
+    allowlist and the shell resolves it.
+    """
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'pipeline-setup-panel',
+            'inputs': {'path': path, 'step': step, 'device': ''},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
 
 SEED_CICD_PAGE_DISPLAYS = [
     _page('cicd', 'cicd',
@@ -75,6 +110,46 @@ SEED_CICD_PAGE_DISPLAYS = [
                   _table('cicd-secrets', 0, 12,
                          'Secret PRESENCE — names, whether the device has each one, which routes go dry '
                          'without it, and where to get it. No value exists in this table.',
+                         'PipelineSecretPresence',
+                         columns='area,secret_name,present,kind,needed_by_json,where_to_get,how_to_make,blocked_why'),
+              ]),
+          ]),
+
+    # ---------------------------------------------------------------- ci-11a: THE WIZARD
+    # His ask 2026-09-19: turn the pipeline into a desktop app "similar to how the isle mesh is
+    # working", guiding people through use like a normal app, eliminating the terminal.
+    _page('cicd-setup', 'cicd-setup',
+          'CI/CD — SET UP THE PIPELINE, step by step. Each step says what it is in plain words, shows what '
+          'is true on the device right now, asks what it needs, and offers the button that does it. In the '
+          'desktop application the buttons run on your machine (unprivileged ones directly, privileged ones '
+          'through the system\'s own elevation prompt); in a plain browser the same steps are read-only and '
+          'each shows the exact command instead.',
+          'PipelineSetupStep', [
+              _row(0, [
+                  _setup_panel('cicd-setup-wizard', 0, 12,
+                               'The walkthrough — `pol jenkins setup`, one step at a time'),
+              ], min_height=640),
+              _row(1, [
+                  _sapi('cicd-setup-readiness', 0, 6,
+                        'Is this device ready? (steps complete, doctor warnings, the preflight verdict, and '
+                        'when the device last reported in)',
+                        '/api/cicd', pick='readiness'),
+                  _sapi('cicd-setup-rule', 1, 6,
+                        'What the setup is FOR: the rule that decides what may ever ship',
+                        '/api/cicd', pick='release_rule'),
+              ], min_height=260),
+              _row(2, [
+                  _table('cicd-setup-steps', 0, 12,
+                         'The steps as the device last reported them — its own reading, mirrored in and '
+                         'never re-derived here (a Polari core cannot run `pol`, and should not be able to). '
+                         '`state` is done / todo / blocked / skipped.',
+                         'PipelineSetupStep',
+                         columns='index,step,title,state,total,at'),
+              ]),
+              _row(3, [
+                  _table('cicd-setup-secrets', 0, 12,
+                         'What each step still needs from you, and WHERE to get it. Presence only — no value '
+                         'exists in this table, on this page, or in any answer behind it.',
                          'PipelineSecretPresence',
                          columns='area,secret_name,present,kind,needed_by_json,where_to_get,how_to_make,blocked_why'),
               ]),

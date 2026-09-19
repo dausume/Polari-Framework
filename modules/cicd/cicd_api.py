@@ -13,8 +13,12 @@
                              household, …) — the list that decides what can ever be released.
 /api/cicd/routes/{name}      POST (ADMIN) {"enabled": true|false} — the CI_ROUTES half Polari owns. `armed`
                              (the secret is present) is the DEVICE's reading and is never written here.
-/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release, …} with the
-                             posting-only token. Five kinds, nothing else; a value-shaped field is a 400 and
+/api/cicd/setup              GET the LAST setup walkthrough the device pushed (ci-11a) — the protocol
+                             document `polari-pipeline-setup/1`, reassembled from PipelineSetupStep rows, so
+                             a browser with NO desktop shell still sees where that device got to. `live` is
+                             always false: it is a mirror of the last push, never a live reading.
+/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release|setup, …} with the
+                             posting-only token. Six kinds, nothing else; a value-shaped field is a 400 and
                              nothing is stored.
 /api/cicd/runs               GET the mirrored Jenkins builds
 /api/cicd/results            GET the isle-test results, per run × stage
@@ -31,8 +35,15 @@ one way, inward.
 
 EDITING IS ON THE ROWS' OWN PAGES (his per-object display rule). These doors exist because a pipeline needs
 a machine-readable read and a machine-writable mirror; a person turns a knob through CRUDE on
-/display/cicd-overview and /display/cicd-stages, gated by the `cicd-settings` permission profile. No new
-frontend component was written for any of it.
+/display/cicd-overview and /display/cicd-stages, gated by the `cicd-settings` permission profile. ci-8 wrote
+no frontend component at all; ci-11a wrote exactly one, `pipeline-setup-panel`, and only because the ask it
+serves needs a button that runs a command on the machine the browser is sitting on.
+
+ci-11a, his ask 2026-09-19: run the pipeline as a desktop application, "guiding people through use like a
+normal app", eliminating the terminal. The walkthrough itself is produced BY THE DEVICE
+(`pol jenkins setup --json`) — this core cannot run `pol`, and should not be able to. `POST /api/cicd/ingest
+{kind: setup}` mirrors it in and `GET /api/cicd/setup` reads it back, so a browser with no desktop shell
+still sees where a device got to. Neither door can drive a device; the mirror still flows one way, inward.
 """
 import datetime
 
@@ -57,6 +68,7 @@ class CicdAPI(treeObject):
         if polServer is not None and getattr(polServer, 'falconServer', None) is not None:
             add = polServer.falconServer.add_route
             add('/api/cicd', self)
+            add('/api/cicd/setup', self, suffix='setup')                   # GET the LAST walkthrough the device pushed
             add('/api/cicd/device', self, suffix='device')                # GET settings + validation; POST (admin) change them
             add('/api/cicd/device/token', self, suffix='device_token')    # POST (admin) mint the posting-only token, shown once
             add('/api/cicd/stages', self, suffix='stages')                # POST (admin) replace the ordered stages
@@ -120,6 +132,44 @@ class CicdAPI(treeObject):
         READ credential as well would be one more secret on the device for no gain."""
         dev = self._device(request)
         response.media = R.everything(self.manager, dev)
+
+    # ------------------------------------------------------------- /api/cicd/setup
+    def on_get_setup(self, request, response):
+        """ci-11a — THE LAST WALKTHROUGH THIS DEVICE PUSHED, reassembled into the protocol document.
+
+        Read openly, like `GET /api/cicd`: it is knobs, verdicts and to-do text, and no secret value can
+        exist in it (the ingest door refuses a secret question that carries anything but `present`).
+
+        WHY THE DOOR EXISTS. The wizard runs `pol jenkins setup --json` on the DEVICE, through the shell's
+        verb allowlist. A person who opens this page in a plain browser has no such shell — so the page
+        reads this instead and shows the state read-only, with the exact commands beside each step. The
+        answer therefore carries `live: false`: it is a MIRROR of the last push, never a live reading, and
+        the page says so rather than implying it just ran.
+        """
+        from cicd.custom.cicd_ingest import SETUP_PROTOCOL
+        dev = self._device(request)
+        if dev is None:
+            return self._bad(response,
+                             'no PipelineDevice row (or several: name one with ?device=<name>). A device '
+                             'appears here after its first `pol jenkins sync push`.',
+                             protocol=SETUP_PROTOCOL,
+                             devices=[str(getattr(r, 'name', '')) for r in R.devices(self.manager)])
+        device = str(getattr(dev, 'name', ''))
+        doc = R.setup_document(self.manager, dev)
+        if not doc['steps']:
+            response.media = {
+                'ok': True, 'protocol': SETUP_PROTOCOL, 'live': False, 'device_name': device,
+                'steps': [], 'todo': [], 'summary': {'complete': 0, 'total': 8, 'ready': False, 'blocking': ''},
+                'how': ('this device has not pushed its walkthrough yet. On the device: `pol jenkins sync '
+                        'push` (or `pol jenkins sync push-setup`). A Polari core cannot run `pol` itself — '
+                        'only the device can, and that is deliberate.'),
+            }
+            return
+        doc.update({'ok': True, 'protocol': SETUP_PROTOCOL, 'live': False, 'device_name': device})
+        doc['how'] = ('a MIRROR of the last push, not a live reading. A desktop shell re-runs each step '
+                      'through the verb allowlist (pol jenkins verbs); a plain browser shows this state '
+                      'and the exact command beside each step.')
+        response.media = doc
 
     # ------------------------------------------------------------ /api/cicd/device
     def on_get_device(self, request, response):
@@ -312,7 +362,7 @@ class CicdAPI(treeObject):
 
     # ------------------------------------------------------------ /api/cicd/ingest
     def on_post_ingest(self, request, response):
-        """THE MIRROR. Posting-only credential; five kinds; a value-shaped field is refused, not filtered."""
+        """THE MIRROR. Posting-only credential; six kinds; a value-shaped field is refused, not filtered."""
         from cicd.custom.cicd_ingest import check
         token = token_from_request(request)
         dev = device_for_token(R.devices(self.manager), token)
@@ -356,6 +406,34 @@ class CicdAPI(treeObject):
                                  ('adopted: this device had no row, so its own device.env became the first '
                                   'version of the truth. From now on Polari is the source and pulls overwrite '
                                   'device.env.')}
+
+    def _ingest_setup(self, body, dev, posted_by, response):
+        """ci-11a — the walkthrough the DEVICE computed, stored verbatim.
+
+        Polari never re-derives a step: `pol jenkins setup --json` runs on the pipeline device, and this
+        core cannot run `pol` (nor should it be able to). The rows are a mirror, not a second opinion.
+        """
+        from cicd.cicd_basis import PipelineDevice, PipelineSetupStep
+        from cicd.custom.cicd_ingest import setup_step_rows
+        rows = setup_step_rows(body, posted_by)
+        report = self._upsert('PipelineSetupStep', PipelineSetupStep, rows)
+        device = str(getattr(dev, 'name', ''))
+        self._upsert('PipelineDevice', PipelineDevice, [{
+            'name': device,
+            'setup_steps_done': int(body.get('complete') or 0),
+            'setup_steps_total': int(body.get('steps_total') or len(rows)),
+            'setup_ready': bool(body.get('ready')),
+            'setup_blocking': str(body.get('blocking') or ''),
+            'setup_todo_json': str(body.get('todo_json') or '[]'),
+            'setup_at': str(body.get('at') or _now()),
+            'last_seen': _now(), 'posted_by': posted_by,
+        }])
+        response.media = {'ok': True, 'kind': 'setup', 'device': device, 'steps': len(rows),
+                          'stored': report, 'protocol': str(body.get('setup_protocol') or ''),
+                          'read_it_back': '/api/cicd/setup?device=%s' % device,
+                          'how': ('the walkthrough is mirrored so a browser with NO desktop shell still sees '
+                                  'where this device got to. A secret question carries `present` or nothing; '
+                                  'the door refuses one that carries anything else, and nothing is stored.')}
 
     def _ingest_secrets(self, body, dev, posted_by, response):
         from cicd.cicd_basis import PipelineSecretPresence

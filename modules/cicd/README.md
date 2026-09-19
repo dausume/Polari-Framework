@@ -39,6 +39,7 @@ may ship.
 | `PipelineRun` | the pipeline, at a build's start and end |
 | `IsleTestResult` | the pipeline, per run × stage |
 | `ReleaseRecord` | the pipeline — what shipped, and what did not, with the reason |
+| `PipelineSetupStep` | the device — ONE step of its `pol jenkins setup` walkthrough (ci-11a), stored so a browser with no desktop shell can see it |
 
 ### ci-9 added five settings columns and two record columns
 
@@ -68,7 +69,10 @@ heard of ci-9 must not silently turn a device's cache off.
     POST /api/cicd/device/token     ADMIN — mint the posting-only token. SHOWN ONCE; only sha256 is stored.
     POST /api/cicd/stages           ADMIN — replace the ordered testing stages
     POST /api/cicd/routes/{name}    ADMIN — {"enabled": true|false} (and optionally {"target": …})
-    POST /api/cicd/ingest           THE MIRROR — the posting-only token; five kinds; a value-shaped field is
+    GET  /api/cicd/setup            ci-11a — the LAST setup walkthrough the device pushed, as the protocol
+                                    document `polari-pipeline-setup/1`. It answers `live: false`: a mirror
+                                    of the last push, never a live reading.
+    POST /api/cicd/ingest           THE MIRROR — the posting-only token; SIX kinds; a value-shaped field is
                                     a 400 and nothing is stored
     GET  /api/cicd/runs  /results  /releases
 
@@ -87,13 +91,44 @@ commonly points at a LEAN core where `POL_PROD_AUTH=off` and there is no
 Keycloak at all. A credential that only existed when Keycloak did would work
 on one deployment and silently not on another.
 
-## Pages — configured, no new component
+## ci-11a — the setup walkthrough, mirrored in
 
-`/display/cicd`, `/display/cicd-stages`, `/display/cicd-runs`,
-`/display/cicd-releases`. Every item is `class-rows-table` or
-`api-structured-panel`; **editing happens on the rows' own tables**, through
-CRUDE, gated by the `cicd-settings` permission profile (`cicd_seed`). No
-Angular was written for any of it.
+His ask 2026-09-19: run the pipeline as a desktop application, with no
+terminal. `pol jenkins setup --json` produces the walkthrough **on the
+device** — a Polari core cannot run `pol`, and should not be able to. The
+device pushes that document (`cicd-sync.sh push`, which now also does
+`push-setup`) and these rows are the only copy a browser can see.
+
+Why the sub-structures are **strings** (`checks_json`, `questions_json`,
+`actions_json`, `where_json`): the mirror door refuses any key named like a
+value, and a question's key is literally `key` — a nested post would be
+refused by the very guard that keeps secrets out of these rows. And a check
+is not a Polari row: it is a rendering the device computed. Polari stores it,
+shows it, and never re-derives it.
+
+**No secret value can survive the trip.** A question of kind `secret` may
+answer `present` or nothing; anything else is a 400 naming the question, and
+nothing is stored. The value itself is written by the `secrets-put` verb,
+whose value travels on standard input.
+
+## Pages — configured, plus the ONE panel ci-11a needed
+
+`/display/cicd`, `/display/cicd-setup`, `/display/cicd-stages`,
+`/display/cicd-runs`, `/display/cicd-releases`. Every item is
+`class-rows-table` or `api-structured-panel`; **editing happens on the rows'
+own tables**, through CRUDE, gated by the `cicd-settings` permission profile
+(`cicd_seed`).
+
+The one exception is `pipeline-setup-panel` on `/display/cicd-setup`, and it
+is there because his ask needs a thing no configured table can be: a button
+that runs a command on the machine the browser is sitting on. The store's own
+surface could not be extended with a mode (`app-isle-store` is a routed page
+with no `@Input()` at all, hard-wired to catalogue fetching and installs), so
+the panel follows the `security-threat-sim` shape instead. With the desktop
+shell it drives the device through the tracked verb allowlist; without one it
+shows the mirrored state read-only and the exact command per step. It never
+composes a command, and a secret is only ever typed into the application's own
+native prompt.
 
 ## Admission — "always enabled with the pipeline"
 

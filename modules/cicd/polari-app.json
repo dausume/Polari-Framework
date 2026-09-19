@@ -3,7 +3,7 @@
  "id": "cicd",
  "package": "cicd",
  "title": "CI/CD",
- "description": "The build + publish pipeline's SETTINGS as Polari rows (Polari is the source of truth; polari-jenkins/device.env is the fallback and is rewritten from them), and its runs, isle-test stage results, releases and secret PRESENCE mirrored in through one posting-only credential. Two modes: the whole suite, or ONE Polari app somebody maintains.",
+ "description": "The build + publish pipeline's SETTINGS as Polari rows (Polari is the source of truth; polari-jenkins/device.env is the fallback and is rewritten from them), and its runs, isle-test stage results, releases and secret PRESENCE mirrored in through one posting-only credential. Two modes: the whole suite, or ONE Polari app somebody maintains. Also mirrors the pipeline setup WALKTHROUGH (polari-pipeline-setup/1) the device pushes, so a browser with no desktop shell still sees where that device got to.",
  "version": "0.1.0",
  "kind": "official",
  "wave": null,
@@ -40,6 +40,7 @@
    "objects/cicd/PipelineRoute",
    "objects/cicd/PipelineRun",
    "objects/cicd/PipelineSecretPresence",
+   "objects/cicd/PipelineSetupStep",
    "objects/cicd/PipelineStage",
    "objects/cicd/ReleaseRecord"
   ],
@@ -76,6 +77,7 @@
   "PipelineRoute",
   "PipelineRun",
   "PipelineSecretPresence",
+  "PipelineSetupStep",
   "PipelineStage",
   "ReleaseRecord"
  ],
@@ -90,7 +92,8 @@
     "PipelineRun",
     "IsleTestResult",
     "ReleaseRecord",
-    "CICD_CLASSES"
+    "CICD_CLASSES",
+    "PipelineSetupStep"
    ]
   ],
   [

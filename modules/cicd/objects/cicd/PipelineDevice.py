@@ -69,6 +69,7 @@ class PipelineDevice(treeObject):
                  routes_json: str = '[]', stages_summary: str = 'core',
                  setup_steps_done: int = 0, setup_steps_total: int = 8, setup_ready: bool = False,
                  setup_verdict: str = '', doctor_warnings: int = 0, preflight_verdict: str = '',
+                 setup_blocking: str = '', setup_todo_json: str = '[]', setup_at: str = '',
                  ingest_token_hash: str = '', token_issued_at: str = '', token_issued_by: str = '',
                  last_seen: str = '', last_pull: str = '', posted_by: str = '', notes: str = ''):
         self.name = name                        # the row id — the device's own name (never a hostname)
@@ -110,6 +111,11 @@ class PipelineDevice(treeObject):
         self.setup_verdict = setup_verdict      # READY | NOT READY, verbatim
         self.doctor_warnings = doctor_warnings  # the doctor's warning count at the last push
         self.preflight_verdict = preflight_verdict      # PASS | FAIL from preflight --isle --json
+        # ci-11a — the document-level half of `polari-pipeline-setup/1`. The per-step half is the
+        # PipelineSetupStep rows; these three are what a summary panel reads without loading eight rows.
+        self.setup_blocking = setup_blocking            # the first thing standing in the way, in the device's words
+        self.setup_todo_json = setup_todo_json          # [{step, text, command}] — the ordered to-do list
+        self.setup_at = setup_at                        # when the device produced that walkthrough
         self.ingest_token_hash = ingest_token_hash      # sha256 of the posting-only token — NEVER the token
         self.token_issued_at = token_issued_at
         self.token_issued_by = token_issued_by  # the issuing admin's Keycloak `sub` alone (D18-1)

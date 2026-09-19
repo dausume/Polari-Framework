@@ -12,6 +12,6 @@ that can reach `POST /api/cicd/ingest` and nothing else.
 
 Requires nothing from other feature modules (the app-permission profiles it seeds are guarded).
 """
-from cicd.cicd_basis import CICD_CLASSES, IsleTestResult, PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence, PipelineStage, ReleaseRecord  # noqa: F401
+from cicd.cicd_basis import CICD_CLASSES, IsleTestResult, PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence, PipelineSetupStep, PipelineStage, ReleaseRecord  # noqa: F401
 from cicd.cicd_seed import CICD_SEED_PAIRS  # noqa: F401
 from cicd.cicd_page import SEED_CICD_PAGE_DISPLAYS  # noqa: F401

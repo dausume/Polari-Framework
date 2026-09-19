@@ -64,6 +64,49 @@ def routes_of(manager, device):
     return sorted(rows, key=lambda r: str(getattr(r, 'name', '')))
 
 
+def setup_steps_of(manager, device):
+    rows = [r for r in _table(manager, 'PipelineSetupStep') if str(getattr(r, 'device', '')) == device]
+    return sorted(rows, key=lambda r: int(getattr(r, 'index', 0) or 0))
+
+
+def setup_document(manager, device_row):
+    """ci-11a — the PipelineSetupStep rows back as `polari-pipeline-setup/1`.
+
+    The inverse of what `cicd-sync.sh push-setup` posted, and nothing more: every field came off the wire
+    from the device, and this function re-nests the four JSON-string columns. Polari re-derives no step,
+    no check and no verdict — it could not; `pol jenkins setup` runs on the device.
+    """
+    device = str(getattr(device_row, 'name', ''))
+    steps = []
+    for r in setup_steps_of(manager, device):
+        steps.append({
+            'name': str(getattr(r, 'step', '')),
+            'index': int(getattr(r, 'index', 0) or 0),
+            'total': int(getattr(r, 'total', 0) or 0),
+            'title': str(getattr(r, 'title', '')),
+            'state': str(getattr(r, 'state', 'todo')),
+            'explain': str(getattr(r, 'explain', '')),
+            'checks': _list(getattr(r, 'checks_json', '[]')),
+            'questions': _list(getattr(r, 'questions_json', '[]')),
+            'actions': _list(getattr(r, 'actions_json', '[]')),
+            'where': _list(getattr(r, 'where_json', '[]')),
+        })
+    total = int(getattr(device_row, 'setup_steps_total', 0) or 0) or (steps[-1]['total'] if steps else 8)
+    return {
+        'device': {'mode': str(getattr(device_row, 'mode', 'suite')),
+                   'ready': bool(getattr(device_row, 'setup_ready', False)),
+                   'name': device,
+                   'target': str(getattr(device_row, 'isle_target', '')),
+                   'at': str(getattr(device_row, 'setup_at', ''))},
+        'steps': steps,
+        'todo': _list(getattr(device_row, 'setup_todo_json', '[]')),
+        'summary': {'complete': int(getattr(device_row, 'setup_steps_done', 0) or 0),
+                    'total': total,
+                    'ready': bool(getattr(device_row, 'setup_ready', False)),
+                    'blocking': str(getattr(device_row, 'setup_blocking', ''))},
+    }
+
+
 def secrets_of(manager, device):
     rows = [r for r in _table(manager, 'PipelineSecretPresence') if str(getattr(r, 'device', '')) == device]
     return sorted(rows, key=lambda r: str(getattr(r, 'name', '')))

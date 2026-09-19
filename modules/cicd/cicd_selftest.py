@@ -65,13 +65,14 @@ def _row_checks():
     from cicd.cicd_basis import (CICD_CLASSES, CICD_MIRROR_CLASSES, CICD_SETTINGS_CLASSES, IsleTestResult,
                                  PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence,
                                  PipelineStage, ReleaseRecord)
-    check('the module registers exactly SEVEN row classes — the count is asserted so a class added without a '
+    check('the module registers exactly EIGHT row classes — the count is asserted so a class added without a '
           'manifest entry, a feature-import entry and a defClassList entry cannot ride in unnoticed',
-          len(CICD_CLASSES) == 7, [c.__name__ for c in CICD_CLASSES])
+          len(CICD_CLASSES) == 8, [c.__name__ for c in CICD_CLASSES])
     check('the classes split into the SETTINGS a person owns and the rows the pipeline mirrors in',
           [c.__name__ for c in CICD_SETTINGS_CLASSES] == ['PipelineDevice', 'PipelineStage', 'PipelineRoute']
           and [c.__name__ for c in CICD_MIRROR_CLASSES] == ['PipelineSecretPresence', 'PipelineRun',
-                                                            'IsleTestResult', 'ReleaseRecord'])
+                                                            'IsleTestResult', 'ReleaseRecord',
+                                                            'PipelineSetupStep'])
     check('every class is one file under objects/cicd/ and re-exported by cicd_basis (the module convention)',
           all(c.__module__ == 'cicd.objects.cicd.%s' % c.__name__ for c in CICD_CLASSES),
           [c.__module__ for c in CICD_CLASSES])
@@ -395,7 +396,8 @@ def _ingest_checks():
           res.status.startswith('401'))
 
     # ---- the five kinds, and nothing else
-    check('the mirror accepts exactly five kinds', KINDS == ('device', 'secrets', 'run', 'isle-test', 'release'))
+    check('the mirror accepts exactly six kinds',
+          KINDS == ('device', 'secrets', 'run', 'isle-test', 'release', 'setup'), KINDS)
     res = _Res(); api.on_post_ingest(_Req(media={'kind': 'whatever', 'device': 'pipe-1'}, headers=hdr), res)
     check('an unknown kind is a 400 that NAMES the five — never a shrug, never a row from a body nobody designed',
           res.status.startswith('400') and 'unknown kind' in res.media['error']
@@ -659,14 +661,14 @@ def _route_guard_checks():
     check('§54 guard: every /api/cicd route registered has a responder named for its suffix — a drifted '
           'suffix RAISES from add_route() and takes the backend down at boot',
           orphans == [], orphans)
-    check('  …and all nine doors are registered',
-          len(srv.falconServer.routes) == 9
+    check('  …and all ten doors are registered',
+          len(srv.falconServer.routes) == 10
           and ('/api/cicd/ingest', 'ingest') in srv.falconServer.routes
           and ('/api/cicd/device/token', 'device_token') in srv.falconServer.routes,
           srv.falconServer.routes)
-    check('  …the ingest kind dispatcher has a handler for each of the five kinds (isle-test → _ingest_isle_test)',
-          all(hasattr(api, '_ingest_%s' % k.replace('-', '_'))
-              for k in ('device', 'secrets', 'run', 'isle-test', 'release')))
+    from cicd.custom.cicd_ingest import KINDS as _KINDS
+    check('  …the ingest kind dispatcher has a handler for each kind (isle-test → _ingest_isle_test)',
+          all(hasattr(api, '_ingest_%s' % k.replace('-', '_')) for k in _KINDS), _KINDS)
 
 
 # ----------------------------------------------------------- the pages, the seed
@@ -675,16 +677,21 @@ def _page_seed_checks():
     from cicd.cicd_seed import CICD_SEED_PAIRS, SEED_CICD_PERMISSION_PROFILES
 
     names = [p['name'] for p in SEED_CICD_PAGE_DISPLAYS]
-    check('four configured pages: the pipeline, its stages, its runs, its releases',
-          names == ['cicd', 'cicd-stages', 'cicd-runs', 'cicd-releases'], names)
+    check('five configured pages: the pipeline, its SETUP WIZARD, its stages, its runs, its releases',
+          names == ['cicd', 'cicd-setup', 'cicd-stages', 'cicd-runs', 'cicd-releases'], names)
     comps = set()
     for page in SEED_CICD_PAGE_DISPLAYS:
         for r in json.loads(page['definition'])['rows']:
             for it in r['items']:
                 comps.add(it['componentProps']['componentName'])
-    check('every item is one of the TWO generic registered components — no new Angular, and no api-json-panel '
+    check('every item is a generic registered component or the ONE panel ci-11a added — and no api-json-panel '
           '(his rule: nothing raw on a screen)',
-          comps == {'class-rows-table', 'api-structured-panel'}, sorted(comps))
+          comps == {'class-rows-table', 'api-structured-panel', 'pipeline-setup-panel'}, sorted(comps))
+    check('  …and that one panel is used ONLY on the wizard page: everywhere else is still a configured table '
+          'or the structured panel',
+          {page['name'] for page in SEED_CICD_PAGE_DISPLAYS
+           for r in json.loads(page['definition'])['rows'] for it in r['items']
+           if it['componentProps']['componentName'] == 'pipeline-setup-panel'} == {'cicd-setup'})
     tables = {it['componentProps']['inputs']['className']
               for page in SEED_CICD_PAGE_DISPLAYS
               for r in json.loads(page['definition'])['rows'] for it in r['items']
@@ -728,9 +735,9 @@ def _manifest_checks():
     from moduleService.manifests import validate
     problems = validate(man)
     check('the manifest is valid against the standard (moduleService.manifests.validate)', problems == [], problems)
-    check('the manifest declares the seven classes plus the API, the endpoints constructor, the seed pairs '
+    check('the manifest declares the eight classes plus the API, the endpoints constructor, the seed pairs '
           'and the pages',
-          len([c for c in man['classes'] if c != 'CicdAPI']) == 7
+          len([c for c in man['classes'] if c != 'CicdAPI']) == 8
           and man['endpoints'] == 'cicd.cicd_endpoints:construct_cicd_endpoints'
           and man['seedPairs'] == 'cicd.cicd_seed:CICD_SEED_PAIRS'
           and man['pages'] == ['cicd.cicd_page:SEED_CICD_PAGE_DISPLAYS'], man['classes'])
@@ -800,6 +807,146 @@ def _teardown_checks():
           'uninstall_verdict' in cols and 'leak_verdict' in cols and 'ram_delta_mb' in cols)
 
 
+# --------------------------------------- ci-11a: the setup protocol, mirrored, and the page that shows it
+def _setup_protocol_checks():
+    """THE WIZARD's half in Polari: the `setup` ingest kind, the door that reads it back, and the page.
+
+    The protocol itself is produced by `polari-jenkins/setup.sh --json` and tested by
+    `polari-jenkins/selftest.sh`. What is asserted HERE is the contract between the two: what the door
+    accepts, what it refuses, and that a secret VALUE cannot survive the trip.
+    """
+    from cicd.cicd_api import CicdAPI
+    from cicd.cicd_basis import PipelineDevice, PipelineSetupStep
+    from cicd.custom.cicd_auth import hash_token
+    from cicd.custom.cicd_ingest import KINDS, SETUP_PROTOCOL, check as ingest_check, setup_value_leak
+
+    TABLES = ('PipelineDevice', 'PipelineStage', 'PipelineRoute', 'PipelineSecretPresence',
+              'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'PipelineSetupStep')
+    m = _M(*TABLES)
+    api = CicdAPI(polServer=None, manager=m)
+    PipelineDevice(manager=m, name='pipe-1', ingest_token_hash=hash_token('tok-11a'))
+    hdr = {'X-Polari-CICD-Token': 'tok-11a'}
+
+    def step(name='role', index=1, state='todo', **kw):
+        out = {'name': name, 'index': index, 'total': 8, 'title': 'a step', 'state': state,
+               'explain': 'what this step is, in plain words',
+               'checks_json': json.dumps([{'name': 'submodules', 'value': 'all five populated',
+                                           'verdict': 'OK', 'fix': ''}]),
+               'questions_json': json.dumps([]), 'actions_json': json.dumps([]), 'where_json': json.dumps([])}
+        out.update(kw)
+        return out
+
+    def body(steps=None, **kw):
+        out = {'kind': 'setup', 'device': 'pipe-1', 'at': '2026-09-19T10:00:00',
+               'setup_protocol': SETUP_PROTOCOL, 'steps': steps if steps is not None else [step()],
+               'todo_json': json.dumps([{'step': 'network', 'text': 'put this device on a wire',
+                                         'command': 'nmcli con show'}]),
+               'complete': 1, 'steps_total': 8, 'ready': False, 'blocking': 'put this device on a wire'}
+        out.update(kw)
+        return out
+
+    check('the walkthrough is a MIRRORED kind, not a settings one: nothing a person edits here reaches '
+          'the device — `pol jenkins setup` runs on the device and a Polari core cannot run `pol`',
+          'setup' in KINDS and PipelineSetupStep in __import__(
+              'cicd.cicd_basis', fromlist=['x']).CICD_MIRROR_CLASSES)
+    check('the door names the ONE protocol it mirrors', SETUP_PROTOCOL == 'polari-pipeline-setup/1')
+    ok, why = ingest_check(body(setup_protocol='polari-pipeline-setup/2'))
+    check('a body declaring a DIFFERENT protocol is refused — a front end that read another version would '
+          'render a step it does not understand', not ok and 'polari-pipeline-setup/1' in why, why)
+    ok, why = ingest_check(body(steps=[step(state='nearly')]))
+    check('an unknown step state is refused, naming the four', not ok and 'blocked' in why and 'skipped' in why, why)
+    ok, why = ingest_check(body(steps=[dict(step(), checks=[{'name': 'submodules'}])]))
+    check('a step posting NESTED sub-structures is refused, naming the four *_json columns it should have '
+          'used instead', not ok and 'JSON STRINGS' in why and 'checks' in why, why)
+    ok, why = ingest_check(body(steps=[{'name': 'role', 'state': 'todo',
+                                        'questions': [{'key': 'CI_MODE'}]}]))
+    check('  …and a nested QUESTION is caught even earlier, by the generic value-shaped-key guard — because '
+          'a question\'s key is literally `key`. That is exactly why these columns are strings.',
+          not ok and 'steps[0].questions[0].key' in why, why)
+
+    # ---- the one refusal this kind exists to make
+    leaky = step(questions_json=json.dumps([{'key': 'github/github_token', 'kind': 'secret',
+                                             'answered': 'ghp_realtokenvalue'}]))
+    ok, why = ingest_check(body(steps=[leaky]))
+    check('a SECRET question carrying anything but `present` is REFUSED and nothing is stored — a dropped '
+          'field is a leak that happened to miss, a refusal is a leak that could not start',
+          not ok and 'present' in why, why)
+    check('  …and the refusal NAMES the question, so the poster can fix its payload',
+          'github/github_token' in (why or ''), why)
+    check('  …the refusal text never repeats the value it refused', 'ghp_realtokenvalue' not in (why or ''))
+    ok, _ = ingest_check(body(steps=[step(questions_json=json.dumps(
+        [{'key': 'github/github_token', 'kind': 'secret', 'answered': 'present'}]))]))
+    check('  …`present` is accepted: presence is exactly what a page may know about a secret', ok)
+    check('  …a secret question carrying a DEFAULT is refused too (a secret has no default)',
+          setup_value_leak([step(questions_json=json.dumps(
+              [{'key': 'x/y', 'kind': 'secret', 'default': 'seed', 'answered': ''}]))]) is not None)
+    check('  …a non-secret question is left alone: an answered CI_MODE is a knob, not a value',
+          setup_value_leak([step(questions_json=json.dumps(
+              [{'key': 'CI_MODE', 'kind': 'choice', 'answered': 'suite'}]))]) is None)
+
+    # ---- the round trip
+    res = _Res()
+    api.on_post_ingest(_Req(media=body(steps=[step('role', 1, 'done'),
+                                              step('network', 3, 'blocked')]), headers=hdr), res)
+    check('a well-formed walkthrough is stored, one row per step',
+          res.media.get('ok') and res.media.get('steps') == 2, res.media)
+    check('  …the answer points at the door that reads it back',
+          res.media.get('read_it_back') == '/api/cicd/setup?device=pipe-1', res.media)
+    dev = _named(m, 'PipelineDevice', 'pipe-1')
+    check('  …and the DOCUMENT-level state lands on the device row: what is blocking, and the to-do list',
+          getattr(dev, 'setup_blocking') == 'put this device on a wire'
+          and json.loads(getattr(dev, 'setup_todo_json'))[0]['step'] == 'network', dev)
+
+    res = _Res(); api.on_get_setup(_Req(device='pipe-1'), res)
+    doc = res.media
+    check('GET /api/cicd/setup answers the protocol document, reassembled from the rows',
+          doc['protocol'] == SETUP_PROTOCOL and [s['name'] for s in doc['steps']] == ['role', 'network'], doc)
+    check('  …with the four sub-structures re-nested as lists, not as the strings they travelled as',
+          isinstance(doc['steps'][0]['checks'], list)
+          and doc['steps'][0]['checks'][0]['verdict'] == 'OK', doc['steps'][0])
+    check('  …and it says LIVE: FALSE — it is the last push, never a live reading, and the page says so '
+          'instead of implying it just ran', doc['live'] is False and 'MIRROR' in doc['how'])
+    check('  …the summary carries what the device computed, not a recount here',
+          doc['summary'] == {'complete': 1, 'total': 8, 'ready': False,
+                             'blocking': 'put this device on a wire'}, doc['summary'])
+    check('  …the steps come back in the device\'s order, by index',
+          [s['index'] for s in doc['steps']] == [1, 3], doc['steps'])
+
+    m2 = _M(*TABLES)
+    api2 = CicdAPI(polServer=None, manager=m2)
+    PipelineDevice(manager=m2, name='fresh')
+    res = _Res(); api2.on_get_setup(_Req(device='fresh'), res)
+    check('a device that has never pushed gets an empty document and the exact command that fixes it — '
+          'not an error, and not a pretence that the core could run it',
+          res.media['ok'] and res.media['steps'] == [] and 'pol jenkins sync push' in res.media['how'],
+          res.media)
+
+    # ---- the page
+    from cicd.cicd_page import SEED_CICD_PAGE_DISPLAYS
+    page = [p for p in SEED_CICD_PAGE_DISPLAYS if p['name'] == 'cicd-setup'][0]
+    items = [it for r in json.loads(page['definition'])['rows'] for it in r['items']]
+    panel = [it for it in items if it['componentProps']['componentName'] == 'pipeline-setup-panel']
+    check('the wizard page exists at /display/cicd-setup and is sourced from the mirrored steps',
+          page['pageRoute'] == 'cicd-setup' and page['source_class'] == 'PipelineSetupStep')
+    check('  …it carries EXACTLY ONE of the new panel — the whole walkthrough, not one panel per step',
+          len(panel) == 1, [it['id'] for it in panel])
+    check('  …the panel is pointed at the mirror door, so a browser with no shell still renders something',
+          panel[0]['componentProps']['inputs']['path'] == '/api/cicd/setup')
+    check('  …and every OTHER item on the page is a configured table or the structured panel (his rule)',
+          {it['componentProps']['componentName'] for it in items if it not in panel}
+          == {'class-rows-table', 'api-structured-panel'})
+    check('  …the page shows secret PRESENCE and where to get each one — the one thing a person actually '
+          'needs from a screen — and no column that could hold a value',
+          any(it['componentProps']['inputs'].get('className') == 'PipelineSecretPresence'
+              and 'where_to_get' in it['componentProps']['inputs']['columns'] for it in items))
+    check('PipelineSetupStep has no value-shaped field, like every other row class here',
+          not [p for p in inspect.signature(PipelineSetupStep.__init__).parameters
+               if __import__('cicd.custom.cicd_ingest', fromlist=['x']).VALUE_LIKE.search(p)],
+          list(inspect.signature(PipelineSetupStep.__init__).parameters))
+    check('  …and it declares its state vocabulary rather than leaving it to a string anybody invents',
+          PipelineSetupStep.STATES == ('done', 'todo', 'blocked', 'skipped'))
+
+
 def main():
     print('cicd_selftest — the rows, the ONE rule set, the two modes, the mirror\'s refusals, the token')
     print('-- the rows')
@@ -816,6 +963,8 @@ def main():
     _admin_checks()
     print('-- the §54 route guard')
     _route_guard_checks()
+    print('-- ci-11a: the setup walkthrough, mirrored in, and the page that shows it')
+    _setup_protocol_checks()
     print('-- the pages and the seed')
     _page_seed_checks()
     print('-- the manifest and the admission knob')

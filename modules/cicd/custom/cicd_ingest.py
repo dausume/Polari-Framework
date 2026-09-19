@@ -3,10 +3,11 @@
 
 THE MIRROR — what `POST /api/cicd/ingest` accepts, and everything it refuses.
 
-FIVE KINDS, and nothing else: `device` (the device reporting its own readings), `secrets` (presence, never
-a value), `run` (a Jenkins build at start and at end), `isle-test` (one stage of one run) and `release`
-(what a version was allowed to ship, and what it was not). An unknown kind is a 400 naming the five — never
-a shrug, and never a row written from a body nobody designed.
+SIX KINDS, and nothing else: `device` (the device reporting its own readings), `secrets` (presence, never
+a value), `run` (a Jenkins build at start and at end), `isle-test` (one stage of one run), `release` (what a
+version was allowed to ship, and what it was not) and `setup` (ci-11a — the walkthrough `pol jenkins setup
+--json` produced on that device). An unknown kind is a 400 naming the six — never a shrug, and never a row
+written from a body nobody designed.
 
 THREE REFUSALS THAT MATTER:
 
@@ -31,7 +32,10 @@ import json
 import re
 
 #: the only kinds the door accepts
-KINDS = ('device', 'secrets', 'run', 'isle-test', 'release')
+#: `setup` (ci-11a) is the walkthrough itself — the document `pol jenkins setup --json` produced on the
+#: device, so a browser with no desktop shell can still see where that device got to. The core cannot run
+#: `pol`; only the device can, and this is the one way that state arrives.
+KINDS = ('device', 'secrets', 'run', 'isle-test', 'release', 'setup')
 
 #: a field name that could carry a secret. Matched on the key itself and on any `_`-suffixed form.
 VALUE_LIKE = re.compile(r'(?:^|_)(value|token|key|secret|password|passphrase|credential|privkey)s?$', re.I)
@@ -40,6 +44,64 @@ VALUE_LIKE_EXEMPT = frozenset({'secret_name'})
 
 #: a run's console URL must be the controller's own loopback UI
 _LOOPBACK = re.compile(r'^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(/|$)', re.I)
+
+#: the ONE machine protocol this door mirrors (polari-jenkins/setup/protocol.py emits it)
+SETUP_PROTOCOL = 'polari-pipeline-setup/1'
+#: what a `secret` question may say about itself, and nothing else
+SECRET_ANSWERS = ('', 'present')
+
+
+def setup_value_leak(steps):
+    """A setup post that smuggles a secret VALUE, named — or None.
+
+    The generic value-shaped-key guard cannot see inside `questions_json`, because it is a string. This is
+    the guard for what the string contains: a question of kind `secret` may answer `present` or nothing.
+    Anything else is refused and nothing is stored, the same posture as every other refusal here — a
+    dropped field is a leak that happened to miss, a refusal is a leak that could not start.
+    """
+    for s in steps:
+        try:
+            questions = json.loads(str(s.get('questions_json') or '[]'))
+        except ValueError:
+            return 'step %r posted questions_json that is not JSON' % s.get('name')
+        if not isinstance(questions, list):
+            return 'step %r posted a questions_json that is not a list' % s.get('name')
+        for q in questions:
+            if not isinstance(q, dict) or str(q.get('kind') or '') != 'secret':
+                continue
+            answered = str(q.get('answered') or '')
+            if answered not in SECRET_ANSWERS:
+                return ('step %r question %r is a SECRET and carries an answer that is not %s'
+                        % (s.get('name'), q.get('key'), ' or '.join(repr(a) for a in SECRET_ANSWERS)))
+            if str(q.get('default') or ''):
+                return ('step %r question %r is a SECRET and carries a default — a secret has no default'
+                        % (s.get('name'), q.get('key')))
+    return None
+
+
+def setup_step_rows(body, posted_by=''):
+    """A `setup` post → PipelineSetupStep rows, one per step of the walkthrough.
+
+    Verbatim: Polari STORES what the device computed and never re-derives it. The device is the only
+    machine that can run `pol jenkins setup`, so a second opinion here would be a guess.
+    """
+    device = str(body.get('device')).strip()
+    at = str(body.get('at') or '')
+    out = []
+    for s in body.get('steps') or []:
+        step = str(s.get('name') or '')
+        out.append({
+            'name': '%s:%s' % (device, step), 'device': device, 'step': step,
+            'index': _int(s.get('index')), 'total': _int(s.get('total'), 8),
+            'title': str(s.get('title') or ''), 'state': str(s.get('state') or 'todo'),
+            'explain': str(s.get('explain') or ''),
+            'checks_json': str(s.get('checks_json') or '[]'),
+            'questions_json': str(s.get('questions_json') or '[]'),
+            'actions_json': str(s.get('actions_json') or '[]'),
+            'where_json': str(s.get('where_json') or '[]'),
+            'at': at, 'posted_by': posted_by,
+        })
+    return out
 
 
 def value_like_fields(body, path=''):
@@ -88,6 +150,31 @@ def check(body):
         return False, ('refused: an app-mode release must name the CORE release it was tested against '
                        '("tested_against": "release:<tag>") — a deb that passed against an unnamed core is '
                        'an unfalsifiable claim')
+    if kind == 'setup':
+        if str(body.get('setup_protocol') or '') != SETUP_PROTOCOL:
+            return False, ('refused: this door mirrors %r; the body declares %r. A front end that read a '
+                           'different protocol would render a step it does not understand.'
+                           % (SETUP_PROTOCOL, body.get('setup_protocol')))
+        steps = body.get('steps')
+        if not isinstance(steps, list) or not steps:
+            return False, 'a setup post carries the walkthrough\'s steps: {"steps": [{"name": …}, …]}'
+        from cicd.cicd_basis import PipelineSetupStep
+        for s in steps:
+            if not isinstance(s, dict) or not str(s.get('name') or '').strip():
+                return False, 'every step of a setup post names itself: {"name": "role", "index": 1, …}'
+            state = str(s.get('state') or '')
+            if state not in PipelineSetupStep.STATES:
+                return False, ('unknown step state %r — a step is one of: %s'
+                               % (state, ', '.join(PipelineSetupStep.STATES)))
+            bad = [k for k in s if k in ('checks', 'questions', 'actions', 'where')]
+            if bad:
+                return False, ('refused: a step posts its sub-structures as JSON STRINGS (%s), not as nested '
+                               'objects — the value-shaped-key guard cannot see inside a nested question, '
+                               'whose key is literally `key`. Offending: %s'
+                               % ('checks_json, questions_json, actions_json, where_json', ', '.join(sorted(bad))))
+        leak = setup_value_leak(steps)
+        if leak:
+            return False, ('refused: %s. A secret question carries `present` or nothing — never a value.' % leak)
     if kind == 'device':
         from cicd.custom.cicd_validate import alias_findings
         alias = str(((body.get('settings') or {}) if isinstance(body.get('settings'), dict) else {}).get('isle_ssh_alias') or '')
