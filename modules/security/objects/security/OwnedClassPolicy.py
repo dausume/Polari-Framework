@@ -43,6 +43,11 @@ class OwnedClassPolicy(treeObject):
     TRANSFER_MODES = ('nobody', 'admin', 'owner')
     #: who an owner may grant to, when `owner_may_grant` (op-1)
     GRANTEE_KINDS = ('group', 'person')
+    #: op-4: who wrote this row. `manifest` is re-derived from the module's `app.owned` stanza on every read;
+    #: `admin` is a person's decision and is NEVER overwritten by a derivation (the `RoleAppBinding` discipline,
+    #: §57). An empty value is an op-0 seeded row and is treated as re-derivable, because the seed IS the
+    #: derivation's earlier spelling of the same policy.
+    SOURCES = ('manifest', 'admin')
 
     @treeObjectInit
     def __init__(self, name: str = '', class_name: str = '', enabled: bool = False,
@@ -51,7 +56,7 @@ class OwnedClassPolicy(treeObject):
                  owner_visible: bool = False, owner_may_grant: bool = False,
                  grantable_verbs_json: str = '[]', grantee_kinds_json: str = '[]',
                  frozen_when: str = '', transfer: str = 'nobody', anonymised: bool = False,
-                 owner_field: str = 'owner', notes: str = ''):
+                 owner_field: str = 'owner', source: str = '', derived_from: str = '', notes: str = ''):
         self.name = name                              # the row id — the class name
         self.class_name = class_name                  # the opted-in class
         self.enabled = enabled                        # the opt-in itself; False = the class is object-defined only
@@ -66,4 +71,6 @@ class OwnedClassPolicy(treeObject):
         self.transfer = transfer                      # nobody | admin | owner
         self.anonymised = anonymised                  # op-2: owner_visible false + the side-channel suppressions
         self.owner_field = owner_field                # the column that holds the owner's `sub` (see the docstring)
+        self.source = source                          # op-4: manifest | admin ('' = the op-0 seed, re-derivable)
+        self.derived_from = derived_from              # op-4: the module whose `app.owned` stanza declared it
         self.notes = notes

@@ -165,6 +165,133 @@ def role_findings(roles):
     return out
 
 
+#: app.owned (op-4; OWNER_DEFINED_PERMISSIONS_DESIGN.md §7): the classes this module opts in to OWNER-DEFINED
+#: permissions, with the bounds the class sets. HAND-SET like `app.roles` and `app.flows`: nothing derives which
+#: of a module's classes belong to the person who created the row, so a regeneration must never drop it.
+#: Converged into `OwnedClassPolicy` rows on every read of the owner doors, NEVER overwriting a policy an
+#: administrator set (`security.custom.security_owned_manifest`). The vocabulary mirrors the row class exactly,
+#: and the security selftest checks the two lists still agree.
+OWNED_VERBS = ('read', 'update', 'delete', 'events')
+OWNED_TRANSFER = ('nobody', 'admin', 'owner')
+OWNED_GRANTEE_KINDS = ('group', 'person')
+#: a projection is a NAMED SUBSET of a class's columns, not a second data model
+OWNED_FIELDS_MAX = 100
+OWNED_BOOLS = ('enabled', 'owner_visible', 'owner_may_grant', 'anonymised')
+OWNED_LISTS = ('owner_verbs', 'others_verbs', 'others_fields', 'grantable_verbs', 'grantee_kinds')
+OWNED_KEYS = ('class', 'enabled', 'owner_field', 'frozen_when', 'transfer', 'notes') + OWNED_BOOLS + OWNED_LISTS
+
+
+def owned_findings(owned):
+    """Findings for a manifest's OPTIONAL `app.owned` list ([] = fine, including absent) — design §7.
+
+    One entry per opted-in class: `{class, owner_verbs, others_verbs, others_fields, owner_visible,
+    owner_may_grant, grantable_verbs, grantee_kinds, frozen_when, transfer, anonymised}` — the same keys as
+    the row, plus `owner_field` (op-0's one addition: the column that already holds the person's `sub`) and a
+    free-text `notes`. Absent is the normal case and is never a finding: owner-defined permissions are OPT-IN
+    per class and object-defined stays the default for everything else.
+
+    The refusals worth naming out loud:
+      * `create` in any verb list — an instance has no owner until it exists, so creation is the class door's
+        business (the same rule `set_policy` enforces at the admin door);
+      * `anonymised` beside `owner_visible: true`, or beside a `transfer` other than `nobody` — a contradiction
+        the runtime silently resolves in favour of the anonymity, so the manifest is told rather than surprised;
+      * `owner_may_grant` with no `grantable_verbs` (a grant that can carry nothing) and `grantable_verbs`
+        without `owner_may_grant` (bounds on a sharing the class forbids) — both are the author meaning one
+        thing and writing the other."""
+    if owned is None:
+        return []
+    if not isinstance(owned, list):
+        return ['app.owned must be a list of {class, …} objects (omit the key when there are none)']
+    out = []
+    seen = set()
+    for entry in owned:
+        if not isinstance(entry, dict):
+            out.append('app.owned entries must be objects {class, …}, got %r' % (entry,))
+            continue
+        cls = entry.get('class')
+        if not isinstance(cls, str) or not cls.strip():
+            out.append('app.owned `class` must be the opted-in class name, got %r' % (cls,))
+            cls = ''
+        elif cls != cls.strip():
+            out.append('app.owned class %r has surrounding whitespace' % (cls,))
+        elif not cls.replace('_', '').isalnum():
+            out.append('app.owned class %r is not a plain class name' % (cls,))
+        for key in entry:
+            if key not in OWNED_KEYS:
+                out.append('app.owned[%s] has no key %r (known: %s)' % (cls or '?', key, ', '.join(sorted(OWNED_KEYS))))
+        for key in OWNED_BOOLS:
+            if key in entry and not isinstance(entry[key], bool):
+                out.append('app.owned[%s].%s must be true or false, got %r' % (cls or '?', key, entry[key]))
+        for key in OWNED_LISTS:
+            value = entry.get(key)
+            if value is None:
+                continue
+            if not isinstance(value, list):
+                out.append('app.owned[%s].%s must be a list, got %r' % (cls or '?', key, value))
+                continue
+            for item in value:
+                if not isinstance(item, str) or not item.strip():
+                    out.append('app.owned[%s].%s entries must be non-empty strings, got %r' % (cls or '?', key, item))
+            if key in ('owner_verbs', 'others_verbs', 'grantable_verbs'):
+                bad = [v for v in value if isinstance(v, str) and v not in OWNED_VERBS]
+                if bad:
+                    out.append('app.owned[%s].%s may only name %s (got %s)%s'
+                               % (cls or '?', key, ', '.join(OWNED_VERBS), ', '.join(bad),
+                                  ' — `create` is the class door\'s business: an instance has no owner until it '
+                                  'exists' if 'create' in bad else ''))
+            if key == 'grantee_kinds':
+                bad = [v for v in value if isinstance(v, str) and v not in OWNED_GRANTEE_KINDS]
+                if bad:
+                    out.append('app.owned[%s].grantee_kinds may only name %s (got %s)'
+                               % (cls or '?', ', '.join(OWNED_GRANTEE_KINDS), ', '.join(bad)))
+            if key == 'others_fields' and len(value) > OWNED_FIELDS_MAX:
+                out.append('app.owned[%s].others_fields names %d columns; %d is the most a projection may carry'
+                           % (cls or '?', len(value), OWNED_FIELDS_MAX))
+        transfer = entry.get('transfer', 'nobody')
+        if transfer not in OWNED_TRANSFER:
+            out.append('app.owned[%s].transfer %r is not one of %s' % (cls or '?', transfer, OWNED_TRANSFER))
+        owner_field = entry.get('owner_field', 'owner')
+        if not isinstance(owner_field, str) or not owner_field.replace('_', '').isalnum():
+            out.append('app.owned[%s].owner_field %r must be the plain name of the column that holds the '
+                       'owner\'s Keycloak sub' % (cls or '?', owner_field))
+        frozen = entry.get('frozen_when')
+        if frozen is not None:
+            if isinstance(frozen, dict):
+                if not frozen.get('class') or not frozen.get('field'):
+                    out.append('app.owned[%s].frozen_when needs `class` and `field` (e.g. {"class": "VoteRecord", '
+                               '"field": "state", "in": ["tallied", "certified"]})' % (cls or '?',))
+                if sum(1 for k in ('in', 'eq', 'ne') if k in frozen) != 1:
+                    out.append('app.owned[%s].frozen_when needs exactly one of `in`, `eq`, `ne`' % (cls or '?',))
+                if 'in' in frozen and not isinstance(frozen['in'], list):
+                    out.append('app.owned[%s].frozen_when `in` must be a list of values' % (cls or '?',))
+            elif not isinstance(frozen, str):
+                out.append('app.owned[%s].frozen_when must be the sentence form ("VoteRecord.state in (tallied, '
+                           'certified) via vote_record_id") or the object form {class, field, in|eq|ne, via}, '
+                           'got %r' % (cls or '?', frozen))
+        if entry.get('anonymised'):
+            if entry.get('owner_visible'):
+                out.append('app.owned[%s] is anonymised AND owner_visible — anonymised IS owner_visible false '
+                           'plus the broadcast/journal/event suppressions (design §5); say one thing' % (cls or '?',))
+            if transfer != 'nobody':
+                out.append('app.owned[%s] is anonymised with transfer %r — an anonymised class never transfers '
+                           'its owner (design §8): a transfer names the old owner and the new one in one act'
+                           % (cls or '?', transfer))
+        if entry.get('owner_may_grant') and not (entry.get('grantable_verbs') or []):
+            out.append('app.owned[%s] sets owner_may_grant with no grantable_verbs — the owner could share '
+                       'nothing; name the verbs, or drop owner_may_grant' % (cls or '?',))
+        if (entry.get('grantable_verbs') or []) and not entry.get('owner_may_grant'):
+            out.append('app.owned[%s] bounds grantable_verbs but does not set owner_may_grant — the bounds '
+                       'apply to a sharing the class forbids' % (cls or '?',))
+        if entry.get('owner_may_grant') and not (entry.get('grantee_kinds') or []):
+            out.append('app.owned[%s] sets owner_may_grant with no grantee_kinds — name `group`, `person` or '
+                       'both' % (cls or '?',))
+        if cls and cls in seen:
+            out.append('app.owned declares %r twice — one policy per class' % cls)
+        if cls:
+            seen.add(cls)
+    return out
+
+
 def security_findings(sec):
     """Conform findings for a manifest's security stanza ([] = fine)."""
     out = []
@@ -488,8 +615,11 @@ def _preserve_hand_set(pkg, manifest):
         app = dict(manifest['app'])
         # `roles` joins the hand-set keys (his ask 2026-09-18): nothing derives which roles a capability serves,
         # so a regeneration must never drop it. `flows` joins them for the same reason (ct-7, design §9):
-        # nothing can derive where an app's rows are MEANT to go — only where they were seen going.
-        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles', 'flows')})
+        # nothing can derive where an app's rows are MEANT to go — only where they were seen going. `owned`
+        # joins them too (op-4, design §7): nothing can derive which of a module's classes belong to the person
+        # who created the row, and dropping the stanza would quietly un-opt a class from owner-defined
+        # permissions on the next regeneration.
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles', 'flows', 'owned')})
         manifest['app'] = app
     return manifest
 
@@ -527,6 +657,7 @@ def validate(manifest):
         problems.append('hardware kinds need app.agentTier = hardware')
     problems.extend(role_findings(app.get('roles')))
     problems.extend(flow_findings(app.get('flows')))
+    problems.extend(owned_findings(app.get('owned')))
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:

@@ -1269,8 +1269,9 @@ class polariServer(treeObject):
             SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal,
             MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet,
             TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, SshCapability, DeviceInventory, SshPermissionLevel,
-            # op-0: owner-defined permissions — the per-class opt-in
-            OwnedClassPolicy,
+            # op-0: owner-defined permissions — the per-class opt-in;
+            # op-1: one owner sharing ONE of their own instances
+            OwnedClassPolicy, OwnerGrant,
             # ct-1: causal tracing — the one armed target and the causal map
             TraceTarget, CausalEdge,
             # ct-9: the traffic policies — what may leave and who may call,

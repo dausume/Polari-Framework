@@ -453,16 +453,22 @@ def _owned_checks(api, O, _Res, _types, check):
     def _mode(m):
         os.environ['POLARI_APP_PERMISSIONS'] = m
 
-    # ---- the seed: opt-in means the list is deliberately ONE row long
+    # ---- the seed: op-0 seeded UserAppPreference here; op-4 moved that declaration to the manifest of the
+    # module that OWNS the class, so the security module now seeds NO policy at all and opts in nobody else's
+    # classes. One source of truth, and it is the module that defines the class.
+    import json as _json_owned
     from security.security_seed import SEED_OWNED_CLASS_POLICIES
-    seed = SEED_OWNED_CLASS_POLICIES
-    check('op-0 seed: exactly one OwnedClassPolicy row — owner-defined permissions are OPT-IN per class (his '
-          '"not something we enable by default"), and UserAppPreference (§57) is the first class to take it: '
-          'owner reads/updates/deletes, others_verbs [] so nobody else sees the row at all, owner_field `sub` '
-          'because that class already keys its person by the Keycloak sub',
-          len(seed) == 1 and seed[0]['class_name'] == 'UserAppPreference' and seed[0]['enabled'] is True
-          and seed[0]['owner_field'] == 'sub' and seed[0]['others_verbs_json'] == '[]'
-          and seed[0]['owner_visible'] is False, seed)
+    _apps_owned = _json_owned.load(open('modules/polariapps/polari-app.json', encoding='utf-8'))['app']['owned']
+    _pref = next((e for e in _apps_owned if e['class'] == 'UserAppPreference'), None)
+    check('op-4 replaces the op-0 seed with a DECLARATION: `security` seeds no OwnedClassPolicy at all (it '
+          'ships the mechanism and opts in nobody else\'s classes), and `polariapps` — the module that defines '
+          'UserAppPreference — declares it in `app.owned`. Owner reads/updates/deletes; others_verbs [] so '
+          'nobody else sees the row at all; owner_field `sub`, the column that class already keys its person '
+          'by (the per-class schema freeze)',
+          SEED_OWNED_CLASS_POLICIES == [] and _pref is not None and _pref['enabled'] is True
+          and _pref['owner_field'] == 'sub' and _pref['others_verbs'] == []
+          and _pref['owner_visible'] is False and _pref['owner_may_grant'] is False
+          and _pref['transfer'] == 'nobody', (SEED_OWNED_CLASS_POLICIES, _pref))
 
     old_env = dict(os.environ)
     try:
@@ -708,16 +714,525 @@ def _owned_checks(api, O, _Res, _types, check):
         from security.security_api import SecurityAPI as _API
         probe = _API(polServer=srv, manager=None)
         owned_routes = [(u, s) for u, s in srv.falconServer.routes if u.startswith('/api/security/owned')]
-        check('§54 guard: the three owner doors register and each has its on_<method>_<suffix> responder — a '
+        check('§54 guard: the FIVE owner doors register and each has its on_<method>_<suffix> responder — a '
               'suffix that has drifted from its method name RAISES from add_route() and takes the backend down '
               'at boot, so it is proven here rather than in a browser',
               owned_routes == [('/api/security/owned', 'owned'),
                                ('/api/security/owned/{class_name}', 'owned_class'),
-                               ('/api/security/owned/{class_name}/{object_id}', 'owned_instance')]
+                               ('/api/security/owned/{class_name}/{object_id}', 'owned_instance'),
+                               ('/api/security/owned/{class_name}/{object_id}/grants', 'owned_grants'),
+                               ('/api/security/owned/{class_name}/{object_id}/transfer', 'owned_transfer')]
               and all(any(hasattr(probe, 'on_%s_%s' % (mm, s)) for mm in ('get', 'post', 'put', 'delete'))
-                      for _u, s in owned_routes), owned_routes)
+                      for _u, s in owned_routes)
+              and all(hasattr(probe, 'on_%s_owned_grants' % mm) for mm in ('get', 'post', 'delete')),
+              owned_routes)
     finally:
         os.environ.clear(); os.environ.update(old_env)
+
+
+def _grant_checks(api, O, _Res, _types, check):
+    """op-1 — OWNER GRANTS: one owner sharing ONE of their own instances, inside the bounds the class set.
+
+    Design §2 (the row), §3 step 3 (the verdict), §6 (the doors and the Sharing tab). The proof the design asks
+    for is *a meal plan shared with one person by sub; expiry removes it* — which is what the middle of this
+    function is, with MealPlan standing in for any class an app opts in."""
+    import os
+    import time
+    from security.custom import security_owned as W
+    from security.custom import security_owner_grants as G
+
+    OWNER = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'
+    FRIEND = 'bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb'
+    STRANGER = 'cccccccc-1111-4111-8111-cccccccccccc'
+    owner_ui = {'sub': OWNER, 'preferred_username': 'demo-owner', 'roles': ['household'], 'raw_claims': {'groups': ['household']}}
+    friend_ui = {'sub': FRIEND, 'preferred_username': 'demo-friend', 'roles': ['household'], 'raw_claims': {'groups': ['household']}}
+    stranger_ui = {'sub': STRANGER, 'roles': ['household'], 'raw_claims': {'groups': ['household']}}
+    admin_ui = {'sub': 'dddddddd-1111-4111-8111-dddddddddddd', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+
+    class MealPlan:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class _M:
+        pass
+
+    class _ReqG:
+        def __init__(self, ui, media=None, **p):
+            self.params = p; self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    old_env = dict(os.environ)
+    try:
+        os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+        m = _M()
+        m.objectTables = {'OwnedClassPolicy': {}, 'OwnerGrant': {}, 'SecurityEvent': {}, 'MealPlan': {}}
+        m.persistTree = lambda: None
+        plan = MealPlan(id='mp-1', name='week-40', owner=OWNER, title='Week 40', notes='private',
+                        servings=4, cost='42.00')
+        other = MealPlan(id='mp-2', name='week-41', owner=STRANGER, title='Week 41', notes='theirs',
+                         servings=2, cost='19.00')
+        m.objectTables['MealPlan'] = {'mp-1': plan, 'mp-2': other}
+        W.set_policy(m, 'MealPlan', {
+            'enabled': True, 'owner_verbs': ['read', 'update', 'delete'], 'others_verbs': [],
+            'others_fields': [], 'owner_visible': False, 'owner_may_grant': True,
+            'grantable_verbs': ['read', 'update'], 'grantee_kinds': ['person', 'group']}, by='admin-0')
+        pol = W.policy_for(m, 'MealPlan')
+
+        # ---- a class that forbids sharing has no tab and no grant
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read'], 'others_verbs': ['read'],
+                                   'others_fields': ['choice'], 'anonymised': True}, by='admin-0')
+        sh_ballot = G.sharing(m, owner_ui, 'Ballot', 'nope')
+        check('a class whose policy forbids grants has NO Sharing tab (design §6: "a ballot\'s page has no '
+              'Sharing tab because its policy forbids grants") — and asking for one is an honest 404 on the '
+              'instance, not a silent empty list',
+              sh_ballot.get('ok') is False and sh_ballot.get('status') == 404, sh_ballot)
+
+        # ---- THE PROOF: one meal plan, shared with ONE person, by sub
+        before = W.owner_verdict(m, friend_ui, 'read', plan)
+        r = G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+            'grantee_kind': 'person', 'grantee': FRIEND, 'verbs': ['read'],
+            'fields': ['title', 'servings']})
+        after = W.owner_verdict(m, friend_ui, 'read', plan)
+        check('THE op-1 PROOF: a meal plan the owner shares with ONE person BY SUB. Before the grant that '
+              'person may not read the row at all (others_verbs []); after it they may, PROJECTED to the '
+              'fields the grant named, and the verdict names the grant that decided — `grant:<id>`, not a '
+              'blanket allow',
+              before['allowed'] is False and r['ok'] is True and after['allowed'] is True
+              and after['rule'].startswith('grant:') and after['projected_fields'] == ['title', 'servings']
+              and 'owner' not in (after['projected_fields'] or []), (before['rule'], r.get('refusal'), after))
+        check('...and NOBODY ELSE gains anything by it: a third person in the same Keycloak group is still '
+              'refused, because a grant names ONE grantee and is not a class-level widening',
+              W.owner_verdict(m, stranger_ui, 'read', plan)['allowed'] is False)
+        check('the grant is stored with the sub in its OWN column (`grantee_sub`), never in the one that holds '
+              'a group name — the `person` column format shortens a cell to 8 characters to resolve it live, '
+              'and a group name in that column would render as `househol`',
+              r['grant']['grantee_sub'] == FRIEND and r['grant']['grantee_group'] == ''
+              and r['grant']['grantee'] == FRIEND and r['grant']['granted_by'] == OWNER, r['grant'])
+
+        # ---- EXPIRY REMOVES IT (design §9 op-1: "expiry removes it")
+        past = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - 60))
+        soon = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() + 1))
+        r_past = G.grant(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'person', 'grantee': FRIEND,
+                                                           'verbs': ['read'], 'valid_until': past})
+        r_soon = G.grant(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'person', 'grantee': FRIEND,
+                                                           'verbs': ['read'], 'fields': ['title'],
+                                                           'valid_until': soon})
+        live = W.owner_verdict(m, friend_ui, 'read', plan)['allowed']
+        time.sleep(1.2)
+        dead = W.owner_verdict(m, friend_ui, 'read', plan)
+        listed = G.grants_for(m, 'MealPlan', 'mp-1')
+        check('EXPIRY removes it: a `valid_until` already in the past is refused at the door (that is a revoke, '
+              'not a grant); a grant that expires while it is held stops deciding the INSTANT it expires — the '
+              'verdict checks the clock, it does not wait for housekeeping — and reading the instance\'s '
+              'grants then PRUNES the dead row rather than leaving a tail of dead permissions',
+              r_past['ok'] is False and 'past' in r_past['refusal'] and r_soon['ok'] is True
+              and live is True and dead['allowed'] is False and listed == [],
+              (r_past.get('refusal'), live, dead['rule'], listed))
+
+        # ---- THE BOUNDS, each refused with the reason
+        G.grant(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'person', 'grantee': FRIEND, 'verbs': ['read']})
+        refusals = {
+            'verb outside the bounds': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': FRIEND, 'verbs': ['delete']}),
+            'a kind the class does not allow': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'nobody', 'grantee': FRIEND, 'verbs': ['read']}),
+            'a username instead of a sub': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': 'demo-friend', 'verbs': ['read']}),
+            'a grant to yourself': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': OWNER, 'verbs': ['read']}),
+            'a field the class has not got': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': FRIEND, 'verbs': ['read'], 'fields': ['salary']}),
+            'somebody else\'s row': G.grant(m, friend_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': STRANGER, 'verbs': ['read']}),
+            'an unreadable expiry': G.grant(m, owner_ui, 'MealPlan', 'mp-1', {
+                'grantee_kind': 'person', 'grantee': FRIEND, 'verbs': ['read'], 'valid_until': 'next tuesday'}),
+        }
+        check('every bound the class set is refused AT THE DOOR with the reason, never stored and quietly '
+              'ignored: a verb outside grantable_verbs, a grantee_kind the class does not allow, a USERNAME '
+              'where a Keycloak sub belongs (D18-1), a grant to yourself (the owner floor written twice), a '
+              'field the class has not got, a grant made by somebody who does not own the row, and an expiry '
+              'that is not an instant',
+              all(v['ok'] is False and v['refusal'] for v in refusals.values())
+              and 'grantable_verbs' in refusals['verb outside the bounds']['refusal']
+              and 'subject id' in refusals['a username instead of a sub']['refusal']
+              and 'YOURSELF' in refusals['a grant to yourself']['refusal']
+              and refusals['somebody else\'s row']['status'] == 403,
+              {k: v.get('refusal', '')[:50] for k, v in refusals.items()})
+
+        # ---- a GROUP grant, and the union of fields
+        W.set_policy(m, 'MealPlan', {**{k: pol[k] for k in ('owner_verbs', 'grantable_verbs', 'grantee_kinds',
+                                                            'owner_may_grant', 'owner_visible')},
+                                     'enabled': True, 'others_verbs': ['read'], 'others_fields': ['title']},
+                     by='admin-0')
+        G.grant(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'group', 'grantee': 'household',
+                                                  'verbs': ['update'], 'fields': ['notes', 'cost']})
+        v_group = W.owner_verdict(m, stranger_ui, 'read', plan)
+        v_upd = W.owner_verdict(m, stranger_ui, 'update', plan)
+        check('a GROUP grant reaches everyone in that Keycloak group, and a read is projected to others_fields '
+              'UNIONED with the grant\'s fields (design §3 step 3) — the class shows `title` to anybody who '
+              'passed the class door, and this one row additionally shows `notes` and `cost` to the group the '
+              'owner shared it with. The `update` the grant carries is allowed by `grant:<id>`',
+              v_group['allowed'] is True and v_group['projected_fields'] == ['title', 'notes', 'cost']
+              and v_upd['allowed'] is True and v_upd['rule'].startswith('grant:'), (v_group, v_upd['rule']))
+        check('a group grant NEVER widens the class door: the gate runs first and this only decides inside its '
+              'answer — and the owner column is still dropped, because a grant cannot name a field the '
+              'policy hides (owner_visible false)',
+              'owner' not in (v_group['projected_fields'] or []))
+
+        # ---- revoke
+        rev = G.revoke(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'group', 'grantee': 'household'})
+        check('the owner takes a grant back and it stops deciding immediately; the remaining grants come back '
+              'with the answer so nobody has to ask twice',
+              rev['ok'] is True and W.owner_verdict(m, stranger_ui, 'update', plan)['allowed'] is False
+              and all(g['grantee_kind'] != 'group' for g in rev['remaining']), rev.get('refusal'))
+        check('an ADMIN may act on the grants of a row they do not own (they are outside the owner rules '
+              'anyway), and revoking a grant that is not there is an honest 404',
+              G.may_grant(m, admin_ui, 'MealPlan', plan)[0] is True
+              and G.revoke(m, owner_ui, 'MealPlan', 'mp-1', {'grantee_kind': 'group',
+                                                             'grantee': 'nobody'})['status'] == 404)
+
+        # ---- THE SHARING TAB (design §6): a configured table, not a component
+        sh = G.sharing(m, owner_ui, 'MealPlan', 'mp-1')
+        tab = sh['table']
+        check('THE SHARING TAB is DATA, not a component (his rule: no new component, nothing raw): one '
+              'CONFIGURED `class-rows-table` over OwnerGrant, filtered to THIS instance by object_id, with the '
+              'policy\'s bounds beside it. Both `person`-formatted columns hold a Keycloak sub and nothing '
+              'else — `grantee_group` is deliberately not one of them',
+              sh['ok'] and sh['show_tab'] is True and sh['you_may_share'] is True
+              and tab['componentProps']['componentName'] == 'class-rows-table'
+              and tab['componentProps']['inputs']['className'] == 'OwnerGrant'
+              and tab['componentProps']['inputs']['filterField'] == 'object_id'
+              and tab['componentProps']['inputs']['filterValue'] == 'mp-1'
+              and tab['componentProps']['inputs']['columnFormats'] == 'granted_by:person,grantee_sub:person'
+              and 'grantee_group:person' not in tab['componentProps']['inputs']['columnFormats'],
+              tab['componentProps']['inputs'])
+        check('...and the tab does not show for somebody who may not share: the grants are still listed (they '
+              'are the owner\'s decisions about a row this caller can see), but `you_may_share` is false with '
+              'the reason',
+              G.sharing(m, friend_ui, 'MealPlan', 'mp-1')['you_may_share'] is False
+              and 'OWNER' in G.sharing(m, friend_ui, 'MealPlan', 'mp-1')['why'])
+
+        # ---- the doors
+        api.manager = m
+        r = _Res(); api.on_get_owned_grants(_ReqG(owner_ui), r, 'MealPlan', 'mp-1')
+        check('GET /api/security/owned/<Class>/<id>/grants answers the tab whole: the grants, the bounds, '
+              'whether this caller may share, and the configured table',
+              r.media['ok'] and 'grants' in r.media and 'bounds' in r.media and 'table' in r.media)
+        r = _Res(); api.on_post_owned_grants(_ReqG(friend_ui, media={'grantee_kind': 'person',
+                                                                     'grantee': STRANGER, 'verbs': ['read']}),
+                                             r, 'MealPlan', 'mp-1')
+        check('POST from somebody who is not the owner is 403 with the rule that refused, not a 400',
+              r.status.startswith('403') and 'OWNER' in r.media['refusal'], r.media)
+        r = _Res(); api.on_delete_owned_grants(_ReqG(owner_ui, grantee_kind='person', grantee=FRIEND),
+                                               r, 'MealPlan', 'mp-1')
+        check('DELETE takes the grantee from the QUERY STRING as well as the body — a revoke is a link on a '
+              'page, and a link carries no body', r.media['ok'] and r.media['revoked']['grantee'] == FRIEND)
+        r = _Res(); api.on_get_owned_instance(_ReqG(owner_ui), r, 'MealPlan', 'mp-1')
+        check('the per-instance verdict door carries the Sharing tab\'s whole answer too (design §6): one '
+              'door, because a tab that asked twice would show the verdict and the grants from two different '
+              'moments', r.media['ok'] and 'sharing' in r.media and 'grants' in r.media
+              and r.media['sharing']['table']['componentProps']['inputs']['filterValue'] == 'mp-1')
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+
+
+def _anonymised_checks(api, O, _Res, _types, check):
+    """op-2 — ANONYMISED classes, frozen_when's structured form, and TRANSFER.
+
+    Design §5 names three side channels that name the person even when the owner column is hidden: the change
+    BROADCAST, the trace JOURNAL's actor/object pairing, and `SecurityEvent.target`. Two of them were closed by
+    ct-2 and ct-1 as they were built; this proves all three together, because "closed" is only true of the
+    three at once."""
+    import os
+    import tempfile
+    from security.custom import security_owned as W
+
+    VOTER = 'eeeeeeee-2222-4222-8222-eeeeeeeeeeee'
+    OTHER = 'ffffffff-2222-4222-8222-ffffffffffff'
+    voter_ui = {'sub': VOTER, 'roles': ['voters'], 'raw_claims': {'groups': ['voters']}}
+    admin_ui = {'sub': 'aaaa0000-2222-4222-8222-aaaa00000000', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+
+    class Ballot:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class VoteRecord:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class MealPlan:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class _M:
+        pass
+
+    class _ReqA:
+        def __init__(self, ui, media=None, **p):
+            self.params = p; self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    old_env = dict(os.environ)
+    try:
+        os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+        m = _M()
+        m.objectTables = {'OwnedClassPolicy': {}, 'OwnerGrant': {}, 'SecurityEvent': {}, 'Ballot': {},
+                          'VoteRecord': {}, 'MealPlan': {}}
+        m.persistTree = lambda: None
+        vr = VoteRecord(id='vr-9', name='election-9', state='open')
+        m.objectTables['VoteRecord']['vr-9'] = vr
+        b = Ballot(id='b-9', owner=VOTER, election_id='e-9', choice='yes', groups='voters',
+                   cast_at='2026-09-19T09:00:00Z', vote_record_id='vr-9')
+        m.objectTables['Ballot']['b-9'] = b
+
+        # ---- `anonymised` IS owner_visible false, whatever the row says beside it
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update'], 'others_verbs': ['read'],
+                                   'others_fields': ['election_id', 'choice', 'groups'],
+                                   'owner_visible': True, 'anonymised': True, 'transfer': 'owner'},
+                     by='admin-0')
+        pol = W.policy_for(m, 'Ballot')
+        check('op-2: `anonymised` is SHORTHAND (design §2) and is normalised where the policy is READ, not at '
+              'each of the half-dozen places that consume it — a row saying anonymised AND owner_visible AND '
+              'transfer: owner comes back with owner_visible FALSE and transfer NOBODY, so the owner cannot '
+              'leak through whichever half of the pair somebody forgot to check',
+              pol['anonymised'] is True and pol['owner_visible'] is False and pol['transfer'] == 'nobody'
+              and pol['transfer_declared'] == 'owner', pol)
+        check('...and the projection follows: another voter sees the contents and the groups of the ballot and '
+              'never the owner column, exactly as his sentence asks',
+              W.owner_verdict(m, {'sub': OTHER, 'roles': ['voters'], 'raw_claims': {'groups': ['voters']}},
+                              'read', b)['projected_fields'] == ['election_id', 'choice', 'groups'])
+
+        # ---- side channel 1: the change BROADCAST carries no ids (ct-2 built it; proven here)
+        import types as _t
+        from grpcbridge.custom import transport_mux as TM
+        published = []
+        fmt = _t.SimpleNamespace(polariTreeWsEnabled=True, flatJsonWsEnabled=False, nestedJsonWsEnabled=False,
+                                 polariTreeGrpcEnabled=False)
+        m.objectTypingDict = {'Ballot': _t.SimpleNamespace(apiFormatConfig=fmt),
+                              'MealPlan': _t.SimpleNamespace(apiFormatConfig=fmt)}
+        real_publish = TM.publish_change
+        TM.publish_change = lambda mgr, cls, topic, note: published.append((cls, topic, dict(note)))
+        try:
+            TM.publish_crude_change(m, 'Ballot', 'create', ['b-9'])
+            W.set_policy(m, 'MealPlan', {'enabled': True, 'owner_verbs': ['read'], 'others_verbs': ['read'],
+                                         'others_fields': ['title']}, by='admin-0')
+            TM.publish_crude_change(m, 'MealPlan', 'create', ['mp-1'])
+        finally:
+            TM.publish_change = real_publish
+        by_class = {c: n for c, _t_, n in published}
+        check('op-2 SIDE CHANNEL 1, the change BROADCAST (design §5): an ANONYMISED class publishes its class '
+              'and operation with NO instance ids, so "a Ballot was created at 14:02:07" cannot be paired with '
+              '"that person was on the page at 14:02:07". The broadcast is not dropped — subscribers still '
+              'need to know to re-read — and a NON-anonymised owned class keeps its ids',
+              by_class['Ballot']['instanceIds'] == [] and by_class['Ballot']['className'] == 'Ballot'
+              and by_class['Ballot']['operation'] == 'create'
+              and by_class['MealPlan']['instanceIds'] == ['mp-1'], by_class)
+
+        # ---- side channel 2: the trace JOURNAL drops the actor/object pairing (ct-1 built it; proven here)
+        from accessControl import cause_context as CC
+        from security.custom import security_trace as T
+        with tempfile.TemporaryDirectory() as td:
+            _trace_env(td)
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._TRACED.clear(); T._CREATED.clear()
+            m.objectTables['TraceTarget'] = {}
+            m.objectTables['WriteJournalEntry'] = {}
+            T.arm(m, 'Ballot', user_info=admin_ui)
+            tok = CC.root_cause('api', 'POST /api/Ballot', actor=VOTER)
+            try:
+                T.touch(m, 'Ballot', 'create')
+                T.record_effect(m, 'Ballot', 'b-9', 'create', fields_changed=['choice'])
+            finally:
+                CC.pop_cause(tok)
+            rows = T.journal(m)
+            T.disarm(m, 'manual')
+        check('op-2 SIDE CHANNEL 2, the TRACE JOURNAL (design §5): a journal row normally pairs the cause\'s '
+              'ACTOR with the effect\'s OBJECT ID — for a ballot that pairing IS "who voted". On an anonymised '
+              'class the row keeps the class and the verb and drops BOTH, so arming the class to study it '
+              'cannot re-link what the policy hid',
+              len(rows) == 1 and rows[0]['className'] == 'Ballot' and rows[0]['verb'] == 'create'
+              and rows[0]['objectId'] == '' and rows[0]['actor'] == '', rows)
+
+        # ---- side channel 3: SecurityEvent.target is the CLASS (op-2 built it here)
+        from accessControl.owner_gate import owner_gate_write
+
+        class _R:
+            def __init__(self): self.status = '200 OK'; self.media = None; self.headers = {}
+            def set_header(self, k, v): self.headers[k] = v
+
+        class _Q:
+            def __init__(self, ui): self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+        other_ui = {'sub': OTHER, 'roles': ['voters'], 'raw_claims': {'groups': ['voters']}}
+        plan = MealPlan(id='mp-7', owner=VOTER, title='Week 41')
+        m.objectTables['MealPlan']['mp-7'] = plan
+        owner_gate_write(m, _Q(other_ui), _R(), 'Ballot', 'update', b)
+        owner_gate_write(m, _Q(other_ui), _R(), 'MealPlan', 'update', plan)
+        targets = {e['target'] for e in O.events(m) if e['source'] == 'accessControl.owner_gate'}
+        check('op-2 SIDE CHANNEL 3, the SECURITY EVENT (design §5): a refused act on an ANONYMISED class is '
+              'recorded with the CLASS NAME as its target — never `Ballot:b-9`. An id beside a timestamp in a '
+              'readable ledger is the third way to name the person, after the owner column and the broadcast. '
+              'A non-anonymised owned class keeps `Class:id`, which is what somebody debugging it needs',
+              'Ballot' in targets and 'MealPlan:mp-7' in targets and not any(t.startswith('Ballot:') for t in targets),
+              sorted(targets))
+        check('...and the owner gate records NO actor on those rows: the person refused is the one the owner '
+              'rules protect the row FROM, and who performed which class × verb is already counted by '
+              'PermissionObservation — one ledger per question',
+              all(not e['actor'] for e in O.events(m) if e['source'] == 'accessControl.owner_gate'))
+
+        # ---- frozen_when, the STRUCTURED form (design §2's shape)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': ['read'], 'others_fields': ['choice'], 'anonymised': True,
+                                   'frozen_when': '{"class": "VoteRecord", "field": "state", '
+                                                  '"in": ["tallied", "certified"], "via": "vote_record_id"}'},
+                     by='admin-0')
+        open_v = W.owner_verdict(m, voter_ui, 'update', b)
+        vr.state = 'certified'
+        shut_v = W.owner_verdict(m, voter_ui, 'update', b)
+        read_v = W.owner_verdict(m, voter_ui, 'read', b)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update'], 'others_verbs': [],
+                                   'anonymised': True,
+                                   'frozen_when': '{"class": "VoteRecord", "field": "state"}'}, by='admin-0')
+        vague = W.owner_verdict(m, voter_ui, 'update', b)
+        check('op-2 frozen_when, the STRUCTURED shape the design writes ({"class": "VoteRecord", "field": '
+              '"state", "in": [...]}) shares the column with op-0\'s sentence grammar — JSON is what a '
+              'MANIFEST can declare, and a person can still type the sentence. Certifying the record freezes '
+              'every ballot for its owner too (the vote is over) and READ survives; a spec missing its '
+              'operator is NOT frozen, exactly as a malformed sentence is not',
+              open_v['allowed'] is True and shut_v['allowed'] is False and shut_v['rule'] == 'frozen'
+              and 'certified' in shut_v['why'] and read_v['allowed'] is True and vague['allowed'] is True,
+              (open_v['rule'], shut_v['rule'], vague['rule']))
+        vr.state = 'open'
+
+        # ---- TRANSFER (design §8)
+        api.manager = m
+        W.set_policy(m, 'MealPlan', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                     'others_verbs': [], 'transfer': 'nobody'}, by='admin-0')
+        t_nobody = W.transfer_owner(m, voter_ui, 'MealPlan', 'mp-7', OTHER)
+        t_nobody_admin = W.transfer_owner(m, admin_ui, 'MealPlan', 'mp-7', OTHER)
+        W.set_policy(m, 'MealPlan', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                     'others_verbs': [], 'transfer': 'owner'}, by='admin-0')
+        t_name = W.transfer_owner(m, voter_ui, 'MealPlan', 'mp-7', 'demo-other')
+        t_self = W.transfer_owner(m, voter_ui, 'MealPlan', 'mp-7', VOTER)
+        t_wrong = W.transfer_owner(m, {'sub': OTHER}, 'MealPlan', 'mp-7', OTHER)
+        t_ok = W.transfer_owner(m, voter_ui, 'MealPlan', 'mp-7', OTHER)
+        t_ballot = W.transfer_owner(m, admin_ui, 'Ballot', 'b-9', OTHER)
+        check('op-2 TRANSFER (design §8): `nobody` is the default and even an ADMINISTRATOR does not move an '
+              'owner past the class\'s own rule — change the policy first, on the record. Under `owner` the '
+              'owner hands the row on and the column really moves; a USERNAME instead of a sub, a transfer to '
+              'the current owner, and a transfer by somebody who does not own the row are each refused with '
+              'the reason',
+              t_nobody['ok'] is False and t_nobody_admin['ok'] is False
+              and 'administrator' in t_nobody_admin['refusal']
+              and t_name['ok'] is False and 'subject id' in t_name['refusal']
+              and t_self['ok'] is False and t_wrong['ok'] is False and t_wrong['status'] == 403
+              and t_ok['ok'] is True and plan.owner == OTHER and t_ok['from'] == VOTER,
+              (t_nobody.get('refusal', '')[:40], t_ok.get('refusal', ''), plan.owner))
+        check('...and NEVER for an ANONYMISED class, whatever its transfer column says: a transfer names the '
+              'old owner and the new one in one act, which is exactly what anonymised exists to prevent',
+              t_ballot['ok'] is False and t_ballot['status'] == 403 and 'ANONYMISED' in t_ballot['refusal'],
+              t_ballot.get('refusal', '')[:80])
+        r = _Res(); api.on_post_owned_transfer(_ReqA(voter_ui, media={'to': VOTER}), r, 'Ballot', 'b-9')
+        check('POST /api/security/owned/<Class>/<id>/transfer refuses on its OWN authority in every gate mode '
+              '— advisory means the CRUDE gate warns instead of blocking an app doing its job, and a transfer '
+              'is not that: its only effect IS to move the ownership the gate reads, so a warning that '
+              'proceeded would have done the thing it warned about',
+              r.status.startswith('403') and r.media['ok'] is False)
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+
+
+def _owned_manifest_checks(_Res, _types, check):
+    """op-4 — the `app.owned` manifest stanza: validation, the hand-set survival, and the convergence."""
+    from moduleService import manifests as MF
+    from security.custom import security_owned as W
+    from security.custom import security_owned_manifest as OM
+
+    good = [{'class': 'Ballot', 'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+             'others_verbs': ['read'], 'others_fields': ['election_id', 'choice', 'groups'],
+             'owner_visible': False, 'owner_may_grant': False, 'anonymised': True, 'transfer': 'nobody',
+             'frozen_when': {'class': 'VoteRecord', 'field': 'state', 'in': ['tallied', 'certified'],
+                             'via': 'vote_record_id'}}]
+    check('op-4: a well-formed `app.owned` stanza passes, and its vocabulary is exactly the row class\'s — a '
+          'manifest that could declare something `set_policy` refuses would be a stanza that lies',
+          MF.owned_findings(good) == [] and MF.owned_findings(None) == []
+          and set(MF.OWNED_VERBS) == set(__import__('security.objects.security.OwnedClassPolicy',
+                                                    fromlist=['OwnedClassPolicy']).OwnedClassPolicy.OWNER_VERBS)
+          and set(MF.OWNED_TRANSFER) == set(__import__('security.objects.security.OwnedClassPolicy',
+                                                       fromlist=['OwnedClassPolicy']).OwnedClassPolicy.TRANSFER_MODES),
+          MF.owned_findings(good))
+    bad = {
+        'not a list': MF.owned_findings({'class': 'Ballot'}),
+        'no class': MF.owned_findings([{'owner_verbs': ['read']}]),
+        'create as a verb': MF.owned_findings([{'class': 'Ballot', 'owner_verbs': ['create']}]),
+        'an invented key': MF.owned_findings([{'class': 'Ballot', 'ownerVerbs': ['read']}]),
+        'anonymised + owner_visible': MF.owned_findings([{'class': 'Ballot', 'anonymised': True,
+                                                          'owner_visible': True}]),
+        'anonymised + transfer': MF.owned_findings([{'class': 'Ballot', 'anonymised': True,
+                                                     'transfer': 'owner'}]),
+        'grant with nothing to give': MF.owned_findings([{'class': 'Plan', 'owner_may_grant': True,
+                                                          'grantee_kinds': ['person']}]),
+        'bounds on a forbidden sharing': MF.owned_findings([{'class': 'Plan', 'grantable_verbs': ['read']}]),
+        'a grantee kind nobody has': MF.owned_findings([{'class': 'Plan', 'owner_may_grant': True,
+                                                         'grantable_verbs': ['read'],
+                                                         'grantee_kinds': ['everyone']}]),
+        'a frozen_when with no operator': MF.owned_findings([{'class': 'Ballot',
+                                                              'frozen_when': {'class': 'V', 'field': 'state'}}]),
+        'the same class twice': MF.owned_findings([{'class': 'Ballot'}, {'class': 'Ballot'}]),
+    }
+    check('op-4: every way a stanza can be wrong is a NAMED finding, not a silent default — including the two '
+          'contradictions the runtime would otherwise resolve quietly in the anonymity\'s favour (anonymised '
+          'beside owner_visible, anonymised beside a transfer) and the two halves of sharing declared apart',
+          all(v for v in bad.values()) and any('create' in f for f in bad['create as a verb'])
+          and any('anonymised IS owner_visible false' in f for f in bad['anonymised + owner_visible']),
+          {k: (v[0][:40] if v else 'NO FINDING') for k, v in bad.items()})
+    check('op-4: `validate()` carries the findings, so `manifests conform` reports a bad stanza; and `owned` '
+          'joins the HAND-SET keys a regeneration preserves, beside `roles` and `flows` — nothing can derive '
+          'which of a module\'s classes belong to the person who created the row, so a refresh must never '
+          'silently un-opt a class',
+          any('app.owned' in p for p in MF.validate({'schema': MF.SCHEMA, 'app': {'kind': 'polari-app',
+                                                                                  'agentTier': 'member',
+                                                                                  'owned': [{'class': 'B',
+                                                                                             'transfer': 'x'}]}}))
+          and "'owned'" in open('moduleService/manifests.py').read().split('_preserve_hand_set')[2])
+
+    # ---- the ONE real declaration, and the convergence
+    decls = {d['class']: d for d in OM.declarations()}
+    check('op-4: the ONE real declaration on this instance is `polariapps` opting `UserAppPreference` in — the '
+          'module that DEFINES the class declares the policy, beside the thing it describes. The security '
+          'module ships the mechanism and opts in nobody else\'s classes (its own seed list is empty)',
+          'UserAppPreference' in decls and decls['UserAppPreference']['module'] == 'polariapps'
+          and not decls['UserAppPreference']['duplicate_of'], sorted(decls))
+
+    class _M:
+        pass
+
+    m = _M(); m.objectTables = {'OwnedClassPolicy': {}, 'SecurityEvent': {}}; m.persistTree = lambda: None
+    first = OM.ensure_policies(m)
+    second = OM.ensure_policies(m)
+    pol = W.policy_for(m, 'UserAppPreference')
+    check('op-4 CONVERGENCE: the declaration becomes an OwnedClassPolicy row with NOBODY touching an admin '
+          'door — the proof design §9 asks op-4 for — and running it again changes nothing (idempotent, which '
+          'is what lets it run on every read of the door, the RoleAppBinding discipline from §57)',
+          first['created'] == ['UserAppPreference'] and second['created'] == []
+          and second['kept'] == ['UserAppPreference'] and pol is not None
+          and pol['source'] == 'manifest' and pol['derived_from'] == 'polariapps'
+          and pol['owner_field'] == 'sub' and pol['others_verbs'] == [], (first, second, pol))
+    W.set_policy(m, 'UserAppPreference', {'enabled': True, 'owner_verbs': ['read'], 'others_verbs': ['read'],
+                                          'others_fields': ['primary_role'], 'owner_field': 'sub'},
+                 by='admin-0')
+    third = OM.ensure_policies(m)
+    after = W.policy_for(m, 'UserAppPreference')
+    check('op-4: a policy an ADMINISTRATOR set is NEVER overwritten by the derivation (design §7) — the '
+          'manifest declaration becomes a named CONFLICT instead of applying, so a deployment that decided '
+          'something about its own data keeps its decision and can still see what the app asked for',
+          third['created'] == [] and third['updated'] == [] and third['kept'] == ['UserAppPreference']
+          and len(third['conflicts']) == 1 and third['conflicts'][0]['class'] == 'UserAppPreference'
+          and after['source'] == 'admin' and after['others_verbs'] == ['read'], third)
+    check('...and an op-0 SEEDED row (source \'\', written before the stanza existed) IS re-derived: the seed '
+          'was this derivation\'s earlier spelling of the same sentence, not somebody\'s decision, so a live '
+          'instance converges in place instead of growing a second row for one class',
+          W.set_policy(m, 'UserAppPreference', {'enabled': True, 'owner_field': 'sub'}, source='manifest')['ok']
+          and [setattr(r, 'source', '') for r in m.objectTables['OwnedClassPolicy'].values()] is not None
+          and OM.ensure_policies(m)['updated'] == ['UserAppPreference']
+          and len(W._rows(m, 'OwnedClassPolicy')) == 1, len(W._rows(m, 'OwnedClassPolicy')))
 
 
 def _trace_checks(api, _Res, _types, check):
@@ -2255,7 +2770,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('thirty-six row classes (ct-9 added OutboundPolicy + InboundPolicy)', len(SECURITY_CLASSES) == 36, str(len(SECURITY_CLASSES)))
+    check('thirty-seven row classes (op-1 added OwnerGrant)', len(SECURITY_CLASSES) == 37, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -2285,9 +2800,9 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 36, all rows named', len(SECURITY_SEED_PAIRS) == 36 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 37, all rows named', len(SECURITY_SEED_PAIRS) == 37 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
-    check('nine pages (ct-5 added security-objects), none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 9 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    check('ten pages (op-1 added security-owned), none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 10 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     # ct-5: the `objects` page is configured panels and configured tables over the doors and the rows — no new
     # component, and every component it names is one that already exists on the other security pages.
     import json as _json_pages
@@ -2694,6 +3209,9 @@ def main():
     _pii_checks(api, O, _Res, _types, check)
     _people_batch_checks(api, O, _Res, _types, check)
     _owned_checks(api, O, _Res, _types, check)
+    _grant_checks(api, O, _Res, _types, check)              # op-1: the owner's per-instance grants
+    _anonymised_checks(api, O, _Res, _types, check)         # op-2: the three side channels, frozen, transfer
+    _owned_manifest_checks(_Res, _types, check)             # op-4: app.owned, validated and converged
     _trace_checks(api, _Res, _types, check)
     _ct2_checks(_types, check)
     _ct9_checks(_types, check)

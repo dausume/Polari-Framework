@@ -90,6 +90,9 @@ KNOWN_THREAD_SITES = {
         'the security-pages converge worker — root `boot` cause',
     'security_observe.py':
         'the D18-1 PII scrub, one-shot at boot — root `boot` cause',
+    'security_owned_manifest.py':
+        'the op-4 app.owned → OwnedClassPolicy converge worker, one-shot '
+        'after the rows are restored — root `boot` cause',
     'apps_page.py':
         'the polariapps-pages converge worker (ct-8) — root `boot` cause',
 }

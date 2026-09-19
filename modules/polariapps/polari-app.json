@@ -20,6 +20,27 @@
   ],
   "tags": [
    "module plans"
+  ],
+  "owned": [
+   {
+    "class": "UserAppPreference",
+    "enabled": true,
+    "owner_field": "sub",
+    "owner_verbs": [
+     "read",
+     "update",
+     "delete"
+    ],
+    "others_verbs": [],
+    "others_fields": [],
+    "owner_visible": false,
+    "owner_may_grant": false,
+    "grantable_verbs": [],
+    "grantee_kinds": [],
+    "transfer": "nobody",
+    "anonymised": false,
+    "notes": "A person's own app list (§57). The owner reads, updates and deletes it; nobody else reads it at all (others_verbs []), so the owner column never needs to be visible and there is nothing to project. The owner is the Keycloak sub (D18-1) already held in the row's own `sub` column, which `owner_field` names rather than adding a duplicate `owner` one (the per-class schema freeze)."
+   }
   ]
  },
  "requires": {

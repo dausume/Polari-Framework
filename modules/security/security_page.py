@@ -221,6 +221,52 @@ SEED_SECURITY_PAGE_DISPLAYS = [
                         '/api/security/topology?view=objects', pick='nodes'),
               ], min_height=240),
           ]),
+    # ---- op-0/op-1/op-2/op-4: OWNER-DEFINED PERMISSIONS. The class × verb profiles say what a ROLE may do;
+    # this page says what an OWNER may do with their own rows, which classes opted in at all, and who each
+    # owner has shared one instance with. Configured tables over the two rows + structured panels over the
+    # one door — no new component, nothing raw (his rule).
+    _page('security-owned', 'security-owned',
+          'Owner-defined permissions — the classes whose OWNER decides, what others see of somebody else\'s row, and every per-instance grant an owner has made',
+          'OwnedClassPolicy', [
+              _row(0, [
+                  _sapi('security-owned-summary', 0, 12,
+                        'This instance: the gate mode in force, which classes are opted in, and how the knob reads. Owner-defined permissions are OPT-IN per class — a class with no enabled policy behaves exactly as it always did',
+                        '/api/security/owned', hide='policies,manifest'),
+              ], min_height=240),
+              _row(1, [
+                  _table('security-owned-policies', 0, 12,
+                         'OwnedClassPolicy — one row per opted-in class. `owner_verbs` = what the owner has on their OWN rows; `others_verbs` + `others_fields` = what somebody who passed the class door sees of a row they do not own (everything else is dropped); `anonymised` = the owner column hidden AND the broadcast, journal and event suppressions; `source` = who wrote the row (manifest = a module declared it and it is re-derived on every read; admin = a person decided and it is never overwritten)',
+                         'OwnedClassPolicy',
+                         columns='class_name,enabled,source,derived_from,owner_verbs_json,others_verbs_json,others_fields_json,owner_visible,owner_may_grant,grantable_verbs_json,grantee_kinds_json,frozen_when,transfer,anonymised,owner_field,notes'),
+              ], min_height=280),
+              _row(2, [
+                  _sapi('security-owned-declared', 0, 6,
+                        'DECLARED by the apps — every module\'s `app.owned` stanza (op-4). A module opts ITS OWN classes in, beside the class it defines, and the policy rows are re-derived from it on every read of this door',
+                        '/api/security/owned', pick='manifest.declared'),
+                  _sapi('security-owned-converge', 1, 6,
+                        'The last convergence: created / updated / kept, plus the CONFLICTS — a class an administrator ruled on by hand (source `admin`), where the manifest declaration is a suggestion and not the rule',
+                        '/api/security/owned', pick='manifest.converge'),
+              ], min_height=260),
+              _row(3, [
+                  _table('security-owned-grants', 0, 12,
+                         'OwnerGrant — one owner sharing ONE of their own instances, inside the bounds their class set. `grantee_group` is a Keycloak GROUP name; `grantee_sub` is a person\'s opaque Keycloak subject id and nothing else (D18-1), resolved to a name at render time through the gated people door. An expired grant decides nothing and is pruned the next time the instance\'s grants are read',
+                         'OwnerGrant',
+                         columns='class_name,object_id,grantee_kind,grantee_group,grantee_sub,verbs_json,fields_json,valid_until,granted_by,granted_at,notes',
+                         column_formats='granted_by:person,grantee_sub:person'),
+              ], min_height=280),
+              _row(4, [
+                  _sapi('security-owned-policy-detail', 0, 12,
+                        'The policies in full, as the gate reads them — the JSON-text columns above parsed into lists, with `transfer` already narrowed by `anonymised` (an anonymised class never transfers its owner, design §8)',
+                        '/api/security/owned', pick='policies'),
+              ], min_height=260),
+              _row(5, [
+                  _table('security-owned-events', 0, 12,
+                         'SecurityEvent, the owner gate\'s own rows — a refused act on an owned instance. For an ANONYMISED class the `target` is the CLASS NAME alone, never `Class:id`: an id beside a timestamp is the third way to name the person, after the owner column and the change broadcast (design §5)',
+                         'SecurityEvent',
+                         columns='control,action,target,actor,outcome,reason,count,first_seen,last_seen,source',
+                         column_formats=ACTOR_FORMAT),
+              ], min_height=260),
+          ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),
     _view_page('app', 'App', 'who gets access to what, through which means', 'visitor'),

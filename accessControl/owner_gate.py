@@ -23,6 +23,13 @@ through `app_permissions_gate.gate_mode()`:
     enforce   a refused verb is a 403 carrying the evidence dict; a projected read really is projected; an
               unreadable row really is omitted.
 
+op-2 added the third of design §5's side channels here: a REFUSED WRITE is counted into the `SecurityEvent`
+ledger, and its `target` is the CLASS NAME alone for an anonymised class (`security_owned.event_target`) — an
+instance id beside a timestamp in a readable ledger is the third way to name the person, after the owner column
+and the change broadcast. List READS are not ledgered: an omitted or projected row is not an act somebody took,
+and a private list of a thousand rows would write a thousand events; the advisory header already says what
+enforcement would have hidden, to the caller who asked.
+
 Never raises: a broken owner gate must not take the API down. Every failure degrades to proceed-with-header,
 exactly as the class gate does.
 """
@@ -74,6 +81,28 @@ def _advise(response, items):
             prior = None
         response.set_header(ADVISORY_HEADER, ('%s; %s' % (prior, text)) if prior else text)
     except Exception:                                   # noqa: BLE001
+        pass
+
+
+def _event(manager, class_name, object_id, verb, verdict, mode):
+    """op-2 (design §5, the third side channel): count a refused act into the SecurityEvent ledger.
+
+    `target` comes from `security_owned.event_target`, which answers the CLASS NAME ALONE for an ANONYMISED
+    class. An event row saying *`Ballot:b-7` was refused at 14:02* would be the third way to name a voter,
+    after the owner column and the broadcast: an id plus a timestamp beside any "who was on the page" signal
+    re-links them. The class and the verb are kept, which is what somebody reviewing the ledger acts on.
+
+    Nothing about the caller's ACTOR is recorded here either: the refused act's actor is the person the owner
+    rules are protecting a row FROM, not the row's owner, and the class-level permission ledger
+    (`PermissionObservation`) already counts who performed which act. Never raises."""
+    try:
+        from security.custom.security_owned import event_target
+        from security.custom.security_observe import record
+        record(manager, 'authz', 'owner %s %s' % ('would-deny' if mode == 'advisory' else 'denied', verb),
+               event_target(manager, class_name, object_id),
+               reason=str(verdict.get('why', ''))[:400], outcome='observed' if mode == 'advisory' else 'denied',
+               would_deny=True, source='accessControl.owner_gate')
+    except Exception:                                   # noqa: BLE001 — a ledger failure must not break a request
         pass
 
 
@@ -158,6 +187,7 @@ def owner_gate_write(manager, request, response, class_name, verb, instance):
         if verdict['allowed']:
             return True
         object_id = getattr(instance, 'id', '') or getattr(instance, 'name', '')
+        _event(manager, class_name, object_id, verb, verdict, mode)
         if mode == 'advisory':
             _advise(response, ['would-deny %s:%s:%s' % (class_name, object_id, verb)])
             return True

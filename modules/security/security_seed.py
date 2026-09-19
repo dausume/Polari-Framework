@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, TraceTarget, CausalEdge, OutboundPolicy, InboundPolicy, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, OwnerGrant, TraceTarget, CausalEdge, OutboundPolicy, InboundPolicy, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -56,6 +56,10 @@ SEED_SECURITY_AREAS = [
      'description': 'Declared flows (module manifests\' app.flows, design §9) and confirmed traffic policies, against the causal map\'s observed peer and external edges — the drift report.'},
     {'name': 'trace-coverage', 'domain': 'objects', 'title': 'Trace coverage', 'generated': True, 'docs_page': 'app-security',
      'description': 'Which classes have ever been armed as a TraceTarget. One class at a time, dev posture only: a class with no coverage answers NOT TRACED, which is not the same as nothing flowing.'},
+    # op-0..op-4: the OWNER half of authorization. `authorization` above is class × verb for a role; this is
+    # per instance, per field, per grantee, decided by the person whose row it is.
+    {'name': 'owner-permissions', 'domain': 'app', 'title': 'Owner-defined permissions', 'generated': True, 'docs_page': 'app-security',
+     'description': 'Opt-in per class (OwnedClassPolicy): the owner\'s floor on their own rows, what others see of somebody else\'s (projected to others_fields), per-instance sharing (OwnerGrant), frozen_when, transfer, and the anonymised classes whose owner is deliberately unlinkable. /display/security-owned shows them.'},
 ]
 
 
@@ -125,24 +129,21 @@ SEED_SECURITY_AUTHZ_RULES = authz_rule_rows()
 SEED_SECURITY_BROWSER_POLICIES = browser_policy_rows()
 SEED_SECURITY_LEDGER = app_security_records(APPLIED_TODAY, channels=SEED_SECURITY_TRUST_CHANNELS)
 
-# op-0 (OWNER_DEFINED_PERMISSIONS_DESIGN §9): owner-defined permissions are OPT-IN per class, so this list is
-# deliberately one row long. `UserAppPreference` (§57) is the natural first class: it is already keyed by the
-# person's Keycloak `sub`, it is already de facto owner-only (enforced by its door rather than by the gate), and
-# nobody else has any business reading somebody's app list — others_verbs is empty, so a non-owner sees no row
-# at all rather than a projected one. `owner_field` points at the column it already has instead of adding a
-# duplicate `owner` one (the per-class schema freeze).
-SEED_OWNED_CLASS_POLICIES = [
-    {'name': 'UserAppPreference', 'class_name': 'UserAppPreference', 'enabled': True,
-     'owner_verbs_json': '["read", "update", "delete"]',
-     'others_verbs_json': '[]', 'others_fields_json': '[]',
-     'owner_visible': False, 'owner_may_grant': False,
-     'grantable_verbs_json': '[]', 'grantee_kinds_json': '[]',
-     'frozen_when': '', 'transfer': 'nobody', 'anonymised': False,
-     'owner_field': 'sub',
-     'notes': 'op-0 seed: a person\'s own app list. Owner reads/updates/deletes it; nobody else reads it at all '
-              '(others_verbs []), so the owner column never needs to be visible. The owner is the Keycloak sub '
-              '(D18-1) held in the row\'s existing `sub` column — owner_field names it.'},
-]
+# op-0 seeded ONE row here (`UserAppPreference`). op-4 (design §7) moved that declaration to the manifest of
+# the module that OWNS the class — `polariapps/polari-app.json`, `app.owned` — and `security_owned_manifest`
+# converges it into an `OwnedClassPolicy` row on every read of the owner doors and once at boot.
+#
+# WHY THE MANIFEST WINS over the seed, rather than the two agreeing by being written twice: a policy is a
+# statement ABOUT A CLASS, and the only place it can be kept beside the thing it describes is the module that
+# defines the class. A seed in `security` would go stale the moment `polariapps` changed `UserAppPreference`,
+# and nothing would say so. Keeping both would be two sources of truth for one sentence — exactly the drift
+# §57 removed from role→app bindings. So this list is EMPTY on purpose: the security module ships the
+# MECHANISM for owner-defined permissions and opts in none of anybody else's classes.
+#
+# On an instance that already carries the op-0 seeded row, the convergence rewrites it in place (identical
+# content, `source` set to `manifest`) — a row whose `source` is '' is an earlier spelling of the derivation,
+# not somebody's decision. A row an administrator POSTed (`source: admin`) is never overwritten.
+SEED_OWNED_CLASS_POLICIES = []
 
 SECURITY_SEED_PAIRS = [
     ('SecurityDomain', SecurityDomain, SEED_SECURITY_DOMAINS),
@@ -177,7 +178,10 @@ SECURITY_SEED_PAIRS = [
     ('ObservationSession', ObservationSession, []),         # role-play windows
     ('UsageObservation', UsageObservation, []),             # what a role USES: apps, pages, components, actions, endpoints
     ('RolePrototype', RolePrototype, []),                   # roles that exist to be role-played (prototype → concreted → enforced)
-    ('OwnedClassPolicy', OwnedClassPolicy, SEED_OWNED_CLASS_POLICIES),   # op-0: the classes whose OWNER defines the rules
+    ('OwnedClassPolicy', OwnedClassPolicy, SEED_OWNED_CLASS_POLICIES),   # op-0: the classes whose OWNER defines the rules (op-4: declared by app.owned, converged, never seeded here)
+    # op-1: one owner sharing ONE of their own instances. NEVER seeded — a grant is an act a person took,
+    # and a seeded one would be a permission nobody granted.
+    ('OwnerGrant', OwnerGrant, []),
     ('TraceTarget', TraceTarget, []),                       # ct-1: the ONE armed class, its budgets and its counters (a row per class ever traced = the coverage)
     ('CausalEdge', CausalEdge, []),                         # ct-1: Ledger A, the causal MAP — cause → effect by means, counted, never duplicated
     # ct-9 (design §5a): the traffic policies. NEVER seeded — closed by default means the table starts EMPTY and

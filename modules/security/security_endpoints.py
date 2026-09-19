@@ -25,4 +25,12 @@ def construct_security_endpoints(polServer):
         start_page_converge(polServer.manager, polServer)
     except Exception as exc:
         print('[security] page converge could not be scheduled: %s' % exc, flush=True)
+    try:
+        # op-4: the modules' `app.owned` stanzas become OwnedClassPolicy rows, re-derived on every read of the
+        # owner doors and once here at boot so the FIRST CRUDE act already sees them. A policy an
+        # administrator set is never overwritten.
+        from security.custom.security_owned_manifest import start_owned_converge
+        start_owned_converge(polServer.manager, polServer)
+    except Exception as exc:
+        print('[security] owned-policy converge could not be scheduled: %s' % exc, flush=True)
     return api

@@ -36,6 +36,7 @@ from security.objects.security.ObservationSession import ObservationSession  # n
 from security.objects.security.UsageObservation import UsageObservation  # noqa: F401
 from security.objects.security.RolePrototype import RolePrototype  # noqa: F401
 from security.objects.security.OwnedClassPolicy import OwnedClassPolicy  # noqa: F401
+from security.objects.security.OwnerGrant import OwnerGrant  # noqa: F401
 from security.objects.security.TraceTarget import TraceTarget  # noqa: F401
 from security.objects.security.CausalEdge import CausalEdge  # noqa: F401
 from security.objects.security.OutboundPolicy import OutboundPolicy  # noqa: F401
@@ -43,4 +44,4 @@ from security.objects.security.InboundPolicy import InboundPolicy  # noqa: F401
 
 SECURITY_CLASSES = [SecurityDomain, SecurityArea, SecurityScenario, SecurityControl,
                     SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal, SshCapability, DeviceInventory, SshPermissionLevel,
-                    MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet, TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, OwnedClassPolicy, TraceTarget, CausalEdge, OutboundPolicy, InboundPolicy]
+                    MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet, TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, OwnedClassPolicy, OwnerGrant, TraceTarget, CausalEdge, OutboundPolicy, InboundPolicy]

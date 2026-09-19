@@ -13,6 +13,13 @@ Four calls, and nothing else is public:
     owner_verdict(manager, user_info, verb, inst)-> {'allowed', 'projected_fields', 'rule', 'why', 'knob'}
     project(instance_dict, fields)               -> the same dict narrowed to `fields` (+ 'id')
 
+op-1/op-2 added four more, and the grants themselves live next door in `security_owner_grants`:
+
+    instance_of(manager, class_name, object_id)  -> the ONE instance lookup every owner door shares
+    event_target(manager, class, id, policy)     -> the CLASS name for an anonymised class, `Class:id` otherwise
+    transfer_owner(manager, ui, class, id, sub)  -> move `owner`, inside the policy's `transfer` mode
+    frozen(manager, instance, policy)            -> now reads the structured `{class, field, in}` form too
+
 THE RULES THAT HOLD (op-0):
   * OPT-IN. A class with no enabled policy pays ONE dict lookup and behaves exactly as it did.
   * The CLASS gate decides first and is not touched here — owner-defined never widens what OTHERS may do
@@ -37,7 +44,8 @@ THE RULES THAT HOLD (op-0):
 import json
 import re
 
-from security.custom.security_observe import _schedule_persist, actor_of, record  # noqa: F401  (record: bad frozen_when)
+from security.custom.security_observe import (_schedule_persist, actor_of,  # noqa: F401  (record: bad frozen_when)
+                                              looks_like_sub, record)
 
 #: the policy columns, as the doors and the seed speak them
 POLICY_KEYS = ('class_name', 'enabled', 'owner_verbs', 'others_verbs', 'others_fields', 'owner_visible',
@@ -94,13 +102,24 @@ def policy_for(manager, class_name):
             continue
         if not bool(getattr(row, 'enabled', False)):
             return None
+        anonymised = bool(getattr(row, 'anonymised', False))
         pol = {'class_name': class_name,
                'enabled': True,
-               'owner_visible': bool(getattr(row, 'owner_visible', False)),
+               'source': str(getattr(row, 'source', '') or ''),
+               'derived_from': str(getattr(row, 'derived_from', '') or ''),
+               # op-2 / design §2: `anonymised` is SHORTHAND for owner_visible false plus the §5 side-channel
+               # suppressions. Normalising it HERE means every reader — the verdict, the projection, the grant
+               # bounds, the doors — sees one answer, and a row that says `anonymised: true, owner_visible:
+               # true` cannot leak the owner through the half of the pair somebody forgot to read.
+               'owner_visible': bool(getattr(row, 'owner_visible', False)) and not anonymised,
                'owner_may_grant': bool(getattr(row, 'owner_may_grant', False)),
                'frozen_when': str(getattr(row, 'frozen_when', '') or ''),
-               'transfer': str(getattr(row, 'transfer', 'nobody') or 'nobody'),
-               'anonymised': bool(getattr(row, 'anonymised', False)),
+               # op-2 / design §8: "Transfer defaults to nobody; NEVER for anonymised classes." An anonymised
+               # class's transfer mode is forced to `nobody` on the way out for the same reason owner_visible
+               # is: handing a ballot to somebody else names both people in one act.
+               'transfer': ('nobody' if anonymised else str(getattr(row, 'transfer', 'nobody') or 'nobody')),
+               'transfer_declared': str(getattr(row, 'transfer', 'nobody') or 'nobody'),
+               'anonymised': anonymised,
                'owner_field': str(getattr(row, 'owner_field', 'owner') or 'owner'),
                'notes': str(getattr(row, 'notes', '') or '')}
         for key, column in _LIST_COLUMNS.items():
@@ -109,12 +128,25 @@ def policy_for(manager, class_name):
     return None
 
 
-def policies(manager):
-    """Every policy row, enabled or not — what `GET /api/security/owned` answers."""
+def policies(manager, converge=True):
+    """Every policy row, enabled or not — what `GET /api/security/owned` answers.
+
+    `converge` re-derives the `manifest`-sourced rows from the modules' `app.owned` stanzas first (op-4), the
+    same discipline `RoleAppBinding` follows (§57): a read is always current with the manifests, and a policy
+    an ADMINISTRATOR set is never overwritten by it. It is idempotent and cheap, and it deliberately does NOT
+    run inside `policy_for`, which is on the path of every CRUDE act."""
+    if converge:
+        try:
+            from security.custom.security_owned_manifest import ensure_policies
+            ensure_policies(manager)
+        except Exception:                               # noqa: BLE001 — a derivation must never break a read
+            pass
     out = []
     for row in _rows(manager, 'OwnedClassPolicy'):
         pol = {'class_name': str(getattr(row, 'class_name', '') or getattr(row, 'name', '')),
                'enabled': bool(getattr(row, 'enabled', False)),
+               'source': str(getattr(row, 'source', '') or ''),
+               'derived_from': str(getattr(row, 'derived_from', '') or ''),
                'owner_visible': bool(getattr(row, 'owner_visible', False)),
                'owner_may_grant': bool(getattr(row, 'owner_may_grant', False)),
                'frozen_when': str(getattr(row, 'frozen_when', '') or ''),
@@ -129,8 +161,12 @@ def policies(manager):
     return out
 
 
-def set_policy(manager, class_name, fields, by=''):
-    """Set or replace one class's policy (the ADMIN door). Returns {'ok', 'policy'} or {'ok': False, 'refusal'}."""
+def set_policy(manager, class_name, fields, by='', source='admin', derived_from=''):
+    """Set or replace one class's policy. Returns {'ok', 'policy'} or {'ok': False, 'refusal'}.
+
+    `source` defaults to `admin` because the DOOR is the admin door: a person who POSTs a policy has decided,
+    and op-4's manifest convergence never overwrites that. The convergence itself calls this with
+    `source='manifest'` and the declaring module in `derived_from`."""
     class_name = str(class_name or '').strip()
     if not class_name:
         return {'ok': False, 'refusal': 'a class name: the class whose instances get an owner'}
@@ -144,6 +180,18 @@ def set_policy(manager, class_name, fields, by=''):
         return {'ok': False, 'refusal': 'owner_verbs may only name %s (got %s) — `create` is the class door\'s '
                                         'business: an instance has no owner until it exists'
                                         % (', '.join(OwnedClassPolicy.OWNER_VERBS), ', '.join(bad))}
+    # op-1: the same vocabulary bounds the GRANT half, refused here rather than at the first grant attempt
+    bad = [v for v in (fields.get('grantable_verbs') or []) if v not in OwnedClassPolicy.OWNER_VERBS]
+    if bad:
+        return {'ok': False, 'refusal': 'grantable_verbs may only name %s (got %s) — an owner shares verbs on '
+                                        'an instance that already exists' % (', '.join(OwnedClassPolicy.OWNER_VERBS),
+                                                                             ', '.join(bad))}
+    bad = [k for k in (fields.get('grantee_kinds') or []) if k not in OwnedClassPolicy.GRANTEE_KINDS]
+    if bad:
+        return {'ok': False, 'refusal': 'grantee_kinds may only name %s (got %s)'
+                                        % (', '.join(OwnedClassPolicy.GRANTEE_KINDS), ', '.join(bad))}
+    if source not in OwnedClassPolicy.SOURCES:
+        return {'ok': False, 'refusal': 'source: one of %s' % ', '.join(OwnedClassPolicy.SOURCES)}
     row_fields = {
         'name': class_name, 'class_name': class_name,
         'enabled': bool(fields.get('enabled', True)),
@@ -153,6 +201,7 @@ def set_policy(manager, class_name, fields, by=''):
         'transfer': transfer,
         'anonymised': bool(fields.get('anonymised', False)),
         'owner_field': str(fields.get('owner_field', 'owner') or 'owner'),
+        'source': source, 'derived_from': str(derived_from or ''),
         'notes': str(fields.get('notes', '') or ''),
     }
     for key, column in _LIST_COLUMNS.items():
@@ -260,11 +309,66 @@ def _related_row(manager, instance, related_class, via=''):
     return None
 
 
+def _frozen_structured(manager, instance, policy, spec):
+    """op-2: the design's §2 shape — `{"class": "VoteRecord", "field": "state", "in": [...]}`.
+
+    Stored in the SAME `frozen_when` column as the string grammar (a JSON object there is read as this form),
+    so a manifest can declare the condition as structured data and a person can still type the sentence.
+    `via` names the foreign-key field when the default candidates do not find the related row; `eq` / `ne` are
+    the single-value forms. Anything the parse cannot make sense of is NOT frozen, exactly as the string
+    grammar's failures are — a policy typo must never lock every owner out of their own rows."""
+    cls = str(spec.get('class') or '').strip()
+    field = str(spec.get('field') or '').strip()
+    via = str(spec.get('via') or '').strip()
+    if not cls or not field:
+        _bad_frozen(manager, policy, json.dumps(spec), 'a structured frozen_when needs both `class` and `field`')
+        return False, ''
+    has_in, has_eq, has_ne = 'in' in spec, 'eq' in spec, 'ne' in spec
+    if sum((has_in, has_eq, has_ne)) != 1:
+        _bad_frozen(manager, policy, json.dumps(spec),
+                    'a structured frozen_when needs exactly one of `in`, `eq`, `ne`')
+        return False, ''
+    row = _related_row(manager, instance, cls, via)
+    if row is None:
+        _bad_frozen(manager, policy, json.dumps(spec), 'no %s row could be resolved from this instance' % cls)
+        return False, ''
+    have = _clean(getattr(row, field, None))
+    if has_in:
+        values = spec.get('in')
+        if not isinstance(values, list):
+            _bad_frozen(manager, policy, json.dumps(spec), '`in` must be a list of values')
+            return False, ''
+        wanted = [_clean(v) for v in values if _clean(v)]
+        hit = have in wanted
+        return hit, ('%s.%s is %s, one of (%s) — the owner keeps read and loses update/delete'
+                     % (cls, field, have, ', '.join(wanted))) if hit else ''
+    if has_eq:
+        wanted = _clean(spec.get('eq'))
+        return (have == wanted), ('%s.%s == %s' % (cls, field, wanted)) if have == wanted else ''
+    wanted = _clean(spec.get('ne'))
+    return (have != wanted), ('%s.%s != %s' % (cls, field, wanted)) if have != wanted else ''
+
+
 def frozen(manager, instance, policy):
-    """(is_frozen, why) for the policy's `frozen_when`. A malformed or unresolvable expression is NOT frozen."""
+    """(is_frozen, why) for the policy's `frozen_when`. A malformed or unresolvable expression is NOT frozen.
+
+    Two spellings of one condition share the column: the sentence grammar in this module's docstring, and
+    op-2's structured object (a JSON object in the same column). The structured form is what a manifest's
+    `app.owned` stanza declares, because JSON is what a manifest is."""
     expr = (policy or {}).get('frozen_when', '')
     if not expr:
         return False, ''
+    text = str(expr).strip()
+    if text.startswith('{'):
+        try:
+            spec = json.loads(text)
+        except (ValueError, TypeError):
+            _bad_frozen(manager, policy, text, 'it looks like a JSON object but does not parse')
+            return False, ''
+        if not isinstance(spec, dict):
+            _bad_frozen(manager, policy, text, 'a structured frozen_when must be an object')
+            return False, ''
+        return _frozen_structured(manager, instance, policy, spec)
     match = _FROZEN_RE.match(expr)
     if not match:
         _bad_frozen(manager, policy, expr, 'the expression does not parse')
@@ -341,42 +445,178 @@ def owner_verdict(manager, user_info, verb, instance, policy=None):
         return {**base, 'allowed': False, 'projected_fields': None, 'rule': 'owner-floor',
                 'why': 'you own this row, but owner_verbs is %s and does not include %s'
                        % (pol['owner_verbs'] or '[]', verb), 'knob': knob}
-    # others' ceiling — never wider than the class door, which has already said yes to get here
-    if verb not in pol['others_verbs']:
+    # others' ceiling — never wider than the class door, which has already said yes to get here.
+    # op-1 (design §3 step 3): an OwnerGrant naming this caller (by `sub`) or one of their groups is read
+    # alongside `others_verbs`, and its `fields` are UNIONED into the projection. A class whose policy forbids
+    # grants pays nothing for this: `owner_may_grant` false means the table is never even looked at.
+    granted = {'verbs': [], 'fields': [], 'ids': [], 'why': ''}
+    if pol['owner_may_grant']:
+        granted = _grants_match(manager, user_info, class_name, instance)
+    if verb not in pol['others_verbs'] and verb not in granted['verbs']:
         return {**base, 'allowed': False, 'projected_fields': None, 'rule': 'others-ceiling',
-                'why': ('this row belongs to somebody else and others_verbs is %s — %s is not among them'
-                        % (pol['others_verbs'] or '[]', verb)),
-                'knob': knob + (' (op-1 adds OwnerGrant: the owner sharing one instance)'
-                                if pol['owner_may_grant'] else '')}
+                'why': ('this row belongs to somebody else and others_verbs is %s — %s is not among them%s'
+                        % (pol['others_verbs'] or '[]', verb,
+                           ' (and no OwnerGrant on this row names you)' if pol['owner_may_grant'] else '')),
+                'knob': knob + (' — the OWNER may share this one row: POST /api/security/owned/%s/<id>/grants'
+                                % class_name if pol['owner_may_grant'] else '')}
+    by_grant = verb not in pol['others_verbs']
     fields = list(pol['others_fields'])
+    for f in granted['fields']:
+        if f not in fields:
+            fields.append(f)
     if pol['owner_visible'] and pol['owner_field'] not in fields:
         fields.append(pol['owner_field'])
-    return {**base, 'allowed': True, 'projected_fields': fields, 'rule': 'others-ceiling',
-            'why': ('this row belongs to somebody else: others_verbs allows %s, and a read is projected to %s%s'
-                    % (verb, fields or 'no fields at all',
+    rule = ('grant:%s' % (granted['ids'][0] if granted['ids'] else '?')) if by_grant else 'others-ceiling'
+    return {**base, 'allowed': True, 'projected_fields': fields, 'rule': rule,
+            'grants': granted['ids'],
+            'why': ('this row belongs to somebody else: %s allows %s, and a read is projected to %s%s'
+                    % ('an OwnerGrant the owner made (%s)' % granted['why'] if by_grant else 'others_verbs',
+                       verb, fields or 'no fields at all',
                        '' if pol['owner_visible'] else ' (the owner column is dropped)')),
             'knob': knob}
 
 
-def verdict_for_id(manager, user_info, class_name, object_id):
-    """The door's answer for ONE instance by id: every verb, plus the fields the caller would see."""
+def _grants_match(manager, user_info, class_name, instance):
+    """op-1: the grants on THIS instance that name THIS caller. Lazy, guarded, and never raises into a read."""
+    empty = {'verbs': [], 'fields': [], 'ids': [], 'why': ''}
+    object_id = str(getattr(instance, 'id', '') or getattr(instance, 'name', '') or '')
+    if not object_id:
+        return empty
+    try:
+        from security.custom.security_owner_grants import match
+        return match(manager, user_info, class_name, object_id)
+    except Exception:                                   # noqa: BLE001
+        return empty
+
+
+def instance_of(manager, class_name, object_id):
+    """The ONE instance lookup every owner door shares: by polari id, then by name (the test doubles' key)."""
     tables = getattr(manager, 'objectTables', None) or {}
     instance = (tables.get(class_name) or {}).get(object_id)
+    if instance is not None:
+        return instance
+    return next((r for r in _rows(manager, class_name)
+                 if str(getattr(r, 'id', '')) == str(object_id)
+                 or str(getattr(r, 'name', '')) == str(object_id)), None)
+
+
+def event_target(manager, class_name, object_id, policy=None):
+    """The `target` a SecurityEvent may carry for an act on this instance (op-2, design §5).
+
+    For an ANONYMISED class it is the CLASS NAME alone. An event row saying *`Ballot:b-7` was refused at
+    14:02* is the third way to name a voter, after the owner column and the broadcast: an id plus a timestamp
+    beside any "who was on the page" signal re-links them. The class and the verb are kept, which is what a
+    person reviewing the ledger actually acts on."""
+    pol = policy if policy is not None else policy_for(manager, class_name)
+    if pol is not None and pol.get('anonymised'):
+        return str(class_name)
+    return '%s:%s' % (class_name, object_id) if object_id else str(class_name)
+
+
+#: op-2 / design §2: who may change `owner`. `nobody` is the default and the only value an anonymised class
+#: can have (policy_for forces it), because handing a ballot over names both people in one act.
+def transfer_owner(manager, user_info, class_name, object_id, to_sub):
+    """Change one instance's owner. {'ok', 'transfer'} or {'ok': False, 'refusal', 'status'}.
+
+    THIS DOOR REFUSES ON ITS OWN AUTHORITY, in every gate mode. `POLARI_APP_PERMISSIONS=advisory` makes the
+    CRUDE gate warn instead of block, because there the act is an app doing its job and security is learning
+    what it would stop. A transfer is not that: it is a permissions-administration act whose ONLY effect is to
+    move the ownership the gate reads. Letting advisory "warn and proceed" would mean the warning itself moved
+    the row. The admin policy door (`POST /api/security/owned/<Class>`) already sets this precedent."""
+    from security.objects.security.OwnedClassPolicy import OwnedClassPolicy
+    instance = instance_of(manager, class_name, object_id)
     if instance is None:
-        instance = next((r for r in _rows(manager, class_name)
-                         if str(getattr(r, 'id', '')) == str(object_id)
-                         or str(getattr(r, 'name', '')) == str(object_id)), None)
+        return {'ok': False, 'status': 404,
+                'refusal': 'no %s instance %s on this instance of Polari' % (class_name, object_id)}
+    pol = policy_for(manager, class_name)
+    if pol is None:
+        return {'ok': False, 'status': 400,
+                'refusal': ('%s is not an owned class: no enabled OwnedClassPolicy names it, so its instances '
+                            'carry no owner to transfer' % class_name)}
+    if pol['anonymised']:
+        return {'ok': False, 'status': 403,
+                'refusal': ('%s is an ANONYMISED class: its owner is never transferred. A transfer names the '
+                            'old owner and the new one in one act, which is exactly what anonymised exists to '
+                            'prevent (design §8).' % class_name)}
+    mode = pol['transfer']
+    if mode not in OwnedClassPolicy.TRANSFER_MODES:
+        mode = 'nobody'
+    is_admin, via = _admin(user_info)
+    sub = actor_of(user_info)
+    owner = owner_of(manager, instance, pol)
+    if mode == 'nobody' and not is_admin:
+        return {'ok': False, 'status': 403,
+                'refusal': ('OwnedClassPolicy[%s].transfer is `nobody` — this class\'s instances never change '
+                            'hands. An administrator may set it to `admin` or `owner`.' % class_name)}
+    if mode == 'nobody' and is_admin:
+        return {'ok': False, 'status': 403,
+                'refusal': ('OwnedClassPolicy[%s].transfer is `nobody`. Even an administrator does not move an '
+                            'owner past the class\'s own rule: change the policy first, on the record, then '
+                            'transfer.' % class_name)}
+    if mode == 'admin' and not is_admin:
+        return {'ok': False, 'status': 403,
+                'refusal': 'OwnedClassPolicy[%s].transfer is `admin` — only an administrator may hand this row '
+                           'to somebody else' % class_name}
+    if mode == 'owner' and not is_admin:
+        if not sub:
+            return {'ok': False, 'status': 401,
+                    'refusal': 'sign in first: a transfer is made BY the owner and this request carries no sub'}
+        if not owner or owner != sub:
+            return {'ok': False, 'status': 403,
+                    'refusal': 'only the OWNER of this row may hand it on, and this row belongs to somebody else'}
+    to_sub = str(to_sub or '').strip()
+    if not looks_like_sub(to_sub):
+        return {'ok': False, 'status': 400,
+                'refusal': ('`to` must be a Keycloak subject id (8-4-4-4-12 hex). A person is named by their '
+                            '`sub` alone — never a username or an e-mail (his rule D18-1).')}
+    if to_sub == owner:
+        return {'ok': False, 'status': 400,
+                'refusal': '%s %s already belongs to that sub — a transfer to the current owner is a no-op'
+                           % (class_name, object_id)}
+    is_frozen, why_frozen = frozen(manager, instance, pol)
+    if is_frozen:
+        return {'ok': False, 'status': 403,
+                'refusal': 'this row is frozen (%s): a frozen instance is read-only for its owner, and handing '
+                           'it on is not the exception' % why_frozen}
+    setattr(instance, pol['owner_field'], to_sub)
+    _schedule_persist(manager)
+    record(manager, 'authz', 'owner transferred', event_target(manager, class_name, object_id, pol),
+           reason='transfer mode %s: the owner column (%s) moved to another Keycloak sub'
+                  % (mode, pol['owner_field']),
+           actor=sub, outcome='allowed', would_deny=False, source='security_owned.transfer_owner')
+    return {'ok': True, 'class': class_name, 'id': str(object_id), 'field': pol['owner_field'],
+            'from': owner, 'to': to_sub, 'mode': mode,
+            'by': ('admin (%s)' % ', '.join(via)) if is_admin else 'owner',
+            'how': ('the owner column now holds the new sub; every owner verdict on this row follows it from '
+                    'the next request. Grants the previous owner made are NOT revoked — revoke them first if '
+                    'that is what was meant.')}
+
+
+def verdict_for_id(manager, user_info, class_name, object_id):
+    """The door's answer for ONE instance by id: every verb, plus the fields the caller would see."""
+    instance = instance_of(manager, class_name, object_id)
     if instance is None:
         return {'ok': False, 'refusal': 'no %s instance %s on this instance of Polari' % (class_name, object_id)}
     pol = policy_for(manager, class_name)
     verdicts = {v: owner_verdict(manager, user_info, v, instance, policy=pol)
                 for v in ('read', 'update', 'delete', 'events')}
     read = verdicts['read']
+    sharing = {}
+    try:
+        from security.custom.security_owner_grants import sharing as _sharing
+        sharing = _sharing(manager, user_info, class_name, object_id)
+    except Exception:                                   # noqa: BLE001
+        sharing = {'ok': False, 'refusal': 'the grants model is not importable on this instance'}
     return {'ok': True, 'class': class_name, 'id': str(object_id),
             'owned': pol is not None, 'policy': pol,
             'you_are_the_owner': bool(actor_of(user_info)) and actor_of(user_info) == owner_of(manager, instance, pol),
             'may': sorted(v for v, d in verdicts.items() if d['allowed']),
             'fields_you_see': read.get('projected_fields'),
             'verdicts': verdicts,
+            # op-1 (design §6): the Sharing tab reads THIS door — the grants on the instance, the policy's
+            # bounds, whether the tab shows at all, and the configured table that renders it.
+            'grants': sharing.get('grants', []),
+            'sharing': sharing,
             'how': ('the class gate (AppPermissionProfile) decides first and is not shown here; these are the '
-                    'OWNER rules for this one instance. `fields_you_see` null = the whole row.')}
+                    'OWNER rules for this one instance. `fields_you_see` null = the whole row. `sharing` is the '
+                    'Sharing tab\'s whole answer: the grants, the bounds, and the configured table for them.')}

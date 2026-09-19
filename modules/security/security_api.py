@@ -142,7 +142,9 @@ class SecurityAPI(treeObject):
             add('/api/security/traffic/inbound/{name}', self, suffix='traffic_inbound')    # ct-9: the same, for who may call this instance
             add('/api/security/owned', self, suffix='owned')                        # op-0: the classes whose OWNER defines the rules, and their policies
             add('/api/security/owned/{class_name}', self, suffix='owned_class')     # GET one policy; POST (ADMIN_ROLES) set or replace it
-            add('/api/security/owned/{class_name}/{object_id}', self, suffix='owned_instance')   # GET the CALLER's verdict on one instance
+            add('/api/security/owned/{class_name}/{object_id}', self, suffix='owned_instance')   # GET the CALLER's verdict on one instance (+ the Sharing tab's answer)
+            add('/api/security/owned/{class_name}/{object_id}/grants', self, suffix='owned_grants')      # op-1: GET the instance's grants + bounds; POST one; DELETE one (the OWNER, or an admin)
+            add('/api/security/owned/{class_name}/{object_id}/transfer', self, suffix='owned_transfer')  # op-2: POST {"to": "<sub>"} hand the row to somebody else, inside the policy's transfer mode
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -914,17 +916,24 @@ class SecurityAPI(treeObject):
 
     def on_get_owned(self, request, response):
         from security.custom.security_owned import policies
+        from security.custom.security_owned_manifest import summary as owned_manifest_summary
         from accessControl.app_permissions_gate import gate_mode
-        rows = policies(self.manager)
+        # op-4: the manifest summary CONVERGES `app.owned` into the rows (admin rows untouched), so the
+        # policies are read AFTER it and with `converge=False` — one derivation per request, not two.
+        manifest = owned_manifest_summary(self.manager)
+        rows = policies(self.manager, converge=False)
         response.media = {
             'ok': True, 'mode': gate_mode(), 'count': len(rows),
             'enabled': sorted(p['class_name'] for p in rows if p['enabled']),
             'policies': rows,
+            'manifest': manifest,
             'how': ('owner-defined permissions are OPT-IN per class: a class behaves exactly as it always did '
-                    'until an enabled policy names it. POST /api/security/owned/<Class> sets one (admins only). '
-                    'The gate follows POLARI_APP_PERMISSIONS (off | advisory | enforce) — the same knob as the '
-                    'class gate; advisory returns the whole row and says would-deny / would-project in the '
-                    'X-Polari-Owner-Advisory header.')}
+                    'until an enabled policy names it. A module DECLARES its own classes in `app.owned` '
+                    '(polari-app.json) and the rows converge from it on every read of this door; POST '
+                    '/api/security/owned/<Class> sets one by hand (admins only) and is never overwritten by a '
+                    'derivation. The gate follows POLARI_APP_PERMISSIONS (off | advisory | enforce) — the same '
+                    'knob as the class gate; advisory returns the whole row and says would-deny / '
+                    'would-project in the X-Polari-Owner-Advisory header.')}
 
     def on_get_owned_class(self, request, response, class_name):
         from security.custom.security_owned import policies, policy_for
@@ -953,11 +962,72 @@ class SecurityAPI(treeObject):
                                       'instance, and why' % class_name}
 
     def on_get_owned_instance(self, request, response, class_name, object_id):
-        """The CALLER's verdict on ONE instance: what they may do, which fields they see, which rule decided."""
+        """The CALLER's verdict on ONE instance: what they may do, which fields they see, which rule decided.
+
+        op-1 (design §6): the same answer carries `sharing` — the instance's grants, the policy's bounds, and
+        the CONFIGURED table definition a Sharing tab renders. One door, because a tab that had to ask twice
+        would show the verdict and the grants from two different moments."""
         from security.custom.security_owned import verdict_for_id
         r = verdict_for_id(self.manager, self._user_info(request), class_name, object_id)
         if not r.get('ok'):
             return self._refuse(response, '404 Not Found', r.get('refusal', ''))
+        response.media = r
+
+    # ---- op-1: THE OWNER'S OWN GRANTS (design §2, §3 step 3, §6) ---------------------------------------------
+    # The OWNER of one instance widening access to it, inside the bounds the class set. Never the class door:
+    # `crude_permission_gate` decided C × V for the grantee's groups long before a grant is read.
+
+    def _owned_status(self, result):
+        return {400: '400 Bad Request', 401: '401 Unauthorized', 403: '403 Forbidden',
+                404: '404 Not Found'}.get(int(result.get('status') or 400), '400 Bad Request')
+
+    def on_get_owned_grants(self, request, response, class_name, object_id):
+        """The instance's live grants, the policy's bounds, whether THIS caller may share, and the configured
+        table the Sharing tab renders. Expired grants are pruned on the way through (design §2)."""
+        from security.custom.security_owner_grants import sharing
+        r = sharing(self.manager, self._user_info(request), class_name, object_id)
+        if not r.get('ok'):
+            return self._refuse(response, self._owned_status(r), r.get('refusal', ''),
+                                **{'class': class_name, 'id': str(object_id)})
+        response.media = r
+
+    def on_post_owned_grants(self, request, response, class_name, object_id):
+        """POST {"grantee_kind": "person"|"group", "grantee": "<sub or group>", "verbs": [...], "fields": [...],
+        "valid_until": "2026-10-01T00:00:00Z"} — the OWNER shares ONE of their own rows."""
+        from security.custom.security_owner_grants import grant
+        r = grant(self.manager, self._user_info(request), class_name, object_id, self._body(request))
+        if not r.get('ok'):
+            return self._refuse(response, self._owned_status(r), r.get('refusal', ''),
+                                **{'class': class_name, 'id': str(object_id),
+                                   'knownFields': r.get('knownFields')})
+        response.media = r
+
+    def on_delete_owned_grants(self, request, response, class_name, object_id):
+        """DELETE ?grantee_kind=&grantee= (or ?name=) — the owner takes one grant back."""
+        body = dict(self._body(request))
+        for key in ('grantee_kind', 'grantee', 'name', 'id'):
+            if not body.get(key) and request.params.get(key):
+                body[key] = request.params.get(key)
+        from security.custom.security_owner_grants import revoke
+        r = revoke(self.manager, self._user_info(request), class_name, object_id, body)
+        if not r.get('ok'):
+            return self._refuse(response, self._owned_status(r), r.get('refusal', ''),
+                                **{'class': class_name, 'id': str(object_id)})
+        response.media = r
+
+    def on_post_owned_transfer(self, request, response, class_name, object_id):
+        """POST {"to": "<Keycloak sub>"} — hand ONE instance to somebody else, inside the policy's `transfer`
+        mode (nobody | admin | owner) and NEVER for an anonymised class (design §8).
+
+        This door refuses on its own authority in every gate mode: advisory means the CRUDE gate warns instead
+        of blocking an app doing its job, and a transfer is not that — it is a permissions-administration act
+        whose only effect is to move the ownership the gate reads."""
+        from security.custom.security_owned import transfer_owner
+        r = transfer_owner(self.manager, self._user_info(request), class_name, object_id,
+                           self._body(request).get('to'))
+        if not r.get('ok'):
+            return self._refuse(response, self._owned_status(r), r.get('refusal', ''),
+                                **{'class': class_name, 'id': str(object_id)})
         response.media = r
 
     def on_get_compare(self, request, response):
