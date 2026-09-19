@@ -1084,6 +1084,8 @@ def _ct9_checks(_types, check):
             self.media = media or {}
             self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
 
+    from security.custom.security_observe import _all_rows as _TRrows   # tree rows + the test fallback
+
     SUB = 'eeeeeeee-5555-4555-8555-eeeeeeeeeeee'
     admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
     plain = {'sub': 'ffffffff-6666-4666-8666-ffffffffffff', 'roles': ['polari-viewer'],
@@ -1475,6 +1477,55 @@ def _ct9_checks(_types, check):
                   TR.tree_ready(_M()) is True and TR.tree_ready(booting) is True
                   and TR.tree_ready(_types.SimpleNamespace(objectTables={}, definitionsRestored=False)) is False
                   and TR.tree_ready(None) is False)
+
+            # ---- §66d: ONE ROW PER NAME. Found live after a restart: `anonymous|anonymous` existed TWICE,
+            # ('confirmed', 14) beside ('suggested', 7) — the boot-time flush found no restored row YET (the
+            # class's own restore had not run) and made its own. The readiness flag cannot be trusted to be
+            # per-class, so the name is enforced as the key at every lookup and every read instead.
+            TR._PENDING.clear()
+            mr = _M()
+            mr.definitionsRestored = False
+            heal_mw = TM.TrafficPolicyMiddleware(_types.SimpleNamespace(manager=mr))
+            for _ in range(7):
+                heal_mw.process_request(_Req({}, path='/api/health'), _Resp())   # boot-time: 7 parked
+            # the class's OWN restore lands afterwards — the order the live stack hit
+            mr.definitionsRestored = True
+            _nr2(mr, mr.objectTables, 'InboundPolicy', _IP,
+                 {'name': 'anonymous|anonymous', 'source_kind': 'anonymous', 'source': 'anonymous',
+                  'paths_json': '[]', 'state': 'confirmed', 'derived_from': 'restored',
+                  'confirmed_by': SUB, 'confirmed_at': '2026-09-19T00:00:00Z', 'count': 14,
+                  'first_seen': '2026-09-18T00:00:00Z', 'last_seen': ''})
+            healed = TR.policies(mr)['inbound']
+            check('ct-9 §66d (found live after a restart: two rows named `anonymous|anonymous`, confirmed 14 '
+                  'beside suggested 7): after a restore that lands AFTER the flush there is exactly ONE row per '
+                  'name — the person\'s ruling wins, the parked counts are SUMMED onto it (14 + 7 = 21), and '
+                  'the confirmer is untouched',
+                  len(healed) == 1 and healed[0]['name'] == 'anonymous|anonymous'
+                  and healed[0]['state'] == 'confirmed' and healed[0]['count'] == 21
+                  and healed[0]['confirmed_by'] == SUB
+                  and len(_TRrows(mr, 'InboundPolicy')) == 1, healed)
+
+            # an instance that ALREADY has duplicates heals on the next read, whichever order they are in
+            md = _M()
+            for state, cnt, first in (('suggested', 7, '2026-09-19T00:00:00Z'),
+                                      ('confirmed', 14, '2026-09-18T00:00:00Z'),
+                                      ('suggested', 3, '2026-09-20T00:00:00Z')):
+                md.objectTables['InboundPolicy']['id-%s-%d' % (state, cnt)] = _types.SimpleNamespace(
+                    name='anonymous|anonymous', source_kind='anonymous', source='anonymous',
+                    paths_json='["GET /api/%s/{id}"]' % state, state=state, derived_from='x',
+                    confirmed_by=SUB if state == 'confirmed' else '',
+                    confirmed_at='2026-09-19T00:00:00Z' if state == 'confirmed' else '',
+                    count=cnt, first_seen=first, last_seen=first)
+            removed = TR.heal_duplicates(md, 'inbound')
+            one = TR.policies(md)['inbound']
+            check('ct-9 §66d: an instance that ALREADY carries duplicates heals itself on the next door read — '
+                  'no migration: the confirmed row survives, the counts are summed, the paths are unioned, the '
+                  'first_seen is the oldest, and the extra rows are deleted from the tree',
+                  removed == 2 and len(one) == 1 and one[0]['state'] == 'confirmed'
+                  and one[0]['count'] == 24 and one[0]['first_seen'] == '2026-09-18T00:00:00Z'
+                  and len(json.loads(one[0]['paths_json'])) == 2
+                  and len(_TRrows(md, 'InboundPolicy')) == 1
+                  and TR.heal_duplicates(md, 'inbound') == 0, (removed, one))
 
             # ---- §66c: kc_admin is through the seam, so the Keycloak calls that REALLY happen are governed
             import security.custom.kc_admin as _KCA

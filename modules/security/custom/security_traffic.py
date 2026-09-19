@@ -109,7 +109,103 @@ def _json_list(row, attr):
 
 
 def _find(manager, table, name):
-    return next((r for r in _all_rows(manager, table) if getattr(r, 'name', '') == name), None)
+    """THE one row named `name`, collapsing any duplicates first (§66d).
+
+    A name is the dedup key, but nothing in the tree enforces that — two rows can end up sharing one if an
+    observation writes while the class's own restore is still to come. Seen live on `polari-lean`
+    2026-09-19: after a restart `anonymous|anonymous` existed TWICE, ('confirmed', 14) beside ('suggested', 7),
+    because the boot-time flush found no restored row yet and made its own. Every lookup heals it, so a read
+    can never show two rows with one name and a parked count can never land beside a person's ruling instead
+    of on it."""
+    rows = [r for r in _all_rows(manager, table) if getattr(r, 'name', '') == name]
+    if len(rows) < 2:
+        return rows[0] if rows else None
+    return _collapse(manager, table, rows)
+
+
+#: which state wins when two rows share a name — a PERSON's ruling always beats a derived suggestion
+_STATE_RANK = {'confirmed': 3, 'denied': 3, 'suggested': 1, '': 0}
+
+
+def _collapse(manager, table, rows):
+    """Merge `rows` (all sharing one name) into the best of them and delete the rest.
+
+    The winner is the row a PERSON ruled on — `confirmed` or `denied` — because that is the only state nothing
+    may invent; ties go to the oldest row, so the identity that has been around longest survives. Counts are
+    SUMMED (every observation really happened), classes and paths are unioned, and the winner's state,
+    `confirmed_by` and `confirmed_at` are kept exactly as the person left them. Never raises."""
+    try:
+        rows = sorted(rows, key=lambda r: (-_STATE_RANK.get(str(getattr(r, 'state', '') or ''), 0),
+                                           str(getattr(r, 'first_seen', '') or '9999'),
+                                           -int(getattr(r, 'count', 0) or 0)))
+        winner, losers = rows[0], rows[1:]
+        total = sum(int(getattr(r, 'count', 0) or 0) for r in rows)
+        classes, paths = set(_json_list(winner, 'payload_classes_json')), list(_json_list(winner, 'paths_json'))
+        last = str(getattr(winner, 'last_seen', '') or '')
+        first = str(getattr(winner, 'first_seen', '') or '')
+        for row in losers:
+            classes |= set(_json_list(row, 'payload_classes_json'))
+            for p in _json_list(row, 'paths_json'):
+                if p not in paths and len(paths) < MAX_PATHS:
+                    paths.append(p)
+            last = max(last, str(getattr(row, 'last_seen', '') or ''))
+            other_first = str(getattr(row, 'first_seen', '') or '')
+            first = min(first or other_first, other_first or first)
+            _drop_row(manager, table, row)
+        winner.count = total
+        if last:
+            winner.last_seen = last
+        if first:
+            winner.first_seen = first
+        if hasattr(winner, 'payload_classes_json'):
+            winner.payload_classes_json = json.dumps(sorted(classes)[:MAX_CLASSES])
+        if hasattr(winner, 'paths_json'):
+            winner.paths_json = json.dumps(paths)
+        _schedule_persist(manager)
+        return winner
+    except Exception:                       # noqa: BLE001 — healing never raises into a read
+        return rows[0] if rows else None
+
+
+def _drop_row(manager, table, row):
+    """Remove one row from the manager's table (and the test-double fallback), tombstoned so a persist in
+    flight does not write it back — the same removal `security_trace.prune_map` does for the causal map."""
+    try:
+        from security.custom import security_observe as _obs
+        tables = getattr(manager, 'objectTables', None) or {}
+        live = tables.get(table)
+        if isinstance(live, dict):
+            for key, value in list(live.items()):
+                if value is row:
+                    live.pop(key, None)
+                    try:
+                        manager.noteTreeDeletion(table, key)
+                    except Exception:       # noqa: BLE001
+                        pass
+        _obs._FALLBACK.get(id(tables), {}).get(table, {}).pop(getattr(row, 'name', ''), None)
+    except Exception:                       # noqa: BLE001
+        pass
+
+
+def heal_duplicates(manager, direction=''):
+    """Collapse every duplicated name in one or both policy tables; returns how many rows were removed.
+
+    Called from every door read and from the flush, so an instance that ALREADY has duplicates (the live
+    `polari-lean` tree does) heals itself on the next read rather than needing a migration."""
+    removed = 0
+    for d in ((direction,) if direction else tuple(TABLES)):
+        table = TABLES[d][0]
+        try:
+            by_name = {}
+            for row in _all_rows(manager, table):
+                by_name.setdefault(getattr(row, 'name', ''), []).append(row)
+            for name, rows in by_name.items():
+                if len(rows) > 1:
+                    _collapse(manager, table, rows)
+                    removed += len(rows) - 1
+        except Exception:                   # noqa: BLE001
+            continue
+    return removed
 
 
 # ---- BEFORE THE TREE IS THE TREE: the parking lot (§66a, §66b) -------------------------------------------
@@ -173,6 +269,7 @@ def flush_pending(manager):
     _PENDING.clear()
     if not observing():
         return 0
+    heal_duplicates(manager)                # §66d: land ON the restored row, never beside it
     n = 0
     for (direction, name), entry in parked:
         try:
@@ -481,6 +578,7 @@ def confirm_inbound(manager, name, user_info, decision):
 
 def _rows(manager, direction, state=''):
     table, keys = TABLES[direction]
+    heal_duplicates(manager, direction)     # §66d: one row per name, always, on every read
     out = [{k: getattr(r, k, '') for k in keys} for r in _all_rows(manager, table)]
     if state:
         out = [r for r in out if r.get('state') == state]
