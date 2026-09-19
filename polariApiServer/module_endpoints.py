@@ -523,8 +523,15 @@ def construct_iso_endpoints(polServer):
     return build(polServer)
 
 
+def construct_cicd_endpoints(polServer):
+    # ci-8: /api/cicd — the pipeline's settings (Polari is the source of truth) + the run/result mirror
+    from cicd.cicd_endpoints import construct_cicd_endpoints as build
+    return build(polServer)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'iso': construct_iso_endpoints,
+    'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,
     'security': construct_security_endpoints,

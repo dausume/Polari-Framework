@@ -1259,6 +1259,14 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_SECURITY_PAGE_DISPLAYS',
         )),
     )),
+    ('cicd', (
+        # ci-8: the pipeline's settings as rows (Polari is the source of truth, device.env the fallback)
+        # and its runs / isle-test results / releases mirrored in through one posting-only credential.
+        ('cicd.cicd_basis', ('PipelineDevice', 'PipelineStage', 'PipelineRoute', 'PipelineSecretPresence',
+                             'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'CICD_CLASSES')),
+        ('cicd.cicd_seed', ('CICD_SEED_PAIRS',)),
+        ('cicd.cicd_page', ('SEED_CICD_PAGE_DISPLAYS',)),
+    )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),

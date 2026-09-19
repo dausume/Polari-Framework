@@ -1,0 +1,141 @@
+{
+ "schema": "polari-app/1",
+ "id": "cicd",
+ "package": "cicd",
+ "title": "CI/CD",
+ "description": "The build + publish pipeline's SETTINGS as Polari rows (Polari is the source of truth; polari-jenkins/device.env is the fallback and is rewritten from them), and its runs, isle-test stage results, releases and secret PRESENCE mirrored in through one posting-only credential. Two modes: the whole suite, or ONE Polari app somebody maintains.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "core",
+  "category": "polari",
+  "subcategories": [
+   "platform-operations"
+  ],
+  "tags": [
+   "cicd",
+   "pipeline",
+   "release"
+  ],
+  "roles": [
+   "operators"
+  ],
+  "flows": []
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/cicd/IsleTestResult",
+   "objects/cicd/PipelineDevice",
+   "objects/cicd/PipelineRoute",
+   "objects/cicd/PipelineRun",
+   "objects/cicd/PipelineSecretPresence",
+   "objects/cicd/PipelineStage",
+   "objects/cicd/ReleaseRecord"
+  ],
+  "basis": [
+   "cicd_basis"
+  ],
+  "api": [
+   "cicd_api"
+  ],
+  "endpoints": [
+   "cicd_endpoints"
+  ],
+  "seed": [
+   "cicd_seed"
+  ],
+  "page": [
+   "cicd_page"
+  ],
+  "custom": [
+   "custom/cicd_auth",
+   "custom/cicd_ingest",
+   "custom/cicd_rows",
+   "custom/cicd_stages",
+   "custom/cicd_validate"
+  ],
+  "selftests": [
+   "cicd_selftest"
+  ]
+ },
+ "classes": [
+  "CicdAPI",
+  "IsleTestResult",
+  "PipelineDevice",
+  "PipelineRoute",
+  "PipelineRun",
+  "PipelineSecretPresence",
+  "PipelineStage",
+  "ReleaseRecord"
+ ],
+ "imports": [
+  [
+   "cicd.cicd_basis",
+   [
+    "PipelineDevice",
+    "PipelineStage",
+    "PipelineRoute",
+    "PipelineSecretPresence",
+    "PipelineRun",
+    "IsleTestResult",
+    "ReleaseRecord",
+    "CICD_CLASSES"
+   ]
+  ],
+  [
+   "cicd.cicd_seed",
+   [
+    "CICD_SEED_PAIRS"
+   ]
+  ],
+  [
+   "cicd.cicd_page",
+   [
+    "SEED_CICD_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "cicd.cicd_endpoints:construct_cicd_endpoints",
+ "seedPairs": "cicd.cicd_seed:CICD_SEED_PAIRS",
+ "pages": [
+  "cicd.cicd_page:SEED_CICD_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "cicd_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

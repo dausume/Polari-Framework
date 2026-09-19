@@ -1278,7 +1278,11 @@ class polariServer(treeObject):
             # closed by default, suggested from dev monitoring (design §5a)
             OutboundPolicy, InboundPolicy,
             # iso-1: the ISO arc's rows
-            IsoBase, DeviceProbe, IsoBuild]
+            IsoBase, DeviceProbe, IsoBuild,
+            # ci-8: the pipeline's settings (Polari is the source of truth, device.env the fallback)
+            # and the runs / isle-test results / releases the pipeline mirrors in
+            PipelineDevice, PipelineStage, PipelineRoute, PipelineSecretPresence,
+            PipelineRun, IsleTestResult, ReleaseRecord]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2359,6 +2363,8 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
+             # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
+             + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -3258,6 +3264,7 @@ class polariServer(treeObject):
           + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or []) + list(SUITEAPPS_SEED_PAIRS or []) \
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
+          + list(CICD_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

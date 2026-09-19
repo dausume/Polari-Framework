@@ -205,16 +205,30 @@ class SecurityAPI(treeObject):
             self._bad(response, str(exc))
 
     def _upsert(self, class_name, cls, row):
-        """Store a derived row the way the seed does (upsert by name); returns the object or None without a manager."""
+        """Converge ONE derived row by name the way the seed does (`moduleService.seed_upsert`); returns the live
+        object, or None without a manager.
+
+        §71 review: this used to import a `polariApiServer.seed_upsert` that never existed, so every call fell to
+        the except branch and CONSTRUCTED a new row — a duplicate per posted audit / inventory / ssh row instead of
+        a convergence. The upsert helper returns a report, not the row, so the live row is looked up by name after
+        it; a class with no table yet is created once."""
+        if self.manager is None:
+            return None
         try:
-            from polariApiServer.seed_upsert import seed_upsert
-            return seed_upsert(self.manager, class_name, cls, row)
+            from moduleService.seed_upsert import upsert_seed_rows
+            upsert_seed_rows(self.manager, class_name, cls, [row], tag='SecurityPost')
         except Exception:
-            try:
-                obj = cls(manager=self.manager, **row)
-                return obj
-            except Exception:
-                return None
+            pass
+        try:
+            for obj in (self.manager.objectTables.get(class_name, {}) or {}).values():
+                if getattr(obj, 'name', None) == row.get('name'):
+                    return obj
+        except Exception:
+            pass
+        try:
+            return cls(manager=self.manager, **row)
+        except Exception:
+            return None
 
     def on_get_ssh(self, request, response):
         rows = ssh_rows(self.manager) if self.manager is not None else []

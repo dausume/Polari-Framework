@@ -35,7 +35,7 @@ from polariApiServer.module_gating import module_enabled
 # (and ONLY these) may be absent from a checkout; core packages are
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
-    'iso', 'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
+    'iso', 'cicd', 'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
     'hardwareapps', 'hwmap', 'isle_guestnet', 'isle_relay', 'kirimoto', 'printcam', 'printing_suite', 'suiteapps', 'voron',
