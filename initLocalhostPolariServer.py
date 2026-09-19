@@ -157,7 +157,11 @@ if(__name__=='__main__'):
     if ws_enabled:
         from polariApiServer.stompWebSocketServer import StompWebSocketServer, set_stomp_server
         cors_origins = config.get('api.cors_origins', [])
-        stomp_server = StompWebSocketServer(port=ws_port, cors_origins=cors_origins)
+        # ct-6: the sidecar is handed the manager so SUBSCRIBE can ask the SAME
+        # permission_verdict the CRUDE gate asks. Reference only — the STOMP
+        # server is never on the tree, so nothing serializes through it.
+        stomp_server = StompWebSocketServer(port=ws_port, cors_origins=cors_origins,
+                                            manager=localHostedManagerServer)
         stomp_server.start()
         # Store as module-level singleton (not on polariServer instance)
         # to avoid tree serialization encountering a non-tree object

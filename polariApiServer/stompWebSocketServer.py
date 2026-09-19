@@ -27,6 +27,17 @@ Implements a minimal STOMP 1.2 subset:
 Topic pattern:
 - /topic/{ClassName}              (default = CRUDE / polariTree changes)
 - /topic/{ClassName}/{formatType} (specific format changes)
+
+ct-6 (2026-09-19, his ruling 2026-09-18): SUBSCRIBE follows the CRUDE security
+posture. Any socket used to be able to subscribe to any class; now a bearer on
+the upgrade request or the CONNECT frame becomes the same `user_info` the API
+resolves (`accessControl.stomp_identity`), and `accessControl.stomp_gate` asks
+the SAME `permission_verdict` the CRUDE gate asks — for verb `read`, because
+`events` is derived from it — under the SAME `POLARI_APP_PERMISSIONS` knob.
+off = today's behavior; advisory = subscribe AND be told (a MESSAGE notice
+frame carrying `X-Polari-Permission-Advisory`, plus that header on the RECEIPT
+when one was asked for); enforce = an ERROR frame with the evidence and no
+subscription. The gate lives in accessControl so this file stays transport.
 """
 
 import asyncio
@@ -105,9 +116,15 @@ class StompWebSocketServer:
     asyncio loop via run_coroutine_threadsafe.
     """
 
-    def __init__(self, port=3001, cors_origins=None):
+    def __init__(self, port=3001, cors_origins=None, manager=None):
         self.port = port
         self.cors_origins = cors_origins or []
+        # ct-6: the manager the subscribe gate resolves verdicts against.
+        # A plain attribute reference on a module-level singleton — the STOMP
+        # server is deliberately NOT on the tree, so nothing serializes this.
+        # None (a sidecar started without one) degrades to today's behavior,
+        # stated on the advisory, exactly as a missing profile table does.
+        self.manager = manager
         # topic -> set of websocket connections
         self._subscriptions = defaultdict(set)
         # websocket -> set of (topic, subscription_id)
@@ -117,10 +134,53 @@ class StompWebSocketServer:
         self._running = False
         self._lock = threading.Lock()
 
+    def set_manager(self, manager):
+        """Hand the sidecar its manager after construction (lazy boot)."""
+        self.manager = manager
+
+    # ---- SUBSCRIBE: the sync half, so it is testable without a socket ----
+
+    def handle_subscribe(self, connection, headers):
+        """Gate, register and answer ONE SUBSCRIBE.
+
+        Returns `(allowed, frames, topic)` where `frames` are ready-to-send
+        STOMP frame strings; the asyncio handler does nothing but send them.
+        Sync and socket-free on purpose: `selftest_stomp_gate.py` drives this
+        directly with a fake connection.
+        """
+        from accessControl.stomp_gate import (class_of_topic, gate_subscribe,
+                                              record_subscribe)
+        topic = headers.get('destination', '')
+        sub_id = headers.get('id', str(uuid.uuid4())[:8])
+        receipt = headers.get('receipt', '')
+        class_name = class_of_topic(topic)
+
+        decision = gate_subscribe(self.manager, connection, class_name,
+                                  receipt=receipt, sub_id=sub_id)
+        frames = [build_stomp_frame(f['command'], f['headers'],
+                                    f.get('body', ''))
+                  for f in decision.get('frames', [])]
+        if not decision.get('allowed'):
+            return False, frames, topic
+
+        websocket = getattr(connection, 'websocket', None)
+        with self._lock:
+            self._subscriptions[topic].add(websocket)
+            self._client_subs[websocket].add((topic, sub_id))
+        record_subscribe(self.manager, connection, class_name)
+        return True, frames, topic
+
     async def _handler(self, websocket):
         """Handle a single WebSocket connection."""
         client_id = str(uuid.uuid4())[:8]
         print(f"[STOMP] Client {client_id} connected from {websocket.remote_address}", flush=True)
+        # ct-6: identity before anything else. The upgrade request may already
+        # carry the bearer (Authorization, or Sec-WebSocket-Protocol for a
+        # browser); a CONNECT frame may carry it instead. Anonymous is a valid
+        # answer, not an error — it is gated like an anonymous CRUDE caller.
+        from accessControl.stomp_identity import StompConnection, adopt_identity
+        connection = StompConnection(websocket=websocket, client_id=client_id)
+        adopt_identity(connection)
         try:
             async for raw_message in websocket:
                 if isinstance(raw_message, bytes):
@@ -128,21 +188,28 @@ class StompWebSocketServer:
                 command, headers, body = parse_stomp_frame(raw_message)
 
                 if command == 'CONNECT' or command == 'STOMP':
+                    adopt_identity(connection, headers)
                     response = build_stomp_frame('CONNECTED', {
                         'version': '1.2',
                         'server': 'polari-stomp/1.0',
                         'heart-beat': '0,0'
                     })
                     await websocket.send(response)
-                    print(f"[STOMP] Client {client_id} connected (STOMP protocol)", flush=True)
+                    # Log the opaque `sub` and nothing else (D18-1).
+                    who = connection.sub or ('auth-failed'
+                                             if connection.auth_failed
+                                             else 'anonymous')
+                    print(f"[STOMP] Client {client_id} connected "
+                          f"(STOMP protocol, identity {who})", flush=True)
 
                 elif command == 'SUBSCRIBE':
-                    topic = headers.get('destination', '')
-                    sub_id = headers.get('id', str(uuid.uuid4())[:8])
-                    with self._lock:
-                        self._subscriptions[topic].add(websocket)
-                        self._client_subs[websocket].add((topic, sub_id))
-                    print(f"[STOMP] Client {client_id} subscribed to {topic}", flush=True)
+                    allowed, frames, topic = self.handle_subscribe(
+                        connection, headers)
+                    for frame in frames:
+                        await websocket.send(frame)
+                    print(f"[STOMP] Client {client_id} "
+                          f"{'subscribed to' if allowed else 'REFUSED'} "
+                          f"{topic}", flush=True)
 
                 elif command == 'UNSUBSCRIBE':
                     sub_id = headers.get('id', '')
