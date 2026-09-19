@@ -112,6 +112,57 @@ def _find(manager, table, name):
     return next((r for r in _all_rows(manager, table) if getattr(r, 'name', '') == name), None)
 
 
+# ---- the sends that happen before there IS a manager (§66a) -----------------------------------------------
+# Found by the live proof on `polari-lean` (2026-09-19): outbound rows were EMPTY on an instance whose
+# Keycloak and JWKS sends demonstrably happen. `polariApiServer.outbound.process_manager()` answers None until
+# `polariServer` injects the manager at boot (polariServer.py:780), and a send before that had nowhere to write
+# — so the very sends that run earliest, which are exactly the ones a person most wants to rule on, were the
+# ones that never appeared. They are PARKED here instead, counted, and flushed into rows the first time any
+# verdict or door is asked with a real manager. Bounded, in-process, and lost on a restart on purpose: a parked
+# send is an observation, and observations do not outlive the process that made them.
+
+PENDING_MAX = 200
+_PENDING = {}
+
+
+def _park(name, system_kind, system_name, means, classes):
+    entry = _PENDING.get(name)
+    if entry is None:
+        if len(_PENDING) >= PENDING_MAX:
+            return None
+        _PENDING[name] = {'system_kind': system_kind, 'system_name': system_name, 'means': means,
+                          'classes': list(classes), 'count': 1}
+        return _PENDING[name]
+    entry['count'] += 1
+    entry['classes'] = sorted(set(entry['classes']) | set(classes))[:MAX_CLASSES]
+    return entry
+
+
+def flush_pending(manager):
+    """Write the parked sends as rows, then forget them. Dev posture only (production derives nothing); the
+    buffer is cleared either way so it can never grow across a long production run. Never raises."""
+    if not _PENDING:
+        return 0
+    parked = list(_PENDING.items())
+    _PENDING.clear()
+    if not observing():
+        return 0
+    n = 0
+    for name, entry in parked:
+        try:
+            row = _find(manager, 'OutboundPolicy', name)
+            for _ in range(int(entry.get('count') or 1)):
+                row = _observe_outbound(manager, name, entry['system_kind'], entry['system_name'],
+                                        entry['means'], entry['classes'], row) or row
+            if row is not None:
+                row.derived_from = ('observed send before the manager existed (boot-time, flushed at the first '
+                                    'request — §66a)')
+                n += 1
+        except Exception:                   # noqa: BLE001 — a flush never raises into its caller
+            continue
+    return n
+
+
 # ---- the verdict ----------------------------------------------------------------------------------------
 
 def _answer(allowed, rule, why, name='', state='', count=0, extra=None):
@@ -133,9 +184,12 @@ def _verdict(manager, direction, name, observe_fn):
     tables = getattr(manager, 'objectTables', None) if manager is not None else None
     if tables is None:
         return _answer(True, 'no-security',
-                       'this instance carries no security rows, so there is no traffic policy to consult — the '
-                       'traffic proceeds exactly as it did before ct-9, stated rather than silently allowed',
+                       'there is no object tree to consult yet (a send before the manager exists at boot, or an '
+                       'instance carrying no security rows at all) — the traffic proceeds exactly as it did '
+                       'before ct-9. A boot-time OUTBOUND send is PARKED and becomes a row at the first request '
+                       '(§66a), so nothing that leaves goes unlisted.',
                        name=name)
+    flush_pending(manager)                  # §66a: the boot-time sends, now that there is somewhere to write
     row = _find(manager, table, name)
     state = _clean(getattr(row, 'state', '')) if row is not None else ''
     row = observe_fn(row) or row
@@ -203,6 +257,10 @@ def outbound_verdict(manager, system_kind, system_name, means, payload_classes=(
     try:
         name = outbound_name(system_kind, system_name, means)
         classes = sorted({str(c) for c in (payload_classes or []) if c})[:MAX_CLASSES]
+        if manager is None or getattr(manager, 'objectTables', None) is None:
+            # §66a: no tree yet (a boot-time send). Park it so the first request turns it into a row.
+            _park(name, _clean(system_kind, 'other'), _clean(system_name, 'unnamed'), _clean(means, 'send'),
+                  classes)
         ans = _verdict(manager, 'outbound', name,
                        lambda row: _observe_outbound(manager, name, system_kind, system_name, means,
                                                      classes, row))
@@ -393,6 +451,7 @@ def _rows(manager, direction, state=''):
 
 def policies(manager):
     """Every traffic policy row, both directions, with the mode and the posture that decide what they mean."""
+    flush_pending(manager)                  # §66a: a door read is as good a moment as a verdict
     out = _rows(manager, 'outbound')
     inb = _rows(manager, 'inbound')
     return {'mode': mode(), 'posture': _posture.posture(), 'observing': observing(),
@@ -407,6 +466,7 @@ def suggestions(manager):
     His ask in one list — "suggest outbound and inbounds based on our monitoring of traffic in and out of
     polari". Every row carries its count, its first/last seen and what derived it, so a person confirms on
     evidence rather than on a name."""
+    flush_pending(manager)
     return {'mode': mode(), 'posture': _posture.posture(),
             'outbound': _rows(manager, 'outbound', 'suggested'),
             'inbound': _rows(manager, 'inbound', 'suggested'),

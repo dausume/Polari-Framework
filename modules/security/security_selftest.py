@@ -1349,6 +1349,8 @@ def _ct9_checks(_types, check):
                   'drifted suffix RAISES from add_route() and takes the backend down at boot',
                   traffic_routes == [('/api/security/traffic', 'traffic'),
                                      ('/api/security/traffic/declared', 'traffic_declared'),
+                                     ('/api/security/traffic/outbound', 'traffic_outbound_body'),
+                                     ('/api/security/traffic/inbound', 'traffic_inbound_body'),
                                      ('/api/security/traffic/outbound/{name}', 'traffic_outbound'),
                                      ('/api/security/traffic/inbound/{name}', 'traffic_inbound')]
                   and all(any(hasattr(probe, 'on_%s_%s' % (mm, sfx)) for mm in ('get', 'post'))
@@ -1371,6 +1373,63 @@ def _ct9_checks(_types, check):
                   and yes_r.media['policy']['state'] == 'denied'
                   and yes_r.media['policy']['confirmed_by'] == SUB,
                   (anon_r.status, no_r.status, yes_r.media))
+
+            # ---- §66a, found by the LIVE PROOF on `polari-lean`: a name a URL path cannot carry
+            web = TR.inbound_name('origin', 'https://prf.example')
+            TR.inbound_verdict(mi, 'origin', 'https://prf.example', '')   # the row the live stack had
+            router = falcon.routing.CompiledRouter()
+            router.add_route('/api/security/traffic/inbound/{name}', probe)
+            router.add_route('/api/security/traffic/inbound', probe)
+            routed_path = router.find('/api/security/traffic/inbound/' + web)
+            routed_body = router.find('/api/security/traffic/inbound')
+            body_anon = _Resp(); probe.on_post_traffic_inbound_body(
+                _ApiReq(None, {'name': web, 'decision': 'confirmed'}), body_anon)
+            body_403 = _Resp(); probe.on_post_traffic_inbound_body(
+                _ApiReq(plain, {'name': web, 'decision': 'confirmed'}), body_403)
+            body_400 = _Resp(); probe.on_post_traffic_inbound_body(
+                _ApiReq(admin, {'decision': 'confirmed'}), body_400)
+            body_ok = _Resp(); probe.on_post_traffic_inbound_body(
+                _ApiReq(admin, {'name': web, 'decision': 'confirmed'}), body_ok)
+            out_body = _Resp(); probe.manager = m
+            probe.on_post_traffic_outbound_body(
+                _ApiReq(admin, {'name': 'odoo|main|json-rpc', 'decision': 'denied'}), out_body)
+            probe.manager = mi
+            check('ct-9 §66a (found by the live proof on polari-lean): an inbound row is named '
+                  '`origin|https://host`, and falcon percent-DECODES before routing, so no encoding can carry '
+                  '`://` through the /{name} door — it 404s. The BODY door rules on exactly that name, with '
+                  'every refusal unchanged: 401 anonymous, 403 for a non-admin, 400 with no name at all',
+                  '://' in web and routed_path is None and routed_body is not None
+                  and body_anon.status.startswith('401') and body_403.status.startswith('403')
+                  and body_400.status.startswith('400') and body_ok.media['ok']
+                  and body_ok.media['policy']['name'] == web
+                  and body_ok.media['policy']['state'] == 'confirmed'
+                  and body_ok.media['policy']['confirmed_by'] == SUB
+                  and out_body.media['ok'] and out_body.media['policy']['state'] == 'denied',
+                  (routed_path, body_anon.status, body_403.status, body_400.status))
+
+            # ---- §66a: the sends that happen BEFORE the manager exists (live: outbound rows were empty)
+            TR._PENDING.clear()
+            mb = _M()
+            boot = OB.send('keycloak', 'Polari', 'rest', lambda: 'jwks', manager=None)
+            OB.send('keycloak', 'Polari', 'rest', lambda: 'jwks', payload_classes=('Token',), manager=None)
+            parked = dict(TR._PENDING)
+            flushed = TR.policies(mb)['outbound']
+            check('ct-9 §66a: a send before `process_manager()` answers (boot: polariServer injects the manager '
+                  'at :780, and the EARLIEST sends — Keycloak, JWKS — run before that) is PARKED, counted, and '
+                  'becomes a row at the first verdict or door read with a real tree; it is allowed meanwhile, '
+                  'because a guard with nowhere to write must not block a boot',
+                  boot == 'jwks' and list(parked) == ['keycloak|Polari|rest'] and TR._PENDING == {}
+                  and len(flushed) == 1 and flushed[0]['count'] == 2
+                  and json.loads(flushed[0]['payload_classes_json']) == ['Token']
+                  and flushed[0]['state'] == 'suggested' and '§66a' in flushed[0]['derived_from'],
+                  (parked, flushed))
+            os.environ['POLARI_POSTURE'] = 'production'
+            OB.send('keycloak', 'Polari', 'rest', lambda: 'jwks', manager=None)
+            prod_flush = TR.policies(_M())['outbound']
+            os.environ['POLARI_POSTURE'] = 'dev'
+            check('ct-9 §66a: in PRODUCTION the parked sends are DROPPED, never written — the buffer is cleared '
+                  'either way so it cannot grow across a long run, and production still derives nothing',
+                  prod_flush == [] and TR._PENDING == {}, (prod_flush, TR._PENDING))
 
             # ---- the CORS expose list (a browser cannot READ a header that is not exposed — §51)
             from polariApiServer.polariServer import CORSExtraHeadersMiddleware

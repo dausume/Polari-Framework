@@ -33,6 +33,10 @@
                                monitoring and the gate mode that decides what they mean. Signed in to read.
 /api/security/traffic/outbound/{name}   POST {"decision": "confirmed"|"denied"} — a PERSON rules (admins only;
 /api/security/traffic/inbound/{name}    the `sub` alone is stored; nothing confirms itself, 401 without one)
+/api/security/traffic/outbound          POST {"name": …, "decision": …} — the SAME ruling with the name in the
+/api/security/traffic/inbound           BODY, for the names a URL path cannot carry: an inbound origin name
+                                        holds `://`, and falcon decodes before routing, so the `/{name}` form
+                                        answers 404 for it however it is encoded (§66a, found live 2026-09-19)
 /api/security/traffic/declared ct-9 — the confirmed rows as DECLARED flows for the object topology (§7)
 /api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
 /api/security/roles/claim      POST {role} join that group; DELETE ?role= leave it — self-service, never an admin role (§17b D17-5)
@@ -119,6 +123,8 @@ class SecurityAPI(treeObject):
             add('/api/security/people/{sub}', self, suffix='people')                # THE ONE GATED DOOR: a Keycloak `sub` → a display name, resolved LIVE, never stored (D18-1)
             add('/api/security/traffic', self, suffix='traffic')                    # ct-9: the traffic policies + the suggestions derived from dev monitoring + the mode
             add('/api/security/traffic/declared', self, suffix='traffic_declared')  # ct-9: the CONFIRMED rows as declared flows (the §7 topology's declared edges)
+            add('/api/security/traffic/outbound', self, suffix='traffic_outbound_body')    # ct-9 §66a: POST {name, decision} — the door for a name a URL cannot carry
+            add('/api/security/traffic/inbound', self, suffix='traffic_inbound_body')      # ct-9 §66a: the same, for who may call this instance
             add('/api/security/traffic/outbound/{name}', self, suffix='traffic_outbound')  # ct-9: POST {decision: confirmed|denied} — a PERSON rules (admins only)
             add('/api/security/traffic/inbound/{name}', self, suffix='traffic_inbound')    # ct-9: the same, for who may call this instance
             add('/api/security/owned', self, suffix='owned')                        # op-0: the classes whose OWNER defines the rules, and their policies
@@ -861,6 +867,31 @@ class SecurityAPI(treeObject):
     def on_post_traffic_inbound(self, request, response, name):
         """POST {"decision": "confirmed"|"denied"} — a person rules on who may call."""
         self._rule_traffic(request, response, 'inbound', name)
+
+    # §66a, found by the live proof on `polari-lean` (2026-09-19): an inbound row's name is
+    # `origin|https://prf.<host>`, and a name with `://` in it CANNOT be carried in a URL path — falcon
+    # percent-decodes before routing, so `%2F%2F` becomes `//` and the route never matches (404). Percent-
+    # encoding is not a fix; the name simply does not belong in a path. These two doors take it in the BODY,
+    # which has no such problem, and the `{name}` form stays for the simple names (`anonymous|anonymous`,
+    # `odoo|main|json-rpc`) that a person can type. Same function, same refusals, one extra 400 for a missing
+    # name — nothing about who may rule changes.
+
+    def _rule_traffic_body(self, request, response, direction):
+        name = str((self._body(request).get('name') or '')).strip()
+        if not name:
+            return self._bad(response, ('body: {"name": "<the policy row\'s name>", "decision": '
+                                        '"confirmed"|"denied"}. Use THIS door for any name a URL path cannot '
+                                        'carry — an inbound origin name holds "://", which falcon decodes '
+                                        'before routing, so the /{name} form answers 404 for it.'))
+        self._rule_traffic(request, response, direction, name)
+
+    def on_post_traffic_outbound_body(self, request, response):
+        """POST {"name": ..., "decision": "confirmed"|"denied"} — the body form of the outbound ruling."""
+        self._rule_traffic_body(request, response, 'outbound')
+
+    def on_post_traffic_inbound_body(self, request, response):
+        """POST {"name": ..., "decision": "confirmed"|"denied"} — the body form of the inbound ruling."""
+        self._rule_traffic_body(request, response, 'inbound')
 
     def on_get_owned(self, request, response):
         from security.custom.security_owned import policies
