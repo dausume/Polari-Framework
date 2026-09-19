@@ -420,6 +420,13 @@ class CicdAPI(treeObject):
                         'stage': int(getattr(r, 'stage_index', 0) or 0),
                         'apps': _json.loads(getattr(r, 'apps_json', '[]') or '[]'),
                         'core_ok': bool(getattr(r, 'core_ok', False)), 'results': res,
+                        # ci-10: the teardown, as two readings — the product's hand-back (gates the
+                        # release) and our own leak diff (gates the next stage, never a release)
+                        'uninstall_verdict': str(getattr(r, 'uninstall_verdict', 'skipped')),
+                        'leak_verdict': str(getattr(r, 'leak_verdict', 'clean')),
+                        'leaks': _json.loads(getattr(r, 'leaks_json', '[]') or '[]'),
+                        'ram_delta_mb': int(getattr(r, 'ram_delta_mb', 0) or 0),
+                        'disk_delta_mb': int(getattr(r, 'disk_delta_mb', 0) or 0),
                         'started': str(getattr(r, 'started', '')), 'finished': str(getattr(r, 'finished', '')),
                         'error': str(getattr(r, 'error', ''))})
         response.media = {'ok': True, 'count': len(out), 'results': out, 'release_rule': R.RELEASE_RULE}

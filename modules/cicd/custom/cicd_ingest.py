@@ -246,16 +246,33 @@ def run_row(body, posted_by=''):
 
 
 def isle_test_row(body, posted_by=''):
+    """A stage of an isle test → the IsleTestResult row.
+
+    ci-10: the teardown arrives as TWO readings and is stored as two. `uninstall_verdict` is what the
+    PRODUCT'S own `isle uninstall --everything` said about handing the machine back — a test result, and
+    `core_ok` is ANDed with it here as well as in the pipeline, so a mirrored row can never claim a passing
+    core for an isle that could not leave. `leak_verdict` and the deltas are what OUR wipe left behind — a
+    resource guard that is recorded, never a release gate.
+    """
     device = str(body.get('device')).strip()
     run = str(body.get('run') or '')
     idx = _int(body.get('stage_index'), 1)
+    uninstall = str(body.get('uninstall_verdict') or 'skipped')
     return {'name': '%s:stage%d' % (run or device, idx), 'device': device, 'run': run,
             'version': str(body.get('version') or ''), 'stage_index': idx,
             'apps_json': _j([str(a) for a in (body.get('apps') or [])]),
-            'core_ok': bool(body.get('core_ok')),
+            'core_ok': bool(body.get('core_ok')) and uninstall == 'clean',
             'results_json': _j(body.get('results') or {}, '{}'),
             'started': str(body.get('started') or ''), 'finished': str(body.get('finished') or ''),
-            'error': str(body.get('error') or ''), 'posted_by': posted_by}
+            'error': str(body.get('error') or ''),
+            'uninstall_verdict': uninstall,
+            'uninstall_json': _j({'verdict': uninstall,
+                                  'findings': [str(f) for f in (body.get('uninstall_findings') or [])]}, '{}'),
+            'leak_verdict': str(body.get('leak_verdict') or 'clean'),
+            'leaks_json': _j([str(x) for x in (body.get('leaks') or [])]),
+            'ram_delta_mb': _int(body.get('ram_delta_mb')),
+            'disk_delta_mb': _int(body.get('disk_delta_mb')),
+            'posted_by': posted_by}
 
 
 def release_row(body, posted_by=''):

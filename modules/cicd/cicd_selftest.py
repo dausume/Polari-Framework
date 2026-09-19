@@ -61,6 +61,7 @@ class _Res:
 
 # ---------------------------------------------------------------- the rows
 def _row_checks():
+    from cicd.custom.cicd_ingest import value_like_fields
     from cicd.cicd_basis import (CICD_CLASSES, CICD_MIRROR_CLASSES, CICD_SETTINGS_CLASSES, IsleTestResult,
                                  PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence,
                                  PipelineStage, ReleaseRecord)
@@ -93,6 +94,18 @@ def _row_checks():
     check('IsleTestResult is per run × stage, with core_ok beside the per-app results',
           {'run', 'stage_index', 'apps_json', 'core_ok', 'results_json'}
           <= set(inspect.signature(IsleTestResult.__init__).parameters))
+    # ci-10: the teardown, and it is TWO readings — the product's hand-back (a test result that
+    # gates the release) and our own leak diff (a resource guard that gates the next stage).
+    check('IsleTestResult carries the TEARDOWN as two separate readings — the product\'s uninstall '
+          'verdict, and the pipeline\'s own leak diff with the RAM/disk that did or did not come back',
+          {'uninstall_verdict', 'uninstall_json', 'leak_verdict', 'leaks_json',
+           'ram_delta_mb', 'disk_delta_mb'} <= set(inspect.signature(IsleTestResult.__init__).parameters))
+    check('  …and both vocabularies are declared, not left to a string anybody can invent',
+          IsleTestResult.UNINSTALL_VERDICTS == ('clean', 'dirty', 'failed', 'skipped')
+          and 'leaked-after-rewipe' in IsleTestResult.LEAK_VERDICTS)
+    check('  …the leak fields are NOT value-shaped, so the mirror door cannot refuse its own results',
+          not value_like_fields({'leaks_json': [], 'leak_verdict': '', 'ram_delta_mb': 0,
+                                 'disk_delta_mb': 0, 'uninstall_verdict': '', 'uninstall_json': {}}))
     check('PipelineRun knows the four jobs and the five statuses the pipeline can be in',
           PipelineRun.JOBS == ('dev-build', 'release', 'publish', 'isle-test')
           and 'running' in PipelineRun.STATUSES and 'success' in PipelineRun.STATUSES)
@@ -740,6 +753,53 @@ def _manifest_checks():
           man['featureModule'] is True and man['coreRequired'] is False)
 
 
+def _teardown_checks():
+    """ci-10 — the teardown arrives as two readings, and the coupling is enforced on the way IN too.
+
+    The Jenkinsfile already ANDs core_ok with a clean uninstall. That is one door. This is the second:
+    a row posted by anything at all (a re-post, an older pipeline, a hand-rolled curl) may not claim a
+    passing core for an isle that could not hand the machine back.
+    """
+    from cicd.custom.cicd_ingest import isle_test_row
+
+    base = {'kind': 'isle-test', 'device': 'pipe-1', 'run': 'polari-isle-test#7', 'stage_index': 1,
+            'version': '2026.09.19', 'apps': ['gears'], 'core_ok': True, 'results': {'gears': 'pass'}}
+
+    r = isle_test_row(dict(base, uninstall_verdict='clean'))
+    check('a CLEAN hand-back lets a posted row keep core_ok', r['core_ok'] is True)
+    check('  …and the verdict is stored as given', r['uninstall_verdict'] == 'clean')
+
+    r = isle_test_row(dict(base, uninstall_verdict='dirty',
+                           uninstall_findings=['volumes remaining: 2']))
+    check('a DIRTY hand-back clears core_ok on the way IN, not just in the pipeline', r['core_ok'] is False)
+    check('  …and the product\'s own finding is kept verbatim, for the page to show',
+          'volumes remaining: 2' in r['uninstall_json'])
+
+    r = isle_test_row(dict(base, uninstall_verdict='skipped'))
+    check('a SKIPPED hand-back is not a pass either — it was never exercised', r['core_ok'] is False)
+
+    r = isle_test_row(base)
+    check('a post with no uninstall verdict at all defaults to skipped, and so cannot claim a core',
+          r['uninstall_verdict'] == 'skipped' and r['core_ok'] is False)
+
+    r = isle_test_row(dict(base, uninstall_verdict='clean', leak_verdict='leaked-after-rewipe',
+                           leaks=['file: /var/lib/libvirt/images/polari-ci-isle.qcow2 (absent → 12.0G)'],
+                           ram_delta_mb=-1400, disk_delta_mb=-12000))
+    check('a LEAK is recorded but does NOT block the release — it is the pipeline\'s mess, not the product\'s',
+          r['core_ok'] is True and r['leak_verdict'] == 'leaked-after-rewipe')
+    check('  …the leaked things are listed', 'polari-ci-isle.qcow2' in r['leaks_json'])
+    check('  …and the RAM that did not come back is a NEGATIVE number, which is the whole reading',
+          r['ram_delta_mb'] == -1400 and r['disk_delta_mb'] == -12000)
+
+    r = isle_test_row(dict(base, uninstall_verdict='clean', ram_delta_mb='not-a-number'))
+    check('an unreadable delta becomes 0 rather than crashing the mirror', r['ram_delta_mb'] == 0)
+
+    from cicd.cicd_page import SEED_CICD_PAGE_DISPLAYS
+    cols = json.dumps(SEED_CICD_PAGE_DISPLAYS)
+    check('the cicd-runs page shows both verdicts as CONFIGURED COLUMNS (no raw JSON panel, his rule)',
+          'uninstall_verdict' in cols and 'leak_verdict' in cols and 'ram_delta_mb' in cols)
+
+
 def main():
     print('cicd_selftest — the rows, the ONE rule set, the two modes, the mirror\'s refusals, the token')
     print('-- the rows')
@@ -750,6 +810,8 @@ def main():
     _mode_checks()
     print('-- the mirror: five kinds, one credential, and what it refuses')
     _ingest_checks()
+    print('-- ci-10: the teardown — the product\'s hand-back gates the release, our leak does not')
+    _teardown_checks()
     print('-- the admin doors, and the token shown once')
     _admin_checks()
     print('-- the §54 route guard')

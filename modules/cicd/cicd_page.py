@@ -102,7 +102,8 @@ SEED_CICD_PAGE_DISPLAYS = [
                   _table('cicd-stage-results', 0, 12,
                          'What each stage actually recorded, most recent versions first',
                          'IsleTestResult',
-                         columns='version,stage_index,apps_json,core_ok,results_json,started,finished,error'),
+                         columns='version,stage_index,apps_json,core_ok,results_json,uninstall_verdict,'
+                                 'leak_verdict,ram_delta_mb,disk_delta_mb,started,finished,error'),
               ]),
           ]),
 
@@ -122,8 +123,13 @@ SEED_CICD_PAGE_DISPLAYS = [
               _row(2, [
                   _table('cicd-result-rows', 0, 12,
                          'Isle test results — per run × stage: did the core install and verify, and what did '
-                         'each app\'s selftest say inside the throwaway isle', 'IsleTestResult',
-                         columns='run,version,stage_index,apps_json,core_ok,results_json,error'),
+                         'each app\'s selftest say inside the throwaway isle; then the TEARDOWN in its two '
+                         'readings — the PRODUCT\'s own uninstall (did the isle hand the machine back? it '
+                         'gates the release) and OUR leak diff (did the pipeline leave anything behind? it '
+                         'gates the next stage). A negative ram_delta_mb is memory that did not come back.',
+                         'IsleTestResult',
+                         columns='run,version,stage_index,apps_json,core_ok,results_json,uninstall_verdict,'
+                                 'uninstall_json,leak_verdict,leaks_json,ram_delta_mb,disk_delta_mb,error'),
               ]),
           ]),
 
