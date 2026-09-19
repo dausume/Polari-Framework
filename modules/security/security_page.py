@@ -130,6 +130,18 @@ SEED_SECURITY_PAGE_DISPLAYS = [
                         column_formats=TRACE_ACTOR_FORMAT)], min_height=280),
         _row(5, [_table('security-trace-edges', 0, 12, 'CausalEdge — Ledger A, the causal map: one counted row per cause → effect by means. Class level only; an instance id never appears here (the effect journal is where an instance is looked up)', 'CausalEdge',
                         columns='cause,effect,means,detail,count,min_depth,max_depth,run_as,target,first_seen,last_seen')]),
+        # ---- ct-4: THE CLOSURE of the armed target's class, read from the same map. Structured panels over
+        # the closure door (no raw JSON, no new component); every item carries its origin and its evidence.
+        _row(6, [_sapi('security-closure-objects', 0, 7, 'The closure of the class armed right now — every class × verb it reaches, transitively: origin (declared / observed / closure), whether it is reached ONLY through a trigger running as definer, and the evidence behind each',
+                       '/api/security/observe/closure', pick='objects'),
+                 _sapi('security-closure-not-traced', 1, 5, 'NOT TRACED — classes this closure touches that have never been armed as a TraceTarget. "Not traced" is not the same as "nothing reaches it": arm one of these next and ask again',
+                       '/api/security/observe/closure', pick='not_traced_detail')], min_height=300),
+        _row(7, [_sapi('security-closure-solutions', 0, 6, 'The solutions the closure runs, and AS WHOM — a trigger runs its solution as the DEFINER, so an update permission can silently run somebody else\'s solution with somebody else\'s authority',
+                       '/api/security/observe/closure', pick='solutions'),
+                 _sapi('security-closure-events', 1, 6, 'The events the closure fires or publishes — trigger firings, emitted events and the STOMP topics the change is broadcast on',
+                       '/api/security/observe/closure', pick='events')], min_height=280),
+        _row(8, [_sapi('security-closure-flows', 0, 12, 'Where the objects GO — peer edges (shared-DB reads, lease writes, module bundles) and external sends, with the CLASSES that rode each one. Beyond the wrapper Polari cannot see, and does not pretend to',
+                       '/api/security/observe/closure', pick='flows')], min_height=240),
     ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),

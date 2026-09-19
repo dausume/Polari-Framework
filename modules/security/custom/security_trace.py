@@ -532,6 +532,20 @@ def edges(manager, target='', cause='', effect='', means=''):
     return out
 
 
+def closure(manager, start_nodes, *, max_depth=None):
+    """THE CLOSURE (ct-4) — walk the map from `start_nodes` and say everything reachable, grouped, with the
+    evidence and the coverage block.
+
+    THE SIGNATURE IS STABLE. Other arcs read the closure through THIS name by lazy import
+    (`from security.custom.security_trace import closure`) — ct-8's per-app decision coverage does exactly that
+    — so it keeps `(manager, start_nodes, *, max_depth=None)` and the keys documented on
+    `security.custom.security_closure.closure`, which is where the walk itself lives (small files, split by
+    concern). `start_nodes` is any iterable of design §2 node strings; the answer always carries `coverage` and
+    `not_traced`, so an empty branch reads *not traced*, never *nothing*."""
+    from security.custom.security_closure import closure as _closure
+    return _closure(manager, start_nodes, max_depth=max_depth)
+
+
 def record_outbound(manager, system_kind, system_name, means, payload_classes=()):
     """What LEFT this instance: the effect node is `external:<kind>:<name>` (or `peer:<name>:<means>` for
     another Polari instance), the payload CLASSES ride in `detail` — never a payload (design §2/§5).

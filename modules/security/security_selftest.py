@@ -1004,6 +1004,306 @@ def _trace_checks(api, _Res, _types, check):
             os.environ.clear(); os.environ.update(old_env)
 
 
+class _TraceM:
+    """The manager DOUBLE the ct-2/ct-4 checks run against — `security_observe._new_row` keeps plain rows in
+    `_FALLBACK` when the manager cannot construct a tree object, and `_all_rows` answers them, so the whole
+    model is exercised end to end without a server."""
+
+    def __init__(self):
+        self.objectTables = {'TraceTarget': {}, 'CausalEdge': {}, 'WriteJournalEntry': {}, 'SecurityEvent': {},
+                             'OwnedClassPolicy': {}, 'AppPermissionProfile': {}, 'PermissionObservation': {},
+                             'UsageObservation': {}, 'ObservationSession': {}}
+        self.persistTree = lambda: None
+
+    def noteTreeDeletion(self, className, instanceId):
+        return 0
+
+
+def _trace_env(td):
+    import os
+    os.environ['POLARI_TRACE_KNOB'] = os.path.join(td, 'trace.json')
+    os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json')
+    os.environ['POLARI_PERSIST_DEBOUNCE_SECONDS'] = '0'
+    os.environ['POLARI_POSTURE'] = 'dev'
+
+
+def _ct2_checks(_types, check):
+    """ct-2 — THE REMAINING EVENT EDGES (design §3): emit, nested solution → solution, ws-publish, shared-db,
+    bundle-export / bundle-install. Every hook is proven twice: it records under a TRACED chain, and records
+    NOTHING under a chain that never touched the armed class (the scope rule holds at every new seam too)."""
+    import os
+    import tempfile
+    from accessControl import cause_context as CC
+    from security.custom import security_trace as T
+
+    SUB = 'cccccccc-2222-4222-8222-cccccccccccc'
+    admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            _trace_env(td)
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._TRACED.clear(); T._CREATED.clear()
+
+            from polariNoCode.event_dispatcher import _trace_emits
+            from polariNoCode.SolutionExecutionEngine import _trace_nested_solution
+            from grpcbridge.custom.transport_mux import _trace_publish
+            from polariRefs.remote_hydration import _trace_shared_db
+            from polariPeers.module_exporter import trace_bundle
+
+            def _all_five(manager, class_name, endpoint):
+                tok = CC.root_cause('api', endpoint, actor=SUB)
+                try:
+                    T.touch(manager, class_name, 'update')
+                    _trace_emits(manager, _types.SimpleNamespace(solution_name='tally-votes'),
+                                 [{'name': 'tallied', 'channel': 'backend'}, 'not-a-dict', {'name': ''}])
+                    _trace_nested_solution(manager, 'tally-votes', 'notify-voters', 'definer')
+                    _trace_publish(manager, class_name, '/topic/%s' % class_name, {'operation': 'update'})
+                    _trace_shared_db(manager, class_name, 'kitchen-node')
+                    trace_bundle(manager, 'bundle-export', 'votes', {class_name: 'f1', 'Tally': 'f2'})
+                    trace_bundle(manager, 'bundle-install', 'kitchen-node', {class_name: 'f1'})
+                finally:
+                    CC.pop_cause(tok)
+
+            m = _TraceM()
+            T.arm(m, 'Ballot', user_info=admin)
+            _all_five(m, 'Ballot', 'PUT /api/Ballot/{id}')
+            rows = {e['name']: e for e in T.edges(m)}
+            check('ct-2: the five remaining seams each record their edge under a traced chain — `emit` from a '
+                  'solution\'s emitted events, `solution-run` for a NESTED solution with the authority it runs '
+                  'with, `ws-publish` for the change broadcast (count only, no ids), `shared-db` for a peer '
+                  'hydration and `bundle-export` / `bundle-install` for a module bundle, each carrying the '
+                  'CLASSES it moved in `detail` and never a row',
+                  rows.get('solution:tally-votes|event:tallied|emit', {}).get('count') == 1
+                  and rows['solution:tally-votes|solution:notify-voters|solution-run']['run_as'] == 'definer'
+                  and 'object:Ballot:update|event:topic:Ballot|ws-publish' in rows
+                  and rows['endpoint:PUT /api/Ballot/{id}|peer:kitchen-node:shared-db|shared-db']['detail'] == 'Ballot'
+                  and rows['endpoint:PUT /api/Ballot/{id}|peer:votes:bundle-export|bundle-export']['detail'] == 'Ballot,Tally'
+                  and rows['endpoint:PUT /api/Ballot/{id}|peer:kitchen-node:bundle-install|bundle-install']['detail'] == 'Ballot'
+                  and len(rows) == 6, sorted(rows))
+            T.disarm(m, 'manual')
+
+            m2 = _TraceM()
+            T.arm(m2, 'Ballot', user_info=admin)
+            _all_five(m2, 'Recipe', 'PUT /api/Recipe/{id}')
+            check('ct-2 THE SCOPE RULE AT THE NEW SEAMS: the same five hooks on a chain that never touches the '
+                  'armed class write NOTHING — an emit, a nested run, a broadcast, a peer read and a bundle are '
+                  'all silent unless the chain reached the ONE class being traced',
+                  T.edges(m2) == [] and T.status(m2)['target']['traces_opened'] == 0, len(T.edges(m2)))
+            T.disarm(m2, 'manual')
+
+            # ---- design §5: the ANONYMISED broadcast drops the instance ids
+            import grpcbridge.custom.transport_mux as TM
+            from security.objects.security.OwnedClassPolicy import OwnedClassPolicy as _OCP
+            from security.custom.security_observe import _new_row as _nr
+            m3 = _TraceM()
+            _nr(m3, m3.objectTables, 'OwnedClassPolicy', _OCP,
+                {'name': 'Ballot', 'class_name': 'Ballot', 'enabled': True, 'anonymised': True})
+            fmt = _types.SimpleNamespace(polariTreeWsEnabled=True, flatJsonWsEnabled=False,
+                                         d3ColumnWsEnabled=False, geoJsonWsEnabled=False)
+            m3.objectTypingDict = {'Ballot': _types.SimpleNamespace(apiFormatConfig=fmt),
+                                   'Recipe': _types.SimpleNamespace(apiFormatConfig=fmt)}
+            sent = []
+            real_publish = TM.publish_change
+            TM.publish_change = lambda manager, class_name, topic, notification: sent.append(
+                (class_name, topic, dict(notification)))
+            try:
+                TM.publish_crude_change(m3, 'Ballot', 'update', ['b-1', 'b-2'])
+                TM.publish_crude_change(m3, 'Recipe', 'update', ['r-1'])
+            finally:
+                TM.publish_change = real_publish
+            anon = [n for c, _t, n in sent if c == 'Ballot'][0]
+            plain = [n for c, _t, n in sent if c == 'Recipe'][0]
+            check('ct-2 (design §5): the CHANGE BROADCAST of a class whose OwnedClassPolicy is ANONYMISED drops '
+                  'its `instanceIds` — subscription to /topic/<Class> is unauthenticated until ct-6, so a '
+                  'deliberately unlinkable class must not announce exactly which rows a person just wrote; the '
+                  'class and the operation stay, which is all a subscriber needs to know it should re-read, and '
+                  'an ordinary class is untouched',
+                  anon['instanceIds'] == [] and anon['className'] == 'Ballot' and anon['operation'] == 'update'
+                  and plain['instanceIds'] == ['r-1'], (anon, plain))
+        finally:
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': True,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._set_armed_flag(False, '')
+            os.environ.clear(); os.environ.update(old_env)
+
+
+def _closure_checks(api, O, _Res, _types, check):
+    """ct-4 — THE CLOSURE (design §6): the walk, the three start sets, the review/verify integration and the
+    door. Nothing here enforces or widens: a closure is DISCLOSURE, and the person's confirmation is ct-8's."""
+    import os
+    import tempfile
+    from accessControl import cause_context as CC
+    from security.custom import security_closure as C
+    from security.custom import security_trace as T
+
+    class _Req:
+        def __init__(self, ui=None, **params):
+            self.params = params
+            self.media = {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    SUB = 'eeeeeeee-5555-4555-8555-eeeeeeeeeeee'
+    admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    journalist = {'sub': SUB, 'roles': ['journalist'], 'raw_claims': {'groups': ['journalist']}}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            _trace_env(td)
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._TRACED.clear(); T._CREATED.clear()
+            m = _TraceM()
+            T.arm(m, 'Ballot', user_info=admin)
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(m, 'Ballot', 'update')
+                T.record_edge(m, 'endpoint:PUT /api/Ballot/{id}', 'object:Ballot:update', 'crude')
+                T.record_edge(m, 'object:Ballot:update', 'event:trigger:tally', 'trigger-fire')
+                T.record_edge(m, 'event:trigger:tally', 'solution:tally-votes', 'solution-run', run_as='definer')
+                T.record_edge(m, 'solution:tally-votes', 'object:Tally:update', 'crude')
+                T.record_edge(m, 'solution:tally-votes', 'event:tallied', 'emit')
+                T.record_edge(m, 'object:Ballot:update', 'event:topic:Ballot', 'ws-publish')
+                T.record_edge(m, 'solution:tally-votes', 'peer:kitchen-node:shared-db', 'shared-db',
+                              detail='Tally')
+                T.record_edge(m, 'object:Tally:update', 'object:Ballot:update', 'crude')     # the cycle
+            finally:
+                CC.pop_cause(tok)
+            walk = C.closure(m, ['object:Ballot:update'])
+            objects = {o['node']: o for o in walk['objects']}
+            shallow = C.closure(m, ['object:Ballot:update'], max_depth=1)
+            check('ct-4 THE WALK: the closure follows cause → effect TRANSITIVELY (an update reaches the trigger, '
+                  'its solution and everything that solution writes), is CYCLE-SAFE (a write that loops back to '
+                  'the start terminates), respects `max_depth` in hops, and marks a node `definer_only` when '
+                  'EVERY path that reaches it crossed a trigger running as definer',
+                  set(objects) == {'object:Ballot:update', 'object:Tally:update'}
+                  and objects['object:Ballot:update']['origin'] == 'observed'
+                  and objects['object:Tally:update']['origin'] == 'closure'
+                  and objects['object:Tally:update']['definer_only'] is True
+                  and objects['object:Ballot:update']['definer_only'] is False
+                  and walk['solutions'][0]['run_as'] == 'definer'
+                  and walk['peers'][0]['classes'] == 'Tally'
+                  and walk['truncated'] is False and len(walk['edges']) == 7
+                  and [e['event'] for e in shallow['events']] == ['topic:Ballot', 'trigger:tally'],
+                  (sorted(objects), walk['counts']))
+            check('ct-4 COVERAGE, NOT SILENCE: a class the closure reaches that has never been armed as a '
+                  'TraceTarget is named in `not_traced` — the answer for it is NOT TRACED, never "nothing '
+                  'reaches it"; the armed class is not in the list',
+                  walk['not_traced'] == ['Tally'] and 'NOT TRACED' in C.reading(walk, 'x')
+                  and [c['class_name'] for c in walk['coverage']] == ['Ballot'], walk['not_traced'])
+
+            # ---- ?profile= : implicit = reachable − explicit
+            m.objectTables['AppPermissionProfile']['p1'] = _types.SimpleNamespace(
+                name='ballots', app_name='', published=True, kc_groups_json='["journalist"]',
+                verbs_json='["read", "update"]', extra_classes_json='["Ballot"]')
+            api.manager = m
+            r = _Res(); api.on_get_observe_closure(_Req(admin, profile='ballots'), r)
+            implicit = {(i['class'], i['verb']) for i in r.media['implicit']}
+            check('ct-4 ?profile=: the start is the profile\'s EXPLICIT class × verb grants (origin `declared`) '
+                  'and `implicit` = reachable − explicit — what publishing that profile is REALLY granting. '
+                  'Here an update on Ballot silently reaches Tally:update through a definer-run trigger',
+                  r.media['ok'] and {(e['class'], e['verb']) for e in r.media['explicit']}
+                  == {('Ballot', 'read'), ('Ballot', 'update')}
+                  and implicit == {('Tally', 'update')}
+                  and r.media['implicit'][0]['definer_only'] is True
+                  and {o['origin'] for o in r.media['closure']['objects'] if o['class'] == 'Ballot'} == {'declared'}
+                  and 'Tally' in r.media['reading'] and r.media['closure']['not_traced'] == ['Tally'],
+                  (sorted(implicit), r.media.get('reading')))
+            r = _Res(); api.on_get_observe_closure(_Req(admin, profile='nope'), r)
+            check('ct-4: a profile that is not on this instance is an honest 404 that names the ones that are',
+                  r.status.startswith('404') and 'ballots' in r.media['refusal'], r.media.get('refusal'))
+
+            # ---- ?event= : the solution it runs and AS WHOM
+            r = _Res(); api.on_get_observe_closure(_Req(admin, event='tally'), r)
+            check('ct-4 ?event=: what an event permission MEANS — the start is the event node, and the answer '
+                  'names the solution the trigger runs, the authority it runs with (definer: somebody else\'s), '
+                  'and every class × verb that follows',
+                  r.media['ok'] and r.media['start'] == 'event:trigger:tally'
+                  and r.media['solutions'] == [{'name': 'tally-votes', 'run_as': 'definer', 'origin': 'closure',
+                                                'definer_only': True, 'count': 1}]
+                  and {(o['class'], o['verb']) for o in r.media['closure']['objects']}
+                  == {('Tally', 'update'), ('Ballot', 'update')}
+                  and 'DEFINER' in r.media['reading'], r.media.get('solutions'))
+
+            # ---- the review and the verify
+            O.observe_permission(m, journalist, 'Ballot', 'update', roleplay='journalist')
+            rev = O.review(m, 'journalist')
+            ver = O.verify(m, 'journalist', 'journalist')
+            check('ct-4: `review(role)` gains a CLOSURE block started from what the role was OBSERVED doing, so '
+                  'the permissions admin sees the transitive effects beside the direct list — and it never '
+                  'raises: a role with no map still reviews',
+                  rev['ok'] and rev['closure']['counts']['objects'] == 2
+                  and [s['name'] for s in rev['closure']['solutions']] == ['tally-votes']
+                  and rev['closure']['not_traced'] == ['Tally']
+                  and O.review(_TraceM(), 'nobody')['closure']['counts']['objects'] == 0,
+                  rev['closure']['counts'])
+            check('ct-4: `verify(role, group)` gains the TRANSITIVE verdict — N of M transitively-touched class '
+                  '× verb pairs covered, K reached only through triggers running as definer, and the classes '
+                  'that have never been traced named rather than passed over in silence. The published '
+                  '`ballots` profile covers the DIRECT act and not the one its trigger reaches — which is '
+                  'exactly the gap the transitive verdict exists to show',
+                  ver['ok'] and ver['transitive']['total'] == 2 and ver['transitive']['covered'] == 1
+                  and ver['transitive']['definer_only'] == 1
+                  and ver['transitive']['not_traced'] == ['Tally']
+                  and 'covers 1 of 2' in ver['transitive']['reading']
+                  and 'definer' in ver['transitive']['reading']
+                  and {(u['class'], u['verb']) for u in ver['transitive']['uncovered']}
+                  == {('Tally', 'update')}, ver.get('transitive'))
+
+            # ---- ?role=, the page's default (the armed class), and the refusals
+            r = _Res(); api.on_get_observe_closure(_Req(admin, role='journalist'), r)
+            rd = _Res(); api.on_get_observe_closure(_Req(admin), rd)
+            rc = _Res(); api.on_get_observe_closure(_Req(admin, **{'class': 'Tally'}), rc)
+            ra = _Res(); api.on_get_observe_closure(_Req(None), ra)
+            rb = _Res(); api.on_get_observe_closure(_Req(admin, max_depth='soon'), rb)
+            check('ct-4 the door: ?role= answers the role closure; NO parameter falls back to the ONE armed '
+                  'class (what the page asks for) and hands the panels `objects`, `solutions`, `events`, '
+                  '`flows` and `not_traced_detail`; ?class= reads any class, armed or not; an anonymous caller '
+                  'is 401 and a non-numeric max_depth is a 400 that says what it wants. A start node the map has '
+                  'never recorded still appears, with `seen` false — "no edges yet" is an answer, not a gap',
+                  r.media['ok'] and r.media['asked'] == {'role': 'journalist'}
+                  and rd.media['ok'] and rd.media['armed'] == 'Ballot'
+                  and {o['node'] for o in rd.media['objects']}
+                  == {'object:Ballot:%s' % v for v in ('read', 'create', 'update', 'delete', 'events')}
+                  | {'object:Tally:update'}
+                  and [o['evidence']['seen'] for o in rd.media['objects'] if o['node'] == 'object:Ballot:read']
+                  == [False]
+                  and [f['peer'] for f in rd.media['flows']] == ['kitchen-node']
+                  and rd.media['not_traced_detail'][0]['class_name'] == 'Tally'
+                  and rc.media['ok'] and rc.media['armed'] == 'Tally'
+                  and ra.status.startswith('401') and rb.status.startswith('400'),
+                  (rd.media.get('armed'), [o['node'] for o in rd.media.get('objects', [])]))
+            T.disarm(m, 'manual')
+            rn = _Res(); api.manager = _TraceM(); api.on_get_observe_closure(_Req(admin), rn)
+            check('ct-4: with nothing armed and nothing asked for, the door says how to ask instead of '
+                  'pretending an empty closure is an answer',
+                  rn.media['ok'] and rn.media['closure'] is None and 'Arm one class' in rn.media['reading'],
+                  rn.media.get('reading'))
+
+            # ---- §54 guard: the new suffix registers against a fake falconServer
+            class _Falcon:
+                def __init__(self): self.routes = []
+                def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+            class _Srv:
+                def __init__(self): self.falconServer = _Falcon()
+            srv = _Srv()
+            from security.security_api import SecurityAPI as _API
+            probe = _API(polServer=srv, manager=None)
+            closure_routes = [(u, s) for u, s in srv.falconServer.routes if u.endswith('/observe/closure')]
+            check('§54 guard: the ct-4 closure door registers and has its on_get_<suffix> responder — a suffix '
+                  'that has drifted from its method name RAISES from add_route() and takes the backend down at '
+                  'boot, so it is proven here rather than in a browser',
+                  closure_routes == [('/api/security/observe/closure', 'observe_closure')]
+                  and hasattr(probe, 'on_get_observe_closure'), closure_routes)
+        finally:
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': True,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._set_armed_flag(False, '')
+            os.environ.clear(); os.environ.update(old_env)
+
+
 def O_events(manager):
     from security.custom.security_observe import events
     return events(manager)
@@ -1071,6 +1371,22 @@ def main():
           and _trace_tables['security-trace-edges']['className'] == 'CausalEdge'
           and 'means' in _trace_tables['security-trace-edges']['columns'],
           sorted(_trace_tables))
+    # ct-4: the closure panels on the same page — STRUCTURED panels over the closure door (never api-json-panel,
+    # never a new component), including the not-traced list so the page says "not traced" rather than showing
+    # an empty table that reads as "nothing reaches it".
+    _panels = {it['id']: it['componentProps']['inputs'] for r in _ev['rows'] for it in r['items']
+               if (it.get('componentProps') or {}).get('componentName') == 'api-structured-panel'}
+    _closure_panels = {k: v for k, v in _panels.items() if k.startswith('security-closure-')}
+    check('ct-4: the security-events page gains the closure panels — objects, solutions, events, flows and the '
+          'NOT-TRACED list — all reading /api/security/observe/closure through the structured panel, so nothing '
+          'raw lands on the screen and no new component is introduced',
+          set(_closure_panels) == {'security-closure-objects', 'security-closure-solutions',
+                                   'security-closure-events', 'security-closure-flows',
+                                   'security-closure-not-traced'}
+          and all(v['path'] == '/api/security/observe/closure' for v in _closure_panels.values())
+          and {v['pick'] for v in _closure_panels.values()}
+          == {'objects', 'solutions', 'events', 'flows', 'not_traced_detail'},
+          sorted(_closure_panels))
     from security.security_page import seed_security_pages, start_page_converge
     check('§54: the pages are CONVERGED, not inserted-by-name — the core display seed only inserts a missing page, '
           'so without this an existing instance keeps serving the old definition for ever (seen live)',
@@ -1424,6 +1740,8 @@ def main():
     _people_batch_checks(api, O, _Res, _types, check)
     _owned_checks(api, O, _Res, _types, check)
     _trace_checks(api, _Res, _types, check)
+    _ct2_checks(_types, check)
+    _closure_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

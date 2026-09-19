@@ -434,6 +434,15 @@ class PeersAPI(treeObject):
                 return
             source_kind = 'peer'
             source_ref = f'{source.get("peer")}:{module_name}'
+        # ct-2 (design §3): what a bundle CARRIES is an object flow — the
+        # classes named in its manifest, from the source that sent it. A dry
+        # run is a read of the bundle and nothing lands, so it records nothing.
+        if not dry_run:
+            from polariPeers.module_exporter import trace_bundle
+            manifest = (bundle or {}).get('manifest') or {}
+            trace_bundle(self.manager, 'bundle-install',
+                         source_ref.split(':', 1)[0] if source_kind == 'peer' else 'local',
+                         manifest.get('requiredClasses') or {})
         report = import_bundle(self.manager, bundle, dry_run=dry_run,
                                source_kind=source_kind,
                                source_ref=source_ref)

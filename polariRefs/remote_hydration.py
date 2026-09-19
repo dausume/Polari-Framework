@@ -159,6 +159,22 @@ def _field_names_for(manager, class_name: str, target: str):
     return None, 'raw-columns'
 
 
+def _trace_shared_db(manager, class_name, target_instance):
+    """ct-2 (design §3): `<cause> → peer:<instance>:shared-db` with the CLASS in `detail` — the object flow a
+    shared-DB read IS. A `read` grant on a class silently covers that class hydrated from a peer, which is
+    exactly the implicit grant the closure exists to show. `touch` runs first: hydrating the armed class from
+    a peer is itself a seam that reaches it. Lazy import, never raises, a no-op unless armed and traced."""
+    try:
+        from security.custom.security_trace import record_outbound, touch
+    except Exception:
+        return
+    try:
+        touch(manager, class_name, 'read')
+        record_outbound(manager, 'peer', target_instance, 'shared-db', [class_name])
+    except Exception:
+        pass
+
+
 def hydrate_shared_db(manager, ref, target_instance: str) -> Dict:
     """The rung-3 read. Returns {'ok', 'object', 'provenance'} /
     {'ok': False, 'refusal'} / {'ok': False, 'fallthrough': True}
@@ -221,4 +237,5 @@ def hydrate_shared_db(manager, ref, target_instance: str) -> Dict:
     remote = GenericRemoteObject(
         ref['className'], f'instance:{target_instance}', typed,
         provenance)
+    _trace_shared_db(manager, ref['className'], target_instance)
     return {'ok': True, 'object': remote, 'provenance': provenance}

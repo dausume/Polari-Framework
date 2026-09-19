@@ -425,16 +425,42 @@ def dispatch_object_change(manager, class_name, operation, instance_ids, depth=0
         return []
 
 
+def _trace_emits(manager, trace, events):
+    """ct-2 (design §3): `solution:S → event:E` (means `emit`) for every event a top-level run emitted.
+
+    Recorded whether or not any EventTrigger listens: an emitted event IS a thing that happened, and the
+    closure must show it even when nothing is bound to it today. Lazy import, never raises, and a complete
+    no-op unless a `TraceTarget` is armed and this chain is traced."""
+    try:
+        from security.custom.security_trace import record_edge
+    except Exception:
+        return
+    try:
+        source = 'solution:%s' % (getattr(trace, 'solution_name', '') or 'untitled')
+        for event in events or []:
+            if not isinstance(event, dict):
+                continue
+            name = str(event.get('name') or '').strip()
+            if name:
+                record_edge(manager, source, 'event:%s' % name, 'emit',
+                            detail=str(event.get('channel') or 'backend'))
+    except Exception:
+        pass
+
+
 def dispatch_trace_events(manager, trace, params=None):
     """Chain EmitEvent outputs of a completed top-level run into event
     triggers. Never raises — the engine calls this."""
     try:
-        d = get_dispatcher(manager)
-        if d is None or not (getattr(manager, 'objectTables', None) or {}).get('EventTrigger'):
-            return []
         from polariNoCode.graph_compilers import final_context_of
         final = final_context_of(trace) or {}
         events = final.get('_emitted_events') or []
+        # ct-2: the emit edges are the run's, not the triggers' — recorded before the
+        # EventTrigger guard below, so an event nothing listens to is still on the map.
+        _trace_emits(manager, trace, events)
+        d = get_dispatcher(manager)
+        if d is None or not (getattr(manager, 'objectTables', None) or {}).get('EventTrigger'):
+            return []
         if not events:
             return []
         depth = int((params or {}).get(TRIGGER_DEPTH_KEY, 0) or 0)

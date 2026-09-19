@@ -17,6 +17,14 @@
                          blocked it, and the counterexample (the actor/group/permission that legitimately reaches the same target)
 /api/security/observe/trace    GET the armed causal-trace target (counters + coverage); POST {class_name, verbs?, max_*?, window_seconds?}
                                arms ONE class (dev posture only, a second arm is refused naming the active one); DELETE disarms it
+/api/security/observe/closure  ct-4, design §6 — what a grant REALLY reaches, walked from the causal map:
+                               ?profile=<name> start = that AppPermissionProfile's explicit class × verb grants;
+                                               the answer carries `explicit`, `reachable` and `implicit` = reachable − explicit
+                               ?event=<trigger name | topic:Class> start = one event: the solution it runs, as whom, and onward
+                               ?role=<role>    start = the role-play recording's observed endpoints and objects
+                               (no parameter = the ONE armed target's class). Every item carries its `origin`
+                               (observed | closure | declared) and its evidence, and the answer carries the
+                               coverage block + `not_traced`: a class nobody armed answers NOT TRACED, never "nothing".
 /api/security/trace/edges      [?target=|cause=|effect=|means=] Ledger A — the causal MAP: cause → effect by means, counted, class-level only
 /api/security/trace/journal    [?trace_id=|class=] Ledger B — the effect JOURNAL: which instances a traced chain wrote, cleared on the next arm
 /api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
@@ -57,6 +65,15 @@ def default_scenario():
     return 'dev'
 
 
+#: ct-4: the reading every closure answer carries. A module constant, not a class attribute — the tree's
+#: identifier scan walks a treeObject's attributes and logs anything it cannot type as an invalid instance value.
+HOW_CLOSURE = ('every item carries its ORIGIN (declared = the profile says so; observed = the recording saw it; '
+               'closure = the map reached it) and its evidence (counts, first/last seen, the sample trace id to '
+               'look the instances up with in the journal). `not_traced` names the classes in this answer that '
+               'have never been a TraceTarget — for those the honest answer is NOT TRACED, which is not the same '
+               'as nothing reaching them. Nothing is enforced or widened here: a person confirms.')
+
+
 class SecurityAPI(treeObject):
     @treeObjectInit
     def __init__(self, polServer=None, manager=None):
@@ -84,6 +101,7 @@ class SecurityAPI(treeObject):
             add('/api/security/observe/review', self, suffix='observe_review')      # GET ?role= everything the role used + the proposed profile (the handoff)
             add('/api/security/observe/verify', self, suffix='observe_verify')      # GET ?role=&group= replay the recording against the enforced profiles
             add('/api/security/observe/trace', self, suffix='observe_trace')        # ct-1: GET the armed trace target + counters + coverage; POST {class_name,…} arm ONE class; DELETE disarm
+            add('/api/security/observe/closure', self, suffix='observe_closure')    # ct-4: GET ?profile= | ?event= | ?role= | ?class= — what a grant REALLY reaches, with the evidence and the coverage
             add('/api/security/trace/edges', self, suffix='trace_edges')            # ct-1: Ledger A, the causal MAP — cause → effect by means, counted [?target=|cause=|effect=|means=]
             add('/api/security/trace/journal', self, suffix='trace_journal')        # ct-1: Ledger B, the effect JOURNAL — the instances a traced chain wrote [?trace_id=|class=]
             add('/api/security/observe/roles', self, suffix='observe_roles')        # GET the prototype roles + whether the caller may role-play; POST {name, title, description} a new prototype
@@ -608,6 +626,110 @@ class SecurityAPI(treeObject):
                                   'cleared when the next target is armed. A class whose OwnedClassPolicy is '
                                   'anonymised keeps its class and verb here and drops both the actor and the '
                                   'object id.')}
+
+    # ---- THE CLOSURE (ct-4, design §6) -----------------------------------------------------------------
+    # "This way we can see what implicit permissions we may be granting by granting event permissions."
+    # The map (ct-1/ct-2) holds every crossing that was recorded; this door reads it from one of three start
+    # sets and says what is really being granted. DISCLOSURE ONLY: nothing here writes a row, widens a
+    # profile or flips a mode — a person confirms, and ct-8 records the decision.
+
+    def on_get_observe_closure(self, request, response):
+        from security.custom import security_closure as C
+        if not self._sub(request):
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: the closure says what a grant really reaches, which is a '
+                                'permissions-administration reading')
+        params = request.params
+        depth = params.get('max_depth') or params.get('depth')
+        try:
+            depth = int(depth) if depth not in (None, '') else None
+        except (TypeError, ValueError):
+            return self._bad(response, 'max_depth must be a whole number of hops')
+
+        profile = params.get('profile')
+        event = params.get('event')
+        role_name = params.get('role')
+        class_name = params.get('class') or params.get('class_name')
+        if profile:
+            start = C.profile_start(self.manager, profile)
+            if not start.get('ok'):
+                return self._refuse(response, '404 Not Found', start.get('refusal', ''))
+            result = C.closure(self.manager, start['nodes'], max_depth=depth)
+            C.mark_origin(result, start['nodes'], 'declared')
+            explicit = {(c, v) for c, v in start['explicit']}
+            reachable = sorted({(o['class'], o['verb']) for o in result['objects'] if o['class'] and o['verb']})
+            implicit = [{'class': c, 'verb': v,
+                         'definer_only': next((o['definer_only'] for o in result['objects']
+                                               if o['class'] == c and o['verb'] == v), False)}
+                        for c, v in reachable if (c, v) not in explicit]
+            response.media = {
+                'ok': True, 'asked': {'profile': profile}, 'profile': start,
+                'explicit': [{'class': c, 'verb': v} for c, v in start['explicit']],
+                'reachable': [{'class': c, 'verb': v} for c, v in reachable],
+                'implicit': implicit, 'closure': result,
+                'reading': ('publishing %s grants %d class × verb pair(s) explicitly and reaches %d more '
+                            'through what those acts cause — that difference IS the implicit permission. %s'
+                            % (profile, len(start['explicit']), len(implicit),
+                               ('%d class(es) in this answer have never been traced (%s).'
+                                % (len(result['not_traced']), ', '.join(result['not_traced']))
+                                if result['not_traced'] else 'Every class in this answer has been traced.'))),
+                'how': HOW_CLOSURE}
+            return
+        if event:
+            node = C.event_start(event)
+            result = C.closure(self.manager, [node], max_depth=depth)
+            solutions = [{'name': s['name'], 'run_as': s['run_as'], 'origin': s['origin'],
+                          'definer_only': s['definer_only'], 'count': s['evidence']['count']}
+                         for s in result['solutions']]
+            response.media = {
+                'ok': True, 'asked': {'event': event}, 'start': node, 'closure': result,
+                'solutions': solutions,
+                'reading': ('granting %s runs %s and reaches %d class × verb pair(s). %s'
+                            % (node,
+                               ', '.join('%s (as %s)' % (s['name'], s['run_as']) for s in solutions)
+                               or 'no solution the map has seen',
+                               result['counts']['objects'],
+                               ('%d of them only through a trigger running as DEFINER — somebody else\'s '
+                                'authority.' % result['counts']['definer_only'])
+                               if result['counts']['definer_only'] else
+                               'None of them is reached only through a definer-run trigger.')),
+                'how': HOW_CLOSURE}
+            return
+        if role_name:
+            result = C.role_closure(self.manager, role_name, max_depth=depth)
+            response.media = {'ok': True, 'asked': {'role': role_name}, 'closure': result,
+                              'reading': result.get('reading', ''), 'how': HOW_CLOSURE}
+            return
+        # No start asked for: the page's default — the ONE armed target's class. `?class=` asks for any class,
+        # armed or not (an unarmed one answers honestly: its coverage row is missing and `not_traced` says so).
+        from security.custom.security_trace import TRACE_VERBS, coverage
+        if class_name:
+            subject = class_name
+            nodes = ['object:%s:%s' % (class_name, v) for v in TRACE_VERBS]
+        else:
+            subject, nodes = C.target_start(self.manager)
+        if not nodes:
+            return self._json_ok(response, {
+                'ok': True, 'asked': {}, 'armed': '', 'closure': None, 'coverage': coverage(self.manager),
+                'objects': [], 'events': [], 'solutions': [], 'flows': [],
+                'not_traced': [], 'not_traced_detail': [],
+                'reading': ('nothing is armed and no start was asked for. Arm one class '
+                            '(POST /api/security/observe/trace {"class_name": "<Class>"}), or ask for a '
+                            '?profile=, ?event=, ?role= or ?class=.'),
+                'how': HOW_CLOSURE})
+        result = C.closure(self.manager, nodes, max_depth=depth)
+        response.media = {'ok': True, 'asked': {'class': subject}, 'armed': subject, 'closure': result,
+                          'objects': result['objects'], 'events': result['events'],
+                          'solutions': result['solutions'],
+                          'flows': result['peers'] + result['external'],
+                          'not_traced': result['not_traced'],
+                          'not_traced_detail': [{'class_name': c,
+                                                 'reading': 'never armed as a TraceTarget — NOT TRACED, which '
+                                                            'is not the same as nothing reaching it'}
+                                                for c in result['not_traced']],
+                          'reading': C.reading(result, 'everything %s reaches, from the map as it stands'
+                                               % subject),
+                          'how': HOW_CLOSURE}
 
     def on_get_observe_review(self, request, response):
         from security.custom.security_observe import review

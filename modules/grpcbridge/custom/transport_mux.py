@@ -53,11 +53,43 @@ def _grpc_server():
         return None
 
 
+def _anonymised(manager, class_name):
+    """op-0's `OwnedClassPolicy.anonymised` (design §5). Never raises: a class whose policy cannot be read is
+    treated as ordinary, exactly as it was before op-0 existed."""
+    try:
+        from security.custom.security_owned import policy_for
+        policy = policy_for(manager, class_name)
+        return bool(policy and policy.get('anonymised'))
+    except Exception:
+        return False
+
+
+def _trace_publish(manager, class_name, topic, notification):
+    """ct-2 (design §3): `object:<Class>:<verb> → event:topic:<Class>` (means `ws-publish`).
+
+    COUNT ONLY — the map is class-level, so no instance id ever rides this edge (the effect journal is where
+    an instance is looked up). `touch` runs first because a broadcast can be the first seam a chain crosses on
+    the armed class. WHO subscribes is not knowable here and is not guessed: the subscribe half is ct-6.
+    Lazy import, never raises, a complete no-op unless a `TraceTarget` is armed and this chain is traced."""
+    try:
+        from security.custom.security_trace import record_edge, touch
+    except Exception:
+        return
+    try:
+        verb = str((notification or {}).get('operation') or 'update')
+        touch(manager, class_name, verb)
+        record_edge(manager, 'object:%s:%s' % (class_name, verb),
+                    'event:topic:%s' % class_name, 'ws-publish', detail=str(topic or ''))
+    except Exception:
+        pass
+
+
 def publish_change(manager, class_name, topic, notification):
     """Route ONE topic's notification per the class knob. The STOMP
     leg publishes the same topic + dict it always has; the gRPC leg
     delivers a ChangeNotification carrying the same fields (parity by
     construction — the proto mirrors this payload)."""
+    _trace_publish(manager, class_name, topic, notification)
     pref = _preference(manager, class_name)
     if pref in ('stomp', 'both'):
         stomp = _stomp_server()
@@ -96,6 +128,15 @@ def publish_crude_change(manager, class_name, operation, instance_ids,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "instanceIds": instance_ids or []
     }
+
+    # ct-2 / design §5: a class whose OwnedClassPolicy is ANONYMISED is
+    # deliberately unlinkable, and STOMP subscription to /topic/{Class} is
+    # unauthenticated until ct-6 — so the BROADCAST drops the instance ids.
+    # The class and the operation stay, which is all a subscriber needs to
+    # know it should re-read; what it may then read is the CRUDE gate's
+    # business, not the broadcast's.
+    if _anonymised(manager, class_name):
+        notification["instanceIds"] = []
 
     if getattr(format_config, 'polariTreeWsEnabled', False):
         crude = dict(notification)

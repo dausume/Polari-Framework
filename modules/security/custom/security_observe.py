@@ -493,6 +493,21 @@ def usages(manager, role=None, kind=None):
 
 # ---- the review: everything a role used, as the handoff to the permissions admin
 
+def _role_closure(manager, role):
+    """ct-4: `security_closure.role_closure`, defended. A review must still answer when the closure cannot be
+    computed (no map, no trace target ever armed, the module half-loaded) — it says so instead of failing."""
+    try:
+        from security.custom.security_closure import role_closure
+        return role_closure(manager, role)
+    except Exception as exc:                    # noqa: BLE001 — the review is the important half
+        return {'objects': [], 'events': [], 'solutions': [], 'peers': [], 'external': [], 'other': [],
+                'edges': [], 'coverage': [], 'not_traced': [], 'start': [],
+                'counts': {'objects': 0, 'events': 0, 'solutions': 0, 'peers': 0, 'external': 0, 'edges': 0,
+                           'definer_only': 0},
+                'reading': 'the closure could not be computed here (%s: %s) — the direct observations below '
+                           'stand on their own' % (type(exc).__name__, exc)}
+
+
 def review(manager, role):
     role = (role or '').strip().lower(); marker = ROLEPLAY_PREFIX + role
     obs = [o for o in observations(manager) if marker in (o.get('groups') or '').split(',')]
@@ -515,7 +530,12 @@ def review(manager, role):
                 'app_name': '', 'kc_groups_json': _json.dumps([role]), 'verbs_json': _json.dumps(verbs), 'extra_classes_json': _json.dumps(sorted(objects)),
                 'published': False, 'is_prior': False,
                 'notes': 'PROPOSAL from /api/security/observe/review — the permissions admin reviews, narrows, creates the AppPermissionProfile row and publishes it; then /api/security/observe/verify replays the recording against it'}
+    # ct-4 (design §6): the TRANSITIVE half of the handoff — what the role's recorded acts go on to reach,
+    # through triggers, emitted events, nested solutions, broadcasts, peers and external systems. Never raises
+    # and never widens anything: a closure is DISCLOSURE, and the class it cannot speak for says "not traced".
+    closure = _role_closure(manager, role)
     return {'ok': True, 'role': role, 'sessions': sessions(manager, role), 'recording': recording_on(manager),
+            'closure': closure,
             'actors': actors, 'actor_count': len(actors),
             'apps': by_kind.get('app', []), 'pages': by_kind.get('page', []), 'components': by_kind.get('component', []), 'actions': by_kind.get('action', []),
             'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'objects_by_app': {k: sorted(v) for k, v in sorted(apps_of_objects.items())}, 'acts': sum(int(o.get('count') or 0) for o in obs),
@@ -542,9 +562,20 @@ def verify(manager, role, group=None):
     for o in obs:
         v = permission_verdict(manager, user, o['class_name'], o['verb'])
         (allowed if v.get('allowed') else denied).append({'class': o['class_name'], 'verb': o['verb'], 'count': o['count'], 'why': v.get('why', ''), 'via': v.get('via', [])})
+    # ct-4 (design §6): the SECOND verdict — the same replay over the TRANSITIVE set, so the admin sees what
+    # the profile covers of everything the role's acts reach, not only of what the role did directly. Nothing
+    # here enforces or widens: the confirmation is a person's, and ct-8 is where it is recorded.
+    try:
+        from security.custom.security_closure import transitive_verdict
+        transitive = transitive_verdict(manager, role, user)
+    except Exception as exc:                    # noqa: BLE001 — the direct verdict must still answer
+        transitive = {'covered': 0, 'total': 0, 'definer_only': 0, 'not_traced': [], 'uncovered': [],
+                      'reading': 'the transitive verdict could not be computed here (%s: %s)'
+                                 % (type(exc).__name__, exc)}
     return {'ok': True, 'role': role, 'group': group, 'recorded_acts': len(obs), 'allowed': allowed, 'denied': denied,
             'verdict': ('the role can still do everything it was recorded doing' if obs and not denied else ('nothing recorded for this role yet' if not obs else f'{len(denied)} recorded act(s) would now be DENIED — the profile is narrower than the job')),
-            'how': 'after the admin publishes the AppPermissionProfile for the group, run this; every recorded class × verb is replayed through permission_verdict as a member of the group'}
+            'transitive': transitive,
+            'how': 'after the admin publishes the AppPermissionProfile for the group, run this; every recorded class × verb is replayed through permission_verdict as a member of the group, and `transitive` replays everything those acts REACH (the closure) so a trigger running as definer is not a blind spot'}
 
 
 # ---- PROTOTYPE ROLES + the role-play PERMISSION (his refinement 2026-09-16) --------------------------------------------

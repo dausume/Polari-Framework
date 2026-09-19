@@ -88,6 +88,7 @@
    "custom/security_app_rows",
    "custom/security_audit_feed",
    "custom/security_claims",
+   "custom/security_closure",
    "custom/security_facts",
    "custom/security_ledger",
    "custom/security_network_rows",

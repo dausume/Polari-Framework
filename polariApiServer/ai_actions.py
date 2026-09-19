@@ -176,6 +176,14 @@ class ActionKernel:
         executor = _EXECUTORS.get(prop["operation"])
         if executor is None:
             return {"ok": False, "error": f"no executor for {prop['operation']}"}
+        # ct-2 (design §3): an AI execution is its OWN root cause, of kind `ai`,
+        # carrying the proposal id — so everything the executor then writes is
+        # attributed to the confirmed proposal and not to whatever call stack
+        # happened to reach the kernel. A no-op outside dev posture (no cause is
+        # minted there at all), and the provenance line gains the trace id so
+        # the jsonl and the map join up.
+        from accessControl.cause_context import pop_cause, root_cause
+        cause_token = root_cause("ai", f"proposal:{proposal_id}")
         try:
             result = executor(prop["request"])
             prop["status"] = "executed"
@@ -185,6 +193,8 @@ class ActionKernel:
             prop["status"] = "failed"
             self._record("failed", prop, {"error": str(exc)})
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        finally:
+            pop_cause(cause_token)
 
     def provenance(self, limit=50):
         if not _PROVENANCE.exists():
@@ -195,6 +205,14 @@ class ActionKernel:
     def _record(self, phase, prop, extra=None):
         entry = {"phase": phase, "at": time.time(),
                  **{k: prop[k] for k in ("proposal_id", "operation", "authority_level", "summary", "request")}}
+        # ct-2: the chain this line belongs to. '' / '' outside dev posture (no
+        # cause is minted there), so the column always exists and never a None.
+        try:
+            from accessControl.cause_context import trace_ids
+            entry.update(trace_ids())
+        except Exception:  # noqa: BLE001 — provenance must never fail on bookkeeping
+            entry.setdefault("trace_id", "")
+            entry.setdefault("parent_id", "")
         if extra:
             entry.update(extra)
         with _PROVENANCE.open("a") as fh:

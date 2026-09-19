@@ -56,7 +56,26 @@ def upsert_seed_rows(manager, class_name, cls, seed_list,
 
     Returns a report dict; never raises for a single bad row — the
     row lands in `errors` and the rest of the seed still converges.
+
+    ct-2 (design §3): a seed pass runs under its own ROOT cause of kind
+    `boot`, so rows a seed writes are never attributed to a person — not
+    even when a request triggered the pass. A root SEVERS the chain on
+    purpose: that is what "seeded rows are never a person's" means. The
+    push is a no-op outside dev posture.
     """
+    try:
+        from accessControl.cause_context import pop_cause, root_cause
+        cause_token = root_cause('boot', f'seed:{class_name}')
+    except Exception:       # a seed pass must converge even where accessControl is not importable
+        return _upsert_seed_rows(manager, class_name, cls, seed_list, tag=tag)
+    try:
+        return _upsert_seed_rows(manager, class_name, cls, seed_list, tag=tag)
+    finally:
+        pop_cause(cause_token)
+
+
+def _upsert_seed_rows(manager, class_name, cls, seed_list,
+                      tag='SeedUpsert'):
     report = {'class': class_name, 'inserted': [], 'updated': [],
               'unchanged': [], 'skipped_custom': [], 'errors': []}
     existing = manager.objectTables.get(class_name, {}) or {}

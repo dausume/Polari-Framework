@@ -127,6 +127,22 @@ BRANCHING_STATE_CLASSES = {'ConditionalChain', 'FormValidation'}
 # manageable.
 MAX_INVOCATION_DEPTH = 16
 
+
+def _trace_nested_solution(manager, caller_name, callee_name, run_as):
+    """ct-2 (design §3): `solution:<caller> → solution:<callee>` (means `solution-run`) for a nested
+    SolutionInvocation, carrying the callee's declared `executionRights` as `run_as` — the authority half of
+    "what an event permission really means". Lazy import, never raises, and a complete no-op unless a
+    `TraceTarget` is armed and this chain is traced."""
+    try:
+        from security.custom.security_trace import record_edge
+    except Exception:
+        return
+    try:
+        record_edge(manager, 'solution:%s' % caller_name, 'solution:%s' % callee_name,
+                    'solution-run', run_as=str(run_as or 'invoker'))
+    except Exception:
+        pass
+
 # Sentinel context key the SimStepContribution terminator appends to.
 # Resolution solutions read this same key to access prior partial
 # contributions. The SimulationRunner harvests it after each binding's
@@ -1079,6 +1095,9 @@ class SolutionExecutionEngine:
             f"(depth {len(chain) + 1}, rights: {rights}) with "
             f"{sorted(child_inputs.keys())}"
         )
+
+        # ct-2: the nested-run edge, with the authority the callee declares.
+        _trace_nested_solution(self.manager, caller_name, callee_name, rights)
 
         # Fresh engine, fresh context (ONLY the mapped inputs) — the
         # abstraction boundary. The callee never sees caller variables.

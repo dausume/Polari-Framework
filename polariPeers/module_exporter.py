@@ -67,6 +67,28 @@ from polariPeers.module_bundle import (
 )
 
 
+def trace_bundle(manager, means: str, name: str, classes) -> None:
+    """ct-2 (design §3): a module bundle carries CLASSES between instances, so it is an object-flow edge —
+    `peer:<name>:<means>` with the class list in `detail` (never a row, never an instance id).
+
+    `means` is `bundle-export` (the bundle is published here; no peer is named yet, so the node names the
+    MODULE) or `bundle-install` (the node names the SOURCE peer, or `local` for an inline bundle). `touch`
+    runs per class because a bundle can be the first seam a chain crosses on the armed class. Lazy import,
+    never raises, and a complete no-op unless a `TraceTarget` is armed and this chain is traced."""
+    try:
+        from security.custom.security_trace import record_outbound, touch
+    except Exception:
+        return
+    try:
+        listed = sorted({str(c) for c in (classes or []) if c})
+        verb = 'read' if means == 'bundle-export' else 'create'
+        for class_name in listed:
+            touch(manager, class_name, verb)
+        record_outbound(manager, 'peer', name, means, listed)
+    except Exception:
+        pass
+
+
 def export_module(manager, scope: Dict[str, Any]) -> Dict[str, Any]:
     """Export the closure of `scope` as a bundle."""
     walker = _ClosureWalker(manager)
@@ -79,13 +101,16 @@ def export_module(manager, scope: Dict[str, Any]) -> Dict[str, Any]:
         walker.subtract(dep)
 
     objects, required = walker.serialized()
-    return make_bundle(
+    bundle = make_bundle(
         name=scope.get('name') or 'unnamed-module',
         description=scope.get('description') or '',
         required_classes=required,
         depends_on=list(scope.get('dependsOn') or []),
         objects=objects,
     )
+    trace_bundle(manager, 'bundle-export', bundle['manifest']['name'],
+                 bundle['manifest'].get('requiredClasses') or {})
+    return bundle
 
 
 def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:

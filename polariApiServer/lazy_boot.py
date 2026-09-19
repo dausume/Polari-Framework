@@ -471,12 +471,22 @@ class AdmissionWorker:
     # -- the phases ----------------------------------------------
 
     def run(self):
+        # ct-2 (design §3/§4): module admission runs on its OWN thread, which
+        # inherits no contextvar and has no request to descend from — so it
+        # mints a ROOT cause of kind `boot`, once, and everything the phases
+        # write (seeds, restores, registrar rows) belongs to the boot rather
+        # than to whoever happened to start the process. A no-op outside dev
+        # posture; balanced in finally.
+        from accessControl.cause_context import pop_cause, root_cause
+        cause_token = root_cause('boot', 'module-admission')
         try:
             self._run_inner()
         except BaseException as exc:
             print(f'[LazyBoot] ADMISSION WORKER CRASHED: '
                   f'{type(exc).__name__}: {exc}', flush=True)
             traceback.print_exc()
+        finally:
+            pop_cause(cause_token)
 
     def _run_inner(self):
         manager, polServer = self.manager, self.polServer
