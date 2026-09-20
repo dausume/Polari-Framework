@@ -258,17 +258,21 @@ EXPORT_SOURCE_PREFIX = 'export_rows:'
 
 def load_export_hook(package):
     """The module's `export_hook` module, or None when it has none.
-    A hook that exists but fails to import is an error worth seeing."""
-    try:
+    A hook that exists but fails to import is an error worth seeing.
+
+    Both homes are tried: `<pkg>.export_hook` and — sap-2, concept-less
+    code lives in custom/ — `<pkg>.custom.export_hook`. A package with
+    NEITHER (nor even a custom/ package) is absent, not broken: the
+    names below are the only ones whose absence means "no hook"."""
+    absent = {f'{package}.export_hook', f'{package}.custom',
+              f'{package}.custom.export_hook'}
+    for name in (f'{package}.export_hook', f'{package}.custom.export_hook'):
         try:
-            return importlib.import_module(f'{package}.export_hook')
-        except ModuleNotFoundError:
-            # sap-2: concept-less code lives in custom/ — the hook moved there
-            return importlib.import_module(f'{package}.custom.export_hook')
-    except ModuleNotFoundError as exc:
-        if exc.name == f'{package}.export_hook':
-            return None
-        raise
+            return importlib.import_module(name)
+        except ModuleNotFoundError as exc:
+            if exc.name not in absent:
+                raise          # the hook is there; ITS import failed
+    return None
 
 
 def _hook_call(hook, fn_name, *args, default=None):

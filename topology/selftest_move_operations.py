@@ -146,11 +146,14 @@ def test_expected_durations():
 def test_move_plan():
     print('[gm-6: plan preview — steps + ETAs + typed-confirm flag]')
     from topology.move_operations import MOVE_SUBJECTS, move_plan
+    # `cnt-engines` joined the catalog with the microchip compute
+    # worker (the :9700 stack on a worker node) — a second stateless
+    # engine-relocation subject alongside msci-engines.
     check('every relocatable subject is cataloged',
-          set(MOVE_SUBJECTS) == {'msci-engines', 'backend',
-                                 'prf-file-store', 'prf-keycloak',
-                                 'prf-mariadb', 'odoo',
-                                 'odoo-postgres'})
+          set(MOVE_SUBJECTS) == {'msci-engines', 'cnt-engines',
+                                 'backend', 'prf-file-store',
+                                 'prf-keycloak', 'prf-mariadb',
+                                 'odoo', 'odoo-postgres'})
     plan = move_plan(subject='prf-mariadb', machine='isle-core')
     check('stateful subject demands confirmation',
           plan['ok'] and plan['stateful']

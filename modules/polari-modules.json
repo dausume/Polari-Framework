@@ -250,6 +250,10 @@
       "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
       "repo": "https://github.com/dausume/polari-module-hwmap.git",
       "downloaded": true,
+      "requires": [
+        "hardwareapps",
+        "islemesh"
+      ],
       "tier": "core"
     },
     "isle_guestnet": {

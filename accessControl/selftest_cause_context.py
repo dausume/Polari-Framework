@@ -17,7 +17,6 @@ un-listed thread site FAILS this selftest with its path.
 import json
 import os
 import re
-import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -101,20 +100,31 @@ _THREAD_RE = re.compile(r'threading\.Thread\(|threading\.Timer\(|[^.\w]Thread\(t
 
 
 def thread_sites():
-    """Every thread-start site in the tree, outside tests and caches."""
-    out = subprocess.run(
-        ['grep', '-rn', '--include=*.py', '-E',
-         r'threading\.Thread\(|threading\.Timer\(|[^.\w]Thread\(target', '.'],
-        cwd=_ROOT, capture_output=True, text=True).stdout
+    """Every thread-start site in the tree, outside tests and caches.
+
+    Scanned IN PYTHON, not by shelling out to grep: the runtime image is
+    alpine, whose busybox grep has no `--include` — the shelled version
+    silently scanned nothing there and the inventory passed on an empty
+    set (ci-12: green on the host, 0 sites in the image). os.walk asks
+    the same question in every environment."""
     sites = []
-    for line in out.splitlines():
-        path = line.split(':', 1)[0].lstrip('./')
-        base = os.path.basename(path)
-        if base.startswith(('test_', 'selftest_')) or base.endswith('_test.py'):
-            continue
-        if '/tests/' in path or '/test/' in path or '__pycache__' in path:
-            continue
-        sites.append(path)
+    for dirpath, dirnames, filenames in os.walk(_ROOT):
+        dirnames[:] = [d for d in dirnames
+                       if d not in ('__pycache__', 'tests', 'test', '.git')]
+        for filename in filenames:
+            if not filename.endswith('.py'):
+                continue
+            if (filename.startswith(('test_', 'selftest_'))
+                    or filename.endswith('_test.py')):
+                continue
+            full = os.path.join(dirpath, filename)
+            try:
+                with open(full, encoding='utf-8', errors='ignore') as f:
+                    source = f.read()
+            except OSError:
+                continue
+            if _THREAD_RE.search(source):
+                sites.append(os.path.relpath(full, _ROOT))
     return sorted(set(sites))
 
 

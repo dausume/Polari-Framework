@@ -145,10 +145,14 @@ def _framework_root():
 
 
 def discover_suites(root=None):
-    """{module_dir: [suite python-module paths]} — the same
-    selftest_*.py discovery rule the pol CLI uses. Scans BOTH import
-    roots (mp-1): the framework root and modules/ (relocated feature
-    modules keep their import names there)."""
+    """{module_dir: [suite python-module paths]} — the same discovery
+    rule the pol CLI uses, which is TWO globs, not one:
+    `<topic>_selftest.py` AND `selftest_<topic>.py` (polari-cli
+    scripts/modules.sh, polari-jenkins/selftests.sh). Scanning only the
+    second missed every module suite written in the first shape (the
+    whole of modules/, techtree included). Scans BOTH import roots
+    (mp-1): the framework root and modules/ (relocated feature modules
+    keep their import names there)."""
     root = root or _framework_root()
     suites = {}
     scan_roots = [root, os.path.join(root, 'modules')]
@@ -163,8 +167,9 @@ def discover_suites(root=None):
             found = sorted(
                 f'{entry}.{filename[:-3]}'
                 for filename in os.listdir(directory)
-                if filename.startswith('selftest_')
-                and filename.endswith('.py'))
+                if filename.endswith('.py')
+                and (filename.startswith('selftest_')
+                     or filename.endswith('_selftest.py')))
             if found:
                 suites.setdefault(entry, found)
     return suites

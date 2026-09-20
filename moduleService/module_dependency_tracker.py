@@ -122,14 +122,28 @@ def _framework_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def boundary_dir(boundary: str,
+                 root: Optional[str] = None) -> Optional[str]:
+    """Where a declared boundary's code lives: the framework root, or
+    modules/<boundary> for the feature modules that moved there (mp-4
+    relocated xr and waxprint; the import seam keeps their names).
+    None when the boundary is genuinely absent."""
+    root = root or _framework_root()
+    for candidate in (os.path.join(root, boundary),
+                      os.path.join(root, 'modules', boundary)):
+        if os.path.isdir(candidate):
+            return candidate
+    return None
+
+
 def scan_boundary_imports(boundary: str,
                           root: Optional[str] = None) -> List[str]:
     """Which OTHER declared boundaries a boundary's code imports —
     the tracked edges between coherent modules. Text-level scan (also
     catches the lazy in-function imports the codebase prefers)."""
     root = root or _framework_root()
-    directory = os.path.join(root, boundary)
-    if not os.path.isdir(directory):
+    directory = boundary_dir(boundary, root)
+    if directory is None:
         return []
     hits: Set[str] = set()
     for dirpath, _dirnames, filenames in os.walk(directory):
@@ -160,8 +174,8 @@ def boundary_graph(root: Optional[str] = None) -> Dict[str, Any]:
     root = root or _framework_root()
     nodes = []
     for boundary, description in sorted(FRAMEWORK_BOUNDARIES.items()):
-        directory = os.path.join(root, boundary)
-        present = os.path.isdir(directory)
+        directory = boundary_dir(boundary, root)
+        present = directory is not None
         nodes.append({
             'name': boundary,
             'description': description,

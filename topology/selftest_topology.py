@@ -96,6 +96,14 @@ ECON_CORE_SERVICES = [
     {'name': 'odoo-postgres', 'service': 'odoo-postgres'},
 ]
 
+#: What isle-core runs once `pol swarm deploy cnt-engines` has run
+#: there — the cntfet compute worker (:9700) is a worker-node instance
+#: of its own, so it is its own observation node.
+ISLE_CORE_SERVICES = [
+    {'name': 'polari-cnt-engines_cnt-engines.1.7ka91xd',
+     'service': 'cnt-engines'},
+]
+
 
 if __name__ == '__main__':
     print('== suite: seed coherence ==')
@@ -125,10 +133,12 @@ if __name__ == '__main__':
     check('graph carries every seeded assignment (%d)' % len(_SA),
           len(graph.get('assignments', [])) == len(_SA))
     check('graph edges resolved to their provider workers',
-          all(e['providerInstanceName'] in ('engines', 'livekit',
-                                            'reticulum')
+          all(e['providerInstanceName'] in ('engines', 'cnt-engines',
+                                            'livekit', 'reticulum')
               and e['status'] == 'resolved'
-              for e in graph.get('edges', [])))
+              for e in graph.get('edges', [])),
+          json.dumps([(e['name'], e['providerInstanceName'], e['status'])
+                      for e in graph.get('edges', [])]))
     check('graph carries 16 typed connections',
           len(graph.get('connections', [])) == 16)
     check('graph decodes service kinds',
@@ -248,6 +258,8 @@ if __name__ == '__main__':
         'staging-a', FULL_STAGING_SERVICES)
     mgr.objectTables['TopologyObservation']['econ'] = _observation(
         'econ-core', ECON_CORE_SERVICES)
+    mgr.objectTables['TopologyObservation']['isle'] = _observation(
+        'isle-core', ISLE_CORE_SERVICES)
     report = drift_report(mgr, 'staging-a')
     check('full observation => no drift',
           not report['inDrift'], json.dumps(report['rows']))
@@ -322,13 +334,19 @@ if __name__ == '__main__':
           .replace('client-secrets', ''))
     check('package only carries machines the topology uses',
           sorted(m['name'] for m in doc['machines'])
-          == ['econ-core', 'staging-a'])
+          == ['econ-core', 'isle-core', 'staging-a'],
+          json.dumps(sorted(m['name'] for m in doc['machines'])))
     empty = types.SimpleNamespace(objectTables={
         k: {} for k in mgr.objectTables})
     plan = merge_topology_doc(empty, doc)
+    # topology + machines + instances + assignments + edges + connections;
+    # the cnt-engines worker (isle-core) brought a machine, an instance,
+    # an assignment and the cntfet edge with it.
     check('merge into empty manager creates everything',
           plan.get('ok') and len(plan['creates']) == (
-              1 + 2 + 10 + 12 + 4 + 16) and not plan['skips'])
+              1 + 3 + 11 + 13 + 5 + 16) and not plan['skips'],
+          '%d creates, %d skips' % (len(plan['creates']),
+                                    len(plan['skips'])))
     for class_name, row in plan['creates']:
         empty.objectTables[class_name][row['name']] = (
             types.SimpleNamespace(**row))
@@ -339,7 +357,9 @@ if __name__ == '__main__':
     plan = merge_topology_doc(mgr, doc)
     check('merge into seeded manager skips everything (idempotent)',
           plan.get('ok') and not plan['creates']
-          and len(plan['skips']) == 45)
+          and len(plan['skips']) == (1 + 3 + 11 + 13 + 5 + 16),
+          '%d creates, %d skips' % (len(plan['creates']),
+                                    len(plan['skips'])))
     check('non-package document refused honestly',
           not merge_topology_doc(mgr, {'kind': 'nope'}).get('ok'))
     check('wrong schema_version refused honestly',

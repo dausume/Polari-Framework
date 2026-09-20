@@ -90,6 +90,8 @@ DEFAULTS = {
     'resources': ('polari', ['platform-operations'], ['resources', 'admission']),
     'security': ('polari', ['platform-operations'], ['security', 'audit']),
     'testing': ('polari', ['platform-operations'], ['testing', 'accountability']),
+    'cicd': ('polari', ['platform-operations'], ['cicd', 'pipeline', 'release']),
+    'iso': ('polari', ['platform-operations'], ['iso', 'ubuntu', 'installer']),
     'suiteapps': ('polari', ['platform-operations'], ['suites']),
     'hardwareapps': ('polari', ['platform-operations', 'network-devices'], ['hardware apps', 'kvm']),
     'islemesh': ('polari', ['platform-operations', 'isle-guests'], ['isle', 'mesh']),
