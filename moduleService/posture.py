@@ -63,3 +63,21 @@ def posture(env=None, path=POSTURE_FILE):
 
 def is_dev(env=None, path=POSTURE_FILE):
     return posture(env, path) == 'dev'
+
+
+#: ci-13 (his ruling 2026-09-20): a Polari SET UP FOR PIPELINE TESTING says so. The throwaway isle's install
+#: writes this file and passes the env through the isle compose; nothing else ever sets either. It is a
+#: statement about the installation, not a posture: it changes no gate, it lets a reader (health, the cicd
+#: app, a person) tell a pipeline's test instance from a real one.
+PIPELINE_TEST_FILE = '/etc/polari/pipeline-test'
+
+
+def pipeline_test(env=None, path=PIPELINE_TEST_FILE):
+    """True when this instance was installed for pipeline testing (env POLARI_PIPELINE_TEST=1 or the marker)."""
+    env = os.environ if env is None else env
+    if str(env.get('POLARI_PIPELINE_TEST', '')).strip() in ('1', 'true', 'yes'):
+        return True
+    try:
+        return os.path.isfile(path)
+    except Exception:
+        return False

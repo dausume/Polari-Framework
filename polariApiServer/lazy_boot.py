@@ -183,8 +183,16 @@ class ModuleBootRegistry:
                         if r['status'] != 'disabled')
             online = sum(1 for r in self.modules.values()
                          if r['status'] == 'online')
+            def _pipeline_test():
+                # ci-13: an instance installed FOR PIPELINE TESTING says so here; never lets health fail
+                try:
+                    from moduleService.posture import pipeline_test
+                    return bool(pipeline_test())
+                except Exception:
+                    return False
             return {
                 'lazyBoot': self.lazy,
+                'pipelineTest': _pipeline_test(),
                 'bootId': self.boot_id,
                 'bootStartedAt': self.boot_started_at,
                 'coreReadyAt': self.core_data_ready_at,
