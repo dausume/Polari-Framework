@@ -305,18 +305,35 @@ def _mode_checks():
                  stages=[[], ['security']])
     check('core_source release:latest is OK and says the core is PULLED, never rebuilt',
           v['CI_CORE_SOURCE'][0] == 'OK' and 'PULLED' in v['CI_CORE_SOURCE'][1], v.get('CI_CORE_SOURCE'))
-    v = verdicts(core_source='release:polari-v2026.09.19')
+    _app = dict(mode='app', app_name='security', app_repo='x', stages=[[], ['security']])
+    v = verdicts(core_source='release:polari-v2026.09.19', **_app)
     check('  …and an exact release tag names that release',
           v['CI_CORE_SOURCE'][0] == 'OK' and 'polari-v2026.09.19' in v['CI_CORE_SOURCE'][1])
-    v = verdicts(core_source='release:')
+    v = verdicts(core_source='release:', **_app)
     check('  …release: with no tag → FAIL (the shape is checked here; nothing is fetched)',
           v['CI_CORE_SOURCE'][0] == 'FAIL' and 'no tag' in v['CI_CORE_SOURCE'][1])
-    v = verdicts(core_source='build')
+    v = verdicts(core_source='build', **_app)
     check('  …build is the escape hatch for a developer who also patches core',
           v['CI_CORE_SOURCE'][0] == 'OK' and 'REBUILT' in v['CI_CORE_SOURCE'][1])
-    v = verdicts(core_source='somewhere-else')
+    v = verdicts(core_source='somewhere-else', **_app)
     check('  …anything else → FAIL naming the two shapes',
           v['CI_CORE_SOURCE'][0] == 'FAIL' and 'release:<tag>' in v['CI_CORE_SOURCE'][1])
+
+    # ci-12 addendum 7 — and every one of those verdicts is an APP-MODE verdict.
+    # In SUITE mode the core is what the run builds, so this key decides nothing
+    # and the row must not promise otherwise. ci-9's default (release:latest) is
+    # in every device.env whichever mode it is in, and a suite device that
+    # believed it sent its isle stage off to pull a core release that does not
+    # exist (polari-isle-test #5, polari-release #84–#86).
+    v = verdicts(mode='suite', core_source='release:latest')
+    check('SUITE mode: release:latest is INFO — the core is built here and the knob is ignored',
+          v['CI_CORE_SOURCE'][0] == 'OK' and 'is an app-mode knob and is ignored' in v['CI_CORE_SOURCE'][1],
+          v.get('CI_CORE_SOURCE'))
+    check('  …and it does NOT say the core is PULLED, which is what the Jenkinsfiles believed',
+          'PULLED' not in v['CI_CORE_SOURCE'][1], v.get('CI_CORE_SOURCE'))
+    v = verdicts(mode='suite', core_source='release:')
+    check('  …a malformed release: cannot FAIL a suite device on a knob it never reads',
+          v['CI_CORE_SOURCE'][0] == 'OK', v.get('CI_CORE_SOURCE'))
 
     # the app-mode stage warnings
     def st(stages, **kw):

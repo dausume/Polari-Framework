@@ -303,7 +303,20 @@ def validate_mode(settings, modules_dir=None):
             rows.append(_row('CI_APP_NAME', app_name, WARN,
                              'set but the mode is suite → it is ignored; set CI_MODE=app to maintain one app'))
 
-    if core_source == CORE_SOURCE_BUILD:
+    # ci-12 addendum 7 — CI_CORE_SOURCE IS AN APP-MODE KNOB, and only that. In
+    # suite mode the core under test is the one the run itself builds; nothing
+    # reads this key, so a row promising "the core debs are PULLED from that
+    # release" would be describing a device that does no such thing. ci-9's
+    # default is release:latest and it is written into EVERY device.env, suite
+    # ones included — which is exactly how a suite-mode pipeline device came to
+    # send its isle stage off to pull a core release that has never been
+    # published. The shell says the same thing in device.sh; these two must not
+    # drift.
+    if mode != 'app':
+        rows.append(_row('CI_CORE_SOURCE', core_source, OK,
+                         'INFO: suite mode builds its own core here; CI_CORE_SOURCE is an app-mode knob '
+                         'and is ignored'))
+    elif core_source == CORE_SOURCE_BUILD:
         rows.append(_row('CI_CORE_SOURCE', core_source, OK,
                          'the core is REBUILT from this suite checkout (for a developer who also patches core)'))
     elif core_source.startswith(CORE_SOURCE_RELEASE_PREFIX):
