@@ -177,8 +177,10 @@ SEED_CICD_PAGE_DISPLAYS = [
                   _table('cicd-stage-results', 0, 12,
                          'What each stage actually recorded, most recent versions first',
                          'IsleTestResult',
-                         columns='version,stage_index,apps_json,core_ok,results_json,uninstall_verdict,'
-                                 'leak_verdict,ram_delta_mb,disk_delta_mb,started,finished,error'),
+                         columns='version,stage_index,apps_json,core_ok,install_ok,seconds_to_online,'
+                                 'verify_ok,selftest_suites,selftest_failed,results_json,'
+                                 'uninstall_verdict,leak_verdict,ram_delta_mb,disk_delta_mb,'
+                                 'started,finished,error'),
               ]),
           ]),
 
@@ -192,18 +194,21 @@ SEED_CICD_PAGE_DISPLAYS = [
                   _sapi('cicd-verdicts-list', 0, 12,
                         'Test verdicts — ONE answer per superproject sha on the test branch. `passed` is '
                         'the only one that may be promoted to main; `partial` means nothing said no but '
-                        'something that should have answered did not (today: the isle stages, still ci-3). '
-                        'The scan counts are carried here and never change a verdict.',
+                        'something that should have answered did not — no isle results at all, or a stage '
+                        'an earlier leak stopped. The scan counts are carried here and never change a '
+                        'verdict.',
                         '/api/cicd/verdicts', pick='verdicts'),
               ], min_height=260),
               _row(1, [
                   _table('cicd-verdict-rows', 0, 12,
                          'Verdict rows — sha, branch, verdict and the reason in words; the selftest '
-                         'arithmetic; core_ok (the half the release rule turns on, and the half that stays '
-                         'false until the ci-3 install cycle lands); and the advisory scan counts.',
+                         'arithmetic; core_ok (the half the release rule turns on: the deb installed, the '
+                         'isle answered, the suites passed INSIDE it and it handed the machine back '
+                         'clean); report_path, the one page a person reads; and the advisory scan counts.',
                          'TestVerdict',
                          columns='sha,git_branch,verdict,why,built,selftest_suites,selftest_passed,'
-                                 'selftest_failed,core_ok,scans_json,selftests_json,isle_json,run,at'),
+                                 'selftest_failed,core_ok,report_path,scans_json,selftests_json,'
+                                 'isle_json,run,at'),
               ]),
               _row(2, [
                   _sapi('cicd-runs-list', 0, 12,
@@ -222,7 +227,9 @@ SEED_CICD_PAGE_DISPLAYS = [
                          'gates the release) and OUR leak diff (did the pipeline leave anything behind? it '
                          'gates the next stage). A negative ram_delta_mb is memory that did not come back.',
                          'IsleTestResult',
-                         columns='run,version,stage_index,apps_json,core_ok,results_json,uninstall_verdict,'
+                         columns='run,version,stage_index,apps_json,core_ok,install_ok,seconds_to_online,'
+                                 'install_json,verify_ok,verify_json,selftests_json,selftest_suites,'
+                                 'selftest_failed,images_json,results_json,uninstall_verdict,'
                                  'uninstall_json,leak_verdict,leaks_json,ram_delta_mb,disk_delta_mb,error'),
               ]),
           ]),

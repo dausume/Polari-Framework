@@ -363,7 +363,9 @@ def isle_test_row(body, posted_by=''):
     return {'name': '%s:stage%d' % (run or device, idx), 'device': device, 'run': run,
             'version': str(body.get('version') or ''), 'stage_index': idx,
             'apps_json': _j([str(a) for a in (body.get('apps') or [])]),
-            'core_ok': bool(body.get('core_ok')) and uninstall == 'clean',
+            'core_ok': (bool(body.get('core_ok')) and uninstall == 'clean'
+                        and bool((body.get('install') or {}).get('ok'))
+                        and bool((body.get('verify') or {}).get('ok'))),
             'results_json': _j(body.get('results') or {}, '{}'),
             'started': str(body.get('started') or ''), 'finished': str(body.get('finished') or ''),
             'error': str(body.get('error') or ''),
@@ -374,6 +376,18 @@ def isle_test_row(body, posted_by=''):
             'leaks_json': _j([str(x) for x in (body.get('leaks') or [])]),
             'ram_delta_mb': _int(body.get('ram_delta_mb')),
             'disk_delta_mb': _int(body.get('disk_delta_mb')),
+            # ---- ci-3: the cycle. core_ok is ANDed with install AND verify here too, for the
+            # same reason it is ANDed with the uninstall verdict: a mirrored row must not be
+            # able to claim a passing core that the pipeline never claimed.
+            'install_ok': bool((body.get('install') or {}).get('ok')),
+            'install_json': _j(body.get('install') or {}, '{}'),
+            'seconds_to_online': _int((body.get('install') or {}).get('time_to_online')),
+            'verify_ok': bool((body.get('verify') or {}).get('ok')),
+            'verify_json': _j(body.get('verify') or {}, '{}'),
+            'selftests_json': _j(body.get('selftests') or {}, '{}'),
+            'selftest_suites': _int((body.get('selftest_counts') or {}).get('suites')),
+            'selftest_failed': _int((body.get('selftest_counts') or {}).get('fail')),
+            'images_json': _j(body.get('images') or {}, '{}'),
             'posted_by': posted_by}
 
 
@@ -406,7 +420,8 @@ def test_verdict_row(body, posted_by=''):
     second-guessed the pipeline would be a second implementation of the rule, and the two would drift.
 
     `core_ok` is lifted out of the isle summary into a column of its own because it is the half the release
-    rule turns on, and because it is the half that is still `false` everywhere until ci-3 lands.
+    rule turns on. ci-3 also carries `report_path`, so a row on the page can link straight to the page a
+    person actually reads.
     """
     device = str(body.get('device')).strip()
     sha = str(body.get('sha') or '')
@@ -426,4 +441,5 @@ def test_verdict_row(body, posted_by=''):
             'core_ok': bool(isle.get('core_ok')),
             'run': str(body.get('run') or ''),
             'decided_by': str(body.get('decided_by') or 'pipeline'),
+            'report_path': str(body.get('report_path') or ''),
             'at': str(body.get('at') or ''), 'posted_by': posted_by}

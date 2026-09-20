@@ -35,10 +35,19 @@ class TestVerdict(treeObject):
         failed    something that RAN said no
         partial   nothing said no, but something that should have answered did not
 
-    `partial` is the honest state of this pipeline today: the install + selftest cycle INSIDE the throwaway
-    guest is still the marked ci-3 TODO, so every isle stage records `skipped`, `core_ok` stays false, and a
-    run whose module selftests all pass is `partial` — with `why` saying exactly that, in words. It is not
-    `passed`, so nothing is released. Honest before convenient.
+    `partial` is for a run where something that should have answered did not — no isle results at all, or a
+    stage that could not be run because an earlier one leaked. It was the RESTING state until ci-3 (his ask
+    2026-09-20): the install + selftest cycle inside the throwaway guest was a marked TODO, so every stage
+    recorded `skipped` and `core_ok` could never become true. That cycle exists now, so a run that installs
+    the deb, stands the isle up, runs the suites inside it and hands the machine back clean reaches
+    `passed`, and one that cannot reaches `failed` with the first failing part named in `why`.
+
+    `report_path` names the ONE PAGE rendered for this sha (`polari-jenkins/report.py` →
+    `pool/test/<sha>/TEST_REPORT.md`): the verdict and why, the debs with their sha256, the image IDs that
+    were installed, the advisory scan counts, the device selftests, and per isle stage the install
+    time-to-online, the verify details, the suites that ran inside the product, the uninstall verdict with
+    the product's own findings, and the leak diff. The release attaches that file as an asset, so the
+    question "what was this release tested with?" is answerable from the release page alone.
 
     SCANS ARE CARRIED, NEVER COUNTED. `scans_json` holds the advisory counts by severity per tool so a
     person reading the verdict sees them without a log dive. No number in it can change `verdict` by one
@@ -60,7 +69,7 @@ class TestVerdict(treeObject):
                  scans_json: str = '{}', selftests_json: str = '{}', isle_json: str = '{}',
                  selftest_suites: int = 0, selftest_passed: int = 0, selftest_failed: int = 0,
                  core_ok: bool = False, run: str = '', decided_by: str = 'pipeline',
-                 at: str = '', posted_by: str = ''):
+                 report_path: str = '', at: str = '', posted_by: str = ''):
         self.name = name                    # the row id — <device>:<sha>
         self.device = device                # PipelineDevice.name
         self.sha = sha                      # the SUPERPROJECT sha this verdict is about
@@ -79,5 +88,6 @@ class TestVerdict(treeObject):
         self.core_ok = core_ok              # what the isle stages recorded — the half that is still ci-3
         self.run = run                      # PipelineRun.name of the polari-test build that decided it
         self.decided_by = decided_by        # DECIDERS
+        self.report_path = report_path      # ci-3: pool/test/<sha>/TEST_REPORT.md — the page, and a release asset
         self.at = at
         self.posted_by = posted_by          # the credential name that mirrored it in

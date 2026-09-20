@@ -107,6 +107,35 @@ def _row_checks():
     check('  …the leak fields are NOT value-shaped, so the mirror door cannot refuse its own results',
           not value_like_fields({'leaks_json': [], 'leak_verdict': '', 'ram_delta_mb': 0,
                                  'disk_delta_mb': 0, 'uninstall_verdict': '', 'uninstall_json': {}}))
+    # ci-3 (his ask 2026-09-20): the cycle that makes core_ok mean something. Four
+    # readings, and core_ok is ANDed with the first two AT THE DOOR as well as in
+    # the pipeline — a mirrored row must never be able to claim a passing core the
+    # pipeline did not claim.
+    check('IsleTestResult carries the ci-3 CYCLE — the install, the isle verify, the suites run INSIDE '
+          'the product, and the image ids "released == tested" is asserted on',
+          {'install_ok', 'install_json', 'seconds_to_online', 'verify_ok', 'verify_json',
+           'selftests_json', 'selftest_suites', 'selftest_failed', 'images_json'}
+          <= set(inspect.signature(IsleTestResult.__init__).parameters))
+    check('  …and none of those is value-shaped either, so the door cannot refuse its own results',
+          not value_like_fields({'install_json': {}, 'verify_json': {}, 'selftests_json': {},
+                                 'images_json': {}, 'install_ok': False, 'verify_ok': False,
+                                 'seconds_to_online': 0}))
+    from cicd.custom.cicd_ingest import isle_test_row as _itr
+    _good = {'device': 'pipe-1', 'run': 'polari-isle-test#7', 'stage_index': 1, 'core_ok': True,
+             'uninstall_verdict': 'clean', 'install': {'ok': True, 'time_to_online': 412},
+             'verify': {'ok': True}, 'selftest_counts': {'suites': 9, 'fail': 0},
+             'images': {'prf-backend:staging': 'sha256:abc'}}
+    check('a stage that installed, verified, tested and handed back clean mirrors core_ok TRUE',
+          _itr(_good)['core_ok'] is True)
+    check('  …the SAME stage with a failed install mirrors core_ok FALSE, whatever it claimed',
+          _itr(dict(_good, install={'ok': False}))['core_ok'] is False)
+    check('  …and with a failed verify, likewise',
+          _itr(dict(_good, verify={'ok': False}))['core_ok'] is False)
+    check('  …and a dirty hand-back still overrides everything (ci-10, unchanged)',
+          _itr(dict(_good, uninstall_verdict='dirty'))['core_ok'] is False)
+    check('  …the seconds to online and the image ids reach the row',
+          _itr(_good)['seconds_to_online'] == 412 and 'prf-backend' in _itr(_good)['images_json'])
+
     check('PipelineRun knows the SIX jobs (ci-12 added `test` and `release-manual`) and the five statuses',
           PipelineRun.JOBS == ('dev-build', 'test', 'release', 'release-manual', 'publish', 'isle-test')
           and 'running' in PipelineRun.STATUSES and 'success' in PipelineRun.STATUSES, PipelineRun.JOBS)
@@ -793,6 +822,13 @@ def _manifest_checks():
           all(k in inspect.signature(TestVerdict.__init__).parameters
               for k in ('scans_json', 'selftests_json', 'isle_json')))
 
+    check('  …and ci-3 gives it `report_path`: the one page a person reads before promoting',
+          'report_path' in inspect.signature(TestVerdict.__init__).parameters)
+    check('  …which the ingest door carries through from the verdict document',
+          test_verdict_row({'device': 'pipe-1', 'sha': 'b' * 40, 'verdict': 'passed',
+                            'report_path': '/var/polari-pool/test/bbb/TEST_REPORT.md'})['report_path']
+          .endswith('TEST_REPORT.md'))
+
     ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'a' * 40,
                          'verdict': 'passed'})
     check('a passing verdict with a sha is accepted', ok_, why_)
@@ -891,8 +927,11 @@ def _teardown_checks():
     """
     from cicd.custom.cicd_ingest import isle_test_row
 
+    # ci-3: a stage that could claim a core now has to have INSTALLED and VERIFIED one, so the
+    # fixture carries those two readings. Before ci-3 there was nothing to carry.
     base = {'kind': 'isle-test', 'device': 'pipe-1', 'run': 'polari-isle-test#7', 'stage_index': 1,
-            'version': '2026.09.19', 'apps': ['gears'], 'core_ok': True, 'results': {'gears': 'pass'}}
+            'version': '2026.09.19', 'apps': ['gears'], 'core_ok': True, 'results': {'gears': 'pass'},
+            'install': {'ok': True, 'time_to_online': 402}, 'verify': {'ok': True}}
 
     r = isle_test_row(dict(base, uninstall_verdict='clean'))
     check('a CLEAN hand-back lets a posted row keep core_ok', r['core_ok'] is True)
