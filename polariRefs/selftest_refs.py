@@ -11,6 +11,16 @@ authority-carrying refs parse; the local rung resolves via the identity
 map; non-local rungs refuse honestly naming their phase; identity map
 keeps two authorities distinct; schemaVersion mismatch refuses naming
 both versions; rung-2 RowView is read-only.
+
+ENVIRONMENT-HONEST (§77 addendum 2): "this instance" is NEVER hard-coded
+here. The ladder reads it from `ref_format.local_identity()`
+(POLARI_INSTANCE_ID / POLARI_INSTANCE_NAME), so the suite reads it from
+the SAME source — a bare host run is still instance 'a', but inside the
+installed isle the backend runs as POLARI_INSTANCE_ID=isle and the
+local-authority checks follow it instead of failing. The isle's SHAPE is
+covered on the host too: `_isle_shape_rungs` re-runs both local-authority
+rungs under an explicitly different local node name and proves the old
+name is then treated as a peer.
 """
 
 import json
@@ -20,7 +30,7 @@ from types import SimpleNamespace
 from materialsScience.component_binding import resolve_binding
 from polariRefs.identity_map import RefIdentityMap, identity_map_for
 from polariRefs.ref_format import (
-    is_authority_ref, parse_ref, schema_version_of,
+    is_authority_ref, local_identity, parse_ref, schema_version_of,
 )
 from polariRefs.resolver import resolve_ref, resolve_ref_value, walk_path
 
@@ -73,8 +83,47 @@ def _mgr():
     ), rod
 
 
+def _isle_shape_rungs(isle_id, isle_name, was_local):
+    """§77 addendum 2 — the two local-authority rungs run with THIS
+    process renamed, i.e. the shape the INSTALLED isle has
+    (POLARI_INSTANCE_ID=isle, POLARI_INSTANCE_NAME=prf-isle) rather than
+    the host default. Proves both directions: the new name is 'this
+    instance', and the name that WAS this instance is now just a peer.
+    Returns (resolves_locally, binding_value, peer_refusal)."""
+    manager, rod = _mgr()
+    saved = {k: os.environ.get(k)
+             for k in ('POLARI_INSTANCE_ID', 'POLARI_INSTANCE_NAME')}
+    os.environ['POLARI_INSTANCE_ID'] = isle_id
+    os.environ['POLARI_INSTANCE_NAME'] = isle_name
+    try:
+        ref = {'kind': 'objectRef',
+               'authority': {'instance': isle_id},
+               'className': 'MaterialScaleDefinition',
+               'name': 'steel-rod'}
+        local = resolve_ref(manager, ref)
+        bound_ok, bound_value, _ = resolve_binding(
+            manager, dict(ref,
+                          path='last_result_json.percolationThreshold'))
+        peer = resolve_ref(manager, dict(
+            ref, authority={'instance': was_local}))
+    finally:
+        for key, previous in saved.items():
+            if previous is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = previous
+    return (local['ok'] and local['object'] is rod,
+            bound_value if bound_ok else None,
+            peer.get('refusal') or {})
+
+
 if __name__ == '__main__':
     os.environ.setdefault('POLARI_INSTANCE_ID', 'a')
+    # "this instance" comes from the SAME source the ladder reads
+    # (ref_format.local_identity) — 'a' on a bare host run, 'isle'
+    # inside the installed isle. Hard-coding it here is what made this
+    # suite the one Polari-side fault of pipeline run #226 (§77).
+    LOCAL_ID = local_identity()['instanceId']
     manager, rod = _mgr()
 
     print('ref format — parse + normalize')
@@ -173,12 +222,16 @@ if __name__ == '__main__':
           not result['ok']
           and 'PeerAgreement' in result['refusal']['error']
           and "'b'" in result['refusal']['error'])
+    check("the suite's stand-in peers 'b'/'c' are not this instance "
+          f"('{LOCAL_ID}')",
+          LOCAL_ID.lower() not in ('b', 'c'), extra=f'local={LOCAL_ID}')
     result = resolve_ref(manager, {'kind': 'objectRef',
-                                   'authority': {'instance': 'a'},
+                                   'authority': {'instance': LOCAL_ID},
                                    'className':
                                        'MaterialScaleDefinition',
                                    'name': 'steel-rod'})
-    check("authority instance 'a' (this instance) resolves locally",
+    check(f"authority instance '{LOCAL_ID}' (this instance, from "
+          'POLARI_INSTANCE_ID) resolves locally',
           result['ok'] and result['object'] is rod)
     result = resolve_ref(manager, {'kind': 'objectRef',
                                    'authority':
@@ -237,11 +290,12 @@ if __name__ == '__main__':
     ok, value, refusal = resolve_binding(manager, bare)
     check('bare objectRef through resolve_binding still resolves',
           ok and value == 0, extra=f'refusal={refusal}' if not ok else '')
-    authority_bound = dict(bare, authority={'instance': 'a'},
+    authority_bound = dict(bare, authority={'instance': LOCAL_ID},
                            path='last_result_json.percolationThreshold')
-    ok, value, _ = resolve_binding(manager, authority_bound)
+    ok, value, refusal = resolve_binding(manager, authority_bound)
     check('authority ref through resolve_binding rides the ladder',
-          ok and value == 0.163)
+          ok and value == 0.163,
+          extra=f'refusal={refusal}' if not ok else '')
     ok, _, refusal = resolve_binding(
         manager, dict(bare, authority={'instance': 'b'}))
     check('remote authority through resolve_binding refuses honestly',
@@ -250,6 +304,23 @@ if __name__ == '__main__':
         manager, dict(bare, path='parameters_json.nope'))
     check('path miss refuses listing available keys',
           not ok and refusal.get('availableKeys') == ['inputs'])
+
+    print("the INSTALLED isle's shape — a different local node name")
+    ISLE_ID = 'isle' if LOCAL_ID.lower() != 'isle' else 'a'
+    ISLE_NAME = f'prf-{ISLE_ID}'
+    isle_local, isle_value, isle_peer = _isle_shape_rungs(
+        ISLE_ID, ISLE_NAME, LOCAL_ID)
+    check(f"renamed to '{ISLE_ID}': authority instance '{ISLE_ID}' "
+          'resolves locally (rung 1)', isle_local)
+    check(f"renamed to '{ISLE_ID}': resolve_binding rides the ladder "
+          'under the new name', isle_value == 0.163,
+          extra=f'value={isle_value}' if isle_value != 0.163 else '')
+    check(f"renamed to '{ISLE_ID}': the OLD name '{LOCAL_ID}' is now a "
+          'PEER and refuses naming the join flow',
+          'PeerAgreement' in isle_peer.get('error', '')
+          and f"'{LOCAL_ID}'" in isle_peer.get('error', ''),
+          extra=f'refusal={isle_peer}'
+                if 'PeerAgreement' not in isle_peer.get('error', '') else '')
 
     print('rung 3 — shared-DB peer read (xsim-3)')
 
