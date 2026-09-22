@@ -206,6 +206,16 @@ def everything(manager, device_row):
     }
 
 
+def deploys(manager, device='', target=''):
+    """dep-1 — the DeployRecord rows, newest first."""
+    rows = _table(manager, 'DeployRecord')
+    if device:
+        rows = [r for r in rows if str(getattr(r, 'device', '')) == device]
+    if target:
+        rows = [r for r in rows if str(getattr(r, 'target', '')) == target]
+    return sorted(rows, key=lambda r: str(getattr(r, 'at', '')), reverse=True)
+
+
 def verdicts(manager, device='', sha=''):
     """ci-12 — the TestVerdict rows, newest first.
 

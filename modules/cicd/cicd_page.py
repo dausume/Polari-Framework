@@ -7,6 +7,7 @@
 /display/cicd-stages     the isle testing stages — the ordered list that IS what can be released
 /display/cicd-runs       the mirrored Jenkins builds and what each isle stage recorded
 /display/cicd-releases   per version: what shipped, and what did not, with the reason
+/display/cicd-deploys    dep: where Polari runs (the targets, their conditions) and what was deployed there
 
 CONFIGURED PAGES ONLY. Every item here is one of the two generic registered components — `class-rows-table`
 and `api-structured-panel` — so ci-8 added no Angular at all (his rule: "there should not be any json
@@ -248,6 +249,37 @@ SEED_CICD_PAGE_DISPLAYS = [
                          columns='version,mode,app_name,tag,tag_pushed,results_present,core_ok,'
                                  'tested_verdict,tested_sha,tested_against,published_routes_json,'
                                  'dry_routes_json,released_json,not_released_json,why_not,released_at'),
+              ]),
+          ]),
+    # dep-0/1: PRODUCTION AS THE STEP AFTER PUBLISH. The targets are SETTINGS (a person adds them; hold
+    # is on until they say otherwise); the records are what the pipeline actually did on a target —
+    # through a key restricted to the deploy agent, which cannot touch the secrets there.
+    _page('cicd-deploys', 'cicd-deploys',
+          'CI/CD — production as the step after publish: where Polari runs, and what was deployed there',
+          'DeployRecord', [
+              _row(0, [
+                  _table('cicd-deploy-targets', 0, 12,
+                         'Deployment targets — where Polari runs. ssh_alias is an alias in the pipeline '
+                         'user\'s ssh config (never an address); the key there is RESTRICTED to the deploy '
+                         'agent. hold=true means only a person deploys (pol jenkins deploy <name> --now). '
+                         'Every automatic deploy needs ALL of: a newer release than the target runs, a '
+                         'passed verdict with released==tested, the routes it consumes published for real, '
+                         'the window, health before, disk, no deploy in flight, hold off, no earlier failure.',
+                         'DeployTarget',
+                         columns='name,device,ssh_alias,route,profile,channel,window,health_urls,'
+                                 'min_free_gb,needs_routes,settle_s,hold,notes'),
+              ]),
+              _row(1, [
+                  _sapi('cicd-deploys-list', 0, 12,
+                        'What runs where, since when, from which release — and on a failure, where it '
+                        'rolled back to (a re-pin of the previous release; the volume stash the agent made '
+                        'before anything moved stays on the target for a person\'s pol prod restore)',
+                        '/api/cicd/deploys', pick='deploys'),
+              ], min_height=260),
+              _row(2, [
+                  _table('cicd-deploy-rows', 0, 12, 'Deploy rows', 'DeployRecord',
+                         columns='target,release,from_release,result,failed_at,rollback,stash,'
+                                 'apply_seconds,at,device'),
               ]),
           ]),
 ]

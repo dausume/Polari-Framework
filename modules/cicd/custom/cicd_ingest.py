@@ -38,7 +38,9 @@ import re
 #: `pol`; only the device can, and this is the one way that state arrives.
 #: ci-12: `test-verdict` is the product of the TEST pipeline — one row per superproject sha, and the thing
 #: `pol jenkins promote main` and every publish route refuse on.
-KINDS = ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict')
+#: dep-1: `deploy` is what deploy/apply.sh wrote on the device (applied.json | failed.json) — one deploy of one
+#: release to one target, mirrored so the pages can say what runs where.
+KINDS = ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict', 'deploy')
 
 #: a field name that could carry a secret. Matched on the key itself and on any `_`-suffixed form.
 VALUE_LIKE = re.compile(r'(?:^|_)(value|token|key|secret|password|passphrase|credential|privkey)s?$', re.I)
@@ -165,6 +167,15 @@ def check(body):
         return False, ('refused: an app-mode release must name the CORE release it was tested against '
                        '("tested_against": "release:<tag>") — a deb that passed against an unnamed core is '
                        'an unfalsifiable claim')
+    if kind == 'deploy':
+        if not str(body.get('target') or '').strip() or not str(body.get('release') or '').strip():
+            return False, 'refused: a deploy names its TARGET and its RELEASE ({"target": …, "release": "polari-v…"})'
+        if str(body.get('result') or '') not in ('applied', 'failed'):
+            return False, ('refused: a deploy record is one of applied | failed (a SKIP is not a record — nothing '
+                           'touched the target; it lives in the device\'s pool as skipped.json)')
+        if str(body.get('result')) == 'failed' and not str(body.get('rollback') or ''):
+            return False, ('refused: a FAILED deploy says in words where it left the target ("rollback": '
+                           '"rolled back to …" | "nothing moved …" | "ROLLBACK FAILED …")')
     if kind == 'setup':
         if str(body.get('setup_protocol') or '') != SETUP_PROTOCOL:
             return False, ('refused: this door mirrors %r; the body declares %r. A front end that read a '
@@ -409,6 +420,23 @@ def release_row(body, posted_by=''):
             'not_released_json': _j(body.get('not_released') or {}, '{}'),
             'run': str(body.get('run') or ''), 'released_at': str(body.get('released_at') or ''),
             'why_not': str(body.get('why_not') or ''), 'posted_by': posted_by}
+
+
+def deploy_row(body, posted_by=''):
+    """dep-1 — ONE DEPLOY OF ONE RELEASE TO ONE TARGET → the DeployRecord row.
+
+    Stored as told: the apply/verify/rollback happened on the device and the target; this mirror judges
+    nothing. `rollback` is kept in words because it is what a person reads first after a failure.
+    """
+    device = str(body.get('device')).strip()
+    target = str(body.get('target') or '').strip()
+    release = str(body.get('release') or '')
+    return {'name': '%s:%s:%s' % (device, target, release), 'device': device, 'target': target,
+            'release': release, 'from_release': str(body.get('from_release') or ''),
+            'result': str(body.get('result') or ''), 'failed_at': str(body.get('failed_at') or ''),
+            'rollback': str(body.get('rollback') or ''), 'stash': str(body.get('stash') or ''),
+            'apply_seconds': int(body.get('apply_seconds') or 0), 'at': str(body.get('at') or ''),
+            'posted_by': posted_by}
 
 
 def test_verdict_row(body, posted_by=''):

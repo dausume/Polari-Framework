@@ -1267,7 +1267,7 @@ FEATURE_IMPORT_BLOCKS = (
         # ever be typed, persisted or restored. Fixed here with ci-12 rather than left as a silent hole.
         ('cicd.cicd_basis', ('PipelineDevice', 'PipelineStage', 'PipelineRoute', 'PipelineSecretPresence',
                              'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'PipelineSetupStep',
-                             'TestVerdict', 'CICD_CLASSES')),
+                             'TestVerdict', 'DeployTarget', 'DeployRecord', 'CICD_CLASSES')),
         ('cicd.cicd_seed', ('CICD_SEED_PAIRS',)),
         ('cicd.cicd_page', ('SEED_CICD_PAGE_DISPLAYS',)),
     )),

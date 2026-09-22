@@ -8,3 +8,5 @@ from cicd.objects.cicd.PipelineSecretPresence import PipelineSecretPresence  # n
 from cicd.objects.cicd.PipelineRun import PipelineRun  # noqa: F401
 from cicd.objects.cicd.IsleTestResult import IsleTestResult  # noqa: F401
 from cicd.objects.cicd.ReleaseRecord import ReleaseRecord  # noqa: F401
+from cicd.objects.cicd.DeployTarget import DeployTarget  # noqa: F401
+from cicd.objects.cicd.DeployRecord import DeployRecord  # noqa: F401

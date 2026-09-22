@@ -65,14 +65,16 @@ def _row_checks():
     from cicd.cicd_basis import (CICD_CLASSES, CICD_MIRROR_CLASSES, CICD_SETTINGS_CLASSES, IsleTestResult,
                                  PipelineDevice, PipelineRoute, PipelineRun, PipelineSecretPresence,
                                  PipelineStage, ReleaseRecord)
-    check('the module registers exactly NINE row classes — the count is asserted so a class added without a '
-          'manifest entry, a feature-import entry and a defClassList entry cannot ride in unnoticed',
-          len(CICD_CLASSES) == 9, [c.__name__ for c in CICD_CLASSES])
+    check('the module registers exactly ELEVEN row classes (dep added DeployTarget + DeployRecord) — the count is '
+          'asserted so a class added without a manifest entry, a feature-import entry and a defClassList entry '
+          'cannot ride in unnoticed',
+          len(CICD_CLASSES) == 11, [c.__name__ for c in CICD_CLASSES])
     check('the classes split into the SETTINGS a person owns and the rows the pipeline mirrors in',
-          [c.__name__ for c in CICD_SETTINGS_CLASSES] == ['PipelineDevice', 'PipelineStage', 'PipelineRoute']
+          [c.__name__ for c in CICD_SETTINGS_CLASSES] == ['PipelineDevice', 'PipelineStage', 'PipelineRoute',
+                                                              'DeployTarget']
           and [c.__name__ for c in CICD_MIRROR_CLASSES] == ['PipelineSecretPresence', 'PipelineRun',
                                                             'IsleTestResult', 'ReleaseRecord',
-                                                            'PipelineSetupStep', 'TestVerdict'])
+                                                            'PipelineSetupStep', 'TestVerdict', 'DeployRecord'])
     check('every class is one file under objects/cicd/ and re-exported by cicd_basis (the module convention)',
           all(c.__module__ == 'cicd.objects.cicd.%s' % c.__name__ for c in CICD_CLASSES),
           [c.__module__ for c in CICD_CLASSES])
@@ -442,8 +444,8 @@ def _ingest_checks():
           res.status.startswith('401'))
 
     # ---- the five kinds, and nothing else
-    check('the mirror accepts exactly seven kinds (ci-12 added test-verdict)',
-          KINDS == ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict'), KINDS)
+    check('the mirror accepts exactly eight kinds (ci-12 added test-verdict, dep added deploy)',
+          KINDS == ('device', 'secrets', 'run', 'isle-test', 'release', 'setup', 'test-verdict', 'deploy'), KINDS)
     res = _Res(); api.on_post_ingest(_Req(media={'kind': 'whatever', 'device': 'pipe-1'}, headers=hdr), res)
     check('an unknown kind is a 400 that NAMES the five — never a shrug, never a row from a body nobody designed',
           res.status.startswith('400') and 'unknown kind' in res.media['error']
@@ -708,8 +710,9 @@ def _route_guard_checks():
     check('§54 guard: every /api/cicd route registered has a responder named for its suffix — a drifted '
           'suffix RAISES from add_route() and takes the backend down at boot',
           orphans == [], orphans)
-    check('  …and all eleven doors are registered (ci-12 added /api/cicd/verdicts)',
-          len(srv.falconServer.routes) == 11
+    check('  …and all twelve doors are registered (ci-12 added /api/cicd/verdicts, dep /api/cicd/deploys)',
+          len(srv.falconServer.routes) == 12
+          and ('/api/cicd/deploys', 'deploys') in srv.falconServer.routes
           and ('/api/cicd/ingest', 'ingest') in srv.falconServer.routes
           and ('/api/cicd/device/token', 'device_token') in srv.falconServer.routes,
           srv.falconServer.routes)
@@ -724,8 +727,8 @@ def _page_seed_checks():
     from cicd.cicd_seed import CICD_SEED_PAIRS, SEED_CICD_PERMISSION_PROFILES
 
     names = [p['name'] for p in SEED_CICD_PAGE_DISPLAYS]
-    check('five configured pages: the pipeline, its SETUP WIZARD, its stages, its runs, its releases',
-          names == ['cicd', 'cicd-setup', 'cicd-stages', 'cicd-runs', 'cicd-releases'], names)
+    check('six configured pages: the pipeline, its SETUP WIZARD, its stages, its runs, its releases, its DEPLOYS',
+          names == ['cicd', 'cicd-setup', 'cicd-stages', 'cicd-runs', 'cicd-releases', 'cicd-deploys'], names)
     comps = set()
     for page in SEED_CICD_PAGE_DISPLAYS:
         for r in json.loads(page['definition'])['rows']:
@@ -784,7 +787,7 @@ def _manifest_checks():
     check('the manifest is valid against the standard (moduleService.manifests.validate)', problems == [], problems)
     check('the manifest declares the nine classes plus the API, the endpoints constructor, the seed pairs '
           'and the pages',
-          len([c for c in man['classes'] if c != 'CicdAPI']) == 9
+          len([c for c in man['classes'] if c != 'CicdAPI']) == 11
           and man['endpoints'] == 'cicd.cicd_endpoints:construct_cicd_endpoints'
           and man['seedPairs'] == 'cicd.cicd_seed:CICD_SEED_PAIRS'
           and man['pages'] == ['cicd.cicd_page:SEED_CICD_PAGE_DISPLAYS'], man['classes'])
@@ -832,6 +835,32 @@ def _manifest_checks():
     ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'a' * 40,
                          'verdict': 'passed'})
     check('a passing verdict with a sha is accepted', ok_, why_)
+
+    # dep-1: the deploy record — what the pipeline did on a target through a key restricted to the agent
+    from cicd.custom.cicd_ingest import deploy_row
+    from cicd.cicd_basis import DeployRecord, DeployTarget
+    ok_, why_ = _icheck({'kind': 'deploy', 'device': 'pipe-1', 'target': 'public-site', 'release': 'polari-v2026.09.30',
+                         'from_release': 'polari-v2026.09.12', 'result': 'applied', 'stash': '/x/.polari-stash/1'})
+    check('deploy: an applied record naming target + release is accepted', ok_, why_)
+    ok_, why_ = _icheck({'kind': 'deploy', 'device': 'pipe-1', 'release': 'polari-v2026.09.30', 'result': 'applied'})
+    check('deploy: no target → refused (what runs WHERE is the question)', not ok_ and 'TARGET' in why_, why_)
+    ok_, why_ = _icheck({'kind': 'deploy', 'device': 'pipe-1', 'target': 't', 'release': 'r', 'result': 'skipped'})
+    check('deploy: a SKIP is not a record — refused, and it says where skips live', not ok_ and 'skipped.json' in why_, why_)
+    ok_, why_ = _icheck({'kind': 'deploy', 'device': 'pipe-1', 'target': 't', 'release': 'r', 'result': 'failed'})
+    check('deploy: a FAILED record must say in words where it left the target', not ok_ and 'rollback' in why_, why_)
+    r = deploy_row({'device': 'pipe-1', 'target': 'public-site', 'release': 'polari-v2026.09.30', 'result': 'failed',
+                    'failed_at': 'verify', 'rollback': 'rolled back to polari-v2026.09.12', 'apply_seconds': '41'})
+    check('deploy_row: the id is <device>:<target>:<release>, the words are kept, the seconds are an int',
+          r['name'] == 'pipe-1:public-site:polari-v2026.09.30' and r['rollback'].startswith('rolled back')
+          and r['apply_seconds'] == 41, r)
+    check('DeployTarget is a SETTINGS row (a person owns it) with hold TRUE by default — nothing deploys by itself',
+          DeployTarget in __import__('cicd.cicd_basis', fromlist=['x']).CICD_SETTINGS_CLASSES
+          and inspect.signature(DeployTarget.__init__).parameters['hold'].default is True)
+    check('  …and carries an ssh ALIAS column, never an address column',
+          'ssh_alias' in inspect.signature(DeployTarget.__init__).parameters
+          and not any(k in inspect.signature(DeployTarget.__init__).parameters for k in ('host', 'ip', 'address')))
+    check('DeployRecord carries the rollback in words and the stash the agent made',
+          {'rollback', 'stash', 'from_release', 'failed_at'} <= set(inspect.signature(DeployRecord.__init__).parameters))
     ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'sha': 'a' * 40, 'verdict': 'green'})
     check('an unknown verdict is refused and NAMES the three', not ok_ and 'passed' in why_ and 'partial' in why_, why_)
     ok_, why_ = _icheck({'kind': 'test-verdict', 'device': 'pipe-1', 'verdict': 'passed'})

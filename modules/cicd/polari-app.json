@@ -35,6 +35,8 @@
  },
  "files": {
   "objects": [
+   "objects/cicd/DeployRecord",
+   "objects/cicd/DeployTarget",
    "objects/cicd/IsleTestResult",
    "objects/cicd/PipelineDevice",
    "objects/cicd/PipelineRoute",
@@ -73,6 +75,8 @@
  },
  "classes": [
   "CicdAPI",
+  "DeployRecord",
+  "DeployTarget",
   "IsleTestResult",
   "PipelineDevice",
   "PipelineRoute",
@@ -96,6 +100,8 @@
     "ReleaseRecord",
     "PipelineSetupStep",
     "TestVerdict",
+    "DeployTarget",
+    "DeployRecord",
     "CICD_CLASSES"
    ]
   ],

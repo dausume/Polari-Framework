@@ -17,7 +17,7 @@
                              document `polari-pipeline-setup/1`, reassembled from PipelineSetupStep rows, so
                              a browser with NO desktop shell still sees where that device got to. `live` is
                              always false: it is a mirror of the last push, never a live reading.
-/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release|setup|test-verdict, …} with the
+/api/cicd/ingest             THE MIRROR. POST {kind: device|secrets|run|isle-test|release|setup|test-verdict|deploy, …} with the
                              posting-only token. Six kinds, nothing else; a value-shaped field is a 400 and
                              nothing is stored.
 /api/cicd/runs               GET the mirrored Jenkins builds
@@ -78,6 +78,7 @@ class CicdAPI(treeObject):
             add('/api/cicd/results', self, suffix='results')
             add('/api/cicd/releases', self, suffix='releases')
             add('/api/cicd/verdicts', self, suffix='verdicts')   # ci-12: one answer per tested sha
+            add('/api/cicd/deploys', self, suffix='deploys')     # dep-1: what runs where, since when
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -481,6 +482,19 @@ class CicdAPI(treeObject):
                           'how': 'only a sha whose verdict is `passed` may be promoted to main; scans are '
                                  'carried in this row and change nothing'}
 
+    def _ingest_deploy(self, body, dev, posted_by, response):
+        """dep-1 — one deploy of one release to one target, as deploy/apply.sh recorded it. Mirrored, never judged."""
+        from cicd.cicd_basis import DeployRecord
+        from cicd.custom.cicd_ingest import deploy_row
+        row = deploy_row(body, posted_by)
+        if not row['target'] or not row['release']:
+            return self._bad(response, 'a deploy names its target and its release')
+        report = self._upsert('DeployRecord', DeployRecord, [row])
+        response.media = {'ok': True, 'kind': 'deploy', 'deploy': row['name'], 'result': row['result'],
+                          'stored': report,
+                          'how': 'the pipeline\'s key on a target is restricted to the deploy agent: it stashes '
+                                 'the volumes, replaces images, verifies — and cannot touch the secrets'}
+
     def _ingest_release(self, body, dev, posted_by, response):
         from cicd.cicd_basis import ReleaseRecord
         from cicd.custom.cicd_ingest import release_row
@@ -501,6 +515,18 @@ class CicdAPI(treeObject):
              'url': str(getattr(r, 'url', ''))} for r in rows],
             'how': 'mirrored in by the pipeline; nothing here drives Jenkins. The url is the controller\'s '
                    'loopback console — reach it with ssh -L 8080:127.0.0.1:8080 <alias>.'}
+
+    def on_get_deploys(self, request, response):
+        """dep-1 — the DeployRecord rows, newest first: what runs where, since when, from which release."""
+        device = (request.params.get('device') or '').strip()
+        target = (request.params.get('target') or '').strip()
+        rows = R.deploys(self.manager, device, target)
+        response.media = {'ok': True, 'count': len(rows), 'deploys': [
+            {'target': str(getattr(r, 'target', '')), 'release': str(getattr(r, 'release', '')),
+             'from_release': str(getattr(r, 'from_release', '')), 'result': str(getattr(r, 'result', '')),
+             'failed_at': str(getattr(r, 'failed_at', '')), 'rollback': str(getattr(r, 'rollback', '')),
+             'stash': str(getattr(r, 'stash', '')), 'apply_seconds': int(getattr(r, 'apply_seconds', 0) or 0),
+             'at': str(getattr(r, 'at', '')), 'device': str(getattr(r, 'device', ''))} for r in rows]}
 
     def on_get_verdicts(self, request, response):
         """ci-12 — the test verdicts, newest first. The column a person reads first is `why`."""

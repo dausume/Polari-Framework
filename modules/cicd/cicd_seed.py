@@ -14,12 +14,12 @@ everybody else's to read. The import is guarded because the profile class belong
 core that did not admit polariapps still admits this module perfectly well — it simply has no app-permission
 gate to seed for, which is the same state every other module is in there.
 """
-from cicd.cicd_basis import (IsleTestResult, PipelineDevice, PipelineRoute, PipelineRun,
-                             PipelineSecretPresence, PipelineStage, ReleaseRecord)
+from cicd.cicd_basis import (DeployRecord, DeployTarget, IsleTestResult, PipelineDevice, PipelineRoute,
+                             PipelineRun, PipelineSecretPresence, PipelineStage, ReleaseRecord)
 
 #: the settings classes a person may change, and the mirrored ones they may only read
-_SETTINGS = ['PipelineDevice', 'PipelineStage', 'PipelineRoute']
-_MIRRORED = ['PipelineSecretPresence', 'PipelineRun', 'IsleTestResult', 'ReleaseRecord']
+_SETTINGS = ['PipelineDevice', 'PipelineStage', 'PipelineRoute', 'DeployTarget']
+_MIRRORED = ['PipelineSecretPresence', 'PipelineRun', 'IsleTestResult', 'ReleaseRecord', 'DeployRecord']
 
 SEED_CICD_PERMISSION_PROFILES = [
     {
@@ -50,7 +50,7 @@ SEED_CICD_PERMISSION_PROFILES = [
         'verbs_json': '["read"]',
         'extra_classes_json': '["PipelineDevice", "PipelineStage", "PipelineRoute", '
                               '"PipelineSecretPresence", "PipelineRun", "IsleTestResult", "ReleaseRecord", '
-                              '"TestVerdict"]',
+                              '"TestVerdict", "DeployTarget", "DeployRecord"]',
         'published': False,
         'is_prior': True,
         'notes': 'TEMPLATE, the shipped convention: it grants nothing until a real Keycloak group is bound '
@@ -70,6 +70,10 @@ CICD_SEED_PAIRS = [
     ('PipelineRun', PipelineRun, []),
     ('IsleTestResult', IsleTestResult, []),
     ('ReleaseRecord', ReleaseRecord, []),
+    # dep-0/1: where Polari runs (a person adds targets; none is seeded — a seeded target would name a
+    # machine nobody chose) and what was deployed there (happened; never seeded).
+    ('DeployTarget', DeployTarget, []),
+    ('DeployRecord', DeployRecord, []),
 ]
 
 try:                                        # the write gate, when polariapps is admitted here
