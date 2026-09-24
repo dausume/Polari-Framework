@@ -87,11 +87,13 @@ check('a malformed range is a 400 naming the dim', r.status_code == 400 and 'x' 
 r = client.simulate_get('/api/computelod/lod1')
 check('GET /api/computelod/lod1 serves the committed report (encoding 0x00b50533, cell counts, verdicts)', r.status_code == 200 and r.json['report'].get('compile', {}).get('encoding') == '0x00b50533', r.text[:200])
 r = client.simulate_get('/api/computelod/path', params={'rung': 'c-source', 'ref': 'lod1/add.c: c = a + b'})
-check('GET path from the C statement walks C → compiler → ISA → microarchitecture → RTL → netlist → (unresolved) standard cells',
-      r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells'], r.text[:300])
+check('GET path from the C statement walks C → compiler → ISA → microarchitecture → RTL → netlist → SKY130 cells → (partial) devices',
+      r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices'], r.text[:300])
 check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
-check('the lod-1 rows are seeded: 7 ComputeMappings, 5 CharacterizationMappings, 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 7 and len(tables.get('CharacterizationMapping', {})) == 5 and len(tables.get('CompilerArtifact', {})) == 3)
+check('the lod-1 + lod-2 rows are seeded: 8 ComputeMappings, 7 CharacterizationMappings, 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 8 and len(tables.get('CharacterizationMapping', {})) == 7 and len(tables.get('CompilerArtifact', {})) == 3)
+r = client.simulate_get('/api/computelod/lod2')
+check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
 # ---- tt-2: the FEM case is a seeded core row; the tensors solve it live; the tree is honest
 check('the tt-2 FEM case is seeded as an FEMModelDefinition row', any(getattr(c, 'name', '') == 'tt2-plate-tension' for c in tables.get('FEMModelDefinition', {}).values()))
 check('the cited material option opt-electrical-steel is present (magnetics admitted)', any(getattr(o, 'name', '') == 'opt-electrical-steel' for o in tables.get('MagneticMaterialOption', {}).values()))

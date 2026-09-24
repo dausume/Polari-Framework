@@ -56,7 +56,8 @@
   ],
   "custom": [
    "custom/computelod_walk",
-   "custom/lod1_chain"
+   "custom/lod1_chain",
+   "custom/lod2_silicon"
   ],
   "endpoints": [
    "computelod_endpoints"

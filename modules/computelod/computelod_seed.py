@@ -93,12 +93,22 @@ SEED_COMPUTE_TECH_SEGMENTS = [   # tools = 'real' segments; languages = 'theory'
 # iverilog's verdicts; and two rows are left UNRESOLVED on purpose (technology mapping, delay — lod-2).
 from computelod.custom.lod1_chain import report as _lod1_report, rows as _lod1_rows
 SEED_LOD1_ARTIFACTS, SEED_LOD1_MAPPINGS, SEED_LOD1_CHARACTERIZATIONS = _lod1_rows(_lod1_report())
+# ---- lod-2: OPEN SILICON — the SKY130 mapping + OpenSTA timing REPLACE lod-1's two gaps by name (the unresolved
+# netlist → standard cells mapping; the delay characterization with evidence none) and add the next partial
+# step (cells → devices) and the area. Without a lod-2 report the gaps stay, honestly.
+from computelod.custom.lod2_silicon import report as _lod2_report, rows as _lod2_rows
+_l2m, _l2c = _lod2_rows(_lod2_report(), (_lod1_report() or {}).get('adder_synth', {}).get('cells', 0))
+def _merge(base, over):
+    names = {r['name'] for r in over}
+    return [r for r in base if r['name'] not in names] + over
+SEED_LOD_MAPPINGS = _merge(SEED_LOD1_MAPPINGS, _l2m)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD1_CHARACTERIZATIONS, _l2c)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),
     ('ComputeKind', ComputeKind, SEED_COMPUTE_KINDS),
-    ('ComputeMapping', ComputeMapping, SEED_LOD1_MAPPINGS),
-    ('CharacterizationMapping', CharacterizationMapping, SEED_LOD1_CHARACTERIZATIONS),
+    ('ComputeMapping', ComputeMapping, SEED_LOD_MAPPINGS),
+    ('CharacterizationMapping', CharacterizationMapping, SEED_LOD_CHARACTERIZATIONS),
     ('CompilerArtifact', CompilerArtifact, SEED_LOD1_ARTIFACTS),
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present

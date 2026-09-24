@@ -127,6 +127,37 @@ check('walking DOWN from the C statement follows the chain c-source → compiler
 up = path(m3, 'logic-netlist', 'yosys synth rv32_add', 'up')
 check('walking UP from the adder netlist reaches the RTL through the gate-count characterization', up['rungs'][:2] == ['logic-netlist', 'rtl'], up['rungs'])
 
+# ---- lod-2: OPEN SILICON — the SKY130 mapping and the OpenSTA delay close lod-1's two gaps, with conditions
+from computelod.custom.lod2_silicon import report as lod2_report, rows as lod2_rows, LIB, CONDITIONS
+from computelod.computelod_seed import SEED_LOD_MAPPINGS, SEED_LOD_CHARACTERIZATIONS
+rep2 = lod2_report()
+check('lod-2: a committed report exists (yosys abc -liberty → OpenSTA ran)', rep2 is not None and 'mapping' in rep2 and 'timing' in rep2)
+check('  …the Liberty is CITED, not committed: repo + pinned commit + sha256 + licence + the corner in words', all(k in rep2['liberty'] for k in ('repo', 'commit', 'sha256', 'licence', 'corner')) and len(rep2['liberty']['commit']) == 40
+      and not os.path.exists(os.path.join('modules/computelod/initialData/lod2', LIB['name'])))
+check('  …the adder maps onto SKY130 cells (XNOR2 + MAJ3 — a ripple-carry adder as abc builds it) with an area', rep2['mapping']['cells'] > 0 and rep2['mapping']['area_um2'] > 0
+      and any('xnor2' in k for k in rep2['mapping']['by_type']) and any('maj3' in k for k in rep2['mapping']['by_type']), rep2['mapping']['by_type'])
+check('  …OpenSTA found the worst path (ripple: op bit 1 → alu_out[31]) and the fastest (bit 0 → alu_out[0]), max ≫ min', rep2['timing']['max_path_ns'] > 20 * rep2['timing']['min_path_ns'] > 0 and 'alu_out[31]' in rep2['timing']['max_path'], rep2['timing'])
+check('  …the conditions are NAMED: process, temperature, voltage, load, input slew (a delay without them is misleading, §F2)', all(k in CONDITIONS for k in ('process', 'temperature_c', 'voltage_v', 'load_pf', 'input_slew_ns')))
+maps2, chars2 = lod2_rows(rep2, rep['adder_synth']['cells'])
+check('lod-2 rows: the netlist → standard cells mapping is now MANY-TO-ONE, validated, measured (the tool\'s output) — the lod-1 gap closed BY NAME',
+      next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['mapping_status'] == 'validated' and next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['kind'] == 'many-to-one')
+check('  …the delay characterization is now a NUMBER with conditions, evidence SIMULATED (a timing model, not a bench)',
+      next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['result'] > 0 and next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['evidence_level'] == 'simulated'
+      and json.loads(next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['conditions_json'])['voltage_v'] == 1.8)
+check('  …and the NEXT gap is stated honestly: standard cells → devices is PARTIAL (the cells\' SPICE is not read here — lod-3)', next(m_ for m_ in maps2 if 'devices' in m_['name'])['kind'] == 'partial' and next(m_ for m_ in maps2 if 'devices' in m_['name'])['evidence_level'] == 'none')
+check('the seed MERGES lod-2 over lod-1 by name: no unresolved netlist→cells row remains, one delay row, eight mappings + seven characterizations',
+      not any(m_['kind'] == 'unresolved' for m_ in SEED_LOD_MAPPINGS) and len(SEED_LOD_MAPPINGS) == 8 and len(SEED_LOD_CHARACTERIZATIONS) == 7
+      and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 1)
+m5 = _mgr()
+for cls, rws in (('ComputeMapping', SEED_LOD_MAPPINGS), ('CharacterizationMapping', SEED_LOD_CHARACTERIZATIONS)):
+    for r_ in rws:
+        _add(m5, cls, **r_)
+p5 = path(m5, 'c-source', 'lod1/add.c: c = a + b')
+check('the walk from the C statement now reaches STANDARD CELLS and stops at DEVICES — one rung deeper than lod-1, and still honest about where it ends',
+      p5['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices'] and p5['unresolved_at'] == 'devices', p5['rungs'])
+u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
+check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
+
 man = json.load(open('modules/computelod/polari-app.json'))
 from moduleService.manifests import validate
 check('the manifest is valid and declares the five classes + the API', validate(man) == [] and len([c for c in man['classes'] if c != 'ComputeLodAPI']) == 5)

@@ -26,6 +26,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/walk/{rung}/{ref}', self, suffix='walk')
             add('/api/computelod/path', self, suffix='path')                 # lod-1: the chain, end to end (query params: a ref may hold '/')
             add('/api/computelod/lod1', self, suffix='lod1')                 # the teaching path's committed report
+            add('/api/computelod/lod2', self, suffix='lod2')                 # open silicon: SKY130 mapping + OpenSTA timing
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -49,6 +50,11 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod2(self, request, response):
+        from computelod.custom.lod2_silicon import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod2_silicon run (yosys via the tools image; OpenSTA via docker pull openroad/opensta; the SKY130 Liberty is fetched into ~/.cache/polari-lod at a pinned commit, never committed)'}
 
     def on_get_lod1(self, request, response):
         from computelod.custom.lod1_chain import report
