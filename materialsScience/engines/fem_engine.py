@@ -542,6 +542,28 @@ def solve_elasticity_2d(width, height, youngs_modulus, poisson_ratio,
         }
         result['fieldNote'] = ('per-ELEMENT values (P1 => constant '
                                'strain per element), ordered as mesh.t')
+        # tt-2 (COMPUTE_LOD_TENSOR_PLAN §C Phase 3): the TENSOR fields the
+        # solver already holds, exposed so tensormath can read them live —
+        # nodal displacement u_i(x), the mesh, the element strain ε_ij, and
+        # the Lamé pair the stress came from (so σ = C:ε can be checked
+        # against these very sxx/syy/sxy by an independent contraction).
+        # Nothing here is recomputed; it is what the solve produced.
+        n_nodes = mesh.p.shape[1]
+        result['tensorField'] = {
+            'nodes': mesh.p.T.tolist(),                       # [n_nodes, 2]  x, y (m)
+            'triangles': mesh.t.T.tolist(),                   # [n_elem, 3]   node indices
+            'displacement': np.column_stack(                  # [n_nodes, 2]  ux, uy (m)
+                (displacement[basis.nodal_dofs[0]],
+                 displacement[basis.nodal_dofs[1]])).tolist(),
+            'strain': np.stack(                               # [n_elem, 2, 2] ε_ij (element-constant)
+                (np.stack((strain[0, 0].mean(axis=1), strain[0, 1].mean(axis=1)), axis=-1),
+                 np.stack((strain[1, 0].mean(axis=1), strain[1, 1].mean(axis=1)), axis=-1)), axis=1).tolist(),
+            'stress': np.stack(                               # [n_elem, 2, 2] σ_ij, the same sxx/syy/sxy as field
+                (np.stack((sxx, sxy), axis=-1), np.stack((sxy, syy), axis=-1)), axis=1).tolist(),
+            'centroids': centroids.T.tolist(),                # [n_elem, 2]
+            'lame': {'lambda': float(lam), 'mu': float(mu), 'assumption': assumption,
+                     'note': 'plane stress uses the reduced (E*, nu*) pair; C_ijkl = λ δ_ij δ_kl + μ (δ_ik δ_jl + δ_il δ_jk)'},
+        }
     return result
 
 

@@ -48,9 +48,61 @@ SEED_TENSOR_EXPRESSIONS = [
      'operands_json': json.dumps([{'tensor': 'wind-field', 'how': 'mean'}]), 'dims_json': '["y"]', 'matrix_equation_ref': '', 'result_shape_json': '[4,4,6]', 'tags': 'tt-1'},
 ]
 
+# ---- tt-2: CONTINUUM MECHANICS on the FEM resolution (plan §C Phase 3, Validation B). One FEM case — a
+# 2 m × 1 m electrical-steel plate, fixed on the left, 1 MPa traction on the right, plane stress — whose E and
+# ν are the magnetics module's CITED material option (literature-est; the provenance travels). The tensors
+# read the solve live: u (nodes×2), ε (elem×2×2), σ (elem×2×2), C (2×2×2×2 from the engine's own Lamé pair).
+# σ = C:ε by NAMED contraction must equal the engine's σ — the interop proof.
+SEED_FEM_CASES = [{
+    'name': 'tt2-plate-tension', 'display_name': 'tt-2 plate in tension (electrical steel, plane stress)',
+    'description': 'A 2 m × 1 m plate, left edge fixed (x and y), 1 MPa traction on the right edge, plane stress, refine 2. '
+                   'E and ν from the cited material option opt-electrical-steel (literature-est). The tensor arc\'s Validation B.',
+    'physics_ref': 'linear-elasticity', 'domain_json': json.dumps({'width': 2.0, 'height': 1.0}),
+    'materials_json': json.dumps([{'material_option': 'opt-electrical-steel'}]),
+    'boundary_conditions_json': json.dumps({'tractions': [{'edge': 'right', 'tx': 1.0e6, 'ty': 0.0}], 'fixed_edges': [{'edge': 'left', 'dof': 'xy'}]}),
+    'source_terms_json': '{}', 'mesh_json': json.dumps({'refine': 2}), 'solver_json': json.dumps({'assumption': 'plane-stress', 'engine': 'materialsScience.engines.fem_engine.solve_elasticity_2d'}),
+    'last_result_json': '{}', 'last_executed_at': '', 'notes': 'tt-2', 'enabled': True}]
+_dims = lambda *ds: json.dumps([{'name': n, 'size': s, 'unit': u, 'semantics': sem} for n, s, u, sem in ds])
+SEED_TENSORS += [
+    {'name': 'tt2-u', 'description': 'nodal displacement u_i(x) of the plate', 'rank': 2, 'shape_json': '[]', 'dtype': 'float',
+     'dimensions_json': _dims(('node', 0, '', 'mesh node'), ('i', 2, 'm', 'ux, uy')), 'units': 'm', 'semantics': 'displacement field',
+     'storage_kind': 'engine', 'storage_ref': 'fem:tt2-plate-tension:displacement', 'metadata_json': '{}', 'tags': 'tt-2'},
+    {'name': 'tt2-eps', 'description': 'element strain ε_ij = ½(∂u_i/∂x_j + ∂u_j/∂x_i)', 'rank': 3, 'shape_json': '[]', 'dtype': 'float',
+     'dimensions_json': _dims(('n', 0, '', 'mesh element'), ('k', 2, '1', ''), ('l', 2, '1', '')), 'units': '1', 'semantics': 'small strain, element-constant (P1)',
+     'storage_kind': 'engine', 'storage_ref': 'fem:tt2-plate-tension:strain', 'metadata_json': '{}', 'tags': 'tt-2'},
+    {'name': 'tt2-sigma', 'description': 'element stress σ_ij as the engine computed it', 'rank': 3, 'shape_json': '[]', 'dtype': 'float',
+     'dimensions_json': _dims(('n', 0, '', 'mesh element'), ('i', 2, 'Pa', ''), ('j', 2, 'Pa', '')), 'units': 'Pa', 'semantics': 'Cauchy stress, plane stress',
+     'storage_kind': 'engine', 'storage_ref': 'fem:tt2-plate-tension:stress', 'metadata_json': '{}', 'tags': 'tt-2'},
+    {'name': 'tt2-C', 'description': 'the stiffness tensor C_ijkl = λ δ_ij δ_kl + μ (δ_ik δ_jl + δ_il δ_jk) from the Lamé pair the engine used', 'rank': 4, 'shape_json': '[2,2,2,2]', 'dtype': 'float',
+     'dimensions_json': _dims(('i', 2, 'Pa', ''), ('j', 2, 'Pa', ''), ('k', 2, '1', ''), ('l', 2, '1', '')), 'units': 'Pa', 'semantics': 'isotropic linear elastic stiffness (plane-stress reduced pair)',
+     'storage_kind': 'engine', 'storage_ref': 'fem:tt2-plate-tension:stiffness', 'metadata_json': '{}', 'tags': 'tt-2'},
+    {'name': 'tt2-centroids', 'description': 'element centroids (x, y)', 'rank': 2, 'shape_json': '[]', 'dtype': 'float',
+     'dimensions_json': _dims(('n', 0, '', 'mesh element'), ('xy', 2, 'm', 'x, y')), 'units': 'm', 'semantics': 'where each element\'s ε and σ live',
+     'storage_kind': 'engine', 'storage_ref': 'fem:tt2-plate-tension:centroids', 'metadata_json': '{}', 'tags': 'tt-2'},
+]
+SEED_TENSOR_EXPRESSIONS += [
+    {'name': 'tt2-sigma-from-C', 'description': 'σ_ij = C_ijkl ε_kl — the rank-4 contraction over k,l; result dims [i, j, n] (the engine\'s σ is [n, i, j])',
+     'latex': r'\sigma_{ij} = C_{ijkl}\,\epsilon_{kl}', 'operation': 'contract', 'operands_json': json.dumps([{'tensor': 'tt2-C'}, {'tensor': 'tt2-eps'}]),
+     'dims_json': '["k","l"]', 'matrix_equation_ref': '', 'result_shape_json': '[2,2,n]', 'tags': 'tt-2'},
+    {'name': 'tt2-trace-eps', 'description': 'the volumetric strain ε_kk per element', 'latex': r'\epsilon_{kk}', 'operation': 'reduce',
+     'operands_json': json.dumps([{'tensor': 'tt2-eps', 'how': 'sum'}]), 'dims_json': '["k"]', 'matrix_equation_ref': '', 'result_shape_json': '[n,2]', 'tags': 'tt-2'},
+]
+SEED_TENSOR_OPERATORS = [{'name': 'stress-from-strain', 'description': 'Hooke\'s law for a linear elastic solid', 'expression_ref': 'tt2-sigma-from-C',
+                          'input_tensors_json': '["tt2-C", "tt2-eps"]', 'output_tensor': 'tt2-sigma', 'semantics': 'the stress a linear elastic body carries for a given small strain (constitutive law)', 'tags': 'tt-2'}]
+SEED_COMPUTE_IMPLEMENTATIONS = [{'name': 'stress-from-strain/numpy', 'description': 'np.einsum on the node\'s CPU (the matrix-module path generalised to rank 4)', 'operator': 'stress-from-strain',
+                                 'target_rung': 'microarchitecture', 'target_kind': 'in-order', 'target_ref': 'this node\'s CPU (numpy einsum)', 'precision': 'float64',
+                                 'shapes_json': json.dumps({'C': [2, 2, 2, 2], 'eps': ['n', 2, 2]}), 'latency_s': 0.0, 'throughput': 0.0, 'memory_bytes': 0, 'energy_j': 0.0, 'error': 0.0, 'config_overhead_s': 0.0,
+                                 'mapping_status': 'implemented', 'evidence_level': 'none',
+                                 'evidence_ref': '', 'notes': 'latency is READ per call (POST /api/tensormath/evaluate → elapsed_s), not stored: a stored benchmark row with its conditions is lad-5\'s. No number invented here.'}]
+
 TENSORMATH_SEED_PAIRS = [
     ('Tensor', Tensor, SEED_TENSORS), ('TensorDimension', TensorDimension, SEED_TENSOR_DIMENSIONS),
     ('TensorMathExpression', TensorMathExpression, SEED_TENSOR_EXPRESSIONS),
-    ('TensorOperator', TensorOperator, []), ('ComputeImplementation', ComputeImplementation, []),
+    ('TensorOperator', TensorOperator, SEED_TENSOR_OPERATORS), ('ComputeImplementation', ComputeImplementation, SEED_COMPUTE_IMPLEMENTATIONS),
     ('TensorDecomposition', TensorDecomposition, []),
 ]
+try:   # the FEM case is a CORE materialsScience row, seeded here so the tensors have something to read
+    from materialsScience.fem_model_definition import FEMModelDefinition
+    TENSORMATH_SEED_PAIRS.insert(0, ('FEMModelDefinition', FEMModelDefinition, SEED_FEM_CASES))
+except Exception:   # pragma: no cover
+    pass

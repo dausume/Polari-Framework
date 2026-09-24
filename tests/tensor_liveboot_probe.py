@@ -9,7 +9,7 @@ Run from a THROWAWAY working directory (the boot writes a sqlite DB into cwd):
 import json
 import os
 import sys
-os.environ['POLARI_MODULES'] = 'simulations,simSpace,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
+os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -47,7 +47,7 @@ check('a walk with no mapping is an honest gap (200, unresolved)', r.status_code
 r = client.simulate_get('/api/tensormath')
 check('GET /api/tensormath lists the two seeded engine-backed tensors', r.status_code == 200 and {'waxprint-series', 'wind-field'} <= {t['name'] for t in r.json['tensors']}, r.text[:200])
 r = client.simulate_get('/api/tensortree')
-check('GET /api/tensortree lists the seeded wind-spatial tree', r.status_code == 200 and r.json['count'] == 1 and r.json['trees'][0]['name'] == 'wind-spatial', r.text[:200])
+check('GET /api/tensortree lists the seeded trees (wind-spatial, plate-mechanics)', r.status_code == 200 and {t['name'] for t in r.json['trees']} >= {'wind-spatial', 'plate-mechanics'}, r.text[:200])
 r = client.simulate_post('/api/tensortree/discover', json={'selection': 'nope'})
 check('discover on an unknown selection is a 404 with the reason', r.status_code == 404)
 # CRUDE: make a Tensor through the standard door, read it back through the module API
@@ -91,6 +91,19 @@ check('GET path from the C statement walks C → compiler → ISA → microarchi
 check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
 check('the lod-1 rows are seeded: 7 ComputeMappings, 5 CharacterizationMappings, 3 CompilerArtifacts',
       len(tables.get('ComputeMapping', {})) == 7 and len(tables.get('CharacterizationMapping', {})) == 5 and len(tables.get('CompilerArtifact', {})) == 3)
+# ---- tt-2: the FEM case is a seeded core row; the tensors solve it live; the tree is honest
+check('the tt-2 FEM case is seeded as an FEMModelDefinition row', any(getattr(c, 'name', '') == 'tt2-plate-tension' for c in tables.get('FEMModelDefinition', {}).values()))
+check('the cited material option opt-electrical-steel is present (magnetics admitted)', any(getattr(o, 'name', '') == 'opt-electrical-steel' for o in tables.get('MagneticMaterialOption', {}).values()))
+r = client.simulate_post('/api/tensormath/evaluate', json={'expression': 'tt2-sigma-from-C'})
+check('POST evaluate tt2-sigma-from-C SOLVES the plate live and contracts C:ε → σ on [2,2,n]', r.status_code == 200 and r.json['result']['dims'] == ['i', 'j', 'n'] and r.json['result']['shape'][2] > 0, r.text[:300])
+r2 = client.simulate_get('/api/tensormath/tensors/tt2-sigma')
+check('GET tensors/tt2-sigma names its engine storage and the plate-mechanics tree', r2.status_code == 200 and r2.json['tensor']['storage_ref'] == 'fem:tt2-plate-tension:stress' and 'plate-mechanics' in r2.json['trees'])
+r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
+check('GET operators/stress-from-strain shows the bridge: one numpy implementation on the microarchitecture rung, evidence none (no invented benchmark)',
+      r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none', r.text[:300])
+r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
+check('plate-mechanics validates; its root is unresolved for the stated reason (no binding), its visualization space typed', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['why'] == 'no binding_ref'
+      and r.json['validation']['unresolved']['plate-visualization']['kind'] == 'visualization', r.text[:300])
 pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, 'pageRoute', '') in ('tensormath', 'tensortree', 'computelod')]
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
 tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')

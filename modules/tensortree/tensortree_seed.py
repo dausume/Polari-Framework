@@ -57,7 +57,47 @@ SEED_TENSOR_MAPPINGS = [
        validity_json=json.dumps({'speed': [0, 5]}), loss_note='a proposed low-rank decomposition — valid only for calm wind until proven',
        mapping_status='proposed', evidence_level='none', evidence_ref='', provenance='tt-1 (a hypothesis, on purpose)'),
 ]
-SEED_TENSOR_SELECTIONS = [{'name': 'gust-corner', 'description': 'a gusty corner of the grid', 'node': 'wind-grid',
+# ---- tt-2: the MECHANICS tree over the plate — displacement → strain → stress → force balance as mappings.
+# The plate's VISUALIZATION is honestly unresolved: the FEM element fields are computed arrays, not class rows,
+# so no sim-space binding exists for them yet (the 2-D field binding over an execution row is tt-3's). The root
+# node therefore has its dimensions but no binding, and the validator says so; nothing is pretended.
+_P = 'plate-mechanics'
+SEED_TENSOR_TREES += [{'name': _P, 'description': 'continuum mechanics of the tt-2 plate: u → ε → σ = C:ε → ∂σ/∂x + f = 0 (Validation B)',
+                       'tensor': 'tt2-sigma', 'root_node': 'plate', 'view_kind': 'operator', 'status': 'partial', 'notes': ''}]
+SEED_LOCALIZED_DIMENSIONS += [
+    _ld('plate', 'x', 'position.x') | {'dimension': 'tt2-centroids.xy'}, _ld('plate', 'y', 'position.y') | {'dimension': 'tt2-centroids.xy'},
+    _ld('plate', 'sigma', 'color', sc=json.dumps({'kind': 'continuous', 'domain': [0, 1.2e6], 'unit': 'Pa', 'field': 'von Mises'})) | {'dimension': 'tt2-sigma'},
+    _ld('plate', 'u', 'vector') | {'dimension': 'tt2-u'},
+]
+SEED_TENSOR_NODES += [
+    {'name': 'plate', 'description': '', 'tree': _P, 'parent': '', 'title': 'the plate: σ per element, u per node', 'tensor': 'tt2-sigma',
+     'dims_json': json.dumps(['plate.x', 'plate.y', 'plate.sigma', 'plate.u']), 'binding_ref': '', 'global_params_json': json.dumps({'case': 'tt2-plate-tension'}),
+     'status': 'unresolved', 'notes': 'no binding yet: the element field has no sim-space binding (tt-3) — the validator reports it'},
+    {'name': 'plate-strain', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'ε per element', 'tensor': 'tt2-eps', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
+    {'name': 'plate-displacement', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'u per node', 'tensor': 'tt2-u', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
+]
+SEED_UNRESOLVED += [
+    {'name': 'plate-visualization', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'how to SEE an element field', 'unresolved_kind': 'visualization',
+     'known_dims_json': '["x","y","sigma","u"]', 'known_semantics_json': json.dumps({'sigma': 'per element (P1: constant per triangle)', 'u': 'per node'}),
+     'constraints_json': json.dumps(['no new renderer: a 2-D sim-space field binding, or a sci-xy-chart profile']),
+     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a 2-D field binding over an FEM execution row (tt-3)', 'σ_xx along y = h/2 as a sci-xy-chart line']),
+     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['which row holds an FEM execution\'s field so a binding can point at it?']), 'notes': ''},
+]
+SEED_TENSOR_MAPPINGS += [
+    _M(name='u→eps', kind='operator', source_node='plate-displacement', source_dims_json='["node","i"]', target_node='plate-strain', target_dims_json='["n","k","l"]',
+       validity_json=json.dumps({'strain': [0, 0.002]}), units='1', loss_note='the symmetric gradient: rotation is dropped (small strain)',
+       mapping_status='validated', evidence_level='simulated', evidence_ref='materialsScience.engines.fem_engine solve_elasticity_2d (P1 gradient, scikit-fem)', provenance='the engine\'s own strain recovery'),
+    _M(name='eps→sigma', kind='operator', source_node='plate-strain', source_dims_json='["n","k","l"]', target_node='plate', target_dims_json='["n","i","j"]',
+       expression_ref='tt2-sigma-from-C', validity_json=json.dumps({'strain': [0, 0.002]}), units='Pa', conservation_json='[]',
+       loss_note='none: C is invertible for -1 < ν < 0.5', mapping_status='validated', evidence_level='simulated',
+       evidence_ref='tensormath selftest: σ = C:ε by named contraction equals the engine\'s σ (rtol 1e-9)', provenance='Hooke, with E/ν from opt-electrical-steel (literature-est)'),
+    _M(name='sigma→balance', kind='operator', source_node='plate', source_dims_json='["n","i","j"]', target_node='plate', target_dims_json='["node","i"]',
+       validity_json=json.dumps({'strain': [0, 0.002]}), units='N/m³', conservation_json='["linear momentum"]', loss_note='',
+       mapping_status='implemented', evidence_level='analytical', evidence_ref='∂σ_ij/∂x_j + f_i = ρ ü_i holds weakly by construction of the FEM solve (static: ü = 0); a residual reading is not computed here',
+       provenance='the balance the solve enforces'),
+]
+SEED_TENSOR_SELECTIONS = [{'name': 'plate-strain-all', 'description': 'every element\'s strain', 'node': 'plate-strain', 'ranges_json': json.dumps({'n': [0, 64], 'k': [0, 2], 'l': [0, 2], 'strain': [0, 0.001]}), 'created_from': 'seed (tt-2)', 'created_at': '2026-09-23', 'notes': ''},
+                          {'name': 'gust-corner', 'description': 'a gusty corner of the grid', 'node': 'wind-grid',
                            'ranges_json': json.dumps({'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}),
                            'created_from': 'seed (tt-1)', 'created_at': '2026-09-23', 'notes': ''}]
 

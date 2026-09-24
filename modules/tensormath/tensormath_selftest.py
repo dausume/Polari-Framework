@@ -35,7 +35,10 @@ def _add(mgr, cls, **kw):
 
 check('the module registers exactly SIX row classes', len(TENSORMATH_CLASSES) == 6, [c.__name__ for c in TENSORMATH_CLASSES])
 check('every class is one file under objects/tensormath/', all(c.__module__ == 'tensormath.objects.tensormath.%s' % c.__name__ for c in TENSORMATH_CLASSES))
-check('seed pairs cover every class; the only seeded rows are tensors over REAL state (engine-backed) and their expressions', [p[0] for p in TENSORMATH_SEED_PAIRS] == [c.__name__ for c in TENSORMATH_CLASSES] and all(t['storage_kind'] == 'engine' for t in TENSORMATH_SEED_PAIRS[0][2]) and TENSORMATH_SEED_PAIRS[3][2] == [])
+pairs = {p[0]: p[2] for p in TENSORMATH_SEED_PAIRS}
+check('seed pairs cover every class (+ the tt-2 FEM case, a core row); every seeded tensor reads REAL state (engine-backed); no decomposition is seeded',
+      set(pairs) >= {c.__name__ for c in TENSORMATH_CLASSES} and all(t['storage_kind'] == 'engine' for t in pairs['Tensor']) and pairs['TensorDecomposition'] == []
+      and 'FEMModelDefinition' in pairs)
 
 # ---- an uninterpreted tensor is valid (plan §10)
 t = Tensor(name='blob', rank=4, shape_json='[128,128,3,6]', dimensions_json=json.dumps([{'name': 'axis0', 'semantics': 'unknown'}] * 4))
@@ -132,6 +135,42 @@ try:
     values(m, tb); check('a malformed engine ref is refused with the two accepted forms named', False)
 except TensorOpsError as e:
     check('a malformed engine ref is refused with the two accepted forms named', 'matrixfield:' in str(e) and 'simstate:' in str(e))
+
+# ---- tt-2: CONTINUUM MECHANICS on the FEM resolution — the interop proof (Validation B)
+from tensormath.tensormath_seed import SEED_FEM_CASES, SEED_TENSOR_OPERATORS, SEED_COMPUTE_IMPLEMENTATIONS
+from tensormath.custom.tensor_ops import fem_case_solution
+m.objectTables['FEMModelDefinition'] = {}; m.objectTables['MagneticMaterialOption'] = {}
+case = _add(m, 'FEMModelDefinition', **SEED_FEM_CASES[0])
+try:
+    fem_case_solution(m, 'tt2-plate-tension'); check('fem: the case names a material option that is ABSENT → refused by name (magnetics not admitted)', False)
+except TensorOpsError as e:
+    check('fem: the case names a material option that is ABSENT → refused by name (magnetics not admitted)', 'opt-electrical-steel' in str(e))
+_add(m, 'MagneticMaterialOption', name='opt-electrical-steel', properties_json=json.dumps({'youngs_modulus_mpa': {'value': 200000.0, 'unit': 'MPa', 'provenance': 'literature-est'},
+                                                                                          'poisson_ratio': {'value': 0.3, 'provenance': 'literature-est'}}))
+sol = fem_case_solution(m, 'tt2-plate-tension')
+check('fem: the plate solves (scikit-fem) with E, ν from the CITED material option, and the provenance travels', sol['elements'] > 0 and 'literature-est' in sol['material_provenance'], sol['material_provenance'])
+for nm in ('tt2-u', 'tt2-eps', 'tt2-sigma', 'tt2-C', 'tt2-centroids'):
+    _add(m, 'Tensor', **next(t for t in SEED_TENSORS if t['name'] == nm))
+U, E_, S_, Cc = (values(m, next(t for t in m.objectTables['Tensor'].values() if t.name == n)) for n in ('tt2-u', 'tt2-eps', 'tt2-sigma', 'tt2-C'))
+check('the tensors read the solve live: u [nodes,2], ε [elem,2,2], σ [elem,2,2], C [2,2,2,2]', U.ndim == 2 and U.shape[1] == 2 and E_.shape[1:] == (2, 2) and S_.shape == E_.shape and Cc.shape == (2, 2, 2, 2))
+check('C is the isotropic stiffness from the engine\'s Lamé pair (C_0000 = λ + 2μ, C_0011 = λ, C_0101 = μ)',
+      abs(Cc[0, 0, 0, 0] - (sol['lame']['lambda'] + 2 * sol['lame']['mu'])) < 1 and abs(Cc[0, 0, 1, 1] - sol['lame']['lambda']) < 1 and abs(Cc[0, 1, 0, 1] - sol['lame']['mu']) < 1)
+ex2 = {e['name']: e for e in SEED_TENSOR_EXPRESSIONS}
+res = evaluate(m, types.SimpleNamespace(**ex2['tt2-sigma-from-C']))
+sig = np.array(res['values'])
+check('σ_ij = C_ijkl ε_kl by NAMED CONTRACTION equals the engine\'s σ element by element (rtol 1e-9) — TensorMath and the FEM engine agree',
+      res['dims'] == ['i', 'j', 'n'] and np.allclose(np.transpose(sig, (2, 0, 1)), S_, rtol=1e-9, atol=1e-3), (res['dims'], res['shape']))
+check('  …and the evaluate call reports its wall clock (a reading, never a stored benchmark)', 'elapsed_s' in res and res['elapsed_s'] >= 0)
+check('  …the plate is in tension: σ_xx ≈ 1 MPa on average (the applied traction), σ_yy small', abs(S_[:, 0, 0].mean() - 1.0e6) / 1.0e6 < 0.15 and abs(S_[:, 1, 1].mean()) < 0.3e6, (S_[:, 0, 0].mean(), S_[:, 1, 1].mean()))
+tr = evaluate(m, types.SimpleNamespace(**ex2['tt2-trace-eps']))
+check('the volumetric strain reduces over k', np.array(tr['values']).shape == (E_.shape[0], 2))
+check('the operator stress-from-strain names its expression and its ONE implementation (numpy), whose latency is a per-call reading, not an invented benchmark',
+      SEED_TENSOR_OPERATORS[0]['expression_ref'] == 'tt2-sigma-from-C' and SEED_COMPUTE_IMPLEMENTATIONS[0]['evidence_level'] == 'none' and SEED_COMPUTE_IMPLEMENTATIONS[0]['latency_s'] == 0.0)
+tb2 = _add(m, 'Tensor', name='bad-field', rank=1, shape_json='[]', dimensions_json='[]', storage_kind='engine', storage_ref='fem:tt2-plate-tension:nope', semantics='', metadata_json='{}')
+try:
+    values(m, tb2); check('an unknown fem field is refused naming the seven', False)
+except TensorOpsError as e:
+    check('an unknown fem field is refused naming the seven', 'stiffness' in str(e) and 'displacement' in str(e))
 
 man = json.load(open('modules/tensormath/polari-app.json'))
 from moduleService.manifests import validate

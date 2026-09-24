@@ -134,6 +134,18 @@ check('  …the coupling candidate names the live SimulationCouplingDefinition i
 g = tree_graph(m2, 'wind-spatial')
 check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 3 mappings, one crossing to another tree\'s node', g['structural'] == 2 and g['mappings'] == 3)
 
+# ---- tt-2: the mechanics tree — honest about its visualization, right about its mappings
+rep2 = validate_tree(m2, 'plate-mechanics')
+check('plate-mechanics passes the structural rules', rep2['ok'], rep2['errors'])
+check('its root is UNRESOLVED for the stated reason: no binding (the element field has no sim-space binding yet) — not pretended', rep2['nodes']['plate']['status'] == 'unresolved' and rep2['nodes']['plate']['why'] == 'no binding_ref', rep2['nodes']['plate'])
+check('  …and the unresolved VISUALIZATION space keeps the candidates (a 2-D field binding; a sci-xy-chart profile)', rep2['unresolved']['plate-visualization']['kind'] == 'visualization')
+psel = next(s for s in m2.objectTables['TensorSelection'].values() if s.name == 'plate-strain-all')
+d2 = discover(m2, psel)
+check('discovery from the strain node finds eps→sigma (validated, simulated, with the interop selftest as evidence)', [c['mapping'] for c in d2['candidates']] == ['eps→sigma'] and d2['candidates'][0]['evidence_ref'].startswith('tensormath selftest'), d2)
+check('the chain u → ε → σ → balance is three operator mappings with validity 0–0.2 % strain and momentum conservation named on the balance',
+      {mm.name for mm in m2.objectTables['TensorMapping'].values() if str(mm.kind) == 'operator'} >= {'u→eps', 'eps→sigma', 'sigma→balance'}
+      and 'linear momentum' in next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'sigma→balance').conservation_json)
+
 # ---- the manifest
 man = json.load(open('modules/tensortree/polari-app.json'))
 from moduleService.manifests import validate
