@@ -116,5 +116,9 @@ class LazySeedRows(list):
         self._fill()
         return super().__len__()
 
+    def __getitem__(self, i):
+        self._fill()
+        return super().__getitem__(i)
+
     def __bool__(self):
         return True

@@ -16,6 +16,8 @@ Binding shape (binding_json):
 
     kind: 'field', matrixField: '<json field of the row>',
     layout: {originCols: [0, 2], scalarCol: 2, sizeCol: <optional col of a per-cell size>},
+    shapeRefPattern: '<name>-el-{i}'   (optional: each cell references ITS OWN shape — an FEM element as a polygon in
+                                        space units through the math-shape library — and no marker size applies)
     color:  {domain: [lo, hi], ramp: 'stress' | 'grey', unit: 'Pa', field: 'von Mises'},
     cellSize: <space units>  (uniform, when no sizeCol),
     visual:  {shapeRef: 'rectangle', styleRef: 'default'}
@@ -211,6 +213,7 @@ def emit_field_2d(
         lo, hi = 0.0, 1.0
     ramp = str(color.get('ramp') or 'grey')
     cell_size = binding.get('cellSize')
+    pattern = str(binding.get('shapeRefPattern') or '')
     visual = binding.get('visual') or {}
     shape_ref_cfg = visual.get('shapeRef') or 'rectangle'
     style_ref_cfg = visual.get('styleRef') or 'default'
@@ -236,7 +239,7 @@ def emit_field_2d(
             obj: Dict = {
                 'id': f'{binding_name}:{class_name}:{idx}',
                 'position': position,
-                'shapeRef': scene_shape or resolve_ref(shape_ref_cfg, inst, 'rectangle'),
+                'shapeRef': (pattern.replace('{i}', str(idx)) if pattern else (scene_shape or resolve_ref(shape_ref_cfg, inst, 'rectangle'))),
                 'styleRef': scene_style or resolve_ref(style_ref_cfg, inst, 'default'),
                 'classRef': {'className': class_name, 'instanceId': inst_id},
                 'userData': {'bindingName': binding_name, 'cellIndex': idx},
@@ -269,8 +272,10 @@ def emit_field_2d(
                     size = float(cell_size)
                 except (TypeError, ValueError):
                     size = None
-            if size is not None and size > 0:
+            if size is not None and size > 0 and not pattern:   # a space-unit shape is its own size
                 obj['scale'] = size
+            if pattern:
+                obj['userData']['ownShape'] = True
             if temporal_value is not None:
                 obj['temporalValue'] = temporal_value
             out.append(obj)

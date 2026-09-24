@@ -25,7 +25,9 @@
   ]
  },
  "requires": {
-  "modules": [],
+  "modules": [
+   "mathshapes"
+  ],
   "libraries": [
    "numpy"
   ],
@@ -58,6 +60,7 @@
   ],
   "custom": [
    "custom/fem_field",
+   "custom/fem_shapes",
    "custom/fpga_kernel",
    "custom/tensor_ops"
   ],

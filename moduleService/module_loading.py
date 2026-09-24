@@ -59,6 +59,7 @@ FEATURE_REQUIRES = {
     'aquaponics': ('plant_morphology', 'scoring'),
     # tt-0: a TensorTree views a Tensor (tensortree imports nothing from tensormath at top level today, but the
     # registry's `requires` says so; the drift selftest pins this as a subset of the registry)
+    'tensormath': ('mathshapes',),   # tt-11: element shapes through the math-shape library (shape2d_bridge)
     'tensortree': ('tensormath',),
     'bizops': ('supplychain',),
     # co2-A: climate reuses the aquaponics steady-state gas

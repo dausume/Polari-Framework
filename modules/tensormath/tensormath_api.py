@@ -33,6 +33,7 @@ class TensorMathAPI(treeObject):
             add('/api/tensormath/benchmark', self, suffix='benchmark')
             add('/api/tensormath/fem/{case}', self, suffix='fem')
             add('/api/tensormath/fem/{case}/materialise', self, suffix='fem_materialise')
+            add('/api/tensormath/fem/{case}/shapes', self, suffix='fem_shapes')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -140,6 +141,37 @@ class TensorMathAPI(treeObject):
         response.status = '201 Created' if created else '200 OK'
         response.media = {'ok': True, 'case': case, 'field': str(row.name), 'created': created, 'n_elements': fields['n_elements'], 'n_nodes': fields['n_nodes'],
                           'sigma_vm': [fields['sigma_vm_min'], fields['sigma_vm_max']], 'u_max': fields['u_max'], 'material_provenance': fields['material_provenance']}
+
+    def on_post_fem_shapes(self, request, response, case):
+        """tt-11: write (or refresh) the element shapes of the case's field row — a polygon MathShapeDefinition and a space-unit
+        Shape2DDefinition per triangle, through the math-shape library — so the field binding can paint each cell as itself."""
+        from tensormath.custom.fem_shapes import element_shapes
+        f = self._field_row(case)
+        if f is None:
+            response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': 'no FEMFieldState row for %r — POST …/materialise first' % case}; return
+        maths, shapes = element_shapes(f)
+        from simSpace2D.shape_2d_definition import Shape2DDefinition
+        try:
+            from mathshapes.objects.shape.MathShapeDefinition import MathShapeDefinition
+        except Exception:
+            MathShapeDefinition = None
+        db = getattr(self.manager, 'db', None)
+        def upsert(cls, cls_name, fields):
+            row = next((r for r in self._rows(cls_name) if str(getattr(r, 'name', '')) == fields['name']), None)
+            created = row is None
+            if created:
+                row = cls(manager=self.manager, **fields)
+            else:
+                for k, v in fields.items():
+                    setattr(row, k, v)
+            if db is not None and hasattr(db, 'saveInstanceInDB'):
+                db.saveInstanceInDB(row)
+            return created
+        n_created = sum(upsert(Shape2DDefinition, 'Shape2DDefinition', s) for s in shapes)
+        n_math = sum(upsert(MathShapeDefinition, 'MathShapeDefinition', m) for m in maths) if MathShapeDefinition else None
+        response.status = '201 Created' if n_created else '200 OK'
+        response.media = {'ok': True, 'case': case, 'field': str(f.name), 'elements': len(shapes), 'shapes_2d_created': n_created, 'math_shapes_created': n_math,
+                          'shape_ref_pattern': '%s-el-{i}' % f.name, 'units': 'space', 'note': 'mathshapes absent → geometry rows skipped, the 2-D shapes still written' if MathShapeDefinition is None else ''}
 
     def on_get_operator(self, request, response, name):
         o = next((x for x in self._rows('TensorOperator') if str(x.name) == name), None)

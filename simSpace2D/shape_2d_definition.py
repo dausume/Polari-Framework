@@ -53,8 +53,11 @@ class Shape2DDefinition(treeObject):
         # placement coordinate. Same semantics as SvgIconLibrary's
         # IconAnchor + GeoJsonConfigData's mapAnchor.
         anchor: str = 'center',
-        # 'general' | 'marker' | 'state-machine' | 'custom' — UI grouping.
+        # 'general' | 'marker' | 'state-machine' | 'custom' | 'math' — UI grouping.
         category: str = 'general',
+        # 'px' (a marker: drawn at pixel size, zoom-invariant — every shape before tt-11) | 'space' (drawn in the
+        # space's own units and scaled with the view, so it TILES the space: a math-shape polygon, an FEM element)
+        units: str = 'px',
         manager=None,
     ):
         self.name = name
@@ -66,3 +69,4 @@ class Shape2DDefinition(treeObject):
         self.default_height = default_height
         self.anchor = anchor
         self.category = category
+        self.units = units

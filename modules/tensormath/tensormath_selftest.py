@@ -221,7 +221,26 @@ _warn = []
 _objs = emit_field_2d('FEMFieldState', {1: _inst}, _bj, 'FEMFieldState-2d', None, _warn)
 check('emit_field_2d fans the row into one object per element at its centroid, colorOverride from the ramp (low → blue end, high → red end), per-cell stable ids',
       len(_objs) == 3 and _objs[0]['position'] == [0.1, 0.2] and _objs[0]['colorOverride'] == ramp_color('stress', 0.0) and _objs[1]['colorOverride'] == ramp_color('stress', 1.0)
-      and _objs[0]['id'] == 'FEMFieldState-2d:FEMFieldState:0' and _objs[0]['userData']['scalar'] == 0.8e6 and _objs[0]['userData']['unit'] == 'Pa' and _objs[0]['shapeRef'] == 'rectangle', _objs[:2])
+      and _objs[0]['id'] == 'FEMFieldState-2d:FEMFieldState:0' and _objs[0]['userData']['scalar'] == 0.8e6 and _objs[0]['userData']['unit'] == 'Pa'
+      and _objs[0]['shapeRef'] == 'tt2-plate-tension-field-el-0' and _objs[2]['shapeRef'] == 'tt2-plate-tension-field-el-2' and 'scale' not in _objs[0], _objs[:2])
+_bj_marker = dict(_bj); _bj_marker.pop('shapeRefPattern'); _bj_marker['cellSize'] = 2.2
+_objm = emit_field_2d('FEMFieldState', {1: _inst}, _bj_marker, 'x', None, [])
+check('tt-11: with a shapeRefPattern each cell references ITS OWN shape (an element polygon in space units) and carries no marker scale; without one it is a rectangle marker with cellSize as before',
+      _objm[0]['shapeRef'] == 'rectangle' and _objm[0]['scale'] == 2.2 and not _objm[0]['userData'].get('ownShape'))
+# the element shapes themselves, from the seed field row through the math-shape library
+from tensormath.custom.fem_shapes import element_shapes
+from tensormath.tensormath_seed import SEED_FEM_ELEMENT_MATH_SHAPES, SEED_FEM_ELEMENT_SHAPES_2D
+from mathshapes.custom.shape_geometry import primitive_properties, primitive_inside
+_ms0 = SEED_FEM_ELEMENT_MATH_SHAPES[0]; _p0 = json.loads(_ms0['parameters_json'])
+_vol, _area, _bounds, _cen = primitive_properties('polygon', _p0)
+check('tt-11: 64 polygon MathShapeDefinitions from the seed field: element 0 = the triangle (0,0),(0,0.25),(0.25,0.25); area 1/32 m² == the field row\'s area column; centroid == the FEM centroid; a point inside is inside',
+      len(SEED_FEM_ELEMENT_MATH_SHAPES) == 64 and _ms0['primitive_kind'] == 'polygon' and _p0['vertices'] == [[0.0, 0.0], [0.0, 0.25], [0.25, 0.25]] and abs(_area - 0.03125) < 1e-12
+      and abs(_area - json.loads(SEED_FEM_FIELD_STATES[0]['elements_json'])[0][6]) < 1e-12 and abs(_cen[0] - json.loads(SEED_FEM_FIELD_STATES[0]['elements_json'])[0][0]) < 1e-9
+      and primitive_inside('polygon', _p0, 0.05, 0.2, 0) and not primitive_inside('polygon', _p0, 0.2, 0.05, 0), (_area, _cen))
+_s0 = SEED_FEM_ELEMENT_SHAPES_2D[0]
+check('  …and 64 Shape2DDefinitions through mathshapes.shape2d_bridge: source svg, units SPACE, anchor center, one <polygon> with points relative to the centroid, NO fill in the svg (the colour is the object\'s data)',
+      len(SEED_FEM_ELEMENT_SHAPES_2D) == 64 and _s0['name'] == 'tt2-plate-tension-field-el-0' and _s0['source'] == 'svg' and _s0['units'] == 'space' and _s0['anchor'] == 'center'
+      and _s0['svg_string'].startswith('<polygon points=') and 'fill' not in _s0['svg_string'] and '-0.083333,-0.166667' in _s0['svg_string'], _s0)
 check('  …a cell whose scalar is not a number is drawn grey and says so (refused, never invented)', _objs[2]['colorOverride'] == '#bdbdbd' and 'no numeric scalar' in _objs[2]['userData']['refused'], _objs[2])
 from simSpace.compilers.field_projection_2d import emit_vectorfield_2d
 _ub = json.loads(next(b for b in SEED_PLATE_BINDINGS if b['name'] == 'FEMFieldState-u-2d')['binding_json'])

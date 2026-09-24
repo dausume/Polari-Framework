@@ -61,7 +61,7 @@ def _sh(work, cmd, image):
 
 
 def _boot():
-    os.environ.setdefault('POLARI_MODULES', 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod')
+    os.environ.setdefault('POLARI_MODULES', 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,mathshapes,tensormath,tensortree,computelod')
     os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
     fw = os.path.dirname(os.path.dirname(MOD))   # modules/computelod → modules → the framework
     sys.path.insert(0, fw); sys.path.insert(0, os.path.join(fw, 'modules'))

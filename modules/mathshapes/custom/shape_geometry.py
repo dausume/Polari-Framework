@@ -73,8 +73,58 @@ def _num(params, key, default):
 # --------------------------------------------------------------------------
 # primitive inside-test
 # --------------------------------------------------------------------------
+def polygon_vertices(params):
+    """[[x, y], …] of a `polygon` primitive (>= 3 vertices, else [])."""
+    verts = params.get('vertices') or []
+    out = []
+    for v in verts:
+        try:
+            out.append([float(v[0]), float(v[1])])
+        except (TypeError, ValueError, IndexError):
+            return []
+    return out if len(out) >= 3 else []
+
+
+def polygon_area_centroid(verts):
+    """Shoelace area (absolute) and area-weighted centroid of a simple polygon."""
+    a2 = 0.0; cx = 0.0; cy = 0.0
+    n = len(verts)
+    for i in range(n):
+        x0, y0 = verts[i]; x1, y1 = verts[(i + 1) % n]
+        cross = x0 * y1 - x1 * y0
+        a2 += cross; cx += (x0 + x1) * cross; cy += (y0 + y1) * cross
+    if abs(a2) < 1e-18:
+        return 0.0, [sum(v[0] for v in verts) / n, sum(v[1] for v in verts) / n]
+    return abs(a2) / 2.0, [cx / (3.0 * a2), cy / (3.0 * a2)]
+
+
+def polygon_perimeter(verts):
+    n = len(verts)
+    return sum(math.hypot(verts[(i + 1) % n][0] - verts[i][0], verts[(i + 1) % n][1] - verts[i][1]) for i in range(n))
+
+
+def point_in_polygon(verts, x, y):
+    """Even-odd rule; a point on an edge counts as inside (1e-12)."""
+    inside = False
+    n = len(verts)
+    for i in range(n):
+        x0, y0 = verts[i]; x1, y1 = verts[(i + 1) % n]
+        # on the segment?
+        if abs((x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)) < 1e-12 and min(x0, x1) - 1e-12 <= x <= max(x0, x1) + 1e-12 and min(y0, y1) - 1e-12 <= y <= max(y0, y1) + 1e-12:
+            return True
+        if (y0 > y) != (y1 > y):
+            xi = x0 + (y - y0) * (x1 - x0) / (y1 - y0)
+            if x < xi:
+                inside = not inside
+    return inside
+
+
 def primitive_inside(kind, params, x, y, z):
     """True if (x,y,z) is inside/on the primitive."""
+    if kind == 'polygon':
+        verts = polygon_vertices(params)
+        t = _num(params, 'thickness', 0.0)
+        return bool(verts) and abs(z - _num(params, 'z', 0.0)) <= t / 2.0 + 1e-12 and point_in_polygon(verts, x, y)
     center = _center(params)
     axis = params.get('axis', 'z')
     if kind == 'box':
@@ -183,6 +233,16 @@ def _hollow_frustum_properties(params, center, axis, ai):
 # --------------------------------------------------------------------------
 def primitive_properties(kind, params):
     """Closed-form {volume, area, bounds, centroid} for a primitive."""
+    if kind == 'polygon':
+        # planar: "area" is the face area (the quantity a 2-D field is defined on); volume = area × thickness (0 for a
+        # pure 2-D shape — stated, not invented); bounds in the plane, z = the plane's z ± thickness/2
+        verts = polygon_vertices(params)
+        if not verts:
+            return 0.0, 0.0, [[0.0, 0.0]] * 3, [0.0, 0.0, 0.0]
+        area, (cx, cy) = polygon_area_centroid(verts)
+        t = _num(params, 'thickness', 0.0); z0 = _num(params, 'z', 0.0)
+        xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
+        return area * t, area, [[min(xs), max(xs)], [min(ys), max(ys)], [z0 - t / 2.0, z0 + t / 2.0]], [cx, cy, z0]
     center = _center(params)
     axis = params.get('axis', 'z')
     ai = _axis_index(axis)

@@ -91,6 +91,7 @@ SEED_TENSOR_TREES += [{'name': _P, 'description': 'continuum mechanics of the tt
 SEED_LOCALIZED_DIMENSIONS += [
     _ld('plate', 'x', 'position.x') | {'dimension': 'tt2-centroids.xy'}, _ld('plate', 'y', 'position.y') | {'dimension': 'tt2-centroids.xy'},
     _ld('plate', 'sigma', 'color', sc=json.dumps({'kind': 'continuous', 'domain': _SIGMA_DOMAIN, 'unit': 'Pa', 'field': 'von Mises'})) | {'dimension': 'tt2-sigma'},
+    _ld('plate', 'element', 'shape') | {'dimension': 'tt2-mesh.triangles'},
     _ld('plate-displacement', 'x', 'position.x') | {'dimension': 'tt2-u'}, _ld('plate-displacement', 'y', 'position.y') | {'dimension': 'tt2-u'},
     _ld('plate-displacement', 'u', 'vector') | {'dimension': 'tt2-u'},
     _ld('plate-mesh', 'x', 'position.x') | {'dimension': 'tt2-u'}, _ld('plate-mesh', 'y', 'position.y') | {'dimension': 'tt2-u'},
@@ -98,9 +99,9 @@ SEED_LOCALIZED_DIMENSIONS += [
 ]
 SEED_TENSOR_NODES += [
     {'name': 'plate', 'description': '', 'tree': _P, 'parent': '', 'title': 'the plate: σ per element', 'tensor': 'tt2-sigma',
-     'dims_json': json.dumps(['plate.x', 'plate.y', 'plate.sigma']), 'binding_ref': 'FEMFieldState-2d',
+     'dims_json': json.dumps(['plate.x', 'plate.y', 'plate.sigma', 'plate.element']), 'binding_ref': 'FEMFieldState-2d',
      'global_params_json': json.dumps({'case': 'tt2-plate-tension', 'sim_space': 'plate-mechanics-2d', 'field_row': 'tt2-plate-tension-field'}),
-     'status': 'unresolved', 'notes': 'tt-6: x/y → position, σ_vm → color through the 2-D field binding FEMFieldState-2d (status is set by the validator)'},
+     'status': 'unresolved', 'notes': 'tt-6: x/y → position, σ_vm → color through the 2-D field binding FEMFieldState-2d; tt-11: element → shape (each cell is its own triangle: a polygon MathShapeDefinition → a Shape2DDefinition in space units, referenced per cell) — filled cells THROUGH the shape library (status is set by the validator)'},
     {'name': 'plate-strain', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'ε per element', 'tensor': 'tt2-eps', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
     {'name': 'plate-displacement', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'u per node', 'tensor': 'tt2-u',
      'dims_json': json.dumps(['plate-displacement.x', 'plate-displacement.y', 'plate-displacement.u']), 'binding_ref': 'FEMFieldState-u-2d',
@@ -114,11 +115,8 @@ SEED_TENSOR_NODES += [
 # tree with no unresolved space is allowed — nothing is kept unresolved for show. What remains open on the plate
 # is the geometry itself (cells are markers at centroids, not the triangles) — a visualization space on the root.
 SEED_UNRESOLVED += [
-    {'name': 'plate-filled-cells', 'description': '', 'tree': _P, 'parent': 'plate-mesh', 'title': 'σ as FILLED triangles, not markers inside a wireframe', 'unresolved_kind': 'visualization',
-     'known_dims_json': '["x","y","sigma"]', 'known_semantics_json': json.dumps({'mesh': 'edges are drawn (tt-9); the colour still sits on a fixed-size marker at each centroid'}),
-     'constraints_json': json.dumps(['a renderer change: the 2-D shape library takes a shapeRef, not per-instance vertices (answered in tt-9) — a polygon object kind or a mesh channel with per-face colour']),
-     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a `field` binding emitting polygon objects (vertices + colorOverride) once the renderer paints them']),
-     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['is a per-face polygon worth a renderer change, or is the wireframe + colour marker enough for intuition?']), 'notes': 'tt-9 left this open on purpose; a person\'s call'},
+    # tt-11 resolved `plate-filled-cells` through the math-shape library (his ruling: our own library carries it) — the
+    # plate tree now has NO unresolved space, which is allowed: nothing is kept unresolved for show
 ]
 SEED_TENSOR_MAPPINGS += [
     _M(name='u→eps', kind='operator', source_node='plate-displacement', source_dims_json='["node","i"]', target_node='plate-strain', target_dims_json='["n","k","l"]',

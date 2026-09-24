@@ -121,9 +121,14 @@ if _fpga:
 # `field` binding coloured by σ_vm over PLATE_SIGMA_DOMAIN — the SAME domain the tensortree dimension
 # plate.sigma declares (one constant, so dims → channel and the binding cannot drift apart).
 from tensormath.custom.fem_field import LazySeedRows, seed_field_rows, SEED_FIELD_NAME  # noqa: E402
+from tensormath.custom.fem_shapes import element_shapes  # noqa: E402
 
 PLATE_SIGMA_DOMAIN = [0.8e6, 1.1e6]   # Pa — tight to the uniaxial 1 MPa field so its structure (the fixed edge's Poisson constraint) shows
 SEED_FEM_FIELD_STATES = LazySeedRows(seed_field_rows)
+# tt-11: every element of the seed field as a `polygon` MathShapeDefinition + a Shape2DDefinition in SPACE units
+# (mathshapes.custom.shape2d_bridge) — the shape library carries the geometry; the field binding paints it by σ
+SEED_FEM_ELEMENT_MATH_SHAPES = LazySeedRows(lambda: [m for f in SEED_FEM_FIELD_STATES for m in element_shapes(f)[0]])
+SEED_FEM_ELEMENT_SHAPES_2D = LazySeedRows(lambda: [s for f in SEED_FEM_FIELD_STATES for s in element_shapes(f)[1]])
 PLATE_U_EXAGGERATION = 20000.0   # unitless: |u| ≤ 1e-5 m on a 2 m plate → ~0.2 m arrows; the knob is DATA on the binding and in the legend
 SEED_PLATE_SIMSPACES = [{
     'name': 'plate-mechanics-2d',
@@ -156,8 +161,8 @@ SEED_PLATE_BINDINGS = [{
         'enabled': True, 'dimensionality': '2d', 'kind': 'field', 'matrixField': 'elements_json',
         'layout': {'originCols': [0, 2], 'scalarCol': 2},
         'color': {'domain': PLATE_SIGMA_DOMAIN, 'ramp': 'stress', 'unit': 'Pa', 'field': 'von Mises'},
-        'cellSize': 2.2, 'visual': {'shapeRef': 'rectangle', 'styleRef': 'default'}, 'defaultVisible': True,
-        'note': 'cells are markers at element centroids (P1 elements are constant per triangle); the triangles themselves are the next slice',
+        'shapeRefPattern': SEED_FIELD_NAME + '-el-{i}', 'visual': {'shapeRef': 'rectangle', 'styleRef': 'default'}, 'defaultVisible': True,
+        'note': 'tt-11: each cell is ITS OWN triangle (a polygon math shape → a 2-D shape in space units), painted by σ_vm — filled cells through the shape library; the rectangle is only the fallback when a shape row is missing',
     }),
 }]
 
@@ -173,6 +178,13 @@ try:   # the scene + binding are CORE simSpace rows, seeded here because they ex
     from simSpace.sim_space_binding_definition import SimSpaceBindingDefinition
     TENSORMATH_SEED_PAIRS += [('SimSpaceDefinition', SimSpaceDefinition, SEED_PLATE_SIMSPACES),
                               ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PLATE_BINDINGS)]
+    from simSpace2D.shape_2d_definition import Shape2DDefinition
+    TENSORMATH_SEED_PAIRS += [('Shape2DDefinition', Shape2DDefinition, SEED_FEM_ELEMENT_SHAPES_2D)]
+    try:   # the geometry rows belong to the mathshapes module; seeded only when it is present
+        from mathshapes.objects.shape.MathShapeDefinition import MathShapeDefinition
+        TENSORMATH_SEED_PAIRS += [('MathShapeDefinition', MathShapeDefinition, SEED_FEM_ELEMENT_MATH_SHAPES)]
+    except Exception:   # pragma: no cover
+        pass
 except Exception:   # pragma: no cover
     pass
 try:   # the FEM case is a CORE materialsScience row, seeded here so the tensors have something to read

@@ -1,6 +1,6 @@
 {
  "schema_version": "1",
- "note": "The inspectable module register (MODULE_PROJECTS_PLAN mp-1/mp-2). kind: official (maintained here) | vendor (third-party remote) | self (made on this instance from your own objects). downloaded: is the code locally present \u2014 module_registry.sync() re-derives this from the filesystem on every read, so the flag can never lie. repo: the module's own git remote once it is split into a sub-project (mp-2); '' means it still ships with this checkout. path: where the code lives TODAY (framework root until its mp-4 wave moves it into modules/). requires: other feature modules whose code this one imports \u2014 pol modules drop refuses while a dependent is downloaded. required_by_core: the core still imports this statically (module_gating CORE_PACKAGES) \u2014 it may MOVE into modules/ but cannot be dropped. wave: the planned mp-4 migration wave (0 = already moved). pol CLI: `pol modules registry | get <m> | drop <m> | publish <m> | register <m>`.",
+ "note": "The inspectable module register (MODULE_PROJECTS_PLAN mp-1/mp-2). kind: official (maintained here) | vendor (third-party remote) | self (made on this instance from your own objects). downloaded: is the code locally present — module_registry.sync() re-derives this from the filesystem on every read, so the flag can never lie. repo: the module's own git remote once it is split into a sub-project (mp-2); '' means it still ships with this checkout. path: where the code lives TODAY (framework root until its mp-4 wave moves it into modules/). requires: other feature modules whose code this one imports — pol modules drop refuses while a dependent is downloaded. required_by_core: the core still imports this statically (module_gating CORE_PACKAGES) — it may MOVE into modules/ but cannot be dropped. wave: the planned mp-4 migration wave (0 = already moved). pol CLI: `pol modules registry | get <m> | drop <m> | publish <m> | register <m>`.",
  "modules": {
   "agro_forestry": {
    "kind": "official",
@@ -19,7 +19,7 @@
    "requires": [
     "polariapps"
    ],
-   "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO.",
+   "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer — catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO.",
    "tier": "core"
   },
   "aquaponics": {
@@ -68,7 +68,7 @@
     "waxsupply",
     "pspp"
    ],
-   "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05).",
+   "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) — admission must order them first (caught live 2026-08-05).",
    "repo": "https://github.com/dausume/polari-module-casting.git",
    "tier": "optional"
   },
@@ -104,7 +104,7 @@
    "repo": "https://github.com/dausume/polari-module-collab.git",
    "wave": 8,
    "requires": [],
-   "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 \u2014 no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
+   "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 — no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
    "notes": "",
    "tier": "optional"
   },
@@ -130,7 +130,7 @@
    "requires": [
     "composition"
    ],
-   "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.custom.seed_upsert (guarded) \u2014 prices converge on live rows.",
+   "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.custom.seed_upsert (guarded) — prices converge on live rows.",
    "tier": "optional"
   },
   "computers": {
@@ -213,7 +213,7 @@
     "islemesh"
    ],
    "wave": 8,
-   "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, \u2026) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08).",
+   "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, …) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08).",
    "tier": "core"
   },
   "household": {
@@ -289,7 +289,7 @@
    "repo": "https://github.com/dausume/polari-module-islemesh.git",
    "wave": 7,
    "requires": [],
-   "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console.",
+   "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data — devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console.",
    "tier": "core"
   },
   "iso": {
@@ -357,7 +357,7 @@
    "repo": "https://github.com/dausume/polari-module-mealoptions.git",
    "wave": 1,
    "requires": [],
-   "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples \u2014 the shareable meal data; no person or place data",
+   "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples — the shareable meal data; no person or place data",
    "tier": "optional"
   },
   "meshassets": {
@@ -465,7 +465,7 @@
     "islemesh"
    ],
    "wave": 8,
-   "description": "Print camera: a hardware-extension-app of the Voron guest \u2014 USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09).",
+   "description": "Print camera: a hardware-extension-app of the Voron guest — USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09).",
    "tier": "optional"
   },
   "printing_suite": {
@@ -479,7 +479,7 @@
     "islemesh"
    ],
    "wave": 8,
-   "description": "The 3D printing PRODUCTION suite app: design (CAD \u2192 shape) \u2192 material/mold \u2192 slice (Kiri:Moto) \u2192 print (Voron guest) \u2192 measured outcome; owns the contract rows MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome (sa-2, 2026-09-08).",
+   "description": "The 3D printing PRODUCTION suite app: design (CAD → shape) → material/mold → slice (Kiri:Moto) → print (Voron guest) → measured outcome; owns the contract rows MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome (sa-2, 2026-09-08).",
    "tier": "optional"
   },
   "pspp": {
@@ -513,7 +513,7 @@
    "requires": [
     "islemesh"
    ],
-   "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md \u2014 pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
+   "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md — pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
    "notes": "",
    "tier": "core"
   },
@@ -556,7 +556,7 @@
    "path": "modules/supplychain",
    "repo": "https://github.com/dausume/polari-module-supplychain.git",
    "wave": 2,
-   "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting.",
+   "description": "Unifying bio supply-chain ledger — materials + food + carbon accounting.",
    "tier": "optional"
   },
   "tanks": {
@@ -565,7 +565,7 @@
    "path": "modules/tanks",
    "repo": "https://github.com/dausume/polari-module-tanks.git",
    "wave": 1,
-   "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source.",
+   "description": "Freshwater/saltwater tank ecosystems — the alternate nutrient source.",
    "tier": "optional"
   },
   "techtree": {
@@ -602,7 +602,7 @@
    "repo": "https://github.com/dausume/polari-module-video.git",
    "requires": [],
    "wave": 7,
-   "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows \u2014 a Polari feature module that was never registered until sap-1 (2026-09-08).",
+   "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows — a Polari feature module that was never registered until sap-1 (2026-09-08).",
    "tier": "optional"
   },
   "voron": {
@@ -615,7 +615,7 @@
     "islemesh"
    ],
    "wave": 8,
-   "description": "Voron 3D printer as a hardware app: Klipper + Moonraker + Mainsail in a Debian KVM guest with the printer boards passed through (mode real) or Klipper's linux host MCU with no printer (mode sim \u2014 no motion physics).",
+   "description": "Voron 3D printer as a hardware app: Klipper + Moonraker + Mainsail in a Debian KVM guest with the printer boards passed through (mode real) or Klipper's linux host MCU with no printer (mode sim — no motion physics).",
    "tier": "optional"
   },
   "vpn": {
@@ -627,7 +627,7 @@
    "requires": [
     "islemesh"
    ],
-   "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) \u2014 Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh.",
+   "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) — Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh.",
    "tier": "core"
   },
   "waxprint": {
@@ -675,7 +675,9 @@
    "downloaded": true,
    "path": "modules/tensormath",
    "repo": "https://github.com/dausume/polari-module-tensormath.git",
-   "requires": [],
+   "requires": [
+    "mathshapes"
+   ],
    "wave": 4,
    "tier": "optional",
    "description": "Arbitrary-rank tensors with values by reference, named dimensions, expressions (rank<=2 delegates to the matrix module), operators and their compute implementations."

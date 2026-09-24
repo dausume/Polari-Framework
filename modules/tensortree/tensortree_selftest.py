@@ -177,7 +177,7 @@ check('plate-mechanics passes the structural rules', rep2['ok'], rep2['errors'])
 # tt-6: with no SimSpaceBindingDefinition rows in sight the validator trusts the name; once the instance holds
 # bindings, the name must be one of them — a resolved node is one a viewer can draw
 check('tt-6: the plate root is RESOLVED — x/y → position, σ_vm → color, bound to FEMFieldState-2d (the 2-D field binding)',
-      rep2['nodes']['plate']['status'] == 'resolved' and rep2['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d' and rep2['nodes']['plate']['coherent'] == ['plate.x', 'plate.y', 'plate.sigma'], rep2['nodes']['plate'])
+      rep2['nodes']['plate']['status'] == 'resolved' and rep2['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d' and rep2['nodes']['plate']['coherent'] == ['plate.x', 'plate.y', 'plate.sigma', 'plate.element'], rep2['nodes']['plate'])
 m2.objectTables['SimSpaceBindingDefinition'] = {}
 _add(m2, 'SimSpaceBindingDefinition', name='WindFieldGridState-3d', class_name='WindFieldGridState')
 rep2b = validate_tree(m2, 'plate-mechanics')
@@ -190,9 +190,9 @@ rep2 = validate_tree(m2, 'plate-mechanics')
 check('  …and resolves again once the binding row exists', rep2['nodes']['plate']['status'] == 'resolved')
 check('  …tt-8: u per node is RESOLVED too (x/y → position, u → vector through the 2-D vectorfield binding FEMFieldState-u-2d, exaggeration a stated knob); the remaining space is the GEOMETRY (triangles, not markers)',
       rep2['nodes']['plate-displacement']['status'] == 'resolved' and rep2['nodes']['plate-displacement']['binding_ref'] == 'FEMFieldState-u-2d'
-      and rep2['unresolved']['plate-filled-cells']['kind'] == 'visualization' and 'plate-displacement-visualization' not in rep2['unresolved'], (rep2['nodes']['plate-displacement'], list(rep2['unresolved'])))
-check('  …tt-9: the mesh node is RESOLVED (edges as a wireframe via FEMFieldState-mesh-2d); the tree\'s one open space is FILLED cells (a renderer change, a person\'s call)',
-      rep2['nodes']['plate-mesh']['status'] == 'resolved' and list(rep2['unresolved']) == ['plate-filled-cells'], (rep2['nodes'].get('plate-mesh'), list(rep2['unresolved'])))
+      and 'plate-displacement-visualization' not in rep2['unresolved'], (rep2['nodes']['plate-displacement'], list(rep2['unresolved'])))
+check('  …tt-9: the mesh node is RESOLVED (edges as a wireframe via FEMFieldState-mesh-2d); tt-11: filled cells resolved THROUGH THE SHAPE LIBRARY (element → shape on the root) — the plate tree has NO unresolved space left, honestly',
+      rep2['nodes']['plate-mesh']['status'] == 'resolved' and 'plate.element' in rep2['nodes']['plate']['coherent'] and list(rep2['unresolved']) == [], (rep2['nodes'].get('plate-mesh'), list(rep2['unresolved'])))
 check('  …the σ colour domain of the dimension is the binding\'s (one constant: tensormath.PLATE_SIGMA_DOMAIN)',
       __import__('json').loads(next(d for d in SEED_LOCALIZED_DIMENSIONS if d['name'] == 'plate.sigma')['scale_json'])['domain'] == __import__('tensormath.tensormath_seed', fromlist=['x']).PLATE_SIGMA_DOMAIN)
 psel = next(s for s in m2.objectTables['TensorSelection'].values() if s.name == 'plate-strain-all')

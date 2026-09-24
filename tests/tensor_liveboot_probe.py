@@ -10,7 +10,7 @@ previous run's rows come back through the restore):
 import json
 import os
 import sys
-os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
+os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,mathshapes,tensormath,tensortree,computelod,cicd'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -181,7 +181,7 @@ r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('tt-6: plate-mechanics validates; its root is RESOLVED on a real boot (binding FEMFieldState-2d exists here), u per node unresolved for the stated reason with its typed space',
       r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['status'] == 'resolved' and r.json['validation']['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d'
       and r.json['validation']['nodes']['plate-displacement']['status'] == 'resolved' and r.json['validation']['nodes']['plate-mesh']['status'] == 'resolved'
-      and list(r.json['validation']['unresolved']) == ['plate-filled-cells'], r.text[:400])
+      and list(r.json['validation']['unresolved']) == [] and 'plate.element' in r.json['validation']['nodes']['plate']['coherent'], r.text[:400])
 r = client.simulate_get('/api/tensormath/fem/tt2-plate-tension')
 check('GET /api/tensormath/fem/tt2-plate-tension: the field row exists FROM SEED (64 elements, 45 nodes, E/ν cited), the binding + scene exist → drawable',
       r.status_code == 200 and r.json['drawable'] and r.json['field']['n_elements'] == 64 and r.json['field']['n_nodes'] == 45 and 'literature-est' in r.json['field']['material_provenance']
@@ -195,6 +195,19 @@ r = client.simulate_get('/api/simspace/plate-mechanics-2d/snapshot')
 _snap = (r.json.get('data') or r.json) if r.status_code == 200 else {}
 _objs = _snap.get('objects', []) or []
 _cells = [o for o in _objs if (o.get('userData') or {}).get('bindingName') == 'FEMFieldState-2d']
+# tt-11: each cell references ITS OWN triangle shape (space units) — seeded from the same solve through the shape library
+check('tt-11: the 64 cells each reference their own Shape2DDefinition (tt2-plate-tension-field-el-{i}, units=space, an svg polygon around the centroid) and carry no marker scale',
+      all(c['shapeRef'] == 'tt2-plate-tension-field-el-%d' % c['userData']['cellIndex'] and 'scale' not in c and c['userData'].get('ownShape') for c in _cells), [c.get('shapeRef') for c in _cells[:2]])
+_s2d = {getattr(s, 'name', ''): s for s in tables.get('Shape2DDefinition', {}).values()}
+_ms = {getattr(s, 'name', ''): s for s in tables.get('MathShapeDefinition', {}).values()}
+check('  …the 64 shape rows EXIST on a real boot (source svg, units space, anchor center, a <polygon>) and so do the 64 polygon MathShapeDefinitions that carry the geometry',
+      sum(1 for n in _s2d if n.startswith('tt2-plate-tension-field-el-')) == 64 and _s2d['tt2-plate-tension-field-el-0'].units == 'space' and '<polygon' in _s2d['tt2-plate-tension-field-el-0'].svg_string
+      and sum(1 for n in _ms if n.startswith('tt2-plate-tension-field-el-')) == 64 and _ms['tt2-plate-tension-field-el-0'].primitive_kind == 'polygon', (len(_s2d), len(_ms)))
+r = client.simulate_get('/api/shapes/tt2-plate-tension-field-el-0/properties')
+check('  …the math-shape API answers for an element: area = the field row\'s element area (1/32 m² for the seed mesh), centroid = the element centroid',
+      r.status_code == 200 and abs((r.json.get('surfaceAreaCm2') or 0) - 0.03125) < 1e-4 and abs(r.json['centroid'][0] - 0.0833333) < 1e-4, r.text[:300])
+r = client.simulate_post('/api/tensormath/fem/tt2-plate-tension/shapes')
+check('POST …/fem/{case}/shapes refreshes the same 64 + 64 rows (200, nothing created twice)', r.status_code == 200 and r.json['elements'] == 64 and r.json['shapes_2d_created'] == 0 and r.json['math_shapes_created'] == 0, r.text[:300])
 _medges = [c for c in (_snap.get('connections') or []) if (c.get('userData') or {}).get('bindingName') == 'FEMFieldState-mesh-2d']
 check('tt-9: the snapshot carries the mesh wireframe — 64 triangles → 108 distinct edges (Euler: 45 nodes, 64 faces on a simply connected disc → E = V + F − 1)', len(_medges) == 108, len(_medges))
 _ulines = [c for c in (_snap.get('connections') or []) if (c.get('userData') or {}).get('bindingName') == 'FEMFieldState-u-2d']

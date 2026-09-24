@@ -75,6 +75,7 @@
    "custom/gear_geometry",
    "custom/growth_prediction",
    "custom/pot_scene",
+   "custom/shape2d_bridge",
    "custom/shape_analysis",
    "custom/shape_equations",
    "custom/shape_geometry",
