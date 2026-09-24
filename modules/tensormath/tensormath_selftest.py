@@ -35,7 +35,7 @@ def _add(mgr, cls, **kw):
 
 check('the module registers exactly SIX row classes', len(TENSORMATH_CLASSES) == 6, [c.__name__ for c in TENSORMATH_CLASSES])
 check('every class is one file under objects/tensormath/', all(c.__module__ == 'tensormath.objects.tensormath.%s' % c.__name__ for c in TENSORMATH_CLASSES))
-check('seed pairs cover every class and seed NO rows (a tensor is made over real values)', [p[0] for p in TENSORMATH_SEED_PAIRS] == [c.__name__ for c in TENSORMATH_CLASSES] and all(p[2] == [] for p in TENSORMATH_SEED_PAIRS))
+check('seed pairs cover every class; the only seeded rows are tensors over REAL state (engine-backed) and their expressions', [p[0] for p in TENSORMATH_SEED_PAIRS] == [c.__name__ for c in TENSORMATH_CLASSES] and all(t['storage_kind'] == 'engine' for t in TENSORMATH_SEED_PAIRS[0][2]) and TENSORMATH_SEED_PAIRS[3][2] == [])
 
 # ---- an uninterpreted tensor is valid (plan §10)
 t = Tensor(name='blob', rank=4, shape_json='[128,128,3,6]', dimensions_json=json.dumps([{'name': 'axis0', 'semantics': 'unknown'}] * 4))
@@ -97,6 +97,41 @@ ci = ComputeImplementation(name='sigma-numpy', operator='sigma-op', target_rung=
 check('ComputeImplementation carries the target rung + kind and the TWO statuses (plan §F2/§F8)', ci.target_rung == 'microarchitecture' and ci.evidence_level == 'measured' and ci.mapping_status == 'implemented')
 dc = TensorDecomposition(name='cp-3', tensor='T-field', method='cp', rank=3, reconstruction_error=0.04)
 check('TensorDecomposition keeps the information it lost (reconstruction_error, plan §F6.3)', dc.reconstruction_error == 0.04 and dc.error_method == 'frobenius-relative')
+
+# ---- tt-1: ENGINE storage — a live grid field and a sim-state time series, read where they are
+from simulations.wind_field_grid_sim_state import build_initial_cells, WIND_GRID_COUNTS
+from tensormath.tensormath_seed import SEED_TENSORS, SEED_TENSOR_EXPRESSIONS
+m.objectTables['WindFieldGridState'] = {}; m.objectTables['WaxPrintSimState'] = {}
+tw = _add(m, 'Tensor', **SEED_TENSORS[0])
+try:
+    values(m, tw); check('engine: with NO grid row yet the tensor refuses honestly (values are read live, never stored)', False)
+except TensorOpsError as e:
+    check('engine: with NO grid row yet the tensor refuses honestly (values are read live, never stored)', 'no WindFieldGridState rows' in str(e))
+cells = build_initial_cells()
+_add(m, 'WindFieldGridState', name='r1-wind-field-grid-0', simulation_run_ref='r1', step=0, time=0.0, cells_json=json.dumps(cells))
+cells2 = [c[:3] + [c[3] * 2, c[4] * 2, c[5] * 2] for c in cells]
+_add(m, 'WindFieldGridState', name='r1-wind-field-grid-1', simulation_run_ref='r1', step=1, time=0.1, cells_json=json.dumps(cells2))
+W = values(m, tw)
+check('engine matrixfield: the newest WindFieldGridState row (highest step) is read and reshaped to [4,4,4,6]', W.shape == (4, 4, 4, 6) and np.allclose(W.reshape(-1, 6), np.array(cells2)))
+check('  …the cell centres survive the reshape in grid order (x fastest-varying last: [ix,iy,iz])', np.allclose(W[3, 0, 0, 0], 1.2) and np.allclose(W[0, 3, 0, 1], 0.2))
+ex = {e['name']: e for e in SEED_TENSOR_EXPRESSIONS}
+sp = evaluate(m, types.SimpleNamespace(**ex['wind-speed']))
+check('wind-speed = the L2 norm over the velocity columns: shape [4,4,4], values ≥ 0, equal to the per-cell |w|',
+      sp['shape'] == [4, 4, 4] and np.allclose(np.array(sp['values']).reshape(-1), np.linalg.norm(np.array(cells2)[:, 3:6], axis=1)) and sp['dims'] == ['x', 'y', 'z'])
+sl = evaluate(m, types.SimpleNamespace(**ex['wind-slice-z0']))
+check('wind-slice-z0 keeps one z layer', sl['shape'] == [4, 4, 1, 6])
+mn = evaluate(m, types.SimpleNamespace(**ex['wind-mean-over-y']))
+check('wind-mean-over-y reduces the y axis', mn['shape'] == [4, 4, 6] and mn['dims'] == ['x', 'z', 'component'])
+ts = _add(m, 'Tensor', **SEED_TENSORS[1])
+for i, (t_, mf, h) in enumerate(((60.0, 1.0, 0.0), (58.5, 0.9, 0.4), (57.0, 0.7, 0.8))):
+    _add(m, 'WaxPrintSimState', name='wp-%d' % i, simulation_run_ref='wp', step=i, exit_temp_c=t_, melt_fraction=mf, height_mm=h, warp_index=0.01 * i)
+S = values(m, ts)
+check('engine simstate: the wax print series is [steps, 4 quantities] in step order, read live', S.shape == (3, 4) and np.allclose(S[:, 0], [60.0, 58.5, 57.0]) and np.allclose(S[2, 2], 0.8))
+tb = _add(m, 'Tensor', name='bad-ref', rank=1, shape_json='[]', dimensions_json='[]', storage_kind='engine', storage_ref='nonsense', semantics='', metadata_json='{}')
+try:
+    values(m, tb); check('a malformed engine ref is refused with the two accepted forms named', False)
+except TensorOpsError as e:
+    check('a malformed engine ref is refused with the two accepted forms named', 'matrixfield:' in str(e) and 'simstate:' in str(e))
 
 man = json.load(open('modules/tensormath/polari-app.json'))
 from moduleService.manifests import validate

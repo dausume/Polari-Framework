@@ -9,7 +9,7 @@ Run from a THROWAWAY working directory (the boot writes a sqlite DB into cwd):
 import json
 import os
 import sys
-os.environ['POLARI_MODULES'] = 'scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
+os.environ['POLARI_MODULES'] = 'simulations,simSpace,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -45,9 +45,9 @@ check('GET /api/computelod/rungs/isa carries recommended prerequisites from the 
 r = client.simulate_get('/api/computelod/walk/c-source/x')
 check('a walk with no mapping is an honest gap (200, unresolved)', r.status_code == 200 and r.json['walk']['unresolved'])
 r = client.simulate_get('/api/tensormath')
-check('GET /api/tensormath answers (no tensors yet)', r.status_code == 200 and r.json['tensors'] == [])
+check('GET /api/tensormath lists the two seeded engine-backed tensors', r.status_code == 200 and {'waxprint-series', 'wind-field'} <= {t['name'] for t in r.json['tensors']}, r.text[:200])
 r = client.simulate_get('/api/tensortree')
-check('GET /api/tensortree answers (no trees yet)', r.status_code == 200 and r.json['count'] == 0)
+check('GET /api/tensortree lists the seeded wind-spatial tree', r.status_code == 200 and r.json['count'] == 1 and r.json['trees'][0]['name'] == 'wind-spatial', r.text[:200])
 r = client.simulate_post('/api/tensortree/discover', json={'selection': 'nope'})
 check('discover on an unknown selection is a 404 with the reason', r.status_code == 404)
 # CRUDE: make a Tensor through the standard door, read it back through the module API
@@ -59,6 +59,31 @@ r = client.simulate_post('/Tensor', body=mp.encode(), headers={'Content-Type': f
 check('POST (CRUDE) creates an UNINTERPRETED tensor', r.status_code in (200, 201), (r.status_code, r.text[:200]))
 r = client.simulate_get('/api/tensormath/tensors/blob')
 check('GET /api/tensormath/tensors/blob reads it back with unknown semantics', r.status_code == 200 and r.json['tensor']['semantics'] == 'unknown', r.text[:200])
+# ---- tt-1: a REAL grid row through CRUDE, then the engine-backed tensor, the tree, select → discover
+from simulations.wind_field_grid_sim_state import build_initial_cells
+cells = build_initial_cells()
+fields = {'initParamSets': json.dumps([{'name': 'probe-wind-field-grid-0', 'simulation_run_ref': 'probe', 'step': 0, 'time': 0.0, 'cells_json': json.dumps(cells)}])}
+mp = ''.join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n' for k, v in fields.items()) + f'--{boundary}--\r\n'
+r = client.simulate_post('/WindFieldGridState', body=mp.encode(), headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
+check('tt-1: a WindFieldGridState row is created through CRUDE (64 cells)', r.status_code in (200, 201), (r.status_code, r.text[:160]))
+r = client.simulate_get('/api/tensormath/tensors/wind-field')
+check('the seeded wind-field tensor is engine-backed and lists its four named dims + the tree that views it',
+      r.status_code == 200 and r.json['tensor']['storage_kind'] == 'engine' and r.json['tensor']['dims'] == ['x', 'y', 'z', 'component'] and 'wind-spatial' in r.json['trees'], r.text[:200])
+r = client.simulate_post('/api/tensormath/evaluate', json={'expression': 'wind-speed'})
+check('POST evaluate wind-speed reads the LIVE grid and returns |w| on [4,4,4]', r.status_code == 200 and r.json['result']['shape'] == [4, 4, 4], r.text[:200])
+r = client.simulate_get('/api/tensortree/trees/wind-spatial/validate')
+check('the seeded tree validates with the root RESOLVED (bound to WindFieldGridState-3d)', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['wind-grid']['status'] == 'resolved', r.text[:300])
+r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')
+check('the graph view carries the coupling as a crossing mapping edge', r.status_code == 200 and any(e['kind'] == 'mapping' and e['mapping'] == 'wind-grid→bob-drag' for e in r.json['graph']['edges']))
+r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'})
+check('POST select CREATES the selection row and returns its discovery: the real coupling first, the calm-only hypothesis refused',
+      r.status_code == 201 and [c['mapping'] for c in r.json['discovery']['candidates']] == ['wind-grid→bob-drag', 'wind-grid→slice-z0']
+      and any(x['mapping'] == 'wind-grid→spectrum' for x in r.json['discovery']['refused']), r.text[:300])
+check('  …and the selection persisted as a row', any(getattr(s, 'created_from', '') == 'probe' for s in tables.get('TensorSelection', {}).values()))
+r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [5, 1]}})
+check('a malformed range is a 400 naming the dim', r.status_code == 400 and 'x' in r.json['error'])
 pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, 'pageRoute', '') in ('tensormath', 'tensortree', 'computelod')]
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
+tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')
+check('the tensortree page hosts the existing sim-space viewer for the resolved node (no new renderer)', 'sim-space-viewer' in getattr(tt, 'definition', '') and 'newtonian-pendulum-viz' in getattr(tt, 'definition', ''))
 n_ok = sum(results); print(f'\n{n_ok}/{len(results)} checks passed'); sys.exit(0 if n_ok == len(results) else 1)

@@ -6,7 +6,10 @@
   GET  /api/tensortree/trees/{name}/graph   the graph VIEW (structure + every crossing mapping) — plan §16
   GET  /api/tensortree/trees/{name}/validate
   POST /api/tensortree/discover             {"selection": "<TensorSelection.name>", "context_node": ""} → ranked candidates
-Rows are edited through CRUDE (they are treeObjects); this surface only READS and DISCOVERS.
+  POST /api/tensortree/select               {"node": "<TensorNode.name>", "ranges": {dim: [lo, hi]}, "created_from": "…"}
+                                            → CREATES the TensorSelection row (the click is a mathematical object,
+                                            plan §15) and returns its discovery: VISUALIZE → SELECT → DISCOVER
+Rows are edited through CRUDE (they are treeObjects); this surface reads, discovers, and makes ONE row: the selection.
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -27,6 +30,7 @@ class TensorTreeAPI(treeObject):
             add('/api/tensortree/trees/{name}/graph', self, suffix='graph')
             add('/api/tensortree/trees/{name}/validate', self, suffix='validate')
             add('/api/tensortree/discover', self, suffix='discover')
+            add('/api/tensortree/select', self, suffix='select')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -49,6 +53,27 @@ class TensorTreeAPI(treeObject):
 
     def on_get_validate(self, request, response, name):
         response.media = {'ok': True, 'validation': validate_tree(self.manager, name)}
+
+    def on_post_select(self, request, response):
+        import datetime, json as _json
+        from tensortree.tensortree_basis import TensorSelection
+        body = request.media if isinstance(request.media, dict) else {}
+        node = str(body.get('node', '') or ''); ranges = body.get('ranges') or {}
+        if not node or not isinstance(ranges, dict) or not ranges:
+            response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'a selection names a node and at least one {dim: [lo, hi]} range'}; return
+        if not any(str(n.name) == node for n in self._rows('TensorNode')):
+            response.status = '404 Not Found'; response.media = {'ok': False, 'error': 'no TensorNode %r' % node}; return
+        bad = [d for d, r in ranges.items() if not (isinstance(r, list) and len(r) == 2 and all(isinstance(x, (int, float)) for x in r) and r[0] <= r[1])]
+        if bad:
+            response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'ranges must be [lo, hi] numbers: ' + ', '.join(bad)}; return
+        name = str(body.get('name') or ('%s@%s' % (node, datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))))
+        sel = TensorSelection(name=name, node=node, ranges_json=_json.dumps(ranges), created_from=str(body.get('created_from', 'api') or 'api'),
+                              created_at=datetime.datetime.now().isoformat(timespec='seconds'), manager=self.manager)
+        db = getattr(self.manager, 'db', None)   # the object-tree standard: persist what a request created
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(sel)
+        response.status = '201 Created'
+        response.media = {'ok': True, 'selection': name, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''))}
 
     def on_post_discover(self, request, response):
         body = request.media if isinstance(request.media, dict) else {}

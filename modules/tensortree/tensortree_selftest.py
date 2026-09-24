@@ -110,6 +110,30 @@ d2 = discover(m, sel)
 check('  …changing the row changes the ranking: with evidence weighted 0.9 the MEASURED mapping now comes first — no constant in code',
       [c['mapping'] for c in d2['candidates']] == ['T→slice', 'T→gb'] and abs(d2['candidates'][0]['score'] - (0.9 * 1.0 + 0.05 * 0.25 + 0.25 * 0.5 + 0.05 + 0.10)) < 1e-6, d2['candidates'])
 
+# ---- tt-1: the SEEDED tree over the real wind field validates, and discovery works on the seeded selection
+from tensortree.tensortree_seed import (SEED_TENSOR_TREES, SEED_TENSOR_NODES, SEED_UNRESOLVED, SEED_LOCALIZED_DIMENSIONS, SEED_TENSOR_MAPPINGS, SEED_TENSOR_SELECTIONS)
+m2 = _mgr()
+for cls, rows in (('TensorTreeDefinition', SEED_TENSOR_TREES), ('TensorNode', SEED_TENSOR_NODES), ('UnresolvedTensorSpace', SEED_UNRESOLVED),
+                  ('LocalizedDimension', SEED_LOCALIZED_DIMENSIONS), ('TensorMapping', SEED_TENSOR_MAPPINGS), ('TensorSelection', SEED_TENSOR_SELECTIONS),
+                  ('TensorDiscoveryPolicy', SEED_DISCOVERY_POLICIES)):
+    for r in rows:
+        _add(m2, cls, **r)
+rep = validate_tree(m2, 'wind-spatial')
+check('seeded tree: passes the structural rules', rep['ok'], rep['errors'])
+check('seeded tree: the root wind-grid is RESOLVED — x/y/z → position, speed → color (0–12 m/s), w → vector, bound to the proven WindFieldGridState-3d binding',
+      rep['nodes']['wind-grid']['status'] == 'resolved' and rep['nodes']['wind-grid']['binding_ref'] == 'WindFieldGridState-3d', rep['nodes']['wind-grid'])
+check('  …and the z=0 slice is resolved too', rep['nodes']['wind-slice-z0']['status'] == 'resolved')
+check('  …the unresolved sub-grid space is typed semantic and keeps its open question', rep['unresolved']['wind-turbulence']['kind'] == 'semantic' and rep['unresolved']['wind-turbulence']['open_questions'])
+gsel = next(s for s in m2.objectTables['TensorSelection'].values() if s.name == 'gust-corner')
+d = discover(m2, gsel)
+names = [c['mapping'] for c in d['candidates']]
+check('discovery on the gusty selection: the REAL coupling (validated, simulated) ranks first, the restriction second',
+      names == ['wind-grid→bob-drag', 'wind-grid→slice-z0'], (names, d['refused']))
+check('  …and the calm-only spectrum hypothesis is REFUSED: speed 6–12 m/s lies outside its validity [0, 5]', any(r['mapping'] == 'wind-grid→spectrum' and 'validity' in r['why'] for r in d['refused']), d['refused'])
+check('  …the coupling candidate names the live SimulationCouplingDefinition it is', next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'wind-grid→bob-drag').coupling_ref == 'wind-to-newtonian-pendulum')
+g = tree_graph(m2, 'wind-spatial')
+check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 3 mappings, one crossing to another tree\'s node', g['structural'] == 2 and g['mappings'] == 3)
+
 # ---- the manifest
 man = json.load(open('modules/tensortree/polari-app.json'))
 from moduleService.manifests import validate
