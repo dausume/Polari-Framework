@@ -30,6 +30,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod2/cnt', self, suffix='lod2_cnt')         # the second Liberty: our own CNT cell library
             add('/api/computelod/lod3', self, suffix='lod3')                 # cells → transistors → layout, read from the artefacts
             add('/api/computelod/lod4', self, suffix='lod4')                 # fabrication → materials, by reference
+            add('/api/computelod/lod3/devices', self, suffix='lod3_devices')  # devices → cells simulated by us vs the Liberty
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -53,6 +54,11 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod3_devices(self, request, response):
+        from computelod.custom.lod3_devices import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_devices run (ngspice on the pinned sky130_fd_pr tt models, cached in ~/.cache/polari-lod/sky130_pr, never committed)'}
 
     def on_get_lod4(self, request, response):
         from computelod.custom.lod4_process import report

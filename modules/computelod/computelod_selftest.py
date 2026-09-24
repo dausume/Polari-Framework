@@ -214,6 +214,21 @@ check('lod-4 rows: layout → fabrication RESOLVED by name (one-to-one, analytic
       {m_['name'] for m_ in maps4} == {'lod3: layout → fabrication', 'lod4: fabrication → materials'} and all(m_['evidence_level'] == 'analytical' for m_ in maps4)
       and 'eg-si' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['target_ref'] and 'not modelled' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['notes'])
 check('  …the CNT branch stays blocked at LAYOUT (not at process): its process rows are named so the gap is precise', rep4['cnt']['layout'] is None and 'CNTAlignmentProcess' in rep4['cnt']['process_rows_named'])
+# ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
+from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND
+rep3b = lod3b_report()
+check('lod-3b: a committed device-level report exists — ngspice on the pinned sky130_fd_pr tt models (six files cited by sha256, never committed), three arcs (inv_1 A; nand2_1 A, B)',
+      rep3b is not None and len(rep3b['models']['files']) == 6 and rep3b['summary']['arcs'] == 3 and not any(fn.endswith('.pm3.spice') for fn in os.listdir('modules/computelod/initialData/lod3')))
+check('  …every arc is compared to the Liberty at the SAME slew (20–80 %) and load; the mean gap is ≤ 15 % and the max ≤ 25 % — reported, not tuned',
+      rep3b['summary']['mean_abs_delta_pct'] <= 15 and rep3b['summary']['max_abs_delta_pct'] <= 25 and all('liberty' in a['compare']['tphl_ps'] for a in rep3b['arcs']), rep3b['summary'])
+check('  …the pattern is the stated cause: our falls are FASTER than the Liberty on every arc (no internal-node parasitics in a schematic netlist)',
+      all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in rep3b['arcs']), [a['compare']['tphl_ps']['delta_pct'] for a in rep3b['arcs']])
+check('  …the conditions name corner, temperature, voltage, load, slew convention and the netlist kind', all(k in DEV_COND for k in ('corner', 'temperature_c', 'voltage_v', 'load_pf', 'input_slew_ns_20_80', 'netlist')))
+check('interp: bilinear on a 2×2 table returns the corner values exactly and the centre as the mean', interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 0, 0) == 1 and interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 1, 1) == 4 and interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 0.5, 0.5) == 2.5)
+_, chars3b = lod3b_rows(rep3b)
+check('lod-3b rows: six UPWARD characterizations (tpHL/tpLH per arc), devices → standard-cells, evidence SIMULATED, the Liberty value and the delta in conditions, validated when within 25 %',
+      len(chars3b) == 6 and all(c['source_rung'] == 'devices' and c['target_rung'] == 'standard-cells' and c['evidence_level'] == 'simulated' and 'liberty_ps' in json.loads(c['conditions_json']) for c in chars3b)
+      and all(c['mapping_status'] == 'validated' for c in chars3b), [(c['name'], c['mapping_status']) for c in chars3b])
 check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a sifet class, skipped when sifet is absent)', any(n == 'SiliconProcessNode' and len(r) == 1 for n, _, r in COMPUTELOD_SEED_PAIRS))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])

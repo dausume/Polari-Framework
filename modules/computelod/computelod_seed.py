@@ -124,6 +124,11 @@ from computelod.custom.lod4_process import report as _lod4_report, rows as _lod4
 _l4m, _l4c = _lod4_rows(_lod4_report(), _lod3_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l4m)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4c)
+# ---- lod-3b: devices → cells SIMULATED by us — ngspice on the PDK's own BSIM4 models, cross-checked against the
+# Liberty at the same slew/load; the gap (schematic netlist vs extracted layout) is reported, not tuned.
+from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows
+_l3bm, _l3bc = _lod3b_rows(_lod3b_report())
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3bc)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),

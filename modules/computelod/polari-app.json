@@ -60,6 +60,7 @@
    "custom/lod2_cnt",
    "custom/lod2_silicon",
    "custom/lod3_cells",
+   "custom/lod3_devices",
    "custom/lod4_process"
   ],
   "endpoints": [
