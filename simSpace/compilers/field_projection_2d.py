@@ -55,6 +55,71 @@ def ramp_color(ramp: str, t: float) -> str:
     return '#%02x%02x%02x' % (r, g, b)
 
 
+def emit_vectorfield_2d(
+    class_name: str,
+    instances: Dict,
+    binding: Dict,
+    binding_name: str,
+    override: Optional[Dict],
+    warnings: List[str],
+) -> List[Dict]:
+    """`vectorfield`-kind in 2-D: a matrix-valued row [ox, oy, vx, vy, …] per node fans out into CONNECTIONS from
+    the node to node + exaggeration × v — the existing connections channel, no renderer change. The exaggeration
+    is an EXPLICIT knob of the binding (`vectorScale`, unitless multiplier on the vector's own units → space
+    units), carried on every connection's userData with the raw vector, so a legend can say "u × 20 000".
+    A vector below `magnitudeMin` (in vector units) is skipped, never drawn as a dot."""
+    matrix_field = binding.get('matrixField')
+    if not matrix_field:
+        warnings.append(f"{class_name} vectorfield binding has no matrixField; skipping.")
+        return []
+    layout = binding.get('layout') or {}
+    o0 = (layout.get('originCols') or [0, 2])[0]
+    v0 = (layout.get('vectorCols') or [2, 4])[0]
+    try:
+        k = float(binding.get('vectorScale', 1.0))
+    except (TypeError, ValueError):
+        k = 1.0
+    try:
+        vmin = float(binding.get('magnitudeMin', 0.0))
+    except (TypeError, ValueError):
+        vmin = 0.0
+    visual = binding.get('visual') or {}
+    style_ref_cfg = visual.get('styleRef') or 'default'
+    scene_style = override.get('overrideStyleRef') if override else None
+    out: List[Dict] = []
+    iter_instances = instances.values() if isinstance(instances, dict) else instances
+    for inst in iter_instances:
+        rows = parse_json_safe(getattr(inst, matrix_field, '') or '[]', [])
+        if not isinstance(rows, list):
+            warnings.append(f"{class_name}.{matrix_field} is not a matrix; skipping instance.")
+            continue
+        inst_id = instance_id(inst)
+        temporal_value = read_temporal_value(inst, binding)
+        for idx, row in enumerate(rows):
+            if not isinstance(row, (list, tuple)) or len(row) < max(o0 + 2, v0 + 2):
+                continue
+            try:
+                ox, oy, vx, vy = float(row[o0]), float(row[o0 + 1]), float(row[v0]), float(row[v0 + 1])
+            except (TypeError, ValueError):
+                continue
+            mag = (vx * vx + vy * vy) ** 0.5
+            if mag < vmin:
+                continue
+            conn: Dict = {
+                'id': f'{binding_name}:{class_name}:{idx}',
+                'sourcePosition': [ox, oy],
+                'targetPosition': [ox + k * vx, oy + k * vy],
+                'styleRef': scene_style or resolve_ref(style_ref_cfg, inst, 'default'),
+                'classRef': {'className': class_name, 'instanceId': inst_id},
+                'userData': {'bindingName': binding_name, 'nodeIndex': idx, 'vector': [vx, vy], 'magnitude': mag,
+                             'vectorScale': k, 'unit': binding.get('unit', ''), 'field': binding.get('field', '')},
+            }
+            if temporal_value is not None:
+                conn['temporalValue'] = temporal_value
+            out.append(conn)
+    return out
+
+
 def emit_field_2d(
     class_name: str,
     instances: Dict,

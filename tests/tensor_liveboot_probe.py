@@ -162,7 +162,7 @@ check('GET operators/stress-from-strain shows the bridge: the numpy implementati
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('tt-6: plate-mechanics validates; its root is RESOLVED on a real boot (binding FEMFieldState-2d exists here), u per node unresolved for the stated reason with its typed space',
       r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['status'] == 'resolved' and r.json['validation']['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d'
-      and r.json['validation']['nodes']['plate-displacement']['why'] == 'no binding_ref' and r.json['validation']['unresolved']['plate-displacement-visualization']['kind'] == 'visualization', r.text[:400])
+      and r.json['validation']['nodes']['plate-displacement']['status'] == 'resolved' and r.json['validation']['unresolved']['plate-geometry']['kind'] == 'visualization', r.text[:400])
 r = client.simulate_get('/api/tensormath/fem/tt2-plate-tension')
 check('GET /api/tensormath/fem/tt2-plate-tension: the field row exists FROM SEED (64 elements, 45 nodes, E/ν cited), the binding + scene exist → drawable',
       r.status_code == 200 and r.json['drawable'] and r.json['field']['n_elements'] == 64 and r.json['field']['n_nodes'] == 45 and 'literature-est' in r.json['field']['material_provenance']
@@ -176,6 +176,10 @@ r = client.simulate_get('/api/simspace/plate-mechanics-2d/snapshot')
 _snap = (r.json.get('data') or r.json) if r.status_code == 200 else {}
 _objs = _snap.get('objects', []) or []
 _cells = [o for o in _objs if (o.get('userData') or {}).get('bindingName') == 'FEMFieldState-2d']
+_ulines = [c for c in (_snap.get('connections') or []) if (c.get('userData') or {}).get('bindingName') == 'FEMFieldState-u-2d']
+check('tt-8: the same snapshot carries 45 displacement lines (one per node, node → node + 20000·u) on the CONNECTIONS channel, the fixed left edge with zero-length lines, the free right edge the longest',
+      len(_ulines) == 45 and all(c['userData']['vectorScale'] == 20000.0 for c in _ulines)
+      and max(_ulines, key=lambda c: c['userData']['magnitude'])['sourcePosition'][0] == 2.0 and min(_ulines, key=lambda c: c['userData']['magnitude'])['userData']['magnitude'] == 0.0, (len(_ulines), [c['sourcePosition'] for c in _ulines[:3]]))
 check('the 2-D snapshot of plate-mechanics-2d fans the field row into 64 coloured cells (colorOverride from σ_vm through the binding\'s domain; the raw value rides userData)',
       r.status_code == 200 and len(_cells) == 64 and all(c.get('colorOverride', '').startswith('#') and 'scalar' in c['userData'] for c in _cells)
       and len({c['colorOverride'] for c in _cells}) > 3, (r.status_code, len(_objs), list(_snap)[:8], (_snap.get('warnings') or [])[:3], r.text[:200]))

@@ -124,17 +124,26 @@ from tensormath.custom.fem_field import LazySeedRows, seed_field_rows, SEED_FIEL
 
 PLATE_SIGMA_DOMAIN = [0.8e6, 1.1e6]   # Pa — tight to the uniaxial 1 MPa field so its structure (the fixed edge's Poisson constraint) shows
 SEED_FEM_FIELD_STATES = LazySeedRows(seed_field_rows)
+PLATE_U_EXAGGERATION = 20000.0   # unitless: |u| ≤ 1e-5 m on a 2 m plate → ~0.2 m arrows; the knob is DATA on the binding and in the legend
 SEED_PLATE_SIMSPACES = [{
     'name': 'plate-mechanics-2d',
     'description': 'The tt-2 plate in tension: σ_vm per element as a coloured cell at each element centroid (2-D field binding over '
-                   'FEMFieldState.elements_json). Colour = von Mises stress over %s Pa; hover a cell for its value. u per node is NOT '
-                   'drawn here yet (no 2-D vector channel) — that gap is the plate tree\'s remaining unresolved space.' % PLATE_SIGMA_DOMAIN,
+                   'FEMFieldState.elements_json). Colour = von Mises stress over %s Pa; hover a cell for its value. u per node is drawn as a '
+                   'line node → node + %g·u (the exaggeration is a STATED knob on the binding FEMFieldState-u-2d; |u| ≤ 1e-5 m on the seed case).' % (PLATE_SIGMA_DOMAIN, PLATE_U_EXAGGERATION),
     'dimensionality': '2d', 'coordinate_system': 'math', 'unit_scale': 1.0,
     'viewport_json': json.dumps({'center': [1.0, 0.5], 'extent': [1.3, 0.8]}),
     'bound_classes_json': json.dumps([{'className': 'FEMFieldState'}]),
     'definition': json.dumps({'freestanding': []}),
 }]
 SEED_PLATE_BINDINGS = [{
+    'name': 'FEMFieldState-u-2d', 'class_name': 'FEMFieldState', 'dimensionality': '2d', 'enabled': True,
+    'binding_json': json.dumps({
+        'enabled': True, 'dimensionality': '2d', 'kind': 'vectorfield', 'matrixField': 'nodes_json',
+        'layout': {'originCols': [0, 2], 'vectorCols': [2, 4]}, 'vectorScale': PLATE_U_EXAGGERATION, 'magnitudeMin': 0.0,
+        'unit': 'm', 'field': 'u (displacement)', 'visual': {'styleRef': 'default'}, 'defaultVisible': True,
+        'note': 'u per node drawn as node → node + %g·u (an honest exaggeration: the factor is this knob, stated; the raw u rides each connection)' % PLATE_U_EXAGGERATION,
+    }),
+}, {
     'name': 'FEMFieldState-2d', 'class_name': 'FEMFieldState', 'dimensionality': '2d', 'enabled': True,
     'binding_json': json.dumps({
         'enabled': True, 'dimensionality': '2d', 'kind': 'field', 'matrixField': 'elements_json',

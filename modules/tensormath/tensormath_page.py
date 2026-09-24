@@ -22,7 +22,7 @@ SEED_TENSORMATH_PAGE_DISPLAYS = [
               _row(4, [_table('tensormath-fem-fields', 0, 12, 'FEM element fields as rows — σ per element, u per node, with the material line E/ν came from', 'FEMFieldState',
                               columns='case,name,n_elements,n_nodes,sigma_vm_min,sigma_vm_max,u_max,assumption,material_provenance,computed_at')]),
               _row(5, [{'id': 'tensormath-plate-scene', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None,
-                        'title': 'tt-2 plate in tension — σ_vm per element, coloured through the 2-D field binding FEMFieldState-2d (hover a cell for its value)',
+                        'title': 'tt-2 plate in tension — σ_vm per element (FEMFieldState-2d, colour) and u per node (FEMFieldState-u-2d, lines ×20000; hover for values)',
                         'visible': True, 'collapsed': False, 'cssClass': '',
                         'componentProps': {'componentName': 'sim-space-viewer', 'inputs': {'simSpaceName': 'plate-mechanics-2d'}},
                         'item': None, 'nestedRows': []}], min_height=420),

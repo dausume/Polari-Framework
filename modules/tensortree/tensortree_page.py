@@ -29,7 +29,7 @@ SEED_TENSORTREE_PAGE_DISPLAYS = [
                         'item': None, 'nestedRows': []}], min_height=420),
               # tt-6: the plate tree's root as ITS binding renders it — σ_vm per element in the 2-D viewer
               _row(3, [{'id': 'tensortree-plate-scene', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None,
-                        'title': 'plate — the resolved root of the plate-mechanics tree, as its binding renders it (x/y → position, σ_vm → color)',
+                        'title': 'plate — the plate-mechanics tree as its bindings render it: σ_vm per element → color; u per node → a line node → node + 20000·u (the exaggeration is a stated knob)',
                         'visible': True, 'collapsed': False, 'cssClass': '',
                         'componentProps': {'componentName': 'sim-space-viewer', 'inputs': {'simSpaceName': 'plate-mechanics-2d'}},
                         'item': None, 'nestedRows': []}], min_height=420),

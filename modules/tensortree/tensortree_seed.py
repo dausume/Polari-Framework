@@ -101,16 +101,19 @@ SEED_TENSOR_NODES += [
      'status': 'unresolved', 'notes': 'tt-6: x/y → position, σ_vm → color through the 2-D field binding FEMFieldState-2d (status is set by the validator)'},
     {'name': 'plate-strain', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'ε per element', 'tensor': 'tt2-eps', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
     {'name': 'plate-displacement', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'u per node', 'tensor': 'tt2-u',
-     'dims_json': json.dumps(['plate-displacement.x', 'plate-displacement.y', 'plate-displacement.u']), 'binding_ref': '', 'global_params_json': '{}',
-     'status': 'unresolved', 'notes': 'u → vector has no 2-D renderer channel yet (the 2-D compiler has objects and connections; vectors are 3-D only) — honestly unresolved'},
+     'dims_json': json.dumps(['plate-displacement.x', 'plate-displacement.y', 'plate-displacement.u']), 'binding_ref': 'FEMFieldState-u-2d',
+     'global_params_json': json.dumps({'sim_space': 'plate-mechanics-2d', 'exaggeration': 20000.0}),
+     'status': 'unresolved', 'notes': 'tt-8: u → vector through the 2-D `vectorfield` binding (node → node + k·u on the CONNECTIONS channel; k = 20000 is a stated knob, the raw u rides each line). The former visualization space\'s question — what exaggeration is honest? — is answered: the one that is written down.'},
 ]
+# tt-8 resolved the former `plate-displacement-visualization` space (its question is answered by the knob); a
+# tree with no unresolved space is allowed — nothing is kept unresolved for show. What remains open on the plate
+# is the geometry itself (cells are markers at centroids, not the triangles) — a visualization space on the root.
 SEED_UNRESOLVED += [
-    {'name': 'plate-displacement-visualization', 'description': '', 'tree': _P, 'parent': 'plate-displacement', 'title': 'how to SEE u per node in 2-D', 'unresolved_kind': 'visualization',
-     'known_dims_json': '["x","y","u"]', 'known_semantics_json': json.dumps({'u': 'per node, metres; |u| ≤ 1e-5 m on the seed case (invisible at plate scale unless exaggerated)'}),
-     'constraints_json': json.dumps(['no new renderer: a 2-D vector projection (the 3-D `vector` kind ported) or an exaggerated deformed-mesh scene']),
-     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a 2-D `vector` binding kind over FEMFieldState.nodes_json (cols 0-1 origin, 2-3 vector, an exaggeration knob)',
-                                                                           'a `connection` binding drawing each node to node + k·u']),
-     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['what exaggeration factor is honest to draw beside a colour field whose own scale is true?']), 'notes': 'tt-6 left this open on purpose'},
+    {'name': 'plate-geometry', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'the triangles themselves, not markers at their centroids', 'unresolved_kind': 'visualization',
+     'known_dims_json': '["x","y"]', 'known_semantics_json': json.dumps({'mesh': 'P1 triangles from FEMFieldState.nodes_json + the case mesh; the field binding draws one fixed-size marker per element'}),
+     'constraints_json': json.dumps(['no new renderer: a per-object polygon shape (Shape2DDefinition from vertices) or a mesh channel the 2-D compiler emits']),
+     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a `field` binding whose cells carry their vertices (triangles_json) → polygon objects sized in space units']),
+     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['does the 2-D shape library accept a per-instance polygon, or is a mesh channel needed?']), 'notes': 'tt-8 left this open on purpose'},
 ]
 SEED_TENSOR_MAPPINGS += [
     _M(name='u→eps', kind='operator', source_node='plate-displacement', source_dims_json='["node","i"]', target_node='plate-strain', target_dims_json='["n","k","l"]',

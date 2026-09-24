@@ -210,9 +210,10 @@ check('the seed field row is solved at seed time from the seed case + the seed m
       isinstance(SEED_FEM_FIELD_STATES, LazySeedRows) and len(SEED_FEM_FIELD_STATES) == 1 and SEED_FEM_FIELD_STATES[0]['n_elements'] == 64
       and PLATE_SIGMA_DOMAIN[0] <= SEED_FEM_FIELD_STATES[0]['sigma_vm_min'] <= SEED_FEM_FIELD_STATES[0]['sigma_vm_max'] <= PLATE_SIGMA_DOMAIN[1]
       and 'literature-est' in SEED_FEM_FIELD_STATES[0]['material_provenance'], {k: v for k, v in (SEED_FEM_FIELD_STATES[0] if SEED_FEM_FIELD_STATES else {}).items() if 'json' not in k})
-_bj = json.loads(SEED_PLATE_BINDINGS[0]['binding_json'])
+_sb = next(b for b in SEED_PLATE_BINDINGS if b['name'] == 'FEMFieldState-2d')
+_bj = json.loads(_sb['binding_json'])
 check('the binding FEMFieldState-2d is a 2-D `field` over elements_json, colour = column 2 (σ_vm) over PLATE_SIGMA_DOMAIN in Pa; the scene binds the class',
-      SEED_PLATE_BINDINGS[0]['name'] == 'FEMFieldState-2d' and _bj['kind'] == 'field' and _bj['layout']['scalarCol'] == 2 and _bj['color']['domain'] == PLATE_SIGMA_DOMAIN and _bj['color']['unit'] == 'Pa'
+      _sb['name'] == 'FEMFieldState-2d' and _bj['kind'] == 'field' and _bj['layout']['scalarCol'] == 2 and _bj['color']['domain'] == PLATE_SIGMA_DOMAIN and _bj['color']['unit'] == 'Pa'
       and json.loads(SEED_PLATE_SIMSPACES[0]['bound_classes_json'])[0]['className'] == 'FEMFieldState' and SEED_PLATE_SIMSPACES[0]['dimensionality'] == '2d')
 from simSpace.compilers.field_projection_2d import emit_field_2d, ramp_color
 _inst = types.SimpleNamespace(name='f', elements_json=json.dumps([[0.1, 0.2, 0.8e6, 0, 0, 0, 1], [0.3, 0.4, 1.1e6, 0, 0, 0, 1], [0.5, 0.6, 'nan', 0, 0, 0, 1]]))
@@ -222,6 +223,13 @@ check('emit_field_2d fans the row into one object per element at its centroid, c
       len(_objs) == 3 and _objs[0]['position'] == [0.1, 0.2] and _objs[0]['colorOverride'] == ramp_color('stress', 0.0) and _objs[1]['colorOverride'] == ramp_color('stress', 1.0)
       and _objs[0]['id'] == 'FEMFieldState-2d:FEMFieldState:0' and _objs[0]['userData']['scalar'] == 0.8e6 and _objs[0]['userData']['unit'] == 'Pa' and _objs[0]['shapeRef'] == 'rectangle', _objs[:2])
 check('  …a cell whose scalar is not a number is drawn grey and says so (refused, never invented)', _objs[2]['colorOverride'] == '#bdbdbd' and 'no numeric scalar' in _objs[2]['userData']['refused'], _objs[2])
+from simSpace.compilers.field_projection_2d import emit_vectorfield_2d
+_ub = json.loads(next(b for b in SEED_PLATE_BINDINGS if b['name'] == 'FEMFieldState-u-2d')['binding_json'])
+_uinst = types.SimpleNamespace(name='f', nodes_json=json.dumps([[0.0, 0.0, 0.0, 0.0], [2.0, 0.5, 1e-5, -2.5e-6]]))
+_conns = emit_vectorfield_2d('FEMFieldState', {1: _uinst}, _ub, 'FEMFieldState-u-2d', None, [])
+check('tt-8: emit_vectorfield_2d draws u as a CONNECTION node → node + k·u with k = 20000 the binding\'s stated knob (2 m, 0.5 m + (0.2, −0.05)); the raw u and k ride userData; a zero vector is skipped only below magnitudeMin (0 → drawn)',
+      _ub['kind'] == 'vectorfield' and len(_conns) == 2 and _conns[1]['sourcePosition'] == [2.0, 0.5] and abs(_conns[1]['targetPosition'][0] - 2.2) < 1e-9 and abs(_conns[1]['targetPosition'][1] - 0.45) < 1e-9
+      and _conns[1]['userData']['vector'] == [1e-5, -2.5e-6] and _conns[1]['userData']['vectorScale'] == 20000.0 and _conns[1]['id'] == 'FEMFieldState-u-2d:FEMFieldState:1', _conns)
 check('  …the ramp is clamped and monotone in hue stops', ramp_color('stress', -1) == ramp_color('stress', 0) and ramp_color('stress', 2) == ramp_color('stress', 1) and ramp_color('nope', 0.5) == ramp_color('grey', 0.5))
 
 n_ok = sum(1 for _, ok in _results if ok)
