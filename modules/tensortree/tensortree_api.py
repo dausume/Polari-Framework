@@ -9,13 +9,18 @@
   POST /api/tensortree/select               {"node": "<TensorNode.name>", "ranges": {dim: [lo, hi]}, "created_from": "…"}
                                             → CREATES the TensorSelection row (the click is a mathematical object,
                                             plan §15) and returns its discovery: VISUALIZE → SELECT → DISCOVER
-Rows are edited through CRUDE (they are treeObjects); this surface reads, discovers, and makes ONE row: the selection.
+  GET  /api/tensortree/scale/{material}     tt-4: the material's SCALE tree as a reading of the materials model (levels,
+                                            gaps, pspp scale transfers by reference, fidelity ladder) — no rows written
+  POST /api/tensortree/scale/{material}/materialise   persist that view as tree rows (a person's action, idempotent)
+Rows are edited through CRUDE (they are treeObjects); this surface reads, discovers, and makes rows only on a
+person's explicit action (select, materialise).
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from tensortree.custom.tensortree_validate import validate_tree
 from tensortree.custom.tensortree_graph import tree_graph
 from tensortree.custom.tensortree_discover import discover
+from tensortree.custom.tensortree_scale import scale_tree, materialise
 
 
 class TensorTreeAPI(treeObject):
@@ -31,6 +36,8 @@ class TensorTreeAPI(treeObject):
             add('/api/tensortree/trees/{name}/validate', self, suffix='validate')
             add('/api/tensortree/discover', self, suffix='discover')
             add('/api/tensortree/select', self, suffix='select')
+            add('/api/tensortree/scale/{material}', self, suffix='scale')
+            add('/api/tensortree/scale/{material}/materialise', self, suffix='materialise')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -53,6 +60,18 @@ class TensorTreeAPI(treeObject):
 
     def on_get_validate(self, request, response, name):
         response.media = {'ok': True, 'validation': validate_tree(self.manager, name)}
+
+    def on_get_scale(self, request, response, material):
+        v = scale_tree(self.manager, material)
+        if not v.get('ok'):
+            response.status = '404 Not Found'
+        response.media = v
+
+    def on_post_materialise(self, request, response, material):
+        r = materialise(self.manager, material)
+        if not r.get('ok'):
+            response.status = '404 Not Found'; response.media = r; return
+        response.status = '201 Created'; response.media = {'ok': True, 'written': r['written'], 'tree': r['view']['tree']}
 
     def on_post_select(self, request, response):
         import datetime, json as _json

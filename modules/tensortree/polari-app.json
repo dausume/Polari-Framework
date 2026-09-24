@@ -60,7 +60,8 @@
   "custom": [
    "custom/tensortree_validate",
    "custom/tensortree_discover",
-   "custom/tensortree_graph"
+   "custom/tensortree_graph",
+   "custom/tensortree_scale"
   ],
   "endpoints": [
    "tensortree_endpoints"

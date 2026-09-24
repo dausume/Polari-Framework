@@ -146,6 +146,37 @@ check('the chain u → ε → σ → balance is three operator mappings with val
       {mm.name for mm in m2.objectTables['TensorMapping'].values() if str(mm.kind) == 'operator'} >= {'u→eps', 'eps→sigma', 'sigma→balance'}
       and 'linear momentum' in next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'sigma→balance').conservation_json)
 
+# ---- tt-4 / Phase 7: the SCALE tree of a material is a READING of the materials model (msci + pspp)
+from tensortree.custom.tensortree_scale import scale_tree, materialise
+from materialsScience.materials_basis_seed import SEED_MS_SCALE_DEFINITIONS as SEED_MATERIAL_SCALES
+from pspp.objects.scale_transfers._shared import SEED_SCALE_TRANSFERS
+m4 = _mgr(); m4.objectTables.update({'MaterialScaleDefinition': {}, 'ScaleTransferDefinition': {}, 'MultiScaleSimulationProfile': {}})
+for r in SEED_MATERIAL_SCALES:
+    _add(m4, 'MaterialScaleDefinition', **r)
+for r in SEED_SCALE_TRANSFERS:
+    _add(m4, 'ScaleTransferDefinition', **r)
+_add(m4, 'MultiScaleSimulationProfile', name='p', fidelity_ladder_json=json.dumps([{'rung': 1, 'level': 'L1', 'engines': ['fem'], 'costClass': 'cheap', 'purpose': 'screening'}, {'rung': 4, 'level': 'L4', 'engines': ['dft'], 'costClass': 'expensive', 'purpose': 'evidence'}]))
+v = scale_tree(m4, 'paraffin-wax')
+check('scale tree: paraffin wax is READ from the materials model — levels present become nodes, missing levels become STRUCTURAL unresolved spaces',
+      v['ok'] and {n['level'] for n in v['nodes']} == {0, 4} and {u['level'] for u in v['unresolved']} == {1, 2, 3} and all(u['unresolved_kind'] == 'structural' for u in v['unresolved']), (v.get('error'), [n['level'] for n in v['nodes']]))
+check('  …the root is the coarsest level present (experimental — what was measured)', v['root'] == 'paraffin-wax@L0')
+check('  …the fidelity ladder rides on the levels it names (cost class, engines) — on nodes AND on gaps', next(n for n in v['nodes'] if n['level'] == 4)['fidelity'].get('costClass') == 'expensive' and next(u for u in v['unresolved'] if u['level'] == 1)['fidelity'].get('costClass') == 'cheap')
+check('  …the pspp scale transfers become kind=scale mappings BY REFERENCE, status mapped to the two statuses (executed → implemented + simulated)',
+      len(v['mappings']) == 2 and all(mp['kind'] == 'scale' and mp['scale_transfer_ref'] == mp['name'] for mp in v['mappings'])
+      and all(mp['mapping_status'] == 'implemented' and mp['evidence_level'] == 'simulated' for mp in v['mappings']), v['mappings'])
+check('  …L0 → L1 (thermal continuum, INTO a gap) and L0 → L4 (quantum) are the edges — a mapping may target an unresolved space — and the view writes NO rows',
+      {(mp['source_node'], mp['target_node']) for mp in v['mappings']} == {('paraffin-wax@L0', 'paraffin-wax@L1'), ('paraffin-wax@L0', 'paraffin-wax@L4')} and not m4.objectTables['TensorTreeDefinition'])
+check('an unknown material is refused by name', not scale_tree(m4, 'unobtainium')['ok'])
+_fake = lambda cls, cls_name, **f: _add(m4, cls_name, **f)
+w = materialise(m4, 'paraffin-wax', make=_fake)
+check('materialise: writes the tree rows (1 tree, 2 nodes, 3 unresolved, 2 mappings)', w['ok'] and w['written'] == {'tree': 'paraffin-wax@scale', 'nodes': 2, 'unresolved': 3, 'mappings': 2}, w.get('written'))
+rep4 = validate_tree(m4, 'paraffin-wax@scale')
+check('  …and the materialised tree passes the structural rules with L0 as the one root', rep4['ok'] and len([n for n in m4.objectTables['TensorNode'].values() if getattr(n, 'tree', '') == 'paraffin-wax@scale' and not n.parent]) == 1, rep4['errors'])
+w2 = materialise(m4, 'paraffin-wax', make=_fake)
+check('  …idempotent: materialising again writes the same rows, never duplicates', w2['written'] == w['written'] and len([n for n in m4.objectTables['TensorNode'].values() if getattr(n, 'tree', '') == 'paraffin-wax@scale']) == 2)
+g4 = tree_graph(m4, 'paraffin-wax@scale')
+check('  …the graph view shows the two transfers as mapping edges between levels', g4['mappings'] == 2 and g4['structural'] == 4)
+
 # ---- the manifest
 man = json.load(open('modules/tensortree/polari-app.json'))
 from moduleService.manifests import validate

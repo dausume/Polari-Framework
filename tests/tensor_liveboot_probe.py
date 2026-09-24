@@ -3,13 +3,14 @@ techtree, microchip, matrices are core) enabled, then hit their routes — provi
 wiring, seed pairs (eleven rungs, 70 kinds, the compute-lod tree, the default discovery policy) and route
 registration work outside the selftest fixtures. Also proves the dep-0/1 cicd rows now type (they were missing
 from defClassList).
-Run from a THROWAWAY working directory (the boot writes a sqlite DB into cwd):
+Run from a THROWAWAY working directory (the boot writes its sqlite DB into ./data/ of the cwd — remove that dir between runs, or a
+previous run's rows come back through the restore):
   cd /tmp/somewhere && PYTHONPATH=<framework>:<framework>/modules python3 <framework>/tests/tensor_liveboot_probe.py
 """
 import json
 import os
 import sys
-os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
+os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,tensormath,tensortree,computelod,cicd'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -99,8 +100,8 @@ check('POST evaluate tt2-sigma-from-C SOLVES the plate live and contracts C:ε �
 r2 = client.simulate_get('/api/tensormath/tensors/tt2-sigma')
 check('GET tensors/tt2-sigma names its engine storage and the plate-mechanics tree', r2.status_code == 200 and r2.json['tensor']['storage_ref'] == 'fem:tt2-plate-tension:stress' and 'plate-mechanics' in r2.json['trees'])
 r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
-check('GET operators/stress-from-strain shows the bridge: one numpy implementation on the microarchitecture rung, evidence none (no invented benchmark)',
-      r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none', r.text[:300])
+check('GET operators/stress-from-strain shows the bridge: the numpy implementation on the microarchitecture rung, evidence none until benchmarked, and the FPGA row beside it',
+      r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none' and len(r.json['implementations']) == 2, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('plate-mechanics validates; its root is unresolved for the stated reason (no binding), its visualization space typed', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['why'] == 'no binding_ref'
       and r.json['validation']['unresolved']['plate-visualization']['kind'] == 'visualization', r.text[:300])
@@ -115,6 +116,16 @@ impls = {i['name']: i for i in r.json['implementations']}
 check('GET operators/stress-from-strain now shows BOTH: numpy measured on this node, the FPGA kernel simulated on an iCE40 — same operator, two rungs',
       r.status_code == 200 and impls['stress-from-strain/numpy']['evidence_level'] == 'measured' and impls['stress-from-strain/fpga-stress-mac']['evidence_level'] == 'simulated'
       and impls['stress-from-strain/fpga-stress-mac']['target_rung'] == 'rtl' and impls['stress-from-strain/numpy']['latency_s'] > 0, r.text[:400])
+# ---- tt-4 / Phase 7: the scale tree of paraffin wax, read live from msci + pspp, then materialised
+r = client.simulate_get('/api/tensortree/scale/paraffin-wax')
+check('GET scale/paraffin-wax reads the material\'s levels as this instance holds them (L0 present), its gaps, and its two executed pspp transfers as scale mappings',
+      r.status_code == 200 and 0 in {n['level'] for n in r.json['nodes']} and len(r.json['mappings']) == 2 and len(r.json['nodes']) + len(r.json['unresolved']) == 5, r.text[:300])
+r = client.simulate_post('/api/tensortree/scale/paraffin-wax/materialise')
+check('POST materialise persists it as tree rows (201)', r.status_code == 201 and r.json['written']['nodes'] >= 2 and r.json['written']['mappings'] == 2, r.text[:200])
+r = client.simulate_get('/api/tensortree/trees/paraffin-wax@scale/validate')
+check('  …and the materialised scale tree validates (one root, L0)', r.status_code == 200 and r.json['validation']['ok'], r.text[:200])
+r = client.simulate_get('/api/tensortree/scale/unobtainium')
+check('an unknown material is a 404 with the reason', r.status_code == 404)
 pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, 'pageRoute', '') in ('tensormath', 'tensortree', 'computelod')]
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
 tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')
