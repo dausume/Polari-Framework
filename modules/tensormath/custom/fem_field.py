@@ -6,6 +6,7 @@ binding renders ROWS of a CLASS. This module turns one solved case into ONE `FEM
 
     elements_json  [[cx, cy, σ_vm, σ_xx, σ_yy, σ_xy, area], …]   one per element (P1: constant per triangle)
     nodes_json     [[x, y, u_x, u_y], …]                          one per node
+    triangles_json [[i, j, k], …]                                 the mesh (node indices) — its edges are drawable (tt-9)
 
 Two doors to the same builder:
   * `field_row_from_solution(sol, case_name)` — from `tensor_ops.fem_case_solution` (manager path; the API's
@@ -48,7 +49,7 @@ def field_row_from_tensor_field(tf, case_name, material_provenance='', assumptio
     node_rows = [[n[0], n[1], d[0], d[1]] for n, d in zip(nodes, disp)]
     vms = [e[2] for e in elements] or [0.0]
     umax = max((abs(d[0]) ** 2 + abs(d[1]) ** 2) ** 0.5 for d in disp) if disp else 0.0
-    return {'name': '%s-field' % case_name, 'description': 'σ per element (von Mises + components) and u per node of the FEM case %s, as a row a 2-D field binding can render' % case_name,
+    return {'name': '%s-field' % case_name, 'triangles_json': json.dumps(tris), 'description': 'σ per element (von Mises + components) and u per node of the FEM case %s, as a row a 2-D field binding can render' % case_name,
             'case': case_name, 'elements_json': json.dumps(elements), 'nodes_json': json.dumps(node_rows), 'n_elements': len(elements), 'n_nodes': len(node_rows),
             'sigma_vm_max': max(vms), 'sigma_vm_min': min(vms), 'u_max': umax, 'assumption': assumption or str(tf.get('lame', {}).get('assumption', '')),
             'material_provenance': material_provenance, 'columns_json': json.dumps(FIELD_COLUMNS), 'node_columns_json': json.dumps(NODE_COLUMNS),

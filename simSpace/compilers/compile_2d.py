@@ -29,7 +29,7 @@ from .common import (
     stamp_class_metadata,
 )
 from simulations.run_scope import resolve_run_scope, row_in_run_scope
-from .field_projection_2d import emit_field_2d, emit_vectorfield_2d
+from .field_projection_2d import emit_field_2d, emit_vectorfield_2d, emit_meshwire_2d
 
 
 def compile_2d(
@@ -131,6 +131,14 @@ def compile_2d(
                     resolve_resolved_binding(
                         class_name, binding, override, len(emitted_conns),
                     )
+                )
+        elif binding_kind == 'meshwire':
+            # A mesh row's triangle EDGES, each once, as connections (the wireframe).
+            emitted_conns = emit_meshwire_2d(class_name, instances, binding, binding_name, override, warnings)
+            connections.extend(emitted_conns)
+            if emitted_conns:
+                resolved_bindings.append(
+                    resolve_resolved_binding(class_name, binding, override, len(emitted_conns))
                 )
         elif binding_kind == 'vectorfield':
             # A per-node vector field rides the CONNECTIONS channel: node → node + k·v,

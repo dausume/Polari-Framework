@@ -185,11 +185,14 @@ check('  …but NOT when the instance holds bindings and none is named FEMFieldS
       rep2b['nodes']['plate']['status'] == 'unresolved' and 'names no SimSpaceBindingDefinition' in rep2b['nodes']['plate']['why'], rep2b['nodes']['plate'])
 _add(m2, 'SimSpaceBindingDefinition', name='FEMFieldState-2d', class_name='FEMFieldState')
 _add(m2, 'SimSpaceBindingDefinition', name='FEMFieldState-u-2d', class_name='FEMFieldState')
+_add(m2, 'SimSpaceBindingDefinition', name='FEMFieldState-mesh-2d', class_name='FEMFieldState')
 rep2 = validate_tree(m2, 'plate-mechanics')
 check('  …and resolves again once the binding row exists', rep2['nodes']['plate']['status'] == 'resolved')
 check('  …tt-8: u per node is RESOLVED too (x/y → position, u → vector through the 2-D vectorfield binding FEMFieldState-u-2d, exaggeration a stated knob); the remaining space is the GEOMETRY (triangles, not markers)',
       rep2['nodes']['plate-displacement']['status'] == 'resolved' and rep2['nodes']['plate-displacement']['binding_ref'] == 'FEMFieldState-u-2d'
-      and rep2['unresolved']['plate-geometry']['kind'] == 'visualization' and 'plate-displacement-visualization' not in rep2['unresolved'], (rep2['nodes']['plate-displacement'], list(rep2['unresolved'])))
+      and rep2['unresolved']['plate-filled-cells']['kind'] == 'visualization' and 'plate-displacement-visualization' not in rep2['unresolved'], (rep2['nodes']['plate-displacement'], list(rep2['unresolved'])))
+check('  …tt-9: the mesh node is RESOLVED (edges as a wireframe via FEMFieldState-mesh-2d); the tree\'s one open space is FILLED cells (a renderer change, a person\'s call)',
+      rep2['nodes']['plate-mesh']['status'] == 'resolved' and list(rep2['unresolved']) == ['plate-filled-cells'], (rep2['nodes'].get('plate-mesh'), list(rep2['unresolved'])))
 check('  …the σ colour domain of the dimension is the binding\'s (one constant: tensormath.PLATE_SIGMA_DOMAIN)',
       __import__('json').loads(next(d for d in SEED_LOCALIZED_DIMENSIONS if d['name'] == 'plate.sigma')['scale_json'])['domain'] == __import__('tensormath.tensormath_seed', fromlist=['x']).PLATE_SIGMA_DOMAIN)
 psel = next(s for s in m2.objectTables['TensorSelection'].values() if s.name == 'plate-strain-all')

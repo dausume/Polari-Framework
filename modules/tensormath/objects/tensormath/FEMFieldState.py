@@ -25,6 +25,7 @@ class FEMFieldState(treeObject):
         case: str = '',
         elements_json: str = '[]',
         nodes_json: str = '[]',
+        triangles_json: str = '[]',
         n_elements: int = 0,
         n_nodes: int = 0,
         sigma_vm_max: float = 0.0,
@@ -43,6 +44,7 @@ class FEMFieldState(treeObject):
         self.case = case  # FEMModelDefinition.name this field was solved from
         self.elements_json = elements_json  # matrix: one row per element (see columns_json)
         self.nodes_json = nodes_json  # matrix: one row per node (see node_columns_json)
+        self.triangles_json = triangles_json  # [n_elements, 3] node indices — the mesh, so its edges can be drawn (tt-9)
         self.n_elements = n_elements
         self.n_nodes = n_nodes
         self.sigma_vm_max = sigma_vm_max  # Pa — the field's own range, so a colour domain can be honest

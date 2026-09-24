@@ -93,6 +93,8 @@ SEED_LOCALIZED_DIMENSIONS += [
     _ld('plate', 'sigma', 'color', sc=json.dumps({'kind': 'continuous', 'domain': _SIGMA_DOMAIN, 'unit': 'Pa', 'field': 'von Mises'})) | {'dimension': 'tt2-sigma'},
     _ld('plate-displacement', 'x', 'position.x') | {'dimension': 'tt2-u'}, _ld('plate-displacement', 'y', 'position.y') | {'dimension': 'tt2-u'},
     _ld('plate-displacement', 'u', 'vector') | {'dimension': 'tt2-u'},
+    _ld('plate-mesh', 'x', 'position.x') | {'dimension': 'tt2-u'}, _ld('plate-mesh', 'y', 'position.y') | {'dimension': 'tt2-u'},
+    _ld('plate-mesh', 'edge', 'shape') | {'dimension': 'tt2-mesh.edges'},
 ]
 SEED_TENSOR_NODES += [
     {'name': 'plate', 'description': '', 'tree': _P, 'parent': '', 'title': 'the plate: σ per element', 'tensor': 'tt2-sigma',
@@ -104,16 +106,19 @@ SEED_TENSOR_NODES += [
      'dims_json': json.dumps(['plate-displacement.x', 'plate-displacement.y', 'plate-displacement.u']), 'binding_ref': 'FEMFieldState-u-2d',
      'global_params_json': json.dumps({'sim_space': 'plate-mechanics-2d', 'exaggeration': 20000.0}),
      'status': 'unresolved', 'notes': 'tt-8: u → vector through the 2-D `vectorfield` binding (node → node + k·u on the CONNECTIONS channel; k = 20000 is a stated knob, the raw u rides each line). The former visualization space\'s question — what exaggeration is honest? — is answered: the one that is written down.'},
+    {'name': 'plate-mesh', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'the mesh: P1 triangles as their edges', 'tensor': 'tt2-u',
+     'dims_json': json.dumps(['plate-mesh.x', 'plate-mesh.y', 'plate-mesh.edge']), 'binding_ref': 'FEMFieldState-mesh-2d', 'global_params_json': json.dumps({'sim_space': 'plate-mechanics-2d'}),
+     'status': 'unresolved', 'notes': 'tt-9: the triangles SEEN as a wireframe (each edge once, on the CONNECTIONS channel). The former plate-geometry question is answered: the 2-D shape library takes a shapeRef, not vertices — so edges now, filled cells only with a renderer change (kept as the tree\'s open space).'},
 ]
 # tt-8 resolved the former `plate-displacement-visualization` space (its question is answered by the knob); a
 # tree with no unresolved space is allowed — nothing is kept unresolved for show. What remains open on the plate
 # is the geometry itself (cells are markers at centroids, not the triangles) — a visualization space on the root.
 SEED_UNRESOLVED += [
-    {'name': 'plate-geometry', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'the triangles themselves, not markers at their centroids', 'unresolved_kind': 'visualization',
-     'known_dims_json': '["x","y"]', 'known_semantics_json': json.dumps({'mesh': 'P1 triangles from FEMFieldState.nodes_json + the case mesh; the field binding draws one fixed-size marker per element'}),
-     'constraints_json': json.dumps(['no new renderer: a per-object polygon shape (Shape2DDefinition from vertices) or a mesh channel the 2-D compiler emits']),
-     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a `field` binding whose cells carry their vertices (triangles_json) → polygon objects sized in space units']),
-     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['does the 2-D shape library accept a per-instance polygon, or is a mesh channel needed?']), 'notes': 'tt-8 left this open on purpose'},
+    {'name': 'plate-filled-cells', 'description': '', 'tree': _P, 'parent': 'plate-mesh', 'title': 'σ as FILLED triangles, not markers inside a wireframe', 'unresolved_kind': 'visualization',
+     'known_dims_json': '["x","y","sigma"]', 'known_semantics_json': json.dumps({'mesh': 'edges are drawn (tt-9); the colour still sits on a fixed-size marker at each centroid'}),
+     'constraints_json': json.dumps(['a renderer change: the 2-D shape library takes a shapeRef, not per-instance vertices (answered in tt-9) — a polygon object kind or a mesh channel with per-face colour']),
+     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a `field` binding emitting polygon objects (vertices + colorOverride) once the renderer paints them']),
+     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['is a per-face polygon worth a renderer change, or is the wireframe + colour marker enough for intuition?']), 'notes': 'tt-9 left this open on purpose; a person\'s call'},
 ]
 SEED_TENSOR_MAPPINGS += [
     _M(name='u→eps', kind='operator', source_node='plate-displacement', source_dims_json='["node","i"]', target_node='plate-strain', target_dims_json='["n","k","l"]',

@@ -136,6 +136,13 @@ SEED_PLATE_SIMSPACES = [{
     'definition': json.dumps({'freestanding': []}),
 }]
 SEED_PLATE_BINDINGS = [{
+    'name': 'FEMFieldState-mesh-2d', 'class_name': 'FEMFieldState', 'dimensionality': '2d', 'enabled': True,
+    'binding_json': json.dumps({
+        'enabled': True, 'dimensionality': '2d', 'kind': 'meshwire', 'nodesField': 'nodes_json', 'trianglesField': 'triangles_json',
+        'layout': {'originCols': [0, 2]}, 'visual': {'styleRef': 'default'}, 'defaultVisible': True,
+        'note': 'the P1 mesh as a wireframe (each edge once) — the triangles SEEN; filled cells would need a renderer change (shapeRef-only shape library), not pretended',
+    }),
+}, {
     'name': 'FEMFieldState-u-2d', 'class_name': 'FEMFieldState', 'dimensionality': '2d', 'enabled': True,
     'binding_json': json.dumps({
         'enabled': True, 'dimensionality': '2d', 'kind': 'vectorfield', 'matrixField': 'nodes_json',

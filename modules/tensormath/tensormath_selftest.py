@@ -230,6 +230,13 @@ _conns = emit_vectorfield_2d('FEMFieldState', {1: _uinst}, _ub, 'FEMFieldState-u
 check('tt-8: emit_vectorfield_2d draws u as a CONNECTION node → node + k·u with k = 20000 the binding\'s stated knob (2 m, 0.5 m + (0.2, −0.05)); the raw u and k ride userData; a zero vector is skipped only below magnitudeMin (0 → drawn)',
       _ub['kind'] == 'vectorfield' and len(_conns) == 2 and _conns[1]['sourcePosition'] == [2.0, 0.5] and abs(_conns[1]['targetPosition'][0] - 2.2) < 1e-9 and abs(_conns[1]['targetPosition'][1] - 0.45) < 1e-9
       and _conns[1]['userData']['vector'] == [1e-5, -2.5e-6] and _conns[1]['userData']['vectorScale'] == 20000.0 and _conns[1]['id'] == 'FEMFieldState-u-2d:FEMFieldState:1', _conns)
+from simSpace.compilers.field_projection_2d import emit_meshwire_2d
+_mb = json.loads(next(b for b in SEED_PLATE_BINDINGS if b['name'] == 'FEMFieldState-mesh-2d')['binding_json'])
+_minst = types.SimpleNamespace(name='f', nodes_json=json.dumps([[0, 0, 0, 0], [1, 0, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0]]), triangles_json=json.dumps([[0, 1, 2], [1, 3, 2]]))
+_edges = emit_meshwire_2d('FEMFieldState', {1: _minst}, _mb, 'FEMFieldState-mesh-2d', None, [])
+check('tt-9: emit_meshwire_2d draws two triangles as FIVE edges (the shared diagonal once), reference positions, stable edge ids',
+      _mb['kind'] == 'meshwire' and len(_edges) == 5 and sorted(e['userData']['edge'] for e in _edges) == [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3]] and _edges[0]['id'] == 'FEMFieldState-mesh-2d:FEMFieldState:0-1', _edges)
+check('  …the seed field row carries the mesh (64 triangles) so the wireframe has something to draw', len(json.loads(SEED_FEM_FIELD_STATES[0]['triangles_json'])) == 64)
 check('  …the ramp is clamped and monotone in hue stops', ramp_color('stress', -1) == ramp_color('stress', 0) and ramp_color('stress', 2) == ramp_color('stress', 1) and ramp_color('nope', 0.5) == ramp_color('grey', 0.5))
 
 n_ok = sum(1 for _, ok in _results if ok)

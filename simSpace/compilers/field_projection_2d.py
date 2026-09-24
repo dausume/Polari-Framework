@@ -55,6 +55,72 @@ def ramp_color(ramp: str, t: float) -> str:
     return '#%02x%02x%02x' % (r, g, b)
 
 
+def emit_meshwire_2d(
+    class_name: str,
+    instances: Dict,
+    binding: Dict,
+    binding_name: str,
+    override: Optional[Dict],
+    warnings: List[str],
+) -> List[Dict]:
+    """`meshwire`-kind in 2-D: a mesh row (`nodesField` = [[x, y, …], …], `trianglesField` = [[i, j, k], …]) fans out
+    into its EDGES as connections, each edge once. The triangles are SEEN — as a wireframe on the channel the
+    renderer already draws; a FILLED per-instance polygon would need a renderer change (the 2-D shape library
+    takes a shapeRef, not vertices) and is not pretended here. Optional `displacementCols` + `vectorScale` draw
+    the DEFORMED mesh (node + k·u) instead of the reference one — the same stated-exaggeration knob."""
+    nodes_field = binding.get('nodesField'); tri_field = binding.get('trianglesField')
+    if not nodes_field or not tri_field:
+        warnings.append(f"{class_name} meshwire binding needs nodesField + trianglesField; skipping.")
+        return []
+    layout = binding.get('layout') or {}
+    o0 = (layout.get('originCols') or [0, 2])[0]
+    dcols = layout.get('displacementCols')
+    try:
+        k = float(binding.get('vectorScale', 0.0))
+    except (TypeError, ValueError):
+        k = 0.0
+    visual = binding.get('visual') or {}
+    style_ref_cfg = visual.get('styleRef') or 'default'
+    scene_style = override.get('overrideStyleRef') if override else None
+    out: List[Dict] = []
+    iter_instances = instances.values() if isinstance(instances, dict) else instances
+    for inst in iter_instances:
+        nodes = parse_json_safe(getattr(inst, nodes_field, '') or '[]', [])
+        tris = parse_json_safe(getattr(inst, tri_field, '') or '[]', [])
+        if not isinstance(nodes, list) or not isinstance(tris, list):
+            warnings.append(f"{class_name}: {nodes_field}/{tri_field} are not matrices; skipping instance.")
+            continue
+        inst_id = instance_id(inst)
+        temporal_value = read_temporal_value(inst, binding)
+        def pos(i):
+            n = nodes[i]
+            x, y = float(n[o0]), float(n[o0 + 1])
+            if dcols and k and len(n) > dcols[0] + 1:
+                x += k * float(n[dcols[0]]); y += k * float(n[dcols[0] + 1])
+            return [x, y]
+        seen = set()
+        for t in tris:
+            if not isinstance(t, (list, tuple)) or len(t) < 3:
+                continue
+            for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0])):
+                try:
+                    a, b = int(a), int(b)
+                except (TypeError, ValueError):
+                    continue
+                key = (min(a, b), max(a, b))
+                if key in seen or a >= len(nodes) or b >= len(nodes):
+                    continue
+                seen.add(key)
+                conn: Dict = {'id': f'{binding_name}:{class_name}:{key[0]}-{key[1]}', 'sourcePosition': pos(a), 'targetPosition': pos(b),
+                              'styleRef': scene_style or resolve_ref(style_ref_cfg, inst, 'default'),
+                              'classRef': {'className': class_name, 'instanceId': inst_id},
+                              'userData': {'bindingName': binding_name, 'edge': list(key), 'deformed': bool(dcols and k), 'vectorScale': k if dcols else 0.0}}
+                if temporal_value is not None:
+                    conn['temporalValue'] = temporal_value
+                out.append(conn)
+    return out
+
+
 def emit_vectorfield_2d(
     class_name: str,
     instances: Dict,
