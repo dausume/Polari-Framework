@@ -196,8 +196,25 @@ for cls, rws in (('ComputeMapping', SEED_LOD_MAPPINGS), ('CharacterizationMappin
     for r_ in rws:
         _add(m5, cls, **r_)
 p5 = path(m5, 'c-source', 'lod1/add.c: c = a + b')
-check('the walk from the C statement now reaches LAYOUT and stops at FABRICATION — ten rungs of eleven, and still honest about where it ends',
-      p5['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication'] and p5['unresolved_at'] == 'fabrication', (p5['rungs'], p5.get('unresolved_at')))
+check('the walk from the C statement now spans ALL ELEVEN rungs — C → … → layout → fabrication → materials — and ends at the ladder\'s bottom (materials), which is the end, not a gap',
+      p5['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication', 'materials'] and p5['unresolved_at'] == 'materials', (p5['rungs'], p5.get('unresolved_at')))
+
+# ---- lod-4: fabrication → materials by reference; the process-node row in sifet's shape, manufacturable left to him
+from computelod.custom.lod4_process import report as lod4_report, rows as lod4_rows, SKY130_NODE
+from sifet.objects.si_ladder._shared import FABRICATION_EVIDENCE, RIGHTS_CLASS
+rep4 = lod4_report()
+check('lod-4: a committed report exists; the sky130 process-node row uses sifet\'s OWN vocabularies (fabrication evidence, rights class) and leaves manufacturable = None with the evidence and D-lod4-1 named',
+      rep4 is not None and SKY130_NODE['fabrication_evidence'] in FABRICATION_EVIDENCE and SKY130_NODE['rights_class'] in RIGHTS_CLASS and SKY130_NODE['manufacturable'] is None
+      and 'D-lod4-1' in SKY130_NODE['manufacturable_reason'] and 'D-lod4-1' in rep4['decisions'], SKY130_NODE['manufacturable_reason'][:120])
+_kn = json.loads(SKY130_NODE['key_numbers_json'])
+check('  …its key numbers are the ones READ in lod-2/lod-3 (L = 0.15 µm, 1.8 V core) with their sources; the metal count is documentation and says so',
+      _kn['l_min_um']['value'] == 0.15 and 'lod-3' in _kn['l_min_um']['source'] and _kn['vdd_core_v']['value'] == 1.8 and 'documentation' in _kn['metal_layers']['note'])
+maps4, _ = lod4_rows(rep4, rep3)
+check('lod-4 rows: layout → fabrication RESOLVED by name (one-to-one, analytical, the process row); fabrication → materials enters the rung onto eg-si via the Siemens route and NAMES what is not modelled',
+      {m_['name'] for m_ in maps4} == {'lod3: layout → fabrication', 'lod4: fabrication → materials'} and all(m_['evidence_level'] == 'analytical' for m_ in maps4)
+      and 'eg-si' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['target_ref'] and 'not modelled' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['notes'])
+check('  …the CNT branch stays blocked at LAYOUT (not at process): its process rows are named so the gap is precise', rep4['cnt']['layout'] is None and 'CNTAlignmentProcess' in rep4['cnt']['process_rows_named'])
+check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a sifet class, skipped when sifet is absent)', any(n == 'SiliconProcessNode' and len(r) == 1 for n, _, r in COMPUTELOD_SEED_PAIRS))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
 

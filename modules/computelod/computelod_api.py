@@ -29,6 +29,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod2', self, suffix='lod2')                 # open silicon: SKY130 mapping + OpenSTA timing
             add('/api/computelod/lod2/cnt', self, suffix='lod2_cnt')         # the second Liberty: our own CNT cell library
             add('/api/computelod/lod3', self, suffix='lod3')                 # cells → transistors → layout, read from the artefacts
+            add('/api/computelod/lod4', self, suffix='lod4')                 # fabrication → materials, by reference
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -52,6 +53,14 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod4(self, request, response):
+        from computelod.custom.lod4_process import report
+        rep = report()
+        node = next((n for n in self._rows('SiliconProcessNode') if str(getattr(n, 'name', '')) == 'sky130'), None)
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'process_node_row': None if node is None else {'name': 'sky130', 'node_nm': getattr(node, 'node_nm', 0), 'vdd_v': getattr(node, 'vdd_v', 0),
+                          'rights_class': getattr(node, 'rights_class', ''), 'fabrication_evidence': getattr(node, 'fabrication_evidence', ''), 'manufacturable': getattr(node, 'manufacturable', None),
+                          'manufacturable_reason': getattr(node, 'manufacturable_reason', '')}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_process run (a reading; nothing fetched)'}
 
     def on_get_lod3(self, request, response):
         from computelod.custom.lod3_cells import report

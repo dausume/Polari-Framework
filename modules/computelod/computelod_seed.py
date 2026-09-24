@@ -117,6 +117,13 @@ from computelod.custom.lod3_cells import report as _lod3_report, rows as _lod3_r
 _l3m, _l3c = _lod3_rows(_lod3_report(), _lod2_report(), _lod2cnt_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3m)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3c)
+# ---- lod-4: fabrication → materials, by reference: a SiliconProcessNode `sky130` in sifet's ladder shape (seeded
+# here, manufacturable = None until he rules — D-lod4-1) and sifet's eg-si grade via the Siemens route. Replaces
+# lod-3's partial layout → fabrication BY NAME; the walk from C then spans all eleven rungs.
+from computelod.custom.lod4_process import report as _lod4_report, rows as _lod4_rows, SKY130_NODE
+_l4m, _l4c = _lod4_rows(_lod4_report(), _lod3_report())
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l4m)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4c)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),
@@ -125,6 +132,11 @@ COMPUTELOD_SEED_PAIRS = [
     ('CharacterizationMapping', CharacterizationMapping, SEED_LOD_CHARACTERIZATIONS),
     ('CompilerArtifact', CompilerArtifact, SEED_LOD1_ARTIFACTS),
 ]
+try:   # the fabrication rung's row is a sifet class (skipped by the seed loop when sifet is not loaded)
+    from sifet.objects.si_ladder.SiliconProcessNode import SiliconProcessNode
+    COMPUTELOD_SEED_PAIRS += [('SiliconProcessNode', SiliconProcessNode, [SKY130_NODE] if _lod4_report() else [])]
+except Exception:   # pragma: no cover
+    pass
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment
     COMPUTELOD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_COMPUTE_TECH_TREES),

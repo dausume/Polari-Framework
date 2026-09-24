@@ -118,16 +118,24 @@ check('a malformed range is a 400 naming the dim', r.status_code == 400 and 'x' 
 r = client.simulate_get('/api/computelod/lod1')
 check('GET /api/computelod/lod1 serves the committed report (encoding 0x00b50533, cell counts, verdicts)', r.status_code == 200 and r.json['report'].get('compile', {}).get('encoding') == '0x00b50533', r.text[:200])
 r = client.simulate_get('/api/computelod/path', params={'rung': 'c-source', 'ref': 'lod1/add.c: c = a + b'})
-check('GET path from the C statement walks C → compiler → ISA → microarchitecture → RTL → netlist → SKY130 cells → transistors → layout → (partial) fabrication: ten of eleven rungs',
-      r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication']
-      and r.json['path'].get('unresolved_at') == 'fabrication', r.text[:300])
+check('GET path from the C statement walks ALL ELEVEN rungs: C → compiler → ISA → microarchitecture → RTL → netlist → SKY130 cells → transistors → layout → sky130 process → electronic-grade silicon',
+      r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication', 'materials']
+      and r.json['path'].get('unresolved_at') == 'materials', r.text[:300])
 check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
+r = client.simulate_get('/api/computelod/lod4')
+check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a real boot (seeded by computelod in sifet\'s shape), manufacturable None with the reason + D-lod4-1',
+      r.status_code == 200 and r.json['ok'] and r.json['process_node_row'] and r.json['process_node_row']['node_nm'] == 130.0 and r.json['process_node_row']['manufacturable'] is None
+      and 'D-lod4-1' in r.json['process_node_row']['manufacturable_reason'], r.text[:300])
+from sifet.objects.si_ladder._shared import ladder_report as _si_ladder
+_lad = _si_ladder(manager)
+check('sifet\'s own ladder report still answers with sky130 as its coarsest rung (130 nm first), the ratified prior nodes unchanged after it',
+      isinstance(_lad, dict) and [x['name'] for x in _lad.get('rungs', [])][:2] == ['sky130', 'polari-si-90-class'], [x.get('name') for x in _lad.get('rungs', [])][:4] if isinstance(_lad, dict) else _lad)
 r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-3 rows are seeded: 13 ComputeMappings, 12 CharacterizationMappings, 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 13 and len(tables.get('CharacterizationMapping', {})) == 12 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-3 + lod-4 rows are seeded: 14 ComputeMappings, 12 CharacterizationMappings, 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 12 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
