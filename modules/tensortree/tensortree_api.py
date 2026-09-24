@@ -23,7 +23,7 @@ from tensortree.custom.tensortree_validate import validate_tree
 from tensortree.custom.tensortree_graph import tree_graph
 from tensortree.custom.tensortree_discover import discover
 from tensortree.custom.tensortree_scale import scale_tree, materialise
-from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling
+from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling, prove as prove_coupling
 
 
 class TensorTreeAPI(treeObject):
@@ -43,6 +43,7 @@ class TensorTreeAPI(treeObject):
             add('/api/tensortree/scale/{material}', self, suffix='scale')
             add('/api/tensortree/scale/{material}/materialise', self, suffix='materialise')
             add('/api/tensortree/mappings/{name}/couple', self, suffix='couple')
+            add('/api/tensortree/mappings/{name}/prove', self, suffix='prove')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -150,6 +151,13 @@ class TensorTreeAPI(treeObject):
         body = request.media if isinstance(request.media, dict) else {}
         p = create_coupling(self.manager, name, body)
         response.status = {404: '404 Not Found', 422: '422 Unprocessable Entity', 409: '409 Conflict', 201: '201 Created'}.get(p.get('status'), '200 OK')
+        response.media = p
+
+    def on_post_prove(self, request, response, name):
+        """Execute the mapping's coupling once through the runner's own pre-pass (one coupling, one run) and write the simulated evidence."""
+        body = request.media if isinstance(request.media, dict) else {}
+        p = prove_coupling(self.manager, name, body)
+        response.status = {404: '404 Not Found', 422: '422 Unprocessable Entity'}.get(p.get('status'), '200 OK')
         response.media = p
 
     def on_post_discover(self, request, response):

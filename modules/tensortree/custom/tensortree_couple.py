@@ -165,3 +165,87 @@ def couple(manager, mapping_name, body=None, make=None):
     p.update({'status': 201, 'created': p['coupling']['name'], 'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')),
               'note': 'created. evidence_level untouched: nothing has run through this coupling yet — pair a SimulationRun to it (coupled_run_refs_json) and step it, then the mapping may claim simulated evidence.'})
     return p
+
+
+def prove(manager, mapping_name, body=None):
+    """EXECUTE the coupling a mapping names, once, through the runner's OWN pre-pass functions — for this coupling
+    alone, on a target SimulationRun that pairs to a source run — and record what was sampled and injected. That is
+    the evidence a `simulated` level needs (the sampler read a simulation's row); `mapping_status` is not raised
+    to validated: consumption by a solution is not attributed here (the injected keys may be shared with a seeded
+    coupling). Body: run (target run name; default = the first run of the target sim that names a source run of
+    the coupling's source sim), time (default = the target run's latest time), write (default True)."""
+    body = body if isinstance(body, dict) else {}
+    m = _by_name(manager, 'TensorMapping', mapping_name)
+    if m is None:
+        return {'ok': False, 'status': 404, 'error': 'no TensorMapping %r' % mapping_name}
+    cref = str(getattr(m, 'coupling_ref', '') or '')
+    c = _by_name(manager, 'SimulationCouplingDefinition', cref) if cref else None
+    if c is None:
+        return {'ok': False, 'status': 422, 'error': 'mapping %s names no SimulationCouplingDefinition (coupling_ref=%r) — POST …/couple first' % (mapping_name, cref)}
+    from simulations import simulation_coupling as sc
+    target_sim = str(getattr(c, 'target_simulation_ref', '')); source_sim = str(getattr(c, 'source_simulation_ref', ''))
+    runs = [r for r in _rows(manager, 'SimulationRun') if str(getattr(r, 'simulation_ref', '') or '') == target_sim]
+    run = None
+    if body.get('run'):
+        run = _by_name(manager, 'SimulationRun', str(body['run']))
+        if run is None:
+            return {'ok': False, 'status': 404, 'error': 'no SimulationRun %r' % body['run']}
+    else:
+        run = next((r for r in runs if sc._coupled_run_name(r, source_sim)), None)
+    if run is None:
+        return {'ok': False, 'status': 422, 'error': 'no SimulationRun of %s pairs to a run of %s (coupled_run_refs_json) — pair one first; the coupling stays inert by design' % (target_sim, source_sim),
+                'runs_of_target': [str(getattr(r, 'name', '')) for r in runs]}
+    source_run_name = sc._coupled_run_name(run, source_sim)
+    if not source_run_name:
+        return {'ok': False, 'status': 422, 'error': 'run %s names no source run for %s' % (getattr(run, 'name', ''), source_sim)}
+    source_run = sc._find_run(manager, source_run_name)
+    if source_run is None:
+        return {'ok': False, 'status': 422, 'error': 'run %s names source run %r which does not exist' % (getattr(run, 'name', ''), source_run_name)}
+    config = _j(getattr(c, 'config_json', '{}'), {})
+    try:
+        t = float(body['time']) if body.get('time') is not None else float(getattr(run, 'last_recorded_step', 0) or 0) * sc._run_dt(manager, run)
+    except (TypeError, ValueError):
+        t = 0.0
+    warnings = []
+    # the runner's baseline is the target class's latest row of this run (the bob's position feeds the sampler's
+    # `target_fields`); an empty baseline would sample at the origin and prove nothing about the coupling
+    tcls = str(getattr(c, 'target_class_name', ''))
+    trows = [r for r in _rows(manager, tcls) if str(getattr(r, 'simulation_run_ref', '') or '') == str(getattr(run, 'name', ''))]
+    trow = max(trows, key=lambda r: (float(getattr(r, 'time', 0) or 0), int(getattr(r, 'step', 0) or 0))) if trows else None
+    baseline = {k: v for k, v in (vars(trow).items() if trow is not None else []) if isinstance(v, (int, float)) and not isinstance(v, bool)}
+    baseline.update(config.get('defaults') or {})
+    if body.get('time') is None and trow is not None:
+        t = float(getattr(trow, 'time', t) or t)
+    if body.get('time') is None and t <= 0.0:
+        # at t = 0 a seeded field is often calm by construction (a sinusoidal gust is zero at t = 0): sample one
+        # source step in, so the proof exercises the lazy pull and reads a stepped row — and SAY so
+        t = sc._run_dt(manager, source_run)
+        warnings.append('time defaulted to one source step (%s s): the target run is at t = 0, where a seeded field may be calm by construction' % t)
+    sc._ensure_source_covers(manager, source_run, t, warnings, frozenset({str(getattr(run, 'name', ''))}))
+    src_row = sc._latest_source_row(manager, str(getattr(c, 'source_class_name', '')), source_run_name, t)
+    if src_row is None:
+        return {'ok': False, 'status': 422, 'error': 'source run %s has no %s row at time <= %s' % (source_run_name, getattr(c, 'source_class_name', ''), t), 'warnings': warnings}
+    try:
+        sample = sc._evaluate_sampler(manager, c, config, src_row, baseline)
+    except Exception as exc:
+        return {'ok': False, 'status': 422, 'error': 'sampler %s failed: %s: %s' % (getattr(c, 'sampler_equation_ref', ''), type(exc).__name__, exc), 'warnings': warnings}
+    before = dict(baseline)
+    sc._inject_sample(config, sample, baseline, warnings, c)
+    injected = {k: baseline[k] for k in (config.get('inject') or {}) if k in baseline}
+    changed = {k: v for k, v in injected.items() if before.get(k) != v}
+    src_time = getattr(src_row, 'time', None); src_step = getattr(src_row, 'step', None)
+    evidence_ref = 'proved %s: coupling %s executed by the runner\'s pre-pass functions on run %s (source run %s, %s row step %s t=%s) at t=%s — injected %s' % (
+        __import__('datetime').datetime.now().strftime('%Y-%m-%d'), cref, getattr(run, 'name', ''), source_run_name, getattr(c, 'source_class_name', ''), src_step, src_time, t, json.dumps(injected))
+    rep = {'ok': True, 'status': 200, 'mapping': mapping_name, 'coupling': cref, 'run': str(getattr(run, 'name', '')), 'source_run': source_run_name, 'time': t,
+           'source_row': {'class': str(getattr(c, 'source_class_name', '')), 'step': src_step, 'time': src_time},
+           'target_row': None if trow is None else {'class': tcls, 'step': getattr(trow, 'step', None), 'time': getattr(trow, 'time', None), 'position': [baseline.get('px'), baseline.get('py'), baseline.get('pz')]},
+           'sample': sample.tolist() if hasattr(sample, 'tolist') else sample, 'injected': injected, 'changed_from_defaults': changed, 'warnings': warnings,
+           'note': 'evidence for `simulated`: the sampler read a simulation\'s row and the inject map produced the context keys. Consumption by a solution is NOT attributed (keys may be shared with a seeded coupling), so mapping_status is not raised.'}
+    if body.get('write', True):
+        m.evidence_level = 'simulated'; m.evidence_ref = evidence_ref
+        db = getattr(manager, 'db', None)
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(m)
+        rep['written'] = {'evidence_level': 'simulated', 'evidence_ref': evidence_ref}
+    return rep
+

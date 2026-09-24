@@ -101,6 +101,16 @@ r = client.simulate_post('/api/tensortree/mappings/wind-grid→bob-wind/couple',
 check('  …a second POST is a 409 naming the coupling; a non-coupling mapping is a 422; the already-coupled bob-drag is a 409 naming wind-to-newtonian-pendulum',
       r.status_code == 409 and client.simulate_post('/api/tensortree/mappings/wind-grid→slice-z0/couple', json={}).status_code == 422
       and client.simulate_post('/api/tensortree/mappings/wind-grid→bob-drag/couple', json={}).json.get('coupling_ref') == 'wind-to-newtonian-pendulum', r.text[:200])
+# tt-10: EXECUTE the created coupling once through the runner's own pre-pass on the seeded coupled run → simulated evidence
+r = client.simulate_post('/api/tensortree/mappings/wind-grid→bob-wind/prove', json={'time': 0.5})
+check('POST …/prove runs the created coupling on newtonian-pendulum-wind-run (source wind-field-run): the sampler read a WindFieldGridState row and injected wind_vx/vy/vz; the mapping now carries SIMULATED evidence naming the run, the row and the values',
+      r.status_code == 200 and r.json['ok'] and r.json['run'] == 'newtonian-pendulum-wind-run' and r.json['source_run'] == 'wind-field-run' and set(r.json['injected']) == {'wind_vx', 'wind_vy', 'wind_vz'}
+      and r.json['source_row']['class'] == 'WindFieldGridState' and r.json['source_row']['time'] > 0 and r.json['written']['evidence_level'] == 'simulated' and 'wind-field-run' in r.json['written']['evidence_ref'], r.text[:400])
+_mp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 'name', '') == 'wind-grid→bob-wind')
+check('  …the row says so (evidence simulated, status still implemented — consumption not attributed), and the injected wind is not all zero (the wind run has a field)',
+      getattr(_mp, 'evidence_level', '') == 'simulated' and getattr(_mp, 'mapping_status', '') == 'implemented' and any(abs(v) > 0 for v in r.json['injected'].values()), (getattr(_mp, 'evidence_level', ''), r.json.get('injected')))
+r = client.simulate_post('/api/tensortree/mappings/wind-grid→slice-z0/prove', json={})
+check('  …a mapping with no coupling row is a 422 that says to couple first', r.status_code == 422 and 'couple first' in r.json['error'], r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/bob-motion/validate')
 check('the bob\'s own tree (bob-motion) validates on a real boot with its root resolved through the seeded wind-arrow binding', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['pendulum-bob']['status'] == 'resolved', r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
