@@ -1271,6 +1271,25 @@ FEATURE_IMPORT_BLOCKS = (
         ('cicd.cicd_seed', ('CICD_SEED_PAIRS',)),
         ('cicd.cicd_page', ('SEED_CICD_PAGE_DISPLAYS',)),
     )),
+    # tt-0 (COMPUTE_LOD_TENSOR_PLAN): tensors by reference, tensor trees, the compute ladder
+    ('tensormath', (
+        ('tensormath.tensormath_basis', ('Tensor', 'TensorDimension', 'TensorMathExpression', 'TensorOperator',
+                                         'ComputeImplementation', 'TensorDecomposition', 'TENSORMATH_CLASSES')),
+        ('tensormath.tensormath_seed', ('TENSORMATH_SEED_PAIRS',)),
+        ('tensormath.tensormath_page', ('SEED_TENSORMATH_PAGE_DISPLAYS',)),
+    )),
+    ('tensortree', (
+        ('tensortree.tensortree_basis', ('TensorTreeDefinition', 'TensorNode', 'UnresolvedTensorSpace', 'LocalizedDimension',
+                                         'TensorMapping', 'TensorSelection', 'TensorDiscoveryPolicy', 'TENSORTREE_CLASSES')),
+        ('tensortree.tensortree_seed', ('TENSORTREE_SEED_PAIRS',)),
+        ('tensortree.tensortree_page', ('SEED_TENSORTREE_PAGE_DISPLAYS',)),
+    )),
+    ('computelod', (
+        ('computelod.computelod_basis', ('ComputeLOD', 'ComputeKind', 'ComputeMapping', 'CharacterizationMapping',
+                                         'CompilerArtifact', 'COMPUTELOD_CLASSES')),
+        ('computelod.computelod_seed', ('COMPUTELOD_SEED_PAIRS',)),
+        ('computelod.computelod_page', ('SEED_COMPUTELOD_PAGE_DISPLAYS',)),
+    )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),

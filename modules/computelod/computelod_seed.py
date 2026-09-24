@@ -1,0 +1,104 @@
+"""
+@module computelod.computelod_seed
+
+THE ELEVEN RUNGS, THEIR KINDS, AND THE compute-lod TECH TREE (plan §F1, §B3). Seeds are upserted by name.
+Rungs point at what OWNS them: the microchip ladder (design_level_ref) for devices/cells/blocks/subsystems,
+pspp for fabrication, materials_science for materials. die/package are NOT rungs (they hang off
+microarchitecture through the ladder). A KIND is a row; adding one is data.
+"""
+import json
+
+from computelod.computelod_basis import ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact
+
+TREE = 'compute-lod'
+
+
+def _rung(rank, name, group, title, desc, design_level_ref='', owner='', classes=(), langs=(), tools=(), status='planned'):
+    return {'name': name, 'rank': rank, 'group': group, 'title': title, 'description': desc,
+            'design_level_ref': design_level_ref, 'owner_module': owner,
+            'artifact_classes_json': json.dumps([{'module': m, 'class': c} for m, c in classes]),
+            'languages_json': json.dumps(list(langs)), 'tools_json': json.dumps(list(tools)),
+            'concept_node': 'lod-' + name, 'status': status, 'notes': ''}
+
+
+SEED_COMPUTE_LODS = [
+    _rung(1, 'c-source', 'software', 'C / Source', 'The baseline systems language: variables, pointers, memory, structs, bitwise ops, volatile, memory-mapped I/O, interrupts, concurrency, firmware, drivers. Firmware complexity (direct / FreeRTOS / Zephyr / Linux) is a KIND here.',
+          langs=('C',), tools=('gcc', 'clang')),
+    _rung(2, 'compiler', 'software', 'Compiler', 'Parsing, AST, IR, optimization, instruction selection, register allocation, linking, object formats, ABI, calling conventions. IR is a CompilerArtifact of one compiler, not a rung.',
+          langs=('C', 'assembly'), tools=('gcc', 'llvm/clang', 'binutils', 'ELF')),
+    _rung(3, 'isa', 'software', 'ISA / Machine Instructions', 'The software/hardware contract: encoding, registers, arithmetic, branches, load/store, privilege, traps, interrupts, atomics, vector/tensor extensions. RISC-V first: RV32I, RV32IM, RV64I, RV64GC.',
+          langs=('RISC-V assembly',), tools=('riscv-gnu-toolchain', 'spike')),
+    _rung(4, 'microarchitecture', 'architecture', 'Microarchitecture', 'PC, decoder, register file, ALU, load/store, branch, pipeline, caches, MMU, memory controller, vector unit, tensor accelerator, NoC. = the microchip ladder\'s SUBSYSTEM rung by reference; die and package hang off it there.',
+          design_level_ref='subsystem', owner='microchip', classes=(('microchip', 'MicrochipDesignNode'),), tools=('PicoRV32', 'Ibex', 'VexRiscv', 'CVA6', 'Rocket', 'BOOM')),
+    _rung(5, 'rtl', 'architecture', 'RTL', 'Combinational + sequential logic, registers, clocks, reset, FSMs, pipelines, buses, modules, testbenches. Verilog-2001 generated RTL, SystemVerilog testbenches (D6); Chisel/Amaranth/SpinalHDL generate Verilog.',
+          owner='hwfpga', classes=(('hwfpga', 'RegisterMapDefinition'),), langs=('Verilog', 'SystemVerilog'), tools=('Verilator', 'Icarus Verilog', 'Yosys', 'nextpnr', 'Renode'), status='partial'),
+    _rung(6, 'logic-netlist', 'digital', 'Logic / Netlist', 'Boolean algebra, gates, muxes, decoders, adders, multipliers, flip-flops, clocking, netlists. = the ladder\'s FUNCTIONAL-BLOCK rung by reference.',
+          design_level_ref='functional-block', owner='microchip', classes=(('cntfet', 'FunctionalBlock'),), tools=('Yosys', 'ABC')),
+    _rung(7, 'standard-cells', 'digital', 'Standard Cells', 'INV BUF NAND NOR XOR MUX DFF latch, then adders and memory cells; timing, slew, fanout, capacitance, power, area; Liberty/LEF. = the ladder\'s STANDARD-CELL rung; 25 cells proven at switch level in cntfet/sifet.',
+          design_level_ref='standard-cell', owner='microchip', classes=(('cntfet', 'CNTCellDefinition'), ('cntfet', 'CellCharacterizationRun')), tools=('OpenSTA', 'Liberty', 'LEF', 'SKY130 libraries'), status='partial'),
+    _rung(8, 'devices', 'digital', 'Transistors / Devices', 'MOSFET (planar, FinFET/GAA later), CNFET: gate/source/drain/channel, Vth, IV, capacitance, subthreshold slope, leakage, variability. = the ladder\'s DEVICE rung; VS-CNFET + Si device models, SPICE, Verilog-A/OSDI.',
+          design_level_ref='device', owner='microchip', classes=(('cntfet', 'AlignedCNTFETDevice'), ('sifet', 'SiliconMOSFET'), ('electrodevice', 'ElectronicDeviceDefinition')), tools=('ngspice', 'OpenVAF/OSDI', 'Verilog-A'), status='live'),
+    _rung(9, 'layout', 'physical', 'Layout', 'Placement, routing, layers, vias, design rules, parasitics, clock trees, power distribution, DRC, LVS. netlist → placement → routing → physical layout.',
+          tools=('OpenROAD', 'OpenLane', 'Magic', 'KLayout')),
+    _rung(10, 'fabrication', 'physical', 'Fabrication Process', 'An ORDERED process, not a node number: substrate prep, oxidation/deposition, lithography, etch, doping, implantation, anneal, dielectric, metallization, planarization, packaging. = PSPP: materials → processing → structure → properties → performance.',
+          owner='pspp', classes=(('pspp', 'ProcessingStage'), ('pspp', 'MaterialProcessDefinition'), ('sifet', 'SiliconProcessNode')), tools=('SKY130 / open PDK',), status='partial'),
+    _rung(11, 'materials', 'physical', 'Materials', 'Si, SiO2, high-k dielectrics, Cu, Al, resists, dopants, CNTs, substrates, packaging — the existing multi-scale materials model (five resolutions) and PSPP states; never a second materials database.',
+          owner='materials_science', classes=(('materials_science', 'MaterialsScienceMaterial'), ('pspp', 'MaterialState')), status='live'),
+]
+
+_KINDS = {
+    'c-source': ['direct-firmware', 'freertos', 'zephyr', 'linux-kernel'],
+    'compiler': ['frontend', 'optimizer', 'backend', 'assembler', 'linker'],
+    'isa': ['base-isa', 'extension', 'privilege', 'vector', 'matrix-tensor', 'custom'],
+    'microarchitecture': ['single-cycle', 'multicycle', 'in-order', 'pipelined', 'superscalar', 'out-of-order', 'vector', 'tensor-array', 'gpu-like', 'memory-controller'],
+    'rtl': ['datapath', 'control', 'register-map', 'bus-interface', 'accelerator', 'core'],
+    'logic-netlist': ['combinational', 'sequential', 'arithmetic', 'memory', 'control', 'interconnect'],
+    'standard-cells': ['inverter', 'buffer', 'logic-gate', 'mux', 'sequential', 'arithmetic', 'clock', 'bitcell'],
+    'devices': ['mosfet', 'cnfet', 'diode', 'capacitor', 'resistor', 'interconnect-device'],
+    'layout': ['cell-layout', 'block-layout', 'macro-layout', 'die-layout'],
+    'fabrication': ['lithography', 'deposition', 'etch', 'doping', 'anneal', 'planarization', 'metallization', 'packaging-process'],
+    'materials': ['semiconductor', 'conductor', 'dielectric', 'resist', 'dopant', 'substrate', 'packaging'],
+}
+# the microchip ladder's subsystem kinds this rung's kinds map onto (lad: cpu-core / gpu-compute-unit / npu-tensor-array / sim-engine / memory-controller)
+_DESIGN_KIND = {'tensor-array': 'npu-tensor-array', 'gpu-like': 'gpu-compute-unit', 'memory-controller': 'memory-controller',
+                'in-order': 'cpu-core', 'pipelined': 'cpu-core', 'superscalar': 'cpu-core', 'out-of-order': 'cpu-core'}
+SEED_COMPUTE_KINDS = [
+    {'name': '%s/%s' % (rung, k), 'rung': rung, 'title': k.replace('-', ' '), 'description': '',
+     'design_kind_ref': _DESIGN_KIND.get(k, '') if rung == 'microarchitecture' else '', 'notes': ''}
+    for rung, ks in _KINDS.items() for k in ks]
+
+# ---- the compute-lod tech tree: one concept node per rung, prerequisites = LEARNING order (≠ implementation order)
+_PREREQ = {  # what you should know before this rung's concepts (plan §7: learning may run in any order; these are RECOMMENDED)
+    'c-source': [], 'compiler': ['c-source', 'isa'], 'isa': ['c-source', 'logic-netlist'],
+    'microarchitecture': ['isa', 'rtl'], 'rtl': ['logic-netlist'], 'logic-netlist': [],
+    'standard-cells': ['logic-netlist', 'devices'], 'devices': ['materials'], 'layout': ['standard-cells'],
+    'fabrication': ['materials'], 'materials': [],
+}
+SEED_COMPUTE_TECH_TREES = [{'name': TREE, 'title': 'Compute levels of detail — what to learn at each rung', 'owner': 'polari',
+                            'description': 'One concept node per ComputeLOD rung; edges are RECOMMENDED prerequisites (learning order), '
+                                           'deliberately different from the implementation order the ladder itself encodes.',
+                            'is_active': False, 'is_baseline': False, 'notes': 'plan COMPUTE_LOD_TENSOR_PLAN.md §B3/§F1'}]
+SEED_COMPUTE_TECH_NODES = [
+    {'name': 'lod-' + r['name'], 'tree_name': TREE, 'title': r['title'], 'description': r['description'],
+     'depends_on_json': json.dumps(['lod-' + p for p in _PREREQ[r['name']]]), 'layout_hints_json': json.dumps({'column': r['rank']}),
+     'cross_refs_json': json.dumps([{'module': 'computelod', 'class': 'ComputeLOD', 'name': r['name'], 'relation': 'concepts-of'}]),
+     'data_dependencies_json': '[]', 'notes': ''}
+    for r in SEED_COMPUTE_LODS]
+SEED_COMPUTE_TECH_SEGMENTS = [   # tools = 'real' segments; languages = 'theory' segments pointing at the owning module
+    {'name': 'lod-%s:%s' % (r['name'], t), 'tech_node': 'lod-' + r['name'], 'tree_name': TREE, 'segment_kind': 'real', 'ref_name': t, 'notes': 'tool'}
+    for r in SEED_COMPUTE_LODS for t in json.loads(r['tools_json'])]
+
+COMPUTELOD_SEED_PAIRS = [
+    ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),
+    ('ComputeKind', ComputeKind, SEED_COMPUTE_KINDS),
+    ('ComputeMapping', ComputeMapping, []),
+    ('CharacterizationMapping', CharacterizationMapping, []),
+    ('CompilerArtifact', CompilerArtifact, []),
+]
+try:   # the tree rows belong to the techtree module; seeded only when it is present
+    from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment
+    COMPUTELOD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_COMPUTE_TECH_TREES),
+                              ('TechNode', TechNode, SEED_COMPUTE_TECH_NODES),
+                              ('TechSegmentAssignment', TechSegmentAssignment, SEED_COMPUTE_TECH_SEGMENTS)]
+except Exception:   # pragma: no cover — techtree absent: the ladder still seeds, the concept tree waits
+    pass

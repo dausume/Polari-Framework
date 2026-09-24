@@ -1,0 +1,131 @@
+{
+ "schema": "polari-app/1",
+ "id": "tensortree",
+ "package": "tensortree",
+ "title": "Tensor Tree",
+ "description": "Rooted, navigable views over tensor state: nodes valid by LOCAL visual coherence (a sim-space binding), typed unresolved spaces anywhere, mappings that may cross branches with two statuses and evidence, selections as mathematical objects, and discovery = hard filters then a configured score (plan tt-0).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-tensortree.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "knowledge-media",
+   "materials-devices"
+  ],
+  "tags": [
+   "tensor",
+   "tree",
+   "visualization"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "tensormath"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/tensortree/LocalizedDimension",
+   "objects/tensortree/TensorDiscoveryPolicy",
+   "objects/tensortree/TensorMapping",
+   "objects/tensortree/TensorNode",
+   "objects/tensortree/TensorSelection",
+   "objects/tensortree/TensorTreeDefinition",
+   "objects/tensortree/UnresolvedTensorSpace"
+  ],
+  "basis": [
+   "tensortree_basis"
+  ],
+  "api": [
+   "tensortree_api"
+  ],
+  "page": [
+   "tensortree_page"
+  ],
+  "seed": [
+   "tensortree_seed"
+  ],
+  "selftests": [
+   "tensortree_selftest"
+  ],
+  "custom": [
+   "custom/tensortree_validate",
+   "custom/tensortree_discover",
+   "custom/tensortree_graph"
+  ],
+  "endpoints": [
+   "tensortree_endpoints"
+  ]
+ },
+ "classes": [
+  "LocalizedDimension",
+  "TensorDiscoveryPolicy",
+  "TensorMapping",
+  "TensorNode",
+  "TensorSelection",
+  "TensorTreeAPI",
+  "TensorTreeDefinition",
+  "UnresolvedTensorSpace"
+ ],
+ "imports": [
+  [
+   "tensortree.tensortree_basis",
+   [
+    "TensorTreeDefinition",
+    "TensorNode",
+    "UnresolvedTensorSpace",
+    "LocalizedDimension",
+    "TensorMapping",
+    "TensorSelection",
+    "TensorDiscoveryPolicy",
+    "TENSORTREE_CLASSES"
+   ]
+  ],
+  [
+   "tensortree.tensortree_seed",
+   [
+    "TENSORTREE_SEED_PAIRS"
+   ]
+  ],
+  [
+   "tensortree.tensortree_page",
+   [
+    "SEED_TENSORTREE_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "tensortree.tensortree_endpoints:construct_tensortree_endpoints",
+ "seedPairs": "tensortree.tensortree_seed:TENSORTREE_SEED_PAIRS",
+ "pages": [
+  "tensortree.tensortree_page:SEED_TENSORTREE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "tensortree_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

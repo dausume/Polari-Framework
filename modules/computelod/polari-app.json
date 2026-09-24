@@ -1,0 +1,122 @@
+{
+ "schema": "polari-app/1",
+ "id": "computelod",
+ "package": "computelod",
+ "title": "Compute LOD",
+ "description": "ONE conceptual ladder from C to materials (eleven rungs; die/package hang off microarchitecture through the microchip ladder by design_level_ref), kinds as rows, downward ComputeMappings and upward CharacterizationMappings as evidence-bearing rows, and the compute-lod tech tree of what to learn (plan tt-0).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-computelod.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation",
+   "knowledge-media"
+  ],
+  "tags": [
+   "compute",
+   "ladder",
+   "learning"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/computelod/CharacterizationMapping",
+   "objects/computelod/CompilerArtifact",
+   "objects/computelod/ComputeKind",
+   "objects/computelod/ComputeLOD",
+   "objects/computelod/ComputeMapping"
+  ],
+  "basis": [
+   "computelod_basis"
+  ],
+  "api": [
+   "computelod_api"
+  ],
+  "page": [
+   "computelod_page"
+  ],
+  "seed": [
+   "computelod_seed"
+  ],
+  "selftests": [
+   "computelod_selftest"
+  ],
+  "custom": [
+   "custom/computelod_walk"
+  ],
+  "endpoints": [
+   "computelod_endpoints"
+  ]
+ },
+ "classes": [
+  "CharacterizationMapping",
+  "CompilerArtifact",
+  "ComputeKind",
+  "ComputeLOD",
+  "ComputeLodAPI",
+  "ComputeMapping"
+ ],
+ "imports": [
+  [
+   "computelod.computelod_basis",
+   [
+    "ComputeLOD",
+    "ComputeKind",
+    "ComputeMapping",
+    "CharacterizationMapping",
+    "CompilerArtifact",
+    "COMPUTELOD_CLASSES"
+   ]
+  ],
+  [
+   "computelod.computelod_seed",
+   [
+    "COMPUTELOD_SEED_PAIRS"
+   ]
+  ],
+  [
+   "computelod.computelod_page",
+   [
+    "SEED_COMPUTELOD_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "computelod.computelod_endpoints:construct_computelod_endpoints",
+ "seedPairs": "computelod.computelod_seed:COMPUTELOD_SEED_PAIRS",
+ "pages": [
+  "computelod.computelod_page:SEED_COMPUTELOD_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "computelod_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

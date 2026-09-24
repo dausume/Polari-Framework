@@ -44,6 +44,8 @@ FEATURE_MODULES = frozenset({
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
     'tanks', 'techtree', 'terms', 'testing', 'vpn', 'waxprint', 'waxsupply',
     'zones',
+    # tt-0 (COMPUTE_LOD_TENSOR_PLAN): tensors by reference, tensor trees, the compute ladder
+    'tensormath', 'tensortree', 'computelod',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a
@@ -55,6 +57,9 @@ FEATURE_REQUIRES = {
     # this mirror is for genuine Python imports (drift selftest pins
     # it as a subset of the registry).
     'aquaponics': ('plant_morphology', 'scoring'),
+    # tt-0: a TensorTree views a Tensor (tensortree imports nothing from tensormath at top level today, but the
+    # registry's `requires` says so; the drift selftest pins this as a subset of the registry)
+    'tensortree': ('tensormath',),
     'bizops': ('supplychain',),
     # co2-A: climate reuses the aquaponics steady-state gas
     # balance (one equation, two callers - a room of people is the

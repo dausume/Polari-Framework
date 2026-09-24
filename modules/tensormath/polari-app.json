@@ -1,0 +1,125 @@
+{
+ "schema": "polari-app/1",
+ "id": "tensormath",
+ "package": "tensormath",
+ "title": "Tensor Math",
+ "description": "Arbitrary-rank tensors as rows with values by reference (a rank-N MatrixDefinition, a DigitizedDataset, an engine state or a PropertyClaim), named dimensions, tensor expressions delegating rank<=2 to the matrix module, operators, and the compute implementations an operator has (plan COMPUTE_LOD_TENSOR_PLAN.md, tt-0).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-tensormath.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "knowledge-media",
+   "materials-devices"
+  ],
+  "tags": [
+   "tensor",
+   "math"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [
+   "numpy"
+  ],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/tensormath/ComputeImplementation",
+   "objects/tensormath/Tensor",
+   "objects/tensormath/TensorDecomposition",
+   "objects/tensormath/TensorDimension",
+   "objects/tensormath/TensorMathExpression",
+   "objects/tensormath/TensorOperator"
+  ],
+  "basis": [
+   "tensormath_basis"
+  ],
+  "api": [
+   "tensormath_api"
+  ],
+  "page": [
+   "tensormath_page"
+  ],
+  "seed": [
+   "tensormath_seed"
+  ],
+  "selftests": [
+   "tensormath_selftest"
+  ],
+  "custom": [
+   "custom/tensor_ops"
+  ],
+  "endpoints": [
+   "tensormath_endpoints"
+  ]
+ },
+ "classes": [
+  "ComputeImplementation",
+  "Tensor",
+  "TensorDecomposition",
+  "TensorDimension",
+  "TensorMathAPI",
+  "TensorMathExpression",
+  "TensorOperator"
+ ],
+ "imports": [
+  [
+   "tensormath.tensormath_basis",
+   [
+    "Tensor",
+    "TensorDimension",
+    "TensorMathExpression",
+    "TensorOperator",
+    "ComputeImplementation",
+    "TensorDecomposition",
+    "TENSORMATH_CLASSES"
+   ]
+  ],
+  [
+   "tensormath.tensormath_seed",
+   [
+    "TENSORMATH_SEED_PAIRS"
+   ]
+  ],
+  [
+   "tensormath.tensormath_page",
+   [
+    "SEED_TENSORMATH_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "tensormath.tensormath_endpoints:construct_tensormath_endpoints",
+ "seedPairs": "tensormath.tensormath_seed:TENSORMATH_SEED_PAIRS",
+ "pages": [
+  "tensormath.tensormath_page:SEED_TENSORMATH_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "tensormath_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

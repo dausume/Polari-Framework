@@ -517,6 +517,21 @@ def construct_security_endpoints(polServer):
     return build(polServer)
 
 
+def construct_tensormath_endpoints(polServer):
+    from tensormath.tensormath_endpoints import construct_tensormath_endpoints as build
+    return build(polServer)
+
+
+def construct_tensortree_endpoints(polServer):
+    from tensortree.tensortree_endpoints import construct_tensortree_endpoints as build
+    return build(polServer)
+
+
+def construct_computelod_endpoints(polServer):
+    from computelod.computelod_endpoints import construct_computelod_endpoints as build
+    return build(polServer)
+
+
 def construct_iso_endpoints(polServer):
     # iso-1: /downloads/iso + /api/iso (probe → choose → install)
     from iso.iso_endpoints import construct_iso_endpoints as build
@@ -531,6 +546,9 @@ def construct_cicd_endpoints(polServer):
 
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'iso': construct_iso_endpoints,
+    'tensormath': construct_tensormath_endpoints,
+    'tensortree': construct_tensortree_endpoints,
+    'computelod': construct_computelod_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,
