@@ -2,7 +2,7 @@
 # Ubuntu 24.04 (noble) apt archive: gcc-riscv64-unknown-elf (GPL-3, the RISC-V cross compiler), yosys (ISC,
 # synthesis), verilator (LGPL-3/Artistic-2, simulation), iverilog (GPL-2). Nothing here is vendor-locked.
 # Used by computelod/custom/lod1_chain.py when the binaries are not on the PATH:
-#   docker build -t polari-computelod-tools:noble modules/computelod/tools
+#   docker build -t polari-computelod-tools:noble modules/computelod/custom/tools
 #   docker run --rm -v <work>:/w -w /w polari-computelod-tools:noble <tool> …
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive

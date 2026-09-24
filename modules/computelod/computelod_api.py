@@ -53,7 +53,7 @@ class ComputeLodAPI(treeObject):
     def on_get_lod1(self, request, response):
         from computelod.custom.lod1_chain import report
         rep = report()
-        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod1_chain run (tools on the PATH, or docker build -t polari-computelod-tools:noble modules/computelod/tools)',
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod1_chain run (tools on the PATH, or docker build -t polari-computelod-tools:noble modules/computelod/custom/tools)',
                           'teaching_path': 'C c=a+b → GCC → add a0,a0,a1 = 0x00b50533 → PicoRV32 decode (picorv32.v:1068) + alu_add_sub (:1231) → rv32_add.v → yosys netlist → iverilog: RTL and gates agree'}
 
     def on_get_walk(self, request, response, rung, ref):

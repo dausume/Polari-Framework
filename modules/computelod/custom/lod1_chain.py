@@ -8,7 +8,7 @@ THE TEACHING PATH, RUN FOR REAL (lod-1, plan §C Phase 4, §F5):
     →  Yosys: the core = N gates, the adder = M gates  →  iverilog: the RTL and its gate netlist give the same sums.
 
 Every row on the ladder comes from this script having RUN — never typed in. `run` executes the tools (on the
-PATH, else in the pinned image modules/computelod/tools/Dockerfile) into a work dir and writes lod1/report.json
+PATH, else in the pinned image modules/computelod/custom/tools/Dockerfile) into a work dir and writes initialData/lod1/report.json
 + the small artifacts (source, assembly, objdump, the adder RTL, the stat histograms; the 570 kB core netlist is
 NOT committed — its histogram is). `rows(report)` turns that report into the seed rows, so a boot without the
 tools still shows the path with its evidence named (tool versions, files, the pin of PicoRV32).
@@ -29,8 +29,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
-RTL = os.path.join(MOD, 'rtl', 'picorv32')
-OUT = os.path.join(MOD, 'lod1')
+RTL = os.path.join(HERE, 'rtl', 'picorv32')          # custom/rtl/picorv32 — the vendored core, pinned
+OUT = os.path.join(MOD, 'initialData', 'lod1')   # the committed report + artifacts = initial data
 IMAGE = os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-computelod-tools:noble')
 
 C_SOURCE = 'int add(int a, int b) { int c = a + b; return c; }\n'
@@ -92,7 +92,7 @@ def run(work=None):
     how = tools_available()
     if not how:
         raise SystemExit('no toolchain: put riscv64-unknown-elf-gcc/yosys/iverilog on the PATH, or build the image: '
-                         'docker build -t %s modules/computelod/tools' % IMAGE)
+                         'docker build -t %s modules/computelod/custom/tools' % IMAGE)
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod1')
     os.makedirs(work, exist_ok=True)
     open(os.path.join(work, 'add.c'), 'w').write(C_SOURCE)
@@ -152,11 +152,11 @@ def rows(rep):
     core_ref = 'picorv32 @ %s (ISC)' % pin.get('commit', '?')[:12]
     enc = rep['compile']['encoding']; ins = rep['compile']['add_instruction']
     arts = [
-        {'name': 'lod1/add.c', 'description': 'the C source of the teaching path', 'kind': 'source', 'compiler': '', 'source_ref': '', 'content_ref': 'modules/computelod/lod1/add.c', 'notes': C_SOURCE.strip()},
+        {'name': 'lod1/add.c', 'description': 'the C source of the teaching path', 'kind': 'source', 'compiler': '', 'source_ref': '', 'content_ref': 'modules/computelod/initialData/lod1/add.c', 'notes': C_SOURCE.strip()},
         {'name': 'lod1/add.s', 'description': 'GCC\'s RV32I assembly', 'kind': 'assembly', 'compiler': rep['tool_versions'][0] if rep.get('tool_versions') else 'gcc', 'source_ref': 'lod1/add.c',
-         'content_ref': 'modules/computelod/lod1/add.s', 'notes': ' ; '.join(rep['compile']['assembly'])},
+         'content_ref': 'modules/computelod/initialData/lod1/add.s', 'notes': ' ; '.join(rep['compile']['assembly'])},
         {'name': 'lod1/add.o', 'description': 'the object file; objdump shows the encoded instructions', 'kind': 'object', 'compiler': rep['tool_versions'][0] if rep.get('tool_versions') else 'gcc',
-         'source_ref': 'lod1/add.c', 'content_ref': 'modules/computelod/lod1/add.objdump', 'notes': '%s = %s' % (ins, enc)},
+         'source_ref': 'lod1/add.c', 'content_ref': 'modules/computelod/initialData/lod1/add.objdump', 'notes': '%s = %s' % (ins, enc)},
     ]
     d = rep['compile']['decoded']
     uarch_ref = core_ref + ': decode → register file → ALU (alu_add_sub) → writeback'   # ONE string, so the chain links
