@@ -104,6 +104,17 @@ check('GET operators/stress-from-strain shows the bridge: one numpy implementati
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('plate-mechanics validates; its root is unresolved for the stated reason (no binding), its visualization space typed', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['why'] == 'no binding_ref'
       and r.json['validation']['unresolved']['plate-visualization']['kind'] == 'visualization', r.text[:300])
+# ---- Phase 6: the bridge, live — benchmark numpy HERE, then read both implementations side by side
+r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/numpy', 'repeats': 10})
+check('POST benchmark runs the numpy implementation here and writes the MEASURED reading into its row (median, repeats, node, n)',
+      r.status_code == 200 and r.json['latency_s'] > 0 and 'median' in r.json['evidence_ref'] and r.json['elements'] > 0, r.text[:300])
+r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/fpga-stress-mac'})
+check('  …the FPGA row cannot be benchmarked HERE (422: its flow measures it, or the part does)', r.status_code == 422)
+r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
+impls = {i['name']: i for i in r.json['implementations']}
+check('GET operators/stress-from-strain now shows BOTH: numpy measured on this node, the FPGA kernel simulated on an iCE40 — same operator, two rungs',
+      r.status_code == 200 and impls['stress-from-strain/numpy']['evidence_level'] == 'measured' and impls['stress-from-strain/fpga-stress-mac']['evidence_level'] == 'simulated'
+      and impls['stress-from-strain/fpga-stress-mac']['target_rung'] == 'rtl' and impls['stress-from-strain/numpy']['latency_s'] > 0, r.text[:400])
 pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, 'pageRoute', '') in ('tensormath', 'tensortree', 'computelod')]
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
 tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')

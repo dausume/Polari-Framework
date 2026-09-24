@@ -172,6 +172,27 @@ try:
 except TensorOpsError as e:
     check('an unknown fem field is refused naming the seven', 'stiffness' in str(e) and 'displacement' in str(e))
 
+# ---- Phase 6: the SAME operator on hardware — the committed FPGA report and its implementation row
+from tensormath.custom.fpga_kernel import report as fpga_report, implementation_row, KERNEL, TOP, C_SCALE, E_SCALE
+frep = fpga_report()
+check('fpga: a committed report exists (the flow RAN: iverilog → yosys synth_ice40 → nextpnr-ice40)', frep is not None and 'simulation' in frep and 'place_and_route' in frep)
+check('  …the kernel is EXACT on every real element of the plate (64/64, 0 fails)', 'PASS' in frep['simulation']['verdict'] and frep['simulation']['stream_cycles'] > 0, frep['simulation'])
+check('  …the operand rounding (C to kPa, ε to nano-strain) costs ~1e-4 relative vs float64, and that number is recorded, not hidden', 0 < frep['reference_error_vs_float'] < 1e-3, frep['reference_error_vs_float'])
+check('  …the streaming form (16 multipliers) did NOT fit the part and the report says so with the numbers (the LUT budget below dictates the schedule above)',
+      frep['streaming_variant']['fit'] is False and frep['streaming_variant']['SB_LUT4'] > frep['streaming_variant']['part_luts'])
+check('  …the time-multiplexed form fits: LCs used < available, Fmax > 0, 17 cycles per element',
+      frep['place_and_route'].get('fmax_mhz', 0) > 0 and frep['place_and_route']['utilization']['ICESTORM_LC']['used'] < frep['place_and_route']['utilization']['ICESTORM_LC']['available']
+      and frep['simulation']['cycles_per_element'] == 17, frep['place_and_route'])
+check('  …latency_s is DERIVED (cycles / Fmax) and the report says so', 'DERIVED' in frep['derived']['note'] and abs(frep['derived']['latency_s_per_element_at_fmax'] - 17 / (frep['place_and_route']['fmax_mhz'] * 1e6)) < 1e-12)
+row = implementation_row(frep)
+check('the FPGA ComputeImplementation: rung rtl / kind accelerator, evidence SIMULATED (a timing model, not a bench), validated by the exact simulation, energy 0 = not known',
+      row['target_rung'] == 'rtl' and row['target_kind'] == 'accelerator' and row['evidence_level'] == 'simulated' and row['mapping_status'] == 'validated' and row['energy_j'] == 0.0 and 'not yet' in row['notes'])
+check('the kernel RTL is Verilog-2001 with ONE multiplier (D6; the * appears once in the datapath) and a register-bus top the size of a register map',
+      KERNEL.count(' * ') == 1 and 'module stress_mac_top' in TOP and 'addr' in TOP)
+check('the two implementations of stress-from-strain are seeded side by side: numpy (evidence none until benchmarked) and the FPGA row (simulated)',
+      [i['name'] for i in SEED_COMPUTE_IMPLEMENTATIONS] == ['stress-from-strain/numpy', 'stress-from-strain/fpga-stress-mac'] and SEED_COMPUTE_IMPLEMENTATIONS[0]['evidence_level'] == 'none')
+check('the fixed-point scales are stated once, in code, and are what the kernel comment says', C_SCALE == 1e-3 and E_SCALE == 1e9 and 'kPa' in KERNEL and 'nano-strain' in KERNEL)
+
 man = json.load(open('modules/tensormath/polari-app.json'))
 from moduleService.manifests import validate
 check('the manifest is valid, declares six classes + the API, and requires numpy', validate(man) == [] and len([c for c in man['classes'] if c != 'TensorMathAPI']) == 6 and man['requires']['libraries'] == ['numpy'])

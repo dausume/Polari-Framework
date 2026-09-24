@@ -56,7 +56,8 @@
    "tensormath_selftest"
   ],
   "custom": [
-   "custom/tensor_ops"
+   "custom/tensor_ops",
+   "custom/fpga_kernel"
   ],
   "endpoints": [
    "tensormath_endpoints"

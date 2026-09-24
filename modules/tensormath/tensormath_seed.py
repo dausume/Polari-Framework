@@ -95,6 +95,12 @@ SEED_COMPUTE_IMPLEMENTATIONS = [{'name': 'stress-from-strain/numpy', 'descriptio
                                  'mapping_status': 'implemented', 'evidence_level': 'none',
                                  'evidence_ref': '', 'notes': 'latency is READ per call (POST /api/tensormath/evaluate → elapsed_s), not stored: a stored benchmark row with its conditions is lad-5\'s. No number invented here.'}]
 
+# ---- Phase 6: the SAME operator on an open FPGA — from the committed report of the real flow (custom/fpga_kernel.py)
+from tensormath.custom.fpga_kernel import report as _fpga_report, implementation_row as _fpga_row
+_fpga = _fpga_row(_fpga_report())
+if _fpga:
+    SEED_COMPUTE_IMPLEMENTATIONS.append(_fpga)
+
 TENSORMATH_SEED_PAIRS = [
     ('Tensor', Tensor, SEED_TENSORS), ('TensorDimension', TensorDimension, SEED_TENSOR_DIMENSIONS),
     ('TensorMathExpression', TensorMathExpression, SEED_TENSOR_EXPRESSIONS),
