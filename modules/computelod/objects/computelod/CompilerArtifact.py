@@ -14,7 +14,7 @@ class CompilerArtifact(treeObject):
         self,
         name: str = '',
         description: str = '',
-        kind: str = 'assembly',
+        kind: str = 'assembly',   # source | AST | IR | assembly | object
         compiler: str = '',
         source_ref: str = '',
         content_ref: str = '',

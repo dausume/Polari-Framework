@@ -55,7 +55,8 @@
    "computelod_selftest"
   ],
   "custom": [
-   "custom/computelod_walk"
+   "custom/computelod_walk",
+   "custom/lod1_chain"
   ],
   "endpoints": [
    "computelod_endpoints"

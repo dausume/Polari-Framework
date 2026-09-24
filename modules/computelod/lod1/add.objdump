@@ -1,0 +1,9 @@
+
+add.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <add>:
+   0:	00b50533          	add	a0,a0,a1
+   4:	00008067          	ret

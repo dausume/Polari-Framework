@@ -82,6 +82,15 @@ check('POST select CREATES the selection row and returns its discovery: the real
 check('  …and the selection persisted as a row', any(getattr(s, 'created_from', '') == 'probe' for s in tables.get('TensorSelection', {}).values()))
 r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [5, 1]}})
 check('a malformed range is a 400 naming the dim', r.status_code == 400 and 'x' in r.json['error'])
+# ---- lod-1: the teaching path, seeded from the committed report, walkable over HTTP
+r = client.simulate_get('/api/computelod/lod1')
+check('GET /api/computelod/lod1 serves the committed report (encoding 0x00b50533, cell counts, verdicts)', r.status_code == 200 and r.json['report'].get('compile', {}).get('encoding') == '0x00b50533', r.text[:200])
+r = client.simulate_get('/api/computelod/path', params={'rung': 'c-source', 'ref': 'lod1/add.c: c = a + b'})
+check('GET path from the C statement walks C → compiler → ISA → microarchitecture → RTL → netlist → (unresolved) standard cells',
+      r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells'], r.text[:300])
+check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
+check('the lod-1 rows are seeded: 7 ComputeMappings, 5 CharacterizationMappings, 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 7 and len(tables.get('CharacterizationMapping', {})) == 5 and len(tables.get('CompilerArtifact', {})) == 3)
 pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, 'pageRoute', '') in ('tensormath', 'tensortree', 'computelod')]
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
 tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')

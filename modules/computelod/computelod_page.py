@@ -11,11 +11,15 @@ SEED_COMPUTELOD_PAGE_DISPLAYS = [
           'a KIND specializes within a rung, and every mapping between rungs carries its evidence',
           'ComputeLOD', [
               _row(0, [_sapi('computelod-ladder', 0, 12, 'The ladder: rank, group, owner, the microchip rung it references, its kinds, status', '/api/computelod', pick='ladder')], min_height=300),
-              _row(1, [_table('computelod-rungs', 0, 12, 'Rungs', 'ComputeLOD',
+              # lod-1: the teaching path, read from a REAL run (gcc → PicoRV32 → yosys → iverilog); every step names its evidence
+              _row(1, [_sapi('computelod-lod1-path', 0, 6, 'c = a + b, followed down the ladder (each step: the mapping, its status, its evidence)', '/api/computelod/path?rung=c-source&ref=lod1%2Fadd.c%3A%20c%20%3D%20a%20%2B%20b', pick='path'),
+                       _sapi('computelod-lod1-report', 6, 6, 'The run that produced these rows: tool versions, the encoding decoded, cell counts, the simulation verdicts', '/api/computelod/lod1', pick='report,teaching_path')], min_height=320),
+              _row(2, [_table('computelod-artifacts', 0, 12, 'Compiler artifacts (source, assembly, object) — of ONE compiler; IR is not a rung', 'CompilerArtifact', columns='name,kind,compiler,source_ref,content_ref,notes')]),
+              _row(3, [_table('computelod-rungs', 0, 12, 'Rungs', 'ComputeLOD',
                               columns='rank,name,group,title,design_level_ref,owner_module,languages_json,tools_json,concept_node,status')]),
-              _row(2, [_table('computelod-kinds', 0, 12, 'Kinds — a specialization within a rung, never a new rung', 'ComputeKind',
+              _row(4, [_table('computelod-kinds', 0, 12, 'Kinds — a specialization within a rung, never a new rung', 'ComputeKind',
                               columns='rung,name,title,design_kind_ref,notes')]),
-              _row(3, [_table('computelod-mappings', 0, 6, 'Downward: how is this implemented (ComputeMapping)', 'ComputeMapping',
+              _row(5, [_table('computelod-mappings', 0, 6, 'Downward: how is this implemented (ComputeMapping)', 'ComputeMapping',
                               columns='source_rung,source_ref,kind,target_rung,target_ref,mapping_status,evidence_level,evidence_ref,loss_note'),
                        _table('computelod-characterizations', 1, 6, 'Upward: what does it produce (CharacterizationMapping) — conditions are load-bearing', 'CharacterizationMapping',
                               columns='source_rung,source_ref,characteristic,method,conditions_json,result,units,target_rung,mapping_status,evidence_level,evidence_ref')]),

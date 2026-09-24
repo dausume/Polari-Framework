@@ -88,12 +88,18 @@ SEED_COMPUTE_TECH_SEGMENTS = [   # tools = 'real' segments; languages = 'theory'
     {'name': 'lod-%s:%s' % (r['name'], t), 'tech_node': 'lod-' + r['name'], 'tree_name': TREE, 'segment_kind': 'real', 'ref_name': t, 'notes': 'tool'}
     for r in SEED_COMPUTE_LODS for t in json.loads(r['tools_json'])]
 
+# ---- lod-1: THE TEACHING PATH, from the committed report of a real run (custom/lod1_chain.py). The rows
+# exist only because the tools ran: gcc's assembly and encoding, PicoRV32's cited lines, yosys' cell counts,
+# iverilog's verdicts; and two rows are left UNRESOLVED on purpose (technology mapping, delay — lod-2).
+from computelod.custom.lod1_chain import report as _lod1_report, rows as _lod1_rows
+SEED_LOD1_ARTIFACTS, SEED_LOD1_MAPPINGS, SEED_LOD1_CHARACTERIZATIONS = _lod1_rows(_lod1_report())
+
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),
     ('ComputeKind', ComputeKind, SEED_COMPUTE_KINDS),
-    ('ComputeMapping', ComputeMapping, []),
-    ('CharacterizationMapping', CharacterizationMapping, []),
-    ('CompilerArtifact', CompilerArtifact, []),
+    ('ComputeMapping', ComputeMapping, SEED_LOD1_MAPPINGS),
+    ('CharacterizationMapping', CharacterizationMapping, SEED_LOD1_CHARACTERIZATIONS),
+    ('CompilerArtifact', CompilerArtifact, SEED_LOD1_ARTIFACTS),
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment

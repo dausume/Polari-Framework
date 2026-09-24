@@ -26,6 +26,25 @@ def ladder(manager):
     return out
 
 
+def path(manager, rung, ref, direction='down', limit=12):
+    """Follow the mappings from <rung, ref> as far as they go (a chain, first edge at each step) — the teaching
+    path read end to end. Stops at the first rung with no edge, and says so."""
+    steps, seen = [], set()
+    cur = (rung, ref)
+    while len(steps) < limit and cur not in seen:
+        seen.add(cur)
+        w = walk(manager, cur[0], cur[1], direction)
+        if not w['edges']:
+            steps.append({'rung': cur[0], 'ref': cur[1], 'end': True, 'note': w['note']}); break
+        e = w['edges'][0]
+        steps.append({'rung': cur[0], 'ref': cur[1], 'via': e['mapping'], 'kind': e.get('kind', e.get('characteristic', '')),
+                      'mapping_status': e['mapping_status'], 'evidence_level': e['evidence_level'], 'evidence_ref': e['evidence_ref'],
+                      'alternatives': len(w['edges']) - 1})
+        cur = (e['to_rung'], e['to_ref'])
+    return {'start': {'rung': rung, 'ref': ref}, 'direction': direction, 'steps': steps,
+            'rungs': [s['rung'] for s in steps], 'unresolved_at': next((s['rung'] for s in steps if s.get('end')), '')}
+
+
 def walk(manager, rung, ref, direction='down'):
     """One step: the edges leaving (down) or arriving at (up) <rung, ref>."""
     cls = 'ComputeMapping' if direction == 'down' else 'CharacterizationMapping'

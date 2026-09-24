@@ -4,12 +4,14 @@
   GET /api/computelod                         the ladder: eleven rungs with kinds, owner, design_level_ref, status
   GET /api/computelod/rungs/{name}            one rung + its kinds + its concept node's prerequisites
   GET /api/computelod/walk/{rung}/{ref}?direction=down|up   one step through the mappings from a row
+  GET /api/computelod/path?rung=&ref=&direction=            the chain end to end (a ref may hold '/', so query params)
+  GET /api/computelod/lod1                                  the teaching path's committed report
 """
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from computelod.custom.computelod_walk import ladder, walk
+from computelod.custom.computelod_walk import ladder, walk, path
 
 
 class ComputeLodAPI(treeObject):
@@ -22,6 +24,8 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod', self)
             add('/api/computelod/rungs/{name}', self, suffix='rung')
             add('/api/computelod/walk/{rung}/{ref}', self, suffix='walk')
+            add('/api/computelod/path', self, suffix='path')                 # lod-1: the chain, end to end (query params: a ref may hold '/')
+            add('/api/computelod/lod1', self, suffix='lod1')                 # the teaching path's committed report
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -38,6 +42,19 @@ class ComputeLodAPI(treeObject):
         prereq = json.loads(getattr(node, 'depends_on_json', '[]') or '[]') if node is not None else []
         response.media = {'ok': True, 'rung': r, 'learn': {'concept_node': r['concept_node'], 'recommended_prerequisites': prereq,
                                                             'note': 'learning order ≠ implementation order (plan §7): these are tech-tree edges, the ladder is the other'}}
+
+    def on_get_path(self, request, response):
+        rung = (request.params.get('rung') or '').strip(); ref = (request.params.get('ref') or '').strip()
+        if not rung or not ref:
+            response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
+        d = (request.params.get('direction') or 'down').strip()
+        response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod1(self, request, response):
+        from computelod.custom.lod1_chain import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod1_chain run (tools on the PATH, or docker build -t polari-computelod-tools:noble modules/computelod/tools)',
+                          'teaching_path': 'C c=a+b → GCC → add a0,a0,a1 = 0x00b50533 → PicoRV32 decode (picorv32.v:1068) + alu_add_sub (:1231) → rv32_add.v → yosys netlist → iverilog: RTL and gates agree'}
 
     def on_get_walk(self, request, response, rung, ref):
         d = (request.params.get('direction') or 'down').strip()

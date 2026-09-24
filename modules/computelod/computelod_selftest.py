@@ -6,6 +6,7 @@ pspp, materials_science), die/package NOT rungs, kinds never rungs, the compute-
 implementation order), a downward walk and an upward characterization with its two statuses, the manifest.
 """
 import json
+import os
 import sys
 import types
 
@@ -91,6 +92,40 @@ cm = CharacterizationMapping(name='x', conditions_json='{}')
 check('CharacterizationMapping has conditions_json (voltage/temperature/load/corner) — the load-bearing column', 'conditions_json' in vars(cm) and 'load-bearing' in open('modules/computelod/objects/computelod/CharacterizationMapping.py').read())
 ca = CompilerArtifact(name='ir-1', kind='IR', compiler='clang')
 check('CompilerArtifact holds IR/AST/assembly/object of ONE compiler — LLVM IR is not a rung (plan §F5)', ca.kind == 'IR' and 'llvm-ir' not in names and 'ir' not in names)
+
+# ---- lod-1: THE TEACHING PATH from the committed report of a real run (custom/lod1_chain.py)
+from computelod.custom.lod1_chain import report, rows as lod1_rows, decode_rtype, RTL
+from computelod.custom.computelod_walk import path
+rep = report()
+check('lod-1: a committed report exists (the chain RAN: gcc → yosys → iverilog)', rep is not None and rep.get('how') in ('path', 'docker'), rep and rep.get('how'))
+check('  …PicoRV32 is pinned (commit + ISC licence file present)', os.path.exists(os.path.join(RTL, 'picorv32.v')) and os.path.exists(os.path.join(RTL, 'LICENSE')) and len(rep['picorv32_pin'].get('commit', '')) == 40)
+check('  …the compiler produced `add a0,a0,a1` for c = a + b at -O1 rv32i', rep['compile']['add_instruction'].replace(' ', '') == 'adda0,a0,a1', rep['compile'])
+d = decode_rtype(int(rep['compile']['encoding'], 16))
+check('  …and the encoding DECODES to R-type add rd=x10 rs1=x10 rs2=x11 (the ISA rung\'s own arithmetic, checked here — not copied)',
+      d['is_add'] and d['rd'] == 10 and d['rs1'] == 10 and d['rs2'] == 11 and rep['compile']['encoding'] == '0x00b50533', d)
+check('  …yosys counted the core and the adder (cells > 0), the adder far smaller than the core', rep['core_synth']['cells'] > rep['adder_synth']['cells'] > 0, (rep['core_synth']['cells'], rep['adder_synth']['cells']))
+check('  …the adder\'s netlist is gates only (XOR/AND/OR/…), no flip-flops', all('DFF' not in k for k in rep['adder_synth']['by_type']))
+check('  …iverilog: the RTL and its gate netlist PASS the same vectors', 'PASS' in rep['simulation']['rtl'] and 'PASS' in rep['simulation']['netlist'], rep['simulation'])
+arts, maps, chars = lod1_rows(rep)
+check('the rows: 3 artifacts (source, assembly, object), 7 mappings, 5 characterizations', (len(arts), len(maps), len(chars)) == (3, 7, 5))
+check('every mapping carries BOTH statuses and an evidence_ref when it claims evidence', all(m_['mapping_status'] and m_['evidence_level'] and (m_['evidence_level'] == 'none' or m_['evidence_ref']) for m_ in maps))
+check('a tool\'s own output is `measured`, a simulation is `simulated`, a cited line is `analytical` — never mixed',
+      next(m_ for m_ in maps if m_['name'] == 'lod1: gcc → isa add')['evidence_level'] == 'measured'
+      and next(c for c in chars if 'correctness (rtl)' in c['name'])['evidence_level'] == 'simulated'
+      and next(m_ for m_ in maps if 'picorv32 decode' in m_['name'])['evidence_level'] == 'analytical')
+check('the ISA → microarchitecture mapping is ONE-TO-MANY (fetch/decode/read/add/writeback) and says so', next(m_ for m_ in maps if 'picorv32 decode' in m_['name'])['kind'] == 'one-to-many')
+check('the path stops HONESTLY: netlist → standard cells is an unresolved mapping, and delay is a characterization with evidence_level none (lod-2)',
+      next(m_ for m_ in maps if 'standard cells' in m_['name'])['kind'] == 'unresolved' and next(c for c in chars if 'delay' in c['name'])['evidence_level'] == 'none')
+check('every characterization with evidence carries its CONDITIONS (the load-bearing column)', all(json.loads(c['conditions_json']) for c in chars if c['evidence_level'] != 'none'))
+m3 = _mgr()
+for cls, rws in (('ComputeMapping', maps), ('CharacterizationMapping', chars)):
+    for r in rws:
+        _add(m3, cls, **r)
+pth = path(m3, 'c-source', 'lod1/add.c: c = a + b')
+check('walking DOWN from the C statement follows the chain c-source → compiler → isa → microarchitecture → rtl → logic-netlist → standard-cells and stops there, saying so',
+      pth['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells'] and pth['unresolved_at'] == 'standard-cells', pth['rungs'])
+up = path(m3, 'logic-netlist', 'yosys synth rv32_add', 'up')
+check('walking UP from the adder netlist reaches the RTL through the gate-count characterization', up['rungs'][:2] == ['logic-netlist', 'rtl'], up['rungs'])
 
 man = json.load(open('modules/computelod/polari-app.json'))
 from moduleService.manifests import validate
