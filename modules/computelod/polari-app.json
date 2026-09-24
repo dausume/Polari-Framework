@@ -58,7 +58,8 @@
    "custom/computelod_walk",
    "custom/lod1_chain",
    "custom/lod2_cnt",
-   "custom/lod2_silicon"
+   "custom/lod2_silicon",
+   "custom/lod3_cells"
   ],
   "endpoints": [
    "computelod_endpoints"

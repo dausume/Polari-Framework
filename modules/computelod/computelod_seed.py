@@ -110,6 +110,13 @@ from computelod.custom.lod2_cnt import report as _lod2cnt_report, rows as _lod2c
 _l2cm, _l2cc = _lod2cnt_rows(_lod2cnt_report(), (_lod1_report() or {}).get('adder_synth', {}).get('cells', 0))
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l2cm)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l2cc)
+# ---- lod-3: cells → transistors → layout, READ from the artefacts (PDK .spice/.lef at a pinned commit; the CNT
+# cell library's device lists). Replaces lod-2's partial cells → devices BY NAME; adds devices → layout (LEF area
+# cross-checked against the Liberty), layout → fabrication (partial), and the CNT layout as unresolved.
+from computelod.custom.lod3_cells import report as _lod3_report, rows as _lod3_rows
+_l3m, _l3c = _lod3_rows(_lod3_report(), _lod2_report(), _lod2cnt_report())
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3m)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3c)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),

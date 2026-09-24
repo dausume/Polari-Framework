@@ -28,6 +28,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod1', self, suffix='lod1')                 # the teaching path's committed report
             add('/api/computelod/lod2', self, suffix='lod2')                 # open silicon: SKY130 mapping + OpenSTA timing
             add('/api/computelod/lod2/cnt', self, suffix='lod2_cnt')         # the second Liberty: our own CNT cell library
+            add('/api/computelod/lod3', self, suffix='lod3')                 # cells → transistors → layout, read from the artefacts
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -51,6 +52,16 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod3(self, request, response):
+        from computelod.custom.lod3_cells import report
+        rep = report()
+        slim = None
+        if rep:   # the per-device lists are large; the summary is the reading
+            slim = {'adder': rep['adder'], 'sky130': {'source': rep['sky130']['source'], 'files': rep['sky130']['files'],
+                                                     'cells': {k: {kk: vv for kk, vv in v.items() if kk != 'devices'} for k, v in rep['sky130']['cells'].items()}},
+                    'cnt': {'cells': {k: {kk: vv for kk, vv in v.items() if kk != 'devices'} for k, v in rep['cnt']['cells'].items()}}, 'not_done': rep['not_done']}
+        response.media = {'ok': bool(rep), 'report': slim or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_cells run (fetches per-cell .spice/.lef from the pinned SKY130 cell repo into ~/.cache/polari-lod, never committed)'}
 
     def on_get_lod2_cnt(self, request, response):
         from computelod.custom.lod2_cnt import report

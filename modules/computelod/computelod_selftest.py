@@ -146,7 +146,7 @@ check('  …the delay characterization is now a NUMBER with conditions, evidence
       and json.loads(next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['conditions_json'])['voltage_v'] == 1.8)
 check('  …and the NEXT gap is stated honestly: standard cells → devices is PARTIAL (the cells\' SPICE is not read here — lod-3)', next(m_ for m_ in maps2 if 'devices' in m_['name'])['kind'] == 'partial' and next(m_ for m_ in maps2 if 'devices' in m_['name'])['evidence_level'] == 'none')
 check('the seed MERGES lod-2 over lod-1 by name: no unresolved netlist→cells row remains, ONE SKY130 delay row',
-      not any(m_['kind'] == 'unresolved' for m_ in SEED_LOD_MAPPINGS) and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if c['name'] == 'lod1: rv32_add propagation delay') == 1)
+      not any(m_['kind'] == 'unresolved' and 'netlist' in m_['name'] for m_ in SEED_LOD_MAPPINGS) and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if c['name'] == 'lod1: rv32_add propagation delay') == 1)
 # ---- lod-2b: the SECOND Liberty — our own CNT library, characterized here (ngspice), mapped + timed the same way
 from computelod.custom.lod2_cnt import report as lod2cnt_report, rows as lod2cnt_rows, LIB_NAME as CNT_LIB
 rep2c = lod2cnt_report()
@@ -162,15 +162,42 @@ maps2c, chars2c = lod2cnt_rows(rep2c, rep['adder_synth']['cells'])
 check('lod-2b rows: NEW names beside SKY130 (nothing replaced); mapping evidence is SIMULATED (a model of a model), cells → devices is a real reference to the device row, delay in ns with the conditions',
       {m_['name'] for m_ in maps2c} == {'lod2-cnt: netlist → CNT standard cells', 'lod2-cnt: CNT standard cells → devices'} and all(m_['evidence_level'] == 'simulated' for m_ in maps2c)
       and 'AlignedCNTFETDevice' in next(m_ for m_ in maps2c if 'devices' in m_['name'])['target_ref'] and next(c for c in chars2c if 'propagation' in c['name'])['result'] == rep2c['timing']['max_path_ps'] / 1000.0)
-check('the seed now holds BOTH libraries: ten mappings + nine characterizations, two propagation-delay rows (SKY130 and CNT) that do not collide',
-      len(SEED_LOD_MAPPINGS) == 10 and len(SEED_LOD_CHARACTERIZATIONS) == 9 and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 2)
+check('the seed holds BOTH libraries: two propagation-delay rows (SKY130 and CNT) that do not collide',
+      sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 2)
+
+# ---- lod-3: cells → transistors → layout, read from the artefacts on both libraries
+from computelod.custom.lod3_cells import report as lod3_report, rows as lod3_rows, parse_spice, parse_lef_size, cnt_devices, CELLS_REPO
+rep3 = lod3_report()
+check('lod-3: a committed report exists; the SKY130 cells are cited per file (url + sha256 at a pinned commit), NOT committed',
+      rep3 is not None and all('sha256' in f['spice'] and CELLS_REPO['commit'] in f['spice']['url'] for f in rep3['sky130']['files'].values())
+      and not any(fn.endswith('.spice') for fn in os.listdir('modules/computelod/initialData/lod3')))
+check('  …every mapped SKY130 cell was READ down to its transistors: xnor2_1 = 10 (5 pfet_hvt + 5 nfet), maj3_1 = 14, all at L = 0.15 µm (the netlists\' 1e-6 scale applied)',
+      rep3['sky130']['cells']['sky130_fd_sc_hd__xnor2_1']['transistors'] == 10 and rep3['sky130']['cells']['sky130_fd_sc_hd__maj3_1']['transistors'] == 14
+      and all(l == 0.15 for c in rep3['sky130']['cells'].values() for _, l in c['w_l_um']), {k: v['transistors'] for k, v in rep3['sky130']['cells'].items()})
+check('  …the adder = 1050 SKY130 transistors, and the LEF footprints summed AGREE with lod-2\'s Liberty area (855.82 µm²) — two independent PDK sources',
+      rep3['adder']['sky130']['transistors'] == 1050 and rep3['adder']['sky130']['area_agrees'] and rep3['adder']['sky130']['lef_area_um2'] == rep3['adder']['sky130']['liberty_area_um2'], rep3['adder']['sky130'])
+check('  …the CNT adder = 1016 transistors (508 p + 508 n) from the cell library\'s own device lists, composites expanded; NO layout (None, stated)',
+      rep3['adder']['cnt']['transistors'] == 1016 and rep3['adder']['cnt']['p'] == rep3['adder']['cnt']['n'] == 508 and rep3['adder']['cnt']['layout'] is None, rep3['adder']['cnt'])
+check('  …what is NOT done is listed: DRC/LVS, transistor-level simulation, fabrication, CNT layout', len(rep3['not_done']) == 4 and any('DRC' in x for x in rep3['not_done']))
+_dv, _pins = parse_spice(os.path.join(os.path.expanduser('~/.cache/polari-lod/sky130_cells'), 'sky130_fd_sc_hd__nand2_1.spice'))
+check('parse_spice reads a cached PDK netlist: nand2_1 = 4 devices with W 0.65/1.0 µm, L 0.15 µm, pins A B VGND VNB VPB VPWR Y',
+      len(_dv) == 4 and {d['w_um'] for d in _dv} == {0.65, 1.0} and {d['l_um'] for d in _dv} == {0.15} and _pins == ['A', 'B', 'VGND', 'VNB', 'VPB', 'VPWR', 'Y'], (_dv, _pins))
+check('cnt_devices expands composites: cbuf = two cinv = 4 devices', len(cnt_devices('cbuf', __import__('cntfet.objects.cnt_cell_library._shared', fromlist=['x']).CELL_LIBRARY)) == 4)
+maps3, chars3 = lod3_rows(rep3, rep2, rep2c)
+check('lod-3 rows: cells → devices RESOLVED by name (one-to-many, analytical: cited netlists); devices → layout VALIDATED by the area cross-check; layout → fabrication PARTIAL; CNT layout UNRESOLVED',
+      next(m_ for m_ in maps3 if m_['name'] == 'lod2: standard cells → devices')['kind'] == 'one-to-many' and next(m_ for m_ in maps3 if m_['name'] == 'lod2: standard cells → devices')['evidence_level'] == 'analytical'
+      and next(m_ for m_ in maps3 if m_['name'] == 'lod3: devices → layout')['mapping_status'] == 'validated' and next(m_ for m_ in maps3 if m_['name'] == 'lod3: layout → fabrication')['kind'] == 'partial'
+      and next(m_ for m_ in maps3 if m_['name'] == 'lod3-cnt: devices → layout')['kind'] == 'unresolved', [(m_['name'], m_['kind']) for m_ in maps3])
+check('  …the transistor counts are characterizations with units (1050 SKY130 analytical; 1016 CNT simulated — the device is a model)',
+      {(c['name'], c['result'], c['evidence_level']) for c in chars3 if 'transistor' in c['name']} == {('lod3: rv32_add transistor count', 1050.0, 'analytical'), ('lod3-cnt: rv32_add transistor count', 1016.0, 'simulated')})
+check('the seed merges lod-3 by name: no partial cells → devices row remains for SKY130; the walk below proves the depth', not any(m_['name'] == 'lod2: standard cells → devices' and m_['kind'] == 'partial' for m_ in SEED_LOD_MAPPINGS))
 m5 = _mgr()
 for cls, rws in (('ComputeMapping', SEED_LOD_MAPPINGS), ('CharacterizationMapping', SEED_LOD_CHARACTERIZATIONS)):
     for r_ in rws:
         _add(m5, cls, **r_)
 p5 = path(m5, 'c-source', 'lod1/add.c: c = a + b')
-check('the walk from the C statement now reaches STANDARD CELLS and stops at DEVICES — one rung deeper than lod-1, and still honest about where it ends',
-      p5['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices'] and p5['unresolved_at'] == 'devices', p5['rungs'])
+check('the walk from the C statement now reaches LAYOUT and stops at FABRICATION — ten rungs of eleven, and still honest about where it ends',
+      p5['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication'] and p5['unresolved_at'] == 'fabrication', (p5['rungs'], p5.get('unresolved_at')))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
 
