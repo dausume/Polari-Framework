@@ -137,8 +137,23 @@ check('the graph view of the seeded tree: 2 structural edges (slice, turbulence)
 # ---- tt-2: the mechanics tree — honest about its visualization, right about its mappings
 rep2 = validate_tree(m2, 'plate-mechanics')
 check('plate-mechanics passes the structural rules', rep2['ok'], rep2['errors'])
-check('its root is UNRESOLVED for the stated reason: no binding (the element field has no sim-space binding yet) — not pretended', rep2['nodes']['plate']['status'] == 'unresolved' and rep2['nodes']['plate']['why'] == 'no binding_ref', rep2['nodes']['plate'])
-check('  …and the unresolved VISUALIZATION space keeps the candidates (a 2-D field binding; a sci-xy-chart profile)', rep2['unresolved']['plate-visualization']['kind'] == 'visualization')
+# tt-6: with no SimSpaceBindingDefinition rows in sight the validator trusts the name; once the instance holds
+# bindings, the name must be one of them — a resolved node is one a viewer can draw
+check('tt-6: the plate root is RESOLVED — x/y → position, σ_vm → color, bound to FEMFieldState-2d (the 2-D field binding)',
+      rep2['nodes']['plate']['status'] == 'resolved' and rep2['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d' and rep2['nodes']['plate']['coherent'] == ['plate.x', 'plate.y', 'plate.sigma'], rep2['nodes']['plate'])
+m2.objectTables['SimSpaceBindingDefinition'] = {}
+_add(m2, 'SimSpaceBindingDefinition', name='WindFieldGridState-3d', class_name='WindFieldGridState')
+rep2b = validate_tree(m2, 'plate-mechanics')
+check('  …but NOT when the instance holds bindings and none is named FEMFieldState-2d: the reason names the missing binding',
+      rep2b['nodes']['plate']['status'] == 'unresolved' and 'names no SimSpaceBindingDefinition' in rep2b['nodes']['plate']['why'], rep2b['nodes']['plate'])
+_add(m2, 'SimSpaceBindingDefinition', name='FEMFieldState-2d', class_name='FEMFieldState')
+rep2 = validate_tree(m2, 'plate-mechanics')
+check('  …and resolves again once the binding row exists', rep2['nodes']['plate']['status'] == 'resolved')
+check('  …u per node stays UNRESOLVED for the stated reason (no binding: 2-D has no vector channel) with a typed visualization space under it, not hidden',
+      rep2['nodes']['plate-displacement']['status'] == 'unresolved' and rep2['nodes']['plate-displacement']['why'] == 'no binding_ref'
+      and rep2['unresolved']['plate-displacement-visualization']['kind'] == 'visualization', (rep2['nodes']['plate-displacement'], list(rep2['unresolved'])))
+check('  …the σ colour domain of the dimension is the binding\'s (one constant: tensormath.PLATE_SIGMA_DOMAIN)',
+      __import__('json').loads(next(d for d in SEED_LOCALIZED_DIMENSIONS if d['name'] == 'plate.sigma')['scale_json'])['domain'] == __import__('tensormath.tensormath_seed', fromlist=['x']).PLATE_SIGMA_DOMAIN)
 psel = next(s for s in m2.objectTables['TensorSelection'].values() if s.name == 'plate-strain-all')
 d2 = discover(m2, psel)
 check('discovery from the strain node finds eps→sigma (validated, simulated, with the interop selftest as evidence)', [c['mapping'] for c in d2['candidates']] == ['eps→sigma'] and d2['candidates'][0]['evidence_ref'].startswith('tensormath selftest'), d2)

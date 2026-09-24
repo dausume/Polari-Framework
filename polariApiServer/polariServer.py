@@ -1290,7 +1290,7 @@ class polariServer(treeObject):
             # same hole PipelineSetupStep had; fixed with tt-0)
             DeployTarget, DeployRecord,
             # tt-0: tensors by reference, tensor trees, the compute ladder
-            Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition,
+            Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition, FEMFieldState,
             TensorTreeDefinition, TensorNode, UnresolvedTensorSpace, LocalizedDimension, TensorMapping, TensorSelection,
             TensorDiscoveryPolicy,
             ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact]

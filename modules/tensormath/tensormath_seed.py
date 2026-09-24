@@ -12,7 +12,7 @@ and the expressions that read them (wind speed = the L2 norm over the velocity c
 import json
 
 from tensormath.tensormath_basis import (Tensor, TensorDimension, TensorMathExpression, TensorOperator,
-                                         ComputeImplementation, TensorDecomposition)
+                                         ComputeImplementation, TensorDecomposition, FEMFieldState)
 
 SEED_TENSORS = [
     {'name': 'wind-field', 'description': 'the wind→pendulum coupling\'s grid, read live from the newest WindFieldGridState row',
@@ -101,12 +101,49 @@ _fpga = _fpga_row(_fpga_report())
 if _fpga:
     SEED_COMPUTE_IMPLEMENTATIONS.append(_fpga)
 
+# ---- tt-6: the σ field WRITTEN DOWN so a binding can see it. The FEMFieldState row is solved at seed time (no
+# manager: the seed case + the seed material option), a 2-D scene `plate-mechanics-2d` binds the class with a
+# `field` binding coloured by σ_vm over PLATE_SIGMA_DOMAIN — the SAME domain the tensortree dimension
+# plate.sigma declares (one constant, so dims → channel and the binding cannot drift apart).
+from tensormath.custom.fem_field import LazySeedRows, seed_field_rows, SEED_FIELD_NAME  # noqa: E402
+
+PLATE_SIGMA_DOMAIN = [0.8e6, 1.1e6]   # Pa — tight to the uniaxial 1 MPa field so its structure (the fixed edge's Poisson constraint) shows
+SEED_FEM_FIELD_STATES = LazySeedRows(seed_field_rows)
+SEED_PLATE_SIMSPACES = [{
+    'name': 'plate-mechanics-2d',
+    'description': 'The tt-2 plate in tension: σ_vm per element as a coloured cell at each element centroid (2-D field binding over '
+                   'FEMFieldState.elements_json). Colour = von Mises stress over %s Pa; hover a cell for its value. u per node is NOT '
+                   'drawn here yet (no 2-D vector channel) — that gap is the plate tree\'s remaining unresolved space.' % PLATE_SIGMA_DOMAIN,
+    'dimensionality': '2d', 'coordinate_system': 'math', 'unit_scale': 1.0,
+    'viewport_json': json.dumps({'center': [1.0, 0.5], 'extent': [1.3, 0.8]}),
+    'bound_classes_json': json.dumps([{'className': 'FEMFieldState'}]),
+    'definition': json.dumps({'freestanding': []}),
+}]
+SEED_PLATE_BINDINGS = [{
+    'name': 'FEMFieldState-2d', 'class_name': 'FEMFieldState', 'dimensionality': '2d', 'enabled': True,
+    'binding_json': json.dumps({
+        'enabled': True, 'dimensionality': '2d', 'kind': 'field', 'matrixField': 'elements_json',
+        'layout': {'originCols': [0, 2], 'scalarCol': 2},
+        'color': {'domain': PLATE_SIGMA_DOMAIN, 'ramp': 'stress', 'unit': 'Pa', 'field': 'von Mises'},
+        'cellSize': 2.2, 'visual': {'shapeRef': 'rectangle', 'styleRef': 'default'}, 'defaultVisible': True,
+        'note': 'cells are markers at element centroids (P1 elements are constant per triangle); the triangles themselves are the next slice',
+    }),
+}]
+
 TENSORMATH_SEED_PAIRS = [
     ('Tensor', Tensor, SEED_TENSORS), ('TensorDimension', TensorDimension, SEED_TENSOR_DIMENSIONS),
     ('TensorMathExpression', TensorMathExpression, SEED_TENSOR_EXPRESSIONS),
     ('TensorOperator', TensorOperator, SEED_TENSOR_OPERATORS), ('ComputeImplementation', ComputeImplementation, SEED_COMPUTE_IMPLEMENTATIONS),
     ('TensorDecomposition', TensorDecomposition, []),
+    ('FEMFieldState', FEMFieldState, SEED_FEM_FIELD_STATES),
 ]
+try:   # the scene + binding are CORE simSpace rows, seeded here because they exist for this module's field
+    from simSpace.sim_space_definition import SimSpaceDefinition
+    from simSpace.sim_space_binding_definition import SimSpaceBindingDefinition
+    TENSORMATH_SEED_PAIRS += [('SimSpaceDefinition', SimSpaceDefinition, SEED_PLATE_SIMSPACES),
+                              ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PLATE_BINDINGS)]
+except Exception:   # pragma: no cover
+    pass
 try:   # the FEM case is a CORE materialsScience row, seeded here so the tensors have something to read
     from materialsScience.fem_model_definition import FEMModelDefinition
     TENSORMATH_SEED_PAIRS.insert(0, ('FEMModelDefinition', FEMModelDefinition, SEED_FEM_CASES))

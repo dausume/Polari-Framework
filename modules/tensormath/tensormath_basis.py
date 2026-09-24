@@ -15,6 +15,7 @@ from tensormath.objects.tensormath.TensorMathExpression import TensorMathExpress
 from tensormath.objects.tensormath.TensorOperator import TensorOperator  # noqa: F401
 from tensormath.objects.tensormath.ComputeImplementation import ComputeImplementation  # noqa: F401
 from tensormath.objects.tensormath.TensorDecomposition import TensorDecomposition  # noqa: F401
+from tensormath.objects.tensormath.FEMFieldState import FEMFieldState  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
-TENSORMATH_CLASSES = [Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition]
+TENSORMATH_CLASSES = [Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition, FEMFieldState]

@@ -1274,7 +1274,7 @@ FEATURE_IMPORT_BLOCKS = (
     # tt-0 (COMPUTE_LOD_TENSOR_PLAN): tensors by reference, tensor trees, the compute ladder
     ('tensormath', (
         ('tensormath.tensormath_basis', ('Tensor', 'TensorDimension', 'TensorMathExpression', 'TensorOperator',
-                                         'ComputeImplementation', 'TensorDecomposition', 'TENSORMATH_CLASSES')),
+                                         'ComputeImplementation', 'TensorDecomposition', 'FEMFieldState', 'TENSORMATH_CLASSES')),
         ('tensormath.tensormath_seed', ('TENSORMATH_SEED_PAIRS',)),
         ('tensormath.tensormath_page', ('SEED_TENSORMATH_PAGE_DISPLAYS',)),
     )),

@@ -49,6 +49,9 @@ def validate_tree(manager, tree_name):
     nodes = [n for n in _rows(manager, 'TensorNode') if str(getattr(n, 'tree', '')) == tree_name]
     unres = [u for u in _rows(manager, 'UnresolvedTensorSpace') if str(getattr(u, 'tree', '')) == tree_name]
     dims = {str(getattr(d, 'name', '')): d for d in _rows(manager, 'LocalizedDimension')}
+    # tt-6: a binding_ref must NAME a binding this instance holds (when it holds any) — a resolved node is one a
+    # viewer can actually draw, not one that merely claims a name
+    bindings = {str(getattr(b, 'name', '')) for b in _rows(manager, 'SimSpaceBindingDefinition')}
     names = {str(getattr(x, 'name', '')): x for x in nodes + unres}
     errors, report = [], {'tree': tree_name, 'nodes': {}, 'unresolved': {}}
     roots = [n for n in names if not str(getattr(names[n], 'parent', '') or '')]
@@ -76,11 +79,14 @@ def validate_tree(manager, tree_name):
                 bad[dn] = 'no LocalizedDimension row'; continue
             ok, why = dimension_coherent(d)
             (good.append(dn) if ok else bad.__setitem__(dn, why))
-        resolved = bool(want) and not bad and bool(str(getattr(node, 'binding_ref', '') or ''))
+        bref = str(getattr(node, 'binding_ref', '') or '')
+        binding_missing = bool(bref) and bool(bindings) and bref not in bindings
+        resolved = bool(want) and not bad and bool(bref) and not binding_missing
         report['nodes'][n] = {'status': 'resolved' if resolved else 'unresolved', 'coherent': good, 'incoherent': bad,
-                              'binding_ref': str(getattr(node, 'binding_ref', '') or ''),
+                              'binding_ref': bref,
                               'why': '' if resolved else ('no localized dimensions' if not want else
-                                                         ('no binding_ref' if not bad else 'incoherent: ' + ', '.join(bad)))}
+                                                         (('no binding_ref' if not bref else 'binding_ref %r names no SimSpaceBindingDefinition on this instance' % bref)
+                                                          if not bad else 'incoherent: ' + ', '.join(bad)))}
     for u in unres:
         n = str(getattr(u, 'name', '')); k = str(getattr(u, 'unresolved_kind', '') or '')
         if k not in UNRESOLVED_KINDS:

@@ -116,8 +116,25 @@ r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
 check('GET operators/stress-from-strain shows the bridge: the numpy implementation on the microarchitecture rung, evidence none until benchmarked, and the FPGA row beside it',
       r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none' and len(r.json['implementations']) == 2, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
-check('plate-mechanics validates; its root is unresolved for the stated reason (no binding), its visualization space typed', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['why'] == 'no binding_ref'
-      and r.json['validation']['unresolved']['plate-visualization']['kind'] == 'visualization', r.text[:300])
+check('tt-6: plate-mechanics validates; its root is RESOLVED on a real boot (binding FEMFieldState-2d exists here), u per node unresolved for the stated reason with its typed space',
+      r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['status'] == 'resolved' and r.json['validation']['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d'
+      and r.json['validation']['nodes']['plate-displacement']['why'] == 'no binding_ref' and r.json['validation']['unresolved']['plate-displacement-visualization']['kind'] == 'visualization', r.text[:400])
+r = client.simulate_get('/api/tensormath/fem/tt2-plate-tension')
+check('GET /api/tensormath/fem/tt2-plate-tension: the field row exists FROM SEED (64 elements, 45 nodes, E/ν cited), the binding + scene exist → drawable',
+      r.status_code == 200 and r.json['drawable'] and r.json['field']['n_elements'] == 64 and r.json['field']['n_nodes'] == 45 and 'literature-est' in r.json['field']['material_provenance']
+      and 'plate-mechanics-2d' in r.json['scenes'], r.text[:300])
+r = client.simulate_get('/api/tensormath/fem/nope')
+check('  …an unknown case is a 404', r.status_code == 404)
+r = client.simulate_post('/api/tensormath/fem/tt2-plate-tension/materialise')
+check('POST …/materialise re-solves with the manager (E/ν from the live MagneticMaterialOption) and refreshes the same row (200, not a second row)',
+      r.status_code == 200 and r.json['created'] is False and r.json['n_elements'] == 64 and len([f for f in tables.get('FEMFieldState', {}).values()]) == 1, r.text[:300])
+r = client.simulate_get('/api/simspace/plate-mechanics-2d/snapshot')
+_snap = (r.json.get('data') or r.json) if r.status_code == 200 else {}
+_objs = _snap.get('objects', []) or []
+_cells = [o for o in _objs if (o.get('userData') or {}).get('bindingName') == 'FEMFieldState-2d']
+check('the 2-D snapshot of plate-mechanics-2d fans the field row into 64 coloured cells (colorOverride from σ_vm through the binding\'s domain; the raw value rides userData)',
+      r.status_code == 200 and len(_cells) == 64 and all(c.get('colorOverride', '').startswith('#') and 'scalar' in c['userData'] for c in _cells)
+      and len({c['colorOverride'] for c in _cells}) > 3, (r.status_code, len(_objs), list(_snap)[:8], (_snap.get('warnings') or [])[:3], r.text[:200]))
 # ---- Phase 6: the bridge, live — benchmark numpy HERE, then read both implementations side by side
 r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/numpy', 'repeats': 10})
 check('POST benchmark runs the numpy implementation here and writes the MEASURED reading into its row (median, repeats, node, n)',

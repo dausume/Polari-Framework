@@ -33,7 +33,7 @@ def _add(mgr, cls, **kw):
     row = types.SimpleNamespace(**kw); mgr.objectTables[cls][id(row)] = row; return row
 
 
-check('the module registers exactly SIX row classes', len(TENSORMATH_CLASSES) == 6, [c.__name__ for c in TENSORMATH_CLASSES])
+check('the module registers exactly SEVEN row classes (tt-6 added FEMFieldState)', len(TENSORMATH_CLASSES) == 7, [c.__name__ for c in TENSORMATH_CLASSES])
 check('every class is one file under objects/tensormath/', all(c.__module__ == 'tensormath.objects.tensormath.%s' % c.__name__ for c in TENSORMATH_CLASSES))
 pairs = {p[0]: p[2] for p in TENSORMATH_SEED_PAIRS}
 check('seed pairs cover every class (+ the tt-2 FEM case, a core row); every seeded tensor reads REAL state (engine-backed); no decomposition is seeded',
@@ -195,7 +195,34 @@ check('the fixed-point scales are stated once, in code, and are what the kernel 
 
 man = json.load(open('modules/tensormath/polari-app.json'))
 from moduleService.manifests import validate
-check('the manifest is valid, declares six classes + the API, and requires numpy', validate(man) == [] and len([c for c in man['classes'] if c != 'TensorMathAPI']) == 6 and man['requires']['libraries'] == ['numpy'])
+check('the manifest is valid, declares seven classes + the API, and requires numpy', validate(man) == [] and len([c for c in man['classes'] if c != 'TensorMathAPI']) == 7 and man['requires']['libraries'] == ['numpy'])
+
+# ---- tt-6: the σ field written down, and seen through a 2-D field binding
+from tensormath.custom.fem_field import field_row_from_tensor_field, seed_field_rows, LazySeedRows, FIELD_COLUMNS
+from tensormath.tensormath_seed import SEED_FEM_FIELD_STATES, SEED_PLATE_BINDINGS, SEED_PLATE_SIMSPACES, PLATE_SIGMA_DOMAIN
+_tf = {'nodes': [[0, 0], [1, 0], [0, 1]], 'triangles': [[0, 1, 2]], 'displacement': [[0, 0], [1e-6, 0], [0, -3e-7]],
+       'stress': [[[1e6, 0.0], [0.0, 0.0]]], 'centroids': [[1 / 3, 1 / 3]], 'lame': {'assumption': 'plane-stress'}}
+fr = field_row_from_tensor_field(_tf, 'unit-case', material_provenance='test: E = 1 (none)')
+_el = json.loads(fr['elements_json'])
+check('field_row_from_tensor_field: one element row [cx, cy, σ_vm, σ_xx, σ_yy, σ_xy, area]; uniaxial 1 MPa → σ_vm = 1 MPa, area ½',
+      fr['n_elements'] == 1 and fr['n_nodes'] == 3 and abs(_el[0][2] - 1e6) < 1e-6 and abs(_el[0][6] - 0.5) < 1e-12 and json.loads(fr['columns_json']) == FIELD_COLUMNS and fr['u_max'] == 1e-6, _el)
+check('the seed field row is solved at seed time from the seed case + the seed material option (64 elements, σ_vm within 0.8–1.1 MPa of the 1 MPa pull, E/ν cited)',
+      isinstance(SEED_FEM_FIELD_STATES, LazySeedRows) and len(SEED_FEM_FIELD_STATES) == 1 and SEED_FEM_FIELD_STATES[0]['n_elements'] == 64
+      and PLATE_SIGMA_DOMAIN[0] <= SEED_FEM_FIELD_STATES[0]['sigma_vm_min'] <= SEED_FEM_FIELD_STATES[0]['sigma_vm_max'] <= PLATE_SIGMA_DOMAIN[1]
+      and 'literature-est' in SEED_FEM_FIELD_STATES[0]['material_provenance'], {k: v for k, v in (SEED_FEM_FIELD_STATES[0] if SEED_FEM_FIELD_STATES else {}).items() if 'json' not in k})
+_bj = json.loads(SEED_PLATE_BINDINGS[0]['binding_json'])
+check('the binding FEMFieldState-2d is a 2-D `field` over elements_json, colour = column 2 (σ_vm) over PLATE_SIGMA_DOMAIN in Pa; the scene binds the class',
+      SEED_PLATE_BINDINGS[0]['name'] == 'FEMFieldState-2d' and _bj['kind'] == 'field' and _bj['layout']['scalarCol'] == 2 and _bj['color']['domain'] == PLATE_SIGMA_DOMAIN and _bj['color']['unit'] == 'Pa'
+      and json.loads(SEED_PLATE_SIMSPACES[0]['bound_classes_json'])[0]['className'] == 'FEMFieldState' and SEED_PLATE_SIMSPACES[0]['dimensionality'] == '2d')
+from simSpace.compilers.field_projection_2d import emit_field_2d, ramp_color
+_inst = types.SimpleNamespace(name='f', elements_json=json.dumps([[0.1, 0.2, 0.8e6, 0, 0, 0, 1], [0.3, 0.4, 1.1e6, 0, 0, 0, 1], [0.5, 0.6, 'nan', 0, 0, 0, 1]]))
+_warn = []
+_objs = emit_field_2d('FEMFieldState', {1: _inst}, _bj, 'FEMFieldState-2d', None, _warn)
+check('emit_field_2d fans the row into one object per element at its centroid, colorOverride from the ramp (low → blue end, high → red end), per-cell stable ids',
+      len(_objs) == 3 and _objs[0]['position'] == [0.1, 0.2] and _objs[0]['colorOverride'] == ramp_color('stress', 0.0) and _objs[1]['colorOverride'] == ramp_color('stress', 1.0)
+      and _objs[0]['id'] == 'FEMFieldState-2d:FEMFieldState:0' and _objs[0]['userData']['scalar'] == 0.8e6 and _objs[0]['userData']['unit'] == 'Pa' and _objs[0]['shapeRef'] == 'rectangle', _objs[:2])
+check('  …a cell whose scalar is not a number is drawn grey and says so (refused, never invented)', _objs[2]['colorOverride'] == '#bdbdbd' and 'no numeric scalar' in _objs[2]['userData']['refused'], _objs[2])
+check('  …the ramp is clamped and monotone in hue stops', ramp_color('stress', -1) == ramp_color('stress', 0) and ramp_color('stress', 2) == ramp_color('stress', 1) and ramp_color('nope', 0.5) == ramp_color('grey', 0.5))
 
 n_ok = sum(1 for _, ok in _results if ok)
 print(f'\n{n_ok}/{len(_results)} checks passed')

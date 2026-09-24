@@ -58,30 +58,41 @@ SEED_TENSOR_MAPPINGS = [
        mapping_status='proposed', evidence_level='none', evidence_ref='', provenance='tt-1 (a hypothesis, on purpose)'),
 ]
 # ---- tt-2: the MECHANICS tree over the plate — displacement → strain → stress → force balance as mappings.
-# The plate's VISUALIZATION is honestly unresolved: the FEM element fields are computed arrays, not class rows,
-# so no sim-space binding exists for them yet (the 2-D field binding over an execution row is tt-3's). The root
-# node therefore has its dimensions but no binding, and the validator says so; nothing is pretended.
+# tt-6 RESOLVED the root: the σ field is written down as an FEMFieldState row (tensormath.custom.fem_field) and a
+# 2-D `field` binding `FEMFieldState-2d` in scene `plate-mechanics-2d` colours one cell per element by σ_vm over
+# the SAME domain the dimension plate.sigma declares (PLATE_SIGMA_DOMAIN — one constant on both sides). What is
+# still NOT seen is u per node (2-D has no vector channel): that lives on plate-displacement as the tree's
+# remaining, truthfully typed visualization space. Nothing is pretended.
+try:
+    from tensormath.tensormath_seed import PLATE_SIGMA_DOMAIN as _SIGMA_DOMAIN
+except Exception:   # pragma: no cover - tensortree without tensormath
+    _SIGMA_DOMAIN = [0.8e6, 1.1e6]
 _P = 'plate-mechanics'
 SEED_TENSOR_TREES += [{'name': _P, 'description': 'continuum mechanics of the tt-2 plate: u → ε → σ = C:ε → ∂σ/∂x + f = 0 (Validation B)',
                        'tensor': 'tt2-sigma', 'root_node': 'plate', 'view_kind': 'operator', 'status': 'partial', 'notes': ''}]
 SEED_LOCALIZED_DIMENSIONS += [
     _ld('plate', 'x', 'position.x') | {'dimension': 'tt2-centroids.xy'}, _ld('plate', 'y', 'position.y') | {'dimension': 'tt2-centroids.xy'},
-    _ld('plate', 'sigma', 'color', sc=json.dumps({'kind': 'continuous', 'domain': [0, 1.2e6], 'unit': 'Pa', 'field': 'von Mises'})) | {'dimension': 'tt2-sigma'},
-    _ld('plate', 'u', 'vector') | {'dimension': 'tt2-u'},
+    _ld('plate', 'sigma', 'color', sc=json.dumps({'kind': 'continuous', 'domain': _SIGMA_DOMAIN, 'unit': 'Pa', 'field': 'von Mises'})) | {'dimension': 'tt2-sigma'},
+    _ld('plate-displacement', 'x', 'position.x') | {'dimension': 'tt2-u'}, _ld('plate-displacement', 'y', 'position.y') | {'dimension': 'tt2-u'},
+    _ld('plate-displacement', 'u', 'vector') | {'dimension': 'tt2-u'},
 ]
 SEED_TENSOR_NODES += [
-    {'name': 'plate', 'description': '', 'tree': _P, 'parent': '', 'title': 'the plate: σ per element, u per node', 'tensor': 'tt2-sigma',
-     'dims_json': json.dumps(['plate.x', 'plate.y', 'plate.sigma', 'plate.u']), 'binding_ref': '', 'global_params_json': json.dumps({'case': 'tt2-plate-tension'}),
-     'status': 'unresolved', 'notes': 'no binding yet: the element field has no sim-space binding (tt-3) — the validator reports it'},
+    {'name': 'plate', 'description': '', 'tree': _P, 'parent': '', 'title': 'the plate: σ per element', 'tensor': 'tt2-sigma',
+     'dims_json': json.dumps(['plate.x', 'plate.y', 'plate.sigma']), 'binding_ref': 'FEMFieldState-2d',
+     'global_params_json': json.dumps({'case': 'tt2-plate-tension', 'sim_space': 'plate-mechanics-2d', 'field_row': 'tt2-plate-tension-field'}),
+     'status': 'unresolved', 'notes': 'tt-6: x/y → position, σ_vm → color through the 2-D field binding FEMFieldState-2d (status is set by the validator)'},
     {'name': 'plate-strain', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'ε per element', 'tensor': 'tt2-eps', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
-    {'name': 'plate-displacement', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'u per node', 'tensor': 'tt2-u', 'dims_json': '[]', 'binding_ref': '', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
+    {'name': 'plate-displacement', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'u per node', 'tensor': 'tt2-u',
+     'dims_json': json.dumps(['plate-displacement.x', 'plate-displacement.y', 'plate-displacement.u']), 'binding_ref': '', 'global_params_json': '{}',
+     'status': 'unresolved', 'notes': 'u → vector has no 2-D renderer channel yet (the 2-D compiler has objects and connections; vectors are 3-D only) — honestly unresolved'},
 ]
 SEED_UNRESOLVED += [
-    {'name': 'plate-visualization', 'description': '', 'tree': _P, 'parent': 'plate', 'title': 'how to SEE an element field', 'unresolved_kind': 'visualization',
-     'known_dims_json': '["x","y","sigma","u"]', 'known_semantics_json': json.dumps({'sigma': 'per element (P1: constant per triangle)', 'u': 'per node'}),
-     'constraints_json': json.dumps(['no new renderer: a 2-D sim-space field binding, or a sci-xy-chart profile']),
-     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a 2-D field binding over an FEM execution row (tt-3)', 'σ_xx along y = h/2 as a sci-xy-chart line']),
-     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['which row holds an FEM execution\'s field so a binding can point at it?']), 'notes': ''},
+    {'name': 'plate-displacement-visualization', 'description': '', 'tree': _P, 'parent': 'plate-displacement', 'title': 'how to SEE u per node in 2-D', 'unresolved_kind': 'visualization',
+     'known_dims_json': '["x","y","u"]', 'known_semantics_json': json.dumps({'u': 'per node, metres; |u| ≤ 1e-5 m on the seed case (invisible at plate scale unless exaggerated)'}),
+     'constraints_json': json.dumps(['no new renderer: a 2-D vector projection (the 3-D `vector` kind ported) or an exaggerated deformed-mesh scene']),
+     'candidate_mappings_json': '[]', 'candidate_bindings_json': json.dumps(['a 2-D `vector` binding kind over FEMFieldState.nodes_json (cols 0-1 origin, 2-3 vector, an exaggeration knob)',
+                                                                           'a `connection` binding drawing each node to node + k·u']),
+     'hypotheses_json': '[]', 'evidence_json': '[]', 'open_questions_json': json.dumps(['what exaggeration factor is honest to draw beside a colour field whose own scale is true?']), 'notes': 'tt-6 left this open on purpose'},
 ]
 SEED_TENSOR_MAPPINGS += [
     _M(name='u→eps', kind='operator', source_node='plate-displacement', source_dims_json='["node","i"]', target_node='plate-strain', target_dims_json='["n","k","l"]',

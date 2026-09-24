@@ -15,7 +15,8 @@
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from tensormath.custom.tensor_ops import evaluate, dim_names, TensorOpsError
+from tensormath.custom.tensor_ops import evaluate, dim_names, TensorOpsError, fem_case_solution
+from tensormath.custom.fem_field import field_row_from_solution
 
 
 class TensorMathAPI(treeObject):
@@ -30,6 +31,8 @@ class TensorMathAPI(treeObject):
             add('/api/tensormath/evaluate', self, suffix='evaluate')
             add('/api/tensormath/operators/{name}', self, suffix='operator')
             add('/api/tensormath/benchmark', self, suffix='benchmark')
+            add('/api/tensormath/fem/{case}', self, suffix='fem')
+            add('/api/tensormath/fem/{case}/materialise', self, suffix='fem_materialise')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -93,6 +96,50 @@ class TensorMathAPI(treeObject):
             db.saveInstanceInDB(impl)
         response.media = {'ok': True, 'implementation': str(impl.name), 'latency_s': impl.latency_s, 'throughput': impl.throughput, 'elements': n,
                           'repeats': repeats, 'evidence_ref': impl.evidence_ref, 'note': 'the reading is now the row\'s; compare with the FPGA row on the same operator'}
+
+    # ---- tt-6: the σ field as a row a binding can see -------------------------------------------------------
+    def _field_row(self, case):
+        return next((f for f in self._rows('FEMFieldState') if str(getattr(f, 'case', '')) == case), None)
+
+    def on_get_fem(self, request, response, case):
+        """What this instance holds for an FEM case: the FEMFieldState row (summary, never the matrices), the scene and
+        binding that render it, and whether it is drawable right now."""
+        if not any(str(c.name) == case for c in self._rows('FEMModelDefinition')):
+            response.status = '404 Not Found'; response.media = {'ok': False, 'error': 'no FEMModelDefinition %r' % case}; return
+        f = self._field_row(case)
+        bindings = [{'name': str(b.name), 'dimensionality': getattr(b, 'dimensionality', ''), 'enabled': bool(getattr(b, 'enabled', False))}
+                    for b in self._rows('SimSpaceBindingDefinition') if str(getattr(b, 'class_name', '')) == 'FEMFieldState']
+        scenes = [str(sd.name) for sd in self._rows('SimSpaceDefinition') if 'FEMFieldState' in str(getattr(sd, 'bound_classes_json', ''))]
+        response.media = {'ok': True, 'case': case,
+                          'field': None if f is None else {'name': str(f.name), 'n_elements': getattr(f, 'n_elements', 0), 'n_nodes': getattr(f, 'n_nodes', 0),
+                                                            'sigma_vm_min': getattr(f, 'sigma_vm_min', 0.0), 'sigma_vm_max': getattr(f, 'sigma_vm_max', 0.0), 'u_max': getattr(f, 'u_max', 0.0),
+                                                            'assumption': getattr(f, 'assumption', ''), 'material_provenance': getattr(f, 'material_provenance', ''),
+                                                            'columns': getattr(f, 'columns_json', ''), 'node_columns': getattr(f, 'node_columns_json', ''), 'computed_at': getattr(f, 'computed_at', '')},
+                          'bindings': bindings, 'scenes': scenes,
+                          'drawable': f is not None and any(b['enabled'] for b in bindings) and bool(scenes),
+                          'why': '' if f is not None else 'no FEMFieldState row for this case yet — POST …/materialise solves it and writes one'}
+
+    def on_post_fem_materialise(self, request, response, case):
+        """Solve the case (once per process) and write/refresh its FEMFieldState row — a person's action, like a scale tree."""
+        try:
+            sol = fem_case_solution(self.manager, case)
+        except TensorOpsError as err:
+            response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': str(err)}; return
+        fields = field_row_from_solution(sol, case)
+        row = self._field_row(case)
+        created = row is None
+        if created:
+            from tensormath.tensormath_basis import FEMFieldState
+            row = FEMFieldState(manager=self.manager, **fields)
+        else:
+            for k, v in fields.items():
+                setattr(row, k, v)
+        db = getattr(self.manager, 'db', None)
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(row)
+        response.status = '201 Created' if created else '200 OK'
+        response.media = {'ok': True, 'case': case, 'field': str(row.name), 'created': created, 'n_elements': fields['n_elements'], 'n_nodes': fields['n_nodes'],
+                          'sigma_vm': [fields['sigma_vm_min'], fields['sigma_vm_max']], 'u_max': fields['u_max'], 'material_provenance': fields['material_provenance']}
 
     def on_get_operator(self, request, response, name):
         o = next((x for x in self._rows('TensorOperator') if str(x.name) == name), None)

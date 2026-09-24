@@ -29,6 +29,7 @@ from .common import (
     stamp_class_metadata,
 )
 from simulations.run_scope import resolve_run_scope, row_in_run_scope
+from .field_projection_2d import emit_field_2d
 
 
 def compile_2d(
@@ -130,6 +131,15 @@ def compile_2d(
                     resolve_resolved_binding(
                         class_name, binding, override, len(emitted_conns),
                     )
+                )
+        elif binding_kind == 'field':
+            # A matrix-valued field row fans out into per-cell objects coloured
+            # by one scalar column (the 2-D twin of the 3-D wind-grid arrows).
+            emitted = emit_field_2d(class_name, instances, binding, binding_name, override, warnings)
+            objects.extend(emitted)
+            if emitted:
+                resolved_bindings.append(
+                    resolve_resolved_binding(class_name, binding, override, len(emitted))
                 )
         else:
             emitted = _emit_instances(class_name, instances, binding, override, warnings,
