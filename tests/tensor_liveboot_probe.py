@@ -121,10 +121,20 @@ r = client.simulate_get('/api/computelod/path', params={'rung': 'c-source', 'ref
 check('GET path from the C statement walks C → compiler → ISA → microarchitecture → RTL → netlist → SKY130 cells → (partial) devices',
       r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices'], r.text[:300])
 check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
-check('the lod-1 + lod-2 rows are seeded: 8 ComputeMappings, 7 CharacterizationMappings, 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 8 and len(tables.get('CharacterizationMapping', {})) == 7 and len(tables.get('CompilerArtifact', {})) == 3)
+check('the lod-1 + lod-2 + lod-2b rows are seeded: 10 ComputeMappings, 9 CharacterizationMappings, 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 10 and len(tables.get('CharacterizationMapping', {})) == 9 and len(tables.get('CompilerArtifact', {})) == 3)
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
+r = client.simulate_get('/api/computelod/lod2/cnt')
+check('GET /api/computelod/lod2/cnt serves the SECOND Liberty: our CNT library over a derived device (152 cells, OpenSTA ps under 0.6 V / 300 K)',
+      r.status_code == 200 and r.json['ok'] and r.json['report']['mapping']['cells'] > 0 and r.json['report']['timing']['max_path_ps'] > 0 and r.json['report']['device'] and r.json['report']['characterization']['result_row'], r.text[:200])
+_cm = {getattr(m_, 'name', ''): m_ for m_ in tables.get('ComputeMapping', {}).values()}
+check('the seed holds BOTH libraries as rows: SKY130 cells → devices stays PARTIAL, CNT cells → devices is a real reference to the AlignedCNTFETDevice row, both simulated/none as ruled',
+      _cm['lod2: standard cells → devices'].kind == 'partial' and _cm['lod2-cnt: CNT standard cells → devices'].kind == 'one-to-many'
+      and 'AlignedCNTFETDevice' in _cm['lod2-cnt: CNT standard cells → devices'].target_ref and _cm['lod2-cnt: netlist → CNT standard cells'].evidence_level == 'simulated', sorted(_cm)[:12])
+_ch = [c for c in tables.get('CharacterizationMapping', {}).values() if 'propagation delay' in getattr(c, 'name', '')]
+check('two propagation-delay characterizations, each with its own conditions (1.8 V/25 °C SKY130 ns; 0.6 V/300 K CNT ns), neither pretending to be the other',
+      len(_ch) == 2 and {json.loads(c.conditions_json).get('voltage_v') for c in _ch} == {1.8, 0.6} and all(c.units == 'ns' for c in _ch), [(c.name, c.result) for c in _ch])
 # ---- tt-2: the FEM case is a seeded core row; the tensors solve it live; the tree is honest
 check('the tt-2 FEM case is seeded as an FEMModelDefinition row', any(getattr(c, 'name', '') == 'tt2-plate-tension' for c in tables.get('FEMModelDefinition', {}).values()))
 check('the cited material option opt-electrical-steel is present (magnetics admitted)', any(getattr(o, 'name', '') == 'opt-electrical-steel' for o in tables.get('MagneticMaterialOption', {}).values()))

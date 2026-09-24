@@ -103,6 +103,13 @@ def _merge(base, over):
     return [r for r in base if r['name'] not in names] + over
 SEED_LOD_MAPPINGS = _merge(SEED_LOD1_MAPPINGS, _l2m)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD1_CHARACTERIZATIONS, _l2c)
+# ---- lod-2b: the SECOND Liberty — our own CNT cell library (cntfet characterization, ngspice) — NEW rows beside
+# the SKY130 ones (different names; nothing replaced): the same netlist onto derived cells, timed under the
+# library's own point, and a cells → devices step that for this library is a real reference (the derived device).
+from computelod.custom.lod2_cnt import report as _lod2cnt_report, rows as _lod2cnt_rows
+_l2cm, _l2cc = _lod2cnt_rows(_lod2cnt_report(), (_lod1_report() or {}).get('adder_synth', {}).get('cells', 0))
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l2cm)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l2cc)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),

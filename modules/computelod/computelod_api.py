@@ -27,6 +27,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/path', self, suffix='path')                 # lod-1: the chain, end to end (query params: a ref may hold '/')
             add('/api/computelod/lod1', self, suffix='lod1')                 # the teaching path's committed report
             add('/api/computelod/lod2', self, suffix='lod2')                 # open silicon: SKY130 mapping + OpenSTA timing
+            add('/api/computelod/lod2/cnt', self, suffix='lod2_cnt')         # the second Liberty: our own CNT cell library
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -50,6 +51,11 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_lod2_cnt(self, request, response):
+        from computelod.custom.lod2_cnt import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod2_cnt run (boots the server in-process from a throwaway cwd; ngspice + OpenVAF through the cntfet ladder, yosys via the tools image, OpenSTA via openroad/opensta; the Liberty is OURS and committed under initialData/lod2/cnt)'}
 
     def on_get_lod2(self, request, response):
         from computelod.custom.lod2_silicon import report

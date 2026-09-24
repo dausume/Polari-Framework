@@ -145,9 +145,25 @@ check('  …the delay characterization is now a NUMBER with conditions, evidence
       next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['result'] > 0 and next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['evidence_level'] == 'simulated'
       and json.loads(next(c for c in chars2 if c['name'] == 'lod1: rv32_add propagation delay')['conditions_json'])['voltage_v'] == 1.8)
 check('  …and the NEXT gap is stated honestly: standard cells → devices is PARTIAL (the cells\' SPICE is not read here — lod-3)', next(m_ for m_ in maps2 if 'devices' in m_['name'])['kind'] == 'partial' and next(m_ for m_ in maps2 if 'devices' in m_['name'])['evidence_level'] == 'none')
-check('the seed MERGES lod-2 over lod-1 by name: no unresolved netlist→cells row remains, one delay row, eight mappings + seven characterizations',
-      not any(m_['kind'] == 'unresolved' for m_ in SEED_LOD_MAPPINGS) and len(SEED_LOD_MAPPINGS) == 8 and len(SEED_LOD_CHARACTERIZATIONS) == 7
-      and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 1)
+check('the seed MERGES lod-2 over lod-1 by name: no unresolved netlist→cells row remains, ONE SKY130 delay row',
+      not any(m_['kind'] == 'unresolved' for m_ in SEED_LOD_MAPPINGS) and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if c['name'] == 'lod1: rv32_add propagation delay') == 1)
+# ---- lod-2b: the SECOND Liberty — our own CNT library, characterized here (ngspice), mapped + timed the same way
+from computelod.custom.lod2_cnt import report as lod2cnt_report, rows as lod2cnt_rows, LIB_NAME as CNT_LIB
+rep2c = lod2cnt_report()
+check('lod-2b: a committed CNT report exists with the Liberty beside it (ours: small, derived, committed WITH its provenance)',
+      rep2c is not None and os.path.exists(os.path.join('modules/computelod/initialData/lod2/cnt', CNT_LIB)) and rep2c['characterization']['liberty_sha256'] and rep2c['characterization']['result_row'])
+check('  …the library is over a DERIVED device: device name + derived_at + the CellCharacterizationRun row are the provenance; the p side is stated',
+      rep2c['device'] and rep2c['derivation']['derived_at'] and rep2c['characterization']['p_side'], rep2c['derivation'] if rep2c else None)
+check('  …what it does NOT carry is listed (no cell area → area_um2 is None, not 0)', rep2c['mapping']['area_um2'] is None and any('area' in x for x in rep2c['characterization']['not_carried']))
+check('  …the adder maps onto the CNT cells and OpenSTA timed it under NAMED conditions inside the characterized grid (V, T, load fF, slew ps)',
+      rep2c['mapping']['cells'] > 0 and rep2c['timing']['max_path_ps'] > rep2c['timing']['min_path_ps'] > 0 and all(k in rep2c['conditions'] for k in ('voltage_v', 'temperature_k', 'load_ff', 'input_slew_ps'))
+      and abs(rep2c['conditions']['load_ff'] * 1e-15 - max(rep2c['characterization']['grid_loads_f'])) < 1e-19, (rep2c['mapping'], rep2c['timing'], rep2c['conditions']))
+maps2c, chars2c = lod2cnt_rows(rep2c, rep['adder_synth']['cells'])
+check('lod-2b rows: NEW names beside SKY130 (nothing replaced); mapping evidence is SIMULATED (a model of a model), cells → devices is a real reference to the device row, delay in ns with the conditions',
+      {m_['name'] for m_ in maps2c} == {'lod2-cnt: netlist → CNT standard cells', 'lod2-cnt: CNT standard cells → devices'} and all(m_['evidence_level'] == 'simulated' for m_ in maps2c)
+      and 'AlignedCNTFETDevice' in next(m_ for m_ in maps2c if 'devices' in m_['name'])['target_ref'] and next(c for c in chars2c if 'propagation' in c['name'])['result'] == rep2c['timing']['max_path_ps'] / 1000.0)
+check('the seed now holds BOTH libraries: ten mappings + nine characterizations, two propagation-delay rows (SKY130 and CNT) that do not collide',
+      len(SEED_LOD_MAPPINGS) == 10 and len(SEED_LOD_CHARACTERIZATIONS) == 9 and sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 2)
 m5 = _mgr()
 for cls, rws in (('ComputeMapping', SEED_LOD_MAPPINGS), ('CharacterizationMapping', SEED_LOD_CHARACTERIZATIONS)):
     for r_ in rws:
