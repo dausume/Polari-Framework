@@ -30,7 +30,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 OUT = os.path.join(MOD, 'initialData', 'fpga')
-IMAGE = os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-computelod-tools:noble')
+IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
 C_SCALE = 1e-3      # Pa → kPa   (C ≈ 2.2e11 Pa → 2.2e8 kPa: fits int32)
 E_SCALE = 1e9       # strain → nano-strain (ε ≈ 5e-6 → 5000)
 # σ_kernel = Σ C_kPa · ε_nε  = σ_Pa · 1e-3 · 1e9 = σ_Pa · 1e6   → σ_Pa = σ_kernel · 1e-6

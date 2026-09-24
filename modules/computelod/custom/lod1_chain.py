@@ -8,7 +8,7 @@ THE TEACHING PATH, RUN FOR REAL (lod-1, plan §C Phase 4, §F5):
     →  Yosys: the core = N gates, the adder = M gates  →  iverilog: the RTL and its gate netlist give the same sums.
 
 Every row on the ladder comes from this script having RUN — never typed in. `run` executes the tools (on the
-PATH, else in the pinned image modules/computelod/custom/tools/Dockerfile) into a work dir and writes initialData/lod1/report.json
+PATH, else in the pinned image built from polari-rf-node/polari-eda-tools — its own submodule) into a work dir and writes initialData/lod1/report.json
 + the small artifacts (source, assembly, objdump, the adder RTL, the stat histograms; the 570 kB core netlist is
 NOT committed — its histogram is). `rows(report)` turns that report into the seed rows, so a boot without the
 tools still shows the path with its evidence named (tool versions, files, the pin of PicoRV32).
@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 RTL = os.path.join(HERE, 'rtl', 'picorv32')          # custom/rtl/picorv32 — the vendored core, pinned
 OUT = os.path.join(MOD, 'initialData', 'lod1')   # the committed report + artifacts = initial data
-IMAGE = os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-computelod-tools:noble')
+IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
 
 C_SOURCE = 'int add(int a, int b) { int c = a + b; return c; }\n'
 RV32_ADD = '''// rv32_add — the ADD datapath of a RISC-V core, as PicoRV32 writes it (picorv32.v:1231:
@@ -92,7 +92,7 @@ def run(work=None):
     how = tools_available()
     if not how:
         raise SystemExit('no toolchain: put riscv64-unknown-elf-gcc/yosys/iverilog on the PATH, or build the image: '
-                         'docker build -t %s modules/computelod/custom/tools' % IMAGE)
+                         'docker build -t %s polari-rf-node/polari-eda-tools' % IMAGE)
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod1')
     os.makedirs(work, exist_ok=True)
     open(os.path.join(work, 'add.c'), 'w').write(C_SOURCE)

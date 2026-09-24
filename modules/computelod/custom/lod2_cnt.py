@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 LOD1 = os.path.join(MOD, 'initialData', 'lod1')
 OUT = os.path.join(MOD, 'initialData', 'lod2', 'cnt')
-IMAGE = os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-computelod-tools:noble')
+IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
 STA_IMAGE = os.environ.get('POLARI_OPENSTA_IMAGE', 'openroad/opensta')
 LIB_NAME = 'polari_cnt_lib.lib'
 #: the cells an adder needs (plus the basics abc reaches for); sequential cells refuse by design (not needed)

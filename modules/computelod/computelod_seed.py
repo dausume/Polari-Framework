@@ -129,6 +129,13 @@ SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4c)
 from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows
 _l3bm, _l3bc = _lod3b_rows(_lod3b_report())
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3bc)
+# ---- lod-3c: the layout RUN — magic DRC (context rules classified) + parasitic extraction + netgen LVS on the PDK's
+# own .mag via polari-eda-tools; devices → layout becomes measured; the extracted netlists re-timed (the parasitics
+# hypothesis TESTED: half rejected, stated).
+from computelod.custom.lod3_layout import report as _lod3c_report, rows as _lod3c_rows
+_l3cm, _l3cc = _lod3c_rows(_lod3c_report())
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3cm)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3cc)
 
 COMPUTELOD_SEED_PAIRS = [
     ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),

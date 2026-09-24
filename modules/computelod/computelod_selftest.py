@@ -229,6 +229,23 @@ _, chars3b = lod3b_rows(rep3b)
 check('lod-3b rows: six UPWARD characterizations (tpHL/tpLH per arc), devices → standard-cells, evidence SIMULATED, the Liberty value and the delta in conditions, validated when within 25 %',
       len(chars3b) == 6 and all(c['source_rung'] == 'devices' and c['target_rung'] == 'standard-cells' and c['evidence_level'] == 'simulated' and 'liberty_ps' in json.loads(c['conditions_json']) for c in chars3b)
       and all(c['mapping_status'] == 'validated' for c in chars3b), [(c['name'], c['mapping_status']) for c in chars3b])
+# ---- lod-3c: the layout RUN (magic DRC + PEX, netgen LVS) through polari-eda-tools; the parasitics hypothesis tested
+from computelod.custom.lod3_layout import report as lod3c_report, rows as lod3c_rows
+rep3c = lod3c_report()
+check('lod-3c: a committed layout report exists — PDK ciel version + tech sha256 cited; two cells; DRC ran, PEX ran, LVS ran',
+      rep3c is not None and rep3c['pdk']['ciel_version'] and rep3c['pdk']['tech_sha256'] and len(rep3c['cells']) == 2 and all(c['drc']['ran'] and c['pex']['ran'] and c['lvs']['ran'] for c in rep3c['cells']))
+check('  …DRC: every reported rule is a standalone-cell CONTEXT rule (nwell.4 / LU.2 / LU.3 — taps and wells come from the row), zero real rules; the count itself is NOT zero and is kept',
+      rep3c['summary']['drc_clean_in_context'] and all(c['drc']['count'] > 0 and c['drc']['real_rules'] == [] for c in rep3c['cells']), [(c['cell'], c['drc']['count'], c['drc']['rules']) for c in rep3c['cells']])
+check('  …LVS: netgen says "Circuits match uniquely" for both cells — the PDK\'s layout IS its schematic', rep3c['summary']['lvs_match'] and all(c['lvs']['match'] for c in rep3c['cells']))
+check('  …PEX: the extracted netlists carry parasitic capacitors (inv_1 14, nand2_1 23) and junction areas the schematic netlist lacked',
+      [c['pex']['capacitors'] for c in rep3c['cells']] == [14, 23] and all(c['pex']['junction_areas'] for c in rep3c['cells']))
+check('  …the parasitics hypothesis TESTED and half-REJECTED: extraction brings tpHL closer to the Liberty and pushes tpLH further; the verdict says so and names what remains (the vendor setup)',
+      rep3c['summary']['tphl_mean_delta_pct']['extracted'] > rep3c['summary']['tphl_mean_delta_pct']['schematic'] and rep3c['summary']['tplh_mean_delta_pct']['extracted'] > rep3c['summary']['tplh_mean_delta_pct']['schematic']
+      and 'REJECTED' in rep3c['summary']['verdict'] and 'vendor' in rep3c['summary']['verdict'], rep3c['summary'])
+maps3c, chars3c = lod3c_rows(rep3c)
+check('lod-3c rows: devices → layout becomes MEASURED (DRC + LVS are the tools\' verdicts) and stays validated; six extracted-netlist delay characterizations carry the schematic value beside them',
+      maps3c[0]['name'] == 'lod3: devices → layout' and maps3c[0]['evidence_level'] == 'measured' and maps3c[0]['mapping_status'] == 'validated' and len(chars3c) == 6
+      and all(c['source_rung'] == 'layout' and 'schematic_ps' in json.loads(c['conditions_json']) for c in chars3c), [(m_['name'], m_['evidence_level']) for m_ in maps3c])
 check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a sifet class, skipped when sifet is absent)', any(n == 'SiliconProcessNode' and len(r) == 1 for n, _, r in COMPUTELOD_SEED_PAIRS))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])

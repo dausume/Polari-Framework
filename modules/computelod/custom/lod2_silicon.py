@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 LOD1 = os.path.join(MOD, 'initialData', 'lod1')
 OUT = os.path.join(MOD, 'initialData', 'lod2')
-IMAGE = os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-computelod-tools:noble')
+IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
 STA_IMAGE = os.environ.get('POLARI_OPENSTA_IMAGE', 'openroad/opensta')
 LIB = {'name': 'sky130_fd_sc_hd__tt_025C_1v80.lib', 'repo': 'The-OpenROAD-Project/OpenROAD-flow-scripts',
        'commit': 'db8b985f89d456db29d39588443a025e7305a0a6', 'path': 'flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib',

@@ -135,6 +135,11 @@ check('  …each step names its evidence status', r.status_code == 200 and all(s
 r = client.simulate_get('/api/computelod/lod3/devices')
 check('GET /api/computelod/lod3/devices: our ngspice on the PDK models vs the Liberty — three arcs, mean gap ≤ 15 %, falls faster on every arc (schematic vs extracted, stated)',
       r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['arcs'] == 3 and r.json['report']['summary']['mean_abs_delta_pct'] <= 15 and all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in r.json['report']['arcs']), r.text[:300])
+r = client.simulate_get('/api/computelod/lod3/layout')
+check('GET /api/computelod/lod3/layout: DRC (context rules only), LVS match, PEX re-timed; the parasitics verdict is half-rejected and says so',
+      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['lvs_match'] and r.json['report']['summary']['drc_clean_in_context'] and 'REJECTED' in r.json['report']['summary']['verdict'], r.text[:300])
+_dl = next((m_ for m_ in tables.get('ComputeMapping', {}).values() if getattr(m_, 'name', '') == 'lod3: devices → layout'), None)
+check('  …the devices → layout row on a real boot is MEASURED and validated (lod-3c replaced lod-3\'s analytical reading by name)', _dl is not None and _dl.evidence_level == 'measured' and _dl.mapping_status == 'validated')
 r = client.simulate_get('/api/computelod/lod4')
 check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a real boot (seeded by computelod in sifet\'s shape), manufacturable None with the reason + D-lod4-1',
       r.status_code == 200 and r.json['ok'] and r.json['process_node_row'] and r.json['process_node_row']['node_nm'] == 130.0 and r.json['process_node_row']['manufacturable'] is None
@@ -147,8 +152,8 @@ r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-3 + lod-3b + lod-4 rows are seeded: 14 ComputeMappings, 18 CharacterizationMappings, 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 18 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-3 + lod-3b + lod-3c + lod-4 rows are seeded: 14 ComputeMappings, 24 CharacterizationMappings, 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 24 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
