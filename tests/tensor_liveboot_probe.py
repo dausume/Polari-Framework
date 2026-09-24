@@ -74,6 +74,17 @@ r = client.simulate_post('/api/tensormath/evaluate', json={'expression': 'wind-s
 check('POST evaluate wind-speed reads the LIVE grid and returns |w| on [4,4,4]', r.status_code == 200 and r.json['result']['shape'] == [4, 4, 4], r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/validate')
 check('the seeded tree validates with the root RESOLVED (bound to WindFieldGridState-3d)', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['wind-grid']['status'] == 'resolved', r.text[:300])
+# tt-5: the ONE read the Angular tensor-tree-panel makes — everything a person needs for intuition in one answer
+r = client.simulate_get('/api/tensortree/trees/wind-spatial/view')
+v = r.json if r.status_code == 200 else {}
+check('GET /view answers for wind-spatial with tree/nodes/edges/mappings/selections/validation/channels/evidence_levels', r.status_code == 200 and all(k in v for k in ('tree', 'nodes', 'edges', 'mappings', 'selections', 'validation', 'channels', 'evidence_levels')), r.text[:200])
+check('/view: eleven channels and four evidence levels (§F4, §F2)', len(v.get('channels', [])) == 11 and v.get('evidence_levels') == ['none', 'analytical', 'simulated', 'measured'], str((v.get('channels'), v.get('evidence_levels'))))
+vn = {n['id']: n for n in v.get('nodes', [])}
+check('/view: the resolved root carries dims with a channel each (x/y/z -> position, w -> vector) and its binding_ref', vn.get('wind-grid', {}).get('status') == 'resolved' and all(d.get('channel') for d in vn.get('wind-grid', {}).get('dims', [])) and vn.get('wind-grid', {}).get('binding_ref'), str(vn.get('wind-grid', {}).get('dims'))[:200])
+check('/view: an unresolved space is a node with kind=unresolved, its unresolved_kind and open_questions', any(n['kind'] == 'unresolved' and n.get('unresolved_kind') and n.get('open_questions') for n in v.get('nodes', [])), str([n['id'] for n in v.get('nodes', []) if n['kind'] == 'unresolved']))
+check('/view: mappings carry source/target node, two statuses and the evidence level', all(m.get('source_node') and m.get('target_node') and m.get('mapping_status') and m.get('evidence_level') in v.get('evidence_levels', []) for m in v.get('mappings', [])) and v.get('mappings'), str([(m['name'], m['evidence_level']) for m in v.get('mappings', [])]))
+r = client.simulate_get('/api/tensortree/trees/nope/view')
+check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')
 check('the graph view carries the coupling as a crossing mapping edge', r.status_code == 200 and any(e['kind'] == 'mapping' and e['mapping'] == 'wind-grid→bob-drag' for e in r.json['graph']['edges']))
 r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'})
@@ -132,4 +143,5 @@ pages = [d for d in tables.get('DisplayDefinition', {}).values() if getattr(d, '
 check('the three configured pages are seeded as DisplayDefinitions', len(pages) == 3, [getattr(d, 'pageRoute', '') for d in pages])
 tt = next(d for d in pages if getattr(d, 'pageRoute', '') == 'tensortree')
 check('the tensortree page hosts the existing sim-space viewer for the resolved node (no new renderer)', 'sim-space-viewer' in getattr(tt, 'definition', '') and 'newtonian-pendulum-viz' in getattr(tt, 'definition', ''))
+check('tt-5: the tensortree page hosts the tensor-tree-panel (the one registered Angular panel) opened on wind-spatial', 'tensor-tree-panel' in getattr(tt, 'definition', '') and "'treeName': 'wind-spatial'" in getattr(tt, 'definition', '') or ('tensor-tree-panel' in getattr(tt, 'definition', '') and '"treeName": "wind-spatial"' in getattr(tt, 'definition', '')))
 n_ok = sum(results); print(f'\n{n_ok}/{len(results)} checks passed'); sys.exit(0 if n_ok == len(results) else 1)

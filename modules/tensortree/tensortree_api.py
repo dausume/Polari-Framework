@@ -4,6 +4,8 @@
   GET  /api/tensortree                      the trees, with each one's validation summary
   GET  /api/tensortree/trees/{name}         one tree: nodes, unresolved spaces, the validation report
   GET  /api/tensortree/trees/{name}/graph   the graph VIEW (structure + every crossing mapping) — plan §16
+  GET  /api/tensortree/trees/{name}/view      tt-5: ONE reading for the frontend panel — the graph + the validation +
+                                            every node's localized dims with their channels + the selections + the policy
   GET  /api/tensortree/trees/{name}/validate
   POST /api/tensortree/discover             {"selection": "<TensorSelection.name>", "context_node": ""} → ranked candidates
   POST /api/tensortree/select               {"node": "<TensorNode.name>", "ranges": {dim: [lo, hi]}, "created_from": "…"}
@@ -34,6 +36,7 @@ class TensorTreeAPI(treeObject):
             add('/api/tensortree/trees/{name}', self, suffix='tree')
             add('/api/tensortree/trees/{name}/graph', self, suffix='graph')
             add('/api/tensortree/trees/{name}/validate', self, suffix='validate')
+            add('/api/tensortree/trees/{name}/view', self, suffix='view')
             add('/api/tensortree/discover', self, suffix='discover')
             add('/api/tensortree/select', self, suffix='select')
             add('/api/tensortree/scale/{material}', self, suffix='scale')
@@ -57,6 +60,45 @@ class TensorTreeAPI(treeObject):
 
     def on_get_graph(self, request, response, name):
         response.media = {'ok': True, 'graph': tree_graph(self.manager, name)}
+
+    def on_get_view(self, request, response, name):
+        import json as _json
+        tree = next((t for t in self._rows('TensorTreeDefinition') if str(t.name) == name), None)
+        if tree is None:
+            response.status = '404 Not Found'; response.media = {'ok': False, 'error': 'no TensorTreeDefinition %r' % name}; return
+        rep = validate_tree(self.manager, name); g = tree_graph(self.manager, name)
+        dims = {}
+        for d in self._rows('LocalizedDimension'):
+            dims.setdefault(str(getattr(d, 'node', '')), []).append({'name': str(d.name), 'dimension': str(getattr(d, 'dimension', '')), 'channel': str(getattr(d, 'channel', '')),
+                                                                       'range': _json.loads(getattr(d, 'range_json', '[]') or '[]'), 'scale': _json.loads(getattr(d, 'scale_json', '{}') or '{}')})
+        nodes = []
+        for n in g['nodes']:
+            row = next((r for r in self._rows('TensorNode' if n['kind'] == 'node' else 'UnresolvedTensorSpace') if str(r.name) == n['id']), None)
+            item = dict(n)
+            if n['kind'] == 'node':
+                v = rep['nodes'].get(n['id'], {})
+                item.update({'status': v.get('status', 'unresolved'), 'why': v.get('why', ''), 'tensor': str(getattr(row, 'tensor', '') or ''), 'binding_ref': str(getattr(row, 'binding_ref', '') or ''),
+                             'dims': dims.get(n['id'], []), 'incoherent': v.get('incoherent', {}), 'notes': str(getattr(row, 'notes', '') or '')})
+            else:
+                item.update({'why': 'unresolved (%s)' % n.get('unresolved_kind', ''), 'known_dims': _json.loads(getattr(row, 'known_dims_json', '[]') or '[]'),
+                             'open_questions': _json.loads(getattr(row, 'open_questions_json', '[]') or '[]'), 'candidates': _json.loads(getattr(row, 'candidate_bindings_json', '[]') or '[]') + _json.loads(getattr(row, 'candidate_mappings_json', '[]') or '[]'),
+                             'hypotheses': _json.loads(getattr(row, 'hypotheses_json', '[]') or '[]')})
+            nodes.append(item)
+        maps = []
+        for m in self._rows('TensorMapping'):
+            if str(getattr(m, 'source_node', '')) in {n['id'] for n in nodes} or str(getattr(m, 'target_node', '')) in {n['id'] for n in nodes}:
+                maps.append({'name': str(m.name), 'kind': str(getattr(m, 'kind', '')), 'source_node': str(getattr(m, 'source_node', '')), 'target_node': str(getattr(m, 'target_node', '')),
+                             'source_dims': _json.loads(getattr(m, 'source_dims_json', '[]') or '[]'), 'target_dims': _json.loads(getattr(m, 'target_dims_json', '[]') or '[]'),
+                             'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')), 'evidence_ref': str(getattr(m, 'evidence_ref', '') or ''),
+                             'loss_note': str(getattr(m, 'loss_note', '') or ''), 'validity': _json.loads(getattr(m, 'validity_json', '{}') or '{}')})
+        sels = [{'name': str(s.name), 'node': str(getattr(s, 'node', '')), 'ranges': _json.loads(getattr(s, 'ranges_json', '{}') or '{}'), 'created_from': str(getattr(s, 'created_from', ''))}
+                for s in self._rows('TensorSelection') if str(getattr(s, 'node', '')) in {n['id'] for n in nodes}]
+        response.media = {'ok': True, 'tree': {'name': name, 'tensor': str(getattr(tree, 'tensor', '') or ''), 'view_kind': str(getattr(tree, 'view_kind', '')), 'root': str(getattr(tree, 'root_node', '')),
+                                               'description': str(getattr(tree, 'description', '') or '')},
+                          'nodes': nodes, 'edges': [e for e in g['edges'] if e['kind'] == 'structural'], 'mappings': maps, 'selections': sels,
+                          'validation': {'ok': rep['ok'], 'errors': rep['errors'], 'resolved_nodes': rep['resolved_nodes']},
+                          'channels': ['position.x', 'position.y', 'position.z', 'color', 'opacity', 'size', 'shape', 'orientation', 'vector', 'label', 'time'],
+                          'evidence_levels': ['none', 'analytical', 'simulated', 'measured']}
 
     def on_get_validate(self, request, response, name):
         response.media = {'ok': True, 'validation': validate_tree(self.manager, name)}
