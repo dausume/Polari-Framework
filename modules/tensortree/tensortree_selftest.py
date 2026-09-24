@@ -132,7 +132,44 @@ check('discovery on the gusty selection: the REAL coupling (validated, simulated
 check('  …and the calm-only spectrum hypothesis is REFUSED: speed 6–12 m/s lies outside its validity [0, 5]', any(r['mapping'] == 'wind-grid→spectrum' and 'validity' in r['why'] for r in d['refused']), d['refused'])
 check('  …the coupling candidate names the live SimulationCouplingDefinition it is', next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'wind-grid→bob-drag').coupling_ref == 'wind-to-newtonian-pendulum')
 g = tree_graph(m2, 'wind-spatial')
-check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 3 mappings, one crossing to another tree\'s node', g['structural'] == 2 and g['mappings'] == 3)
+check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 4 mappings (tt-7 added the proposed coupling), two crossing to the bob\'s tree', g['structural'] == 2 and g['mappings'] == 4, g)
+
+# ---- tt-7: a SimulationCouplingDefinition CREATED FROM a kind=coupling mapping — derived, refused by name, then written
+from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling
+from tensormath.tensormath_seed import SEED_TENSORS, SEED_TENSOR_EXPRESSIONS
+m2.objectTables['Tensor'] = {}; m2.objectTables['TensorMathExpression'] = {}; m2.objectTables['SimulationCouplingDefinition'] = {}; m2.objectTables['MatrixEquationDefinition'] = {}
+for r in SEED_TENSORS: _add(m2, 'Tensor', **r)
+for r in SEED_TENSOR_EXPRESSIONS: _add(m2, 'TensorMathExpression', **r)
+p0 = propose_coupling(m2, 'wind-grid→bob-wind')
+check('propose: with no sim-state classes loaded the door REFUSES and names both missing simulation definitions (never guesses)',
+      not p0['ok'] and p0['status'] == 422 and sum('declares no simulation_definition_name' in x for x in p0['missing']) == 2, p0['missing'])
+m2.objectTypingDict = {'WindFieldGridState': types.SimpleNamespace(classDefinition=types.SimpleNamespace(simulation_definition_name='wind-field-3d')),
+                       'NewtonianPendulumBobSimState': types.SimpleNamespace(classDefinition=types.SimpleNamespace(simulation_definition_name='newtonian-pendulum-3d'))}
+p1 = propose_coupling(m2, 'wind-grid→bob-wind')
+_cfg = json.loads(p1['coupling']['config_json'])
+check('propose: everything DERIVED — source wind-field-3d/WindFieldGridState (cells_json), target newtonian-pendulum-3d/NewtonianPendulumBobSimState, pos = [px, py, pz] from the bob\'s position dims, sampler from the expression\'s matrix_equation_ref, inject = the mapping\'s target_dims',
+      p1['ok'] and p1['coupling']['source_simulation_ref'] == 'wind-field-3d' and p1['coupling']['target_class_name'] == 'NewtonianPendulumBobSimState' and p1['coupling']['sampler_equation_ref'] == 'field-sample-nearest'
+      and _cfg['sampler']['operands']['cells'] == {'kind': 'source_field_json', 'field': 'cells_json'} and _cfg['sampler']['operands']['pos']['fields'] == ['px', 'py', 'pz']
+      and list(_cfg['inject']) == ['wind_vx', 'wind_vy', 'wind_vz'] and _cfg['inject']['wind_vz'] == {'kind': 'sample_element', 'index': 2} and _cfg['defaults'] == {'wind_vx': 0.0, 'wind_vy': 0.0, 'wind_vz': 0.0}, p1)
+check('  …a dry run writes nothing', m2.objectTables['SimulationCouplingDefinition'] == {} and next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'wind-grid→bob-wind').coupling_ref == '')
+_add(m2, 'MatrixEquationDefinition', name='some-other-equation')
+p2 = propose_coupling(m2, 'wind-grid→bob-wind')
+check('  …once the instance holds matrix equations, the sampler must be one of them (refused by name)', not p2['ok'] and any('field-sample-nearest' in x and 'not a saved' in x for x in p2['missing']), p2['missing'])
+_add(m2, 'MatrixEquationDefinition', name='field-sample-nearest')
+p3 = propose_coupling(m2, 'wind-grid→slice-z0')
+check('  …a non-coupling mapping is refused as such (422)', not p3['ok'] and p3['status'] == 422 and 'kind=restriction' in p3['error'], p3)
+p4 = create_coupling(m2, 'wind-grid→bob-drag')
+check('  …a mapping that already names a coupling is a 409 that names it (force to add another)', p4['status'] == 409 and p4['coupling_ref'] == 'wind-to-newtonian-pendulum', p4)
+_mk = lambda cls, **f: _add(m2, 'SimulationCouplingDefinition', **f)
+p5 = create_coupling(m2, 'wind-grid→bob-wind', make=_mk)
+_mp = next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'wind-grid→bob-wind')
+check('couple: CREATES the row tt-wind-grid-to-bob-wind, sets the mapping\'s coupling_ref, proposed → implemented, evidence STAYS none (nothing has run)',
+      p5['status'] == 201 and p5['created'] == 'tt-wind-grid-to-bob-wind' and any(getattr(r, 'name', '') == 'tt-wind-grid-to-bob-wind' for r in m2.objectTables['SimulationCouplingDefinition'].values())
+      and _mp.coupling_ref == 'tt-wind-grid-to-bob-wind' and _mp.mapping_status == 'implemented' and _mp.evidence_level == 'none' and 'tt-7' in _mp.provenance, p5)
+p6 = create_coupling(m2, 'wind-grid→bob-wind', make=_mk)
+check('  …and a second POST is a 409 (already coupled), not a second row', p6['status'] == 409 and len(m2.objectTables['SimulationCouplingDefinition']) == 1, p6)
+rep_b = validate_tree(m2, 'bob-motion')
+check('the bob\'s own tree validates with its root RESOLVED (px/py/pz → position, fwind → vector, the wind-arrow binding)', rep_b['ok'] and rep_b['nodes']['pendulum-bob']['status'] == 'resolved', rep_b)
 
 # ---- tt-2: the mechanics tree — honest about its visualization, right about its mappings
 rep2 = validate_tree(m2, 'plate-mechanics')

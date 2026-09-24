@@ -37,6 +37,18 @@ SEED_TENSOR_NODES = [
      'dims_json': json.dumps(['wind-slice-z0.x', 'wind-slice-z0.y', 'wind-slice-z0.z', 'wind-slice-z0.component']),
      'binding_ref': 'WindFieldGridState-3d', 'global_params_json': '{}', 'status': 'unresolved', 'notes': ''},
 ]
+# tt-7: the bob is a real node in its own tree (one root, one parent: the bob is not a child of the wind grid),
+# so the cross-tree coupling mapping lands on something a coupling can be DERIVED from
+_B = 'bob-motion'
+SEED_TENSOR_TREES += [{'name': _B, 'description': 'the Newtonian pendulum bob: its trajectory and the wind force sampled onto it (the target side of the wind coupling)',
+                       'tensor': 'bob-state', 'root_node': 'pendulum-bob', 'view_kind': 'spatial', 'status': 'partial', 'notes': 'tt-7'}]
+_lb = lambda dim, ch, rng='[]': {'name': 'pendulum-bob.%s' % dim, 'description': '', 'node': 'pendulum-bob', 'dimension': 'bob-state.' + dim, 'range_json': rng, 'channel': ch, 'scale_json': '{}', 'coherent': False, 'notes': ''}
+SEED_LOCALIZED_DIMENSIONS += [_lb('px', 'position.x'), _lb('py', 'position.y'), _lb('pz', 'position.z'), _lb('fwind', 'vector', rng='[6,9]')]
+SEED_TENSOR_NODES += [
+    {'name': 'pendulum-bob', 'description': '', 'tree': _B, 'parent': '', 'title': 'the bob, with the wind force on it', 'tensor': 'bob-state',
+     'dims_json': json.dumps(['pendulum-bob.px', 'pendulum-bob.py', 'pendulum-bob.pz', 'pendulum-bob.fwind']),
+     'binding_ref': 'NewtonianPendulumBobSimState-wind-arrow-3d', 'global_params_json': json.dumps({'sim_space': 'newtonian-pendulum-viz'}), 'status': 'unresolved', 'notes': 'status is set by the validator'},
+]
 SEED_UNRESOLVED = [
     {'name': 'wind-turbulence', 'description': '', 'tree': _T, 'parent': 'wind-grid', 'title': 'sub-grid structure of the wind', 'unresolved_kind': 'semantic',
      'known_dims_json': '["x","y","z"]', 'known_semantics_json': json.dumps({'field': 'the 4×4×4 grid is a sampled mean; what happens between cells is not modelled'}),
@@ -53,6 +65,12 @@ SEED_TENSOR_MAPPINGS = [
     _M(name='wind-grid→bob-drag', kind='coupling', source_node='wind-grid', source_dims_json='["x","y","z","speed"]', target_node='pendulum-bob', target_dims_json='["fwind_x","fwind_y","fwind_z"]',
        coupling_ref='wind-to-newtonian-pendulum', validity_json=json.dumps({'speed': [0, 30]}), units='N', loss_note='the field is SAMPLED at the bob: one cell\'s velocity becomes one force',
        mapping_status='validated', evidence_level='simulated', evidence_ref='simulations/selftest_wind_coupling.py (Milestone A)', provenance='the live SimulationCouplingDefinition, by reference'),
+    # tt-7: the same physics DECLARED FROM THE TREE with no coupling row yet — `POST /api/tensortree/mappings/
+    # wind-grid→bob-wind/couple` derives and writes the SimulationCouplingDefinition (proposed → implemented;
+    # evidence stays none until a run pairs to it and steps)
+    _M(name='wind-grid→bob-wind', kind='coupling', source_node='wind-grid', source_dims_json='["x","y","z","component"]', target_node='pendulum-bob', target_dims_json='["wind_vx","wind_vy","wind_vz"]',
+       expression_ref='wind-sample-at-bob', validity_json=json.dumps({'speed': [0, 30]}), units='m/s', loss_note='the field is SAMPLED at the bob: one cell\'s velocity is injected as wind_vx/vy/vz',
+       mapping_status='proposed', evidence_level='none', evidence_ref='', provenance='declared from the tree (tt-7); no coupling row until a person creates it'),
     _M(name='wind-grid→spectrum', kind='decomposition', source_node='wind-grid', source_dims_json='["x","y","z","speed"]', target_node='wind-turbulence', target_dims_json='["mode"]',
        validity_json=json.dumps({'speed': [0, 5]}), loss_note='a proposed low-rank decomposition — valid only for calm wind until proven',
        mapping_status='proposed', evidence_level='none', evidence_ref='', provenance='tt-1 (a hypothesis, on purpose)'),

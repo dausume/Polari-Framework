@@ -32,6 +32,15 @@ SEED_TENSORS = [
      'units': 'mixed', 'semantics': 'the print\'s thermal/geometric state over time',
      'storage_kind': 'engine', 'storage_ref': 'simstate:WaxPrintSimState:*:exit_temp_c,melt_fraction,height_mm,warp_index',
      'metadata_json': '{}', 'tags': 'waxprint,series,tt-1'},
+    # tt-7: the pendulum bob's state per step — the TARGET side of the wind coupling, so a coupling can be
+    # DERIVED from a mapping (its class → its simulation definition; its position fields → the sampler's pos)
+    {'name': 'bob-state', 'description': 'the Newtonian pendulum bob per step: position, velocity and the sampled wind force, read live',
+     'rank': 2, 'shape_json': '[]', 'dtype': 'float',
+     'dimensions_json': json.dumps([{'name': 'step', 'unit': 'step', 'semantics': 'simulation step'},
+                                    {'name': 'quantity', 'size': 9, 'unit': 'm | m/s | N', 'semantics': 'px, py, pz, vx, vy, vz, fwind_x, fwind_y, fwind_z'}]),
+     'units': 'mixed', 'semantics': 'the bob\'s trajectory with the wind force it felt',
+     'storage_kind': 'engine', 'storage_ref': 'simstate:NewtonianPendulumBobSimState:*:px,py,pz,vx,vy,vz,fwind_x,fwind_y,fwind_z',
+     'metadata_json': json.dumps({'binding': 'NewtonianPendulumBobSimState-wind-arrow-3d', 'sim_space': 'newtonian-pendulum-viz'}), 'tags': 'pendulum,tt-7'},
 ]
 SEED_TENSOR_DIMENSIONS = [
     {'name': 'wind-field.%s' % n, 'tensor': 'wind-field', 'index': i, 'label': n, 'size': s, 'unit': u, 'kind': k, 'semantics': sem, 'coordinate_ref': '', 'notes': ''}
@@ -46,6 +55,12 @@ SEED_TENSOR_EXPRESSIONS = [
      'operands_json': json.dumps([{'tensor': 'wind-field', 'ranges': {'z': [0, 1]}}]), 'dims_json': '[]', 'matrix_equation_ref': '', 'result_shape_json': '[4,4,1,6]', 'tags': 'tt-1'},
     {'name': 'wind-mean-over-y', 'description': 'the field averaged down the y axis', 'latex': '\\langle w \\rangle_y', 'operation': 'reduce',
      'operands_json': json.dumps([{'tensor': 'wind-field', 'how': 'mean'}]), 'dims_json': '["y"]', 'matrix_equation_ref': '', 'result_shape_json': '[4,4,6]', 'tags': 'tt-1'},
+    # tt-7: the cross-space SAMPLER as a tensor expression that DELEGATES to the saved no-code matrix equation
+    # (rank ≤ 2 → matrix_equation_ref); a coupling created from a mapping takes its sampler from here
+    {'name': 'wind-sample-at-bob', 'description': 'w(p): the velocity of the grid cell nearest the bob — the saved no-code sampler field-sample-nearest, by reference',
+     'latex': '\\mathbf{w}(\\mathbf{p}) = \\mathbf{w}_{\\arg\\min_i \\lVert\\mathbf{c}_i-\\mathbf{p}\\rVert}', 'operation': 'sample',
+     'operands_json': json.dumps([{'tensor': 'wind-field', 'role': 'cells'}, {'tensor': 'bob-state', 'ranges': {'quantity': [0, 3]}, 'role': 'pos'}]), 'dims_json': '["x","y","z"]',
+     'matrix_equation_ref': 'field-sample-nearest', 'result_shape_json': '[3]', 'tags': 'tt-7'},
 ]
 
 # ---- tt-2: CONTINUUM MECHANICS on the FEM resolution (plan §C Phase 3, Validation B). One FEM case — a

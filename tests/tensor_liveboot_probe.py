@@ -83,6 +83,26 @@ vn = {n['id']: n for n in v.get('nodes', [])}
 check('/view: the resolved root carries dims with a channel each (x/y/z -> position, w -> vector) and its binding_ref', vn.get('wind-grid', {}).get('status') == 'resolved' and all(d.get('channel') for d in vn.get('wind-grid', {}).get('dims', [])) and vn.get('wind-grid', {}).get('binding_ref'), str(vn.get('wind-grid', {}).get('dims'))[:200])
 check('/view: an unresolved space is a node with kind=unresolved, its unresolved_kind and open_questions', any(n['kind'] == 'unresolved' and n.get('unresolved_kind') and n.get('open_questions') for n in v.get('nodes', [])), str([n['id'] for n in v.get('nodes', []) if n['kind'] == 'unresolved']))
 check('/view: mappings carry source/target node, two statuses and the evidence level', all(m.get('source_node') and m.get('target_node') and m.get('mapping_status') and m.get('evidence_level') in v.get('evidence_levels', []) for m in v.get('mappings', [])) and v.get('mappings'), str([(m['name'], m['evidence_level']) for m in v.get('mappings', [])]))
+# tt-7: a SimulationCouplingDefinition created FROM the proposed coupling mapping — derived from the REAL classes
+r = client.simulate_get('/api/tensortree/mappings/wind-grid→bob-wind/couple')
+check('GET mappings/wind-grid→bob-wind/couple (dry run): derived from the live classes — wind-field-3d/WindFieldGridState → newtonian-pendulum-3d/NewtonianPendulumBobSimState, sampler field-sample-nearest (a saved matrix equation here), pos [px,py,pz]; nothing missing',
+      r.status_code == 200 and r.json['ok'] and r.json['coupling']['source_simulation_ref'] == 'wind-field-3d' and r.json['coupling']['target_simulation_ref'] == 'newtonian-pendulum-3d'
+      and r.json['coupling']['sampler_equation_ref'] == 'field-sample-nearest' and r.json['derived_from']['target']['position_fields'] == ['px', 'py', 'pz'] and r.json['missing'] == [], r.text[:400])
+_before = len(tables.get('SimulationCouplingDefinition', {}))
+r = client.simulate_post('/api/tensortree/mappings/wind-grid→bob-wind/couple', json={})
+check('POST …/couple CREATES the SimulationCouplingDefinition row (201) — the mapping now names it, proposed → implemented, evidence still none',
+      r.status_code == 201 and r.json['created'] == 'tt-wind-grid-to-bob-wind' and r.json['mapping_status'] == 'implemented' and r.json['evidence_level'] == 'none'
+      and len(tables.get('SimulationCouplingDefinition', {})) == _before + 1, r.text[:300])
+_cp = next((c for c in tables.get('SimulationCouplingDefinition', {}).values() if getattr(c, 'name', '') == 'tt-wind-grid-to-bob-wind'), None)
+check('  …the row is a real SimulationCouplingDefinition beside wind-to-newtonian-pendulum: same source/target sims and sampler, its own inject keys (wind_vx/vy/vz), enabled',
+      _cp is not None and getattr(_cp, 'source_simulation_ref', '') == 'wind-field-3d' and getattr(_cp, 'target_class_name', '') == 'NewtonianPendulumBobSimState'
+      and list(json.loads(getattr(_cp, 'config_json', '{}'))['inject']) == ['wind_vx', 'wind_vy', 'wind_vz'] and getattr(_cp, 'enabled', False) is True, vars(_cp) if _cp else None)
+r = client.simulate_post('/api/tensortree/mappings/wind-grid→bob-wind/couple', json={})
+check('  …a second POST is a 409 naming the coupling; a non-coupling mapping is a 422; the already-coupled bob-drag is a 409 naming wind-to-newtonian-pendulum',
+      r.status_code == 409 and client.simulate_post('/api/tensortree/mappings/wind-grid→slice-z0/couple', json={}).status_code == 422
+      and client.simulate_post('/api/tensortree/mappings/wind-grid→bob-drag/couple', json={}).json.get('coupling_ref') == 'wind-to-newtonian-pendulum', r.text[:200])
+r = client.simulate_get('/api/tensortree/trees/bob-motion/validate')
+check('the bob\'s own tree (bob-motion) validates on a real boot with its root resolved through the seeded wind-arrow binding', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['pendulum-bob']['status'] == 'resolved', r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

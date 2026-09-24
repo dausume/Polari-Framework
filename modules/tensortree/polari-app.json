@@ -58,10 +58,11 @@
    "tensortree_selftest"
   ],
   "custom": [
-   "custom/tensortree_validate",
+   "custom/tensortree_couple",
    "custom/tensortree_discover",
    "custom/tensortree_graph",
-   "custom/tensortree_scale"
+   "custom/tensortree_scale",
+   "custom/tensortree_validate"
   ],
   "endpoints": [
    "tensortree_endpoints"

@@ -42,5 +42,8 @@ SEED_TENSORTREE_PAGE_DISPLAYS = [
               _row(7, [_table('tensortree-selections', 0, 6, 'Selections — a click that is a mathematical object', 'TensorSelection', columns='name,node,ranges_json,created_from,created_at'),
                        _table('tensortree-policy', 1, 6, 'Discovery policy — the score is configuration', 'TensorDiscoveryPolicy',
                               columns='name,w_evidence,w_dims,w_validity,w_context,w_uncertainty,evidence_map_json,is_default')]),
+              # tt-7: the coupling rows a kind=coupling mapping names or CREATED (POST /api/tensortree/mappings/{name}/couple)
+              _row(8, [_table('tensortree-couplings', 0, 12, 'Simulation couplings — what a kind=coupling mapping executes as (the runner\'s row; created from the tree or seeded)', 'SimulationCouplingDefinition',
+                              columns='name,source_simulation_ref,source_class_name,target_simulation_ref,target_class_name,sampler_equation_ref,enabled,description')]),
           ]),
 ]

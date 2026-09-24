@@ -23,6 +23,7 @@ from tensortree.custom.tensortree_validate import validate_tree
 from tensortree.custom.tensortree_graph import tree_graph
 from tensortree.custom.tensortree_discover import discover
 from tensortree.custom.tensortree_scale import scale_tree, materialise
+from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling
 
 
 class TensorTreeAPI(treeObject):
@@ -41,6 +42,7 @@ class TensorTreeAPI(treeObject):
             add('/api/tensortree/select', self, suffix='select')
             add('/api/tensortree/scale/{material}', self, suffix='scale')
             add('/api/tensortree/scale/{material}/materialise', self, suffix='materialise')
+            add('/api/tensortree/mappings/{name}/couple', self, suffix='couple')
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -135,6 +137,20 @@ class TensorTreeAPI(treeObject):
             db.saveInstanceInDB(sel)
         response.status = '201 Created'
         response.media = {'ok': True, 'selection': name, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''))}
+
+    # ---- tt-7: a SimulationCouplingDefinition created FROM a kind=coupling mapping ------------------------------
+    def on_get_couple(self, request, response, name):
+        """Dry run: the coupling row that WOULD be created from mapping {name}, what it was derived from, what is missing."""
+        p = propose_coupling(self.manager, name, {k: v for k, v in (request.params or {}).items()})
+        response.status = {404: '404 Not Found', 422: '422 Unprocessable Entity'}.get(p.get('status'), '200 OK')
+        response.media = p
+
+    def on_post_couple(self, request, response, name):
+        """Create it (a person's action). Body: sampler_equation_ref | config | name | description | enabled | force."""
+        body = request.media if isinstance(request.media, dict) else {}
+        p = create_coupling(self.manager, name, body)
+        response.status = {404: '404 Not Found', 422: '422 Unprocessable Entity', 409: '409 Conflict', 201: '201 Created'}.get(p.get('status'), '200 OK')
+        response.media = p
 
     def on_post_discover(self, request, response):
         body = request.media if isinstance(request.media, dict) else {}
