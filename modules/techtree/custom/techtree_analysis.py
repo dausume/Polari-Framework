@@ -232,8 +232,34 @@ def _politics_done(manager, ref_name):
     return (True, f'policy "{ref_name}" stated with evidence', '', '')
 
 
+def _proof_done(manager, ref_name):
+    """pf-4 (mathproofs): a `proof` segment names a MathClaim; done iff the claim is SETTLED — it holds
+    (witnessed / decided / checked-symbolically / proved, not stale) or it is refuted by a counterexample (a
+    refutation is knowledge too). Read through mathproofs' own status reader when the module is present (a
+    soft seam: techtree never imports it at top level); without it the segment is honestly not done."""
+    row = _named(manager, 'MathClaim', ref_name)
+    if row is None:
+        return (False, f'no MathClaim named "{ref_name}" on this instance (not seeded / not generated)',
+                'MathClaim', 'seed the claim, or generate the tree\'s obligations (POST /api/mathproofs/trees/<tree>/obligations)')
+    try:
+        from mathproofs.custom.checkers import status_of
+        st = status_of(manager, row)
+    except Exception:
+        st = getattr(row, 'proof_status', 'conjectured')
+    head = str(st).split(' ')[0]; stale = '(stale)' in str(st)
+    if not stale and head in ('witnessed', 'decided', 'checked-symbolically', 'proved'):
+        return (True, f'MathClaim "{ref_name}" {st} (checker {getattr(row, "checker", "")})', '', '')
+    if not stale and head == 'refuted':
+        return (True, f'MathClaim "{ref_name}" refuted with a counterexample — settled knowledge', '', '')
+    tier = 'lean' if head == 'conjectured' and getattr(row, 'budget_s', 0) and getattr(row, 'budget_s', 0) >= 300 else ''
+    return (False, f'MathClaim "{ref_name}" is {st}',
+            'MathClaim.proof_status (the checker\'s verdict, never hand-set)',
+            f'POST /api/mathproofs/claims/{ref_name}/check' + ('?tier=lean (a person asks; never at boot)' if tier else '') + (' — the rows it speaks of moved; re-check' if stale else ''))
+
+
 _ASSIGNMENT_TESTS = {
     'theory': _theory_done,
+    'proof': _proof_done,
     'real': _real_done,
     'business': _business_done,
     'politics': _politics_done,

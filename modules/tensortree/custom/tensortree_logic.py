@@ -17,13 +17,16 @@ def available():
 
 
 def of_mapping(manager, mapping_name):
-    """{'available', 'refuted', 'undetermined', 'open', 'ok', 'badge': ok|open|undetermined|refuted|none|unavailable}"""
+    """{'available', 'refuted', 'undetermined', 'open', 'ok', 'badge': ok|gap|open|undetermined|refuted|none|unavailable} — gap = checked ones ok, the rest named gaps (unprovable-here)"""
     if not available():
         return {'available': False, 'refuted': [], 'undetermined': [], 'open': [], 'ok': [], 'badge': 'unavailable', 'why': 'no mathproofs module on this instance'}
     from mathproofs.custom.rules import logic_of_mapping
     r = logic_of_mapping(manager, mapping_name)
     # refuted = a counterexample exists; undetermined = not defined here (a premise fails / unrecorded); open = not yet checked; ok
-    badge = 'refuted' if r['refuted'] else ('undetermined' if r['undetermined'] else ('open' if r['open'] else ('ok' if r['ok'] else 'none')))
+    # gap = every obligation a tier CAN check is ok, and the rest are `unprovable-here` (a rule with no tier yet — units,
+    # evidence rank): named gaps, not open questions; shown as its own state so seven positive results do not hide behind a '?'
+    unchecked = [o for o in r['open'] if o['status'].split(' ')[0] != 'unprovable-here']
+    badge = 'refuted' if r['refuted'] else ('undetermined' if r['undetermined'] else ('open' if unchecked else ('gap' if (r['open'] and r['ok']) else ('open' if r['open'] else ('ok' if r['ok'] else 'none')))))
     return {'available': True, 'badge': badge, **r}
 
 

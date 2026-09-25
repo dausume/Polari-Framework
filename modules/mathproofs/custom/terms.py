@@ -62,19 +62,31 @@ def statement_hash(term):
     return hashlib.sha256(canonical(term).encode('utf-8')).hexdigest()
 
 
+def _txt(name):
+    """A row / set / dim name as TEXT in the LaTeX (never math italics: hyphens stay hyphens, spaces stay, → stays)."""
+    s = str(name)
+    for a, b in (('\\', r'\textbackslash{}'), ('{', r'\{'), ('}', r'\}'), ('_', r'\_'), ('#', r'\#'), ('%', r'\%'), ('&', r'\&')):
+        s = s.replace(a, b)
+    # a math symbol inside a name (wind-grid→slice-z0, eps→sigma) leaves text mode for that symbol only: KaTeX has no
+    # \rightarrow in \text{}, so the name becomes \text{wind-grid}\rightarrow\text{slice-z0}
+    for a, b in (('→', r'}\rightarrow\text{'), ('σ', r'}\sigma\text{'), ('ε', r'}\varepsilon\text{'), ('⊆', r'}\subseteq\text{')):
+        s = s.replace(a, b)
+    return (r'\text{%s}' % s).replace(r'\text{}', '')
+
+
 def _lat(t):
     if isinstance(t, (int, float)):
         return ('%g' % t)
     if isinstance(t, str):
-        return r'\mathrm{%s}' % t.replace('_', r'\_')
+        return _txt(t)
     if not isinstance(t, dict) or not op_of(t):
         return '?'
     k = op_of(t)
     v = t[k]
     if k == 'ref':
-        return r'\mathrm{%s}' % ('.'.join([str(v)] + [str(x) for x in (t.get('path') or [])])).replace('_', r'\_')
+        return _txt('.'.join([str(v)] + [str(x) for x in (t.get('path') or [])]))
     if k in ('sum', 'max', 'min', 'count'):
-        return r'\%s_{%s} %s' % (k if k != 'count' else 'operatorname{count}', str(v.get('over', '')).replace('_', r'\_'), '.'.join(str(x) for x in (v.get('path') or [])).replace('_', r'\_'))
+        return r'\%s_{%s} %s' % (k if k != 'count' else 'operatorname{count}', _txt(v.get('over', '')), _txt('.'.join(str(x) for x in (v.get('path') or []))))
     if k == 'eq':
         tol = t.get('tol') or {}
         return '%s = %s%s' % (_lat(v[0]), _lat(v[1]), (r'\ (\pm %g\,\mathrm{rel})' % tol['rel']) if tol.get('rel') else '')
@@ -93,18 +105,18 @@ def _lat(t):
     if k == 'recorded':
         return r'\mathrm{recorded}(%s)' % _lat(v)
     if k in ('forall', 'exists'):
-        binders = ', '.join(r'%s \in %s' % (b['var'], str(b['in']).replace('_', r'\_')) for b in v)
+        binders = ', '.join(r'%s \in %s' % (b['var'], _txt(b['in'])) for b in v)
         return r'\%s\, %s:\ %s' % (k, binders, _lat(t.get('holds')))
     if k == 'in':
-        return r'%s \in %s' % (str(v[0]).replace('_', r'\_'), str(v[1]).replace('_', r'\_'))
+        return r'%s \in %s' % (str(v[0]), _txt(v[1]))
     if k == 'bitvector':
         a = v.get('args') or {}
         return r'\forall\, |a_i| \le %s,\ |b_i| \le %s:\ \left|\sum_{i=1}^{%s} a_i b_i\right| < 2^{%s}\ (\text{int}%s\ \text{operands})' % (
             _lat(a.get('a_abs_max', '?')), _lat(a.get('b_abs_max', '?')), a.get('products', '?'), int(a.get('acc_bits', 64)) - 1, a.get('operand_bits', '?'))
     if k == 'subset':
-        return r'%s \subseteq %s' % (str(v[0]).replace('_', r'\_'), str(v[1]).replace('_', r'\_'))
+        return r'%s \subseteq %s' % (_txt(v[0]), _txt(v[1]))
     if k == 'dims_subset':
-        return r'\mathrm{dims}(%s) \subseteq \mathrm{dims}(%s)' % (str(v[0]).replace('_', r'\_'), str(v[1]).replace('_', r'\_'))
+        return r'\mathrm{dims}(%s) \subseteq \mathrm{dims}(%s)' % (_txt(v[0]), _txt(v[1]))
     if k == 'symbolic':
         return {'symmetry-of-contraction': r'\sigma_{ij} = C_{ijkl}\varepsilon_{kl},\ C_{ijkl}=C_{jikl}=C_{ijlk},\ \varepsilon_{kl}=\varepsilon_{lk} \Rightarrow \sigma_{ij}=\sigma_{ji}',
                 'linear-composition': r'(g \circ f)(\alpha u + \beta v) = \alpha (g\circ f)(u) + \beta (g \circ f)(v)',

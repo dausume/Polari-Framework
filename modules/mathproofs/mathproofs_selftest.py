@@ -234,7 +234,8 @@ check('logic_of_mapping(m3): the refuted obligations are listed (what discovery 
 
 # ---- the soft seam: discovery refuses on a refuted obligation (with the counterexample), shows open ones
 from tensortree.custom.tensortree_logic import of_mapping, available
-check('the tensortree seam sees mathproofs and gives m3 the badge refuted, m1 ok/open', available() and of_mapping(m, 'm3')['badge'] == 'refuted' and of_mapping(m, 'm1')['badge'] in ('ok', 'open'))
+check('the tensortree seam sees mathproofs and gives m3 the badge refuted; m1 — every checkable obligation ok, the units one a named gap (unprovable-here) — the badge GAP, not open (seven results never hide behind a ?)',
+      available() and of_mapping(m, 'm3')['badge'] == 'refuted' and of_mapping(m, 'm1')['badge'] == 'gap' and of_mapping(m, 'm1')['ok'], (of_mapping(m, 'm1')['badge'], [o['status'] for o in of_mapping(m, 'm1')['open']]))
 from tensortree.custom.tensortree_discover import discover
 _add(m, 'TensorDiscoveryPolicy', name='default', is_default=True, w_evidence=0.3, w_dims=0.25, w_validity=0.25, w_context=0.1, w_uncertainty=0.1, evidence_map_json=json.dumps({'none': 0.0, 'analytical': 0.4, 'simulated': 0.7, 'measured': 1.0}))
 for mm in m.objectTables['TensorMapping'].values():

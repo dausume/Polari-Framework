@@ -240,9 +240,20 @@ if __name__ == '__main__':
     payload = tree_payload(mgr, 'oseb-test')
     check('payload ok + tree meta', payload.get('ok')
           and payload['tree']['isBaseline'])
-    check('payload carries segment colors for all four kinds',
+    check('payload carries segment colors for all five kinds (proof = pf-4: a settled MathClaim)',
           sorted(payload['segmentColors']) == [
-              'business', 'politics', 'real', 'theory'])
+              'business', 'politics', 'proof', 'real', 'theory'])
+    # pf-4: the `proof` segment kind — a MathClaim, done iff SETTLED (holds, or refuted with a counterexample); read
+    # through mathproofs' status reader (soft seam); a missing / conjectured claim is honestly not done
+    from techtree.custom.techtree_analysis import assignment_report as _ar
+    import types as _t
+    mgr.objectTables.setdefault('MathClaim', {})
+    for nm, st, ck in (('c-holds', 'decided', 'z3'), ('c-refuted', 'refuted', 'z3'), ('c-open', 'conjectured', '')):
+        r_ = _t.SimpleNamespace(name=nm, proof_status=st, checker=ck, certificate_ref='', about_refs_json='[]', budget_s=25.0)
+        mgr.objectTables['MathClaim'][id(r_)] = r_
+    _rep = {nm: _ar(mgr, _t.SimpleNamespace(name='pf:' + nm, segment_kind='proof', ref_name=nm)) for nm in ('c-holds', 'c-refuted', 'c-open', 'c-missing')}
+    check('proof segment: a decided claim is done; a refuted one is done too (a counterexample is knowledge); a conjectured one is not, naming the check door; a missing one is not, naming the seed door',
+          _rep['c-holds']['done'] and _rep['c-refuted']['done'] and not _rep['c-open']['done'] and '/check' in _rep['c-open']['action'] and not _rep['c-missing']['done'] and 'no MathClaim' in _rep['c-missing']['evidence'])
     printing = [n for n in payload['nodes']
                 if n['name'] == '3d-printing'][0]
     check('payload node carries derived segments + completion',

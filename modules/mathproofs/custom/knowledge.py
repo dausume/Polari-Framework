@@ -4,7 +4,8 @@
 PROOFS AS KNOWLEDGE (plan §I.7 pf-4): the mathematics the tensor arc's readings REST ON, as a tech tree the learning
 layer can point at — one TechNode per idea, edges = recommended learning order, each node CITING the MathClaims that
 establish it (cross_refs relation `proved-by`) and the compute-lod rungs / tensortree rules it underwrites (relation
-`rests-on` / `underwrites`). Nothing here is a copy of a claim: the claims stay the truth, the node is the place a
+`rests-on` / `underwrites`); each cited claim is a `proof` SEGMENT of the node (a techtree segment kind added for this: done iff the
+claim is settled — the techtree's own evaluator reads mathproofs' status through a soft seam). Nothing here is a copy of a claim: the claims stay the truth, the node is the place a
 person learns from, and `reading(manager)` joins the two LIVE — a node is `established` only while every claim it
 cites is SETTLED — it holds (witnessed / decided / checked-symbolically / proved, not stale) or it is refuted by a
 counterexample (a refutation is knowledge too); an open / undetermined / stale claim shows on the node it belongs to,
@@ -61,7 +62,7 @@ SEED_PROOF_TECH_NODES = [
        rungs=('standard-cells', 'devices', 'layout'), column=1),
 ]
 
-SEED_PROOF_TECH_SEGMENTS = [{'name': 'pf:%s:%s' % (n['name'], c['name']), 'tech_node': n['name'], 'tree_name': TREE, 'segment_kind': 'theory', 'ref_name': c['name'], 'notes': c['relation']}
+SEED_PROOF_TECH_SEGMENTS = [{'name': 'pf:%s:%s' % (n['name'], c['name']), 'tech_node': n['name'], 'tree_name': TREE, 'segment_kind': 'proof', 'ref_name': c['name'], 'notes': c['relation']}
                             for n in SEED_PROOF_TECH_NODES for c in json.loads(n['cross_refs_json']) if c['class'] == 'MathClaim']
 
 

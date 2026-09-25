@@ -21,7 +21,30 @@ def run_at_boot(manager, log=None, make=None, save=True):
     """`make`/`save` as in rules.generate / checkers.check (a selftest's fake manager passes its own row factory)."""
     log = log or (lambda *_: None)
     t0 = time.time()
-    out = {'trees': {}, 'claims_checked': [], 'undecided': [], 'elapsed_s': 0.0}
+    out = {'trees': {}, 'claims_checked': [], 'undecided': [], 'elapsed_s': 0.0, 'converged': {}}
+    # DERIVED data converges on every boot (the seed-field gotcha: the core seed pass is insert-by-name, so a changed
+    # seed never reaches a prior row): the knowledge tree's techtree rows go through the upsert rule, and every claim's
+    # LaTeX is re-derived from its term — it is never authored, so overwriting it is the truth, not a loss
+    if make is None:
+        try:
+            from moduleService.seed_upsert import upsert_seed_pairs
+            from mathproofs.mathproofs_seed import MATHPROOFS_SEED_PAIRS
+            reps = upsert_seed_pairs(manager, [p for p in MATHPROOFS_SEED_PAIRS if p[0] in ('TechTreeDefinition', 'TechNode', 'TechSegmentAssignment')], tag='MathProofsKnowledge')
+            out['converged']['techtree_rows'] = {r.get('class'): (len(r.get('inserted', [])), len(r.get('updated', []))) for r in reps if not r.get('skipped')}
+        except Exception as exc:
+            out['converged']['techtree_rows'] = 'failed: %s' % exc
+    from mathproofs.custom import terms as _terms
+    db = getattr(manager, 'db', None); relatexed = 0
+    for c in _rows(manager, 'MathClaim'):
+        term = checkers.terms_of(c)
+        if not term:
+            continue
+        latex = _terms.to_latex(term)
+        if str(getattr(c, 'statement_latex', '')) != latex:
+            c.statement_latex = latex; relatexed += 1
+            if save and db is not None and hasattr(db, 'saveInstanceInDB'):
+                db.saveInstanceInDB(c)
+    out['converged']['latex_rederived'] = relatexed
     for tree in sorted(str(getattr(t, 'name', '')) for t in _rows(manager, 'TensorTreeDefinition')):
         try:
             r = rules.generate(manager, tree, make=make, save=save)
@@ -43,6 +66,6 @@ def run_at_boot(manager, log=None, make=None, save=True):
         if r['verdict'] == 'undecided':
             out['undecided'].append(str(c.name))
     out['elapsed_s'] = round(time.time() - t0, 3)
-    log('[MathProofsBoot] trees %s; claims checked %d (%s); undecided within budget: %s; lean claims left to a person/pipeline: %s; %.3f s' % (
-        out['trees'], len(out['claims_checked']), ', '.join('%s=%s' % (n[0].split(':')[-1][:28], n[1]) for n in out['claims_checked']) or '-', out['undecided'] or 'none', out.get('awaiting_person') or 'none', out['elapsed_s']))
+    log('[MathProofsBoot] converged %s; trees %s; claims checked %d (%s); undecided within budget: %s; lean claims left to a person/pipeline: %s; %.3f s' % (
+        out['converged'], out['trees'], len(out['claims_checked']), ', '.join('%s=%s' % (n[0].split(':')[-1][:28], n[1]) for n in out['claims_checked']) or '-', out['undecided'] or 'none', out.get('awaiting_person') or 'none', out['elapsed_s']))
     return out

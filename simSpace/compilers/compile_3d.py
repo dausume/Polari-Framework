@@ -98,7 +98,10 @@ def compile_3d(
 
         instances = manager.objectTables.get(class_name, {}) or {}
         if not instances:
-            warnings.append(f"Class {class_name} bound (3D) but has no instances.")
+            # a class THIS scene binds and has no rows for is worth a warning; a defaultVisible binding of some other
+            # module's class (waxprint's, moldfill's …) with no rows is just absent here — not this scene's problem
+            if override is not None:
+                warnings.append(f"Class {class_name} bound (3D) but has no instances.")
             continue
 
         if run_filter:
