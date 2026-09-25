@@ -29,8 +29,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 LOD1 = os.path.join(MOD, 'initialData', 'lod1')
 OUT = os.path.join(MOD, 'initialData', 'lod2')
-IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
-STA_IMAGE = os.environ.get('POLARI_OPENSTA_IMAGE', 'openroad/opensta')
 LIB = {'name': 'sky130_fd_sc_hd__tt_025C_1v80.lib', 'repo': 'The-OpenROAD-Project/OpenROAD-flow-scripts',
        'commit': 'db8b985f89d456db29d39588443a025e7305a0a6', 'path': 'flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib',
        'licence': 'Apache-2.0 (SkyWater PDK)', 'corner': 'tt_025C_1v80 = typical process, 25 °C, 1.8 V'}
@@ -62,44 +60,33 @@ def fetch_liberty():
     return p, hashlib.sha256(open(p, 'rb').read()).hexdigest()
 
 
-def _docker_ok(image):
-    try:
-        return subprocess.run(['docker', 'image', 'inspect', image], capture_output=True, timeout=20).returncode == 0
-    except Exception:
-        return False
-
-
-def _sh(work, cmd, image):
-    if image == IMAGE and shutil.which('yosys'):
-        full = ['sh', '-c', cmd]
-    elif image == STA_IMAGE:
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', '--entrypoint', '/OpenSTA/build/sta', STA_IMAGE, '-exit', 'sta.tcl']
-    else:
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', IMAGE, 'sh', '-c', cmd]
-    r = subprocess.run(full, capture_output=True, text=True, timeout=900, cwd=work)
-    return r.returncode, (r.stdout or '') + (r.stderr or '')
+def _sh(work, engine, args, stdout_to=None, timeout=900):
+    """One engine through the Polari engines ladder (computelod.custom.eda_engines) — argv only; (rc, stdout+stderr)."""
+    from computelod.custom.eda_engines import run as _run
+    r = _run(engine, work, args, timeout=timeout, stdout_to=stdout_to)
+    return r['returncode'], r['stdout'] + r['stderr']
 
 
 def run(work=None):
-    if not (shutil.which('yosys') or _docker_ok(IMAGE)):
-        raise SystemExit('no yosys: docker build -t %s modules/computelod/custom/tools' % IMAGE)
-    if not _docker_ok(STA_IMAGE):
-        raise SystemExit('no OpenSTA: docker pull %s' % STA_IMAGE)
+    from computelod.custom.eda_engines import resolve
+    for eng in ('yosys', 'sta'):
+        r = resolve(eng)
+        if r['how'] == 'refused':
+            raise SystemExit(r['why'])
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod2')
     os.makedirs(work, exist_ok=True)
     lib_path, sha = fetch_liberty()
     shutil.copy(lib_path, os.path.join(work, LIB['name']))
     shutil.copy(os.path.join(LOD1, 'rv32_add.v'), work)
     rep = {'liberty': dict(LIB, sha256=sha, bytes=os.path.getsize(lib_path)), 'conditions': CONDITIONS}
-    rc, out = _sh(work, 'yosys -q -p "read_verilog rv32_add.v; synth -top rv32_add; dfflibmap -liberty %s; abc -liberty %s; opt_clean; '
-                        'tee -o mapped_stat.json stat -liberty %s -json; write_verilog -noattr rv32_add_sky130.v" > map.log 2>&1; echo rc=$?' % (LIB['name'], LIB['name'], LIB['name']), IMAGE)
+    rc, out = _sh(work, 'yosys', ['-q', '-p', 'read_verilog rv32_add.v; synth -top rv32_add; dfflibmap -liberty %s; abc -liberty %s; opt_clean; '
+                                  'tee -o mapped_stat.json stat -liberty %s -json; write_verilog -noattr rv32_add_sky130.v' % (LIB['name'], LIB['name'], LIB['name'])], stdout_to='map.log')
     st = json.load(open(os.path.join(work, 'mapped_stat.json')))
     st = st.get('design') or st['modules'][list(st['modules'])[0]]
     rep['mapping'] = {'tool': 'yosys synth → dfflibmap → abc -liberty', 'cells': st['num_cells'], 'area_um2': round(float(st.get('area', 0.0)), 2),
                       'by_type': dict(sorted(st['num_cells_by_type'].items(), key=lambda kv: -kv[1]))}
     open(os.path.join(work, 'sta.tcl'), 'w').write(STA_TCL.format(lib=LIB['name'], load=CONDITIONS['load_pf'], slew=CONDITIONS['input_slew_ns']))
-    rc, out = _sh(work, '', STA_IMAGE)
-    open(os.path.join(work, 'sta.log'), 'w').write(out)
+    rc, out = _sh(work, 'sta', ['-exit', 'sta.tcl'], stdout_to='sta.log')
     arr = re.findall(r'^\s*([0-9.]+)\s+data arrival time', out, re.M)
     sp = re.findall(r'Startpoint: (\S+)', out); ep = re.findall(r'Endpoint: (\S+)', out)
     rep['timing'] = {'tool': 'OpenSTA (openroad/opensta image)', 'max_path_ns': float(arr[0]) if arr else None, 'min_path_ns': float(arr[1]) if len(arr) > 1 else None,

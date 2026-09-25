@@ -27,8 +27,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 LOD1 = os.path.join(MOD, 'initialData', 'lod1')
 OUT = os.path.join(MOD, 'initialData', 'lod2', 'cnt')
-IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
-STA_IMAGE = os.environ.get('POLARI_OPENSTA_IMAGE', 'openroad/opensta')
 LIB_NAME = 'polari_cnt_lib.lib'
 #: the cells an adder needs (plus the basics abc reaches for); sequential cells refuse by design (not needed)
 CELLS = ['cinv', 'cbuf', 'cnand2', 'cnor2', 'cnand3', 'cnor3', 'cxor2', 'cxnor2', 'caoi21', 'coai21', 'cha', 'cfa']
@@ -42,22 +40,11 @@ report_checks -unconstrained -path_delay min -digits 4
 '''
 
 
-def _docker_ok(image):
-    try:
-        return subprocess.run(['docker', 'image', 'inspect', image], capture_output=True, timeout=20).returncode == 0
-    except Exception:
-        return False
-
-
-def _sh(work, cmd, image):
-    if image == IMAGE and shutil.which('yosys'):
-        full = ['sh', '-c', cmd]
-    elif image == STA_IMAGE:
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', '--entrypoint', '/OpenSTA/build/sta', STA_IMAGE, '-exit', 'sta.tcl']
-    else:
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', IMAGE, 'sh', '-c', cmd]
-    r = subprocess.run(full, capture_output=True, text=True, timeout=900, cwd=work)
-    return r.returncode, (r.stdout or '') + (r.stderr or '')
+def _sh(work, engine, args, stdout_to=None, timeout=900):
+    """One engine through the Polari engines ladder (computelod.custom.eda_engines) — argv only; (rc, stdout+stderr)."""
+    from computelod.custom.eda_engines import run as _run
+    r = _run(engine, work, args, timeout=timeout, stdout_to=stdout_to)
+    return r['returncode'], r['stdout'] + r['stderr']
 
 
 def _boot():
@@ -90,10 +77,11 @@ def _pick_device(manager, name):
 
 
 def run(device_name=None, cells=None, work=None):
-    if not (shutil.which('yosys') or _docker_ok(IMAGE)):
-        raise SystemExit('no yosys: docker build -t %s modules/computelod/custom/tools' % IMAGE)
-    if not _docker_ok(STA_IMAGE):
-        raise SystemExit('no OpenSTA: docker pull %s' % STA_IMAGE)
+    from computelod.custom.eda_engines import resolve
+    for eng in ('yosys', 'sta'):
+        r = resolve(eng)
+        if r['how'] == 'refused':
+            raise SystemExit(r['why'])
     manager = _boot()
     from cntfet.custom.cnt_derive import derive_device
     from cntfet.cnt_cell_library_basis import characterize_cells
@@ -137,8 +125,8 @@ def run(device_name=None, cells=None, work=None):
             'load_note': '4× a cinv input (the sweep\'s largest grid load — FO4-like); the slew is the grid\'s middle point; both inside the characterized grid, no extrapolation'}
     rep['conditions'] = cond
     shutil.copy(os.path.join(LOD1, 'rv32_add.v'), work)
-    rc, out = _sh(work, 'yosys -q -p "read_verilog rv32_add.v; synth -top rv32_add; dfflibmap -liberty %s; abc -liberty %s; opt_clean; '
-                        'tee -o mapped_stat.json stat -liberty %s -json; write_verilog -noattr rv32_add_cnt.v" > map.log 2>&1; echo rc=$?' % (LIB_NAME, LIB_NAME, LIB_NAME), IMAGE)
+    rc, out = _sh(work, 'yosys', ['-q', '-p', 'read_verilog rv32_add.v; synth -top rv32_add; dfflibmap -liberty %s; abc -liberty %s; opt_clean; '
+                                  'tee -o mapped_stat.json stat -liberty %s -json; write_verilog -noattr rv32_add_cnt.v' % (LIB_NAME, LIB_NAME, LIB_NAME)], stdout_to='map.log')
     if not os.path.exists(os.path.join(work, 'mapped_stat.json')):
         raise SystemExit('yosys mapping failed:\n' + open(os.path.join(work, 'map.log')).read()[-2000:])
     st = json.load(open(os.path.join(work, 'mapped_stat.json')))
@@ -147,8 +135,7 @@ def run(device_name=None, cells=None, work=None):
                       'by_type': dict(sorted(st['num_cells_by_type'].items(), key=lambda kv: -kv[1]))}
     # Liberty time unit is ps → OpenSTA reports ps; set_load in fF (capacitive_load_unit ff); transition in ps
     open(os.path.join(work, 'sta.tcl'), 'w').write(STA_TCL.format(lib=LIB_NAME, load=cond['load_ff'], slew=cond['input_slew_ps']))
-    rc, out = _sh(work, '', STA_IMAGE)
-    open(os.path.join(work, 'sta.log'), 'w').write(out)
+    rc, out = _sh(work, 'sta', ['-exit', 'sta.tcl'], stdout_to='sta.log')
     arr = re.findall(r'^\s*(-?[0-9.]+)\s+data arrival time', out, re.M)
     sp = re.findall(r'Startpoint: (\S+)', out); ep = re.findall(r'Endpoint: (\S+)', out)
     rep['timing'] = {'tool': 'OpenSTA (openroad/opensta image)', 'unit': 'ps', 'max_path_ps': float(arr[0]) if arr else None, 'min_path_ps': float(arr[1]) if len(arr) > 1 else None,

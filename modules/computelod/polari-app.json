@@ -29,7 +29,51 @@
  "requires": {
   "modules": [],
   "libraries": [],
-  "engines": []
+  "engines": [
+   {
+    "name": "riscv-gcc",
+    "kind": "system",
+    "probe": "riscv64-unknown-elf-gcc",
+    "note": "RISC-V cross compiler (lod-1)"
+   },
+   {
+    "name": "yosys",
+    "kind": "system",
+    "probe": "yosys",
+    "note": "synthesis + technology mapping (lod-1, lod-2)"
+   },
+   {
+    "name": "iverilog",
+    "kind": "system",
+    "probe": "iverilog",
+    "note": "RTL simulation (lod-1)"
+   },
+   {
+    "name": "sta",
+    "kind": "system",
+    "probe": "sta",
+    "note": "OpenSTA static timing (lod-2)"
+   },
+   {
+    "name": "magic",
+    "kind": "system",
+    "probe": "magic",
+    "note": "layout DRC + extraction (lod-3c)"
+   },
+   {
+    "name": "netgen",
+    "kind": "system",
+    "probe": "netgen-lvs",
+    "note": "layout-vs-schematic (lod-3c)"
+   },
+   {
+    "name": "ngspice",
+    "kind": "system",
+    "probe": "ngspice",
+    "note": "transistor-level simulation (lod-3b; resolved through cntfet.engines)"
+   }
+  ],
+  "engines_note": "resolved per engine through computelod.custom.eda_engines (EDA_ENGINES_URL → local binary → local image polari-eda-tools:noble → topology provider computelod.engines → refusal); the worker = polari-rf-node/polari-eda-tools (docker-compose.eda-engines.yml, :9800)"
  },
  "files": {
   "objects": [
@@ -56,6 +100,7 @@
   ],
   "custom": [
    "custom/computelod_walk",
+   "custom/eda_engines",
    "custom/lod1_chain",
    "custom/lod2_cnt",
    "custom/lod2_silicon",

@@ -32,6 +32,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod4', self, suffix='lod4')                 # fabrication → materials, by reference
             add('/api/computelod/lod3/devices', self, suffix='lod3_devices')  # devices → cells simulated by us vs the Liberty
             add('/api/computelod/lod3/layout', self, suffix='lod3_layout')    # DRC + PEX + LVS on the PDK's layout, re-timed
+            add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
     def _rows(self, cls):
         return list((getattr(self.manager, 'objectTables', {}) or {}).get(cls, {}).values())
@@ -55,6 +56,12 @@ class ComputeLodAPI(treeObject):
             response.status = '400 Bad Request'; response.media = {'ok': False, 'error': 'path needs ?rung=<ComputeLOD.name>&ref=<the row at that rung>'}; return
         d = (request.params.get('direction') or 'down').strip()
         response.media = {'ok': True, 'path': path(self.manager, rung, ref, 'up' if d == 'up' else 'down')}
+
+    def on_get_engines(self, request, response):
+        """The engines ladder's answer BEFORE any dispatch — per engine: remote (knob | topology provider) | local binary |
+        local image | refused (with the reason and the knobs). The same shape cntfet's capability door gives."""
+        from computelod.custom.eda_engines import placement
+        response.media = {'ok': True, 'placement': placement()}
 
     def on_get_lod3_layout(self, request, response):
         from computelod.custom.lod3_layout import report

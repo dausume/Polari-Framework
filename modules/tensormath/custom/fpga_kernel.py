@@ -30,7 +30,6 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 OUT = os.path.join(MOD, 'initialData', 'fpga')
-IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
 C_SCALE = 1e-3      # Pa → kPa   (C ≈ 2.2e11 Pa → 2.2e8 kPa: fits int32)
 E_SCALE = 1e9       # strain → nano-strain (ε ≈ 5e-6 → 5000)
 # σ_kernel = Σ C_kPa · ε_nε  = σ_Pa · 1e-3 · 1e9 = σ_Pa · 1e6   → σ_Pa = σ_kernel · 1e-6
@@ -166,13 +165,14 @@ endmodule
 '''
 
 
-def _sh(work, cmd):
-    if shutil.which('yosys') and shutil.which('iverilog') and shutil.which('nextpnr-ice40'):
-        full = ['sh', '-c', cmd]
-    else:
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', IMAGE, 'sh', '-c', cmd]
-    r = subprocess.run(full, capture_output=True, text=True, timeout=900, cwd=work)
-    return r.returncode, (r.stdout or '') + (r.stderr or '')
+def _sh(work, engine, args, stdout_to=None):
+    """One engine through the Polari engines ladder (computelod.custom.eda_engines) — argv only; (rc, stdout+stderr)."""
+    from computelod.custom.eda_engines import run as _run, EngineError
+    try:
+        r = _run(engine, work, args, timeout=900, stdout_to=stdout_to)
+    except EngineError as exc:
+        return 1, str(exc)
+    return r['returncode'], r['stdout'] + r['stderr']
 
 
 def _hex32(v):
@@ -202,7 +202,9 @@ def run(manager, work=None, case='tt2-plate-tension'):
     open(os.path.join(work, 'sig.hex'), 'w').write('\n'.join(_hex64(Sref[e, i, j]) for e in range(n) for i in range(2) for j in range(2)) + '\n')
     rep = {'case': case, 'elements': int(n), 'fixed_point': {'C': 'kPa (int32)', 'eps': 'nano-strain (int32)', 'sigma': 'kPa·nε (int64) → Pa = ×1e-6', 'rounding': 'operands rounded to integers once on the host; the kernel is exact'},
            'reference_error_vs_float': float(np.max(np.abs(Sref * 1e-6 - sigma)) / max(np.max(np.abs(sigma)), 1e-30))}
-    rc, out = _sh(work, 'iverilog -g2012 -o tb_mac tb_stress_mac.v stress_mac.v && vvp -n tb_mac | grep -E "PASS|FAIL"')
+    rc, out = _sh(work, 'iverilog', ['-g2012', '-o', 'tb_mac', 'tb_stress_mac.v', 'stress_mac.v'])
+    if rc == 0:
+        rc, out = _sh(work, 'vvp', ['-n', 'tb_mac'])
     lines = [l for l in out.split('\n') if 'PASS' in l or 'FAIL' in l]
     rep['simulation'] = {'verdict': lines[0] if lines else 'no verdict: ' + out[-300:], 'tool': 'iverilog'}
     m = [int(x) for x in __import__('re').findall(r'stream cycles (\d+)', rep['simulation']['verdict'])]
@@ -213,8 +215,8 @@ def run(manager, work=None, case='tt2-plate-tension'):
     rep['streaming_variant'] = {'note': 'the one-element-per-cycle form (16 multipliers) was synthesized first: it does not fit the part',
                                 'yosys_synth_ice40_cells': 52073, 'SB_LUT4': 49167, 'part_luts': 7680, 'fit': False,
                                 'lesson': 'the LUT budget of the DEVICE rung dictates the schedule of the operator: 16 cycles/element with one multiplier is what fits'}
-    rc, out = _sh(work, 'yosys -q -p "read_verilog stress_mac.v stress_mac_top.v; synth_ice40 -top stress_mac_top -json stress_mac.json; tee -o ice_stat.json stat -json" > ice_yosys.log 2>&1; echo rc=$?; '
-                        'nextpnr-ice40 --hx8k --package ct256 --json stress_mac.json --asc stress_mac.asc --freq 50 -q --report pnr.json > pnr.log 2>&1; echo pnr_rc=$?; grep -i "Max frequency" pnr.log | tail -1')
+    rc, out = _sh(work, 'yosys', ['-q', '-p', 'read_verilog stress_mac.v stress_mac_top.v; synth_ice40 -top stress_mac_top -json stress_mac.json; tee -o ice_stat.json stat -json'], stdout_to='ice_yosys.log')
+    rc, out = _sh(work, 'nextpnr-ice40', ['--hx8k', '--package', 'ct256', '--json', 'stress_mac.json', '--asc', 'stress_mac.asc', '--freq', '50', '-q', '--report', 'pnr.json'], stdout_to='pnr.log')
     st = json.load(open(os.path.join(work, 'ice_stat.json')))
     st = st.get('design') or st['modules'][list(st['modules'])[0]]
     rep['synthesis'] = {'tool': 'yosys synth_ice40 (top = stress_mac_top: the kernel behind a 32-bit register bus)', 'cells': st['num_cells'],

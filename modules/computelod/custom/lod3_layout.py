@@ -15,8 +15,9 @@ PDK fetched by ciel at a pinned version — see that submodule's LICENSES.md):
 
     python3 -m computelod.custom.lod3_layout run [--cells inv_1,nand2_1]
 
-Knobs: POLARI_EDA_IMAGE (default polari-eda-tools:noble), POLARI_PDK_ROOT (default ~/.cache/polari-lod/pdk; the
-submodule's fetch-pdk.sh fills it). Nothing from the PDK is committed; the report cites the ciel version.
+Engines resolve through the Polari engines ladder (`computelod.custom.eda_engines`: EDA_ENGINES_URL → local binary →
+local image → topology provider computelod.engines → refusal); the PDK is the worker's own volume remotely and
+POLARI_PDK_ROOT locally (the submodule's fetch-pdk.sh fills it). Nothing from the PDK is committed.
 """
 import hashlib
 import json
@@ -29,25 +30,16 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 OUT = os.path.join(MOD, 'initialData', 'lod3')
-IMAGE = os.environ.get('POLARI_EDA_IMAGE', 'polari-eda-tools:noble')
-PDK_ROOT = os.environ.get('POLARI_PDK_ROOT') or os.path.join(os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache')), 'polari-lod', 'pdk')
+from computelod.custom.eda_engines import PDK_ROOT   # one definition of where the PDK is on this device
 FLOWS = os.path.normpath(os.path.join(MOD, '..', '..', '..', 'polari-eda-tools', 'flows'))   # polari-rf-node/polari-eda-tools/flows
 
 
-def _docker_ok(image):
-    try:
-        return subprocess.run(['docker', 'image', 'inspect', image], capture_output=True, timeout=20).returncode == 0
-    except Exception:
-        return False
-
-
-def _in_image(work, args, env=None, timeout=900):
-    cmd = ['docker', 'run', '--rm', '-u', '%d:%d' % (os.getuid(), os.getgid()), '-e', 'HOME=/tmp', '-v', '%s:/w' % work, '-w', '/w',
-           '-v', '%s:/pdk:ro' % PDK_ROOT, '-e', 'PDK_ROOT=/pdk']
-    for k, v in (env or {}).items():
-        cmd += ['-e', '%s=%s' % (k, v)]
-    r = subprocess.run(cmd + [IMAGE] + args, capture_output=True, text=True, timeout=timeout, cwd=work)
-    return r.returncode, (r.stdout or '') + (r.stderr or '')
+def _eng(work, engine, args, env=None, timeout=900, stdout_to=None):
+    """One engine WITH the PDK through the Polari engines ladder (computelod.custom.eda_engines): the engine sees the PDK
+    at /pdk/… (a local binary gets the real root translated); (rc, stdout+stderr)."""
+    from computelod.custom.eda_engines import run as _run
+    r = _run(engine, work, args, timeout=timeout, env=env, pdk=True, stdout_to=stdout_to)
+    return r['returncode'], r['stdout'] + r['stderr']
 
 
 def pdk_version():
@@ -60,29 +52,33 @@ def _sha(p):
 
 
 def run(cells=None, work=None):
-    if not _docker_ok(IMAGE):
-        raise SystemExit('no %s: docker build -t %s polari-rf-node/polari-eda-tools' % (IMAGE, IMAGE))
-    if not os.path.exists(os.path.join(PDK_ROOT, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')):
-        raise SystemExit('no built PDK at %s: polari-rf-node/polari-eda-tools/fetch-pdk.sh' % PDK_ROOT)
-    from computelod.custom.lod3_devices import ARCS, CONDITIONS, DEVICES, _fetch, PR_REPO, liberty_tables, interp, _deck, find_ngspice, report as devices_report
-    ng = find_ngspice()
+    from computelod.custom.eda_engines import resolve, PDK_ROOT as _PDK_LOCAL
+    for eng in ('magic', 'netgen'):
+        r = resolve(eng)
+        if r['how'] == 'refused':
+            raise SystemExit(r['why'])
+        if r['how'] != 'remote' and not os.path.exists(os.path.join(_PDK_LOCAL, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')):
+            raise SystemExit('%s resolves locally (%s) but no built PDK is at %s: polari-rf-node/polari-eda-tools/fetch-pdk.sh' % (eng, r['where'], _PDK_LOCAL))
+    from computelod.custom.lod3_devices import ARCS, CONDITIONS, DEVICES, _fetch, PR_REPO, liberty_tables, interp, _deck, run_spice, ngspice_where, report as devices_report
+    ng = ngspice_where()
     if not ng:
-        raise SystemExit('no ngspice (PATH or ~/tools/ngspice/bin)')
+        raise SystemExit('no ngspice through the cntfet engines ladder (PATH, ~/tools, CNTFET_ENGINES_URL, or a cntfet.engines provider)')
     from computelod.custom.lod2_silicon import fetch_liberty
     lib_path, lib_sha = fetch_liberty(); lib_text = open(lib_path, errors='replace').read()
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod3c'); os.makedirs(work, exist_ok=True)
-    shutil.copy(os.path.join(FLOWS, 'cell_check.tcl'), work); shutil.copy(os.path.join(FLOWS, 'lvs.sh'), work)
+    shutil.copy(os.path.join(FLOWS, 'cell_check.tcl'), work)
     inc = []
     for dev in DEVICES:
         for kind in ('mismatch.corner', 'tt.corner'):
             p, _, _ = _fetch(PR_REPO, 'cells/%s/sky130_fd_pr__%s__%s.spice' % (dev, dev, kind)); inc.append('.include "%s"' % p)
-    mag_tech = os.path.join(PDK_ROOT, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')
-    rep = {'image': IMAGE, 'pdk': {'root': 'POLARI_PDK_ROOT (never committed)', 'ciel_version': pdk_version(), 'tech_sha256': _sha(mag_tech)}, 'conditions': CONDITIONS, 'cells': []}
+    mag_tech = os.path.join(_PDK_LOCAL, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')
+    rep = {'engines': {e: resolve(e) for e in ('magic', 'netgen')}, 'ngspice': ng,
+           'pdk': {'root': 'POLARI_PDK_ROOT (never committed)', 'ciel_version': pdk_version(), 'tech_sha256': _sha(mag_tech) if os.path.exists(mag_tech) else 'remote worker\'s PDK'}, 'conditions': CONDITIONS, 'cells': []}
     prior = {(a['cell'], a['pin']): a['compare'] for a in (devices_report() or {}).get('arcs', [])}
     for cell in (cells or list(ARCS)):
         full = 'sky130_fd_sc_hd__%s' % cell
-        mag = os.path.join(PDK_ROOT, 'sky130A', 'libs.ref', 'sky130_fd_sc_hd', 'mag', full + '.mag')
-        rc, out = _in_image(work, ['magic', '-dnull', '-noconsole', '-rcfile', '/pdk/sky130A/libs.tech/magic/sky130A.magicrc', 'cell_check.tcl'], env={'CELL': full})
+        mag = os.path.join(_PDK_LOCAL, 'sky130A', 'libs.ref', 'sky130_fd_sc_hd', 'mag', full + '.mag')
+        rc, out = _eng(work, 'magic', ['-dnull', '-noconsole', '-rcfile', '/pdk/sky130A/libs.tech/magic/sky130A.magicrc', 'cell_check.tcl'], env={'CELL': full})
         open(os.path.join(work, '%s.magic.log' % full), 'w').write(out)
         m = re.search(r'POLARI_DRC_COUNT (\d+)', out)
         rules = sorted({r for r in re.findall(r'POLARI_DRC_WHY (.+)', out) if not r.startswith('{')})   # names, not the boxes
@@ -99,8 +95,12 @@ def run(cells=None, work=None):
             pex['junction_areas'] = 'ad=' in txt
         lvs = {'ran': False}
         if os.path.exists(lvs_net):
-            rc, out = _in_image(work, ['sh', 'lvs.sh', full, full + '_lvs.spice', '%s.lvs.out' % full])
-            lvs = {'ran': True, 'match': 'Circuits match uniquely' in out, 'verdict': sorted(set(out.strip().splitlines()))[:6]}
+            # netgen directly (argv, no shell): the flow lvs.sh documents the same call for a person at a terminal
+            rc, out = _eng(work, 'netgen', ['-batch', 'lvs', '%s_lvs.spice %s' % (full, full), '/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice %s' % full,
+                                            '/pdk/sky130A/libs.tech/netgen/sky130A_setup.tcl', '%s.lvs.out' % full], stdout_to='%s.lvs.log' % full)
+            verdict_src = out + (open(os.path.join(work, '%s.lvs.out' % full), errors='replace').read() if os.path.exists(os.path.join(work, '%s.lvs.out' % full)) else '')
+            lines = sorted({l.strip() for l in verdict_src.splitlines() if re.search(r'match|Result|Netlists', l)})
+            lvs = {'ran': True, 'match': 'Circuits match uniquely' in verdict_src, 'verdict': lines[:6]}
         entry = {'cell': full, 'mag_sha256': _sha(mag) if os.path.exists(mag) else None, 'drc': drc, 'pex': pex, 'lvs': lvs, 'arcs': []}
         # re-time the arcs on the EXTRACTED netlist
         if pex['ran']:
@@ -108,10 +108,10 @@ def run(cells=None, work=None):
                 deck = os.path.join(work, '%s_%s.ext.sp' % (cell, pin))
                 d = _deck(cell, pin, ARCS[cell], '\n'.join(inc), ext)
                 open(deck, 'w').write(d)
-                r = subprocess.run([ng, '-b', deck], capture_output=True, text=True, timeout=600, cwd=work)
-                got = {mm.group(1): float(mm.group(2)) * 1e12 for mm in re.finditer(r'^(tphl|tplh|tfall|trise)\s*=\s*([-0-9.e+]+)', r.stdout + r.stderr, re.M)}
+                text = run_spice(work, deck)
+                got = {mm.group(1): float(mm.group(2)) * 1e12 for mm in re.finditer(r'^(tphl|tplh|tfall|trise)\s*=\s*([-0-9.e+]+)', text, re.M)}
                 if len(got) < 4:
-                    entry['arcs'].append({'pin': pin, 'error': 'ngspice on the extracted netlist gave no measures', 'tail': (r.stdout + r.stderr)[-600:]}); continue
+                    entry['arcs'].append({'pin': pin, 'error': 'ngspice on the extracted netlist gave no measures', 'tail': text[-600:]}); continue
                 tabs = liberty_tables(lib_text, cell, pin)
                 lib = {k: interp(tabs[k], CONDITIONS['input_slew_ns_20_80'], CONDITIONS['load_pf']) * 1000 for k in tabs}
                 cmp = {}
@@ -157,7 +157,7 @@ def rows(rep):
     M = lambda **k: dict({'description': '', 'validity_json': '{}', 'loss_note': '', 'uncertainty_json': '{}', 'notes': ''}, **k)
     C = lambda **k: dict({'description': '', 'notes': ''}, **k)
     s = rep['summary']
-    ev = 'lod3/layout_report.json — %s: magic DRC (sky130A rules) + parasitic extraction + netgen LVS on the PDK\'s own .mag; PDK ciel %s, tech sha256 %s' % (rep['image'], rep['pdk']['ciel_version'][:12], rep['pdk']['tech_sha256'][:16])
+    ev = 'lod3/layout_report.json — magic DRC (sky130A rules) + parasitic extraction + netgen LVS on the PDK\'s own .mag via the engines ladder (%s); PDK ciel %s, tech sha256 %s' % (', '.join('%s: %s' % (e, v['how']) for e, v in rep.get('engines', {}).items()), rep['pdk']['ciel_version'][:12], rep['pdk']['tech_sha256'][:16])
     cells = ', '.join('%s: DRC %s (%d context/%d real), LVS %s' % (c['cell'].replace('sky130_fd_sc_hd__', ''), c['drc']['count'], len(c['drc']['standalone_context_rules']), len(c['drc']['real_rules']), 'match' if c['lvs'].get('match') else 'MISMATCH') for c in rep['cells'])
     # the refs MUST be lod-3's own (the walk chains rows by ref): take them from lod-3's row, not re-derived
     from computelod.custom.lod3_cells import report as lod3_report, rows as lod3_rows

@@ -97,7 +97,7 @@ check('CompilerArtifact holds IR/AST/assembly/object of ONE compiler — LLVM IR
 from computelod.custom.lod1_chain import report, rows as lod1_rows, decode_rtype, RTL
 from computelod.custom.computelod_walk import path
 rep = report()
-check('lod-1: a committed report exists (the chain RAN: gcc → yosys → iverilog)', rep is not None and rep.get('how') in ('path', 'docker'), rep and rep.get('how'))
+check('lod-1: a committed report exists (the chain RAN: gcc → yosys → iverilog) — through the engines ladder: path | docker (local image) | remote (a worker)', rep is not None and rep.get('how') in ('path', 'docker', 'remote'), rep and rep.get('how'))
 check('  …PicoRV32 is pinned (commit + ISC licence file present)', os.path.exists(os.path.join(RTL, 'picorv32.v')) and os.path.exists(os.path.join(RTL, 'LICENSE')) and len(rep['picorv32_pin'].get('commit', '')) == 40)
 check('  …the compiler produced `add a0,a0,a1` for c = a + b at -O1 rv32i', rep['compile']['add_instruction'].replace(' ', '') == 'adda0,a0,a1', rep['compile'])
 d = decode_rtype(int(rep['compile']['encoding'], 16))

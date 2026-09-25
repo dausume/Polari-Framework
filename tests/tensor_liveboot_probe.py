@@ -132,6 +132,11 @@ check('GET path from the C statement walks ALL ELEVEN rungs: C → compiler → 
       r.status_code == 200 and r.json['path']['rungs'] == ['c-source', 'compiler', 'isa', 'microarchitecture', 'rtl', 'logic-netlist', 'standard-cells', 'devices', 'layout', 'fabrication', 'materials']
       and r.json['path'].get('unresolved_at') == 'materials', r.text[:300])
 check('  …each step names its evidence status', r.status_code == 200 and all(s.get('end') or s['evidence_level'] for s in r.json['path']['steps']))
+r = client.simulate_get('/api/computelod/engines')
+check('GET /api/computelod/engines: the engines LADDER answers per engine before any dispatch (remote | local-binary | local-image | refused with the knobs named) — the Polari engines pattern, not a local docker assumption',
+      r.status_code == 200 and r.json['ok'] and set(r.json['placement']['engines']) >= {'yosys', 'sta', 'magic', 'netgen', 'riscv-gcc', 'iverilog', 'nextpnr-ice40'}
+      and all(v['how'] in ('remote', 'local-binary', 'local-image', 'refused') for v in r.json['placement']['engines'].values()) and r.json['placement']['provider_module'] == 'computelod.engines'
+      and r.json['placement']['knob'] == 'EDA_ENGINES_URL', r.text[:300])
 r = client.simulate_get('/api/computelod/lod3/devices')
 check('GET /api/computelod/lod3/devices: our ngspice on the PDK models vs the Liberty — three arcs, mean gap ≤ 15 %, falls faster on every arc (schematic vs extracted, stated)',
       r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['arcs'] == 3 and r.json['report']['summary']['mean_abs_delta_pct'] <= 15 and all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in r.json['report']['arcs']), r.text[:300])

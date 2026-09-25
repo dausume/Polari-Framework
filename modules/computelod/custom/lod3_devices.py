@@ -51,11 +51,39 @@ def _fetch(repo, rel):
     return p, hashlib.sha256(open(p, 'rb').read()).hexdigest(), url
 
 
-def find_ngspice():
-    for cand in (shutil.which('ngspice'), os.path.expanduser('~/tools/ngspice/bin/ngspice')):
-        if cand and os.path.isfile(cand):
-            return cand
-    return None
+def ngspice_where():
+    """ngspice through the cntfet engines ladder (cntfet.custom.cnt_osdi.find_ngspice: CNTFET_ENGINES_URL → local
+    PATH/~/tools → topology provider cntfet.engines → refusal): the path, 'remote', or None."""
+    try:
+        from cntfet.custom.cnt_osdi import find_ngspice
+        path, _why = find_ngspice()
+        return path
+    except Exception:
+        return None
+
+
+def run_spice(work, deck_path, timeout=600):
+    """Run one deck wherever ngspice resolves; stdout+stderr as text (the .meas lines are in there)."""
+    from cntfet.custom.cnt_osdi import find_ngspice, run_ngspice
+    path, why = find_ngspice()
+    if path is None:
+        raise SystemExit('no ngspice: %s' % why)
+    if path == 'remote':
+        # the worker receives netlist TEXT only: inline every absolute `.include` (the cached model files, the cell
+        # netlist) so the deck is self-contained where it runs; relative includes are left (they travel as-is)
+        text = open(deck_path, errors='replace').read()
+        def _inline(m):
+            fp = m.group(1)
+            return ('* inlined %s\n' % fp) + open(fp, errors='replace').read() if os.path.isabs(fp) and os.path.exists(fp) else m.group(0)
+        text = re.sub(r'^\.include\s+"([^"]+)"\s*$', _inline, text, flags=re.M)
+        deck_path = deck_path[:-3] + '.remote.sp' if deck_path.endswith('.sp') else deck_path + '.remote'
+        open(deck_path, 'w').write(text)
+    r = run_ngspice(path, work, deck_path, timeout=timeout)
+    return (getattr(r, 'stdout', '') or '') + (getattr(r, 'stderr', '') or '')
+
+
+def find_ngspice():   # kept for callers of the old name
+    return ngspice_where()
 
 
 def liberty_tables(lib_text, cell, pin):
@@ -112,9 +140,9 @@ quit
 
 
 def run(cells=None, work=None):
-    ng = find_ngspice()
+    ng = ngspice_where()
     if not ng:
-        raise SystemExit('no ngspice (PATH or ~/tools/ngspice/bin)')
+        raise SystemExit('no ngspice through the cntfet engines ladder (PATH, ~/tools, CNTFET_ENGINES_URL, or a cntfet.engines provider)')
     from computelod.custom.lod2_silicon import fetch_liberty
     lib_path, lib_sha = fetch_liberty(); lib_text = open(lib_path, errors='replace').read()
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod3b'); os.makedirs(work, exist_ok=True)
@@ -126,7 +154,7 @@ def run(cells=None, work=None):
             p, sha, url = _fetch(PR_REPO, rel); files[os.path.basename(rel)] = {'url': url, 'sha256': sha, 'bytes': os.path.getsize(p)}
             if kind != 'tt.pm3':   # the corner file includes the pm3 itself
                 inc.append('.include "%s"' % p)
-    rep = {'tool': 'ngspice-46 (%s)' % ng, 'models': dict(PR_REPO, files=files), 'liberty_sha256': lib_sha, 'conditions': CONDITIONS, 'arcs': []}
+    rep = {'tool': 'ngspice-46 (%s)' % ng, 'engine_ladder': 'cntfet.engines (find_ngspice)', 'models': dict(PR_REPO, files=files), 'liberty_sha256': lib_sha, 'conditions': CONDITIONS, 'arcs': []}
     for cell in (cells or list(ARCS)):
         arc = ARCS[cell]
         rel = 'cells/%s/sky130_fd_sc_hd__%s.spice' % (cell.rsplit('_', 1)[0], cell)
@@ -134,10 +162,10 @@ def run(cells=None, work=None):
         tabs_all = {}
         for pin in arc['pins']:
             deck = os.path.join(work, '%s_%s.sp' % (cell, pin)); open(deck, 'w').write(_deck(cell, pin, arc, '\n'.join(inc), cp))
-            r = subprocess.run([ng, '-b', deck], capture_output=True, text=True, timeout=600, cwd=work)
-            got = {m.group(1): float(m.group(2)) * 1e12 for m in re.finditer(r'^(tphl|tplh|tfall|trise)\s*=\s*([-0-9.e+]+)', r.stdout + r.stderr, re.M)}
+            text = run_spice(work, deck)
+            got = {m.group(1): float(m.group(2)) * 1e12 for m in re.finditer(r'^(tphl|tplh|tfall|trise)\s*=\s*([-0-9.e+]+)', text, re.M)}
             if len(got) < 4:
-                raise SystemExit('ngspice measures missing for %s/%s:\n%s' % (cell, pin, (r.stdout + r.stderr)[-1500:]))
+                raise SystemExit('ngspice measures missing for %s/%s:\n%s' % (cell, pin, text[-1500:]))
             tabs = liberty_tables(lib_text, cell, pin)
             lib = {k: interp(tabs[k], CONDITIONS['input_slew_ns_20_80'], CONDITIONS['load_pf']) * 1000 for k in tabs}
             cmp = {'tphl_ps': {'ours': round(got['tphl'], 2), 'liberty': round(lib['cell_fall'], 2)}, 'tplh_ps': {'ours': round(got['tplh'], 2), 'liberty': round(lib['cell_rise'], 2)},

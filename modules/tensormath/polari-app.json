@@ -31,7 +31,27 @@
   "libraries": [
    "numpy"
   ],
-  "engines": []
+  "engines": [
+   {
+    "name": "yosys",
+    "kind": "system",
+    "probe": "yosys",
+    "note": "synth_ice40 for the tensor kernel (tt-3)"
+   },
+   {
+    "name": "nextpnr-ice40",
+    "kind": "system",
+    "probe": "nextpnr-ice40",
+    "note": "place-and-route + Fmax (tt-3)"
+   },
+   {
+    "name": "iverilog",
+    "kind": "system",
+    "probe": "iverilog",
+    "note": "kernel testbench (tt-3)"
+   }
+  ],
+  "engines_note": "resolved per engine through computelod.custom.eda_engines (EDA_ENGINES_URL → local binary → local image polari-eda-tools:noble → topology provider computelod.engines → refusal); the worker = polari-rf-node/polari-eda-tools (docker-compose.eda-engines.yml, :9800)"
  },
  "files": {
   "objects": [

@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 RTL = os.path.join(HERE, 'rtl', 'picorv32')          # custom/rtl/picorv32 — the vendored core, pinned
 OUT = os.path.join(MOD, 'initialData', 'lod1')   # the committed report + artifacts = initial data
-IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')   # built from polari-rf-node/polari-eda-tools
+from computelod.custom.eda_engines import IMAGE   # the pinned image name, for messages only — resolution is the ladder's
 
 C_SOURCE = 'int add(int a, int b) { int c = a + b; return c; }\n'
 RV32_ADD = '''// rv32_add — the ADD datapath of a RISC-V core, as PicoRV32 writes it (picorv32.v:1231:
@@ -58,27 +58,30 @@ module tb;
     end
 endmodule
 '''
-TOOLS = ('riscv64-unknown-elf-gcc', 'riscv64-unknown-elf-objdump', 'yosys', 'iverilog', 'vvp')
+
+
+ENGINES_NEEDED = ('riscv-gcc', 'riscv-objdump', 'yosys', 'iverilog', 'vvp')
 
 
 def tools_available():
-    """'path' when every tool is on the PATH, 'docker' when the pinned image can run, else ''."""
-    if all(shutil.which(t) for t in TOOLS):
-        return 'path'
-    try:
-        r = subprocess.run(['docker', 'image', 'inspect', IMAGE], capture_output=True, timeout=20)
-        return 'docker' if r.returncode == 0 else ''
-    except Exception:
+    """Where the engines resolve through the Polari engines ladder (computelod.custom.eda_engines): 'path' | 'docker' |
+    'remote' for the report, '' when any engine is refused (the refusal names the knobs)."""
+    from computelod.custom.eda_engines import resolve
+    hows = {e: resolve(e) for e in ENGINES_NEEDED}
+    if any(h['how'] == 'refused' for h in hows.values()):
         return ''
+    kinds = {h['how'] for h in hows.values()}
+    return 'remote' if 'remote' in kinds else ('docker' if 'local-image' in kinds else 'path')
 
 
-def sh(work, cmd, how):
-    if how == 'docker':
-        full = ['docker', 'run', '--rm', '-v', '%s:/w' % work, '-w', '/w', IMAGE, 'sh', '-c', cmd]
-    else:
-        full = ['sh', '-c', cmd]
-    r = subprocess.run(full, capture_output=True, text=True, timeout=600, cwd=work)
-    return r.returncode, (r.stdout or '') + (r.stderr or '')
+def sh(work, engine, args, how=None, stdout_to=None):
+    """One engine, argv only, through the ladder (rc, stdout+stderr). `how` is kept for the report's sake."""
+    from computelod.custom.eda_engines import run, EngineError
+    try:
+        r = run(engine, work, args, timeout=600, stdout_to=stdout_to)
+    except EngineError as exc:
+        return 1, str(exc)
+    return r['returncode'], r['stdout'] + r['stderr']
 
 
 def decode_rtype(word):
@@ -91,8 +94,8 @@ def decode_rtype(word):
 def run(work=None):
     how = tools_available()
     if not how:
-        raise SystemExit('no toolchain: put riscv64-unknown-elf-gcc/yosys/iverilog on the PATH, or build the image: '
-                         'docker build -t %s polari-rf-node/polari-eda-tools' % IMAGE)
+        from computelod.custom.eda_engines import placement
+        raise SystemExit('no toolchain — the engines ladder refuses: %s' % json.dumps({e: v['why'] for e, v in placement()['engines'].items() if v['how'] == 'refused'}, indent=1))
     work = work or os.path.join(os.environ.get('TMPDIR', '/tmp'), 'polari-lod1')
     os.makedirs(work, exist_ok=True)
     open(os.path.join(work, 'add.c'), 'w').write(C_SOURCE)
@@ -100,11 +103,16 @@ def run(work=None):
     open(os.path.join(work, 'tb_rv32_add.v'), 'w').write(TB)
     shutil.copy(os.path.join(RTL, 'picorv32.v'), work)
     rep = {'how': how, 'picorv32_pin': dict(l.split('=', 1) for l in open(os.path.join(RTL, 'PIN')).read().split('\n') if '=' in l)}
-    rc, out = sh(work, 'riscv64-unknown-elf-gcc --version | head -1; yosys -V; iverilog -V 2>&1 | head -1', how)
-    rep['tool_versions'] = [l.strip() for l in out.strip().split('\n') if l.strip()][:3]
-    rc, out = sh(work, 'riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -O1 -S -o add.s add.c && '
-                       'riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -O1 -c -o add.o add.c && '
-                       'riscv64-unknown-elf-objdump -d add.o > add.objdump && cat add.objdump', how)
+    versions = []
+    for eng, vargs in (('riscv-gcc', ['--version']), ('yosys', ['-V']), ('iverilog', ['-V'])):
+        _, vout = sh(work, eng, vargs)
+        versions.append(vout.strip().split('\n')[0].strip() if vout.strip() else '?')
+    rep['tool_versions'] = versions
+    rc, out = sh(work, 'riscv-gcc', ['-march=rv32i', '-mabi=ilp32', '-O1', '-S', '-o', 'add.s', 'add.c'])
+    if rc == 0:
+        rc, out2 = sh(work, 'riscv-gcc', ['-march=rv32i', '-mabi=ilp32', '-O1', '-c', '-o', 'add.o', 'add.c']); out += out2
+    if rc == 0:
+        rc, out = sh(work, 'riscv-objdump', ['-d', 'add.o'], stdout_to='add.objdump')
     if rc != 0:
         raise SystemExit('gcc failed: ' + out[-800:])
     asm = [l.strip() for l in open(os.path.join(work, 'add.s')).read().split('\n') if l.strip() and not l.strip().startswith('.')]
@@ -114,19 +122,22 @@ def run(work=None):
     word = int(m.group(1), 16)
     rep['compile'] = {'flags': '-march=rv32i -mabi=ilp32 -O1', 'assembly': asm, 'add_instruction': 'add ' + m.group(2), 'encoding': '0x%08x' % word,
                       'decoded': decode_rtype(word), 'objdump': out.strip().split('\n')[-4:]}
-    rc, out = sh(work, 'yosys -q -p "read_verilog picorv32.v; synth -top picorv32; tee -o core_stat.json stat -json" > core_yosys.log 2>&1; echo rc=$?', how)
+    rc, out = sh(work, 'yosys', ['-q', '-p', 'read_verilog picorv32.v; synth -top picorv32; tee -o core_stat.json stat -json'], stdout_to='core_yosys.log')
     core = json.load(open(os.path.join(work, 'core_stat.json')))['modules']
     core = core[list(core)[0]]
     rep['core_synth'] = {'cells': core['num_cells'], 'by_type': dict(sorted(core['num_cells_by_type'].items(), key=lambda kv: -kv[1])),
                          'decode_line': 'picorv32.v:1068  instr_add <= is_alu_reg_reg && funct3 == 000 && funct7 == 0000000',
                          'add_line': 'picorv32.v:1231  alu_add_sub <= instr_sub ? reg_op1 - reg_op2 : reg_op1 + reg_op2'}
-    rc, out = sh(work, 'yosys -q -p "read_verilog rv32_add.v; synth -top rv32_add; tee -o add_stat.json stat -json; write_verilog -noattr rv32_add_netlist.v" > add_yosys.log 2>&1; echo rc=$?', how)
+    rc, out = sh(work, 'yosys', ['-q', '-p', 'read_verilog rv32_add.v; synth -top rv32_add; tee -o add_stat.json stat -json; write_verilog -noattr rv32_add_netlist.v'], stdout_to='add_yosys.log')
     add = json.load(open(os.path.join(work, 'add_stat.json')))['modules']
     add = add[list(add)[0]]
     rep['adder_synth'] = {'cells': add['num_cells'], 'by_type': dict(sorted(add['num_cells_by_type'].items(), key=lambda kv: -kv[1]))}
-    rc, out = sh(work, 'iverilog -o tb_add tb_rv32_add.v rv32_add.v && vvp -n tb_add | grep -E "PASS|FAIL"; '
-                       'iverilog -o tb_net tb_rv32_add.v rv32_add_netlist.v /usr/share/yosys/simlib.v /usr/share/yosys/simcells.v 2>/dev/null && vvp -n tb_net | grep -E "PASS|FAIL"', how)
-    lines = [l for l in out.split('\n') if 'PASS' in l or 'FAIL' in l]
+    lines = []
+    for tb, srcs in (('tb_add', ['tb_rv32_add.v', 'rv32_add.v']), ('tb_net', ['tb_rv32_add.v', 'rv32_add_netlist.v', '/usr/share/yosys/simlib.v', '/usr/share/yosys/simcells.v'])):
+        rc, out = sh(work, 'iverilog', ['-o', tb] + srcs)
+        if rc == 0:
+            rc, out = sh(work, 'vvp', ['-n', tb])
+        lines += [l for l in out.split('\n') if 'PASS' in l or 'FAIL' in l][:1] or ['no verdict (%s)' % out.strip().split('\n')[-1][:80]]
     rep['simulation'] = {'rtl': lines[0] if lines else 'no verdict', 'netlist': lines[1] if len(lines) > 1 else 'no verdict',
                          'vectors': ['3+4', '0xFFFFFFFF+1 (wrap)', '0x7FFFFFFF+1 (sign)', '0xDEADBEEF+0x01234567']}
     os.makedirs(OUT, exist_ok=True)
