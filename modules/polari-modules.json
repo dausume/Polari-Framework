@@ -703,6 +703,16 @@
    "wave": 4,
    "tier": "optional",
    "description": "ONE conceptual compute ladder from C to materials (eleven rungs referencing the microchip ladder, PSPP and the materials model), kinds as rows, downward/upward mappings with evidence, the compute-lod tech tree."
+  },
+  "mathproofs": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/mathproofs",
+   "repo": "https://github.com/dausume/polari-module-mathproofs.git",
+   "requires": [],
+   "wave": 4,
+   "tier": "optional",
+   "description": "Mathematical proofs as rows: claims in a JSON term language checked by honest tiers (numeric, interval, SymPy, Z3, Lean via an engines worker); inference rules generate the obligations a tensor tree's structure demands."
   }
  }
 }

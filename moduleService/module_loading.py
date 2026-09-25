@@ -45,7 +45,7 @@ FEATURE_MODULES = frozenset({
     'tanks', 'techtree', 'terms', 'testing', 'vpn', 'waxprint', 'waxsupply',
     'zones',
     # tt-0 (COMPUTE_LOD_TENSOR_PLAN): tensors by reference, tensor trees, the compute ladder
-    'tensormath', 'tensortree', 'computelod',
+    'tensormath', 'tensortree', 'computelod', 'mathproofs',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a

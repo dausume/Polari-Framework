@@ -10,7 +10,7 @@ previous run's rows come back through the restore):
 import json
 import os
 import sys
-os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,mathshapes,tensormath,tensortree,computelod,cicd'
+os.environ['POLARI_MODULES'] = 'simulations,simSpace,materialsScience,pspp,magnetics,scoring,techtree,microchip,cntfet,electrodevice,sifet,hwfpga,mathshapes,tensormath,tensortree,computelod,mathproofs,cicd'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -113,6 +113,31 @@ r = client.simulate_post('/api/tensortree/mappings/wind-grid→slice-z0/prove', 
 check('  …a mapping with no coupling row is a 422 that says to couple first', r.status_code == 422 and 'couple first' in r.json['error'], r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/bob-motion/validate')
 check('the bob\'s own tree (bob-motion) validates on a real boot with its root resolved through the seeded wind-arrow binding', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['pendulum-bob']['status'] == 'resolved', r.text[:300])
+# pf-0: proofs as rows — the seeded claims checked on real rows; obligations generated on the real trees by the rules
+r = client.simulate_get('/api/mathproofs')
+check('GET /api/mathproofs: five seeded claims, eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)', r.status_code == 200 and r.json['ok'] and len(r.json['claims']) == 5 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+_verd = {}
+for _n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'sigma-from-strain-is-symmetric', 'sigma-from-strain-is-symmetric-3d'):
+    r = client.simulate_post('/api/mathproofs/claims/%s/check' % _n); _verd[_n] = (r.json.get('verdict'), r.json.get('after'))
+check('POST …/check: the lod cross-checks are WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc), σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
+      _verd['lod3-lef-area-equals-liberty-area'] == ('holds', 'witnessed') and _verd['lod3b-falls-faster-than-liberty'] == ('holds', 'witnessed') and _verd['lod3c-extraction-slows-every-arc'] == ('holds', 'witnessed')
+      and _verd['sigma-from-strain-is-symmetric'] == ('holds', 'checked-symbolically') and _verd['sigma-from-strain-is-symmetric-3d'] == ('holds', 'checked-symbolically'), _verd)
+r = client.simulate_post('/api/mathproofs/trees/plate-mechanics/obligations')
+check('POST trees/plate-mechanics/obligations: the rules find the chain u→ε→σ→balance — domains and dims compose (DECIDED ×4), linearity ×2 and σ-symmetry over symbols (CHECKED-SYMBOLICALLY ×3), units an OPEN gap by name (×2)',
+      r.status_code == 201 and r.json['summary'] == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2}, r.json.get('summary'))
+r = client.simulate_post('/api/mathproofs/trees/wind-spatial/obligations')
+check('POST trees/wind-spatial/obligations: the proposed decomposition wind-grid→spectrum is REFUTED (no recorded reconstruction error — a decomposition must say what it loses); the restriction is idempotent over symbols',
+      r.status_code == 201 and r.json['summary'] == {'refuted': 1, 'checked-symbolically': 1} and any(o['obligation'].endswith('wind-grid→spectrum') and o['status'] == 'refuted' for o in r.json['obligations']), r.json.get('summary'))
+r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
+check('the validator now carries a `logic` section (soft seam): the plate\'s obligations and their summary', r.status_code == 200 and r.json['validation']['logic']['available'] and r.json['validation']['logic']['summary'].get('decided') == 4, r.text[:200])
+r = client.simulate_get('/api/tensortree/trees/wind-spatial/view')
+_b = {mm['name']: mm['logic']['badge'] for mm in r.json['mappings']}
+check('/view shows the proof state ON each mapping (D-pf-8: a badge, never folded into mapping_status): spectrum refuted, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'refuted' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
+_sp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 'name', '') == 'wind-grid→spectrum')
+check('  …and the refuted mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
+r = client.simulate_get('/api/mathproofs/aggregate')
+check('GET /api/mathproofs/aggregate: 16 claims (5 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, no long-running claims yet (worst case 0 s)',
+      r.status_code == 200 and r.json['claims'] == 16 and r.json['runs_recorded'] == 14 and r.json['latest_runs_elapsed_s'] < 5 and r.json['worst_case_s'] == 0, r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

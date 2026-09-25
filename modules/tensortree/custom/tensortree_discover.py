@@ -90,6 +90,15 @@ def discover(manager, selection, context_node=''):
         V = _validity_coverage(m, ranges)
         if V is None:
             refused.append({'mapping': name, 'why': 'the selection lies outside the mapping\'s validity domain'}); continue
+        # pf-0 / D-pf-3: a mapping whose proof obligation is REFUTED is refused with the counterexample; an open one is shown
+        try:
+            from tensortree.custom.tensortree_logic import of_mapping
+            logic = of_mapping(manager, name)
+        except Exception:   # pragma: no cover
+            logic = {'available': False, 'refuted': [], 'open': [], 'ok': [], 'badge': 'unavailable'}
+        if logic['refuted']:
+            r0 = logic['refuted'][0]
+            refused.append({'mapping': name, 'why': 'a proof obligation is REFUTED: %s (%s) — counterexample %s' % (r0['name'], r0['rule'], r0.get('counterexample')), 'logic': logic['badge']}); continue
         E, ekey = evidence_score(m, pol)
         D = (len(need) / max(len(have), 1)) if need else 0.5
         C = 1.0 if (context_node and str(getattr(m, 'target_node', '')) == context_node) else 0.5
@@ -102,7 +111,8 @@ def discover(manager, selection, context_node=''):
                     'score': round(score, 4), 'terms': {'E': round(E, 3), 'D': round(D, 3), 'V': round(V, 3), 'C': C, 'U': U},
                     'evidence': ekey, 'evidence_ref': str(getattr(m, 'evidence_ref', '') or ''),
                     'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')),
-                    'loss_note': str(getattr(m, 'loss_note', '') or '')})
+                    'loss_note': str(getattr(m, 'loss_note', '') or ''),
+                    'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']]})
     out.sort(key=lambda r: -r['score'])
     return {'selection': str(getattr(selection, 'name', '')), 'node': node, 'candidates': out, 'refused': refused,
             'policy': pol, 'note': 'hard filters first (dims, validity domain); the score only ORDERS valid candidates — the user chooses'}

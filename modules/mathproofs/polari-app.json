@@ -1,0 +1,107 @@
+{
+ "schema": "polari-app/1",
+ "id": "mathproofs",
+ "package": "mathproofs",
+ "title": "Math Proofs",
+ "description": "Mathematical proofs as rows: claims about rows in one JSON term language, checked by tiers honest about what they established (numeric witness, interval decision, SymPy over symbols, Z3, Lean via an engines worker); inference rules that generate the obligations a tensor tree's structure demands — the logic between its parts (plan §I).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-mathproofs.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "knowledge-media"
+  ],
+  "tags": [
+   "proofs",
+   "logic",
+   "tensor"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [
+   "sympy"
+  ],
+  "engines": [
+   {
+    "name": "lean",
+    "kind": "system",
+    "probe": "lean",
+    "note": "Lean 4 + Mathlib formal tier (pf-2) — served by the polari-proof-tools engines worker; resolved through the engines ladder (PROOF_ENGINES_URL → local → topology provider mathproofs.engines → refusal); absent = the lean tier refuses by name"
+   }
+  ],
+  "engines_note": "z3 (tier 2, pf-1) is a python library (z3-solver, MIT), not an engine; sympy is present"
+ },
+ "files": {
+  "objects": [
+   "objects/mathproofs/InferenceRule",
+   "objects/mathproofs/MathClaim",
+   "objects/mathproofs/ProofObligation",
+   "objects/mathproofs/ProofRun"
+  ],
+  "basis": [
+   "mathproofs_basis"
+  ],
+  "api": [
+   "mathproofs_api"
+  ],
+  "page": [
+   "mathproofs_page"
+  ],
+  "seed": [
+   "mathproofs_seed"
+  ],
+  "selftests": [
+   "mathproofs_selftest"
+  ],
+  "custom": [
+   "custom/checkers",
+   "custom/numeric",
+   "custom/rows",
+   "custom/rules",
+   "custom/symbolic",
+   "custom/terms"
+  ],
+  "endpoints": [
+   "mathproofs_endpoints"
+  ]
+ },
+ "classes": [
+  "InferenceRule",
+  "MathClaim",
+  "MathProofsAPI",
+  "ProofObligation",
+  "ProofRun"
+ ],
+ "imports": [
+  [
+   "mathproofs.mathproofs_basis",
+   [
+    "MathClaim",
+    "ProofRun",
+    "InferenceRule",
+    "ProofObligation",
+    "MATHPROOFS_CLASSES"
+   ]
+  ],
+  [
+   "mathproofs.mathproofs_seed",
+   [
+    "MATHPROOFS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "mathproofs.mathproofs_page",
+   [
+    "SEED_MATHPROOFS_PAGE_DISPLAYS"
+   ]
+  ]
+ ]
+}

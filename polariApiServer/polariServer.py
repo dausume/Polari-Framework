@@ -1293,6 +1293,8 @@ class polariServer(treeObject):
             Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition, FEMFieldState,
             TensorTreeDefinition, TensorNode, UnresolvedTensorSpace, LocalizedDimension, TensorMapping, TensorSelection,
             TensorDiscoveryPolicy,
+            # pf-0: proofs as rows
+            MathClaim, ProofRun, InferenceRule, ProofObligation,
             ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
@@ -2374,7 +2376,7 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or [])
              # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
              + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
@@ -3277,7 +3279,7 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

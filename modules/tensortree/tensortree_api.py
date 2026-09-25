@@ -24,6 +24,7 @@ from tensortree.custom.tensortree_graph import tree_graph
 from tensortree.custom.tensortree_discover import discover
 from tensortree.custom.tensortree_scale import scale_tree, materialise
 from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling, prove as prove_coupling
+from tensortree.custom.tensortree_logic import of_mapping as _logic_of
 
 
 class TensorTreeAPI(treeObject):
@@ -93,7 +94,9 @@ class TensorTreeAPI(treeObject):
                 maps.append({'name': str(m.name), 'kind': str(getattr(m, 'kind', '')), 'source_node': str(getattr(m, 'source_node', '')), 'target_node': str(getattr(m, 'target_node', '')),
                              'source_dims': _json.loads(getattr(m, 'source_dims_json', '[]') or '[]'), 'target_dims': _json.loads(getattr(m, 'target_dims_json', '[]') or '[]'),
                              'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')), 'evidence_ref': str(getattr(m, 'evidence_ref', '') or ''),
-                             'loss_note': str(getattr(m, 'loss_note', '') or ''), 'validity': _json.loads(getattr(m, 'validity_json', '{}') or '{}')})
+                             'loss_note': str(getattr(m, 'loss_note', '') or ''), 'validity': _json.loads(getattr(m, 'validity_json', '{}') or '{}'),
+                             # pf-0 / D-pf-8: the proof state shown ON the mapping (a badge + the obligations), never folded into its status
+                             'logic': _logic_of(self.manager, str(m.name))})
         sels = [{'name': str(s.name), 'node': str(getattr(s, 'node', '')), 'ranges': _json.loads(getattr(s, 'ranges_json', '{}') or '{}'), 'created_from': str(getattr(s, 'created_from', ''))}
                 for s in self._rows('TensorSelection') if str(getattr(s, 'node', '')) in {n['id'] for n in nodes}]
         response.media = {'ok': True, 'tree': {'name': name, 'tensor': str(getattr(tree, 'tensor', '') or ''), 'view_kind': str(getattr(tree, 'view_kind', '')), 'root': str(getattr(tree, 'root_node', '')),

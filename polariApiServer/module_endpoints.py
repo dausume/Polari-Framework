@@ -527,6 +527,11 @@ def construct_tensortree_endpoints(polServer):
     return build(polServer)
 
 
+def construct_mathproofs_endpoints(polServer):
+    from mathproofs.mathproofs_endpoints import construct_mathproofs_endpoints as build
+    return build(polServer)
+
+
 def construct_computelod_endpoints(polServer):
     from computelod.computelod_endpoints import construct_computelod_endpoints as build
     return build(polServer)
@@ -548,6 +553,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'iso': construct_iso_endpoints,
     'tensormath': construct_tensormath_endpoints,
     'tensortree': construct_tensortree_endpoints,
+    'mathproofs': construct_mathproofs_endpoints,
     'computelod': construct_computelod_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,

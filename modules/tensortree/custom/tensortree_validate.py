@@ -92,6 +92,12 @@ def validate_tree(manager, tree_name):
         if k not in UNRESOLVED_KINDS:
             errors.append('%s: unresolved_kind %r is not one of %s' % (n, k, ', '.join(UNRESOLVED_KINDS)))
         report['unresolved'][n] = {'kind': k, 'open_questions': _j(getattr(u, 'open_questions_json', '[]'), [])}
+    # pf-0: the LOGIC between the parts — the obligations the inference rules demanded of this tree (mathproofs, soft)
+    try:
+        from tensortree.custom.tensortree_logic import of_tree
+        report['logic'] = of_tree(manager, tree_name)
+    except Exception as exc:   # pragma: no cover
+        report['logic'] = {'available': False, 'why': 'logic seam failed: %s' % exc, 'obligations': [], 'summary': {}}
     report['errors'] = errors
     report['ok'] = not errors
     report['resolved_nodes'] = sum(1 for v in report['nodes'].values() if v['status'] == 'resolved')

@@ -50,6 +50,7 @@ DEFAULTS = {
     # tt-0: tensors, tensor trees, the compute ladder (plan COMPUTE_LOD_TENSOR_PLAN.md)
     'tensormath': ('polari', ['knowledge-media', 'materials-devices'], ['tensor', 'math']),
     'tensortree': ('polari', ['knowledge-media', 'materials-devices'], ['tensor', 'tree', 'visualization']),
+    'mathproofs': ('polari', ['knowledge-media'], ['proofs', 'logic', 'tensor']),
     'computelod': ('polari', ['materials-devices', 'chip-simulation', 'knowledge-media'], ['compute', 'ladder', 'learning']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),

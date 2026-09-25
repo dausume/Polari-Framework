@@ -1278,6 +1278,12 @@ FEATURE_IMPORT_BLOCKS = (
         ('tensormath.tensormath_seed', ('TENSORMATH_SEED_PAIRS',)),
         ('tensormath.tensormath_page', ('SEED_TENSORMATH_PAGE_DISPLAYS',)),
     )),
+    # pf-0 (plan §I): proofs as rows — claims, runs, inference rules, obligations
+    ('mathproofs', (
+        ('mathproofs.mathproofs_basis', ('MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation', 'MATHPROOFS_CLASSES')),
+        ('mathproofs.mathproofs_seed', ('MATHPROOFS_SEED_PAIRS',)),
+        ('mathproofs.mathproofs_page', ('SEED_MATHPROOFS_PAGE_DISPLAYS',)),
+    )),
     ('tensortree', (
         ('tensortree.tensortree_basis', ('TensorTreeDefinition', 'TensorNode', 'UnresolvedTensorSpace', 'LocalizedDimension',
                                          'TensorMapping', 'TensorSelection', 'TensorDiscoveryPolicy', 'TENSORTREE_CLASSES')),

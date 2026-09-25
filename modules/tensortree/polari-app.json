@@ -61,6 +61,7 @@
    "custom/tensortree_couple",
    "custom/tensortree_discover",
    "custom/tensortree_graph",
+   "custom/tensortree_logic",
    "custom/tensortree_scale",
    "custom/tensortree_validate"
   ],
