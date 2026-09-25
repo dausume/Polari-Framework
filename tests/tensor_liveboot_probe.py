@@ -178,9 +178,28 @@ else:
     check('POST …/check?tier=lean with NO engine on this device: unprovable-here naming both knobs (PROOF_ENGINES_URL / pol allocate mathproofs.engines) — an honest refusal, no device assumed; the claim stays unproved',
           r.status_code == 201 and r.json['verdict'] == 'unprovable-here' and 'pol allocate mathproofs.engines' in r.json['detail']['why'] and r.json['after'] != 'proved', r.text[:300])
     _lean_claims = 3
+# pf-3: the doors a person writes through
+r = client.simulate_post('/api/mathproofs/terms/preview', json={'statement': {'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}], 'holds': {'le': [{'ref': 'x', 'path': ['strain']}, 0.002]}}})
+check('POST terms/preview: the term validated, its LaTeX DERIVED by the backend (the editor renders this, never authors it), the tier that would speak (z3), the hash', r.status_code == 200 and r.json['valid'] and '\\forall' in r.json['latex'] and r.json['tier'] == 'z3' and len(r.json['statement_hash']) == 64, r.text[:200])
+check('  …a malformed term comes back with the errors by path, not a 500', client.simulate_post('/api/mathproofs/terms/preview', json={'statement': {'frob': 1}}).json['valid'] is False)
+r = client.simulate_post('/api/mathproofs/claims', json={'name': 'probe-strain-stays-small', 'kind': 'bound', 'about': ['TensorMapping:eps→sigma'], 'from': 'the probe',
+                                                          'statement': {'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}], 'holds': {'le': [{'ref': 'x', 'path': ['strain']}, 0.002]}}})
+check('POST claims: a claim written by a person is validated, stored with provenance, and CHECKED AT ONCE (z3 → decided); the response carries the claim as the API sees it', r.status_code == 201 and r.json['status'] == 'decided' and r.json['check']['tier'] == 'z3' and r.json['claim_now']['status'] == 'decided', r.text[:300])
+check('  …the same name again is a 409 (claims are re-checked, not re-written); a bad term is a 400 naming the path', client.simulate_post('/api/mathproofs/claims', json={'name': 'probe-strain-stays-small', 'statement': {'le': [1, 2]}}).status_code == 409
+      and client.simulate_post('/api/mathproofs/claims', json={'name': 'probe-bad', 'statement': {'frob': 1}}).status_code == 400)
+r = client.simulate_post('/api/tensortree/select', json={'node': 'plate-strain', 'ranges': {'n': [0, 64], 'k': [0, 2], 'l': [0, 2], 'strain': [0, 0.001]}, 'created_from': 'probe', 'via': 'u→eps'})
+_cand = next((c for c in r.json['discovery']['candidates'] if c['mapping'] == 'eps→sigma'), None)
+check('discovery from plate-strain (arriving via u→eps): the candidate eps→sigma CARRIES its door (POST /api/mathproofs/obligations/propose with mapping, selection, via)', r.status_code == 201 and _cand and _cand['propose']['path'] == '/api/mathproofs/obligations/propose' and _cand['propose']['body'].get('via') == 'u→eps', (r.json['discovery']['candidates'] if r.status_code == 201 else r.text[:200]))
+if _cand:
+    r = client.simulate_post(_cand['propose']['path'], json=dict(_cand['propose']['body'], proposed_by='the probe'))
+    _pw = {p['what']: p['status'] for p in r.json.get('proposed', [])}
+    check('POST obligations/propose through the door: valid-on-selection DECIDED (strain [0, 0.001] ⊆ [0, 0.002]) and, via u→eps, the chain pair (domains, dims) DECIDED — three durable rows under rule proposed-from-discovery',
+          r.status_code == 201 and _pw == {'valid-on-selection': 'decided', 'chain-domain-inclusion': 'decided', 'dims-compose': 'decided'}, r.text[:400])
+    r = client.simulate_get('/api/mathproofs/obligations', params={'mapping': 'eps→sigma'})
+    check('  …and they show on the mapping\'s obligations (rule proposed-from-discovery) beside the rules\' own', any(o['rule'] == 'proposed-from-discovery' for o in r.json['obligations']) and any(o['rule'] == 'chain-domain-inclusion' for o in r.json['obligations']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 26 claims (15 seeded + 11 generated), the elapsed sum small, EIGHT long-running claims → worst case 1025 s (five z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
-      r.status_code == 200 and r.json['claims'] == 26 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1025 and r.json['long_running_claims'] == 8, r.text[:300])
+check('GET /api/mathproofs/aggregate: 30 claims (15 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
+      r.status_code == 200 and r.json['claims'] == 30 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

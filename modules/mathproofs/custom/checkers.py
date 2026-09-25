@@ -163,3 +163,21 @@ def status_of(manager, claim):
     """The claim's status as the world sees it now: `<status> (stale)` when the rows moved under its certificate."""
     st = str(getattr(claim, 'proof_status', 'conjectured'))
     return st + ' (stale)' if st not in ('conjectured', 'unprovable-here', 'undetermined') and stale(manager, claim) else st
+
+
+def latest_run(manager, claim_name):
+    runs = [r for r in _rows(manager, 'ProofRun') if str(getattr(r, 'claim', '')) == claim_name]
+    if not runs:
+        return None
+    r = max(runs, key=lambda x: str(getattr(x, 'ran_at', '')))
+    return {'name': str(r.name), 'checker': str(getattr(r, 'checker', '')), 'verdict': str(getattr(r, 'verdict', '')), 'elapsed_s': float(getattr(r, 'elapsed_s', 0.0) or 0.0), 'ran_at': str(getattr(r, 'ran_at', ''))}
+
+
+def aggregate(manager, claims):
+    """The time reading (D-pf-9): what the latest runs cost, and the worst case if every long-running tier used its budget."""
+    latest = [latest_run(manager, str(c.name)) for c in claims]
+    spent = sum((r or {}).get('elapsed_s', 0.0) for r in latest)
+    long_tiers = [c for c in claims if (auto_tier(terms_of(c)) in ('z3', 'lean')) or str(getattr(c, 'checker', '')) in ('z3', 'lean')]
+    return {'claims': len(claims), 'runs_recorded': sum(1 for r in latest if r), 'latest_runs_elapsed_s': round(spent, 4),
+            'worst_case_s': round(sum(float(getattr(c, 'budget_s', 25.0) or 0) for c in long_tiers), 1), 'long_running_claims': len(long_tiers),
+            'note': 'latest_runs_elapsed_s = what the recorded runs cost; worst_case_s = the sum of budgets of the claims a long-running tier (z3/lean) would take — the number to watch before it grows unreasonable in aggregate'}

@@ -24,7 +24,7 @@ sys.path.insert(0, FW); sys.path.insert(0, os.path.join(FW, 'modules'))
 
 from mathproofs.mathproofs_basis import MATHPROOFS_CLASSES, MathClaim, ProofRun, InferenceRule, ProofObligation, PROOF_STATUSES, CHECKERS  # noqa: E402
 from mathproofs.mathproofs_seed import MATHPROOFS_SEED_PAIRS, SEED_INFERENCE_RULES, SEED_MATH_CLAIMS  # noqa: E402
-from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot, lean_tier, proof_engines  # noqa: E402
+from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot, lean_tier, proof_engines, authoring  # noqa: E402
 
 _results = []
 
@@ -268,11 +268,38 @@ check('  …and a claim whose only tier is LEAN is never run at boot (plan §I.9
 d2 = discover(m, sel)
 check('  …discovery: an inapplicable mapping (outside the state space) and a refuted one are DIFFERENT lists with different words; the old `refused` key is their union', 'inapplicable' in d2 and 'refuted' in d2 and len(d2['refused']) == len(d2['inapplicable']) + len(d2['refuted']))
 
+# ---- pf-3: the doors a person writes through
+pv = authoring.preview(m, {'forall': [{'var': 'x', 'in': 'validity:m1'}], 'holds': {'le': [{'ref': 'x', 'path': ['strain']}, 0.002]}})
+check('authoring.preview: a term validated, its LaTeX DERIVED (never authored), the tier that would speak (z3), its hash', pv['valid'] and '\\forall' in pv['latex'] and pv['tier'] == 'z3' and len(pv['statement_hash']) == 64)
+pv2 = authoring.preview(m, {'frobnicate': 1})
+check('  …and a malformed term is refused with the path named', not pv2['valid'] and pv2['errors'] and pv2['latex'] == '')
+a1 = authoring.author(m, {'name': 'my-claim', 'kind': 'bound', 'about': ['TensorMapping:m1'], 'statement': {'forall': [{'var': 'x', 'in': 'validity:m1'}], 'holds': {'le': [{'mul': [{'ref': 'x', 'path': ['strain']}, 1000000000]}, 2147483647]}}, 'description': 'mine', 'from': 'the selftest'}, make=_mk(m), save=False)
+check('authoring.author: a claim written by a person is validated, stored with provenance, and CHECKED AT ONCE through its cheapest tier (z3 → decided)', a1['ok'] and a1['status'] == 'decided' and a1['check']['tier'] == 'z3' and 'authored by a person' in next(c_ for c_ in m.objectTables['MathClaim'].values() if c_.name == 'my-claim').provenance, a1)
+check('  …a second claim with the same name is refused (409: claims are re-checked, not re-written); a bad kind, a missing row, an invalid term are refused by name',
+      authoring.author(m, {'name': 'my-claim', 'statement': {'le': [1, 2]}}, make=_mk(m), save=False).get('status') == 409
+      and 'kind' in authoring.author(m, {'name': 'k9', 'kind': 'vibes', 'statement': {'le': [1, 2]}}, make=_mk(m), save=False)['error']
+      and 'do not exist' in authoring.author(m, {'name': 'k9', 'about': ['TensorMapping:nope'], 'statement': {'le': [1, 2]}}, make=_mk(m), save=False)['error']
+      and authoring.author(m, {'name': 'k9', 'statement': {'frob': 1}}, make=_mk(m), save=False).get('errors'))
+a2 = authoring.author(m, {'name': 'my-theorem', 'kind': 'symmetry', 'statement': {'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 'any'}}}}, make=_mk(m), save=False)
+check('  …a general statement (lean) is stored but NOT run (plan §I.9) — the answer says how to ask', a2['ok'] and a2['status'] == 'conjectured' and a2['check']['verdict'] is None and 'tier=lean' in a2['check']['note'])
+pr = authoring.propose_from_discovery(m, 'm2', 'sel-s', make=_mk(m), save=False)
+check('propose_from_discovery: the candidate\'s validity on THIS selection becomes a durable row — subset(scope:<claim>, validity:m2) with the selection\'s ranges as scope — and the interval tier DECIDES it at once (strain [0, 0.0005] ⊆ [0, 0.001])',
+      pr['ok'] and pr['proposed'][0]['what'] == 'valid-on-selection' and pr['proposed'][0]['status'] == 'decided' and json.loads(next(c_ for c_ in m.objectTables['MathClaim'].values() if c_.name == pr['proposed'][0]['claim']).scope_json)['strain'] == [0, 0.0005], pr)
+sel_big = _add(m, 'TensorSelection', name='sel-big', node='s', ranges_json=json.dumps({'strain': [0, 0.004]}))
+pr2 = authoring.propose_from_discovery(m, 'm2', 'sel-big', via='m1', make=_mk(m), save=False)
+check('  …a selection outside the validity is REFUTED with the dim named; arriving via m1, the chain pair (domains, dims) is proposed too and decided; the obligations carry the rule name proposed-from-discovery',
+      pr2['ok'] and pr2['proposed'][0]['status'] == 'refuted' and 'strain' in pr2['proposed'][0]['counterexample'] and [p_['what'] for p_ in pr2['proposed']] == ['valid-on-selection', 'chain-domain-inclusion', 'dims-compose']
+      and pr2['proposed'][1]['status'] == 'decided' and all(o.rule == 'proposed-from-discovery' for o in m.objectTables['ProofObligation'].values() if o.name.startswith('ob:proposed:sel-big')), pr2)
+check('  …proposing twice is idempotent by name; a missing selection / mapping is a 404 by name', len({o.name for o in m.objectTables['ProofObligation'].values() if o.name.startswith('ob:proposed:sel-big')}) == 3
+      and len(authoring.propose_from_discovery(m, 'm2', 'sel-big', via='m1', make=_mk(m), save=False)['proposed']) == 3 and authoring.propose_from_discovery(m, 'm2', 'nope', make=_mk(m), save=False).get('status') == 404)
+d3 = discover(m, sel, context_mapping='m1')
+check('  …and every discovery candidate now CARRIES the door (method, path, body incl. via) through the soft seam', all(c_.get('propose', {}).get('path') == '/api/mathproofs/obligations/propose' and c_['propose']['body'].get('via') == 'm1' for c_ in d3['candidates']), [c_.get('propose') for c_ in d3['candidates']][:1])
+
 # ---- manifest
 from moduleService.manifests import validate
 man = json.load(open(os.path.join(HERE, 'polari-app.json')))
 check('the manifest is valid, declares four classes + the API, requires sympy + z3 (libraries, in-process), and declares `lean` as an ENGINE (resolved through the engines ladder, never a device assumption)',
-      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'])
+      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'] and 'custom/authoring' in man['files']['custom'])
 
 n_ok = sum(1 for _, ok in _results if ok)
 print('\n%d/%d checks passed' % (n_ok, len(_results)))

@@ -140,7 +140,7 @@ class TensorTreeAPI(treeObject):
         if db is not None and hasattr(db, 'saveInstanceInDB'):
             db.saveInstanceInDB(sel)
         response.status = '201 Created'
-        response.media = {'ok': True, 'selection': name, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''))}
+        response.media = {'ok': True, 'selection': name, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''), str(body.get('via', '') or ''))}
 
     # ---- tt-7: a SimulationCouplingDefinition created FROM a kind=coupling mapping ------------------------------
     def on_get_couple(self, request, response, name):
@@ -168,4 +168,4 @@ class TensorTreeAPI(treeObject):
         sel = next((s for s in self._rows('TensorSelection') if str(s.name) == str(body.get('selection', ''))), None)
         if sel is None:
             response.status = '404 Not Found'; response.media = {'ok': False, 'error': 'no TensorSelection %r' % body.get('selection')}; return
-        response.media = {'ok': True, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''))}
+        response.media = {'ok': True, 'discovery': discover(self.manager, sel, str(body.get('context_node', '') or ''), str(body.get('via', '') or ''))}

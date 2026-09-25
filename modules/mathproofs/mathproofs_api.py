@@ -2,14 +2,15 @@
 @module mathproofs.mathproofs_api
 
 /api/mathproofs — claims, rules, obligations, runs; check a claim through a tier; (re)generate a tree's obligations;
-`engines` = where the lean checker would run (the ladder's answer, pf-2).
+`engines` = where the lean checker would run (the ladder's answer, pf-2); pf-3's doors: `POST claims` (author, validated,
+checked at once), `POST terms/preview` (the LaTeX derived for the editor), `POST obligations/propose` (from a discovery result).
 Every number a person could act on is here: per claim the latest run's elapsed, per tree the AGGREGATE (the sum of
 the latest runs' elapsed and the worst case = the sum of budgets of the claims that can run long) — D-pf-9.
 """
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathproofs.custom import checkers, rules, terms, proof_engines
+from mathproofs.custom import checkers, rules, terms, proof_engines, authoring
 from mathproofs.custom.rows import by_name, _rows
 
 
@@ -28,6 +29,9 @@ class MathProofsAPI(treeObject):
             add('/api/mathproofs/trees/{name}/obligations', self, suffix='tree_obligations')
             add('/api/mathproofs/aggregate', self, suffix='aggregate')
             add('/api/mathproofs/engines', self, suffix='engines')
+            add('/api/mathproofs/claims', self, suffix='claims')
+            add('/api/mathproofs/terms/preview', self, suffix='preview')
+            add('/api/mathproofs/obligations/propose', self, suffix='propose')
 
     def _rows(self, cls):
         return _rows(self.manager, cls)
@@ -40,20 +44,10 @@ class MathProofsAPI(treeObject):
                 'latest_run': latest, 'description': str(getattr(c, 'description', ''))}
 
     def _latest_run(self, claim_name):
-        runs = [r for r in self._rows('ProofRun') if str(getattr(r, 'claim', '')) == claim_name]
-        if not runs:
-            return None
-        r = max(runs, key=lambda x: str(getattr(x, 'ran_at', '')))
-        return {'name': str(r.name), 'checker': str(getattr(r, 'checker', '')), 'verdict': str(getattr(r, 'verdict', '')), 'elapsed_s': float(getattr(r, 'elapsed_s', 0.0) or 0.0), 'ran_at': str(getattr(r, 'ran_at', ''))}
+        return checkers.latest_run(self.manager, claim_name)
 
     def aggregate(self, claims):
-        """The time reading (D-pf-9): what the latest runs cost, and the worst case if every long-running tier used its budget."""
-        latest = [self._latest_run(str(c.name)) for c in claims]
-        spent = sum((r or {}).get('elapsed_s', 0.0) for r in latest)
-        long_tiers = [c for c in claims if (checkers.auto_tier(checkers.terms_of(c)) in ('z3', 'lean')) or str(getattr(c, 'checker', '')) in ('z3', 'lean')]
-        return {'claims': len(claims), 'runs_recorded': sum(1 for r in latest if r), 'latest_runs_elapsed_s': round(spent, 4),
-                'worst_case_s': round(sum(float(getattr(c, 'budget_s', 25.0) or 0) for c in long_tiers), 1), 'long_running_claims': len(long_tiers),
-                'note': 'latest_runs_elapsed_s = what the recorded runs cost; worst_case_s = the sum of budgets of the claims a long-running tier (z3/lean) would take — the number to watch before it grows unreasonable in aggregate'}
+        return checkers.aggregate(self.manager, claims)
 
     def on_get(self, request, response):
         claims = self._rows('MathClaim')
@@ -111,6 +105,34 @@ class MathProofsAPI(treeObject):
 
     def on_get_aggregate(self, request, response):
         response.media = {'ok': True, **self.aggregate(self._rows('MathClaim'))}
+
+    # ---- pf-3: the doors a person writes through (never a raw row insert)
+    def on_post_preview(self, request, response):
+        """{statement} → the term validated, its LaTeX DERIVED here, the tier that would speak to it, its hash — the editor's live preview."""
+        body = request.get_media() or {}
+        term = body.get('statement')
+        if isinstance(term, str):
+            try:
+                term = json.loads(term) if term.strip() else {}
+            except Exception as exc:
+                response.media = {'ok': True, 'valid': False, 'errors': ['not JSON: %s' % exc], 'latex': '', 'tier': None, 'statement_hash': ''}; return
+        response.media = {'ok': True, **authoring.preview(self.manager, term), 'kinds': list(authoring.KINDS)}
+
+    def on_post_claims(self, request, response):
+        """Author a claim: {name, kind, about: [..], statement: term, description, scope, assumptions, budget_s, tier?, from?}."""
+        r = authoring.author(self.manager, request.get_media() or {})
+        if not r.get('ok'):
+            response.status = '409 Conflict' if r.get('status') == 409 else '400 Bad Request'; response.media = r; return
+        c = by_name(self.manager, 'MathClaim', r['claim'])
+        response.status = '201 Created'; response.media = {**r, 'claim_now': self._claim_view(c)}
+
+    def on_post_propose(self, request, response):
+        """From a discovery result: {mapping, selection, via?, proposed_by?} → the candidate's validity on this selection (and the chain pair through `via`) as durable, checked rows."""
+        body = request.get_media() or {}
+        r = authoring.propose_from_discovery(self.manager, str(body.get('mapping') or ''), str(body.get('selection') or ''), via=str(body.get('via') or ''), proposed_by=str(body.get('proposed_by') or ''))
+        if not r.get('ok'):
+            response.status = '404 Not Found' if r.get('status') == 404 else '400 Bad Request'; response.media = r; return
+        response.status = '201 Created'; response.media = r
 
     def on_get_engines(self, request, response):
         """Where the lean checker WOULD run (the engines ladder's answer before any dispatch) — pf-2."""

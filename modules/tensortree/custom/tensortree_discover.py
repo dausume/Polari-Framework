@@ -75,7 +75,9 @@ def _validity_coverage(mapping, ranges):
     return sum(covs) / len(covs) if covs else 0.5
 
 
-def discover(manager, selection, context_node=''):
+def discover(manager, selection, context_node='', context_mapping=''):
+    """`context_mapping` = the link the person arrived through (a follow): the propose door then offers the chain pair too."""
+    from tensortree.custom import tensortree_logic as _logic
     node = str(getattr(selection, 'node', '') or ''); ranges = _j(getattr(selection, 'ranges_json', '{}'), {})
     have = set(ranges.keys()); pol = policy(manager)
     out, inapplicable, refuted = [], [], []   # three words for three things: not defined here | falsified | scored
@@ -113,7 +115,8 @@ def discover(manager, selection, context_node=''):
                     'evidence': ekey, 'evidence_ref': str(getattr(m, 'evidence_ref', '') or ''),
                     'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')),
                     'loss_note': str(getattr(m, 'loss_note', '') or ''),
-                    'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']]})
+                    'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']],
+                    'propose': _logic.propose_door(name, str(getattr(selection, 'name', '')), via=context_mapping)})
     out.sort(key=lambda r: -r['score'])
     return {'selection': str(getattr(selection, 'name', '')), 'node': node, 'candidates': out, 'inapplicable': inapplicable, 'refuted': refuted,
             'refused': inapplicable + refuted,   # the pre-2026-09-25 key, kept for readers: the union, each entry saying which it is

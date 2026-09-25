@@ -4,7 +4,7 @@
  "package": "mathproofs",
  "title": "Math Proofs",
  "description": "Mathematical proofs as rows: claims about rows in one JSON term language, checked by tiers honest about what they established (numeric witness, interval decision, SymPy over symbols, Z3 over the continuum and machine integers within a budget, Lean via an engines worker); inference rules that generate the obligations a tensor tree's structure demands — the logic between its parts (plan §I) — at boot and on demand.",
- "version": "0.3.0",
+ "version": "0.4.0",
  "kind": "official",
  "wave": 4,
  "repo": "https://github.com/dausume/polari-module-mathproofs.git",
@@ -63,6 +63,7 @@
    "mathproofs_selftest"
   ],
   "custom": [
+   "custom/authoring",
    "custom/boot",
    "custom/checkers",
    "custom/lean_tier",

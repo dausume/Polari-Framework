@@ -36,3 +36,13 @@ def of_tree(manager, tree_name):
     for o in obs:
         k = o['status'].split(' ')[0] + (' (stale)' if '(stale)' in o['status'] else ''); summary[k] = summary.get(k, 0) + 1
     return {'available': True, 'obligations': obs, 'summary': summary, 'refuted': [o for o in obs if o['status'].startswith('refuted')]}
+
+
+def propose_door(mapping_name, selection_name, via=''):
+    """The door a discovery candidate carries (pf-3): how to turn 'valid on my selection' into a durable, checked row."""
+    if not available():
+        return None
+    body = {'mapping': mapping_name, 'selection': selection_name}
+    if via:
+        body['via'] = via
+    return {'method': 'POST', 'path': '/api/mathproofs/obligations/propose', 'body': body, 'says': 'propose the obligation that this mapping is valid on the whole selection (and, via a link, that the chain composes)'}
