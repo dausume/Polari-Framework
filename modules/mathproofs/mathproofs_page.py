@@ -15,7 +15,7 @@ SEED_MATHPROOFS_PAGE_DISPLAYS = [
               _row(1, [_table('mathproofs-claims', 0, 12, 'Claims — kind, what they speak of, status by the vocabulary, the checker, evidence, the derived LaTeX, the counterexample when refuted', 'MathClaim',
                               columns='name,kind,about_refs_json,proof_status,checker,evidence_level,statement_latex,counterexample_json,budget_s')]),
               _row(2, [_table('mathproofs-obligations', 0, 7, 'Obligations — what the rules demanded of each tree, and where each stands', 'ProofObligation', columns='tree,rule,name,structure_json,status,discharged_by,generated_at'),
-                       _table('mathproofs-rules', 1, 5, 'Inference rules — the logic between parts, as data', 'InferenceRule', columns='name,pattern,obligation_kind,checker_default,enabled,rationale')]),
+                       _table('mathproofs-rules', 1, 5, 'Inference rules — the logic between parts, as data; params_json holds a rule'"'"'s knobs (the decomposition bound), read by ref', 'InferenceRule', columns='name,pattern,obligation_kind,checker_default,params_json,enabled,rationale')]),
               _row(3, [_table('mathproofs-runs', 0, 12, 'Proof runs — checker, version, verdict, cost, and the rows-state hash that makes a run stale when a row moves', 'ProofRun',
                               columns='claim,name,checker,checker_version,verdict,elapsed_s,ran_at,rows_state_hash')]),
           ]),

@@ -17,10 +17,17 @@ Terms (v0):
                                               (the statement is not defined here — never refuted, never vacuously true)
     {"recorded": {"ref": …, "path": […]}}     the value is present and not the empty/None placeholder ('' / None);
                                               a numeric 0 IS a value — pair it with a method field to mean "recorded"
-    {"forall": [{"var": "x", "in": <set>}], "holds": t}      <set> = "rows:<Class>[:<field>=<value>]" (finite: the
-                                              rows themselves, `x` binds the row so {"ref": "x.<field>"} reads it)
-                                              | "validity:<TensorMapping>" | "domain:<TensorNode>" (intervals per dim)
+    {"forall"|"exists": [{"var": "x", "in": <set>}], "holds": t}
+                                              <set> = "rows:<Class>[:<field>=<value>]" (finite: the rows themselves,
+                                              `x` binds the row so {"ref": "x", "path": ["<field>"]} reads it — the
+                                              numeric tier walks it) | "validity:<TensorMapping>" | "domain:<TensorNode>"
+                                              | "scope:<MathClaim>" (a CONTINUUM: intervals per dim — the z3 tier decides
+                                              it; {"ref": "x", "path": ["<dim>"]} is the bound point's coordinate)
+    {"in": ["<var>", <set>]}                  the bound point lies inside that interval set (on the dims both constrain)
     {"subset": [<set>, <set>]}                interval sets: every dim's range of the first inside the second's
+    {"bitvector": {"template": "mac-no-overflow", "args": {"products", "operand_bits", "acc_bits", "a_abs_max", "b_abs_max"}}}
+                                              a kernel's fixed-point contract decided over machine integers (z3 tier);
+                                              the bounds are numeric terms — read from rows, never typed twice
     {"dims_subset": ["<TensorMapping>.source_dims", "<TensorNode>.dims" | "<TensorMapping>.target_dims"]}
     {"symbolic": {"template": "symmetry-of-contraction" | "linear-composition" | "restriction-idempotent",
                   "args": {...}}}             discharged by the sympy tier (custom/symbolic.py) — the template names
@@ -32,7 +39,8 @@ Terms (v0):
 import hashlib
 import json
 
-SET_PREFIXES = ('rows:', 'validity:', 'domain:')
+SET_PREFIXES = ('rows:', 'validity:', 'domain:', 'scope:')
+BITVECTOR_TEMPLATES = ('mac-no-overflow',)
 MODIFIERS = ('tol', 'path', 'holds')
 
 
@@ -80,9 +88,15 @@ def _lat(t):
         return r'\left[%s\right] \Rightarrow %s\ (\text{else undetermined})' % (_lat(v), _lat(t.get('holds')))
     if k == 'recorded':
         return r'\mathrm{recorded}(%s)' % _lat(v)
-    if k == 'forall':
+    if k in ('forall', 'exists'):
         binders = ', '.join(r'%s \in %s' % (b['var'], str(b['in']).replace('_', r'\_')) for b in v)
-        return r'\forall\, %s:\ %s' % (binders, _lat(t.get('holds')))
+        return r'\%s\, %s:\ %s' % (k, binders, _lat(t.get('holds')))
+    if k == 'in':
+        return r'%s \in %s' % (str(v[0]).replace('_', r'\_'), str(v[1]).replace('_', r'\_'))
+    if k == 'bitvector':
+        a = v.get('args') or {}
+        return r'\forall\, |a_i| \le %s,\ |b_i| \le %s:\ \left|\sum_{i=1}^{%s} a_i b_i\right| < 2^{%s}\ (\text{int}%s\ \text{operands})' % (
+            _lat(a.get('a_abs_max', '?')), _lat(a.get('b_abs_max', '?')), a.get('products', '?'), int(a.get('acc_bits', 64)) - 1, a.get('operand_bits', '?'))
     if k == 'subset':
         return r'%s \subseteq %s' % (str(v[0]).replace('_', r'\_'), str(v[1]).replace('_', r'\_'))
     if k == 'dims_subset':
@@ -141,13 +155,23 @@ def validate(term, path='$'):
     elif k == 'recorded':
         if not isinstance(v, dict) or 'ref' not in v:
             errs.append('%s.recorded: {"ref": …, "path": […]}' % path)
-    elif k == 'forall':
-        if not isinstance(v, list) or not all(isinstance(b, dict) and b.get('var') and str(b.get('in', '')).startswith(SET_PREFIXES) for b in v):
-            errs.append('%s.forall: [{"var": name, "in": "rows:…|validity:…|domain:…"}]' % path)
+    elif k in ('forall', 'exists'):
+        if not isinstance(v, list) or not v or not all(isinstance(b, dict) and b.get('var') and str(b.get('in', '')).startswith(SET_PREFIXES) for b in v):
+            errs.append('%s.%s: [{"var": name, "in": "rows:…|validity:…|domain:…|scope:…"}]' % (path, k))
         if 'holds' not in term:
-            errs.append('%s.forall: needs "holds"' % path)
+            errs.append('%s.%s: needs "holds"' % (path, k))
         else:
             errs += validate(term['holds'], path + '.holds')
+    elif k == 'in':
+        if not (isinstance(v, list) and len(v) == 2 and isinstance(v[0], str) and str(v[1]).startswith(('validity:', 'domain:', 'scope:'))):
+            errs.append('%s.in: ["<var>", "validity:…|domain:…|scope:…"]' % path)
+    elif k == 'bitvector':
+        a = v.get('args') if isinstance(v, dict) else None
+        if not isinstance(v, dict) or v.get('template') not in BITVECTOR_TEMPLATES or not isinstance(a, dict) or not all(x in a for x in ('products', 'operand_bits', 'acc_bits', 'a_abs_max', 'b_abs_max')):
+            errs.append('%s.bitvector: {"template": "mac-no-overflow", "args": {products, operand_bits, acc_bits, a_abs_max, b_abs_max}}' % path)
+        else:
+            for x in ('a_abs_max', 'b_abs_max'):
+                errs += validate(a[x], '%s.bitvector.args.%s' % (path, x))
     elif k == 'subset':
         if not (isinstance(v, list) and len(v) == 2 and all(str(x).startswith(('validity:', 'domain:', 'scope:')) for x in v)):
             errs.append('%s.subset: two interval sets (validity:<mapping> | domain:<node> | scope:<claim>)' % path)

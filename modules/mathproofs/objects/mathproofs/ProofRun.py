@@ -34,7 +34,7 @@ class ProofRun(treeObject):
         self.claim = claim  # MathClaim.name
         self.checker = checker  # numeric | interval | sympy | z3 | lean | human
         self.checker_version = checker_version
-        self.verdict = verdict  # holds | refuted | undecided (budget) | unprovable-here | error
+        self.verdict = verdict  # holds | refuted | undetermined (not defined here) | undecided (the z3/lean budget ran out — the claim's status is untouched, D-pf-9) | unprovable-here | error
         self.detail_json = detail_json  # what was evaluated: values, the counterexample, the simplified difference…
         self.output_tail = output_tail
         self.elapsed_s = elapsed_s

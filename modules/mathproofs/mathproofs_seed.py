@@ -3,13 +3,16 @@
 
 pf-0 seeds: the EIGHT inference rules (the logic between parts of a tree, as data — plan §I.3), and the standalone
 claims of §I.5 the cheap tiers can speak to today (lod cross-checks as claims; σ = C:ε symmetry over symbols).
-Obligations themselves are GENERATED per tree (`POST /api/mathproofs/trees/{name}/obligations`), not seeded.
+pf-1 adds the z3 claims (the tt-3 kernel's fixed-point contract over machine integers and the continuum; two
+domain statements over the wind tree, one of them refuted by a model) and the parasitics verdict as two inequalities;
+the decomposition bound became the rule's knob (`params_json.bound`). Obligations themselves are GENERATED per tree —
+at boot (custom/boot.py) and on `POST /api/mathproofs/trees/{name}/obligations` — not seeded.
 """
 import json
 
 from mathproofs.mathproofs_basis import MathClaim, ProofRun, InferenceRule, ProofObligation
 
-_R = lambda **k: dict({'description': '', 'enabled': True, 'notes': ''}, **k)
+_R = lambda **k: dict({'description': '', 'enabled': True, 'params_json': '{}', 'notes': ''}, **k)
 SEED_INFERENCE_RULES = [
     _R(name='chain-domain-inclusion', pattern='chain', obligation_kind='domain-inclusion', checker_default='interval',
        template_json=json.dumps({'subset': ['validity:{m2}', 'validity:{m1}']}),
@@ -26,8 +29,9 @@ SEED_INFERENCE_RULES = [
        rationale='restricting twice is restricting once — proved over symbols for an index-range restriction; the obligation assumes the mapping IS one'),
     _R(name='decomposition-reconstructs', pattern='mapping:decomposition', obligation_kind='bound', checker_default='numeric',
        template_json=json.dumps({'given': {'recorded': {'ref': 'TensorMapping:{m1}', 'path': ['error_method']}},
-                                 'holds': {'le': [{'ref': 'TensorMapping:{m1}', 'path': ['reconstruction_error']}, 0.05]}}),
-       rationale='a decomposition must SAY what it loses. GIVEN a recorded reconstruction error (error_method names how it was measured), it must be within the bound (0.05 — a placeholder knob, pf-1 moves it to policy); with none recorded the claim is UNDETERMINED: not defined yet, not falsified'),
+                                 'holds': {'le': [{'ref': 'TensorMapping:{m1}', 'path': ['reconstruction_error']}, {'ref': 'InferenceRule:decomposition-reconstructs', 'path': ['params_json', 'bound']}]}}),
+       params_json=json.dumps({'bound': 0.05, 'bound_note': 'the largest reconstruction error a decomposition may carry and still discharge this obligation (relative, by the mapping\'s own error_method) — a POLICY a person edits here; every obligation under it goes stale when it changes'}),
+       rationale='a decomposition must SAY what it loses. GIVEN a recorded reconstruction error (error_method names how it was measured), it must be within the rule\'s bound (params_json.bound, a knob — read by ref, so the claim names it); with none recorded the claim is UNDETERMINED: not defined yet, not falsified'),
     _R(name='operator-linear', pattern='chain:operator,operator', obligation_kind='composition', checker_default='sympy',
        template_json=json.dumps({'symbolic': {'template': 'linear-composition', 'args': {}}}),
        rationale='two linear operator links compose to a linear map — proved over symbols; the obligation assumes both links are linear (u→ε and ε→σ are)'),
@@ -56,6 +60,37 @@ SEED_MATH_CLAIMS = [
     _C(name='sigma-from-strain-is-symmetric-3d', kind='symmetry', about_refs_json=json.dumps(['TensorMapping:eps→sigma']),
        statement_json=json.dumps({'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 3}}}),
        description='the same statement in three dimensions (the general-rank theorem is pf-2\'s Lean target, D-pf-10)'),
+    # ---- pf-1: the parasitics verdict of lod-3c as TWO inequalities over the extracted arcs (numeric witnesses)
+    _C(name='lod3c-extraction-narrows-every-fall-gap', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3c: inv_1 A→Y tpHL (extracted)', 'CharacterizationMapping:lod3c: nand2_1 A→Y tpHL (extracted)', 'CharacterizationMapping:lod3c: nand2_1 B→Y tpHL (extracted)']),
+       statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpHL (extracted)'}],
+                                  'holds': {'and': [{'gt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, {'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}]},
+                                                    {'lt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, 0]}]}}),
+       description='WITNESS (the parasitics verdict, half 1): on every extracted tpHL arc the gap to the Liberty is SMALLER than the schematic netlist\'s (delta_pct > schematic_delta_pct, both negative) — extraction explains PART of the fall gap'),
+    _C(name='lod3c-extraction-widens-every-rise-gap', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3c: inv_1 A→Y tpLH (extracted)', 'CharacterizationMapping:lod3c: nand2_1 A→Y tpLH (extracted)', 'CharacterizationMapping:lod3c: nand2_1 B→Y tpLH (extracted)']),
+       statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpLH (extracted)'}],
+                                  'holds': {'and': [{'gt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, {'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}]},
+                                                    {'gt': [{'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}, 0]}]}}),
+       description='WITNESS (the parasitics verdict, half 2): on every extracted tpLH arc the gap to the Liberty is LARGER than the schematic netlist\'s (both positive: we are already slower on the rise, extraction makes it worse) — parasitics explain NONE of the rise gap; what remains is the vendor setup'),
+    # ---- pf-1: the tt-3 kernel's fixed-point contract, DECIDED (z3): the bounds are read from the rows that state them
+    _C(name='fpga-nano-strain-fits-int32', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'TensorMapping:eps→sigma']),
+       statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}],
+                                  'holds': {'and': [{'le': [{'mul': [{'ref': 'x', 'path': ['strain']}, 1000000000]}, 2147483647]}, {'ge': [{'mul': [{'ref': 'x', 'path': ['strain']}, 1000000000]}, -2147483647]}]}}),
+       description='DECIDED over the continuum: for every strain in the mapping\'s validity domain, ε in nano-strain (×1e9) fits the kernel\'s signed 32-bit operand port'),
+    _C(name='fpga-C-in-kPa-fits-int32-for-electrical-steel', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'MagneticMaterialOption:opt-electrical-steel']),
+       statement_json=json.dumps({'le': [{'mul': [{'ref': 'MagneticMaterialOption:opt-electrical-steel', 'path': ['properties_json', 'youngs_modulus_mpa', 'value']}, 1000]},
+                                         {'mul': [2147483647, {'add': [1, {'mul': [-1, {'ref': 'MagneticMaterialOption:opt-electrical-steel', 'path': ['properties_json', 'poisson_ratio', 'value']}, {'ref': 'MagneticMaterialOption:opt-electrical-steel', 'path': ['properties_json', 'poisson_ratio', 'value']}]}]}]}]}),
+       description='WITNESS on the cited material: the largest plane-stress stiffness E/(1−ν²) in kPa (E in MPa × 1e3) fits the signed 32-bit coefficient port — E·10³ ≤ (2³¹−1)(1−ν²)'),
+    _C(name='fpga-int64-accumulate-never-overflows', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'TensorMapping:eps→sigma']),
+       statement_json=json.dumps({'bitvector': {'template': 'mac-no-overflow', 'args': {'products': 4, 'operand_bits': 32, 'acc_bits': 64, 'a_abs_max': 2147483647,
+                                                                                         'b_abs_max': {'mul': [{'ref': 'TensorMapping:eps→sigma', 'path': ['validity_json', 'strain', 1]}, 1000000000]}}}}),
+       description='DECIDED over the machine integers: the kernel\'s four products C_ijkl·ε_kl (any int32 coefficient; ε within the validity domain, in nε) summed in the 64-bit accumulator never overflow — the tt-3 kernel\'s exactness claim as a decision, not a comment'),
+    # ---- pf-1: domains over a continuum (z3) — one decided, one REFUTED with the model as the counterexample
+    _C(name='spectrum-range-inside-the-drag-coupling-range', kind='domain-inclusion', about_refs_json=json.dumps(['TensorMapping:wind-grid→spectrum', 'TensorMapping:wind-grid→bob-drag']),
+       statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:wind-grid→spectrum'}], 'holds': {'in': ['x', 'validity:wind-grid→bob-drag']}}),
+       description='DECIDED: every wind speed the proposed decomposition claims (0–5 m/s) is one the drag coupling is valid for (0–30 m/s)'),
+    _C(name='spectrum-valid-over-the-drag-coupling-range', kind='domain-inclusion', about_refs_json=json.dumps(['TensorMapping:wind-grid→spectrum', 'TensorMapping:wind-grid→bob-drag']),
+       statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:wind-grid→bob-drag'}], 'holds': {'in': ['x', 'validity:wind-grid→spectrum']}}),
+       description='the converse — is the decomposition valid wherever the drag coupling is? REFUTED by a model: a wind speed inside the coupling\'s range and outside the decomposition\'s (the counterexample is a real point, kept)'),
 ]
 
 MATHPROOFS_SEED_PAIRS = [

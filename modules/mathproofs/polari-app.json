@@ -3,8 +3,8 @@
  "id": "mathproofs",
  "package": "mathproofs",
  "title": "Math Proofs",
- "description": "Mathematical proofs as rows: claims about rows in one JSON term language, checked by tiers honest about what they established (numeric witness, interval decision, SymPy over symbols, Z3, Lean via an engines worker); inference rules that generate the obligations a tensor tree's structure demands — the logic between its parts (plan §I).",
- "version": "0.1.0",
+ "description": "Mathematical proofs as rows: claims about rows in one JSON term language, checked by tiers honest about what they established (numeric witness, interval decision, SymPy over symbols, Z3 over the continuum and machine integers within a budget, Lean via an engines worker); inference rules that generate the obligations a tensor tree's structure demands — the logic between its parts (plan §I) — at boot and on demand.",
+ "version": "0.2.0",
  "kind": "official",
  "wave": 4,
  "repo": "https://github.com/dausume/polari-module-mathproofs.git",
@@ -27,7 +27,8 @@
  "requires": {
   "modules": [],
   "libraries": [
-   "sympy"
+   "sympy",
+   "z3"
   ],
   "engines": [
    {
@@ -37,7 +38,7 @@
     "note": "Lean 4 + Mathlib formal tier (pf-2) — served by the polari-proof-tools engines worker; resolved through the engines ladder (PROOF_ENGINES_URL → local → topology provider mathproofs.engines → refusal); absent = the lean tier refuses by name"
    }
   ],
-  "engines_note": "z3 (tier 2, pf-1) is a python library (z3-solver, MIT), not an engine; sympy is present"
+  "engines_note": "z3 (tier 2, pf-1) is a python library (z3-solver, MIT) and runs in-process within each claim's budget_s; sympy is present"
  },
  "files": {
   "objects": [
@@ -62,12 +63,14 @@
    "mathproofs_selftest"
   ],
   "custom": [
+   "custom/boot",
    "custom/checkers",
    "custom/numeric",
    "custom/rows",
    "custom/rules",
    "custom/symbolic",
-   "custom/terms"
+   "custom/terms",
+   "custom/z3tier"
   ],
   "endpoints": [
    "mathproofs_endpoints"

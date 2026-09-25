@@ -109,6 +109,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip $INDEX; \
     pip install $INDEX $LINKS -r /build/requirements.txt; \
     pip install $INDEX $LINKS psutil
+# mathproofs tier 2 (plan §I, pf-1): the z3 python binding. PyPI's z3-solver has
+# no musl wheel (an sdist build is a 30-60 min cmake job), so on Alpine the
+# binding comes from apk (py3-z3, pure python) copied into the venv; the runtime
+# stage adds libz3 (apk z3). A glibc host pip-installs z3-solver (README).
+RUN apk add --no-cache py3-z3 && \
+    cp -r /usr/lib/python3.*/site-packages/z3 "$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/"
 
 # Stage 2: Runtime - Minimal image with only runtime dependencies
 
@@ -124,7 +130,10 @@ WORKDIR /app
 # ffmpeg: video module (modules/video/) WebM/MP4/HLS conversion —
 # same capability-honest pattern (video_conversion.py checks
 # shutil.which('ffmpeg') and reports missing rather than crashing).
-RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg git xorriso zstd   # zstd: Ubuntu kernel debs (the ISO arc reads modules.alias); xorriso: the ISO arc assembles installer images; git: an instance fetches optional modules from their repositories (fetch-admit)
+RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg git xorriso zstd z3   # zstd: Ubuntu kernel debs (the ISO arc reads modules.alias); xorriso: the ISO arc assembles installer images; git: an instance fetches optional modules from their repositories (fetch-admit)
+# the z3 binding looks for an exact `libz3.so` in Z3_LIBRARY_PATH; apk ships the soname only
+RUN ln -s "$(ls /usr/lib/libz3.so.* | head -1)" /usr/lib/libz3.so
+ENV Z3_LIBRARY_PATH=/usr/lib
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

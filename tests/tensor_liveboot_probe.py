@@ -113,33 +113,51 @@ r = client.simulate_post('/api/tensortree/mappings/wind-grid→slice-z0/prove', 
 check('  …a mapping with no coupling row is a 422 that says to couple first', r.status_code == 422 and 'couple first' in r.json['error'], r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/bob-motion/validate')
 check('the bob\'s own tree (bob-motion) validates on a real boot with its root resolved through the seeded wind-arrow binding', r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['pendulum-bob']['status'] == 'resolved', r.text[:300])
-# pf-0: proofs as rows — the seeded claims checked on real rows; obligations generated on the real trees by the rules
+# pf-0/pf-1: proofs as rows — the seeded claims checked on real rows AT BOOT (custom/boot.py), the obligations of every
+# seeded tree generated AT BOOT by the rules (no POST needed for the badges), the z3 tier deciding over the continuum
 r = client.simulate_get('/api/mathproofs')
-check('GET /api/mathproofs: five seeded claims, eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)', r.status_code == 200 and r.json['ok'] and len(r.json['claims']) == 5 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
-_verd = {}
-for _n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'sigma-from-strain-is-symmetric', 'sigma-from-strain-is-symmetric-3d'):
-    r = client.simulate_post('/api/mathproofs/claims/%s/check' % _n); _verd[_n] = (r.json.get('verdict'), r.json.get('after'))
-check('POST …/check: the lod cross-checks are WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc), σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
-      _verd['lod3-lef-area-equals-liberty-area'] == ('holds', 'witnessed') and _verd['lod3b-falls-faster-than-liberty'] == ('holds', 'witnessed') and _verd['lod3c-extraction-slows-every-arc'] == ('holds', 'witnessed')
-      and _verd['sigma-from-strain-is-symmetric'] == ('holds', 'checked-symbolically') and _verd['sigma-from-strain-is-symmetric-3d'] == ('holds', 'checked-symbolically'), _verd)
+check('GET /api/mathproofs: twelve seeded claims + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
+      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 12 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+_st = {c['name']: (c['status'], c['checker']) for c in r.json['claims']}
+check('AT BOOT, with no POST: the lod cross-checks WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; the parasitics verdict as two inequalities), σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
+      all(_st.get(n) == ('witnessed', 'numeric') for n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-every-rise-gap', 'fpga-C-in-kPa-fits-int32-for-electrical-steel'))
+      and _st.get('sigma-from-strain-is-symmetric') == ('checked-symbolically', 'sympy') and _st.get('sigma-from-strain-is-symmetric-3d') == ('checked-symbolically', 'sympy'), _st)
+check('  …the z3 tier DECIDED the tt-3 kernel\'s fixed-point contract over the real rows (ε in nε fits int32 for every strain in eps→sigma\'s validity; four int32 products in int64 never overflow) and the spectrum ⊆ drag-range inclusion',
+      _st.get('fpga-nano-strain-fits-int32') == ('decided', 'z3') and _st.get('fpga-int64-accumulate-never-overflows') == ('decided', 'z3') and _st.get('spectrum-range-inside-the-drag-coupling-range') == ('decided', 'z3'), _st)
+r = client.simulate_get('/api/mathproofs/claims/spectrum-valid-over-the-drag-coupling-range')
+check('  …and REFUTED the converse by a MODEL: a wind speed inside the drag coupling\'s range (0–30) and outside the decomposition\'s (0–5) — the counterexample is a real point, kept on the claim',
+      r.status_code == 200 and r.json['claim']['status'] == 'refuted' and r.json['claim']['checker'] == 'z3' and 5 < r.json['claim']['counterexample'].get('x.speed', 0) <= 30 and r.json['runs'][-1]['verdict'] == 'refuted', r.text[:300])
+r = client.simulate_get('/api/mathproofs/claims/fpga-int64-accumulate-never-overflows')
+check('  …the overflow decision names its encoding (exact integers), the bounds it READ from the rows (2·10⁶ nε from the validity domain) and the headroom; the run cites the z3 version',
+      r.status_code == 200 and r.json['runs'][-1]['detail']['b_abs_max'] == 2000000 and r.json['runs'][-1]['detail']['analytic_bound']['headroom_bits'] > 9 and r.json['runs'][-1]['version'].startswith('z3 '), r.text[:300])
+r = client.simulate_get('/api/mathproofs/trees/plate-mechanics/obligations')
+_sum = {}
+for o in r.json['obligations']:
+    _sum[o['status']] = _sum.get(o['status'], 0) + 1
+check('GET trees/plate-mechanics/obligations WITHOUT a POST: generated at boot — domains and dims compose along u→ε→σ→balance (DECIDED ×4), linearity ×2 and σ-symmetry over symbols (CHECKED-SYMBOLICALLY ×3), units an OPEN gap by name (×2)',
+      r.status_code == 200 and _sum == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2}, _sum)
 r = client.simulate_post('/api/mathproofs/trees/plate-mechanics/obligations')
-check('POST trees/plate-mechanics/obligations: the rules find the chain u→ε→σ→balance — domains and dims compose (DECIDED ×4), linearity ×2 and σ-symmetry over symbols (CHECKED-SYMBOLICALLY ×3), units an OPEN gap by name (×2)',
-      r.status_code == 201 and r.json['summary'] == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2}, r.json.get('summary'))
-r = client.simulate_post('/api/mathproofs/trees/wind-spatial/obligations')
-check('POST trees/wind-spatial/obligations: the proposed decomposition wind-grid→spectrum is UNDETERMINED (no recorded reconstruction error — not defined yet, not falsified); the restriction is idempotent over symbols',
-      r.status_code == 201 and r.json['summary'] == {'undetermined': 1, 'checked-symbolically': 1} and any(o['obligation'].endswith('wind-grid→spectrum') and o['status'] == 'undetermined' for o in r.json['obligations']), r.json.get('summary'))
+check('  …a POST re-generates idempotently (same nine, same verdicts)', r.status_code == 201 and r.json['summary'] == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2} and len(r.json['obligations']) == 9, r.json.get('summary'))
+r = client.simulate_get('/api/mathproofs/trees/wind-spatial/obligations')
+check('GET trees/wind-spatial/obligations (from boot): the proposed decomposition wind-grid→spectrum is UNDETERMINED (no recorded reconstruction error — not defined yet, not falsified); the restriction is idempotent over symbols',
+      r.status_code == 200 and sorted(o['status'] for o in r.json['obligations']) == ['checked-symbolically', 'undetermined'] and any(o['name'].endswith('wind-grid→spectrum') and o['status'] == 'undetermined' for o in r.json['obligations']), r.text[:300])
+_ob = next(o for o in r.json['obligations'] if o['name'].endswith('wind-grid→spectrum'))
+check('  …its bound is the rule\'s KNOB, read by ref (InferenceRule:decomposition-reconstructs.params_json.bound) — the claim names the rule row it depends on', 'InferenceRule:decomposition-reconstructs' in str(client.simulate_get('/api/mathproofs/claims/%s' % _ob['claim']).json['claim']['about']))
+r = client.simulate_post('/api/mathproofs/claims/ob:plate-mechanics:chain-domain-inclusion:u→eps-eps→sigma/check', params={'tier': 'z3'})
+check('POST …/check?tier=z3 on a chain obligation the interval tier decided: z3 re-derives the SAME decision independently (∀x∈validity(eps→sigma): x∈validity(u→eps)); the stronger-or-equal verdict stands',
+      r.status_code == 201 and r.json['verdict'] == 'holds' and r.json['tier'] == 'z3' and r.json['after'] == 'decided', r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
-check('the validator now carries a `logic` section (soft seam): the plate\'s obligations and their summary', r.status_code == 200 and r.json['validation']['logic']['available'] and r.json['validation']['logic']['summary'].get('decided') == 4, r.text[:200])
+check('the validator carries the `logic` section (soft seam) from boot: the plate\'s obligations and their summary', r.status_code == 200 and r.json['validation']['logic']['available'] and r.json['validation']['logic']['summary'].get('decided') == 4, r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/view')
 _b = {mm['name']: mm['logic']['badge'] for mm in r.json['mappings']}
-check('/view shows the proof state ON each mapping (D-pf-8: a badge, never folded into mapping_status): spectrum undetermined, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'undetermined' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
+check('/view shows the proof state ON each mapping from boot (D-pf-8: a badge, never folded into mapping_status): spectrum undetermined, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'undetermined' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
 _sp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 'name', '') == 'wind-grid→spectrum')
 check('  …and the mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
 check('  …discovery on the gusty selection lists the spectrum as INAPPLICABLE (outside its validity — the state space, not a falsification), and nothing as refuted',
       any(x['mapping'] == 'wind-grid→spectrum' and x['kind'] == 'outside-validity' for x in client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'}).json['discovery']['inapplicable']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 16 claims (5 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, no long-running claims yet (worst case 0 s)',
-      r.status_code == 200 and r.json['claims'] == 16 and r.json['runs_recorded'] == 14 and r.json['latest_runs_elapsed_s'] < 5 and r.json['worst_case_s'] == 0, r.text[:200])
+check('GET /api/mathproofs/aggregate: 23 claims (12 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, FIVE long-running (z3) claims → worst case 50 s (the four seeded z3 claims + the obligation a person asked z3 to re-derive; 10 s budget knob each)',
+      r.status_code == 200 and r.json['claims'] == 23 and r.json['runs_recorded'] == 21 and r.json['latest_runs_elapsed_s'] < 10 and r.json['worst_case_s'] == 50 and r.json['long_running_claims'] == 5, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

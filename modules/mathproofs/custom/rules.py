@@ -12,7 +12,9 @@ Patterns (v0):
     mapping:<kind>[:<op>]    every mapping of that kind, optionally whose expression's operation is <op> (e.g. contract)
     node                     every TensorNode of the tree
 Rules that cannot be decided by any tier here still emit their obligation — `unprovable-here`, naming why — so
-the gap is a row a person can see, not silence.
+the gap is a row a person can see, not silence. A rule's KNOBS (`params_json`, e.g. the decomposition bound) are read
+by its template by ref — `{"ref": "InferenceRule:<rule>", "path": ["params_json", "<key>"]}` — and the rule row joins
+the claim's `about_refs`, so a person turning the knob makes every run under it stale (re-generation re-checks).
 """
 import datetime
 import json
@@ -104,7 +106,10 @@ def generate(manager, tree, make=None, save=True, run_cheap=True):
         if not getattr(rule, 'enabled', True):
             continue
         template = _j(getattr(rule, 'template_json', '{}'), {})
+        knobs = _j(getattr(rule, 'params_json', '{}'), {})
         for structure, names, refs in _matches(rule, struct):
+            if knobs:
+                refs = refs + ['InferenceRule:%s' % rule.name]   # a knob is a row: turning it makes the claim's runs STALE
             key = '-'.join(str(v) for v in structure.get('chain', [structure.get('mapping', structure.get('node'))]))
             cname = 'ob:%s:%s:%s' % (tree, rule.name, key)
             term = _fill(template, **names) if template else {}

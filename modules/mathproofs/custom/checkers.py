@@ -10,7 +10,9 @@ detail, the rows-state hash) and the claim's `proof_status` / `checker` / `certi
              unrecorded) — the model shifts with the state space; nothing is falsified
     interval holds → decided   (evidence analytical: exact set arithmetic)
     sympy    holds → checked-symbolically (analytical: over symbols)
-    z3       holds → decided; timeout → undecided (budget), status unchanged (D-pf-9)        [pf-1]
+    z3       holds → decided (analytical: a decision procedure over the continuum / machine integers)
+             refuted → refuted (the model IS the counterexample)   no answer within `budget_s` → the ProofRun says
+             `undecided` (budget) and the claim's status is UNCHANGED (D-pf-9: absence of a decision ≠ a counterexample)
     lean     ok    → proved (analytical)                                                       [pf-2]
     human    a signed note → proved, labelled `human` (D-pf-6)
 A refuted claim never deletes anything; a tier that cannot lower the term writes `unprovable-here` naming why.
@@ -21,7 +23,7 @@ import datetime
 import json
 import time
 
-from mathproofs.custom import numeric, symbolic, terms
+from mathproofs.custom import numeric, symbolic, terms, z3tier
 from mathproofs.custom.rows import rows_state_hash, by_name, _rows
 
 STATUS_FOR = {('numeric', 'holds'): ('witnessed', 'measured'), ('interval', 'holds'): ('decided', 'analytical'),
@@ -31,10 +33,20 @@ RANK = {'conjectured': 0, 'unprovable-here': 0, 'undetermined': 0, 'witnessed': 
 
 
 def auto_tier(term):
-    if isinstance(term, dict) and 'symbolic' in term:
+    """The cheapest tier that can speak to a term (a person may still ask for a stronger one by name)."""
+    if not isinstance(term, dict):
+        return 'numeric'
+    k = terms.op_of(term)
+    if k == 'symbolic':
         return 'sympy'
-    if isinstance(term, dict) and terms.op_of(term) in ('subset', 'dims_subset'):
+    if k in ('subset', 'dims_subset'):
         return 'interval'
+    if k == 'bitvector':
+        return 'z3'
+    if k == 'given':
+        return auto_tier(term.get('holds'))
+    if k in ('forall', 'exists') and any(str(b.get('in', '')).startswith(z3tier.CONTINUUM) for b in (term[k] or []) if isinstance(b, dict)):
+        return 'z3'
     return 'numeric'
 
 
@@ -45,16 +57,17 @@ def _versions():
         out['sympy'] = 'sympy %s' % sympy.__version__
     except Exception:
         out['sympy'] = 'sympy absent'
+    out['z3'] = z3tier.version()
     return out
 
 
-def evaluate(manager, term, tier):
+def evaluate(manager, term, tier, budget_s=10.0):
     if tier in ('numeric', 'interval'):
         return numeric.evaluate(manager, term)
     if tier == 'sympy':
         return symbolic.evaluate(term)
     if tier == 'z3':
-        return {'verdict': 'unprovable-here', 'tier': 'z3', 'detail': {'why': 'the z3 tier arrives in pf-1'}, 'counterexample': None}
+        return z3tier.evaluate(manager, term, budget_s=budget_s)
     if tier == 'lean':
         return {'verdict': 'unprovable-here', 'tier': 'lean', 'detail': {'why': 'the lean tier arrives in pf-2 (polari-proof-tools, an engines worker)'}, 'counterexample': None}
     return {'verdict': 'error', 'tier': tier, 'detail': {'why': 'unknown tier %r' % tier}, 'counterexample': None}
@@ -71,12 +84,13 @@ def check(manager, claim, tier=None, make=None, save=True):
     if errs:
         res = {'verdict': 'error', 'tier': tier, 'detail': {'why': 'invalid term: ' + '; '.join(errs)}, 'counterexample': None}
     else:
-        res = evaluate(manager, term, tier)
+        res = evaluate(manager, term, tier, budget_s=float(getattr(claim, 'budget_s', 10.0) or 10.0))
     elapsed = round(time.time() - t0, 4)
     refs = _j(getattr(claim, 'about_refs_json', '[]'), [])
     state = rows_state_hash(manager, refs)
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    run_name = '%s@%s@%s' % (getattr(claim, 'name', '?'), res['tier'], stamp.replace(':', '').replace('-', ''))
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stamp = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    run_name = '%s@%s@%s' % (getattr(claim, 'name', '?'), res['tier'], now.strftime('%Y%m%dT%H%M%S.%fZ'))   # unique to the microsecond: two runs in one second are two rows
     fields = {'name': run_name, 'description': '', 'claim': str(getattr(claim, 'name', '')), 'checker': res['tier'], 'checker_version': _versions().get(res['tier'], res['tier']),
               'verdict': res['verdict'], 'detail_json': json.dumps(res.get('detail') or {}, default=str), 'output_tail': '', 'elapsed_s': elapsed, 'rows_state_hash': state,
               'ran_at': stamp, 'ran_where': 'in-process', 'notes': ''}
@@ -94,6 +108,8 @@ def check(manager, claim, tier=None, make=None, save=True):
     elif res['verdict'] == 'undetermined':
         # not defined here (a premise fails / a value is unrecorded): never a refutation, never vacuously true
         claim.proof_status = 'undetermined'; claim.checker = res['tier']; claim.certificate_ref = run_name; claim.counterexample_json = '{}'; claim.evidence_level = 'none'
+    elif res['verdict'] == 'undecided':
+        pass   # D-pf-9: the budget ran out — the run records it; the claim's status is untouched
     elif res['verdict'] == 'unprovable-here' and before == 'conjectured':
         claim.proof_status = 'unprovable-here'; claim.checker = res['tier']; claim.certificate_ref = run_name
     if not getattr(claim, 'statement_hash', ''):

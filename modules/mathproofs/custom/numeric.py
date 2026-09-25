@@ -129,7 +129,7 @@ def _bool(manager, t, env):
         a, b = dim_set(manager, v[0]), dim_set(manager, v[1])
         missing = sorted(a - b)
         return (not missing), {'inner': sorted(a), 'outer': sorted(b)}, ({'missing': missing} if missing else None)
-    if k == 'forall':
+    if k in ('forall', 'exists'):
         binders = v; holds = t['holds']
         if len(binders) != 1:
             raise Unprovable('one binder at a time in v0')
@@ -137,13 +137,19 @@ def _bool(manager, t, env):
         if str(dom).startswith('rows:'):
             rows = row_set(manager, dom)
             if not rows:
-                raise Unprovable('forall over %s: no rows — vacuous, not a witness' % dom)
+                raise Unprovable('%s over %s: no rows — vacuous, not a witness' % (k, dom))
             for r in rows:
                 ok, d, ce = _bool(manager, holds, dict(env or {}, **{var: r}))
-                if not ok:
+                if k == 'forall' and not ok:
                     return False, {'over': dom, 'rows': len(rows), 'failed_at': str(getattr(r, 'name', '?'))}, {'row': str(getattr(r, 'name', '?')), **(ce or {})}
+                if k == 'exists' and ok:
+                    return True, {'over': dom, 'rows': len(rows), 'witness': str(getattr(r, 'name', '?'))}, None
+            if k == 'exists':
+                return False, {'over': dom, 'rows': len(rows)}, {'no_row_satisfies': dom}
             return True, {'over': dom, 'rows': len(rows)}, None
-        raise Unprovable('forall over %s needs real arithmetic (the z3 tier)' % dom)
+        raise Unprovable('%s over %s is a continuum: real arithmetic (the z3 tier)' % (k, dom))
+    if k in ('in', 'bitvector'):
+        raise Unprovable('%s is a statement over a continuum / machine integers (the z3 tier)' % k)
     if k == 'symbolic':
         raise Unprovable('a symbolic template (the sympy tier)')
     raise Unprovable('unknown statement %r' % k)

@@ -250,6 +250,38 @@ check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
 
+# ---- pf-1: the lod cross-checks are CLAIM ROWS (mathproofs), asserted here as claims — not ad-hoc arithmetic.
+# computelod SOFT-depends on mathproofs at runtime (D-pf-4); the selftest states plainly when the module is absent.
+try:
+    from computelod.computelod_seed import SEED_LOD_CHARACTERIZATIONS
+    from mathproofs.mathproofs_seed import SEED_MATH_CLAIMS
+    from mathproofs.custom import checkers as _pf
+    _pm = types.SimpleNamespace(objectTables={'CharacterizationMapping': {}, 'MathClaim': {}, 'ProofRun': {}}, db=None)
+    for _row in SEED_LOD_CHARACTERIZATIONS:
+        _add(_pm, 'CharacterizationMapping', **_row)
+    _mk = lambda cls, **f: _add(_pm, cls.__name__, **f)
+    _want = {'lod3-lef-area-equals-liberty-area': 'witnessed', 'lod3b-falls-faster-than-liberty': 'witnessed', 'lod3c-extraction-slows-every-arc': 'witnessed',
+             'lod3c-extraction-narrows-every-fall-gap': 'witnessed', 'lod3c-extraction-widens-every-rise-gap': 'witnessed'}
+    _got = {}
+    for _c in SEED_MATH_CLAIMS:
+        if _c['name'] in _want:
+            _claim = _add(_pm, 'MathClaim', **_c)
+            _res = _pf.check(_pm, _claim, make=_mk, save=False)
+            _got[_c['name']] = (_res['after'], _res['tier'], _res['detail'])
+    check('pf-1: the five lod cross-checks are MathClaim rows and every one is WITNESSED on the seeded characterization rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; '
+          'the parasitics verdict as two inequalities — narrows every fall gap, widens every rise gap)', {k: v[0] for k, v in _got.items()} == _want, _got)
+    check('  …each is the numeric tier\'s witness — evidence MEASURED on these rows, never called a proof; the area claim reads two rows that agree to 0.01 µm²',
+          all(v[1] == 'numeric' for v in _got.values()) and _got['lod3-lef-area-equals-liberty-area'][2]['lhs'] == _got['lod3-lef-area-equals-liberty-area'][2]['rhs'] == 855.82, _got['lod3-lef-area-equals-liberty-area'])
+    _fall = _got['lod3c-extraction-narrows-every-fall-gap'][2]; _rise = _got['lod3c-extraction-widens-every-rise-gap'][2]
+    check('  …the two halves of the verdict cover three extracted arcs each (inv_1 A, nand2_1 A, nand2_1 B)', _fall['rows'] == 3 and _rise['rows'] == 3, (_fall, _rise))
+    _bad = next(r_ for r_ in _pm.objectTables['CharacterizationMapping'].values() if r_.name == 'lod3: rv32_add layout area (LEF)')
+    _bad.result = 900.0
+    _cl = next(c_ for c_ in _pm.objectTables['MathClaim'].values() if c_.name == 'lod3-lef-area-equals-liberty-area')
+    check('  …and the claim is STALE the moment the LEF row changes; re-checked, it is REFUTED with both numbers kept (the row it speaks of is never deleted)',
+          _pf.stale(_pm, _cl) and _pf.check(_pm, _cl, make=_mk, save=False)['after'] == 'refuted' and json.loads(_cl.counterexample_json) == {'lhs': 900.0, 'rhs': 855.82})
+except ImportError as _e:
+    check('pf-1: the lod cross-checks as MathClaim rows — mathproofs is ABSENT here (%s): stated, not skipped silently' % _e, False)
+
 man = json.load(open('modules/computelod/polari-app.json'))
 from moduleService.manifests import validate
 check('the manifest is valid and declares the five classes + the API', validate(man) == [] and len([c for c in man['classes'] if c != 'ComputeLodAPI']) == 5)

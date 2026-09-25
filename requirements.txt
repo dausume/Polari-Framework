@@ -28,6 +28,12 @@ grpcio-reflection==1.74.0
 protobuf>=6.30,<7.0
 # Equation / calculus support — see polariNoCode/equation_executor.py
 sympy==1.13.3
+# mathproofs tier 2 (plan §I, pf-1): the Z3 decision procedure (MIT), in-process
+# within each claim's budget_s. NOT pinned here on purpose: PyPI's z3-solver has
+# no musl wheel and the Alpine image would build it from source for an hour —
+# the Dockerfiles take it from apk (py3-z3 + z3) instead. A glibc dev host:
+#   pip install --user z3-solver==5.1.0.0
+# Either way the ProofRun records the z3 version it ran with.
 # Parallel execution backend for pure solution-search attempts — see
 # simulations/execution_backend.py + DISTRIBUTED_COMPUTE_PLAN.md.
 dask[distributed]==2024.12.1
