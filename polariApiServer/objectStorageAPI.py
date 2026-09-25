@@ -44,6 +44,10 @@ class ObjectStorageAPI(treeObject):
             polServer.falconServer.add_route(self.apiName + '/connect', self, suffix='connect')
             polServer.falconServer.add_route(self.apiName + '/disconnect', self, suffix='disconnect')
             polServer.falconServer.add_route(self.apiName + '/buckets', self, suffix='buckets')
+            # fs-2: browsing AS THE CALLER — the realm token becomes temporary store keys (accessControl/store_identity)
+            polServer.falconServer.add_route(self.apiName + '/browse', self, suffix='browse')
+            polServer.falconServer.add_route(self.apiName + '/browse/{bucket}', self, suffix='browse_bucket')
+            polServer.falconServer.add_route(self.apiName + '/browse/{bucket}/link', self, suffix='browse_link')
 
     def on_get(self, request, response):
         """GET /object-storage - Return connection status."""
@@ -157,4 +161,111 @@ class ObjectStorageAPI(treeObject):
         except Exception as err:
             response.status = falcon.HTTP_500
             response.media = {'success': False, 'error': str(err)}
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------ fs-2: browse as the caller
+    # The store's own browser UI is closed (it had no login). These routes are the Polari door: anonymous → 401,
+    # a signed-in person → its realm token exchanged for temporary store keys, so the STORE applies the person's
+    # roles (a viewer lists and reads, never writes); when the store has no OIDC door the backend applies the
+    # same role table (the answer says which — `who.enforced_by`). Every listing is capped and says so.
+
+    @staticmethod
+    def _int(request, name, default, cap):
+        try:
+            return max(1, min(cap, int(request.get_param(name) or default)))
+        except Exception:
+            return default
+
+    @staticmethod
+    def _presign(caller, bucket, key, expires_s):
+        from datetime import timedelta
+        try:
+            return caller.presign_client.presigned_get_object(bucket, key, expires=timedelta(seconds=expires_s))
+        except Exception as exc:
+            return 'presign failed: %s' % exc
+
+    def _list_objects(self, caller, bucket, prefix, limit, expires_s, with_links=True):
+        rows, truncated = [], False
+        for obj in caller.client.list_objects(bucket, prefix=prefix or '', recursive=True):
+            if len(rows) >= limit:
+                truncated = True
+                break
+            row = {'bucket': bucket, 'key': obj.object_name, 'size_bytes': obj.size,
+                   'modified': obj.last_modified.strftime('%Y-%m-%dT%H:%M:%SZ') if obj.last_modified else None,
+                   'content_type': getattr(obj, 'content_type', None) or ''}
+            if with_links:
+                row['link'] = self._presign(caller, bucket, obj.object_name, expires_s)
+            rows.append(row)
+        return rows, truncated
+
+    def on_get_browse(self, request, response):
+        """GET /object-storage/browse[?objects=1&limit=200&prefix=&expires=3600] — the caller's buckets; with
+        objects=1 every object across them (flat rows, capped) with a time-limited download link each."""
+        from accessControl.store_identity import caller_store_client
+        from minio.error import S3Error
+        caller = caller_store_client(self.manager, request, verb='read')
+        want_objects = str(request.get_param('objects') or '').lower() in ('1', 'yes', 'true')
+        limit = self._int(request, 'limit', 200, 2000)
+        expires_s = self._int(request, 'expires', 3600, 7 * 24 * 3600)
+        prefix = request.get_param('prefix') or ''
+        try:
+            buckets = [{'bucket': b.name, 'created': b.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ') if b.creation_date else None} for b in caller.client.list_buckets()]
+        except S3Error as err:
+            response.status = falcon.HTTP_403 if err.code in ('AccessDenied', 'InvalidAccessKeyId') else falcon.HTTP_502
+            response.media = {'ok': False, 'error': '%s: %s' % (err.code, err.message), 'who': caller.who}
+            return
+        out = {'ok': True, 'who': caller.who, 'buckets': buckets, 'bucket_count': len(buckets),
+               'note': 'buckets the store lets you see; ?objects=1 lists their objects (capped by ?limit=, default 200 per bucket) with download links that expire (?expires= seconds, default 3600)'}
+        if want_objects:
+            objects, denied, truncated = [], [], []
+            for b in buckets:
+                try:
+                    rows, more = self._list_objects(caller, b['bucket'], prefix, limit, expires_s)
+                except S3Error as err:
+                    denied.append('%s (%s)' % (b['bucket'], err.code))
+                    continue
+                objects.extend(rows)
+                if more:
+                    truncated.append(b['bucket'])
+            out.update({'objects': objects, 'object_count': len(objects), 'truncated_buckets': truncated, 'denied_buckets': denied})
+        response.status = falcon.HTTP_200
+        response.media = out
+        response.set_header('Powered-By', 'Polari')
+
+    def on_get_browse_bucket(self, request, response, bucket):
+        """GET /object-storage/browse/{bucket}[?prefix=&limit=500&expires=3600] — one bucket's objects, as the caller."""
+        from accessControl.store_identity import caller_store_client
+        from minio.error import S3Error
+        caller = caller_store_client(self.manager, request, verb='read')
+        limit = self._int(request, 'limit', 500, 5000)
+        expires_s = self._int(request, 'expires', 3600, 7 * 24 * 3600)
+        prefix = request.get_param('prefix') or ''
+        try:
+            rows, truncated = self._list_objects(caller, bucket, prefix, limit, expires_s)
+        except S3Error as err:
+            response.status = falcon.HTTP_404 if err.code == 'NoSuchBucket' else (falcon.HTTP_403 if err.code == 'AccessDenied' else falcon.HTTP_502)
+            response.media = {'ok': False, 'bucket': bucket, 'error': '%s: %s' % (err.code, err.message), 'who': caller.who}
+            return
+        response.status = falcon.HTTP_200
+        response.media = {'ok': True, 'who': caller.who, 'bucket': bucket, 'prefix': prefix, 'objects': rows, 'object_count': len(rows), 'truncated': truncated,
+                          'note': 'each link is a time-limited signed URL minted with YOUR keys (default 3600 s); the store checks it, not the backend'}
+        response.set_header('Powered-By', 'Polari')
+
+    def on_get_browse_link(self, request, response, bucket):
+        """GET /object-storage/browse/{bucket}/link?key=<object>[&expires=3600] — one time-limited download link; ?go=1 redirects to it."""
+        from accessControl.store_identity import caller_store_client
+        caller = caller_store_client(self.manager, request, verb='read')
+        key = request.get_param('key') or ''
+        if not key:
+            raise falcon.HTTPBadRequest(title='key required', description='?key=<object name>')
+        expires_s = self._int(request, 'expires', 3600, 7 * 24 * 3600)
+        url = self._presign(caller, bucket, key, expires_s)
+        if url.startswith('presign failed'):
+            response.status = falcon.HTTP_502
+            response.media = {'ok': False, 'bucket': bucket, 'key': key, 'error': url, 'who': caller.who}
+            return
+        if str(request.get_param('go') or '').lower() in ('1', 'yes', 'true'):
+            raise falcon.HTTPFound(url)
+        response.status = falcon.HTTP_200
+        response.media = {'ok': True, 'who': caller.who, 'bucket': bucket, 'key': key, 'link': url, 'expires_s': expires_s}
         response.set_header('Powered-By', 'Polari')

@@ -536,3 +536,18 @@ SEED_MODULE_PAGE_DISPLAYS += [
                               columns='module_name,state,source,app_kind,phase,error,selftest_status,verified_at')]),
           ]),
 ]
+
+
+# fs-2 (FILE_STORE_PLAN §5): the file store browsed THROUGH Polari, as the signed-in person. The store's own
+# browser UI is closed (no login); these panels read /object-storage/browse, which exchanges the caller's realm
+# token for temporary store keys — the store applies the caller's roles, anonymous gets 401. Configured panels only.
+SEED_MODULE_PAGE_DISPLAYS += [
+    _page('file-store', 'file-store',
+          'File store — your buckets and objects, as the store sees you (realm roles → store policy); links expire',
+          'ObjectStorageAPI', [
+              _row(0, [_sapi('file-store-who', 0, 12, 'Who you are to the store', '/object-storage/browse', pick='who,bucket_count,note')], min_height=140),
+              _row(1, [_sapi('file-store-buckets', 0, 4, 'Buckets', '/object-storage/browse', pick='buckets'),
+                       _sapi('file-store-objects', 4, 8, 'Objects (every bucket, capped; each link is a time-limited signed URL)',
+                             '/object-storage/browse?objects=1&limit=200', pick='objects,truncated_buckets,denied_buckets')]),
+          ]),
+]
