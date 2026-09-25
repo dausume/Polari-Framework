@@ -197,6 +197,14 @@ if _cand:
           r.status_code == 201 and _pw == {'valid-on-selection': 'decided', 'chain-domain-inclusion': 'decided', 'dims-compose': 'decided'}, r.text[:400])
     r = client.simulate_get('/api/mathproofs/obligations', params={'mapping': 'eps→sigma'})
     check('  …and they show on the mapping\'s obligations (rule proposed-from-discovery) beside the rules\' own', any(o['rule'] == 'proposed-from-discovery' for o in r.json['obligations']) and any(o['rule'] == 'chain-domain-inclusion' for o in r.json['obligations']))
+# pf-4: proofs as knowledge — the tensor-proofs tech tree joined LIVE to the claims
+r = client.simulate_get('/api/mathproofs/knowledge')
+_kn = {n['node']: n for n in r.json.get('nodes', [])}
+check('GET /api/mathproofs/knowledge: the tensor-proofs tree (ten TechNodes, seeded through techtree) joined LIVE to the claims; after boot the nodes whose claims the cheap tiers settled are ESTABLISHED (fixed point; two sources agree; linear composition; interval domains — incl. the refutation, which is knowledge too)',
+      r.status_code == 200 and len(_kn) == 10 and all(_kn[k]['established'] for k in ('pf-fixed-point', 'pf-two-sources-agree', 'pf-linear-composition', 'pf-interval-domains')) and _kn['pf-interval-domains']['refutations'] == ['spectrum-valid-over-the-drag-coupling-range'], {k: (v['established'], v['why']) for k, v in _kn.items()})
+check('  …and the nodes resting on a LEAN theorem are established only once a person asked for it (minor symmetries + chain composition: proved above via the ladder → established; restriction: proved → established); the decomposition node stays NOT established — its claim is undetermined, said so',
+      (_kn['pf-minor-symmetries']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and (_kn['pf-chain-composition']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and not _kn['pf-decomposition-error']['established'] and 'undetermined' in _kn['pf-decomposition-error']['why'], {k: (v['established'], v['why']) for k, v in _kn.items()})
+check('  …the compute rungs are joined by name: what rtl / standard-cells / devices / layout rest on, each with its established flag', set(r.json['by_rung']) >= {'rtl', 'standard-cells', 'devices', 'layout'} and all('established' in x for x in r.json['by_rung']['rtl']))
 r = client.simulate_get('/api/mathproofs/aggregate')
 check('GET /api/mathproofs/aggregate: 30 claims (15 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
       r.status_code == 200 and r.json['claims'] == 30 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])

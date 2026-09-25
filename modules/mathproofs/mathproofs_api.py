@@ -10,7 +10,7 @@ the latest runs' elapsed and the worst case = the sum of budgets of the claims t
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathproofs.custom import checkers, rules, terms, proof_engines, authoring
+from mathproofs.custom import checkers, rules, terms, proof_engines, authoring, knowledge
 from mathproofs.custom.rows import by_name, _rows
 
 
@@ -32,6 +32,7 @@ class MathProofsAPI(treeObject):
             add('/api/mathproofs/claims', self, suffix='claims')
             add('/api/mathproofs/terms/preview', self, suffix='preview')
             add('/api/mathproofs/obligations/propose', self, suffix='propose')
+            add('/api/mathproofs/knowledge', self, suffix='knowledge')
 
     def _rows(self, cls):
         return _rows(self.manager, cls)
@@ -133,6 +134,10 @@ class MathProofsAPI(treeObject):
         if not r.get('ok'):
             response.status = '404 Not Found' if r.get('status') == 404 else '400 Bad Request'; response.media = r; return
         response.status = '201 Created'; response.media = r
+
+    def on_get_knowledge(self, request, response):
+        """pf-4: the tensor-proofs tech tree joined LIVE to the claims — what is actually established, per idea and per compute rung."""
+        response.media = {'ok': True, **knowledge.reading(self.manager)}
 
     def on_get_engines(self, request, response):
         """Where the lean checker WOULD run (the engines ladder's answer before any dispatch) — pf-2."""

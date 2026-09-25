@@ -111,3 +111,12 @@ MATHPROOFS_SEED_PAIRS = [
     ('ProofRun', ProofRun, []),
     ('ProofObligation', ProofObligation, []),
 ]
+# pf-4: proofs as KNOWLEDGE — the `tensor-proofs` tech tree (techtree rows; seeded only when techtree is present, as computelod does)
+from mathproofs.custom.knowledge import SEED_PROOF_TECH_TREES, SEED_PROOF_TECH_NODES, SEED_PROOF_TECH_SEGMENTS  # noqa: E402
+try:
+    from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment
+    MATHPROOFS_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_PROOF_TECH_TREES),
+                              ('TechNode', TechNode, SEED_PROOF_TECH_NODES),
+                              ('TechSegmentAssignment', TechSegmentAssignment, SEED_PROOF_TECH_SEGMENTS)]
+except Exception:   # pragma: no cover — techtree absent: the claims still seed, the knowledge tree waits
+    pass

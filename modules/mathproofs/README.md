@@ -14,6 +14,8 @@ change a mapping's `mapping_status` / `evidence_level`; their state is shown ON 
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py
     GET  /api/mathproofs · /claims/{name} · POST /claims/{name}/check?tier= · /rules · /obligations?tree=|mapping=
     POST /api/mathproofs/trees/{name}/obligations   (generate + run the cheap tiers)   · GET …/aggregate (the time reading)
+    POST …/claims · POST …/terms/preview · POST …/obligations/propose (pf-3: the doors a person writes through)
+    GET  …/engines (where lean would run) · GET …/knowledge (pf-4: the tensor-proofs tree joined live to the claims)
 
 At boot (`custom/boot.py`) every seeded tree's obligations are generated and every never-run claim is checked once
 through its cheapest tier (z3 inside its budget), so the panel's badges exist without a POST; the pass is bounded by

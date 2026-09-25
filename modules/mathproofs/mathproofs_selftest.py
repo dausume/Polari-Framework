@@ -24,7 +24,7 @@ sys.path.insert(0, FW); sys.path.insert(0, os.path.join(FW, 'modules'))
 
 from mathproofs.mathproofs_basis import MATHPROOFS_CLASSES, MathClaim, ProofRun, InferenceRule, ProofObligation, PROOF_STATUSES, CHECKERS  # noqa: E402
 from mathproofs.mathproofs_seed import MATHPROOFS_SEED_PAIRS, SEED_INFERENCE_RULES, SEED_MATH_CLAIMS  # noqa: E402
-from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot, lean_tier, proof_engines, authoring  # noqa: E402
+from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot, lean_tier, proof_engines, authoring, knowledge  # noqa: E402
 
 _results = []
 
@@ -52,7 +52,7 @@ _mk = lambda mgr: (lambda cls, **f: _add(mgr, cls.__name__, **f))
 check('the module registers exactly FOUR row classes', len(MATHPROOFS_CLASSES) == 4 and [c.__name__ for c in MATHPROOFS_CLASSES] == ['MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation'])
 c = MathClaim(name='x', kind='identity', statement_json='{}')
 check('MathClaim defaults: conjectured, no checker, evidence none, budget 25 s (D-pf-9, a knob; his 2026-09-25 number: the slowest honest instance took 19 s)', c.proof_status == 'conjectured' and c.checker == '' and c.evidence_level == 'none' and c.budget_s == 25.0)
-check('the seed pairs cover every class; eight inference rules; fifteen standalone claims (5 pf-0 + 7 pf-1 + 3 theorems pf-2)', {p[0] for p in MATHPROOFS_SEED_PAIRS} == {c_.__name__ for c_ in MATHPROOFS_CLASSES} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 15)
+check('the seed pairs cover every class (+ the techtree rows of the knowledge tree when techtree is present); eight inference rules; fifteen standalone claims (5 pf-0 + 7 pf-1 + 3 theorems pf-2)', {c_.__name__ for c_ in MATHPROOFS_CLASSES} <= {p[0] for p in MATHPROOFS_SEED_PAIRS} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 15)
 check('every seeded rule names a pattern, a claim kind and a default checker; two are honestly template-less (units, evidence rank: not decidable here)',
       all(r['pattern'] and r['obligation_kind'] and r['checker_default'] in CHECKERS for r in SEED_INFERENCE_RULES) and sum(1 for r in SEED_INFERENCE_RULES if r['template_json'] == '{}') == 2)
 
@@ -295,11 +295,29 @@ check('  …proposing twice is idempotent by name; a missing selection / mapping
 d3 = discover(m, sel, context_mapping='m1')
 check('  …and every discovery candidate now CARRIES the door (method, path, body incl. via) through the soft seam', all(c_.get('propose', {}).get('path') == '/api/mathproofs/obligations/propose' and c_['propose']['body'].get('via') == 'm1' for c_ in d3['candidates']), [c_.get('propose') for c_ in d3['candidates']][:1])
 
+# ---- pf-4: proofs as knowledge
+_names = {n['name'] for n in knowledge.SEED_PROOF_TECH_NODES}
+check('knowledge: the tensor-proofs tree has ten nodes; every dependency names a node of the tree; every node but the vocabulary root cites claims, rules or rungs',
+      len(_names) == 10 and all(d in _names for n in knowledge.SEED_PROOF_TECH_NODES for d in json.loads(n['depends_on_json'])) and all(json.loads(n['cross_refs_json']) for n in knowledge.SEED_PROOF_TECH_NODES if n['name'] != 'pf-witness-vs-proof'))
+_cited = {c['name'] for n in knowledge.SEED_PROOF_TECH_NODES for c in json.loads(n['cross_refs_json']) if c['class'] == 'MathClaim'}
+_seeded = {c_['name'] for c_ in SEED_MATH_CLAIMS}
+check('  …every seeded claim is cited by some node (no orphan results), and the generated obligations cited are named by the rules\' own naming (ob:<tree>:<rule>:<key>)',
+      _seeded <= _cited and all(c.startswith('ob:') for c in _cited - _seeded) and len(knowledge.SEED_PROOF_TECH_SEGMENTS) == len(_cited) + (len([1 for n in knowledge.SEED_PROOF_TECH_NODES for c in json.loads(n['cross_refs_json']) if c['class'] == 'MathClaim']) - len(_cited)), sorted(_seeded - _cited))
+m.objectTables.setdefault('TechNode', {})
+for n_ in knowledge.SEED_PROOF_TECH_NODES:
+    _add(m, 'TechNode', **n_)
+_add(m, 'MathClaim', name='sigma-from-strain-is-symmetric', kind='symmetry', about_refs_json='[]', statement_json=json.dumps({'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 2}}}), proof_status='checked-symbolically', checker='sympy', certificate_ref='', counterexample_json='{}', evidence_level='analytical', statement_hash='', statement_latex='', budget_s=25.0)
+_rd = knowledge.reading(m)
+_byn = {n_['node']: n_ for n_ in _rd['nodes']}
+check('knowledge.reading joins the tree to the claims LIVE: the vocabulary root is a concept (no claim cited → not "established", said so); the minor-symmetries node cites three claims, one present and ok, two missing on this fake instance → NOT established, naming why',
+      _byn['pf-witness-vs-proof']['established'] is False and 'concept' in _byn['pf-witness-vs-proof']['why'] and len(_byn['pf-minor-symmetries']['claims']) == 3 and _byn['pf-minor-symmetries']['established'] is False and 'missing' in _byn['pf-minor-symmetries']['why'], _byn['pf-minor-symmetries'])
+check('  …the compute rungs are joined by name: rtl rests on index notation + fixed point; standard-cells / devices / layout on the two-sources node', set(_rd['by_rung']) == {'rtl', 'microarchitecture', 'standard-cells', 'devices', 'layout'} and {x['node'] for x in _rd['by_rung']['rtl']} == {'pf-index-notation', 'pf-fixed-point'})
+
 # ---- manifest
 from moduleService.manifests import validate
 man = json.load(open(os.path.join(HERE, 'polari-app.json')))
 check('the manifest is valid, declares four classes + the API, requires sympy + z3 (libraries, in-process), and declares `lean` as an ENGINE (resolved through the engines ladder, never a device assumption)',
-      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'] and 'custom/authoring' in man['files']['custom'])
+      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'] and 'custom/authoring' in man['files']['custom'] and 'custom/knowledge' in man['files']['custom'])
 
 n_ok = sum(1 for _, ok in _results if ok)
 print('\n%d/%d checks passed' % (n_ok, len(_results)))
