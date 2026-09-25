@@ -146,7 +146,9 @@ def obligations_of(manager, tree=None, mapping=None):
 
 
 def logic_of_mapping(manager, mapping):
-    """For discovery (D-pf-3): {'refuted': [...], 'open': [...], 'ok': [...]} over the obligations that name this mapping."""
+    """For discovery (D-pf-3): {'refuted' (a counterexample), 'undetermined' (not defined here), 'open', 'ok'} over the obligations that name this mapping."""
     obs = obligations_of(manager, mapping=mapping)
-    return {'refuted': [o for o in obs if o['status'].startswith('refuted')], 'open': [o for o in obs if o['status'].split(' ')[0] in ('open', 'conjectured', 'unprovable-here') or '(stale)' in o['status']],
+    return {'refuted': [o for o in obs if o['status'].startswith('refuted')],
+            'undetermined': [o for o in obs if o['status'].startswith('undetermined')],
+            'open': [o for o in obs if o['status'].split(' ')[0] in ('open', 'conjectured', 'unprovable-here') or '(stale)' in o['status']],
             'ok': [o for o in obs if o['status'].split(' ')[0] in ('witnessed', 'decided', 'checked-symbolically', 'proved') and '(stale)' not in o['status']]}

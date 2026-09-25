@@ -15,6 +15,6 @@ from mathproofs.objects.mathproofs.ProofObligation import ProofObligation  # noq
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 MATHPROOFS_CLASSES = [MathClaim, ProofRun, InferenceRule, ProofObligation]
-PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'unprovable-here')
+PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'undetermined', 'unprovable-here')
 CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed')
 CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human')

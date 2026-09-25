@@ -6,6 +6,8 @@ detail, the rows-state hash) and the claim's `proof_status` / `checker` / `certi
 / `evidence_level` — by the honest vocabulary:
 
     numeric  holds → witnessed (evidence measured: on THESE rows)      refuted → refuted (counterexample kept)
+    any      undetermined → undetermined: the statement is NOT DEFINED here (a `given` premise fails, a value is
+             unrecorded) — the model shifts with the state space; nothing is falsified
     interval holds → decided   (evidence analytical: exact set arithmetic)
     sympy    holds → checked-symbolically (analytical: over symbols)
     z3       holds → decided; timeout → undecided (budget), status unchanged (D-pf-9)        [pf-1]
@@ -25,7 +27,7 @@ from mathproofs.custom.rows import rows_state_hash, by_name, _rows
 STATUS_FOR = {('numeric', 'holds'): ('witnessed', 'measured'), ('interval', 'holds'): ('decided', 'analytical'),
               ('sympy', 'holds'): ('checked-symbolically', 'analytical'), ('z3', 'holds'): ('decided', 'analytical'),
               ('lean', 'holds'): ('proved', 'analytical'), ('human', 'holds'): ('proved', 'analytical')}
-RANK = {'conjectured': 0, 'unprovable-here': 0, 'witnessed': 1, 'decided': 2, 'checked-symbolically': 2, 'proved': 3, 'refuted': 9}
+RANK = {'conjectured': 0, 'unprovable-here': 0, 'undetermined': 0, 'witnessed': 1, 'decided': 2, 'checked-symbolically': 2, 'proved': 3, 'refuted': 9}
 
 
 def auto_tier(term):
@@ -89,6 +91,9 @@ def check(manager, claim, tier=None, make=None, save=True):
     elif res['verdict'] == 'refuted':
         claim.proof_status = 'refuted'; claim.checker = res['tier']; claim.certificate_ref = run_name
         claim.counterexample_json = json.dumps(res.get('counterexample') or {}, default=str); claim.evidence_level = 'measured' if res['tier'] == 'numeric' else 'analytical'
+    elif res['verdict'] == 'undetermined':
+        # not defined here (a premise fails / a value is unrecorded): never a refutation, never vacuously true
+        claim.proof_status = 'undetermined'; claim.checker = res['tier']; claim.certificate_ref = run_name; claim.counterexample_json = '{}'; claim.evidence_level = 'none'
     elif res['verdict'] == 'unprovable-here' and before == 'conjectured':
         claim.proof_status = 'unprovable-here'; claim.checker = res['tier']; claim.certificate_ref = run_name
     if not getattr(claim, 'statement_hash', ''):
@@ -126,4 +131,4 @@ def _j(s, d):
 def status_of(manager, claim):
     """The claim's status as the world sees it now: `<status> (stale)` when the rows moved under its certificate."""
     st = str(getattr(claim, 'proof_status', 'conjectured'))
-    return st + ' (stale)' if st not in ('conjectured', 'unprovable-here') and stale(manager, claim) else st
+    return st + ' (stale)' if st not in ('conjectured', 'unprovable-here', 'undetermined') and stale(manager, claim) else st

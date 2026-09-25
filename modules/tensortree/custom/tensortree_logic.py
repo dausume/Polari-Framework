@@ -17,12 +17,13 @@ def available():
 
 
 def of_mapping(manager, mapping_name):
-    """{'available', 'refuted': [...], 'open': [...], 'ok': [...], 'badge': ok|open|refuted|none|unavailable}"""
+    """{'available', 'refuted', 'undetermined', 'open', 'ok', 'badge': ok|open|undetermined|refuted|none|unavailable}"""
     if not available():
-        return {'available': False, 'refuted': [], 'open': [], 'ok': [], 'badge': 'unavailable', 'why': 'no mathproofs module on this instance'}
+        return {'available': False, 'refuted': [], 'undetermined': [], 'open': [], 'ok': [], 'badge': 'unavailable', 'why': 'no mathproofs module on this instance'}
     from mathproofs.custom.rules import logic_of_mapping
     r = logic_of_mapping(manager, mapping_name)
-    badge = 'refuted' if r['refuted'] else ('open' if r['open'] else ('ok' if r['ok'] else 'none'))
+    # refuted = a counterexample exists; undetermined = not defined here (a premise fails / unrecorded); open = not yet checked; ok
+    badge = 'refuted' if r['refuted'] else ('undetermined' if r['undetermined'] else ('open' if r['open'] else ('ok' if r['ok'] else 'none')))
     return {'available': True, 'badge': badge, **r}
 
 

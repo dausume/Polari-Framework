@@ -13,6 +13,10 @@ Terms (v0):
     {"add"|"mul": [a, b, …]}                  arithmetic on numeric terms
     {"le"|"lt"|"ge"|"gt": [a, b]}
     {"and"|"or": [t, …]}   {"not": t}   {"implies": [t, t]}
+    {"given": <premise>, "holds": t}           three-valued: when the premise does not hold the verdict is UNDETERMINED
+                                              (the statement is not defined here — never refuted, never vacuously true)
+    {"recorded": {"ref": …, "path": […]}}     the value is present and not the empty/None placeholder ('' / None);
+                                              a numeric 0 IS a value — pair it with a method field to mean "recorded"
     {"forall": [{"var": "x", "in": <set>}], "holds": t}      <set> = "rows:<Class>[:<field>=<value>]" (finite: the
                                               rows themselves, `x` binds the row so {"ref": "x.<field>"} reads it)
                                               | "validity:<TensorMapping>" | "domain:<TensorNode>" (intervals per dim)
@@ -72,6 +76,10 @@ def _lat(t):
         return r'\lnot (%s)' % _lat(v)
     if k == 'implies':
         return '(%s) \\Rightarrow (%s)' % (_lat(v[0]), _lat(v[1]))
+    if k == 'given':
+        return r'\left[%s\right] \Rightarrow %s\ (\text{else undetermined})' % (_lat(v), _lat(t.get('holds')))
+    if k == 'recorded':
+        return r'\mathrm{recorded}(%s)' % _lat(v)
     if k == 'forall':
         binders = ', '.join(r'%s \in %s' % (b['var'], str(b['in']).replace('_', r'\_')) for b in v)
         return r'\forall\, %s:\ %s' % (binders, _lat(t.get('holds')))
@@ -124,6 +132,15 @@ def validate(term, path='$'):
                 errs += validate(x, '%s.%s[%d]' % (path, k, i))
     elif k == 'not':
         errs += validate(v, path + '.not')
+    elif k == 'given':
+        errs += validate(v, path + '.given')
+        if 'holds' not in term:
+            errs.append('%s.given: needs "holds"' % path)
+        else:
+            errs += validate(term['holds'], path + '.holds')
+    elif k == 'recorded':
+        if not isinstance(v, dict) or 'ref' not in v:
+            errs.append('%s.recorded: {"ref": …, "path": […]}' % path)
     elif k == 'forall':
         if not isinstance(v, list) or not all(isinstance(b, dict) and b.get('var') and str(b.get('in', '')).startswith(SET_PREFIXES) for b in v):
             errs.append('%s.forall: [{"var": name, "in": "rows:…|validity:…|domain:…"}]' % path)

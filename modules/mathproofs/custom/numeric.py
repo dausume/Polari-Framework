@@ -11,11 +11,17 @@ failing row IS the counterexample. A `forall` over an interval set is only decid
 a `subset`/`in`-shaped statement; anything needing real arithmetic over a continuum → unprovable-here (that is the
 z3 tier, pf-1).
 """
+import json
+
 from mathproofs.custom.rows import read_field, row_set, interval_set, dim_set
 
 
 class Unprovable(Exception):
     pass
+
+
+class Undetermined(Exception):
+    """The statement is not defined here: a premise (`given`) does not hold or a value it needs is not recorded."""
 
 
 MODIFIERS = ('tol', 'path', 'holds')
@@ -99,6 +105,19 @@ def _bool(manager, t, env):
             return True, {'antecedent': da, 'vacuous': True}, None
         ok_b, db, ce = _bool(manager, v[1], env)
         return ok_b, {'antecedent': da, 'consequent': db}, ce
+    if k == 'recorded':
+        try:
+            x = read_field(manager, v['ref'], v.get('path') or [], env)
+        except KeyError as exc:
+            return False, {'recorded': False, 'why': str(exc)}, {'unrecorded': v}
+        ok = x is not None and x != '' and x != [] and x != {}
+        return ok, {'recorded': ok, 'value': x if isinstance(x, (int, float, str, bool)) else type(x).__name__}, (None if ok else {'unrecorded': v})
+    if k == 'given':
+        ok_p, dp, _ = _bool(manager, v, env)
+        if not ok_p:
+            raise Undetermined('premise does not hold: %s' % json.dumps(dp, default=str)[:200])
+        ok, d, ce = _bool(manager, t['holds'], env)
+        return ok, {'given': dp, 'holds': d}, ce
     if k == 'subset':
         a, b = interval_set(manager, v[0]), interval_set(manager, v[1])
         bad = {}
@@ -134,6 +153,8 @@ def evaluate(manager, term):
     tier = 'interval' if (isinstance(term, dict) and _op(term) in ('subset', 'dims_subset')) else 'numeric'
     try:
         ok, detail, ce = _bool(manager, term, {})
+    except Undetermined as exc:
+        return {'verdict': 'undetermined', 'tier': tier, 'detail': {'why': str(exc)}, 'counterexample': None}
     except Unprovable as exc:
         return {'verdict': 'unprovable-here', 'tier': tier, 'detail': {'why': str(exc)}, 'counterexample': None}
     except KeyError as exc:

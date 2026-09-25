@@ -135,7 +135,7 @@ check('  …domain inclusion DECIDED on m1→m2 and REFUTED on m2→m3 (strain [
 check('  …dims compose on m1→m2; the dim nobody produced refutes m2→m3', names['ob:T:dims-compose:m1-m2']['status'] == 'decided' and names['ob:T:dims-compose:m2-m3']['status'] == 'refuted')
 check('  …σ symmetry on the contract operator: CHECKED-SYMBOLICALLY; the operator chain m1→m2 is linear: checked-symbolically; restriction idempotent: checked-symbolically',
       names['ob:T:operator-symmetry:m2']['status'] == 'checked-symbolically' and names['ob:T:operator-linear:m1-m2']['status'] == 'checked-symbolically' and names['ob:T:restriction-idempotent:res']['status'] == 'checked-symbolically')
-check('  …a decomposition with NO recorded reconstruction error is REFUTED (not passed vacuously)', names['ob:T:decomposition-reconstructs:dec']['status'] == 'refuted')
+check('  …a decomposition with NO recorded reconstruction error is UNDETERMINED — not defined yet, neither falsified nor vacuously true (the model is silent there)', names['ob:T:decomposition-reconstructs:dec']['status'] == 'undetermined')
 check('  …the template-less rules stand as UNPROVABLE-HERE obligations (units-compose) — a visible gap, not silence', names['ob:T:units-compose:m1-m2']['status'] == 'unprovable-here')
 check('  …re-generation is idempotent by name (no duplicate claims / obligations)', len(rules.generate(m, 'T', make=_mk(m), save=False)['obligations']) == len(g['obligations']) and len(m.objectTables['ProofObligation']) == len(g['obligations']))
 lm = rules.logic_of_mapping(m, 'm3')
@@ -153,7 +153,14 @@ for mm in m.objectTables['TensorMapping'].values():
 sel = _add(m, 'TensorSelection', name='sel-s', node='s', ranges_json=json.dumps({'n': [0, 10], 'i': [0, 2], 'j': [0, 2], 'extra': [0, 1], 'strain': [0, 0.0005]}))
 d = discover(m, sel)
 check('discovery from node s REFUSES m3 (its obligation is refuted: domains, dims) naming the obligation and the counterexample; other candidates carry a logic badge',
-      any(r_['mapping'] == 'm3' and 'REFUTED' in r_['why'] for r_ in d['refused']) and all('logic' in c_ for c_ in d['candidates']), (d['refused'], [c_['mapping'] for c_ in d['candidates']]))
+      any(r_['mapping'] == 'm3' and 'falsified' in r_['why'] for r_ in d['refuted']) and all('logic' in c_ for c_ in d['candidates']), (d['refuted'], [c_['mapping'] for c_ in d['candidates']]))
+_add(m, 'TensorMapping', name='dec2', kind='decomposition', source_node='s', target_node='s', source_dims_json='["n"]', target_dims_json='["mode"]', validity_json='{}', expression_ref='', reconstruction_error=0.03, error_method='frobenius-relative', mapping_status='implemented', evidence_level='none', uncertainty_json='{}', evidence_ref='', loss_note='')
+g2 = rules.generate(m, 'T', make=_mk(m), save=False); n2 = {o['obligation']: o for o in g2['obligations']}
+check('  …and a decomposition WITH a recorded error (method named, 0.03 ≤ 0.05) is WITNESSED; the vocabulary tells the two apart', n2['ob:T:decomposition-reconstructs:dec2']['status'] == 'witnessed' and n2['ob:T:decomposition-reconstructs:dec']['status'] == 'undetermined')
+r = numeric.evaluate(m, {'given': {'recorded': {'ref': 'TensorMapping:dec', 'path': ['error_method']}}, 'holds': {'le': [1, 2]}})
+check('  …`given` with an unrecorded premise → verdict undetermined, no counterexample', r['verdict'] == 'undetermined' and r['counterexample'] is None)
+d2 = discover(m, sel)
+check('  …discovery: an inapplicable mapping (outside the state space) and a refuted one are DIFFERENT lists with different words; the old `refused` key is their union', 'inapplicable' in d2 and 'refuted' in d2 and len(d2['refused']) == len(d2['inapplicable']) + len(d2['refuted']))
 
 # ---- manifest
 from moduleService.manifests import validate

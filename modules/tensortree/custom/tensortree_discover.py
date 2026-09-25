@@ -78,7 +78,7 @@ def _validity_coverage(mapping, ranges):
 def discover(manager, selection, context_node=''):
     node = str(getattr(selection, 'node', '') or ''); ranges = _j(getattr(selection, 'ranges_json', '{}'), {})
     have = set(ranges.keys()); pol = policy(manager)
-    out, refused = [], []
+    out, inapplicable, refuted = [], [], []   # three words for three things: not defined here | falsified | scored
     for m in _rows(manager, 'TensorMapping'):
         name = str(getattr(m, 'name', ''))
         if str(getattr(m, 'source_node', '') or '') != node:
@@ -86,11 +86,12 @@ def discover(manager, selection, context_node=''):
         need = [str(d) for d in _j(getattr(m, 'source_dims_json', '[]'), [])]
         missing = [d for d in need if d not in have]
         if missing:
-            refused.append({'mapping': name, 'why': 'needs dims not in the selection: ' + ', '.join(missing)}); continue
+            inapplicable.append({'mapping': name, 'kind': 'dims-not-in-selection', 'why': 'not defined on this selection: it needs dims the selection does not have (%s)' % ', '.join(missing)}); continue
         V = _validity_coverage(m, ranges)
         if V is None:
-            refused.append({'mapping': name, 'why': 'the selection lies outside the mapping\'s validity domain'}); continue
-        # pf-0 / D-pf-3: a mapping whose proof obligation is REFUTED is refused with the counterexample; an open one is shown
+            inapplicable.append({'mapping': name, 'kind': 'outside-validity', 'why': 'not defined on this state space: the selection lies outside the mapping\'s validity domain (the model shifts with the state, it is not falsified)'}); continue
+        # pf-0 / D-pf-3: a mapping with a genuinely FALSIFIED obligation (a counterexample exists) is set aside as refuted;
+        # an open or undetermined one is shown with its badge and still scored
         try:
             from tensortree.custom.tensortree_logic import of_mapping
             logic = of_mapping(manager, name)
@@ -98,7 +99,7 @@ def discover(manager, selection, context_node=''):
             logic = {'available': False, 'refuted': [], 'open': [], 'ok': [], 'badge': 'unavailable'}
         if logic['refuted']:
             r0 = logic['refuted'][0]
-            refused.append({'mapping': name, 'why': 'a proof obligation is REFUTED: %s (%s) — counterexample %s' % (r0['name'], r0['rule'], r0.get('counterexample')), 'logic': logic['badge']}); continue
+            refuted.append({'mapping': name, 'kind': 'obligation-refuted', 'why': 'falsified: obligation %s (%s) has a counterexample %s' % (r0['name'], r0['rule'], r0.get('counterexample')), 'logic': logic['badge']}); continue
         E, ekey = evidence_score(m, pol)
         D = (len(need) / max(len(have), 1)) if need else 0.5
         C = 1.0 if (context_node and str(getattr(m, 'target_node', '')) == context_node) else 0.5
@@ -114,5 +115,7 @@ def discover(manager, selection, context_node=''):
                     'loss_note': str(getattr(m, 'loss_note', '') or ''),
                     'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']]})
     out.sort(key=lambda r: -r['score'])
-    return {'selection': str(getattr(selection, 'name', '')), 'node': node, 'candidates': out, 'refused': refused,
-            'policy': pol, 'note': 'hard filters first (dims, validity domain); the score only ORDERS valid candidates — the user chooses'}
+    return {'selection': str(getattr(selection, 'name', '')), 'node': node, 'candidates': out, 'inapplicable': inapplicable, 'refuted': refuted,
+            'refused': inapplicable + refuted,   # the pre-2026-09-25 key, kept for readers: the union, each entry saying which it is
+            'policy': pol, 'note': 'inapplicable = not defined on this selection\'s state space (dims, validity) — the model shifts with the state, nothing is falsified; '
+                                   'refuted = a proof obligation with a counterexample; the score only ORDERS applicable candidates — the user chooses'}

@@ -34,6 +34,6 @@ class ProofObligation(treeObject):
         self.structure_json = structure_json  # {"chain": [m1, m2], "node": n} — what matched
         self.about_refs_json = about_refs_json
         self.discharged_by = discharged_by  # MathClaim.name
-        self.status = status  # open | witnessed | checked-symbolically | decided | proved | refuted | unprovable-here | stale
+        self.status = status  # open | witnessed | checked-symbolically | decided | proved | refuted | undetermined | unprovable-here | stale
         self.generated_at = generated_at
         self.notes = notes

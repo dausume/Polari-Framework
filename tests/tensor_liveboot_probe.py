@@ -126,15 +126,17 @@ r = client.simulate_post('/api/mathproofs/trees/plate-mechanics/obligations')
 check('POST trees/plate-mechanics/obligations: the rules find the chain u→ε→σ→balance — domains and dims compose (DECIDED ×4), linearity ×2 and σ-symmetry over symbols (CHECKED-SYMBOLICALLY ×3), units an OPEN gap by name (×2)',
       r.status_code == 201 and r.json['summary'] == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2}, r.json.get('summary'))
 r = client.simulate_post('/api/mathproofs/trees/wind-spatial/obligations')
-check('POST trees/wind-spatial/obligations: the proposed decomposition wind-grid→spectrum is REFUTED (no recorded reconstruction error — a decomposition must say what it loses); the restriction is idempotent over symbols',
-      r.status_code == 201 and r.json['summary'] == {'refuted': 1, 'checked-symbolically': 1} and any(o['obligation'].endswith('wind-grid→spectrum') and o['status'] == 'refuted' for o in r.json['obligations']), r.json.get('summary'))
+check('POST trees/wind-spatial/obligations: the proposed decomposition wind-grid→spectrum is UNDETERMINED (no recorded reconstruction error — not defined yet, not falsified); the restriction is idempotent over symbols',
+      r.status_code == 201 and r.json['summary'] == {'undetermined': 1, 'checked-symbolically': 1} and any(o['obligation'].endswith('wind-grid→spectrum') and o['status'] == 'undetermined' for o in r.json['obligations']), r.json.get('summary'))
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('the validator now carries a `logic` section (soft seam): the plate\'s obligations and their summary', r.status_code == 200 and r.json['validation']['logic']['available'] and r.json['validation']['logic']['summary'].get('decided') == 4, r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/view')
 _b = {mm['name']: mm['logic']['badge'] for mm in r.json['mappings']}
-check('/view shows the proof state ON each mapping (D-pf-8: a badge, never folded into mapping_status): spectrum refuted, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'refuted' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
+check('/view shows the proof state ON each mapping (D-pf-8: a badge, never folded into mapping_status): spectrum undetermined, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'undetermined' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
 _sp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 'name', '') == 'wind-grid→spectrum')
-check('  …and the refuted mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
+check('  …and the mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
+check('  …discovery on the gusty selection lists the spectrum as INAPPLICABLE (outside its validity — the state space, not a falsification), and nothing as refuted',
+      any(x['mapping'] == 'wind-grid→spectrum' and x['kind'] == 'outside-validity' for x in client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'}).json['discovery']['inapplicable']))
 r = client.simulate_get('/api/mathproofs/aggregate')
 check('GET /api/mathproofs/aggregate: 16 claims (5 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, no long-running claims yet (worst case 0 s)',
       r.status_code == 200 and r.json['claims'] == 16 and r.json['runs_recorded'] == 14 and r.json['latest_runs_elapsed_s'] < 5 and r.json['worst_case_s'] == 0, r.text[:200])

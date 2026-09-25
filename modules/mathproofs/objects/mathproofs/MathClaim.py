@@ -43,7 +43,7 @@ class MathClaim(treeObject):
         self.statement_latex = statement_latex  # derived from the term, for people
         self.assumptions_json = assumptions_json  # JSON [MathClaim names or plain hypotheses]
         self.scope_json = scope_json  # the validity domain claimed over ({dim: [lo, hi]})
-        self.proof_status = proof_status  # conjectured | witnessed | checked-symbolically | decided | proved | refuted | unprovable-here
+        self.proof_status = proof_status  # conjectured | witnessed | checked-symbolically | decided | proved | refuted (a counterexample) | undetermined (not defined here: premise/unrecorded) | unprovable-here (no tier can lower it)
         self.checker = checker  # numeric | interval | sympy | z3 | lean | human — the tier that set proof_status
         self.certificate_ref = certificate_ref  # a ProofRun name, a .lean path + sha, a signed note
         self.counterexample_json = counterexample_json  # the point that breaks it, when refuted
