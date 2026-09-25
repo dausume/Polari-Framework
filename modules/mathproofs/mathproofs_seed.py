@@ -5,7 +5,8 @@ pf-0 seeds: the EIGHT inference rules (the logic between parts of a tree, as dat
 claims of §I.5 the cheap tiers can speak to today (lod cross-checks as claims; σ = C:ε symmetry over symbols).
 pf-1 adds the z3 claims (the tt-3 kernel's fixed-point contract over machine integers and the continuum; two
 domain statements over the wind tree, one of them refuted by a model) and the parasitics verdict as two inequalities;
-the decomposition bound became the rule's knob (`params_json.bound`). Obligations themselves are GENERATED per tree —
+the decomposition bound became the rule's knob (`params_json.bound`); pf-2 adds the three theorem claims (D-pf-10),
+proved by committed .lean certificates when a person asks. Obligations themselves are GENERATED per tree —
 at boot (custom/boot.py) and on `POST /api/mathproofs/trees/{name}/obligations` — not seeded.
 """
 import json
@@ -91,6 +92,17 @@ SEED_MATH_CLAIMS = [
     _C(name='spectrum-valid-over-the-drag-coupling-range', kind='domain-inclusion', about_refs_json=json.dumps(['TensorMapping:wind-grid→spectrum', 'TensorMapping:wind-grid→bob-drag']),
        statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:wind-grid→bob-drag'}], 'holds': {'in': ['x', 'validity:wind-grid→spectrum']}}),
        description='the converse — is the decomposition valid wherever the drag coupling is? REFUTED by a model: a wind speed inside the coupling\'s range and outside the decomposition\'s (the counterexample is a real point, kept)'),
+    # ---- pf-2: the theorems (D-pf-10) — proved by committed .lean certificates in polari-proof-tools, checked through the
+    # engines worker when a PERSON asks (never at boot); budget 300 s: Mathlib's imports load before the check runs
+    _C(name='sigma-symmetry-general-rank', kind='symmetry', about_refs_json=json.dumps(['TensorMapping:eps→sigma']), budget_s=300.0,
+       statement_json=json.dumps({'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 'any'}}}),
+       description='THE THEOREM (D-pf-10 a): σ = C:ε is symmetric in EVERY rank n given C\'s first minor symmetry — sympy checked 2-D and 3-D; the general statement is proved by PolariProofs/SigmaSymmetry.lean under the pinned Lean + Mathlib'),
+    _C(name='chain-domains-compose-lemma', kind='composition', about_refs_json=json.dumps(['InferenceRule:chain-domain-inclusion']), budget_s=300.0,
+       statement_json=json.dumps({'symbolic': {'template': 'chain-domains-compose', 'args': {'links': 'any'}}}),
+       description='THE TREE-COMPOSITION LEMMA (D-pf-10 b): pairwise inclusion V_{i+1} ⊆ V_i along a chain makes the chain valid on the last domain, which IS the intersection — the reason the chain-domain-inclusion rule\'s pairwise obligations suffice; PolariProofs/ChainComposition.lean'),
+    _C(name='restriction-idempotent-theorem', kind='identity', about_refs_json='[]', budget_s=300.0,
+       statement_json=json.dumps({'symbolic': {'template': 'restriction-idempotent', 'args': {}}}),
+       description='the toolchain smoke test (D-pf-10 c): the same statement the sympy tier checks for a fixed range, as a Lean theorem over any index type — PolariProofs/RestrictionIdempotent.lean; ask ?tier=lean'),
 ]
 
 MATHPROOFS_SEED_PAIRS = [

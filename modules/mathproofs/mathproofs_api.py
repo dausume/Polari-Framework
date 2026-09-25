@@ -1,14 +1,15 @@
 """
 @module mathproofs.mathproofs_api
 
-/api/mathproofs — claims, rules, obligations, runs; check a claim through a tier; (re)generate a tree's obligations.
+/api/mathproofs — claims, rules, obligations, runs; check a claim through a tier; (re)generate a tree's obligations;
+`engines` = where the lean checker would run (the ladder's answer, pf-2).
 Every number a person could act on is here: per claim the latest run's elapsed, per tree the AGGREGATE (the sum of
 the latest runs' elapsed and the worst case = the sum of budgets of the claims that can run long) — D-pf-9.
 """
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathproofs.custom import checkers, rules, terms
+from mathproofs.custom import checkers, rules, terms, proof_engines
 from mathproofs.custom.rows import by_name, _rows
 
 
@@ -26,6 +27,7 @@ class MathProofsAPI(treeObject):
             add('/api/mathproofs/obligations', self, suffix='obligations')
             add('/api/mathproofs/trees/{name}/obligations', self, suffix='tree_obligations')
             add('/api/mathproofs/aggregate', self, suffix='aggregate')
+            add('/api/mathproofs/engines', self, suffix='engines')
 
     def _rows(self, cls):
         return _rows(self.manager, cls)
@@ -60,7 +62,7 @@ class MathProofsAPI(treeObject):
             st = checkers.status_of(self.manager, c).split(' ')[0]; by_status[st] = by_status.get(st, 0) + 1
         response.media = {'ok': True, 'claims': [self._claim_view(c) for c in claims], 'by_status': by_status,
                           'rules': [str(r.name) for r in self._rows('InferenceRule') if getattr(r, 'enabled', True)], 'obligations': len(self._rows('ProofObligation')),
-                          'tiers': ['numeric (witness on the rows: measured)', 'interval (exact set arithmetic: decided)', 'sympy (over symbols: checked-symbolically)', 'z3 (pf-1)', 'lean (pf-2, an engines worker)', 'human (a signed note, labelled)'],
+                          'tiers': ['numeric (witness on the rows: measured)', 'interval (exact set arithmetic: decided)', 'sympy (over symbols: checked-symbolically)', 'z3 (over the continuum / machine integers within budget_s: decided)', 'lean (a committed theorem checked by the polari-proof-tools engines worker: proved; never automatic)', 'human (a signed note, labelled)'],
                           'aggregate': self.aggregate(claims), 'vocabulary': 'proofs never change a mapping\'s mapping_status or evidence_level (D-pf-8); a refuted claim keeps its counterexample'}
 
     def on_get_claim(self, request, response, name):
@@ -109,6 +111,10 @@ class MathProofsAPI(treeObject):
 
     def on_get_aggregate(self, request, response):
         response.media = {'ok': True, **self.aggregate(self._rows('MathClaim'))}
+
+    def on_get_engines(self, request, response):
+        """Where the lean checker WOULD run (the engines ladder's answer before any dispatch) — pf-2."""
+        response.media = {'ok': True, 'placement': proof_engines.placement()}
 
 
 def _j(s, d):

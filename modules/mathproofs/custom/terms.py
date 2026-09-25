@@ -29,9 +29,12 @@ Terms (v0):
                                               a kernel's fixed-point contract decided over machine integers (z3 tier);
                                               the bounds are numeric terms — read from rows, never typed twice
     {"dims_subset": ["<TensorMapping>.source_dims", "<TensorNode>.dims" | "<TensorMapping>.target_dims"]}
-    {"symbolic": {"template": "symmetry-of-contraction" | "linear-composition" | "restriction-idempotent",
-                  "args": {...}}}             discharged by the sympy tier (custom/symbolic.py) — the template names
-                                              WHAT is proved; the args name the rows
+    {"symbolic": {"template": "symmetry-of-contraction" | "linear-composition" | "restriction-idempotent"
+                              | "chain-domains-compose", "args": {...}}}
+                                              discharged by the sympy tier (custom/symbolic.py) at a FIXED size, or by
+                                              the lean tier (custom/lean_tier.py) in general — {"n": "any"} / {"links":
+                                              "any"} name the general statement, which only a committed theorem proves;
+                                              the template names WHAT is proved; the args name the rows / the size
 
 `canonical(term)` → a stable JSON string; `statement_hash(term)` → sha256 of it (the bridge to a .lean certificate).
 `to_latex(term)` → a reading for people, derived, never authored separately.
@@ -41,6 +44,7 @@ import json
 
 SET_PREFIXES = ('rows:', 'validity:', 'domain:', 'scope:')
 BITVECTOR_TEMPLATES = ('mac-no-overflow',)
+SYMBOLIC_TEMPLATES = ('symmetry-of-contraction', 'linear-composition', 'restriction-idempotent', 'chain-domains-compose')
 MODIFIERS = ('tol', 'path', 'holds')
 
 
@@ -104,7 +108,8 @@ def _lat(t):
     if k == 'symbolic':
         return {'symmetry-of-contraction': r'\sigma_{ij} = C_{ijkl}\varepsilon_{kl},\ C_{ijkl}=C_{jikl}=C_{ijlk},\ \varepsilon_{kl}=\varepsilon_{lk} \Rightarrow \sigma_{ij}=\sigma_{ji}',
                 'linear-composition': r'(g \circ f)(\alpha u + \beta v) = \alpha (g\circ f)(u) + \beta (g \circ f)(v)',
-                'restriction-idempotent': r'R(R(T)) = R(T)'}.get(v.get('template', ''), r'\mathrm{symbolic}')
+                'restriction-idempotent': r'R(R(T)) = R(T)',
+                'chain-domains-compose': r'\forall i:\ V_{i+1} \subseteq V_i\ \Rightarrow\ \bigcap_{i \le n} V_i = V_n'}.get(v.get('template', ''), r'\mathrm{symbolic}') + (r'\quad(\forall n)' if 'any' in str((v.get('args') or {}).values()) else '')
     return '?'
 
 
@@ -179,8 +184,8 @@ def validate(term, path='$'):
         if not (isinstance(v, list) and len(v) == 2):
             errs.append('%s.dims_subset: two dim sets' % path)
     elif k == 'symbolic':
-        if not isinstance(v, dict) or v.get('template') not in ('symmetry-of-contraction', 'linear-composition', 'restriction-idempotent'):
-            errs.append('%s.symbolic: a known template' % path)
+        if not isinstance(v, dict) or v.get('template') not in SYMBOLIC_TEMPLATES:
+            errs.append('%s.symbolic: a known template (%s)' % (path, ', '.join(SYMBOLIC_TEMPLATES)))
     else:
         errs.append('%s: unknown operator %r' % (path, k))
     return errs

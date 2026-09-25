@@ -11,7 +11,8 @@ the first non-zero component as the counterexample-shaped detail.
                               contractions with fixed tensors) — in v0: matrices A (f) and B (g) over symbols
     restriction-idempotent    R(R(T)) = R(T) for an index-range restriction R (a slice: keep indices in a range)
 
-Anything else → unprovable-here (a template is added, never a free expression parsed from a string).
+Anything else → unprovable-here (a template is added, never a free expression parsed from a string). An arg of "any"
+(the general statement, every n) is the lean tier's — sympy names it and steps aside.
 """
 import itertools
 
@@ -72,9 +73,11 @@ def evaluate(term):
     if not (isinstance(term, dict) and 'symbolic' in term):
         return {'verdict': 'unprovable-here', 'tier': 'sympy', 'detail': {'why': 'not a symbolic template (v0 proves templates, never free strings)'}, 'counterexample': None}
     spec = term['symbolic']; name = spec.get('template'); args = spec.get('args') or {}
+    if any(str(v) == 'any' for v in args.values()):
+        return {'verdict': 'unprovable-here', 'tier': 'sympy', 'detail': {'why': 'the GENERAL statement (%s over every size) is a theorem — the lean tier; sympy checks a fixed size' % name}, 'counterexample': None}
     fn = TEMPLATES.get(name)
     if fn is None:
-        return {'verdict': 'unprovable-here', 'tier': 'sympy', 'detail': {'why': 'no template %r' % name}, 'counterexample': None}
+        return {'verdict': 'unprovable-here', 'tier': 'sympy', 'detail': {'why': 'no sympy template %r (chain-domains-compose is a lean theorem; over a concrete chain the interval/z3 tiers decide each pair)' % name}, 'counterexample': None}
     try:
         r = fn(**{k: (tuple(v) if isinstance(v, list) else v) for k, v in args.items()})
     except Exception as exc:

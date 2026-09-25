@@ -116,8 +116,11 @@ check('the bob\'s own tree (bob-motion) validates on a real boot with its root r
 # pf-0/pf-1: proofs as rows — the seeded claims checked on real rows AT BOOT (custom/boot.py), the obligations of every
 # seeded tree generated AT BOOT by the rules (no POST needed for the badges), the z3 tier deciding over the continuum
 r = client.simulate_get('/api/mathproofs')
-check('GET /api/mathproofs: twelve seeded claims + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
-      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 12 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+check('GET /api/mathproofs: fifteen seeded claims (12 + the 3 theorems) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
+      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 15 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+_thm = {c['name']: c['status'] for c in r.json['claims'] if c['name'] in ('sigma-symmetry-general-rank', 'chain-domains-compose-lemma', 'restriction-idempotent-theorem')}
+check('  …after boot the two GENERAL theorems (pf-2) are still CONJECTURED — lean is never run automatically (plan §I.9) — while the smoke statement, whose cheapest tier is sympy, is checked-symbolically at a fixed size',
+      _thm == {'sigma-symmetry-general-rank': 'conjectured', 'chain-domains-compose-lemma': 'conjectured', 'restriction-idempotent-theorem': 'checked-symbolically'}, _thm)
 _st = {c['name']: (c['status'], c['checker']) for c in r.json['claims']}
 check('AT BOOT, with no POST: the lod cross-checks WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; the parasitics verdict as two inequalities), σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
       all(_st.get(n) == ('witnessed', 'numeric') for n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-every-rise-gap', 'fpga-C-in-kPa-fits-int32-for-electrical-steel'))
@@ -155,9 +158,29 @@ _sp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 
 check('  …and the mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
 check('  …discovery on the gusty selection lists the spectrum as INAPPLICABLE (outside its validity — the state space, not a falsification), and nothing as refuted',
       any(x['mapping'] == 'wind-grid→spectrum' and x['kind'] == 'outside-validity' for x in client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'}).json['discovery']['inapplicable']))
+# pf-2: the lean tier through the engines ladder — placement first, then the real check where an engine exists
+r = client.simulate_get('/api/mathproofs/engines')
+_pl = r.json.get('placement', {})
+check('GET /api/mathproofs/engines: the engines LADDER answers for lean before any dispatch (remote | local-project | local-image | refused with BOTH knobs named), provider module mathproofs.engines, lean never automatic',
+      r.status_code == 200 and _pl.get('provider_module') == 'mathproofs.engines' and _pl['engines']['lean']['how'] in ('remote', 'local-project', 'local-image', 'refused') and 'never run automatically' in _pl.get('policy', ''), r.text[:300])
+if _pl['engines']['lean']['how'] != 'refused':
+    for _n in ('restriction-idempotent-theorem', 'sigma-symmetry-general-rank', 'chain-domains-compose-lemma'):
+        r = client.simulate_post('/api/mathproofs/claims/%s/check' % _n, params={'tier': 'lean'})
+        _d = r.json.get('detail') or {}
+        check('POST claims/%s/check?tier=lean via %s: lean ACCEPTS the committed certificate under the pinned toolchain (%s + mathlib %s), its header cites this statement\'s hash → PROVED, evidence analytical (%s s)' % (
+              _n, _pl['engines']['lean']['how'], _d.get('pins', {}).get('lean'), str(_d.get('pins', {}).get('mathlib', ''))[:12], _d.get('elapsed_s')),
+              r.status_code == 201 and r.json['verdict'] == 'holds' and r.json['after'] == 'proved' and _d.get('hash_matches') and str(_d.get('pins', {}).get('lean', '')).endswith('v4.34.1') and r.json['claim_now']['evidence_level'] == 'analytical', r.text[:400])
+    r = client.simulate_get('/api/mathproofs/claims/sigma-symmetry-general-rank')
+    check('  …the certificate is on the run: file, its sha256, the pins, where it ran', r.status_code == 200 and r.json['runs'][-1]['detail']['file'] == 'PolariProofs/SigmaSymmetry.lean' and r.json['runs'][-1]['detail']['file_sha256'] and 'v4.34.1' in r.json['runs'][-1]['version'], r.text[:300])
+    _lean_claims = 3
+else:
+    r = client.simulate_post('/api/mathproofs/claims/restriction-idempotent-theorem/check', params={'tier': 'lean'})
+    check('POST …/check?tier=lean with NO engine on this device: unprovable-here naming both knobs (PROOF_ENGINES_URL / pol allocate mathproofs.engines) — an honest refusal, no device assumed; the claim stays unproved',
+          r.status_code == 201 and r.json['verdict'] == 'unprovable-here' and 'pol allocate mathproofs.engines' in r.json['detail']['why'] and r.json['after'] != 'proved', r.text[:300])
+    _lean_claims = 3
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 23 claims (12 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, FIVE long-running (z3) claims → worst case 125 s (the four seeded z3 claims + the obligation a person asked z3 to re-derive; 25 s budget knob each)',
-      r.status_code == 200 and r.json['claims'] == 23 and r.json['runs_recorded'] == 21 and r.json['latest_runs_elapsed_s'] < 10 and r.json['worst_case_s'] == 125 and r.json['long_running_claims'] == 5, r.text[:300])
+check('GET /api/mathproofs/aggregate: 26 claims (15 seeded + 11 generated), the elapsed sum small, EIGHT long-running claims → worst case 1025 s (five z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
+      r.status_code == 200 and r.json['claims'] == 26 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1025 and r.json['long_running_claims'] == 8, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

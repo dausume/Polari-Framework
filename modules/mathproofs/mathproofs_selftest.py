@@ -24,7 +24,7 @@ sys.path.insert(0, FW); sys.path.insert(0, os.path.join(FW, 'modules'))
 
 from mathproofs.mathproofs_basis import MATHPROOFS_CLASSES, MathClaim, ProofRun, InferenceRule, ProofObligation, PROOF_STATUSES, CHECKERS  # noqa: E402
 from mathproofs.mathproofs_seed import MATHPROOFS_SEED_PAIRS, SEED_INFERENCE_RULES, SEED_MATH_CLAIMS  # noqa: E402
-from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot  # noqa: E402
+from mathproofs.custom import terms, numeric, symbolic, checkers, rules, z3tier, boot, lean_tier, proof_engines  # noqa: E402
 
 _results = []
 
@@ -52,7 +52,7 @@ _mk = lambda mgr: (lambda cls, **f: _add(mgr, cls.__name__, **f))
 check('the module registers exactly FOUR row classes', len(MATHPROOFS_CLASSES) == 4 and [c.__name__ for c in MATHPROOFS_CLASSES] == ['MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation'])
 c = MathClaim(name='x', kind='identity', statement_json='{}')
 check('MathClaim defaults: conjectured, no checker, evidence none, budget 25 s (D-pf-9, a knob; his 2026-09-25 number: the slowest honest instance took 19 s)', c.proof_status == 'conjectured' and c.checker == '' and c.evidence_level == 'none' and c.budget_s == 25.0)
-check('the seed pairs cover every class; eight inference rules; twelve standalone claims (5 pf-0 + 7 pf-1)', {p[0] for p in MATHPROOFS_SEED_PAIRS} == {c_.__name__ for c_ in MATHPROOFS_CLASSES} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 12)
+check('the seed pairs cover every class; eight inference rules; fifteen standalone claims (5 pf-0 + 7 pf-1 + 3 theorems pf-2)', {p[0] for p in MATHPROOFS_SEED_PAIRS} == {c_.__name__ for c_ in MATHPROOFS_CLASSES} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 15)
 check('every seeded rule names a pattern, a claim kind and a default checker; two are honestly template-less (units, evidence rank: not decidable here)',
       all(r['pattern'] and r['obligation_kind'] and r['checker_default'] in CHECKERS for r in SEED_INFERENCE_RULES) and sum(1 for r in SEED_INFERENCE_RULES if r['template_json'] == '{}') == 2)
 
@@ -154,7 +154,51 @@ check('  …a symbolic holds → CHECKED-SYMBOLICALLY, evidence ANALYTICAL; auto
 res = checkers.check(m, cs, tier='numeric', make=_mk(m), save=False)
 check('  …the numeric tier cannot lower a symbolic term → unprovable-here, and the STRONGER verdict stands (a weaker tier never overwrites)', res['verdict'] == 'unprovable-here' and cs.proof_status == 'checked-symbolically')
 res = checkers.check(m, cs, tier='lean', make=_mk(m), save=False)
-check('  …the lean tier refuses by name until pf-2 (an engines worker), status unchanged', res['verdict'] == 'unprovable-here' and 'pf-2' in res['detail']['why'] and cs.proof_status == 'checked-symbolically')
+check('  …the lean tier on a FIXED-size symbolic term (n = 2) has no committed theorem for it → unprovable-here naming the templates proved; status unchanged', res['verdict'] == 'unprovable-here' and 'no committed theorem' in res['detail']['why'] and cs.proof_status == 'checked-symbolically')
+
+# ---- lean (pf-2): the ladder, the statement_hash bridge, the honest verdicts — with the worker faked, then real when present
+_t_gen = {'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 'any'}}}
+_t_chain = {'symbolic': {'template': 'chain-domains-compose', 'args': {'links': 'any'}}}
+check('lean: the general statements (n = any; the chain lemma) auto-tier to LEAN and map to committed theorem files; sympy names them as the lean tier\'s and steps aside',
+      checkers.auto_tier(_t_gen) == 'lean' and checkers.auto_tier(_t_chain) == 'lean' and lean_tier.theorem_for(_t_gen) == 'PolariProofs/SigmaSymmetry.lean' and lean_tier.theorem_for(_t_chain) == 'PolariProofs/ChainComposition.lean'
+      and 'lean tier' in symbolic.evaluate(_t_gen)['detail']['why'] and checkers.auto_tier({'symbolic': {'template': 'restriction-idempotent', 'args': {}}}) == 'sympy')
+check('  …validate accepts the chain-domains-compose template; its LaTeX is derived (∀ n marked)', terms.validate(_t_chain) == [] and '(\\forall n)' in terms.to_latex(_t_gen) and 'bigcap' in terms.to_latex(_t_chain))
+_saved = (dict(os.environ), proof_engines.PROJECT, proof_engines.IMAGE, proof_engines.check)
+os.environ.pop('PROOF_ENGINES_URL', None); proof_engines.PROJECT = ''; proof_engines.IMAGE = 'no-such-image:none'; proof_engines._IMAGE_CACHE.clear()
+_place = proof_engines.resolve()
+check('  …the engines LADDER with nothing present REFUSES naming BOTH knobs (PROOF_ENGINES_URL, pol allocate mathproofs.engines) — never a device assumption', _place['how'] == 'refused' and 'PROOF_ENGINES_URL' in _place['why'] and 'pol allocate mathproofs.engines' in _place['why'], _place)
+check('  …and the lean tier then answers unprovable-here with the placement, status untouched', lean_tier.evaluate(m, _t_gen)['verdict'] == 'unprovable-here')
+_h = terms.statement_hash(_t_gen)
+def _fake(reply):
+    def _check(file, statement_hash, timeout=600):
+        r = dict(reply); r['hash_matches'] = (r.get('statement_hash_in_file') == statement_hash); r['file'] = file; return r
+    return _check
+proof_engines.resolve = lambda: {'how': 'remote', 'where': 'http://fake:9810', 'why': 'test'}
+proof_engines.check = _fake({'ok': True, 'verdict': 'proved', 'returncode': 0, 'statement_hash_in_file': _h, 'file_sha256': 'abc', 'pins': {'lean': 'leanprover/lean4:v4.34.1', 'mathlib': 'd13f23b723b8'}, 'elapsed_s': 3.2, 'how': 'remote', 'where': 'http://fake:9810'})
+cl3 = _add(m, 'MathClaim', name='thm', kind='symmetry', about_refs_json='[]', statement_json=json.dumps(_t_gen), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=300.0)
+res = checkers.check(m, cl3, make=_mk(m), save=False)
+check('  …a worker that accepts the file AND whose header cites THIS statement\'s hash → PROVED, evidence analytical; the run cites the Lean toolchain + Mathlib commit + where it ran',
+      res['after'] == 'proved' and cl3.checker == 'lean' and cl3.evidence_level == 'analytical' and 'v4.34.1' in res['run']['checker_version'] and 'd13f23b723b8' in res['run']['checker_version'] and res['detail']['hash_matches'], res['run'])
+proof_engines.check = _fake({'ok': True, 'verdict': 'proved', 'returncode': 0, 'statement_hash_in_file': 'deadbeef', 'file_sha256': 'abc', 'pins': {'lean': 'x', 'mathlib': 'y'}, 'elapsed_s': 1})
+cl4 = _add(m, 'MathClaim', name='thm-other', kind='symmetry', about_refs_json='[]', statement_json=json.dumps(_t_gen), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=300.0)
+res = checkers.check(m, cl4, make=_mk(m), save=False)
+check('  …a proof of a DIFFERENT statement (header hash ≠ the claim\'s) is NOT counted: unprovable-here by name (the status a never-proved claim then carries), no certificate', res['verdict'] == 'unprovable-here' and 'different statement' in res['detail']['why'] and cl4.proof_status == 'unprovable-here' and cl4.checker == 'lean')
+proof_engines.check = _fake({'ok': True, 'verdict': 'error', 'returncode': 1, 'statement_hash_in_file': _h, 'stderr': 'error: unsolved goals', 'pins': {'lean': 'x', 'mathlib': 'y'}, 'elapsed_s': 1})
+res = checkers.check(m, cl4, make=_mk(m), save=False)
+check('  …lean REJECTING the file is an ERROR run (a proof failed to check — nothing is said of the statement), never refuted; status untouched', res['verdict'] == 'error' and cl4.proof_status == 'unprovable-here' and json.loads(cl4.counterexample_json) == {})
+proof_engines.check = _fake({'ok': True, 'verdict': 'timeout', 'returncode': 124, 'statement_hash_in_file': _h, 'pins': {}, 'elapsed_s': 300})
+res = checkers.check(m, cl4, make=_mk(m), save=False)
+check('  …a timeout is UNDECIDED within the claim\'s budget (300 s for the theorems: Mathlib\'s imports load first), status untouched', res['verdict'] == 'undecided' and cl4.proof_status == 'unprovable-here')
+_add(m, 'MathClaim', name='thm-waiting', kind='symmetry', about_refs_json='[]', statement_json=json.dumps(_t_chain), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=300.0)
+os.environ.clear(); os.environ.update(_saved[0]); proof_engines.PROJECT, proof_engines.IMAGE, proof_engines.check = _saved[1], _saved[2], _saved[3]; proof_engines.resolve = proof_engines.__dict__.get('_orig_resolve', proof_engines.resolve)
+import importlib; importlib.reload(proof_engines); proof_engines._IMAGE_CACHE.clear()
+_place = proof_engines.resolve()
+if _place['how'] != 'refused':
+    _r = lean_tier.evaluate(m, {'symbolic': {'template': 'restriction-idempotent', 'args': {}}}, budget_s=600)
+    check('  …REAL check (lean via %s %s): the smoke theorem RestrictionIdempotent.lean is accepted under the pinned toolchain and cites its statement — %s s' % (_place['how'], _place['where'], _r['detail'].get('elapsed_s')),
+          _r['verdict'] == 'holds' and _r['detail']['hash_matches'] and _r['detail']['pins'].get('lean', '').endswith('v4.34.1'), _r['detail'].get('why') or _r['detail'].get('stderr_tail'))
+else:
+    check('  …no lean engine on this device (stated: %s) — the real check runs where the worker is (the live-boot probe / the pipeline)' % _place['why'][:80], True)
 cz = _add(m, 'MathClaim', name='k3', kind='bound', about_refs_json=json.dumps(['TensorMapping:m1']), statement_json=json.dumps(t_mac), proof_status='conjectured', checker='', certificate_ref='',
           counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=25.0)
 res = checkers.check(m, cz, make=_mk(m), save=False)
@@ -220,6 +264,7 @@ _n_runs = len(m.objectTables['ProofRun'])
 _b = boot.run_at_boot(m, make=_mk(m), save=False)
 check('boot: every tree\'s obligations regenerated, the never-run claim checked once (z3 within its budget), the already-decided one left alone; the pass reports its cost',
       'T' in _b['trees'] and any(c_[0] == 'seed-like' and c_[1] == 'holds' for c_ in _b['claims_checked']) and not any(c_[0] == 'already-decided' for c_ in _b['claims_checked']) and _b['elapsed_s'] >= 0, _b)
+check('  …and a claim whose only tier is LEAN is never run at boot (plan §I.9) — listed as awaiting a person / the pipeline', 'thm-waiting' in _b.get('awaiting_person', []) and not any(c_[0] == 'thm-waiting' for c_ in _b['claims_checked']), _b.get('awaiting_person'))
 d2 = discover(m, sel)
 check('  …discovery: an inapplicable mapping (outside the state space) and a refuted one are DIFFERENT lists with different words; the old `refused` key is their union', 'inapplicable' in d2 and 'refuted' in d2 and len(d2['refused']) == len(d2['inapplicable']) + len(d2['refuted']))
 
@@ -227,7 +272,7 @@ check('  …discovery: an inapplicable mapping (outside the state space) and a r
 from moduleService.manifests import validate
 man = json.load(open(os.path.join(HERE, 'polari-app.json')))
 check('the manifest is valid, declares four classes + the API, requires sympy + z3 (libraries, in-process), and declares `lean` as an ENGINE (resolved through the engines ladder, never a device assumption)',
-      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'])
+      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'])
 
 n_ok = sum(1 for _, ok in _results if ok)
 print('\n%d/%d checks passed' % (n_ok, len(_results)))

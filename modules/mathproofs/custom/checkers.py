@@ -13,7 +13,9 @@ detail, the rows-state hash) and the claim's `proof_status` / `checker` / `certi
     z3       holds → decided (analytical: a decision procedure over the continuum / machine integers)
              refuted → refuted (the model IS the counterexample)   no answer within `budget_s` → the ProofRun says
              `undecided` (budget) and the claim's status is UNCHANGED (D-pf-9: absence of a decision ≠ a counterexample)
-    lean     ok    → proved (analytical)                                                       [pf-2]
+    lean     ok + the certificate cites this statement's hash → proved (analytical); lean rejects → error (a proof
+             failed, nothing is said of the statement); timeout → undecided; no engine → unprovable-here naming the
+             knobs (PROOF_ENGINES_URL, `pol allocate mathproofs.engines`). NEVER automatic (plan §I.9)
     human    a signed note → proved, labelled `human` (D-pf-6)
 A refuted claim never deletes anything; a tier that cannot lower the term writes `unprovable-here` naming why.
 `auto_tier(term)` picks the cheapest tier that can speak to a term; `check(manager, claim, tier=None)` runs it.
@@ -23,7 +25,7 @@ import datetime
 import json
 import time
 
-from mathproofs.custom import numeric, symbolic, terms, z3tier
+from mathproofs.custom import numeric, symbolic, terms, z3tier, lean_tier
 from mathproofs.custom.rows import rows_state_hash, by_name, _rows
 
 STATUS_FOR = {('numeric', 'holds'): ('witnessed', 'measured'), ('interval', 'holds'): ('decided', 'analytical'),
@@ -38,7 +40,7 @@ def auto_tier(term):
         return 'numeric'
     k = terms.op_of(term)
     if k == 'symbolic':
-        return 'sympy'
+        return 'lean' if lean_tier.theorem_for(term) and any(str(v) == 'any' for v in ((term['symbolic'] or {}).get('args') or {}).values()) else 'sympy'
     if k in ('subset', 'dims_subset'):
         return 'interval'
     if k == 'bitvector':
@@ -58,7 +60,17 @@ def _versions():
     except Exception:
         out['sympy'] = 'sympy absent'
     out['z3'] = z3tier.version()
+    out['lean'] = 'lean via %s' % proof_engines_place()
     return out
+
+
+def proof_engines_place():
+    try:
+        from mathproofs.custom import proof_engines
+        r = proof_engines.resolve()
+        return '%s %s' % (r['how'], r['where']) if r['how'] != 'refused' else 'refused'
+    except Exception:
+        return 'unknown'
 
 
 def evaluate(manager, term, tier, budget_s=25.0):
@@ -69,7 +81,7 @@ def evaluate(manager, term, tier, budget_s=25.0):
     if tier == 'z3':
         return z3tier.evaluate(manager, term, budget_s=budget_s)
     if tier == 'lean':
-        return {'verdict': 'unprovable-here', 'tier': 'lean', 'detail': {'why': 'the lean tier arrives in pf-2 (polari-proof-tools, an engines worker)'}, 'counterexample': None}
+        return lean_tier.evaluate(manager, term, budget_s=budget_s)
     return {'verdict': 'error', 'tier': tier, 'detail': {'why': 'unknown tier %r' % tier}, 'counterexample': None}
 
 
@@ -91,7 +103,10 @@ def check(manager, claim, tier=None, make=None, save=True):
     now = datetime.datetime.now(datetime.timezone.utc)
     stamp = now.strftime('%Y-%m-%dT%H:%M:%SZ')
     run_name = '%s@%s@%s' % (getattr(claim, 'name', '?'), res['tier'], now.strftime('%Y%m%dT%H%M%S.%fZ'))   # unique to the microsecond: two runs in one second are two rows
-    fields = {'name': run_name, 'description': '', 'claim': str(getattr(claim, 'name', '')), 'checker': res['tier'], 'checker_version': _versions().get(res['tier'], res['tier']),
+    version = _versions().get(res['tier'], res['tier'])
+    if res['tier'] == 'lean' and (res.get('detail') or {}).get('pins', {}).get('lean'):
+        version = '%s + mathlib %s (%s %s)' % (res['detail']['pins']['lean'], str(res['detail']['pins'].get('mathlib', ''))[:12], res['detail'].get('how'), res['detail'].get('where'))
+    fields = {'name': run_name, 'description': '', 'claim': str(getattr(claim, 'name', '')), 'checker': res['tier'], 'checker_version': version,
               'verdict': res['verdict'], 'detail_json': json.dumps(res.get('detail') or {}, default=str), 'output_tail': '', 'elapsed_s': elapsed, 'rows_state_hash': state,
               'ran_at': stamp, 'ran_where': 'in-process', 'notes': ''}
     make = make or (lambda cls, **f: cls(manager=manager, **f))
@@ -108,8 +123,8 @@ def check(manager, claim, tier=None, make=None, save=True):
     elif res['verdict'] == 'undetermined':
         # not defined here (a premise fails / a value is unrecorded): never a refutation, never vacuously true
         claim.proof_status = 'undetermined'; claim.checker = res['tier']; claim.certificate_ref = run_name; claim.counterexample_json = '{}'; claim.evidence_level = 'none'
-    elif res['verdict'] == 'undecided':
-        pass   # D-pf-9: the budget ran out — the run records it; the claim's status is untouched
+    elif res['verdict'] in ('undecided', 'error'):
+        pass   # D-pf-9: the budget ran out / a checker failed — the run records it; the claim's status is untouched
     elif res['verdict'] == 'unprovable-here' and before == 'conjectured':
         claim.proof_status = 'unprovable-here'; claim.checker = res['tier']; claim.certificate_ref = run_name
     if not getattr(claim, 'statement_hash', ''):
