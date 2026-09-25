@@ -61,7 +61,7 @@ def _versions():
     return out
 
 
-def evaluate(manager, term, tier, budget_s=10.0):
+def evaluate(manager, term, tier, budget_s=25.0):
     if tier in ('numeric', 'interval'):
         return numeric.evaluate(manager, term)
     if tier == 'sympy':
@@ -84,7 +84,7 @@ def check(manager, claim, tier=None, make=None, save=True):
     if errs:
         res = {'verdict': 'error', 'tier': tier, 'detail': {'why': 'invalid term: ' + '; '.join(errs)}, 'counterexample': None}
     else:
-        res = evaluate(manager, term, tier, budget_s=float(getattr(claim, 'budget_s', 10.0) or 10.0))
+        res = evaluate(manager, term, tier, budget_s=float(getattr(claim, 'budget_s', 25.0) or 25.0))
     elapsed = round(time.time() - t0, 4)
     refs = _j(getattr(claim, 'about_refs_json', '[]'), [])
     state = rows_state_hash(manager, refs)

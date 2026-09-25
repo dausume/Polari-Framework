@@ -51,7 +51,7 @@ _mk = lambda mgr: (lambda cls, **f: _add(mgr, cls.__name__, **f))
 # ---- rows + seeds
 check('the module registers exactly FOUR row classes', len(MATHPROOFS_CLASSES) == 4 and [c.__name__ for c in MATHPROOFS_CLASSES] == ['MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation'])
 c = MathClaim(name='x', kind='identity', statement_json='{}')
-check('MathClaim defaults: conjectured, no checker, evidence none, budget 10 s (D-pf-9, a knob)', c.proof_status == 'conjectured' and c.checker == '' and c.evidence_level == 'none' and c.budget_s == 10.0)
+check('MathClaim defaults: conjectured, no checker, evidence none, budget 25 s (D-pf-9, a knob; his 2026-09-25 number: the slowest honest instance took 19 s)', c.proof_status == 'conjectured' and c.checker == '' and c.evidence_level == 'none' and c.budget_s == 25.0)
 check('the seed pairs cover every class; eight inference rules; twelve standalone claims (5 pf-0 + 7 pf-1)', {p[0] for p in MATHPROOFS_SEED_PAIRS} == {c_.__name__ for c_ in MATHPROOFS_CLASSES} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 12)
 check('every seeded rule names a pattern, a claim kind and a default checker; two are honestly template-less (units, evidence rank: not decidable here)',
       all(r['pattern'] and r['obligation_kind'] and r['checker_default'] in CHECKERS for r in SEED_INFERENCE_RULES) and sum(1 for r in SEED_INFERENCE_RULES if r['template_json'] == '{}') == 2)
@@ -138,7 +138,7 @@ check('  …a free expression is refused by name (templates only in v0)', symbol
 
 # ---- the checker: runs, vocabulary, staleness
 cl = _add(m, 'MathClaim', name='k1', kind='identity', about_refs_json=json.dumps(['CharacterizationMapping:a']), statement_json=json.dumps(t_eq), proof_status='conjectured', checker='', certificate_ref='',
-          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=10.0)
+          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=25.0)
 res = checkers.check(m, cl, make=_mk(m), save=False)
 check('check: a numeric holds → WITNESSED with evidence MEASURED (on these rows), a ProofRun with the rows-state hash, the derived LaTeX + hash filled',
       res['after'] == 'witnessed' and cl.evidence_level == 'measured' and cl.checker == 'numeric' and len(m.objectTables['ProofRun']) == 1 and cl.statement_hash and cl.statement_latex and res['run']['rows_state_hash'], res)
@@ -148,7 +148,7 @@ check('  …and becomes STALE the moment the row it speaks of changes (never sil
 res = checkers.check(m, cl, make=_mk(m), save=False)
 check('  …re-checking refutes it now, and refuted keeps the counterexample', res['after'] == 'refuted' and json.loads(cl.counterexample_json)['lhs'] == 3.5)
 cs = _add(m, 'MathClaim', name='k2', kind='symmetry', about_refs_json='[]', statement_json=json.dumps({'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 2}}}), proof_status='conjectured', checker='', certificate_ref='',
-          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=10.0)
+          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=25.0)
 res = checkers.check(m, cs, make=_mk(m), save=False)
 check('  …a symbolic holds → CHECKED-SYMBOLICALLY, evidence ANALYTICAL; auto_tier picked sympy', res['after'] == 'checked-symbolically' and cs.evidence_level == 'analytical' and res['tier'] == 'sympy')
 res = checkers.check(m, cs, tier='numeric', make=_mk(m), save=False)
@@ -156,11 +156,11 @@ check('  …the numeric tier cannot lower a symbolic term → unprovable-here, a
 res = checkers.check(m, cs, tier='lean', make=_mk(m), save=False)
 check('  …the lean tier refuses by name until pf-2 (an engines worker), status unchanged', res['verdict'] == 'unprovable-here' and 'pf-2' in res['detail']['why'] and cs.proof_status == 'checked-symbolically')
 cz = _add(m, 'MathClaim', name='k3', kind='bound', about_refs_json=json.dumps(['TensorMapping:m1']), statement_json=json.dumps(t_mac), proof_status='conjectured', checker='', certificate_ref='',
-          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=10.0)
+          counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=25.0)
 res = checkers.check(m, cz, make=_mk(m), save=False)
-check('  …a z3 holds through check() → DECIDED, evidence ANALYTICAL, the run cites the z3 version and the claim\'s budget', res['after'] == 'decided' and cz.evidence_level == 'analytical' and res['run']['checker_version'].startswith('z3 ') and res['detail']['budget_s'] == 10.0, res['run'])
+check('  …a z3 holds through check() → DECIDED, evidence ANALYTICAL, the run cites the z3 version and the claim\'s budget', res['after'] == 'decided' and cz.evidence_level == 'analytical' and res['run']['checker_version'].startswith('z3 ') and res['detail']['budget_s'] == 25.0, res['run'])
 cz2 = _add(m, 'MathClaim', name='k4', kind='bound', about_refs_json='[]', statement_json=json.dumps(t_mac), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=0.0001)
-_orig = z3tier.evaluate; z3tier.evaluate = lambda mgr, t, budget_s=10.0, _check=None: _orig(mgr, t, budget_s, _check=lambda s_: __import__('z3').unknown)
+_orig = z3tier.evaluate; z3tier.evaluate = lambda mgr, t, budget_s=25.0, _check=None: _orig(mgr, t, budget_s, _check=lambda s_: __import__('z3').unknown)
 res = checkers.check(m, cz2, make=_mk(m), save=False); z3tier.evaluate = _orig
 check('  …a run that exhausts its budget is recorded as UNDECIDED and the claim stays CONJECTURED (D-pf-9: the budget self-disarms, nothing is asserted)', res['verdict'] == 'undecided' and cz2.proof_status == 'conjectured' and res['run']['verdict'] == 'undecided' and cz2.certificate_ref == '')
 
@@ -214,8 +214,8 @@ check('  …turning the knob (0.01) makes the witnessed claim STALE; re-generati
       and {o['obligation']: o for o in rules.generate(m, 'T', make=_mk(m), save=False)['obligations']}['ob:T:decomposition-reconstructs:dec2']['status'] == 'refuted')
 _rule.params_json = json.dumps({'bound': 0.05})
 # ---- boot (pf-1): obligations + never-run claims, once, bounded
-_add(m, 'MathClaim', name='seed-like', kind='bound', about_refs_json='[]', statement_json=json.dumps(t_mac), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=10.0)
-_add(m, 'MathClaim', name='already-decided', kind='bound', about_refs_json='[]', statement_json=json.dumps(t_mac), proof_status='decided', checker='z3', certificate_ref='x', counterexample_json='{}', evidence_level='analytical', statement_hash='', statement_latex='', budget_s=10.0)
+_add(m, 'MathClaim', name='seed-like', kind='bound', about_refs_json='[]', statement_json=json.dumps(t_mac), proof_status='conjectured', checker='', certificate_ref='', counterexample_json='{}', evidence_level='none', statement_hash='', statement_latex='', budget_s=25.0)
+_add(m, 'MathClaim', name='already-decided', kind='bound', about_refs_json='[]', statement_json=json.dumps(t_mac), proof_status='decided', checker='z3', certificate_ref='x', counterexample_json='{}', evidence_level='analytical', statement_hash='', statement_latex='', budget_s=25.0)
 _n_runs = len(m.objectTables['ProofRun'])
 _b = boot.run_at_boot(m, make=_mk(m), save=False)
 check('boot: every tree\'s obligations regenerated, the never-run claim checked once (z3 within its budget), the already-decided one left alone; the pass reports its cost',

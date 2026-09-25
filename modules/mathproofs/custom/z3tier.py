@@ -227,7 +227,7 @@ def _mac_no_overflow(manager, z3, args, budget_s, _check):
     return _res('refuted', dict(detail, result='sat: these operands overflow'), {'a': av, 'b': bv, 'prefix_sums': pref, 'first_overflow_at': next((i for i, x in enumerate(pref) if x > M or x < -M - 1), None)})
 
 
-def evaluate(manager, term, budget_s=10.0, _check=None):
+def evaluate(manager, term, budget_s=25.0, _check=None):
     """{'verdict': holds | refuted | undecided | undetermined | unprovable-here | error, 'tier': 'z3', 'detail', 'counterexample'}.
     `_check(solver)` is a seam for tests (a forced `unknown` exercises the budget path without a hard instance)."""
     try:

@@ -30,7 +30,7 @@ class MathClaim(treeObject):
         counterexample_json: str = '{}',
         evidence_level: str = 'none',
         statement_hash: str = '',
-        budget_s: float = 10.0,
+        budget_s: float = 25.0,
         provenance: str = '',
         notes: str = '',
         manager=None,
@@ -49,6 +49,6 @@ class MathClaim(treeObject):
         self.counterexample_json = counterexample_json  # the point that breaks it, when refuted
         self.evidence_level = evidence_level  # analytical for a proof/decision; measured for a witness on data
         self.statement_hash = statement_hash  # sha256 of the canonical term — the bridge to a .lean certificate
-        self.budget_s = budget_s  # D-pf-9: the checker time budget (z3/lean); a timeout is `undecided (budget)`, never refuted
+        self.budget_s = budget_s  # D-pf-9: the checker time budget in seconds (z3/lean) — 25 s (his, 2026-09-25: the slowest honest instance, the bit-blasted MAC, took 19 s); a timeout is `undecided (budget)`, never refuted
         self.provenance = provenance
         self.notes = notes

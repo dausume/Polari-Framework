@@ -156,8 +156,8 @@ check('  …and the mapping\'s own mapping_status / evidence_level are UNCHANGED
 check('  …discovery on the gusty selection lists the spectrum as INAPPLICABLE (outside its validity — the state space, not a falsification), and nothing as refuted',
       any(x['mapping'] == 'wind-grid→spectrum' and x['kind'] == 'outside-validity' for x in client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'}).json['discovery']['inapplicable']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 23 claims (12 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, FIVE long-running (z3) claims → worst case 50 s (the four seeded z3 claims + the obligation a person asked z3 to re-derive; 10 s budget knob each)',
-      r.status_code == 200 and r.json['claims'] == 23 and r.json['runs_recorded'] == 21 and r.json['latest_runs_elapsed_s'] < 10 and r.json['worst_case_s'] == 50 and r.json['long_running_claims'] == 5, r.text[:300])
+check('GET /api/mathproofs/aggregate: 23 claims (12 seeded + 11 generated), a run for every one a tier could speak to (the 2 template-less units obligations have none), the elapsed sum small, FIVE long-running (z3) claims → worst case 125 s (the four seeded z3 claims + the obligation a person asked z3 to re-derive; 25 s budget knob each)',
+      r.status_code == 200 and r.json['claims'] == 23 and r.json['runs_recorded'] == 21 and r.json['latest_runs_elapsed_s'] < 10 and r.json['worst_case_s'] == 125 and r.json['long_running_claims'] == 5, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')

@@ -34,7 +34,7 @@ class MathProofsAPI(treeObject):
         latest = self._latest_run(str(c.name))
         return {'name': str(c.name), 'kind': str(getattr(c, 'kind', '')), 'about': _j(getattr(c, 'about_refs_json', '[]'), []), 'status': checkers.status_of(self.manager, c),
                 'checker': str(getattr(c, 'checker', '')), 'evidence_level': str(getattr(c, 'evidence_level', '')), 'latex': str(getattr(c, 'statement_latex', '')) or terms.to_latex(checkers.terms_of(c)),
-                'statement': checkers.terms_of(c), 'counterexample': _j(getattr(c, 'counterexample_json', '{}'), {}), 'budget_s': getattr(c, 'budget_s', 10.0),
+                'statement': checkers.terms_of(c), 'counterexample': _j(getattr(c, 'counterexample_json', '{}'), {}), 'budget_s': getattr(c, 'budget_s', 25.0),
                 'latest_run': latest, 'description': str(getattr(c, 'description', ''))}
 
     def _latest_run(self, claim_name):
@@ -50,7 +50,7 @@ class MathProofsAPI(treeObject):
         spent = sum((r or {}).get('elapsed_s', 0.0) for r in latest)
         long_tiers = [c for c in claims if (checkers.auto_tier(checkers.terms_of(c)) in ('z3', 'lean')) or str(getattr(c, 'checker', '')) in ('z3', 'lean')]
         return {'claims': len(claims), 'runs_recorded': sum(1 for r in latest if r), 'latest_runs_elapsed_s': round(spent, 4),
-                'worst_case_s': round(sum(float(getattr(c, 'budget_s', 10.0) or 0) for c in long_tiers), 1), 'long_running_claims': len(long_tiers),
+                'worst_case_s': round(sum(float(getattr(c, 'budget_s', 25.0) or 0) for c in long_tiers), 1), 'long_running_claims': len(long_tiers),
                 'note': 'latest_runs_elapsed_s = what the recorded runs cost; worst_case_s = the sum of budgets of the claims a long-running tier (z3/lean) would take — the number to watch before it grows unreasonable in aggregate'}
 
     def on_get(self, request, response):

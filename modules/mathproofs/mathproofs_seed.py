@@ -41,7 +41,7 @@ SEED_INFERENCE_RULES = [
 ]
 
 _C = lambda **k: dict({'description': '', 'assumptions_json': '[]', 'scope_json': '{}', 'proof_status': 'conjectured', 'checker': '', 'certificate_ref': '', 'counterexample_json': '{}',
-                       'evidence_level': 'none', 'statement_hash': '', 'statement_latex': '', 'budget_s': 10.0, 'provenance': 'seed (pf-0)', 'notes': ''}, **k)
+                       'evidence_level': 'none', 'statement_hash': '', 'statement_latex': '', 'budget_s': 25.0, 'provenance': 'seed (pf-0)', 'notes': ''}, **k)
 SEED_MATH_CLAIMS = [
     _C(name='lod3-lef-area-equals-liberty-area', kind='identity', about_refs_json=json.dumps(['CharacterizationMapping:lod3: rv32_add layout area (LEF)', 'CharacterizationMapping:lod2: rv32_add cell area']),
        statement_json=json.dumps({'eq': [{'ref': 'CharacterizationMapping:lod3: rv32_add layout area (LEF)', 'path': ['result']}, {'ref': 'CharacterizationMapping:lod2: rv32_add cell area', 'path': ['result']}], 'tol': {'abs': 0.01}}),
