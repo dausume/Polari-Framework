@@ -217,6 +217,8 @@ r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'r
 check('POST select CREATES the selection row and returns its discovery: the real coupling first, the calm-only hypothesis refused',
       r.status_code == 201 and [c['mapping'] for c in r.json['discovery']['candidates']] == ['wind-grid→bob-drag', 'wind-grid→slice-z0']
       and any(x['mapping'] == 'wind-grid→spectrum' for x in r.json['discovery']['refused']), r.text[:300])
+check('  …tt-13: the discovery answer carries the cross-tree count and this node\'s dim units (the wind grid\'s x/y/z in m) — a mapping written for another tree joins the candidates only when dims AND units match here',
+      'cross_tree_candidates' in r.json['discovery'] and r.json['discovery']['units_here'].get('x') == 'm', {k: r.json['discovery'].get(k) for k in ('cross_tree_candidates', 'units_here')})
 check('  …and the selection persisted as a row', any(getattr(s, 'created_from', '') == 'probe' for s in tables.get('TensorSelection', {}).values()))
 r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [5, 1]}})
 check('a malformed range is a 400 naming the dim', r.status_code == 400 and 'x' in r.json['error'])

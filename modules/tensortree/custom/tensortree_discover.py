@@ -2,6 +2,9 @@
 @module tensortree.custom.tensortree_discover
 
 WHICH MAPPINGS CAN THIS SELECTION TAKE (plan §15, §F3): hard filters, then a CONFIGURED score.
+tt-13 (2026-09-26): discovery ACROSS trees — mappings written for another node are candidates when every dim they need exists
+here by name AND unit (the §F3 units filter, hard: a different unit is inapplicable, an unrecorded unit is inapplicable and says
+which side is silent); they carry `cross_tree`, `source_node`, `units` and a lower context term.
 
 Candidate only if: the mapping's source node is the selection's node, every source dim the mapping needs is
 present in the selection, and the selection lies inside the mapping's validity domain (per dim, when given).
@@ -75,6 +78,30 @@ def _validity_coverage(mapping, ranges):
     return sum(covs) / len(covs) if covs else 0.5
 
 
+def node_dim_units(manager, node_name):
+    """tt-13: {short dim name: unit} for one node — from its LocalizedDimension rows (`field.T` → `T`, localizing TensorDimension
+    `dimension`) through the node's Tensor: a TensorDimension row (tensor == the node's tensor, name == dimension) or the Tensor's
+    dimensions_json entry; '' when no unit is recorded anywhere (unknown, said so — never assumed compatible)."""
+    node = next((n for n in _rows(manager, 'TensorNode') if str(n.name) == node_name), None)
+    tensor = str(getattr(node, 'tensor', '') or '') if node is not None else ''
+    tdims = {str(d.name): str(getattr(d, 'unit', '') or '') for d in _rows(manager, 'TensorDimension') if str(getattr(d, 'tensor', '')) == tensor}
+    trow = next((t for t in _rows(manager, 'Tensor') if str(t.name) == tensor), None)
+    for e in _j(getattr(trow, 'dimensions_json', '[]'), []) if trow is not None else []:
+        if isinstance(e, dict) and e.get('name') and not tdims.get(str(e['name'])):
+            tdims[str(e['name'])] = str(e.get('unit', '') or '')
+    out = {}
+    for ld in _rows(manager, 'LocalizedDimension'):
+        if str(getattr(ld, 'node', '')) != node_name:
+            continue
+        short = str(ld.name).split('.')[-1]; dim = str(getattr(ld, 'dimension', '') or short)
+        out[short] = tdims.get(dim, tdims.get(short, ''))
+    return out
+
+
+def _unit_norm(u):
+    return str(u or '').strip().lower().replace('µ', 'u')
+
+
 def discover(manager, selection, context_node='', context_mapping=''):
     """`context_mapping` = the link the person arrived through (a follow): the propose door then offers the chain pair too."""
     from tensortree.custom import tensortree_logic as _logic
@@ -117,8 +144,60 @@ def discover(manager, selection, context_node='', context_mapping=''):
                     'loss_note': str(getattr(m, 'loss_note', '') or ''),
                     'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']],
                     'propose': _logic.propose_door(name, str(getattr(selection, 'name', '')), via=context_mapping)})
+    # ---- tt-13: DISCOVERY ACROSS TREES — a mapping whose source is ANOTHER node is a candidate here when every dim it needs
+    # exists on this selection's node WITH THE SAME UNIT (the §F3 "units compatible" filter, a hard one): the same dim name in a
+    # different unit is inapplicable and says both units; a dim with no unit recorded on either side is inapplicable and says
+    # which side is silent — never assumed compatible. Cross-tree candidates carry `cross_tree` + `source_node`, a lower
+    # context term (C = 0.25: a mapping written for another node), and the same validity / obligation filters.
+    units_here = node_dim_units(manager, node)
+    units_cache = {}
+    cross = 0
+    for m in _rows(manager, 'TensorMapping'):
+        name = str(getattr(m, 'name', '')); src = str(getattr(m, 'source_node', '') or '')
+        if not src or src == node:
+            continue
+        need = [str(d) for d in _j(getattr(m, 'source_dims_json', '[]'), [])]
+        if not need or any(d not in have for d in need):
+            continue   # not even the dims: not a cross-tree candidate, and not worth a row of refusals per mapping in the instance
+        if src not in units_cache:
+            units_cache[src] = node_dim_units(manager, src)
+        units_src = units_cache[src]
+        unknown = [d for d in need if not units_here.get(d) or not units_src.get(d)]
+        if unknown:
+            inapplicable.append({'mapping': name, 'kind': 'units-unknown', 'cross_tree': True, 'source_node': src,
+                                 'why': 'written for node %s; the dims match by name (%s) but no unit is recorded for %s on %s — compatibility cannot be said, so it is not assumed' % (
+                                     src, ', '.join(need), ', '.join(unknown), ' / '.join(sorted({('this node' if not units_here.get(d) else '') or ('node ' + src) for d in unknown} - {''})))}); continue
+        bad = [(d, units_here[d], units_src[d]) for d in need if _unit_norm(units_here[d]) != _unit_norm(units_src[d])]
+        if bad:
+            inapplicable.append({'mapping': name, 'kind': 'units-incompatible', 'cross_tree': True, 'source_node': src,
+                                 'why': 'written for node %s; the dims match by name but not by unit: %s' % (src, '; '.join('%s is %s here, %s there' % b for b in bad))}); continue
+        V = _validity_coverage(m, ranges)
+        if V is None:
+            inapplicable.append({'mapping': name, 'kind': 'outside-validity', 'cross_tree': True, 'source_node': src, 'why': 'written for node %s (dims and units match); the selection lies outside its validity domain' % src}); continue
+        try:
+            from tensortree.custom.tensortree_logic import of_mapping
+            logic = of_mapping(manager, name)
+        except Exception:   # pragma: no cover
+            logic = {'available': False, 'refuted': [], 'open': [], 'ok': [], 'badge': 'unavailable'}
+        if logic['refuted']:
+            r0 = logic['refuted'][0]
+            refuted.append({'mapping': name, 'kind': 'obligation-refuted', 'cross_tree': True, 'source_node': src, 'why': 'falsified: obligation %s (%s) has a counterexample %s' % (r0['name'], r0['rule'], r0.get('counterexample')), 'logic': logic['badge']}); continue
+        E, ekey = evidence_score(m, pol)
+        D = len(need) / max(len(have), 1)
+        C = 0.25   # a mapping written for another node: relevant here only through the shared dims and units — said so in the terms
+        unc = _j(getattr(m, 'uncertainty_json', '{}'), {})
+        U = max(0.0, min(1.0, float(unc.get('relative', 0.0)) if isinstance(unc, dict) else 0.0))
+        score = pol['w_evidence'] * E + pol['w_dims'] * D + pol['w_validity'] * V + pol['w_context'] * C + pol['w_uncertainty'] * (1.0 - U)
+        out.append({'mapping': name, 'kind': str(getattr(m, 'kind', '')), 'target_node': str(getattr(m, 'target_node', '')), 'cross_tree': True, 'source_node': src,
+                    'units': {d: units_here[d] for d in need}, 'score': round(score, 4), 'terms': {'E': round(E, 3), 'D': round(D, 3), 'V': round(V, 3), 'C': C, 'U': U},
+                    'evidence': ekey, 'evidence_ref': str(getattr(m, 'evidence_ref', '') or ''), 'mapping_status': str(getattr(m, 'mapping_status', '')), 'evidence_level': str(getattr(m, 'evidence_level', '')),
+                    'loss_note': str(getattr(m, 'loss_note', '') or ''), 'logic': logic['badge'], 'open_obligations': [o['name'] for o in logic['open']],
+                    'why_here': 'written for %s; every dim it needs (%s) exists on this node with the same unit (%s)' % (src, ', '.join(need), ', '.join('%s: %s' % (d, units_here[d]) for d in need)),
+                    'propose': _logic.propose_door(name, str(getattr(selection, 'name', '')), via=context_mapping)})
+        cross += 1
     out.sort(key=lambda r: -r['score'])
     return {'selection': str(getattr(selection, 'name', '')), 'node': node, 'candidates': out, 'inapplicable': inapplicable, 'refuted': refuted,
             'refused': inapplicable + refuted,   # the pre-2026-09-25 key, kept for readers: the union, each entry saying which it is
+            'cross_tree_candidates': cross, 'units_here': units_here,
             'policy': pol, 'note': 'inapplicable = not defined on this selection\'s state space (dims, validity) — the model shifts with the state, nothing is falsified; '
                                    'refuted = a proof obligation with a counterexample; the score only ORDERS applicable candidates — the user chooses'}

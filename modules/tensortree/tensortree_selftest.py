@@ -109,6 +109,32 @@ p = [r for r in m.objectTables['TensorDiscoveryPolicy'].values()][0]; p.w_eviden
 d2 = discover(m, sel)
 check('  …changing the row changes the ranking: with evidence weighted 0.9 the MEASURED mapping now comes first — no constant in code',
       [c['mapping'] for c in d2['candidates']] == ['T→slice', 'T→gb'] and abs(d2['candidates'][0]['score'] - (0.9 * 1.0 + 0.05 * 0.25 + 0.25 * 0.5 + 0.05 + 0.10)) < 1e-6, d2['candidates'])
+# ---- tt-13: discovery ACROSS trees — the units filter (§F3) is a hard one
+from tensortree.custom.tensortree_discover import node_dim_units
+m.objectTables.setdefault('Tensor', {}); m.objectTables.setdefault('TensorDimension', {})   # tensormath's tables, absent from this module's fixture
+_add(m, 'Tensor', name='T-field', rank=4, dimensions_json=json.dumps([{'name': 'x', 'unit': 'm'}, {'name': 'y', 'unit': 'm'}, {'name': 'z', 'unit': 'm'}, {'name': 'T', 'unit': 'K'}]), units='K', storage_kind='matrix')
+_add(m, 'Tensor', name='T-other', rank=2, dimensions_json=json.dumps([{'name': 'x', 'unit': 'm'}, {'name': 'T', 'unit': 'K'}]), units='K', storage_kind='matrix')
+_add(m, 'Tensor', name='T-mm', rank=2, dimensions_json=json.dumps([{'name': 'x', 'unit': 'mm'}, {'name': 'T', 'unit': 'K'}]), units='K', storage_kind='matrix')
+_add(m, 'TensorTreeDefinition', name='other', tensor='T-other', root_node='field2', view_kind='spatial', status='partial')
+for nn, tt in (('field2', 'T-other'), ('field3', 'T-mm'), ('field4', 'T-nounits')):
+    _add(m, 'TensorNode', name=nn, tree='other', parent='' if nn == 'field2' else 'field2', title=nn, tensor=tt, dims_json=json.dumps([nn + '.x', nn + '.T']), binding_ref='', status='unresolved')
+    _add(m, 'LocalizedDimension', name=nn + '.x', node=nn, dimension='x', range_json='[]', channel='position.x', scale_json='{}', coherent=False)
+    _add(m, 'LocalizedDimension', name=nn + '.T', node=nn, dimension='T', range_json='[]', channel='color', scale_json='{}', coherent=False)
+_add(m, 'TensorMapping', name='other:T→x', kind='kernel', source_node='field2', source_dims_json='["x","T"]', target_node='field3', target_dims_json='["x"]', validity_json='{"T": [300, 1200]}', mapping_status='implemented', evidence_level='simulated', evidence_ref='run-9', uncertainty_json='{}', loss_note='')
+_add(m, 'TensorMapping', name='mm:T→x', kind='kernel', source_node='field3', source_dims_json='["x","T"]', target_node='field2', target_dims_json='["x"]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='bench-3', uncertainty_json='{}', loss_note='')
+_add(m, 'TensorMapping', name='nounits:T→x', kind='kernel', source_node='field4', source_dims_json='["x","T"]', target_node='field2', target_dims_json='[]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='bench-4', uncertainty_json='{}', loss_note='')
+_add(m, 'TensorMapping', name='other:needs-w', kind='kernel', source_node='field2', source_dims_json='["x","w"]', target_node='field3', target_dims_json='[]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='', uncertainty_json='{}', loss_note='')
+check('tt-13 units: a node\'s dim units come through its LocalizedDimensions → the tensor\'s dimensions (m, m, m, K on field; unknown = "" on a node whose tensor has no row)',
+      node_dim_units(m, 'field') == {'x': 'm', 'y': 'm', 'z': 'm', 'T': 'K'} and node_dim_units(m, 'field4') == {'x': '', 'T': ''}, (node_dim_units(m, 'field'), node_dim_units(m, 'field4')))
+d3 = discover(m, sel)
+_cross = [c for c in d3['candidates'] if c.get('cross_tree')]
+check('tt-13: a mapping written for ANOTHER tree\'s node is a candidate on this selection when every dim it needs exists here by name AND unit (other:T→x: x in m, T in K on both) — flagged cross_tree with its source node, the shared units, a lower context term (C 0.25) and a why_here',
+      [c['mapping'] for c in _cross] == ['other:T→x'] and _cross[0]['source_node'] == 'field2' and _cross[0]['units'] == {'x': 'm', 'T': 'K'} and _cross[0]['terms']['C'] == 0.25 and 'same unit' in _cross[0]['why_here'] and d3['cross_tree_candidates'] == 1, _cross)
+check('  …the same dim name in a DIFFERENT unit is INAPPLICABLE (x is m here, mm there), never scored; a dim with NO unit recorded on the other node is inapplicable and says which side is silent — compatibility is never assumed',
+      any(r['mapping'] == 'mm:T→x' and r['kind'] == 'units-incompatible' and 'm here, mm there' in r['why'] for r in d3['inapplicable'])
+      and any(r['mapping'] == 'nounits:T→x' and r['kind'] == 'units-unknown' and 'field4' in r['why'] for r in d3['inapplicable']) and not any(c['mapping'] in ('mm:T→x', 'nounits:T→x') for c in d3['candidates']), d3['inapplicable'])
+check('  …a cross-tree mapping whose dims are NOT all here is simply not a candidate (no refusal row per foreign mapping); own-node candidates are unchanged and still rank by the configured score; the response says the units of this node',
+      not any(r['mapping'] == 'other:needs-w' for r in d3['inapplicable'] + d3['candidates']) and [c['mapping'] for c in d3['candidates'] if not c.get('cross_tree')] == ['T→slice', 'T→gb']   # the 0.9-evidence policy set just above and d3['units_here']['T'] == 'K', [c['mapping'] for c in d3['candidates']])
 
 # ---- tt-1: the SEEDED tree over the real wind field validates, and discovery works on the seeded selection
 from tensortree.tensortree_seed import (SEED_TENSOR_TREES, SEED_TENSOR_NODES, SEED_UNRESOLVED, SEED_LOCALIZED_DIMENSIONS, SEED_TENSOR_MAPPINGS, SEED_TENSOR_SELECTIONS)
