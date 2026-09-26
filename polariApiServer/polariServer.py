@@ -3317,9 +3317,23 @@ class polariServer(treeObject):
             existing = self.manager.objectTables.get(class_name, {}) or {}
             existing_by_name = {getattr(o, 'name', None): o for o in existing.values()}
             for seed in seed_list:
+                # `_converge`: the seed's list of CODE-OWNED fields — a decided value (D-lod4-1's manufacturability,
+                # a flow's derived reason) follows the code on an instance whose DB already holds the row; every
+                # other field stays as the instance has it (a person may have edited it). Never a constructor arg.
+                seed = dict(seed)
+                converge = seed.pop('_converge', None) or ()
                 name = seed.get('name')
                 if name in existing_by_name:
                     row = existing_by_name[name]
+                    changed = [k for k in converge if k in seed and str(getattr(row, k, None)) != str(seed[k])]
+                    if changed:
+                        for k in changed:
+                            setattr(row, k, seed[k])
+                        try:
+                            self.manager.db.saveInstanceInDB(row)
+                            print(f'[SeedSimSpace3D] Converged {class_name} {name!r} to its seed ({", ".join(changed)})', flush=True)
+                        except Exception as e:
+                            print(f'[SeedSimSpace3D] Could not converge {class_name} {name!r}: {e}', flush=True)
                     # Demo-3d upgrade — only when the row is still the
                     # legacy showcase (admin hasn't touched description).
                     if (class_name == 'SimSpaceDefinition'

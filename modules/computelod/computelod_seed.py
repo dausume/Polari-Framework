@@ -146,7 +146,10 @@ COMPUTELOD_SEED_PAIRS = [
 ]
 try:   # the fabrication rung's row is a sifet class (skipped by the seed loop when sifet is not loaded)
     from sifet.objects.si_ladder.SiliconProcessNode import SiliconProcessNode
-    COMPUTELOD_SEED_PAIRS += [('SiliconProcessNode', SiliconProcessNode, [SKY130_NODE] if _lod4_report() else [])]
+    # D-lod4-1 (ruled 2026-09-26): the ruling lives in code, so these two fields FOLLOW the seed on an instance that
+    # already holds the row (the seeder's `_converge`); the rest of the row stays as the instance has it
+    COMPUTELOD_SEED_PAIRS += [('SiliconProcessNode', SiliconProcessNode,
+                               [dict(SKY130_NODE, _converge=['manufacturability', 'manufacturable_reason'])] if _lod4_report() else [])]
 except Exception:   # pragma: no cover
     pass
 try:   # the tree rows belong to the techtree module; seeded only when it is present
