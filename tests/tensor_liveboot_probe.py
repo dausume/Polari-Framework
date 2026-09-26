@@ -249,6 +249,12 @@ check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a r
 _kn = json.loads(r.json['process_node_row'].get('key_numbers_json') or '{}')
 check('  …and carries the lod-4c device numbers on a real boot (ion_ua_per_um / ioff_na_per_um / vt_v + pmos_*), SIMULATED from the PDK models, source naming the report',
       _kn.get('ion_ua_per_um', {}).get('value') and 400 <= _kn['ion_ua_per_um']['value'] <= 600 and 'pmos_ion_ua_per_um' in _kn and 'lod4/devices_report.json' in _kn['ion_ua_per_um']['source'], sorted(_kn))
+r = client.simulate_get('/api/computelod/lod4/steps')
+check('GET /api/computelod/lod4/steps: the fabrication route as PSPP rows on a real boot — 14 ProcessingStage + 14 MaterialProcessDefinition rows (sky130 + aligned-cnt families) live in pspp\'s tables, the report citing the PDK docs and naming the recipe as absent',
+      r.status_code == 200 and r.json['ok'] and len(r.json['live_rows']['ProcessingStage']) == 14 and len(r.json['live_rows']['MaterialProcessDefinition']) == 14
+      and {x['family'] for x in r.json['live_rows']['ProcessingStage']} == {'silicon-cmos-sky130', 'aligned-cnt'} and 'recipe' in r.json['report']['not_here'], r.text[:300])
+_fm = next((m_ for m_ in tables.get('ComputeMapping', {}).values() if getattr(m_, 'name', '') == 'lod4: fabrication → materials'), None)
+check('  …the fabrication → materials row on a real boot is the lod-4b one (the route as rows, the recipe as the loss)', _fm is not None and str(_fm.notes).startswith('lod-4b') and 'recipe' in str(_fm.loss_note))
 r = client.simulate_get('/api/computelod/lod3/pnr')
 check('GET /api/computelod/lod3/pnr: the WHOLE adder placed and routed in two variants — router DRC 0, the wire cost a subtraction on one netlist (2–3 %), the resizing counted, the GDS never committed',
       r.status_code == 200 and r.json['ok'] and set(r.json['report']['variants']) == {'as-flow', 'cells-kept'} and all(e['metrics']['route_drc_errors'] == 0 and 0.2 < e['timing']['wire_cost_ns'] < 0.3 and e['census']['mapping_unchanged'] is False for e in r.json['report']['variants'].values()), r.text[:300])
@@ -269,8 +275,8 @@ r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-3e + lod-4 + lod-4c rows are seeded: 16 ComputeMappings, 142 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons + 12 place-and-route), 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 16 and len(tables.get('CharacterizationMapping', {})) == 142 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-3e + lod-4 + lod-4b + lod-4c rows are seeded: 17 ComputeMappings, 142 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons + 12 place-and-route), 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 17 and len(tables.get('CharacterizationMapping', {})) == 142 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])

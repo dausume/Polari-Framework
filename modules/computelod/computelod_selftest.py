@@ -307,6 +307,34 @@ check('lod-3e rows: two ComputeMappings adder cells → placed-and-routed layout
       and all(c['source_rung'] == 'layout' and c['target_rung'] == 'standard-cells' for c in chars3e) and next(c for c in chars3e if c['name'] == 'lod3e: rv32_add core area (as-flow)')['mapping_status'] == 'implemented'
       and next(c for c in chars3e if c['name'] == 'lod3e: rv32_add wire delay cost (cells-kept)')['evidence_level'] == 'simulated', [(m_['name'], m_['mapping_status']) for m_ in maps3e] + [c['name'] for c in chars3e])
 check('  …lod3e has a flow for the explainer and plain words for its characteristics', 'lod3e' in FLOWS and all(k in CHARACTERISTIC_WORDS for k in ('wire_delay', 'wirelength', 'drc_violations')))
+# ---- lod-4b: fabrication as ROWS — the SKY130 route from the PDK's documented layers (+ textbook unit processes), the CNT route by reference
+from computelod.custom.lod4_steps import report as lod4b_report, rows as lod4b_rows, stage_rows as lod4b_stages, process_rows as lod4b_processes, SKY130_STAGES, CNT_STAGES, NOT_HERE, TEXTBOOK, FAM_SKY, FAM_CNT
+rep4b = lod4b_report()
+check('lod-4b: a committed steps report exists — the PDK docs (layers, rules, README) cited with the read date and the README quoted; the textbook cited; what the PDK publishes vs what it does not (the recipe) stated',
+      rep4b is not None and rep4b['read_on'] == '2026-09-26' and all(k in rep4b['sources'] for k in ('pdk_layers', 'pdk_rules_summary', 'pdk_readme', 'readme_quote', 'textbook')) and '5 levels of metal' in rep4b['sources']['readme_quote']
+      and 'Plummer' in rep4b['sources']['textbook']['citation'] and 'proprietary' in rep4b['not_here'] and 'recipe' in rep4b['sky130']['what_is_not'], rep4b and rep4b['sources'])
+_st, _pr = lod4b_stages(), lod4b_processes()
+check('  …14 ProcessingStage rows (8 SKY130 wafer states in a chain from the eg-si wafer to the passivated die; 6 CNT stages in a chain), each with family, prior stage, provenance and a description naming the PDK layers / the cntfet row',
+      len(_st) == 14 and [r['name'] for r in _st if r['material_family'] == FAM_SKY] == [s[0] for s in SKY130_STAGES] and all(_st[i]['typical_prior_stage'] == _st[i - 1]['name'] for i in range(1, 8))
+      and [r['name'] for r in _st if r['material_family'] == FAM_CNT] == [s[0] for s in CNT_STAGES] and all(r['provenance_id'] and r['description'] for r in _st)
+      and 'PDK layers' in _st[1]['description'] and '`nwell` = "N-well region"' in _st[1]['description'] and 'CNTPurificationProcess:s1-target-purification' in _st[8]['description'], [r['name'] for r in _st])
+check('  …every SKY130 stage says the recipe is NOT here and cites the layers page; every documented layer of the stack appears on exactly one stage (26 layers: dnwell … nsm/pad)',
+      all(NOT_HERE in r['notes'] and 'skywater-pdk.readthedocs.io' in r['notes'] for r in _st if r['material_family'] == FAM_SKY) and len(rep4b['sky130']['layers_covered']) == 26
+      and sum(len(s[3]) for s in SKY130_STAGES) == 26, rep4b['sky130']['layers_covered'])
+check('  …14 MaterialProcessDefinition rows, ALL declared TRANSFORMATIVE (PSPP invariant I2: declared, never inferred), the 8 SKY130 unit processes citing the textbook and saying the recipe is absent, the 6 CNT ones naming their cntfet parameter row',
+      len(_pr) == 14 and all(r['execution_effect'] == 'TRANSFORMATIVE' and r['process_type'] and r['provenance_id'] for r in _pr)
+      and all(TEXTBOOK['citation'] in r['notes'] and NOT_HERE in r['notes'] for r in _pr if r['material_family'] == FAM_SKY) and all('cntfet_row' in json.loads(r['parameter_schema_json']) for r in _pr if r['material_family'] == FAM_CNT)
+      and {r['energy_deposition_model'] for r in _pr if r['energy_deposition_model']} <= {'conventional-heating', 'rf'}, [(r['name'], r['process_type']) for r in _pr])
+check('  …every unit process a SKY130 stage names is a row; the names never collide with pspp\'s own seeds (prefixes sky130- / cnt-)',
+      {p_ for s_ in SKY130_STAGES for p_ in s_[5]} <= {r['name'] for r in _pr} and all(r['name'].startswith(('sky130-', 'cnt-')) for r in _st + _pr))
+check('  …the seed pairs carry the PSPP rows (guarded on pspp) with description/notes converging onto existing rows',
+      any(n == 'ProcessingStage' and len(r) == 14 and 'description' in r[0]['_converge'] for n, _, r in COMPUTELOD_SEED_PAIRS) and any(n == 'MaterialProcessDefinition' and len(r) == 14 for n, _, r in COMPUTELOD_SEED_PAIRS))
+maps4b, _ = lod4b_rows(rep4b, rep4, rep3)
+check('lod-4b rows: `lod4: fabrication → materials` REPLACED by name — the route as rows, the stack\'s materials NAMED in the target, the recipe as the loss; `lod4b-cnt: fabrication → materials` ADDED, status proposed (no line has made these devices; the cntfet rows say TUNABLE)',
+      [m_['name'] for m_ in maps4b] == ['lod4: fabrication → materials', 'lod4b-cnt: fabrication → materials'] and 'ProcessingStage rows' in maps4b[0]['notes'] and 'Si3N4' in maps4b[0]['target_ref'] and 'recipe' in maps4b[0]['loss_note']
+      and maps4b[0]['evidence_level'] == 'analytical' and maps4b[1]['mapping_status'] == 'proposed' and 'LAYOUT' in maps4b[1]['notes'], [(m_['name'], m_['mapping_status']) for m_ in maps4b])
+check('  …and in the merged seed the lod-4 row IS the lod-4b one (17 ComputeMappings now)', next(m_ for m_ in SEED_LOD_MAPPINGS if m_['name'] == 'lod4: fabrication → materials')['notes'].startswith('lod-4b') and sum(1 for m_ in SEED_LOD_MAPPINGS if m_['name'].startswith('lod4')) == 2
+      and 'lod4b' in FLOWS and 'lod4b-cnt' in FLOWS)
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

@@ -26,6 +26,8 @@ FLOWS = {
     'lod3c': ('computelod.custom.lod3_layout', 'the cells\' layouts checked (magic DRC), parasitics extracted, LVS-matched (netgen), and re-simulated on the extracted netlist', 'lod3/layout_report.json'),
     'lod3e': ('computelod.custom.lod3_pnr', 'the WHOLE adder placed and routed (OpenROAD-flow-scripts in its pinned image), parasitics extracted, timed with OpenSTA with and without the wires', 'lod3/pnr/pnr_report.json'),
     'lod4': ('computelod.custom.lod4_process', 'the layout\'s layers read as process steps and materials', 'lod4/report.json'),
+    'lod4b': ('computelod.custom.lod4_steps', 'the fabrication route written as PSPP rows: SKY130 stages from the PDK\'s documented layer stack, unit processes per the textbook, the CNT route by reference to cntfet', 'lod4/steps_report.json'),
+    'lod4b-cnt': ('computelod.custom.lod4_steps', 'the aligned-CNT fabrication route as PSPP rows, by reference to cntfet\'s process rows', 'lod4/steps_report.json'),
     'lod4c': ('computelod.custom.lod4_devices', 'the process node\'s own device numbers (Ion, Ioff, Vt, DIBL, subthreshold swing) RUN as DC sweeps on the PDK\'s BSIM4 models', 'lod4/devices_report.json'),
 }
 

@@ -34,7 +34,8 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod3/layout', self, suffix='lod3_layout')    # DRC + PEX + LVS on the PDK's layout, re-timed
             add('/api/computelod/lod4/devices', self, suffix='lod4_devices')
             add('/api/computelod/lod2/compare', self, suffix='lod2_compare')
-            add('/api/computelod/lod3/pnr', self, suffix='lod3_pnr')          # lod-3e: the whole adder placed and routed  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
+            add('/api/computelod/lod3/pnr', self, suffix='lod3_pnr')          # lod-3e: the whole adder placed and routed
+            add('/api/computelod/lod4/steps', self, suffix='lod4_steps')      # lod-4b: the fabrication route as PSPP rows (both branches)  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
             add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
     def _rows(self, cls):
@@ -75,6 +76,13 @@ class ComputeLodAPI(treeObject):
         from computelod.custom.lod3_devices import report
         rep = report()
         response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_devices run (ngspice on the pinned sky130_fd_pr tt models, cached in ~/.cache/polari-lod/sky130_pr, never committed)'}
+
+    def on_get_lod4_steps(self, request, response):
+        from computelod.custom.lod4_steps import report
+        rep = report()
+        stages = [{'name': str(r.name), 'family': getattr(r, 'material_family', ''), 'prior': getattr(r, 'typical_prior_stage', '')} for r in self._rows('ProcessingStage') if str(getattr(r, 'material_family', '')) in ('silicon-cmos-sky130', 'aligned-cnt')]
+        procs = [{'name': str(r.name), 'family': getattr(r, 'material_family', ''), 'process_type': getattr(r, 'process_type', '')} for r in self._rows('MaterialProcessDefinition') if str(getattr(r, 'material_family', '')) in ('silicon-cmos-sky130', 'aligned-cnt')]
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'live_rows': {'ProcessingStage': stages, 'MaterialProcessDefinition': procs}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_steps run (a reading; nothing fetched — the citations are in the report)'}
 
     def on_get_lod3_pnr(self, request, response):
         from computelod.custom.lod3_pnr import report

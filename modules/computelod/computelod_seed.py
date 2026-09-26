@@ -140,6 +140,12 @@ from computelod.custom.lod3_pnr import report as _lod3e_report, rows as _lod3e_r
 _l3em, _l3ec = _lod3e_rows(_lod3e_report(), _lod2_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3em)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3ec)
+# ---- lod-4b: fabrication as ROWS — the SKY130 route as PSPP ProcessingStage / MaterialProcessDefinition rows (stages from the PDK's
+# documented layer stack, unit processes per the textbook, the recipe named as absent) and the CNT route by reference to cntfet; replaces
+# lod-4's fabrication → materials by name, adds the CNT branch's. The PSPP rows themselves are seeded below (guarded on pspp).
+from computelod.custom.lod4_steps import report as _lod4b_report, rows as _lod4b_rows, stage_rows as _lod4b_stages, process_rows as _lod4b_processes
+_l4bm, _l4bc = _lod4b_rows(_lod4b_report(), _lod4_report(), _lod3_report())
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l4bm)
 # ---- lod-3b: devices → cells SIMULATED by us — ngspice on the PDK's own BSIM4 models, cross-checked against the
 # Liberty at the same slew/load; the gap (schematic netlist vs extracted layout) is reported, not tuned.
 from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows
@@ -168,6 +174,16 @@ try:   # the fabrication rung's row is a sifet class (skipped by the seed loop w
                                [dict(SKY130_NODE, _converge=['manufacturability', 'manufacturable_reason', 'key_numbers_json'])] if _lod4_report() else [])]
 except Exception:   # pragma: no cover
     pass
+try:
+    from pspp.objects.material_states.ProcessingStage import ProcessingStage as _PS
+    from pspp.objects.material_processes.MaterialProcessDefinition import MaterialProcessDefinition as _MPD
+except ImportError:   # pspp absent: the route rows are not seeded (the lod-4b mapping still names them)
+    _PS = _MPD = None
+if _PS is not None and _lod4b_report():
+    # lod-4b: the fabrication route in PSPP's own classes — merged into pspp's tables by name (prefixes sky130-/cnt- never collide with pspp's seeds);
+    # description/notes are code-owned (the reading may sharpen), so they converge onto an instance that already holds the rows
+    COMPUTELOD_SEED_PAIRS += [('ProcessingStage', _PS, [dict(r, _converge=['description', 'notes', 'provenance_id']) for r in _lod4b_stages()]),
+                              ('MaterialProcessDefinition', _MPD, [dict(r, _converge=['description', 'notes', 'provenance_id', 'parameter_schema_json']) for r in _lod4b_processes()])]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment
     COMPUTELOD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_COMPUTE_TECH_TREES),

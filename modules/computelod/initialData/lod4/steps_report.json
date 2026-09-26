@@ -1,0 +1,118 @@
+{
+ "read_on": "2026-09-26",
+ "sources": {
+  "pdk_layers": "https://skywater-pdk.readthedocs.io/en/main/rules/layers.html",
+  "pdk_rules_summary": "https://skywater-pdk.readthedocs.io/en/main/rules/summary.html",
+  "pdk_readme": "https://github.com/google/skywater-pdk/blob/main/README.rst",
+  "readme_quote": "\"The SKY130 is a mature 180nm-130nm hybrid technology originally developed internally by Cypress Semiconductor before being spun out into SkyWater Technology\" \u00b7 \"Support for internal 1.8V with 5.0V I/Os (operable at 2.5V) \u00b7 1 level of local interconnect \u00b7 5 levels of metal \u00b7 Is inductor-capable \u00b7 Has high sheet rho poly resistor \u00b7 Optional MiM capacitors \u00b7 Includes SONOS shrunken cell \u00b7 Supports 10V regulated supply \u00b7 HV extended-drain NMOS and PMOS\"",
+  "textbook": {
+   "key": "[PDG00]",
+   "citation": "J. D. Plummer, M. D. Deal, P. B. Griffin, \"Silicon VLSI Technology: Fundamentals, Practice and Modeling\", Prentice Hall, 2000 (ISBN 0-13-085037-3)",
+   "role": "the standard CMOS unit processes each documented SKY130 layer requires; NOT SkyWater's recipe, which is proprietary and not published in the PDK"
+  }
+ },
+ "not_here": "SkyWater's actual recipe (temperatures, doses, gas chemistries, film thicknesses beyond the models' toxe) is proprietary and NOT in the PDK \u2014 not here either",
+ "sky130": {
+  "family": "silicon-cmos-sky130",
+  "stages": [
+   "sky130-eg-si-wafer",
+   "sky130-wells",
+   "sky130-active",
+   "sky130-gate-stack",
+   "sky130-source-drain",
+   "sky130-contacts-li",
+   "sky130-metal-stack",
+   "sky130-passivation"
+  ],
+  "processes": [
+   "sky130-photolithography",
+   "sky130-ion-implantation",
+   "sky130-thermal-oxidation",
+   "sky130-lpcvd-deposition",
+   "sky130-plasma-etch",
+   "sky130-metallization",
+   "sky130-cmp",
+   "sky130-anneal"
+  ],
+  "layers_covered": [
+   "diff",
+   "dnwell",
+   "hvi",
+   "hvtp",
+   "li1",
+   "licon1",
+   "lvtn",
+   "mcon",
+   "met1",
+   "met2",
+   "met3",
+   "met4",
+   "met5",
+   "npc",
+   "nsdm",
+   "nsm",
+   "nwell",
+   "pad",
+   "poly",
+   "psdm",
+   "rpm",
+   "tap",
+   "via",
+   "via2",
+   "via3",
+   "via4"
+  ],
+  "materials_named": [
+   "Al",
+   "As / P",
+   "B / As Vt-adjust implants",
+   "P and/or As dopant",
+   "Si",
+   "Si3N4",
+   "Si3N4 seal",
+   "SiO2",
+   "SiO2 gate dielectric",
+   "contact plug metal",
+   "inter-metal dielectric SiO2",
+   "local-interconnect metal",
+   "optional MiM capacitor dielectric",
+   "pad metal exposed",
+   "poly-Si",
+   "via plug metal"
+  ],
+  "what_is_published": "the drawing layers and their purposes, the design rules, the device models (toxe, vth0, \u2026), the README's stack description",
+  "what_is_not": "the recipe: temperatures, doses, gas chemistries, which isolation (LOCOS/STI), which metals (Al/Cu), plug and barrier materials"
+ },
+ "cnt": {
+  "family": "aligned-cnt",
+  "stages": [
+   "cnt-purified-solution",
+   "cnt-aligned-film",
+   "cnt-placed-channel",
+   "cnt-contacts-formed",
+   "cnt-gate-stack-formed",
+   "cnt-patterned-device"
+  ],
+  "processes": [
+   "cnt-purification",
+   "cnt-alignment",
+   "cnt-placement",
+   "cnt-contact-formation",
+   "cnt-gate-stack",
+   "cnt-lithography"
+  ],
+  "cntfet_rows": [
+   "CNTPurificationProcess:s1-target-purification",
+   "CNTAlignmentProcess:s1-target-alignment",
+   "CNTPlacementProcess:s1-target-placement",
+   "ContactFormationProcess:s1-target-contacts",
+   "GateStackProcess:s1-target-gatestack",
+   "LithographyProcess:s1-target-litho"
+  ],
+  "note": "the CNT branch's process rows already existed in cntfet (cnt_process); lod-4b maps them onto PSPP's classes by reference \u2014 the gap on that branch stays LAYOUT (lod-3), not process"
+ },
+ "rows": {
+  "ProcessingStage": 14,
+  "MaterialProcessDefinition": 14
+ }
+}

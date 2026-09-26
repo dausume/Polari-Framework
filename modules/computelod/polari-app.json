@@ -110,7 +110,8 @@
    "custom/lod4_process",
    "custom/lod4_devices",
    "custom/lod2_compare",
-   "custom/lod3_pnr"
+   "custom/lod3_pnr",
+   "custom/lod4_steps"
   ],
   "endpoints": [
    "computelod_endpoints"
