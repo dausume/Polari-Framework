@@ -24,6 +24,7 @@ FLOWS = {
     'lod3-cnt': ('computelod.custom.lod2_cnt', 'our CNT cell library\'s device lists, counted', 'lod2/cnt/report.json'),
     'lod3c': ('computelod.custom.lod3_layout', 'the cells\' layouts checked (magic DRC), parasitics extracted, LVS-matched (netgen), and re-simulated on the extracted netlist', 'lod3/layout_report.json'),
     'lod4': ('computelod.custom.lod4_process', 'the layout\'s layers read as process steps and materials', 'lod4/report.json'),
+    'lod4c': ('computelod.custom.lod4_devices', 'the process node\'s own device numbers (Ion, Ioff, Vt, DIBL, subthreshold swing) RUN as DC sweeps on the PDK\'s BSIM4 models', 'lod4/devices_report.json'),
 }
 
 CHARACTERISTIC_WORDS = {
@@ -31,6 +32,9 @@ CHARACTERISTIC_WORDS = {
     'dynamic_power': 'the power it burns while switching', 'leakage': 'the power it leaks while idle', 'area': 'how much silicon it occupies',
     'latency': 'how long one operation takes', 'throughput': 'how many operations per second', 'transistor_count': 'how many transistors it takes',
     'cycles': 'how many clock cycles it takes', 'device_count': 'how many devices it takes',
+    'on_current': 'how much current one micron of transistor width carries when fully on', 'off_current': 'how much current leaks through when it is switched off',
+    'threshold_voltage': 'the gate voltage at which the transistor starts to conduct', 'dibl': 'how much the drain voltage lowers the threshold (drain-induced barrier lowering)',
+    'subthreshold_swing': 'how many millivolts of gate voltage it takes to change the leakage tenfold',
 }
 
 

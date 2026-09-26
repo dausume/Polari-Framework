@@ -107,7 +107,8 @@
    "custom/lod3_cells",
    "custom/lod3_devices",
    "custom/lod3_layout",
-   "custom/lod4_process"
+   "custom/lod4_process",
+   "custom/lod4_devices"
   ],
   "endpoints": [
    "computelod_endpoints"

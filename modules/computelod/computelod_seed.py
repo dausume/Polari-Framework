@@ -124,6 +124,11 @@ from computelod.custom.lod4_process import report as _lod4_report, rows as _lod4
 _l4m, _l4c = _lod4_rows(_lod4_report(), _lod3_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l4m)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4c)
+# ---- lod-4c: the process node's own numbers RUN — Ion / Ioff / Vt / DIBL / SS per device flavour from DC sweeps on the PDK's
+# BSIM4 models (simulated); upward characterizations fabrication → devices; the sky130 row's key_numbers_json gains them (lod4_process).
+from computelod.custom.lod4_devices import report as _lod4c_report, rows as _lod4c_rows
+_l4cm, _l4cc = _lod4c_rows(_lod4c_report())
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4cc)
 # ---- lod-3b: devices → cells SIMULATED by us — ngspice on the PDK's own BSIM4 models, cross-checked against the
 # Liberty at the same slew/load; the gap (schematic netlist vs extracted layout) is reported, not tuned.
 from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows
@@ -149,7 +154,7 @@ try:   # the fabrication rung's row is a sifet class (skipped by the seed loop w
     # D-lod4-1 (ruled 2026-09-26): the ruling lives in code, so these two fields FOLLOW the seed on an instance that
     # already holds the row (the seeder's `_converge`); the rest of the row stays as the instance has it
     COMPUTELOD_SEED_PAIRS += [('SiliconProcessNode', SiliconProcessNode,
-                               [dict(SKY130_NODE, _converge=['manufacturability', 'manufacturable_reason'])] if _lod4_report() else [])]
+                               [dict(SKY130_NODE, _converge=['manufacturability', 'manufacturable_reason', 'key_numbers_json'])] if _lod4_report() else [])]
 except Exception:   # pragma: no cover
     pass
 try:   # the tree rows belong to the techtree module; seeded only when it is present

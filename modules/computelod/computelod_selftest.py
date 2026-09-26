@@ -216,6 +216,31 @@ check('lod-4 rows: layout → fabrication RESOLVED by name (one-to-one, analytic
       {m_['name'] for m_ in maps4} == {'lod3: layout → fabrication', 'lod4: fabrication → materials'} and all(m_['evidence_level'] == 'analytical' for m_ in maps4)
       and 'eg-si' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['target_ref'] and 'not modelled' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['notes'])
 check('  …the CNT branch stays blocked at LAYOUT (not at process): its process rows are named so the gap is precise', rep4['cnt']['layout'] is None and 'CNTAlignmentProcess' in rep4['cnt']['process_rows_named'])
+from computelod.custom.explain import CHARACTERISTIC_WORDS, FLOWS
+# ---- lod-4c: the process node's OWN numbers RUN — Ion / Ioff / Vt / DIBL / SS from DC sweeps on the PDK's BSIM4 models
+from computelod.custom.lod4_devices import report as lod4c_report, rows as lod4c_rows, key_numbers as lod4c_key_numbers, metrics as lod4c_metrics, CONDITIONS as L4C_COND, DEVICES as L4C_DEVICES
+rep4c = lod4c_report()
+check('lod-4c: a committed device report exists — the two flavours the cells use (nfet_01v8, pfet_01v8_hvt), six model files cited by sha256, definitions of every metric stated with the sifet conventions (constant-current Vt = 100 nA × W)',
+      rep4c is not None and set(rep4c['devices']) == set(L4C_DEVICES) == {'nfet_01v8', 'pfet_01v8_hvt'} and len(rep4c['models']['files']) == 6 and set(rep4c['definitions']) == {'ion', 'ioff', 'vt', 'dibl', 'ss'}
+      and '100 nA' in L4C_COND['vt_criterion'] and L4C_COND['w_um'] == 1.0 and L4C_COND['l_um'] == 0.15, rep4c and rep4c['summary'])
+_n, _p = rep4c['devices']['nfet_01v8']['metrics'], rep4c['devices']['pfet_01v8_hvt']['metrics']
+check('  …the numbers are physically coherent: nfet Ion 400–600 µA/µm at 1.8 V, Ioff in the pA/µm range (a low-leakage 130 nm process), Vt_sat ≈ the model card\'s vth0 (0.519 V) within 20 mV, Vt_lin > Vt_sat (DIBL positive, < 100 mV/V), SS 60–110 mV/dec; the hvt p device slower and higher-Vt than the n',
+      400 <= _n['ion_ua_per_um'] <= 600 and 0 < _n['ioff_na_per_um'] < 0.1 and abs(_n['vt_sat_v'] - 0.519) < 0.02 and _n['vt_lin_v'] > _n['vt_sat_v'] and 0 < _n['dibl_mv_per_v'] < 100 and 60 <= _n['ss_mv_per_dec'] <= 110
+      and _p['ion_ua_per_um'] < _n['ion_ua_per_um'] and _p['vt_sat_v'] > _n['vt_sat_v'] and 0 < _p['ioff_na_per_um'] < 0.1, (_n, _p))
+check('  …the metric extraction is deterministic on a synthetic curve: Ion = the last sample, Ioff the first, Vt where Id crosses 100 nA × W, SS from the decade window',
+      lod4c_metrics([(v / 100.0, 1e-12 * 10 ** (v / 10.0)) for v in range(0, 181)], [(v / 100.0, 1e-12 * 10 ** (v / 10.0) * 0.5) for v in range(0, 181)])['ss_mv_per_dec'] == 100.0
+      and abs(lod4c_metrics([(v / 100.0, 1e-12 * 10 ** (v / 10.0)) for v in range(0, 181)], [(v / 100.0, 1e-12 * 10 ** (v / 10.0)) for v in range(0, 181)])['vt_sat_v'] - 0.5) < 0.01)
+_kn4c = lod4c_key_numbers(rep4c)
+check('  …the sky130 SiliconProcessNode row GAINS the numbers in sifet\'s key names and {value, unit, source, note} shape (ion_ua_per_um, ioff_na_per_um, vt_v, dibl_mv_per_v, ss_mv_per_dec + pmos_*), source naming the report; the seed converges key_numbers_json onto an existing row',
+      {'ion_ua_per_um', 'ioff_na_per_um', 'vt_v', 'dibl_mv_per_v', 'ss_mv_per_dec', 'pmos_ion_ua_per_um', 'pmos_ioff_na_per_um', 'pmos_vt_v'} <= set(_kn4c) and all({'value', 'unit', 'source'} <= set(v) for v in _kn4c.values())
+      and 'lod4/devices_report.json' in _kn4c['ion_ua_per_um']['source'] and json.loads(SKY130_NODE['key_numbers_json'])['ion_ua_per_um']['value'] == _n['ion_ua_per_um']
+      and 'key_numbers_json' in next(r_[0].get('_converge', []) for n_, _, r_ in COMPUTELOD_SEED_PAIRS if n_ == 'SiliconProcessNode' and r_), sorted(_kn4c))
+_, chars4c = lod4c_rows(rep4c)
+check('lod-4c rows: ten UPWARD characterizations fabrication → devices (five per flavour: on_current, off_current, threshold_voltage, dibl, subthreshold_swing), evidence SIMULATED, status implemented (a model, not a die), the FreePDK45 documented value beside Ion/Ioff for the reading',
+      len(chars4c) == 10 and all(c['source_rung'] == 'fabrication' and c['target_rung'] == 'devices' and c['evidence_level'] == 'simulated' and c['mapping_status'] == 'implemented' for c in chars4c)
+      and {c['characteristic'] for c in chars4c} == {'on_current', 'off_current', 'threshold_voltage', 'dibl', 'subthreshold_swing'}
+      and json.loads(next(c for c in chars4c if c['name'] == 'lod4c: nfet_01v8 on current')['conditions_json'])['freepdk45_documented'] == 975.5, [c['name'] for c in chars4c])
+check('  …every new characteristic has plain words for the explainer', all(k in CHARACTERISTIC_WORDS for k in ('on_current', 'off_current', 'threshold_voltage', 'dibl', 'subthreshold_swing')) and 'lod4c' in FLOWS)
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

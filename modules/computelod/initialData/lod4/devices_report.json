@@ -1,0 +1,421 @@
+{
+ "tool": "ngspice-46 (/home/user/tools/ngspice/bin/ngspice)",
+ "engine_ladder": "cntfet.engines (find_ngspice)",
+ "models": {
+  "repo": "google/skywater-pdk-libs-sky130_fd_pr",
+  "commit": "f62031a1be9aefe902d6d54cddd6f59b57627436",
+  "licence": "Apache-2.0 (SkyWater PDK)",
+  "files": {
+   "sky130_fd_pr__nfet_01v8__mismatch.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__mismatch.corner.spice",
+    "sha256": "24a3b29d7d7f26f99098811c31eb5497950a3aed520ab83768a96f35467fe818",
+    "bytes": 962
+   },
+   "sky130_fd_pr__nfet_01v8__tt.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.corner.spice",
+    "sha256": "0c03b2e5727c414942f1d2b27e19a68724fb84be90b2c73b361ad41779311130",
+    "bytes": 66384
+   },
+   "sky130_fd_pr__nfet_01v8__tt.pm3.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.pm3.spice",
+    "sha256": "3d706d50cf2e57175aea78bcf27e4ee07d9f750b154a4b06e6090531364a831b",
+    "bytes": 1109307
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice",
+    "sha256": "05e258ab6724c8276cc058f6dba732e8024c5f0bb79ff3131ca219143491d631",
+    "bytes": 1039
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice",
+    "sha256": "69401f9b657f9ebb20d201d39e3fbf36b68628307d6fa982168fa51db3e77b03",
+    "bytes": 88134
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice",
+    "sha256": "f575eef5caea7f9638fa7e1b0078aedcf6d8513f5499b5bb79399186557881f2",
+    "bytes": 1314282
+   }
+  }
+ },
+ "conditions": {
+  "corner": "tt",
+  "temperature_c": 25.0,
+  "vdd_v": 1.8,
+  "w_um": 1.0,
+  "l_um": 0.15,
+  "vds_linear_v": 0.05,
+  "vt_criterion": "constant current, Id = 100 nA \u00d7 W(\u00b5m) (sifet metric_spec)",
+  "sweep": "Vgs 0 \u2192 Vdd in 10 mV steps, DC",
+  "mismatch": "nominal (mismatch.corner included, no Monte Carlo)",
+  "netlist": "one device, the PDK subckt (sky130_fd_pr__<flavour>), no parasitics"
+ },
+ "definitions": {
+  "ion": "Id(Vgs = Vds = Vdd) / W",
+  "ioff": "Id(Vgs = 0, Vds = Vdd) / W",
+  "vt": "Vgs at Id = 100 nA \u00d7 W(\u00b5m); _lin at Vds = 50 mV, _sat at Vds = Vdd",
+  "dibl": "(Vt_lin \u2212 Vt_sat) / (Vdd \u2212 0.05 V)",
+  "ss": "shallowest decade slope of log10(Id) vs Vgs between 10\u00d7 and 1000\u00d7 Ioff, saturation sweep"
+ },
+ "devices": {
+  "nfet_01v8": {
+   "polarity": "n",
+   "role": "every n device of the mapped sky130_fd_sc_hd cells (lod-3)",
+   "metrics": {
+    "ion_ua_per_um": 502.5,
+    "ioff_na_per_um": 0.002,
+    "ion_ioff_ratio": 249332462,
+    "vt_lin_v": 0.6033,
+    "vt_sat_v": 0.5164,
+    "dibl_mv_per_v": 49.6,
+    "ss_mv_per_dec": 92.0
+   },
+   "samples": 181,
+   "curve_sat": [
+    [
+     0.0,
+     2.01551945e-12
+    ],
+    [
+     0.1,
+     4.46926795e-12
+    ],
+    [
+     0.2,
+     3.61737778e-11
+    ],
+    [
+     0.3,
+     4.43795562e-10
+    ],
+    [
+     0.4,
+     5.59334411e-09
+    ],
+    [
+     0.5,
+     6.68659531e-08
+    ],
+    [
+     0.6,
+     6.74733299e-07
+    ],
+    [
+     0.7,
+     4.65959518e-06
+    ],
+    [
+     0.8,
+     1.89880838e-05
+    ],
+    [
+     0.9,
+     4.82196435e-05
+    ],
+    [
+     1.0,
+     8.87767233e-05
+    ],
+    [
+     1.1,
+     0.000135334042
+    ],
+    [
+     1.2,
+     0.000184984362
+    ],
+    [
+     1.3,
+     0.000236410595
+    ],
+    [
+     1.4,
+     0.00028891368
+    ],
+    [
+     1.5,
+     0.000342047744
+    ],
+    [
+     1.6,
+     0.000395501801
+    ],
+    [
+     1.7,
+     0.00044905188
+    ],
+    [
+     1.8,
+     0.000502534427
+    ]
+   ],
+   "curve_lin": [
+    [
+     0.0,
+     7.19164407e-14
+    ],
+    [
+     0.1,
+     2.63156009e-13
+    ],
+    [
+     0.2,
+     3.03803899e-12
+    ],
+    [
+     0.3,
+     4.3109601e-11
+    ],
+    [
+     0.4,
+     6.11566063e-10
+    ],
+    [
+     0.5,
+     8.1859032e-09
+    ],
+    [
+     0.6,
+     9.22370355e-08
+    ],
+    [
+     0.7,
+     7.46446547e-07
+    ],
+    [
+     0.8,
+     3.70389888e-06
+    ],
+    [
+     0.9,
+     1.00510104e-05
+    ],
+    [
+     1.0,
+     1.80570017e-05
+    ],
+    [
+     1.1,
+     2.62528717e-05
+    ],
+    [
+     1.2,
+     3.41517693e-05
+    ],
+    [
+     1.3,
+     4.16286901e-05
+    ],
+    [
+     1.4,
+     4.86479118e-05
+    ],
+    [
+     1.5,
+     5.51971661e-05
+    ],
+    [
+     1.6,
+     6.12740567e-05
+    ],
+    [
+     1.7,
+     6.68827985e-05
+    ],
+    [
+     1.8,
+     7.2032785e-05
+    ]
+   ],
+   "freepdk45_beside": {
+    "ion_ua_per_um": 975.5,
+    "ioff_na_per_um": 10.0,
+    "note": "FreePDK45 documentation v1.4, VTG flavour, Vdd 1.0 V, 45 nm \u2014 sifet's ladder row; a different node and voltage: shown for the reading, not a ranking"
+   }
+  },
+  "pfet_01v8_hvt": {
+   "polarity": "p",
+   "role": "every p device of the mapped cells (high-Vt flavour; the library's default)",
+   "metrics": {
+    "ion_ua_per_um": 148.3,
+    "ioff_na_per_um": 0.0026,
+    "ion_ioff_ratio": 56272889,
+    "vt_lin_v": 0.7538,
+    "vt_sat_v": 0.6408,
+    "dibl_mv_per_v": 64.6,
+    "ss_mv_per_dec": 97.7
+   },
+   "samples": 181,
+   "curve_sat": [
+    [
+     0.0,
+     2.63526815e-12
+    ],
+    [
+     0.1,
+     2.97942555e-12
+    ],
+    [
+     0.2,
+     1.39560437e-11
+    ],
+    [
+     0.3,
+     1.74319252e-10
+    ],
+    [
+     0.4,
+     1.72449411e-09
+    ],
+    [
+     0.5,
+     1.08284207e-08
+    ],
+    [
+     0.6,
+     5.31124477e-08
+    ],
+    [
+     0.7,
+     2.51712098e-07
+    ],
+    [
+     0.8,
+     1.16351624e-06
+    ],
+    [
+     0.9,
+     4.14273967e-06
+    ],
+    [
+     1.0,
+     1.02874424e-05
+    ],
+    [
+     1.1,
+     1.96844694e-05
+    ],
+    [
+     1.2,
+     3.20359496e-05
+    ],
+    [
+     1.3,
+     4.69990641e-05
+    ],
+    [
+     1.4,
+     6.42196936e-05
+    ],
+    [
+     1.5,
+     8.3329892e-05
+    ],
+    [
+     1.6,
+     0.00010395524
+    ],
+    [
+     1.7,
+     0.000125727076
+    ],
+    [
+     1.8,
+     0.000148294152
+    ]
+   ],
+   "curve_lin": [
+    [
+     0.0,
+     6.02664952e-14
+    ],
+    [
+     0.1,
+     1.00229983e-13
+    ],
+    [
+     0.2,
+     7.98611159e-13
+    ],
+    [
+     0.3,
+     1.23328018e-11
+    ],
+    [
+     0.4,
+     1.69232688e-10
+    ],
+    [
+     0.5,
+     1.54465162e-09
+    ],
+    [
+     0.6,
+     9.07821299e-09
+    ],
+    [
+     0.7,
+     4.36292588e-08
+    ],
+    [
+     0.8,
+     2.00896268e-07
+    ],
+    [
+     0.9,
+     7.64754182e-07
+    ],
+    [
+     1.0,
+     1.89838336e-06
+    ],
+    [
+     1.1,
+     3.36191929e-06
+    ],
+    [
+     1.2,
+     4.93698014e-06
+    ],
+    [
+     1.3,
+     6.53004914e-06
+    ],
+    [
+     1.4,
+     8.09926074e-06
+    ],
+    [
+     1.5,
+     9.61887709e-06
+    ],
+    [
+     1.6,
+     1.10693151e-05
+    ],
+    [
+     1.7,
+     1.24348407e-05
+    ],
+    [
+     1.8,
+     1.37031593e-05
+    ]
+   ],
+   "freepdk45_beside": {
+    "ion_ua_per_um": 650.3,
+    "ioff_na_per_um": 10.0,
+    "note": "FreePDK45 documentation v1.4, VTG flavour, Vdd 1.0 V, 45 nm \u2014 sifet's ladder row; a different node and voltage: shown for the reading, not a ranking"
+   }
+  }
+ },
+ "summary": {
+  "devices": [
+   "nfet_01v8",
+   "pfet_01v8_hvt"
+  ],
+  "nfet_ion_ua_per_um": 502.5,
+  "pfet_hvt_ion_ua_per_um": 148.3,
+  "reading": "the sky130 tt models at 1.8 V give the n device roughly half the FreePDK45 documented on-current at 1.0 V/45 nm while leaking three to four orders of magnitude less \u2014 a 130 nm low-leakage process, read from its own models, not from a datasheet"
+ }
+}

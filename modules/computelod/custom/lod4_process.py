@@ -51,12 +51,32 @@ SKY130_NODE = {
         'vdd_core_v': {'value': 1.8, 'unit': 'V', 'source': 'the Liberty corner tt_025C_1v80 (lod-2) and the sky130_fd_pr__*_01v8 device names', 'note': '1.8 V core; 5 V / HV devices exist in the PDK, not used here'},
         'metal_layers': {'value': 5, 'unit': 'layers', 'source': PDK_DOCS + ' (process stack: 5 levels of metal, local interconnect)', 'note': 'documentation, not read from a file here'},
         'device_flavours_used': {'value': ['sky130_fd_pr__nfet_01v8', 'sky130_fd_pr__pfet_01v8_hvt'], 'source': 'lod-3 netlists'},
-    }),
+    }),   # + the lod-4c device numbers, merged below when the report exists
     'what_we_can_use': 'the open PDK artefacts (cells, Liberty, LEF, SPICE models) under Apache-2.0 — read and cited in lod-2/lod-3; the process as the fabrication rung of the compute ladder',
     'what_we_must_not_assume': 'that a design mapped here can be fabricated TODAY (shuttle availability is a person\'s verification), or that the PDK\'s models equal a measured die of our own',
     'search_json': json.dumps({'have': ['PDK repo + docs', 'cell library files (lod-3)', 'Liberty corner (lod-2)'], 'missing': ['a current open-shuttle confirmation', 'a die measurement of our own']}),
     'evidence_json': '[]', 'notes': 'seeded by computelod lod-4 as the fabrication rung of the SKY130 branch; NOT part of the sifet ladder\'s ratified prior nodes', 'is_prior': True,
 }
+
+
+def _merge_device_numbers():
+    """lod-4c: the row's key_numbers_json gains Ion / Ioff / Vt / DIBL / SS per flavour (sifet's key names + {value, unit, source,
+    note} shape) from the committed device report — SIMULATED numbers beside the READ ones; the seed's `_converge` carries the
+    field onto an instance that already holds the row."""
+    try:
+        from computelod.custom.lod4_devices import report as _rep, key_numbers as _kn
+        kn = _kn(_rep())
+    except Exception:
+        kn = {}
+    if kn:
+        base = json.loads(SKY130_NODE['key_numbers_json'])
+        base.update(kn)
+        SKY130_NODE['key_numbers_json'] = json.dumps(base)
+        SKY130_NODE['search_json'] = json.dumps({'have': ['PDK repo + docs', 'cell library files (lod-3)', 'Liberty corner (lod-2)', 'device models RUN: Ion/Ioff/Vt/DIBL/SS (lod-4c)'],
+                                                 'missing': ['a current open-shuttle confirmation', 'a die measurement of our own']})
+
+
+_merge_device_numbers()
 
 
 def run():

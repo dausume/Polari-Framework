@@ -32,6 +32,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod4', self, suffix='lod4')                 # fabrication → materials, by reference
             add('/api/computelod/lod3/devices', self, suffix='lod3_devices')  # devices → cells simulated by us vs the Liberty
             add('/api/computelod/lod3/layout', self, suffix='lod3_layout')    # DRC + PEX + LVS on the PDK's layout, re-timed
+            add('/api/computelod/lod4/devices', self, suffix='lod4_devices')  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
             add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
     def _rows(self, cls):
@@ -73,13 +74,18 @@ class ComputeLodAPI(treeObject):
         rep = report()
         response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_devices run (ngspice on the pinned sky130_fd_pr tt models, cached in ~/.cache/polari-lod/sky130_pr, never committed)'}
 
+    def on_get_lod4_devices(self, request, response):
+        from computelod.custom.lod4_devices import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_devices run (ngspice DC sweeps on the pinned sky130_fd_pr tt models; W = 1 µm, L = 0.15 µm; simulated, not a die)'}
+
     def on_get_lod4(self, request, response):
         from computelod.custom.lod4_process import report
         rep = report()
         node = next((n for n in self._rows('SiliconProcessNode') if str(getattr(n, 'name', '')) == 'sky130'), None)
         response.media = {'ok': bool(rep), 'report': rep or {}, 'process_node_row': None if node is None else {'name': 'sky130', 'node_nm': getattr(node, 'node_nm', 0), 'vdd_v': getattr(node, 'vdd_v', 0),
                           'rights_class': getattr(node, 'rights_class', ''), 'fabrication_evidence': getattr(node, 'fabrication_evidence', ''), 'manufacturability': getattr(node, 'manufacturability', ''), 'manufacturable': getattr(node, 'manufacturable', None),
-                          'manufacturable_reason': getattr(node, 'manufacturable_reason', '')}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_process run (a reading; nothing fetched)'}
+                          'manufacturable_reason': getattr(node, 'manufacturable_reason', ''), 'key_numbers_json': getattr(node, 'key_numbers_json', '{}')}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_process run (a reading; nothing fetched)'}
 
     def on_get_lod3(self, request, response):
         from computelod.custom.lod3_cells import report
