@@ -73,7 +73,9 @@ def run(cells=None, work=None):
             p, _, _ = _fetch(PR_REPO, 'cells/%s/sky130_fd_pr__%s__%s.spice' % (dev, dev, kind)); inc.append('.include "%s"' % p)
     mag_tech = os.path.join(_PDK_LOCAL, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')
     rep = {'engines': {e: resolve(e) for e in ('magic', 'netgen')}, 'ngspice': ng,
-           'pdk': {'root': 'POLARI_PDK_ROOT (never committed)', 'ciel_version': pdk_version(), 'tech_sha256': _sha(mag_tech) if os.path.exists(mag_tech) else 'remote worker\'s PDK'}, 'conditions': CONDITIONS, 'cells': []}
+           'pdk': {'root': 'POLARI_PDK_ROOT (never committed)', 'ciel_version': pdk_version(), 'tech_sha256': _sha(mag_tech) if os.path.exists(mag_tech) else 'remote worker\'s PDK'},
+           # bp-3: these rows are the EXTRACTED runs — the netlist condition must say so (it used to be copied from the schematic run's)
+           'conditions': dict(CONDITIONS, netlist='extracted (magic PEX of the PDK\'s own .mag — parasitic capacitors included; the schematic figure is kept beside it as schematic_ps)'), 'cells': []}
     prior = {(a['cell'], a['pin']): a['compare'] for a in (devices_report() or {}).get('arcs', [])}
     for cell in (cells or list(ARCS)):
         full = 'sky130_fd_sc_hd__%s' % cell
