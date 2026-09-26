@@ -1,0 +1,1229 @@
+{
+ "engines": {
+  "magic": {
+   "how": "local-image",
+   "where": "polari-eda-tools:noble",
+   "why": "the pinned image on this device"
+  },
+  "netgen": {
+   "how": "local-image",
+   "where": "polari-eda-tools:noble",
+   "why": "the pinned image on this device"
+  }
+ },
+ "ngspice": "/home/user/tools/ngspice/bin/ngspice",
+ "pdk": {
+  "root": "POLARI_PDK_ROOT (never committed)",
+  "ciel_version": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+  "tech_sha256": "55fdebfa329544c1cb1e22a3817461603f1dea9a41638b26af8c7751b3e0cc6a"
+ },
+ "conditions": {
+  "corner": "tt",
+  "temperature_c": 25.0,
+  "voltage_v": 1.8,
+  "load_pf": 0.0146,
+  "input_slew_ns_20_80": 0.05,
+  "input_shape": "linear ramp (0\u2013100 % over 83.3 ps so 20\u201380 % = 50 ps)",
+  "thresholds": "delay 50 %/50 %, transition 20\u201380 % (the Liberty's own)",
+  "netlist": "extracted (magic PEX of the PDK's own .mag \u2014 parasitic capacitors included; the schematic figure is kept beside it as schematic_ps)"
+ },
+ "cells": [
+  {
+   "cell": "sky130_fd_sc_hd__inv_1",
+   "mag_sha256": "e466b46564870ffaf7e65242cc63de2138296d26d49e104c616282a4a1f14189",
+   "drc": {
+    "count": 3,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__inv_1_pex.spice",
+    "devices": 2,
+    "capacitors": 14,
+    "sha256": "bead617a42105aa73cf96926af66193b035ef75d834a3c7e745399d441fcadf5",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A",
+     "cond": "",
+     "out": "Y",
+     "ties": {},
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 67.76,
+       "schematic": 65.21,
+       "liberty": 77.22,
+       "delta_pct": -12.3,
+       "schematic_delta_pct": -15.6
+      },
+      "tplh_ps": {
+       "extracted": 135.77,
+       "schematic": 129.95,
+       "liberty": 117.94,
+       "delta_pct": 15.1,
+       "schematic_delta_pct": 10.2
+      },
+      "fall_transition_ps": {
+       "extracted": 58.97,
+       "schematic": 56.05,
+       "liberty": 70.77,
+       "delta_pct": -16.7,
+       "schematic_delta_pct": -20.8
+      },
+      "rise_transition_ps": {
+       "extracted": 148.07,
+       "schematic": 140.5,
+       "liberty": 128.86,
+       "delta_pct": 14.9,
+       "schematic_delta_pct": 9.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nand2_1",
+   "mag_sha256": "07d1978cce421142d8929c01ee6d5f6c4e5909889e562203dff2b2fd1becba55",
+   "drc": {
+    "count": 4,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__nand2_1_pex.spice",
+    "devices": 4,
+    "capacitors": 23,
+    "sha256": "37cf1cd731c7e03ac2a0bdd22292ebf75cedb19702310fb3a9829a801814d9fe",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "B": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 95.81,
+       "schematic": 91.73,
+       "liberty": 106.39,
+       "delta_pct": -9.9,
+       "schematic_delta_pct": -13.8
+      },
+      "tplh_ps": {
+       "extracted": 138.7,
+       "schematic": 132.53,
+       "liberty": 129.4,
+       "delta_pct": 7.2,
+       "schematic_delta_pct": 2.4
+      },
+      "fall_transition_ps": {
+       "extracted": 95.93,
+       "schematic": 91.04,
+       "liberty": 108.99,
+       "delta_pct": -12.0,
+       "schematic_delta_pct": -16.5
+      },
+      "rise_transition_ps": {
+       "extracted": 150.51,
+       "schematic": 142.88,
+       "liberty": 141.88,
+       "delta_pct": 6.1,
+       "schematic_delta_pct": 0.7
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "A": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 98.96,
+       "schematic": 93.84,
+       "liberty": 110.29,
+       "delta_pct": -10.3,
+       "schematic_delta_pct": -14.9
+      },
+      "tplh_ps": {
+       "extracted": 146.9,
+       "schematic": 139.42,
+       "liberty": 136.07,
+       "delta_pct": 8.0,
+       "schematic_delta_pct": 2.5
+      },
+      "fall_transition_ps": {
+       "extracted": 95.93,
+       "schematic": 91.04,
+       "liberty": 110.34,
+       "delta_pct": -13.1,
+       "schematic_delta_pct": -17.5
+      },
+      "rise_transition_ps": {
+       "extracted": 157.98,
+       "schematic": 149.15,
+       "liberty": 147.02,
+       "delta_pct": 7.5,
+       "schematic_delta_pct": 1.4
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nor2_1",
+   "mag_sha256": "d7c9d73100ac094efaf6f4f87fb724eabf14183b858b1c9b755b681a23d2e527",
+   "drc": {
+    "count": 4,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__nor2_1_pex.spice",
+    "devices": 4,
+    "capacitors": 23,
+    "sha256": "e5b58390440e0ccd03c3ae08bb81bb28a7ff29cb5be73f05057d3473ffcccdb2",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "B": "VGND"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 73.13,
+       "schematic": 70.05,
+       "liberty": 80.89,
+       "delta_pct": -9.6,
+       "schematic_delta_pct": -13.4
+      },
+      "tplh_ps": {
+       "extracted": 271.31,
+       "schematic": 257.12,
+       "liberty": 244.03,
+       "delta_pct": 11.2,
+       "schematic_delta_pct": 5.4
+      },
+      "fall_transition_ps": {
+       "extracted": 63.48,
+       "schematic": 59.99,
+       "liberty": 73.1,
+       "delta_pct": -13.2,
+       "schematic_delta_pct": -17.9
+      },
+      "rise_transition_ps": {
+       "extracted": 307.54,
+       "schematic": 291.7,
+       "liberty": 276.65,
+       "delta_pct": 11.2,
+       "schematic_delta_pct": 5.4
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "A": "VGND"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 69.17,
+       "schematic": 66.46,
+       "liberty": 76.56,
+       "delta_pct": -9.7,
+       "schematic_delta_pct": -13.2
+      },
+      "tplh_ps": {
+       "extracted": 257.46,
+       "schematic": 245.03,
+       "liberty": 228.5,
+       "delta_pct": 12.7,
+       "schematic_delta_pct": 7.2
+      },
+      "fall_transition_ps": {
+       "extracted": 59.92,
+       "schematic": 56.91,
+       "liberty": 68.9,
+       "delta_pct": -13.0,
+       "schematic_delta_pct": -17.4
+      },
+      "rise_transition_ps": {
+       "extracted": 307.54,
+       "schematic": 291.7,
+       "liberty": 275.25,
+       "delta_pct": 11.7,
+       "schematic_delta_pct": 6.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xor2_1",
+   "mag_sha256": "f8193f853357eee20a873e95a2e76d945aed8ea806bfcd61f8c85b81767ef7a6",
+   "drc": {
+    "count": 7,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__xor2_1_pex.spice",
+    "devices": 10,
+    "capacitors": 44,
+    "sha256": "df6b3e148ce1667f6af36ad769a81042fabb9639f9ad5a1b0682248d2278e5ff",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A@B=0",
+     "cond": " (B=0)",
+     "out": "X",
+     "ties": {
+      "B": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 187.03,
+       "schematic": 157.24,
+       "liberty": 204.29,
+       "delta_pct": -8.5,
+       "schematic_delta_pct": -23.0
+      },
+      "tplh_ps": {
+       "extracted": 290.45,
+       "schematic": 263.32,
+       "liberty": 289.5,
+       "delta_pct": 0.3,
+       "schematic_delta_pct": -9.0
+      },
+      "fall_transition_ps": {
+       "extracted": 75.39,
+       "schematic": 65.92,
+       "liberty": 83.87,
+       "delta_pct": -10.1,
+       "schematic_delta_pct": -21.4
+      },
+      "rise_transition_ps": {
+       "extracted": 319.69,
+       "schematic": 292.57,
+       "liberty": 318.28,
+       "delta_pct": 0.4,
+       "schematic_delta_pct": -8.1
+      }
+     }
+    },
+    {
+     "pin": "A",
+     "label": "A@B=1",
+     "cond": " (B=1)",
+     "out": "X",
+     "ties": {
+      "B": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 111.09,
+       "schematic": 101.3,
+       "liberty": 118.29,
+       "delta_pct": -6.1,
+       "schematic_delta_pct": -14.4
+      },
+      "tplh_ps": {
+       "extracted": 305.01,
+       "schematic": 275.99,
+       "liberty": 303.66,
+       "delta_pct": 0.4,
+       "schematic_delta_pct": -9.1
+      },
+      "fall_transition_ps": {
+       "extracted": 107.25,
+       "schematic": 96.84,
+       "liberty": 116.26,
+       "delta_pct": -7.8,
+       "schematic_delta_pct": -16.7
+      },
+      "rise_transition_ps": {
+       "extracted": 335.63,
+       "schematic": 305.55,
+       "liberty": 332.33,
+       "delta_pct": 1.0,
+       "schematic_delta_pct": -8.1
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B@A=0",
+     "cond": " (A=0)",
+     "out": "X",
+     "ties": {
+      "A": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 172.57,
+       "schematic": 143.47,
+       "liberty": 185.98,
+       "delta_pct": -7.2,
+       "schematic_delta_pct": -22.9
+      },
+      "tplh_ps": {
+       "extracted": 296.53,
+       "schematic": 264.0,
+       "liberty": 294.88,
+       "delta_pct": 0.6,
+       "schematic_delta_pct": -10.5
+      },
+      "fall_transition_ps": {
+       "extracted": 75.63,
+       "schematic": 66.11,
+       "liberty": 84.29,
+       "delta_pct": -10.3,
+       "schematic_delta_pct": -21.6
+      },
+      "rise_transition_ps": {
+       "extracted": 335.63,
+       "schematic": 305.55,
+       "liberty": 332.11,
+       "delta_pct": 1.1,
+       "schematic_delta_pct": -8.0
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B@A=1",
+     "cond": " (A=1)",
+     "out": "X",
+     "ties": {
+      "A": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 107.94,
+       "schematic": 99.23,
+       "liberty": 114.35,
+       "delta_pct": -5.6,
+       "schematic_delta_pct": -13.2
+      },
+      "tplh_ps": {
+       "extracted": 287.41,
+       "schematic": 261.55,
+       "liberty": 286.21,
+       "delta_pct": 0.4,
+       "schematic_delta_pct": -8.6
+      },
+      "fall_transition_ps": {
+       "extracted": 107.24,
+       "schematic": 96.84,
+       "liberty": 116.09,
+       "delta_pct": -7.6,
+       "schematic_delta_pct": -16.6
+      },
+      "rise_transition_ps": {
+       "extracted": 319.56,
+       "schematic": 292.46,
+       "liberty": 318.6,
+       "delta_pct": 0.3,
+       "schematic_delta_pct": -8.2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xnor2_1",
+   "mag_sha256": "6829e6716d4345b4898dddb8e19bc909ede9d59f0d8d5137f5013403e8400817",
+   "drc": {
+    "count": 8,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__xnor2_1_pex.spice",
+    "devices": 10,
+    "capacitors": 43,
+    "sha256": "e11b381d2a6f5f2521cc6ac2bef2134705552936aae1e108cc6f9f4aa4fdea6d",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A@B=0",
+     "cond": " (B=0)",
+     "out": "Y",
+     "ties": {
+      "B": "VGND"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 111.37,
+       "schematic": 102.89,
+       "liberty": 130.7,
+       "delta_pct": -14.8,
+       "schematic_delta_pct": -21.3
+      },
+      "tplh_ps": {
+       "extracted": 300.87,
+       "schematic": 276.44,
+       "liberty": 323.67,
+       "delta_pct": -7.0,
+       "schematic_delta_pct": -14.6
+      },
+      "fall_transition_ps": {
+       "extracted": 103.49,
+       "schematic": 97.13,
+       "liberty": 128.79,
+       "delta_pct": -19.6,
+       "schematic_delta_pct": -24.6
+      },
+      "rise_transition_ps": {
+       "extracted": 332.08,
+       "schematic": 307.75,
+       "liberty": 357.81,
+       "delta_pct": -7.2,
+       "schematic_delta_pct": -14.0
+      }
+     }
+    },
+    {
+     "pin": "A",
+     "label": "A@B=1",
+     "cond": " (B=1)",
+     "out": "Y",
+     "ties": {
+      "B": "VPWR"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 160.09,
+       "schematic": 142.55,
+       "liberty": 185.96,
+       "delta_pct": -13.9,
+       "schematic_delta_pct": -23.3
+      },
+      "tplh_ps": {
+       "extracted": 172.66,
+       "schematic": 155.86,
+       "liberty": 197.02,
+       "delta_pct": -12.4,
+       "schematic_delta_pct": -20.9
+      },
+      "fall_transition_ps": {
+       "extracted": 98.76,
+       "schematic": 92.57,
+       "liberty": 117.46,
+       "delta_pct": -15.9,
+       "schematic_delta_pct": -21.2
+      },
+      "rise_transition_ps": {
+       "extracted": 152.2,
+       "schematic": 143.57,
+       "liberty": 175.85,
+       "delta_pct": -13.4,
+       "schematic_delta_pct": -18.4
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B@A=0",
+     "cond": " (A=0)",
+     "out": "Y",
+     "ties": {
+      "A": "VGND"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 105.1,
+       "schematic": 97.32,
+       "liberty": 119.72,
+       "delta_pct": -12.2,
+       "schematic_delta_pct": -18.7
+      },
+      "tplh_ps": {
+       "extracted": 287.07,
+       "schematic": 264.49,
+       "liberty": 306.1,
+       "delta_pct": -6.2,
+       "schematic_delta_pct": -13.6
+      },
+      "fall_transition_ps": {
+       "extracted": 98.23,
+       "schematic": 92.45,
+       "liberty": 116.59,
+       "delta_pct": -15.7,
+       "schematic_delta_pct": -20.7
+      },
+      "rise_transition_ps": {
+       "extracted": 332.07,
+       "schematic": 307.75,
+       "liberty": 357.68,
+       "delta_pct": -7.2,
+       "schematic_delta_pct": -14.0
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B@A=1",
+     "cond": " (A=1)",
+     "out": "Y",
+     "ties": {
+      "A": "VPWR"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 150.57,
+       "schematic": 133.01,
+       "liberty": 184.44,
+       "delta_pct": -18.4,
+       "schematic_delta_pct": -27.9
+      },
+      "tplh_ps": {
+       "extracted": 170.35,
+       "schematic": 153.1,
+       "liberty": 195.09,
+       "delta_pct": -12.7,
+       "schematic_delta_pct": -21.5
+      },
+      "fall_transition_ps": {
+       "extracted": 104.42,
+       "schematic": 97.49,
+       "liberty": 129.67,
+       "delta_pct": -19.5,
+       "schematic_delta_pct": -24.8
+      },
+      "rise_transition_ps": {
+       "extracted": 152.23,
+       "schematic": 143.65,
+       "liberty": 175.87,
+       "delta_pct": -13.4,
+       "schematic_delta_pct": -18.3
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__maj3_1",
+   "mag_sha256": "752ab37216e0b39e991e61e9039a87a6cd0707b15cbb25e8ddec74efa035e922",
+   "drc": {
+    "count": 10,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__maj3_1_pex.spice",
+    "devices": 14,
+    "capacitors": 58,
+    "sha256": "98228a9e9378a462d8043f4dd72e4a076564e662b07b4ad0b6e1bc3eb9b9dea8",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A",
+     "cond": "",
+     "out": "X",
+     "ties": {
+      "B": "VPWR",
+      "C": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 384.93,
+       "schematic": 297.56,
+       "liberty": 413.94,
+       "delta_pct": -7.0,
+       "schematic_delta_pct": -28.1
+      },
+      "tplh_ps": {
+       "extracted": 218.45,
+       "schematic": 185.02,
+       "liberty": 231.24,
+       "delta_pct": -5.5,
+       "schematic_delta_pct": -20.0
+      },
+      "fall_transition_ps": {
+       "extracted": 102.18,
+       "schematic": 83.51,
+       "liberty": 117.05,
+       "delta_pct": -12.7,
+       "schematic_delta_pct": -28.7
+      },
+      "rise_transition_ps": {
+       "extracted": 153.32,
+       "schematic": 142.76,
+       "liberty": 158.47,
+       "delta_pct": -3.2,
+       "schematic_delta_pct": -9.9
+      }
+     }
+    },
+    {
+     "pin": "B",
+     "label": "B",
+     "cond": "",
+     "out": "X",
+     "ties": {
+      "A": "VPWR",
+      "C": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 322.4,
+       "schematic": 251.86,
+       "liberty": 401.36,
+       "delta_pct": -19.7,
+       "schematic_delta_pct": -37.2
+      },
+      "tplh_ps": {
+       "extracted": 218.21,
+       "schematic": 186.91,
+       "liberty": 226.82,
+       "delta_pct": -3.8,
+       "schematic_delta_pct": -17.6
+      },
+      "fall_transition_ps": {
+       "extracted": 116.39,
+       "schematic": 96.82,
+       "liberty": 126.35,
+       "delta_pct": -7.9,
+       "schematic_delta_pct": -23.4
+      },
+      "rise_transition_ps": {
+       "extracted": 153.3,
+       "schematic": 142.77,
+       "liberty": 158.73,
+       "delta_pct": -3.4,
+       "schematic_delta_pct": -10.1
+      }
+     }
+    },
+    {
+     "pin": "C",
+     "label": "C",
+     "cond": "",
+     "out": "X",
+     "ties": {
+      "A": "VPWR",
+      "B": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 321.32,
+       "schematic": 252.22,
+       "liberty": 419.14,
+       "delta_pct": -23.3,
+       "schematic_delta_pct": -39.8
+      },
+      "tplh_ps": {
+       "extracted": 218.26,
+       "schematic": 186.4,
+       "liberty": 236.91,
+       "delta_pct": -7.9,
+       "schematic_delta_pct": -21.3
+      },
+      "fall_transition_ps": {
+       "extracted": 116.13,
+       "schematic": 96.82,
+       "liberty": 116.85,
+       "delta_pct": -0.6,
+       "schematic_delta_pct": -17.1
+      },
+      "rise_transition_ps": {
+       "extracted": 152.74,
+       "schematic": 142.64,
+       "liberty": 158.46,
+       "delta_pct": -3.6,
+       "schematic_delta_pct": -10.0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__o21ai_0",
+   "mag_sha256": "3f061aa27a1e0250b3da5b1f3474ad6c7685db1caa2fd858280404f4900e8997",
+   "drc": {
+    "count": 5,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__o21ai_0_pex.spice",
+    "devices": 6,
+    "capacitors": 38,
+    "sha256": "04ddc8622238ffb84a1945b56ff78d236da59c10ac04902b73bafa6d7c93638b",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A1",
+     "label": "A1",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "A2": "VGND",
+      "B1": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 165.37,
+       "schematic": 154.36,
+       "liberty": 189.9,
+       "delta_pct": -12.9,
+       "schematic_delta_pct": -18.7
+      },
+      "tplh_ps": {
+       "extracted": 413.85,
+       "schematic": 385.21,
+       "liberty": 397.11,
+       "delta_pct": 4.2,
+       "schematic_delta_pct": -3.0
+      },
+      "fall_transition_ps": {
+       "extracted": 172.49,
+       "schematic": 163.63,
+       "liberty": 205.14,
+       "delta_pct": -15.9,
+       "schematic_delta_pct": -20.2
+      },
+      "rise_transition_ps": {
+       "extracted": 483.57,
+       "schematic": 455.56,
+       "liberty": 464.68,
+       "delta_pct": 4.1,
+       "schematic_delta_pct": -2.0
+      }
+     }
+    },
+    {
+     "pin": "A2",
+     "label": "A2",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "A1": "VGND",
+      "B1": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 157.08,
+       "schematic": 147.33,
+       "liberty": 171.18,
+       "delta_pct": -8.2,
+       "schematic_delta_pct": -13.9
+      },
+      "tplh_ps": {
+       "extracted": 400.05,
+       "schematic": 373.86,
+       "liberty": 383.37,
+       "delta_pct": 4.4,
+       "schematic_delta_pct": -2.5
+      },
+      "fall_transition_ps": {
+       "extracted": 165.39,
+       "schematic": 157.73,
+       "liberty": 183.37,
+       "delta_pct": -9.8,
+       "schematic_delta_pct": -14.0
+      },
+      "rise_transition_ps": {
+       "extracted": 483.57,
+       "schematic": 455.56,
+       "liberty": 464.97,
+       "delta_pct": 4.0,
+       "schematic_delta_pct": -2.0
+      }
+     }
+    },
+    {
+     "pin": "B1",
+     "label": "B1",
+     "cond": "",
+     "out": "Y",
+     "ties": {
+      "A1": "VPWR",
+      "A2": "VGND"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 159.6,
+       "schematic": 151.81,
+       "liberty": 183.75,
+       "delta_pct": -13.1,
+       "schematic_delta_pct": -17.4
+      },
+      "tplh_ps": {
+       "extracted": 192.99,
+       "schematic": 184.51,
+       "liberty": 187.22,
+       "delta_pct": 3.1,
+       "schematic_delta_pct": -1.4
+      },
+      "fall_transition_ps": {
+       "extracted": 172.5,
+       "schematic": 163.63,
+       "liberty": 205.09,
+       "delta_pct": -15.9,
+       "schematic_delta_pct": -20.2
+      },
+      "rise_transition_ps": {
+       "extracted": 238.83,
+       "schematic": 226.29,
+       "liberty": 233.65,
+       "delta_pct": 2.2,
+       "schematic_delta_pct": -3.2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "cell": "sky130_fd_sc_hd__lpflow_isobufsrc_1",
+   "mag_sha256": "6b1d72b7cc621c1565172d48dbc3c325a5366bcd2f9d203d41b8b4a314edee80",
+   "drc": {
+    "count": 6,
+    "rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "standalone_context_rules": [
+     "All nwells must contain metal-connected N+ taps (nwell.4)",
+     "N-diff distance to P-tap must be < 15.0um (LU.2)",
+     "P-diff distance to N-tap must be < 15.0um (LU.3)"
+    ],
+    "real_rules": [],
+    "ran": true,
+    "clean_in_context": true
+   },
+   "pex": {
+    "ran": true,
+    "file": "sky130_fd_sc_hd__lpflow_isobufsrc_1_pex.spice",
+    "devices": 6,
+    "capacitors": 30,
+    "sha256": "95a6a601853aed0b8783429946b2e6d68c3d8b802dc7abb1fb0f50eb4677a29c",
+    "junction_areas": true
+   },
+   "lvs": {
+    "ran": true,
+    "match": true,
+    "verdict": [
+     "Circuits match uniquely.",
+     "Netlists match uniquely.",
+     "Result: Circuits match uniquely."
+    ]
+   },
+   "arcs": [
+    {
+     "pin": "A",
+     "label": "A",
+     "cond": "",
+     "out": "X",
+     "ties": {
+      "SLEEP": "VGND"
+     },
+     "sense": "positive_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 160.84,
+       "schematic": 138.59,
+       "liberty": 174.91,
+       "delta_pct": -8.0,
+       "schematic_delta_pct": -20.8
+      },
+      "tplh_ps": {
+       "extracted": 284.68,
+       "schematic": 264.0,
+       "liberty": 273.44,
+       "delta_pct": 4.1,
+       "schematic_delta_pct": -3.5
+      },
+      "fall_transition_ps": {
+       "extracted": 69.72,
+       "schematic": 63.07,
+       "liberty": 81.67,
+       "delta_pct": -14.6,
+       "schematic_delta_pct": -22.8
+      },
+      "rise_transition_ps": {
+       "extracted": 310.26,
+       "schematic": 292.41,
+       "liberty": 291.39,
+       "delta_pct": 6.5,
+       "schematic_delta_pct": 0.4
+      }
+     }
+    },
+    {
+     "pin": "SLEEP",
+     "label": "SLEEP",
+     "cond": "",
+     "out": "X",
+     "ties": {
+      "A": "VPWR"
+     },
+     "sense": "negative_unate",
+     "compare": {
+      "tphl_ps": {
+       "extracted": 73.27,
+       "schematic": 70.02,
+       "liberty": 79.26,
+       "delta_pct": -7.6,
+       "schematic_delta_pct": -11.7
+      },
+      "tplh_ps": {
+       "extracted": 273.55,
+       "schematic": 258.26,
+       "liberty": 256.84,
+       "delta_pct": 6.5,
+       "schematic_delta_pct": 0.6
+      },
+      "fall_transition_ps": {
+       "extracted": 64.02,
+       "schematic": 60.18,
+       "liberty": 71.84,
+       "delta_pct": -10.9,
+       "schematic_delta_pct": -16.2
+      },
+      "rise_transition_ps": {
+       "extracted": 310.26,
+       "schematic": 292.41,
+       "liberty": 292.06,
+       "delta_pct": 6.2,
+       "schematic_delta_pct": 0.1
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "summary": {
+  "cells": 8,
+  "arcs": 21,
+  "drc_clean_in_context": true,
+  "tphl_mean_delta_pct": {
+   "schematic": -20.2,
+   "extracted": -11.3
+  },
+  "tplh_mean_delta_pct": {
+   "schematic": -7.1,
+   "extracted": 1.1
+  },
+  "closer_after_extraction": {
+   "tphl": [
+    21,
+    21
+   ],
+   "tplh": [
+    11,
+    21
+   ]
+  },
+  "verdict": "parasitics explain ALL of the fall gap (tpHL: closer to the Liberty on 21/21 arcs; mean -20.2 % \u2192 -11.3 %) and PART of the rise gap (tpLH: closer on 11/21 arcs; mean -7.1 % \u2192 +1.1 %): the lod-3b hypothesis \"the gap is layout parasitics\" is REJECTED as the sole cause \u2014 what remains is the vendor characterization setup (input waveform shape, load/driver model, measurement details), which we do not have; stated, not tuned",
+  "first_cells": [
+   "inv_1",
+   "nand2_1"
+  ],
+  "lod3d_cells": [
+   "nor2_1",
+   "xor2_1",
+   "xnor2_1",
+   "maj3_1",
+   "o21ai_0",
+   "lpflow_isobufsrc_1"
+  ],
+  "drc_note": "a cell alone fails the tap/well rules by construction (nwell.4, LU.2, LU.3: taps and shared wells come from the row) \u2014 those are classified as context rules; any other rule is a real error",
+  "lvs_match": true,
+  "delay_mean_abs_delta_pct_extracted": 8.9,
+  "delay_mean_abs_delta_pct_schematic": 15.0,
+  "reading": "the parasitics hypothesis of lod-3b, tested: extracted vs schematic gap to the Liberty, same point"
+ }
+}

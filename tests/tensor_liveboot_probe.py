@@ -116,14 +116,15 @@ check('the bob\'s own tree (bob-motion) validates on a real boot with its root r
 # pf-0/pf-1: proofs as rows — the seeded claims checked on real rows AT BOOT (custom/boot.py), the obligations of every
 # seeded tree generated AT BOOT by the rules (no POST needed for the badges), the z3 tier deciding over the continuum
 r = client.simulate_get('/api/mathproofs')
-check('GET /api/mathproofs: fifteen seeded claims (12 + the 3 theorems) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
-      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 15 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+check('GET /api/mathproofs: sixteen seeded claims (12 + the 3 theorems + lod-3d restated rise-gap claim) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
+      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 16 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
 _thm = {c['name']: c['status'] for c in r.json['claims'] if c['name'] in ('sigma-symmetry-general-rank', 'chain-domains-compose-lemma', 'restriction-idempotent-theorem')}
 check('  …after boot the two GENERAL theorems (pf-2) are still CONJECTURED — lean is never run automatically (plan §I.9) — while the smoke statement, whose cheapest tier is sympy, is checked-symbolically at a fixed size',
       _thm == {'sigma-symmetry-general-rank': 'conjectured', 'chain-domains-compose-lemma': 'conjectured', 'restriction-idempotent-theorem': 'checked-symbolically'}, _thm)
 _st = {c['name']: (c['status'], c['checker']) for c in r.json['claims']}
-check('AT BOOT, with no POST: the lod cross-checks WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; the parasitics verdict as two inequalities), σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
-      all(_st.get(n) == ('witnessed', 'numeric') for n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-every-rise-gap', 'fpga-C-in-kPa-fits-int32-for-electrical-steel'))
+check('AT BOOT, with no POST: the lod cross-checks WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty on 21 arcs; extraction slows every arc; narrows every fall gap; widens the rise gap where already slow) and the two-cell rise-gap statement REFUTED by lod-3d\'s arcs with its counterexample kept, σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
+      all(_st.get(n) == ('witnessed', 'numeric') for n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-the-rise-gap-where-already-slow', 'fpga-C-in-kPa-fits-int32-for-electrical-steel'))
+      and _st.get('lod3c-extraction-widens-every-rise-gap') == ('refuted', 'numeric')
       and _st.get('sigma-from-strain-is-symmetric') == ('checked-symbolically', 'sympy') and _st.get('sigma-from-strain-is-symmetric-3d') == ('checked-symbolically', 'sympy'), _st)
 check('  …the z3 tier DECIDED the tt-3 kernel\'s fixed-point contract over the real rows (ε in nε fits int32 for every strain in eps→sigma\'s validity; four int32 products in int64 never overflow) and the spectrum ⊆ drag-range inclusion',
       _st.get('fpga-nano-strain-fits-int32') == ('decided', 'z3') and _st.get('fpga-int64-accumulate-never-overflows') == ('decided', 'z3') and _st.get('spectrum-range-inside-the-drag-coupling-range') == ('decided', 'z3'), _st)
@@ -206,8 +207,8 @@ check('  …and the nodes resting on a LEAN theorem are established only once a 
       (_kn['pf-minor-symmetries']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and (_kn['pf-chain-composition']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and not _kn['pf-decomposition-error']['established'] and 'undetermined' in _kn['pf-decomposition-error']['why'], {k: (v['established'], v['why']) for k, v in _kn.items()})
 check('  …the compute rungs are joined by name: what rtl / standard-cells / devices / layout rest on, each with its established flag', set(r.json['by_rung']) >= {'rtl', 'standard-cells', 'devices', 'layout'} and all('established' in x for x in r.json['by_rung']['rtl']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 30 claims (15 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
-      r.status_code == 200 and r.json['claims'] == 30 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
+check('GET /api/mathproofs/aggregate: 31 claims (16 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
+      r.status_code == 200 and r.json['claims'] == 31 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')
@@ -233,11 +234,12 @@ check('GET /api/computelod/engines: the engines LADDER answers per engine before
       and all(v['how'] in ('remote', 'local-binary', 'local-image', 'refused') for v in r.json['placement']['engines'].values()) and r.json['placement']['provider_module'] == 'computelod.engines'
       and r.json['placement']['knob'] == 'EDA_ENGINES_URL', r.text[:300])
 r = client.simulate_get('/api/computelod/lod3/devices')
-check('GET /api/computelod/lod3/devices: our ngspice on the PDK models vs the Liberty — three arcs, mean gap ≤ 15 %, falls faster on every arc (schematic vs extracted, stated)',
-      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['arcs'] == 3 and r.json['report']['summary']['mean_abs_delta_pct'] <= 15 and all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in r.json['report']['arcs']), r.text[:300])
+check('GET /api/computelod/lod3/devices: our ngspice on the PDK models vs the Liberty — 21 arcs over 8 cells (lod-3d), mean gap ≤ 15 %, falls faster on every arc (schematic vs extracted, stated)',
+      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['arcs'] == 21 and r.json['report']['summary']['cells'] == 8 and r.json['report']['summary']['mean_abs_delta_pct'] <= 15 and all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in r.json['report']['arcs']), r.text[:300])
 r = client.simulate_get('/api/computelod/lod3/layout')
-check('GET /api/computelod/lod3/layout: DRC (context rules only), LVS match, PEX re-timed; the parasitics verdict is half-rejected and says so',
-      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['lvs_match'] and r.json['report']['summary']['drc_clean_in_context'] and 'REJECTED' in r.json['report']['summary']['verdict'], r.text[:300])
+check('GET /api/computelod/lod3/layout: 8 cells — DRC (context rules only), LVS match on every cell, 21 arcs re-timed; the parasitics verdict is computed from the arcs (ALL of the fall gap, PART of the rise gap) and rejects the sole-cause reading',
+      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['cells'] == 8 and r.json['report']['summary']['arcs'] == 21 and r.json['report']['summary']['lvs_match'] and r.json['report']['summary']['drc_clean_in_context']
+      and r.json['report']['summary']['closer_after_extraction']['tphl'] == [21, 21] and 'REJECTED' in r.json['report']['summary']['verdict'], r.text[:300])
 _dl = next((m_ for m_ in tables.get('ComputeMapping', {}).values() if getattr(m_, 'name', '') == 'lod3: devices → layout'), None)
 check('  …the devices → layout row on a real boot is MEASURED and validated (lod-3c replaced lod-3\'s analytical reading by name)', _dl is not None and _dl.evidence_level == 'measured' and _dl.mapping_status == 'validated')
 r = client.simulate_get('/api/computelod/lod4')
@@ -252,8 +254,8 @@ r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-3 + lod-3b + lod-3c + lod-4 rows are seeded: 14 ComputeMappings, 24 CharacterizationMappings, 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 24 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-3 + lod-3b + lod-3c + lod-3d + lod-4 rows are seeded: 14 ComputeMappings, 96 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs), 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 96 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])

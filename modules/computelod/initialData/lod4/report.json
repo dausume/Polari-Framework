@@ -1,0 +1,35 @@
+{
+ "sky130": {
+  "process_node": "sky130",
+  "docs": "https://skywater-pdk.readthedocs.io/en/main/",
+  "repo": "https://github.com/google/skywater-pdk",
+  "open_mpw": "https://efabless.com/open_shuttle_program",
+  "materials": {
+   "substrate": {
+    "grade": "eg-si",
+    "route": "siemens-route",
+    "source": "sifet si_refinement seeds (SiliconGrade / RefinementRoute rows, cited there)"
+   },
+   "not_modelled": [
+    "metal stack (Al / W plugs)",
+    "gate oxide and poly",
+    "dopants (B, P, As) as materials rows"
+   ]
+  }
+ },
+ "cnt": {
+  "layout": null,
+  "process_rows_named": [
+   "CNTAlignmentProcess",
+   "CNTPlacementProcess",
+   "CNTPurificationProcess",
+   "ContactFormationProcess",
+   "LithographyProcess",
+   "GateStackProcess"
+  ],
+  "note": "the CNT branch cannot take the layout \u2192 fabrication rung (no layout, lod-3); its process rows exist in cntfet (cnt_process_basis) \u2014 the gap is layout, not process"
+ },
+ "decisions": {
+  "D-lod4-1": "does SKY130 (an open PDK with a real foundry and past open MPW shuttles) qualify as MANUFACTURABLE under the sifet ladder rule? Left None until ruled."
+ }
+}

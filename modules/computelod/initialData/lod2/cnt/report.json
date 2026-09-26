@@ -1,0 +1,469 @@
+{
+ "device": "cnt-aligned-s1",
+ "library": "polari_cnt_lib.lib",
+ "derivation": {
+  "derived_at": "2026-09-24T03:29:29.923857+00:00",
+  "summary": {
+   "ok": true
+  }
+ },
+ "partner": {
+  "name": "cnt-aligned-s1-p",
+  "derived_at": "2026-09-24T03:29:30.751029+00:00"
+ },
+ "characterization": {
+  "result_row": "cnt-aligned-s1-lib-033504",
+  "vdd_v": 0.6,
+  "p_side": "partner \"cnt-aligned-s1-p\" (own derived p, ptype 1)",
+  "executor": "polari-own-loop",
+  "cells": [
+   {
+    "cell": "cinv",
+    "drive": 1,
+    "liberty_name": "INVX1",
+    "arcs": [
+     "A"
+    ]
+   },
+   {
+    "cell": "cbuf",
+    "drive": 1,
+    "liberty_name": "BUFX1",
+    "arcs": [
+     "A"
+    ]
+   },
+   {
+    "cell": "cnand2",
+    "drive": 1,
+    "liberty_name": "NAND2X1",
+    "arcs": [
+     "A",
+     "B"
+    ]
+   },
+   {
+    "cell": "cnor2",
+    "drive": 1,
+    "liberty_name": "NOR2X1",
+    "arcs": [
+     "A",
+     "B"
+    ]
+   },
+   {
+    "cell": "cnand3",
+    "drive": 1,
+    "liberty_name": "NAND3X1",
+    "arcs": [
+     "A",
+     "B",
+     "C"
+    ]
+   },
+   {
+    "cell": "cnor3",
+    "drive": 1,
+    "liberty_name": "NOR3X1",
+    "arcs": [
+     "A",
+     "B",
+     "C"
+    ]
+   },
+   {
+    "cell": "cxor2",
+    "drive": 1,
+    "liberty_name": "XOR2X1",
+    "arcs": [
+     "A|!B",
+     "A|B",
+     "B|!A",
+     "B|A"
+    ]
+   },
+   {
+    "cell": "cxnor2",
+    "drive": 1,
+    "liberty_name": "XNOR2X1",
+    "arcs": [
+     "A|!B",
+     "A|B",
+     "B|!A",
+     "B|A"
+    ]
+   },
+   {
+    "cell": "caoi21",
+    "drive": 1,
+    "liberty_name": "AOI21X1",
+    "arcs": [
+     "A|B*!C",
+     "B|A*!C",
+     "C|!A*!B"
+    ]
+   },
+   {
+    "cell": "coai21",
+    "drive": 1,
+    "liberty_name": "OAI21X1",
+    "arcs": [
+     "A|!B*C",
+     "B|!A*C",
+     "C|A*!B"
+    ]
+   },
+   {
+    "cell": "cha",
+    "drive": 1,
+    "liberty_name": "HAX1",
+    "arcs": [
+     "CO:A|B",
+     "CO:B|A",
+     "S:A|!B",
+     "S:A|B",
+     "S:B|!A",
+     "S:B|A"
+    ]
+   },
+   {
+    "cell": "cfa",
+    "drive": 1,
+    "liberty_name": "FAX1",
+    "arcs": [
+     "CO:A|!B*CI",
+     "CO:A|B*!CI",
+     "CO:B|!A*CI",
+     "CO:B|A*!CI",
+     "CO:CI|!A*B",
+     "CO:CI|A*!B",
+     "S:A|!B*!CI",
+     "S:A|!B*CI",
+     "S:A|B*!CI",
+     "S:A|B*CI",
+     "S:B|!A*!CI",
+     "S:B|!A*CI",
+     "S:B|A*!CI",
+     "S:B|A*CI",
+     "S:CI|!A*!B",
+     "S:CI|!A*B",
+     "S:CI|A*!B",
+     "S:CI|A*B"
+    ]
+   }
+  ],
+  "grid_slews_s": [
+   2.5443980761385686e-13,
+   1.0177592304554274e-12,
+   4.07103692182171e-12
+  ],
+  "grid_loads_f": [
+   1.0413474531919955e-17,
+   2.082694906383991e-17,
+   4.165389812767982e-17
+  ],
+  "monotone": [
+   {
+    "cell": "INVX1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "BUFX1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NAND2X1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NAND2X1",
+    "pin": "B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NOR2X1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NOR2X1",
+    "pin": "B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NAND3X1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NAND3X1",
+    "pin": "B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NAND3X1",
+    "pin": "C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NOR3X1",
+    "pin": "A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NOR3X1",
+    "pin": "B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "NOR3X1",
+    "pin": "C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XOR2X1",
+    "pin": "A|!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XOR2X1",
+    "pin": "A|B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XOR2X1",
+    "pin": "B|!A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XOR2X1",
+    "pin": "B|A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XNOR2X1",
+    "pin": "A|!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XNOR2X1",
+    "pin": "A|B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XNOR2X1",
+    "pin": "B|!A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "XNOR2X1",
+    "pin": "B|A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "AOI21X1",
+    "pin": "A|B*!C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "AOI21X1",
+    "pin": "B|A*!C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "AOI21X1",
+    "pin": "C|!A*!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "OAI21X1",
+    "pin": "A|!B*C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "OAI21X1",
+    "pin": "B|!A*C",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "OAI21X1",
+    "pin": "C|A*!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "S:A|!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "S:A|B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "S:B|!A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "S:B|A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "CO:A|B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "HAX1",
+    "pin": "CO:B|A",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:A|!B*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:A|B*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:B|!A*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:B|A*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:CI|!A*B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "CO:CI|A*!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:A|!B*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:A|!B*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:A|B*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:A|B*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:B|!A*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:B|!A*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:B|A*!CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:B|A*CI",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:CI|!A*!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:CI|!A*B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:CI|A*!B",
+    "monotoneInLoad": true
+   },
+   {
+    "cell": "FAX1",
+    "pin": "S:CI|A*B",
+    "monotoneInLoad": true
+   }
+  ],
+  "failures": [],
+  "sta_gate": {
+   "ran": true,
+   "accepted": true,
+   "where": "/home/user/.local/bin/sta",
+   "output": "LIBERTY-ACCEPTED"
+  },
+  "honesty": "combinational arcs only \u2014 DFF setup/hold = {action: characterize-sequential} (own-loop bisection; lctime stays absent by default, D14); intrinsic-grade numbers, labeled standin parasitics",
+  "definitions": {
+   "energy_per_transition": "supply energy over the edge window (VDD x integral of delivered current), leakage baseline subtracted; rising-output value minus C_load x VDD^2 = Liberty internal_power (aJ); negative internals clamp to 0 and are flagged (pass-gate arcs)"
+  },
+  "liberty_bytes": 110514,
+  "liberty_sha256": "668b163c21c4cd8923da02a7f3842cf7cff02321eab7e17aaf9473807943b5d7",
+  "not_carried": [
+   "cell area (the library has no area attribute: layout is not characterized \u2192 no area rung from this Liberty)",
+   "leakage beyond the ioff standin",
+   "setup/hold (combinational cells only)"
+  ]
+ },
+ "conditions": {
+  "process": "derived VS model (nom_process 1)",
+  "temperature_k": 300.0,
+  "voltage_v": 0.6,
+  "load_ff": 0.0417,
+  "input_slew_ps": 1.0178,
+  "load_note": "4\u00d7 a cinv input (the sweep's largest grid load \u2014 FO4-like); the slew is the grid's middle point; both inside the characterized grid, no extrapolation"
+ },
+ "mapping": {
+  "tool": "yosys synth \u2192 dfflibmap \u2192 abc -liberty",
+  "cells": 152,
+  "area_um2": null,
+  "area_note": "the CNT Liberty carries no area",
+  "by_type": {
+   "XOR2X1": 47,
+   "NAND2X1": 31,
+   "XNOR2X1": 16,
+   "AOI21X1": 15,
+   "INVX1": 15,
+   "OAI21X1": 15,
+   "NOR2X1": 13
+  }
+ },
+ "timing": {
+  "tool": "OpenSTA (openroad/opensta image)",
+  "unit": "ps",
+  "max_path_ps": 41.3273,
+  "min_path_ps": 1.5643,
+  "max_path": "reg_op2[1] \u2192 alu_out[31]",
+  "min_path": "reg_op1[0] \u2192 alu_out[0]",
+  "unconstrained": true,
+  "note": "combinational only, under the conditions above; the library is intrinsic-grade (standin parasitics, S1 model) \u2014 NOT signoff"
+ }
+}

@@ -1,0 +1,1220 @@
+{
+ "sky130": {
+  "source": {
+   "repo": "google/skywater-pdk-libs-sky130_fd_sc_hd",
+   "commit": "ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1",
+   "licence": "Apache-2.0 (SkyWater PDK)"
+  },
+  "cells": {
+   "sky130_fd_sc_hd__xnor2_1": {
+    "instances": 61,
+    "transistors": 10,
+    "by_model": {
+     "sky130_fd_pr__pfet_01v8_hvt": 5,
+     "sky130_fd_pr__nfet_01v8": 5
+    },
+    "pins": [
+     "A",
+     "B",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "Y"
+    ],
+    "w_l_um": [
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     3.22,
+     2.72
+    ],
+    "lef_area_um2": 8.7584,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "A",
+      "s": "a_377_297#",
+      "b": "VPB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_377_297#",
+      "g": "B",
+      "s": "Y",
+      "b": "VPB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "Y",
+      "g": "a_47_47#",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_129_47#",
+      "g": "A",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X4",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "B",
+      "s": "a_285_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X5",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_47_47#",
+      "g": "B",
+      "s": "a_129_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X6",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "B",
+      "s": "a_47_47#",
+      "b": "VPB"
+     },
+     {
+      "name": "X7",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_47_47#",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X8",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "A",
+      "s": "a_285_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X9",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_285_47#",
+      "g": "a_47_47#",
+      "s": "Y",
+      "b": "VNB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__maj3_1": {
+    "instances": 29,
+    "transistors": 14,
+    "by_model": {
+     "sky130_fd_pr__pfet_01v8_hvt": 7,
+     "sky130_fd_pr__nfet_01v8": 7
+    },
+    "pins": [
+     "A",
+     "B",
+     "C",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "X"
+    ],
+    "w_l_um": [
+     [
+      0.42,
+      0.15
+     ],
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     3.68,
+     2.72
+    ],
+    "lef_area_um2": 10.0096,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_109_341#",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_265_47#",
+      "g": "B",
+      "s": "a_27_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_27_47#",
+      "g": "B",
+      "s": "a_421_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "a_27_47#",
+      "s": "X",
+      "b": "VNB"
+     },
+     {
+      "name": "X4",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "A",
+      "s": "a_265_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X5",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_109_47#",
+      "g": "A",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X6",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_27_47#",
+      "g": "B",
+      "s": "a_421_341#",
+      "b": "VPB"
+     },
+     {
+      "name": "X7",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_421_341#",
+      "g": "C",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X8",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "a_27_47#",
+      "s": "X",
+      "b": "VPB"
+     },
+     {
+      "name": "X9",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_421_47#",
+      "g": "C",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X10",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_27_47#",
+      "g": "C",
+      "s": "a_109_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X11",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_27_47#",
+      "g": "C",
+      "s": "a_109_341#",
+      "b": "VPB"
+     },
+     {
+      "name": "X12",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "A",
+      "s": "a_265_341#",
+      "b": "VPB"
+     },
+     {
+      "name": "X13",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_265_341#",
+      "g": "B",
+      "s": "a_27_47#",
+      "b": "VPB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__nand2_1": {
+    "instances": 2,
+    "transistors": 4,
+    "by_model": {
+     "sky130_fd_pr__pfet_01v8_hvt": 2,
+     "sky130_fd_pr__nfet_01v8": 2
+    },
+    "pins": [
+     "A",
+     "B",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "Y"
+    ],
+    "w_l_um": [
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     1.38,
+     2.72
+    ],
+    "lef_area_um2": 3.7536,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "Y",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "B",
+      "s": "Y",
+      "b": "VPB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "B",
+      "s": "a_113_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_113_47#",
+      "g": "A",
+      "s": "Y",
+      "b": "VNB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__lpflow_isobufsrc_1": {
+    "instances": 1,
+    "transistors": 6,
+    "by_model": {
+     "sky130_fd_pr__pfet_01v8_hvt": 3,
+     "sky130_fd_pr__nfet_01v8": 3
+    },
+    "pins": [
+     "A",
+     "SLEEP",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "X"
+    ],
+    "w_l_um": [
+     [
+      0.42,
+      0.15
+     ],
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     2.3,
+     2.72
+    ],
+    "lef_area_um2": 6.256,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_74_47#",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "X",
+      "g": "a_74_47#",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "SLEEP",
+      "s": "X",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_74_47#",
+      "g": "A",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X4",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "SLEEP",
+      "s": "a_265_297#",
+      "b": "VPB"
+     },
+     {
+      "name": "X5",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_265_297#",
+      "g": "a_74_47#",
+      "s": "X",
+      "b": "VPB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__nor2_1": {
+    "instances": 1,
+    "transistors": 4,
+    "by_model": {
+     "sky130_fd_pr__pfet_01v8_hvt": 2,
+     "sky130_fd_pr__nfet_01v8": 2
+    },
+    "pins": [
+     "A",
+     "B",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "Y"
+    ],
+    "w_l_um": [
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     1.38,
+     2.72
+    ],
+    "lef_area_um2": 3.7536,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_109_297#",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "Y",
+      "g": "A",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "B",
+      "s": "Y",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "Y",
+      "g": "B",
+      "s": "a_109_297#",
+      "b": "VPB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__o21ai_0": {
+    "instances": 1,
+    "transistors": 6,
+    "by_model": {
+     "sky130_fd_pr__nfet_01v8": 3,
+     "sky130_fd_pr__pfet_01v8_hvt": 3
+    },
+    "pins": [
+     "A1",
+     "A2",
+     "B1",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "Y"
+    ],
+    "w_l_um": [
+     [
+      0.42,
+      0.15
+     ],
+     [
+      0.64,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     1.84,
+     2.72
+    ],
+    "lef_area_um2": 5.0048,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "A2",
+      "s": "a_32_47#",
+      "b": "VNB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.64,
+      "l_um": 0.15,
+      "d": "Y",
+      "g": "B1",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_32_47#",
+      "g": "B1",
+      "s": "Y",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.42,
+      "l_um": 0.15,
+      "d": "a_32_47#",
+      "g": "A1",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X4",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.64,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "A1",
+      "s": "a_120_369#",
+      "b": "VPB"
+     },
+     {
+      "name": "X5",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 0.64,
+      "l_um": 0.15,
+      "d": "a_120_369#",
+      "g": "A2",
+      "s": "Y",
+      "b": "VPB"
+     }
+    ]
+   },
+   "sky130_fd_sc_hd__xor2_1": {
+    "instances": 1,
+    "transistors": 10,
+    "by_model": {
+     "sky130_fd_pr__nfet_01v8": 5,
+     "sky130_fd_pr__pfet_01v8_hvt": 5
+    },
+    "pins": [
+     "A",
+     "B",
+     "VGND",
+     "VNB",
+     "VPB",
+     "VPWR",
+     "X"
+    ],
+    "w_l_um": [
+     [
+      0.65,
+      0.15
+     ],
+     [
+      1.0,
+      0.15
+     ]
+    ],
+    "lef_size_um": [
+     3.22,
+     2.72
+    ],
+    "lef_area_um2": 8.7584,
+    "devices": [
+     {
+      "name": "X0",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_35_297#",
+      "g": "A",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X1",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "B",
+      "s": "a_35_297#",
+      "b": "VNB"
+     },
+     {
+      "name": "X2",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "X",
+      "g": "a_35_297#",
+      "s": "VGND",
+      "b": "VNB"
+     },
+     {
+      "name": "X3",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_285_297#",
+      "g": "B",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X4",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "VPWR",
+      "g": "A",
+      "s": "a_285_297#",
+      "b": "VPB"
+     },
+     {
+      "name": "X5",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_35_297#",
+      "g": "B",
+      "s": "a_117_297#",
+      "b": "VPB"
+     },
+     {
+      "name": "X6",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_117_297#",
+      "g": "A",
+      "s": "VPWR",
+      "b": "VPB"
+     },
+     {
+      "name": "X7",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "a_285_47#",
+      "g": "B",
+      "s": "X",
+      "b": "VNB"
+     },
+     {
+      "name": "X8",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "w_um": 1.0,
+      "l_um": 0.15,
+      "d": "a_285_297#",
+      "g": "a_35_297#",
+      "s": "X",
+      "b": "VPB"
+     },
+     {
+      "name": "X9",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "w_um": 0.65,
+      "l_um": 0.15,
+      "d": "VGND",
+      "g": "A",
+      "s": "a_285_47#",
+      "b": "VNB"
+     }
+    ]
+   }
+  },
+  "files": {
+   "sky130_fd_sc_hd__xnor2_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+     "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.lef",
+     "sha256": "e96217a2feff03f1ced70e714101271735b00d3f5605069a1eae43bb0c29ac5b"
+    }
+   },
+   "sky130_fd_sc_hd__maj3_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+     "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.lef",
+     "sha256": "3d7d7e3ae63c666015e87be9fa2ac9928eeace45c63d751f04e5789bf7ffa734"
+    }
+   },
+   "sky130_fd_sc_hd__nand2_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+     "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.lef",
+     "sha256": "f3b99f7946a7e667aa21041a989c0c7b46dfa25596f80b9cea56edfb60363e0e"
+    }
+   },
+   "sky130_fd_sc_hd__lpflow_isobufsrc_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+     "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.lef",
+     "sha256": "e326722f039e63d2b5c15a2932d1d4f574a091a405a83dc8c07ccd1afd8e1f87"
+    }
+   },
+   "sky130_fd_sc_hd__nor2_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+     "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.lef",
+     "sha256": "59469f3a3f60edc147d2d1f3df1b55d3e4b0cae63166dc16949be605ac9604c6"
+    }
+   },
+   "sky130_fd_sc_hd__o21ai_0": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+     "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.lef",
+     "sha256": "b1f5c973bbc96f313b886ac5431946dc97b6e52e69b8d300fec3835fc9ec6d7e"
+    }
+   },
+   "sky130_fd_sc_hd__xor2_1": {
+    "spice": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+     "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28"
+    },
+    "lef": {
+     "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.lef",
+     "sha256": "f5ba40b454992c3255b77052d3f819844ec4f1b12882c86a9ae5df03479a25dd"
+    }
+   }
+  }
+ },
+ "cnt": {
+  "cells": {
+   "XOR2X1": {
+    "instances": 47,
+    "cell": "cxor2",
+    "transistors": 10,
+    "p": 5,
+    "n": 5,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "A",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midp"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "0"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "B",
+      "source": "0"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "C",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "midn",
+      "gate": "B",
+      "source": "0"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "C",
+      "source": "0"
+     }
+    ]
+   },
+   "NAND2X1": {
+    "instances": 31,
+    "cell": "cnand2",
+    "transistors": 4,
+    "p": 2,
+    "n": 2,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "mid"
+     },
+     {
+      "type": "n",
+      "drain": "mid",
+      "gate": "B",
+      "source": "0"
+     }
+    ]
+   },
+   "XNOR2X1": {
+    "instances": 16,
+    "cell": "cxnor2",
+    "transistors": 10,
+    "p": 5,
+    "n": 5,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "mid"
+     },
+     {
+      "type": "n",
+      "drain": "mid",
+      "gate": "B",
+      "source": "0"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "B",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "C",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "midn",
+      "gate": "C",
+      "source": "0"
+     }
+    ]
+   },
+   "AOI21X1": {
+    "instances": 15,
+    "cell": "caoi21",
+    "transistors": 6,
+    "p": 3,
+    "n": 3,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "C",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "midn",
+      "gate": "B",
+      "source": "0"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "C",
+      "source": "0"
+     }
+    ]
+   },
+   "INVX1": {
+    "instances": 15,
+    "cell": "cinv",
+    "transistors": 2,
+    "p": 1,
+    "n": 1,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "0"
+     }
+    ]
+   },
+   "OAI21X1": {
+    "instances": 15,
+    "cell": "coai21",
+    "transistors": 6,
+    "p": 3,
+    "n": 3,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midp"
+     },
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "B",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "C",
+      "source": "vddn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midn"
+     },
+     {
+      "type": "n",
+      "drain": "midn",
+      "gate": "C",
+      "source": "0"
+     }
+    ]
+   },
+   "NOR2X1": {
+    "instances": 13,
+    "cell": "cnor2",
+    "transistors": 4,
+    "p": 2,
+    "n": 2,
+    "devices": [
+     {
+      "type": "p",
+      "drain": "midp",
+      "gate": "A",
+      "source": "vddn"
+     },
+     {
+      "type": "p",
+      "drain": "Y",
+      "gate": "B",
+      "source": "midp"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "A",
+      "source": "0"
+     },
+     {
+      "type": "n",
+      "drain": "Y",
+      "gate": "B",
+      "source": "0"
+     }
+    ]
+   }
+  }
+ },
+ "adder": {
+  "sky130": {
+   "cells": 96,
+   "transistors": 1050,
+   "by_model": {
+    "sky130_fd_pr__pfet_01v8_hvt": 525,
+    "sky130_fd_pr__nfet_01v8": 525
+   },
+   "lef_area_um2": 855.82,
+   "liberty_area_um2": 855.82,
+   "area_agrees": true,
+   "note": "transistors = \u03a3 instances \u00d7 transistors-per-cell from the PDK netlists; area = \u03a3 LEF SIZE, cross-checked against yosys stat -liberty (lod-2)"
+  },
+  "cnt": {
+   "cells": 152,
+   "transistors": 1016,
+   "p": 508,
+   "n": 508,
+   "device": "cnt-aligned-s1",
+   "partner": "cnt-aligned-s1-p",
+   "layout": null,
+   "note": "device list = cntfet CELL_LIBRARY (the topology the characterization netlisted); the n device is cnt-aligned-s1, the p device its derived partner; NO layout exists for these cells"
+  }
+ },
+ "not_done": [
+  "DRC/LVS of the SKY130 cells (Magic + netgen; not run)",
+  "transistor-level simulation with sky130_fd_pr corner models (not run \u2014 the Liberty carries the PDK's own characterization)",
+  "fabrication: the process rows behind sky130_fd_pr (next rung, partial)",
+  "CNT layout (none exists)"
+ ]
+}

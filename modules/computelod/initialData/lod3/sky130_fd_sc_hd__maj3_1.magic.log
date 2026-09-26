@@ -1,0 +1,37 @@
+
+Magic 8.3 revision 684 - Compiled on Fri Sep 25 00:39:25 UTC 2026.
+Starting magic under Tcl interpreter
+Using the terminal as the console.
+WARNING: RLIMIT_NOFILE is above 1024 and Tcl_Version<9 this may cause runtime issues [rlim_cur=1048576]
+Using NULL graphics device.
+Processing system .magicrc file
+Switching to WIRING tool.
+Switching to NETLIST tool.
+Switching to PICK tool.
+Switching to BOX tool.
+Sourcing design .magicrc for technology sky130A ...
+2 Magic internal units = 1 Lambda
+Input style sky130(): scaleFactor=2, multiplier=2
+The following types are not handled by extraction and will be treated as non-electrical types:
+    ubm 
+Scaled tech values by 2 / 1 to match internal grid scaling
+Loading sky130A Device Generator Menu ...
+Loading "cell_check.tcl" from command line.
+Cell sky130_fd_sc_hd__maj3_1 read from path /pdk/sky130A/libs.ref/sky130_fd_sc_hd/mag
+DRC style is now "drc(full)"
+Loading DRC CIF style.
+POLARI_DRC_COUNT 10
+POLARI_DRC_WHY All nwells must contain metal-connected N+ taps (nwell.4)
+POLARI_DRC_WHY {-38 261 774 582}
+POLARI_DRC_WHY P-diff distance to N-tap must be < 15.0um (LU.3)
+POLARI_DRC_WHY {519 425 606 497} {27 341 79 425} {109 341 151 425} {181 341 235 425} {265 341 307 425} {337 341 391 425} {421 341 463 425} {493 341 606 425} {511 297 606 341} {636 297 709 497}
+POLARI_DRC_WHY N-diff distance to P-tap must be < 15.0um (LU.2)
+POLARI_DRC_WHY {556 131 606 177} {27 47 79 131} {109 47 151 131} {181 47 235 131} {265 47 307 131} {337 47 391 131} {421 47 463 131} {493 47 606 131} {636 47 709 177}
+Extracting sky130_fd_sc_hd__maj3_1 into sky130_fd_sc_hd__maj3_1.ext:
+Processing sky130_fd_sc_hd__maj3_1
+exttospice finished.
+POLARI_LVS_NETLIST sky130_fd_sc_hd__maj3_1_lvs.spice
+Extracting sky130_fd_sc_hd__maj3_1 into sky130_fd_sc_hd__maj3_1.ext:
+Processing sky130_fd_sc_hd__maj3_1
+exttospice finished.
+POLARI_EXTRACTED sky130_fd_sc_hd__maj3_1_pex.spice

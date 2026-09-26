@@ -1,0 +1,44 @@
+{
+ "liberty": {
+  "name": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "repo": "The-OpenROAD-Project/OpenROAD-flow-scripts",
+  "commit": "db8b985f89d456db29d39588443a025e7305a0a6",
+  "path": "flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "licence": "Apache-2.0 (SkyWater PDK)",
+  "corner": "tt_025C_1v80 = typical process, 25 \u00b0C, 1.8 V",
+  "url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/db8b985f89d456db29d39588443a025e7305a0a6/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+  "bytes": 12800135
+ },
+ "conditions": {
+  "process": "tt (nom_process 1.0)",
+  "temperature_c": 25.0,
+  "voltage_v": 1.8,
+  "load_pf": 0.0146,
+  "input_slew_ns": 0.05,
+  "load_note": "14.6 fF \u2248 4\u00d7 an inv_1 input (FO4-like); a stated assumption, not a measured board"
+ },
+ "mapping": {
+  "tool": "yosys synth \u2192 dfflibmap \u2192 abc -liberty",
+  "cells": 96,
+  "area_um2": 855.82,
+  "by_type": {
+   "sky130_fd_sc_hd__xnor2_1": 61,
+   "sky130_fd_sc_hd__maj3_1": 29,
+   "sky130_fd_sc_hd__nand2_1": 2,
+   "sky130_fd_sc_hd__lpflow_isobufsrc_1": 1,
+   "sky130_fd_sc_hd__nor2_1": 1,
+   "sky130_fd_sc_hd__o21ai_0": 1,
+   "sky130_fd_sc_hd__xor2_1": 1
+  }
+ },
+ "timing": {
+  "tool": "OpenSTA (openroad/opensta image)",
+  "max_path_ns": 11.9394,
+  "min_path_ns": 0.1143,
+  "max_path": "reg_op1[1] \u2192 alu_out[31]",
+  "min_path": "reg_op2[0] \u2192 alu_out[0]",
+  "unconstrained": true,
+  "note": "combinational only: no clock \u2014 the worst arrival at any output from any input, under the conditions above"
+ }
+}

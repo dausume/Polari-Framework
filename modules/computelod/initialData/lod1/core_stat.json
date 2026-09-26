@@ -1,0 +1,71 @@
+{
+   "creator": "Yosys 0.33 (git sha1 2584903a060)",
+   "invocation": "stat -json ",
+   "modules": {
+      "\\picorv32": {
+         "num_wires":         6311,
+         "num_wire_bits":     8884,
+         "num_pub_wires":     180,
+         "num_pub_wire_bits": 2305,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         8126,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 1164,
+            "$_AND_": 405,
+            "$_DFFE_PP_": 1240,
+            "$_DFF_P_": 91,
+            "$_MUX_": 2709,
+            "$_NAND_": 226,
+            "$_NOR_": 171,
+            "$_NOT_": 143,
+            "$_ORNOT_": 165,
+            "$_OR_": 1045,
+            "$_SDFFCE_PN0P_": 34,
+            "$_SDFFCE_PP0P_": 6,
+            "$_SDFFE_PN0N_": 1,
+            "$_SDFFE_PN0P_": 154,
+            "$_SDFFE_PP0P_": 1,
+            "$_SDFFE_PP1P_": 3,
+            "$_SDFF_PN0_": 66,
+            "$_SDFF_PP0_": 1,
+            "$_XNOR_": 113,
+            "$_XOR_": 388
+         }
+      }
+   },
+      "design": {
+         "num_wires":         6311,
+         "num_wire_bits":     8884,
+         "num_pub_wires":     180,
+         "num_pub_wire_bits": 2305,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         8126,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 1164,
+            "$_AND_": 405,
+            "$_DFFE_PP_": 1240,
+            "$_DFF_P_": 91,
+            "$_MUX_": 2709,
+            "$_NAND_": 226,
+            "$_NOR_": 171,
+            "$_NOT_": 143,
+            "$_ORNOT_": 165,
+            "$_OR_": 1045,
+            "$_SDFFCE_PN0P_": 34,
+            "$_SDFFCE_PP0P_": 6,
+            "$_SDFFE_PN0N_": 1,
+            "$_SDFFE_PN0P_": 154,
+            "$_SDFFE_PP0P_": 1,
+            "$_SDFFE_PP1P_": 3,
+            "$_SDFF_PN0_": 66,
+            "$_SDFF_PP0_": 1,
+            "$_XNOR_": 113,
+            "$_XOR_": 388
+         }
+      }
+}
+

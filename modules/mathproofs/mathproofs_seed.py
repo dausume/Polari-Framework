@@ -6,7 +6,9 @@ claims of §I.5 the cheap tiers can speak to today (lod cross-checks as claims; 
 pf-1 adds the z3 claims (the tt-3 kernel's fixed-point contract over machine integers and the continuum; two
 domain statements over the wind tree, one of them refuted by a model) and the parasitics verdict as two inequalities;
 the decomposition bound became the rule's knob (`params_json.bound`); pf-2 adds the three theorem claims (D-pf-10),
-proved by committed .lean certificates when a person asks. Obligations themselves are GENERATED per tree —
+proved by committed .lean certificates when a person asks. lod-3d (2026-09-26) widened the lod claims to 21 arcs
+(`LOD3_ARCS`): one two-cell statement is now REFUTED and kept, and its conditional restatement added.
+Obligations themselves are GENERATED per tree —
 at boot (custom/boot.py) and on `POST /api/mathproofs/trees/{name}/obligations` — not seeded.
 """
 import json
@@ -44,15 +46,30 @@ SEED_INFERENCE_RULES = [
 
 _C = lambda **k: dict({'description': '', 'assumptions_json': '[]', 'scope_json': '{}', 'proof_status': 'conjectured', 'checker': '', 'certificate_ref': '', 'counterexample_json': '{}',
                        'evidence_level': 'none', 'statement_hash': '', 'statement_latex': '', 'budget_s': 25.0, 'provenance': 'seed (pf-0)', 'notes': ''}, **k)
+#: lod-3d (2026-09-26): the 21 arcs computelod's lod-3b/3c/3d flows characterize — (cell, 'pin→out[ (tie)]'). Kept as a
+#: LITERAL here (mathproofs must not import computelod: the dependency runs the other way, D-pf-4); computelod's selftest
+#: asserts this list equals its own `arcs_of` table, so the two cannot drift silently.
+LOD3_ARCS = [('inv_1', 'A→Y'), ('nand2_1', 'A→Y'), ('nand2_1', 'B→Y'), ('nor2_1', 'A→Y'), ('nor2_1', 'B→Y'),
+             ('xor2_1', 'A→X (B=0)'), ('xor2_1', 'A→X (B=1)'), ('xor2_1', 'B→X (A=0)'), ('xor2_1', 'B→X (A=1)'),
+             ('xnor2_1', 'A→Y (B=0)'), ('xnor2_1', 'A→Y (B=1)'), ('xnor2_1', 'B→Y (A=0)'), ('xnor2_1', 'B→Y (A=1)'),
+             ('maj3_1', 'A→X'), ('maj3_1', 'B→X'), ('maj3_1', 'C→X'), ('o21ai_0', 'A1→Y'), ('o21ai_0', 'A2→Y'), ('o21ai_0', 'B1→Y'),
+             ('lpflow_isobufsrc_1', 'A→X'), ('lpflow_isobufsrc_1', 'SLEEP→X')]
+
+
+def _lod3_refs(prefix, kind, suffix=''):
+    """The CharacterizationMapping refs of every arc for one flow: prefix 'lod3' (schematic) or 'lod3c' (extracted), kind tpHL|tpLH."""
+    return ['CharacterizationMapping:%s: %s %s %s%s' % (prefix, cell, arc, kind, suffix) for cell, arc in LOD3_ARCS]
+
+
 SEED_MATH_CLAIMS = [
     _C(name='lod3-lef-area-equals-liberty-area', kind='identity', about_refs_json=json.dumps(['CharacterizationMapping:lod3: rv32_add layout area (LEF)', 'CharacterizationMapping:lod2: rv32_add cell area']),
        statement_json=json.dumps({'eq': [{'ref': 'CharacterizationMapping:lod3: rv32_add layout area (LEF)', 'path': ['result']}, {'ref': 'CharacterizationMapping:lod2: rv32_add cell area', 'path': ['result']}], 'tol': {'abs': 0.01}}),
        description='two independent PDK sources (LEF footprints summed; the Liberty\'s cell areas) agree on the mapped adder\'s area'),
-    _C(name='lod3b-falls-faster-than-liberty', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3: inv_1 A→Y tpHL', 'CharacterizationMapping:lod3: nand2_1 A→Y tpHL', 'CharacterizationMapping:lod3: nand2_1 B→Y tpHL']),
+    _C(name='lod3b-falls-faster-than-liberty', kind='inequality', about_refs_json=json.dumps(_lod3_refs('lod3', 'tpHL') + _lod3_refs('lod3c', 'tpHL', ' (extracted)')),
        statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpHL'}],
                                   'holds': {'lt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, 0]}}),
-       description='WITNESS on the arcs we ran: every tpHL characterization (schematic AND extracted) is faster than the Liberty (delta_pct < 0) — the sign the parasitics reading predicts'),
-    _C(name='lod3c-extraction-slows-every-arc', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3c: inv_1 A→Y tpHL (extracted)']),
+       description='WITNESS on the arcs we ran (21 since lod-3d): every tpHL characterization (schematic AND extracted) is faster than the Liberty (delta_pct < 0) — the sign the parasitics reading predicts'),
+    _C(name='lod3c-extraction-slows-every-arc', kind='inequality', about_refs_json=json.dumps(_lod3_refs('lod3c', 'tpHL', ' (extracted)') + _lod3_refs('lod3c', 'tpLH', ' (extracted)')),
        statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:method=ngspice transient on the EXTRACTED netlist'}],
                                   'holds': {'gt': [{'mul': [{'ref': 'c', 'path': ['result']}, 1000]}, {'ref': 'c', 'path': ['conditions_json', 'schematic_ps']}]}}),
        description='WITNESS: parasitics add delay on every extracted arc — result (ns × 1000) exceeds the schematic value (ps) recorded in its conditions'),
@@ -63,16 +80,26 @@ SEED_MATH_CLAIMS = [
        statement_json=json.dumps({'symbolic': {'template': 'symmetry-of-contraction', 'args': {'n': 3}}}),
        description='the same statement in three dimensions (the general-rank theorem is pf-2\'s Lean target, D-pf-10)'),
     # ---- pf-1: the parasitics verdict of lod-3c as TWO inequalities over the extracted arcs (numeric witnesses)
-    _C(name='lod3c-extraction-narrows-every-fall-gap', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3c: inv_1 A→Y tpHL (extracted)', 'CharacterizationMapping:lod3c: nand2_1 A→Y tpHL (extracted)', 'CharacterizationMapping:lod3c: nand2_1 B→Y tpHL (extracted)']),
+    _C(name='lod3c-extraction-narrows-every-fall-gap', kind='inequality', about_refs_json=json.dumps(_lod3_refs('lod3c', 'tpHL', ' (extracted)')),
        statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpHL (extracted)'}],
                                   'holds': {'and': [{'gt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, {'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}]},
                                                     {'lt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, 0]}]}}),
        description='WITNESS (the parasitics verdict, half 1): on every extracted tpHL arc the gap to the Liberty is SMALLER than the schematic netlist\'s (delta_pct > schematic_delta_pct, both negative) — extraction explains PART of the fall gap'),
-    _C(name='lod3c-extraction-widens-every-rise-gap', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3c: inv_1 A→Y tpLH (extracted)', 'CharacterizationMapping:lod3c: nand2_1 A→Y tpLH (extracted)', 'CharacterizationMapping:lod3c: nand2_1 B→Y tpLH (extracted)']),
+    _C(name='lod3c-extraction-widens-every-rise-gap', kind='inequality', about_refs_json=json.dumps(_lod3_refs('lod3c', 'tpLH', ' (extracted)')),
        statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpLH (extracted)'}],
                                   'holds': {'and': [{'gt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, {'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}]},
                                                     {'gt': [{'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}, 0]}]}}),
-       description='WITNESS (the parasitics verdict, half 2): on every extracted tpLH arc the gap to the Liberty is LARGER than the schematic netlist\'s (both positive: we are already slower on the rise, extraction makes it worse) — parasitics explain NONE of the rise gap; what remains is the vendor setup'),
+       description='The parasitics verdict\'s half 2 AS FIRST STATED on two cells (2026-09-25): on every extracted tpLH arc the gap to the Liberty is LARGER than the schematic netlist\'s and both are positive. '
+                   'lod-3d (2026-09-26, 21 arcs) REFUTES it — xor2/xnor2/maj3 rise arcs are FASTER than the Liberty on the schematic netlist (schematic_delta_pct < 0); the counterexample is kept on the row. '
+                   'The statement that does hold on all 21 arcs is lod3c-extraction-widens-the-rise-gap-where-already-slow. A refutation is knowledge (his vocabulary, plan §G.22): the two-cell reading did not generalize'),
+    # ---- lod-3d: the rise-gap half RESTATED so it holds on every arc — conditional on the schematic already being slower than the Liberty
+    _C(name='lod3c-extraction-widens-the-rise-gap-where-already-slow', kind='inequality', about_refs_json=json.dumps(_lod3_refs('lod3c', 'tpLH', ' (extracted)')),
+       statement_json=json.dumps({'forall': [{'var': 'c', 'in': 'rows:CharacterizationMapping:name~tpLH (extracted)'}],
+                                  'holds': {'implies': [{'gt': [{'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}, 0]},
+                                                        {'gt': [{'ref': 'c', 'path': ['conditions_json', 'delta_pct']}, {'ref': 'c', 'path': ['conditions_json', 'schematic_delta_pct']}]}]}}),
+       description='WITNESS (the parasitics verdict, half 2, restated for 21 arcs — lod-3d): WHERE the schematic netlist was already slower than the Liberty on the rise (schematic_delta_pct > 0: inv, nand2, nor2, isobufsrc SLEEP), extraction widens that gap; '
+                   'where it was faster (xor2, xnor2, maj3, o21ai, isobufsrc A) extraction moves it toward and sometimes past the Liberty — so parasitics are the whole rise story on some cells and none of it on others; what remains is the vendor setup',
+       provenance='seed (lod-3d)'),
     # ---- pf-1: the tt-3 kernel's fixed-point contract, DECIDED (z3): the bounds are read from the rows that state them
     _C(name='fpga-nano-strain-fits-int32', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'TensorMapping:eps→sigma']),
        statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}],

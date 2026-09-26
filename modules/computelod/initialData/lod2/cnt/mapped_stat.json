@@ -1,0 +1,45 @@
+{
+   "creator": "Yosys 0.33 (git sha1 2584903a060)",
+   "invocation": "stat -liberty polari_cnt_lib.lib -json ",
+   "modules": {
+      "\\rv32_add": {
+         "num_wires":         123,
+         "num_wire_bits":     216,
+         "num_pub_wires":     3,
+         "num_pub_wire_bits": 96,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         152,
+         "num_cells_by_type": {
+            "AOI21X1": 15,
+            "INVX1": 15,
+            "NAND2X1": 31,
+            "NOR2X1": 13,
+            "OAI21X1": 15,
+            "XNOR2X1": 16,
+            "XOR2X1": 47
+         }
+      }
+   },
+      "design": {
+         "num_wires":         123,
+         "num_wire_bits":     216,
+         "num_pub_wires":     3,
+         "num_pub_wire_bits": 96,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         152,
+         "num_cells_by_type": {
+            "AOI21X1": 15,
+            "INVX1": 15,
+            "NAND2X1": 31,
+            "NOR2X1": 13,
+            "OAI21X1": 15,
+            "XNOR2X1": 16,
+            "XOR2X1": 47
+         }
+      }
+}
+

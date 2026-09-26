@@ -57,8 +57,8 @@ SEED_PROOF_TECH_NODES = [
        depends=('pf-witness-vs-proof',), claims=('ob:wind-spatial:decomposition-reconstructs:wind-grid→spectrum',), rules=('decomposition-reconstructs',), mappings=('wind-grid→spectrum',), column=1),
     _n('pf-fixed-point', 'Fixed-point arithmetic and overflow', 'Scaling reals to integers (kPa, nano-strain) and accumulating in a wider word: the operands must fit their ports and no prefix sum may leave the accumulator — decided over exact integers, with the bounds read from the rows.',
        depends=('pf-witness-vs-proof',), claims=('fpga-nano-strain-fits-int32', 'fpga-C-in-kPa-fits-int32-for-electrical-steel', 'fpga-int64-accumulate-never-overflows'), rungs=('rtl', 'microarchitecture'), column=1),
-    _n('pf-two-sources-agree', 'Two independent sources agreeing is evidence', 'LEF footprints summed and the Liberty\'s areas; our transistor-level delays and the foundry\'s; extraction narrowing one gap and widening another — witnesses on the rows, never theorems, and honest about it.',
-       depends=('pf-witness-vs-proof',), claims=('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-every-rise-gap'),
+    _n('pf-two-sources-agree', 'Two independent sources agreeing is evidence', 'LEF footprints summed and the Liberty\'s areas; our transistor-level delays and the foundry\'s over 21 arcs of 8 cells; extraction narrowing every fall gap and widening the rise gap only where the schematic was already slow — witnesses on the rows, never theorems; a two-cell statement REFUTED on 21 arcs is knowledge too.',
+       depends=('pf-witness-vs-proof',), claims=('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-every-rise-gap', 'lod3c-extraction-widens-the-rise-gap-where-already-slow'),
        rungs=('standard-cells', 'devices', 'layout'), column=1),
 ]
 

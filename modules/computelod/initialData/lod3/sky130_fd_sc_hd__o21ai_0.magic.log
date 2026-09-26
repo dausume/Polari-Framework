@@ -1,0 +1,37 @@
+
+Magic 8.3 revision 684 - Compiled on Fri Sep 25 00:39:25 UTC 2026.
+Starting magic under Tcl interpreter
+Using the terminal as the console.
+WARNING: RLIMIT_NOFILE is above 1024 and Tcl_Version<9 this may cause runtime issues [rlim_cur=1048576]
+Using NULL graphics device.
+Processing system .magicrc file
+Switching to WIRING tool.
+Switching to NETLIST tool.
+Switching to PICK tool.
+Switching to BOX tool.
+Sourcing design .magicrc for technology sky130A ...
+2 Magic internal units = 1 Lambda
+Input style sky130(): scaleFactor=2, multiplier=2
+The following types are not handled by extraction and will be treated as non-electrical types:
+    ubm 
+Scaled tech values by 2 / 1 to match internal grid scaling
+Loading sky130A Device Generator Menu ...
+Loading "cell_check.tcl" from command line.
+Cell sky130_fd_sc_hd__o21ai_0 read from path /pdk/sky130A/libs.ref/sky130_fd_sc_hd/mag
+DRC style is now "drc(full)"
+Loading DRC CIF style.
+POLARI_DRC_COUNT 5
+POLARI_DRC_WHY All nwells must contain metal-connected N+ taps (nwell.4)
+POLARI_DRC_WHY {-38 261 406 582}
+POLARI_DRC_WHY P-diff distance to N-tap must be < 15.0um (LU.3)
+POLARI_DRC_WHY {37 369 90 497} {120 369 168 497} {198 369 254 497} {284 369 341 497}
+POLARI_DRC_WHY N-diff distance to P-tap must be < 15.0um (LU.2)
+POLARI_DRC_WHY {32 47 85 131} {115 47 171 131} {201 47 257 131} {287 47 340 131}
+Extracting sky130_fd_sc_hd__o21ai_0 into sky130_fd_sc_hd__o21ai_0.ext:
+Processing sky130_fd_sc_hd__o21ai_0
+exttospice finished.
+POLARI_LVS_NETLIST sky130_fd_sc_hd__o21ai_0_lvs.spice
+Extracting sky130_fd_sc_hd__o21ai_0 into sky130_fd_sc_hd__o21ai_0.ext:
+Processing sky130_fd_sc_hd__o21ai_0
+exttospice finished.
+POLARI_EXTRACTED sky130_fd_sc_hd__o21ai_0_pex.spice

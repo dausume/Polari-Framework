@@ -217,37 +217,79 @@ check('lod-4 rows: layout → fabrication RESOLVED by name (one-to-one, analytic
       and 'eg-si' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['target_ref'] and 'not modelled' in next(m_ for m_ in maps4 if 'materials' in m_['name'])['notes'])
 check('  …the CNT branch stays blocked at LAYOUT (not at process): its process rows are named so the gap is precise', rep4['cnt']['layout'] is None and 'CNTAlignmentProcess' in rep4['cnt']['process_rows_named'])
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
-from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND
+from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()
-check('lod-3b: a committed device-level report exists — ngspice on the pinned sky130_fd_pr tt models (six files cited by sha256, never committed), three arcs (inv_1 A; nand2_1 A, B)',
-      rep3b is not None and len(rep3b['models']['files']) == 6 and rep3b['summary']['arcs'] == 3 and not any(fn.endswith('.pm3.spice') for fn in os.listdir('modules/computelod/initialData/lod3')))
-check('  …every arc is compared to the Liberty at the SAME slew (20–80 %) and load; the mean gap is ≤ 15 % and the max ≤ 25 % — reported, not tuned',
-      rep3b['summary']['mean_abs_delta_pct'] <= 15 and rep3b['summary']['max_abs_delta_pct'] <= 25 and all('liberty' in a['compare']['tphl_ps'] for a in rep3b['arcs']), rep3b['summary'])
-check('  …the pattern is the stated cause: our falls are FASTER than the Liberty on every arc (no internal-node parasitics in a schematic netlist)',
-      all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in rep3b['arcs']), [a['compare']['tphl_ps']['delta_pct'] for a in rep3b['arcs']])
-check('  …the conditions name corner, temperature, voltage, load, slew convention and the netlist kind', all(k in DEV_COND for k in ('corner', 'temperature_c', 'voltage_v', 'load_pf', 'input_slew_ns_20_80', 'netlist')))
+check('lod-3b/3d: a committed device-level report exists — ngspice on the pinned sky130_fd_pr tt models (six files cited by sha256, never committed), 21 arcs over the EIGHT cells the adder uses (lod-3d added six cells to lod-3b\'s two)',
+      rep3b is not None and len(rep3b['models']['files']) == 6 and rep3b['summary']['arcs'] == 21 and rep3b['summary']['cells'] == 8 and rep3b['summary']['first_cells'] == FIRST_CELLS == ['inv_1', 'nand2_1']
+      and set(rep3b['summary']['lod3d_cells']) == {'nor2_1', 'xor2_1', 'xnor2_1', 'maj3_1', 'o21ai_0', 'lpflow_isobufsrc_1'} and not any(fn.endswith('.pm3.spice') for fn in os.listdir('modules/computelod/initialData/lod3')), rep3b and rep3b['summary'])
+check('  …the arc table covers EVERY cell type of the mapped adder (lod-3 report.json by_type) and sums to 21: the non-unate inputs (xor2, xnor2) carry one arc per tie, each with its Liberty timing_sense',
+      set(DEV_ARCS) == {k.replace('sky130_fd_sc_hd__', '') for k in rep3['sky130']['cells']} | {'inv_1'} and sum(len(arcs_of(c)) for c in DEV_ARCS) == 21
+      and {a['label'] for a in arcs_of('xor2_1')} == {'A@B=0', 'A@B=1', 'B@A=0', 'B@A=1'} and arcs_of('xor2_1')[0]['sense'] == 'positive_unate' and arcs_of('xor2_1')[1]['sense'] == 'negative_unate'
+      and all(a['sense'] == 'positive_unate' for a in arcs_of('maj3_1')) and arcs_of('lpflow_isobufsrc_1')[1] ['inverting'], sorted(DEV_ARCS))
+check('  …every arc is compared to the Liberty at the SAME slew (20–80 %) and load; the mean gap over 21 arcs is ≤ 15 %; the max (39.8 %, maj3_1 C tpHL — the deepest internal nodes) is REPORTED, not tuned, and its rows are `implemented`, not validated',
+      rep3b['summary']['mean_abs_delta_pct'] <= 15 and 35 <= rep3b['summary']['max_abs_delta_pct'] <= 45 and all('liberty' in a['compare']['tphl_ps'] for a in rep3b['arcs'])
+      and max(rep3b['arcs'], key=lambda a: abs(a['compare']['tphl_ps']['delta_pct']))['cell'] == 'sky130_fd_sc_hd__maj3_1', rep3b['summary'])
+check('  …the pattern is the stated cause on ALL 21 arcs: our falls are FASTER than the Liberty (no internal-node parasitics in a schematic netlist)',
+      all(a['compare']['tphl_ps']['delta_pct'] < 0 for a in rep3b['arcs']) and rep3b['summary']['tphl_faster_than_liberty_arcs'] == 21, [a['compare']['tphl_ps']['delta_pct'] for a in rep3b['arcs']])
+check('  …the conditions name corner, temperature, voltage, load, slew convention and the netlist kind; each arc records its ties, timing sense and the cell\'s Liberty function',
+      all(k in DEV_COND for k in ('corner', 'temperature_c', 'voltage_v', 'load_pf', 'input_slew_ns_20_80', 'netlist')) and all(a['ties'] is not None and a['sense'] and a['function'] for a in rep3b['arcs'])
+      and next(a for a in rep3b['arcs'] if a['label'] == 'A@B=1')['ties'] == {'B': 'VPWR'})
 check('interp: bilinear on a 2×2 table returns the corner values exactly and the centre as the mean', interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 0, 0) == 1 and interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 1, 1) == 4 and interp(([0, 1], [0, 1], [[1, 2], [3, 4]]), 0.5, 0.5) == 2.5)
+# lod-3d: the Liberty group is picked by (related_pin, timing_sense); a non-unate pin asked without a sense is REFUSED (never "the first block found"),
+# and a deck's pins follow the netlist's own .subckt line by name — checked on the cached Liberty + cell netlists when this machine has them
+try:
+    from computelod.custom.lod2_silicon import fetch_liberty as _fl
+    _lib = open(_fl()[0], errors='replace').read() if os.path.exists(_fl()[0]) else ''
+except Exception:
+    _lib = ''
+if _lib:
+    _pos = liberty_tables(_lib, 'xor2_1', 'A', 'positive_unate'); _neg = liberty_tables(_lib, 'xor2_1', 'A', 'negative_unate')
+    try:
+        liberty_tables(_lib, 'xor2_1', 'A'); _refused = False
+    except KeyError:
+        _refused = True
+    check('lod-3d: xor2_1 A has TWO Liberty timing groups (positive/negative unate) with different tables; asking without a sense is refused; a unate pin (inv_1 A) still answers without one',
+          _pos['cell_fall'] != _neg['cell_fall'] and _refused and liberty_tables(_lib, 'inv_1', 'A')['cell_fall'], (_refused,))
+    _mag = os.path.join(os.path.dirname(__file__), 'initialData', 'lod3', 'sky130_fd_sc_hd__maj3_1.magic.log')
+    check('  …the maj3_1 Liberty block is bigger than the fixed 60 kB slice lod-3b used to take — the whole cell block is read now', len(_lib[_lib.index('cell ("sky130_fd_sc_hd__maj3_1")'):]) > 0 and 'maj3_1' in open(_mag).read())
+else:
+    check('lod-3d: Liberty group selection by timing sense — the Liberty is not cached on this machine (fetch_liberty); the committed report carries the numbers', True)
 _, chars3b = lod3b_rows(rep3b)
-check('lod-3b rows: six UPWARD characterizations (tpHL/tpLH per arc), devices → standard-cells, evidence SIMULATED, the Liberty value and the delta in conditions, validated when within 25 %',
-      len(chars3b) == 6 and all(c['source_rung'] == 'devices' and c['target_rung'] == 'standard-cells' and c['evidence_level'] == 'simulated' and 'liberty_ps' in json.loads(c['conditions_json']) for c in chars3b)
-      and all(c['mapping_status'] == 'validated' for c in chars3b), [(c['name'], c['mapping_status']) for c in chars3b])
+check('lod-3b/3d rows: 42 UPWARD characterizations (tpHL/tpLH per arc), devices → standard-cells, evidence SIMULATED, the Liberty value, the delta, the ties and the timing sense in conditions; validated within 25 %, `implemented` beyond (4 tpHL rows: the three maj3_1 arcs and xnor2_1 B→Y (A=1) at −27.9 %)',
+      len(chars3b) == 42 and all(c['source_rung'] == 'devices' and c['target_rung'] == 'standard-cells' and c['evidence_level'] == 'simulated' and 'liberty_ps' in json.loads(c['conditions_json']) and 'timing_sense' in json.loads(c['conditions_json']) for c in chars3b)
+      and sum(1 for c in chars3b if c['mapping_status'] == 'implemented') == 4 and all(c['mapping_status'] == 'validated' for c in chars3b if not (('maj3_1' in c['name'] or 'xnor2_1 B→Y (A=1)' in c['name']) and 'tpHL' in c['name'])),
+      [(c['name'], c['mapping_status']) for c in chars3b if c['mapping_status'] != 'validated'])
+check('  …the row names carry the tie between the arrow and the delay kind ("lod3: xor2_1 A→X (B=0) tpHL") so a `name~tpHL` quantifier still selects every fall row; the two lod-3b names are unchanged',
+      {c['name'] for c in chars3b} >= {'lod3: inv_1 A→Y tpHL', 'lod3: nand2_1 B→Y tpLH', 'lod3: xor2_1 A→X (B=0) tpHL', 'lod3: lpflow_isobufsrc_1 SLEEP→X tpLH'} and sum(1 for c in chars3b if 'tpHL' in c['name']) == 21)
 # ---- lod-3c: the layout RUN (magic DRC + PEX, netgen LVS) through polari-eda-tools; the parasitics hypothesis tested
 from computelod.custom.lod3_layout import report as lod3c_report, rows as lod3c_rows
 rep3c = lod3c_report()
-check('lod-3c: a committed layout report exists — PDK ciel version + tech sha256 cited; two cells; DRC ran, PEX ran, LVS ran',
-      rep3c is not None and rep3c['pdk']['ciel_version'] and rep3c['pdk']['tech_sha256'] and len(rep3c['cells']) == 2 and all(c['drc']['ran'] and c['pex']['ran'] and c['lvs']['ran'] for c in rep3c['cells']))
-check('  …DRC: every reported rule is a standalone-cell CONTEXT rule (nwell.4 / LU.2 / LU.3 — taps and wells come from the row), zero real rules; the count itself is NOT zero and is kept',
-      rep3c['summary']['drc_clean_in_context'] and all(c['drc']['count'] > 0 and c['drc']['real_rules'] == [] for c in rep3c['cells']), [(c['cell'], c['drc']['count'], c['drc']['rules']) for c in rep3c['cells']])
-check('  …LVS: netgen says "Circuits match uniquely" for both cells — the PDK\'s layout IS its schematic', rep3c['summary']['lvs_match'] and all(c['lvs']['match'] for c in rep3c['cells']))
-check('  …PEX: the extracted netlists carry parasitic capacitors (inv_1 14, nand2_1 23) and junction areas the schematic netlist lacked',
-      [c['pex']['capacitors'] for c in rep3c['cells']] == [14, 23] and all(c['pex']['junction_areas'] for c in rep3c['cells']))
-check('  …the parasitics hypothesis TESTED and half-REJECTED: extraction brings tpHL closer to the Liberty and pushes tpLH further; the verdict says so and names what remains (the vendor setup)',
-      rep3c['summary']['tphl_mean_delta_pct']['extracted'] > rep3c['summary']['tphl_mean_delta_pct']['schematic'] and rep3c['summary']['tplh_mean_delta_pct']['extracted'] > rep3c['summary']['tplh_mean_delta_pct']['schematic']
-      and 'REJECTED' in rep3c['summary']['verdict'] and 'vendor' in rep3c['summary']['verdict'], rep3c['summary'])
+check('lod-3c/3d: a committed layout report exists — PDK ciel version + tech sha256 cited; EIGHT cells (every cell of the adder); DRC ran, PEX ran, LVS ran on each; 21 arcs re-timed',
+      rep3c is not None and rep3c['pdk']['ciel_version'] and rep3c['pdk']['tech_sha256'] and len(rep3c['cells']) == 8 and rep3c['summary']['arcs'] == 21 and all(c['drc']['ran'] and c['pex']['ran'] and c['lvs']['ran'] for c in rep3c['cells']))
+check('  …DRC: on all eight cells every reported rule is a standalone-cell CONTEXT rule (nwell.4 / LU.2 / LU.3 — taps and wells come from the row), zero real rules; the counts (3–10) are NOT zero and are kept',
+      rep3c['summary']['drc_clean_in_context'] and all(c['drc']['count'] > 0 and c['drc']['real_rules'] == [] and len(c['drc']['standalone_context_rules']) == 3 for c in rep3c['cells']), [(c['cell'], c['drc']['count'], c['drc']['rules']) for c in rep3c['cells']])
+check('  …LVS: netgen says "Circuits match uniquely" for all eight cells — the PDK\'s layout IS its schematic', rep3c['summary']['lvs_match'] and all(c['lvs']['match'] for c in rep3c['cells']))
+check('  …PEX: the extracted netlists carry parasitic capacitors growing with the cell (inv_1 14 … maj3_1 58) and junction areas the schematic netlist lacked; the device counts equal lod-3\'s per-cell transistor counts',
+      {c['cell']: c['pex']['capacitors'] for c in rep3c['cells']}['sky130_fd_sc_hd__inv_1'] == 14 and {c['cell']: c['pex']['capacitors'] for c in rep3c['cells']}['sky130_fd_sc_hd__maj3_1'] == 58 and all(c['pex']['junction_areas'] for c in rep3c['cells'])
+      and all(c['pex']['devices'] == rep3['sky130']['cells'][c['cell']]['transistors'] for c in rep3c['cells'] if c['cell'] in rep3['sky130']['cells']), [(c['cell'], c['pex']['capacitors'], c['pex']['devices']) for c in rep3c['cells']])
+check('  …the parasitics hypothesis TESTED on 21 arcs and the two-cell reading CORRECTED: extraction brings tpHL closer to the Liberty on 21/21 arcs (ALL of the fall gap) but tpLH closer on only 11/21 (PART); the verdict is computed from those counts, rejects the sole-cause reading and names what remains (the vendor setup)',
+      rep3c['summary']['closer_after_extraction'] == {'tphl': [21, 21], 'tplh': [11, 21]} and rep3c['summary']['tphl_mean_delta_pct']['extracted'] > rep3c['summary']['tphl_mean_delta_pct']['schematic']
+      and 'ALL of the fall gap' in rep3c['summary']['verdict'] and 'PART of the rise gap' in rep3c['summary']['verdict'] and 'REJECTED' in rep3c['summary']['verdict'] and 'vendor' in rep3c['summary']['verdict'], rep3c['summary'])
+check('  …and the extracted numbers are CLOSER overall: mean |gap| 15.0 % (schematic) → 8.9 % (extracted) over the 42 delay numbers',
+      rep3c['summary']['delay_mean_abs_delta_pct_schematic'] == 15.0 and rep3c['summary']['delay_mean_abs_delta_pct_extracted'] < 10, (rep3c['summary']['delay_mean_abs_delta_pct_schematic'], rep3c['summary']['delay_mean_abs_delta_pct_extracted']))
 maps3c, chars3c = lod3c_rows(rep3c)
-check('lod-3c rows: devices → layout becomes MEASURED (DRC + LVS are the tools\' verdicts) and stays validated; six extracted-netlist delay characterizations carry the schematic value beside them',
-      maps3c[0]['name'] == 'lod3: devices → layout' and maps3c[0]['evidence_level'] == 'measured' and maps3c[0]['mapping_status'] == 'validated' and len(chars3c) == 6
-      and all(c['source_rung'] == 'layout' and 'schematic_ps' in json.loads(c['conditions_json']) for c in chars3c), [(m_['name'], m_['evidence_level']) for m_ in maps3c])
+check('lod-3c/3d rows: devices → layout becomes MEASURED (DRC + LVS are the tools\' verdicts) and stays validated over all eight cells; 42 extracted-netlist delay characterizations carry the schematic value, the ties and the timing sense beside them',
+      maps3c[0]['name'] == 'lod3: devices → layout' and maps3c[0]['evidence_level'] == 'measured' and maps3c[0]['mapping_status'] == 'validated' and len(chars3c) == 42
+      and all(c['source_rung'] == 'layout' and 'schematic_ps' in json.loads(c['conditions_json']) and 'timing_sense' in json.loads(c['conditions_json']) for c in chars3c) and 'maj3_1: DRC 10' in maps3c[0]['notes'], [(m_['name'], m_['evidence_level']) for m_ in maps3c])
+check('  …the extracted rows within 25 % of the Liberty are validated: every one now (the worst, maj3_1 C tpHL, is at −23.3 %)', all(c['mapping_status'] == 'validated' for c in chars3c), [(c['name'], json.loads(c['conditions_json'])['delta_pct']) for c in chars3c if c['mapping_status'] != 'validated'])
+# lod-3d: the mathproofs claims name the same 21 arcs as a LITERAL (mathproofs cannot import computelod) — asserted equal here so the two tables cannot drift
+try:
+    from mathproofs.mathproofs_seed import LOD3_ARCS as _PF_ARCS
+    _ours = [(c_, '%s→%s%s' % (a['pin'], a['out'], a['cond'])) for c_ in DEV_ARCS for a in arcs_of(c_)]
+    check('lod-3d: mathproofs.LOD3_ARCS == computelod\'s arc table (21 (cell, arc) pairs, same order) — the claims\' about_refs name every characterization row that exists',
+          _ours == _PF_ARCS and {'CharacterizationMapping:' + c['name'] for c in chars3b} == {'CharacterizationMapping:lod3: %s %s %s' % (c_, a_, k) for c_, a_ in _PF_ARCS for k in ('tpHL', 'tpLH')}, (_ours[:3], _PF_ARCS[:3]))
+except ImportError:
+    check('lod-3d: mathproofs.LOD3_ARCS cross-check — mathproofs absent here, stated', False)
 check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a sifet class, skipped when sifet is absent)', any(n == 'SiliconProcessNode' and len(r) == 1 for n, _, r in COMPUTELOD_SEED_PAIRS))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
@@ -263,19 +305,23 @@ try:
         _add(_pm, 'CharacterizationMapping', **_row)
     _mk = lambda cls, **f: _add(_pm, cls.__name__, **f)
     _want = {'lod3-lef-area-equals-liberty-area': 'witnessed', 'lod3b-falls-faster-than-liberty': 'witnessed', 'lod3c-extraction-slows-every-arc': 'witnessed',
-             'lod3c-extraction-narrows-every-fall-gap': 'witnessed', 'lod3c-extraction-widens-every-rise-gap': 'witnessed'}
+             'lod3c-extraction-narrows-every-fall-gap': 'witnessed', 'lod3c-extraction-widens-every-rise-gap': 'refuted', 'lod3c-extraction-widens-the-rise-gap-where-already-slow': 'witnessed'}
     _got = {}
+    _claims = {}
     for _c in SEED_MATH_CLAIMS:
         if _c['name'] in _want:
-            _claim = _add(_pm, 'MathClaim', **_c)
+            _claim = _add(_pm, 'MathClaim', **_c); _claims[_c['name']] = _claim
             _res = _pf.check(_pm, _claim, make=_mk, save=False)
             _got[_c['name']] = (_res['after'], _res['tier'], _res['detail'])
-    check('pf-1: the five lod cross-checks are MathClaim rows and every one is WITNESSED on the seeded characterization rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; '
-          'the parasitics verdict as two inequalities — narrows every fall gap, widens every rise gap)', {k: v[0] for k, v in _got.items()} == _want, _got)
-    check('  …each is the numeric tier\'s witness — evidence MEASURED on these rows, never called a proof; the area claim reads two rows that agree to 0.01 µm²',
+    check('pf-1 + lod-3d: the six lod cross-checks are MathClaim rows; five are WITNESSED on the seeded characterization rows (LEF == Liberty area; every tpHL faster than the Liberty; extraction slows every arc; narrows every fall gap; '
+          'widens the rise gap WHERE the schematic was already slow) and the two-cell statement "widens EVERY rise gap" is REFUTED by lod-3d\'s arcs — kept as the refutation it is', {k: v[0] for k, v in _got.items()} == _want, _got)
+    check('  …each is the numeric tier\'s verdict — evidence MEASURED on these rows, never called a proof; the area claim reads two rows that agree to 0.01 µm²',
           all(v[1] == 'numeric' for v in _got.values()) and _got['lod3-lef-area-equals-liberty-area'][2]['lhs'] == _got['lod3-lef-area-equals-liberty-area'][2]['rhs'] == 855.82, _got['lod3-lef-area-equals-liberty-area'])
-    _fall = _got['lod3c-extraction-narrows-every-fall-gap'][2]; _rise = _got['lod3c-extraction-widens-every-rise-gap'][2]
-    check('  …the two halves of the verdict cover three extracted arcs each (inv_1 A, nand2_1 A, nand2_1 B)', _fall['rows'] == 3 and _rise['rows'] == 3, (_fall, _rise))
+    _fall = _got['lod3c-extraction-narrows-every-fall-gap'][2]; _rise = _got['lod3c-extraction-widens-the-rise-gap-where-already-slow'][2]
+    check('  …the two halves of the verdict now range over 21 extracted arcs each (lod-3d)', _fall['rows'] == 21 and _rise['rows'] == 21, (_fall, _rise))
+    _ce = json.loads(_claims['lod3c-extraction-widens-every-rise-gap'].counterexample_json or '{}')
+    check('  …the refuted claim\'s counterexample is a REAL row: an extracted tpLH arc whose schematic netlist was already FASTER than the Liberty (schematic_delta_pct < 0) — the first such row, an xor2_1 arc',
+          'xor2_1' in json.dumps(_ce) and 'row' in json.dumps(_ce).lower(), _ce)
     _bad = next(r_ for r_ in _pm.objectTables['CharacterizationMapping'].values() if r_.name == 'lod3: rv32_add layout area (LEF)')
     _bad.result = 900.0
     _cl = next(c_ for c_ in _pm.objectTables['MathClaim'].values() if c_.name == 'lod3-lef-area-equals-liberty-area')

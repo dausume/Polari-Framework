@@ -1,0 +1,69 @@
+{
+ "case": "tt2-plate-tension",
+ "elements": 64,
+ "fixed_point": {
+  "C": "kPa (int32)",
+  "eps": "nano-strain (int32)",
+  "sigma": "kPa\u00b7n\u03b5 (int64) \u2192 Pa = \u00d71e-6",
+  "rounding": "operands rounded to integers once on the host; the kernel is exact"
+ },
+ "reference_error_vs_float": 0.00011368198709350307,
+ "simulation": {
+  "verdict": "PASS stress_mac: 64/64 elements, 0 fails, stream cycles 1073 (first out 36, last out 1108), cycles per element 17",
+  "tool": "iverilog",
+  "stream_cycles": 1073,
+  "cycles_per_element": 17,
+  "pipeline_latency_cycles": 17
+ },
+ "streaming_variant": {
+  "note": "the one-element-per-cycle form (16 multipliers) was synthesized first: it does not fit the part",
+  "yosys_synth_ice40_cells": 52073,
+  "SB_LUT4": 49167,
+  "part_luts": 7680,
+  "fit": false,
+  "lesson": "the LUT budget of the DEVICE rung dictates the schedule of the operator: 16 cycles/element with one multiplier is what fits"
+ },
+ "synthesis": {
+  "tool": "yosys synth_ice40 (top = stress_mac_top: the kernel behind a 32-bit register bus)",
+  "cells": 4718,
+  "by_type": {
+   "SB_LUT4": 3567,
+   "SB_DFFE": 512,
+   "SB_CARRY": 308,
+   "SB_DFFESR": 260,
+   "SB_DFF": 34,
+   "SB_DFFSR": 34,
+   "SB_RAM40_4K": 2,
+   "SB_DFFESS": 1
+  }
+ },
+ "place_and_route": {
+  "tool": "nextpnr-ice40 --hx8k",
+  "part": "Lattice iCE40 HX8K (ct256)",
+  "fmax_mhz": 32.31644058227539,
+  "utilization": {
+   "ICESTORM_LC": {
+    "used": 4185,
+    "available": 7680
+   },
+   "ICESTORM_RAM": {
+    "used": 2,
+    "available": 32
+   },
+   "SB_GB": {
+    "used": 7,
+    "available": 8
+   },
+   "SB_IO": {
+    "used": 72,
+    "available": 256
+   }
+  }
+ },
+ "derived": {
+  "latency_s_per_element_at_fmax": 5.260480329422169e-07,
+  "throughput_elements_per_s_at_fmax": 1900967.093075023,
+  "all_elements_s_at_fmax": 3.320291407923522e-05,
+  "note": "DERIVED: cycles (iverilog) / Fmax (nextpnr timing model) \u2014 17 cycles per element, one multiplier"
+ }
+}

@@ -8,6 +8,9 @@
 !modules/polari-modules.json
 # module data convention: committed initial data (plain JSON, small)
 !modules/*/initialData/*.json
+# …at any depth: computelod keeps its flow reports under initialData/lod1..4/, tensormath under
+# initialData/fpga/ — the one-level rule silently left them out of every commit until 2026-09-26 (lod-3d)
+!modules/*/initialData/**/*.json
 # the app manifest IS source (sap: one polari-app.json replaces the hand-
 # threaded core tables; carries the hand-tuned security stanza) — a fresh
 # clone without it cannot admit the module or run `pol project`.

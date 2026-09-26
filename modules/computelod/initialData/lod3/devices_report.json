@@ -1,0 +1,899 @@
+{
+ "tool": "ngspice-46 (/home/user/tools/ngspice/bin/ngspice)",
+ "engine_ladder": "cntfet.engines (find_ngspice)",
+ "models": {
+  "repo": "google/skywater-pdk-libs-sky130_fd_pr",
+  "commit": "f62031a1be9aefe902d6d54cddd6f59b57627436",
+  "licence": "Apache-2.0 (SkyWater PDK)",
+  "files": {
+   "sky130_fd_pr__nfet_01v8__mismatch.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__mismatch.corner.spice",
+    "sha256": "24a3b29d7d7f26f99098811c31eb5497950a3aed520ab83768a96f35467fe818",
+    "bytes": 962
+   },
+   "sky130_fd_pr__nfet_01v8__tt.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.corner.spice",
+    "sha256": "0c03b2e5727c414942f1d2b27e19a68724fb84be90b2c73b361ad41779311130",
+    "bytes": 66384
+   },
+   "sky130_fd_pr__nfet_01v8__tt.pm3.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.pm3.spice",
+    "sha256": "3d706d50cf2e57175aea78bcf27e4ee07d9f750b154a4b06e6090531364a831b",
+    "bytes": 1109307
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice",
+    "sha256": "05e258ab6724c8276cc058f6dba732e8024c5f0bb79ff3131ca219143491d631",
+    "bytes": 1039
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice",
+    "sha256": "69401f9b657f9ebb20d201d39e3fbf36b68628307d6fa982168fa51db3e77b03",
+    "bytes": 88134
+   },
+   "sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice",
+    "sha256": "f575eef5caea7f9638fa7e1b0078aedcf6d8513f5499b5bb79399186557881f2",
+    "bytes": 1314282
+   }
+  }
+ },
+ "liberty_sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+ "conditions": {
+  "corner": "tt",
+  "temperature_c": 25.0,
+  "voltage_v": 1.8,
+  "load_pf": 0.0146,
+  "input_slew_ns_20_80": 0.05,
+  "input_shape": "linear ramp (0\u2013100 % over 83.3 ps so 20\u201380 % = 50 ps)",
+  "thresholds": "delay 50 %/50 %, transition 20\u201380 % (the Liberty's own)",
+  "netlist": "schematic (cells/<cell>/*.spice) \u2014 NO extracted parasitics"
+ },
+ "arcs": [
+  {
+   "cell": "sky130_fd_sc_hd__inv_1",
+   "pin": "A",
+   "label": "A",
+   "cond": "",
+   "out": "Y",
+   "ties": {},
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "!A",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/inv/sky130_fd_sc_hd__inv_1.spice",
+    "sha256": "1099e3641c46d241852db47974540b3ad161e20e01b74f2fd5cc152627011909"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 65.21,
+     "liberty": 77.22,
+     "delta_pct": -15.6
+    },
+    "tplh_ps": {
+     "ours": 129.95,
+     "liberty": 117.94,
+     "delta_pct": 10.2
+    },
+    "fall_transition_ps": {
+     "ours": 56.05,
+     "liberty": 70.77,
+     "delta_pct": -20.8
+    },
+    "rise_transition_ps": {
+     "ours": 140.5,
+     "liberty": 128.86,
+     "delta_pct": 9.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nand2_1",
+   "pin": "A",
+   "label": "A",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "B": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "!(A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+    "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 91.73,
+     "liberty": 106.39,
+     "delta_pct": -13.8
+    },
+    "tplh_ps": {
+     "ours": 132.53,
+     "liberty": 129.4,
+     "delta_pct": 2.4
+    },
+    "fall_transition_ps": {
+     "ours": 91.04,
+     "liberty": 108.99,
+     "delta_pct": -16.5
+    },
+    "rise_transition_ps": {
+     "ours": 142.88,
+     "liberty": 141.88,
+     "delta_pct": 0.7
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nand2_1",
+   "pin": "B",
+   "label": "B",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "A": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "!(A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+    "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 93.84,
+     "liberty": 110.29,
+     "delta_pct": -14.9
+    },
+    "tplh_ps": {
+     "ours": 139.42,
+     "liberty": 136.07,
+     "delta_pct": 2.5
+    },
+    "fall_transition_ps": {
+     "ours": 91.04,
+     "liberty": 110.34,
+     "delta_pct": -17.5
+    },
+    "rise_transition_ps": {
+     "ours": 149.15,
+     "liberty": 147.02,
+     "delta_pct": 1.4
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nor2_1",
+   "pin": "A",
+   "label": "A",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "B": "VGND"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "!(A|B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+    "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 70.05,
+     "liberty": 80.89,
+     "delta_pct": -13.4
+    },
+    "tplh_ps": {
+     "ours": 257.12,
+     "liberty": 244.03,
+     "delta_pct": 5.4
+    },
+    "fall_transition_ps": {
+     "ours": 59.99,
+     "liberty": 73.1,
+     "delta_pct": -17.9
+    },
+    "rise_transition_ps": {
+     "ours": 291.7,
+     "liberty": 276.65,
+     "delta_pct": 5.4
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__nor2_1",
+   "pin": "B",
+   "label": "B",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "A": "VGND"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "!(A|B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+    "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 66.46,
+     "liberty": 76.56,
+     "delta_pct": -13.2
+    },
+    "tplh_ps": {
+     "ours": 245.03,
+     "liberty": 228.5,
+     "delta_pct": 7.2
+    },
+    "fall_transition_ps": {
+     "ours": 56.91,
+     "liberty": 68.9,
+     "delta_pct": -17.4
+    },
+    "rise_transition_ps": {
+     "ours": 291.7,
+     "liberty": 275.25,
+     "delta_pct": 6.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xor2_1",
+   "pin": "A",
+   "label": "A@B=0",
+   "cond": " (B=0)",
+   "out": "X",
+   "ties": {
+    "B": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&!B) | (!A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 157.24,
+     "liberty": 204.29,
+     "delta_pct": -23.0
+    },
+    "tplh_ps": {
+     "ours": 263.32,
+     "liberty": 289.5,
+     "delta_pct": -9.0
+    },
+    "fall_transition_ps": {
+     "ours": 65.92,
+     "liberty": 83.87,
+     "delta_pct": -21.4
+    },
+    "rise_transition_ps": {
+     "ours": 292.57,
+     "liberty": 318.28,
+     "delta_pct": -8.1
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xor2_1",
+   "pin": "A",
+   "label": "A@B=1",
+   "cond": " (B=1)",
+   "out": "X",
+   "ties": {
+    "B": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(A&!B) | (!A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 101.3,
+     "liberty": 118.29,
+     "delta_pct": -14.4
+    },
+    "tplh_ps": {
+     "ours": 275.99,
+     "liberty": 303.66,
+     "delta_pct": -9.1
+    },
+    "fall_transition_ps": {
+     "ours": 96.84,
+     "liberty": 116.26,
+     "delta_pct": -16.7
+    },
+    "rise_transition_ps": {
+     "ours": 305.55,
+     "liberty": 332.33,
+     "delta_pct": -8.1
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xor2_1",
+   "pin": "B",
+   "label": "B@A=0",
+   "cond": " (A=0)",
+   "out": "X",
+   "ties": {
+    "A": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&!B) | (!A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 143.47,
+     "liberty": 185.98,
+     "delta_pct": -22.9
+    },
+    "tplh_ps": {
+     "ours": 264.0,
+     "liberty": 294.88,
+     "delta_pct": -10.5
+    },
+    "fall_transition_ps": {
+     "ours": 66.11,
+     "liberty": 84.29,
+     "delta_pct": -21.6
+    },
+    "rise_transition_ps": {
+     "ours": 305.55,
+     "liberty": 332.11,
+     "delta_pct": -8.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xor2_1",
+   "pin": "B",
+   "label": "B@A=1",
+   "cond": " (A=1)",
+   "out": "X",
+   "ties": {
+    "A": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(A&!B) | (!A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 99.23,
+     "liberty": 114.35,
+     "delta_pct": -13.2
+    },
+    "tplh_ps": {
+     "ours": 261.55,
+     "liberty": 286.21,
+     "delta_pct": -8.6
+    },
+    "fall_transition_ps": {
+     "ours": 96.84,
+     "liberty": 116.09,
+     "delta_pct": -16.6
+    },
+    "rise_transition_ps": {
+     "ours": 292.46,
+     "liberty": 318.6,
+     "delta_pct": -8.2
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xnor2_1",
+   "pin": "A",
+   "label": "A@B=0",
+   "cond": " (B=0)",
+   "out": "Y",
+   "ties": {
+    "B": "VGND"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(!A&!B) | (A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 102.89,
+     "liberty": 130.7,
+     "delta_pct": -21.3
+    },
+    "tplh_ps": {
+     "ours": 276.44,
+     "liberty": 323.67,
+     "delta_pct": -14.6
+    },
+    "fall_transition_ps": {
+     "ours": 97.13,
+     "liberty": 128.79,
+     "delta_pct": -24.6
+    },
+    "rise_transition_ps": {
+     "ours": 307.75,
+     "liberty": 357.81,
+     "delta_pct": -14.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xnor2_1",
+   "pin": "A",
+   "label": "A@B=1",
+   "cond": " (B=1)",
+   "out": "Y",
+   "ties": {
+    "B": "VPWR"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(!A&!B) | (A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 142.55,
+     "liberty": 185.96,
+     "delta_pct": -23.3
+    },
+    "tplh_ps": {
+     "ours": 155.86,
+     "liberty": 197.02,
+     "delta_pct": -20.9
+    },
+    "fall_transition_ps": {
+     "ours": 92.57,
+     "liberty": 117.46,
+     "delta_pct": -21.2
+    },
+    "rise_transition_ps": {
+     "ours": 143.57,
+     "liberty": 175.85,
+     "delta_pct": -18.4
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xnor2_1",
+   "pin": "B",
+   "label": "B@A=0",
+   "cond": " (A=0)",
+   "out": "Y",
+   "ties": {
+    "A": "VGND"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(!A&!B) | (A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 97.32,
+     "liberty": 119.72,
+     "delta_pct": -18.7
+    },
+    "tplh_ps": {
+     "ours": 264.49,
+     "liberty": 306.1,
+     "delta_pct": -13.6
+    },
+    "fall_transition_ps": {
+     "ours": 92.45,
+     "liberty": 116.59,
+     "delta_pct": -20.7
+    },
+    "rise_transition_ps": {
+     "ours": 307.75,
+     "liberty": 357.68,
+     "delta_pct": -14.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__xnor2_1",
+   "pin": "B",
+   "label": "B@A=1",
+   "cond": " (A=1)",
+   "out": "Y",
+   "ties": {
+    "A": "VPWR"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(!A&!B) | (A&B)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 133.01,
+     "liberty": 184.44,
+     "delta_pct": -27.9
+    },
+    "tplh_ps": {
+     "ours": 153.1,
+     "liberty": 195.09,
+     "delta_pct": -21.5
+    },
+    "fall_transition_ps": {
+     "ours": 97.49,
+     "liberty": 129.67,
+     "delta_pct": -24.8
+    },
+    "rise_transition_ps": {
+     "ours": 143.65,
+     "liberty": 175.87,
+     "delta_pct": -18.3
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__maj3_1",
+   "pin": "A",
+   "label": "A",
+   "cond": "",
+   "out": "X",
+   "ties": {
+    "B": "VPWR",
+    "C": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&B) | (A&C) | (B&C)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 297.56,
+     "liberty": 413.94,
+     "delta_pct": -28.1
+    },
+    "tplh_ps": {
+     "ours": 185.02,
+     "liberty": 231.24,
+     "delta_pct": -20.0
+    },
+    "fall_transition_ps": {
+     "ours": 83.51,
+     "liberty": 117.05,
+     "delta_pct": -28.7
+    },
+    "rise_transition_ps": {
+     "ours": 142.76,
+     "liberty": 158.47,
+     "delta_pct": -9.9
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__maj3_1",
+   "pin": "B",
+   "label": "B",
+   "cond": "",
+   "out": "X",
+   "ties": {
+    "A": "VPWR",
+    "C": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&B) | (A&C) | (B&C)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 251.86,
+     "liberty": 401.36,
+     "delta_pct": -37.2
+    },
+    "tplh_ps": {
+     "ours": 186.91,
+     "liberty": 226.82,
+     "delta_pct": -17.6
+    },
+    "fall_transition_ps": {
+     "ours": 96.82,
+     "liberty": 126.35,
+     "delta_pct": -23.4
+    },
+    "rise_transition_ps": {
+     "ours": 142.77,
+     "liberty": 158.73,
+     "delta_pct": -10.1
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__maj3_1",
+   "pin": "C",
+   "label": "C",
+   "cond": "",
+   "out": "X",
+   "ties": {
+    "A": "VPWR",
+    "B": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&B) | (A&C) | (B&C)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 252.22,
+     "liberty": 419.14,
+     "delta_pct": -39.8
+    },
+    "tplh_ps": {
+     "ours": 186.4,
+     "liberty": 236.91,
+     "delta_pct": -21.3
+    },
+    "fall_transition_ps": {
+     "ours": 96.82,
+     "liberty": 116.85,
+     "delta_pct": -17.1
+    },
+    "rise_transition_ps": {
+     "ours": 142.64,
+     "liberty": 158.46,
+     "delta_pct": -10.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__o21ai_0",
+   "pin": "A1",
+   "label": "A1",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "A2": "VGND",
+    "B1": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(!A1&!A2) | (!B1)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 154.36,
+     "liberty": 189.9,
+     "delta_pct": -18.7
+    },
+    "tplh_ps": {
+     "ours": 385.21,
+     "liberty": 397.11,
+     "delta_pct": -3.0
+    },
+    "fall_transition_ps": {
+     "ours": 163.63,
+     "liberty": 205.14,
+     "delta_pct": -20.2
+    },
+    "rise_transition_ps": {
+     "ours": 455.56,
+     "liberty": 464.68,
+     "delta_pct": -2.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__o21ai_0",
+   "pin": "A2",
+   "label": "A2",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "A1": "VGND",
+    "B1": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(!A1&!A2) | (!B1)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 147.33,
+     "liberty": 171.18,
+     "delta_pct": -13.9
+    },
+    "tplh_ps": {
+     "ours": 373.86,
+     "liberty": 383.37,
+     "delta_pct": -2.5
+    },
+    "fall_transition_ps": {
+     "ours": 157.73,
+     "liberty": 183.37,
+     "delta_pct": -14.0
+    },
+    "rise_transition_ps": {
+     "ours": 455.56,
+     "liberty": 464.97,
+     "delta_pct": -2.0
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__o21ai_0",
+   "pin": "B1",
+   "label": "B1",
+   "cond": "",
+   "out": "Y",
+   "ties": {
+    "A1": "VPWR",
+    "A2": "VGND"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(!A1&!A2) | (!B1)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 151.81,
+     "liberty": 183.75,
+     "delta_pct": -17.4
+    },
+    "tplh_ps": {
+     "ours": 184.51,
+     "liberty": 187.22,
+     "delta_pct": -1.4
+    },
+    "fall_transition_ps": {
+     "ours": 163.63,
+     "liberty": 205.09,
+     "delta_pct": -20.2
+    },
+    "rise_transition_ps": {
+     "ours": 226.29,
+     "liberty": 233.65,
+     "delta_pct": -3.2
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__lpflow_isobufsrc_1",
+   "pin": "A",
+   "label": "A",
+   "cond": "",
+   "out": "X",
+   "ties": {
+    "SLEEP": "VGND"
+   },
+   "sense": "positive_unate",
+   "inverting": false,
+   "function": "(A&!SLEEP)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+    "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 138.59,
+     "liberty": 174.91,
+     "delta_pct": -20.8
+    },
+    "tplh_ps": {
+     "ours": 264.0,
+     "liberty": 273.44,
+     "delta_pct": -3.5
+    },
+    "fall_transition_ps": {
+     "ours": 63.07,
+     "liberty": 81.67,
+     "delta_pct": -22.8
+    },
+    "rise_transition_ps": {
+     "ours": 292.41,
+     "liberty": 291.39,
+     "delta_pct": 0.4
+    }
+   }
+  },
+  {
+   "cell": "sky130_fd_sc_hd__lpflow_isobufsrc_1",
+   "pin": "SLEEP",
+   "label": "SLEEP",
+   "cond": "",
+   "out": "X",
+   "ties": {
+    "A": "VPWR"
+   },
+   "sense": "negative_unate",
+   "inverting": true,
+   "function": "(A&!SLEEP)",
+   "cell_spice": {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+    "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587"
+   },
+   "compare": {
+    "tphl_ps": {
+     "ours": 70.02,
+     "liberty": 79.26,
+     "delta_pct": -11.7
+    },
+    "tplh_ps": {
+     "ours": 258.26,
+     "liberty": 256.84,
+     "delta_pct": 0.6
+    },
+    "fall_transition_ps": {
+     "ours": 60.18,
+     "liberty": 71.84,
+     "delta_pct": -16.2
+    },
+    "rise_transition_ps": {
+     "ours": 292.41,
+     "liberty": 292.06,
+     "delta_pct": 0.1
+    }
+   }
+  }
+ ],
+ "summary": {
+  "arcs": 21,
+  "cells": 8,
+  "max_abs_delta_pct": 39.8,
+  "mean_abs_delta_pct": 14.4,
+  "delay_mean_abs_delta_pct": 15.0,
+  "delay_max_abs_delta_pct": 39.8,
+  "tphl_faster_than_liberty_arcs": 21,
+  "first_cells": [
+   "inv_1",
+   "nand2_1"
+  ],
+  "lod3d_cells": [
+   "nor2_1",
+   "xor2_1",
+   "xnor2_1",
+   "maj3_1",
+   "o21ai_0",
+   "lpflow_isobufsrc_1"
+  ],
+  "reading": "our schematic-netlist transient on the PDK models vs the foundry-characterized Liberty at the same slew/load: the gap is layout parasitics + the vendor setup, reported not tuned"
+ }
+}

@@ -15,6 +15,9 @@ PDK fetched by ciel at a pinned version — see that submodule's LICENSES.md):
 
     python3 -m computelod.custom.lod3_layout run [--cells inv_1,nand2_1]
 
+lod-3d (2026-09-26): every cell the adder uses goes through the same three checks and re-timing (the arc table lives in
+lod3_devices.ARCS — 8 cells, 21 arcs); the parasitics verdict is computed from per-arc counts, not a fixed sentence.
+
 Engines resolve through the Polari engines ladder (`computelod.custom.eda_engines`: EDA_ENGINES_URL → local binary →
 local image → topology provider computelod.engines → refusal); the PDK is the worker's own volume remotely and
 POLARI_PDK_ROOT locally (the submodule's fetch-pdk.sh fills it). Nothing from the PDK is committed.
@@ -59,7 +62,7 @@ def run(cells=None, work=None):
             raise SystemExit(r['why'])
         if r['how'] != 'remote' and not os.path.exists(os.path.join(_PDK_LOCAL, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')):
             raise SystemExit('%s resolves locally (%s) but no built PDK is at %s: polari-rf-node/polari-eda-tools/fetch-pdk.sh' % (eng, r['where'], _PDK_LOCAL))
-    from computelod.custom.lod3_devices import ARCS, CONDITIONS, DEVICES, _fetch, PR_REPO, liberty_tables, interp, _deck, run_spice, ngspice_where, report as devices_report
+    from computelod.custom.lod3_devices import ARCS, arcs_of, FIRST_CELLS, CONDITIONS, DEVICES, _fetch, PR_REPO, liberty_tables, interp, _deck, run_spice, ngspice_where, report as devices_report
     ng = ngspice_where()
     if not ng:
         raise SystemExit('no ngspice through the cntfet engines ladder (PATH, ~/tools, CNTFET_ENGINES_URL, or a cntfet.engines provider)')
@@ -76,7 +79,7 @@ def run(cells=None, work=None):
            'pdk': {'root': 'POLARI_PDK_ROOT (never committed)', 'ciel_version': pdk_version(), 'tech_sha256': _sha(mag_tech) if os.path.exists(mag_tech) else 'remote worker\'s PDK'},
            # bp-3: these rows are the EXTRACTED runs — the netlist condition must say so (it used to be copied from the schematic run's)
            'conditions': dict(CONDITIONS, netlist='extracted (magic PEX of the PDK\'s own .mag — parasitic capacitors included; the schematic figure is kept beside it as schematic_ps)'), 'cells': []}
-    prior = {(a['cell'], a['pin']): a['compare'] for a in (devices_report() or {}).get('arcs', [])}
+    prior = {(a['cell'], a.get('label', a['pin'])): a['compare'] for a in (devices_report() or {}).get('arcs', [])}
     for cell in (cells or list(ARCS)):
         full = 'sky130_fd_sc_hd__%s' % cell
         mag = os.path.join(_PDK_LOCAL, 'sky130A', 'libs.ref', 'sky130_fd_sc_hd', 'mag', full + '.mag')
@@ -106,22 +109,23 @@ def run(cells=None, work=None):
         entry = {'cell': full, 'mag_sha256': _sha(mag) if os.path.exists(mag) else None, 'drc': drc, 'pex': pex, 'lvs': lvs, 'arcs': []}
         # re-time the arcs on the EXTRACTED netlist
         if pex['ran']:
-            for pin in ARCS[cell]['pins']:
-                deck = os.path.join(work, '%s_%s.ext.sp' % (cell, pin))
-                d = _deck(cell, pin, ARCS[cell], '\n'.join(inc), ext)
+            for arc in arcs_of(cell):
+                pin, label = arc['pin'], arc['label']
+                deck = os.path.join(work, '%s_%s.ext.sp' % (cell, label.replace('@', '_').replace(',', '_')))
+                d = _deck(cell, arc, '\n'.join(inc), ext)   # the extracted netlist's OWN .subckt port order, by name
                 open(deck, 'w').write(d)
                 text = run_spice(work, deck)
                 got = {mm.group(1): float(mm.group(2)) * 1e12 for mm in re.finditer(r'^(tphl|tplh|tfall|trise)\s*=\s*([-0-9.e+]+)', text, re.M)}
                 if len(got) < 4:
-                    entry['arcs'].append({'pin': pin, 'error': 'ngspice on the extracted netlist gave no measures', 'tail': text[-600:]}); continue
-                tabs = liberty_tables(lib_text, cell, pin)
+                    entry['arcs'].append({'pin': pin, 'label': label, 'cond': arc['cond'], 'out': arc['out'], 'error': 'ngspice on the extracted netlist gave no measures', 'tail': text[-600:]}); continue
+                tabs = liberty_tables(lib_text, cell, pin, arc['sense'])
                 lib = {k: interp(tabs[k], CONDITIONS['input_slew_ns_20_80'], CONDITIONS['load_pf']) * 1000 for k in tabs}
                 cmp = {}
                 for key, ours, libk in (('tphl_ps', got['tphl'], 'cell_fall'), ('tplh_ps', got['tplh'], 'cell_rise'), ('fall_transition_ps', got['tfall'], 'fall_transition'), ('rise_transition_ps', got['trise'], 'rise_transition')):
-                    sch = (prior.get((full, pin)) or {}).get(key, {}).get('ours')
+                    sch = (prior.get((full, label)) or {}).get(key, {}).get('ours')
                     cmp[key] = {'extracted': round(ours, 2), 'schematic': sch, 'liberty': round(lib[libk], 2), 'delta_pct': round((ours - lib[libk]) / lib[libk] * 100, 1),
-                                'schematic_delta_pct': (prior.get((full, pin)) or {}).get(key, {}).get('delta_pct')}
-                entry['arcs'].append({'pin': pin, 'compare': cmp})
+                                'schematic_delta_pct': (prior.get((full, label)) or {}).get(key, {}).get('delta_pct')}
+                entry['arcs'].append({'pin': pin, 'label': label, 'cond': arc['cond'], 'out': arc['out'], 'ties': arc['ties'], 'sense': arc['sense'], 'compare': cmp})
         rep['cells'].append(entry)
     ds = [abs(a['compare'][k]['delta_pct']) for c in rep['cells'] for a in c['arcs'] if 'compare' in a for k in ('tphl_ps', 'tplh_ps')]
     ss = [abs(a['compare'][k]['schematic_delta_pct']) for c in rep['cells'] for a in c['arcs'] if 'compare' in a for k in ('tphl_ps', 'tplh_ps') if a['compare'][k]['schematic_delta_pct'] is not None]
@@ -129,11 +133,25 @@ def run(cells=None, work=None):
         xs = [a['compare'][key][which] for c in rep['cells'] for a in c['arcs'] if 'compare' in a and a['compare'][key].get(which) is not None]
         return round(sum(xs) / len(xs), 1) if xs else None
     fall_s, fall_e, rise_s, rise_e = _mean('tphl_ps', 'schematic_delta_pct'), _mean('tphl_ps', 'delta_pct'), _mean('tplh_ps', 'schematic_delta_pct'), _mean('tplh_ps', 'delta_pct')
-    verdict = ('parasitics explain PART of the fall gap (tpHL mean %+.1f %% → %+.1f %%) and NONE of the rise gap (tpLH mean %+.1f %% → %+.1f %%, wider): the lod-3b '
-               'hypothesis "the gap is layout parasitics" is REJECTED as the sole cause — what remains is the vendor characterization setup (input waveform shape, load/driver model, '
-               'measurement details), which we do not have; stated, not tuned' % (fall_s, fall_e, rise_s, rise_e)) if None not in (fall_s, fall_e, rise_s, rise_e) else 'not enough arcs to judge'
-    rep['summary'] = {'cells': len(rep['cells']), 'drc_clean_in_context': all(c['drc']['clean_in_context'] for c in rep['cells'] if c['drc']['ran']),
-                      'tphl_mean_delta_pct': {'schematic': fall_s, 'extracted': fall_e}, 'tplh_mean_delta_pct': {'schematic': rise_s, 'extracted': rise_e}, 'verdict': verdict,
+    # the verdict is COMPUTED from the arcs (lod-3d: eight cells, not two) — per arc, did extraction bring the number
+    # CLOSER to the Liberty (|delta| shrank) or push it away? — and the sentence follows the counts, never a fixed text
+    def _closer(key):
+        pairs = [(a['compare'][key]['schematic_delta_pct'], a['compare'][key]['delta_pct']) for c in rep['cells'] for a in c['arcs'] if 'compare' in a and a['compare'][key]['schematic_delta_pct'] is not None]
+        return sum(1 for s_, e_ in pairs if abs(e_) < abs(s_)), len(pairs)
+    fc, fn = _closer('tphl_ps'); rc, rn = _closer('tplh_ps')
+    def _how(k, n):
+        return 'ALL' if n and k == n else ('NONE' if k == 0 else 'PART')
+    if None in (fall_s, fall_e, rise_s, rise_e) or not fn:
+        verdict = 'not enough arcs to judge'
+    else:
+        sole = fc == fn and rc == rn and abs(fall_e) <= 5 and abs(rise_e) <= 5
+        verdict = ('parasitics explain %s of the fall gap (tpHL: closer to the Liberty on %d/%d arcs; mean %+.1f %% → %+.1f %%) and %s of the rise gap (tpLH: closer on %d/%d arcs; mean %+.1f %% → %+.1f %%): '
+                   'the lod-3b hypothesis "the gap is layout parasitics" is %s — what remains is the vendor characterization setup (input waveform shape, load/driver model, measurement details), '
+                   'which we do not have; stated, not tuned' % (_how(fc, fn), fc, fn, fall_s, fall_e, _how(rc, rn), rc, rn, rise_s, rise_e,
+                                                                 'SUPPORTED as the whole cause' if sole else 'REJECTED as the sole cause'))
+    rep['summary'] = {'cells': len(rep['cells']), 'arcs': sum(len([a for a in c['arcs'] if 'compare' in a]) for c in rep['cells']), 'drc_clean_in_context': all(c['drc']['clean_in_context'] for c in rep['cells'] if c['drc']['ran']),
+                      'tphl_mean_delta_pct': {'schematic': fall_s, 'extracted': fall_e}, 'tplh_mean_delta_pct': {'schematic': rise_s, 'extracted': rise_e},
+                      'closer_after_extraction': {'tphl': [fc, fn], 'tplh': [rc, rn]}, 'verdict': verdict, 'first_cells': FIRST_CELLS, 'lod3d_cells': [c for c in ARCS if c not in FIRST_CELLS],
                       'drc_note': 'a cell alone fails the tap/well rules by construction (nwell.4, LU.2, LU.3: taps and shared wells come from the row) — those are classified as context rules; any other rule is a real error',
                       'lvs_match': all(c['lvs'].get('match') for c in rep['cells'] if c['lvs']['ran']),
                       'delay_mean_abs_delta_pct_extracted': round(sum(ds) / len(ds), 1) if ds else None, 'delay_mean_abs_delta_pct_schematic': round(sum(ss) / len(ss), 1) if ss else None,
@@ -180,9 +198,9 @@ def rows(rep):
                 continue
             for key, lab in (('tphl_ps', 'tpHL'), ('tplh_ps', 'tpLH')):
                 v = arc['compare'][key]
-                chars.append(C(name='lod3c: %s %s→Y %s (extracted)' % (c['cell'].replace('sky130_fd_sc_hd__', ''), arc['pin'], lab), source_rung='layout', source_ref='%s extracted (magic PEX, %s capacitors)' % (c['cell'].replace('sky130_fd_sc_hd__', ''), c['pex'].get('capacitors', '?')),
+                chars.append(C(name='lod3c: %s %s→%s%s %s (extracted)' % (c['cell'].replace('sky130_fd_sc_hd__', ''), arc['pin'], arc.get('out', 'Y'), arc.get('cond', ''), lab), source_rung='layout', source_ref='%s extracted (magic PEX, %s capacitors)' % (c['cell'].replace('sky130_fd_sc_hd__', ''), c['pex'].get('capacitors', '?')),
                                target_rung='standard-cells', target_ref='sky130_fd_sc_hd %s' % c['cell'].replace('sky130_fd_sc_hd__', ''), characteristic='propagation_delay', method='ngspice transient on the EXTRACTED netlist',
-                               conditions_json=json.dumps(dict(rep['conditions'], liberty_ps=v['liberty'], delta_pct=v['delta_pct'], schematic_ps=v['schematic'], schematic_delta_pct=v['schematic_delta_pct'])),
+                               conditions_json=json.dumps(dict(rep['conditions'], liberty_ps=v['liberty'], delta_pct=v['delta_pct'], schematic_ps=v['schematic'], schematic_delta_pct=v['schematic_delta_pct'], ties=arc.get('ties', {}), timing_sense=arc.get('sense', ''))),
                                result=v['extracted'] / 1000.0, units='ns', mapping_status='validated' if abs(v['delta_pct']) <= 25 else 'implemented', evidence_level='simulated', evidence_ref=ev,
                                notes='extracted %.2f ps vs Liberty %.2f ps (%+.1f %%); the schematic netlist gave %s ps (%s %%) — the parasitics hypothesis tested' % (v['extracted'], v['liberty'], v['delta_pct'], v['schematic'], v['schematic_delta_pct'])))
     return maps, chars

@@ -91,7 +91,9 @@ def explain_characterization(manager, row):
                   'PYTHONPATH=.:modules python3 -m %s run      # %s' % (flow[0], flow[1]),
                   '# then read %s — this row\'s number is the %r entry' % (flow[2], ch)]
         if key in ('lod3b', 'lod3c'):
-            steps.append('# one cell only: add --cells %s' % (src.split(' ')[0] if src else '<cell>'))
+            # the cell is the TARGET of these upward rows ('sky130_fd_sc_hd inv_1'); lod-3c's source also starts with it
+            cell = (tgt.split(' ')[-1] if tgt.startswith('sky130_fd_sc_hd ') else (src.split(' ')[0] if src else '')) or '<cell>'
+            steps.append('# one cell only: add --cells %s' % cell)
     else:
         steps.append('# no flow is registered for the prefix %r — the evidence field names the report it was read from' % name.split(':')[0])
     steps.append('# the same reading through the API: GET /api/computelod/walk/%s/%s' % (quote(src_rung), quote(src)))

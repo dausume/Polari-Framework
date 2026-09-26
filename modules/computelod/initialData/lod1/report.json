@@ -1,0 +1,90 @@
+{
+ "how": "docker",
+ "picorv32_pin": {
+  "upstream": "https://github.com/YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "license": "ISC (COPYING \u2192 LICENSE)",
+  "fetched": "2026-09-23",
+  "files": "picorv32.v"
+ },
+ "tool_versions": [
+  "riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0",
+  "Yosys 0.33 (git sha1 2584903a060)",
+  "Icarus Verilog version 12.0 (stable) ()"
+ ],
+ "compile": {
+  "flags": "-march=rv32i -mabi=ilp32 -O1",
+  "assembly": [
+   "add:",
+   "add\ta0,a0,a1",
+   "ret"
+  ],
+  "add_instruction": "add a0,a0,a1",
+  "encoding": "0x00b50533",
+  "decoded": {
+   "opcode": "0b0110011",
+   "rd": 10,
+   "funct3": 0,
+   "rs1": 10,
+   "rs2": 11,
+   "funct7": 0,
+   "is_add": true
+  },
+  "objdump": [
+   "",
+   "00000000 <add>:",
+   "   0:\t00b50533          \tadd\ta0,a0,a1",
+   "   4:\t00008067          \tret"
+  ]
+ },
+ "core_synth": {
+  "cells": 8126,
+  "by_type": {
+   "$_MUX_": 2709,
+   "$_DFFE_PP_": 1240,
+   "$_ANDNOT_": 1164,
+   "$_OR_": 1045,
+   "$_AND_": 405,
+   "$_XOR_": 388,
+   "$_NAND_": 226,
+   "$_NOR_": 171,
+   "$_ORNOT_": 165,
+   "$_SDFFE_PN0P_": 154,
+   "$_NOT_": 143,
+   "$_XNOR_": 113,
+   "$_DFF_P_": 91,
+   "$_SDFF_PN0_": 66,
+   "$_SDFFCE_PN0P_": 34,
+   "$_SDFFCE_PP0P_": 6,
+   "$_SDFFE_PP1P_": 3,
+   "$_SDFFE_PN0N_": 1,
+   "$_SDFFE_PP0P_": 1,
+   "$_SDFF_PP0_": 1
+  },
+  "decode_line": "picorv32.v:1068  instr_add <= is_alu_reg_reg && funct3 == 000 && funct7 == 0000000",
+  "add_line": "picorv32.v:1231  alu_add_sub <= instr_sub ? reg_op1 - reg_op2 : reg_op1 + reg_op2"
+ },
+ "adder_synth": {
+  "cells": 220,
+  "by_type": {
+   "$_ANDNOT_": 54,
+   "$_XOR_": 36,
+   "$_NOR_": 31,
+   "$_OR_": 29,
+   "$_XNOR_": 27,
+   "$_NAND_": 23,
+   "$_ORNOT_": 12,
+   "$_AND_": 8
+  }
+ },
+ "simulation": {
+  "rtl": "PASS rv32_add 4/4",
+  "netlist": "PASS rv32_add 4/4",
+  "vectors": [
+   "3+4",
+   "0xFFFFFFFF+1 (wrap)",
+   "0x7FFFFFFF+1 (sign)",
+   "0xDEADBEEF+0x01234567"
+  ]
+ }
+}

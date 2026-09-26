@@ -1,0 +1,47 @@
+{
+   "creator": "Yosys 0.33 (git sha1 2584903a060)",
+   "invocation": "stat -json ",
+   "modules": {
+      "\\stress_mac_top": {
+         "num_wires":         1471,
+         "num_wire_bits":     6555,
+         "num_pub_wires":     1471,
+         "num_pub_wire_bits": 6555,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         4718,
+         "num_cells_by_type": {
+            "SB_CARRY": 308,
+            "SB_DFF": 34,
+            "SB_DFFE": 512,
+            "SB_DFFESR": 260,
+            "SB_DFFESS": 1,
+            "SB_DFFSR": 34,
+            "SB_LUT4": 3567,
+            "SB_RAM40_4K": 2
+         }
+      }
+   },
+      "design": {
+         "num_wires":         1471,
+         "num_wire_bits":     6555,
+         "num_pub_wires":     1471,
+         "num_pub_wire_bits": 6555,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         4718,
+         "num_cells_by_type": {
+            "SB_CARRY": 308,
+            "SB_DFF": 34,
+            "SB_DFFE": 512,
+            "SB_DFFESR": 260,
+            "SB_DFFESS": 1,
+            "SB_DFFSR": 34,
+            "SB_LUT4": 3567,
+            "SB_RAM40_4K": 2
+         }
+      }
+}
+
