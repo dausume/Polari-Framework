@@ -1,0 +1,101 @@
+OpenSTA 3.1.0 6be0b1d7da Copyright (c) 2026, Parallax Software, Inc.
+License GPLv3: GNU GPL version 3 <http://gnu.org/licenses/gpl.html>
+
+This is free software, and you are free to change and redistribute it
+under certain conditions; type `show_copying' for details. 
+This program comes with ABSOLUTELY NO WARRANTY; for details type `show_warranty'.
+Startpoint: reg_op1[1] (input port)
+Endpoint: alu_out[31] (output port)
+Path Group: unconstrained
+Path Type: max
+
+      Cap      Slew     Delay      Time   Description
+-------------------------------------------------------------------------------
+                       0.0000    0.0000 v input external delay
+   0.0074    0.0500    0.0000    0.0000 v reg_op1[1] (in)
+             0.0502    0.0001    0.0001 v _070_/A (sky130_fd_sc_hd__nor2_2)
+   0.0059    0.0908    0.1177    0.1178 ^ _070_/Y (sky130_fd_sc_hd__nor2_2)
+             0.0908    0.0001    0.1179 ^ _072_/A2 (sky130_fd_sc_hd__o21ai_1)
+   0.0092    0.0886    0.0989    0.2168 v _072_/Y (sky130_fd_sc_hd__o21ai_1)
+             0.0886    0.0003    0.2171 v _073_/C (sky130_fd_sc_hd__maj3_2)
+   0.0088    0.0698    0.3391    0.5561 v _073_/X (sky130_fd_sc_hd__maj3_2)
+             0.0698    0.0002    0.5563 v _075_/C (sky130_fd_sc_hd__maj3_2)
+   0.0068    0.0635    0.3244    0.8807 v _075_/X (sky130_fd_sc_hd__maj3_2)
+             0.0635    0.0002    0.8809 v _076_/C (sky130_fd_sc_hd__maj3_2)
+   0.0069    0.0638    0.3228    1.2037 v _076_/X (sky130_fd_sc_hd__maj3_2)
+             0.0638    0.0002    1.2039 v _078_/C (sky130_fd_sc_hd__maj3_2)
+   0.0069    0.0638    0.3229    1.5267 v _078_/X (sky130_fd_sc_hd__maj3_2)
+             0.0638    0.0002    1.5269 v _079_/C (sky130_fd_sc_hd__maj3_2)
+   0.0093    0.0715    0.3329    1.8598 v _079_/X (sky130_fd_sc_hd__maj3_2)
+             0.0715    0.0002    1.8601 v _080_/C (sky130_fd_sc_hd__maj3_2)
+   0.0097    0.0728    0.3370    2.1971 v _080_/X (sky130_fd_sc_hd__maj3_2)
+             0.0728    0.0003    2.1974 v _082_/C (sky130_fd_sc_hd__maj3_2)
+   0.0112    0.0782    0.3437    2.5410 v _082_/X (sky130_fd_sc_hd__maj3_2)
+             0.0782    0.0004    2.5414 v _083_/C (sky130_fd_sc_hd__maj3_2)
+   0.0066    0.0629    0.3263    2.8677 v _083_/X (sky130_fd_sc_hd__maj3_2)
+             0.0629    0.0002    2.8679 v _084_/C (sky130_fd_sc_hd__maj3_2)
+   0.0084    0.0686    0.3289    3.1968 v _084_/X (sky130_fd_sc_hd__maj3_2)
+             0.0686    0.0003    3.1972 v _085_/C (sky130_fd_sc_hd__maj3_2)
+   0.0074    0.0653    0.3265    3.5237 v _085_/X (sky130_fd_sc_hd__maj3_2)
+             0.0653    0.0002    3.5238 v _087_/C (sky130_fd_sc_hd__maj3_2)
+   0.0078    0.0667    0.3273    3.8512 v _087_/X (sky130_fd_sc_hd__maj3_2)
+             0.0667    0.0001    3.8513 v _090_/C (sky130_fd_sc_hd__maj3_2)
+   0.0109    0.0772    0.3405    4.1918 v _090_/X (sky130_fd_sc_hd__maj3_2)
+             0.0772    0.0004    4.1922 v _093_/C (sky130_fd_sc_hd__maj3_2)
+   0.0073    0.0650    0.3289    4.5212 v _093_/X (sky130_fd_sc_hd__maj3_2)
+             0.0650    0.0003    4.5214 v _096_/C (sky130_fd_sc_hd__maj3_2)
+   0.0068    0.0636    0.3230    4.8444 v _096_/X (sky130_fd_sc_hd__maj3_2)
+             0.0636    0.0002    4.8446 v _099_/C (sky130_fd_sc_hd__maj3_2)
+   0.0124    0.0810    0.3458    5.1904 v _099_/X (sky130_fd_sc_hd__maj3_2)
+             0.0810    0.0009    5.1913 v _102_/C (sky130_fd_sc_hd__maj3_2)
+   0.0070    0.0642    0.3291    5.5204 v _102_/X (sky130_fd_sc_hd__maj3_2)
+             0.0642    0.0002    5.5206 v _105_/C (sky130_fd_sc_hd__maj3_2)
+   0.0074    0.0652    0.3250    5.8456 v _105_/X (sky130_fd_sc_hd__maj3_2)
+             0.0653    0.0002    5.8457 v _108_/C (sky130_fd_sc_hd__maj3_2)
+   0.0088    0.0700    0.3316    6.1773 v _108_/X (sky130_fd_sc_hd__maj3_2)
+             0.0700    0.0002    6.1775 v _111_/C (sky130_fd_sc_hd__maj3_2)
+   0.0092    0.0712    0.3345    6.5120 v _111_/X (sky130_fd_sc_hd__maj3_2)
+             0.0712    0.0003    6.5123 v _114_/C (sky130_fd_sc_hd__maj3_2)
+   0.0068    0.0634    0.3247    6.8370 v _114_/X (sky130_fd_sc_hd__maj3_2)
+             0.0634    0.0002    6.8372 v _117_/C (sky130_fd_sc_hd__maj3_2)
+   0.0070    0.0641    0.3231    7.1603 v _117_/X (sky130_fd_sc_hd__maj3_2)
+             0.0641    0.0002    7.1605 v _120_/C (sky130_fd_sc_hd__maj3_2)
+   0.0089    0.0701    0.3313    7.4918 v _120_/X (sky130_fd_sc_hd__maj3_2)
+             0.0701    0.0002    7.4920 v _123_/C (sky130_fd_sc_hd__maj3_2)
+   0.0089    0.0701    0.3333    7.8253 v _123_/X (sky130_fd_sc_hd__maj3_2)
+             0.0701    0.0002    7.8254 v _126_/C (sky130_fd_sc_hd__maj3_2)
+   0.0088    0.0697    0.3328    8.1582 v _126_/X (sky130_fd_sc_hd__maj3_2)
+             0.0697    0.0002    8.1584 v _129_/C (sky130_fd_sc_hd__maj3_2)
+   0.0071    0.0645    0.3258    8.4842 v _129_/X (sky130_fd_sc_hd__maj3_2)
+             0.0645    0.0002    8.4844 v _132_/C (sky130_fd_sc_hd__maj3_2)
+   0.0092    0.0713    0.3328    8.8172 v _132_/X (sky130_fd_sc_hd__maj3_2)
+             0.0713    0.0002    8.8174 v _135_/C (sky130_fd_sc_hd__maj3_2)
+   0.0091    0.0708    0.3345    9.1520 v _135_/X (sky130_fd_sc_hd__maj3_2)
+             0.0708    0.0002    9.1521 v _138_/C (sky130_fd_sc_hd__maj3_2)
+   0.0071    0.0643    0.3259    9.4780 v _138_/X (sky130_fd_sc_hd__maj3_2)
+             0.0643    0.0002    9.4782 v _141_/C (sky130_fd_sc_hd__maj3_2)
+   0.0091    0.0708    0.3322    9.8104 v _141_/X (sky130_fd_sc_hd__maj3_2)
+             0.0708    0.0003    9.8107 v _143_/A (sky130_fd_sc_hd__xnor2_2)
+   0.0152    0.2349    0.2484   10.0590 ^ _143_/Y (sky130_fd_sc_hd__xnor2_2)
+             0.2349    0.0003   10.0593 ^ alu_out[31] (out)
+                                10.0593   data arrival time
+-------------------------------------------------------------------------------
+(Path is unconstrained)
+
+
+Startpoint: reg_op2[0] (input port)
+Endpoint: alu_out[0] (output port)
+Path Group: unconstrained
+Path Type: min
+
+    Delay      Time   Description
+-------------------------------------------------------------
+   0.0000    0.0000 ^ input external delay
+   0.0000    0.0000 ^ reg_op2[0] (in)
+   0.1179    0.1179 v _144_/X (sky130_fd_sc_hd__xor2_1)
+   0.0003    0.1182 v alu_out[0] (out)
+             0.1182   data arrival time
+-------------------------------------------------------------
+(Path is unconstrained)
+
+

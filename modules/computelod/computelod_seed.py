@@ -134,6 +134,12 @@ SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4cc)
 from computelod.custom.lod2_compare import report as _lod2c_report, rows as _lod2c_rows
 _l2cmp_m, _l2cmp_c = _lod2c_rows(_lod2c_report())
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l2cmp_c)
+# ---- lod-3e: the WHOLE adder placed and routed (ORFS, pinned image) — adder cells → layout per variant (measured: the router's
+# DRC count), routed delay with parasitics, the wire cost (one subtraction on one netlist), core area (a knob, said so), wirelength.
+from computelod.custom.lod3_pnr import report as _lod3e_report, rows as _lod3e_rows
+_l3em, _l3ec = _lod3e_rows(_lod3e_report(), _lod2_report())
+SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3em)
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3ec)
 # ---- lod-3b: devices → cells SIMULATED by us — ngspice on the PDK's own BSIM4 models, cross-checked against the
 # Liberty at the same slew/load; the gap (schematic netlist vs extracted layout) is reported, not tuned.
 from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows

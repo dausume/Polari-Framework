@@ -115,6 +115,14 @@ SEED_MATH_CLAIMS = [
        statement_json=json.dumps({'and': [{'gt': [{'ref': 'CharacterizationMapping:lod2c: sky130 %s @cnt-point' % s_, 'path': ['result']}, {'mul': [{'ref': 'CharacterizationMapping:lod2c: cnt %s @cnt-point' % c, 'path': ['result']}, 1000]}]} for s_, c in LOD2C_TWINS]}),
        description='WITNESS on the lod-2c rows: at the CNT library\'s own point (0.6 V, 41.65 aF, 1.02 ps) every SKY130 twin is more than a thousand times slower than the CNT twin — the hvt p devices (Vt 0.64 V, lod-4c) are in subthreshold at 0.6 V; the statement is about that regime, not about the libraries at their own voltages',
        provenance='seed (lod-2c)'),
+    # ---- lod-3e (2026-09-26): the wires of the routed adder cost delay — the routed-with-parasitics row exceeds the same netlist's
+    # bare delay recorded in its conditions, in BOTH flow variants (one subtraction on one netlist each; never a comparison to lod-2's
+    # differently-sized netlist)
+    _C(name='lod3e-wires-add-delay-on-the-routed-adder', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod3e: rv32_add propagation delay (routed, with parasitics) (%s)' % v for v in ('as-flow', 'cells-kept')]),
+       statement_json=json.dumps({'and': [{'gt': [{'ref': 'CharacterizationMapping:lod3e: rv32_add propagation delay (routed, with parasitics) (%s)' % v, 'path': ['result']},
+                                                  {'ref': 'CharacterizationMapping:lod3e: rv32_add propagation delay (routed, with parasitics) (%s)' % v, 'path': ['conditions_json', 'without_parasitics_ns']}]} for v in ('as-flow', 'cells-kept')]}),
+       description='WITNESS on the lod-3e rows: in both place-and-route variants the routed adder timed WITH its extracted parasitics is slower than the same routed netlist timed without them (the row records both) — the wires cost delay; how much is the wire-cost row (2–3 %)',
+       provenance='seed (lod-3e)'),
     # ---- pf-1: the tt-3 kernel's fixed-point contract, DECIDED (z3): the bounds are read from the rows that state them
     _C(name='fpga-nano-strain-fits-int32', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'TensorMapping:eps→sigma']),
        statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}],

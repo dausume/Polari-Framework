@@ -1,0 +1,344 @@
+{
+ "flow": "OpenROAD-flow-scripts in openroad/orfs:26Q3-651-gbc334a4aa (digest openroad/orfs@sha256:69df744e2b5ce26a14950713fd2d74b96ec8c9bd8351d2719f9bb200388239ad) through the engines ladder (orfs = make in that image; sta = OpenSTA)",
+ "engines": {
+  "orfs": {
+   "how": "local-image",
+   "where": "openroad/orfs:26Q3-651-gbc334a4aa",
+   "why": "the pinned OpenROAD-flow-scripts image on this device"
+  },
+  "sta": {
+   "how": "local-binary",
+   "where": "/home/user/.local/bin/sta",
+   "why": "on this device"
+  }
+ },
+ "input_netlist": {
+  "file": "lod2/rv32_add_sky130.v",
+  "sha256": "d2cbc495fa5d56e64680f839c996945fc6c110b54e341402d5c956d1c7f461f2",
+  "census": {
+   "xnor2_1": 61,
+   "maj3_1": 29,
+   "nand2_1": 2,
+   "nor2_1": 1,
+   "lpflow_isobufsrc_1": 1,
+   "o21ai_0": 1,
+   "xor2_1": 1
+  },
+  "cells": 96,
+  "area_um2": 855.82
+ },
+ "liberty": {
+  "file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+  "note": "OURS \u2014 lod-2's cached Liberty handed to the flow as LIB_FILES, so the timing model is byte-identical to lod-2's; LEF/GDS are the image's sky130hd platform copy"
+ },
+ "conditions": {
+  "voltage_v": 1.8,
+  "temperature_c": 25.0,
+  "load_pf": 0.0146,
+  "input_slew_ns": 0.05,
+  "sdc": "virtual clock 10 ns, I/O delays 0 (constrains the I/O paths; no setup violation asked for)",
+  "baseline_lod2_ns": 11.9394,
+  "platform": "sky130hd",
+  "knob_notes": {
+   "CORE_UTILIZATION": "20 %: a first run at 40 % failed placement at 108 % utilization once the flow had buffered the ports and resized \u2014 the number is a knob, stated, not a result",
+   "LEC_CHECK": "off: the image's equivalence checker (kepler-formal) dies with an illegal instruction on this CPU; nothing else depends on it"
+  }
+ },
+ "variants": {
+  "as-flow": {
+   "knobs": {
+    "CORE_UTILIZATION": "20",
+    "PLACE_DENSITY": "0.50",
+    "LEC_CHECK": "0"
+   },
+   "returncode": 0,
+   "how": "local-image",
+   "stages_logged": [
+    "1_1_yosys_canonicalize.log",
+    "1_2_yosys.log",
+    "1_synth.log",
+    "2_1_floorplan.log",
+    "2_2_floorplan_macro.log",
+    "2_3_floorplan_tapcell.log",
+    "2_4_floorplan_pdn.log",
+    "3_1_place_gp_skip_io.log",
+    "3_2_place_iop.log",
+    "3_3_place_gp.log",
+    "3_4_place_resized.log",
+    "3_5_place_dp.log",
+    "4_1_cts.log",
+    "5_1_grt.log",
+    "5_2_route.log",
+    "5_3_fillcell.log",
+    "6_1_fill.log",
+    "6_1_merge.log",
+    "6_report.log"
+   ],
+   "finished": true,
+   "census": {
+    "final": {
+     "clkdlybuf4s50_1": 88,
+     "xnor2_1": 60,
+     "buf_4": 50,
+     "maj3_2": 29,
+     "clkbuf_2": 3,
+     "nand2_2": 2,
+     "dlymetal6s2s_1": 2,
+     "buf_6": 2,
+     "nor2_4": 1,
+     "lpflow_isobufsrc_1": 1,
+     "o21ai_2": 1,
+     "xnor2_4": 1,
+     "xor2_1": 1,
+     "buf_8": 1
+    },
+    "logic_cells": 96,
+    "logic_area_um2": 927.14,
+    "buffers_and_delays": 146,
+    "resized": {
+     "maj3_2": 29,
+     "nand2_2": 2,
+     "nor2_4": 1,
+     "o21ai_2": 1,
+     "xnor2_4": 1
+    },
+    "kept": {
+     "xnor2_1": 60,
+     "lpflow_isobufsrc_1": 1,
+     "xor2_1": 1
+    },
+    "mapping_unchanged": false
+   },
+   "metrics": {
+    "die_area_um2": 4544.78,
+    "core_area_um2": 4057.64,
+    "stdcell_area_um2": 2323.48,
+    "stdcell_count": 292,
+    "utilization": 0.572618,
+    "timing_repair_buffers": 146,
+    "tap_cells": 50,
+    "fill_cells": 332,
+    "logic_cells_flow_count": 96,
+    "rows": 23,
+    "wirelength_um": 3002,
+    "vias": 1186,
+    "route_drc_errors": 0,
+    "floorplan_utilization": 0.2251,
+    "setup_ws_ns_flow": 0.194312,
+    "hold_ws_ns_flow": 0.77227,
+    "flow_errors": 0,
+    "flow_warnings": 9
+   },
+   "spef": {
+    "nets": 306,
+    "sha256": "bef210312a9c97cca94fc366d1cefe267c7698da6248bbf17ff00d4f889f141f",
+    "units": "1 PF"
+   },
+   "timing": {
+    "with_parasitics": {
+     "max_path_ns": 9.8057,
+     "max_path": "reg_op1[1] \u2192 alu_out[31]",
+     "min_path_ns": 0.7723,
+     "how": "local-binary"
+    },
+    "without_parasitics": {
+     "max_path_ns": 9.5826,
+     "max_path": "reg_op1[1] \u2192 alu_out[31]",
+     "min_path_ns": 0.7431,
+     "how": "local-binary"
+    },
+    "wire_cost_ns": 0.2231,
+    "wire_cost_pct": 2.3,
+    "vs_lod2_netlist_ns": -2.1337,
+    "vs_lod2_note": "NOT the wire cost: lod-2 timed maj3_1 cells, the flow resized the carry chain to maj3_2 (census) \u2014 sizing gained more than the wires cost"
+   },
+   "artefacts": [
+    "5_route_drc.rpt",
+    "6_final.def",
+    "6_final.spef",
+    "6_final.v",
+    "6_finish.rpt",
+    "6_report.json",
+    "config.mk",
+    "constraint.sdc",
+    "final_placement.webp.png",
+    "sta_with_parasitics.log",
+    "sta_without_parasitics.log",
+    "synth_stat.txt"
+   ],
+   "not_committed": [
+    "6_final.gds",
+    "6_final.odb (PDK cell layouts merged in \u2014 never in git)",
+    "final_routing.webp.png (680 kB, regenerable)"
+   ],
+   "flow_setup_note": "the flow's own setup check against the 10 ns virtual clock: worst slack +0.194 ns \u2014 met"
+  },
+  "cells-kept": {
+   "knobs": {
+    "CORE_UTILIZATION": "20",
+    "PLACE_DENSITY": "0.50",
+    "LEC_CHECK": "0",
+    "SKIP_CTS_REPAIR_TIMING": "1",
+    "SKIP_INCREMENTAL_REPAIR": "1",
+    "SKIP_LAST_GASP": "1",
+    "DONT_BUFFER_PORTS": "1",
+    "SKIP_GATE_CLONING": "1",
+    "SKIP_PIN_SWAP": "1",
+    "SKIP_BUFFER_REMOVAL": "1"
+   },
+   "returncode": 0,
+   "how": "local-image",
+   "stages_logged": [
+    "1_1_yosys_canonicalize.log",
+    "1_2_yosys.log",
+    "1_synth.log",
+    "2_1_floorplan.log",
+    "2_2_floorplan_macro.log",
+    "2_3_floorplan_tapcell.log",
+    "2_4_floorplan_pdn.log",
+    "3_1_place_gp_skip_io.log",
+    "3_2_place_iop.log",
+    "3_3_place_gp.log",
+    "3_4_place_resized.log",
+    "3_5_place_dp.log",
+    "4_1_cts.log",
+    "5_1_grt.log",
+    "5_2_route.log",
+    "5_3_fillcell.log",
+    "6_1_fill.log",
+    "6_1_merge.log",
+    "6_report.log"
+   ],
+   "finished": true,
+   "census": {
+    "final": {
+     "xnor2_1": 60,
+     "maj3_2": 29,
+     "buf_4": 17,
+     "nand2_1": 2,
+     "nor2_2": 1,
+     "lpflow_isobufsrc_1": 1,
+     "o21ai_1": 1,
+     "xnor2_2": 1,
+     "xor2_1": 1
+    },
+    "logic_cells": 96,
+    "logic_area_um2": 902.12,
+    "buffers_and_delays": 17,
+    "resized": {
+     "maj3_2": 29,
+     "nor2_2": 1,
+     "o21ai_1": 1,
+     "xnor2_2": 1
+    },
+    "kept": {
+     "xnor2_1": 60,
+     "nand2_1": 2,
+     "lpflow_isobufsrc_1": 1,
+     "xor2_1": 1
+    },
+    "mapping_unchanged": false
+   },
+   "metrics": {
+    "die_area_um2": 4544.78,
+    "core_area_um2": 4057.64,
+    "stdcell_area_um2": 1092.3,
+    "stdcell_count": 163,
+    "utilization": 0.269195,
+    "timing_repair_buffers": 17,
+    "tap_cells": 50,
+    "fill_cells": 429,
+    "logic_cells_flow_count": 96,
+    "rows": 23,
+    "wirelength_um": 1680,
+    "vias": 715,
+    "route_drc_errors": 0,
+    "floorplan_utilization": 0.222325,
+    "setup_ws_ns_flow": -0.0593312,
+    "hold_ws_ns_flow": 0.118225,
+    "flow_errors": 0,
+    "flow_warnings": 9
+   },
+   "spef": {
+    "nets": 177,
+    "sha256": "9ee486c7f86ed1a9c257b4d67b820a832a8a2d4e0453996a3361f3f314b1c4c4",
+    "units": "1 PF"
+   },
+   "timing": {
+    "with_parasitics": {
+     "max_path_ns": 10.0593,
+     "max_path": "reg_op1[1] \u2192 alu_out[31]",
+     "min_path_ns": 0.1182,
+     "how": "local-binary"
+    },
+    "without_parasitics": {
+     "max_path_ns": 9.8213,
+     "max_path": "reg_op1[1] \u2192 alu_out[31]",
+     "min_path_ns": 0.1143,
+     "how": "local-binary"
+    },
+    "wire_cost_ns": 0.238,
+    "wire_cost_pct": 2.4,
+    "vs_lod2_netlist_ns": -1.8801,
+    "vs_lod2_note": "NOT the wire cost: lod-2 timed maj3_1 cells, the flow resized the carry chain to maj3_2 (census) \u2014 sizing gained more than the wires cost"
+   },
+   "artefacts": [
+    "5_route_drc.rpt",
+    "6_final.def",
+    "6_final.spef",
+    "6_final.v",
+    "6_finish.rpt",
+    "6_report.json",
+    "config.mk",
+    "constraint.sdc",
+    "final_placement.webp.png",
+    "sta_with_parasitics.log",
+    "sta_without_parasitics.log",
+    "synth_stat.txt"
+   ],
+   "not_committed": [
+    "6_final.gds",
+    "6_final.odb (PDK cell layouts merged in \u2014 never in git)",
+    "final_routing.webp.png (680 kB, regenerable)"
+   ],
+   "flow_setup_note": "the flow's own setup check against the 10 ns virtual clock: worst slack -0.059 ns \u2014 MISSED by that much: this is what the repairs the other variant runs would have fixed; the unconstrained path report above is unaffected"
+  }
+ },
+ "summary": {
+  "variants_finished": [
+   "as-flow",
+   "cells-kept"
+  ],
+  "input_cells": 96,
+  "input_area_um2": 855.82,
+  "baseline_lod2_ns": 11.9394,
+  "per_variant": {
+   "as-flow": {
+    "routed_ns_with_parasitics": 9.8057,
+    "wire_cost_ns": 0.2231,
+    "wire_cost_pct": 2.3,
+    "logic_cells": 96,
+    "mapping_unchanged": false,
+    "buffers": 146,
+    "core_area_um2": 4057.64,
+    "utilization": 0.572618,
+    "wirelength_um": 3002,
+    "route_drc_errors": 0
+   },
+   "cells-kept": {
+    "routed_ns_with_parasitics": 10.0593,
+    "wire_cost_ns": 0.238,
+    "wire_cost_pct": 2.4,
+    "logic_cells": 96,
+    "mapping_unchanged": false,
+    "buffers": 17,
+    "core_area_um2": 4057.64,
+    "utilization": 0.269195,
+    "wirelength_um": 1680,
+    "route_drc_errors": 0
+   }
+  },
+  "reading": "the layout rung entered for the WHOLE adder: routed, DRC-clean by the router's own count, its parasitics extracted and timed under lod-2's conditions; what the flow changed on the way (sizing, buffers) is counted, not hidden \u2014 the wire cost is the one subtraction that holds the netlist fixed"
+ }
+}

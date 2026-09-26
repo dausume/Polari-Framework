@@ -36,6 +36,12 @@ KNOB = 'EDA_ENGINES_URL'
 PROVIDER_MODULE = 'computelod.engines'
 IMAGE = os.environ.get('POLARI_EDA_IMAGE') or os.environ.get('POLARI_COMPUTELOD_TOOLS_IMAGE', 'polari-eda-tools:noble')
 STA_IMAGE = os.environ.get('POLARI_OPENSTA_IMAGE', 'openroad/opensta')   # the pre-seam way of having `sta`; still honoured locally
+#: lod-3e: the published OpenROAD-flow-scripts image, PINNED (tag; the digest is recorded in the reports) — a SECOND engine image
+#: for the engines the eda-tools image does not carry (the whole P&R flow). Licences: polari-eda-tools/LICENSES.md.
+ORFS_IMAGE = os.environ.get('POLARI_ORFS_IMAGE', 'openroad/orfs:26Q3-651-gbc334a4aa')
+ORFS_PATH = '/OpenROAD-flow-scripts/tools/install/OpenROAD/bin:/OpenROAD-flow-scripts/tools/install/yosys/bin:/usr/local/bin:/usr/bin:/bin'
+#: engines that live ONLY in the ORFS image (or a worker that carries it): never the host's `make`, never the eda-tools image's
+ORFS_ENGINES = ('orfs', 'openroad')
 PDK_ROOT = os.environ.get('POLARI_PDK_ROOT') or os.path.join(os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache')), 'polari-lod', 'pdk')
 REMOTE = 'remote'
 _ENGINE = 'eda'
@@ -45,6 +51,7 @@ ENGINES = {
     'yosys': 'yosys', 'iverilog': 'iverilog', 'vvp': 'vvp', 'verilator': 'verilator',
     'nextpnr-ice40': 'nextpnr-ice40', 'icepack': 'icepack', 'icetime': 'icetime',
     'sta': 'sta', 'magic': 'magic', 'netgen': 'netgen-lvs',
+    'orfs': 'make', 'openroad': 'openroad',   # lod-3e: the ORFS flow (make in its image) and OpenROAD itself
 }
 _CAP_CACHE = {}
 _CAP_TTL_S = 30.0
@@ -140,6 +147,14 @@ def resolve(engine):
         if not _has(cap, engine):
             return {'how': 'refused', 'where': url, 'why': '%s=%s reached but that worker lacks %s' % (KNOB, url, engine)}
         return {'how': REMOTE, 'where': url, 'why': 'knob'}
+    if engine in ORFS_ENGINES:
+        # the host's `make` and the eda-tools image's `make` are NOT the flow: only the ORFS image (or a worker that carries it) counts
+        if _docker_ok(ORFS_IMAGE):
+            return {'how': 'local-image', 'where': ORFS_IMAGE, 'why': 'the pinned OpenROAD-flow-scripts image on this device'}
+        url = topology_url()
+        if url and _has(remote_capability(url), engine):
+            return {'how': REMOTE, 'where': url, 'why': 'topology provider %s' % PROVIDER_MODULE}
+        return {'how': 'refused', 'where': '', 'why': 'no %s: the OpenROAD flow runs only in the %s image (docker pull it) or on a worker that carries it — set %s or `pol allocate %s <instance>`' % (engine, ORFS_IMAGE, KNOB, PROVIDER_MODULE)}
     b = _local_binary(engine)
     if b:
         return {'how': 'local-binary', 'where': b, 'why': 'on this device'}
@@ -159,7 +174,9 @@ def placement():
     return {'knob': KNOB, 'knob_value': knob_url(), 'provider_module': PROVIDER_MODULE, 'image': IMAGE, 'pdk_root_local': PDK_ROOT,
             'pdk_present_local': os.path.exists(os.path.join(PDK_ROOT, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')),
             'engines': {e: resolve(e) for e in ENGINES},
-            'ladder': ['%s (always, or refusal)' % KNOB, 'local binary', 'local image %s' % IMAGE, 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal']}
+            'orfs_image': ORFS_IMAGE, 'orfs_image_present_local': _docker_ok(ORFS_IMAGE),
+            'ladder': ['%s (always, or refusal)' % KNOB, 'local binary', 'local image %s' % IMAGE, 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal'],
+            'ladder_orfs': ['%s (always, or refusal)' % KNOB, 'local image %s (never the host make)' % ORFS_IMAGE, 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal']}
 
 
 def _post(url, payload, timeout):
@@ -237,6 +254,8 @@ def run(engine, work, args, timeout=900, env=None, pdk=False, stdout_to=None, se
             cmd += ['-e', '%s=%s' % (k, v)]
         if image == STA_IMAGE:
             cmd += ['--entrypoint', '/OpenSTA/build/sta', image] + args
+        elif image == ORFS_IMAGE:
+            cmd += ['-e', 'PATH=%s' % ORFS_PATH, image, ENGINES[engine]] + args   # the flow's own tools first on the PATH (what its env.sh does)
         else:
             cmd += [image, ENGINES[engine]] + args
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=work, input=stdin)
@@ -244,6 +263,15 @@ def run(engine, work, args, timeout=900, env=None, pdk=False, stdout_to=None, se
     if stdout_to:
         open(os.path.join(work, stdout_to), 'w').write(out['stdout'] + out['stderr'])
     return out
+
+
+def orfs_image_digest():
+    """The pinned ORFS image's repo digest on this device ('' when absent) — recorded in lod-3e's report beside the tag."""
+    try:
+        p = subprocess.run(['docker', 'image', 'inspect', ORFS_IMAGE, '--format', '{{index .RepoDigests 0}}'], capture_output=True, text=True, timeout=20)
+        return p.stdout.strip() if p.returncode == 0 else ''
+    except Exception:
+        return ''
 
 
 def pdk_path(rel):

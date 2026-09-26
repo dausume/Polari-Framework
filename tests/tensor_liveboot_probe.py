@@ -116,15 +116,15 @@ check('the bob\'s own tree (bob-motion) validates on a real boot with its root r
 # pf-0/pf-1: proofs as rows — the seeded claims checked on real rows AT BOOT (custom/boot.py), the obligations of every
 # seeded tree generated AT BOOT by the rules (no POST needed for the badges), the z3 tier deciding over the continuum
 r = client.simulate_get('/api/mathproofs')
-check('GET /api/mathproofs: eighteen seeded claims (12 + the 3 theorems + lod-3d restated rise-gap claim + the two lod-2c twin witnesses) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
-      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 18 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+check('GET /api/mathproofs: nineteen seeded claims (12 + the 3 theorems + lod-3d restated rise-gap claim + the two lod-2c twin witnesses + lod-3e wires-add-delay) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
+      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 19 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
 _thm = {c['name']: c['status'] for c in r.json['claims'] if c['name'] in ('sigma-symmetry-general-rank', 'chain-domains-compose-lemma', 'restriction-idempotent-theorem')}
 check('  …after boot the two GENERAL theorems (pf-2) are still CONJECTURED — lean is never run automatically (plan §I.9) — while the smoke statement, whose cheapest tier is sympy, is checked-symbolically at a fixed size',
       _thm == {'sigma-symmetry-general-rank': 'conjectured', 'chain-domains-compose-lemma': 'conjectured', 'restriction-idempotent-theorem': 'checked-symbolically'}, _thm)
 _st = {c['name']: (c['status'], c['checker']) for c in r.json['claims']}
 check('AT BOOT, with no POST: the lod cross-checks WITNESSED on the real rows (LEF == Liberty area; every tpHL faster than the Liberty on 21 arcs; extraction slows every arc; narrows every fall gap; widens the rise gap where already slow) and the two-cell rise-gap statement REFUTED by lod-3d\'s arcs with its counterexample kept, σ = C:ε symmetry CHECKED-SYMBOLICALLY in 2-D and 3-D',
       all(_st.get(n) == ('witnessed', 'numeric') for n in ('lod3-lef-area-equals-liberty-area', 'lod3b-falls-faster-than-liberty', 'lod3c-extraction-slows-every-arc', 'lod3c-extraction-narrows-every-fall-gap', 'lod3c-extraction-widens-the-rise-gap-where-already-slow', 'fpga-C-in-kPa-fits-int32-for-electrical-steel'))
-      and _st.get('lod3c-extraction-widens-every-rise-gap') == ('refuted', 'numeric') and _st.get('lod2c-cnt-twin-faster-at-own-fo4') == ('witnessed', 'numeric') and _st.get('lod2c-sky130-twin-slower-at-the-cnt-point') == ('witnessed', 'numeric')
+      and _st.get('lod3c-extraction-widens-every-rise-gap') == ('refuted', 'numeric') and _st.get('lod2c-cnt-twin-faster-at-own-fo4') == ('witnessed', 'numeric') and _st.get('lod2c-sky130-twin-slower-at-the-cnt-point') == ('witnessed', 'numeric') and _st.get('lod3e-wires-add-delay-on-the-routed-adder') == ('witnessed', 'numeric')
       and _st.get('sigma-from-strain-is-symmetric') == ('checked-symbolically', 'sympy') and _st.get('sigma-from-strain-is-symmetric-3d') == ('checked-symbolically', 'sympy'), _st)
 check('  …the z3 tier DECIDED the tt-3 kernel\'s fixed-point contract over the real rows (ε in nε fits int32 for every strain in eps→sigma\'s validity; four int32 products in int64 never overflow) and the spectrum ⊆ drag-range inclusion',
       _st.get('fpga-nano-strain-fits-int32') == ('decided', 'z3') and _st.get('fpga-int64-accumulate-never-overflows') == ('decided', 'z3') and _st.get('spectrum-range-inside-the-drag-coupling-range') == ('decided', 'z3'), _st)
@@ -207,8 +207,8 @@ check('  …and the nodes resting on a LEAN theorem are established only once a 
       (_kn['pf-minor-symmetries']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and (_kn['pf-chain-composition']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and not _kn['pf-decomposition-error']['established'] and 'undetermined' in _kn['pf-decomposition-error']['why'], {k: (v['established'], v['why']) for k, v in _kn.items()})
 check('  …the compute rungs are joined by name: what rtl / standard-cells / devices / layout rest on, each with its established flag', set(r.json['by_rung']) >= {'rtl', 'standard-cells', 'devices', 'layout'} and all('established' in x for x in r.json['by_rung']['rtl']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 33 claims (18 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
-      r.status_code == 200 and r.json['claims'] == 33 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
+check('GET /api/mathproofs/aggregate: 34 claims (19 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
+      r.status_code == 200 and r.json['claims'] == 34 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')
@@ -249,6 +249,11 @@ check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a r
 _kn = json.loads(r.json['process_node_row'].get('key_numbers_json') or '{}')
 check('  …and carries the lod-4c device numbers on a real boot (ion_ua_per_um / ioff_na_per_um / vt_v + pmos_*), SIMULATED from the PDK models, source naming the report',
       _kn.get('ion_ua_per_um', {}).get('value') and 400 <= _kn['ion_ua_per_um']['value'] <= 600 and 'pmos_ion_ua_per_um' in _kn and 'lod4/devices_report.json' in _kn['ion_ua_per_um']['source'], sorted(_kn))
+r = client.simulate_get('/api/computelod/lod3/pnr')
+check('GET /api/computelod/lod3/pnr: the WHOLE adder placed and routed in two variants — router DRC 0, the wire cost a subtraction on one netlist (2–3 %), the resizing counted, the GDS never committed',
+      r.status_code == 200 and r.json['ok'] and set(r.json['report']['variants']) == {'as-flow', 'cells-kept'} and all(e['metrics']['route_drc_errors'] == 0 and 0.2 < e['timing']['wire_cost_ns'] < 0.3 and e['census']['mapping_unchanged'] is False for e in r.json['report']['variants'].values()), r.text[:300])
+_pnr = next((m_ for m_ in tables.get('ComputeMapping', {}).values() if getattr(m_, 'name', '') == 'lod3e: adder cells → placed-and-routed layout (as-flow)'), None)
+check('  …the adder cells → placed-and-routed layout row is on a real boot: MEASURED, validated, its loss_note counting what the flow resized', _pnr is not None and _pnr.evidence_level == 'measured' and _pnr.mapping_status == 'validated' and 'resized' in _pnr.loss_note)
 r = client.simulate_get('/api/computelod/lod2/compare')
 check('GET /api/computelod/lod2/compare: the two Liberties\' twins at the SAME conditions — six pairs, three views, per-cell worst delays without the per-arc detail, CNT area refused',
       r.status_code == 200 and r.json['ok'] and len(r.json['report']['twins']) == 6 and set(r.json['report']['views']) == {'cnt-point', 'own-fo4', 'sky130-liberty-point'}
@@ -264,8 +269,8 @@ r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-4 + lod-4c rows are seeded: 14 ComputeMappings, 130 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons), 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 14 and len(tables.get('CharacterizationMapping', {})) == 130 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-3e + lod-4 + lod-4c rows are seeded: 16 ComputeMappings, 142 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons + 12 place-and-route), 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 16 and len(tables.get('CharacterizationMapping', {})) == 142 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
@@ -277,8 +282,8 @@ check('the seed holds BOTH libraries as rows: SKY130 cells → devices now ONE-T
       _cm['lod2: standard cells → devices'].kind == 'one-to-many' and _cm['lod2: standard cells → devices'].evidence_level == 'analytical' and _cm['lod2-cnt: CNT standard cells → devices'].kind == 'one-to-many'
       and 'AlignedCNTFETDevice' in _cm['lod2-cnt: CNT standard cells → devices'].target_ref and _cm['lod2-cnt: netlist → CNT standard cells'].evidence_level == 'simulated', sorted(_cm)[:12])
 _ch = [c for c in tables.get('CharacterizationMapping', {}).values() if 'propagation delay' in getattr(c, 'name', '')]
-check('two propagation-delay characterizations, each with its own conditions (1.8 V/25 °C SKY130 ns; 0.6 V/300 K CNT ns), neither pretending to be the other',
-      len(_ch) == 2 and {json.loads(c.conditions_json).get('voltage_v') for c in _ch} == {1.8, 0.6} and all(c.units == 'ns' for c in _ch), [(c.name, c.result) for c in _ch])
+check('four adder propagation-delay characterizations, each with its own conditions (1.8 V/25 °C SKY130 netlist; 0.6 V/300 K CNT; the two ROUTED SKY130 variants of lod-3e at 1.8 V with their parasitics), none pretending to be another',
+      len(_ch) == 4 and {json.loads(c.conditions_json).get('voltage_v') for c in _ch} == {1.8, 0.6} and all(c.units == 'ns' for c in _ch) and sum(1 for c in _ch if 'lod3e' in c.name) == 2, [(c.name, c.result) for c in _ch])
 # ---- tt-2: the FEM case is a seeded core row; the tensors solve it live; the tree is honest
 check('the tt-2 FEM case is seeded as an FEMModelDefinition row', any(getattr(c, 'name', '') == 'tt2-plate-tension' for c in tables.get('FEMModelDefinition', {}).values()))
 check('the cited material option opt-electrical-steel is present (magnetics admitted)', any(getattr(o, 'name', '') == 'opt-electrical-steel' for o in tables.get('MagneticMaterialOption', {}).values()))

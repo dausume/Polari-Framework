@@ -24,6 +24,7 @@ FLOWS = {
     'lod3b': ('computelod.custom.lod3_devices', 'the cells\' transistor netlists RUN in ngspice against the PDK\'s device models', 'lod3/devices_report.json'),
     'lod3-cnt': ('computelod.custom.lod2_cnt', 'our CNT cell library\'s device lists, counted', 'lod2/cnt/report.json'),
     'lod3c': ('computelod.custom.lod3_layout', 'the cells\' layouts checked (magic DRC), parasitics extracted, LVS-matched (netgen), and re-simulated on the extracted netlist', 'lod3/layout_report.json'),
+    'lod3e': ('computelod.custom.lod3_pnr', 'the WHOLE adder placed and routed (OpenROAD-flow-scripts in its pinned image), parasitics extracted, timed with OpenSTA with and without the wires', 'lod3/pnr/pnr_report.json'),
     'lod4': ('computelod.custom.lod4_process', 'the layout\'s layers read as process steps and materials', 'lod4/report.json'),
     'lod4c': ('computelod.custom.lod4_devices', 'the process node\'s own device numbers (Ion, Ioff, Vt, DIBL, subthreshold swing) RUN as DC sweeps on the PDK\'s BSIM4 models', 'lod4/devices_report.json'),
 }
@@ -36,6 +37,7 @@ CHARACTERISTIC_WORDS = {
     'on_current': 'how much current one micron of transistor width carries when fully on', 'off_current': 'how much current leaks through when it is switched off',
     'threshold_voltage': 'the gate voltage at which the transistor starts to conduct', 'dibl': 'how much the drain voltage lowers the threshold (drain-induced barrier lowering)',
     'subthreshold_swing': 'how many millivolts of gate voltage it takes to change the leakage tenfold',
+    'wire_delay': 'how much slower the wires between the cells make the circuit', 'wirelength': 'how much metal wire the routed circuit uses', 'drc_violations': 'how many layout rules the routed design breaks',
 }
 
 

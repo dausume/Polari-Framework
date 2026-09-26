@@ -162,8 +162,9 @@ maps2c, chars2c = lod2cnt_rows(rep2c, rep['adder_synth']['cells'])
 check('lod-2b rows: NEW names beside SKY130 (nothing replaced); mapping evidence is SIMULATED (a model of a model), cells → devices is a real reference to the device row, delay in ns with the conditions',
       {m_['name'] for m_ in maps2c} == {'lod2-cnt: netlist → CNT standard cells', 'lod2-cnt: CNT standard cells → devices'} and all(m_['evidence_level'] == 'simulated' for m_ in maps2c)
       and 'AlignedCNTFETDevice' in next(m_ for m_ in maps2c if 'devices' in m_['name'])['target_ref'] and next(c for c in chars2c if 'propagation' in c['name'])['result'] == rep2c['timing']['max_path_ps'] / 1000.0)
-check('the seed holds BOTH libraries: two propagation-delay rows (SKY130 and CNT) that do not collide',
-      sum(1 for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == 2)
+check('the seed holds BOTH libraries: the adder\'s propagation-delay rows are the SKY130 netlist (lod-1/2), the CNT netlist (lod-2b) and the two routed SKY130 variants (lod-3e) — four, none colliding',
+      sorted(c['name'] for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']) == ['lod1: rv32_add propagation delay', 'lod2-cnt: rv32_add propagation delay', 'lod3e: rv32_add propagation delay (routed, with parasitics) (as-flow)', 'lod3e: rv32_add propagation delay (routed, with parasitics) (cells-kept)'],
+      sorted(c['name'] for c in SEED_LOD_CHARACTERIZATIONS if 'propagation delay' in c['name']))
 
 # ---- lod-3: cells → transistors → layout, read from the artefacts on both libraries
 from computelod.custom.lod3_cells import report as lod3_report, rows as lod3_rows, parse_spice, parse_lef_size, cnt_devices, CELLS_REPO
@@ -274,6 +275,38 @@ try:
     check('lod-2c: mathproofs.LOD2C_TWINS == computelod\'s TWINS (the claims name the rows that exist)', _PF_TWINS == TWINS, (_PF_TWINS, TWINS))
 except ImportError:
     check('lod-2c: mathproofs.LOD2C_TWINS cross-check — mathproofs absent here, stated', False)
+# ---- lod-3e: the WHOLE adder placed and routed (ORFS in its pinned image through the engines ladder), timed with and without its wires
+from computelod.custom.lod3_pnr import report as lod3e_report, rows as lod3e_rows, VARIANTS as PNR_VARIANTS, _census as pnr_census
+from computelod.custom.eda_engines import ORFS_IMAGE, ORFS_ENGINES, ENGINES as EDA_ENGINES
+rep3e = lod3e_report()
+check('lod-3e: a committed place-and-route report exists — both variants (as-flow, cells-kept) reached the final stage; the input is lod-2\'s OWN mapped netlist (96 cells, 855.82 µm², sha256 cited); the Liberty handed to the flow is lod-2\'s (sha256 cited); the flow image is pinned by tag AND digest',
+      rep3e is not None and set(rep3e['variants']) == set(PNR_VARIANTS) == {'as-flow', 'cells-kept'} and all(e['finished'] for e in rep3e['variants'].values()) and rep3e['input_netlist']['cells'] == 96 and rep3e['input_netlist']['area_um2'] == 855.82
+      and len(rep3e['input_netlist']['sha256']) == 64 and len(rep3e['liberty']['sha256']) == 64 and 'sha256:' in rep3e['flow'] and ORFS_IMAGE in rep3e['flow'], rep3e and rep3e['summary'])
+_af, _ck = rep3e['variants']['as-flow'], rep3e['variants']['cells-kept']
+check('  …the router\'s own DRC count is 0 on both, flow errors 0, wirelength and vias recorded; the flow RESIZED the carry chain (maj3_1 → maj3_2, 29 cells) in BOTH variants — the census says so, mapping_unchanged is False, nothing is hidden',
+      all(e['metrics']['route_drc_errors'] == 0 and e['metrics']['flow_errors'] == 0 and e['metrics']['wirelength_um'] > 0 and e['metrics']['vias'] > 0 for e in (_af, _ck))
+      and all(e['census']['resized'].get('maj3_2') == 29 and e['census']['mapping_unchanged'] is False and e['census']['logic_cells'] == 96 for e in (_af, _ck)), (_af['census'], _ck['census']))
+check('  …as-flow buffered every port and repaired hold (146 buffers/delay cells, 292 std cells, 50 taps, 332 fill); cells-kept, with every switchable repair off, kept 17 buffers — the floorplan-stage repair is not switchable, said so',
+      _af['census']['buffers_and_delays'] == 146 and _af['metrics']['stdcell_count'] == 292 and _af['metrics']['tap_cells'] == 50 and _af['metrics']['fill_cells'] == 332 and _af['metrics']['timing_repair_buffers'] == 146
+      and _ck['census']['buffers_and_delays'] == 17 and _ck['metrics']['stdcell_count'] == 163 and all(k in _ck['knobs'] for k in ('SKIP_CTS_REPAIR_TIMING', 'DONT_BUFFER_PORTS')), (_af['metrics'], _ck['metrics']))
+check('  …TIMING under lod-2\'s exact conditions: with the extracted parasitics 9.8 ns (as-flow) / 10.06 ns (cells-kept); the WIRE COST — the same routed netlist with minus without its SPEF — is 0.22–0.24 ns, 2.3–2.4 %; the routed numbers beat lod-2\'s 11.94 ns netlist ONLY because the flow resized (the note says so — not the wire cost)',
+      9.7 < _af['timing']['with_parasitics']['max_path_ns'] < 9.9 and 10.0 < _ck['timing']['with_parasitics']['max_path_ns'] < 10.2 and all(0.2 < e['timing']['wire_cost_ns'] < 0.3 and 2.0 <= e['timing']['wire_cost_pct'] <= 2.6 for e in (_af, _ck))
+      and all(e['timing']['with_parasitics']['max_path_ns'] > e['timing']['without_parasitics']['max_path_ns'] for e in (_af, _ck)) and rep3e['conditions']['baseline_lod2_ns'] == 11.9394
+      and all(e['timing']['vs_lod2_netlist_ns'] < 0 and 'resized' in e['timing']['vs_lod2_note'] for e in (_af, _ck)), {v: e['timing'] for v, e in rep3e['variants'].items()})
+check('  …the flow\'s own setup check against the 10 ns virtual clock is stated per variant: as-flow met, cells-kept MISSED (10.06 > 10) — what the repairs would have fixed; the SPEF nets are counted; the GDS/ODB and the 680 kB routing image are NOT committed, the DEF/SPEF/netlist/reports/placement image are',
+      'met' in _af['flow_setup_note'] and 'MISSED' in _ck['flow_setup_note'] and _af['spef']['nets'] > _ck['spef']['nets'] > 100 and all('6_final.gds' in e['not_committed'][0] for e in (_af, _ck))
+      and all(set(e['artefacts']) >= {'6_final.def', '6_final.spef', '6_final.v', '6_report.json', '6_finish.rpt', '5_route_drc.rpt', 'final_placement.webp.png', 'sta_with_parasitics.log', 'config.mk', 'constraint.sdc'} and 'final_routing.webp.png' not in e['artefacts'] for e in (_af, _ck))
+      and all(os.path.exists('modules/computelod/initialData/lod3/pnr/%s/%s' % (v, f)) for v in ('as-flow', 'cells-kept') for f in ('6_final.spef', '6_final.def')), (_af['flow_setup_note'], _ck['flow_setup_note']))
+check('  …the ORFS engines resolve ONLY through the pinned image or a worker (never the host\'s make, never the eda-tools image\'s): `orfs` and `openroad` are in the engines table and in ORFS_ENGINES',
+      set(ORFS_ENGINES) == {'orfs', 'openroad'} and EDA_ENGINES['orfs'] == 'make' and EDA_ENGINES['openroad'] == 'openroad' and rep3e['engines']['orfs']['how'] in ('local-image', 'remote') and rep3e['engines']['orfs']['where'] in (ORFS_IMAGE,) + tuple(x for x in [rep3e['engines']['orfs']['where']] if rep3e['engines']['orfs']['how'] == 'remote'))
+check('  …census helper: counts sky130 cells in a netlist', pnr_census('X1 a b sky130_fd_sc_hd__inv_1 (); X2 sky130_fd_sc_hd__inv_1 ; X3 sky130_fd_sc_hd__nand2_1') == {'inv_1': 2, 'nand2_1': 1})
+maps3e, chars3e = lod3e_rows(rep3e, rep2)
+check('lod-3e rows: two ComputeMappings adder cells → placed-and-routed layout (one per variant; MEASURED — the router\'s DRC and the flow\'s metrics are tool output; validated: 0 DRC, 0 errors; loss_note counts the resizing/buffers); twelve upward characterizations (6 per variant: routed delay, wire cost, core area (a knob, said so), wirelength, DRC count, instance count)',
+      len(maps3e) == 2 and all(m_['evidence_level'] == 'measured' and m_['mapping_status'] == 'validated' and m_['source_rung'] == 'standard-cells' and m_['target_rung'] == 'layout' and 'resized' in m_['loss_note'] for m_ in maps3e)
+      and len(chars3e) == 12 and {c['characteristic'] for c in chars3e} == {'propagation_delay', 'wire_delay', 'area', 'wirelength', 'drc_violations', 'device_count'}
+      and all(c['source_rung'] == 'layout' and c['target_rung'] == 'standard-cells' for c in chars3e) and next(c for c in chars3e if c['name'] == 'lod3e: rv32_add core area (as-flow)')['mapping_status'] == 'implemented'
+      and next(c for c in chars3e if c['name'] == 'lod3e: rv32_add wire delay cost (cells-kept)')['evidence_level'] == 'simulated', [(m_['name'], m_['mapping_status']) for m_ in maps3e] + [c['name'] for c in chars3e])
+check('  …lod3e has a flow for the explainer and plain words for its characteristics', 'lod3e' in FLOWS and all(k in CHARACTERISTIC_WORDS for k in ('wire_delay', 'wirelength', 'drc_violations')))
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()
