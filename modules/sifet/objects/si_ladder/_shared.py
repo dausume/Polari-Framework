@@ -63,21 +63,25 @@ RIGHTS_CLEAN = ('incorporable-open', 'clean-room-reconstructable')
 EVIDENCE_REAL = ('measured-fabricated-device',
                  'reconstructed-from-published-silicon',
                  'calibrated-predictive')
-MANUFACTURABLE_RULE = ('manufacturable is True ONLY with evidence of an '
-                       'actually available open process (an MPW / '
-                       'foundry that accepts the rules). An open '
-                       'predictive PDK is NOT such evidence. Today: '
-                       'no rung qualifies.')
-#: D-lod4-1 (his ruling 2026-09-26): a THIRD answer between "open today" and "unproven" — a node whose open PDK
-#: has been fabricated before, where a third party (foundry / shuttle) might accept a request, but no standing open
-#: door is verified. The bool keeps its rule (True = open today); this vocabulary says WHICH kind of "not True".
+MANUFACTURABLE_RULE = ('manufacturable is True ONLY with evidence of a '
+                       'route that accepts designs today: `open` when the '
+                       'option AND the route are fully open-source, '
+                       '`available` when a third-party closed-source vendor '
+                       'takes orders (the evidence names the vendor). An open '
+                       'predictive PDK is NOT such evidence. Today: no rung '
+                       'is `open`.')
+#: D-lod4-1 (his rulings 2026-09-26): the kinds of manufacturability, as words beside the bool. His definitions:
+#: "available should be if it is available through a third party closed source vendor; open should be only if a
+#: fully open source option and route exists"; and a third, historical category ("historically proven, might be
+#: able to request manufacturing by 3rd party"). The bool `manufacturable` = it can be made today (open OR available).
 MANUFACTURABILITY = {
-    'open': 'an open process accepts designs today (manufacturable = True) — no rung qualifies yet',
-    'proven-on-request': 'historically proven: designs under this open PDK were fabricated (shuttles / a foundry run); fabrication might be requested from a third party, no standing open door verified (manufacturable = None)',
+    'open': 'a FULLY open-source option AND route exist — open PDK and an open path to fabrication (manufacturable = True); no rung qualifies today',
+    'available': 'obtainable today through a third-party CLOSED-source vendor (a commercial foundry / shuttle that accepts orders); the evidence must name the vendor (manufacturable = True)',
+    'proven-on-request': 'historically proven: designs under this open PDK were fabricated (shuttles / a foundry run); fabrication might be requested from a third party, but no standing route is verified (manufacturable = None)',
     'unproven': 'no fabrication of a design under this PDK / model is known (manufacturable = None)',
     'not-available': 'known not to be obtainable (manufacturable = False)',
 }
-MANUFACTURABILITY_FOR_BOOL = {True: ('open',), None: ('proven-on-request', 'unproven'), False: ('not-available', 'unproven')}
+MANUFACTURABILITY_FOR_BOOL = {True: ('open', 'available'), None: ('proven-on-request', 'unproven'), False: ('not-available', 'unproven')}
 SEARCH_PROTOCOL = ('dimensions', 'materials', 'doping-or-work-function',
                    'eot', 'measured-id-vg-id-vd', 'capacitance',
                    'variability', 'temperature')
@@ -119,8 +123,10 @@ def _node(name, display_name, node_nm, architecture, vdd_v, source,
     assert evidence in FABRICATION_EVIDENCE, evidence
     assert gplv3 in ('yes', 'no', 'to-verify'), gplv3
     assert manufacturable in (True, False, None)
-    if manufacturable is True:
-        raise AssertionError(MANUFACTURABLE_RULE)   # no rung qualifies
+    if manufacturable is True and manufacturability == 'open':
+        raise AssertionError(MANUFACTURABLE_RULE)   # no fully open route exists today
+    if manufacturable is True and manufacturability == 'available':
+        assert 'vendor' in manufacturable_reason.lower(), 'an `available` rung must name the closed-source vendor in manufacturable_reason'
     return {
         'name': name, 'display_name': display_name, 'node_nm': node_nm,
         'architecture': architecture, 'vdd_v': vdd_v, 'source': source,

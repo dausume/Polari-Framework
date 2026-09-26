@@ -43,7 +43,8 @@ SKY130_NODE = {
     'manufacturability': 'proven-on-request',
     'manufacturable_reason': 'D-lod4-1 RULED 2026-09-26 (his): PROVEN ON REQUEST — SkyWater fabricates SKY130 as a production process, and Google-sponsored open MPW '
                              'shuttles (Efabless, 2020–2023) fabricated designs under this open PDK; fabrication might be requested from a third party (a shuttle or the foundry) '
-                             'but no standing open door is verified today, so `manufacturable` stays None (the bool means "open today") and the ladder\'s "no rung qualifies" holds.',
+                             'but no standing route is verified here — his `available` needs a named closed-source vendor taking orders, his `open` a fully open-source option AND route — '
+                             'so `manufacturable` stays None; verify a vendor route (SkyWater direct or a paid shuttle) to move it to `available`.',
     'model_family': 'BSIM4',
     'key_numbers_json': json.dumps({
         'l_min_um': {'value': 0.15, 'unit': 'um', 'source': 'read in lod-3: every transistor of the seven mapped sky130_fd_sc_hd cells has l=150000u (scale 1e-6)', 'note': 'drawn gate length of the 1.8 V core devices'},

@@ -26,8 +26,8 @@ class SiliconProcessNode(treeObject):
         licence_gplv3_compatible: str = 'to-verify',   # yes|no|to-verify
         rights_class: str = 'unresolved',
         fabrication_evidence: str = 'hypothetical',
-        manufacturable=None,          # bool | None (evidence-only): True = an open process accepts designs today
-        manufacturability: str = 'unproven',   # open | proven-on-request | unproven | not-available (D-lod4-1, his 2026-09-26)
+        manufacturable=None,          # bool | None (evidence-only): True = it can be made today (open or available)
+        manufacturability: str = 'unproven',   # open (fully open option AND route) | available (closed-source third-party vendor) | proven-on-request | unproven | not-available (D-lod4-1, his 2026-09-26)
         manufacturable_reason: str = '',
         model_family: str = '',       # BSIM4|BSIM-CMG|VS|none
         key_numbers_json: str = '{}',
