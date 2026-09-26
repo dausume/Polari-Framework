@@ -56,7 +56,7 @@
     "probe": "torch",
     "optional": true,
     "knob": "TORCH_ENGINES_URL",
-    "worker": "polari-rf-node/torch-engines (:9820)",
+    "worker": "polari-rf-node/polari-torch-tools (submodule; :9820)",
     "note": "D5: the third ComputeImplementation of stress-from-strain; resolved through custom/torch_engine.py, never assumed on a device"
    }
   ],

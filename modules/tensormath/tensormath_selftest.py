@@ -215,7 +215,7 @@ if _e is not None:
 else:
     check('  …torch evaluation on the σ expression — the fixture holds no tt2-sigma-from-C expression here; covered by the live-boot probe', True)
 _pl = _te.placement()
-check('  …placement names the ladder, the knob, the provider module, the worker and the licence (BSD-3)', _pl['knob'] == 'TORCH_ENGINES_URL' and len(_pl['ladder']) == 4 and 'torch-engines' in _pl['worker'] and 'BSD-3' in _pl['licence'])
+check('  …placement names the ladder, the knob, the provider module, the worker and the licence (BSD-3)', _pl['knob'] == 'TORCH_ENGINES_URL' and len(_pl['ladder']) == 4 and 'polari-torch-tools' in _pl['worker'] and 'BSD-3' in _pl['licence'])
 if _saved_torch is not None: _sys.modules['torch'] = _saved_torch
 else: _sys.modules.pop('torch', None)
 if _saved_knob is not None: _os.environ['TORCH_ENGINES_URL'] = _saved_knob

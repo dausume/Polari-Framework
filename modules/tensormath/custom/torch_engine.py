@@ -4,7 +4,7 @@
 PYTORCH AS THE THIRD ComputeImplementation (D5 — his word 2026-09-26; plan §F8 bridge, §G.5 owed). The SAME operator
 (σ = C:ε, `stress-from-strain`) beside the numpy einsum and the FPGA MAC kernel: `torch.einsum` on the same operands with
 the same contraction spec the numpy path derives, its result COMPARED to numpy (the reference; `error` = max relative
-difference), its latency MEASURED where it runs. PyTorch is BSD-3 (GPLv3-compatible; LICENSES.md of torch-engines).
+difference), its latency MEASURED where it runs. PyTorch is BSD-3 (GPLv3-compatible; polari-torch-tools/LICENSES.md).
 
 The module never assumes a device (his rule 2026-09-24): torch resolves through the Polari engines ladder exactly as
 computelod's EDA tools and mathproofs' lean —
@@ -12,7 +12,7 @@ computelod's EDA tools and mathproofs' lean —
   2. knob unset, `import torch` OK  → this process (a local execution: torch installed where the framework runs)
   3. nothing local                  → the topology's provider for `tensormath.engines` (`pol allocate tensormath.engines <inst>`)
   4. nothing                        → refusal naming both knobs
-The worker is `polari-rf-node/torch-engines` (python:3.12-slim + the pinned CPU wheel; :9820; /capability + /evaluate).
+The worker is the submodule `polari-rf-node/polari-torch-tools` (python:3.12-slim + the pinned CPU wheel; :9820; /capability + /evaluate).
 The framework image is Alpine/musl and has no torch wheel — like z3 — so on the node stack the worker IS the normal way.
 
 Evidence: a benchmark through `POST /api/tensormath/benchmark {"implementation": "stress-from-strain/torch"}` sets the row's
@@ -109,7 +109,7 @@ def placement():
     r = resolve()
     return {'engine': 'torch', 'knob': KNOB, 'knob_value': knob_url(), 'provider_module': PROVIDER_MODULE, 'resolution': r,
             'ladder': ['%s (always, or refusal)' % KNOB, 'import torch in this process', 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal'],
-            'worker': 'polari-rf-node/torch-engines (docker-compose.torch-engines.yml, :9820)', 'licence': 'PyTorch BSD-3-Clause (torch-engines/LICENSES.md)'}
+            'worker': 'polari-rf-node/polari-torch-tools (submodule; docker-compose.torch-engines.yml, :9820)', 'licence': 'PyTorch BSD-3-Clause (polari-torch-tools/LICENSES.md)'}
 
 
 def _post(url, payload, timeout):
