@@ -77,6 +77,7 @@ from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, Ge
 from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
 from polariApiServer.objectStorageAPI import ObjectStorageAPI
 from polariApiServer.plainWordsAPI import PlainWordsAPI
+from polariApiServer.explainAPI import ExplainAPI
 from polariApiServer.wsStatusAPI import WsStatusAPI
 from polariApiServer.authMeAPI import AuthMeAPI, AuthJwksHealthAPI
 from polariApiServer.roleAPI import RoleAPI
@@ -663,6 +664,8 @@ class polariServer(treeObject):
 
         # bp-2d: GET /api/plain?classes=… — each object kind explained for a non-expert (plain_words on the class)
         plainWordsEndpoint = PlainWordsAPI(polServer=self, manager=self.manager)
+        # bp-3: GET /api/explain?class=&name= — one row explained: what was done, with what, how to reproduce it
+        explainEndpoint = ExplainAPI(polServer=self, manager=self.manager)
 
         # Create Solution Code Generator endpoint for backend code generation
         solutionCodeGenEndpoint = SolutionCodeGeneratorAPI(polServer=self, manager=self.manager)
