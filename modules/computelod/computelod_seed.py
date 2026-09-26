@@ -159,12 +159,19 @@ _l3cm, _l3cc = _lod3c_rows(_lod3c_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3cm)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3cc)
 
+def _flow_owned(rows):
+    """The lod rows are FLOW OUTPUT, not hand-edited data: every field but the name is code-owned, so a row an instance already
+    holds CONVERGES to the seed (the seeder's `_converge`). Found 2026-09-26 on the home swarm: `lod4: fabrication → materials`
+    still read its lod-4 text after lod-4b replaced it by name — a replace-by-name only ever reached a fresh instance."""
+    return [dict(r, _converge=[k for k in r if k != 'name']) for r in rows]
+
+
 COMPUTELOD_SEED_PAIRS = [
-    ('ComputeLOD', ComputeLOD, SEED_COMPUTE_LODS),
+    ('ComputeLOD', ComputeLOD, _flow_owned(SEED_COMPUTE_LODS)),
     ('ComputeKind', ComputeKind, SEED_COMPUTE_KINDS),
-    ('ComputeMapping', ComputeMapping, SEED_LOD_MAPPINGS),
-    ('CharacterizationMapping', CharacterizationMapping, SEED_LOD_CHARACTERIZATIONS),
-    ('CompilerArtifact', CompilerArtifact, SEED_LOD1_ARTIFACTS),
+    ('ComputeMapping', ComputeMapping, _flow_owned(SEED_LOD_MAPPINGS)),
+    ('CharacterizationMapping', CharacterizationMapping, _flow_owned(SEED_LOD_CHARACTERIZATIONS)),
+    ('CompilerArtifact', CompilerArtifact, _flow_owned(SEED_LOD1_ARTIFACTS)),
 ]
 try:   # the fabrication rung's row is a sifet class (skipped by the seed loop when sifet is not loaded)
     from sifet.objects.si_ladder.SiliconProcessNode import SiliconProcessNode

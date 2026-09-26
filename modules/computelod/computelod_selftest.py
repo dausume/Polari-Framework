@@ -432,6 +432,8 @@ try:
 except ImportError:
     check('lod-3d: mathproofs.LOD3_ARCS cross-check — mathproofs absent here, stated', False)
 check('the seed carries the sky130 SiliconProcessNode beside the compute rows (a sifet class, skipped when sifet is absent)', any(n == 'SiliconProcessNode' and len(r) == 1 for n, _, r in COMPUTELOD_SEED_PAIRS))
+check('the lod rows CONVERGE onto an instance that already holds them: every ComputeMapping / CharacterizationMapping / CompilerArtifact / ComputeLOD seed names all its fields but the name in `_converge` (flow output is code-owned; a replace-by-name must reach a live instance)',
+      all(set(r['_converge']) == set(r) - {'name', '_converge'} for n_, _, rows_ in COMPUTELOD_SEED_PAIRS if n_ in ('ComputeMapping', 'CharacterizationMapping', 'CompilerArtifact', 'ComputeLOD') for r in rows_))
 u5 = path(m5, 'standard-cells', next(m_ for m_ in maps2 if m_['name'] == 'lod1: netlist → standard cells')['target_ref'], 'up')
 check('walking UP from the SKY130 cells reaches the RTL through the delay characterization', u5['rungs'][:2] == ['standard-cells', 'rtl'], u5['rungs'])
 
