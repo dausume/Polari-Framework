@@ -108,7 +108,8 @@
    "custom/lod3_devices",
    "custom/lod3_layout",
    "custom/lod4_process",
-   "custom/lod4_devices"
+   "custom/lod4_devices",
+   "custom/lod2_compare"
   ],
   "endpoints": [
    "computelod_endpoints"

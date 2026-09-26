@@ -241,6 +241,39 @@ check('lod-4c rows: ten UPWARD characterizations fabrication → devices (five p
       and {c['characteristic'] for c in chars4c} == {'on_current', 'off_current', 'threshold_voltage', 'dibl', 'subthreshold_swing'}
       and json.loads(next(c for c in chars4c if c['name'] == 'lod4c: nfet_01v8 on current')['conditions_json'])['freepdk45_documented'] == 975.5, [c['name'] for c in chars4c])
 check('  …every new characteristic has plain words for the explainer', all(k in CHARACTERISTIC_WORDS for k in ('on_current', 'off_current', 'threshold_voltage', 'dibl', 'subthreshold_swing')) and 'lod4c' in FLOWS)
+# ---- lod-2c: the two Liberties' twin cells at the SAME conditions (the CNT point; each library's own FO4); CNT area refused
+from computelod.custom.lod2_compare import report as lod2c_report, rows as lod2c_rows, TWINS, CNT_POINT, read_point, units as lib_units, timing_groups, CNT_LIB
+rep2cmp = lod2c_report()
+check('lod-2c: a committed comparison report exists — six twin pairs (same Boolean function), both Liberties cited by sha256, three views (cnt-point, own-fo4, sky130-liberty-point), CNT area REFUSED with the reason',
+      rep2cmp is not None and len(rep2cmp['twins']) == 6 and [tuple(t) for t in rep2cmp['twins']] == TWINS and set(rep2cmp['views']) == {'cnt-point', 'own-fo4', 'sky130-liberty-point'}
+      and rep2cmp['area']['cnt_um2'] is None and 'refused' in rep2cmp['area']['cnt_refused'] and rep2cmp['area']['sky130_um2']['inv_1'] == 3.7536, rep2cmp and rep2cmp['summary'])
+_v1, _v2 = rep2cmp['views']['cnt-point'], rep2cmp['views']['own-fo4']
+check('  …view cnt-point: the CNT numbers are exact grid points of its Liberty (INVX1 worst 1.117 ps at 0.6 V / 41.65 aF / 1.02 ps), every SKY130 twin FINISHED inside the 801 ns window and is four to five orders slower (hvt p in subthreshold at 0.6 V — stated in the reading)',
+      _v1['cells']['inv_1']['cnt']['worst_ps'] == 1.117 and all(_v1['cells'][s]['sky130']['refused'] == 0 and _v1['cells'][s]['sky130']['worst_ps'] > 1e4 for s, _ in TWINS)
+      and 1e4 <= rep2cmp['summary']['cnt_point_ratio_sky_over_cnt']['min'] and rep2cmp['summary']['cnt_point_ratio_sky_over_cnt']['max'] < 1e5 and 'subthreshold' in rep2cmp['summary']['reading'], rep2cmp['summary'])
+check('  …view own-fo4: FO4 loads are 4 × each library\'s own inverter input (SKY130 9.208 fF, CNT 41.65 aF), the input slew iterated twice from its start value and every iteration kept (SKY130 50 → 64.0 → 65.1 ps; CNT 1.02 → 1.21 → 1.25 ps)',
+      _v2['conditions']['sky130']['load_ff'] == 9.208 and abs(_v2['conditions']['cnt']['load_ff'] - 0.041652) < 1e-6 and len(_v2['conditions']['sky130']['slew_iterations_ps']) == 3 and _v2['conditions']['sky130']['slew_iterations_ps'][0] == 50.0
+      and 60 < _v2['conditions']['sky130']['input_slew_ps_20_80'] < 70 and 1.2 < _v2['conditions']['cnt']['input_slew_ps_20_80'] < 1.3, _v2['conditions'])
+check('  …at own FO4 the SKY130 inverter is ~101 ps and the CNT one ~1.17 ps: ratios 58–135 across the six twins, ALL in the same direction — reported with the CNT side named intrinsic-grade (no layout, standin parasitics), never as a ranking',
+      95 < _v2['cells']['inv_1']['sky130']['worst_ps'] < 110 and 1.1 < _v2['cells']['inv_1']['cnt']['worst_ps'] < 1.3 and 50 < rep2cmp['summary']['own_fo4_ratio_sky_over_cnt']['min'] and rep2cmp['summary']['own_fo4_ratio_sky_over_cnt']['max'] < 150
+      and 'ranking' in rep2cmp['summary']['reading'], rep2cmp['summary']['own_fo4_ratio_sky_over_cnt'])
+check('  …the SKY130 Liberty at its own point (read, not simulated) is kept beside for the reading: inv_1 worst = the lod-3b Liberty tpLH (117.9 ps)',
+      abs(rep2cmp['views']['sky130-liberty-point']['cells']['inv_1']['worst_ps'] - 117.94) < 0.1, rep2cmp['views']['sky130-liberty-point']['cells']['inv_1'])
+_cnt_txt = open(CNT_LIB, errors='replace').read(); _ct, _cc = lib_units(_cnt_txt)
+check('lod-2c Liberty reading: units normalised (CNT ps/fF → 1, 1); XOR2X1 has four timing groups with `when` conditions; a point OUTSIDE the grid is REFUSED, not extrapolated',
+      (_ct, _cc) == (1.0, 1.0) and len(timing_groups(_cnt_txt, 'cell (XOR2X1)')) == 4 and all(g['when'] for g in timing_groups(_cnt_txt, 'cell (XOR2X1)'))
+      and all('refused' in v for v in read_point(_cnt_txt, 'cell (INVX1)', 50.0, 14.6, _ct, _cc).values()), [g['when'] for g in timing_groups(_cnt_txt, 'cell (XOR2X1)')])
+_, chars2cmp = lod2c_rows(rep2cmp)
+check('lod-2c rows: 24 upward characterizations (6 twins × 2 views × 2 libraries), devices → standard-cells, evidence SIMULATED, implemented, each naming its twin, the view and the worst/mean per arc in conditions; the CNT rows say intrinsic-grade, the 0.6 V SKY130 rows say subthreshold',
+      len(chars2cmp) == 24 and all(c['source_rung'] == 'devices' and c['target_rung'] == 'standard-cells' and c['evidence_level'] == 'simulated' and c['mapping_status'] == 'implemented' and 'twin' in json.loads(c['conditions_json']) for c in chars2cmp)
+      and all('intrinsic-grade' in c['notes'] for c in chars2cmp if c['name'].startswith('lod2c: cnt')) and all('subthreshold' in c['notes'] for c in chars2cmp if c['name'].startswith('lod2c: sky130') and '@cnt-point' in c['name'])
+      and {'lod2c: sky130 inv_1 FO4', 'lod2c: cnt INVX1 FO4', 'lod2c: sky130 xor2_1 @cnt-point', 'lod2c: cnt OAI21X1 @cnt-point'} <= {c['name'] for c in chars2cmp}, [c['name'] for c in chars2cmp][:6])
+check('  …lod2c has a flow for the explainer', 'lod2c' in FLOWS)
+try:
+    from mathproofs.mathproofs_seed import LOD2C_TWINS as _PF_TWINS
+    check('lod-2c: mathproofs.LOD2C_TWINS == computelod\'s TWINS (the claims name the rows that exist)', _PF_TWINS == TWINS, (_PF_TWINS, TWINS))
+except ImportError:
+    check('lod-2c: mathproofs.LOD2C_TWINS cross-check — mathproofs absent here, stated', False)
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

@@ -175,18 +175,21 @@ def subckt_ports(cell_spice, cell):
     raise SystemExit('no .subckt sky130_fd_sc_hd__%s in %s' % (cell, cell_spice))
 
 
-def _deck(cell, arc, includes, cell_spice):
+def _deck(cell, arc, includes, cell_spice, cond=None):
     """One transient deck for one arc: the arc's pin gets the ramp, the other inputs their tie values, the output is
     loaded; tpHL/tpLH are measured input-edge → output-edge per the arc's unateness (an inverting arc's tpHL starts at
-    the input RISE, a non-inverting one's at the input FALL)."""
+    the input RISE, a non-inverting one's at the input FALL). `cond` overrides CONDITIONS (lod-2c runs the same cells at
+    the CNT library's point: 0.6 V, aF loads, ps slews — with a longer window, `t_edges_ns` / `t_end_ns` / `tran_step_ns`)."""
+    c = dict(CONDITIONS, **(cond or {}))
     pin = arc['pin']
-    ties = '\n'.join('V%s %s 0 %s' % (p, p.lower(), CONDITIONS['voltage_v'] if v == 'VPWR' else 0) for p, v in sorted(arc['ties'].items()))   # one source per line
+    ties = '\n'.join('V%s %s 0 %s' % (p, p.lower(), c['voltage_v'] if v == 'VPWR' else 0) for p, v in sorted(arc['ties'].items()))   # one source per line
     node = {'VGND': 'vgnd', 'VNB': 'vgnd', 'VPWR': 'vpwr', 'VPB': 'vpwr', arc['out']: 'y', pin: 'a_in'}
     pins = ' '.join(node.get(p, p.lower()) for p in subckt_ports(cell_spice, cell))
-    vdd, ramp = CONDITIONS['voltage_v'], CONDITIONS['input_slew_ns_20_80'] / 0.6
+    vdd, ramp = c['voltage_v'], c['input_slew_ns_20_80'] / 0.6
     v20, v80, v50 = vdd * 0.2, vdd * 0.8, vdd * 0.5
+    e1, e2 = c.get('t_edges_ns', (1.0, 3.0)); t_end = c.get('t_end_ns', 5.0); step = c.get('tran_step_ns', 0.001)
     in_hl, in_lh = ('rise', 'fall') if arc['inverting'] else ('fall', 'rise')   # the input edge that starts tpHL / tpLH
-    return '''* sky130_fd_sc_hd__%(cell)s pin %(pin)s → %(out)s (%(sense)s%(cond)s) on sky130_fd_pr tt — Polari lod-3b/3d
+    return '''* sky130_fd_sc_hd__%(cell)s pin %(pin)s → %(out)s (%(sense)s%(cond)s) on sky130_fd_pr tt — Polari lod-3b/3d/2c
 .option scale=1.0e-6
 .temp %(temp)s
 %(includes)s
@@ -196,8 +199,9 @@ VSS vgnd 0 0
 %(ties)s
 Xdut %(pins)s sky130_fd_sc_hd__%(cell)s
 Cload y 0 %(load)sp
-Vin a_in 0 pwl(0 0 1n 0 %(t1)sn %(vdd)s 3n %(vdd)s %(t2)sn 0 5n 0)
-.tran 1p 5n
+.save v(a_in) v(y)
+Vin a_in 0 pwl(0 0 %(e1)sn 0 %(t1)sn %(vdd)s %(e2)sn %(vdd)s %(t2)sn 0 %(t_end)sn 0)
+.tran %(step)sn %(t_end)sn
 .control
 run
 meas tran tphl trig v(a_in) val=%(v50)s %(in_hl)s=1 targ v(y) val=%(v50)s fall=1
@@ -207,8 +211,8 @@ meas tran trise trig v(y) val=%(v20)s rise=1 targ v(y) val=%(v80)s rise=1
 quit
 .endc
 .end
-''' % {'cell': cell, 'pin': pin, 'out': arc['out'], 'sense': arc['sense'], 'cond': arc['cond'], 'temp': CONDITIONS['temperature_c'], 'includes': includes, 'cell_spice': cell_spice, 'vdd': vdd,
-       'ties': ties, 'pins': pins, 'load': CONDITIONS['load_pf'], 't1': round(1 + ramp, 6), 't2': round(3 + ramp, 6), 'v50': v50, 'v80': v80, 'v20': v20, 'in_hl': in_hl, 'in_lh': in_lh}
+''' % {'cell': cell, 'pin': pin, 'out': arc['out'], 'sense': arc['sense'], 'cond': arc['cond'], 'temp': c['temperature_c'], 'includes': includes, 'cell_spice': cell_spice, 'vdd': vdd,
+       'ties': ties, 'pins': pins, 'load': c['load_pf'], 't1': round(e1 + ramp, 9), 't2': round(e2 + ramp, 9), 'e1': e1, 'e2': e2, 't_end': t_end, 'step': step, 'v50': v50, 'v80': v80, 'v20': v20, 'in_hl': in_hl, 'in_lh': in_lh}
 
 
 def run(cells=None, work=None):

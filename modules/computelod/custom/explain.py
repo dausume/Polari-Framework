@@ -19,6 +19,7 @@ FLOWS = {
     'lod1': ('computelod.custom.lod1_chain', 'c = a + b followed down: gcc → RISC-V assembly → PicoRV32 → yosys synthesis → iverilog simulation', 'lod1/report.json'),
     'lod2': ('computelod.custom.lod2_silicon', 'the adder technology-mapped onto SKY130 standard cells (yosys abc -liberty) and timed with OpenSTA', 'lod2/report.json'),
     'lod2-cnt': ('computelod.custom.lod2_cnt', 'the same adder mapped onto OUR CNT cell library (the Liberty characterized here) and timed with OpenSTA', 'lod2/cnt/report.json'),
+    'lod2c': ('computelod.custom.lod2_compare', 'the two libraries\' twin cells compared at the SAME conditions (the CNT point; each library\'s own FO4): SKY130 simulated in ngspice, the CNT Liberty read', 'lod2/compare_report.json'),
     'lod3': ('computelod.custom.lod3_cells', 'the standard cells opened: their transistor netlists and LEF footprints read from the PDK', 'lod3/report.json'),
     'lod3b': ('computelod.custom.lod3_devices', 'the cells\' transistor netlists RUN in ngspice against the PDK\'s device models', 'lod3/devices_report.json'),
     'lod3-cnt': ('computelod.custom.lod2_cnt', 'our CNT cell library\'s device lists, counted', 'lod2/cnt/report.json'),

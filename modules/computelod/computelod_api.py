@@ -32,7 +32,8 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod4', self, suffix='lod4')                 # fabrication → materials, by reference
             add('/api/computelod/lod3/devices', self, suffix='lod3_devices')  # devices → cells simulated by us vs the Liberty
             add('/api/computelod/lod3/layout', self, suffix='lod3_layout')    # DRC + PEX + LVS on the PDK's layout, re-timed
-            add('/api/computelod/lod4/devices', self, suffix='lod4_devices')  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
+            add('/api/computelod/lod4/devices', self, suffix='lod4_devices')
+            add('/api/computelod/lod2/compare', self, suffix='lod2_compare')  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
             add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
     def _rows(self, cls):
@@ -73,6 +74,16 @@ class ComputeLodAPI(treeObject):
         from computelod.custom.lod3_devices import report
         rep = report()
         response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_devices run (ngspice on the pinned sky130_fd_pr tt models, cached in ~/.cache/polari-lod/sky130_pr, never committed)'}
+
+    def on_get_lod2_compare(self, request, response):
+        from computelod.custom.lod2_compare import report
+        rep = report()
+        slim = None
+        if rep:   # per-arc detail stays in the file; the reading is per cell per view
+            slim = {k: v for k, v in rep.items() if k != 'views'}
+            slim['views'] = {vn: {'conditions': v['conditions'], 'cells': {c: {lib: {kk: vv for kk, vv in e[lib].items() if kk != 'arcs_detail'} for lib in ('sky130', 'cnt') if lib in e} | {'ratio_sky_over_cnt': e.get('ratio_sky_over_cnt')} if 'sky130' in e else e
+                                                                          for c, e in v['cells'].items()}} for vn, v in rep['views'].items()}
+        response.media = {'ok': bool(rep), 'report': slim or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod2_compare run (ngspice for SKY130 at 0.6 V and at FO4; the CNT Liberty read; ~10 min)'}
 
     def on_get_lod4_devices(self, request, response):
         from computelod.custom.lod4_devices import report

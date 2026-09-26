@@ -129,6 +129,11 @@ SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4c)
 from computelod.custom.lod4_devices import report as _lod4c_report, rows as _lod4c_rows
 _l4cm, _l4cc = _lod4c_rows(_lod4c_report())
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l4cc)
+# ---- lod-2c: the two Liberties' twin cells at the SAME conditions (the CNT point; each library's own FO4) — 24 upward rows,
+# every one simulated; the CNT side intrinsic-grade, the SKY130 side a schematic netlist; area refused for CNT (stated in the report).
+from computelod.custom.lod2_compare import report as _lod2c_report, rows as _lod2c_rows
+_l2cmp_m, _l2cmp_c = _lod2c_rows(_lod2c_report())
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l2cmp_c)
 # ---- lod-3b: devices → cells SIMULATED by us — ngspice on the PDK's own BSIM4 models, cross-checked against the
 # Liberty at the same slew/load; the gap (schematic netlist vs extracted layout) is reported, not tuned.
 from computelod.custom.lod3_devices import report as _lod3b_report, rows as _lod3b_rows

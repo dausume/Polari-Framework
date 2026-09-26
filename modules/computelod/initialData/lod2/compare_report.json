@@ -1,0 +1,970 @@
+{
+ "tool": "ngspice-46 (/home/user/tools/ngspice/bin/ngspice) for SKY130 at the CNT point and at FO4; both Liberties READ for the rest",
+ "twins": [
+  [
+   "inv_1",
+   "INVX1"
+  ],
+  [
+   "nand2_1",
+   "NAND2X1"
+  ],
+  [
+   "nor2_1",
+   "NOR2X1"
+  ],
+  [
+   "xor2_1",
+   "XOR2X1"
+  ],
+  [
+   "xnor2_1",
+   "XNOR2X1"
+  ],
+  [
+   "o21ai_0",
+   "OAI21X1"
+  ]
+ ],
+ "sky130_liberty_sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+ "cnt_liberty_sha256": "668b163c21c4cd8923da02a7f3842cf7cff02321eab7e17aaf9473807943b5d7",
+ "views": {
+  "cnt-point": {
+   "conditions": {
+    "voltage_v": 0.6,
+    "temperature_c": 26.85,
+    "temperature_note": "300 K, the CNT characterization temperature",
+    "load_ff": 0.041654,
+    "input_slew_ps_20_80": 1.0178,
+    "window_ns": {
+     "t_edges_ns": [
+      1.0,
+      401.0
+     ],
+     "t_end_ns": 801.0,
+     "tran_step_ns": 0.002
+    },
+    "sky130_netlist": "schematic (PDK cells/*.spice, no extracted parasitics; no 0.6 V Liberty exists to cross-check)",
+    "cnt_source": "polari_cnt_lib.lib at an exact grid point"
+   },
+   "cells": {
+    "inv_1": {
+     "sky130": {
+      "arcs": 1,
+      "refused": 0,
+      "tphl_worst_ps": 1590.26,
+      "tplh_worst_ps": 18974.0,
+      "worst_ps": 18974.0,
+      "mean_ps": 10282.13,
+      "mean_transition_ps": 8442.305,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1590.26,
+        "tplh_ps": 18974.0,
+        "fall_tr_ps": 1459.21,
+        "rise_tr_ps": 15425.4,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 1,
+      "refused": 0,
+      "tphl_worst_ps": 1.117,
+      "tplh_worst_ps": 1.117,
+      "worst_ps": 1.117,
+      "mean_ps": 1.117,
+      "mean_transition_ps": 1.214,
+      "transitions_unavailable": 0,
+      "cell": "INVX1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.1168,
+        "tplh_ps": 1.1168,
+        "fall_tr_ps": 1.214,
+        "rise_tr_ps": 1.214,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 16986.6
+    },
+    "nand2_1": {
+     "sky130": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 7551.13,
+      "tplh_worst_ps": 31639.9,
+      "worst_ps": 31639.9,
+      "mean_ps": 17711.91,
+      "mean_transition_ps": 15118.087,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 7356.41,
+        "tplh_ps": 24300.2,
+        "fall_tr_ps": 5530.419999999999,
+        "rise_tr_ps": 22807.399999999998,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 7551.129999999999,
+        "tplh_ps": 31639.899999999998,
+        "fall_tr_ps": 5530.43,
+        "rise_tr_ps": 26604.1,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 1.847,
+      "tplh_worst_ps": 1.179,
+      "worst_ps": 1.847,
+      "mean_ps": 1.487,
+      "mean_transition_ps": 1.834,
+      "transitions_unavailable": 0,
+      "cell": "NAND2X1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.8471,
+        "tplh_ps": 1.1279,
+        "fall_tr_ps": 2.42,
+        "rise_tr_ps": 1.2105,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 1.7943,
+        "tplh_ps": 1.1794,
+        "fall_tr_ps": 2.4217,
+        "rise_tr_ps": 1.2857,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 17130.4
+    },
+    "nor2_1": {
+     "sky130": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 2175.86,
+      "tplh_worst_ps": 63581.3,
+      "worst_ps": 63581.3,
+      "mean_ps": 30997.145,
+      "mean_transition_ps": 22863.115,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 2175.86,
+        "tplh_ps": 63581.299999999996,
+        "fall_tr_ps": 2471.25,
+        "rise_tr_ps": 43426.7,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 2035.0199999999998,
+        "tplh_ps": 56196.399999999994,
+        "fall_tr_ps": 2128.0099999999998,
+        "rise_tr_ps": 43426.5,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 1.179,
+      "tplh_worst_ps": 1.847,
+      "worst_ps": 1.847,
+      "mean_ps": 1.487,
+      "mean_transition_ps": 1.834,
+      "transitions_unavailable": 0,
+      "cell": "NOR2X1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.1794,
+        "tplh_ps": 1.7941,
+        "fall_tr_ps": 1.2857,
+        "rise_tr_ps": 2.4217,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 1.1279,
+        "tplh_ps": 1.8471,
+        "fall_tr_ps": 1.2105,
+        "rise_tr_ps": 2.42,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 34424.1
+    },
+    "xor2_1": {
+     "sky130": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 179301.0,
+      "tplh_worst_ps": 84045.6,
+      "worst_ps": 179301.0,
+      "mean_ps": 80919.55,
+      "mean_transition_ps": 38703.184,
+      "transitions_unavailable": 1,
+      "arcs_detail": {
+       "A@B=0": {
+        "tphl_ps": 179301.0,
+        "tplh_ps": 59310.7,
+        "fall_tr_ps": 24335.7,
+        "rise_tr_ps": 43944.8,
+        "sense": "positive_unate"
+       },
+       "A@B=1": {
+        "tphl_ps": 8150.67,
+        "tplh_ps": 84045.6,
+        "fall_tr_ps": 6459.26,
+        "rise_tr_ps": 51680.5,
+        "sense": "negative_unate"
+       },
+       "B@A=0": {
+        "tphl_ps": 172075.0,
+        "tplh_ps": 68811.2,
+        "fall_tr_ps": null,
+        "rise_tr_ps": 94114.9,
+        "sense": "positive_unate",
+        "transition_note": "transition measure unavailable (non-monotonic output edge in this regime; delays measured)"
+       },
+       "B@A=1": {
+        "tphl_ps": 7976.53,
+        "tplh_ps": 67685.7,
+        "fall_tr_ps": 6497.63,
+        "rise_tr_ps": 43889.5,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 1.87,
+      "tplh_worst_ps": 2.196,
+      "worst_ps": 2.196,
+      "mean_ps": 1.867,
+      "mean_transition_ps": 2.193,
+      "transitions_unavailable": 0,
+      "cell": "XOR2X1",
+      "arcs_detail": {
+       "A when !B": {
+        "tphl_ps": 1.5635,
+        "tplh_ps": 2.1957,
+        "fall_tr_ps": 1.3554,
+        "rise_tr_ps": 2.5741,
+        "sense": "positive_unate"
+       },
+       "A when B": {
+        "tphl_ps": 1.8702,
+        "tplh_ps": 1.8684,
+        "fall_tr_ps": 2.4197,
+        "rise_tr_ps": 2.4207,
+        "sense": "negative_unate"
+       },
+       "B when !A": {
+        "tphl_ps": 1.5955,
+        "tplh_ps": 2.0508,
+        "fall_tr_ps": 1.3559,
+        "rise_tr_ps": 2.4214,
+        "sense": "positive_unate"
+       },
+       "B when A": {
+        "tphl_ps": 1.8185,
+        "tplh_ps": 1.9767,
+        "fall_tr_ps": 2.4203,
+        "rise_tr_ps": 2.5726,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 81648.9
+    },
+    "xnor2_1": {
+     "sky130": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 101928.0,
+      "tplh_worst_ps": 84294.1,
+      "worst_ps": 101928.0,
+      "mean_ps": 58561.379,
+      "mean_transition_ps": 25494.44,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A@B=0": {
+        "tphl_ps": 9985.38,
+        "tplh_ps": 84294.1,
+        "fall_tr_ps": 8349.07,
+        "rise_tr_ps": 54622.9,
+        "sense": "negative_unate"
+       },
+       "A@B=1": {
+        "tphl_ps": 101928.0,
+        "tplh_ps": 47092.299999999996,
+        "fall_tr_ps": 15781.9,
+        "rise_tr_ps": 23783.4,
+        "sense": "positive_unate"
+       },
+       "B@A=0": {
+        "tphl_ps": 8572.550000000001,
+        "tplh_ps": 77049.4,
+        "fall_tr_ps": 7014.55,
+        "rise_tr_ps": 54624.9,
+        "sense": "negative_unate"
+       },
+       "B@A=1": {
+        "tphl_ps": 92621.3,
+        "tplh_ps": 46948.0,
+        "fall_tr_ps": 15974.4,
+        "rise_tr_ps": 23804.4,
+        "sense": "positive_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 2.158,
+      "tplh_worst_ps": 1.87,
+      "worst_ps": 2.158,
+      "mean_ps": 1.863,
+      "mean_transition_ps": 2.173,
+      "transitions_unavailable": 0,
+      "cell": "XNOR2X1",
+      "arcs_detail": {
+       "A when !B": {
+        "tphl_ps": 1.8714,
+        "tplh_ps": 1.8702,
+        "fall_tr_ps": 2.4227,
+        "rise_tr_ps": 2.4197,
+        "sense": "negative_unate"
+       },
+       "A when B": {
+        "tphl_ps": 2.0493,
+        "tplh_ps": 1.5956,
+        "fall_tr_ps": 2.4158,
+        "rise_tr_ps": 1.356,
+        "sense": "positive_unate"
+       },
+       "B when !A": {
+        "tphl_ps": 1.9767,
+        "tplh_ps": 1.8183,
+        "fall_tr_ps": 2.5725,
+        "rise_tr_ps": 2.4204,
+        "sense": "negative_unate"
+       },
+       "B when A": {
+        "tphl_ps": 2.158,
+        "tplh_ps": 1.5635,
+        "fall_tr_ps": 2.4221,
+        "rise_tr_ps": 1.3552,
+        "sense": "positive_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 47232.6
+    },
+    "o21ai_0": {
+     "sky130": {
+      "arcs": 3,
+      "refused": 0,
+      "tphl_worst_ps": 15130.1,
+      "tplh_worst_ps": 63349.5,
+      "worst_ps": 63349.5,
+      "mean_ps": 30434.517,
+      "mean_transition_ps": 21756.403,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A1": {
+        "tphl_ps": 15130.099999999999,
+        "tplh_ps": 63349.49999999999,
+        "fall_tr_ps": 10451.7,
+        "rise_tr_ps": 40924.600000000006,
+        "sense": "negative_unate"
+       },
+       "A2": {
+        "tphl_ps": 13172.800000000001,
+        "tplh_ps": 57319.200000000004,
+        "fall_tr_ps": 9041.019999999999,
+        "rise_tr_ps": 40924.600000000006,
+        "sense": "negative_unate"
+       },
+       "B1": {
+        "tphl_ps": 13836.8,
+        "tplh_ps": 19798.7,
+        "fall_tr_ps": 10455.3,
+        "rise_tr_ps": 18741.2,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 3,
+      "refused": 0,
+      "tphl_worst_ps": 1.978,
+      "tplh_worst_ps": 1.87,
+      "worst_ps": 1.978,
+      "mean_ps": 1.752,
+      "mean_transition_ps": 2.257,
+      "transitions_unavailable": 0,
+      "cell": "OAI21X1",
+      "arcs_detail": {
+       "A when !B*C": {
+        "tphl_ps": 1.8701,
+        "tplh_ps": 1.8699,
+        "fall_tr_ps": 2.42,
+        "rise_tr_ps": 2.4197,
+        "sense": "negative_unate"
+       },
+       "B when !A*C": {
+        "tphl_ps": 1.9783,
+        "tplh_ps": 1.818,
+        "fall_tr_ps": 2.5717,
+        "rise_tr_ps": 2.4204,
+        "sense": "negative_unate"
+       },
+       "C when A*!B": {
+        "tphl_ps": 1.7943,
+        "tplh_ps": 1.1794,
+        "fall_tr_ps": 2.4216,
+        "rise_tr_ps": 1.2857,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 32027.0
+    }
+   }
+  },
+  "own-fo4": {
+   "conditions": {
+    "sky130": {
+     "vdd_v": 1.8,
+     "temperature_c": 25.0,
+     "load_ff": 9.208,
+     "inverter_cin_ff": 2.302,
+     "slew_iterations_ps": [
+      50.0,
+      64.038,
+      65.091
+     ],
+     "input_slew_ps_20_80": 65.091
+    },
+    "cnt": {
+     "vdd_v": 0.6,
+     "temperature_c": 26.85,
+     "load_ff": 0.041652,
+     "inverter_cin_ff": 0.010413,
+     "slew_iterations_ps": [
+      1.0178,
+      1.214,
+      1.253
+     ],
+     "input_slew_ps_20_80": 1.253
+    },
+    "note": "FO4: each cell drives four of its own library's inverter inputs and is driven by the slew its own FO4 inverter produces (two iterations from the start value; all values kept) \u2014 the intrinsic-speed comparison, each library at its own nominal voltage"
+   },
+   "cells": {
+    "inv_1": {
+     "sky130": {
+      "arcs": 1,
+      "refused": 0,
+      "tphl_worst_ps": 55.476,
+      "tplh_worst_ps": 100.978,
+      "worst_ps": 100.978,
+      "mean_ps": 78.227,
+      "mean_transition_ps": 65.182,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 55.4761,
+        "tplh_ps": 100.97800000000001,
+        "fall_tr_ps": 39.7747,
+        "rise_tr_ps": 90.58840000000001,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 1,
+      "refused": 0,
+      "tphl_worst_ps": 1.173,
+      "tplh_worst_ps": 1.173,
+      "worst_ps": 1.173,
+      "mean_ps": 1.173,
+      "mean_transition_ps": 1.26,
+      "transitions_unavailable": 0,
+      "cell": "INVX1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.1725131465827006,
+        "tplh_ps": 1.1725131474690174,
+        "fall_tr_ps": 1.2603806905793529,
+        "rise_tr_ps": 1.2603729879259422,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 86.1
+    },
+    "nand2_1": {
+     "sky130": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 74.197,
+      "tplh_worst_ps": 110.61,
+      "worst_ps": 110.61,
+      "mean_ps": 90.19,
+      "mean_transition_ps": 78.168,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 72.6318,
+        "tplh_ps": 103.32,
+        "fall_tr_ps": 60.487,
+        "rise_tr_ps": 92.9758,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 74.1969,
+        "tplh_ps": 110.61,
+        "fall_tr_ps": 60.05329999999999,
+        "rise_tr_ps": 99.1551,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 1.916,
+      "tplh_worst_ps": 1.237,
+      "worst_ps": 1.916,
+      "mean_ps": 1.541,
+      "mean_transition_ps": 1.872,
+      "transitions_unavailable": 0,
+      "cell": "NAND2X1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.9156148283170575,
+        "tplh_ps": 1.1812787752787994,
+        "fall_tr_ps": 2.4503477416089554,
+        "rise_tr_ps": 1.2580051584685807,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 1.831031181605502,
+        "tplh_ps": 1.2365928464334122,
+        "fall_tr_ps": 2.4461240183668007,
+        "rise_tr_ps": 1.3330664073553458,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 57.7
+    },
+    "nor2_1": {
+     "sky130": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 60.212,
+      "tplh_worst_ps": 188.213,
+      "worst_ps": 188.213,
+      "mean_ps": 120.231,
+      "mean_transition_ps": 116.378,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 60.2116,
+        "tplh_ps": 188.213,
+        "fall_tr_ps": 42.645199999999996,
+        "rise_tr_ps": 191.31,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 56.728300000000004,
+        "tplh_ps": 175.77100000000002,
+        "fall_tr_ps": 40.2484,
+        "rise_tr_ps": 191.31,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 2,
+      "refused": 0,
+      "tphl_worst_ps": 1.237,
+      "tplh_worst_ps": 1.916,
+      "worst_ps": 1.916,
+      "mean_ps": 1.541,
+      "mean_transition_ps": 1.872,
+      "transitions_unavailable": 0,
+      "cell": "NOR2X1",
+      "arcs_detail": {
+       "A": {
+        "tphl_ps": 1.2365928464334122,
+        "tplh_ps": 1.8308465972549932,
+        "fall_tr_ps": 1.3330664064690287,
+        "rise_tr_ps": 2.4461240272299696,
+        "sense": "negative_unate"
+       },
+       "B": {
+        "tphl_ps": 1.1812787743924826,
+        "tplh_ps": 1.9156148283170575,
+        "fall_tr_ps": 1.2580051584685807,
+        "rise_tr_ps": 2.4503477416089554,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 98.2
+    },
+    "xor2_1": {
+     "sky130": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 145.87,
+      "tplh_worst_ps": 207.542,
+      "worst_ps": 207.542,
+      "mean_ps": 153.12,
+      "mean_transition_ps": 127.504,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A@B=0": {
+        "tphl_ps": 145.87,
+        "tplh_ps": 192.402,
+        "fall_tr_ps": 47.345600000000005,
+        "rise_tr_ps": 192.147,
+        "sense": "positive_unate"
+       },
+       "A@B=1": {
+        "tphl_ps": 81.4713,
+        "tplh_ps": 207.542,
+        "fall_tr_ps": 65.4754,
+        "rise_tr_ps": 204.95100000000002,
+        "sense": "negative_unate"
+       },
+       "B@A=0": {
+        "tphl_ps": 132.204,
+        "tplh_ps": 193.347,
+        "fall_tr_ps": 47.5585,
+        "rise_tr_ps": 204.95,
+        "sense": "positive_unate"
+       },
+       "B@A=1": {
+        "tphl_ps": 79.9555,
+        "tplh_ps": 192.167,
+        "fall_tr_ps": 65.5754,
+        "rise_tr_ps": 192.03,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 1.936,
+      "tplh_worst_ps": 2.217,
+      "worst_ps": 2.217,
+      "mean_ps": 1.909,
+      "mean_transition_ps": 2.206,
+      "transitions_unavailable": 0,
+      "cell": "XOR2X1",
+      "arcs_detail": {
+       "A when !B": {
+        "tphl_ps": 1.5907890191209244,
+        "tplh_ps": 2.2173644246657744,
+        "fall_tr_ps": 1.3553564541996137,
+        "rise_tr_ps": 2.569063082187597,
+        "sense": "positive_unate"
+       },
+       "A when B": {
+        "tphl_ps": 1.935887197453552,
+        "tplh_ps": 1.9341873334412307,
+        "fall_tr_ps": 2.450655990788369,
+        "rise_tr_ps": 2.451625120337958,
+        "sense": "negative_unate"
+       },
+       "B when !A": {
+        "tphl_ps": 1.6329575446980948,
+        "tplh_ps": 2.0604157135035397,
+        "fall_tr_ps": 1.3553097688249724,
+        "rise_tr_ps": 2.4221327923772678,
+        "sense": "positive_unate"
+       },
+       "B when A": {
+        "tphl_ps": 1.8521108454323711,
+        "tplh_ps": 2.045538639946832,
+        "fall_tr_ps": 2.445170634318739,
+        "rise_tr_ps": 2.6017685245166096,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 93.6
+    },
+    "xnor2_1": {
+     "sky130": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 125.264,
+      "tplh_worst_ps": 207.829,
+      "worst_ps": 207.829,
+      "mean_ps": 131.401,
+      "mean_transition_ps": 107.082,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A@B=0": {
+        "tphl_ps": 82.99390000000001,
+        "tplh_ps": 207.829,
+        "fall_tr_ps": 65.7252,
+        "rise_tr_ps": 207.185,
+        "sense": "negative_unate"
+       },
+       "A@B=1": {
+        "tphl_ps": 125.264,
+        "tplh_ps": 124.159,
+        "fall_tr_ps": 61.39810000000001,
+        "rise_tr_ps": 93.7282,
+        "sense": "positive_unate"
+       },
+       "B@A=0": {
+        "tphl_ps": 77.3352,
+        "tplh_ps": 195.55,
+        "fall_tr_ps": 61.27910000000001,
+        "rise_tr_ps": 207.186,
+        "sense": "negative_unate"
+       },
+       "B@A=1": {
+        "tphl_ps": 116.414,
+        "tplh_ps": 121.66,
+        "fall_tr_ps": 66.3674,
+        "rise_tr_ps": 93.7873,
+        "sense": "positive_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 4,
+      "refused": 0,
+      "tphl_worst_ps": 2.179,
+      "tplh_worst_ps": 1.936,
+      "worst_ps": 2.179,
+      "mean_ps": 1.904,
+      "mean_transition_ps": 2.188,
+      "transitions_unavailable": 0,
+      "cell": "XNOR2X1",
+      "arcs_detail": {
+       "A when !B": {
+        "tphl_ps": 1.9370409032302325,
+        "tplh_ps": 1.935887197453552,
+        "fall_tr_ps": 2.4535943636292394,
+        "rise_tr_ps": 2.450655990788369,
+        "sense": "negative_unate"
+       },
+       "A when B": {
+        "tphl_ps": 2.0590236326528975,
+        "tplh_ps": 1.6330652473515055,
+        "fall_tr_ps": 2.4167565194836134,
+        "rise_tr_ps": 1.3554097648358545,
+        "sense": "positive_unate"
+       },
+       "B when !A": {
+        "tphl_ps": 2.0455463426002427,
+        "tplh_ps": 1.8519185584284517,
+        "fall_tr_ps": 2.6016685341195287,
+        "rise_tr_ps": 2.4452629228021596,
+        "sense": "negative_unate"
+       },
+       "B when A": {
+        "tphl_ps": 2.178908792616202,
+        "tplh_ps": 1.590781315727763,
+        "fall_tr_ps": 2.4227172200685967,
+        "rise_tr_ps": 1.3551641696327195,
+        "sense": "positive_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 95.4
+    },
+    "o21ai_0": {
+     "sky130": {
+      "arcs": 3,
+      "refused": 0,
+      "tphl_worst_ps": 116.436,
+      "tplh_worst_ps": 276.544,
+      "worst_ps": 276.544,
+      "mean_ps": 169.728,
+      "mean_transition_ps": 177.864,
+      "transitions_unavailable": 0,
+      "arcs_detail": {
+       "A1": {
+        "tphl_ps": 116.436,
+        "tplh_ps": 276.544,
+        "fall_tr_ps": 107.693,
+        "rise_tr_ps": 300.255,
+        "sense": "negative_unate"
+       },
+       "A2": {
+        "tphl_ps": 109.512,
+        "tplh_ps": 265.02500000000003,
+        "fall_tr_ps": 101.83999999999999,
+        "rise_tr_ps": 300.25600000000003,
+        "sense": "negative_unate"
+       },
+       "B1": {
+        "tphl_ps": 114.324,
+        "tplh_ps": 136.525,
+        "fall_tr_ps": 107.688,
+        "rise_tr_ps": 149.453,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "cnt": {
+      "arcs": 3,
+      "refused": 0,
+      "tphl_worst_ps": 2.047,
+      "tplh_worst_ps": 1.936,
+      "worst_ps": 2.047,
+      "mean_ps": 1.806,
+      "mean_transition_ps": 2.288,
+      "transitions_unavailable": 0,
+      "cell": "OAI21X1",
+      "arcs_detail": {
+       "A when !B*C": {
+        "tphl_ps": 1.9358257136796078,
+        "tplh_ps": 1.9356103164962044,
+        "fall_tr_ps": 2.450948286655456,
+        "rise_tr_ps": 2.4506559996515374,
+        "sense": "negative_unate"
+       },
+       "B when !A*C": {
+        "tphl_ps": 2.047084724318121,
+        "tplh_ps": 1.8516416686079356,
+        "fall_tr_ps": 2.6008993949670196,
+        "rise_tr_ps": 2.4452629316653285,
+        "sense": "negative_unate"
+       },
+       "C when A*!B": {
+        "tphl_ps": 1.831031181605502,
+        "tplh_ps": 1.236592847319729,
+        "fall_tr_ps": 2.446031730623131,
+        "rise_tr_ps": 1.3330664073553458,
+        "sense": "negative_unate"
+       }
+      }
+     },
+     "ratio_sky_over_cnt": 135.1
+    }
+   }
+  },
+  "sky130-liberty-point": {
+   "conditions": {
+    "voltage_v": 1.8,
+    "temperature_c": 25.0,
+    "load_ff": 14.6,
+    "input_slew_ps_20_80": 50.0,
+    "source": "sky130_fd_sc_hd__tt_025C_1v80.lib, bilinear at the lod-2 point"
+   },
+   "cells": {
+    "inv_1": {
+     "arcs": 1,
+     "refused": 0,
+     "tphl_worst_ps": 77.221,
+     "tplh_worst_ps": 117.938,
+     "worst_ps": 117.938,
+     "mean_ps": 97.58,
+     "mean_transition_ps": 99.817,
+     "transitions_unavailable": 0
+    },
+    "nand2_1": {
+     "arcs": 2,
+     "refused": 0,
+     "tphl_worst_ps": 110.289,
+     "tplh_worst_ps": 136.072,
+     "worst_ps": 136.072,
+     "mean_ps": 120.536,
+     "mean_transition_ps": 127.056,
+     "transitions_unavailable": 0
+    },
+    "nor2_1": {
+     "arcs": 2,
+     "refused": 0,
+     "tphl_worst_ps": 80.894,
+     "tplh_worst_ps": 244.034,
+     "worst_ps": 244.034,
+     "mean_ps": 157.498,
+     "mean_transition_ps": 173.477,
+     "transitions_unavailable": 0
+    },
+    "xor2_1": {
+     "arcs": 2,
+     "refused": 0,
+     "tphl_worst_ps": 118.295,
+     "tplh_worst_ps": 303.663,
+     "worst_ps": 303.663,
+     "mean_ps": 205.629,
+     "mean_transition_ps": 220.823,
+     "transitions_unavailable": 0
+    },
+    "xnor2_1": {
+     "arcs": 2,
+     "refused": 0,
+     "tphl_worst_ps": 185.962,
+     "tplh_worst_ps": 197.018,
+     "worst_ps": 197.018,
+     "mean_ps": 190.627,
+     "mean_transition_ps": 149.713,
+     "transitions_unavailable": 0
+    },
+    "o21ai_0": {
+     "arcs": 3,
+     "refused": 0,
+     "tphl_worst_ps": 189.9,
+     "tplh_worst_ps": 397.115,
+     "worst_ps": 397.115,
+     "mean_ps": 252.09,
+     "mean_transition_ps": 292.815,
+     "transitions_unavailable": 0
+    }
+   }
+  }
+ },
+ "area": {
+  "sky130_um2": {
+   "inv_1": 3.7536,
+   "nand2_1": 3.7536,
+   "nor2_1": 3.7536,
+   "xor2_1": 8.7584,
+   "xnor2_1": 8.7584,
+   "o21ai_0": 5.0048
+  },
+  "cnt_um2": null,
+  "cnt_refused": "no layout and no design rules exist for the aligned-CNT process in this instance (lod-3: CNT devices \u2192 layout is UNRESOLVED); an area from a \"layout model\" would be invented \u2014 refused, stated"
+ },
+ "cells": {},
+ "summary": {
+  "twins": 6,
+  "cnt_point_ratio_sky_over_cnt": {
+   "min": 16986.6,
+   "max": 81648.9,
+   "cells_measured": 6
+  },
+  "own_fo4_ratio_sky_over_cnt": {
+   "min": 57.7,
+   "max": 135.1,
+   "cells_measured": 6
+  },
+  "sky130_fo4_inverter_worst_ps": 100.978,
+  "cnt_fo4_inverter_worst_ps": 1.173,
+  "reading": "at the CNT point (0.6 V) the SKY130 hvt cells are in subthreshold and orders of magnitude slower \u2014 not the regime they were built for; at each library's own FO4 the ratio is the intrinsic comparison, with the CNT side intrinsic-grade (standin parasitics, no layout, no area) and the SKY130 side a schematic netlist of a fabricated process. Neither view is a ranking of technologies."
+ }
+}

@@ -56,6 +56,10 @@ LOD3_ARCS = [('inv_1', 'A→Y'), ('nand2_1', 'A→Y'), ('nand2_1', 'B→Y'), ('n
              ('lpflow_isobufsrc_1', 'A→X'), ('lpflow_isobufsrc_1', 'SLEEP→X')]
 
 
+#: lod-2c twin pairs (sky130 cell, CNT cell) — a LITERAL for the same reason as LOD3_ARCS; asserted equal to computelod's TWINS in its selftest
+LOD2C_TWINS = [('inv_1', 'INVX1'), ('nand2_1', 'NAND2X1'), ('nor2_1', 'NOR2X1'), ('xor2_1', 'XOR2X1'), ('xnor2_1', 'XNOR2X1'), ('o21ai_0', 'OAI21X1')]
+
+
 def _lod3_refs(prefix, kind, suffix=''):
     """The CharacterizationMapping refs of every arc for one flow: prefix 'lod3' (schematic) or 'lod3c' (extracted), kind tpHL|tpLH."""
     return ['CharacterizationMapping:%s: %s %s %s%s' % (prefix, cell, arc, kind, suffix) for cell, arc in LOD3_ARCS]
@@ -100,6 +104,17 @@ SEED_MATH_CLAIMS = [
        description='WITNESS (the parasitics verdict, half 2, restated for 21 arcs — lod-3d): WHERE the schematic netlist was already slower than the Liberty on the rise (schematic_delta_pct > 0: inv, nand2, nor2, isobufsrc SLEEP), extraction widens that gap; '
                    'where it was faster (xor2, xnor2, maj3, o21ai, isobufsrc A) extraction moves it toward and sometimes past the Liberty — so parasitics are the whole rise story on some cells and none of it on others; what remains is the vendor setup',
        provenance='seed (lod-3d)'),
+    # ---- lod-2c (2026-09-26): the two Liberties' twin cells — witnesses on the comparison rows, per pair (a conjunction of six
+    # inequalities over named rows), never a statement about "technologies": the CNT side is intrinsic-grade, the SKY130 side a
+    # schematic netlist; the rows say so in their notes.
+    _C(name='lod2c-cnt-twin-faster-at-own-fo4', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod2c: cnt %s FO4' % c for _, c in LOD2C_TWINS] + ['CharacterizationMapping:lod2c: sky130 %s FO4' % s_ for s_, _ in LOD2C_TWINS]),
+       statement_json=json.dumps({'and': [{'lt': [{'ref': 'CharacterizationMapping:lod2c: cnt %s FO4' % c, 'path': ['result']}, {'ref': 'CharacterizationMapping:lod2c: sky130 %s FO4' % s_, 'path': ['result']}]} for s_, c in LOD2C_TWINS]}),
+       description='WITNESS on the lod-2c rows: at each library\'s OWN FO4 (its nominal Vdd, four of its own inverter inputs as load, its own FO4 slew) every CNT twin\'s worst arc is faster than the SKY130 twin\'s — six pairs. The CNT Liberty is intrinsic-grade (standin parasitics, no layout); the SKY130 number is a schematic netlist of a fabricated process; this is what the rows say, not a ranking of technologies',
+       provenance='seed (lod-2c)'),
+    _C(name='lod2c-sky130-twin-slower-at-the-cnt-point', kind='inequality', about_refs_json=json.dumps(['CharacterizationMapping:lod2c: sky130 %s @cnt-point' % s_ for s_, _ in LOD2C_TWINS] + ['CharacterizationMapping:lod2c: cnt %s @cnt-point' % c for _, c in LOD2C_TWINS]),
+       statement_json=json.dumps({'and': [{'gt': [{'ref': 'CharacterizationMapping:lod2c: sky130 %s @cnt-point' % s_, 'path': ['result']}, {'mul': [{'ref': 'CharacterizationMapping:lod2c: cnt %s @cnt-point' % c, 'path': ['result']}, 1000]}]} for s_, c in LOD2C_TWINS]}),
+       description='WITNESS on the lod-2c rows: at the CNT library\'s own point (0.6 V, 41.65 aF, 1.02 ps) every SKY130 twin is more than a thousand times slower than the CNT twin — the hvt p devices (Vt 0.64 V, lod-4c) are in subthreshold at 0.6 V; the statement is about that regime, not about the libraries at their own voltages',
+       provenance='seed (lod-2c)'),
     # ---- pf-1: the tt-3 kernel's fixed-point contract, DECIDED (z3): the bounds are read from the rows that state them
     _C(name='fpga-nano-strain-fits-int32', kind='bound', about_refs_json=json.dumps(['ComputeImplementation:stress-from-strain/fpga-stress-mac', 'TensorMapping:eps→sigma']),
        statement_json=json.dumps({'forall': [{'var': 'x', 'in': 'validity:eps→sigma'}],
