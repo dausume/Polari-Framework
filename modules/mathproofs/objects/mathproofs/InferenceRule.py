@@ -13,6 +13,10 @@ class InferenceRule(treeObject):
     decomposition-reconstructs, operator-linear, operator-symmetry. A rule names the checker that discharges it; its
     knobs live in `params_json` (a policy a person edits — the decomposition bound is one), read by the template by ref."""
 
+    plain_words = ('An inference rule is a piece of logic written as data: whenever the tree has a certain shape (for example '
+                   'two mappings in a chain), the rule says what must be true for that shape to be sound, and generates the '
+                   'claim to check.')
+
     @treeObjectInit
     def __init__(
         self,

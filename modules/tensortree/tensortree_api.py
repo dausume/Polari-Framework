@@ -81,8 +81,14 @@ class TensorTreeAPI(treeObject):
             item = dict(n)
             if n['kind'] == 'node':
                 v = rep['nodes'].get(n['id'], {})
+                try:
+                    gp = _json.loads(getattr(row, 'global_params_json', '{}') or '{}')
+                except Exception:
+                    gp = {}
                 item.update({'status': v.get('status', 'unresolved'), 'why': v.get('why', ''), 'tensor': str(getattr(row, 'tensor', '') or ''), 'binding_ref': str(getattr(row, 'binding_ref', '') or ''),
-                             'dims': dims.get(n['id'], []), 'incoherent': v.get('incoherent', {}), 'notes': str(getattr(row, 'notes', '') or '')})
+                             'dims': dims.get(n['id'], []), 'incoherent': v.get('incoherent', {}), 'notes': str(getattr(row, 'notes', '') or ''),
+                             # bp-2a: the sim space this node's binding renders in — the page scopes its ONE viewer to the tree's space
+                             'sim_space': str((gp or {}).get('sim_space', '') or '')})
             else:
                 item.update({'why': 'unresolved (%s)' % n.get('unresolved_kind', ''), 'known_dims': _json.loads(getattr(row, 'known_dims_json', '[]') or '[]'),
                              'open_questions': _json.loads(getattr(row, 'open_questions_json', '[]') or '[]'), 'candidates': _json.loads(getattr(row, 'candidate_bindings_json', '[]') or '[]') + _json.loads(getattr(row, 'candidate_mappings_json', '[]') or '[]'),

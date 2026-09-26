@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorMapping(treeObject):
     """THE RELATIONSHIP between two tensor spaces (plan §14, §F2): one class, `kind` says which. It names the dims it operates on at both ends and carries validity, loss, uncertainty, TWO statuses and evidence. kind=scale over material scales is a PSPP ScaleTransferDefinition by reference; kind=scale|coupling is also a SimulationCouplingDefinition so the existing runner executes it."""
 
+    plain_words = ('A mapping is a step from one view to another: a slice, a projection, an average, a change of scale, or a '
+                   'physical law such as stress from strain. Each mapping says where it is valid, what information it loses, '
+                   'how well it has been checked, and what evidence backs it.')
+
     @treeObjectInit
     def __init__(
         self,

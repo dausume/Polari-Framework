@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class LocalizedDimension(treeObject):
     """ONE DIMENSION AS A NODE SEES IT: a range of a tensor axis and the visual channel it is bound to (plan §12, §F4). The channel vocabulary: position.x, position.y, position.z, color, opacity, size, shape, orientation, vector, label, time — with the scale INSIDE the channel config."""
 
+    plain_words = ('A localized dimension is one axis of the data as it appears in one particular view (for example the x '
+                   'position of the plate), together with the visual channel it is shown through and the range of values it '
+                   'covers there.')
+
     @treeObjectInit
     def __init__(
         self,

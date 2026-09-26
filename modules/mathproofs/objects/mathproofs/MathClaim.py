@@ -13,6 +13,11 @@ class MathClaim(treeObject):
     called a proof); a refuted claim keeps its counterexample and never deletes the row it speaks of. Proofs never
     change a mapping's `mapping_status` / `evidence_level` (D-pf-8)."""
 
+    plain_words = ('A claim is one precise mathematical statement about the rows in this system, for example that a mapping '
+                   'keeps a symmetry, or that one region lies inside another. Its status says how strongly it has been '
+                   'checked, from a single numeric example all the way to a machine-checked proof, and a claim that turns out '
+                   'false keeps the example that broke it.')
+
     @treeObjectInit
     def __init__(
         self,

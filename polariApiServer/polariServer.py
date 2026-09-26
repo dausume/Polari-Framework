@@ -12,6 +12,7 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import os
 from polariNetworking.defineLocalSys import *
 from objectTreeDecorators import *
 from polariApiServer.dataStreams import *
@@ -75,6 +76,7 @@ from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
 from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
 from polariApiServer.objectStorageAPI import ObjectStorageAPI
+from polariApiServer.plainWordsAPI import PlainWordsAPI
 from polariApiServer.wsStatusAPI import WsStatusAPI
 from polariApiServer.authMeAPI import AuthMeAPI, AuthJwksHealthAPI
 from polariApiServer.roleAPI import RoleAPI
@@ -658,6 +660,9 @@ class polariServer(treeObject):
 
         # Create Object Storage endpoint for MinIO connection management
         objectStorageEndpoint = ObjectStorageAPI(polServer=self, manager=self.manager)
+
+        # bp-2d: GET /api/plain?classes=… — each object kind explained for a non-expert (plain_words on the class)
+        plainWordsEndpoint = PlainWordsAPI(polServer=self, manager=self.manager)
 
         # Create Solution Code Generator endpoint for backend code generation
         solutionCodeGenEndpoint = SolutionCodeGeneratorAPI(polServer=self, manager=self.manager)
@@ -1293,8 +1298,8 @@ class polariServer(treeObject):
             Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation, TensorDecomposition, FEMFieldState,
             TensorTreeDefinition, TensorNode, UnresolvedTensorSpace, LocalizedDimension, TensorMapping, TensorSelection,
             TensorDiscoveryPolicy,
-            # pf-0: proofs as rows
-            MathClaim, ProofRun, InferenceRule, ProofObligation,
+            # pf-0: proofs as rows; bp-2e: the cited sources behind the proof methods
+            MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference,
             ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
@@ -3327,6 +3332,23 @@ class polariServer(treeObject):
                             print(f'[SeedSimSpace3D] Upgraded legacy demo-3d to showcase layout', flush=True)
                         except Exception:
                             pass
+                    # bp-2 (2026-09-25): a module's PAGE is code-owned configuration — when its seed changed, the
+                    # stored copy follows (definition / description), else a page redesign never reaches an
+                    # instance whose DB already holds the old one (seen live: the scoped tensortree page was
+                    # invisible behind the first seed). POLARI_SEED_PAGES_UPSERT=no keeps the old behaviour.
+                    if (class_name == 'DisplayDefinition' and seed.get('isPage')
+                            and os.environ.get('POLARI_SEED_PAGES_UPSERT', 'yes').strip().lower() not in ('no', '0', 'false', 'off')):
+                        changed = [k for k in ('definition', 'description', 'source_class', 'pageRoute')
+                                   if k in seed and str(getattr(row, k, '') or '') != str(seed[k] or '')]
+                        if changed:
+                            for k in changed:
+                                setattr(row, k, seed[k])
+                            try:
+                                self.manager.db.saveInstanceInDB(row)
+                                print(f'[SeedSimSpace3D] Updated page {name!r} from its seed ({", ".join(changed)} changed)', flush=True)
+                            except Exception as e:
+                                print(f'[SeedSimSpace3D] Could not update page {name!r}: {e}', flush=True)
+                            continue
                     print(f'[SeedSimSpace3D] {class_name} "{name}" exists; skipping create', flush=True)
                     continue
                 try:

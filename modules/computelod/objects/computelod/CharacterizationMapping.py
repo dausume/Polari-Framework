@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class CharacterizationMapping(treeObject):
     """UPWARD: what does this implementation produce (plan §6, §F2). NOT the inverse of a ComputeMapping. A characteristic without its CONDITIONS (voltage, temperature, load, corner) is misleading, so a non-theoretical row without them is refused. OpenSTA/ngspice results are `simulated`; `measured` is fabricated hardware."""
 
+    plain_words = ('A characterization mapping records a measurement of one level against another, for example the delay of a '
+                   'logic cell as our transistor simulation predicts it versus the number the foundry publishes, so that the '
+                   'two can be compared honestly.')
+
     @treeObjectInit
     def __init__(
         self,

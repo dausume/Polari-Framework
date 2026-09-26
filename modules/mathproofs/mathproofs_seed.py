@@ -11,7 +11,8 @@ at boot (custom/boot.py) and on `POST /api/mathproofs/trees/{name}/obligations` 
 """
 import json
 
-from mathproofs.mathproofs_basis import MathClaim, ProofRun, InferenceRule, ProofObligation
+from mathproofs.mathproofs_basis import MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference
+from mathproofs.custom.sources import SEED_PROOF_METHOD_REFERENCES
 
 _R = lambda **k: dict({'description': '', 'enabled': True, 'params_json': '{}', 'notes': ''}, **k)
 SEED_INFERENCE_RULES = [
@@ -110,6 +111,8 @@ MATHPROOFS_SEED_PAIRS = [
     ('MathClaim', MathClaim, SEED_MATH_CLAIMS),
     ('ProofRun', ProofRun, []),
     ('ProofObligation', ProofObligation, []),
+    # bp-2e: the published sources behind each tier / vocabulary word (verified per row)
+    ('ProofMethodReference', ProofMethodReference, SEED_PROOF_METHOD_REFERENCES),
 ]
 # pf-4: proofs as KNOWLEDGE — the `tensor-proofs` tech tree (techtree rows; seeded only when techtree is present, as computelod does)
 from mathproofs.custom.knowledge import SEED_PROOF_TECH_TREES, SEED_PROOF_TECH_NODES, SEED_PROOF_TECH_SEGMENTS  # noqa: E402

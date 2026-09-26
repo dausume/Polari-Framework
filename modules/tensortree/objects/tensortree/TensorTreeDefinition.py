@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorTreeDefinition(treeObject):
     """ONE ROOTED VIEW over a tensor (plan §11): exactly one root; a tensor may have MANY trees (spatial, scale, modal, decomposition, operator — plan §F6.4); a tree may be arbitrarily incomplete and is useful before it is finished."""
 
+    plain_words = ('A tensor tree is a way of organizing one big block of numbers (a tensor, like a wind field over space or '
+                   'the stress inside a metal plate) into a family tree of views, each one showing a part or a summary of the '
+                   'whole. The tree says which view came from which, so nothing is shown without saying where it came from.')
+
     @treeObjectInit
     def __init__(
         self,

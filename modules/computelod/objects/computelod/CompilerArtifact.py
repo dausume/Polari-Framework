@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class CompilerArtifact(treeObject):
     """AN ARTIFACT OF ONE COMPILER (plan §F5): AST, IR, assembly, object. LLVM IR is not a rung — it belongs to a compiler implementation; the canonical path stays C → Compiler → ISA."""
 
+    plain_words = ('A compiler artifact is one file a compiler produced on the way down the ladder: the source, the assembly, '
+                   'the object code. Intermediate representations are artifacts of one compiler, not rungs of the ladder.')
+
     @treeObjectInit
     def __init__(
         self,

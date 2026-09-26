@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorDecomposition(treeObject):
     """A DECOMPOSITION RESULT (plan §17 D): T ≈ Σ_r A_ir B_jr C_kr and the like, with the information it lost — `reconstruction_error` = ‖T − T̂‖ / ‖T‖ (plan §F6.3)."""
 
+    plain_words = ('A decomposition breaks a tensor into simpler parts (for example a spectrum), and must state how much of '
+                   'the original is lost when it is rebuilt from the parts.')
+
     @treeObjectInit
     def __init__(
         self,

@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorNode(treeObject):
     """A LOCALLY COHERENT, VISUALIZABLE TENSOR SPACE (plan §12). Validity is LOCAL: every LocalizedDimension of this node has a coherent channel in `binding_ref` (a SimSpaceBindingDefinition); an unresolved child never invalidates it (plan §F6.1)."""
 
+    plain_words = ('A node is one view in the tree that we fully understand: every dimension of the data (position, time, a '
+                   'component) is tied to something you can see on screen, such as a position, a colour or an arrow. Its '
+                   'status (resolved or not) is set by an automatic check, not by hand.')
+
     @treeObjectInit
     def __init__(
         self,

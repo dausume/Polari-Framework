@@ -12,6 +12,9 @@ class ProofObligation(treeObject):
     Discovery REFUSES a candidate whose obligation is refuted (with the counterexample) and SHOWS an open one
     (D-pf-3)."""
 
+    plain_words = ('An obligation is one thing a rule demanded of one particular tree, and where it stands right now: still '
+                   'open, checked to some level, proved, or refuted. It points at the claim that discharges it.')
+
     @treeObjectInit
     def __init__(
         self,

@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class ComputeKind(treeObject):
     """A SPECIALIZATION WITHIN A RUNG (plan §F1): a kind never creates a rung — tensor-array is a microarchitecture kind, not a level. Seeded as rows so a new kind is data."""
 
+    plain_words = ('A kind is a variety within a rung, such as a particular processor family or a particular logic cell '
+                   'library. It refines a rung; it never adds a new one.')
+
     @treeObjectInit
     def __init__(
         self,

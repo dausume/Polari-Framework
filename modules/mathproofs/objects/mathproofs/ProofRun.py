@@ -11,6 +11,10 @@ class ProofRun(treeObject):
     hash of the rows' state it ran against — a changed row makes the run STALE, never silently still proved.
     A budget timeout is `undecided (budget)`, never `refuted` (D-pf-9)."""
 
+    plain_words = ('A proof run is one attempt to check one claim with one checker: which tool ran, which version, what it '
+                   'concluded, how long it took, and a fingerprint of the data it looked at, so the result is known to be '
+                   'stale the moment that data changes.')
+
     @treeObjectInit
     def __init__(
         self,

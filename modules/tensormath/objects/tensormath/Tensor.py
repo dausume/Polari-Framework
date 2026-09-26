@@ -14,6 +14,10 @@ class Tensor(treeObject):
     state (the FEM stress tensors, the meso gyration tensor, a sim state field), `claim` = PropertyClaim.value_json.
     No element-count threshold (D2): storage follows representation and persistence need."""
 
+    plain_words = ('A tensor here is a block of numbers with any number of axes, described by reference: the numbers '
+                   'themselves stay wherever they already live (a matrix row, a dataset, a simulation state) and this row '
+                   'just says what they are and how they are laid out.')
+
     @treeObjectInit
     def __init__(
         self,

@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class UnresolvedTensorSpace(treeObject):
     """WHAT IS NOT YET UNDERSTOOD, kept with everything that IS known (plan §13). Allowed anywhere: under the root, under a node, and BETWEEN two resolved nodes. `unresolved_kind` says which research task it is (plan §F6.2)."""
 
+    plain_words = ('An unresolved space is a view we know should exist but do not yet understand well enough to draw. It '
+                   'stays in the tree on purpose, labelled with the kind of work that would resolve it, so what is unknown '
+                   'sits next to what is known.')
+
     @treeObjectInit
     def __init__(
         self,

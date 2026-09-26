@@ -45,6 +45,7 @@
    "objects/mathproofs/InferenceRule",
    "objects/mathproofs/MathClaim",
    "objects/mathproofs/ProofObligation",
+   "objects/mathproofs/ProofMethodReference",
    "objects/mathproofs/ProofRun"
   ],
   "basis": [
@@ -85,6 +86,7 @@
   "MathClaim",
   "MathProofsAPI",
   "ProofObligation",
+  "ProofMethodReference",
   "ProofRun"
  ],
  "imports": [
@@ -95,6 +97,7 @@
     "ProofRun",
     "InferenceRule",
     "ProofObligation",
+    "ProofMethodReference",
     "MATHPROOFS_CLASSES"
    ]
   ],

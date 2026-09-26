@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorDimension(treeObject):
     """ONE NAMED AXIS of a tensor, as a row — so a mapping or a selection can address it by name. The inline form is Tensor.dimensions_json; a row exists when the axis must be referenced."""
 
+    plain_words = ('A dimension is one axis of a tensor, with a name, a meaning (space, time, a channel) and a unit, so that '
+                   'two tensors can be compared axis by axis rather than by position.')
+
     @treeObjectInit
     def __init__(
         self,

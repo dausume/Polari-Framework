@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class ComputeMapping(treeObject):
     """DOWNWARD: how is this implemented (plan §5, §F2). One-to-one, one-to-many, many-to-one, approximate, alternative, unresolved or partial; adjacent rungs are not required (a tensor operation may map straight to an FPGA kernel). Two statuses: what the mapping is, and what evidence it has."""
 
+    plain_words = ('A mapping between rungs says how something at one level is realised at the next level down (or summarised '
+                   'at the next level up), and carries the evidence for that link and how far it has been checked.')
+
     @treeObjectInit
     def __init__(
         self,

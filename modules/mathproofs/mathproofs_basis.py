@@ -12,9 +12,10 @@ from mathproofs.objects.mathproofs.MathClaim import MathClaim  # noqa: F401
 from mathproofs.objects.mathproofs.ProofRun import ProofRun  # noqa: F401
 from mathproofs.objects.mathproofs.InferenceRule import InferenceRule  # noqa: F401
 from mathproofs.objects.mathproofs.ProofObligation import ProofObligation  # noqa: F401
+from mathproofs.objects.mathproofs.ProofMethodReference import ProofMethodReference  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
-MATHPROOFS_CLASSES = [MathClaim, ProofRun, InferenceRule, ProofObligation]
+MATHPROOFS_CLASSES = [MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference]
 PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'undetermined', 'unprovable-here')
 CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed')
 CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human')

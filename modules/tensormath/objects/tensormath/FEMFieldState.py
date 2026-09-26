@@ -17,6 +17,9 @@ class FEMFieldState(treeObject):
     material line E/ν came from, the assumption, the element count. Rewritten by `POST /api/tensormath/fem/
     {case}/materialise` (or at seed when the engine can solve the seed case)."""
 
+    plain_words = ('A field state is the result of one solved physics case written down per element or per node, for example '
+                   'the stress in each small triangle of a plate, together with where the material numbers came from.')
+
     @treeObjectInit
     def __init__(
         self,

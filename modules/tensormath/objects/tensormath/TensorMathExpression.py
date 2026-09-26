@@ -9,6 +9,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorMathExpression(treeObject):
     """A NAMED-DIMENSION TENSOR EXPRESSION (plan §9): contraction, product, outer, permute, slice, reshape, reduce, derivative, integral, or a free expression. Delegates to a MatrixEquationDefinition when the operands are rank ≤ 2 (`matrix_equation_ref`)."""
 
+    plain_words = ('An expression is a formula over tensors, such as a norm, a slice, an average or a contraction, kept as '
+                   'data with its mathematical notation, so that the same formula can be checked, displayed and computed in '
+                   'more than one way.')
+
     @treeObjectInit
     def __init__(
         self,

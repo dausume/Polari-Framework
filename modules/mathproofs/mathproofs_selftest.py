@@ -49,7 +49,7 @@ def _add(mgr, cls, **kw):
 _mk = lambda mgr: (lambda cls, **f: _add(mgr, cls.__name__, **f))
 
 # ---- rows + seeds
-check('the module registers exactly FOUR row classes', len(MATHPROOFS_CLASSES) == 4 and [c.__name__ for c in MATHPROOFS_CLASSES] == ['MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation'])
+check('the module registers exactly FIVE row classes (bp-2e added the cited sources)', len(MATHPROOFS_CLASSES) == 5 and [c.__name__ for c in MATHPROOFS_CLASSES] == ['MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation', 'ProofMethodReference'])
 c = MathClaim(name='x', kind='identity', statement_json='{}')
 check('MathClaim defaults: conjectured, no checker, evidence none, budget 25 s (D-pf-9, a knob; his 2026-09-25 number: the slowest honest instance took 19 s)', c.proof_status == 'conjectured' and c.checker == '' and c.evidence_level == 'none' and c.budget_s == 25.0)
 check('the seed pairs cover every class (+ the techtree rows of the knowledge tree when techtree is present); eight inference rules; fifteen standalone claims (5 pf-0 + 7 pf-1 + 3 theorems pf-2)', {c_.__name__ for c_ in MATHPROOFS_CLASSES} <= {p[0] for p in MATHPROOFS_SEED_PAIRS} and len(SEED_INFERENCE_RULES) == 8 and len(SEED_MATH_CLAIMS) == 15)
@@ -317,8 +317,8 @@ check('  …the compute rungs are joined by name: rtl rests on index notation + 
 # ---- manifest
 from moduleService.manifests import validate
 man = json.load(open(os.path.join(HERE, 'polari-app.json')))
-check('the manifest is valid, declares four classes + the API, requires sympy + z3 (libraries, in-process), and declares `lean` as an ENGINE (resolved through the engines ladder, never a device assumption)',
-      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 4 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'] and 'custom/authoring' in man['files']['custom'] and 'custom/knowledge' in man['files']['custom'])
+check('the manifest is valid, declares five classes + the API, requires sympy + z3 (libraries, in-process), and declares `lean` as an ENGINE (resolved through the engines ladder, never a device assumption)',
+      validate(man) == [] and len([c_ for c_ in man['classes'] if c_ != 'MathProofsAPI']) == 5 and man['requires']['libraries'] == ['sympy', 'z3'] and man['requires']['engines'][0]['name'] == 'lean' and 'custom/z3tier' in man['files']['custom'] and 'custom/boot' in man['files']['custom'] and 'custom/lean_tier' in man['files']['custom'] and 'custom/proof_engines' in man['files']['custom'] and 'custom/authoring' in man['files']['custom'] and 'custom/knowledge' in man['files']['custom'])
 
 n_ok = sum(1 for _, ok in _results if ok)
 print('\n%d/%d checks passed' % (n_ok, len(_results)))

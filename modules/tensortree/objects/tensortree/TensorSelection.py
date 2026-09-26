@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorSelection(treeObject):
     """A CLICK THAT IS A MATHEMATICAL OBJECT (plan §15): a region of a node, per dimension. VISUALIZE → SELECT → DISCOVER → MAP → VISUALIZE."""
 
+    plain_words = ('A selection is a click made durable: the region of a view a person picked, written down as ranges of its '
+                   'dimensions so that it can be reasoned about, mapped elsewhere, or turned into a claim to check.')
+
     @treeObjectInit
     def __init__(
         self,

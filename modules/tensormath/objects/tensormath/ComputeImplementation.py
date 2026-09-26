@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class ComputeImplementation(treeObject):
     """ONE WAY a TensorOperator runs (plan §18, §F8): the target rung + kind of the ComputeLOD ladder, the precision and shapes it supports, and its measured/simulated cost — every number from a REAL run or a cited model (derive-or-cite), with `evidence_level` saying which."""
 
+    plain_words = ('An implementation is one concrete way of computing an operator on one rung of the compute ladder, with '
+                   'measured or cited numbers for its speed, precision and memory, never invented ones.')
+
     @treeObjectInit
     def __init__(
         self,

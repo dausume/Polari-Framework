@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorOperator(treeObject):
     """A MATHEMATICAL OPERATION with a meaning, independent of how it is computed (plan §18): σ_ij = C_ijkl ε_kl is one operator; its ComputeImplementation rows say how it runs on numpy, an FPGA kernel, a future ASIC."""
 
+    plain_words = ('An operator is the meaning of a computation, independent of how it is carried out: stress from strain is '
+                   'an operator whether it runs on a laptop, a chip design or a piece of silicon.')
+
     @treeObjectInit
     def __init__(
         self,

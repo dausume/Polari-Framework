@@ -9,6 +9,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class TensorDiscoveryPolicy(treeObject):
     """THE SCORE IS CONFIGURATION, not a scientific constant (plan §F3): weights and the evidence map of the ranking a selection's candidate mappings get AFTER the hard filters (dims ⊆ selection, units, validity domain). Invalid mappings are never rescued by a score."""
 
+    plain_words = ('The discovery policy is the set of weights used when the system suggests which mappings might apply to a '
+                   'selection. The weights are settings a person can change, not hidden judgement.')
+
     @treeObjectInit
     def __init__(
         self,

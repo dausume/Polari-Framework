@@ -1280,7 +1280,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     # pf-0 (plan §I): proofs as rows — claims, runs, inference rules, obligations
     ('mathproofs', (
-        ('mathproofs.mathproofs_basis', ('MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation', 'MATHPROOFS_CLASSES')),
+        ('mathproofs.mathproofs_basis', ('MathClaim', 'ProofRun', 'InferenceRule', 'ProofObligation', 'ProofMethodReference', 'MATHPROOFS_CLASSES')),
         ('mathproofs.mathproofs_seed', ('MATHPROOFS_SEED_PAIRS',)),
         ('mathproofs.mathproofs_page', ('SEED_MATHPROOFS_PAGE_DISPLAYS',)),
     )),
