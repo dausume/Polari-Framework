@@ -30,6 +30,40 @@
   "note": "the CNT branch cannot take the layout \u2192 fabrication rung (no layout, lod-3); its process rows exist in cntfet (cnt_process_basis) \u2014 the gap is layout, not process"
  },
  "decisions": {
-  "D-lod4-1": "does SKY130 (an open PDK with a real foundry and past open MPW shuttles) qualify as MANUFACTURABLE under the sifet ladder rule? Left None until ruled."
+  "D-lod4-1": "RULED 2026-09-26 (his): a third category \u2014 manufacturability = proven-on-request (historically fabricated under the open PDK; a third party might take a request); manufacturable (open today) stays None."
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "label": "SKY130 PDK docs",
+    "url": "https://skywater-pdk.readthedocs.io/en/main/"
+   },
+   {
+    "label": "PDK repo",
+    "url": "https://github.com/google/skywater-pdk"
+   }
+  ],
+  "tools": {
+   "images": {}
+  },
+  "knobs": {
+   "manufacturability": "proven-on-request"
+  },
+  "conditions": {
+   "reading": "the process node in sifet's ladder shape; materials by reference"
+  },
+  "generated_files": [],
+  "seeds": {
+   "deterministic": true,
+   "why": "a reading, nothing computed"
+  },
+  "recorded_at": "2026-09-26T12:52:01",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod4_process run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

@@ -132,7 +132,7 @@
    },
    "spef": {
     "nets": 306,
-    "sha256": "bef210312a9c97cca94fc366d1cefe267c7698da6248bbf17ff00d4f889f141f",
+    "sha256": "429ecea688153d84c590859a739ab2ffe6cf4de16516155ff8b1fbbaf910e907",
     "units": "1 PF"
    },
    "timing": {
@@ -262,7 +262,7 @@
    },
    "spef": {
     "nets": 177,
-    "sha256": "9ee486c7f86ed1a9c257b4d67b820a832a8a2d4e0453996a3361f3f314b1c4c4",
+    "sha256": "3b015f891c3bd9eba57e8a6ad81f38b95f5e84b787be69029ace538e6b76f317",
     "units": "1 PF"
    },
    "timing": {
@@ -340,5 +340,125 @@
    }
   },
   "reading": "the layout rung entered for the WHOLE adder: routed, DRC-clean by the router's own count, its parasitics extracted and timed under lod-2's conditions; what the flow changed on the way (sizing, buffers) is counted, not hidden \u2014 the wire cost is the one subtraction that holds the netlist fixed"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "file": "computelod/initialData/lod2/rv32_add_sky130.v",
+    "sha256": "d2cbc495fa5d56e64680f839c996945fc6c110b54e341402d5c956d1c7f461f2",
+    "bytes": 10545,
+    "label": "lod-2's mapped netlist"
+   },
+   {
+    "file": "../../../../../.cache/polari-lod/sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+    "bytes": 12800135,
+    "label": "SKY130 HD Liberty (cached, cited; handed to the flow as LIB_FILES)"
+   }
+  ],
+  "tools": {
+   "sta": "3.1.0 [local-binary: /home/user/.local/bin/sta]",
+   "openroad": "unknown [local-image: openroad/orfs:26Q3-651-gbc334a4aa]",
+   "images": {}
+  },
+  "knobs": {
+   "as-flow": {
+    "CORE_UTILIZATION": "20",
+    "PLACE_DENSITY": "0.50",
+    "LEC_CHECK": "0"
+   },
+   "cells-kept": {
+    "CORE_UTILIZATION": "20",
+    "PLACE_DENSITY": "0.50",
+    "LEC_CHECK": "0",
+    "SKIP_CTS_REPAIR_TIMING": "1",
+    "SKIP_INCREMENTAL_REPAIR": "1",
+    "SKIP_LAST_GASP": "1",
+    "DONT_BUFFER_PORTS": "1",
+    "SKIP_GATE_CLONING": "1",
+    "SKIP_PIN_SWAP": "1",
+    "SKIP_BUFFER_REMOVAL": "1"
+   }
+  },
+  "conditions": {
+   "voltage_v": 1.8,
+   "temperature_c": 25.0,
+   "load_pf": 0.0146,
+   "input_slew_ns": 0.05,
+   "sdc": "virtual clock 10 ns, I/O delays 0 (constrains the I/O paths; no setup violation asked for)",
+   "baseline_lod2_ns": 11.9394,
+   "platform": "sky130hd",
+   "knob_notes": {
+    "CORE_UTILIZATION": "20 %: a first run at 40 % failed placement at 108 % utilization once the flow had buffered the ports and resized \u2014 the number is a knob, stated, not a result",
+    "LEC_CHECK": "off: the image's equivalence checker (kepler-formal) dies with an illegal instruction on this CPU; nothing else depends on it"
+   }
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod3/pnr/as-flow/config.mk",
+    "sha256": "78e1076fcfb379df1ca239d2fea124eedef1a112c3bac9277c43c96d0dd23797",
+    "bytes": 291
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/as-flow/constraint.sdc",
+    "sha256": "55b172c040022d0324f015f688a138838b09cdd5ec17aab0ee13d82d4cdeb599",
+    "bytes": 474
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/as-flow/6_final.v",
+    "sha256": "48497b120f9472a78a9ecfe3076e2bf52f21da0852891238402d02f17ca1aef0",
+    "bytes": 20956
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/as-flow/6_final.spef",
+    "sha256": "429ecea688153d84c590859a739ab2ffe6cf4de16516155ff8b1fbbaf910e907",
+    "bytes": 125300
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/as-flow/6_final.def",
+    "sha256": "9c4110f878a0e2187bf46d063f52927c91d3ecd8072ac48ee91887dc275b146f",
+    "bytes": 196587
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/cells-kept/config.mk",
+    "sha256": "36d57d737bbeca4693cb7c39bfcf0df8edd3feb0da930cd0d64b0fee42e15097",
+    "bytes": 500
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/cells-kept/constraint.sdc",
+    "sha256": "55b172c040022d0324f015f688a138838b09cdd5ec17aab0ee13d82d4cdeb599",
+    "bytes": 474
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/cells-kept/6_final.v",
+    "sha256": "efb4b3c3b861f7fd8cf36e83afeeaabc5bb3d4d8ceea2987913c233ea1e762f9",
+    "bytes": 10739
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/cells-kept/6_final.spef",
+    "sha256": "3b015f891c3bd9eba57e8a6ad81f38b95f5e84b787be69029ace538e6b76f317",
+    "bytes": 90889
+   },
+   {
+    "file": "computelod/initialData/lod3/pnr/cells-kept/6_final.def",
+    "sha256": "f9fc9c2a96f7e40b960fd5acd7e62d195a044c9cc0b74124f42b130024cf7341",
+    "bytes": 154667
+   }
+  ],
+  "seeds": {
+   "GPL_RANDOM_SEED": "flow default (unset: OpenROAD global_placement's built-in seed) \u2014 an ORFS knob, recorded not changed",
+   "GRT_SEED": "flow default (unset) \u2014 ORFS knob",
+   "OR_SEED": "flow default (unset) \u2014 ORFS knob (detailed routing)",
+   "note": "the flow exposes three seed knobs; this run used their defaults so the committed DEF/SPEF are what those defaults produce; set them in VARIANTS to perturb"
+  },
+  "recorded_at": "2026-09-26T12:53:25",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
+  "notes": "the ORFS image is pinned by tag + digest in `flow`; the LEF/GDS come from that image's platform copy (not hashed here \u2014 the digest pins them)"
  }
 }

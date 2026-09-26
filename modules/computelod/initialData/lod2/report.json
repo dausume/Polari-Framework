@@ -40,5 +40,73 @@
   "min_path": "reg_op2[0] \u2192 alu_out[0]",
   "unconstrained": true,
   "note": "combinational only: no clock \u2014 the worst arrival at any output from any input, under the conditions above"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "file": "computelod/initialData/lod1/rv32_add.v",
+    "sha256": "8aed27f091e24cca4a20570873f89ed79ecd848f7ec48077373f8b0e9b31cfb0",
+    "bytes": 444,
+    "label": "RTL (lod-1)"
+   },
+   {
+    "name": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "repo": "The-OpenROAD-Project/OpenROAD-flow-scripts",
+    "commit": "db8b985f89d456db29d39588443a025e7305a0a6",
+    "path": "flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "licence": "Apache-2.0 (SkyWater PDK)",
+    "corner": "tt_025C_1v80 = typical process, 25 \u00b0C, 1.8 V",
+    "url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/db8b985f89d456db29d39588443a025e7305a0a6/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9",
+    "bytes": 12800135,
+    "label": "SKY130 HD Liberty (cached, cited; never committed)"
+   }
+  ],
+  "tools": {
+   "yosys": "Yosys 0.33 (git sha1 2584903a060) [local-image: polari-eda-tools:noble]",
+   "sta": "3.1.0 [local-binary: /home/user/.local/bin/sta]",
+   "images": {}
+  },
+  "knobs": {
+   "yosys_script": "synth \u2192 dfflibmap \u2192 abc -liberty \u2192 opt_clean",
+   "sta_script": "sta.tcl"
+  },
+  "conditions": {
+   "process": "tt (nom_process 1.0)",
+   "temperature_c": 25.0,
+   "voltage_v": 1.8,
+   "load_pf": 0.0146,
+   "input_slew_ns": 0.05,
+   "load_note": "14.6 fF \u2248 4\u00d7 an inv_1 input (FO4-like); a stated assumption, not a measured board"
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod2/rv32_add_sky130.v",
+    "sha256": "d2cbc495fa5d56e64680f839c996945fc6c110b54e341402d5c956d1c7f461f2",
+    "bytes": 10545
+   },
+   {
+    "file": "computelod/initialData/lod2/sta.tcl",
+    "sha256": "4b775bce793d1326e3ae1e53cea7e2695e906ad124643009bbf226b5caa480af",
+    "bytes": 308
+   },
+   {
+    "file": "computelod/initialData/lod2/mapped_stat.json",
+    "sha256": "e2dd9d1cabe118ad19c552a3066923c73860c7dc2c08929e3c0b01662578fd9f",
+    "bytes": 1537
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "yosys/abc mapping and OpenSTA on fixed inputs \u2014 no random element (re-runs reproduce the netlist byte for byte)"
+  },
+  "recorded_at": "2026-09-26T12:52:20",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod2_silicon run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

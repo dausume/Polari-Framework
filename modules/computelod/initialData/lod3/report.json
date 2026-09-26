@@ -1216,5 +1216,101 @@
   "transistor-level simulation with sky130_fd_pr corner models (not run \u2014 the Liberty carries the PDK's own characterization)",
   "fabrication: the process rows behind sky130_fd_pr (next rung, partial)",
   "CNT layout (none exists)"
- ]
+ ],
+ "reproduction": {
+  "inputs": [
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d",
+    "label": "sky130_fd_sc_hd__xnor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8",
+    "label": "sky130_fd_sc_hd__maj3_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+    "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d",
+    "label": "sky130_fd_sc_hd__nand2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+    "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587",
+    "label": "sky130_fd_sc_hd__lpflow_isobufsrc_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+    "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b",
+    "label": "sky130_fd_sc_hd__nor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7",
+    "label": "sky130_fd_sc_hd__o21ai_0 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28",
+    "label": "sky130_fd_sc_hd__xor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.lef",
+    "sha256": "e96217a2feff03f1ced70e714101271735b00d3f5605069a1eae43bb0c29ac5b",
+    "label": "sky130_fd_sc_hd__xnor2_1 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.lef",
+    "sha256": "3d7d7e3ae63c666015e87be9fa2ac9928eeace45c63d751f04e5789bf7ffa734",
+    "label": "sky130_fd_sc_hd__maj3_1 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.lef",
+    "sha256": "f3b99f7946a7e667aa21041a989c0c7b46dfa25596f80b9cea56edfb60363e0e",
+    "label": "sky130_fd_sc_hd__nand2_1 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.lef",
+    "sha256": "e326722f039e63d2b5c15a2932d1d4f574a091a405a83dc8c07ccd1afd8e1f87",
+    "label": "sky130_fd_sc_hd__lpflow_isobufsrc_1 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.lef",
+    "sha256": "59469f3a3f60edc147d2d1f3df1b55d3e4b0cae63166dc16949be605ac9604c6",
+    "label": "sky130_fd_sc_hd__nor2_1 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.lef",
+    "sha256": "b1f5c973bbc96f313b886ac5431946dc97b6e52e69b8d300fec3835fc9ec6d7e",
+    "label": "sky130_fd_sc_hd__o21ai_0 .lef"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.lef",
+    "sha256": "f5ba40b454992c3255b77052d3f819844ec4f1b12882c86a9ae5df03479a25dd",
+    "label": "sky130_fd_sc_hd__xor2_1 .lef"
+   }
+  ],
+  "tools": {
+   "images": {}
+  },
+  "knobs": {
+   "cells_repo_commit": "ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1"
+  },
+  "conditions": {
+   "reading": "per-cell .spice (devices, W/L, scale 1e-6) and .lef SIZE, summed over the mapped instances"
+  },
+  "generated_files": [],
+  "seeds": {
+   "deterministic": true,
+   "why": "a reading of fixed files"
+  },
+  "recorded_at": "2026-09-26T12:52:01",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod3_cells run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
+ }
 }

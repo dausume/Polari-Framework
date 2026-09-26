@@ -189,6 +189,13 @@ def run(variants=None, work=None):
                       'reading': 'the layout rung entered for the WHOLE adder: routed, DRC-clean by the router\'s own count, its parasitics extracted and timed under lod-2\'s conditions; what the flow changed on the way (sizing, buffers) is counted, not hidden — '
                                  'the wire cost is the one subtraction that holds the netlist fixed'}
     os.makedirs(OUT, exist_ok=True)
+    from computelod.custom.repro import record, file_entry
+    gen = [file_entry(os.path.join(OUT, v, f)) for v in rep['variants'] for f in ('config.mk', 'constraint.sdc', '6_final.v', '6_final.spef', '6_final.def') if os.path.exists(os.path.join(OUT, v, f))]
+    rep['reproduction'] = record('computelod.custom.lod3_pnr', inputs=[("lod-2's mapped netlist", net_in), ('SKY130 HD Liberty (cached, cited; handed to the flow as LIB_FILES)', lib_path)], engines=['sta', 'openroad'],
+                                 knobs={v: e['knobs'] for v, e in rep['variants'].items()}, conditions=rep['conditions'], generated=gen,
+                                 seeds={'GPL_RANDOM_SEED': 'flow default (unset: OpenROAD global_placement\'s built-in seed) — an ORFS knob, recorded not changed', 'GRT_SEED': 'flow default (unset) — ORFS knob', 'OR_SEED': 'flow default (unset) — ORFS knob (detailed routing)',
+                                        'note': 'the flow exposes three seed knobs; this run used their defaults so the committed DEF/SPEF are what those defaults produce; set them in VARIANTS to perturb'},
+                                 notes='the ORFS image is pinned by tag + digest in `flow`; the LEF/GDS come from that image\'s platform copy (not hashed here — the digest pins them)')
     json.dump(rep, open(os.path.join(OUT, 'pnr_report.json'), 'w'), indent=1)
     return rep
 

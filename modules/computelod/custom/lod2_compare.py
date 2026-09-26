@@ -226,6 +226,11 @@ def run(cells=None, work=None):
                       'reading': 'at the CNT point (0.6 V) the SKY130 hvt cells are in subthreshold and orders of magnitude slower — not the regime they were built for; at each library\'s own FO4 the ratio is the intrinsic comparison, '
                                  'with the CNT side intrinsic-grade (standin parasitics, no layout, no area) and the SKY130 side a schematic netlist of a fabricated process. Neither view is a ranking of technologies.'}
     os.makedirs(OUT, exist_ok=True)
+    from computelod.custom.repro import record, keep_generated
+    rep['reproduction'] = record('computelod.custom.lod2_compare', inputs=[{'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': sky_sha}, ('OUR CNT Liberty (committed)', CNT_LIB)], engines=['ngspice'],
+                                 knobs={'twins': twins, 'cnt_point': CNT_POINT, 'slow_window': SLOW_WINDOW, 'fo4_start_slew_ps': FO4_START_SLEW_PS, 'fo4_iterations': 2}, conditions={'views': {k: v['conditions'] for k, v in rep['views'].items()}},
+                                 generated=keep_generated(work, os.path.join(OUT, 'decks', 'lod2c'), patterns=('*.sp',)),
+                                 deterministic='ngspice transient analysis on the committed decks (decks/lod2c) and bilinear reads of the two Liberties — no random element')
     json.dump(rep, open(os.path.join(OUT, 'compare_report.json'), 'w'), indent=1)
     return rep
 

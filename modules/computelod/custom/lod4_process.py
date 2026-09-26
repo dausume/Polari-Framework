@@ -87,6 +87,9 @@ def run():
                    'note': 'the CNT branch cannot take the layout → fabrication rung (no layout, lod-3); its process rows exist in cntfet (cnt_process_basis) — the gap is layout, not process'},
            'decisions': {'D-lod4-1': 'RULED 2026-09-26 (his): a third category — manufacturability = proven-on-request (historically fabricated under the open PDK; a third party might take a request); manufacturable (open today) stays None.'}}
     os.makedirs(OUT, exist_ok=True)
+    from computelod.custom.repro import record
+    rep['reproduction'] = record('computelod.custom.lod4_process', inputs=[{'label': 'SKY130 PDK docs', 'url': PDK_DOCS}, {'label': 'PDK repo', 'url': PDK_REPO}], knobs={'manufacturability': SKY130_NODE['manufacturability']},
+                                 conditions={'reading': 'the process node in sifet\'s ladder shape; materials by reference'}, deterministic='a reading, nothing computed')
     json.dump(rep, open(os.path.join(OUT, 'report.json'), 'w'), indent=1)
     return rep
 

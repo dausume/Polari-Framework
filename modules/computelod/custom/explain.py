@@ -106,6 +106,8 @@ def explain_characterization(manager, row):
     else:
         steps.append('# no flow is registered for the prefix %r — the evidence field names the report it was read from' % name.split(':')[0])
     steps.append('# the same reading through the API: GET /api/computelod/walk/%s/%s' % (quote(src_rung), quote(src)))
+    if flow:
+        steps.append('# INITIAL CONDITIONS: the report\'s `reproduction` block lists every input by sha256, the tool versions / image digests, the knobs, the generated decks (initialData/…/decks) and the seeds (or why there are none)')
     sentence = ('At the %s rung, %s was measured for %s (%s) with %s; the answer is %s. That number characterizes %s at the %s rung.'
                 % (src_rung, src, ch.replace('_', ' '), ch_words, method, result or 'not recorded', tgt or 'its target', tgt_rung))
     done = ('%s. Conditions the number depends on: %s.' % (flow[1][0].upper() + flow[1][1:] if flow else 'The flow that produced this row is not registered by prefix',

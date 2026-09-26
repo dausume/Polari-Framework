@@ -417,5 +417,94 @@
   "nfet_ion_ua_per_um": 502.5,
   "pfet_hvt_ion_ua_per_um": 148.3,
   "reading": "the sky130 tt models at 1.8 V give the n device roughly half the FreePDK45 documented on-current at 1.0 V/45 nm while leaking three to four orders of magnitude less \u2014 a 130 nm low-leakage process, read from its own models, not from a datasheet"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__mismatch.corner.spice",
+    "sha256": "24a3b29d7d7f26f99098811c31eb5497950a3aed520ab83768a96f35467fe818",
+    "bytes": 962,
+    "label": "sky130_fd_pr__nfet_01v8__mismatch.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.corner.spice",
+    "sha256": "0c03b2e5727c414942f1d2b27e19a68724fb84be90b2c73b361ad41779311130",
+    "bytes": 66384,
+    "label": "sky130_fd_pr__nfet_01v8__tt.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.pm3.spice",
+    "sha256": "3d706d50cf2e57175aea78bcf27e4ee07d9f750b154a4b06e6090531364a831b",
+    "bytes": 1109307,
+    "label": "sky130_fd_pr__nfet_01v8__tt.pm3.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice",
+    "sha256": "05e258ab6724c8276cc058f6dba732e8024c5f0bb79ff3131ca219143491d631",
+    "bytes": 1039,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice",
+    "sha256": "69401f9b657f9ebb20d201d39e3fbf36b68628307d6fa982168fa51db3e77b03",
+    "bytes": 88134,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice",
+    "sha256": "f575eef5caea7f9638fa7e1b0078aedcf6d8513f5499b5bb79399186557881f2",
+    "bytes": 1314282,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice"
+   }
+  ],
+  "tools": {
+   "ngspice": "ngspice-46 : Circuit level simulation program Copyright 2001-2025, The ngspice team. Please get your ngspice manual from",
+   "images": {}
+  },
+  "knobs": {
+   "devices": [
+    "nfet_01v8",
+    "pfet_01v8_hvt"
+   ],
+   "w_um": 1.0,
+   "l_um": 0.15,
+   "vt_criterion": "constant current, Id = 100 nA \u00d7 W(\u00b5m) (sifet metric_spec)"
+  },
+  "conditions": {
+   "corner": "tt",
+   "temperature_c": 25.0,
+   "vdd_v": 1.8,
+   "w_um": 1.0,
+   "l_um": 0.15,
+   "vds_linear_v": 0.05,
+   "vt_criterion": "constant current, Id = 100 nA \u00d7 W(\u00b5m) (sifet metric_spec)",
+   "sweep": "Vgs 0 \u2192 Vdd in 10 mV steps, DC",
+   "mismatch": "nominal (mismatch.corner included, no Monte Carlo)",
+   "netlist": "one device, the PDK subckt (sky130_fd_pr__<flavour>), no parasitics"
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod4/decks/lod4c/nfet_01v8.sp",
+    "sha256": "af5b246bc0df3444158ce7ea032ca6f710bff7025e2abad8292887fa4632fad7",
+    "bytes": 516
+   },
+   {
+    "file": "computelod/initialData/lod4/decks/lod4c/pfet_01v8_hvt.sp",
+    "sha256": "7e0cf949b781dee5a9bc921881f1484126c83ab82e144974a2620da94f2ed09a",
+    "bytes": 538
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "ngspice DC sweeps on the committed decks (decks/lod4c) \u2014 no random element"
+  },
+  "recorded_at": "2026-09-26T12:52:20",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

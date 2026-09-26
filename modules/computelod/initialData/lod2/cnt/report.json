@@ -465,5 +465,109 @@
   "min_path": "reg_op1[0] \u2192 alu_out[0]",
   "unconstrained": true,
   "note": "combinational only, under the conditions above; the library is intrinsic-grade (standin parasitics, S1 model) \u2014 NOT signoff"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "file": "computelod/initialData/lod1/rv32_add.v",
+    "sha256": "8aed27f091e24cca4a20570873f89ed79ecd848f7ec48077373f8b0e9b31cfb0",
+    "bytes": 444,
+    "label": "RTL (lod-1)"
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/polari_cnt_lib.lib",
+    "sha256": "668b163c21c4cd8923da02a7f3842cf7cff02321eab7e17aaf9473807943b5d7",
+    "bytes": 110516,
+    "label": "OUR CNT Liberty (characterized here; committed)"
+   }
+  ],
+  "tools": {
+   "characterization": "polari-own-loop",
+   "osdi_model": "OpenVAF-compiled VS model (cntfet.custom.cnt_osdi)",
+   "yosys": "Yosys 0.33 (git sha1 2584903a060) [local-image: polari-eda-tools:noble]",
+   "sta": "3.1.0 [local-binary: /home/user/.local/bin/sta]",
+   "ngspice": "ngspice-46 : Circuit level simulation program Copyright 2001-2025, The ngspice team. Please get your ngspice manual from",
+   "images": {}
+  },
+  "knobs": {
+   "device": "cnt-aligned-s1",
+   "partner": "cnt-aligned-s1-p",
+   "vdd_v": 0.6,
+   "drives": [
+    1
+   ],
+   "cells": [
+    "cinv",
+    "cbuf",
+    "cnand2",
+    "cnor2",
+    "cnand3",
+    "cnor3",
+    "cxor2",
+    "cxnor2",
+    "caoi21",
+    "coai21",
+    "cha",
+    "cfa"
+   ],
+   "slew_grid_s": [
+    2.5443980761385686e-13,
+    1.0177592304554274e-12,
+    4.07103692182171e-12
+   ],
+   "load_grid_f": [
+    1.0413474531919955e-17,
+    2.082694906383991e-17,
+    4.165389812767982e-17
+   ]
+  },
+  "conditions": {
+   "process": "derived VS model (nom_process 1)",
+   "temperature_k": 300.0,
+   "voltage_v": 0.6,
+   "load_ff": 0.0417,
+   "input_slew_ps": 1.0178,
+   "load_note": "4\u00d7 a cinv input (the sweep's largest grid load \u2014 FO4-like); the slew is the grid's middle point; both inside the characterized grid, no extrapolation"
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod2/cnt/rv32_add_cnt.v",
+    "sha256": "2e50a9902237b35730f6ea4c95697fc50c1ddb6e8cd9b96bd2685c846d472391",
+    "bytes": 13295
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/sta.tcl",
+    "sha256": "14515bbcd8f9e0a3f955af02ad4afa1beae7797defdadce92fd2cf69d8a11750",
+    "bytes": 292
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/mapped_stat.json",
+    "sha256": "689b3213790aafaa571d81d3f03c2992be9705ee9a5778ef1c1aae4f5e6d1091",
+    "bytes": 1190
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/sta.log",
+    "sha256": "be9f862a412f6c2ec631c11e1909070fd2c16894e3487a7d6aaeb62721416476",
+    "bytes": 5279
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/map.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "the S5 characterization sweep is ngspice transient analysis on fixed decks (no Monte Carlo: CNTFETMonteCarloRun is a different row and was not used); yosys/abc/OpenSTA deterministic"
+  },
+  "recorded_at": "2026-09-26T12:53:26",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod2_cnt run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
+  "attached_after_the_fact": "the characterization ran 2026-09-24 (CellCharacterizationRun cnt-aligned-s1-lib-033504, derived device cnt-aligned-s1 at 2026-09-24T03:29:29); not re-run here \u2014 the Liberty it wrote is committed and hashed above"
  }
 }

@@ -86,5 +86,89 @@
    "0x7FFFFFFF+1 (sign)",
    "0xDEADBEEF+0x01234567"
   ]
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "file": "computelod/initialData/lod1/add.c",
+    "sha256": "fa053002cda6c8f1540daf5e942d210b12ac4508549af8da559a5d3396059e6a",
+    "bytes": 51,
+    "label": "C source"
+   },
+   {
+    "file": "computelod/custom/rtl/picorv32/picorv32.v",
+    "sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622",
+    "bytes": 94657,
+    "label": "PicoRV32 (vendored, pinned)"
+   },
+   {
+    "file": "computelod/initialData/lod1/rv32_add.v",
+    "sha256": "8aed27f091e24cca4a20570873f89ed79ecd848f7ec48077373f8b0e9b31cfb0",
+    "bytes": 444,
+    "label": "RTL rung"
+   },
+   {
+    "file": "computelod/initialData/lod1/tb_rv32_add.v",
+    "sha256": "9d8b7f422eec510fa9858716d4310634fd455b8a188d3770795baa083f6999e6",
+    "bytes": 534,
+    "label": "testbench"
+   }
+  ],
+  "tools": {
+   "as_run": [
+    "riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0",
+    "Yosys 0.33 (git sha1 2584903a060)",
+    "Icarus Verilog version 12.0 (stable) ()"
+   ],
+   "riscv-gcc": "riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0 [local-image: polari-eda-tools:noble]",
+   "yosys": "Yosys 0.33 (git sha1 2584903a060) [local-image: polari-eda-tools:noble]",
+   "iverilog": "Icarus Verilog version 12.0 (stable) () [local-image: polari-eda-tools:noble]",
+   "images": {}
+  },
+  "knobs": {
+   "gcc_flags": "-march=rv32i -mabi=ilp32 -O1",
+   "picorv32_pin": {
+    "upstream": "https://github.com/YosysHQ/picorv32",
+    "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+    "license": "ISC (COPYING \u2192 LICENSE)",
+    "fetched": "2026-09-23",
+    "files": "picorv32.v"
+   }
+  },
+  "conditions": {},
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod1/add.s",
+    "sha256": "b0e34579a28a4197df02af5118089b961681e54dfd8c9b4fdb840c7f03e036f6",
+    "bytes": 256
+   },
+   {
+    "file": "computelod/initialData/lod1/add.objdump",
+    "sha256": "57929ae89ee68d29c877bc8a920043c2740d440a794f4d2fa57a08a9fae9258b",
+    "bytes": 158
+   },
+   {
+    "file": "computelod/initialData/lod1/add_stat.json",
+    "sha256": "065da9ff402634127c070e05177fd0381b4c86064b65285a74eac24353dc6b20",
+    "bytes": 1218
+   },
+   {
+    "file": "computelod/initialData/lod1/core_stat.json",
+    "sha256": "9b6287ebbd2c383b2c16f4410f549329ad2e000a89128ab4654d89df2a55d0a7",
+    "bytes": 2000
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "gcc / yosys / iverilog on fixed sources \u2014 no random element"
+  },
+  "recorded_at": "2026-09-26T12:52:16",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod1_chain run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

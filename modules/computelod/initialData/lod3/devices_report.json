@@ -574,7 +574,7 @@
    },
    "compare": {
     "tphl_ps": {
-     "ours": 297.56,
+     "ours": 297.57,
      "liberty": 413.94,
      "delta_pct": -28.1
     },
@@ -852,9 +852,9 @@
    },
    "compare": {
     "tphl_ps": {
-     "ours": 70.02,
+     "ours": 70.03,
      "liberty": 79.26,
-     "delta_pct": -11.7
+     "delta_pct": -11.6
     },
     "tplh_ps": {
      "ours": 258.26,
@@ -895,5 +895,460 @@
    "lpflow_isobufsrc_1"
   ],
   "reading": "our schematic-netlist transient on the PDK models vs the foundry-characterized Liberty at the same slew/load: the gap is layout parasitics + the vendor setup, reported not tuned"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__mismatch.corner.spice",
+    "sha256": "24a3b29d7d7f26f99098811c31eb5497950a3aed520ab83768a96f35467fe818",
+    "bytes": 962,
+    "label": "sky130_fd_pr__nfet_01v8__mismatch.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.corner.spice",
+    "sha256": "0c03b2e5727c414942f1d2b27e19a68724fb84be90b2c73b361ad41779311130",
+    "bytes": 66384,
+    "label": "sky130_fd_pr__nfet_01v8__tt.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.pm3.spice",
+    "sha256": "3d706d50cf2e57175aea78bcf27e4ee07d9f750b154a4b06e6090531364a831b",
+    "bytes": 1109307,
+    "label": "sky130_fd_pr__nfet_01v8__tt.pm3.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice",
+    "sha256": "05e258ab6724c8276cc058f6dba732e8024c5f0bb79ff3131ca219143491d631",
+    "bytes": 1039,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__mismatch.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice",
+    "sha256": "69401f9b657f9ebb20d201d39e3fbf36b68628307d6fa982168fa51db3e77b03",
+    "bytes": 88134,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__tt.corner.spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_pr/f62031a1be9aefe902d6d54cddd6f59b57627436/cells/pfet_01v8_hvt/sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice",
+    "sha256": "f575eef5caea7f9638fa7e1b0078aedcf6d8513f5499b5bb79399186557881f2",
+    "bytes": 1314282,
+    "label": "sky130_fd_pr__pfet_01v8_hvt__tt.pm3.spice"
+   },
+   {
+    "label": "SKY130 HD Liberty (cached, cited)",
+    "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/inv/sky130_fd_sc_hd__inv_1.spice",
+    "sha256": "1099e3641c46d241852db47974540b3ad161e20e01b74f2fd5cc152627011909",
+    "label": "sky130_fd_sc_hd__inv_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+    "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d",
+    "label": "sky130_fd_sc_hd__nand2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nand2/sky130_fd_sc_hd__nand2_1.spice",
+    "sha256": "1e2261e7a2f4e20b2ecbde8d1f16fe2071281487a83aa03846bb9f68b61ad30d",
+    "label": "sky130_fd_sc_hd__nand2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+    "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b",
+    "label": "sky130_fd_sc_hd__nor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/nor2/sky130_fd_sc_hd__nor2_1.spice",
+    "sha256": "92cc6f14dde1e0585e2d9c1642d5a7b7056cbe882a786779a6d622b37223fc0b",
+    "label": "sky130_fd_sc_hd__nor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28",
+    "label": "sky130_fd_sc_hd__xor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28",
+    "label": "sky130_fd_sc_hd__xor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28",
+    "label": "sky130_fd_sc_hd__xor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xor2/sky130_fd_sc_hd__xor2_1.spice",
+    "sha256": "51aad892e3bd16850b5d8718df4ef97e576766e13af717d5c0b034c77fe84c28",
+    "label": "sky130_fd_sc_hd__xor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d",
+    "label": "sky130_fd_sc_hd__xnor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d",
+    "label": "sky130_fd_sc_hd__xnor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d",
+    "label": "sky130_fd_sc_hd__xnor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/xnor2/sky130_fd_sc_hd__xnor2_1.spice",
+    "sha256": "588223f1bc657d1c211e8e064b3e19d4add5814eb699acc7baef339c0546d73d",
+    "label": "sky130_fd_sc_hd__xnor2_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8",
+    "label": "sky130_fd_sc_hd__maj3_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8",
+    "label": "sky130_fd_sc_hd__maj3_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/maj3/sky130_fd_sc_hd__maj3_1.spice",
+    "sha256": "fb0421bfc53b9c1d66ded1adf7b510960437a153e3f62e4192d57c42f7cb4aa8",
+    "label": "sky130_fd_sc_hd__maj3_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7",
+    "label": "sky130_fd_sc_hd__o21ai_0 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7",
+    "label": "sky130_fd_sc_hd__o21ai_0 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/o21ai/sky130_fd_sc_hd__o21ai_0.spice",
+    "sha256": "e72831010811b31cbddceeec847adc0cba1dd7f66ef7f4d2374bca9f91e1cda7",
+    "label": "sky130_fd_sc_hd__o21ai_0 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+    "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587",
+    "label": "sky130_fd_sc_hd__lpflow_isobufsrc_1 .spice"
+   },
+   {
+    "url": "https://raw.githubusercontent.com/google/skywater-pdk-libs-sky130_fd_sc_hd/ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1/cells/lpflow_isobufsrc/sky130_fd_sc_hd__lpflow_isobufsrc_1.spice",
+    "sha256": "f9f226cb752434a1f62d18157b9ac649d6296e55a48e126aab94bb51cd69d587",
+    "label": "sky130_fd_sc_hd__lpflow_isobufsrc_1 .spice"
+   }
+  ],
+  "tools": {
+   "ngspice": "ngspice-46 : Circuit level simulation program Copyright 2001-2025, The ngspice team. Please get your ngspice manual from",
+   "images": {}
+  },
+  "knobs": {
+   "ARCS": {
+    "inv_1": [
+     [
+      "A",
+      {},
+      true
+     ]
+    ],
+    "nand2_1": [
+     [
+      "A",
+      {
+       "B": "VPWR"
+      },
+      true
+     ],
+     [
+      "B",
+      {
+       "A": "VPWR"
+      },
+      true
+     ]
+    ],
+    "nor2_1": [
+     [
+      "A",
+      {
+       "B": "VGND"
+      },
+      true
+     ],
+     [
+      "B",
+      {
+       "A": "VGND"
+      },
+      true
+     ]
+    ],
+    "xor2_1": [
+     [
+      "A",
+      {
+       "B": "VGND"
+      },
+      false
+     ],
+     [
+      "A",
+      {
+       "B": "VPWR"
+      },
+      true
+     ],
+     [
+      "B",
+      {
+       "A": "VGND"
+      },
+      false
+     ],
+     [
+      "B",
+      {
+       "A": "VPWR"
+      },
+      true
+     ]
+    ],
+    "xnor2_1": [
+     [
+      "A",
+      {
+       "B": "VGND"
+      },
+      true
+     ],
+     [
+      "A",
+      {
+       "B": "VPWR"
+      },
+      false
+     ],
+     [
+      "B",
+      {
+       "A": "VGND"
+      },
+      true
+     ],
+     [
+      "B",
+      {
+       "A": "VPWR"
+      },
+      false
+     ]
+    ],
+    "maj3_1": [
+     [
+      "A",
+      {
+       "B": "VPWR",
+       "C": "VGND"
+      },
+      false
+     ],
+     [
+      "B",
+      {
+       "A": "VPWR",
+       "C": "VGND"
+      },
+      false
+     ],
+     [
+      "C",
+      {
+       "A": "VPWR",
+       "B": "VGND"
+      },
+      false
+     ]
+    ],
+    "o21ai_0": [
+     [
+      "A1",
+      {
+       "A2": "VGND",
+       "B1": "VPWR"
+      },
+      true
+     ],
+     [
+      "A2",
+      {
+       "A1": "VGND",
+       "B1": "VPWR"
+      },
+      true
+     ],
+     [
+      "B1",
+      {
+       "A1": "VPWR",
+       "A2": "VGND"
+      },
+      true
+     ]
+    ],
+    "lpflow_isobufsrc_1": [
+     [
+      "A",
+      {
+       "SLEEP": "VGND"
+      },
+      false
+     ],
+     [
+      "SLEEP",
+      {
+       "A": "VPWR"
+      },
+      true
+     ]
+    ]
+   },
+   "pr_repo_commit": "f62031a1be9aefe902d6d54cddd6f59b57627436",
+   "sc_repo_commit": "ac7fb61f06e6470b94e8afdf7c25268f62fbd7b1"
+  },
+  "conditions": {
+   "corner": "tt",
+   "temperature_c": 25.0,
+   "voltage_v": 1.8,
+   "load_pf": 0.0146,
+   "input_slew_ns_20_80": 0.05,
+   "input_shape": "linear ramp (0\u2013100 % over 83.3 ps so 20\u201380 % = 50 ps)",
+   "thresholds": "delay 50 %/50 %, transition 20\u201380 % (the Liberty's own)",
+   "netlist": "schematic (cells/<cell>/*.spice) \u2014 NO extracted parasitics"
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/inv_1_A.sp",
+    "sha256": "c6751b5f847795bc300bbcfff2ac7a43a2be62ee77be9688809baa59ca648d02",
+    "bytes": 1165
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/lpflow_isobufsrc_1_A.sp",
+    "sha256": "b1d506a63c55879d38d12c6705af659f1f91b9621a9ac98acdc7bd6ef1737fe0",
+    "bytes": 1226
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/lpflow_isobufsrc_1_SLEEP.sp",
+    "sha256": "a7b73e09131502958488fbfb000aca124661357d442ef2d2181c168abd59bb3a",
+    "bytes": 1220
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/maj3_1_A.sp",
+    "sha256": "e7f492c05b958ef5bae6592bfef04549c3d8b244d0bd19dbe59de2239faa2d48",
+    "bytes": 1191
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/maj3_1_B.sp",
+    "sha256": "31a9a22748a51e2614cbabf6dfa00a2b20a8a94a4378f8f2820f3c643c083e3d",
+    "bytes": 1191
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/maj3_1_C.sp",
+    "sha256": "19c6821c4a28e2035aff5feb692e745e973b59ffbcd0f93585fd81670d210d0a",
+    "bytes": 1191
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/nand2_1_A.sp",
+    "sha256": "46e5aca093a3250ea6a00010bf6b90351259bbd6dbb64ca1d0d73621065adafc",
+    "bytes": 1183
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/nand2_1_B.sp",
+    "sha256": "09e23881198b11c9c0f27e999d2f490025559421bd7b737a1ed562a5489e33b1",
+    "bytes": 1183
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/nor2_1_A.sp",
+    "sha256": "2aef7ae3a8a06c2d88c179a3005b0484781a7b7e17b97b258d88b395c7b3d7df",
+    "bytes": 1178
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/nor2_1_B.sp",
+    "sha256": "8a9ade07d514bf82ea4e8fc84b9615acc7f502adf474447c3c8777f49828ee48",
+    "bytes": 1178
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/o21ai_0_A1.sp",
+    "sha256": "b107a7a5e7958de63930f78a0272de6515dc4fb60839ae6a9f71fd9ed4d862c7",
+    "bytes": 1201
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/o21ai_0_A2.sp",
+    "sha256": "2d538dd9386a790af790c692da2c7602c0cf67a987bf8d5ee44cb144452b7ab8",
+    "bytes": 1201
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/o21ai_0_B1.sp",
+    "sha256": "fafae631cfc7351729e83cd6492c4edcf334d5da0f31489027710aa05e13d9b3",
+    "bytes": 1201
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xnor2_1_A_B=0.sp",
+    "sha256": "f5944e69cc141b27b9827b8d5b2bf112e100812fec2f5c0f0aff2fd9e6db6950",
+    "bytes": 1187
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xnor2_1_A_B=1.sp",
+    "sha256": "1084adf4abcc72a9cc877aac2e320373d2b636a4180174255b222ce1675e1e2d",
+    "bytes": 1189
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xnor2_1_B_A=0.sp",
+    "sha256": "8edba1ca50906514ac5e1276711267bf3d70c79708e365c4022316a6a4855640",
+    "bytes": 1187
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xnor2_1_B_A=1.sp",
+    "sha256": "0e8cc11e32e4cdecf960e9991037e1f6d94d61f48fcbc9b6af7ba81dcae5aa05",
+    "bytes": 1189
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xor2_1_A_B=0.sp",
+    "sha256": "2bb340b6beb00125846e888a7ad72277dd26e85e188f2676f9ee63de0d51c42b",
+    "bytes": 1184
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xor2_1_A_B=1.sp",
+    "sha256": "2b7ab163c31be0fa2331f2ad4c67a5b1ddeb3f654bd1ed99a32b9b83cf81079e",
+    "bytes": 1186
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xor2_1_B_A=0.sp",
+    "sha256": "6693de73e834677c7c6d73445958ae9c0e469a7728077cf3e3a5de37aaa07eee",
+    "bytes": 1184
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3b/xor2_1_B_A=1.sp",
+    "sha256": "400c6516fa828931701afaca4f31686101c049d3e87d98dce8e1742a92226047",
+    "bytes": 1186
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "ngspice transient analysis on the committed decks (decks/lod3b) \u2014 no random element"
+  },
+  "recorded_at": "2026-09-26T12:54:51",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod3_devices run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

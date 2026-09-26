@@ -65,5 +65,71 @@
   "throughput_elements_per_s_at_fmax": 1900967.093075023,
   "all_elements_s_at_fmax": 3.320291407923522e-05,
   "note": "DERIVED: cycles (iverilog) / Fmax (nextpnr timing model) \u2014 17 cycles per element, one multiplier"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "file": "tensormath/initialData/fpga/stress_mac.v",
+    "sha256": "ff217a1665de21887348fb53fa7288364ee96a5a9e6d48727c73dd16ee21f34d",
+    "bytes": 2544,
+    "label": "kernel RTL"
+   },
+   {
+    "file": "tensormath/initialData/fpga/stress_mac_top.v",
+    "sha256": "4fe4e469a0bf5c99eb5ed30cda5e810c92cd092583d53183b9c9e95a477fed5c",
+    "bytes": 1891,
+    "label": "top (register bus)"
+   },
+   {
+    "file": "tensormath/initialData/fpga/tb_stress_mac.v",
+    "sha256": "79f9b83ec4d68c2754473b1d289e051c0dda5f41290045186a43a7655abc891b",
+    "bytes": 2637,
+    "label": "testbench"
+   }
+  ],
+  "tools": {
+   "yosys": "Yosys 0.33 (git sha1 2584903a060) [local-image: polari-eda-tools:noble]",
+   "nextpnr-ice40": "\"nextpnr-ice40\" -- Next Generation Place and Route (Version 0.6-3build5) [local-image: polari-eda-tools:noble]",
+   "iverilog": "Icarus Verilog version 12.0 (stable) () [local-image: polari-eda-tools:noble]",
+   "images": {}
+  },
+  "knobs": {
+   "fixed_point": {
+    "C": "kPa (int32)",
+    "eps": "nano-strain (int32)",
+    "sigma": "kPa\u00b7n\u03b5 (int64) \u2192 Pa = \u00d71e-6",
+    "rounding": "operands rounded to integers once on the host; the kernel is exact"
+   },
+   "part": "iCE40 HX8K ct256",
+   "nextpnr_freq_target_mhz": 50,
+   "case": "tt2-plate-tension"
+  },
+  "conditions": {
+   "elements": 64
+  },
+  "generated_files": [
+   {
+    "file": "tensormath/initialData/fpga/ice_stat.json",
+    "sha256": "16f2dda54b2c2621898b64f2f8d744be27348e451d93e00e2fe90a49e49892db",
+    "bytes": 1270
+   },
+   {
+    "file": "tensormath/initialData/fpga/pnr.json",
+    "sha256": "8590503c7f547f5154c42324a4fae3e57ff1cbacd225c489d8a16a28e3c2240a",
+    "bytes": 36490
+   }
+  ],
+  "seeds": {
+   "nextpnr-ice40 --seed": "not passed \u2192 nextpnr default (1); the placement is seeded, the seed is this default \u2014 pass --seed to perturb"
+  },
+  "recorded_at": "2026-09-26T12:53:28",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m tensormath.custom.fpga_kernel (run(manager) \u2014 see tests/tensor_liveboot_probe.py) run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
+  "attached_after_the_fact": "the flow ran 2026-09-23 (tt-3); it needs a live manager to re-run (the FEM case), so the block is attached from the committed sources with the tool versions askable now"
  }
 }

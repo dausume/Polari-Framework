@@ -140,6 +140,13 @@ def run(devices=None, work=None):
                       'pfet_hvt_ion_ua_per_um': rep['devices'].get('pfet_01v8_hvt', {}).get('metrics', {}).get('ion_ua_per_um'),
                       'reading': 'the sky130 tt models at 1.8 V give the n device roughly half the FreePDK45 documented on-current at 1.0 V/45 nm while leaking three to four orders of magnitude less — a 130 nm low-leakage process, read from its own models, not from a datasheet'}
     os.makedirs(OUT, exist_ok=True)
+    from computelod.custom.repro import record, keep_generated
+    gen = []
+    for flavour in rep['devices']:
+        gen += keep_generated(os.path.join(work, flavour), os.path.join(OUT, 'decks', 'lod4c'), patterns=('*.sp',))
+    rep['reproduction'] = record('computelod.custom.lod4_devices', inputs=[dict(v, label=k) for k, v in rep['models']['files'].items()], engines=['ngspice'],
+                                 knobs={'devices': list(rep['devices']), 'w_um': CONDITIONS['w_um'], 'l_um': CONDITIONS['l_um'], 'vt_criterion': CONDITIONS['vt_criterion']}, conditions=CONDITIONS, generated=gen,
+                                 deterministic='ngspice DC sweeps on the committed decks (decks/lod4c) — no random element')
     json.dump(rep, open(os.path.join(OUT, 'devices_report.json'), 'w'), indent=1)
     return rep
 

@@ -52,7 +52,7 @@
     "file": "sky130_fd_sc_hd__inv_1_pex.spice",
     "devices": 2,
     "capacitors": 14,
-    "sha256": "bead617a42105aa73cf96926af66193b035ef75d834a3c7e745399d441fcadf5",
+    "sha256": "aa910b6bb2fd4cb37f7b4e179bd954642a0528fa1ab6883fcd0fcd58b8f61a57",
     "junction_areas": true
    },
    "lvs": {
@@ -129,7 +129,7 @@
     "file": "sky130_fd_sc_hd__nand2_1_pex.spice",
     "devices": 4,
     "capacitors": 23,
-    "sha256": "37cf1cd731c7e03ac2a0bdd22292ebf75cedb19702310fb3a9829a801814d9fe",
+    "sha256": "352e601d772439a9c0f2b3a24734396130c9d6b1cb530acac119e5115e8fc30f",
     "junction_areas": true
    },
    "lvs": {
@@ -200,7 +200,7 @@
        "schematic_delta_pct": -14.9
       },
       "tplh_ps": {
-       "extracted": 146.9,
+       "extracted": 146.91,
        "schematic": 139.42,
        "liberty": 136.07,
        "delta_pct": 8.0,
@@ -248,7 +248,7 @@
     "file": "sky130_fd_sc_hd__nor2_1_pex.spice",
     "devices": 4,
     "capacitors": 23,
-    "sha256": "e5b58390440e0ccd03c3ae08bb81bb28a7ff29cb5be73f05057d3473ffcccdb2",
+    "sha256": "c49ea21d23e1e5b0752b2eac60fcaad289b05f5f881d9d896109879920e437b6",
     "junction_areas": true
    },
    "lvs": {
@@ -367,7 +367,7 @@
     "file": "sky130_fd_sc_hd__xor2_1_pex.spice",
     "devices": 10,
     "capacitors": 44,
-    "sha256": "df6b3e148ce1667f6af36ad769a81042fabb9639f9ad5a1b0682248d2278e5ff",
+    "sha256": "03ac6c62cd1c612044121e1d1e38be0436fefa801251afcb1733d5a584ff76ef",
     "junction_areas": true
    },
    "lvs": {
@@ -566,7 +566,7 @@
     "file": "sky130_fd_sc_hd__xnor2_1_pex.spice",
     "devices": 10,
     "capacitors": 43,
-    "sha256": "e11b381d2a6f5f2521cc6ac2bef2134705552936aae1e108cc6f9f4aa4fdea6d",
+    "sha256": "8fcb39025f237120401f7d0624c2a650c0c4fc3e54711df73409b498ccdab54a",
     "junction_areas": true
    },
    "lvs": {
@@ -765,7 +765,7 @@
     "file": "sky130_fd_sc_hd__maj3_1_pex.spice",
     "devices": 14,
     "capacitors": 58,
-    "sha256": "98228a9e9378a462d8043f4dd72e4a076564e662b07b4ad0b6e1bc3eb9b9dea8",
+    "sha256": "6e74d61d38b9f827bb0005792c2b39e596e2bc8e0375e55a07356ad63a676a0d",
     "junction_areas": true
    },
    "lvs": {
@@ -791,7 +791,7 @@
      "compare": {
       "tphl_ps": {
        "extracted": 384.93,
-       "schematic": 297.56,
+       "schematic": 297.57,
        "liberty": 413.94,
        "delta_pct": -7.0,
        "schematic_delta_pct": -28.1
@@ -927,7 +927,7 @@
     "file": "sky130_fd_sc_hd__o21ai_0_pex.spice",
     "devices": 6,
     "capacitors": 38,
-    "sha256": "04ddc8622238ffb84a1945b56ff78d236da59c10ac04902b73bafa6d7c93638b",
+    "sha256": "536fd6adf5220f34a34a2b09cab0a23902ed2e26d09b0fc34a1f38d6ac304745",
     "junction_areas": true
    },
    "lvs": {
@@ -1089,7 +1089,7 @@
     "file": "sky130_fd_sc_hd__lpflow_isobufsrc_1_pex.spice",
     "devices": 6,
     "capacitors": 30,
-    "sha256": "95a6a601853aed0b8783429946b2e6d68c3d8b802dc7abb1fb0f50eb4677a29c",
+    "sha256": "2f4091f9126ebf1034ae1bb95d02548e4548cfa93d32eb960421fb6fb3b13f0d",
     "junction_areas": true
    },
    "lvs": {
@@ -1154,10 +1154,10 @@
      "compare": {
       "tphl_ps": {
        "extracted": 73.27,
-       "schematic": 70.02,
+       "schematic": 70.03,
        "liberty": 79.26,
        "delta_pct": -7.6,
-       "schematic_delta_pct": -11.7
+       "schematic_delta_pct": -11.6
       },
       "tplh_ps": {
        "extracted": 273.55,
@@ -1190,7 +1190,7 @@
   "arcs": 21,
   "drc_clean_in_context": true,
   "tphl_mean_delta_pct": {
-   "schematic": -20.2,
+   "schematic": -20.1,
    "extracted": -11.3
   },
   "tplh_mean_delta_pct": {
@@ -1207,7 +1207,7 @@
     21
    ]
   },
-  "verdict": "parasitics explain ALL of the fall gap (tpHL: closer to the Liberty on 21/21 arcs; mean -20.2 % \u2192 -11.3 %) and PART of the rise gap (tpLH: closer on 11/21 arcs; mean -7.1 % \u2192 +1.1 %): the lod-3b hypothesis \"the gap is layout parasitics\" is REJECTED as the sole cause \u2014 what remains is the vendor characterization setup (input waveform shape, load/driver model, measurement details), which we do not have; stated, not tuned",
+  "verdict": "parasitics explain ALL of the fall gap (tpHL: closer to the Liberty on 21/21 arcs; mean -20.1 % \u2192 -11.3 %) and PART of the rise gap (tpLH: closer on 11/21 arcs; mean -7.1 % \u2192 +1.1 %): the lod-3b hypothesis \"the gap is layout parasitics\" is REJECTED as the sole cause \u2014 what remains is the vendor characterization setup (input waveform shape, load/driver model, measurement details), which we do not have; stated, not tuned",
   "first_cells": [
    "inv_1",
    "nand2_1"
@@ -1225,5 +1225,203 @@
   "delay_mean_abs_delta_pct_extracted": 8.9,
   "delay_mean_abs_delta_pct_schematic": 15.0,
   "reading": "the parasitics hypothesis of lod-3b, tested: extracted vs schematic gap to the Liberty, same point"
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "label": "sky130_fd_sc_hd__inv_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "e466b46564870ffaf7e65242cc63de2138296d26d49e104c616282a4a1f14189"
+   },
+   {
+    "label": "sky130_fd_sc_hd__nand2_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "07d1978cce421142d8929c01ee6d5f6c4e5909889e562203dff2b2fd1becba55"
+   },
+   {
+    "label": "sky130_fd_sc_hd__nor2_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "d7c9d73100ac094efaf6f4f87fb724eabf14183b858b1c9b755b681a23d2e527"
+   },
+   {
+    "label": "sky130_fd_sc_hd__xor2_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "f8193f853357eee20a873e95a2e76d945aed8ea806bfcd61f8c85b81767ef7a6"
+   },
+   {
+    "label": "sky130_fd_sc_hd__xnor2_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "6829e6716d4345b4898dddb8e19bc909ede9d59f0d8d5137f5013403e8400817"
+   },
+   {
+    "label": "sky130_fd_sc_hd__maj3_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "752ab37216e0b39e991e61e9039a87a6cd0707b15cbb25e8ddec74efa035e922"
+   },
+   {
+    "label": "sky130_fd_sc_hd__o21ai_0 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "3f061aa27a1e0250b3da5b1f3474ad6c7685db1caa2fd858280404f4900e8997"
+   },
+   {
+    "label": "sky130_fd_sc_hd__lpflow_isobufsrc_1 .mag (the PDK's layout, in the ciel-built PDK \u2014 never committed)",
+    "sha256": "6b1d72b7cc621c1565172d48dbc3c325a5366bcd2f9d203d41b8b4a314edee80"
+   },
+   {
+    "label": "sky130A.tech (magic rules)",
+    "sha256": "55fdebfa329544c1cb1e22a3817461603f1dea9a41638b26af8c7751b3e0cc6a"
+   },
+   {
+    "file": "../../polari-eda-tools/flows/cell_check.tcl",
+    "sha256": "eb496fc469d81faacd1270defc8bdc71139267261cf20ef41f73ebdf214c69f7",
+    "bytes": 954,
+    "label": "magic flow (polari-eda-tools/flows)"
+   },
+   {
+    "label": "SKY130 HD Liberty (cached, cited)",
+    "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9"
+   }
+  ],
+  "tools": {
+   "magic": "8.3.684 [local-image: polari-eda-tools:noble]",
+   "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022 [local-image: polari-eda-tools:noble]",
+   "ngspice": "ngspice-46 : Circuit level simulation program Copyright 2001-2025, The ngspice team. Please get your ngspice manual from",
+   "images": {}
+  },
+  "knobs": {
+   "pdk_ciel_version": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+   "cells": [
+    "sky130_fd_sc_hd__inv_1",
+    "sky130_fd_sc_hd__nand2_1",
+    "sky130_fd_sc_hd__nor2_1",
+    "sky130_fd_sc_hd__xor2_1",
+    "sky130_fd_sc_hd__xnor2_1",
+    "sky130_fd_sc_hd__maj3_1",
+    "sky130_fd_sc_hd__o21ai_0",
+    "sky130_fd_sc_hd__lpflow_isobufsrc_1"
+   ]
+  },
+  "conditions": {
+   "corner": "tt",
+   "temperature_c": 25.0,
+   "voltage_v": 1.8,
+   "load_pf": 0.0146,
+   "input_slew_ns_20_80": 0.05,
+   "input_shape": "linear ramp (0\u2013100 % over 83.3 ps so 20\u201380 % = 50 ps)",
+   "thresholds": "delay 50 %/50 %, transition 20\u201380 % (the Liberty's own)",
+   "netlist": "extracted (magic PEX of the PDK's own .mag \u2014 parasitic capacitors included; the schematic figure is kept beside it as schematic_ps)"
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/inv_1_A.ext.sp",
+    "sha256": "71a46954681e5f44727c55e0325f72e19f399acaca320ab007f412d929df3ef2",
+    "bytes": 1148
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/lpflow_isobufsrc_1_A.ext.sp",
+    "sha256": "ffb8bc938b4a47adb51be5a3d1cccdb630bd25c8f5641451487cc52e27294140",
+    "bytes": 1209
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/lpflow_isobufsrc_1_SLEEP.ext.sp",
+    "sha256": "532f55509dc983b444a3a9173fcd64e680ce40f4ec8eb4cda2c286407318f079",
+    "bytes": 1203
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/maj3_1_A.ext.sp",
+    "sha256": "8e02ca87e66b7f9300cae8c40792fa7d14cfead7fae864f9ba02f5f271043768",
+    "bytes": 1174
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/maj3_1_B.ext.sp",
+    "sha256": "8c1e4bcabed911884279e79e02c39d8a1d6a703840f4c4dcaba1684b3c8be76f",
+    "bytes": 1174
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/maj3_1_C.ext.sp",
+    "sha256": "b3702281cf63da3076dd05880e075feceaef9e9d546b67ec58f9177846305bcd",
+    "bytes": 1174
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/nand2_1_A.ext.sp",
+    "sha256": "8faf7e7054974316ba0f39cbe68e937eaf7764d842b34864008c30fc62b4298d",
+    "bytes": 1166
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/nand2_1_B.ext.sp",
+    "sha256": "ce54464ea91de316a63c32693e4d59a9341d7dd7bc514994d861892cf64cff13",
+    "bytes": 1166
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/nor2_1_A.ext.sp",
+    "sha256": "e133958eb20fc47e80192e501ba45b128ffd162d3c82bccfa94b00bd57ad0661",
+    "bytes": 1161
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/nor2_1_B.ext.sp",
+    "sha256": "8a9584aee90bccd1a3e22b63fa1264d200d7a3e99b5ab4c605e499354db4596d",
+    "bytes": 1161
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/o21ai_0_A1.ext.sp",
+    "sha256": "e8a71156320461f89156e85c8de20b100602fd7bd59f738211581fe31e6495f3",
+    "bytes": 1184
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/o21ai_0_A2.ext.sp",
+    "sha256": "4ad956d96dffd9d5bf771075d5d3e16c32b26f72114e083deb4bcae9868a6848",
+    "bytes": 1184
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/o21ai_0_B1.ext.sp",
+    "sha256": "bbbee61f124166a64f0d6b0c9c5e7af25f3f6cc147821e5b0ab6e242827d21de",
+    "bytes": 1184
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xnor2_1_A_B=0.ext.sp",
+    "sha256": "2bfc861ec3beac7bea73f24800c7b3a4f8fe117a39c2c573ee0429fe0e52ad8c",
+    "bytes": 1170
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xnor2_1_A_B=1.ext.sp",
+    "sha256": "cb7317778e6febb5acc30d9246ff2b58c2d0c64a348fbcf6e28e76550c934cfa",
+    "bytes": 1172
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xnor2_1_B_A=0.ext.sp",
+    "sha256": "9c22aab843c01e6e5f0185e619edfbfb16e4341fd4f4db8efde8705303d6fbfe",
+    "bytes": 1170
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xnor2_1_B_A=1.ext.sp",
+    "sha256": "050b721e58d97b7495e7230e986181979373e209dd91b5e8d62ed423060a1146",
+    "bytes": 1172
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xor2_1_A_B=0.ext.sp",
+    "sha256": "90384cc502897bb4956f35c45e61061e523c06b3c566622f2e663ee34dd273c5",
+    "bytes": 1167
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xor2_1_A_B=1.ext.sp",
+    "sha256": "ad8267d4b7840a576f29ade786e257fee2a35e04f7defb6f4a5827aaf877cb29",
+    "bytes": 1169
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xor2_1_B_A=0.ext.sp",
+    "sha256": "c4b43a3f10ae68c31e6c062f80b16ef4860dfddbc51e79789858c1621469e288",
+    "bytes": 1167
+   },
+   {
+    "file": "computelod/initialData/lod3/decks/lod3c/xor2_1_B_A=1.ext.sp",
+    "sha256": "1da1a10542e447a86159f6538370cc547602a60fb0d22426d392ba552b666d5b",
+    "bytes": 1169
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "magic DRC/extraction, netgen LVS and ngspice on fixed inputs \u2014 no random element; the extracted (PEX) netlists the decks include are PDK-derived and stay out of git (regenerated by this flow)"
+  },
+  "recorded_at": "2026-09-26T13:14:47",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod3_layout run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

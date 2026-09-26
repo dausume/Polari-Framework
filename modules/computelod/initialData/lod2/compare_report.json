@@ -966,5 +966,300 @@
   "sky130_fo4_inverter_worst_ps": 100.978,
   "cnt_fo4_inverter_worst_ps": 1.173,
   "reading": "at the CNT point (0.6 V) the SKY130 hvt cells are in subthreshold and orders of magnitude slower \u2014 not the regime they were built for; at each library's own FO4 the ratio is the intrinsic comparison, with the CNT side intrinsic-grade (standin parasitics, no layout, no area) and the SKY130 side a schematic netlist of a fabricated process. Neither view is a ranking of technologies."
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "label": "SKY130 HD Liberty (cached, cited)",
+    "sha256": "ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9"
+   },
+   {
+    "file": "computelod/initialData/lod2/cnt/polari_cnt_lib.lib",
+    "sha256": "668b163c21c4cd8923da02a7f3842cf7cff02321eab7e17aaf9473807943b5d7",
+    "bytes": 110516,
+    "label": "OUR CNT Liberty (committed)"
+   }
+  ],
+  "tools": {
+   "ngspice": "ngspice-46 : Circuit level simulation program Copyright 2001-2025, The ngspice team. Please get your ngspice manual from",
+   "images": {}
+  },
+  "knobs": {
+   "twins": [
+    [
+     "inv_1",
+     "INVX1"
+    ],
+    [
+     "nand2_1",
+     "NAND2X1"
+    ],
+    [
+     "nor2_1",
+     "NOR2X1"
+    ],
+    [
+     "xor2_1",
+     "XOR2X1"
+    ],
+    [
+     "xnor2_1",
+     "XNOR2X1"
+    ],
+    [
+     "o21ai_0",
+     "OAI21X1"
+    ]
+   ],
+   "cnt_point": {
+    "voltage_v": 0.6,
+    "temperature_c": 26.85,
+    "temperature_note": "300 K, the CNT characterization temperature",
+    "load_ff": 0.041654,
+    "input_slew_ps_20_80": 1.0178
+   },
+   "slow_window": {
+    "t_edges_ns": [
+     1.0,
+     401.0
+    ],
+    "t_end_ns": 801.0,
+    "tran_step_ns": 0.002
+   },
+   "fo4_start_slew_ps": {
+    "sky130": 50.0,
+    "cnt": 1.0178
+   },
+   "fo4_iterations": 2
+  },
+  "conditions": {
+   "views": {
+    "cnt-point": {
+     "voltage_v": 0.6,
+     "temperature_c": 26.85,
+     "temperature_note": "300 K, the CNT characterization temperature",
+     "load_ff": 0.041654,
+     "input_slew_ps_20_80": 1.0178,
+     "window_ns": {
+      "t_edges_ns": [
+       1.0,
+       401.0
+      ],
+      "t_end_ns": 801.0,
+      "tran_step_ns": 0.002
+     },
+     "sky130_netlist": "schematic (PDK cells/*.spice, no extracted parasitics; no 0.6 V Liberty exists to cross-check)",
+     "cnt_source": "polari_cnt_lib.lib at an exact grid point"
+    },
+    "own-fo4": {
+     "sky130": {
+      "vdd_v": 1.8,
+      "temperature_c": 25.0,
+      "load_ff": 9.208,
+      "inverter_cin_ff": 2.302,
+      "slew_iterations_ps": [
+       50.0,
+       64.038,
+       65.091
+      ],
+      "input_slew_ps_20_80": 65.091
+     },
+     "cnt": {
+      "vdd_v": 0.6,
+      "temperature_c": 26.85,
+      "load_ff": 0.041652,
+      "inverter_cin_ff": 0.010413,
+      "slew_iterations_ps": [
+       1.0178,
+       1.214,
+       1.253
+      ],
+      "input_slew_ps_20_80": 1.253
+     },
+     "note": "FO4: each cell drives four of its own library's inverter inputs and is driven by the slew its own FO4 inverter produces (two iterations from the start value; all values kept) \u2014 the intrinsic-speed comparison, each library at its own nominal voltage"
+    },
+    "sky130-liberty-point": {
+     "voltage_v": 1.8,
+     "temperature_c": 25.0,
+     "load_ff": 14.6,
+     "input_slew_ps_20_80": 50.0,
+     "source": "sky130_fd_sc_hd__tt_025C_1v80.lib, bilinear at the lod-2 point"
+    }
+   }
+  },
+  "generated_files": [
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/inv_1_A_0p6V.sp",
+    "sha256": "6bff9221b6b350c3fb5b1a874ca0c04dffbd115bb4292488d5c47fcf1f312e11",
+    "bytes": 1120
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/inv_1_A_1p8V.sp",
+    "sha256": "14e89694c3c6d9cafbe7658b7b76f740cd817b8fc3db99ef6fba3f36789e5c53",
+    "bytes": 1173
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nand2_1_A_0p6V.sp",
+    "sha256": "b000df1abdf172184ebce34a6315f0fec03cda2a0e255ff3a53b8b3cb37992e3",
+    "bytes": 1138
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nand2_1_A_1p8V.sp",
+    "sha256": "524ea9872e5c205ee954d24f1afd32a99a156355d452b378276d9791e3fa686c",
+    "bytes": 1191
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nand2_1_B_0p6V.sp",
+    "sha256": "e83814edc8dc5e9b1f61a65cc3deba24010e341eea8433465b7f6fbdb78707a4",
+    "bytes": 1138
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nand2_1_B_1p8V.sp",
+    "sha256": "0206a206789745eb9bdf40163a24bee52f134707f682c7d8905324ab6d4e010a",
+    "bytes": 1191
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nor2_1_A_0p6V.sp",
+    "sha256": "5c35cb49f58d5de53e2325fdaf12a4595aed17257493aab465f7d4e9cb477736",
+    "bytes": 1133
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nor2_1_A_1p8V.sp",
+    "sha256": "1b16dc3eaae9eb2f800b15a07cec0b6f059b4f1b82d75ae43060d476e3b50410",
+    "bytes": 1186
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nor2_1_B_0p6V.sp",
+    "sha256": "4b79a284ed038483cb41fb1eebc39778836a32b2be756b262efe800781f40a03",
+    "bytes": 1133
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/nor2_1_B_1p8V.sp",
+    "sha256": "e96058622cb0a3291710109a0d9e87641a24b7f15efd7a97a1bfa0ba7c1e5ba9",
+    "bytes": 1186
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_A1_0p6V.sp",
+    "sha256": "69e447719417426e4e373283257362c4de212d224e9f72127855ee7e92081fb1",
+    "bytes": 1156
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_A1_1p8V.sp",
+    "sha256": "9c54cde396860832dca914ec696a0c025409348fcf960aa11e023e65c8950647",
+    "bytes": 1209
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_A2_0p6V.sp",
+    "sha256": "2f3738b004caa9fbf689a4ef8973ab13f4eb09334c15501adb7044996ad0a238",
+    "bytes": 1156
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_A2_1p8V.sp",
+    "sha256": "a23464c3319ca6df79b26336c3c69c7379d2a642b9c71ccace2a090def4efc25",
+    "bytes": 1209
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_B1_0p6V.sp",
+    "sha256": "45e89cceae900c4c345c2d0cbfa83fd4a1c548fc4b5281e281646b127d1f529e",
+    "bytes": 1156
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/o21ai_0_B1_1p8V.sp",
+    "sha256": "556e50b31fee213f914daef7e91bcd40e3ed9f8e9e477db7c9225767319d4f64",
+    "bytes": 1209
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_A_B=0_0p6V.sp",
+    "sha256": "1afcb99af28d3cbca6aeb6c98df91821f250dbe0f66755c32e65a356e22f3df7",
+    "bytes": 1142
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_A_B=0_1p8V.sp",
+    "sha256": "25eaddcff41a791aaad2e315868d7f4cd87e8028e051b2b972cf23c303dd571b",
+    "bytes": 1195
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_A_B=1_0p6V.sp",
+    "sha256": "0080e118b50cacd2207ebe5a80deb71b24fa638c27482854f90e3b6e2653d7d2",
+    "bytes": 1144
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_A_B=1_1p8V.sp",
+    "sha256": "a6298e995e820459c781673ec5988758da38010703d96d05008418520f4bcb8f",
+    "bytes": 1197
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_B_A=0_0p6V.sp",
+    "sha256": "c58bbbeffd675f0e69d8b0aa1bbc3e7ccf62309ad1d1ff500f4f2afc82104e78",
+    "bytes": 1142
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_B_A=0_1p8V.sp",
+    "sha256": "e277c479d2326a7fdc54f8b0093a4e61d09d2458198b22f1bdc577f5173267f1",
+    "bytes": 1195
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_B_A=1_0p6V.sp",
+    "sha256": "d2c40b4404c6afa9189a16acf174881999f5934f797e02819d3950e8a98a407f",
+    "bytes": 1144
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xnor2_1_B_A=1_1p8V.sp",
+    "sha256": "bdae6842c9d276c5d144f6d93de7561c036b9e74e84f1524f05663e1eb232d90",
+    "bytes": 1197
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_A_B=0_0p6V.sp",
+    "sha256": "7a55758dccdb5322f23221fdd4488d4879b3478716262ca740d4d14787ad0765",
+    "bytes": 1139
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_A_B=0_1p8V.sp",
+    "sha256": "8035c2b4e4d6f52e0a3f547f8f1c5208af211c910f20afa2f9fa6622640dabc9",
+    "bytes": 1192
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_A_B=1_0p6V.sp",
+    "sha256": "abaa5de42b431766e7b8510309afba7c42dbb3ceb607bca83e24b652798d7595",
+    "bytes": 1141
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_A_B=1_1p8V.sp",
+    "sha256": "c93e73e522b18bf9992132f752947cefc4662059e4888683c03fe9db4613d856",
+    "bytes": 1194
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_B_A=0_0p6V.sp",
+    "sha256": "6455237602cf1b859f1e38abe952524d0681a88e2ac08e453e80ac01dcbd6f2e",
+    "bytes": 1139
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_B_A=0_1p8V.sp",
+    "sha256": "8a898a9bd36bb09278ff28bf5b02e532ee2c2b2a270162649dcd1467357ceb0d",
+    "bytes": 1192
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_B_A=1_0p6V.sp",
+    "sha256": "a3f530f31a940d9a696aa706534742a2abf598c270ee1890c18d8ba44b626135",
+    "bytes": 1141
+   },
+   {
+    "file": "computelod/initialData/lod2/decks/lod2c/xor2_1_B_A=1_1p8V.sp",
+    "sha256": "3b51b4108d6dc1862a188b25021e9bc7026b5ef855368ef6b601b9ee48519eb1",
+    "bytes": 1194
+   }
+  ],
+  "seeds": {
+   "deterministic": true,
+   "why": "ngspice transient analysis on the committed decks (decks/lod2c) and bilinear reads of the two Liberties \u2014 no random element"
+  },
+  "recorded_at": "2026-09-26T13:04:07",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }

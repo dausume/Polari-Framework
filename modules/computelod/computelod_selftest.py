@@ -335,6 +335,28 @@ check('lod-4b rows: `lod4: fabrication → materials` REPLACED by name — the r
       and maps4b[0]['evidence_level'] == 'analytical' and maps4b[1]['mapping_status'] == 'proposed' and 'LAYOUT' in maps4b[1]['notes'], [(m_['name'], m_['mapping_status']) for m_ in maps4b])
 check('  …and in the merged seed the lod-4 row IS the lod-4b one (17 ComputeMappings now)', next(m_ for m_ in SEED_LOD_MAPPINGS if m_['name'] == 'lod4: fabrication → materials')['notes'].startswith('lod-4b') and sum(1 for m_ in SEED_LOD_MAPPINGS if m_['name'].startswith('lod4')) == 2
       and 'lod4b' in FLOWS and 'lod4b-cnt' in FLOWS)
+from computelod.custom.explain import explain_characterization
+# ---- his rule (2026-09-26): every committed result carries the INITIAL CONDITIONS and SEEDS that produced it
+from computelod.custom.repro import check_all as repro_check, complete as repro_complete, REQUIRED as REPRO_KEYS, record as repro_record
+_rc = repro_check()
+check('reproducibility: EVERY committed flow report carries a complete `reproduction` block (inputs by sha256/url, tool versions + image ids, knobs, conditions, generated files, a seed posture, how to rerun)',
+      _rc and all(v['ok'] for v in _rc.values()) and len(_rc) >= 12, {k: v for k, v in _rc.items() if not v['ok']})
+_r3b = json.load(open('modules/computelod/initialData/lod3/devices_report.json'))['reproduction']
+check('  …lod-3b/3d: the 21 decks the tool consumed are COMMITTED beside the report (initialData/lod3/decks/lod3b) and hashed; the model files and the Liberty are cited by sha256; ngspice\'s version line is recorded; the flow states it is deterministic and why',
+      len(_r3b['generated_files']) == 21 and all(os.path.exists(os.path.join('modules', g['file'])) for g in _r3b['generated_files']) and any('nfet_01v8__tt.corner' in i.get('label', '') for i in _r3b['inputs'])
+      and 'ngspice' in _r3b['tools'].get('ngspice', '').lower() and _r3b['seeds'].get('deterministic') is True and 'ngspice' in _r3b['seeds']['why'], (_r3b['tools'], len(_r3b['generated_files'])))
+_r3e = json.load(open('modules/computelod/initialData/lod3/pnr/pnr_report.json'))['reproduction']
+check('  …lod-3e: the flow\'s three SEED knobs are recorded explicitly as the defaults this run used (GPL_RANDOM_SEED, GRT_SEED, OR_SEED) — a seed is never implicit; the netlist and Liberty inputs are hashed; config.mk / SDC / DEF / SPEF hashed as generated files',
+      all(k in _r3e['seeds'] for k in ('GPL_RANDOM_SEED', 'GRT_SEED', 'OR_SEED')) and len(_r3e['inputs']) == 2 and all(i['sha256'] for i in _r3e['inputs']) and any(g['file'].endswith('config.mk') for g in _r3e['generated_files']), _r3e['seeds'])
+_r2c = json.load(open('modules/computelod/initialData/lod2/cnt/report.json'))['reproduction']
+check('  …lod-2b (not re-run): the block says so (attached_after_the_fact names the run and the date), hashes the committed Liberty it wrote, and states the characterization had no Monte Carlo',
+      _r2c.get('attached_after_the_fact') and any('polari_cnt_lib' in i.get('file', '') for i in _r2c['inputs']) and 'Monte Carlo' in _r2c['seeds']['why'], _r2c.get('attached_after_the_fact'))
+check('  …the block shape is checked by one function: a block without seeds or with an unhashed input is INCOMPLETE',
+      repro_complete({k: {} for k in REPRO_KEYS} | {'inputs': [], 'seeds': {'deterministic': True}})[0] and not repro_complete({k: {} for k in REPRO_KEYS} | {'inputs': [{'file': 'x'}], 'seeds': {'deterministic': True}})[0]
+      and not repro_complete({k: {} for k in REPRO_KEYS} | {'inputs': [], 'seeds': {}})[0] and repro_record('x', seeds={'rng': 7})['seeds'] == {'rng': 7})
+from computelod.custom.lod3_devices import report as _r3b_rep, rows as _r3b_rows
+_ev = explain_characterization(types.SimpleNamespace(objectTables={}), types.SimpleNamespace(**next(c for c in _r3b_rows(_r3b_rep())[1] if c['name'] == 'lod3: inv_1 A→Y tpHL')))
+check('  …the explainer\'s "how to reproduce" points a person at the reproduction block', any('reproduction' in step for step in _ev['how to reproduce']), _ev['how to reproduce'])
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

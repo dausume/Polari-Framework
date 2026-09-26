@@ -132,6 +132,9 @@ def run():
     rep['not_done'] = ['DRC/LVS of the SKY130 cells (Magic + netgen; not run)', 'transistor-level simulation with sky130_fd_pr corner models (not run — the Liberty carries the PDK\'s own characterization)',
                        'fabrication: the process rows behind sky130_fd_pr (next rung, partial)', 'CNT layout (none exists)']
     os.makedirs(OUT, exist_ok=True)
+    from computelod.custom.repro import record
+    rep['reproduction'] = record('computelod.custom.lod3_cells', inputs=[dict(v['spice'], label='%s .spice' % k) for k, v in rep['sky130']['files'].items()] + [dict(v['lef'], label='%s .lef' % k) for k, v in rep['sky130']['files'].items()],
+                                 knobs={'cells_repo_commit': CELLS_REPO['commit']}, conditions={'reading': 'per-cell .spice (devices, W/L, scale 1e-6) and .lef SIZE, summed over the mapped instances'}, deterministic='a reading of fixed files')
     json.dump(rep, open(os.path.join(OUT, 'report.json'), 'w'), indent=1)
     return rep
 

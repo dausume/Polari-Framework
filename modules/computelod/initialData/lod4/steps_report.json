@@ -114,5 +114,51 @@
  "rows": {
   "ProcessingStage": 14,
   "MaterialProcessDefinition": 14
+ },
+ "reproduction": {
+  "inputs": [
+   {
+    "label": "PDK layers page (quoted)",
+    "url": "https://skywater-pdk.readthedocs.io/en/main/rules/layers.html"
+   },
+   {
+    "label": "PDK rules summary",
+    "url": "https://skywater-pdk.readthedocs.io/en/main/rules/summary.html"
+   },
+   {
+    "label": "PDK README (quoted)",
+    "url": "https://github.com/google/skywater-pdk/blob/main/README.rst"
+   },
+   {
+    "label": "[PDG00]",
+    "url": "ISBN 0-13-085037-3"
+   }
+  ],
+  "tools": {
+   "images": {}
+  },
+  "knobs": {
+   "read_on": "2026-09-26",
+   "families": [
+    "silicon-cmos-sky130",
+    "aligned-cnt"
+   ]
+  },
+  "conditions": {
+   "reading": "stages from the documented layers; unit processes per the textbook; CNT by reference to cntfet rows"
+  },
+  "generated_files": [],
+  "seeds": {
+   "deterministic": true,
+   "why": "a reading of documents, nothing computed"
+  },
+  "recorded_at": "2026-09-26T12:52:01",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod4_steps run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
  }
 }
