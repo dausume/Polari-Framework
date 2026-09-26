@@ -78,7 +78,7 @@ class ComputeLodAPI(treeObject):
         rep = report()
         node = next((n for n in self._rows('SiliconProcessNode') if str(getattr(n, 'name', '')) == 'sky130'), None)
         response.media = {'ok': bool(rep), 'report': rep or {}, 'process_node_row': None if node is None else {'name': 'sky130', 'node_nm': getattr(node, 'node_nm', 0), 'vdd_v': getattr(node, 'vdd_v', 0),
-                          'rights_class': getattr(node, 'rights_class', ''), 'fabrication_evidence': getattr(node, 'fabrication_evidence', ''), 'manufacturable': getattr(node, 'manufacturable', None),
+                          'rights_class': getattr(node, 'rights_class', ''), 'fabrication_evidence': getattr(node, 'fabrication_evidence', ''), 'manufacturability': getattr(node, 'manufacturability', ''), 'manufacturable': getattr(node, 'manufacturable', None),
                           'manufacturable_reason': getattr(node, 'manufacturable_reason', '')}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_process run (a reading; nothing fetched)'}
 
     def on_get_lod3(self, request, response):

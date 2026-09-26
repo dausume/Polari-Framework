@@ -71,6 +71,9 @@ def main():
               and n['licence_gplv3_compatible'] in ('yes', 'no', 'to-verify')
               and isinstance(n['licence_verified'], bool)
               for n in nodes), f'{len(nodes)} rungs')
+    from sifet.objects.si_ladder._shared import MANUFACTURABILITY, MANUFACTURABILITY_FOR_BOOL
+    check('every node carries a manufacturability word from the vocabulary, consistent with its bool (D-lod4-1: open | proven-on-request | unproven | not-available)',
+          all(n.get('manufacturability') in MANUFACTURABILITY and n['manufacturability'] in MANUFACTURABILITY_FOR_BOOL[n['manufacturable']] for n in nodes))
     check('manufacturable is never True (no open process exists) and '
           'every rung says why',
           all(n['manufacturable'] is not True and n['manufacturable_reason']

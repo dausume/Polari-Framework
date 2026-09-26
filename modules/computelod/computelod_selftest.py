@@ -206,6 +206,8 @@ rep4 = lod4_report()
 check('lod-4: a committed report exists; the sky130 process-node row uses sifet\'s OWN vocabularies (fabrication evidence, rights class) and leaves manufacturable = None with the evidence and D-lod4-1 named',
       rep4 is not None and SKY130_NODE['fabrication_evidence'] in FABRICATION_EVIDENCE and SKY130_NODE['rights_class'] in RIGHTS_CLASS and SKY130_NODE['manufacturable'] is None
       and 'D-lod4-1' in SKY130_NODE['manufacturable_reason'] and 'D-lod4-1' in rep4['decisions'], SKY130_NODE['manufacturable_reason'][:120])
+check('D-lod4-1 RULED (his, 2026-09-26): sky130 is manufacturability = proven-on-request, the bool stays None, the reason says who and when',
+      SKY130_NODE.get('manufacturability') == 'proven-on-request' and SKY130_NODE['manufacturable'] is None and 'RULED 2026-09-26' in SKY130_NODE['manufacturable_reason'], SKY130_NODE.get('manufacturability'))
 _kn = json.loads(SKY130_NODE['key_numbers_json'])
 check('  …its key numbers are the ones READ in lod-2/lod-3 (L = 0.15 µm, 1.8 V core) with their sources; the metal count is documentation and says so',
       _kn['l_min_um']['value'] == 0.15 and 'lod-3' in _kn['l_min_um']['source'] and _kn['vdd_core_v']['value'] == 1.8 and 'documentation' in _kn['metal_layers']['note'])

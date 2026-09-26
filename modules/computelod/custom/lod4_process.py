@@ -40,9 +40,10 @@ SKY130_NODE = {
     'source': 'SKY130', 'source_url': PDK_REPO, 'licence': 'Apache-2.0', 'licence_verified': True, 'licence_gplv3_compatible': 'yes', 'rights_class': 'incorporable-open',
     'fabrication_evidence': 'measured-fabricated-device',
     'manufacturable': None,
-    'manufacturable_reason': 'EVIDENCE-ONLY (D-lod4-1, a person\'s ruling): SkyWater fabricates SKY130 as a production process, and Google-sponsored open MPW shuttles '
-                             '(Efabless, 2020–2023) accepted designs under this open PDK — the kind of evidence the rule asks for; CURRENT shuttle availability and terms are not '
-                             'verified here, so the ladder\'s "today: no rung qualifies" ruling is left standing until he rules.',
+    'manufacturability': 'proven-on-request',
+    'manufacturable_reason': 'D-lod4-1 RULED 2026-09-26 (his): PROVEN ON REQUEST — SkyWater fabricates SKY130 as a production process, and Google-sponsored open MPW '
+                             'shuttles (Efabless, 2020–2023) fabricated designs under this open PDK; fabrication might be requested from a third party (a shuttle or the foundry) '
+                             'but no standing open door is verified today, so `manufacturable` stays None (the bool means "open today") and the ladder\'s "no rung qualifies" holds.',
     'model_family': 'BSIM4',
     'key_numbers_json': json.dumps({
         'l_min_um': {'value': 0.15, 'unit': 'um', 'source': 'read in lod-3: every transistor of the seven mapped sky130_fd_sc_hd cells has l=150000u (scale 1e-6)', 'note': 'drawn gate length of the 1.8 V core devices'},
@@ -63,7 +64,7 @@ def run():
                                     'not_modelled': ['metal stack (Al / W plugs)', 'gate oxide and poly', 'dopants (B, P, As) as materials rows']}},
            'cnt': {'layout': None, 'process_rows_named': ['CNTAlignmentProcess', 'CNTPlacementProcess', 'CNTPurificationProcess', 'ContactFormationProcess', 'LithographyProcess', 'GateStackProcess'],
                    'note': 'the CNT branch cannot take the layout → fabrication rung (no layout, lod-3); its process rows exist in cntfet (cnt_process_basis) — the gap is layout, not process'},
-           'decisions': {'D-lod4-1': 'does SKY130 (an open PDK with a real foundry and past open MPW shuttles) qualify as MANUFACTURABLE under the sifet ladder rule? Left None until ruled.'}}
+           'decisions': {'D-lod4-1': 'RULED 2026-09-26 (his): a third category — manufacturability = proven-on-request (historically fabricated under the open PDK; a third party might take a request); manufacturable (open today) stays None.'}}
     os.makedirs(OUT, exist_ok=True)
     json.dump(rep, open(os.path.join(OUT, 'report.json'), 'w'), indent=1)
     return rep
@@ -87,7 +88,7 @@ def rows(rep, lod3_rep):
     maps = [
         M(name='lod3: layout → fabrication', kind='one-to-one', source_rung='layout', source_ref=lay_ref, target_rung='fabrication', target_ref=fab_ref,
           mapping_status='implemented', evidence_level='analytical', evidence_ref=ev,
-          notes='RESOLVED by lod-4: the process is a SiliconProcessNode row in sifet\'s ladder shape (manufacturable = None, evidence-only — D-lod4-1 is his). Lithography/implant/metal steps are not modelled as rows.'),
+          notes='RESOLVED by lod-4: the process is a SiliconProcessNode row in sifet\'s ladder shape (manufacturability = proven-on-request, manufacturable = None — D-lod4-1 ruled 2026-09-26). Lithography/implant/metal steps are not modelled as rows.'),
         M(name='lod4: fabrication → materials', kind='one-to-many', source_rung='fabrication', source_ref=fab_ref, target_rung='materials', target_ref=mat_ref,
           mapping_status='implemented', evidence_level='analytical', evidence_ref=ev,
           notes='the substrate is electronic-grade silicon reached by the Siemens route (sifet si_refinement, cited there: [CEC12]); the metal stack, gate oxide/poly and dopants are NAMED as not modelled — the materials rung is entered, not exhausted.'),

@@ -68,6 +68,16 @@ MANUFACTURABLE_RULE = ('manufacturable is True ONLY with evidence of an '
                        'foundry that accepts the rules). An open '
                        'predictive PDK is NOT such evidence. Today: '
                        'no rung qualifies.')
+#: D-lod4-1 (his ruling 2026-09-26): a THIRD answer between "open today" and "unproven" — a node whose open PDK
+#: has been fabricated before, where a third party (foundry / shuttle) might accept a request, but no standing open
+#: door is verified. The bool keeps its rule (True = open today); this vocabulary says WHICH kind of "not True".
+MANUFACTURABILITY = {
+    'open': 'an open process accepts designs today (manufacturable = True) — no rung qualifies yet',
+    'proven-on-request': 'historically proven: designs under this open PDK were fabricated (shuttles / a foundry run); fabrication might be requested from a third party, no standing open door verified (manufacturable = None)',
+    'unproven': 'no fabrication of a design under this PDK / model is known (manufacturable = None)',
+    'not-available': 'known not to be obtainable (manufacturable = False)',
+}
+MANUFACTURABILITY_FOR_BOOL = {True: ('open',), None: ('proven-on-request', 'unproven'), False: ('not-available', 'unproven')}
 SEARCH_PROTOCOL = ('dimensions', 'materials', 'doping-or-work-function',
                    'eot', 'measured-id-vg-id-vd', 'capacitance',
                    'variability', 'temperature')
@@ -102,8 +112,10 @@ def _node(name, display_name, node_nm, architecture, vdd_v, source,
           source_url, licence, licence_verified, gplv3, rights,
           evidence, manufacturable, manufacturable_reason, model_family,
           key_numbers, what_we_can_use, what_we_must_not_assume,
-          search, evidence_items, notes):
+          search, evidence_items, notes, manufacturability='unproven'):
     assert rights in RIGHTS_CLASS, rights
+    assert manufacturability in MANUFACTURABILITY, manufacturability
+    assert manufacturability in MANUFACTURABILITY_FOR_BOOL[manufacturable], (name, manufacturable, manufacturability)
     assert evidence in FABRICATION_EVIDENCE, evidence
     assert gplv3 in ('yes', 'no', 'to-verify'), gplv3
     assert manufacturable in (True, False, None)
@@ -117,6 +129,7 @@ def _node(name, display_name, node_nm, architecture, vdd_v, source,
         'licence_gplv3_compatible': gplv3, 'rights_class': rights,
         'fabrication_evidence': evidence,
         'manufacturable': manufacturable,
+        'manufacturability': manufacturability,
         'manufacturable_reason': manufacturable_reason,
         'model_family': model_family,
         'key_numbers_json': json.dumps(key_numbers),

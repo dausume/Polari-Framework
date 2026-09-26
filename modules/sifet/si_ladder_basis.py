@@ -14,6 +14,10 @@ older node has stronger real-silicon evidence (a measured 90 nm die).
 `manufacturable` is a THIRD, evidence-only flag: True only when an
 actually available open process exists (today: none — every rung says
 so and why). An open predictive PDK never implies manufacturability.
+`manufacturability` (D-lod4-1, his ruling 2026-09-26) says which kind
+of not-True: `proven-on-request` (designs under the open PDK WERE
+fabricated — shuttles / a foundry run — so a third party might take a
+request; sky130), `unproven`, `not-available`, or `open`.
 
 Decision S1 = FreePDK45 (NC State, Apache-2.0): the best rung that is
 BOTH rights-clean and calibrated against published silicon. Our own
