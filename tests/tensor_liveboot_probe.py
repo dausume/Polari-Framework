@@ -251,6 +251,20 @@ check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a r
 _kn = json.loads(r.json['process_node_row'].get('key_numbers_json') or '{}')
 check('  …and carries the lod-4c device numbers on a real boot (ion_ua_per_um / ioff_na_per_um / vt_v + pmos_*), SIMULATED from the PDK models, source naming the report',
       _kn.get('ion_ua_per_um', {}).get('value') and 400 <= _kn['ion_ua_per_um']['value'] <= 600 and 'pmos_ion_ua_per_um' in _kn and 'lod4/devices_report.json' in _kn['ion_ua_per_um']['source'], sorted(_kn))
+r = client.simulate_get('/api/tensormath/engines')
+check('GET /api/tensormath/engines (D5): where torch WOULD run — the ladder, the knob, the provider, the worker; on this host it resolves remote (a worker) or refuses naming both knobs',
+      r.status_code == 200 and r.json['ok'] and r.json['engines']['torch']['knob'] == 'TORCH_ENGINES_URL' and r.json['engines']['torch']['resolution']['how'] in ('remote', 'local', 'refused'), r.text[:300])
+_torch_how = r.json['engines']['torch']['resolution']['how']
+_impls3 = [i for i in tables.get('ComputeImplementation', {}).values() if getattr(i, 'operator', '') == 'stress-from-strain']
+check('  …THREE implementations of stress-from-strain are rows on a real boot: numpy, the FPGA kernel, torch (evidence none until benchmarked)', sorted(str(i.name) for i in _impls3) == ['stress-from-strain/fpga-stress-mac', 'stress-from-strain/numpy', 'stress-from-strain/torch']
+      and next(i for i in _impls3 if str(i.name).endswith('/torch')).evidence_level == 'none', sorted(str(i.name) for i in _impls3))
+if _torch_how in ('remote', 'local'):
+    r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/torch', 'repeats': 5})
+    check('  …POST benchmark on the torch row RUNS it where the ladder resolves (%s): the row becomes MEASURED with latency, throughput, the error vs numpy (~0) and an evidence_ref naming torch\'s version, device, threads, n and repeats' % _torch_how,
+          r.status_code == 200 and r.json['ok'] and r.json['evidence_level'] == 'measured' and float(r.json['error']) < 1e-9 and 'torch.einsum' in r.json['evidence_ref'] and 'repeats' in r.json['evidence_ref'] and r.json['engine']['how'] == _torch_how and r.json['latency_s'] > 0, r.text[:400])
+else:
+    r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/torch', 'repeats': 3})
+    check('  …POST benchmark on the torch row with no engine anywhere is a 422 that names both knobs — the row stays evidence none (no number invented)', r.status_code == 422 and 'TORCH_ENGINES_URL' in r.json['error'], r.text[:300])
 r = client.simulate_get('/api/computelod/lod4/steps')
 check('GET /api/computelod/lod4/steps: the fabrication route as PSPP rows on a real boot — 14 ProcessingStage + 14 MaterialProcessDefinition rows (sky130 + aligned-cnt families) live in pspp\'s tables, the report citing the PDK docs and naming the recipe as absent',
       r.status_code == 200 and r.json['ok'] and len(r.json['live_rows']['ProcessingStage']) == 14 and len(r.json['live_rows']['MaterialProcessDefinition']) == 14
@@ -300,8 +314,8 @@ check('POST evaluate tt2-sigma-from-C SOLVES the plate live and contracts C:ε �
 r2 = client.simulate_get('/api/tensormath/tensors/tt2-sigma')
 check('GET tensors/tt2-sigma names its engine storage and the plate-mechanics tree', r2.status_code == 200 and r2.json['tensor']['storage_ref'] == 'fem:tt2-plate-tension:stress' and 'plate-mechanics' in r2.json['trees'])
 r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
-check('GET operators/stress-from-strain shows the bridge: the numpy implementation on the microarchitecture rung, evidence none until benchmarked, and the FPGA row beside it',
-      r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none' and len(r.json['implementations']) == 2, r.text[:300])
+check('GET operators/stress-from-strain shows the bridge: the numpy implementation on the microarchitecture rung, evidence none until benchmarked, the torch row (D5) and the FPGA row beside it — three',
+      r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none' and len(r.json['implementations']) == 3, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('tt-6: plate-mechanics validates; its root is RESOLVED on a real boot (binding FEMFieldState-2d exists here), u per node unresolved for the stated reason with its typed space',
       r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['status'] == 'resolved' and r.json['validation']['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d'

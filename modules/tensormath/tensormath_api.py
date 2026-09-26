@@ -31,6 +31,7 @@ class TensorMathAPI(treeObject):
             add('/api/tensormath/evaluate', self, suffix='evaluate')
             add('/api/tensormath/operators/{name}', self, suffix='operator')
             add('/api/tensormath/benchmark', self, suffix='benchmark')
+            add('/api/tensormath/engines', self, suffix='engines')          # D5: where torch WOULD run (the engines ladder)
             add('/api/tensormath/fem/{case}', self, suffix='fem')
             add('/api/tensormath/fem/{case}/materialise', self, suffix='fem_materialise')
             add('/api/tensormath/fem/{case}/shapes', self, suffix='fem_shapes')
@@ -67,36 +68,56 @@ class TensorMathAPI(treeObject):
         except TensorOpsError as err:
             response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': str(err)}
 
+    def on_get_engines(self, request, response):
+        from tensormath.custom.torch_engine import placement
+        response.media = {'ok': True, 'engines': {'torch': placement()}, 'note': 'the third ComputeImplementation (D5) runs wherever this resolves; numpy runs in this process; the FPGA row is its own flow'}
+
     def on_post_benchmark(self, request, response):
         import datetime, json as _json, platform, statistics, time
         body = request.media if isinstance(request.media, dict) else {}
         impl = next((i for i in self._rows('ComputeImplementation') if str(i.name) == str(body.get('implementation', ''))), None)
         if impl is None:
             response.status = '404 Not Found'; response.media = {'ok': False, 'error': 'no ComputeImplementation %r' % body.get('implementation')}; return
-        if 'numpy' not in str(getattr(impl, 'target_ref', '')).lower() and str(getattr(impl, 'target_kind', '')) != 'in-order':
+        is_torch = 'torch' in str(getattr(impl, 'target_ref', '')).lower() or str(impl.name).endswith('/torch')
+        if not is_torch and 'numpy' not in str(getattr(impl, 'target_ref', '')).lower() and str(getattr(impl, 'target_kind', '')) != 'in-order':
             response.status = '422 Unprocessable Entity'
-            response.media = {'ok': False, 'error': 'only a numpy implementation runs HERE; an FPGA/ASIC row is measured by its own flow (fpga_kernel.py) or on the part'}; return
+            response.media = {'ok': False, 'error': 'only a numpy or torch implementation runs from here (torch wherever the engines ladder resolves it); an FPGA/ASIC row is measured by its own flow (fpga_kernel.py) or on the part'}; return
         op = next((o for o in self._rows('TensorOperator') if str(o.name) == str(getattr(impl, 'operator', ''))), None)
         e = next((x for x in self._rows('TensorMathExpression') if op is not None and str(x.name) == str(getattr(op, 'expression_ref', ''))), None)
         if e is None:
             response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': 'the implementation\'s operator has no expression to run'}; return
         repeats = max(3, min(int(body.get('repeats', 20) or 20), 200))
+        torch_info = None
         try:
-            first = evaluate(self.manager, e)          # warms the engine cache (a FEM solve is not the operator)
-            times = [evaluate(self.manager, e)['elapsed_s'] for _ in range(repeats)]
+            first = evaluate(self.manager, e)          # warms the engine cache (a FEM solve is not the operator); also the numpy REFERENCE for torch
+            if is_torch:
+                from tensormath.custom.torch_engine import evaluate as torch_evaluate, TorchEngineError
+                try:
+                    runs = [torch_evaluate(self.manager, e, reference=first) for _ in range(repeats)]
+                except TorchEngineError as err:
+                    response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': str(err), 'engine': 'torch'}; return
+                times = [r_['elapsed_s'] for r_ in runs]; torch_info = dict(runs[0]['torch'], how=runs[0]['how'], where=runs[0]['where'], error_vs_numpy=max(r_['error_vs_numpy'] for r_ in runs))
+            else:
+                times = [evaluate(self.manager, e)['elapsed_s'] for _ in range(repeats)]
         except TensorOpsError as err:
             response.status = '422 Unprocessable Entity'; response.media = {'ok': False, 'error': str(err)}; return
         n = (first.get('shape') or [0])[-1] if first.get('dims', [''])[-1] == 'n' else (first.get('shape') or [0])[0]
         med = statistics.median(times)
         impl.latency_s = float(med); impl.throughput = float(n / med) if med > 0 and n else 0.0
         impl.mapping_status = 'validated'; impl.evidence_level = 'measured'
-        impl.evidence_ref = 'benchmark %s on %s (%s): numpy einsum float64, n=%s elements, %d repeats, median %.3e s (min %.3e, max %.3e)' % (
-            datetime.datetime.now().isoformat(timespec='seconds'), platform.node(), platform.machine(), n, repeats, med, min(times), max(times))
+        if torch_info:
+            impl.error = float(torch_info['error_vs_numpy'])
+            impl.evidence_ref = 'benchmark %s: torch.einsum %s float64 on %s (%s, %s threads, deterministic algorithms), engine %s at %s; n=%s elements, %d repeats, median %.3e s (min %.3e, max %.3e); max relative error vs numpy %.2e' % (
+                datetime.datetime.now().isoformat(timespec='seconds'), torch_info.get('version'), torch_info.get('device'), 'worker' if torch_info['how'] == 'remote' else platform.node(), torch_info.get('threads'), torch_info['how'], torch_info['where'], n, repeats, med, min(times), max(times), impl.error)
+        else:
+            impl.evidence_ref = 'benchmark %s on %s (%s): numpy einsum float64, n=%s elements, %d repeats, median %.3e s (min %.3e, max %.3e)' % (
+                datetime.datetime.now().isoformat(timespec='seconds'), platform.node(), platform.machine(), n, repeats, med, min(times), max(times))
         db = getattr(self.manager, 'db', None)
         if db is not None and hasattr(db, 'saveInstanceInDB'):
             db.saveInstanceInDB(impl)
-        response.media = {'ok': True, 'implementation': str(impl.name), 'latency_s': impl.latency_s, 'throughput': impl.throughput, 'elements': n,
-                          'repeats': repeats, 'evidence_ref': impl.evidence_ref, 'note': 'the reading is now the row\'s; compare with the FPGA row on the same operator'}
+        response.media = {'ok': True, 'implementation': str(impl.name), 'latency_s': impl.latency_s, 'throughput': impl.throughput, 'elements': n, 'error': impl.error,
+                          'evidence_level': impl.evidence_level, 'mapping_status': impl.mapping_status, 'engine': torch_info, 'repeats': repeats, 'evidence_ref': impl.evidence_ref,
+                          'note': 'the reading is now the row\'s; compare with the FPGA row on the same operator'}
 
     # ---- tt-6: the σ field as a row a binding can see -------------------------------------------------------
     def _field_row(self, case):

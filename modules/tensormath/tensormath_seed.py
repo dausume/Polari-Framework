@@ -110,6 +110,15 @@ SEED_COMPUTE_IMPLEMENTATIONS = [{'name': 'stress-from-strain/numpy', 'descriptio
                                  'mapping_status': 'implemented', 'evidence_level': 'none',
                                  'evidence_ref': '', 'notes': 'latency is READ per call (POST /api/tensormath/evaluate → elapsed_s), not stored: a stored benchmark row with its conditions is lad-5\'s. No number invented here.'}]
 
+# ---- D5 (his word 2026-09-26): the SAME operator through PyTorch — resolved through the engines ladder (custom/torch_engine.py:
+# TORCH_ENGINES_URL worker | import torch | topology provider | refusal); its numbers come from a benchmark WHERE it runs, never invented.
+SEED_COMPUTE_IMPLEMENTATIONS.append({'name': 'stress-from-strain/torch', 'description': 'torch.einsum on the same operands and contraction spec as the numpy path — the third implementation of the bridge (D5); CPU wheel, float64, deterministic algorithms on',
+                                     'operator': 'stress-from-strain', 'target_rung': 'microarchitecture', 'target_kind': 'in-order',
+                                     'target_ref': 'torch engine: TORCH_ENGINES_URL worker (polari-rf-node/torch-engines) | import torch | provider tensormath.engines', 'precision': 'float64',
+                                     'shapes_json': json.dumps({'C': [2, 2, 2, 2], 'eps': ['n', 2, 2]}), 'latency_s': 0.0, 'throughput': 0.0, 'memory_bytes': 0, 'energy_j': 0.0, 'error': 0.0, 'config_overhead_s': 0.0,
+                                     'mapping_status': 'implemented', 'evidence_level': 'none', 'evidence_ref': '',
+                                     'notes': 'PyTorch BSD-3 (torch-engines/LICENSES.md). No number until POST /api/tensormath/benchmark runs it where a torch engine resolves; then latency/throughput/error are MEASURED there and the evidence_ref records version, device, threads, n, repeats. The framework\'s Alpine image has no torch wheel: the worker is the normal way.'})
+
 # ---- Phase 6: the SAME operator on an open FPGA — from the committed report of the real flow (custom/fpga_kernel.py)
 from tensormath.custom.fpga_kernel import report as _fpga_report, implementation_row as _fpga_row
 _fpga = _fpga_row(_fpga_report())

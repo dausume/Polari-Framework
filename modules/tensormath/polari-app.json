@@ -49,6 +49,15 @@
     "kind": "system",
     "probe": "iverilog",
     "note": "kernel testbench (tt-3)"
+   },
+   {
+    "name": "torch",
+    "kind": "python",
+    "probe": "torch",
+    "optional": true,
+    "knob": "TORCH_ENGINES_URL",
+    "worker": "polari-rf-node/torch-engines (:9820)",
+    "note": "D5: the third ComputeImplementation of stress-from-strain; resolved through custom/torch_engine.py, never assumed on a device"
    }
   ],
   "engines_note": "resolved per engine through computelod.custom.eda_engines (EDA_ENGINES_URL → local binary → local image polari-eda-tools:noble → topology provider computelod.engines → refusal); the worker = polari-rf-node/polari-eda-tools (docker-compose.eda-engines.yml, :9800)"
@@ -82,7 +91,8 @@
    "custom/fem_field",
    "custom/fem_shapes",
    "custom/fpga_kernel",
-   "custom/tensor_ops"
+   "custom/tensor_ops",
+   "custom/torch_engine"
   ],
   "endpoints": [
    "tensormath_endpoints"

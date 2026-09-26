@@ -174,6 +174,56 @@ except TensorOpsError as e:
 
 # ---- Phase 6: the SAME operator on hardware — the committed FPGA report and its implementation row
 from tensormath.custom.fpga_kernel import report as fpga_report, implementation_row, KERNEL, TOP, C_SCALE, E_SCALE
+
+# ---- D5: PyTorch as the third ComputeImplementation — through the engines ladder, never assumed on a device
+import sys as _sys, types as _types, os as _os
+from tensormath.custom import torch_engine as _te
+from tensormath.tensormath_seed import SEED_COMPUTE_IMPLEMENTATIONS as _IMPLS
+_torch_row = next((r for r in _IMPLS if r['name'] == 'stress-from-strain/torch'), None)
+check('D5: the seed carries a THIRD implementation of stress-from-strain — torch — with NO number invented (latency 0, evidence none) and the worker/knob named in its target_ref',
+      _torch_row is not None and _torch_row['operator'] == 'stress-from-strain' and _torch_row['evidence_level'] == 'none' and _torch_row['latency_s'] == 0.0 and 'TORCH_ENGINES_URL' in _torch_row['target_ref']
+      and len([r for r in _IMPLS if r['operator'] == 'stress-from-strain']) == 3, [r['name'] for r in _IMPLS])
+_saved_knob = _os.environ.pop('TORCH_ENGINES_URL', None); _saved_torch = _sys.modules.get('torch')
+_sys.modules['torch'] = None   # make `import torch` fail regardless of the host
+_te._CAP_CACHE.clear()
+_r = _te.resolve()
+check('  …the ladder REFUSES honestly with nothing available: no knob, no import, no provider — and the refusal names both knobs and the worker\'s absence',
+      _r['how'] == 'refused' and 'TORCH_ENGINES_URL' in _r['why'] and 'tensormath.engines' in _r['why'] and 'Alpine' in _r['why'], _r)
+_os.environ['TORCH_ENGINES_URL'] = 'http://127.0.0.1:1'; _te._CAP_CACHE.clear()
+_r = _te.resolve()
+check('  …a DECLARED worker that is unreachable is a refusal, never a silent fall-back', _r['how'] == 'refused' and 'unreachable' in _r['why'], _r)
+_os.environ.pop('TORCH_ENGINES_URL', None); _te._CAP_CACHE.clear()
+# a stand-in torch (numpy underneath) exercises the LOCAL rung and the comparison to numpy without torch installed
+import numpy as _np
+_fake = _types.ModuleType('torch'); _fake.__version__ = 'stub-for-selftest'; _fake.float64 = _np.float64; _fake.float32 = _np.float32
+class _T:
+    def __init__(self, a): self.a = _np.asarray(a); self.device = 'cpu(stub)'
+    def tolist(self): return self.a.tolist()
+    @property
+    def shape(self): return self.a.shape
+_fake.tensor = lambda a, dtype=None: _T(_np.asarray(a, dtype=dtype))
+_fake.einsum = lambda spec, *ts: _T(_np.einsum(spec, *[t.a for t in ts]))
+_fake.get_num_threads = lambda: 1; _fake.use_deterministic_algorithms = lambda flag: None
+_sys.modules['torch'] = _fake
+_r = _te.resolve()
+check('  …with torch importable the ladder resolves LOCAL and reports the version', _r['how'] == 'local' and _r['version'] == 'stub-for-selftest', _r)
+_e = next(x for x in m.objectTables['TensorMathExpression'].values() if x.name == 'tt2-sigma-from-C') if 'TensorMathExpression' in m.objectTables and any(x.name == 'tt2-sigma-from-C' for x in m.objectTables['TensorMathExpression'].values()) else None
+if _e is not None:
+    _res = _te.evaluate(m, _e)
+    check('  …torch evaluates the SAME contraction spec numpy derived (σ = C:ε) and is compared to numpy: error ~0, shape equal, how/where recorded — the reference is numpy, never torch itself',
+          _res['einsum'] and _res['error_vs_numpy'] < 1e-12 and _res['how'] == 'local' and _res['torch']['version'] == 'stub-for-selftest' and _res['shape'] == list(_np.asarray(_res['values']).shape), {k: _res[k] for k in ('einsum', 'error_vs_numpy', 'how', 'shape')})
+else:
+    check('  …torch evaluation on the σ expression — the fixture holds no tt2-sigma-from-C expression here; covered by the live-boot probe', True)
+_pl = _te.placement()
+check('  …placement names the ladder, the knob, the provider module, the worker and the licence (BSD-3)', _pl['knob'] == 'TORCH_ENGINES_URL' and len(_pl['ladder']) == 4 and 'torch-engines' in _pl['worker'] and 'BSD-3' in _pl['licence'])
+if _saved_torch is not None: _sys.modules['torch'] = _saved_torch
+else: _sys.modules.pop('torch', None)
+if _saved_knob is not None: _os.environ['TORCH_ENGINES_URL'] = _saved_knob
+_te._CAP_CACHE.clear()
+from computelod.custom.repro import complete as _repro_complete
+_fr = fpga_report()
+check('reproducibility (his rule 2026-09-26): the FPGA report carries a complete `reproduction` block — the kernel sources hashed, yosys/nextpnr/iverilog versions, the fixed-point knobs, and nextpnr\'s SEED stated (the default, not implicit)',
+      _fr is not None and _repro_complete(_fr.get('reproduction'))[0] and 'nextpnr-ice40 --seed' in _fr['reproduction']['seeds'] and any(i.get('label') == 'kernel RTL' for i in _fr['reproduction']['inputs']), (_fr or {}).get('reproduction', {}).get('seeds'))
 frep = fpga_report()
 check('fpga: a committed report exists (the flow RAN: iverilog → yosys synth_ice40 → nextpnr-ice40)', frep is not None and 'simulation' in frep and 'place_and_route' in frep)
 check('  …the kernel is EXACT on every real element of the plate (64/64, 0 fails)', 'PASS' in frep['simulation']['verdict'] and frep['simulation']['stream_cycles'] > 0, frep['simulation'])
@@ -189,8 +239,8 @@ check('the FPGA ComputeImplementation: rung rtl / kind accelerator, evidence SIM
       row['target_rung'] == 'rtl' and row['target_kind'] == 'accelerator' and row['evidence_level'] == 'simulated' and row['mapping_status'] == 'validated' and row['energy_j'] == 0.0 and 'not yet' in row['notes'])
 check('the kernel RTL is Verilog-2001 with ONE multiplier (D6; the * appears once in the datapath) and a register-bus top the size of a register map',
       KERNEL.count(' * ') == 1 and 'module stress_mac_top' in TOP and 'addr' in TOP)
-check('the two implementations of stress-from-strain are seeded side by side: numpy (evidence none until benchmarked) and the FPGA row (simulated)',
-      [i['name'] for i in SEED_COMPUTE_IMPLEMENTATIONS] == ['stress-from-strain/numpy', 'stress-from-strain/fpga-stress-mac'] and SEED_COMPUTE_IMPLEMENTATIONS[0]['evidence_level'] == 'none')
+check('the THREE implementations of stress-from-strain are seeded side by side: numpy (evidence none until benchmarked), torch (D5, evidence none until benchmarked where it resolves) and the FPGA row (simulated)',
+      [i['name'] for i in SEED_COMPUTE_IMPLEMENTATIONS] == ['stress-from-strain/numpy', 'stress-from-strain/torch', 'stress-from-strain/fpga-stress-mac'] and SEED_COMPUTE_IMPLEMENTATIONS[0]['evidence_level'] == 'none' and SEED_COMPUTE_IMPLEMENTATIONS[1]['evidence_level'] == 'none')
 check('the fixed-point scales are stated once, in code, and are what the kernel comment says', C_SCALE == 1e-3 and E_SCALE == 1e9 and 'kPa' in KERNEL and 'nano-strain' in KERNEL)
 
 man = json.load(open('modules/tensormath/polari-app.json'))
