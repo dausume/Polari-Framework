@@ -137,6 +137,10 @@ def apply_seeds(manager, module):
         existing = manager.objectTables.get(class_name, {}) or {}
         by_name = {getattr(o, 'name', None): o for o in existing.values()}
         for seed in rows or []:
+            # `_converge` is the boot seeder's marker (which fields follow the code); this path upserts EVERY field
+            # already, so the marker is only dropped — never a constructor argument, never an attribute
+            if isinstance(seed, dict) and '_converge' in seed:
+                seed = {k: v for k, v in seed.items() if k != '_converge'}
             name = seed.get('name') if isinstance(seed, dict) else None
             if not name:
                 skipped += 1
