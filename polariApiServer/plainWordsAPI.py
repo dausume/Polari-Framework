@@ -35,6 +35,12 @@ def class_object(manager, name):
             v = getattr(typing, attr, None)
             if isinstance(v, type):
                 return v
+    # a registered class with NO rows yet (seen live: TensorDecomposition) — find the imported class by name
+    import sys
+    for mod in list(sys.modules.values()):
+        v = getattr(mod, name, None)
+        if isinstance(v, type) and v.__name__ == name and issubclass(v, treeObject):
+            return v
     return None
 
 
