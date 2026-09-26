@@ -133,8 +133,8 @@ check('tt-13: a mapping written for ANOTHER tree\'s node is a candidate on this 
 check('  …the same dim name in a DIFFERENT unit is INAPPLICABLE (x is m here, mm there), never scored; a dim with NO unit recorded on the other node is inapplicable and says which side is silent — compatibility is never assumed',
       any(r['mapping'] == 'mm:T→x' and r['kind'] == 'units-incompatible' and 'm here, mm there' in r['why'] for r in d3['inapplicable'])
       and any(r['mapping'] == 'nounits:T→x' and r['kind'] == 'units-unknown' and 'field4' in r['why'] for r in d3['inapplicable']) and not any(c['mapping'] in ('mm:T→x', 'nounits:T→x') for c in d3['candidates']), d3['inapplicable'])
-check('  …a cross-tree mapping whose dims are NOT all here is simply not a candidate (no refusal row per foreign mapping); own-node candidates are unchanged and still rank by the configured score; the response says the units of this node',
-      not any(r['mapping'] == 'other:needs-w' for r in d3['inapplicable'] + d3['candidates']) and [c['mapping'] for c in d3['candidates'] if not c.get('cross_tree')] == ['T→slice', 'T→gb']   # the 0.9-evidence policy set just above and d3['units_here']['T'] == 'K', [c['mapping'] for c in d3['candidates']])
+check('  …a cross-tree mapping whose dims are NOT all here is simply not a candidate (no refusal row per foreign mapping); own-node candidates are unchanged and still rank by the configured score (the 0.9-evidence policy set just above: measured first); the response says the units of this node',
+      not any(r['mapping'] == 'other:needs-w' for r in d3['inapplicable'] + d3['candidates']) and [c['mapping'] for c in d3['candidates'] if not c.get('cross_tree')] == ['T→slice', 'T→gb'] and d3['units_here']['T'] == 'K', [c['mapping'] for c in d3['candidates']])
 
 # ---- tt-1: the SEEDED tree over the real wind field validates, and discovery works on the seeded selection
 from tensortree.tensortree_seed import (SEED_TENSOR_TREES, SEED_TENSOR_NODES, SEED_UNRESOLVED, SEED_LOCALIZED_DIMENSIONS, SEED_TENSOR_MAPPINGS, SEED_TENSOR_SELECTIONS)
