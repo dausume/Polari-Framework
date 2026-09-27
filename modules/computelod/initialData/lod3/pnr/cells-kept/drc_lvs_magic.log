@@ -1,0 +1,96 @@
+
+Magic 8.3 revision 684 - Compiled on Fri Sep 25 00:39:25 UTC 2026.
+Starting magic under Tcl interpreter
+Using the terminal as the console.
+WARNING: RLIMIT_NOFILE is above 1024 and Tcl_Version<9 this may cause runtime issues [rlim_cur=1048576]
+Using NULL graphics device.
+Processing system .magicrc file
+Switching to WIRING tool.
+Switching to NETLIST tool.
+Switching to PICK tool.
+Switching to BOX tool.
+Sourcing design .magicrc for technology sky130A ...
+2 Magic internal units = 1 Lambda
+Input style sky130(): scaleFactor=2, multiplier=2
+The following types are not handled by extraction and will be treated as non-electrical types:
+    ubm 
+Scaled tech values by 2 / 1 to match internal grid scaling
+Loading sky130A Device Generator Menu ...
+Loading "design_check.tcl" from command line.
+Warning: Calma reading is not undoable!  I hope that's OK.
+Library written using GDS-II Release 6.0
+Library name: LIB
+Reading "VIA_M2M3_PR".
+Reading "VIA_M1M2_PR".
+Reading "VIA_L1M1_PR_MR".
+Reading "VIA_via2_3_1600_480_1_5_320_320".
+Reading "VIA_via3_4_1600_480_1_4_400_400".
+Reading "VIA_via4_5_1600_480_1_4_400_400".
+Reading "VIA_via5_6_1600_1600_1_1_1600_1600".
+Reading "sky130_fd_sc_hd__buf_4".
+Reading "sky130_fd_sc_hd__xor2_1".
+Reading "sky130_fd_sc_hd__xnor2_2".
+Reading "sky130_fd_sc_hd__maj3_2".
+Reading "sky130_fd_sc_hd__o21ai_1".
+Reading "sky130_fd_sc_hd__lpflow_isobufsrc_1".
+Reading "sky130_fd_sc_hd__nor2_2".
+Reading "sky130_fd_sc_hd__nand2_1".
+Reading "sky130_fd_sc_hd__xnor2_1".
+Reading "sky130_fd_sc_hd__tapvpwrvgnd_1".
+Reading "sky130_fd_sc_hd__fill_2".
+Reading "sky130_fd_sc_hd__fill_1".
+Reading "sky130_fd_sc_hd__fill_8".
+Reading "sky130_fd_sc_hd__fill_4".
+Reading "rv32_add".
+DRC style is now "drc(full)"
+Loading DRC CIF style.
+POLARI_DRC_COUNT 0
+No errors found.
+Warning:  Extract option "do unique" disabled because "extract unique" was run.
+Processing sky130_fd_sc_hd__fill_2
+Processing sky130_fd_sc_hd__fill_4
+Processing VIA_M2M3_PR
+Processing VIA_M1M2_PR
+Processing VIA_L1M1_PR_MR
+Processing sky130_fd_sc_hd__maj3_2
+Processing sky130_fd_sc_hd__buf_4
+Processing sky130_fd_sc_hd__fill_1
+Processing VIA_via2_3_1600_480_1_5_320_320
+Processing VIA_via4_5_1600_480_1_4_400_400
+Processing VIA_via3_4_1600_480_1_4_400_400
+Processing sky130_fd_sc_hd__fill_8
+Processing sky130_fd_sc_hd__tapvpwrvgnd_1
+Processing sky130_fd_sc_hd__xnor2_1
+Processing VIA_via5_6_1600_1600_1_1_1600_1600
+Processing sky130_fd_sc_hd__nand2_1
+Processing sky130_fd_sc_hd__xor2_1
+Processing sky130_fd_sc_hd__nor2_2
+Processing sky130_fd_sc_hd__o21ai_1
+Processing sky130_fd_sc_hd__lpflow_isobufsrc_1
+Processing sky130_fd_sc_hd__xnor2_2
+Processing rv32_add
+Extracting sky130_fd_sc_hd__fill_2 into sky130_fd_sc_hd__fill_2.ext:
+Extracting sky130_fd_sc_hd__fill_4 into sky130_fd_sc_hd__fill_4.ext:
+Extracting VIA_M2M3_PR into VIA_M2M3_PR.ext:
+Extracting VIA_M1M2_PR into VIA_M1M2_PR.ext:
+Extracting VIA_L1M1_PR_MR into VIA_L1M1_PR_MR.ext:
+Extracting sky130_fd_sc_hd__maj3_2 into sky130_fd_sc_hd__maj3_2.ext:
+Extracting sky130_fd_sc_hd__buf_4 into sky130_fd_sc_hd__buf_4.ext:
+Extracting sky130_fd_sc_hd__fill_1 into sky130_fd_sc_hd__fill_1.ext:
+Extracting VIA_via2_3_1600_480_1_5_320_320 into VIA_via2_3_1600_480_1_5_320_320.ext:
+Extracting VIA_via4_5_1600_480_1_4_400_400 into VIA_via4_5_1600_480_1_4_400_400.ext:
+Extracting VIA_via3_4_1600_480_1_4_400_400 into VIA_via3_4_1600_480_1_4_400_400.ext:
+Extracting sky130_fd_sc_hd__fill_8 into sky130_fd_sc_hd__fill_8.ext:
+Extracting sky130_fd_sc_hd__tapvpwrvgnd_1 into sky130_fd_sc_hd__tapvpwrvgnd_1.ext:
+Extracting sky130_fd_sc_hd__xnor2_1 into sky130_fd_sc_hd__xnor2_1.ext:
+Extracting VIA_via5_6_1600_1600_1_1_1600_1600 into VIA_via5_6_1600_1600_1_1_1600_1600.ext:
+Extracting sky130_fd_sc_hd__nand2_1 into sky130_fd_sc_hd__nand2_1.ext:
+Extracting sky130_fd_sc_hd__xor2_1 into sky130_fd_sc_hd__xor2_1.ext:
+Extracting sky130_fd_sc_hd__nor2_2 into sky130_fd_sc_hd__nor2_2.ext:
+Extracting sky130_fd_sc_hd__o21ai_1 into sky130_fd_sc_hd__o21ai_1.ext:
+Extracting sky130_fd_sc_hd__lpflow_isobufsrc_1 into sky130_fd_sc_hd__lpflow_isobufsrc_1.ext:
+Extracting sky130_fd_sc_hd__xnor2_2 into sky130_fd_sc_hd__xnor2_2.ext:
+Extracting rv32_add into rv32_add.ext:
+exttospice finished.
+POLARI_LVS_NETLIST rv32_add_lvs.spice
+CIF file read warning: CIF style sky130(): units rescaled by factor of 5 / 1

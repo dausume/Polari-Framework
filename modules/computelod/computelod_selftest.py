@@ -357,6 +357,23 @@ check('  …the block shape is checked by one function: a block without seeds or
 from computelod.custom.lod3_devices import report as _r3b_rep, rows as _r3b_rows
 _ev = explain_characterization(types.SimpleNamespace(objectTables={}), types.SimpleNamespace(**next(c for c in _r3b_rows(_r3b_rep())[1] if c['name'] == 'lod3: inv_1 A→Y tpHL')))
 check('  …the explainer\'s "how to reproduce" points a person at the reproduction block', any('reproduction' in step for step in _ev['how to reproduce']), _ev['how to reproduce'])
+# ---- lod-3f: the routed adder checked independently — magic's full deck on the merged GDS, netgen LVS vs the power-connected netlist
+from computelod.custom.lod3_drc import report as lod3f_report, rows as lod3f_rows
+rep3f = lod3f_report()
+check('lod-3f: a committed DRC/LVS report exists for both variants — the merged GDS and the routed netlist cited by sha256 (the GDS itself never committed), the tech file hashed, magic + netgen through the ladder',
+      rep3f is not None and set(rep3f['variants']) == {'as-flow', 'cells-kept'} and all(len(e['gds_sha256']) == 64 and len(e['netlist_sha256']) == 64 for e in rep3f['variants'].values()) and len(rep3f['pdk_tech_sha256']) == 64
+      and all(e['drc']['ran'] and e['extracted']['ran'] and e['lvs']['ran'] for e in rep3f['variants'].values()), rep3f and rep3f['summary'])
+check('  …DRC: magic\'s FULL sky130A deck on the whole routed layout reports 0 violations on both variants — no context rule excused (taps and wells are in the rows) — an independent confirmation of the router\'s own count',
+      all(e['drc']['count'] == 0 and e['drc']['rules'] == [] and e['drc']['clean'] for e in rep3f['variants'].values()) and 'NO context rule' in rep3f['variants']['as-flow']['drc']['note'], rep3f['summary']['drc_counts'])
+check('  …LVS: the extracted layout matches OpenROAD\'s power-connected netlist UNIQUELY on both variants (as-flow 242 devices / 308 nets; cells-kept 113 / 179) with the cells as black boxes and fill/tap/decap ignored by NAME (listed) — the 966-dummy-net mismatch against the power-less 6_final.v is recorded as the reason the power netlist is required',
+      all(e['lvs']['match'] and e['power_netlist']['ok'] and e['lvs']['ignored_classes'] for e in rep3f['variants'].values()) and any('242' in l for l in rep3f['variants']['as-flow']['lvs']['verdict']) and any('113' in l for l in rep3f['variants']['cells-kept']['lvs']['verdict'])
+      and 'INCLUDING power' in rep3f['variants']['as-flow']['lvs']['mode'], {v: e['lvs']['verdict'][:3] for v, e in rep3f['variants'].items()})
+check('  …its cost is measured (his rule): magic ~85 MB peak and netgen a few MB inside the eda-tools image, the openroad netlist writer in the ORFS image; the block says which',
+      'cost' in rep3f['reproduction'] and rep3f['reproduction']['cost']['engines']['by_engine'].get('magic', {}).get('peak_rss_mb', 0) > 50 and 'openroad' in rep3f['reproduction']['cost']['engines']['by_engine'], rep3f['reproduction']['cost']['engines'])
+_, chars3f = lod3f_rows(rep3f)
+check('lod-3f rows: four upward characterizations (per variant: full-deck DRC violations = 0, layout-vs-schematic = match), MEASURED, validated; plain words for lvs_match; a flow for the explainer',
+      len(chars3f) == 4 and all(c['evidence_level'] == 'measured' and c['mapping_status'] == 'validated' and c['source_rung'] == 'layout' for c in chars3f) and {c['characteristic'] for c in chars3f} == {'drc_violations', 'lvs_match'}
+      and 'lvs_match' in CHARACTERISTIC_WORDS and 'lod3f' in FLOWS, [(c['name'], c['result']) for c in chars3f])
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

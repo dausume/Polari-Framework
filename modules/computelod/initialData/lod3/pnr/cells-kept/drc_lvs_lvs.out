@@ -1,0 +1,328 @@
+
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: A
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: B
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: C
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: X
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: VGND
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: VNB
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: VPB
+Cell sky130_fd_sc_hd__maj3_2 disconnected node: VPWR
+Class sky130_fd_sc_hd__maj3_2:  Merged 2 devices.
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__maj3_2         |Circuit 2: sky130_fd_sc_hd__maj3_2         
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+X                                          |X                                          
+A                                          |A                                          
+B                                          |B                                          
+C                                          |C                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__maj3_2 and sky130_fd_sc_hd__maj3_2 are equivalent.
+
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: A
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: B
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: Y
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: VGND
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: VNB
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: VPB
+Cell sky130_fd_sc_hd__xnor2_1 disconnected node: VPWR
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__xnor2_1        |Circuit 2: sky130_fd_sc_hd__xnor2_1        
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+B                                          |B                                          
+A                                          |A                                          
+Y                                          |Y                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__xnor2_1 and sky130_fd_sc_hd__xnor2_1 are equivalent.
+
+Cell sky130_fd_sc_hd__buf_4 disconnected node: A
+Cell sky130_fd_sc_hd__buf_4 disconnected node: X
+Cell sky130_fd_sc_hd__buf_4 disconnected node: VGND
+Cell sky130_fd_sc_hd__buf_4 disconnected node: VNB
+Cell sky130_fd_sc_hd__buf_4 disconnected node: VPB
+Cell sky130_fd_sc_hd__buf_4 disconnected node: VPWR
+Class sky130_fd_sc_hd__buf_4:  Merged 6 devices.
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__buf_4          |Circuit 2: sky130_fd_sc_hd__buf_4          
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VPWR                                       |VPWR                                       
+VGND                                       |VGND                                       
+A                                          |A                                          
+X                                          |X                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__buf_4 and sky130_fd_sc_hd__buf_4 are equivalent.
+
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: A1
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: A2
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: B1
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: Y
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: VGND
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: VNB
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: VPB
+Cell sky130_fd_sc_hd__o21ai_1 disconnected node: VPWR
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__o21ai_1        |Circuit 2: sky130_fd_sc_hd__o21ai_1        
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+A2                                         |A2                                         
+B1                                         |B1                                         
+Y                                          |Y                                          
+A1                                         |A1                                         
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__o21ai_1 and sky130_fd_sc_hd__o21ai_1 are equivalent.
+
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: A
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: SLEEP
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: X
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: VGND
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: VNB
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: VPB
+Cell sky130_fd_sc_hd__lpflow_isobufsrc_1 disconnected node: VPWR
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__lpflow_isobufs |Circuit 2: sky130_fd_sc_hd__lpflow_isobufs 
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+A                                          |A                                          
+SLEEP                                      |SLEEP                                      
+X                                          |X                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__lpflow_isobufsrc_1 and sky130_fd_sc_hd__lpflow_isobufsrc_1 are equivalent.
+
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: A
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: B
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: Y
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: VGND
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: VNB
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: VPB
+Cell sky130_fd_sc_hd__nor2_2 disconnected node: VPWR
+Class sky130_fd_sc_hd__nor2_2:  Merged 4 devices.
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__nor2_2         |Circuit 2: sky130_fd_sc_hd__nor2_2         
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+B                                          |B                                          
+Y                                          |Y                                          
+A                                          |A                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__nor2_2 and sky130_fd_sc_hd__nor2_2 are equivalent.
+
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: A
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: B
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: Y
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: VGND
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: VNB
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: VPB
+Cell sky130_fd_sc_hd__xnor2_2 disconnected node: VPWR
+Class sky130_fd_sc_hd__xnor2_2:  Merged 10 devices.
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__xnor2_2        |Circuit 2: sky130_fd_sc_hd__xnor2_2        
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+Y                                          |Y                                          
+A                                          |A                                          
+B                                          |B                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__xnor2_2 and sky130_fd_sc_hd__xnor2_2 are equivalent.
+
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: A
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: B
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: Y
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: VGND
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: VNB
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: VPB
+Cell sky130_fd_sc_hd__nand2_1 disconnected node: VPWR
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__nand2_1        |Circuit 2: sky130_fd_sc_hd__nand2_1        
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VGND                                       |VGND                                       
+VPWR                                       |VPWR                                       
+A                                          |A                                          
+Y                                          |Y                                          
+B                                          |B                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__nand2_1 and sky130_fd_sc_hd__nand2_1 are equivalent.
+
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: A
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: B
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: X
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: VGND
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: VNB
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: VPB
+Cell sky130_fd_sc_hd__xor2_1 disconnected node: VPWR
+
+Subcircuit pins:
+Circuit 1: sky130_fd_sc_hd__xor2_1         |Circuit 2: sky130_fd_sc_hd__xor2_1         
+-------------------------------------------|-------------------------------------------
+VNB                                        |VNB                                        
+VPB                                        |VPB                                        
+VPWR                                       |VPWR                                       
+VGND                                       |VGND                                       
+A                                          |A                                          
+X                                          |X                                          
+B                                          |B                                          
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes sky130_fd_sc_hd__xor2_1 and sky130_fd_sc_hd__xor2_1 are equivalent.
+
+Subcircuit summary:
+Circuit 1: rv32_add                        |Circuit 2: rv32_add                        
+-------------------------------------------|-------------------------------------------
+sky130_fd_sc_hd__maj3_2 (29)               |sky130_fd_sc_hd__maj3_2 (29)               
+sky130_fd_sc_hd__xnor2_1 (60)              |sky130_fd_sc_hd__xnor2_1 (60)              
+sky130_fd_sc_hd__buf_4 (17)                |sky130_fd_sc_hd__buf_4 (17)                
+sky130_fd_sc_hd__o21ai_1 (1)               |sky130_fd_sc_hd__o21ai_1 (1)               
+sky130_fd_sc_hd__lpflow_isobufsrc_1 (1)    |sky130_fd_sc_hd__lpflow_isobufsrc_1 (1)    
+sky130_fd_sc_hd__nor2_2 (1)                |sky130_fd_sc_hd__nor2_2 (1)                
+sky130_fd_sc_hd__xnor2_2 (1)               |sky130_fd_sc_hd__xnor2_2 (1)               
+sky130_fd_sc_hd__nand2_1 (2)               |sky130_fd_sc_hd__nand2_1 (2)               
+sky130_fd_sc_hd__xor2_1 (1)                |sky130_fd_sc_hd__xor2_1 (1)                
+Number of devices: 113                     |Number of devices: 113                     
+Number of nets: 179                        |Number of nets: 179                        
+---------------------------------------------------------------------------------------
+Circuits match uniquely.
+Netlists match uniquely.
+
+Subcircuit pins:
+Circuit 1: rv32_add                        |Circuit 2: rv32_add                        
+-------------------------------------------|-------------------------------------------
+reg_op1[31]                                |reg_op1[31]                                
+reg_op2[31]                                |reg_op2[31]                                
+alu_out[31]                                |alu_out[31]                                
+alu_out[0]                                 |alu_out[0]                                 
+alu_out[2]                                 |alu_out[2]                                 
+alu_out[14]                                |alu_out[14]                                
+alu_out[29]                                |alu_out[29]                                
+alu_out[3]                                 |alu_out[3]                                 
+alu_out[24]                                |alu_out[24]                                
+alu_out[20]                                |alu_out[20]                                
+alu_out[7]                                 |alu_out[7]                                 
+alu_out[28]                                |alu_out[28]                                
+alu_out[25]                                |alu_out[25]                                
+alu_out[8]                                 |alu_out[8]                                 
+alu_out[26]                                |alu_out[26]                                
+alu_out[9]                                 |alu_out[9]                                 
+alu_out[21]                                |alu_out[21]                                
+alu_out[1]                                 |alu_out[1]                                 
+alu_out[6]                                 |alu_out[6]                                 
+alu_out[4]                                 |alu_out[4]                                 
+alu_out[10]                                |alu_out[10]                                
+alu_out[15]                                |alu_out[15]                                
+alu_out[22]                                |alu_out[22]                                
+alu_out[27]                                |alu_out[27]                                
+alu_out[16]                                |alu_out[16]                                
+alu_out[17]                                |alu_out[17]                                
+alu_out[5]                                 |alu_out[5]                                 
+alu_out[11]                                |alu_out[11]                                
+alu_out[12]                                |alu_out[12]                                
+alu_out[18]                                |alu_out[18]                                
+alu_out[13]                                |alu_out[13]                                
+alu_out[19]                                |alu_out[19]                                
+alu_out[23]                                |alu_out[23]                                
+alu_out[30]                                |alu_out[30]                                
+reg_op1[1]                                 |reg_op1[1]                                 
+reg_op2[1]                                 |reg_op2[1]                                 
+reg_op1[0]                                 |reg_op1[0]                                 
+reg_op2[0]                                 |reg_op2[0]                                 
+reg_op1[2]                                 |reg_op1[2]                                 
+reg_op1[6]                                 |reg_op1[6]                                 
+reg_op1[29]                                |reg_op1[29]                                
+reg_op1[4]                                 |reg_op1[4]                                 
+reg_op1[10]                                |reg_op1[10]                                
+reg_op1[20]                                |reg_op1[20]                                
+reg_op1[7]                                 |reg_op1[7]                                 
+reg_op1[24]                                |reg_op1[24]                                
+reg_op1[8]                                 |reg_op1[8]                                 
+reg_op1[25]                                |reg_op1[25]                                
+reg_op1[28]                                |reg_op1[28]                                
+reg_op1[3]                                 |reg_op1[3]                                 
+reg_op1[9]                                 |reg_op1[9]                                 
+reg_op1[14]                                |reg_op1[14]                                
+reg_op1[21]                                |reg_op1[21]                                
+reg_op1[26]                                |reg_op1[26]                                
+reg_op1[13]                                |reg_op1[13]                                
+reg_op1[23]                                |reg_op1[23]                                
+reg_op1[19]                                |reg_op1[19]                                
+reg_op1[27]                                |reg_op1[27]                                
+reg_op1[5]                                 |reg_op1[5]                                 
+reg_op1[15]                                |reg_op1[15]                                
+reg_op1[16]                                |reg_op1[16]                                
+reg_op1[11]                                |reg_op1[11]                                
+reg_op1[17]                                |reg_op1[17]                                
+reg_op1[12]                                |reg_op1[12]                                
+reg_op1[18]                                |reg_op1[18]                                
+reg_op1[22]                                |reg_op1[22]                                
+reg_op2[2]                                 |reg_op2[2]                                 
+reg_op2[6]                                 |reg_op2[6]                                 
+reg_op2[29]                                |reg_op2[29]                                
+reg_op2[4]                                 |reg_op2[4]                                 
+reg_op2[10]                                |reg_op2[10]                                
+reg_op2[20]                                |reg_op2[20]                                
+reg_op2[7]                                 |reg_op2[7]                                 
+reg_op2[24]                                |reg_op2[24]                                
+reg_op2[8]                                 |reg_op2[8]                                 
+reg_op2[25]                                |reg_op2[25]                                
+reg_op2[28]                                |reg_op2[28]                                
+reg_op2[3]                                 |reg_op2[3]                                 
+reg_op2[9]                                 |reg_op2[9]                                 
+reg_op2[14]                                |reg_op2[14]                                
+reg_op2[21]                                |reg_op2[21]                                
+reg_op2[26]                                |reg_op2[26]                                
+reg_op2[13]                                |reg_op2[13]                                
+reg_op2[23]                                |reg_op2[23]                                
+reg_op2[19]                                |reg_op2[19]                                
+reg_op2[27]                                |reg_op2[27]                                
+reg_op2[5]                                 |reg_op2[5]                                 
+reg_op2[15]                                |reg_op2[15]                                
+reg_op2[16]                                |reg_op2[16]                                
+reg_op2[11]                                |reg_op2[11]                                
+reg_op2[17]                                |reg_op2[17]                                
+reg_op2[12]                                |reg_op2[12]                                
+reg_op2[18]                                |reg_op2[18]                                
+reg_op2[22]                                |reg_op2[22]                                
+reg_op1[30]                                |reg_op1[30]                                
+reg_op2[30]                                |reg_op2[30]                                
+VSS                                        |VSS                                        
+VDD                                        |VDD                                        
+---------------------------------------------------------------------------------------
+Cell pin lists are equivalent.
+Device classes rv32_add and rv32_add are equivalent.
+Circuits match uniquely.

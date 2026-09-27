@@ -140,6 +140,11 @@ from computelod.custom.lod3_pnr import report as _lod3e_report, rows as _lod3e_r
 _l3em, _l3ec = _lod3e_rows(_lod3e_report(), _lod2_report())
 SEED_LOD_MAPPINGS = _merge(SEED_LOD_MAPPINGS, _l3em)
 SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3ec)
+# ---- lod-3f: the routed adder checked INDEPENDENTLY — magic's full deck on the merged GDS (0 on both variants) and netgen LVS against
+# OpenROAD's power-connected netlist (match on both); four upward rows, measured (the tools' own verdicts).
+from computelod.custom.lod3_drc import report as _lod3f_report, rows as _lod3f_rows
+_l3fm, _l3fc = _lod3f_rows(_lod3f_report())
+SEED_LOD_CHARACTERIZATIONS = _merge(SEED_LOD_CHARACTERIZATIONS, _l3fc)
 # ---- lod-4b: fabrication as ROWS — the SKY130 route as PSPP ProcessingStage / MaterialProcessDefinition rows (stages from the PDK's
 # documented layer stack, unit processes per the textbook, the recipe named as absent) and the CNT route by reference to cntfet; replaces
 # lod-4's fabrication → materials by name, adds the CNT branch's. The PSPP rows themselves are seeded below (guarded on pspp).

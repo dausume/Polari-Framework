@@ -35,7 +35,8 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod4/devices', self, suffix='lod4_devices')
             add('/api/computelod/lod2/compare', self, suffix='lod2_compare')
             add('/api/computelod/lod3/pnr', self, suffix='lod3_pnr')          # lod-3e: the whole adder placed and routed
-            add('/api/computelod/lod4/steps', self, suffix='lod4_steps')      # lod-4b: the fabrication route as PSPP rows (both branches)  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
+            add('/api/computelod/lod4/steps', self, suffix='lod4_steps')      # lod-4b: the fabrication route as PSPP rows (both branches)
+            add('/api/computelod/lod3/drc-lvs', self, suffix='lod3_drc')      # lod-3f: the routed adder's independent DRC + LVS  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
             add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
     def _rows(self, cls):
@@ -76,6 +77,11 @@ class ComputeLodAPI(treeObject):
         from computelod.custom.lod3_devices import report
         rep = report()
         response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_devices run (ngspice on the pinned sky130_fd_pr tt models, cached in ~/.cache/polari-lod/sky130_pr, never committed)'}
+
+    def on_get_lod3_drc(self, request, response):
+        from computelod.custom.lod3_drc import report
+        rep = report()
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'how_to_rerun': 'python3 -m computelod.custom.lod3_drc run (needs lod3_pnr\'s work dir: the merged GDS/ODB are never committed)'}
 
     def on_get_lod4_steps(self, request, response):
         from computelod.custom.lod4_steps import report

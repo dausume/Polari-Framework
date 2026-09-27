@@ -25,6 +25,7 @@ FLOWS = {
     'lod3-cnt': ('computelod.custom.lod2_cnt', 'our CNT cell library\'s device lists, counted', 'lod2/cnt/report.json'),
     'lod3c': ('computelod.custom.lod3_layout', 'the cells\' layouts checked (magic DRC), parasitics extracted, LVS-matched (netgen), and re-simulated on the extracted netlist', 'lod3/layout_report.json'),
     'lod3e': ('computelod.custom.lod3_pnr', 'the WHOLE adder placed and routed (OpenROAD-flow-scripts in its pinned image), parasitics extracted, timed with OpenSTA with and without the wires', 'lod3/pnr/pnr_report.json'),
+    'lod3f': ('computelod.custom.lod3_drc', 'the ROUTED adder checked independently: magic\'s full sky130A deck on the merged GDS and netgen LVS against OpenROAD\'s power-connected netlist', 'lod3/pnr/drc_lvs_report.json'),
     'lod4': ('computelod.custom.lod4_process', 'the layout\'s layers read as process steps and materials', 'lod4/report.json'),
     'lod4b': ('computelod.custom.lod4_steps', 'the fabrication route written as PSPP rows: SKY130 stages from the PDK\'s documented layer stack, unit processes per the textbook, the CNT route by reference to cntfet', 'lod4/steps_report.json'),
     'lod4b-cnt': ('computelod.custom.lod4_steps', 'the aligned-CNT fabrication route as PSPP rows, by reference to cntfet\'s process rows', 'lod4/steps_report.json'),
@@ -39,7 +40,7 @@ CHARACTERISTIC_WORDS = {
     'on_current': 'how much current one micron of transistor width carries when fully on', 'off_current': 'how much current leaks through when it is switched off',
     'threshold_voltage': 'the gate voltage at which the transistor starts to conduct', 'dibl': 'how much the drain voltage lowers the threshold (drain-induced barrier lowering)',
     'subthreshold_swing': 'how many millivolts of gate voltage it takes to change the leakage tenfold',
-    'wire_delay': 'how much slower the wires between the cells make the circuit', 'wirelength': 'how much metal wire the routed circuit uses', 'drc_violations': 'how many layout rules the routed design breaks',
+    'wire_delay': 'how much slower the wires between the cells make the circuit', 'lvs_match': 'whether the drawn layout is exactly the circuit the netlist describes (1 = yes)', 'wirelength': 'how much metal wire the routed circuit uses', 'drc_violations': 'how many layout rules the routed design breaks',
 }
 
 

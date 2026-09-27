@@ -283,6 +283,9 @@ if _torch_how in ('remote', 'local'):
 else:
     r = client.simulate_post('/api/tensormath/benchmark', json={'implementation': 'stress-from-strain/torch', 'repeats': 3})
     check('  …POST benchmark on the torch row with no engine anywhere is a 422 that names both knobs — the row stays evidence none (no number invented)', r.status_code == 422 and 'TORCH_ENGINES_URL' in r.json['error'], r.text[:300])
+r = client.simulate_get('/api/computelod/lod3/drc-lvs')
+check('GET /api/computelod/lod3/drc-lvs (lod-3f): the routed adder checked independently — magic full-deck DRC 0 and netgen LVS match on both variants, against OpenROAD\'s power-connected netlist',
+      r.status_code == 200 and r.json['ok'] and r.json['report']['summary']['drc_counts'] == {'as-flow': 0, 'cells-kept': 0} and r.json['report']['summary']['lvs_match'] == {'as-flow': True, 'cells-kept': True}, r.text[:300])
 r = client.simulate_get('/api/computelod/lod4/steps')
 check('GET /api/computelod/lod4/steps: the fabrication route as PSPP rows on a real boot — 14 ProcessingStage + 14 MaterialProcessDefinition rows (sky130 + aligned-cnt families) live in pspp\'s tables, the report citing the PDK docs and naming the recipe as absent',
       r.status_code == 200 and r.json['ok'] and len(r.json['live_rows']['ProcessingStage']) == 14 and len(r.json['live_rows']['MaterialProcessDefinition']) == 14
@@ -309,8 +312,8 @@ r = client.simulate_get('/api/computelod/lod3')
 check('GET /api/computelod/lod3 serves the cells → transistors → layout reading: 1050 SKY130 transistors, LEF area == Liberty area, 1016 CNT transistors, CNT layout None, not_done listed',
       r.status_code == 200 and r.json['ok'] and r.json['report']['adder']['sky130']['transistors'] == 1050 and r.json['report']['adder']['sky130']['area_agrees'] and r.json['report']['adder']['cnt']['transistors'] == 1016
       and r.json['report']['adder']['cnt']['layout'] is None and len(r.json['report']['not_done']) == 4, r.text[:300])
-check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-3e + lod-4 + lod-4b + lod-4c rows are seeded: 17 ComputeMappings, 142 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons + 12 place-and-route), 3 CompilerArtifacts',
-      len(tables.get('ComputeMapping', {})) == 17 and len(tables.get('CharacterizationMapping', {})) == 142 and len(tables.get('CompilerArtifact', {})) == 3,
+check('the lod-1 + lod-2 + lod-2b + lod-2c + lod-3 + lod-3b + lod-3c + lod-3d + lod-3e + lod-3f + lod-4 + lod-4b + lod-4c rows are seeded: 17 ComputeMappings, 146 CharacterizationMappings (12 + 42 schematic + 42 extracted arcs + 10 device numbers + 24 twin comparisons + 12 place-and-route + 4 independent DRC/LVS), 3 CompilerArtifacts',
+      len(tables.get('ComputeMapping', {})) == 17 and len(tables.get('CharacterizationMapping', {})) == 146 and len(tables.get('CompilerArtifact', {})) == 3,
       (len(tables.get('ComputeMapping', {})), len(tables.get('CharacterizationMapping', {}))))
 r = client.simulate_get('/api/computelod/lod2')
 check('GET /api/computelod/lod2 serves the open-silicon report (SKY130 cells, OpenSTA delay with conditions)', r.status_code == 200 and r.json['report']['timing']['max_path_ns'] > 0 and r.json['report']['liberty']['sha256'])
