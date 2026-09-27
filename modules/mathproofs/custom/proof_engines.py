@@ -65,13 +65,9 @@ def remote_capability(url, timeout=5):
         return cached[1]
     cap = None
     try:
-        try:
-            from polariApiServer import outbound
-            with outbound.http_request('engine', _ENGINE, 'GET', '%s/capability' % url, means='probe', timeout=timeout, lib='urllib') as response:
-                cap = json.load(response)
-        except ImportError:
-            with urllib.request.urlopen('%s/capability' % url, timeout=timeout) as response:
-                cap = json.load(response)
+        from polariApiServer import outbound
+        with outbound.http_request('engine', _ENGINE, 'GET', '%s/capability' % url, means='probe', timeout=timeout, lib='urllib') as response:
+            cap = json.load(response)
     except Exception:
         cap = None
     _CAP_CACHE[url] = (now, cap)
@@ -135,13 +131,9 @@ def _post(url, payload, timeout):
     data = json.dumps(payload).encode()
     req = urllib.request.Request('%s/check' % url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
     try:
-        try:
-            from polariApiServer import outbound
-            with outbound.http_request('engine', _ENGINE, 'POST', req, timeout=timeout, lib='urllib') as response:
-                return json.load(response)
-        except ImportError:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                return json.load(response)
+        from polariApiServer import outbound
+        with outbound.http_request('engine', _ENGINE, 'POST', req, timeout=timeout, lib='urllib') as response:
+            return json.load(response)
     except urllib.error.HTTPError as exc:
         try:
             return json.load(exc)

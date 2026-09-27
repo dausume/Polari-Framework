@@ -101,6 +101,7 @@
   "custom": [
    "custom/computelod_walk",
    "custom/eda_engines",
+   "custom/explain",
    "custom/lod1_chain",
    "custom/lod2_cnt",
    "custom/lod2_silicon",
@@ -113,7 +114,8 @@
    "custom/lod3_pnr",
    "custom/lod4_steps",
    "custom/lod4_materials",
-   "custom/lod3_drc"
+   "custom/lod3_drc",
+   "custom/repro"
   ],
   "endpoints": [
    "computelod_endpoints"

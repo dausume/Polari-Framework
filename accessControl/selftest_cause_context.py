@@ -94,6 +94,12 @@ KNOWN_THREAD_SITES = {
         'after the rows are restored — root `boot` cause',
     'apps_page.py':
         'the polariapps-pages converge worker (ct-8) — root `boot` cause',
+    'cost_meter.py':
+        'the rc-1 docker_run_metered cgroup-poll sampler — no cause needed: '
+        'it only reads cgroup memory.peak/cpu.stat files into a local dict, '
+        'it writes no rows and calls nothing cause-gated; the caller logs '
+        'the resulting cost itself, in its own (already-caused) thread, '
+        'after the poll thread has joined',
 }
 
 _THREAD_RE = re.compile(r'threading\.Thread\(|threading\.Timer\(|[^.\w]Thread\(target')

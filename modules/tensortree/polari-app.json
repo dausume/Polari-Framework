@@ -58,6 +58,7 @@
    "tensortree_selftest"
   ],
   "custom": [
+   "custom/explain",
    "custom/tensortree_couple",
    "custom/tensortree_discover",
    "custom/tensortree_graph",

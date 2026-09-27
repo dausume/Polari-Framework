@@ -67,12 +67,14 @@
    "custom/authoring",
    "custom/boot",
    "custom/checkers",
+   "custom/explain",
    "custom/knowledge",
    "custom/lean_tier",
    "custom/numeric",
    "custom/proof_engines",
    "custom/rows",
    "custom/rules",
+   "custom/sources",
    "custom/symbolic",
    "custom/terms",
    "custom/z3tier"
@@ -113,5 +115,35 @@
     "SEED_MATHPROOFS_PAGE_DISPLAYS"
    ]
   ]
- ]
+ ],
+ "endpoints": "mathproofs.mathproofs_endpoints:construct_mathproofs_endpoints",
+ "seedPairs": "mathproofs.mathproofs_seed:MATHPROOFS_SEED_PAIRS",
+ "pages": [
+  "mathproofs.mathproofs_page:SEED_MATHPROOFS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "selftests": [
+  "mathproofs_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false
 }
