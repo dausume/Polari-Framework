@@ -1253,13 +1253,38 @@
    "deterministic": true,
    "why": "ngspice transient analysis on the committed decks (decks/lod2c) and bilinear reads of the two Liberties \u2014 no random element"
   },
-  "recorded_at": "2026-09-26T13:04:07",
+  "recorded_at": "2026-09-26T23:22:56",
   "host": {
    "node": "user-HP-ProDesk-600-G1-SFF",
    "machine": "x86_64",
    "python": "3.10.12"
   },
   "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run",
-  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)"
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
+  "cost": {
+   "label": "computelod.custom.lod2_compare",
+   "wall_s": 499.477,
+   "host": {
+    "cpu_s_self": 0.348,
+    "cpu_s_children": 937.962,
+    "peak_rss_mb_self": 43.7,
+    "peak_rss_mb_children": 43.6,
+    "note": "rusage: peak RSS is the process-lifetime maximum up to the end of this run (a lower bound for the run itself when the process did more before); children = subprocesses such as ngspice"
+   },
+   "engines": {
+    "calls": 0,
+    "cpu_s": 0,
+    "peak_rss_mb": 0,
+    "by_engine": {},
+    "images": {},
+    "unmeasured_calls": 0
+   },
+   "totals": {
+    "cpu_s": 938.309,
+    "peak_rss_mb_any_process": 43.7,
+    "pull_mb_images": 0,
+    "reading": "peak_rss_mb_any_process is the memory ONE process needed at its worst (the flow runs its engines one at a time); cpu_s is the whole run's CPU time \u2014 on a slower device the wall time scales, the memory does not"
+   }
+  }
  }
 }
