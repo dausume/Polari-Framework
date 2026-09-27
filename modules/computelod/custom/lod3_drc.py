@@ -145,7 +145,8 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'run':
         vs = sys.argv[sys.argv.index('--variants') + 1].split(',') if '--variants' in sys.argv else None
         wk = sys.argv[sys.argv.index('--work') + 1] if '--work' in sys.argv else None
-        print(json.dumps(run(vs, wk)['summary'], indent=1))
+        pw = sys.argv[sys.argv.index('--pnr-work') + 1] if '--pnr-work' in sys.argv else None   # eng-1: check a flow run kept elsewhere (e.g. the worker's)
+        print(json.dumps(run(vs, wk, pw)['summary'], indent=1))
     else:
         r = report()
         print(json.dumps(r['summary'], indent=1) if r else 'no report yet: python3 -m computelod.custom.lod3_drc run')

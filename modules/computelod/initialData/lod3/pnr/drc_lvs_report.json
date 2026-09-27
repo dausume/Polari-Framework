@@ -13,7 +13,7 @@
  },
  "variants": {
   "as-flow": {
-   "gds_sha256": "5864206e9796c84ac679ffb4c3a48f06daa0ffa816696a18f9a9be99c558b3fa",
+   "gds_sha256": "7f43c1e5ea6f3e4c3d38bf68d9683e96ea4064faa6909dbaf194d7e8a25fa5ad",
    "gds_bytes": 293742,
    "netlist_sha256": "48497b120f9472a78a9ecfe3076e2bf52f21da0852891238402d02f17ca1aef0",
    "drc": {
@@ -63,7 +63,7 @@
    }
   },
   "cells-kept": {
-   "gds_sha256": "6181a8fb81ecb91a8375f8920f643658ff7739e9b05401953f15993e434b6d41",
+   "gds_sha256": "ab3b3a7ced693be02f3dd251c80402acbe3b1ad8d8210b792284186f06929709",
    "gds_bytes": 210846,
    "netlist_sha256": "efb4b3c3b861f7fd8cf36e83afeeaabc5bb3d4d8ceea2987913c233ea1e762f9",
    "drc": {
@@ -138,11 +138,11 @@
   "inputs": [
    {
     "label": "as-flow 6_1_merged.gds (PDK cells merged \u2014 never committed)",
-    "sha256": "5864206e9796c84ac679ffb4c3a48f06daa0ffa816696a18f9a9be99c558b3fa"
+    "sha256": "7f43c1e5ea6f3e4c3d38bf68d9683e96ea4064faa6909dbaf194d7e8a25fa5ad"
    },
    {
     "label": "cells-kept 6_1_merged.gds (PDK cells merged \u2014 never committed)",
-    "sha256": "6181a8fb81ecb91a8375f8920f643658ff7739e9b05401953f15993e434b6d41"
+    "sha256": "ab3b3a7ced693be02f3dd251c80402acbe3b1ad8d8210b792284186f06929709"
    },
    {
     "label": "as-flow 6_final.v (committed in lod3/pnr/as-flow)",
@@ -181,7 +181,7 @@
    "deterministic": true,
    "why": "magic DRC/extraction and netgen on fixed inputs (a clean work dir per run) \u2014 no random element"
   },
-  "recorded_at": "2026-09-26T23:25:49",
+  "recorded_at": "2026-09-26T23:38:33",
   "host": {
    "node": "user-HP-ProDesk-600-G1-SFF",
    "machine": "x86_64",
@@ -191,51 +191,50 @@
   "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
   "cost": {
    "label": "computelod.custom.lod3_drc",
-   "wall_s": 9.379,
+   "wall_s": 9.18,
    "host": {
-    "cpu_s_self": 0.058,
-    "cpu_s_children": 0.269,
-    "peak_rss_mb_self": 18.2,
-    "peak_rss_mb_children": 27.0,
+    "cpu_s_self": 0.624,
+    "cpu_s_children": 0.191,
+    "peak_rss_mb_self": 42.1,
+    "peak_rss_mb_children": 42.1,
     "note": "rusage: peak RSS is the process-lifetime maximum up to the end of this run (a lower bound for the run itself when the process did more before); children = subprocesses such as ngspice"
    },
    "engines": {
     "calls": 6,
-    "cpu_s": 5.524,
-    "peak_rss_mb": 85.2,
+    "cpu_s": 5.474,
+    "peak_rss_mb": 526.1,
     "by_engine": {
      "magic": {
       "calls": 2,
-      "cpu_s": 5.498,
+      "cpu_s": 5.25,
       "peak_rss_mb": 85.2,
       "how": "local-image",
       "image": "polari-eda-tools:noble"
      },
      "openroad": {
       "calls": 2,
-      "cpu_s": 0.012,
-      "peak_rss_mb": 2.4,
-      "how": "local-image",
-      "image": "openroad/orfs:26Q3-651-gbc334a4aa"
+      "cpu_s": 0.21,
+      "peak_rss_mb": 526.1,
+      "how": "remote",
+      "image": ""
      },
      "netgen": {
       "calls": 2,
       "cpu_s": 0.014,
-      "peak_rss_mb": 3.2,
+      "peak_rss_mb": 3.0,
       "how": "local-image",
       "image": "polari-eda-tools:noble"
      }
     },
     "images": {
-     "openroad/orfs:26Q3-651-gbc334a4aa": 4420.7,
      "polari-eda-tools:noble": 2441.9
     },
     "unmeasured_calls": 0
    },
    "totals": {
-    "cpu_s": 5.851,
-    "peak_rss_mb_any_process": 85.2,
-    "pull_mb_images": 6862.6,
+    "cpu_s": 6.289,
+    "peak_rss_mb_any_process": 526.1,
+    "pull_mb_images": 2441.9,
     "reading": "peak_rss_mb_any_process is the memory ONE process needed at its worst (the flow runs its engines one at a time); cpu_s is the whole run's CPU time \u2014 on a slower device the wall time scales, the memory does not"
    }
   }

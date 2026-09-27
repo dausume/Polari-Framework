@@ -42,6 +42,9 @@ ORFS_IMAGE = os.environ.get('POLARI_ORFS_IMAGE', 'openroad/orfs:26Q3-651-gbc334a
 ORFS_PATH = '/OpenROAD-flow-scripts/tools/install/OpenROAD/bin:/OpenROAD-flow-scripts/tools/install/yosys/bin:/usr/local/bin:/usr/bin:/bin'
 #: engines that live ONLY in the ORFS image (or a worker that carries it): never the host's `make`, never the eda-tools image's
 ORFS_ENGINES = ('orfs', 'openroad')
+ORFS_KNOB = 'ORFS_ENGINES_URL'             # eng-1: the OpenROAD flow WORKER (prf-orfs-engines, built FROM the ORFS image) — declared, always, or refusal
+ORFS_PROVIDER_MODULE = 'computelod.pnr'    # eng-1: its topology provider module (`pol allocate computelod.pnr <instance>`)
+WORK_TOKEN = '{work}'                       # eng-1: 'the job's work dir' in an argv — /w in a local image, the real path for a local binary, the worker's job dir remotely
 PDK_ROOT = os.environ.get('POLARI_PDK_ROOT') or os.path.join(os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache')), 'polari-lod', 'pdk')
 REMOTE = 'remote'
 _ENGINE = 'eda'
@@ -66,11 +69,11 @@ def knob_url():
     return os.environ.get(KNOB, '').rstrip('/')
 
 
-def topology_url():
+def topology_url(module=None):
     """Rung 4: a LIVE provider from the topology rows, or ''."""
     try:
         from topology.provider_registry import resolve_provider
-        resolved = resolve_provider(PROVIDER_MODULE)
+        resolved = resolve_provider(module or PROVIDER_MODULE)
         if resolved.get('ok'):
             return resolved['url'].rstrip('/')
     except Exception:
@@ -148,13 +151,22 @@ def resolve(engine):
             return {'how': 'refused', 'where': url, 'why': '%s=%s reached but that worker lacks %s' % (KNOB, url, engine)}
         return {'how': REMOTE, 'where': url, 'why': 'knob'}
     if engine in ORFS_ENGINES:
-        # the host's `make` and the eda-tools image's `make` are NOT the flow: only the ORFS image (or a worker that carries it) counts
+        # eng-1: its OWN knob first (a declared worker never degrades), then the pinned image here, then the topology provider computelod.pnr;
+        # the host's `make` and the eda-tools image's `make` are NOT the flow and never count
+        ourl = os.environ.get(ORFS_KNOB, '').rstrip('/')
+        if ourl:
+            cap = remote_capability(ourl)
+            if cap is None:
+                return {'how': 'refused', 'where': ourl, 'why': '%s=%s is set but the worker is unreachable — refusing (a declared worker never silently falls back to local)' % (ORFS_KNOB, ourl)}
+            if not _has(cap, engine):
+                return {'how': 'refused', 'where': ourl, 'why': '%s=%s reached but that worker lacks %s (WORKER_KIND must be orfs: prf-orfs-engines)' % (ORFS_KNOB, ourl, engine)}
+            return {'how': REMOTE, 'where': ourl, 'why': 'knob %s' % ORFS_KNOB}
         if _docker_ok(ORFS_IMAGE):
             return {'how': 'local-image', 'where': ORFS_IMAGE, 'why': 'the pinned OpenROAD-flow-scripts image on this device'}
-        url = topology_url()
+        url = topology_url(ORFS_PROVIDER_MODULE)
         if url and _has(remote_capability(url), engine):
-            return {'how': REMOTE, 'where': url, 'why': 'topology provider %s' % PROVIDER_MODULE}
-        return {'how': 'refused', 'where': '', 'why': 'no %s: the OpenROAD flow runs only in the %s image (docker pull it) or on a worker that carries it — set %s or `pol allocate %s <instance>`' % (engine, ORFS_IMAGE, KNOB, PROVIDER_MODULE)}
+            return {'how': REMOTE, 'where': url, 'why': 'topology provider %s' % ORFS_PROVIDER_MODULE}
+        return {'how': 'refused', 'where': '', 'why': 'no %s: the OpenROAD flow runs only in the %s image (docker pull it) or on the prf-orfs-engines worker — set %s or `pol allocate %s <instance>`' % (engine, ORFS_IMAGE, ORFS_KNOB, ORFS_PROVIDER_MODULE)}
     b = _local_binary(engine)
     if b:
         return {'how': 'local-binary', 'where': b, 'why': 'on this device'}
@@ -174,9 +186,9 @@ def placement():
     return {'knob': KNOB, 'knob_value': knob_url(), 'provider_module': PROVIDER_MODULE, 'image': IMAGE, 'pdk_root_local': PDK_ROOT,
             'pdk_present_local': os.path.exists(os.path.join(PDK_ROOT, 'sky130A', 'libs.tech', 'magic', 'sky130A.tech')),
             'engines': {e: resolve(e) for e in ENGINES},
-            'orfs_image': ORFS_IMAGE, 'orfs_image_present_local': _docker_ok(ORFS_IMAGE),
+            'orfs_image': ORFS_IMAGE, 'orfs_image_present_local': _docker_ok(ORFS_IMAGE), 'orfs_knob': ORFS_KNOB, 'orfs_knob_value': os.environ.get(ORFS_KNOB, ''), 'orfs_provider_module': ORFS_PROVIDER_MODULE,
             'ladder': ['%s (always, or refusal)' % KNOB, 'local binary', 'local image %s' % IMAGE, 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal'],
-            'ladder_orfs': ['%s (always, or refusal)' % KNOB, 'local image %s (never the host make)' % ORFS_IMAGE, 'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal']}
+            'ladder_orfs': ['%s (always, or refusal)' % ORFS_KNOB, 'local image %s (never the host make)' % ORFS_IMAGE, 'topology provider %s (live only)' % ORFS_PROVIDER_MODULE, 'refusal']}
 
 
 def _post(url, payload, timeout):
@@ -218,6 +230,10 @@ def run(engine, work, args, timeout=900, env=None, pdk=False, stdout_to=None, se
         raise EngineError('engine %s needs the PDK and none is at %s (polari-eda-tools/fetch-pdk.sh, or POLARI_PDK_ROOT)' % (engine, PDK_ROOT))
     args = [str(a) for a in args]
     env = dict(env or {})
+    if r['how'] == 'local-image':
+        args = [a.replace(WORK_TOKEN, '/w') for a in args]           # eng-1: the job dir as the container sees it
+    elif r['how'] == 'local-binary':
+        args = [a.replace(WORK_TOKEN, work) for a in args]           # …as the binary sees it (the worker substitutes its own job dir)
     if r['how'] == REMOTE:
         files, files_b64 = {}, {}
         names = send if send is not None else sorted(os.listdir(work))

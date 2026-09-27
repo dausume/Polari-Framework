@@ -40,6 +40,7 @@ ENGINE_MODULES = {
     # rc-1: the compute arc's engine modules (the ladders' PROVIDER_MODULE names) → their workers
     'cntfet.engines': 'prf-cnt-engines',
     'computelod.engines': 'prf-eda-engines',
+    'computelod.pnr': 'prf-orfs-engines',   # eng-1: the OpenROAD flow worker (built FROM openroad/orfs)
     'mathproofs.engines': 'prf-proof-engines',
     'tensormath.engines': 'prf-torch-engines',
 }

@@ -127,7 +127,7 @@ def observed_data_footprint(manager, module_name, root=None):
 
 
 #: rc-1: which committed flow reports' engine images belong to which worker subject (the meter records peaks per image)
-_IMAGE_SUBJECT = {'polari-eda-tools:noble': 'prf-eda-engines', 'openroad/orfs:26Q3-651-gbc334a4aa': 'openroad-orfs',
+_IMAGE_SUBJECT = {'polari-eda-tools:noble': 'prf-eda-engines', 'openroad/orfs:26Q3-651-gbc334a4aa': 'prf-orfs-engines', 'prf-orfs-engines:staging': 'prf-orfs-engines',
                   'polari-torch-tools:bookworm': 'prf-torch-engines', 'polari-proof-tools:noble': 'prf-proof-engines'}
 
 

@@ -161,11 +161,11 @@ SEED_MODULE_RESOURCE_PROFILES = [
         'notes': 'polari-eda-tools:noble (2.56 GB) + the ciel-built sky130A PDK on the host (0.93 GB, never in the image). Worker :9800. Serves computelod.engines (lod-1…lod-3c, tt-3).',
     },
     {
-        'name': 'openroad-orfs-resource-profile', 'subject_name': 'openroad-orfs', 'subject_kind': 'engine', 'character': 'compute',
+        'name': 'prf-orfs-engines-resource-profile', 'subject_name': 'prf-orfs-engines', 'subject_kind': 'engine', 'character': 'compute',
         'min_ram_mb': 1500.0, 'min_disk_mb': 200.0, 'min_threads': 1, 'thread_ceiling': 4, 'cpu_benefit': 'sublinear', 'ram_benefit': 'sublinear',
         'scales_note': 'the place-and-route flow (OpenROAD): global placement and routing use threads; RAM grows with the design — the 96-cell adder is tiny',
-        'image_mb': 4640.0, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (rc-1)',
-        'notes': 'openroad/orfs:26Q3-651-gbc334a4aa (4.64 GB, used as published, pinned by digest). NO worker yet (§H.6 eng-1) — resolves only where the image is pulled; the engines ladder refuses elsewhere.',
+        'image_mb': 4690.0, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (rc-1, eng-1)',
+        'notes': 'prf-orfs-engines:staging = openroad/orfs:26Q3-651-gbc334a4aa (4.64 GB, used as published, pinned by digest) + the eda-engines service (~50 MB). Worker :9801 (eng-1). Serves computelod.pnr (lod-3e / lod-3f); the adder flow measured 527 MB peak / 68 CPU-s.',
     },
     {
         'name': 'prf-proof-engines-resource-profile', 'subject_name': 'prf-proof-engines', 'subject_kind': 'engine', 'character': 'compute',

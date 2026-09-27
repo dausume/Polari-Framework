@@ -260,7 +260,7 @@ try:
     from topology.provider_registry import PROVIDER_PORTS as _PP
     _subj = {r['subject_name']: r for r in SEED_MODULE_RESOURCE_PROFILES}
     check('rc-1: the arc\'s workers (eda, proof, torch, cnt) and its four modules have DECLARED profiles in the one seed, with image sizes read from the device that built them',
-          {'prf-eda-engines', 'prf-proof-engines', 'prf-torch-engines', 'prf-cnt-engines', 'openroad-orfs', 'tensormath', 'tensortree', 'computelod', 'mathproofs'} <= set(_subj)
+          {'prf-eda-engines', 'prf-proof-engines', 'prf-torch-engines', 'prf-cnt-engines', 'prf-orfs-engines', 'tensormath', 'tensortree', 'computelod', 'mathproofs'} <= set(_subj)
           and _subj['prf-proof-engines']['image_mb'] == 11000.0 and _subj['prf-eda-engines']['subject_kind'] == 'engine' and _subj['tensortree']['character'] == 'data')
     check('  …the ladders\' provider modules map to those worker kinds (ENGINE_MODULES) and the kinds have ports (PROVIDER_PORTS) — pol allocate / admission / measurement see them like msci and cad',
           _EM.get('computelod.engines') == 'prf-eda-engines' and _EM.get('mathproofs.engines') == 'prf-proof-engines' and _EM.get('tensormath.engines') == 'prf-torch-engines' and _EM.get('cntfet.engines') == 'prf-cnt-engines'

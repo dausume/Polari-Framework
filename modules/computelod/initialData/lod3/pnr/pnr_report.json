@@ -2,9 +2,9 @@
  "flow": "OpenROAD-flow-scripts in openroad/orfs:26Q3-651-gbc334a4aa (digest openroad/orfs@sha256:69df744e2b5ce26a14950713fd2d74b96ec8c9bd8351d2719f9bb200388239ad) through the engines ladder (orfs = make in that image; sta = OpenSTA)",
  "engines": {
   "orfs": {
-   "how": "local-image",
-   "where": "openroad/orfs:26Q3-651-gbc334a4aa",
-   "why": "the pinned OpenROAD-flow-scripts image on this device"
+   "how": "remote",
+   "where": "http://localhost:9801",
+   "why": "knob ORFS_ENGINES_URL"
   },
   "sta": {
    "how": "local-binary",
@@ -53,7 +53,7 @@
     "LEC_CHECK": "0"
    },
    "returncode": 0,
-   "how": "local-image",
+   "how": "remote",
    "stages_logged": [
     "1_1_yosys_canonicalize.log",
     "1_2_yosys.log",
@@ -132,7 +132,7 @@
    },
    "spef": {
     "nets": 306,
-    "sha256": "e674e25e42893da21eae1dddfe63610a05964e1cc9ec82a0b892b2b1e7ebd475",
+    "sha256": "6193711bbebe2a5abe7c5a1c3665df37286fccce24b41fe99b93f067743027ad",
     "units": "1 PF"
    },
    "timing": {
@@ -188,7 +188,7 @@
     "SKIP_BUFFER_REMOVAL": "1"
    },
    "returncode": 0,
-   "how": "local-image",
+   "how": "remote",
    "stages_logged": [
     "1_1_yosys_canonicalize.log",
     "1_2_yosys.log",
@@ -262,7 +262,7 @@
    },
    "spef": {
     "nets": 177,
-    "sha256": "f4400213c439cf2e1c516014df0c1b9aaf7cf84cbc35417e3e3aac32e7046238",
+    "sha256": "f7eb306c0c0ed12538a4da423d44a5196fb12540f0d4fbcee284463b81a8cba4",
     "units": "1 PF"
    },
    "timing": {
@@ -358,7 +358,7 @@
   ],
   "tools": {
    "sta": "3.1.0 [local-binary: /home/user/.local/bin/sta]",
-   "openroad": "unknown [local-image: openroad/orfs:26Q3-651-gbc334a4aa]",
+   "openroad": "unknown [remote: http://localhost:9801]",
    "images": {}
   },
   "knobs": {
@@ -396,8 +396,8 @@
   "generated_files": [
    {
     "file": "computelod/initialData/lod3/pnr/as-flow/config.mk",
-    "sha256": "78e1076fcfb379df1ca239d2fea124eedef1a112c3bac9277c43c96d0dd23797",
-    "bytes": 291
+    "sha256": "e663890a02ae10b789d9159bac7ccd277931fadc81829f8b1d26c82a0d7c1a27",
+    "bytes": 351
    },
    {
     "file": "computelod/initialData/lod3/pnr/as-flow/constraint.sdc",
@@ -411,7 +411,7 @@
    },
    {
     "file": "computelod/initialData/lod3/pnr/as-flow/6_final.spef",
-    "sha256": "e674e25e42893da21eae1dddfe63610a05964e1cc9ec82a0b892b2b1e7ebd475",
+    "sha256": "6193711bbebe2a5abe7c5a1c3665df37286fccce24b41fe99b93f067743027ad",
     "bytes": 125298
    },
    {
@@ -421,8 +421,8 @@
    },
    {
     "file": "computelod/initialData/lod3/pnr/cells-kept/config.mk",
-    "sha256": "36d57d737bbeca4693cb7c39bfcf0df8edd3feb0da930cd0d64b0fee42e15097",
-    "bytes": 500
+    "sha256": "6771ae1ed12c01e94694a17bb719936f30bf026ea7655d82b17a5e1dea61534b",
+    "bytes": 560
    },
    {
     "file": "computelod/initialData/lod3/pnr/cells-kept/constraint.sdc",
@@ -436,7 +436,7 @@
    },
    {
     "file": "computelod/initialData/lod3/pnr/cells-kept/6_final.spef",
-    "sha256": "f4400213c439cf2e1c516014df0c1b9aaf7cf84cbc35417e3e3aac32e7046238",
+    "sha256": "f7eb306c0c0ed12538a4da423d44a5196fb12540f0d4fbcee284463b81a8cba4",
     "bytes": 90887
    },
    {
@@ -451,7 +451,7 @@
    "OR_SEED": "flow default (unset) \u2014 ORFS knob (detailed routing)",
    "note": "the flow exposes three seed knobs; this run used their defaults so the committed DEF/SPEF are what those defaults produce; set them in VARIANTS to perturb"
   },
-  "recorded_at": "2026-09-26T23:10:39",
+  "recorded_at": "2026-09-26T23:36:42",
   "host": {
    "node": "user-HP-ProDesk-600-G1-SFF",
    "machine": "x86_64",
@@ -461,43 +461,41 @@
   "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
   "cost": {
    "label": "computelod.custom.lod3_pnr",
-   "wall_s": 65.462,
+   "wall_s": 67.641,
    "host": {
-    "cpu_s_self": 0.273,
-    "cpu_s_children": 0.241,
-    "peak_rss_mb_self": 42.6,
-    "peak_rss_mb_children": 42.6,
+    "cpu_s_self": 1.49,
+    "cpu_s_children": 0.092,
+    "peak_rss_mb_self": 297.7,
+    "peak_rss_mb_children": 297.7,
     "note": "rusage: peak RSS is the process-lifetime maximum up to the end of this run (a lower bound for the run itself when the process did more before); children = subprocesses such as ngspice"
    },
    "engines": {
     "calls": 6,
-    "cpu_s": 67.649,
-    "peak_rss_mb": 526.5,
+    "cpu_s": 67.44,
+    "peak_rss_mb": 526.1,
     "by_engine": {
      "orfs": {
       "calls": 2,
-      "cpu_s": 67.572,
-      "peak_rss_mb": 526.5,
-      "how": "local-image",
-      "image": "openroad/orfs:26Q3-651-gbc334a4aa"
+      "cpu_s": 67.363,
+      "peak_rss_mb": 526.1,
+      "how": "remote",
+      "image": ""
      },
      "sta": {
       "calls": 4,
       "cpu_s": 0.077,
-      "peak_rss_mb": 42.6,
+      "peak_rss_mb": 297.7,
       "how": "local-binary",
       "image": ""
      }
     },
-    "images": {
-     "openroad/orfs:26Q3-651-gbc334a4aa": 4420.7
-    },
+    "images": {},
     "unmeasured_calls": 0
    },
    "totals": {
-    "cpu_s": 68.163,
-    "peak_rss_mb_any_process": 526.5,
-    "pull_mb_images": 4420.7,
+    "cpu_s": 69.022,
+    "peak_rss_mb_any_process": 526.1,
+    "pull_mb_images": 0,
     "reading": "peak_rss_mb_any_process is the memory ONE process needed at its worst (the flow runs its engines one at a time); cpu_s is the whole run's CPU time \u2014 on a slower device the wall time scales, the memory does not"
    }
   },

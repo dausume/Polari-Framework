@@ -1,8 +1,8 @@
 export DESIGN_NAME = rv32_add
 export PLATFORM = sky130hd
-export VERILOG_FILES = /w/rv32_add_sky130.v
-export SDC_FILE = /w/constraint.sdc
-export LIB_FILES = /w/sky130_fd_sc_hd__tt_025C_1v80.lib
+export VERILOG_FILES = $(dir $(DESIGN_CONFIG))rv32_add_sky130.v
+export SDC_FILE = $(dir $(DESIGN_CONFIG))constraint.sdc
+export LIB_FILES = $(dir $(DESIGN_CONFIG))sky130_fd_sc_hd__tt_025C_1v80.lib
 export ABC_AREA = 0
 export CORE_UTILIZATION = 20
 export PLACE_DENSITY = 0.50

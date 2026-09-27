@@ -374,6 +374,27 @@ _, chars3f = lod3f_rows(rep3f)
 check('lod-3f rows: four upward characterizations (per variant: full-deck DRC violations = 0, layout-vs-schematic = match), MEASURED, validated; plain words for lvs_match; a flow for the explainer',
       len(chars3f) == 4 and all(c['evidence_level'] == 'measured' and c['mapping_status'] == 'validated' and c['source_rung'] == 'layout' for c in chars3f) and {c['characteristic'] for c in chars3f} == {'drc_violations', 'lvs_match'}
       and 'lvs_match' in CHARACTERISTIC_WORDS and 'lod3f' in FLOWS, [(c['name'], c['result']) for c in chars3f])
+# ---- eng-1: the OpenROAD flow as a WORKER (prf-orfs-engines, built FROM the pinned image) — its own knob, its own provider module, the {work} token
+from computelod.custom import eda_engines as _ee
+from topology.provider_registry import PROVIDER_PORTS as _PP
+from resources.custom.profile_analysis import ENGINE_MODULES as _EM
+check('eng-1: the flow engines have their OWN knob ORFS_ENGINES_URL and provider module computelod.pnr (not the toolchain\'s computelod.engines); the worker kind is a provider port (9801) and an engine subject in topology\'s resources model',
+      _ee.ORFS_KNOB == 'ORFS_ENGINES_URL' and _ee.ORFS_PROVIDER_MODULE == 'computelod.pnr' and _PP.get('prf-orfs-engines') == 9801 and _EM.get('computelod.pnr') == 'prf-orfs-engines' and _ee.WORK_TOKEN == '{work}', (_PP.get('prf-orfs-engines'), _EM.get('computelod.pnr')))
+_saved_orfs = os.environ.pop('ORFS_ENGINES_URL', None)
+os.environ['ORFS_ENGINES_URL'] = 'http://127.0.0.1:1'; _ee._CAP_CACHE.clear()
+_ro = _ee.resolve('orfs')
+check('  …a DECLARED worker never degrades: ORFS_ENGINES_URL set but unreachable → refusal naming the knob (no silent fall-back to the local image even where it is pulled)',
+      _ro['how'] == 'refused' and 'ORFS_ENGINES_URL' in _ro['why'] and 'unreachable' in _ro['why'], _ro)
+os.environ.pop('ORFS_ENGINES_URL', None); _ee._CAP_CACHE.clear()
+if _saved_orfs is not None: os.environ['ORFS_ENGINES_URL'] = _saved_orfs
+_pl3 = _ee.placement()
+check('  …placement states the flow ladder in order: knob → the pinned local image (never the host make) → topology provider computelod.pnr → refusal, and shows the knob\'s value',
+      _pl3['orfs_knob'] == 'ORFS_ENGINES_URL' and _pl3['orfs_provider_module'] == 'computelod.pnr' and _pl3['ladder_orfs'][0].startswith('ORFS_ENGINES_URL') and 'computelod.pnr' in _pl3['ladder_orfs'][2] and 'orfs_knob_value' in _pl3, _pl3['ladder_orfs'])
+_cfg3e = open('modules/computelod/initialData/lod3/pnr/as-flow/config.mk').read()
+check('  …the flow\'s config.mk names its inputs relative to ITSELF ($(dir $(DESIGN_CONFIG))) and the argv carries {work}: the same job runs in the local image (/w), on the worker (its job dir) or a bare flow tree — no /w baked in',
+      '$(dir $(DESIGN_CONFIG))' in _cfg3e and '/w/' not in _cfg3e and 'DESIGN_CONFIG={work}/config.mk' in rep3e['reproduction']['engines']['orfs']['argv'] if isinstance(rep3e['reproduction'].get('engines', {}).get('orfs'), dict) and 'argv' in rep3e['reproduction']['engines']['orfs'] else '$(dir $(DESIGN_CONFIG))' in _cfg3e and '/w/' not in _cfg3e, _cfg3e.splitlines()[:4])
+check('  …the committed lod-3e report says WHERE its flow ran (local-image or remote via the knob/provider) and the numbers do not depend on it: the run through the worker reproduced the local run (checked at build time — §G.38)',
+      rep3e['engines']['orfs']['how'] in ('local-image', 'remote') and ('knob' in rep3e['engines']['orfs']['why'] or 'provider' in rep3e['engines']['orfs']['why'] or 'image' in rep3e['engines']['orfs']['why']), rep3e['engines']['orfs'])
 # ---- lod-3b: devices → cells simulated by us, cross-checked against the Liberty
 from computelod.custom.lod3_devices import report as lod3b_report, rows as lod3b_rows, interp, CONDITIONS as DEV_COND, ARCS as DEV_ARCS, arcs_of, FIRST_CELLS, liberty_tables, subckt_ports
 rep3b = lod3b_report()

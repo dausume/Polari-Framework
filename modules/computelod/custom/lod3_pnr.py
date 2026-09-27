@@ -127,10 +127,12 @@ def run(variants=None, work=None):
         vw = os.path.join(work, var); shutil.rmtree(vw, ignore_errors=True); os.makedirs(vw)
         shutil.copy(net_in, vw); shutil.copy(lib_path, vw)
         open(os.path.join(vw, 'constraint.sdc'), 'w').write(SDC.format(design=DESIGN, load_pf=load_pf, slew_ns=slew_ns))
-        cfg = ['export DESIGN_NAME = %s' % DESIGN, 'export PLATFORM = %s' % PLATFORM, 'export VERILOG_FILES = /w/%s' % NETLIST, 'export SDC_FILE = /w/constraint.sdc',
-               'export LIB_FILES = /w/%s' % os.path.basename(lib_path), 'export ABC_AREA = 0'] + ['export %s = %s' % kv for kv in knobs.items()]
+        # eng-1: paths relative to the config's OWN directory ($(dir $(DESIGN_CONFIG))) and the `{work}` token for the job dir — the same
+        # config runs in the local image (/w), on the prf-orfs-engines worker (its job dir) or anywhere else the flow lives
+        cfg = ['export DESIGN_NAME = %s' % DESIGN, 'export PLATFORM = %s' % PLATFORM, 'export VERILOG_FILES = $(dir $(DESIGN_CONFIG))%s' % NETLIST, 'export SDC_FILE = $(dir $(DESIGN_CONFIG))constraint.sdc',
+               'export LIB_FILES = $(dir $(DESIGN_CONFIG))%s' % os.path.basename(lib_path), 'export ABC_AREA = 0'] + ['export %s = %s' % kv for kv in knobs.items()]
         open(os.path.join(vw, 'config.mk'), 'w').write('\n'.join(cfg) + '\n')
-        r = eng('orfs', vw, ['-C', '/OpenROAD-flow-scripts/flow', 'DESIGN_CONFIG=/w/config.mk', 'WORK_HOME=/w/work'], timeout=1800, stdout_to='orfs.log')
+        r = eng('orfs', vw, ['-C', '/OpenROAD-flow-scripts/flow', 'DESIGN_CONFIG={work}/config.mk', 'WORK_HOME={work}/work'], timeout=1800, stdout_to='orfs.log')
         base = os.path.join(vw, 'work'); res = os.path.join(base, 'results', PLATFORM, DESIGN, 'base'); logs = os.path.join(base, 'logs', PLATFORM, DESIGN, 'base'); reps = os.path.join(base, 'reports', PLATFORM, DESIGN, 'base')
         entry = {'knobs': knobs, 'returncode': r['returncode'], 'how': r['how'], 'stages_logged': sorted(f for f in os.listdir(logs) if f.endswith('.log')) if os.path.isdir(logs) else [],
                  'finished': os.path.exists(os.path.join(res, '6_final.spef'))}
@@ -172,7 +174,10 @@ def run(variants=None, work=None):
                 timing['vs_lod2_note'] = 'NOT the wire cost: lod-2 timed maj3_1 cells, the flow resized the carry chain to maj3_2 (census) — sizing gained more than the wires cost'
         entry['timing'] = timing
         # ---- keep the artefacts that are OURS
-        keep = os.path.join(OUT, var); shutil.rmtree(keep, ignore_errors=True); os.makedirs(keep)
+        keep = os.path.join(OUT, var); os.makedirs(keep, exist_ok=True)
+        for old in os.listdir(keep):        # replace OUR artefacts only — lod-3f's drc_lvs_* beside them belong to that flow (eng-1 fix: a re-run no longer erases them)
+            if not old.startswith('drc_lvs_'):
+                os.remove(os.path.join(keep, old))
         for src, name in ((os.path.join(res, '6_final.v'), '6_final.v'), (os.path.join(res, '6_final.spef'), '6_final.spef'), (os.path.join(res, '6_final.def'), '6_final.def'),
                           (os.path.join(logs, '6_report.json'), '6_report.json'), (os.path.join(reps, '6_finish.rpt'), '6_finish.rpt'), (os.path.join(reps, '5_route_drc.rpt'), '5_route_drc.rpt'),
                           (os.path.join(reps, 'synth_stat.txt'), 'synth_stat.txt'), (os.path.join(sw, 'sta_with_parasitics.log'), 'sta_with_parasitics.log'), (os.path.join(sw, 'sta_without_parasitics.log'), 'sta_without_parasitics.log'),
