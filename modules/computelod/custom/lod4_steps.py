@@ -109,9 +109,17 @@ CNT_PROCESSES = [
 
 def stage_rows():
     rows = []
+    try:   # lod-4d: the named materials resolve to MaterialsScienceMaterial rows (or an explicit not-modelled reason)
+        from computelod.custom.lod4_materials import resolve_named as _resolve
+    except Exception:   # pragma: no cover
+        _resolve = lambda txt: ''
     for name, disp, prior, layers, materials, procs, desc in SKY130_STAGES:
+        mats = []
+        for txt in materials:
+            r = _resolve(txt)
+            mats.append('%s → rows %s' % (txt, ', '.join(r)) if isinstance(r, list) else ('%s → %s' % (txt, r) if r else '%s → UNRESOLVED' % txt))
         rows.append({'name': name, 'display_name': disp, 'material_family': FAM_SKY, 'typical_prior_stage': prior, 'provenance_id': _PROV_SKY,
-                     'description': '%s. PDK layers: %s. Materials added (named, not rows): %s. Unit processes: %s.' % (desc, '; '.join('`%s` = "%s"' % kv for kv in layers.items()) or 'none (the substrate)', '; '.join(materials) or 'none', ', '.join(procs) or 'none'),
+                     'description': '%s. PDK layers: %s. Materials added (lod-4d rows): %s. Unit processes: %s.' % (desc, '; '.join('`%s` = "%s"' % kv for kv in layers.items()) or 'none (the substrate)', '; '.join(mats) or 'none', ', '.join(procs) or 'none'),
                      'notes': NOT_HERE + '; layer purposes quoted from %s (read %s)' % (PDK_LAYERS_URL, READ_ON)})
     for name, disp, prior, ref, materials, proc in CNT_STAGES:
         rows.append({'name': name, 'display_name': disp, 'material_family': FAM_CNT, 'typical_prior_stage': prior, 'provenance_id': _PROV_CNT,
@@ -169,12 +177,18 @@ def rows(rep, lod4_rep, lod3_rep):
     fab_ref = 'SiliconProcessNode sky130 (130 nm planar bulk, 1.8 V core, L = 0.15 µm, 5 metals; Apache-2.0 PDK)'
     mats = rep['sky130']['materials_named']
     mat_ref = 'SiliconGrade eg-si (electronic-grade, 9N–11N) via RefinementRoute siemens-route + the stack\'s materials NAMED per stage: %s' % ', '.join(mats)
+    try:   # lod-4d: rows, not names — the walk ends on objects a person can open
+        from computelod.custom.lod4_materials import target_ref as _mat_target, report as _mat_report
+        if _mat_report():
+            mat_ref = _mat_target()
+    except Exception:   # pragma: no cover
+        pass
     ev = 'lod4/steps_report.json — ProcessingStage ×%d + MaterialProcessDefinition ×%d rows (PSPP classes), SKY130 stages from the PDK layer docs (%s, read %s), unit processes per %s; CNT by reference to cntfet.cnt_process' % (
         rep['rows']['ProcessingStage'], rep['rows']['MaterialProcessDefinition'], PDK_LAYERS_URL, READ_ON, TEXTBOOK['key'])
     maps = [
         M(name='lod4: fabrication → materials', kind='one-to-many', source_rung='fabrication', source_ref=fab_ref, target_rung='materials', target_ref=mat_ref,
           mapping_status='implemented', evidence_level='analytical', evidence_ref=ev,
-          notes='lod-4b: the route is ROWS now — %d ProcessingStage rows (%s) produced by %d unit processes (%s); each stage names the materials it adds. %s. The substrate is eg-si by the Siemens route (sifet, cited there: [CEC12]).' % (
+          notes='lod-4b: the route is ROWS now — %d ProcessingStage rows (%s) produced by %d unit processes (%s); each stage names the materials it adds — since lod-4d each name resolves to a MaterialsScienceMaterial row with cited/PDK-derived properties (MiM dielectric and photoresist not modelled, said so; WHICH metal / dopant species stay candidates with the PDK\'s numbers as evidence). %s. The substrate is eg-si by the Siemens route (sifet, cited there: [CEC12]).' % (
               len(rep['sky130']['stages']), ' → '.join(s.replace('sky130-', '') for s in rep['sky130']['stages']), len(rep['sky130']['processes']), ', '.join(p.replace('sky130-', '') for p in rep['sky130']['processes']), NOT_HERE),
           loss_note='the recipe (doses, temperatures, gases, exact films and metals) is the foundry\'s and absent; the rows carry what is published and name what is not'),
         M(name='lod4b-cnt: fabrication → materials', kind='one-to-many', source_rung='fabrication', source_ref='the aligned-CNT process route: %d ProcessingStage rows (%s) — parameters on cntfet\'s cnt_process rows (process_set s1-target-line)' % (len(rep['cnt']['stages']), ' → '.join(s.replace('cnt-', '') for s in rep['cnt']['stages'])),

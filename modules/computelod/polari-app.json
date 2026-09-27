@@ -112,6 +112,7 @@
    "custom/lod2_compare",
    "custom/lod3_pnr",
    "custom/lod4_steps",
+   "custom/lod4_materials",
    "custom/lod3_drc"
   ],
   "endpoints": [

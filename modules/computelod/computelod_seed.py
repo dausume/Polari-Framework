@@ -196,6 +196,14 @@ if _PS is not None and _lod4b_report():
     # description/notes are code-owned (the reading may sharpen), so they converge onto an instance that already holds the rows
     COMPUTELOD_SEED_PAIRS += [('ProcessingStage', _PS, [dict(r, _converge=['description', 'notes', 'provenance_id']) for r in _lod4b_stages()]),
                               ('MaterialProcessDefinition', _MPD, [dict(r, _converge=['description', 'notes', 'provenance_id', 'parameter_schema_json']) for r in _lod4b_processes()])]
+try:   # lod-4d: the chip materials as the materials basis' OWN rows (identities + one scale-0 definition each) — merged by name; silicon exists already
+    from materialsScience.materials_basis import MaterialsScienceMaterial as _MSM, MaterialScaleDefinition as _MSD
+    from computelod.custom.lod4_materials import material_rows as _lod4d_materials, scale_rows as _lod4d_scales, report as _lod4d_report
+    if _lod4d_report():
+        COMPUTELOD_SEED_PAIRS += [('MaterialsScienceMaterial', _MSM, [dict(r, _converge=['description', 'notes', 'tags_json', 'provenance_id']) for r in _lod4d_materials()]),
+                                  ('MaterialScaleDefinition', _MSD, [dict(r, _converge=['parameters_json', 'notes', 'status', 'definition_ref', 'provenance_id']) for r in _lod4d_scales()])]
+except Exception:   # pragma: no cover — the materials basis absent: the mapping still names the rows
+    pass
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode, TechSegmentAssignment
     COMPUTELOD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_COMPUTE_TECH_TREES),

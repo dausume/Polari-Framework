@@ -29,6 +29,7 @@ FLOWS = {
     'lod4': ('computelod.custom.lod4_process', 'the layout\'s layers read as process steps and materials', 'lod4/report.json'),
     'lod4b': ('computelod.custom.lod4_steps', 'the fabrication route written as PSPP rows: SKY130 stages from the PDK\'s documented layer stack, unit processes per the textbook, the CNT route by reference to cntfet', 'lod4/steps_report.json'),
     'lod4b-cnt': ('computelod.custom.lod4_steps', 'the aligned-CNT fabrication route as PSPP rows, by reference to cntfet\'s process rows', 'lod4/steps_report.json'),
+    'lod4d': ('computelod.custom.lod4_materials', 'the stack\'s materials as rows: literature constants cited (Sze & Ng, CRC), the PDK\'s own sheet resistances / thicknesses / capacitances parsed and turned into resistivities and a dielectric thickness; what the PDK does not say kept as candidates', 'lod4/materials_report.json'),
     'lod4c': ('computelod.custom.lod4_devices', 'the process node\'s own device numbers (Ion, Ioff, Vt, DIBL, subthreshold swing) RUN as DC sweeps on the PDK\'s BSIM4 models', 'lod4/devices_report.json'),
 }
 

@@ -36,6 +36,7 @@ class ComputeLodAPI(treeObject):
             add('/api/computelod/lod2/compare', self, suffix='lod2_compare')
             add('/api/computelod/lod3/pnr', self, suffix='lod3_pnr')          # lod-3e: the whole adder placed and routed
             add('/api/computelod/lod4/steps', self, suffix='lod4_steps')      # lod-4b: the fabrication route as PSPP rows (both branches)
+            add('/api/computelod/lod4/materials', self, suffix='lod4_materials')   # lod-4d: the stack's materials as rows, every number cited or PDK-derived
             add('/api/computelod/lod3/drc-lvs', self, suffix='lod3_drc')      # lod-3f: the routed adder's independent DRC + LVS  # lod-2c: the two Liberties' twin cells at the SAME conditions  # lod-4c: the process node's own Ion/Ioff/Vt/DIBL/SS, run on the PDK models
             add('/api/computelod/engines', self, suffix='engines')            # where each EDA engine WOULD run (the engines ladder)
 
@@ -89,6 +90,17 @@ class ComputeLodAPI(treeObject):
         stages = [{'name': str(r.name), 'family': getattr(r, 'material_family', ''), 'prior': getattr(r, 'typical_prior_stage', '')} for r in self._rows('ProcessingStage') if str(getattr(r, 'material_family', '')) in ('silicon-cmos-sky130', 'aligned-cnt')]
         procs = [{'name': str(r.name), 'family': getattr(r, 'material_family', ''), 'process_type': getattr(r, 'process_type', '')} for r in self._rows('MaterialProcessDefinition') if str(getattr(r, 'material_family', '')) in ('silicon-cmos-sky130', 'aligned-cnt')]
         response.media = {'ok': bool(rep), 'report': rep or {}, 'live_rows': {'ProcessingStage': stages, 'MaterialProcessDefinition': procs}, 'how_to_rerun': 'python3 -m computelod.custom.lod4_steps run (a reading; nothing fetched — the citations are in the report)'}
+
+    def on_get_lod4_materials(self, request, response):
+        from computelod.custom.lod4_materials import report
+        rep = report()
+        import json as _json
+        mats = [{'name': str(r.name), 'display_name': getattr(r, 'display_name', ''), 'tags': _json.loads(getattr(r, 'tags_json', '[]') or '[]'), 'candidate': 'candidate' in (getattr(r, 'tags_json', '') or '')}
+                for r in self._rows('MaterialsScienceMaterial') if 'sky130' in (getattr(r, 'tags_json', '') or '') or str(getattr(r, 'name', '')) == 'silicon']
+        scales = [{'name': str(r.name), 'material_name': getattr(r, 'material_name', ''), 'status': getattr(r, 'status', ''), 'properties': len((_json.loads(getattr(r, 'parameters_json', '{}') or '{}')).get('properties', []))}
+                  for r in self._rows('MaterialScaleDefinition') if str(getattr(r, 'name', '')).endswith('@L0-sky130')]
+        response.media = {'ok': bool(rep), 'report': rep or {}, 'live_rows': {'MaterialsScienceMaterial': mats, 'MaterialScaleDefinition': scales},
+                          'how_to_rerun': 'python3 -m computelod.custom.lod4_materials run (parses the PDK\'s sc_hd technology LEF + magic tech; needs the PDK on this device — never committed)'}
 
     def on_get_lod3_pnr(self, request, response):
         from computelod.custom.lod3_pnr import report

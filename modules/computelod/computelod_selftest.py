@@ -331,10 +331,41 @@ check('  …the seed pairs carry the PSPP rows (guarded on pspp) with descriptio
       any(n == 'ProcessingStage' and len(r) == 14 and 'description' in r[0]['_converge'] for n, _, r in COMPUTELOD_SEED_PAIRS) and any(n == 'MaterialProcessDefinition' and len(r) == 14 for n, _, r in COMPUTELOD_SEED_PAIRS))
 maps4b, _ = lod4b_rows(rep4b, rep4, rep3)
 check('lod-4b rows: `lod4: fabrication → materials` REPLACED by name — the route as rows, the stack\'s materials NAMED in the target, the recipe as the loss; `lod4b-cnt: fabrication → materials` ADDED, status proposed (no line has made these devices; the cntfet rows say TUNABLE)',
-      [m_['name'] for m_ in maps4b] == ['lod4: fabrication → materials', 'lod4b-cnt: fabrication → materials'] and 'ProcessingStage rows' in maps4b[0]['notes'] and 'Si3N4' in maps4b[0]['target_ref'] and 'recipe' in maps4b[0]['loss_note']
+      [m_['name'] for m_ in maps4b] == ['lod4: fabrication → materials', 'lod4b-cnt: fabrication → materials'] and 'ProcessingStage rows' in maps4b[0]['notes'] and ('silicon-nitride' in maps4b[0]['target_ref'] or 'Si3N4' in maps4b[0]['target_ref']) and 'recipe' in maps4b[0]['loss_note']
       and maps4b[0]['evidence_level'] == 'analytical' and maps4b[1]['mapping_status'] == 'proposed' and 'LAYOUT' in maps4b[1]['notes'], [(m_['name'], m_['mapping_status']) for m_ in maps4b])
 check('  …and in the merged seed the lod-4 row IS the lod-4b one (17 ComputeMappings now)', next(m_ for m_ in SEED_LOD_MAPPINGS if m_['name'] == 'lod4: fabrication → materials')['notes'].startswith('lod-4b') and sum(1 for m_ in SEED_LOD_MAPPINGS if m_['name'].startswith('lod4')) == 2
       and 'lod4b' in FLOWS and 'lod4b-cnt' in FLOWS)
+# ---- lod-4d: the stack's materials as ROWS — cited or PDK-derived, candidates kept as candidates
+from computelod.custom.lod4_materials import report as lod4d_report, material_rows as lod4d_materials, scale_rows as lod4d_scales, resolve_named, target_ref as lod4d_target, SOURCES as MAT_SOURCES, NOT_MODELLED, parse_tlef, parse_magic_tech, derived_numbers, EPS0
+rep4d = lod4d_report()
+check('lod-4d: a committed materials report exists — 11 materials (silicon existing + 10 new identities), the two PDK files cited by path + sha256 (never committed), every property row carrying a source key or a formula; 4 asserted by the PDK\'s layers, 7 candidates',
+      rep4d is not None and rep4d['counts']['materials'] == 11 and rep4d['counts']['new_identities'] == 10 and rep4d['counts']['asserted_by_pdk'] == 4 and rep4d['counts']['candidates'] == 7
+      and all(len(rep4d['pdk_files'][k]['sha256']) == 64 for k in ('tlef', 'magic_tech')) and all(p_.get('source') or p_['basis'] == 'not-modelled' for m_ in rep4d['materials'] for p_ in m_['properties'])
+      and all(p_['source'] in MAT_SOURCES for m_ in rep4d['materials'] for p_ in m_['properties'] if p_.get('source')), rep4d and rep4d['counts'])
+check('  …derive-or-cite: every PDK-derived value states its formula (`derivation`); the metals\' effective resistivity = RPERSQ × THICKNESS (met1 0.125 Ω/□ × 0.35 µm = 4.375 µΩ·cm), poly = 48.2 Ω/□ × 0.18 µm = 8.7e-4 Ω·cm, li1 = 128 µΩ·cm',
+      all(p_.get('derivation') for m_ in rep4d['materials'] for p_ in m_['properties'] if p_['basis'] == 'derived') and rep4d['derived']['metals']['met1']['effective_resistivity_uohm_cm'] == 4.375
+      and rep4d['derived']['metals']['met5']['effective_resistivity_uohm_cm'] == 3.42 and abs(rep4d['derived']['poly']['resistivity_ohm_cm'] - 8.68e-4) < 1e-6 and rep4d['derived']['li1']['effective_resistivity_uohm_cm'] == 128.0
+      and rep4d['derived']['vias'] == {'mcon': 9.3, 'via': 4.5, 'via2': 3.41, 'via3': 3.41, 'via4': 0.38}, rep4d['derived']['metals'])
+check('  …a CROSS-CHECK between the two PDK files: ε0·3.9 / C_area(met1) = 1.34 µm of SiO2 under met1 vs magic\'s met1 bottom height 1.376 µm (3 %) — evidence the inter-layer dielectric is SiO2-class, stated as evidence',
+      abs(rep4d['derived']['dielectric']['implied_thickness_um_if_sio2'] - 1.34) < 0.01 and rep4d['derived']['dielectric']['magic_met1_bottom_um'] == 1.3761 and 'evidence' in rep4d['derived']['dielectric']['reading'], rep4d['derived']['dielectric'])
+check('  …what the PDK does not say stays a CANDIDATE, never asserted: aluminium AND copper rows for the metal (asserted_by_pdk false, the PDK\'s numbers as evidence on both), tungsten for the plugs, titanium-nitride for li1, the dopant species; boron/phosphorus/arsenic carry Sze\'s ionization energies',
+      {m_['name'] for m_ in rep4d['materials'] if not m_['asserted_by_pdk']} == {'aluminium', 'copper', 'tungsten', 'titanium-nitride', 'dopant-boron', 'dopant-phosphorus', 'dopant-arsenic'}
+      and all(m_.get('inference') for m_ in rep4d['materials'] if not m_['asserted_by_pdk']) and 'bulk Al' in next(m_ for m_ in rep4d['materials'] if m_['name'] == 'aluminium')['inference']
+      and {next(p_['value'] for p_ in m_['properties'] if p_['property'].startswith('ionization_energy')) for m_ in rep4d['materials'] if m_['name'].startswith('dopant-')} == {0.045, 0.054}, [m_['name'] for m_ in rep4d['materials'] if not m_['asserted_by_pdk']])
+check('  …every material a SKY130 stage NAMES resolves to rows or to an explicit not-modelled reason (MiM dielectric, photoresist, pad metal = the interconnect rows) — none unresolved; the stage descriptions now point at the rows',
+      rep4d['unresolved_names'] == [] and all(isinstance(resolve_named(t_), list) or resolve_named(t_) for s_ in SKY130_STAGES for t_ in s_[4]) and 'lod-4d rows' in lod4b_stages()[1]['description'] and '→ rows dopant-phosphorus, dopant-arsenic' in lod4b_stages()[1]['description']
+      and any('not modelled' in v for v in NOT_MODELLED.values()), [t_ for s_ in SKY130_STAGES for t_ in s_[4] if not resolve_named(t_)])
+_mr, _sr = lod4d_materials(), lod4d_scales()
+check('  …rows: 10 MaterialsScienceMaterial identities (silicon exists in the basis — NOT duplicated), category elemental, tagged semiconductor-process/sky130 (+candidate), and 11 MaterialScaleDefinition <name>@L0-sky130 rows whose parameters_json holds the property rows + the sources + the PDK files\' sha256',
+      len(_mr) == 10 and 'silicon' not in {r['name'] for r in _mr} and all(r['category'] == 'elemental' and 'sky130' in r['tags_json'] for r in _mr) and sum(1 for r in _mr if 'candidate' in r['tags_json']) == 7
+      and len(_sr) == 11 and {r['material_name'] for r in _sr} == {m_['name'] for m_ in rep4d['materials']} and all(r['scale_level'] == 0 and r['status'] == 'defined' for r in _sr)
+      and all({'properties', 'sources', 'pdk_files_sha256'} <= set(json.loads(r['parameters_json'])) for r in _sr), [r['name'] for r in _sr])
+check('  …the lod-4 mapping\'s target now LISTS the rows (not names): the walk from c = a + b ends on objects; the seed pairs carry both classes (guarded on the materials basis); a flow for the explainer',
+      'MaterialsScienceMaterial rows silicon, silicon-dioxide-thermal' in lod4d_target() and 'candidates dopant-boron' in lod4d_target() and 'aluminium, copper, tungsten, titanium-nitride' in lod4d_target() and lod4d_target() == lod4b_rows(rep4b, rep4, rep3)[0][0]['target_ref']
+      and any(n == 'MaterialsScienceMaterial' and len(r) == 10 for n, _, r in COMPUTELOD_SEED_PAIRS) and any(n == 'MaterialScaleDefinition' and len(r) == 11 for n, _, r in COMPUTELOD_SEED_PAIRS) and 'lod4d' in FLOWS, lod4d_target()[:200])
+check('  …reproducible: the report carries a reproduction block with both PDK files by sha256, the knobs (εr 3.9, the bulk resistivities) and deterministic = yes; its cost is measured (a parse: milliseconds)',
+      rep4d['reproduction']['inputs'][0]['sha256'] == rep4d['pdk_files']['tlef']['sha256'] and rep4d['reproduction']['knobs']['eps_r_sio2_for_the_thickness_derivation'] == 3.9 and rep4d['reproduction']['seeds']['deterministic'] is True and rep4d['reproduction']['seeds']['why'].startswith('yes')
+      and 'cost' in rep4d['reproduction'] and rep4d['reproduction']['cost']['wall_s'] < 30, rep4d['reproduction'].get('knobs'))
 from computelod.custom.explain import explain_characterization
 # ---- his rule (2026-09-26): every committed result carries the INITIAL CONDITIONS and SEEDS that produced it
 from computelod.custom.repro import check_all as repro_check, complete as repro_complete, REQUIRED as REPRO_KEYS, record as repro_record

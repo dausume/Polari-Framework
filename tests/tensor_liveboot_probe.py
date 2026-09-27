@@ -297,6 +297,10 @@ r = client.simulate_get('/api/computelod/lod4/steps')
 check('GET /api/computelod/lod4/steps: the fabrication route as PSPP rows on a real boot — 14 ProcessingStage + 14 MaterialProcessDefinition rows (sky130 + aligned-cnt families) live in pspp\'s tables, the report citing the PDK docs and naming the recipe as absent',
       r.status_code == 200 and r.json['ok'] and len(r.json['live_rows']['ProcessingStage']) == 14 and len(r.json['live_rows']['MaterialProcessDefinition']) == 14
       and {x['family'] for x in r.json['live_rows']['ProcessingStage']} == {'silicon-cmos-sky130', 'aligned-cnt'} and 'recipe' in r.json['report']['not_here'], r.text[:300])
+r = client.simulate_get('/api/computelod/lod4/materials')
+check('GET /api/computelod/lod4/materials (lod-4d): the stack\'s materials are ROWS on a real boot in the materials basis\' own tables — 11 MaterialsScienceMaterial (silicon + 10 new, 7 candidates) and 11 <name>@L0-sky130 scale rows with their property counts; the report cites the two PDK files by sha256',
+      r.status_code == 200 and r.json['ok'] and len(r.json['live_rows']['MaterialsScienceMaterial']) == 11 and sum(1 for m_ in r.json['live_rows']['MaterialsScienceMaterial'] if m_['candidate']) == 7
+      and len(r.json['live_rows']['MaterialScaleDefinition']) == 11 and all(s_['properties'] > 0 for s_ in r.json['live_rows']['MaterialScaleDefinition']) and len(r.json['report']['pdk_files']['tlef']['sha256']) == 64, r.text[:300])
 _fm = next((m_ for m_ in tables.get('ComputeMapping', {}).values() if getattr(m_, 'name', '') == 'lod4: fabrication → materials'), None)
 check('  …the fabrication → materials row on a real boot is the lod-4b one (the route as rows, the recipe as the loss)', _fm is not None and str(_fm.notes).startswith('lod-4b') and 'recipe' in str(_fm.loss_note))
 r = client.simulate_get('/api/computelod/lod3/pnr')

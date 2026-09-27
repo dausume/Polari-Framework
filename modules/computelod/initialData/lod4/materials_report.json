@@ -1,0 +1,1082 @@
+{
+ "read_on": "2026-09-27",
+ "sources": {
+  "SZE07": {
+   "citation": "S. M. Sze, K. K. Ng, \"Physics of Semiconductor Devices\", 3rd ed., Wiley, 2007 — appendices \"Properties of Si and GaAs\" and \"Properties of SiO2 and Si3N4\" (300 K), and the shallow-level ionization energies in Ch. 1",
+   "kind": "textbook"
+  },
+  "CRC": {
+   "citation": "CRC Handbook of Chemistry and Physics, 97th ed., CRC Press, 2016 — \"Electrical Resistivity of Pure Metals\" (20 °C) and \"Physical Constants of Inorganic Compounds\"",
+   "kind": "handbook"
+  },
+  "PDG00": {
+   "citation": "J. D. Plummer, M. D. Deal, P. B. Griffin, \"Silicon VLSI Technology\", Prentice Hall, 2000 — the CMOS generation's material set (W plugs, Al interconnect with Ti/TiN barriers, doped poly gates, B / P / As dopants)",
+   "kind": "textbook"
+  },
+  "PDK_TLEF": {
+   "citation": "SkyWater sky130A, sky130_fd_sc_hd technology LEF (nominal corner): libs.ref/sky130_fd_sc_hd/techlef/sky130_fd_sc_hd__nom.tlef — LAYER … THICKNESS / RESISTANCE RPERSQ / CAPACITANCE CPERSQDIST, via RESISTANCE per cut",
+   "kind": "pdk-file",
+   "repo": "google/skywater-pdk (Apache-2.0); built by open_pdks, fetched with ciel (polari-eda-tools/fetch-pdk.sh)",
+   "file": "sky130A/libs.ref/sky130_fd_sc_hd/techlef/sky130_fd_sc_hd__nom.tlef"
+  },
+  "PDK_MAGIC": {
+   "citation": "SkyWater sky130A magic technology file: libs.tech/magic/sky130A.tech — extract section `height <layer> <bottom µm> <thickness µm>` and `resist <layer> <mΩ/□>` (first extract style)",
+   "kind": "pdk-file",
+   "repo": "google/skywater-pdk (Apache-2.0) via open_pdks",
+   "file": "sky130A/libs.tech/magic/sky130A.tech"
+  },
+  "LOD4C": {
+   "citation": "computelod lod-4c / lod-3b: the PDK's BSIM4 model cards as RUN here (tt corner) — toxe of nfet_01v8",
+   "kind": "this-arc",
+   "file": "lod4/devices_report.json"
+  }
+ },
+ "pdk_files": {
+  "tlef": {
+   "file": "sky130A/libs.ref/sky130_fd_sc_hd/techlef/sky130_fd_sc_hd__nom.tlef",
+   "sha256": "5de46c6f7c2cf82599b93d30a6459465f770f63c85b36182c672782219938519",
+   "bytes": 18167
+  },
+  "magic_tech": {
+   "file": "sky130A/libs.tech/magic/sky130A.tech",
+   "sha256": "55fdebfa329544c1cb1e22a3817461603f1dea9a41638b26af8c7751b3e0cc6a",
+   "bytes": 168450
+  },
+  "ciel_version": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+ },
+ "derived": {
+  "metals": {
+   "met1": {
+    "rpersq_ohm": 0.125,
+    "thickness_um": 0.35,
+    "effective_resistivity_uohm_cm": 4.375,
+    "magic_thickness_um": 0.36
+   },
+   "met2": {
+    "rpersq_ohm": 0.125,
+    "thickness_um": 0.35,
+    "effective_resistivity_uohm_cm": 4.375,
+    "magic_thickness_um": 0.36
+   },
+   "met3": {
+    "rpersq_ohm": 0.047,
+    "thickness_um": 0.8,
+    "effective_resistivity_uohm_cm": 3.76,
+    "magic_thickness_um": 0.845
+   },
+   "met4": {
+    "rpersq_ohm": 0.047,
+    "thickness_um": 0.8,
+    "effective_resistivity_uohm_cm": 3.76,
+    "magic_thickness_um": 0.845
+   },
+   "met5": {
+    "rpersq_ohm": 0.0285,
+    "thickness_um": 1.2,
+    "effective_resistivity_uohm_cm": 3.42,
+    "magic_thickness_um": 1.26
+   }
+  },
+  "vias": {
+   "mcon": 9.3,
+   "via": 4.5,
+   "via2": 3.41,
+   "via3": 3.41,
+   "via4": 0.38
+  },
+  "poly": {
+   "rpersq_ohm": 48.2,
+   "thickness_um": 0.18,
+   "resistivity_ohm_cm": 0.000868,
+   "resistor_flavours_ohm_per_sq": {
+    "xhrpoly": 319.8,
+    "uhrpoly": 2000.0
+   }
+  },
+  "diffusion": {
+   "ndiff": 120.0,
+   "pdiff": 197.0,
+   "mvndiff": 114.0,
+   "mvpdiff": 191.0,
+   "pwell": 4400.0,
+   "nwell": 950.0
+  },
+  "li1": {
+   "rpersq_ohm": 12.8,
+   "thickness_um": 0.1,
+   "effective_resistivity_uohm_cm": 128.0
+  },
+  "dielectric": {
+   "met1_cperdist_pf_per_um2": 2.57784e-05,
+   "implied_thickness_um_if_sio2": 1.34,
+   "magic_met1_bottom_um": 1.3761,
+   "reading": "ε0·3.9 / C_area = the dielectric thickness under met1 IF it is SiO2 (εr 3.9): 1.34 µm vs magic's met1 bottom height 1.376 µm — agreement to 3 % is evidence the inter-layer dielectric is SiO2-class"
+  }
+ },
+ "materials": [
+  {
+   "name": "silicon",
+   "existing": true,
+   "display": "Silicon (crystalline)",
+   "elements": [
+    "Si"
+   ],
+   "role": "the substrate and every device region (wells, channels, source/drain); electronic-grade via the Siemens route (sifet SiliconGrade eg-si)",
+   "asserted_by_pdk": true,
+   "stages": [
+    "sky130-eg-si-wafer"
+   ],
+   "properties": [
+    {
+     "property": "relative_permittivity",
+     "unit": "",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 11.9,
+     "conditions": "300 K"
+    },
+    {
+     "property": "bandgap",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 1.12,
+     "conditions": "300 K, indirect"
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 2.329
+    },
+    {
+     "property": "intrinsic_resistivity",
+     "unit": "Ω·cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 320000.0,
+     "conditions": "300 K, undoped"
+    },
+    {
+     "property": "intrinsic_carrier_concentration",
+     "unit": "cm⁻³",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 9650000000.0,
+     "conditions": "300 K"
+    },
+    {
+     "property": "breakdown_field",
+     "unit": "V/cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 300000.0,
+     "note": "order of magnitude; doping-dependent"
+    },
+    {
+     "property": "sheet_resistance_mvndiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 114.0,
+     "conditions": "as implanted by the PDK's mvndiff",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    },
+    {
+     "property": "sheet_resistance_mvpdiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 191.0,
+     "conditions": "as implanted by the PDK's mvpdiff",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    },
+    {
+     "property": "sheet_resistance_ndiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 120.0,
+     "conditions": "as implanted by the PDK's ndiff",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    },
+    {
+     "property": "sheet_resistance_nwell",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 950.0,
+     "conditions": "as implanted by the PDK's nwell",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    },
+    {
+     "property": "sheet_resistance_pdiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 197.0,
+     "conditions": "as implanted by the PDK's pdiff",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    },
+    {
+     "property": "sheet_resistance_pwell",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 4400.0,
+     "conditions": "as implanted by the PDK's pwell",
+     "derivation": "magic extract `resist` (mΩ/□ ÷ 1000), first style"
+    }
+   ]
+  },
+  {
+   "name": "silicon-dioxide-thermal",
+   "existing": false,
+   "display": "Silicon dioxide (thermal / deposited SiO2)",
+   "elements": [
+    "Si",
+    "O"
+   ],
+   "role": "gate dielectric (1.8 V core and the thick `hvi` oxide), field isolation, inter-layer dielectric between the metals",
+   "asserted_by_pdk": true,
+   "stages": [
+    "sky130-active",
+    "sky130-gate-stack",
+    "sky130-metal-stack"
+   ],
+   "properties": [
+    {
+     "property": "relative_permittivity",
+     "unit": "",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 3.9
+    },
+    {
+     "property": "bandgap",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 9.0
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 2.27,
+     "conditions": "thermal oxide"
+    },
+    {
+     "property": "breakdown_field",
+     "unit": "V/cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 10000000.0,
+     "note": "≈ 10 MV/cm"
+    },
+    {
+     "property": "resistivity",
+     "unit": "Ω·cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value_min": 100000000000000.0,
+     "value_max": 1e+16
+    },
+    {
+     "property": "gate_oxide_thickness_toxe_nfet_01v8",
+     "unit": "nm",
+     "source": "LOD4C",
+     "basis": "derived",
+     "value": 4.148,
+     "derivation": "toxe in the tt model card as run in lod-4c/3b (an electrical thickness)"
+    },
+    {
+     "property": "inter_layer_dielectric_thickness_under_met1",
+     "unit": "µm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 1.34,
+     "derivation": "ε0·εr(3.9) / CPERSQDIST(met1) = 1.340 µm; magic height of met1 bottom = 1.3761 µm",
+     "note": "ε0·3.9 / C_area = the dielectric thickness under met1 IF it is SiO2 (εr 3.9): 1.34 µm vs magic's met1 bottom height 1.376 µm — agreement to 3 % is evidence the inter-layer dielectric is SiO2-class"
+    }
+   ]
+  },
+  {
+   "name": "silicon-nitride",
+   "existing": false,
+   "display": "Silicon nitride (Si3N4)",
+   "elements": [
+    "Si",
+    "N"
+   ],
+   "role": "the nitride the `npc` cut opens under contacts, pad/stop layers in isolation, the `nsm` seal over the die",
+   "asserted_by_pdk": true,
+   "stages": [
+    "sky130-active",
+    "sky130-contacts-li",
+    "sky130-passivation"
+   ],
+   "properties": [
+    {
+     "property": "relative_permittivity",
+     "unit": "",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 7.5
+    },
+    {
+     "property": "bandgap",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 5.0
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 3.1
+    },
+    {
+     "property": "breakdown_field",
+     "unit": "V/cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 10000000.0
+    },
+    {
+     "property": "resistivity",
+     "unit": "Ω·cm",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 100000000000000.0,
+     "note": "≈, deposited films vary"
+    }
+   ]
+  },
+  {
+   "name": "polysilicon-doped",
+   "existing": false,
+   "display": "Polysilicon (doped gate poly)",
+   "elements": [
+    "Si"
+   ],
+   "role": "the gate electrode (`poly`), and the resistor flavours by implant (`rpm`, high-ρ poly)",
+   "asserted_by_pdk": true,
+   "stages": [
+    "sky130-gate-stack"
+   ],
+   "properties": [
+    {
+     "property": "sheet_resistance",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 48.2,
+     "derivation": "magic `resist (allpolynonres)/active` 48200 mΩ/□"
+    },
+    {
+     "property": "thickness",
+     "unit": "µm",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 0.18,
+     "derivation": "magic `height allpoly` thickness"
+    },
+    {
+     "property": "resistivity",
+     "unit": "Ω·cm",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 0.000868,
+     "derivation": "sheet resistance × thickness = 48.2 Ω/□ × 0.18 µm",
+     "note": "a heavily doped n+ poly figure (textbook 5×10⁻⁴–10⁻³ Ω·cm)"
+    },
+    {
+     "property": "resistor_flavours_sheet_resistance",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "derivation": "{\"xhrpoly\": 319.8, \"uhrpoly\": 2000.0}",
+     "note": "the implant-defined poly resistors (xhrpoly, uhrpoly, mrp1)"
+    }
+   ]
+  },
+  {
+   "name": "dopant-boron",
+   "existing": false,
+   "display": "Boron (p-type dopant)",
+   "elements": [
+    "B"
+   ],
+   "role": "the acceptor: p-wells / substrate tuning, p+ source/drain (`psdm`), the hvtp Vt implant",
+   "asserted_by_pdk": false,
+   "inference": "the PDK names implant LAYERS (psdm \"P+ source/drain implant\"), not the species; boron is the one practical acceptor in Si CMOS [PDG00]",
+   "stages": [
+    "sky130-wells",
+    "sky130-gate-stack",
+    "sky130-source-drain"
+   ],
+   "properties": [
+    {
+     "property": "ionization_energy_acceptor",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 0.045,
+     "conditions": "above the valence band, in Si"
+    },
+    {
+     "property": "role",
+     "unit": "",
+     "source": "PDG00",
+     "basis": "inference",
+     "note": "acceptor (p-type)"
+    },
+    {
+     "property": "sheet_resistance_mvpdiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 191.0,
+     "conditions": "the PDK's mvpdiff",
+     "derivation": "magic `resist`, the p-type layers"
+    },
+    {
+     "property": "sheet_resistance_pdiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 197.0,
+     "conditions": "the PDK's pdiff",
+     "derivation": "magic `resist`, the p-type layers"
+    },
+    {
+     "property": "sheet_resistance_pwell",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 4400.0,
+     "conditions": "the PDK's pwell",
+     "derivation": "magic `resist`, the p-type layers"
+    }
+   ]
+  },
+  {
+   "name": "dopant-phosphorus",
+   "existing": false,
+   "display": "Phosphorus (n-type dopant)",
+   "elements": [
+    "P"
+   ],
+   "role": "a donor: n-well and deep n-well candidates, n+ source/drain candidate (with arsenic)",
+   "asserted_by_pdk": false,
+   "inference": "the PDK draws nwell / dnwell / nsdm; whether P or As (or both, by depth) forms each is the recipe's — not published",
+   "stages": [
+    "sky130-wells",
+    "sky130-source-drain"
+   ],
+   "properties": [
+    {
+     "property": "ionization_energy_donor",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 0.045,
+     "conditions": "below the conduction band, in Si"
+    },
+    {
+     "property": "role",
+     "unit": "",
+     "source": "PDG00",
+     "basis": "inference",
+     "note": "donor (n-type); the deeper-diffusing n dopant — wells"
+    },
+    {
+     "property": "sheet_resistance_nwell",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 950.0,
+     "conditions": "the PDK's nwell",
+     "derivation": "magic `resist`, the n-type layers"
+    }
+   ]
+  },
+  {
+   "name": "dopant-arsenic",
+   "existing": false,
+   "display": "Arsenic (n-type dopant)",
+   "elements": [
+    "As"
+   ],
+   "role": "a donor: the shallow n+ source/drain candidate (`nsdm`), the lvtn Vt implant candidate",
+   "asserted_by_pdk": false,
+   "inference": "species not named by the PDK; As is the generation's shallow-junction n dopant [PDG00]",
+   "stages": [
+    "sky130-gate-stack",
+    "sky130-source-drain"
+   ],
+   "properties": [
+    {
+     "property": "ionization_energy_donor",
+     "unit": "eV",
+     "source": "SZE07",
+     "basis": "cited",
+     "value": 0.054,
+     "conditions": "below the conduction band, in Si"
+    },
+    {
+     "property": "role",
+     "unit": "",
+     "source": "PDG00",
+     "basis": "inference",
+     "note": "donor (n-type); shallow junctions"
+    },
+    {
+     "property": "sheet_resistance_mvndiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 114.0,
+     "conditions": "the PDK's mvndiff",
+     "derivation": "magic `resist`, the n+ layers"
+    },
+    {
+     "property": "sheet_resistance_ndiff",
+     "unit": "Ω/□",
+     "source": "PDK_MAGIC",
+     "basis": "derived",
+     "value": 120.0,
+     "conditions": "the PDK's ndiff",
+     "derivation": "magic `resist`, the n+ layers"
+    }
+   ]
+  },
+  {
+   "name": "aluminium",
+   "existing": false,
+   "display": "Aluminium (interconnect candidate)",
+   "elements": [
+    "Al"
+   ],
+   "role": "CANDIDATE interconnect metal for met1–met5 and the pads — the PDK does not name the metal",
+   "asserted_by_pdk": false,
+   "inference": "Al with Ti/TiN barrier and cap is this generation's metal [PDG00]; EVIDENCE from the PDK: the PDK's five metals: RPERSQ × THICKNESS = 4.38, 4.38, 3.76, 3.76, 3.42 µΩ·cm effective (met1…met5) — 1.3–1.7× bulk Al (2.65), 2.0–2.6× bulk Cu (1.68); a barrier-clad Al film reads 1.3–1.7× bulk, a Cu damascene film ~1.1–1.3×",
+   "stages": [
+    "sky130-metal-stack",
+    "sky130-passivation"
+   ],
+   "properties": [
+    {
+     "property": "resistivity",
+     "unit": "µΩ·cm",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 2.65,
+     "conditions": "20 °C, bulk"
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 2.7
+    },
+    {
+     "property": "melting_point",
+     "unit": "°C",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 660.3
+    },
+    {
+     "property": "effective_resistivity_met1",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 4.375,
+     "derivation": "RPERSQ 0.1250 Ω/□ × THICKNESS 0.35 µm (magic height thickness 0.36 µm)",
+     "note": "the layer's figure whatever the metal is; 1.65× bulk Al"
+    },
+    {
+     "property": "effective_resistivity_met2",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 4.375,
+     "derivation": "RPERSQ 0.1250 Ω/□ × THICKNESS 0.35 µm (magic height thickness 0.36 µm)",
+     "note": "the layer's figure whatever the metal is; 1.65× bulk Al"
+    },
+    {
+     "property": "effective_resistivity_met3",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.76,
+     "derivation": "RPERSQ 0.0470 Ω/□ × THICKNESS 0.80 µm (magic height thickness 0.845 µm)",
+     "note": "the layer's figure whatever the metal is; 1.42× bulk Al"
+    },
+    {
+     "property": "effective_resistivity_met4",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.76,
+     "derivation": "RPERSQ 0.0470 Ω/□ × THICKNESS 0.80 µm (magic height thickness 0.845 µm)",
+     "note": "the layer's figure whatever the metal is; 1.42× bulk Al"
+    },
+    {
+     "property": "effective_resistivity_met5",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.42,
+     "derivation": "RPERSQ 0.0285 Ω/□ × THICKNESS 1.20 µm (magic height thickness 1.26 µm)",
+     "note": "the layer's figure whatever the metal is; 1.29× bulk Al"
+    }
+   ]
+  },
+  {
+   "name": "copper",
+   "existing": false,
+   "display": "Copper (interconnect candidate)",
+   "elements": [
+    "Cu"
+   ],
+   "role": "CANDIDATE interconnect metal — the PDK does not name the metal",
+   "asserted_by_pdk": false,
+   "inference": "kept as a candidate because the PDK is silent; EVIDENCE from the PDK weighs against it: the PDK's five metals: RPERSQ × THICKNESS = 4.38, 4.38, 3.76, 3.76, 3.42 µΩ·cm effective (met1…met5) — 1.3–1.7× bulk Al (2.65), 2.0–2.6× bulk Cu (1.68); a barrier-clad Al film reads 1.3–1.7× bulk, a Cu damascene film ~1.1–1.3×",
+   "stages": [
+    "sky130-metal-stack"
+   ],
+   "properties": [
+    {
+     "property": "resistivity",
+     "unit": "µΩ·cm",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 1.68,
+     "conditions": "20 °C, bulk"
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 8.96
+    },
+    {
+     "property": "melting_point",
+     "unit": "°C",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 1084.6
+    },
+    {
+     "property": "effective_resistivity_met1",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 4.375,
+     "derivation": "RPERSQ × THICKNESS (see the aluminium row)",
+     "note": "2.60× bulk Cu"
+    },
+    {
+     "property": "effective_resistivity_met2",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 4.375,
+     "derivation": "RPERSQ × THICKNESS (see the aluminium row)",
+     "note": "2.60× bulk Cu"
+    },
+    {
+     "property": "effective_resistivity_met3",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.76,
+     "derivation": "RPERSQ × THICKNESS (see the aluminium row)",
+     "note": "2.24× bulk Cu"
+    },
+    {
+     "property": "effective_resistivity_met4",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.76,
+     "derivation": "RPERSQ × THICKNESS (see the aluminium row)",
+     "note": "2.24× bulk Cu"
+    },
+    {
+     "property": "effective_resistivity_met5",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.42,
+     "derivation": "RPERSQ × THICKNESS (see the aluminium row)",
+     "note": "2.04× bulk Cu"
+    }
+   ]
+  },
+  {
+   "name": "tungsten",
+   "existing": false,
+   "display": "Tungsten (plug candidate)",
+   "elements": [
+    "W"
+   ],
+   "role": "CANDIDATE contact / via plug metal (licon, mcon, via…via4) — the PDK names the cuts and their resistance, not the fill",
+   "asserted_by_pdk": false,
+   "inference": "CVD-W plugs are the generation's fill [PDG00]",
+   "stages": [
+    "sky130-contacts-li",
+    "sky130-metal-stack"
+   ],
+   "properties": [
+    {
+     "property": "resistivity",
+     "unit": "µΩ·cm",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 5.28,
+     "conditions": "20 °C, bulk"
+    },
+    {
+     "property": "density",
+     "unit": "g/cm³",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 19.25
+    },
+    {
+     "property": "melting_point",
+     "unit": "°C",
+     "source": "CRC",
+     "basis": "cited",
+     "value": 3422
+    },
+    {
+     "property": "resistance_per_cut_mcon",
+     "unit": "Ω",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 9.3,
+     "derivation": "LAYER mcon RESISTANCE (per cut) in the technology LEF",
+     "note": "the PDK's own per-cut figure, fill unnamed"
+    },
+    {
+     "property": "resistance_per_cut_via",
+     "unit": "Ω",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 4.5,
+     "derivation": "LAYER via RESISTANCE (per cut) in the technology LEF",
+     "note": "the PDK's own per-cut figure, fill unnamed"
+    },
+    {
+     "property": "resistance_per_cut_via2",
+     "unit": "Ω",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.41,
+     "derivation": "LAYER via2 RESISTANCE (per cut) in the technology LEF",
+     "note": "the PDK's own per-cut figure, fill unnamed"
+    },
+    {
+     "property": "resistance_per_cut_via3",
+     "unit": "Ω",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 3.41,
+     "derivation": "LAYER via3 RESISTANCE (per cut) in the technology LEF",
+     "note": "the PDK's own per-cut figure, fill unnamed"
+    },
+    {
+     "property": "resistance_per_cut_via4",
+     "unit": "Ω",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 0.38,
+     "derivation": "LAYER via4 RESISTANCE (per cut) in the technology LEF",
+     "note": "the PDK's own per-cut figure, fill unnamed"
+    }
+   ]
+  },
+  {
+   "name": "titanium-nitride",
+   "existing": false,
+   "display": "Titanium nitride (local-interconnect / barrier candidate)",
+   "elements": [
+    "Ti",
+    "N"
+   ],
+   "role": "CANDIDATE for the `li1` local interconnect and the metals' barrier/cap layers",
+   "asserted_by_pdk": false,
+   "inference": "TiN-class films are the generation's local interconnect and barrier [PDG00]; EVIDENCE: li1's effective resistivity 128.0 µΩ·cm is a refractory-nitride film figure (bulk TiN ~20 µΩ·cm, films 50–200), far from any Al / Cu / W film",
+   "stages": [
+    "sky130-contacts-li"
+   ],
+   "properties": [
+    {
+     "property": "effective_resistivity_li1",
+     "unit": "µΩ·cm",
+     "source": "PDK_TLEF",
+     "basis": "derived",
+     "value": 128.0,
+     "derivation": "RPERSQ 12.8 Ω/□ × THICKNESS 0.10 µm",
+     "note": "the layer's figure whatever the film is"
+    },
+    {
+     "property": "bulk_resistivity",
+     "unit": "µΩ·cm",
+     "source": "",
+     "basis": "not-modelled",
+     "note": "film-dependent (stoichiometry, density); no single literature value adopted"
+    }
+   ]
+  }
+ ],
+ "stage_materials": {
+  "sky130-eg-si-wafer": [
+   "silicon"
+  ],
+  "sky130-active": [
+   "silicon-dioxide-thermal",
+   "silicon-nitride"
+  ],
+  "sky130-gate-stack": [
+   "silicon-dioxide-thermal",
+   "polysilicon-doped",
+   "dopant-boron",
+   "dopant-arsenic"
+  ],
+  "sky130-metal-stack": [
+   "silicon-dioxide-thermal",
+   "aluminium",
+   "copper",
+   "tungsten"
+  ],
+  "sky130-contacts-li": [
+   "silicon-nitride",
+   "tungsten",
+   "titanium-nitride"
+  ],
+  "sky130-passivation": [
+   "silicon-nitride",
+   "aluminium"
+  ],
+  "sky130-wells": [
+   "dopant-boron",
+   "dopant-phosphorus"
+  ],
+  "sky130-source-drain": [
+   "dopant-boron",
+   "dopant-phosphorus",
+   "dopant-arsenic"
+  ]
+ },
+ "named_strings": {
+  "Si (electronic-grade, 9N–11N — sifet SiliconGrade eg-si via RefinementRoute siemens-route)": {
+   "stage": "sky130-eg-si-wafer",
+   "resolves_to": [
+    "silicon"
+   ]
+  },
+  "P and/or As dopant (n-well), B (p-well/substrate tuning)": {
+   "stage": "sky130-wells",
+   "resolves_to": [
+    "dopant-phosphorus",
+    "dopant-arsenic"
+   ]
+  },
+  "SiO2 (field isolation)": {
+   "stage": "sky130-active",
+   "resolves_to": [
+    "silicon-dioxide-thermal"
+   ]
+  },
+  "Si3N4 (pad / stop layers)": {
+   "stage": "sky130-active",
+   "resolves_to": [
+    "silicon-nitride"
+   ]
+  },
+  "SiO2 gate dielectric (the models' toxe 4.148 nm for the 1.8 V nfet — lod-3b/4c cards; a thicker oxide where `hvi` is drawn)": {
+   "stage": "sky130-gate-stack",
+   "resolves_to": [
+    "silicon-dioxide-thermal"
+   ]
+  },
+  "poly-Si (gate)": {
+   "stage": "sky130-gate-stack",
+   "resolves_to": [
+    "polysilicon-doped"
+   ]
+  },
+  "B / As Vt-adjust implants (hvtp, lvtn)": {
+   "stage": "sky130-gate-stack",
+   "resolves_to": [
+    "dopant-boron",
+    "dopant-arsenic"
+   ]
+  },
+  "As / P (n+), B (p+) dopants": {
+   "stage": "sky130-source-drain",
+   "resolves_to": [
+    "dopant-arsenic",
+    "dopant-phosphorus"
+   ]
+  },
+  "Si3N4 (the nitride the `npc` cut opens)": {
+   "stage": "sky130-contacts-li",
+   "resolves_to": [
+    "silicon-nitride"
+   ]
+  },
+  "contact plug metal (W plugs are the textbook choice; the PDK does not say)": {
+   "stage": "sky130-contacts-li",
+   "resolves_to": [
+    "tungsten"
+   ]
+  },
+  "local-interconnect metal (TiN-class; the PDK does not say)": {
+   "stage": "sky130-contacts-li",
+   "resolves_to": [
+    "titanium-nitride"
+   ]
+  },
+  "Al (or Cu) interconnect metal — the PDK does not say which": {
+   "stage": "sky130-metal-stack",
+   "resolves_to": [
+    "aluminium",
+    "copper"
+   ]
+  },
+  "inter-metal dielectric SiO2": {
+   "stage": "sky130-metal-stack",
+   "resolves_to": [
+    "silicon-dioxide-thermal"
+   ]
+  },
+  "via plug metal (W)": {
+   "stage": "sky130-metal-stack",
+   "resolves_to": [
+    "tungsten"
+   ]
+  },
+  "optional MiM capacitor dielectric (capm)": {
+   "stage": "sky130-metal-stack",
+   "resolves_to": "not modelled — the PDK draws the capacitor layers (capm / cap2m) but names no dielectric; a row would be a guess"
+  },
+  "Si3N4 seal": {
+   "stage": "sky130-passivation",
+   "resolves_to": [
+    "silicon-nitride"
+   ]
+  },
+  "pad metal exposed": {
+   "stage": "sky130-passivation",
+   "resolves_to": "the interconnect metal itself (aluminium / copper candidate rows) exposed through the passivation cut — no separate material"
+  }
+ },
+ "unresolved_names": [],
+ "not_modelled": {
+  "optional MiM capacitor dielectric (capm)": "not modelled — the PDK draws the capacitor layers (capm / cap2m) but names no dielectric; a row would be a guess",
+  "photoresist": "not modelled — a consumable of every photolithography step, not a material of the finished die",
+  "pad metal exposed": "the interconnect metal itself (aluminium / copper candidate rows) exposed through the passivation cut — no separate material"
+ },
+ "counts": {
+  "materials": 11,
+  "new_identities": 10,
+  "properties": {
+   "cited": 28,
+   "derived": 34,
+   "inference": 3,
+   "not-modelled": 1
+  },
+  "asserted_by_pdk": 4,
+  "candidates": 7
+ },
+ "reading": "every material a SKY130 stage names is a row (or an explicit not-modelled entry); every number on a row is cited (Sze & Ng, CRC) or derived here from two PDK files by the formula in its `derivation`; what the PDK does not say (WHICH metal, WHICH dopant species, the plug and barrier films) stays a CANDIDATE with the PDK's own numbers as evidence — never asserted",
+ "reproduction": {
+  "inputs": [
+   {
+    "label": "sc_hd technology LEF (nominal)",
+    "file": "sky130A/libs.ref/sky130_fd_sc_hd/techlef/sky130_fd_sc_hd__nom.tlef",
+    "sha256": "5de46c6f7c2cf82599b93d30a6459465f770f63c85b36182c672782219938519",
+    "url": "https://github.com/google/skywater-pdk",
+    "note": "PDK content: never committed"
+   },
+   {
+    "label": "magic sky130A.tech",
+    "file": "sky130A/libs.tech/magic/sky130A.tech",
+    "sha256": "55fdebfa329544c1cb1e22a3817461603f1dea9a41638b26af8c7751b3e0cc6a",
+    "url": "https://github.com/google/skywater-pdk",
+    "note": "PDK content: never committed"
+   },
+   {
+    "label": "Sze & Ng 2007 / CRC 97th / Plummer 2000",
+    "url": "urn:isbn:978-0-471-14323-9 (Sze & Ng); urn:isbn:978-1-4987-5428-6 (CRC 97th); urn:isbn:0-13-085037-3 (Plummer)",
+    "note": "literature constants typed into materials(); each carries its source key"
+   }
+  ],
+  "tools": {
+   "images": {}
+  },
+  "knobs": {
+   "eps_r_sio2_for_the_thickness_derivation": 3.9,
+   "bulk_resistivities_uohm_cm": {
+    "Al": 2.65,
+    "Cu": 1.68,
+    "W": 5.28
+   },
+   "magic_extract_style": "first"
+  },
+  "conditions": {
+   "reading": "a parse of two PDK text files + literature constants; the derivations are the formulas in each property row"
+  },
+  "generated_files": [],
+  "seeds": {
+   "deterministic": true,
+   "why": "yes: the same two files (sha256) give the same numbers; no randomness, no engines"
+  },
+  "recorded_at": "2026-09-26T23:56:06",
+  "host": {
+   "node": "user-HP-ProDesk-600-G1-SFF",
+   "machine": "x86_64",
+   "python": "3.10.12"
+  },
+  "how_to_rerun": "PYTHONPATH=.:modules python3 -m computelod.custom.lod4_materials run",
+  "rule": "every result carries the initial conditions and seeds that produced it (2026-09-26)",
+  "cost": {
+   "label": "computelod.custom.lod4_materials",
+   "wall_s": 0.027,
+   "host": {
+    "cpu_s_self": 0.027,
+    "cpu_s_children": 0.0,
+    "peak_rss_mb_self": 18.5,
+    "peak_rss_mb_children": 0.0,
+    "note": "rusage: peak RSS is the process-lifetime maximum up to the end of this run (a lower bound for the run itself when the process did more before); children = subprocesses such as ngspice"
+   },
+   "engines": {
+    "calls": 0,
+    "cpu_s": 0,
+    "peak_rss_mb": 0,
+    "by_engine": {},
+    "images": {},
+    "unmeasured_calls": 0
+   },
+   "totals": {
+    "cpu_s": 0.027,
+    "peak_rss_mb_any_process": 18.5,
+    "pull_mb_images": 0,
+    "reading": "peak_rss_mb_any_process is the memory ONE process needed at its worst (the flow runs its engines one at a time); cpu_s is the whole run's CPU time — on a slower device the wall time scales, the memory does not"
+   }
+  }
+ }
+}
