@@ -62,6 +62,12 @@ SEED_TENSOR_MAPPINGS = [
     _M(name='wind-grid→slice-z0', kind='restriction', source_node='wind-grid', source_dims_json='["x","y","z"]', target_node='wind-slice-z0', target_dims_json='["x","y"]',
        expression_ref='wind-slice-z0', validity_json=json.dumps({'z': [-1.2, 1.2]}), loss_note='the other three z layers are dropped',
        mapping_status='implemented', evidence_level='simulated', evidence_ref='tensormath evaluate wind-slice-z0', provenance='tt-1'),
+    # tt-14: a mapping WRITTEN FOR the wind slice that needs only x, y (metres) — the first real cross-tree candidate: a selection on the
+    # plate (x, y in metres through tt2-centroids) can take it; discovery flags it cross_tree with the lower context term
+    _M(name='slice-z0→speed-map', kind='projection', source_node='wind-slice-z0', source_dims_json='["x","y"]', target_node='wind-slice-z0', target_dims_json='["x","y"]',
+       expression_ref='wind-speed', validity_json=json.dumps({'x': [-1.2, 1.2], 'y': [-1.2, 1.2]}), units='m/s', loss_note='the component axis is collapsed to a magnitude per (x, y) cell',
+       mapping_status='implemented', evidence_level='simulated', evidence_ref='tensormath evaluate wind-speed (the field-wide norm; on the z = 0 layer it is the same per cell)', provenance='tt-14',
+       description='|w| per (x, y) cell of the z = 0 layer — a 2-D projection any node with x, y in metres can take, valid over the grid\'s cell-centre extent (±1.2 m)'),
     _M(name='wind-grid→bob-drag', kind='coupling', source_node='wind-grid', source_dims_json='["x","y","z","speed"]', target_node='pendulum-bob', target_dims_json='["fwind_x","fwind_y","fwind_z"]',
        coupling_ref='wind-to-newtonian-pendulum', validity_json=json.dumps({'speed': [0, 30]}), units='N', loss_note='the field is SAMPLED at the bob: one cell\'s velocity becomes one force',
        mapping_status='validated', evidence_level='simulated', evidence_ref='simulations/selftest_wind_coupling.py (Milestone A)', provenance='the live SimulationCouplingDefinition, by reference'),

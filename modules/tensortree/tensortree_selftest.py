@@ -124,6 +124,11 @@ _add(m, 'TensorMapping', name='other:T→x', kind='kernel', source_node='field2'
 _add(m, 'TensorMapping', name='mm:T→x', kind='kernel', source_node='field3', source_dims_json='["x","T"]', target_node='field2', target_dims_json='["x"]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='bench-3', uncertainty_json='{}', loss_note='')
 _add(m, 'TensorMapping', name='nounits:T→x', kind='kernel', source_node='field4', source_dims_json='["x","T"]', target_node='field2', target_dims_json='[]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='bench-4', uncertainty_json='{}', loss_note='')
 _add(m, 'TensorMapping', name='other:needs-w', kind='kernel', source_node='field2', source_dims_json='["x","w"]', target_node='field3', target_dims_json='[]', validity_json='{}', mapping_status='validated', evidence_level='measured', evidence_ref='', uncertainty_json='{}', loss_note='')
+_add(m, 'Tensor', name='centroids-other', rank=2, dimensions_json=json.dumps([{'name': 'xy', 'unit': 'mm'}]), units='mm', storage_kind='matrix')
+_add(m, 'TensorNode', name='field5', tree='other', parent='field2', title='field5', tensor='T-other', dims_json=json.dumps(['field5.x']), binding_ref='', status='unresolved')
+_add(m, 'LocalizedDimension', name='field5.x', node='field5', dimension='centroids-other.xy', range_json='[]', channel='position.x', scale_json='{}', coherent=False)
+check('tt-14: a LocalizedDimension that localizes a dimension of ANOTHER tensor (`<tensor>.<dim>`, as the plate\'s x = tt2-centroids.xy) resolves its unit through THAT tensor (mm here), never through the node\'s own tensor',
+      node_dim_units(m, 'field5') == {'x': 'mm'}, node_dim_units(m, 'field5'))
 check('tt-13 units: a node\'s dim units come through its LocalizedDimensions → the tensor\'s dimensions (m, m, m, K on field; unknown = "" on a node whose tensor has no row)',
       node_dim_units(m, 'field') == {'x': 'm', 'y': 'm', 'z': 'm', 'T': 'K'} and node_dim_units(m, 'field4') == {'x': '', 'T': ''}, (node_dim_units(m, 'field'), node_dim_units(m, 'field4')))
 d3 = discover(m, sel)
@@ -158,7 +163,7 @@ check('discovery on the gusty selection: the REAL coupling (validated, simulated
 check('  …and the calm-only spectrum hypothesis is REFUSED: speed 6–12 m/s lies outside its validity [0, 5]', any(r['mapping'] == 'wind-grid→spectrum' and 'validity' in r['why'] for r in d['refused']), d['refused'])
 check('  …the coupling candidate names the live SimulationCouplingDefinition it is', next(mm for mm in m2.objectTables['TensorMapping'].values() if mm.name == 'wind-grid→bob-drag').coupling_ref == 'wind-to-newtonian-pendulum')
 g = tree_graph(m2, 'wind-spatial')
-check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 4 mappings (tt-7 added the proposed coupling), two crossing to the bob\'s tree', g['structural'] == 2 and g['mappings'] == 4, g)
+check('the graph view of the seeded tree: 2 structural edges (slice, turbulence) + 5 mappings (tt-7 added the proposed coupling, tt-14 the slice projection), two crossing to the bob\'s tree', g['structural'] == 2 and g['mappings'] == 5, g)
 
 # ---- tt-7: a SimulationCouplingDefinition CREATED FROM a kind=coupling mapping — derived, refused by name, then written
 from tensortree.custom.tensortree_couple import propose as propose_coupling, couple as create_coupling

@@ -116,8 +116,8 @@ check('the bob\'s own tree (bob-motion) validates on a real boot with its root r
 # pf-0/pf-1: proofs as rows — the seeded claims checked on real rows AT BOOT (custom/boot.py), the obligations of every
 # seeded tree generated AT BOOT by the rules (no POST needed for the badges), the z3 tier deciding over the continuum
 r = client.simulate_get('/api/mathproofs')
-check('GET /api/mathproofs: nineteen seeded claims (12 + the 3 theorems + lod-3d restated rise-gap claim + the two lod-2c twin witnesses + lod-3e wires-add-delay) + eleven obligation claims generated AT BOOT (ob:…), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
-      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 19 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 11 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
+check('GET /api/mathproofs: nineteen seeded claims (12 + the 3 theorems + lod-3d restated rise-gap claim + the two lod-2c twin witnesses + lod-3e wires-add-delay) + fourteen obligation claims generated AT BOOT (ob:…; the tt-14 slice projection added a chain and its rules), eight rules, the tiers named, the AGGREGATE time reading present (D-pf-9)',
+      r.status_code == 200 and r.json['ok'] and len([c for c in r.json['claims'] if not c['name'].startswith('ob:')]) == 19 and len([c for c in r.json['claims'] if c['name'].startswith('ob:')]) == 14 and len(r.json['rules']) == 8 and 'worst_case_s' in r.json['aggregate'], r.text[:200])
 _thm = {c['name']: c['status'] for c in r.json['claims'] if c['name'] in ('sigma-symmetry-general-rank', 'chain-domains-compose-lemma', 'restriction-idempotent-theorem')}
 check('  …after boot the two GENERAL theorems (pf-2) are still CONJECTURED — lean is never run automatically (plan §I.9) — while the smoke statement, whose cheapest tier is sympy, is checked-symbolically at a fixed size',
       _thm == {'sigma-symmetry-general-rank': 'conjectured', 'chain-domains-compose-lemma': 'conjectured', 'restriction-idempotent-theorem': 'checked-symbolically'}, _thm)
@@ -143,18 +143,26 @@ check('GET trees/plate-mechanics/obligations WITHOUT a POST: generated at boot �
 r = client.simulate_post('/api/mathproofs/trees/plate-mechanics/obligations')
 check('  …a POST re-generates idempotently (same nine, same verdicts)', r.status_code == 201 and r.json['summary'] == {'decided': 4, 'checked-symbolically': 3, 'unprovable-here': 2} and len(r.json['obligations']) == 9, r.json.get('summary'))
 r = client.simulate_get('/api/mathproofs/trees/wind-spatial/obligations')
-check('GET trees/wind-spatial/obligations (from boot): the proposed decomposition wind-grid→spectrum is UNDETERMINED (no recorded reconstruction error — not defined yet, not falsified); the restriction is idempotent over symbols',
-      r.status_code == 200 and sorted(o['status'] for o in r.json['obligations']) == ['checked-symbolically', 'undetermined'] and any(o['name'].endswith('wind-grid→spectrum') and o['status'] == 'undetermined' for o in r.json['obligations']), r.text[:300])
+check('GET trees/wind-spatial/obligations (from boot): the proposed decomposition wind-grid→spectrum is UNDETERMINED (no recorded reconstruction error — not defined yet, not falsified); the restriction is idempotent over symbols; tt-14\'s slice projection added a CHAIN through wind-slice-z0 whose rules generated their own obligations (each with a status the tier could give)',
+      r.status_code == 200 and {'checked-symbolically', 'undetermined'} <= set(o['status'] for o in r.json['obligations']) and any(o['name'].endswith('wind-grid→spectrum') and o['status'] == 'undetermined' for o in r.json['obligations'])
+      and any('slice-z0→speed-map' in o['name'] for o in r.json['obligations']) and all(o['status'] in ('decided', 'checked-symbolically', 'undetermined', 'unprovable-here', 'witnessed') for o in r.json['obligations']), [(o['name'][-60:], o['status']) for o in r.json['obligations']])
 _ob = next(o for o in r.json['obligations'] if o['name'].endswith('wind-grid→spectrum'))
 check('  …its bound is the rule\'s KNOB, read by ref (InferenceRule:decomposition-reconstructs.params_json.bound) — the claim names the rule row it depends on', 'InferenceRule:decomposition-reconstructs' in str(client.simulate_get('/api/mathproofs/claims/%s' % _ob['claim']).json['claim']['about']))
 r = client.simulate_post('/api/mathproofs/claims/ob:plate-mechanics:chain-domain-inclusion:u→eps-eps→sigma/check', params={'tier': 'z3'})
 check('POST …/check?tier=z3 on a chain obligation the interval tier decided: z3 re-derives the SAME decision independently (∀x∈validity(eps→sigma): x∈validity(u→eps)); the stronger-or-equal verdict stands',
       r.status_code == 201 and r.json['verdict'] == 'holds' and r.json['tier'] == 'z3' and r.json['after'] == 'decided', r.text[:300])
+r = client.simulate_post('/api/tensortree/select', json={'node': 'plate', 'ranges': {'x': [0.0, 1.2], 'y': [0.0, 1.0], 'sigma': [800000, 1100000]}, 'created_from': 'probe'})
+_xt = [c for c in (r.json.get('discovery') or {}).get('candidates', []) if c.get('cross_tree')] if r.status_code == 201 else []
+check('tt-14 (REAL data through the tt-13 door): a selection on the PLATE (x 0–1.2 m, y 0–1 m — inside the projection\'s stated validity, the grid\'s ±1.2 m; x, y in metres via tt2-centroids) finds `slice-z0→speed-map`, a mapping written for the wind slice, as a CROSS-TREE candidate — dims x, y match by name AND unit (m); it carries source_node, units, why_here and the lower context term',
+      r.status_code == 201 and [c['mapping'] for c in _xt] == ['slice-z0→speed-map'] and _xt[0]['source_node'] == 'wind-slice-z0' and _xt[0]['units'] == {'x': 'm', 'y': 'm'} and _xt[0]['terms']['C'] == 0.25
+      and r.json['discovery']['units_here'].get('x') == 'm' and r.json['discovery']['cross_tree_candidates'] == 1, (r.status_code, r.text[:400]))
+check('  …and the wind grid\'s own mappings that need z are NOT candidates on the plate (no z here): not listed, no refusal row per foreign mapping', not any(c['mapping'] in ('wind-grid→slice-z0', 'wind-grid→bob-drag') for c in (r.json.get('discovery') or {}).get('candidates', []) + (r.json.get('discovery') or {}).get('inapplicable', [])))
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('the validator carries the `logic` section (soft seam) from boot: the plate\'s obligations and their summary', r.status_code == 200 and r.json['validation']['logic']['available'] and r.json['validation']['logic']['summary'].get('decided') == 4, r.text[:200])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/view')
 _b = {mm['name']: mm['logic']['badge'] for mm in r.json['mappings']}
-check('/view shows the proof state ON each mapping from boot (D-pf-8: a badge, never folded into mapping_status): spectrum undetermined, slice ok, the couplings none', _b.get('wind-grid→spectrum') == 'undetermined' and _b.get('wind-grid→slice-z0') == 'ok' and _b.get('wind-grid→bob-drag') == 'none', _b)
+check('/view shows the proof state ON each mapping from boot (D-pf-8: a badge, never folded into mapping_status): spectrum undetermined, the couplings none, and since tt-14 the two slice mappings read `gap` — the new chain carries a units-compose obligation no tier can check yet (a named gap, not a verdict)',
+      _b.get('wind-grid→spectrum') == 'undetermined' and _b.get('wind-grid→slice-z0') == 'gap' and _b.get('slice-z0→speed-map') == 'gap' and _b.get('wind-grid→bob-drag') == 'none', _b)
 _sp = next(mm for mm in tables.get('TensorMapping', {}).values() if getattr(mm, 'name', '') == 'wind-grid→spectrum')
 check('  …and the mapping\'s own mapping_status / evidence_level are UNCHANGED (proposed / none)', _sp.mapping_status == 'proposed' and _sp.evidence_level == 'none')
 check('  …discovery on the gusty selection lists the spectrum as INAPPLICABLE (outside its validity — the state space, not a falsification), and nothing as refuted',
@@ -207,15 +215,15 @@ check('  …and the nodes resting on a LEAN theorem are established only once a 
       (_kn['pf-minor-symmetries']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and (_kn['pf-chain-composition']['established'] == (_pl['engines']['lean']['how'] != 'refused')) and not _kn['pf-decomposition-error']['established'] and 'undetermined' in _kn['pf-decomposition-error']['why'], {k: (v['established'], v['why']) for k, v in _kn.items()})
 check('  …the compute rungs are joined by name: what rtl / standard-cells / devices / layout rest on, each with its established flag', set(r.json['by_rung']) >= {'rtl', 'standard-cells', 'devices', 'layout'} and all('established' in x for x in r.json['by_rung']['rtl']))
 r = client.simulate_get('/api/mathproofs/aggregate')
-check('GET /api/mathproofs/aggregate: 34 claims (19 seeded + 11 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
-      r.status_code == 200 and r.json['claims'] == 34 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
+check('GET /api/mathproofs/aggregate: 37 claims (19 seeded + 14 generated + 1 authored + 3 proposed), the elapsed sum small, NINE long-running claims → worst case 1050 s (six z3 × 25 s + three lean theorems × 300 s: the number a person watches before it grows unreasonable)',
+      r.status_code == 200 and r.json['claims'] == 37 and r.json['latest_runs_elapsed_s'] < 600 and r.json['worst_case_s'] == 1050 and r.json['long_running_claims'] == 9, r.text[:300])
 r = client.simulate_get('/api/tensortree/trees/nope/view')
 check('/view of an unknown tree is a 404 with a reason', r.status_code == 404, r.text[:120])
 r = client.simulate_get('/api/tensortree/trees/wind-spatial/graph')
 check('the graph view carries the coupling as a crossing mapping edge', r.status_code == 200 and any(e['kind'] == 'mapping' and e['mapping'] == 'wind-grid→bob-drag' for e in r.json['graph']['edges']))
 r = client.simulate_post('/api/tensortree/select', json={'node': 'wind-grid', 'ranges': {'x': [0.4, 1.2], 'y': [-0.5, 0.2], 'z': [0.4, 1.2], 'speed': [6, 12]}, 'created_from': 'probe'})
 check('POST select CREATES the selection row and returns its discovery: the real coupling first, the calm-only hypothesis refused',
-      r.status_code == 201 and [c['mapping'] for c in r.json['discovery']['candidates']] == ['wind-grid→bob-drag', 'wind-grid→slice-z0']
+      r.status_code == 201 and [c['mapping'] for c in r.json['discovery']['candidates'] if not c.get('cross_tree')] == ['wind-grid→bob-drag', 'wind-grid→slice-z0'] and [c['mapping'] for c in r.json['discovery']['candidates'] if c.get('cross_tree')] == ['slice-z0→speed-map']
       and any(x['mapping'] == 'wind-grid→spectrum' for x in r.json['discovery']['refused']), r.text[:300])
 check('  …tt-13: the discovery answer carries the cross-tree count and this node\'s dim units (the wind grid\'s x/y/z in m) — a mapping written for another tree joins the candidates only when dims AND units match here',
       'cross_tree_candidates' in r.json['discovery'] and r.json['discovery']['units_here'].get('x') == 'm', {k: r.json['discovery'].get(k) for k in ('cross_tree_candidates', 'units_here')})
@@ -316,6 +324,12 @@ check('GET tensors/tt2-sigma names its engine storage and the plate-mechanics tr
 r = client.simulate_get('/api/tensormath/operators/stress-from-strain')
 check('GET operators/stress-from-strain shows the bridge: the numpy implementation on the microarchitecture rung, evidence none until benchmarked, the torch row (D5) and the FPGA row beside it — three',
       r.status_code == 200 and r.json['implementations'][0]['target_rung'] == 'microarchitecture' and r.json['implementations'][0]['evidence_level'] == 'none' and len(r.json['implementations']) == 3, r.text[:300])
+r = client.simulate_post('/api/tensortree/select', json={'node': 'plate', 'ranges': {'x': [0.0, 1.2], 'y': [0.0, 1.0], 'sigma': [800000, 1100000]}, 'created_from': 'probe'})
+_xt = [c for c in (r.json.get('discovery') or {}).get('candidates', []) if c.get('cross_tree')] if r.status_code == 201 else []
+check('tt-14 (REAL data through the tt-13 door): a selection on the PLATE (x 0–1.2 m, y 0–1 m — inside the projection\'s stated validity, the grid\'s ±1.2 m; x, y in metres via tt2-centroids) finds `slice-z0→speed-map`, a mapping written for the wind slice, as a CROSS-TREE candidate — dims x, y match by name AND unit (m); it carries source_node, units, why_here and the lower context term',
+      r.status_code == 201 and [c['mapping'] for c in _xt] == ['slice-z0→speed-map'] and _xt[0]['source_node'] == 'wind-slice-z0' and _xt[0]['units'] == {'x': 'm', 'y': 'm'} and _xt[0]['terms']['C'] == 0.25
+      and r.json['discovery']['units_here'].get('x') == 'm' and r.json['discovery']['cross_tree_candidates'] == 1, (r.status_code, r.text[:400]))
+check('  …and the wind grid\'s own mappings that need z are NOT candidates on the plate (no z here): not listed, no refusal row per foreign mapping', not any(c['mapping'] in ('wind-grid→slice-z0', 'wind-grid→bob-drag') for c in (r.json.get('discovery') or {}).get('candidates', []) + (r.json.get('discovery') or {}).get('inapplicable', [])))
 r = client.simulate_get('/api/tensortree/trees/plate-mechanics/validate')
 check('tt-6: plate-mechanics validates; its root is RESOLVED on a real boot (binding FEMFieldState-2d exists here), u per node unresolved for the stated reason with its typed space',
       r.status_code == 200 and r.json['validation']['ok'] and r.json['validation']['nodes']['plate']['status'] == 'resolved' and r.json['validation']['nodes']['plate']['binding_ref'] == 'FEMFieldState-2d'

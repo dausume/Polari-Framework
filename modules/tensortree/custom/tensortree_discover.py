@@ -89,12 +89,29 @@ def node_dim_units(manager, node_name):
     for e in _j(getattr(trow, 'dimensions_json', '[]'), []) if trow is not None else []:
         if isinstance(e, dict) and e.get('name') and not tdims.get(str(e['name'])):
             tdims[str(e['name'])] = str(e.get('unit', '') or '')
+    def _tensor_dims(tname):
+        d = {str(x.name): str(getattr(x, 'unit', '') or '') for x in _rows(manager, 'TensorDimension') if str(getattr(x, 'tensor', '')) == tname}
+        t = next((x for x in _rows(manager, 'Tensor') if str(x.name) == tname), None)
+        for e in _j(getattr(t, 'dimensions_json', '[]'), []) if t is not None else []:
+            if isinstance(e, dict) and e.get('name') and not d.get(str(e['name'])):
+                d[str(e['name'])] = str(e.get('unit', '') or '')
+        return d
     out = {}
     for ld in _rows(manager, 'LocalizedDimension'):
         if str(getattr(ld, 'node', '')) != node_name:
             continue
         short = str(ld.name).split('.')[-1]; dim = str(getattr(ld, 'dimension', '') or short)
-        out[short] = tdims.get(dim, tdims.get(short, ''))
+        unit = ''
+        # tt-14: a LocalizedDimension may localize a dimension of ANOTHER tensor, written `<tensor>.<dim>` (the plate's x is
+        # `tt2-centroids.xy`, the wind nodes' x is `wind-field.x`) — THAT tensor is the authority, before the node's own
+        if '.' in dim:
+            tname, dname = dim.rsplit('.', 1)
+            unit = _tensor_dims(tname).get(dname, '')
+        if not unit:
+            unit = tdims.get(dim, tdims.get(short, ''))
+        if not unit and dim and '.' not in dim:
+            unit = _tensor_dims(dim).get('value', '') or (str(getattr(next((x for x in _rows(manager, 'Tensor') if str(x.name) == dim), None), 'units', '') or '') if dim else '')
+        out[short] = unit
     return out
 
 
