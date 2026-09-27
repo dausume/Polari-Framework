@@ -56,6 +56,8 @@ def _sha(p):
 
 
 def run(cells=None, work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod3_layout')
     from computelod.custom.eda_engines import resolve, PDK_ROOT as _PDK_LOCAL
     for eng in ('magic', 'netgen'):
         r = resolve(eng)
@@ -167,7 +169,7 @@ def run(cells=None, work=None):
             if os.path.exists(os.path.join(work, f)):
                 shutil.copy(os.path.join(work, f), OUT)
     from computelod.custom.repro import record, keep_generated, file_entry
-    rep['reproduction'] = record('computelod.custom.lod3_layout', inputs=[{'label': '%s .mag (the PDK\'s layout, in the ciel-built PDK — never committed)' % c['cell'], 'sha256': c['mag_sha256']} for c in rep['cells'] if c.get('mag_sha256')]
+    rep['reproduction'] = record('computelod.custom.lod3_layout', cost=stop_meter('computelod.custom.lod3_layout'), inputs=[{'label': '%s .mag (the PDK\'s layout, in the ciel-built PDK — never committed)' % c['cell'], 'sha256': c['mag_sha256']} for c in rep['cells'] if c.get('mag_sha256')]
                                  + [{'label': 'sky130A.tech (magic rules)', 'sha256': rep['pdk']['tech_sha256']}, file_entry(os.path.join(FLOWS, 'cell_check.tcl'), 'magic flow (polari-eda-tools/flows)'), {'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': lib_sha}],
                                  engines=['magic', 'netgen', 'ngspice'], knobs={'pdk_ciel_version': rep['pdk']['ciel_version'], 'cells': [c['cell'] for c in rep['cells']]}, conditions=rep['conditions'],
                                  generated=keep_generated(work, os.path.join(OUT, 'decks', 'lod3c'), patterns=('*.ext.sp',)),

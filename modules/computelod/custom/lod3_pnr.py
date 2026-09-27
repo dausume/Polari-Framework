@@ -100,6 +100,8 @@ def _arrival(sta_text):
 
 
 def run(variants=None, work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod3_pnr')
     from computelod.custom.eda_engines import resolve, run as eng, ORFS_IMAGE, orfs_image_digest
     from computelod.custom.lod2_silicon import fetch_liberty, CONDITIONS as L2
     for e in ('orfs', 'sta'):
@@ -191,7 +193,7 @@ def run(variants=None, work=None):
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record, file_entry
     gen = [file_entry(os.path.join(OUT, v, f)) for v in rep['variants'] for f in ('config.mk', 'constraint.sdc', '6_final.v', '6_final.spef', '6_final.def') if os.path.exists(os.path.join(OUT, v, f))]
-    rep['reproduction'] = record('computelod.custom.lod3_pnr', inputs=[("lod-2's mapped netlist", net_in), ('SKY130 HD Liberty (cached, cited; handed to the flow as LIB_FILES)', lib_path)], engines=['sta', 'openroad'],
+    rep['reproduction'] = record('computelod.custom.lod3_pnr', cost=stop_meter('computelod.custom.lod3_pnr'), inputs=[("lod-2's mapped netlist", net_in), ('SKY130 HD Liberty (cached, cited; handed to the flow as LIB_FILES)', lib_path)], engines=['sta', 'openroad'],
                                  knobs={v: e['knobs'] for v, e in rep['variants'].items()}, conditions=rep['conditions'], generated=gen,
                                  seeds={'GPL_RANDOM_SEED': 'flow default (unset: OpenROAD global_placement\'s built-in seed) — an ORFS knob, recorded not changed', 'GRT_SEED': 'flow default (unset) — ORFS knob', 'OR_SEED': 'flow default (unset) — ORFS knob (detailed routing)',
                                         'note': 'the flow exposes three seed knobs; this run used their defaults so the committed DEF/SPEF are what those defaults produce; set them in VARIANTS to perturb'},

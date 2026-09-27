@@ -157,6 +157,8 @@ def sky_point(cells, slew_ps, load_ff, vdd, temp_c, window, work, inc, lib_text=
 
 
 def run(cells=None, work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod2_compare')
     from computelod.custom.lod3_devices import _fetch, PR_REPO, DEVICES, ngspice_where, CONDITIONS as L3B
     from computelod.custom.lod2_silicon import fetch_liberty
     ng = ngspice_where()
@@ -227,7 +229,7 @@ def run(cells=None, work=None):
                                  'with the CNT side intrinsic-grade (standin parasitics, no layout, no area) and the SKY130 side a schematic netlist of a fabricated process. Neither view is a ranking of technologies.'}
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record, keep_generated
-    rep['reproduction'] = record('computelod.custom.lod2_compare', inputs=[{'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': sky_sha}, ('OUR CNT Liberty (committed)', CNT_LIB)], engines=['ngspice'],
+    rep['reproduction'] = record('computelod.custom.lod2_compare', cost=stop_meter('computelod.custom.lod2_compare'), inputs=[{'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': sky_sha}, ('OUR CNT Liberty (committed)', CNT_LIB)], engines=['ngspice'],
                                  knobs={'twins': twins, 'cnt_point': CNT_POINT, 'slow_window': SLOW_WINDOW, 'fo4_start_slew_ps': FO4_START_SLEW_PS, 'fo4_iterations': 2}, conditions={'views': {k: v['conditions'] for k, v in rep['views'].items()}},
                                  generated=keep_generated(work, os.path.join(OUT, 'decks', 'lod2c'), patterns=('*.sp',)),
                                  deterministic='ngspice transient analysis on the committed decks (decks/lod2c) and bilinear reads of the two Liberties — no random element')

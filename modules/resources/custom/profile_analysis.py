@@ -37,6 +37,11 @@ ENGINE_MODULES = {
     'mathshapes.cad': 'prf-cad-engines',
     'collab.media': 'pol-livekit',
     'reticulum.mesh': 'pol-reticulum',
+    # rc-1: the compute arc's engine modules (the ladders' PROVIDER_MODULE names) → their workers
+    'cntfet.engines': 'prf-cnt-engines',
+    'computelod.engines': 'prf-eda-engines',
+    'mathproofs.engines': 'prf-proof-engines',
+    'tensormath.engines': 'prf-torch-engines',
 }
 
 _CLASS_RE = re.compile(r'^class\s+(\w+)\(treeObject\)', re.MULTILINE)

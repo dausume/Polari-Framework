@@ -259,6 +259,16 @@ check('GET /api/computelod/lod4: the sky130 SiliconProcessNode row EXISTS on a r
 _kn = json.loads(r.json['process_node_row'].get('key_numbers_json') or '{}')
 check('  …and carries the lod-4c device numbers on a real boot (ion_ua_per_um / ioff_na_per_um / vt_v + pmos_*), SIMULATED from the PDK models, source naming the report',
       _kn.get('ion_ua_per_um', {}).get('value') and 400 <= _kn['ion_ua_per_um']['value'] <= 600 and 'pmos_ion_ua_per_um' in _kn and 'lod4/devices_report.json' in _kn['ion_ua_per_um']['source'], sorted(_kn))
+r = client.simulate_get('/api/resources/profiles')
+_ps = {p['subjectName']: p for p in r.json.get('profiles', [])} if r.status_code == 200 else {}
+check('rc-1 (his rule: adhere to topology\'s tracking): the arc\'s workers and modules are ModuleResourceProfile rows on a real boot beside msci/cad — prf-eda-engines (2.56 GB image), openroad-orfs (4.64 GB, no worker yet), prf-proof-engines (11 GB), prf-torch-engines, prf-cnt-engines; tensormath/tensortree/computelod/mathproofs',
+      r.status_code == 200 and {'prf-eda-engines', 'openroad-orfs', 'prf-proof-engines', 'prf-torch-engines', 'prf-cnt-engines', 'tensormath', 'tensortree', 'computelod', 'mathproofs', 'prf-msci-engines'} <= set(_ps)
+      and _ps['prf-proof-engines']['install']['imageMb'] == 11000.0 if 'install' in _ps.get('prf-proof-engines', {}) else r.status_code == 200 and 'prf-proof-engines' in _ps, sorted(_ps)[:20])
+import os as _os
+if _os.environ.get('TORCH_ENGINES_URL'):
+    r = client.simulate_post('/api/resources/measure', json={'subject': 'prf-torch-engines', 'url': _os.environ['TORCH_ENGINES_URL']})
+    check('  …the EXISTING res-3 measurement path measures OUR worker: POST /api/resources/measure on prf-torch-engines reads its /system-info process block (residentMb/peakMb) → fidelity measured',
+          r.status_code == 200 and r.json.get('ok') and (r.json.get('profile') or {}).get('fidelity', r.json.get('fidelity')) in ('measured', None) and 'ram' not in ' '.join(r.json.get('unmeasured', [])), r.text[:300])
 r = client.simulate_get('/api/tensormath/engines')
 check('GET /api/tensormath/engines (D5): where torch WOULD run — the ladder, the knob, the provider, the worker; on this host it resolves remote (a worker) or refuses naming both knobs',
       r.status_code == 200 and r.json['ok'] and r.json['engines']['torch']['knob'] == 'TORCH_ENGINES_URL' and r.json['engines']['torch']['resolution']['how'] in ('remote', 'local', 'refused'), r.text[:300])

@@ -216,6 +216,8 @@ quit
 
 
 def run(cells=None, work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod3_devices')
     ng = ngspice_where()
     if not ng:
         raise SystemExit('no ngspice through the cntfet engines ladder (PATH, ~/tools, CNTFET_ENGINES_URL, or a cntfet.engines provider)')
@@ -257,7 +259,7 @@ def run(cells=None, work=None):
                       'reading': 'our schematic-netlist transient on the PDK models vs the foundry-characterized Liberty at the same slew/load: the gap is layout parasitics + the vendor setup, reported not tuned'}
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record, keep_generated
-    rep['reproduction'] = record('computelod.custom.lod3_devices', inputs=[dict(v, label=k) for k, v in files.items()] + [{'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': lib_sha}] + [a['cell_spice'] | {'label': a['cell'] + ' .spice'} for a in rep['arcs']],
+    rep['reproduction'] = record('computelod.custom.lod3_devices', cost=stop_meter('computelod.custom.lod3_devices'), inputs=[dict(v, label=k) for k, v in files.items()] + [{'label': 'SKY130 HD Liberty (cached, cited)', 'sha256': lib_sha}] + [a['cell_spice'] | {'label': a['cell'] + ' .spice'} for a in rep['arcs']],
                                  engines=['ngspice'], knobs={'ARCS': {c: [(a['pin'], a['ties'], a['inverting']) for a in arcs_of(c)] for c in (cells or list(ARCS))}, 'pr_repo_commit': PR_REPO['commit'], 'sc_repo_commit': SC_REPO['commit']},
                                  conditions=CONDITIONS, generated=keep_generated(work, os.path.join(OUT, 'decks', 'lod3b'), patterns=('*.sp',)),
                                  deterministic='ngspice transient analysis on the committed decks (decks/lod3b) — no random element')

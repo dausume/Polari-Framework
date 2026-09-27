@@ -126,6 +126,36 @@ def observed_data_footprint(manager, module_name, root=None):
             'label': 'estimate-x-count (predictor bytes x live rows)'}
 
 
+#: rc-1: which committed flow reports' engine images belong to which worker subject (the meter records peaks per image)
+_IMAGE_SUBJECT = {'polari-eda-tools:noble': 'prf-eda-engines', 'openroad/orfs:26Q3-651-gbc334a4aa': 'openroad-orfs',
+                  'polari-torch-tools:bookworm': 'prf-torch-engines', 'polari-proof-tools:noble': 'prf-proof-engines'}
+
+
+def flow_cost_peak(subject_name, root=None):
+    """rc-1 (his rule): the largest peak RSS any engine of `subject_name`'s image reached in a committed flow report's
+    `reproduction.cost` (cgroup memory.peak, polled while the container ran) — {'peakMb', 'report', 'engine'} or None.
+    A measurement taken under real load, which a worker's idle /system-info never shows."""
+    import glob
+    import os
+    root = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    best = None
+    for p in glob.glob(os.path.join(root, 'modules', '*', 'initialData', '**', '*.json'), recursive=True):
+        if any(x in os.path.basename(p) for x in ('stat', '6_report', 'ice_stat', 'pnr.json')):
+            continue
+        try:
+            rep = json.load(open(p)).get('reproduction') or {}
+        except Exception:
+            continue
+        cost = rep.get('cost') or {}
+        for eng, b in ((cost.get('engines') or {}).get('by_engine') or {}).items():
+            if _IMAGE_SUBJECT.get(b.get('image', '')) != subject_name:
+                continue
+            peak = float(b.get('peak_rss_mb') or 0)
+            if peak > 0 and (best is None or peak > best['peakMb']):
+                best = {'peakMb': peak, 'report': os.path.relpath(p, root), 'engine': eng}
+    return best
+
+
 def _fetch_process_block(url, fetch=None):
     """A worker's self-reported resident/peak RSS from /system-info."""
     from resources.custom.node_resources import _default_fetch
@@ -187,6 +217,13 @@ def measure_subject(manager, subject_name, url='', fetch=None,
         else:
             unmeasured.append('ram (no URL — PROVIDER_PORTS/LOCAL_IP '
                               'unset and none passed)')
+        # rc-1: the flows' cgroup peaks are a measurement under LOAD — they raise the floor above an idle worker's RSS
+        peak = flow_cost_peak(subject_name, root=root)
+        if peak:
+            measured['min_ram_mb'] = max(float(measured.get('min_ram_mb', 0) or 0), peak['peakMb'])
+            measured['_flow_peak'] = peak
+            if 'ram (no URL' in ' '.join(unmeasured):
+                unmeasured = [u for u in unmeasured if not u.startswith('ram (no URL')]
         unmeasured.append('threads (engine benchmark endpoint not '
                           'built — declared scalability kept)')
         unmeasured.append('image (docker not reachable in-backend — '

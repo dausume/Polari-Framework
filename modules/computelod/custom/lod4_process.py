@@ -80,6 +80,8 @@ _merge_device_numbers()
 
 
 def run():
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod4_process')
     rep = {'sky130': {'process_node': SKY130_NODE['name'], 'docs': PDK_DOCS, 'repo': PDK_REPO, 'open_mpw': OPEN_MPW,
                       'materials': {'substrate': {'grade': 'eg-si', 'route': 'siemens-route', 'source': 'sifet si_refinement seeds (SiliconGrade / RefinementRoute rows, cited there)'},
                                     'not_modelled': ['metal stack (Al / W plugs)', 'gate oxide and poly', 'dopants (B, P, As) as materials rows']}},
@@ -88,7 +90,7 @@ def run():
            'decisions': {'D-lod4-1': 'RULED 2026-09-26 (his): a third category — manufacturability = proven-on-request (historically fabricated under the open PDK; a third party might take a request); manufacturable (open today) stays None.'}}
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record
-    rep['reproduction'] = record('computelod.custom.lod4_process', inputs=[{'label': 'SKY130 PDK docs', 'url': PDK_DOCS}, {'label': 'PDK repo', 'url': PDK_REPO}], knobs={'manufacturability': SKY130_NODE['manufacturability']},
+    rep['reproduction'] = record('computelod.custom.lod4_process', cost=stop_meter('computelod.custom.lod4_process'), inputs=[{'label': 'SKY130 PDK docs', 'url': PDK_DOCS}, {'label': 'PDK repo', 'url': PDK_REPO}], knobs={'manufacturability': SKY130_NODE['manufacturability']},
                                  conditions={'reading': 'the process node in sifet\'s ladder shape; materials by reference'}, deterministic='a reading, nothing computed')
     json.dump(rep, open(os.path.join(OUT, 'report.json'), 'w'), indent=1)
     return rep

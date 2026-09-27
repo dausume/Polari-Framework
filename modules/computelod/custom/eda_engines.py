@@ -238,13 +238,19 @@ def run(engine, work, args, timeout=900, env=None, pdk=False, stdout_to=None, se
         for fn, b64 in (rep.get('files_b64') or {}).items():
             p = os.path.join(work, fn); os.makedirs(os.path.dirname(p), exist_ok=True)
             open(p, 'wb').write(base64.b64decode(b64))
-        out = {'returncode': rep.get('returncode', -1), 'stdout': rep.get('stdout', ''), 'stderr': rep.get('stderr', ''), 'how': REMOTE, 'where': r['where']}
+        out = {'returncode': rep.get('returncode', -1), 'stdout': rep.get('stdout', ''), 'stderr': rep.get('stderr', ''), 'how': REMOTE, 'where': r['where'], 'cost': rep.get('cost') or {}}
+        _record_cost(engine, REMOTE, r['where'], out['cost'])
     elif r['how'] == 'local-binary':
         # the engine's view of the PDK is /pdk/…; a local binary sees the real root
         local_args = [PDK_ROOT + a[4:] if a.startswith('/pdk/') else a for a in args]
         full_env = dict(os.environ, PDK_ROOT=PDK_ROOT, **env)
+        import resource as _res
+        c0 = _res.getrusage(_res.RUSAGE_CHILDREN); t0 = time.perf_counter()
         p = subprocess.run([r['where']] + local_args, capture_output=True, text=True, timeout=timeout, cwd=work, env=full_env, input=stdin)
-        out = {'returncode': p.returncode, 'stdout': p.stdout or '', 'stderr': p.stderr or '', 'how': 'local-binary', 'where': r['where']}
+        c1 = _res.getrusage(_res.RUSAGE_CHILDREN)
+        cost = {'wall_s': round(time.perf_counter() - t0, 3), 'cpu_s': round((c1.ru_utime - c0.ru_utime) + (c1.ru_stime - c0.ru_stime), 3), 'peak_rss_mb': round(c1.ru_maxrss / 1024.0, 1), 'source': 'rusage(RUSAGE_CHILDREN) around the binary (peak = largest child so far in this process)'}
+        out = {'returncode': p.returncode, 'stdout': p.stdout or '', 'stderr': p.stderr or '', 'how': 'local-binary', 'where': r['where'], 'cost': cost}
+        _record_cost(engine, 'local-binary', r['where'], cost)
     else:   # local image
         image = r['where']
         cmd = ['docker', 'run', '--rm'] + (['-i'] if stdin is not None else []) + ['-u', '%d:%d' % (os.getuid(), os.getgid()), '-e', 'HOME=/tmp', '-v', '%s:/w' % work, '-w', '/w']
@@ -252,14 +258,22 @@ def run(engine, work, args, timeout=900, env=None, pdk=False, stdout_to=None, se
             cmd += ['-v', '%s:/pdk:ro' % PDK_ROOT, '-e', 'PDK_ROOT=/pdk']
         for k, v in env.items():
             cmd += ['-e', '%s=%s' % (k, v)]
+        # rc-1: the container is METERED — its cgroup's memory.peak / cpu.stat are read while it runs (a container is not a child
+        # process; rusage never sees it) — so `docker run` runs without --rm and is removed after (cost_meter.docker_run_metered)
+        cmd = [c for c in cmd if c != '--rm']
         if image == STA_IMAGE:
-            cmd += ['--entrypoint', '/OpenSTA/build/sta', image] + args
+            prefix, argv = cmd + ['--entrypoint', '/OpenSTA/build/sta'], args
         elif image == ORFS_IMAGE:
-            cmd += ['-e', 'PATH=%s' % ORFS_PATH, image, ENGINES[engine]] + args   # the flow's own tools first on the PATH (what its env.sh does)
+            prefix, argv = cmd + ['-e', 'PATH=%s' % ORFS_PATH], [ENGINES[engine]] + args   # the flow's own tools first on the PATH (what its env.sh does)
         else:
-            cmd += [image, ENGINES[engine]] + args
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=work, input=stdin)
-        out = {'returncode': p.returncode, 'stdout': p.stdout or '', 'stderr': p.stderr or '', 'how': 'local-image', 'where': image}
+            prefix, argv = cmd, [ENGINES[engine]] + args
+        try:
+            from resources.custom.cost_meter import docker_run_metered
+            p, cost = docker_run_metered(prefix, image, argv, timeout=timeout, cwd=work, stdin=stdin)
+        except ImportError:   # resources absent: the unmetered run, said so
+            p = subprocess.run(prefix + ['--rm', image] + argv, capture_output=True, text=True, timeout=timeout, cwd=work, input=stdin); cost = {'unmeasured': 'resources.custom.cost_meter not importable'}
+        out = {'returncode': p.returncode, 'stdout': p.stdout or '', 'stderr': p.stderr or '', 'how': 'local-image', 'where': image, 'cost': cost}
+        _record_cost(engine, 'local-image', image, cost, image=image)
     if stdout_to:
         open(os.path.join(work, stdout_to), 'w').write(out['stdout'] + out['stderr'])
     return out
@@ -272,6 +286,15 @@ def orfs_image_digest():
         return p.stdout.strip() if p.returncode == 0 else ''
     except Exception:
         return ''
+
+
+def _record_cost(engine, how, where, cost, image=''):
+    """rc-1: every engine call's cost goes to resources.custom.cost_meter.ENGINE_LOG so an open Meter (a flow) collects it."""
+    try:
+        from resources.custom.cost_meter import record_engine_call
+        record_engine_call(engine, how, where, cost or {}, image=image)
+    except Exception:
+        pass
 
 
 def pdk_path(rel):

@@ -46,7 +46,10 @@ PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600,
                   'pol-livekit': 7880,
                   # ret-2: the sidecar's /status API port, NOT the RNS
                   # TCP bearer (4242) — the ladder probes status.
-                  'pol-reticulum': 4285}
+                  'pol-reticulum': 4285,
+                  # rc-1 (2026-09-26): the compute arc's workers — the SAME registry, so pol allocate /
+                  # admission / measurement see them like msci and cad (his: adhere to what topology tracks)
+                  'prf-eda-engines': 9800, 'prf-proof-engines': 9810, 'prf-torch-engines': 9820}
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.

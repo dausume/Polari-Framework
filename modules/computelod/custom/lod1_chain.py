@@ -92,6 +92,8 @@ def decode_rtype(word):
 
 
 def run(work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod1_chain')
     how = tools_available()
     if not how:
         from computelod.custom.eda_engines import placement
@@ -144,7 +146,7 @@ def run(work=None):
     for f in ('add.c', 'add.s', 'add.objdump', 'rv32_add.v', 'tb_rv32_add.v', 'add_stat.json', 'core_stat.json'):
         shutil.copy(os.path.join(work, f), OUT)
     from computelod.custom.repro import record
-    rep['reproduction'] = record('computelod.custom.lod1_chain', inputs=[('C source', os.path.join(OUT, 'add.c')), ('PicoRV32 (vendored, pinned)', os.path.join(RTL, 'picorv32.v')), ('RTL rung', os.path.join(OUT, 'rv32_add.v')), ('testbench', os.path.join(OUT, 'tb_rv32_add.v'))],
+    rep['reproduction'] = record('computelod.custom.lod1_chain', cost=stop_meter('computelod.custom.lod1_chain'), inputs=[('C source', os.path.join(OUT, 'add.c')), ('PicoRV32 (vendored, pinned)', os.path.join(RTL, 'picorv32.v')), ('RTL rung', os.path.join(OUT, 'rv32_add.v')), ('testbench', os.path.join(OUT, 'tb_rv32_add.v'))],
                                  tools={'as_run': versions}, engines=['riscv-gcc', 'yosys', 'iverilog'], knobs={'gcc_flags': '-march=rv32i -mabi=ilp32 -O1', 'picorv32_pin': rep['picorv32_pin']},
                                  generated=[os.path.join(OUT, f) for f in ('add.s', 'add.objdump', 'add_stat.json', 'core_stat.json') if os.path.exists(os.path.join(OUT, f))],
                                  deterministic='gcc / yosys / iverilog on fixed sources — no random element')

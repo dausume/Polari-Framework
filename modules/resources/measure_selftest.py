@@ -151,3 +151,13 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# ---- rc-1: a measurement under LOAD — the flows' cgroup peaks per worker image (from the committed reproduction.cost blocks)
+try:
+    from resources.custom.profile_measure import flow_cost_peak
+    _pk = flow_cost_peak('prf-eda-engines')
+    check('rc-1: flow_cost_peak reads the committed reports\' reproduction.cost — for the eda worker\'s image it returns the largest engine peak with the report and engine that reached it, or None while no report carries a cost yet (never a guess)',
+          _pk is None or (_pk['peakMb'] > 0 and _pk['report'] and _pk['engine']), _pk)
+    check('  …an unknown subject has no peak', flow_cost_peak('no-such-worker') is None)
+except ImportError as _e:
+    check('rc-1 flow_cost_peak — import failed: %s' % _e, False)

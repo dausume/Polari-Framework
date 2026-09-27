@@ -105,6 +105,8 @@ def metrics(sat, lin):
 
 
 def run(devices=None, work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod4_devices')
     from computelod.custom.lod3_devices import _fetch, PR_REPO, run_spice, ngspice_where
     ng = ngspice_where()
     if not ng:
@@ -144,7 +146,7 @@ def run(devices=None, work=None):
     gen = []
     for flavour in rep['devices']:
         gen += keep_generated(os.path.join(work, flavour), os.path.join(OUT, 'decks', 'lod4c'), patterns=('*.sp',))
-    rep['reproduction'] = record('computelod.custom.lod4_devices', inputs=[dict(v, label=k) for k, v in rep['models']['files'].items()], engines=['ngspice'],
+    rep['reproduction'] = record('computelod.custom.lod4_devices', cost=stop_meter('computelod.custom.lod4_devices'), inputs=[dict(v, label=k) for k, v in rep['models']['files'].items()], engines=['ngspice'],
                                  knobs={'devices': list(rep['devices']), 'w_um': CONDITIONS['w_um'], 'l_um': CONDITIONS['l_um'], 'vt_criterion': CONDITIONS['vt_criterion']}, conditions=CONDITIONS, generated=gen,
                                  deterministic='ngspice DC sweeps on the committed decks (decks/lod4c) — no random element')
     json.dump(rep, open(os.path.join(OUT, 'devices_report.json'), 'w'), indent=1)

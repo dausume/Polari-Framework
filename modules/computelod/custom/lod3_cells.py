@@ -94,6 +94,8 @@ def cnt_devices(cell_key, library):
 
 
 def run():
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod3_cells')
     rep2 = json.load(open(os.path.join(LOD2, 'report.json')))
     rep = {'sky130': {'source': dict(CELLS_REPO), 'cells': {}, 'files': {}}, 'cnt': {'cells': {}}, 'adder': {}}
     total_t, total_area, by_model = 0, 0.0, {}
@@ -133,7 +135,7 @@ def run():
                        'fabrication: the process rows behind sky130_fd_pr (next rung, partial)', 'CNT layout (none exists)']
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record
-    rep['reproduction'] = record('computelod.custom.lod3_cells', inputs=[dict(v['spice'], label='%s .spice' % k) for k, v in rep['sky130']['files'].items()] + [dict(v['lef'], label='%s .lef' % k) for k, v in rep['sky130']['files'].items()],
+    rep['reproduction'] = record('computelod.custom.lod3_cells', cost=stop_meter('computelod.custom.lod3_cells'), inputs=[dict(v['spice'], label='%s .spice' % k) for k, v in rep['sky130']['files'].items()] + [dict(v['lef'], label='%s .lef' % k) for k, v in rep['sky130']['files'].items()],
                                  knobs={'cells_repo_commit': CELLS_REPO['commit']}, conditions={'reading': 'per-cell .spice (devices, W/L, scale 1e-6) and .lef SIZE, summed over the mapped instances'}, deterministic='a reading of fixed files')
     json.dump(rep, open(os.path.join(OUT, 'report.json'), 'w'), indent=1)
     return rep

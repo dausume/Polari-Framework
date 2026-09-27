@@ -136,6 +136,8 @@ def process_rows():
 
 
 def run():
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod4_steps')
     rep = {'read_on': READ_ON, 'sources': {'pdk_layers': PDK_LAYERS_URL, 'pdk_rules_summary': PDK_RULES_URL, 'pdk_readme': PDK_README_URL, 'readme_quote': README_QUOTE, 'textbook': TEXTBOOK},
            'not_here': NOT_HERE,
            'sky130': {'family': FAM_SKY, 'stages': [s[0] for s in SKY130_STAGES], 'processes': [p[0] for p in SKY130_PROCESSES],
@@ -147,7 +149,7 @@ def run():
            'rows': {'ProcessingStage': len(stage_rows()), 'MaterialProcessDefinition': len(process_rows())}}
     os.makedirs(OUT, exist_ok=True)
     from computelod.custom.repro import record
-    rep['reproduction'] = record('computelod.custom.lod4_steps', inputs=[{'label': 'PDK layers page (quoted)', 'url': PDK_LAYERS_URL}, {'label': 'PDK rules summary', 'url': PDK_RULES_URL}, {'label': 'PDK README (quoted)', 'url': PDK_README_URL}, {'label': TEXTBOOK['key'], 'url': 'ISBN 0-13-085037-3'}],
+    rep['reproduction'] = record('computelod.custom.lod4_steps', cost=stop_meter('computelod.custom.lod4_steps'), inputs=[{'label': 'PDK layers page (quoted)', 'url': PDK_LAYERS_URL}, {'label': 'PDK rules summary', 'url': PDK_RULES_URL}, {'label': 'PDK README (quoted)', 'url': PDK_README_URL}, {'label': TEXTBOOK['key'], 'url': 'ISBN 0-13-085037-3'}],
                                  knobs={'read_on': READ_ON, 'families': [FAM_SKY, FAM_CNT]}, conditions={'reading': 'stages from the documented layers; unit processes per the textbook; CNT by reference to cntfet rows'},
                                  deterministic='a reading of documents, nothing computed')
     json.dump(rep, open(os.path.join(OUT, 'steps_report.json'), 'w'), indent=1)

@@ -68,6 +68,8 @@ def _sh(work, engine, args, stdout_to=None, timeout=900):
 
 
 def run(work=None):
+    from computelod.custom.repro import start_meter, stop_meter   # rc-1: what this run costs
+    start_meter('computelod.custom.lod2_silicon')
     from computelod.custom.eda_engines import resolve
     for eng in ('yosys', 'sta'):
         r = resolve(eng)
@@ -99,7 +101,7 @@ def run(work=None):
     # the mapped netlist (~20 kB) is worth keeping: it is the standard-cells rung's artifact
     shutil.copy(os.path.join(work, 'rv32_add_sky130.v'), OUT)
     from computelod.custom.repro import record
-    rep['reproduction'] = record('computelod.custom.lod2_silicon', inputs=[('RTL (lod-1)', os.path.join(LOD1, 'rv32_add.v')), dict(rep['liberty'], label='SKY130 HD Liberty (cached, cited; never committed)')], engines=['yosys', 'sta'],
+    rep['reproduction'] = record('computelod.custom.lod2_silicon', cost=stop_meter('computelod.custom.lod2_silicon'), inputs=[('RTL (lod-1)', os.path.join(LOD1, 'rv32_add.v')), dict(rep['liberty'], label='SKY130 HD Liberty (cached, cited; never committed)')], engines=['yosys', 'sta'],
                                  knobs={'yosys_script': 'synth → dfflibmap → abc -liberty → opt_clean', 'sta_script': 'sta.tcl'}, conditions=CONDITIONS,
                                  generated=[os.path.join(OUT, f) for f in ('rv32_add_sky130.v', 'sta.tcl', 'mapped_stat.json') if os.path.exists(os.path.join(OUT, f))],
                                  deterministic='yosys/abc mapping and OpenSTA on fixed inputs — no random element (re-runs reproduce the netlist byte for byte)')

@@ -35,6 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 MODULES = os.path.dirname(MOD)
 REQUIRED = ('inputs', 'tools', 'knobs', 'conditions', 'generated_files', 'seeds', 'recorded_at', 'how_to_rerun')
+COST_KEYS = ('wall_s', 'host', 'engines', 'totals')   # rc-1: what a measured `cost` block carries
 #: the version argv per engine (the engines ladder runs it wherever the engine lives)
 VERSION_ARGS = {'riscv-gcc': ['--version'], 'yosys': ['-V'], 'iverilog': ['-V'], 'vvp': ['-V'], 'verilator': ['--version'], 'nextpnr-ice40': ['--version'], 'icetime': ['-h'],
                 'sta': ['-version'], 'magic': ['--version'], 'netgen': ['-batch', 'quit'], 'openroad': ['-version']}
@@ -125,7 +126,28 @@ def keep_generated(work, out_dir, patterns=('*.sp', '*.tcl', '*.mk', '*.sdc', '*
     return entries
 
 
-def record(flow, inputs=(), engines=(), tools=None, knobs=None, conditions=None, generated=(), seeds=None, deterministic='', notes='', after_the_fact=''):
+_METER = {}
+
+
+def start_meter(flow):
+    """rc-1: open the cost meter for a flow's run() — `record(..., cost=stop_meter(flow))` closes it into the block."""
+    try:
+        from resources.custom.cost_meter import Meter
+        m = Meter(flow); m.__enter__(); _METER[flow] = m
+    except Exception:
+        _METER[flow] = None
+    return _METER[flow]
+
+
+def stop_meter(flow):
+    m = _METER.pop(flow, None)
+    if m is None:
+        return {'unmeasured': 'resources.custom.cost_meter not importable'}
+    m.__exit__(None, None, None)
+    return m.as_dict()
+
+
+def record(flow, inputs=(), engines=(), tools=None, knobs=None, conditions=None, generated=(), seeds=None, deterministic='', notes='', after_the_fact='', cost=None):
     """One reproduction block. `inputs`: paths, (label, path) pairs, or dicts already carrying url/sha256. `seeds`: a dict of
     every random element, or None with `deterministic` = why there is none."""
     ins = []
@@ -150,6 +172,8 @@ def record(flow, inputs=(), engines=(), tools=None, knobs=None, conditions=None,
     blk = {'inputs': ins, 'tools': t, 'knobs': knobs or {}, 'conditions': conditions or {}, 'generated_files': gen, 'seeds': seeds_out,
            'recorded_at': datetime.datetime.now().isoformat(timespec='seconds'), 'host': {'node': platform.node(), 'machine': platform.machine(), 'python': platform.python_version()},
            'how_to_rerun': 'PYTHONPATH=.:modules python3 -m %s run' % flow, 'rule': 'every result carries the initial conditions and seeds that produced it (2026-09-26)'}
+    if cost is not None:
+        blk['cost'] = cost   # rc-1: what the run COST — wall, CPU, peak RSS of the host process and of every engine call, the images pulled
     if notes:
         blk['notes'] = notes
     if after_the_fact:
