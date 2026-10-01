@@ -12,6 +12,11 @@ from board.objects.board.AdapterDefinition import AdapterDefinition  # noqa: F40
 from board.objects.board.DatasheetFact import DatasheetFact  # noqa: F401
 from board.objects.board.BoardSimCost import BoardSimCost  # noqa: F401
 from board.objects.board.Road import Road  # noqa: F401
+from board.objects.board.FirmwareVariant import FirmwareVariant  # noqa: F401
+from board.objects.board.InstallPlan import InstallPlan  # noqa: F401
+from board.objects.board.InstallRecord import InstallRecord  # noqa: F401
+from board.objects.board.UnoAnalogState import UnoAnalogState  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
-BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road]
+BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
+                 FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState]   # brd-fi: the installer rows + the second class

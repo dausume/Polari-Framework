@@ -72,7 +72,8 @@ def build(board='uno', work=None, run=engine_run.run):
     files = {fn: open(os.path.join(project, fn), 'rb').read() for fn in sorted(os.listdir(project)) if fn.endswith(('.c', '.h'))}
     t0 = datetime.datetime.now()
     calls = {}
-    r = run('avr-gcc', CFLAGS + LDFLAGS + ['-o', 'firmware.elf', 'main.c'], files)
+    sources = sorted(fn for fn in files if fn.endswith('.c'))   # brd-fi: main.c (the variant's app) + hal.c
+    r = run('avr-gcc', CFLAGS + LDFLAGS + ['-o', 'firmware.elf'] + sources, files)
     calls['avr-gcc'] = r
     if not r['ok'] or 'firmware.elf' not in r['files']:
         return _fail(row, work, 'avr-gcc', r)
@@ -117,7 +118,7 @@ def build(board='uno', work=None, run=engine_run.run):
         'seeds': {'deterministic': True, 'why': 'avr-gcc/objcopy are deterministic on identical inputs, flags and versions (no timestamps in the .hex)'},
         'recorded_at': datetime.datetime.now().isoformat(timespec='seconds'),
         'host': {'node': platform.node(), 'machine': platform.machine()},
-        'how_to_rerun': 'pol board gen uno (same knobs) && pol board build uno', 'cost': cost,
+        'how_to_rerun': 'pol board gen uno --variant %s (same knobs) && pol board build uno' % row.get('variant', 'uno-sim-rig'), 'cost': cost,
         'rule': 'every result carries the initial conditions and seeds that produced it (2026-09-26)'})
     row.update(size_text=sizes.get('.text', 0), size_data=sizes.get('.data', 0), size_bss=sizes.get('.bss', 0),
                engines_json=json.dumps(engines), repro_json=json.dumps(repro), built_at=t0.isoformat(timespec='seconds'),
@@ -127,7 +128,21 @@ def build(board='uno', work=None, run=engine_run.run):
                'flash %d / %d B, static RAM %d / %d B (stack not counted)' % (flash, flash_max, ram, ram_max),
                hex_path='' if why else hex_path)
     gen.write_record(work, row)
+    if not why:
+        store(work, row)
     return row
+
+
+def store(work, row):
+    """brd-fi: copy a built variant into the build store (<work>/builds/<name>/) so the installer can put ANY built
+    variant on the board later — the current project is overwritten by the next gen."""
+    import shutil
+    d = gen.store_dir(work, row['name'])
+    os.makedirs(d, exist_ok=True)
+    shutil.copy(row['hex_path'], os.path.join(d, 'firmware.hex'))
+    rec = dict(row, hex_path=os.path.join(d, 'firmware.hex'), store_dir=d)
+    gen.write_record(d, rec)
+    return rec
 
 
 def main(argv):

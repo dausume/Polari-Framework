@@ -25,7 +25,8 @@ def check(label, cond, extra=''):
 tables = manager.objectTables
 typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in manager.objectTypingDict.keys()} \
         | {getattr(v, 'className', '') for v in manager.objectTypingDict.values()}
-for cls in ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition', 'DatasheetFact', 'BoardSimCost', 'Road'):
+for cls in ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition', 'DatasheetFact', 'BoardSimCost', 'Road',
+            'FirmwareVariant', 'InstallPlan', 'InstallRecord', 'UnoAnalogState'):
     check('class %s is typed after boot' % cls, cls in typed)
 n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
 check('33 devices seeded', n('BoardDefinition') == 33, n('BoardDefinition'))
@@ -72,5 +73,25 @@ check('brd-1: a flashed build stamps BoardInstance.firmware_sha / last_flash_at;
 pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'boards']
 check('the /display/boards page is seeded as a DisplayDefinition with six configured tables',
       len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 6, len(pages))
+# ---- brd-fi: the firmware installer
+check('brd-fi: the four UNO FirmwareVariants are seeded', sorted(getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values())
+      == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-sim-rig'], n('FirmwareVariant'))
+r = client.simulate_get('/api/board/variants')
+check('brd-fi: GET /api/board/variants → four, each with what to watch', r.status_code == 200 and len(r.json['variants']) == 4
+      and all(v['what_to_watch'] for v in r.json['variants']), r.text[:200])
+r = client.simulate_get('/api/board/installer')
+check('brd-fi: GET /api/board/installer → this host, the twin as a target, the four variants, the cited limits',
+      r.status_code == 200 and r.json['targets'][0]['name'] == 'twin:arduino-uno-r3' and len(r.json['variants']) == 4
+      and r.json['limits']['flash_b'] == 32256, r.text[:300])
+r = client.simulate_post('/api/board/installer/plan', body=json.dumps({'instance': 'twin:arduino-uno-r3', 'build': 'no-such-build'}), headers={'Content-Type': 'application/json'})
+check('brd-fi: a plan for a build that does not exist → 404 in plain words', r.status_code == 404 and 'no build named' in r.json['error'], r.text[:200])
+r = client.simulate_post('/api/board/installer/run', body=json.dumps({'plan': 'nope', 'confirm': True}), headers={'Content-Type': 'application/json'})
+check('brd-fi: run with no such plan → 404, exit 3', r.status_code == 404 and r.json['exit'] == 3, r.text[:200])
+r = client.simulate_get('/api/board/builds/arduino-uno-r3-probe/compat')
+check('brd-fi: GET /api/board/builds/<b>/compat on a build listing no classes → unknown-class', r.status_code == 200 and r.json['verdict'] == 'unknown-class', r.text[:200])
+fi = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'firmware-installer']
+names = [it['componentProps']['componentName'] for row in json.loads(fi[0].definition)['rows'] for it in row['items']] if fi else []
+check('brd-fi: /display/firmware-installer is seeded — six configured tables + the ONE firmware-installer-panel',
+      len(fi) == 1 and names.count('firmware-installer-panel') == 1 and names.count('class-rows-table') == 6, names)
 print('\n%d/%d checks passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

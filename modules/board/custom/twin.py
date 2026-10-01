@@ -68,19 +68,32 @@ def _container_alive(name):
         return False
 
 
-def twin_args(hex_path, tcp, adc0_mv=750, adc0_ramp='', realtime=True):
+def twin_args(hex_path, tcp, adc0_mv=750, adc0_ramp='', realtime=True, adc_mv=None):
     a = ['--hex', hex_path, '--mcu', 'atmega328p', '--freq', '16000000', '--tcp', str(tcp), '--status-ms', '1000']
     a += ['--adc0-ramp', adc0_ramp] if adc0_ramp else ['--adc0-mv', str(int(adc0_mv))]
+    for ch, mv in sorted((adc_mv or {}).items()):   # brd-fi: A1..A5 held at fixed millivolts (uno-adc-sweep)
+        a += ['--adc-mv', '%d=%d' % (int(ch), int(mv))]
     return a + ([] if realtime else ['--free'])
 
 
-def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, adc0_ramp='', realtime=True, wait_s=10.0):
+def hex_data_bytes(path):
+    """The flash bytes an Intel HEX carries (data records only) — what a loader must report back."""
+    n = 0
+    for line in open(path):
+        if line.startswith(':') and line[7:9] == '00':
+            n += int(line[1:3], 16)
+    return n
+
+
+def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, adc0_ramp='', realtime=True, wait_s=10.0,
+       build_dir=None, adc_mv=None):
+    """build_dir (brd-fi): run THAT stored build (the installer's twin target); the twin's own state stays in work."""
     board = gen.board_name(board)
     work = work or gen.default_work(board)
     st = read_state(work)
     if st and status(board, work)['alive']:
         raise TwinRefused('the %s twin is already up (%s) — `pol board twin uno down` first' % (board, st.get('where')))
-    row = gen.read_record(work)
+    row = gen.read_record(build_dir or work)
     if row.get('state') not in ('built', 'flashed') or not row.get('hex_path') or not os.path.isfile(row['hex_path']):
         raise TwinRefused('no built firmware in %s (state %r) — `pol board build uno` first; the twin runs the SAME .hex a board is flashed with'
                           % (work, row.get('state')))
@@ -88,20 +101,22 @@ def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, 
     if where['how'] not in ('local-binary', be.LOCAL_IMAGE):
         raise TwinRefused('no simavr twin here: %s' % (where['why'] if where['how'] == 'refused' else
                                                          '%s resolves to a %s worker, but the twin is a long-lived TCP port on this device, not a /run request' % ('avr-twin', where['how'])))
+    os.makedirs(work, exist_ok=True)
     log_path = os.path.join(work, 'twin.log')
     log = open(log_path, 'w')
     state = {'board': board, 'how': where['how'], 'where': where['where'], 'tcp': tcp, 'link': link, 'hex': row['hex_path'],
-             'hex_sha256': row['artifact_sha256'], 'build': row['name'], 'adc0': adc0_ramp or '%d mV' % int(adc0_mv), 'realtime': realtime,
+             'hex_sha256': row['artifact_sha256'], 'build': row['name'], 'variant': row.get('variant', ''),
+             'adc0': adc0_ramp or '%d mV' % int(adc0_mv), 'adc_mv': {str(k): int(v) for k, v in (adc_mv or {}).items()}, 'realtime': realtime,
              'started_at': datetime.datetime.now().isoformat(timespec='seconds'), 'log': log_path}
     if where['how'] == 'local-binary':
-        p = subprocess.Popen([where['where']] + twin_args(row['hex_path'], tcp, adc0_mv, adc0_ramp, realtime), stdout=log, stderr=subprocess.STDOUT,
+        p = subprocess.Popen([where['where']] + twin_args(row['hex_path'], tcp, adc0_mv, adc0_ramp, realtime, adc_mv), stdout=log, stderr=subprocess.STDOUT,
                              start_new_session=True)
         state['pid'] = p.pid
     else:
         name = 'prf-board-twin-%s' % board
         subprocess.run(['docker', 'rm', '-f', name], capture_output=True, timeout=30)
         argv = ['docker', 'run', '-d', '--name', name, '-p', '127.0.0.1:%d:9831' % tcp, '-v', '%s:/fw:ro' % os.path.dirname(row['hex_path']),
-                where['where'], 'polari-avr-twin'] + twin_args('/fw/firmware.hex', 9831, adc0_mv, adc0_ramp, realtime)
+                where['where'], 'polari-avr-twin'] + twin_args('/fw/firmware.hex', 9831, adc0_mv, adc0_ramp, realtime, adc_mv)
         r = subprocess.run(argv, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise TwinRefused('docker run failed: %s' % r.stderr.strip()[-500:])
@@ -125,6 +140,23 @@ def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, 
         down(board, work)
         raise TwinRefused('the twin did not come up: %s' % open(log_path).read()[-800:])
     return s
+
+
+def ready_line(log_path):
+    """The twin's {"t":"ready", …} line (flash_bytes_loaded = what simavr read from the .hex), or None."""
+    try:
+        for line in open(log_path):
+            line = line.strip()
+            if line.startswith('{') and '"ready"' in line:
+                try:
+                    d = json.loads(line)
+                except ValueError:
+                    continue
+                if d.get('t') == 'ready':
+                    return d
+    except Exception:
+        pass
+    return None
 
 
 def _ready(log_path):
@@ -217,11 +249,13 @@ def main(argv):
     ap.add_argument('--link', default=DEFAULT_LINK)
     ap.add_argument('--adc0-mv', type=int, default=750)
     ap.add_argument('--adc0-ramp', default='')
+    ap.add_argument('--adc-mv', action='append', default=[], help='CH=MV for A1..A5 (repeatable; uno-adc-sweep)')
     ap.add_argument('--free', action='store_true', help='no real-time pacing (as fast as simavr runs)')
     a = ap.parse_args(argv)
     try:
         if a.verb == 'up':
-            s = up(a.board, a.work, a.tcp, a.link, a.adc0_mv, a.adc0_ramp, not a.free)
+            s = up(a.board, a.work, a.tcp, a.link, a.adc0_mv, a.adc0_ramp, not a.free,
+                   adc_mv={int(x.split('=')[0]): int(x.split('=')[1]) for x in a.adc_mv})
             print('[ OK ] the %s twin is up (%s: %s), build %s' % (s['board'], s['how'], s.get('container') or s.get('pid'), s['build']))
             print('       UART pty  %s   (bridge: source=serial, serialDevice=%s)' % (s['link'], s['link']))
             print('       ADC0      %s (TMP36: 750 mV = 25 °C)   ·   log %s' % (s['adc0'], s['log']))

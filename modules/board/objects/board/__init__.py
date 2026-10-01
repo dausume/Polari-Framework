@@ -11,3 +11,7 @@ from board.objects.board.AdapterDefinition import AdapterDefinition  # noqa: F40
 from board.objects.board.DatasheetFact import DatasheetFact  # noqa: F401
 from board.objects.board.BoardSimCost import BoardSimCost  # noqa: F401
 from board.objects.board.Road import Road  # noqa: F401
+from board.objects.board.FirmwareVariant import FirmwareVariant  # noqa: F401
+from board.objects.board.InstallPlan import InstallPlan  # noqa: F401
+from board.objects.board.InstallRecord import InstallRecord  # noqa: F401
+from board.objects.board.UnoAnalogState import UnoAnalogState  # noqa: F401

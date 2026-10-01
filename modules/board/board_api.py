@@ -13,6 +13,9 @@ GET  /api/board/builds           every FirmwareBuild row (state, sizes, sha, whe
 POST /api/board/builds           UPSERT one FirmwareBuild (`pol board build|flash --api`): body {build: {...}, instance?:
                                  {name, firmware_sha, last_flash_at}} — a flashed build stamps its BoardInstance
 GET  /api/board/sim-costs        the measured twin costs (BoardSimCost — the yardstick before another twin, plan §8a)
+
+brd-fi: the firmware installer's doors (/api/board/installer…, /api/board/variants, /api/board/builds/{b}/compat) live in
+board.installer_api.
 """
 import json
 import time
@@ -118,7 +121,7 @@ class BoardAPI(treeObject):
         response.media = dict(placement(), ok=True)
 
     _BUILD_KEYS = ('name', 'board_definition', 'state', 'size_text', 'size_data', 'size_bss', 'artifact_sha256', 'source_sha',
-                   'built_at', 'flashed_to', 'template', 'notes')
+                   'built_at', 'flashed_to', 'template', 'notes', 'variant', 'header_sha256', 'tag_order_json')
 
     def on_get_builds(self, request, response):
         rows = sorted(self._rows('FirmwareBuild'), key=lambda r: getattr(r, 'built_at', '') or '', reverse=True)

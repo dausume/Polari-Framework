@@ -32,7 +32,9 @@ fmap = json.loads(os.environ['FAKE_TWIN_FMAP'])
 a = sys.argv[1:]
 port = int(a[a.index('--tcp') + 1])
 s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', port)); s.listen(1)
-print(json.dumps({'t': 'ready', 'fake': True, 'hex': a[a.index('--hex') + 1]}), flush=True)
+hexf = a[a.index('--hex') + 1]
+n = sum(int(l[1:3], 16) for l in open(hexf) if l.startswith(':') and l[7:9] == '00')
+print(json.dumps({'t': 'ready', 'fake': True, 'hex': hexf, 'flash_bytes_loaded': n}), flush=True)
 run = [True]
 signal.signal(signal.SIGTERM, lambda *x: run.__setitem__(0, False))
 s.settimeout(0.5)
@@ -84,8 +86,8 @@ def run_uno(check):
         row = gen.gen('uno', ['SimRigState'], work, rig_name='uno-rig', device_id=3)
         proj = row['project_dir']
         names = sorted(os.listdir(proj))
-        check('gen: the project is main.c + Makefile + board_config.h + simrigstate_packets.h — RULE 2 clean (.c/.h + Makefile only)',
-              names == ['Makefile', 'board_config.h', 'main.c', 'simrigstate_packets.h'] and not gen.rule2_violations(proj), names)
+        check('gen: the project is main.c (the variant app) + hal.c/hal.h + Makefile + board_config.h + simrigstate_packets.h — RULE 2 clean',
+              names == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'simrigstate_packets.h'] and not gen.rule2_violations(proj), names)
         hdr = open(os.path.join(proj, 'simrigstate_packets.h')).read()
         cls = json.loads(row['classes_json'])[0]
         check('gen: the header is c_twin target=avr of SimRigState contract v2 (hash 2bcc9d1a2774ef33), its sha recorded',
@@ -100,8 +102,11 @@ def run_uno(check):
             check('gen: the pinned snapshot is FAITHFUL — rendered for the host it is byte-identical to the Renode twin\'s committed v2 header (but its first line)',
                   body(host) == body(open(renode).read()))
         cfg = open(os.path.join(proj, 'board_config.h')).read()
+        import re as _re
+        defs = dict(_re.findall(r'#define (\w+)[ \t]+(\S+)', cfg))
         check('gen: the knobs land in board_config.h (RIG_NAME, DEVICE_ID, USART_U2X) and in the repro block',
-              '"uno-rig"' in cfg and 'DEVICE_ID 3u' in cfg and 'USART_U2X 1' in cfg and json.loads(row['repro_json'])['knobs']['device_id'] == 3)
+              defs.get('RIG_NAME') == '"uno-rig"' and defs.get('DEVICE_ID') == '3u' and defs.get('USART_U2X') == '1'
+              and json.loads(row['repro_json'])['knobs']['device_id'] == 3, defs)
         check('gen: a FirmwareBuild row in state generated, carrying the template + source sha',
               row['state'] == 'generated' and row['source_sha'] == gen.source_sha(proj) and row['template'] == 'board/custom/firmware/uno')
         from board.board_basis import FirmwareBuild
@@ -115,8 +120,8 @@ def run_uno(check):
         mk = open(os.path.join(gen.TEMPLATES['arduino-uno-r3'], 'Makefile')).read()
         check('build: the template Makefile carries the SAME flags build.py runs', ('CFLAGS = ' + ' '.join(build.CFLAGS).replace('atmega328p', '$(MCU)').replace('16000000UL', '$(F_CPU)')) in mk
               and 'LDFLAGS = ' + ' '.join(build.LDFLAGS) in mk)
-        src = open(os.path.join(proj, 'main.c')).read()
-        check('RULE 2: main.c is plain avr-libc C — no Arduino core (no Arduino.h, setup()/loop(), Serial.)',
+        src = open(os.path.join(proj, 'main.c')).read() + open(os.path.join(proj, 'hal.c')).read()
+        check('RULE 2: main.c + hal.c are plain avr-libc C — no Arduino core (no Arduino.h, setup()/loop(), Serial.)',
               '#include <avr/io.h>' in src and 'Arduino.h' not in src and 'void setup' not in src and 'Serial.' not in src)
         # ---------------- build (fake engines; the real toolchain is the probe)
         fmax, rmax, cite = build.limits('arduino-uno-r3')

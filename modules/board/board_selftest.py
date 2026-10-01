@@ -25,7 +25,7 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('eight row classes', len(BOARD_CLASSES) == 8)
+    check('twelve row classes (brd-0 eight + brd-fi FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState)', len(BOARD_CLASSES) == 12)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -47,7 +47,7 @@ def rows_and_classes():
           and 'Optiboot' in uno['usb_route'] and uno['adapter_needed'].startswith('none (native USB'))
     check('the five seed pair classes with rows + the measured BoardSimCost (one row, brd-1) + two observed classes with none',
           {n for n, _, rows in BOARD_SEED_PAIRS if rows} >= {'BoardDefinition', 'AdapterDefinition', 'ProgrammerKind', 'DatasheetFact', 'Road', 'BoardSimCost'}
-          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild'))
+          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild', 'InstallPlan', 'InstallRecord', 'UnoAnalogState'))
           and len(next(rows for n, _, rows in BOARD_SEED_PAIRS if n == 'BoardSimCost')) == 1)
     return B, A, P, F, R, N
 
@@ -217,6 +217,8 @@ def main():
     page()
     from board.board_uno_selftest import run_uno   # brd-1: gen / build / flash / twin / cost
     run_uno(check)
+    from board.board_installer_selftest import run_installer   # brd-fi: variants / compat / the installer flow / the page
+    run_installer(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

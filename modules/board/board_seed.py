@@ -3,15 +3,18 @@
 
 THE REGISTER AS ROWS (plan §8a: track all, simulate few). Every register §1 device → a BoardDefinition + its Road;
 every §1a adapter → an AdapterDefinition; the ProgrammerKinds; the UNO's DatasheetFacts (the only device with facts
-in brd-0). BoardInstance / FirmwareBuild are never seeded (observed / built); BoardSimCost carries the ONE committed measurement
+in brd-0). BoardInstance / FirmwareBuild / InstallPlan / InstallRecord / UnoAnalogState are never seeded (observed / built);
+brd-fi seeds the four UNO FirmwareVariants; BoardSimCost carries the ONE committed measurement
 (brd-1: the UNO twin, custom/sim_cost_uno.json — a cost exists only once measured).
 The 'board-roads' tech tree (one concept node per device) is seeded only when techtree is present.
 """
-from board.board_basis import BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road
+from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
+                               FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState)
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
 from board.custom.sim_cost import SEED_BOARD_SIM_COSTS
+from board.custom.variants import SEED_FIRMWARE_VARIANTS
 
 SEED_BOARD_DEFINITIONS = board_rows()
 SEED_ADAPTER_DEFINITIONS = adapter_rows()
@@ -33,6 +36,12 @@ BOARD_SEED_PAIRS = [
     ('BoardInstance', BoardInstance, []),
     ('FirmwareBuild', FirmwareBuild, []),
     ('BoardSimCost', BoardSimCost, _register_owned(SEED_BOARD_SIM_COSTS)),   # brd-1: measured, code-owned (re-measure → the row follows)
+    # brd-fi: the four seeded UNO variants are code-owned (a person's OWN variant is a row added on the page, never converged);
+    # plans, records and the second class's rows are observed, never seeded
+    ('FirmwareVariant', FirmwareVariant, _register_owned(SEED_FIRMWARE_VARIANTS)),
+    ('InstallPlan', InstallPlan, []),
+    ('InstallRecord', InstallRecord, []),
+    ('UnoAnalogState', UnoAnalogState, []),
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode

@@ -52,8 +52,8 @@ def main(argv):
     link = os.path.join(work, 'uart')
     fmap = gen.pinned_contract('SimRigState')[0]['field_map']
     row = gen.gen('uno', ['SimRigState'], work, rig_name='uno-twin')
-    check('gen: the project holds only main.c, Makefile, board_config.h, simrigstate_packets.h (RULE 2)',
-          sorted(os.listdir(row['project_dir'])) == ['Makefile', 'board_config.h', 'main.c', 'simrigstate_packets.h'])
+    check('gen: the project holds only main.c (the uno-sim-rig app), hal.c/hal.h, Makefile, board_config.h, simrigstate_packets.h (RULE 2)',
+          sorted(os.listdir(row['project_dir'])) == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'simrigstate_packets.h'])
     row = build.build('uno', work)
     check('build: avr-gcc through the ladder (%s) → state built, sizes measured, under the cited limits' % json.loads(row['engines_json'])['avr-gcc']['how'],
           row['state'] == 'built' and row['size_text'] > 0 and row['flash_bytes'] <= 32256 and row['ram_bytes'] <= 2048,

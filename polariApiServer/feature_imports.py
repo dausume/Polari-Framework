@@ -1299,7 +1299,8 @@ FEATURE_IMPORT_BLOCKS = (
     # brd-0 (BOARD_PROGRAMMING_PLAN): boards programmed over USB — every register device as a row, its road, adapters, programmer kinds
     ('board', (
         ('board.board_basis', ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition',
-                               'DatasheetFact', 'BoardSimCost', 'Road', 'BOARD_CLASSES')),
+                               'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
+                               'UnoAnalogState', 'BOARD_CLASSES')),
         ('board.board_seed', ('BOARD_SEED_PAIRS',)),
         ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
     )),

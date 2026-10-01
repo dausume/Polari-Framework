@@ -3,8 +3,8 @@
  "id": "board",
  "package": "board",
  "title": "Board",
- "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few — the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01); brd-1: the UNO end to end in plain C — gen around the AVR header, build (avr-gcc, sizes measured, refused past the cited limits), flash (DRY-RUN, a real run needs a detected board + --yes), the simavr twin at a pty, and the twin's measured object cost.",
- "version": "0.2.0",
+ "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few — the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01); brd-1: the UNO end to end in plain C — gen around the AVR header, build (avr-gcc, sizes measured, refused past the cited limits), flash (DRY-RUN, a real run needs a detected board + --yes), the simavr twin at a pty, and the twin's measured object cost. brd-fi: the Firmware Installer App — firmware VARIANTS as rows (four different things to test on one UNO: the whole rig, blink-only, a raw ADC sweep as a second class UnoAnalogState, echo), compatibility judged on the generated header's sha256 + wire order against what this server generates now (never contract_hash alone), detect → builds that fit → DRY-RUN plan → confirm → install (on the host holding the port only) → the generated bridge attached → the rows arriving, on /display/firmware-installer.",
+ "version": "0.3.0",
  "kind": "official",
  "wave": null,
  "repo": "https://github.com/dausume/polari-module-board.git",
@@ -61,14 +61,19 @@
    "objects/board/BoardSimCost",
    "objects/board/DatasheetFact",
    "objects/board/FirmwareBuild",
+   "objects/board/FirmwareVariant",
+   "objects/board/InstallPlan",
+   "objects/board/InstallRecord",
    "objects/board/ProgrammerKind",
-   "objects/board/Road"
+   "objects/board/Road",
+   "objects/board/UnoAnalogState"
   ],
   "basis": [
    "board_basis"
   ],
   "api": [
-   "board_api"
+   "board_api",
+   "installer_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -80,17 +85,22 @@
    "board_page"
   ],
   "selftests": [
+   "board_installer_selftest",
    "board_selftest",
    "board_uno_selftest"
   ],
   "custom": [
+   "custom/attach",
    "custom/board_cli",
    "custom/board_engines",
    "custom/build",
+   "custom/compat",
    "custom/detect",
    "custom/engine_run",
    "custom/flash",
    "custom/gen",
+   "custom/install_cli",
+   "custom/installer",
    "custom/packet_ref",
    "custom/programmers",
    "custom/register_import",
@@ -98,19 +108,25 @@
    "custom/sim_cost",
    "custom/twin",
    "custom/twin_pty",
-   "custom/uno_facts"
+   "custom/uno_facts",
+   "custom/variants"
   ]
  },
  "classes": [
   "AdapterDefinition",
   "BoardAPI",
   "BoardDefinition",
+  "BoardInstallerAPI",
   "BoardInstance",
   "BoardSimCost",
   "DatasheetFact",
   "FirmwareBuild",
+  "FirmwareVariant",
+  "InstallPlan",
+  "InstallRecord",
   "ProgrammerKind",
-  "Road"
+  "Road",
+  "UnoAnalogState"
  ],
  "imports": [
   [
@@ -124,6 +140,10 @@
     "DatasheetFact",
     "BoardSimCost",
     "Road",
+    "FirmwareVariant",
+    "InstallPlan",
+    "InstallRecord",
+    "UnoAnalogState",
     "BOARD_CLASSES"
    ]
   ],

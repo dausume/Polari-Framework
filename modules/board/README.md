@@ -4,7 +4,10 @@ Program real boards over USB / USB-C from Polari — the brd arc (`AI-Notes/plan
 the object model, the register as rows, the two rules as selftests, detection, and the c_twin AVR mode. **brd-1** is the
 UNO end to end in plain C — gen → build → flash (DRY-RUN; `--yes` with the board detected) → the simavr twin at a pty
 → the Java bridge — and the twin's measured cost (`COST.md`). No UNO was attached: everything up to the real flash is
-proven on the twin; the real-hardware step is documented below and owed.
+proven on the twin; the real-hardware step is documented below and owed. **brd-fi** is the Firmware Installer App: firmware
+VARIANTS as rows (different things to test on the one UNO), compatibility judged on the header itself, and
+detect → builds that fit → DRY-RUN → confirm → install → the rows arriving, on `/display/firmware-installer` and
+`pol board install` — proven on the twin (below).
 
 **Kind:** polari-app · **agent tier:** member · **requires:** hwmap (its scanner) · **engines:** avr-gcc, avrdude, simavr (worker image `prf-board-engines`)
 
@@ -27,6 +30,10 @@ proven on the twin; the real-hardware step is documented below and owed.
 | `BoardInstance` | a board or adapter seen plugged in | observed (`detect`) |
 | `FirmwareBuild` | one build: state generated → built \| refused → flashed, sizes measured, .hex sha256, engines, repro block | built (`pol board build`, `POST /api/board/builds`) |
 | `BoardSimCost` | a twin's measured cost (the yardstick before another twin) | 1 — the UNO twin, measured (`custom/sim_cost_uno.json`) |
+| `FirmwareVariant` | a named recipe over the template: app, classes, features, knobs, build defines, what to watch (brd-fi) | 4 (the UNO's) |
+| `InstallPlan` | the DRY-RUN of one install: exact argv, engine, adapter, compat, what will be stamped | made by the installer |
+| `InstallRecord` | what a confirmed install did: verdict, read-back, firmware sha, elapsed, log tail, bridge, first frames | made by the installer |
+| `UnoAnalogState` | the UNO's SECOND class (uno-adc-sweep): raw a0/a1/a2, uptime, status | pushed by the board |
 
 Only `arduino-uno-r3` is `simulated` (`simavr:atmega328p`) — track all, simulate few (plan §8a). The `board-roads`
 tech tree carries one concept node per device when techtree is loaded.
@@ -39,8 +46,11 @@ tech tree carries one concept node per device when techtree is loaded.
 - `custom/programmers.py`, `custom/uno_facts.py` — the programmer kinds; the UNO's cited facts (boards.txt pinned to a commit)
 - `custom/board_engines.py` — the engines seam: `BOARD_ENGINES_URL` → local binary → topology provider `board.engines` → refusal; a flash is refused on a remote worker
 - `custom/detect.py` — hwmap's scanner + a sysfs tty→usb link → BoardInstance / unadmitted; `custom/board_cli.py` — what the CLI prints offline
-- `custom/firmware/uno/` — the plain-C template (main.c, Makefile, board_config.h defaults, README); `custom/contracts/SimRigState.v2.json` — the pinned contract for offline gen
+- `custom/firmware/uno/` — the plain-C template (hal.c/hal.h, `apps/<app>.c` → main.c per variant, Makefile, board_config.h defaults, README); `custom/contracts/SimRigState.v2.json` — the pinned contract for offline gen
 - `custom/gen.py` · `custom/build.py` · `custom/flash.py` · `custom/twin.py` (+ `twin_pty.py`, the host pty pump) · `custom/sim_cost.py` — the brd-1 verbs; `custom/engine_run.py` runs an engine on the rung `board_engines` resolved (local binary / the image via `docker run` / the worker's `/run`); `custom/packet_ref.py` — an independent Python reference of the wire
+- brd-fi: `custom/variants.py` (the variant rows + knob validation), `custom/compat.py`, `custom/installer.py`, `custom/attach.py`,
+  `custom/install_cli.py`; `installer_api.py` (the installer doors); `board_page.py` also seeds `/display/firmware-installer`
+  (six configured tables + the ONE new component `firmware-installer-panel`, polari-platform-angular)
 - `board_api.py` (`/api/board`, `/api/board/detect` GET preview · POST upsert, `/roads`, `/facts`, `/engines`, `/builds` GET · POST upsert + flash stamp, `/sim-costs`), `board_page.py` (`/display/boards`, configured tables only)
 - the worker image: `polari-rf-node/prf-board-engines/` (gcc-avr, avr-libc, avrdude, simavr + `polari-avr-twin`), `docker-compose.board-engines.yml`, provider `board.engines` → `prf-board-engines` :9830
 
@@ -55,6 +65,52 @@ pol board flash uno [--port P]                          # DRY-RUN: the exact avr
 pol board flash uno --yes                               # real: needs the UNO detected on THIS host; read-back verify
 pol board twin uno up|status|down [--adc0-mv 750]       # the SAME .hex in simavr; UART at /tmp/polari-uno-twin-uart
 pol board cost uno [--write]                            # re-measure the twin's object cost
+```
+
+## Testing different things on the UNO (brd-fi)
+
+His intent: *"that way we can test different kinds of things on the arduino uno to see if it works."* Each variant is one
+such thing; install one, watch for its effect, try the next — on `/display/firmware-installer` or `pol board install`.
+
+| variant | app (`firmware/uno/apps/`) | speaks | compiled in | what to watch | measured flash / RAM (avr-gcc 14.2.0, -Os) |
+|---|---|---|---|---|---|
+| `uno-sim-rig` | `sim_rig.c` (brd-1's firmware) | SimRigState | LED D13, PWM D6, ADC A0 (TMP36), commands | temp_c follows a finger; a PUT lights D13 / dims D6; status `commanded` | 4532 / 763 B |
+| `uno-blink-only` | `blink.c` | SimRigState | LED only (toggles every 500 ms); transmit only | D13 blinks; led_on flips in the decoded frames | 1514 / **501** B |
+| `uno-adc-sweep` | `analog.c` | **UnoAnalogState** | ADC A0..A2 raw; transmit only | a0/a1/a2 follow a pot / photoresistor | **1394** / 528 B |
+| `uno-echo` | `echo.c` | SimRigState | nothing but the command path | a PUT comes back WHOLE (even temp_c), status `echoed` | 3152 / 763 B |
+
+(Sizes from the live-contract builds in `tests/board_installer_probe.py`. blink-only is the smallest in RAM; the adc sweep is
+the smallest in flash — SimRigState's one `double` costs the software binary32→binary64 encoder, ~120 B, which the
+all-integer UnoAnalogState does not need.)
+
+**Adding a variant:** add a `FirmwareVariant` row (on the page's Variants table, or a dict in `custom/variants.py` for a
+seeded one): pick an `app`, list the class it speaks, set `features_json` / `knobs_json` (telemetry_hz 1..50, led_pin
+D2..D13, pwm_pin 5/6/9/10, adc_channel 0..5, temp_formula tmp36|raw, blink_ms, rig_name, device_id) and optional
+`build_flags_json` (`NAME=integer` defines, never compiler arguments). `pol board gen uno --variant <name>` validates it and
+refuses with the reason (PWM on Timer2, LED on D0/D1, a feature the app has no code for, …). A NEW class needs a new app
+`.c` (a generated header alone is not firmware) plus its pinned contract in `custom/contracts/`.
+
+**Compatibility** (`custom/compat.py`, `GET /api/board/builds/<b>/compat`): the build's `header_sha256` and wire (tag) order,
+captured at gen, against the header THIS server generates now from its live gRPC exposure (the pinned snapshot only when
+no exposure exists) → `compatible | stale-header | unknown-class`. Never contract_hash alone (brd-1's finding: a fresh
+server's v1 and the ledger's v2 share hash 2bcc9d1a2774ef33 yet differ in order). Install refuses anything but
+`compatible` (exit 3, plain words naming both orders).
+
+**The flow** (`custom/installer.py`, `custom/attach.py`, doors in `installer_api.py`): `GET /api/board/installer` (one document
+for the page) → `POST …/build {variant}` (gen against this server's contracts + build) → `POST …/plan {instance, build}` (the
+InstallPlan row: the argv, fixed here) → `POST …/run {plan, confirm: true}` (this server's own host only; re-checks
+compat; the twin: simavr loads the .hex and its loaded byte count is the read-back; a board: avrdude's read-back verify)
+→ `POST …/attach {record}` (the generated Java bridge at the port / the twin's pty; needs the class's gRPC exposure
+enabled — never flipped by the installer) → `GET …/result/<record>` (first frames, frames per device-second, the row).
+The page sends NAMES only; no request field reaches a command line.
+
+```
+pol board variants
+pol board gen uno --variant uno-adc-sweep [--api URL]
+pol board install uno --variant uno-echo --twin            # DRY-RUN: the argv
+pol board install uno --variant uno-echo --twin --yes      # install into the twin, attach, first frames
+pol board install uno --variant uno-sim-rig --yes          # the detected UNO (needs it on the server's host)
+pol board result [install-…]
 ```
 
 ## The real-hardware step (owed — no UNO attached on 2026-10-01)
@@ -79,6 +135,7 @@ staging ledger's v2 — the pinned snapshot — puts `name` first). Generate aga
 pol modules selftest board
 PYTHONPATH=.:modules python3 -m board.board_selftest        # on the host, from polari-framework/
 PYTHONPATH=.:modules python3 tests/board_uno_twin_probe.py   # the REAL avr-gcc + simavr path (skips without the image)
+cd /tmp/y && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_installer_probe.py   # brd-fi: four variants, compat, installs into the twin + the bridge
 cd /tmp/x && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_uno_bridge_probe.py   # + a throwaway server + the Java bridge
 ```
 

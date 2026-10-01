@@ -1305,7 +1305,9 @@ class polariServer(treeObject):
             MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference,
             ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact,
             # brd-0: the board arc — devices, instances, builds, programmer kinds, adapters, cited facts, twin costs, roads
-            BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road]
+            BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
+            # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
+            FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
