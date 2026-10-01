@@ -121,11 +121,19 @@ class GrpcContractsAPI(treeObject):
             msg_type = int(request.params.get('msg_type', '1'))
         except (TypeError, ValueError):
             msg_type = 1
-        from grpcbridge.custom.c_twin import render_c_header
+        from grpcbridge.custom.c_twin import render_c_header, TARGETS
+        # brd-0: ?target=avr — double fields converted in software
+        # (avr-gcc double = 4 B); the wire format does not change
+        target = request.params.get('target', 'host') or 'host'
+        if target not in TARGETS:
+            return self._refuse(
+                response, f'unknown target "{target}" — one of '
+                f'{", ".join(TARGETS)}', '400 Bad Request')
         response.content_type = 'text/plain; charset=utf-8'
         response.text = render_c_header(
             class_name, field_map, msg_type, version=wanted,
-            contract_hash=getattr(exposure, 'contract_hash', ''))
+            contract_hash=getattr(exposure, 'contract_hash', ''),
+            target=target)
 
     def on_get_proto(self, request, response, class_name):
         """The generated .proto, text/plain (download)."""

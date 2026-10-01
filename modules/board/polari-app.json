@@ -1,0 +1,159 @@
+{
+ "schema": "polari-app/1",
+ "id": "board",
+ "package": "board",
+ "title": "Board",
+ "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few — the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-board.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "boards",
+   "usb",
+   "firmware",
+   "arduino"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "hwmap"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "avr-gcc",
+    "kind": "system",
+    "probe": "avr-gcc",
+    "note": "C compiler for the UNO (gcc-avr + avr-libc; RULE 2: plain C, no Arduino core) — brd-1"
+   },
+   {
+    "name": "avrdude",
+    "kind": "system",
+    "probe": "avrdude",
+    "note": "flasher to the UNO's Optiboot over USB-CDC (DRY-RUN by default; flashing runs on the host holding the port) — brd-1"
+   },
+   {
+    "name": "simavr",
+    "kind": "system",
+    "probe": "simavr",
+    "note": "the AVR twin (simavr:atmega328p, the one simulated board) — brd-3"
+   }
+  ],
+  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL → local binary → topology provider board.engines → refusal naming the knob); flashing refuses a remote worker; no worker image in brd-0 (brd-1)"
+ },
+ "files": {
+  "objects": [
+   "objects/board/AdapterDefinition",
+   "objects/board/BoardDefinition",
+   "objects/board/BoardInstance",
+   "objects/board/BoardSimCost",
+   "objects/board/DatasheetFact",
+   "objects/board/FirmwareBuild",
+   "objects/board/ProgrammerKind",
+   "objects/board/Road"
+  ],
+  "basis": [
+   "board_basis"
+  ],
+  "api": [
+   "board_api"
+  ],
+  "endpoints": [
+   "board_endpoints"
+  ],
+  "seed": [
+   "board_seed"
+  ],
+  "page": [
+   "board_page"
+  ],
+  "selftests": [
+   "board_selftest"
+  ],
+  "custom": [
+   "custom/board_cli",
+   "custom/board_engines",
+   "custom/detect",
+   "custom/programmers",
+   "custom/register_import",
+   "custom/register_map",
+   "custom/uno_facts"
+  ]
+ },
+ "classes": [
+  "AdapterDefinition",
+  "BoardAPI",
+  "BoardDefinition",
+  "BoardInstance",
+  "BoardSimCost",
+  "DatasheetFact",
+  "FirmwareBuild",
+  "ProgrammerKind",
+  "Road"
+ ],
+ "imports": [
+  [
+   "board.board_basis",
+   [
+    "BoardDefinition",
+    "BoardInstance",
+    "FirmwareBuild",
+    "ProgrammerKind",
+    "AdapterDefinition",
+    "DatasheetFact",
+    "BoardSimCost",
+    "Road",
+    "BOARD_CLASSES"
+   ]
+  ],
+  [
+   "board.board_seed",
+   [
+    "BOARD_SEED_PAIRS"
+   ]
+  ],
+  [
+   "board.board_page",
+   [
+    "SEED_BOARD_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "board.board_endpoints:construct_board_endpoints",
+ "seedPairs": "board.board_seed:BOARD_SEED_PAIRS",
+ "pages": [
+  "board.board_page:SEED_BOARD_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "board_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

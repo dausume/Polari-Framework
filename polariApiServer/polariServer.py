@@ -1303,7 +1303,9 @@ class polariServer(treeObject):
             TensorDiscoveryPolicy,
             # pf-0: proofs as rows; bp-2e: the cited sources behind the proof methods
             MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference,
-            ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact]
+            ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact,
+            # brd-0: the board arc — devices, instances, builds, programmer kinds, adapters, cited facts, twin costs, roads
+            BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2384,7 +2386,7 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or [])
              # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
              + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
@@ -3287,7 +3289,7 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

@@ -704,6 +704,17 @@
    "tier": "optional",
    "description": "ONE conceptual compute ladder from C to materials (eleven rungs referencing the microchip ladder, PSPP and the materials model), kinds as rows, downward/upward mappings with evidence, the compute-lod tech tree."
   },
+  "board": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/board",
+   "repo": "https://github.com/dausume/polari-module-board.git",
+   "requires": [
+    "hwmap"
+   ],
+   "tier": "optional",
+   "description": "Boards programmed over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition + Road (track all, simulate few — the UNO first), adapters and programmer kinds as rows, cited datasheet facts, the USB and C/Verilog/SV rules as selftests, pol board detect over hwmap's scanner."
+  },
   "mathproofs": {
    "kind": "official",
    "downloaded": true,

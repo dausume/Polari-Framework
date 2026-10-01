@@ -1296,6 +1296,13 @@ FEATURE_IMPORT_BLOCKS = (
         ('computelod.computelod_seed', ('COMPUTELOD_SEED_PAIRS',)),
         ('computelod.computelod_page', ('SEED_COMPUTELOD_PAGE_DISPLAYS',)),
     )),
+    # brd-0 (BOARD_PROGRAMMING_PLAN): boards programmed over USB — every register device as a row, its road, adapters, programmer kinds
+    ('board', (
+        ('board.board_basis', ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition',
+                               'DatasheetFact', 'BoardSimCost', 'Road', 'BOARD_CLASSES')),
+        ('board.board_seed', ('BOARD_SEED_PAIRS',)),
+        ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
+    )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),
