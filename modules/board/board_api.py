@@ -9,6 +9,10 @@ POST /api/board/detect           UPSERT: body = a host snapshot (`pol board dete
 GET  /api/board/roads            every road with its steps and status
 GET  /api/board/facts?board=     the cited DatasheetFacts of one board
 GET  /api/board/engines          where each board engine WOULD run (the engines ladder; nothing is run)
+GET  /api/board/builds           every FirmwareBuild row (state, sizes, sha, where it was flashed)
+POST /api/board/builds           UPSERT one FirmwareBuild (`pol board build|flash --api`): body {build: {...}, instance?:
+                                 {name, firmware_sha, last_flash_at}} — a flashed build stamps its BoardInstance
+GET  /api/board/sim-costs        the measured twin costs (BoardSimCost — the yardstick before another twin, plan §8a)
 """
 import json
 import time
@@ -30,6 +34,8 @@ class BoardAPI(treeObject):
             add('/api/board/roads', self, suffix='roads')
             add('/api/board/facts', self, suffix='facts')
             add('/api/board/engines', self, suffix='engines')
+            add('/api/board/builds', self, suffix='builds')
+            add('/api/board/sim-costs', self, suffix='sim_costs')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -110,3 +116,60 @@ class BoardAPI(treeObject):
     def on_get_engines(self, request, response):
         from board.custom.board_engines import placement
         response.media = dict(placement(), ok=True)
+
+    _BUILD_KEYS = ('name', 'board_definition', 'state', 'size_text', 'size_data', 'size_bss', 'artifact_sha256', 'source_sha',
+                   'built_at', 'flashed_to', 'template', 'notes')
+
+    def on_get_builds(self, request, response):
+        rows = sorted(self._rows('FirmwareBuild'), key=lambda r: getattr(r, 'built_at', '') or '', reverse=True)
+        response.media = {'ok': True, 'builds': [{k: getattr(r, k, '') for k in self._BUILD_KEYS} for r in rows]}
+
+    def on_post_builds(self, request, response):
+        from board.board_basis import FirmwareBuild
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception as e:  # noqa: BLE001
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'bad JSON: %s' % e}
+            return
+        b = body.get('build') or {}
+        if not b.get('name') or b.get('state') not in ('generated', 'built', 'refused', 'flashed'):
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'build needs a name and a state of generated | built | refused | flashed'}
+            return
+        import inspect
+        allowed = set(inspect.signature(FirmwareBuild.__init__).parameters) - {'self', 'manager'}
+        fields = {k: v for k, v in b.items() if k in allowed}
+        row = next((r for r in self._rows('FirmwareBuild') if getattr(r, 'name', '') == fields['name']), None)
+        if row is None:
+            row = FirmwareBuild(manager=self.manager, **fields)
+        else:
+            for k, v in fields.items():
+                setattr(row, k, v)
+        stamped = None
+        inst = body.get('instance') or {}
+        if fields.get('state') == 'flashed' and inst.get('name'):
+            target = next((r for r in self._rows('BoardInstance') if getattr(r, 'name', '') == inst['name']), None)
+            if target is None:
+                response.status = falcon.HTTP_409
+                response.media = {'ok': False, 'error': 'flashed to %r, but no such BoardInstance — `pol board detect --push` first' % inst['name']}
+                return
+            if inst.get('firmware_sha') != fields.get('artifact_sha256'):
+                response.status = falcon.HTTP_409
+                response.media = {'ok': False, 'error': 'the instance stamp names a different firmware than the build'}
+                return
+            target.firmware_sha = inst['firmware_sha']
+            target.last_flash_at = inst.get('last_flash_at', '')
+            stamped = target
+        try:
+            self.manager.db.saveInstanceInDB(row)
+            if stamped is not None:
+                self.manager.db.saveInstanceInDB(stamped)
+        except Exception:  # noqa: BLE001
+            pass
+        response.status = falcon.HTTP_201
+        response.media = {'ok': True, 'build': fields['name'], 'state': fields['state'], 'stamped': getattr(stamped, 'name', '')}
+
+    def on_get_sim_costs(self, request, response):
+        response.media = {'ok': True, 'costs': [{k: getattr(r, k, '') for k in ('board', 'twin', 'object_count', 'state_bytes', 'cycles_per_s', 'host_class', 'measured_at', 'notes')}
+                                               for r in self._rows('BoardSimCost')]}

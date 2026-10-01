@@ -13,12 +13,13 @@ class FirmwareBuild(treeObject):
     """
 
     @treeObjectInit
-    def __init__(self, name: str = '', board_definition: str = '', classes_json: str = '[]', template: str = '',
+    def __init__(self, name: str = '', board_definition: str = '', state: str = '', classes_json: str = '[]', template: str = '',
                  source_sha: str = '', artifact_sha256: str = '', engines_json: str = '{}', size_text: int = 0,
                  size_data: int = 0, size_bss: int = 0, built_at: str = '', flashed_to: str = '',
                  flash_log: str = '', repro_json: str = '{}', notes: str = '', manager=None):
         self.name = name
         self.board_definition = board_definition
+        self.state = state  # generated | built | refused (past the board's cited limits) | flashed — brd-1
         self.classes_json = classes_json  # [{class, contract_hash}]
         self.template = template
         self.source_sha = source_sha

@@ -325,6 +325,10 @@ def render_c_header(class_name, field_map, msg_type, version=0,
                 f'    if (end - p < 1) return -1;\n'
                 f'    s->{name} = (*p++ != 0u);')
         else:  # string / bytes: u16 length prefix
+            # brd-1: on AVR ptrdiff_t is a 16-bit int and uint16_t an unsigned int, so `end - p < n` trips
+            # -Wsign-compare under -Wextra -Werror; end - p is never negative here, so compare as uint16_t
+            # (target avr only — the host header stays byte-identical)
+            avail = '(uint16_t)(end - p)' if avr else 'end - p'
             enc_lines.append(
                 f'    n = (uint16_t)strlen(s->{name});\n'
                 f'    polari_put_u16(p, n); p += 2;\n'
@@ -332,7 +336,7 @@ def render_c_header(class_name, field_map, msg_type, version=0,
             dec_lines.append(
                 f'    if (end - p < 2) return -1;\n'
                 f'    n = polari_get_u16(p); p += 2;\n'
-                f'    if (end - p < n) return -1;\n'
+                f'    if ({avail} < n) return -1;\n'
                 f'    cp = n < {C_STR_MAX - 1}u ? n : {C_STR_MAX - 1}u;'
                 '  /* bounded: SAMD21-tier honest truncation */\n'
                 f'    memcpy(s->{name}, p, cp); '

@@ -3,13 +3,15 @@
 
 THE REGISTER AS ROWS (plan §8a: track all, simulate few). Every register §1 device → a BoardDefinition + its Road;
 every §1a adapter → an AdapterDefinition; the ProgrammerKinds; the UNO's DatasheetFacts (the only device with facts
-in brd-0). BoardInstance / FirmwareBuild / BoardSimCost are never seeded: they are observed or measured.
+in brd-0). BoardInstance / FirmwareBuild are never seeded (observed / built); BoardSimCost carries the ONE committed measurement
+(brd-1: the UNO twin, custom/sim_cost_uno.json — a cost exists only once measured).
 The 'board-roads' tech tree (one concept node per device) is seeded only when techtree is present.
 """
 from board.board_basis import BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
+from board.custom.sim_cost import SEED_BOARD_SIM_COSTS
 
 SEED_BOARD_DEFINITIONS = board_rows()
 SEED_ADAPTER_DEFINITIONS = adapter_rows()
@@ -30,7 +32,7 @@ BOARD_SEED_PAIRS = [
     ('Road', Road, SEED_BOARD_ROADS),             # a road's progress belongs to the instance once seeded (no converge)
     ('BoardInstance', BoardInstance, []),
     ('FirmwareBuild', FirmwareBuild, []),
-    ('BoardSimCost', BoardSimCost, []),
+    ('BoardSimCost', BoardSimCost, _register_owned(SEED_BOARD_SIM_COSTS)),   # brd-1: measured, code-owned (re-measure → the row follows)
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode

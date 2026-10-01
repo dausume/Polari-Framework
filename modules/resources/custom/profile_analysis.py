@@ -43,6 +43,7 @@ ENGINE_MODULES = {
     'computelod.pnr': 'prf-orfs-engines',   # eng-1: the OpenROAD flow worker (built FROM openroad/orfs)
     'mathproofs.engines': 'prf-proof-engines',
     'tensormath.engines': 'prf-torch-engines',
+    'board.engines': 'prf-board-engines',   # brd-1: the UNO toolchain + the simavr twin
 }
 
 _CLASS_RE = re.compile(r'^class\s+(\w+)\(treeObject\)', re.MULTILINE)

@@ -3,16 +3,18 @@
 
 THE ENGINES SEAM of the board arc — the same ladder as computelod.custom.eda_engines (D-brd-1/2: engines chosen
 dynamically per device kind), so a toolchain or flasher runs wherever the topology says and the module never assumes
-a device. brd-0 RESOLVES only; nothing is run here (the build/flash verbs and the worker image are brd-1).
+a device. This file RESOLVES; custom/engine_run.py runs what it resolves (brd-1).
 
 Resolution, per engine, honest at every rung:
   1. BOARD_ENGINES_URL set        → that worker, ALWAYS (unreachable or lacking the engine = REFUSAL; a declared
                                     worker never silently degrades to local)
   2. knob unset, binary local     → the binary on the PATH (or ~/.local/bin)
-  3. nothing local                → the topology's provider for module `board.engines` (LIVE candidates only)
-  4. nothing                      → refusal naming the knob, the provider module, and that the worker image is brd-1
+  3. the worker IMAGE local       → `docker run` of BOARD_ENGINES_IMAGE (default prf-board-engines:trixie,
+                                    polari-rf-node/prf-board-engines/) on this device's docker (brd-1)
+  4. nothing local                → the topology's provider for module `board.engines` (LIVE candidates only)
+  5. nothing                      → refusal naming the knob, the image, and the provider module
 FLASHING adds a placement constraint (plan §2): it must run on the host holding the USB port — a remote worker is
-refused for a flash, whatever the ladder says.
+refused for a flash, whatever the ladder says (a local binary or the local image with the port mapped are fine).
 
 `ENGINES` also carries each engine's KIND, which is RULE 2's vocabulary: microcontroller and hardware work is C,
 Verilog or SystemVerilog only, so an engine is a c-compiler, an hdl-toolchain, a flasher, or a simulator — an Arduino
@@ -21,9 +23,13 @@ core, MicroPython or a VHDL flow has no kind here and fails the rule by construc
 import json
 import os
 import shutil
+import subprocess
 import time
 
 KNOB = 'BOARD_ENGINES_URL'
+IMAGE_KNOB = 'BOARD_ENGINES_IMAGE'
+DEFAULT_IMAGE = 'prf-board-engines:trixie'
+LOCAL_IMAGE = 'local-image'
 PROVIDER_MODULE = 'board.engines'
 REMOTE = 'remote'
 _ENGINE = 'board'
@@ -36,6 +42,7 @@ ENGINES = {
     'avr-size': ('avr-size', 'c-compiler', 'binutils, GPL-3.0+'),
     'avrdude': ('avrdude', 'flasher', 'GPL-2.0 (github.com/avrdudes/avrdude)'),
     'simavr': ('simavr', 'simulator', 'GPL-3.0 (github.com/buserror/simavr)'),
+    'avr-twin': ('polari-avr-twin', 'simulator', 'GPL-3.0 (links libsimavr; built in prf-board-engines — USART0↔TCP, ADC0 stimulus, PORTB5 trace)'),
     'riscv-gcc': ('riscv64-unknown-elf-gcc', 'c-compiler', 'GPL-3.0+ with the runtime exception'),
     'arm-gcc': ('arm-none-eabi-gcc', 'c-compiler', 'GPL-3.0+ with the runtime exception'),
     'esptool': ('esptool.py', 'flasher', 'GPL-2.0+'),
@@ -51,8 +58,11 @@ ENGINES = {
     'nextpnr-ice40': ('nextpnr-ice40', 'hdl-toolchain', 'ISC'),
     'libero': ('libero', 'hdl-toolchain', 'PROPRIETARY (Microchip Libero SoC, Silver licence) — an engine only, D-brd-2'),
 }
+#: the engines the board worker image carries (polari-rf-node/prf-board-engines/Dockerfile)
+IMAGE_ENGINES = ('avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin')
 _CAP_CACHE = {}
 _CAP_TTL_S = 30.0
+_IMG_CACHE = {}
 
 
 def knob_url():
@@ -66,6 +76,28 @@ def engine_kind(engine):
 def rule2_ok(engine):
     """RULE 2 for one engine name: known, and of a C / Verilog-SystemVerilog / flasher / simulator kind."""
     return engine_kind(engine) in RULE2_KINDS
+
+
+def image_name():
+    return os.environ.get(IMAGE_KNOB, '') or DEFAULT_IMAGE
+
+
+def local_image():
+    """The worker image on THIS device's docker (id), or '' — cached like the capability probe."""
+    img = image_name()
+    now = time.time()
+    hit = _IMG_CACHE.get(img)
+    if hit and now - hit[0] < _CAP_TTL_S:
+        return hit[1]
+    iid = ''
+    if shutil.which('docker'):
+        try:
+            p = subprocess.run(['docker', 'image', 'inspect', img, '--format', '{{.Id}}'], capture_output=True, text=True, timeout=15)
+            iid = p.stdout.strip() if p.returncode == 0 else ''
+        except Exception:
+            iid = ''
+    _IMG_CACHE[img] = (now, iid)
+    return iid
 
 
 def topology_url():
@@ -108,9 +140,10 @@ def local_binary(engine):
 
 
 def _refusal(engine, flash):
-    tail = ' (flashing: a local binary on the host holding the USB port)' if flash else ''
-    return ('no %s: not on the PATH here, no live %s provider — set %s or `pol allocate %s <instance>`%s; '
-            'the board engines worker image arrives with brd-1' % (engine, PROVIDER_MODULE, KNOB, PROVIDER_MODULE, tail))
+    tail = ' (flashing: a local binary or the image on the host holding the USB port)' if flash else ''
+    return ('no %s: not on the PATH here, no %s image on this docker, no live %s provider — build the image '
+            '(docker compose -f polari-rf-node/docker-compose.board-engines.yml build), set %s, or `pol allocate %s <instance>`%s'
+            % (engine, image_name(), PROVIDER_MODULE, KNOB, PROVIDER_MODULE, tail))
 
 
 def resolve(engine, flash=False):
@@ -132,6 +165,8 @@ def resolve(engine, flash=False):
     b = local_binary(engine)
     if b:
         return {'how': 'local-binary', 'where': b, 'kind': kind, 'why': 'on this device'}
+    if engine in IMAGE_ENGINES and local_image():
+        return {'how': LOCAL_IMAGE, 'where': image_name(), 'kind': kind, 'why': 'the board engines image on this device (%s)' % local_image()[:19]}
     if not flash:
         url = topology_url()
         if url and _has(remote_capability(url), engine):
@@ -144,5 +179,7 @@ def placement(engines=None):
     names = list(engines or ENGINES)
     return {'knob': KNOB, 'knob_value': knob_url(), 'provider_module': PROVIDER_MODULE,
             'engines': {e: resolve(e) for e in names},
-            'ladder': ['%s (always, or refusal; never for a flash)' % KNOB, 'local binary', 'topology provider %s (live only; never for a flash)' % PROVIDER_MODULE, 'refusal'],
+            'image': image_name(), 'image_present': bool(local_image()),
+            'ladder': ['%s (always, or refusal; never for a flash)' % KNOB, 'local binary', 'the local image %s (%s)' % (image_name(), IMAGE_KNOB),
+                       'topology provider %s (live only; never for a flash)' % PROVIDER_MODULE, 'refusal'],
             'rule2_kinds': list(RULE2_KINDS)}

@@ -160,13 +160,23 @@ def adapter_rows(snapshot=None):
     return rows
 
 
+#: where the UNO's road stands (brd-1, 2026-10-01) — the one road walked; every other road is all todo
+UNO_STEPS = {
+    'datasheet-facts': ('in-progress', 'boards.txt + product page + the ATmega328P datasheet (USART baud table, ADC formula) + TMP36 as 24 DatasheetFact rows; the pin map / full register facts are still to capture'),
+    'definition-complete': ('done', 'BoardDefinition: usb ids, programmer avrdude-optiboot, toolchain, transport, limits, twin simavr:atmega328p'),
+    'twin': ('done', 'brd-1: polari-avr-twin (simavr) runs the SAME .hex; UART at a pty; the Java bridge attached; BoardSimCost measured'),
+    'firmware-template': ('done', 'brd-1: custom/firmware/uno — plain C on avr-libc around the AVR header; 4442 B flash / 763 B RAM'),
+    'flashed-on-hardware': ('todo', 'OWED: no UNO attached — pol board detect → pol board flash uno --yes → the TMP36 reading tracks a finger'),
+    'measured': ('in-progress', 'firmware sizes + the twin\'s cost measured; the real board\'s timing/USB reset not yet'),
+}
+
+
 def road_rows(boards):
     out = []
     for b in boards:
         first = b['name'] == UNO
-        steps = [{'step': s, 'status': 'in-progress' if (first and i == 0) else 'todo',
-                  'note': 'boards.txt + product-page facts captured as DatasheetFact rows; pin map / register facts pending (brd-1)' if (first and i == 0) else ''}
-                 for i, s in enumerate(ROAD_STEPS)]
+        steps = [{'step': s, 'status': UNO_STEPS[s][0] if first else 'todo', 'note': UNO_STEPS[s][1] if first else ''}
+                 for s in ROAD_STEPS]
         out.append({'name': b['road'], 'board': b['name'], 'status': b['road_status'], 'steps_json': json.dumps(steps),
                     'concept_node': '%s/%s' % (ROAD_TREE, b['name']), 'notes': ''})
     return out

@@ -1,4 +1,4 @@
-"""board_selftest — brd-0: the register as rows, THE TWO RULES, simulate-few, cited facts, the engines seam, and
+"""board_selftest — brd-0 + brd-1 (board_uno_selftest): the register as rows, THE TWO RULES, simulate-few, cited facts, the engines seam, and
 detection (a fake scanner result for the pol-core CP2102 and the UNO; the real host scan when run on the host).
 
     PYTHONPATH=.:modules python3 -m board.board_selftest      # from polari-framework/
@@ -45,9 +45,10 @@ def rows_and_classes():
     check('the register cells are carried verbatim (status, origin, USB route, adapter)',
           uno['register_status'] == 'HIS PICK (bare C)' and uno['board_origin'] == 'Arduino (Italy, OSHW)'
           and 'Optiboot' in uno['usb_route'] and uno['adapter_needed'].startswith('none (native USB'))
-    check('the five seed pair classes with rows + three observed classes with none',
-          {n for n, _, rows in BOARD_SEED_PAIRS if rows} >= {'BoardDefinition', 'AdapterDefinition', 'ProgrammerKind', 'DatasheetFact', 'Road'}
-          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild', 'BoardSimCost')))
+    check('the five seed pair classes with rows + the measured BoardSimCost (one row, brd-1) + two observed classes with none',
+          {n for n, _, rows in BOARD_SEED_PAIRS if rows} >= {'BoardDefinition', 'AdapterDefinition', 'ProgrammerKind', 'DatasheetFact', 'Road', 'BoardSimCost'}
+          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild'))
+          and len(next(rows for n, _, rows in BOARD_SEED_PAIRS if n == 'BoardSimCost')) == 1)
     return B, A, P, F, R, N
 
 
@@ -102,9 +103,10 @@ def simulate_few_and_facts(B, F, R, N):
     st = {r['board']: r for r in R}
     uno_steps = json.loads(st['arduino-uno-r3']['steps_json'])
     others = [r for b, r in st.items() if b != 'arduino-uno-r3']
-    check('one Road per device; all todo except the UNO\'s first step',
+    us = {s['step']: s['status'] for s in uno_steps}
+    check('one Road per device; all todo except the UNO\'s (brd-1: twin + template done, flashed-on-hardware still todo — owed)',
           len(R) == len(B) and all(r['status'] == 'todo' and all(s['status'] == 'todo' for s in json.loads(r['steps_json'])) for r in others)
-          and uno_steps[0]['status'] != 'todo' and all(s['status'] == 'todo' for s in uno_steps[1:]))
+          and us['twin'] == 'done' and us['firmware-template'] == 'done' and us['flashed-on-hardware'] == 'todo', us)
     check('every road hangs on the board-roads tree as one concept node', len(N) == len(B)
           and {n['name'] for n in N} == {r['concept_node'] for r in R})
     import inspect
@@ -120,9 +122,22 @@ def engines():
     try:
         r = be.resolve('avr-gcc')
         if r['how'] == 'refused':
-            check('engines: a missing avr-gcc is REFUSED naming the knob and brd-1', be.KNOB in r['why'] and 'brd-1' in r['why'] and 'board.engines' in r['why'])
+            check('engines: a missing avr-gcc is REFUSED naming the knob, the image and the provider', be.KNOB in r['why'] and be.image_name() in r['why'] and 'board.engines' in r['why'])
         else:
-            check('engines: avr-gcc resolves locally (%s)' % r['where'], r['how'] == 'local-binary')
+            check('engines: avr-gcc resolves on this device (%s: %s)' % (r['how'], r['where']), r['how'] in ('local-binary', be.LOCAL_IMAGE))
+        old_img = os.environ.get(be.IMAGE_KNOB)
+        os.environ[be.IMAGE_KNOB] = 'polari-no-such-image:never'
+        be._IMG_CACHE.clear()
+        r = be.resolve('simavr')
+        check('engines: with no binary and no image the refusal names %s, the image and docker-compose.board-engines.yml' % be.KNOB,
+              r['how'] in ('refused', 'local-binary') and (r['how'] == 'local-binary' or ('polari-no-such-image:never' in r['why'] and 'board-engines.yml' in r['why'])))
+        if old_img is None:
+            os.environ.pop(be.IMAGE_KNOB, None)
+        else:
+            os.environ[be.IMAGE_KNOB] = old_img
+        be._IMG_CACHE.clear()
+        check('engines: the worker image carries the six UNO engines (avr-gcc/objcopy/size, avrdude, simavr, avr-twin), all RULE 2 kinds',
+              set(be.IMAGE_ENGINES) == {'avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin'} and all(be.rule2_ok(e) for e in be.IMAGE_ENGINES))
         os.environ[be.KNOB] = 'http://127.0.0.1:9'   # a declared worker that is not there
         be._CAP_CACHE.clear()
         r = be.resolve('avrdude')
@@ -200,6 +215,8 @@ def main():
     engines()
     detection(B, A)
     page()
+    from board.board_uno_selftest import run_uno   # brd-1: gen / build / flash / twin / cost
+    run_uno(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

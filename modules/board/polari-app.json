@@ -3,8 +3,8 @@
  "id": "board",
  "package": "board",
  "title": "Board",
- "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few — the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01).",
- "version": "0.1.0",
+ "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few — the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01); brd-1: the UNO end to end in plain C — gen around the AVR header, build (avr-gcc, sizes measured, refused past the cited limits), flash (DRY-RUN, a real run needs a detected board + --yes), the simavr twin at a pty, and the twin's measured object cost.",
+ "version": "0.2.0",
  "kind": "official",
  "wave": null,
  "repo": "https://github.com/dausume/polari-module-board.git",
@@ -36,22 +36,22 @@
     "name": "avr-gcc",
     "kind": "system",
     "probe": "avr-gcc",
-    "note": "C compiler for the UNO (gcc-avr + avr-libc; RULE 2: plain C, no Arduino core) — brd-1"
+    "note": "C compiler for the UNO (gcc-avr + avr-libc; RULE 2: plain C, no Arduino core) — the prf-board-engines image or a local binary (brd-1)"
    },
    {
     "name": "avrdude",
     "kind": "system",
     "probe": "avrdude",
-    "note": "flasher to the UNO's Optiboot over USB-CDC (DRY-RUN by default; flashing runs on the host holding the port) — brd-1"
+    "note": "flasher to the UNO's Optiboot over USB-CDC (DRY-RUN by default; runs only on the host holding the port — local binary or the local image with the port mapped) — brd-1"
    },
    {
     "name": "simavr",
     "kind": "system",
     "probe": "simavr",
-    "note": "the AVR twin (simavr:atmega328p, the one simulated board) — brd-3"
+    "note": "the AVR twin (simavr:atmega328p) — run as polari-avr-twin from the prf-board-engines image (libsimavr + USART0↔TCP + ADC0 stimulus) — brd-1"
    }
   ],
-  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL → local binary → topology provider board.engines → refusal naming the knob); flashing refuses a remote worker; no worker image in brd-0 (brd-1)"
+  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL → local binary → the local image BOARD_ENGINES_IMAGE (prf-board-engines:trixie, polari-rf-node/prf-board-engines) → topology provider board.engines → refusal naming the knob + image); flashing refuses a remote worker"
  },
  "files": {
   "objects": [
@@ -80,15 +80,24 @@
    "board_page"
   ],
   "selftests": [
-   "board_selftest"
+   "board_selftest",
+   "board_uno_selftest"
   ],
   "custom": [
    "custom/board_cli",
    "custom/board_engines",
+   "custom/build",
    "custom/detect",
+   "custom/engine_run",
+   "custom/flash",
+   "custom/gen",
+   "custom/packet_ref",
    "custom/programmers",
    "custom/register_import",
    "custom/register_map",
+   "custom/sim_cost",
+   "custom/twin",
+   "custom/twin_pty",
    "custom/uno_facts"
   ]
  },

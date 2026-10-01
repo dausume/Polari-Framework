@@ -13,6 +13,12 @@ BOARDS_TXT_REV = 'ArduinoCore-avr @ %s (master on 2026-10-01; file sha256 e49283
 UNO_DOC = 'https://docs.arduino.cc/hardware/uno-rev3/'
 DOUBLE_DOC = 'https://docs.arduino.cc/language-reference/en/variables/data-types/double'
 OPTIBOOT = 'https://github.com/Optiboot/optiboot'
+M328_DOC = 'Microchip ATmega48A/PA/88A/PA/168A/PA/328/P datasheet'
+M328_REV = 'DS40002061B (2020), fetched 2026-10-01, file sha256 b9b9d83cda56a95d999ea8d54fe5a540748ae9020e5e7ae19b913d384ba9320e'
+M328_URL = 'https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061B.pdf'
+TMP36_DOC = 'Analog Devices TMP35/TMP36/TMP37 datasheet'
+TMP36_REV = 'NOT fetched (analog.com timed out from pol-core 2026-10-01); values as plan §3 states them — re-read before a real-hardware claim'
+TMP36_URL = 'https://www.analog.com/media/en/technical-documentation/data-sheets/TMP35_36_37.pdf'
 
 #: the five upload VID:PIDs, as boards.txt lists them (uno.vid.N / uno.pid.N, lines 63-72)
 UNO_USB_IDS = ['2341:0043', '2341:0001', '2a03:0043', '2341:0243', '2341:006a']
@@ -45,4 +51,15 @@ SEED_UNO_FACTS = [
     _f('sizeof_double', 4, 'bytes', 'Arduino language reference: double', 'as cited by plan §1 (not re-fetched 2026-10-01)', 'data types / double', DOUBLE_DOC,
        'why c_twin needs its AVR mode (target=avr)'),
     _f('optiboot_size', 512, 'bytes', 'Optiboot README', 'as cited by plan §3 (not re-fetched 2026-10-01)', 'README', OPTIBOOT),
+    # brd-1: the facts the plain-C firmware (board/custom/firmware/uno/main.c) uses. The ATmega328P datasheet was FETCHED and
+    # read on 2026-10-01 (sha256 below); the TMP36 datasheet was NOT (analog.com timed out from pol-core) — its two
+    # numbers are the ones plan §3 states and the kit's project 03 uses, said so in the revision.
+    _f('usart0.ubrr_115200_u2x1', 16, 'UBRR0', M328_DOC, M328_REV, 'Table 20-7, p.199 (fosc = 16.0000 MHz, 115.2k, U2Xn = 1)', M328_URL,
+       'error +2.1 %; the firmware default (USART_U2X 1) — what Optiboot and the 16U2 side use'),
+    _f('usart0.ubrr_115200_u2x0', 8, 'UBRR0', M328_DOC, M328_REV, 'Table 20-7, p.199 (fosc = 16.0000 MHz, 115.2k, U2Xn = 0)', M328_URL,
+       'error -3.5 %; plan §3 named this value — kept as the USART_U2X 0 knob (fine on the twin, marginal against the 16U2)'),
+    _f('adc.conversion_result', 'ADC = Vin * 1024 / Vref', '', M328_DOC, M328_REV, '§24.7 ADC Conversion Result, p.256', M328_URL,
+       'single-ended; the firmware reads channel 0 with REFS0 = AVcc (5 V on the UNO)'),
+    _f('tmp36.scale', 10, 'mV/degC', TMP36_DOC, TMP36_REV, 'TMP36 specifications (scale factor)', TMP36_URL, 'T = (mV - 500) / 10'),
+    _f('tmp36.offset', 500, 'mV', TMP36_DOC, TMP36_REV, 'TMP36 specifications (750 mV at 25 degC)', TMP36_URL, 'the kit\'s TMP36 on A0 (project 03)'),
 ]

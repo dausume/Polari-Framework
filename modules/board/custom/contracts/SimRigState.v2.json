@@ -1,0 +1,18 @@
+{
+ "class": "SimRigState",
+ "contract_version": 2,
+ "contract_hash": "2bcc9d1a2774ef33",
+ "msg_type": 1,
+ "source": "pinned offline snapshot of the SimRigState contract v2 — the wire ORDER of the header committed with the Renode twin (grpcbridge/custom/renode_twin/firmware/simrigstate_packets.h, 'contract v2 hash 2bcc9d1a2774ef33'); the tag numbers are order indices (a C header carries only the order), the server's ProtoContractVersion ledger is authoritative — `pol board gen --api URL` fetches the live header instead",
+ "field_map": {
+  "fields": {
+   "name": {"tag": 1, "proto_type": "string", "comment": ""},
+   "pwm_duty": {"tag": 2, "proto_type": "int64", "comment": ""},
+   "status": {"tag": 3, "proto_type": "string", "comment": ""},
+   "temp_c": {"tag": 4, "proto_type": "double", "comment": ""},
+   "uptime_ms": {"tag": 5, "proto_type": "int64", "comment": ""},
+   "led_on": {"tag": 6, "proto_type": "bool", "comment": ""}
+  },
+  "reserved": []
+ }
+}
