@@ -9,12 +9,13 @@ rows follow), EXCEPT what a run measures: a technique's measured_* cost and a fa
 instance has them. ScenarioRun / ScenarioTraceCycle rows are observed, never seeded.
 """
 from firmwarefaults.firmwarefaults_basis import (FirmwareFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep,
-                                                 ScenarioRun, ScenarioTraceCycle, FAULT_KIND_CLASSES)
+                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic, FAULT_KIND_CLASSES)
 from firmwarefaults.custom.fault_rows import by_class
 from firmwarefaults.custom.scenarios import SEED_SCENARIOS, SEED_STEPS, scenario_variants
 from firmwarefaults.custom.taxonomy import SEED_PRIMITIVES, SEED_ASSUMPTIONS, SEED_TECHNIQUES
 
-_MEASURED_TECHNIQUE = ('measured_cost_bytes', 'measured_cost_cycles', 'measured_latency_delta_cycles', 'measured_by_run')
+_MEASURED_TECHNIQUE = ('measured_cost_bytes', 'measured_cost_cycles', 'measured_latency_delta_cycles', 'measured_by_run', 'measured_ram_bytes',
+                       'measured_cost_what')
 _MEASURED_FAULT = ('rate', 'rate_source')
 
 
@@ -36,6 +37,7 @@ FIRMWAREFAULTS_SEED_PAIRS = [
     ('ScenarioStep', ScenarioStep, _owned(SEED_STEPS)),
     ('ScenarioRun', ScenarioRun, []),
     ('ScenarioTraceCycle', ScenarioTraceCycle, []),
+    ('ScenarioStatistic', ScenarioStatistic, []),
 ]
 
 def _module_on():

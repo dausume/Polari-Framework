@@ -4,7 +4,7 @@
  "package": "firmwarefaults",
  "title": "Firmware Faults",
  "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim.",
- "version": "0.1.0",
+ "version": "0.2.0",
  "kind": "official",
  "wave": null,
  "repo": "https://github.com/dausume/polari-module-firmwarefaults.git",
@@ -38,7 +38,7 @@
     "name": "avr-twin",
     "kind": "system",
     "probe": "polari-avr-twin",
-    "note": "the simavr UNO twin WITH the sc-0 scenario flags (prf-board-engines/twin_forcing.c: --irq-at pc=/cycle=, --poke, --watch, --trace-vcd, --sp-watch, --stack-fill, --isr-latency, --fn-cycles, --uart-out, --seed) — resolved through the BOARD engines seam (board.custom.board_engines: BOARD_ENGINES_URL → local binary → the local image prf-board-engines:trixie → topology provider board.engines → refusal)"
+    "note": "the simavr UNO twin WITH the scenario flags — sc-0 (prf-board-engines/twin_forcing.c: --irq-at pc=/cycle=, --poke, --watch, --trace-vcd, --sp-watch, --stack-fill, --isr-latency, --fn-cycles, --uart-out, --seed) and sc-1 (twin_scenario_io.c: --inject, --respond, --drop-frame rx:N, --uart-ber, --rx-noise, --reset-at, --jump-at, --eeprom-set/-dump, --uart-tx-log/-rx-log; twin_forcing.c: --ret-hist/--ret-log, ISR lengths, --fn-cycles START:ret) — resolved through the BOARD engines seam (board.custom.board_engines: BOARD_ENGINES_URL → local binary → the local image prf-board-engines:trixie → topology provider board.engines → refusal)"
    },
    {
     "name": "avr-gcc",
@@ -75,6 +75,7 @@
    "objects/firmwarefaults/FirmwareFault",
    "objects/firmwarefaults/Scenario",
    "objects/firmwarefaults/ScenarioRun",
+   "objects/firmwarefaults/ScenarioStatistic",
    "objects/firmwarefaults/ScenarioStep",
    "objects/firmwarefaults/ScenarioTraceCycle",
    "objects/firmwarefaults/Technique",
@@ -114,10 +115,15 @@
    "custom/faults_cli",
    "custom/harness",
    "custom/outcome",
+   "custom/payloads",
    "custom/runner",
+   "custom/runner_sc1",
    "custom/scenarios",
+   "custom/scenarios_sc1",
+   "custom/selftest_sc1",
    "custom/sink",
    "custom/stack_static",
+   "custom/statistics",
    "custom/taxonomy"
   ]
  },
@@ -140,6 +146,7 @@
   "PriorityInversionFault",
   "Scenario",
   "ScenarioRun",
+  "ScenarioStatistic",
   "ScenarioStep",
   "ScenarioTraceCycle",
   "StackOverflowFault",
@@ -176,6 +183,7 @@
     "ScenarioStep",
     "ScenarioRun",
     "ScenarioTraceCycle",
+    "ScenarioStatistic",
     "FIRMWAREFAULTS_CLASSES"
    ]
   ],

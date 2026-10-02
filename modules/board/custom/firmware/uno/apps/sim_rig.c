@@ -106,9 +106,15 @@ int main(void)
     memset(&rx, 0, sizeof rx);
     strcpy(state.name, RIG_NAME);                      /* the Push match key of an UNBOUND board (SEND_NAME 1) */
     state.status = SIMRIGSTATE_STATUS_BOOT;
+#if HAL_WDT
+    hal_wdt_init();                                    /* sc-1 (plan §4): variant uno-sim-rig-wdt only */
+#endif
     sei();
 
     for (;;) {
+#if HAL_WDT
+        hal_wdt_kick();                                /* one kick per pass: a pass that never returns here resets */
+#endif
         while (hal_rx_pop(&b))
             if (polari_rx_feed(&rx, b) && rx.msg_type == SIMRIGSTATE_MSG_TYPE)
                 apply_command(&rx);

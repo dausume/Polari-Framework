@@ -43,7 +43,8 @@ def write(sink, run, scenario, harness_version=''):
     if status == 'refuted':
         ce = {'cycle': run['fault_cycle'], 'pc': run['fault_pc'], 'pc_symbol': run['fault_symbol'], 'landed_pc': run['landed_pc'],
               'landed_symbol': run['landed_symbol'], 'torn_value': run['torn_value'], 'expected_value': run['expected_value'],
-              'uptime_sequence': run['uptime_sequence'], 'trace_sha256': run['trace_sha256'], 'run': run['name']}
+              'uptime_sequence': run['uptime_sequence'], 'trace_sha256': run['trace_sha256'], 'run': run['name'],
+              'observed': run.get('observable_value', ''), 'words': run['verdict_words'][:400]}
     fields = {
         'name': name,
         'description': 'Firmware build %s (variant %s) under scenario %s is free of fault %s (%s): %s' % (
@@ -63,7 +64,7 @@ def write(sink, run, scenario, harness_version=''):
         'evidence_level': 'measured' if after in ('refuted', 'witnessed') else 'none',
         'statement_hash': '',
         'budget_s': 0.0,
-        'provenance': 'firmwarefaults sc-0 runner (FIRMWARE_SCENARIO_PLAN.md §1): a sim-tier witness/counterexample, never a proof',
+        'provenance': 'firmwarefaults runner (FIRMWARE_SCENARIO_PLAN.md §1, sc-0/sc-1): a sim-tier witness/counterexample, never a proof',
         'notes': run['verdict_words'],
     }
     sink.upsert('MathClaim', fields)

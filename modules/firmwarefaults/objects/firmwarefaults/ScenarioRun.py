@@ -33,10 +33,11 @@ class ScenarioRun(treeObject):
                  stack_static_peak: int = 0, isr_latency_max_cycles: int = 0, isr_latency_vector: int = 0, fn_cycles_min: int = 0,
                  size_text: int = 0, size_data: int = 0, size_bss: int = 0, cost_delta_json: str = '{}', cost_flash_bytes_delta: int = 0,
                  cost_cycles_delta: int = 0, latency_delta_cycles: int = 0, claim: str = '', repro_json: str = '{}', ran_at: str = '',
-                 notes: str = '', manager=None):
+                 notes: str = '', observable_value: str = '', reset_count: int = 0, isr_cycles_max: int = 0, isr_cycles_vector: int = 0,
+                 manager=None):
         self.name = name
         self.scenario = scenario
-        self.side = side  # before | after | natural
+        self.side = side  # before | after | natural | control (sc-1: a check run that is not a claim)
         self.variant = variant  # the FirmwareVariant built
         self.build_name = build_name  # the FirmwareBuild name (variant + source sha)
         self.technique_applied = technique_applied  # a Technique name, or '' (none)
@@ -83,3 +84,7 @@ class ScenarioRun(treeObject):
         self.repro_json = repro_json  # inputs by sha256, tools, knobs, seed (the reproducibility rule)
         self.ran_at = ran_at
         self.notes = notes
+        self.observable_value = observable_value  # sc-1: the decisive reading in a few words (3 counted / 2 pressed, 0x11112222 …)
+        self.reset_count = reset_count  # sc-1: resets during the run (watchdog or forced), from simavr's reset hook
+        self.isr_cycles_max = isr_cycles_max  # sc-1: the longest ISR (entry → reti) of the pricing vector (or the longest of any)
+        self.isr_cycles_vector = isr_cycles_vector

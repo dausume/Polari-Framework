@@ -7,6 +7,7 @@ against THIS build's ELF (custom/disasm.py), the always-on measurements added (-
 a run = f(firmware, flags, seed)). The twin runs through the engines seam (local binary, the board engines image, or
 the worker's POST /run); its files come back as bytes.
 """
+import hashlib
 import json
 
 from firmwarefaults.custom import fault_engines as fe
@@ -68,3 +69,125 @@ def window(vcd_bytes, center, before=12, after=36):
     except ValueError:
         d = {}
     return d.get('samples') or [], d.get('sha256', ''), d.get('reader', ''), r
+
+
+# ---------------------------------------------------------------- sc-1: the host side, the power rail, the runaway
+TXLOG = 'tx.bin'
+RXLOG = 'rx.bin'
+
+
+def variant_flags(variant):
+    """{FLAG: int} of a scenario variant's build flags (the payload builders need e.g. SC_EEPROM_RECORD's layout)."""
+    from firmwarefaults.custom.scenarios import scenario_variants
+    for v in scenario_variants():
+        if v['name'] == variant:
+            return {f.split('=')[0]: int(f.split('=')[1]) for f in json.loads(v.get('build_flags_json') or '[]')}
+    return {}
+
+
+def render_sc1(steps, nm, seconds, seed, observe=None, variant='', adc0_mv=750, extra_steps=(), fn=None):
+    """sc-1 steps (+ the statistics tier's extra steps) → (argv, files, meta). meta: what the host sent (for the ideal
+    count), the symbols each step resolved to, and `missing` — a symbol a step needs that this build lacks (the run is
+    then inapplicable here, with that reason)."""
+    from firmwarefaults.custom import payloads
+    observe = observe or {}
+    a = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '16000000', '--free', '--seconds', '%g' % seconds, '--status-ms', '0',
+         '--adc0-mv', str(int(adc0_mv)), '--uart-out', UART, '--uart-tx-log', TXLOG, '--seed', str(int(seed)), '--sp-watch', '--isr-latency']
+    files, meta = {}, {'sent': 0, 'injected': [], 'resolved': [], 'missing': [], 'host_bytes_sha256': []}
+    if '__bss_end' in nm:
+        a += ['--stack-fill', '0x%x' % nm['__bss_end']['addr']]
+    for sym, w in observe.get('watch', []):
+        if sym in nm and nm[sym]['space'] == 'data':
+            a += ['--watch', '0x%x/%d=%s' % (nm[sym]['addr'], int(w), sym)]
+    if fn and fn[0] is not None:      # the function that prices the technique: entry → its return, whichever ret (SP mode)
+        a += ['--fn-cycles', '0x%x:ret' % fn[0]]
+    if observe.get('eeprom_dump'):
+        a += ['--eeprom-dump', '0x%x:%d' % tuple(observe['eeprom_dump'])]
+    flags = variant_flags(variant)
+    host = False
+    for k, step in enumerate(list(steps) + list(extra_steps)):
+        args = json.loads(step['args_json']) if isinstance(step.get('args_json'), str) else dict(step.get('args') or {})
+        kind = step['kind']
+        if kind == 'irq-at-cycle':
+            a += ['--irq-at', 'cycle=%d,vec=%d' % (int(args['cycle']), int(args['vec']))]
+        elif kind == 'respond':
+            body = payloads.ack() if args.get('reply') == 'ack' else bytes.fromhex(args['reply_hex'])
+            fname = 'reply%d.bin' % k
+            files[fname] = body
+            a += ['--respond', '0x%s=%s,delay=%d,max=%d' % (args['match'], fname, int(args.get('delay_cycles', 0)), int(args.get('max', 1 << 20)))]
+            host = True
+        elif kind == 'drop-nth-frame':
+            if args.get('direction', 'rx') != 'rx':
+                raise ValueError('drop-nth-frame: only the host→board (rx) direction is built')
+            a += ['--drop-frame', 'rx:%d' % int(args['n'])]
+        elif kind == 'inject-bytes':
+            p = args['payload']
+            if p == 'residual':
+                body, info = payloads.residual(int(args.get('trailing_bytes', 10)))
+            elif p == 'record-command':
+                body, info = payloads.command(1, int(args['value'])), {'sent': 1}
+            elif p == 'command-stream':
+                body, info = payloads.command_stream(int(args['n']))
+            else:
+                raise ValueError('unknown inject payload %r' % p)
+            fname = 'inject%d.bin' % k
+            files[fname] = body
+            meta['sent'] += int(info.get('sent', 0))
+            meta['injected'].append(body)
+            a += ['--inject', '%s@%d' % (fname, int(args['cycle']))]
+            host = True
+        elif kind == 'eeprom-preload':
+            layout = flags.get('SC_EEPROM_RECORD') if args.get('layout') == 'from-variant' else args.get('layout')
+            if not layout:
+                meta['missing'].append('variant %s has no EEPROM record layout (SC_EEPROM_RECORD unset)' % variant)
+                continue
+            for addr, body in payloads.eeprom_record(layout, int(args['value'])):
+                a += ['--eeprom-set', '0x%x=%s' % (addr, body.hex())]
+        elif kind == 'reset-at':
+            if 'symbol' in args:
+                if args['symbol'] not in nm:
+                    meta['missing'].append('no %s in this build (the reset is aimed at its entry)' % args['symbol'])
+                    continue
+                pc = nm[args['symbol']]['addr']
+                meta['resolved'].append('%s = 0x%x' % (args['symbol'], pc))
+                a += ['--reset-at', 'pc=0x%x,nth=%d,after=%d' % (pc, int(args.get('nth', 1)), int(args.get('after_cycle', 0)))]
+            else:
+                a += ['--reset-at', 'cycle=%d' % int(args['cycle'])]
+        elif kind == 'jump-at':
+            if args['symbol'] not in nm:
+                meta['missing'].append('no %s in this build' % args['symbol'])
+                continue
+            pc = nm[args['symbol']]['addr']
+            meta['resolved'].append('%s = 0x%x' % (args['symbol'], pc))
+            meta['jump_cycle'] = int(args['cycle'])
+            a += ['--jump-at', 'cycle=%d,pc=0x%x' % (int(args['cycle']), pc)]
+        elif kind == 'uart-ber':
+            a += ['--uart-ber', '%g' % float(args['p'])]
+        elif kind == 'rx-noise':
+            a += ['--rx-noise', '%g' % float(args['rate'])]
+            host = True
+        elif kind == 'ret-log':
+            a += ['--ret-log', '%d:%s' % (int(args['vec']), args.get('file', 'retlog.txt'))]
+        else:
+            raise ValueError('step kind %s is not rendered by render_sc1' % kind)
+    if host:
+        a += ['--uart-rx-log', RXLOG]
+    meta['host_bytes_sha256'] = [hashlib.sha256(x).hexdigest() for x in meta['injected']] + \
+        [hashlib.sha256(v).hexdigest() for k2, v in sorted(files.items()) if k2.startswith('reply')]
+    return a, files, meta
+
+
+def run_files(argv, hex_bytes, files, timeout=600):
+    """harness.run with extra input files (payloads); returns the logs too."""
+    r = fe.run('avr-twin', argv, dict(files, **{'firmware.hex': hex_bytes}), timeout=timeout)
+    final = None
+    for line in (r.get('stdout') or '').splitlines():
+        if line.startswith('{"t":"scenario"'):
+            try:
+                final = json.loads(line)
+            except ValueError:
+                final = None
+    out = r.get('files') or {}
+    return {'ok': r.get('ok') is not False and final is not None, 'final': final, 'uart': out.get(UART, b''), 'tx': out.get(TXLOG, b''),
+            'rx': out.get(RXLOG, b''), 'files': out, 'stdout': r.get('stdout', ''), 'stderr': r.get('stderr', ''), 'how': r.get('how'),
+            'where': r.get('where'), 'cost': r.get('cost', {}), 'argv': ['polari-avr-twin'] + list(argv), 'returncode': r.get('returncode')}

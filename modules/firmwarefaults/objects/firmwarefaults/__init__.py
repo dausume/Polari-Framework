@@ -12,3 +12,4 @@ from firmwarefaults.objects.firmwarefaults.Scenario import Scenario  # noqa: F40
 from firmwarefaults.objects.firmwarefaults.ScenarioStep import ScenarioStep  # noqa: F401
 from firmwarefaults.objects.firmwarefaults.ScenarioRun import ScenarioRun  # noqa: F401
 from firmwarefaults.objects.firmwarefaults.ScenarioTraceCycle import ScenarioTraceCycle  # noqa: F401
+from firmwarefaults.objects.firmwarefaults.ScenarioStatistic import ScenarioStatistic  # noqa: F401

@@ -271,7 +271,8 @@ def payload_max(field_map):
 
 
 def render_c_header(class_name, field_map, msg_type, version=0,
-                    contract_hash='', target='host', wire=None):
+                    contract_hash='', target='host', wire=None,
+                    rx_parser='resync'):
     """The complete `<class>_packets.h`: struct (tag order) + encode
     + decode, on top of the shared framing block. `target` = 'host'
     (default, unchanged) | 'avr' (software double conversion).
@@ -284,7 +285,11 @@ def render_c_header(class_name, field_map, msg_type, version=0,
     if wire is not None:
         from grpcbridge.custom.c_twin_v2 import render as render_v2
         return render_v2(class_name, wire, msg_type, version=version,
-                         contract_hash=contract_hash, target=target)
+                         contract_hash=contract_hash, target=target,
+                         rx_parser=rx_parser)
+    if rx_parser != 'resync':
+        raise ValueError('rx_parser %r needs a wire v2 header (wire=spec); '
+                         'the v1 header is pinned' % rx_parser)
     avr = target == 'avr'
     upper = class_name.upper()
     struct_lines = []

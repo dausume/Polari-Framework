@@ -32,6 +32,34 @@ _Static_assert(RX_RING >= 2u && RX_RING <= 256u && (RX_RING & (RX_RING - 1u)) ==
 static volatile uint8_t rx_ring[RX_RING];
 static volatile uint8_t rx_head, rx_tail;
 
+#if HAL_UART_ERRCOUNT
+/* sc-1 (FIRMWARE_SCENARIO_PLAN.md §3a, scenario 4): the USART's own error bits, which no shipped variant reads. FE0
+ * (the stop bit was 0) and DOR0 (a byte arrived while UDR0 was full) are valid only BEFORE UDR0 is read
+ * (DS40002061B §20.11.2), so the status is read first; a full ring drop is counted too. The byte is still queued:
+ * the parser's CRC + resync decides. Counters, never a policy. */
+static volatile uint16_t g_uart_fe, g_uart_dor, g_rx_dropped;
+
+ISR(USART_RX_vect)
+{
+    uint8_t st = UCSR0A;
+    uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
+    if (st & _BV(FE0)) g_uart_fe++;
+    if (st & _BV(DOR0)) g_uart_dor++;
+    if (next != rx_tail) {
+        rx_ring[rx_head] = b;
+        rx_head = next;
+    } else {
+        g_rx_dropped++;
+    }
+}
+
+uint16_t hal_uart_errors(uint8_t which)
+{
+    uint16_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = which == 0 ? g_uart_fe : which == 1 ? g_uart_dor : g_rx_dropped; }
+    return v;
+}
+#else
 ISR(USART_RX_vect)
 {
     uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
@@ -40,6 +68,7 @@ ISR(USART_RX_vect)
         rx_head = next;
     }
 }
+#endif
 
 int hal_rx_pop(uint8_t *b)
 {
@@ -106,6 +135,57 @@ uint32_t hal_millis(void)
 #endif
     return v;
 }
+
+/* ---- sc-1 scenario 3: a button on D2 = INT0 (falling edge, pull-up). HAL_INT0_DEBOUNCE_MS 0 counts EVERY edge (the
+ * BEFORE build: a ringing contact gives two edges, two counts); > 0 ignores edges within that many ms of the last one
+ * it counted (the Technique `debounce`). g_ms is read bare inside the ISR: interrupts are off there, so its four loads
+ * cannot be split by the tick. ---- */
+#if HAL_INT0
+static volatile uint16_t g_presses;
+#if HAL_INT0_DEBOUNCE_MS
+static uint32_t g_last_press;
+static uint8_t g_pressed_once;
+#endif
+
+ISR(INT0_vect)
+{
+#if HAL_INT0_DEBOUNCE_MS
+    uint32_t now = g_ms;
+    if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)HAL_INT0_DEBOUNCE_MS) return;
+    g_pressed_once = 1u;
+    g_last_press = now;
+#endif
+    g_presses++;
+}
+
+void hal_button_init(void)
+{
+    DDRD &= (uint8_t)~_BV(PD2);
+    PORTD |= _BV(PD2);                                 /* pull-up: the button pulls D2 to ground */
+    EICRA = _BV(ISC01);                                /* falling edge */
+    EIFR = _BV(INTF0);
+    EIMSK = _BV(INT0);
+}
+
+uint16_t hal_presses(void)
+{
+    uint16_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_presses; }
+    return v;
+}
+#endif
+
+/* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON at its shortest period
+ * (DS40002061B §10.9.2), so a firmware that does not clear both before main resets forever; .init3 runs before the
+ * C runtime's .init4..9 and main. HAL_WDT 0 (every shipped variant) compiles none of this. ---- */
+#if HAL_WDT
+void hal_wdt_boot(void) __attribute__((naked, used, section(".init3")));
+void hal_wdt_boot(void)
+{
+    MCUSR = 0u;
+    wdt_disable();
+}
+#endif
 
 /* ---- the LED on LED_PIN ---- */
 #if FEATURE_LED

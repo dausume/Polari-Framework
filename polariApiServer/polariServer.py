@@ -1311,8 +1311,9 @@ class polariServer(treeObject):
             BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
             # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
             FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
-            # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows
-            FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle]
+            # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows; sc-1: statistics
+            FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle,
+            ScenarioStatistic]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing

@@ -1,15 +1,19 @@
-"""sc-0 PROBE — scenario 1 (the torn millis read) on the REAL simavr UNO twin, then the module on a live boot.
+"""sc-0 + sc-1 PROBE — the scenarios on the REAL simavr UNO twin, then the module on a live boot.
 
 Part A (offline runner, the CLI's path): BEFORE (uno-sim-rig-torn, HAL_MILLIS_ATOMIC 0) with the tick IRQ forced at the PC between
 the 1st and 2nd `lds` of g_ms (found in the build's own disassembly) → refuted at a named cycle, uptime_ms 511 then 400, CRC fine,
 VCD sha; AFTER (uno-sim-rig) with the same forcing → witnessed, landed after `out SREG`; the cost pair (+6 B, +3 cycles, the
 ISR-latency delta); both re-run BIT-IDENTICALLY from row + seed; the natural run (10 s, no forcing) → the measured rate on the
 fault row; scenario 1b → the refused build (inapplicable); a corrupt-word poke proves the --poke mechanism.
+Part S1 (sc-1, offline runner): every forcible single-board pair for real — S2 lost ack (BEFORE hangs, AFTER retries), S3 bounce (3
+counted vs 2), S4 residual (1 of 2 applied vs 2 of 2), S5 brownout (half record vs the old one) + the EEPROM persistence control,
+the watchdog (hung vs reset + resumed) — each with its measured cost on the Technique row; the RTOS scenarios refused with the
+reason; a 2-seed smoke of each statistics batch (the 20/60-seed numbers are `pol faults stats`, recorded in COST.md).
 Part B (live boot): a THROWAWAY in-process server with firmwarefaults (+ board, grpcbridge, mathproofs …) — typed classes, the
 seeds, the page, the doors, and POST /api/firmwarefaults/run executing the pair IN the server (rows + claims + measured cost).
 Skips HONESTLY (exit 0, every check listed as SKIP) when no twin / disassembler resolves on this device.
 
-  cd <throwaway dir> && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/firmwarefaults_probe.py [--json out.json] [--no-boot]
+  cd <throwaway dir> && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/firmwarefaults_probe.py [--json out.json] [--no-boot] [--no-sc1|--only-sc1]
 """
 import json
 import os
@@ -102,6 +106,84 @@ def part_a():
     report['harness'] = fe.harness_digest()
 
 
+def part_s1():
+    from firmwarefaults.custom import runner, statistics as ST
+    from firmwarefaults.custom.sink import LocalSink
+    sink = LocalSink()
+    rep = report.setdefault('sc1', {})
+
+    def pair(name):
+        b, a = runner.run_scenario(name, 'both', sink)['runs']
+        rep[name] = {s: {k: r[k] for k in ('name', 'outcome', 'observable_value', 'verdict_words', 'fault_cycle', 'fault_symbol', 'landed_symbol',
+                                            'reset_count', 'isr_cycles_max', 'fn_cycles_min', 'isr_latency_max_cycles', 'stack_high_water',
+                                            'stack_high_water_paint', 'size_text', 'size_data', 'size_bss', 'firmware_sha256', 'uart_sha256', 'claim',
+                                            'claim_status')} for s, r in (('before', b), ('after', a))}
+        rep[name]['cost'] = json.loads(a['cost_delta_json'])
+        return b, a, json.loads(a['cost_delta_json'])
+
+    b, a, cd = pair('lost-ack-hang')
+    ob = json.loads(b['observed_json'])
+    oa = json.loads(a['observed_json'])
+    check('S2 BEFORE (uno-ack-wait, ack #1 dropped at cycle %d): %s → refuted' % (b['fault_cycle'], b['verdict_words'][:140]),
+          b['outcome'] == 'failed' and b['claim_status'] == 'refuted' and ob['ack_state'] == 1 and len(ob['requests_ms']) == 1)
+    check('S2 AFTER (uno-ack-wait-timeout): %s → witnessed' % a['verdict_words'][:150],
+          a['outcome'] == 'passed' and a['claim_status'] == 'witnessed' and oa['ack_state'] == 2 and len(oa['requests_ms']) == 2
+          and 45 <= oa['requests_ms'][1] - oa['requests_ms'][0] <= 55)
+    check('S2 cost of timeout-fsm: %+d B flash, %+d B RAM, %d cycles per ack_step() pass' % (cd['flash_bytes'], cd['ram_bytes'], cd['cycles']),
+          cd['flash_bytes'] > 0 and cd['cycles'] > 0 and sink.get('Technique', 'timeout-fsm')['measured_by_run'] == a['name'])
+    b, a, cd = pair('button-bounce-double-count')
+    check('S3 BEFORE (uno-button-count): %s; AFTER (uno-button-debounce): %s' % (b['observable_value'], a['observable_value']),
+          b['outcome'] == 'failed' and b['observable_value'].startswith('3 counted') and a['outcome'] == 'passed' and a['observable_value'].startswith('2 counted'))
+    check('S3 cost of the debounce: %+d B flash, %+d B RAM, %+d INT0 ISR cycles (max %d → %d)' % (cd['flash_bytes'], cd['ram_bytes'], cd['cycles'],
+                                                                                              b['isr_cycles_max'], a['isr_cycles_max']),
+          cd['cycles'] > 0 and b['isr_cycles_max'] > 0 and sink.get('Technique', 'debounce-synchroniser')['measured_ram_bytes'] == cd['ram_bytes'])
+    b, a, cd = pair('uart-residual-frame-loss')
+    check('S4 BEFORE (the shipped resync parser): %s; AFTER (keep-tail): %s; cost %+d B flash, %+d B RAM' % (
+          b['observable_value'], a['observable_value'], cd['flash_bytes'], cd['ram_bytes']),
+          b['outcome'] == 'failed' and b['observable_value'].startswith('1 applied / 2 intact') and a['outcome'] == 'passed'
+          and a['observable_value'].startswith('2 applied / 2 intact'))
+    ob = json.loads(b['observed_json'])
+    check('S4: the USART error counters are compiled in and read (FE0 %s, DOR0 %s, ring drops %s on a clean line)' % (
+          ob['framing_errors_counted'], ob['overruns_counted'], ob['ring_drops_counted']),
+          (ob['framing_errors_counted'], ob['overruns_counted'], ob['ring_drops_counted']) == (0, 0, 0))
+    b, a, cd = pair('brownout-mid-eeprom-write')
+    check('S5 BEFORE (in place, reset at the 3rd eeprom_write_byte, cycle %d): %s → refuted' % (b['fault_cycle'], b['observable_value']),
+          b['outcome'] == 'failed' and b['observable_value'].startswith('0x11112222') and b['reset_count'] == 1)
+    check('S5 AFTER (two slots, crc last): %s → witnessed; cost %+d B flash' % (a['observable_value'], cd['flash_bytes']),
+          a['outcome'] == 'passed' and a['observable_value'].startswith('0x11111111'))
+    ctl = runner.run_scenario('brownout-mid-eeprom-write', 'control', sink)['runs'][0]
+    rep['eeprom_persistence'] = {'run': ctl['name'], 'value': ctl['observable_value'], 'words': ctl['verdict_words']}
+    check('EEPROM PERSISTS across avr_reset on the twin (control: reset after the write completed → the new record at boot: %s)' % ctl['observable_value'],
+          ctl['observable_value'].startswith('0x22222222') and ctl['claim'] == '')
+    b, a, cd = pair('runaway-hang-watchdog')
+    ra = json.loads(a['observed_json'])['resets']['list']
+    check('watchdog BEFORE (uno-sim-rig): %s; AFTER (uno-sim-rig-wdt): %s, WDRF %s' % (b['observable_value'], a['observable_value'], [r['wdrf'] for r in ra]),
+          b['outcome'] == 'failed' and a['outcome'] == 'passed' and a['reset_count'] == 1 and ra[0]['wdrf'] == 1)
+    check('every sc-1 run records plan §4 space/safety: stack high-water (SP watch == paint), worst ISR latency, sizes',
+          all(r[s]['stack_high_water'] == r[s]['stack_high_water_paint'] > 0 and r[s]['size_text'] > 0
+              for n, r in rep.items() if isinstance(r, dict) and 'before' in r for s in ('before', 'after')))
+    for name in ('priority-inversion-mutex', 'two-lock-deadlock'):
+        try:
+            runner.run_scenario(name, 'both', sink)
+            why = ''
+        except runner.ScenarioRefused as e:
+            why = str(e)
+        check('%s is REFUSED (not-yet-forcible: %s…)' % (name, why[len('scenario %s is not-yet-forcible: ' % name):][:60]), 'FreeRTOS' in why)
+    again = runner.run_scenario('lost-ack-hang', 'both', LocalSink())['runs']
+    check('S2 re-runs BIT-IDENTICALLY (firmware + UART sha256 on both sides)',
+          [(r['firmware_sha256'], r['uart_sha256']) for r in again] == [(rep['lost-ack-hang'][s]['firmware_sha256'], rep['lost-ack-hang'][s]['uart_sha256'])
+                                                                         for s in ('before', 'after')])
+    out = ST.uart_ber(sink, bers=(1e-3,), seeds=2)
+    bb, aa = out[('before', 1e-3)], out[('after', 1e-3)]
+    check('statistics smoke (BER 1e-3, 2 seeds x 500 commands): BEFORE residual %d, AFTER residual %d, the same line loss on both (paired seeds)'
+          % (bb['residual_events'], aa['residual_events']),
+          aa['residual_events'] == 0 and bb['residual_events'] >= aa['residual_events'] and bb['trials'] == aa['trials'] == 1000)
+    sw = ST.tear_phase_sweep(sink, seeds=2)
+    check('statistics smoke (phase sweep, 2 seeds): %d tear(s) in %d carries; the frames agree (%d backwards + %d torn final frame)' % (
+          sw['sweep']['events'], sw['sweep']['trials'], sw['frames_backwards'], sw['torn_final_frames']),
+          sw['sweep']['trials'] == 78 and sw['frames_backwards'] + sw['torn_final_frames'] == sw['sweep']['events'] and sw['natural']['carries'] == 39)
+
+
 def part_b():
     os.environ['POLARI_MODULES'] = 'techtree,hwmap,hardwareapps,islemesh,grpcbridge,board,mathproofs,firmwarefaults'
     os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
@@ -113,21 +195,23 @@ def part_b():
     typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in manager.objectTypingDict.keys()} \
         | {getattr(v, 'className', '') for v in manager.objectTypingDict.values()}
     from firmwarefaults.firmwarefaults_basis import FIRMWAREFAULTS_CLASSES
-    check('live boot: all 24 firmwarefaults classes are typed', all(c.__name__ in typed for c in FIRMWAREFAULTS_CLASSES),
+    check('live boot: all 25 firmwarefaults classes are typed', all(c.__name__ in typed for c in FIRMWAREFAULTS_CLASSES),
           [c.__name__ for c in FIRMWAREFAULTS_CLASSES if c.__name__ not in typed])
     n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
     kinds = sum(n(c.__name__) for c in FIRMWAREFAULTS_CLASSES[1:17])
-    check('live boot: 16 fault rows (one per kind), 10 techniques, 12 assumptions, 6 primitives, 2 scenarios, 2 steps seeded',
-          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep')) == (16, 10, 12, 6, 2, 2),
+    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 9 scenarios, 14 steps seeded',
+          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep')) == (17, 11, 13, 6, 9, 14),
           (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep')))
-    check('live boot: the two scenario variants are FirmwareVariant rows beside board\'s five',
-          {'uno-sim-rig-torn', 'uno-sim-rig-ring512'} <= {getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values()})
+    check('live boot: the eleven scenario variants are FirmwareVariant rows beside board\'s five',
+          {'uno-sim-rig-torn', 'uno-sim-rig-ring512', 'uno-ack-wait', 'uno-ack-wait-timeout', 'uno-button-count', 'uno-button-debounce',
+           'uno-echo-uartstat', 'uno-echo-keeptail', 'uno-eeprom-record', 'uno-eeprom-commit', 'uno-sim-rig-wdt'}
+          <= {getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values()})
     pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'firmware-faults']
     comps = [it['componentProps']['componentName'] for row in json.loads(pages[0].definition)['rows'] for it in row['items']] if pages else []
     check('live boot: /display/firmware-faults is seeded — configured tables only (%d)' % len(comps), len(pages) == 1 and comps and set(comps) == {'class-rows-table'})
     r = client.simulate_get('/api/firmwarefaults')
-    check('GET /api/firmwarefaults answers: 16 fault rows, both scenarios runnable', r.status_code == 200 and r.json['fault_rows'] == 16
-          and all(s['runnable'] for s in r.json['scenarios']), r.text[:300])
+    check('GET /api/firmwarefaults answers: 17 fault rows, 7 scenarios runnable, the 2 RTOS ones not', r.status_code == 200 and r.json['fault_rows'] == 17
+          and sum(s['runnable'] for s in r.json['scenarios']) == 7, r.text[:300])
     r = client.simulate_get('/api/firmwarefaults/engines')
     check('GET /api/firmwarefaults/engines: avr-twin + avr-objdump resolve on this device', r.status_code == 200
           and r.json['engines']['avr-twin']['how'] != 'refused' and r.json['engines']['avr-objdump']['how'] != 'refused', r.text[:300])
@@ -135,10 +219,17 @@ def part_b():
     ok = r.status_code == 201 and [x['outcome'] for x in r.json['runs']] == ['failed', 'passed']
     check('POST /api/firmwarefaults/run {torn-millis-read, both} runs the pair IN the server → failed, passed', ok, r.text[:400])
     runs = list((tables.get('ScenarioRun', {}) or {}).values())
-    claims = {c.name: c.proof_status for c in (tables.get('MathClaim', {}) or {}).values() if c.name.startswith('fw-safe:')}
+    claims = {c.name: c.proof_status for c in (tables.get('MathClaim', {}) or {}).values() if c.name.startswith('fw-safe:torn-millis-read')}
     check('…its rows are in the tree: 2 ScenarioRuns, trace rows, the claims refuted + witnessed, the Technique\'s measured cost',
-          len(runs) == 2 and n('ScenarioTraceCycle') > 10 and sorted(claims.values()) == ['refuted', 'witnessed']
+          len([x for x in runs if x.scenario == 'torn-millis-read']) == 2 and n('ScenarioTraceCycle') > 10 and sorted(claims.values()) == ['refuted', 'witnessed']
           and next(t for t in tables['Technique'].values() if t.name == 'atomic-block').measured_cost_bytes == 6, (len(runs), n('ScenarioTraceCycle'), claims))
+    r2 = client.simulate_post('/api/firmwarefaults/run', body=json.dumps({'scenario': 'lost-ack-hang', 'side': 'both'}), headers={'Content-Type': 'application/json'})
+    check('POST /api/firmwarefaults/run {lost-ack-hang, both} (sc-1) runs IN the server → failed, passed, the Technique\'s measured cost',
+          r2.status_code == 201 and [x['outcome'] for x in r2.json['runs']] == ['failed', 'passed']
+          and next(t for t in tables['Technique'].values() if t.name == 'timeout-fsm').measured_cost_cycles > 0, r2.text[:400])
+    r3 = client.simulate_post('/api/firmwarefaults/run', body=json.dumps({'scenario': 'priority-inversion-mutex', 'side': 'both'}),
+                              headers={'Content-Type': 'application/json'})
+    check('POST /run of an RTOS scenario → 409 not-yet-forcible (nothing built)', r3.status_code == 409 and 'FreeRTOS' in r3.json['error'], r3.text[:200])
     if ok:
         r = client.simulate_get('/api/firmwarefaults/runs/%s' % r.json['runs'][0]['name'])
         check('GET /api/firmwarefaults/runs/<before> → the run, its trace rows, the refuted claim', r.status_code == 200 and r.json['trace']
@@ -152,7 +243,10 @@ def main(argv):
         print('SKIP: no simavr twin / disassembler on this device (%s) — build the image: docker compose -f '
               'polari-rf-node/docker-compose.board-engines.yml build' % fe.placement())
         return 0
-    part_a()
+    if '--only-sc1' not in argv:
+        part_a()
+    if '--no-sc1' not in argv:
+        part_s1()
     if '--no-boot' not in argv:
         part_b()
     if '--json' in argv:

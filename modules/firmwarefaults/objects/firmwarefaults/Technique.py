@@ -25,7 +25,7 @@ class Technique(treeObject):
                  typical_cost_bytes: int = 0, typical_cost_cycles: int = 0, typical_latency_cycles: int = 0, cost_source: str = 'estimate',
                  measured_cost_bytes: int = 0, measured_cost_cycles: int = 0, measured_latency_delta_cycles: int = 0,
                  measured_by_run: str = '', alternative_of: str = '', caveats: str = '', provenance: str = '', notes: str = '',
-                 manager=None):
+                 measured_ram_bytes: int = 0, measured_cost_what: str = '', manager=None):
         self.name = name
         self.description = description
         self.restores = restores  # an Assumption name
@@ -39,6 +39,8 @@ class Technique(treeObject):
         self.measured_cost_cycles = measured_cost_cycles  # min cycles delta of the guarded function (--fn-cycles)
         self.measured_latency_delta_cycles = measured_latency_delta_cycles  # max ISR latency delta (--isr-latency)
         self.measured_by_run = measured_by_run  # the AFTER ScenarioRun that measured it
+        self.measured_ram_bytes = measured_ram_bytes  # sc-1: .data + .bss delta of the pair
+        self.measured_cost_what = measured_cost_what  # sc-1: what measured_cost_cycles times (a function per pass, an ISR, or nothing)
         self.alternative_of = alternative_of  # a cheaper / narrower technique names the one it replaces
         self.caveats = caveats  # where it is NOT correct
         self.provenance = provenance

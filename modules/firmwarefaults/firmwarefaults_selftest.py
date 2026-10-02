@@ -80,14 +80,16 @@ def classes_and_rows():
     check('every kind extends FirmwareFault and names treeObject (the manifest scan), one class per file under objects/<family>/',
           all(issubclass(c, FirmwareFault) and 'treeObject' in [b.__name__ for b in c.__bases__] for c in FAULT_KIND_CLASSES)
           and all(os.path.isfile(os.path.join(HERE, 'objects', inspect.getmodule(c).__name__.split('.')[-2], c.__name__ + '.py')) for c in FAULT_KIND_CLASSES))
-    check('24 row classes (the base + 16 kinds + primitive, assumption, technique, scenario, step, run, trace cycle)', len(FIRMWAREFAULTS_CLASSES) == 24)
+    check('25 row classes (the base + 16 kinds + primitive, assumption, technique, scenario, step, run, trace cycle, sc-1\'s statistic)',
+          len(FIRMWAREFAULTS_CLASSES) == 25)
     check('every kind carries the base fields in its constructor (layer, assumption_broken, observable, remedies, rate, rate_source …)',
           all(set(BASE_FIELDS) <= set(inspect.signature(c.__init__).parameters) for c in FAULT_KIND_CLASSES))
     names = {c.__name__: c for c in FAULT_KIND_CLASSES}
     per = {}
     for cls, row in SEED_FAULT_ROWS:
         per.setdefault(cls, []).append(row)
-    check('ONE seeded row per kind (16)', sorted(per) == sorted(names) and all(len(v) == 1 for v in per.values()))
+    check('every kind has a seeded row; 17 rows (sc-1 added LivelockFault runaway-hang beside lost-ack-hang)',
+          sorted(per) == sorted(names) and len(SEED_FAULT_ROWS) == 17 and sorted(r['name'] for r in per['LivelockFault']) == ['lost-ack-hang', 'runaway-hang'])
     a_names = {a['name'] for a in SEED_ASSUMPTIONS}
     t_names = {t['name'] for t in SEED_TECHNIQUES}
     p_names = {p['name'] for p in SEED_PRIMITIVES}
@@ -123,24 +125,29 @@ def steps_and_scenarios():
     from firmwarefaults.custom import scenarios as SC
     from firmwarefaults.custom import runner
     from firmwarefaults.custom.sink import LocalSink
-    check('the step-kind catalogue holds all eight plan kinds; irq-at-pc, irq-at-cycle, corrupt-word are forcible; the rest say why not',
+    check('the step-kind catalogue: the eight plan kinds + sc-1\'s six harness kinds; only flip-bit-at-cycle, hold-lock-order, clock-skew are '
+          'not forcible, each saying why',
           sorted(SC.STEP_KINDS) == sorted(['irq-at-pc', 'irq-at-cycle', 'corrupt-word', 'drop-nth-frame', 'flip-bit-at-cycle', 'uart-ber',
-                                           'hold-lock-order', 'clock-skew'])
-          and sorted(SC.FORCIBLE_KINDS) == ['corrupt-word', 'irq-at-cycle', 'irq-at-pc']
+                                           'hold-lock-order', 'clock-skew', 'respond', 'inject-bytes', 'reset-at', 'jump-at', 'eeprom-preload',
+                                           'rx-noise'])
+          and sorted(k for k in SC.STEP_KINDS if k not in SC.FORCIBLE_KINDS) == ['clock-skew', 'flip-bit-at-cycle', 'hold-lock-order']
           and all(why for k, (ok, why) in SC.STEP_KINDS.items() if not ok))
-    check('seeded steps are only of forcible kinds, flagged so; scenario 1 and 1b are runnable',
-          all(s['kind'] in SC.FORCIBLE_KINDS and s['forcible'] and not s['not_forcible_reason'] for s in SC.SEED_STEPS)
-          and all(SC.runnable(s) for s in SC.SEED_SCENARIOS))
-    fake_sc = dict(SC.SEED_SCENARIOS[0], name='fixture-ber')
-    fake_steps = [{'name': 'fixture-ber#1', 'scenario': 'fixture-ber', 'order': 1, 'kind': 'uart-ber', 'args_json': '{"p": 1e-4}',
-                   'condition_json': '{}', 'forcible': False, 'not_forcible_reason': SC.STEP_KINDS['uart-ber'][1], 'notes': ''}]
+    runnable = [s for s in SC.SEED_SCENARIOS if SC.runnable(s)]
+    check('the seven UNO scenarios are runnable (every step forcible, flagged so); the two RTOS ones are not',
+          sorted(s['name'] for s in runnable) == sorted(['torn-millis-read', 'rx-ring-over-256', 'lost-ack-hang', 'button-bounce-double-count',
+                                                          'uart-residual-frame-loss', 'brownout-mid-eeprom-write', 'runaway-hang-watchdog'])
+          and all(st['forcible'] and not st['not_forcible_reason'] for sc in runnable for st in SC.steps_of(sc['name'])))
+    fake_sc = dict(SC.SEED_SCENARIOS[0], name='fixture-flip')
+    fake_steps = [{'name': 'fixture-flip#1', 'scenario': 'fixture-flip', 'order': 1, 'kind': 'flip-bit-at-cycle', 'args_json': '{"cycle": 1}',
+                   'condition_json': '{}', 'forcible': False, 'not_forcible_reason': SC.STEP_KINDS['flip-bit-at-cycle'][1], 'notes': ''}]
     check('a scenario with a NOT-YET-FORCIBLE step is not runnable', not SC.runnable(fake_sc, fake_steps))
     try:
         runner.run_side(fake_sc, 'before', LocalSink(), fake_steps)
         refused = ''
     except runner.ScenarioRefused as e:
         refused = str(e)
-    check('…and the runner REFUSES it before building anything, naming the kind and the reason', 'uart-ber' in refused and 'sc-1' in refused, refused)
+    check('…and the runner REFUSES it before building anything, naming the kind and the reason',
+          'flip-bit-at-cycle' in refused and 'not-yet-forcible' in refused and 'XOR' in refused, refused)
     s1 = SC.find('torn-millis-read')
     check('scenario 1: BEFORE uno-sim-rig-torn, AFTER uno-sim-rig, TornReadFault torn-read-g-ms breaks g-ms-read-atomic, technique atomic-block',
           (s1['before_variant'], s1['after_variant'], s1['fault_class'], s1['fault'], s1['breaks'], s1['technique'], s1['observable_kind'])
@@ -274,9 +281,11 @@ def seeds_page_api():
                 print('      ', cname, r.get('name'), e)
     check('every seed row constructs its class (no stray field)', ok)
     seeded = {n: len(rows) for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS}
-    check('seeded: 6 primitives, 12 assumptions, 10 techniques, 2 scenarios, 2 steps, 2 scenario variants; runs + trace rows observed only',
+    check('seeded: 6 primitives, 13 assumptions, 11 techniques, 9 scenarios, 14 steps, 11 scenario variants; runs, trace rows and '
+          'statistics observed only',
           (seeded['ConcurrencyPrimitive'], seeded['Assumption'], seeded['Technique'], seeded['Scenario'], seeded['ScenarioStep'],
-           seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle']) == (6, 12, 10, 2, 2, 2, 0, 0), seeded)
+           seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle'], seeded['ScenarioStatistic'])
+          == (6, 13, 11, 9, 14, 11, 0, 0, 0), seeded)
     check('what a run MEASURES is not converged by a re-seed (technique measured_*, a fault\'s rate / rate_source)',
           all('measured_by_run' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n == 'Technique' for r in rows)
           and all('rate_source' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n.endswith('Fault') for r in rows))
@@ -311,18 +320,27 @@ def seeds_page_api():
     construct_firmwarefaults_endpoints(SimpleNamespace(falconServer=app, manager=mgr, idList=[]))
     c = testing.TestClient(app)
     s = c.simulate_get('/api/firmwarefaults').json
-    check('GET /api/firmwarefaults: 16 fault rows by family, both scenarios runnable, the step-kind catalogue',
-          s['ok'] and s['fault_rows'] == 16 and all(x['runnable'] for x in s['scenarios']) and len(s['step_kinds']) == 8, str(s)[:300])
+    check('GET /api/firmwarefaults: 17 fault rows by family, 7 scenarios runnable + 2 RTOS ones refused with the reason, 14 step kinds',
+          s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 7
+          and all('FreeRTOS' in x['status'] for x in s['scenarios'] if not x['runnable']) and len(s['step_kinds']) == 14, str(s)[:300])
     f = c.simulate_get('/api/firmwarefaults/faults').json
     check('GET /api/firmwarefaults/faults groups the rows by family with the kind fields',
-          [len(f['families'][k]) for k in ('concurrency', 'physical-trigger', 'space-safety')] == [7, 6, 3]
+          [len(f['families'][k]) for k in ('concurrency', 'physical-trigger', 'space-safety')] == [8, 6, 3]
           and next(x for x in f['families']['concurrency'] if x['kind'] == 'TornReadFault')['width_bytes'] == 4)
     sc = c.simulate_get('/api/firmwarefaults/scenarios').json
-    check('GET /api/firmwarefaults/scenarios carries the ordered steps', [len(x['steps']) for x in sc['scenarios']] == [1, 1])
+    check('GET /api/firmwarefaults/scenarios carries the ordered steps (S2: respond + drop; S3: three INT0 raises; S5: preload, command, reset)',
+          {x['name']: len(x['steps']) for x in sc['scenarios']} == {'torn-millis-read': 1, 'rx-ring-over-256': 1, 'lost-ack-hang': 2,
+                                                                    'button-bounce-double-count': 3, 'uart-residual-frame-loss': 1,
+                                                                    'brownout-mid-eeprom-write': 3, 'runaway-hang-watchdog': 1,
+                                                                    'priority-inversion-mutex': 1, 'two-lock-deadlock': 1})
     check('GET /api/firmwarefaults/runs/<missing> → 404; POST /run without a scenario → 400',
           c.simulate_get('/api/firmwarefaults/runs/nope').status_code == 404
           and c.simulate_post('/api/firmwarefaults/run', body='{}').status_code == 400)
-    check('GET /api/firmwarefaults/techniques lists ten', len(c.simulate_get('/api/firmwarefaults/techniques').json['techniques']) == 10)
+    check('GET /api/firmwarefaults/techniques lists eleven (sc-1: rescan-keep-tail)', len(c.simulate_get('/api/firmwarefaults/techniques').json['techniques']) == 11)
+    st = c.simulate_get('/api/firmwarefaults/statistics')
+    check('GET /api/firmwarefaults/statistics answers (empty until `pol faults stats` runs)', st.status_code == 200 and st.json['statistics'] == [])
+    r = c.simulate_post('/api/firmwarefaults/run', body=json.dumps({'scenario': 'two-lock-deadlock', 'side': 'both'}))
+    check('POST /run of an RTOS scenario → 409 with the not-yet-forcible reason (nothing built)', r.status_code == 409 and 'FreeRTOS' in r.json['error'])
 
 
 def manifest():
@@ -337,8 +355,10 @@ def manifest():
 
 
 def main():
-    print('firmwarefaults selftest (sc-0)')
-    for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware, seeds_page_api, manifest):
+    print('firmwarefaults selftest (sc-0 + sc-1)')
+    from firmwarefaults.custom.selftest_sc1 import sc1_parts
+    for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware) + sc1_parts(check) \
+            + (seeds_page_api, manifest):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

@@ -21,11 +21,18 @@ import json
 import re
 
 #: app → the classes its C is written for (a generated header alone is not firmware)
-APP_CLASSES = {'sim_rig': ('SimRigState',), 'blink': ('SimRigState',), 'echo': ('SimRigState',), 'analog': ('UnoAnalogState',)}
+APP_CLASSES = {'sim_rig': ('SimRigState',), 'blink': ('SimRigState',), 'echo': ('SimRigState',), 'analog': ('UnoAnalogState',),
+               # sc-1 (module firmwarefaults): the SCENARIO app — one latent bug or its technique per build flag; no seeded
+               # board variant uses it (its variants are seeded by firmwarefaults, each marked SCENARIO ONLY)
+               'scenario_rig': ('SimRigState',)}
 #: app → the features it can use (a feature an app cannot use is refused, not ignored)
-APP_FEATURES = {'sim_rig': {'led', 'pwm', 'adc', 'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}}
+APP_FEATURES = {'sim_rig': {'led', 'pwm', 'adc', 'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'},
+                'scenario_rig': {'led', 'commands'}}
 #: app → the features it cannot work without
-APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}}
+APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}, 'scenario_rig': {'commands'}}
+#: sc-1: the generated header's RX parser (grpcbridge.custom.c_twin_v2.RX_PARSERS). A knob only a variant that sets it
+#: carries (absent = 'resync', so every existing build's repro block is unchanged)
+RX_PARSERS = ('resync', 'keep-tail')
 FEATURES = ('led', 'pwm', 'adc', 'commands')
 DEFAULT_VARIANT = 'uno-sim-rig'
 DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6,
@@ -166,6 +173,8 @@ def resolve(variant, overrides=None):
         why.append('instance_index %d without a bridge: one unbound instance is index 0' % k['instance_index'])
     if not k['send_name'] and not k['bridge']:
         why.append('send_name 0 without a bridge: an unbound board is identified by the name it sends')
+    if str(k.get('rx_parser', 'resync')) not in RX_PARSERS:
+        why.append('rx_parser %r: %s' % (k.get('rx_parser'), ' | '.join(RX_PARSERS)))
     if k['bridge'] and not re.match(r'^[A-Za-z0-9_.-]{1,63}$', str(k['bridge'])):
         why.append('bridge %r: letters, digits, . _ - only' % k['bridge'])
     if not re.match(r'^[A-Za-z0-9_.-]{1,63}$', str(k['rig_name'])):

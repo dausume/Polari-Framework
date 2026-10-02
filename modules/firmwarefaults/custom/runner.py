@@ -38,10 +38,23 @@ def _now():
 
 
 # ------------------------------------------------------------------ builds
-def prepare_build(variant, home=None):
-    """gen + build ONE variant (offline, pinned contract) → the build record, its bytes, the parsed ELF, the static stack."""
+_BUILDS = {}
+
+
+def prepare_build(variant, home=None, cache=False):
+    """gen + build ONE variant (offline, pinned contract) → the build record, its bytes, the parsed ELF, the static stack.
+    cache=True reuses this process's earlier build of the same variant (the statistics tier runs one build many times)."""
     from board.custom import gen, build
     home = home or S.home()
+    if cache and (variant, home) in _BUILDS:
+        return _BUILDS[(variant, home)]
+    out = _prepare_build(variant, home, gen, build)
+    if cache:
+        _BUILDS[(variant, home)] = out
+    return out
+
+
+def _prepare_build(variant, home, gen, build):
     work = os.path.join(home, 'builds', variant)
     row = gen.gen('uno', None, work, variant=variant, variant_rows=SC.scenario_variants())
     row = build.build('uno', work)
@@ -118,7 +131,8 @@ def _base_run(sc, side, variant, b, seed, technique):
             'stack_high_water': 0, 'stack_high_water_paint': 0, 'stack_static_peak': int((b.get('stack_static') or {}).get('peak_bytes') or 0),
             'isr_latency_max_cycles': 0, 'isr_latency_vector': 0, 'fn_cycles_min': 0, 'size_text': row.get('size_text', 0),
             'size_data': row.get('size_data', 0), 'size_bss': row.get('size_bss', 0), 'cost_delta_json': '{}', 'cost_flash_bytes_delta': 0,
-            'cost_cycles_delta': 0, 'latency_delta_cycles': 0, 'claim': '', 'repro_json': '{}', 'ran_at': _now(), 'notes': ''}
+            'cost_cycles_delta': 0, 'latency_delta_cycles': 0, 'claim': '', 'repro_json': '{}', 'ran_at': _now(), 'notes': '',
+            'observable_value': '', 'reset_count': 0, 'isr_cycles_max': 0, 'isr_cycles_vector': 0}
 
 
 def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None):
@@ -128,9 +142,9 @@ def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None):
     technique = sc['technique'] if side == 'after' else ''
     if side == 'after' and not variant:
         raise ScenarioRefused('scenario %s has no AFTER build (its technique is %s)' % (sc['name'], sc['technique']))
-    bad = [s['kind'] for s in steps if s['kind'] not in SC.FORCIBLE_KINDS]
-    if bad and side != 'natural':
-        raise ScenarioRefused('scenario %s is not-yet-forcible: step kind(s) %s — %s' % (sc['name'], ', '.join(bad), '; '.join(SC.STEP_KINDS[k][1] for k in bad)))
+    why = SC.refusal(sc, steps)
+    if why and side != 'natural':
+        raise ScenarioRefused(why)
     t0 = datetime.datetime.now()
     b = prepare_build(variant, home)
     run = _base_run(sc, side, variant, b, seed, technique if sc['observable_kind'] != 'build-refused' else sc['technique'])
@@ -236,9 +250,28 @@ def run_scenario(name, side='both', sink=None, seconds=None, seed=None, home=Non
     sc = SC.find(name, scenario_rows)
     if sc is None:
         raise ScenarioRefused('no scenario %r — `pol faults list`' % name)
-    sides = {'both': ['before', 'after'], 'before': ['before'], 'after': ['after'], 'natural': ['natural']}.get(side)
+    sides = {'both': ['before', 'after'], 'before': ['before'], 'after': ['after'], 'natural': ['natural'], 'control': ['control']}.get(side)
     if sides is None:
-        raise ScenarioRefused('side must be before | after | both | natural')
+        raise ScenarioRefused('side must be before | after | both | natural | control')
+    why = SC.refusal(sc, SC.steps_of(sc['name'], step_rows))
+    if why:
+        raise ScenarioRefused(why)
+    from firmwarefaults.custom import runner_sc1
+    if sc['observable_kind'] in runner_sc1.KINDS:
+        if side == 'natural':
+            raise ScenarioRefused('scenario %s has no natural run (its trigger is forced by construction) — its rates come from '
+                                  '`pol faults stats %s`' % (name, name))
+        if side == 'both':
+            runs = runner_sc1.run_pair(sc, sink, seconds, seed, home, step_rows)
+        elif side == 'control':
+            runs = [runner_sc1.run_control(sc, sink, seed=seed, home=home, steps=step_rows)[0]]
+        else:
+            runs = [runner_sc1.run_side(sc, side, sink, step_rows, seconds, seed, home)]
+        for r in runs:
+            r['claim_status'] = _claim_status(sink, r['claim']) if r.get('claim') else ''
+        return {'scenario': sc, 'runs': runs, 'sink': sink}
+    if side == 'control':
+        raise ScenarioRefused('scenario %s has no control run' % name)
     if sc['observable_kind'] == 'build-refused':
         sides = ['before']
     runs = [run_side(sc, s, sink, step_rows, seconds, seed, home) for s in sides]
@@ -291,7 +324,8 @@ def natural_rate_row(sc, run, sink):
                             'forcing, from reset). The twin is deterministic and the tick shares the CPU clock: every run from reset repeats '
                             'these same %d carries at the same phases. Exposure if the phase were uniform (asynchronous RX traffic): %.2f %% per '
                             'carry = 2 cycles of load 1 x %d hal_millis calls / %d cycles, i.e. %.2f tears expected here (P(0) = %.2f) — so %d of '
-                            '%d does not by itself separate a locked phase from bad luck; the seed phase sweep (sc-2) does. The plan\'s ≈ 13 %% '
+                            '%d does not by itself separate a locked phase from bad luck; the seed phase sweep does (`pol faults stats torn-millis-read`, sc-1: '
+                            'no lock — 3.12 %% per carry over 60 seeds). The plan\'s ≈ 13 %% '
                             'counted three gaps; only the load-1/load-2 gap tears at a byte-0 carry.')
                            % (run['name'], nat.get('tears', 0), nat.get('carries', 0), run['sim_seconds'], run['variant'], run['seed'],
                               nat.get('carries', 0), 100.0 * nat.get('exposure_per_carry', 0.0), nat.get('calls', 0), nat.get('cycles', 0),

@@ -22,9 +22,18 @@ STEP_KINDS = {
     'irq-at-pc': (True, '--irq-at pc=0x…,vec=N[,when=…] (twin_forcing.c: raise + service at the instruction boundary)'),
     'irq-at-cycle': (True, '--irq-at cycle=N,vec=N (raised at the first boundary >= N; the core services it)'),
     'corrupt-word': (True, '--poke 0xADDR/W=0xVAL@CYCLE (avr_core_watch_write per byte)'),
-    'drop-nth-frame': (False, 'needs --drop-frame on the TX/RX path and a request/ack variant to drop from (sc-1)'),
-    'flip-bit-at-cycle': (False, '--poke writes a value; an XOR of one bit at a cycle is sc-1'),
-    'uart-ber': (False, 'needs --uart-ber p with seeded draws on the RX feed (sc-1, scenario 4)'),
+    'drop-nth-frame': (True, '--drop-frame rx:N (twin_scenario_io.c: the Nth host→board unit never reaches the board; tx: is refused — '
+                             'no scenario needs it yet)'),
+    'flip-bit-at-cycle': (False, '--poke writes a value; an XOR of one bit at a cycle is not built yet (no sc-1 scenario needs it)'),
+    'uart-ber': (True, '--uart-ber P --seed S (every host→board bit flips with probability P: data → XOR, stop → framing error, '
+                       'start → the byte lost)'),
+    # sc-1 (twin_scenario_io.c)
+    'respond': (True, '--respond 0xPATTERN=FILE,delay=CYC (a scripted host: a reply queued whenever the TX stream ends with PATTERN)'),
+    'inject-bytes': (True, '--inject FILE@CYCLE (host→board bytes at one byte time, only while the UART raises XON)'),
+    'reset-at': (True, '--reset-at pc=0x…,nth=K,after=C | cycle=N (avr_reset() once — simavr has no brown-out model)'),
+    'jump-at': (True, '--jump-at cycle=N,pc=0x… (a runaway: the PC set once)'),
+    'eeprom-preload': (True, '--eeprom-set 0xADDR=HEX before reset (+ --eeprom-dump to read it back at the reset and at exit)'),
+    'rx-noise': (True, '--rx-noise RATE (asynchronous single bytes, exponential gaps from --seed — the statistics tier\'s phase randomiser)'),
     'hold-lock-order': (False, 'the UNO has no RTOS and no locks; needs the ESP32-C3 FreeRTOS twin (sc-3, D-sc-4)'),
     'clock-skew': (False, 'one simavr process runs one clock; skew needs two clocked parties (Renode, sc-3)'),
 }
@@ -70,7 +79,7 @@ def _step(scenario, order, kind, args, condition=None, notes=''):
             'condition_json': J(condition or {}), 'forcible': ok, 'not_forcible_reason': '' if ok else why, 'notes': notes}
 
 
-SEED_STEPS = [
+_SC0_STEPS = [
     _step('torn-millis-read', 1, 'irq-at-pc',
           {'symbol': 'hal_millis', 'pattern': 'lds-sequence', 'of': 'g_ms', 'before_load': 2, 'vec': TIMER2_COMPA,
            'vector_name': 'TIMER2_COMPA', 'shots': 1},
@@ -83,6 +92,15 @@ SEED_STEPS = [
 ]
 
 
+def _sc1():
+    from firmwarefaults.custom import scenarios_sc1
+    return scenarios_sc1
+
+
+SEED_SCENARIOS = SEED_SCENARIOS + _sc1().SC1_SCENARIOS
+SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps()
+
+
 def _variant(name, title, purpose, flags, watch, notes):
     from board.custom.variants import SEED_FIRMWARE_VARIANTS
     base = next(v for v in SEED_FIRMWARE_VARIANTS if v['name'] == 'uno-sim-rig')
@@ -90,7 +108,11 @@ def _variant(name, title, purpose, flags, watch, notes):
 
 
 def scenario_variants():
-    """The two scenario variants (FirmwareVariant rows) — built lazily so importing this file never needs board."""
+    """The scenario variants (FirmwareVariant rows): sc-0's two + sc-1's nine — built lazily so importing this file never needs board."""
+    return _sc0_variants() + _sc1().sc1_variants()
+
+
+def _sc0_variants():
     return [
         _variant('uno-sim-rig-torn', 'SCENARIO ONLY — the whole rig with the bare (torn) millis read',
                  'sc-0 scenario torn-millis-read, the BEFORE build: HAL_MILLIS_ATOMIC 0 reads the 4-byte tick g_ms without masking '
@@ -112,9 +134,26 @@ def steps_of(scenario, steps=None):
 
 
 def runnable(scenario, steps=None):
-    """A scenario is runnable only when EVERY step's kind is forcible today (the selftest pins it)."""
-    st = steps_of(scenario['name'] if isinstance(scenario, dict) else scenario, steps)
+    """A scenario is runnable only when EVERY step's kind is forcible today and its status does not say otherwise (the
+    selftest pins it). sc-1: the RTOS scenarios carry status `not-yet-forcible: …` with the reason."""
+    name = scenario['name'] if isinstance(scenario, dict) else scenario
+    row = scenario if isinstance(scenario, dict) else (find(name) or {})
+    if str(row.get('status', 'runnable')).startswith('not-yet-forcible'):
+        return False
+    st = steps_of(name, steps)
     return all(s['kind'] in FORCIBLE_KINDS for s in st)
+
+
+def refusal(scenario, steps=None):
+    """Why a scenario cannot run on its simulator today ('' when it can)."""
+    name = scenario['name'] if isinstance(scenario, dict) else scenario
+    row = scenario if isinstance(scenario, dict) else (find(name) or {})
+    if str(row.get('status', 'runnable')).startswith('not-yet-forcible'):
+        return 'scenario %s is %s' % (name, row['status'])
+    bad = [s['kind'] for s in steps_of(name, steps) if s['kind'] not in FORCIBLE_KINDS]
+    if bad:
+        return 'scenario %s is not-yet-forcible: step kind(s) %s — %s' % (name, ', '.join(bad), '; '.join(STEP_KINDS[k][1] for k in bad))
+    return ''
 
 
 def find(name, rows=None):

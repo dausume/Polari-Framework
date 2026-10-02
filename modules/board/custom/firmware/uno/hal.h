@@ -28,6 +28,23 @@
 #define FEATURE_COMMANDS 1
 #endif
 
+/* sc-1 scenario knobs (FIRMWARE_SCENARIO_PLAN.md §3a/§4) — every shipped variant leaves them 0, so its .hex is unchanged */
+#ifndef HAL_UART_ERRCOUNT
+#define HAL_UART_ERRCOUNT 0        /* 1: count FE0 / DOR0 / ring-full drops in the RX ISR */
+#endif
+#ifndef HAL_INT0
+#define HAL_INT0 0                 /* 1: a button on D2 (INT0) counts presses */
+#endif
+#ifndef HAL_INT0_DEBOUNCE_MS
+#define HAL_INT0_DEBOUNCE_MS 0     /* 0: every edge counts; N: edges within N ms of the last counted one are ignored */
+#endif
+#ifndef HAL_WDT
+#define HAL_WDT 0                  /* 1: the watchdog on (reset mode), kicked once per main-loop pass */
+#endif
+#ifndef HAL_WDT_PERIOD
+#define HAL_WDT_PERIOD 4           /* WDTO_250MS (avr/wdt.h: 0 = 15 ms … 9 = 8 s) */
+#endif
+
 #define TELEMETRY_MS (1000u / TELEMETRY_HZ)
 
 void hal_usart_init(void);
@@ -38,6 +55,19 @@ void hal_usart_send(const uint8_t *b, size_t n);
 
 void hal_tick_init(void);
 uint32_t hal_millis(void);
+
+#if FEATURE_COMMANDS && HAL_UART_ERRCOUNT
+uint16_t hal_uart_errors(uint8_t which);   /* 0 = framing errors (FE0), 1 = data overruns (DOR0), 2 = ring-full drops */
+#endif
+#if HAL_INT0
+void hal_button_init(void);
+uint16_t hal_presses(void);
+#endif
+#if HAL_WDT
+#include <avr/wdt.h>
+#define hal_wdt_init() wdt_enable(HAL_WDT_PERIOD)
+#define hal_wdt_kick() wdt_reset()
+#endif
 
 #if FEATURE_LED
 void hal_led_init(void);

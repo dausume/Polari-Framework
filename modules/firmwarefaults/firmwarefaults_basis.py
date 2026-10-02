@@ -12,6 +12,7 @@ from firmwarefaults.objects.firmwarefaults.Scenario import Scenario  # noqa: F40
 from firmwarefaults.objects.firmwarefaults.ScenarioStep import ScenarioStep  # noqa: F401
 from firmwarefaults.objects.firmwarefaults.ScenarioRun import ScenarioRun  # noqa: F401
 from firmwarefaults.objects.firmwarefaults.ScenarioTraceCycle import ScenarioTraceCycle  # noqa: F401
+from firmwarefaults.objects.firmwarefaults.ScenarioStatistic import ScenarioStatistic  # noqa: F401
 from firmwarefaults.objects.concurrency import (TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault,  # noqa: F401
                                                 DeadlockFault, LivelockFault, StarvationFault)
 from firmwarefaults.objects.physical import (UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault,  # noqa: F401
@@ -29,4 +30,4 @@ FAULT_CLASS_NAMES = [c.__name__ for c in FAULT_KIND_CLASSES]
 
 #: every row class of the module, in registration order
 FIRMWAREFAULTS_CLASSES = [FirmwareFault] + FAULT_KIND_CLASSES + [ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep,
-                                                                 ScenarioRun, ScenarioTraceCycle]
+                                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic]

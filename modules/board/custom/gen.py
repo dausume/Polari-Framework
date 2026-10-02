@@ -76,9 +76,13 @@ def pinned_contract(cls):
     return c, path
 
 
-def header(cls, api='', msg_type=1, manager=None, bridge=''):
+def header(cls, api='', msg_type=1, manager=None, bridge='', rx_parser='resync'):
     """(text, provenance) of `<cls>_packets.h` with target=avr — brd-wire: the WIRE V2 header (prelude: instance index in
-    the width `bridge`'s bindings imply + presence bits; the EnumMappings as enums)."""
+    the width `bridge`'s bindings imply + presence bits; the EnumMappings as enums). sc-1: `rx_parser` 'keep-tail' renders
+    the receiver fix (c_twin_v2.RX_PARSERS) — offline from the pinned contract only (a server's header is its own)."""
+    if rx_parser != 'resync' and (api or manager is not None):
+        raise GenRefused('rx_parser %s is rendered offline from the pinned contract only — a live or in-process header is the '
+                         'server\'s own (drop --api / generate offline)' % rx_parser)
     if api:
         url = '%s/api/grpc/exposures/%s/c-header?msg_type=%d&target=avr&wire=2&bridge=%s' % (api.rstrip('/'), cls, int(msg_type), bridge)
         from polariApiServer import outbound
@@ -105,7 +109,7 @@ def header(cls, api='', msg_type=1, manager=None, bridge=''):
     c, path = pinned_contract(cls)
     spec = compat.wire_spec(None, cls, c['field_map'], bridge)
     text = render_c_header(cls, c['field_map'], int(msg_type), version=c['contract_version'], contract_hash=c['contract_hash'], target='avr',
-                           wire=spec)
+                           wire=spec, rx_parser=rx_parser)
     return text, {'source': 'pinned', 'path': os.path.relpath(path, os.path.dirname(MOD)), 'sha256': sha256(open(path, 'rb').read()),
                   'contract_version': c['contract_version'], 'contract_hash': c['contract_hash'], 'tag_order': compat.tag_order(c['field_map']),
                   'hash_v2': spec['hash_v2'], 'index_width': spec['index_width'], 'instance_count': spec['instance_count']}
@@ -174,8 +178,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     shutil.copy(app_src, os.path.join(project, 'main.c'))
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
+    rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
     for i, cls in enumerate(r['classes']):
-        text, prov = header(cls, api, i + 1, manager, bridge)
+        text, prov = header(cls, api, i + 1, manager, bridge, rx_parser)
         width = int(prov.get('index_width') or 0)
         prov['indexed'] = '%s_INDEX_WIDTH' % cls.upper() in text   # elided entirely for a single instance
         count = int(prov.get('instance_count') or 1)

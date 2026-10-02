@@ -9,7 +9,10 @@ GET  /api/firmwarefaults/scenarios       the scenarios with their ordered steps 
 GET  /api/firmwarefaults/runs            every ScenarioRun (newest first)
 GET  /api/firmwarefaults/runs/{run}      one run + its trace rows + the claim it wrote
 GET  /api/firmwarefaults/engines         where avr-twin / avr-objdump / avr-nm / vcd-window WOULD run (nothing is run)
-POST /api/firmwarefaults/run             body {scenario, side: before|after|both|natural, seconds?, seed?} — RUNS it here (the
+GET  /api/firmwarefaults/statistics      sc-1: the ScenarioStatistic rows (seeded rates with their Wilson intervals)
+POST /api/firmwarefaults/stats           sc-1: body {scenario: uart-residual-frame-loss | torn-millis-read, seeds?, bers?} — runs the
+                                         statistics batch HERE (minutes) and writes the rows + the fault row's measured rate
+POST /api/firmwarefaults/run             body {scenario, side: before|after|both|natural|control, seconds?, seed?} — RUNS it here (the
                                          engines resolve on THIS server's device), writes ScenarioRun + ScenarioTraceCycle rows,
                                          the MathClaim + ProofRun, a pair's measured technique cost, a natural run's measured rate
 """
@@ -35,6 +38,8 @@ class FirmwareFaultsAPI(treeObject):
             add('/api/firmwarefaults/runs/{run}', self, suffix='run_one')
             add('/api/firmwarefaults/engines', self, suffix='engines')
             add('/api/firmwarefaults/run', self, suffix='run')
+            add('/api/firmwarefaults/statistics', self, suffix='statistics')
+            add('/api/firmwarefaults/stats', self, suffix='stats')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -85,7 +90,8 @@ class FirmwareFaultsAPI(treeObject):
     def on_get_runs(self, request, response):
         keys = ('name', 'scenario', 'side', 'variant', 'build_name', 'technique_applied', 'outcome', 'verdict_words', 'fault_cycle', 'fault_pc',
                 'fault_symbol', 'landed_pc', 'landed_symbol', 'torn_value', 'frames_seen', 'frames_backwards', 'cost_flash_bytes_delta',
-                'cost_cycles_delta', 'latency_delta_cycles', 'claim', 'trace_sha256', 'firmware_sha256', 'seed', 'ran_at')
+                'cost_cycles_delta', 'latency_delta_cycles', 'claim', 'trace_sha256', 'firmware_sha256', 'seed', 'ran_at', 'observable_value',
+                'reset_count', 'isr_cycles_max')
         runs = sorted(self._rows('ScenarioRun'), key=lambda r: getattr(r, 'ran_at', '') or '', reverse=True)
         response.media = {'ok': True, 'runs': [self._d(r, keys) for r in runs]}
 
@@ -103,6 +109,41 @@ class FirmwareFaultsAPI(treeObject):
         from firmwarefaults.custom.fault_engines import placement, harness_digest
         response.media = {'ok': True, 'engines': placement(), 'harness': harness_digest()}
 
+    def on_get_statistics(self, request, response):
+        rows = sorted(self._rows('ScenarioStatistic'), key=lambda r: getattr(r, 'name', ''))
+        response.media = {'ok': True, 'statistics': [self._d(r) for r in rows]}
+
+    def on_post_stats(self, request, response):
+        from firmwarefaults.custom import statistics as ST
+        from firmwarefaults.custom.sink import ManagerSink
+        from firmwarefaults.custom.runner import ScenarioRefused
+        from board.custom.engine_run import EngineRefused
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception as e:  # noqa: BLE001
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'bad JSON: %s' % e}
+            return
+        name, seeds = body.get('scenario') or '', int(body.get('seeds') or ST.SEEDS)
+        if name not in ('uart-residual-frame-loss', 'torn-millis-read') or not 1 <= seeds <= 200:
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'body needs {scenario: uart-residual-frame-loss | torn-millis-read, seeds: 1..200}'}
+            return
+        sink = ManagerSink(self.manager)
+        try:
+            if name == 'uart-residual-frame-loss':
+                out = ST.uart_ber(sink, bers=tuple(float(b) for b in (body.get('bers') or ST.BERS)), seeds=seeds)
+                rows = list(out.values())
+            else:
+                out = ST.tear_phase_sweep(sink, seeds=seeds)
+                rows = [out['natural_row'], out['sweep']]
+        except (ScenarioRefused, EngineRefused) as e:
+            response.status = falcon.HTTP_409
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        response.status = falcon.HTTP_201
+        response.media = {'ok': True, 'scenario': name, 'statistics': [{k: v for k, v in r.items() if k != 'repro_json'} for r in rows]}
+
     def on_post_run(self, request, response):
         from firmwarefaults.custom import runner
         from firmwarefaults.custom.sink import ManagerSink
@@ -116,7 +157,7 @@ class FirmwareFaultsAPI(treeObject):
         name, side = body.get('scenario') or '', body.get('side') or 'both'
         if not name:
             response.status = falcon.HTTP_400
-            response.media = {'ok': False, 'error': 'body needs {scenario, side: before|after|both|natural}'}
+            response.media = {'ok': False, 'error': 'body needs {scenario, side: before|after|both|natural|control}'}
             return
         steps = [self._d(s) for s in self._rows('ScenarioStep')] or None
         scen = [self._d(s) for s in self._rows('Scenario')] or None

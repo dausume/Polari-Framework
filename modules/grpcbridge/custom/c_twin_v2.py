@@ -23,6 +23,8 @@ The shared block (guard POLARI_PACKET_V2_COMMON_H) accepts frame versions 1..4 a
 (brd-fi finding (3)): on a bad magic / version / oversize / CRC the parser keeps the bytes it holds and slides to the
 next 0x4C inside them, instead of dropping them. Its function names equal the v1 block's on purpose: a v1 and a v2
 class header in one translation unit fail to compile (one unit speaks one wire version).
+sc-1 (FIRMWARE_SCENARIO_PLAN.md scenario 4): `render(..., rx_parser='keep-tail')` swaps in a receiver that also keeps the bytes
+FOLLOWING a rescued frame inside the rejected span (the documented residual); the default 'resync' text is unchanged.
 
 `target=avr` as in c_twin (software binary32↔binary64 for double fields, AVR-clean comparisons). The v1 header
 (c_twin.render_c_header without `wire`) is untouched — its sha is pinned.
@@ -126,6 +128,59 @@ static int polari_rx_feed(polari_rx_t *rx, uint8_t b)
 
 #endif /* POLARI_PACKET_V2_COMMON_H */'''.replace('__HELPERS__', _HELPERS)
 
+#: sc-1 (FIRMWARE_SCENARIO_PLAN.md §3a scenario 4): the RX parser variants. 'resync' = the grpc-j4 parser above (the default:
+#: every existing header is byte-identical). 'keep-tail' fixes the documented residual — a frame found by the rescan
+#: that is FOLLOWED, inside the same rejected span, by part of the next frame no longer loses those trailing bytes:
+#: they are kept (rx->tail) and re-examined on the next feed. The wire is unchanged (a receiver-side change only), so
+#: every host parser accepts both. Cost: two size_t in polari_rx_t + a memmove per rescued frame.
+RX_PARSERS = ('resync', 'keep-tail')
+_RX_STRUCT_TAIL = ('''    uint16_t payload_len;
+} polari_rx_t;''', '''    uint16_t payload_len;
+    size_t tail;   /* keep-tail: bytes held after the frame last returned (re-examined on the next feed) */
+    size_t used;   /* keep-tail: that frame's length */
+} polari_rx_t;''')
+_RX_FEED_TAIL = (('''/* Feed one byte; returns 1 when rx holds a complete CRC-valid frame (version / msg_type / payload populated, valid
+ * until the next feed). A rejected candidate is NOT thrown away: the parser slides to the next 0x4C among the bytes it
+ * already holds and re-examines them, so a frame that starts inside garbage or inside a corrupted frame is kept. */
+static int polari_rx_feed(polari_rx_t *rx, uint8_t b)
+{
+    size_t i;
+    int r;
+    rx->buf[rx->have++] = b;''', '''/* Feed one byte; returns 1 when rx holds a complete CRC-valid frame (version / msg_type / payload populated, valid
+ * until the next feed). A rejected candidate is NOT thrown away: the parser slides to the next 0x4C among the bytes it
+ * already holds and re-examines them, so a frame that starts inside garbage or inside a corrupted frame is kept.
+ * KEEP-TAIL (sc-1): bytes that follow a rescued frame inside the held span are kept and re-examined on the next feed
+ * (a frame wholly inside them completes one byte later), instead of being dropped with the span. */
+static int polari_rx_feed(polari_rx_t *rx, uint8_t b)
+{
+    size_t i;
+    int r;
+    if (rx->tail) {
+        memmove(rx->buf, rx->buf + rx->used, rx->tail);
+        rx->have = rx->tail;
+        rx->tail = 0u;
+    }
+    rx->buf[rx->have++] = b;'''), ('''            rx->payload_len = rx->need_payload;
+            rx->have = 0u;
+            return 1;''', '''            rx->payload_len = rx->need_payload;
+            rx->used = POLARI_HEADER_LEN + (size_t)rx->need_payload + 4u;
+            rx->tail = rx->have - rx->used;
+            rx->have = 0u;
+            return 1;'''))
+
+
+def common_block(rx_parser='resync'):
+    """The shared framing block with the chosen RX parser ('resync' returns _COMMON_V2 unchanged)."""
+    if rx_parser not in RX_PARSERS:
+        raise ValueError('rx_parser %r — one of %s' % (rx_parser, ', '.join(RX_PARSERS)))
+    if rx_parser == 'resync':
+        return _COMMON_V2
+    out = _COMMON_V2.replace(*_RX_STRUCT_TAIL)
+    for a, b in _RX_FEED_TAIL:
+        assert out.count(a) == 1, a
+        out = out.replace(a, b)
+    return out
+
 
 def _uint_for(bits):
     for t, n in (('uint8_t', 8), ('uint16_t', 16), ('uint32_t', 32)):
@@ -191,7 +246,7 @@ def _field_code(cls, upper, f, avr):
     return struct, [enc], [dec]
 
 
-def render(class_name, s, msg_type, version=0, contract_hash='', target='host'):
+def render(class_name, s, msg_type, version=0, contract_hash='', target='host', rx_parser='resync'):
     avr = target == 'avr'
     upper = class_name.upper()
     w, n, nbytes, ib = s['index_width'], s['field_count'], s['bitfield_bytes'], s['index_bytes']
@@ -219,7 +274,7 @@ def render(class_name, s, msg_type, version=0, contract_hash='', target='host'):
                          f'static inline const char *{class_name}_{f["name"]}_name(uint8_t v)\n{{\n    switch (v) {{\n{cases}\n'
                          f'    default: return "{f["enum"]["unknown"]}";\n    }}\n}}')
     has_double = any(f['ptype'] == 'double' and not f['enum'] for f in s['fields'])
-    common = _COMMON_V2 + ('\n\n' + _AVR_DOUBLE if avr and has_double else '')
+    common = common_block(rx_parser) + ('\n\n' + _AVR_DOUBLE if avr and has_double else '')
     head_enc = ''.join(f'    p[{i}] = (uint8_t)(index >> {8 * i});\n' if i else '    p[0] = (uint8_t)index;\n' for i in range(ib)) + \
         (f'    p += {ib};  /* the explicit index (v{s["wire_version"]}) */\n' if ib else '')
     head_dec = (f'    if (index) *index = ({idx_t})' + (' | '.join(f'(({idx_t})p[{i}] << {8 * i})' if i else f'({idx_t})p[0]' for i in range(ib)))
@@ -229,7 +284,7 @@ def render(class_name, s, msg_type, version=0, contract_hash='', target='host'):
     idx_mask = f'(({pre_t})1u << {w}) - 1u' if w else '0u'
     enc_decl = '\n    uint32_t lo, hi;' if avr and has_double else ''
     nl = '\n'
-    target_note = '   target avr' if avr else ''
+    target_note = ('   target avr' if avr else '') + ('   rx parser keep-tail (sc-1)' if rx_parser != 'resync' else '')
     return f'''/* Generated by Polari grpcbridge.custom.c_twin (grpc-j3) + c_twin_v2 (grpc-j4) — do not edit.
  * class: {class_name}   contract v{version}   hash {contract_hash}{target_note}
  * wire v{s["wire_version"]}   hash2 {s["hash_v2"]}   {"single instance: nothing to tell apart (presence bits only)" if one else f'index width {w} bit(s) ({s["instance_count"]} instance(s), index {s["index_repr"]}' + (f", {ib} byte(s)" if ib else "") + f'; suggested {s["suggested_index_width"]} bit(s), packed_max_bits {s["packed_max_bits"]})'}   prelude {s["prelude_bytes"]} byte(s)
