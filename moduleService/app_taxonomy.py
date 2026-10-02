@@ -56,6 +56,8 @@ DEFAULTS = {
     'board': ('polari', ['materials-devices', 'chip-simulation'], ['boards', 'usb', 'firmware', 'arduino']),
     # sc-0: firmware fault scenarios (FIRMWARE_SCENARIO_PLAN)
     'firmwarefaults': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'concurrency', 'faults', 'simulation']),
+    # cmod-0: C modularization — atoms of a normal C project (C_MODULARIZATION_PLAN)
+    'cmod': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'c', 'atoms', 'no-code']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),
     'motors': ('polari', ['materials-devices', 'making-mechanics'], ['motors']),

@@ -70,6 +70,9 @@ ISR(USART_RX_vect)
 }
 #endif
 
+POLARI_NODE(hal_rx_pop, out(b, "byte", "the oldest received byte, when one is waiting"),
+            out(return, "flag", "1 = a byte was popped, 0 = the ring is empty"), uses(USART0),
+            role("pop one byte from the USART0 RX ring the RX ISR fills"))
 int hal_rx_pop(uint8_t *b)
 {
     if (rx_tail == rx_head) return 0;
@@ -96,6 +99,8 @@ void hal_usart_init(void)
 #endif
 }
 
+POLARI_NODE(hal_usart_send, in(b, "bytes", "the frame to send"), in(n, "B", "how many bytes"),
+            role("send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)"))
 void hal_usart_send(const uint8_t *b, size_t n)
 {
     while (n--) {
@@ -125,6 +130,8 @@ void hal_tick_init(void)
 #define HAL_MILLIS_ATOMIC 1
 #endif
 
+POLARI_NODE(hal_millis, out(return, "ms", "milliseconds since hal_tick_init, from the Timer2 1 ms tick"),
+            role("read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)"))
 uint32_t hal_millis(void)
 {
     uint32_t v;
@@ -201,6 +208,8 @@ void hal_wdt_boot(void)
 
 void hal_led_init(void) { LED_DDR |= _BV(LED_BIT); }
 
+POLARI_NODE(hal_led, in(on, "bool", "0 = off, anything else = on"), uses(LED_PIN),
+            role("set the LED on LED_PIN"))
 void hal_led(uint8_t on)
 {
     if (on) LED_PORT |= _BV(LED_BIT); else LED_PORT &= (uint8_t)~_BV(LED_BIT);
@@ -235,6 +244,8 @@ void hal_pwm_init(void)
     PWM_OCR = 0u;
 }
 
+POLARI_NODE(hal_pwm_apply, in(duty, "%", "requested duty 0..100 (clamped)"), out(return, "%", "the duty applied"),
+            uses(PWM_PIN), role("set the PWM duty on PWM_PIN (OCR = duty*255/100)"))
 int64_t hal_pwm_apply(int64_t duty)
 {
     if (duty < 0) duty = 0;
@@ -252,6 +263,8 @@ void hal_adc_init(void)
     ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
 }
 
+POLARI_NODE(hal_adc_read, in(channel, "", "A0..A5 (0..5)"), out(return, "count", "10-bit ADC = Vin*1024/Vref, 0..1023"),
+            role("one blocking ADC conversion, AVcc reference"))
 uint16_t hal_adc_read(uint8_t channel)
 {
     ADMUX = (uint8_t)(_BV(REFS0) | (channel & 0x07u));

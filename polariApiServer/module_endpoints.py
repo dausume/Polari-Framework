@@ -549,6 +549,12 @@ def construct_firmwarefaults_endpoints(polServer):
     return build(polServer)
 
 
+def construct_cmod_endpoints(polServer):
+    # cmod-0: /api/cmod — C projects, atoms, ports, the engines placement, drift of a committed manifest
+    from cmod.cmod_endpoints import construct_cmod_endpoints as build
+    return build(polServer)
+
+
 def construct_iso_endpoints(polServer):
     # iso-1: /downloads/iso + /api/iso (probe → choose → install)
     from iso.iso_endpoints import construct_iso_endpoints as build
@@ -569,6 +575,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'computelod': construct_computelod_endpoints,
     'board': construct_board_endpoints,
     'firmwarefaults': construct_firmwarefaults_endpoints,
+    'cmod': construct_cmod_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,

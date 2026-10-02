@@ -40,6 +40,9 @@
 #endif
 
 #if FEATURE_ADC
+POLARI_NODE(sensor_value, in(adc, "count", "10-bit ADC reading"),
+            out(return, "degC", "TMP36 temperature (or the raw count when TEMP_TMP36 is 0)"),
+            role("ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)"))
 static polari_avr_double_t sensor_value(uint16_t adc)
 {
 #if TEMP_TMP36
@@ -63,6 +66,8 @@ static uint8_t wire[POLARI_HEADER_LEN + SIMRIGSTATE_PAYLOAD_MAX + 4u];
     | (FEATURE_ADC ? SIMRIGSTATE_F_TEMP_C : 0u) | (FEATURE_LED ? SIMRIGSTATE_F_LED_ON : 0u) \
     | (FEATURE_PWM ? SIMRIGSTATE_F_PWM_DUTY : 0u) | (SEND_NAME ? SIMRIGSTATE_F_NAME : 0u)))
 
+POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket SimRigState command"), uses(LED_PIN, PWM_PIN),
+            role("apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded"))
 static void apply_command(const polari_rx_t *r)
 {
     SimRigState_t cmd;

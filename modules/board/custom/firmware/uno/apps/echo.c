@@ -29,6 +29,8 @@ static uint8_t payload[SIMRIGSTATE_PAYLOAD_MAX];
 static uint8_t wire[POLARI_HEADER_LEN + SIMRIGSTATE_PAYLOAD_MAX + 4u];
 static uint16_t echoes;
 
+POLARI_NODE(echo_command, in(r, "frame", "a parsed PolariPacket SimRigState command"),
+            role("copy a command's present fields into the state whole; status becomes echoed"))
 static void echo_command(const polari_rx_t *r)
 {
     SimRigState_t cmd;
