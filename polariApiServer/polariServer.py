@@ -1180,6 +1180,9 @@ class polariServer(treeObject):
             HardwareBridgeDefinition,
             # Hardware rig digital twins (hwsim-1).
             SimRigState,
+            # grpc-j4: the computer<->firmware mapping (bindings,
+            # enum tables, wire contracts).
+            HardwareInterfaceBinding, EnumMapping, WireContract,
             # L3 MD + L2 mesoscale model definitions (msci-26).
             MDModelDefinition, MesoModelDefinition,
             # FPGA register maps as data + FPGA twin (hwsim-3).
@@ -2421,6 +2424,11 @@ class polariServer(treeObject):
             # hwsim-1: the Renode rig twin exists from boot so its
             # schema can stabilize before the first telemetry frame.
             ('SimRigState', SimRigState, SEED_SIM_RIGS),
+            # grpc-j4: enum tables + the uno-pair bindings (two UNO
+            # twins on one bridge -> a 1-bit instance index).
+            ('EnumMapping', EnumMapping, SEED_ENUM_MAPPINGS),
+            ('HardwareInterfaceBinding', HardwareInterfaceBinding,
+             SEED_HARDWARE_BINDINGS),
             # hwsim-3: the Hardware Runtime register map — maps
             # before their registers (registers name their map).
             ('RegisterMapDefinition', RegisterMapDefinition,

@@ -7,9 +7,13 @@ UNO end to end in plain C — gen → build → flash (DRY-RUN; `--yes` with the
 proven on the twin; the real-hardware step is documented below and owed. **brd-fi** is the Firmware Installer App: firmware
 VARIANTS as rows (different things to test on the one UNO), compatibility judged on the header itself, and
 detect → builds that fit → DRY-RUN → confirm → install → the rows arriving, on `/display/firmware-installer` and
-`pol board install` — proven on the twin (below).
+`pol board install` — proven on the twin (below). **brd-wire** (grpc-j4, his ruling 2026-10-02) is the computer↔firmware
+MAPPING: every row that IS a piece of hardware has a `HardwareInterfaceBinding` (grpcbridge) naming its board instance,
+interface and port; the wire carries fields only + a prelude (the instance index — its width a function of how many are
+bound — and one presence bit per field); the gRPC message carries the identity; `GET /api/board/instances/<id>/interface`
+walks a row to its datasheet (below).
 
-**Kind:** polari-app · **agent tier:** member · **requires:** hwmap (its scanner) · **engines:** avr-gcc, avrdude, simavr (worker image `prf-board-engines`)
+**Kind:** polari-app · **agent tier:** member · **requires:** hwmap (its scanner), grpcbridge (contracts, the mapping rows) · **engines:** avr-gcc, avrdude, simavr (worker image `prf-board-engines`)
 
 ## The two rules (his, 2026-10-01)
 
@@ -65,6 +69,7 @@ pol board flash uno [--port P]                          # DRY-RUN: the exact avr
 pol board flash uno --yes                               # real: needs the UNO detected on THIS host; read-back verify
 pol board twin uno up|status|down [--adc0-mv 750]       # the SAME .hex in simavr; UART at /tmp/polari-uno-twin-uart
 pol board cost uno [--write]                            # re-measure the twin's object cost
+pol board interface twin:arduino-uno-r3#1               # brd-wire: the binding chain of a board instance
 ```
 
 ## Testing different things on the UNO (brd-fi)
@@ -74,14 +79,16 @@ such thing; install one, watch for its effect, try the next — on `/display/fir
 
 | variant | app (`firmware/uno/apps/`) | speaks | compiled in | what to watch | measured flash / RAM (avr-gcc 14.2.0, -Os) |
 |---|---|---|---|---|---|
-| `uno-sim-rig` | `sim_rig.c` (brd-1's firmware) | SimRigState | LED D13, PWM D6, ADC A0 (TMP36), commands | temp_c follows a finger; a PUT lights D13 / dims D6; status `commanded` | 4532 / 763 B |
-| `uno-blink-only` | `blink.c` | SimRigState | LED only (toggles every 500 ms); transmit only | D13 blinks; led_on flips in the decoded frames | 1514 / **501** B |
-| `uno-adc-sweep` | `analog.c` | **UnoAnalogState** | ADC A0..A2 raw; transmit only | a0/a1/a2 follow a pot / photoresistor | **1394** / 528 B |
-| `uno-echo` | `echo.c` | SimRigState | nothing but the command path | a PUT comes back WHOLE (even temp_c), status `echoed` | 3152 / 763 B |
+| `uno-sim-rig` | `sim_rig.c` (brd-1's firmware) | SimRigState | LED D13, PWM D6, ADC A0 (TMP36), commands | temp_c follows a finger; a PUT lights D13 / dims D6; status `commanded` | 4338 / 491 B |
+| `uno-blink-only` | `blink.c` | SimRigState | LED only (toggles every 500 ms); transmit only | D13 blinks; led_on flips in the frames AND the row | 1014 / **302** B |
+| `uno-adc-sweep` | `analog.c` | **UnoAnalogState** | ADC A0..A2 raw; transmit only | a0/a1/a2 follow a pot / photoresistor | **1270** / 329 B |
+| `uno-echo` | `echo.c` | SimRigState | nothing but the command path | a PUT comes back WHOLE (even temp_c), status `echoed` | 3022 / 495 B |
+| `uno-pair` (brd-wire) | `sim_rig.c` | SimRigState | as uno-sim-rig, built per `instance_index` for bridge `uno-pair`, `SEND_NAME 0` | each row follows ITS board; a PUT reaches only the board it names | 4372 / 493 B |
 
-(Sizes from the live-contract builds in `tests/board_installer_probe.py`. blink-only is the smallest in RAM; the adc sweep is
-the smallest in flash — SimRigState's one `double` costs the software binary32→binary64 encoder, ~120 B, which the
-all-integer UnoAnalogState does not need.)
+(Sizes from the live-contract builds in `tests/board_installer_probe.py`, wire v2 — brd-fi's v1 builds were 4532/763,
+1514/501, 1394/528, 3152/763: the status enum is 1 byte instead of a 64-byte buffer, an absent field costs nothing. blink-only
+is the smallest in RAM; the adc sweep the smallest in flash — SimRigState's one `double` costs the software
+binary32→binary64 encoder, ~120 B, which the all-integer UnoAnalogState does not need.)
 
 **Adding a variant:** add a `FirmwareVariant` row (on the page's Variants table, or a dict in `custom/variants.py` for a
 seeded one): pick an `app`, list the class it speaks, set `features_json` / `knobs_json` (telemetry_hz 1..50, led_pin
@@ -125,9 +132,30 @@ pol board result [install-…]
 4. Proof: the TMP36 on A0 (kit project 03 wiring) — `temp_c` in the row tracks a finger; a PUT of `led_on` lights
    D13, a PUT of `pwm_duty` dims an LED on D6 (220 Ω), and the next frame says `status=commanded`.
 
-**Contract order matters.** The wire carries fields in TAG order, and `contract_hash` hashes only field → type, so two
-servers can share a hash yet order the fields differently (a fresh server's v1 is alphabetical: `led_on` first; the
-staging ledger's v2 — the pinned snapshot — puts `name` first). Generate against the server the board will talk to.
+**Contract order matters.** The wire carries fields in TAG order. `contract_hash` (v1) hashes only field → type, so two
+servers can share it yet order the fields differently (a fresh server's v1 is alphabetical; the staging ledger's v2 —
+the pinned snapshot — puts `name` first). brd-wire's **contract hash v2** sees the order (+ enum tables + the index
+representation); every build records it and the installer compares it first. Generate against the server the board
+will talk to.
+
+## The computer↔firmware mapping (brd-wire / grpc-j4)
+
+His ruling (2026-10-02): *"define a mapping from the computer side to the firmware side … identifiers tying it to the
+hardware interface it belongs to … converted to not having that when being sent over as a struct … enum mappings …
+indexes … in the shortest format we possibly can."* Design: `AI-Notes/plans/GRPC_BRIDGE_PLAN.md` §grpc-j4.
+
+- **The binding is the identity.** `HardwareInterfaceBinding` (row class + name ↔ board instance ↔ interface + port, on a
+  bridge, with a dense `instance_index`). Frames up are matched to the row by binding, never by the name the struct
+  carries; a frame whose index belongs to another port is refused and counted.
+- **The index is a function of the bound count** n: none for 1, ceil(log2 n) bits packed beside the presence bits up to
+  `packed_max_bits` (default 4 → 16 instances; a knob on the `WireContract` row), then an explicit index byte (≤ 256), then a
+  16-bit index — the version byte (2/3/4) says which.
+- **Presence**: one bit per field; absent fields are not sent; a present false/0 IS applied to the row.
+- **Several twins**: `pol board twin uno up --work W --tcp T --link L --tag K` (one per binding port);
+  `pol board gen uno --variant uno-pair --instance-index K`.
+- **Analysis**: `pol board interface twin:arduino-uno-r3#1` / `GET /api/board/instances/<id>/interface` — the row, its
+  contract (hash v1), the wire contract (hash v2, index representation), the binding, the instance, the port/adapter,
+  the board definition and its cited facts (the interface's own first); the bindings table on `/display/boards`.
 
 ## Selftest
 
@@ -135,8 +163,10 @@ staging ledger's v2 — the pinned snapshot — puts `name` first). Generate aga
 pol modules selftest board
 PYTHONPATH=.:modules python3 -m board.board_selftest        # on the host, from polari-framework/
 PYTHONPATH=.:modules python3 tests/board_uno_twin_probe.py   # the REAL avr-gcc + simavr path (skips without the image)
-cd /tmp/y && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_installer_probe.py   # brd-fi: four variants, compat, installs into the twin + the bridge
+cd /tmp/y && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_installer_probe.py   # brd-fi: five variants, compat, installs into the twin + the bridge
 cd /tmp/x && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_uno_bridge_probe.py   # + a throwaway server + the Java bridge
+cd /tmp/p && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_pair_probe.py        # brd-wire: n=2 and n=3 twins on one bridge
+# the in-process servers boot through tests/board_probe_boot.py: the framework as cwd for the boot, the DB in ./data here
 ```
 
 Conformance: `PYTHONPATH=.:modules python3 -m moduleService.manifests conform board` (write `requires.engines` by

@@ -6,6 +6,10 @@ An INDEPENDENT Python reference of the PolariPacket wire (the same spec c_twin d
 LE 8 B, bool 1 B, strings u16-length-prefixed UTF-8, CRC32 (zlib) over header+payload appended LE), driven by a
 contract field map. It reads the twin's (or a real UNO's) byte stream when no Java bridge runs, and frames commands.
 Stdlib only.
+
+brd-wire (grpc-j4): version 2 frames carry the prelude (instance index + presence bits) — `decode_any` reads either
+version (v2 through grpcbridge.custom.wire_ref with the class's wire spec), `frame(..., version=2)` frames a v2 payload
+(`wire_ref.encode`). StreamParser accepts both versions and yields (msg_type, device_id, seq, payload, version).
 """
 import struct
 import zlib
@@ -35,8 +39,8 @@ def encode_payload(field_map, values):
     return out
 
 
-def frame(msg_type, device_id, seq, payload):
-    body = HEADER.pack(MAGIC, 1, msg_type, device_id, seq, len(payload)) + payload
+def frame(msg_type, device_id, seq, payload, version=1):
+    body = HEADER.pack(MAGIC, version, msg_type, device_id, seq, len(payload)) + payload
     return body + struct.pack('<I', zlib.crc32(body) & 0xFFFFFFFF)
 
 
@@ -53,6 +57,16 @@ def decode_payload(field_map, payload):
             n = struct.unpack_from('<H', payload, p)[0]; p += 2
             values[name] = payload[p:p + n].decode('utf-8', 'replace'); p += n
     return values
+
+
+def decode_any(field_map, payload, version=1, spec=None):
+    """{field: value} of a v1 payload (every field) or a v2 payload (the present fields; spec = the wire spec), plus
+    '_index' / '_present' for v2."""
+    if int(version) < 2:
+        return decode_payload(field_map, payload)
+    from grpcbridge.custom.wire_ref import decode
+    index, present, values = decode(spec, payload)
+    return dict(values, _index=index, _present=present)
 
 
 class StreamParser:
@@ -79,7 +93,7 @@ class StreamParser:
             if len(self.buf) < HEADER.size:
                 return out
             magic, ver, mt, dev, seq, plen = HEADER.unpack_from(self.buf, 0)
-            if ver != 1 or plen > self.max_payload:
+            if ver not in (1, 2, 3, 4) or plen > self.max_payload:
                 del self.buf[:1]; self.skipped += 1
                 continue
             total = HEADER.size + plen + 4
@@ -93,4 +107,4 @@ class StreamParser:
                 continue
             del self.buf[:total]
             self.frames += 1
-            out.append((mt, dev, seq, body[HEADER.size:]))
+            out.append((mt, dev, seq, body[HEADER.size:], ver))

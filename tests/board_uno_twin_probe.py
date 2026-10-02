@@ -30,14 +30,15 @@ def check(label, cond, extra=''):
     print(('PASS' if cond else 'FAIL') + ': ' + label + (('  [%s]' % (extra,)) if extra else ''))
 
 
-def read_frames(fd, parser, fmap, seconds):
+def read_frames(fd, parser, fmap, seconds, spec=None):
+    """brd-wire: frames are wire v2 (prelude: index + presence) — decoded with the class's wire spec."""
     frames, t0 = [], time.time()
     while time.time() - t0 < seconds:
         r, _, _ = select.select([fd], [], [], 0.2)
         if fd in r:
-            for mt, dev, seq, payload in parser.feed(os.read(fd, 4096)):
+            for mt, dev, seq, payload, ver in parser.feed(os.read(fd, 4096)):
                 if mt == 1:
-                    frames.append((time.time(), dev, seq, packet_ref.decode_payload(fmap, payload)))
+                    frames.append((time.time(), dev, seq, packet_ref.decode_any(fmap, payload, ver, spec)))
     return frames
 
 
@@ -51,6 +52,8 @@ def main(argv):
     work = tempfile.mkdtemp(prefix='uno-twin-probe-')
     link = os.path.join(work, 'uart')
     fmap = gen.pinned_contract('SimRigState')[0]['field_map']
+    from board.custom.compat import wire_spec
+    spec = wire_spec(None, 'SimRigState', fmap)   # brd-wire: one unbound instance — width 0, the status enum
     row = gen.gen('uno', ['SimRigState'], work, rig_name='uno-twin')
     check('gen: the project holds only main.c (the uno-sim-rig app), hal.c/hal.h, Makefile, board_config.h, simrigstate_packets.h (RULE 2)',
           sorted(os.listdir(row['project_dir'])) == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'simrigstate_packets.h'])
@@ -65,7 +68,7 @@ def main(argv):
         fd = os.open(link, os.O_RDWR | os.O_NOCTTY)
         tty.setraw(fd)
         parser = packet_ref.StreamParser()
-        frames = read_frames(fd, parser, fmap, seconds)
+        frames = read_frames(fd, parser, fmap, seconds, spec)
         n = len(frames)
         span = frames[-1][0] - frames[0][0] if n > 1 else 0
         rate = (n - 1) / span if span else 0
@@ -80,10 +83,12 @@ def main(argv):
         check('identity + status: name uno-twin, device_id 3, status ok after 1 s', last.get('name') == 'uno-twin' and frames[-1][1] == 3 and last.get('status') == 'ok',
               (last.get('name'), frames[-1][1], last.get('status')))
         before = dict(last)
-        cmd = packet_ref.frame(1, 0, 7, packet_ref.encode_payload(fmap, {'name': 'uno-twin', 'led_on': True, 'pwm_duty': 42, 'status': '', 'temp_c': 0.0, 'uptime_ms': 0}))
+        from grpcbridge.custom import wire_ref
+        cmd = packet_ref.frame(1, 0, 7, wire_ref.encode(spec, {'name': 'uno-twin', 'led_on': True, 'pwm_duty': 42, 'status': '', 'temp_c': 0.0, 'uptime_ms': 0}),
+                               version=spec['wire_version'])
         os.write(fd, b'\x00\xffjunk' + cmd)   # garbage first: the firmware's parser must resync
         t_cmd = time.time()
-        after = read_frames(fd, parser, fmap, 1.5)
+        after = read_frames(fd, parser, fmap, 1.5, spec)
         echoed = [f for f in after if f[3]['status'] == 'commanded']
         e = echoed[0][3] if echoed else {}
         check('PUT echo: {led_on: true, pwm_duty: 42} → the next frames carry status=commanded, led_on=true, pwm_duty=42 (after leading garbage)',

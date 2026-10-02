@@ -49,3 +49,28 @@ the header's parser + a 173-B TX frame + a 157-B payload buffer + the 149-B stat
 the image (535 MB) is the only real cost and is needed once per device that compiles or simulates. The 24 cited facts
 dominate the row count — facts grow with what a firmware uses, not with the twin. The next twin is admitted against
 this row.
+
+## brd-wire — the wire v2 firmwares and the mapping (2026-10-02, same host)
+
+Firmware sizes (avr-size -A, avr-gcc 14.2.0 `-Os`, live v1 field order as a fresh server makes it — `tests/board_installer_probe.py`):
+
+| variant | brd-fi (wire v1) flash / static RAM | brd-wire (wire v2) flash / static RAM |
+|---|---|---|
+| uno-sim-rig | 4532 / 763 B | **4338 / 491 B** |
+| uno-blink-only | 1514 / 501 B | **1014 / 302 B** |
+| uno-adc-sweep | 1394 / 528 B | **1270 / 329 B** |
+| uno-echo | 3152 / 763 B | **3022 / 495 B** |
+| uno-pair (n=2, 1-bit index), per instance | — | **4372 / 493 B** |
+| the same for n=3 (2-bit index) | — | 4378 / 4378 / 4380 B, 493 B (`tests/board_pair_probe.py`) |
+
+RAM falls ~35–40 %: the status enum is 1 byte (was a 64-byte string buffer, ×3: state, scratch, the RX bound), and the
+RX/TX bounds shrink with it. The presence/index code costs flash only where it is used.
+
+Frame sizes (12-byte header + CRC included; `grpcbridge.custom.wire_ref`): SimRigState v1 **54 B** (status `ok`) – 61 B
+(`commanded`) → v2 with every field **52 B** → the pair without `name` (the binding is the identity) **43 B**; blink v1
+56 → v2 **38 B** (temp_c / pwm_duty absent). At n=20 (an index byte) 44 B, n=257 (u16) 45 B. At 10 Hz a pair is 0.86 KB/s
+up for both boards.
+
+Rows per bound board: +1 `HardwareInterfaceBinding` (+1 `WireContract` per class per bridge, +1 `EnumMapping` per mapped
+field, shared). Twins: n twins = n × ~11 MB (three ran side by side in the n=3 probe).
+

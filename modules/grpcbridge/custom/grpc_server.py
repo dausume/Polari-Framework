@@ -43,6 +43,29 @@ except ImportError:
 _grpc_instance = None
 
 
+#: grpc-j4: the values a human/API update SET, per (class, row id), held
+#: until the Commands leg serializes that row. With the presence mask a
+#: telemetry frame now applies false/0 too, so a frame landing between the
+#: PUT's setattr and its (slower) DB save + notify would otherwise send the
+#: device its OWN old state as the "command". The PUT's values win.
+_PENDING_COMMANDS = {}
+_PENDING_LOCK = threading.Lock()
+
+
+def note_command(class_name, pid, values):
+    """Called by polariCRUDE right after an update's setattr (before the
+    save/notify): remember what the person set for the Commands leg."""
+    if not isinstance(values, dict) or not values:
+        return
+    with _PENDING_LOCK:
+        _PENDING_COMMANDS.setdefault((class_name, str(pid)), {}).update(values)
+
+
+def take_command(class_name, pid):
+    with _PENDING_LOCK:
+        return _PENDING_COMMANDS.pop((class_name, str(pid)), None)
+
+
 def get_grpc_server():
     """Get the module-level PolariGrpcServer singleton (or None)."""
     return _grpc_instance
@@ -180,6 +203,10 @@ class PolariGrpcServer:
     def notify_commands(self, class_name, instance_ids):
         """Deliver the FULL current state of the named rows to this
         class's Commands streams (the hardware command-down leg)."""
+        # grpc-j4: what the person set, taken first (always — so nothing
+        # lingers when no device is listening)
+        set_by_pid = {pid: take_command(class_name, pid)
+                      for pid in instance_ids or []}
         runtime = self.runtime
         if runtime is None or class_name not in runtime.field_maps:
             return 0
@@ -195,6 +222,10 @@ class PolariGrpcServer:
             if inst is None:
                 continue
             msg = runtime.instance_to_message(class_name, inst)
+            set_now = set_by_pid.get(pid)
+            if set_now:   # the person's values, not a telemetry frame's
+                runtime.overlay_values(class_name, msg, set_now)
+            _attach_binding(self.manager, runtime, class_name, inst, msg)
             for q in targets:
                 q.put(msg)
                 sent += 1
@@ -433,6 +464,13 @@ if HAS_GRPC:
         rows = tables.get(cls)
         if rows is None:
             raise ValueError(f'class "{cls}" has no object table')
+        binding = _binding_of_push(manager, cls, msg)
+        if binding is not None:
+            # grpc-j4: the BINDING owns identity — the row is the one
+            # this hardware interface is bound to, whatever name (if
+            # any) the firmware's struct carried.
+            values['name'] = binding.object_name
+            pid = ''
         inst = rows.get(pid) if pid else None
 
         def _narrowed(target, name, value):
@@ -489,7 +527,69 @@ if HAS_GRPC:
         db = getattr(manager, 'db', None)
         if db is not None:
             db.saveInstanceInDB(inst)
+        if binding is not None:
+            from grpcbridge.custom.wire_contract import note_frame
+            note_frame(binding, 0)
         return pid, operation
+
+    def _hw(msg):
+        from grpcbridge.custom.descriptor_build import hardware_interface_of
+        return hardware_interface_of(msg)
+
+    def _binding_of_push(manager, cls, msg):
+        """grpc-j4: the HardwareInterfaceBinding a pushed frame names
+        (bridge + object), checked against its index. A message naming
+        a binding that does not exist, or the wrong index for it, is
+        REFUSED (raises) — never applied to some other row."""
+        hw = _hw(msg)
+        if not hw or not hw.get('object_name'):
+            return None
+        from grpcbridge.custom.wire_contract import (
+            binding_for_object, note_frame)
+        b = binding_for_object(manager, cls, hw['object_name'],
+                               hw.get('bridge') or None)
+        if b is None:
+            raise ValueError(
+                f'no HardwareInterfaceBinding for {cls} '
+                f'"{hw["object_name"]}" on bridge "{hw.get("bridge")}" '
+                '— bind the interface first (a frame is never applied '
+                'to a row it is not bound to)')
+        if int(b.instance_index or 0) != int(hw.get('instance_index') or 0):
+            note_frame(b, 0, refused=True)
+            raise ValueError(
+                f'{cls} "{b.object_name}" is instance {b.instance_index} '
+                f'on bridge {b.bridge_name}; the frame says index '
+                f'{hw.get("instance_index")} — refused (wrong interface)')
+        return b
+
+    def _attach_binding(manager, runtime, cls, inst, msg):
+        """Commands down (grpc-j4): fill `hardware_interface` from the
+        binding of this row, so the bridge can route it to binding k's
+        port with index k. An unbound row goes down as before."""
+        try:
+            from grpcbridge.custom.wire_contract import (
+                binding_for_object)
+            from grpcbridge.custom.descriptor_build import (
+                set_hardware_interface)
+            b = binding_for_object(manager, cls,
+                                   str(getattr(inst, 'name', '') or ''))
+            if b is None:
+                return None
+            n = len(runtime.field_maps[cls].get('fields', {}))
+            set_hardware_interface(msg, {
+                'bridge': b.bridge_name, 'binding': b.name,
+                'board_instance': b.board_instance, 'port': b.port,
+                'interface_name': b.interface_name,
+                'object_class': cls, 'object_name': b.object_name,
+                'contract_hash': b.contract_hash_v2 or '',
+                'instance_index': int(b.instance_index or 0),
+                'present_mask': (1 << n) - 1,
+                'wire_version': int(b.wire_version or 2)})
+            return b
+        except Exception as exc:  # noqa: BLE001 — never breaks serving
+            print(f"[gRPC] binding attach failed for {cls}: {exc}",
+                  flush=True)
+            return None
 
     def _fan_out_push(manager, cls, operation, pid):
         """Pushed frames fan out exactly like REST mutations — via the

@@ -76,7 +76,9 @@ def main(argv):
     from grpcbridge.objects.hwsim.SimRigState import SimRigState
     from board.custom import gen, build, twin
 
-    manager = managerObject(hasServer=True, hasDB=True)
+    sys.path.insert(0, os.path.join(FRAMEWORK, 'tests'))
+    from board_probe_boot import boot   # brd-wire: boot with the framework as cwd, the DB in ./data here
+    manager = boot(FRAMEWORK)
 
     class TS(ThreadingMixIn, WSGIServer):
         daemon_threads = True

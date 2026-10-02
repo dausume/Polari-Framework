@@ -12,6 +12,7 @@ The four seeded UNO variants are four DIFFERENT things to try on one board:
   uno-blink-only  the LED toggles by itself; telemetry only; no ADC, no PWM, no command path — the smallest
   uno-adc-sweep   raw ADC of A0, A1, A2 as a SECOND class (UnoAnalogState) — the analog front end + the generator
   uno-echo        no sensors; a command comes back whole — the protocol test
+  uno-pair        brd-wire: the whole rig built twice (instance_index 0 / 1) for two interfaces bound on ONE bridge
 
 Adding one: a FirmwareVariant row (CRUDE on /display/firmware-installer, or a dict appended here for a seeded one) —
 pick an app, list its class, set features/knobs; `pol board gen uno --variant <name>` validates it.
@@ -28,12 +29,15 @@ APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'a
 FEATURES = ('led', 'pwm', 'adc', 'commands')
 DEFAULT_VARIANT = 'uno-sim-rig'
 DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6,
-                 'adc_channel': 0, 'temp_formula': 'tmp36', 'blink_ms': 0}
+                 'adc_channel': 0, 'temp_formula': 'tmp36', 'blink_ms': 0,
+                 # brd-wire (grpc-j4): the bridge whose bindings set the instance-index width ('' = one instance, 0 bits),
+                 # THIS build's index, and whether telemetry carries `name` (a bound interface's identity is its binding)
+                 'bridge': '', 'instance_index': 0, 'send_name': 1}
 PWM_PINS = (5, 6, 9, 10)
 FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
 RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED', 'FEATURE_PWM', 'FEATURE_ADC', 'LED_PIN',
-            'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU'}
+            'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU', 'INSTANCE_INDEX', 'SEND_NAME', 'FEATURE_COMMANDS'}
 
 
 class VariantRefused(ValueError):
@@ -60,8 +64,9 @@ SEED_FIRMWARE_VARIANTS = [
        'that a pin moves — the first thing to try on a board you are not sure about.',
        'blink', ['SimRigState'], {'led': True, 'pwm': False, 'adc': False, 'commands': False},
        {'rig_name': 'uno-blink', 'telemetry_hz': 10, 'led_pin': 13, 'blink_ms': 500},
-       'D13 blinks twice a second; led_on flips in the frames the bridge decodes (the row shows true and stays: a pushed '
-       'false is a proto3 default and the Push path drops it — a known grpcbridge limit); uptime_ms climbs; temp_c, pwm_duty 0.',
+       'D13 blinks twice a second; led_on flips true / false in the frames AND in the row (brd-wire: the presence mask '
+       'sends a false that is present — the old proto3 drop is gone); uptime_ms climbs; temp_c and pwm_duty are not sent '
+       '(absent from the frame), so the row keeps whatever it had.',
        {}),
     _v('uno-adc-sweep', 'Three analog inputs, raw (a second class)',
        'Reads A0, A1 and A2 as raw 10-bit counts into UnoAnalogState — a pot, a photoresistor, the TMP36, whatever is '
@@ -71,6 +76,17 @@ SEED_FIRMWARE_VARIANTS = [
        'a0, a1, a2 move as you turn a pot or cover a photoresistor (0..1023; count = mV × 1024 / 5000 on the chip; the '
        'simavr twin rounds with 1023, so 1500 mV reads 306 there, 307 on a real UNO).',
        {'adc0_mv': 750, 'adc_mv': {'1': 1500, '2': 3000}}),
+    _v('uno-pair', 'Two UNOs on one bridge: the same firmware, instance 0 and instance 1',
+       'brd-wire (his ruling 2026-10-02): the whole rig firmware built TWICE — instance_index 0 and 1 — for the two '
+       'interfaces bound on bridge uno-pair (HardwareInterfaceBinding rows uno-twin-0 / uno-twin-1). Two instances → a '
+       '1-bit index in the frame; the struct carries no identity (no name either — the binding is the identity); the '
+       'bridge re-attaches it. Tests that each row follows ITS board and a change reaches only the board it names.',
+       'sim_rig', ['SimRigState'], {'led': True, 'pwm': True, 'adc': True, 'commands': True},
+       {'rig_name': 'uno-pair', 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6, 'adc_channel': 0, 'temp_formula': 'tmp36',
+        'bridge': 'uno-pair', 'instance_index': 0, 'send_name': 0},
+       'rows uno-twin-0 and uno-twin-1 each follow their own board; setting pwm_duty on uno-twin-1 dims only board 1 '
+       '(index 1 on the wire); led_on set back to false comes back false.', {'adc0_mv': 750},
+       notes='build it twice: pol board gen uno --variant uno-pair --instance-index 0 | 1'),
     _v('uno-echo', 'Echo: no sensors, a command comes back whole',
        'The protocol test. No sensors and no actuators: whatever Polari sends is copied back, every field, and status '
        'says "echoed". If the values return unchanged, the wire, the header, the parser and the bridge all agree.',
@@ -125,6 +141,7 @@ def resolve(variant, overrides=None):
     try:
         k['telemetry_hz'], k['led_pin'], k['pwm_pin'] = int(k['telemetry_hz']), int(k['led_pin']), int(k['pwm_pin'])
         k['adc_channel'], k['blink_ms'], k['device_id'], k['usart_u2x'] = int(k['adc_channel']), int(k['blink_ms']), int(k['device_id']), int(k['usart_u2x'])
+        k['instance_index'], k['send_name'] = int(k['instance_index']), int(k['send_name'])
     except (TypeError, ValueError) as e:
         raise VariantRefused('a knob is not a number: %s' % e)
     if not 1 <= k['telemetry_hz'] <= 50:
@@ -143,6 +160,14 @@ def resolve(variant, overrides=None):
         why.append('blink_ms %d: 20..60000 for the blink app (0 = off elsewhere)' % k['blink_ms'])
     if not 0 <= k['device_id'] <= 65535:
         why.append('device_id %d: a u16' % k['device_id'])
+    if not 0 <= k['instance_index'] <= 255:
+        why.append('instance_index %d: 0..255 (and it must fit the bridge\'s index width — checked at gen)' % k['instance_index'])
+    if k['instance_index'] and not k['bridge']:
+        why.append('instance_index %d without a bridge: one unbound instance is index 0' % k['instance_index'])
+    if not k['send_name'] and not k['bridge']:
+        why.append('send_name 0 without a bridge: an unbound board is identified by the name it sends')
+    if k['bridge'] and not re.match(r'^[A-Za-z0-9_.-]{1,63}$', str(k['bridge'])):
+        why.append('bridge %r: letters, digits, . _ - only' % k['bridge'])
     if not re.match(r'^[A-Za-z0-9_.-]{1,63}$', str(k['rig_name'])):
         why.append('rig_name %r: letters, digits, . _ - only, up to 63 (it is the row name)' % k['rig_name'])
     flags = []
@@ -176,7 +201,9 @@ def render_config(r):
              '#define PWM_PIN      %d' % k['pwm_pin'],
              '#define ADC_CHANNEL  %d' % k['adc_channel'],
              '#define TEMP_TMP36   %d' % (1 if k['temp_formula'] == 'tmp36' else 0),
-             '#define BLINK_MS     %du' % k['blink_ms']]
+             '#define BLINK_MS     %du' % k['blink_ms'],
+             '#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge'] or '-'),
+             '#define SEND_NAME    %d     /* 0: telemetry omits `name` (the binding is the identity) */' % (1 if k['send_name'] else 0)]
     lines += ['#define %s %d   /* variant build flag */' % (n, v) for n, v in r['flags']]
     return '\n'.join(lines + ['', '#endif /* BOARD_CONFIG_H */', ''])
 

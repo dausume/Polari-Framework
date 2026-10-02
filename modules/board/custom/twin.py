@@ -86,8 +86,10 @@ def hex_data_bytes(path):
 
 
 def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, adc0_ramp='', realtime=True, wait_s=10.0,
-       build_dir=None, adc_mv=None):
-    """build_dir (brd-fi): run THAT stored build (the installer's twin target); the twin's own state stays in work."""
+       build_dir=None, adc_mv=None, tag=''):
+    """build_dir (brd-fi): run THAT stored build (the installer's twin target); the twin's own state stays in work.
+    tag (brd-wire): a second, third … twin of the same board beside the first — its own container name
+    (prf-board-twin-<board>-<tag>); give each its own work dir, tcp port and link (uno-pair: tags 0 and 1)."""
     board = gen.board_name(board)
     work = work or gen.default_work(board)
     st = read_state(work)
@@ -104,7 +106,7 @@ def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, 
     os.makedirs(work, exist_ok=True)
     log_path = os.path.join(work, 'twin.log')
     log = open(log_path, 'w')
-    state = {'board': board, 'how': where['how'], 'where': where['where'], 'tcp': tcp, 'link': link, 'hex': row['hex_path'],
+    state = {'board': board, 'tag': str(tag), 'how': where['how'], 'where': where['where'], 'tcp': tcp, 'link': link, 'hex': row['hex_path'],
              'hex_sha256': row['artifact_sha256'], 'build': row['name'], 'variant': row.get('variant', ''),
              'adc0': adc0_ramp or '%d mV' % int(adc0_mv), 'adc_mv': {str(k): int(v) for k, v in (adc_mv or {}).items()}, 'realtime': realtime,
              'started_at': datetime.datetime.now().isoformat(timespec='seconds'), 'log': log_path}
@@ -113,7 +115,7 @@ def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, 
                              start_new_session=True)
         state['pid'] = p.pid
     else:
-        name = 'prf-board-twin-%s' % board
+        name = 'prf-board-twin-%s%s' % (board, '-%s' % tag if tag else '')
         subprocess.run(['docker', 'rm', '-f', name], capture_output=True, timeout=30)
         argv = ['docker', 'run', '-d', '--name', name, '-p', '127.0.0.1:%d:9831' % tcp, '-v', '%s:/fw:ro' % os.path.dirname(row['hex_path']),
                 where['where'], 'polari-avr-twin'] + twin_args('/fw/firmware.hex', 9831, adc0_mv, adc0_ramp, realtime, adc_mv)
@@ -251,11 +253,12 @@ def main(argv):
     ap.add_argument('--adc0-ramp', default='')
     ap.add_argument('--adc-mv', action='append', default=[], help='CH=MV for A1..A5 (repeatable; uno-adc-sweep)')
     ap.add_argument('--free', action='store_true', help='no real-time pacing (as fast as simavr runs)')
+    ap.add_argument('--tag', default='', help='brd-wire: a second twin beside the first (own --work, --tcp, --link)')
     a = ap.parse_args(argv)
     try:
         if a.verb == 'up':
             s = up(a.board, a.work, a.tcp, a.link, a.adc0_mv, a.adc0_ramp, not a.free,
-                   adc_mv={int(x.split('=')[0]): int(x.split('=')[1]) for x in a.adc_mv})
+                   adc_mv={int(x.split('=')[0]): int(x.split('=')[1]) for x in a.adc_mv}, tag=a.tag)
             print('[ OK ] the %s twin is up (%s: %s), build %s' % (s['board'], s['how'], s.get('container') or s.get('pid'), s['build']))
             print('       UART pty  %s   (bridge: source=serial, serialDevice=%s)' % (s['link'], s['link']))
             print('       ADC0      %s (TMP36: 750 mV = 25 °C)   ·   log %s' % (s['adc0'], s['log']))

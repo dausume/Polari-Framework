@@ -203,7 +203,7 @@ def page():
     names = [it['componentProps']['componentName'] for row in rows for it in row['items']]
     text = P[0]['definition']
     check('/display/boards is configured tables only (no custom component, no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 6 and set(names) == {'class-rows-table'}, str(names))
+          and len(names) == 7 and set(names) == {'class-rows-table'}, str(names))   # brd-wire: + the bindings table
     check('the devices table carries class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
 
@@ -219,6 +219,8 @@ def main():
     run_uno(check)
     from board.board_installer_selftest import run_installer   # brd-fi: variants / compat / the installer flow / the page
     run_installer(check)
+    from board.board_mapping_selftest import run_mapping   # brd-wire: the computer<->firmware mapping
+    run_mapping(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

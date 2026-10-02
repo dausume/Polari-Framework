@@ -710,6 +710,7 @@
    "path": "modules/board",
    "repo": "https://github.com/dausume/polari-module-board.git",
    "requires": [
+    "grpcbridge",
     "hwmap"
    ],
    "tier": "optional",

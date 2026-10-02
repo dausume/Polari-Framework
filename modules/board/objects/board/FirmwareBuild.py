@@ -18,7 +18,8 @@ class FirmwareBuild(treeObject):
                  source_sha: str = '', artifact_sha256: str = '', engines_json: str = '{}', size_text: int = 0,
                  size_data: int = 0, size_bss: int = 0, built_at: str = '', flashed_to: str = '',
                  flash_log: str = '', repro_json: str = '{}', notes: str = '', variant: str = '',
-                 header_sha256: str = '', tag_order_json: str = '{}', hex_path: str = '', manager=None):
+                 header_sha256: str = '', tag_order_json: str = '{}', hex_path: str = '', contract_hash_v2: str = '',
+                 bridge_name: str = '', instance_index: int = 0, manager=None):
         self.name = name
         self.board_definition = board_definition
         self.state = state  # generated | built | refused (past the board's cited limits) | flashed — brd-1
@@ -41,3 +42,9 @@ class FirmwareBuild(treeObject):
         self.header_sha256 = header_sha256  # sha256 of the generated header (one class) / of 'class:sha' lines (several)
         self.tag_order_json = tag_order_json  # {class: [field, …] in TAG (= wire) order} at gen time
         self.hex_path = hex_path  # where the built .hex lives on the host that built it (the build store)
+        # brd-wire (grpc-j4) — the WIRE contract the firmware speaks: hash v2 (order + types + enums + index width +
+        # presence; one class: its hash, several: a sha over 'class:hash' lines), the bridge whose bindings set the index
+        # width, and THIS build's instance index (uno-pair: the same firmware built with 0 and with 1)
+        self.contract_hash_v2 = contract_hash_v2
+        self.bridge_name = bridge_name
+        self.instance_index = instance_index

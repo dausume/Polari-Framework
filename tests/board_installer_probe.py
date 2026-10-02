@@ -88,7 +88,9 @@ def main(argv):
     from board.board_basis import UnoAnalogState
     from board.custom import gen, build, twin, attach, installer as I
 
-    manager = managerObject(hasServer=True, hasDB=True)
+    sys.path.insert(0, os.path.join(FRAMEWORK, 'tests'))
+    from board_probe_boot import boot   # brd-wire: boot with the framework as cwd, the DB in ./data here
+    manager = boot(FRAMEWORK)
 
     class TS(ThreadingMixIn, WSGIServer):
         daemon_threads = True
@@ -114,7 +116,7 @@ def main(argv):
 
     var = http('GET', api + '/api/board/variants')
     names = [v['name'] for v in var.get('variants', [])]
-    check('GET /api/board/variants → the four seeded variants', names == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'], names)
+    check('GET /api/board/variants → the five seeded variants (brd-wire: + uno-pair)', names == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-pair', 'uno-echo'], names)
     builds = {}
     for v in names:
         t0 = time.time()
@@ -128,7 +130,7 @@ def main(argv):
     print('       smallest flash: %s · smallest RAM: %s' % (smallest_flash, smallest_ram))
     REPORT['smallest'] = {'flash': smallest_flash, 'ram': smallest_ram}
     comp = {v: http('GET', api + '/api/board/builds/%s/compat' % builds[v]['build']) for v in names}
-    check('GET /api/board/builds/<b>/compat → compatible for all four, judged against THIS server\'s live exposures',
+    check('GET /api/board/builds/<b>/compat → compatible for all five, judged against THIS server\'s live exposures (header sha + hash v2)',
           all(c.get('verdict') == 'compatible' and c['classes'][0]['source'] == 'live' for c in comp.values()), {v: c.get('verdict') for v, c in comp.items()})
     REPORT['compat'] = {v: {'verdict': c['verdict'], 'order': c['classes'][0]['now_order'], 'contract': 'v%s %s' % (c['classes'][0]['contract_version'], c['classes'][0]['contract_hash'])}
                         for v, c in comp.items()}
@@ -149,7 +151,7 @@ def main(argv):
         print('       [DRY-RUN %s] %s' % (v, p.get('argv_text')))
         if p.get('wrapper_text'):
             print('                    runs as: %s' % p['wrapper_text'])
-    check('POST /api/board/installer/plan (twin) for all four → the exact argv (polari-avr-twin --hex <the stored .hex> …), compat compatible',
+    check('POST /api/board/installer/plan (twin) for all five → the exact argv (polari-avr-twin --hex <the stored .hex> …), compat compatible',
           all(p.get('ok') and p['argv'][0] == 'polari-avr-twin' and p['argv'][p['argv'].index('--hex') + 1].endswith('/firmware.hex') and p['compat'] == 'compatible'
               for p in plans.values()), {v: p.get('error') for v, p in plans.items() if not p.get('ok')})
     REPORT['plans'] = {v: {'argv': p.get('argv_text'), 'wrapper': p.get('wrapper_text')} for v, p in plans.items()}
@@ -242,15 +244,23 @@ def main(argv):
     log = os.path.join(I.work_dir(), 'bridge', 'run', 'bridge-%s.log' % blink_rec)
     leds = [f['values'].get('led_on') for f in (attach.parse_line(x) for x in open(log)) if f]
     row = row_of('SimRigState', 'uno-blink')
-    # FINDING (grpcbridge, not this slice): a pushed frame updates only the fields it carries with NON-default values
-    # (descriptor_build.message_to_values — proto3 has no presence for plain scalars), so led_on=false never reaches the
-    # row: the row goes true and stays. The device-side truth is the bridge's decoded frames, checked here.
+    # brd-wire: brd-fi's FINDING (1) is FIXED through the presence mask — a frame's led_on=false is PRESENT, the bridge sets
+    # hardware_interface.present_mask, the server applies it although it is the proto3 default. Sample the ROW itself.
+    seen, t_row = [], time.time()
+    while time.time() - t_row < 3.0:
+        o = row_of('SimRigState', 'uno-blink')
+        seen.append(str(getattr(o, 'led_on', None)).lower() if o is not None else None)
+        time.sleep(0.05)
+    flips = sum(1 for a, b in zip(seen, seen[1:]) if a != b)
+    check('brd-wire presence mask: the uno-blink ROW\'s led_on toggles true ↔ false (%d flips in 3 s; %d samples true, %d false) — '
+          'a false that is PRESENT reaches the row (brd-fi finding (1) fixed)' % (flips, seen.count('true'), seen.count('false')),
+          flips >= 4 and seen.count('true') >= 5 and seen.count('false') >= 5, seen[:40])
+    REPORT['blink_row'] = {'flips_3s': flips, 'true': seen.count('true'), 'false': seen.count('false')}
     check('pol board install uno --variant uno-blink-only --twin --yes (CLI parity): DRY-RUN line, installed, frames; led_on flips in the '
           'decoded frames (%d true / %d false of %d)' % (leds.count('true'), leds.count('false'), len(leds)),
           cli.returncode == 0 and '[DRY-RUN] polari-avr-twin' in cli.stdout and 'installed' in cli.stdout and leds.count('true') >= 3 and leds.count('false') >= 3,
           cli.stdout[-600:] + cli.stderr[-300:])
-    REPORT['blink'] = {'frames': len(leds), 'true': leds.count('true'), 'false': leds.count('false'), 'row_led_on': getattr(row, 'led_on', None),
-                       'finding': 'Push drops default-valued fields (proto3, no presence): the row\'s led_on cannot return to false'}
+    REPORT['blink'] = {'frames': len(leds), 'true': leds.count('true'), 'false': leds.count('false'), 'row_led_on': getattr(row, 'led_on', None)}
     dry = subprocess.run([sys.executable, '-m', 'board.custom.install_cli', 'install', 'uno', '--variant', 'uno-echo', '--twin', '--api', api],
                          capture_output=True, text=True, timeout=300, cwd=FRAMEWORK, env=dict(os.environ, PYTHONPATH='.:modules'))
     check('pol board install … without --yes is a DRY-RUN: the argv, "nothing was run", exit 0', dry.returncode == 0 and 'nothing was run' in dry.stdout, dry.stdout[-300:])

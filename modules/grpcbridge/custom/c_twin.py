@@ -30,6 +30,8 @@ holds. A compile-time check refuses the AVR header where `double` is not
   - grpcbridge/custom/renode_twin firmware (hwsim-1)
   - grpcbridge.c_twin_selftest
   - board (brd-1: the UNO firmware renders its header with target=avr)
+  - grpc-j4: `wire=<spec>` delegates to c_twin_v2 (wire v2: instance
+    index + presence prelude, enum tables, the resync parser)
 """
 
 C_STR_MAX = 64
@@ -269,13 +271,20 @@ def payload_max(field_map):
 
 
 def render_c_header(class_name, field_map, msg_type, version=0,
-                    contract_hash='', target='host'):
+                    contract_hash='', target='host', wire=None):
     """The complete `<class>_packets.h`: struct (tag order) + encode
     + decode, on top of the shared framing block. `target` = 'host'
-    (default, unchanged) | 'avr' (software double conversion)."""
+    (default, unchanged) | 'avr' (software double conversion).
+    `wire` (grpc-j4): a wire_contract.spec → the WIRE V2 header
+    (prelude: instance index + presence; enums; resync parser) from
+    c_twin_v2; None = the v1 header, byte-identical as before."""
     if target not in TARGETS:
         raise ValueError('unknown c_twin target %r — one of %s'
                          % (target, TARGETS))
+    if wire is not None:
+        from grpcbridge.custom.c_twin_v2 import render as render_v2
+        return render_v2(class_name, wire, msg_type, version=version,
+                         contract_hash=contract_hash, target=target)
     avr = target == 'avr'
     upper = class_name.upper()
     struct_lines = []

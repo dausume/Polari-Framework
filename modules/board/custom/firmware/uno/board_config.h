@@ -17,5 +17,7 @@
 #define ADC_CHANNEL  0           /* A0..A5 — the sim-rig sensor */
 #define TEMP_TMP36   1           /* 1: temp_c = (mV - 500)/10 (TMP36); 0: temp_c = the raw ADC count */
 #define BLINK_MS     0u          /* blink app: toggle period */
+#define INSTANCE_INDEX 0u        /* brd-wire: this board's index among its bridge's bound instances (wire v2 prelude) */
+#define SEND_NAME    1           /* 0: telemetry omits `name` (a bound board's identity is its binding) */
 
 #endif /* BOARD_CONFIG_H */

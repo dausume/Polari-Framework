@@ -13,6 +13,10 @@ GET  /api/board/builds           every FirmwareBuild row (state, sizes, sha, whe
 POST /api/board/builds           UPSERT one FirmwareBuild (`pol board build|flash --api`): body {build: {...}, instance?:
                                  {name, firmware_sha, last_flash_at}} — a flashed build stamps its BoardInstance
 GET  /api/board/sim-costs        the measured twin costs (BoardSimCost — the yardstick before another twin, plan §8a)
+GET  /api/board/instances/{instance}/interface
+                                 brd-wire (grpc-j4): the BINDING CHAIN of a board instance — object row → class →
+                                 contract (hash v1) → wire contract (hash v2) → binding → instance → port/adapter →
+                                 board definition → datasheet facts (board.custom.interface_chain); 404 when unbound
 
 brd-fi: the firmware installer's doors (/api/board/installer…, /api/board/variants, /api/board/builds/{b}/compat) live in
 board.installer_api.
@@ -39,6 +43,7 @@ class BoardAPI(treeObject):
             add('/api/board/engines', self, suffix='engines')
             add('/api/board/builds', self, suffix='builds')
             add('/api/board/sim-costs', self, suffix='sim_costs')
+            add('/api/board/instances/{instance}/interface', self, suffix='interface')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -176,3 +181,10 @@ class BoardAPI(treeObject):
     def on_get_sim_costs(self, request, response):
         response.media = {'ok': True, 'costs': [{k: getattr(r, k, '') for k in ('board', 'twin', 'object_count', 'state_bytes', 'cycles_per_s', 'host_class', 'measured_at', 'notes')}
                                                for r in self._rows('BoardSimCost')]}
+
+    def on_get_interface(self, request, response, instance):
+        from board.custom.interface_chain import chain
+        out = chain(self.manager, instance)
+        if not out.get('ok'):
+            response.status = falcon.HTTP_404
+        response.media = out

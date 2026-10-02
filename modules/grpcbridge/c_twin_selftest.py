@@ -477,6 +477,8 @@ def main():
 
     avr_checks(cc)
     second_class_checks(cc)
+    from grpcbridge.c_twin_wire_selftest import wire_v2_checks
+    wire_v2_checks(cc, check)   # grpc-j4: the wire v2 header
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

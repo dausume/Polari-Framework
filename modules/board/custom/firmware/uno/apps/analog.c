@@ -24,6 +24,8 @@
 #error "the analog app has no command path (FEATURE_COMMANDS 0)"
 #endif
 
+#define TELEMETRY_MASK ((UnoAnalogState_mask_t)(UNOANALOGSTATE_F_ALL & ~(SEND_NAME ? 0u : UNOANALOGSTATE_F_NAME)))
+
 static UnoAnalogState_t state;
 static uint8_t payload[UNOANALOGSTATE_PAYLOAD_MAX];
 static uint8_t wire[POLARI_HEADER_LEN + UNOANALOGSTATE_PAYLOAD_MAX + 4u];
@@ -37,7 +39,7 @@ int main(void)
     hal_adc_init();
     memset(&state, 0, sizeof state);
     strcpy(state.name, RIG_NAME);
-    strcpy(state.status, "boot");
+    state.status = UNOANALOGSTATE_STATUS_BOOT;
     sei();
 
     for (;;) {
@@ -48,8 +50,8 @@ int main(void)
         state.a0 = (int64_t)hal_adc_read(0u);
         state.a1 = (int64_t)hal_adc_read(1u);
         state.a2 = (int64_t)hal_adc_read(2u);
-        if (state.status[0] == 'b' && now > 1000u) strcpy(state.status, "ok");
-        hal_usart_send(wire, polari_packet_encode(wire, UNOANALOGSTATE_MSG_TYPE, DEVICE_ID, seq++,
-                                                  payload, UnoAnalogState_encode(&state, payload)));
+        if (state.status == UNOANALOGSTATE_STATUS_BOOT && now > 1000u) state.status = UNOANALOGSTATE_STATUS_OK;
+        hal_usart_send(wire, UnoAnalogState_frame(wire, DEVICE_ID, seq++, payload,
+                                                  UnoAnalogState_encode(&state, payload, INSTANCE_INDEX, TELEMETRY_MASK)));
     }
 }

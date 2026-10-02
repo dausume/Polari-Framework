@@ -108,14 +108,16 @@ def find_build(manager, name, work=None):
     return b
 
 
-def build_variant(manager, variant, work=None, run=None):
+def build_variant(manager, variant, work=None, run=None, instance_index=None):
     """gen the variant against THIS server's contracts (its live exposure, else the pinned snapshot) + build through
-    the ladder; the FirmwareBuild row is upserted. Returns the build record."""
+    the ladder; the FirmwareBuild row is upserted. Returns the build record. brd-wire: instance_index = this build's
+    index among the variant's bridge's bound instances (uno-pair: build it with 0 and with 1)."""
     from board.custom import build as B
     from board.board_basis import FirmwareBuild
     work = work or work_dir()
     try:
-        gen.gen('uno', work=work, variant=variant, manager=manager, variant_rows=_rows(manager, 'FirmwareVariant'))
+        gen.gen('uno', work=work, variant=variant, manager=manager, variant_rows=_rows(manager, 'FirmwareVariant'),
+                instance_index=instance_index)
         rec = B.build('uno', work, **({'run': run} if run else {}))
     except gen.GenRefused as e:
         raise InstallRefused(str(e), '400 Bad Request')

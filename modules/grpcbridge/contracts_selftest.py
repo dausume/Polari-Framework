@@ -280,6 +280,35 @@ def main():
           '(byte-identical behavior until flipped)',
           params['transport_preference'].default == 'stomp')
 
+    # --- grpc-j4: the identity block + hash v1/v2 side by side ---------
+    import re as _re
+    fm = pg.merge_field_map({f'f{i}': {'dominantType': 'int',
+                                       'dominantAffinity': 'INTEGER'}
+                             for i in range(3)})
+    msg = pg.render_message('Wire', fm)
+    check('grpc-j4: every class message carries hardware_interface = 2047; '
+          'the ledger never allocates that tag',
+          'HardwareInterface hardware_interface = 2047;' in msg
+          and pg.HW_TAG not in [s['tag'] for s in fm['fields'].values()]
+          and pg.HW_TAG not in fm['reserved'])
+    from grpcbridge.custom.descriptor_build import SHARED_MESSAGES_SPEC
+    text = pg.SHARED_MESSAGES
+    block = text[text.index('message HardwareInterface'):]
+    block = block[:block.index('}')]
+    rendered = _re.findall(r'(\w+) (\w+) = (\d+);', block)
+    check('grpc-j4: HardwareInterface rendering == its descriptor twin '
+          '(names, types, tags)',
+          [(n, t, int(g)) for t, n, g in rendered]
+          == [tuple(x) for x in SHARED_MESSAGES_SPEC['HardwareInterface']],
+          str(rendered))
+    from grpcbridge.custom import wire_contract as wc
+    v1 = pg.contract_hash(SNAPSHOT)
+    sp = wc.spec('X', pg.merge_field_map(SNAPSHOT))
+    check('grpc-j4: contract_hash stays v1 (unchanged for the snapshot); '
+          'hash v2 is a separate 16-hex wire hash',
+          v1 == pg.contract_hash(SNAPSHOT) and len(sp['hash_v2']) == 16
+          and sp['hash_v2'] != v1)
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

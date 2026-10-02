@@ -76,32 +76,38 @@ def pinned_contract(cls):
     return c, path
 
 
-def header(cls, api='', msg_type=1, manager=None):
-    """(text, provenance) of `<cls>_packets.h` with target=avr."""
+def header(cls, api='', msg_type=1, manager=None, bridge=''):
+    """(text, provenance) of `<cls>_packets.h` with target=avr — brd-wire: the WIRE V2 header (prelude: instance index in
+    the width `bridge`'s bindings imply + presence bits; the EnumMappings as enums)."""
     if api:
-        url = '%s/api/grpc/exposures/%s/c-header?msg_type=%d&target=avr' % (api.rstrip('/'), cls, int(msg_type))
+        url = '%s/api/grpc/exposures/%s/c-header?msg_type=%d&target=avr&wire=2&bridge=%s' % (api.rstrip('/'), cls, int(msg_type), bridge)
         from polariApiServer import outbound
         with outbound.http_request('self', 'board', 'GET', url, means='rest', timeout=30, lib='urllib', context=ssl._create_unverified_context()) as r:
             text = r.read().decode()
         m = re.search(r'contract v(\d+)\s+hash (\w*)', text)
         if '%s_MSG_TYPE' % cls.upper() not in text or 'target avr' not in text:
             raise GenRefused('the server returned no AVR header for %s (exposure enabled?)' % cls)
+        w2 = re.search(r'hash2 (\w+)\s+index width (\d+)', text)
         return text, {'source': 'live', 'url': url, 'contract_version': int(m.group(1)) if m else 0, 'contract_hash': m.group(2) if m else '',
-                      'tag_order': _order_from_header(text, cls)}
+                      'tag_order': _order_from_header(text, cls), 'hash_v2': w2.group(1) if w2 else '',
+                      'index_width': int(w2.group(2)) if w2 else 0}
     if manager is not None:
-        now = compat.server_header(manager, cls, msg_type, 'avr')
+        now = compat.server_header(manager, cls, msg_type, 'avr', bridge=bridge)
         if now is None:
             raise GenRefused('this server knows no contract for %s (no gRPC exposure, no pinned snapshot)' % cls)
-        prov = {k: now[k] for k in ('source', 'contract_version', 'contract_hash', 'tag_order', 'where') if k in now}
+        prov = {k: now[k] for k in ('source', 'contract_version', 'contract_hash', 'tag_order', 'where', 'hash_v2', 'index_width') if k in now}
         prov.update({k: now[k] for k in ('path', 'sha256') if k in now})
         if now['source'] == 'live':
             prov['url'] = 'in-process: %s' % now['where']
         return now['text'], prov
     from grpcbridge.custom.c_twin import render_c_header
     c, path = pinned_contract(cls)
-    text = render_c_header(cls, c['field_map'], int(msg_type), version=c['contract_version'], contract_hash=c['contract_hash'], target='avr')
+    spec = compat.wire_spec(None, cls, c['field_map'], bridge)
+    text = render_c_header(cls, c['field_map'], int(msg_type), version=c['contract_version'], contract_hash=c['contract_hash'], target='avr',
+                           wire=spec)
     return text, {'source': 'pinned', 'path': os.path.relpath(path, os.path.dirname(MOD)), 'sha256': sha256(open(path, 'rb').read()),
-                  'contract_version': c['contract_version'], 'contract_hash': c['contract_hash'], 'tag_order': compat.tag_order(c['field_map'])}
+                  'contract_version': c['contract_version'], 'contract_hash': c['contract_hash'], 'tag_order': compat.tag_order(c['field_map']),
+                  'hash_v2': spec['hash_v2'], 'index_width': spec['index_width']}
 
 
 def _order_from_header(text, cls):
@@ -167,14 +173,20 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     shutil.copy(app_src, os.path.join(project, 'main.c'))
     open(os.path.join(project, 'board_config.h'), 'w').write(V.render_config(r))
     class_rows, orders = [], {}
+    bridge = str(r['knobs'].get('bridge') or '')
     for i, cls in enumerate(r['classes']):
-        text, prov = header(cls, api, i + 1, manager)
+        text, prov = header(cls, api, i + 1, manager, bridge)
+        width = int(prov.get('index_width') or 0)
+        if int(r['knobs']['instance_index']) >= (1 << width):
+            raise GenRefused('instance_index %d does not fit the %d-bit index of %s on bridge %r (%d instance(s) bound) — bind '
+                             'another interface first, or pick 0..%d' % (r['knobs']['instance_index'], width, cls, bridge or '-',
+                                                                         max(1, 1 << width) if width else 1, (1 << width) - 1))
         hfn = '%s_packets.h' % cls.lower()
         open(os.path.join(project, hfn), 'w').write(text)
         order = prov.pop('tag_order', None) or _order_from_header(text, cls)
         orders[cls] = order
         class_rows.append(dict(prov, **{'class': cls, 'header': hfn, 'header_sha256': sha256(text), 'target': 'avr', 'msg_type': i + 1,
-                                        'tag_order': order}))
+                                        'tag_order': order, 'wire': 2, 'bridge': bridge}))
     viol = rule2_violations(project)
     if viol:
         raise GenRefused('RULE 2: a generated project holds only .c/.h/.v/.sv + Makefile/linker script — found %s' % viol)
@@ -185,6 +197,8 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': board, 'state': 'generated', 'variant': r['name'],
            'classes_json': json.dumps(class_rows), 'template': 'board/custom/firmware/uno', 'source_sha': ssha,
            'header_sha256': compat.combined_sha(class_rows), 'tag_order_json': json.dumps(orders),
+           'contract_hash_v2': class_rows[0]['hash_v2'] if len(class_rows) == 1 else sha256('\n'.join('%s:%s' % (c['class'], c['hash_v2']) for c in class_rows))[:16],
+           'bridge_name': bridge, 'instance_index': int(r['knobs']['instance_index']),
            'artifact_sha256': '', 'engines_json': '{}', 'size_text': 0, 'size_data': 0, 'size_bss': 0, 'built_at': '',
            'flashed_to': '', 'flash_log': '', 'generated_at': now, 'hex_path': '',
            'repro_json': json.dumps({'inputs': [{'label': lab, 'path': p, 'sha256': sha256(open(fp, 'rb').read())} for lab, p, fp in tfiles]
@@ -244,9 +258,11 @@ def main(argv):
     ap.add_argument('--rig-name')
     ap.add_argument('--device-id', type=int)
     ap.add_argument('--u2x', type=int, dest='usart_u2x')
+    ap.add_argument('--instance-index', type=int, dest='instance_index', help='brd-wire: this build\'s index among the bridge\'s bound instances')
     a = ap.parse_args(argv)
     try:
-        row = gen(a.board, a.classes, a.out, a.api, variant=a.variant or None, rig_name=a.rig_name, device_id=a.device_id, usart_u2x=a.usart_u2x)
+        row = gen(a.board, a.classes, a.out, a.api, variant=a.variant or None, rig_name=a.rig_name, device_id=a.device_id, usart_u2x=a.usart_u2x,
+                  instance_index=a.instance_index)
     except GenRefused as e:
         print('[REFUSED] %s' % e)
         return 1
@@ -255,6 +271,7 @@ def main(argv):
     print('       project  %s  (%s)' % (row['project_dir'], ', '.join(sorted(os.listdir(row['project_dir'])))))
     for c in cls:
         print('       header   %s  contract v%s hash %s  (%s)  sha256 %s' % (c['header'], c['contract_version'], c['contract_hash'], c['source'], c['header_sha256'][:16]))
+        print('       wire v2  hash2 %s  index width %s bit(s)  bridge %s  instance %s' % (c.get('hash_v2'), c.get('index_width'), c.get('bridge') or '-', row['instance_index']))
         print('       wire     %s' % ', '.join(c['tag_order']))
     print('       next     pol board build %s' % a.board)
     return 0

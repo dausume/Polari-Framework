@@ -32,3 +32,11 @@ uno-adc-sweep 1394 / 528 B, uno-echo 3152 / 763 B (flash / static RAM; the stack
 main.c measured 4442 B against the pinned v2 header; the same header now gives 4518 B — the split into hal.c costs +76 B (cross-unit calls, the ADC channel argument). Field order changes size too: the live v1 header builds 4532 B.
 
 With a local toolchain: `make` (all `*.c`, firmware.elf, firmware.hex, `avr-size -A`). Through Polari: `pol board build uno`.
+
+**brd-wire (wire v2, grpc-j4).** The generated header is the wire v2 one: `status` is an EnumMapping
+(`SIMRIGSTATE_STATUS_BOOT/OK/COMMANDED/ECHOED/FAULT`, one byte), `<C>_encode(s, p, INSTANCE_INDEX, mask)` sends only the
+fields set in `mask` (an app's TELEMETRY_MASK: what it has, never what it compiled out), `<C>_decode_rx` writes only the
+present fields and reports the frame's index (a command for another index is ignored), `<C>_frame()` frames with the
+class's version byte. `board_config.h` gains `INSTANCE_INDEX` (this board's index on its bridge) and `SEND_NAME` (0: the
+binding is the identity, the frame omits `name`).
+

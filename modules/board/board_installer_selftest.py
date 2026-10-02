@@ -44,8 +44,8 @@ def _expose(m, cls, version, fmap, chash, transport='both'):
 def variants(check):
     from board.custom import variants as V
     vs = V.SEED_FIRMWARE_VARIANTS
-    check('firmware_installer: four seeded UNO variants — uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-echo',
-          [v['name'] for v in vs] == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'])
+    check('firmware_installer: five seeded UNO variants — uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-pair (brd-wire), uno-echo',
+          [v['name'] for v in vs] == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-pair', 'uno-echo'])
     res = {v['name']: V.resolve(v) for v in vs}
     check('variants: four DIFFERENT apps; the adc sweep speaks a second class (UnoAnalogState)',
           len({r['app'] for r in res.values()}) == 4 and res['uno-adc-sweep']['classes'] == ['UnoAnalogState']
@@ -139,7 +139,7 @@ def flow(check, tmp, fake_runner, size_text, fake_bin, old_path):
     doc = I.document(m, work, scan={'host': I.this_host(), 'usb': [], 'serial': []})
     names = {b['name']: b for b in doc['builds']}
     check('installer document: targets (the twin always), variants, builds with sizes vs the cited limits, sha, compat, installable',
-          doc['targets'][0]['name'] == I.TWIN and len(doc['variants']) == 4 and rec['name'] in names and blink['name'] in names
+          doc['targets'][0]['name'] == I.TWIN and len(doc['variants']) == 5 and rec['name'] in names and blink['name'] in names
           and names[rec['name']]['flash_bytes'] == 3244 and names[rec['name']]['flash_max'] == 32256 and names[rec['name']]['compat'] == 'compatible'
           and names[rec['name']]['installable'] is True and doc['host'] == I.this_host())
     p = I.plan(m, I.TWIN, rec['name'], work)

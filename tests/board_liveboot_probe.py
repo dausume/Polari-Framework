@@ -12,8 +12,9 @@ os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
 from falcon import testing  # noqa: E402
-from objectTreeManagerDecorators import managerObject  # noqa: E402
-manager = managerObject(hasServer=True, hasDB=True)
+sys.path.insert(0, os.path.join(FRAMEWORK, 'tests'))
+from board_probe_boot import boot  # noqa: E402 — brd-wire: the framework as cwd for the boot, the DB in ./data here
+manager = boot(FRAMEWORK)
 client = testing.TestClient(manager.polServer.falconServer)
 results = []
 
@@ -71,17 +72,17 @@ r = client.simulate_post('/api/board/builds', body=json.dumps({'build': fl, 'ins
 check('brd-1: a flashed build stamps BoardInstance.firmware_sha / last_flash_at; the row count stays one',
       r.status_code == 201 and inst[0].firmware_sha == 'ab' * 32 and inst[0].last_flash_at and n('FirmwareBuild') == 1, r.text[:200])
 pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'boards']
-check('the /display/boards page is seeded as a DisplayDefinition with six configured tables',
-      len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 6, len(pages))
+check('the /display/boards page is seeded as a DisplayDefinition with seven configured tables (brd-wire: + bindings)',
+      len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 7, len(pages))
 # ---- brd-fi: the firmware installer
-check('brd-fi: the four UNO FirmwareVariants are seeded', sorted(getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values())
-      == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-sim-rig'], n('FirmwareVariant'))
+check('brd-fi: the five UNO FirmwareVariants are seeded (brd-wire: + uno-pair)', sorted(getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values())
+      == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-pair', 'uno-sim-rig'], n('FirmwareVariant'))
 r = client.simulate_get('/api/board/variants')
-check('brd-fi: GET /api/board/variants → four, each with what to watch', r.status_code == 200 and len(r.json['variants']) == 4
+check('brd-fi: GET /api/board/variants → five, each with what to watch', r.status_code == 200 and len(r.json['variants']) == 5
       and all(v['what_to_watch'] for v in r.json['variants']), r.text[:200])
 r = client.simulate_get('/api/board/installer')
-check('brd-fi: GET /api/board/installer → this host, the twin as a target, the four variants, the cited limits',
-      r.status_code == 200 and r.json['targets'][0]['name'] == 'twin:arduino-uno-r3' and len(r.json['variants']) == 4
+check('brd-fi: GET /api/board/installer → this host, the twin as a target, the five variants, the cited limits',
+      r.status_code == 200 and r.json['targets'][0]['name'] == 'twin:arduino-uno-r3' and len(r.json['variants']) == 5
       and r.json['limits']['flash_b'] == 32256, r.text[:300])
 r = client.simulate_post('/api/board/installer/plan', body=json.dumps({'instance': 'twin:arduino-uno-r3', 'build': 'no-such-build'}), headers={'Content-Type': 'application/json'})
 check('brd-fi: a plan for a build that does not exist → 404 in plain words', r.status_code == 404 and 'no build named' in r.json['error'], r.text[:200])
@@ -93,5 +94,18 @@ fi = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr
 names = [it['componentProps']['componentName'] for row in json.loads(fi[0].definition)['rows'] for it in row['items']] if fi else []
 check('brd-fi: /display/firmware-installer is seeded — six configured tables + the ONE firmware-installer-panel',
       len(fi) == 1 and names.count('firmware-installer-panel') == 1 and names.count('class-rows-table') == 6, names)
+# ---- brd-wire (grpc-j4): the mapping rows boot, seed, and the analysis door answers
+for cls in ('HardwareInterfaceBinding', 'EnumMapping', 'WireContract'):
+    check('brd-wire: class %s is typed after boot' % cls, cls in typed)
+check('brd-wire: two EnumMappings + the two uno-pair bindings seeded (index 0 / 1)', n('EnumMapping') == 2
+      and sorted((b.object_name, b.instance_index) for b in (tables.get('HardwareInterfaceBinding', {}) or {}).values())
+      == [('uno-twin-0', 0), ('uno-twin-1', 1)], (n('EnumMapping'), n('HardwareInterfaceBinding')))
+from urllib.parse import quote  # noqa: E402
+r = client.simulate_get('/api/board/instances/%s/interface' % quote('twin:arduino-uno-r3#1', safe=''))
+check('brd-wire: GET /api/board/instances/twin:arduino-uno-r3%231/interface → the chain: uno-twin-1, index 1, the UNO definition, its facts',
+      r.status_code == 200 and r.json['links'][0]['binding']['instance_index'] == 1 and r.json['links'][0]['board_definition']['name'] == 'arduino-uno-r3'
+      and len(r.json['links'][0]['datasheet_facts']) == 24, r.text[:300])
+r = client.simulate_get('/api/board/instances/%s/interface' % quote('twin:nobody', safe=''))
+check('brd-wire: an unbound instance → 404 naming the bound ones', r.status_code == 404 and 'twin:arduino-uno-r3#0' in r.json['error'], r.text[:200])
 print('\n%d/%d checks passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

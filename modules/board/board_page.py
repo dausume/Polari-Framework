@@ -36,6 +36,14 @@ _BOARDS_PAGES = [
                               columns='name,definition,definition_kind,state,host,usb_id,by_id_path,possible_targets_json,last_seen_at'),
                        _table('boards-facts', 1, 5, 'Datasheet facts (cited)', 'DatasheetFact',
                               columns='board,fact_key,value,unit,document,page_table,url')]),
+              # brd-wire (grpc-j4): which Polari row IS which hardware interface — the chain of one instance is
+              # GET /api/board/instances/<instance>/interface
+              _row(4, [_table('boards-bindings', 0, 12, 'Hardware-interface bindings — which row is which interface: bridge, instance index '
+                              '(ceil(log2 n) bits on the wire), port, the wire contract hash v2, frames applied / refused',
+                              'HardwareInterfaceBinding',
+                              columns='name,bridge_name,object_class,object_name,board_instance,board_definition,interface_kind,interface_name,'
+                                      'port,instance_index,wire_version,contract_hash_v2,frames_seen,refused_frames,last_seen_at',
+                              column_formats='board_definition:ref:BoardDefinition')]),
           ]),
 ]
 

@@ -140,6 +140,153 @@ def _run(cmd, cwd=None, timeout=120):
                           text=True, timeout=timeout)
 
 
+def _wire_checks(mgr):
+    """grpc-j4: two Widget bindings + an EnumMapping on `label` → the
+    generated project carries the mapping (width 1, enum, bindings)."""
+    from grpcbridge.custom import wire_contract as wc
+    mgr.objectTables.setdefault('HardwareInterfaceBinding', {})
+    mgr.objectTables.setdefault('EnumMapping', {})
+    for k in (1, 0):   # created out of order: indexes are assigned densely
+        _track(mgr, _factory(
+            name=f'pair/Widget/{k}', bridge_name='pair',
+            object_class='Widget', object_name=f'widget-{k}',
+            board_instance=f'twin:x#{k}', board_definition='x',
+            interface_kind='twin-pty', interface_name='usart0',
+            port=f'/tmp/w{k}', adapter='', instance_index=5 + k,
+            wire_version=2, contract_hash_v2=''),
+            'HardwareInterfaceBinding')
+    _track(mgr, _factory(name='Widget.label', object_class='Widget',
+                         field='label',
+                         labels_json='["idle", "busy"]',
+                         unknown_label='unknown'), 'EnumMapping')
+    bridge = _bridge_row(['Widget', 'SensorFrame'], bridge_name='pair',
+                         name='pair-hw-bridge', source='serial')
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+    rep = jb.generate_project(mgr, bridge, row_factory=_factory)
+    check('grpc-j4 generate: a bridge with bindings + an enum mapping',
+          rep.get('ok'), str(rep.get('error')))
+    if not rep.get('ok'):
+        return None
+    f = rep['files']
+    props = f['bridge.properties']
+    idx = sorted((b.object_name, b.instance_index) for b in
+                 mgr.objectTables['HardwareInterfaceBinding'].values())
+    check('grpc-j4 indexes assigned densely 0..n-1 per class per bridge',
+          idx == [('widget-0', 0), ('widget-1', 1)], str(idx))
+    wcr = mgr.objectTables.get('WireContract', {}).get('Widget@pair')
+    codec = f[f'{jb.JAVA_DIR}/codec/WidgetCodec.java']
+    check('grpc-j4 two Widget instances on one bridge → a 1-bit index; '
+          'the WireContract row carries width, enums and hash v2',
+          'INDEX_WIDTH = 1;' in codec and wcr is not None
+          and wcr.index_width == 1 and wcr.instance_count == 2
+          and json.loads(wcr.enums_json) == {'label': ['idle', 'busy']}
+          and wcr.contract_hash_v2 == rep['wireContracts']['Widget'][
+              'hashV2'], str(rep.get('wireContracts')))
+    check('grpc-j4 SensorFrame (no bindings) stays one instance: width 0',
+          'INDEX_WIDTH = 0;' in
+          f[f'{jb.JAVA_DIR}/codec/SensorFrameCodec.java'])
+    check('grpc-j4 bridge.properties carries the bindings (identity '
+          'lives here and in the gRPC message, never the struct)',
+          'bridge.name=pair' in props and 'binding.count=2' in props
+          and 'binding.1.object=widget-1' in props
+          and 'binding.1.index=1' in props
+          and 'binding.0.port=/tmp/w0' in props)
+    proto = f['src/main/proto/polari_bridge.proto']
+    check('grpc-j4 proto: HardwareInterface once, hardware_interface = '
+          '2047 on each class, the enum declared, the field still string',
+          proto.count('message HardwareInterface {') == 1
+          and proto.count('HardwareInterface hardware_interface = 2047;')
+          == 2 and 'enum WidgetLabel {' in proto
+          and 'WIDGET_LABEL_BUSY = 2;' in proto
+          and re.search(r'string label = \d+;', proto))
+    enum = f.get(f'{jb.JAVA_DIR}/codec/WidgetLabelEnum.java', '')
+    fwd = f[f'{jb.JAVA_DIR}/grpc/GrpcForwarder.java']
+    check('grpc-j4 Java: the enum class, encodeV2/decodeFrame in the codec, '
+          'the forwarder re-attaches identity up and routes by index down',
+          'BUSY(2, "busy")' in enum and 'encodeV2(' in codec
+          and 'decodeFrame(' in codec and 'setHardwareInterface(hw)' in fwd
+          and 'port.sendTo("Widget", b.index' in fwd
+          and 'refused: Widget index' in fwd)
+    _ = wc
+    return f
+
+
+def _wire_jvm(files, javac, java):
+    with tempfile.TemporaryDirectory(prefix='polari-jwire-') as tmp:
+        root = Path(tmp)
+        for path, text in files.items():
+            target = root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        core = [str(p) for p in (root / 'src/main/java').rglob('*.java')
+                if '/grpc/' not in str(p)]
+        comp = _run([javac, '--release', '17', '-d', str(root / 'out')]
+                    + core)
+        loop = _run([java, '-cp', str(root / 'out'),
+                     'org.polari.bridge.LoopbackSelfTest']) \
+            if comp.returncode == 0 else None
+        check('grpc-j4 JVM: the bound project compiles; v2 round-trips '
+              'carry index 1 and the enum (Widget) and index 0 '
+              '(SensorFrame)',
+              comp.returncode == 0 and loop is not None
+              and loop.returncode == 0
+              and re.search(r'PASS: v2 round-trip index=1 v2 Widget\{.*'
+                            r'label=(idle|busy)', loop.stdout)
+              and 'PASS: v2 round-trip index=0 v2 SensorFrame{'
+              in loop.stdout,
+              (comp.stderr[:600] + (loop.stdout[-600:] if loop else '')))
+
+
+def _wire_many(mgr, javac, java):
+    """grpc-j4 at scale: 20 SensorFrame interfaces on one bridge → past
+    packed_max_bits 4 the index becomes an explicit byte (version 3)."""
+    for k in range(20):
+        _track(mgr, _factory(
+            name=f'many/SensorFrame/{k}', bridge_name='many',
+            object_class='SensorFrame', object_name=f'sensor-{k}',
+            board_instance=f'bus:rs485#{k}', board_definition='x',
+            interface_kind='serial', interface_name='usart0',
+            port='/tmp/bus', adapter='', instance_index=k,
+            wire_version=2, contract_hash_v2=''),
+            'HardwareInterfaceBinding')
+    bridge = _bridge_row(['SensorFrame'], bridge_name='many',
+                         name='many-hw-bridge', source='serial')
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+    rep = jb.generate_project(mgr, bridge, row_factory=_factory)
+    f = rep.get('files', {})
+    codec = f.get(f'{jb.JAVA_DIR}/codec/SensorFrameCodec.java', '')
+    wcr = mgr.objectTables.get('WireContract', {}).get('SensorFrame@many')
+    check('grpc-j4 n=20 on one bridge: an explicit index BYTE (wire version '
+          '3), the suggestion (5 bits) and the knob recorded on the row',
+          rep.get('ok') and 'WIRE_VERSION = 3;' in codec
+          and 'INDEX_BYTES = 1;' in codec and wcr is not None
+          and wcr.index_repr == 'byte' and wcr.suggested_index_width == 5
+          and wcr.packed_max_bits == 4 and 'explicit 1-byte' in wcr.notes
+          and f['bridge.properties'].count('.port=/tmp/bus') == 20,
+          str(rep.get('error') or (wcr and wcr.notes)))
+    if not (javac and java and rep.get('ok')):
+        return
+    with tempfile.TemporaryDirectory(prefix='polari-jmany-') as tmp:
+        root = Path(tmp)
+        for path, text in f.items():
+            target = root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        core = [str(p) for p in (root / 'src/main/java').rglob('*.java')
+                if '/grpc/' not in str(p)]
+        comp = _run([javac, '--release', '17', '-d', str(root / 'out')]
+                    + core)
+        loop = _run([java, '-cp', str(root / 'out'),
+                     'org.polari.bridge.LoopbackSelfTest']) \
+            if comp.returncode == 0 else None
+        check('grpc-j4 JVM n=20: index 19 survives encodeV2 -> frame '
+              '(version byte 3) -> parse -> decodeFrame',
+              loop is not None and loop.returncode == 0
+              and 'PASS: v2 round-trip index=19 v3 SensorFrame{'
+              in loop.stdout,
+              comp.stderr[:400] + (loop.stdout[-400:] if loop else ''))
+
+
 def main():
     ss._STATUS_CACHE.clear()
     mgr = _mgr()
@@ -207,6 +354,9 @@ def main():
           len(report['manifest']) == len(files)
           and all(m['sha256'] for m in report['manifest']))
 
+    # --- grpc-j4: the computer<->firmware mapping on a bridge -------------------
+    wire_files = _wire_checks(mgr)
+
     # --- tarball ------------------------------------------------------------
     blob = jb.tarball(report)
     import io
@@ -251,6 +401,13 @@ def main():
                       and 'LOOPBACK OK' in loop.stdout
                       and 'command round-trip' in loop.stdout,
                       loop.stdout[-800:] + loop.stderr[-200:])
+                check('grpc-j4 loopback: every class survives encodeV2 -> '
+                      'frame -> parse -> decodeFrame (field 0 absent); the '
+                      'resync keeps both frames after garbage ending in 0x4C '
+                      'and a frame cut short',
+                      loop.stdout.count('PASS: v2 round-trip') == 2
+                      and 'PASS: resync keeps both frames [50, 51]'
+                      in loop.stdout, loop.stdout[-800:])
                 run = _run([java, '-cp', str(out),
                             'org.polari.bridge.BridgeMain',
                             str(root / 'bridge.properties'),
@@ -264,6 +421,10 @@ def main():
                       and 'Widget{' in run.stdout
                       and 'SensorFrame{' in run.stdout,
                       run.stdout[-800:] + run.stderr[-200:])
+
+    if wire_files and javac and java:
+        _wire_jvm(wire_files, javac, java)
+    _wire_many(mgr, javac, java)
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '

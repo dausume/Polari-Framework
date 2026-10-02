@@ -909,6 +909,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('grpcbridge.hwsim_basis', (
             'SimRigState', 'SEED_SIM_RIGS',
         )),
+        ('grpcbridge.mapping_basis', (
+            'HardwareInterfaceBinding', 'EnumMapping', 'WireContract',
+            'SEED_ENUM_MAPPINGS', 'SEED_HARDWARE_BINDINGS',
+        )),
     )),
     ('hwfpga', (
         ('hwfpga.fpga_basis', (

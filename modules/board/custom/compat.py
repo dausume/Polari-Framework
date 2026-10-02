@@ -1,7 +1,8 @@
 """
 @module board.custom.compat
 
-"POLARI-COMPATIBLE FIRMWARE" (brd-fi, plan §7a): may this build be installed for THIS server? brd-1's finding decides
+"POLARI-COMPATIBLE FIRMWARE" (brd-fi, plan §7a; brd-wire: the wire contract hash v2 is compared FIRST — it names what
+changed — then the header's own sha256, which also covers msg_type, target and the v1 contract line): may this build be installed for THIS server? brd-1's finding decides
 how: `contract_hash` covers field → type only, so a fresh server's v1 (alphabetical tags) and the staging ledger's v2
 share hash 2bcc9d1a2774ef33 yet put the fields on the wire in a different ORDER. So the check never trusts the hash
 alone — it compares, per class, the generated header's own sha256 and its tag (= wire) order against the header THIS
@@ -67,9 +68,17 @@ def _live(manager, cls):
     return None
 
 
-def server_header(manager, cls, msg_type=1, target='avr', allow_pinned=True):
+def wire_spec(manager, cls, field_map, bridge=''):
+    """brd-wire (grpc-j4): the wire v2 spec of `cls` — the EnumMappings and the index width of `bridge`'s bindings on
+    this server (the code-owned seeds when the server has no such rows, e.g. offline gen)."""
+    from grpcbridge.custom.wire_contract import spec_for
+    return spec_for(manager, cls, bridge, field_map)
+
+
+def server_header(manager, cls, msg_type=1, target='avr', allow_pinned=True, bridge='', wire=2):
     """What THIS server would generate now: {text, sha256, tag_order, source live|pinned, contract_version,
-    contract_hash, field_map} — or None (unknown class). Live first; the pinned snapshot only with no exposure."""
+    contract_hash, hash_v2, index_width, field_map} — or None (unknown class). Live first; the pinned snapshot only with
+    no exposure. brd-wire: wire=2 (default) renders the wire v2 header (bridge → index width); wire=1 the old one."""
     from grpcbridge.custom.c_twin import render_c_header
     live = _live(manager, cls)
     if live is not None:
@@ -84,8 +93,10 @@ def server_header(manager, cls, msg_type=1, target='avr', allow_pinned=True):
                'path': os.path.relpath(path, os.path.dirname(os.path.dirname(HERE))), 'sha256': sha256(open(path, 'rb').read())}
     else:
         return None
-    text = render_c_header(cls, fm, int(msg_type), version=ver, contract_hash=h, target=target)
-    return dict(src, text=text, sha256=sha256(text), tag_order=tag_order(fm), contract_version=ver, contract_hash=h, field_map=fm)
+    spec = wire_spec(manager, cls, fm, bridge) if int(wire) >= 2 else None
+    text = render_c_header(cls, fm, int(msg_type), version=ver, contract_hash=h, target=target, wire=spec)
+    return dict(src, text=text, sha256=sha256(text), tag_order=tag_order(fm), contract_version=ver, contract_hash=h, field_map=fm,
+                hash_v2=spec['hash_v2'] if spec else '', index_width=spec['index_width'] if spec else 0, wire=int(wire), bridge=bridge)
 
 
 def combined_sha(class_rows):
@@ -115,16 +126,26 @@ def check(build, manager=None):
         cls = c.get('class', '')
         mt, target = int(c.get('msg_type') or (i + 1)), c.get('target') or 'avr'
         built_sha, built_order = c.get('header_sha256', ''), orders.get(cls) or c.get('tag_order') or []
-        now = server_header(manager, cls, mt, target)
-        row = {'class': cls, 'msg_type': mt, 'target': target, 'built_sha256': built_sha, 'built_order': built_order}
+        wire, bridge, built_v2 = int(c.get('wire') or 1), c.get('bridge') or '', c.get('hash_v2', '')
+        now = server_header(manager, cls, mt, target, bridge=bridge, wire=wire)
+        row = {'class': cls, 'msg_type': mt, 'target': target, 'built_sha256': built_sha, 'built_order': built_order,
+               'wire': wire, 'bridge': bridge, 'built_hash_v2': built_v2, 'contract_hash_v1': c.get('contract_hash', '')}
         if now is None:
             row.update(verdict='unknown-class', why='this server knows no contract for %s (no gRPC exposure and no pinned snapshot) — '
                                                     'the firmware speaks a class the server cannot read' % cls)
             worst = 'unknown-class'
         else:
             row.update(now_sha256=now['sha256'], now_order=now['tag_order'], source=now['source'], where=now['where'],
-                       contract_version=now['contract_version'], contract_hash=now['contract_hash'])
-            if built_sha and built_sha == now['sha256']:
+                       contract_version=now['contract_version'], contract_hash=now['contract_hash'], now_hash_v2=now['hash_v2'])
+            if wire >= 2 and built_v2 != now['hash_v2'] and built_order and built_order != now['tag_order']:
+                row.update(verdict='stale-header', why='the firmware puts %s on the wire as %s; this server now expects %s — they would '
+                                                       'misread each other\'s bytes (wire contract %s → %s). Regenerate it against this server.'
+                                                       % (cls, _plain_order(built_order), _plain_order(now['tag_order']), built_v2, now['hash_v2']))
+            elif wire >= 2 and built_v2 != now['hash_v2']:
+                row.update(verdict='stale-header', why='the firmware speaks %s with wire contract %s; this server now derives %s (the enum '
+                                                       'tables or the instance-index width of bridge %r changed) — regenerate it'
+                                                       % (cls, built_v2 or '(none)', now['hash_v2'], bridge or '-'))
+            elif built_sha and built_sha == now['sha256']:
                 row.update(verdict='compatible', why='the %s header is byte-identical to what this server generates now (%s)' % (cls, now['where']))
             elif built_order and built_order != now['tag_order']:
                 row.update(verdict='stale-header', why='the firmware puts %s on the wire as %s; this server now expects %s — they would '

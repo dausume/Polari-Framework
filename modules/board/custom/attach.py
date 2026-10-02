@@ -31,7 +31,8 @@ import time
 from board.custom import installer as I
 
 BRIDGE = 'fi-uno'
-LINE_RE = re.compile(r'^\[bridge\] seq=(\d+) device=(\d+) (\w+)\{(.*)\}\s*$')
+#: brd-wire: a wire v2 frame's line carries `index=K` (its instance index) before the class
+LINE_RE = re.compile(r'^\[bridge\] seq=(\d+) device=(\d+) (?:index=(\d+) )?(\w+)\{(.*)\}\s*$')
 KV_RE = re.compile(r'(\w+)=([^,]*)(?:, |$)')
 _THREADS = {}
 
@@ -48,8 +49,8 @@ def parse_line(line):
     m = LINE_RE.match(line.strip())
     if not m:
         return None
-    vals = {k: v.strip() for k, v in KV_RE.findall(m.group(4))}
-    return {'seq': int(m.group(1)), 'device': int(m.group(2)), 'class': m.group(3), 'values': vals}
+    vals = {k: v.strip() for k, v in KV_RE.findall(m.group(5))}
+    return {'seq': int(m.group(1)), 'device': int(m.group(2)), 'index': int(m.group(3) or 0), 'class': m.group(4), 'values': vals}
 
 
 def frames(log_path, limit=5):
