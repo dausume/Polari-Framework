@@ -13,6 +13,7 @@ from firmwarefaults.firmwarefaults_basis import (FirmwareFault, ConcurrencyPrimi
                                                  ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding)
 from firmwarefaults.custom.campaign import seed_rows as campaign_rows
 from firmwarefaults.custom.formal import seed_rows as formal_rows
+from firmwarefaults.custom.formal_mthread import seed_rows as mthread_rows
 from firmwarefaults.custom.fault_rows import by_class
 from firmwarefaults.custom.scenarios import SEED_SCENARIOS, SEED_STEPS, scenario_variants
 from firmwarefaults.custom.taxonomy import SEED_PRIMITIVES, SEED_ASSUMPTIONS, SEED_TECHNIQUES
@@ -49,7 +50,7 @@ FIRMWAREFAULTS_SEED_PAIRS = [
     ('ScenarioStatistic', ScenarioStatistic, []),
     ('ScenarioCampaign', ScenarioCampaign, _owned(campaign_rows(), keep=_MEASURED_CAMPAIGN)),
     ('FaultLikelihood', FaultLikelihood, []),
-    ('FormalCheck', FormalCheck, _owned(formal_rows(), keep=_MEASURED_FORMAL)),
+    ('FormalCheck', FormalCheck, _owned(formal_rows() + mthread_rows(), keep=_MEASURED_FORMAL)),
     ('StaticCheck', StaticCheck, []),
     ('StaticFinding', StaticFinding, []),
 ]

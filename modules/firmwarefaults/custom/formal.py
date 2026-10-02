@@ -88,7 +88,7 @@ def seed_rows():
         r = {k: c[k] for k in keys}
         r.update(harness=', '.join(c['harness_files']), harness_files_json=json.dumps(c['harness_files']), width='16',
                  defines_json=json.dumps(c['defines']), volatile_models_json=json.dumps(c['volatile_models']), engine='cbmc', limits=LIMITS,
-                 outcome='not-run')
+                 outcome='not-run', bound='k=%s (bounded)' % c['bound_k'])
         out.append(r)
     return out
 

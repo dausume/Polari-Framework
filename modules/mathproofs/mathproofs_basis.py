@@ -23,7 +23,8 @@ PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided',
 CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed', 'safe-under-scenario')
 # sc-2b: `cbmc` — firmwarefaults' FormalCheck (a bounded model check of firmware C): holds → `decided` (bounded, the bound on
 # the claim's evidence tier), never `proved`; a counterexample → refuted
-CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human', 'sim', 'cbmc')
+# sc-2c: `frama-c-mthread` — firmwarefaults' Mthread race check: no race → `decided` (unbounded, on the tier entry), never `proved`
+CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human', 'sim', 'cbmc', 'frama-c-mthread')
 #: sc-2: the evidence tiers a claim can carry side by side (MathClaim.evidence_tiers_json) — a tier records what IT found;
 #: proof_status is the strongest honest status among them (a refutation outranks everything)
 EVIDENCE_TIERS = ('sim', 'statistics', 'formal', 'static')

@@ -6,7 +6,7 @@ through the engines seams (the twin: board engines; CBMC / cppcheck: formal engi
 $POLARI_FAULTS_HOME/runs/; with --api URL the server runs it and the rows land there.
 
     campaign list | run <name> [--seeds N] [--rates a,b] [--verbose] [--api URL] | show <name>
-    formal   list | run <name>|all [--api URL] | show <name>
+    formal   list | run <name>|all|cbmc|mthread [--api URL] | show <name>   (sc-2c: the Mthread race checks beside CBMC's)
     static   run [<variant>|all] [--api URL] | show <variant>
 """
 import json
@@ -87,21 +87,41 @@ def print_formal(r):
     print('%s %s — %s' % (tag, r['name'], r.get('title', '')))
     print('       claim     %s → %s' % (r.get('claim') or '-', r.get('claim_status') or r.get('outcome')))
     print('       outcome   %s' % r.get('outcome_words', '')[:600])
-    print('       engine    %s (%s) · %.3f s wall · %.1f MB peak RSS · bound k=%s, unwind %s · expected %s' % (
-        r.get('engine_version', ''), r.get('engine_where', ''), float(r.get('wall_s') or 0), float(r.get('peak_rss_mb') or 0), r.get('bound_k'),
-        r.get('unwind'), r.get('expected')))
+    bound = r.get('bound') or 'k=%s, unwind %s' % (r.get('bound_k'), r.get('unwind'))
+    print('       engine    %s (%s) · %.3f s wall · %.1f MB peak RSS · bound %s · expected %s' % (
+        r.get('engine_version', ''), r.get('engine_where', ''), float(r.get('wall_s') or 0), float(r.get('peak_rss_mb') or 0), bound,
+        r.get('expected')))
     if r.get('trace_sha256'):
-        print('       trace     sha256 %s (%s steps)' % (r['trace_sha256'], r.get('trace_steps')))
+        print('       %s sha256 %s (%s %s)' % ('report' if r.get('engine') == 'frama-c-mthread' else 'trace ', r['trace_sha256'], r.get('trace_steps'),
+                                            'lines' if r.get('engine') == 'frama-c-mthread' else 'steps'))
+    if r.get('engine') == 'frama-c-mthread':
+        try:
+            cx = json.loads(r.get('counterexample_json') or '{}')
+        except ValueError:
+            cx = {}
+        if cx.get('pair'):
+            print('       race      %s: %s' % (cx.get('var'), cx['pair']))
 
 
 def cmd_formal(a):
-    from firmwarefaults.custom import formal as F, formal_engines as fe
+    from firmwarefaults.custom import formal_mthread as M, formal_engines as fe
     if a.action == 'list':
-        for c in F.FORMAL_CHECKS:
-            print('  %-42s %-14s expected %-12s %s' % (c['name'], c['variant'], c['expected'], c['bound_words']))
-        print('  engine: %s' % json.dumps(fe.placement()['engines'].get('cbmc-check')))
+        for c in M.all_checks():
+            eng = 'mthread' if M.find(c['name']) else 'cbmc'
+            print('  %-42s %-7s %-20s expected %-12s %s' % (c['name'], eng, c['variant'], c['expected'], c.get('bound_words') or 'unbounded (no k, no unwind)'))
+        eng = fe.placement()['engines']
+        print('  engine cbmc-check:    %s' % json.dumps(eng.get('cbmc-check')))
+        print('  engine mthread-check: %s' % json.dumps(eng.get('mthread-check')))
         return 0
-    names = [c['name'] for c in F.FORMAL_CHECKS] if a.name in ('all', '') else [a.name]
+    if a.name in ('all', ''):
+        names = [c['name'] for c in M.all_checks()]
+    elif a.name in ('cbmc', 'mthread'):
+        names = [c['name'] for c in (M.F.FORMAL_CHECKS if a.name == 'cbmc' else M.MTHREAD_CHECKS)]
+    else:
+        names = [a.name]
+    if a.action == 'run' and not all(M.find_any(n) for n in names):
+        print('[REFUSED] unknown FormalCheck %r — one of %s (or all | cbmc | mthread)' % (a.name, ', '.join(c['name'] for c in M.all_checks())))
+        return 3
     if a.api:
         d = _http('POST', '%s/api/firmwarefaults/formal' % a.api.rstrip('/'), {'checks': names})
         if not d.get('ok'):
@@ -124,7 +144,7 @@ def cmd_formal(a):
     sink = LocalSink()
     try:
         for n in names:
-            print_formal(F.run_check(n, sink))
+            print_formal(M.run_any(n, sink))
     except fe.FormalRefused as e:
         print('[REFUSED] %s' % e)
         return 3

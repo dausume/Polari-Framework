@@ -15,12 +15,16 @@ window, 2 seeds → FaultLikelihood rows + the claims' statistics tier), and —
 (hal_millis atomic → decided (bounded), bare → refuted with the trace; RX_RING 512 → inapplicable) and one cppcheck variant; else those
 checks SKIP honestly naming FORMAL_ENGINES_URL. --worker: start the board engines WORKER container and run scenario 1 through
 BOARD_ENGINES_URL (the 20 000-character stdout cut is gone).
+Part S2C (sc-2c, offline): when mthread-check resolves (prf-formal-engines carries it since sc-2c; the FORMAL_ENGINES_URL ladder) the REAL Frama-C/Mthread checks — hal_millis
+atomic → decided (unbounded), bare → refuted with the two racing lines; the RX ring → decided (unbounded); the NEGATIVE CONTROL (a
+broken flush writing rx_head from main) → refuted; RX_RING 512 → inapplicable — and the AFTER claim carries BOTH formal tiers (CBMC
+bounded + Mthread unbounded); else SKIP honestly naming FORMAL_ENGINES_URL. --worker also runs one check THROUGH the worker.
 Part B (live boot): a THROWAWAY in-process server with firmwarefaults (+ board, grpcbridge, mathproofs …) — typed classes, the
 seeds, the page, the doors, and POST /api/firmwarefaults/run executing the pair IN the server (rows + claims + measured cost).
 Skips HONESTLY (exit 0, every check listed as SKIP) when no twin / disassembler resolves on this device.
 
   cd <throwaway dir> && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/firmwarefaults_probe.py [--json out.json] [--no-boot] [--no-sc1|--only-sc1]
-      [--no-sc2] [--only-sc2] [--worker]
+      [--no-sc2] [--only-sc2] [--no-sc2c] [--only-sc2c] [--worker]
 """
 import json
 import os
@@ -268,6 +272,57 @@ def part_s2(worker=False):
             subprocess.run(['docker', 'stop', cid], capture_output=True)
 
 
+def part_s2c(worker=False):
+    import subprocess
+    import time
+    from firmwarefaults.custom import formal_mthread as M, formal_engines as fe
+    from firmwarefaults.custom.sink import LocalSink
+    if not fe.available('mthread-check'):
+        print('SKIP: the Mthread checks — %s' % fe.resolve('mthread-check')['why'])
+        return
+    sink = LocalSink()
+    fs = {c['name']: M.run_check(c['name'], sink) for c in M.MTHREAD_CHECKS}
+    for n, f in fs.items():
+        cx = json.loads(f['counterexample_json'] or '{}')
+        check('Mthread %s → %s (%s; %.2f s, %.1f MB peak RSS)%s' % (n, f['outcome'], f['claim_status'] or '-', f['wall_s'], f['peak_rss_mb'],
+                                                                   (' — ' + cx['pair']) if cx.get('pair') else ''),
+              f['outcome'] == M.find(n)['expected'], f['outcome_words'][:400])
+    t = json.loads(fs['hal-millis-race@uno-sim-rig-torn']['counterexample_json'] or '{}')
+    check('the torn build\'s counterexample names g_ms: main\'s unprotected read in hal.c vs the tick\'s write in hal.c',
+          t.get('var') == 'g_ms' and any(a['thread'] == '<main>' and not a['protected_by'] for a in t.get('accesses', []))
+          and all(a['where'].startswith('hal.c:') for a in t.get('accesses', [])), t)
+    ring = {c['var'].split('[')[0]: c['verdict'] for c in json.loads(fs['rx-ring-race@uno-sim-rig']['properties_json'])}
+    check('the ring: rx_head, rx_tail, rx_ring classified BYTE-ATOMIC (Mthread reports them as unprotected shared accesses; one byte, one writer)',
+          ring == {'rx_head': 'BYTE-ATOMIC', 'rx_tail': 'BYTE-ATOMIC', 'rx_ring': 'BYTE-ATOMIC'}, ring)
+    neg = fs['rx-ring-race@uno-sim-rig+broken-flush']
+    check('the negative control speaks to NO claim', neg['claim'] == '' and not any('broken' in x['name'] for x in sink.rows('MathClaim')))
+    cl = {x['name']: x for x in sink.rows('MathClaim')}
+    ca = cl.get('fw-safe:torn-millis-read:%s' % fs['hal-millis-race@uno-sim-rig']['build_name'], {})
+    tiers = [x for x in json.loads(ca.get('evidence_tiers_json', '[]')) if x['tier'] == 'formal']
+    check('the AFTER claim carries the Mthread tier: decided, measure "decided (unbounded)"', ca.get('proof_status') == 'decided'
+          and any(x['ref'] == 'hal-millis-race@uno-sim-rig' and x['measure'] == 'decided (unbounded)' for x in tiers), tiers)
+    report['mthread'] = {n: {k: f[k] for k in ('outcome', 'claim_status', 'wall_s', 'cpu_s', 'peak_rss_mb', 'trace_sha256', 'counterexample_json',
+                                               'engine_version', 'engine_where')} for n, f in fs.items()}
+    report['mthread_lines'] = {n: f['_raw'].get('mt_lines') for n, f in fs.items()}
+    if worker:
+        port = '9847'
+        cid = subprocess.run(['docker', 'run', '-d', '--rm', '-p', '127.0.0.1:%s:9840' % port, 'prf-formal-engines:trixie'], capture_output=True, text=True).stdout.strip()
+        try:
+            os.environ[fe.KNOB] = 'http://127.0.0.1:%s' % port
+            for _ in range(60):
+                fe._CAP.clear()
+                if fe.remote_capability(os.environ[fe.KNOB]):
+                    break
+                time.sleep(0.5)
+            w = M.run_check('hal-millis-race@uno-sim-rig-torn', LocalSink())
+            check('THROUGH the formal engines worker (FORMAL_ENGINES_URL): Mthread on the torn build → %s (%s)' % (w['outcome'], w['engine_where']),
+                  w['outcome'] == 'refuted' and w['engine_where'].startswith('remote'), w['outcome_words'][:200])
+        finally:
+            os.environ.pop(fe.KNOB, None)
+            fe._CAP.clear()
+            subprocess.run(['docker', 'stop', cid], capture_output=True)
+
+
 def part_b():
     os.environ['POLARI_MODULES'] = 'techtree,hwmap,hardwareapps,islemesh,grpcbridge,board,mathproofs,firmwarefaults'
     os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
@@ -283,9 +338,10 @@ def part_b():
           [c.__name__ for c in FIRMWAREFAULTS_CLASSES if c.__name__ not in typed])
     n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
     kinds = sum(n(c.__name__) for c in FIRMWAREFAULTS_CLASSES[1:17])
-    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 11 scenarios, 17 steps, 4 campaigns, 4 formal checks seeded',
+    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 11 scenarios, 17 steps, 4 campaigns, 9 formal checks seeded '
+          '(4 CBMC + 5 Mthread)',
           (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck'))
-          == (17, 11, 13, 6, 11, 17, 4, 4),
+          == (17, 11, 13, 6, 11, 17, 4, 9),
           (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck')))
     check('live boot: the eleven scenario variants are FirmwareVariant rows beside board\'s five',
           {'uno-sim-rig-torn', 'uno-sim-rig-ring512', 'uno-ack-wait', 'uno-ack-wait-timeout', 'uno-button-count', 'uno-button-debounce',
@@ -299,8 +355,9 @@ def part_b():
           and sum(s['runnable'] for s in r.json['scenarios']) == 9, r.text[:300])
     from firmwarefaults.custom import formal_engines as ffe
     rc, rf = client.simulate_get('/api/firmwarefaults/campaigns'), client.simulate_get('/api/firmwarefaults/formal')
-    check('GET /api/firmwarefaults/campaigns (4) and /formal (4 + the FORMAL_ENGINES_URL ladder) answer on the live boot',
-          rc.status_code == 200 and len(rc.json['campaigns']) == 4 and rf.status_code == 200 and len(rf.json['checks']) == 4, (rc.text[:200], rf.text[:200]))
+    check('GET /api/firmwarefaults/campaigns (4) and /formal (9 + the FORMAL_ENGINES_URL ladder for cbmc-check AND mthread-check) answer on the live boot',
+          rc.status_code == 200 and len(rc.json['campaigns']) == 4 and rf.status_code == 200 and len(rf.json['checks']) == 9
+          and 'mthread-check' in rf.json['engines']['engines'], (rc.text[:200], rf.text[:200]))
     if ffe.available('cbmc-check'):
         r = client.simulate_post('/api/firmwarefaults/formal', body=json.dumps({'checks': ['hal-millis-not-torn@uno-sim-rig-torn']}),
                                  headers={'Content-Type': 'application/json'})
@@ -330,6 +387,15 @@ def part_b():
         r = client.simulate_get('/api/firmwarefaults/runs/%s' % r.json['runs'][0]['name'])
         check('GET /api/firmwarefaults/runs/<before> → the run, its trace rows, the refuted claim', r.status_code == 200 and r.json['trace']
               and r.json['claim']['proof_status'] == 'refuted', r.text[:300])
+    if ffe.available('mthread-check'):     # after the sim pair: a formal decision on the AFTER build outranks its witness
+        r = client.simulate_post('/api/firmwarefaults/formal', body=json.dumps({'checks': ['hal-millis-race@uno-sim-rig']}),
+                                 headers={'Content-Type': 'application/json'})
+        rows = [c for c in (tables.get('FormalCheck', {}) or {}).values() if c.name == 'hal-millis-race@uno-sim-rig']
+        check('POST /api/firmwarefaults/formal runs MTHREAD IN the server → decided (unbounded), the row\'s bound "unbounded", a frama-c-mthread ProofRun; the AFTER claim now decided',
+              r.status_code == 201 and r.json['checks'][0]['claim_status'] == 'decided (unbounded)' and rows and rows[0].bound == 'unbounded'
+              and any(getattr(p, 'checker', '') == 'frama-c-mthread' for p in (tables.get('ProofRun', {}) or {}).values())
+              and any(c.proof_status == 'decided' for c in (tables.get('MathClaim', {}) or {}).values()
+                      if c.name == 'fw-safe:torn-millis-read:%s' % r.json['checks'][0]['build_name']), r.text[:300])
     report['live_boot'] = {'claims': claims, 'trace_rows': n('ScenarioTraceCycle')}
 
 
@@ -339,12 +405,15 @@ def main(argv):
         print('SKIP: no simavr twin / disassembler on this device (%s) — build the image: docker compose -f '
               'polari-rf-node/docker-compose.board-engines.yml build' % fe.placement())
         return 0
-    if '--only-sc1' not in argv and '--only-sc2' not in argv:
+    only2c = '--only-sc2c' in argv
+    if '--only-sc1' not in argv and '--only-sc2' not in argv and not only2c:
         part_a()
-    if '--no-sc1' not in argv and '--only-sc2' not in argv:
+    if '--no-sc1' not in argv and '--only-sc2' not in argv and not only2c:
         part_s1()
-    if '--no-sc2' not in argv:
+    if '--no-sc2' not in argv and not only2c:
         part_s2(worker='--worker' in argv)
+    if '--no-sc2c' not in argv and '--only-sc1' not in argv:
+        part_s2c(worker='--worker' in argv)
     if '--no-boot' not in argv:
         part_b()
     if '--json' in argv:

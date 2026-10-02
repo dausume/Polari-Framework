@@ -14,6 +14,9 @@ class FormalCheck(treeObject):
     trace, its sha kept), `inapplicable` (the source does not compile — e.g. hal.c's static guard refuses the variant),
     `undetermined` (the bound was too small to decide, or the budget ran out), `error`. The limits of the model are on the
     row: CBMC has no AVR architecture; widths, endianness and the byte-wise read model are stated.
+    sc-2c: a second engine, Frama-C's Mthread (LGPL-2.1, opam-built into prf-formal-engines) — `engine` frama-c-mthread, `bound` "unbounded":
+    an interference fixed point over the whole program (no unwind, no k) → `decided (unbounded)` or `refuted` with the two racing
+    source lines; its rule (protected / byte-atomic single writer / race) per shared variable in properties_json.
     Related concepts: the Scenario and its claim (the claim gains the `formal` evidence tier), `FirmwareVariant`.
     """
 
@@ -29,7 +32,7 @@ class FormalCheck(treeObject):
                  claim_status: str = '', verdict_raw: str = '', outcome_words: str = '', properties_json: str = '[]', failed_property: str = '',
                  counterexample_json: str = '{}', trace_sha256: str = '', trace_steps: int = 0, source_sha256: str = '', harness_sha256: str = '',
                  wall_s: float = 0.0, cpu_s: float = 0.0, peak_rss_mb: float = 0.0, limits: str = '', claim: str = '', repro_json: str = '{}',
-                 ran_at: str = '', notes: str = '', manager=None):
+                 ran_at: str = '', notes: str = '', bound: str = '', manager=None):
         self.name = name
         self.title = title
         self.scenario = scenario  # the Scenario whose claim this check speaks to
@@ -70,3 +73,4 @@ class FormalCheck(treeObject):
         self.repro_json = repro_json
         self.ran_at = ran_at
         self.notes = notes
+        self.bound = bound  # sc-2c: "k=2 (bounded)" (CBMC) | "unbounded" (Mthread) — what the decision covers

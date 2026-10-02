@@ -1,4 +1,4 @@
-# Firmware Faults (`firmwarefaults`) — sc-0 + sc-1 + sc-2 / sc-2b
+# Firmware Faults (`firmwarefaults`) — sc-0 + sc-1 + sc-2 / sc-2b / sc-2c
 
 Force a concurrency or physics bug ON PURPOSE on a firmware twin, see the cycle where it goes wrong, then see the technique
 that makes it safe and what that technique costs. Plan: `AI-Notes/plans/FIRMWARE_SCENARIO_PLAN.md` (D-sc-1 ruled 2026-10-02:
@@ -87,7 +87,19 @@ little-endian), 32-bit pointers, the byte-wise read is our model of the core (cr
 evidence tier to the scenario's claim (mathproofs checker `cbmc`). cppcheck: built-ins (warning, style, portability, performance, avr8) +
 the threadsafety addon on all 16 UNO variants — MISRA is NOT run (its rule texts are not free); findings are rows, never a build failure.
 
+**sc-2c — Frama-C/Mthread joins the formal engines** (`custom/formal_mthread.py`, `custom/mthread_model/`; D-sc-6 ruled 2026-10-02):
+Frama-C 33.0's Mthread plugin (LGPL-2.1, opam-built into the SAME `prf-formal-engines` image: +185 MB) answers, UNBOUNDED, whether every
+access the ISR and the main loop share holds the interrupt lock or is safe without it. The bridge (`mthread_model/polari_mthread.h`, its
+assumptions A1–A6 quoted on every row): the variant's own hal.c preprocessed with `-DPOLARI_MTHREAD` against `mthread_model/stubs/`
+(cli/sei/ATOMIC_BLOCK → acquire/release of ONE global interrupt lock) over the CBMC stubs; the ISR = a `Frama_C_thread_create`d thread
+holding the lock for its body; the main loop = `<main>`. `classify` turns Mthread's report into PROTECTED / BYTE-ATOMIC (one byte, one
+writer) / RACE: `hal-millis-race@uno-sim-rig` → **decided (unbounded)**; `@uno-sim-rig-torn` → **refuted** (`read by <main> at
+hal.c:134, unprotected` vs the tick's write at hal.c:110); `rx-ring-race@uno-sim-rig` → **decided (unbounded)**; the negative control
+`rx-ring-race@uno-sim-rig+broken-flush` → refuted (speaks to no claim); `@uno-sim-rig-ring512` → inapplicable. The claim gains the
+Mthread evidence beside CBMC's bounded one (checker `frama-c-mthread`). Never `proved`.
+
 ```
+pol faults formal run mthread                     # the five Mthread checks (| cbmc | all | one by name)
 pol faults campaign run uart-ber [--seeds 20]     # | torn-read-phase | bounce-window | ack-drop-probability
 pol faults campaign show bounce-window
 pol faults formal run all                         # | hal-millis-not-torn@uno-sim-rig-torn …

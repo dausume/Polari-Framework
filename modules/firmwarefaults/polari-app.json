@@ -3,7 +3,7 @@
  "id": "firmwarefaults",
  "package": "firmwarefaults",
  "title": "Firmware Faults",
- "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim; sc-2: the statistics tier as campaigns (the fault's rate as the stimulus → likelihood per fault kind with Wilson intervals); sc-2b: CBMC FormalChecks (decided (bounded) / refuted with a trace / inapplicable) and cppcheck rules per variant.",
+ "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim; sc-2: the statistics tier as campaigns (the fault's rate as the stimulus → likelihood per fault kind with Wilson intervals); sc-2b: CBMC FormalChecks (decided (bounded) / refuted with a trace / inapplicable) and cppcheck rules per variant; sc-2c: Frama-C/Mthread race checks (decided (unbounded) / refuted with the two racing lines) beside CBMC's.",
  "version": "0.3.0",
  "kind": "official",
  "wave": null,
@@ -69,9 +69,15 @@
     "kind": "system",
     "probe": "polari-cppcheck-run",
     "note": "sc-2b: cppcheck 2.17.1 (GPL-3.0) in the same image — built-in checks + the threadsafety addon on every firmware variant; the MISRA addon is NOT run (its rule texts need the non-free MISRA C document); findings are rows, never a build failure"
+   },
+   {
+    "name": "frama-c-mthread",
+    "kind": "system",
+    "probe": "polari-mthread-check",
+    "note": "sc-2c: Frama-C 33.0 (Arsenic) + its Mthread plugin (LGPL-2.1-only; Debian has no frama-c package, so an opam build pinned to an opam-repository commit, runtime closure only) in the SAME image prf-formal-engines:trixie (+185 MB, under the ~1.5 GB fold-in line); no SMT prover wired (WP not used; never Alt-Ergo's NC build — the free alt-ergo-free is what frama-c's opam requires); resolved through the same FORMAL engines seam (FORMAL_ENGINES_URL → local binary → the local image when its org.polari.engines label lists mthread-check → topology provider firmwarefaults.formal → refusal naming the knob)"
    }
   ],
-  "engines_note": "the twin and the AVR toolchain resolve through the board engines seam (the same knob, image and provider as board); CBMC and cppcheck through the formal engines seam (FORMAL_ENGINES_URL, prf-formal-engines:trixie, firmwarefaults.formal); nothing runs in the framework process except the parsing"
+  "engines_note": "the twin and the AVR toolchain resolve through the board engines seam (the same knob, image and provider as board); CBMC and cppcheck through the formal engines seam (FORMAL_ENGINES_URL, prf-formal-engines:trixie, firmwarefaults.formal); Frama-C/Mthread through the same seam (mthread-check in the same image); nothing runs in the framework process except the parsing"
  },
  "files": {
   "objects": [
@@ -136,6 +142,7 @@
    "custom/faults_cli_sc2",
    "custom/formal",
    "custom/formal_engines",
+   "custom/formal_mthread",
    "custom/harness",
    "custom/outcome",
    "custom/payloads",
@@ -145,6 +152,7 @@
    "custom/scenarios_sc1",
    "custom/selftest_sc1",
    "custom/selftest_sc2",
+   "custom/selftest_sc2c",
    "custom/sink",
    "custom/stack_static",
    "custom/static_rules",

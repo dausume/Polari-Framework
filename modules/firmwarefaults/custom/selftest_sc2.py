@@ -267,8 +267,9 @@ def sc2_parts(check):
         c = testing.TestClient(app)
         g = c.simulate_get('/api/firmwarefaults/campaigns').json
         f = c.simulate_get('/api/firmwarefaults/formal').json
-        check('GET /campaigns lists the 4 seeded campaigns; GET /formal the 4 checks + where cbmc-check would run (the FORMAL_ENGINES_URL ladder)',
-              len(g['campaigns']) == 4 and len(f['checks']) == 4 and f['engines']['knob'] == 'FORMAL_ENGINES_URL')
+        check('GET /campaigns lists the 4 seeded campaigns; GET /formal the 9 checks (4 CBMC + 5 Mthread, sc-2c) + where cbmc-check would run '
+              '(the FORMAL_ENGINES_URL ladder)',
+              len(g['campaigns']) == 4 and len(f['checks']) == 9 and f['engines']['knob'] == 'FORMAL_ENGINES_URL')
         check('GET /likelihoods and GET /static answer (empty until a campaign / a static run)',
               c.simulate_get('/api/firmwarefaults/likelihoods').json['likelihoods'] == [] and c.simulate_get('/api/firmwarefaults/static').json['checks'] == [])
         check('POST /campaign with an unknown name → 400; POST /formal with an unknown check → 400',
