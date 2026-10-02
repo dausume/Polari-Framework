@@ -38,6 +38,8 @@ class MathClaim(treeObject):
         budget_s: float = 25.0,
         provenance: str = '',
         notes: str = '',
+        evidence_tiers_json: str = '[]',
+        measure_json: str = '{}',
         manager=None,
     ):
         self.name = name
@@ -57,3 +59,9 @@ class MathClaim(treeObject):
         self.budget_s = budget_s  # D-pf-9: the checker time budget in seconds (z3/lean) — 25 s (his, 2026-09-25: the slowest honest instance, the bit-blasted MAC, took 19 s); a timeout is `undecided (budget)`, never refuted
         self.provenance = provenance
         self.notes = notes
+        # sc-2 (FIRMWARE_SCENARIO_PLAN.md §5): one entry per evidence tier that spoke to this claim, side by side —
+        # [{tier: sim | statistics | formal | static, status, ref, measure, at}]; proof_status stays the strongest honest one
+        self.evidence_tiers_json = evidence_tiers_json
+        # sc-2: the statistics tier's MEASURE on the claim (a likelihood + its 95 % Wilson interval, coverage stated) — a
+        # measure, never a status: a witnessed claim with a 3 % [2.5, 3.9] tear likelihood is still only witnessed
+        self.measure_json = measure_json

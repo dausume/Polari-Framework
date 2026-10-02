@@ -71,11 +71,18 @@ def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None, ext
     kind = sc['observable_kind']
     ev, extra_obs = {}, {}
     if kind == 'telemetry-continues':
-        d = outcome.decide_telemetry(frames, end_ms, int(obs.get('gap_limit_ms', 250)), bool(rx.get('dropped_units')), watches.get('g_ack_state'))
+        txd = (fin.get('tx_drop') or {}).get('dropped') or []
+        # sc-2: a frame dropped on the board→host line was still SENT by the board — it counts as a request for the decision
+        seen = sorted(frames + [(_ms(x.get('last_cycle') or x['cycle']), x['type'], -1) for x in txd])   # dated by the last byte, like the log
+        d = outcome.decide_telemetry(seen, end_ms, int(obs.get('gap_limit_ms', 250)), bool(rx.get('dropped_units')) or bool(txd), watches.get('g_ack_state'),
+                                     lost='the request' if txd else 'the ack')
         drop = next((u for u in rx.get('unit_starts', []) if u.get('dropped')), None)
         if drop:
             ev = {'cycle': drop['cycle'], 'what': 'ack #%d dropped on the host→board line' % drop['idx']}
-        extra_obs = {'requests_ms': [round(t, 3) for t, mt, _ in frames if mt == 0x7F], 'ack_state': watches.get('g_ack_state'),
+        elif txd:
+            ev = {'cycle': txd[0]['cycle'], 'what': 'request frame #%d (msg_type 0x%02x, %d B) dropped on the board→host line' % (
+                txd[0]['idx'], txd[0]['type'], txd[0]['bytes'])}
+        extra_obs = {'requests_ms': [round(t, 3) for t, mt, _ in seen if mt == 0x7F], 'ack_state': watches.get('g_ack_state'), 'tx_drop': fin.get('tx_drop'),
                      'ack_tries': watches.get('g_ack_tries')}
     elif kind == 'press-count':
         d = outcome.decide_presses(watches.get('g_presses'), int(obs.get('expected_presses', 1)))
@@ -91,7 +98,9 @@ def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None, ext
         starts = rx.get('unit_starts') or []
         if starts:
             ev = {'cycle': starts[0]['cycle'], 'what': 'host→board bytes from cycle %d (%d bytes)' % (starts[0]['cycle'], starts[0]['len'])}
+        fl = payloads.first_line_error_cycle(h['rx'])
         extra_obs = {'sent': meta['sent'], 'ideal': ideal, 'applied': watches.get('echoes'), 'framing_errors_counted': watches.get('g_uart_fe'),
+                     'first_line_error_ms': round(_ms(fl), 3) if fl is not None else None,
                      'overruns_counted': watches.get('g_uart_dor'), 'ring_drops_counted': watches.get('g_rx_dropped'),
                      'line': {k: rx.get(k) for k in ('ber', 'bits_flipped', 'bytes_corrupted', 'framing_errors', 'bytes_lost', 'bytes_fed')}}
     elif kind == 'record-consistent':
@@ -133,7 +142,7 @@ def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None, ext
                    landed_cycle=int(ev.get('landed_cycle', 0)))
     obs_json = {'decided': d, 'event': ev, 'watches': watches, 'frames': {'telemetry': len(tel), 'all': len(frames),
                                                                        'first_ms': [round(t, 2) for t in tel[:3]], 'last_ms': [round(t, 2) for t in tel[-3:]]},
-                'harness': {k: fin.get(k) for k in ('events', 'resets', 'reset_at', 'jump_at', 'rx', 'responder', 'eeprom', 'isr_latency', 'isr_cycles',
+                'harness': {k: fin.get(k) for k in ('events', 'resets', 'reset_at', 'jump_at', 'rx', 'tx_drop', 'pokes', 'responder', 'eeprom', 'isr_latency', 'isr_cycles',
                                                      'fn_cycles', 'stack_fill', 'min_sp', 'watches')},
                 'host': {'sent': meta['sent'], 'bytes_sha256': meta['host_bytes_sha256'], 'resolved': meta['resolved']},
                 'stack_static': b.get('stack_static'), 'twin': {'how': h['how'], 'where': h['where'], 'cost': h['cost']}}

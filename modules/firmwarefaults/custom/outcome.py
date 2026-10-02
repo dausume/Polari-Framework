@@ -42,6 +42,17 @@ def decide_uptime(uptimes, bad_crc=0, forced=None):
                      % (len(uptimes), ' with the forced interrupt taken' if forced and forced.get('landed') else '')}
 
 
+def align_words(ev, period=16000):
+    """sc-2 align-at-pc: what happened to the genuine raise the forced one stood in for."""
+    sw = ev.get('swallow', '')
+    if sw == 'swallowed':
+        return ('no extra tick: the genuine raise %d cycles later (%.2f ms) was swallowed — the tick was ADVANCED by that much, not added'
+                % (ev.get('advanced_by_cycles', 0), ev.get('advanced_by_cycles', 0) / 16000.0))
+    if sw == 'merged':
+        return 'no extra tick: the genuine raise fell inside the forced pending (merged), so nothing was swallowed'
+    return 'the genuine raise never came after the forced one (the window ended) — one extra tick is possible here'
+
+
 def decide_build_refused(build_state, notes=''):
     """Scenario 1b (`build-refused`): the vulnerable firmware must not build."""
     if build_state == 'refused':
@@ -90,12 +101,12 @@ def gaps(times_ms, end_ms):
     return [(a, b, b - a) for a, b in zip(pts, pts[1:])]
 
 
-def decide_telemetry(frames, end_ms, gap_limit_ms, dropped, ack_state=None, request_type=0x7F):
+def decide_telemetry(frames, end_ms, gap_limit_ms, dropped, ack_state=None, request_type=0x7F, lost='the ack'):
     """Scenario 2: frames = [(ms, msg_type, seq)]. dropped = the harness dropped the ack (else nothing was tested)."""
     tel = [t for t, mt, _ in frames if mt == 1]
     req = [t for t, mt, _ in frames if mt == request_type]
     if not dropped:
-        return _r('undetermined', 'the ack was never dropped (no request matched, or the drop index was never reached) — nothing was tested')
+        return _r('undetermined', '%s was never dropped (no request matched, or the drop index was never reached) — nothing was tested' % lost)
     if not tel:
         return _r('undetermined', 'no telemetry frame decoded — nothing to judge')
     worst = max(gaps(tel, end_ms), key=lambda g: g[2])
@@ -107,9 +118,9 @@ def decide_telemetry(frames, end_ms, gap_limit_ms, dropped, ack_state=None, requ
     if len(req) < 2:
         return _r('undetermined', 'telemetry continued but no retry was seen (requests at %s ms) — the drop did not bite' % reqs)
     st = {2: 'acked', 3: 'gave up (status fault)'}.get(ack_state, 'state %s' % ack_state)
-    return _r('passed', 'the ack was lost and the request went again at %.1f ms (%.1f ms after the first); telemetry never paused '
+    return _r('passed', '%s was lost and the request went again at %.1f ms (%.1f ms after the first); telemetry never paused '
                         '(worst gap %.1f ms ≤ %d ms); %s — one interleaving held (a witness, not a proof)'
-              % (req[1], req[1] - req[0], worst[2], gap_limit_ms, st), 'retry +%.1f ms; worst gap %.1f ms' % (req[1] - req[0], worst[2]))
+              % (lost, req[1], req[1] - req[0], worst[2], gap_limit_ms, st), 'retry +%.1f ms; worst gap %.1f ms' % (req[1] - req[0], worst[2]))
 
 
 def decide_presses(presses, expected):

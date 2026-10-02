@@ -1310,7 +1310,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     # sc-0 (FIRMWARE_SCENARIO_PLAN): firmware fault kinds as objects, techniques + their costs, scenarios forced on the UNO twin
     ('firmwarefaults', (
-        ('firmwarefaults.firmwarefaults_basis', ('FirmwareFault', 'TornReadFault', 'DoubleGiveFault', 'LostWakeupFault', 'PriorityInversionFault', 'DeadlockFault', 'LivelockFault', 'StarvationFault', 'UartBitErrorFault', 'DoubleEdgeFault', 'MetastableInputFault', 'BrownoutMidWriteFault', 'BitFlipFault', 'ClockSkewFault', 'StackOverflowFault', 'BufferOverrunFault', 'MissedDeadlineFault', 'ConcurrencyPrimitive', 'Assumption', 'Technique', 'Scenario', 'ScenarioStep', 'ScenarioRun', 'ScenarioTraceCycle', 'ScenarioStatistic',
+        ('firmwarefaults.firmwarefaults_basis', ('FirmwareFault', 'TornReadFault', 'DoubleGiveFault', 'LostWakeupFault', 'PriorityInversionFault', 'DeadlockFault', 'LivelockFault', 'StarvationFault', 'UartBitErrorFault', 'DoubleEdgeFault', 'MetastableInputFault', 'BrownoutMidWriteFault', 'BitFlipFault', 'ClockSkewFault', 'StackOverflowFault', 'BufferOverrunFault', 'MissedDeadlineFault', 'ConcurrencyPrimitive', 'Assumption', 'Technique', 'Scenario', 'ScenarioStep', 'ScenarioRun', 'ScenarioTraceCycle', 'ScenarioStatistic', 'ScenarioCampaign', 'FaultLikelihood', 'FormalCheck', 'StaticCheck', 'StaticFinding',
                                                  'FIRMWAREFAULTS_CLASSES')),
         ('firmwarefaults.firmwarefaults_seed', ('FIRMWAREFAULTS_SEED_PAIRS',)),
         ('firmwarefaults.firmwarefaults_page', ('SEED_FIRMWAREFAULTS_PAGE_DISPLAYS',)),

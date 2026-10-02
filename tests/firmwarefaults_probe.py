@@ -1,4 +1,4 @@
-"""sc-0 + sc-1 PROBE — the scenarios on the REAL simavr UNO twin, then the module on a live boot.
+"""sc-0 + sc-1 + sc-2 PROBE — the scenarios on the REAL simavr UNO twin, then the module on a live boot.
 
 Part A (offline runner, the CLI's path): BEFORE (uno-sim-rig-torn, HAL_MILLIS_ATOMIC 0) with the tick IRQ forced at the PC between
 the 1st and 2nd `lds` of g_ms (found in the build's own disassembly) → refuted at a named cycle, uptime_ms 511 then 400, CRC fine,
@@ -9,11 +9,18 @@ Part S1 (sc-1, offline runner): every forcible single-board pair for real — S2
 counted vs 2), S4 residual (1 of 2 applied vs 2 of 2), S5 brownout (half record vs the old one) + the EEPROM persistence control,
 the watchdog (hung vs reset + resumed) — each with its measured cost on the Technique row; the RTOS scenarios refused with the
 reason; a 2-seed smoke of each statistics batch (the 20/60-seed numbers are `pol faults stats`, recorded in COST.md).
+Part S2 (sc-2 / sc-2b, offline): align-at-pc (scenario 1 with NO extra tick: the genuine raise swallowed, g_ms ends one lower than
+the forced run), lost-request-hang (--drop-frame tx:), a --flip-bit of g_ms (the frames jump 4096 ms), a small REAL campaign (bounce
+window, 2 seeds → FaultLikelihood rows + the claims' statistics tier), and — when prf-formal-engines resolves — the REAL CBMC pair
+(hal_millis atomic → decided (bounded), bare → refuted with the trace; RX_RING 512 → inapplicable) and one cppcheck variant; else those
+checks SKIP honestly naming FORMAL_ENGINES_URL. --worker: start the board engines WORKER container and run scenario 1 through
+BOARD_ENGINES_URL (the 20 000-character stdout cut is gone).
 Part B (live boot): a THROWAWAY in-process server with firmwarefaults (+ board, grpcbridge, mathproofs …) — typed classes, the
 seeds, the page, the doors, and POST /api/firmwarefaults/run executing the pair IN the server (rows + claims + measured cost).
 Skips HONESTLY (exit 0, every check listed as SKIP) when no twin / disassembler resolves on this device.
 
   cd <throwaway dir> && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/firmwarefaults_probe.py [--json out.json] [--no-boot] [--no-sc1|--only-sc1]
+      [--no-sc2] [--only-sc2] [--worker]
 """
 import json
 import os
@@ -184,6 +191,83 @@ def part_s1():
           sw['sweep']['trials'] == 78 and sw['frames_backwards'] + sw['torn_final_frames'] == sw['sweep']['events'] and sw['natural']['carries'] == 39)
 
 
+def part_s2(worker=False):
+    import subprocess
+    from firmwarefaults.custom import runner, harness, campaign, formal, static_rules, formal_engines as fe
+    from firmwarefaults.custom.sink import LocalSink
+    sink = LocalSink()
+    al = runner.run_scenario('torn-millis-read-aligned', 'both', sink)['runs']
+    forced = runner.run_scenario('torn-millis-read', 'before', LocalSink())['runs'][0]
+    ev = (json.loads(al[0]['observed_json'])['harness']['events'] or [{}])[0]
+    g_al = (json.loads(al[0]['observed_json'])['harness'].get('watch') or {}).get('final')
+    g_fo = (json.loads(forced['observed_json'])['harness'].get('watch') or {}).get('final')
+    check('align-at-pc: BEFORE tears exactly like scenario 1 (%s) with NO extra tick — the genuine raise %s cycles later swallowed (%s); g_ms ends at '
+          '%s vs %s with the forced (extra) tick; AFTER %s' % (al[0]['uptime_sequence'], ev.get('advanced_by_cycles'), ev.get('swallow'), g_al, g_fo,
+                                                               al[1]['outcome']),
+          al[0]['outcome'] == 'failed' and al[0]['torn_value'] == 511 and ev.get('swallow') == 'swallowed' and g_al == g_fo - 1 and al[1]['outcome'] == 'passed',
+          (ev, g_al, g_fo))
+    lr = runner.run_scenario('lost-request-hang', 'both', sink)['runs']
+    check('lost-request-hang (--drop-frame tx:1,type=0x7f): BEFORE %s · AFTER %s' % (lr[0]['observable_value'], lr[1]['observable_value']),
+          [r['outcome'] for r in lr] == ['failed', 'passed'] and 'board→host' in lr[0]['fault_symbol'], [r['verdict_words'][:120] for r in lr])
+    b = runner.prepare_build('uno-sim-rig', None, cache=True)
+    argv, files, meta = harness.render_sc1([{'kind': 'flip-bit-at-cycle', 'args_json': json.dumps({'symbol': 'g_ms', 'byte': 1, 'bit': 4, 'cycle': 4800000})}],
+                                           b['nm'], 0.6, 0, {'watch': [('g_ms', 4)]}, 'uno-sim-rig')
+    h = harness.run_files(argv, b['hex'], files)
+    ups, _ = runner.decode_frames(h['uart'])
+    pk = (h['final'].get('pokes') or [{}])[0]
+    check('--flip-bit g_ms bit 12 (byte 1, bit 4) at 300 ms: the byte %s → %s, the frames jump 4096 ms (%s)' % (pk.get('before'), pk.get('after'), ups),
+          pk.get('done') == 1 and pk.get('after') == pk.get('before', 0) ^ 0x10 and any(u >= 4096 for u in ups), (pk, ups))
+    c = campaign.run_campaign('bounce-window', sink, seeds=2, rates=[5.0, 25.0])
+    res = {r['rate']: r for r in c['_results']}
+    check('a small REAL campaign (bounce window 5 / 25 ms, 2 seeds x 12 presses): BEFORE %s / %s double-counted, AFTER %s / %s (the 20 ms debounce '
+          'misses a bounce later than 20 ms)' % (res[5.0]['before']['events'], res[5.0]['before']['trials'], res[25.0]['after']['events'], res[25.0]['after']['trials']),
+          res[5.0]['before']['events'] == 24 and res[5.0]['after']['events'] == 0 and 0 < res[25.0]['after']['events'] < 24
+          and len(sink.rows('FaultLikelihood')) == 2 and c['status'] == 'ran', c['likelihood_summary'])
+    tiers = [json.loads(x.get('evidence_tiers_json', '[]')) for x in sink.rows('MathClaim') if 'button-bounce' in x['name']]
+    check('…the campaign adds the statistics tier (a measure, not a status) to both builds\' claims', len(tiers) == 2
+          and all(any(t['tier'] == 'statistics' for t in ts) for ts in tiers))
+    report['sc2'] = {'aligned': [r['verdict_words'] for r in al], 'lost_request': [r['verdict_words'] for r in lr], 'campaign': c['likelihood_summary']}
+    if not fe.available('cbmc-check'):
+        print('SKIP: the CBMC pair, the ring check and cppcheck — %s' % fe.resolve('cbmc-check')['why'])
+    else:
+        fs = {n: formal.run_check(n, sink) for n in ('hal-millis-not-torn@uno-sim-rig', 'hal-millis-not-torn@uno-sim-rig-torn', 'rx-ring-index-bound@uno-sim-rig-ring512')}
+        a, t, r5 = fs['hal-millis-not-torn@uno-sim-rig'], fs['hal-millis-not-torn@uno-sim-rig-torn'], fs['rx-ring-index-bound@uno-sim-rig-ring512']
+        check('CBMC: hal_millis with HAL_MILLIS_ATOMIC 1 → %s (%s, %.2f s, %.1f MB)' % (a['outcome'], a['claim_status'], a['wall_s'], a['peak_rss_mb']),
+              a['outcome'] == 'decided' and a['claim_status'] == 'decided (bounded, k=2)', a['outcome_words'])
+        cx = json.loads(t['counterexample_json'])
+        check('CBMC: HAL_MILLIS_ATOMIC 0 → refuted with a C trace (sha %s…): %s' % (t['trace_sha256'][:12], cx.get('reads')),
+              t['outcome'] == 'refuted' and t['trace_sha256'] and cx['values']['r'] > cx['values']['post'], t['outcome_words'])
+        check('CBMC: RX_RING 512 → inapplicable (hal.c\'s static guard refuses the source)', r5['outcome'] == 'inapplicable', r5['outcome_words'])
+        cl = {x['name']: x for x in sink.rows('MathClaim')}
+        ca = cl.get('fw-safe:torn-millis-read:%s' % a['build_name'], {})
+        check('the AFTER claim carries the formal tier: decided (checker cbmc) beside its sim witness', ca.get('proof_status') == 'decided'
+              and ca.get('checker') == 'cbmc' and {'formal'} <= {x['tier'] for x in json.loads(ca.get('evidence_tiers_json', '[]'))}, ca.get('evidence_tiers_json'))
+        st = static_rules.run_variant('uno-sim-rig-torn', sink)
+        check('cppcheck on uno-sim-rig-torn: %s finding(s) %s (rows; never a failure)' % (st.get('findings'), st.get('counts_json')),
+              st.get('state') == 'ran' and st.get('findings', -1) >= 0)
+        report['formal'] = {n: {k: f[k] for k in ('outcome', 'claim_status', 'wall_s', 'peak_rss_mb', 'trace_sha256', 'counterexample_json')} for n, f in fs.items()}
+    if worker:
+        port = '9837'
+        cid = subprocess.run(['docker', 'run', '-d', '--rm', '-p', '127.0.0.1:%s:9830' % port, 'prf-board-engines:trixie'], capture_output=True, text=True).stdout.strip()
+        try:
+            import time
+            from board.custom import board_engines as be
+            os.environ['BOARD_ENGINES_URL'] = 'http://127.0.0.1:%s' % port
+            for _ in range(60):
+                be._CAP_CACHE.clear()
+                if be.remote_capability(os.environ['BOARD_ENGINES_URL']):
+                    break
+                time.sleep(0.5)
+            runner._BUILDS.clear()
+            wr = runner.run_scenario('torn-millis-read', 'both', LocalSink())['runs']
+            check('THROUGH the board engines worker (BOARD_ENGINES_URL): scenario 1 → %s / %s (avr-objdump\'s ~87 kB arrive whole)' % (
+                  wr[0]['outcome'], wr[1]['outcome']), [r['outcome'] for r in wr] == ['failed', 'passed'] and wr[0]['torn_value'] == 511,
+                  [r['verdict_words'][:120] for r in wr])
+        finally:
+            os.environ.pop('BOARD_ENGINES_URL', None)
+            subprocess.run(['docker', 'stop', cid], capture_output=True)
+
+
 def part_b():
     os.environ['POLARI_MODULES'] = 'techtree,hwmap,hardwareapps,islemesh,grpcbridge,board,mathproofs,firmwarefaults'
     os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
@@ -195,13 +279,14 @@ def part_b():
     typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in manager.objectTypingDict.keys()} \
         | {getattr(v, 'className', '') for v in manager.objectTypingDict.values()}
     from firmwarefaults.firmwarefaults_basis import FIRMWAREFAULTS_CLASSES
-    check('live boot: all 25 firmwarefaults classes are typed', all(c.__name__ in typed for c in FIRMWAREFAULTS_CLASSES),
+    check('live boot: all 30 firmwarefaults classes are typed', all(c.__name__ in typed for c in FIRMWAREFAULTS_CLASSES),
           [c.__name__ for c in FIRMWAREFAULTS_CLASSES if c.__name__ not in typed])
     n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
     kinds = sum(n(c.__name__) for c in FIRMWAREFAULTS_CLASSES[1:17])
-    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 9 scenarios, 14 steps seeded',
-          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep')) == (17, 11, 13, 6, 9, 14),
-          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep')))
+    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 11 scenarios, 17 steps, 4 campaigns, 4 formal checks seeded',
+          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck'))
+          == (17, 11, 13, 6, 11, 17, 4, 4),
+          (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck')))
     check('live boot: the eleven scenario variants are FirmwareVariant rows beside board\'s five',
           {'uno-sim-rig-torn', 'uno-sim-rig-ring512', 'uno-ack-wait', 'uno-ack-wait-timeout', 'uno-button-count', 'uno-button-debounce',
            'uno-echo-uartstat', 'uno-echo-keeptail', 'uno-eeprom-record', 'uno-eeprom-commit', 'uno-sim-rig-wdt'}
@@ -210,8 +295,19 @@ def part_b():
     comps = [it['componentProps']['componentName'] for row in json.loads(pages[0].definition)['rows'] for it in row['items']] if pages else []
     check('live boot: /display/firmware-faults is seeded — configured tables only (%d)' % len(comps), len(pages) == 1 and comps and set(comps) == {'class-rows-table'})
     r = client.simulate_get('/api/firmwarefaults')
-    check('GET /api/firmwarefaults answers: 17 fault rows, 7 scenarios runnable, the 2 RTOS ones not', r.status_code == 200 and r.json['fault_rows'] == 17
-          and sum(s['runnable'] for s in r.json['scenarios']) == 7, r.text[:300])
+    check('GET /api/firmwarefaults answers: 17 fault rows, 9 scenarios runnable, the 2 RTOS ones not', r.status_code == 200 and r.json['fault_rows'] == 17
+          and sum(s['runnable'] for s in r.json['scenarios']) == 9, r.text[:300])
+    from firmwarefaults.custom import formal_engines as ffe
+    rc, rf = client.simulate_get('/api/firmwarefaults/campaigns'), client.simulate_get('/api/firmwarefaults/formal')
+    check('GET /api/firmwarefaults/campaigns (4) and /formal (4 + the FORMAL_ENGINES_URL ladder) answer on the live boot',
+          rc.status_code == 200 and len(rc.json['campaigns']) == 4 and rf.status_code == 200 and len(rf.json['checks']) == 4, (rc.text[:200], rf.text[:200]))
+    if ffe.available('cbmc-check'):
+        r = client.simulate_post('/api/firmwarefaults/formal', body=json.dumps({'checks': ['hal-millis-not-torn@uno-sim-rig-torn']}),
+                                 headers={'Content-Type': 'application/json'})
+        rows = [c for c in (tables.get('FormalCheck', {}) or {}).values() if c.name == 'hal-millis-not-torn@uno-sim-rig-torn']
+        check('POST /api/firmwarefaults/formal runs CBMC IN the server → refuted, the FormalCheck row updated, a cbmc ProofRun',
+              r.status_code == 201 and r.json['checks'][0]['outcome'] == 'refuted' and rows and rows[0].outcome == 'refuted'
+              and any(getattr(p, 'checker', '') == 'cbmc' for p in (tables.get('ProofRun', {}) or {}).values()), r.text[:300])
     r = client.simulate_get('/api/firmwarefaults/engines')
     check('GET /api/firmwarefaults/engines: avr-twin + avr-objdump resolve on this device', r.status_code == 200
           and r.json['engines']['avr-twin']['how'] != 'refused' and r.json['engines']['avr-objdump']['how'] != 'refused', r.text[:300])
@@ -243,10 +339,12 @@ def main(argv):
         print('SKIP: no simavr twin / disassembler on this device (%s) — build the image: docker compose -f '
               'polari-rf-node/docker-compose.board-engines.yml build' % fe.placement())
         return 0
-    if '--only-sc1' not in argv:
+    if '--only-sc1' not in argv and '--only-sc2' not in argv:
         part_a()
-    if '--no-sc1' not in argv:
+    if '--no-sc1' not in argv and '--only-sc2' not in argv:
         part_s1()
+    if '--no-sc2' not in argv:
+        part_s2(worker='--worker' in argv)
     if '--no-boot' not in argv:
         part_b()
     if '--json' in argv:

@@ -51,7 +51,8 @@ PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600,
                   # admission / measurement see them like msci and cad (his: adhere to what topology tracks)
                   'prf-eda-engines': 9800, 'prf-orfs-engines': 9801, 'prf-proof-engines': 9810, 'prf-torch-engines': 9820,
                   # brd-1 (2026-10-01): the board arc's worker (avr-gcc / avrdude / the simavr twin)
-                  'prf-board-engines': 9830}
+                  'prf-board-engines': 9830,
+                  'prf-formal-engines': 9840}   # sc-2b: CBMC + cppcheck (firmwarefaults.formal)
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.

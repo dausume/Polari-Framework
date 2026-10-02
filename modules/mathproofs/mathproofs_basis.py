@@ -21,4 +21,9 @@ MATHPROOFS_CLASSES = [MathClaim, ProofRun, InferenceRule, ProofObligation, Proof
 # `safe-under-scenario` claims are written by firmwarefaults' runner with checker `sim` (tier 0: a witness, never a proof)
 PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'undetermined', 'unprovable-here', 'inapplicable')
 CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed', 'safe-under-scenario')
-CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human', 'sim')
+# sc-2b: `cbmc` — firmwarefaults' FormalCheck (a bounded model check of firmware C): holds → `decided` (bounded, the bound on
+# the claim's evidence tier), never `proved`; a counterexample → refuted
+CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human', 'sim', 'cbmc')
+#: sc-2: the evidence tiers a claim can carry side by side (MathClaim.evidence_tiers_json) — a tier records what IT found;
+#: proof_status is the strongest honest status among them (a refutation outranks everything)
+EVIDENCE_TIERS = ('sim', 'statistics', 'formal', 'static')

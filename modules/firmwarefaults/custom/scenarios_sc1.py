@@ -49,6 +49,14 @@ SC1_SCENARIOS = [
        'BEFORE: the last telemetry frame before the request, then nothing for > 250 ms (2.5 frame periods) to the end → refuted. '
        'AFTER: a second request ~50 ms after the first, the ack, telemetry gaps never above 250 ms → witnessed.',
        'telemetry-continues', 2.0),
+    _s('lost-request-hang', 'Scenario 2, the other direction — the board\'s REQUEST lost on the board→host line',
+       'The same request/ack pair as lost-ack-hang, but the harness drops the board\'s first REQUEST frame (msg_type 0x7F) on its way '
+       'to the host (--drop-frame tx:1,type=0x7f): the host never answers. BEFORE (uno-ack-wait) hangs exactly as when the ack is lost; '
+       'AFTER (uno-ack-wait-timeout) sends the request again after 50 ms. A lost message is a lost message, whichever way it travelled.',
+       'uno-ack-wait', 'uno-ack-wait-timeout', 'LivelockFault', 'lost-ack-hang', 'every-message-arrives', 'timeout-fsm',
+       'BEFORE: telemetry stops for > 250 ms to the end → refuted. AFTER: a second request ~50 ms later, acked, no gap → witnessed.',
+       'telemetry-continues', 2.0,
+       notes='sc-2: the board→host drop (--drop-frame tx:) the sc-1 harness refused; TX bytes are held 4 byte slots while it is on'),
     _s('button-bounce-double-count', 'Scenario 3 — a ringing edge raises INT0 twice → one press counted twice',
        'A press on D2 whose contact rings: INT0 raised at 500 ms and again 300 cycles (18.75 µs) later, then a second, REAL press '
        '50 ms after. BEFORE (uno-button-count) counts every edge: 3 for 2 presses. AFTER (uno-button-debounce) ignores edges within '
@@ -117,6 +125,10 @@ def sc1_steps():
         _step('lost-ack-hang', 1, 'respond', {'match': ACK_MATCH, 'reply': 'ack', 'delay_cycles': 3200, 'max': 8},
               notes='the scripted host: every request frame the board transmits is answered with an ACK frame 0.2 ms later'),
         _step('lost-ack-hang', 2, 'drop-nth-frame', {'direction': 'rx', 'n': 1}, notes='the FIRST ack never reaches the board'),
+        _step('lost-request-hang', 1, 'respond', {'match': ACK_MATCH, 'reply': 'ack', 'delay_cycles': 3200, 'max': 8},
+              notes='the scripted host answers every request it SEES'),
+        _step('lost-request-hang', 2, 'drop-nth-frame', {'direction': 'tx', 'n': 1, 'msg_type': 0x7F},
+              notes='the board\'s FIRST request frame never reaches the host'),
         _step('button-bounce-double-count', 1, 'irq-at-cycle', {'cycle': 8000000, 'vec': INT0, 'vector_name': 'INT0'},
               notes='press 1, first edge (500 ms)'),
         _step('button-bounce-double-count', 2, 'irq-at-cycle', {'cycle': 8000300, 'vec': INT0, 'vector_name': 'INT0'},
@@ -150,6 +162,8 @@ def sc1_steps():
 OBSERVE = {
     'lost-ack-hang': {'watch': [('g_ack_state', 1), ('g_ack_tries', 1), ('g_ack_seen', 1)], 'cost_fn': 'ack_step', 'gap_limit_ms': 250,
                       'cost_what': 'cycles of one ack_step() pass of the state machine (min, uninterrupted)'},
+    'lost-request-hang': {'watch': [('g_ack_state', 1), ('g_ack_tries', 1), ('g_ack_seen', 1)], 'cost_fn': 'ack_step', 'gap_limit_ms': 250,
+                          'cost_what': 'cycles of one ack_step() pass of the state machine (min, uninterrupted)'},
     'button-bounce-double-count': {'watch': [('g_presses', 2)], 'expected_presses': 2, 'cost_isr': INT0,
                                    'cost_what': 'cycles inside the INT0 ISR (max, entry → reti)'},
     'uart-residual-frame-loss': {'watch': [('echoes', 2), ('g_uart_fe', 2), ('g_uart_dor', 2), ('g_rx_dropped', 2)],

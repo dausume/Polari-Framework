@@ -11,6 +11,9 @@ runs it (POST /api/firmwarefaults/run) and the rows land on that server.
     python3 -m firmwarefaults.custom.faults_cli list [--api URL]
     python3 -m firmwarefaults.custom.faults_cli show <run> [--api URL]
     python3 -m firmwarefaults.custom.faults_cli engines
+    python3 -m firmwarefaults.custom.faults_cli campaign list|run|show [<name>] [--seeds N] [--rates a,b]     (sc-2, faults_cli_sc2)
+    python3 -m firmwarefaults.custom.faults_cli formal list|run|show [<check>|all]                           (sc-2b)
+    python3 -m firmwarefaults.custom.faults_cli static run|show [<variant>|all]                              (sc-2b)
 """
 import argparse
 import json
@@ -202,9 +205,12 @@ def cmd_show(a):
 
 def cmd_engines(a):
     from firmwarefaults.custom.fault_engines import placement, harness_digest
+    from firmwarefaults.custom import formal_engines
     for e, w in placement().items():
         print('  %-12s %-13s %s  (%s)' % (e, w['how'], w['where'], w['why']))
     print('  harness      %s' % harness_digest())
+    for e, w in formal_engines.placement()['engines'].items():   # sc-2b: CBMC + cppcheck (FORMAL_ENGINES_URL ladder)
+        print('  %-12s %-13s %s  (%s)' % (e, w['how'], w['where'], w['why']))
     return 0
 
 
@@ -231,8 +237,10 @@ def main(argv):
     st.add_argument('--bers', default='')
     st.add_argument('--verbose', action='store_true')
     st.add_argument('--api', default='')
+    from firmwarefaults.custom.faults_cli_sc2 import add_parsers
+    more = add_parsers(sub)
     a = ap.parse_args(argv)
-    return {'run': cmd_run, 'list': cmd_list, 'show': cmd_show, 'engines': cmd_engines, 'stats': cmd_stats}[a.cmd](a)
+    return dict({'run': cmd_run, 'list': cmd_list, 'show': cmd_show, 'engines': cmd_engines, 'stats': cmd_stats}, **more)[a.cmd](a)
 
 
 if __name__ == '__main__':

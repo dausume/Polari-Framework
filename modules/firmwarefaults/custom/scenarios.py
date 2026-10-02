@@ -22,9 +22,14 @@ STEP_KINDS = {
     'irq-at-pc': (True, '--irq-at pc=0x…,vec=N[,when=…] (twin_forcing.c: raise + service at the instruction boundary)'),
     'irq-at-cycle': (True, '--irq-at cycle=N,vec=N (raised at the first boundary >= N; the core services it)'),
     'corrupt-word': (True, '--poke 0xADDR/W=0xVAL@CYCLE (avr_core_watch_write per byte)'),
-    'drop-nth-frame': (True, '--drop-frame rx:N (twin_scenario_io.c: the Nth host→board unit never reaches the board; tx: is refused — '
-                             'no scenario needs it yet)'),
-    'flip-bit-at-cycle': (False, '--poke writes a value; an XOR of one bit at a cycle is not built yet (no sc-1 scenario needs it)'),
+    'drop-nth-frame': (True, '--drop-frame rx:N (the Nth host→board unit never reaches the board) | tx:N[,type=0xTT] (sc-2: the Nth '
+                             'board→host frame, of that msg_type, never reaches the host; TX is held 4 byte slots while on)'),
+    'flip-bit-at-cycle': (True, '--flip-bit 0xADDR:BIT@CYCLE (sc-2: XOR one bit of one data byte at the first boundary >= CYCLE, the '
+                                'byte before and after recorded; the address is a symbol + byte offset re-resolved per build)'),
+    'align-at-pc': (True, '--align-at-pc pc=0x…,vec=N[,when=…] (sc-2: serviced at that PC like irq-at-pc, then the NEXT genuine raise '
+                          'of the vector is swallowed — no extra tick; the run records by how many cycles the tick was advanced)'),
+    'drop-prob': (True, '--drop-frame rx:p=P (sc-2: each host→board unit lost with probability P, one draw per unit from --seed — the '
+                        'statistics tier\'s stimulus distribution)'),
     'uart-ber': (True, '--uart-ber P --seed S (every host→board bit flips with probability P: data → XOR, stop → framing error, '
                        'start → the byte lost)'),
     # sc-1 (twin_scenario_io.c)
@@ -79,12 +84,29 @@ def _step(scenario, order, kind, args, condition=None, notes=''):
             'condition_json': J(condition or {}), 'forcible': ok, 'not_forcible_reason': '' if ok else why, 'notes': notes}
 
 
+_SC2_SCENARIOS = [
+    _s('torn-millis-read-aligned', 'Scenario 1, aligned — the GENUINE tick moved onto the 2nd lds (no extra tick)',
+       'Scenario 1 with --align-at-pc instead of --irq-at: the tick ISR is serviced between the 1st and 2nd lds of g_ms when g_ms & 0xFF '
+       '== 0xFF, and the next GENUINE TIMER2_COMPA raise is swallowed, so the run carries no extra tick — the interleaving a real UNO '
+       'produces when its own compare lands there. BEFORE tears exactly like scenario 1; AFTER holds.', 'uno-sim-rig-torn', 'uno-sim-rig',
+       'TornReadFault', 'torn-read-g-ms', 'g-ms-read-atomic', 'atomic-block',
+       'BEFORE: uptime_ms backwards (… 200, 511, 400 …), the swallowed genuine raise recorded (advanced by < 1 tick period) → refuted. '
+       'AFTER: monotone → witnessed.', 'uptime-monotone', 0.6,
+       notes='sc-2 (plan §3: the align-at-pc refinement sc-0 owed). The genuine raise is swallowed with avr_clear_interrupt; if it had '
+             'already merged into the forced pending (within one natural period), nothing is swallowed and the event says so.'),
+]
+
 _SC0_STEPS = [
     _step('torn-millis-read', 1, 'irq-at-pc',
           {'symbol': 'hal_millis', 'pattern': 'lds-sequence', 'of': 'g_ms', 'before_load': 2, 'vec': TIMER2_COMPA,
            'vector_name': 'TIMER2_COMPA', 'shots': 1},
           {'symbol': 'g_ms', 'width': 4, 'mask': 255, 'value': 255},
           notes='the ISR runs with the 2nd lds as its return address: byte 0 was read as 0xFF, the ISR carries into byte 1'),
+    _step('torn-millis-read-aligned', 1, 'align-at-pc',
+          {'symbol': 'hal_millis', 'pattern': 'lds-sequence', 'of': 'g_ms', 'before_load': 2, 'vec': TIMER2_COMPA,
+           'vector_name': 'TIMER2_COMPA', 'shots': 1},
+          {'symbol': 'g_ms', 'width': 4, 'mask': 255, 'value': 255},
+          notes='the genuine tick, moved: serviced at the 2nd lds, the next compare raise swallowed (no extra tick)'),
     _step('rx-ring-over-256', 1, 'irq-at-pc',
           {'symbol': 'hal_rx_pop', 'pattern': 'lds-sequence', 'of': 'rx_head', 'before_load': 2, 'vec': USART_RX,
            'vector_name': 'USART_RX', 'shots': 1}, {},
@@ -97,7 +119,7 @@ def _sc1():
     return scenarios_sc1
 
 
-SEED_SCENARIOS = SEED_SCENARIOS + _sc1().SC1_SCENARIOS
+SEED_SCENARIOS = SEED_SCENARIOS + _SC2_SCENARIOS + _sc1().SC1_SCENARIOS
 SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps()
 
 

@@ -9,7 +9,10 @@ rows follow), EXCEPT what a run measures: a technique's measured_* cost and a fa
 instance has them. ScenarioRun / ScenarioTraceCycle rows are observed, never seeded.
 """
 from firmwarefaults.firmwarefaults_basis import (FirmwareFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep,
-                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic, FAULT_KIND_CLASSES)
+                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic, FAULT_KIND_CLASSES,
+                                                 ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding)
+from firmwarefaults.custom.campaign import seed_rows as campaign_rows
+from firmwarefaults.custom.formal import seed_rows as formal_rows
 from firmwarefaults.custom.fault_rows import by_class
 from firmwarefaults.custom.scenarios import SEED_SCENARIOS, SEED_STEPS, scenario_variants
 from firmwarefaults.custom.taxonomy import SEED_PRIMITIVES, SEED_ASSUMPTIONS, SEED_TECHNIQUES
@@ -17,6 +20,12 @@ from firmwarefaults.custom.taxonomy import SEED_PRIMITIVES, SEED_ASSUMPTIONS, SE
 _MEASURED_TECHNIQUE = ('measured_cost_bytes', 'measured_cost_cycles', 'measured_latency_delta_cycles', 'measured_by_run', 'measured_ram_bytes',
                        'measured_cost_what')
 _MEASURED_FAULT = ('rate', 'rate_source')
+#: sc-2 / sc-2b: what a campaign / a formal check RUN writes stays as the instance has it (the definition converges)
+_MEASURED_CAMPAIGN = ('status', 'results_json', 'likelihood_summary', 'ttff_summary', 'statistics_json', 'runs', 'wall_s', 'harness_digest',
+                      'repro_json', 'ran_at', 'seeds', 'rates_json')
+_MEASURED_FORMAL = ('build_name', 'engine_version', 'engine_where', 'outcome', 'claim_status', 'verdict_raw', 'outcome_words', 'properties_json',
+                    'failed_property', 'counterexample_json', 'trace_sha256', 'trace_steps', 'source_sha256', 'harness_sha256', 'wall_s', 'cpu_s',
+                    'peak_rss_mb', 'claim', 'repro_json', 'ran_at')
 
 
 def _owned(rows, keep=()):
@@ -38,6 +47,11 @@ FIRMWAREFAULTS_SEED_PAIRS = [
     ('ScenarioRun', ScenarioRun, []),
     ('ScenarioTraceCycle', ScenarioTraceCycle, []),
     ('ScenarioStatistic', ScenarioStatistic, []),
+    ('ScenarioCampaign', ScenarioCampaign, _owned(campaign_rows(), keep=_MEASURED_CAMPAIGN)),
+    ('FaultLikelihood', FaultLikelihood, []),
+    ('FormalCheck', FormalCheck, _owned(formal_rows(), keep=_MEASURED_FORMAL)),
+    ('StaticCheck', StaticCheck, []),
+    ('StaticFinding', StaticFinding, []),
 ]
 
 def _module_on():

@@ -15,15 +15,17 @@ POST /api/firmwarefaults/stats           sc-1: body {scenario: uart-residual-fra
 POST /api/firmwarefaults/run             body {scenario, side: before|after|both|natural|control, seconds?, seed?} — RUNS it here (the
                                          engines resolve on THIS server's device), writes ScenarioRun + ScenarioTraceCycle rows,
                                          the MathClaim + ProofRun, a pair's measured technique cost, a natural run's measured rate
+sc-2 / sc-2b (custom/api_sc2.py): GET /campaigns · POST /campaign · GET /likelihoods · GET|POST /formal · GET|POST /static
 """
 import json
 
 import falcon
 
 from objectTreeDecorators import treeObject, treeObjectInit
+from firmwarefaults.custom.api_sc2 import Sc2Doors
 
 
-class FirmwareFaultsAPI(treeObject):
+class FirmwareFaultsAPI(Sc2Doors, treeObject):
     @treeObjectInit
     def __init__(self, polServer=None, manager=None):
         self.polServer = polServer
@@ -40,6 +42,7 @@ class FirmwareFaultsAPI(treeObject):
             add('/api/firmwarefaults/run', self, suffix='run')
             add('/api/firmwarefaults/statistics', self, suffix='statistics')
             add('/api/firmwarefaults/stats', self, suffix='stats')
+            self.add_sc2_routes(add)
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []

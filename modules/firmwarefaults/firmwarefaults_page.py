@@ -65,7 +65,8 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                               column_formats='run:ref:ScenarioRun')], min_height=320),
               _row(3, [_table('ff-claims', 0, 12, 'Claims the runs wrote — "firmware F under scenario S is free of fault K": refuted (with the '
                               'counterexample), witnessed (one interleaving — never a proof), inapplicable, undetermined', 'MathClaim',
-                              columns='name,kind,proof_status,checker,evidence_level,about_refs_json,counterexample_json,certificate_ref',
+                              columns='name,kind,proof_status,checker,evidence_level,evidence_tiers_json,measure_json,about_refs_json,counterexample_json,'
+                                      'certificate_ref',
                               column_formats='name:ref:MathClaim,about_refs_json:refs')], min_height=200),
               _row(4, [_table('ff-techniques', 0, 12, 'Techniques — what each restores, the C idiom, the seeded cost (and its source) beside what a '
                               'scenario pair MEASURED on the twin', 'Technique',
@@ -87,5 +88,34 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                               'condition, and whether the harness can force that kind today (and why not)', 'ScenarioStep',
                               columns='scenario,order,kind,args_json,condition_json,forcible,not_forcible_reason,notes',
                               column_formats='scenario:ref:Scenario')], min_height=180),
-          ] + _kind_rows(8)),
+              # sc-2: the statistics tier as campaigns + the likelihood table per fault kind
+              _row(8, [_table('ff-campaigns', 0, 12, 'Campaigns (sc-2) — the fault\'s RATE as the stimulus: scenario x fault x rate(s) x seeds; per '
+                              'rate the likelihood WITHOUT the technique and the technique\'s RESIDUAL (95 % Wilson), the time to the first fault; '
+                              '`pol faults campaign run <name>`', 'ScenarioCampaign',
+                              columns='name,scenario,fault_class,fault,parameter,rates_json,seeds,run_seconds,status,likelihood_summary,ttff_summary,'
+                                      'event_before,event_after,stimulus,runs,wall_s,ran_at',
+                              column_formats='name:ref:ScenarioCampaign,scenario:ref:Scenario')], min_height=220),
+              _row(9, [_table('ff-likelihoods', 0, 12, 'Likelihood per fault kind (sc-2) — one row per (fault, stimulus value): how often the bug '
+                              'happened without the technique and with it, each with its 95 % Wilson interval; coverage stated (a twin under these '
+                              'seeds — never a field rate until a cited physical rate is the stimulus)', 'FaultLikelihood',
+                              columns='fault_class,fault,parameter,parameter_value,trial_unit,before_events,before_trials,before_rate,before_ci_low,'
+                                      'before_ci_high,technique,after_events,after_trials,after_rate,after_ci_low,after_ci_high,ttff_median_ms,campaign,'
+                                      'coverage,notes',
+                              column_formats='campaign:ref:ScenarioCampaign,technique:ref:Technique,scenario:ref:Scenario')], min_height=220),
+              # sc-2b: the formal tier (CBMC) and the static rules (cppcheck)
+              _row(10, [_table('ff-formal', 0, 12, 'Formal checks (sc-2b) — CBMC on the variant\'s own hal.c with the interrupt as nondeterminism: '
+                               'decided (bounded, k) — never proved — refuted with its trace, inapplicable when the source does not compile; the '
+                               'model\'s limits on every row (`pol faults formal run all`)', 'FormalCheck',
+                               columns='name,variant,function,property_text,outcome,claim_status,outcome_words,bound_k,unwind,expected,engine_version,'
+                                       'wall_s,peak_rss_mb,trace_sha256,claim,limits,ran_at',
+                               column_formats='name:ref:FormalCheck,variant:ref:FirmwareVariant,claim:ref:MathClaim,scenario:ref:Scenario')],
+                   min_height=220),
+              _row(11, [_table('ff-static', 0, 5, 'Static rules per variant (sc-2b) — cppcheck built-ins + threadsafety (MISRA not run: its texts '
+                               'are not free); findings are rows, never a build failure', 'StaticCheck',
+                               columns='variant,findings,errors,warnings,style,portability,performance,tool_version,addons,not_run,wall_s,ran_at',
+                               column_formats='variant:ref:FirmwareVariant'),
+                        _table('ff-static-findings', 1, 7, 'Static findings — id, severity, where', 'StaticFinding',
+                               columns='variant,severity,check_id,file,line,message,cwe,addon', column_formats='variant:ref:FirmwareVariant')],
+                   min_height=220),
+          ] + _kind_rows(12)),
 ]

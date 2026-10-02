@@ -51,7 +51,7 @@ def _stat(name, sc, side, variant, build, measure, parameter, value, seed_list, 
     return row
 
 
-def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progress=None):
+def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progress=None, sides=('before', 'after'), fault_row=True):
     """→ {(side, ber): row}. Writes ScenarioStatistic rows and the measured rate onto UartBitErrorFault uart-bit-error."""
     from firmwarefaults.custom import runner_sc1, fault_engines as fe
     sc = SC.find('uart-residual-frame-loss')
@@ -60,11 +60,11 @@ def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progres
     stream = {'name': 'stats#1', 'scenario': sc['name'], 'order': 1, 'kind': 'inject-bytes',
               'args_json': json.dumps({'cycle': 1600000, 'payload': 'command-stream', 'n': commands}), 'condition_json': '{}'}
     out = {}
-    for side in ('before', 'after'):
+    for side in sides:
         for ber in bers:
             t0 = time.time()
             sent = intact = applied = 0
-            per, fw, build = [], '', ''
+            per, fw, build, ttff = [], '', '', []
             fe_ok = True
             for s in range(seeds):
                 r = runner_sc1.run_side(sc, side, sink, seed=s, home=home, replace_steps=[stream], cache=True, write=False, seconds=secs,
@@ -77,6 +77,7 @@ def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progres
                 intact += o['ideal']
                 applied += int(o['applied'] or 0)
                 per.append('%d/%d/%d' % (o['applied'] or 0, o['ideal'], o['sent']))
+                ttff.append(o.get('first_line_error_ms'))
                 fw, build = r['firmware_sha256'], r['build_name']
                 if progress:
                     progress('%s ber=%g seed=%d: applied %s / intact %s / sent %s' % (side, ber, s, o['applied'], o['ideal'], o['sent']))
@@ -96,8 +97,10 @@ def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progres
                             'WARNING: some streams were not fed completely in the window')))
             row['events_per_1000'] = round(1000.0 * (sent - applied) / sent, 3) if sent else 0.0
             sink.upsert('ScenarioStatistic', row)
+            row['_ttff_ms'] = ttff          # sc-2: per seed, the first byte the line damaged (None = none in the window)
             out[(side, ber)] = row
-    _ber_fault_row(sink, out)
+    if fault_row and any(side == 'before' for side, _ in out):
+        _ber_fault_row(sink, out)
     return out
 
 
@@ -122,6 +125,7 @@ def _ber_fault_row(sink, out):
 
 def _carries_from_retlog(text, pc2):
     ticks = carries = tears = vul = 0
+    first = None
     classes = {}
     for line in text.splitlines():
         parts = line.split()
@@ -134,40 +138,80 @@ def _carries_from_retlog(text, pc2):
         if (w & 0xFF) == 0xFF:
             carries += 1
             tears += hit
+            if hit and first is None:
+                first = int(parts[0])
         classes.setdefault(w % 100, [0, 0])
         classes[w % 100][0] += 1
         classes[w % 100][1] += hit
-    return {'ticks': ticks, 'carries': carries, 'tears': tears, 'vulnerable_ticks': vul, 'classes': classes}
+    return {'ticks': ticks, 'carries': carries, 'tears': tears, 'vulnerable_ticks': vul, 'classes': classes, 'first_tear_cycle': first}
+
+
+def _tear_build(variant, home):
+    from firmwarefaults.custom import runner
+    b = runner.prepare_build(variant, home, cache=True)
+    loads = disasm.lds_sequence(b['dis'], 'hal_millis', 'g_ms')
+    if len(loads) < 2:
+        raise runner.ScenarioRefused('build %s has no split read of g_ms to measure' % variant)
+    return b, loads[1]['pc']
+
+
+def tear_run(b, pc2, variant, seed, noise, seconds):
+    """One phase-sweep run: every tick's return PC logged (--ret-log 7) → ticks, carries, tears (a carry tick returning to the
+    2nd lds), the first tear's cycle, the frames' backwards drops as the cross-check."""
+    from firmwarefaults.custom import runner
+    extra = [{'kind': 'ret-log', 'args_json': json.dumps({'vec': 7, 'file': 'retlog.txt'})}]
+    if noise:
+        extra.append({'kind': 'rx-noise', 'args_json': json.dumps({'rate': noise})})
+    argv, files, meta = harness.render_sc1([], b['nm'], seconds, seed, {'watch': [('g_ms', 4)]}, variant, extra_steps=extra)
+    h = harness.run_files(argv, b['hex'], files)
+    if not h['ok']:
+        raise runner.ScenarioRefused('the twin failed: %s' % (h['stderr'] or h['stdout'])[-400:])
+    c = _carries_from_retlog(h['files'].get('retlog.txt', b'').decode(), pc2)
+    ups, _ = runner.decode_frames(h['uart'])
+    c['frames_backwards'] = len(outcome.backwards(ups))
+    c['torn_last_frame'] = int(len(ups) >= 2 and ups[-1] - ups[-2] > 200)
+    c['noise_bytes'] = (h['final'].get('rx') or {}).get('noise_bytes', 0)
+    c['wall_s'] = h['final'].get('wall_s')
+    c['firmware_sha256'] = b['row'].get('artifact_sha256', '')
+    return c
+
+
+def tear_sweep_after(sink, seeds=SEEDS, noise_rate=NOISE_RATE, seconds=10.0, home=None, progress=None):
+    """sc-2: the technique's RESIDUAL for scenario 1 — the same seeds of asynchronous traffic on the AFTER build (atomic read):
+    a tick can never return to the 2nd lds while ATOMIC_BLOCK masks it, and the frames must never go backwards."""
+    from firmwarefaults.custom import fault_engines as fe
+    sc = SC.find('torn-millis-read')
+    b, pc2 = _tear_build(sc['after_variant'], home)
+    per, carries, tears, back, ticks, t1, firsts = [], 0, 0, 0, 0, time.time(), []
+    for s in range(seeds):
+        c = tear_run(b, pc2, sc['after_variant'], s, noise_rate, seconds)
+        carries += c['carries']; tears += c['tears']; back += c['frames_backwards'] + c['torn_last_frame']; ticks += c['ticks']
+        per.append('%d/%d' % (c['tears'], c['carries']))
+        firsts.append(c['first_tear_cycle'])
+        if progress:
+            progress('after seed %d: %d tear(s) in %d carries (frames backwards %d)' % (s, c['tears'], c['carries'], c['frames_backwards']))
+    r = _stat('%s@after@rx-noise=%g' % (sc['name'], noise_rate), sc['name'], 'after', sc['after_variant'], b['row']['name'],
+              'event = a byte-0 carry of g_ms whose tick ISR returned to the 2nd lds (hal_millis+0x8 in the atomic build) — the '
+              'technique\'s residual; trials = carries', 'rx_noise_rate', noise_rate, list(range(seeds)), carries, tears,
+              per_seed='tears/carries per seed: ' + ', '.join(per), window_s=seconds, wall_s=time.time() - t1,
+              fw=b['row'].get('artifact_sha256', ''), harness_digest=fe.harness_digest(),
+              repro={'seeds': '0..%d' % (seeds - 1), 'noise_rate': noise_rate, 'seconds': seconds, 'how_to_rerun': 'pol faults campaign run torn-read-phase'},
+              notes='cross-check: %d backwards / torn-final frames over %d ticks (must be 0 with the atomic read)' % (back, ticks))
+    sink.upsert('ScenarioStatistic', r)
+    r['_firsts'] = firsts
+    r['_frames_backwards'] = back
+    return r
 
 
 def tear_phase_sweep(sink, seeds=SEEDS, noise_rate=NOISE_RATE, seconds=10.0, home=None, progress=None):
     """→ {'natural': {...}, 'sweep': row}. Writes two ScenarioStatistic rows and the measured per-carry probability onto the
     TornReadFault row."""
-    from firmwarefaults.custom import runner, fault_engines as fe
+    from firmwarefaults.custom import fault_engines as fe
     sc = SC.find('torn-millis-read')
-    b = runner.prepare_build(sc['before_variant'], home, cache=True)
-    loads = disasm.lds_sequence(b['dis'], 'hal_millis', 'g_ms')
-    if len(loads) < 2:
-        raise runner.ScenarioRefused('the BEFORE build has no split read of g_ms to measure')
-    pc2 = loads[1]['pc']
-    obs = {'watch': [('g_ms', 4)]}
+    b, pc2 = _tear_build(sc['before_variant'], home)
 
     def one(seed, noise):
-        extra = [{'kind': 'ret-log', 'args_json': json.dumps({'vec': 7, 'file': 'retlog.txt'})}]
-        if noise:
-            extra.append({'kind': 'rx-noise', 'args_json': json.dumps({'rate': noise})})
-        argv, files, meta = harness.render_sc1([], b['nm'], seconds, seed, obs, sc['before_variant'], extra_steps=extra)
-        h = harness.run_files(argv, b['hex'], files)
-        if not h['ok']:
-            raise runner.ScenarioRefused('the twin failed: %s' % (h['stderr'] or h['stdout'])[-400:])
-        c = _carries_from_retlog(h['files'].get('retlog.txt', b'').decode(), pc2)
-        ups, _ = runner.decode_frames(h['uart'])
-        c['frames_backwards'] = len(outcome.backwards(ups))
-        # a tear at the LAST carry surfaces as the run's final frame (256 ms ahead); its backwards frame falls after the window
-        c['torn_last_frame'] = int(len(ups) >= 2 and ups[-1] - ups[-2] > 200)
-        c['noise_bytes'] = (h['final'].get('rx') or {}).get('noise_bytes', 0)
-        c['wall_s'] = h['final'].get('wall_s')
-        return c
+        return tear_run(b, pc2, sc['before_variant'], seed, noise, seconds)
 
     t0 = time.time()
     nat = one(0, 0)
@@ -188,7 +232,7 @@ def tear_phase_sweep(sink, seeds=SEEDS, noise_rate=NOISE_RATE, seconds=10.0, hom
                                                                 nat['class_ticks'], 100.0 * nat['class_vulnerable'] / max(1, nat['class_ticks']),
                                                                 nat['carries'], 100 * p_nat, nat['p_zero_given_exposure']))
     sink.upsert('ScenarioStatistic', r_nat)
-    per, carries, tears, back, vul, ticks, tail = [], 0, 0, 0, 0, 0, 0
+    per, carries, tears, back, vul, ticks, tail, firsts = [], 0, 0, 0, 0, 0, 0, []
     t1 = time.time()
     for s in range(seeds):
         c = one(s, noise_rate)
@@ -199,6 +243,7 @@ def tear_phase_sweep(sink, seeds=SEEDS, noise_rate=NOISE_RATE, seconds=10.0, hom
         vul += c['vulnerable_ticks']
         ticks += c['ticks']
         per.append('%d/%d' % (c['tears'], c['carries']))
+        firsts.append(c['first_tear_cycle'])
         if progress:
             progress('seed %d: %d tear(s) in %d carries (frames backwards %d, %d noise bytes)' % (s, c['tears'], c['carries'], c['frames_backwards'], c['noise_bytes']))
     r = _stat('%s@before@rx-noise=%g' % (sc['name'], noise_rate), sc['name'], 'before', sc['before_variant'], b['row']['name'],
@@ -212,6 +257,7 @@ def tear_phase_sweep(sink, seeds=SEEDS, noise_rate=NOISE_RATE, seconds=10.0, hom
                     'that would go backwards is due after the window) = %d for the %d tears counted from the return PCs; all ticks: %d of %d '
                     '(%.2f %%) landed on the 2nd lds' % (back, tail, back + tail, tears, vul, ticks, 100.0 * vul / max(1, ticks)))
     sink.upsert('ScenarioStatistic', r)
+    r['_firsts'] = firsts
     _tear_fault_row(sink, nat, r, p_nat, pc2, b)
     return {'natural': nat, 'natural_row': r_nat, 'sweep': r, 'frames_backwards': back, 'torn_final_frames': tail}
 

@@ -18,6 +18,7 @@ from firmwarefaults.objects.concurrency import (TornReadFault, DoubleGiveFault, 
 from firmwarefaults.objects.physical import (UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault,  # noqa: F401
                                              BitFlipFault, ClockSkewFault)
 from firmwarefaults.objects.space_safety import StackOverflowFault, BufferOverrunFault, MissedDeadlineFault  # noqa: F401
+from firmwarefaults.objects.evidence import ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding  # noqa: F401
 
 #: the fault KIND classes by family (the selftest asserts 7 + 6 + 3 = 16)
 FAULT_KINDS = {
@@ -30,4 +31,6 @@ FAULT_CLASS_NAMES = [c.__name__ for c in FAULT_KIND_CLASSES]
 
 #: every row class of the module, in registration order
 FIRMWAREFAULTS_CLASSES = [FirmwareFault] + FAULT_KIND_CLASSES + [ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep,
-                                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic]
+                                                                 ScenarioRun, ScenarioTraceCycle, ScenarioStatistic,
+                                                                 # sc-2 / sc-2b: the statistics, formal and static evidence tiers
+                                                                 ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding]

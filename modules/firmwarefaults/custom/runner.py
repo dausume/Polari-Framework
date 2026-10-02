@@ -186,6 +186,8 @@ def run_side(sc, side, sink, steps=None, seconds=None, seed=None, home=None):
         run['observed_json'] = json.dumps({'natural': nat})
     else:
         d = outcome.decide_uptime(ups, parser.bad_crc, ev)
+        if ev.get('align'):
+            d['words'] += ' · ' + outcome.align_words(ev)
     lat = fin.get('isr_latency') or {}
     lat_v, lat_max = max(((int(v), x['max']) for v, x in lat.items()), key=lambda t: t[1], default=(0, 0))
     run.update(outcome=d['outcome'], verdict_words=d['words'], frames_seen=len(ups), frames_backwards=len(d['backwards']), bad_crc=parser.bad_crc,

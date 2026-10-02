@@ -31,11 +31,13 @@ def render(resolved_steps, nm, seconds, seed, watch=None, fn=None, trace_window=
         for step, res in resolved_steps:
             args = json.loads(step['args_json'])
             cond = json.loads(step.get('condition_json') or '{}')
-            if step['kind'] == 'irq-at-pc':
+            if step['kind'] in ('irq-at-pc', 'align-at-pc'):
                 spec = 'pc=0x%x,vec=%d,shots=%d' % (res['pc'], res['vec'], int(args.get('shots', 1)))
                 if cond.get('symbol') in nm:
                     spec += ',when=0x%x/%d&0x%x=0x%x' % (nm[cond['symbol']]['addr'], int(cond['width']), int(cond['mask']), int(cond['value']))
-                a += ['--irq-at', spec]
+                a += ['--irq-at' if step['kind'] == 'irq-at-pc' else '--align-at-pc', spec]
+            elif step['kind'] == 'flip-bit-at-cycle':
+                a += ['--flip-bit', flip_spec(args, nm)]
             elif step['kind'] == 'irq-at-cycle':
                 a += ['--irq-at', 'cycle=%d,vec=%d' % (int(args['cycle']), int(args['vec']))]
             elif step['kind'] == 'corrupt-word':
@@ -43,6 +45,12 @@ def render(resolved_steps, nm, seconds, seed, watch=None, fn=None, trace_window=
                 a += ['--poke', '0x%x/%d=0x%x@%d' % (addr, int(args.get('width', 1)), int(args['value']), int(args['cycle']))]
         a += ['--trace-vcd', VCD, '--trace-window', '%d:%d' % trace_window]
     return a
+
+
+def flip_spec(args, nm):
+    """flip-bit-at-cycle args {symbol|addr, byte (offset), bit, cycle} → '0xADDR:BIT@CYCLE' (the symbol re-resolved per build)."""
+    base = nm[args['symbol']]['addr'] if args.get('symbol') in nm else int(str(args['addr']), 0)
+    return '0x%x:%d@%d' % (base + int(args.get('byte', 0)), int(args['bit']), int(args['cycle']))
 
 
 def run(argv, hex_bytes, timeout=600):
@@ -117,9 +125,20 @@ def render_sc1(steps, nm, seconds, seed, observe=None, variant='', adc0_mv=750, 
             a += ['--respond', '0x%s=%s,delay=%d,max=%d' % (args['match'], fname, int(args.get('delay_cycles', 0)), int(args.get('max', 1 << 20)))]
             host = True
         elif kind == 'drop-nth-frame':
-            if args.get('direction', 'rx') != 'rx':
-                raise ValueError('drop-nth-frame: only the host→board (rx) direction is built')
-            a += ['--drop-frame', 'rx:%d' % int(args['n'])]
+            d = args.get('direction', 'rx')
+            if d == 'rx':
+                a += ['--drop-frame', 'rx:%d' % int(args['n'])]
+            elif d == 'tx':        # sc-2: board→host (the Nth frame, optionally of one msg_type)
+                a += ['--drop-frame', 'tx:%d' % int(args['n']) + (',type=0x%x' % int(args['msg_type']) if args.get('msg_type') is not None else '')]
+            else:
+                raise ValueError('drop-nth-frame: direction must be rx (host→board) or tx (board→host), not %r' % d)
+        elif kind == 'drop-prob':  # sc-2: each host→board unit lost with probability p, from the seed
+            a += ['--drop-frame', 'rx:p=%g' % float(args['p'])]
+        elif kind == 'flip-bit-at-cycle':
+            if args.get('symbol') and args['symbol'] not in nm:
+                meta['missing'].append('no %s in this build (the bit flip is aimed at it)' % args['symbol'])
+                continue
+            a += ['--flip-bit', flip_spec(args, nm)]
         elif kind == 'inject-bytes':
             p = args['payload']
             if p == 'residual':

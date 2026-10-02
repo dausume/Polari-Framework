@@ -81,6 +81,9 @@ def _remote(url, engine, args, files, timeout):
     from polariApiServer import outbound
     with outbound.http_request('engine', 'board', 'POST', req, means='run', timeout=timeout + 30, lib='urllib', context=ctx) as r:
         d = json.load(r)
+    for k in ('stdout', 'stderr'):   # sc-2: a worker states each stream's length; a shorter one arrived cut — refuse it, never parse half
+        if '%s_chars' % k in d and len(d.get(k) or '') != int(d['%s_chars' % k]):
+            raise EngineRefused('%s from %s arrived cut: %d of %d characters' % (k, url, len(d.get(k) or ''), int(d['%s_chars' % k])))
     out = {k: v.encode() for k, v in (d.get('files') or {}).items()}
     out.update({k: base64.b64decode(v) for k, v in (d.get('files_b64') or {}).items()})
     cost = dict(d.get('cost') or {}, round_trip_s=round(time.perf_counter() - t0, 3))

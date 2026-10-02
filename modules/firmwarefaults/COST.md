@@ -117,3 +117,75 @@ Technique `measured_ram_bytes`, `measured_cost_what`. Seeded now: 17 fault rows 
 13 assumptions (`main-loop-returns`), 11 techniques (`rescan-keep-tail`), 9 scenarios, 14 steps, 11 scenario FirmwareVariants. Per sc-1 pair:
 2 ScenarioRun + 2 MathClaim + 2 ProofRun rows (no trace window — the decision is the observable); a statistics batch: one ScenarioStatistic per
 (side, parameter) + the fault row's measured rate.
+
+# sc-2 + sc-2b (2026-10-02, `dev-sc-2`) — campaigns (the statistics tier), CBMC (the formal tier, narrow), cppcheck, the owed harness flags
+
+Same host. Twin numbers from `prf-board-engines:trixie`; CBMC / cppcheck from the NEW `prf-formal-engines:trixie`. Every number below
+re-runs from its row (`pol faults campaign run <name>`, `pol faults formal run all`, `pol faults static run all`); the seeds are paired
+(the SAME seeds on BEFORE and AFTER).
+
+## Images and harness
+
+| what | before | after sc-2 | how |
+|---|---|---|---|
+| `prf-board-engines:trixie` | 534 804 667 B | **534 811 269 B (+6.6 KB)** — the twin binary only; no-cache build **69.4 s** (73.3) | `docker image inspect`, `time docker compose … build --no-cache` |
+| harness C | twin_forcing.c 583 + twin_scenario_io.c 469 | **672 + 550** (+ .h 38 / 44): `--align-at-pc`, `--flip-bit`, `--drop-frame tx:N[,type=]` / `rx:p=P`, 64 `--irq-at` | `wc -l` |
+| twin speed | 84–86 M cycles/s; 10 s with the step 2.83 s | **83.8 / 84.5 M cycles/s; 2.82 s** — unchanged | `--bench 160000000` ×2; 10 s with `--sp-watch --isr-latency --uart-tx-log` |
+| board worker `/run` | stdout/stderr cut to the LAST 20 000 characters | returned **whole** (`stdout_chars` stated, the client refuses a cut stream; > 16 MB = 413) | selftest: a 100 kB stdout round-trips; probe: scenario 1 THROUGH `BOARD_ENGINES_URL` fails BEFORE / passes AFTER (avr-objdump ≈ 87 kB) |
+| **`prf-formal-engines:trixie` (new)** | — | **408 818 722 B (408.8 MB)**: the same pinned trixie base (78.8 MB) + cbmc 6.6.0-4 + cppcheck 2.17.1-2 + python3-falcon/gunicorn ≈ +330 MB; no-cache build **38.1 s** | `docker image inspect`, `time docker build --no-cache` |
+
+## The formal tier (CBMC 6.6.0, `--16`, wait4 per step inside the worker)
+
+| FormalCheck | outcome | bound | wall | peak RSS |
+|---|---|---|---|---|
+| `hal-millis-not-torn@uno-sim-rig` (HAL_MILLIS_ATOMIC 1) | **decided (bounded, k=2)** — never proved | ≤ 2 ticks in any gap between the 4 loads + `--isr` at statement boundaries, unwind 4 (unwinding assertions hold) | **0.097 s** | **13.8 MB** |
+| `hal-millis-not-torn@uno-sim-rig-torn` (HAL_MILLIS_ATOMIC 0) | **refuted** — trace sha256 `1bc980ea…4ee2c` (301 steps): pre 0xFEFFFFFD, the loads read FE FF FF FF around two ticks, **returned 0xFFFFFFFE**, post 0xFF000001 (a carry into byte 3 — CBMC's own pick; the twin's was 0xFF → 0x1FF) | same | **0.109 s** | **14.9 MB** |
+| `rx-ring-index-bound@uno-sim-rig` (RX_RING 64) | **decided (bounded, k=4)** — indices in 0..63, fill = accepted − popped, FIFO order, from ANY valid start state | 4 steps + `--isr` inside hal_rx_pop, unwind 6 | **107.7 s** | **81.5 MB** |
+| `rx-ring-index-bound@uno-sim-rig-ring512` | **inapplicable** — hal.c's `_Static_assert` refuses the source | — | 0.024 s | 12.4 MB |
+
+End to end each check adds ≈ 0.5 s of `docker run` (the local-image rung); `pol faults formal run all` 110 s. **The ring's cost is the
+solver:** the same harness at RX_RING 8 decides in 1.8 s; k = 8 at RX_RING 64 did not finish in 300 s (k = 132 from the empty ring hit
+1.6 GB and the budget) — so the shipped ring is decided from an arbitrary start state at a short bound instead. **Model, honestly:** CBMC has
+no AVR architecture — `--16` gives avr-gcc's int width on a little-endian target, pointers stay 32 bits; the four one-byte loads of g_ms are
+OUR model of the core (`--nondet-volatile-model`; the twin forced the same split at hal_millis+0x4). Finding: goto-instrument's volatile model
+rewrites EVERY expression naming the volatile — even `&g_ms` — so the model lives in its own translation unit that declares g_ms without
+`volatile` (`custom/cbmc_model/g_ms_avr_model.c`).
+
+## The static rules (cppcheck 2.17.1: warning, style, portability, performance on avr8 + threadsafety; MISRA NOT run — its texts are not free)
+
+16 UNO variants (board's 5 + the 11 scenario variants), **94 findings**: 92 `variableScope` (style), 1 `unreadVariable` (style), **1 warning**
+`uselessAssignmentPtrArg` in uno-adc-sweep's generated `unoanalogstate_packets.h:259`; the threadsafety addon found nothing. Per variant:
+uno-sim-rig 6, uno-blink-only 5, uno-adc-sweep 4, uno-pair 6, uno-echo 7, and 6 for each of the 11 scenario variants. cppcheck does NOT see the
+torn read (no rule for an ISR-shared multi-byte read) — the formal tier does. 0.8–1.9 s per variant, 32.3 s for all.
+
+## The statistics tier — campaigns (FaultLikelihood rows; Wilson 95 %)
+
+| campaign | stimulus | BEFORE (the likelihood, no technique) | AFTER (the technique's residual) | time to first fault | runs / wall |
+|---|---|---|---|---|---|
+| `torn-read-phase` (scenario 1, per byte-0 carry) | async RX 200 B/s, 60 seeds × 10 s | **73 / 2 340 = 3.120 % [2.489, 3.905]** (= sc-1's, bit for bit) | **0 / 2 340 [0, 0.164 %]** (atomic build; 0 backwards frames) | first tear in 39 / 60 seeds, median **3 328 ms** [256 … 9 984], 21 censored at 10 s | 121 / 523 s |
+| `uart-ber` (scenario 4, the parser's residual per command) | BER 1e-3 · 1e-4 · 1e-5, 20 seeds × 500 commands | **0.230 % [0.153, 0.345] · 0.040 % [0.016, 0.103] · 0 [0, 0.038 %]** (= sc-1's) | **0 [0, 0.038 %]** at every BER (keep-tail) | first line error median 104.5 · 194.4 · 948.6 ms (7 of 20 censored at 1e-5) | 120 / 258 s |
+| `bounce-window` (scenario 3, per press) | one bounce edge uniform in (0, W] after each of 12 presses, 10 seeds | W 0.02 ms: **119 / 120** (one bounce merged into the still-pending first edge — what INTF0 does on silicon) · 5 / 15 / 25 / 40 ms: **120 / 120** | ≤ 15 ms: **0 / 120 [0, 3.1 %]** · 25 ms: **31 / 120 = 25.8 % [18.8, 34.3]** (uniform model: 20 %) · 40 ms: **61 / 120 = 50.8 % [42.0, 59.6]** (model: 50 %) — the 20 ms debounce's limit, measured | not observable (the counter is read at the end) | 100 / 362 s |
+| `ack-drop-probability` (scenario 2, per request) | each ack lost with p = 0.5 · 0.2 · 0.1 (harness draw), 40 seeds × 1 s | hang **47.5 % [32.9, 62.5] · 15.0 % [7.1, 29.1] · 2.5 % [0.4, 12.9]** (≈ p) | hang **0 / 40 [0, 8.8 %]** at every p; give-up (3 acks lost, status fault, telemetry continues) **9 / 40 = 22.5 % [12.3, 37.5]** at p 0.5, 0 at 0.2 / 0.1 (p³ = 12.5 / 0.8 / 0.1 %) | the silence starts after the 408.3 ms frame in every hung seed (one request at 500 ms — degenerate by design) | 240 / 448 s |
+
+The campaigns ran two at a time on 4 cores (walls include that). Each wrote ScenarioStatistic rows per (side, rate), FaultLikelihood rows,
+the fault row's rate_source (DoubleEdgeFault contact-bounce, LivelockFault lost-ack-hang; scenario 1 / 4 keep sc-1's fuller wording) and
+the `statistics` tier + measure on both builds' claims — their status unchanged.
+
+## The owed sc-0/sc-1 items, measured
+
+- **`--align-at-pc`** (`torn-millis-read-aligned`): BEFORE tears exactly like scenario 1 (frames 0, 100, 200, **511**, 400, 500) with the next
+  genuine TIMER2_COMPA raise **swallowed 15 893 cycles later** (the tick ADVANCED 0.99 ms, not added): g_ms ends at **599** vs **600** with
+  `--irq-at`; AFTER witnessed (swallowed 15 928 cycles later). simavr services a raise inside the same `avr_run`, so the swallow clears the
+  vector's ENABLE bit inside the PENDING notify for that one raise and restores it (and clears OCF2A) at the next step.
+- **`--drop-frame tx:1,type=0x7f`** (`lost-request-hang`): BEFORE silent 1 591.7 ms after the 408.3 ms frame → refuted; AFTER the request again
+  **+50.0 ms**, acked → witnessed (TX held 4 byte slots while the flag is on; the dropped frame is dated by its last byte).
+- **`--flip-bit g_ms+1:4@4 800 000`**: the byte 0x01 → 0x11, the frames jump **200 → 4 395 ms** and then come every ~10 ms while `next_ms`
+  catches up (sim_rig's own catch-up) — a single-event upset in the tick, seen.
+- **`--drop-frame rx:p=P`**: the ack-drop campaign above.
+
+## Rows (sc-2)
+
+30 classes (+ ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding); seeded: 11 scenarios (+ aligned, lost-request),
+17 steps, 4 campaigns, 4 formal checks. mathproofs: checker `cbmc`, MathClaim `evidence_tiers_json` + `measure_json`. Per campaign rate:
+2 ScenarioStatistic + 1 FaultLikelihood; per formal check: 1 FormalCheck + the claim's tier + 1 ProofRun (checker cbmc); per static variant:
+1 StaticCheck + its findings.

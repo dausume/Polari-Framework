@@ -114,3 +114,12 @@ def delivered_from_rx_log(log):
     """The twin's --uart-rx-log (u64 cycle, u8 byte, u8 flags per record; flags 0x80 = lost on the line) → the bytes the
     UART received."""
     return bytes(log[i + 8] for i in range(0, len(log) - 9, 10) if not log[i + 9] & 0x80)
+
+
+def first_line_error_cycle(log):
+    """sc-2: the cycle of the first host→board byte the line damaged (flags != 0 in the --uart-rx-log: lost 0x80, framing 0x01,
+    data bits 0x02), or None — the statistics tier's time to the stimulus's first hit."""
+    for i in range(0, len(log) - 9, 10):
+        if log[i + 9]:
+            return int.from_bytes(log[i:i + 8], 'little')
+    return None

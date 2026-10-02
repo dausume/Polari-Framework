@@ -1,4 +1,4 @@
-# Firmware Faults (`firmwarefaults`) — sc-0 + sc-1
+# Firmware Faults (`firmwarefaults`) — sc-0 + sc-1 + sc-2 / sc-2b
 
 Force a concurrency or physics bug ON PURPOSE on a firmware twin, see the cycle where it goes wrong, then see the technique
 that makes it safe and what that technique costs. Plan: `AI-Notes/plans/FIRMWARE_SCENARIO_PLAN.md` (D-sc-1 ruled 2026-10-02:
@@ -61,6 +61,42 @@ GET /api/firmwarefaults[/faults|/techniques|/scenarios|/runs|/runs/{run}|/engine
 POST /api/firmwarefaults/run · POST /api/firmwarefaults/stats
 /display/firmware-faults                          # configured tables only (sc-1 adds the statistics table)
 ```
+
+**sc-2 — the STATISTICS tier as campaigns** (`custom/campaign.py`, `custom/campaign_runs.py`; rows `ScenarioCampaign`, `FaultLikelihood`,
+plus sc-1's `ScenarioStatistic`): a campaign = scenario × fault kind × the fault's RATE as the stimulus × seeds × window. Each (side, rate,
+seed) is one harness run (the SAME seeds on both sides); per rate: the likelihood WITHOUT the technique and the technique's RESIDUAL WITH
+it (Wilson 95 %), the time to the first fault where a run can see it (censored seeds counted apart). Seeded: `torn-read-phase` (scenario 1,
+async RX 200/s, 60 seeds — per byte-0 carry), `uart-ber` (scenario 4, BER 1e-3/1e-4/1e-5 — the parser's residual per command),
+`bounce-window` (scenario 3, the bounce edge uniform in (0, W] for W = 0.02…40 ms — per press), `ack-drop-probability` (scenario 2, each
+ack lost with p = 0.5/0.2/0.1 — per request; the AFTER give-up apart). A campaign writes the likelihood table (one FaultLikelihood row per
+(fault, stimulus value)), the fault row's rate_source, and the claims' `statistics` evidence tier (the STATUS stays witnessed / refuted;
+the likelihood + interval go into `MathClaim.measure_json`). Harness (sc-2): `--align-at-pc` (scenario 1 with NO extra tick — the next
+genuine raise is swallowed; scenario `torn-millis-read-aligned`), `--flip-bit 0xADDR:BIT@CYCLE`, `--drop-frame tx:N[,type=0xTT]` (scenario
+`lost-request-hang`) and `rx:p=P`, up to 64 `--irq-at`.
+
+**sc-2b — the FORMAL tier, narrow, and the static rules** (`custom/formal.py`, `custom/static_rules.py`, `custom/formal_engines.py`; rows
+`FormalCheck`, `StaticCheck`, `StaticFinding`): CBMC 6.6.0 and cppcheck 2.17.1 run in their OWN worker image `prf-formal-engines:trixie`
+(CBMC is BSD-4-clause style — GPL-incompatible to link, so it is only ever a separate process), resolved by the ladder `FORMAL_ENGINES_URL`
+→ local binary → the local image → topology `firmwarefaults.formal` → refusal naming the knob. A FormalCheck compiles the variant's OWN
+generated hal.c (unedited) against `custom/cbmc_model/stubs/` with a harness that makes the interrupt CBMC nondeterminism
+(`--nondet-volatile-model g_ms:…` = the AVR's four one-byte loads with a tick possible between any two while SREG.I is set, and `--isr`
+between statements): `hal-millis-not-torn@uno-sim-rig` → **decided (bounded, k=2)**, never proved; `@uno-sim-rig-torn` → **refuted** with the
+C trace (sha kept); `rx-ring-index-bound@uno-sim-rig` → decided (bounded, k=4 steps from any valid state); `@uno-sim-rig-ring512` →
+**inapplicable** (hal.c's static guard refuses the source). Limits on every row: CBMC has no AVR arch — `--16` (int 16 bits as avr-gcc,
+little-endian), 32-bit pointers, the byte-wise read is our model of the core (cross-checked by the twin). Each check adds the `formal`
+evidence tier to the scenario's claim (mathproofs checker `cbmc`). cppcheck: built-ins (warning, style, portability, performance, avr8) +
+the threadsafety addon on all 16 UNO variants — MISRA is NOT run (its rule texts are not free); findings are rows, never a build failure.
+
+```
+pol faults campaign run uart-ber [--seeds 20]     # | torn-read-phase | bounce-window | ack-drop-probability
+pol faults campaign show bounce-window
+pol faults formal run all                         # | hal-millis-not-torn@uno-sim-rig-torn …
+pol faults static run all                         # | <variant>
+GET /api/firmwarefaults/campaigns|likelihoods|formal|static · POST /api/firmwarefaults/campaign|formal|static
+```
+
+Pipeline (sc-4): `tests/scenarios_stage.py --out results.json [--seeds N]` runs every runnable pair in-process and writes the summary
+polari-jenkins/scenarios.sh expects (advisory: a red pair is recorded, never a failure).
 
 Selftest: `PYTHONPATH=.:modules python3 -m firmwarefaults.firmwarefaults_selftest` · the real pair + a live boot:
 `tests/firmwarefaults_probe.py` (skips honestly without the engines) · cost: `COST.md`.

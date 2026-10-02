@@ -105,3 +105,17 @@ def local_runs():
                 for r in rec.get('ScenarioRun', []):
                     out.append((r, rec, os.path.join(d, fn)))
     return sorted(out, key=lambda t: t[0].get('ran_at', ''), reverse=True)
+
+
+def local_records():
+    """sc-2: every local record (newest file first) → [(record, path)] — campaigns, formal and static checks read back."""
+    d = os.path.join(home(), 'runs')
+    out = []
+    if os.path.isdir(d):
+        for fn in sorted(os.listdir(d), key=lambda f: os.path.getmtime(os.path.join(d, f)), reverse=True):
+            if fn.endswith('.json'):
+                try:
+                    out.append((json.load(open(os.path.join(d, fn))), os.path.join(d, fn)))
+                except Exception:  # noqa: BLE001
+                    continue
+    return out
