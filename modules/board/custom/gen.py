@@ -87,15 +87,16 @@ def header(cls, api='', msg_type=1, manager=None, bridge=''):
         m = re.search(r'contract v(\d+)\s+hash (\w*)', text)
         if '%s_MSG_TYPE' % cls.upper() not in text or 'target avr' not in text:
             raise GenRefused('the server returned no AVR header for %s (exposure enabled?)' % cls)
-        w2 = re.search(r'hash2 (\w+)\s+index width (\d+)', text)
+        w2 = re.search(r'hash2 (\w+)\s+(?:index width (\d+))?', text)
         return text, {'source': 'live', 'url': url, 'contract_version': int(m.group(1)) if m else 0, 'contract_hash': m.group(2) if m else '',
                       'tag_order': _order_from_header(text, cls), 'hash_v2': w2.group(1) if w2 else '',
-                      'index_width': int(w2.group(2)) if w2 else 0}
+                      'index_width': int(w2.group(2)) if w2 and w2.group(2) else 0,
+                      'instance_count': int((re.search(r'\((\d+) instance', text) or [0, 1])[1])}
     if manager is not None:
         now = compat.server_header(manager, cls, msg_type, 'avr', bridge=bridge)
         if now is None:
             raise GenRefused('this server knows no contract for %s (no gRPC exposure, no pinned snapshot)' % cls)
-        prov = {k: now[k] for k in ('source', 'contract_version', 'contract_hash', 'tag_order', 'where', 'hash_v2', 'index_width') if k in now}
+        prov = {k: now[k] for k in ('source', 'contract_version', 'contract_hash', 'tag_order', 'where', 'hash_v2', 'index_width', 'instance_count') if k in now}
         prov.update({k: now[k] for k in ('path', 'sha256') if k in now})
         if now['source'] == 'live':
             prov['url'] = 'in-process: %s' % now['where']
@@ -107,7 +108,7 @@ def header(cls, api='', msg_type=1, manager=None, bridge=''):
                            wire=spec)
     return text, {'source': 'pinned', 'path': os.path.relpath(path, os.path.dirname(MOD)), 'sha256': sha256(open(path, 'rb').read()),
                   'contract_version': c['contract_version'], 'contract_hash': c['contract_hash'], 'tag_order': compat.tag_order(c['field_map']),
-                  'hash_v2': spec['hash_v2'], 'index_width': spec['index_width']}
+                  'hash_v2': spec['hash_v2'], 'index_width': spec['index_width'], 'instance_count': spec['instance_count']}
 
 
 def _order_from_header(text, cls):
@@ -171,22 +172,26 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
         shutil.copy(os.path.join(tpl, fn), os.path.join(project, fn))
     app_src = os.path.join(tpl, 'apps', '%s.c' % r['app'])
     shutil.copy(app_src, os.path.join(project, 'main.c'))
-    open(os.path.join(project, 'board_config.h'), 'w').write(V.render_config(r))
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     for i, cls in enumerate(r['classes']):
         text, prov = header(cls, api, i + 1, manager, bridge)
         width = int(prov.get('index_width') or 0)
-        if int(r['knobs']['instance_index']) >= (1 << width):
-            raise GenRefused('instance_index %d does not fit the %d-bit index of %s on bridge %r (%d instance(s) bound) — bind '
-                             'another interface first, or pick 0..%d' % (r['knobs']['instance_index'], width, cls, bridge or '-',
-                                                                         max(1, 1 << width) if width else 1, (1 << width) - 1))
+        prov['indexed'] = '%s_INDEX_WIDTH' % cls.upper() in text   # elided entirely for a single instance
+        count = int(prov.get('instance_count') or 1)
+        if int(r['knobs']['instance_index']) >= count:
+            raise GenRefused('instance_index %d does not fit: %s has %d instance(s) bound on bridge %r (%s) — bind '
+                             'another interface first, or pick 0..%d' % (r['knobs']['instance_index'], cls, count, bridge or '-',
+                                                                         'no index at all' if count == 1 else '%d-bit index' % width
+                                                                         if width else 'an explicit index', count - 1))
         hfn = '%s_packets.h' % cls.lower()
         open(os.path.join(project, hfn), 'w').write(text)
         order = prov.pop('tag_order', None) or _order_from_header(text, cls)
         orders[cls] = order
         class_rows.append(dict(prov, **{'class': cls, 'header': hfn, 'header_sha256': sha256(text), 'target': 'avr', 'msg_type': i + 1,
                                         'tag_order': order, 'wire': 2, 'bridge': bridge}))
+    # brd-wire: the instance knob exists only for an indexed class (several boards bound on the bridge)
+    open(os.path.join(project, 'board_config.h'), 'w').write(V.render_config(r, indexed=any(c.get('indexed') for c in class_rows)))
     viol = rule2_violations(project)
     if viol:
         raise GenRefused('RULE 2: a generated project holds only .c/.h/.v/.sv + Makefile/linker script — found %s' % viol)

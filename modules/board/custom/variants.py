@@ -184,8 +184,10 @@ def resolve(variant, overrides=None):
     return {'name': variant.get('name', ''), 'app': app, 'classes': classes, 'features': feats, 'knobs': k, 'flags': flags}
 
 
-def render_config(r):
-    """board_config.h for a resolved variant (the knobs also go into the FirmwareBuild repro block)."""
+def render_config(r, indexed=False):
+    """board_config.h for a resolved variant (the knobs also go into the FirmwareBuild repro block). brd-wire: INSTANCE_INDEX
+    appears ONLY when the class is indexed (several boards bound on the variant's bridge) — a single-instance build has
+    no instance knob at all (his ruling 2026-10-02)."""
     k, f = r['knobs'], r['features']
     lines = ['/* board_config.h — rendered by `pol board gen` (board.custom.gen) for variant %s (app %s); the knobs are' % (r['name'] or '-', r['app']),
              ' * also in the FirmwareBuild row\'s repro block. */', '#ifndef BOARD_CONFIG_H', '#define BOARD_CONFIG_H', '',
@@ -202,8 +204,9 @@ def render_config(r):
              '#define ADC_CHANNEL  %d' % k['adc_channel'],
              '#define TEMP_TMP36   %d' % (1 if k['temp_formula'] == 'tmp36' else 0),
              '#define BLINK_MS     %du' % k['blink_ms'],
-             '#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge'] or '-'),
              '#define SEND_NAME    %d     /* 0: telemetry omits `name` (the binding is the identity) */' % (1 if k['send_name'] else 0)]
+    if indexed:
+        lines.append('#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge']))
     lines += ['#define %s %d   /* variant build flag */' % (n, v) for n, v in r['flags']]
     return '\n'.join(lines + ['', '#endif /* BOARD_CONFIG_H */', ''])
 

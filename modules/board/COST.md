@@ -74,3 +74,9 @@ up for both boards.
 Rows per bound board: +1 `HardwareInterfaceBinding` (+1 `WireContract` per class per bridge, +1 `EnumMapping` per mapped
 field, shared). Twins: n twins = n × ~11 MB (three ran side by side in the n=3 probe).
 
+Re-measured after his ruling "if it is index 0 and only one instance, the struct in the firmware is not needed" (the
+single-instance header/board_config carry NO index symbol at all; `tests/board_installer_probe.py`, 2026-10-02): uno-sim-rig
+**4338 / 491**, uno-blink-only **1014 / 302**, uno-adc-sweep **1270 / 329**, uno-echo **3022 / 495**, uno-pair **4372 / 493** B —
+byte-for-byte the same sizes: with one instance the index was already 0 bits on the wire and avr-gcc `-Os` had folded the
+constant index away, so the elision removes symbols from the interface, not bytes from the image.
+

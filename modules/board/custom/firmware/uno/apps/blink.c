@@ -17,6 +17,14 @@
 #include "simrigstate_packets.h"   /* GENERATED (c_twin target=avr) — never edited by hand */
 #pragma GCC diagnostic pop
 
+/* brd-wire (his ruling 2026-10-02): the instance index exists ONLY when the bridge binds several boards — the header
+ * then defines SIMRIGSTATE_INDEX_WIDTH and board_config.h INSTANCE_INDEX; a single-instance build has no index anywhere */
+#ifdef SIMRIGSTATE_INDEX_WIDTH
+#define TX_ENCODE(s, p, m) SimRigState_encode((s), (p), INSTANCE_INDEX, (m))
+#else
+#define TX_ENCODE(s, p, m) SimRigState_encode((s), (p), (m))
+#endif
+
 #if !FEATURE_LED
 #error "uno-blink-only needs FEATURE_LED"
 #endif
@@ -55,6 +63,6 @@ int main(void)
         state.uptime_ms = (int64_t)now;
         if (state.status == SIMRIGSTATE_STATUS_BOOT && now > 1000u) state.status = SIMRIGSTATE_STATUS_OK;
         hal_usart_send(wire, SimRigState_frame(wire, DEVICE_ID, seq++, payload,
-                                                  SimRigState_encode(&state, payload, INSTANCE_INDEX, TELEMETRY_MASK)));
+                                                  TX_ENCODE(&state, payload, TELEMETRY_MASK)));
     }
 }

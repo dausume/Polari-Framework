@@ -141,6 +141,18 @@ def firmware(check, m, fm, pair_hash):
           c0['header_sha256'] == c1['header_sha256'] and c1['hash_v2'] == pair_hash == r1['contract_hash_v2']
           and r0['source_sha'] != r1['source_sha'] and '#define INSTANCE_INDEX 1u' in cfg1 and '#define SEND_NAME    0' in cfg1
           and 'SIMRIGSTATE_INDEX_WIDTH 1u' in hdr and r1['bridge_name'] == 'uno-pair' and r1['instance_index'] == 1)
+    import re
+    bare = {}
+    for v in ('uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'):
+        rv = gen.gen('uno', work=os.path.join(tmp, v), variant=v, manager=m)
+        cv = json.loads(rv['classes_json'])[0]
+        code = re.sub(r'/\*.*?\*/', '', open(os.path.join(rv['project_dir'], cv['header'])).read(), flags=re.S)
+        cfg = re.sub(r'/\*.*?\*/', '', open(os.path.join(rv['project_dir'], 'board_config.h')).read(), flags=re.S)
+        bare[v] = sorted(set(re.findall(r'\b\w*(?:index|INDEX)\w*\b', code + cfg)))
+    hdr1_syms = sorted(set(re.findall(r'\b\w*(?:index|INDEX)\w*\b', re.sub(r'/\*.*?\*/', '', hdr, flags=re.S) + cfg1)))
+    check('mapping (his ruling: one instance needs no index): the four single-instance variants carry NO index symbol in '
+          'their header or board_config.h (%s); the pair carries %s' % (bare, hdr1_syms),
+          all(not x for x in bare.values()) and 'INSTANCE_INDEX' in hdr1_syms and 'SimRigState_index_t' in hdr1_syms)
     try:
         gen.gen('uno', work=os.path.join(tmp, 'p2'), variant='uno-pair', manager=m, instance_index=2)
         why = ''

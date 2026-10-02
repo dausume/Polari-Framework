@@ -197,6 +197,15 @@ def run_bridge(manager, api, grpc_port, bridge, n, prefix, here):
         d_on = wait(lambda: pb5(n - 1) == 1)
         put(last, {'led_on': False})
         d_off = wait(lambda: pb5(n - 1) == 0)
+
+        def drained(s=1.0):   # frames already in flight from the high window land first — wait for 1 s of steady false
+            t = time.time()
+            while time.time() - t < s:
+                if str(getattr(row(last), 'led_on', '')).lower() not in ('false', '0'):
+                    return False
+                time.sleep(0.05)
+            return True
+        d_drain = wait(drained, 15)
         stale = row(last)
         stale.led_on = True            # the row says true, NO command sent; the board (D13 low) keeps reporting false
         d_back = wait(lambda: str(getattr(row(last), 'led_on', '')).lower() in ('false', '0'), 3)
@@ -204,12 +213,14 @@ def run_bridge(manager, api, grpc_port, bridge, n, prefix, here):
         for _ in range(10):
             held.append(str(getattr(row(last), 'led_on', '')).lower())
             time.sleep(0.1)
-        check('%s: presence mask — led_on PUT true → twin %d D13 high (%s s), PUT false → low (%s s); then the ROW is set true '
+        check('%s: presence mask — led_on PUT true → twin %d D13 high (%s s), PUT false → low (%s s), the row steady false (frames in '
+              'flight drained); then the ROW is set true '
               'in-process with NO command: the next frame (led_on=false, present) brings it back to false in %s s and it stays %s '
               '(before brd-wire a false never reached the row)' % (tag, n - 1, round(d_on, 2) if d_on else 'never',
                                                                   round(d_off, 2) if d_off else 'never', round(d_back, 2) if d_back else 'never',
                                                                   sorted(set(held))),
-              d_on is not None and d_off is not None and d_back is not None and d_back < 1.0 and set(held) <= {'false', '0'})
+              d_on is not None and d_off is not None and d_drain is not None and d_back is not None and d_back < 1.0
+              and set(held) <= {'false', '0'})
         # ---- the analysis side
         inst = rows[-1].board_instance
         ch = http('GET', api + '/api/board/instances/%s/interface' % urllib.parse.quote(inst, safe=''))

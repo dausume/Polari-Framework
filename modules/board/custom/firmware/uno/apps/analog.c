@@ -17,6 +17,14 @@
 #include "unoanalogstate_packets.h"   /* GENERATED (c_twin target=avr) — never edited by hand */
 #pragma GCC diagnostic pop
 
+/* brd-wire (his ruling 2026-10-02): the instance index exists ONLY when the bridge binds several boards — the header
+ * then defines UNOANALOGSTATE_INDEX_WIDTH and board_config.h INSTANCE_INDEX; a single-instance build has no index anywhere */
+#ifdef UNOANALOGSTATE_INDEX_WIDTH
+#define TX_ENCODE(s, p, m) UnoAnalogState_encode((s), (p), INSTANCE_INDEX, (m))
+#else
+#define TX_ENCODE(s, p, m) UnoAnalogState_encode((s), (p), (m))
+#endif
+
 #if !FEATURE_ADC
 #error "uno-adc-sweep needs FEATURE_ADC"
 #endif
@@ -52,6 +60,6 @@ int main(void)
         state.a2 = (int64_t)hal_adc_read(2u);
         if (state.status == UNOANALOGSTATE_STATUS_BOOT && now > 1000u) state.status = UNOANALOGSTATE_STATUS_OK;
         hal_usart_send(wire, UnoAnalogState_frame(wire, DEVICE_ID, seq++, payload,
-                                                  UnoAnalogState_encode(&state, payload, INSTANCE_INDEX, TELEMETRY_MASK)));
+                                                  TX_ENCODE(&state, payload, TELEMETRY_MASK)));
     }
 }

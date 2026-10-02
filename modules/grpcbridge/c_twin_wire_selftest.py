@@ -102,6 +102,56 @@ def _frames(out):
     return [dict(kv.split('=', 1) for kv in line.split()[1:]) for line in out.splitlines() if line.startswith('frame ')]
 
 
+SINGLE_HARNESS = r'''
+#include <stdio.h>
+#include "rigwire_packets.h"
+static void emit(const uint8_t *b, size_t n) { size_t i; for (i = 0; i < n; i++) printf("%02x", b[i]); printf("\n"); }
+int main(void) {
+    RigWire_t s, back;
+    RigWire_mask_t m = 0;
+    polari_rx_t rx;
+    uint8_t payload[RIGWIRE_PAYLOAD_MAX], wire[POLARI_HEADER_LEN + RIGWIRE_PAYLOAD_MAX + 4];
+    size_t n, i;
+    memset(&s, 0, sizeof s); memset(&back, 0, sizeof back); memset(&rx, 0, sizeof rx);
+    snprintf(s.name, sizeof s.name, "solo");
+    s.uptime_ms = 4242; s.temp_c = 21.5; s.led_on = 0; s.status = RIGWIRE_STATUS_OK;
+    n = RigWire_frame(wire, 3, 7, payload, RigWire_encode(&s, payload, RIGWIRE_F_UPTIME_MS | RIGWIRE_F_LED_ON | RIGWIRE_F_STATUS));
+    emit(wire, n);
+    for (i = 0; i < n; i++)
+        if (polari_rx_feed(&rx, wire[i])) { int rc = RigWire_decode_rx(&rx, &back, &m); printf("rc=%d mask=%u\n", rc, (unsigned)m); }
+    return 0;
+}
+'''
+
+
+def _code_only(text):
+    """The header with its comments removed — what the compiler sees as symbols."""
+    import re
+    return re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+
+
+def single_instance_checks(cc, check):
+    """his ruling 2026-10-02: n = 1 carries NO instance machinery — elided, not zero-width."""
+    import re
+    s1 = W.spec('RigWire', WIRE_MAP, ENUMS, 1)
+    h1 = render_c_header('RigWire', WIRE_MAP, MSG, version=3, contract_hash='beef', wire=s1)
+    h2 = render_c_header('RigWire', WIRE_MAP, MSG, version=3, contract_hash='beef', wire=W.spec('RigWire', WIRE_MAP, ENUMS, 2))
+    sym1 = sorted(set(re.findall(r'\b\w*(?:index|INDEX)\w*\b', _code_only(h1))))
+    sym2 = sorted(set(re.findall(r'\b\w*(?:index|INDEX)\w*\b', _code_only(h2))))
+    check('grpc-j4 n=1: the header has NO index symbol at all (grep of the code: %s) — no RigWire_index_t, no '
+          '_INDEX_WIDTH/_INDEX_BYTES, no index parameter; n=2 has %s' % (sym1 or 'none', sym2),
+          not sym1 and 'RigWire_index_t' in sym2 and 'RIGWIRE_INDEX_WIDTH' in sym2 and 'index' in sym2)
+    with tempfile.TemporaryDirectory() as td:
+        comp, exe = _run(cc, td, SINGLE_HARNESS, h1)
+        out = subprocess.run([exe], capture_output=True, text=True).stdout.split() if comp.returncode == 0 else []
+        want = R.frame(MSG, 3, 7, R.encode(s1, {'uptime_ms': 4242, 'led_on': False, 'status': 'ok'},
+                                           present=['uptime_ms', 'led_on', 'status']))
+        check('grpc-j4 n=1: the C frame is BYTE-IDENTICAL to the n=1 wire layout (presence bits only, %d B: %s…); it decodes back '
+              '(rc 0, mask %s) — the host reads it as index 0 by construction' % (len(want), want.hex()[:40], out[1:] if out else '-'),
+              comp.returncode == 0 and out and out[0] == want.hex() and out[1] == 'rc=0' and out[2] == 'mask=26' and R.decode(s1, want[12:-4])[0] == 0
+              and want[12] == (1 << 1 | 1 << 3 | 1 << 4), (comp.stderr[:300], out))
+
+
 def wire_v2_checks(cc, check):
     # ---- the rules
     ns = (1, 2, 3, 4, 5, 8, 9, 16, 17, 20, 256, 257)
@@ -225,6 +275,7 @@ def wire_v2_checks(cc, check):
         c4, _ = _run(cc, os.path.join(td), HARNESS, mixed, lax)
         check('grpc-j4 two v2 class headers share one translation unit; a v1 + a v2 header in one unit FAIL to compile',
               c3.returncode == 0 and c4.returncode != 0 and 'redefinition' in c4.stderr, (c3.stderr[:200], c4.stderr[:200]))
+    single_instance_checks(cc, check)
     big = {'fields': {'f%d' % i: {'tag': i + 1, 'proto_type': 'int64'} for i in range(9)}}
     bs = W.spec('Big', big, {}, 2)
     p = R.encode(bs, {'f8': -1, 'f0': 3}, index=1, present=['f0', 'f8'])

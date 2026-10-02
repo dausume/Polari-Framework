@@ -96,7 +96,8 @@ def server_header(manager, cls, msg_type=1, target='avr', allow_pinned=True, bri
     spec = wire_spec(manager, cls, fm, bridge) if int(wire) >= 2 else None
     text = render_c_header(cls, fm, int(msg_type), version=ver, contract_hash=h, target=target, wire=spec)
     return dict(src, text=text, sha256=sha256(text), tag_order=tag_order(fm), contract_version=ver, contract_hash=h, field_map=fm,
-                hash_v2=spec['hash_v2'] if spec else '', index_width=spec['index_width'] if spec else 0, wire=int(wire), bridge=bridge)
+                hash_v2=spec['hash_v2'] if spec else '', index_width=spec['index_width'] if spec else 0,
+                instance_count=spec['instance_count'] if spec else 1, wire=int(wire), bridge=bridge)
 
 
 def combined_sha(class_rows):

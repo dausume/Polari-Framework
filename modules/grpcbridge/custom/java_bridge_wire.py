@@ -319,7 +319,8 @@ def render_codec_wire(cls, spec):
                     + " but this contract carries its index as " + INDEX_REPR + " (version " + WIRE_VERSION + ")");
         }}
         ByteBuffer buf = ByteBuffer.wrap(p.payload).order(ByteOrder.LITTLE_ENDIAN);
-        int index = INDEX_BYTES == 1 ? buf.get() & 0xFF : INDEX_BYTES == 2 ? buf.getShort() & 0xFFFF : 0;
+        int index = INDEX_BYTES == 1 ? buf.get() & 0xFF : INDEX_BYTES == 2 ? buf.getShort() & 0xFFFF
+                : 0;   // n = 1 (INDEX_REPR none): no index on the wire — index 0 by construction
         byte[] pre = new byte[BITFIELD_BYTES];
         buf.get(pre);
         for (int i = 0; i < INDEX_WIDTH; i++) if (bit(pre, i)) index |= 1 << i;

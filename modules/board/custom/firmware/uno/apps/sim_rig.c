@@ -15,8 +15,8 @@
  *         (led_on → LED_PIN, pwm_duty → PWM_PIN); identity and sensors stay the firmware's own; status becomes
  *         'commanded' and the next frame carries it back up (the provable loop).
  *
- * brd-wire (wire v2, grpc-j4): every frame carries INSTANCE_INDEX in the prelude (the width the bridge's bindings imply:
- * 0 bits alone, 1 bit for a pair) and a presence bit per field — a feature compiled out is simply not sent, and a false
+ * brd-wire (wire v2, grpc-j4): with several boards bound, every frame carries INSTANCE_INDEX in the prelude (the width the bindings imply:
+ * 1 bit for a pair, 2 for three; a single board carries no index at all) and a presence bit per field — a feature compiled out is simply not sent, and a false
  * led_on IS sent. A command whose index is not this board's is ignored (a shared bus later). With SEND_NAME 0 the frame
  * omits `name`: the bridge's binding is this board's identity.
  *
@@ -30,6 +30,14 @@
 #include "board_config.h"          /* knobs rendered by `pol board gen`: RIG_NAME, DEVICE_ID, pins, features */
 #include "hal.h"
 #include "simrigstate_packets.h"   /* GENERATED (c_twin target=avr) — never edited by hand */
+
+/* brd-wire (his ruling 2026-10-02): the instance index exists ONLY when the bridge binds several boards — the header
+ * then defines SIMRIGSTATE_INDEX_WIDTH and board_config.h INSTANCE_INDEX; a single-instance build has no index anywhere */
+#ifdef SIMRIGSTATE_INDEX_WIDTH
+#define TX_ENCODE(s, p, m) SimRigState_encode((s), (p), INSTANCE_INDEX, (m))
+#else
+#define TX_ENCODE(s, p, m) SimRigState_encode((s), (p), (m))
+#endif
 
 #if FEATURE_ADC
 static polari_avr_double_t sensor_value(uint16_t adc)
@@ -59,8 +67,12 @@ static void apply_command(const polari_rx_t *r)
 {
     SimRigState_t cmd;
     SimRigState_mask_t m;
+#ifdef SIMRIGSTATE_INDEX_WIDTH
     SimRigState_index_t idx;
     if (SimRigState_decode_rx(r, &cmd, &idx, &m) != 0 || idx != INSTANCE_INDEX) return;
+#else
+    if (SimRigState_decode_rx(r, &cmd, &m) != 0) return;
+#endif
 #if FEATURE_LED
     if (m & SIMRIGSTATE_F_LED_ON) {                    /* ACTUATORS only, and only when present */
         state.led_on = cmd.led_on ? 1u : 0u;
@@ -110,6 +122,6 @@ int main(void)
 #endif
         if (state.status == SIMRIGSTATE_STATUS_BOOT && now > 1000u) state.status = SIMRIGSTATE_STATUS_OK;
         hal_usart_send(wire, SimRigState_frame(wire, DEVICE_ID, seq++, payload,
-                                                  SimRigState_encode(&state, payload, INSTANCE_INDEX, TELEMETRY_MASK)));
+                                                  TX_ENCODE(&state, payload, TELEMETRY_MASK)));
     }
 }

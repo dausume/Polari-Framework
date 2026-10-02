@@ -34,9 +34,11 @@ main.c measured 4442 B against the pinned v2 header; the same header now gives 4
 With a local toolchain: `make` (all `*.c`, firmware.elf, firmware.hex, `avr-size -A`). Through Polari: `pol board build uno`.
 
 **brd-wire (wire v2, grpc-j4).** The generated header is the wire v2 one: `status` is an EnumMapping
-(`SIMRIGSTATE_STATUS_BOOT/OK/COMMANDED/ECHOED/FAULT`, one byte), `<C>_encode(s, p, INSTANCE_INDEX, mask)` sends only the
+(`SIMRIGSTATE_STATUS_BOOT/OK/COMMANDED/ECHOED/FAULT`, one byte), `<C>_encode(s, p, [INSTANCE_INDEX,] mask)` (the apps' `TX_ENCODE`) sends only the
 fields set in `mask` (an app's TELEMETRY_MASK: what it has, never what it compiled out), `<C>_decode_rx` writes only the
 present fields and reports the frame's index (a command for another index is ignored), `<C>_frame()` frames with the
-class's version byte. `board_config.h` gains `INSTANCE_INDEX` (this board's index on its bridge) and `SEND_NAME` (0: the
+class's version byte. With ONE board on the bridge there is no index anywhere (his ruling 2026-10-02): the header has no
+`<C>_index_t` / `_INDEX_*`, encode/decode take no index, `board_config.h` has no `INSTANCE_INDEX`; with several, those
+appear with the computed width and `INSTANCE_INDEX` is this board's index. `SEND_NAME` (0: the
 binding is the identity, the frame omits `name`).
 
