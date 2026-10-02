@@ -1,0 +1,35 @@
+{
+  "scanner_version": "1",
+  "device_name": "fixture-host",
+  "observed_at": "2026-09-08T12:00:00",
+  "virt": {"cpu_virt": false, "kvm_device": false, "libvirt": false, "iommu_enabled": false},
+  "iommu_groups": 0,
+  "usb": [
+    {"bus": "001", "dev": "003", "vendor_id": "10c4", "product_id": "ea60",
+     "description": "Silicon Labs CP2102 USB to UART Bridge Controller",
+     "path": "001-1.1", "class": "0/0/0", "driver": "cp210x", "speed_mbps": 12},
+    {"bus": "001", "dev": "004", "vendor_id": "10c4", "product_id": "ea60",
+     "description": "Silicon Labs CP2102 USB to UART Bridge Controller",
+     "path": "001-1.2", "class": "0/0/0", "driver": "cp210x", "speed_mbps": 12},
+    {"bus": "001", "dev": "005", "vendor_id": "0e8d", "product_id": "7610",
+     "description": "MediaTek Inc. MT7610U 802.11a/b/g/n/ac Wireless Adapter",
+     "path": "001-2", "class": "0/0/0", "driver": "mt76x0u", "speed_mbps": 480}
+  ],
+  "usb_slots": [
+    {"kind": "usb-controller", "slot_id": "001-0", "driver": "xhci_hcd", "ports_total": 4, "speed_mbps": 480, "parent": ""},
+    {"kind": "usb-hub", "slot_id": "001-1", "driver": "hub", "ports_total": 4, "speed_mbps": 480, "parent": "001-0"},
+    {"kind": "usb-hub", "slot_id": "001-2", "driver": "hub", "ports_total": 4, "speed_mbps": 12, "parent": "001-0"}
+  ],
+  "pci": [
+    {"address": "0000:00:17.0", "class_name": "SATA controller", "class_code": "0106",
+     "description": "Chipset SATA AHCI Controller", "vendor_id": "8086", "product_id": "a282",
+     "driver": "ahci", "iommu_group": -1},
+    {"address": "0000:00:02.0", "class_name": "VGA compatible controller", "class_code": "0300",
+     "description": "Integrated Graphics Controller", "vendor_id": "8086", "product_id": "3e9b",
+     "driver": "i915", "iommu_group": -1}
+  ],
+  "nics": [
+    {"iface": "eno1", "state": "UP", "mac": "02:00:00:00:00:01", "physical": true, "wireless": false}
+  ],
+  "serial": []
+}
