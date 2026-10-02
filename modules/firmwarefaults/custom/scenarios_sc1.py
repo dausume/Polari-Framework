@@ -25,6 +25,7 @@ J = json.dumps
 INT0 = 1
 TIMER2_COMPA = 7
 ACK_MATCH = '4c50027f'           # a request frame: magic 0x504C (LE: 4C 50), version 2, msg_type 0x7F (scenario_rig.c ACK_MSG_TYPE)
+#: sc-1's status for the two RTOS rows (kept for the record; sc-3 made them forcible on the C3 — custom/scenarios_sc3.py)
 RTOS_STATUS = ('not-yet-forcible: needs FreeRTOS (ESP32-C3 — his "STM32-C3" still to confirm, D-sc-4) or Zephyr (SAMD21); the UNO '
                'runs no RTOS, so there are no tasks, no mutexes and no preemption to force')
 SC_APP_FEATURES = {'led': True, 'pwm': False, 'adc': False, 'commands': True}
@@ -93,23 +94,6 @@ SC1_SCENARIOS = [
        'uno-sim-rig', 'uno-sim-rig-wdt', 'LivelockFault', 'runaway-hang', 'main-loop-returns', 'watchdog',
        'BEFORE: no frame after the runaway → refuted. AFTER: one watchdog reset (WDRF), frames again → witnessed.',
        'recovers-after-hang', 2.0),
-    _s('priority-inversion-mutex', 'Scenario 6 — priority inversion on a mutex (RTOS only)',
-       'Low task L takes mutex M; high task H blocks on M; medium task Mid becomes ready and runs, so H waits for Mid\'s whole run '
-       'time, not just L\'s critical section. Recipe (hold-lock-order): L takes M at t0; H wakes at t0+1 tick and requests M; Mid '
-       'wakes at t0+2 ticks and busy-runs for 10 ticks; measure H\'s wait. BEFORE: a binary semaphore (no inheritance); AFTER: a '
-       'FreeRTOS mutex (priority inheritance: L runs at H\'s priority until it gives M).', '', '', 'PriorityInversionFault',
-       'priority-inversion', 'high-task-waits-cs', 'priority-inheritance',
-       'BEFORE: H\'s wait ≈ Mid\'s run time (deadline missed); AFTER: H\'s wait ≤ L\'s critical section.', 'deadline-met', 0.0,
-       status=RTOS_STATUS, board='esp32-c3', simulator='renode',
-       notes='sc-3: needs the RTOS board admitted (D-sc-4) and its twin (Espressif QEMU or Renode — unverified for the C3)'),
-    _s('two-lock-deadlock', 'Scenario 7 — two tasks, two locks, opposite order → deadlock (RTOS only)',
-       'T1 takes A then B; T2 takes B then A; preemption forced between the two takes. Recipe (hold-lock-order): T1 takes A, a tick '
-       'switch is forced, T2 takes B and requests A, T1 requests B → both blocked; the wait-for graph (from the FreeRTOS trace hooks) '
-       'has the cycle T1→B→T2→A→T1. AFTER: both take A before B (lock-ordering) → no cycle.', '', '', 'DeadlockFault',
-       'two-lock-deadlock', 'locks-one-order', 'lock-ordering',
-       'BEFORE: both tasks blocked, a cycle in the wait-for graph at a named tick; AFTER: no cycle (SPIN proves the order).',
-       'wait-for-acyclic', 0.0, status=RTOS_STATUS, board='esp32-c3', simulator='renode',
-       notes='sc-3: FreeRTOS trace hooks → wait-for rows; SPIN/TLA+ model for the proof'),
 ]
 
 
@@ -145,16 +129,6 @@ def sc1_steps():
               notes='the 3rd byte write begins: two bytes are new, two old — the core is stopped and reset (no BOD model in simavr)'),
         _step('runaway-hang-watchdog', 1, 'jump-at', {'cycle': 8000000, 'symbol': '_exit'},
               notes='the PC is set to _exit (cli; rjmp .) at 500 ms — a dead loop with interrupts off'),
-        _step('priority-inversion-mutex', 1, 'hold-lock-order',
-              {'tasks': [{'name': 'L', 'prio': 1, 'takes': ['M'], 'at_tick': 0, 'holds_ticks': 3},
-                         {'name': 'H', 'prio': 3, 'takes': ['M'], 'at_tick': 1},
-                         {'name': 'Mid', 'prio': 2, 'busy_ticks': 10, 'at_tick': 2}],
-               'measure': 'H blocked ticks', 'before': 'binary semaphore', 'after': 'xSemaphoreCreateMutex (priority inheritance)'},
-              notes='recipe for sc-3; refused on the UNO'),
-        _step('two-lock-deadlock', 1, 'hold-lock-order',
-              {'tasks': [{'name': 'T1', 'takes': ['A', 'B']}, {'name': 'T2', 'takes': ['B', 'A']}],
-               'preempt': 'after T1 takes A', 'measure': 'wait-for graph cycle', 'after': 'both take A before B'},
-              notes='recipe for sc-3; refused on the UNO'),
     ]
 
 

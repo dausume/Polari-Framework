@@ -42,12 +42,13 @@ SEED_FAULT_ROWS = [
        ['timeout-fsm'], rtos=True, forcing='not yet: needs an RTOS target (D-sc-4)'),
     _f('PriorityInversionFault', 'priority-inversion', 'The high task waits on a mutex the low task holds while a medium task runs.',
        'high-task-waits-cs', 'the high task misses its deadline by the medium task\'s run time', ['mutex'], ['priority-inheritance'],
-       rtos=True, forcing='not-yet-forcible on the UNO (no RTOS): scenario priority-inversion-mutex carries the recipe for sc-3 (the '
-       'ESP32-C3 FreeRTOS twin, D-sc-4 unconfirmed board)', bounded=False),
+       rtos=True, forcing='forcible on the ESP32-C3 QEMU twin since sc-3 (D-sc-4 ruled): scenario priority-inversion-mutex '
+       '(hold-lock-order: the tick offsets in the image\'s params partition); the UNO has no RTOS', bounded=False),
     _f('DeadlockFault', 'two-lock-deadlock', 'T1 takes A then B, T2 takes B then A; preempted between: both wait forever. A LOGIC '
        'property — physics only triggers it (plan §0).', 'locks-one-order', 'both tasks blocked; the wait-for graph has a cycle', ['mutex'],
-       ['lock-ordering', 'watchdog'], rtos=True, forcing='not-yet-forcible on the UNO (no RTOS): scenario two-lock-deadlock carries the '
-       'recipe (hold-lock-order) for sc-3; SPIN/TLA+ proves the order',
+       ['lock-ordering', 'try-lock-backoff', 'watchdog'], rtos=True, forcing='forcible on the ESP32-C3 QEMU twin since sc-3 (D-sc-4 ruled): '
+       'scenarios two-lock-deadlock / two-lock-deadlock-backoff (hold-lock-order); the wait-for graph from the FreeRTOS trace hooks; '
+       'SPIN/TLA+ (the proof of the order) still owed',
        lock_cycle_json=J(['A', 'B', 'A'])),
     _f('LivelockFault', 'lost-ack-hang', 'A request whose ack is lost, with no timeout: the firmware waits (or retries) forever.',
        'every-message-arrives', 'the firmware never leaves WAIT; telemetry stops', ['queue'], ['timeout-fsm', 'watchdog'],

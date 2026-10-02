@@ -80,3 +80,23 @@ single-instance header/board_config carry NO index symbol at all; `tests/board_i
 byte-for-byte the same sizes: with one instance the index was already 0 bits on the wire and avr-gcc `-Os` had folded the
 constant index away, so the elision removes symbols from the interface, not bytes from the image.
 
+
+## sc-3 — the ESP32-C3 (2026-10-02, pol-core, `dev-sc-3`)
+
+| what | measured | how |
+|---|---|---|
+| engine image `prf-esp-engines:noble` | **1 813 008 516 B** (ubuntu:24.04 digest-pinned + ESP-IDF v5.5.5 431 MB + tools 862 MB + python env 92 MB) — `espressif/idf:v5.5.5` would be 5 116 MB compressed (every target) | `docker image inspect`; Docker Hub API |
+| one from-scratch `idf.py build` | **57 s wall, 178 CPU-s, 193 MB peak RSS** (c3-prio-inversion 56.9 / 57.1 s; c3-sim-rig 56.6 s) | wait4 inside `polari-idf-build` |
+| `idf.py size --format json2` / `merge_bin` | 0.95 s / 0.09 s | same |
+| reproducibility | the SAME merged-image sha256 across forced rebuilds and across the image and worker (ESP_ENGINES_URL) rungs (`3902c420…` for c3-two-lock) | `CONFIG_APP_REPRODUCIBLE_BUILD=y` |
+| the twin (`BoardSimCost esp32-c3:qemu:esp32c3`) | **0.533 virtual s per wall s** at `-icount 3` (sleep=off; boot + window, the whole QEMU process; 3 runs 0.533 / 0.534 / 0.533) = **66.6 M virtual instructions/s**; **43.3 MB peak RSS**; 9 rows per simulated C3 (4 seeded — BoardDefinition, Road, TechNode, ProgrammerKind; no DatasheetFact rows yet — + 5 at run time) vs the UNO's 33 (24 of them cited facts) | `pol board cost c3 --write` |
+| the twin in serve mode (`-icount shift=auto,sleep=on`) | settles at 0.7–1.1 virtual/wall after ≈ 35 virtual s in the first ≈ 2 wall s; 10.8 telemetry frames/s for a 10 Hz firmware | `tests/board_c3_twin_probe.py` |
+
+Firmware sizes (`idf.py size`, `-Os`):
+
+| variant | app.bin | flash code | flash data | IRAM .text | DRAM .data / .bss | DRAM used / total |
+|---|---|---|---|---|---|---|
+| c3-sim-rig | 156 768 B | 77 564 | 28 556 | 45 328 | 5 180 / 37 288 | 87 796 / 321 296 B |
+| c3-prio-inversion | 159 248 B | 79 474 | 28 972 | 45 452 | 5 188 / 37 816 | 88 456 / 321 296 B |
+
+The technique pairs' deltas are in `modules/firmwarefaults/COST.md` (sc-3).

@@ -66,10 +66,12 @@ SEED_ASSUMPTIONS = [
     _a('main-loop-returns', 'Every main-loop pass comes back to the top of the loop (nothing waits forever, no runaway).',
        APP + ':main (and every app\'s for (;;))', notes='sc-1 plan §4: no shipped variant enables the watchdog, so a pass that never '
        'returns freezes the board; uno-sim-rig-wdt (HAL_WDT 1) restores it — scenario runaway-hang-watchdog'),
-    _a('locks-one-order', 'Every task takes locks in one global order.', 'an RTOS target (ESP32-C3 FreeRTOS, D-sc-4)', holds='n/a',
-       holder='an RTOS firmware (sc-3)'),
-    _a('high-task-waits-cs', 'A high-priority task waits at most one critical section of a lower one.', 'an RTOS target (D-sc-4)',
-       holds='n/a', holder='an RTOS firmware (sc-3)'),
+    _a('locks-one-order', 'Every task takes locks in one global order.', 'board/custom/firmware/esp32c3/apps/two_lock.c:round_of (variants '
+       'c3-two-lock / c3-two-lock-ordered / c3-two-lock-backoff)', holds='n/a', holder='the ESP32-C3 two_lock app (sc-3)',
+       notes='scenario two-lock-deadlock (sc-3): BEFORE breaks it (T2 takes B then A)'),
+    _a('high-task-waits-cs', 'A high-priority task waits at most one critical section of a lower one.',
+       'board/custom/firmware/esp32c3/apps/prio_inversion.c:task_h (variants c3-prio-inversion / c3-prio-inversion-mutex)',
+       holds='n/a', holder='the ESP32-C3 prio_inversion app (sc-3)', notes='scenario priority-inversion-mutex (sc-3): a binary semaphore breaks it'),
     _a('stack-fits', 'The deepest call chain plus one ISR frame fits between the end of .bss and RAMEND.', 'every UNO variant '
        '(2048 B SRAM)', checkable='scenario', notes='measured per run: --sp-watch (exact), --stack-fill (paint), -fstack-usage (static)'),
     _a('isr-latency-bounded', 'Every ISR starts within a bounded number of cycles of its flag — interrupts are never masked for long.',
@@ -126,11 +128,21 @@ SEED_TECHNIQUES = [
        'if (rx->tail) { memmove(rx->buf, rx->buf + rx->used, rx->tail); rx->have = rx->tail; rx->tail = 0; }   /* c_twin_v2 keep-tail */',
        source='sc-1 measures it (scenario uart-residual-frame-loss: uno-echo-uartstat → uno-echo-keeptail, rx_parser keep-tail)',
        caveats='receiver-side only (the wire is unchanged); a frame lying wholly inside the kept tail completes one byte later'),
-    _t('lock-ordering', 'Take locks in one global order (or try-lock with back-off): no circular wait can form.', 'locks-one-order', 'mutex',
-       'xSemaphoreTake(lockA, …); xSemaphoreTake(lockB, …);   /* everywhere A before B */', source='unverified (sc-3)'),
+    _t('lock-ordering', 'Take locks in one global order: no circular wait can form.', 'locks-one-order', 'mutex',
+       'xSemaphoreTake(lockA, …); xSemaphoreTake(lockB, …);   /* everywhere A before B */',
+       source='sc-3 measures it on the ESP32-C3 twin (scenario two-lock-deadlock: c3-two-lock → c3-two-lock-ordered, one build flag)',
+       caveats='a convention every task must keep — nothing in FreeRTOS enforces it; a new lock needs its place in the order'),
+    _t('try-lock-backoff', 'Take the second lock with a timeout; on a timeout give the first back, wait (unequal back-offs) and retry: '
+       'a cycle can form for a moment but never persists.', 'locks-one-order', 'mutex',
+       'if (xSemaphoreTake(lockB, pdMS_TO_TICKS(5)) != pdTRUE) { xSemaphoreGive(lockA); vTaskDelay(backoff); continue; }',
+       alt='lock-ordering', source='sc-3 measures it on the ESP32-C3 twin (scenario two-lock-deadlock-backoff: c3-two-lock → c3-two-lock-backoff)',
+       caveats='equal back-offs can retry in lock-step for ever (a livelock) — the template\'s are unequal (1 vs 3 ticks); every round that '
+               'met the cycle pays the timeout'),
     _t('priority-inheritance', 'A mutex that lends the waiter\'s priority to the holder: the wait is bounded by the critical section.',
        'high-task-waits-cs', 'mutex', 'xSemaphoreCreateMutex();   /* FreeRTOS mutexes inherit; binary semaphores do not */',
-       source='unverified (sc-3); ESP-IDF FreeRTOS inheritance unverified (plan §3a)'),
+       source='sc-3 measures it on the ESP32-C3 twin (scenario priority-inversion-mutex): ESP-IDF v5.5.5\'s FreeRTOS DOES inherit — '
+              'traceTASK_PRIORITY_INHERIT fires, L runs at priority 4 while H waits (plan §3a had it unverified)',
+       caveats='bounded by ONE critical section only: a chain of holders, or a section that blocks, still waits longer'),
 ]
 
 

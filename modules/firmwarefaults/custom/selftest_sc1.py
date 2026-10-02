@@ -112,18 +112,20 @@ def sc1_parts(check):
     def sc1_rtos_and_variants():
         from firmwarefaults.custom import scenarios as SC, runner
         from firmwarefaults.custom.sink import LocalSink
-        from firmwarefaults.custom.scenarios_sc1 import RTOS_STATUS
+        from firmwarefaults.custom.scenarios_sc1 import RTOS_STATUS, SC1_SCENARIOS
         for name in ('priority-inversion-mutex', 'two-lock-deadlock'):
             sc = SC.find(name)
-            try:
-                runner.run_scenario(name, 'both', LocalSink())
-                why = ''
-            except runner.ScenarioRefused as e:
-                why = str(e)
-            check('%s: status not-yet-forcible (FreeRTOS on the ESP32-C3 — "STM32-C3" unconfirmed — or Zephyr on the SAMD21), the recipe written '
-                  '(hold-lock-order), and the runner REFUSES it with that reason before building' % name,
-                  sc['status'] == RTOS_STATUS and not SC.runnable(sc) and 'FreeRTOS' in why and 'STM32-C3' in why
-                  and SC.steps_of(name)[0]['kind'] == 'hold-lock-order' and json.loads(SC.steps_of(name)[0]['args_json'])['tasks'], why)
+            # sc-3 (D-sc-4 ruled): the two recipes sc-1 wrote down moved to scenarios_sc3 and became forcible on the C3 twin
+            check('%s: sc-1\'s not-yet-forcible recipe (hold-lock-order) is now FORCIBLE on the ESP32-C3 QEMU twin (sc-3), no longer an sc-1 row'
+                  % name, name not in {x['name'] for x in SC1_SCENARIOS} and sc['status'] == 'runnable' and sc['simulator'] == 'qemu-esp32c3'
+                  and sc['target_board'] == 'esp32-c3' and SC.runnable(sc) and SC.steps_of(name)[0]['kind'] == 'hold-lock-order'
+                  and json.loads(SC.steps_of(name)[0]['args_json'])['tasks'] and RTOS_STATUS.startswith('not-yet-forcible'), sc['status'])
+        try:
+            runner.run_scenario('two-lock-deadlock', 'natural', LocalSink())
+            why = ''
+        except runner.ScenarioRefused as e:
+            why = str(e)
+        check('an RTOS scenario has no natural run — the runner refuses before building (its offsets are seeded)', 'seeded' in why, why)
         from board.custom import variants as V
         vs = {v['name']: v for v in SC.scenario_variants()}
         want = {'uno-ack-wait': [('SC_ACK_WAIT', 1)], 'uno-ack-wait-timeout': [('SC_ACK_WAIT', 1), ('SC_ACK_TIMEOUT_MS', 50)],

@@ -3,8 +3,8 @@
  "id": "board",
  "package": "board",
  "title": "Board",
- "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few \u2014 the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01); brd-1: the UNO end to end in plain C \u2014 gen around the AVR header, build (avr-gcc, sizes measured, refused past the cited limits), flash (DRY-RUN, a real run needs a detected board + --yes), the simavr twin at a pty, and the twin's measured object cost. brd-fi: the Firmware Installer App \u2014 firmware VARIANTS as rows (four different things to test on one UNO: the whole rig, blink-only, a raw ADC sweep as a second class UnoAnalogState, echo), compatibility judged on the generated header's sha256 + wire order against what this server generates now (never contract_hash alone), detect \u2192 builds that fit \u2192 DRY-RUN plan \u2192 confirm \u2192 install (on the host holding the port only) \u2192 the generated bridge attached \u2192 the rows arriving, on /display/firmware-installer. brd-wire (grpc-j4): the computer<->firmware mapping \u2014 hardware-interface bindings tie each row to one board interface, the wire v2 prelude carries the instance index (its width/representation a function of the bound count) + presence bits, enum mappings, contract hash v2 in compat, uno-pair (the same firmware for instance 0 and 1), and GET /api/board/instances/<id>/interface (the binding chain to the datasheet).",
- "version": "0.4.0",
+ "description": "Program real boards over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition with its Road (track all, simulate few \u2014 the UNO first), USB adapters and programmer kinds as rows, cited datasheet facts, the two rules (USB from the host directly or via a known adapter; C / Verilog / SystemVerilog only) as selftests, and pol board detect over hwmap's scanner (brd-0, 2026-10-01); brd-1: the UNO end to end in plain C \u2014 gen around the AVR header, build (avr-gcc, sizes measured, refused past the cited limits), flash (DRY-RUN, a real run needs a detected board + --yes), the simavr twin at a pty, and the twin's measured object cost. brd-fi: the Firmware Installer App \u2014 firmware VARIANTS as rows (four different things to test on one UNO: the whole rig, blink-only, a raw ADC sweep as a second class UnoAnalogState, echo), compatibility judged on the generated header's sha256 + wire order against what this server generates now (never contract_hash alone), detect \u2192 builds that fit \u2192 DRY-RUN plan \u2192 confirm \u2192 install (on the host holding the port only) \u2192 the generated bridge attached \u2192 the rows arriving, on /display/firmware-installer. brd-wire (grpc-j4): the computer<->firmware mapping \u2014 hardware-interface bindings tie each row to one board interface, the wire v2 prelude carries the instance index (its width/representation a function of the bound count) + presence bits, enum mappings, contract hash v2 in compat, uno-pair (the same firmware for instance 0 and 1), and GET /api/board/instances/<id>/interface (the binding chain to the datasheet). sc-3 (D-sc-4 ruled: the ESP32-C3): an ESP-IDF C template (FreeRTOS tasks, the same SimRigState frames on UART0, FreeRTOS trace hooks on UART1), gen/build through the prf-esp-engines worker (ESP-IDF v5.5.5, reproducible images), flash as the exact esptool argv (DRY-RUN), and the twin in Espressif's QEMU fork (qemu:esp32c3) at a pty, its cost measured.",
+ "version": "0.5.0",
  "kind": "official",
  "wave": null,
  "repo": "https://github.com/dausume/polari-module-board.git",
@@ -20,10 +20,12 @@
    "chip-simulation"
   ],
   "tags": [
+   "arduino",
    "boards",
-   "usb",
+   "esp32",
    "firmware",
-   "arduino"
+   "freertos",
+   "usb"
   ]
  },
  "requires": {
@@ -50,9 +52,21 @@
     "kind": "system",
     "probe": "simavr",
     "note": "the AVR twin (simavr:atmega328p) \u2014 run as polari-avr-twin from the prf-board-engines image (libsimavr + USART0\u2194TCP + ADC0 stimulus) \u2014 brd-1"
+   },
+   {
+    "name": "esp-idf",
+    "kind": "system",
+    "probe": "polari-idf-build",
+    "note": "sc-3: the ESP32-C3 toolchain \u2014 ESP-IDF v5.5.5 (Apache-2.0, FreeRTOS inside) + riscv32-esp-elf-gcc 14.2.0 + esptool, from the prf-esp-engines image (or a local polari-idf-build / ESP_ENGINES_URL worker)"
+   },
+   {
+    "name": "qemu-esp32c3",
+    "kind": "system",
+    "probe": "qemu-system-riscv32",
+    "note": "sc-3: the C3 twin \u2014 Espressif QEMU fork esp_develop_9.2.2_20260417 (GPL-2.0-only, -machine esp32c3), run as polari-c3-run from the prf-esp-engines image"
    }
   ],
-  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL \u2192 local binary \u2192 the local image BOARD_ENGINES_IMAGE (prf-board-engines:trixie, polari-rf-node/prf-board-engines) \u2192 topology provider board.engines \u2192 refusal naming the knob + image); flashing refuses a remote worker"
+  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL \u2192 local binary \u2192 the local image BOARD_ENGINES_IMAGE (prf-board-engines:trixie, polari-rf-node/prf-board-engines) \u2192 topology provider board.engines \u2192 refusal naming the knob + image); flashing refuses a remote worker; sc-3: the esp family resolves the same way on ESP_ENGINES_URL \u2192 local binary \u2192 ESP_ENGINES_IMAGE (prf-esp-engines:noble, polari-rf-node/prf-esp-engines) \u2192 topology provider board.esp-engines \u2192 refusal"
  },
  "files": {
   "objects": [
@@ -86,6 +100,7 @@
    "board_page"
   ],
   "selftests": [
+   "board_c3_selftest",
    "board_installer_selftest",
    "board_mapping_selftest",
    "board_selftest",
@@ -96,11 +111,14 @@
    "custom/board_cli",
    "custom/board_engines",
    "custom/build",
+   "custom/build_c3",
    "custom/compat",
    "custom/detect",
    "custom/engine_run",
    "custom/flash",
+   "custom/flash_c3",
    "custom/gen",
+   "custom/gen_c3",
    "custom/install_cli",
    "custom/installer",
    "custom/interface_chain",
@@ -109,10 +127,13 @@
    "custom/register_import",
    "custom/register_map",
    "custom/sim_cost",
+   "custom/sim_cost_c3",
    "custom/twin",
+   "custom/twin_c3",
    "custom/twin_pty",
    "custom/uno_facts",
-   "custom/variants"
+   "custom/variants",
+   "custom/variants_c3"
   ]
  },
  "classes": [

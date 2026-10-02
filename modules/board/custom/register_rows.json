@@ -1,6 +1,6 @@
 {
  "source": "AI-Notes/designs/HARDWARE_CAPABILITY_REGISTER.md",
- "source_sha256": "5ea01128a7697f8de2294268f52926d29f44d14cdafd124d52d84ec72db6637b",
+ "source_sha256": "2940db1cfb35eb6b3bb3f87ccf5001eac7087c82f184c4b7f65efae5ce53311d",
  "device_columns": [
   "id",
   "class",
@@ -97,7 +97,7 @@
   {
    "id": "esp32-c3",
    "class": "MCU-M",
-   "status": "HIS PICK (FreeRTOS/Zephyr tier) — **he wrote \"STM32-C3\"; read as ESP32-C3, UNCONFIRMED**",
+   "status": "HIS PICK (FreeRTOS/Zephyr tier) — **CONFIRMED: the ESP32-C3 (his word 2026-10-02; D-sc-4 ruled)**",
    "chip": "ESP32-C3",
    "ISA/arch": "RV32IMC (single core)",
    "MMU": "no",
@@ -107,15 +107,15 @@
    "board design open": "? (varies by board vendor)",
    "silicon origin": "Espressif (China)",
    "board origin": "Espressif / various (China)",
-   "tiers proven": "FreeRTOS, Zephyr (per his pick label; not yet run by us)",
+   "tiers proven": "FreeRTOS (ESP-IDF v5.5.5 on the QEMU twin, sc-3 — not yet on silicon); Zephyr not run",
    "radios": "WiFi, BLE",
    "power/BMS": "no",
-   "twin": "none",
+   "twin": "`qemu:esp32c3` (Espressif QEMU fork esp_develop_9.2.2_20260417, GPL-2.0; sc-3)",
    "Polari role": "board-arc device",
    "relied-on resources": "ESP-IDF (Apache-2.0), esptool",
-   "cost measured": "no",
+   "cost measured": "twin + toolchain yes (modules/board/COST.md, sc-3); silicon no",
    "adapter needed": "none (native USB — on-chip Serial-JTOG peripheral)",
-   "notes/unverified": "needs his confirmation of \"ESP32-C3\" vs a literal STM32 part"
+   "notes/unverified": "confirmed 2026-10-02 (D-sc-4); no C3 on hand — twin-first (sc-3); the USB VID:PID is captured on first plug"
   },
   {
    "id": "esp32-c6",

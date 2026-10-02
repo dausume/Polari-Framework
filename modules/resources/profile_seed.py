@@ -197,6 +197,16 @@ SEED_MODULE_RESOURCE_PROFILES = [
         'notes': 'prf-formal-engines:trixie (408.8 MB; the board engines\' digest-pinned trixie base + cbmc 6.6.0 (BSD-4-clause style: run, never linked) + '
                  'cppcheck 2.17.1 (GPL-3.0) + python3-falcon/gunicorn). Worker :9840. Serves firmwarefaults.formal.',
     },
+    {   # sc-3 (2026-10-02): MEASURED on pol-core — modules/board/COST.md (the ESP32-C3 section), prf-esp-engines/cost.json
+        'name': 'prf-esp-engines-resource-profile', 'subject_name': 'prf-esp-engines', 'subject_kind': 'engine', 'character': 'compute',
+        'min_ram_mb': 256.0, 'min_disk_mb': 1813.0, 'min_threads': 1, 'thread_ceiling': 4, 'cpu_benefit': 'sublinear', 'ram_benefit': 'none',
+        'scales_note': 'one from-scratch idf.py build of a C3 variant: 57 s wall, 178 CPU-s (ninja on 4 cores), 193 MB peak RSS (the largest '
+                       'process); one QEMU scenario run (-icount 3): 0.3-0.9 s, 43 MB peak RSS, 66.6 M virtual instructions/s',
+        'image_mb': 1813.0, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (sc-3, measured 2026-10-02)',
+        'notes': 'prf-esp-engines:noble (1.81 GB; ubuntu:24.04@sha256:a853f94d… + ESP-IDF v5.5.5 (commit b774170f, Apache-2.0, FreeRTOS inside) '
+                 'with the C3\'s tools only (riscv32-esp-elf esp-14.2.0, ONE multilib) + esptool 4.12.0 + Espressif QEMU esp_develop_9.2.2_20260417 '
+                 '(GPL-2.0)). Worker :9850, twin TCP :9851. Serves board.esp-engines; a flash never runs on it.',
+    },
     {
         'name': 'prf-cnt-engines-resource-profile', 'subject_name': 'prf-cnt-engines', 'subject_kind': 'engine', 'character': 'compute',
         'min_ram_mb': 500.0, 'min_disk_mb': 200.0, 'min_threads': 1, 'thread_ceiling': 6, 'cpu_benefit': 'sublinear', 'ram_benefit': 'sublinear',

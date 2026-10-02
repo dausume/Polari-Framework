@@ -242,6 +242,9 @@ def down(board='uno', work=None):
 
 
 def main(argv):
+    if argv and str(argv[0]).lower() in ('c3', 'esp32c3', 'esp32-c3'):   # sc-3: Espressif's QEMU fork
+        from board.custom import twin_c3
+        return twin_c3.main(argv)
     import argparse
     ap = argparse.ArgumentParser(prog='pol board twin')
     ap.add_argument('board')

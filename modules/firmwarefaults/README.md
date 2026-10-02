@@ -100,3 +100,47 @@ polari-jenkins/scenarios.sh expects (advisory: a red pair is recorded, never a f
 
 Selftest: `PYTHONPATH=.:modules python3 -m firmwarefaults.firmwarefaults_selftest` · the real pair + a live boot:
 `tests/firmwarefaults_probe.py` (skips honestly without the engines) · cost: `COST.md`.
+
+## sc-3 — the RTOS scenarios on the ESP32-C3 (D-sc-4 ruled 2026-10-02; twin-first, no C3 on hand)
+
+sc-1 wrote scenarios 6 and 7 down as recipes that could not be forced on the UNO. In sc-3 they are **forcible on the ESP32-C3
+twin**, Espressif's QEMU fork (`qemu-esp32c3`, `-icount 3`). Each is a BEFORE/AFTER pair of board's C3 variants that differ
+in one build flag (board/README.md, "The ESP32-C3"):
+
+| scenario | BEFORE → AFTER | decides |
+|---|---|---|
+| `priority-inversion-mutex` (S6) | `c3-prio-inversion` (R a binary semaphore) → `c3-prio-inversion-mutex` (a FreeRTOS mutex: priority inheritance) | `h-blocking-bounded`: H's worst wait vs L's critical section + one 1 ms tick; who ran inside H's wait (the switch-in trace) |
+| `two-lock-deadlock` (S7) | `c3-two-lock` (T1 A→B, T2 B→A) → `c3-two-lock-ordered` (both A→B) | `wait-for-acyclic`: the wait-for graph rebuilt from the FreeRTOS hooks; a cycle that persists = deadlock at the µs/tick it closed; telemetry (snapshotted under A) goes silent |
+| `two-lock-deadlock-backoff` (S7) | `c3-two-lock` → `c3-two-lock-backoff` (a 5 ms timed second take, give back, unequal back-off) | the same; transient cycles broken by a timeout are reported |
+
+**The forcing (step `hold-lock-order`):**
+- The recipe's tick offsets are written into the image's `polari` params partition (`scenarios_sc3.params_bytes`: 52 bytes
+  at 0x110000). The SAME binary runs every interleaving.
+- Seed 0 is the recipe. Seed k draws the `seeded` knobs uniformly with splitmix64.
+- A host command (a SimRigState command's `pwm_duty`) steers the app's steer slot on a running twin.
+- `hold-lock-order` forces on `qemu-esp32c3` ONLY (`scenarios.KIND_SIMULATORS`). `scenarios.engine_gap(s)` names a missing esp
+  engine, so a pipeline stage lists the C3 rows as not runnable there rather than red.
+
+**Files:**
+- `custom/scenarios_sc3.py`: rows, steps, the recipe → params.
+- `custom/c3_trace.py`: the UART1 lines → events, the wait-for graph, who ran during a wait.
+- `custom/outcome_sc3.py`: the decisions.
+- `custom/runner_sc3.py`: build (board's C3 gen/build + cache), run (engine `c3-run`), decide, rows, claims, the pair's cost.
+- `custom/campaign_sc3.py`: N seeds × both builds → ScenarioStatistic, FaultLikelihood, the fault row's measured rate, the
+  claims' statistics tier.
+- `custom/faults_cli_sc3.py`: the printer and the stats CLI.
+- `custom/selftest_sc3.py`: fixture traces.
+
+A run's `fault_cycle` is the decisive event's virtual INSTRUCTION index at `-icount 3`, because QEMU is instruction-level, not
+cycle-accurate (plan §2b); the µs sits beside it. The trace rows reuse `ScenarioTraceCycle` (symbol = the task, instruction = the
+event in words, watch = the lock holders), so no new class or component was added.
+
+```
+pol faults run priority-inversion-mutex [--before|--after|--both] [--seed K]
+pol faults run two-lock-deadlock | two-lock-deadlock-backoff
+pol faults stats two-lock-deadlock [--seeds 10]        # the campaign: seeded tick offsets, both builds, Wilson 95 %
+POST /api/firmwarefaults/run {scenario, side, seed} · POST /api/firmwarefaults/stats {scenario: <c3 scenario>, seeds: 1..50}
+```
+
+Measured numbers: `COST.md` (sc-3). The REAL runs: `tests/firmwarefaults_probe.py --only-sc3` (`tests/firmwarefaults_probe_sc3.py`);
+they skip, naming the reason, without `prf-esp-engines`.

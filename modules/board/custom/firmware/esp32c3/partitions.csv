@@ -1,0 +1,7 @@
+# The C3 template's partition table (sc-3). `polari` (data, subtype 0x40) holds the scenario parameters the runner writes
+# into the flash image per seed (polari_c3.h polari_params_t) — erased (0xFF) = the build-time defaults.
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  0x100000,
+polari,   data, 0x40,    0x110000, 0x1000,

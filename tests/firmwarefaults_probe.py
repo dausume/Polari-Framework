@@ -17,10 +17,13 @@ checks SKIP honestly naming FORMAL_ENGINES_URL. --worker: start the board engine
 BOARD_ENGINES_URL (the 20 000-character stdout cut is gone).
 Part B (live boot): a THROWAWAY in-process server with firmwarefaults (+ board, grpcbridge, mathproofs …) — typed classes, the
 seeds, the page, the doors, and POST /api/firmwarefaults/run executing the pair IN the server (rows + claims + measured cost).
+Part S3 (sc-3, tests/firmwarefaults_probe_sc3.py): the three RTOS pairs on the ESP32-C3 QEMU twin for real (priority inversion: H's
+worst wait vs the bound; the deadlock: the wait-for cycle + telemetry silence vs progress; the back-off alternative), a bit-identical
+re-run, a 3-seed campaign smoke — SKIPPED (named) when prf-esp-engines does not resolve; part B then also runs the C3 pair IN the server.
 Skips HONESTLY (exit 0, every check listed as SKIP) when no twin / disassembler resolves on this device.
 
   cd <throwaway dir> && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/firmwarefaults_probe.py [--json out.json] [--no-boot] [--no-sc1|--only-sc1]
-      [--no-sc2] [--only-sc2] [--worker]
+      [--no-sc2] [--only-sc2] [--no-sc3] [--only-sc3] [--worker]
 """
 import json
 import os
@@ -169,13 +172,11 @@ def part_s1():
     check('every sc-1 run records plan §4 space/safety: stack high-water (SP watch == paint), worst ISR latency, sizes',
           all(r[s]['stack_high_water'] == r[s]['stack_high_water_paint'] > 0 and r[s]['size_text'] > 0
               for n, r in rep.items() if isinstance(r, dict) and 'before' in r for s in ('before', 'after')))
-    for name in ('priority-inversion-mutex', 'two-lock-deadlock'):
-        try:
-            runner.run_scenario(name, 'both', sink)
-            why = ''
-        except runner.ScenarioRefused as e:
-            why = str(e)
-        check('%s is REFUSED (not-yet-forcible: %s…)' % (name, why[len('scenario %s is not-yet-forcible: ' % name):][:60]), 'FreeRTOS' in why)
+    from firmwarefaults.custom import scenarios as SC
+    for name in ('priority-inversion-mutex', 'two-lock-deadlock'):   # sc-3: forcible on the C3 twin now (run for real in part S3)
+        s = SC.find(name)
+        check('%s: sc-1\'s recipe is FORCIBLE since sc-3 — on %s (%s), not on the UNO' % (name, s['simulator'], s['target_board']),
+              SC.runnable(s) and s['simulator'] == 'qemu-esp32c3' and 'avr-twin' in SC.refusal(dict(s, simulator='avr-twin')))
     again = runner.run_scenario('lost-ack-hang', 'both', LocalSink())['runs']
     check('S2 re-runs BIT-IDENTICALLY (firmware + UART sha256 on both sides)',
           [(r['firmware_sha256'], r['uart_sha256']) for r in again] == [(rep['lost-ack-hang'][s]['firmware_sha256'], rep['lost-ack-hang'][s]['uart_sha256'])
@@ -283,9 +284,9 @@ def part_b():
           [c.__name__ for c in FIRMWAREFAULTS_CLASSES if c.__name__ not in typed])
     n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
     kinds = sum(n(c.__name__) for c in FIRMWAREFAULTS_CLASSES[1:17])
-    check('live boot: 17 fault rows, 11 techniques, 13 assumptions, 6 primitives, 11 scenarios, 17 steps, 4 campaigns, 4 formal checks seeded',
+    check('live boot: 17 fault rows, 12 techniques, 13 assumptions, 6 primitives, 12 scenarios, 18 steps, 4 campaigns, 4 formal checks seeded (sc-3: +1 / +1 / +1)',
           (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck'))
-          == (17, 11, 13, 6, 11, 17, 4, 4),
+          == (17, 12, 13, 6, 12, 18, 4, 4),
           (kinds, n('Technique'), n('Assumption'), n('ConcurrencyPrimitive'), n('Scenario'), n('ScenarioStep'), n('ScenarioCampaign'), n('FormalCheck')))
     check('live boot: the eleven scenario variants are FirmwareVariant rows beside board\'s five',
           {'uno-sim-rig-torn', 'uno-sim-rig-ring512', 'uno-ack-wait', 'uno-ack-wait-timeout', 'uno-button-count', 'uno-button-debounce',
@@ -295,8 +296,11 @@ def part_b():
     comps = [it['componentProps']['componentName'] for row in json.loads(pages[0].definition)['rows'] for it in row['items']] if pages else []
     check('live boot: /display/firmware-faults is seeded — configured tables only (%d)' % len(comps), len(pages) == 1 and comps and set(comps) == {'class-rows-table'})
     r = client.simulate_get('/api/firmwarefaults')
-    check('GET /api/firmwarefaults answers: 17 fault rows, 9 scenarios runnable, the 2 RTOS ones not', r.status_code == 200 and r.json['fault_rows'] == 17
-          and sum(s['runnable'] for s in r.json['scenarios']) == 9, r.text[:300])
+    check('GET /api/firmwarefaults answers: 17 fault rows, 12 scenarios runnable (sc-3: + the 3 C3 ones)', r.status_code == 200 and r.json['fault_rows'] == 17
+          and sum(s['runnable'] for s in r.json['scenarios']) == 12, r.text[:300])
+    check('live boot: the six ESP32-C3 variants are FirmwareVariant rows (board\'s seeds, sc-3)',
+          {'c3-sim-rig', 'c3-prio-inversion', 'c3-prio-inversion-mutex', 'c3-two-lock', 'c3-two-lock-ordered', 'c3-two-lock-backoff'}
+          <= {getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values()})
     from firmwarefaults.custom import formal_engines as ffe
     rc, rf = client.simulate_get('/api/firmwarefaults/campaigns'), client.simulate_get('/api/firmwarefaults/formal')
     check('GET /api/firmwarefaults/campaigns (4) and /formal (4 + the FORMAL_ENGINES_URL ladder) answer on the live boot',
@@ -323,9 +327,16 @@ def part_b():
     check('POST /api/firmwarefaults/run {lost-ack-hang, both} (sc-1) runs IN the server → failed, passed, the Technique\'s measured cost',
           r2.status_code == 201 and [x['outcome'] for x in r2.json['runs']] == ['failed', 'passed']
           and next(t for t in tables['Technique'].values() if t.name == 'timeout-fsm').measured_cost_cycles > 0, r2.text[:400])
-    r3 = client.simulate_post('/api/firmwarefaults/run', body=json.dumps({'scenario': 'priority-inversion-mutex', 'side': 'both'}),
-                              headers={'Content-Type': 'application/json'})
-    check('POST /run of an RTOS scenario → 409 not-yet-forcible (nothing built)', r3.status_code == 409 and 'FreeRTOS' in r3.json['error'], r3.text[:200])
+    from board.custom import board_engines as be
+    if be.resolve('c3-run')['how'] != 'refused' and be.resolve('idf-build')['how'] != 'refused':   # sc-3: the RTOS pair IN the server, on the C3 twin
+        r3 = client.simulate_post('/api/firmwarefaults/run', body=json.dumps({'scenario': 'priority-inversion-mutex', 'side': 'both'}),
+                                  headers={'Content-Type': 'application/json'})
+        c3c = {c.name: c.proof_status for c in (tables.get('MathClaim', {}) or {}).values() if c.name.startswith('fw-safe:priority-inversion-mutex')}
+        check('POST /api/firmwarefaults/run {priority-inversion-mutex, both} (sc-3) runs IN the server on the ESP32-C3 twin → failed, passed; claims %s'
+              % sorted(c3c.values()), r3.status_code == 201 and [x['outcome'] for x in r3.json['runs']] == ['failed', 'passed']
+              and sorted(c3c.values()) == ['refuted', 'witnessed'], r3.text[:400])
+    else:
+        print('SKIP: POST /run of the C3 pair in the server — no prf-esp-engines image / ESP_ENGINES_URL here')
     if ok:
         r = client.simulate_get('/api/firmwarefaults/runs/%s' % r.json['runs'][0]['name'])
         check('GET /api/firmwarefaults/runs/<before> → the run, its trace rows, the refuted claim', r.status_code == 200 and r.json['trace']
@@ -339,13 +350,16 @@ def main(argv):
         print('SKIP: no simavr twin / disassembler on this device (%s) — build the image: docker compose -f '
               'polari-rf-node/docker-compose.board-engines.yml build' % fe.placement())
         return 0
-    if '--only-sc1' not in argv and '--only-sc2' not in argv:
+    if '--only-sc1' not in argv and '--only-sc2' not in argv and '--only-sc3' not in argv:
         part_a()
-    if '--no-sc1' not in argv and '--only-sc2' not in argv:
+    if '--no-sc1' not in argv and '--only-sc2' not in argv and '--only-sc3' not in argv:
         part_s1()
-    if '--no-sc2' not in argv:
+    if '--no-sc2' not in argv and '--only-sc3' not in argv:
         part_s2(worker='--worker' in argv)
-    if '--no-boot' not in argv:
+    if '--no-sc3' not in argv:
+        from firmwarefaults_probe_sc3 import part_s3   # sc-3: the RTOS pairs on the ESP32-C3 QEMU twin (REAL when prf-esp-engines resolves)
+        part_s3(check, report)
+    if '--no-boot' not in argv and '--only-sc3' not in argv:
         part_b()
     if '--json' in argv:
         json.dump(report, open(argv[argv.index('--json') + 1], 'w'), indent=1, default=str)
