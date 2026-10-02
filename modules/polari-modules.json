@@ -716,6 +716,19 @@
    "tier": "optional",
    "description": "Boards programmed over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition + Road (track all, simulate few — the UNO first), adapters and programmer kinds as rows, cited datasheet facts, the USB and C/Verilog/SV rules as selftests, pol board detect over hwmap's scanner."
   },
+  "firmwarefaults": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/firmwarefaults",
+   "repo": "https://github.com/dausume/polari-module-firmwarefaults.git",
+   "requires": [
+    "board",
+    "grpcbridge",
+    "mathproofs"
+   ],
+   "tier": "optional",
+   "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim."
+  },
   "mathproofs": {
    "kind": "official",
    "downloaded": true,

@@ -15,7 +15,15 @@
 #else
 #define UBRR0_VALUE 8u             /* U2X0 = 0: -3.5 % (works on the twin; marginal against the 16U2) */
 #endif
-#define RX_RING 64u                /* power of two */
+#ifndef RX_RING
+#define RX_RING 64u                /* power of two; a variant may set it (build flag RX_RING=N) */
+#endif
+/* sc-0 (FIRMWARE_SCENARIO_PLAN.md §3, scenario 1b): rx_head / rx_tail are uint8_t — ONE `lds` each, so the ISR and
+ * the main loop can never see half an index. A ring past 256 slots would need 16-bit indices (two loads: a torn
+ * head) and, with these uint8_t indices, would silently use 256 of its slots. Refuse that build instead (the
+ * Technique `static-guard`): the fault becomes a compile error, not a runtime race. */
+_Static_assert(RX_RING >= 2u && RX_RING <= 256u && (RX_RING & (RX_RING - 1u)) == 0u,
+               "RX_RING must be a power of two in 2..256: rx_head/rx_tail are uint8_t (one lds each, so they cannot tear)");
 
 /* ---- USART0 RX: an ISR-fed ring, drained by the main loop into the header's resync-safe parser. A variant with no
  * command path (FEATURE_COMMANDS 0) never enables the receiver: no ISR, no ring — smaller, and nothing a host sends
@@ -80,10 +88,22 @@ void hal_tick_init(void)
     TIMSK2 = _BV(OCIE2A);
 }
 
+/* g_ms is FOUR bytes the tick ISR writes; reading it is four `lds`. The atomic block masks interrupts across them
+ * (+6 B, +3 cycles). HAL_MILLIS_ATOMIC 0 is the scenario variant uno-sim-rig-torn (sc-0, FIRMWARE_SCENARIO_PLAN.md
+ * §3): the bare read, which a tick landing between the loads TEARS (0x000000FF reads back as 0x000001FF = 511). It
+ * exists only so the fault can be forced and shown on the twin — never ship it. */
+#ifndef HAL_MILLIS_ATOMIC
+#define HAL_MILLIS_ATOMIC 1
+#endif
+
 uint32_t hal_millis(void)
 {
     uint32_t v;
+#if HAL_MILLIS_ATOMIC
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_ms; }
+#else
+    v = g_ms;
+#endif
     return v;
 }
 

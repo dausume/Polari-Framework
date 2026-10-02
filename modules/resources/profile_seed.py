@@ -185,8 +185,8 @@ SEED_MODULE_RESOURCE_PROFILES = [
         'name': 'prf-board-engines-resource-profile', 'subject_name': 'prf-board-engines', 'subject_kind': 'engine', 'character': 'compute',
         'min_ram_mb': 64.0, 'min_disk_mb': 535.0, 'min_threads': 1, 'thread_ceiling': 1, 'cpu_benefit': 'none', 'ram_benefit': 'none',
         'scales_note': 'one avr-gcc compile of the UNO firmware: 0.11 CPU-s, 30.5 MB peak RSS (worker rusage); the simavr twin: one core, 11.4 MB peak RSS, 78.8 M cycles/s = 4.9x real time for a 16 MHz ATmega328P',
-        'image_mb': 534.7, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (brd-1, measured 2026-10-01)',
-        'notes': 'prf-board-engines:trixie (534.7 MB; debian:trixie-slim@sha256:a99cfc51… 78.8 MB + gcc-avr 14.2.0, avr-libc 2.2.1, avrdude 7.1, simavr 1.6, polari-avr-twin). Worker :9830, twin TCP :9831. Serves board.engines; a flash never runs on it.',
+        'image_mb': 534.8, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (brd-1, measured 2026-10-01; sc-0 re-measured 2026-10-02)',
+        'notes': 'prf-board-engines:trixie (534.8 MB; debian:trixie-slim@sha256:a99cfc51… 78.8 MB + gcc-avr 14.2.0, avr-libc 2.2.1, avrdude 7.1, simavr 1.6, polari-avr-twin with the sc-0 scenario flags, pyvcd 0.5.0 + polari-vcd-window). Worker :9830, twin TCP :9831. Serves board.engines; a flash never runs on it.',
     },
     {
         'name': 'prf-cnt-engines-resource-profile', 'subject_name': 'prf-cnt-engines', 'subject_kind': 'engine', 'character': 'compute',

@@ -16,6 +16,9 @@ from mathproofs.objects.mathproofs.ProofMethodReference import ProofMethodRefere
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 MATHPROOFS_CLASSES = [MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference]
-PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'undetermined', 'unprovable-here')
-CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed')
-CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human')
+# sc-0 (FIRMWARE_SCENARIO_PLAN.md §1): `inapplicable` — the statement is not defined on this state space (the scenario's PC / ISR /
+# build does not exist), kept apart from `undetermined` (a premise unrecorded / nothing tested) and `refuted` (his vocabulary);
+# `safe-under-scenario` claims are written by firmwarefaults' runner with checker `sim` (tier 0: a witness, never a proof)
+PROOF_STATUSES = ('conjectured', 'witnessed', 'checked-symbolically', 'decided', 'proved', 'refuted', 'undetermined', 'unprovable-here', 'inapplicable')
+CLAIM_KINDS = ('identity', 'inequality', 'domain-inclusion', 'composition', 'conservation', 'symmetry', 'commutation', 'bound', 'well-typed', 'safe-under-scenario')
+CHECKERS = ('numeric', 'interval', 'sympy', 'z3', 'lean', 'human', 'sim')

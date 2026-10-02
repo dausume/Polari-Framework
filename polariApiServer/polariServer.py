@@ -1310,7 +1310,9 @@ class polariServer(treeObject):
             # brd-0: the board arc — devices, instances, builds, programmer kinds, adapters, cited facts, twin costs, roads
             BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
             # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
-            FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState]
+            FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
+            # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows
+            FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2391,7 +2393,7 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or [])
              # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
              + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
@@ -3299,7 +3301,7 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

@@ -1,0 +1,227 @@
+{
+ "schema": "polari-app/1",
+ "id": "firmwarefaults",
+ "package": "firmwarefaults",
+ "title": "Firmware Faults",
+ "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-firmwarefaults.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "firmware",
+   "concurrency",
+   "faults",
+   "simulation"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board",
+   "grpcbridge",
+   "mathproofs"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "avr-twin",
+    "kind": "system",
+    "probe": "polari-avr-twin",
+    "note": "the simavr UNO twin WITH the sc-0 scenario flags (prf-board-engines/twin_forcing.c: --irq-at pc=/cycle=, --poke, --watch, --trace-vcd, --sp-watch, --stack-fill, --isr-latency, --fn-cycles, --uart-out, --seed) — resolved through the BOARD engines seam (board.custom.board_engines: BOARD_ENGINES_URL → local binary → the local image prf-board-engines:trixie → topology provider board.engines → refusal)"
+   },
+   {
+    "name": "avr-gcc",
+    "kind": "system",
+    "probe": "avr-gcc",
+    "note": "builds the scenario variants (board.custom.build) and the static stack peak: -fstack-usage + -fcallgraph-info=su (GCC's own .su/.ci; avstack.pl is NOT vendored)"
+   },
+   {
+    "name": "avr-objdump",
+    "kind": "system",
+    "probe": "avr-objdump",
+    "note": "binutils-avr: the disassembly every step re-resolves its PC against (the lds sequence of g_ms in hal_millis); avr-nm for the symbol table — both in prf-board-engines, run through the same seam (firmwarefaults.custom.fault_engines)"
+   },
+   {
+    "name": "pyvcd",
+    "kind": "python",
+    "probe": "polari-vcd-window",
+    "note": "pyvcd 0.5.0 (MIT) installed by sha256 in prf-board-engines; polari-vcd-window reads the twin's VCD into the cycles-around-the-fault rows ENGINE-side (not a framework library)"
+   }
+  ],
+  "engines_note": "every engine resolves through the board engines seam (the same knob, image and provider as board); nothing runs in the framework process except the parsing"
+ },
+ "files": {
+  "objects": [
+   "objects/concurrency/DeadlockFault",
+   "objects/concurrency/DoubleGiveFault",
+   "objects/concurrency/LivelockFault",
+   "objects/concurrency/LostWakeupFault",
+   "objects/concurrency/PriorityInversionFault",
+   "objects/concurrency/StarvationFault",
+   "objects/concurrency/TornReadFault",
+   "objects/firmwarefaults/Assumption",
+   "objects/firmwarefaults/ConcurrencyPrimitive",
+   "objects/firmwarefaults/FirmwareFault",
+   "objects/firmwarefaults/Scenario",
+   "objects/firmwarefaults/ScenarioRun",
+   "objects/firmwarefaults/ScenarioStep",
+   "objects/firmwarefaults/ScenarioTraceCycle",
+   "objects/firmwarefaults/Technique",
+   "objects/physical/BitFlipFault",
+   "objects/physical/BrownoutMidWriteFault",
+   "objects/physical/ClockSkewFault",
+   "objects/physical/DoubleEdgeFault",
+   "objects/physical/MetastableInputFault",
+   "objects/physical/UartBitErrorFault",
+   "objects/space_safety/BufferOverrunFault",
+   "objects/space_safety/MissedDeadlineFault",
+   "objects/space_safety/StackOverflowFault"
+  ],
+  "basis": [
+   "firmwarefaults_basis"
+  ],
+  "api": [
+   "firmwarefaults_api"
+  ],
+  "endpoints": [
+   "firmwarefaults_endpoints"
+  ],
+  "seed": [
+   "firmwarefaults_seed"
+  ],
+  "page": [
+   "firmwarefaults_page"
+  ],
+  "selftests": [
+   "firmwarefaults_selftest"
+  ],
+  "custom": [
+   "custom/claim_bridge",
+   "custom/disasm",
+   "custom/fault_engines",
+   "custom/fault_rows",
+   "custom/faults_cli",
+   "custom/harness",
+   "custom/outcome",
+   "custom/runner",
+   "custom/scenarios",
+   "custom/sink",
+   "custom/stack_static",
+   "custom/taxonomy"
+  ]
+ },
+ "classes": [
+  "Assumption",
+  "BitFlipFault",
+  "BrownoutMidWriteFault",
+  "BufferOverrunFault",
+  "ClockSkewFault",
+  "ConcurrencyPrimitive",
+  "DeadlockFault",
+  "DoubleEdgeFault",
+  "DoubleGiveFault",
+  "FirmwareFault",
+  "FirmwareFaultsAPI",
+  "LivelockFault",
+  "LostWakeupFault",
+  "MetastableInputFault",
+  "MissedDeadlineFault",
+  "PriorityInversionFault",
+  "Scenario",
+  "ScenarioRun",
+  "ScenarioStep",
+  "ScenarioTraceCycle",
+  "StackOverflowFault",
+  "StarvationFault",
+  "Technique",
+  "TornReadFault",
+  "UartBitErrorFault"
+ ],
+ "imports": [
+  [
+   "firmwarefaults.firmwarefaults_basis",
+   [
+    "FirmwareFault",
+    "TornReadFault",
+    "DoubleGiveFault",
+    "LostWakeupFault",
+    "PriorityInversionFault",
+    "DeadlockFault",
+    "LivelockFault",
+    "StarvationFault",
+    "UartBitErrorFault",
+    "DoubleEdgeFault",
+    "MetastableInputFault",
+    "BrownoutMidWriteFault",
+    "BitFlipFault",
+    "ClockSkewFault",
+    "StackOverflowFault",
+    "BufferOverrunFault",
+    "MissedDeadlineFault",
+    "ConcurrencyPrimitive",
+    "Assumption",
+    "Technique",
+    "Scenario",
+    "ScenarioStep",
+    "ScenarioRun",
+    "ScenarioTraceCycle",
+    "FIRMWAREFAULTS_CLASSES"
+   ]
+  ],
+  [
+   "firmwarefaults.firmwarefaults_seed",
+   [
+    "FIRMWAREFAULTS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "firmwarefaults.firmwarefaults_page",
+   [
+    "SEED_FIRMWAREFAULTS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "firmwarefaults.firmwarefaults_endpoints:construct_firmwarefaults_endpoints",
+ "seedPairs": "firmwarefaults.firmwarefaults_seed:FIRMWAREFAULTS_SEED_PAIRS",
+ "pages": [
+  "firmwarefaults.firmwarefaults_page:SEED_FIRMWAREFAULTS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "firmwarefaults_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

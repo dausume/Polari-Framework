@@ -54,6 +54,8 @@ DEFAULTS = {
     'computelod': ('polari', ['materials-devices', 'chip-simulation', 'knowledge-media'], ['compute', 'ladder', 'learning']),
     # brd-0: boards programmed over USB (BOARD_PROGRAMMING_PLAN)
     'board': ('polari', ['materials-devices', 'chip-simulation'], ['boards', 'usb', 'firmware', 'arduino']),
+    # sc-0: firmware fault scenarios (FIRMWARE_SCENARIO_PLAN)
+    'firmwarefaults': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'concurrency', 'faults', 'simulation']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),
     'motors': ('polari', ['materials-devices', 'making-mechanics'], ['motors']),
