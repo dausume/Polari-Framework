@@ -478,6 +478,15 @@ class polariCRUDE(treeObject):
                 #accounted for to be added.
                 for someVarName in updateDict.keys():
                     setattr(instToUpdate, someVarName, updateDict[someVarName])
+                # grpc-j4: hold what was SET for the hardware Commands leg —
+                # a telemetry frame landing before the notify below must not
+                # replace the person's values in the command (failure-isolated;
+                # a no-op without grpcbridge).
+                try:
+                    from grpcbridge.custom.grpc_server import note_command
+                    note_command(self.apiObject, instUpdate["polariId"], updateDict)
+                except Exception:
+                    pass
                 # Persist updated instance to database
                 if instToUpdate and hasattr(self.manager, 'db') and self.manager.db is not None:
                     try:

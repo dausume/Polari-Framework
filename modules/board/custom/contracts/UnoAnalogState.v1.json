@@ -1,0 +1,18 @@
+{
+ "class": "UnoAnalogState",
+ "contract_version": 1,
+ "contract_hash": "078e20a0f939956b",
+ "msg_type": 1,
+ "source": "pinned offline snapshot of the UnoAnalogState contract v1 — exactly what a fresh server generates (brd-fi, 2026-10-01: a throwaway in-process server, one seeded row, stabilize, enable → v1, hash 078e20a0f939956b, tags alphabetical). The server's ProtoContractVersion ledger is authoritative — `pol board gen --api URL` fetches the live header, and the installer's compat check compares against what the server generates NOW",
+ "field_map": {
+  "fields": {
+   "a0": {"tag": 1, "proto_type": "int64", "comment": ""},
+   "a1": {"tag": 2, "proto_type": "int64", "comment": ""},
+   "a2": {"tag": 3, "proto_type": "int64", "comment": ""},
+   "name": {"tag": 4, "proto_type": "string", "comment": ""},
+   "status": {"tag": 5, "proto_type": "string", "comment": ""},
+   "uptime_ms": {"tag": 6, "proto_type": "int64", "comment": ""}
+  },
+  "reserved": []
+ }
+}

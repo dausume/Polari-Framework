@@ -1,0 +1,12 @@
+{
+ "name": "arduino-uno-r3:simavr:atmega328p",
+ "board": "arduino-uno-r3",
+ "twin": "simavr:atmega328p",
+ "object_count": 33,
+ "state_bytes": 52112,
+ "cycles_per_s": 78553965.0,
+ "host_class": "user-HP-ProDesk-600-G1-SFF (x86_64, 4 cpus)",
+ "measured_at": "2026-10-01T17:18:05",
+ "method": "{\"objects\": {\"per_board_rows\": 33, \"seeded\": {\"BoardDefinition\": 1, \"Road\": 1, \"TechNode\": 1, \"DatasheetFact\": 24, \"ProgrammerKind\": 1}, \"run_time\": {\"BoardInstance\": 1, \"FirmwareBuild\": 1, \"SimRigState\": 1, \"BoardSimCost\": 1, \"HardwareBridgeDefinition\": 1}, \"per_class_shared\": {\"SchemaStabilityProfile\": 1, \"GrpcExposure\": 1, \"ProtoContractVersion\": 1}, \"seeded_row_bytes_json\": 16065, \"total_rows_first_board\": 36}, \"twin\": {\"state\": {\"t\": \"state\", \"mcu\": \"atmega328p\", \"sizeof_avr_t\": 16016, \"data_bytes\": 2304, \"flash_bytes\": 32768, \"eeprom_bytes\": 1024, \"ioend\": 255, \"note\": \"core state = avr_t + data space (registers+I/O+SRAM) + flash + eeprom; the per-peripheral structs live in simavr's mcu_t beside avr_t and are bounded by the process RSS\"}, \"bench\": {\"t\": \"bench\", \"cycles\": 160000001, \"wall_s\": 2.0368, \"cycles_per_s\": 78553965, \"realtime_factor\": 4.91, \"uart_tx_bytes\": 5422, \"peak_rss_kb\": 11516}, \"core_state_bytes\": 52112, \"mutable_state_bytes\": 19344, \"how\": \"local-image\", \"where\": \"prf-board-engines:trixie\"}, \"build\": \"arduino-uno-r3-244670c4449b\", \"hex_sha256\": \"5e56f8c999bc0d90e12bdda4b70ec1a1b93cee05a2945e5cee1edacdb1b972be\", \"cycles\": 160000000}",
+ "notes": "realtime factor 4.91 (16 MHz); twin peak RSS 11.2 MB; core state 52112 B (mutable 19344 B, flash 32768 B read-only)"
+}

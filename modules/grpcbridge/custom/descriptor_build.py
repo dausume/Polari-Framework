@@ -31,6 +31,8 @@ _F = descriptor_pb2.FieldDescriptorProto
 PROTO_TYPE_ENUM = {
     'int64': _F.TYPE_INT64,
     'int32': _F.TYPE_INT32,
+    'uint32': _F.TYPE_UINT32,
+    'uint64': _F.TYPE_UINT64,
     'double': _F.TYPE_DOUBLE,
     'bool': _F.TYPE_BOOL,
     'string': _F.TYPE_STRING,
@@ -51,7 +53,20 @@ SHARED_MESSAGES_SPEC = {
                            ('format_type', 'string', 5)],
     'PushSummary': [('received', 'int32', 1), ('applied', 'int32', 2),
                     ('refused', 'int32', 3), ('note', 'string', 4)],
+    # grpc-j4: the hardware-interface identity (proto_gen twin)
+    'HardwareInterface': [('bridge', 'string', 1), ('binding', 'string', 2),
+                          ('board_instance', 'string', 3),
+                          ('port', 'string', 4),
+                          ('interface_name', 'string', 5),
+                          ('object_class', 'string', 6),
+                          ('object_name', 'string', 7),
+                          ('contract_hash', 'string', 8),
+                          ('instance_index', 'uint32', 9),
+                          ('present_mask', 'uint64', 10),
+                          ('wire_version', 'uint32', 11)],
 }
+HW_TAG = 2047          # proto_gen.HW_TAG
+HW_FIELD = 'hardware_interface'
 
 
 def _add_field(msg_pb, name, type_name, tag):
@@ -109,6 +124,10 @@ def build_class_file(class_name, field_map):
         rng = msg_pb.reserved_range.add()
         rng.start = int(tag)
         rng.end = int(tag) + 1
+    hw = msg_pb.field.add()   # grpc-j4: the identity block
+    hw.name, hw.number = HW_FIELD, HW_TAG
+    hw.type, hw.label = _F.TYPE_MESSAGE, _F.LABEL_OPTIONAL
+    hw.type_name = f'.{PACKAGE}.HardwareInterface'
 
     cls_type = f'.{PACKAGE}.{class_name}'
     svc_pb = fdp.service.add()
@@ -182,18 +201,67 @@ class ContractRuntime:
                 continue
         return msg
 
+    def overlay_values(self, class_name, msg, values):
+        """Set the given {field: value} on a class message (fields of the
+        ledger only; a value that refuses coercion is skipped)."""
+        fields = self.field_maps[class_name].get('fields', {})
+        for name, value in (values or {}).items():
+            if name in fields and value is not None:
+                try:
+                    setattr(msg, name, _coerce_out(fields[name], value))
+                except Exception:
+                    continue
+        return msg
+
     def message_to_values(self, class_name, msg):
         """Dynamic message → {field: python value} (JSON fields
-        decoded). Only fields the message actually carries non-default
-        values for — a telemetry frame updates what it says, no more."""
+        decoded) — a telemetry frame updates what it says, no more.
+
+        grpc-j4 (fixes brd-fi finding (1)): when the message carries a
+        `hardware_interface` with a wire_version, its `present_mask`
+        decides — bit i (tag order) set = the field IS in the frame and
+        is applied even at its default (false / 0 / ""), so a row can
+        return to false. Without it: the old proto3 rule (non-default
+        values only)."""
         values = {}
         fields = self.field_maps[class_name].get('fields', {})
+        hw = hardware_interface_of(msg)
+        if hw and hw.get('wire_version'):
+            mask = int(hw.get('present_mask') or 0)
+            order = sorted(fields, key=lambda n: int(fields[n]['tag']))
+            for bit, name in enumerate(order):
+                if (mask >> bit) & 1:
+                    values[name] = _coerce_in(fields[name],
+                                              getattr(msg, name))
+            return values
         for name, spec in fields.items():
             wire = getattr(msg, name, None)
             if wire is None or wire == _default_for(spec):
                 continue
             values[name] = _coerce_in(spec, wire)
         return values
+
+
+def hardware_interface_of(msg):
+    """The message's `hardware_interface` as a dict, or None (absent)."""
+    try:
+        if not msg.HasField(HW_FIELD):
+            return None
+    except ValueError:      # a message without the field (old runtime)
+        return None
+    hw = getattr(msg, HW_FIELD)
+    return {name: getattr(hw, name)
+            for name, _, _ in SHARED_MESSAGES_SPEC['HardwareInterface']}
+
+
+def set_hardware_interface(msg, values):
+    """Fill `hardware_interface` on a class message from a dict."""
+    hw = getattr(msg, HW_FIELD)
+    for name, ptype, _ in SHARED_MESSAGES_SPEC['HardwareInterface']:
+        if name in values and values[name] is not None:
+            setattr(hw, name, int(values[name]) if ptype.startswith('uint')
+                    else str(values[name]))
+    return msg
 
 
 def _is_json_field(spec):

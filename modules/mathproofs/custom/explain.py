@@ -19,9 +19,12 @@ STATUS_WORDS = {
     'undetermined': 'not defined here: a premise fails or a value is unrecorded — neither true nor false',
     'unprovable-here': 'no checker on this instance can speak to it (a named gap), so it stays open',
     'undecided': 'the checker ran out of its time budget without an answer',
+    # sc-0 (firmwarefaults): a claim about a firmware build under a forced scenario
+    'inapplicable': 'not defined on this state space: the scenario\'s instruction, interrupt or build does not exist here — neither true nor false',
 }
 TIER_WORDS = {'numeric': 'the numeric tier (walks the rows)', 'interval': 'the interval tier (exact set arithmetic)', 'sympy': 'the SymPy tier (computer algebra over symbols)',
-              'z3': 'the z3 tier (an SMT solver over the continuum / machine integers)', 'lean': 'the Lean tier (a committed theorem, kernel-checked)', 'human': 'a person (a signed note)'}
+              'z3': 'the z3 tier (an SMT solver over the continuum / machine integers)', 'lean': 'the Lean tier (a committed theorem, kernel-checked)', 'human': 'a person (a signed note)',
+              'sim': 'the simulation tier (a forced scenario run on a firmware twin — a witness or a counterexample, never a proof)'}
 
 
 def _refs(row, field='about_refs_json'):

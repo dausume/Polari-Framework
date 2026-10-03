@@ -46,6 +46,10 @@ FEATURE_MODULES = frozenset({
     'zones',
     # tt-0 (COMPUTE_LOD_TENSOR_PLAN): tensors by reference, tensor trees, the compute ladder
     'tensormath', 'tensortree', 'computelod', 'mathproofs',
+    # brd-0 (BOARD_PROGRAMMING_PLAN): boards programmed over USB
+    'board',
+    # sc-0 (FIRMWARE_SCENARIO_PLAN): firmware fault scenarios on the board twins
+    'firmwarefaults',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a

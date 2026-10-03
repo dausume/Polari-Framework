@@ -315,21 +315,99 @@ def render_forwarder(classes):
         f'    private StreamObserver<org.polari.sync.{c}> '
         f'{c[0].lower() + c[1:]}Push;' for c, _ in classes)
     push_cases = '\n'.join(
-        f'            case {c}Codec.MSG_TYPE:\n'
-        f'                push{c}({c}Codec.decode(packet.payload));\n'
-        f'                break;' for c, _ in classes)
+        f'                case {c}Codec.MSG_TYPE:\n'
+        f'                    push{c}(packet);\n'
+        f'                    break;' for c, _ in classes)
     command_starts = '\n'.join(
         f'        startCommands{c}();' for c, _ in classes)
     per_class = []
     for c, field_map in classes:
         lower = c[0].lower() + c[1:]
+        by_name = (f'b = cfg.findByObject("{c}", proto.getName());'
+                   if 'name' in field_map.get('fields', {})
+                   else '// no `name` field: an unbound row cannot be matched')
         per_class.append(f'''
-    private void push{c}({c}Record r) {{
+    /** Telemetry up (grpc-j4): decode the frame (v1 or v2), re-attach the
+     *  hardware-interface identity from the binding of (class, index) —
+     *  refusing a frame whose index belongs to another port — and Push. */
+    private void push{c}(PolariPacket packet) {{
+        {c}Codec.Frame f = {c}Codec.decodeFrame(packet);
+        seenVersion.put("{c}", packet.version);   // commands go down in the version the device speaks up
+        BridgeBinding b = cfg.find("{c}", f.index);
+        if (b != null && packet.sourcePort != null && !b.port.isEmpty()
+                && !b.port.equals(packet.sourcePort)) {{
+            refused++;
+            System.out.println("[grpc] refused: {c} index " + f.index
+                    + " arrived on " + packet.sourcePort + " but binding "
+                    + b.name + " is on " + b.port);
+            return;
+        }}
+        if (b == null && !cfg.bindings.isEmpty()) {{
+            refused++;
+            System.out.println("[grpc] refused: no binding for {c} index "
+                    + f.index + " on bridge " + cfg.bridgeName);
+            return;
+        }}
+        org.polari.sync.HardwareInterface.Builder hw =
+                org.polari.sync.HardwareInterface.newBuilder()
+                        .setObjectClass("{c}")
+                        .setWireVersion(packet.version)
+                        .setPresentMask(f.present)
+                        .setInstanceIndex(f.index);
+        if (b != null) {{
+            hw.setBridge(cfg.bridgeName).setBinding(b.name)
+                    .setBoardInstance(b.boardInstance).setPort(b.port)
+                    .setInterfaceName(b.interfaceName)
+                    .setObjectName(b.objectName)
+                    .setContractHash(b.contractHash);
+        }}
         if ({lower}Push == null) {{
             {lower}Push = {c}SyncGrpc.newStub(channel)
                     .push(new AckObserver("{c}"));
         }}
-        {lower}Push.onNext(toProto{c}(r));
+        {lower}Push.onNext(toProto{c}(f.record).toBuilder()
+                .setHardwareInterface(hw).build());
+    }}
+
+    /** Commands down (grpc-j4): a command naming this bridge's binding k
+     *  is stripped of its identity, encoded with index k (wire v2, or v1
+     *  for an old firmware) and sent to binding k's port only. */
+    private void command{c}(org.polari.sync.{c} proto) throws Exception {{
+        {c}Record r = fromProto{c}(proto);
+        BridgeBinding b = null;
+        long present = {c}Codec.PRESENT_ALL;
+        if (proto.hasHardwareInterface()) {{
+            org.polari.sync.HardwareInterface hw = proto.getHardwareInterface();
+            if (!hw.getBridge().isEmpty()
+                    && !hw.getBridge().equals(cfg.bridgeName)) {{
+                return; // another bridge's interface
+            }}
+            b = cfg.findByObject("{c}", hw.getObjectName());
+            if (b == null) b = cfg.find("{c}", hw.getInstanceIndex());
+            if (hw.getPresentMask() != 0) present = hw.getPresentMask();
+        }} else if (!cfg.bindings.isEmpty()) {{
+            {by_name}
+        }}
+        if (b == null && !cfg.bindings.isEmpty()) {{
+            System.out.println("[grpc] {c} command for an unbound row — "
+                    + "not sent (bind it on this bridge first)");
+            return;
+        }}
+        if (b == null) {{   // no bindings on this bridge: one device, index 0
+            int v = seenVersion.getOrDefault("{c}", {c}Codec.WIRE_VERSION);
+            port.send(new PolariPacket(v, {c}Codec.MSG_TYPE, 0,
+                    commandSeq.incrementAndGet(), v >= 2
+                    ? {c}Codec.encodeV2(r, 0, present) : {c}Codec.encode(r)));
+            return;
+        }}
+        byte[] payload = b.wireVersion >= 2
+                ? {c}Codec.encodeV2(r, b.index, present)
+                : {c}Codec.encode(r);
+        port.sendTo("{c}", b.index, new PolariPacket(
+                b.wireVersion >= 2 ? {c}Codec.WIRE_VERSION : 1, {c}Codec.MSG_TYPE, 0,
+                commandSeq.incrementAndGet(), payload));
+        System.out.println("[grpc] {c} command -> " + b.name + " (index "
+                + b.index + ", " + b.port + ")");
     }}
 
     private void startCommands{c}() {{
@@ -340,12 +418,7 @@ def render_forwarder(classes):
                     @Override
                     public void onNext(org.polari.sync.{c} proto) {{
                         try {{
-                            byte[] payload = {c}Codec.encode(
-                                    fromProto{c}(proto));
-                            port.send(new PolariPacket(
-                                    {c}Codec.MSG_TYPE, 0,
-                                    commandSeq.incrementAndGet(),
-                                    payload));
+                            command{c}(proto);
                         }} catch (Exception e) {{
                             System.out.println(
                                     "[grpc] {c} command failed: " + e);
@@ -385,6 +458,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.atomic.AtomicLong;
+import org.polari.bridge.BridgeBinding;
+import org.polari.bridge.BridgeConfig;
 import org.polari.bridge.DevicePort;
 import org.polari.bridge.PolariPacket;
 import org.polari.bridge.codec.*;
@@ -400,21 +475,32 @@ import org.polari.sync.*;
 public final class GrpcForwarder {{
     private final ManagedChannel channel;
     private final DevicePort port;
+    private final BridgeConfig cfg;
     private final AtomicLong commandSeq = new AtomicLong();
+    private final java.util.Map<String, Integer> seenVersion =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private long refused;
 {push_fields}
 
-    public GrpcForwarder(String target, DevicePort port) {{
+    public GrpcForwarder(String target, DevicePort port, BridgeConfig cfg) {{
         this.channel = ManagedChannelBuilder.forTarget(target)
                 .usePlaintext().build();
         this.port = port;
+        this.cfg = cfg;
     }}
 
-    /** Telemetry up: decoded packet -> proto -> Push stream. */
+    /** Telemetry up: decoded packet -> proto -> Push stream (a frame
+     *  that does not decode is counted and logged, never fatal). */
     public void push(PolariPacket packet) {{
-        switch (packet.msgType) {{
+        try {{
+            switch (packet.msgType) {{
 {push_cases}
-            default:
-                break;
+                default:
+                    break;
+            }}
+        }} catch (RuntimeException e) {{
+            refused++;
+            System.out.println("[grpc] frame not pushed: " + e.getMessage());
         }}
     }}
 

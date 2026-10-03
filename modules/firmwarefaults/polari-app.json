@@ -1,0 +1,270 @@
+{
+ "schema": "polari-app/1",
+ "id": "firmwarefaults",
+ "package": "firmwarefaults",
+ "title": "Firmware Faults",
+ "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim; sc-2: the statistics tier as campaigns (the fault's rate as the stimulus → likelihood per fault kind with Wilson intervals); sc-2b: CBMC FormalChecks (decided (bounded) / refuted with a trace / inapplicable) and cppcheck rules per variant.",
+ "version": "0.3.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-firmwarefaults.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "firmware",
+   "concurrency",
+   "faults",
+   "simulation"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board",
+   "grpcbridge",
+   "mathproofs"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "avr-twin",
+    "kind": "system",
+    "probe": "polari-avr-twin",
+    "note": "the simavr UNO twin WITH the scenario flags — sc-0 (prf-board-engines/twin_forcing.c: --irq-at pc=/cycle=, --poke, --watch, --trace-vcd, --sp-watch, --stack-fill, --isr-latency, --fn-cycles, --uart-out, --seed) and sc-1 (twin_scenario_io.c: --inject, --respond, --drop-frame rx:N, --uart-ber, --rx-noise, --reset-at, --jump-at, --eeprom-set/-dump, --uart-tx-log/-rx-log; twin_forcing.c: --ret-hist/--ret-log, ISR lengths, --fn-cycles START:ret) and sc-2 (--align-at-pc, --flip-bit, --drop-frame tx:N[,type=] / rx:p=P, 64 --irq-at) — resolved through the BOARD engines seam (board.custom.board_engines: BOARD_ENGINES_URL → local binary → the local image prf-board-engines:trixie → topology provider board.engines → refusal)"
+   },
+   {
+    "name": "avr-gcc",
+    "kind": "system",
+    "probe": "avr-gcc",
+    "note": "builds the scenario variants (board.custom.build) and the static stack peak: -fstack-usage + -fcallgraph-info=su (GCC's own .su/.ci; avstack.pl is NOT vendored)"
+   },
+   {
+    "name": "avr-objdump",
+    "kind": "system",
+    "probe": "avr-objdump",
+    "note": "binutils-avr: the disassembly every step re-resolves its PC against (the lds sequence of g_ms in hal_millis); avr-nm for the symbol table — both in prf-board-engines, run through the same seam (firmwarefaults.custom.fault_engines)"
+   },
+   {
+    "name": "pyvcd",
+    "kind": "python",
+    "probe": "polari-vcd-window",
+    "note": "pyvcd 0.5.0 (MIT) installed by sha256 in prf-board-engines; polari-vcd-window reads the twin's VCD into the cycles-around-the-fault rows ENGINE-side (not a framework library)"
+   },
+   {
+    "name": "cbmc",
+    "kind": "system",
+    "probe": "polari-cbmc-check",
+    "note": "sc-2b: CBMC 6.6.0 (Debian trixie; BSD-4-clause style — an advertising clause, so GPL-incompatible to LINK: run ONLY as a separate-process engine) in its own worker image prf-formal-engines:trixie (goto-cc → goto-instrument → cbmc, driven by polari-cbmc-check) — resolved through the FORMAL engines seam (firmwarefaults.custom.formal_engines: FORMAL_ENGINES_URL → local binary → the local image prf-formal-engines:trixie → topology provider firmwarefaults.formal → refusal naming the knob)"
+   },
+   {
+    "name": "cppcheck",
+    "kind": "system",
+    "probe": "polari-cppcheck-run",
+    "note": "sc-2b: cppcheck 2.17.1 (GPL-3.0) in the same image — built-in checks + the threadsafety addon on every firmware variant; the MISRA addon is NOT run (its rule texts need the non-free MISRA C document); findings are rows, never a build failure"
+   }
+  ],
+  "engines_note": "the twin and the AVR toolchain resolve through the board engines seam (the same knob, image and provider as board); CBMC and cppcheck through the formal engines seam (FORMAL_ENGINES_URL, prf-formal-engines:trixie, firmwarefaults.formal); nothing runs in the framework process except the parsing"
+ },
+ "files": {
+  "objects": [
+   "objects/concurrency/DeadlockFault",
+   "objects/concurrency/DoubleGiveFault",
+   "objects/concurrency/LivelockFault",
+   "objects/concurrency/LostWakeupFault",
+   "objects/concurrency/PriorityInversionFault",
+   "objects/concurrency/StarvationFault",
+   "objects/concurrency/TornReadFault",
+   "objects/evidence/FaultLikelihood",
+   "objects/evidence/FormalCheck",
+   "objects/evidence/ScenarioCampaign",
+   "objects/evidence/StaticCheck",
+   "objects/evidence/StaticFinding",
+   "objects/firmwarefaults/Assumption",
+   "objects/firmwarefaults/ConcurrencyPrimitive",
+   "objects/firmwarefaults/FirmwareFault",
+   "objects/firmwarefaults/Scenario",
+   "objects/firmwarefaults/ScenarioRun",
+   "objects/firmwarefaults/ScenarioStatistic",
+   "objects/firmwarefaults/ScenarioStep",
+   "objects/firmwarefaults/ScenarioTraceCycle",
+   "objects/firmwarefaults/Technique",
+   "objects/physical/BitFlipFault",
+   "objects/physical/BrownoutMidWriteFault",
+   "objects/physical/ClockSkewFault",
+   "objects/physical/DoubleEdgeFault",
+   "objects/physical/MetastableInputFault",
+   "objects/physical/UartBitErrorFault",
+   "objects/space_safety/BufferOverrunFault",
+   "objects/space_safety/MissedDeadlineFault",
+   "objects/space_safety/StackOverflowFault"
+  ],
+  "basis": [
+   "firmwarefaults_basis"
+  ],
+  "api": [
+   "firmwarefaults_api"
+  ],
+  "endpoints": [
+   "firmwarefaults_endpoints"
+  ],
+  "seed": [
+   "firmwarefaults_seed"
+  ],
+  "page": [
+   "firmwarefaults_page"
+  ],
+  "selftests": [
+   "firmwarefaults_selftest"
+  ],
+  "custom": [
+   "custom/api_sc2",
+   "custom/campaign",
+   "custom/campaign_runs",
+   "custom/claim_bridge",
+   "custom/disasm",
+   "custom/fault_engines",
+   "custom/fault_rows",
+   "custom/faults_cli",
+   "custom/faults_cli_sc2",
+   "custom/formal",
+   "custom/formal_engines",
+   "custom/harness",
+   "custom/outcome",
+   "custom/payloads",
+   "custom/runner",
+   "custom/runner_sc1",
+   "custom/scenarios",
+   "custom/scenarios_sc1",
+   "custom/selftest_sc1",
+   "custom/selftest_sc2",
+   "custom/sink",
+   "custom/stack_static",
+   "custom/static_rules",
+   "custom/statistics",
+   "custom/taxonomy"
+  ]
+ },
+ "classes": [
+  "Assumption",
+  "BitFlipFault",
+  "BrownoutMidWriteFault",
+  "BufferOverrunFault",
+  "ClockSkewFault",
+  "ConcurrencyPrimitive",
+  "DeadlockFault",
+  "DoubleEdgeFault",
+  "DoubleGiveFault",
+  "FaultLikelihood",
+  "FirmwareFault",
+  "FirmwareFaultsAPI",
+  "FormalCheck",
+  "LivelockFault",
+  "LostWakeupFault",
+  "MetastableInputFault",
+  "MissedDeadlineFault",
+  "PriorityInversionFault",
+  "Scenario",
+  "ScenarioCampaign",
+  "ScenarioRun",
+  "ScenarioStatistic",
+  "ScenarioStep",
+  "ScenarioTraceCycle",
+  "StackOverflowFault",
+  "StarvationFault",
+  "StaticCheck",
+  "StaticFinding",
+  "Technique",
+  "TornReadFault",
+  "UartBitErrorFault"
+ ],
+ "imports": [
+  [
+   "firmwarefaults.firmwarefaults_basis",
+   [
+    "FirmwareFault",
+    "TornReadFault",
+    "DoubleGiveFault",
+    "LostWakeupFault",
+    "PriorityInversionFault",
+    "DeadlockFault",
+    "LivelockFault",
+    "StarvationFault",
+    "UartBitErrorFault",
+    "DoubleEdgeFault",
+    "MetastableInputFault",
+    "BrownoutMidWriteFault",
+    "BitFlipFault",
+    "ClockSkewFault",
+    "StackOverflowFault",
+    "BufferOverrunFault",
+    "MissedDeadlineFault",
+    "ConcurrencyPrimitive",
+    "Assumption",
+    "Technique",
+    "Scenario",
+    "ScenarioStep",
+    "ScenarioRun",
+    "ScenarioTraceCycle",
+    "ScenarioStatistic",
+    "ScenarioCampaign",
+    "FaultLikelihood",
+    "FormalCheck",
+    "StaticCheck",
+    "StaticFinding",
+    "FIRMWAREFAULTS_CLASSES"
+   ]
+  ],
+  [
+   "firmwarefaults.firmwarefaults_seed",
+   [
+    "FIRMWAREFAULTS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "firmwarefaults.firmwarefaults_page",
+   [
+    "SEED_FIRMWAREFAULTS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "firmwarefaults.firmwarefaults_endpoints:construct_firmwarefaults_endpoints",
+ "seedPairs": "firmwarefaults.firmwarefaults_seed:FIRMWAREFAULTS_SEED_PAIRS",
+ "pages": [
+  "firmwarefaults.firmwarefaults_page:SEED_FIRMWAREFAULTS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "firmwarefaults_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

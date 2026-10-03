@@ -537,6 +537,18 @@ def construct_computelod_endpoints(polServer):
     return build(polServer)
 
 
+def construct_board_endpoints(polServer):
+    # brd-0: /api/board — detect (preview / upsert), roads, facts, engines placement
+    from board.board_endpoints import construct_board_endpoints as build
+    return build(polServer)
+
+
+def construct_firmwarefaults_endpoints(polServer):
+    # sc-0: /api/firmwarefaults — faults, techniques, scenarios, runs; POST /run forces a scenario on the twin
+    from firmwarefaults.firmwarefaults_endpoints import construct_firmwarefaults_endpoints as build
+    return build(polServer)
+
+
 def construct_iso_endpoints(polServer):
     # iso-1: /downloads/iso + /api/iso (probe → choose → install)
     from iso.iso_endpoints import construct_iso_endpoints as build
@@ -555,6 +567,8 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'tensortree': construct_tensortree_endpoints,
     'mathproofs': construct_mathproofs_endpoints,
     'computelod': construct_computelod_endpoints,
+    'board': construct_board_endpoints,
+    'firmwarefaults': construct_firmwarefaults_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,

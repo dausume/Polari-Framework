@@ -15,13 +15,27 @@ over header+payload appended LE. Strings land in fixed char[64]
 buffers on the MCU (truncated + NUL-terminated on decode) — the
 nanopb-style bound that keeps this embeddable on the SAMD21 tier.
 
+brd-0 TARGET KNOB (`target=`, `?target=avr` on the header endpoint):
+`host` (default) is byte-identical to the header before brd-0. `avr`
+exists because avr-gcc's `double` is 4 bytes (binary32) while the wire
+carries 8-byte binary64: there, `double` fields are converted IN
+SOFTWARE (32-bit integer ops only — float32→binary64 bit assembly on
+encode, binary64→float32 round-to-nearest-even on decode). The WIRE
+format does not change; AVR is little-endian, so the rest of the layout
+holds. A compile-time check refuses the AVR header where `double` is not
+4 bytes (e.g. `-mdouble=64`, or a host without the test shim).
+
 @consumers
   - grpcbridge.contract_api (GET /api/grpc/exposures/{class}/c-header)
   - grpcbridge/custom/renode_twin firmware (hwsim-1)
   - grpcbridge.c_twin_selftest
+  - board (brd-1: the UNO firmware renders its header with target=avr)
+  - grpc-j4: `wire=<spec>` delegates to c_twin_v2 (wire v2: instance
+    index + presence prelude, enum tables, the resync parser)
 """
 
 C_STR_MAX = 64
+TARGETS = ('host', 'avr')
 
 #: proto type -> (C type, fixed wire size; strings are variable)
 C_TYPES = {
@@ -152,6 +166,93 @@ static int polari_rx_feed(polari_rx_t *rx, uint8_t b)
 
 #endif /* POLARI_PACKET_COMMON_H */'''
 
+#: target=avr only (and only when the class has a double field): the
+#: software binary32 <-> binary64 conversion. 32-bit integer ops only —
+#: no float arithmetic, no 64-bit shifts; `(uint32_t)1` because AVR's
+#: int is 16 bits.
+_AVR_DOUBLE = r'''#ifndef POLARI_AVR_DOUBLE_H
+#define POLARI_AVR_DOUBLE_H
+
+/* target=avr: avr-gcc's double is 4 bytes (binary32); the wire's double
+ * is 8 (binary64). Converted here in software; the WIRE is unchanged. */
+#ifdef POLARI_AVR_DOUBLE_TEST
+typedef float polari_avr_double_t;   /* host-test shim: a 4-byte double */
+#else
+typedef double polari_avr_double_t;  /* avr-gcc default: double == float */
+#endif
+/* refuses to compile where double is not 4 bytes (-mdouble=64, a host) */
+typedef char polari_avr_double_is_4_bytes[
+    (sizeof(polari_avr_double_t) == 4u) ? 1 : -1];
+
+/* binary32 -> binary64 bits; exact (every binary32 is a binary64). */
+static void polari_f32_to_f64(polari_avr_double_t v, uint32_t *lo,
+                              uint32_t *hi)
+{
+    uint32_t b, sign, man;
+    int32_t exp;
+    memcpy(&b, &v, 4);
+    sign = b & 0x80000000UL;
+    exp = (int32_t)((b >> 23) & 0xFFUL);
+    man = b & 0x007FFFFFUL;
+    if (exp == 0xFF) {                 /* inf / nan: payload kept */
+        exp = 0x7FF;
+    } else if (exp == 0) {
+        if (man == 0UL) { *hi = sign; *lo = 0UL; return; }  /* +-0 */
+        exp = 1 - 127;                 /* subnormal: normalise */
+        while ((man & 0x00800000UL) == 0UL) { man <<= 1; exp--; }
+        man &= 0x007FFFFFUL;
+        exp += 1023;
+    } else {
+        exp += 1023 - 127;
+    }
+    *hi = sign | ((uint32_t)exp << 20) | (man >> 3);
+    *lo = man << 29;
+}
+
+/* binary64 bits -> binary32: round to nearest, ties to even; overflow
+ * -> inf, underflow -> subnormal or signed zero; nan stays quiet nan. */
+static polari_avr_double_t polari_f64_to_f32(uint32_t lo, uint32_t hi)
+{
+    uint32_t sign = hi & 0x80000000UL, man, rest, out;
+    int32_t exp = (int32_t)((hi >> 20) & 0x7FFUL);
+    polari_avr_double_t v;
+    man = ((hi & 0x000FFFFFUL) << 3) | (lo >> 29);  /* top 23 bits */
+    rest = lo & 0x1FFFFFFFUL;                        /* the 29 below */
+    if (exp == 0x7FF) {
+        out = sign | 0x7F800000UL
+            | ((man | rest) ? (0x00400000UL | man) : 0UL);
+    } else if (exp == 0) {
+        out = sign;                    /* binary64 subnormals: far below */
+    } else {
+        exp = exp - 1023 + 127;
+        if (exp >= 0xFF) {
+            out = sign | 0x7F800000UL;
+        } else if (exp <= 0) {         /* a binary32 subnormal */
+            uint32_t sig = man | 0x00800000UL;
+            uint32_t shift = (uint32_t)(1 - exp), q, r, half;
+            if (shift > 24UL) {
+                out = sign;
+            } else {
+                q = sig >> shift;
+                r = sig & (((uint32_t)1 << shift) - 1UL);
+                half = (uint32_t)1 << (shift - 1UL);
+                if (r > half || (r == half && (rest != 0UL || (q & 1UL))))
+                    q++;               /* a carry to the smallest normal is correct */
+                out = sign | q;
+            }
+        } else {
+            out = sign | ((uint32_t)exp << 23) | man;
+            if (rest > 0x10000000UL
+                || (rest == 0x10000000UL && (man & 1UL)))
+                out++;                 /* a carry into exp is correct; 0xFF = inf */
+        }
+    }
+    memcpy(&v, &out, 4);
+    return v;
+}
+
+#endif /* POLARI_AVR_DOUBLE_H */'''
+
 
 def _c_fields(field_map):
     """Fields in tag order as (name, proto_type, comment)."""
@@ -170,9 +271,26 @@ def payload_max(field_map):
 
 
 def render_c_header(class_name, field_map, msg_type, version=0,
-                    contract_hash=''):
+                    contract_hash='', target='host', wire=None,
+                    rx_parser='resync'):
     """The complete `<class>_packets.h`: struct (tag order) + encode
-    + decode, on top of the shared framing block."""
+    + decode, on top of the shared framing block. `target` = 'host'
+    (default, unchanged) | 'avr' (software double conversion).
+    `wire` (grpc-j4): a wire_contract.spec → the WIRE V2 header
+    (prelude: instance index + presence; enums; resync parser) from
+    c_twin_v2; None = the v1 header, byte-identical as before."""
+    if target not in TARGETS:
+        raise ValueError('unknown c_twin target %r — one of %s'
+                         % (target, TARGETS))
+    if wire is not None:
+        from grpcbridge.custom.c_twin_v2 import render as render_v2
+        return render_v2(class_name, wire, msg_type, version=version,
+                         contract_hash=contract_hash, target=target,
+                         rx_parser=rx_parser)
+    if rx_parser != 'resync':
+        raise ValueError('rx_parser %r needs a wire v2 header (wire=spec); '
+                         'the v1 header is pinned' % rx_parser)
+    avr = target == 'avr'
     upper = class_name.upper()
     struct_lines = []
     enc_lines = []
@@ -180,6 +298,8 @@ def render_c_header(class_name, field_map, msg_type, version=0,
     for name, ptype, comment in _c_fields(field_map):
         note = f'  /* {comment} */' if comment else ''
         ctype, fixed = C_TYPES[ptype]
+        if avr and ptype == 'double':
+            ctype = 'polari_avr_double_t'
         if '[' in ctype:
             base = ctype.split('[')[0]
             struct_lines.append(
@@ -197,6 +317,15 @@ def render_c_header(class_name, field_map, msg_type, version=0,
                 f'polari_get_u32(p)\n'
                 f'        | ((uint64_t)polari_get_u32(p + 4) << 32));'
                 f' p += 8;')
+        elif ptype == 'double' and avr:
+            enc_lines.append(
+                f'    polari_f32_to_f64(s->{name}, &lo, &hi);\n'
+                f'    polari_put_u32(p, lo); polari_put_u32(p + 4, hi);'
+                ' p += 8;  /* binary32 -> binary64 (target avr) */')
+            dec_lines.append(
+                f'    if (end - p < 8) return -1;\n'
+                f'    s->{name} = polari_f64_to_f32(polari_get_u32(p),'
+                f' polari_get_u32(p + 4)); p += 8;')
         elif ptype == 'double':
             enc_lines.append(
                 f'    memcpy(p, &s->{name}, 8); p += 8;'
@@ -210,6 +339,10 @@ def render_c_header(class_name, field_map, msg_type, version=0,
                 f'    if (end - p < 1) return -1;\n'
                 f'    s->{name} = (*p++ != 0u);')
         else:  # string / bytes: u16 length prefix
+            # brd-1: on AVR ptrdiff_t is a 16-bit int and uint16_t an unsigned int, so `end - p < n` trips
+            # -Wsign-compare under -Wextra -Werror; end - p is never negative here, so compare as uint16_t
+            # (target avr only — the host header stays byte-identical)
+            avail = '(uint16_t)(end - p)' if avr else 'end - p'
             enc_lines.append(
                 f'    n = (uint16_t)strlen(s->{name});\n'
                 f'    polari_put_u16(p, n); p += 2;\n'
@@ -217,14 +350,18 @@ def render_c_header(class_name, field_map, msg_type, version=0,
             dec_lines.append(
                 f'    if (end - p < 2) return -1;\n'
                 f'    n = polari_get_u16(p); p += 2;\n'
-                f'    if (end - p < n) return -1;\n'
+                f'    if ({avail} < n) return -1;\n'
                 f'    cp = n < {C_STR_MAX - 1}u ? n : {C_STR_MAX - 1}u;'
                 '  /* bounded: SAMD21-tier honest truncation */\n'
                 f'    memcpy(s->{name}, p, cp); '
                 f's->{name}[cp] = 0; p += n;')
     nl = '\n'
+    has_double = any(t == 'double' for _, t, _ in _c_fields(field_map))
+    common = _COMMON + ('\n\n' + _AVR_DOUBLE if avr and has_double else '')
+    target_note = '   target avr' if avr else ''
+    enc_decl = '\n    uint32_t lo, hi;' if avr and has_double else ''
     return f'''/* Generated by Polari grpcbridge.custom.c_twin (grpc-j3) — do not edit.
- * class: {class_name}   contract v{version}   hash {contract_hash}
+ * class: {class_name}   contract v{version}   hash {contract_hash}{target_note}
  * Byte-exact twin of the Java {class_name}Codec / PolariPacket:
  * regenerate when the contract regenerates. */
 #ifndef {upper}_PACKETS_H
@@ -234,7 +371,7 @@ def render_c_header(class_name, field_map, msg_type, version=0,
 #define POLARI_RX_PAYLOAD_MAX {payload_max(field_map)}u
 #endif
 
-{_COMMON}
+{common}
 
 #define {upper}_MSG_TYPE {int(msg_type)}u
 #define {upper}_PAYLOAD_MAX {payload_max(field_map)}u
@@ -248,7 +385,7 @@ static uint16_t {class_name}_encode(const {class_name}_t *s,
                                     uint8_t *p)
 {{
     uint8_t *start = p;
-    uint16_t n;
+    uint16_t n;{enc_decl}
     (void)n;
 {nl.join(enc_lines)}
     return (uint16_t)(p - start);
