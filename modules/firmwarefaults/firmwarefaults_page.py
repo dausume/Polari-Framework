@@ -103,11 +103,13 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                                       'coverage,notes',
                               column_formats='campaign:ref:ScenarioCampaign,technique:ref:Technique,scenario:ref:Scenario')], min_height=220),
               # sc-2b: the formal tier (CBMC) and the static rules (cppcheck)
-              _row(10, [_table('ff-formal', 0, 12, 'Formal checks (sc-2b) — CBMC on the variant\'s own hal.c with the interrupt as nondeterminism: '
-                               'decided (bounded, k) — never proved — refuted with its trace, inapplicable when the source does not compile; the '
-                               'model\'s limits on every row (`pol faults formal run all`)', 'FormalCheck',
-                               columns='name,variant,function,property_text,outcome,claim_status,outcome_words,bound_k,unwind,expected,engine_version,'
-                                       'wall_s,peak_rss_mb,trace_sha256,claim,limits,ran_at',
+              _row(10, [_table('ff-formal', 0, 12, 'Formal checks (sc-2b + sc-2c) — two engines on the variant\'s own hal.c: CBMC with the '
+                               'interrupt as nondeterminism (decided (bounded, k)) and Frama-C/Mthread with the ISR as a thread and cli/sei/'
+                               'ATOMIC_BLOCK as one interrupt lock (decided (unbounded) — no k); never proved; refuted with its trace or the two '
+                               'racing lines, inapplicable when the source does not compile; the model\'s limits on every row '
+                               '(`pol faults formal run all`)', 'FormalCheck',
+                               columns='name,engine,bound,outcome,claim_status,wall_s,peak_rss_mb,variant,function,property_text,outcome_words,'
+                                       'expected,engine_version,trace_sha256,claim,limits,ran_at',
                                column_formats='name:ref:FormalCheck,variant:ref:FirmwareVariant,claim:ref:MathClaim,scenario:ref:Scenario')],
                    min_height=220),
               _row(11, [_table('ff-static', 0, 5, 'Static rules per variant (sc-2b) — cppcheck built-ins + threadsafety (MISRA not run: its texts '

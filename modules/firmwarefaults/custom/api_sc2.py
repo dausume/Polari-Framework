@@ -7,8 +7,9 @@ GET  /api/firmwarefaults/campaigns     the ScenarioCampaign rows (seeded definit
 POST /api/firmwarefaults/campaign      body {campaign, seeds?, rates?} — RUNS the campaign here (minutes): ScenarioStatistic +
                                        FaultLikelihood rows, the fault row's rate_source, the claims' statistics tier
 GET  /api/firmwarefaults/likelihoods   the likelihood table per fault kind (FaultLikelihood rows)
-GET  /api/firmwarefaults/formal        the FormalCheck rows + where cbmc-check WOULD run (FORMAL_ENGINES_URL ladder)
-POST /api/firmwarefaults/formal        body {checks: [name…]} — runs CBMC here; refused (409) naming the knob when no engine
+GET  /api/firmwarefaults/formal        the FormalCheck rows + where cbmc-check / mthread-check WOULD run (the two ladders)
+POST /api/firmwarefaults/formal        body {checks: [name…]} — runs CBMC or Mthread (sc-2c) here, per check; refused (409) naming
+                                       FORMAL_ENGINES_URL when that engine does not resolve (both live in prf-formal-engines)
 GET  /api/firmwarefaults/static        the StaticCheck rows (cppcheck per variant) + their findings count
 POST /api/firmwarefaults/static        body {variants: [name…]} — runs cppcheck here; findings are rows, never a failure
 """
@@ -75,21 +76,21 @@ class Sc2Doors:
                           'engines': formal_engines.placement()}
 
     def on_post_formal(self, request, response):
-        from firmwarefaults.custom import formal as F, formal_engines as fe
+        from firmwarefaults.custom import formal_mthread as M, formal_engines as fe
         from firmwarefaults.custom.sink import ManagerSink
         body = _body(request, response)
         if body is None:
             return
-        names = body.get('checks') or [c['name'] for c in F.FORMAL_CHECKS]
-        bad = [n for n in names if not F.find(n)]
+        names = body.get('checks') or [c['name'] for c in M.all_checks()]
+        bad = [n for n in names if not M.find_any(n)]
         if bad:
             response.status = falcon.HTTP_400
-            response.media = {'ok': False, 'error': 'unknown FormalCheck %s — one of %s' % (bad, [c['name'] for c in F.FORMAL_CHECKS])}
+            response.media = {'ok': False, 'error': 'unknown FormalCheck %s — one of %s' % (bad, [c['name'] for c in M.all_checks()])}
             return
         sink, out = ManagerSink(self.manager), []
         try:
             for n in names:
-                out.append(_clean(F.run_check(n, sink)))
+                out.append(_clean(M.run_any(n, sink)))
         except fe.FormalRefused as e:
             response.status = falcon.HTTP_409
             response.media = {'ok': False, 'error': str(e)}

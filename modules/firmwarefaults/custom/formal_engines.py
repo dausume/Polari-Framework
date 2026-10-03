@@ -15,6 +15,11 @@ Resolution per engine, honest at every rung:
                                 (`pol allocate firmwarefaults.formal <instance>`)
   5. nothing                  → a refusal naming the knob, the image and the provider module
 
+sc-2c: Frama-C 33.0 + Mthread (LGPL-2.1, opam-built — Debian has no package) are in the SAME image (+185 MB: under the plan's
+~1.5 GB fold-in line, so one image and one ladder): engines `mthread-check` (polari-mthread-check) and `frama-c`. The image
+says what it carries in its label org.polari.engines; the local-image rung reads it, so an older prf-formal-engines image
+built before sc-2c is never handed an Mthread run (it resolves onward — the topology, then a refusal naming the knob).
+
 Input files keep RELATIVE paths (a model's include tree: stubs/avr/io.h), unlike the board engines' flat basenames.
     run(engine, args, files={relpath: bytes}, timeout) → {ok, how, where, returncode, stdout, stderr, files, cost}
 """
@@ -43,7 +48,13 @@ ENGINES = {
     'goto-cc': ('goto-cc', 'BSD-4-clause style (part of cbmc)'),
     'goto-instrument': ('goto-instrument', 'BSD-4-clause style (part of cbmc)'),
     'cppcheck': ('cppcheck', 'GPL-3.0 (danmar/cppcheck)'),
+    # sc-2c: Frama-C 33.0 "Arsenic" via opam in the same image (no SMT prover wired; never Alt-Ergo's NC build)
+    'mthread-check': ('polari-mthread-check', 'ours; drives frama-c 33.0 -eva -mthread (LGPL-2.1-only), a separate process'),
+    'frama-c': ('frama-c', 'LGPL-2.1-only (Frama-C 33.0, CEA) — kernel + Eva + Mthread'),
 }
+#: what an image built BEFORE the org.polari.engines label (sc-2b) carries — no Mthread
+PRE_LABEL_ENGINES = ('cbmc-check', 'cppcheck-run', 'cbmc', 'goto-cc', 'goto-instrument', 'cppcheck')
+_LBL = {}
 _CAP = {}
 _IMG = {}
 _TTL = 30.0
@@ -75,6 +86,27 @@ def local_image():
             iid = ''
     _IMG[img] = (time.time(), iid)
     return iid
+
+
+def image_engines():
+    """The engines the local image says it carries (label org.polari.engines); an unlabelled image = the sc-2b set."""
+    img, iid = image_name(), local_image()
+    if not iid:
+        return ()
+    hit = _LBL.get(iid)
+    if hit is not None:
+        return hit
+    eng = PRE_LABEL_ENGINES
+    try:
+        p = subprocess.run(['docker', 'image', 'inspect', img, '--format', '{{index .Config.Labels "org.polari.engines"}}'],
+                           capture_output=True, text=True, timeout=15)
+        lbl = p.stdout.strip() if p.returncode == 0 else ''
+        if lbl and lbl != '<no value>':
+            eng = tuple(lbl.split())
+    except Exception:  # noqa: BLE001
+        pass
+    _LBL[iid] = eng
+    return eng
 
 
 def topology_url():
@@ -130,17 +162,20 @@ def resolve(engine):
     for cand in (shutil.which(b), os.path.expanduser('~/.local/bin/%s' % b)):
         if cand and os.path.isfile(cand) and os.access(cand, os.X_OK):
             return {'how': 'local-binary', 'where': cand, 'why': 'on this device'}
-    if local_image():
+    if local_image() and engine in image_engines():
         return {'how': LOCAL_IMAGE, 'where': image_name(), 'why': 'the formal engines image on this device (%s)' % local_image()[:19]}
     turl = topology_url()
     if turl and _has(remote_capability(turl), engine):
         return {'how': REMOTE, 'where': turl, 'why': 'topology provider %s' % PROVIDER_MODULE}
-    return {'how': 'refused', 'where': '', 'why': refusal_text(engine)}
+    why = refusal_text(engine)
+    if local_image() and engine not in image_engines():
+        why += ' (the local %s predates %s — rebuild it)' % (image_name(), engine)
+    return {'how': 'refused', 'where': '', 'why': why}
 
 
 def placement():
     return {'knob': KNOB, 'knob_value': knob_url(), 'image': image_name(), 'image_present': bool(local_image()),
-            'provider_module': PROVIDER_MODULE, 'engines': {e: resolve(e) for e in ('cbmc-check', 'cppcheck-run')},
+            'provider_module': PROVIDER_MODULE, 'engines': {e: resolve(e) for e in ('cbmc-check', 'cppcheck-run', 'mthread-check')},
             'ladder': ['%s (always, or refusal)' % KNOB, 'local binary', 'the local image %s (%s)' % (image_name(), IMAGE_KNOB),
                        'topology provider %s (live only)' % PROVIDER_MODULE, 'refusal naming %s' % KNOB]}
 
@@ -216,9 +251,9 @@ def run(engine, args, files=None, timeout=600):
     return res
 
 
-def digest():
+def digest(engine='cbmc-check'):
     """What identifies the engine that ran: the image id on the image rung, else the binary path / worker URL."""
-    w = resolve('cbmc-check')
+    w = resolve(engine)
     if w['how'] == LOCAL_IMAGE:
         return 'image %s %s' % (image_name(), local_image())
     return '%s %s' % (w['how'], w['where'])

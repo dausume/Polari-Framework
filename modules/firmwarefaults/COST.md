@@ -189,3 +189,42 @@ the `statistics` tier + measure on both builds' claims — their status unchange
 17 steps, 4 campaigns, 4 formal checks. mathproofs: checker `cbmc`, MathClaim `evidence_tiers_json` + `measure_json`. Per campaign rate:
 2 ScenarioStatistic + 1 FaultLikelihood; per formal check: 1 FormalCheck + the claim's tier + 1 ProofRun (checker cbmc); per static variant:
 1 StaticCheck + its findings.
+
+# sc-2c (2026-10-02, `dev-sc-2c`) — Frama-C/Mthread joins the formal engines (D-sc-6 ruled 2026-10-02)
+
+Same host (pol-core, i5-4590, 4 cpus, 16 GB). Every number re-runs: `pol faults formal run mthread` (or one check by name).
+
+## The image decision — folded INTO `prf-formal-engines` (one image, one ladder)
+
+| what | sc-2b | sc-2c | how |
+|---|---|---|---|
+| `prf-formal-engines:trixie` | 408 818 722 B | **593 917 784 B (593.9 MB) — +185.1 MB**, far under the plan's ~1.5 GB line for a separate image | `docker image inspect` |
+| of which Frama-C | — | `/opt/opam/fc` runtime closure **179 MB** (frama-c binary + the `.cmxs`/`.so`/META its plugins load + `share/frama-c`) + Debian's OCaml stdlib dir pruned to **5.6 MB**; the full opam switch was 1.6 GB (the evaluation's from-source container 2.48 GB) | `du -sh` in `frama-prune` |
+| build | 38.1 s no-cache | stage `frama-build` (apt + `opam install frama-c.33.0 alt-ergo-free.2.4.3` from `opam-repository@ac27950e`, 3 jobs) **8 min 48 s** from scratch; `frama-prune` 22 s; the worker stage **39.9 s** with the opam stages cached (CBMC layer unchanged) | `time docker build` |
+| licence gate | — | the build FAILS if `alt-ergo` / `alt-ergo-lib` / `alt-ergo-parsers` (OCamlPro Non-Commercial) enter the switch — it did fail once, on a too-broad first gate that also matched the FREE `alt-ergo-free` (CeCILL-C), which frama-c 33.0's opam requires (`"alt-ergo-free" \| "alt-ergo"`) and is now pinned; no SMT prover is wired (WP unused) | the Dockerfile's gate RUN |
+
+## The checks (frama-c 33.0, `-machdep avr_16 -eva -eva-slevel 15 -mthread -mt-threads-lib builtins-only`; wait4 around frama-c in the worker)
+
+| FormalCheck | outcome | Mthread's decisive lines | wall | peak RSS |
+|---|---|---|---|---|
+| `hal-millis-race@uno-sim-rig` (HAL_MILLIS_ATOMIC 1) | **decided (unbounded)** — g_ms PROTECTED | `read by <main> at hal.c:132, protected by polari_irq_mutex` · `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.42–0.63 s | 104.9–105.2 MB |
+| `hal-millis-race@uno-sim-rig-torn` (HAL_MILLIS_ATOMIC 0) | **refuted** — g_ms (4 B) can TEAR | `read by <main> at hal.c:134, unprotected` vs `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.41–0.45 s | 104.7–104.8 MB |
+| `rx-ring-race@uno-sim-rig` | **decided (unbounded)** — rx_head / rx_tail / rx_ring BYTE-ATOMIC (Mthread lists all three as unprotected shared accesses by main; one byte, one writer each) | `rx_tail: write by <main> at hal.c:77, unprotected` (its only writer) · `rx_head: write by polari_rx_isr at hal.c:68, protected` (its only writer) · `rx_ring[0..63]: write by polari_rx_isr at hal.c:67` | 0.44–0.47 s | 104.8 MB |
+| `rx-ring-race@uno-sim-rig+broken-flush` (NEGATIVE CONTROL, no claim) | **refuted** — rx_head written by two threads (an update can be LOST) | `write by <main> at rx_ring_race.c:33, unprotected` vs `write by polari_rx_isr at hal.c:68, protected by polari_irq_mutex` | 0.44–0.45 s | 105.0–105.2 MB |
+| `rx-ring-race@uno-sim-rig-ring512` | **inapplicable** — `hal.c:25: static assertion failed: RX_RING must be a power of two in 2..256` | — | 0.36–0.41 s | 101.4–102.0 MB |
+
+Every analysis converged in **3 iterations**. End to end on the local-image rung each check adds ~0.5 s of `docker run`. Against CBMC on
+the same properties: hal_millis 0.10–0.11 s / 14 MB (bounded, k=2) vs Mthread 0.4 s / 105 MB (unbounded); the ring 107.7 s / 81.5 MB
+(bounded, k=4) vs **0.45 s / 105 MB (unbounded)** — for the ring the unbounded answer is ~240x cheaper.
+
+Two findings while building: (1) a thread made by `Frama_C_thread_create` starts SUSPENDED — without `Frama_C_thread_start` Mthread
+reports "0 iterations" and no race at all (the wrapper now calls that an engine error, never `decided`); (2) ATOMIC_BLOCK is a for-loop,
+and at `-eva-slevel 0` Eva merges the locked entry state with the unlocked exit state, so the protected read comes back
+`protected by (?)polari_irq_mutex` (maybe) — the rule counts a maybe as NOT held, which would have refuted the shipped build; slevel ≥ 2
+keeps the states apart (15 = Frama-C's own Mthread test setting).
+
+## Rows (sc-2c)
+
+FormalCheck +1 field (`bound`: "k=2 (bounded)" / "unbounded"); seeded FormalChecks 4 → **9** (4 CBMC + 5 Mthread); mathproofs checker
+`frama-c-mthread`. Per Mthread check: 1 FormalCheck (properties_json = the per-variable classification) + the claim's `formal` tier
+(measure "decided (unbounded)") + 1 ProofRun — except the negative control, which speaks to no claim.

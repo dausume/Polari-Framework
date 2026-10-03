@@ -282,12 +282,12 @@ def seeds_page_api():
                 print('      ', cname, r.get('name'), e)
     check('every seed row constructs its class (no stray field)', ok)
     seeded = {n: len(rows) for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS}
-    check('seeded: 6 primitives, 13 assumptions, 11 techniques, 11 scenarios, 17 steps, 11 scenario variants, 4 campaigns, 4 formal checks; '
+    check('seeded: 6 primitives, 13 assumptions, 11 techniques, 11 scenarios, 17 steps, 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
           'runs, trace rows, statistics, likelihoods and static checks/findings observed only',
           (seeded['ConcurrencyPrimitive'], seeded['Assumption'], seeded['Technique'], seeded['Scenario'], seeded['ScenarioStep'],
            seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle'], seeded['ScenarioStatistic'], seeded['ScenarioCampaign'],
            seeded['FormalCheck'], seeded['FaultLikelihood'], seeded['StaticCheck'], seeded['StaticFinding'])
-          == (6, 13, 11, 11, 17, 11, 0, 0, 0, 4, 4, 0, 0, 0), seeded)
+          == (6, 13, 11, 11, 17, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
     check('what a run MEASURES is not converged by a re-seed (technique measured_*, a fault\'s rate / rate_source)',
           all('measured_by_run' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n == 'Technique' for r in rows)
           and all('rate_source' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n.endswith('Fault') for r in rows))
@@ -358,11 +358,12 @@ def manifest():
 
 
 def main():
-    print('firmwarefaults selftest (sc-0 + sc-1 + sc-2/sc-2b)')
+    print('firmwarefaults selftest (sc-0 + sc-1 + sc-2/sc-2b + sc-2c)')
     from firmwarefaults.custom.selftest_sc1 import sc1_parts
     from firmwarefaults.custom.selftest_sc2 import sc2_parts
+    from firmwarefaults.custom.selftest_sc2c import sc2c_parts
     for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware) + sc1_parts(check) \
-            + sc2_parts(check) + (seeds_page_api, manifest):
+            + sc2_parts(check) + sc2c_parts(check) + (seeds_page_api, manifest):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

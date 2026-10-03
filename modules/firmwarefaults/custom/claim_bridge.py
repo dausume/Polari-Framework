@@ -22,6 +22,8 @@ among them:
     sim         a run: refuted | witnessed | inapplicable | undetermined (above)
     statistics  a campaign: the claim's status is UNCHANGED; the likelihood + its Wilson interval go into measure_json
     formal      a FormalCheck (CBMC): holds → `decided` (bounded, k on the entry — never `proved`); a counterexample → refuted
+                sc-2c: or Frama-C/Mthread (checker frama-c-mthread): no race → `decided`, measure "decided (unbounded)" on the
+                entry; a race → refuted with the two racing source lines (the negative control writes no claim)
 A refutation outranks every other tier; `decided` outranks `witnessed`; a later sim witness never lowers `decided`.
 """
 import datetime
