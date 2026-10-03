@@ -24,6 +24,9 @@
 # project's Makefile), and the register snapshot the parser reads (derived from avr-libc's <avr/io.h>, carries its sha)
 !modules/**/polari-firmware.json
 !modules/cmod/custom/registers_*.json
+# cmod-1: a graph's glue-build record (the rendered files' shas, the cost estimate, make alone, the twin equivalence proof) IS
+# source — the CGlueBuild row is seeded from it
+!modules/cmod/custom/glue_builds/*.json
 *.pyc
 *.db
 */falcon

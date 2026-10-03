@@ -10,6 +10,13 @@ GET /api/cmod/engines                   avr-gcc / avr-nm / make placement throug
 GET /api/cmod/projects/{project}/drift  parse the project NOW (no engine, nothing written) and compare with its committed
                                         manifest: atoms added / removed / changed — a stale manifest is reported, never fixed here
 Writing a manifest is `pol cmod conform <project>` (it measures with the engines and writes a file in the project).
+cmod-1 (graphs over atoms → generated glue):
+GET /api/cmod/graphs                    every CGraph row
+GET /api/cmod/graphs/{graph}            the graph + its nodes, edges and glue builds
+GET /api/cmod/graphs/{graph}/render     render NOW into memory (nothing written): the checked model's verdict, what the glue
+                                        owns, the cost before building, each file's sha + its text — or the refusal (422)
+GET /api/cmod/graphs/{graph}/diff       the committed project vs a fresh render (the graph changed / hand edits / stale files)
+Writing the project, building and the twin proof are `pol cmod render | build | prove <graph>` (they write files / run engines).
 """
 import inspect
 
@@ -30,6 +37,10 @@ class CModAPI(treeObject):
             add('/api/cmod/ports', self, suffix='ports')
             add('/api/cmod/engines', self, suffix='engines')
             add('/api/cmod/projects/{project}/drift', self, suffix='drift')
+            add('/api/cmod/graphs', self, suffix='graphs')
+            add('/api/cmod/graphs/{graph}', self, suffix='graph_one')
+            add('/api/cmod/graphs/{graph}/render', self, suffix='graph_render')
+            add('/api/cmod/graphs/{graph}/diff', self, suffix='graph_diff')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -103,3 +114,56 @@ class CModAPI(treeObject):
         response.media = {'ok': True, 'project': project, 'stale': r['changed'], 'added': r['added'], 'removed': r['removed'],
                           'edited': r['edited'], 'atoms': r['manifest']['counts']['atoms'],
                           'how': 'parsed now with pycparser, compared with the committed manifest (cost blocks kept: nothing was measured)'}
+
+    # ------------------------------------------------------------------ cmod-1
+    def on_get_graphs(self, request, response):
+        response.media = {'ok': True, 'graphs': [self._d(r) for r in sorted(self._rows('CGraph'), key=lambda r: r.name)]}
+
+    def _graph(self, graph, response):
+        import falcon
+        g = [r for r in self._rows('CGraph') if r.name == graph]
+        if not g:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no graph %r (GET /api/cmod/graphs lists them)' % graph}
+        return g[0] if g else None
+
+    def on_get_graph_one(self, request, response, graph):
+        g = self._graph(graph, response)
+        if g is None:
+            return
+        pick = lambda cls, key: [self._d(r) for r in sorted(self._rows(cls), key=key) if r.graph == graph]  # noqa: E731
+        response.media = {'ok': True, 'graph': self._d(g), 'nodes': pick('CGraphNode', lambda r: (r.order, r.instance)),
+                          'edges': pick('CGraphEdge', lambda r: (r.order, r.name)), 'glue_builds': pick('CGlueBuild', lambda r: r.name)}
+
+    def on_get_graph_render(self, request, response, graph):
+        import falcon
+        from cmod.custom import glue as GL
+        from cmod.custom.graph import GraphRefused
+        if self._graph(graph, response) is None:
+            return
+        try:
+            r = GL.render(graph, manager=self.manager, write=False)
+        except (GL.GlueRefused, GraphRefused) as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': str(e)}
+            return
+        response.media = {'ok': True, 'graph': graph, 'graph_sha256': r['sha'], 'files_sha256': r['files_sha256'], 'unchanged': r['unchanged'],
+                          'glue_contains': r['glue_contains'], 'advice': r['advice'],
+                          'cost_before_building': {'total_bytes': r['cost']['total_bytes'], 'why': r['cost']['why'],
+                                                   'parts': [{'atom': a, 'bytes': b, 'as': w} for a, b, w in r['cost']['parts']]},
+                          'files': [{'file': f, 'sha256': r['files'][f], 'bytes': len(r['texts'][f])} for f in sorted(r['files'])],
+                          'how': 'rendered in this process from the graph rows + the atoms\' committed manifest; nothing written'}
+
+    def on_get_graph_diff(self, request, response, graph):
+        import falcon
+        from cmod.custom import glue as GL
+        from cmod.custom.graph import GraphRefused
+        if self._graph(graph, response) is None:
+            return
+        try:
+            d = GL.diff(graph, manager=self.manager)
+        except (GL.GlueRefused, GraphRefused) as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': str(e)}
+            return
+        response.media = dict({k: v for k, v in d.items() if k != 'dir'}, ok=True)

@@ -1,4 +1,4 @@
-# cmod — C modularization (cmod-0)
+# cmod — C modularization (cmod-0 + cmod-1)
 
 His ruling (2026-10-02): people write hardware C **normally**, and Polari embeds it into no-code like custom Python —
 "modularization of C code into polari is likely going to be a critical part of functionality". Plan:
@@ -47,5 +47,55 @@ own (4188f6ae…). A conform: ~16 s (12 compiles + 12 nm + 6 make, all on the lo
 Selftest `pol modules selftest cmod` (fixtures, refusals, idempotence, the UNO, seeds/page/API, manifests conform);
 probe `tests/cmod_liveboot_probe.py` (live boot + the byte-identical proof through the engines).
 
-Not in cmod-0: graphs over atoms + generated glue (cmod-1), host execution via cffi (cmod-2), ports of pointer-to-byte
-parameters stay `bytes` unless an annotation says more (it cannot yet set a Polari type).
+## cmod-1 — a no-code graph over atoms → generated plain-C glue (always a real C project)
+
+A `CGraph` (rows: `CGraphNode`, `CGraphEdge`) wires atoms; `custom/glue.py` renders it into a project COMMITTED in the repo
+(D-cmod-4) that `make` alone builds — no Python at run time, no interpreter, no table walked at run time:
+
+| node kind | what the glue does with it |
+|---|---|
+| `c-atom` (stage init / loop / called) | calls the atom BY NAME; in ports from data edges or bindings (`channel=ADC_CHANNEL`: a literal or a header macro, never free C); `called` = the caller atom calls it itself (a `calls` edge, checked against the derived calls) |
+| `class` | the class instance (`static SimRigState_t state;`), zeroed, identity + initial status set before `sei()` |
+| `parser` | the generated header's receiver; an `on-rx` edge drains a byte source into it, `on-command` runs atoms on a complete frame of the class's msg_type |
+| `tick` | `if ((int32_t)(now - next) >= 0) { next += period; … }` on a uint32_t ms clock |
+| `rule` | `after-ms`: a field from → to once the clock passes N ms (the sim rig's boot → ok) |
+| `frame` | `<Class>_encode` with the listed fields + `<Class>_frame` + a sequence counter into static buffers |
+
+Edges: `data` (out → in, Polari types must agree), `field` (out → class field, optional scale/offset), `tick`, `on-rx`,
+`on-command`, `calls`. REFUSED (`custom/graph.py`, with the reason): a data cycle, an unbound or doubly-bound in port, a type
+mismatch, free C in a binding, an unknown atom, an ISR or main as a node, an atom not compiled in the base configuration, a
+`calls` edge the C does not have, a field written after the frame that sends it, a node fed from two ticks.
+
+The rendered project: `polari_graph.c` (GENERATED glue + the app atoms copied VERBATIM with their POLARI_NODE line and
+enclosing `#if` — an app file holds a main(), so it is never compiled whole), `polari_graph.h` (graph name + sha, frame masks,
+every file's provenance sha), `Makefile` (the template's flags; SRCS listed), `hal.c`/`hal.h` verbatim, `board_config.h` and
+`<class>_packets.h` rendered by board's own gen. Each generated file names the graph, its sha and `pol cmod render <graph>`;
+a hand edit shows in `pol cmod diff` and is never overwritten without `--force`. The record (files + shas, the cost estimate,
+make alone, the twin proof) is `custom/glue_builds/<graph>.json` → the `CGlueBuild` row.
+
+```
+pol cmod graphs                 the graphs and their state
+pol cmod cost   <graph>         the cost BEFORE building: atoms as nodes + the ISRs they share globals with + the replaced main
+pol cmod render <graph> [--force]   rows → the committed project (only what changed)
+pol cmod diff   <graph>         the graph changed / hand edits / stale files (unified diffs)
+pol cmod build  <graph>         make ALONE through the board engines → .hex, avr-size, the measured cost; conform reads it back
+pol cmod prove  <graph>         hand-written app vs rendered glue on the simavr twin, same stimulus → frames field by field
+GET /api/cmod/graphs · /graphs/{g} · /graphs/{g}/render (in memory) · /graphs/{g}/diff
+```
+The generator is also the `cmod-glue` GraphCompilerDefinition (polariNoCode.graph_compilers): artifacts only — a C graph never
+runs in the engine (RULE 2).
+
+**cmod-1 measured (2026-10-02, prf-board-engines:trixie, avr-gcc 14.2.0, libsimavr 1.6):** `uno-sim-rig-graph` (18 nodes, 15
+edges, 13 atoms) renders the sim-rig app; `make` alone builds it — and its .hex is **byte-identical** to the hand-written
+uno-sim-rig (4188f6ae…, .text 4302 / .data 8 / .bss 483 for both). On the twin (4 s, seed 1, ADC0 700→800 mV triangle,
+three commands at 1.5 / 2.25 / 3.0 s) both emit **40 frames identical on seq, device_id, msg_type, uptime_ms, temp_c, led_on,
+pwm_duty, status, name**; the raw UART streams are identical and every frame leaves the UART on the same cycle (Δ 0). A
+negative control (the status rule at 500 ms) is caught: 5 status differences. Cost before building 3144 B (atoms as nodes
+644 + ISRs 136 + the replaced main 2364) vs 2874 B attributable after (the 270 B gap = exactly apply_command 192 +
+sensor_value 48 inlined and hal_millis 30 B smaller shipped) + 1428 B C runtime. Conform reads the rendered project back
+as a plain project: 16 atoms incl. the glue's own `polari_graph.main`.
+
+Not in cmod-1: a presence-gated command FIELD → atom port edge (the hwsim-nocode FieldRegisterBinding without an apply atom —
+the sim rig keeps apply_command, which does it in C), `deadband` on field edges, graphs over a plain (non-template) project,
+host execution via cffi (cmod-2), the canvas overlay for a `c-atom` node (cmod-3). Ports of pointer-to-byte parameters stay
+`bytes` unless an annotation says more (it cannot yet set a Polari type).

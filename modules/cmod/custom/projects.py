@@ -62,7 +62,10 @@ def resolve(project):
             mods.append((stem, files, 'source'))
     paired = {f for _, fs, _ in mods for f in fs}
     mods += [(os.path.splitext(rel)[0], [rel], 'header') for rel in sorted(_sources(path)) if rel.endswith('.h') and rel not in paired]
-    return {'name': os.path.basename(path.rstrip('/')), 'kind': 'plain', 'root': path, 'root_rel': path, 'board': '', 'mcu': 'atmega328p',
+    # a plain project inside the framework's modules (a rendered graph, cmod-1) is named relative to modules/, so its committed
+    # manifest carries no absolute path of the machine that conformed it
+    rel = os.path.relpath(path, MODULES) if path.startswith(MODULES + os.sep) else path
+    return {'name': os.path.basename(path.rstrip('/')), 'kind': 'plain', 'root': path, 'root_rel': rel, 'board': '', 'mcu': 'atmega328p',
             'title': os.path.basename(path.rstrip('/')), 'modules': mods}
 
 

@@ -1316,8 +1316,9 @@ class polariServer(treeObject):
             ScenarioStatistic,
             # sc-2 / sc-2b: the statistics tier's campaigns + the likelihood per fault kind; the formal (CBMC) and static (cppcheck) tiers
             ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding,
-            # cmod-0: C projects, their modules, the atoms (C functions with ports, resources, cost), ports; CGraph = the row kind (cmod-1)
-            CProject, CModule, CFunctionAtom, CPort, CGraph]
+            # cmod-0: C projects, their modules, the atoms (C functions with ports, resources, cost), ports; cmod-1: graphs over
+            # atoms (nodes, edges) and the generated glue builds
+            CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
