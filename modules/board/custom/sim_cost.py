@@ -107,6 +107,11 @@ except Exception:   # pragma: no cover — absent until measured
 
 
 def main(argv):
+    if argv and str(argv[0]).lower() in ('c3', 'esp32c3', 'esp32-c3'):   # sc-3: the QEMU twin's cost
+        from board.custom import sim_cost_c3
+        return sim_cost_c3.main(argv[1:])
+    if argv and argv[0] == 'uno':
+        argv = argv[1:]
     import argparse
     ap = argparse.ArgumentParser(prog='pol board cost')
     ap.add_argument('--work')

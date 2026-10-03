@@ -1,0 +1,25 @@
+# The C3 template's sdkconfig defaults (sc-3). Every line is a choice the scenario evidence depends on:
+CONFIG_IDF_TARGET="esp32c3"
+# a 1 ms FreeRTOS tick — the scenario offsets are ticks
+CONFIG_FREERTOS_HZ=1000
+# eTaskGetState / uxTaskPriorityGet for the monitor and the trace dump
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+# UART0 belongs to the SimRigState frames: no console, no boot/app log on it (the ROM's own boot text still precedes the
+# first frame — the bridge's parser skips it, as on silicon)
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+# the task watchdog would reset a deliberately starved idle task (M's busy run) and end a deadlock run early: off; the
+# deadlock is detected by the app's own monitor task, which says so
+CONFIG_ESP_TASK_WDT_INIT=n
+CONFIG_ESP_INT_WDT=n
+# the custom partition table (the `polari` params partition) on a 4 MB flash — the size QEMU's merged image is filled to
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+# -Os, as the UNO template
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# reproducible builds (ESP-IDF's own option: no build paths, dates or times in the image) — the build sha is a function of
+# the sources, the knobs and the pinned image
+CONFIG_APP_REPRODUCIBLE_BUILD=y
+CONFIG_APP_COMPILE_TIME_DATE=n

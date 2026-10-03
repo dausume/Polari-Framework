@@ -45,6 +45,7 @@ ENGINE_MODULES = {
     'tensormath.engines': 'prf-torch-engines',
     'board.engines': 'prf-board-engines',   # brd-1: the UNO toolchain + the simavr twin
     'firmwarefaults.formal': 'prf-formal-engines',   # sc-2b: CBMC (a separate-process engine, BSD-4) + cppcheck
+    'board.esp-engines': 'prf-esp-engines',   # sc-3: the ESP32-C3 toolchain (ESP-IDF) + esptool + the QEMU twin
 }
 
 _CLASS_RE = re.compile(r'^class\s+(\w+)\(treeObject\)', re.MULTILINE)

@@ -45,10 +45,10 @@ def rows_and_classes():
     check('the register cells are carried verbatim (status, origin, USB route, adapter)',
           uno['register_status'] == 'HIS PICK (bare C)' and uno['board_origin'] == 'Arduino (Italy, OSHW)'
           and 'Optiboot' in uno['usb_route'] and uno['adapter_needed'].startswith('none (native USB'))
-    check('the five seed pair classes with rows + the measured BoardSimCost (one row, brd-1) + two observed classes with none',
+    check('the five seed pair classes with rows + the measured BoardSimCost (two rows: brd-1 UNO, sc-3 C3) + two observed classes with none',
           {n for n, _, rows in BOARD_SEED_PAIRS if rows} >= {'BoardDefinition', 'AdapterDefinition', 'ProgrammerKind', 'DatasheetFact', 'Road', 'BoardSimCost'}
           and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild', 'InstallPlan', 'InstallRecord', 'UnoAnalogState'))
-          and len(next(rows for n, _, rows in BOARD_SEED_PAIRS if n == 'BoardSimCost')) == 1)
+          and len(next(rows for n, _, rows in BOARD_SEED_PAIRS if n == 'BoardSimCost')) == 2)   # sc-3: + the C3's QEMU twin
     return B, A, P, F, R, N
 
 
@@ -88,8 +88,9 @@ def rules(B, A, P):
 
 def simulate_few_and_facts(B, F, R, N):
     sim = [b['name'] for b in B if b['simulated']]
-    check('ONLY the picked board is simulated (the UNO, simavr:atmega328p)',
-          sim == ['arduino-uno-r3'] and next(b for b in B if b['simulated'])['twin'] == 'simavr:atmega328p', str(sim))
+    twins = {b['name']: b['twin'] for b in B if b['simulated']}
+    check('ONLY the picked boards are simulated (the UNO in simavr; sc-3: the ESP32-C3 in the QEMU fork)',
+          sorted(sim) == ['arduino-uno-r3', 'esp32-c3'] and twins == {'arduino-uno-r3': 'simavr:atmega328p', 'esp32-c3': 'qemu:esp32c3'}, str(twins))
     check('the UNO carries the five boards.txt VID:PIDs', json.loads(next(b for b in B if b['name'] == 'arduino-uno-r3')['usb_ids_json'])
           == ['2341:0043', '2341:0001', '2a03:0043', '2341:0243', '2341:006a'])
     check('DatasheetFacts exist for the UNO ONLY', F and all(f['board'] == 'arduino-uno-r3' for f in F))
@@ -102,11 +103,13 @@ def simulate_few_and_facts(B, F, R, N):
           and facts['upload.maximum_size']['url'].endswith('#L89'))
     st = {r['board']: r for r in R}
     uno_steps = json.loads(st['arduino-uno-r3']['steps_json'])
-    others = [r for b, r in st.items() if b != 'arduino-uno-r3']
+    others = [r for b, r in st.items() if b not in ('arduino-uno-r3', 'esp32-c3')]
     us = {s['step']: s['status'] for s in uno_steps}
-    check('one Road per device; all todo except the UNO\'s (brd-1: twin + template done, flashed-on-hardware still todo — owed)',
+    cs = {s['step']: s['status'] for s in json.loads(st['esp32-c3']['steps_json'])}
+    check('one Road per device; all todo except the UNO\'s and (sc-3) the C3\'s: twin + template done, flashed-on-hardware still todo — owed',
           len(R) == len(B) and all(r['status'] == 'todo' and all(s['status'] == 'todo' for s in json.loads(r['steps_json'])) for r in others)
-          and us['twin'] == 'done' and us['firmware-template'] == 'done' and us['flashed-on-hardware'] == 'todo', us)
+          and us['twin'] == 'done' and us['firmware-template'] == 'done' and us['flashed-on-hardware'] == 'todo'
+          and cs['twin'] == 'done' and cs['firmware-template'] == 'done' and cs['flashed-on-hardware'] == 'todo', (us, cs))
     check('every road hangs on the board-roads tree as one concept node', len(N) == len(B)
           and {n['name'] for n in N} == {r['concept_node'] for r in R})
     import inspect
@@ -153,8 +156,8 @@ def engines():
             os.environ[be.KNOB] = old
     m = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'polari-app.json')))
     req = {e['name']: e for e in m['requires']['engines']}
-    check('polari-app.json requires.engines: avr-gcc, avrdude, simavr with kind + probe',
-          set(req) == {'avr-gcc', 'avrdude', 'simavr'} and all(e.get('kind') and e.get('probe') for e in req.values()))
+    check('polari-app.json requires.engines: avr-gcc, avrdude, simavr (+ sc-3: esp-idf, qemu-esp32c3) with kind + probe',
+          set(req) == {'avr-gcc', 'avrdude', 'simavr', 'esp-idf', 'qemu-esp32c3'} and all(e.get('kind') and e.get('probe') for e in req.values()))
 
 
 def detection(B, A):
@@ -221,6 +224,8 @@ def main():
     run_installer(check)
     from board.board_mapping_selftest import run_mapping   # brd-wire: the computer<->firmware mapping
     run_mapping(check)
+    from board.board_c3_selftest import run_c3   # sc-3: the ESP32-C3 template, its gen/build/flash/twin, the twin's cost
+    run_c3(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

@@ -10,7 +10,8 @@ GET  /api/firmwarefaults/runs            every ScenarioRun (newest first)
 GET  /api/firmwarefaults/runs/{run}      one run + its trace rows + the claim it wrote
 GET  /api/firmwarefaults/engines         where avr-twin / avr-objdump / avr-nm / vcd-window WOULD run (nothing is run)
 GET  /api/firmwarefaults/statistics      sc-1: the ScenarioStatistic rows (seeded rates with their Wilson intervals)
-POST /api/firmwarefaults/stats           sc-1: body {scenario: uart-residual-frame-loss | torn-millis-read, seeds?, bers?} — runs the
+POST /api/firmwarefaults/stats           sc-1: body {scenario: uart-residual-frame-loss | torn-millis-read, seeds?, bers?} (sc-3: or a C3 scenario
+                                         + seeds 1..50 → campaign_sc3) — runs the
                                          statistics batch HERE (minutes) and writes the rows + the fault row's measured rate
 POST /api/firmwarefaults/run             body {scenario, side: before|after|both|natural|control, seconds?, seed?} — RUNS it here (the
                                          engines resolve on THIS server's device), writes ScenarioRun + ScenarioTraceCycle rows,
@@ -128,6 +129,23 @@ class FirmwareFaultsAPI(Sc2Doors, treeObject):
             response.media = {'ok': False, 'error': 'bad JSON: %s' % e}
             return
         name, seeds = body.get('scenario') or '', int(body.get('seeds') or ST.SEEDS)
+        from firmwarefaults.custom import scenarios_sc3, campaign_sc3, runner_sc3
+        if name in [s['name'] for s in scenarios_sc3.SC3_SCENARIOS]:   # sc-3: the C3 campaign (seeded tick offsets, both builds)
+            n = int(body.get('seeds') or campaign_sc3.SEEDS)
+            if not 1 <= n <= 50:
+                response.status = falcon.HTTP_400
+                response.media = {'ok': False, 'error': 'a C3 campaign takes seeds 1..50'}
+                return
+            try:
+                out = campaign_sc3.run(ManagerSink(self.manager), name, seeds=n, first_seed=int(body.get('first_seed') or 1))
+            except (ScenarioRefused, EngineRefused, runner_sc3.ScenarioRefused) as e:
+                response.status = falcon.HTTP_409
+                response.media = {'ok': False, 'error': str(e)}
+                return
+            response.status = falcon.HTTP_201
+            response.media = {'ok': True, 'scenario': name, 'statistics': [{k: v for k, v in out['stat'].items() if k != 'repro_json'}],
+                              'likelihood': out['likelihood']}
+            return
         if name not in ('uart-residual-frame-loss', 'torn-millis-read') or not 1 <= seeds <= 200:
             response.status = falcon.HTTP_400
             response.media = {'ok': False, 'error': 'body needs {scenario: uart-residual-frame-loss | torn-millis-read, seeds: 1..200}'}

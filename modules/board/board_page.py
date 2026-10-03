@@ -19,7 +19,7 @@ from polariApiServer.module_pages_seed import _page, _row, _table
 
 _BOARDS_PAGES = [
     _page('boards', 'boards',
-          'Boards — every device the board arc tracks (track all, simulate few: only the UNO is simulated), how each is '
+          'Boards — every device the board arc tracks (track all, simulate few: the UNO in simavr and, since sc-3, the ESP32-C3 in Espressif\'s QEMU fork), how each is '
           'reached from the Polari host over USB (directly or through a known adapter), and the road still to walk for it',
           'BoardDefinition', [
               _row(0, [_table('boards-devices', 0, 12, 'Devices (register §1) — RULE 1: USB from the host, directly or via an adapter', 'BoardDefinition',

@@ -39,10 +39,13 @@ STEP_KINDS = {
     'jump-at': (True, '--jump-at cycle=N,pc=0x… (a runaway: the PC set once)'),
     'eeprom-preload': (True, '--eeprom-set 0xADDR=HEX before reset (+ --eeprom-dump to read it back at the reset and at exit)'),
     'rx-noise': (True, '--rx-noise RATE (asynchronous single bytes, exponential gaps from --seed — the statistics tier\'s phase randomiser)'),
-    'hold-lock-order': (False, 'the UNO has no RTOS and no locks; needs the ESP32-C3 FreeRTOS twin (sc-3, D-sc-4)'),
+    'hold-lock-order': (True, 'sc-3, qemu-esp32c3 ONLY: the recipe\'s tick offsets written into the C3 image\'s `polari` params partition '
+                              '(seed 0 = the recipe, seed k = splitmix64 draws) — the UNO has no RTOS and no locks'),
     'clock-skew': (False, 'one simavr process runs one clock; skew needs two clocked parties (Renode, sc-3)'),
 }
 FORCIBLE_KINDS = tuple(k for k, (ok, _) in STEP_KINDS.items() if ok)
+#: sc-3: a kind forcible on ONE simulator only (every other kind is the avr-twin's)
+KIND_SIMULATORS = {'hold-lock-order': ('qemu-esp32c3',)}
 
 TIMER2_COMPA = 7   # verified: avr-gcc names the tick ISR __vector_7 (plan §2a); the runner re-checks the ELF has it
 USART_RX = 18      # ATmega328P USART_RX_vect = __vector_18 (the runner re-checks the ELF has it; plan §2a marked it unverified)
@@ -119,8 +122,13 @@ def _sc1():
     return scenarios_sc1
 
 
-SEED_SCENARIOS = SEED_SCENARIOS + _SC2_SCENARIOS + _sc1().SC1_SCENARIOS
-SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps()
+def _sc3():
+    from firmwarefaults.custom import scenarios_sc3
+    return scenarios_sc3
+
+
+SEED_SCENARIOS = SEED_SCENARIOS + _SC2_SCENARIOS + _sc1().SC1_SCENARIOS + _sc3().SC3_SCENARIOS
+SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps() + _sc3().SC3_STEPS
 
 
 def _variant(name, title, purpose, flags, watch, notes):
@@ -163,7 +171,12 @@ def runnable(scenario, steps=None):
     if str(row.get('status', 'runnable')).startswith('not-yet-forcible'):
         return False
     st = steps_of(name, steps)
-    return all(s['kind'] in FORCIBLE_KINDS for s in st)
+    return all(s['kind'] in FORCIBLE_KINDS and _on_its_simulator(s['kind'], row) for s in st)
+
+
+def _on_its_simulator(kind, row):
+    sims = KIND_SIMULATORS.get(kind)
+    return not sims or row.get('simulator') in sims
 
 
 def refusal(scenario, steps=None):
@@ -173,9 +186,29 @@ def refusal(scenario, steps=None):
     if str(row.get('status', 'runnable')).startswith('not-yet-forcible'):
         return 'scenario %s is %s' % (name, row['status'])
     bad = [s['kind'] for s in steps_of(name, steps) if s['kind'] not in FORCIBLE_KINDS]
+    wrong = [s['kind'] for s in steps_of(name, steps) if s['kind'] in FORCIBLE_KINDS and not _on_its_simulator(s['kind'], row)]
+    if wrong:
+        return 'scenario %s is not-yet-forcible on %s: step kind(s) %s force only on %s' % (
+            name, row.get('simulator'), ', '.join(wrong), ', '.join(sorted({x for k in wrong for x in KIND_SIMULATORS[k]})))
     if bad:
         return 'scenario %s is not-yet-forcible: step kind(s) %s — %s' % (name, ', '.join(bad), '; '.join(STEP_KINDS[k][1] for k in bad))
     return ''
+
+
+def engine_gap(scenario):
+    """sc-3: why the scenario's SIMULATOR cannot run on this device ('' when it can) — the C3 scenarios need the esp engines
+    (board.custom.board_engines family esp: ESP_ENGINES_URL → local → prf-esp-engines → provider). A pipeline stage lists such a
+    scenario as not runnable HERE with the reason instead of recording a pair that would not run."""
+    row = scenario if isinstance(scenario, dict) else (find(scenario) or {})
+    if row.get('simulator') != 'qemu-esp32c3':
+        return ''
+    try:
+        from board.custom import board_engines as be
+    except Exception as e:  # noqa: BLE001
+        return 'the board module is absent: %s' % e
+    gaps = [be.resolve(e) for e in ('idf-build', 'c3-run')]
+    bad = [g['why'] for g in gaps if g['how'] == 'refused']
+    return ('no ESP32-C3 engines on this device: %s' % bad[0]) if bad else ''
 
 
 def find(name, rows=None):

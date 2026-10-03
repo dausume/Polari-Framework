@@ -52,10 +52,15 @@ ADAPTER_USB_IDS = {
 SHARED_CHIP = {'tigard': 'ftdi-ft232h-ft2232h-boards', 'digirig-mobile': 'cp2102-usb-uart-modules'}
 #: engines an adapter row brings into a board's toolchain
 ADAPTER_ENGINE = {'wch-linke': 'wlink', 'usb-sd-card-reader': 'dd'}
+C3 = 'esp32-c3'
 EXPLICIT_TOOLCHAIN = {UNO: ['avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude'],
-                      'beaglev-fire': ['riscv-gcc', 'libero', 'dd', 'change-gateware']}
-TRANSPORT = {UNO: 'usb-cdc-serial', 'beaglev-fire': 'usb-network+ssh', 'milk-v-duo': 'usb-network+ssh'}
-PICKED = {UNO: 'simavr:atmega328p'}     # plan §8a: simulate FEW — the UNO first; every other twin is a road step
+                      'beaglev-fire': ['riscv-gcc', 'libero', 'dd', 'change-gateware'],
+                      C3: ['idf-build', 'esptool', 'c3-run']}   # sc-3: ESP-IDF v5.5.5 + esptool + the QEMU fork (prf-esp-engines)
+TRANSPORT = {UNO: 'usb-cdc-serial', 'beaglev-fire': 'usb-network+ssh', 'milk-v-duo': 'usb-network+ssh',
+             C3: 'usb-cdc-serial'}   # sc-3: the frames on UART0 (a dev board's USB-UART; the twin's pty)
+#: plan §8a: simulate FEW — the UNO first; sc-3 (D-sc-4 RULED 2026-10-02): the ESP32-C3, the RTOS board, in Espressif's QEMU
+#: fork (FIRMWARE_SCENARIO_PLAN.md §9 sc-3 — the twin decision and its evidence); every other twin is a road step
+PICKED = {UNO: 'simavr:atmega328p', C3: 'qemu:esp32c3'}
 BY_ID_HINTS = {UNO: ['Arduino']}         # plan §3: by-id `usb-Arduino…_0043_<serial>-if00` is typical (unverified on his unit)
 ROAD_STEPS = ['datasheet-facts', 'definition-complete', 'twin', 'firmware-template', 'flashed-on-hardware', 'measured']
 ROAD_TREE = 'board-roads'
@@ -107,7 +112,7 @@ def _adapter_ids(text, known):
 
 
 def _twin(cell):
-    m = re.match(r'`?((?:renode|simavr):[\w.-]+|verilator)', cell)
+    m = re.match(r'`?((?:renode|simavr|qemu):[\w.-]+|verilator)', cell)
     return m.group(1) if m else ''
 
 
@@ -138,7 +143,7 @@ def board_rows(snapshot=None):
                   'twin': PICKED.get(name) or _twin(raw.get('twin', '')), 'simulated': name in PICKED,
                   'flash_kb': 32 if name == UNO else 0, 'ram_kb': 2 if name == UNO else 0,
                   'licence_notes': '', 'designer': 'others', 'road': 'road-' + name,
-                  'road_status': 'in-progress' if name == UNO else 'todo'})
+                  'road_status': 'in-progress' if name in WALKED else 'todo'})
         rows.append(r)
     return rows
 
@@ -171,11 +176,27 @@ UNO_STEPS = {
 }
 
 
+#: sc-3: the ESP32-C3's road (2026-10-02, twin-first: no C3 on hand)
+C3_STEPS = {
+    'datasheet-facts': ('todo', 'no DatasheetFact rows yet: flash/SRAM in the register are nominal (unverified); the app partition and DRAM '
+                                'totals come from the template\'s partitions.csv and idf.py size'),
+    'definition-complete': ('in-progress', 'programmer esptool, toolchain idf-build/esptool/c3-run, transport, twin qemu:esp32c3; the USB VID:PID '
+                                           'is not in the register (captured on first plug)'),
+    'twin': ('done', 'sc-3: Espressif QEMU fork esp_develop_9.2.2_20260417 (-machine esp32c3) boots the SAME merged image; UART0 at a pty; '
+                     'BoardSimCost measured'),
+    'firmware-template': ('done', 'sc-3: custom/firmware/esp32c3 — ESP-IDF v5.5.5 C project, FreeRTOS tasks, the SAME SimRigState frames '
+                                  '(c_twin target=host) on UART0, the trace hooks on UART1'),
+    'flashed-on-hardware': ('todo', 'OWED: no C3 on hand — pol board flash c3 renders the esptool argv (DRY-RUN)'),
+    'measured': ('in-progress', 'image sizes, build cost and the twin\'s cost measured; silicon timing not yet'),
+}
+WALKED = {UNO: UNO_STEPS, C3: C3_STEPS}
+
+
 def road_rows(boards):
     out = []
     for b in boards:
-        first = b['name'] == UNO
-        steps = [{'step': s, 'status': UNO_STEPS[s][0] if first else 'todo', 'note': UNO_STEPS[s][1] if first else ''}
+        walked = WALKED.get(b['name'])
+        steps = [{'step': s, 'status': walked[s][0] if walked else 'todo', 'note': walked[s][1] if walked else ''}
                  for s in ROAD_STEPS]
         out.append({'name': b['road'], 'board': b['name'], 'status': b['road_status'], 'steps_json': json.dumps(steps),
                     'concept_node': '%s/%s' % (ROAD_TREE, b['name']), 'notes': ''})

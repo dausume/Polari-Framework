@@ -11,9 +11,12 @@ detect → builds that fit → DRY-RUN → confirm → install → the rows arri
 MAPPING: every row that IS a piece of hardware has a `HardwareInterfaceBinding` (grpcbridge) naming its board instance,
 interface and port; the wire carries fields only + a prelude (the instance index — its width a function of how many are
 bound — and one presence bit per field); the gRPC message carries the identity; `GET /api/board/instances/<id>/interface`
-walks a row to its datasheet (below).
+walks a row to its datasheet (below). **sc-3** (D-sc-4 RULED 2026-10-02: the RTOS board is the ESP32-C3) brings the **ESP32-C3**:
+an ESP-IDF C template (FreeRTOS tasks; the SAME SimRigState frames on UART0; FreeRTOS trace hooks on UART1), gen → build through
+the `prf-esp-engines` worker → flash (the exact esptool argv, DRY-RUN) → the twin in Espressif's QEMU fork (`qemu:esp32c3`) at a
+pty → the SAME generated Java bridge. No C3 is on hand: everything is proven on the twin (below).
 
-**Kind:** polari-app · **agent tier:** member · **requires:** hwmap (its scanner), grpcbridge (contracts, the mapping rows) · **engines:** avr-gcc, avrdude, simavr (worker image `prf-board-engines`)
+**Kind:** polari-app · **agent tier:** member · **requires:** hwmap (its scanner), grpcbridge (contracts, the mapping rows) · **engines:** avr-gcc, avrdude, simavr (worker image `prf-board-engines`); sc-3: esp-idf, qemu-esp32c3 (worker image `prf-esp-engines`)
 
 ## The two rules (his, 2026-10-01)
 
@@ -70,6 +73,11 @@ pol board flash uno --yes                               # real: needs the UNO de
 pol board twin uno up|status|down [--adc0-mv 750]       # the SAME .hex in simavr; UART at /tmp/polari-uno-twin-uart
 pol board cost uno [--write]                            # re-measure the twin's object cost
 pol board interface twin:arduino-uno-r3#1               # brd-wire: the binding chain of a board instance
+pol board gen c3 [--variant c3-sim-rig] [--api URL]     # sc-3: the ESP-IDF project around the target=host header
+pol board build c3 [--force]                            # ESP-IDF v5.5.5 via the esp engines; idf.py size; the build cache
+pol board flash c3 [--port P]                           # DRY-RUN: the exact esptool write_flash argv (idf.py's flash_args)
+pol board twin c3 up|status|down                        # the SAME merged image in the QEMU fork; UART0 at /tmp/polari-c3-twin-uart
+pol board cost c3 [--write]                             # re-measure the C3 twin's cost (QEMU RSS, wall-time ratio)
 ```
 
 ## Testing different things on the UNO (brd-fi)
@@ -157,6 +165,60 @@ indexes … in the shortest format we possibly can."* Design: `AI-Notes/plans/GR
   contract (hash v1), the wire contract (hash v2, index representation), the binding, the instance, the port/adapter,
   the board definition and its cited facts (the interface's own first); the bindings table on `/display/boards`.
 
+## The ESP32-C3 (sc-3)
+
+**The twin decision, with its evidence** (FIRMWARE_SCENARIO_PLAN.md §9 sc-3):
+- Espressif's QEMU fork (`github.com/espressif/qemu`, GPL-2.0) has a `-machine esp32c3`. ESP-IDF v5.5.5's own tools.json pins
+  release `esp_develop_9.2.2_20260417` by sha256.
+- Its UART0/1 are real character devices, and the timers, SYSTIMER, interrupt matrix and SPI flash are emulated. The USB
+  Serial/JTAG controller is only a register stub, so the twin speaks on UART0.
+- It runs a FreeRTOS app headlessly: UART0 goes to a TCP port that the pty pump turns into a link.
+- It is picked over Renode, which was not needed, and over a host FreeRTOS POSIX port, which would not be the C3.
+
+The template `custom/firmware/esp32c3/` is an ESP-IDF C project. CMake is used only because ESP-IDF requires it; RULE 2 is
+about the language, and gen's RULE 2 check admits only `.c`/`.h` plus CMakeLists.txt, sdkconfig.defaults and partitions.csv.
+- `main/polari_c3.c|h` is the common layer:
+  - UART0 carries SimRigState frames through the header c_twin renders with **target=host** (riscv32's double is 8 bytes), on
+    the same wire v2 as the UNO's.
+  - UART1 carries the trace lines.
+  - A 4 KB `polari` params partition steers the SAME binary per seed.
+  - The telemetry and rx tasks live here.
+- `main/polari_trace.c|h` holds the FreeRTOS hook macros, force-included into every C file of the build (the kernel too) by the
+  top CMakeLists.txt. They cover switch-in, block, take (`traceQUEUE_SEMAPHORE_RECEIVE` — ESP-IDF's queue.c reports a
+  semaphore take there, not in `traceQUEUE_RECEIVE`), give, inherit, disinherit and timeout. They feed an 8-byte-per-event ring
+  that is dumped after the window.
+- `apps/`:
+  - `sim_rig.c` (c3-sim-rig): telemetry and commands.
+  - `prio_inversion.c` (c3-prio-inversion / -mutex: `SC_PI_MUTEX`).
+  - `two_lock.c` (c3-two-lock / -ordered / -backoff: `SC_LOCK_ORDER`, `SC_LOCK_TIMEOUT_MS`).
+
+`sdkconfig.defaults` sets:
+- a 1 kHz tick;
+- no console and no logs on UART0;
+- the task watchdog off (the app's own monitor detects a deadlock and says so);
+- `CONFIG_APP_REPRODUCIBLE_BUILD=y`.
+
+| file | role |
+|---|---|
+| `custom/variants_c3.py` | the six C3 FirmwareVariant rows (seeded by board; the scenario ones marked SCENARIO ONLY), validated per app |
+| `custom/gen_c3.py` | `pol board gen c3`: the project + the target=host header (live `--api`, in-process, or the pinned contract) |
+| `custom/build_c3.py` | `pol board build c3`: a deterministic project tar → engine `idf-build`; idf.py size json2 → the size columns; refused past the 1 MB app partition / DRAM total; the build cache (source sha + image id) |
+| `custom/flash_c3.py` | `pol board flash c3`: the esptool ProgrammerKind template + idf.py's flash_args → the exact argv; a real flash needs a detected C3 + `--yes`, verified by esptool's hash check |
+| `custom/twin_c3.py` | `pol board twin c3 up|down|status`: `polari-c3-run --serve` (local binary or the image as `prf-board-twin-c3`), UART0 → TCP → `twin_pty` |
+| `custom/sim_cost_c3.py` + `sim_cost_c3.json` | the BoardSimCost row `esp32-c3:qemu:esp32c3` (objects, QEMU peak RSS, virtual instructions/s, the wall-time ratio) |
+| `custom/board_engines.py` | engines in FAMILIES: `avr` (BOARD_ENGINES_URL …) and `esp` (ESP_ENGINES_URL → local → `prf-esp-engines:noble` → provider `board.esp-engines` → refusal) |
+
+**Proven on the twin (2026-10-02):**
+- `tests/board_c3_twin_probe.py` 13/13, run as a throwaway server with the live v1 contract:
+  - the live target=host header;
+  - the build in 59 s;
+  - the esptool DRY-RUN;
+  - QEMU up, with 10.8 frames/s on the pty after the shift=auto warm-up and 0 bad CRC;
+  - **the SAME generated Java bridge** (mvn package, `source=serial` at the C3 twin's link): the `c3-twin` row follows the
+    firmware, and a REST PUT `{led_on: true, pwm_duty: 42}` comes back `status=commanded` in 0.10 s.
+- The UNO's finding held here too: a fresh server's v1 tag order differs from the pinned v2 snapshot under the same contract
+  hash, so decode with the server's own field map.
+
 ## Selftest
 
 ```
@@ -166,6 +228,8 @@ PYTHONPATH=.:modules python3 tests/board_uno_twin_probe.py   # the REAL avr-gcc 
 cd /tmp/y && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_installer_probe.py   # brd-fi: five variants, compat, installs into the twin + the bridge
 cd /tmp/x && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_uno_bridge_probe.py   # + a throwaway server + the Java bridge
 cd /tmp/p && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_pair_probe.py        # brd-wire: n=2 and n=3 twins on one bridge
+cd /tmp/c && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_c3_twin_probe.py      # sc-3: the C3 twin + the Java bridge (skips without prf-esp-engines)
+PYTHONPATH=.:modules python3 -m board.board_c3_selftest       # sc-3 alone (also run by board_selftest): variants, gen, flash argv, a FAKE twin, a REAL build
 # the in-process servers boot through tests/board_probe_boot.py: the framework as cwd for the boot, the DB in ./data here
 ```
 

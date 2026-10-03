@@ -258,7 +258,17 @@ def run_scenario(name, side='both', sink=None, seconds=None, seed=None, home=Non
     why = SC.refusal(sc, SC.steps_of(sc['name'], step_rows))
     if why:
         raise ScenarioRefused(why)
-    from firmwarefaults.custom import runner_sc1
+    from firmwarefaults.custom import runner_sc1, runner_sc3
+    if sc['observable_kind'] in runner_sc3.KINDS:   # sc-3: the RTOS scenarios on the ESP32-C3 QEMU twin
+        if side not in ('both', 'before', 'after'):
+            raise ScenarioRefused('scenario %s has no %s run — its interleavings are seeded (`pol faults stats %s --seeds N`)' % (name, side, name))
+        try:
+            runs = runner_sc3.run_pair(sc, sink, seed or 0) if side == 'both' else [runner_sc3.run_side(sc, side, sink, seed or 0)]
+        except runner_sc3.ScenarioRefused as e:
+            raise ScenarioRefused(str(e))
+        for r in runs:
+            r['claim_status'] = _claim_status(sink, r['claim']) if r.get('claim') else ''
+        return {'scenario': sc, 'runs': runs, 'sink': sink}
     if sc['observable_kind'] in runner_sc1.KINDS:
         if side == 'natural':
             raise ScenarioRefused('scenario %s has no natural run (its trigger is forced by construction) — its rates come from '

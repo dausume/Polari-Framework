@@ -126,6 +126,9 @@ def push(api, row, instance=None):
 
 
 def main(argv):
+    if argv and str(argv[0]).lower() in ('c3', 'esp32c3', 'esp32-c3'):   # sc-3: esptool over the C3's USB
+        from board.custom import flash_c3
+        return flash_c3.main(argv)
     import argparse
     ap = argparse.ArgumentParser(prog='pol board flash')
     ap.add_argument('board')

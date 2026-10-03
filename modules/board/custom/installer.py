@@ -341,6 +341,7 @@ def document(manager, work=None, scan=None):
                            and bool(b.get('hex_path')) and os.path.isfile(b.get('hex_path') or ''),
                            engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items())))
     vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
+    vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
     vlist = [_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows]
     ts = twin.status(UNO, work or work_dir())
     recs = sorted(_rows(manager, 'InstallRecord'), key=lambda r: getattr(r, 'started_at', ''), reverse=True)

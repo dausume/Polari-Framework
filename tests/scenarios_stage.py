@@ -105,8 +105,9 @@ def main(argv):
             doc['not_run'] = 'no twin / disassembler resolves on this device: %s' % fe.resolve('avr-twin')['why']
         else:
             only = [x for x in a.only.split(',') if x]
-            doc['runnable'] = [s['name'] for s in SC.SEED_SCENARIOS if SC.runnable(s) and (not only or s['name'] in only)]
-            doc['not_runnable'] = [{'scenario': s['name'], 'why': SC.refusal(s)[:200]} for s in SC.SEED_SCENARIOS if not SC.runnable(s)]
+            doc['runnable'] = [s['name'] for s in SC.SEED_SCENARIOS if SC.runnable(s) and not SC.engine_gap(s) and (not only or s['name'] in only)]
+            doc['not_runnable'] = [{'scenario': s['name'], 'why': (SC.refusal(s) or SC.engine_gap(s))[:200]} for s in SC.SEED_SCENARIOS
+                                   if not SC.runnable(s) or SC.engine_gap(s)]   # sc-3: a C3 scenario without the esp engines here
             doc['pairs'] = run_pairs(doc['runnable'], doc['seeds'], say)
             doc['red'], doc['warn'], doc['counts'] = judge(doc['pairs'])
             doc['ran'] = bool(doc['pairs'])

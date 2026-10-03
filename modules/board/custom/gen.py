@@ -60,8 +60,11 @@ def sha256(data):
 
 def board_name(alias):
     b = ALIASES.get(alias)
+    if not b and str(alias).lower() in ('c3', 'esp32c3', 'esp32-c3'):
+        raise GenRefused('%r: no firmware template in gen.py (the UNO\'s) — the ESP32-C3 has its own generator, board.custom.gen_c3 '
+                         '(`pol board gen c3`, sc-3)' % alias)
     if not b:
-        raise GenRefused('no firmware template for %r — only the UNO is picked (plan §8a); every other device is a Road' % alias)
+        raise GenRefused('no firmware template for %r — the UNO and the ESP32-C3 are picked (plan §8a; sc-3); every other device is a Road' % alias)
     return b
 
 
@@ -258,6 +261,9 @@ def row_fields(row):
 
 
 def main(argv):
+    if argv and str(argv[0]).lower() in ('c3', 'esp32c3', 'esp32-c3'):   # sc-3: the ESP32-C3 template (ESP-IDF, FreeRTOS)
+        from board.custom import gen_c3
+        return gen_c3.main(argv)
     import argparse
     ap = argparse.ArgumentParser(prog='pol board gen')
     ap.add_argument('board')

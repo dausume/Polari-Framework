@@ -228,3 +228,45 @@ keeps the states apart (15 = Frama-C's own Mthread test setting).
 FormalCheck +1 field (`bound`: "k=2 (bounded)" / "unbounded"); seeded FormalChecks 4 → **9** (4 CBMC + 5 Mthread); mathproofs checker
 `frama-c-mthread`. Per Mthread check: 1 FormalCheck (properties_json = the per-variable classification) + the claim's `formal` tier
 (measure "decided (unbounded)") + 1 ProofRun — except the negative control, which speaks to no claim.
+
+# sc-3 (2026-10-02, `dev-sc-3`) — the RTOS pairs on the ESP32-C3 QEMU twin
+
+Measured on pol-core. The image is `prf-esp-engines:noble`, 1 813 MB (`modules/board/COST.md`, the ESP32-C3 section). A run is
+`polari-c3-run` under QEMU `-icount shift=3,align=off,sleep=off`, so the virtual time is the instruction count. Each scenario
+run takes 0.3–0.9 s inside QEMU (≈ 1.5 s end to end), and each build is made once (the build cache).
+
+## The pairs (seed 0 = the recipe; AFTER − BEFORE is the technique's cost)
+
+| scenario | BEFORE | AFTER | technique cost |
+|---|---|---|---|
+| priority-inversion-mutex | **refuted**: H waited **12 160 µs** for R (round 6) vs the bound 4 000 µs (L's 3 000 µs section + one tick); inside H's wait M ran **10 018 µs**, L 2 067 µs; 0 inheritance events | **witnessed**: H's worst wait **2 098 µs** over 10 rounds; **10 INHERIT events** (L raised to H's priority 4, back to 2 at the give); M 0 µs inside | **−38 B** flash, 0 B DRAM (a mutex vs a binary semaphore + its initial give); H's worst wait **−10 062 µs** |
+| two-lock-deadlock | **refuted**: the cycle **T1 → B → T2 → A → T1 closed at 370 363 µs (tick 370)** and never opened; the app's monitor declared it at 378 347 µs (both Blocked); rounds 0,0 of 10; telemetry frames at 118, 218, **318 ms, then 1 574.8 ms of silence** (the telemetry task waits on A, which T1 holds) | **witnessed**: 10 rounds on both tasks, no cycle, telemetry to 817 ms; T1's mean round 2 477 µs | **−40 B** flash, 0 B DRAM |
+| two-lock-deadlock-backoff | (the same BEFORE) | **witnessed**: 10 rounds each; **10 transient cycles**, each broken by T1's 5 ms timed take on B (back-offs 10,0); T1's mean round **10 460 µs** | **+18 B** flash; ≈ **+8 ms per round** that met the cycle vs ordering (the timeout + back-off) |
+
+**Reproducible:** the BEFORE deadlock re-runs bit-identically from image + params (trace `28d6b9b5…`, UART0 `aa95314c…`). It is
+the same through the image rung and through the `ESP_ENGINES_URL` worker. Seed 9, which draws the recipe's own knobs, gives the
+same cycle.
+
+**Finding:** ESP-IDF v5.5.5's FreeRTOS **does** inherit priority on a mutex: `traceTASK_PRIORITY_INHERIT` fires at H's block,
+and L runs at 4. The plan's §3a had this as unverified.
+
+**Finding:** a semaphore take that succeeds is reported by `traceQUEUE_SEMAPHORE_RECEIVE` (queue.c line 1738), not by
+`traceQUEUE_RECEIVE`. The first runs had no TAKE events at all.
+
+**Finding (in our wait-for graph):** a chain (T1 waits for B, held by T2, and T2 waits for nothing) was first reported as a
+self-loop. The fix is pinned by a fixture.
+
+**Finding:** in the BEFORE deadlock the telemetry task's wait on A raised T1 to priority 5 (inheritance through the gate mutex).
+The dump shows `T1 prio=5`.
+
+## The campaign (10 seeds, both builds on the same knobs; Wilson 95 %)
+
+| scenario | knobs drawn (ticks) | WITHOUT the technique | WITH it (residual) | wall |
+|---|---|---|---|---|
+| priority-inversion-mutex | h_off ∈ [0, 3], m_off ∈ [0, 4] | **4 / 10 = 40.0 % [16.8, 68.7]**, each 10 266–11 214 µs | **0 / 10 [0, 27.8]**, worst 2 099 µs | 28 s |
+| two-lock-deadlock | t1_gap ∈ [0, 3], t2_start ∈ [0, 4], t2_gap ∈ [0, 2] | **7 / 10 = 70.0 % [39.7, 89.2]** | **0 / 10 [0, 27.8]** (ordering) | 17 s |
+| two-lock-deadlock-backoff | the same | 7 / 10 (the same builds and knobs) | **0 / 10 [0, 27.8]**; each of the 7 failing seeds resolved with 10 back-offs | 18 s |
+
+Every seed fits the pattern **deadlock ⇔ t1_gap ≥ 1 and t2_start ≤ t1_gap**: T2 takes B before T1 asks for it. On the one tie drawn
+(seed 8: gap 1, start 1) T2 took B first (observed in the trace, not derived). Under the uniform draw that pattern has probability 9/20 = 45 %, which lies inside the measured
+interval [39.7, 89.2]. These are estimates under a uniform draw of tick offsets, never field rates.

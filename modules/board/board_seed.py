@@ -4,8 +4,8 @@
 THE REGISTER AS ROWS (plan §8a: track all, simulate few). Every register §1 device → a BoardDefinition + its Road;
 every §1a adapter → an AdapterDefinition; the ProgrammerKinds; the UNO's DatasheetFacts (the only device with facts
 in brd-0). BoardInstance / FirmwareBuild / InstallPlan / InstallRecord / UnoAnalogState are never seeded (observed / built);
-brd-fi seeds the four UNO FirmwareVariants; BoardSimCost carries the ONE committed measurement
-(brd-1: the UNO twin, custom/sim_cost_uno.json — a cost exists only once measured).
+brd-fi seeds the four UNO FirmwareVariants (sc-3: + the six ESP32-C3 ones, custom/variants_c3.py); BoardSimCost carries the
+committed measurements (brd-1: the UNO twin, custom/sim_cost_uno.json; sc-3: the C3's QEMU twin, custom/sim_cost_c3.json).
 The 'board-roads' tech tree (one concept node per device) is seeded only when techtree is present.
 """
 from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -15,6 +15,8 @@ from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
 from board.custom.sim_cost import SEED_BOARD_SIM_COSTS
 from board.custom.variants import SEED_FIRMWARE_VARIANTS
+from board.custom.variants_c3 import SEED_C3_VARIANTS
+from board.custom.sim_cost_c3 import SEED_C3_SIM_COSTS
 
 SEED_BOARD_DEFINITIONS = board_rows()
 SEED_ADAPTER_DEFINITIONS = adapter_rows()
@@ -35,10 +37,10 @@ BOARD_SEED_PAIRS = [
     ('Road', Road, SEED_BOARD_ROADS),             # a road's progress belongs to the instance once seeded (no converge)
     ('BoardInstance', BoardInstance, []),
     ('FirmwareBuild', FirmwareBuild, []),
-    ('BoardSimCost', BoardSimCost, _register_owned(SEED_BOARD_SIM_COSTS)),   # brd-1: measured, code-owned (re-measure → the row follows)
+    ('BoardSimCost', BoardSimCost, _register_owned(SEED_BOARD_SIM_COSTS + SEED_C3_SIM_COSTS)),   # brd-1 + sc-3 (the C3's QEMU twin): measured, code-owned
     # brd-fi: the four seeded UNO variants are code-owned (a person's OWN variant is a row added on the page, never converged);
     # plans, records and the second class's rows are observed, never seeded
-    ('FirmwareVariant', FirmwareVariant, _register_owned(SEED_FIRMWARE_VARIANTS)),
+    ('FirmwareVariant', FirmwareVariant, _register_owned(SEED_FIRMWARE_VARIANTS + SEED_C3_VARIANTS)),   # sc-3: + the six ESP32-C3 variants
     ('InstallPlan', InstallPlan, []),
     ('InstallRecord', InstallRecord, []),
     ('UnoAnalogState', UnoAnalogState, []),

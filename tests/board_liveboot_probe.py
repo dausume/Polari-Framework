@@ -34,18 +34,20 @@ check('33 devices seeded', n('BoardDefinition') == 33, n('BoardDefinition'))
 check('13 adapters seeded', n('AdapterDefinition') == 13, n('AdapterDefinition'))
 check('9 programmer kinds seeded', n('ProgrammerKind') == 9, n('ProgrammerKind'))
 check('24 UNO facts seeded (19 brd-0 + 5 brd-1: USART UBRR x2, ADC formula, TMP36 x2)', n('DatasheetFact') == 24, n('DatasheetFact'))
-check('brd-1: ONE measured BoardSimCost row seeded (the UNO twin)', n('BoardSimCost') == 1, n('BoardSimCost'))
+sim_cost_boards = sorted(getattr(c, 'board', '') for c in (tables.get('BoardSimCost', {}) or {}).values())
+check('brd-1 + sc-3: two measured BoardSimCost rows seeded (the UNO twin + the C3 twin)',
+      sim_cost_boards == ['arduino-uno-r3', 'esp32-c3'], sim_cost_boards)
 check('33 roads seeded', n('Road') == 33, n('Road'))
 tn = [x for x in (tables.get('TechNode', {}) or {}).values() if getattr(x, 'tree_name', '') == 'board-roads']
 check('the board-roads tech tree has 33 concept nodes', len(tn) == 33, len(tn))
 r = client.simulate_get('/api/board')
-check('GET /api/board answers: simulated = [the UNO], no RULE 2 violation',
-      r.status_code == 200 and r.json['simulated'] == ['arduino-uno-r3'] and r.json['rule2Violations'] == [], r.text[:200])
+check('GET /api/board answers: simulated = [the UNO, the C3], no RULE 2 violation',
+      r.status_code == 200 and r.json['simulated'] == ['arduino-uno-r3', 'esp32-c3'] and r.json['rule2Violations'] == [], r.text[:200])
 r = client.simulate_get('/api/board/facts', params={'board': 'arduino-uno-r3'})
 check('GET /api/board/facts?board=arduino-uno-r3 → 24 cited facts', r.status_code == 200 and len(r.json['facts']) == 24, r.text[:200])
 r = client.simulate_get('/api/board/roads')
-check('GET /api/board/roads → 33 roads, one in progress', r.status_code == 200 and len(r.json['roads']) == 33
-      and [x['board'] for x in r.json['roads'] if x['status'] != 'todo'] == ['arduino-uno-r3'], r.text[:200])
+check('GET /api/board/roads → 33 roads, two in progress (the UNO + the C3)', r.status_code == 200 and len(r.json['roads']) == 33
+      and sorted(x['board'] for x in r.json['roads'] if x['status'] != 'todo') == ['arduino-uno-r3', 'esp32-c3'], r.text[:200])
 r = client.simulate_get('/api/board/engines')
 check('GET /api/board/engines → the ladder for avr-gcc', r.status_code == 200 and 'avr-gcc' in r.json['engines'], r.text[:200])
 snap = {'host': 'pol-core', 'observed_at': 'now', 'usb': [{'bus': '003', 'dev': '003', 'vendor_id': '10c4', 'product_id': 'ea60', 'description': 'CP210x', 'path': '003-5', 'usb_class': 'Vendor Specific Class'}],
@@ -57,8 +59,11 @@ check('POST /api/board/detect upserts the CP2102 as a BoardInstance (adapter pre
 r = client.simulate_post('/api/board/detect', body=json.dumps(snap), headers={'Content-Type': 'application/json'})
 check('a second detect UPDATES the same row (no duplicate)', r.status_code == 201 and n('BoardInstance') == 1, n('BoardInstance'))
 r = client.simulate_get('/api/board/sim-costs')
-check('brd-1: GET /api/board/sim-costs → the UNO twin\'s measured cost (rows, state bytes, cycles/s)',
-      r.status_code == 200 and len(r.json['costs']) == 1 and r.json['costs'][0]['twin'] == 'simavr:atmega328p' and r.json['costs'][0]['cycles_per_s'] > 1e6, r.text[:300])
+costs_by_board = {c['board']: c for c in (r.json.get('costs') or [])}
+check('brd-1 + sc-3: GET /api/board/sim-costs → both twins\' measured cost (rows, state bytes, cycles/s)',
+      r.status_code == 200 and len(r.json['costs']) == 2
+      and costs_by_board.get('arduino-uno-r3', {}).get('twin') == 'simavr:atmega328p' and costs_by_board.get('arduino-uno-r3', {}).get('cycles_per_s', 0) > 1e6
+      and costs_by_board.get('esp32-c3', {}).get('twin') == 'qemu:esp32c3' and costs_by_board.get('esp32-c3', {}).get('cycles_per_s', 0) > 1e6, r.text[:300])
 b = {'build': {'name': 'arduino-uno-r3-probe', 'board_definition': 'arduino-uno-r3', 'state': 'built', 'size_text': 4416, 'size_data': 26, 'size_bss': 737,
                'artifact_sha256': 'ab' * 32, 'classes_json': '[]', 'repro_json': '{}'}}
 r = client.simulate_post('/api/board/builds', body=json.dumps(b), headers={'Content-Type': 'application/json'})
@@ -75,10 +80,19 @@ pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if geta
 check('the /display/boards page is seeded as a DisplayDefinition with seven configured tables (brd-wire: + bindings)',
       len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 7, len(pages))
 # ---- brd-fi: the firmware installer
-check('brd-fi: the five UNO FirmwareVariants are seeded (brd-wire: + uno-pair)', sorted(getattr(v, 'name', '') for v in (tables.get('FirmwareVariant', {}) or {}).values())
-      == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-pair', 'uno-sim-rig'], n('FirmwareVariant'))
+fv_rows = list((tables.get('FirmwareVariant', {}) or {}).values())
+fv_uno = sorted(v.name for v in fv_rows if getattr(v, 'board_definition', '') == 'arduino-uno-r3')
+fv_c3 = sorted(v.name for v in fv_rows if getattr(v, 'board_definition', '') == 'esp32-c3')
+check('brd-fi: the five UNO FirmwareVariants + sc-3: the six ESP32-C3 FirmwareVariants are seeded (brd-wire: + uno-pair)',
+      fv_uno == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-pair', 'uno-sim-rig']
+      and fv_c3 == ['c3-prio-inversion', 'c3-prio-inversion-mutex', 'c3-sim-rig', 'c3-two-lock', 'c3-two-lock-backoff', 'c3-two-lock-ordered'],
+      (fv_uno, fv_c3))
 r = client.simulate_get('/api/board/variants')
-check('brd-fi: GET /api/board/variants → five, each with what to watch', r.status_code == 200 and len(r.json['variants']) == 5
+v_names = [v['name'] for v in r.json['variants']]
+check('brd-fi: GET /api/board/variants → eleven (the five UNO + sc-3: the six C3), each with what to watch',
+      r.status_code == 200 and len(v_names) == 11
+      and sorted(x for x in v_names if x.startswith('uno-')) == ['uno-adc-sweep', 'uno-blink-only', 'uno-echo', 'uno-pair', 'uno-sim-rig']
+      and sorted(x for x in v_names if x.startswith('c3-')) == ['c3-prio-inversion', 'c3-prio-inversion-mutex', 'c3-sim-rig', 'c3-two-lock', 'c3-two-lock-backoff', 'c3-two-lock-ordered']
       and all(v['what_to_watch'] for v in r.json['variants']), r.text[:200])
 r = client.simulate_get('/api/board/installer')
 check('brd-fi: GET /api/board/installer → this host, the twin as a target, the five variants, the cited limits',

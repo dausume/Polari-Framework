@@ -8,6 +8,7 @@ runs it (POST /api/firmwarefaults/run) and the rows land on that server.
 
     python3 -m firmwarefaults.custom.faults_cli run <scenario> [--before|--after|--both|--natural|--control] [--seconds S] [--seed N] [--api URL]
     python3 -m firmwarefaults.custom.faults_cli stats uart-residual-frame-loss|torn-millis-read [--seeds N] [--bers 1e-3,1e-4] [--api URL]
+    python3 -m firmwarefaults.custom.faults_cli stats priority-inversion-mutex|two-lock-deadlock[-backoff] [--seeds 10]    (sc-3, the C3 twin)
     python3 -m firmwarefaults.custom.faults_cli list [--api URL]
     python3 -m firmwarefaults.custom.faults_cli show <run> [--api URL]
     python3 -m firmwarefaults.custom.faults_cli engines
@@ -101,9 +102,11 @@ def cmd_run(a):
     except (runner.ScenarioRefused, EngineRefused, GenRefused) as e:
         print('[REFUSED] %s' % e)
         return 3
+    from firmwarefaults.custom import faults_cli_sc3 as C3
+    pr, pp = (C3.print_run, C3.print_pair) if C3.is_c3(a.scenario) else (print_run, print_pair)   # sc-3: the C3 runs print their own way
     for r in out['runs']:
-        print_run(r, r.get('_trace_rows'))
-    print_pair(out['runs'])
+        pr(r, r.get('_trace_rows'))
+    pp(out['runs'])
     p = sink.flush('%s@%s@%s' % (a.scenario, side, out['runs'][-1]['ran_at']))
     print('       record    %s' % p)
     return 0
@@ -119,7 +122,11 @@ def print_stat(r):
 
 
 def cmd_stats(a):
+    from firmwarefaults.custom import faults_cli_sc3 as C3
+    if C3.is_c3(a.scenario) and not a.api:   # sc-3: the C3 campaign (seeded tick offsets; default 10 seeds)
+        return C3.cmd_stats(a)
     from firmwarefaults.custom import statistics as ST
+    a.seeds = a.seeds or 20
     bers = tuple(float(x) for x in a.bers.split(',')) if a.bers else ST.BERS
     if a.api:
         d = _http('POST', '%s/api/firmwarefaults/stats' % a.api.rstrip('/'), {'scenario': a.scenario, 'seeds': a.seeds, 'bers': list(bers)})
@@ -142,7 +149,8 @@ def cmd_stats(a):
             out = ST.tear_phase_sweep(sink, seeds=a.seeds, progress=prog)
             rows, fault = [out['natural_row'], out['sweep']], sink.get('TornReadFault', 'torn-read-g-ms')
         else:
-            print('[REFUSED] statistics exist for uart-residual-frame-loss (--uart-ber) and torn-millis-read (the phase sweep)')
+            print('[REFUSED] statistics exist for uart-residual-frame-loss (--uart-ber), torn-millis-read (the phase sweep) and the sc-3 C3 '
+                  'scenarios (%s)' % ', '.join(C3.C3_NAMES))
             return 3
     except (ScenarioRefused, EngineRefused) as e:
         print('[REFUSED] %s' % e)
@@ -182,6 +190,7 @@ def cmd_list(a):
 
 
 def cmd_show(a):
+    from firmwarefaults.custom import faults_cli_sc3 as C3
     if a.api:
         d = _http('GET', '%s/api/firmwarefaults/runs/%s' % (a.api.rstrip('/'), a.run))
         if not d.get('ok'):
@@ -193,7 +202,7 @@ def cmd_show(a):
     for r, rec, path in local_runs():
         if r['name'] == a.run or r['name'].startswith(a.run):
             trace = sorted((t for t in rec.get('ScenarioTraceCycle', []) if t['run'] == r['name']), key=lambda t: t['idx'])
-            print_run(r, trace)
+            (C3.print_run if C3.is_c3(r) else print_run)(r, trace)
             c = next((c for c in rec.get('MathClaim', []) if c['name'] == r['claim']), None)
             if c:
                 print('       claim     %s: %s · counterexample %s' % (c['proof_status'], c['description'][:140], c.get('counterexample_json', '{}')[:200]))
@@ -233,7 +242,7 @@ def main(argv):
     sub.add_parser('engines')
     st = sub.add_parser('stats')
     st.add_argument('scenario')
-    st.add_argument('--seeds', type=int, default=20)
+    st.add_argument('--seeds', type=int, default=None, help='default 20 (sc-1 batches) / 10 (the sc-3 C3 campaign)')
     st.add_argument('--bers', default='')
     st.add_argument('--verbose', action='store_true')
     st.add_argument('--api', default='')

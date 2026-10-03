@@ -146,6 +146,9 @@ def store(work, row):
 
 
 def main(argv):
+    if argv and str(argv[0]).lower() in ('c3', 'esp32c3', 'esp32-c3'):   # sc-3: ESP-IDF through the esp engines
+        from board.custom import build_c3
+        return build_c3.main(argv)
     import argparse
     ap = argparse.ArgumentParser(prog='pol board build')
     ap.add_argument('board')
