@@ -52,6 +52,8 @@ FEATURE_MODULES = frozenset({
     'firmwarefaults',
     # cmod-0 (C_MODULARIZATION_PLAN): C functions of a normal C project as atoms with ports, resources and cost
     'cmod',
+    # hn-0 (HARDWARE_NOCODE_PLAN): hardware as no-code — a solution spanning board, bridge, backend and browser
+    'hwnocode',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a
@@ -68,6 +70,8 @@ FEATURE_REQUIRES = {
     'tensormath': ('mathshapes',),   # tt-11: element shapes through the math-shape library (shape2d_bridge)
     'tensortree': ('tensormath',),
     'bizops': ('supplychain',),
+    # hn-0: the split imports cmod's glue + graph rows, board's seeds/gen and grpcbridge's binding class (seed)
+    'hwnocode': ('board', 'cmod', 'grpcbridge'),
     # co2-A: climate reuses the aquaponics steady-state gas
     # balance (one equation, two callers - a room of people is the
     # crop's CO2 draw with the sign flipped) and the dmvdata

@@ -135,6 +135,20 @@ SEED_GRAPH_COMPILERS = [
                        '(RULE 2; C_MODULARIZATION_PLAN cmod-1).',
         'enabled': True,
     },
+    {
+        'name': 'hn-split',
+        'domain': 'hwnocode',
+        'compiler_ref': 'hwnocode.custom.split:compile_solution',
+        'description': 'A HardwareSolution (one canvas: a HardwareSubgraph '
+                       'referencing a cmod CGraph, a hw-interface, engine '
+                       'states, displays) -> the placement rule (every node '
+                       'to board | twin | bridge | backend | browser; a '
+                       'Python node on the device side refused) + the board '
+                       'half through cmod-glue (unchanged output) + the '
+                       'backend half as its own SolutionDefinition '
+                       '(HARDWARE_NOCODE_PLAN hn-0).',
+        'enabled': True,
+    },
 ]
 
 

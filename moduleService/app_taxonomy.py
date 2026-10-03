@@ -58,6 +58,8 @@ DEFAULTS = {
     'firmwarefaults': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'concurrency', 'faults', 'simulation']),
     # cmod-0: C modularization — atoms of a normal C project (C_MODULARIZATION_PLAN)
     'cmod': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'c', 'atoms', 'no-code']),
+    # hn-0: hardware as no-code (HARDWARE_NOCODE_PLAN)
+    'hwnocode': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'no-code', 'hardware', 'placement']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),
     'motors': ('polari', ['materials-devices', 'making-mechanics'], ['motors']),

@@ -1321,6 +1321,12 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),
+    # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareSolution across board / bridge / backend / browser; the placement rule; hn-split
+    ('hwnocode', (
+        ('hwnocode.hwnocode_basis', ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'HWNOCODE_CLASSES')),
+        ('hwnocode.hwnocode_seed', ('HWNOCODE_SEED_PAIRS',)),
+        ('hwnocode.hwnocode_page', ('SEED_HWNOCODE_PAGE_DISPLAYS',)),
+    )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),

@@ -740,6 +740,19 @@
    "tier": "optional",
    "description": "C modularization (cmod arc): a NORMAL C firmware project (it builds with make alone) read by Polari as atoms — C functions with declared ports (an empty POLARI_NODE macro or a comment), the registers/globals/ISRs they touch, pure and ISR-safe verdicts, and their measured cost — derived by parsing (pycparser) into rows and the conformed polari-firmware.json; no C<->Python transpiling."
   },
+  "hwnocode": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/hwnocode",
+   "repo": "https://github.com/dausume/polari-module-hwnocode.git",
+   "requires": [
+    "board",
+    "cmod",
+    "grpcbridge"
+   ],
+   "tier": "optional",
+   "description": "Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware — a HardwareSolution ties a backend solution to a cmod CGraph (the hardware subgraph), the board/twin, the hw-interface (the split point) and its displays; the placement rule derives where every node runs and refuses Python on a device (RULE 2); hn-split renders the board half through cmod-glue; the runtime suggestion is shown, never applied."
+  },
   "mathproofs": {
    "kind": "official",
    "downloaded": true,

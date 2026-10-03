@@ -555,6 +555,12 @@ def construct_cmod_endpoints(polServer):
     return build(polServer)
 
 
+def construct_hwnocode_endpoints(polServer):
+    # hn-0: /api/hwnocode — hardware solutions, placement, the split, the runtime suggestion, the chart data; + the node kinds on the palette
+    from hwnocode.hwnocode_endpoints import construct_hwnocode_endpoints as build
+    return build(polServer)
+
+
 def construct_iso_endpoints(polServer):
     # iso-1: /downloads/iso + /api/iso (probe → choose → install)
     from iso.iso_endpoints import construct_iso_endpoints as build
@@ -576,6 +582,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'board': construct_board_endpoints,
     'firmwarefaults': construct_firmwarefaults_endpoints,
     'cmod': construct_cmod_endpoints,
+    'hwnocode': construct_hwnocode_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,
