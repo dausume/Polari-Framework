@@ -1,4 +1,6 @@
-"""cmod_selftest — cmod-0 (C_MODULARIZATION_PLAN.md §10): the atom parser on FIXTURES (an ISR, volatile globals shared with it,
+"""cmod_selftest — cmod-0 + cmod-1 (C_MODULARIZATION_PLAN.md §10). cmod-1 (custom/selftest_glue.py): the seeded graph → a
+deterministic render equal to the committed project, the refusals (cycle, unbound port, type mismatch, free C, …), idempotence +
+the hand-edit guard, the Makefile with a fake avr-gcc, the compiler seam, the committed twin proof and its rows, the cost. cmod-0: the atom parser on FIXTURES (an ISR, volatile globals shared with it,
 a torn read and its atomic twin, a read-modify-write lost update, a function touching a register, a pure function, a pointer
 written through, both annotation forms), the REFUSALS (a malformed POLARI_NODE never guessed), the preprocessor fixes, the AVR
 type widths, the manifest's idempotence and hand-set preservation on a plain project; then (custom/selftest_uno.py) the UNO:
@@ -216,9 +218,10 @@ def host_measure():
 
 
 def main():
-    print('cmod selftest (cmod-0)')
+    print('cmod selftest (cmod-0 + cmod-1)')
     from cmod.custom.selftest_uno import uno_parts
-    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure) + uno_parts(check):
+    from cmod.custom.selftest_glue import graph_parts
+    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure) + uno_parts(check) + graph_parts(check):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

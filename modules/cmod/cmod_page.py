@@ -4,7 +4,9 @@
 /display/c-atoms — the C projects and their atoms as CONFIGURED tables only (no new component, no raw JSON —
 C_MODULARIZATION_PLAN.md §2): the projects (parser, configurations, make-alone proof), the modules, the atoms (signature,
 ports, resources, pure, ISR-safe, annotation), the ports (direction, C type, Polari type, unit), the cost per atom (text
-bytes shipped / as a node, stack frame). The no-code canvas over atoms is cmod-1's (the existing canvas, a `c-atom` kind).
+bytes shipped / as a node, stack frame). cmod-1 adds four more configured tables: the graphs over atoms, their nodes and edges,
+and the glue builds (the generated project, its sizes, the cost estimated vs measured, the twin equivalence proof). The canvas
+overlay for a `c-atom` node is cmod-3's — still no new component here.
 """
 from polariApiServer.module_pages_seed import _page, _row, _table
 
@@ -35,5 +37,26 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               column_formats='name:ref:CFunctionAtom')], min_height=300),
               _row(3, [_table('cmod-modules', 0, 12, 'Modules — each .c with its .h, the files\' sha256, the atoms it defines', 'CModule',
                               columns='name,project,module,role,files,atoms,sha256', column_formats='project:ref:CProject')], min_height=160),
+              _row(4, [_table('cmod-graphs', 0, 12, 'Graphs over atoms (cmod-1) — a no-code graph that Polari renders into plain-C glue committed as a '
+                              'real C project (`pol cmod render | build | prove | diff <graph>`); what the glue owns, the cost BEFORE building',
+                              'CGraph',
+                              columns='name,title,status,project,base_configuration,class_name,replaces,generated_project,node_count,edge_count,'
+                                      'atom_count,cost_estimate_bytes,cost_estimate_why,glue_contains,graph_sha256',
+                              column_formats='name:ref:CGraph')], min_height=160),
+              _row(5, [_table('cmod-graph-nodes', 0, 7, 'Graph nodes — c-atom = an atom instance with its bindings (a literal or a knob); the glue '
+                              'kinds: class, parser, frame, tick, rule', 'CGraphNode',
+                              columns='name,kind,atom,stage,order,bindings,params,ports_summary,cost_bytes,isr_safe,pure,role',
+                              column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph'),
+                       _table('cmod-graph-edges', 1, 5, 'Graph edges — data / field (values), tick / on-rx / on-command (when), calls (what an '
+                              'atom calls itself, checked)', 'CGraphEdge',
+                              columns='name,kind,from_node,from_port,to_node,to_port,order,ctype_from,ctype_to',
+                              column_formats='graph:ref:CGraph')], min_height=300),
+              _row(6, [_table('cmod-glue-builds', 0, 12, 'Glue builds — the generated files and their shas, make alone, avr-size of the glue vs '
+                              'the hand-written app it replaces, the cost estimated vs measured, and the twin proof (same stimulus, frames '
+                              'compared field by field)', 'CGlueBuild',
+                              columns='name,graph,equivalent,proof,frames_compared,fields_compared,differences,hex_sha256,size_text,size_data,'
+                                      'size_bss,ref_hex_sha256,ref_size_text,ref_size_data,ref_size_bss,cost_estimate_bytes,cost_measured_bytes,'
+                                      'cost_why,stimulus,cycles,built_by,conformed,files,files_sha256,graph_sha256,proven_at',
+                              column_formats='graph:ref:CGraph')], min_height=200),
           ]),
 ]

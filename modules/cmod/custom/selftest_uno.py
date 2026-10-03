@@ -147,12 +147,15 @@ def uno_parts(check):
         from cmod.cmod_api import CModAPI
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
-        check('seeds = the committed manifest projected: 1 project, 7 modules, 34 atoms, %d ports, no CGraph' % m['counts']['ports'],
-              counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 0}, counts)
+        check('seeds = the committed manifest projected: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, '
+              '1 glue build' % m['counts']['ports'],
+              counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
+                         'CGraphEdge': 15, 'CGlueBuild': 1}, counts)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
-        check('/display/c-atoms = 5 CONFIGURED tables (projects, atoms, ports, costs, modules) — class-rows-table only, no new component',
-              page['pageRoute'] == 'c-atoms' and len(items) == 5 and {it['componentProps']['componentName'] for it in items} == {'class-rows-table'})
+        check('/display/c-atoms = 9 CONFIGURED tables (projects, atoms, ports, costs, modules; cmod-1: graphs, nodes, edges, glue builds) — '
+              'class-rows-table only, no new component',
+              page['pageRoute'] == 'c-atoms' and len(items) == 9 and {it['componentProps']['componentName'] for it in items} == {'class-rows-table'})
         import inspect
         from cmod.cmod_basis import CMOD_CLASSES
         known = {c.__name__: c for c in CMOD_CLASSES}

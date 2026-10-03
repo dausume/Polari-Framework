@@ -3,7 +3,7 @@
  "id": "cmod",
  "package": "cmod",
  "title": "C Modularization",
- "description": "C modularization (cmod arc, C_MODULARIZATION_PLAN.md): a NORMAL C firmware project — it builds with make alone — read by Polari as ATOMS: C functions with declared ports (an empty POLARI_NODE macro or a comment block), the registers / globals / ISRs they touch, pure and ISR-safe verdicts, and their measured cost (text bytes shipped and as a node, the .su stack frame) — derived by parsing (pycparser, in the framework process) into rows and the conformed polari-firmware.json beside the Makefile. No C<->Python transpiling. cmod-0: the UNO firmware template (34 atoms).",
+ "description": "C modularization (cmod arc, C_MODULARIZATION_PLAN.md): a NORMAL C firmware project — it builds with make alone — read by Polari as ATOMS: C functions with declared ports (an empty POLARI_NODE macro or a comment block), the registers / globals / ISRs they touch, pure and ISR-safe verdicts, and their measured cost (text bytes shipped and as a node, the .su stack frame) — derived by parsing (pycparser, in the framework process) into rows and the conformed polari-firmware.json beside the Makefile. No C<->Python transpiling. cmod-0: the UNO firmware template (34 atoms). cmod-1: a no-code graph over atoms (CGraph / CGraphNode / CGraphEdge) renders to plain-C glue committed as a real C project (polari_graph.c/.h + Makefile + the atom files; make alone builds it), proven behaviour-equivalent to the hand-written app on the simavr twin (CGlueBuild).",
  "version": "0.1.0",
  "kind": "official",
  "wave": null,
@@ -61,7 +61,10 @@
  "files": {
   "objects": [
    "objects/cmod/CFunctionAtom",
+   "objects/cmod/CGlueBuild",
    "objects/cmod/CGraph",
+   "objects/cmod/CGraphEdge",
+   "objects/cmod/CGraphNode",
    "objects/cmod/CModule",
    "objects/cmod/CPort",
    "objects/cmod/CProject"
@@ -91,6 +94,10 @@
    "custom/c_types",
    "custom/cmod_cli",
    "custom/cmod_engines",
+   "custom/glue",
+   "custom/glue_build",
+   "custom/graph",
+   "custom/graph_seed",
    "custom/manifest",
    "custom/measure",
    "custom/preprocess",
@@ -98,12 +105,16 @@
    "custom/registers",
    "custom/rows",
    "custom/scan",
+   "custom/selftest_glue",
    "custom/selftest_uno"
   ]
  },
  "classes": [
   "CFunctionAtom",
+  "CGlueBuild",
   "CGraph",
+  "CGraphEdge",
+  "CGraphNode",
   "CModAPI",
   "CModule",
   "CPort",
@@ -118,6 +129,9 @@
     "CFunctionAtom",
     "CPort",
     "CGraph",
+    "CGraphNode",
+    "CGraphEdge",
+    "CGlueBuild",
     "CMOD_CLASSES"
    ]
   ],
@@ -166,5 +180,5 @@
  "featureModule": true,
  "coreRequired": false,
  "legacyDynamicModule": false,
- "engines_note": "parsing needs no engine; the cost and the make-alone proof run through the board engines seam (cmod.custom.cmod_engines)"
+ "engines_note": "parsing needs no engine; the cost and the make-alone proof run through the board engines seam (cmod.custom.cmod_engines); cmod-1 build/prove: make + avr-gcc on the same rung, the simavr twin (avr-twin) through the board engines seam"
 }
