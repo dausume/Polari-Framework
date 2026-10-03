@@ -236,8 +236,17 @@ def part_s2(worker=False):
         check('CBMC: hal_millis with HAL_MILLIS_ATOMIC 1 → %s (%s, %.2f s, %.1f MB)' % (a['outcome'], a['claim_status'], a['wall_s'], a['peak_rss_mb']),
               a['outcome'] == 'decided' and a['claim_status'] == 'decided (bounded, k=2)', a['outcome_words'])
         cx = json.loads(t['counterexample_json'])
-        check('CBMC: HAL_MILLIS_ATOMIC 0 → refuted with a C trace (sha %s…): %s' % (t['trace_sha256'][:12], cx.get('reads')),
-              t['outcome'] == 'refuted' and t['trace_sha256'] and cx['values']['r'] > cx['values']['post'], t['outcome_words'])
+        v = cx.get('values', {})
+        # the trace always carries the torn read's four bytes + the before/after snapshots (init, pre); 'r' and 'post'
+        # are only in the vals dict when the chosen trace happens to assign them (CBMC may pick a different failing
+        # trace run to run) — never keyed on, so the check does not KeyError when they are absent
+        reconstructed = v.get('b0', 0) | (v.get('b1', 0) << 8) | (v.get('b2', 0) << 16) | (v.get('b3', 0) << 24)
+        words = cx.get('reads') or ('bytes b0..b3 = 0x%02X 0x%02X 0x%02X 0x%02X reconstruct 0x%08X vs pre 0x%08X / init 0x%08X'
+                                     % (v.get('b0', 0), v.get('b1', 0), v.get('b2', 0), v.get('b3', 0), reconstructed, v.get('pre', 0), v.get('init', 0)))
+        check('CBMC: HAL_MILLIS_ATOMIC 0 → refuted with a C trace (sha %s…): %s' % (t['trace_sha256'][:12], words),
+              t['outcome'] == 'refuted' and t['trace_sha256']
+              and all(k in v for k in ('init', 'pre', 'b0', 'b1', 'b2', 'b3'))
+              and reconstructed not in (v.get('pre'), v.get('init')), t['outcome_words'])
         check('CBMC: RX_RING 512 → inapplicable (hal.c\'s static guard refuses the source)', r5['outcome'] == 'inapplicable', r5['outcome_words'])
         cl = {x['name']: x for x in sink.rows('MathClaim')}
         ca = cl.get('fw-safe:torn-millis-read:%s' % a['build_name'], {})
