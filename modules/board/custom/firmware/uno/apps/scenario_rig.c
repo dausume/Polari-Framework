@@ -73,6 +73,8 @@ static volatile uint8_t g_rec_writes;  /* records written since boot */
 #if SC_EEPROM_RECORD == 2
 static uint8_t g_rec_slot, g_rec_seq;
 
+POLARI_NODE(crc8, in(d, "bytes", "the record bytes"), in(n, "B", "how many"), out(return, "crc", "CRC-8, poly 0x07, init 0"),
+            role("the EEPROM record's checksum"))
 static uint8_t crc8(const uint8_t *d, uint8_t n)  /* CRC-8, poly 0x07, init 0 */
 {
     uint8_t c = 0u;
@@ -83,6 +85,8 @@ static uint8_t crc8(const uint8_t *d, uint8_t n)  /* CRC-8, poly 0x07, init 0 */
     return c;
 }
 
+POLARI_NODE(slot_read, in(s, "", "slot 0 or 1"), out(v, "", "the stored value"), out(sq, "", "the slot's sequence number"),
+            out(return, "flag", "1 = the slot's crc matched"), uses(EEPROM), role("read one write-then-commit EEPROM slot"))
 static uint8_t slot_read(uint8_t s, uint32_t *v, uint8_t *sq)
 {
     uint8_t b[6];
@@ -174,6 +178,8 @@ static void drain_rx(void)
 /* AFTER: the explicit state machine, one step per main-loop pass (noinline so the twin's --fn-cycles prices one step) */
 static uint32_t g_ack_deadline;
 
+POLARI_NODE(ack_step, in(now, "ms", "hal_millis() of this main-loop pass"),
+            role("one step of the request/ack state machine with timeout and retries"))
 __attribute__((noinline)) static void ack_step(uint32_t now)
 {
     switch (g_ack_state) {

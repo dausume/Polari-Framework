@@ -1,0 +1,520 @@
+{
+ "schema": "cmod-registers/1",
+ "mcu": "atmega328p",
+ "avr_libc": "2.2.1",
+ "derived_by": "avr-gcc -mmcu=atmega328p -E -dM <file including avr/io.h> (board engines seam)",
+ "dm_sha256": "45dba0b820ff25c6fa7f50c2f7a0d527988bea35dd65551c31d072704500d0ce",
+ "registers": {
+  "ACSR": {
+   "addr": "0x30",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "ADC": {
+   "addr": "0x78",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "ADCH": {
+   "addr": "0x79",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ADCL": {
+   "addr": "0x78",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ADCSRA": {
+   "addr": "0x7a",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ADCSRB": {
+   "addr": "0x7b",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ADCW": {
+   "addr": "0x78",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "ADMUX": {
+   "addr": "0x7c",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ASSR": {
+   "addr": "0xb6",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "CLKPR": {
+   "addr": "0x61",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "DDRB": {
+   "addr": "0x04",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "DDRC": {
+   "addr": "0x07",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "DDRD": {
+   "addr": "0x0a",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "DIDR0": {
+   "addr": "0x7e",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "DIDR1": {
+   "addr": "0x7f",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "EEAR": {
+   "addr": "0x21",
+   "width_bytes": 2,
+   "space": "io"
+  },
+  "EEARH": {
+   "addr": "0x22",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "EEARL": {
+   "addr": "0x21",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "EECR": {
+   "addr": "0x1f",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "EEDR": {
+   "addr": "0x20",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "EICRA": {
+   "addr": "0x69",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "EIFR": {
+   "addr": "0x1c",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "EIMSK": {
+   "addr": "0x1d",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "GPIOR0": {
+   "addr": "0x1e",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "GPIOR1": {
+   "addr": "0x2a",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "GPIOR2": {
+   "addr": "0x2b",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "GTCCR": {
+   "addr": "0x23",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "ICR1": {
+   "addr": "0x86",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "ICR1H": {
+   "addr": "0x87",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "ICR1L": {
+   "addr": "0x86",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "MCUCR": {
+   "addr": "0x35",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "MCUSR": {
+   "addr": "0x34",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "OCR0A": {
+   "addr": "0x27",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "OCR0B": {
+   "addr": "0x28",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "OCR1A": {
+   "addr": "0x88",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "OCR1AH": {
+   "addr": "0x89",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OCR1AL": {
+   "addr": "0x88",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OCR1B": {
+   "addr": "0x8a",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "OCR1BH": {
+   "addr": "0x8b",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OCR1BL": {
+   "addr": "0x8a",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OCR2A": {
+   "addr": "0xb3",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OCR2B": {
+   "addr": "0xb4",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "OSCCAL": {
+   "addr": "0x66",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "PCICR": {
+   "addr": "0x68",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "PCIFR": {
+   "addr": "0x1b",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PCMSK0": {
+   "addr": "0x6b",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "PCMSK1": {
+   "addr": "0x6c",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "PCMSK2": {
+   "addr": "0x6d",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "PINB": {
+   "addr": "0x03",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PINC": {
+   "addr": "0x06",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PIND": {
+   "addr": "0x09",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PORTB": {
+   "addr": "0x05",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PORTC": {
+   "addr": "0x08",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PORTD": {
+   "addr": "0x0b",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "PRR": {
+   "addr": "0x64",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "SMCR": {
+   "addr": "0x33",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SP": {
+   "addr": "0x3d",
+   "width_bytes": 2,
+   "space": "io"
+  },
+  "SPCR": {
+   "addr": "0x2c",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SPDR": {
+   "addr": "0x2e",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SPH": {
+   "addr": "0x3e",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SPL": {
+   "addr": "0x3d",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SPMCSR": {
+   "addr": "0x37",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SPSR": {
+   "addr": "0x2d",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "SREG": {
+   "addr": "0x3f",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TCCR0A": {
+   "addr": "0x24",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TCCR0B": {
+   "addr": "0x25",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TCCR1A": {
+   "addr": "0x80",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCCR1B": {
+   "addr": "0x81",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCCR1C": {
+   "addr": "0x82",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCCR2A": {
+   "addr": "0xb0",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCCR2B": {
+   "addr": "0xb1",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCNT0": {
+   "addr": "0x26",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TCNT1": {
+   "addr": "0x84",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "TCNT1H": {
+   "addr": "0x85",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCNT1L": {
+   "addr": "0x84",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TCNT2": {
+   "addr": "0xb2",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TIFR0": {
+   "addr": "0x15",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TIFR1": {
+   "addr": "0x16",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TIFR2": {
+   "addr": "0x17",
+   "width_bytes": 1,
+   "space": "io"
+  },
+  "TIMSK0": {
+   "addr": "0x6e",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TIMSK1": {
+   "addr": "0x6f",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TIMSK2": {
+   "addr": "0x70",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWAMR": {
+   "addr": "0xbd",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWAR": {
+   "addr": "0xba",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWBR": {
+   "addr": "0xb8",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWCR": {
+   "addr": "0xbc",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWDR": {
+   "addr": "0xbb",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "TWSR": {
+   "addr": "0xb9",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UBRR0": {
+   "addr": "0xc4",
+   "width_bytes": 2,
+   "space": "mem"
+  },
+  "UBRR0H": {
+   "addr": "0xc5",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UBRR0L": {
+   "addr": "0xc4",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UCSR0A": {
+   "addr": "0xc0",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UCSR0B": {
+   "addr": "0xc1",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UCSR0C": {
+   "addr": "0xc2",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "UDR0": {
+   "addr": "0xc6",
+   "width_bytes": 1,
+   "space": "mem"
+  },
+  "WDTCSR": {
+   "addr": "0x60",
+   "width_bytes": 1,
+   "space": "mem"
+  }
+ },
+ "vectors": {
+  "INT0_vect": 1,
+  "INT1_vect": 2,
+  "PCINT0_vect": 3,
+  "PCINT1_vect": 4,
+  "PCINT2_vect": 5,
+  "WDT_vect": 6,
+  "TIMER2_COMPA_vect": 7,
+  "TIMER2_COMPB_vect": 8,
+  "TIMER2_OVF_vect": 9,
+  "TIMER1_CAPT_vect": 10,
+  "TIMER1_COMPA_vect": 11,
+  "TIMER1_COMPB_vect": 12,
+  "TIMER1_OVF_vect": 13,
+  "TIMER0_COMPA_vect": 14,
+  "TIMER0_COMPB_vect": 15,
+  "TIMER0_OVF_vect": 16,
+  "SPI_STC_vect": 17,
+  "USART_RX_vect": 18,
+  "USART_UDRE_vect": 19,
+  "USART_TX_vect": 20,
+  "ADC_vect": 21,
+  "EE_READY_vect": 22,
+  "ANALOG_COMP_vect": 23,
+  "TWI_vect": 24,
+  "SPM_READY_vect": 25
+ },
+ "engine": {
+  "how": "local-image",
+  "where": "prf-board-engines:trixie"
+ }
+}

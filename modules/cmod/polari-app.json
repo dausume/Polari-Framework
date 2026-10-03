@@ -1,0 +1,170 @@
+{
+ "schema": "polari-app/1",
+ "id": "cmod",
+ "package": "cmod",
+ "title": "C Modularization",
+ "description": "C modularization (cmod arc, C_MODULARIZATION_PLAN.md): a NORMAL C firmware project — it builds with make alone — read by Polari as ATOMS: C functions with declared ports (an empty POLARI_NODE macro or a comment block), the registers / globals / ISRs they touch, pure and ISR-safe verdicts, and their measured cost (text bytes shipped and as a node, the .su stack frame) — derived by parsing (pycparser, in the framework process) into rows and the conformed polari-firmware.json beside the Makefile. No C<->Python transpiling. cmod-0: the UNO firmware template (34 atoms).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-cmod.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "firmware",
+   "c",
+   "atoms",
+   "no-code"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "pycparser",
+    "kind": "python",
+    "probe": "pycparser",
+    "note": "pycparser 2.21 (BSD-3-Clause) — ALREADY in the framework image (requirements.txt pins it for cffi): the atom parser runs IN the framework process, pure Python, with its bundled PLY preprocessor (pycparser.ply.cpp) and cmod's fake avr-libc headers; 0 MB added. libclang was not taken (D-cmod-1): python3-clang-19 pulls libclang-19-dev + libllvm19 (~470 MB installed) into an engine image"
+   },
+   {
+    "name": "avr-gcc",
+    "kind": "system",
+    "probe": "avr-gcc",
+    "note": "the measurement compile only (the Makefile's own flags + -fstack-usage, once as shipped and once -fno-inline) — board's engine, resolved through the BOARD engines seam (BOARD_ENGINES_URL → local binary → prf-board-engines:trixie → topology board.engines → refusal)"
+   },
+   {
+    "name": "avr-nm",
+    "kind": "system",
+    "probe": "avr-nm",
+    "note": "binutils in the same image: per-function text bytes (nm -S --size-sort); the worker's /run lists it"
+   },
+   {
+    "name": "make",
+    "kind": "system",
+    "probe": "make",
+    "note": "GNU make in prf-board-engines: the proof that a project builds with make ALONE, run on the rung avr-gcc runs on (a remote worker runs single engines → refused, never faked)"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/cmod/CFunctionAtom",
+   "objects/cmod/CGraph",
+   "objects/cmod/CModule",
+   "objects/cmod/CPort",
+   "objects/cmod/CProject"
+  ],
+  "basis": [
+   "cmod_basis"
+  ],
+  "api": [
+   "cmod_api"
+  ],
+  "endpoints": [
+   "cmod_endpoints"
+  ],
+  "seed": [
+   "cmod_seed"
+  ],
+  "page": [
+   "cmod_page"
+  ],
+  "selftests": [
+   "cmod_selftest"
+  ],
+  "custom": [
+   "custom/analyse",
+   "custom/annotation",
+   "custom/atoms",
+   "custom/c_types",
+   "custom/cmod_cli",
+   "custom/cmod_engines",
+   "custom/manifest",
+   "custom/measure",
+   "custom/preprocess",
+   "custom/projects",
+   "custom/registers",
+   "custom/rows",
+   "custom/scan",
+   "custom/selftest_uno"
+  ]
+ },
+ "classes": [
+  "CFunctionAtom",
+  "CGraph",
+  "CModAPI",
+  "CModule",
+  "CPort",
+  "CProject"
+ ],
+ "imports": [
+  [
+   "cmod.cmod_basis",
+   [
+    "CProject",
+    "CModule",
+    "CFunctionAtom",
+    "CPort",
+    "CGraph",
+    "CMOD_CLASSES"
+   ]
+  ],
+  [
+   "cmod.cmod_seed",
+   [
+    "CMOD_SEED_PAIRS"
+   ]
+  ],
+  [
+   "cmod.cmod_page",
+   [
+    "SEED_CMOD_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "cmod.cmod_endpoints:construct_cmod_endpoints",
+ "seedPairs": "cmod.cmod_seed:CMOD_SEED_PAIRS",
+ "pages": [
+  "cmod.cmod_page:SEED_CMOD_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "cmod_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false,
+ "engines_note": "parsing needs no engine; the cost and the make-alone proof run through the board engines seam (cmod.custom.cmod_engines)"
+}

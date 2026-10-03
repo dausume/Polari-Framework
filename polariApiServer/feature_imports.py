@@ -1315,6 +1315,12 @@ FEATURE_IMPORT_BLOCKS = (
         ('firmwarefaults.firmwarefaults_seed', ('FIRMWAREFAULTS_SEED_PAIRS',)),
         ('firmwarefaults.firmwarefaults_page', ('SEED_FIRMWAREFAULTS_PAGE_DISPLAYS',)),
     )),
+    # cmod-0 (C_MODULARIZATION_PLAN): a normal C project's functions as atoms — ports, resources, cost — parsed, never typed in
+    ('cmod', (
+        ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CMOD_CLASSES')),
+        ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
+        ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
+    )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),

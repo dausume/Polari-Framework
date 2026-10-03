@@ -20,6 +20,10 @@
 # serials replaced; vendor:product ids, bus topology, IOMMU groups and driver
 # names are not personal and stay real). See modules/hwmap/README.md.
 !modules/hwmap/custom/fixture_pol_core.json
+# cmod-0: the CONFORMED C manifest IS source like polari-app.json (derived by `pol cmod conform`, committed beside the
+# project's Makefile), and the register snapshot the parser reads (derived from avr-libc's <avr/io.h>, carries its sha)
+!modules/**/polari-firmware.json
+!modules/cmod/custom/registers_*.json
 *.pyc
 *.db
 */falcon

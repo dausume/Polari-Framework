@@ -50,6 +50,8 @@ FEATURE_MODULES = frozenset({
     'board',
     # sc-0 (FIRMWARE_SCENARIO_PLAN): firmware fault scenarios on the board twins
     'firmwarefaults',
+    # cmod-0 (C_MODULARIZATION_PLAN): C functions of a normal C project as atoms with ports, resources and cost
+    'cmod',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a

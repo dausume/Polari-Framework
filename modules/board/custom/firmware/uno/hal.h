@@ -15,6 +15,13 @@
 
 #include "board_config.h"
 
+/* cmod (C_MODULARIZATION_PLAN.md §4): POLARI_NODE(name, in(…), out(…), uses(…), role("…")) above a function marks it a
+ * Polari ATOM with declared ports. It expands to NOTHING, so a plain `make` never sees it and the .hex is unchanged;
+ * Polari reads it from the source (`pol cmod conform uno` → polari-firmware.json). */
+#ifndef POLARI_NODE
+#define POLARI_NODE(...)
+#endif
+
 #ifndef FEATURE_LED
 #define FEATURE_LED 0
 #endif
