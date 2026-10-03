@@ -27,6 +27,9 @@
 # cmod-1: a graph's glue-build record (the rendered files' shas, the cost estimate, make alone, the twin equivalence proof) IS
 # source — the CGlueBuild row is seeded from it
 !modules/cmod/custom/glue_builds/*.json
+# brd-bo: the board object's dev-hn-0 baseline (the byte-identity fixture) and the ingested Zephyr files' provenance ARE source
+!modules/board/custom/fixtures/*.json
+!modules/board/custom/upstream/**/SOURCE.json
 *.pyc
 *.db
 */falcon

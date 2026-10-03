@@ -4,7 +4,10 @@
 `pol board gen c3 [--variant <name>]` (sc-3): render an ESP-IDF C project for the ESP32-C3 AROUND the generated SimRigState
 header — the template `board/custom/firmware/esp32c3/` (CMakeLists.txt, sdkconfig.defaults, partitions.csv, main/: the
 common layer, the trace ring, the variant's app `apps/<app>.c` copied as main/app.c) + main/board_config.h from the
-variant's knobs (board.custom.variants_c3) + main/simrigstate_packets.h rendered with c_twin **target=host** (riscv32's
+variant's knobs (board.custom.variants_c3) + (brd-bo) main/board_pins.h and sdkconfig.defaults' board-owned lines from THE
+BOARD OBJECT's rows (board.custom.views.esp_idf; the template's polari_c3.h keeps sc-3's line layout, so the image of every
+variant stays byte-identical — the ESP_ERROR_CHECK __LINE__ immediates and the ELF sha esptool patches into the app descriptor
+both move with a shifted line) + main/simrigstate_packets.h rendered with c_twin **target=host** (riscv32's
 double is 8 bytes, little-endian: no software conversion — the UNO's target=avr is not needed), wire v2, so the frames are
 byte-for-byte the UNO's and the SAME bridge parses them:
 
@@ -98,7 +101,43 @@ def source_sha(project):
     return h.hexdigest()
 
 
-def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, **knobs):
+def board_files(manager=None, board_tables=None):
+    """brd-bo: (board_pins.h text, {sdkconfig key: line}, board sha) rendered from THE BOARD OBJECT's rows (this server's when it
+    holds them, the given tables, else the seeds) — board.custom.views.esp_idf."""
+    from board.custom import board_object as bo
+    from board.custom.views import esp_idf, ViewRefused
+    tables = board_tables
+    if tables is None and manager is not None:
+        t = bo.tables_from_manager(manager)
+        tables = t if any(p.get('board') == BOARD for p in t.get('BoardPin', [])) else None
+    try:
+        r = bo.rows_for(BOARD, tables)
+        files = esp_idf.render(r, bo.board_sha(r))
+        lines = esp_idf.sdk_lines(r)
+    except (bo.BoardObjectRefused, ViewRefused) as e:
+        raise gen.GenRefused(str(e))
+    return files[esp_idf.PINS_FILE], {ln.split('=', 1)[0]: ln for ln, _ in lines}, bo.board_sha(r)
+
+
+def apply_sdkconfig(text, board_lines):
+    """The template's sdkconfig.defaults with every BOARD-OWNED line taken from the rows, IN PLACE (same position; a line the
+    template lacks is appended). The app's own lines are untouched. → (text, [keys replaced], [keys appended])."""
+    out, seen, changed = [], set(), []
+    for ln in text.splitlines():
+        key = ln.split('=', 1)[0].strip() if ln.startswith('CONFIG_') else ''
+        if key in board_lines:
+            seen.add(key)
+            if ln != board_lines[key]:
+                changed.append(key)
+            out.append(board_lines[key])
+        else:
+            out.append(ln)
+    added = [k for k in board_lines if k not in seen]
+    out += [board_lines[k] for k in added]
+    return '\n'.join(out) + ('\n' if text.endswith('\n') else ''), changed, added
+
+
+def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, board_tables=None, **knobs):
     try:
         v = V.find(variant or V.DEFAULT_VARIANT, variant_rows)
         r = V.resolve(v, knobs)
@@ -111,6 +150,11 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, **k
     os.makedirs(os.path.join(project, 'main'))
     for f in TEMPLATE_FILES:
         shutil.copy(os.path.join(TEMPLATE, f), os.path.join(project, f))
+    # brd-bo: the board's own lines come from the rows — main/board_pins.h generated, sdkconfig.defaults' board-owned lines in place
+    pins_h, sdk_board, bsha = board_files(manager, board_tables)
+    open(os.path.join(project, 'main', 'board_pins.h'), 'w').write(pins_h)
+    sdk, sdk_changed, sdk_added = apply_sdkconfig(open(os.path.join(TEMPLATE, 'sdkconfig.defaults')).read(), sdk_board)
+    open(os.path.join(project, 'sdkconfig.defaults'), 'w').write(sdk)
     app_src = os.path.join(TEMPLATE, 'apps', '%s.c' % r['app'])
     shutil.copy(app_src, os.path.join(project, 'main', 'app.c'))
     text, prov = header('SimRigState', api, manager)
@@ -133,7 +177,10 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, **k
            'flash_log': '', 'generated_at': datetime.datetime.now().isoformat(timespec='seconds'), 'hex_path': '',
            'repro_json': json.dumps({'inputs': [{'label': lab, 'path': p, 'sha256': gen.sha256(open(fp, 'rb').read())} for lab, p, fp in tfiles]
                                     + [{'label': 'contract SimRigState', 'path': cls_row.get('path', cls_row.get('url', '')), 'sha256': cls_row.get('sha256', cls_row['header_sha256'])}],
-                                    'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], build_flags=['%s=%d' % f for f in r['flags']])}),
+                                    'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], build_flags=['%s=%d' % f for f in r['flags']]),
+                                    'board_object': {'board': BOARD, 'board_sha': bsha, 'board_pins_h_sha256': gen.sha256(pins_h),
+                                                     'sdkconfig_board_lines': sorted(sdk_board.values()), 'sdkconfig_changed': sdk_changed,
+                                                     'sdkconfig_added': sdk_added}}),
            'notes': 'generated (variant %s, ESP-IDF project); `pol board build c3` compiles it' % r['name'], 'project_dir': project, 'work_dir': work}
     gen.write_record(work, row)
     return row

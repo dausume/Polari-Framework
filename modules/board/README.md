@@ -219,6 +219,58 @@ about the language, and gen's RULE 2 check admits only `.c`/`.h` plus CMakeLists
 - The UNO's finding held here too: a fresh server's v1 tag order differs from the pinned v2 snapshot under the same contract
   hash, so decode with the server's own field map.
 
+## THE BOARD OBJECT (brd-bo — PCB_FROM_SCRATCH_PLAN §2b, his ruling 2026-10-03)
+
+One board definition shared by KiCad, Zephyr, ESP-IDF/FreeRTOS, bare C and Polari, built around the one thing they overlap on:
+**which SoC pin is wired to which net, and what it is for.** Every world's board file is a VIEW rendered from the rows and read
+back into them — never a hand-kept copy.
+
+| layer | rows (objects/board/) | UNO R3 | ESP32-C3 |
+|---|---|---|---|
+| Identity | `BoardDefinition` (brd-0's, + `soc_definition`, `revision`, `upstream_board`) | R3 (A000066) | DevKitM (Zephyr's reference board) |
+| SoC | `SocDefinition`, `SocPin` | ATmega328P: 23 I/O pins of the 28-SPDIP, alternate functions (DS40002061B Fig 1-1 p.12, Tables 14-3/6/9 pp.91/94/97) | ESP32-C3: 22 GPIOs, IO MUX + analog functions (datasheet v2.4 Tables 2-4, 2-6); clock/memories from Zephyr's dtsi |
+| BoardHardware | `BoardHardware`, `BoardNet`, `Connector`, `ConnectorPin` | 5 headers with pin order (POWER/ANALOG/DIGITAL_L/DIGITAL_H/ICSP), the 16U2 as the USB identity | none in Zephyr's dts (said); the USB note below |
+| PinAssignment | **`BoardPin`** — canonical name (named ONCE), soc pin, net, connector pin, function/peripheral/signal, C symbol, electrical facts | D0–D13, A0–A5 (Arduino's pinout, cited per pin) | 12: 9 INGESTED from Zephyr v4.4.2 + GPIO18/19 USB (cited) + GPIO4 UART1 TX (polari: the sc-3 trace) |
+| RuntimeProfile | `RuntimeProfile` per `firmware_runtime` | bare-c ✓; freertos/esp-idf/zephyr REFUSED with why | esp-idf ✓, freertos ✓ (= ESP-IDF's), zephyr ✓ (renders, not built); bare-c refused |
+| views | `BoardView` (out/in, sha256, board sha), `BoardConflict` (never auto-resolved) | observed | observed |
+
+`BoardNet` is not electrodevice's `CircuitNetDefinition` (scoped to a simulated circuit, no class or voltage); `circuit_net`
+links one when a board's net is also simulated.
+
+**Sources, stored and cited:** Zephyr v4.4.2 (commit dccb0959…ce90) `boards/espressif/esp32c3_devkitm/` + the SoC dtsi it
+includes + `esp32c3-pinctrl.h` under `custom/upstream/zephyr-v4.4.2/` (Apache-2.0, LICENSE beside them, every file's sha256 in
+SOURCE.json); Arduino's "UNO R3 (A000066) Full Pinout" (sha256 088b4d7d…); the ATmega328P datasheet DS40002061B (sha256
+b9b9d83c…, the file brd-1 already cites); the ESP32-C3 datasheet v2.4 (sha256 833fc000…). One `DatasheetFact` per SoC pin and per
+UNO pin; ingested C3 pins cite file:line.
+
+**Views** (`custom/views/`): `kicad` (a KiCad 6+ netlist `.net`, written directly — D-pcb-1; validated by `custom/sexpr.py`
+against the shape of KiCad 9's own qa netlist; no kicad-cli here yet), `zephyr` (an overlay + `.conf`; every pinmux macro must
+exist in the stored pinctrl header; the UNO is REFUSED: no AVR arch in Zephyr), `esp-idf` (`board_pins.h` + the board-owned
+sdkconfig lines), `bare-c` (cmod's `board_config.h` with a provenance banner). Ingest (`custom/ingest.py`,
+`custom/ingest_zephyr.py`, `custom/dts.py`) reads each back; a disagreement is a `BoardConflict`, the rows never change.
+
+**Where the rows reach the firmware:** `gen.py` takes `LED_PIN` / `PWM_PIN` / `ADC_CHANNEL` from the BoardPin rows carrying
+those symbols (the seeded variants no longer carry pin knobs; `variants.PWM_PINS` is derived from the SocPin rows minus the
+runtime's reserved Timer2) — every UNO variant's board_config.h, and so its .hex, is byte-identical to dev-hn-0's (16 built + the
+one refused by design; `custom/fixtures/brd_bo_baseline.json`). `gen_c3.py` writes `main/board_pins.h` from the rows (it replaced
+the hand-written `#define POLARI_TRACE_TX_GPIO 4`) and sets sdkconfig.defaults' four board-owned lines IN PLACE; the c3-sim-rig
+image, app.bin and ELF stay byte-identical — polari_c3.h keeps sc-3's line layout, because a shifted line moves the
+ESP_ERROR_CHECK `__LINE__` immediates and the DWARF, so the ELF sha esptool patches into the app descriptor changes (the first
+attempt, 7 lines added to polari_c3.c, changed the image exactly that way).
+
+**The USB note (C3):** Zephyr's dts says of `usb_serial` "requires resoldering of resistors on the board" — on the DevKitM the
+USB connector reaches UART0 through a USB-UART bridge by default; recorded on the BoardHardware row.
+
+```
+pol board pins uno|c3                               # the assignment, the profiles, the rules, the board sha
+pol board render <board> --as kicad|zephyr|esp-idf|bare-c [--out DIR]
+pol board ingest <path> --as KIND [--board B]       # conflicts → the ledger (~/.cache/polari-board/board-object/)
+pol board conflicts [<board>]
+pol board assign uno PWM_LED D5                     # THE FLIP: every view's changed lines (bare-C PWM_PIN 6→5, KiCad PWM_LED on PD5/J3:6)
+GET  /api/board/<board>/pins | views | conflicts    POST /api/board/<board>/render | ingest   (board_object_api.py)
+BOARD_ENGINES_URL=… ESP_ENGINES_URL=… PYTHONPATH=.:modules python3 tests/board_object_probe.py   # the real builds on the workers
+```
+
 ## Selftest
 
 ```
@@ -230,6 +282,8 @@ cd /tmp/x && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_uno_bridge_pr
 cd /tmp/p && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_pair_probe.py        # brd-wire: n=2 and n=3 twins on one bridge
 cd /tmp/c && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/board_c3_twin_probe.py      # sc-3: the C3 twin + the Java bridge (skips without prf-esp-engines)
 PYTHONPATH=.:modules python3 -m board.board_c3_selftest       # sc-3 alone (also run by board_selftest): variants, gen, flash argv, a FAKE twin, a REAL build
+# brd-bo: board_object_selftest runs inside board_selftest (rows, rules, views, round trips, conflicts, fixtures, the flip);
+# tests/board_object_probe.py does the REAL builds through BOARD_ENGINES_URL / ESP_ENGINES_URL (skips a worker that does not answer)
 # the in-process servers boot through tests/board_probe_boot.py: the framework as cwd for the boot, the DB in ./data here
 ```
 

@@ -35,12 +35,28 @@ APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'a
 RX_PARSERS = ('resync', 'keep-tail')
 FEATURES = ('led', 'pwm', 'adc', 'commands')
 DEFAULT_VARIANT = 'uno-sim-rig'
-DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6,
-                 'adc_channel': 0, 'temp_formula': 'tmp36', 'blink_ms': 0,
+DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'temp_formula': 'tmp36', 'blink_ms': 0,
                  # brd-wire (grpc-j4): the bridge whose bindings set the instance-index width ('' = one instance, 0 bits),
                  # THIS build's index, and whether telemetry carries `name` (a bound interface's identity is its binding)
                  'bridge': '', 'instance_index': 0, 'send_name': 1}
-PWM_PINS = (5, 6, 9, 10)
+
+
+def _board_pins():
+    """brd-bo (THE BOARD OBJECT): the pin knobs LED_PIN / PWM_PIN / ADC_CHANNEL come from the UNO's BoardPin rows (the pins
+    carrying those firmware symbols — D13, D6, A0 in the seed), and the PWM-capable pins are DERIVED from the SocPin rows (an
+    Output Compare of Timer0/1; Timer2 is reserved by the bare-C runtime profile for the 1 ms tick) — no pin literal here."""
+    from board.custom import board_object as bo
+    from board.custom.soc_atmega328p import pwm_functions, FUNCTION_PERIPHERAL
+    r = bo.rows_for('arduino-uno-r3')
+    reserved = {x['name'] for x in json.loads(r['profiles']['bare-c']['peripherals_json']) if x.get('reserved')}
+    pwm = tuple(sorted(int(p['number']) for p in r['pins'] if p['canonical'].startswith('D')
+                       and [f for f in pwm_functions(r['soc_pins'], p['soc_pin']) if FUNCTION_PERIPHERAL[f][0] not in reserved]))
+    return bo.pin_knobs('arduino-uno-r3')[0], pwm
+
+
+ROW_PIN_KNOBS, PWM_PINS = _board_pins()   # ({'led_pin': 13, 'pwm_pin': 6, 'adc_channel': 0}, (5, 6, 9, 10)) from the seed rows
+DEFAULT_KNOBS.update(ROW_PIN_KNOBS)
+PIN_KNOBS = ('led_pin', 'pwm_pin', 'adc_channel')
 FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
 RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED', 'FEATURE_PWM', 'FEATURE_ADC', 'LED_PIN',
@@ -63,14 +79,14 @@ SEED_FIRMWARE_VARIANTS = [
        'brd-1\'s firmware. Tests the kit\'s TMP36 on A0, the on-board LED (D13) and a dimmable LED on D6, and the '
        'command path: a change made in Polari reaches the board and the board says so.',
        'sim_rig', ['SimRigState'], {'led': True, 'pwm': True, 'adc': True, 'commands': True},
-       {'rig_name': 'uno-rig', 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6, 'adc_channel': 0, 'temp_formula': 'tmp36'},
+       {'rig_name': 'uno-rig', 'telemetry_hz': 10, 'temp_formula': 'tmp36'},   # brd-bo: the pins come from the BoardPin rows
        'temp_c follows a finger on the TMP36; setting led_on lights D13, pwm_duty dims the LED on D6; status turns '
        '"commanded".', {'adc0_mv': 750}),
     _v('uno-blink-only', 'Blink: the LED toggles by itself, nothing else',
        'The smallest firmware worth flashing: no ADC, no PWM, no command path. Tests only that frames reach the row and '
        'that a pin moves — the first thing to try on a board you are not sure about.',
        'blink', ['SimRigState'], {'led': True, 'pwm': False, 'adc': False, 'commands': False},
-       {'rig_name': 'uno-blink', 'telemetry_hz': 10, 'led_pin': 13, 'blink_ms': 500},
+       {'rig_name': 'uno-blink', 'telemetry_hz': 10, 'blink_ms': 500},
        'D13 blinks twice a second; led_on flips true / false in the frames AND in the row (brd-wire: the presence mask '
        'sends a false that is present — the old proto3 drop is gone); uptime_ms climbs; temp_c and pwm_duty are not sent '
        '(absent from the frame), so the row keeps whatever it had.',
@@ -89,7 +105,7 @@ SEED_FIRMWARE_VARIANTS = [
        '1-bit index in the frame; the struct carries no identity (no name either — the binding is the identity); the '
        'bridge re-attaches it. Tests that each row follows ITS board and a change reaches only the board it names.',
        'sim_rig', ['SimRigState'], {'led': True, 'pwm': True, 'adc': True, 'commands': True},
-       {'rig_name': 'uno-pair', 'telemetry_hz': 10, 'led_pin': 13, 'pwm_pin': 6, 'adc_channel': 0, 'temp_formula': 'tmp36',
+       {'rig_name': 'uno-pair', 'telemetry_hz': 10, 'temp_formula': 'tmp36',
         'bridge': 'uno-pair', 'instance_index': 0, 'send_name': 0},
        'rows uno-twin-0 and uno-twin-1 each follow their own board; setting pwm_duty on uno-twin-1 dims only board 1 '
        '(index 1 on the wire); led_on set back to false comes back false.', {'adc0_mv': 750},
@@ -126,8 +142,10 @@ def find(name, rows=None):
     raise VariantRefused('no firmware variant %r — known: %s' % (name, ', '.join(sorted({*VARIANT_NAMES, *[getattr(r, 'name', '') if not isinstance(r, dict) else r.get('name', '') for r in (rows or [])]} - {''}))))
 
 
-def resolve(variant, overrides=None):
-    """Validate a variant dict → {'app', 'classes', 'features', 'knobs', 'flags'}; raises VariantRefused naming why."""
+def resolve(variant, overrides=None, base=None):
+    """Validate a variant dict → {'app', 'classes', 'features', 'knobs', 'flags'}; raises VariantRefused naming why.
+    brd-bo: `base` = the pin knobs from the board's BoardPin rows (gen passes them; a variant's own knob still wins — an explicit
+    per-variant choice, recorded as such in the build's repro block)."""
     app = variant.get('app') or ''
     if app not in APP_CLASSES:
         raise VariantRefused('variant %s names app %r — the UNO template has %s' % (variant.get('name'), app, ', '.join(sorted(APP_CLASSES))))
@@ -142,7 +160,8 @@ def resolve(variant, overrides=None):
     missing = APP_NEEDS[app] - {f for f, on in feats.items() if on}
     if missing:
         raise VariantRefused('the %s app needs %s on' % (app, ', '.join(sorted(missing))))
-    k = dict(DEFAULT_KNOBS, **_j(variant.get('knobs_json'), {}))
+    k = dict(DEFAULT_KNOBS, **(base or {}))
+    k.update(_j(variant.get('knobs_json'), {}))
     k.update({a: b for a, b in (overrides or {}).items() if b is not None})
     why = []
     try:

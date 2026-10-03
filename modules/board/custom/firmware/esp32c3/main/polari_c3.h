@@ -20,9 +20,9 @@
 #include "freertos/semphr.h"
 
 #include "board_config.h"
-
-#ifndef POLARI_TRACE_TX_GPIO
-#define POLARI_TRACE_TX_GPIO 4      /* silicon only: UART1 TX for the trace lines (any free GPIO; QEMU ignores pins) */
+#include "board_pins.h"   /* brd-bo: GENERATED from the BoardPin rows (`pol board gen c3`; was `#define POLARI_TRACE_TX_GPIO 4` here): POLARI_TRACE_TX_GPIO (UART1 TX, the trace — silicon only, QEMU ignores pins), POLARI_FRAME_TX/RX_GPIO (UART0, kept on its IO MUX default pins 21/20 — this file is line-for-line the sc-3 layout so the image stays byte-identical) */
+#if !defined(POLARI_TRACE_TX_GPIO) || POLARI_FRAME_TX_GPIO != 21 || POLARI_FRAME_RX_GPIO != 20
+#error "board_pins.h: no POLARI_TRACE_TX_GPIO, or the BoardPin rows moved the frame UART off GPIO21/20 (UART0 keeps its IO MUX default pins here; a move needs a uart_set_pin for UART0 first)"
 #endif
 #ifndef POLARI_TRACE_EVENTS
 #define POLARI_TRACE_EVENTS 4096    /* the trace ring (8 B each); recording stops when full and the dump says so */

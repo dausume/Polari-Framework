@@ -16,6 +16,8 @@ class BoardDefinition(treeObject):
     RULE 1 (refined): reachable from the Polari host over USB, directly or through a known USB adapter —
     `usb_rule` is ok | undetermined | not-a-target, never guessed. RULE 2: `toolchain_engines` name only C or
     Verilog/SystemVerilog toolchains and flashers.
+    brd-bo: the IDENTITY layer of THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the pin assignment and the other layers
+    reference this row by name; `pol board pins <board>` shows them.
     """
 
     @treeObjectInit
@@ -29,7 +31,7 @@ class BoardDefinition(treeObject):
                  board_origin: str = '', tiers_proven: str = '', radios: str = '', power_bms: str = '',
                  polari_role: str = '', relied_on: str = '', cost_measured: str = '', licence_notes: str = '',
                  designer: str = 'others', road: str = '', road_status: str = 'todo', notes: str = '',
-                 manager=None):
+                 soc_definition: str = '', revision: str = '', upstream_board: str = '', manager=None):
         self.name = name  # the register id (kebab-case)
         self.title = title
         self.register_id = register_id  # the register row key, verbatim
@@ -69,3 +71,9 @@ class BoardDefinition(treeObject):
         self.road = road  # the Road row name
         self.road_status = road_status  # mirror of the Road's status for the table
         self.notes = notes  # register notes, verbatim, + which columns were ? in the register
+        # brd-bo (THE BOARD OBJECT, PCB_FROM_SCRATCH_PLAN §2b): this row IS the Identity layer — no second board class.
+        # The other layers hang on it by name: SocDefinition (soc_definition), BoardHardware / BoardNet / Connector /
+        # ConnectorPin, BoardPin (the pin assignment), RuntimeProfile, BoardView / BoardConflict.
+        self.soc_definition = soc_definition  # the SocDefinition row ('' = not modelled yet)
+        self.revision = revision  # the board revision the pin rows describe (R3, DevKitM …)
+        self.upstream_board = upstream_board  # an upstream board the rows were ingested from (zephyr:esp32c3_devkitm@v4.4.2)

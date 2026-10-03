@@ -1311,6 +1311,8 @@ class polariServer(treeObject):
             BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
             # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
             FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
+            # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoC / hardware / pin-assignment / runtime layers + views, conflicts
+            SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
             # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows; sc-1: statistics
             FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle,
             ScenarioStatistic,

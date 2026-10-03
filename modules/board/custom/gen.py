@@ -13,6 +13,10 @@ AROUND the generated per-class header(s). The project is the template (`board/cu
 No --variant = uno-sim-rig (brd-1's firmware, unchanged); `--class X` alone picks the seeded variant written for X.
 RULE 2 is checked on the result: a generated project holds only .c/.h/.v/.sv + Makefile/linker script.
 
+brd-bo (THE BOARD OBJECT): the pin constants of board_config.h (LED_PIN, PWM_PIN, ADC_CHANNEL) come from the board's BoardPin
+rows (board_pins below — the server's rows, else the seeds); the text rendered is unchanged, so every seeded variant's .hex stays
+byte-identical (board_object_selftest + tests/board_object_probe.py prove it); the repro block names the pins and the board sha.
+
 brd-fi: the FirmwareBuild row also carries `header_sha256` + `tag_order_json` (per class, the wire order) captured HERE,
 so the installer can judge compatibility on what the board will actually speak (board.custom.compat) — never on
 contract_hash alone (brd-1's finding: v1/v2 share a hash yet differ in order).
@@ -159,13 +163,44 @@ def pick_variant(classes, variant, rows=None):
                      % (', '.join(TEMPLATE_CLASSES['arduino-uno-r3']), ', '.join(classes)))
 
 
-def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None, variant_rows=None, **knobs):
+def board_pins(board, manager=None, board_tables=None):
+    """brd-bo: (pin knobs, {knob: canonical}, board sha) from THE BOARD OBJECT's BoardPin rows — this server's tables when it holds
+    them (a `manager`), the given tables (a test's edited copy), else the seed rows. The pin constants of board_config.h
+    (LED_PIN, PWM_PIN, ADC_CHANNEL) are these numbers."""
+    from board.custom import board_object as bo
+    tables = board_tables
+    if tables is None and manager is not None:
+        t = bo.tables_from_manager(manager)
+        tables = t if any(p.get('board') == board for p in t.get('BoardPin', [])) else None
+    try:
+        r = bo.rows_for(board, tables)
+    except bo.BoardObjectRefused as e:
+        raise GenRefused(str(e))
+    knobs, src = bo.pin_knobs(board, tables)
+    return knobs, src, bo.board_sha(r), r
+
+
+def _check_pins(r, knobs, rows):
+    """A pin knob must name a BoardPin of the board (D<n> / A<n>), never a number the board does not have."""
+    have = {p['canonical'] for p in rows['pins']}
+    why = ['%s %d: the board has no pin %s%d' % (k, r['knobs'][k], 'A' if k == 'adc_channel' else 'D', r['knobs'][k])
+           for k in V.PIN_KNOBS if ('A' if k == 'adc_channel' else 'D') + str(r['knobs'][k]) not in have]
+    if why:
+        raise GenRefused('; '.join(why))
+
+
+def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None, variant_rows=None, board_tables=None, **knobs):
     board = board_name(board)
     v = pick_variant(list(classes or []), variant, variant_rows)
+    pins, pin_src, bsha, brows = board_pins(board, manager, board_tables)
     try:
-        r = V.resolve(v, {a: b for a, b in knobs.items() if b is not None})
+        r = V.resolve(v, {a: b for a, b in knobs.items() if b is not None}, base=pins)
     except V.VariantRefused as e:
         raise GenRefused(str(e))
+    _check_pins(r, pins, brows)
+    own = set(V._j(v.get('knobs_json'), {})) | {a for a, b in knobs.items() if b is not None}
+    pin_prov = {k: ({'from': 'BoardPin', 'pin': pin_src.get(k, '')} if k not in own else {'from': 'variant knob', 'value': r['knobs'][k]})
+                for k in V.PIN_KNOBS}
     if classes and list(classes) != r['classes']:
         raise GenRefused('variant %s speaks %s, not %s' % (r['name'], ', '.join(r['classes']), ', '.join(classes)))
     work = work or default_work(board)
@@ -217,7 +252,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
            'repro_json': json.dumps({'inputs': [{'label': lab, 'path': p, 'sha256': sha256(open(fp, 'rb').read())} for lab, p, fp in tfiles]
                                     + [{'label': 'contract %s' % c['class'], 'path': c.get('path', c.get('url', '')), 'sha256': c.get('sha256', c['header_sha256'])} for c in class_rows],
                                     'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], features=r['features'],
-                                                  build_flags=['%s=%d' % f for f in r['flags']])}),
+                                                  build_flags=['%s=%d' % f for f in r['flags']]),
+                                    # brd-bo: where board_config.h's pin constants came from, and the board object's sha at gen time
+                                    'board_object': {'board': board, 'board_sha': bsha, 'pins': pin_prov}}),
            'notes': 'generated (variant %s); `pol board build uno` compiles it' % r['name'], 'project_dir': project, 'work_dir': work}
     write_record(work, row)
     return row

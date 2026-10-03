@@ -2,7 +2,8 @@
 @module board.board_page
 /display/boards — the board arc as CONFIGURED tables only (no custom component, no raw JSON): every tracked device with
 its USB route, adapter and road status; the adapters; the roads; the programmer kinds with their DRY-RUN templates; the
-boards and adapters seen plugged in; the cited datasheet facts.
+boards and adapters seen plugged in; the cited datasheet facts; (brd-bo) THE BOARD OBJECT — SoCs, pins, runtime profiles, views,
+conflicts.
 
 /display/firmware-installer — THE FIRMWARE INSTALLER APP's page (brd-fi, plan §7a). His intent: "that way we can test
 different kinds of things on the arduino uno to see if it works".
@@ -44,6 +45,21 @@ _BOARDS_PAGES = [
                               columns='name,bridge_name,object_class,object_name,board_instance,board_definition,interface_kind,interface_name,'
                                       'port,instance_index,wire_version,contract_hash_v2,frames_seen,refused_frames,last_seen_at',
                               column_formats='board_definition:ref:BoardDefinition')]),
+              # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoCs, the ONE pin assignment every view renders from,
+              # the runtime profiles (supported or refused, with why), the views by sha and the conflicts (never auto-resolved)
+              _row(5, [_table('boards-socs', 0, 12, 'SoCs — package, ISA, clock, where each fact came from (the board object\'s SoC layer)', 'SocDefinition',
+                              columns='name,title,package,isa,cpu_clock_hz,pin_count,vendor_target,zephyr_soc,source,undetermined')]),
+              _row(6, [_table('boards-pins', 0, 12, 'Pins — named ONCE: the canonical name every view uses (KiCad, Zephyr, ESP-IDF, bare C) ↔ SoC pin ↔ net ↔ '
+                              'connector pin, the function / peripheral / signal, the C symbol, where it came from', 'BoardPin',
+                              columns='board,canonical,soc_pin,net,connector_pin,function,peripheral,signal,firmware_symbol,alias,origin,undetermined',
+                              column_formats='board:ref:BoardDefinition')]),
+              _row(7, [_table('boards-runtime', 0, 12, 'Runtime profiles — per firmware_runtime: supported (console, tick, twin) or REFUSED with the reason',
+                              'RuntimeProfile', columns='board,runtime,supported,refusal,console_uart,clock_hz,tick_hz,heap_bytes,twin,origin',
+                              column_formats='board:ref:BoardDefinition')]),
+              _row(8, [_table('boards-views', 0, 7, 'Views — rendered out / ingested in, each by sha256 with the board sha at that moment (refusals too)',
+                              'BoardView', columns='board,kind,direction,sha256,board_sha,refused,refusal,conflicts,fields_carried,at'),
+                       _table('boards-conflicts', 1, 5, 'Conflicts — a view disagreed with the rows; shown, never auto-resolved', 'BoardConflict',
+                              columns='board,view_kind,pin,field,rows_value,view_value,state,detected_at')]),
           ]),
 ]
 

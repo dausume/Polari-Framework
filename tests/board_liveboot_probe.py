@@ -33,7 +33,7 @@ n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
 check('33 devices seeded', n('BoardDefinition') == 33, n('BoardDefinition'))
 check('13 adapters seeded', n('AdapterDefinition') == 13, n('AdapterDefinition'))
 check('9 programmer kinds seeded', n('ProgrammerKind') == 9, n('ProgrammerKind'))
-check('24 UNO facts seeded (19 brd-0 + 5 brd-1: USART UBRR x2, ADC formula, TMP36 x2)', n('DatasheetFact') == 24, n('DatasheetFact'))
+check('119 facts seeded: 24 UNO (19 brd-0 + 5 brd-1) + brd-bo 27 UNO pinout, 35 ATmega328P, 29 ESP32-C3, 4 ingested Zephyr files', n('DatasheetFact') == 119, n('DatasheetFact'))
 sim_cost_boards = sorted(getattr(c, 'board', '') for c in (tables.get('BoardSimCost', {}) or {}).values())
 check('brd-1 + sc-3: two measured BoardSimCost rows seeded (the UNO twin + the C3 twin)',
       sim_cost_boards == ['arduino-uno-r3', 'esp32-c3'], sim_cost_boards)
@@ -44,7 +44,7 @@ r = client.simulate_get('/api/board')
 check('GET /api/board answers: simulated = [the UNO, the C3], no RULE 2 violation',
       r.status_code == 200 and r.json['simulated'] == ['arduino-uno-r3', 'esp32-c3'] and r.json['rule2Violations'] == [], r.text[:200])
 r = client.simulate_get('/api/board/facts', params={'board': 'arduino-uno-r3'})
-check('GET /api/board/facts?board=arduino-uno-r3 → 24 cited facts', r.status_code == 200 and len(r.json['facts']) == 24, r.text[:200])
+check('GET /api/board/facts?board=arduino-uno-r3 → 51 cited facts (24 + brd-bo\'s 27 pinout facts)', r.status_code == 200 and len(r.json['facts']) == 51, r.text[:200])
 r = client.simulate_get('/api/board/roads')
 check('GET /api/board/roads → 33 roads, two in progress (the UNO + the C3)', r.status_code == 200 and len(r.json['roads']) == 33
       and sorted(x['board'] for x in r.json['roads'] if x['status'] != 'todo') == ['arduino-uno-r3', 'esp32-c3'], r.text[:200])
@@ -77,8 +77,8 @@ r = client.simulate_post('/api/board/builds', body=json.dumps({'build': fl, 'ins
 check('brd-1: a flashed build stamps BoardInstance.firmware_sha / last_flash_at; the row count stays one',
       r.status_code == 201 and inst[0].firmware_sha == 'ab' * 32 and inst[0].last_flash_at and n('FirmwareBuild') == 1, r.text[:200])
 pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'boards']
-check('the /display/boards page is seeded as a DisplayDefinition with seven configured tables (brd-wire: + bindings)',
-      len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 7, len(pages))
+check('the /display/boards page is seeded as a DisplayDefinition with twelve configured tables (brd-wire: + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts)',
+      len(pages) == 1 and json.loads(pages[0].definition)['rows'] and sum(len(r['items']) for r in json.loads(pages[0].definition)['rows']) == 12, len(pages))
 # ---- brd-fi: the firmware installer
 fv_rows = list((tables.get('FirmwareVariant', {}) or {}).values())
 fv_uno = sorted(v.name for v in fv_rows if getattr(v, 'board_definition', '') == 'arduino-uno-r3')
@@ -118,8 +118,37 @@ from urllib.parse import quote  # noqa: E402
 r = client.simulate_get('/api/board/instances/%s/interface' % quote('twin:arduino-uno-r3#1', safe=''))
 check('brd-wire: GET /api/board/instances/twin:arduino-uno-r3%231/interface → the chain: uno-twin-1, index 1, the UNO definition, its facts',
       r.status_code == 200 and r.json['links'][0]['binding']['instance_index'] == 1 and r.json['links'][0]['board_definition']['name'] == 'arduino-uno-r3'
-      and len(r.json['links'][0]['datasheet_facts']) == 24, r.text[:300])
+      and len(r.json['links'][0]['datasheet_facts']) == 51, r.text[:300])
 r = client.simulate_get('/api/board/instances/%s/interface' % quote('twin:nobody', safe=''))
 check('brd-wire: an unbound instance → 404 naming the bound ones', r.status_code == 404 and 'twin:arduino-uno-r3#0' in r.json['error'], r.text[:200])
+# ---- brd-bo: THE BOARD OBJECT — its rows boot and seed, and its doors answer over the server's rows
+for cls in ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin', 'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView'):
+    check('brd-bo: class %s is typed after boot' % cls, cls in typed)
+check('brd-bo: seeded — 2 SoCs, 45 SoC pins, 32 board pins (UNO 20 + C3 12), 39 nets, 5 connectors / 38 connector pins, 8 runtime profiles; no views / conflicts',
+      (n('SocDefinition'), n('SocPin'), n('BoardPin'), n('BoardNet'), n('Connector'), n('ConnectorPin'), n('RuntimeProfile'), n('BoardView'), n('BoardConflict'))
+      == (2, 45, 32, 39, 5, 38, 8, 0, 0), (n('SocDefinition'), n('SocPin'), n('BoardPin'), n('BoardNet'), n('Connector'), n('ConnectorPin'), n('RuntimeProfile')))
+r = client.simulate_get('/api/board/arduino-uno-r3/pins')
+check('brd-bo: GET /api/board/arduino-uno-r3/pins → 20 pins, D6 = PD6 PWM_LED, the rules ok, a board sha',
+      r.status_code == 200 and len(r.json['pins']) == 20 and r.json['rules'] == ['ok'] and len(r.json['boardSha']) == 64
+      and next(p for p in r.json['pins'] if p['canonical'] == 'D6')['net'] == 'PWM_LED', r.text[:300])
+r = client.simulate_post('/api/board/arduino-uno-r3/render', body=json.dumps({'as': 'zephyr'}), headers={'Content-Type': 'application/json'})
+check('brd-bo: POST /api/board/arduino-uno-r3/render {as: zephyr} → 409, refused honestly (no Zephyr target for the ATmega328P), a refusal BoardView row',
+      r.status_code == 409 and 'no Zephyr target for the ATmega328P' in r.json['error'] and n('BoardView') == 1, r.text[:300])
+r = client.simulate_post('/api/board/esp32-c3/render', body=json.dumps({'as': 'zephyr'}), headers={'Content-Type': 'application/json'})
+ov = (r.json.get('files') or {}).get('esp32-c3.overlay', '')
+check('brd-bo: POST /api/board/esp32-c3/render {as: zephyr} → the overlay (UART1_TX_GPIO4 for the trace) + a BoardView row (out)',
+      r.status_code == 200 and '<UART1_TX_GPIO4>' in ov and n('BoardView') == 2, r.text[:300])
+bad = {'esp32-c3.overlay': ov.replace('<UART1_TX_GPIO4>', '<UART1_TX_GPIO5>')}
+before = client.simulate_get('/api/board/esp32-c3/pins').json['boardSha']
+r = client.simulate_post('/api/board/esp32-c3/ingest', body=json.dumps({'as': 'zephyr', 'files': bad}), headers={'Content-Type': 'application/json'})
+after = client.simulate_get('/api/board/esp32-c3/pins').json['boardSha']
+rc = client.simulate_get('/api/board/esp32-c3/conflicts')
+check('brd-bo: POST /api/board/esp32-c3/ingest of an edited overlay → 2 BoardConflict rows (GPIO4 / GPIO5 presence), the rows UNCHANGED (same board sha)',
+      r.status_code == 201 and len(r.json['conflicts']) == 2 and n('BoardConflict') == 2 and before == after and rc.json['open'] == 2, r.text[:300])
+rv = client.simulate_get('/api/board/esp32-c3/views')
+check('brd-bo: GET /api/board/esp32-c3/views → the render (out) and the ingest (in), by sha', rv.status_code == 200
+      and sorted(v['direction'] for v in rv.json['views']) == ['in', 'out'], rv.text[:300])
+r = client.simulate_get('/api/board/longan-nano/pins')
+check('brd-bo: an unmodelled board → 404 naming the modelled ones', r.status_code == 404 and 'esp32-c3' in r.json['error'], r.text[:200])
 print('\n%d/%d checks passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

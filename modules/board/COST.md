@@ -100,3 +100,14 @@ Firmware sizes (`idf.py size`, `-Os`):
 | c3-prio-inversion | 159 248 B | 79 474 | 28 972 | 45 452 | 5 188 / 37 816 | 88 456 / 321 296 B |
 
 The technique pairs' deltas are in `modules/firmwarefaults/COST.md` (sc-3).
+
+## brd-bo — THE BOARD OBJECT (measured 2026-10-03, pol-core i5-4590; builds on isle-core's workers)
+
+| what | measured | how |
+|---|---|---|
+| rows | 2 SoCs, 45 SoC pins, 32 board pins (UNO 20, C3 12), 39 nets, 5 connectors / 38 connector pins, 2 BoardHardware, 8 runtime profiles, +95 DatasheetFacts (119 total) | the seed |
+| seed build | 45 ms (incl. the Zephyr ingest: 4 files parsed, 11 stored at 156 KB) | `board_object.seed_tables()` wall, one process |
+| render / ingest | UNO kicad 20.9 / 2.6 ms (7 585 B), bare-c 8.0 / 1.0 ms; C3 kicad 4.8 / 1.1 ms, zephyr 1.5 / 1.9 ms (2 051 B), esp-idf 0.5 / 1.1 ms | perf_counter, one run; peak RSS of the whole process 17.4 MB |
+| UNO builds (16 variants + 1 refused + the flip) | ~4 s total on `BOARD_ENGINES_URL=http://<isle-core>:9830` (isle-core) | tests/board_object_probe.py |
+| C3 build (c3-sim-rig) | 33.4 s wall, 148.8 CPU-s, 193.5 MB peak RSS on `ESP_ENGINES_URL=http://<isle-core>:9850` (isle-core) | the worker's /run rusage (build step) |
+| pol-core during the probe | `free -m` used 7 778 → 7 842 MB (no local engine, no twin) | the probe prints it |

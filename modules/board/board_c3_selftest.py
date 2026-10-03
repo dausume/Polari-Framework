@@ -85,8 +85,8 @@ def gen_checks(check, work):
     from board.custom import gen, gen_c3
     row = gen_c3.gen_c3('c3-prio-inversion', work)
     files = gen_c3.project_files(row['project_dir'])
-    check('gen c3 renders the ESP-IDF project: CMake + sdkconfig.defaults + partitions.csv + main/ (app.c = the variant\'s app)',
-          files == ['CMakeLists.txt', 'main/CMakeLists.txt', 'main/app.c', 'main/board_config.h', 'main/polari_c3.c', 'main/polari_c3.h',
+    check('gen c3 renders the ESP-IDF project: CMake + sdkconfig.defaults + partitions.csv + main/ (app.c = the variant\'s app; brd-bo: + main/board_pins.h from the BoardPin rows)',
+          files == ['CMakeLists.txt', 'main/CMakeLists.txt', 'main/app.c', 'main/board_config.h', 'main/board_pins.h', 'main/polari_c3.c', 'main/polari_c3.h',
                     'main/polari_trace.c', 'main/polari_trace.h', 'main/simrigstate_packets.h', 'partitions.csv', 'sdkconfig.defaults'], files)
     app = open(os.path.join(row['project_dir'], 'main', 'app.c')).read()
     check('main/app.c is apps/prio_inversion.c verbatim', app == open(os.path.join(gen_c3.TEMPLATE, 'apps', 'prio_inversion.c')).read())
@@ -195,6 +195,7 @@ def twin_fake(check, tmp):
     link = os.path.join(tmp, 'c3-twin-uart')
     old_path = os.environ['PATH']
     os.environ['PATH'] = bindir + os.pathsep + old_path
+    old_knob = os.environ.pop('ESP_ENGINES_URL', None)   # brd-bo: this block tests the LOCAL ladder with a FAKE binary — a worker knob in the env must not steer it
     try:
         check('with polari-c3-run on the PATH the twin takes the local-binary rung', be.resolve('c3-run')['how'] == 'local-binary', be.resolve('c3-run'))
         st = twin_c3.up(work, tcp=port, link=link, wait_s=15)
@@ -220,6 +221,8 @@ def twin_fake(check, tmp):
         check('twin c3 down: the link removed, the state cleared, the trace tail returned', d['state'] == 'down' and not os.path.islink(link)
               and twin_c3.status(work)['state'] == 'down' and d['trace_tail'] == ['@BOOT app=fake'], d)
     finally:
+        if old_knob is not None:
+            os.environ['ESP_ENGINES_URL'] = old_knob
         os.environ['PATH'] = old_path
         try:
             twin_c3.down(work)

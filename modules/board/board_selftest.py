@@ -25,7 +25,8 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('twelve row classes (brd-0 eight + brd-fi FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState)', len(BOARD_CLASSES) == 12)
+    check('twenty-two row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+          'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView)', len(BOARD_CLASSES) == 22)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -206,7 +207,7 @@ def page():
     names = [it['componentProps']['componentName'] for row in rows for it in row['items']]
     text = P[0]['definition']
     check('/display/boards is configured tables only (no custom component, no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 7 and set(names) == {'class-rows-table'}, str(names))   # brd-wire: + the bindings table
+          and len(names) == 12 and set(names) == {'class-rows-table'}, str(names))   # brd-wire: + the bindings table; brd-bo: + SoCs, pins, runtime, views, conflicts
     check('the devices table carries class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
 
@@ -226,6 +227,8 @@ def main():
     run_mapping(check)
     from board.board_c3_selftest import run_c3   # sc-3: the ESP32-C3 template, its gen/build/flash/twin, the twin's cost
     run_c3(check)
+    from board.board_object_selftest import run_board_object   # brd-bo: THE BOARD OBJECT — rows, views, ingest, conflicts, the flip
+    run_board_object(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
