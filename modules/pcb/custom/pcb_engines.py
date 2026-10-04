@@ -92,13 +92,9 @@ def topology_url():
 
 
 def _get(url, timeout):
-    try:
-        from polariApiServer import outbound
-        with outbound.http_request('engine', 'pcb', 'GET', url, means='probe', timeout=timeout, lib='urllib') as r:
-            return json.load(r)
-    except ImportError:   # a host tool without the framework's outbound ledger (the CLI runs inside the framework, so rare)
-        with urllib.request.urlopen(url, timeout=timeout) as r:
-            return json.load(r)
+    from polariApiServer import outbound
+    with outbound.http_request('engine', 'pcb', 'GET', url, means='probe', timeout=timeout, lib='urllib') as r:
+        return json.load(r)
 
 
 def capability(url, timeout=5):
@@ -215,14 +211,10 @@ def _remote(url, args, files, timeout, source_date):
                        'files_b64': {k: base64.b64encode(v if isinstance(v, bytes) else v.encode()).decode() for k, v in files.items()}}).encode()
     req = urllib.request.Request('%s/run' % url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
     t0 = time.perf_counter()
-    try:
-        from polariApiServer import outbound
-        with outbound.http_request('engine', 'pcb', 'POST', req, means='run', timeout=timeout + 30, lib='urllib',
-                                   context=ssl._create_unverified_context()) as r:
-            d = json.load(r)
-    except ImportError:
-        with urllib.request.urlopen(req, timeout=timeout + 30) as r:
-            d = json.load(r)
+    from polariApiServer import outbound
+    with outbound.http_request('engine', 'pcb', 'POST', req, means='run', timeout=timeout + 30, lib='urllib',
+                               context=ssl._create_unverified_context()) as r:
+        d = json.load(r)
     for k in ('stdout', 'stderr'):
         if '%s_chars' % k in d and len(d.get(k) or '') != int(d['%s_chars' % k]):
             raise EngineRefused('%s from %s arrived cut: %d of %d characters' % (k, url, len(d.get(k) or ''), int(d['%s_chars' % k])))

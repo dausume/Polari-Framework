@@ -30,6 +30,9 @@
 # brd-bo: the board object's dev-hn-0 baseline (the byte-identity fixture) and the ingested Zephyr files' provenance ARE source
 !modules/board/custom/fixtures/*.json
 !modules/board/custom/upstream/**/SOURCE.json
+# pcb-0: the ingested ecc83-pp demo's provenance (package/version/licence, per-file sha256) IS source, same reason as board's —
+# without this exemption the blanket *.json ignore silently drops it on every commit (the gap this line fixes)
+!modules/pcb/custom/upstream/**/SOURCE.json
 *.pyc
 *.db
 */falcon
