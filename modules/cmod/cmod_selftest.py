@@ -218,21 +218,115 @@ def host_measure():
 
 
 def page():
-    """demo1: every table on /display/c-atoms carries a non-empty description."""
+    """demo1: every table on /display/c-atoms carries a non-empty description. demo-4: /display/c-atoms stays
+    configured-only (class-rows-table + the api-structured-panel 'used by' reverse link — never raw JSON), and
+    /display/c-canvas opens with the canvas panel, no raw JSON on the tables below it."""
     from cmod.cmod_page import SEED_CMOD_PAGE_DISPLAYS as P
     rows = json.loads(P[0]['definition'])['rows']
     items = [it for row in rows for it in row['items']]
-    check('/display/c-atoms is configured tables only (no custom component, no JSON panel)',
-          items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items))
+    check('/display/c-atoms is configured surfaces only (class-rows-table + api-structured-panel, no JSON panel, no new component)',
+          items and all(it['componentProps']['componentName'] in ('class-rows-table', 'api-structured-panel') for it in items))
     check('/display/c-atoms: every table carries a non-empty description',
           all(it.get('description') for it in items), str([it['id'] for it in items if not it.get('description')]))
+    crows = json.loads(P[1]['definition'])['rows']
+    citems = [it for row in crows for it in row['items']]
+    check('/display/c-canvas: every item (the canvas + the described tables) carries a non-empty description',
+          citems and all(it.get('description') for it in citems), str([it['id'] for it in citems if not it.get('description')]))
+    check('/display/c-canvas opens the canvas FIRST (demo-1\'s rule: the demonstrable before the tables)',
+          citems[0]['componentProps']['componentName'] == 'c-graph-canvas-panel')
+
+
+def demo4_targets():
+    """demo-4 (DEMONSTRABLES_PLAN.md §3): targets derived for uno-sim-rig, the seeded capability + its two instances,
+    the forward/reverse links, and the new API doors (render/build/prove buttons + targets/capabilities)."""
+    from cmod.custom import targets as T
+    rows = T.derive('uno-sim-rig-graph')
+    by_ref = {r['port_ref']: r for r in rows}
+    adc = by_ref.get('adc.channel')
+    check('the ADC pin target is derived for uno-sim-rig (hal_adc_read channel -> A0, kind register, bound to a BoardPin)',
+          adc is not None and adc['kind'] == 'register' and adc['lives_on'] == 'arduino-uno-r3:A0' and adc['provenance'] == 'annotation', adc)
+    temp = by_ref.get('temp.return')
+    check('the temp_c memory-field target is derived (sensor_value.return written into SimRigState.temp_c, unbound — a struct field, not a register)',
+          temp is not None and temp['kind'] == 'memory-field' and temp['lives_on'] == 'unbound' and 'temp_c' in temp['controls']
+          and temp['provenance'] == 'derived', temp)
+    check('unbound targets are produced and visibly marked (not silently dropped) — at least one register touch with no board pin match',
+          any(r['lives_on'] == 'unbound' for r in rows), [r['port_ref'] for r in rows if r['lives_on'] == 'unbound'])
+
+    cap = T.temperature_sensor_capability()
+    check('the "temperature sensor solution" capability requires exactly the ADC pin + temp_c memory-field targets',
+          set(x.strip() for x in cap['required_targets'].split(',')) == {'adc.channel', 'temp.return'} and cap['exposes_fields'] == 'temp_c', cap)
+    insts = T.temperature_sensor_instances()
+    check('two CapabilityInstance rows exist (his worked example: "be able to define multiple temperature sensors")',
+          len(insts) == 2 and {i['index'] for i in insts} == {1, 2} and all(i['capability'] == cap['name'] for i in insts), insts)
+
+    # the API: both link directions + the new doors, over a manager seeded exactly like the server boots it
+    from types import SimpleNamespace
+    from falcon import testing
+    import falcon
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    from cmod.cmod_api import CModAPI
+    from hwnocode.hwnocode_seed import HWNOCODE_SEED_PAIRS
+    tables = {}
+    mgr = SimpleNamespace(objectTables=tables, idList=[], db=None)
+    for _mid, pairs in (('cmod', CMOD_SEED_PAIRS), ('hwnocode', HWNOCODE_SEED_PAIRS)):
+        for name, cls, seed_rows in pairs:
+            for r in seed_rows:
+                o = cls(manager=mgr, **{k: v for k, v in r.items() if k != '_converge'})
+                tables.setdefault(name, {})[o.id] = o
+    app = falcon.App()
+    CModAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
+    c = testing.TestClient(app)
+
+    r = c.simulate_get('/api/cmod/graphs/uno-sim-rig-graph/targets')
+    check('GET /api/cmod/graphs/{g}/targets → the derived rows (seeded, same as cmod.custom.targets.derive)',
+          r.status_code == 200 and r.json['ok'] and len(r.json['targets']) == 16, r.text[:200])
+
+    r = c.simulate_get('/api/cmod/graphs/uno-sim-rig-graph')
+    used_by = r.json.get('used_by') or []
+    check('the FORWARD link: HardwareSolution.cgraph names this graph (uno-temp-split)',
+          any(getattr(h, 'cgraph', '') == 'uno-sim-rig-graph' for h in tables.get('HardwareSolution', {}).values()))
+    check('the REVERSE link resolves on GET /api/cmod/graphs/{g}: used_by lists uno-temp-split',
+          any(h['name'] == 'uno-temp-split' for h in used_by), used_by)
+    check('GET /api/cmod/graphs/{g} also carries the targets inline (badges on the canvas read this)',
+          len(r.json.get('targets') or []) == 16)
+
+    r = c.simulate_get('/api/cmod/capabilities')
+    caps = r.json.get('capabilities') or []
+    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline',
+          len(caps) == 1 and caps[0]['name'] == cap['name'] and len(caps[0]['instances']) == 2, caps)
+    r = c.simulate_get('/api/cmod/capabilities/%s' % cap['name'])
+    check('GET /api/cmod/capabilities/{cap} → one capability + its instances',
+          r.status_code == 200 and len(r.json['instances']) == 2, r.text[:200])
+    r = c.simulate_get('/api/cmod/capabilities/no-such-capability')
+    check('an unknown capability is refused by name, 404', r.status_code == 404)
+
+    # render/build/prove buttons: route to the right verbs. build/prove call glue_build (engines) — mocked here so the
+    # selftest stays fast/deterministic (the real engines are exercised by the committed record itself and by
+    # `pol cmod build|prove`, same as every other cmod-1 proof in this file).
+    import cmod.custom.glue_build as GB
+    orig_build, orig_prove = GB.build, GB.prove
+    GB.build = lambda name, manager=None, conform=True: {'build': {'ok': True, 'built_by': 'FAKE (selftest)', 'hex_sha256': 'ab' * 32,
+                                                                   'size_text': 1, 'size_data': 2, 'size_bss': 3, 'cost_why': 'fake'}}
+    GB.prove = lambda name, manager=None, write=True: {'equivalent': True, 'frames_compared': 40, 'hex_identical': True, 'n_differences': 0,
+                                                       'differences': []}
+    try:
+        r = c.simulate_post('/api/cmod/graphs/uno-sim-rig-graph/build')
+        check('POST /api/cmod/graphs/{g}/build → the build verdict as fields, not raw JSON passthrough',
+              r.status_code == 200 and r.json['ok'] and r.json['hex_sha256'] == 'ab' * 32, r.text[:200])
+        r = c.simulate_post('/api/cmod/graphs/uno-sim-rig-graph/prove')
+        check('POST /api/cmod/graphs/{g}/prove → the twin-equivalence verdict',
+              r.status_code == 200 and r.json['ok'] and r.json['equivalent'] is True and r.json['frames_compared'] == 40, r.text[:200])
+    finally:
+        GB.build, GB.prove = orig_build, orig_prove
+    r = c.simulate_post('/api/cmod/graphs/no-such-graph/build')
+    check('build/prove on an unknown graph is refused by name, 404', r.status_code == 404)
 
 
 def main():
     print('cmod selftest (cmod-0 + cmod-1)')
     from cmod.custom.selftest_uno import uno_parts
     from cmod.custom.selftest_glue import graph_parts
-    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page) + uno_parts(check) + graph_parts(check):
+    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets) + uno_parts(check) + graph_parts(check):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

@@ -148,23 +148,30 @@ def uno_parts(check):
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
         check('seeds = the committed manifest projected: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, '
-              '1 glue build' % m['counts']['ports'],
+              '1 glue build; demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over the seeded graph' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
-                         'CGraphEdge': 15, 'CGlueBuild': 1}, counts)
+                         'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 1, 'CapabilityInstance': 2}, counts)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
-        check('/display/c-atoms = 9 CONFIGURED tables (projects, atoms, ports, costs, modules; cmod-1: graphs, nodes, edges, glue builds) — '
-              'class-rows-table only, no new component',
-              page['pageRoute'] == 'c-atoms' and len(items) == 9 and {it['componentProps']['componentName'] for it in items} == {'class-rows-table'})
+        comp_names = {it['componentProps']['componentName'] for it in items}
+        check('/display/c-atoms = 10 CONFIGURED surfaces (projects, atoms, ports, costs, modules; cmod-1: graphs, nodes, edges, glue builds; '
+              "demo-4: 'used by' reverse link) — class-rows-table + api-structured-panel only, no raw JSON, no new component",
+              page['pageRoute'] == 'c-atoms' and len(items) == 10 and comp_names == {'class-rows-table', 'api-structured-panel'})
+        canvas_page = SEED_CMOD_PAGE_DISPLAYS[1]
+        canvas_items = [it for row in json.loads(canvas_page['definition'])['rows'] for it in row['items']]
+        check('/display/c-canvas: the canvas panel first, then described tables (atoms available, targets, capabilities, instances)',
+              canvas_page['pageRoute'] == 'c-canvas' and canvas_items[0]['componentProps']['componentName'] == 'c-graph-canvas-panel'
+              and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-sim-rig-graph'
+              and {it['componentProps']['componentName'] for it in canvas_items[1:]} == {'class-rows-table'})
         import inspect
         from cmod.cmod_basis import CMOD_CLASSES
         known = {c.__name__: c for c in CMOD_CLASSES}
         bad = []
-        for it in items:
+        for it in [i for i in items + canvas_items if i['componentProps']['componentName'] == 'class-rows-table']:
             cn = it['componentProps']['inputs']['className']
             params = set(inspect.signature(known[cn].__init__).parameters) if cn in known else set()
             bad += ['%s.%s' % (cn, col) for col in it['componentProps']['inputs']['columns'].split(',') if col and col not in params]
-        check('…every table names a cmod class and only columns that class has', not bad, bad)
+        check('…every table (c-atoms + c-canvas) names a cmod class and only columns that class has', not bad, bad)
         tables = {}
         mgr = SimpleNamespace(objectTables=tables, idList=[], db=None)
         for name, cls, rows in CMOD_SEED_PAIRS:

@@ -16,7 +16,20 @@ GET /api/cmod/graphs/{graph}            the graph + its nodes, edges and glue bu
 GET /api/cmod/graphs/{graph}/render     render NOW into memory (nothing written): the checked model's verdict, what the glue
                                         owns, the cost before building, each file's sha + its text — or the refusal (422)
 GET /api/cmod/graphs/{graph}/diff       the committed project vs a fresh render (the graph changed / hand edits / stale files)
-Writing the project, building and the twin proof are `pol cmod render | build | prove <graph>` (they write files / run engines).
+Writing the project is `pol cmod render <graph>` (CLI only — it writes files on the host). The canvas's render/build/prove
+buttons (demo-4) use:
+POST /api/cmod/graphs/{graph}/build     `cmod.custom.glue_build.build` — make ALONE in the already-rendered project (board
+                                        engines); refuses 422 if the graph was never rendered on this host
+POST /api/cmod/graphs/{graph}/prove     `cmod.custom.glue_build.prove` — the twin equivalence proof against the hand-written
+                                        app it replaces; refuses 422 the same way
+demo-4 (targets + capabilities, DEMONSTRABLES_PLAN.md §3): what a graph's ports actually control, derived from the atoms'
+annotations/resources + the graph's board (never typed in — cmod.custom.targets):
+GET /api/cmod/graphs/{graph}/targets    the TargetDefinition rows derived for this graph (badges on the canvas + a table)
+GET /api/cmod/capabilities              every CapabilityDefinition row, with its CapabilityInstance rows inline
+GET /api/cmod/capabilities/{cap}        one capability + its instances
+The reverse link (demo-4 "both ways"): GET /api/cmod/graphs/{graph} now also returns `used_by` — every HardwareSolution
+row whose `cgraph` names this graph (a derived query over the generic row store, no import of hwnocode needed — the same
+`_rows(cls)` pattern every other generic lookup here uses).
 """
 import inspect
 
@@ -41,6 +54,11 @@ class CModAPI(treeObject):
             add('/api/cmod/graphs/{graph}', self, suffix='graph_one')
             add('/api/cmod/graphs/{graph}/render', self, suffix='graph_render')
             add('/api/cmod/graphs/{graph}/diff', self, suffix='graph_diff')
+            add('/api/cmod/graphs/{graph}/targets', self, suffix='graph_targets')
+            add('/api/cmod/graphs/{graph}/build', self, suffix='graph_build')
+            add('/api/cmod/graphs/{graph}/prove', self, suffix='graph_prove')
+            add('/api/cmod/capabilities', self, suffix='capabilities')
+            add('/api/cmod/capabilities/{capability}', self, suffix='capability_one')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -132,8 +150,12 @@ class CModAPI(treeObject):
         if g is None:
             return
         pick = lambda cls, key: [self._d(r) for r in sorted(self._rows(cls), key=key) if r.graph == graph]  # noqa: E731
+        used_by = [self._d(r) for r in sorted(self._rows('HardwareSolution'), key=lambda r: r.name) if getattr(r, 'cgraph', '') == graph]
         response.media = {'ok': True, 'graph': self._d(g), 'nodes': pick('CGraphNode', lambda r: (r.order, r.instance)),
-                          'edges': pick('CGraphEdge', lambda r: (r.order, r.name)), 'glue_builds': pick('CGlueBuild', lambda r: r.name)}
+                          'edges': pick('CGraphEdge', lambda r: (r.order, r.name)), 'glue_builds': pick('CGlueBuild', lambda r: r.name),
+                          'targets': pick('TargetDefinition', lambda r: (r.kind, r.port_ref)),
+                          'used_by': used_by,
+                          'used_by_how': 'every HardwareSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)'}
 
     def on_get_graph_render(self, request, response, graph):
         import falcon
@@ -167,3 +189,65 @@ class CModAPI(treeObject):
             response.media = {'ok': False, 'refused': str(e)}
             return
         response.media = dict({k: v for k, v in d.items() if k != 'dir'}, ok=True)
+
+    # ------------------------------------------------------------------ demo-4: targets, build/prove buttons, capabilities
+    def on_get_graph_targets(self, request, response, graph):
+        if self._graph(graph, response) is None:
+            return
+        from cmod.custom import targets as T
+        rows = [r for r in self._rows('TargetDefinition') if r.graph == graph]
+        derived = rows if rows else T.derive(graph, manager=self.manager)
+        out = [self._d(r) for r in rows] if rows else derived
+        response.media = {'ok': True, 'graph': graph, 'targets': sorted(out, key=lambda r: (r.get('kind', ''), r.get('port_ref', ''))),
+                          'how': 'derived from each c-atom\'s resources (registers/declared macros) matched against the graph\'s board\'s '
+                                 'BoardPin rows, plus one per \'field\' CGraphEdge — never typed in (cmod.custom.targets)'}
+
+    def on_post_graph_build(self, request, response, graph):
+        import falcon
+        from cmod.custom import glue_build as GB
+        from cmod.custom.glue import GlueRefused
+        if self._graph(graph, response) is None:
+            return
+        try:
+            rec = GB.build(graph, manager=self.manager)
+        except GlueRefused as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': str(e)}
+            return
+        b = rec['build']
+        response.media = {'ok': True, 'graph': graph, 'built_by': b['built_by'], 'hex_sha256': b['hex_sha256'],
+                          'size_text': b['size_text'], 'size_data': b['size_data'], 'size_bss': b['size_bss'],
+                          'cost_why': b['cost_why']}
+
+    def on_post_graph_prove(self, request, response, graph):
+        import falcon
+        from cmod.custom import glue_build as GB
+        from cmod.custom.glue import GlueRefused
+        if self._graph(graph, response) is None:
+            return
+        try:
+            p = GB.prove(graph, manager=self.manager)
+        except GlueRefused as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': str(e)}
+            return
+        response.media = {'ok': True, 'graph': graph, 'equivalent': p['equivalent'], 'frames_compared': p['frames_compared'],
+                          'hex_identical': p.get('hex_identical'), 'n_differences': p.get('n_differences', 0),
+                          'differences': p.get('differences', [])}
+
+    def on_get_capabilities(self, request, response):
+        caps = sorted(self._rows('CapabilityDefinition'), key=lambda r: r.name)
+        insts = self._rows('CapabilityInstance')
+        response.media = {'ok': True, 'capabilities': [dict(self._d(c), instances=[self._d(i) for i in sorted(insts, key=lambda r: r.index)
+                                                                                   if i.capability == c.name]) for c in caps]}
+
+    def on_get_capability_one(self, request, response, capability):
+        import falcon
+        caps = [r for r in self._rows('CapabilityDefinition') if r.name == capability]
+        if not caps:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no capability %r (GET /api/cmod/capabilities lists them)' % capability}
+            return
+        c = caps[0]
+        insts = sorted((r for r in self._rows('CapabilityInstance') if r.capability == capability), key=lambda r: r.index)
+        response.media = {'ok': True, 'capability': self._d(c), 'instances': [self._d(i) for i in insts]}

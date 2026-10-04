@@ -14,7 +14,7 @@ import os
 import shutil
 import sys
 import tempfile
-os.environ['POLARI_MODULES'] = 'techtree,hwmap,hardwareapps,islemesh,grpcbridge,board,cmod'
+os.environ['POLARI_MODULES'] = 'techtree,hwmap,hardwareapps,islemesh,grpcbridge,board,cmod,hwnocode'
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, FRAMEWORK); sys.path.insert(0, os.path.join(FRAMEWORK, 'modules'))
@@ -77,15 +77,18 @@ client = testing.TestClient(manager.polServer.falconServer)
 tables = manager.objectTables
 typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in manager.objectTypingDict.keys()} \
         | {getattr(v, 'className', '') for v in manager.objectTypingDict.values()}
-for cls in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild'):
+for cls in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
+           'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance'):
     check('class %s is typed after boot' % cls, cls in typed)
 n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
 m = json.load(open(os.path.join(FRAMEWORK, 'modules', 'board', 'custom', 'firmware', 'uno', 'polari-firmware.json')))
-check('seeded from the committed manifest: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, 1 glue build'
-      % m['counts']['ports'],
-      tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild'))
-      == (1, 7, 34, m['counts']['ports'], 1, 18, 15, 1),
-      tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild')))
+check('seeded from the committed manifest: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, 1 glue build; '
+      'demo-4: 16 targets, 1 capability, 2 instances' % m['counts']['ports'],
+      tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
+                           'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance'))
+      == (1, 7, 34, m['counts']['ports'], 1, 18, 15, 1, 16, 1, 2),
+      tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
+                           'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance')))
 r = client.simulate_get('/api/cmod')
 check('GET /api/cmod → the uno project, 34 atoms, pycparser in this process', r.status_code == 200 and r.json['projects'][0]['name'] == 'uno'
       and r.json['atoms'] == 34 and r.json['parser']['engine'] == 'pycparser', r.text[:200])
@@ -105,8 +108,8 @@ check('GET /api/cmod/projects/uno/drift → the committed manifest matches the s
 r = client.simulate_get('/api/cmod/projects/nope/drift')
 check('drift of an unknown project → 404 in plain words', r.status_code == 404 and 'no template project' in r.json['error'])
 pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'c-atoms']
-check('/display/c-atoms is seeded with nine configured tables (cmod-1 added graphs, nodes, edges, glue builds)', len(pages) == 1
-      and sum(len(row['items']) for row in json.loads(pages[0].definition)['rows']) == 9, len(pages))
+check('/display/c-atoms is seeded with ten configured surfaces (cmod-1 added graphs, nodes, edges, glue builds; demo-4 the used-by link)',
+      len(pages) == 1 and sum(len(row['items']) for row in json.loads(pages[0].definition)['rows']) == 10, len(pages))
 r = client.simulate_get('/api/cmod/graphs')
 check('GET /api/cmod/graphs → uno-sim-rig-graph, status proven', r.status_code == 200 and [g['name'] for g in r.json['graphs']] == ['uno-sim-rig-graph']
       and r.json['graphs'][0]['status'] == 'proven', r.text[:300])
@@ -125,6 +128,35 @@ check('an unknown graph → 404 in plain words', r.status_code == 404 and 'no gr
 comp = [c for c in (tables.get('GraphCompilerDefinition', {}) or {}).values() if getattr(c, 'name', '') == 'cmod-glue']
 check('the cmod-glue GraphCompilerDefinition row is seeded (the existing compiler seam)', len(comp) == 1, len(comp))
 check('board still boots beside it: the five seeded FirmwareVariants', n('FirmwareVariant') >= 5, n('FirmwareVariant'))
+
+# ------------------------------------------------------------------ demo-4: /display/c-canvas opens the DisplayDefinition
+# then GETs the exact graph payload the canvas loads — the liveboot proof that the page's own seeded input (not a
+# hand-picked name here) really resolves to a live, working endpoint.
+canvas_pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'c-canvas']
+check('/display/c-canvas DisplayDefinition is seeded, canvas panel first', len(canvas_pages) == 1
+      and json.loads(canvas_pages[0].definition)['rows'][0]['items'][0]['componentProps']['componentName'] == 'c-graph-canvas-panel',
+      len(canvas_pages))
+canvas_def = json.loads(canvas_pages[0].definition)
+canvas_graph = canvas_def['rows'][0]['items'][0]['componentProps']['inputs']['graph']
+r = client.simulate_get('/api/cmod/graphs/%s' % canvas_graph)
+check('GETs the graph payload the canvas loads for its own seeded input (%s): nodes, edges, targets, used_by all present'
+      % canvas_graph, r.status_code == 200 and r.json['graph']['name'] == canvas_graph and len(r.json['nodes']) == 18
+      and len(r.json['edges']) == 15 and len(r.json['targets']) == 16 and isinstance(r.json['used_by'], list), r.text[:300])
+check('the REVERSE link resolves live: used_by names uno-temp-split (hwnocode booted beside cmod)',
+      any(h['name'] == 'uno-temp-split' for h in r.json['used_by']), r.json['used_by'])
+hs = [h for h in (tables.get('HardwareSolution', {}) or {}).values() if h.name == 'uno-temp-split']
+check('the FORWARD link: HardwareSolution.cgraph names this same graph', len(hs) == 1 and hs[0].cgraph == canvas_graph,
+      hs[0].cgraph if hs else None)
+r = client.simulate_get('/api/cmod/graphs/%s/targets' % canvas_graph)
+check('GET …/targets → the ADC pin target + the temp_c memory-field target are both present',
+      r.status_code == 200 and {'adc.channel', 'temp.return'} <= {t['port_ref'] for t in r.json['targets']}, r.text[:300])
+r = client.simulate_get('/api/cmod/capabilities')
+check('GET /api/cmod/capabilities → "temperature sensor solution" with its two instances',
+      r.status_code == 200 and len(r.json['capabilities']) == 1 and len(r.json['capabilities'][0]['instances']) == 2, r.text[:300])
+hw_pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'hardware-solutions']
+check('/display/hardware-solutions embeds the SAME canvas component on its own cgraph (the forward link opened in place)',
+      len(hw_pages) == 1 and any(it['componentProps']['componentName'] == 'c-graph-canvas-panel'
+                                 for row in json.loads(hw_pages[0].definition)['rows'] for it in row['items']))
 
 
 def equivalence():

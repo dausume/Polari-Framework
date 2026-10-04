@@ -291,8 +291,10 @@ def seeds_page_api():
     page = SEED_HWNOCODE_PAGE_DISPLAYS[0]
     items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
     comps = [it['componentProps']['componentName'] for it in items]
-    check('/display/hardware-solutions = 3 configured tables + 1 named-graph-panel (no new component, no JSON panel)',
-          page['pageRoute'] == 'hardware-solutions' and sorted(comps) == ['class-rows-table'] * 3 + ['named-graph-panel'], comps)
+    check('/display/hardware-solutions = 3 configured tables + 1 named-graph-panel + the canvas (demo-4: the SAME '
+          'c-graph-canvas-panel /display/c-canvas uses, opened on this solution\'s own cgraph — no new component here)',
+          page['pageRoute'] == 'hardware-solutions'
+          and sorted(comps) == ['c-graph-canvas-panel', 'class-rows-table', 'class-rows-table', 'class-rows-table', 'named-graph-panel'], comps)
     gc = json.loads(SEED_HWNOCODE_GRAPHS[0]['definition'])['graphConfig']
     check('the chart = a GraphDefinition (x uptime_s; y temp_c + temp_avg; colours set, showLegend) fed by the chart endpoint',
           gc['xDimension'] == 'uptime_s' and gc['yDimensions'] == ['temp_c', 'temp_avg'] and len(gc['seriesColors']) == 2

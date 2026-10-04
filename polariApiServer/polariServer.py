@@ -1324,6 +1324,9 @@ class polariServer(treeObject):
             # cmod-0: C projects, their modules, the atoms (C functions with ports, resources, cost), ports; cmod-1: graphs over
             # atoms (nodes, edges) and the generated glue builds
             CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
+            # demo-4: what a graph's ports/field-writes actually control (derived from the atoms' resources + the board's
+            # BoardPin rows), a named reusable capability over a graph, and its per-use instances
+            TargetDefinition, CapabilityDefinition, CapabilityInstance,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived]
