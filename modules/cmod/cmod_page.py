@@ -5,10 +5,24 @@
 C_MODULARIZATION_PLAN.md §2): the projects (parser, configurations, make-alone proof), the modules, the atoms (signature,
 ports, resources, pure, ISR-safe, annotation), the ports (direction, C type, Polari type, unit), the cost per atom (text
 bytes shipped / as a node, stack frame). cmod-1 adds four more configured tables: the graphs over atoms, their nodes and edges,
-and the glue builds (the generated project, its sizes, the cost estimated vs measured, the twin equivalence proof). The canvas
-overlay for a `c-atom` node is cmod-3's — still no new component here.
+and the glue builds (the generated project, its sizes, the cost estimated vs measured, the twin equivalence proof).
+
+demo-4 (DEMONSTRABLES_PLAN.md §3) adds /display/c-canvas — the ONE new component (`c-graph-canvas-panel`, justified like
+firmware-installer-panel: a configured table cannot host the canvas itself, a graph picker, or render/build/prove buttons)
+ABOVE described tables of the atoms available to drop, the derived TargetDefinition rows (badges on the canvas already;
+the table is the same rows, described), the seeded "temperature sensor solution" CapabilityDefinition + its two
+CapabilityInstance rows, and which HardwareSolutions use this graph (the reverse link — `/display/hardware-solutions`
+carries the forward one). `/display/c-atoms` gets a link to the canvas plus the same "used by" table.
 """
-from polariApiServer.module_pages_seed import _page, _row, _table
+from polariApiServer.module_pages_seed import _page, _row, _table, _sapi
+
+
+def _canvas(item_id, index, segments, title, graph, description=''):
+    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
+            'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
+            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph}},
+            'item': None, 'nestedRows': []}
+
 
 SEED_CMOD_PAGE_DISPLAYS = [
     _page('c-atoms', 'c-atoms',
@@ -97,5 +111,53 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                       'size_bss,ref_hex_sha256,ref_size_text,ref_size_data,ref_size_bss,cost_estimate_bytes,cost_measured_bytes,'
                                       'cost_why,stimulus,cycles,built_by,conformed,files,files_sha256,graph_sha256,proven_at',
                               column_formats='graph:ref:CGraph')], min_height=200),
+              _row(7, [_sapi('cmod-used-by', 0, 12, 'Used by — the HardwareSolutions whose board half IS uno-sim-rig-graph (the reverse of '
+                             '/display/hardware-solutions\' cgraph column); open it on the canvas at /display/c-canvas',
+                             '/api/cmod/graphs/uno-sim-rig-graph', pick='used_by',
+                             description='What this is for: the REVERSE link (demo-4 "both ways") — every HardwareSolution that places this '
+                                         'graph on a board, derived from HardwareSolution.cgraph. Empty is honest (no solution uses it yet), '
+                                         'not an error.')], min_height=140),
+          ]),
+    _page('c-canvas', 'c-canvas',
+          'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3): the EXISTING canvas, not a second editor — '
+          'a graph picker, Render/Build/Prove buttons over `pol cmod render | build | prove`, and the atom/target/capability rows the '
+          'badges on the canvas come from. Linked from /display/c-atoms and /display/hardware-solutions; this page is the canvas\'s own '
+          'home (D-demo-3: embedded where it belongs, not a third place).',
+          'CGraph', [
+              _row(0, [_canvas('c-canvas-panel', 0, 12, 'uno-sim-rig-graph on the canvas', 'uno-sim-rig-graph',
+                               description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph, drop a "C Atom" '
+                                           'or "Temperature sensor solution" from the palette and wire it, or expand the Hardware Subgraph '
+                                           'node to see its atoms, ports, wires and derived target badges. Render/Build/Prove call the same '
+                                           'doors `pol cmod render|build|prove` do.')], min_height=640),
+              _row(1, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
+                              'palette node, then type one of these names into its overlay to wire it)', 'CFunctionAtom',
+                              description='What this is for: which atoms a dropped "C Atom" node can be pointed at. One row = one atom of '
+                                          'the project uno-sim-rig-graph is drawn over. Columns: same as /display/c-atoms\' atoms table.',
+                              columns='name,kind,signature,ports_summary,resources_summary,isr_safe,role',
+                              filter_field='project', filter_value='uno')], min_height=240),
+              _row(2, [_table('c-canvas-targets', 0, 12, 'Target definitions — what each port or memory-field write actually controls, '
+                              'derived from the atoms\' annotations/resources and matched against the board\'s BoardPin rows; unbound is '
+                              'allowed and marked', 'TargetDefinition',
+                              description='What this is for: the badges shown on the canvas, as a table. One row = one port (or field write) '
+                                          'tied to a physical meaning. Columns: port_ref (node.port), kind (register | pin | memory-field | '
+                                          'dynamic), controls (the quantity/actuator in plain words), lives_on (a BoardPin reference, or '
+                                          "'unbound'), provenance (annotation = from the atom's own POLARI_NODE + resources; derived = a "
+                                          'structural field edge).',
+                              columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
+                              column_formats='graph:ref:CGraph')], min_height=320),
+              _row(3, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked example: '
+                              '"temperature sensor solution"), with the targets it requires and the fields it exposes', 'CapabilityDefinition',
+                              description='What this is for: a TEMPLATE capability, generalized from targets. One row = one capability. '
+                                          'Columns: required_targets (the port_refs it needs bound), exposes_fields (what it makes available '
+                                          'once wired — temp_c), instance_count (how many CapabilityInstance rows use it, below).',
+                              columns='name,title,purpose,required_targets,exposes_fields,instance_count',
+                              column_formats='graph:ref:CGraph'),
+                       _table('c-canvas-instances', 1, 6, 'Capability instances — one row per USE of a capability (two here: "define '
+                              'multiple temperature sensors" proven as rows, not just a template)', 'CapabilityInstance',
+                              description='What this is for: ONE use of a capability. One row = one instance. Columns: index (1, 2, … among '
+                                          "this capability's instances), bindings (its targets' current lives_on, 'unbound' until a person "
+                                          'ties this specific instance to a board pin — demo-5), status.',
+                              columns='name,capability,index,bindings,status',
+                              column_formats='capability:ref:CapabilityDefinition,graph:ref:CGraph')], min_height=200),
           ]),
 ]

@@ -1330,7 +1330,8 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     # cmod-0 (C_MODULARIZATION_PLAN): a normal C project's functions as atoms — ports, resources, cost — parsed, never typed in
     ('cmod', (
-        ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild', 'CMOD_CLASSES')),
+        ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
+                            'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance', 'CMOD_CLASSES')),
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),

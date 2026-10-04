@@ -11,7 +11,7 @@ data from GET /api/hwnocode/solutions/uno-temp-split/chart ({ok, rows}).
 import json
 
 from polariApiServer.module_pages_seed import _page, _row, _table
-from hwnocode.custom.solutions import SOLUTION, GRAPH, DISPLAY
+from hwnocode.custom.solutions import SOLUTION, GRAPH, DISPLAY, CGRAPH
 
 
 def _graph_panel(item_id, index, segments, title, graph_name, data_path, description=''):
@@ -19,6 +19,15 @@ def _graph_panel(item_id, index, segments, title, graph_name, data_path, descrip
             'description': description,
             'visible': True, 'collapsed': False, 'cssClass': '',
             'componentProps': {'componentName': 'named-graph-panel', 'inputs': {'graphName': graph_name, 'dataPath': data_path}},
+            'item': None, 'nestedRows': []}
+
+
+def _canvas(item_id, index, segments, title, graph, description=''):
+    """demo-4: the SAME `c-graph-canvas-panel` /display/c-canvas uses, focused on this solution's own CGraph (its
+    board half IS this graph — hn-split) — the forward link opened in place, not a second canvas implementation."""
+    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
+            'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
+            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph}},
             'item': None, 'nestedRows': []}
 
 
@@ -87,5 +96,11 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                           'silently moved).',
                               columns='solution,layer,node,kind,placement,language,refused,why',
                               column_formats='solution:ref:HardwareSolution')], min_height=320),
+              _row(4, [_canvas('hwnocode-canvas', 0, 12, '%s opened on the no-code canvas (its board half — hn-split)' % CGRAPH, CGRAPH,
+                               description="What this is for: the FORWARD link (demo-4 \"both ways\") opened in place — this solution's "
+                                           'board half IS this CGraph (see cgraph above); open it here to see/wire its atoms without '
+                                           'leaving the page, or follow it to its own home at /display/c-canvas (the same component, same '
+                                           "data — a demonstrable is never duplicated). The REVERSE link ('used by') is shown on /display/"
+                                           'c-atoms and /display/c-canvas.')], min_height=640),
           ]),
 ]

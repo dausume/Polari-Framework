@@ -67,7 +67,10 @@
    "objects/cmod/CGraphNode",
    "objects/cmod/CModule",
    "objects/cmod/CPort",
-   "objects/cmod/CProject"
+   "objects/cmod/CProject",
+   "objects/cmod/TargetDefinition",
+   "objects/cmod/CapabilityDefinition",
+   "objects/cmod/CapabilityInstance"
   ],
   "basis": [
    "cmod_basis"
@@ -106,7 +109,8 @@
    "custom/rows",
    "custom/scan",
    "custom/selftest_glue",
-   "custom/selftest_uno"
+   "custom/selftest_uno",
+   "custom/targets"
   ]
  },
  "classes": [
@@ -118,7 +122,10 @@
   "CModAPI",
   "CModule",
   "CPort",
-  "CProject"
+  "CProject",
+  "TargetDefinition",
+  "CapabilityDefinition",
+  "CapabilityInstance"
  ],
  "imports": [
   [
@@ -132,6 +139,9 @@
     "CGraphNode",
     "CGraphEdge",
     "CGlueBuild",
+    "TargetDefinition",
+    "CapabilityDefinition",
+    "CapabilityInstance",
     "CMOD_CLASSES"
    ]
   ],

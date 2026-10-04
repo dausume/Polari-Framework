@@ -7,3 +7,6 @@ from cmod.objects.cmod.CGraph import CGraph  # noqa: F401
 from cmod.objects.cmod.CGraphNode import CGraphNode  # noqa: F401
 from cmod.objects.cmod.CGraphEdge import CGraphEdge  # noqa: F401
 from cmod.objects.cmod.CGlueBuild import CGlueBuild  # noqa: F401
+from cmod.objects.cmod.TargetDefinition import TargetDefinition  # noqa: F401
+from cmod.objects.cmod.CapabilityDefinition import CapabilityDefinition  # noqa: F401
+from cmod.objects.cmod.CapabilityInstance import CapabilityInstance  # noqa: F401
