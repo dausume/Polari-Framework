@@ -1,0 +1,172 @@
+{
+ "schema": "polari-app/1",
+ "id": "pcb",
+ "package": "pcb",
+ "title": "PCB",
+ "description": "PCB from scratch (pcb arc): KiCad as the relay engine — Part/Symbol/Footprint/LandPattern/Schematic/PcbBoard/Placement/Route rows, DKRed's fab rules cited, `pol pcb ingest` reading an open KiCad board (parts, nets, footprints, placements) plus kicad-cli ERC/DRC/Gerber/drill/pos/SVG/STEP exports through the prf-pcb-engines worker, and the UNO shield schematic skeleton rendered from brd-bo's rows.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-pcb.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "pcb",
+   "kicad",
+   "schematic",
+   "gerber",
+   "fabrication",
+   "electronics"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "kicad-cli",
+    "kind": "system",
+    "probe": "kicad-cli",
+    "note": "KiCad 9's headless CLI — ERC, DRC, netlist/BOM/SVG/Gerber/drill/pos/STEP exports (pcb-0) — from the prf-pcb-engines image (polari-rf-node/prf-pcb-engines, Debian trixie pinned by digest + kicad=9.0.2+dfsg-1 + kicad-symbols + kicad-footprints, NOT kicad-packages3d) or a local KiCad install (pcb-na's native app)"
+   }
+  ],
+  "engines_note": "resolved through pcb.custom.pcb_engines (PCB_ENGINES_URL → local kicad-cli → the local image PCB_ENGINES_IMAGE (prf-pcb-engines:trixie, polari-rf-node/prf-pcb-engines) → topology provider pcb.engines (PROVIDER_PORTS prf-pcb-engines:9860) → refusal naming the knob + image); a declared worker never silently falls back to local"
+ },
+ "files": {
+  "objects": [
+   "objects/pcb/DrcResult",
+   "objects/pcb/FabRule",
+   "objects/pcb/FabRuleSet",
+   "objects/pcb/FabricationExport",
+   "objects/pcb/Footprint",
+   "objects/pcb/LandPattern",
+   "objects/pcb/Part",
+   "objects/pcb/PcbBoard",
+   "objects/pcb/Placement",
+   "objects/pcb/Route",
+   "objects/pcb/Schematic",
+   "objects/pcb/SchematicSheet",
+   "objects/pcb/Symbol"
+  ],
+  "basis": [
+   "pcb_basis"
+  ],
+  "api": [
+   "pcb_api"
+  ],
+  "endpoints": [
+   "pcb_endpoints"
+  ],
+  "seed": [
+   "pcb_seed"
+  ],
+  "page": [
+   "pcb_page"
+  ],
+  "selftests": [
+   "pcb_selftest"
+  ],
+  "custom": [
+   "custom/fab_rules",
+   "custom/ingest",
+   "custom/kicad_read",
+   "custom/pcb_cli",
+   "custom/pcb_engines",
+   "custom/schematic_writer",
+   "custom/sexpr",
+   "custom/uno_shield"
+  ]
+ },
+ "classes": [
+  "DrcResult",
+  "FabRule",
+  "FabRuleSet",
+  "FabricationExport",
+  "Footprint",
+  "LandPattern",
+  "Part",
+  "PcbAPI",
+  "PcbBoard",
+  "Placement",
+  "Route",
+  "Schematic",
+  "SchematicSheet",
+  "Symbol"
+ ],
+ "imports": [
+  [
+   "pcb.pcb_basis",
+   [
+    "Part as PcbPart",
+    "Symbol as PcbSymbol",
+    "Footprint as PcbFootprint",
+    "LandPattern as PcbLandPattern",
+    "Schematic as PcbSchematic",
+    "SchematicSheet as PcbSchematicSheet",
+    "PcbBoard",
+    "Placement as PcbPlacement",
+    "Route as PcbRoute",
+    "DrcResult as PcbDrcResult",
+    "FabricationExport as PcbFabricationExport",
+    "FabRuleSet as PcbFabRuleSet",
+    "FabRule as PcbFabRule",
+    "PCB_CLASSES"
+   ]
+  ],
+  [
+   "pcb.pcb_seed",
+   [
+    "PCB_SEED_PAIRS"
+   ]
+  ],
+  [
+   "pcb.pcb_page",
+   [
+    "SEED_PCB_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "pcb.pcb_endpoints:construct_pcb_endpoints",
+ "seedPairs": "pcb.pcb_seed:PCB_SEED_PAIRS",
+ "pages": [
+  "pcb.pcb_page:SEED_PCB_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "pcb_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

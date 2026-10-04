@@ -1,0 +1,232 @@
+"""cmod_selftest — cmod-0 + cmod-1 (C_MODULARIZATION_PLAN.md §10). cmod-1 (custom/selftest_glue.py): the seeded graph → a
+deterministic render equal to the committed project, the refusals (cycle, unbound port, type mismatch, free C, …), idempotence +
+the hand-edit guard, the Makefile with a fake avr-gcc, the compiler seam, the committed twin proof and its rows, the cost. cmod-0: the atom parser on FIXTURES (an ISR, volatile globals shared with it,
+a torn read and its atomic twin, a read-modify-write lost update, a function touching a register, a pure function, a pointer
+written through, both annotation forms), the REFUSALS (a malformed POLARI_NODE never guessed), the preprocessor fixes, the AVR
+type widths, the manifest's idempotence and hand-set preservation on a plain project; then (custom/selftest_uno.py) the UNO:
+34 atoms, the committed manifest matching the sources, every atom with ports/resources/cost, the torn build's verdict, the
+macro expanding to nothing, the seeds/page/API, `manifests conform cmod`. No engine is run here except a host gcc when present
+(tests/cmod_liveboot_probe.py proves the byte-identical .hex and the live boot).
+
+    PYTHONPATH=.:modules python3 -m cmod.cmod_selftest      # from polari-framework/
+"""
+import json
+import os
+import shutil
+import sys
+import tempfile
+
+passed = total = 0
+
+FX_H = '''#ifndef FX_H
+#define FX_H
+#include <stdint.h>
+#ifndef POLARI_NODE
+#define POLARI_NODE(...)
+#endif
+uint32_t read_torn(void);
+#endif
+'''
+FX_C = '''#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
+#include "fx.h"
+
+static volatile uint32_t g_count;   /* 4 bytes the ISR writes */
+static volatile uint8_t g_small;    /* 1 byte the ISR writes */
+static uint8_t g_plain;             /* nobody else touches it */
+
+ISR(TIMER1_COMPA_vect) { g_count++; g_small++; }
+
+uint32_t read_torn(void) { return g_count; }
+
+uint32_t read_safe(void)
+{
+    uint32_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_count; }
+    return v;
+}
+
+void bump(void) { g_small++; }
+
+uint8_t peek(void) { return g_small; }
+
+/* @polari-node(led_on, uses(D13), role("the LED on D13")) */
+void led_on(void) { PORTB |= _BV(PB5); }
+
+POLARI_NODE(add, in(a, "mV"), in(b, "mV"), out(return, "mV", "the sum"))
+int16_t add(int16_t a, int16_t b) { return a + b; }
+
+void fill(uint8_t *out, uint8_t n) { while (n--) out[n] = 0; g_plain = n; }
+
+#define KICK() bump()
+void kicker(void) { KICK(); }
+
+#if 3 != 4 && 010 == 8
+int lives(void) { return add(1, 2); }
+#endif
+'''
+FX_MK = 'CC = gcc\nCFLAGS = -Os -std=gnu99 -Wall -DPOLARI_HOST -Ihostinc\nLDFLAGS =\nall:\n\t$(CC) $(CFLAGS) -c fx.c\n'
+
+
+def check(label, cond, extra=''):
+    global passed, total
+    total += 1
+    passed += bool(cond)
+    print('  [%s] %s %s' % ('\033[0;32mPASS\033[0m' if cond else '\033[0;31mFAIL\033[0m', label, extra if not cond else ''))
+
+
+def fixture_dir(c_text=FX_C):
+    d = tempfile.mkdtemp(prefix='cmod-fx-')
+    open(os.path.join(d, 'fx.c'), 'w').write(c_text)
+    open(os.path.join(d, 'fx.h'), 'w').write(FX_H)
+    open(os.path.join(d, 'Makefile'), 'w').write(FX_MK)
+    return d
+
+
+def parser_on_fixtures():
+    from cmod.custom import analyse as AN
+    d = fixture_dir()
+    p = AN.parse_project(d)
+    a = p['atoms']
+    check('plain project: the directory as it is is ONE configuration; atoms = the functions of its .c, the ISR by its vector',
+          p['spec']['kind'] == 'plain' and [c['name'] for c in p['configs']] == ['default']
+          and sorted(a) == ['fx.TIMER1_COMPA_vect', 'fx.add', 'fx.bump', 'fx.fill', 'fx.kicker', 'fx.led_on', 'fx.lives', 'fx.peek', 'fx.read_safe',
+                            'fx.read_torn'],
+          sorted(a))
+    isr = a['fx.TIMER1_COMPA_vect']
+    check('ISR(TIMER1_COMPA_vect) is detected through the macro: kind isr, vector 11 from avr-libc\'s own table, writes g_count + g_small',
+          isr['isr'] == 'TIMER1_COMPA_vect' and isr['isr_safe'] == 'isr' and isr['globals']['g_count']['w'] and isr['globals']['g_small']['w']
+          and any(r['detail'] == 'vector 11' for r in AN.resources(isr)))
+    check('the torn read: a 4-byte volatile the ISR writes, read outside an atomic block → isr_safe no, naming the tear',
+          a['fx.read_torn']['isr_safe'] == 'no' and 'tears' in a['fx.read_torn']['isr_safe_why'] and 'g_count (4 B' in a['fx.read_torn']['isr_safe_why'])
+    check('its ATOMIC_BLOCK twin → isr_safe yes, atomic_block true, the access recorded inside the block',
+          a['fx.read_safe']['isr_safe'] == 'yes' and a['fx.read_safe']['atomic'] and a['fx.read_safe']['globals']['g_count']['inside_atomic']
+          and not a['fx.read_safe']['globals']['g_count']['outside_atomic'])
+    check('a 1-byte RMW (g_small++) outside an atomic block while the ISR writes it → isr_safe no (a lost update)',
+          a['fx.bump']['isr_safe'] == 'no' and 'lost update' in a['fx.bump']['isr_safe_why'])
+    check('a 1-byte read of the same global (one lds) → isr_safe yes', a['fx.peek']['isr_safe'] == 'yes', a['fx.peek']['isr_safe_why'])
+    res = AN.resources(a['fx.led_on'])
+    check('a function touching a register: PORTB (read-modify-write) → peripheral GPIO PORTB; the comment-form annotation\'s uses(D13) kept',
+          any(r['kind'] == 'register' and r['name'] == 'PORTB' and r['access'] == 'rw' and r['peripheral'] == 'GPIO PORTB' for r in res)
+          and any(r['kind'] == 'declared' and r['name'] == 'D13' for r in res) and a['fx.led_on']['annotation']['form'] == 'comment')
+    add = a['fx.add']
+    check('a pure function: no global, no register, no resource → pure; its ports from the signature + the macro annotation\'s units',
+          add['pure'] and [(x['name'], x['direction'], x['polari_type'], x['unit']) for x in add['ports']]
+          == [('a', 'in', 'int64', 'mV'), ('b', 'in', 'int64', 'mV'), ('return', 'out', 'int64', 'mV')] and add['annotation']['form'] == 'macro')
+    check('lives() calls the pure add() and nothing else → pure through the closure; read_torn → not pure (touches g_count)',
+          a['fx.lives']['pure'] and not a['fx.read_torn']['pure'] and 'g_count' in a['fx.read_torn']['pure_why'])
+    fill = a['fx.fill']
+    check('a pointer only written through → out (derived), polari type bytes; the file-scope g_plain write is a global, not shared with the ISR',
+          fill['ports'][0]['direction'] == 'out' and fill['ports'][0]['polari_type'] == 'bytes' and fill['globals']['g_plain']['w']
+          and not fill['globals']['g_plain'].get('shared_with_isr') and fill['isr_safe'] == 'yes')
+    check('the preprocessor: a function-like macro with NO parameters (`#define KICK() bump()`) consumes its () — kicker calls bump, '
+          'nothing indirect; and inherits bump\'s verdict (isr_safe no)', a['fx.kicker']['calls'] == ['bump'] and a['fx.kicker']['isr_safe'] == 'no',
+          a['fx.kicker']['calls'])
+    check('the preprocessor: `#if 3 != 4 && 010 == 8` is TRUE (PLY rewrote `!=` into a syntax error; octal 010 = 8) → lives() exists',
+          'fx.lives' in a)
+    shutil.rmtree(d, ignore_errors=True)
+
+
+def refusals():
+    from cmod.custom import analyse as AN
+    from cmod.custom.annotation import AnnotationRefused
+    bad = {
+        'an unknown clause': ('POLARI_NODE(add, in(a), weight(3))', 'unknown clause'),
+        'a port the signature does not have': ('POLARI_NODE(add, in(c))', 'names port'),
+        'out() on a by-value parameter': ('POLARI_NODE(add, out(a))', 'passed by value'),
+        'a parenthesis left open': ('POLARI_NODE(add, in(a)', 'not closed'),
+        'a port declared twice': ('POLARI_NODE(add, in(a), in(a))', 'twice'),
+        'the return as an input': ('POLARI_NODE(add, in(return))', 'return value'),
+    }
+    for what, (ann, needle) in bad.items():
+        d = fixture_dir(FX_C.replace('POLARI_NODE(add, in(a, "mV"), in(b, "mV"), out(return, "mV", "the sum"))', ann))
+        try:
+            AN.parse_project(d)
+            check('refused: %s' % what, False, 'parsed without complaint')
+        except AnnotationRefused as e:
+            check('refused: %s — "%s"' % (what, str(e)[:90]), needle in str(e) and 'fx.c:' in str(e), str(e))
+        shutil.rmtree(d, ignore_errors=True)
+    d = fixture_dir(FX_C.replace('void fill(', 'POLARI_NODE(bump)\nvoid fill('))
+    try:
+        AN.parse_project(d)
+        check('refused: an annotation that does not sit right above the function it names', False)
+    except AnnotationRefused as e:
+        check('refused: an annotation that does not sit right above the function it names (names bump, next is fill)', 'next function is fill' in str(e), str(e))
+    shutil.rmtree(d, ignore_errors=True)
+
+
+def types_and_preprocess():
+    from pycparser import c_parser
+    from cmod.custom.c_types import TypeTable, polari_type
+    from cmod.custom import preprocess as PP
+    src = ('typedef unsigned char uint8_t; typedef unsigned long uint32_t; typedef struct { uint8_t a; uint32_t b; char n[8]; } S_t;'
+           'int i; long l; double d; char *s; uint8_t *bp; S_t st; const S_t *sp; _Bool f; uint32_t arr[2 + 2];')
+    ast = c_parser.CParser().parse(src)
+    tt = TypeTable(ast)
+    got = {e.name: tt.describe(e.type) for e in ast.ext if getattr(e, 'name', None) and not e.name.endswith('_t')}
+    check('AVR widths: int 2, long 4, double 4 (= float), pointer 2, a struct = the sum of its members (no padding on the AVR), an array dim '
+          'from a constant expression', (got['i']['width'], got['l']['width'], got['d']['width'], got['s']['width'], got['st']['width'], got['arr']['width'])
+          == (2, 4, 4, 2, 13, 16), {k: v['width'] for k, v in got.items()})
+    check('Polari types: int → int64, double → double, char* → string, uint8_t* → bytes, struct → ref:S_t, const S_t* → ref:S_t, _Bool → bool',
+          [polari_type(got[k]) for k in ('i', 'd', 's', 'bp', 'st', 'sp', 'f')] == ['int64', 'double', 'string', 'bytes', 'ref:S_t', 'ref:S_t', 'bool'])
+    check('the fake headers are pinned by sha (part of every manifest\'s parser block) and declare the AVR fixed-width types',
+          len(PP.fake_headers_sha()) == 64 and 'typedef unsigned long uint32_t' in PP.FAKE_HEADERS['stdint.h'])
+
+
+def manifest_idempotence():
+    from cmod.custom import manifest as MF
+    d = fixture_dir()
+    r1 = MF.conform(d, measure=False)
+    r2 = MF.conform(d, measure=False)
+    check('plain project: conform writes polari-firmware.json beside the Makefile; a SECOND conform changes nothing (not even a timestamp)',
+          r1['written'] and not r2['changed'] and not r2['written'] and os.path.isfile(os.path.join(d, 'polari-firmware.json')), (r1['written'], r2['changed']))
+    m = json.load(open(os.path.join(d, 'polari-firmware.json')))
+    check('the manifest validates and carries the parser block (pycparser, its version, the fake-header sha, avr-libc\'s register snapshot)',
+          not MF.validate(m) and m['parser']['engine'] == 'pycparser' and m['parser']['registers']['count'] == 96, MF.validate(m))
+    m['title'], m['notes'] = 'my fx project', 'hand notes'
+    next(a for a in m['atoms'] if a['name'] == 'fx.add')['notes'] = 'adds millivolts'
+    json.dump(m, open(os.path.join(d, 'polari-firmware.json'), 'w'), indent=1)
+    open(os.path.join(d, 'fx.c'), 'a').write('\nint16_t twice(int16_t x) { return add(x, x); }\n')
+    r3 = MF.conform(d, measure=False)
+    m3 = json.load(open(os.path.join(d, 'polari-firmware.json')))
+    check('a source change → re-derived (added: fx.twice); the HAND-SET title / notes / atom notes survive (like manifests._preserve_hand_set)',
+          r3['written'] and r3['added'] == ['fx.twice'] and m3['title'] == 'my fx project' and m3['notes'] == 'hand notes'
+          and next(a for a in m3['atoms'] if a['name'] == 'fx.add')['notes'] == 'adds millivolts', (r3['added'], m3['title']))
+    shutil.rmtree(d, ignore_errors=True)
+
+
+def host_measure():
+    """The cost path on THIS host's gcc (the engine rung is the probe's): a host project with its own Makefile flags."""
+    from cmod.custom import measure as M
+    if not shutil.which('gcc') or not shutil.which('nm'):
+        print('  [SKIP] no host gcc/nm — the engine rung is proven by tests/cmod_liveboot_probe.py')
+        return
+    d = tempfile.mkdtemp(prefix='cmod-host-')
+    open(os.path.join(d, 'm.c'), 'w').write('int add(int a, int b) { return a + b; }\nstatic int sq(int x) { return x * x; }\n'
+                                             'int main(void) { return add(1, 2) + sq(3); }\n')
+    open(os.path.join(d, 'Makefile'), 'w').write('CC = gcc\nOPT = -Os\nCFLAGS = $(OPT) -std=gnu99 -Wall\nLDFLAGS =\n')
+    r = M.measure(d, ['m.c'])
+    sh, ni = r['modes']['shipped'], r['modes']['noinline']
+    check('makefile_vars expands $(OPT) into CFLAGS; the measurement runs with the Makefile\'s OWN flags',
+          r['cc'] == 'gcc' and r['cflags'][:2] == ['-Os', '-std=gnu99'])
+    check('host gcc: shipped build = sq() inlined (no symbol), -fno-inline build = sq has its own bytes; .su frames parsed',
+          'sq' not in sh['text'] and ni['text'].get('sq', 0) > 0 and 'add' in sh['text'] and 'main' in sh['stack'], (sorted(sh['text']), sorted(ni['text'])))
+    check('GCC clone suffixes fold into the function: f.constprop.0 / f.isra.0 / f.part.0 → f',
+          M.base_symbol('apply_command.constprop.0') == 'apply_command' and M.base_symbol('x.isra') == 'x' and M.base_symbol('y.part.1') == 'y')
+    shutil.rmtree(d, ignore_errors=True)
+
+
+def main():
+    print('cmod selftest (cmod-0 + cmod-1)')
+    from cmod.custom.selftest_uno import uno_parts
+    from cmod.custom.selftest_glue import graph_parts
+    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure) + uno_parts(check) + graph_parts(check):
+        print('-- %s' % part.__name__)
+        part()
+    print('\n%d/%d checks passed' % (passed, total))
+    return 0 if passed == total else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -70,7 +70,28 @@ message PushSummary {{
   int32 refused = 3;
   string note = 4;
 }}
+
+// grpc-j4: which hardware interface a message belongs to. Set ONLY by
+// the bridge (telemetry up) and the server (commands down) from a
+// HardwareInterfaceBinding row; the wire struct never carries it.
+message HardwareInterface {{
+  string bridge = 1;
+  string binding = 2;
+  string board_instance = 3;
+  string port = 4;
+  string interface_name = 5;
+  string object_class = 6;
+  string object_name = 7;
+  string contract_hash = 8;   // wire contract hash v2
+  uint32 instance_index = 9;
+  uint64 present_mask = 10;   // bit i = field i (tag order) present
+  uint32 wire_version = 11;
+}}
 {SHARED_MARK_END}'''
+
+#: grpc-j4: the identity block's tag on every class message — never
+#: allocated by the ledger (the largest 2-byte varint key).
+HW_TAG = 2047
 
 
 def _now():
@@ -150,8 +171,11 @@ def proto_type_for(summary):
 
 
 def contract_hash(snapshot):
-    """Stable hash over the WIRE-RELEVANT projection of the snapshot
-    (field → proto type). Occurrence counters can't churn it."""
+    """Contract hash V1: a stable hash over the snapshot's field →
+    proto type projection. Occurrence counters can't churn it. It
+    watches the SCHEMA (exposure staleness); it does NOT see field
+    order — grpc-j4's hash v2 (wire_contract.hash_v2: order + types +
+    enum tables + index width + presence) is what firmware compares."""
     core = {}
     for field, summary in sorted((snapshot or {}).items()):
         ptype, comment = proto_type_for(
@@ -168,7 +192,7 @@ def merge_field_map(snapshot, prior_map=None):
     to `reserved` forever."""
     prior_fields = dict((prior_map or {}).get('fields', {}))
     reserved = set(int(t) for t in (prior_map or {}).get('reserved', []))
-    used = set(reserved)
+    used = set(reserved) | {HW_TAG}   # grpc-j4: never a field's tag
     used.update(int(spec.get('tag', 0)) for spec in prior_fields.values())
 
     def next_tag():
@@ -211,6 +235,8 @@ def render_message(class_name, field_map):
     reserved = field_map.get('reserved', [])
     if reserved:
         lines.append(f"  reserved {', '.join(str(t) for t in reserved)};")
+    lines.append(f'  HardwareInterface hardware_interface = {HW_TAG};'
+                 '  // grpc-j4: bridge/server only, never in the struct')
     lines.append('}')
     return '\n'.join(lines)
 

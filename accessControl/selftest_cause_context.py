@@ -94,6 +94,9 @@ KNOWN_THREAD_SITES = {
         'after the rows are restored — root `boot` cause',
     'apps_page.py':
         'the polariapps-pages converge worker (ct-8) — root `boot` cause',
+    'attach.py':
+        'the brd-fi firmware installer\'s bridge attach for one request (generate, mvn package, start the bridge) — '
+        'handed the request`s cause by argument',
     'cost_meter.py':
         'the rc-1 docker_run_metered cgroup-poll sampler — no cause needed: '
         'it only reads cgroup memory.peak/cpu.stat files into a local dict, '

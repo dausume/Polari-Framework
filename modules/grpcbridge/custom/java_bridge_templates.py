@@ -22,6 +22,7 @@ POLARI_PACKET_JAVA = r'''package org.polari.bridge;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.zip.CRC32;
@@ -35,19 +36,34 @@ import java.util.zip.CRC32;
  *
  * Little-endian throughout; CRC32 covers header + payload. The OS
  * just sees bytes; this class interprets them.
+ *
+ * grpc-j4: version 1 = the payload is the struct (every field);
+ * version 2 = the payload starts with the prelude (instance index +
+ * presence bits — the per-class codec reads it). Both parse.
  */
 public final class PolariPacket {
     public static final int MAGIC = 0x504C; // "PL" (wire: 0x4C 0x50)
-    public static final int VERSION = 1;
+    public static final int VERSION = 1;    // what the 4-arg constructor frames (legacy)
+    public static final int VERSION_MAX = 4; // 3: an index byte, 4: a u16 index (grpc-j4)
     public static final int HEADER_LEN = 12;
+    public static final int MAX_PAYLOAD = 4096;
 
+    public final int version;    // u8: 1 | 2 | 3 | 4
     public final int msgType;    // u8
     public final int deviceId;   // u16
     public final long sequence;  // u32
     public final byte[] payload;
+    /** grpc-j4: the port this frame arrived on (set by BindingRouter). */
+    public String sourcePort;
 
     public PolariPacket(int msgType, int deviceId, long sequence,
                         byte[] payload) {
+        this(VERSION, msgType, deviceId, sequence, payload);
+    }
+
+    public PolariPacket(int version, int msgType, int deviceId,
+                        long sequence, byte[] payload) {
+        this.version = version;
         this.msgType = msgType;
         this.deviceId = deviceId;
         this.sequence = sequence;
@@ -62,7 +78,7 @@ public final class PolariPacket {
         ByteBuffer buf = ByteBuffer.allocate(wireLength())
                 .order(ByteOrder.LITTLE_ENDIAN);
         buf.putShort((short) MAGIC);
-        buf.put((byte) VERSION);
+        buf.put((byte) version);
         buf.put((byte) msgType);
         buf.putShort((short) deviceId);
         buf.putInt((int) sequence);
@@ -76,19 +92,30 @@ public final class PolariPacket {
 
     /**
      * Blocking read of one framed packet. Scans forward to the magic
-     * (resync-safe on a noisy line). Returns null when the frame's
-     * CRC or version is wrong — the caller counts and continues.
-     * Throws EOFException when the stream ends.
+     * (resync-safe on a noisy line; a second-byte mismatch that is
+     * itself a start byte starts the next candidate — brd-fi finding
+     * (3)). Returns null when the frame's CRC, version or length is
+     * wrong — the caller counts and continues; on a PushbackInputStream
+     * the rejected bytes after the first are pushed back and re-scanned,
+     * so a frame starting inside a corrupted one is kept. Throws
+     * EOFException when the stream ends.
      */
     public static PolariPacket read(InputStream in) throws IOException {
+        PushbackInputStream pin = in instanceof PushbackInputStream
+                ? (PushbackInputStream) in : null;
+        int b = in.read();
         while (true) {
-            int b = in.read();
             if (b < 0) throw new EOFException("packet stream ended");
-            if (b != (MAGIC & 0xFF)) continue;
+            if (b != (MAGIC & 0xFF)) {
+                b = in.read();
+                continue;
+            }
             int b2 = in.read();
             if (b2 < 0) throw new EOFException("packet stream ended");
-            if (b2 != ((MAGIC >> 8) & 0xFF)) continue;
-
+            if (b2 != ((MAGIC >> 8) & 0xFF)) {
+                b = b2; // it may itself start the next candidate
+                continue;
+            }
             byte[] rest = readFully(in, HEADER_LEN - 2);
             ByteBuffer hdr = ByteBuffer.wrap(rest)
                     .order(ByteOrder.LITTLE_ENDIAN);
@@ -97,6 +124,11 @@ public final class PolariPacket {
             int deviceId = hdr.getShort() & 0xFFFF;
             long sequence = hdr.getInt() & 0xFFFFFFFFL;
             int payloadLen = hdr.getShort() & 0xFFFF;
+            if (version < 1 || version > VERSION_MAX
+                    || payloadLen > MAX_PAYLOAD) {
+                pushBack(pin, rest, null, null);
+                return null;
+            }
             byte[] payload = readFully(in, payloadLen);
             byte[] crcBytes = readFully(in, 4);
             long wireCrc = ByteBuffer.wrap(crcBytes)
@@ -108,12 +140,32 @@ public final class PolariPacket {
                                   (byte) ((MAGIC >> 8) & 0xFF)});
             crc.update(rest);
             crc.update(payload);
-            if (crc.getValue() != wireCrc || version != VERSION) {
+            if (crc.getValue() != wireCrc) {
+                pushBack(pin, rest, payload, crcBytes);
                 return null; // corrupted frame — skip, keep reading
             }
-            return new PolariPacket(msgType, deviceId, sequence,
+            return new PolariPacket(version, msgType, deviceId, sequence,
                                     payload);
         }
+    }
+
+    /** Push back everything after the rejected candidate's first byte. */
+    private static void pushBack(PushbackInputStream pin, byte[] rest,
+                                 byte[] payload, byte[] crc)
+            throws IOException {
+        if (pin == null) return;
+        int n = 1 + rest.length + (payload == null ? 0 : payload.length)
+                + (crc == null ? 0 : crc.length);
+        byte[] all = new byte[n];
+        all[0] = (byte) ((MAGIC >> 8) & 0xFF);
+        System.arraycopy(rest, 0, all, 1, rest.length);
+        int off = 1 + rest.length;
+        if (payload != null) {
+            System.arraycopy(payload, 0, all, off, payload.length);
+            off += payload.length;
+        }
+        if (crc != null) System.arraycopy(crc, 0, all, off, crc.length);
+        pin.unread(all);
     }
 
     private static byte[] readFully(InputStream in, int n)
@@ -148,6 +200,16 @@ public interface DevicePort extends AutoCloseable {
 
     /** Send a command packet down to the device. */
     void send(PolariPacket packet) throws Exception;
+
+    /**
+     * grpc-j4: send to the interface bound as instance `index` of
+     * `objectClass` (BindingRouter routes to that binding's port); a
+     * single-port device just sends.
+     */
+    default void sendTo(String objectClass, int index,
+                        PolariPacket packet) throws Exception {
+        send(packet);
+    }
 
     String describe();
 
@@ -234,6 +296,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PushbackInputStream;
 
 /**
  * A USB CDC-ACM serial device (/dev/ttyACM*), both directions.
@@ -257,7 +320,9 @@ public final class SerialCdcPort implements DevicePort {
                     + " — is the device present and are you in the "
                     + "dialout group?");
         }
-        this.in = new FileInputStream(device);
+        // pushback: a rejected candidate's bytes are re-scanned (grpc-j4)
+        this.in = new PushbackInputStream(new FileInputStream(device),
+                PolariPacket.HEADER_LEN + PolariPacket.MAX_PAYLOAD + 4);
         this.out = new FileOutputStream(device);
     }
 
@@ -267,7 +332,7 @@ public final class SerialCdcPort implements DevicePort {
     }
 
     @Override
-    public void send(PolariPacket packet) throws Exception {
+    public synchronized void send(PolariPacket packet) throws Exception {
         out.write(packet.encode());
         out.flush();
     }
@@ -288,10 +353,15 @@ public final class SerialCdcPort implements DevicePort {
 BRIDGE_CONFIG_JAVA = r'''package org.polari.bridge;
 
 import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 /** bridge.properties, parsed. Every knob has a safe default. */
 public final class BridgeConfig {
+    /** grpc-j4: this bridge's name + its hardware-interface bindings. */
+    public final String bridgeName;
+    public final List<BridgeBinding> bindings = new ArrayList<>();
     public final String source;        // simulated | serial
     public final String serialDevice;
     public final int baud;
@@ -317,6 +387,33 @@ public final class BridgeConfig {
                 p.getProperty("grpc.enabled", "false"));
         this.grpcTarget =
                 p.getProperty("grpc.target", "localhost:3002");
+        this.bridgeName = p.getProperty("bridge.name", "");
+        int n = Integer.parseInt(p.getProperty("binding.count", "0"));
+        for (int i = 0; i < n; i++) {
+            bindings.add(BridgeBinding.from(p, "binding." + i + "."));
+        }
+    }
+
+    /** The binding of instance `index` of `objectClass`, or null. */
+    public BridgeBinding find(String objectClass, int index) {
+        for (BridgeBinding b : bindings) {
+            if (b.objectClass.equals(objectClass) && b.index == index) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    /** The binding of the row `objectName` of `objectClass`, or null. */
+    public BridgeBinding findByObject(String objectClass,
+                                      String objectName) {
+        for (BridgeBinding b : bindings) {
+            if (b.objectClass.equals(objectClass)
+                    && b.objectName.equals(objectName)) {
+                return b;
+            }
+        }
+        return null;
     }
 
     public static BridgeConfig load(String path) throws Exception {
@@ -364,9 +461,13 @@ public final class BridgeMain {
         long maxFrames = maxFramesOverride >= 0
                 ? maxFramesOverride : cfg.maxFrames;
 
-        DevicePort port = "serial".equals(cfg.source)
+        // grpc-j4: bindings → one port per bound interface, routed by
+        // (class, instance index); none → the single legacy port.
+        DevicePort port = !"serial".equals(cfg.source)
+                ? new SimulatedDevice(cfg.deviceId, cfg.simRateHz)
+                : cfg.bindings.isEmpty()
                 ? new SerialCdcPort(cfg.serialDevice, cfg.baud)
-                : new SimulatedDevice(cfg.deviceId, cfg.simRateHz);
+                : new BindingRouter(cfg);
 
         Object forwarder = null;
         java.lang.reflect.Method push = null;
@@ -374,8 +475,8 @@ public final class BridgeMain {
             Class<?> f = Class.forName(
                     "org.polari.bridge.grpc.GrpcForwarder");
             forwarder = f.getConstructor(String.class,
-                            DevicePort.class)
-                    .newInstance(cfg.grpcTarget, port);
+                            DevicePort.class, BridgeConfig.class)
+                    .newInstance(cfg.grpcTarget, port, cfg);
             push = f.getMethod("push", PolariPacket.class);
             f.getMethod("startCommands").invoke(forwarder);
         }
@@ -403,8 +504,9 @@ public final class BridgeMain {
                 bytes += packet.wireLength();
                 System.out.println("[bridge] seq=" + packet.sequence
                         + " device=" + packet.deviceId + " "
-                        + CodecRegistry.decodeToLine(packet.msgType,
-                                                     packet.payload));
+                        + (packet.version >= 2 ? "index="
+                           + CodecRegistry.indexOf(packet) + " " : "")
+                        + CodecRegistry.describe(packet));
                 if (push != null) {
                     push.invoke(forwarder, packet);
                 }
@@ -502,6 +604,53 @@ public final class LoopbackSelfTest {
                 System.out.println(
                         "PASS: command round-trip (telemetry "
                         + "reflects commanded state) " + got);
+            }
+        }
+
+        // grpc-j4: wire v2 — every class through encodeV2 / decodeFrame
+        // (a non-zero index where the width allows, field 0 absent)
+        for (int msgType : CodecRegistry.msgTypes()) {
+            String got = CodecRegistry.v2RoundTrip(msgType, 4242);
+            if (got.startsWith("FAIL")) {
+                System.out.println("FAIL: v2 round-trip — " + got);
+                failures++;
+            } else {
+                System.out.println("PASS: v2 round-trip " + got);
+            }
+        }
+
+        // grpc-j4 / brd-fi finding (3): garbage ending in the start
+        // byte, then a frame, then a frame cut short, then a frame —
+        // both whole frames survive on a pushback stream
+        {
+            int msgType = CodecRegistry.msgTypes()[0];
+            byte[] good = new PolariPacket(msgType, 7, 50,
+                    CodecRegistry.sampleFrame(msgType, 1)).encode();
+            byte[] good2 = new PolariPacket(msgType, 7, 51,
+                    CodecRegistry.sampleFrame(msgType, 2)).encode();
+            java.io.ByteArrayOutputStream s =
+                    new java.io.ByteArrayOutputStream();
+            s.write(new byte[]{0x00, (byte) 0xFF, 0x4C});
+            s.write(good);
+            s.write(good, 0, Math.min(good.length - 1, 20));
+            s.write(good2);
+            s.write(new byte[64]);
+            java.io.PushbackInputStream in = new java.io.PushbackInputStream(
+                    new ByteArrayInputStream(s.toByteArray()), 8192);
+            java.util.List<Long> seqs = new java.util.ArrayList<>();
+            try {
+                while (true) {
+                    PolariPacket p = PolariPacket.read(in);
+                    if (p != null) seqs.add(p.sequence);
+                }
+            } catch (java.io.EOFException end) {
+                // stream consumed
+            }
+            if (seqs.equals(java.util.Arrays.asList(50L, 51L))) {
+                System.out.println("PASS: resync keeps both frames " + seqs);
+            } else {
+                System.out.println("FAIL: resync kept " + seqs);
+                failures++;
             }
         }
 

@@ -171,6 +171,86 @@ def _stub(channel, runtime, method, kind):
         .FromString), runtime.message_class(req_cls)
 
 
+def _bit(runtime, field):
+    fields = runtime.field_maps['Widget']['fields']
+    order = sorted(fields, key=lambda n: int(fields[n]['tag']))
+    return 1 << order.index(field)
+
+
+def _wire_checks(mgr, channel, runtime, push, WidgetMsg, cmds, WatchRequest):
+    """grpc-j4: the presence mask (brd-fi finding (1)) and the binding
+    identity, through the REAL server."""
+    from grpcbridge.custom.descriptor_build import (
+        hardware_interface_of, set_hardware_interface)
+    w2 = mgr.objectTables['Widget']['w2']
+    w2.active, w2.count = True, 77
+    push(iter([WidgetMsg(name='rig-two', active=False)]), timeout=5)
+    check('grpc-j4 the OLD rule shown: a frame without hardware_interface '
+          'cannot set active back to false (proto3 drops the default)',
+          w2.active is True)
+    m = WidgetMsg(name='rig-two', active=False, count=0)
+    set_hardware_interface(m, {'wire_version': 2,
+                               'present_mask': _bit(runtime, 'active')
+                               | _bit(runtime, 'name')})
+    summary = push(iter([m]), timeout=5)
+    check('grpc-j4 presence mask: active present AS false → the row returns '
+          'to false; count (absent, though 0 in the message) untouched',
+          summary.applied == 1 and w2.active is False and w2.count == 77,
+          (w2.active, w2.count))
+    mgr.objectTables['HardwareInterfaceBinding'] = {}
+    for k in (0, 1):
+        b = types.SimpleNamespace(
+            name=f'pair/Widget/{k}', bridge_name='pair',
+            object_class='Widget', object_name=f'widget-b{k}',
+            board_instance=f'twin:x#{k}', port=f'/tmp/p{k}',
+            interface_name='usart0', instance_index=k, wire_version=2,
+            contract_hash_v2='h2', frames_seen=0, refused_frames=0,
+            last_sequence=0, last_seen_at='')
+        mgr.objectTables['HardwareInterfaceBinding'][b.name] = b
+    _widget(mgr, 'wb1', name='widget-b1', count=0)
+    rows_before = len(mgr.objectTables['Widget'])
+    m = WidgetMsg(name='what-the-firmware-says', count=5)
+    set_hardware_interface(m, {'wire_version': 2, 'bridge': 'pair',
+                               'object_name': 'widget-b1',
+                               'instance_index': 1,
+                               'present_mask': _bit(runtime, 'count')})
+    summary = push(iter([m]), timeout=5)
+    bound = [w for w in mgr.objectTables['Widget'].values()
+             if w.name == 'widget-b1']
+    b1 = mgr.objectTables['HardwareInterfaceBinding']['pair/Widget/1']
+    check('grpc-j4 binding identity: the frame lands on the BOUND row '
+          '(widget-b1), not the name the struct carried; counted on its '
+          'binding',
+          summary.applied == 1 and len(bound) == 1 and bound[0].count == 5
+          and len(mgr.objectTables['Widget']) == rows_before
+          and b1.frames_seen == 1, (summary, [w.name for w in bound]))
+    bad = WidgetMsg(count=6)
+    set_hardware_interface(bad, {'wire_version': 2, 'bridge': 'pair',
+                                 'object_name': 'widget-b1',
+                                 'instance_index': 0,
+                                 'present_mask': _bit(runtime, 'count')})
+    summary = push(iter([bad]), timeout=5)
+    check('grpc-j4 a frame whose index is not its binding\'s is REFUSED '
+          '(never applied), counted on the binding',
+          summary.refused == 1 and bound[0].count == 5
+          and b1.refused_frames == 1 and 'wrong interface' in summary.note,
+          summary.note)
+    cmd_stream = cmds(WatchRequest(class_name='Widget'), timeout=10)
+    time.sleep(0.3)
+    bound[0].label = 'down'
+    publish_crude_change(mgr, 'Widget', 'update', [bound[0].id])
+    cmd = next(cmd_stream)
+    hw = hardware_interface_of(cmd) or {}
+    n = len(runtime.field_maps['Widget']['fields'])
+    check('grpc-j4 Commands carry the binding: bridge pair, index 1, the '
+          'port, every field present — the bridge routes by it',
+          cmd.label == 'down' and hw.get('bridge') == 'pair'
+          and hw.get('instance_index') == 1 and hw.get('port') == '/tmp/p1'
+          and hw.get('present_mask') == (1 << n) - 1
+          and hw.get('wire_version') == 2, hw)
+    cmd_stream.cancel()
+
+
 def main():
     ss._STATUS_CACHE.clear()
     mgr = _mgr()
@@ -333,6 +413,9 @@ def main():
           cmd.id == 'w1' and cmd.label == 'commanded'
           and cmd.count == 42)
     cmd_stream.cancel()
+
+    _wire_checks(mgr, channel, runtime, push, WidgetMsg, cmds,
+                 WatchRequest)
 
     # --- the gate: disabled + stale refuse with evidence ----------------
     report = pg.exposure_action(mgr, 'Widget', 'disable')

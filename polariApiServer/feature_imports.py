@@ -909,6 +909,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('grpcbridge.hwsim_basis', (
             'SimRigState', 'SEED_SIM_RIGS',
         )),
+        ('grpcbridge.mapping_basis', (
+            'HardwareInterfaceBinding', 'EnumMapping', 'WireContract',
+            'SEED_ENUM_MAPPINGS', 'SEED_HARDWARE_BINDINGS',
+        )),
     )),
     ('hwfpga', (
         ('hwfpga.fpga_basis', (
@@ -1295,6 +1299,46 @@ FEATURE_IMPORT_BLOCKS = (
                                          'CompilerArtifact', 'COMPUTELOD_CLASSES')),
         ('computelod.computelod_seed', ('COMPUTELOD_SEED_PAIRS',)),
         ('computelod.computelod_page', ('SEED_COMPUTELOD_PAGE_DISPLAYS',)),
+    )),
+    # brd-0 (BOARD_PROGRAMMING_PLAN): boards programmed over USB — every register device as a row, its road, adapters, programmer kinds
+    ('board', (
+        ('board.board_basis', ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition',
+                               'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
+                               'UnoAnalogState', 'SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin',
+                               'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten
+        ('board.board_seed', ('BOARD_SEED_PAIRS',)),
+        ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
+    )),
+    # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine — rows for parts/symbols/footprints/schematics/boards,
+    # DKRed's fab rules cited, ingest + the schematic writer, kicad-cli ERC/DRC/exports through the engines ladder
+    ('pcb', (
+        # aliased (Pcb-prefixed): Part/Symbol/Schematic/Placement/Route/… are common names across this one giant
+        # namespace (defClassList in polariServer.py) — the alias is what gets registered there, never the bare name
+        ('pcb.pcb_basis', ('Part as PcbPart', 'Symbol as PcbSymbol', 'Footprint as PcbFootprint', 'LandPattern as PcbLandPattern',
+                           'Schematic as PcbSchematic', 'SchematicSheet as PcbSchematicSheet', 'PcbBoard', 'Placement as PcbPlacement',
+                           'Route as PcbRoute', 'DrcResult as PcbDrcResult', 'FabricationExport as PcbFabricationExport',
+                           'FabRuleSet as PcbFabRuleSet', 'FabRule as PcbFabRule', 'PCB_CLASSES')),
+        ('pcb.pcb_seed', ('PCB_SEED_PAIRS',)),
+        ('pcb.pcb_page', ('SEED_PCB_PAGE_DISPLAYS',)),
+    )),
+    # sc-0 (FIRMWARE_SCENARIO_PLAN): firmware fault kinds as objects, techniques + their costs, scenarios forced on the UNO twin
+    ('firmwarefaults', (
+        ('firmwarefaults.firmwarefaults_basis', ('FirmwareFault', 'TornReadFault', 'DoubleGiveFault', 'LostWakeupFault', 'PriorityInversionFault', 'DeadlockFault', 'LivelockFault', 'StarvationFault', 'UartBitErrorFault', 'DoubleEdgeFault', 'MetastableInputFault', 'BrownoutMidWriteFault', 'BitFlipFault', 'ClockSkewFault', 'StackOverflowFault', 'BufferOverrunFault', 'MissedDeadlineFault', 'ConcurrencyPrimitive', 'Assumption', 'Technique', 'Scenario', 'ScenarioStep', 'ScenarioRun', 'ScenarioTraceCycle', 'ScenarioStatistic', 'ScenarioCampaign', 'FaultLikelihood', 'FormalCheck', 'StaticCheck', 'StaticFinding',
+                                                 'FIRMWAREFAULTS_CLASSES')),
+        ('firmwarefaults.firmwarefaults_seed', ('FIRMWAREFAULTS_SEED_PAIRS',)),
+        ('firmwarefaults.firmwarefaults_page', ('SEED_FIRMWAREFAULTS_PAGE_DISPLAYS',)),
+    )),
+    # cmod-0 (C_MODULARIZATION_PLAN): a normal C project's functions as atoms — ports, resources, cost — parsed, never typed in
+    ('cmod', (
+        ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild', 'CMOD_CLASSES')),
+        ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
+        ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
+    )),
+    # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareSolution across board / bridge / backend / browser; the placement rule; hn-split
+    ('hwnocode', (
+        ('hwnocode.hwnocode_basis', ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'HWNOCODE_CLASSES')),
+        ('hwnocode.hwnocode_seed', ('HWNOCODE_SEED_PAIRS',)),
+        ('hwnocode.hwnocode_page', ('SEED_HWNOCODE_PAGE_DISPLAYS',)),
     )),
     ('iso', (
         # iso-1: probe → choose → install (the ISO arc)

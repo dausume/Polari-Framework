@@ -49,7 +49,12 @@ PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600,
                   'pol-reticulum': 4285,
                   # rc-1 (2026-09-26): the compute arc's workers — the SAME registry, so pol allocate /
                   # admission / measurement see them like msci and cad (his: adhere to what topology tracks)
-                  'prf-eda-engines': 9800, 'prf-orfs-engines': 9801, 'prf-proof-engines': 9810, 'prf-torch-engines': 9820}
+                  'prf-eda-engines': 9800, 'prf-orfs-engines': 9801, 'prf-proof-engines': 9810, 'prf-torch-engines': 9820,
+                  # brd-1 (2026-10-01): the board arc's worker (avr-gcc / avrdude / the simavr twin)
+                  'prf-board-engines': 9830,
+                  'prf-formal-engines': 9840,   # sc-2b: CBMC + cppcheck (firmwarefaults.formal)
+                  'prf-esp-engines': 9850,   # sc-3: ESP-IDF v5.5.5 + esptool + the QEMU esp32c3 twin (board.esp-engines)
+                  'prf-pcb-engines': 9860}   # pcb-0: kicad-cli (ERC/DRC/exports — pcb.engines)
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.

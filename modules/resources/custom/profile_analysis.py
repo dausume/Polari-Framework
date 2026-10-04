@@ -43,6 +43,10 @@ ENGINE_MODULES = {
     'computelod.pnr': 'prf-orfs-engines',   # eng-1: the OpenROAD flow worker (built FROM openroad/orfs)
     'mathproofs.engines': 'prf-proof-engines',
     'tensormath.engines': 'prf-torch-engines',
+    'board.engines': 'prf-board-engines',   # brd-1: the UNO toolchain + the simavr twin
+    'firmwarefaults.formal': 'prf-formal-engines',   # sc-2b: CBMC (a separate-process engine, BSD-4) + cppcheck
+    'board.esp-engines': 'prf-esp-engines',   # sc-3: the ESP32-C3 toolchain (ESP-IDF) + esptool + the QEMU twin
+    'pcb.engines': 'prf-pcb-engines',   # pcb-0: kicad-cli (ERC/DRC/exports) — never places or routes
 }
 
 _CLASS_RE = re.compile(r'^class\s+(\w+)\(treeObject\)', re.MULTILINE)

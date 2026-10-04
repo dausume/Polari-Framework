@@ -15,6 +15,24 @@
 # threaded core tables; carries the hand-tuned security stanza) — a fresh
 # clone without it cannot admit the module or run `pol project`.
 !modules/*/polari-app.json
+# hwmap's selftest needs the mapping rules exercised against a REAL captured
+# snapshot, not only synthetic ones — tracked SANITISED (hostname/MAC/by-id
+# serials replaced; vendor:product ids, bus topology, IOMMU groups and driver
+# names are not personal and stay real). See modules/hwmap/README.md.
+!modules/hwmap/custom/fixture_pol_core.json
+# cmod-0: the CONFORMED C manifest IS source like polari-app.json (derived by `pol cmod conform`, committed beside the
+# project's Makefile), and the register snapshot the parser reads (derived from avr-libc's <avr/io.h>, carries its sha)
+!modules/**/polari-firmware.json
+!modules/cmod/custom/registers_*.json
+# cmod-1: a graph's glue-build record (the rendered files' shas, the cost estimate, make alone, the twin equivalence proof) IS
+# source — the CGlueBuild row is seeded from it
+!modules/cmod/custom/glue_builds/*.json
+# brd-bo: the board object's dev-hn-0 baseline (the byte-identity fixture) and the ingested Zephyr files' provenance ARE source
+!modules/board/custom/fixtures/*.json
+!modules/board/custom/upstream/**/SOURCE.json
+# pcb-0: the ingested ecc83-pp demo's provenance (package/version/licence, per-file sha256) IS source, same reason as board's —
+# without this exemption the blanket *.json ignore silently drops it on every commit (the gap this line fixes)
+!modules/pcb/custom/upstream/**/SOURCE.json
 *.pyc
 *.db
 */falcon

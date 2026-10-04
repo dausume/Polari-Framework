@@ -1,0 +1,160 @@
+{
+ "schema": "polari-app/1",
+ "id": "hwnocode",
+ "package": "hwnocode",
+ "title": "Hardware No-Code",
+ "description": "Hardware as no-code (hn arc, HARDWARE_NOCODE_PLAN.md; D-hn-1..6 ruled 2026-10-03): ONE no-code model across frontend, backend and hardware. A HardwareSolution ties a backend SolutionDefinition to a cmod CGraph (the hardware SUBGRAPH, D-hn-1), the board or twin it targets, the hw-interface (a grpcbridge HardwareInterfaceBinding, the device-backend split point) and its configured displays. The placement rule derives where every node runs (board | twin | bridge | backend | browser) and REFUSES a Python node on the device side (RULE 2); hn-split renders the board half through cmod-glue (unchanged, byte-identical firmware) and the backend half as its own SolutionDefinition. Node kinds HardwareSubgraph / HardwareInterface / CAtom reach the ONE canvas's palette as data from GET /stateSpaceClasses (D-hn-2). firmware_runtime (bare-c | freertos | esp-idf | zephyr) is the person's knob; the runtime suggestion is shown with evidence, never applied (D-hn-3). hn-0: the split app uno-temp-split (variant h over the existing UNO peripheral, variant b) proven on the simavr twin.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-hwnocode.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "firmware",
+   "no-code",
+   "hardware",
+   "placement"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board",
+   "cmod",
+   "grpcbridge"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "make",
+    "kind": "system",
+    "probe": "make",
+    "note": "pol hwnocode build only: make ALONE in the rendered board half, through cmod's engines seam (= the board engines seam: BOARD_ENGINES_URL -> local binary -> prf-board-engines:trixie -> topology board.engines -> refusal); placement, the split, the suggestion and the backend half need no engine"
+   },
+   {
+    "name": "avr-twin",
+    "kind": "system",
+    "probe": "polari-avr-twin",
+    "note": "the proof only: board's simavr twin (pol board twin uno up --work <hwnocode work>) runs the board half's .hex; the generated Java bridge (java + mvn on the host) attaches at its pty — tests/hwnocode_probe.py skips honestly without them"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/hwnocode/CAtom",
+   "objects/hwnocode/HardwareInterface",
+   "objects/hwnocode/HardwareNodePlacement",
+   "objects/hwnocode/HardwareSolution",
+   "objects/hwnocode/HardwareSubgraph",
+   "objects/hwnocode/SimRigTempDerived",
+   "objects/hwnocode/SimRigTempSample"
+  ],
+  "basis": [
+   "hwnocode_basis"
+  ],
+  "api": [
+   "hwnocode_api"
+  ],
+  "endpoints": [
+   "hwnocode_endpoints"
+  ],
+  "seed": [
+   "hwnocode_seed"
+  ],
+  "page": [
+   "hwnocode_page"
+  ],
+  "selftests": [
+   "hwnocode_selftest"
+  ],
+  "custom": [
+   "custom/derive",
+   "custom/hwnocode_cli",
+   "custom/knobs",
+   "custom/placement",
+   "custom/seed_rows",
+   "custom/solutions",
+   "custom/split",
+   "custom/suggest"
+  ]
+ },
+ "classes": [
+  "CAtom",
+  "HardwareInterface",
+  "HardwareNodePlacement",
+  "HardwareSolution",
+  "HardwareSubgraph",
+  "HwNoCodeAPI",
+  "SimRigTempDerived",
+  "SimRigTempSample"
+ ],
+ "imports": [
+  [
+   "hwnocode.hwnocode_basis",
+   [
+    "HardwareSolution",
+    "HardwareNodePlacement",
+    "HardwareSubgraph",
+    "HardwareInterface",
+    "CAtom",
+    "SimRigTempSample",
+    "SimRigTempDerived",
+    "HWNOCODE_CLASSES"
+   ]
+  ],
+  [
+   "hwnocode.hwnocode_seed",
+   [
+    "HWNOCODE_SEED_PAIRS"
+   ]
+  ],
+  [
+   "hwnocode.hwnocode_page",
+   [
+    "SEED_HWNOCODE_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "hwnocode.hwnocode_endpoints:construct_hwnocode_endpoints",
+ "seedPairs": "hwnocode.hwnocode_seed:HWNOCODE_SEED_PAIRS",
+ "pages": [
+  "hwnocode.hwnocode_page:SEED_HWNOCODE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "hwnocode_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false,
+ "engines_note": "placement, hn-split, the suggestion and the backend half run in the framework process (pure Python + the engine); make (pol hwnocode build) and the simavr twin (the proof) go through cmod's / board's engines seam; the Java bridge is board's (java + mvn on the host)"
+}

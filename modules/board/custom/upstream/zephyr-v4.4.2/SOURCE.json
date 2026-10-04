@@ -1,0 +1,80 @@
+{
+ "what": "Zephyr RTOS upstream files the board module INGESTS (brd-bo): the ESP32-C3-DevKitM board directory, the SoC dtsi it includes, and the pinctrl macro header a rendered overlay is validated against. Stored verbatim; never edited here.",
+ "project": "https://github.com/zephyrproject-rtos/zephyr",
+ "tag": "v4.4.2",
+ "tag_object": "671f64aa79924606253238f801c494c84b02c2a0",
+ "commit": "dccb09599635bdff17633fa7e9dab014b91dce90",
+ "released": "2026-08-07",
+ "fetched": "2026-10-03",
+ "licence": "Apache-2.0 (SPDX headers in the files; the project LICENSE stored beside them, as Apache-2.0 section 4 asks)",
+ "gpl3_compatible": "yes (Apache-2.0 is GPLv3-compatible \u2014 project-license-gplv3)",
+ "not_stored": "espressif/partitions_0x0_default.dtsi (flash partitions \u2014 not needed for pins; the ingest lists it as an unresolved include)",
+ "files": [
+  {
+   "path": "LICENSE",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/LICENSE",
+   "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+   "bytes": 11358
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/Kconfig",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/Kconfig",
+   "sha256": "4f7704a4897d21a8724502ed92d549c20d1b8c36cdc9ecab4f677b82704ab967",
+   "bytes": 154
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/Kconfig.esp32c3_devkitm",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/Kconfig.esp32c3_devkitm",
+   "sha256": "e75a826437f896ade8b128a96b300578bbb4cafc2d658cec972170a053337052",
+   "bytes": 195
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/board.yml",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/board.yml",
+   "sha256": "0563ae6e69f777d24e76577f0cd03fa57fd10d5c39da41e0e961cd2d25760eda",
+   "bytes": 107
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/esp32c3_devkitm-pinctrl.dtsi",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/esp32c3_devkitm-pinctrl.dtsi",
+   "sha256": "f57dc68255fe0b92e3543cab92b2586e8440be3bb85f6d64275f2d09b53039de",
+   "bytes": 1099
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/esp32c3_devkitm.dts",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/esp32c3_devkitm.dts",
+   "sha256": "b71e1156397a9c8a6dd21bdf631ddc525475c585f67856137713e92a0c267fc4",
+   "bytes": 1816
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/esp32c3_devkitm.yaml",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/esp32c3_devkitm.yaml",
+   "sha256": "4be127c92b9fde8a96d7b393008fd73f7aa1692e91e465165a6628c2d1f3b897",
+   "bytes": 262
+  },
+  {
+   "path": "boards/espressif/esp32c3_devkitm/esp32c3_devkitm_defconfig",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/boards/espressif/esp32c3_devkitm/esp32c3_devkitm_defconfig",
+   "sha256": "ef0078cb6ba9daf0d840d231f431a0e9f4a2918019aa13f7fd5dfa1e485d1eda",
+   "bytes": 108
+  },
+  {
+   "path": "dts/riscv/espressif/esp32c3/esp32c3_common.dtsi",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/dts/riscv/espressif/esp32c3/esp32c3_common.dtsi",
+   "sha256": "d906c86e970135f95e58d856d164e1a3a379a17f4377a4e87f7697eba4d5083b",
+   "bytes": 9206
+  },
+  {
+   "path": "dts/riscv/espressif/esp32c3/esp32c3_mini_n4.dtsi",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/dts/riscv/espressif/esp32c3/esp32c3_mini_n4.dtsi",
+   "sha256": "f5c5b15ae8afcb22edaf1febe3e3323757cc01cf3479d8cad96ee0ff44b778b9",
+   "bytes": 199
+  },
+  {
+   "path": "include/zephyr/dt-bindings/pinctrl/esp32c3-pinctrl.h",
+   "url": "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v4.4.2/include/zephyr/dt-bindings/pinctrl/esp32c3-pinctrl.h",
+   "sha256": "76ba11e2cad94c3e0883f574661d934cb9f084aecca6e7aac8b0de8b173fdb4b",
+   "bytes": 65035
+  }
+ ]
+}

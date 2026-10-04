@@ -52,6 +52,14 @@ DEFAULTS = {
     'tensortree': ('polari', ['knowledge-media', 'materials-devices'], ['tensor', 'tree', 'visualization']),
     'mathproofs': ('polari', ['knowledge-media'], ['proofs', 'logic', 'tensor']),
     'computelod': ('polari', ['materials-devices', 'chip-simulation', 'knowledge-media'], ['compute', 'ladder', 'learning']),
+    # brd-0: boards programmed over USB (BOARD_PROGRAMMING_PLAN)
+    'board': ('polari', ['materials-devices', 'chip-simulation'], ['boards', 'usb', 'firmware', 'arduino']),
+    # sc-0: firmware fault scenarios (FIRMWARE_SCENARIO_PLAN)
+    'firmwarefaults': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'concurrency', 'faults', 'simulation']),
+    # cmod-0: C modularization — atoms of a normal C project (C_MODULARIZATION_PLAN)
+    'cmod': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'c', 'atoms', 'no-code']),
+    # hn-0: hardware as no-code (HARDWARE_NOCODE_PLAN)
+    'hwnocode': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'no-code', 'hardware', 'placement']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),
     'motors': ('polari', ['materials-devices', 'making-mechanics'], ['motors']),

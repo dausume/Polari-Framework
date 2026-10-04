@@ -1,0 +1,114 @@
+{
+ "what": "KiCad's own ecc83-pp demo (ECC83/12AX7 valve push-pull preamp, all through-hole) the pcb module INGESTS (pcb-0, README \"The ingested board\"): plan \u00a77 named Raspberry Pi's RP2040 Minimal design, but its licence page 404'd (only a forum staff statement backed it), so this slice ingests the kicad-demos package's own ecc83/ project instead \u2014 small (15 footprints, 13 nets), all-THT like the UNO shield, and under an explicit licence. Stored verbatim; never edited here.",
+ "package": "kicad-demos",
+ "package_version": "9.0.2+dfsg-1",
+ "distro": "Debian trixie",
+ "upstream_path": "/usr/share/kicad/demos/ecc83/ (the package's demos/ tree)",
+ "project": "https://packages.debian.org/trixie/kicad-demos",
+ "licence": "GPL-2.0-or-later",
+ "licence_source": "Debian's copyright file for kicad-demos, stanza \"Files: demos/*\": \"Copyright: 1992-2017, KiCad Developers, see CHANGELOG.TXT for contributors. License: GPL-2+\" (copied verbatim into LICENSE.md beside this file)",
+ "gpl3_compatible": "yes (GPL-2.0-or-later is GPLv3-compatible \u2014 project-license-gplv3)",
+ "fetched_from": "the SAME pinned Debian trixie packages the prf-pcb-engines worker image installs (README \u00a7 \"The ingested board\"), so the demo matches the engine's own kicad-demos build exactly",
+ "fetched": "unknown \u2014 this SOURCE.json was reconstructed after the fact: the worktree that originally fetched the package was removed before the file was committed (the pcb/.gitignore lacked board's per-file SOURCE.json exemption, so git silently dropped it). The committed ecc83/ files, LICENSE.md and the README/COST notes are the only surviving evidence; nothing below was re-downloaded to produce it.",
+ "field_provenance": {
+  "derived (recomputed here from the committed files, this run, sha256sum over each file under ecc83/)": [
+   "files[].sha256",
+   "files[].bytes"
+  ],
+  "copied (from modules/pcb/README.md and custom/upstream/kicad-demos-9.0.2/LICENSE.md, already committed on dev-pcb-0)": [
+   "package",
+   "package_version",
+   "distro",
+   "licence",
+   "licence_source",
+   "gpl3_compatible",
+   "upstream_path"
+  ],
+  "not independently verified (no network access in this worktree; stated by the prior agent's README/LICENSE.md notes and taken on their word, same as any other cited source row)": [
+   "project",
+   "fetched_from"
+  ]
+ },
+ "files": [
+  {
+   "path": "ecc83/ecc83-pp.kicad_pcb",
+   "sha256": "0ab45f4f8c90ac877e3313a1888d875107f2be3fc2b2f40cfb7927873b35260c",
+   "bytes": 158878
+  },
+  {
+   "path": "ecc83/ecc83-pp.kicad_pro",
+   "sha256": "8a943fac4b0cc3ed4fa83ccc83a6e15b9326178845ada0aa906df63f0672e975",
+   "bytes": 15516
+  },
+  {
+   "path": "ecc83/ecc83-pp.kicad_sch",
+   "sha256": "8a2d0359a0f3e647378034d84ab72b09dd7aa42f8b1f5e7fa0ff28ae369beee9",
+   "bytes": 55220
+  },
+  {
+   "path": "ecc83/ecc83-pp.kicad_sym",
+   "sha256": "df52d7c0a22cc198c3b9b63c8d23149d2297da37dc485fa5cd6d63057e7b04d0",
+   "bytes": 17842
+  },
+  {
+   "path": "ecc83/footprints.pretty/Altech_AK300_1x02_P5.00mm_45-Degree.kicad_mod",
+   "sha256": "3417ad89f53dbf4d89a864be136abc4a7d2db54c1e0d1255827bd2b6699ff56b",
+   "bytes": 4285
+  },
+  {
+   "path": "ecc83/footprints.pretty/CP_Radial_D10.0mm_P5.00mm.kicad_mod",
+   "sha256": "26f2b2d92ca5f75cf3c1097d2bd25594eaa894fe9ea6ad2c5bc8aa81de38d8f0",
+   "bytes": 35260
+  },
+  {
+   "path": "ecc83/footprints.pretty/CP_Radial_D12.5mm_P7.50mm.kicad_mod",
+   "sha256": "2e88b1537e49800ead205dbc89e6de1a30bbe68bfc1ada0c1fb2c538fd823a21",
+   "bytes": 42309
+  },
+  {
+   "path": "ecc83/footprints.pretty/C_Axial_L12.0mm_D6.5mm_P20.00mm_Horizontal.kicad_mod",
+   "sha256": "cf734b97499f88ea309b49ed316b5b90025c7970ac48d1087ac8648fe3552154",
+   "bytes": 4513
+  },
+  {
+   "path": "ecc83/footprints.pretty/C_Disc_D4.7mm_W2.5mm_P5.00mm.kicad_mod",
+   "sha256": "9a6b41d0a58e122628dee55488db66868881aba635cb2ae3719f8da58d7453ce",
+   "bytes": 4205
+  },
+  {
+   "path": "ecc83/footprints.pretty/MountingHole_3.2mm_M3_DIN965_Pad.kicad_mod",
+   "sha256": "b5a025cc72ce2695227dd27860edcf8d62809e650310c45fbc5d7988e924a086",
+   "bytes": 1778
+  },
+  {
+   "path": "ecc83/footprints.pretty/PinHeader_1x02_P2.54mm_Vertical.kicad_mod",
+   "sha256": "4872ff9a91b83db6c5f0c45d0e5992cbe164e81de719518ef0b4bd18b6ce8ca7",
+   "bytes": 4288
+  },
+  {
+   "path": "ecc83/footprints.pretty/R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal.kicad_mod",
+   "sha256": "a2276fb3674895472869246be8da3974705d269f5232d3238cd08324d577c7f4",
+   "bytes": 4622
+  },
+  {
+   "path": "ecc83/footprints.pretty/Valve_ECC-83-1.kicad_mod",
+   "sha256": "c7c0f37c57470682fb997a04077faf8c0c123a78a6dedaea4e5ab95a8f6ff494",
+   "bytes": 3514
+  },
+  {
+   "path": "ecc83/footprints.pretty/Valve_ECC-83-2.kicad_mod",
+   "sha256": "5a3454a91683f23042cf10f273ea97a00dd43f9e50f25161a1c223ab720fa591",
+   "bytes": 3783
+  },
+  {
+   "path": "ecc83/fp-lib-table",
+   "sha256": "ceafadbd442dc7d2a61b759ecba37782de1b3eee4308235c9d012e1e0482ee23",
+   "bytes": 131
+  },
+  {
+   "path": "ecc83/sym-lib-table",
+   "sha256": "d816bcba37ad6b2f6738c99adc52f796011405d8ce75ff397b736c0493e609e2",
+   "bytes": 131
+  }
+ ]
+}

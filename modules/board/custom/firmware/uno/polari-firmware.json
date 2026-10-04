@@ -1,0 +1,3146 @@
+{
+ "schema": "polari-firmware/1",
+ "project": "uno",
+ "kind": "template",
+ "title": "UNO firmware template (board module)",
+ "description": "",
+ "notes": "",
+ "root": "board/custom/firmware/uno",
+ "board": "arduino-uno-r3",
+ "mcu": "atmega328p",
+ "parser": {
+  "engine": "pycparser",
+  "version": "2.21",
+  "licence": "BSD-3-Clause",
+  "runs": "in the framework process (pure Python; cffi already pins it — requirements.txt pycparser==2.21)",
+  "preprocessor": "pycparser.ply.cpp (pure Python) + cmod fake avr-libc headers",
+  "fake_headers_sha256": "35cf5dc88acbab00b5fac625254e8959c38bed1185fcf517d60b2d9541b7f40b",
+  "registers": {
+   "mcu": "atmega328p",
+   "avr_libc": "2.2.1",
+   "dm_sha256": "45dba0b820ff25c6fa7f50c2f7a0d527988bea35dd65551c31d072704500d0ce",
+   "count": 96,
+   "vectors": 25
+  }
+ },
+ "build": {
+  "cc": "avr-gcc",
+  "cflags": [
+   "-mmcu=atmega328p",
+   "-DF_CPU=16000000UL",
+   "-Os",
+   "-std=gnu99",
+   "-Wall",
+   "-Wextra",
+   "-Werror",
+   "-ffunction-sections",
+   "-fdata-sections"
+  ],
+  "ldflags": [
+   "-Wl,--gc-sections"
+  ],
+  "from": "the project Makefile",
+  "measure": "shipped = the Makefile flags + -fstack-usage -Wno-error (no code change); noinline = + -fno-inline; text = nm -S --size-sort; stack = the .su frame",
+  "cc_version": "avr-gcc (GCC) 14.2.0"
+ },
+ "configurations": [
+  {
+   "name": "uno-sim-rig",
+   "kind": "board-variant",
+   "app": "sim_rig",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/sim_rig.c"
+   ],
+   "generated": [
+    "simrigstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "5e39493021adaf2b94af65b006f8e2b05d993bcd200cd0be56fb4cecc966a619",
+   "elf_sha256": {
+    "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
+    "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06"
+   }
+  },
+  {
+   "name": "uno-blink-only",
+   "kind": "board-variant",
+   "app": "blink",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/blink.c"
+   ],
+   "generated": [
+    "simrigstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "26ed229c7a1c9ce45cd13ef05df781fa093bf5978e8038906cdcc7d2e5db16fc",
+   "elf_sha256": {
+    "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
+    "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "85f619403f78d35bb7f398e8368cd0567b637497d18a46fc823b9bd5f1183bfe"
+   }
+  },
+  {
+   "name": "uno-adc-sweep",
+   "kind": "board-variant",
+   "app": "analog",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/analog.c"
+   ],
+   "generated": [
+    "unoanalogstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "d996b5ab14744c3b638efb93c0b50f07a14c2753feee78ba9af7f16884fc4a75",
+   "elf_sha256": {
+    "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
+    "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "6940a28821308dfea70c0921c851d2791f71810349dbe062010ff8e72e5e3d4b"
+   }
+  },
+  {
+   "name": "uno-echo",
+   "kind": "board-variant",
+   "app": "echo",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/echo.c"
+   ],
+   "generated": [
+    "simrigstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "57723aedbf9932d1fbd4a2967c42914e7339cc4f41fc00ad4d2f936d0ea202c2",
+   "elf_sha256": {
+    "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
+    "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "b09333d5828b59e07549a3f3512417dd80d17d8aba3092a878ae1fc3fceb2c17"
+   }
+  },
+  {
+   "name": "cmod-cover-commit",
+   "kind": "coverage",
+   "app": "scenario_rig",
+   "flags": [
+    "HAL_UART_ERRCOUNT=1",
+    "HAL_INT0=1",
+    "HAL_INT0_DEBOUNCE_MS=20",
+    "HAL_WDT=1",
+    "SC_EEPROM_RECORD=2",
+    "SC_ACK_WAIT=1",
+    "SC_ACK_TIMEOUT_MS=200"
+   ],
+   "sources": [
+    "hal.c",
+    "apps/scenario_rig.c"
+   ],
+   "generated": [
+    "simrigstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "7d0d278bf7d2a824eecac9ff7b11c6cfe130fcdd0ca435bdf7e45d539fc44d93",
+   "elf_sha256": {
+    "shipped": "ebd27d853fd1b38535404f527f5e123c7a8392e88b5b0a9489c0e75ca8422c82",
+    "noinline": "6599adddd66718dfe39352caa5bdc4a081892017674b2aa01940ec9c4000cbbc"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "6981423f050026b5aefebbdaa4a0c793a54d5346756940381df3c15a62b2e077"
+   }
+  },
+  {
+   "name": "cmod-cover-record",
+   "kind": "coverage",
+   "app": "scenario_rig",
+   "flags": [
+    "HAL_INT0=1",
+    "SC_EEPROM_RECORD=1",
+    "SC_ACK_WAIT=1"
+   ],
+   "sources": [
+    "hal.c",
+    "apps/scenario_rig.c"
+   ],
+   "generated": [
+    "simrigstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "577c6e7b4cfd0f12d3ae0e0fe916548e46a2a80c2eaa418c183fa3ed0ff262b9",
+   "elf_sha256": {
+    "shipped": "ab538d9db6e60913e04beaed5d42a02952841066a74dc5eadf0f3c40bb1df28c",
+    "noinline": "dfba99d8fee1d06d31b9a59ce4f6cf13c7cb0c5a70cac15f41cbdcb57fc615ea"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "c5336e06f6813286bf03a3f09e5c18afc891acadf3aaa3a13a001d8bb7718673"
+   }
+  }
+ ],
+ "modules": [
+  {
+   "name": "hal",
+   "role": "hal",
+   "files": [
+    {
+     "path": "hal.c",
+     "sha256": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac"
+    },
+    {
+     "path": "hal.h",
+     "sha256": "cc5bd26265aa30fe08cbde704eada448886fe479fce402eec18ce8fe8b730134"
+    }
+   ],
+   "atoms": [
+    "hal.INT0_vect",
+    "hal.TIMER2_COMPA_vect",
+    "hal.USART_RX_vect",
+    "hal.hal_adc_init",
+    "hal.hal_adc_read",
+    "hal.hal_button_init",
+    "hal.hal_led",
+    "hal.hal_led_init",
+    "hal.hal_millis",
+    "hal.hal_presses",
+    "hal.hal_pwm_apply",
+    "hal.hal_pwm_init",
+    "hal.hal_rx_pop",
+    "hal.hal_tick_init",
+    "hal.hal_uart_errors",
+    "hal.hal_usart_init",
+    "hal.hal_usart_send",
+    "hal.hal_wdt_boot"
+   ]
+  },
+  {
+   "name": "board_config",
+   "role": "config",
+   "files": [
+    {
+     "path": "board_config.h",
+     "sha256": "078f23a05f4fb02253918424d04f3aa3877fa3c3d7003d37be8494a7c2b5ee53"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "apps/sim_rig",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/sim_rig.c",
+     "sha256": "3c38b4bb48aad452842ae43e9669ca0dbeeae52080c233667ebac99bc815ba0b"
+    }
+   ],
+   "atoms": [
+    "apps/sim_rig.apply_command",
+    "apps/sim_rig.main",
+    "apps/sim_rig.sensor_value"
+   ]
+  },
+  {
+   "name": "apps/blink",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/blink.c",
+     "sha256": "39347ae36fa6a46c8fd1a265546885c37b4a85c610a198c4ab09a44ac49ded99"
+    }
+   ],
+   "atoms": [
+    "apps/blink.main"
+   ]
+  },
+  {
+   "name": "apps/analog",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/analog.c",
+     "sha256": "2f0c2e85cd409cd3902ecc985719939c43a72fe95606c1be5a6a7a209497b847"
+    }
+   ],
+   "atoms": [
+    "apps/analog.main"
+   ]
+  },
+  {
+   "name": "apps/echo",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/echo.c",
+     "sha256": "0a7b439a275db578c4842900e10e5933cea557c7507c3967210bfbfb2a327698"
+    }
+   ],
+   "atoms": [
+    "apps/echo.echo_command",
+    "apps/echo.main"
+   ]
+  },
+  {
+   "name": "apps/scenario_rig",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/scenario_rig.c",
+     "sha256": "0d46fff9b890543ee26d34d9b9483a019020344ac973c7d59951fd4258250d2a"
+    }
+   ],
+   "atoms": [
+    "apps/scenario_rig.ack_step",
+    "apps/scenario_rig.apply_command",
+    "apps/scenario_rig.crc8",
+    "apps/scenario_rig.drain_rx",
+    "apps/scenario_rig.main",
+    "apps/scenario_rig.record_boot",
+    "apps/scenario_rig.record_write",
+    "apps/scenario_rig.send_request",
+    "apps/scenario_rig.slot_read"
+   ]
+  }
+ ],
+ "atoms": [
+  {
+   "name": "apps/analog.main",
+   "function": "main",
+   "module": "apps/analog.c",
+   "line": 41,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[100], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "UnoAnalogState_t, 97 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[116], 1 B (element)"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "hal_usart_init",
+    "hal_tick_init",
+    "hal_adc_init",
+    "memset",
+    "strcpy",
+    "sei",
+    "hal_millis",
+    "hal_adc_read",
+    "hal_usart_send",
+    "UnoAnalogState_frame",
+    "UnoAnalogState_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches payload, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-adc-sweep"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-adc-sweep",
+    "symbol": "main",
+    "text_bytes": 772,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 314,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     772,
+     772
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/blink.main",
+   "function": "main",
+   "module": "apps/blink.c",
+   "line": 42,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109], 1 B (element)"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "hal_usart_init",
+    "hal_tick_init",
+    "hal_led_init",
+    "memset",
+    "strcpy",
+    "sei",
+    "hal_millis",
+    "hal_led",
+    "hal_usart_send",
+    "SimRigState_frame",
+    "SimRigState_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches payload, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-blink-only"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-blink-only",
+    "symbol": "main",
+    "text_bytes": 606,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 298,
+    "stack_bytes": 20,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 10,
+    "text_bytes_range": [
+     606,
+     606
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/echo.echo_command",
+   "function": "echo_command",
+   "module": "apps/echo.c",
+   "line": 34,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void echo_command(const polari_rx_t * r)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "r",
+     "direction": "in",
+     "ctype": "const polari_rx_t *",
+     "width_bytes": 125,
+     "polari_type": "ref:polari_rx_t",
+     "unit": "frame",
+     "meaning": "a parsed PolariPacket SimRigState command",
+     "source": "derived: const pointer + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "echoes",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    }
+   ],
+   "calls": [
+    "memcpy",
+    "SimRigState_decode_rx",
+    "strcpy"
+   ],
+   "pure": false,
+   "pure_why": "touches echoes, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-echo"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 32,
+    "role": "copy a command's present fields into the state whole; status becomes echoed",
+    "uses": [],
+    "raw": "POLARI_NODE(echo_command, in(r, \"frame\", \"a parsed PolariPacket SimRigState command\"), role(\"copy a command's present fields into the state whole; status becomes echoed\"))"
+   },
+   "cost": {
+    "measured_in": "uno-echo",
+    "symbol": "echo_command",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 126,
+    "stack_bytes": 90,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 90,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/echo.main",
+   "function": "main",
+   "module": "apps/echo.c",
+   "line": 52,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "echoes",
+     "access": "r",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t, 125 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109], 1 B (element)"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "hal_usart_init",
+    "hal_tick_init",
+    "memset",
+    "strcpy",
+    "sei",
+    "hal_rx_pop",
+    "polari_rx_feed",
+    "echo_command",
+    "hal_millis",
+    "hal_usart_send",
+    "SimRigState_frame",
+    "SimRigState_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches echoes, payload, rx, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-echo"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-echo",
+    "symbol": "main",
+    "text_bytes": 2220,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 282,
+    "stack_bytes": 104,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 11,
+    "text_bytes_range": [
+     2220,
+     2220
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.ack_step",
+   "function": "ack_step",
+   "module": "apps/scenario_rig.c",
+   "line": 183,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void ack_step(uint32_t now)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "now",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "hal_millis() of this main-loop pass",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ack_deadline",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ack_seen",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ack_state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ack_tries",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "w",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    }
+   ],
+   "calls": [
+    "send_request"
+   ],
+   "pure": false,
+   "pure_why": "touches g_ack_deadline, g_ack_seen, g_ack_state, g_ack_tries, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 181,
+    "role": "one step of the request/ack state machine with timeout and retries",
+    "uses": [],
+    "raw": "POLARI_NODE(ack_step, in(now, \"ms\", \"hal_millis() of this main-loop pass\"), role(\"one step of the request/ack state machine with timeout and retries\"))"
+   },
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "ack_step",
+    "text_bytes": 186,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 186,
+    "stack_bytes": 6,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 6,
+    "text_bytes_range": [
+     186,
+     186
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.apply_command",
+   "function": "apply_command",
+   "module": "apps/scenario_rig.c",
+   "line": 145,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void apply_command(const polari_rx_t * r)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "r",
+     "direction": "in",
+     "ctype": "const polari_rx_t *",
+     "width_bytes": 125,
+     "polari_type": "ref:polari_rx_t",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: const pointer"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    }
+   ],
+   "calls": [
+    "SimRigState_decode_rx",
+    "hal_led",
+    "record_write"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "apply_command",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 122,
+    "stack_bytes": 92,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 92,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.crc8",
+   "function": "crc8",
+   "module": "apps/scenario_rig.c",
+   "line": 78,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t crc8(const uint8_t * d, uint8_t n)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "d",
+     "direction": "in",
+     "ctype": "const uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "bytes",
+     "meaning": "the record bytes",
+     "source": "derived: const pointer + annotation"
+    },
+    {
+     "name": "n",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "B",
+     "meaning": "how many",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "crc",
+     "meaning": "CRC-8, poly 0x07, init 0",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [],
+   "calls": [],
+   "pure": true,
+   "pure_why": "",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 76,
+    "role": "the EEPROM record's checksum",
+    "uses": [],
+    "raw": "POLARI_NODE(crc8, in(d, \"bytes\", \"the record bytes\"), in(n, \"B\", \"how many\"), out(return, \"crc\", \"CRC-8, poly 0x07, init 0\"), role(\"the EEPROM record's checksum\"))"
+   },
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "crc8",
+    "text_bytes": 44,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 44,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     44,
+     44
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.drain_rx",
+   "function": "drain_rx",
+   "module": "apps/scenario_rig.c",
+   "line": 165,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void drain_rx(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ack_seen",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t, 125 B"
+    }
+   ],
+   "calls": [
+    "hal_rx_pop",
+    "polari_rx_feed",
+    "apply_command"
+   ],
+   "pure": false,
+   "pure_why": "touches g_ack_seen, rx",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "drain_rx",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 70,
+    "stack_bytes": 6,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 6,
+    "text_bytes_range": [
+     0,
+     1796
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.main",
+   "function": "main",
+   "module": "apps/scenario_rig.c",
+   "line": 205,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ack_seen",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ack_state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t, 125 B"
+    },
+    {
+     "kind": "global",
+     "name": "seq",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109], 1 B (element)"
+    },
+    {
+     "kind": "library",
+     "name": "wdt_enable",
+     "access": "call",
+     "peripheral": "WDT",
+     "detail": "avr-libc"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    },
+    {
+     "kind": "library",
+     "name": "wdt_reset",
+     "access": "call",
+     "peripheral": "WDT",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "hal_usart_init",
+    "hal_tick_init",
+    "hal_led_init",
+    "hal_button_init",
+    "memset",
+    "strcpy",
+    "record_boot",
+    "wdt_enable",
+    "sei",
+    "wdt_reset",
+    "drain_rx",
+    "hal_millis",
+    "ack_step",
+    "hal_usart_send",
+    "SimRigState_frame",
+    "SimRigState_encode",
+    "send_request"
+   ],
+   "pure": false,
+   "pure_why": "touches g_ack_seen, g_ack_state, payload, rx, seq, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "main",
+    "text_bytes": 2490,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 274,
+    "stack_bytes": 114,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     666,
+     2490
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.record_boot",
+   "function": "record_boot",
+   "module": "apps/scenario_rig.c",
+   "line": 101,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void record_boot(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_rec_boot",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_rec_seq",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_rec_slot",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_rec_valid",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "library",
+     "name": "eeprom_read_dword",
+     "access": "call",
+     "peripheral": "EEPROM",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "slot_read",
+    "eeprom_read_dword"
+   ],
+   "pure": false,
+   "pure_why": "touches g_rec_boot, g_rec_seq, g_rec_slot, g_rec_valid",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "record_boot",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 216,
+    "stack_bytes": 15,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 15,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.record_write",
+   "function": "record_write",
+   "module": "apps/scenario_rig.c",
+   "line": 115,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void record_write(uint32_t v)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "v",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: by value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_rec_seq",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_rec_slot",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_rec_writes",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "library",
+     "name": "eeprom_write_byte",
+     "access": "call",
+     "peripheral": "EEPROM",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "crc8",
+    "eeprom_write_byte"
+   ],
+   "pure": false,
+   "pure_why": "touches g_rec_seq, g_rec_slot, g_rec_writes",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "record_write",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 170,
+    "stack_bytes": 18,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 18,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.send_request",
+   "function": "send_request",
+   "module": "apps/scenario_rig.c",
+   "line": 138,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void send_request(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ack_tries",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "seq",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109], 1 B (element)"
+    }
+   ],
+   "calls": [
+    "hal_usart_send",
+    "polari_packet_encode_v"
+   ],
+   "pure": false,
+   "pure_why": "touches g_ack_tries, payload, seq, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "send_request",
+    "text_bytes": 128,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 74,
+    "stack_bytes": 4,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     128
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/scenario_rig.slot_read",
+   "function": "slot_read",
+   "module": "apps/scenario_rig.c",
+   "line": 90,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t slot_read(uint8_t s, uint32_t * v, uint8_t * sq)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "s",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "slot 0 or 1",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "v",
+     "direction": "out",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "the stored value",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "sq",
+     "direction": "out",
+     "ctype": "uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "the slot's sequence number",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "flag",
+     "meaning": "1 = the slot's crc matched",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "eeprom_read_block",
+     "access": "call",
+     "peripheral": "EEPROM",
+     "detail": "avr-libc"
+    },
+    {
+     "kind": "declared",
+     "name": "EEPROM",
+     "access": "",
+     "peripheral": "EEPROM",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "eeprom_read_block",
+    "crc8"
+   ],
+   "pure": false,
+   "pure_why": "calls eeprom_read_block (EEPROM)",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 88,
+    "role": "read one write-then-commit EEPROM slot",
+    "uses": [
+     "EEPROM"
+    ],
+    "raw": "POLARI_NODE(slot_read, in(s, \"\", \"slot 0 or 1\"), out(v, \"\", \"the stored value\"), out(sq, \"\", \"the slot's sequence number\"), out(return, \"flag\", \"1 = the slot's crc matched\"), uses(EEPROM), role(\"read one write-then-commit EEPROM slot\"))"
+   },
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "slot_read",
+    "text_bytes": 126,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 126,
+    "stack_bytes": 15,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 15,
+    "text_bytes_range": [
+     126,
+     126
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/sim_rig.apply_command",
+   "function": "apply_command",
+   "module": "apps/sim_rig.c",
+   "line": 71,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void apply_command(const polari_rx_t * r)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "r",
+     "direction": "in",
+     "ctype": "const polari_rx_t *",
+     "width_bytes": 125,
+     "polari_type": "ref:polari_rx_t",
+     "unit": "frame",
+     "meaning": "a parsed PolariPacket SimRigState command",
+     "source": "derived: const pointer + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    },
+    {
+     "kind": "declared",
+     "name": "PWM_PIN",
+     "access": "",
+     "peripheral": "PWM_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "SimRigState_decode_rx",
+    "hal_led",
+    "hal_pwm_apply"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 69,
+    "role": "apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded",
+    "uses": [
+     "LED_PIN",
+     "PWM_PIN"
+    ],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket SimRigState command\"), uses(LED_PIN, PWM_PIN), role(\"apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "apply_command",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 192,
+    "stack_bytes": 92,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 92,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/sim_rig.main",
+   "function": "main",
+   "module": "apps/sim_rig.c",
+   "line": 94,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t, 125 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t, 86 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109], 1 B (element)"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "hal_usart_init",
+    "hal_tick_init",
+    "hal_led_init",
+    "hal_pwm_init",
+    "hal_adc_init",
+    "memset",
+    "strcpy",
+    "sei",
+    "hal_rx_pop",
+    "polari_rx_feed",
+    "apply_command",
+    "hal_millis",
+    "sensor_value",
+    "hal_adc_read",
+    "hal_usart_send",
+    "SimRigState_frame",
+    "SimRigState_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches payload, rx, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "main",
+    "text_bytes": 2364,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 296,
+    "stack_bytes": 105,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 3,
+    "text_bytes_range": [
+     2364,
+     2364
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/sim_rig.sensor_value",
+   "function": "sensor_value",
+   "module": "apps/sim_rig.c",
+   "line": 46,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "polari_avr_double_t sensor_value(uint16_t adc)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "adc",
+     "direction": "in",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "count",
+     "meaning": "10-bit ADC reading",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "polari_avr_double_t",
+     "width_bytes": 4,
+     "polari_type": "double",
+     "unit": "degC",
+     "meaning": "TMP36 temperature (or the raw count when TEMP_TMP36 is 0)",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [],
+   "calls": [],
+   "pure": true,
+   "pure_why": "",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 43,
+    "role": "ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)",
+    "uses": [],
+    "raw": "POLARI_NODE(sensor_value, in(adc, \"count\", \"10-bit ADC reading\"), out(return, \"degC\", \"TMP36 temperature (or the raw count when TEMP_TMP36 is 0)\"), role(\"ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "sensor_value",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 48,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.INT0_vect",
+   "function": "__polari_isr_INT0_vect",
+   "module": "hal.c",
+   "line": 157,
+   "kind": "isr",
+   "isr_vector": "INT0_vect",
+   "signature": "ISR(INT0_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "INT0_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 1"
+    },
+    {
+     "kind": "global",
+     "name": "g_last_press",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed_once",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "__vector_1",
+    "text_bytes": 166,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 166,
+    "stack_bytes": 17,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 17,
+    "text_bytes_range": [
+     36,
+     166
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.TIMER2_COMPA_vect",
+   "function": "__polari_isr_TIMER2_COMPA_vect",
+   "module": "hal.c",
+   "line": 115,
+   "kind": "isr",
+   "isr_vector": "TIMER2_COMPA_vect",
+   "signature": "ISR(TIMER2_COMPA_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "TIMER2_COMPA_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 7"
+    },
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "uno-adc-sweep",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "__vector_7",
+    "text_bytes": 70,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 70,
+    "stack_bytes": 9,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     70,
+     70
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.USART_RX_vect",
+   "function": "__polari_isr_USART_RX_vect",
+   "module": "hal.c",
+   "line": 63,
+   "kind": "isr",
+   "isr_vector": "USART_RX_vect",
+   "signature": "ISR(USART_RX_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "USART_RX_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 18"
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0A",
+     "access": "r",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UDR0",
+     "access": "r",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_rx_dropped",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_uart_dor",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_uart_fe",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "rx_head",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "rx_ring",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t[64], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "rx_tail",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "__vector_18",
+    "text_bytes": 66,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 66,
+    "stack_bytes": 10,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 10,
+    "text_bytes_range": [
+     66,
+     146
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_adc_init",
+   "function": "hal_adc_init",
+   "module": "hal.c",
+   "line": 260,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_adc_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "ADCSRA",
+     "access": "w",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "ADMUX",
+     "access": "w",
+     "peripheral": "ADC",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register ADCSRA, ADMUX",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-adc-sweep"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_adc_init",
+    "text_bytes": 14,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 14,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     14,
+     14
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_adc_read",
+   "function": "hal_adc_read",
+   "module": "hal.c",
+   "line": 268,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_adc_read(uint8_t channel)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "channel",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "A0..A5 (0..5)",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "count",
+     "meaning": "10-bit ADC = Vin*1024/Vref, 0..1023",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "ADC",
+     "access": "r",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "ADCSRA",
+     "access": "rw",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "ADMUX",
+     "access": "w",
+     "peripheral": "ADC",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register ADC, ADCSRA, ADMUX",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-adc-sweep"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 266,
+    "role": "one blocking ADC conversion, AVcc reference",
+    "uses": [],
+    "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_adc_read",
+    "text_bytes": 36,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     36,
+     36
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_button_init",
+   "function": "hal_button_init",
+   "module": "hal.c",
+   "line": 168,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_button_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EICRA",
+     "access": "w",
+     "peripheral": "EXTINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIFR",
+     "access": "w",
+     "peripheral": "EXTINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIMSK",
+     "access": "w",
+     "peripheral": "EXTINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PORTD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRD, EICRA, EIFR, EIMSK, PORTD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "hal_button_init",
+    "text_bytes": 18,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 18,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     18,
+     18
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_led",
+   "function": "hal_led",
+   "module": "hal.c",
+   "line": 213,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_led(uint8_t on)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "on",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "bool",
+     "meaning": "0 = off, anything else = on",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "PORTB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register PORTB",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 211,
+    "role": "set the LED on LED_PIN",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_led, in(on, \"bool\", \"0 = off, anything else = on\"), uses(LED_PIN), role(\"set the LED on LED_PIN\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_led",
+    "text_bytes": 12,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 12,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     12,
+     12
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_led_init",
+   "function": "hal_led_init",
+   "module": "hal.c",
+   "line": 209,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_led_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRB",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_led_init",
+    "text_bytes": 4,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 4,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     4,
+     4
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_millis",
+   "function": "hal_millis",
+   "module": "hal.c",
+   "line": 135,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t hal_millis(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "milliseconds since hal_tick_init, from the Timer2 1 ms tick",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B, shared with ISR INT0_vect, TIMER2_COMPA_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_ms",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "uno-adc-sweep",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 133,
+    "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
+    "uses": [],
+    "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_millis",
+    "text_bytes": 24,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 54,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 7,
+    "text_bytes_range": [
+     24,
+     24
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_presses",
+   "function": "hal_presses",
+   "module": "hal.c",
+   "line": 177,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_presses(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR INT0_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_presses",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "hal_presses",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": false,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 5,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "removed from the shipped build by --gc-sections (no C caller in cmod-cover-commit); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_pwm_apply",
+   "function": "hal_pwm_apply",
+   "module": "hal.c",
+   "line": 249,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int64_t hal_pwm_apply(int64_t duty)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "duty",
+     "direction": "in",
+     "ctype": "int64_t",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "%",
+     "meaning": "requested duty 0..100 (clamped)",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int64_t",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "%",
+     "meaning": "the duty applied",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "OCR0A",
+     "access": "w",
+     "peripheral": "TIMER0",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "PWM_PIN",
+     "access": "",
+     "peripheral": "PWM_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register OCR0A",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 247,
+    "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
+    "uses": [
+     "PWM_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_pwm_apply, in(duty, \"%\", \"requested duty 0..100 (clamped)\"), out(return, \"%\", \"the duty applied\"), uses(PWM_PIN), role(\"set the PWM duty on PWM_PIN (OCR = duty*255/100)\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_pwm_apply",
+    "text_bytes": 130,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 130,
+    "stack_bytes": 10,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 10,
+    "text_bytes_range": [
+     130,
+     130
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_pwm_init",
+   "function": "hal_pwm_init",
+   "module": "hal.c",
+   "line": 233,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_pwm_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "OCR0A",
+     "access": "w",
+     "peripheral": "TIMER0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR0A",
+     "access": "w",
+     "peripheral": "TIMER0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR0B",
+     "access": "w",
+     "peripheral": "TIMER0",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRD, OCR0A, TCCR0A, TCCR0B",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_pwm_init",
+    "text_bytes": 14,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 14,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     14,
+     14
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_rx_pop",
+   "function": "hal_rx_pop",
+   "module": "hal.c",
+   "line": 76,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int hal_rx_pop(uint8_t * b)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "b",
+     "direction": "out",
+     "ctype": "uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "byte",
+     "meaning": "the oldest received byte, when one is waiting",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "flag",
+     "meaning": "1 = a byte was popped, 0 = the ring is empty",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "rx_head",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "global",
+     "name": "rx_ring",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t[64], 1 B (element), shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "global",
+     "name": "rx_tail",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "declared",
+     "name": "USART0",
+     "access": "",
+     "peripheral": "USART0",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches rx_head, rx_ring, rx_tail",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 73,
+    "role": "pop one byte from the USART0 RX ring the RX ISR fills",
+    "uses": [
+     "USART0"
+    ],
+    "raw": "POLARI_NODE(hal_rx_pop, out(b, \"byte\", \"the oldest received byte, when one is waiting\"), out(return, \"flag\", \"1 = a byte was popped, 0 = the ring is empty\"), uses(USART0), role(\"pop one byte from the USART0 RX ring the RX ISR fills\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_rx_pop",
+    "text_bytes": 52,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 52,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     52,
+     52
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_tick_init",
+   "function": "hal_tick_init",
+   "module": "hal.c",
+   "line": 117,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_tick_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "OCR2A",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR2A",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR2B",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TIMSK2",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register OCR2A, TCCR2A, TCCR2B, TIMSK2",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "uno-adc-sweep",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_tick_init",
+    "text_bytes": 24,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 24,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     24,
+     24
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_uart_errors",
+   "function": "hal_uart_errors",
+   "module": "hal.c",
+   "line": 56,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_uart_errors(uint8_t which)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "which",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: by value"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_rx_dropped",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR USART_RX_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_uart_dor",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR USART_RX_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_uart_fe",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR USART_RX_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_rx_dropped, g_uart_dor, g_uart_fe",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "cmod-cover-commit"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "hal_uart_errors",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": false,
+    "text_bytes_noinline": 66,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 5,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "removed from the shipped build by --gc-sections (no C caller in cmod-cover-commit); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_usart_init",
+   "function": "hal_usart_init",
+   "module": "hal.c",
+   "line": 85,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_usart_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "UBRR0H",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UBRR0L",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0A",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0B",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0C",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register UBRR0H, UBRR0L, UCSR0A, UCSR0B, UCSR0C",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "uno-adc-sweep",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_usart_init",
+    "text_bytes": 30,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 30,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     30,
+     30
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_usart_send",
+   "function": "hal_usart_send",
+   "module": "hal.c",
+   "line": 104,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "b",
+     "direction": "in",
+     "ctype": "const uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "bytes",
+     "meaning": "the frame to send",
+     "source": "derived: const pointer + annotation"
+    },
+    {
+     "name": "n",
+     "direction": "in",
+     "ctype": "size_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "B",
+     "meaning": "how many bytes",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "UCSR0A",
+     "access": "r",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UDR0",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register UCSR0A, UDR0",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-sim-rig",
+    "uno-blink-only",
+    "uno-adc-sweep",
+    "uno-echo",
+    "cmod-cover-commit",
+    "cmod-cover-record"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 102,
+    "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
+    "uses": [],
+    "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
+   },
+   "cost": {
+    "measured_in": "uno-sim-rig",
+    "symbol": "hal_usart_send",
+    "text_bytes": 34,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 34,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     34,
+     34
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_wdt_boot",
+   "function": "hal_wdt_boot",
+   "module": "hal.c",
+   "line": 190,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_wdt_boot(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "MCUSR",
+     "access": "w",
+     "peripheral": "WDT",
+     "detail": ""
+    },
+    {
+     "kind": "library",
+     "name": "wdt_disable",
+     "access": "call",
+     "peripheral": "WDT",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "wdt_disable"
+   ],
+   "pure": false,
+   "pure_why": "touches register MCUSR",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "cmod-cover-commit"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "cmod-cover-commit",
+    "symbol": "hal_wdt_boot",
+    "text_bytes": 24,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 24,
+    "stack_bytes": null,
+    "stack_kind": "",
+    "stack_from": "",
+    "stack_bytes_noinline": null,
+    "text_bytes_range": [
+     24,
+     24
+    ],
+    "why": "no .su frame: GCC cannot compute the stack of a naked function (it has no prologue)"
+   },
+   "title": "",
+   "notes": ""
+  }
+ ],
+ "counts": {
+  "atoms": 34,
+  "annotated": 12,
+  "isr": 3,
+  "pure": 2,
+  "ports": 32,
+  "not_isr_safe": 0
+ },
+ "problems": [],
+ "annotated_not_compiled": [],
+ "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
+ "conformed_at": "2026-10-02T17:48:04"
+}

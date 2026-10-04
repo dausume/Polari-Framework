@@ -1180,6 +1180,9 @@ class polariServer(treeObject):
             HardwareBridgeDefinition,
             # Hardware rig digital twins (hwsim-1).
             SimRigState,
+            # grpc-j4: the computer<->firmware mapping (bindings,
+            # enum tables, wire contracts).
+            HardwareInterfaceBinding, EnumMapping, WireContract,
             # L3 MD + L2 mesoscale model definitions (msci-26).
             MDModelDefinition, MesoModelDefinition,
             # FPGA register maps as data + FPGA twin (hwsim-3).
@@ -1303,7 +1306,27 @@ class polariServer(treeObject):
             TensorDiscoveryPolicy,
             # pf-0: proofs as rows; bp-2e: the cited sources behind the proof methods
             MathClaim, ProofRun, InferenceRule, ProofObligation, ProofMethodReference,
-            ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact]
+            ComputeLOD, ComputeKind, ComputeMapping, CharacterizationMapping, CompilerArtifact,
+            # brd-0: the board arc — devices, instances, builds, programmer kinds, adapters, cited facts, twin costs, roads
+            BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
+            # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
+            FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
+            # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoC / hardware / pin-assignment / runtime layers + views, conflicts
+            SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
+            # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
+            PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
+            PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,
+            # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows; sc-1: statistics
+            FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle,
+            ScenarioStatistic,
+            # sc-2 / sc-2b: the statistics tier's campaigns + the likelihood per fault kind; the formal (CBMC) and static (cppcheck) tiers
+            ScenarioCampaign, FaultLikelihood, FormalCheck, StaticCheck, StaticFinding,
+            # cmod-0: C projects, their modules, the atoms (C functions with ports, resources, cost), ports; cmod-1: graphs over
+            # atoms (nodes, edges) and the generated glue builds
+            CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
+            # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
+            # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
+            HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2384,7 +2407,11 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or []) + (SEED_CMOD_PAGE_DISPLAYS or [])
+             # pcb-0: /display/board-schematic, board-layout, board-bom, board-fab
+             + (SEED_PCB_PAGE_DISPLAYS or [])
+             # hn-0: /display/hardware-solutions
+             + (SEED_HWNOCODE_PAGE_DISPLAYS or [])
              # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
              + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
@@ -2417,6 +2444,11 @@ class polariServer(treeObject):
             # hwsim-1: the Renode rig twin exists from boot so its
             # schema can stabilize before the first telemetry frame.
             ('SimRigState', SimRigState, SEED_SIM_RIGS),
+            # grpc-j4: enum tables + the uno-pair bindings (two UNO
+            # twins on one bridge -> a 1-bit instance index).
+            ('EnumMapping', EnumMapping, SEED_ENUM_MAPPINGS),
+            ('HardwareInterfaceBinding', HardwareInterfaceBinding,
+             SEED_HARDWARE_BINDINGS),
             # hwsim-3: the Hardware Runtime register map — maps
             # before their registers (registers name their map).
             ('RegisterMapDefinition', RegisterMapDefinition,
@@ -3287,7 +3319,9 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) \
+          + list(HWNOCODE_SEED_PAIRS or []) \
+          + list(PCB_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

@@ -1,0 +1,316 @@
+{
+ "graph": "uno-sim-rig-graph",
+ "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
+ "generator": "cmod.custom.glue 1",
+ "generated_project": "cmod/custom/graphs/uno-sim-rig-graph",
+ "files": {
+  "hal.c": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac",
+  "hal.h": "cc5bd26265aa30fe08cbde704eada448886fe479fce402eec18ce8fe8b730134",
+  "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
+  "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b",
+  "polari_graph.c": "b8ec1e5efcddfa4c158906da17e5b847891a82da0b8df7df0162cde5d744b288",
+  "polari_graph.h": "f11ca7a035f40d4dbe63aa97a3c247ca9cd35b801839199f5fb4fb1aa57735c6",
+  "Makefile": "ee39b0534f02366c55bfc9a140c91b7998435c511ad75802299f8b857bfb1334"
+ },
+ "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
+ "rendered_at": "2026-10-02T20:21:02",
+ "inputs": [
+  {
+   "label": "copied verbatim from board/custom/firmware/uno/hal.c",
+   "file": "hal.c",
+   "sha256": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac"
+  },
+  {
+   "label": "copied verbatim from board/custom/firmware/uno/hal.h",
+   "file": "hal.h",
+   "sha256": "cc5bd26265aa30fe08cbde704eada448886fe479fce402eec18ce8fe8b730134"
+  },
+  {
+   "label": "board gen: the uno-sim-rig knobs",
+   "file": "board_config.h",
+   "sha256": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b"
+  },
+  {
+   "label": "c_twin target=avr, contract v2 2bcc9d1a2774ef33 (pinned board/custom/contracts/SimRigState.v2.json)",
+   "file": "simrigstate_packets.h",
+   "sha256": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
+  },
+  {
+   "label": "atoms manifest",
+   "file": "board/custom/firmware/uno/polari-firmware.json",
+   "sha256": "a1ba39120ca7dc4a22b9ca4f4b8de5f1d5fc06809ffaef1e3e9af488c127d24c"
+  }
+ ],
+ "cost_estimate": {
+  "total_bytes": 3144,
+  "why": "atoms as nodes 644 B + ISRs 136 B + glue/library reference 2364 B (apps/sim_rig.main shipped) = 3144 B — an upper bound for the attributable code (inlined atoms counted twice); the C runtime (vectors, crt, libgcc float) is not in it",
+  "parts": [
+   {
+    "atom": "apps/sim_rig.apply_command",
+    "bytes": 192,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/sim_rig.sensor_value",
+    "bytes": 48,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_adc_init",
+    "bytes": 14,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_adc_read",
+    "bytes": 36,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_led",
+    "bytes": 12,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_led_init",
+    "bytes": 4,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_millis",
+    "bytes": 54,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_pwm_apply",
+    "bytes": 130,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_pwm_init",
+    "bytes": 14,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_rx_pop",
+    "bytes": 52,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_tick_init",
+    "bytes": 24,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_usart_init",
+    "bytes": 30,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_usart_send",
+    "bytes": 34,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.TIMER2_COMPA_vect",
+    "bytes": 70,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "hal.USART_RX_vect",
+    "bytes": 66,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "apps/sim_rig.main",
+    "bytes": 2364,
+    "as": "glue + library reference: the replaced main() as shipped"
+   }
+  ]
+ },
+ "glue_contains": [
+  "main() and its loop (the scheduler)",
+  "init: hal_usart_init → hal_tick_init → hal_led_init → hal_pwm_init → hal_adc_init, then sei()",
+  "the class instance `state` (SimRigState_t): zeroed, name = RIG_NAME, status = BOOT",
+  "the parser `rx` (polari_rx_t) fed by the on-rx drain, msg_type gate → on-command atoms",
+  "tick `telemetry`: every TELEMETRY_MS ms on the uint32_t clock, wrap-safe ((int32_t)(now - next) >= 0)",
+  "2 field write(s) into the class instance",
+  "rule `boot_ok`: status BOOT → OK once the clock passes 1000 ms",
+  "frame `frame`: the sequence counter, SimRigState_encode (mask: uptime_ms, status, temp_c, led_on, pwm_duty, name) + SimRigState_frame into static buffers",
+  "the app atoms copied verbatim: apps/sim_rig.sensor_value, apps/sim_rig.apply_command"
+ ],
+ "advice": [],
+ "build": {
+  "ok": true,
+  "built_by": "make alone (local-image prf-board-engines:trixie)",
+  "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
+  "size_text": 4302,
+  "size_data": 8,
+  "size_bss": 483,
+  "flash_bytes": 4310,
+  "cost_estimate_bytes": 3144,
+  "cost_measured_attributable_bytes": 2874,
+  "cost_measured_breakdown": {
+   "atoms (shipped symbols)": 374,
+   "ISR vectors": 136,
+   "main (glue + inlined atoms + inlined library)": 2364
+  },
+  "runtime_bytes": 1428,
+  "cost_why": "estimated 3144 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2874 B attributable (atoms (shipped symbols) 374, ISR vectors 136, main (glue + inlined atoms + inlined library) 2364) + 1428 B C runtime (vectors, crt, libgcc) = .text 4302 B",
+  "estimate_minus_attributable": {
+   "bytes": 270,
+   "atoms_inlined_or_smaller_shipped": {
+    "apps/sim_rig.apply_command": 192,
+    "apps/sim_rig.sensor_value": 48,
+    "hal.hal_millis": 30
+   },
+   "explained_bytes": 270
+  },
+  "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
+  "hand_edited": [],
+  "stale": [],
+  "measured_elf_sha256": "50d3651f59ad401ba2f0b0cd7dfff9695b0536fd3544f5dea25c5631ebccc854",
+  "built_at": "2026-10-02T20:27:06"
+ },
+ "proof": {
+  "equivalent": true,
+  "frames_compared": 40,
+  "frames_hand": 40,
+  "frames_glue": 40,
+  "fields_compared": [
+   "seq",
+   "device_id",
+   "msg_type",
+   "uptime_ms",
+   "temp_c",
+   "led_on",
+   "pwm_duty",
+   "status",
+   "name"
+  ],
+  "differences": [],
+  "n_differences": 0,
+  "raw_uart_identical": true,
+  "uart_sha256": {
+   "hand": "cf6acb08bdab2ed4f08af06094a1c9185e68023d26275e0ae23a62e81bca2c6a",
+   "glue": "cf6acb08bdab2ed4f08af06094a1c9185e68023d26275e0ae23a62e81bca2c6a"
+  },
+  "reference": {
+   "variant": "uno-sim-rig",
+   "built_by": "board gen + board build (the shipped pipeline)",
+   "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
+   "size_text": 4302,
+   "size_data": 8,
+   "size_bss": 483
+  },
+  "glue": {
+   "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
+   "size_text": 4302,
+   "size_data": 8,
+   "size_bss": 483,
+   "built_by": "make alone (local-image prf-board-engines:trixie)"
+  },
+  "hex_identical": true,
+  "cycles": {
+   "total_hand": 64000374,
+   "total_glue": 64000374,
+   "frame_tx_cycle_delta_min": 0,
+   "frame_tx_cycle_delta_max": 0,
+   "first_frame_cycle_hand": 21257,
+   "first_frame_cycle_glue": 21257
+  },
+  "stimulus": {
+   "seconds": 4,
+   "seed": 1,
+   "adc0_ramp_mv": "700,800,2000",
+   "commands": [
+    "led_on=True, pwm_duty=42 @ cycle 24000000 (1.500 s)",
+    "pwm_duty=250 @ cycle 36000000 (2.250 s)",
+    "led_on=False @ cycle 48000000 (3.000 s)"
+   ],
+   "command_frames_sha256": [
+    "c9d2a69f3d69b2c3748cdd333db6bc0ac2ea214784825a9d73347f7b292ac8ad",
+    "ce99e8a4312a8195e1a5a6cd10e41078131ceacfb33b3acd12a37e3d36c06674",
+    "bd9d2dffd4377920778fefd5c88890e8903bb96fa03d978eda2f1a1d1e150b8e"
+   ],
+   "argv": [
+    "polari-avr-twin",
+    "--hex",
+    "firmware.hex",
+    "--mcu",
+    "atmega328p",
+    "--freq",
+    "16000000",
+    "--free",
+    "--seconds",
+    "4",
+    "--status-ms",
+    "0",
+    "--adc0-ramp",
+    "700,800,2000",
+    "--uart-out",
+    "uart.bin",
+    "--uart-tx-log",
+    "tx.bin",
+    "--seed",
+    "1",
+    "--inject",
+    "cmd0.bin@24000000",
+    "--inject",
+    "cmd1.bin@36000000",
+    "--inject",
+    "cmd2.bin@48000000"
+   ]
+  },
+  "first_commanded_frame": 16,
+  "samples": [
+   {
+    "seq": 0,
+    "uptime_ms": 0,
+    "temp_c": 19.82421875,
+    "led_on": false,
+    "pwm_duty": 0,
+    "status": "boot",
+    "name": "uno-rig"
+   },
+   {
+    "seq": 16,
+    "uptime_ms": 1600,
+    "temp_c": 23.73046875,
+    "led_on": true,
+    "pwm_duty": 42,
+    "status": "commanded",
+    "name": "uno-rig"
+   },
+   {
+    "seq": 39,
+    "uptime_ms": 3900,
+    "temp_c": 20.80078125,
+    "led_on": false,
+    "pwm_duty": 100,
+    "status": "commanded",
+    "name": "uno-rig"
+   }
+  ],
+  "twin": {
+   "how": "local-image",
+   "where": "prf-board-engines:trixie",
+   "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
+  },
+  "proven_at": "2026-10-02T20:27:15",
+  "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
+  "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
+  "hand_edited": []
+ },
+ "conformed": {
+  "manifest": "cmod/custom/graphs/uno-sim-rig-graph/polari-firmware.json",
+  "manifest_sha256": "2569601cad0e1403e39e3e0553e91909ae1b7d7b11c1906610130407b9e59c44",
+  "atoms": 16,
+  "glue_atoms": [
+   "polari_graph.apply_command",
+   "polari_graph.main",
+   "polari_graph.sensor_value"
+  ],
+  "not_isr_safe": 0,
+  "written": false
+ }
+}

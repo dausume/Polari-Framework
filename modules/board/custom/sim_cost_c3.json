@@ -1,0 +1,12 @@
+{
+ "name": "esp32-c3:qemu:esp32c3",
+ "board": "esp32-c3",
+ "twin": "qemu:esp32c3",
+ "object_count": 9,
+ "state_bytes": 45508198,
+ "cycles_per_s": 66648629.0,
+ "host_class": "user-HP-ProDesk-600-G1-SFF (x86_64, 4 cpus)",
+ "measured_at": "2026-10-02T18:36:34",
+ "method": "{\"objects\": {\"per_board_rows\": 9, \"seeded\": {\"BoardDefinition\": 1, \"Road\": 1, \"TechNode\": 1, \"DatasheetFact\": 0, \"ProgrammerKind\": 1}, \"run_time\": {\"BoardInstance\": 1, \"FirmwareBuild\": 1, \"SimRigState\": 1, \"BoardSimCost\": 1, \"HardwareBridgeDefinition\": 1}, \"per_class_shared\": {\"SchemaStabilityProfile\": 1, \"GrpcExposure\": 1, \"ProtoContractVersion\": 1}, \"seeded_row_bytes_json\": 3714, \"total_rows_first_board\": 12}, \"run\": {\"wall_s\": 0.857, \"cpu_s\": 0.861, \"peak_rss_mb\": 43.4, \"qemu_version\": \"QEMU emulator version 9.2.2 (esp_develop_9.2.2_20260417)\", \"argv\": [\"qemu-system-riscv32\", \"-machine\", \"esp32c3\", \"-display\", \"none\", \"-monitor\", \"none\", \"-nodefaults\", \"-icount\", \"shift=3,align=off,sleep=off\", \"-drive\", \"file=run.bin,if=mtd,format=raw\", \"-serial\", \"file:uart0.bin\", \"-serial\", \"file:trace.log\"], \"icount_shift\": 3}, \"virtual_s\": 0.456943, \"wall_time_ratio\": 0.533, \"build\": \"c3-prio-inversion-db90e9cc3727\", \"variant\": \"c3-prio-inversion\", \"image_sha256\": \"99ee51a12488a625b592c6db7871446d41c445e2dcdbd1e89089f5e564ca6d92\", \"how\": \"local-image\", \"where\": \"prf-esp-engines:noble\", \"guest_flash_bytes\": 4194304}",
+ "notes": "wall-time ratio 0.533 (virtual s per wall s at -icount 3, sleep=off \u2014 boot + window, the whole QEMU process); 66.6 M virtual instructions/s; QEMU peak RSS 43.4 MB (state_bytes = that RSS: no core-state probe in QEMU); guest flash image 4194304 B"
+}

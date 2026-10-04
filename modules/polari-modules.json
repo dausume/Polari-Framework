@@ -704,6 +704,66 @@
    "tier": "optional",
    "description": "ONE conceptual compute ladder from C to materials (eleven rungs referencing the microchip ladder, PSPP and the materials model), kinds as rows, downward/upward mappings with evidence, the compute-lod tech tree."
   },
+  "board": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/board",
+   "repo": "https://github.com/dausume/polari-module-board.git",
+   "requires": [
+    "grpcbridge",
+    "hwmap"
+   ],
+   "tier": "optional",
+   "description": "Boards programmed over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition + Road (track all, simulate few — the UNO first), adapters and programmer kinds as rows, cited datasheet facts, the USB and C/Verilog/SV rules as selftests, pol board detect over hwmap's scanner."
+  },
+  "pcb": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/pcb",
+   "repo": "https://github.com/dausume/polari-module-pcb.git",
+   "requires": [
+    "board"
+   ],
+   "tier": "optional",
+   "description": "PCB from scratch (pcb arc): KiCad as the relay engine — Part/Symbol/Footprint/LandPattern/Schematic/PcbBoard/Placement/Route rows, DKRed's fab rules cited, `pol pcb ingest` reading an open KiCad board (parts, nets, footprints, placements) plus kicad-cli ERC/DRC/Gerber/drill/pos/SVG/STEP exports through the prf-pcb-engines worker, and the UNO shield schematic skeleton rendered from brd-bo's rows."
+  },
+  "firmwarefaults": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/firmwarefaults",
+   "repo": "https://github.com/dausume/polari-module-firmwarefaults.git",
+   "requires": [
+    "board",
+    "grpcbridge",
+    "mathproofs"
+   ],
+   "tier": "optional",
+   "description": "Firmware scenario analysis (sc arc): fault kinds as objects (one class per kind: concurrency, physical triggers, space/safety), the assumptions they break, the techniques that restore them with their measured cost, and scenarios forced on the UNO twin at an exact PC — BEFORE fails at a named cycle, AFTER holds — each run a witness or counterexample written as a mathproofs claim."
+  },
+  "cmod": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/cmod",
+   "repo": "https://github.com/dausume/polari-module-cmod.git",
+   "requires": [
+    "board"
+   ],
+   "tier": "optional",
+   "description": "C modularization (cmod arc): a NORMAL C firmware project (it builds with make alone) read by Polari as atoms — C functions with declared ports (an empty POLARI_NODE macro or a comment), the registers/globals/ISRs they touch, pure and ISR-safe verdicts, and their measured cost — derived by parsing (pycparser) into rows and the conformed polari-firmware.json; no C<->Python transpiling."
+  },
+  "hwnocode": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/hwnocode",
+   "repo": "https://github.com/dausume/polari-module-hwnocode.git",
+   "requires": [
+    "board",
+    "cmod",
+    "grpcbridge"
+   ],
+   "tier": "optional",
+   "description": "Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware — a HardwareSolution ties a backend solution to a cmod CGraph (the hardware subgraph), the board/twin, the hw-interface (the split point) and its displays; the placement rule derives where every node runs and refuses Python on a device (RULE 2); hn-split renders the board half through cmod-glue; the runtime suggestion is shown, never applied."
+  },
   "mathproofs": {
    "kind": "official",
    "downloaded": true,

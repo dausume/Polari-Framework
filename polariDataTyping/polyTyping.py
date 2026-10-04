@@ -200,6 +200,15 @@ class polyTypedObject(treeObject):
             if hasattr(classDefinition, '_inheritanceCascade'):
                 self.inheritanceCascade = classDefinition._inheritanceCascade
 
+        # hn-0 (HARDWARE_NOCODE_PLAN.md D-hn-2): a class that DECLARES a canvas palette entry (`statePalette`, a dict) is a
+        # state-space node kind by its own declaration — the typing knows it at creation, whenever and however the class
+        # is registered (boot, live admission), and GET /stateSpaceClasses lists it with that palette. No other class changes.
+        palette = getattr(classDefinition, 'statePalette', None) if classDefinition is not None else None
+        if isinstance(palette, dict) and not isStateSpaceObject:
+            self.isStateSpaceObject = isStateSpaceObject = True
+            if palette.get('displayFields'):
+                self.setStateSpaceDisplayFields(list(palette['displayFields']), 1)
+
         # If class definition exists and is marked as state-space, extract event methods
         if classDefinition and isStateSpaceObject:
             self._extractStateSpaceEvents(classDefinition)
@@ -244,15 +253,25 @@ class polyTypedObject(treeObject):
         Returns:
             Dictionary with state-space configuration
         """
-        return {
+        config = {
             'className': self.className,
             'isStateSpaceObject': self.isStateSpaceObject,
             'eventMethods': self.stateSpaceEventMethods,
             'displayFields': self.stateSpaceDisplayFields,
             'fieldLayout': self.stateSpaceFieldLayout,
             'fieldsPerRow': self.stateSpaceFieldsPerRow,
-            'variables': [v.varName for v in self.polyTypedVars] if self.polyTypedVars else self.variableNameList
+            # a polyTypedVariable names itself `name` (polyTypedVars.py); `varName` is the dynamic-class dict shape —
+            # read either, so a typed module class can be state-space too (hn-0 found the AttributeError)
+            'variables': ([getattr(v, 'varName', None) or getattr(v, 'name', '') for v in self.polyTypedVars]
+                          if self.polyTypedVars else self.variableNameList)
         }
+        # hn-0 (HARDWARE_NOCODE_PLAN.md D-hn-2): a class that declares a `statePalette` (display name, category, icon, colour,
+        # node kind, placement, slots, variables) hands it to the canvas, whose palette registers it as DATA — the hardware
+        # node kinds arrive without editing the static TS registry. Classes without one are unchanged.
+        palette = getattr(self.classDefinition, 'statePalette', None) if self.classDefinition is not None else None
+        if isinstance(palette, dict):
+            config['palette'] = dict(palette)
+        return config
 
     @property
     def isMultiInheritanceClass(self):

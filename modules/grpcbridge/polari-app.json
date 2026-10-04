@@ -3,7 +3,7 @@
   "id": "grpcbridge",
   "package": "grpcbridge",
   "title": "Grpcbridge",
-  "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs.",
+  "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs; the computer<->firmware mapping (grpc-j4): hardware-interface bindings, enum mappings, wire contracts (hash v2, instance index, presence mask).",
   "version": "0.1.0",
   "kind": "official",
   "wave": 5,
@@ -41,12 +41,16 @@
       "objects/contract/ProtoContractVersion",
       "objects/hwsim/SimRigState",
       "objects/hwsim/_shared",
-      "objects/java_bridge/HardwareBridgeDefinition"
+      "objects/java_bridge/HardwareBridgeDefinition",
+      "objects/mapping/EnumMapping",
+      "objects/mapping/HardwareInterfaceBinding",
+      "objects/mapping/WireContract"
     ],
     "basis": [
       "contract_basis",
       "hwsim_basis",
-      "java_bridge_basis"
+      "java_bridge_basis",
+      "mapping_basis"
     ],
     "api": [
       "contract_api",
@@ -54,28 +58,36 @@
     ],
     "selftests": [
       "c_twin_selftest",
+      "c_twin_wire_selftest",
       "contracts_selftest",
       "javabridge_selftest",
       "serving_selftest"
     ],
     "custom": [
       "custom/c_twin",
+      "custom/c_twin_v2",
       "custom/descriptor_build",
       "custom/grpc_server",
       "custom/java_bridge",
       "custom/java_bridge_codegen",
       "custom/java_bridge_templates",
+      "custom/java_bridge_wire",
       "custom/proto_gen",
-      "custom/transport_mux"
+      "custom/transport_mux",
+      "custom/wire_contract",
+      "custom/wire_ref"
     ]
   },
   "classes": [
+    "EnumMapping",
     "GrpcContractsAPI",
     "GrpcExposure",
     "HardwareBridgeAPI",
     "HardwareBridgeDefinition",
+    "HardwareInterfaceBinding",
     "ProtoContractVersion",
-    "SimRigState"
+    "SimRigState",
+    "WireContract"
   ],
   "imports": [
     [
@@ -96,6 +108,16 @@
       [
         "SimRigState",
         "SEED_SIM_RIGS"
+      ]
+    ],
+    [
+      "grpcbridge.mapping_basis",
+      [
+        "HardwareInterfaceBinding",
+        "EnumMapping",
+        "WireContract",
+        "SEED_ENUM_MAPPINGS",
+        "SEED_HARDWARE_BINDINGS"
       ]
     ]
   ],
