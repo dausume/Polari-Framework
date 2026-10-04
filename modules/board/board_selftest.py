@@ -207,8 +207,11 @@ def page():
     items = [it for row in rows for it in row['items']]
     names = [it['componentProps']['componentName'] for it in items]
     text = P[0]['definition']
-    check('/display/boards is configured tables only (no custom component, no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 13 and set(names) == {'class-rows-table'}, str(names))   # demo1: devices split usable/tracked; brd-wire: + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts
+    # demo1b: the UNO pin map draws FIRST (the generic api-svg-panel), the devices tables below it (demo1: usable/
+    # tracked split; brd-wire: + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts)
+    check('/display/boards is the pin-map drawing + configured tables only (no JSON panel)', P[0]['pageRoute'] == 'boards'
+          and len(names) == 14 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
+    check('/display/boards: the FIRST item is the pin-map drawing (api-svg-panel)', names[0] == 'api-svg-panel', str(names))
     check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
     # demo1: his ask — a clear usable-vs-tracked split, derived (readiness never hand-flagged), fed by GET /api/board/boards/readiness
@@ -250,6 +253,42 @@ def readiness():
           'road' not in ','.join(inspect.signature(compute_readiness).parameters).lower())
 
 
+def pinmap():
+    """demo1b: GET /api/board/<board>/pinmap.svg draws straight from brd-bo's rows — `pol board assign` moves a
+    net to a different pin and the drawing changes with it (the same proof board_object_selftest runs for every
+    other view). Reassign PWM_LED D6 -> D5 in a TEMP COPY of the seed rows and check the generated SVG text."""
+    import re
+    from board.custom import board_object as BO
+    from board.custom import pinmap_svg as PM
+    tables = BO.seed_tables()
+    r = BO.rows_for('arduino-uno-r3', tables)
+    before = PM.render(r)
+
+    def row_text(svg, label):
+        m = re.search(r'<title>([^<]*)</title><rect[^/]*/><text[^>]*>%s</text><text[^>]*>([^<]*)</text>' % re.escape(label), svg)
+        return m.groups() if m else (None, None)
+
+    _, before_d6 = row_text(before, 'D6')
+    _, before_d5 = row_text(before, 'D5')
+    check('pinmap before assign: D6 (PWM_LED) carries the net', before_d6 and 'PWM_LED' in before_d6, before_d6)
+    check('pinmap before assign: D5 is plain gpio, no PWM_LED', before_d5 and 'PWM_LED' not in before_d5, before_d5)
+
+    r2, touched = BO.assign(r, 'PWM_LED', 'D5')
+    check('board_object.assign moves PWM_LED from D6 to D5', set(touched) == {'D5', 'D6'}, touched)
+    after = PM.render(r2)
+    check('pinmap after `pol board assign arduino-uno-r3 PWM_LED D5`: the SVG text changed', after != before)
+    _, after_d6 = row_text(after, 'D6')
+    _, after_d5 = row_text(after, 'D5')
+    check('pinmap after assign: D6 reverts to its own net (no longer PWM_LED)', after_d6 and 'PWM_LED' not in after_d6, after_d6)
+    check('pinmap after assign: D5 now carries PWM_LED', after_d5 and 'PWM_LED' in after_d5, after_d5)
+
+    try:
+        PM.render(BO.rows_for('no-such-board', tables))
+        check('pinmap of an unmodelled board is refused, not silently empty', False)
+    except BO.BoardObjectRefused:
+        check('pinmap of an unmodelled board is refused, not silently empty', True)
+
+
 def main():
     B, A, P, F, R, N = rows_and_classes()
     rules(B, A, P)
@@ -258,6 +297,7 @@ def main():
     detection(B, A)
     page()
     readiness()
+    pinmap()
     from board.board_uno_selftest import run_uno   # brd-1: gen / build / flash / twin / cost
     run_uno(check)
     from board.board_installer_selftest import run_installer   # brd-fi: variants / compat / the installer flow / the page

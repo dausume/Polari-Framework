@@ -104,6 +104,28 @@ def _sapi(item_id, index, segments, title, path, pick='', hide='',
     }
 
 
+def _svg_panel(item_id, index, segments, title, data_path, description='', markers_path=''):
+    """demo1b (his 2026-10-04 verdict: "many rows of data with no demonstratables"): the ONE generic drawing
+    mechanism, reused on /display/board-layout (per-layer SVGs), /display/board-schematic (the schematic SVG)
+    and /display/boards (the generated pin-map SVG) — never a per-page image component. `data_path` is a GET
+    that returns EITHER `{ok, items:[{label, url}]}` (a selector over several SVGs — layers, or several boards'
+    schematics) or `{ok, url}` (one SVG), or the raw `<svg …>` document itself (the generated pinmap route).
+    `markers_path` is an optional second GET of `{ok, items:[{x, y, label, severity}]}` (DRC/ERC findings'
+    x_mm/y_mm) drawn as circles over the image when the loaded SVG's own viewBox can be read — never required."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'description': description,
+        'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'api-svg-panel',
+            'inputs': {'dataPath': data_path, 'markersPath': markers_path},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320):
     return {
         'index': index, 'rowSegments': 12,

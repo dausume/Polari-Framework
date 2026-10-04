@@ -13,7 +13,7 @@ never a new image-viewer component.
 /display/board-fab         FabRuleSet + FabRule (DKRed, cited) + DrcResult (kind=drc/fab-rule) + every FabricationExport
                             file with the fab's naming verdict (accepted | no | discrepancy)
 """
-from polariApiServer.module_pages_seed import _page, _row, _table
+from polariApiServer.module_pages_seed import _page, _row, _table, _svg_panel
 
 _PAGES = [
     _page('board-schematic', 'board-schematic',
@@ -23,7 +23,14 @@ _PAGES = [
           '.kicad_sch read in verbatim). Goes with /display/board-layout (the physical board for the same board name), '
           '/display/board-bom (the parts the symbols reference) and /display/board-fab (the fab checks).',
           'Schematic', [
-              _row(0, [_table('pcb-schematics', 0, 12, 'Schematics — file, format, origin (rendered | ingested), counts', 'Schematic',
+              _row(0, [_svg_panel('pcb-schematic-svg', 0, 12, 'The schematic, drawn — every schematic SVG Polari has (rendered or ingested)',
+                                  '/api/pcb/svgs?kind=svg-schematic',
+                                  description='What this is for: the schematic ITSELF, not a row about it — kicad-cli\'s `sch export svg` '
+                                              'on whichever schematic is selected (one per Schematic row below: the uno-shield render, or an '
+                                              'ingested board like ecc83-pp). ERC findings with a reported position overlay as circles when '
+                                              'the drawing\'s own viewBox is known.',
+                                  markers_path='/api/pcb/drc-positions?kind=erc')], min_height=420),
+              _row(1, [_table('pcb-schematics', 0, 12, 'Schematics — file, format, origin (rendered | ingested), counts', 'Schematic',
                               description='What this is for: one row per schematic FILE Polari knows about. One row = one Schematic. '
                                           'Columns: file/sha256 (the .kicad_sch and its fingerprint), format_version/generator (KiCad\'s own '
                                           'header fields), origin (rendered = Polari wrote it from rows; ingested = read from an open board '
@@ -31,7 +38,7 @@ _PAGES = [
                               columns='name,board,file,sha256,format_version,generator,title,sheets,symbols,power_symbols,wires,'
                                       'labels,junctions,no_connects,origin,licence_notes',
                               column_formats='name:ref:Schematic')]),
-              _row(1, [_table('pcb-sheets', 0, 6, 'Sheets', 'SchematicSheet',
+              _row(2, [_table('pcb-sheets', 0, 6, 'Sheets', 'SchematicSheet',
                               description='What this is for: a schematic may be split into multiple SHEETS (pages). One row = one sheet. '
                                           'Columns: path/page (where it sits in the sheet hierarchy), file (its own .kicad_sch if split out), '
                                           'symbols (how many it holds).',
@@ -42,7 +49,7 @@ _PAGES = [
                                           '= one Symbol. Columns: lib/symbol (the KiCad library reference), source/lib_version (where that '
                                           'library came from), licence, pin_count.',
                               columns='name,lib,symbol,source,lib_version,licence,pin_count,description')]),
-              _row(2, [_table('pcb-erc', 0, 12, 'Check findings — kicad-cli ERC/DRC/parity + Polari\'s DKRed checks (severity none = a clean run; '
+              _row(3, [_table('pcb-erc', 0, 12, 'Check findings — kicad-cli ERC/DRC/parity + Polari\'s DKRed checks (severity none = a clean run; '
                               'sort/filter by kind for erc)', 'DrcResult',
                               description='What this is for: every check kicad-cli (or Polari\'s own DKRed rules) has run against a schematic '
                                           'or board, PASS included (a clean run is one row with severity=none, never hidden). One row = one '
@@ -58,7 +65,13 @@ _PAGES = [
           '/display/board-schematic (the circuit this board was routed from), /display/board-bom (the Placements\' '
           'parts) and /display/board-fab (the DRC findings against this same PcbBoard).',
           'PcbBoard', [
-              _row(0, [_table('pcb-boards', 0, 12, 'Boards — layer count, outline, stackup, the fab rule set it is checked against', 'PcbBoard',
+              _row(0, [_svg_panel('pcb-layout-svg', 0, 12, 'The board, drawn — per-layer SVGs (F.Cu, B.Cu, F.Silkscreen, Edge.Cuts, …)',
+                                  '/api/pcb/svgs?kind=svg-layer',
+                                  description='What this is for: the board ITSELF, layer by layer — kicad-cli\'s `pcb export svg` for '
+                                              'whichever layer is selected (one per FabricationExport row of "Every export" below). DRC '
+                                              'findings with a reported position overlay as circles when the drawing\'s own viewBox is known.',
+                                  markers_path='/api/pcb/drc-positions?kind=drc,unconnected,parity,fab-rule')], min_height=420),
+              _row(1, [_table('pcb-boards', 0, 12, 'Boards — layer count, outline, stackup, the fab rule set it is checked against', 'PcbBoard',
                               description='What this is for: the physical board file itself — ingested from KiCad, never authored by Polari. '
                                           'One row = one PcbBoard (.kicad_pcb). Columns: copper_layers/thickness_mm/width_mm/height_mm (the '
                                           'stackup and outline), fab_rule_set (which FabRuleSet it is checked against), footprints/nets/'
@@ -66,7 +79,7 @@ _PAGES = [
                               columns='name,board_definition,file,sha256,copper_layers,thickness_mm,width_mm,height_mm,'
                                       'fab_rule_set,footprints,nets,segments,vias,zones,licence,provenance',
                               column_formats='name:ref:PcbBoard,fab_rule_set:ref:FabRuleSet')]),
-              _row(1, [_table('pcb-placements', 0, 7, 'Placements — ref, footprint, position, side (ingested)', 'Placement',
+              _row(2, [_table('pcb-placements', 0, 7, 'Placements — ref, footprint, position, side (ingested)', 'Placement',
                               description='What this is for: where each part SITS on the board, as KiCad placed it. One row = one placed '
                                           'footprint. Columns: ref (the schematic designator, e.g. R3), x_mm/y_mm/rotation/side (its position), '
                                           'footprint/part (what it is).',
@@ -79,7 +92,7 @@ _PAGES = [
                                           'layers it rides on).',
                               columns='board,net,segments,vias,length_mm,min_width_mm,widths_json,layers_json,pads',
                               column_formats='board:ref:PcbBoard')]),
-              _row(2, [_table('pcb-layer-svgs', 0, 12, 'Every export (sort/filter export_set=layers for the per-layer SVGs — kicad-cli pcb export svg) '
+              _row(3, [_table('pcb-layer-svgs', 0, 12, 'Every export (sort/filter export_set=layers for the per-layer SVGs — kicad-cli pcb export svg) '
                               '— click artifact_url to open the file',
                               'FabricationExport',
                               description='What this is for: every file kicad-cli has exported from this board — layer SVGs among them. One '

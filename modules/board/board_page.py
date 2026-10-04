@@ -16,7 +16,7 @@ another variant". The panel never composes a command: it sends a build NAME, a t
 local server's installer doors (/api/board/installer/…), and the server runs the argv it fixed in the plan row, on its
 own host only (the host holding the port). No raw JSON anywhere on the page.
 """
-from polariApiServer.module_pages_seed import _page, _row, _table
+from polariApiServer.module_pages_seed import _page, _row, _table, _svg_panel
 
 _BOARDS_PAGES = [
     _page('boards', 'boards',
@@ -27,7 +27,14 @@ _BOARDS_PAGES = [
           'usable board) and /display/hardware-solutions (no-code on a usable board); the physical layers (SoCs, pins, runtime profiles, '
           'views, conflicts) are THE BOARD OBJECT, brd-bo.',
           'BoardDefinition', [
-              _row(0, [_table('boards-usable', 0, 12,
+              _row(0, [_svg_panel('boards-pinmap-svg', 0, 12,
+                                  'The UNO pin map, drawn — the four headers, every pin named, coloured by role (PWM, ADC, UART, I2C/SPI, power)',
+                                  '/api/board/arduino-uno-r3/pinmap.svg',
+                                  description='What this is for: THE PIN ASSIGNMENT drawn straight from brd-bo\'s own rows (board.custom.'
+                                              'pinmap_svg) — not a screenshot, not hand-drawn: `pol board assign <board> <role> <pin>` moves a '
+                                              'net to a different pin and this drawing changes with it, the same rows every other view (KiCad, '
+                                              'Zephyr, bare C) renders from. Hover a pin for its SoC pin, net and C firmware symbol.')], min_height=300),
+              _row(1, [_table('boards-usable', 0, 12,
                               'Usable now — simulate, install, no-code (sorted readiness first)', 'BoardDefinition',
                               description='What this is for: the boards you can actually DO something with today — run a twin, build and '
                                           'install firmware, or run a no-code solution. One row = one BoardDefinition with readiness=usable '
@@ -39,7 +46,7 @@ _BOARDS_PAGES = [
                                           '+ Scenario rows.',
                               columns='name,readiness_why,twin,simulated,device_class,soc,isa,usb_route,programmer,adapter_needed,road_status',
                               data_path='/api/board/boards/readiness', filter_field='readiness', filter_value='usable')]),
-              _row(1, [_table('boards-tracked', 0, 12,
+              _row(2, [_table('boards-tracked', 0, 12,
                               'Tracked for later — roads, nothing runnable yet', 'BoardDefinition',
                               description='What this is for: every other tracked device, with what is MISSING to become usable (readiness_why '
                                           'names it) and the Road\'s own status for context. One row = one BoardDefinition with readiness='
@@ -48,14 +55,14 @@ _BOARDS_PAGES = [
                                           'done — the PLAN; it does not by itself change readiness, only a real twin/template/solution does).',
                               columns='name,readiness,readiness_why,road_status,register_status,device_class,soc,isa,usb_route,adapter_needed,usb_rule',
                               data_path='/api/board/boards/readiness', filter_field='readiness', filter_value='partial,tracked')]),
-              _row(2, [_table('boards-adapters', 0, 12, 'Adapters and programmers (register §1a) — the host side is always USB', 'AdapterDefinition',
+              _row(3, [_table('boards-adapters', 0, 12, 'Adapters and programmers (register §1a) — the host side is always USB', 'AdapterDefinition',
                               description='What this is for: the USB adapters that close the RULE-1 gap for boards that are not natively USB. '
                                           'One row = one AdapterDefinition. Columns: kind/chip (the adapter hardware), usb_connector/usb_ids_json '
                                           '(how the host sees it), targets (which boards it can reach), engine (the flashing tool), '
                                           'hardware_open/firmware_open (licence openness), origin.',
                               columns='name,kind,chip,usb_connector,usb_ids_json,targets,engine,hardware_open,firmware_open,origin',
                               column_formats='name:ref:AdapterDefinition')]),
-              _row(3, [_table('boards-roads', 0, 6, 'Roads — todo | in-progress | done per device', 'Road',
+              _row(4, [_table('boards-roads', 0, 6, 'Roads — todo | in-progress | done per device', 'Road',
                               description='What this is for: the ordered PLAN per tracked device — facts, definition, twin, firmware template, '
                                           'flashed, measured. One row = one Road (one per board). Columns: status (the road\'s overall state), '
                                           'steps_json (each step\'s own todo/in-progress/done + note), concept_node (its node on the '
@@ -68,7 +75,7 @@ _BOARDS_PAGES = [
                                           'AdapterDefinition it rides over), dry_run_template (the argv template shown verbatim before any '
                                           'install runs), placement (where it runs: host | bridge).',
                               columns='name,engine,engine_kind,adapter_kind,dry_run_template,placement', column_formats='name:ref:ProgrammerKind')]),
-              _row(4, [_table('boards-instances', 0, 7, 'Seen plugged in (pol board detect)', 'BoardInstance',
+              _row(5, [_table('boards-instances', 0, 7, 'Seen plugged in (pol board detect)', 'BoardInstance',
                               description='What this is for: actual hardware the host has SEEN on USB, via `pol board detect`. One row = one '
                                           'physical device instance. Columns: definition/definition_kind (which BoardDefinition or '
                                           'AdapterDefinition it matched, or unadmitted), state, host (which machine saw it), usb_id/by_id_path '
@@ -80,7 +87,7 @@ _BOARDS_PAGES = [
                               columns='board,fact_key,value,unit,document,page_table,url')]),
               # brd-wire (grpc-j4): which Polari row IS which hardware interface — the chain of one instance is
               # GET /api/board/instances/<instance>/interface
-              _row(5, [_table('boards-bindings', 0, 12, 'Hardware-interface bindings — which row is which interface: bridge, instance index '
+              _row(6, [_table('boards-bindings', 0, 12, 'Hardware-interface bindings — which row is which interface: bridge, instance index '
                               '(ceil(log2 n) bits on the wire), port, the wire contract hash v2, frames applied / refused',
                               'HardwareInterfaceBinding',
                               description='What this is for: the live wiring chain — which Polari object row IS which physical/bridge '
@@ -94,13 +101,13 @@ _BOARDS_PAGES = [
                               column_formats='board_definition:ref:BoardDefinition')]),
               # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoCs, the ONE pin assignment every view renders from,
               # the runtime profiles (supported or refused, with why), the views by sha and the conflicts (never auto-resolved)
-              _row(6, [_table('boards-socs', 0, 12, 'SoCs — package, ISA, clock, where each fact came from (the board object\'s SoC layer)', 'SocDefinition',
+              _row(7, [_table('boards-socs', 0, 12, 'SoCs — package, ISA, clock, where each fact came from (the board object\'s SoC layer)', 'SocDefinition',
                               description='What this is for: THE BOARD OBJECT\'s SoC identity layer — one row per chip a board is built '
                                           'around. One row = one SocDefinition. Columns: package/isa/cpu_clock_hz/pin_count (the chip itself), '
                                           'vendor_target/zephyr_soc (build-system identifiers), source (where the facts came from), '
                                           'undetermined (named gaps, never guessed).',
                               columns='name,title,package,isa,cpu_clock_hz,pin_count,vendor_target,zephyr_soc,source,undetermined')]),
-              _row(7, [_table('boards-pins', 0, 12, 'Pins — named ONCE: the canonical name every view uses (KiCad, Zephyr, ESP-IDF, bare C) ↔ SoC pin ↔ net ↔ '
+              _row(8, [_table('boards-pins', 0, 12, 'Pins — named ONCE: the canonical name every view uses (KiCad, Zephyr, ESP-IDF, bare C) ↔ SoC pin ↔ net ↔ '
                               'connector pin, the function / peripheral / signal, the C symbol, where it came from', 'BoardPin',
                               description='What this is for: the ONE pin assignment every view (KiCad, Zephyr, ESP-IDF, bare C) renders from — '
                                           'change a row here and every view changes with it (`pol board assign <board> <role> <pin>`). One row '
@@ -109,7 +116,7 @@ _BOARDS_PAGES = [
                                           'undetermined.',
                               columns='board,canonical,soc_pin,net,connector_pin,function,peripheral,signal,firmware_symbol,alias,origin,undetermined',
                               column_formats='board:ref:BoardDefinition')]),
-              _row(8, [_table('boards-runtime', 0, 12, 'Runtime profiles — per firmware_runtime: supported (console, tick, twin) or REFUSED with the reason',
+              _row(9, [_table('boards-runtime', 0, 12, 'Runtime profiles — per firmware_runtime: supported (console, tick, twin) or REFUSED with the reason',
                               'RuntimeProfile',
                               description='What this is for: which firmware runtimes (bare-c | freertos | esp-idf | zephyr) a board actually '
                                           'supports, and why the others are refused rather than silently unavailable. One row = one board x '
@@ -117,7 +124,7 @@ _BOARDS_PAGES = [
                                           'tick_hz/heap_bytes (what that runtime gets), twin (its simulator), origin.',
                               columns='board,runtime,supported,refusal,console_uart,clock_hz,tick_hz,heap_bytes,twin,origin',
                               column_formats='board:ref:BoardDefinition')]),
-              _row(9, [_table('boards-views', 0, 7, 'Views — rendered out / ingested in, each by sha256 with the board sha at that moment (refusals too)',
+              _row(10, [_table('boards-views', 0, 7, 'Views — rendered out / ingested in, each by sha256 with the board sha at that moment (refusals too)',
                               'BoardView',
                               description='What this is for: every time the board object was rendered OUT to a view (KiCad, Zephyr DTS, …) or '
                                           'ingested IN from one, with the sha of both the view and the board rows at that moment — so a stale '

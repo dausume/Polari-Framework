@@ -158,13 +158,19 @@ def page():
     names = {p['pageRoute'] for p in P}
     check('four pages: board-schematic, board-layout, board-bom, board-fab',
           names == {'board-schematic', 'board-layout', 'board-bom', 'board-fab'})
+    # demo1b: board-schematic + board-layout each draw FIRST (the generic api-svg-panel), tables below; board-bom
+    # and board-fab stay configured tables only (no drawing exists for a BOM or a fab profile).
+    drawn = {'board-schematic', 'board-layout'}
     for p in P:
         rows = json.loads(p['definition'])['rows']
         items = [it for row in rows for it in row['items']]
         comps = [it['componentProps']['componentName'] for it in items]
-        check('/display/%s is configured tables only (no custom component, no JSON panel)' % p['pageRoute'],
-              comps and set(comps) == {'class-rows-table'}, str(comps))
-        check('/display/%s: every table carries a non-empty description' % p['pageRoute'],
+        allowed = {'class-rows-table', 'api-svg-panel'} if p['pageRoute'] in drawn else {'class-rows-table'}
+        check('/display/%s is configured tables (+ the generic svg panel on the drawn pages) only — no JSON panel' % p['pageRoute'],
+              comps and set(comps) <= allowed, str(comps))
+        if p['pageRoute'] in drawn:
+            check('/display/%s: the FIRST item is the drawing (api-svg-panel)' % p['pageRoute'], comps[0] == 'api-svg-panel', str(comps))
+        check('/display/%s: every item carries a non-empty description' % p['pageRoute'],
               all(it.get('description') for it in items), str([it['id'] for it in items if not it.get('description')]))
 
 

@@ -143,6 +143,7 @@
    "custom/installer",
    "custom/interface_chain",
    "custom/packet_ref",
+   "custom/pinmap_svg",
    "custom/programmers",
    "custom/readiness",
    "custom/register_import",

@@ -18,6 +18,12 @@ GET  /api/board/instances/{instance}/interface
                                  contract (hash v1) → wire contract (hash v2) → binding → instance → port/adapter →
                                  board definition → datasheet facts (board.custom.interface_chain); 404 when unbound
 
+GET  /api/board/{board}/pinmap.svg
+                                 demo1b: THE PIN MAP, drawn — an SVG generated straight from brd-bo's rows (the
+                                 four headers as rectangles, every pin named, coloured by role, soc pin + net on
+                                 a second line); `pol board assign` changes a BoardPin row and this changes with
+                                 it (board.custom.pinmap_svg, same mechanism board_selftest.pinmap() proves)
+
 brd-fi: the firmware installer's doors (/api/board/installer…, /api/board/variants, /api/board/builds/{b}/compat) live in
 board.installer_api.
 """
@@ -45,6 +51,7 @@ class BoardAPI(treeObject):
             add('/api/board/sim-costs', self, suffix='sim_costs')
             add('/api/board/instances/{instance}/interface', self, suffix='interface')
             add('/api/board/boards/readiness', self, suffix='readiness')
+            add('/api/board/{board}/pinmap.svg', self, suffix='pinmap_svg')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -196,3 +203,26 @@ class BoardAPI(treeObject):
         if not out.get('ok'):
             response.status = falcon.HTTP_404
         response.media = out
+
+    def _board_object_tables(self):
+        """Live rows when a server has them, else the seed tables (board.custom.board_object) — pinmap.svg works
+        both on a fresh server and against `pol board assign`'s edits."""
+        from board.custom import board_object as BO
+        if self.manager is not None:
+            t = BO.tables_from_manager(self.manager)
+            if any(t.get(c) for c in BO.LAYER_CLASSES):
+                return t
+        return BO.seed_tables()
+
+    def on_get_pinmap_svg(self, request, response, board):
+        from board.custom import board_object as BO
+        from board.custom import pinmap_svg as P
+        try:
+            r = BO.rows_for(board, self._board_object_tables())
+        except BO.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.content_type = 'text/plain'
+            response.text = str(e)
+            return
+        response.content_type = 'image/svg+xml'
+        response.text = P.render(r)

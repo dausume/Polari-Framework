@@ -19,6 +19,15 @@ GET  /api/pcb/artifacts/{board}/{path}
                                     one exported file's bytes (a Gerber, drill, SVG, STEP, BOM, netlist …), for the
                                     FabricationExport table's artifact_url column and the per-layer SVG links on
                                     /display/board-layout.
+GET  /api/pcb/svgs?kind=&board=     demo1b: the FIRST item on /display/board-layout (kind=svg-layer) and
+                                    /display/board-schematic (kind=svg-schematic) — {ok, items:[{label, url}]}
+                                    over every FabricationExport row of that kind (optionally one board), label =
+                                    the layer name (or the filename when there is none, the schematic SVGs).
+GET  /api/pcb/drc-positions?kind=&board=
+                                    demo1b: the optional marker overlay for the svg panel above — {ok,
+                                    items:[{x, y, label, severity}]} from DrcResult.x_mm/y_mm (0,0 rows, i.e. a
+                                    clean check or a finding with no reported position, are left out: nothing to
+                                    draw).
 """
 import inspect
 import json
@@ -44,6 +53,8 @@ class PcbAPI(treeObject):
             add('/api/pcb/ingest', self, suffix='ingest')
             add('/api/pcb/render/uno-shield', self, suffix='render_uno_shield')
             add('/api/pcb/artifacts/{board}/{path:path}', self, suffix='artifact')
+            add('/api/pcb/svgs', self, suffix='svgs')
+            add('/api/pcb/drc-positions', self, suffix='drc_positions')
 
     # ---------------------------------------------------------------- rows
     def _table(self, class_name):
@@ -151,6 +162,7 @@ class PcbAPI(treeObject):
         from pcb.custom import uno_shield as U
         from pcb.custom import schematic_writer as W
         from pcb.custom import pcb_engines as E
+        from pcb.custom import ingest as I
         d = U.design()
         need = {c['lib_id'] for c in d['components']} | {W.POWER_LIB[n] for n in d['nets'] if n in W.POWER_LIB} | {'power:PWR_FLAG'}
         try:
@@ -180,11 +192,45 @@ class PcbAPI(treeObject):
         self._upsert('Schematic', [sch_row])
         from pcb.custom.uno_shield import part_rows
         self._upsert('Part', part_rows(d))
+        # demo1b: the schematic SVG — same `sch export svg` verb ingest.py's own _exports() already runs for an
+        # INGESTED board; the render flow had never run it, so /display/board-schematic's first item had nothing
+        # to draw for a Polari-AUTHORED schematic. A refusal here (no engine reachable) never fails the render —
+        # the schematic + ERC rows above are the proof; the drawing is best-effort on top of them.
+        svg_url = ''
+        try:
+            svg_res = E.run(['sch', 'export', 'svg', '-o', 'out/schematic/', 'uno-shield.kicad_sch'],
+                            {'uno-shield.kicad_sch': text}, source_date=E.SOURCE_DATE)
+            svg_rows = []
+            for rel, data in sorted((svg_res.get('files') or {}).items()):
+                if not rel.startswith('out/'):
+                    continue
+                name = rel[len('out/'):]
+                kind = I._kind('layers', name)
+                layer = I.layer_of(d['board'], name, kind)
+                path = 'layers/%s' % name
+                fp = os.path.join(I.home(), d['board'], 'artifacts', d['board'], path)
+                os.makedirs(os.path.dirname(fp), exist_ok=True)
+                open(fp, 'wb').write(data)
+                row = {'name': '%s:layers:%s' % (d['board'], name), 'board': d['board'], 'export_set': 'layers', 'kind': kind,
+                      'layer': layer, 'filename': os.path.basename(name), 'extension': '.' + name.rsplit('.', 1)[-1],
+                      'sha256': I.sha(data), 'bytes': len(data), 'board_sha256': '', 'fab_rule_set': '', 'accepted': 'n/a',
+                      'fab_name': '', 'naming_note': 'schematic SVG from the render flow (D-pcb-1), not a fab export',
+                      'artifact_path': '%s/%s' % (d['board'], path), 'artifact_url': I.artifact_url(d['board'], path),
+                      'engine_version': E.version(), 'argv': 'kicad-cli sch export svg', 'source_date': E.SOURCE_DATE,
+                      'at': E.SOURCE_DATE}
+                svg_rows.append(row)
+                if kind == 'svg-schematic' and not svg_url:
+                    svg_url = row['artifact_url']
+            if svg_rows:
+                self._upsert('FabricationExport', svg_rows)
+        except E.EngineRefused as e:
+            svg_url = ''
+            erc.setdefault('schematic_svg_refused', str(e))
         response.status = falcon.HTTP_201
         response.media = {'ok': True, 'board': d['board'], 'host': d['host'], 'components': len(d['components']),
                           'connections': len(report['connections']), 'unconnectedPins': len(report['unconnected_pins']),
                           'powerSymbols': report['power_symbols'], 'labels': report['labels'], 'ercViolations': violations,
-                          'erc': erc, 'schematicText': text}
+                          'erc': erc, 'schematicText': text, 'schematicSvgUrl': svg_url}
 
     # ---------------------------------------------------------------- artifacts
     def on_get_artifact(self, request, response, board, path):
@@ -203,3 +249,28 @@ class PcbAPI(treeObject):
         response.content_type = {'svg': 'image/svg+xml', 'step': 'model/step', 'csv': 'text/csv', 'json': 'application/json',
                                  'net': 'text/plain'}.get(ext, 'application/octet-stream')
         response.data = data
+
+    # ---------------------------------------------------------------- demo1b: the generic drawing's data doors
+    def on_get_svgs(self, request, response):
+        """{ok, items:[{label, url}]} over FabricationExport rows of one `kind` (svg-layer | svg-schematic),
+        optionally one `board` — the FIRST item on /display/board-layout and /display/board-schematic."""
+        kind = request.get_param('kind') or 'svg-layer'
+        board = request.get_param('board') or ''
+        rows = [r for r in self._rows('FabricationExport') if r.kind == kind and r.artifact_url and (not board or r.board == board)]
+        rows.sort(key=lambda r: (r.board, r.layer or r.filename))
+        items = [{'label': '%s: %s' % (r.board, r.layer) if r.layer else '%s: %s' % (r.board, r.filename), 'url': r.artifact_url}
+                for r in rows]
+        response.media = {'ok': True, 'kind': kind, 'board': board, 'items': items,
+                          'note': '' if items else 'no %s exports yet — ingest a board (pol pcb ingest) or render one (pol pcb render) '
+                                                     'first' % kind}
+
+    def on_get_drc_positions(self, request, response):
+        """{ok, items:[{x, y, label, severity}]} over DrcResult rows (x_mm/y_mm → x/y) — the svg panel's optional
+        marker overlay. `kind` is a csv (e.g. erc, or drc,unconnected,parity,fab-rule); rows at (0,0) — a clean
+        check or a finding with no reported position — are left out, nothing to draw there."""
+        kinds = {k.strip() for k in (request.get_param('kind') or '').split(',') if k.strip()}
+        board = request.get_param('board') or ''
+        rows = [r for r in self._rows('DrcResult') if (not kinds or r.kind in kinds) and (not board or r.board == board)
+               and (r.x_mm or r.y_mm)]
+        items = [{'x': r.x_mm, 'y': r.y_mm, 'label': '%s: %s' % (r.severity, r.description or r.rule), 'severity': r.severity} for r in rows]
+        response.media = {'ok': True, 'items': items}
