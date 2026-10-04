@@ -204,12 +204,50 @@ def detection(B, A):
 def page():
     from board.board_page import SEED_BOARD_PAGE_DISPLAYS as P
     rows = json.loads(P[0]['definition'])['rows']
-    names = [it['componentProps']['componentName'] for row in rows for it in row['items']]
+    items = [it for row in rows for it in row['items']]
+    names = [it['componentProps']['componentName'] for it in items]
     text = P[0]['definition']
     check('/display/boards is configured tables only (no custom component, no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 12 and set(names) == {'class-rows-table'}, str(names))   # brd-wire: + the bindings table; brd-bo: + SoCs, pins, runtime, views, conflicts
-    check('the devices table carries class, status, chip, ISA, USB route, adapter, simulated, road status',
+          and len(names) == 13 and set(names) == {'class-rows-table'}, str(names))   # demo1: devices split usable/tracked; brd-wire: + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts
+    check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
+    # demo1: his ask — a clear usable-vs-tracked split, derived (readiness never hand-flagged), fed by GET /api/board/boards/readiness
+    check('the devices table is split into "usable now" and "tracked for later", both fed by the derived readiness door',
+          all(it['componentProps']['inputs'].get('dataPath') == '/api/board/boards/readiness'
+              for it in items if it['id'] in ('boards-usable', 'boards-tracked')))
+    check('usable reads readiness=usable; tracked reads readiness=partial,tracked (never the same set)',
+          next(it['componentProps']['inputs']['filterValue'] for it in items if it['id'] == 'boards-usable') == 'usable'
+          and next(it['componentProps']['inputs']['filterValue'] for it in items if it['id'] == 'boards-tracked') == 'partial,tracked')
+    check('every table on /display/boards carries a non-empty description (what it is for / one row = / columns)',
+          all(it.get('description') for it in items))
+
+
+def readiness():
+    """demo1: compute_readiness is DERIVED, never hand-flagged — a Road flip alone must not change it."""
+    from board.custom.readiness import compute_readiness
+    from types import SimpleNamespace as NS
+    uno = NS(name='arduino-uno-r3', twin='simavr:atmega328p', simulated=True)
+    c3 = NS(name='esp32-c3-devkitm-1', twin='renode:esp32c3', simulated=True)
+    hazard3 = NS(name='hazard3-ice', twin='', simulated=False)
+    variants = [NS(board_definition='arduino-uno-r3'), NS(board_definition='esp32-c3-devkitm-1')]
+    solutions = [NS(board_definition='arduino-uno-r3')]
+    scenarios = [NS(target_board='arduino-uno-r3'), NS(target_board='esp32-c3-devkitm-1')]
+
+    r, why = compute_readiness(uno, variants, solutions, scenarios)
+    check('the UNO (twin + template + a no-code solution + scenarios) is usable', r == 'usable', why)
+    r, why = compute_readiness(c3, variants, solutions, scenarios)
+    check('the ESP32-C3 (twin + template + scenarios, no solution yet) is usable with that named in readiness_why',
+          r == 'usable' and 'no no-code solution yet' in why, why)
+    r, why = compute_readiness(hazard3, variants, solutions, scenarios)
+    check('a register-only board with no twin/template/run is tracked', r == 'tracked', why)
+    partial_board = NS(name='partial-board', twin='renode:x', simulated=True)
+    r, why = compute_readiness(partial_board, variants, solutions, scenarios)
+    check('a board with only a twin (no template, no run) is partial', r == 'partial', why)
+    # the Road is the PLAN, not the proof: flipping its status alone must not move readiness (no Road input exists
+    # to compute_readiness at all — the function cannot see it, which IS the guarantee this check names).
+    import inspect
+    check('compute_readiness takes no Road/road_status argument (a Road step flip cannot change readiness by itself)',
+          'road' not in ','.join(inspect.signature(compute_readiness).parameters).lower())
 
 
 def main():
@@ -219,6 +257,7 @@ def main():
     engines()
     detection(B, A)
     page()
+    readiness()
     from board.board_uno_selftest import run_uno   # brd-1: gen / build / flash / twin / cost
     run_uno(check)
     from board.board_installer_selftest import run_installer   # brd-fi: variants / compat / the installer flow / the page

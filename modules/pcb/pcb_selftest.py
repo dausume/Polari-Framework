@@ -160,9 +160,12 @@ def page():
           names == {'board-schematic', 'board-layout', 'board-bom', 'board-fab'})
     for p in P:
         rows = json.loads(p['definition'])['rows']
-        comps = [it['componentProps']['componentName'] for row in rows for it in row['items']]
+        items = [it for row in rows for it in row['items']]
+        comps = [it['componentProps']['componentName'] for it in items]
         check('/display/%s is configured tables only (no custom component, no JSON panel)' % p['pageRoute'],
               comps and set(comps) == {'class-rows-table'}, str(comps))
+        check('/display/%s: every table carries a non-empty description' % p['pageRoute'],
+              all(it.get('description') for it in items), str([it['id'] for it in items if not it.get('description')]))
 
 
 def main():

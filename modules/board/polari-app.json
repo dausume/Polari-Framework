@@ -144,6 +144,7 @@
    "custom/interface_chain",
    "custom/packet_ref",
    "custom/programmers",
+   "custom/readiness",
    "custom/register_import",
    "custom/register_map",
    "custom/sexpr",

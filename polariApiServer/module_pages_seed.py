@@ -24,24 +24,43 @@ import json
 
 
 def _table(item_id, index, segments, title, class_name, columns='',
-           max_rows=0, column_formats=''):
+           max_rows=0, column_formats='', description='',
+           filter_field='', filter_value='', data_path=''):
     """`column_formats` = csv of `column:format` pairs, handed to
     class-rows-table as `columnFormats`. The one format so far is
     `person` (his rule D18-1): the column holds an opaque Keycloak
     subject id, so the cell shows it shortened with the whole id in the
     tooltip, and the visible rows' ids are resolved to names at RENDER
     time through the gated door `POST /api/security/people`. No name is
-    ever stored in a row."""
+    ever stored in a row.
+
+    `description` (his 2026-10-04 verdict: "many rows of data with no
+    demonstratables ... do not even have proper descriptions of what
+    each table is for and what its row and column logic is") is the
+    ONE generic field every table (every component, in fact — see
+    `item.description` on the frontend) carries: what the table is
+    for, "one row = ...", and the column meanings in short — rendered
+    by dashboard-renderer under the item's title, no per-component
+    work needed. Callers write it from the backing class's own
+    docstring/field comments, never invented.
+
+    `filter_field`/`filter_value` push straight through to
+    class-rows-table's existing filter inputs (readiness split etc.);
+    `filter_value` may be a csv SET, handled there already."""
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
-        'title': title, 'visible': True, 'collapsed': False,
+        'title': title, 'description': description,
+        'visible': True, 'collapsed': False,
         'cssClass': '',
         'componentProps': {
             'componentName': 'class-rows-table',
             'inputs': {'className': class_name, 'columns': columns,
                        'maxRows': max_rows,
-                       'columnFormats': column_formats},
+                       'columnFormats': column_formats,
+                       'filterField': filter_field,
+                       'filterValue': filter_value,
+                       'dataPath': data_path},
         },
         'item': None, 'nestedRows': [],
     }
@@ -61,17 +80,20 @@ def _api(item_id, index, segments, title, path):
     }
 
 
-def _sapi(item_id, index, segments, title, path, pick='', hide=''):
+def _sapi(item_id, index, segments, title, path, pick='', hide='',
+          description=''):
     """A GET payload through the generic STRUCTURED reading (chips /
     prose / tables / key-value) — never a JSON wall (Dustin: "there
     should not be any json showing on the screens"). `pick` = dot-path
     into the payload to render instead of the whole; `hide` = csv of
     top-level keys to drop — tuned per path so no key is left for the
-    panel's JSON expander (dict-of-dicts and empty dicts land there)."""
+    panel's JSON expander (dict-of-dicts and empty dicts land there).
+    `description` — see `_table`."""
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
-        'title': title, 'visible': True, 'collapsed': False,
+        'title': title, 'description': description,
+        'visible': True, 'collapsed': False,
         'cssClass': '',
         'componentProps': {
             'componentName': 'api-structured-panel',

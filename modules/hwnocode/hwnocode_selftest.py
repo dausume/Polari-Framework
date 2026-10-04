@@ -306,6 +306,8 @@ def seeds_page_api():
             params = set(inspect.signature(known[cn].__init__).parameters)
             bad += ['%s.%s' % (cn, c) for c in it['componentProps']['inputs']['columns'].split(',') if c not in params]
     check('…every table names an hwnocode class and only columns it has', not bad, bad)
+    check('/display/hardware-solutions: every item (tables + the chart) carries a non-empty description',
+          all(it.get('description') for it in items), [it['id'] for it in items if not it.get('description')])
     tables = {}
     mgr = SimpleNamespace(objectTables=tables, idList=[], db=None, objectTypingDict={})
     for name, cls, rows in HWNOCODE_SEED_PAIRS:

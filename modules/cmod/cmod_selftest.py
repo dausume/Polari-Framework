@@ -217,11 +217,22 @@ def host_measure():
     shutil.rmtree(d, ignore_errors=True)
 
 
+def page():
+    """demo1: every table on /display/c-atoms carries a non-empty description."""
+    from cmod.cmod_page import SEED_CMOD_PAGE_DISPLAYS as P
+    rows = json.loads(P[0]['definition'])['rows']
+    items = [it for row in rows for it in row['items']]
+    check('/display/c-atoms is configured tables only (no custom component, no JSON panel)',
+          items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items))
+    check('/display/c-atoms: every table carries a non-empty description',
+          all(it.get('description') for it in items), str([it['id'] for it in items if not it.get('description')]))
+
+
 def main():
     print('cmod selftest (cmod-0 + cmod-1)')
     from cmod.custom.selftest_uno import uno_parts
     from cmod.custom.selftest_glue import graph_parts
-    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure) + uno_parts(check) + graph_parts(check):
+    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page) + uno_parts(check) + graph_parts(check):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

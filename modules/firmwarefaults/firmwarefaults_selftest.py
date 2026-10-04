@@ -312,6 +312,8 @@ def seeds_page_api():
     check('…including the cycles around the fault (ScenarioTraceCycle), the runs, the claims and one table per fault kind (16)',
           {'ScenarioTraceCycle', 'ScenarioRun', 'MathClaim', 'Technique'} <= {it['componentProps']['inputs']['className'] for it in items}
           and sum(1 for it in items if it['id'].startswith('ff-kind-')) == 16)
+    check('/display/firmware-faults: every table (fixed + one per fault kind) carries a non-empty description',
+          all(it.get('description') for it in items), [it['id'] for it in items if not it.get('description')])
     # the API doors over a fake manager holding the seeded rows
     import falcon
     from falcon import testing

@@ -44,6 +44,7 @@ class BoardAPI(treeObject):
             add('/api/board/builds', self, suffix='builds')
             add('/api/board/sim-costs', self, suffix='sim_costs')
             add('/api/board/instances/{instance}/interface', self, suffix='interface')
+            add('/api/board/boards/readiness', self, suffix='readiness')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -108,6 +109,13 @@ class BoardAPI(treeObject):
                 pass
         response.status = falcon.HTTP_201
         response.media = dict(result, ok=True, stored=stored)
+
+    def on_get_readiness(self, request, response):
+        """demo1: usable | partial | tracked per board, DERIVED from the rows that already exist
+        (board.custom.readiness) — never a hand-set flag. Feeds the two configured tables on /display/boards
+        (and, by the same door, any other page's "usable boards" pick)."""
+        from board.custom.readiness import readiness_rows
+        response.media = {'ok': True, 'rows': readiness_rows(self.manager)}
 
     def on_get_roads(self, request, response):
         response.media = {'ok': True, 'roads': [{'road': r.name, 'board': r.board, 'status': r.status, 'steps': json.loads(r.steps_json or '[]'),
