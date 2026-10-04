@@ -34,7 +34,7 @@ class FabricationExport(treeObject):
         self.fab_name = fab_name  # the extension the fab lists for this layer
         self.naming_note = naming_note
         self.artifact_path = artifact_path  # relative to the module artifact dir
-        self.artifact_url = artifact_url  # absolute when POLARI_PUBLIC_BASE_URL is set
+        self.artifact_url = artifact_url  # relative to the API root by default; absolute when POLARI_PUBLIC_BASE_URL is set
         self.engine_version = engine_version
         self.argv = argv
         self.source_date = source_date

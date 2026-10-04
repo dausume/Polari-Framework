@@ -220,8 +220,14 @@ def drc_rows(board, rec):
 
 
 def artifact_url(board, path):
+    """Relative to the API root (`/api/pcb/artifacts/<board>/<path>`) by default — the frontend fetches it through
+    the same API base it already uses, so a server never needs POLARI_PUBLIC_BASE_URL set just to make artifact
+    links work (staging didn't set it; every row stored artifact_url='', which hid every drawing on
+    /display/board-layout and /display/board-schematic). When POLARI_PUBLIC_BASE_URL IS set to an absolute http(s)
+    URL (a public domain/CDN serving the same artifact tree), it is an optional ABSOLUTE prefix instead."""
+    rel = '/api/pcb/artifacts/%s/%s' % (board, path)
     base = os.environ.get('POLARI_PUBLIC_BASE_URL', '').rstrip('/')
-    return '%s/api/pcb/artifacts/%s/%s' % (base, board, path) if base.startswith('http') else ''
+    return '%s%s' % (base, rel) if base.startswith('http') else rel
 
 
 def export_rows(board, rec, board_sha=''):

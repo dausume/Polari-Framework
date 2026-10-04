@@ -103,6 +103,50 @@ def ingest_offline():
           res['rows'].get('FabRuleSet') and res['rows'].get('FabRule') and res['rows'].get('DrcResult'))
 
 
+def artifact_urls():
+    """arturl fix: POLARI_PUBLIC_BASE_URL unset (the staging case that hid every drawing — every row stored
+    artifact_url='') must still yield a USABLE url, relative to the API root, and GET /api/pcb/svgs must still
+    list that row — both straight from a fresh export (artifact_url populated) and from a row stored BEFORE the
+    fix (artifact_url='', only artifact_path set)."""
+    from pcb.custom import ingest as I
+    from pcb.pcb_api import resolved_artifact_url, svg_items
+    old = os.environ.pop('POLARI_PUBLIC_BASE_URL', None)
+    try:
+        want = '/api/pcb/artifacts/ecc83-pp/layers/ecc83-pp-F_Cu.svg'
+        check('artifact_url() with POLARI_PUBLIC_BASE_URL unset is relative to the API root (no public base URL '
+              'needed — this is the bug: staging never set it, so every row stored artifact_url=\'\')',
+              I.artifact_url('ecc83-pp', 'layers/ecc83-pp-F_Cu.svg') == want)
+        rec = {'exports': [{'export_set': 'layers', 'kind': 'svg-layer', 'layer': 'F.Cu', 'filename': 'ecc83-pp-F_Cu.svg',
+                            'path': 'layers/ecc83-pp-F_Cu.svg', 'extension': '.svg', 'sha256': 'abc123', 'bytes': 10,
+                            'accepted': 'n/a', 'fab_name': '', 'naming_note': '', 'argv': 'kicad-cli pcb export svg'}],
+               'engine': {'version': 'x'}, 'source_date': '2020-01-01T00:00:00Z'}
+        rows = I.export_rows('ecc83-pp', rec)
+        check('export_rows() with the env var unset gives the FabricationExport row a relative artifact_url (the '
+              'same the live server will now store on ingest)', len(rows) == 1 and rows[0]['artifact_url'] == want
+              and rows[0]['artifact_path'] == 'ecc83-pp/layers/ecc83-pp-F_Cu.svg')
+    finally:
+        if old is not None:
+            os.environ['POLARI_PUBLIC_BASE_URL'] = old
+
+    from pcb.objects.pcb.FabricationExport import FabricationExport
+    fresh = FabricationExport(manager=None, name='ecc83-pp:layers:fresh', board='ecc83-pp', export_set='layers',
+                              kind='svg-layer', layer='F.Cu', filename='ecc83-pp-F_Cu.svg',
+                              artifact_path='ecc83-pp/layers/ecc83-pp-F_Cu.svg', artifact_url=want)
+    stale = FabricationExport(manager=None, name='ecc83-pp:layers:stale', board='ecc83-pp', export_set='layers',
+                              kind='svg-layer', layer='B.Cu', filename='ecc83-pp-B_Cu.svg',
+                              artifact_path='ecc83-pp/layers/ecc83-pp-B_Cu.svg', artifact_url='')
+    check('resolved_artifact_url() passes a stored (fresh) artifact_url through unchanged',
+          resolved_artifact_url(fresh.artifact_url, fresh.artifact_path) == want)
+    check('resolved_artifact_url() derives the url from artifact_path alone for a STALE row (artifact_url=\'\', '
+          'stored before the arturl fix) — the already-ingested rows on the live stack work without re-ingesting',
+          resolved_artifact_url(stale.artifact_url, stale.artifact_path) == '/api/pcb/artifacts/ecc83-pp/layers/ecc83-pp-B_Cu.svg')
+
+    items = svg_items([fresh, stale], 'svg-layer')
+    check('GET /api/pcb/svgs (via svg_items — the same function the endpoint calls) lists BOTH the fresh row and '
+          'the stale artifact_url=\'\' row — neither is dropped for lack of a url', {it['url'] for it in items} ==
+          {want, '/api/pcb/artifacts/ecc83-pp/layers/ecc83-pp-B_Cu.svg'}, str(items))
+
+
 def engines_refusal():
     from pcb.custom import pcb_engines as E
     old = os.environ.pop(E.KNOB, None)
@@ -180,6 +224,7 @@ def main():
     fab_rules()
     kicad_read_fixture()
     ingest_offline()
+    artifact_urls()
     engines_refusal()
     schematic_writer_offline()
     page()

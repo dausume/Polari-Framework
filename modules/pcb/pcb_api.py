@@ -22,7 +22,11 @@ GET  /api/pcb/artifacts/{board}/{path}
 GET  /api/pcb/svgs?kind=&board=     demo1b: the FIRST item on /display/board-layout (kind=svg-layer) and
                                     /display/board-schematic (kind=svg-schematic) — {ok, items:[{label, url}]}
                                     over every FabricationExport row of that kind (optionally one board), label =
-                                    the layer name (or the filename when there is none, the schematic SVGs).
+                                    the layer name (or the filename when there is none, the schematic SVGs). `url`
+                                    is the row's artifact_url, or — for a row ingested before the arturl fix, whose
+                                    artifact_url was stored '' because POLARI_PUBLIC_BASE_URL was unset — derived
+                                    from its artifact_path instead (resolved_artifact_url()): no row is ever
+                                    dropped for lack of a public base URL.
 GET  /api/pcb/drc-positions?kind=&board=
                                     demo1b: the optional marker overlay for the svg panel above — {ok,
                                     items:[{x, y, label, severity}]} from DrcResult.x_mm/y_mm (0,0 rows, i.e. a
@@ -39,6 +43,27 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 #: the artifact dirs ingest.py has already written this server's exports under (POLARI_PCB_HOME/<board>/artifacts/<board>)
 from pcb.custom.ingest import home as _pcb_home
+
+
+def resolved_artifact_url(artifact_url, artifact_path):
+    """A FabricationExport row's url: `artifact_url` when the row carries one (relative by default since the
+    arturl fix, or absolute when POLARI_PUBLIC_BASE_URL was set at ingest time); otherwise derived straight from
+    `artifact_path` for rows stored BEFORE that fix (staging ingested with artifact_url='' because
+    POLARI_PUBLIC_BASE_URL was unset) — so those rows work on /display/board-layout and /display/board-schematic
+    without a re-ingest."""
+    if artifact_url:
+        return artifact_url
+    return '/api/pcb/artifacts/%s' % artifact_path if artifact_path else ''
+
+
+def svg_items(rows, kind, board=''):
+    """The {label, url} list GET /api/pcb/svgs serves, over plain FabricationExport-shaped rows — a free function
+    (no PcbAPI/manager needed) so a selftest can call it directly with fixture rows. A row with artifact_url=''
+    but an artifact_path (stored before the arturl fix) still resolves and is listed, not dropped."""
+    rows = [r for r in rows if r.kind == kind and (r.artifact_url or r.artifact_path) and (not board or r.board == board)]
+    rows.sort(key=lambda r: (r.board, r.layer or r.filename))
+    return [{'label': '%s: %s' % (r.board, r.layer) if r.layer else '%s: %s' % (r.board, r.filename),
+            'url': resolved_artifact_url(r.artifact_url, r.artifact_path)} for r in rows]
 
 
 class PcbAPI(treeObject):
@@ -256,10 +281,7 @@ class PcbAPI(treeObject):
         optionally one `board` — the FIRST item on /display/board-layout and /display/board-schematic."""
         kind = request.get_param('kind') or 'svg-layer'
         board = request.get_param('board') or ''
-        rows = [r for r in self._rows('FabricationExport') if r.kind == kind and r.artifact_url and (not board or r.board == board)]
-        rows.sort(key=lambda r: (r.board, r.layer or r.filename))
-        items = [{'label': '%s: %s' % (r.board, r.layer) if r.layer else '%s: %s' % (r.board, r.filename), 'url': r.artifact_url}
-                for r in rows]
+        items = svg_items(self._rows('FabricationExport'), kind, board)
         response.media = {'ok': True, 'kind': kind, 'board': board, 'items': items,
                           'note': '' if items else 'no %s exports yet — ingest a board (pol pcb ingest) or render one (pol pcb render) '
                                                      'first' % kind}
