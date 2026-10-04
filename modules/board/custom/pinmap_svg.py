@@ -9,11 +9,22 @@ plain GPIO), with a `<title>` carrying the C firmware symbol (when assigned) and
 same rows -> same bytes (used both by GET /api/board/<board>/pinmap.svg and the `pol board assign` flip proof,
 board_selftest.pinmap()) — change a BoardPin row (board_object.assign) and this text changes with it, same as
 every other view brd-bo drives.
+
+GENERIC across boards, not just the UNO: a board with Connector/ConnectorPin rows of kind='header' draws one
+rectangle per header (the UNO's four); a board with none (e.g. esp32-c3 — ingested from Zephyr, whose dts "describes
+no headers") falls back to ONE synthetic column listing every BoardPin row by its canonical name (`_layout`,
+below) — so a board that is modelled AT ALL always draws its pins, never an empty legend-only box. `pins_by_role`
+is the SAME per-pin role walk `render()` uses, reused by `GET /api/board/<board>/pin-roles`
+(board.custom.pin_roles) so the drawing and that table never disagree on what role a pin has.
 """
+from board.custom.pin_roles import ROLE_NAMES
+
+#: colours only — the ROLE NAMES themselves (the vocabulary) live once in board.custom.pin_roles.ROLE_NAMES
 ROLE_COLORS = {
     'pwm': '#e65100', 'adc': '#1565c0', 'uart': '#2e7d32', 'i2c': '#6a1b9a', 'spi': '#ad1457',
     'led': '#f9a825', 'power': '#c62828', 'ground': '#424242', 'button': '#00838f', 'gpio': '#78909c',
 }
+assert set(ROLE_COLORS) == set(ROLE_NAMES), 'pinmap_svg.ROLE_COLORS and pin_roles.ROLE_NAMES must name the same roles'
 I2C_LABELS = {'SDA', 'SCL'}
 SPI_LABELS = {'MOSI', 'MISO', 'SCK', 'COPI', 'CIPO'}
 POWER_LABELS = {'+5V', '+3V3', 'VIN', 'IOREF', 'AREF', 'NC'}
@@ -39,14 +50,41 @@ def role_of(label, board_pin):
     return 'gpio'
 
 
-def render(r):
-    """r = board.custom.board_object.rows_for(board)'s dict. -> the SVG document as text."""
-    board = r['board']
+def _layout(r):
+    """pins_by_canon, headers, by_conn — the one layout walk `render()` and `pins_by_role()` both use. Falls back to
+    a synthetic single 'PINS' column (every BoardPin row, canonical order) when the board has no Connector/
+    ConnectorPin rows of kind='header' (e.g. esp32-c3, ingested from a Zephyr dts that names none)."""
     pins_by_canon = {p['canonical']: p for p in r['pins']}
     headers = sorted([c for c in r['connectors'] if c.get('kind') == 'header'], key=lambda c: c['connector'])
     by_conn = {}
     for cp in r['connector_pins']:
         by_conn.setdefault(cp['connector'], []).append(cp)
+    if not headers:
+        headers = [{'connector': 'PINS', 'ref': r['board']}]
+        by_conn['PINS'] = [{'connector': 'PINS', 'number': i, 'label': p['canonical'], 'board_pin': p['canonical'], 'net': p.get('net')}
+                            for i, p in enumerate(r['pins'])]
+    return pins_by_canon, headers, by_conn
+
+
+def pins_by_role(r):
+    """role -> sorted pin labels present on this board — the same role_of() walk render() colours by, reused by
+    GET /api/board/<board>/pin-roles (board.custom.pin_roles.rows_for_roles) so the table and the drawing agree."""
+    pins_by_canon, headers, by_conn = _layout(r)
+    out = {}
+    for c in headers:
+        for cp in sorted(by_conn.get(c['connector'], []), key=lambda cp: cp['number']):
+            bp = pins_by_canon.get(cp.get('board_pin') or '')
+            role = role_of(cp['label'], bp)
+            labels = out.setdefault(role, [])
+            if cp['label'] not in labels:
+                labels.append(cp['label'])
+    return out
+
+
+def render(r):
+    """r = board.custom.board_object.rows_for(board)'s dict. -> the SVG document as text."""
+    board = r['board']
+    pins_by_canon, headers, by_conn = _layout(r)
     max_pins = max([len(by_conn.get(c['connector'], [])) for c in headers] or [1])
     width = PAD * 2 + len(headers) * (COL_W + PAD) + LEGEND_W
     height = PAD * 2 + HEADER_H + max_pins * ROW_H

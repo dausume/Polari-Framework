@@ -18,11 +18,20 @@ GET  /api/board/instances/{instance}/interface
                                  contract (hash v1) → wire contract (hash v2) → binding → instance → port/adapter →
                                  board definition → datasheet facts (board.custom.interface_chain); 404 when unbound
 
+GET  /api/board/pinmaps          every board with BoardPin rows, each as {label, url: .../pinmap.svg} — the
+                                 selector `boards-pinmap-svg` (api-svg-panel) switches boards with, never one
+                                 board wired into the page
 GET  /api/board/{board}/pinmap.svg
                                  demo1b: THE PIN MAP, drawn — an SVG generated straight from brd-bo's rows (the
                                  four headers as rectangles, every pin named, coloured by role, soc pin + net on
-                                 a second line); `pol board assign` changes a BoardPin row and this changes with
-                                 it (board.custom.pinmap_svg, same mechanism board_selftest.pinmap() proves)
+                                 a second line; a board with no header rows falls back to one column of its bare
+                                 BoardPin rows — esp32-c3 today); `pol board assign` changes a BoardPin row and
+                                 this changes with it (board.custom.pinmap_svg, same mechanism
+                                 board_selftest.pinmap() proves)
+GET  /api/board/{board}/pin-roles
+                                 one row per pin ROLE this board actually has (adc/button/gpio/ground/i2c/led/
+                                 power/pwm/spi/uart), what it is, how it is used, which pins carry it, and a
+                                 cited learn-more link (board.custom.pin_roles + pinmap_svg.pins_by_role)
 
 brd-fi: the firmware installer's doors (/api/board/installer…, /api/board/variants, /api/board/builds/{b}/compat) live in
 board.installer_api.
@@ -51,7 +60,9 @@ class BoardAPI(treeObject):
             add('/api/board/sim-costs', self, suffix='sim_costs')
             add('/api/board/instances/{instance}/interface', self, suffix='interface')
             add('/api/board/boards/readiness', self, suffix='readiness')
+            add('/api/board/pinmaps', self, suffix='pinmaps')
             add('/api/board/{board}/pinmap.svg', self, suffix='pinmap_svg')
+            add('/api/board/{board}/pin-roles', self, suffix='pin_roles')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -226,3 +237,28 @@ class BoardAPI(treeObject):
             return
         response.content_type = 'image/svg+xml'
         response.text = P.render(r)
+
+    def on_get_pinmaps(self, request, response):
+        """brd-bo generality: every board THAT HAS BoardPin rows, each with its own pinmap.svg url — a board selector
+        for api-svg-panel's existing `{items:[{label,url}]}` form, never a page hardcoded to one board. Derived from
+        rows: a board not yet modelled (no BoardPin rows — "every other device is a Road") is simply not listed."""
+        from board.custom import board_object as BO
+        t = self._board_object_tables()
+        boards = sorted({p['board'] for p in t.get('BoardPin', [])})
+        response.media = {'ok': True, 'items': [{'label': b, 'url': '/api/board/%s/pinmap.svg' % b} for b in boards]}
+
+    def on_get_pin_roles(self, request, response, board):
+        """GET /api/board/<board>/pin-roles — one row per pin ROLE present on THIS board (adc, button, gpio, ground,
+        i2c, led, power, pwm, spi, uart — whichever this board actually has), computed from its own BoardPin/
+        Connector rows (board.custom.pinmap_svg.pins_by_role, the SAME walk the drawing colours by) plus the cited
+        role map (board.custom.pin_roles) — never a hand-written table, so a new board's roles show up for free."""
+        from board.custom import board_object as BO
+        from board.custom import pinmap_svg as P
+        from board.custom import pin_roles as R
+        try:
+            r = BO.rows_for(board, self._board_object_tables())
+        except BO.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        response.media = {'ok': True, 'board': r['board'], 'rows': R.rows_for_roles(P.pins_by_role(r))}

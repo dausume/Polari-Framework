@@ -207,10 +207,11 @@ def page():
     items = [it for row in rows for it in row['items']]
     names = [it['componentProps']['componentName'] for it in items]
     text = P[0]['definition']
-    # demo1b: the UNO pin map draws FIRST (the generic api-svg-panel), the devices tables below it (demo1: usable/
-    # tracked split; brd-wire: + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts)
+    # demo1b: the pin map draws FIRST (the generic api-svg-panel, now a board SELECTOR over /api/board/pinmaps),
+    # the pin-roles table right under it, then the devices tables (demo1: usable/tracked split; brd-wire:
+    # + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts)
     check('/display/boards is the pin-map drawing + configured tables only (no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 14 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
+          and len(names) == 15 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
     check('/display/boards: the FIRST item is the pin-map drawing (api-svg-panel)', names[0] == 'api-svg-panel', str(names))
     check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
@@ -223,6 +224,15 @@ def page():
           and next(it['componentProps']['inputs']['filterValue'] for it in items if it['id'] == 'boards-tracked') == 'partial,tracked')
     check('every table on /display/boards carries a non-empty description (what it is for / one row = / columns)',
           all(it.get('description') for it in items))
+    # brd-bo generality (his 2026-10-04 ask): the pin map is a board SELECTOR (GET /api/board/pinmaps), never one
+    # board wired into the page — and the pin-roles table under it is a described, cited, link-bearing table
+    svg_item = next(it for it in items if it['id'] == 'boards-pinmap-svg')
+    check('boards-pinmap-svg reads the board selector /api/board/pinmaps, not one hardcoded board',
+          svg_item['componentProps']['inputs']['dataPath'] == '/api/board/pinmaps', svg_item['componentProps']['inputs'])
+    roles_item = next(it for it in items if it['id'] == 'boards-pin-roles')
+    check('boards-pin-roles reads GET /api/board/<board>/pin-roles with a cited link column',
+          roles_item['componentProps']['inputs']['dataPath'] == '/api/board/arduino-uno-r3/pin-roles'
+          and roles_item['componentProps']['inputs']['columnFormats'] == 'learn_more:link', roles_item['componentProps']['inputs'])
 
 
 def readiness():
@@ -289,6 +299,44 @@ def pinmap():
         check('pinmap of an unmodelled board is refused, not silently empty', True)
 
 
+def pin_roles():
+    """brd-bo generality (his 2026-10-04 ask): the pin map and its role table work for ANY modelled board, not just
+    the UNO — esp32-c3 has BoardPin rows but NO Connector/ConnectorPin header rows (ingested from a Zephyr dts that
+    names none, board_object_seed.build() only calls board_uno.connectors()), so pinmap_svg's fallback column must
+    still draw its pins by name, and GET .../pin-roles must still report its roles — both from the ONE vocabulary
+    (board.custom.pin_roles.ROLE_NAMES) pinmap_svg's legend and `pol board pins` share."""
+    from board.custom import board_object as BO
+    from board.custom import pinmap_svg as PM
+    from board.custom import pin_roles as PR
+    tables = BO.seed_tables()
+
+    r = BO.rows_for('arduino-uno-r3', tables)
+    rows = PR.rows_for_roles(PM.pins_by_role(r))
+    present = {row['role'] for row in rows}
+    # the drawing (and so the role table) only walks the FOUR headers (POWER/ANALOG/DIGITAL_L/DIGITAL_H) — ICSP is
+    # a separate Connector kind='icsp', excluded by design (render()'s own docstring: "the four headers"), so
+    # 'spi' and 'button' (a C3-only role) never appear on the UNO specifically — this is the per-board PRESENT set,
+    # not the full vocabulary (board.custom.pin_roles.ROLE_NAMES has all ten)
+    check('UNO pin-roles: one row per role actually drawn (adc/gpio/ground/i2c/led/power/pwm/uart)',
+          present == {'adc', 'gpio', 'ground', 'i2c', 'led', 'power', 'pwm', 'uart'}, sorted(present))
+    check('UNO pin-roles: every row has a non-empty cited learn_more url',
+          rows and all(row['learn_more'].startswith('http') for row in rows), [row['learn_more'] for row in rows])
+    led = next((row for row in rows if row['role'] == 'led'), None)
+    check('UNO pin-roles: the led role lists D13', bool(led) and 'D13' in led['pins'], led)
+
+    rc3 = BO.rows_for('esp32-c3', tables)
+    check('esp32-c3 has BoardPin rows but no header Connector rows (the generality case)',
+          bool(rc3['pins']) and not [c for c in rc3['connectors'] if c.get('kind') == 'header'],
+          len(rc3['pins']))
+    svg = PM.render(rc3)
+    gpio_names = [p['canonical'] for p in rc3['pins'] if p['canonical'].startswith('GPIO')]
+    check('esp32-c3 pinmap.svg draws (no empty legend-only box) and lists its GPIO pins by name',
+          bool(gpio_names) and all('>%s<' % name in svg for name in gpio_names), gpio_names[:4])
+    rows_c3 = PR.rows_for_roles(PM.pins_by_role(rc3))
+    check('esp32-c3 pin-roles table is non-empty too (rows + the shared role map, not a UNO-only table)',
+          len(rows_c3) > 0, [row['role'] for row in rows_c3])
+
+
 def main():
     B, A, P, F, R, N = rows_and_classes()
     rules(B, A, P)
@@ -298,6 +346,7 @@ def main():
     page()
     readiness()
     pinmap()
+    pin_roles()
     from board.board_uno_selftest import run_uno   # brd-1: gen / build / flash / twin / cost
     run_uno(check)
     from board.board_installer_selftest import run_installer   # brd-fi: variants / compat / the installer flow / the page
