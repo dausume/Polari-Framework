@@ -46,6 +46,10 @@ data/
 CLAUDE.local.md
 # acct-0: matrix run reports are artifacts, not source
 test-results/
+# the board module's work dir (test probes' POLARI_BOARD_HOME default when run
+# from the framework root instead of a tmp dir; the real module default is
+# already ~/.cache/polari-board) — never source, ignore it here too
+board-home/
 
 # ============================================================
 # Binary artifacts — no build artifacts in git

@@ -15,6 +15,17 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # th
 RFNODE = os.path.abspath(os.path.join(HERE, '..', '..', '..'))               # polari-rf-node
 
 
+def _formal_engines_src(name):
+    """A file from the prf-formal-engines sibling checkout, resolved the way the formal engines seam resolves
+    everything else there: FORMAL_ENGINES_SRC override first, then RFNODE/prf-formal-engines. Returns None —
+    never raises — when neither exists (e.g. inside the backend image, where /app IS the framework root with
+    no rf-node parent at all); callers skip honestly instead of crashing the run.
+    """
+    for base in (os.environ.get('FORMAL_ENGINES_SRC'), os.path.join(RFNODE, 'prf-formal-engines')):
+        if base and os.path.isfile(os.path.join(base, name)):
+            return os.path.join(base, name)
+    return None
+
 
 def _load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -89,7 +100,12 @@ def sc2c_parts(check):
               and M.outcome_of({'verdict': 'error', 'why': ['no [mt]']}, M.find('hal-millis-race@uno-sim-rig'))['outcome'] == 'error')
 
     def wrapper_parse():
-        w = _load(os.path.join(RFNODE, 'prf-formal-engines', 'polari_mthread_check.py'), 'polari_mthread_check_selftest')
+        wp = _formal_engines_src('polari_mthread_check.py')
+        if not wp:
+            print('  SKIP wrapper_parse: prf-formal-engines source not present in this image (%s)'
+                  % os.path.join(RFNODE, 'prf-formal-engines', 'polari_mthread_check.py'))
+            return
+        w = _load(wp, 'polari_mthread_check_selftest')
         got = w.parse(FIXTURE_TORN)
         g = {s['var']: s for s in got['shared']}
         check('the wrapper keeps the LAST race report (the fixed point, after 3 iterations), not the first "none"',

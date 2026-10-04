@@ -16,6 +16,29 @@ import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # the module dir
 RFNODE = os.path.abspath(os.path.join(HERE, '..', '..', '..'))               # polari-rf-node
+
+
+def _rfnode_src(subdir, name, env_var):
+    """A file from an rf-node sibling checkout (prf-board-engines, prf-formal-engines, …), resolved the way
+    the board/formal engines seam resolves everything else there: an explicit override env var first (for a
+    dev checkout laid out differently), then the normal sibling-of-framework layout (RFNODE/<subdir>).
+    Returns None — never raises — when neither exists, e.g. inside the backend image, where /app IS the
+    framework root with no rf-node parent at all; callers skip honestly instead of crashing the run.
+    """
+    for base in (os.environ.get(env_var), os.path.join(RFNODE, subdir)):
+        if base and os.path.isfile(os.path.join(base, name)):
+            return os.path.join(base, name)
+    return None
+
+
+def _board_engines_src(name):
+    return _rfnode_src('prf-board-engines', name, 'BOARD_ENGINES_SRC')
+
+
+def _formal_engines_src(name):
+    return _rfnode_src('prf-formal-engines', name, 'FORMAL_ENGINES_SRC')
+
+
 NM = {'hal_millis': {'addr': 0x1ba, 'space': 'text'}, 'g_ms': {'addr': 0x108, 'space': 'data'}, '__vector_7': {'addr': 0x15c, 'space': 'text'},
       '__bss_end': {'addr': 0x2eb, 'space': 'data'}}
 #: the shape polari-cbmc-check writes for the torn build (summarised from the real 2026-10-02 trace)
@@ -183,8 +206,13 @@ def sc2_parts(check):
               '--flip-bit 0x109:3@1600000' in j and '--drop-frame tx:1,type=0x7f' in j and '--drop-frame rx:p=0.2' in j and not meta['missing'], j)
         a, files, meta = H.render_sc1([{'kind': 'flip-bit-at-cycle', 'args_json': json.dumps({'symbol': 'nope', 'bit': 0, 'cycle': 1})}], NM, 1.0, 0, {}, 'x')
         check('…a flip aimed at a symbol this build lacks → missing (inapplicable here, with the reason)', meta['missing'] and 'nope' in meta['missing'][0])
-        c = open(os.path.join(RFNODE, 'prf-board-engines', 'twin_forcing.c')).read()
-        io_c = open(os.path.join(RFNODE, 'prf-board-engines', 'twin_scenario_io.c')).read()
+        tf, io_path = _board_engines_src('twin_forcing.c'), _board_engines_src('twin_scenario_io.c')
+        if not (tf and io_path):
+            print('  SKIP harness_flags: prf-board-engines source not present in this image (%s)'
+                  % os.path.join(RFNODE, 'prf-board-engines', 'twin_forcing.c'))
+            return
+        c = open(tf).read()
+        io_c = open(io_path).read()
         check('the harness C: --align-at-pc (swallow the next genuine raise via the vector\'s enable bit), --flip-bit, 64 --irq-at; '
               '--drop-frame tx:N[,type=] (frame start 4C 50 02) and rx:p=P (one draw per unit)',
               '"--align-at-pc"' in c and '"--flip-bit"' in c and '#define MAX_IRQ_AT 64' in c and 'swallow_check' in c
@@ -214,9 +242,15 @@ def sc2_parts(check):
 
     def workers():
         import falcon.testing
-        sys.path.insert(0, os.path.join(RFNODE, 'prf-board-engines'))
+        svc_path = _board_engines_src('board_engines_service.py')
+        fsvc_path = _formal_engines_src('formal_engines_service.py')
+        if not (svc_path and fsvc_path):
+            print('  SKIP workers: prf-board-engines/prf-formal-engines source not present in this image (%s)'
+                  % os.path.join(RFNODE, 'prf-board-engines', 'board_engines_service.py'))
+            return
+        sys.path.insert(0, os.path.dirname(svc_path))
         try:
-            svc = _load(os.path.join(RFNODE, 'prf-board-engines', 'board_engines_service.py'), 'polari_board_engines_service_selftest')
+            svc = _load(svc_path, 'polari_board_engines_service_selftest')
         finally:
             sys.path.pop(0)
         svc.ENGINES['avr-objdump'] = os.path.basename(sys.executable)
@@ -224,7 +258,7 @@ def sc2_parts(check):
         r = c.simulate_post('/run', json={'engine': 'avr-objdump', 'args': ['-c', "import sys; sys.stdout.write('x' * 99999 + 'Z')"]}).json
         check('the board worker returns a 100 kB stdout WHOLE (was: its last 20 000 characters — scenario 1 lost hal_millis through the worker)',
               r.get('ok') and len(r['stdout']) == 100000 and r['stdout'].endswith('Z') and r['stdout'].startswith('x') and r['stdout_chars'] == 100000, str(r)[:200])
-        fsvc = _load(os.path.join(RFNODE, 'prf-formal-engines', 'formal_engines_service.py'), 'polari_formal_engines_service_selftest')
+        fsvc = _load(fsvc_path, 'polari_formal_engines_service_selftest')
         fsvc.ENGINES['cbmc'] = os.path.basename(sys.executable)
         r = falcon.testing.TestClient(fsvc.app).simulate_post('/run', json={'engine': 'cbmc', 'args': ['-c', "print(open('stubs/avr/io.h').read())"],
                                                                             'files': {'stubs/avr/io.h': 'AVR'}}).json
