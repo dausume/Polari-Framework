@@ -30,13 +30,17 @@ _PAGES = [
                                               'ingested board like ecc83-pp). ERC findings with a reported position overlay as circles when '
                                               'the drawing\'s own viewBox is known.',
                                   markers_path='/api/pcb/drc-positions?kind=erc')], min_height=420),
-              _row(1, [_table('pcb-schematics', 0, 12, 'Schematics — file, format, origin (rendered | ingested), counts', 'Schematic',
+              _row(1, [_table('pcb-schematics', 0, 12, 'Schematics — title, description, licence FIRST, then file, format, origin (rendered | ingested), counts', 'Schematic',
                               description='What this is for: one row per schematic FILE Polari knows about. One row = one Schematic. '
-                                          'Columns: file/sha256 (the .kicad_sch and its fingerprint), format_version/generator (KiCad\'s own '
-                                          'header fields), origin (rendered = Polari wrote it from rows; ingested = read from an open board '
-                                          'verbatim), sheets/symbols/power_symbols/wires/labels/junctions/no_connects (counts from parsing it).',
-                              columns='name,board,file,sha256,format_version,generator,title,sheets,symbols,power_symbols,wires,'
-                                      'labels,junctions,no_connects,origin,licence_notes',
+                                          'Columns (title/description/licence_notes FIRST — an ingested board like ecc83-pp names and describes '
+                                          'itself here, e.g. "ECC Push-Pull" / "KiCad\'s own ecc83-pp demo (ECC83/12AX7 valve push-pull preamp, '
+                                          'all through-hole); GPL-2.0-or-later via kicad-demos 9.0.2", from the file\'s own title block or its '
+                                          'SOURCE.json, never invented): file/sha256 (the .kicad_sch and its fingerprint), format_version/'
+                                          'generator (KiCad\'s own header fields), origin (rendered = Polari wrote it from rows; ingested = read '
+                                          'from an open board verbatim), sheets/symbols/power_symbols/wires/labels/junctions/no_connects (counts '
+                                          'from parsing it).',
+                              columns='name,title,description,licence_notes,board,file,sha256,format_version,generator,sheets,symbols,'
+                                      'power_symbols,wires,labels,junctions,no_connects,origin',
                               column_formats='name:ref:Schematic')]),
               _row(2, [_table('pcb-sheets', 0, 6, 'Sheets', 'SchematicSheet',
                               description='What this is for: a schematic may be split into multiple SHEETS (pages). One row = one sheet. '
@@ -71,13 +75,17 @@ _PAGES = [
                                               'whichever layer is selected (one per FabricationExport row of "Every export" below). DRC '
                                               'findings with a reported position overlay as circles when the drawing\'s own viewBox is known.',
                                   markers_path='/api/pcb/drc-positions?kind=drc,unconnected,parity,fab-rule')], min_height=420),
-              _row(1, [_table('pcb-boards', 0, 12, 'Boards — layer count, outline, stackup, the fab rule set it is checked against', 'PcbBoard',
+              _row(1, [_table('pcb-boards', 0, 12, 'Boards — title, description, licence FIRST, then layer count, outline, stackup, the fab rule set it is checked against', 'PcbBoard',
                               description='What this is for: the physical board file itself — ingested from KiCad, never authored by Polari. '
-                                          'One row = one PcbBoard (.kicad_pcb). Columns: copper_layers/thickness_mm/width_mm/height_mm (the '
-                                          'stackup and outline), fab_rule_set (which FabRuleSet it is checked against), footprints/nets/'
-                                          'segments/vias/zones (counts), provenance (ingested | …).',
-                              columns='name,board_definition,file,sha256,copper_layers,thickness_mm,width_mm,height_mm,'
-                                      'fab_rule_set,footprints,nets,segments,vias,zones,licence,provenance',
+                                          'One row = one PcbBoard (.kicad_pcb). Columns (title/description/licence FIRST — e.g. ecc83-pp shows '
+                                          '"ECC Push-Pull" / "KiCad\'s own ecc83-pp demo (ECC83/12AX7 valve push-pull preamp, all through-hole); '
+                                          'GPL-2.0-or-later via kicad-demos 9.0.2" / "GPL-2.0-or-later", read from the board\'s own title block or '
+                                          'its SOURCE.json, never invented — no more looking the board up by its bare name to learn what it is): '
+                                          'copper_layers/thickness_mm/width_mm/height_mm (the stackup and outline), fab_rule_set (which '
+                                          'FabRuleSet it is checked against), footprints/nets/segments/vias/zones (counts), provenance '
+                                          '(ingested | …), licence_source (where the licence line above was cited from).',
+                              columns='name,title,description,licence,board_definition,file,sha256,copper_layers,thickness_mm,width_mm,height_mm,'
+                                      'fab_rule_set,footprints,nets,segments,vias,zones,provenance,licence_source',
                               column_formats='name:ref:PcbBoard,fab_rule_set:ref:FabRuleSet')]),
               _row(2, [_table('pcb-placements', 0, 7, 'Placements — ref, footprint, position, side (ingested)', 'Placement',
                               description='What this is for: where each part SITS on the board, as KiCad placed it. One row = one placed '
@@ -105,7 +113,9 @@ _PAGES = [
     _page('board-bom', 'board-bom',
           'Bill of materials — one row per Part: value, manufacturer/MPN where a source names them, package, mount, the '
           'KiCad symbol and footprint it uses, reference designators, licence notes, and what is still undetermined. '
-          'Parts are referenced by /display/board-schematic\'s symbols and /display/board-layout\'s placements.',
+          'Parts are referenced by /display/board-schematic\'s symbols and /display/board-layout\'s placements — see '
+          'that page\'s PcbBoard row for the board\'s own title/description/licence (e.g. ecc83-pp is "ECC Push-Pull", '
+          'KiCad\'s own valve push-pull preamp demo, GPL-2.0-or-later via kicad-demos 9.0.2).',
           'Part', [
               _row(0, [_table('pcb-bom', 0, 12, 'BOM', 'Part',
                               description='What this is for: the bill of materials — one row per distinct part needed to build a board. One '
@@ -129,8 +139,9 @@ _PAGES = [
     _page('board-fab', 'board-fab',
           'Fabrication — DKRed\'s constraints as cited rows, the DRC/fab-rule findings checked against them, and every '
           'exported file with the fab\'s verdict on its name (accepted | no | discrepancy — settled at the first upload, '
-          'pcb-2). Checks the same PcbBoard shown at /display/board-layout; its exported files overlap with the '
-          '"every export" table there (this page adds the fab-naming verdict).',
+          'pcb-2). Checks the same PcbBoard shown at /display/board-layout (that page\'s table shows its title/'
+          'description/licence first); its exported files overlap with the "every export" table there (this page adds '
+          'the fab-naming verdict).',
           'FabRuleSet', [
               _row(0, [_table('pcb-fabruleset', 0, 12, 'Fab profile', 'FabRuleSet',
                               description='What this is for: which fab (manufacturer) a board is being checked against. One row = one '

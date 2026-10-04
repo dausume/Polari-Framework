@@ -14,7 +14,7 @@ class PcbBoard(treeObject):
     """
 
     @treeObjectInit
-    def __init__(self, name: str = '', board_definition: str = '', title: str = '', file: str = '', sha256: str = '',
+    def __init__(self, name: str = '', board_definition: str = '', title: str = '', description: str = '', file: str = '', sha256: str = '',
                  format_version: str = '', generator: str = '', copper_layers: int = 0, layers_json: str = '[]',
                  stackup_json: str = '[]', thickness_mm: float = 0.0, width_mm: float = 0.0, height_mm: float = 0.0,
                  outline_json: str = '{}', design_rules_json: str = '{}', fab_rule_set: str = '', footprints: int = 0,
@@ -23,6 +23,10 @@ class PcbBoard(treeObject):
         self.name = name
         self.board_definition = board_definition  # a BoardDefinition name ('' = not a register device)
         self.title = title
+        # what this board IS, one line, for whoever opens it cold (his browser pass, ecc83-pp naming fix): from the
+        # file's own title block (company/comment fields) when it has prose, else a sibling SOURCE.json's licence +
+        # package — never invented, '' when neither exists.
+        self.description = description
         self.file = file
         self.sha256 = sha256
         self.format_version = format_version

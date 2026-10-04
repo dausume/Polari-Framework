@@ -14,7 +14,7 @@ class Schematic(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', board: str = '', file: str = '', sha256: str = '', format_version: str = '',
-                 generator: str = '', title: str = '', sheets: int = 0, symbols: int = 0, power_symbols: int = 0, wires: int = 0,
+                 generator: str = '', title: str = '', description: str = '', sheets: int = 0, symbols: int = 0, power_symbols: int = 0, wires: int = 0,
                  labels: int = 0, junctions: int = 0, no_connects: int = 0, origin: str = '', licence_notes: str = '',
                  notes: str = '', manager=None):
         self.name = name  # <board>
@@ -24,6 +24,8 @@ class Schematic(treeObject):
         self.format_version = format_version  # the (version …) of the file
         self.generator = generator
         self.title = title
+        # see PcbBoard.description — same provenance rule (title block prose, else SOURCE.json; never invented).
+        self.description = description
         self.sheets = sheets
         self.symbols = symbols  # placed symbols incl. power
         self.power_symbols = power_symbols

@@ -46,6 +46,25 @@ def home():
     return module_home('pcb', os.environ.get('POLARI_PCB_HOME'))
 
 
+def read_source(path):
+    """The ingested project's SOURCE.json, if there is one — pcb-0's provenance convention stores it beside the
+    project (e.g. custom/upstream/kicad-demos-9.0.2/SOURCE.json, one level above its ecc83/ project directory), not
+    inside it, so this walks up from `path` a few levels looking for one. {} when none is found — never invented."""
+    here = path if os.path.isdir(path) else os.path.dirname(path)
+    for _ in range(4):
+        cand = os.path.join(here, 'SOURCE.json')
+        if os.path.isfile(cand):
+            try:
+                return json.load(open(cand))
+            except ValueError:
+                return {}
+        parent = os.path.dirname(here)
+        if parent == here:
+            break
+        here = parent
+    return {}
+
+
 def sha(data):
     return hashlib.sha256(data if isinstance(data, bytes) else data.encode()).hexdigest()
 
@@ -254,7 +273,7 @@ def ingest(path, board=None, engines=True, out_dir=None, source_date=E.SOURCE_DA
     """The whole ingest: rows (always) + the engine record (engines=True; a refusal is returned, never raised) + files written
     under out_dir (default POLARI_PCB_HOME/<board>/). → {'rows', 'record', 'refused', 'record_path'}"""
     files = K.read_dir(path) if os.path.isdir(path) else {os.path.basename(path): open(path).read()}
-    rows = K.read_project(files, board)
+    rows = K.read_project(files, board, source=read_source(path))
     board = rows['board']
     pcb_rows = rows.get('PcbBoard') or [{}]
     rows['FabRuleSet'], rows['FabRule'] = FR.rule_set_rows(), FR.rule_rows()

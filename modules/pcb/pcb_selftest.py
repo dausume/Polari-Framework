@@ -101,6 +101,16 @@ def ingest_offline():
           res['record'] is None and res['refused'] == '' and res['rows']['Part'])
     check('ingest seeds FabRuleSet/FabRule and the DKRed DrcResult rows even with no engine',
           res['rows'].get('FabRuleSet') and res['rows'].get('FabRule') and res['rows'].get('DrcResult'))
+    # naming fix (his browser pass): ecc83-pp showed up as a bare board name with nothing to say what it was. The
+    # ingest must read the real title block ("ECC Push-Pull", no company/comment fields on this project) and the
+    # sibling SOURCE.json (licence + package) onto BOTH rows — never left blank, never invented.
+    sch_row, board_row = res['rows']['Schematic'][0], res['rows']['PcbBoard'][0]
+    check('ingest reads the .kicad_sch title block\'s own title onto both Schematic and PcbBoard ("ECC Push-Pull", '
+          'not the bare directory name)', sch_row['title'] == 'ECC Push-Pull' and board_row['title'] == 'ECC Push-Pull')
+    check('ingest fills description + licence from the sibling SOURCE.json on both rows — non-empty, and the words '
+          'are SOURCE.json\'s own ("what" + licence + package), nothing invented',
+          bool(sch_row['description']) and bool(board_row['description']) and board_row['licence'] == 'GPL-2.0-or-later'
+          and 'kicad-demos' in board_row['description'] and 'GPL-2.0-or-later' in board_row['description'])
 
 
 def artifact_urls():

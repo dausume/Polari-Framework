@@ -51,6 +51,46 @@ def _net_class(name):
     return 'power' if POWER_RE.match(name) else 'signal'
 
 
+def _title_block(tree):
+    """A `(title_block ...)`'s own fields, read verbatim — title/company/rev/date + every `(comment N "...")`. {} when
+    the file carries no title_block at all (true of every `.kicad_pcb` seen so far — KiCad only writes one into the
+    schematic)."""
+    tb = S.find(tree, 'title_block')
+    if not tb:
+        return {}
+    t = tb[0]
+    comments = [str(c[2]) for c in S.find(t, 'comment') if len(c) > 2 and str(c[2])]
+    return {'title': S.value(t, 'title'), 'company': S.value(t, 'company'), 'rev': S.value(t, 'rev'),
+            'date': S.value(t, 'date'), 'comments': comments}
+
+
+def _describe(board, tb, source):
+    """title/description/licence/licence_source for a board — ONLY from its own title block (title/company/comment
+    N) or a sibling SOURCE.json (checked into the upstream/ tree beside the project, pcb-0's provenance convention).
+    Never invented: where the title block is empty AND there is no SOURCE.json, every field stays ''; where the
+    title block is empty but SOURCE.json exists, the description says so plainly ("KiCad demo project (<package>
+    <version>)") rather than inventing prose. Falls back to the board/directory name for `title`."""
+    tb, source = tb or {}, source or {}
+    title = tb.get('title') or ''
+    bits = [b for b in [tb.get('company')] + list(tb.get('comments') or []) if b]
+    licence = source.get('licence', '')
+    licence_source = source.get('licence_source', '')
+    if bits:
+        description = ' — '.join(bits)
+    elif source.get('what'):
+        m = re.search(r'\(([^)]*)\)', source['what'])
+        pkg, ver = source.get('package', ''), source.get('package_version', '')
+        pkg_bit = ' via %s %s' % (pkg, ver) if pkg and ver else (' via %s' % pkg if pkg else '')
+        lic_bit = ('; %s%s' % (licence, pkg_bit)) if licence else pkg_bit
+        description = "KiCad's own %s demo%s%s" % (board, (' (%s)' % m.group(1)) if m else '', lic_bit)
+    elif source:
+        pkg, ver = source.get('package', 'kicad-demos'), source.get('package_version', '')
+        description = 'KiCad demo project (%s%s)' % (pkg, (' %s' % ver) if ver else '')
+    else:
+        description = ''
+    return title or board, description, licence, licence_source
+
+
 def _pick(files, ext, board):
     cands = sorted(n for n in files if n.endswith(ext) and '/' not in n)
     if board and '%s%s' % (board, ext) in cands:
@@ -101,17 +141,18 @@ def read_schematic(files, top, board):
                 queue.append((sub, S.parse(files[sub]), path + name + '/'))
             else:
                 problems.append('sheet %s names %s, which is not among the files' % (name, sub))
-    tb = S.find(tree, 'title_block')
+    tb = _title_block(tree)
     sch = {'name': board, 'board': board, 'file': top, 'sha256': sha(files[top]), 'format_version': S.value(tree, 'version'),
-           'generator': S.value(tree, 'generator'), 'title': S.value(tb[0], 'title') if tb else '', 'sheets': len(sheets),
-           'symbols': len(placed) + len(power), 'power_symbols': len(power), 'origin': 'ingested', 'licence_notes': '', 'notes': ''}
+           'generator': S.value(tree, 'generator'), 'title': tb.get('title', ''), 'sheets': len(sheets),
+           'symbols': len(placed) + len(power), 'power_symbols': len(power), 'origin': 'ingested', 'licence_notes': '',
+           'description': '', 'notes': ''}
     sch.update(counts)
     per_sheet = {}
     for p in placed + power:
         per_sheet[p['sheet']] = per_sheet.get(p['sheet'], 0) + 1
     sheet_rows = [{'name': '%s:%s' % (board, path), 'schematic': board, 'path': path, 'page': page, 'file': f, 'symbols': per_sheet.get(path, 0), 'notes': ''}
                   for f, path, page in sheets]
-    return sch, sheet_rows, placed, power, lib_syms, problems
+    return sch, sheet_rows, placed, power, lib_syms, problems, tb
 
 
 # ------------------------------------------------------------------ the board
@@ -190,6 +231,7 @@ def _footprint_dims(fp):
 
 def read_pcb(files, top, board, fp_table, pro):
     tree = S.parse(files[top])
+    tb = _title_block(tree)   # {} for every .kicad_pcb seen so far — KiCad writes the title_block into the .kicad_sch only
     problems = ['%s: %s' % (top, w) for w in S.check_kicad(tree, 'kicad_pcb')]
     layers = []
     for lay in S.find(tree, 'layers')[0][1:] if S.find(tree, 'layers') else []:
@@ -265,21 +307,26 @@ def read_pcb(files, top, board, fp_table, pro):
     except ValueError:
         problems.append('the .kicad_pro is not JSON — its design rules are not read')
     gen = S.find(tree, 'general')
-    board_row = {'name': board, 'board_definition': '', 'title': '', 'file': top, 'sha256': sha(files[top]), 'format_version': S.value(tree, 'version'),
+    board_row = {'name': board, 'board_definition': '', 'title': tb.get('title', ''), 'file': top, 'sha256': sha(files[top]),
+                 'format_version': S.value(tree, 'version'),
                  'generator': S.value(tree, 'generator'), 'copper_layers': len(copper), 'layers_json': json.dumps(layers), 'stackup_json': json.dumps(stack),
                  'thickness_mm': S.num(S.value(gen[0], 'thickness')) if gen else 0.0,
                  'width_mm': round(bbox[2] - bbox[0], 4) if bbox else 0.0, 'height_mm': round(bbox[3] - bbox[1], 4) if bbox else 0.0,
                  'outline_json': json.dumps({'bbox_mm': [round(v, 4) for v in bbox] if bbox else [], 'edge_items': edge_items, 'layer': 'Edge.Cuts'}),
                  'design_rules_json': json.dumps(rules, sort_keys=True), 'fab_rule_set': '', 'footprints': len(placements),
                  'nets': len(net_rows), 'segments': len(S.find(tree, 'segment')) + len(S.find(tree, 'arc')), 'vias': len(S.find(tree, 'via')),
-                 'zones': len(zones), 'licence': '', 'licence_source': '', 'provenance': 'ingested:%s sha256 %s' % (top, sha(files[top])), 'notes': ''}
+                 'zones': len(zones), 'licence': '', 'licence_source': '', 'description': '',
+                 'provenance': 'ingested:%s sha256 %s' % (top, sha(files[top])), 'notes': ''}
     if not bbox:
         problems.append('no Edge.Cuts outline — the board size is unknown')
-    return board_row, placements, list(footprints.values()), list(landpatterns.values()), net_rows, route_rows, problems
+    return board_row, placements, list(footprints.values()), list(landpatterns.values()), net_rows, route_rows, problems, tb
 
 
 # ------------------------------------------------------------------ the whole project
-def read_project(files, board=None):
+def read_project(files, board=None, source=None):
+    """`source` — the ingested project's SOURCE.json dict (ingest.py finds it beside the project under upstream/), used
+    ONLY to fill `title`/`description`/`licence`/`licence_source` on the Schematic + PcbBoard rows when the files'
+    own title block carries nothing more specific. None/{} when there isn't one (a Polari-rendered board, say)."""
     sch_name = _pick(files, '.kicad_sch', board)
     pcb_name = _pick(files, '.kicad_pcb', board)
     if not sch_name and not pcb_name:
@@ -288,15 +335,30 @@ def read_project(files, board=None):
     sym_table, fp_table = _lib_table(files.get('sym-lib-table', '')), _lib_table(files.get('fp-lib-table', ''))
     out = {'board': board, 'files': {n: sha(t) for n, t in sorted(files.items())}, 'problems': []}
     placed, lib_syms = [], {}
+    tb_sch, tb_pcb = {}, {}
     if sch_name:
-        sch, sheets, placed, power, lib_syms, probs = read_schematic(files, sch_name, board)
+        sch, sheets, placed, power, lib_syms, probs, tb_sch = read_schematic(files, sch_name, board)
         out.update(Schematic=[sch], SchematicSheet=sheets)
         out['problems'] += probs
     pl_rows = []
     if pcb_name:
-        b, pl_rows, fps, lps, nets, routes, probs = read_pcb(files, pcb_name, board, fp_table, files.get('%s.kicad_pro' % board) or files.get(_pick(files, '.kicad_pro', board) or '', ''))
+        b, pl_rows, fps, lps, nets, routes, probs, tb_pcb = read_pcb(files, pcb_name, board, fp_table, files.get('%s.kicad_pro' % board) or files.get(_pick(files, '.kicad_pro', board) or '', ''))
         out.update(PcbBoard=[b], Placement=pl_rows, Footprint=fps, LandPattern=lps, BoardNet=nets, Route=routes)
         out['problems'] += probs
+    # title/description/licence FIRST (his browser pass, ecc83-pp naming fix): the PCB's own title block wins when it
+    # has one (none seen yet — KiCad only ever writes it into the .kicad_sch), else the schematic's; SOURCE.json fills
+    # description/licence when the title block alone doesn't carry prose.
+    title, description, licence, licence_source = _describe(board, tb_pcb or tb_sch, source)
+    if out.get('Schematic'):
+        out['Schematic'][0]['title'] = title
+        out['Schematic'][0]['description'] = description
+        if licence:
+            out['Schematic'][0]['licence_notes'] = ('%s — %s' % (licence, licence_source)) if licence_source else licence
+    if out.get('PcbBoard'):
+        out['PcbBoard'][0]['title'] = title
+        out['PcbBoard'][0]['description'] = description
+        out['PcbBoard'][0]['licence'] = licence
+        out['PcbBoard'][0]['licence_source'] = licence_source
     symbols = []
     for lib_id, ls in sorted(lib_syms.items()):
         nick, _, name = lib_id.partition(':')
