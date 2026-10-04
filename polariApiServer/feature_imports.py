@@ -1309,6 +1309,18 @@ FEATURE_IMPORT_BLOCKS = (
         ('board.board_seed', ('BOARD_SEED_PAIRS',)),
         ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
     )),
+    # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine — rows for parts/symbols/footprints/schematics/boards,
+    # DKRed's fab rules cited, ingest + the schematic writer, kicad-cli ERC/DRC/exports through the engines ladder
+    ('pcb', (
+        # aliased (Pcb-prefixed): Part/Symbol/Schematic/Placement/Route/… are common names across this one giant
+        # namespace (defClassList in polariServer.py) — the alias is what gets registered there, never the bare name
+        ('pcb.pcb_basis', ('Part as PcbPart', 'Symbol as PcbSymbol', 'Footprint as PcbFootprint', 'LandPattern as PcbLandPattern',
+                           'Schematic as PcbSchematic', 'SchematicSheet as PcbSchematicSheet', 'PcbBoard', 'Placement as PcbPlacement',
+                           'Route as PcbRoute', 'DrcResult as PcbDrcResult', 'FabricationExport as PcbFabricationExport',
+                           'FabRuleSet as PcbFabRuleSet', 'FabRule as PcbFabRule', 'PCB_CLASSES')),
+        ('pcb.pcb_seed', ('PCB_SEED_PAIRS',)),
+        ('pcb.pcb_page', ('SEED_PCB_PAGE_DISPLAYS',)),
+    )),
     # sc-0 (FIRMWARE_SCENARIO_PLAN): firmware fault kinds as objects, techniques + their costs, scenarios forced on the UNO twin
     ('firmwarefaults', (
         ('firmwarefaults.firmwarefaults_basis', ('FirmwareFault', 'TornReadFault', 'DoubleGiveFault', 'LostWakeupFault', 'PriorityInversionFault', 'DeadlockFault', 'LivelockFault', 'StarvationFault', 'UartBitErrorFault', 'DoubleEdgeFault', 'MetastableInputFault', 'BrownoutMidWriteFault', 'BitFlipFault', 'ClockSkewFault', 'StackOverflowFault', 'BufferOverrunFault', 'MissedDeadlineFault', 'ConcurrencyPrimitive', 'Assumption', 'Technique', 'Scenario', 'ScenarioStep', 'ScenarioRun', 'ScenarioTraceCycle', 'ScenarioStatistic', 'ScenarioCampaign', 'FaultLikelihood', 'FormalCheck', 'StaticCheck', 'StaticFinding',

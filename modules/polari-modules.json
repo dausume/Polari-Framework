@@ -716,6 +716,17 @@
    "tier": "optional",
    "description": "Boards programmed over USB / USB-C from Polari (brd arc): every register device as a BoardDefinition + Road (track all, simulate few — the UNO first), adapters and programmer kinds as rows, cited datasheet facts, the USB and C/Verilog/SV rules as selftests, pol board detect over hwmap's scanner."
   },
+  "pcb": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/pcb",
+   "repo": "https://github.com/dausume/polari-module-pcb.git",
+   "requires": [
+    "board"
+   ],
+   "tier": "optional",
+   "description": "PCB from scratch (pcb arc): KiCad as the relay engine — Part/Symbol/Footprint/LandPattern/Schematic/PcbBoard/Placement/Route rows, DKRed's fab rules cited, `pol pcb ingest` reading an open KiCad board (parts, nets, footprints, placements) plus kicad-cli ERC/DRC/Gerber/drill/pos/SVG/STEP exports through the prf-pcb-engines worker, and the UNO shield schematic skeleton rendered from brd-bo's rows."
+  },
   "firmwarefaults": {
    "kind": "official",
    "downloaded": true,

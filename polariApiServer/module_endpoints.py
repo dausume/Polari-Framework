@@ -543,6 +543,12 @@ def construct_board_endpoints(polServer):
     return build(polServer)
 
 
+def construct_pcb_endpoints(polServer):
+    # pcb-0: /api/pcb — summary, engines placement, ingest (rows + kicad-cli checks/exports), render/uno-shield, artifacts
+    from pcb.pcb_endpoints import construct_pcb_endpoints as build
+    return build(polServer)
+
+
 def construct_firmwarefaults_endpoints(polServer):
     # sc-0: /api/firmwarefaults — faults, techniques, scenarios, runs; POST /run forces a scenario on the twin
     from firmwarefaults.firmwarefaults_endpoints import construct_firmwarefaults_endpoints as build
@@ -580,6 +586,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'mathproofs': construct_mathproofs_endpoints,
     'computelod': construct_computelod_endpoints,
     'board': construct_board_endpoints,
+    'pcb': construct_pcb_endpoints,
     'firmwarefaults': construct_firmwarefaults_endpoints,
     'cmod': construct_cmod_endpoints,
     'hwnocode': construct_hwnocode_endpoints,

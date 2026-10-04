@@ -54,6 +54,8 @@ FEATURE_MODULES = frozenset({
     'cmod',
     # hn-0 (HARDWARE_NOCODE_PLAN): hardware as no-code — a solution spanning board, bridge, backend and browser
     'hwnocode',
+    # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine for schematics/boards — rows, ingest, ERC/DRC/exports
+    'pcb',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a
@@ -72,6 +74,8 @@ FEATURE_REQUIRES = {
     'bizops': ('supplychain',),
     # hn-0: the split imports cmod's glue + graph rows, board's seeds/gen and grpcbridge's binding class (seed)
     'hwnocode': ('board', 'cmod', 'grpcbridge'),
+    # pcb-0: uno_shield.py imports board.custom.board_object (brd-bo's rows_for/board_sha) at top level
+    'pcb': ('board',),
     # co2-A: climate reuses the aquaponics steady-state gas
     # balance (one equation, two callers - a room of people is the
     # crop's CO2 draw with the sign flipped) and the dmvdata
