@@ -115,8 +115,24 @@ def main(argv):
     check('SimRigState set-transport both (the Commands leg — the person\'s knob, done here by the probe)', tr.get('ok'), tr)
 
     var = http('GET', api + '/api/board/variants')
-    names = [v['name'] for v in var.get('variants', [])]
-    check('GET /api/board/variants → the five seeded variants (brd-wire: + uno-pair)', names == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-pair', 'uno-echo'], names)
+    all_names = [v['name'] for v in var.get('variants', [])]
+    # brd-fi is a UNO-only installer (its template has analog, blink, echo, scenario_rig,
+    # sim_rig — no C3 apps): sc-3 added six ESP32-C3 variants to the SAME /api/board/variants
+    # listing (board.custom.variants_c3.SEED_C3_VARIANTS), each carrying its OWN
+    # board_definition. Only the UNO ones go to THIS endpoint; the rest are reported as an
+    # honest, named SKIP — never attempted, never a KeyError when a dict lookup assumed every
+    # listed name had built.
+    from board.custom.variants import SEED_FIRMWARE_VARIANTS
+    from board.custom.variants_c3 import SEED_C3_VARIANTS
+    uno_board_names = {r['name'] for r in SEED_FIRMWARE_VARIANTS}
+    c3_board_names = {r['name'] for r in SEED_C3_VARIANTS}
+    names = [v for v in all_names if v in uno_board_names]
+    skipped = [v for v in all_names if v not in uno_board_names]
+    check('GET /api/board/variants → the five seeded UNO variants (brd-wire: + uno-pair)', sorted(names) == sorted(uno_board_names), names)
+    for v in skipped:
+        print('SKIP: %s — not a UNO variant (board.custom.variants_c3, sc-3); this installer is UNO-only' % v, flush=True)
+    check('…and the six ESP32-C3 variants are the FULL set skipped-by-board (sc-3: SEED_C3_VARIANTS), none attempted here',
+          set(skipped) == c3_board_names and set(skipped).isdisjoint(uno_board_names), skipped)
     builds = {}
     for v in names:
         t0 = time.time()
@@ -124,12 +140,17 @@ def main(argv):
         builds[v] = b
         check('POST /api/board/installer/build %s → %s: flash %s B, RAM %s B (%.1f s)' % (v, b.get('state'), b.get('flash_bytes'), b.get('ram_bytes'), time.time() - t0),
               b.get('ok') and b.get('state') == 'built', b)
-    REPORT['sizes'] = {v: {k: builds[v].get(k) for k in ('build', 'flash_bytes', 'ram_bytes', 'artifact_sha256')} for v in names}
-    smallest_flash = min(names, key=lambda v: builds[v].get('flash_bytes') or 1e9)
-    smallest_ram = min(names, key=lambda v: builds[v].get('ram_bytes') or 1e9)
+    # a build FAIL is already a recorded check() line above — never let it crash everything
+    # downstream: only the builds that actually produced a build name are used from here on.
+    ok_names = [v for v in names if builds[v].get('ok') and builds[v].get('build')]
+    if len(ok_names) != len(names):
+        print('SKIP (downstream): %s — build did not succeed, excluded from compat/plan steps' % ', '.join(sorted(set(names) - set(ok_names))), flush=True)
+    REPORT['sizes'] = {v: {k: builds[v].get(k) for k in ('build', 'flash_bytes', 'ram_bytes', 'artifact_sha256')} for v in ok_names}
+    smallest_flash = min(ok_names, key=lambda v: builds[v].get('flash_bytes') or 1e9)
+    smallest_ram = min(ok_names, key=lambda v: builds[v].get('ram_bytes') or 1e9)
     print('       smallest flash: %s · smallest RAM: %s' % (smallest_flash, smallest_ram))
     REPORT['smallest'] = {'flash': smallest_flash, 'ram': smallest_ram}
-    comp = {v: http('GET', api + '/api/board/builds/%s/compat' % builds[v]['build']) for v in names}
+    comp = {v: http('GET', api + '/api/board/builds/%s/compat' % builds[v]['build']) for v in ok_names}
     check('GET /api/board/builds/<b>/compat → compatible for all five, judged against THIS server\'s live exposures (header sha + hash v2)',
           all(c.get('verdict') == 'compatible' and c['classes'][0]['source'] == 'live' for c in comp.values()), {v: c.get('verdict') for v, c in comp.items()})
     REPORT['compat'] = {v: {'verdict': c['verdict'], 'order': c['classes'][0]['now_order'], 'contract': 'v%s %s' % (c['classes'][0]['contract_version'], c['classes'][0]['contract_hash'])}
@@ -145,7 +166,7 @@ def main(argv):
           (sc.get('verdict'), sp.get('_status'), sp.get('error', '')[:200]))
     REPORT['stale'] = {'verdict': sc.get('verdict'), 'plan_refusal': sp.get('error')}
     plans = {}
-    for v in names:
+    for v in ok_names:
         p = http('POST', api + '/api/board/installer/plan', {'instance': I.TWIN, 'build': builds[v]['build']})
         plans[v] = p
         print('       [DRY-RUN %s] %s' % (v, p.get('argv_text')))

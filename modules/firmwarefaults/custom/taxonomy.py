@@ -15,21 +15,22 @@ HAL = 'board/custom/firmware/uno/hal.c'
 APP = 'board/custom/firmware/uno/apps/sim_rig.c'
 
 
-def _p(name, kind, description, needs_rtos=False, cycles=0, uno=False, where='', notes=''):
+def _p(name, kind, description, needs_rtos=False, cycles=0, uno=False, site='', notes=''):
+    # fw-2: `site`, not `where` (a SQLite reserved word — see ConcurrencyPrimitive.py)
     return {'name': name, 'description': description, 'kind': kind, 'needs_rtos': needs_rtos, 'typical_cost_cycles': cycles,
-            'uno_uses': uno, 'where': where, 'provenance': 'sc-0 seed (FIRMWARE_SCENARIO_PLAN.md §1)', 'notes': notes}
+            'uno_uses': uno, 'site': site, 'provenance': 'sc-0 seed (FIRMWARE_SCENARIO_PLAN.md §1)', 'notes': notes}
 
 
 SEED_PRIMITIVES = [
     _p('irq-mask', 'irq-mask', 'Interrupts masked around a critical section: `in r18,SREG; cli` … `out SREG,r18` '
-       '(avr-libc ATOMIC_BLOCK(ATOMIC_RESTORESTATE)) — the UNO\'s hal_millis.', cycles=3, uno=True, where=HAL + ':hal_millis',
+       '(avr-libc ATOMIC_BLOCK(ATOMIC_RESTORESTATE)) — the UNO\'s hal_millis.', cycles=3, uno=True, site=HAL + ':hal_millis',
        notes='3 cycles per use (in 1 + cli 1 + out 1, plan §3 disassembly); every ISR waits while it is held'),
     _p('volatile-flag', 'volatile-flag', 'A `volatile` variable an ISR writes and the main loop reads — g_ms (4 bytes: NOT atomic '
-       'on an 8-bit core by itself) and the ring indices (1 byte: atomic).', uno=True, where=HAL + ':g_ms, rx_head, rx_tail',
+       'on an 8-bit core by itself) and the ring indices (1 byte: atomic).', uno=True, site=HAL + ':g_ms, rx_head, rx_tail',
        notes='volatile stops the compiler caching it; it does NOT make a multi-byte read atomic'),
     _p('spsc-ring', 'spsc-ring', 'A single-producer single-consumer byte ring: the RX ISR writes rx_head only, the main loop '
        'writes rx_tail only; uint8_t indices are one `lds` each, so it cannot tear (plan §3).', uno=True,
-       where=HAL + ':ISR(USART_RX_vect), hal_rx_pop', notes='correct only while each index has ONE writer and fits one load (RX_RING <= 256)'),
+       site=HAL + ':ISR(USART_RX_vect), hal_rx_pop', notes='correct only while each index has ONE writer and fits one load (RX_RING <= 256)'),
     _p('semaphore', 'semaphore', 'A counting / binary semaphore (an RTOS primitive): give from an ISR, take in a task.', needs_rtos=True,
        notes='not on the UNO (no RTOS); named by DoubleGiveFault / LostWakeupFault'),
     _p('mutex', 'mutex', 'A mutual-exclusion lock owned by one task (an RTOS primitive; FreeRTOS mutexes carry priority inheritance).',

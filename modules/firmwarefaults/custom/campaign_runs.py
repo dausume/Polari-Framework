@@ -75,7 +75,7 @@ def bounce_steps(sched):
     steps = []
     for i, (p, b) in enumerate(sched):
         for kind, cyc in (('press', p), ('bounce', b)):
-            steps.append({'name': 'campaign#%d%s' % (i, kind[0]), 'scenario': 'button-bounce-double-count', 'order': len(steps) + 1,
+            steps.append({'name': 'campaign#%d%s' % (i, kind[0]), 'scenario': 'button-bounce-double-count', 'position': len(steps) + 1,
                           'kind': 'irq-at-cycle', 'args_json': json.dumps({'cycle': cyc, 'vec': 1, 'vector_name': 'INT0'}), 'condition_json': '{}'})
     return steps
 

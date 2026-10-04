@@ -19,11 +19,13 @@ class ScenarioStep(treeObject):
                    'this instruction" or "change this memory word at this moment".')
 
     @treeObjectInit
-    def __init__(self, name: str = '', scenario: str = '', order: int = 0, kind: str = '', args_json: str = '{}',
+    def __init__(self, name: str = '', scenario: str = '', position: int = 0, kind: str = '', args_json: str = '{}',
                  condition_json: str = '{}', forcible: bool = True, not_forcible_reason: str = '', notes: str = '', manager=None):
         self.name = name
         self.scenario = scenario  # the Scenario name
-        self.order = order
+        # fw-2: named `position`, not `order` — `order` is a SQLite reserved word and broke
+        # CREATE TABLE for this class ('near "order": syntax error'); rows never persisted.
+        self.position = position
         self.kind = kind  # irq-at-pc | irq-at-cycle | corrupt-word | drop-nth-frame | flip-bit-at-cycle | uart-ber | hold-lock-order | clock-skew
         self.args_json = args_json  # {symbol, pattern, vec, addr, value, cycle, p, n}
         self.condition_json = condition_json  # {symbol, width, mask, value} — e.g. g_ms & 0xFF == 0xFF

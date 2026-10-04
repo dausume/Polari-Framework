@@ -79,7 +79,8 @@ def run_variant(variant, sink, home=None):
                       % len(res.get('run_info') or []))
     sink.upsert('StaticCheck', base)
     for i, f in enumerate(res.get('findings') or []):
-        sink.upsert('StaticFinding', {'name': '%s#%03d' % (name, i), 'check': name, 'variant': variant, 'tool': 'cppcheck', 'check_id': f.get('id', ''),
+        # fw-2: StaticFinding's column is `check_name`, not `check` (a SQLite reserved word)
+        sink.upsert('StaticFinding', {'name': '%s#%03d' % (name, i), 'check_name': name, 'variant': variant, 'tool': 'cppcheck', 'check_id': f.get('id', ''),
                                       'severity': f.get('severity', ''), 'message': f.get('message', ''), 'cwe': int(f.get('cwe') or 0),
                                       'file': f.get('file', ''), 'line': int(f.get('line') or 0), 'symbol': f.get('symbol', ''), 'addon': f.get('addon', '')})
     base['_findings'] = res.get('findings') or []

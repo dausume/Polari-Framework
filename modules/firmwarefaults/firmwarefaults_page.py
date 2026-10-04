@@ -83,10 +83,10 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
               _row(6, [_table('ff-assumptions', 0, 7, 'Assumptions the firmware makes — who relies on each, how it can be checked', 'Assumption',
                               columns='name,statement,who_relies,checkable_by,holds_in_shipped', column_formats='name:ref:Assumption'),
                        _table('ff-primitives', 1, 5, 'Concurrency primitives — the UNO uses irq-mask, volatile-flag, spsc-ring', 'ConcurrencyPrimitive',
-                              columns='name,kind,uno_uses,needs_rtos,typical_cost_cycles,where')], min_height=220),
+                              columns='name,kind,uno_uses,needs_rtos,typical_cost_cycles,site')], min_height=220),
               _row(7, [_table('ff-steps', 0, 12, 'Scenario steps — the kind, its arguments (a PC as symbol + pattern, re-resolved per build), the '
                               'condition, and whether the harness can force that kind today (and why not)', 'ScenarioStep',
-                              columns='scenario,order,kind,args_json,condition_json,forcible,not_forcible_reason,notes',
+                              columns='scenario,position,kind,args_json,condition_json,forcible,not_forcible_reason,notes',
                               column_formats='scenario:ref:Scenario')], min_height=180),
               # sc-2: the statistics tier as campaigns + the likelihood table per fault kind
               _row(8, [_table('ff-campaigns', 0, 12, 'Campaigns (sc-2) — the fault\'s RATE as the stimulus: scenario x fault x rate(s) x seeds; per '

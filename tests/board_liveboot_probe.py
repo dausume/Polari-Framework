@@ -111,9 +111,22 @@ check('brd-fi: /display/firmware-installer is seeded — six configured tables +
 # ---- brd-wire (grpc-j4): the mapping rows boot, seed, and the analysis door answers
 for cls in ('HardwareInterfaceBinding', 'EnumMapping', 'WireContract'):
     check('brd-wire: class %s is typed after boot' % cls, cls in typed)
-check('brd-wire: two EnumMappings + the two uno-pair bindings seeded (index 0 / 1)', n('EnumMapping') == 2
-      and sorted((b.object_name, b.instance_index) for b in (tables.get('HardwareInterfaceBinding', {}) or {}).values())
-      == [('uno-twin-0', 0), ('uno-twin-1', 1)], (n('EnumMapping'), n('HardwareInterfaceBinding')))
+# brd-wire counts only ITS OWN bridge's rows: HardwareInterfaceBinding is a SHARED grpcbridge
+# class, and hn-0's uno-temp-split demonstration (hwnocode_seed.HWNOCODE_SEED_PAIRS) seeds a
+# THIRD binding into the very same class on every boot where grpcbridge is typed — regardless
+# of whether 'hwnocode' itself is in POLARI_MODULES (moduleService.module_loading.
+# import_feature_blocks only gates on the code being IMPORTABLE, not on module_enabled; the
+# generic seed-pairs loop in polariServer.py then applies every seed targeting a TYPED class).
+# That is not a re-seed/upsert duplication bug (upsert-by-name is idempotent — confirmed: a
+# second boot against the same DB still shows exactly 3, never more) — it is a second, equally
+# legitimate seed of the shared class. A global n('HardwareInterfaceBinding') assumed this
+# probe's boot was the only contributor; scoping by bridge_name is the fix.
+pair_bindings = sorted((b.object_name, b.instance_index) for b in (tables.get('HardwareInterfaceBinding', {}) or {}).values()
+                       if getattr(b, 'bridge_name', '') == 'uno-pair')
+check('brd-wire: two EnumMappings + the two uno-pair bindings seeded (index 0 / 1) — other bridges (e.g. hn-0\'s '
+      'uno-temp-split) seed into the SAME shared class and are counted apart',
+      n('EnumMapping') == 2 and pair_bindings == [('uno-twin-0', 0), ('uno-twin-1', 1)],
+      (n('EnumMapping'), n('HardwareInterfaceBinding'), pair_bindings))
 from urllib.parse import quote  # noqa: E402
 r = client.simulate_get('/api/board/instances/%s/interface' % quote('twin:arduino-uno-r3#1', safe=''))
 check('brd-wire: GET /api/board/instances/twin:arduino-uno-r3%231/interface → the chain: uno-twin-1, index 1, the UNO definition, its facts',

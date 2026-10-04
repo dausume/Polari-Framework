@@ -107,7 +107,7 @@ def part_a():
     check('scenario 1b: RX_RING 512 is REFUSED by the static guard → inapplicable (technique static-guard), claim inapplicable',
           r1b['outcome'] == 'inapplicable' and r1b['technique_applied'] == 'static-guard' and sink.get('MathClaim', r1b['claim'])['proof_status'] == 'inapplicable')
     poke_sc = dict(SC.find('torn-millis-read'), name='probe-poke', run_seconds=0.3)
-    steps = [{'name': 'probe-poke#1', 'scenario': 'probe-poke', 'order': 1, 'kind': 'corrupt-word',
+    steps = [{'name': 'probe-poke#1', 'scenario': 'probe-poke', 'position': 1, 'kind': 'corrupt-word',
               'args_json': json.dumps({'symbol': 'g_ms', 'width': 4, 'value': 0x10000, 'cycle': 1600000, 'vec': 7, 'of': 'g_ms', 'pattern': 'lds-sequence',
                                        'before_load': 2}), 'condition_json': '{}', 'forcible': True, 'not_forcible_reason': '', 'notes': ''}]
     from firmwarefaults.custom import harness, disasm

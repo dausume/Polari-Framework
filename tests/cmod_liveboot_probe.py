@@ -130,12 +130,23 @@ check('board still boots beside it: the five seeded FirmwareVariants', n('Firmwa
 def equivalence():
     """The REAL twin equivalence of the committed render + a negative control the comparison must catch."""
     from board.custom import board_engines as be
+    from board.custom.engine_run import EngineRefused
     from cmod.custom import glue as GL, glue_build as GB
     from cmod.custom.graph_seed import seed_graph
     if be.resolve('avr-twin')['how'] == 'refused' or be.resolve('avr-gcc')['how'] == 'refused':
         print('SKIP: no avr-gcc / avr-twin through the board engines seam — the equivalence proof needs the engine image')
         return
-    p = GB.prove('uno-sim-rig-graph', write=False)
+    # cmod's `make alone` proof runs ONLY where avr-gcc runs LOCALLY (a local binary or the
+    # local board-engines image) — a remote BOARD_ENGINES_URL worker runs single engines, not
+    # make, and refuses honestly (cmod_engines.run('make') -> EngineRefused). That refusal is
+    # correct by design (the worker was never meant to run make), not a bug to work around —
+    # the probe reports it as a named SKIP instead of crashing.
+    try:
+        p = GB.prove('uno-sim-rig-graph', write=False)
+    except EngineRefused as e:
+        print('SKIP: make-alone refused (%s) — needs a LOCAL avr-gcc binary or the local prf-board-engines image '
+              '(unset BOARD_ENGINES_URL, or run where the image is), not a remote worker' % e)
+        return
     check('EQUIVALENT on the twin: the rendered glue (make alone) vs the hand-written uno-sim-rig, same stimulus — %d frames identical on %s'
           % (p['frames_compared'], ', '.join(p['fields_compared'])), p['equivalent'] and p['frames_compared'] >= 30 and p['frames_hand'] == p['frames_glue'],
           p['differences'][:3])

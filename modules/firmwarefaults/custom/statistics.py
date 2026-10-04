@@ -57,7 +57,7 @@ def uart_ber(sink, bers=BERS, seeds=SEEDS, commands=COMMANDS, home=None, progres
     sc = SC.find('uart-residual-frame-loss')
     body, _ = payloads.command_stream(commands)
     secs = round(0.1 + len(body) / TWIN_RX_BYTES_PER_S + 0.4, 2)
-    stream = {'name': 'stats#1', 'scenario': sc['name'], 'order': 1, 'kind': 'inject-bytes',
+    stream = {'name': 'stats#1', 'scenario': sc['name'], 'position': 1, 'kind': 'inject-bytes',
               'args_json': json.dumps({'cycle': 1600000, 'payload': 'command-stream', 'n': commands}), 'condition_json': '{}'}
     out = {}
     for side in sides:

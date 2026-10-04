@@ -60,6 +60,8 @@ DEFAULTS = {
     'cmod': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'c', 'atoms', 'no-code']),
     # hn-0: hardware as no-code (HARDWARE_NOCODE_PLAN)
     'hwnocode': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'no-code', 'hardware', 'placement']),
+    # pcb-0: PCB from scratch — KiCad as the relay engine, rows as the design (PCB_FROM_SCRATCH_PLAN)
+    'pcb': ('polari', ['materials-devices', 'chip-simulation'], ['pcb', 'kicad', 'schematic', 'gerber', 'fabrication', 'electronics']),
     'hwdigital': ('polari', ['materials-devices', 'chip-simulation'], ['logic', 'ice40', 'bitstream']),
     'hwfpga': ('polari', ['materials-devices', 'chip-simulation'], ['fpga', 'verilog']),
     'motors': ('polari', ['materials-devices', 'making-mechanics'], ['motors']),

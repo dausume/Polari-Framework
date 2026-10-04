@@ -83,7 +83,8 @@ SEED_SCENARIOS = [
 
 def _step(scenario, order, kind, args, condition=None, notes=''):
     ok, why = STEP_KINDS[kind]
-    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'order': order, 'kind': kind, 'args_json': J(args),
+    # fw-2: ScenarioStep's column is `position`, not `order` (a SQLite reserved word)
+    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'position': order, 'kind': kind, 'args_json': J(args),
             'condition_json': J(condition or {}), 'forcible': ok, 'not_forcible_reason': '' if ok else why, 'notes': notes}
 
 
@@ -160,7 +161,7 @@ def _sc0_variants():
 
 
 def steps_of(scenario, steps=None):
-    return sorted([s for s in (steps or SEED_STEPS) if s['scenario'] == scenario], key=lambda s: s['order'])
+    return sorted([s for s in (steps or SEED_STEPS) if s['scenario'] == scenario], key=lambda s: s['position'])
 
 
 def runnable(scenario, steps=None):

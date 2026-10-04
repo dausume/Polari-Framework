@@ -73,7 +73,8 @@ SC3_SCENARIOS = [
 
 
 def _step(scenario, order, args, notes):
-    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'order': order, 'kind': 'hold-lock-order', 'args_json': J(args),
+    # fw-2: ScenarioStep's column is `position`, not `order` (a SQLite reserved word)
+    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'position': order, 'kind': 'hold-lock-order', 'args_json': J(args),
             'condition_json': J({}), 'forcible': True, 'not_forcible_reason': '', 'notes': notes}
 
 

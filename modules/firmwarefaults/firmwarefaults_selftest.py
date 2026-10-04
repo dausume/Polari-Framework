@@ -142,7 +142,7 @@ def steps_and_scenarios():
                                                           'two-lock-deadlock', 'two-lock-deadlock-backoff'])
           and all(st['forcible'] and not st['not_forcible_reason'] for sc in runnable for st in SC.steps_of(sc['name'])))
     fake_sc = dict(SC.SEED_SCENARIOS[0], name='fixture-lock')
-    fake_steps = [{'name': 'fixture-lock#1', 'scenario': 'fixture-lock', 'order': 1, 'kind': 'clock-skew', 'args_json': '{"ppm": 50}',
+    fake_steps = [{'name': 'fixture-lock#1', 'scenario': 'fixture-lock', 'position': 1, 'kind': 'clock-skew', 'args_json': '{"ppm": 50}',
                    'condition_json': '{}', 'forcible': False, 'not_forcible_reason': SC.STEP_KINDS['clock-skew'][1], 'notes': ''}]
     check('a scenario with a NOT-YET-FORCIBLE step is not runnable', not SC.runnable(fake_sc, fake_steps))
     try:

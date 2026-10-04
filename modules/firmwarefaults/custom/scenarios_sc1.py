@@ -100,7 +100,8 @@ SC1_SCENARIOS = [
 def _step(scenario, order, kind, args, condition=None, notes=''):
     from firmwarefaults.custom.scenarios import STEP_KINDS
     ok, why = STEP_KINDS[kind]
-    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'order': order, 'kind': kind, 'args_json': J(args),
+    # fw-2: ScenarioStep's column is `position`, not `order` (a SQLite reserved word)
+    return {'name': '%s#%d' % (scenario, order), 'scenario': scenario, 'position': order, 'kind': kind, 'args_json': J(args),
             'condition_json': J(condition or {}), 'forcible': ok, 'not_forcible_reason': '' if ok else why, 'notes': notes}
 
 
