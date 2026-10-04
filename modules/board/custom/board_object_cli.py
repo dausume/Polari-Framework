@@ -42,7 +42,10 @@ def _pins(board):
 
 
 def _out_dir(board, kind, out):
-    return out or os.path.expanduser(os.path.join(os.environ.get('POLARI_BOARD_HOME', '~/.cache/polari-board'), bo.board_name(board), 'views', kind))
+    if out:
+        return out
+    from polariApiServer.module_home import module_home
+    return os.path.join(module_home('board', os.environ.get('POLARI_BOARD_HOME')), bo.board_name(board), 'views', kind)
 
 
 def _render(board, kind, out):

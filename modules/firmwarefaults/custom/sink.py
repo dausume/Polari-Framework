@@ -2,8 +2,9 @@
 @module firmwarefaults.custom.sink
 
 WHERE A RUN'S ROWS GO: into a live server's object tree (the API's POST /api/firmwarefaults/run — upsert by name, saved
-through manager.db) or, from the CLI with no server, into a local JSON record per run under
-$POLARI_FAULTS_HOME (default ~/.cache/polari-faults/runs/<run>.json) that `pol faults show` reads back. The rows are the
+through manager.db) or, from the CLI with no server, into a local JSON record per run under $POLARI_FAULTS_HOME
+(module_home.module_home('faults'): /app/data/faults/runs/<run>.json inside a backend container, else
+~/.cache/polari-faults/runs/<run>.json on a bare host) that `pol faults show` reads back. The rows are the
 same dicts either way (ScenarioRun, its ScenarioTraceCycle rows, the MathClaim + ProofRun, the Technique's measured cost,
 the fault row's measured rate).
 """
@@ -13,7 +14,8 @@ import re
 
 
 def home():
-    return os.path.expanduser(os.environ.get('POLARI_FAULTS_HOME', '~/.cache/polari-faults'))
+    from polariApiServer.module_home import module_home
+    return module_home('faults', os.environ.get('POLARI_FAULTS_HOME'))
 
 
 def safe_name(name):

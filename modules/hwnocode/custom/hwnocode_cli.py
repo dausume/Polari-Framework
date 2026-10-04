@@ -12,7 +12,8 @@
                                     `pol board twin uno up --work W` runs that build
     suggest <solution>              the runtime suggestion with its evidence rows — SUGGEST ONLY (D-hn-3): nothing is changed
     runtime <solution> <value>      would the knob accept this value? (bare-c | freertos | esp-idf | zephyr; auto refused)
-W defaults to $POLARI_HWNOCODE_HOME/<solution> (~/.cache/polari-hwnocode/<solution>).
+W defaults to $POLARI_HWNOCODE_HOME/<solution> (module_home.module_home('hwnocode')/<solution>: /app/data/hwnocode/<solution>
+inside a backend container, ~/.cache/polari-hwnocode/<solution> on a bare host).
 """
 import sys
 

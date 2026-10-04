@@ -21,7 +21,8 @@ brd-fi: the FirmwareBuild row also carries `header_sha256` + `tag_order_json` (p
 so the installer can judge compatibility on what the board will actually speak (board.custom.compat) — never on
 contract_hash alone (brd-1's finding: v1/v2 share a hash yet differ in order).
 
-Layout of a work dir (default ~/.cache/polari-board/<board>/):
+Layout of a work dir (default module_home.module_home('board')/<board>/ — /app/data/board/<board>/ inside a backend
+container, ~/.cache/polari-board/<board>/ on a bare host):
     project/              the buildable tree of the CURRENT variant (nothing else lives in it — RULE 2)
     out/                  firmware.elf / firmware.hex after `pol board build`
     firmware_build.json   the FirmwareBuild row (state generated → built | refused → flashed), its repro block
@@ -73,7 +74,8 @@ def board_name(alias):
 
 
 def default_work(board):
-    return os.path.expanduser(os.path.join(os.environ.get('POLARI_BOARD_HOME', '~/.cache/polari-board'), board))
+    from polariApiServer.module_home import module_home
+    return os.path.join(module_home('board', os.environ.get('POLARI_BOARD_HOME')), board)
 
 
 def pinned_contract(cls):

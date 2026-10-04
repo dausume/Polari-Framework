@@ -7,7 +7,8 @@ board_pins.h + sdkconfig fragment, a bare-C board_config.h — and COMPARE it wi
 `BoardView` row (direction in) carrying the view's sha256 and the board sha it was compared against.
 
 Where rows are written: a server's tables (`manager`, the API door POST /api/board/<board>/ingest), else a local LEDGER
-(~/.cache/polari-board/board-object/ledger.json — `pol board ingest|render|conflicts` with no server).
+at module_home.module_home('board')/board-object/ledger.json — /app/data/board/... inside a backend container,
+~/.cache/polari-board/... on a bare host (`pol board ingest|render|conflicts` with no server).
 
     python3 -m board.custom.board_object_cli ingest <path> --as kicad|zephyr|esp-idf|bare-c [--board B]
 """
@@ -124,7 +125,8 @@ def render_row(board, kind, tables=None, r=None, path=''):
 
 # ------------------------------------------------------------------ where the rows go
 def ledger_path():
-    return os.path.expanduser(os.path.join(os.environ.get('POLARI_BOARD_HOME', '~/.cache/polari-board'), 'board-object', 'ledger.json'))
+    from polariApiServer.module_home import module_home
+    return os.path.join(module_home('board', os.environ.get('POLARI_BOARD_HOME')), 'board-object', 'ledger.json')
 
 
 def ledger_read():
