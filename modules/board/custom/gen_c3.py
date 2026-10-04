@@ -19,7 +19,7 @@ RULE 2 on the result: C sources and headers, plus ESP-IDF's build-system files (
 partitions.csv) — ESP-IDF requires CMake; the firmware's language is C. Anything else is refused.
 
 Work dir layout as the UNO's (gen.py): <work>/project, <work>/out, <work>/firmware_build.json, <work>/builds/<build>/.
-Default work: ~/.cache/polari-board/esp32-c3/.
+Default work: gen.default_work('esp32-c3') — /app/data/board/esp32-c3/ inside a backend container, ~/.cache/polari-board/esp32-c3/ on a bare host.
 
     python3 -m board.custom.gen_c3 c3 [--variant V] [--out DIR] [--api URL] [--rig-name N] [--device-id N]
 """

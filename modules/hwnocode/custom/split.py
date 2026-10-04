@@ -39,7 +39,8 @@ def _now():
 
 
 def default_work(solution):
-    return os.path.expanduser(os.path.join(os.environ.get('POLARI_HWNOCODE_HOME', '~/.cache/polari-hwnocode'), solution))
+    from polariApiServer.module_home import module_home
+    return os.path.join(module_home('hwnocode', os.environ.get('POLARI_HWNOCODE_HOME')), solution)
 
 
 # ------------------------------------------------------------------ the rows a split reads (a running server's, else the seeds)

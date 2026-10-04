@@ -42,7 +42,8 @@ SUFFIX_LAYER = {'F_Cu': 'F.Cu', 'top_cu': 'F.Cu', 'B_Cu': 'B.Cu', 'bottom_cu': '
 
 
 def home():
-    return os.path.expanduser(os.environ.get('POLARI_PCB_HOME', '~/.cache/polari-pcb'))
+    from polariApiServer.module_home import module_home
+    return module_home('pcb', os.environ.get('POLARI_PCB_HOME'))
 
 
 def sha(data):
