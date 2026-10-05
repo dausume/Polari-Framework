@@ -51,6 +51,25 @@ def placement_on_seed():
     check('the device side (what the split cuts off) = the HardwareSubgraph node alone', r['device_side'] == ['sim-rig'], r['device_side'])
 
 
+def runtimes_demo_4b():
+    """demo-4b (his ruling): 6 Runtime rows, described; every placed node of uno-temp-split resolves to one of them."""
+    from hwnocode.custom import runtimes as RT
+    from hwnocode.custom import split as SP
+    check('6 Runtime rows seeded, each described (his ruling: C-hardware + Java/JavaFX native-bridge back/front are their own '
+          'runtimes)', len(RT.RUNTIME_ROWS) == 6 and {r['name'] for r in RT.RUNTIME_ROWS} == {
+              'python-backend', 'typescript-browser', 'c-device', 'c-twin', 'java-bridge', 'javafx-native'}
+          and all(r.get('description') for r in RT.RUNTIME_ROWS))
+    r = SP.place_solution('uno-temp-split')
+    missing = [n for n in r['nodes'] if not n['refused'] and not n.get('runtime')]
+    check('every non-refused node of uno-temp-split carries a runtime (c-device/java-bridge/python-backend)', not missing, missing)
+    by_kind = {n['kind']: n['runtime'] for n in r['nodes']}
+    check('c-atom/hardware-subgraph -> c-device; hw-interface -> java-bridge; the backend chain -> python-backend',
+          by_kind.get('hardware-subgraph') == 'c-device' and by_kind.get('hw-interface') == 'java-bridge'
+          and by_kind.get('BackendStateChange') == 'python-backend', by_kind)
+    sub_runtimes = {n['runtime'] for n in r['nodes'] if n['layer'] == 'subgraph'}
+    check('every CGraph node inside the subgraph (c-atom + the glue kinds) resolves to c-device', sub_runtimes == {'c-device'}, sub_runtimes)
+
+
 def refusals():
     from hwnocode.custom import placement as PL
     from hwnocode.custom import split as SP
@@ -279,9 +298,9 @@ def seeds_page_api():
     from hwnocode.hwnocode_api import HwNoCodeAPI
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
     check('seeds: 1 HardwareSolution, 27 placements, 2 SolutionDefinitions (the canvas + its backend half), 1 AnalysisDefinition, '
-          '1 EventTrigger, 1 HardwareInterfaceBinding, 1 GraphDefinition', counts == {
+          '1 EventTrigger, 1 HardwareInterfaceBinding, 1 GraphDefinition, 6 Runtimes (demo-4b)', counts == {
               'HardwareSolution': 1, 'HardwareNodePlacement': 27, 'SolutionDefinition': 2, 'AnalysisDefinition': 1, 'EventTrigger': 1,
-              'HardwareInterfaceBinding': 1, 'GraphDefinition': 1}, counts)
+              'HardwareInterfaceBinding': 1, 'GraphDefinition': 1, 'Runtime': 6}, counts)
     trig = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'EventTrigger' for r in rows][0]
     check('the trigger runs the BACKEND half on SimRigState uno-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
           'the instance\'s', trig['solution_name'] == 'uno-temp-split.backend' and json.loads(trig['source_json'])['fieldFilter'] == {'name': 'uno-twin'}
@@ -291,10 +310,12 @@ def seeds_page_api():
     page = SEED_HWNOCODE_PAGE_DISPLAYS[0]
     items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
     comps = [it['componentProps']['componentName'] for it in items]
-    check('/display/hardware-solutions = 3 configured tables + 1 named-graph-panel + the canvas (demo-4: the SAME '
-          'c-graph-canvas-panel /display/c-canvas uses, opened on this solution\'s own cgraph — no new component here)',
-          page['pageRoute'] == 'hardware-solutions'
-          and sorted(comps) == ['c-graph-canvas-panel', 'class-rows-table', 'class-rows-table', 'class-rows-table', 'named-graph-panel'], comps)
+    check('/display/hardware-solutions = the canvas FIRST (demo-4b: opened on the whole solution, every runtime a lane) + 4 '
+          'configured tables (solutions, derived, placement-by-runtime, the Runtime catalog) + 1 named-graph-panel',
+          page['pageRoute'] == 'hardware-solutions' and items[0]['componentProps']['componentName'] == 'c-graph-canvas-panel'
+          and items[0]['componentProps']['inputs'].get('solution') == 'uno-temp-split'
+          and sorted(comps) == ['c-graph-canvas-panel', 'class-rows-table', 'class-rows-table', 'class-rows-table',
+                                'class-rows-table', 'named-graph-panel'], comps)
     gc = json.loads(SEED_HWNOCODE_GRAPHS[0]['definition'])['graphConfig']
     check('the chart = a GraphDefinition (x uptime_s; y temp_c + temp_avg; colours set, showLegend) fed by the chart endpoint',
           gc['xDimension'] == 'uptime_s' and gc['yDimensions'] == ['temp_c', 'temp_avg'] and len(gc['seriesColors']) == 2
@@ -349,8 +370,8 @@ def manifest_conform():
 
 def main():
     print('hwnocode selftest (hn-0)')
-    for part in (placement_on_seed, refusals, subgraph_reference, knob_refusals, suggestion_fixtures, backend_half_in_engine,
-                 palette_metadata, seeds_page_api, manifest_conform):
+    for part in (placement_on_seed, runtimes_demo_4b, refusals, subgraph_reference, knob_refusals, suggestion_fixtures,
+                 backend_half_in_engine, palette_metadata, seeds_page_api, manifest_conform):
         print('-- %s' % part.__name__)
         try:
             part()

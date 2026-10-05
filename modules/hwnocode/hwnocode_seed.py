@@ -8,8 +8,9 @@ the grpcbridge HardwareInterfaceBinding that IS its hw-interface node, and the G
 hand-set fields: `firmware_runtime` (the person's knob, D-hn-3), titles and notes; the trigger's knobs (`inputs_json`) and
 `enabled` stay as the instance has them.
 """
-from hwnocode.hwnocode_basis import HardwareSolution, HardwareNodePlacement
+from hwnocode.hwnocode_basis import HardwareSolution, HardwareNodePlacement, Runtime
 from hwnocode.custom import seed_rows as SR
+from hwnocode.custom.runtimes import RUNTIME_ROWS
 
 
 def _owned(rows, keep=('title', 'notes')):
@@ -32,6 +33,7 @@ def _pairs():
         ('EventTrigger', EventTrigger, _owned(SR.TRIGGERS, keep=('notes', 'enabled', 'inputs_json', 'cooldown_s'))),
         ('HardwareInterfaceBinding', HardwareInterfaceBinding, _owned(SR.BINDINGS, keep=('notes', 'port'))),
         ('GraphDefinition', GraphDefinition, _owned(SEED_HWNOCODE_GRAPHS, keep=('description',))),
+        ('Runtime', Runtime, _owned(RUNTIME_ROWS, keep=('notes',))),
     ]
 
 

@@ -22,15 +22,6 @@ def _graph_panel(item_id, index, segments, title, graph_name, data_path, descrip
             'item': None, 'nestedRows': []}
 
 
-def _canvas(item_id, index, segments, title, graph, description=''):
-    """demo-4: the SAME `c-graph-canvas-panel` /display/c-canvas uses, focused on this solution's own CGraph (its
-    board half IS this graph — hn-split) — the forward link opened in place, not a second canvas implementation."""
-    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
-            'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
-            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph}},
-            'item': None, 'nestedRows': []}
-
-
 def _graph_config():
     """One GraphConfigData blob — the frontend model's keys exactly (climate_page precedent): WIDE rows, x = uptime (s), two y
     dimensions; colours given so no series label is ever read as a field name (the long-form gotcha)."""
@@ -48,15 +39,35 @@ SEED_HWNOCODE_GRAPHS = [{
                     'knob). The threshold flag is SimRigTempDerived.over_threshold.'),
     'definition': json.dumps({'graphConfig': _graph_config()})}]
 
+def _canvas_solution(item_id, index, segments, title, graph, solution, description=''):
+    """demo-4b: the canvas opened on the SOLUTION itself (its real SolutionDefinition — sim-rig/uno-twin/backend nodes), not
+    a synthetic one-node wrapper, so every runtime (c-device/java-bridge/python-backend) is visible as a lane."""
+    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
+            'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
+            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph, 'solution': solution}},
+            'item': None, 'nestedRows': []}
+
+
 SEED_HWNOCODE_PAGE_DISPLAYS = [
     _page(DISPLAY, DISPLAY,
           'Hardware solutions — one no-code graph across a board, the bridge, the backend and this screen (hn arc): where each node '
           'runs and why, the board half rendered by cmod-glue (byte-identical firmware), the backend half run per frame, the chart '
           '(`pol hwnocode place | render | build | suggest uno-temp-split`). Today\'s one solution targets arduino-uno-r3 — see '
           '/display/boards for which boards are usable at all; the board half\'s C graph is the SAME CGraph shown at /display/c-atoms, '
-          'and installing it onto real hardware is /display/firmware-installer.',
+          'and installing it onto real hardware is /display/firmware-installer. demo-4b (his ruling): C-on-hardware and the Java/JavaFX '
+          'native bridge are each their OWN runtime (see the Runtime table below) — the canvas opens FIRST, below, grouping this '
+          'solution\'s nodes into one lane per runtime present.',
           'HardwareSolution', [
-              _row(0, [_table('hwnocode-solutions', 0, 12, 'Hardware solutions — the subgraph (a cmod CGraph), the hw-interface (the split '
+              _row(0, [_canvas_solution('hwnocode-canvas', 0, 12, '%s opened on the no-code canvas — ALL its runtimes as lanes '
+                                        '(demonstrable first)' % SOLUTION, CGRAPH, SOLUTION,
+                               description="What this is for: THE DEMONSTRABLE, first on the page — this solution's REAL drawing (sim-rig, "
+                                           'the hw-interface split point, the backend chain), coloured and grouped into one lane per '
+                                           'runtime (c-device: the sim-rig subgraph; java-bridge: uno-twin, the split point; python-backend: '
+                                           'the moving-average chain). Expand the Hardware Subgraph node in place to see its C atoms, still '
+                                           'in the c-device lane — never a second canvas, the SAME `c-graph-canvas-panel` /display/c-canvas '
+                                           "uses. The REVERSE link ('used by') is shown on /display/c-atoms and /display/c-canvas.")],
+                   min_height=640),
+              _row(1, [_table('hwnocode-solutions', 0, 12, 'Hardware solutions — the subgraph (a cmod CGraph), the hw-interface (the split '
                               'point), the firmware_runtime knob (yours; hn-0 renders bare-c and refuses the rest with the reason), the '
                               'placement summary, the split and the glue shas, the proof', 'HardwareSolution',
                               description='What this is for: ONE no-code solution end to end — a drawing that spans a board, the bridge, the '
@@ -71,14 +82,16 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                       'backend_solution,displays,proof,costs',
                               column_formats='name:ref:HardwareSolution,cgraph:ref:CGraph,interface:ref:HardwareInterfaceBinding')],
                    min_height=160),
-              _row(1, [_graph_panel('hwnocode-temp-chart', 0, 12, 'uno-temp-split — temp_c and its moving average (the backend half)',
+              _row(2, [_graph_panel('hwnocode-temp-chart', 0, 12, 'uno-temp-split — temp_c and its moving average (the backend half)',
                                     GRAPH, '/api/hwnocode/solutions/%s/chart' % SOLUTION,
                                     description='What this is for: the demonstrable — the UNO\'s own TMP36 reading (10 Hz, through the bridge) '
                                                 'plotted against the backend\'s moving average of the same signal, so the no-code split is '
                                                 'something you can SEE, not just a table of node placements. One line per series: temp_c (raw '
-                                                'firmware reading), temp_avg (the backend\'s AnalysisCall over the trigger\'s window).')],
+                                                'firmware reading), temp_avg (the backend\'s AnalysisCall over the trigger\'s window). This '
+                                                'IS the typescript-browser runtime\'s own view of the data (the browser lane has no canvas '
+                                                'node today — it is this chart, read the same rows).')],
                    min_height=380),
-              _row(2, [_table('hwnocode-derived', 0, 12, 'Derived temperature state — the backend half\'s moving average and the '
+              _row(3, [_table('hwnocode-derived', 0, 12, 'Derived temperature state — the backend half\'s moving average and the '
                               'threshold flag (ConditionalChain → StateChangeCommit), per SimRigState row', 'SimRigTempDerived',
                               description='What this is for: the BACKEND half\'s own running state for this solution — what the chart above '
                                           'is plotting, as rows. One row = one SimRigTempDerived (per rig). Columns: temp_avg (the moving '
@@ -86,21 +99,23 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                           'StateChangeCommit watches), last_temp_c/last_uptime_ms (the latest frame it saw).',
                               columns='name,temp_avg,over_threshold,threshold_c,window,samples,last_temp_c,last_uptime_ms,updated_at,solution')],
                    min_height=120),
-              _row(3, [_table('hwnocode-placement', 0, 12, 'Placement — every node of every solution: board / twin (C on the device), '
-                              'bridge (the split point), backend (the Python engine), browser (displays); a Python node on the device '
-                              'side is refused, named', 'HardwareNodePlacement',
+              _row(4, [_table('hwnocode-placement', 0, 12, 'Placement / Nodes by runtime — every node of every solution: board / twin '
+                              '(C on the device), bridge (the split point), backend (the Python engine), browser (displays); a Python '
+                              'node on the device side is refused, named', 'HardwareNodePlacement',
                               description='What this is for: WHERE every node of every solution actually runs, and why — placement is '
                                           'derived, never typed in. One row = one node\'s placement. Columns: layer/placement (board/twin | '
                                           'bridge | backend | browser), kind/language (what the node is and what it compiles to there), '
-                                          'refused/why (a node that cannot run where it was drawn — e.g. Python on the device — named, not '
-                                          'silently moved).',
-                              columns='solution,layer,node,kind,placement,language,refused,why',
+                                          'runtime (demo-4b: the Runtime row this node resolved to — c-device/java-bridge/python-backend/'
+                                          'typescript-browser; blank when refused), refused/why (a node that cannot run where it was drawn '
+                                          '— e.g. Python on the device — named, not silently moved).',
+                              columns='solution,layer,node,kind,placement,runtime,language,refused,why',
                               column_formats='solution:ref:HardwareSolution')], min_height=320),
-              _row(4, [_canvas('hwnocode-canvas', 0, 12, '%s opened on the no-code canvas (its board half — hn-split)' % CGRAPH, CGRAPH,
-                               description="What this is for: the FORWARD link (demo-4 \"both ways\") opened in place — this solution's "
-                                           'board half IS this CGraph (see cgraph above); open it here to see/wire its atoms without '
-                                           'leaving the page, or follow it to its own home at /display/c-canvas (the same component, same '
-                                           "data — a demonstrable is never duplicated). The REVERSE link ('used by') is shown on /display/"
-                                           'c-atoms and /display/c-canvas.')], min_height=640),
+              _row(5, [_table('hwnocode-runtimes', 0, 12, 'Runtimes — the six execution environments a no-code node can be placed into '
+                              '(his ruling: C-on-hardware and the Java/JavaFX native bridge are each their own runtime)', 'Runtime',
+                              description='What this is for: the CATALOG every node\'s `runtime` column above names one row of. One row '
+                                          '= one runtime. Columns: kind/language (what it is and what it runs), executes_on (the instance '
+                                          'kind or device), entered_via (process | browser | firmware image | JVM), description (plain '
+                                          'words — his C-hardware / Java-JavaFX-native-bridge split).',
+                              columns='name,kind,language,executes_on,entered_via,description')], min_height=220),
           ]),
 ]

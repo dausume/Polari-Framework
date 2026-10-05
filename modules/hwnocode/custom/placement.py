@@ -17,6 +17,8 @@ Inside the referenced CGraph, a node of a kind cmod's glue does not own (an engi
 """
 import json
 
+from hwnocode.custom.runtimes import runtime_for_kind
+
 #: node kinds that ARE the device (rule 1)
 DEVICE_KINDS = {'HardwareSubgraph': 'hardware-subgraph', 'CAtom': 'c-atom'}
 #: the split point (rule 3)
@@ -73,7 +75,7 @@ def device_target(board_instance, manager=None):
 
 def _node(layer, node, kind, placement, language, why, refused=False):
     return {'layer': layer, 'node': node, 'kind': kind, 'placement': placement, 'language': language, 'why': why,
-            'refused': bool(refused)}
+            'refused': bool(refused), 'runtime': runtime_for_kind(kind, placement, refused)}
 
 
 def place(definition, cgraph_rows=None, board_instance='', displays=(), manager=None, trigger=''):

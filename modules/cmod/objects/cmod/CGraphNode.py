@@ -21,7 +21,8 @@ class CGraphNode(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', graph: str = '', instance: str = '', kind: str = 'c-atom', atom: str = '', stage: str = '',
                      order: int = 0, bindings: str = '', params: str = '', ports_summary: str = '', role: str = '',
-                     cost_bytes: int = 0, isr_safe: str = '', pure: bool = False, notes: str = '', manager=None):
+                     cost_bytes: int = 0, isr_safe: str = '', pure: bool = False, runtime: str = 'c-device', notes: str = '',
+                     manager=None):
         self.name = name                # <graph>:<instance>
         self.graph = graph
         self.instance = instance        # the C-identifier-safe instance name (locals in the glue are <instance>_<port>)
@@ -36,4 +37,7 @@ class CGraphNode(treeObject):
         self.cost_bytes = cost_bytes    # derived: the atom's text bytes as a node (-fno-inline)
         self.isr_safe = isr_safe        # derived
         self.pure = pure                # derived
+        # demo-4b: every NODE_KINDS value is C-on-the-device by construction (cmod's glue owns no other kind — RULE 2
+        # is enforced structurally, not derived per-row); hwnocode.custom.runtimes.runtime_for_kind agrees.
+        self.runtime = runtime
         self.notes = notes

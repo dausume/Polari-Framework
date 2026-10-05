@@ -57,7 +57,7 @@ def solution_rows():
         for i, n in enumerate(rep['nodes']):
             places.append({'name': '%s:%s:%s' % (hs['name'], n['layer'], n['node']), 'solution': hs['name'], 'node': n['node'],
                            'layer': n['layer'], 'kind': n['kind'], 'placement': n['placement'], 'language': n['language'],
-                           'why': n['why'], 'refused': n['refused'], 'order': i, 'notes': ''})
+                           'why': n['why'], 'refused': n['refused'], 'order': i, 'runtime': n.get('runtime', ''), 'notes': ''})
     return sols, places
 
 

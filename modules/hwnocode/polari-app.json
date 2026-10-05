@@ -55,6 +55,7 @@
    "objects/hwnocode/HardwareNodePlacement",
    "objects/hwnocode/HardwareSolution",
    "objects/hwnocode/HardwareSubgraph",
+   "objects/hwnocode/Runtime",
    "objects/hwnocode/SimRigTempDerived",
    "objects/hwnocode/SimRigTempSample"
   ],
@@ -81,6 +82,7 @@
    "custom/hwnocode_cli",
    "custom/knobs",
    "custom/placement",
+   "custom/runtimes",
    "custom/seed_rows",
    "custom/solutions",
    "custom/split",
@@ -94,6 +96,7 @@
   "HardwareSolution",
   "HardwareSubgraph",
   "HwNoCodeAPI",
+  "Runtime",
   "SimRigTempDerived",
   "SimRigTempSample"
  ],

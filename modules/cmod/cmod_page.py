@@ -90,7 +90,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               description='What this is for: one placed NODE inside a graph. One row = one node. Columns: kind (c-atom = an '
                                           'atom instance, or a glue kind: class | parser | frame | tick | rule), bindings/params (a literal or '
                                           'a knob wired to each port), cost_bytes/isr_safe/pure (carried over from the atom it instances).',
-                              columns='name,kind,atom,stage,order,bindings,params,ports_summary,cost_bytes,isr_safe,pure,role',
+                              columns='name,kind,atom,stage,order,bindings,params,ports_summary,cost_bytes,isr_safe,pure,runtime,role',
                               column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph'),
                        _table('cmod-graph-edges', 1, 5, 'Graph edges — data / field (values), tick / on-rx / on-command (when), calls (what an '
                               'atom calls itself, checked)', 'CGraphEdge',
@@ -128,14 +128,25 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph, drop a "C Atom" '
                                            'or "Temperature sensor solution" from the palette and wire it, or expand the Hardware Subgraph '
                                            'node to see its atoms, ports, wires and derived target badges. Render/Build/Prove call the same '
-                                           'doors `pol cmod render|build|prove` do.')], min_height=640),
-              _row(1, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
+                                           'doors `pol cmod render|build|prove` do. demo-4b: every atom shown is a REAL node (one per '
+                                           'CGraphNode), all in the c-device lane — never a single collapsed HardwareSubgraph wrapper here.')],
+                   min_height=640),
+              _row(1, [_table('c-canvas-runtimes', 0, 12, 'Nodes by runtime — every node this graph places, each resolved to one Runtime '
+                              '(demo-4b: a CGraph is C on the device by construction, so every row here reads c-device)', 'CGraphNode',
+                              description='What this is for: the SAME rows drawn as atoms on the canvas above, read as a table: which '
+                                          'Runtime (hwnocode.Runtime catalog) each node resolved to. One row = one CGraphNode. Columns: '
+                                          'kind (c-atom = an atom instance; class/parser/frame/tick/rule = the glue\'s own generated main/'
+                                          'ISRs, read-only on the canvas), runtime (always c-device here — RULE 2, a CGraph never holds '
+                                          'anything else), isr_safe/pure (carried from the atom).',
+                              columns='name,kind,atom,stage,runtime,isr_safe,pure,role',
+                              column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph')], min_height=200),
+              _row(2, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
                               'palette node, then type one of these names into its overlay to wire it)', 'CFunctionAtom',
                               description='What this is for: which atoms a dropped "C Atom" node can be pointed at. One row = one atom of '
                                           'the project uno-sim-rig-graph is drawn over. Columns: same as /display/c-atoms\' atoms table.',
                               columns='name,kind,signature,ports_summary,resources_summary,isr_safe,role',
                               filter_field='project', filter_value='uno')], min_height=240),
-              _row(2, [_table('c-canvas-targets', 0, 12, 'Target definitions — what each port or memory-field write actually controls, '
+              _row(3, [_table('c-canvas-targets', 0, 12, 'Target definitions — what each port or memory-field write actually controls, '
                               'derived from the atoms\' annotations/resources and matched against the board\'s BoardPin rows; unbound is '
                               'allowed and marked', 'TargetDefinition',
                               description='What this is for: the badges shown on the canvas, as a table. One row = one port (or field write) '
@@ -145,7 +156,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'structural field edge).',
                               columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
                               column_formats='graph:ref:CGraph')], min_height=320),
-              _row(3, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked example: '
+              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked example: '
                               '"temperature sensor solution"), with the targets it requires and the fields it exposes', 'CapabilityDefinition',
                               description='What this is for: a TEMPLATE capability, generalized from targets. One row = one capability. '
                                           'Columns: required_targets (the port_refs it needs bound), exposes_fields (what it makes available '
