@@ -44,33 +44,48 @@ KNOBS = {'window': 5, 'threshold_c': 25.0, 'keep': 600}
 #: stateInstances is non-empty (this is what "an empty canvas, Solution uno-temp-split" actually was —
 #: a seed-shape gap, not a rendering bug). Shapes/sizes mirror the AdditionTester seed convention
 #: (polariApiServer/solutionSeedData.py): circle/diamond for decision points, rectangle otherwise.
+#:
+#: selfix round 3 (2026-10-05): the FIRST pass used stateSvgSizeX/stateSvgSizeY for rectangles —
+#: a field RectangleStateLayer.ts never reads. It reads stateSvgWidth/stateSvgHeight/cornerRadius
+#: (falling back to stateSvgRadius, then a hard-coded 20px) — exactly AdditionTester's own
+#: rectangle states' fields (`"stateSvgWidth": 120, "stateSvgHeight": 80, "cornerRadius": 8`). That
+#: gap is why 7 of 8 states drew as a bare 20×20 stub (only the slot dots) — only `over?`
+#: (diamond, which DOES read stateSvgRadius) drew correctly. Every node also gets a plain-words
+#: `displayName` in boundObjectFieldValues, matching every other seed's convention.
 _LAYOUT = {
-    'sim-rig':    {'x': 80,   'y': 280, 'shape': 'rectangle', 'color': '#5D4037'},  # c-device (board)
-    'uno-twin':   {'x': 320,  'y': 280, 'shape': 'rectangle', 'color': '#6D4C41'},  # java-bridge (split point)
-    'on-temp':    {'x': 560,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0'},  # python-backend
-    'moving-avg': {'x': 800,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0'},
-    'over?':      {'x': 1040, 'y': 280, 'shape': 'diamond',   'color': '#4CAF50'},
-    'flag-on':    {'x': 1280, 'y': 180, 'shape': 'rectangle', 'color': '#4CAF50'},
-    'flag-off':   {'x': 1280, 'y': 380, 'shape': 'rectangle', 'color': '#F44336'},
-    'commit':     {'x': 1520, 'y': 280, 'shape': 'rectangle', 'color': '#FF9800'},
+    'sim-rig':    {'x': 80,   'y': 280, 'shape': 'rectangle', 'color': '#5D4037', 'label': 'UNO sim-rig (C, on-device)'},
+    'uno-twin':   {'x': 320,  'y': 280, 'shape': 'rectangle', 'color': '#6D4C41', 'label': 'uno-twin (split point)'},
+    'on-temp':    {'x': 560,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0', 'label': 'SimRigState.temp_c changed'},
+    'moving-avg': {'x': 800,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0', 'label': 'Moving average (temp_avg)'},
+    'over?':      {'x': 1040, 'y': 280, 'shape': 'diamond',   'color': '#4CAF50', 'label': 'Over threshold?'},
+    'flag-on':    {'x': 1280, 'y': 180, 'shape': 'rectangle', 'color': '#4CAF50', 'label': 'Flag on'},
+    'flag-off':   {'x': 1280, 'y': 380, 'shape': 'rectangle', 'color': '#F44336', 'label': 'Flag off'},
+    'commit':     {'x': 1520, 'y': 280, 'shape': 'rectangle', 'color': '#FF9800', 'label': 'Commit SimRigTempDerived'},
 }
 
 
 def _lay_out(definition):
-    """Decorate every stateInstance with the canvas fields the Angular NoCodeState constructor
-    requires (positions, shape, svg name/size, a lane colour) — see _LAYOUT's docstring above."""
+    """Decorate every stateInstance with the canvas fields the Angular NoCodeState/RectangleStateLayer/
+    DiamondStateLayer rendering actually reads (positions, shape, the RIGHT size fields per shape,
+    a lane colour, a display label) — see _LAYOUT's docstring above."""
     for s in definition.get('stateInstances') or []:
-        spot = _LAYOUT.get(s.get('stateName'), {'x': 80, 'y': 80, 'shape': 'rectangle', 'color': '#9E9E9E'})
+        spot = _LAYOUT.get(s.get('stateName'),
+                           {'x': 80, 'y': 80, 'shape': 'rectangle', 'color': '#9E9E9E', 'label': s.get('stateName', '')})
         s['stateLocationX'], s['stateLocationY'] = spot['x'], spot['y']
         s['shapeType'] = s['stateSvgName'] = spot['shape']
         s['layerName'] = '%s-layer' % spot['shape']
         s['backgroundColor'] = spot['color']
         s['slotRadius'] = 5
         if spot['shape'] == 'diamond':
-            s['stateSvgRadius'], s['stateSvgSizeX'], s['stateSvgSizeY'] = 70, None, None
+            s['stateSvgRadius'] = 70
+            s['stateSvgSizeX'] = s['stateSvgSizeY'] = None
         else:
+            s['stateSvgWidth'], s['stateSvgHeight'], s['cornerRadius'] = 160, 90, 8
             s['stateSvgRadius'] = None
-            s['stateSvgSizeX'], s['stateSvgSizeY'] = 160, 90
+            s['stateSvgSizeX'] = s['stateSvgSizeY'] = None
+        fields = dict(s.get('boundObjectFieldValues') or {})
+        fields.setdefault('displayName', spot['label'])
+        s['boundObjectFieldValues'] = fields
     return definition
 
 

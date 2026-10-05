@@ -308,14 +308,30 @@ def seeds_page_api():
     # seeded canvas SolutionDefinition's states must carry a real position from here on.
     sol_defs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'SolutionDefinition' for r in rows]
     no_position = []
+    no_render_fields = []
     for row in sol_defs:
         d = json.loads(row['definition'])
         for s in d.get('stateInstances') or []:
+            tag = '%s:%s' % (d['solutionName'], s.get('stateName'))
             if s.get('stateLocationX') is None or s.get('stateLocationY') is None or not s.get('shapeType'):
-                no_position.append('%s:%s' % (d['solutionName'], s.get('stateName')))
+                no_position.append(tag)
+            # selfix round 3 (2026-10-05): a position + shapeType alone is NOT enough — his
+            # evidence from the live canvas: 7 of 8 uno-temp-split states drew as a bare 20×20
+            # stub (RectangleStateLayer.ts falls back to stateSvgWidth ?? stateSvgRadius ?? 20;
+            # the first pass set stateSvgSizeX/Y, a field that layer never reads). Every rendered
+            # shape needs: a real size (rectangle: stateSvgWidth/stateSvgHeight; diamond/circle:
+            # stateSvgRadius), a backgroundColor (the lane colour), and a displayName (the label).
+            size_ok = (s.get('stateSvgRadius') is not None if s['shapeType'] in ('diamond', 'circle')
+                       else s.get('stateSvgWidth') is not None and s.get('stateSvgHeight') is not None)
+            if not size_ok or not s.get('backgroundColor') or not (s.get('boundObjectFieldValues') or {}).get('displayName'):
+                no_render_fields.append(tag)
     check('every state of every seeded canvas SolutionDefinition (the whole solution + its backend '
           'half) carries a real stateLocationX/Y + shapeType — never left for the canvas to land at NaN',
           not no_position, no_position)
+    check('every seeded state has the fields the canvas renders: a real size for its OWN shape kind '
+          '(stateSvgWidth/Height for rectangle, stateSvgRadius for diamond/circle — not the unread '
+          'stateSvgSizeX/Y), a lane backgroundColor, and a displayName label',
+          not no_render_fields, no_render_fields)
 
     trig = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'EventTrigger' for r in rows][0]
     check('the trigger runs the BACKEND half on SimRigState uno-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
