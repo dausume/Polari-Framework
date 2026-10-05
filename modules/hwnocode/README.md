@@ -35,8 +35,9 @@ the POLARI_NODE role — the cmod `blocking` verdict is hn-1, radios, ISR-shared
 ## The split app `uno-temp-split` (variant h over the existing peripheral, variant b)
 
 ```
-sim-rig      HardwareSubgraph → CGraph uno-sim-rig-graph (UNCHANGED)                     twin   (C, 18 CGraph nodes below it)
-uno-twin     HardwareInterface → binding uno-temp-split/SimRigState/0 (the twin's pty)  bridge (the split point)
+sim-rig           HardwareSubgraph → CGraph uno-sim-rig-graph (UNCHANGED)               twin   (C, 18 CGraph nodes below it)
+uno-digital-twin  HardwareInterface → binding uno-temp-split/SimRigState/0              bridge (the split point: the twin's
+                  (HARDWARE_MODE knob: the twin's pty, or the detected board's serial)          pty, or a detected board)
 on-temp      BackendStateChange  SimRigState update                                     backend ┐ the backend half =
 moving-avg   AnalysisCall  hwnocode-temp-derive (ring + moving average over `window`)   backend │ uno-temp-split.backend,
 over?        ConditionalChain  temp_avg > threshold_c                                   backend │ run per frame by the

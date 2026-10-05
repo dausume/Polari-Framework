@@ -3,9 +3,10 @@
 
 The code-owned rows of hn-0, as dicts (hwnocode_seed upserts them): the HardwareSolution `uno-temp-split`, its canvas
 SolutionDefinition + the backend half hn-split derives, the AnalysisDefinition + EventTrigger that run the backend half per frame,
-the HardwareInterfaceBinding that IS its hw-interface node (a grpcbridge row: SimRigState `uno-twin` ↔ the UNO twin's pty on bridge
-`uno-temp-split`), and one HardwareNodePlacement row per node. Derived fields come from the placement (pure Python — no engine) and
-the split's committed record (custom/splits/<solution>.json); nothing is rendered or built at boot.
+the HardwareInterfaceBinding that IS its hw-interface node (a grpcbridge row: SimRigState `uno-digital-twin` ↔ the UNO twin's pty
+— or the detected board's serial port in hardware mode — on bridge `uno-temp-split`), and one HardwareNodePlacement row per node.
+Derived fields come from the placement (pure Python — no engine) and the split's committed record
+(custom/splits/<solution>.json); nothing is rendered or built at boot.
 """
 import json
 
@@ -14,12 +15,12 @@ from hwnocode.custom import solutions as S
 SOLUTIONS = [{
     'name': S.SOLUTION, 'title': 'UNO temperature, split across board, bridge, backend and screen',
     'purpose': ('Variant h over the existing peripheral (variant b): the sim-rig firmware (a cmod graph, byte-identical to the shipped '
-                'app) sends SimRigState frames at 10 Hz; the bridge applies them to the uno-twin row; a backend solution keeps a moving '
-                'average of temp_c and flags it above a threshold on SimRigTempDerived; /display/hardware-solutions charts both. A PUT of '
-                'led_on on the row rides the Commands stream back down to the firmware.'),
+                'app) sends SimRigState frames at 10 Hz; the bridge applies them to the uno-digital-twin row; a backend solution keeps '
+                'a moving average of temp_c and flags it above a threshold on SimRigTempDerived; /display/hardware-solutions charts '
+                'both. A PUT of led_on on the row rides the Commands stream back down to the firmware.'),
     'variant_kind': 'h', 'solution': S.SOLUTION, 'backend_solution': '%s.backend' % S.SOLUTION, 'cgraph': S.CGRAPH,
-    'board_definition': S.BOARD, 'board_instance': S.TWIN_INSTANCE, 'interface': S.BINDING, 'displays': S.DISPLAY,
-    'firmware_runtime': 'bare-c', 'notes': ''}]
+    'board_definition': S.BOARD, 'board_instance': S.ROUTE['board_instance'], 'interface': S.BINDING, 'displays': S.DISPLAY,
+    'firmware_runtime': 'bare-c', 'hardware_mode': S.ROUTE['mode'], 'route_report': S.ROUTE['route_report'], 'notes': ''}]
 
 
 def definition_of(name):
@@ -57,7 +58,8 @@ def solution_rows():
         for i, n in enumerate(rep['nodes']):
             places.append({'name': '%s:%s:%s' % (hs['name'], n['layer'], n['node']), 'solution': hs['name'], 'node': n['node'],
                            'layer': n['layer'], 'kind': n['kind'], 'placement': n['placement'], 'language': n['language'],
-                           'why': n['why'], 'refused': n['refused'], 'order': i, 'runtime': n.get('runtime', ''), 'notes': ''})
+                           'why': n['why'], 'refused': n['refused'], 'order': i, 'runtime': n.get('runtime', ''),
+                           'purpose': n.get('purpose', ''), 'notes': ''})
     return sols, places
 
 
@@ -89,7 +91,7 @@ ANALYSES = [{
     'enabled': True, 'is_prior': True, 'provenance_id': '', 'notes': ''}]
 
 TRIGGERS = [{
-    'name': S.TRIGGER, 'description': 'every frame the bridge applies to the uno-twin SimRigState row → the backend half of uno-temp-split',
+    'name': S.TRIGGER, 'description': 'every frame the bridge applies to the uno-digital-twin SimRigState row → the backend half of uno-temp-split',
     'enabled': True, 'source_kind': 'object',
     'source_json': json.dumps({'class': S.OBJECT_CLASS, 'operations': ['update', 'create'], 'fieldFilter': {'name': S.OBJECT_NAME}}),
     'solution_name': '%s.backend' % S.SOLUTION,
@@ -98,7 +100,7 @@ TRIGGERS = [{
 
 BINDINGS = [{
     'name': S.BINDING, 'bridge_name': S.BRIDGE, 'object_class': S.OBJECT_CLASS, 'object_name': S.OBJECT_NAME,
-    'board_instance': S.TWIN_INSTANCE, 'board_definition': S.BOARD, 'interface_kind': 'twin-pty', 'interface_name': 'usart0',
-    'port': S.TWIN_LINK, 'adapter': '', 'instance_index': 0, 'wire_version': 2, 'origin': 'seeded',
+    'board_instance': S.ROUTE['board_instance'], 'board_definition': S.BOARD, 'interface_kind': S.ROUTE['interface_kind'],
+    'interface_name': 'usart0', 'port': S.ROUTE['port'], 'adapter': '', 'instance_index': 0, 'wire_version': 2, 'origin': 'seeded',
     'notes': 'uno-temp-split\'s hw-interface node (hn-0): the sim-rig glue on the simavr twin, USART0 at the twin\'s pty link '
              '(pol board twin uno up --work <hwnocode work>); one instance on the bridge → no index on the wire'}]

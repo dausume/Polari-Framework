@@ -3,7 +3,7 @@
 
 THE hn-0 ROWS (HARDWARE_NOCODE_PLAN.md §7 hn-0): the HardwareSolution `uno-temp-split` + one HardwareNodePlacement per node (the
 placement is derived here — pure Python, no engine), its canvas SolutionDefinition and the backend half hn-split derives
-(`uno-temp-split.backend`), the AnalysisDefinition + EventTrigger that run that half on every SimRigState frame of `uno-twin`, and
+(`uno-temp-split.backend`), the AnalysisDefinition + EventTrigger that run that half on every SimRigState frame of `uno-digital-twin`, and
 the grpcbridge HardwareInterfaceBinding that IS its hw-interface node, and the GraphDefinition the page's chart renders. Code-owned (re-seed → they follow the code) except the
 hand-set fields: `firmware_runtime` (the person's knob, D-hn-3), titles and notes; the trigger's knobs (`inputs_json`) and
 `enabled` stay as the instance has them.

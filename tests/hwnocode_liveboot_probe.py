@@ -77,6 +77,21 @@ def main():
     check('GET /Runtime -> 6 rows %s' % names, r.status_code == 200 and n('Runtime') == 6 and len(rows) == 6
           and set(names) == {'python-backend', 'typescript-browser', 'c-device', 'c-twin', 'java-bridge', 'javafx-native'},
           'status=%s body=%s' % (r.status_code, r.text[:300]))
+    # selfix 2026-10-05: the renamed state + its purposes on the LIVE payload (not just the seed dict in-process) — his
+    # ask ("call it uno-digital-twin so it is clear" + the 8 states' plain-words purposes) must survive a real boot.
+    r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/placement')
+    live_nodes = {row['node']: row for row in (r.json or {}).get('nodes', []) if row.get('layer') == 'solution'}
+    check('the live placement payload carries the renamed state `uno-digital-twin` (not `uno-twin`) as the bridge node',
+          'uno-digital-twin' in live_nodes and 'uno-twin' not in live_nodes and live_nodes['uno-digital-twin']['placement'] == 'bridge',
+          sorted(live_nodes))
+    missing_purpose = [name for name, row in live_nodes.items() if not row.get('purpose')]
+    check('every live solution-layer node (all 8 states) carries its purpose sentence', not missing_purpose, missing_purpose)
+    hwi_binding = next((row for row in (t.get('HardwareInterfaceBinding') or {}).values() if row.name == 'uno-temp-split/SimRigState/0'), None)
+    check('the live HardwareInterfaceBinding row is bound to the renamed object `uno-digital-twin`',
+          hwi_binding is not None and hwi_binding.object_name == 'uno-digital-twin')
+    hs_row = next(iter((t.get('HardwareSolution') or {}).values()), None)
+    check('the live HardwareSolution row shows the HARDWARE_MODE knob (default digital-twin) and its route report',
+          hs_row is not None and hs_row.hardware_mode == 'digital-twin' and 'pty' in hs_row.route_report)
     print('\n%d/%d hwnocode live-boot checks passed' % (sum(results), len(results)))
     return 0 if all(results) else 1
 

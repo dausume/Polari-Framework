@@ -40,8 +40,8 @@ def placement_on_seed():
           r['counts'] == {'twin': 19, 'bridge': 1, 'backend': 6, 'browser': 1} and not r['refusals'], (r['counts'], r['refusals']))
     check('every node carries a placement from the rule\'s set and a why', all(n['placement'] in PL.PLACEMENTS and n['why'] for n in r['nodes']))
     br = [n for n in r['nodes'] if n['placement'] == 'bridge']
-    check('the ONLY bridge node is the hw-interface `uno-twin` (binding uno-temp-split/SimRigState/0) — the split point',
-          [(n['node'], n['kind']) for n in br] == [('uno-twin', 'hw-interface')] and 'uno-temp-split/SimRigState/0' in br[0]['why'])
+    check('the ONLY bridge node is the hw-interface `uno-digital-twin` (binding uno-temp-split/SimRigState/0) — the split point',
+          [(n['node'], n['kind']) for n in br] == [('uno-digital-twin', 'hw-interface')] and 'uno-temp-split/SimRigState/0' in br[0]['why'])
     check('the device is the TWIN (no BoardInstance attached: twin:arduino-uno-r3#0) and every subgraph node is C',
           r['target'] == 'twin' and all(n['language'] == 'C' for n in r['nodes'] if n['layer'] == 'subgraph'))
     check('the backend nodes are the engine\'s existing kinds, in Python: BackendStateChange, AnalysisCall, ConditionalChain, '
@@ -75,10 +75,10 @@ def refusals():
     from hwnocode.custom import split as SP
     from polariNoCode import graph_builder as GB
     p = _parts()
-    # 1. a Python node dropped on the board side: sim-rig → smooth (AnalysisCall) → uno-twin
+    # 1. a Python node dropped on the board side: sim-rig → smooth (AnalysisCall) → uno-digital-twin
     d = copy.deepcopy(p['definition'])
     GB.wire(_state(d, 'sim-rig'), 0, 'smooth-on-board')
-    d['stateInstances'].append(GB.node('smooth-on-board', 'AnalysisCall', {'analysis': 'hwnocode-temp-derive'}, outs=[['uno-twin']]))
+    d['stateInstances'].append(GB.node('smooth-on-board', 'AnalysisCall', {'analysis': 'hwnocode-temp-derive'}, outs=[['uno-digital-twin']]))
     r = PL.place(d, p['cgraph'], 'twin:arduino-uno-r3#0')
     msg = ' '.join(r['refusals'])
     check('a Python node (AnalysisCall) wired on the DEVICE side is REFUSED naming it and RULE 2, with the alternative (move it across '
@@ -94,7 +94,7 @@ def refusals():
     # 2. the hw-interface removed: sim-rig wired straight to the BackendStateChange
     d2 = copy.deepcopy(p['definition'])
     GB.wire(_state(d2, 'sim-rig'), 0, 'on-temp')
-    d2['stateInstances'] = [s for s in d2['stateInstances'] if s['stateName'] != 'uno-twin']
+    d2['stateInstances'] = [s for s in d2['stateInstances'] if s['stateName'] != 'uno-digital-twin']
     r2 = PL.place(d2, p['cgraph'], 'twin:arduino-uno-r3#0')
     m2 = ' '.join(r2['refusals'])
     check('no hw-interface on the crossing: edge sim-rig → on-temp refused (rule 3) and the whole backend chain lands on the device side',
@@ -110,7 +110,7 @@ def refusals():
     # 4. a loose c-atom on the solution canvas
     d4 = copy.deepcopy(p['definition'])
     d4['stateInstances'].append(GB.node('blink', 'CAtom', {'atom': 'uno:hal.hal_led'}, outs=[[]]))
-    GB.wire(_state(d4, 'sim-rig'), 0, 'uno-twin', 'blink')
+    GB.wire(_state(d4, 'sim-rig'), 0, 'uno-digital-twin', 'blink')
     r4 = PL.place(d4, p['cgraph'], 'twin:arduino-uno-r3#0')
     try:
         SP.compile_parts(dict(p, definition=d4))
@@ -228,7 +228,7 @@ def backend_half_in_engine():
     temps = [24.0, 24.0, 24.5, 25.0, 26.0, 27.0, 27.0, 23.0]
     flags, avgs, statuses = [], [], []
     for i, t in enumerate(temps):
-        params = {'instance.name': 'uno-twin', 'instance.temp_c': t, 'instance.uptime_ms': 100 * i, 'window': 3, 'threshold_c': 25.0, 'keep': 4}
+        params = {'instance.name': 'uno-digital-twin', 'instance.temp_c': t, 'instance.uptime_ms': 100 * i, 'window': 3, 'threshold_c': 25.0, 'keep': 4}
         tr = execute(backend, manager=mgr, params=params)
         statuses.append(tr.status)
         d = next(iter(mgr.objectTables['SimRigTempDerived'].values()))
@@ -245,7 +245,7 @@ def backend_half_in_engine():
           len(ring) == 4 and max(r.seq for r in ring.values()) == 7 and next(iter(mgr.objectTables['SimRigTempDerived'].values())).samples == 8,
           (len(ring), sorted(r.seq for r in ring.values())))
     from hwnocode.custom.derive import chart_rows
-    rows = chart_rows(mgr, 'uno-twin')
+    rows = chart_rows(mgr, 'uno-digital-twin')
     check('the chart rows = the ring oldest first (seq 4..7) with uptime_s, temp_c, temp_avg', [r['seq'] for r in rows] == [4, 5, 6, 7]
           and set(rows[0]) >= {'uptime_s', 'temp_c', 'temp_avg'}, rows[:1])
     fc = final_context_of(tr)
@@ -334,8 +334,8 @@ def seeds_page_api():
           not no_render_fields, no_render_fields)
 
     trig = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'EventTrigger' for r in rows][0]
-    check('the trigger runs the BACKEND half on SimRigState uno-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
-          'the instance\'s', trig['solution_name'] == 'uno-temp-split.backend' and json.loads(trig['source_json'])['fieldFilter'] == {'name': 'uno-twin'}
+    check('the trigger runs the BACKEND half on SimRigState uno-digital-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
+          'the instance\'s', trig['solution_name'] == 'uno-temp-split.backend' and json.loads(trig['source_json'])['fieldFilter'] == {'name': 'uno-digital-twin'}
           and 'inputs_json' not in trig['_converge'])
     hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareSolution' for r in rows][0]
     check('firmware_runtime is NOT converged by a re-seed (the person\'s knob)', 'firmware_runtime' not in hs['_converge'])
@@ -385,10 +385,63 @@ def seeds_page_api():
     check('GET …/chart with no samples → ok false + a plain refusal (named-graph-panel renders it verbatim)', r.status_code == 200
           and r.json['ok'] is False and 'no samples yet' in r.json['refusal'])
     r = c.simulate_get('/api/hwnocode/interface', params={'binding': 'uno-temp-split/SimRigState/0'})
-    check('GET /api/hwnocode/interface?binding=… → the binding (row uno-twin, the twin\'s pty), placement bridge', r.status_code == 200
-          and r.json['binding']['object_name'] == 'uno-twin' and r.json['placement'] == 'bridge', r.text[:200])
+    check('GET /api/hwnocode/interface?binding=… → the binding (row uno-digital-twin, the twin\'s pty), placement bridge', r.status_code == 200
+          and r.json['binding']['object_name'] == 'uno-digital-twin' and r.json['placement'] == 'bridge', r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/nope')
     check('an unknown solution → 404 in plain words', r.status_code == 404 and 'no HardwareSolution' in r.json['error'])
+
+
+def connectors_and_hardware_mode():
+    """selfix 2026-10-05: (1) every seeded edge of uno-temp-split's canvas resolves BOTH endpoints and carries the
+    fields RectangleStateLayer/DiamondStateLayer's renderCachedConnectors actually reads (slot.index, connector.id/
+    sourceSlot/sinkSlot) — the AdditionTester-seed convention hn-0's own seed now matches (_wire_connectors); (2) the
+    HARDWARE_MODE knob: default digital-twin, the one route a person can read back on the HardwareSolution row and in
+    the hw-interface node's own fields/why."""
+    from hwnocode.custom import solutions as S
+    from hwnocode.custom import knobs as K
+    d = S.split_app_definition()
+    names = {s['stateName'] for s in d['stateInstances']}
+    unresolved, missing_fields = [], []
+    n_edges = 0
+    for s in d['stateInstances']:
+        for slot in s['slots']:
+            if 'index' not in slot:
+                missing_fields.append('%s: slot missing index' % s['stateName'])
+            for c in slot.get('connectors') or []:
+                n_edges += 1
+                if c.get('targetStateName') not in names:
+                    unresolved.append('%s -> %s' % (s['stateName'], c.get('targetStateName')))
+                if 'id' not in c or 'sourceSlot' not in c or 'sinkSlot' not in c:
+                    missing_fields.append('%s -> %s: connector missing id/sourceSlot/sinkSlot' % (s['stateName'], c.get('targetStateName')))
+    check('uno-temp-split has 8 seeded edges, every one with BOTH endpoints resolvable', n_edges == 8 and not unresolved, (n_edges, unresolved))
+    check('…and every slot/connector carries the renderer fields the canvas actually reads (index/id/sourceSlot/sinkSlot) '
+          '— not just the first edge', not missing_fields, missing_fields)
+    check('every one of the 8 states has a non-empty purpose (his question: "not clear what the backend state change is '
+          'for... not sure what the analysis call is")',
+          all((s.get('boundObjectFieldValues') or {}).get('purpose') for s in d['stateInstances']),
+          [s['stateName'] for s in d['stateInstances'] if not (s.get('boundObjectFieldValues') or {}).get('purpose')])
+    hwi = _state(d, 'uno-digital-twin')
+    check('the state `uno-digital-twin` (renamed from uno-twin) is the hw-interface, bound to the TWIN by default',
+          hwi['boundObjectClass'] == 'HardwareInterface' and hwi['boundObjectFieldValues']['hardware_mode'] == 'digital-twin'
+          and hwi['boundObjectFieldValues']['board_instance'] == S.TWIN_INSTANCE)
+    check('HWNOCODE_HARDWARE_MODE knob: default digital-twin; an unrecognized value never raises, falls back to digital-twin',
+          K.hardware_mode() == 'digital-twin')
+    import os
+    old = os.environ.get('HWNOCODE_HARDWARE_MODE')
+    try:
+        os.environ['HWNOCODE_HARDWARE_MODE'] = 'hardware'
+        check('…set to hardware, the knob reads it back', K.hardware_mode() == 'hardware')
+        os.environ['HWNOCODE_HARDWARE_MODE'] = 'not-a-mode'
+        check('…an unknown value refuses silently to the default, never crashes', K.hardware_mode() == 'digital-twin')
+    finally:
+        if old is None:
+            os.environ.pop('HWNOCODE_HARDWARE_MODE', None)
+        else:
+            os.environ['HWNOCODE_HARDWARE_MODE'] = old
+    from hwnocode.hwnocode_seed import HWNOCODE_SEED_PAIRS
+    hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareSolution' for r in rows][0]
+    check('the HardwareSolution row shows the knob + which route it took (a described row on the page)',
+          hs['hardware_mode'] == 'digital-twin' and 'twin' in hs['route_report'] and 'pty' in hs['route_report'])
 
 
 def manifest_conform():
@@ -403,7 +456,7 @@ def manifest_conform():
 def main():
     print('hwnocode selftest (hn-0)')
     for part in (placement_on_seed, runtimes_demo_4b, refusals, subgraph_reference, knob_refusals, suggestion_fixtures,
-                 backend_half_in_engine, palette_metadata, seeds_page_api, manifest_conform):
+                 backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode, manifest_conform):
         print('-- %s' % part.__name__)
         try:
             part()

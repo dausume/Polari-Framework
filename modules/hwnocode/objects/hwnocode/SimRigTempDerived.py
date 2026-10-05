@@ -20,7 +20,7 @@ class SimRigTempDerived(treeObject):
     def __init__(self, name: str = '', solution: str = '', temp_avg: float = 0.0, over_threshold: bool = False,
                  threshold_c: float = 25.0, window: int = 5, samples: int = 0, last_uptime_ms: int = 0, last_temp_c: float = 0.0,
                  updated_at: str = '', manager=None):
-        self.name = name                # = the SimRigState row's name (uno-twin)
+        self.name = name                # = the SimRigState row's name (uno-digital-twin)
         self.solution = solution
         self.temp_avg = temp_avg
         self.over_threshold = over_threshold

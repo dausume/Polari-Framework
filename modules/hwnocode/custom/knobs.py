@@ -9,10 +9,25 @@ nothing more). hn-0 renders ONE target — bare C, cmod-glue's main loop + ISRs 
   an RTOS    on an S-class board (UNO: 2 KB RAM) refused for the RAM (plan §3 rule 1: a kernel + per-task stacks do not fit);
              elsewhere refused as not-yet-a-graph-target (the task/queue/mutex glue target is hn-5; Zephyr on the C3, D-hn-5;
              ESP-IDF runs today only as sc-3's hand-written template, not from a graph)
+
+THE `HARDWARE_MODE` KNOB (his 2026-10-05 message: "a configuration based conditional... digital twin route when the
+configuration is in one mode, and [hardware] route in the other case"): same idiom as every other env-var knob in this
+forest (board.custom.installer.TWIN_LINK/TWIN_TCP, board.custom.twin_pty.DEFAULT_LINK) — an environment variable, read
+once at import, with a sane default; never silently coerced to something outside its two values.
 """
+import os
 
 RUNTIMES = ('bare-c', 'freertos', 'esp-idf', 'zephyr')
 SUPPORTED = ('bare-c',)
+
+HARDWARE_MODES = ('digital-twin', 'hardware')
+
+
+def hardware_mode():
+    """'digital-twin' (default) | 'hardware' — HWNOCODE_HARDWARE_MODE env var. An unrecognized value is treated as the
+    default and never raises (a knob refuses loud only where it picks something consequential; this one just routes)."""
+    v = str(os.environ.get('HWNOCODE_HARDWARE_MODE', 'digital-twin')).strip() or 'digital-twin'
+    return v if v in HARDWARE_MODES else 'digital-twin'
 
 
 def memory_class(board_row):

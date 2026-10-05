@@ -20,7 +20,7 @@ class SimRigTempSample(treeObject):
     def __init__(self, name: str = '', source_object: str = '', seq: int = 0, slot: int = 0, uptime_ms: int = 0,
                  temp_c: float = 0.0, temp_avg: float = 0.0, window: int = 0, written_at: str = '', manager=None):
         self.name = name                    # <source_object>#<slot>
-        self.source_object = source_object  # the SimRigState row (uno-twin)
+        self.source_object = source_object  # the SimRigState row (uno-digital-twin)
         self.seq = seq                      # 0.. — the sample counter (slot = seq % keep)
         self.slot = slot
         self.uptime_ms = uptime_ms          # the firmware's clock in the frame

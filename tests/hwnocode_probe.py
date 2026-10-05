@@ -192,7 +192,7 @@ def main(argv):
                               contract_hash=pinned['contract_hash'], proto_text='', field_map_json=json.dumps(pinned['field_map']),
                               generated_at='', reason='initial', notes='restored from the pinned v2 snapshot the firmware was generated from (hn-0 probe)')
     manager.db.saveInstanceInDB(v1)
-    row = SimRigState(manager=manager, name='uno-twin', uptime_ms=0, temp_c=0.0, pwm_duty=0, led_on=False, status='seeded')
+    row = SimRigState(manager=manager, name='uno-digital-twin', uptime_ms=0, temp_c=0.0, pwm_duty=0, led_on=False, status='seeded')
     manager.db.saveInstanceInDB(row)
     st = set_status_knob(manager, 'SimRigState', 'stabilize')
     exp = http('POST', api + '/api/grpc/exposures/SimRigState', {'action': 'enable'})
@@ -244,13 +244,13 @@ def main(argv):
         # ---- 5. the backend half at 10 Hz
         def row_now():
             for v in (manager.objectTables.get('SimRigState') or {}).values():
-                if getattr(v, 'name', '') == 'uno-twin':
+                if getattr(v, 'name', '') == 'uno-digital-twin':
                     return {k: getattr(v, k) for k in ('uptime_ms', 'temp_c', 'pwm_duty', 'led_on', 'status')}, v
             return {}, None
 
         def derived_now():
             for v in (manager.objectTables.get('SimRigTempDerived') or {}).values():
-                if v.name == 'uno-twin':
+                if v.name == 'uno-digital-twin':
                     return {k: getattr(v, k) for k in ('temp_avg', 'over_threshold', 'samples', 'last_temp_c', 'last_uptime_ms', 'window', 'threshold_c')}
             return {}
 
@@ -314,7 +314,7 @@ def main(argv):
                              'fired_ok': ok_fired, 'span_s': round(span, 2), 'samples_seen': seen[::5], 'derived_last': dz,
                              'firing_errors': sorted({f.error[:160] for f in fired if f.status != 'fired'})[:3]}
         # the avg is the 5-sample moving average of the samples the ring holds
-        ring = sorted((x for x in (manager.objectTables.get('SimRigTempSample') or {}).values() if x.source_object == 'uno-twin'), key=lambda x: x.seq)
+        ring = sorted((x for x in (manager.objectTables.get('SimRigTempSample') or {}).values() if x.source_object == 'uno-digital-twin'), key=lambda x: x.seq)
         last5 = ring[-5:]
         want = sum(x.temp_c for x in last5) / len(last5) if last5 else None
         check('the newest sample\'s temp_avg = the mean of the last 5 temp_c in the ring (%s)' % (want and round(want, 4)),

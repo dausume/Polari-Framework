@@ -73,9 +73,9 @@ def device_target(board_instance, manager=None):
     return 'twin', 'BoardInstance %s is not attached here — the simavr twin stands in (same .hex)' % bi
 
 
-def _node(layer, node, kind, placement, language, why, refused=False):
+def _node(layer, node, kind, placement, language, why, refused=False, purpose=''):
     return {'layer': layer, 'node': node, 'kind': kind, 'placement': placement, 'language': language, 'why': why,
-            'refused': bool(refused), 'runtime': runtime_for_kind(kind, placement, refused)}
+            'refused': bool(refused), 'runtime': runtime_for_kind(kind, placement, refused), 'purpose': purpose}
 
 
 def place(definition, cgraph_rows=None, board_instance='', displays=(), manager=None, trigger=''):
@@ -118,16 +118,17 @@ def place(definition, cgraph_rows=None, board_instance='', displays=(), manager=
             else:
                 why = ('c-atom %s — C on the device (%s); in hn-0 a c-atom renders only inside a HardwareSubgraph\'s CGraph rows'
                        % (fv.get('atom', '?'), where_why))
-            nodes.append(_node('solution', name, DEVICE_KINDS[cls], where, 'C', why))
+            nodes.append(_node('solution', name, DEVICE_KINDS[cls], where, 'C', why, purpose=fv.get('purpose', '')))
         elif cls in SPLIT_KINDS:
             near = sorted(adj[name])
             dev_n = [x for x in near if x in device]
             back_n = [x for x in near if x not in device and state_class(by[x]) not in SPLIT_KINDS]
             why = ('THE SPLIT POINT: binding %s ties %s/%s to %s at %s on bridge %s; the generated Java bridge decodes frames UP and '
-                   'routes Commands DOWN (device side: %s · backend side: %s)'
+                   'routes Commands DOWN (device side: %s · backend side: %s)%s'
                    % (fv.get('binding', '?'), fv.get('object_class', '?'), fv.get('object_name', '?'), fv.get('board_instance', '?'),
-                      fv.get('port', '?'), fv.get('bridge_name', '?'), ', '.join(dev_n) or 'none', ', '.join(back_n) or 'none'))
-            nodes.append(_node('solution', name, 'hw-interface', 'bridge', 'Java (generated bridge)', why))
+                      fv.get('port', '?'), fv.get('bridge_name', '?'), ', '.join(dev_n) or 'none', ', '.join(back_n) or 'none',
+                      (' — ' + fv['route_report']) if fv.get('route_report') else ''))
+            nodes.append(_node('solution', name, 'hw-interface', 'bridge', 'Java (generated bridge)', why, purpose=fv.get('purpose', '')))
         elif name in device:
             dev = origin.get(name, '?')
             via = next(('%s → %s' % (a, b) for a, b in edges if {a, b} & {name} and (a in device and b in device)), '')
@@ -135,14 +136,14 @@ def place(definition, cgraph_rows=None, board_instance='', displays=(), manager=
                    'microcontroller (RULE 2: C, Verilog or SystemVerilog only on a device) — move it across the hw-interface to the '
                    'backend, or write it in C as an atom (a person\'s job)' % (cls or '?', name, dev, via or 'an edge'))
             refusals.append(msg)
-            nodes.append(_node('solution', name, cls, 'refused', 'Python', msg, refused=True))
+            nodes.append(_node('solution', name, cls, 'refused', 'Python', msg, refused=True, purpose=fv.get('purpose', '')))
         elif cls in BROWSER_KINDS:
-            nodes.append(_node('solution', name, cls, 'browser', 'TypeScript (TS engine)', 'client-side state class → the browser\'s TS engine'))
+            nodes.append(_node('solution', name, cls, 'browser', 'TypeScript (TS engine)', 'client-side state class → the browser\'s TS engine', purpose=fv.get('purpose', '')))
         else:
             why = 'engine state class %s → the Python engine on the backend' % (cls or '?')
             if trigger:
                 why += ', fired by EventTrigger %s on each update of the bound row' % trigger
-            nodes.append(_node('solution', name, cls, 'backend', 'Python (engine)', why))
+            nodes.append(_node('solution', name, cls, 'backend', 'Python (engine)', why, purpose=fv.get('purpose', '')))
     # rule 3, stated per edge: a device node wired straight to a backend node
     for a, b in edges:
         ka, kb = state_class(by[a]), state_class(by[b])

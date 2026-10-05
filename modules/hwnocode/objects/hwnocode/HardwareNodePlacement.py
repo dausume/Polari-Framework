@@ -20,8 +20,8 @@ class HardwareNodePlacement(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', solution: str = '', node: str = '', layer: str = '', kind: str = '', placement: str = '',
-                 language: str = '', why: str = '', refused: bool = False, order: int = 0, runtime: str = '', notes: str = '',
-                 manager=None):
+                 language: str = '', why: str = '', refused: bool = False, order: int = 0, runtime: str = '', purpose: str = '',
+                 notes: str = '', manager=None):
         self.name = name            # <solution>:<layer>:<node>
         self.solution = solution
         self.node = node            # the state name (solution canvas) or the CGraphNode instance (subgraph)
@@ -33,4 +33,5 @@ class HardwareNodePlacement(treeObject):
         self.refused = refused
         self.order = order
         self.runtime = runtime      # demo-4b: one Runtime row name, derived from kind/placement (hwnocode.custom.runtimes)
+        self.purpose = purpose      # one plain-words sentence, layer=='solution' nodes only (hwnocode.custom.solutions.STATE_PURPOSES)
         self.notes = notes

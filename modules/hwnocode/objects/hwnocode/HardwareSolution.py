@@ -27,7 +27,7 @@ class HardwareSolution(treeObject):
                  interface: str = '', displays: str = '', firmware_runtime: str = 'bare-c', runtime_status: str = '',
                  placement_summary: str = '', node_count: int = 0, refused: str = '', split_sha256: str = '',
                  glue_files_sha256: str = '', glue_hex_sha256: str = '', status: str = '', proof: str = '', costs: str = '',
-                 notes: str = '', manager=None):
+                 hardware_mode: str = 'digital-twin', route_report: str = '', notes: str = '', manager=None):
         self.name = name
         self.title = title
         self.purpose = purpose
@@ -50,4 +50,6 @@ class HardwareSolution(treeObject):
         self.status = status                        # seeded | placed | rendered | built | proven
         self.proof = proof                          # the twin proof in words (hn-0)
         self.costs = costs                          # measured costs (the cost rule)
+        self.hardware_mode = hardware_mode          # KNOB (HWNOCODE_HARDWARE_MODE env var): digital-twin | hardware
+        self.route_report = route_report            # derived: which route the hw-interface actually took, and why
         self.notes = notes
