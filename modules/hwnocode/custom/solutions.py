@@ -35,6 +35,45 @@ GRAPH = 'hwnocode-uno-temp-split-temp'
 KNOBS = {'window': 5, 'threshold_c': 25.0, 'keep': 600}
 
 
+#: selfix 2026-10-05 (prf-urgent, dev-selfix): canvas layout for each node of split_app_definition()'s
+#: linear pipeline (one branch at `over?`, converging at `commit`). graph_builder.node() deliberately
+#: emits NO position/shape/svg fields (it's the shared parity-pinned DSL other domains build on too —
+#: never add canvas-only fields there), but the Angular canvas's NoCodeState constructor passes
+#: stateLocationX/Y, shapeType, stateSvgName and stateSvgRadius/SizeX/Y straight through with no
+#: fallback: left undefined, every state lands at NaN and the canvas renders nothing, even though
+#: stateInstances is non-empty (this is what "an empty canvas, Solution uno-temp-split" actually was —
+#: a seed-shape gap, not a rendering bug). Shapes/sizes mirror the AdditionTester seed convention
+#: (polariApiServer/solutionSeedData.py): circle/diamond for decision points, rectangle otherwise.
+_LAYOUT = {
+    'sim-rig':    {'x': 80,   'y': 280, 'shape': 'rectangle', 'color': '#5D4037'},  # c-device (board)
+    'uno-twin':   {'x': 320,  'y': 280, 'shape': 'rectangle', 'color': '#6D4C41'},  # java-bridge (split point)
+    'on-temp':    {'x': 560,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0'},  # python-backend
+    'moving-avg': {'x': 800,  'y': 280, 'shape': 'rectangle', 'color': '#1565C0'},
+    'over?':      {'x': 1040, 'y': 280, 'shape': 'diamond',   'color': '#4CAF50'},
+    'flag-on':    {'x': 1280, 'y': 180, 'shape': 'rectangle', 'color': '#4CAF50'},
+    'flag-off':   {'x': 1280, 'y': 380, 'shape': 'rectangle', 'color': '#F44336'},
+    'commit':     {'x': 1520, 'y': 280, 'shape': 'rectangle', 'color': '#FF9800'},
+}
+
+
+def _lay_out(definition):
+    """Decorate every stateInstance with the canvas fields the Angular NoCodeState constructor
+    requires (positions, shape, svg name/size, a lane colour) — see _LAYOUT's docstring above."""
+    for s in definition.get('stateInstances') or []:
+        spot = _LAYOUT.get(s.get('stateName'), {'x': 80, 'y': 80, 'shape': 'rectangle', 'color': '#9E9E9E'})
+        s['stateLocationX'], s['stateLocationY'] = spot['x'], spot['y']
+        s['shapeType'] = s['stateSvgName'] = spot['shape']
+        s['layerName'] = '%s-layer' % spot['shape']
+        s['backgroundColor'] = spot['color']
+        s['slotRadius'] = 5
+        if spot['shape'] == 'diamond':
+            s['stateSvgRadius'], s['stateSvgSizeX'], s['stateSvgSizeY'] = 70, None, None
+        else:
+            s['stateSvgRadius'] = None
+            s['stateSvgSizeX'], s['stateSvgSizeY'] = 160, 90
+    return definition
+
+
 def split_app_definition(name=SOLUTION):
     """The whole graph — hardware subgraph, the split, the backend nodes — as ONE SolutionDefinition definition dict."""
     n = GB.node
@@ -63,7 +102,7 @@ def split_app_definition(name=SOLUTION):
         'fields': {'temp_avg': GB.var_src('temp_avg'), 'over_threshold': GB.var_src('over_threshold'),
                    'threshold_c': GB.var_src('threshold_c'), 'window': GB.var_src('window'),
                    'last_temp_c': GB.var_src('instance.temp_c'), 'last_uptime_ms': GB.var_src('instance.uptime_ms')}}, outs=[[]])
-    return GB.solution(name, sim, hwi, entry, avg, over, on, off, commit)
+    return _lay_out(GB.solution(name, sim, hwi, entry, avg, over, on, off, commit))
 
 
 def contract():

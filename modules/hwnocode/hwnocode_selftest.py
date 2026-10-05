@@ -301,6 +301,22 @@ def seeds_page_api():
           '1 EventTrigger, 1 HardwareInterfaceBinding, 1 GraphDefinition, 6 Runtimes (demo-4b)', counts == {
               'HardwareSolution': 1, 'HardwareNodePlacement': 27, 'SolutionDefinition': 2, 'AnalysisDefinition': 1, 'EventTrigger': 1,
               'HardwareInterfaceBinding': 1, 'GraphDefinition': 1, 'Runtime': 6}, counts)
+    # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
+    # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
+    # canvas position/shape — graph_builder.node() deliberately emits none (shared, parity-pinned
+    # DSL) — so the Angular NoCodeState constructor (no fallback) landed every one at NaN. Every
+    # seeded canvas SolutionDefinition's states must carry a real position from here on.
+    sol_defs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'SolutionDefinition' for r in rows]
+    no_position = []
+    for row in sol_defs:
+        d = json.loads(row['definition'])
+        for s in d.get('stateInstances') or []:
+            if s.get('stateLocationX') is None or s.get('stateLocationY') is None or not s.get('shapeType'):
+                no_position.append('%s:%s' % (d['solutionName'], s.get('stateName')))
+    check('every state of every seeded canvas SolutionDefinition (the whole solution + its backend '
+          'half) carries a real stateLocationX/Y + shapeType — never left for the canvas to land at NaN',
+          not no_position, no_position)
+
     trig = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'EventTrigger' for r in rows][0]
     check('the trigger runs the BACKEND half on SimRigState uno-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
           'the instance\'s', trig['solution_name'] == 'uno-temp-split.backend' and json.loads(trig['source_json'])['fieldFilter'] == {'name': 'uno-twin'}
