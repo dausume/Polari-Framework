@@ -57,6 +57,18 @@ def main():
     check('manifests agree with files + core tables (README aside)', not drift, str(drift)[:400])
     kinds = {M.load(p)['app']['kind'] for p in pkgs if M.load(p)}
     check('app kinds are from the enum', kinds <= set(M.APP_KINDS), str(kinds))
+    # rtfix A: the hwnocode.Runtime gotcha (2026-10-04) — a class can be
+    # correctly basis-exported and correctly named in FEATURE_IMPORT_BLOCKS
+    # yet never make it into polariServer.py's literal defClassList, so
+    # GET /<Class> 404s and its seed rows never land. Neither check above
+    # (file resolution, manifest-vs-tables drift) catches this: both
+    # compare the manifest's recorded 'imports' field against a FRESH
+    # computation from the same FEATURE_IMPORT_BLOCKS table, so a name
+    # missing from defClassList but consistently missing on both sides of
+    # that comparison (as Runtime was) never shows up as drift.
+    gaps = M.defclasslist_gaps(tables)
+    check('every objects/ class is registered in polariServer.py defClassList',
+          not gaps, str(gaps)[:400])
     ids = [M.load(p)['id'] for p in pkgs if M.load(p)]
     check('module ids are unique and match directory or registry', len(ids) == len(set(ids)))
     print('\n%d/%d checks passed' % (passed, total))

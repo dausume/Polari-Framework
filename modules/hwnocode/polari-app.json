@@ -111,6 +111,7 @@
     "CAtom",
     "SimRigTempSample",
     "SimRigTempDerived",
+    "Runtime",
     "HWNOCODE_CLASSES"
    ]
   ],

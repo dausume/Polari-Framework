@@ -417,6 +417,92 @@ def _tables():
     return t
 
 
+# -------------------------------------------- defClassList drift guard
+
+def defclasslist_gaps(tables=None):
+    """rtfix A (the hwnocode.Runtime gotcha, 2026-10-04): every treeObject
+    class declared under a module's objects/ must be registered in
+    polariServer.py's literal ``self.defClassList = [...]`` — being
+    importable via FEATURE_IMPORT_BLOCKS (feature_imports.py) is NOT
+    enough, since defClassList is a second, hand-maintained list that
+    does not derive from it (see the CellFETConfiguration/
+    BlockFETConfiguration comment at that list's call site: "the
+    classic seeds-silently-vanish gotcha, hit live"). This is exactly
+    the check selftest_lazy_imports/selftest_manifests did NOT do:
+    those two pin the IMPORT MECHANISM's shape (no re-inlined imports,
+    blocks are single-module, the manifest's recorded 'imports' field
+    matches a fresh FEATURE_IMPORT_BLOCKS-derived computation) but
+    never cross-check either side against the literal names inside
+    defClassList itself — so a class that is correctly exported by its
+    module's _basis.py and correctly named in FEATURE_IMPORT_BLOCKS,
+    yet simply never typed into the defClassList list, drifts silently
+    (Runtime did exactly this: present in hwnocode_basis.HWNOCODE_CLASSES
+    the whole time, absent from both FEATURE_IMPORT_BLOCKS' symbol tuple
+    and defClassList's literal names).
+
+    Handles the two registration idioms already in use: direct name
+    (most modules; aliased as ``'Orig as Alias'`` for pcb/cmod-style
+    collision-prone names) and wholesale ``*(X_CLASSES or [])`` spread
+    (mealoptions/household/logistics/shoptrip/vpn) — a module using the
+    spread idiom is trusted via its own _CLASSES list rather than
+    checked name-by-name.
+
+    Returns {module: [missing class names]} — modules with none are
+    omitted. legacyDynamicModule packages (pre-sap-1 dynamic loading,
+    never through defClassList) are skipped.
+    """
+    server_path = os.path.join(_FW, 'polariApiServer', 'polariServer.py')
+    try:
+        tree = ast.parse(open(server_path, encoding='utf-8').read(), server_path)
+    except Exception as e:  # noqa: BLE001
+        return {'<parse error>': [str(e)]}
+    direct, spread = set(), set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Attribute) and t.attr == 'defClassList' for t in node.targets):
+            continue
+        if not isinstance(node.value, ast.List):
+            continue
+        for e in node.value.elts:
+            if isinstance(e, ast.Name):
+                direct.add(e.id)
+            elif isinstance(e, ast.Starred):
+                v = e.value
+                names = v.values if isinstance(v, ast.BoolOp) else [v]
+                spread.update(n.id for n in names if isinstance(n, ast.Name))
+    tables = tables or _tables()
+    classes_syms, alias_map = {}, {}
+    for mod, blocks in tables.get('import_blocks', {}).items():
+        for _path, syms in blocks:
+            for s in syms:
+                orig, alias = (s.split(' as ', 1) + [s])[:2] if ' as ' in s else (s, s)
+                orig, alias = orig.strip(), alias.strip()
+                if orig.endswith('_CLASSES'):
+                    classes_syms.setdefault(mod, set()).add(alias)
+                else:
+                    alias_map.setdefault(mod, {})[orig] = alias
+    gaps = {}
+    for p in all_packages():
+        m = load(p)
+        if not m or m.get('legacyDynamicModule'):
+            continue
+        obj_classes = set()
+        files, facts = classify(p, module_dir(p))
+        for f in files.get('objects', []):
+            obj_classes.update(facts[f]['classes'])
+        if not obj_classes:
+            continue
+        if classes_syms.get(p, set()) & spread:
+            continue   # wholesale *(X_CLASSES or []) spread — trusted
+        amap = alias_map.get(p, {})
+        missing = sorted(c for c in obj_classes
+                         if c not in direct and amap.get(c, c) not in direct)
+        if missing:
+            gaps[p] = missing
+    return gaps
+
+
 # ------------------------------------------------------- the AST scan
 
 def _scan_file(path):

@@ -65,6 +65,18 @@ def main():
     check('GET …/suggest → bare-c, applied false', r.status_code == 200 and r.json['suggested'] == 'bare-c' and r.json['applied'] is False)
     r = c.simulate_get('/HardwareNodePlacement')
     check('CRUDE GET /HardwareNodePlacement answers (configured tables read it)', r.status_code == 200, r.status_code)
+    # rtfix A: Runtime (demo-4b) must be registered (defClassList + feature_imports)
+    # and its 6 rows seeded — the known new-treeObject-class gotcha hit here too.
+    check('Runtime registered (defClassList/feature_imports)', 'Runtime' in m.objectTypingDict)
+    r = c.simulate_get('/Runtime')
+    rows = []
+    if r.status_code == 200 and isinstance(r.json, list) and r.json and r.json[0].get('Runtime'):
+        for block in r.json[0]['Runtime']:
+            rows.extend(block.get('data') or [])
+    names = sorted(x.get('name') for x in rows)
+    check('GET /Runtime -> 6 rows %s' % names, r.status_code == 200 and n('Runtime') == 6 and len(rows) == 6
+          and set(names) == {'python-backend', 'typescript-browser', 'c-device', 'c-twin', 'java-bridge', 'javafx-native'},
+          'status=%s body=%s' % (r.status_code, r.text[:300]))
     print('\n%d/%d hwnocode live-boot checks passed' % (sum(results), len(results)))
     return 0 if all(results) else 1
 
