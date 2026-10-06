@@ -240,8 +240,10 @@ def page(check):
           and set(names) == {'firmware-installer-panel', 'class-rows-table'} and 'api-json-panel' not in P[0]['definition'], names)
     check('the installer page is exported with /display/boards (one manifest page list)', [p['pageRoute'] for p in ALL] == ['boards', 'firmware-installer'])
     tables = {it['componentProps']['inputs'].get('className') for row in d['rows'] for it in row['items'] if it['componentProps']['componentName'] == 'class-rows-table'}
-    check('the installer page tables cover variants, builds, devices, programmer kinds, plans, records',
-          tables == {'FirmwareVariant', 'FirmwareBuild', 'BoardInstance', 'ProgrammerKind', 'InstallPlan', 'InstallRecord'}, tables)
+    check('the installer page tables cover variants, builds, devices, programmer kinds, plans, records, firmware solutions '
+          '(fs-1 item 4 fallback: a described table + documented `pol firmware run` command, no live door wired in)',
+          tables == {'FirmwareVariant', 'FirmwareBuild', 'BoardInstance', 'ProgrammerKind', 'InstallPlan', 'InstallRecord',
+                     'FirmwareSolution'}, tables)
 
 
 def run_installer(check):

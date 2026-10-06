@@ -12,6 +12,12 @@ POST /api/firmware/solutions/{name}/run       body {"mode": "digital-twin"|"hard
                                                the detected board route (`cmod.custom.firmware.run`)
 POST /api/firmware/solutions/{name}/assign    body {"task":..,"port":..,"lives_on":".."} — the door a pin-map drag
                                                (fs-1) will call; fs-0 just upserts the RegisterAssignment row
+GET  /api/firmware/solutions/for-installer    {ok, rows:[...]} — fs-1 item 4's FALLBACK: /display/firmware-installer
+                                               gets a described table (wiring the live install door into
+                                               firmware-installer-panel was judged out of fs-1b's time box) with a
+                                               documented `run_command` column per row (`pol firmware run <name>
+                                               --mode digital-twin` — the safe, non-flashing default; hardware mode
+                                               is a person's own choice, never defaulted to)
 """
 import inspect
 import json
@@ -31,6 +37,7 @@ class FirmwareAPI(treeObject):
             add('/api/firmware/solutions/{name}/build', self, suffix='build')
             add('/api/firmware/solutions/{name}/run', self, suffix='run')
             add('/api/firmware/solutions/{name}/assign', self, suffix='assign')
+            add('/api/firmware/solutions/for-installer', self, suffix='for_installer')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -50,6 +57,22 @@ class FirmwareAPI(treeObject):
 
     def on_get_solutions(self, request, response):
         response.media = {'ok': True, 'solutions': [self._d(r) for r in sorted(self._rows('FirmwareSolution'), key=lambda r: r.name)]}
+
+    def on_get_for_installer(self, request, response):
+        """fs-1 item 4's FALLBACK table (/display/firmware-installer): one row per FirmwareSolution with the
+        documented `pol firmware run` command alongside — never composed/run here, just shown (same posture as
+        firmware-installer-panel's own DRY-RUN argv: the command is text, confirming/running it is a person's
+        own CLI act). `{ok, rows}` so class-rows-table's dataPath contract reads it directly (no JSON wall)."""
+        from cmod.custom import firmware as FW
+        rows = []
+        for r in sorted(self._rows('FirmwareSolution'), key=lambda r: r.name):
+            ok, why, _ = FW.validate(r, manager=self.manager)
+            rows.append({'name': r.name, 'title': getattr(r, 'title', ''), 'graph': getattr(r, 'graph', ''),
+                        'board_resolved': getattr(r, 'board_resolved', ''), 'runtime': getattr(r, 'runtime', ''),
+                        'validation': 'ok' if ok else 'refused', 'validation_why': why,
+                        'task_count': getattr(r, 'task_count', 0),
+                        'run_command': 'pol firmware run %s --mode digital-twin' % r.name})
+        response.media = {'ok': True, 'rows': rows}
 
     def on_get_solution_one(self, request, response, name):
         s = self._solution(name, response)

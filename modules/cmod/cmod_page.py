@@ -14,7 +14,7 @@ the table is the same rows, described), the seeded "temperature sensor solution"
 CapabilityInstance rows, and which HardwareSolutions use this graph (the reverse link — `/display/hardware-solutions`
 carries the forward one). `/display/c-atoms` gets a link to the canvas plus the same "used by" table.
 """
-from polariApiServer.module_pages_seed import _page, _row, _table, _sapi
+from polariApiServer.module_pages_seed import _page, _row, _table, _sapi, _firmware_panel
 
 
 def _canvas(item_id, index, segments, title, graph, description=''):
@@ -177,9 +177,18 @@ SEED_CMOD_PAGE_DISPLAYS = [
           '(D-fs-1: from the atoms\' own ISR/tick/loop/init annotations, never authored) and REGISTER MAP (D-fs-2: bound/'
           'unbound/conflict against the board\'s own BoardPin rows). `uno-sim-rig` is the first one, over the existing '
           'uno-sim-rig-graph. Build/run reuse cmod-glue and the board installer/twin — nothing reimplemented here. The '
-          'three-part canvas (task list · schedule lane · register map with the drag) is fs-1 — this page is described '
-          'tables only.', 'FirmwareSolution', [
-              _row(0, [_table('firmware-solutions-table', 0, 12, 'Firmware solutions — a graph + a board in, a firmware '
+          'three-part canvas (task list · schedule lane · register map with the drag) is fs-1 — the canvas is now LIVE '
+          '(the described tables below are the same rows, read-only confirmation).', 'FirmwareSolution', [
+              _row(0, [_firmware_panel('firmware-solution-panel', 0, 12, 'The firmware canvas — tasks · schedule · register map (drag a target onto a pin)',
+                                       '/api/firmware/solutions', initial='uno-sim-rig',
+                                       description='What this is for: THE DEMONSTRABLE (fs-1) — pick a FirmwareSolution; LEFT lists its '
+                                                   'tasks (name, kind, ports, resources, cost, lane); MIDDLE lays its schedule out in four '
+                                                   'DERIVED lanes (init · isr · tick · loop, D-fs-1 — never authored), called tasks nested '
+                                                   'under their caller; RIGHT draws the board\'s own pin map with bound pins coloured by '
+                                                   'lane and unbound targets as chips — drag a chip onto a pin (or select it and click a '
+                                                   'pin) to bind it (D-fs-2, `POST .../assign`); a drop that would conflict with another '
+                                                   'task\'s pin is refused, named, never silently overwritten.')], min_height=640),
+              _row(1, [_table('firmware-solutions-table', 0, 12, 'Firmware solutions — a graph + a board in, a firmware '
                               'build out (flash or digital twin)', 'FirmwareSolution',
                               description='What this is for: one row per FirmwareSolution. Columns: graph (the CGraph whose '
                                           'c-atoms are its tasks), board_definition/board_variable (fixed or resolved at run '
@@ -188,7 +197,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,title,graph,board_definition,board_variable,board_resolved,runtime,status,'
                                       'validation,validation_why,task_count,last_build',
                               column_formats='graph:ref:CGraph,board_definition:ref:BoardDefinition')], min_height=160),
-              _row(1, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
+              _row(2, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
                               'ISR/tick/loop/init annotations (D-fs-1, his ruling: never authored by dragging)', 'ScheduleSlot',
                               description='What this is for: one row per task\'s schedule slot. One row = one ScheduleSlot. '
                                           'Columns: lane (isr | tick | loop | init | called), order (mirrors the glue\'s own '
@@ -197,7 +206,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'stack, not per-atom cycles).',
                               columns='solution,task,lane,order,trigger,period_ms,measured_cycles,isr_vector,provenance',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(2, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
+              _row(3, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
                               'BoardPin rows, or named unbound (D-fs-2: the pin-map drag sets this; fs-0 builds the row + '
                               'the assign door)', 'RegisterAssignment',
                               description='What this is for: one row per required target. One row = one RegisterAssignment. '
@@ -207,7 +216,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'claiming one pin with no cooperating relationship).',
                               columns='solution,task,port,target_kind,controls,lives_on,status,provenance,notes',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(3, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
+              _row(4, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
                               '(cmod-glue, reused unchanged; `POST /api/firmware/solutions/{name}/build`)', 'CGlueBuild',
                               description='What this is for: the SAME CGlueBuild rows /display/c-atoms shows, filtered to '
                                           'this solution\'s graph. One row = one build-and-prove run.',

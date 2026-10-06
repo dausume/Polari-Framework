@@ -126,6 +126,27 @@ def _svg_panel(item_id, index, segments, title, data_path, description='', marke
     }
 
 
+def _firmware_panel(item_id, index, segments, title, solutions_path, description='', initial=''):
+    """fs-1 item 2: the ONE new generic component this slice adds — `firmware-solution-panel`. A configured table
+    cannot host a solution picker, the three-part canvas (task list / schedule lanes / register map), or the pin-map
+    drag (D-fs-2). `solutions_path` lists FirmwareSolutions (GET {ok, solutions}); the panel derives the per-solution
+    GET (`{solutions_path}/{name}`, fs-0's shape: solution/schedule/assignments/validation) and the assign door
+    (`{solutions_path}/{name}/assign`) from the same base, and fetches the board's own pinmap.svg
+    (`/api/board/{board}/pinmap.svg`) by the solution's `board_resolved`. `initial` preselects a solution name."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'description': description,
+        'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'firmware-solution-panel',
+            'inputs': {'solutionsPath': solutions_path, 'initial': initial},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320):
     return {
         'index': index, 'rowSegments': 12,

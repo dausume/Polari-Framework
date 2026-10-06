@@ -110,10 +110,11 @@ def render(r):
             net = cp.get('net') or (bp or {}).get('net') or ''
             soc_pin = (bp or {}).get('soc_pin') or ''
             title = ('%s: ' % sym if sym else '') + 'net=%s' % (net or '-')
-            parts.append('<g>')
+            canon = (bp or {}).get('canonical') or cp['label']
+            parts.append('<g class="pin-cell" data-pin="%s" data-role="%s">' % (esc(canon), esc(role)))
             parts.append('<title>%s</title>' % esc(title))
-            parts.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s" fill-opacity="0.16" stroke="%s"/>'
-                         % (x, y, COL_W, ROW_H, color, color))
+            parts.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s" fill-opacity="0.16" stroke="%s" data-pin="%s"/>'
+                         % (x, y, COL_W, ROW_H, color, color, esc(canon)))
             parts.append('<text x="%d" y="%d" font-weight="bold">%s</text>' % (x + 6, y + 11, esc(cp['label'])))
             parts.append('<text x="%d" y="%d" font-size="9" fill="#37474f">%s</text>'
                          % (x + 6, y + 22, esc('%s / %s' % (soc_pin or '-', net or '-'))))

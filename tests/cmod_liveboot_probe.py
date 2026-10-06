@@ -158,6 +158,27 @@ check('/display/hardware-solutions embeds the SAME canvas component on its own c
       len(hw_pages) == 1 and any(it['componentProps']['componentName'] == 'c-graph-canvas-panel'
                                  for row in json.loads(hw_pages[0].definition)['rows'] for it in row['items']))
 
+# ------------------------------------------------------------------ fs-1 item 2/4: /display/firmware-solutions opens with
+# the new three-part canvas FIRST (the described tables below it are the same rows, read-only confirmation), and the
+# installer-page fallback door is live.
+fw_pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'firmware-solutions']
+check('/display/firmware-solutions DisplayDefinition is seeded, firmware-solution-panel first', len(fw_pages) == 1
+      and json.loads(fw_pages[0].definition)['rows'][0]['items'][0]['componentProps']['componentName'] == 'firmware-solution-panel',
+      len(fw_pages))
+r = client.simulate_get('/api/firmware/solutions/uno-sim-rig')
+check('GET /api/firmware/solutions/uno-sim-rig → the real shape fs-1\'s panel reads: schedule (4 lanes present), assignments, validation',
+      r.status_code == 200 and r.json['solution']['name'] == 'uno-sim-rig'
+      and {'init', 'isr', 'loop'} <= {s['lane'] for s in r.json['schedule']}
+      and any(a['status'] == 'bound' for a in r.json['assignments']) and 'ok' in r.json['validation'], r.text[:300])
+r = client.simulate_get('/api/firmware/solutions/for-installer')
+check('GET /api/firmware/solutions/for-installer (fs-1 item 4 fallback) → {ok, rows} with the documented pol firmware run command, no JSON wall',
+      r.status_code == 200 and r.json['ok'] and any(row['name'] == 'uno-sim-rig'
+      and row['run_command'] == 'pol firmware run uno-sim-rig --mode digital-twin' for row in r.json['rows']), r.text[:300])
+fi_pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'firmware-installer']
+check('/display/firmware-installer carries the Firmware Solutions fallback table (data_path to the for-installer door)',
+      len(fi_pages) == 1 and any(it['componentProps']['inputs'].get('dataPath') == '/api/firmware/solutions/for-installer'
+                                 for row in json.loads(fi_pages[0].definition)['rows'] for it in row['items']))
+
 
 def equivalence():
     """The REAL twin equivalence of the committed render + a negative control the comparison must catch."""

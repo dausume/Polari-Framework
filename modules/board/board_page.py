@@ -210,6 +210,21 @@ INSTALLER_PAGES = [
                                           'verdict/verify (pass/fail and what was read back to confirm it), firmware_sha (now on the device), '
                                           'bridge_state/frames_per_s (the live link once flashed), elapsed_s.',
                               columns='name,variant,instance,target_kind,verdict,verify,firmware_sha,elapsed_s,bridge_state,row_class,row_name,frames_per_s,started_at')]),
+              # fs-1 item 4 FALLBACK (DEMONSTRABLES_PLAN.md §9): wiring the live validate->build->run(mode) door into
+              # firmware-installer-panel (above) was judged to exceed fs-1b's time box — this described table + a
+              # documented command column is what shipped instead. /display/firmware-solutions is the live panel
+              # (the three-part canvas with the pin-map drag); this row is a pointer FROM the installer TO it, plus
+              # the exact command a person runs themselves (never composed/run by this page).
+              _row(6, [_table('fi-firmware-solutions', 0, 12, 'Firmware Solutions — validate -> build -> run(mode), '
+                              'by hand (DRY-RUN default: digital-twin, never hardware unless named)', 'FirmwareSolution',
+                              description='What this is for: every FirmwareSolution (fs-0/fs-1, /display/firmware-solutions '
+                                          'has the live canvas), with the command that runs it. One row = one FirmwareSolution. '
+                                          'Columns: validation/validation_why (board resolved, targets bound-or-named, no pin '
+                                          'conflicts — the same validate() the command itself gates on), run_command (verbatim '
+                                          '`pol firmware run <name> --mode digital-twin` — the digital-twin mode never touches '
+                                          'real hardware; `--mode hardware` is a person\'s own, separate choice).',
+                              columns='name,title,graph,board_resolved,runtime,validation,validation_why,task_count,run_command',
+                              data_path='/api/firmware/solutions/for-installer')]),
           ]),
 ]
 
