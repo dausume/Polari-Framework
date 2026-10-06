@@ -10,3 +10,6 @@ from cmod.objects.cmod.CGlueBuild import CGlueBuild  # noqa: F401
 from cmod.objects.cmod.TargetDefinition import TargetDefinition  # noqa: F401
 from cmod.objects.cmod.CapabilityDefinition import CapabilityDefinition  # noqa: F401
 from cmod.objects.cmod.CapabilityInstance import CapabilityInstance  # noqa: F401
+from cmod.objects.cmod.FirmwareSolution import FirmwareSolution  # noqa: F401
+from cmod.objects.cmod.ScheduleSlot import ScheduleSlot  # noqa: F401
+from cmod.objects.cmod.RegisterAssignment import RegisterAssignment  # noqa: F401

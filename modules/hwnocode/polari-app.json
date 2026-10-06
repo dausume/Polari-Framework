@@ -51,6 +51,7 @@
  "files": {
   "objects": [
    "objects/hwnocode/CAtom",
+   "objects/hwnocode/FirmwareRunState",
    "objects/hwnocode/HardwareInterface",
    "objects/hwnocode/HardwareNodePlacement",
    "objects/hwnocode/HardwareSolution",
@@ -78,6 +79,7 @@
    "hwnocode_selftest"
   ],
   "custom": [
+   "custom/cross_domain",
    "custom/derive",
    "custom/hwnocode_cli",
    "custom/knobs",
@@ -91,6 +93,7 @@
  },
  "classes": [
   "CAtom",
+  "FirmwareRunState",
   "HardwareInterface",
   "HardwareNodePlacement",
   "HardwareSolution",
@@ -112,6 +115,7 @@
     "SimRigTempSample",
     "SimRigTempDerived",
     "Runtime",
+    "FirmwareRunState",
     "HWNOCODE_CLASSES"
    ]
   ],
@@ -159,6 +163,5 @@
  },
  "featureModule": true,
  "coreRequired": false,
- "legacyDynamicModule": false,
- "engines_note": "placement, hn-split, the suggestion and the backend half run in the framework process (pure Python + the engine); make (pol hwnocode build) and the simavr twin (the proof) go through cmod's / board's engines seam; the Java bridge is board's (java + mvn on the host)"
+ "legacyDynamicModule": false
 }

@@ -3,11 +3,15 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class SolutionDefinition(treeObject):
     @treeObjectInit
     def __init__(self, name='', function_name='', target_runtime='python_backend',
-                 definition='{}', contract_json='{}', manager=None):
+                 definition='{}', contract_json='{}', category='', manager=None):
         self.name = name
         self.function_name = function_name
         self.target_runtime = target_runtime  # 'python_backend' or 'typescript_frontend'
         self.definition = definition  # JSON blob of the full solution data
+        # fs-0/fs-2 (DEMONSTRABLES_PLAN.md §9): '' (ordinary) | 'cross-domain' (bridging/relay states ONLY, D-fs-3 —
+        # hwnocode.custom.cross_domain.validate refuses any compute state). Additive, default '': every existing
+        # SolutionDefinition stays an ordinary solution unless explicitly marked.
+        self.category = category
         # The solution's CONTRACT — what it needs and what it produces —
         # so other solutions (SolutionInvocation) and modules can use it
         # as a reusable, opaque state without reading its internals:

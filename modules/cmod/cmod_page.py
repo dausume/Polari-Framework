@@ -171,4 +171,47 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,capability,index,bindings,status',
                               column_formats='capability:ref:CapabilityDefinition,graph:ref:CGraph')], min_height=200),
           ]),
+    _page('firmware-solutions', 'firmware-solutions',
+          'Firmware Solutions (fs-0, DEMONSTRABLES_PLAN.md §9): a `FirmwareSolution` takes a `CGraph` (its tasks = the '
+          'graph\'s c-atoms) and a board (fixed or a run-time variable, validated it still exists) and derives its SCHEDULE '
+          '(D-fs-1: from the atoms\' own ISR/tick/loop/init annotations, never authored) and REGISTER MAP (D-fs-2: bound/'
+          'unbound/conflict against the board\'s own BoardPin rows). `uno-sim-rig` is the first one, over the existing '
+          'uno-sim-rig-graph. Build/run reuse cmod-glue and the board installer/twin — nothing reimplemented here. The '
+          'three-part canvas (task list · schedule lane · register map with the drag) is fs-1 — this page is described '
+          'tables only.', 'FirmwareSolution', [
+              _row(0, [_table('firmware-solutions-table', 0, 12, 'Firmware solutions — a graph + a board in, a firmware '
+                              'build out (flash or digital twin)', 'FirmwareSolution',
+                              description='What this is for: one row per FirmwareSolution. Columns: graph (the CGraph whose '
+                                          'c-atoms are its tasks), board_definition/board_variable (fixed or resolved at run '
+                                          'time), runtime (c-device | c-digital-twin), validation/validation_why (board '
+                                          'exists + usable, targets bound-or-named, no pin conflicts), task_count.',
+                              columns='name,title,graph,board_definition,board_variable,board_resolved,runtime,status,'
+                                      'validation,validation_why,task_count,last_build',
+                              column_formats='graph:ref:CGraph,board_definition:ref:BoardDefinition')], min_height=160),
+              _row(1, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
+                              'ISR/tick/loop/init annotations (D-fs-1, his ruling: never authored by dragging)', 'ScheduleSlot',
+                              description='What this is for: one row per task\'s schedule slot. One row = one ScheduleSlot. '
+                                          'Columns: lane (isr | tick | loop | init | called), order (mirrors the glue\'s own '
+                                          'emission order — never a second ordering scheme), trigger (the ISR vector or tick '
+                                          'period macro), measured_cycles (-1 = not measured yet — cmod-0\'s cost is bytes/'
+                                          'stack, not per-atom cycles).',
+                              columns='solution,task,lane,order,trigger,period_ms,measured_cycles,isr_vector,provenance',
+                              column_formats='solution:ref:FirmwareSolution')], min_height=280),
+              _row(2, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
+                              'BoardPin rows, or named unbound (D-fs-2: the pin-map drag sets this; fs-0 builds the row + '
+                              'the assign door)', 'RegisterAssignment',
+                              description='What this is for: one row per required target. One row = one RegisterAssignment. '
+                                          'Columns: target_kind (register | pin | peripheral | memory-field | bus | dynamic), '
+                                          'controls (the physical quantity/actuator, in plain words), lives_on (a BoardPin '
+                                          'reference or \'unbound\'), status (bound | unbound | conflict — two tasks '
+                                          'claiming one pin with no cooperating relationship).',
+                              columns='solution,task,port,target_kind,controls,lives_on,status,provenance,notes',
+                              column_formats='solution:ref:FirmwareSolution')], min_height=280),
+              _row(3, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
+                              '(cmod-glue, reused unchanged; `POST /api/firmware/solutions/{name}/build`)', 'CGlueBuild',
+                              description='What this is for: the SAME CGlueBuild rows /display/c-atoms shows, filtered to '
+                                          'this solution\'s graph. One row = one build-and-prove run.',
+                              columns='name,graph,equivalent,proof,hex_sha256,size_text,size_data,size_bss,built_by',
+                              column_formats='graph:ref:CGraph')], min_height=160),
+          ]),
 ]

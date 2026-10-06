@@ -1331,13 +1331,14 @@ FEATURE_IMPORT_BLOCKS = (
     # cmod-0 (C_MODULARIZATION_PLAN): a normal C project's functions as atoms — ports, resources, cost — parsed, never typed in
     ('cmod', (
         ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
-                            'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance', 'CMOD_CLASSES')),
+                            'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance',
+                            'FirmwareSolution', 'ScheduleSlot', 'RegisterAssignment', 'CMOD_CLASSES')),
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),
     # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareSolution across board / bridge / backend / browser; the placement rule; hn-split
     ('hwnocode', (
-        ('hwnocode.hwnocode_basis', ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'HWNOCODE_CLASSES')),
+        ('hwnocode.hwnocode_basis', ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'HWNOCODE_CLASSES')),
         ('hwnocode.hwnocode_seed', ('HWNOCODE_SEED_PAIRS',)),
         ('hwnocode.hwnocode_page', ('SEED_HWNOCODE_PAGE_DISPLAYS',)),
     )),

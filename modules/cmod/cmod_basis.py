@@ -5,9 +5,12 @@ The INDEX of the C-modularization rows (C_MODULARIZATION_PLAN.md §2). Classes l
 file re-exports them and holds the class list the server registers.
 """
 from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,  # noqa: F401
-                               TargetDefinition, CapabilityDefinition, CapabilityInstance)
+                               TargetDefinition, CapabilityDefinition, CapabilityInstance,
+                               FirmwareSolution, ScheduleSlot, RegisterAssignment)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
-#: demo-4: target/capability definitions derived over a graph's nodes/ports)
+#: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
+#: board, its DERIVED schedule (D-fs-1) and register map (D-fs-2) — DEMONSTRABLES_PLAN.md §9)
 CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
-               TargetDefinition, CapabilityDefinition, CapabilityInstance]
+               TargetDefinition, CapabilityDefinition, CapabilityInstance,
+               FirmwareSolution, ScheduleSlot, RegisterAssignment]

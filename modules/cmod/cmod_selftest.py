@@ -326,7 +326,9 @@ def main():
     print('cmod selftest (cmod-0 + cmod-1)')
     from cmod.custom.selftest_uno import uno_parts
     from cmod.custom.selftest_glue import graph_parts
-    for part in (parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets) + uno_parts(check) + graph_parts(check):
+    from cmod.custom.selftest_firmwaresol import firmware_parts
+    for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
+                 + uno_parts(check) + graph_parts(check) + firmware_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

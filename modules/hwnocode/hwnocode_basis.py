@@ -6,10 +6,12 @@ re-exports them and holds the class list the server registers. NODE_KIND_CLASSES
 `statePalette` rides GET /stateSpaceClasses so the ONE canvas's palette learns them as data.
 """
 from hwnocode.objects.hwnocode import (HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom,  # noqa: F401
-                                       SimRigTempSample, SimRigTempDerived, Runtime)
+                                       SimRigTempSample, SimRigTempDerived, Runtime, FirmwareRunState)
 
-#: every row class of the module, in registration order
+#: every row class of the module, in registration order; fs-0/fs-2: FirmwareRunState — the ONE new Cross-Domain node
+#: kind (DEMONSTRABLES_PLAN.md §9); Bridge/Relay/API-call/Frontend-emit reuse HardwareInterface/BackendStateChange/
+#: StateChangeCommit/AnalysisCall/EmitFrontendEvent, categorized (not duplicated) by hwnocode.custom.cross_domain
 HWNOCODE_CLASSES = [HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample,
-                    SimRigTempDerived, Runtime]
+                    SimRigTempDerived, Runtime, FirmwareRunState]
 #: the canvas node kinds (palette data via /stateSpaceClasses)
-NODE_KIND_CLASSES = [HardwareSubgraph, HardwareInterface, CAtom]
+NODE_KIND_CLASSES = [HardwareSubgraph, HardwareInterface, CAtom, FirmwareRunState]

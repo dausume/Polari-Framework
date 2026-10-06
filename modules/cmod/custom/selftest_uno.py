@@ -148,9 +148,11 @@ def uno_parts(check):
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
         check('seeds = the committed manifest projected: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, '
-              '1 glue build; demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over the seeded graph' % m['counts']['ports'],
+              '1 glue build; demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over the seeded graph; '
+              'fs-0: one FirmwareSolution (uno-sim-rig) + its derived ScheduleSlot/RegisterAssignment rows' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
-                         'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 1, 'CapabilityInstance': 2}, counts)
+                         'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 1, 'CapabilityInstance': 2,
+                         'FirmwareSolution': 1, 'ScheduleSlot': 17, 'RegisterAssignment': 16}, counts)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

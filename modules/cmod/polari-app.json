@@ -68,15 +68,19 @@
    "objects/cmod/CModule",
    "objects/cmod/CPort",
    "objects/cmod/CProject",
-   "objects/cmod/TargetDefinition",
    "objects/cmod/CapabilityDefinition",
-   "objects/cmod/CapabilityInstance"
+   "objects/cmod/CapabilityInstance",
+   "objects/cmod/FirmwareSolution",
+   "objects/cmod/RegisterAssignment",
+   "objects/cmod/ScheduleSlot",
+   "objects/cmod/TargetDefinition"
   ],
   "basis": [
    "cmod_basis"
   ],
   "api": [
-   "cmod_api"
+   "cmod_api",
+   "cmod_firmware_api"
   ],
   "endpoints": [
    "cmod_endpoints"
@@ -97,6 +101,8 @@
    "custom/c_types",
    "custom/cmod_cli",
    "custom/cmod_engines",
+   "custom/firmware",
+   "custom/firmware_cli",
    "custom/glue",
    "custom/glue_build",
    "custom/graph",
@@ -108,6 +114,7 @@
    "custom/registers",
    "custom/rows",
    "custom/scan",
+   "custom/selftest_firmwaresol",
    "custom/selftest_glue",
    "custom/selftest_uno",
    "custom/targets"
@@ -123,9 +130,13 @@
   "CModule",
   "CPort",
   "CProject",
-  "TargetDefinition",
   "CapabilityDefinition",
-  "CapabilityInstance"
+  "CapabilityInstance",
+  "FirmwareAPI",
+  "FirmwareSolution",
+  "RegisterAssignment",
+  "ScheduleSlot",
+  "TargetDefinition"
  ],
  "imports": [
   [
@@ -142,6 +153,9 @@
     "TargetDefinition",
     "CapabilityDefinition",
     "CapabilityInstance",
+    "FirmwareSolution",
+    "ScheduleSlot",
+    "RegisterAssignment",
     "CMOD_CLASSES"
    ]
   ],
@@ -189,6 +203,5 @@
  },
  "featureModule": true,
  "coreRequired": false,
- "legacyDynamicModule": false,
- "engines_note": "parsing needs no engine; the cost and the make-alone proof run through the board engines seam (cmod.custom.cmod_engines); cmod-1 build/prove: make + avr-gcc on the same rung, the simavr twin (avr-twin) through the board engines seam"
+ "legacyDynamicModule": false
 }

@@ -259,10 +259,12 @@ def palette_metadata():
     from hwnocode.hwnocode_endpoints import enable_node_kinds
     from polariDataTyping.polyTyping import polyTypedObject
     kinds = {c.__name__: c.statePalette for c in NODE_KIND_CLASSES}
-    check('three node kinds carry palette metadata: HardwareSubgraph (hardware-subgraph), HardwareInterface (hw-interface), CAtom (c-atom); '
-          'category Hardware; overlay c-atom / hw-interface', {k: v['nodeKind'] for k, v in kinds.items()}
-          == {'HardwareSubgraph': 'hardware-subgraph', 'HardwareInterface': 'hw-interface', 'CAtom': 'c-atom'}
-          and {v['category'] for v in kinds.values()} == {'Hardware'} and {v['overlay'] for v in kinds.values()} == {'c-atom', 'hw-interface'})
+    check('four node kinds carry palette metadata: HardwareSubgraph (hardware-subgraph), HardwareInterface (hw-interface), CAtom (c-atom), '
+          'FirmwareRunState (firmware-run, fs-0/fs-2); category Hardware + Cross-Domain; overlay c-atom / hw-interface / firmware-run',
+          {k: v['nodeKind'] for k, v in kinds.items()}
+          == {'HardwareSubgraph': 'hardware-subgraph', 'HardwareInterface': 'hw-interface', 'CAtom': 'c-atom', 'FirmwareRunState': 'firmware-run'}
+          and {v['category'] for v in kinds.values()} == {'Hardware', 'Cross-Domain'}
+          and {v['overlay'] for v in kinds.values()} == {'c-atom', 'hw-interface', 'firmware-run'})
     check('every palette entry declares its slots and variables (what the canvas needs to create the node)',
           all(isinstance(v.get('slots'), dict) and v.get('variables') and v.get('displayName') for v in kinds.values()))
 
@@ -278,7 +280,7 @@ def palette_metadata():
     done = enable_node_kinds(mgr)
     cfgs = [t.getStateSpaceConfig() for t in mgr.objectTypingDict.values()]
     check('the endpoint constructor marks the node-kind typings state-space; getStateSpaceConfig carries `palette` (what GET '
-          '/stateSpaceClasses returns)', sorted(done) == ['CAtom', 'HardwareInterface', 'HardwareSubgraph']
+          '/stateSpaceClasses returns)', sorted(done) == ['CAtom', 'FirmwareRunState', 'HardwareInterface', 'HardwareSubgraph']
           and all(c['isStateSpaceObject'] and c['palette']['nodeKind'] for c in cfgs))
 
     class Plain:
@@ -373,8 +375,9 @@ def seeds_page_api():
     HwNoCodeAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
     c = testing.TestClient(app)
     r = c.simulate_get('/api/hwnocode')
-    check('GET /api/hwnocode → uno-temp-split + the three node kinds', r.status_code == 200 and r.json['solutions'][0]['name'] == 'uno-temp-split'
-          and len(r.json['node_kinds']) == 3, r.text[:200])
+    check('GET /api/hwnocode → uno-temp-split + the four node kinds (fs-0/fs-2 adds FirmwareRunState)',
+          r.status_code == 200 and r.json['solutions'][0]['name'] == 'uno-temp-split'
+          and len(r.json['node_kinds']) == 4, r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/placement')
     check('GET …/placement → computed now: twin 19, bridge 1, backend 6, browser 1', r.status_code == 200 and r.json['summary'] == 'twin 19, bridge 1, backend 6, browser 1', r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/render')

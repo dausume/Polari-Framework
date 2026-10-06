@@ -7,3 +7,4 @@ from hwnocode.objects.hwnocode.CAtom import CAtom  # noqa: F401
 from hwnocode.objects.hwnocode.SimRigTempSample import SimRigTempSample  # noqa: F401
 from hwnocode.objects.hwnocode.SimRigTempDerived import SimRigTempDerived  # noqa: F401
 from hwnocode.objects.hwnocode.Runtime import Runtime  # noqa: F401
+from hwnocode.objects.hwnocode.FirmwareRunState import FirmwareRunState  # noqa: F401
