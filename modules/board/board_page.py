@@ -149,6 +149,22 @@ _BOARDS_PAGES = [
                                           'for a person to resolve, never auto-picked. One row = one disagreement. Columns: pin/field (what '
                                           'disagreed), rows_value/view_value (the two answers), state (open | resolved), detected_at.',
                               columns='board,view_kind,pin,field,rows_value,view_value,state,detected_at')]),
+              # fs-2a (his ruling 2026-10-06): compatibility between a firmware task's target kind and a board's pin
+              # roles/capabilities — "a clear indicator of when we click on a target what ones are valid targets"
+              _row(12, [_table('boards-target-compat', 0, 12, 'Target compatibility — which pin roles satisfy each firmware task target kind (cited)',
+                              'TargetCompatibilityRule',
+                              description='What this is for: THE COMPATIBILITY TABLE a pin-map drag checks before accepting a drop (board.custom.'
+                                          'target_compat.compatible(), POST /api/firmware/solutions/{name}/assign). One row = one task target kind '
+                                          '(analog-in, pwm-out, uart-rx/tx, i2c-sda/scl, spi-mosi/miso/sck/ss, digital-in/out, interrupt-in, power/'
+                                          'ground). Columns: roles (the board.custom.pin_roles roles this kind draws on), matches (which pins '
+                                          'qualify, in plain words — e.g. the UNO\'s A0-A5 for analog-in), source_label/source_url (the Arduino '
+                                          'docs / ATmega328P datasheet / Wikipedia citation), notes (e.g. a PCINT-only pin is undetermined, not '
+                                          'refused — its PCICR/PCMSKn bank is not modeled yet). power/ground rows are never assignable, no '
+                                          'exception. GET /api/board/target-compat computes this fresh (global, not per-board); GET /api/board/'
+                                          '<board>/pins/<pin> and GET /api/firmware/solutions/<name>/tasks/<task>/valid-targets check ONE pin or '
+                                          'ONE task against it.',
+                              columns='kind,title,roles,description,matches,source_label,source_url,notes', column_formats='source_url:link',
+                              data_path='/api/board/target-compat')]),
           ]),
 ]
 

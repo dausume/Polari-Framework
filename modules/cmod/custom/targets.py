@@ -98,6 +98,66 @@ def _node_controls(atom, pin, port):
     return '%s — touches %s' % (base, pin['canonical']) if pin else base
 
 
+# ------------------------------------------------------------------ fs-2a: THE TASK'S REQUIREMENT KIND
+#: peripheral -> target kind, for the peripherals whose direction is NOT ambiguous (board.custom.target_compat's
+#: vocabulary) — USART0 is handled separately (its UDR0 register's access settles rx/tx; TWI/SPI are handled
+#: separately too (a bare register touch does not by itself say WHICH signal of the bus, so they stay undetermined)
+_PERIPHERAL_KIND = {'ADC': 'analog-in', 'EXTINT': 'interrupt-in', 'PCINT': 'interrupt-in'}
+_TIMER_PERIPHERALS = ('TIMER0', 'TIMER1', 'TIMER2')
+
+
+def requirement_kind(graph_name, task):
+    """THE TASK TARGET KIND (board.custom.target_compat.TASK_KINDS vocabulary, his ruling 2026-10-06), derived from
+    one graph node's atom resources — never typed in. A peripheral with one unambiguous direction (ADC, EXTINT/
+    PCINT) settles it outright; USART0 is settled by WHICH register the atom touches (UDR0 write = uart-tx, read =
+    uart-rx) or, with no register touch at all (e.g. a ring-buffer consumer like hal_rx_pop), by the atom's own
+    port shape (only 'out' ports = it reads a byte IN from the world = uart-rx; only 'in' ports = it writes a byte
+    OUT = uart-tx); a bare TWI/SPI register touch does not say WHICH signal of the bus, so it is 'undetermined'
+    rather than guessed. A bare pin (a declared macro with no recognised peripheral, e.g. LED_PIN) falls back to the
+    same port-shape rule: only 'in' ports (it is WRITTEN to) = digital-out; only 'out' ports (it is READ) =
+    digital-in. 'undetermined' when none of this settles it (never guessed)."""
+    from cmod.custom.graph_seed import seed_graph
+    rows = seed_graph(graph_name)
+    if rows is None:
+        return 'undetermined'
+    g, nodes = rows['graph'], rows['nodes']
+    node = next((n for n in nodes if n['instance'] == task), None)
+    if node is None or node.get('kind') != 'c-atom' or not node.get('atom'):
+        return 'undetermined'
+    atoms = _manifest_atoms(g['project'])
+    atom = atoms.get(node['atom'].partition(':')[2])
+    if atom is None or not atom.get('resources'):
+        return 'undetermined'
+    resources = atom['resources']
+    peripherals = {res['peripheral'] for res in resources if res.get('kind') in ('register', 'declared') and res.get('peripheral')}
+    ports = atom.get('ports') or []
+    has_in = any(p['direction'] == 'in' for p in ports)
+    has_out = any(p['direction'] in ('out', 'inout') for p in ports)
+    for peripheral, kind in _PERIPHERAL_KIND.items():
+        if peripheral in peripherals:
+            return kind
+    if peripherals & set(_TIMER_PERIPHERALS):
+        if any(res.get('kind') == 'register' and res['name'].startswith('OCR') and 'w' in (res.get('access') or '') for res in resources):
+            return 'pwm-out'
+    if 'USART0' in peripherals:
+        udr = next((res for res in resources if res.get('kind') == 'register' and res['name'].startswith('UDR')), None)
+        if udr is not None:
+            return 'uart-tx' if 'w' in (udr.get('access') or '') else 'uart-rx'
+        if has_out and not has_in:
+            return 'uart-rx'
+        if has_in and not has_out:
+            return 'uart-tx'
+        return 'undetermined'
+    if 'TWI' in peripherals or 'SPI' in peripherals:
+        return 'undetermined'
+    # a bare pin (declared macro only, or a plain GPIO port register) — digital in/out from the port shape
+    if has_in and not has_out:
+        return 'digital-out'
+    if has_out and not has_in:
+        return 'digital-in'
+    return 'undetermined'
+
+
 def derive(graph_name, manager=None):
     """-> [TargetDefinition dict, ...] for one graph: one row per (c-atom node, matched-or-unbound board touch), plus
     one row per 'field' CGraphEdge (a memory-field target). `manager` is accepted and ignored — kept for callers that

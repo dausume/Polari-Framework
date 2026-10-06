@@ -146,6 +146,133 @@ def assignments_for(graph_name, solution_name=None):
     return out
 
 
+# ------------------------------------------------------------------ fs-2a: valid targets + the /assign refusal (his ruling 2026-10-06)
+def _occupants(graph_name, solution_name, manager=None):
+    """{lives_on: [task, ...]} — who currently claims each bound pin, from the LIVE RegisterAssignment rows when a
+    manager is given (a prior POST .../assign may have moved things — the live rows are the truth then), else the
+    pure re-derivation (assignments_for) for the no-manager / seed-time path."""
+    if manager is not None:
+        rows = [{'task': getattr(r, 'task', ''), 'lives_on': getattr(r, 'lives_on', ''), 'status': getattr(r, 'status', '')}
+                for r in (manager.objectTables or {}).get('RegisterAssignment', {}).values() if getattr(r, 'solution', '') == solution_name]
+    else:
+        rows = assignments_for(graph_name, solution_name)
+    out = {}
+    for r in rows:
+        if r['lives_on'] and r['lives_on'] != 'unbound':
+            out.setdefault(r['lives_on'], []).append(r['task'])
+    return out
+
+
+def _dispatchers(graph_name):
+    """fs-0's own exemption (assignments_for): a node touching MORE THAN ONE pin (a dispatcher — e.g. `apply`
+    calling hal_led + hal_pwm_apply) is never counted as a pin's OWNER for conflict purposes. Reused here so a NEW
+    candidate drop is judged by the SAME rule, not a second one."""
+    from cmod.custom import targets as T
+    per_node_pins = {}
+    for t in T.derive(graph_name):
+        if t['lives_on'] != 'unbound':
+            per_node_pins.setdefault(t['node'], set()).add(t['lives_on'])
+    return {n for n, pins in per_node_pins.items() if len(pins) > 1}
+
+
+def _cooperates(graph_name, task, others):
+    """fs-0's own exemption, generalized: a dispatcher (touches >1 pin), an '*_init' setup task sharing a pin with
+    the atom that drives it, or a task re-claiming its OWN existing pin is cooperation, not a conflict — never a
+    silent overwrite otherwise."""
+    dispatchers = _dispatchers(graph_name)
+
+    def exempt(t):
+        return t in dispatchers or t.endswith('_init')
+
+    return all(o == task or exempt(o) or exempt(task) for o in others)
+
+
+def valid_targets_for_task(graph_name, solution_name, task, manager=None):
+    """fs-2a: {kind, pins: [{pin, verdict, reason, registered_to, cooperating}, ...]} — for EVERY pin of the
+    solution's board (board.custom.target_compat.valid_targets), PLUS whether it is already registered to another
+    task and, if so, whether that is cooperation (fs-0's exemption, reused) or a conflict. 'valid' = compat ok AND
+    (unclaimed OR cooperating); 'invalid' = compat no, OR claimed by a non-cooperating task; 'undetermined' = compat
+    undetermined and unclaimed (a warning, not a refusal)."""
+    from cmod.custom.graph_seed import seed_graph
+    from cmod.custom.targets import requirement_kind
+    from board.custom import board_object as BO
+    from board.custom import target_compat as TC
+    kind = requirement_kind(graph_name, task)
+    rows = seed_graph(graph_name)
+    board = (rows or {}).get('graph', {}).get('board', '')
+    try:
+        r = BO.rows_for(board)
+    except BO.BoardObjectRefused as e:
+        return {'kind': kind, 'pins': [], 'refused': str(e)}
+    occupants = _occupants(graph_name, solution_name, manager)
+    out = []
+    for row in TC.valid_targets(kind, r):
+        others = [o for o in occupants.get('%s:%s' % (board, row['pin']), []) if o != task]
+        cooperating = _cooperates(graph_name, task, others) if others else True
+        verdict = row['verdict']
+        if verdict == 'ok' and others and not cooperating:
+            verdict, reason = 'invalid', row['reason'] + '; already registered to %s (not cooperating) — conflict' % ', '.join(sorted(others))
+        elif verdict == 'ok':
+            verdict, reason = 'valid', row['reason']
+        elif verdict == 'no':
+            verdict, reason = 'invalid', row['reason']
+        else:
+            verdict, reason = 'undetermined', row['reason']
+        out.append({'pin': row['pin'], 'verdict': verdict, 'reason': reason, 'registered_to': sorted(others), 'cooperating': cooperating})
+    return {'kind': kind, 'pins': out}
+
+
+def unregistered_tasks(assignment_rows):
+    """fs-2a (his naming, verbatim): the 'Unregistered Tasks' — one row per RegisterAssignment with status='unbound'
+    (a real target, just not placed on a pin yet), from a solution's own assignment rows (live or pure, caller's
+    choice — same shape either way: dicts with task/port/target_kind/controls)."""
+    return [a for a in assignment_rows if a.get('status') == 'unbound']
+
+
+def registered_tasks_by_pin(assignment_rows):
+    """fs-2a (his naming, verbatim): the 'Registered Tasks' per pin — {lives_on: [{task, port, status, cooperating},
+    ...]}, from a solution's own assignment rows; 'cooperating' mirrors fs-0's exemption (status != 'conflict')."""
+    out = {}
+    for a in assignment_rows:
+        if a.get('lives_on') and a['lives_on'] != 'unbound':
+            out.setdefault(a['lives_on'], []).append({'task': a.get('task', ''), 'port': a.get('port', ''),
+                                                       'status': a.get('status', ''), 'cooperating': a.get('status') != 'conflict'})
+    return out
+
+
+def check_drop(graph_name, solution_name, task, lives_on, manager=None):
+    """(ok, status, reason) for dragging `task`'s target onto `lives_on` (a '<board>:<canonical>' BoardPin name, or
+    'unbound'/''). Refuses (ok=False) when board.custom.target_compat.compatible() says no, when the pin is
+    power/ground (compatible() already covers this), or when it would conflict with a non-cooperating task;
+    'undetermined' is allowed, with a warning (his ruling: never silently guessed, never silently refused either)."""
+    if lives_on in ('', 'unbound'):
+        return True, 'unbound', 'unbound is always allowed — a real target, just not placed'
+    board, _, canonical = lives_on.partition(':')
+    from board.custom import board_object as BO
+    from board.custom import target_compat as TC
+    from cmod.custom.targets import requirement_kind
+    try:
+        r = BO.rows_for(board)
+    except BO.BoardObjectRefused as e:
+        return False, 'refused', str(e)
+    pin = BO.pin_by_canonical(r, canonical)
+    universe = {p['canonical']: p for p in TC.board_target_universe(r)}
+    pin = pin or universe.get(canonical)
+    if pin is None:
+        return False, 'refused', '%s has no pin %s' % (board, canonical)
+    soc_pin = next((s for s in r['soc_pins'] if s['pin'] == pin.get('soc_pin')), None) if pin.get('soc_pin') else None
+    kind = requirement_kind(graph_name, task)
+    verdict, reason = TC.compatible(kind, pin, soc_pin)
+    if verdict == 'no':
+        return False, 'refused', reason
+    others = [o for o in _occupants(graph_name, solution_name, manager).get(lives_on, []) if o != task]
+    if others and not _cooperates(graph_name, task, others):
+        return False, 'refused', 'pin %s is already registered to %s (not a cooperating init/use pair) — conflict' % (lives_on, ', '.join(sorted(others)))
+    if verdict == 'undetermined':
+        return True, 'undetermined', reason
+    return True, 'bound', reason
+
+
 # ------------------------------------------------------------------ validation (board exists+usable, targets bound/named, no conflicts)
 def validate(fs, manager=None):
     """(ok, why, details) for one FirmwareSolution dict/row: the board resolves and is usable (readiness), every

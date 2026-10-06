@@ -91,10 +91,27 @@ def _run(name, mode):
 
 
 def _assign(name, task, port, pin):
-    print('pol firmware assign is the door /api/firmware/solutions/%s/assign calls from a live server (needs a manager); '
-          'this CLI path is for the pin-map drag (fs-1) against a RUNNING instance — use the API directly until then: '
-          'POST /api/firmware/solutions/%s/assign {"task": %r, "port": %r, "lives_on": %r}' % (name, name, task, port, pin))
-    return 0
+    """fs-2a (his ruling: "pol firmware assign prints the refusal"): a DRY-RUN check against the pure, seed-time
+    rows (board.custom.target_compat + cmod.custom.firmware.check_drop) — no manager, no write; against a RUNNING
+    server, POST /api/firmware/solutions/{name}/assign is still the door that actually moves the row."""
+    from cmod.custom import firmware as FW
+    fs = _solution(name)
+    if fs is None:
+        print('no FirmwareSolution %r (pol firmware list)' % name)
+        return 2
+    if not task or not pin:
+        print('usage: pol firmware assign <solution> --task <task> [--port <port>] --pin <BoardPin|unbound>')
+        return 2
+    ok, status, why = FW.check_drop(fs['graph'], name, task, pin, manager=None)
+    if not ok:
+        print('refused: %s' % why)
+    elif status == 'undetermined':
+        print('ok (undetermined — warning): %s' % why)
+    else:
+        print('ok: %s' % why)
+    print('(this is a dry run against the seed-time rows; against a RUNNING server, use '
+          'POST /api/firmware/solutions/%s/assign {"task": %r, "port": %r, "lives_on": %r})' % (name, task, port, pin))
+    return 0 if ok else 1
 
 
 def main(argv):

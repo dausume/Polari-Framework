@@ -52,6 +52,80 @@ def firmware_parts(check):
         check('validate() refuses a board_variable naming a board no longer in the register (his rule: validated at run '
               'time), naming the missing board', not ok2 and 'tracked-board-9000' in why2, why2)
 
+    def target_compat_and_valid_targets():
+        """fs-2a (his ruling 2026-10-06): the per-task valid-targets door, the solution payload's unregistered/
+        registered tasks, and POST .../assign refusing an incompatible drop (PWM onto D13 — no Output Compare
+        function) while accepting a compatible one. A live falcon app, seeded exactly like the server boots it
+        (same posture as demo4_targets' API half)."""
+        from cmod.custom import firmware as FW
+        kinds = {'adc': 'analog-in', 'pwm': 'pwm-out', 'send': 'uart-tx', 'rx_pop': 'uart-rx', 'led': 'digital-out'}
+        for task, kind in kinds.items():
+            from cmod.custom import targets as T
+            check('requirement_kind(%s) == %s (derived from the atom\'s own resources, never typed in)' % (task, kind),
+                  T.requirement_kind('uno-sim-rig-graph', task) == kind, T.requirement_kind('uno-sim-rig-graph', task))
+
+        adc_vt = FW.valid_targets_for_task('uno-sim-rig-graph', 'uno-sim-rig', 'adc')
+        check('ADC task valid-targets (pure, no manager) == A0-A5 exactly',
+              sorted(p['pin'] for p in adc_vt['pins'] if p['verdict'] == 'valid') == ['A0', 'A1', 'A2', 'A3', 'A4', 'A5'], adc_vt)
+        pwm_vt = FW.valid_targets_for_task('uno-sim-rig-graph', 'uno-sim-rig', 'pwm')
+        check('PWM task valid-targets == the six timer pins (D6, its own current pin, included — cooperating with pwm_init/apply)',
+              sorted(p['pin'] for p in pwm_vt['pins'] if p['verdict'] == 'valid') == ['D10', 'D11', 'D3', 'D5', 'D6', 'D9'], pwm_vt)
+        d13 = next(p for p in pwm_vt['pins'] if p['pin'] == 'D13')
+        check('PWM onto D13 is invalid in the valid-targets listing too (no Output Compare function)', d13['verdict'] == 'invalid', d13)
+
+        ok, status, why = FW.check_drop('uno-sim-rig-graph', 'uno-sim-rig', 'pwm', 'arduino-uno-r3:D13')
+        check('check_drop refuses PWM onto D13 (the true invalid case — digital-out onto an analog pin is actually valid)',
+              not ok and 'Output Compare' in why, why)
+        # A0 itself is already claimed by the 'adc' task (a real conflict, correctly refused) — A1 is unclaimed, so
+        # this isolates the COMPATIBILITY question (is an analog pin GPIO-capable?) from the conflict question
+        ok2, status2, why2 = FW.check_drop('uno-sim-rig-graph', 'uno-sim-rig', 'led', 'arduino-uno-r3:A1')
+        check('…and digital-out onto A1 (an unclaimed analog pin) is NOT refused by compatibility (every I/O pin is GPIO-capable)',
+              ok2, why2)
+
+        # the live API: a manager seeded exactly like the server boots it
+        from types import SimpleNamespace
+        from falcon import testing
+        import falcon
+        from cmod.cmod_seed import CMOD_SEED_PAIRS
+        from cmod.cmod_firmware_api import FirmwareAPI
+        tables = {}
+        mgr = SimpleNamespace(objectTables=tables, idList=[], db=None)
+        for name, cls, seed_rows in CMOD_SEED_PAIRS:
+            for row in seed_rows:
+                o = cls(manager=mgr, **{k: v for k, v in row.items() if k != '_converge'})
+                tables.setdefault(name, {})[o.id] = o
+        app = falcon.App()
+        FirmwareAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
+        c = testing.TestClient(app)
+
+        r = c.simulate_get('/api/firmware/solutions/uno-sim-rig/tasks/pwm/valid-targets')
+        check('GET .../tasks/pwm/valid-targets (live, over the seeded manager) → the six timer pins valid',
+              r.status_code == 200 and r.json['ok'] and r.json['kind'] == 'pwm-out'
+              and sorted(p['pin'] for p in r.json['pins'] if p['verdict'] == 'valid') == ['D10', 'D11', 'D3', 'D5', 'D6', 'D9'], r.text[:300])
+
+        r = c.simulate_get('/api/firmware/solutions/uno-sim-rig')
+        check('the solution payload gains unregistered_tasks (temp.return, clock.return — real targets, not placed)',
+              {'temp.return', 'clock.return'} <= {(a['task'] + ('.' + a['port'] if a['port'] else ''))
+                                                   for a in r.json['unregistered_tasks']}, r.json.get('unregistered_tasks'))
+        check('…and per-pin registered_tasks (D6 carries pwm_init + pwm, cooperating)',
+              any(t['task'] == 'pwm' and t['cooperating'] for t in r.json['registered_tasks'].get('arduino-uno-r3:D6', [])),
+              r.json['registered_tasks'].get('arduino-uno-r3:D6'))
+
+        r = c.simulate_post('/api/firmware/solutions/uno-sim-rig/assign', json={'task': 'pwm', 'lives_on': 'arduino-uno-r3:D13'})
+        check('POST .../assign REFUSES PWM onto D13, 422, naming the reason (no Output Compare function)',
+              r.status_code == 422 and r.json.get('refused') and 'Output Compare' in r.json.get('error', ''), r.text[:300])
+        # the row is UNCHANGED after the refusal (never a silent partial write)
+        still = next(a for a in c.simulate_get('/api/firmware/solutions/uno-sim-rig').json['assignments'] if a['task'] == 'pwm')
+        check('…and the row is unchanged after the refusal (still on D6, not D13)', still['lives_on'] == 'arduino-uno-r3:D6', still)
+
+        r = c.simulate_post('/api/firmware/solutions/uno-sim-rig/assign', json={'task': 'pwm', 'port': 'duty', 'lives_on': 'arduino-uno-r3:D5'})
+        check('POST .../assign ACCEPTS PWM onto D5 (a true PWM-capable, unclaimed pin)',
+              r.status_code == 200 and r.json['ok'] and r.json['assignment']['lives_on'] == 'arduino-uno-r3:D5', r.text[:300])
+
+        r = c.simulate_post('/api/firmware/solutions/uno-sim-rig/assign', json={'task': 'led', 'lives_on': 'arduino-uno-r3:GND'})
+        check('POST .../assign REFUSES a power/ground pin, 422, naming the rule', r.status_code == 422
+              and 'never assignable' in r.json.get('error', ''), r.text[:300])
+
     def cross_domain_validator():
         from hwnocode.custom import cross_domain as CD
         clean = {'stateInstances': [
@@ -72,4 +146,4 @@ def firmware_parts(check):
         check('…and REFUSES a copy that still contains moving-avg\'s compute (ConditionalChain), NAMING the offending state',
               not ok2 and 'over?' in why2 and 'ConditionalChain' in why2, why2)
 
-    return (schedule_derivation, assignments_and_validate, cross_domain_validator)
+    return (schedule_derivation, assignments_and_validate, target_compat_and_valid_targets, cross_domain_validator)

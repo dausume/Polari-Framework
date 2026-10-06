@@ -179,6 +179,35 @@ check('/display/firmware-installer carries the Firmware Solutions fallback table
       len(fi_pages) == 1 and any(it['componentProps']['inputs'].get('dataPath') == '/api/firmware/solutions/for-installer'
                                  for row in json.loads(fi_pages[0].definition)['rows'] for it in row['items']))
 
+# ------------------------------------------------------------------ fs-2a (his ruling 2026-10-06): the two new doors,
+# live over the REAL boot — GET /api/board/<board>/pins/<pin> and GET /api/firmware/solutions/<name>/tasks/<task>/valid-targets
+r = client.simulate_get('/api/board/arduino-uno-r3/pins/D13')
+check('GET /api/board/arduino-uno-r3/pins/D13 (live) → PB5, register port B, SCK/PCINT5 alternate functions, registered_tasks carries led',
+      r.status_code == 200 and r.json['soc_pin'] == 'PB5' and r.json['register']['port'] == 'B'
+      and {f['function'] for f in r.json['alternate_functions']} == {'SCK', 'PCINT5'}
+      and any(t['task'] == 'led' for t in r.json['registered_tasks']), r.text[:400])
+r = client.simulate_get('/api/board/arduino-uno-r3/pins/A0')
+check('GET /api/board/arduino-uno-r3/pins/A0 (live) → PC0, ADC0 alternate function, registered_tasks carries adc',
+      r.status_code == 200 and r.json['soc_pin'] == 'PC0' and 'ADC0' in {f['function'] for f in r.json['alternate_functions']}
+      and any(t['task'] == 'adc' for t in r.json['registered_tasks']), r.text[:400])
+r = client.simulate_get('/api/board/arduino-uno-r3/pins/no-such-pin')
+check('an unknown pin → 404 in plain words', r.status_code == 404 and 'no pin' in r.json['error'])
+r = client.simulate_get('/api/firmware/solutions/uno-sim-rig/tasks/adc/valid-targets')
+check('GET .../tasks/adc/valid-targets (live) → analog-in, A0-A5 valid exactly',
+      r.status_code == 200 and r.json['kind'] == 'analog-in'
+      and sorted(p['pin'] for p in r.json['pins'] if p['verdict'] == 'valid') == ['A0', 'A1', 'A2', 'A3', 'A4', 'A5'], r.text[:400])
+r = client.simulate_get('/api/firmware/solutions/uno-sim-rig/tasks/pwm/valid-targets')
+check('GET .../tasks/pwm/valid-targets (live) → pwm-out, the six timer pins valid, D13 invalid',
+      r.status_code == 200 and r.json['kind'] == 'pwm-out'
+      and sorted(p['pin'] for p in r.json['pins'] if p['verdict'] == 'valid') == ['D10', 'D11', 'D3', 'D5', 'D6', 'D9']
+      and next(p for p in r.json['pins'] if p['pin'] == 'D13')['verdict'] == 'invalid', r.text[:400])
+r = client.simulate_post('/api/firmware/solutions/uno-sim-rig/assign', json={'task': 'pwm', 'lives_on': 'arduino-uno-r3:D13'})
+check('POST .../assign (live) REFUSES PWM onto D13, 422, naming the reason', r.status_code == 422 and r.json.get('refused')
+      and 'Output Compare' in r.json.get('error', ''), r.text[:400])
+r = client.simulate_get('/api/board/target-compat')
+check('GET /api/board/target-compat (live) → one row per TASK_KINDS, each cited', r.status_code == 200
+      and len(r.json['rows']) >= 13 and all(row['source_url'].startswith('http') for row in r.json['rows']), r.text[:300])
+
 
 def equivalence():
     """The REAL twin equivalence of the committed render + a negative control the comparison must catch."""

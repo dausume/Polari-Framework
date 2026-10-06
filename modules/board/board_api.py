@@ -63,6 +63,7 @@ class BoardAPI(treeObject):
             add('/api/board/pinmaps', self, suffix='pinmaps')
             add('/api/board/{board}/pinmap.svg', self, suffix='pinmap_svg')
             add('/api/board/{board}/pin-roles', self, suffix='pin_roles')
+            add('/api/board/target-compat', self, suffix='target_compat')
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -262,3 +263,12 @@ class BoardAPI(treeObject):
             response.media = {'ok': False, 'error': str(e)}
             return
         response.media = {'ok': True, 'board': r['board'], 'rows': R.rows_for_roles(P.pins_by_role(r))}
+
+    def on_get_target_compat(self, request, response):
+        """GET /api/board/target-compat — fs-2a (his ruling 2026-10-06): THE COMPATIBILITY TABLE between a firmware
+        task's target kind (analog-in, pwm-out, uart-rx/tx, i2c-sda/scl, spi-mosi/miso/sck/ss, digital-in/out,
+        interrupt-in, power/ground never) and the pin roles/capabilities that satisfy it — one row per kind, cited.
+        Global (not per-board): the vocabulary is the same for every board; `board.custom.target_compat.compatible()`
+        is what checks a SPECIFIC pin of a SPECIFIC board against one of these rows."""
+        from board.custom import target_compat as TC
+        response.media = {'ok': True, 'rows': TC.rows()}

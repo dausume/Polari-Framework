@@ -10,7 +10,7 @@ The 'board-roads' tech tree (one concept node per device) is seeded only when te
 """
 from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
-                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView)
+                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule)
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
@@ -19,6 +19,7 @@ from board.custom.variants import SEED_FIRMWARE_VARIANTS
 from board.custom.variants_c3 import SEED_C3_VARIANTS
 from board.custom.sim_cost_c3 import SEED_C3_SIM_COSTS
 from board.custom import board_object_seed
+from board.custom import target_compat as TC
 
 SEED_BOARD_DEFINITIONS = board_rows()
 for _b in SEED_BOARD_DEFINITIONS:   # brd-bo: the Identity layer gains the board object's links (soc, revision, upstream board)
@@ -57,6 +58,8 @@ BOARD_SEED_PAIRS = [
                                                                      ('BoardNet', BoardNet), ('Connector', Connector), ('ConnectorPin', ConnectorPin),
                                                                      ('BoardPin', BoardPin), ('RuntimeProfile', RuntimeProfile))] + [
     ('BoardView', BoardView, []), ('BoardConflict', BoardConflict, []),
+    # fs-2a: the compatibility table (code-owned: board.custom.target_compat.rows(), never hand-edited)
+    ('TargetCompatibilityRule', TargetCompatibilityRule, _register_owned(TC.rows())),
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode

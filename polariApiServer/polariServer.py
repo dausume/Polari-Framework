@@ -1313,6 +1313,8 @@ class polariServer(treeObject):
             FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
             # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoC / hardware / pin-assignment / runtime layers + views, conflicts
             SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
+            # fs-2a: the compatibility table between a firmware task's target kind and a board's pin roles/capabilities
+            TargetCompatibilityRule,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

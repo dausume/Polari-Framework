@@ -25,8 +25,8 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('twenty-two row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
-          'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView)', len(BOARD_CLASSES) == 22)
+    check('twenty-three row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+          'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule)', len(BOARD_CLASSES) == 23)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -211,7 +211,7 @@ def page():
     # the pin-roles table right under it, then the devices tables (demo1: usable/tracked split; brd-wire:
     # + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts)
     check('/display/boards is the pin-map drawing + configured tables only (no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 15 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
+          and len(names) == 16 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
     check('/display/boards: the FIRST item is the pin-map drawing (api-svg-panel)', names[0] == 'api-svg-panel', str(names))
     check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
@@ -357,6 +357,8 @@ def main():
     run_c3(check)
     from board.board_object_selftest import run_board_object   # brd-bo: THE BOARD OBJECT — rows, views, ingest, conflicts, the flip
     run_board_object(check)
+    from board.board_target_compat_selftest import run_target_compat   # fs-2a: task-kind <-> pin-role compatibility
+    run_target_compat(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

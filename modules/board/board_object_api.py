@@ -5,6 +5,12 @@ THE BOARD OBJECT's doors (brd-bo, PCB_FROM_SCRATCH_PLAN §2b) — over THIS serv
 
 GET  /api/board/{board}/pins        the pin assignment (BoardPin rows) + the SoC pins, nets, connectors, runtime profiles, the
                                     board sha and the rules (pins named once, a SoC pin assigned once …)
+GET  /api/board/{board}/pins/{pin}  fs-2a (his ruling 2026-10-06): ONE pin's expanded detail — its roles, SoC pin,
+                                    port register + bit (PORTx/DDRx/PINx), alternate functions (timer channel, ADC
+                                    channel, USART/I2C/SPI signal, INT/PCINT), electrical limits, net, connector, and
+                                    `registered_tasks` (RegisterAssignment rows across every FirmwareSolution whose
+                                    lives_on names this pin: task, port, solution, lane, cooperating) — every fact
+                                    with its DatasheetFact citation or `undetermined`
 GET  /api/board/{board}/views       the BoardView rows (rendered out / ingested in, by sha; refusals too)
 GET  /api/board/{board}/conflicts   the BoardConflict rows (shown, never auto-resolved)
 POST /api/board/{board}/render      body {as: kicad|zephyr|esp-idf|bare-c} → the view's files + sha; a BoardView row (out)
@@ -26,6 +32,7 @@ class BoardObjectAPI(treeObject):
         if polServer is not None and getattr(polServer, 'falconServer', None) is not None:
             add = polServer.falconServer.add_route
             add('/api/board/{board}/pins', self, suffix='pins')
+            add('/api/board/{board}/pins/{pin}', self, suffix='pin_one')
             add('/api/board/{board}/views', self, suffix='views')
             add('/api/board/{board}/conflicts', self, suffix='conflicts')
             add('/api/board/{board}/render', self, suffix='render')
@@ -52,6 +59,74 @@ class BoardObjectAPI(treeObject):
         response.media = {'ok': True, 'board': r['board'], 'boardSha': bo.board_sha(r), 'soc': r['soc'], 'pins': r['pins'],
                           'socPins': r['soc_pins'], 'nets': r['nets'], 'connectors': r['connectors'], 'connectorPins': r['connector_pins'],
                           'hardware': r['hardware'], 'runtimeProfiles': r['profiles'], 'rules': bo.validate(r) or ['ok']}
+
+    def on_get_pin_one(self, request, response, board, pin):
+        """fs-2a: ONE pin's expanded detail (his ruling: "an expanded detail view of the register and info about
+        it"), derived from BoardPin + SocPin + DatasheetFact rows — nothing hand-written per pin — plus the
+        `registered_tasks` claiming it across every FirmwareSolution on this server."""
+        from board.custom import board_object as bo
+        from board.custom.soc_atmega328p import FUNCTION_PERIPHERAL
+        r = self._rows(board, response)
+        if r is None:
+            return
+        bp = bo.pin_by_canonical(r, pin)
+        if bp is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': '%s has no pin %s (GET /api/board/%s/pins lists them)' % (r['board'], pin, r['board'])}
+            return
+        soc_pin = next((s for s in r['soc_pins'] if s['pin'] == bp.get('soc_pin')), None)
+        functions = json.loads(soc_pin['functions_json']) if soc_pin else []
+        alt = []
+        for fn in functions:
+            peripheral, signal = FUNCTION_PERIPHERAL.get(fn, ('', fn))
+            kind = ('timer channel' if peripheral.startswith('TIMER') else 'ADC channel' if peripheral == 'ADC'
+                    else 'USART signal' if peripheral == 'USART0' else 'I2C signal' if peripheral == 'TWI'
+                    else 'SPI signal' if peripheral == 'SPI' else 'external interrupt' if fn in ('INT0', 'INT1')
+                    else 'pin-change interrupt' if fn.startswith('PCINT') else 'other')
+            alt.append({'function': fn, 'peripheral': peripheral or 'undetermined', 'signal': signal, 'kind': kind,
+                        'fact': (soc_pin or {}).get('fact', '') or 'undetermined'})
+        electrical = json.loads(bp.get('electrical_json') or '{}')
+        connector_pin = next((c for c in r['connector_pins'] if c.get('board_pin') == pin), None)
+        registered = self._registered_tasks('%s:%s' % (r['board'], pin))
+        response.media = {
+            'ok': True, 'board': r['board'], 'pin': pin, 'roles': [bp.get('function') or 'gpio'],
+            'soc_pin': bp.get('soc_pin', ''),
+            'register': {'port': (soc_pin or {}).get('port', '') or 'undetermined', 'bit': (soc_pin or {}).get('bit', None),
+                        'package_pin': (soc_pin or {}).get('package_pin', '') or 'undetermined',
+                        'default_function': (soc_pin or {}).get('default_function', '') or 'undetermined',
+                        'fact': (soc_pin or {}).get('fact', '') or 'undetermined'},
+            'alternate_functions': alt,
+            'current_assignment': {'function': bp.get('function', ''), 'peripheral': bp.get('peripheral', ''),
+                                   'signal': bp.get('signal', ''), 'firmware_symbol': bp.get('firmware_symbol', '')},
+            'electrical': electrical or {'undetermined': 'no electrical facts cited for this pin'},
+            'net': bp.get('net', ''), 'connector': connector_pin.get('connector') if connector_pin else '',
+            'connector_number': connector_pin.get('number') if connector_pin else None,
+            'facts': json.loads(bp.get('facts_json') or '[]'),
+            'registered_tasks': registered, 'unregistered': not registered,
+        }
+
+    def _cross_module_rows(self, cls):
+        """Raw attribute rows of a class NOT owned by this module (RegisterAssignment/ScheduleSlot are cmod's) —
+        objectTables is server-wide, but board.custom.board_object.as_dict looks classes up in board_basis only, so
+        a cross-module class is read directly off the live objects here instead."""
+        if self.manager is None:
+            return []
+        return [{k: v for k, v in vars(r).items() if not k.startswith('_') and k != 'manager'}
+                for r in ((self.manager.objectTables or {}).get(cls, {}) or {}).values()]
+
+    def _registered_tasks(self, lives_on):
+        """[{task, port, solution, lane, status, cooperating}, ...] — RegisterAssignment rows across EVERY
+        FirmwareSolution on this server that claim this exact BoardPin (fs-2a: "the Registered Tasks")."""
+        asg = self._cross_module_rows('RegisterAssignment')
+        sched = {(s.get('solution'), s.get('task')): s.get('lane', '') for s in self._cross_module_rows('ScheduleSlot')}
+        out = []
+        for a in asg:
+            if a.get('lives_on') != lives_on:
+                continue
+            out.append({'task': a.get('task', ''), 'port': a.get('port', ''), 'solution': a.get('solution', ''),
+                        'lane': sched.get((a.get('solution'), a.get('task')), ''), 'status': a.get('status', ''),
+                        'cooperating': a.get('status') != 'conflict'})
+        return sorted(out, key=lambda x: (x['solution'], x['task']))
 
     def _list(self, cls, board):
         from board.custom import board_object as bo
