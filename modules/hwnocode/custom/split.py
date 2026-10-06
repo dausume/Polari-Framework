@@ -99,14 +99,22 @@ def compile_parts(p):
     except PL.PlacementRefused as e:
         raise SplitRefused(str(e))
     subs = [s for s in p['definition']['stateInstances'] if PL.state_class(s) == 'HardwareSubgraph']
+    runs = [s for s in p['definition']['stateInstances'] if PL.state_class(s) == 'FirmwareRunState']
     loose = [s['stateName'] for s in p['definition']['stateInstances'] if PL.state_class(s) == 'CAtom']
     if loose:
         raise SplitRefused('c-atom node(s) %s sit loose on the solution canvas: in hn-0 a c-atom renders only inside a '
                            'HardwareSubgraph (add it to the CGraph rows of %s)' % (', '.join(loose), hs['cgraph']))
-    if len(subs) != 1 or (subs[0].get('boundObjectFieldValues') or {}).get('cgraph') != hs['cgraph']:
-        raise SplitRefused('hn-0 renders ONE HardwareSubgraph whose cgraph is the solution\'s (%s); the canvas has %s'
-                           % (hs['cgraph'], ', '.join('%s → %s' % (s['stateName'], (s.get('boundObjectFieldValues') or {}).get('cgraph'))
-                                                    for s in subs) or 'none'))
+    if not (runs and not subs):
+        # the OLDER shape (a HardwareSubgraph embedded directly on this canvas) still requires exactly one, matching
+        # the solution's own cgraph — unchanged check, for any HardwareSolution that is NOT a fs-1 Cross-Domain canvas.
+        if len(subs) != 1 or (subs[0].get('boundObjectFieldValues') or {}).get('cgraph') != hs['cgraph']:
+            raise SplitRefused('hn-0 renders ONE HardwareSubgraph whose cgraph is the solution\'s (%s); the canvas has %s'
+                               % (hs['cgraph'], ', '.join('%s → %s' % (s['stateName'], (s.get('boundObjectFieldValues') or {}).get('cgraph'))
+                                                        for s in subs) or 'none'))
+    # fs-1: a Cross-Domain canvas (FirmwareRunState, no embedded HardwareSubgraph) still compiles the SAME referenced
+    # CGraph through cmod-glue — "cmod-glue still generates the C project; nothing about its C output changes"
+    # (DEMONSTRABLES_PLAN.md §9) — only the ONE-HardwareSubgraph-on-THIS-canvas requirement above is skipped (the
+    # firmware is cmod's own FirmwareSolution now, referenced by name from Firmware Run, never embedded here).
     from cmod.custom import glue as GL
     cg = p['cgraph']
     glue = GL.compile_graph({'CGraph': [cg['graph']], 'CGraphNode': cg['nodes'], 'CGraphEdge': cg['edges']})

@@ -27,6 +27,9 @@ def definition_of(name):
     """The canvas definition dict of a seeded solution (by SolutionDefinition name)."""
     if name == S.SOLUTION:
         return S.split_app_definition(S.SOLUTION)
+    if name == S.ANALYSIS_SOLUTION:
+        from hwnocode.custom import temp_analysis as TA
+        return TA.definition(TA.NAME)
     return None
 
 
@@ -64,21 +67,26 @@ def solution_rows():
 
 
 def solution_definitions():
-    """The canvas SolutionDefinition + the backend half (as hn-split derives it — the placement is pure, so it is derived here
-    without rendering the board half)."""
+    """The canvas SolutionDefinition (category='cross-domain', fs-1) + the backend half (as hn-split derives it — the
+    placement is pure, so it is derived here without rendering the board half) + the backend solutions the
+    Cross-Domain canvas calls OUT to (temp-analysis, category='', plain compute — fs-1)."""
     from hwnocode.custom import placement as PL
     out = []
     for hs in SOLUTIONS:
         d = definition_of(hs['solution'])
         out.append({'name': hs['solution'], 'function_name': hs['solution'].replace('-', '_'), 'target_runtime': 'python_backend',
-                    'definition': json.dumps(d), 'contract_json': json.dumps(S.contract())})
+                    'definition': json.dumps(d), 'contract_json': json.dumps(S.contract()), 'category': 'cross-domain'})
         rep = _placement(hs)
         if rep['nodes'] and not rep['refusals']:
             half = PL.backend_partition(d, rep, hs['backend_solution'])
             half['compiledBy'] = {'compiler': 'hn-split', 'sourceRows': ['HardwareSolution:%s' % hs['name']],
                                   'notes': 'the backend half (placement rule §2b)'}
             out.append({'name': hs['backend_solution'], 'function_name': hs['backend_solution'].replace('-', '_').replace('.', '_'),
-                        'target_runtime': 'python_backend', 'definition': json.dumps(half), 'contract_json': json.dumps(S.contract())})
+                        'target_runtime': 'python_backend', 'definition': json.dumps(half), 'contract_json': json.dumps(S.contract()),
+                        'category': ''})
+    from hwnocode.custom import temp_analysis as TA
+    out.append({'name': TA.NAME, 'function_name': TA.NAME.replace('-', '_'), 'target_runtime': 'python_backend',
+               'definition': json.dumps(TA.definition()), 'contract_json': json.dumps(TA.contract()), 'category': ''})
     return out
 
 

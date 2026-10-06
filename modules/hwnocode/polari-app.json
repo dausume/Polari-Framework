@@ -88,7 +88,8 @@
    "custom/seed_rows",
    "custom/solutions",
    "custom/split",
-   "custom/suggest"
+   "custom/suggest",
+   "custom/temp_analysis"
   ]
  },
  "classes": [

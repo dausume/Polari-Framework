@@ -23,6 +23,11 @@ from hwnocode.custom.runtimes import runtime_for_kind
 DEVICE_KINDS = {'HardwareSubgraph': 'hardware-subgraph', 'CAtom': 'c-atom'}
 #: the split point (rule 3)
 SPLIT_KINDS = {'HardwareInterface': 'hw-interface'}
+#: fs-1: FirmwareRunState orchestrates validate->build->run on a cmod FirmwareSolution (its own board/CGraph, named by
+#: field reference only — it never embeds a CGraph the way HardwareSubgraph does, so it is placed `bridge` like the
+#: hw-interface it sits beside, never counted into a Cross-Domain solution's `backend` partition (its statePalette
+#: already declares `'placement': 'bridge'`, fs-0; this completes the wiring)
+ORCHESTRATION_KINDS = {'FirmwareRunState': 'firmware-run'}
 #: client-side state classes (TS engine / displays)
 BROWSER_KINDS = {'EmitFrontendEvent', 'FormSubscription', 'ReactiveTransform'}
 #: the kinds cmod's glue owns — C on the device (cmod.custom.graph.NODE_KINDS)
@@ -129,6 +134,12 @@ def place(definition, cgraph_rows=None, board_instance='', displays=(), manager=
                       fv.get('port', '?'), fv.get('bridge_name', '?'), ', '.join(dev_n) or 'none', ', '.join(back_n) or 'none',
                       (' — ' + fv['route_report']) if fv.get('route_report') else ''))
             nodes.append(_node('solution', name, 'hw-interface', 'bridge', 'Java (generated bridge)', why, purpose=fv.get('purpose', '')))
+        elif cls in ORCHESTRATION_KINDS:
+            why = ('orchestrates cmod FirmwareSolution %s: validate -> build -> run (mode %s) — cmod.custom.firmware, '
+                   'in the framework host process, same as the hw-interface it sits beside' % (fv.get('firmware_solution', '?'),
+                                                                                                fv.get('mode', '?')))
+            nodes.append(_node('solution', name, ORCHESTRATION_KINDS[cls], 'bridge', 'Python (framework: cmod.custom.firmware)',
+                               why, purpose=fv.get('purpose', '')))
         elif name in device:
             dev = origin.get(name, '?')
             via = next(('%s → %s' % (a, b) for a, b in edges if {a, b} & {name} and (a in device and b in device)), '')

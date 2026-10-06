@@ -33,22 +33,32 @@ def _state(defn, name):
 
 
 def placement_on_seed():
+    """fs-1 migration: uno-temp-split is now a 5-state Cross-Domain canvas (Firmware Run, Bridge, Relay in, call
+    temp-analysis, Relay out) — no embedded HardwareSubgraph. The HardwareSolution row's `cgraph` field is UNCHANGED
+    (it still feeds the firmware_runtime suggestion/knob machinery below, unaffected by the migration), so the 18
+    uno-sim-rig-graph CGraph nodes are still expanded into the report's `subgraph` layer (unconditional on cgraph_rows,
+    not on a canvas HardwareSubgraph state) — but the CANVAS itself no longer places anything on the device: the
+    device_side set (what rule 3's crossing-edge check cuts off) is now EMPTY."""
     from hwnocode.custom import placement as PL
     from hwnocode.custom import split as SP
     r = SP.place_solution('uno-temp-split')
-    check('uno-temp-split placed: twin 19 (the HardwareSubgraph + its 18 CGraph nodes), bridge 1, backend 6, browser 1 — no refusal',
-          r['counts'] == {'twin': 19, 'bridge': 1, 'backend': 6, 'browser': 1} and not r['refusals'], (r['counts'], r['refusals']))
+    check('uno-temp-split placed: twin 18 (uno-sim-rig-graph\'s CGraph nodes, still expanded from HardwareSolution.cgraph), '
+          'bridge 2 (Firmware Run + the hw-interface), backend 3 (Relay in, call-temp-analysis, Relay out), browser 1 — no refusal',
+          r['counts'] == {'twin': 18, 'bridge': 2, 'backend': 3, 'browser': 1} and not r['refusals'], (r['counts'], r['refusals']))
     check('every node carries a placement from the rule\'s set and a why', all(n['placement'] in PL.PLACEMENTS and n['why'] for n in r['nodes']))
     br = [n for n in r['nodes'] if n['placement'] == 'bridge']
-    check('the ONLY bridge node is the hw-interface `uno-digital-twin` (binding uno-temp-split/SimRigState/0) — the split point',
-          [(n['node'], n['kind']) for n in br] == [('uno-digital-twin', 'hw-interface')] and 'uno-temp-split/SimRigState/0' in br[0]['why'])
+    check('the bridge nodes are Firmware Run (orchestrates cmod FirmwareSolution uno-sim-rig) then the hw-interface '
+          '`uno-digital-twin` (binding uno-temp-split/SimRigState/0) — the split point',
+          [(n['node'], n['kind']) for n in br] == [('firmware-run', 'firmware-run'), ('uno-digital-twin', 'hw-interface')]
+          and 'uno-sim-rig' in br[0]['why'] and 'uno-temp-split/SimRigState/0' in br[1]['why'], br)
     check('the device is the TWIN (no BoardInstance attached: twin:arduino-uno-r3#0) and every subgraph node is C',
           r['target'] == 'twin' and all(n['language'] == 'C' for n in r['nodes'] if n['layer'] == 'subgraph'))
-    check('the backend nodes are the engine\'s existing kinds, in Python: BackendStateChange, AnalysisCall, ConditionalChain, '
-          'VariableAssignment ×2, StateChangeCommit',
-          sorted(n['kind'] for n in r['nodes'] if n['placement'] == 'backend') == sorted(
-              ['BackendStateChange', 'AnalysisCall', 'ConditionalChain', 'VariableAssignment', 'VariableAssignment', 'StateChangeCommit']))
-    check('the device side (what the split cuts off) = the HardwareSubgraph node alone', r['device_side'] == ['sim-rig'], r['device_side'])
+    check('the backend nodes are bridging/relay only (D-fs-3): BackendStateChange (Relay in), SolutionInvocation '
+          '(call temp-analysis), BackendStateChange (Relay out) — never a compute kind',
+          [n['kind'] for n in r['nodes'] if n['placement'] == 'backend'] == ['BackendStateChange', 'SolutionInvocation', 'BackendStateChange'])
+    check('the device side (what rule 3\'s crossing-edge check cuts off) is EMPTY — the canvas itself places nothing '
+          'on the device anymore (the firmware lives in cmod\'s FirmwareSolution, named by reference only)',
+          r['device_side'] == [], r['device_side'])
 
 
 def runtimes_demo_4b():
@@ -63,55 +73,72 @@ def runtimes_demo_4b():
     missing = [n for n in r['nodes'] if not n['refused'] and not n.get('runtime')]
     check('every non-refused node of uno-temp-split carries a runtime (c-device/java-bridge/python-backend)', not missing, missing)
     by_kind = {n['kind']: n['runtime'] for n in r['nodes']}
-    check('c-atom/hardware-subgraph -> c-device; hw-interface -> java-bridge; the backend chain -> python-backend',
-          by_kind.get('hardware-subgraph') == 'c-device' and by_kind.get('hw-interface') == 'java-bridge'
+    check('hw-interface -> java-bridge; firmware-run (fs-1: orchestrates in the framework host process) -> python-backend; '
+          'the backend chain -> python-backend',
+          by_kind.get('hw-interface') == 'java-bridge' and by_kind.get('firmware-run') == 'python-backend'
           and by_kind.get('BackendStateChange') == 'python-backend', by_kind)
     sub_runtimes = {n['runtime'] for n in r['nodes'] if n['layer'] == 'subgraph'}
     check('every CGraph node inside the subgraph (c-atom + the glue kinds) resolves to c-device', sub_runtimes == {'c-device'}, sub_runtimes)
 
 
 def refusals():
+    """hn-split's device/backend placement-refusal mechanism (placement.py, unchanged code) — exercised against a
+    SYNTHETIC fixture built by hand, not the live uno-temp-split: fs-1's migration retired uno-temp-split's own
+    embedded HardwareSubgraph (the firmware moved to cmod's FirmwareSolution uno-sim-rig), so it is no longer a
+    fitting fixture for RULE 2/3's device-side enforcement — that is still real, general-purpose code, worth proving
+    on its own terms. A Cross-Domain solution's OWN compute refusal (D-fs-3) is proven separately below
+    (`cross_domain_validator`), against the real uno-temp-split."""
     from hwnocode.custom import placement as PL
     from hwnocode.custom import split as SP
     from polariNoCode import graph_builder as GB
-    p = _parts()
-    # 1. a Python node dropped on the board side: sim-rig → smooth (AnalysisCall) → uno-digital-twin
-    d = copy.deepcopy(p['definition'])
-    GB.wire(_state(d, 'sim-rig'), 0, 'smooth-on-board')
-    d['stateInstances'].append(GB.node('smooth-on-board', 'AnalysisCall', {'analysis': 'hwnocode-temp-derive'}, outs=[['uno-digital-twin']]))
-    r = PL.place(d, p['cgraph'], 'twin:arduino-uno-r3#0')
+    board = {'name': 'esp32-c3', 'device_class': 'MCU-M', 'ram_kb': 400}
+    cgraph = {'graph': {'name': 'fixture-graph', 'class_name': 'FixtureState'},
+             'nodes': [{'instance': 'read', 'kind': 'c-atom', 'atom': 'fixture:hal.read', 'stage': 'loop', 'order': 0}], 'edges': []}
+    sub = GB.node('rig', 'HardwareSubgraph', {'cgraph': 'fixture-graph', 'board_definition': 'esp32-c3'}, outs=[['bridge']])
+    hwi = GB.node('bridge', 'HardwareInterface', {'binding': 'fixture/FixtureState/0'}, outs=[['entry']])
+    entry = GB.node('entry', 'BackendStateChange', {'modelName': 'FixtureState', 'fieldName': 'value'}, outs=[['commit']])
+    commit = GB.node('commit', 'StateChangeCommit', {'targetClassName': 'FixtureState'}, outs=[[]])
+    base = GB.solution('fixture', sub, hwi, entry, commit)
+    hs = {'name': 'fixture-hs', 'solution': 'fixture', 'cgraph': 'fixture-graph', 'board_definition': 'esp32-c3',
+         'board_instance': 'twin:esp32-c3#0', 'displays': '', 'firmware_runtime': 'bare-c', 'backend_solution': 'fixture.backend'}
+    p = {'solution': hs, 'definition': base, 'cgraph': cgraph, 'board': board}
+    # 1. a Python node dropped on the board side: rig → smooth (AnalysisCall) → bridge
+    d = copy.deepcopy(base)
+    GB.wire(_state(d, 'rig'), 0, 'smooth-on-board')
+    d['stateInstances'].append(GB.node('smooth-on-board', 'AnalysisCall', {'analysis': 'hwnocode-temp-derive'}, outs=[['bridge']]))
+    r = PL.place(d, cgraph, 'twin:esp32-c3#0')
     msg = ' '.join(r['refusals'])
     check('a Python node (AnalysisCall) wired on the DEVICE side is REFUSED naming it and RULE 2, with the alternative (move it across '
           'the hw-interface)', 'smooth-on-board' in msg and 'RULE 2' in msg and 'move it across the hw-interface' in msg
           and any(n['node'] == 'smooth-on-board' and n['refused'] for n in r['nodes']), msg[:300])
-    check('…and rule 3 names the crossing edge (sim-rig → smooth-on-board, no hw-interface on it)',
-          'edge sim-rig → smooth-on-board crosses board ⇄ backend without a hw-interface' in msg)
+    check('…and rule 3 names the crossing edge (rig → smooth-on-board, no hw-interface on it)',
+          'edge rig → smooth-on-board crosses board ⇄ backend without a hw-interface' in msg)
     try:
         SP.compile_parts(dict(p, definition=d))
         check('hn-split refuses to compile it', False)
     except SP.SplitRefused as e:
         check('hn-split refuses to compile it (SplitRefused, the same words)', 'smooth-on-board' in str(e))
-    # 2. the hw-interface removed: sim-rig wired straight to the BackendStateChange
-    d2 = copy.deepcopy(p['definition'])
-    GB.wire(_state(d2, 'sim-rig'), 0, 'on-temp')
-    d2['stateInstances'] = [s for s in d2['stateInstances'] if s['stateName'] != 'uno-digital-twin']
-    r2 = PL.place(d2, p['cgraph'], 'twin:arduino-uno-r3#0')
+    # 2. the hw-interface removed: rig wired straight to the BackendStateChange
+    d2 = copy.deepcopy(base)
+    GB.wire(_state(d2, 'rig'), 0, 'entry')
+    d2['stateInstances'] = [s for s in d2['stateInstances'] if s['stateName'] != 'bridge']
+    r2 = PL.place(d2, cgraph, 'twin:esp32-c3#0')
     m2 = ' '.join(r2['refusals'])
-    check('no hw-interface on the crossing: edge sim-rig → on-temp refused (rule 3) and the whole backend chain lands on the device side',
-          'edge sim-rig → on-temp crosses board ⇄ backend' in m2 and {'on-temp', 'moving-avg', 'commit'} <= set(r2['device_side']), m2[:200])
+    check('no hw-interface on the crossing: edge rig → entry refused (rule 3) and the whole backend chain lands on the device side',
+          'edge rig → entry crosses board ⇄ backend' in m2 and {'entry', 'commit'} <= set(r2['device_side']), m2[:200])
     # 3. a Python node INSIDE the referenced CGraph
-    cg = copy.deepcopy(p['cgraph'])
-    cg['nodes'].append({'name': 'uno-sim-rig-graph:smooth', 'graph': cg['graph']['name'], 'instance': 'smooth', 'kind': 'AnalysisCall',
-                        'atom': 'hwnocode.custom.derive:temp_derive', 'stage': 'loop', 'order': 30, 'bindings': '', 'params': ''})
-    r3 = PL.place(p['definition'], cg, 'twin:arduino-uno-r3#0')
+    cg3 = copy.deepcopy(cgraph)
+    cg3['nodes'].append({'name': 'fixture-graph:smooth', 'graph': cg3['graph']['name'], 'instance': 'smooth', 'kind': 'AnalysisCall',
+                         'atom': 'hwnocode.custom.derive:temp_derive', 'stage': 'loop', 'order': 30, 'bindings': '', 'params': ''})
+    r3 = PL.place(base, cg3, 'twin:esp32-c3#0')
     m3 = ' '.join(r3['refusals'])
     check('a Python node inside the CGraph (kind AnalysisCall) is refused ON THE BOARD, named, RULE 2',
           "node 'smooth' (kind AnalysisCall) is a Python/engine node on the BOARD" in m3 and 'RULE 2' in m3, m3[:200])
     # 4. a loose c-atom on the solution canvas
-    d4 = copy.deepcopy(p['definition'])
+    d4 = copy.deepcopy(base)
     d4['stateInstances'].append(GB.node('blink', 'CAtom', {'atom': 'uno:hal.hal_led'}, outs=[[]]))
-    GB.wire(_state(d4, 'sim-rig'), 0, 'uno-digital-twin', 'blink')
-    r4 = PL.place(d4, p['cgraph'], 'twin:arduino-uno-r3#0')
+    GB.wire(_state(d4, 'rig'), 0, 'bridge', 'blink')
+    r4 = PL.place(d4, cgraph, 'twin:esp32-c3#0')
     try:
         SP.compile_parts(dict(p, definition=d4))
         check('a loose c-atom is refused at render', False)
@@ -121,34 +148,87 @@ def refusals():
               and 'blink' in str(e) and 'inside a HardwareSubgraph' in str(e), str(e)[:200])
 
 
+def cross_domain_validator():
+    """fs-1's OWN new checks (DEMONSTRABLES_PLAN.md §9 migration): the Cross-Domain validator passes on the real,
+    migrated uno-temp-split; it REFUSES the retired (pre-migration) 8-state shape — naming the first compute kind it
+    finds — proving the migration actually changed what is enforced, not just what is drawn."""
+    from hwnocode.custom import cross_domain as CD
+    from hwnocode.custom import solutions as S
+    from hwnocode.custom import temp_analysis as TA
+    d = S.split_app_definition()
+    ok, why = CD.validate(d)
+    check('the Cross-Domain validator passes on the migrated uno-temp-split (Firmware Run, Bridge, Relay in, call '
+          'temp-analysis, Relay out — bridging/relay only)', ok, why)
+    kinds = {s['stateName']: s['stateClass'] for s in d['stateInstances']}
+    check('uno-temp-split\'s 5 states are exactly Firmware Run / Bridge / Relay in / call-temp-analysis / Relay out',
+          kinds == {'firmware-run': 'FirmwareRunState', 'uno-digital-twin': 'HardwareInterface',
+                    'relay-in': 'BackendStateChange', 'call-temp-analysis': 'SolutionInvocation',
+                    'relay-out': 'BackendStateChange'}, kinds)
+    # the RETIRED pre-migration shape (reconstructed): the inline moving-avg/over?/flag-on/flag-off compute that used
+    # to sit directly on this canvas — the validator must refuse it, naming the first compute-kind state.
+    from polariNoCode import graph_builder as GB
+    old = GB.solution('uno-temp-split',
+                      GB.node('on-temp', 'BackendStateChange', {}, outs=[['moving-avg']]),
+                      GB.node('moving-avg', 'AnalysisCall', {'analysis': TA.ANALYSIS}, outs=[['over?']]),
+                      GB.cond('over?', [], 'flag-on', 'flag-off'),
+                      GB.node('flag-on', 'VariableAssignment', {}, outs=[['commit']]),
+                      GB.node('flag-off', 'VariableAssignment', {}, outs=[['commit']]),
+                      GB.node('commit', 'StateChangeCommit', {}, outs=[[]]))
+    ok2, why2 = CD.validate(old)
+    check('…and REFUSES the retired pre-migration shape (inline compute) — naming the first offending state (over?, '
+          'a ConditionalChain)', not ok2 and "state 'over?'" in why2 and 'ConditionalChain' in why2, why2)
+    # the three seeded solutions exist, named plainly
+    from hwnocode.custom import seed_rows as SR
+    names = {r['name'] for r in SR.solution_definitions()}
+    check('the three seeded solutions: uno-temp-split (cross-domain), uno-temp-split.backend (its derived backend '
+          'half), temp-analysis (plain backend, called out to)',
+          {S.SOLUTION, '%s.backend' % S.SOLUTION, TA.NAME} <= names, names)
+    cats = {r['name']: r.get('category', '') for r in SR.solution_definitions()}
+    check('uno-temp-split carries category=cross-domain; temp-analysis and the derived backend half do not',
+          cats.get(S.SOLUTION) == 'cross-domain' and cats.get(TA.NAME, '') == '' and cats.get('%s.backend' % S.SOLUTION, '') == '', cats)
+    from cmod.custom import firmware as FW
+    ok3, why3, _d = FW.validate({'name': 'uno-sim-rig', 'graph': S.CGRAPH, 'board_definition': S.BOARD, 'board_variable': ''})
+    check('uno-sim-rig (cmod\'s FirmwareSolution, fs-0, unchanged) still validates — the firmware itself is untouched '
+          'by this migration', ok3, why3)
+
+
 def subgraph_reference():
+    """fs-1 migration: the HardwareSubgraph-on-this-canvas proof (D-hn-1) moved — the firmware is now cmod's OWN
+    FirmwareSolution `uno-sim-rig` (fs-0, already built and tested by cmod's own selftest/selftest_firmwaresol.py),
+    named by Firmware Run's `firmware_solution` field reference, never embedded on THIS canvas. hn-split still
+    compiles the SAME referenced CGraph through cmod-glue for a Cross-Domain canvas (only the "exactly one
+    HardwareSubgraph state on this canvas" requirement is skipped) — the board half stays byte-identical to cmod-1's
+    committed record, proven below by sha equality, same as before the migration."""
     from cmod.custom import glue as GL
     from cmod.custom import graph as GR
     from cmod.custom.graph_seed import seed_graph
     from hwnocode.custom import split as SP
+    from hwnocode.custom import solutions as S
     from polariNoCode.graph_compilers import SEED_GRAPH_COMPILERS, GraphCompilerDefinition, compile_with
     p = _parts()
     hs = p['solution']
-    sub = _state(p['definition'], 'sim-rig')
+    run = _state(p['definition'], 'firmware-run')
     rec = GL.load_record('uno-sim-rig-graph')
-    check('D-hn-1: the HardwareSubgraph node REFERENCES CGraph uno-sim-rig-graph (= HardwareSolution.cgraph); the cmod rows are cmod\'s '
-          'seeds, unchanged (graph sha = cmod-1\'s record)', sub['boundObjectFieldValues']['cgraph'] == hs['cgraph'] == 'uno-sim-rig-graph'
+    check('Firmware Run REFERENCES cmod FirmwareSolution uno-sim-rig (fs-0, unchanged); its graph is still '
+          'uno-sim-rig-graph = HardwareSolution.cgraph; the cmod rows are cmod\'s seeds, unchanged (graph sha = cmod-1\'s record)',
+          run['boundObjectFieldValues']['firmware_solution'] == S.FIRMWARE_SOLUTION and hs['cgraph'] == 'uno-sim-rig-graph'
           and GR.graph_sha(seed_graph('uno-sim-rig-graph')) == rec['graph_sha256'])
     r = SP.compile_parts(p)
     pv = r['provenance']
-    check('hn-split\'s board half = cmod-glue\'s output: files_sha256 %s… = cmod-1\'s committed record (every file\'s sha equal)'
+    check('hn-split\'s board half for a Cross-Domain canvas is STILL cmod-glue\'s output: files_sha256 %s… = cmod-1\'s '
+          'committed record (every file\'s sha equal — unchanged, just no longer embedded as a canvas state)'
           % pv['glue_files_sha256'][:12], pv['glue_files_sha256'] == rec['files_sha256'] and pv['glue_files'] == rec['files'])
-    check('the backend half = the 6 backend states, no connector to a hardware node, stamped compiledBy hn-split',
-          [s['stateName'] for s in r['definition']['stateInstances']] == ['on-temp', 'moving-avg', 'over?', 'flag-on', 'flag-off', 'commit']
-          and all(c['targetStateName'] in {'moving-avg', 'over?', 'flag-on', 'flag-off', 'commit'}
+    check('the backend half = the 3 bridging/relay-only backend states, no connector to a hardware node, stamped compiledBy hn-split',
+          [s['stateName'] for s in r['definition']['stateInstances']] == ['relay-in', 'call-temp-analysis', 'relay-out']
+          and all(c['targetStateName'] in {'call-temp-analysis', 'relay-out'}
                   for s in r['definition']['stateInstances'] for sl in s['slots'] for c in sl['connectors'])
           and r['definition']['compiledBy']['compiler'] == 'hn-split')
     row = next(x for x in SEED_GRAPH_COMPILERS if x['name'] == 'hn-split')
     g = GraphCompilerDefinition(**row)
     out = compile_with(g, {'HardwareSolution': [hs], 'SolutionDefinition': [{'definition': json.dumps(p['definition'])}],
                            'CGraph': [p['cgraph']['graph']], 'CGraphNode': p['cgraph']['nodes'], 'CGraphEdge': p['cgraph']['edges']})
-    check('the GraphCompilerDefinition row `hn-split` (domain hwnocode) compiles through compile_with: artifacts = cmod-glue\'s, the '
-          'definition = the backend half', out['provenance']['glue_files_sha256'] == rec['files_sha256']
+    check('the GraphCompilerDefinition row `hn-split` (domain hwnocode) compiles through compile_with: artifacts = cmod-glue\'s '
+          '(unchanged), the definition = the backend half', out['provenance']['glue_files_sha256'] == rec['files_sha256']
           and out['definition']['solutionName'] == 'uno-temp-split.backend' and len(out['artifacts']) == 7)
     st = json.load(open(SP.record_path('uno-temp-split'))) if SP.load_record('uno-temp-split') else {}
     check('the committed split record names the same split sha and says the board half equals cmod-1\'s record',
@@ -214,17 +294,27 @@ def suggestion_fixtures():
 
 
 def backend_half_in_engine():
-    """The backend half through the REAL engine (graph_builder.execute) on a fake manager — the moving average, the flag, the ring."""
+    """The backend half through the REAL engine (graph_builder.execute) on a fake manager — fs-1: the backend half is
+    now 3 bridging states (Relay in -> call-temp-analysis -> Relay out); the moving average/flag/ring compute runs
+    INSIDE the invoked `temp-analysis` solution (a nested SolutionInvocation execution, the engine's own P3 seam) —
+    same math, same result, proving the migration changed WHERE the compute runs, never WHAT it computes."""
     from types import SimpleNamespace
     from hwnocode.custom import split as SP
+    from hwnocode.custom import temp_analysis as TA
     from polariNoCode.graph_builder import execute
     from polariNoCode.graph_compilers import final_context_of
     backend = SP.compile_parts(_parts())['definition']
-    mgr = SimpleNamespace(objectTables={'AnalysisDefinition': {}}, objectTypingDict={}, db=None, idList=[])
+    check('the backend half invoked by the trigger is now 3 bridging states (Relay in, call-temp-analysis, Relay out)',
+          [s['stateName'] for s in backend['stateInstances']] == ['relay-in', 'call-temp-analysis', 'relay-out'])
+    mgr = SimpleNamespace(objectTables={'AnalysisDefinition': {}, 'SolutionDefinition': {}}, objectTypingDict={}, db=None, idList=[])
     from polariNoCode.analysis_calls import AnalysisDefinition
+    from polariApiServer.solutionDefinition import SolutionDefinition
     from hwnocode.custom.seed_rows import ANALYSES
     a = AnalysisDefinition(manager=mgr, **ANALYSES[0])
     mgr.objectTables['AnalysisDefinition'] = {a.id: a}
+    ta = SolutionDefinition(manager=mgr, name=TA.NAME, function_name=TA.NAME.replace('-', '_'), target_runtime='python_backend',
+                            definition=json.dumps(TA.definition()), contract_json=json.dumps(TA.contract()), category='')
+    mgr.objectTables['SolutionDefinition'] = {ta.id: ta}
     temps = [24.0, 24.0, 24.5, 25.0, 26.0, 27.0, 27.0, 23.0]
     flags, avgs, statuses = [], [], []
     for i, t in enumerate(temps):
@@ -299,9 +389,10 @@ def seeds_page_api():
     from hwnocode.hwnocode_page import SEED_HWNOCODE_PAGE_DISPLAYS, SEED_HWNOCODE_GRAPHS
     from hwnocode.hwnocode_api import HwNoCodeAPI
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
-    check('seeds: 1 HardwareSolution, 27 placements, 2 SolutionDefinitions (the canvas + its backend half), 1 AnalysisDefinition, '
+    check('seeds (fs-1 migration): 1 HardwareSolution, 24 placements (18 twin + 2 bridge + 3 backend + 1 browser), '
+          '3 SolutionDefinitions (the cross-domain canvas + its derived backend half + temp-analysis), 1 AnalysisDefinition, '
           '1 EventTrigger, 1 HardwareInterfaceBinding, 1 GraphDefinition, 6 Runtimes (demo-4b)', counts == {
-              'HardwareSolution': 1, 'HardwareNodePlacement': 27, 'SolutionDefinition': 2, 'AnalysisDefinition': 1, 'EventTrigger': 1,
+              'HardwareSolution': 1, 'HardwareNodePlacement': 24, 'SolutionDefinition': 3, 'AnalysisDefinition': 1, 'EventTrigger': 1,
               'HardwareInterfaceBinding': 1, 'GraphDefinition': 1, 'Runtime': 6}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
@@ -379,7 +470,7 @@ def seeds_page_api():
           r.status_code == 200 and r.json['solutions'][0]['name'] == 'uno-temp-split'
           and len(r.json['node_kinds']) == 4, r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/placement')
-    check('GET …/placement → computed now: twin 19, bridge 1, backend 6, browser 1', r.status_code == 200 and r.json['summary'] == 'twin 19, bridge 1, backend 6, browser 1', r.text[:200])
+    check('GET …/placement → computed now: twin 18, bridge 2, backend 3, browser 1', r.status_code == 200 and r.json['summary'] == 'twin 18, bridge 2, backend 3, browser 1', r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/render')
     check('GET …/render → the board half unchanged vs cmod-1 (in memory, nothing written)', r.status_code == 200 and r.json['board_half']['unchanged_output'], r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/suggest')
@@ -416,10 +507,11 @@ def connectors_and_hardware_mode():
                     unresolved.append('%s -> %s' % (s['stateName'], c.get('targetStateName')))
                 if 'id' not in c or 'sourceSlot' not in c or 'sinkSlot' not in c:
                     missing_fields.append('%s -> %s: connector missing id/sourceSlot/sinkSlot' % (s['stateName'], c.get('targetStateName')))
-    check('uno-temp-split has 8 seeded edges, every one with BOTH endpoints resolvable', n_edges == 8 and not unresolved, (n_edges, unresolved))
+    check('uno-temp-split has 4 seeded edges (fs-1: 5 states, a straight bridging/relay chain), every one with BOTH '
+          'endpoints resolvable', n_edges == 4 and not unresolved, (n_edges, unresolved))
     check('…and every slot/connector carries the renderer fields the canvas actually reads (index/id/sourceSlot/sinkSlot) '
           '— not just the first edge', not missing_fields, missing_fields)
-    check('every one of the 8 states has a non-empty purpose (his question: "not clear what the backend state change is '
+    check('every one of the 5 states has a non-empty purpose (his question: "not clear what the backend state change is '
           'for... not sure what the analysis call is")',
           all((s.get('boundObjectFieldValues') or {}).get('purpose') for s in d['stateInstances']),
           [s['stateName'] for s in d['stateInstances'] if not (s.get('boundObjectFieldValues') or {}).get('purpose')])
@@ -458,8 +550,9 @@ def manifest_conform():
 
 def main():
     print('hwnocode selftest (hn-0)')
-    for part in (placement_on_seed, runtimes_demo_4b, refusals, subgraph_reference, knob_refusals, suggestion_fixtures,
-                 backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode, manifest_conform):
+    for part in (placement_on_seed, runtimes_demo_4b, refusals, cross_domain_validator, subgraph_reference, knob_refusals,
+                 suggestion_fixtures, backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode,
+                 manifest_conform):
         print('-- %s' % part.__name__)
         try:
             part()
