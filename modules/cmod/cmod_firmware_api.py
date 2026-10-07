@@ -27,6 +27,19 @@ GET  /api/firmware/solutions/for-installer    {ok, rows:[...]} — fs-1 item 4's
                                                documented `run_command` column per row (`pol firmware run <name>
                                                --mode digital-twin` — the safe, non-flashing default; hardware mode
                                                is a person's own choice, never defaulted to)
+
+fs-2d (his ask, verbatim: "we should already have a way of describing and defining the tasks in C using no-code, so
+we will want our tasks to be linked to their no-code solutions that compose them as well"): every `schedule` and
+`assignments` row GET /api/firmware/solutions/{name} returns now carries `composed_by` — {graph, node, canvas_route,
+solution, capabilities} (`_composed_by`, below) — the REVERSE link from a task to where it is composed: the CGraph +
+CGraphNode it is (task == the node's own `instance`), the /display/c-canvas route that opens straight at that node,
+any HardwareSolution whose own graph this is, and which Capability names it. The forward half (a c-canvas node
+knowing its own firmware wiring) is GET /api/cmod/graphs/{graph}'s per-node `firmware` field (cmod_api.CModAPI).
+What "defining tasks in C using no-code" IS today, named plainly (no cmod-2 built this session): a task's C BODY is
+hand-written (cmod.custom.ingest parses it into CFunctionAtom rows — ports, resources, cost); the GLUE around it
+(frame/parse/tick/dispatch) is generated; the no-code canvas edits the GRAPH of atoms (which exists, wired to what,
+in which stage/lane) — never the atom's own C body. A state kind that held a C body and generated the atom FROM it
+(the no-code-authored equivalent of today's hand-written-then-parsed atom) does not exist — that gap is cmod-2.
 """
 import inspect
 import json
@@ -94,12 +107,33 @@ class FirmwareAPI(treeObject):
         asg = sorted((r for r in self._rows('RegisterAssignment') if r.solution == name), key=lambda r: (r.target_kind, r.task))
         builds = sorted((r for r in self._rows('CGlueBuild') if r.graph == s.graph), key=lambda r: r.name)
         assignments = [self._d(r) for r in asg] or details.get('assignments', [])
+        caps = self._capabilities(s)
+        schedule_rows = [self._d(r) for r in sched]
+        for row in schedule_rows:
+            row['composed_by'] = self._composed_by(s, row['task'], caps)
+        assignments = [dict(a, composed_by=self._composed_by(s, a['task'], caps)) for a in assignments]
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
-        response.media = {'ok': True, 'solution': self._d(s), 'schedule': [self._d(r) for r in sched],
+        response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
                           'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],
-                          'capabilities': self._capabilities(s)}
+                          'capabilities': caps}
+
+    def _composed_by(self, s, task, caps=None):
+        """fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them") — the
+        REVERSE link from a task row to where it is COMPOSED: the CGraph + the CGraphNode (same `task`/`instance`
+        name — RegisterAssignment.task and ScheduleSlot.task are already the CGraphNode's own `instance`, cmod.
+        custom.firmware.assignments_for/schedule_for), the canvas route that opens straight at that node, any
+        SolutionDefinition/HardwareSolution whose own graph IS this CGraph (the same `cgraph` field GET /api/cmod/
+        graphs/{graph}'s `used_by` already reads, cmod_api.CModAPI.on_get_graph_one), and which of this solution's
+        own Capabilities (self._capabilities) name this task. Never a new graph, never a new canvas — a read over
+        rows already produced elsewhere, same posture as every other *_api.py in this arc."""
+        graph = getattr(s, 'graph', '')
+        hw = sorted({getattr(r, 'name', '') for r in self._rows('HardwareSolution') if getattr(r, 'cgraph', '') == graph})
+        caps = caps if caps is not None else self._capabilities(s)
+        cap_names = sorted({c['name'] for c in caps if task in c.get('task_names', [])})
+        return {'graph': graph, 'node': task, 'canvas_route': '/display/c-canvas?graph=%s&node=%s' % (graph, task),
+                'solution': hw[0] if hw else '', 'capabilities': cap_names}
 
     def _capabilities(self, s):
         """hw priorities P1: the Capabilities grouping the firmware panel's Tasks section by (D-hw-2/P1 §4

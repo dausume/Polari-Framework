@@ -16,6 +16,18 @@ GET  /api/board/{board}/conflicts   the BoardConflict rows (shown, never auto-re
 POST /api/board/{board}/render      body {as: kicad|zephyr|esp-idf|bare-c} → the view's files + sha; a BoardView row (out)
 POST /api/board/{board}/ingest      body {as, files: {name: text}} → BoardView (in) + one BoardConflict per disagreement; the
                                     rows are NOT changed
+
+fs-2d (his ask, verbatim: "the power pins have no definitions at all"): GET /api/board/{board}/pins/{pin} no longer
+404s for a power/reference connector label (IOREF, RESET, +3V3/5V, GND, VIN, AREF — none of these are BoardPin rows,
+board.custom.board_uno only makes one per SoC-backed D/A pin) — board.custom.power_pins.detail_for() answers instead,
+carried under `power_reference` (purpose / electrical / typical_uses / assignable=False + why / every physical
+location / citations), alongside `parts_that_connect_here` (board.custom.kit_parts.parts_for_pin, his follow-up ask:
+the kit parts register a sample firmware is built from) in place of `registered_tasks` (a power rail is never a task
+target, so it never has any).
+
+GET  /api/board/kit-parts           every KitPart row (board.custom.kit_parts) + `parts_without_sample` (the names
+                                    with no sample_capabilities yet — the backlog for future sample firmwares)
+GET  /api/board/kit-parts/{part}    one KitPart row by its bare key (e.g. 'tmp36') or full name ('arduino-starter-kit:tmp36')
 """
 import json
 
@@ -37,6 +49,8 @@ class BoardObjectAPI(treeObject):
             add('/api/board/{board}/conflicts', self, suffix='conflicts')
             add('/api/board/{board}/render', self, suffix='render')
             add('/api/board/{board}/ingest', self, suffix='ingest')
+            add('/api/board/kit-parts', self, suffix='kit_parts')
+            add('/api/board/kit-parts/{part}', self, suffix='kit_part_one')
 
     def _tables(self):
         from board.custom import board_object as bo
@@ -66,11 +80,16 @@ class BoardObjectAPI(treeObject):
         `registered_tasks` claiming it across every FirmwareSolution on this server."""
         from board.custom import board_object as bo
         from board.custom.soc_atmega328p import FUNCTION_PERIPHERAL
+        from board.custom import power_pins as PP
+        from board.custom import kit_parts as KP
         r = self._rows(board, response)
         if r is None:
             return
         bp = bo.pin_by_canonical(r, pin)
         if bp is None:
+            if PP.is_power_reference_label(pin):
+                self._power_pin_detail(request, response, r, pin, KP)
+                return
             response.status = falcon.HTTP_404
             response.media = {'ok': False, 'error': '%s has no pin %s (GET /api/board/%s/pins lists them)' % (r['board'], pin, r['board'])}
             return
@@ -104,6 +123,47 @@ class BoardObjectAPI(treeObject):
             'facts': json.loads(bp.get('facts_json') or '[]'),
             'registered_tasks': registered, 'unregistered': not registered,
         }
+
+    def _power_pin_detail(self, request, response, r, pin, KP):
+        """fs-2d: the pin-detail door for a power/reference connector label (never a BoardPin row — IOREF, RESET,
+        +3V3, +5V, GND, VIN, AREF). Shaped like on_get_pin_one's normal payload (same top-level keys a caller already
+        expects: soc_pin/register/alternate_functions/electrical/net/connector/facts/registered_tasks) with the
+        SoC-specific ones honestly empty, PLUS `power_reference` (board.custom.power_pins.detail_for) and
+        `parts_that_connect_here` (board.custom.kit_parts.parts_for_pin, his follow-up ask) in place of the
+        (always-empty, for a power rail) registered_tasks."""
+        from board.custom import power_pins as PP
+        label = PP.label_for(pin)
+        parts = KP.parts_for_pin(pin, r)
+        detail = PP.detail_for(pin, r, parts_that_connect_here=parts)
+        locs = detail['locations']
+        response.media = {
+            'ok': True, 'board': r['board'], 'pin': label, 'roles': [detail['role']], 'soc_pin': '',
+            'register': {'port': 'undetermined', 'bit': None, 'package_pin': 'undetermined',
+                        'default_function': 'undetermined', 'fact': 'undetermined'},
+            'alternate_functions': [],
+            'current_assignment': {'function': detail['role'], 'peripheral': '', 'signal': '', 'firmware_symbol': ''},
+            'electrical': detail['electrical'], 'net': detail['net'],
+            'connector': locs[0]['connector'] if locs else '', 'connector_number': locs[0]['number'] if locs else None,
+            'facts': [], 'registered_tasks': [], 'unregistered': False,
+            'power_reference': detail, 'parts_that_connect_here': parts,
+        }
+
+    def on_get_kit_parts(self, request, response):
+        from board.custom import kit_parts as KP
+        rows = KP.rows()
+        # `rows` is the convention class-rows-table's dataPath reads (payload.rows ?? []); `parts` is the same list,
+        # named for anyone reading this door directly (its own docstring, tests — no `pol board kit-parts` CLI yet).
+        response.media = {'ok': True, 'kit': KP.KIT, 'rows': rows, 'parts': rows, 'parts_without_sample': KP.parts_without_sample(),
+                          'parts_without_sample_how': 'KitPart rows with an empty sample_capabilities — the backlog for future sample firmwares'}
+
+    def on_get_kit_part_one(self, request, response, part):
+        from board.custom import kit_parts as KP
+        row = KP.by_name(part) or KP.by_name('%s:%s' % (KP.KIT, part))
+        if row is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no kit part %r (GET /api/board/kit-parts lists them)' % part}
+            return
+        response.media = {'ok': True, 'part': row}
 
     def _cross_module_rows(self, cls):
         """Raw attribute rows of a class NOT owned by this module (RegisterAssignment/ScheduleSlot are cmod's) —

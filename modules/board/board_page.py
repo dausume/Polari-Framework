@@ -165,6 +165,25 @@ _BOARDS_PAGES = [
                                           'ONE task against it.',
                               columns='kind,title,roles,description,matches,source_label,source_url,notes', column_formats='source_url:link',
                               data_path='/api/board/target-compat')]),
+              # fs-2d (his ask: "the power pins have no definitions at all" + his follow-up: "these are all the
+              # parts in our kit, we will be wanting to use these as reference for how we make our sample
+              # firmwares") — the kit parts register a sample FirmwareSolution/Capability is built FROM.
+              _row(13, [_table('boards-kit-parts', 0, 12, 'Kit parts — what each part is, how it wires to a pin, and which sample firmware (if '
+                              'any) already uses it (cited: Arduino Starter Kit book, "Parts in your kit" pp. 6-9 + "The Arduino Board" p.11)',
+                              'KitPart',
+                              description='What this is for: the physical parts register a sample firmware is BUILT FROM (his follow-up ask, '
+                                          'verbatim). One row = one KitPart. Columns: interface_kind (the board-pin kind it wants: analog-in | '
+                                          'digital-in | digital-out | pwm-out | uart | i2c | spi | servo-pwm | via-driver | empty for a part '
+                                          'with no pin interface of its own), driver_needed (empty when it wires straight to a pin — a DC '
+                                          'motor needs an H-bridge, an LED needs a series resistor), pin_count/pin_roles (which physical pin '
+                                          'of the PART does what), electrical_notes/polarity/kit_quantity (cited, or undetermined naming the '
+                                          'missing fact), sample_capabilities (DERIVED: which of today\'s Capabilities already use this part '
+                                          '— temp-sensor-to-os names the TMP36, blink-on-command names the LED). A BLANK sample_capabilities '
+                                          'cell is "a part without a sample yet" — the backlog for future sample firmwares; GET '
+                                          '/api/board/kit-parts also names that list explicitly as parts_without_sample.',
+                              columns='kit,title,what_it_is,interface_kind,driver_needed,pin_count,pin_roles,connects_to,electrical_notes,'
+                                      'polarity,kit_quantity,sample_capabilities,source',
+                              data_path='/api/board/kit-parts')]),
           ]),
 ]
 

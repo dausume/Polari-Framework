@@ -29,10 +29,13 @@ from board.objects.board.BoardConflict import BoardConflict  # noqa: F401
 from board.objects.board.BoardView import BoardView  # noqa: F401
 # fs-2a: the compatibility table between a firmware task's target kind and a board's pin roles/capabilities
 from board.objects.board.TargetCompatibilityRule import TargetCompatibilityRule  # noqa: F401
+# fs-2d: the kit parts register (his ask: "these are all the parts in our kit ... reference for how we make our sample firmwares")
+from board.objects.board.KitPart import KitPart  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
                  FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,   # brd-fi: the installer rows + the second class
                  SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile,
                  BoardConflict, BoardView,   # brd-bo: the board object's layers + its views and conflicts
-                 TargetCompatibilityRule]   # fs-2a: task-kind <-> pin-role compatibility, cited
+                 TargetCompatibilityRule,   # fs-2a: task-kind <-> pin-role compatibility, cited
+                 KitPart]   # fs-2d: the kit parts register (cited to the kit's own book)

@@ -30,6 +30,11 @@ GET /api/cmod/capabilities/{cap}        one capability + its instances
 The reverse link (demo-4 "both ways"): GET /api/cmod/graphs/{graph} now also returns `used_by` — every HardwareSolution
 row whose `cgraph` names this graph (a derived query over the generic row store, no import of hwnocode needed — the same
 `_rows(cls)` pattern every other generic lookup here uses).
+
+fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them"): every node in
+GET /api/cmod/graphs/{graph}'s `nodes` now also carries `firmware` — [{solution, lane, order, registered_pin}, ...],
+every FirmwareSolution task that IS this node (`_node_firmware`). The reverse half (a firmware task row's own
+`composed_by`, pointing back at this graph/node) is GET /api/firmware/solutions/{name} (cmod_firmware_api.FirmwareAPI).
 """
 import inspect
 
@@ -145,13 +150,33 @@ class CModAPI(treeObject):
             response.media = {'ok': False, 'error': 'no graph %r (GET /api/cmod/graphs lists them)' % graph}
         return g[0] if g else None
 
+    def _node_firmware(self, instance):
+        """fs-2d (his ask: tasks linked to "their no-code solutions that compose them", both ways): the FORWARD half
+        — every FirmwareSolution task (RegisterAssignment.task / ScheduleSlot.task, cmod.custom.firmware) that IS
+        this CGraphNode's own `instance` name, as {solution, lane, order, registered_pin}. The reverse half (a task
+        row knowing its own node/canvas route) is GET /api/firmware/solutions/{name}'s `composed_by`
+        (cmod_firmware_api.FirmwareAPI._composed_by) — same rows, read from the other side."""
+        asg = {getattr(r, 'solution', ''): r for r in self._rows('RegisterAssignment') if getattr(r, 'task', '') == instance}
+        sched = {getattr(r, 'solution', ''): r for r in self._rows('ScheduleSlot') if getattr(r, 'task', '') == instance}
+        out = []
+        for sol in sorted(set(asg) | set(sched)):
+            a, sc = asg.get(sol), sched.get(sol)
+            lives_on = getattr(a, 'lives_on', '') if a is not None else ''
+            out.append({'solution': sol, 'lane': getattr(sc, 'lane', '') if sc is not None else '',
+                       'order': getattr(sc, 'order', None) if sc is not None else None,
+                       'registered_pin': lives_on if lives_on and lives_on != 'unbound' else ''})
+        return out
+
     def on_get_graph_one(self, request, response, graph):
         g = self._graph(graph, response)
         if g is None:
             return
         pick = lambda cls, key: [self._d(r) for r in sorted(self._rows(cls), key=key) if r.graph == graph]  # noqa: E731
         used_by = [self._d(r) for r in sorted(self._rows('HardwareSolution'), key=lambda r: r.name) if getattr(r, 'cgraph', '') == graph]
-        response.media = {'ok': True, 'graph': self._d(g), 'nodes': pick('CGraphNode', lambda r: (r.order, r.instance)),
+        nodes = pick('CGraphNode', lambda r: (r.order, r.instance))
+        for n in nodes:
+            n['firmware'] = self._node_firmware(n['instance'])
+        response.media = {'ok': True, 'graph': self._d(g), 'nodes': nodes,
                           'edges': pick('CGraphEdge', lambda r: (r.order, r.name)), 'glue_builds': pick('CGlueBuild', lambda r: r.name),
                           'targets': pick('TargetDefinition', lambda r: (r.kind, r.port_ref)),
                           'used_by': used_by,

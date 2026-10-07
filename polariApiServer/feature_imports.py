@@ -1305,8 +1305,8 @@ FEATURE_IMPORT_BLOCKS = (
         ('board.board_basis', ('BoardDefinition', 'BoardInstance', 'FirmwareBuild', 'ProgrammerKind', 'AdapterDefinition',
                                'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
                                'UnoAnalogState', 'SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin',
-                               'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule',
-                               'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule
+                               'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
+                               'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart
         ('board.board_seed', ('BOARD_SEED_PAIRS',)),
         ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
     )),
