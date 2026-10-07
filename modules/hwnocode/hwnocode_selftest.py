@@ -435,25 +435,30 @@ def seeds_page_api():
     page = SEED_HWNOCODE_PAGE_DISPLAYS[0]
     items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
     comps = [it['componentProps']['componentName'] for it in items]
-    check('/display/hardware-solutions = the canvas FIRST (demo-4b: opened on the whole solution, every runtime a lane) + 4 '
-          'configured tables (solutions, derived, placement-by-runtime, the Runtime catalog) + 1 named-graph-panel',
+    check('/display/hardware-solutions = the canvas FIRST (demo-4b: opened on the whole solution, every runtime a lane) + 5 '
+          'configured tables (hw priorities P1: Capabilities, solutions, derived, placement-by-runtime, the Runtime catalog) + '
+          '1 named-graph-panel',
           page['pageRoute'] == 'hardware-solutions' and items[0]['componentProps']['componentName'] == 'c-graph-canvas-panel'
           and items[0]['componentProps']['inputs'].get('solution') == 'uno-temp-split'
           and sorted(comps) == ['c-graph-canvas-panel', 'class-rows-table', 'class-rows-table', 'class-rows-table',
-                                'class-rows-table', 'named-graph-panel'], comps)
+                                'class-rows-table', 'class-rows-table', 'named-graph-panel'], comps)
     gc = json.loads(SEED_HWNOCODE_GRAPHS[0]['definition'])['graphConfig']
     check('the chart = a GraphDefinition (x uptime_s; y temp_c + temp_avg; colours set, showLegend) fed by the chart endpoint',
           gc['xDimension'] == 'uptime_s' and gc['yDimensions'] == ['temp_c', 'temp_avg'] and len(gc['seriesColors']) == 2
           and any(it['componentProps']['inputs'].get('dataPath') == '/api/hwnocode/solutions/uno-temp-split/chart' for it in items))
     from hwnocode.hwnocode_basis import HWNOCODE_CLASSES
-    known = {c.__name__: c for c in HWNOCODE_CLASSES}
+    from cmod.cmod_basis import CMOD_CLASSES  # hw priorities P1: the Capabilities table names cmod's own CapabilityDefinition
+    known = {c.__name__: c for c in list(HWNOCODE_CLASSES) + list(CMOD_CLASSES)}
     bad = []
     for it in items:
         cn = it['componentProps']['inputs'].get('className')
         if cn:
+            if cn not in known:
+                bad.append('%s.<unknown class>' % cn)
+                continue
             params = set(inspect.signature(known[cn].__init__).parameters)
             bad += ['%s.%s' % (cn, c) for c in it['componentProps']['inputs']['columns'].split(',') if c not in params]
-    check('…every table names an hwnocode class and only columns it has', not bad, bad)
+    check('…every table names an hwnocode (or, for the Capabilities table, cmod) class and only columns it has', not bad, bad)
     check('/display/hardware-solutions: every item (tables + the chart) carries a non-empty description',
           all(it.get('description') for it in items), [it['id'] for it in items if not it.get('description')])
     tables = {}

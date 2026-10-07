@@ -16,6 +16,7 @@ from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CG
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
+from cmod.custom import capabilities as CAP
 from cmod.custom.graph_seed import GRAPH as _DEFAULT_GRAPH
 
 _HAND = ('title', 'notes')
@@ -28,8 +29,28 @@ def _owned(rows, keep=_HAND):
 SEED_ROWS = template_rows()
 GRAPH_ROWS = graph_rows()
 TARGET_ROWS = T.derive(_DEFAULT_GRAPH)
-CAPABILITY_ROWS = [T.temperature_sensor_capability(_DEFAULT_GRAPH)]
-CAPABILITY_INSTANCE_ROWS = T.temperature_sensor_instances(_DEFAULT_GRAPH)
+
+# hw priorities P1 (AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md §1/§4): the two widened-field seeds, over the SAME
+# uno-sim-rig-graph as the demo-4 capability above (no new graph, no new canvas) — `status`/`last_proof` are DERIVED
+# below (cmod.custom.capabilities.derive_status), never hand-set.
+_HW_CAPS = [dict(c) for c in CAP.SEED_CAPABILITIES]
+for _c in _HW_CAPS:
+    _status, _proof, _ = CAP.derive_status(_c, manager=None)
+    _c['status'], _c['last_proof'] = _status, _proof
+_TEMP_TO_OS_INSTANCES = [
+    {'name': 'temp-sensor-to-os#%d' % i, 'capability': 'temp-sensor-to-os', 'graph': _DEFAULT_GRAPH, 'index': i,
+     'bindings': 'adc.channel=unbound, temp.return=unbound', 'status': 'unbound',
+     'notes': 'instance %d of 2 (HARDWARE_DEV_PRIORITIES.md §1 seed 1 — "multiple temperature sensors")' % i}
+    for i in (1, 2)]
+_led_row = next((a for a in FW.assignments_for(_DEFAULT_GRAPH, 'uno-sim-rig') if a['task'] == 'led' and a['port'] == 'on'), {})
+_BLINK_INSTANCES = [
+    {'name': 'blink-on-command#1', 'capability': 'blink-on-command', 'graph': _DEFAULT_GRAPH, 'index': 1,
+     'bindings': 'led.on=%s' % _led_row.get('lives_on', 'unbound'),
+     'status': 'bound' if _led_row.get('status') == 'bound' else 'unbound',
+     'notes': 'the one instance (HARDWARE_DEV_PRIORITIES.md §1 seed 2); D13 is already bound by uno-sim-rig\'s own register map'}]
+
+CAPABILITY_ROWS = [T.temperature_sensor_capability(_DEFAULT_GRAPH)] + _HW_CAPS
+CAPABILITY_INSTANCE_ROWS = T.temperature_sensor_instances(_DEFAULT_GRAPH) + _TEMP_TO_OS_INSTANCES + _BLINK_INSTANCES
 
 # fs-0 (DEMONSTRABLES_PLAN.md §9): uno-sim-rig — the FIRST FirmwareSolution, over the EXISTING uno-sim-rig-graph +
 # board arduino-uno-r3 (no new C, no new graph — the migration's firmware half, his §9(3)). Schedule + register map

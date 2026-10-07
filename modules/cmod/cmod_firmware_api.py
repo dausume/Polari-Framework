@@ -98,7 +98,26 @@ class FirmwareAPI(treeObject):
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': [self._d(r) for r in sched],
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
-                          'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds]}
+                          'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],
+                          'capabilities': self._capabilities(s)}
+
+    def _capabilities(self, s):
+        """hw priorities P1: the Capabilities grouping the firmware panel's Tasks section by (D-hw-2/P1 §4
+        'Capability' — the UI word everywhere) — every CapabilityDefinition over this solution's own graph (the
+        live rows when a manager is present, else the seed functions directly — same pure/live duality as
+        FW.validate), status re-derived from its acceptance Scenario's latest run, never hand-set."""
+        import json as _json
+        from cmod.custom import capabilities as CAP
+        live = [r for r in self._rows('CapabilityDefinition') if getattr(r, 'graph', '') == s.graph]
+        caps = [self._d(r) for r in live] if live else [c for c in CAP.SEED_CAPABILITIES if c['graph'] == s.graph]
+        out = []
+        for d in caps:
+            status, last_proof, _ = CAP.derive_status(d, manager=self.manager)
+            tasks = _json.loads(d.get('tasks_by_runtime_json') or '{}')
+            task_names = sorted({t.rpartition(':')[2] for refs in tasks.values() for t in refs})
+            out.append({'name': d.get('name'), 'goal': d.get('goal', ''), 'status': status, 'last_proof': last_proof,
+                       'task_names': task_names})
+        return sorted(out, key=lambda c: c['name'])
 
     def on_get_valid_targets(self, request, response, name, task):
         """fs-2a: GET /api/firmware/solutions/{name}/tasks/{task}/valid-targets — board.custom.target_compat checked

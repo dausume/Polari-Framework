@@ -20,15 +20,22 @@ class Scenario(treeObject):
                    'an interrupt at an exact instruction. Run it before a fix to watch the bug happen, and after the fix '
                    'to see that it no longer does.')
 
+    #: hw priorities D-hw-2 (HARDWARE_DEV_PRIORITIES.md §4): a Scenario is 'fault' (the forcing recipes above — the
+    #: ONLY kind before this) or 'acceptance' (a CapabilityDefinition's proof that a GOAL holds under NORMAL
+    #: operation — no fault forced; `fault_class`/`fault`/`breaks`/`technique` stay '' on an acceptance row).
+    KINDS = ('fault', 'acceptance')
+
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', description: str = '', target_board: str = '', before_variant: str = '',
                  after_variant: str = '', fault_class: str = '', fault: str = '', breaks: str = '', technique: str = '',
                  expected_observable: str = '', observable_kind: str = '', window_cycles: int = 0, run_seconds: float = 0.0,
                  seed_policy: str = 'fixed', seed: int = 0, simulator: str = 'avr-twin', status: str = 'runnable',
-                 provenance: str = '', notes: str = '', manager=None):
+                 kind: str = 'fault', capability: str = '', provenance: str = '', notes: str = '', manager=None):
         self.name = name
         self.title = title
         self.description = description
+        self.kind = kind  # fault (default, every existing row) | acceptance (hw priorities P1)
+        self.capability = capability  # acceptance only: the CapabilityDefinition name this scenario proves
         self.target_board = target_board  # a BoardDefinition name
         self.before_variant = before_variant  # FirmwareVariant WITHOUT the technique
         self.after_variant = after_variant  # FirmwareVariant WITH it ('' when the technique is a refused build)

@@ -42,6 +42,14 @@ STEP_KINDS = {
     'hold-lock-order': (True, 'sc-3, qemu-esp32c3 ONLY: the recipe\'s tick offsets written into the C3 image\'s `polari` params partition '
                               '(seed 0 = the recipe, seed k = splitmix64 draws) — the UNO has no RTOS and no locks'),
     'clock-skew': (False, 'one simavr process runs one clock; skew needs two clocked parties (Renode, sc-3)'),
+    # hw priorities P1 (HARDWARE_DEV_PRIORITIES.md §4, D-hw-2): acceptance-kind steps — no fault is forced; these
+    # drive NORMAL stimulus and check a CapabilityDefinition's exposed field arrives, reusing the twin's existing
+    # ADC-ramp stimulus (`board.custom.twin ... --adc0-ramp`, the same knob tests/hwnocode_probe.py drives) and the
+    # cmod-1 twin-equivalence frame comparison (`cmod.custom.glue_build.prove`) rather than a new comparison engine.
+    'drive-adc-ramp': (True, '--adc0-ramp lo,hi,ms (board.custom.twin; the same stimulus tests/hwnocode_probe.py already drives)'),
+    'assert-field-arrival': (True, 'glue_build.prove\'s frame-by-field equivalence check, read for one named field within window_cycles'),
+    'assert-command-echo': (True, 'a PUT on the exposed field followed by the next frame reporting it (hwnocode_probe\'s PUT/echo check, '
+                                  'restated generically: field, value, window)'),
 }
 FORCIBLE_KINDS = tuple(k for k, (ok, _) in STEP_KINDS.items() if ok)
 #: sc-3: a kind forcible on ONE simulator only (every other kind is the avr-twin's)
@@ -128,8 +136,14 @@ def _sc3():
     return scenarios_sc3
 
 
-SEED_SCENARIOS = SEED_SCENARIOS + _SC2_SCENARIOS + _sc1().SC1_SCENARIOS + _sc3().SC3_SCENARIOS
-SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps() + _sc3().SC3_STEPS
+def _acc():
+    """hw priorities P1 (D-hw-2): the `kind='acceptance'` scenarios — a CapabilityDefinition's proof, not a fault."""
+    from firmwarefaults.custom import acceptance
+    return acceptance
+
+
+SEED_SCENARIOS = SEED_SCENARIOS + _SC2_SCENARIOS + _sc1().SC1_SCENARIOS + _sc3().SC3_SCENARIOS + _acc().ACCEPTANCE_SCENARIOS
+SEED_STEPS = _SC0_STEPS + _sc1().sc1_steps() + _sc3().SC3_STEPS + _acc().ACCEPTANCE_STEPS
 
 
 def _variant(name, title, purpose, flags, watch, notes):

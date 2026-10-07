@@ -80,6 +80,7 @@
   ],
   "api": [
    "cmod_api",
+   "cmod_capability_api",
    "cmod_firmware_api"
   ],
   "endpoints": [
@@ -99,6 +100,8 @@
    "custom/annotation",
    "custom/atoms",
    "custom/c_types",
+   "custom/capabilities",
+   "custom/capability_cli",
    "custom/cmod_cli",
    "custom/cmod_engines",
    "custom/firmware",
@@ -130,6 +133,7 @@
   "CModule",
   "CPort",
   "CProject",
+  "CapabilityAPI",
   "CapabilityDefinition",
   "CapabilityInstance",
   "FirmwareAPI",

@@ -259,6 +259,88 @@ def demo4_targets():
     check('two CapabilityInstance rows exist (his worked example: "be able to define multiple temperature sensors")',
           len(insts) == 2 and {i['index'] for i in insts} == {1, 2} and all(i['capability'] == cap['name'] for i in insts), insts)
 
+
+    # hw priorities P1 (AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md §1/§4): the widened CapabilityDefinition
+    # fields, the validator (refuses naming the first missing task/target), status derivation off the latest
+    # ScenarioRun, the two seeds, and the firmware solution payload's new `capabilities` grouping.
+    import json as _json
+    from cmod.custom import capabilities as CAP
+    from cmod.objects.cmod.CapabilityDefinition import CapabilityDefinition as CD
+    check('CapabilityDefinition carries the widened fields with additive defaults (goal, tasks_by_runtime_json, '
+          'acceptance_scenario, status, last_proof)',
+          hasattr(CD(), 'goal') and CD().tasks_by_runtime_json == '{}' and CD().status == 'planned' and CD().last_proof == '')
+
+    temp = CAP.find('temp-sensor-to-os')
+    blink = CAP.find('blink-on-command')
+    check('temp-sensor-to-os: his exact worked goal, a task per runtime (no typescript-browser), acceptance_scenario set',
+          temp['goal'] == 'data is retrieved from a temp sensor and gets sent back over USB to the OS'
+          and temp['acceptance_scenario'] == 'temp-sensor-to-os-acceptance'
+          and _json.loads(temp['tasks_by_runtime_json'])['typescript-browser'] == [], temp)
+    check('blink-on-command: his exact worked goal #2, D13 (led.on) the only required target',
+          blink['goal'] == "the OS turns the board's LED on and off on command" and blink['required_targets'] == 'led.on', blink)
+
+    ok, why = CAP.validate(temp)
+    check('validate(temp-sensor-to-os) passes: every task resolves (c-device nodes, uno-temp-split/temp-analysis states) '
+          'and every required target is registered', ok, why)
+    ok, why = CAP.validate(blink)
+    check('validate(blink-on-command) passes too (D13/led.on is already bound by uno-sim-rig\'s own register map)', ok, why)
+
+    bad_target = dict(temp, required_targets=temp['required_targets'] + ', not.a.real.target')
+    ok, why = CAP.validate(bad_target)
+    check('the validator REFUSES an unregistered target, NAMING it (never a silent pass)',
+          not ok and 'not.a.real.target' in why, why)
+    bad_task = dict(blink)
+    t = _json.loads(bad_task['tasks_by_runtime_json'])
+    t['c-device'] = t['c-device'] + ['uno-sim-rig-graph:not_a_real_node']
+    bad_task['tasks_by_runtime_json'] = _json.dumps(t)
+    ok, why = CAP.validate(bad_task)
+    check('the validator REFUSES a task that does not exist, NAMING it',
+          not ok and 'not_a_real_node' in why, why)
+
+    status, proof, swhy = CAP.derive_status(temp)
+    check('derive_status with no live manager reads the row back unchanged (status is DERIVED from a live ScenarioRun, never guessed offline)',
+          status == 'planned' and proof == '', (status, proof, swhy))
+
+    from firmwarefaults.custom import acceptance as ACC
+    sc = ACC.find('temp-sensor-to-os-acceptance')
+    check('the acceptance Scenario is kind=acceptance, names its capability, and drives the twin\'s own ADC ramp stimulus',
+          sc is not None and sc['kind'] == 'acceptance' and sc['capability'] == 'temp-sensor-to-os'
+          and any(s['kind'] == 'drive-adc-ramp' for s in ACC.steps_of('temp-sensor-to-os-acceptance')), sc)
+
+    # the live API: a manager seeded exactly like the server boots it (same lightweight pattern as
+    # selftest_firmwaresol.firmware_parts — no full server boot)
+    from types import SimpleNamespace
+    from falcon import testing
+    import falcon
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    from cmod.cmod_firmware_api import FirmwareAPI
+    from cmod.cmod_capability_api import CapabilityAPI
+    tables = {}
+    mgr = SimpleNamespace(objectTables=tables, idList=[], db=None)
+    for name, cls, seed_rows in CMOD_SEED_PAIRS:
+        for row in seed_rows:
+            o = cls(manager=mgr, **{k: v for k, v in row.items() if k != '_converge'})
+            tables.setdefault(name, {})[o.id] = o
+    app = falcon.App()
+    polServer = SimpleNamespace(falconServer=app, manager=mgr, idList=[])
+    FirmwareAPI(polServer=polServer, manager=mgr)
+    CapabilityAPI(polServer=polServer, manager=mgr)
+    c = testing.TestClient(app)
+    r = c.simulate_get('/api/capabilities')
+    names = sorted(x['name'] for x in (r.json.get('capabilities') or []))
+    check('GET /api/capabilities lists the 3 CapabilityDefinition rows (goal, status, last_proof per row)',
+          r.status_code == 200 and names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command']),
+          names)
+    r = c.simulate_get('/api/capabilities/temp-sensor-to-os')
+    check('GET /api/capabilities/{name} carries tasks grouped by runtime + targets with their registration state',
+          r.status_code == 200 and r.json['tasks_by_runtime']['python-backend'] == ['temp-analysis:on-temp']
+          and any(t['port_ref'] == 'adc.channel' and t['registered'] for t in r.json['targets']), r.text[:300])
+    r = c.simulate_get('/api/firmware/solutions/uno-sim-rig')
+    cap_names = sorted(c_['name'] for c_ in (r.json.get('capabilities') or []))
+    check('the firmware solution payload gains capabilities: [{name, goal, status, task_names}] for the UI to group Tasks by',
+          r.status_code == 200 and cap_names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command'])
+          and 'led' in next(c_ for c_ in r.json['capabilities'] if c_['name'] == 'blink-on-command')['task_names'], cap_names)
+
     # the API: both link directions + the new doors, over a manager seeded exactly like the server boots it
     from types import SimpleNamespace
     from falcon import testing
@@ -292,8 +374,13 @@ def demo4_targets():
 
     r = c.simulate_get('/api/cmod/capabilities')
     caps = r.json.get('capabilities') or []
-    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline',
-          len(caps) == 1 and caps[0]['name'] == cap['name'] and len(caps[0]['instances']) == 2, caps)
+    this_cap = next((x for x in caps if x['name'] == cap['name']), None)
+    # hw priorities P1: two MORE CapabilityDefinition rows now exist over the same graph (temp-sensor-to-os,
+    # blink-on-command, cmod.custom.capabilities.SEED_CAPABILITIES) — this demo-4 row and its 2 instances still
+    # resolve exactly as before, it is just no longer the ONLY capability.
+    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline (3 capabilities total: '
+          'demo-4\'s + hw priorities P1\'s temp-sensor-to-os/blink-on-command)',
+          len(caps) == 3 and this_cap is not None and len(this_cap['instances']) == 2, caps)
     r = c.simulate_get('/api/cmod/capabilities/%s' % cap['name'])
     check('GET /api/cmod/capabilities/{cap} → one capability + its instances',
           r.status_code == 200 and len(r.json['instances']) == 2, r.text[:200])

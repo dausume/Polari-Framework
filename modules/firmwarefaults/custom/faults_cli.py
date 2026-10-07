@@ -82,6 +82,20 @@ def print_pair(runs):
 
 
 def cmd_run(a):
+    from firmwarefaults.custom import scenarios as SC
+    row = SC.find(a.scenario)
+    if row is not None and row.get('kind') == 'acceptance':
+        # hw priorities P1 (D-hw-2): an acceptance scenario proves a CapabilityDefinition's goal under NORMAL
+        # operation — it has no before/after/natural/control sides, so it skips the fault-runner entirely.
+        from firmwarefaults.custom import acceptance as ACC
+        from firmwarefaults.custom.sink import LocalSink
+        mode = 'hardware' if getattr(a, 'hardware', False) else 'digital-twin'
+        sink = LocalSink()
+        out = ACC.run(a.scenario, mode=mode, sink=sink)
+        print_run(out)
+        p = sink.flush(out['name'])
+        print('       record    %s' % p)
+        return 0 if out['outcome'] == 'passed' else (3 if out['outcome'] == 'inapplicable' else 1)
     side = 'both' if a.both else 'before' if a.before else 'after' if a.after else 'natural' if a.natural else 'control' if a.control else 'both'
     if a.api:
         d = _http('POST', '%s/api/firmwarefaults/run' % a.api.rstrip('/'), {'scenario': a.scenario, 'side': side, 'seconds': a.seconds, 'seed': a.seed})
@@ -233,6 +247,7 @@ def main(argv):
         g.add_argument('--' + s, action='store_true')
     r.add_argument('--seconds', type=float)
     r.add_argument('--seed', type=int)
+    r.add_argument('--hardware', action='store_true', help='acceptance scenarios only (hw priorities P1)')
     r.add_argument('--api', default='')
     ls = sub.add_parser('list')
     ls.add_argument('--api', default='')

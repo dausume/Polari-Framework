@@ -156,13 +156,18 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'structural field edge).',
                               columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
                               column_formats='graph:ref:CGraph')], min_height=320),
-              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked example: '
-                              '"temperature sensor solution"), with the targets it requires and the fields it exposes', 'CapabilityDefinition',
+              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked examples: '
+                              '"temperature sensor solution", "data is retrieved from a temp sensor and gets sent back over USB to the OS", '
+                              '"the OS turns the board\'s LED on and off on command"), with the targets it requires, the fields it exposes, '
+                              'and its status DERIVED from its acceptance proof (hw priorities P1)', 'CapabilityDefinition',
                               description='What this is for: a TEMPLATE capability, generalized from targets. One row = one capability. '
-                                          'Columns: required_targets (the port_refs it needs bound), exposes_fields (what it makes available '
-                                          'once wired — temp_c), instance_count (how many CapabilityInstance rows use it, below).',
-                              columns='name,title,purpose,required_targets,exposes_fields,instance_count',
-                              column_formats='graph:ref:CGraph'),
+                                          'Columns: goal (the one-sentence claim, his words), status (planned | proven-on-twin | '
+                                          'proven-on-hardware | failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never '
+                                          'hand-set), last_proof, required_targets (the port_refs it needs bound), exposes_fields (what it '
+                                          'makes available once wired — temp_c), instance_count (how many CapabilityInstance rows use it, '
+                                          'below).',
+                              columns='name,title,goal,status,last_proof,required_targets,exposes_fields,instance_count',
+                              column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario'),
                        _table('c-canvas-instances', 1, 6, 'Capability instances — one row per USE of a capability (two here: "define '
                               'multiple temperature sensors" proven as rows, not just a template)', 'CapabilityInstance',
                               description='What this is for: ONE use of a capability. One row = one instance. Columns: index (1, 2, … among '
@@ -182,13 +187,30 @@ SEED_CMOD_PAGE_DISPLAYS = [
               _row(0, [_firmware_panel('firmware-solution-panel', 0, 12, 'The firmware canvas — tasks · schedule · register map (drag a target onto a pin)',
                                        '/api/firmware/solutions', initial='uno-sim-rig',
                                        description='What this is for: THE DEMONSTRABLE (fs-1) — pick a FirmwareSolution; LEFT lists its '
-                                                   'tasks (name, kind, ports, resources, cost, lane); MIDDLE lays its schedule out in four '
+                                                   'tasks (name, kind, ports, resources, cost, lane), GROUPED by Capability (hw priorities '
+                                                   'P1 — the solution payload\'s capabilities field names which Capability each task belongs '
+                                                   'to); MIDDLE lays its schedule out in four '
                                                    'DERIVED lanes (init · isr · tick · loop, D-fs-1 — never authored), called tasks nested '
                                                    'under their caller; RIGHT draws the board\'s own pin map with bound pins coloured by '
                                                    'lane and unbound targets as chips — drag a chip onto a pin (or select it and click a '
                                                    'pin) to bind it (D-fs-2, `POST .../assign`); a drop that would conflict with another '
                                                    'task\'s pin is refused, named, never silently overwritten.')], min_height=640),
-              _row(1, [_table('firmware-solutions-table', 0, 12, 'Firmware solutions — a graph + a board in, a firmware '
+              _row(1, [_table('firmware-capabilities', 0, 12, 'Capabilities — hw priorities P1: the GOAL each group of tasks across runtimes '
+                              'achieves (his worked examples: "data is retrieved from a temp sensor and gets sent back over USB to the OS"; '
+                              '"the OS turns the board\'s LED on and off on command"), its status DERIVED from its acceptance proof, and '
+                              'which tasks per runtime realise it', 'CapabilityDefinition',
+                              description='What this is for: THE THREAD that runs through the firmware/cross-domain/backend canvases — one '
+                                          'row a person reads to ask "is this goal actually working" (HARDWARE_DEV_PRIORITIES.md §1). '
+                                          'One row = one CapabilityDefinition. Columns: goal (the one-sentence claim, his words), status '
+                                          '(planned | proven-on-twin | proven-on-hardware | failing — DERIVED from the latest ScenarioRun of '
+                                          'acceptance_scenario, never hand-set), last_proof (which run proved it, and when), '
+                                          'tasks_by_runtime_json (c-device/java-bridge/python-backend/typescript-browser task refs), '
+                                          'required_targets (the pins/registers it needs registered), acceptance_scenario (the firmwarefaults '
+                                          'Scenario, kind=acceptance, that checks it).',
+                              columns='name,title,goal,status,last_proof,acceptance_scenario,required_targets,exposes_fields,'
+                                      'tasks_by_runtime_json,instance_count',
+                              column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario')], min_height=220),
+              _row(2, [_table('firmware-solutions-table', 0, 12, 'Firmware solutions — a graph + a board in, a firmware '
                               'build out (flash or digital twin)', 'FirmwareSolution',
                               description='What this is for: one row per FirmwareSolution. Columns: graph (the CGraph whose '
                                           'c-atoms are its tasks), board_definition/board_variable (fixed or resolved at run '
@@ -197,7 +219,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,title,graph,board_definition,board_variable,board_resolved,runtime,status,'
                                       'validation,validation_why,task_count,last_build',
                               column_formats='graph:ref:CGraph,board_definition:ref:BoardDefinition')], min_height=160),
-              _row(2, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
+              _row(3, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
                               'ISR/tick/loop/init annotations (D-fs-1, his ruling: never authored by dragging)', 'ScheduleSlot',
                               description='What this is for: one row per task\'s schedule slot. One row = one ScheduleSlot. '
                                           'Columns: lane (isr | tick | loop | init | called), order (mirrors the glue\'s own '
@@ -206,7 +228,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'stack, not per-atom cycles).',
                               columns='solution,task,lane,order,trigger,period_ms,measured_cycles,isr_vector,provenance',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(3, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
+              _row(4, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
                               'BoardPin rows, or named unbound (D-fs-2: the pin-map drag sets this; fs-0 builds the row + '
                               'the assign door)', 'RegisterAssignment',
                               description='What this is for: one row per required target. One row = one RegisterAssignment. '
@@ -216,7 +238,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'claiming one pin with no cooperating relationship).',
                               columns='solution,task,port,target_kind,controls,lives_on,status,provenance,notes',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(4, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
+              _row(5, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
                               '(cmod-glue, reused unchanged; `POST /api/firmware/solutions/{name}/build`)', 'CGlueBuild',
                               description='What this is for: the SAME CGlueBuild rows /display/c-atoms shows, filtered to '
                                           'this solution\'s graph. One row = one build-and-prove run.',

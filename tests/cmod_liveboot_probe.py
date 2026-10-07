@@ -83,10 +83,10 @@ for cls in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNo
 n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
 m = json.load(open(os.path.join(FRAMEWORK, 'modules', 'board', 'custom', 'firmware', 'uno', 'polari-firmware.json')))
 check('seeded from the committed manifest: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, 1 glue build; '
-      'demo-4: 16 targets, 1 capability, 2 instances' % m['counts']['ports'],
+      'demo-4: 16 targets, 3 capabilities (+2 hw priorities P1), 5 instances' % m['counts']['ports'],
       tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
                            'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance'))
-      == (1, 7, 34, m['counts']['ports'], 1, 18, 15, 1, 16, 1, 2),
+      == (1, 7, 34, m['counts']['ports'], 1, 18, 15, 1, 16, 3, 5),
       tuple(n(c) for c in ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
                            'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance')))
 r = client.simulate_get('/api/cmod')
@@ -151,8 +151,22 @@ r = client.simulate_get('/api/cmod/graphs/%s/targets' % canvas_graph)
 check('GET …/targets → the ADC pin target + the temp_c memory-field target are both present',
       r.status_code == 200 and {'adc.channel', 'temp.return'} <= {t['port_ref'] for t in r.json['targets']}, r.text[:300])
 r = client.simulate_get('/api/cmod/capabilities')
-check('GET /api/cmod/capabilities → "temperature sensor solution" with its two instances',
-      r.status_code == 200 and len(r.json['capabilities']) == 1 and len(r.json['capabilities'][0]['instances']) == 2, r.text[:300])
+demo4_cap = next((c for c in (r.json.get('capabilities') or []) if c['name'].endswith('temperature-sensor-solution')), None)
+check('GET /api/cmod/capabilities → "temperature sensor solution" with its two instances (+2 hw priorities P1 capabilities)',
+      r.status_code == 200 and len(r.json['capabilities']) == 3 and demo4_cap is not None and len(demo4_cap['instances']) == 2, r.text[:300])
+
+# hw priorities P1 (AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md §1/§4): the new, widened-field CapabilityDefinition doors
+r = client.simulate_get('/api/capabilities')
+names = sorted(x['name'] for x in (r.json.get('capabilities') or []))
+check('GET /api/capabilities → the 3 CapabilityDefinition rows, status re-derived (never hand-set)',
+      r.status_code == 200 and names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command'])
+      and all(x['status'] in ('planned', 'proven-on-twin', 'proven-on-hardware', 'failing') for x in r.json['capabilities']), r.text[:300])
+r = client.simulate_get('/api/capabilities/temp-sensor-to-os')
+check('GET /api/capabilities/temp-sensor-to-os → tasks by runtime, targets with their RegisterAssignment state, validator ok',
+      r.status_code == 200 and r.json['validation']['ok']
+      and r.json['tasks_by_runtime']['c-device'] and all(t['registered'] for t in r.json['targets']), r.text[:300])
+r = client.simulate_get('/api/capabilities/no-such-capability')
+check('GET /api/capabilities/<missing> → 404, named', r.status_code == 404)
 hw_pages = [d for d in (tables.get('DisplayDefinition', {}) or {}).values() if getattr(d, 'pageRoute', '') == 'hardware-solutions']
 check('/display/hardware-solutions embeds the SAME canvas component on its own cgraph (the forward link opened in place)',
       len(hw_pages) == 1 and any(it['componentProps']['componentName'] == 'c-graph-canvas-panel'

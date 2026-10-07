@@ -137,6 +137,7 @@
    "firmwarefaults_selftest"
   ],
   "custom": [
+   "custom/acceptance",
    "custom/api_sc2",
    "custom/c3_trace",
    "custom/campaign",
