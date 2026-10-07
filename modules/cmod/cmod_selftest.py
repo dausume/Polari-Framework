@@ -341,6 +341,71 @@ def demo4_targets():
           r.status_code == 200 and cap_names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command'])
           and 'led' in next(c_ for c_ in r.json['capabilities'] if c_['name'] == 'blink-on-command')['task_names'], cap_names)
 
+    # proof-push rule (a proof counts only when its run row exists on the server the pages read): the honest /prove
+    # door refuses 409 (writing NO ScenarioRun) when its own engines rung cannot run a twin build, and the new
+    # /runs door lets a run proved ELSEWHERE be stored + re-derived.
+    from cmod.custom import cmod_engines as CE
+    _orig_resolve = CE.resolve
+
+    def _fake_remote_resolve(engine, *a, **kw):
+        if engine == 'make':
+            return {'how': 'refused', 'where': 'http://192.168.0.210:9830',
+                    'why': "avr-gcc resolves to remote (http://192.168.0.210:9830); the board worker runs single "
+                           "engines, not make"}
+        return _orig_resolve(engine, *a, **kw)
+    CE.resolve = _fake_remote_resolve
+    try:
+        before = len(tables.get('ScenarioRun', {}))
+        r = c.simulate_post('/api/capabilities/temp-sensor-to-os/prove', body=_json.dumps({'mode': 'digital-twin'}))
+        after = len(tables.get('ScenarioRun', {}))
+        check('POST .../prove REFUSES 409 (naming the refusal + a retry command) when its engines rung resolves to '
+              'a remote single-engine worker (faked here) and writes NO ScenarioRun',
+              r.status_code == 409 and 'single engines, not make' in r.json.get('error', '')
+              and 'pol capability prove' in r.json.get('retry', '') and after == before,
+              (r.status_code, r.json, before, after))
+    finally:
+        CE.resolve = _orig_resolve
+
+    run_body = {'name': 'blink-on-command-acceptance@digital-twin@pushed-test-1', 'scenario': 'blink-on-command-acceptance',
+                'side': 'acceptance', 'outcome': 'passed', 'verdict_words': 'ok: glue_build.prove (simavr twin)',
+                'frames_seen': 3, 'simulator_version': 'avr-twin',
+                'repro_json': _json.dumps({'mode': 'digital-twin', 'scenario': 'blink-on-command-acceptance', 'capability': 'blink-on-command'}),
+                'ran_at': '2026-10-07T00:00:00', 'notes': 'proved on a host whose rung could build the twin; pushed here (proof-push rule)'}
+    r = c.simulate_post('/api/capabilities/blink-on-command/runs', body=_json.dumps(run_body))
+    check('POST /api/capabilities/{name}/runs stores the pushed ScenarioRun and re-derives the capability\'s status',
+          r.status_code == 200 and r.json.get('ok') and r.json.get('status') == 'proven-on-twin'
+          and any(getattr(x, 'name', '') == run_body['name'] for x in tables.get('ScenarioRun', {}).values()), r.text[:300])
+    r2 = c.simulate_get('/api/capabilities/blink-on-command')
+    check('…and GET /api/capabilities/{name} reads it straight back (status persisted onto the row, not just the response)',
+          r2.json['capability']['status'] == 'proven-on-twin', r2.json['capability'].get('status'))
+    r3 = c.simulate_post('/api/capabilities/blink-on-command/runs',
+                         body=_json.dumps(dict(run_body, name='mismatch-1', scenario='temp-sensor-to-os-acceptance')))
+    check('POST .../runs REFUSES 422 when the run names a different scenario than the capability\'s own acceptance_scenario',
+          r3.status_code == 422, r3.json)
+
+    # derivation ignores engine-refusal ('undetermined') runs entirely — reuse `mgr` (already seeded with the real
+    # RegisterAssignment rows validate() needs); only ScenarioRun rows for temp-sensor-to-os-acceptance are new.
+    from firmwarefaults.firmwarefaults_basis import ScenarioRun as _SR
+    u1 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@u1', scenario='temp-sensor-to-os-acceptance',
+             side='acceptance', outcome='undetermined', verdict_words='engine refusal', ran_at='2026-10-07T00:00:00')
+    tables.setdefault('ScenarioRun', {})[u1.id] = u1
+    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    check('derive_status treats a lone undetermined (engine-refusal) run as NOT evidence — stays planned, naming the count',
+          status == 'planned' and 'undetermined' in why and '1 ScenarioRun' in why, (status, why))
+    p1 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@p1', scenario='temp-sensor-to-os-acceptance',
+             side='acceptance', outcome='passed', verdict_words='ok', ran_at='2026-10-07T00:00:01',
+             repro_json=_json.dumps({'mode': 'digital-twin'}))
+    tables.setdefault('ScenarioRun', {})[p1.id] = p1
+    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    check('…a later PASSED run is the latest EVIDENTIAL one (the undetermined run is skipped, not just outranked) → proven-on-twin',
+          status == 'proven-on-twin', (status, why))
+    u2 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@u2', scenario='temp-sensor-to-os-acceptance',
+             side='acceptance', outcome='undetermined', verdict_words='engine refusal again', ran_at='2026-10-07T00:00:02')
+    tables.setdefault('ScenarioRun', {})[u2.id] = u2
+    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    check('…and a NEWER undetermined run never overwrites a prior pass (still not evidence either way) — stays proven-on-twin',
+          status == 'proven-on-twin', (status, why))
+
     # the API: both link directions + the new doors, over a manager seeded exactly like the server boots it
     from types import SimpleNamespace
     from falcon import testing

@@ -12,7 +12,18 @@ POST /api/capabilities/{name}/prove      body {"mode": "digital-twin"|"hardware"
                                           capability's acceptance Scenario (firmwarefaults.custom.acceptance.run) and
                                           persists the DERIVED status + last_proof onto the row; refuses 422 when the
                                           validator itself refuses (an unregistered target / a task that does not
-                                          exist) or when --hardware finds no board (the readiness reason, named)
+                                          exist) or when --hardware finds no board (the readiness reason, named);
+                                          refuses 409, writing NO ScenarioRun, when the engines rung this server
+                                          resolves to cannot run a twin build at all (a remote single-engine worker —
+                                          cmod.custom.cmod_engines.resolve('make') refused) — an honest server never
+                                          writes a hollow 'undetermined' run just because its own rung can't build
+POST /api/capabilities/{name}/runs       body = a finished ScenarioRun record (the shape `firmwarefaults.custom.
+                                          acceptance.run()` already produces — repro facts included: hex sha, engine
+                                          versions, frames_seen, field-arrival ms, mode, host) proved SOMEWHERE ELSE
+                                          (a host whose rung can run the twin build) and pushed here so the run a page
+                                          reads actually exists on the server those pages read (the proof-push rule:
+                                          a proof counts only when its run row exists on the server). Stores the row,
+                                          re-derives the capability's status and returns it. Never runs anything.
 """
 import inspect
 import json
@@ -30,6 +41,7 @@ class CapabilityAPI(treeObject):
             add('/api/capabilities', self, suffix='capabilities')
             add('/api/capabilities/{name}', self, suffix='capability_one')
             add('/api/capabilities/{name}/prove', self, suffix='prove')
+            add('/api/capabilities/{name}/runs', self, suffix='runs')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -97,6 +109,21 @@ class CapabilityAPI(treeObject):
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': True, 'error': why}
             return
+        if mode == 'digital-twin':
+            # honest server door (proof-push rule): a twin build runs through `make` (glue_build.build/prove, on
+            # the SAME rung avr-gcc resolves to) — if THIS server's rung is a remote single-engine worker (or
+            # nothing at all), it cannot run that build, so it must refuse BEFORE writing a hollow 'undetermined'
+            # ScenarioRun, never after.
+            from cmod.custom import cmod_engines as CE
+            rung = CE.resolve('make')
+            if rung['how'] == 'refused':
+                response.status = falcon.HTTP_409
+                response.media = {'ok': False, 'refused': True, 'error': rung['why'],
+                                  'retry': ('this server cannot run the twin build itself — run it on a host that '
+                                            'can (a local avr-gcc or the local prf-board-engines:trixie image) and '
+                                            'push the result: POLARI_API=<this server> pol capability prove %s '
+                                            '--twin' % name)}
+                return
         from firmwarefaults.custom import acceptance as ACC
         from firmwarefaults.custom.sink import ManagerSink
         sink = ManagerSink(self.manager) if self.manager is not None else None
@@ -113,4 +140,45 @@ class CapabilityAPI(treeObject):
             if db is not None and hasattr(db, 'saveInstanceInDB'):
                 db.saveInstanceInDB(row)
         response.media = {'ok': True, 'capability': name, 'mode': mode, 'run': out, 'status': status,
+                          'last_proof': last_proof, 'status_why': swhy}
+
+    def on_post_runs(self, request, response, name):
+        """Store a ScenarioRun proved ELSEWHERE (the proof-push rule) and re-derive the capability's status from it.
+        Never runs anything — a pure upsert + re-derive, same posture as on_post_prove's own persist tail."""
+        import falcon
+        row = self._capability(name, response)
+        if row is None:
+            return
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        if self.manager is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'no live manager on this server to store a run on'}
+            return
+        from cmod.custom import capabilities as CAP
+        cap = self._d(row)
+        scen = cap.get('acceptance_scenario', '')
+        if body.get('scenario') and body['scenario'] != scen:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': ('run names scenario %r but capability %r\'s acceptance_scenario '
+                                                      'is %r' % (body['scenario'], name, scen))}
+            return
+        if not body.get('name'):
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'run has no name'}
+            return
+        run_row = dict(body)
+        run_row['scenario'] = scen
+        run_row.setdefault('side', 'acceptance')
+        from firmwarefaults.custom.sink import ManagerSink
+        sink = ManagerSink(self.manager)
+        sink.upsert('ScenarioRun', run_row)
+        status, last_proof, swhy = CAP.derive_status(cap, manager=self.manager)
+        row.status, row.last_proof = status, last_proof
+        db = getattr(self.manager, 'db', None)
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(row)
+        response.media = {'ok': True, 'capability': name, 'run': run_row, 'status': status,
                           'last_proof': last_proof, 'status_why': swhy}

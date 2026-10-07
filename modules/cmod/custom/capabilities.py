@@ -160,8 +160,11 @@ def derive_status(cap, manager=None):
     """(status, last_proof, why) — DERIVED, never hand-set (HARDWARE_DEV_PRIORITIES.md §1): 'failing' when the
     validator itself refuses (a named task/target is missing); otherwise read off the LATEST ScenarioRun of the
     capability's acceptance_scenario — none yet = 'planned'; a passing twin-mode run = 'proven-on-twin'; a passing
-    hardware-mode run = 'proven-on-hardware'; anything else (failed/undetermined/inapplicable) = 'planned' — never a
-    stale pass carried forward once a newer run disagrees."""
+    hardware-mode run = 'proven-on-hardware'; anything else (failed/inapplicable) = 'planned' — never a stale pass
+    carried forward once a newer run disagrees. 'undetermined' runs are an ENGINE REFUSAL (acceptance.run()'s own
+    posture: the proof never actually ran, so nothing was observed to pass or fail) — they are not evidence either
+    way and are skipped entirely when picking the latest verdict (proof-push rule, cmod_capability_api's honest
+    /prove door writes none of these any more, but older rows and other callers still can)."""
     ok, why = validate(cap, manager=manager)
     if not ok:
         return 'failing', cap.get('last_proof', ''), why
@@ -172,9 +175,13 @@ def derive_status(cap, manager=None):
         return cap.get('status', 'planned'), cap.get('last_proof', ''), 'no live manager — status read back unchanged'
     runs = sorted((r for r in (manager.objectTables or {}).get('ScenarioRun', {}).values() if getattr(r, 'scenario', '') == scen),
                   key=lambda r: getattr(r, 'ran_at', ''))
-    if not runs:
+    evidential = [r for r in runs if getattr(r, 'outcome', '') != 'undetermined']
+    if not evidential:
+        if runs:
+            return 'planned', '', ('%d ScenarioRun(s) for %r, all undetermined (engine refusal — not evidence '
+                                   'either way)' % (len(runs), scen))
         return 'planned', '', 'no ScenarioRun yet for %r' % scen
-    latest = runs[-1]
+    latest = evidential[-1]
     proof = 'ScenarioRun %s @ %s' % (latest.name, latest.ran_at)
     if latest.outcome != 'passed':
         return 'planned', proof, 'latest run %s: %s (%s)' % (latest.name, latest.outcome, latest.verdict_words)

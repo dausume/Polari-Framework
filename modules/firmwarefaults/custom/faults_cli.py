@@ -4,7 +4,10 @@
 `pol faults` (sc-0): run a scenario on the twin and print the BEFORE/AFTER pair with its costs; list the scenarios and the
 recorded runs; show one run (the cycles around the fault, the claim). With no --api it runs HERE (the engines resolve
 through the board seam on this device) and records each run under $POLARI_FAULTS_HOME/runs/; with --api the server
-runs it (POST /api/firmwarefaults/run) and the rows land on that server.
+runs it (POST /api/firmwarefaults/run) and the rows land on that server. An ACCEPTANCE scenario (kind='acceptance',
+hw priorities P1) is different: it always runs HERE regardless of --api (its proof is the twin build on THIS host's
+engines rung, same as `pol capability prove`) — --api instead PUSHES the finished run to the server's own door
+(POST /api/capabilities/<name>/runs, proof-push rule) so the capability's derived status on that server updates.
 
     python3 -m firmwarefaults.custom.faults_cli run <scenario> [--before|--after|--both|--natural|--control] [--seconds S] [--seed N] [--api URL]
     python3 -m firmwarefaults.custom.faults_cli stats uart-residual-frame-loss|torn-millis-read [--seeds N] [--bers 1e-3,1e-4] [--api URL]
@@ -124,16 +127,33 @@ def cmd_run(a):
         # cost the run its own record or its derived status. manager=None here (the bare CLI has no live manager —
         # cmod.custom.capabilities.derive_status says so honestly rather than guessing a live-server status).
         record_path = sink.flush(out['name'])
-        cap = CAP.find(row.get('capability', ''))
-        if cap is not None:
-            status, last_proof, status_why = CAP.derive_status(cap, manager=None)
-        else:
-            status, last_proof, status_why = '?', '', 'scenario names no known capability'
-        out = dict(out, capability=row.get('capability', ''), status=status, status_why=status_why)
+        # proof-push rule: a proof counts only when its run row exists on the server the pages read — with --api
+        # this run (made HERE, same engines-through-the-board-seam posture as the rest of this CLI) is pushed to
+        # the server's own door (POST /api/capabilities/<name>/runs) so GET /api/capabilities/<name> stops reading
+        # 'planned'; the acceptance branch used to return before ever consulting a.api.
+        pushed_note = ''
+        capability_name = row.get('capability', '')
+        if getattr(a, 'api', ''):
+            d = _http('POST', '%s/api/capabilities/%s/runs' % (a.api.rstrip('/'), capability_name),
+                      {k: v for k, v in out.items() if k != 'result'})
+            if d.get('ok'):
+                status, last_proof, status_why = d.get('status', ''), d.get('last_proof', ''), d.get('status_why', '')
+                pushed_note = 'pushed to %s — status now %s' % (a.api, status)
+            else:
+                pushed_note = 'NOT pushed to %s: %s' % (a.api, d.get('error', d))
+        if not pushed_note.startswith('pushed'):
+            cap = CAP.find(capability_name)
+            if cap is not None:
+                status, last_proof, status_why = CAP.derive_status(cap, manager=None)
+            else:
+                status, last_proof, status_why = '?', '', 'scenario names no known capability'
+        out = dict(out, capability=capability_name, status=status, status_why=status_why)
         try:
             print_run(out)
         finally:
             print('       record    %s' % record_path)
+            if pushed_note:
+                print('       %s' % pushed_note)
         return 0 if out['outcome'] == 'passed' else (3 if out['outcome'] == 'inapplicable' else 1)
     side = 'both' if a.both else 'before' if a.before else 'after' if a.after else 'natural' if a.natural else 'control' if a.control else 'both'
     if a.api:
