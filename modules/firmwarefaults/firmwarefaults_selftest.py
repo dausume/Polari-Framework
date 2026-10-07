@@ -368,6 +368,59 @@ def seeds_page_api():
           r.status_code == 409 and 'seeded' in r.json['error'], r.text[:200])
 
 
+def acceptance_cli_print():
+    """hw priorities P1 fix (coordinator 2026-10-06): `pol faults run <acceptance scenario>` used to print
+    `[PASS] ACCEPTANCE … outcome passed` and then CRASH with `KeyError: 'firmware_sha256'` in `print_run()` — an
+    acceptance-shaped ScenarioRun has none of the fault-runner's own fields. Proves (1) `print_run()` tolerates an
+    acceptance-shaped row (no fault-only key access) and (2) `cmd_run`'s acceptance branch persists the local record
+    BEFORE printing, so a print_run() crash never costs the run its own record."""
+    import os
+    import tempfile
+    from firmwarefaults.custom import faults_cli as CLI
+
+    acc_row = {'name': 'temp-sensor-to-os-acceptance@digital-twin@2026-10-06T00:00:00', 'scenario': 'temp-sensor-to-os-acceptance',
+               'side': 'acceptance', 'variant': 'uno-sim-rig', 'build_name': '', 'technique_applied': '',
+               'outcome': 'passed', 'verdict_words': 'ok: glue_build.prove (simavr twin)', 'frames_seen': 3,
+               'claim': '', 'capability': 'temp-sensor-to-os', 'status': 'proven-on-twin',
+               'status_why': 'ScenarioRun temp-sensor-to-os-acceptance@digital-twin@2026-10-06T00:00:00 @ 2026-10-06T00:00:00'}
+    threw = False
+    try:
+        CLI.print_run(acc_row)
+    except KeyError as e:  # noqa: BLE001 — exactly the regression this fix closes
+        threw = True
+        check('print_run() on an acceptance-shaped row never KeyErrors on a fault-only field', False, e)
+    if not threw:
+        check('print_run() on an acceptance-shaped row never KeyErrors on a fault-only field '
+              '(no firmware_sha256/harness_digest/seed/size_text access)', True)
+
+    # cmd_run persists the local record BEFORE printing — even a print_run() that still blows up for some OTHER
+    # reason must never cost the run its own record (the fix moves sink.flush()/derive_status() ahead of print_run()).
+    scratch = tempfile.mkdtemp(prefix='fs2c-faults-selftest-')
+    old_home = os.environ.get('POLARI_FAULTS_HOME')
+    os.environ['POLARI_FAULTS_HOME'] = scratch
+    orig_print_run = CLI.print_run
+    CLI.print_run = lambda *a, **k: (_ for _ in ()).throw(RuntimeError('printing blew up (simulated)'))
+    try:
+        import argparse
+        a = argparse.Namespace(scenario='temp-sensor-to-os-acceptance', hardware=False, both=True, before=False,
+                                after=False, natural=False, control=False, api=None, seconds=None, seed=None)
+        raised = False
+        try:
+            CLI.cmd_run(a)
+        except RuntimeError:
+            raised = True
+        check('a print_run() crash still propagates (never silently swallowed)', raised)
+        from firmwarefaults.custom.sink import local_runs as _local_runs
+        recorded = any(r.get('scenario') == 'temp-sensor-to-os-acceptance' for r, _, _ in _local_runs())
+        check('…but the ScenarioRun record was already flushed to disk BEFORE print_run ran (persist-before-print)', recorded)
+    finally:
+        CLI.print_run = orig_print_run
+        if old_home is None:
+            os.environ.pop('POLARI_FAULTS_HOME', None)
+        else:
+            os.environ['POLARI_FAULTS_HOME'] = old_home
+
+
 def manifest():
     from moduleService import manifests as M
     r = M.conform('firmwarefaults')
@@ -385,7 +438,7 @@ def main():
     from firmwarefaults.custom.selftest_sc2 import sc2_parts
     from firmwarefaults.custom.selftest_sc2c import sc2c_parts
     for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware) + sc1_parts(check) \
-            + sc2_parts(check) + sc2c_parts(check) + (seeds_page_api, manifest):
+            + sc2_parts(check) + sc2c_parts(check) + (seeds_page_api, acceptance_cli_print, manifest):
         print('-- %s' % part.__name__)
         part()
     from firmwarefaults.custom.selftest_sc3 import run as sc3   # sc-3: the RTOS rows, the C3 trace, the wait-for graph, the campaign

@@ -38,32 +38,57 @@ def _http(method, url, body=None):
             return {'ok': False, 'error': str(e)}
 
 
+def _acceptance_window_ms(scenario):
+    """hw priorities P1 fix: the acceptance scenario's own 'window_ms' (its assert-field-arrival /
+    assert-command-echo step's arg) — the ONLY source of "field arrival ms", never re-measured here."""
+    try:
+        from firmwarefaults.custom import acceptance as ACC
+        for s in ACC.steps_of(scenario):
+            if s.get('kind') in ('assert-field-arrival', 'assert-command-echo'):
+                return json.loads(s.get('args_json') or '{}').get('window_ms')
+    except Exception:  # noqa: BLE001 — informational only, never blocks printing
+        pass
+    return None
+
+
 def print_run(r, trace=None):
-    tag = {'failed': '[FAIL]', 'passed': '[PASS]', 'inapplicable': '[N/A ]', 'undetermined': '[ ?? ]'}.get(r['outcome'], '[    ]')
-    print('%s %s  %s  (%s)' % (tag, r['side'].upper(), r['variant'], r['build_name']))
-    print('       outcome   %s — %s' % (r['outcome'], r['verdict_words']))
+    """Prints one ScenarioRun. fs-2c / hw priorities P1 fix: an ACCEPTANCE run (`side == 'acceptance'`, D-hw-2) has
+    none of the fault-runner's own fields (no firmware_sha256/harness_digest/seed/size_text/...) — every access here
+    is `.get()`'d, and acceptance rows take their OWN short branch (outcome, frames_seen, the scenario's own field-
+    arrival window, and — when the caller attached them — the capability name + its freshly DERIVED status) instead
+    of falling through into the fault-only cost/trace/repro lines below, which would KeyError on them."""
+    tag = {'failed': '[FAIL]', 'passed': '[PASS]', 'inapplicable': '[N/A ]', 'undetermined': '[ ?? ]'}.get(r.get('outcome'), '[    ]')
+    print('%s %s  %s  (%s)' % (tag, (r.get('side') or '?').upper(), r.get('variant', ''), r.get('build_name', '')))
+    print('       outcome   %s — %s' % (r.get('outcome', ''), r.get('verdict_words', '')))
+    if r.get('side') == 'acceptance':
+        window_ms = _acceptance_window_ms(r.get('scenario', ''))
+        print('       field     frames_seen %s%s' % (r.get('frames_seen', 0), ('  · window ~%s ms' % window_ms) if window_ms is not None else ''))
+        if r.get('capability'):
+            print('       capability %-24s status %s%s' % (r['capability'], r.get('status', '?'),
+                                                            ('  (%s)' % r['status_why']) if r.get('status_why') else ''))
+        return
     if r.get('observable_value'):
         print('       observed  %s%s' % (r['observable_value'], ('  · resets %d' % r['reset_count']) if r.get('reset_count') else ''))
     if r.get('fault_cycle') and not r.get('fault_pc'):
-        print('       forced    cycle %d: %s%s' % (r['fault_cycle'], r['fault_symbol'], ('; %s' % r['landed_symbol']) if r.get('landed_symbol') else ''))
+        print('       forced    cycle %d: %s%s' % (r['fault_cycle'], r.get('fault_symbol', ''), ('; %s' % r['landed_symbol']) if r.get('landed_symbol') else ''))
     elif r.get('fault_cycle'):
-        print('       forced    cycle %d at %s (%s); landed at %s (%s), cycle %s' % (r['fault_cycle'], r['fault_pc'], r['fault_symbol'],
+        print('       forced    cycle %d at %s (%s); landed at %s (%s), cycle %s' % (r['fault_cycle'], r.get('fault_pc'), r.get('fault_symbol', ''),
                                                                                  r.get('landed_pc') or '-', r.get('landed_symbol') or '-', r.get('landed_cycle') or '-'))
     if r.get('uptime_sequence'):
-        print('       frames    %d CRC-valid (bad CRC %d), uptime_ms: %s' % (r['frames_seen'], r['bad_crc'], r['uptime_sequence'][:160]))
+        print('       frames    %d CRC-valid (bad CRC %d), uptime_ms: %s' % (r.get('frames_seen', 0), r.get('bad_crc', 0), r['uptime_sequence'][:160]))
     if r.get('torn_value', -1) >= 0:
-        print('       torn      hal_millis returned %d (0x%08X); an atomic read gives %d or %d' % (r['torn_value'], r['torn_value'], r['expected_value'], r['expected_value'] + 1))
+        print('       torn      hal_millis returned %d (0x%08X); an atomic read gives %d or %d' % (r['torn_value'], r['torn_value'], r.get('expected_value', 0), r.get('expected_value', 0) + 1))
     if r.get('size_text'):
         print('       cost      .text %d .data %d .bss %d · priced fn %s cycles (min) · worst ISR latency %s cycles (vector %s) · longest ISR %s '
-              'cycles (vector %s)' % (r['size_text'], r['size_data'], r['size_bss'], r['fn_cycles_min'], r['isr_latency_max_cycles'],
-                                      r['isr_latency_vector'], r.get('isr_cycles_max', '-'), r.get('isr_cycles_vector', '-')))
+              'cycles (vector %s)' % (r.get('size_text'), r.get('size_data'), r.get('size_bss'), r.get('fn_cycles_min'), r.get('isr_latency_max_cycles'),
+                                      r.get('isr_latency_vector'), r.get('isr_cycles_max', '-'), r.get('isr_cycles_vector', '-')))
         print('       stack     high-water %d B (SP watch) · %d B (0xA5 paint) · static peak %d B (-fstack-usage + call graph)'
-              % (r['stack_high_water'], r['stack_high_water_paint'], r['stack_static_peak']))
+              % (r.get('stack_high_water', 0), r.get('stack_high_water_paint', 0), r.get('stack_static_peak', 0)))
     if r.get('trace_sha256'):
-        print('       trace     VCD sha256 %s (%s samples) · uart sha256 %s' % (r['trace_sha256'], r['trace_samples'], r['uart_sha256'][:16]))
+        print('       trace     VCD sha256 %s (%s samples) · uart sha256 %s' % (r['trace_sha256'], r.get('trace_samples'), (r.get('uart_sha256') or '')[:16]))
     flip = r.get('_claim_flip') or r.get('claim_flip')
-    print('       claim     %s  %s' % (r['claim'], ('%s → %s' % tuple(flip)) if flip else ''))
-    print('       repro     firmware %s · harness %s · seed %s · %.3f s wall for %d cycles' % (r['firmware_sha256'][:16], r['harness_digest'][:60], r['seed'],
+    print('       claim     %s  %s' % (r.get('claim', ''), ('%s → %s' % tuple(flip)) if flip else ''))
+    print('       repro     firmware %s · harness %s · seed %s · %.3f s wall for %d cycles' % ((r.get('firmware_sha256') or '')[:16], (r.get('harness_digest') or '')[:60], r.get('seed'),
                                                                                            float(r.get('wall_s') or 0), int(r.get('sim_cycles') or 0)))
     for t in (trace or []):
         if t.get('note'):
@@ -89,12 +114,26 @@ def cmd_run(a):
         # operation — it has no before/after/natural/control sides, so it skips the fault-runner entirely.
         from firmwarefaults.custom import acceptance as ACC
         from firmwarefaults.custom.sink import LocalSink
+        from cmod.custom import capabilities as CAP
         mode = 'hardware' if getattr(a, 'hardware', False) else 'digital-twin'
         sink = LocalSink()
         out = ACC.run(a.scenario, mode=mode, sink=sink)
-        print_run(out)
-        p = sink.flush(out['name'])
-        print('       record    %s' % p)
+        # fix (coordinator 2026-10-06): PERSIST FIRST — `ACC.run` already upserted the ScenarioRun into `sink`
+        # (in-memory for LocalSink); flush it to disk and derive the capability's status BEFORE any printing, so a
+        # print_run() crash on an acceptance-shaped row (it has none of the fault-runner's own fields) can never
+        # cost the run its own record or its derived status. manager=None here (the bare CLI has no live manager —
+        # cmod.custom.capabilities.derive_status says so honestly rather than guessing a live-server status).
+        record_path = sink.flush(out['name'])
+        cap = CAP.find(row.get('capability', ''))
+        if cap is not None:
+            status, last_proof, status_why = CAP.derive_status(cap, manager=None)
+        else:
+            status, last_proof, status_why = '?', '', 'scenario names no known capability'
+        out = dict(out, capability=row.get('capability', ''), status=status, status_why=status_why)
+        try:
+            print_run(out)
+        finally:
+            print('       record    %s' % record_path)
         return 0 if out['outcome'] == 'passed' else (3 if out['outcome'] == 'inapplicable' else 1)
     side = 'both' if a.both else 'before' if a.before else 'after' if a.after else 'natural' if a.natural else 'control' if a.control else 'both'
     if a.api:
