@@ -16,8 +16,9 @@ import shutil
 from board.custom import board_engines as be
 from board.custom import engine_run
 
-EXTRA = {'avr-nm': ('avr-nm', 'c-compiler', 'binutils, GPL-3.0+'), 'make': ('make', 'c-compiler', 'GNU make, GPL-3.0+')}
-USED = ('avr-gcc', 'avr-nm', 'make')
+EXTRA = {'avr-nm': ('avr-nm', 'c-compiler', 'binutils, GPL-3.0+'), 'make': ('make', 'c-compiler', 'GNU make, GPL-3.0+'),
+         'cmake': ('cmake', 'c-compiler', 'Kitware CMake, BSD-3-Clause')}   # ucd-0f: the exported project's build (beside avr-gcc, like make)
+USED = ('avr-gcc', 'avr-nm', 'make', 'cmake')
 
 
 def resolve(engine):
@@ -26,15 +27,15 @@ def resolve(engine):
     if engine not in EXTRA:
         return {'how': 'refused', 'where': '', 'why': 'unknown engine %r' % engine}
     binary = EXTRA[engine][0]
-    if engine == 'make':
+    if engine in ('make', 'cmake'):
         g = be.resolve('avr-gcc')
         if g['how'] == 'local-binary':
-            w = shutil.which('make')
+            w = shutil.which(engine)
             return {'how': 'local-binary', 'where': w, 'why': 'beside the local avr-gcc'} if w else \
-                {'how': 'refused', 'where': '', 'why': 'avr-gcc is local but make is not on the PATH'}
+                {'how': 'refused', 'where': '', 'why': 'avr-gcc is local but %s is not on the PATH' % engine}
         if g['how'] == be.LOCAL_IMAGE:
-            return {'how': be.LOCAL_IMAGE, 'where': g['where'], 'why': 'the board engines image (make + avr-gcc)'}
-        return {'how': 'refused', 'where': g.get('where', ''), 'why': 'avr-gcc resolves to %s (%s); the board worker runs single engines, not make' % (g['how'], g.get('where', ''))}
+            return {'how': be.LOCAL_IMAGE, 'where': g['where'], 'why': 'the board engines image (%s + avr-gcc)' % engine}
+        return {'how': 'refused', 'where': g.get('where', ''), 'why': 'avr-gcc resolves to %s (%s); the board worker runs single engines, not %s' % (g['how'], g.get('where', ''), engine)}
     url = be.knob_url()
     if url:
         cap = be.remote_capability(url)

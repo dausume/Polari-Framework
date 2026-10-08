@@ -11,6 +11,9 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
 #: board, its DERIVED schedule (D-fs-1) and register map (D-fs-2) — DEMONSTRABLES_PLAN.md §9)
+from cmod.objects.cmod.FirmwareExport import FirmwareExport  # noqa: F401  (ucd-0f: the export record)
+
 CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                TargetDefinition, CapabilityDefinition, CapabilityInstance,
-               FirmwareSolution, ScheduleSlot, RegisterAssignment]
+               FirmwareSolution, ScheduleSlot, RegisterAssignment,
+                FirmwareExport]

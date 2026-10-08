@@ -1334,6 +1334,7 @@ class polariServer(treeObject):
             # demo-4: what a graph's ports/field-writes actually control (derived from the atoms' resources + the board's
             # BoardPin rows), a named reusable capability over a graph, and its per-use instances
             TargetDefinition, CapabilityDefinition, CapabilityInstance,
+            FirmwareExport,   # ucd-0f: the CMake export record
             # fs-0: a FirmwareSolution over a graph + a board, its DERIVED schedule (D-fs-1) and register map (D-fs-2)
             FirmwareSolution, ScheduleSlot, RegisterAssignment,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas

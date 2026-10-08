@@ -153,7 +153,7 @@ def uno_parts(check):
               'fs-0: one FirmwareSolution (uno-sim-rig) + its derived ScheduleSlot/RegisterAssignment rows' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
                          'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 3, 'CapabilityInstance': 5,
-                         'FirmwareSolution': 1, 'ScheduleSlot': 17, 'RegisterAssignment': 16}, counts)
+                         'FirmwareExport': 0, 'FirmwareSolution': 1, 'ScheduleSlot': 17, 'RegisterAssignment': 16}, counts)   # ucd-0f: + FirmwareExport (observed)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

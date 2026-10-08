@@ -12,6 +12,7 @@
     assign <solution> --task T --port P --pin <BoardPin>
                                    the door the pin-map drag (fs-1) will call
 """
+import json
 import sys
 
 
@@ -114,10 +115,35 @@ def _assign(name, task, port, pin):
     return 0 if ok else 1
 
 
+def _export(name, target, out, verify, as_json):
+    from cmod.custom import export_cmake as EX
+    fs = _solution(name)
+    try:
+        row = EX.export(fs, target=target, out_root=out, verify_build=verify)
+    except EX.ExportRefused as e:
+        print('refused: %s' % e)
+        return 2
+    if as_json:
+        print(json.dumps(row, indent=1))
+        return 0
+    print('exported %s -> %s' % (name, row['path']))
+    print('  tar      %s  sha256 %s' % (row['tar_path'], row['tar_sha256'][:16]))
+    print('  files    %s' % ', '.join(f['file'] for f in json.loads(row['files_json'])))
+    print('  build    cmake -S . -B build && cmake --build build   |   cmake -P polari-build.cmake')
+    print('  parity   %s (makefile hex %s, cmake hex %s)' % (row['parity'], row['makefile_sha256'][:16] or '—', row['cmake_sha256'][:16] or '—'))
+    if row['verify_log']:
+        print('  verify   ' + row['verify_log'].strip().splitlines()[0][:140])
+    return 0 if row['status'] != 'refused' else 1
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol firmware')
-    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign'))
+    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export'))
+    ap.add_argument('--target', dest='target_kind', default='both', choices=('both', 'board', 'twin'))   # export
+    ap.add_argument('--out', default=None)        # export: the directory to write under (default module_home('exp'))
+    ap.add_argument('--verify', action='store_true')   # export: run the exported CMake build on the engines rung + compare shas
+    ap.add_argument('--json', action='store_true')
     ap.add_argument('target', nargs='?', default='')
     ap.add_argument('--mode', default='digital-twin')
     ap.add_argument('--task', default='')
@@ -129,7 +155,7 @@ def main(argv):
     if not a.target:
         print('usage: pol firmware %s <solution>   (pol firmware list)' % a.verb)
         return 2
-    return {'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
+    return {'export': lambda: _export(a.target, a.target_kind, a.out, a.verify, a.json), 'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
             'run': lambda: _run(a.target, a.mode), 'assign': lambda: _assign(a.target, a.task, a.port, a.pin)}[a.verb]()
 
 

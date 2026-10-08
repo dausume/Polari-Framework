@@ -43,6 +43,7 @@ in which stage/lane) — never the atom's own C body. A state kind that held a C
 """
 import inspect
 import json
+import os
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -61,6 +62,9 @@ class FirmwareAPI(treeObject):
             add('/api/firmware/solutions/{name}/assign', self, suffix='assign')
             add('/api/firmware/solutions/{name}/tasks/{task}/valid-targets', self, suffix='valid_targets')
             add('/api/firmware/solutions/for-installer', self, suffix='for_installer')
+            add('/api/firmware/solutions/{name}/export', self, suffix='export')      # ucd-0f: POST → the CMake export dir + tar.gz
+            add('/api/firmware/exports', self, suffix='exports')                       # ucd-0f: every FirmwareExport row
+            add('/api/firmware/exports/{name}/download', self, suffix='download')     # ucd-0f: the tar.gz
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -179,6 +183,66 @@ class FirmwareAPI(treeObject):
         b = rec['build']
         response.media = {'ok': True, 'solution': name, 'built_by': b['built_by'], 'hex_sha256': b['hex_sha256'],
                           'size_text': b['size_text'], 'size_data': b['size_data'], 'size_bss': b['size_bss']}
+
+    def on_post_export(self, request, response, name):
+        """ucd-0f (UNO_CORE_DEMO_PLAN.md §5b): POST /api/firmware/solutions/<name>/export {target: both|board|twin,
+        verify: bool} → writes the export directory (the rendered plain-C project + CMakeLists.txt + the avr-gcc
+        toolchain + the one-command build + README + polari-export.json) and its tar.gz under module_home('exp'),
+        records a FirmwareExport row, and — with verify — runs the exported CMake build on the engines rung and
+        compares its hex sha with the committed Makefile build's (parity). Refuses, named, when the solution does
+        not validate or its graph has no rendered project."""
+        import falcon
+        from cmod.custom import export_cmake as EX
+        s = self._solution(name, response)
+        if s is None:
+            return
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        try:
+            row = EX.export(s, manager=self.manager, target=body.get('target', 'both'), verify_build=bool(body.get('verify', True)))
+        except EX.ExportRefused as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': str(e), 'solution': name}
+            return
+        self._record_export(row)
+        response.media = {'ok': row['status'] != 'refused', 'solution': name, 'export': row}
+
+    def _record_export(self, row):
+        from cmod.cmod_basis import FirmwareExport
+        table = (self.manager.objectTables or {}).get('FirmwareExport', {}) if self.manager is not None else {}
+        existing = next((r for r in table.values() if getattr(r, 'name', '') == row['name']), None)
+        if existing is not None:
+            for k, v in row.items():
+                setattr(existing, k, v)
+            return existing
+        obj = FirmwareExport(manager=self.manager, **row)
+        try:
+            self.manager.save(obj)
+        except Exception:  # noqa: BLE001 — the row is in the table even when the DB write is deferred
+            pass
+        return obj
+
+    def on_get_exports(self, request, response):
+        table = (self.manager.objectTables or {}).get('FirmwareExport', {}) if self.manager is not None else {}
+        rows = [{k: getattr(r, k, '') for k in ('name', 'solution', 'graph', 'board', 'form', 'target', 'tar_sha256', 'makefile_sha256',
+                                               'cmake_sha256', 'parity', 'download_url', 'created_at', 'status', 'why')} for r in table.values()]
+        rows.sort(key=lambda r: r['created_at'], reverse=True)
+        response.media = {'ok': True, 'rows': rows}
+
+    def on_get_download(self, request, response, name):
+        import falcon
+        from cmod.custom import export_cmake as EX
+        table = (self.manager.objectTables or {}).get('FirmwareExport', {}) if self.manager is not None else {}
+        r = next((x for x in table.values() if getattr(x, 'name', '') == name), None)
+        if r is None or not (os.path.isdir(getattr(r, 'path', '')) or os.path.isfile(getattr(r, 'tar_path', ''))):
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no export %r on this server (GET /api/firmware/exports lists them; exports are transient)' % name}
+            return
+        response.content_type = 'application/gzip'
+        response.downloadable_as = '%s.tar.gz' % name
+        response.data = EX.tarball({'name': name, 'path': r.path, 'tar_path': r.tar_path})
 
     def on_post_run(self, request, response, name):
         s = self._solution(name, response)

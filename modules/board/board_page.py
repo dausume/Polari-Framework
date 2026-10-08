@@ -184,11 +184,35 @@ _BOARDS_PAGES = [
                               columns='kit,title,what_it_is,interface_kind,driver_needed,pin_count,pin_roles,connects_to,electrical_notes,'
                                       'polarity,kit_quantity,sample_capabilities,source',
                               data_path='/api/board/kit-parts')]),
+          ]),
+]
+
+
+# ---------------------------------------------------------------- brd-fi: the Firmware Installer App
+def _panel(item_id, index, segments, title, path='/api/board/installer', board='arduino-uno-r3'):
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False, 'cssClass': '',
+        'componentProps': {'componentName': 'firmware-installer-panel', 'inputs': {'path': path, 'board': board}},
+        'item': None, 'nestedRows': [],
+    }
+
+
+
+# ucd-0a/0f (his ruling 2026-10-08: "The page has been overwhelmed with the tables. We should keep them for more specialized or
+# tabular displays we can open"): THE HARDWARE CHAIN has its own page; /display/boards is the readiness page it was.
+_CHAIN_PAGES = [
+    _page('hardware-chain', 'hardware-chain',
+          'The hardware chain — Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, as '
+          'rows derived from the register snapshot and cited to the datasheet, navigable both ways (every link opens that row\'s own '
+          'page; every `_refs` chip is a reverse link). Start with the D3 walk; `pol board chain <board> <pin>` prints the same.',
+          'BoardPin', [
               # ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g — his measure of success: "a novice can inspect the model and
               # understand why that firmware configures the hardware the way it does"). Every table below is a configured table over
               # derived+cited rows; every `:ref:` column is a link to that row's own object page, every `:refs` list the reverse links —
               # Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, and back, no custom component.
-              _row(14, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>, '
+              _row(0, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>, '
                               '`pol board chain arduino-uno-r3 D3`)', '',
                               description='What this is for: the whole chain for one pin, in order, so a person new to hardware can read D3 top '
                                           'to bottom: the board pin (net, connector, C symbol) → its SoC pin (port/bit, package pin) → every '
@@ -199,7 +223,7 @@ _BOARDS_PAGES = [
                                           'load from the same rows the tables below show.',
                               columns='hop,kind,name,what,detail,ref', column_formats='ref:refs',
                               data_path='/api/board/arduino-uno-r3/chain/D3')]),
-              _row(15, [_table('boards-peripherals', 0, 12, 'Peripherals — the chip\'s functional blocks: what each does, its chapter, its signals and registers',
+              _row(1, [_table('boards-peripherals', 0, 12, 'Peripherals — the chip\'s functional blocks: what each does, its chapter, its signals and registers',
                               'Peripheral',
                               description='What this is for: one row per functional block of the SoC (a timer, the serial port, an I/O port, '
                                           'the ADC, the external-interrupt unit). Columns: kind, title (the datasheet chapter), chapter (the '
@@ -209,7 +233,7 @@ _BOARDS_PAGES = [
                                           'Derived from the register snapshot\'s grouping rules and the datasheet port tables; never typed in.',
                               columns='name,peripheral,kind,title,chapter,description,signals_refs_json,registers_refs_json,pin_functions_refs_json,origin,undetermined',
                               column_formats='name:ref:Peripheral,signals_refs_json:refs,registers_refs_json:refs,pin_functions_refs_json:refs')]),
-              _row(16, [_table('boards-peripheral-signals', 0, 6, 'Peripheral signals — one line a block can drive or read through a pin (OC2B, INT1, RXD, ADC0, PD3 as GPIO)',
+              _row(2, [_table('boards-peripheral-signals', 0, 6, 'Peripheral signals — one line a block can drive or read through a pin (OC2B, INT1, RXD, ADC0, PD3 as GPIO)',
                               'PeripheralSignal',
                               description='What this is for: the peripheral\'s side of the pin ↔ peripheral link. One row = one signal of one '
                                           'peripheral. Columns: peripheral (link), signal, channel, direction (in | out | inout | undetermined — '
@@ -227,7 +251,7 @@ _BOARDS_PAGES = [
                                           'cited), board_pins_refs_json (which board pins expose this SoC pin — links back up the chain).',
                               columns='name,soc_pin,function,signal,peripheral,routing,overrides_gpio,exclusive_group,description,board_pins_refs_json,undetermined',
                               column_formats='name:ref:PinFunction,soc_pin:ref:SocPin,signal:ref:PeripheralSignal,peripheral:ref:Peripheral,board_pins_refs_json:refs')]),
-              _row(17, [_table('boards-registers', 0, 5, 'Registers — every register of the SoC: address, I/O vs data space, its peripheral, its cited bit fields',
+              _row(3, [_table('boards-registers', 0, 5, 'Registers — every register of the SoC: address, I/O vs data space, its peripheral, its cited bit fields',
                               'Register',
                               description='What this is for: the chip\'s register map as rows, one per register the toolchain\'s own header '
                                           'defines (avr-libc <avr/io.h>, read with avr-gcc -dM — the snapshot\'s sha is in origin). Columns: '
@@ -250,18 +274,6 @@ _BOARDS_PAGES = [
                               column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin')]),
           ]),
 ]
-
-
-# ---------------------------------------------------------------- brd-fi: the Firmware Installer App
-def _panel(item_id, index, segments, title, path='/api/board/installer', board='arduino-uno-r3'):
-    return {
-        'id': item_id, 'index': index, 'type': 'component',
-        'rowSegmentsUsed': segments, 'gridColumnStart': None,
-        'title': title, 'visible': True, 'collapsed': False, 'cssClass': '',
-        'componentProps': {'componentName': 'firmware-installer-panel', 'inputs': {'path': path, 'board': board}},
-        'item': None, 'nestedRows': [],
-    }
-
 
 INSTALLER_PAGES = [
     _page('firmware-installer', 'firmware-installer',
@@ -328,4 +340,4 @@ INSTALLER_PAGES = [
 ]
 
 #: the module's one page export (manifest `pages`): /display/boards + /display/firmware-installer
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + INSTALLER_PAGES
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES   # ucd-0a: + /display/hardware-chain

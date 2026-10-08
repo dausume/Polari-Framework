@@ -211,10 +211,9 @@ def page():
     text = P[0]['definition']
     # demo1b: the pin map draws FIRST (the generic api-svg-panel, now a board SELECTOR over /api/board/pinmaps),
     # the pin-roles table right under it, then the devices tables (demo1: usable/tracked split; brd-wire:
-    # + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts; ucd-0a: + the hardware chain's six — the D3 walk,
-    # peripherals, signals, pin functions, registers, fields)
+    # + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts; ucd-0a's six chain tables live on /display/hardware-chain)
     check('/display/boards is the pin-map drawing + configured tables only (no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 23 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
+          and len(names) == 17 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
     check('/display/boards: the FIRST item is the pin-map drawing (api-svg-panel)', names[0] == 'api-svg-panel', str(names))
     check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
