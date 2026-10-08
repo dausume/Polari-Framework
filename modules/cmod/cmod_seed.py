@@ -11,7 +11,7 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 "temperature sensor solution" CapabilityDefinition and its two CapabilityInstance rows (his worked example).
 """
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
-                             TargetDefinition, CapabilityDefinition, CapabilityInstance,
+                             TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
                              FirmwareSolution, ScheduleSlot, RegisterAssignment)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
@@ -83,6 +83,7 @@ CMOD_SEED_PAIRS = [
     ('TargetDefinition', TargetDefinition, _owned(TARGET_ROWS, keep=('notes',))),
     ('CapabilityDefinition', CapabilityDefinition, _owned(CAPABILITY_ROWS, keep=('notes',))),
     ('CapabilityInstance', CapabilityInstance, _owned(CAPABILITY_INSTANCE_ROWS, keep=('notes',))),
+    ('FirmwareExport', FirmwareExport, []),   # ucd-0f: observed (created by the export door / pol firmware export), never seeded
     ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS, keep=('title', 'notes'))),
     ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS, keep=('notes',))),
     ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS, keep=('notes',))),

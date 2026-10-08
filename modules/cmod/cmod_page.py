@@ -176,6 +176,32 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,capability,index,bindings,status',
                               column_formats='capability:ref:CapabilityDefinition,graph:ref:CGraph')], min_height=200),
           ]),
+    # ucd-0f (his ask 2026-10-08: "a link that shows just the UI for firmware no code and an export"): ONE lean page —
+    # the canvas and the exports, nothing else; /display/firmware-solutions keeps the full set of described tables.
+    _page('firmware', 'firmware',
+          'Firmware — the no-code canvas for one Firmware Solution (tasks · schedule · register map on the board\'s pin map) and '
+          'its EXPORT: a folder you download and build with plain CMake, no Polari needed (the rendered C, CMakeLists.txt, the '
+          'avr-gcc toolchain file, a README that explains the firmware, every file\'s sha). The full tables are on '
+          '/display/firmware-solutions; the hardware chain (pins → functions → peripherals → registers → bit fields) on '
+          '/display/hardware-chain.', 'FirmwareSolution', [
+              _row(0, [_firmware_panel('firmware-panel-lean', 0, 12, 'Firmware no-code — pick a solution, bind targets to pins, export',
+                                       '/api/firmware/solutions', initial='uno-sim-rig',
+                                       description='Pick a Firmware Solution. LEFT: its tasks grouped by capability. MIDDLE: the derived '
+                                                   'schedule. RIGHT: the board\'s pin map — select a task, then a valid (outlined) pin, '
+                                                   'confirm Register. EXPORT (top bar): writes the CMake project + README + manifest, '
+                                                   'verifies it rebuilds on the engines image to the same hex sha, and gives the download.')],
+                   min_height=640),
+              _row(1, [_table('firmware-exports', 0, 12, 'Exports — every export made on this server: what it is, whether the CMake build '
+                              'reproduced the Makefile build byte for byte (parity), the download', 'FirmwareExport',
+                              description='What this is for: the record of each export. One row = one export of one solution. Columns: '
+                                          'solution (link), board, target (both | board | twin), parity (identical = the exported CMake '
+                                          'build produced the same firmware.hex as the proven Makefile build; differs; not-run), '
+                                          'makefile_sha256 / cmake_sha256 (the two hex shas), tar_sha256, download_url (the tar.gz), '
+                                          'created_at, status (created | verified | refused) and why. Exports are transient files; '
+                                          'this row is the durable record.',
+                              columns='name,solution,board,target,parity,makefile_sha256,cmake_sha256,tar_sha256,download_url,created_at,status,why',
+                              column_formats='solution:ref:FirmwareSolution,download_url:link')]),
+          ]),
     _page('firmware-solutions', 'firmware-solutions',
           'Firmware Solutions (fs-0, DEMONSTRABLES_PLAN.md §9): a `FirmwareSolution` takes a `CGraph` (its tasks = the '
           'graph\'s c-atoms) and a board (fixed or a run-time variable, validated it still exists) and derives its SCHEDULE '

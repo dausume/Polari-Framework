@@ -26,3 +26,13 @@ from board.objects.board.BoardPin import BoardPin  # noqa: F401
 from board.objects.board.RuntimeProfile import RuntimeProfile  # noqa: F401
 from board.objects.board.BoardConflict import BoardConflict  # noqa: F401
 from board.objects.board.BoardView import BoardView  # noqa: F401
+# ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g) — Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField
+from board.objects.board.Peripheral import Peripheral  # noqa: F401
+from board.objects.board.PeripheralSignal import PeripheralSignal  # noqa: F401
+from board.objects.board.PinFunction import PinFunction  # noqa: F401
+from board.objects.board.SignalRoute import SignalRoute  # noqa: F401
+from board.objects.board.Register import Register  # noqa: F401
+from board.objects.board.RegisterField import RegisterField  # noqa: F401
+from board.objects.board.RegisterSetting import RegisterSetting  # noqa: F401
+from board.objects.board.RegisterFieldSetting import RegisterFieldSetting  # noqa: F401
+from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401

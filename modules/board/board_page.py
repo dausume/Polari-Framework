@@ -127,8 +127,8 @@ _BOARDS_PAGES = [
                                           '= one named pin. Columns: canonical (the name every view uses) ↔ soc_pin/net/connector_pin (the '
                                           'physical identity), function/peripheral/signal (what it does), firmware_symbol (the C name), origin, '
                                           'undetermined.',
-                              columns='board,canonical,soc_pin,net,connector_pin,function,peripheral,signal,firmware_symbol,alias,origin,undetermined',
-                              column_formats='board:ref:BoardDefinition')]),
+                              columns='board,canonical,soc_pin,net,connector_pin,function,peripheral,signal,firmware_symbol,alias,origin,undetermined,links_refs_json',
+                              column_formats='board:ref:BoardDefinition,name:ref:BoardPin,links_refs_json:refs')]),
               _row(10, [_table('boards-runtime', 0, 12, 'Runtime profiles — per firmware_runtime: supported (console, tick, twin) or REFUSED with the reason',
                               'RuntimeProfile',
                               description='What this is for: which firmware runtimes (bare-c | freertos | esp-idf | zephyr) a board actually '
@@ -199,6 +199,82 @@ def _panel(item_id, index, segments, title, path='/api/board/installer', board='
     }
 
 
+
+# ucd-0a/0f (his ruling 2026-10-08: "The page has been overwhelmed with the tables. We should keep them for more specialized or
+# tabular displays we can open"): THE HARDWARE CHAIN has its own page; /display/boards is the readiness page it was.
+_CHAIN_PAGES = [
+    _page('hardware-chain', 'hardware-chain',
+          'The hardware chain — Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, as '
+          'rows derived from the register snapshot and cited to the datasheet, navigable both ways (every link opens that row\'s own '
+          'page; every `_refs` chip is a reverse link). Start with the D3 walk; `pol board chain <board> <pin>` prints the same.',
+          'BoardPin', [
+              # ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g — his measure of success: "a novice can inspect the model and
+              # understand why that firmware configures the hardware the way it does"). Every table below is a configured table over
+              # derived+cited rows; every `:ref:` column is a link to that row's own object page, every `:refs` list the reverse links —
+              # Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, and back, no custom component.
+              _row(0, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>, '
+                              '`pol board chain arduino-uno-r3 D3`)', '',
+                              description='What this is for: the whole chain for one pin, in order, so a person new to hardware can read D3 top '
+                                          'to bottom: the board pin (net, connector, C symbol) → its SoC pin (port/bit, package pin) → every '
+                                          'function that pin can take (GPIO, INT1, OC2B, PCINT19) → the peripheral signals behind them → the '
+                                          'peripherals (External Interrupts, Timer/Counter2, Pin Change Interrupts, Port D) → their registers '
+                                          '(the ones holding bits for THIS pin first) → the cited bit fields that configure this pin, each with '
+                                          'its values and what they mean. One row = one hop; `ref` opens the hop\'s own page. Computed on every '
+                                          'load from the same rows the tables below show.',
+                              columns='hop,kind,name,what,detail,ref', column_formats='ref:refs',
+                              data_path='/api/board/arduino-uno-r3/chain/D3')]),
+              _row(1, [_table('boards-peripherals', 0, 12, 'Peripherals — the chip\'s functional blocks: what each does, its chapter, its signals and registers',
+                              'Peripheral',
+                              description='What this is for: one row per functional block of the SoC (a timer, the serial port, an I/O port, '
+                                          'the ADC, the external-interrupt unit). Columns: kind, title (the datasheet chapter), chapter (the '
+                                          'citation, or undetermined when that chapter was not read), description (plain words), '
+                                          'signals_refs_json (the signals it can put on pins — links), registers_refs_json (the registers '
+                                          'that configure it — links), pin_functions_refs_json (every pin function that reaches it — links). '
+                                          'Derived from the register snapshot\'s grouping rules and the datasheet port tables; never typed in.',
+                              columns='name,peripheral,kind,title,chapter,description,signals_refs_json,registers_refs_json,pin_functions_refs_json,origin,undetermined',
+                              column_formats='name:ref:Peripheral,signals_refs_json:refs,registers_refs_json:refs,pin_functions_refs_json:refs')]),
+              _row(2, [_table('boards-peripheral-signals', 0, 6, 'Peripheral signals — one line a block can drive or read through a pin (OC2B, INT1, RXD, ADC0, PD3 as GPIO)',
+                              'PeripheralSignal',
+                              description='What this is for: the peripheral\'s side of the pin ↔ peripheral link. One row = one signal of one '
+                                          'peripheral. Columns: peripheral (link), signal, channel, direction (in | out | inout | undetermined — '
+                                          'derived from the signal family, said so), pin_functions_refs_json (which pin functions carry it — '
+                                          'links), notes (which register fields configure it, when cited). Derived from the datasheet port '
+                                          'tables (one row per alternate-function name) + one GPIO signal per port bit.',
+                              columns='name,peripheral,signal,channel,direction,description,pin_functions_refs_json,notes,undetermined',
+                              column_formats='name:ref:PeripheralSignal,peripheral:ref:Peripheral,pin_functions_refs_json:refs'),
+                       _table('boards-pin-functions', 1, 6, 'Pin functions — what each SoC pin CAN do (available; a firmware activates one as a SignalRoute)',
+                              'PinFunction',
+                              description='What this is for: the pin\'s side of the link. One row = one (SoC pin × function): PD3 has GPIO, '
+                                          'INT1, OC2B, PCINT19. Columns: soc_pin (link), function, signal (link), peripheral (link), routing '
+                                          '(fixed on the AVR — one pin per function; mux/matrix reserved for chips that choose), overrides_gpio '
+                                          '(§14.3: an enabled alternate function overrides DDR/PORT), exclusive_group (undetermined until '
+                                          'cited), board_pins_refs_json (which board pins expose this SoC pin — links back up the chain).',
+                              columns='name,soc_pin,function,signal,peripheral,routing,overrides_gpio,exclusive_group,description,board_pins_refs_json,undetermined',
+                              column_formats='name:ref:PinFunction,soc_pin:ref:SocPin,signal:ref:PeripheralSignal,peripheral:ref:Peripheral,board_pins_refs_json:refs')]),
+              _row(3, [_table('boards-registers', 0, 5, 'Registers — every register of the SoC: address, I/O vs data space, its peripheral, its cited bit fields',
+                              'Register',
+                              description='What this is for: the chip\'s register map as rows, one per register the toolchain\'s own header '
+                                          'defines (avr-libc <avr/io.h>, read with avr-gcc -dM — the snapshot\'s sha is in origin). Columns: '
+                                          'register, peripheral (link), addr (the address avr-libc defines), addr_mem (the data-space address '
+                                          'for an I/O-space register: io + 0x20, as the datasheet prints both), space (io | mem), width_bytes, '
+                                          'reset_value (cited), description (the datasheet\'s register title, cited), fields_refs_json (its '
+                                          'cited bit fields — links; undetermined names the registers whose fields are not captured yet).',
+                              columns='name,register,peripheral,addr,addr_mem,space,width_bytes,reset_value,description,page_table,fields_refs_json,undetermined',
+                              column_formats='name:ref:Register,peripheral:ref:Peripheral,fields_refs_json:refs'),
+                       _table('boards-register-fields', 1, 7, 'Register fields — each bit field, its values and what they mean, how it may be accessed (rw | r | w1c | w-strobe | rw-toggle), cited to the page',
+                              'RegisterField',
+                              description='What this is for: the last hop — the bits themselves, cited one by one to the ATmega328P datasheet '
+                                          '(DS40002061B, section/table/page in page_table). One row = one bit field of one register. Columns: '
+                                          'register (link), field, bit_hi/bit_lo/width, access (rw plain; r read-only; w1c = a flag cleared by '
+                                          'writing a ONE to it — never read-modify-write; w-strobe = writing acts, reads zero; rw-toggle = '
+                                          'writing one toggles another register\'s bit), reset_value, description (the datasheet\'s bit '
+                                          'title), values_json (each value → the datasheet\'s own sentence), affects_signal / affects_pin '
+                                          '(the signal or pin this field configures — links), page_table (the citation).',
+                              columns='name,register,field,bit_hi,bit_lo,width,access,reset_value,description,values_json,affects_signal,affects_pin,page_table,notes',
+                              column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin')]),
+          ]),
+]
+
 INSTALLER_PAGES = [
     _page('firmware-installer', 'firmware-installer',
           'Firmware Installer — build and install DIFFERENT Polari firmware variants on the one UNO (or its simavr twin) '
@@ -264,4 +340,4 @@ INSTALLER_PAGES = [
 ]
 
 #: the module's one page export (manifest `pages`): /display/boards + /display/firmware-installer
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + INSTALLER_PAGES
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES   # ucd-0a: + /display/hardware-chain

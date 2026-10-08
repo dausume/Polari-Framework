@@ -13,3 +13,4 @@ from cmod.objects.cmod.CapabilityInstance import CapabilityInstance  # noqa: F40
 from cmod.objects.cmod.FirmwareSolution import FirmwareSolution  # noqa: F401
 from cmod.objects.cmod.ScheduleSlot import ScheduleSlot  # noqa: F401
 from cmod.objects.cmod.RegisterAssignment import RegisterAssignment  # noqa: F401
+from cmod.objects.cmod.FirmwareExport import FirmwareExport  # noqa: F401  (ucd-0f)

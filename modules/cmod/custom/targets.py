@@ -102,13 +102,13 @@ def _node_controls(atom, pin, port):
 #: peripheral -> target kind, for the peripherals whose direction is NOT ambiguous (board.custom.target_compat's
 #: vocabulary) — USART0 is handled separately (its UDR0 register's access settles rx/tx; TWI/SPI are handled
 #: separately too (a bare register touch does not by itself say WHICH signal of the bus, so they stay undetermined)
-_PERIPHERAL_KIND = {'ADC': 'analog-in', 'EXTINT': 'interrupt-in', 'PCINT': 'interrupt-in'}
+_PERIPHERAL_KIND = {'ADC': 'analog-in', 'EXINT': 'interrupt-in', 'PCINT': 'interrupt-in'}
 _TIMER_PERIPHERALS = ('TIMER0', 'TIMER1', 'TIMER2')
 
 
 def requirement_kind(graph_name, task):
     """THE TASK TARGET KIND (board.custom.target_compat.TASK_KINDS vocabulary, his ruling 2026-10-06), derived from
-    one graph node's atom resources — never typed in. A peripheral with one unambiguous direction (ADC, EXTINT/
+    one graph node's atom resources — never typed in. A peripheral with one unambiguous direction (ADC, EXINT/
     PCINT) settles it outright; USART0 is settled by WHICH register the atom touches (UDR0 write = uart-tx, read =
     uart-rx) or, with no register touch at all (e.g. a ring-buffer consumer like hal_rx_pop), by the atom's own
     port shape (only 'out' ports = it reads a byte IN from the world = uart-rx; only 'in' ports = it writes a byte

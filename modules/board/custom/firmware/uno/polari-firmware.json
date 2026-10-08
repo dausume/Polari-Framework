@@ -2166,21 +2166,21 @@
      "kind": "register",
      "name": "EICRA",
      "access": "w",
-     "peripheral": "EXTINT",
+     "peripheral": "EXINT",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "EIFR",
      "access": "w",
-     "peripheral": "EXTINT",
+     "peripheral": "EXINT",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "EIMSK",
      "access": "w",
-     "peripheral": "EXTINT",
+     "peripheral": "EXINT",
      "detail": ""
     },
     {

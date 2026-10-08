@@ -20,7 +20,9 @@ import hashlib
 import inspect
 import json
 
-LAYER_CLASSES = ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin', 'BoardPin', 'RuntimeProfile')
+LAYER_CLASSES = ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin', 'BoardPin', 'RuntimeProfile',
+                 # ucd-0a: the hardware chain's rows travel with the layers (chain_for walks them from the same tables)
+                 'Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3',
            'c3': 'esp32-c3', 'esp32c3': 'esp32-c3', 'esp32-c3': 'esp32-c3'}
 #: the BoardPin fields that ARE the assignment (what views carry and conflicts compare)

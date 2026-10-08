@@ -45,6 +45,7 @@ class BoardObjectAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/board/{board}/pins', self, suffix='pins')
             add('/api/board/{board}/pins/{pin}', self, suffix='pin_one')
+            add('/api/board/{board}/chain/{pin}', self, suffix='chain')   # ucd-0a: the hardware chain of one pin, as rows
             add('/api/board/{board}/views', self, suffix='views')
             add('/api/board/{board}/conflicts', self, suffix='conflicts')
             add('/api/board/{board}/render', self, suffix='render')
@@ -123,6 +124,33 @@ class BoardObjectAPI(treeObject):
             'facts': json.loads(bp.get('facts_json') or '[]'),
             'registered_tasks': registered, 'unregistered': not registered,
         }
+
+    def on_get_chain(self, request, response, board, pin):
+        """ucd-0a (UNO_CORE_DEMO_PLAN.md §5f): GET /api/board/<board>/chain/<pin> — THE HARDWARE CHAIN of one pin as
+        ordered rows a configured table shows as is: board pin → SoC pin → every PinFunction → the PeripheralSignals →
+        the Peripherals → their Registers (the ones with fields for THIS pin first) → the cited RegisterFields that
+        configure this pin or its signals. `ref` is the Class:name link of each hop (the `refs` column format), so a
+        novice clicks any hop into its object page and walks on from there. Computed over the live tables (the same
+        rows the object pages read); the seed when the server has none. `pol board chain <board> <pin>` prints it."""
+        from board.custom import board_object as bo
+        from board.custom import hardware_chain as HC
+        tables = self._tables()
+        if not tables.get('PinFunction'):   # a server booted before ucd-0a's rows landed: the seed's chain, said so
+            tables = bo.seed_tables()
+            note = 'seed (the live server has no PinFunction rows yet)'
+        else:
+            note = 'live'
+        try:
+            hops = HC.chain_for(board, pin, tables)
+        except bo.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        except KeyError as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': '%s (GET /api/board/%s/pins lists them)' % (e.args[0], bo.board_name(board))}
+            return
+        response.media = {'ok': True, 'board': bo.board_name(board), 'pin': pin, 'source': note, 'rows': hops}
 
     def _power_pin_detail(self, request, response, r, pin, KP):
         """fs-2d: the pin-detail door for a power/reference connector label (never a BoardPin row — IOREF, RESET,
