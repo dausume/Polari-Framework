@@ -15,7 +15,7 @@ class SocPin(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', soc: str = '', pin: str = '', port: str = '', bit: int = 0,
                  package_pin: str = '', functions_json: str = '[]', default_function: str = '', fact: str = '',
-                 notes: str = '', manager=None):
+                 notes: str = '', links_refs_json: str = '[]', manager=None):
         self.name = name  # '<soc>:<pin>'
         self.soc = soc
         self.pin = pin  # PD6 | GPIO21
@@ -26,3 +26,7 @@ class SocPin(treeObject):
         self.default_function = default_function  # after reset / boot
         self.fact = fact  # the DatasheetFact name
         self.notes = notes
+        # ucd-0a: the chain's links from this pin — ["BoardPin:…", "PinFunction:<soc>:<pin>:<fn>", "RegisterField:…"] — derived
+        # (board.custom.hardware_chain.link), read by the generic object page so a SoC pin walks UP to its board pins and DOWN
+        # to what it can do and the bits that configure it
+        self.links_refs_json = links_refs_json

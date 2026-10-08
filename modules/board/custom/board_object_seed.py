@@ -28,6 +28,15 @@ def build(boards):
         if n['name'] not in seen:
             seen.add(n['name'])
             nets.append(n)
+    out = _layers(boards, conns, cpins, nets)
+    # ucd-0a: THE HARDWARE CHAIN (board.custom.hardware_chain) — Peripheral / PeripheralSignal / PinFunction / Register /
+    # RegisterField rows derived from the same sources, and the SocPin / BoardPin rows gain their reverse links in place
+    from board.custom import hardware_chain as HC
+    out.update(HC.build(out['SocPin'], out['BoardPin']))
+    return out
+
+
+def _layers(boards, conns, cpins, nets):
     return {
         'SocDefinition': [A.soc_definition(), C.soc_definition()],
         'SocPin': A.soc_pins() + C.soc_pins(),

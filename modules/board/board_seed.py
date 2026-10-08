@@ -12,6 +12,8 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
                                Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart)
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
+from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
+                               RegisterFieldSetting, BoardPinNet)   # ucd-0a: the hardware chain
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
 from board.custom.sim_cost import SEED_BOARD_SIM_COSTS
@@ -64,6 +66,12 @@ BOARD_SEED_PAIRS = [
     # fs-2d: the kit parts register (code-owned: board.custom.kit_parts.rows(), cited to the kit's own book;
     # sample_capabilities is re-derived from cmod's seeded Capabilities every time rows() is first called)
     ('KitPart', KitPart, _register_owned(KP.rows())),
+    # ucd-0a: THE HARDWARE CHAIN — code-owned (derived from the register snapshot + the cited field table + the SoC pin table;
+    # re-derive the source, the rows follow); the settings/route/circuit-link rows are observed (filled by ucd-0b/0c), never seeded
+] + [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (('Peripheral', Peripheral), ('PeripheralSignal', PeripheralSignal),
+                                                                     ('PinFunction', PinFunction), ('Register', Register), ('RegisterField', RegisterField))] + [
+    ('SignalRoute', SignalRoute, []), ('RegisterSetting', RegisterSetting, []), ('RegisterFieldSetting', RegisterFieldSetting, []),
+    ('BoardPinNet', BoardPinNet, []),
 ]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode

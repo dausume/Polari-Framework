@@ -1306,7 +1306,9 @@ FEATURE_IMPORT_BLOCKS = (
                                'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
                                'UnoAnalogState', 'SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin',
                                'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
-                               'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart
+                               'Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',
+                               'RegisterFieldSetting', 'BoardPinNet',
+                               'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart; ucd-0a: + the hardware chain's nine
         ('board.board_seed', ('BOARD_SEED_PAIRS',)),
         ('board.board_page', ('SEED_BOARD_PAGE_DISPLAYS',)),
     )),

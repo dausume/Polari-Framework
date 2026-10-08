@@ -18,7 +18,8 @@ class BoardPin(treeObject):
     def __init__(self, name: str = '', board: str = '', canonical: str = '', number: int = -1, soc_pin: str = '',
                  net: str = '', connector_pin: str = '', function: str = 'gpio', peripheral: str = '',
                  signal: str = '', firmware_symbol: str = '', alias: str = '', electrical_json: str = '{}',
-                 facts_json: str = '[]', origin: str = '', undetermined: str = '', notes: str = '', manager=None):
+                 facts_json: str = '[]', origin: str = '', undetermined: str = '', notes: str = '', links_refs_json: str = '[]',
+                 manager=None):
         self.name = name  # '<board>:<canonical>'
         self.board = board
         self.canonical = canonical  # THE name every view uses
@@ -36,3 +37,6 @@ class BoardPin(treeObject):
         self.origin = origin  # cited:<doc> | ingested:<file>@<tag> | polari:<why>
         self.undetermined = undetermined  # what the parse / the sources did not give
         self.notes = notes
+        # ucd-0a: the chain's first hop from this pin — ["SocPin:<soc>:<pin>", "PinFunction:…", …] — derived (board.custom.
+        # hardware_chain.link), read by the generic object page: Board → Pin → SoC Pin → PinFunction → … both ways
+        self.links_refs_json = links_refs_json

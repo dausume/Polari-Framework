@@ -1315,6 +1315,11 @@ class polariServer(treeObject):
             SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
             # fs-2a: the compatibility table between a firmware task's target kind and a board's pin roles/capabilities
             TargetCompatibilityRule,
+            # fs-2d: the kit parts register (was missing here — the manifests guard named it; ucd-0a closes the gap)
+            KitPart,
+            # ucd-0a: THE HARDWARE CHAIN — Peripheral / PeripheralSignal / PinFunction / SignalRoute / Register / RegisterField (+ the
+            # settings rows ucd-0b fills and the circuit link ucd-0c fills), navigable both ways
+            Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

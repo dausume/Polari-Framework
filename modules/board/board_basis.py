@@ -31,6 +31,18 @@ from board.objects.board.BoardView import BoardView  # noqa: F401
 from board.objects.board.TargetCompatibilityRule import TargetCompatibilityRule  # noqa: F401
 # fs-2d: the kit parts register (his ask: "these are all the parts in our kit ... reference for how we make our sample firmwares")
 from board.objects.board.KitPart import KitPart  # noqa: F401
+# ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g), materialized + cited: Board → Pin → SoC Pin → PinFunction →
+# PeripheralSignal → Peripheral → Register → RegisterField, both ways; SignalRoute / RegisterSetting / RegisterFieldSetting filled by
+# ucd-0b (the claims), BoardPinNet by ucd-0c (the circuit)
+from board.objects.board.Peripheral import Peripheral  # noqa: F401
+from board.objects.board.PeripheralSignal import PeripheralSignal  # noqa: F401
+from board.objects.board.PinFunction import PinFunction  # noqa: F401
+from board.objects.board.SignalRoute import SignalRoute  # noqa: F401
+from board.objects.board.Register import Register  # noqa: F401
+from board.objects.board.RegisterField import RegisterField  # noqa: F401
+from board.objects.board.RegisterSetting import RegisterSetting  # noqa: F401
+from board.objects.board.RegisterFieldSetting import RegisterFieldSetting  # noqa: F401
+from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -38,4 +50,6 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile,
                  BoardConflict, BoardView,   # brd-bo: the board object's layers + its views and conflicts
                  TargetCompatibilityRule,   # fs-2a: task-kind <-> pin-role compatibility, cited
-                 KitPart]   # fs-2d: the kit parts register (cited to the kit's own book)
+                 KitPart,   # fs-2d: the kit parts register (cited to the kit's own book)
+                 Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
+                 BoardPinNet]   # ucd-0a: the hardware chain (nine)
