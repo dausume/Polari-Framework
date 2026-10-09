@@ -68,12 +68,52 @@ def _container_alive(name):
         return False
 
 
-def twin_args(hex_path, tcp, adc0_mv=750, adc0_ramp='', realtime=True, adc_mv=None):
+def twin_args(hex_path, tcp, adc0_mv=750, adc0_ramp='', realtime=True, adc_mv=None, pin_at=None, wires=None):
+    """pin_at (ucd-0d): [(cycle, 'PD2', 0|1), …] → --pin-at cycle=N,pin=PD2,level=L (a LEVEL on the pin, not a vector —
+    avr_extint's own EICRA/EIMSK decide). wires: [('PD6', 'PD3'), …] → --wire PD6:PD3 (the source pin's driven output
+    connected to the destination pin's input — board.custom.twin.wires_from_circuit derives these from BoardPinNet)."""
     a = ['--hex', hex_path, '--mcu', 'atmega328p', '--freq', '16000000', '--tcp', str(tcp), '--status-ms', '1000']
     a += ['--adc0-ramp', adc0_ramp] if adc0_ramp else ['--adc0-mv', str(int(adc0_mv))]
     for ch, mv in sorted((adc_mv or {}).items()):   # brd-fi: A1..A5 held at fixed millivolts (uno-adc-sweep)
         a += ['--adc-mv', '%d=%d' % (int(ch), int(mv))]
+    for cycle, pin, level in (pin_at or []):
+        a += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (int(cycle), pin, int(level))]
+    for src, dst in (wires or []):
+        a += ['--wire', '%s:%s' % (src, dst)]
     return a + ([] if realtime else ['--free'])
+
+
+def wires_from_circuit(board, circuit_name, tables):
+    """ucd-0d (UNO_CORE_DEMO_PLAN.md §5e Q2, §5g): derive the twin's --wire list from ucd-0c's BoardPinNet rows — two
+    BoardPin rows placed on the SAME circuit net, one `role=driver` and one `role=input`, become one wire (the
+    driver's BoardPin.soc_pin → the input's BoardPin.soc_pin; soc_pin is already 'PD6'-shaped, the twin's own syntax).
+    Lazy import (a server older than ucd-0a has no BoardPinNet class at all) and an honest reason whenever the answer
+    is "no wires": no class, no rows for this board+circuit yet (ucd-0c not populated), or a BoardPinNet pointing at a
+    BoardPin row that is not in `tables` (named, not guessed). → ([(src_pin, dst_pin), …], why_empty)."""
+    try:
+        from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401 (imported only to prove the class exists)
+    except ImportError:
+        return [], 'no BoardPinNet class on this server (pre-ucd-0a)'
+    nets = [n for n in (tables or {}).get('BoardPinNet', []) if n.get('board') == board and n.get('circuit') == circuit_name]
+    if not nets:
+        return [], 'no BoardPinNet rows for board %s on circuit %s (ucd-0c not populated here yet)' % (board, circuit_name)
+    pins = {p['name']: p for p in (tables or {}).get('BoardPin', [])}
+    by_net = {}
+    for n in nets:
+        by_net.setdefault(n['circuit_net'], []).append(n)
+    wires, why = [], []
+    for net in sorted(by_net):
+        members = by_net[net]
+        drivers = [m for m in members if m.get('role') == 'driver']
+        inputs = [m for m in members if m.get('role') == 'input']
+        for d in drivers:
+            for i in inputs:
+                dp, ip = pins.get(d['board_pin']), pins.get(i['board_pin'])
+                if not dp or not ip:
+                    why.append('net %s: BoardPin row missing for %s' % (net, d['board_pin'] if not dp else i['board_pin']))
+                    continue
+                wires.append((dp['soc_pin'], ip['soc_pin']))
+    return wires, '; '.join(why)
 
 
 def hex_data_bytes(path):
@@ -86,10 +126,11 @@ def hex_data_bytes(path):
 
 
 def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, adc0_ramp='', realtime=True, wait_s=10.0,
-       build_dir=None, adc_mv=None, tag=''):
+       build_dir=None, adc_mv=None, tag='', pin_at=None, wires=None):
     """build_dir (brd-fi): run THAT stored build (the installer's twin target); the twin's own state stays in work.
     tag (brd-wire): a second, third … twin of the same board beside the first — its own container name
-    (prf-board-twin-<board>-<tag>); give each its own work dir, tcp port and link (uno-pair: tags 0 and 1)."""
+    (prf-board-twin-<board>-<tag>); give each its own work dir, tcp port and link (uno-pair: tags 0 and 1).
+    pin_at / wires (ucd-0d): see twin_args — forwarded to the twin's argv as --pin-at / --wire."""
     board = gen.board_name(board)
     work = work or gen.default_work(board)
     st = read_state(work)
@@ -111,14 +152,14 @@ def up(board='uno', work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, adc0_mv=750, 
              'adc0': adc0_ramp or '%d mV' % int(adc0_mv), 'adc_mv': {str(k): int(v) for k, v in (adc_mv or {}).items()}, 'realtime': realtime,
              'started_at': datetime.datetime.now().isoformat(timespec='seconds'), 'log': log_path}
     if where['how'] == 'local-binary':
-        p = subprocess.Popen([where['where']] + twin_args(row['hex_path'], tcp, adc0_mv, adc0_ramp, realtime, adc_mv), stdout=log, stderr=subprocess.STDOUT,
+        p = subprocess.Popen([where['where']] + twin_args(row['hex_path'], tcp, adc0_mv, adc0_ramp, realtime, adc_mv, pin_at, wires), stdout=log, stderr=subprocess.STDOUT,
                              start_new_session=True)
         state['pid'] = p.pid
     else:
         name = 'prf-board-twin-%s%s' % (board, '-%s' % tag if tag else '')
         subprocess.run(['docker', 'rm', '-f', name], capture_output=True, timeout=30)
         argv = ['docker', 'run', '-d', '--name', name, '-p', '127.0.0.1:%d:9831' % tcp, '-v', '%s:/fw:ro' % os.path.dirname(row['hex_path']),
-                where['where'], 'polari-avr-twin'] + twin_args('/fw/firmware.hex', 9831, adc0_mv, adc0_ramp, realtime, adc_mv)
+                where['where'], 'polari-avr-twin'] + twin_args('/fw/firmware.hex', 9831, adc0_mv, adc0_ramp, realtime, adc_mv, pin_at, wires)
         r = subprocess.run(argv, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise TwinRefused('docker run failed: %s' % r.stderr.strip()[-500:])

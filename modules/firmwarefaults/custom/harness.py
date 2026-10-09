@@ -6,6 +6,12 @@ against THIS build's ELF (custom/disasm.py), the always-on measurements added (-
 --isr-latency, --fn-cycles over the guarded function, --uart-out, --seed), free-running (no wall clock in the loop —
 a run = f(firmware, flags, seed)). The twin runs through the engines seam (local binary, the board engines image, or
 the worker's POST /run); its files come back as bytes.
+
+ucd-0d (UNO_CORE_DEMO_PLAN.md §5g): `irq-at-cycle` stays exactly as is (button-bounce-double-count and the other sc-1
+scenarios already use it, raising a VECTOR at a cycle — fine for an edge train that does not need EICRA/EIMSK to be
+real). NEW button scenarios use `pin-at` instead: {cycle, pin, level} → --pin-at, a LEVEL forced onto the pin itself,
+so the simulated EICRA/EIMSK decide whether a vector fires at all (board.board_pinlevel_selftest.pin_parts is the
+proof, on the twin directly — no Scenario row needs this kind yet).
 """
 import hashlib
 import json
@@ -118,6 +124,8 @@ def render_sc1(steps, nm, seconds, seed, observe=None, variant='', adc0_mv=750, 
         kind = step['kind']
         if kind == 'irq-at-cycle':
             a += ['--irq-at', 'cycle=%d,vec=%d' % (int(args['cycle']), int(args['vec']))]
+        elif kind == 'pin-at':   # ucd-0d: a LEVEL on the pin, not a vector — new button scenarios use this
+            a += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (int(args['cycle']), args['pin'], int(args['level']))]
         elif kind == 'respond':
             body = payloads.ack() if args.get('reply') == 'ack' else bytes.fromhex(args['reply_hex'])
             fname = 'reply%d.bin' % k
