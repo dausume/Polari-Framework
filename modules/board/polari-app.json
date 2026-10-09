@@ -81,6 +81,8 @@
    "objects/board/BoardPinNet",
    "objects/board/BoardSimCost",
    "objects/board/BoardView",
+   "objects/board/ButtonClockEvent",
+   "objects/board/ButtonClockState",
    "objects/board/Connector",
    "objects/board/ConnectorPin",
    "objects/board/DatasheetFact",
@@ -126,6 +128,7 @@
    "board_page"
   ],
   "selftests": [
+   "board_button_clock_selftest",
    "board_c3_selftest",
    "board_chain_selftest",
    "board_circuit_selftest",
@@ -208,6 +211,8 @@
   "BoardPinNet",
   "BoardSimCost",
   "BoardView",
+  "ButtonClockEvent",
+  "ButtonClockState",
   "Connector",
   "ConnectorPin",
   "DatasheetFact",
@@ -276,6 +281,8 @@
     "RegisterAddressMapping",
     "RegisterBlock",
     "MemoryRegion",
+    "ButtonClockState",
+    "ButtonClockEvent",
     "BOARD_CLASSES"
    ]
   ],

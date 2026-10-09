@@ -94,6 +94,31 @@ SNAPSHOTS = {
 }
 
 
+def _int(): return {'dominantType': 'int', 'dominantAffinity': 'INTEGER', 'schemaStrategy': 'typed'}
+
+
+def _bool(): return {'dominantType': 'bool', 'dominantAffinity': 'TEXT', 'schemaStrategy': 'typed'}
+
+
+def _str(): return {'dominantType': 'str', 'dominantAffinity': 'TEXT', 'schemaStrategy': 'typed'}
+
+
+# ucd-0e1: THE WIRE CONTRACT of the button-clock demo — same field shapes as the pinned contracts
+# (board/custom/contracts/ButtonClock{State,Event}.v1.json), so this fresh in-process generation reproduces them.
+SNAPSHOTS['ButtonClockState'] = {
+    'name': _str(), 'seq': _int(), 'boot_session': _int(), 'uptime_ms': _int(), 'epoch_s': _int(), 'ms': _int(),
+    'clock_synced': _bool(), 'sync_generation': _int(), 'sync_uncertainty_ms': _int(), 'drift_ms': _int(),
+    'button_presses': _int(), 'led_on': _bool(), 'led_changed_at': _int(), 'sense_rises': _int(),
+    'sense_falls': _int(), 'last_edge_at': _int(), 'last_edge_ms': _int(), 'dropped_events': _int(),
+    'status': _str(), 'set_epoch_s': _int(), 'set_ms': _int(), 'set_sync_generation': _int(), 'set_led': _bool(),
+    'snapshot': _bool(),
+}
+SNAPSHOTS['ButtonClockEvent'] = {
+    'name': _str(), 'seq': _int(), 'boot_session': _int(), 'kind': _str(), 'uptime_ms': _int(), 'epoch_s': _int(),
+    'ms': _int(),
+}
+
+
 def _mgr():
     mgr = types.SimpleNamespace(
         objectTables={'SchemaStabilityProfile': {},
@@ -248,6 +273,96 @@ def _wire_jvm(files, javac, java):
               and 'PASS: v2 round-trip index=0 v2 SensorFrame{'
               in loop.stdout,
               (comp.stderr[:600] + (loop.stdout[-600:] if loop else '')))
+
+
+def _button_clock_checks(mgr, javac, java):
+    """ucd-0e1: THE WIRE CONTRACT of the button-clock demo, end to end through the SAME machinery as Widget/
+    SensorFrame above — the bridge row, both contracts, the WireContract derivation (grpc-j4), the generated Java
+    project (record + codec + enums + registry + forwarder), and the JVM loopback (compile + run, honestly skipped
+    with no JDK)."""
+    from grpcbridge.custom import wire_contract as wc
+    from grpcbridge.mapping_basis import SEED_BUTTON_CLOCK_BRIDGE
+    mgr.objectTables.setdefault('HardwareInterfaceBinding', {})
+    mgr.objectTables.setdefault('EnumMapping', {})
+    mgr.objectTables.setdefault('WireContract', {})
+    from grpcbridge.mapping_basis import SEED_ENUM_MAPPINGS
+    for row in SEED_ENUM_MAPPINGS:
+        if row['object_class'] in ('ButtonClockState', 'ButtonClockEvent'):
+            _track(mgr, _factory(**row), 'EnumMapping')
+
+    _enable(mgr, 'ButtonClockState')
+    _enable(mgr, 'ButtonClockEvent')
+    bridge = _bridge_row(['ButtonClockState', 'ButtonClockEvent'], **SEED_BUTTON_CLOCK_BRIDGE)
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+
+    # grpc-j4: the WireContract row per class on this bridge — DERIVED (never seeded), the same call
+    # board_mapping_selftest.py makes for SimRigState@uno-pair. One unbound serial device: instance_count 1 (no
+    # index on the wire), exactly like a single uno-adc-sweep board.
+    for cls in ('ButtonClockState', 'ButtonClockEvent'):
+        exp = pg.get_exposure(mgr, cls)
+        fm = jb._field_map_for(mgr, cls, exp.proto_version)
+        row, s = wc.derive(mgr, cls, 'button-clock', fm, exp.proto_version, exp.contract_hash, 'live',
+                           factory=_factory)
+        check('ucd-0e1: WireContract %s@button-clock derives — one unbound serial device (instance_count 1, no '
+              'index on the wire), boot_session carried in field_order, the enum table present' % cls,
+              row.instance_count == 1 and row.index_repr == 'none' and row.bridge_name == 'button-clock'
+              and any(n == 'boot_session' for n, _ in json.loads(row.field_order_json))
+              and bool(json.loads(row.enums_json)))
+
+    rep = jb.generate_project(mgr, bridge, row_factory=_factory)
+    check('ucd-0e1: generate_project ok for the button-clock bridge (both contracts ready)', rep.get('ok'),
+          str(rep.get('error')))
+    if not rep.get('ok'):
+        return None
+    f = rep['files']
+    check('ucd-0e1: msg_type order — ButtonClockState=1, ButtonClockEvent=2 (the bridge\'s exposed_classes_json order)',
+          'MSG_TYPE = 1' in f[f'{jb.JAVA_DIR}/codec/ButtonClockStateCodec.java']
+          and 'MSG_TYPE = 2' in f[f'{jb.JAVA_DIR}/codec/ButtonClockEventCodec.java'])
+    record = f[f'{jb.JAVA_DIR}/codec/ButtonClockStateRecord.java']
+    codec = f[f'{jb.JAVA_DIR}/codec/ButtonClockStateCodec.java']
+    erecord = f[f'{jb.JAVA_DIR}/codec/ButtonClockEventRecord.java']
+    check('ucd-0e1: boot_session is a Java field on BOTH generated records (the bridge\'s reboot-vs-reconnect rule)',
+          'public long boot_session;' in record and 'public long boot_session;' in erecord)
+    check('ucd-0e1: the three SET_TIME fields + SET_LED + SNAPSHOT are ordinary Java fields on the record — no '
+          'second message kind',
+          all('public long %s;' % n in record for n in ('set_epoch_s', 'set_ms', 'set_sync_generation'))
+          and 'public boolean set_led;' in record and 'public boolean snapshot;' in record)
+    enum_s = f.get(f'{jb.JAVA_DIR}/codec/ButtonClockStateStatusEnum.java', '')
+    enum_e = f.get(f'{jb.JAVA_DIR}/codec/ButtonClockEventKindEnum.java', '')
+    check('ucd-0e1: the status/kind enums are generated Java enums (idle|commanded|synced|snapshot; '
+          'press|led_on|led_off|sense_rise|sense_fall|sync)',
+          'SYNCED(3, "synced")' in enum_s and 'SNAPSHOT(4, "snapshot")' in enum_s
+          and 'SENSE_FALL(5, "sense_fall")' in enum_e and 'SYNC(6, "sync")' in enum_e)
+    proto = f['src/main/proto/polari_bridge.proto']
+    check('ucd-0e1: both services in the bundled proto, both carry the hardware_interface identity tag',
+          'service ButtonClockStateSync' in proto and 'service ButtonClockEventSync' in proto
+          and proto.count('HardwareInterface hardware_interface = 2047;') >= 2)
+    check('ucd-0e1: bridge.properties carries source=serial, baud 115200 (the real kit, not the internal simulation)',
+          'source=serial' in f['bridge.properties'] and 'serial.baud=115200' in f['bridge.properties'])
+
+    if not (javac and java):
+        return f
+    with tempfile.TemporaryDirectory(prefix='polari-jbuttonclock-') as tmp:
+        root = Path(tmp)
+        for path, text in f.items():
+            target = root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        core = [str(p) for p in (root / 'src/main/java').rglob('*.java')
+                if '/grpc/' not in str(p)]
+        comp = _run([javac, '--release', '17', '-d', str(root / 'out')] + core)
+        check('ucd-0e1 JVM: the generated button-clock core compiles cleanly', comp.returncode == 0,
+              comp.stderr[:800])
+        if comp.returncode == 0:
+            loop = _run([java, '-cp', str(root / 'out'), 'org.polari.bridge.LoopbackSelfTest'])
+            check('ucd-0e1 JVM: LOOPBACK OK for ButtonClockState + ButtonClockEvent — frame/CRC round-trip, the '
+                  'enum, AND the command round-trip (ButtonClockState is msg_type 1, so the generic command-path '
+                  'check in LoopbackSelfTest exercises its command fields against the simulated MCU)',
+                  loop.returncode == 0 and 'LOOPBACK OK' in loop.stdout
+                  and 'command round-trip' in loop.stdout
+                  and loop.stdout.count('PASS: v2 round-trip') == 2,
+                  loop.stdout[-800:] + loop.stderr[-200:])
+    return f
 
 
 def _wire_many(mgr, javac, java):
@@ -495,7 +610,8 @@ def main():
     if wire_files and javac and java:
         _wire_jvm(wire_files, javac, java)
     _wire_many(mgr, javac, java)
-    _lifecycle_checks(mgr, javac, java)
+    _lifecycle_checks(mgr, javac, java)      # ucd-0e3: reconnect, snapshot on attach, gaps, reboot vs reconnect
+    _button_clock_checks(mgr, javac, java)   # ucd-0e1: THE WIRE CONTRACT of the button-clock demo
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '

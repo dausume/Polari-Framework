@@ -11,6 +11,7 @@ The 'board-roads' tech tree (one concept node per device) is seeded only when te
 from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
                                Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart)
+from board.board_basis import ButtonClockState, ButtonClockEvent   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
                                RegisterFieldSetting, BoardPinNet)   # ucd-0a: the hardware chain
@@ -56,6 +57,10 @@ BOARD_SEED_PAIRS = [
     ('InstallPlan', InstallPlan, []),
     ('InstallRecord', InstallRecord, []),
     ('UnoAnalogState', UnoAnalogState, []),
+    # ucd-0e1: the two new wire classes are observed, never seeded — the device fills them (ButtonClockState) or the
+    # bridge appends them (ButtonClockEvent), exactly like UnoAnalogState above
+    ('ButtonClockState', ButtonClockState, []),
+    ('ButtonClockEvent', ButtonClockEvent, []),
     # brd-bo: the board object's layers are code-owned (cited / ingested — re-read the source, the rows follow); a person's edit of a
     # BoardPin on a server is the instance's until the next seed converges it back (the edit belongs in the source: the seed file or
     # an ingested view). Views and conflicts are observed, never seeded.
