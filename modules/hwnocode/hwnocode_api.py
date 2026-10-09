@@ -13,8 +13,17 @@ GET /api/hwnocode/solutions/{solution}/chart       {ok, rows}: the chart's two s
 GET /api/hwnocode/interface?binding=<name>         one HardwareInterfaceBinding (the hw-interface overlay): the row it ties, the
                                                    board instance, the port / twin pty, frames seen, refused frames
 Writing a project, building and the twin are `pol hwnocode render | build` + `pol board twin uno up --work …` (files / engines).
+
+ucd-1 (UNO_CORE_DEMO_PLAN.md §3/§5 D-ucd-5) — the uno-button-clock demo's own small doors, beside the CRUDE class doors
+(GET/PUT /api/object/ButtonClockState|ButtonClockEvent|ButtonClockDerived/... already suffice for everything else):
+GET  /api/hwnocode/button-clock/derived     every ButtonClockDerived row (the ledger: presses_per_min, the invariant verdict)
+GET  /api/hwnocode/button-clock/chart       {ok, rows}: the chart's three cumulative series (presses/rises/falls) over uptime —
+                                            the named-graph-panel's dataPath
+POST /api/hwnocode/button-clock/prune       applies hwnocode.custom.button_clock.prune_events (the retention door, D-ucd-5) —
+                                            never run on the frame-push path; body {"retention": <int>} optional
 """
 import inspect
+import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -34,6 +43,9 @@ class HwNoCodeAPI(treeObject):
             add('/api/hwnocode/solutions/{solution}/suggest', self, suffix='suggest')
             add('/api/hwnocode/solutions/{solution}/chart', self, suffix='chart')
             add('/api/hwnocode/interface', self, suffix='interface')
+            add('/api/hwnocode/button-clock/derived', self, suffix='button_clock_derived')
+            add('/api/hwnocode/button-clock/chart', self, suffix='button_clock_chart')
+            add('/api/hwnocode/button-clock/prune', self, suffix='button_clock_prune')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -149,6 +161,35 @@ class HwNoCodeAPI(treeObject):
             return
         response.media = {'ok': True, 'rows': rows, 'rowCount': len(rows), 'series': ['temp_c', 'temp_avg'], 'x': 'uptime_s',
                           'source_object': obj}
+
+    def on_get_button_clock_derived(self, request, response):
+        response.media = {'ok': True, 'rows': [self._d(r) for r in sorted(self._rows('ButtonClockDerived'), key=lambda r: r.name)]}
+
+    def on_get_button_clock_chart(self, request, response):
+        from hwnocode.custom import button_clock as BC
+        try:
+            last = int(request.get_param('last') or 200)
+        except ValueError:
+            last = 200
+        rows = BC.chart_rows(self.manager, request.get_param('board_instance') or '', last)
+        if not rows:
+            response.media = {'ok': False, 'rows': [],
+                              'refusal': 'no ButtonClockEvent rows yet — the bridge has not pushed any edges '
+                                         '(start the twin + the bridge, pol board twin uno up --work …)'}
+            return
+        response.media = {'ok': True, 'rows': rows, 'rowCount': len(rows), 'series': ['presses_cum', 'rises_cum', 'falls_cum'],
+                          'x': 'uptime_s'}
+
+    def on_post_button_clock_prune(self, request, response):
+        from hwnocode.custom import button_clock as BC
+        body = {}
+        try:
+            raw = request.bounded_stream.read()
+            body = json.loads(raw) if raw else {}
+        except Exception:  # noqa: BLE001 — an empty/absent body just means "use the default retention"
+            body = {}
+        retention = int(body.get('retention') or BC.RETENTION)
+        response.media = BC.prune_events(self.manager, retention)
 
     def on_get_interface(self, request, response):
         import falcon

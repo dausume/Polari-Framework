@@ -8,3 +8,4 @@ from hwnocode.objects.hwnocode.SimRigTempSample import SimRigTempSample  # noqa:
 from hwnocode.objects.hwnocode.SimRigTempDerived import SimRigTempDerived  # noqa: F401
 from hwnocode.objects.hwnocode.Runtime import Runtime  # noqa: F401
 from hwnocode.objects.hwnocode.FirmwareRunState import FirmwareRunState  # noqa: F401
+from hwnocode.objects.hwnocode.ButtonClockDerived import ButtonClockDerived  # noqa: F401

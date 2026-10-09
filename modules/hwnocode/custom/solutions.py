@@ -42,6 +42,8 @@ the HardwareSolution row). No other branching exists on this knob. (fs-2, not ye
 FirmwareRunState itself per DEMONSTRABLES_PLAN.md §9 — fs-1 keeps the knob read here, unchanged, and only passes the
 resolved `mode` string into the Firmware Run state's fields.)
 """
+import json
+
 from polariNoCode import graph_builder as GB
 from hwnocode.custom import knobs as K
 
@@ -221,4 +223,186 @@ def contract():
                        {'name': 'instance.uptime_ms', 'required': True, 'description': 'the firmware clock'},
                        {'name': 'window', 'required': False, 'description': 'samples in the moving average (knob)'},
                        {'name': 'threshold_c', 'required': False, 'description': 'the flag threshold in °C (knob)'}],
+            'returns': [], 'executionRights': 'definer'}
+
+
+# =============================================================================================================
+# ucd-1: uno-button-clock — THE UNO CORE DEMO'S own Cross-Domain Solution (UNO_CORE_DEMO_PLAN.md §3), drawn beside
+# uno-temp-split on the SAME canvas kind (category='cross-domain'), the SAME template (Firmware Run → Bridge →
+# Relay-in → call <backend solution> → Relay-out → Frontend emit). Two differences from uno-temp-split, both named
+# in the plan: (1) the Firmware Run names a cmod FirmwareSolution (`uno-button-clock`) that DOES NOT EXIST YET
+# (ucd-0e2b builds it) — referenced by NAME only; cross_domain.validate() never resolves a FirmwareRunState's
+# `firmware_solution` field to a live row (it only checks the STATE KIND), so this is accepted structurally and the
+# node's own `route_taken`/`route_why` SAY "planned" in plain words (never silently pretend it ran); (2) a sixth
+# state, Frontend emit (EmitFrontendEvent), closes the loop onto /display/uno-core-demo — uno-temp-split's own canvas
+# predates that state kind's use here and stops at Relay-out, D-fs-3 never required a Frontend-emit state, this demo
+# adds one because his message named the display as part of the composition (UNO_CORE_DEMO_PLAN.md §3's fifth bullet).
+#
+# detail_ref (his fourth message, §3's "Traversal rule"): every state's boundObjectFieldValues carries one, a plain
+# {'class', 'name', 'route'} dict — never a parsed composite string, the Polari ref idiom (:ref:<Class> columns are
+# typed by the COLUMN, this is typed by the dict itself since a no-code state has no column schema). `class` is always
+# a REGISTERED Polari class name (so a reader can always resolve "what kind of thing is this"); `name` is the row (or
+# page) it names, which may not exist yet (Firmware Run — `planned: True` + `why` SAYS so, never silently omitted).
+# =============================================================================================================
+BC_SOLUTION = 'uno-button-clock'
+BC_LEDGER_SOLUTION = 'button-clock-ledger'          # hwnocode.custom.button_clock_ledger — the backend compute half
+BC_BACKEND_SOLUTION = '%s.backend' % BC_SOLUTION    # the executable subset an EventTrigger runs (relay-in.. frontend-emit)
+BC_FIRMWARE_SOLUTION = 'uno-button-clock'           # cmod FirmwareSolution — NOT YET BUILT (ucd-0e2b); named only
+BC_BRIDGE = 'button-clock'                          # grpcbridge.mapping_basis.BUTTON_CLOCK_BRIDGE
+BC_OBJECT_CLASS = 'ButtonClockState'
+BC_OBJECT_NAME = 'uno-button-clock'                 # the Push match key: one row, the board instance's latest state
+BC_BINDING = '%s/%s/0' % (BC_BRIDGE, BC_OBJECT_CLASS)
+BC_TWIN_LINK = '/tmp/polari-uno-button-clock-twin-uart'   # its OWN pty — never shares uno-temp-split's twin link
+BC_DISPLAY = 'uno-core-demo'
+BC_KNOBS = {'retention': 10000, 'sync_every_s': 300}
+
+
+def _bc_route():
+    """Reuses the ONE hardware-mode read this module already did at import (`ROUTE`) rather than probing the board a
+    second time — same board, same knob, same digital-twin-or-hardware decision; only the twin's OWN pty differs."""
+    r = dict(ROUTE)
+    if r.get('interface_kind') == 'twin-pty':
+        r = dict(r, board_instance='twin:arduino-uno-r3#0', port=BC_TWIN_LINK)
+    return r
+
+
+BC_ROUTE = _bc_route()
+
+#: plain-words purpose per state (shown the same way uno-temp-split's STATE_PURPOSES are) — his rule: every state says
+#: what it does, in words a person reads without opening the detail.
+BC_STATE_PURPOSES = {
+    'firmware-run': 'Takes the cmod FirmwareSolution uno-button-clock (clock.tick/set, button.isr, led.toggle, '
+                   'sense.isr, events.queue, telemetry.send) and runs it — PLANNED: that Firmware Solution is not '
+                   'built yet (ucd-0e2b); referenced by name, resolved at run time, never silently assumed to exist.',
+    'uno-button-clock-bridge': 'The Java gRPC bridge attached to the button-clock UNO\'s UART (or the twin\'s pty in '
+                              'digital-twin mode): the split point between the device and the backend.',
+    'relay-in': 'Bridging only: a new ButtonClockState frame arrived (seq advanced) — turned into a backend event, '
+               'no computation here.',
+    'call-button-clock-ledger': 'Calls OUT to the backend solution button-clock-ledger (a SolutionInvocation) — '
+                                'presses_per_min and the sense/press/LED invariant are computed THERE, never inline here.',
+    'relay-out': 'Bridging only: SET_TIME (set_epoch_s/set_ms/set_sync_generation from the server clock, at attach and '
+                'every sync_every_s) and SET_LED on demand — both ride the SAME presence-masked command-field PUT '
+                'uno-temp-split\'s led_on uses, relayed down to the device through this bridge.',
+    'frontend-emit': 'Tells the browser a new ButtonClockDerived/ButtonClockState frame is ready — /display/'
+                     'uno-core-demo\'s tables and chart read the rows directly; this just signals "there is something new".',
+}
+
+_BC_LAYOUT = {
+    'firmware-run':             {'x': 80,   'y': 560, 'shape': 'rectangle', 'color': '#4527A0', 'label': 'Firmware Run (uno-button-clock, planned)'},
+    'uno-button-clock-bridge':  {'x': 320,  'y': 560, 'shape': 'rectangle', 'color': '#6D4C41', 'label': 'uno-button-clock-bridge (split point)'},
+    'relay-in':                 {'x': 560,  'y': 560, 'shape': 'rectangle', 'color': '#1565C0', 'label': 'Relay in: frame → event'},
+    'call-button-clock-ledger': {'x': 800,  'y': 560, 'shape': 'rectangle', 'color': '#00695C', 'label': 'call button-clock-ledger'},
+    'relay-out':                {'x': 1040, 'y': 560, 'shape': 'rectangle', 'color': '#FF9800', 'label': 'Relay out: SET_TIME / SET_LED'},
+    'frontend-emit':            {'x': 1280, 'y': 560, 'shape': 'rectangle', 'color': '#2E7D32', 'label': 'Frontend emit → uno-core-demo'},
+}
+
+
+def _bc_detail_refs():
+    """One {'class', 'name', 'route'} dict per state (his fourth message's traversal rule) — `planned`/`why` on the
+    one state whose named row does not exist yet (Firmware Run)."""
+    return {
+        'firmware-run': {'class': 'FirmwareSolution', 'name': BC_FIRMWARE_SOLUTION, 'route': '/display/firmware?solution=%s' % BC_FIRMWARE_SOLUTION,
+                        'planned': True, 'why': 'FirmwareSolution %r is not built yet (ucd-0e2b) — named here, resolved at run time' % BC_FIRMWARE_SOLUTION},
+        'uno-button-clock-bridge': {'class': 'HardwareInterfaceBinding', 'name': BC_BINDING, 'route': '/display/hardware-chain'},
+        'relay-in': {'class': 'SolutionDefinition', 'name': BC_LEDGER_SOLUTION, 'route': '/display/hardware-solutions'},
+        'call-button-clock-ledger': {'class': 'SolutionDefinition', 'name': BC_LEDGER_SOLUTION, 'route': '/display/hardware-solutions'},
+        'relay-out': {'class': 'WireContract', 'name': '%s@%s' % (BC_OBJECT_CLASS, BC_BRIDGE), 'route': '/display/hardware-chain',
+                     'why': 'the SET_TIME/SET_LED command fields of ButtonClockState\'s own wire contract'},
+        'frontend-emit': {'class': 'DisplayDefinition', 'name': BC_DISPLAY, 'route': '/display/%s' % BC_DISPLAY},
+    }
+
+
+def _bc_lay_out(definition):
+    """Same canvas-field convention as `_lay_out` (uno-temp-split) — duplicated rather than shared because this
+    graph's layout row (_BC_LAYOUT) and detail_ref table (_bc_detail_refs) are its own; also stamps `detail_ref`."""
+    refs = _bc_detail_refs()
+    for s in definition.get('stateInstances') or []:
+        name = s.get('stateName')
+        spot = _BC_LAYOUT.get(name, {'x': 80, 'y': 80, 'shape': 'rectangle', 'color': '#9E9E9E', 'label': name or ''})
+        s['stateLocationX'], s['stateLocationY'] = spot['x'], spot['y']
+        s['shapeType'] = s['stateSvgName'] = spot['shape']
+        s['layerName'] = '%s-layer' % spot['shape']
+        s['backgroundColor'] = spot['color']
+        s['slotRadius'] = 5
+        s['stateSvgWidth'], s['stateSvgHeight'], s['cornerRadius'] = 170, 90, 8
+        s['stateSvgRadius'] = None
+        s['stateSvgSizeX'] = s['stateSvgSizeY'] = None
+        fields = dict(s.get('boundObjectFieldValues') or {})
+        fields.setdefault('displayName', spot['label'])
+        fields.setdefault('purpose', BC_STATE_PURPOSES.get(name, ''))
+        fields['detail_ref'] = refs.get(name, {})
+        s['boundObjectFieldValues'] = fields
+    return _wire_connectors(definition)
+
+
+def button_clock_definition(name=BC_SOLUTION):
+    """The uno-button-clock cross-domain canvas — Firmware Run, Bridge, Relay-in, call button-clock-ledger, Relay-out,
+    Frontend emit — as ONE SolutionDefinition definition dict (category='cross-domain' set where this is wrapped into
+    a row, hwnocode_seed.py, same as uno-temp-split)."""
+    n = GB.node
+    r = BC_ROUTE
+    run = n('firmware-run', 'FirmwareRunState', {'firmware_solution': BC_FIRMWARE_SOLUTION, 'board_variable': BOARD,
+                                                 'mode': r['mode'], 'route_taken': 'planned',
+                                                 'route_why': 'FirmwareSolution %r not built yet (ucd-0e2b)' % BC_FIRMWARE_SOLUTION},
+            outs=[['uno-button-clock-bridge']])
+    hwi = n('uno-button-clock-bridge', 'HardwareInterface', {'binding': BC_BINDING, 'object_class': BC_OBJECT_CLASS,
+                                                             'object_name': BC_OBJECT_NAME, 'bridge_name': BC_BRIDGE,
+                                                             'board_instance': r['board_instance'], 'port': r['port'],
+                                                             'interface_kind': r['interface_kind']},
+            outs=[['relay-in']])
+    relay_in = n('relay-in', 'BackendStateChange', {'displayName': 'Relay in: ButtonClockState seq advanced',
+                                                     'modelName': BC_OBJECT_CLASS, 'fieldName': 'seq', 'changeType': 'update',
+                                                     'description': 'fires on every frame the bridge applies to the row — '
+                                                                    'bridging only, turns it into a backend event'},
+                 outs=[['call-button-clock-ledger']])
+    call = GB.invoke('call-button-clock-ledger', BC_LEDGER_SOLUTION,
+                      mappings=[{'param': 'board_instance', 'valueSource': GB.var_src('instance.name')},
+                                {'param': 'object', 'valueSource': GB.var_src('instance.name')},
+                                {'param': 'solution', 'valueSource': GB.lit_src(name)}],
+                      bindings=[{'output': 'presses_per_min', 'contextVar': 'presses_per_min'},
+                                {'output': 'invariant_ok', 'contextVar': 'invariant_ok'},
+                                {'output': 'invariant_why', 'contextVar': 'invariant_why'},
+                                {'output': 'events_seen', 'contextVar': 'events_seen'},
+                                {'output': 'dropped_events_total', 'contextVar': 'dropped_events_total'},
+                                {'output': 'last_sync_generation', 'contextVar': 'last_sync_generation'},
+                                {'output': 'drift_ms', 'contextVar': 'drift_ms'}],
+                      nxt='relay-out')
+    relay_out = n('relay-out', 'BackendStateChange', {'displayName': 'Relay out: SET_TIME / SET_LED',
+                                                      'modelName': BC_OBJECT_CLASS, 'fieldName': 'clock_synced', 'changeType': 'update',
+                                                      'description': 'bridging only: set_epoch_s/set_ms/set_sync_generation (SET_TIME, '
+                                                                     'at attach + every sync_every_s=%ds, server clock) and set_led '
+                                                                     '(on demand) ride the existing presence-masked command PUT down '
+                                                                     'to the device — the same path uno-temp-split\'s led_on uses' % BC_KNOBS['sync_every_s']},
+                   outs=[['frontend-emit']])
+    emit = n('frontend-emit', 'EmitFrontendEvent', {'targetSolutionName': BC_DISPLAY,
+                                                    'eventPayload': {'board_instance': BC_OBJECT_NAME}}, outs=[[]])
+    return _bc_lay_out(GB.solution(name, run, hwi, relay_in, call, relay_out, emit))
+
+
+def button_clock_backend_definition(name=BC_BACKEND_SOLUTION):
+    """The EXECUTABLE subset of the canvas above: only the engine-runnable states (relay-in -> call -> relay-out ->
+    frontend-emit — FirmwareRunState/HardwareInterface are descriptive-only, no SolutionExecutionEngine handler exists
+    for them, same fact uno-temp-split's own hn-split `backend_partition` relies on). Deep-copied straight OUT of the
+    already-laid-out full canvas (`button_clock_definition`) — the SAME shape `placement.backend_partition` builds for
+    uno-temp-split — rather than hand-built fresh, so these states keep their canvas fields (position/shape/size/
+    detail_ref) too; connectors to a dropped state are cut, exactly as backend_partition does."""
+    keep = {'relay-in', 'call-button-clock-ledger', 'relay-out', 'frontend-emit'}
+    full = button_clock_definition(BC_SOLUTION)
+    states = []
+    for s in full['stateInstances']:
+        if s.get('stateName') not in keep:
+            continue
+        c = json.loads(json.dumps(s))
+        for slot in c.get('slots') or []:
+            slot['connectors'] = [x for x in slot.get('connectors') or [] if x.get('targetStateName') in keep]
+        states.append(c)
+    return {'solutionName': name, 'stateInstances': [dict(s, index=i) for i, s in enumerate(states)]}
+
+
+def button_clock_contract():
+    return {'description': 'uno-button-clock (ucd-1, Cross-Domain): Firmware Run (uno-button-clock, planned) → Bridge '
+                           '(uno-button-clock-bridge) → Relay in → call button-clock-ledger → Relay out (SET_TIME/SET_LED) '
+                           '→ Frontend emit (uno-core-demo). Bridging/relay only (D-fs-3) — presses_per_min + the sense/'
+                           'press/LED invariant run inside button-clock-ledger, called out to.',
+            'inputs': [{'name': 'instance.name', 'required': True, 'description': 'the ButtonClockState row (the trigger payload)'}],
             'returns': [], 'executionRights': 'definer'}

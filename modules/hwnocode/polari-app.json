@@ -50,6 +50,7 @@
  },
  "files": {
   "objects": [
+   "objects/hwnocode/ButtonClockDerived",
    "objects/hwnocode/CAtom",
    "objects/hwnocode/FirmwareRunState",
    "objects/hwnocode/HardwareInterface",
@@ -79,6 +80,8 @@
    "hwnocode_selftest"
   ],
   "custom": [
+   "custom/button_clock",
+   "custom/button_clock_ledger",
    "custom/cross_domain",
    "custom/derive",
    "custom/hwnocode_cli",
@@ -93,6 +96,7 @@
   ]
  },
  "classes": [
+  "ButtonClockDerived",
   "CAtom",
   "FirmwareRunState",
   "HardwareInterface",
@@ -117,6 +121,7 @@
     "SimRigTempDerived",
     "Runtime",
     "FirmwareRunState",
+    "ButtonClockDerived",
     "HWNOCODE_CLASSES"
    ]
   ],
