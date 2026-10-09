@@ -218,18 +218,20 @@ class FirmwareAPI(treeObject):
         from board.custom import hardware_chain as HC
         chain = self._claims_chain(s)
         claim = next((c for c in chain['claims'] if c['name'] == '%s:%s' % (name, canonical)), None)
-        if claim is None:
-            response.status = falcon.HTTP_404
-            response.media = {'ok': False, 'error': 'no PinClaim for %s:%s (GET /api/firmware/solutions/%s lists the bound pins)' % (name, canonical, name)}
-            return
-        field_settings = [f for f in chain['field_settings'] if f['pin_claim'] == claim['name']]
+        # an unclaimed pin is NOT an error: the page still shows the board's own chain for it, with claim = null
+        # ("no task claims this pin in <solution>"); only a pin the board does not have refuses (chain_for's KeyError)
+        field_settings = [f for f in chain['field_settings'] if claim and f['pin_claim'] == claim['name']]
         register_settings = [r for r in chain['register_settings']
                              if r['name'] in {f['register_setting'] for f in field_settings}]
-        routes = [r for r in chain['routes'] if r['pin_claim'] == claim['name']]
+        routes = [r for r in chain['routes'] if claim and r['pin_claim'] == claim['name']]
         tables = C._chain_tables(self.manager)
         try:
             hops = HC.chain_for(getattr(s, 'board_resolved', '') or getattr(s, 'board_definition', ''), canonical, tables)
-        except (KeyError, BO.BoardObjectRefused) as e:
+        except KeyError as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': '%s (GET /api/board/<board>/pins lists them)' % e.args[0], 'solution': name, 'canonical': canonical}
+            return
+        except BO.BoardObjectRefused as e:
             hops = []
             response.media = {'ok': True, 'solution': name, 'canonical': canonical, 'claim': claim,
                               'field_settings': field_settings, 'register_settings': register_settings,
