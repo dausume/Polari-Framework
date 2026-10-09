@@ -2588,6 +2588,24 @@ class SolutionExecutionEngine:
                 if seg and isinstance(picked, dict):
                     picked = picked.get(seg)
             context[var] = picked
+            # ucd-relayfix: an analysis that returns MULTIPLE named results
+            # (no single `pick` narrows it to one scalar/list — e.g. a
+            # presses_per_min + invariant_ok + ... row-of-fields analysis)
+            # also SPREADS its own top-level keys into the context as flat
+            # vars. This is the only way those fields become usable: dotted
+            # paths never walk INTO a dict elsewhere in this engine (a
+            # StateChangeCommit's `fields`, another AnalysisCall's `pick`,
+            # and a SolutionInvocation's `resultBindings` all resolve a bare
+            # name against the flat context, never `var.fieldName` —
+            # nutrition.calendar_seed's message_call docstring names the
+            # same limit: "Dotted paths do not walk into dicts"). Single-
+            # value consumers are unaffected: once `pick` narrows `picked`
+            # to a scalar/list (every existing caller does this), it is no
+            # longer a dict and this spread is a no-op.
+            if isinstance(picked, dict):
+                for k, v in picked.items():
+                    if k != '_analysis':
+                        context[k] = v
             result['result'] = {'analysis': str(analysis_ref),
                                 'ok': outcome.get('ok') if isinstance(outcome, dict) else None}
             log_output.append(f'[{state_name}] analysis {analysis_ref!r} → {var}')

@@ -630,6 +630,95 @@ def button_clock_compute():
     check('prune_events: idempotent — nothing left to prune once at the bound', res2['removed'] == 0 and res2['kept'] == 5, res2)
 
 
+def button_clock_relay_in_engine():
+    """ucd-relayfix: `pol board attach` pushes ButtonClockState/Event rows over the generic CRUDE doors the way the
+    engine actually sees them (not a direct hwnocode.custom.button_clock.button_clock_derive() call, which bypasses
+    the engine entirely and is already covered by button_clock_compute above) — so run uno-button-clock's backend
+    half (relay-in -> call-button-clock-ledger -> relay-out) through the REAL SolutionExecutionEngine, the SAME
+    idiom backend_half_in_engine proves for the working uno-temp-split/temp-analysis relay. Root cause (found by the
+    ucd-frames slice): button-clock-ledger's `derive` AnalysisCall bound the whole result dict onto ONE context var
+    (`resultVariable='derived'`, `pick=''`) while its own `commit` StateChangeCommit (and uno-button-clock's own
+    `call-button-clock-ledger` resultBindings, solutions.py) read FLAT vars (`presses_per_min`, `invariant_ok`, …)
+    straight off the context — vars an AnalysisCall only ever bound when `pick` narrows to them one at a time
+    (nutrition.calendar_seed's message_call docstring: "Dotted paths do not walk into dicts"), so every one of those
+    reads silently resolved to None and the commit clobbered the row button_clock_derive had just written correctly.
+    Fixed in the engine's own AnalysisCall binding (SolutionExecutionEngine.py): an unpicked dict result now SPREADS
+    its own top-level keys into the context too, so the commit (and the caller's resultBindings) see the real
+    numbers — no hand-computed shortcut, the no-code engine binds them."""
+    from types import SimpleNamespace
+    from polariNoCode.graph_builder import execute
+    from polariNoCode.graph_compilers import final_context_of
+    from hwnocode.custom import solutions as S
+    from hwnocode.custom import button_clock_ledger as BCL
+    from hwnocode.custom.seed_rows import ANALYSES
+
+    def _mgr():
+        return SimpleNamespace(objectTables={'AnalysisDefinition': {}, 'SolutionDefinition': {}}, objectTypingDict={}, db=None, idList=[])
+
+    def _seed(mgr):
+        from polariNoCode.analysis_calls import AnalysisDefinition
+        from polariApiServer.solutionDefinition import SolutionDefinition
+        a = AnalysisDefinition(manager=mgr, **ANALYSES[1])    # 'hwnocode-button-clock-derive'
+        mgr.objectTables['AnalysisDefinition'] = {a.id: a}
+        bcl = SolutionDefinition(manager=mgr, name=BCL.NAME, function_name=BCL.NAME.replace('-', '_'), target_runtime='python_backend',
+                                 definition=json.dumps(BCL.definition()), contract_json=json.dumps(BCL.contract()), category='')
+        mgr.objectTables['SolutionDefinition'] = {bcl.id: bcl}
+
+    def _state(mgr, **f):
+        base = dict(uptime_ms=120000, sense_rises=5, sense_falls=4, button_presses=9, led_on=True,
+                   dropped_events=2, sync_generation=3, drift_ms=-11)
+        base.update(f)
+        inst = SimpleNamespace(name=S.BC_OBJECT_NAME, id=S.BC_OBJECT_NAME, **base)
+        mgr.objectTables.setdefault('ButtonClockState', {})[S.BC_OBJECT_NAME] = inst
+
+    def _events(mgr, presses):
+        for i in range(presses):
+            nm = 'evt-%04d' % i
+            inst = SimpleNamespace(name=nm, id=nm, seq=i, boot_session=1, kind='press', uptime_ms=90000 + i, epoch_s=0, ms=0)
+            mgr.objectTables.setdefault('ButtonClockEvent', {})[nm] = inst
+
+    backend = S.button_clock_backend_definition()
+    check('uno-button-clock\'s backend half (the EventTrigger runs this, not the full canvas) is the 4 bridging/relay '
+          'states: Relay in, call-button-clock-ledger, Relay out, Frontend emit',
+          [s['stateName'] for s in backend['stateInstances']] == ['relay-in', 'call-button-clock-ledger', 'relay-out', 'frontend-emit'])
+
+    # (a) a GOOD wire pushed the way `pol board attach` pushes it (a plain CRUDE PUT; the row the bridge upserted is
+    # already sitting on the manager when the trigger fires — this test starts from there, same as backend_half_in_engine).
+    mgr = _mgr()
+    _seed(mgr)
+    _state(mgr, sense_rises=5, sense_falls=4, button_presses=9, led_on=True)
+    _events(mgr, 4)
+    tr = execute(backend, manager=mgr, params={'instance.name': S.BC_OBJECT_NAME})
+    check('the run completes', tr.status == 'completed', (tr.status, tr.error_summary))
+    derived = mgr.objectTables.get('ButtonClockDerived', {})
+    check('exactly one ButtonClockDerived row, name == board_instance', len(derived) == 1, list(derived))
+    row = next(iter(derived.values()), None)
+    check('…invariant_ok True (not None — the bug: the commit clobbered button_clock_derive\'s own correct write with '
+          'unbound context vars)', row is not None and row.invariant_ok is True, getattr(row, 'invariant_ok', '<no row>'))
+    check('…presses_per_min a number (not None)', row is not None and isinstance(row.presses_per_min, (int, float)), getattr(row, 'presses_per_min', '<no row>'))
+    check('…events_seen/dropped_events_total/last_sync_generation/drift_ms all committed, not None',
+          row is not None and row.events_seen == 4 and row.dropped_events_total == 2 and row.last_sync_generation == 3 and row.drift_ms == -11,
+          (getattr(row, 'events_seen', None), getattr(row, 'dropped_events_total', None), getattr(row, 'last_sync_generation', None), getattr(row, 'drift_ms', None)))
+    fc = final_context_of(tr)
+    check('the TOP-LEVEL run context also carries the flat vars uno-button-clock\'s own `call-button-clock-ledger` '
+          'resultBindings name (solutions.py) — the relay itself sees the real numbers, not just the row',
+          fc.get('invariant_ok') is True and isinstance(fc.get('presses_per_min'), (int, float)), fc)
+
+    # (b) a BROKEN wire: sense_rises+sense_falls != button_presses -> invariant_ok False, why names the actual numbers,
+    # same pushed-row path, never a hand-computed shortcut.
+    mgr2 = _mgr()
+    _seed(mgr2)
+    _state(mgr2, sense_rises=1, sense_falls=0, button_presses=3, led_on=True, dropped_events=0, sync_generation=1, drift_ms=4)
+    _events(mgr2, 1)
+    tr2 = execute(backend, manager=mgr2, params={'instance.name': S.BC_OBJECT_NAME})
+    check('the broken-wire run also completes (invariant_ok False is a verdict, never an engine error)', tr2.status == 'completed', tr2.error_summary)
+    row2 = next(iter(mgr2.objectTables.get('ButtonClockDerived', {}).values()), None)
+    check('…invariant_ok False, invariant_why names the actual numbers (1 and 3), presses_per_min still a number',
+          row2 is not None and row2.invariant_ok is False and '1' in row2.invariant_why and '3' in row2.invariant_why
+          and isinstance(row2.presses_per_min, (int, float)),
+          (getattr(row2, 'invariant_ok', '<no row>'), getattr(row2, 'invariant_why', ''), getattr(row2, 'presses_per_min', None)))
+
+
 def button_clock_cross_domain():
     """ucd-1 (UNO_CORE_DEMO_PLAN.md §3): uno-button-clock's own Cross-Domain canvas — the SAME validator accepts it
     (no compute states, beside uno-temp-split), every state carries a detail_ref whose `class` is a REGISTERED Polari
@@ -743,8 +832,8 @@ def main():
     print('hwnocode selftest (hn-0)')
     for part in (placement_on_seed, runtimes_demo_4b, refusals, cross_domain_validator, subgraph_reference, knob_refusals,
                  suggestion_fixtures, backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode,
-                 button_clock_compute, button_clock_cross_domain, button_clock_page, button_clock_registration,
-                 manifest_conform):
+                 button_clock_compute, button_clock_relay_in_engine, button_clock_cross_domain, button_clock_page,
+                 button_clock_registration, manifest_conform):
         print('-- %s' % part.__name__)
         try:
             part()
