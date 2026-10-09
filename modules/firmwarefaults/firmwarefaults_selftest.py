@@ -166,8 +166,8 @@ def steps_and_scenarios():
           (SC.find('rx-ring-over-256')['observable_kind'], SC.find('rx-ring-over-256')['technique']) == ('build-refused', 'static-guard'))
     # hw priorities P1 (D-hw-2): a Scenario of kind='acceptance' proves a CapabilityDefinition's goal, no fault forced
     every_kind = [s.get('kind', 'fault') for s in SC.SEED_SCENARIOS]
-    check('every pre-existing Scenario defaults to kind=fault; the two new ones are kind=acceptance, naming their capability',
-          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 2
+    check('every pre-existing Scenario defaults to kind=fault; the three acceptance ones name their Purpose (0e2a: + button-clock-to-os)',
+          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 3
           and SC.find('temp-sensor-to-os-acceptance')['capability'] == 'temp-sensor-to-os'
           and SC.find('blink-on-command-acceptance')['capability'] == 'blink-on-command', every_kind)
     check('an acceptance scenario has no fault forced (fault_class/fault/breaks/technique all empty)',
@@ -299,13 +299,13 @@ def seeds_page_api():
                 print('      ', cname, r.get('name'), e)
     check('every seed row constructs its class (no stray field)', ok)
     seeded = {n: len(rows) for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS}
-    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 14 scenarios (hw priorities P1: +2 acceptance), '
-          '21 steps (+3 acceptance-kind), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
+    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 15 scenarios (hw priorities P1: +2 acceptance; 0e2a: + button-clock-to-os), '
+          '24 steps (acceptance-kind incl. pin-at), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
           'runs, trace rows, statistics, likelihoods and static checks/findings observed only',
           (seeded['ConcurrencyPrimitive'], seeded['Assumption'], seeded['Technique'], seeded['Scenario'], seeded['ScenarioStep'],
            seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle'], seeded['ScenarioStatistic'], seeded['ScenarioCampaign'],
            seeded['FormalCheck'], seeded['FaultLikelihood'], seeded['StaticCheck'], seeded['StaticFinding'])
-          == (6, 13, 12, 14, 21, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
+          == (6, 13, 12, 15, 24, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
     check('what a run MEASURES is not converged by a re-seed (technique measured_*, a fault\'s rate / rate_source)',
           all('measured_by_run' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n == 'Technique' for r in rows)
           and all('rate_source' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n.endswith('Fault') for r in rows))
@@ -342,7 +342,7 @@ def seeds_page_api():
     construct_firmwarefaults_endpoints(SimpleNamespace(falconServer=app, manager=mgr, idList=[]))
     c = testing.TestClient(app)
     s = c.simulate_get('/api/firmwarefaults').json
-    check('GET /api/firmwarefaults: 17 fault rows by family, 14 scenarios runnable (9 UNO + 3 C3, sc-3 + 2 hw priorities P1 acceptance), 19 step kinds',
+    check('GET /api/firmwarefaults: 17 fault rows by family, 15 scenarios runnable (9 UNO + 3 C3, sc-3 + 3 acceptance), 19 step kinds',
           s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 14 and len(s['step_kinds']) == 19, str(s)[:300])
     f = c.simulate_get('/api/firmwarefaults/faults').json
     check('GET /api/firmwarefaults/faults groups the rows by family with the kind fields',
@@ -356,7 +356,8 @@ def seeds_page_api():
                                                                     'priority-inversion-mutex': 1, 'two-lock-deadlock': 1,
                                                                     'two-lock-deadlock-backoff': 1,
                                                                     'torn-millis-read-aligned': 1, 'lost-request-hang': 2,
-                                                                    'temp-sensor-to-os-acceptance': 2, 'blink-on-command-acceptance': 1})
+                                                                    'temp-sensor-to-os-acceptance': 2, 'blink-on-command-acceptance': 1,
+                                                                    'button-clock-to-os-acceptance': 3})
     check('GET /api/firmwarefaults/runs/<missing> → 404; POST /run without a scenario → 400',
           c.simulate_get('/api/firmwarefaults/runs/nope').status_code == 404
           and c.simulate_post('/api/firmwarefaults/run', body='{}').status_code == 400)

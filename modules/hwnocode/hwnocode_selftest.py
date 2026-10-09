@@ -398,12 +398,12 @@ def seeds_page_api():
     from hwnocode.hwnocode_api import HwNoCodeAPI
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
     check('seeds (fs-1 migration + ucd-1): 2 HardwareSolutions (uno-temp-split + uno-button-clock — the latter\'s own '
-          'Firmware Run is planned, its cgraph does not exist, so it contributes 0 placements), 24 placements '
-          '(18 twin + 2 bridge + 3 backend + 1 browser, all uno-temp-split\'s), 6 SolutionDefinitions (uno-temp-split\'s '
+          'Firmware Run is backed by uno-button-clock-graph since 0e2b, so it contributes its own placements), 58 placements '
+          '(uno-temp-split\'s 24 = 18 twin + 2 bridge + 3 backend + 1 browser, + uno-button-clock\'s), 6 SolutionDefinitions (uno-temp-split\'s '
           'canvas + its derived backend half + temp-analysis + uno-button-clock\'s canvas + button-clock-ledger + its '
-          'own hand-built backend half), 2 AnalysisDefinitions, 2 EventTriggers, 2 HardwareInterfaceBindings, '
+          'own hand-built backend half + the 0e2b button-clock graph\'s own), 2 AnalysisDefinitions, 2 EventTriggers, 2 HardwareInterfaceBindings, '
           '2 GraphDefinitions, 6 Runtimes (demo-4b)', counts == {
-              'HardwareSolution': 2, 'HardwareNodePlacement': 24, 'SolutionDefinition': 6, 'AnalysisDefinition': 2, 'EventTrigger': 2,
+              'HardwareSolution': 2, 'HardwareNodePlacement': 58, 'SolutionDefinition': 7, 'AnalysisDefinition': 2, 'EventTrigger': 2,
               'HardwareInterfaceBinding': 2, 'GraphDefinition': 2, 'Runtime': 6}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
