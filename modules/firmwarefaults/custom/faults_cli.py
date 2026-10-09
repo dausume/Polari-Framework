@@ -144,7 +144,7 @@ def cmd_run(a):
         if not pushed_note.startswith('pushed'):
             cap = CAP.find(capability_name)
             if cap is not None:
-                status, last_proof, status_why = CAP.derive_status(cap, manager=None)
+                status, last_proof, status_why, _proof_kind = CAP.derive_status(cap, manager=None)
             else:
                 status, last_proof, status_why = '?', '', 'scenario names no known capability'
         out = dict(out, capability=capability_name, status=status, status_why=status_why)

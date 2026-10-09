@@ -34,6 +34,7 @@ class ScenarioRun(treeObject):
                  size_text: int = 0, size_data: int = 0, size_bss: int = 0, cost_delta_json: str = '{}', cost_flash_bytes_delta: int = 0,
                  cost_cycles_delta: int = 0, latency_delta_cycles: int = 0, claim: str = '', repro_json: str = '{}', ran_at: str = '',
                  notes: str = '', observable_value: str = '', reset_count: int = 0, isr_cycles_max: int = 0, isr_cycles_vector: int = 0,
+                 kind: str = 'measured', attested_by: str = '', observed: str = '', board_instance: str = '',
                  manager=None):
         self.name = name
         self.scenario = scenario
@@ -88,3 +89,15 @@ class ScenarioRun(treeObject):
         self.reset_count = reset_count  # sc-1: resets during the run (watchdog or forced), from simavr's reset hook
         self.isr_cycles_max = isr_cycles_max  # sc-1: the longest ISR (entry → reti) of the pricing vector (or the longest of any)
         self.isr_cycles_vector = isr_cycles_vector
+        # ucd-attest (his ruling 2026-10-09, "yes on attestation and overrides"): a run is 'measured' (every
+        # existing row, the default — a simulator/hardware engine actually ran it) or 'attested' (a PERSON confirms
+        # the outcome by hand, no engine run this time — POST /api/capabilities/{name}/attest). `attested_by` is
+        # the acting person's Keycloak subject id ('' when the request carried none — the door says so in
+        # `verdict_words`, never silently). `observed` is the person's own words (required by the attest door).
+        # `board_instance` names the BoardInstance a hardware-mode run (measured OR attested) happened on — '' for a
+        # twin run, and '' also closes the pre-existing DEBT that a measured hardware run carried no board at all
+        # (cmod.custom.capabilities.purpose_summary's own docstring named this gap; still '' until a caller fills it).
+        self.kind = kind  # measured (default) | attested
+        self.attested_by = attested_by
+        self.observed = observed
+        self.board_instance = board_instance

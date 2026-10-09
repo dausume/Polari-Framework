@@ -39,7 +39,7 @@ TARGET_ROWS = T.derive(_DEFAULT_GRAPH) + T.derive(_BC_GRAPH)
 # below (cmod.custom.capabilities.derive_status), never hand-set.
 _HW_CAPS = [dict(c) for c in CAP.SEED_CAPABILITIES]
 for _c in _HW_CAPS:
-    _status, _proof, _ = CAP.derive_status(_c, manager=None)
+    _status, _proof, _, _ = CAP.derive_status(_c, manager=None)
     _c['status'], _c['last_proof'] = _status, _proof
 _TEMP_TO_OS_INSTANCES = [
     {'name': 'temp-sensor-to-os#%d' % i, 'capability': 'temp-sensor-to-os', 'graph': _DEFAULT_GRAPH, 'index': i,

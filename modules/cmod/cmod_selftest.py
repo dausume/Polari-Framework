@@ -322,9 +322,9 @@ def demo4_targets():
     check('the validator REFUSES a task that does not exist, NAMING it',
           not ok and 'not_a_real_node' in why, why)
 
-    status, proof, swhy = CAP.derive_status(temp)
+    status, proof, swhy, proof_kind = CAP.derive_status(temp)
     check('derive_status with no live manager reads the row back unchanged (status is DERIVED from a live ScenarioRun, never guessed offline)',
-          status == 'planned' and proof == '', (status, proof, swhy))
+          status == 'planned' and proof == '' and proof_kind == '', (status, proof, swhy, proof_kind))
 
     from firmwarefaults.custom import acceptance as ACC
     sc = ACC.find('temp-sensor-to-os-acceptance')
@@ -447,22 +447,157 @@ def demo4_targets():
     u1 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@u1', scenario='temp-sensor-to-os-acceptance',
              side='acceptance', outcome='undetermined', verdict_words='engine refusal', ran_at='2026-10-07T00:00:00')
     tables.setdefault('ScenarioRun', {})[u1.id] = u1
-    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    status, proof, why, proof_kind = CAP.derive_status(temp, manager=mgr)
     check('derive_status treats a lone undetermined (engine-refusal) run as NOT evidence — stays planned, naming the count',
           status == 'planned' and 'undetermined' in why and '1 ScenarioRun' in why, (status, why))
     p1 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@p1', scenario='temp-sensor-to-os-acceptance',
              side='acceptance', outcome='passed', verdict_words='ok', ran_at='2026-10-07T00:00:01',
              repro_json=_json.dumps({'mode': 'digital-twin'}))
     tables.setdefault('ScenarioRun', {})[p1.id] = p1
-    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    status, proof, why, proof_kind = CAP.derive_status(temp, manager=mgr)
     check('…a later PASSED run is the latest EVIDENTIAL one (the undetermined run is skipped, not just outranked) → proven-on-twin',
-          status == 'proven-on-twin', (status, why))
+          status == 'proven-on-twin' and proof_kind == 'measured', (status, why, proof_kind))
     u2 = _SR(manager=mgr, name='temp-sensor-to-os-acceptance@digital-twin@u2', scenario='temp-sensor-to-os-acceptance',
              side='acceptance', outcome='undetermined', verdict_words='engine refusal again', ran_at='2026-10-07T00:00:02')
     tables.setdefault('ScenarioRun', {})[u2.id] = u2
-    status, proof, why = CAP.derive_status(temp, manager=mgr)
+    status, proof, why, proof_kind = CAP.derive_status(temp, manager=mgr)
     check('…and a NEWER undetermined run never overwrites a prior pass (still not evidence either way) — stays proven-on-twin',
           status == 'proven-on-twin', (status, why))
+
+    # ---------------------------------------------------------------------------------------------------- ucd-attest
+    # a PERSON'S OWN confirmation (ScenarioRun kind='attested') — direct handler calls (security_selftest.py's own
+    # pattern) so a `user_info` can be set per-call; `mgr`/`CAP` are the same fixtures the block above just used.
+    import datetime as _dt
+    import io as _io
+
+    class _AttReq:
+        def __init__(self, ui, body):
+            self.context = SimpleNamespace(user_info=ui)
+            self.bounded_stream = _io.BytesIO(_json.dumps(body).encode())
+
+    class _AttRes:
+        media = None
+        status = '200 OK'
+
+    cap_api2 = CapabilityAPI(polServer=None, manager=mgr)   # no routes added (polServer=None) — just bound to `mgr`
+    ui = {'sub': 'kc-sub-attest-1'}
+    req = _AttReq(ui, {'mode': 'hardware', 'observed': 'LED blinked twice on the bench UNO', 'outcome': 'passed',
+                       'board_instance': 'uno-bench-1'})
+    res = _AttRes()
+    cap_api2.on_post_attest(req, res, 'blink-on-command')
+    check("POST .../attest writes an ATTESTED ScenarioRun, stamped with the signed-in person's sub, carrying "
+          'observed/board_instance, and advances the Purpose\'s status',
+          res.media['ok'] and res.media['status'] == 'proven-on-hardware' and res.media['proof_kind'] == 'attested'
+          and res.media['run']['kind'] == 'attested' and res.media['run']['attested_by'] == 'kc-sub-attest-1'
+          and res.media['run']['observed'] == 'LED blinked twice on the bench UNO'
+          and res.media['run']['board_instance'] == 'uno-bench-1', res.media)
+
+    req2 = _AttReq(None, {'mode': 'digital-twin', 'observed': 'confirmed by eye on the twin console', 'outcome': 'passed'})
+    res2 = _AttRes()
+    cap_api2.on_post_attest(req2, res2, 'blink-on-command')
+    check("…an UNAUTHENTICATED attestation stores attested_by '' and SAYS SO in verdict_words, never silently",
+          res2.media['ok'] and res2.media['run']['attested_by'] == '' and 'unauthenticated' in res2.media['run']['verdict_words'],
+          res2.media)
+
+    cap_blink = CAP.find('blink-on-command')
+    status, proof, why, proof_kind = CAP.derive_status(cap_blink, manager=mgr)
+    check('derive_status reports proof_kind=attested beside the SAME ladder step a measured pass reaches, and `why` '
+          'names it ("attested by a person") rather than folding it into the status',
+          proof_kind == 'attested' and 'attested by a person' in why, (status, why, proof_kind))
+
+    summ = CAP.purpose_summary('uno-sim-rig-graph', manager=mgr)
+    row = next(r for r in summ['purposes'] if r['name'] == 'blink-on-command')
+    check('…and purpose_summary carries the SAME proof_kind on its own row, surfaced for the panel',
+          row['proof_kind'] == 'attested', row)
+
+    fail_run = {'name': 'blink-on-command-acceptance@digital-twin@measured-fail-1', 'scenario': 'blink-on-command-acceptance',
+               'side': 'acceptance', 'outcome': 'failed', 'verdict_words': 'measured: LED did not toggle',
+               'kind': 'measured', 'ran_at': _dt.datetime.now().isoformat(timespec='seconds'),
+               'repro_json': _json.dumps({'mode': 'digital-twin'})}
+    r = c.simulate_post('/api/capabilities/blink-on-command/runs', body=_json.dumps(fail_run))
+    check('…a subsequent MEASURED run — even a FAILURE — always wins over an earlier attestation (the newest '
+          'evidential run rule, unchanged): status downgrades HONESTLY to planned, proof_kind reported measured',
+          r.json.get('status') == 'planned' and r.json.get('proof_kind') == 'measured', r.json)
+
+    req3 = _AttReq(ui, {'mode': 'digital-twin', 'outcome': 'passed'})
+    res3 = _AttRes()
+    cap_api2.on_post_attest(req3, res3, 'blink-on-command')
+    check("POST .../attest REFUSES 400 with no 'observed' (a person's own words are required, never defaulted)",
+          res3.status.startswith('400') and not res3.media['ok'], res3.media)
+
+    req4 = _AttReq(ui, {'mode': 'digital-twin', 'observed': 'x', 'outcome': 'maybe'})
+    res4 = _AttRes()
+    cap_api2.on_post_attest(req4, res4, 'blink-on-command')
+    check("POST .../attest REFUSES 400 on an outcome that is not 'passed'/'failed'",
+          res4.status.startswith('400') and not res4.media['ok'], res4.media)
+
+    temp_no_scen = dict(temp, acceptance_scenario='')
+    from cmod.cmod_basis import CapabilityDefinition as _CapDef2
+    no_scen_row = _CapDef2(manager=mgr, **{k: v for k, v in temp_no_scen.items() if k != 'name'}, name='no-acceptance-test-only')
+    tables.setdefault('CapabilityDefinition', {})[no_scen_row.id] = no_scen_row
+    try:
+        req5 = _AttReq(ui, {'mode': 'digital-twin', 'observed': 'x', 'outcome': 'passed'})
+        res5 = _AttRes()
+        cap_api2.on_post_attest(req5, res5, 'no-acceptance-test-only')
+        check('POST .../attest REFUSES 422 for a Purpose with no acceptance_scenario — nothing to attest',
+              res5.status.startswith('422') and not res5.media['ok'], res5.media)
+    finally:
+        del tables['CapabilityDefinition'][no_scen_row.id]
+
+    # ---- DerivedOverride: TargetDefinition.requirement_kind/.role, PinClaim.pull/edge/mode/initial, HardwareBinding.status
+    from cmod.custom import overrides as OV
+    from cmod.custom import targets as TGT
+    fw_api2 = FirmwareAPI(polServer=None, manager=mgr)
+    t_rows = TGT.derive('uno-sim-rig-graph', manager=mgr)
+    some_t = next(r for r in t_rows if r.get('requirement_kind') not in ('', 'undetermined', None))
+    req_ov = _AttReq(ui, {'target_class': 'TargetDefinition', 'target_name': some_t['name'], 'field': 'requirement_kind',
+                          'value': 'digital-out', 'why': 'his §5h cosmetic mis-label fix (apply_command is really digital-out)'})
+    res_ov = _AttRes()
+    fw_api2.on_post_overrides(req_ov, res_ov)
+    check('POST /api/firmware/overrides writes the DerivedOverride row (who/when/why, provenance canvas)',
+          res_ov.media['ok'] and res_ov.media['override']['who'] == 'kc-sub-attest-1'
+          and res_ov.media['override']['provenance'] == 'canvas', res_ov.media)
+    served = OV.apply_overrides(t_rows, 'TargetDefinition', manager=mgr)
+    served_row = next(r for r in served if r['name'] == some_t['name'])
+    check('…served TargetDefinition rows carry the OVERRIDDEN requirement_kind, the ORIGINAL beside it as '
+          'derived_requirement_kind, and overrides_refs_json naming the DerivedOverride row',
+          served_row['requirement_kind'] == 'digital-out' and served_row['derived_requirement_kind'] == some_t['requirement_kind']
+          and 'DerivedOverride:TargetDefinition:%s:requirement_kind' % some_t['name'] in _json.loads(served_row['overrides_refs_json']),
+          served_row)
+
+    req_noWhy = _AttReq(ui, {'target_class': 'TargetDefinition', 'target_name': some_t['name'], 'field': 'role', 'value': 'output'})
+    res_noWhy = _AttRes()
+    fw_api2.on_post_overrides(req_noWhy, res_noWhy)
+    check("POST /api/firmware/overrides REFUSES by name without 'why' (a person's words are required)",
+          res_noWhy.status.startswith('422') and not res_noWhy.media['ok'], res_noWhy.media)
+
+    from cmod.custom import binding as BND
+    bnd = BND.resolve('uno-sim-rig', manager=mgr)
+    req_bnd = _AttReq(ui, {'target_class': 'HardwareBinding', 'target_name': bnd['name'], 'field': 'status',
+                          'value': 'valid', 'why': 'proven correct on the bench; the derivation is stale pending a re-derive'})
+    res_bnd = _AttRes()
+    fw_api2.on_post_overrides(req_bnd, res_bnd)
+    check('POST /api/firmware/overrides on HardwareBinding.status is accepted the same way',
+          res_bnd.media['ok'], res_bnd.media)
+    served_b = OV.apply_overrides([bnd], 'HardwareBinding', manager=mgr)[0]
+    check('…the served HardwareBinding shows BOTH: `status` = the override, `derived_status` = the derivation\'s own '
+          'verdict, and `status_why` names who/when/why beside the derived verdict',
+          served_b['status'] == 'valid' and served_b['derived_status'] == bnd['status']
+          and 'overridden by kc-sub-attest-1' in served_b['status_why'] and '(derived: %s)' % bnd['status'] in served_b['status_why'],
+          served_b)
+
+    ov_name = 'TargetDefinition:%s:requirement_kind' % some_t['name']
+    req_del = _AttReq(ui, {})
+    res_del = _AttRes()
+    fw_api2.on_delete_override_one(req_del, res_del, ov_name)
+    check('DELETE /api/firmware/overrides/{name} retires it (status=retired, the row itself survives as the record)',
+          res_del.media['ok'] and any(getattr(o, 'name', '') == ov_name and o.status == 'retired'
+                                      for o in tables.get('DerivedOverride', {}).values()), res_del.media)
+    served_after = OV.apply_overrides(t_rows, 'TargetDefinition', manager=mgr)
+    served_row_after = next(r for r in served_after if r['name'] == some_t['name'])
+    check('…and a RETIRED override is no longer applied — the served row reads the bare derivation again',
+          served_row_after['requirement_kind'] == some_t['requirement_kind'] and 'derived_requirement_kind' not in served_row_after,
+          served_row_after)
 
     # ucd-0e2: button-clock-to-os — NO FirmwareSolution/CGraph exists for it (0e2b's job), so its c-device tasks are
     # 'project:atom' refs (validated against the atoms cmod's annotation parser finds in the app's own source) and its

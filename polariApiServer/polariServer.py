@@ -1352,6 +1352,9 @@ class polariServer(treeObject):
             # ucd-0b2b: the hardware-specific mask laying a FirmwareSolution over one board (his ruling 2026-10-08) —
             # one default per solution, converged at boot; a person's own (canvas) binding is kept across a reseed
             HardwareBinding,
+            # ucd-attest: a person's own correction of one DERIVED field, kept beside it (who/when/why) — never a
+            # silent overwrite; applied at serve time by cmod.custom.overrides.apply_overrides
+            DerivedOverride,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

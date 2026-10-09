@@ -72,11 +72,35 @@ def cmd_list(a):
     from cmod.custom import capabilities as CAP
     for cap in CAP.SEED_CAPABILITIES:
         ok, why = CAP.validate(cap)
-        status, proof, swhy = CAP.derive_status(cap)
+        status, proof, swhy, proof_kind = CAP.derive_status(cap)
         print('  %-20s %-20s %s' % (cap['name'], status, cap['goal']))
         print('       validator  %s' % ('ok' if ok else why))
-        print('       proof      %s (%s)' % (proof or '-', swhy))
+        print('       proof      %s (%s)%s' % (proof or '-', swhy, ' [%s]' % proof_kind if proof_kind else ''))
     return 0
+
+
+def cmd_attest(a):
+    """ucd-attest: `pol capability attest <name> --mode hardware --observed "…" [--board-instance X] [--failed]` —
+    a PERSON'S OWN confirmation, posted straight to a live server's door (POST /api/capabilities/{name}/attest);
+    there is no offline/local-sink path for this verb (an attestation is, by definition, stamped with a signed-in
+    person's own identity — that only exists against a running server)."""
+    api = (getattr(a, 'api', '') or '').rstrip('/')
+    if not api:
+        print('[REFUSED] --api <URL> (or $POLARI_API) is required: an attestation is stamped with the signed-in '
+              "person on that server — there is no offline path for 'pol capability attest'")
+        return 3
+    mode = a.mode
+    body = {'mode': mode, 'observed': a.observed, 'outcome': 'failed' if a.failed else 'passed'}
+    if a.board_instance:
+        body['board_instance'] = a.board_instance
+    d = _http('POST', '%s/api/capabilities/%s/attest' % (api, a.name), body)
+    if not d.get('ok'):
+        print('[REFUSED] %s' % d.get('error', d))
+        return 3
+    tag = '[PASS]' if d['run']['outcome'] == 'passed' else '[FAIL]'
+    print('%s %s attested on %s — status now %s (%s) [%s]' % (tag, a.name, mode, d.get('status'), d.get('status_why'), d.get('proof_kind')))
+    print('       record    %s' % d['run']['name'])
+    return 0 if d['run']['outcome'] == 'passed' else 1
 
 
 def main(argv):
@@ -89,8 +113,15 @@ def main(argv):
     g.add_argument('--hardware', action='store_true')
     p.add_argument('--api', default=os.environ.get('POLARI_API', ''))
     sub.add_parser('list')
+    pa = sub.add_parser('attest')
+    pa.add_argument('name')
+    pa.add_argument('--mode', choices=('hardware', 'digital-twin'), default='digital-twin')
+    pa.add_argument('--observed', required=True, help="the person's own words on what was seen")
+    pa.add_argument('--board-instance', default='', dest='board_instance')
+    pa.add_argument('--failed', action='store_true', help='record a FAILED attestation (default: passed)')
+    pa.add_argument('--api', default=os.environ.get('POLARI_API', ''))
     a = ap.parse_args(argv)
-    return {'prove': cmd_prove, 'list': cmd_list}[a.cmd](a)
+    return {'prove': cmd_prove, 'list': cmd_list, 'attest': cmd_attest}[a.cmd](a)
 
 
 if __name__ == '__main__':

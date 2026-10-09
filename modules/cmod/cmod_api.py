@@ -220,9 +220,11 @@ class CModAPI(treeObject):
         if self._graph(graph, response) is None:
             return
         from cmod.custom import targets as T
+        from cmod.custom.overrides import apply_overrides
         rows = [r for r in self._rows('TargetDefinition') if r.graph == graph]
         derived = rows if rows else T.derive(graph, manager=self.manager)
         out = [self._d(r) for r in rows] if rows else derived
+        out = apply_overrides(out, 'TargetDefinition', manager=self.manager)
         response.media = {'ok': True, 'graph': graph, 'targets': sorted(out, key=lambda r: (r.get('kind', ''), r.get('port_ref', ''))),
                           'how': 'derived from each c-atom\'s resources (registers/declared macros) matched against the graph\'s board\'s '
                                  'BoardPin rows, plus one per \'field\' CGraphEdge — never typed in (cmod.custom.targets)'}

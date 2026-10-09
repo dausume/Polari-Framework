@@ -14,6 +14,7 @@
   "extends": "",
   "catalogKinds": [],
   "agentTier": "member",
+  "realization": "",
   "category": "polari",
   "subcategories": [
    "materials-devices",
@@ -70,6 +71,7 @@
    "objects/cmod/CProject",
    "objects/cmod/CapabilityDefinition",
    "objects/cmod/CapabilityInstance",
+   "objects/cmod/DerivedOverride",
    "objects/cmod/FirmwareExport",
    "objects/cmod/FirmwareSolution",
    "objects/cmod/HardwareBinding",
@@ -119,6 +121,7 @@
    "custom/graph_seed",
    "custom/manifest",
    "custom/measure",
+   "custom/overrides",
    "custom/pin_config_gen",
    "custom/preprocess",
    "custom/projects",
@@ -151,6 +154,7 @@
   "CapabilityAPI",
   "CapabilityDefinition",
   "CapabilityInstance",
+  "DerivedOverride",
   "FirmwareAPI",
   "FirmwareExport",
   "FirmwareSolution",
@@ -183,6 +187,7 @@
     "PinClaim",
     "PeripheralClaim",
     "HardwareBinding",
+    "DerivedOverride",
     "CMOD_CLASSES"
    ]
   ],

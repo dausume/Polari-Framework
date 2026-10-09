@@ -219,39 +219,50 @@ def validate(cap, manager=None):
 
 
 def derive_status(cap, manager=None):
-    """(status, last_proof, why) — DERIVED, never hand-set (HARDWARE_DEV_PRIORITIES.md §1): 'failing' when the
-    validator itself refuses (a named task/target is missing); otherwise read off the LATEST ScenarioRun of the
-    capability's acceptance_scenario — none yet = 'planned'; a passing twin-mode run = 'proven-on-twin'; a passing
-    hardware-mode run = 'proven-on-hardware'; anything else (failed/inapplicable) = 'planned' — never a stale pass
-    carried forward once a newer run disagrees. 'undetermined' runs are an ENGINE REFUSAL (acceptance.run()'s own
-    posture: the proof never actually ran, so nothing was observed to pass or fail) — they are not evidence either
-    way and are skipped entirely when picking the latest verdict (proof-push rule, cmod_capability_api's honest
-    /prove door writes none of these any more, but older rows and other callers still can)."""
+    """(status, last_proof, why, proof_kind) — DERIVED, never hand-set (HARDWARE_DEV_PRIORITIES.md §1): 'failing'
+    when the validator itself refuses (a named task/target is missing); otherwise read off the LATEST ScenarioRun of
+    the capability's acceptance_scenario — none yet = 'planned'; a passing twin-mode run = 'proven-on-twin'; a
+    passing hardware-mode run = 'proven-on-hardware'; anything else (failed/inapplicable) = 'planned' — never a
+    stale pass carried forward once a newer run disagrees. 'undetermined' runs are an ENGINE REFUSAL (acceptance.
+    run()'s own posture: the proof never actually ran, so nothing was observed to pass or fail) — they are not
+    evidence either way and are skipped entirely when picking the latest verdict (proof-push rule, cmod_capability_
+    api's honest /prove door writes none of these any more, but older rows and other callers still can).
+
+    ucd-attest: `proof_kind` is 'measured' | 'attested' | '' (no evidential run / no live manager) — the latest
+    EVIDENTIAL run's own `kind`, reported beside the status rather than folded into it (his ruling: "the derivation
+    reports a disagreement, never hides it"). The ladder step (planned/proven-on-twin/proven-on-hardware) is
+    identical for a measured or an attested pass — `proof_kind` is the only place the distinction shows. Because
+    the newest EVIDENTIAL run always wins regardless of its kind (the pre-existing rule, unchanged here), a later
+    MEASURED run naturally overrides an earlier attestation at the same step, and a failed measured run that comes
+    after an attestation downgrades honestly — no special-casing needed, the ordering rule already does both."""
     ok, why = validate(cap, manager=manager)
     if not ok:
-        return 'failing', cap.get('last_proof', ''), why
+        return 'failing', cap.get('last_proof', ''), why, ''
     scen = cap.get('acceptance_scenario', '')
     if not scen:
-        return 'planned', '', 'no acceptance_scenario set'
+        return 'planned', '', 'no acceptance_scenario set', ''
     if manager is None:
-        return cap.get('status', 'planned'), cap.get('last_proof', ''), 'no live manager — status read back unchanged'
+        return cap.get('status', 'planned'), cap.get('last_proof', ''), 'no live manager — status read back unchanged', ''
     runs = sorted((r for r in (manager.objectTables or {}).get('ScenarioRun', {}).values() if getattr(r, 'scenario', '') == scen),
                   key=lambda r: getattr(r, 'ran_at', ''))
     evidential = [r for r in runs if getattr(r, 'outcome', '') != 'undetermined']
     if not evidential:
         if runs:
             return 'planned', '', ('%d ScenarioRun(s) for %r, all undetermined (engine refusal — not evidence '
-                                   'either way)' % (len(runs), scen))
-        return 'planned', '', 'no ScenarioRun yet for %r' % scen
+                                   'either way)' % (len(runs), scen)), ''
+        return 'planned', '', 'no ScenarioRun yet for %r' % scen, ''
     latest = evidential[-1]
     proof = 'ScenarioRun %s @ %s' % (latest.name, latest.ran_at)
+    proof_kind = getattr(latest, 'kind', 'measured') or 'measured'
+    kind_words = 'attested by a person' if proof_kind == 'attested' else 'measured'
     if latest.outcome != 'passed':
-        return 'planned', proof, 'latest run %s: %s (%s)' % (latest.name, latest.outcome, latest.verdict_words)
+        return 'planned', proof, 'latest run %s: %s (%s)' % (latest.name, latest.outcome, latest.verdict_words), proof_kind
     try:
         mode = json.loads(getattr(latest, 'repro_json', '{}') or '{}').get('mode', 'digital-twin')
     except Exception:  # noqa: BLE001
         mode = 'digital-twin'
-    return ('proven-on-hardware' if mode == 'hardware' else 'proven-on-twin'), proof, 'latest run %s: passed' % latest.name
+    status = 'proven-on-hardware' if mode == 'hardware' else 'proven-on-twin'
+    return status, proof, 'latest run %s: passed (%s)' % (latest.name, kind_words), proof_kind
 
 
 # ---------------------------------------------------------------- the firmware's state as a SUMMARY of its Purposes (his ruling 2026-10-09)
@@ -284,12 +295,13 @@ def purpose_summary(graph, manager=None, board='', statuses=None):
     rows = []
     for c in purposes_for_graph(graph, manager):
         if statuses is not None:
-            st, last, why = statuses.get(c.get('name'), 'planned'), '', 'status read from the server'
+            st, last, why, pk = statuses.get(c.get('name'), 'planned'), '', 'status read from the server', ''
         else:
-            st, last, why = derive_status(c, manager=manager)
+            st, last, why, pk = derive_status(c, manager=manager)
         if board and st == 'proven-on-hardware':
             why = (why + '; ' if why else '') + 'counted for board %s: hardware runs carry no board instance yet (DEBT)' % board
-        rows.append({'name': c.get('name'), 'goal': c.get('goal', ''), 'status': st, 'last_proof': last, 'why': why})
+        rows.append({'name': c.get('name'), 'goal': c.get('goal', ''), 'status': st, 'last_proof': last, 'why': why,
+                    'proof_kind': pk})
     if not rows:
         return {'proof_status': 'planned', 'proof_why': 'no Purpose is modeled over graph %s — nothing is proven' % graph,
                 'purposes_total': 0, 'purposes_proven_twin': 0, 'purposes_proven_hardware': 0, 'purposes': [],
@@ -299,9 +311,15 @@ def purpose_summary(graph, manager=None, board='', statuses=None):
     twin = sum(1 for r in rows if rank(r['status']) >= PROOF_ORDER.index('proven-on-twin'))
     hw = sum(1 for r in rows if r['status'] == 'proven-on-hardware')
     unproven = [r['name'] for r in rows if rank(r['status']) < PROOF_ORDER.index('proven-on-twin')]
+    attested = sorted(r['name'] for r in rows if r.get('proof_kind') == 'attested' and rank(r['status']) >= PROOF_ORDER.index('proven-on-twin'))
     status = weakest['status'] if weakest['status'] in PROOF_ORDER else 'planned'
     why = '%d Purpose(s): %d proven on the sim, %d on hardware; weakest %s (%s)' % (len(rows), twin, hw, weakest['name'], status)
+    if attested:
+        why += '; attested by a person (not measured): %s' % ', '.join(attested)
     advice = ('ADVISED: every Purpose is proven on the sim (%s)' % ('and on hardware' if hw == len(rows) else 'not yet on hardware')) if not unproven \
         else 'NOT ADVISED for a real board: not proven on the sim — %s (prove: pol capability prove <name> --twin); a twin build is fine' % ', '.join(unproven)
+    if attested and not unproven:
+        advice += '; %d of these %s a person\'s confirmation, not a measured run — pol capability attest <name> was used' \
+                  % (len(attested), 'carries' if len(attested) == 1 else 'carry')
     return {'proof_status': status, 'proof_why': why, 'purposes_total': len(rows), 'purposes_proven_twin': twin,
             'purposes_proven_hardware': hw, 'purposes': rows, 'advice': advice}
