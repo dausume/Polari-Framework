@@ -45,6 +45,9 @@
 #ifndef HAL_INT0_DEBOUNCE_MS
 #define HAL_INT0_DEBOUNCE_MS 0     /* 0: every edge counts; N: edges within N ms of the last counted one are ignored */
 #endif
+#ifndef HAL_INT1
+#define HAL_INT1 0                 /* ucd-0e2: 1 = a sense pin on D3 (INT1), ANY edge — counts rises/falls, stamps the last one */
+#endif
 #ifndef HAL_WDT
 #define HAL_WDT 0                  /* 1: the watchdog on (reset mode), kicked once per main-loop pass */
 #endif
@@ -69,6 +72,11 @@ uint16_t hal_uart_errors(uint8_t which);   /* 0 = framing errors (FE0), 1 = data
 #if HAL_INT0
 void hal_button_init(void);
 uint16_t hal_presses(void);
+uint8_t hal_take_toggle_pending(void);   /* ucd-0e2: 1 once per edge the ISR saw (counts AND marks); cleared by the read */
+#endif
+#if HAL_INT1
+void hal_sense_init(void);
+void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms);   /* atomic snapshot of all three */
 #endif
 #if HAL_WDT
 #include <avr/wdt.h>

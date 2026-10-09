@@ -34,9 +34,9 @@ COVERAGE = [
 TEMPLATES = {
     'uno': {'root': UNO_ROOT, 'root_rel': 'board/custom/firmware/uno', 'board': 'arduino-uno-r3', 'mcu': 'atmega328p',
             'title': 'UNO firmware template (board module)',
-            'variants': ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'], 'coverage': COVERAGE,
+            'variants': ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo', 'uno-button-clock'], 'coverage': COVERAGE,
             'modules': [('hal', ['hal.c', 'hal.h'], 'hal'), ('board_config', ['board_config.h'], 'config')]
-            + [('apps/%s' % a, ['apps/%s.c' % a], 'app') for a in ('sim_rig', 'blink', 'analog', 'echo', 'scenario_rig')]},
+            + [('apps/%s' % a, ['apps/%s.c' % a], 'app') for a in ('sim_rig', 'blink', 'analog', 'echo', 'scenario_rig', 'button_clock')]},
 }
 
 

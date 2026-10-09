@@ -164,7 +164,7 @@ def uno_byte_identity(check):
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     check('UNO BYTE-IDENTITY (fixtures): the pin constants now come from BoardPin rows and every variant\'s board_config.h is byte-identical to dev-hn-0\'s '
-          '(%d/%d — the .hex follows; tests/board_object_probe.py rebuilds them on the board worker)' % (same, len(base)), same == len(base) == len(keys) == 17)
+          '(%d/%d — the .hex follows; tests/board_object_probe.py rebuilds them on the board worker)' % (same, len(base)), same == len(base) == len(keys) == 18)
     check('…the build\'s repro block names where each pin constant came from (BoardPin D13 / D6 / A0) and the board sha',
           prov['pins'] == {'led_pin': {'from': 'BoardPin', 'pin': 'D13'}, 'pwm_pin': {'from': 'BoardPin', 'pin': 'D6'}, 'adc_channel': {'from': 'BoardPin', 'pin': 'A0'}}
           and len(prov['board_sha']) == 64)

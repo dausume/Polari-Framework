@@ -1,8 +1,10 @@
 """board_button_clock_selftest — ucd-0e1 (UNO_CORE_DEMO_PLAN.md §1/§5g): THE WIRE CONTRACT of the button-clock demo.
 Proves the two new wire classes (ButtonClockState: telemetry + SET_TIME/SET_LED/SNAPSHOT commands; ButtonClockEvent:
 telemetry only) exist, are registered the way UnoAnalogState is, and that the SAME generator (board.custom.gen /
-grpcbridge.custom.c_twin_v2) renders their C headers from the pinned contract snapshot — no hand-written header, no
-`apps/button_clock.c` (0e2's job; out of scope here and untouched per instruction).
+grpcbridge.custom.c_twin_v2) renders their C headers from the pinned contract snapshot — no hand-written header.
+ucd-0e2 (`apps/button_clock.c`, variant uno-button-clock) is proven separately in
+board.board_button_clock_twin_selftest — this file's own checks (the wire contract itself) are unchanged by it; only
+`_no_app_checks` below was updated to match 0e2's new reality (the pairing it used to prove absent now exists).
 
     PYTHONPATH=.:modules python3 -m board.board_button_clock_selftest      # from polari-framework/ (standalone)
     (called by board.board_selftest as run_button_clock(check))
@@ -127,24 +129,29 @@ def run_button_clock(check):
 
 
 def _no_app_checks(check):
-    """ucd-0e1 explicitly does NOT touch apps/*.c (0e2's job) or add a FirmwareVariant/APP_CLASSES pairing for
-    ButtonClockState (that pairing needs an app to satisfy variants.resolve()'s RULE "a generated header alone is
-    not firmware" — adding one here would mean writing a C firmware app, out of scope and explicitly forbidden).
-    This proves the refusal is exactly that reason, not a registration bug."""
+    """ucd-0e2 BUILT the app (apps/button_clock.c, variant uno-button-clock): the pairing `pol board gen uno --class
+    ButtonClockState --class ButtonClockEvent` (0e1 left refused, named "0e2's job") now succeeds for the PAIR the
+    app is written for, through a fresh generate — the standalone board.board_button_clock_twin_selftest proves the
+    built firmware on the twin. A single class alone (neither app pairing) still refuses, named — the rule that
+    protected this slice ("a generated header alone is not firmware") still holds for a request that is not this
+    app's exact class list."""
+    import tempfile
     from board.custom import gen, variants as V
+    work = tempfile.mkdtemp(prefix='ucd-0e2-no-app-check-')
+    row = gen.gen('uno', ['ButtonClockState', 'ButtonClockEvent'], work)
+    check('ucd-0e2: `pol board gen uno --class ButtonClockState --class ButtonClockEvent` now SUCCEEDS (variant %s, '
+          'app button_clock) — the pairing ucd-0e1 left for this slice' % row.get('variant'),
+          row.get('state') == 'generated' and row.get('variant') == 'uno-button-clock')
     try:
         gen.gen('uno', ['ButtonClockState'])
         ok = False
-        why = '(no refusal — unexpected)'
+        why = '(no refusal — unexpected: a single class alone should still need its own app)'
     except gen.GenRefused as exc:
-        ok = 'a new class needs an app' in str(exc) or 'needs its own template app' in str(exc)
+        ok = 'needs its own template app' in str(exc)
         why = str(exc)
-    check('ucd-0e1: `pol board gen uno --class ButtonClockState` REFUSES today (0e2 owns the app) — the SAME rule '
-          'uno-adc-sweep/UnoAnalogState satisfied when IT was added; the header itself is already proven above '
-          'through the generator directly', ok, why)
-    check('ucd-0e1: no APP_CLASSES / SEED_FIRMWARE_VARIANTS entry added for ButtonClockState (would require writing '
-          'apps/*.c, explicitly out of scope for this slice)',
-          'ButtonClockState' not in {c for cs in V.APP_CLASSES.values() for c in cs})
+    check('ucd-0e2: ButtonClockState ALONE (not the pair button_clock is written for) still REFUSES, named', ok, why)
+    check('ucd-0e2: APP_CLASSES now pairs button_clock with EXACTLY (ButtonClockState, ButtonClockEvent)',
+          V.APP_CLASSES.get('button_clock') == ('ButtonClockState', 'ButtonClockEvent'))
 
 
 if __name__ == '__main__':

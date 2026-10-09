@@ -24,21 +24,27 @@ import re
 APP_CLASSES = {'sim_rig': ('SimRigState',), 'blink': ('SimRigState',), 'echo': ('SimRigState',), 'analog': ('UnoAnalogState',),
                # sc-1 (module firmwarefaults): the SCENARIO app — one latent bug or its technique per build flag; no seeded
                # board variant uses it (its variants are seeded by firmwarefaults, each marked SCENARIO ONLY)
-               'scenario_rig': ('SimRigState',)}
+               'scenario_rig': ('SimRigState',),
+               # ucd-0e2: the button-clock demo — one app, TWO classes (telemetry + the event stream)
+               'button_clock': ('ButtonClockState', 'ButtonClockEvent')}
 #: app → the features it can use (a feature an app cannot use is refused, not ignored)
 APP_FEATURES = {'sim_rig': {'led', 'pwm', 'adc', 'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'},
-                'scenario_rig': {'led', 'commands'}}
+                'scenario_rig': {'led', 'commands'}, 'button_clock': {'led', 'commands', 'button', 'sense'}}
 #: app → the features it cannot work without
-APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}, 'scenario_rig': {'commands'}}
+APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}, 'scenario_rig': {'commands'},
+             'button_clock': {'led', 'commands', 'button', 'sense'}}
 #: sc-1: the generated header's RX parser (grpcbridge.custom.c_twin_v2.RX_PARSERS). A knob only a variant that sets it
 #: carries (absent = 'resync', so every existing build's repro block is unchanged)
 RX_PARSERS = ('resync', 'keep-tail')
-FEATURES = ('led', 'pwm', 'adc', 'commands')
+FEATURES = ('led', 'pwm', 'adc', 'commands', 'button', 'sense')
 DEFAULT_VARIANT = 'uno-sim-rig'
 DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'temp_formula': 'tmp36', 'blink_ms': 0,
                  # brd-wire (grpc-j4): the bridge whose bindings set the instance-index width ('' = one instance, 0 bits),
                  # THIS build's index, and whether telemetry carries `name` (a bound interface's identity is its binding)
-                 'bridge': '', 'instance_index': 0, 'send_name': 1}
+                 'bridge': '', 'instance_index': 0, 'send_name': 1,
+                 # ucd-0e2: the button-clock demo's own pins (D2 = INT0, D3 = INT1 — hardware-fixed, never derived from
+                 # BoardPin rows the way led_pin/pwm_pin/adc_channel are) and its two knobs
+                 'button_pin': 2, 'sense_pin': 3, 'debounce_ms': 30, 'event_queue_len': 16}
 
 
 def _board_pins():
@@ -60,7 +66,10 @@ PIN_KNOBS = ('led_pin', 'pwm_pin', 'adc_channel')
 FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
 RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED', 'FEATURE_PWM', 'FEATURE_ADC', 'LED_PIN',
-            'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU', 'INSTANCE_INDEX', 'SEND_NAME', 'FEATURE_COMMANDS'}
+            'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU', 'INSTANCE_INDEX', 'SEND_NAME', 'FEATURE_COMMANDS',
+            # ucd-0e2's own new knobs — NOT HAL_INT0/HAL_INT0_DEBOUNCE_MS, which firmwarefaults' own sc-1 scenario
+            # variants (uno-button-count etc.) already set directly as build flags, predating the 'button' feature
+            'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN'}
 
 
 class VariantRefused(ValueError):
@@ -110,6 +119,19 @@ SEED_FIRMWARE_VARIANTS = [
        'rows uno-twin-0 and uno-twin-1 each follow their own board; setting pwm_duty on uno-twin-1 dims only board 1 '
        '(index 1 on the wire); led_on set back to false comes back false.', {'adc0_mv': 750},
        notes='build it twice: pol board gen uno --variant uno-pair --instance-index 0 | 1'),
+    _v('uno-button-clock', 'The button-clock demo: a software clock synced from the host, a debounced button that '
+       'toggles an LED, and a second pin (D3) that independently witnesses the LED line switching',
+       'UNO_CORE_DEMO_PLAN.md §1 (ucd-0e2): the core demo/proof for a Polari Hardware App. D2 (INT0, debounced) toggles '
+       'D6 + D13; a jumper D6->D3 (INT1, any edge) counts the LED line\'s own rises/falls as an independent witness; '
+       'SET_TIME/SNAPSHOT/SET_LED commands; a bounded ButtonClockEvent queue (drop-oldest) carries every press/LED '
+       'change/sensed edge/sync with the device\'s own clock.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-button-clock', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'sense_pin': 3,
+        'debounce_ms': 30, 'event_queue_len': 16},
+       'pressing the button on D2 flips D6 + D13 and bumps button_presses; with D6 wired to D3, sense_rises + '
+       'sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); SET_TIME syncs the clock '
+       '(drift_ms reported from the second sync on); SNAPSHOT replays the full state + queued events now.', {}),
     _v('uno-echo', 'Echo: no sensors, a command comes back whole',
        'The protocol test. No sensors and no actuators: whatever Polari sends is copied back, every field, and status '
        'says "echoed". If the values return unchanged, the wire, the header, the parser and the bridge all agree.',
@@ -168,6 +190,8 @@ def resolve(variant, overrides=None, base=None):
         k['telemetry_hz'], k['led_pin'], k['pwm_pin'] = int(k['telemetry_hz']), int(k['led_pin']), int(k['pwm_pin'])
         k['adc_channel'], k['blink_ms'], k['device_id'], k['usart_u2x'] = int(k['adc_channel']), int(k['blink_ms']), int(k['device_id']), int(k['usart_u2x'])
         k['instance_index'], k['send_name'] = int(k['instance_index']), int(k['send_name'])
+        k['button_pin'], k['sense_pin'] = int(k['button_pin']), int(k['sense_pin'])
+        k['debounce_ms'], k['event_queue_len'] = int(k['debounce_ms']), int(k['event_queue_len'])
     except (TypeError, ValueError) as e:
         raise VariantRefused('a knob is not a number: %s' % e)
     if not 1 <= k['telemetry_hz'] <= 50:
@@ -192,6 +216,17 @@ def resolve(variant, overrides=None, base=None):
         why.append('instance_index %d without a bridge: one unbound instance is index 0' % k['instance_index'])
     if not k['send_name'] and not k['bridge']:
         why.append('send_name 0 without a bridge: an unbound board is identified by the name it sends')
+    if feats['button'] and k['button_pin'] != 2:
+        why.append('button_pin D%d: the button is hardware-fixed to D2 (INT0) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['button_pin'])
+    if feats['sense'] and k['sense_pin'] != 3:
+        why.append('sense_pin D%d: the sense atom is hardware-fixed to D3 (INT1) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['sense_pin'])
+    if feats['sense'] and feats['led'] and k['sense_pin'] == k['led_pin']:
+        why.append('sense_pin and led_pin are the same pin (D%d) — the sense pin must be a wire FROM the LED pin, not the LED pin itself' % k['led_pin'])
+    if feats['button'] and not 1 <= k['debounce_ms'] <= 1000:
+        why.append('debounce_ms %d: 1..1000 (HAL_INT0_DEBOUNCE_MS — 0 would count contact bounce as presses)' % k['debounce_ms'])
+    if feats['button'] or feats['sense']:
+        if not 2 <= k['event_queue_len'] <= 64:
+            why.append('event_queue_len %d: 2..64 (a ButtonClockEvent queue entry is ~11 B; the 2 KB SRAM budget is cited in the README)' % k['event_queue_len'])
     if str(k.get('rx_parser', 'resync')) not in RX_PARSERS:
         why.append('rx_parser %r: %s' % (k.get('rx_parser'), ' | '.join(RX_PARSERS)))
     if k['bridge'] and not re.match(r'^[A-Za-z0-9_.-]{1,63}$', str(k['bridge'])):
@@ -233,6 +268,19 @@ def render_config(r, indexed=False):
              '#define TEMP_TMP36   %d' % (1 if k['temp_formula'] == 'tmp36' else 0),
              '#define BLINK_MS     %du' % k['blink_ms'],
              '#define SEND_NAME    %d     /* 0: telemetry omits `name` (the binding is the identity) */' % (1 if k['send_name'] else 0)]
+    # ucd-0e2: these lines exist ONLY for a variant whose app can use button/sense (today: button_clock) — every
+    # other app's board_config.h is BYTE-IDENTICAL to before (brd-bo's own fixtures assert this; FEATURE_LED/PWM/ADC
+    # are unconditional because every app could in principle use them — button/sense cannot, by APP_FEATURES).
+    if f['button'] or f['sense']:
+        lines += ['#define FEATURE_BUTTON %d' % int(f['button']), '#define FEATURE_SENSE  %d' % int(f['sense'])]
+        if f['button']:
+            lines += ['#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */',
+                       '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
+                       '#define BUTTON_PIN   %d' % k['button_pin']]
+        if f['sense']:
+            lines += ['#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
+                       '#define SENSE_PIN    %d' % k['sense_pin']]
+        lines.append('#define EVENT_QUEUE_LEN %du' % k['event_queue_len'])
     if indexed:
         lines.append('#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge']))
     lines += ['#define %s %d   /* variant build flag */' % (n, v) for n, v in r['flags']]

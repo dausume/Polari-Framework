@@ -353,8 +353,9 @@ def demo4_targets():
     c = testing.TestClient(app)
     r = c.simulate_get('/api/capabilities')
     names = sorted(x['name'] for x in (r.json.get('capabilities') or []))
-    check('GET /api/capabilities lists the 3 CapabilityDefinition rows (goal, status, last_proof per row)',
-          r.status_code == 200 and names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command']),
+    check('GET /api/capabilities lists the 4 CapabilityDefinition rows (goal, status, last_proof per row) — ucd-0e2: + button-clock-to-os',
+          r.status_code == 200 and names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command',
+                                                     'button-clock-to-os']),
           names)
     r = c.simulate_get('/api/capabilities/temp-sensor-to-os')
     check('GET /api/capabilities/{name} carries tasks grouped by runtime + targets with their registration state',
@@ -463,6 +464,33 @@ def demo4_targets():
     check('…and a NEWER undetermined run never overwrites a prior pass (still not evidence either way) — stays proven-on-twin',
           status == 'proven-on-twin', (status, why))
 
+    # ucd-0e2: button-clock-to-os — NO FirmwareSolution/CGraph exists for it (0e2b's job), so its c-device tasks are
+    # 'project:atom' refs (validated against the atoms cmod's annotation parser finds in the app's own source) and its
+    # acceptance Scenario runs through a DEDICATED runner (board.custom.button_clock_acceptance), never FW.run().
+    bc = CAP.find('button-clock-to-os')
+    ok, why = CAP.validate(bc)
+    check('validate(button-clock-to-os) passes: the six c-device tasks all resolve against apps/button_clock.c + hal.c '
+          '(no graph needed); empty java-bridge/python-backend/typescript-browser lists validate trivially (planned, named honestly)',
+          ok, why)
+    t_bc = _json.loads(bc['tasks_by_runtime_json'])
+    t_bc['c-device'] = t_bc['c-device'] + ['uno-button-clock:not_a_real_atom']
+    bad_atom = dict(bc, tasks_by_runtime_json=_json.dumps(t_bc))
+    ok, why = CAP.validate(bad_atom)
+    check('…and REFUSES a c-device atom that is not in apps/button_clock.c or hal.c, naming it',
+          not ok and 'not_a_real_atom' in why, why)
+    sc_bc = ACC.find('button-clock-to-os-acceptance')
+    check('button-clock-to-os-acceptance is kind=acceptance, names its capability, and its steps are the probe\'s (a)+(f) '
+          'case (a pin-at press + the wired/unwired field-arrival assertions)',
+          sc_bc is not None and sc_bc['kind'] == 'acceptance' and sc_bc['capability'] == 'button-clock-to-os'
+          and any(s['kind'] == 'pin-at' for s in ACC.steps_of('button-clock-to-os-acceptance')), sc_bc)
+    r = c.simulate_post('/api/capabilities/button-clock-to-os/prove', body=_json.dumps({'mode': 'digital-twin'}))
+    check('POST /api/capabilities/button-clock-to-os/prove --twin runs the dedicated runner on the REAL simavr twin '
+          '(gen/build/harness, --pin-at + --wire, the Python wire reference codec) and passes',
+          r.status_code == 200 and r.json.get('ok') and r.json['run']['outcome'] == 'passed', r.text[:300])
+    r2 = c.simulate_get('/api/capabilities/button-clock-to-os')
+    check('…the derived status is proven-on-twin, persisted onto the row',
+          r2.json['capability'].get('status') == 'proven-on-twin', r2.json['capability'].get('status'))
+
     # the API: both link directions + the new doors, over a manager seeded exactly like the server boots it
     from types import SimpleNamespace
     from falcon import testing
@@ -500,9 +528,9 @@ def demo4_targets():
     # hw priorities P1: two MORE CapabilityDefinition rows now exist over the same graph (temp-sensor-to-os,
     # blink-on-command, cmod.custom.capabilities.SEED_CAPABILITIES) — this demo-4 row and its 2 instances still
     # resolve exactly as before, it is just no longer the ONLY capability.
-    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline (3 capabilities total: '
-          'demo-4\'s + hw priorities P1\'s temp-sensor-to-os/blink-on-command)',
-          len(caps) == 3 and this_cap is not None and len(this_cap['instances']) == 2, caps)
+    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline (4 capabilities total: '
+          'demo-4\'s + hw priorities P1\'s temp-sensor-to-os/blink-on-command + ucd-0e2\'s button-clock-to-os)',
+          len(caps) == 4 and this_cap is not None and len(this_cap['instances']) == 2, caps)
     r = c.simulate_get('/api/cmod/capabilities/%s' % cap['name'])
     check('GET /api/cmod/capabilities/{cap} → one capability + its instances',
           r.status_code == 200 and len(r.json['instances']) == 2, r.text[:200])

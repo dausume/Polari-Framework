@@ -29,6 +29,10 @@
    "board_config_sha256": "fde0d3a160f3d7f66b03902b5e58fc2aca482234b86182ad773cdbf7977b1dfc",
    "hex_sha256": "85f619403f78d35bb7f398e8368cd0567b637497d18a46fc823b9bd5f1183bfe"
   },
+  "uno-button-clock": {
+   "board_config_sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008",
+   "hex_sha256": "4bb0a020137f41cffc2413d112d41245eb8232519a2851c722b6456eae911e5f"
+  },
   "uno-button-count": {
    "board_config_sha256": "f3a08eb95cf362259324594b4cbc8490493b9e97d6816f0b0af8f0f286370bc7",
    "hex_sha256": "1431952102b102431a3ae8c4599a783e96cd7f0794dd58f5b2816a789d3680f9"

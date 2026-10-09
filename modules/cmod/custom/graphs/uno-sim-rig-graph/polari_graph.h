@@ -15,8 +15,8 @@
 #define FRAME_MASK ((SimRigState_mask_t)(SIMRIGSTATE_F_UPTIME_MS | SIMRIGSTATE_F_STATUS | SIMRIGSTATE_F_TEMP_C | SIMRIGSTATE_F_LED_ON | SIMRIGSTATE_F_PWM_DUTY | SIMRIGSTATE_F_NAME))
 
 /* the files of this project (sha256 of the bytes written):
- *   hal.c                    5fe5f814914e3a05  copied verbatim from board/custom/firmware/uno/hal.c
- *   hal.h                    cc5bd26265aa30fe  copied verbatim from board/custom/firmware/uno/hal.h
+ *   hal.c                    d4e9f6cd31ee8779  copied verbatim from board/custom/firmware/uno/hal.c
+ *   hal.h                    58cfacfb3cad8403  copied verbatim from board/custom/firmware/uno/hal.h
  *   board_config.h           7501b89751a370e9  board gen: the uno-sim-rig knobs
  *   simrigstate_packets.h    6b748742dd2ca30a  c_twin target=avr, contract v2 2bcc9d1a2774ef33 (pinned board/custom/contracts/SimRigState.v2.json)
  *   pin_config.h             524fb5d0e230b9bb  GENERATED (cmod.custom.pin_config_gen) from uno-sim-rig's pin claims

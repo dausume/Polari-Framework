@@ -10,10 +10,11 @@ def firmware_parts(check):
         by_lane = {}
         for r in rows:
             by_lane.setdefault(r['lane'], []).append(r['task'])
-        check('schedule_for(uno-sim-rig-graph): 17 slots, all provenance=derived (D-fs-1 — never authored)',
-              len(rows) == 17 and all(r['provenance'] == 'derived' for r in rows), len(rows))
-        check('isr lane names the project\'s 3 ISR atoms (USART_RX_vect among them) — project-level, not graph nodes',
-              sorted(by_lane.get('isr', [])) == ['hal.INT0_vect', 'hal.TIMER2_COMPA_vect', 'hal.USART_RX_vect'], by_lane.get('isr'))
+        check('schedule_for(uno-sim-rig-graph): 18 slots, all provenance=derived (D-fs-1 — never authored; ucd-0e2 '
+              'added the project\'s 4th ISR, INT1_vect, as a new isr-lane slot)',
+              len(rows) == 18 and all(r['provenance'] == 'derived' for r in rows), len(rows))
+        check('isr lane names the project\'s 4 ISR atoms (USART_RX_vect, INT1_vect among them — ucd-0e2) — project-level, not graph nodes',
+              sorted(by_lane.get('isr', [])) == ['hal.INT0_vect', 'hal.INT1_vect', 'hal.TIMER2_COMPA_vect', 'hal.USART_RX_vect'], by_lane.get('isr'))
         check('tick lane names the telemetry tick (the glue\'s own 10 Hz tick node)', by_lane.get('tick') == ['telemetry'], by_lane.get('tick'))
         check('init lane names the 5 init-stage atoms (usart/tick/led/pwm/adc init, boot order)',
               by_lane.get('init') == ['usart_init', 'tick_init', 'led_init', 'pwm_init', 'adc_init'], by_lane.get('init'))
