@@ -160,7 +160,13 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
     own recorded board) when not given — every pre-0b2b caller keeps the SAME row `name` prefix ('<solution>:...')
     for that default binding (D-ucd-8 posture: widen, never rename / never churn); only an EXPLICIT, non-default
     `binding_name` (a second binding, fs-2a's drag over a canvas-created one) renames the row prefix to the binding's
-    own name, so two bindings' rows never collide."""
+    own name, so two bindings' rows never collide.
+
+    ucd-0c (Part 0, the naming fix): a task with SEVERAL whole-node targets (its atom's own ports never settle a
+    single pin — usart_init: D0 and D1) used to collapse to ONE row because its name was '<prefix>:<task>' for
+    every one of them; such a row is now named '<prefix>:<task>@<canonical>' (the pin — or the signal/peripheral it
+    names when never pin-bound). A task with exactly one whole-node target is unaffected (keeps '<prefix>:<task>',
+    every other id this arc already hands out stays stable)."""
     from cmod.custom import targets as T
     sol = solution_name or graph_name
     targets = T.derive(graph_name)
@@ -185,6 +191,18 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
     for t in targets:
         if t['lives_on'] != 'unbound':
             claimed.setdefault(t['lives_on'], []).append(t)
+    # ucd-0c (the naming fix, Part 0): a WHOLE-NODE target (port == '', so port_ref falls back to the bare node —
+    # cmod.custom.targets.derive's `add()`) exists MORE THAN ONCE for one task when the atom's own ports cannot
+    # settle a single pin (usart_init's two rows, D0 and D1 — the atom only touches UBRR0/UCSR0x, never a named
+    # port): those rows would otherwise share the SAME un-suffixed name ('<binding>:<task>'), and a later one
+    # SILENTLY OVERWRITES the earlier one wherever RegisterAssignment rows are keyed by name (the manager's own
+    # table on upsert, and `cmod_firmware_api.on_get_solution_one`'s own `{name: row}` join) — collapsing two real,
+    # distinct bindings (uart-rx on D0, uart-tx on D1) into one. Counted here so a task with exactly ONE whole-node
+    # target keeps its old, stable id ('<binding>:<task>') — only a task with SEVERAL gets the '@<canonical>' suffix.
+    whole_node_counts = {}
+    for t in targets:
+        if t['port'] == '':
+            whole_node_counts[t['node']] = whole_node_counts.get(t['node'], 0) + 1
     out = []
     for t in targets:
         lives_on = t['lives_on']
@@ -210,7 +228,17 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
             peripheral_val, status = t['peripheral'], 'bound'
         elif t.get('resource_kind') == 'signal' and t.get('signal'):
             signal_val, status = t['signal'], 'bound'
-        out.append({'name': '%s:%s' % (name_prefix, t['port_ref']), 'solution': sol, 'task': t['node'], 'port': t['port'],
+        row_name = '%s:%s' % (name_prefix, t['port_ref'])
+        if t['port'] == '' and whole_node_counts.get(t['node'], 0) > 1:
+            # disambiguate by the pin this particular row resolved to (lives_on), falling back to the signal/
+            # peripheral it names when it is never pin-bound (tick_init/rx_pop never collide today — they are the
+            # sole row for their task — but the fallback keeps this safe if that ever changes), and, failing even
+            # that, the row's own kind (never leaves two rows sharing one name).
+            canonical = (lives_on.rpartition(':')[2] if lives_on != 'unbound' else '') \
+                or (t.get('signal') or '').rpartition(':')[2] or (t.get('peripheral') or '').rpartition(':')[2] \
+                or t['kind']
+            row_name = '%s@%s' % (row_name, canonical)
+        out.append({'name': row_name, 'solution': sol, 'task': t['node'], 'port': t['port'],
                     'target_kind': t['kind'], 'controls': t['controls'], 'lives_on': lives_on, 'status': status,
                     'provenance': t['provenance'], 'peripheral': peripheral_val, 'signal': signal_val, 'bus': '',
                     'signal_route': signal_route, 'configuration': cfg, 'notes': notes})

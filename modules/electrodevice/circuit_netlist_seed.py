@@ -67,7 +67,16 @@ def _device_card(manager, device_name):
 
 
 _PREFIX = {'vsource': 'V', 'resistor': 'R', 'capacitor': 'C',
-           'inductor': 'L', 'diode': 'D', 'led': 'D', 'device': 'X'}
+           'inductor': 'L', 'diode': 'D', 'led': 'D', 'device': 'X',
+           # ucd-0c: a switch renders as a RESISTOR element (see SWITCH_OPEN_OHMS/SWITCH_CLOSED_OHMS below).
+           'switch': 'R'}
+
+#: ucd-0c (UNO_CORE_DEMO_PLAN.md §5f/§5g): a momentary pushbutton has no SPICE element of its own in this renderer
+#: — state 'open' | 'closed' renders as a near-open / near-short RESISTOR (never 0 or inf ohms, which ngspice's DC
+#: solver can choke on): 1 GOhm reads as "open" against anything else in this demo's circuit (kOhm-scale), 0.1 ohm
+#: reads as "closed" (negligible beside R1's 220 ohm). Named constants, not magic numbers, so a finding can cite them.
+SWITCH_OPEN_OHMS = 1e9
+SWITCH_CLOSED_OHMS = 0.1
 
 
 def _require(component, params, key):
@@ -102,6 +111,14 @@ def _element_line(component, pins, params, sub=None):
     if kind in ('diode', 'led'):
         model = params.get('model', 'polari_led')
         return f'{ref} {nodes} {model}'
+    if kind == 'switch':
+        state = _require(component, params, 'state')
+        if state not in ('open', 'closed'):
+            raise ValueError(
+                f"component '{component.name}' (switch): state must "
+                f"be 'open' or 'closed' — got {state!r}")
+        ohms = SWITCH_OPEN_OHMS if state == 'open' else SWITCH_CLOSED_OHMS
+        return f'{ref} {nodes} {ohms}'
     return f'{ref} {nodes} {sub}'
 
 

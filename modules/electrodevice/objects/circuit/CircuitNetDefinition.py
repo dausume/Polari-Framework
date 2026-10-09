@@ -14,9 +14,16 @@ class CircuitNetDefinition(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', circuit_name: str = '',
                  net: str = '', is_ground: bool = False,
-                 description: str = '', manager=None):
+                 description: str = '',
+                 # ucd-0c (UNO_CORE_DEMO_PLAN.md §5g item 3, additive): the board.custom.BoardPin rows a
+                 # BoardPinNet row ties to THIS net (Class:name refs, the 'refs' column format) — a net the board
+                 # module never touches keeps the default '[]'; never derived here (electrodevice does not import
+                 # board — the board side hand-writes this reverse link where it knows the pins).
+                 board_pins_refs_json: str = '[]',
+                 manager=None):
         self.name = name
         self.circuit_name = circuit_name
         self.net = net
         self.is_ground = is_ground
         self.description = description
+        self.board_pins_refs_json = board_pins_refs_json

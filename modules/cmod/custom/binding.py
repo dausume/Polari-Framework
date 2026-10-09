@@ -171,10 +171,14 @@ def validity(name, graph, board, manager=None):
     def _ordinal_keys(items, task_key, port_key):
         """{(task, port, i): item} — the i-th occurrence of (task, port) IN THE ORDER GIVEN. A task may carry
         SEVERAL rows with the SAME (task, port) pair (usart_init's D0/uart-rx and D1/uart-tx rows both have
-        port='' — a pre-existing ambiguity in TargetDefinition/RegisterAssignment, not introduced here); both
-        `required` and this binding's own assignment `rows` are produced from the SAME `targets.derive()` order
-        per task, so matching by ordinal position (never by (task, port) alone) pairs each requirement with its
-        OWN assignment, never collapsing two distinct rows into one."""
+        port='' — a pre-existing ambiguity in TargetDefinition itself, not introduced here — ucd-0c (Part 0) fixed
+        the RegisterAssignment row's own NAME for this case, '<binding>:<task>@<canonical>', but that `name` is not
+        what pairs a requirement with its assignment below); both `required` and this binding's own assignment
+        `rows` are produced from the SAME `targets.derive()` order per task, so matching by ordinal position (never
+        by (task, port) alone, and never by `lives_on` — a forced/person-edited row's `lives_on` may legitimately
+        disagree with what the requirement expected; THAT disagreement is what this function must still let
+        `validity()` see and report invalid, not silently miss as 'no match') pairs each requirement with its OWN
+        assignment, never collapsing two distinct rows into one."""
         counts, out = {}, {}
         for it in items:
             k = (it.get(task_key, ''), it.get(port_key, '') or '')

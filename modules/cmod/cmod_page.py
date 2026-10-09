@@ -293,5 +293,32 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'this solution\'s graph. One row = one build-and-prove run.',
                               columns='name,graph,equivalent,proof,hex_sha256,size_text,size_data,size_bss,built_by',
                               column_formats='graph:ref:CGraph')], min_height=160),
+              # ucd-0c (UNO_CORE_DEMO_PLAN.md §1, §5g item 5): the demo bench's circuit, as rows and as a checked
+              # verdict — NOT on /display/hardware-chain (that page is the chip, Board -> SoC Pin -> ... -> RegisterField)
+              # and NOT on the lean /display/firmware (canvas + export only, his ucd-0f ask) — here, beside the solution's
+              # own register map, because the bench wires a BOARD pin (D6/D3/D2) onto an electrodevice circuit net.
+              _row(7, [_table('board-pin-nets', 0, 6, 'Board pin nets — which board pin sits on which net of the demo '
+                              'circuit, and whether it drives that net or only listens to it', 'BoardPinNet',
+                              description='What this is for: one row per board-pin/circuit-net link (ucd-0c). One row = '
+                                          'one BoardPinNet. Columns: board_pin/circuit_net (links), role (driver = this '
+                                          'pin drives the net; input = it reads the net; ground = the board\'s own GND '
+                                          'ties in here — never a BoardPin row itself, board_pin is \'\'). The demo bench '
+                                          '(UNO_CORE_DEMO_PLAN.md §1): D6 drives LED_CONTROL (the LED through its 220 ohm '
+                                          'resistor to GND); D3 only senses it (the jumper wire — the "sense pin"); D2 '
+                                          'reads BUTTON_INPUT (the pushbutton, internal pull-up).',
+                              columns='name,board_pin,circuit_net,role,provenance,notes',
+                              column_formats='board_pin:ref:BoardPin,circuit_net:ref:CircuitNetDefinition'),
+                       _table('circuit-check-findings', 6, 6, 'Circuit check — the electrical findings for '
+                              'uno-button-clock on arduino-uno-r3 (LED current, single driver, shared ground, level '
+                              'compatibility, the button\'s pull)', '',
+                              description='What this is for: THE PHASE-1 ELECTRICAL CHECK (board.custom.electrical_check) '
+                                          'over the demo circuit\'s rows. One row = one finding: rule (led_current | '
+                                          'single_driver | shared_ground | level_compatible | pull_defined), status (ok | '
+                                          'warn | refuse | undetermined — undetermined means a number was not cited, '
+                                          'never guessed), subject, detail (the computed figure or the reason), cite (the '
+                                          'board/datasheet/kit-part facts used). `GET /api/board/circuits/<circuit>/check'
+                                          '?board=<board>`; `pol board circuit-check uno-button-clock`.',
+                              columns='rule,status,subject,detail,cite',
+                              data_path='/api/board/circuits/uno-button-clock/check?board=arduino-uno-r3')], min_height=260),
           ]),
 ]

@@ -167,12 +167,18 @@ class FirmwareAPI(treeObject):
         assignments = [dict(derived.get(n, {}), **live.get(n, {})) for n in sorted(set(derived) | set(live),
                        key=lambda n: ((derived.get(n) or live.get(n) or {}).get('target_kind', ''), (derived.get(n) or live.get(n) or {}).get('task', '')))]
         # ucd-0b2a: the REQUIREMENT facts (kind per row, role, required, resource_kind) live on the TargetDefinition rows; the page's
-        # "Resources this task uses" reads them beside the assignment, so join them in by (task, port) — never recomputed here
+        # "Resources this task uses" reads them beside the assignment, so join them in — never recomputed here.
+        # ucd-0c (Part 0, the naming fix): a bare (task, port) key is AMBIGUOUS for a task with several whole-node
+        # targets (usart_init's D0/uart-rx and D1/uart-tx rows both have port='') — a dict keyed that way silently
+        # collapses them, so both assignment rows would read the SAME (wrong, for one of them) requirement_kind.
+        # `lives_on` is copied onto a RegisterAssignment row verbatim from the TargetDefinition row that produced it
+        # (`cmod.custom.firmware.assignments_for`), so joining by (task, port, lives_on) is exact and unambiguous —
+        # the served payload shows TWO usart_init rows (uart-rx on D0, uart-tx on D1), never one.
         try:
             from cmod.custom import targets as TG
-            req = {(t.get('node'), t.get('port') or ''): t for t in TG.derive(s.graph)}
+            req = {(t.get('node'), t.get('port') or '', t.get('lives_on', 'unbound')): t for t in TG.derive(s.graph)}
             for a in assignments:
-                t = req.get((a.get('task'), a.get('port') or ''))
+                t = req.get((a.get('task'), a.get('port') or '', a.get('lives_on', 'unbound')))
                 if t:
                     for k in ('requirement_kind', 'role', 'required', 'resource_kind'):
                         if a.get(k) in (None, ''):
