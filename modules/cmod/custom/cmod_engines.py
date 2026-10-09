@@ -35,7 +35,9 @@ def resolve(engine):
                 {'how': 'refused', 'where': '', 'why': 'avr-gcc is local but %s is not on the PATH' % engine}
         if g['how'] == be.LOCAL_IMAGE:
             return {'how': be.LOCAL_IMAGE, 'where': g['where'], 'why': 'the board engines image (%s + avr-gcc)' % engine}
-        return {'how': 'refused', 'where': g.get('where', ''), 'why': 'avr-gcc resolves to %s (%s); the board worker runs single engines, not %s' % (g['how'], g.get('where', ''), engine)}
+        if g['how'] == be.REMOTE and be._has(be.remote_capability(g['where']), engine):   # ucd-0f: a worker that lists make/cmake runs them
+            return {'how': be.REMOTE, 'where': g['where'], 'why': 'the board worker lists %s beside avr-gcc' % engine}
+        return {'how': 'refused', 'where': g.get('where', ''), 'why': 'avr-gcc resolves to %s (%s) and that worker does not list %s' % (g['how'], g.get('where', ''), engine)}
     url = be.knob_url()
     if url:
         cap = be.remote_capability(url)
