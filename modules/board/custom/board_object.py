@@ -66,6 +66,8 @@ def seed_tables():
             b.update(S.IDENTITY.get(b['name'], {}))
         _SEED.update(S.build(boards))
         _SEED['BoardDefinition'] = boards
+        from board.custom.board_pin_nets import SEED_BOARD_PIN_NETS   # ucd-0c: the demo bench's circuit links travel with the seed tables too
+        _SEED['BoardPinNet'] = [dict(r) for r in SEED_BOARD_PIN_NETS]
     return copy.deepcopy(_SEED)
 
 
