@@ -44,8 +44,9 @@ def graph_parts(check):
               'added or removed file)', d['clean'], {k: d[k] for k in ('stale', 'hand_edited', 'added', 'removed')})
         files = sorted(a['files'])
         check('the rendered project = polari_graph.c/.h + Makefile + the atom files (hal.c/hal.h verbatim) + board_config.h + the class header '
-              '— only .c/.h + Makefile (RULE 2)', files == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'polari_graph.c', 'polari_graph.h',
-                                                          'simrigstate_packets.h'], files)
+              '+ the GENERATED pin_config.h/.c (ucd-0b, uno-sim-rig-graph has a FirmwareSolution) — only .c/.h + Makefile (RULE 2)',
+              files == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'pin_config.c', 'pin_config.h', 'polari_graph.c', 'polari_graph.h',
+                        'simrigstate_packets.h'], files)
         from cmod.custom import projects as P
         root = P.resolve('uno')['root']
         check('hal.c / hal.h are copied VERBATIM (byte-identical to the template)',
@@ -127,8 +128,8 @@ def graph_parts(check):
             rows['graph']['generated_project'] = os.path.join(tmp, 'proj')   # an absolute path: project_dir joins it as is
             r1 = GL.render(G, rows=rows)
             r2 = GL.render(G, rows=rows)
-            check('render writes the 7 files INTO the project; a second render writes nothing (idempotent)', len(r1['written']) == 7 and r2['unchanged']
-                  and not r2['written'], (r1['written'], r2['written']))
+            check('render writes the 9 files INTO the project (incl. the GENERATED pin_config.h/.c, ucd-0b); a second render writes nothing (idempotent)',
+                  len(r1['written']) == 9 and r2['unchanged'] and not r2['written'], (r1['written'], r2['written']))
             p = os.path.join(tmp, 'proj', 'polari_graph.c')
             open(p, 'a').write('/* a person\'s edit */\n')
             d = GL.diff(G, rows=rows)
@@ -203,8 +204,17 @@ def graph_parts(check):
               and c['total_bytes'] == rec['cost_estimate']['total_bytes'] and {'hal.USART_RX_vect', 'hal.TIMER2_COMPA_vect'} <= {p[0] for p in c['parts']})
         b = rec.get('build') or {}
         e = b.get('estimate_minus_attributable') or {}
-        check('…compared after the build: estimate − measured attributable = exactly the bytes the shipped build inlined or shrank (%s B)' % e.get('bytes'),
-              e and e['bytes'] == e['explained_bytes'] and b['cost_estimate_bytes'] >= b['cost_measured_attributable_bytes'], e)
+        # ucd-0b: a graph with a FirmwareSolution's GENERATED pin_config.c adds ONE named, measured, fixed-size call
+        # (`pin_config_init();`) into the glue's own main() that the hand-written reference main() it is compared
+        # against never had — the SAME bytes the two atoms (hal_led_init/hal_pwm_init) now shrink by, just relocated
+        # rather than vanished, so the reconciliation below NAMES that call-site overhead instead of papering over it.
+        main_ref_declared = next((p[1] for p in c['parts'] if p[2].startswith('glue + library reference')), 0)
+        main_shipped = (b.get('cost_measured_breakdown') or {}).get('main (glue + inlined atoms + inlined library)', 0)
+        pin_config_call_overhead = max(0, main_shipped - main_ref_declared)
+        check('…compared after the build: estimate − measured attributable = exactly the bytes the shipped build inlined or shrank (%s B)%s'
+              % (e.get('bytes'), (' + the %d B pin_config_init() call site main() gained over the reference it is compared against (ucd-0b)'
+                                  % pin_config_call_overhead) if pin_config_call_overhead else ''),
+              e and e['bytes'] + pin_config_call_overhead == e['explained_bytes'] and b['cost_estimate_bytes'] >= b['cost_measured_attributable_bytes'], e)
 
     return (render_deterministic, refusals, idempotent_and_hand_edit, compiler_seam, record_and_rows, cost_estimate)
 
@@ -237,10 +247,11 @@ def _make_with_fake_avr_gcc(check, proj, tmp):
     r = subprocess.run(['make'], cwd=proj, env=env, capture_output=True, text=True, timeout=60)
     calls = open(log).read().splitlines() if os.path.isfile(log) else []
     gcc = [c for c in calls if '/avr-gcc ' in c]
-    check('the generated Makefile builds with make alone (a FAKE avr-gcc on the PATH): one compile of exactly `hal.c polari_graph.c` with '
-          'the template flags (-mmcu=atmega328p … -Werror … --gc-sections), then objcopy → firmware.hex and avr-size',
-          r.returncode == 0 and len(gcc) == 1 and gcc[0].endswith('-o firmware.elf hal.c polari_graph.c') and '-mmcu=atmega328p' in gcc[0]
-          and '-Werror' in gcc[0] and '-Wl,--gc-sections' in gcc[0] and os.path.isfile(os.path.join(proj, 'firmware.hex'))
+    check('the generated Makefile builds with make alone (a FAKE avr-gcc on the PATH): one compile of exactly `hal.c pin_config.c '
+          'polari_graph.c` with the template flags (-mmcu=atmega328p … -Werror … --gc-sections … -DPOLARI_PIN_CONFIG=1), then objcopy → '
+          'firmware.hex and avr-size',
+          r.returncode == 0 and len(gcc) == 1 and gcc[0].endswith('-o firmware.elf hal.c pin_config.c polari_graph.c') and '-mmcu=atmega328p' in gcc[0]
+          and '-Werror' in gcc[0] and '-Wl,--gc-sections' in gcc[0] and '-DPOLARI_PIN_CONFIG=1' in gcc[0] and os.path.isfile(os.path.join(proj, 'firmware.hex'))
           and any('/avr-size -A firmware.elf' in c for c in calls), (r.returncode, r.stderr[-200:], calls))
     for f in ('firmware.elf', 'firmware.hex'):
         if os.path.isfile(os.path.join(proj, f)):

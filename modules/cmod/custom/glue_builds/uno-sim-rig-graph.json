@@ -4,21 +4,23 @@
  "generator": "cmod.custom.glue 1",
  "generated_project": "cmod/custom/graphs/uno-sim-rig-graph",
  "files": {
-  "hal.c": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac",
+  "hal.c": "5fe5f814914e3a056e3ccc59df3f9e4b27a48cde7c6a2e8e87478bbf3cdb064c",
   "hal.h": "cc5bd26265aa30fe08cbde704eada448886fe479fce402eec18ce8fe8b730134",
   "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
   "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b",
-  "polari_graph.c": "b8ec1e5efcddfa4c158906da17e5b847891a82da0b8df7df0162cde5d744b288",
-  "polari_graph.h": "f11ca7a035f40d4dbe63aa97a3c247ca9cd35b801839199f5fb4fb1aa57735c6",
-  "Makefile": "ee39b0534f02366c55bfc9a140c91b7998435c511ad75802299f8b857bfb1334"
+  "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
+  "pin_config.c": "80c7df727f1e0b29e2ccdda96f677a8a2105f278e1b673deb6b1142422d1ab83",
+  "polari_graph.c": "923fdd000e0807eab695899e6b43f4456ac9c70a2785f6f356e3da6b3d898096",
+  "polari_graph.h": "16cf877176a538a7965dc6d90e288a289e9d765bdd849c2bf99244c1e57f55d4",
+  "Makefile": "f372920382254cf53ca7ee91cb4439c620268a57c52456595b0fee7ef8fd1695"
  },
- "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
- "rendered_at": "2026-10-02T20:21:02",
+ "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
+ "rendered_at": "2026-10-08T20:58:37",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
    "file": "hal.c",
-   "sha256": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac"
+   "sha256": "5fe5f814914e3a056e3ccc59df3f9e4b27a48cde7c6a2e8e87478bbf3cdb064c"
   },
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.h",
@@ -36,9 +38,14 @@
    "sha256": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
   },
   {
+   "label": "GENERATED (cmod.custom.pin_config_gen) from uno-sim-rig's pin claims",
+   "file": "pin_config.h",
+   "sha256": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60"
+  },
+  {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "a1ba39120ca7dc4a22b9ca4f4b8de5f1d5fc06809ffaef1e3e9af488c127d24c"
+   "sha256": "176256595e86b9e969e9f676fb2d36f5d1e89f430c4ad95af201c91cbeb06919"
   }
  ],
  "cost_estimate": {
@@ -142,34 +149,36 @@
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
-  "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
-  "size_text": 4302,
+  "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5",
+  "size_text": 4308,
   "size_data": 8,
   "size_bss": 483,
-  "flash_bytes": 4310,
+  "flash_bytes": 4316,
   "cost_estimate_bytes": 3144,
   "cost_measured_attributable_bytes": 2874,
   "cost_measured_breakdown": {
-   "atoms (shipped symbols)": 374,
+   "atoms (shipped symbols)": 370,
    "ISR vectors": 136,
-   "main (glue + inlined atoms + inlined library)": 2364
+   "main (glue + inlined atoms + inlined library)": 2368
   },
-  "runtime_bytes": 1428,
-  "cost_why": "estimated 3144 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2874 B attributable (atoms (shipped symbols) 374, ISR vectors 136, main (glue + inlined atoms + inlined library) 2364) + 1428 B C runtime (vectors, crt, libgcc) = .text 4302 B",
+  "runtime_bytes": 1434,
+  "cost_why": "estimated 3144 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2874 B attributable (atoms (shipped symbols) 370, ISR vectors 136, main (glue + inlined atoms + inlined library) 2368) + 1434 B C runtime (vectors, crt, libgcc) = .text 4308 B",
   "estimate_minus_attributable": {
    "bytes": 270,
    "atoms_inlined_or_smaller_shipped": {
     "apps/sim_rig.apply_command": 192,
     "apps/sim_rig.sensor_value": 48,
-    "hal.hal_millis": 30
+    "hal.hal_led_init": 2,
+    "hal.hal_millis": 30,
+    "hal.hal_pwm_init": 2
    },
-   "explained_bytes": 270
+   "explained_bytes": 274
   },
-  "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
+  "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
   "hand_edited": [],
   "stale": [],
-  "measured_elf_sha256": "50d3651f59ad401ba2f0b0cd7dfff9695b0536fd3544f5dea25c5631ebccc854",
-  "built_at": "2026-10-02T20:27:06"
+  "measured_elf_sha256": "c729b6f258e00583835deee8e7ad86ea816422d16954aed2694450bf5de8daae",
+  "built_at": "2026-10-08T20:59:01"
  },
  "proof": {
   "equivalent": true,
@@ -203,20 +212,20 @@
    "size_bss": 483
   },
   "glue": {
-   "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
-   "size_text": 4302,
+   "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5",
+   "size_text": 4308,
    "size_data": 8,
    "size_bss": 483,
    "built_by": "make alone (local-image prf-board-engines:trixie)"
   },
-  "hex_identical": true,
+  "hex_identical": false,
   "cycles": {
    "total_hand": 64000374,
-   "total_glue": 64000374,
+   "total_glue": 64000382,
    "frame_tx_cycle_delta_min": 0,
-   "frame_tx_cycle_delta_max": 0,
+   "frame_tx_cycle_delta_max": 576460752303423488,
    "first_frame_cycle_hand": 21257,
-   "first_frame_cycle_glue": 21257
+   "first_frame_cycle_glue": 21265
   },
   "stimulus": {
    "seconds": 4,
@@ -296,21 +305,21 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-10-02T20:27:15",
+  "proven_at": "2026-10-08T20:59:17",
   "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
-  "files_sha256": "926ae056472cf89a9aa9d6cea914ef1f428b38dc43d0e180d4eb2c09afc6ba67",
+  "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
   "hand_edited": []
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-sim-rig-graph/polari-firmware.json",
-  "manifest_sha256": "2569601cad0e1403e39e3e0553e91909ae1b7d7b11c1906610130407b9e59c44",
-  "atoms": 16,
+  "manifest_sha256": "700ba8f1632feec1d354e4fcb6672eba8b3439ac78b4b30b4550cd5491dc495d",
+  "atoms": 17,
   "glue_atoms": [
    "polari_graph.apply_command",
    "polari_graph.main",
    "polari_graph.sensor_value"
   ],
   "not_isr_safe": 0,
-  "written": false
+  "written": true
  }
 }

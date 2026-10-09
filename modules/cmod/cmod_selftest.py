@@ -481,8 +481,10 @@ def main():
     from cmod.custom.selftest_firmwaresol import firmware_parts
     from cmod.custom.selftest_export import export_parts   # ucd-0f: the CMake export
     from cmod.custom.selftest_claims import claims_parts    # ucd-0b: pin/peripheral claims + generated register config
+    from cmod.custom.selftest_pin_config import pin_config_parts   # ucd-0b: the GENERATED pin_config.h/.c
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
-                 + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)):
+                 + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
+                 + pin_config_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

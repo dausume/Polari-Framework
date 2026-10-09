@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "5e39493021adaf2b94af65b006f8e2b05d993bcd200cd0be56fb4cecc966a619",
+   "source_sha": "f3b6273577d8b10013fbad89a17c0057d270a37505e53057d28c00d29ed3bdeb",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "26ed229c7a1c9ce45cd13ef05df781fa093bf5978e8038906cdcc7d2e5db16fc",
+   "source_sha": "3d5840c354328d9a9fdae73329109c4cf68c7fb936ba33587fa4ae2bae025ba5",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "d996b5ab14744c3b638efb93c0b50f07a14c2753feee78ba9af7f16884fc4a75",
+   "source_sha": "9d566b99e6640a4579d923388e8d20b008100bb69d41bec85b38ee0a4dbe9c06",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "57723aedbf9932d1fbd4a2967c42914e7339cc4f41fc00ad4d2f936d0ea202c2",
+   "source_sha": "22f9f8079d0886c24907c69df4c9ef8c4d1a42ed877c4c8a81bdc76fd37d7368",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -157,7 +157,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "7d0d278bf7d2a824eecac9ff7b11c6cfe130fcdd0ca435bdf7e45d539fc44d93",
+   "source_sha": "dfb121763a151f8450cc88ecf1ceadf46b883240529db2d802290ab25e263c0f",
    "elf_sha256": {
     "shipped": "ebd27d853fd1b38535404f527f5e123c7a8392e88b5b0a9489c0e75ca8422c82",
     "noinline": "6599adddd66718dfe39352caa5bdc4a081892017674b2aa01940ec9c4000cbbc"
@@ -184,7 +184,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "577c6e7b4cfd0f12d3ae0e0fe916548e46a2a80c2eaa418c183fa3ed0ff262b9",
+   "source_sha": "9e55cfe6bbdac07c5b30f2bc156c2cf1fc5852b522c4d6acd27741d858a6db0f",
    "elf_sha256": {
     "shipped": "ab538d9db6e60913e04beaed5d42a02952841066a74dc5eadf0f3c40bb1df28c",
     "noinline": "dfba99d8fee1d06d31b9a59ce4f6cf13c7cb0c5a70cac15f41cbdcb57fc615ea"
@@ -202,7 +202,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac"
+     "sha256": "5fe5f814914e3a056e3ccc59df3f9e4b27a48cde7c6a2e8e87478bbf3cdb064c"
     },
     {
      "path": "hal.h",
@@ -1999,7 +1999,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 260,
+   "line": 273,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -2056,7 +2056,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 268,
+   "line": 281,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -2119,7 +2119,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 266,
+    "line": 279,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -2225,7 +2225,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 213,
+   "line": 222,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -2273,7 +2273,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 211,
+    "line": 220,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -2303,7 +2303,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 209,
+   "line": 213,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -2426,7 +2426,7 @@
    "name": "hal.hal_presses",
    "function": "hal_presses",
    "module": "hal.c",
-   "line": 177,
+   "line": 181,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_presses(void)",
@@ -2488,7 +2488,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 249,
+   "line": 262,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -2543,7 +2543,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 247,
+    "line": 260,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -2573,7 +2573,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 233,
+   "line": 242,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -3075,7 +3075,7 @@
    "name": "hal.hal_wdt_boot",
    "function": "hal_wdt_boot",
    "module": "hal.c",
-   "line": 190,
+   "line": 194,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_wdt_boot(void)",
@@ -3142,5 +3142,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-02T17:48:04"
+ "conformed_at": "2026-10-08T20:59:45"
 }
