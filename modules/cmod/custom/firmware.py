@@ -59,6 +59,20 @@ def resolve_board(fs, manager=None):
     return bv, True, 'board_variable %r resolved to a usable board (%s)' % (bv, why)
 
 
+def solution_for_graph(graph_name, manager=None):
+    """The FirmwareSolution dict row over this graph, or None (a graph may predate fs-0, or carry no solution yet —
+    legitimate, never refused). `cmod.custom.glue.render_files` asks this (ucd-0b) to decide whether a rendered
+    project gains the GENERATED pin_config.h/.c; live rows win when a manager has them, else the pure seed."""
+    if manager is not None:
+        rows = [{k: getattr(r, k, '') for k in ('name', 'graph', 'board_definition', 'board_variable')}
+                for r in (manager.objectTables or {}).get('FirmwareSolution', {}).values() if getattr(r, 'graph', '') == graph_name]
+        if rows:
+            return sorted(rows, key=lambda r: r['name'])[0]
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    rows = next((rs for n, _c, rs in CMOD_SEED_PAIRS if n == 'FirmwareSolution'), [])
+    return next((r for r in rows if r['graph'] == graph_name), None)
+
+
 # ------------------------------------------------------------------ D-fs-1: the DERIVED schedule
 def schedule_for(graph_name, solution_name=None):
     """[ScheduleSlot dict, …] for one graph, DERIVED (D-fs-1) from: the project's own ISR atoms (isr lane — these are

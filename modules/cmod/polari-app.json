@@ -117,6 +117,7 @@
    "custom/graph_seed",
    "custom/manifest",
    "custom/measure",
+   "custom/pin_config_gen",
    "custom/preprocess",
    "custom/projects",
    "custom/registers",
@@ -126,6 +127,7 @@
    "custom/selftest_export",
    "custom/selftest_firmwaresol",
    "custom/selftest_glue",
+   "custom/selftest_pin_config",
    "custom/selftest_uno",
    "custom/targets"
   ]

@@ -9,6 +9,7 @@
 
 #include "board_config.h"
 #include "hal.h"
+#include "pin_config.h"
 #include "simrigstate_packets.h"   /* GENERATED (c_twin target=avr) */
 #include "polari_graph.h"
 
@@ -67,6 +68,7 @@ int main(void)
     uint32_t telemetry_next_ms = 0u;
 
     /* init: the init atoms in graph order, the class identity, then interrupts on */
+    pin_config_init();   /* GENERATED (cmod.custom.pin_config_gen) — runs FIRST, before every other init (his fixed order) */
     hal_usart_init();   /* usart_init */
     hal_tick_init();   /* tick_init */
     hal_led_init();   /* led_init */

@@ -167,11 +167,15 @@ ISR(INT0_vect)
 
 void hal_button_init(void)
 {
+#ifndef POLARI_PIN_CONFIG
+    /* a GENERATED pin_config_init() (cmod.custom.pin_config_gen) owns these DDRD/PORTD/EICRA/EIFR/EIMSK writes when
+     * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run */
     DDRD &= (uint8_t)~_BV(PD2);
     PORTD |= _BV(PD2);                                 /* pull-up: the button pulls D2 to ground */
     EICRA = _BV(ISC01);                                /* falling edge */
     EIFR = _BV(INTF0);
     EIMSK = _BV(INT0);
+#endif
 }
 
 uint16_t hal_presses(void)
@@ -206,7 +210,12 @@ void hal_wdt_boot(void)
 #define LED_BIT  ((LED_PIN) - 8)
 #endif
 
-void hal_led_init(void) { LED_DDR |= _BV(LED_BIT); }
+void hal_led_init(void)
+{
+#ifndef POLARI_PIN_CONFIG
+    LED_DDR |= _BV(LED_BIT);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+#endif
+}
 
 POLARI_NODE(hal_led, in(on, "bool", "0 = off, anything else = on"), uses(LED_PIN),
             role("set the LED on LED_PIN"))
@@ -233,11 +242,15 @@ void hal_led(uint8_t on)
 void hal_pwm_init(void)
 {
 #if PWM_PIN == 6 || PWM_PIN == 5
-    DDRD |= (PWM_PIN == 6) ? _BV(PD6) : _BV(PD5);
+#ifndef POLARI_PIN_CONFIG
+    DDRD |= (PWM_PIN == 6) ? _BV(PD6) : _BV(PD5);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+#endif
     TCCR0A = ((PWM_PIN == 6) ? _BV(COM0A1) : _BV(COM0B1)) | _BV(WGM01) | _BV(WGM00);
     TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
 #else
-    DDRB |= (PWM_PIN == 9) ? _BV(PB1) : _BV(PB2);
+#ifndef POLARI_PIN_CONFIG
+    DDRB |= (PWM_PIN == 9) ? _BV(PB1) : _BV(PB2);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+#endif
     TCCR1A = ((PWM_PIN == 9) ? _BV(COM1A1) : _BV(COM1B1)) | _BV(WGM10);   /* fast PWM 8-bit (mode 5) */
     TCCR1B = _BV(WGM12) | _BV(CS11) | _BV(CS10);       /* clk/64 */
 #endif

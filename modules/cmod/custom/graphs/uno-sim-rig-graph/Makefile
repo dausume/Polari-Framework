@@ -7,10 +7,10 @@
 MCU   = atmega328p
 F_CPU = 16000000UL
 CC    = avr-gcc
-CFLAGS = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -std=gnu99 -Wall -Wextra -Werror -ffunction-sections -fdata-sections
+CFLAGS = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -std=gnu99 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -DPOLARI_PIN_CONFIG=1
 LDFLAGS = -Wl,--gc-sections
-SRCS = hal.c polari_graph.c
-HDRS = board_config.h hal.h polari_graph.h simrigstate_packets.h
+SRCS = hal.c pin_config.c polari_graph.c
+HDRS = board_config.h hal.h pin_config.h polari_graph.h simrigstate_packets.h
 
 all: firmware.hex size
 

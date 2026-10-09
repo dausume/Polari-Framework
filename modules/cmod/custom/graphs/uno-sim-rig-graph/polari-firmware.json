@@ -34,7 +34,8 @@
    "-Wextra",
    "-Werror",
    "-ffunction-sections",
-   "-fdata-sections"
+   "-fdata-sections",
+   "-DPOLARI_PIN_CONFIG=1"
   ],
   "ldflags": [
    "-Wl,--gc-sections"
@@ -51,13 +52,14 @@
    "flags": [],
    "sources": [
     "hal.c",
+    "pin_config.c",
     "polari_graph.c"
    ],
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "50d3651f59ad401ba2f0b0cd7dfff9695b0536fd3544f5dea25c5631ebccc854",
-    "noinline": "9a5eb0919c500d227b2196a4180727f3d91491cce60d857dc7b00588c086ae30"
+    "shipped": "c729b6f258e00583835deee8e7ad86ea816422d16954aed2694450bf5de8daae",
+    "noinline": "797661a332c0af867391778d0b20bd063b8ebe200139d2b963d697f7ab9585e5"
    }
   }
  ],
@@ -68,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "d9be01685502d207f7024c0a9f5ecb7f4220ae3e754b2410ab429c58c1a4baac"
+     "sha256": "5fe5f814914e3a056e3ccc59df3f9e4b27a48cde7c6a2e8e87478bbf3cdb064c"
     },
     {
      "path": "hal.h",
@@ -92,16 +94,33 @@
    ]
   },
   {
+   "name": "pin_config",
+   "role": "source",
+   "files": [
+    {
+     "path": "pin_config.c",
+     "sha256": "80c7df727f1e0b29e2ccdda96f677a8a2105f278e1b673deb6b1142422d1ab83"
+    },
+    {
+     "path": "pin_config.h",
+     "sha256": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60"
+    }
+   ],
+   "atoms": [
+    "pin_config.pin_config_init"
+   ]
+  },
+  {
    "name": "polari_graph",
    "role": "source",
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "b8ec1e5efcddfa4c158906da17e5b847891a82da0b8df7df0162cde5d744b288"
+     "sha256": "923fdd000e0807eab695899e6b43f4456ac9c70a2785f6f356e3da6b3d898096"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "f11ca7a035f40d4dbe63aa97a3c247ca9cd35b801839199f5fb4fb1aa57735c6"
+     "sha256": "16cf877176a538a7965dc6d90e288a289e9d765bdd849c2bf99244c1e57f55d4"
     }
    ],
    "atoms": [
@@ -271,7 +290,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 260,
+   "line": 273,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -327,7 +346,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 268,
+   "line": 281,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -389,7 +408,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 266,
+    "line": 279,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -417,7 +436,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 213,
+   "line": 222,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -462,7 +481,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 211,
+    "line": 220,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -492,7 +511,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 209,
+   "line": 213,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -521,17 +540,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_led_init",
-    "text_bytes": 4,
+    "text_bytes": 2,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 4,
+    "text_bytes_noinline": 2,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     4,
-     4
+     2,
+     2
     ]
    },
    "title": "",
@@ -607,7 +626,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 249,
+   "line": 262,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -662,7 +681,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 247,
+    "line": 260,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -692,7 +711,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 233,
+   "line": 242,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -742,17 +761,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_pwm_init",
-    "text_bytes": 14,
+    "text_bytes": 12,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 14,
+    "text_bytes_noinline": 12,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     14,
-     14
+     12,
+     12
     ]
    },
    "title": "",
@@ -1088,10 +1107,66 @@
    "notes": ""
   },
   {
+   "name": "pin_config.pin_config_init",
+   "function": "pin_config_init",
+   "module": "pin_config.c",
+   "line": 17,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void pin_config_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRB, DDRD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "pin_config_init",
+    "text_bytes": 6,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 6,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     6,
+     6
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 41,
+   "line": 42,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1147,7 +1222,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 39,
+    "line": 40,
     "role": "apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded",
     "uses": [
      "LED_PIN",
@@ -1179,7 +1254,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 64,
+   "line": 65,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1235,6 +1310,7 @@
     }
    ],
    "calls": [
+    "pin_config_init",
     "hal_usart_init",
     "hal_tick_init",
     "hal_led_init",
@@ -1265,17 +1341,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "main",
-    "text_bytes": 2364,
+    "text_bytes": 2368,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 296,
+    "text_bytes_noinline": 300,
     "stack_bytes": 105,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     2364,
-     2364
+     2368,
+     2368
     ]
    },
    "title": "",
@@ -1285,7 +1361,7 @@
    "name": "polari_graph.sensor_value",
    "function": "sensor_value",
    "module": "polari_graph.c",
-   "line": 26,
+   "line": 27,
    "kind": "function",
    "isr_vector": "",
    "signature": "polari_avr_double_t sensor_value(uint16_t adc)",
@@ -1325,7 +1401,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 23,
+    "line": 24,
     "role": "ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)",
     "uses": [],
     "raw": "POLARI_NODE(sensor_value, in(adc, \"count\", \"10-bit ADC reading\"), out(return, \"degC\", \"TMP36 temperature (or the raw count when TEMP_TMP36 is 0)\"), role(\"ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)\"))"
@@ -1352,7 +1428,7 @@
   }
  ],
  "counts": {
-  "atoms": 16,
+  "atoms": 17,
   "annotated": 8,
   "isr": 2,
   "pure": 1,
@@ -1362,5 +1438,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-02T20:21:15"
+ "conformed_at": "2026-10-08T20:59:04"
 }
