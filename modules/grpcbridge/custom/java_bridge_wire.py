@@ -152,6 +152,13 @@ public final class BindingRouter implements DevicePort {
     }
 
     @Override
+    public long reconnects() {
+        long total = 0;
+        for (SerialCdcPort p : ports.values()) total += p.reconnects();
+        return total;
+    }
+
+    @Override
     public void close() throws Exception {
         for (SerialCdcPort p : ports.values()) p.close();
     }
@@ -337,6 +344,144 @@ def render_codec_wire(cls, spec):
         java.util.List<String> parts = new java.util.ArrayList<>();
 {nl.join(desc)}
         return "{cls}{{" + String.join(", ", parts) + "}}";
+    }}
+'''
+
+
+def render_codec_lifecycle(cls, spec):
+    """ucd-0e3: methods appended inside <Class>Codec for the bridge
+    lifecycle — generated knowledge (HAS_BOOT_SESSION /
+    HAS_SNAPSHOT_COMMAND) derived from this class's field NAMES only,
+    never guessed from a register or anything else. `spec` is the
+    SAME wire spec render_codec_wire used, so the `snapshot` bit index
+    matches encodeV2's enumeration by construction."""
+    names = [f['name'] for f in spec['fields']]
+    has_boot = 'boot_session' in names
+    has_snapshot = 'snapshot' in names
+    boot_field = java_field_name('boot_session')
+    get_boot = f'return r.{boot_field};' if has_boot else 'return -1L;'
+    with_boot_method = ''
+    if has_boot:
+        with_boot_method = f'''
+    /** A v2+ sample frame with `boot_session` forced — the bridge
+     *  lifecycle test seam (reboot-vs-reconnect proofs). */
+    public static byte[] withBootSession(long seq, long bootSession) {{
+        {cls}Record r = sampleV2(seq);
+        r.{boot_field} = bootSession;
+        return encodeV2(r, 0, PRESENT_ALL);
+    }}
+'''
+    snap_method = ''
+    if has_snapshot:
+        snap_bit = names.index('snapshot')
+        snap_field = java_field_name('snapshot')
+        snap_method = f'''
+    /** ONE command frame with only `snapshot` present — requests a
+     *  full state replay on (re)attach. */
+    public static byte[] snapshotFrame(int index) {{
+        {cls}Record r = new {cls}Record();
+        r.{snap_field} = true;
+        return encodeV2(r, index, 1L << {snap_bit});
+    }}
+'''
+    return f'''
+    // ---- ucd-0e3 bridge lifecycle: generated knowledge from this class's field names ----
+    public static final boolean HAS_BOOT_SESSION = {str(has_boot).lower()};
+    public static final boolean HAS_SNAPSHOT_COMMAND = {str(has_snapshot).lower()};
+
+    /** -1 when this class carries no `boot_session` field. */
+    public static long bootSessionOf({cls}Record r) {{
+        {get_boot}
+    }}
+{with_boot_method}{snap_method}'''
+
+
+def registry_lifecycle_methods(classes_with_specs):
+    """ucd-0e3: hasBootSession / hasSnapshotCommand / bootSessionOf /
+    snapshotPacket / wireVersionOf / withBootSession, appended inside
+    CodecRegistry — the generic dispatch a bridge-agnostic selftest
+    (or BridgeMain) uses without naming any one class.
+
+    `classes_with_specs` = [(class_name, wire spec)] — a class's
+    `snapshotFrame` / `withBootSession` methods exist ONLY when its
+    spec declares the matching field (render_codec_lifecycle), so the
+    dispatch below calls them ONLY for those classes (never behind a
+    HAS_* ternary — both branches of a ternary must still resolve a
+    real method, which a class without the field does not have)."""
+    names = [c for c, _ in classes_with_specs]
+
+    def _has(spec, field):
+        return any(f['name'] == field for f in spec['fields'])
+
+    has_boot = '\n'.join(f'            case {c}Codec.MSG_TYPE: return {c}Codec.HAS_BOOT_SESSION;' for c in names)
+    has_snap = '\n'.join(f'            case {c}Codec.MSG_TYPE: return {c}Codec.HAS_SNAPSHOT_COMMAND;' for c in names)
+    boot_of = '\n'.join(
+        (f'                case {c}Codec.MSG_TYPE: return {c}Codec.bootSessionOf({c}Codec.decodeFrame(p).record);'
+         if _has(spec, 'boot_session') else
+         f'                case {c}Codec.MSG_TYPE: return -1L;') for c, spec in classes_with_specs)
+    snap_of = '\n'.join(
+        (f'            case {c}Codec.MSG_TYPE: return new PolariPacket({c}Codec.WIRE_VERSION, '
+         f'{c}Codec.MSG_TYPE, 0, 0, {c}Codec.snapshotFrame(index));'
+         if _has(spec, 'snapshot') else
+         f'            case {c}Codec.MSG_TYPE: return null;') for c, spec in classes_with_specs)
+    wire_version_of = '\n'.join(f'            case {c}Codec.MSG_TYPE: return {c}Codec.WIRE_VERSION;' for c in names)
+    with_boot = '\n'.join(
+        (f'            case {c}Codec.MSG_TYPE: return {c}Codec.withBootSession(seq, bootSession);'
+         if _has(spec, 'boot_session') else
+         f'            case {c}Codec.MSG_TYPE: return null;') for c, spec in classes_with_specs)
+    return f'''
+    /** Does this class carry a `boot_session` field (generated knowledge)? */
+    public static boolean hasBootSession(int msgType) {{
+        switch (msgType) {{
+{has_boot}
+            default: return false;
+        }}
+    }}
+
+    /** Does this class declare a `snapshot` command field (generated knowledge)? */
+    public static boolean hasSnapshotCommand(int msgType) {{
+        switch (msgType) {{
+{has_snap}
+            default: return false;
+        }}
+    }}
+
+    /** -1 when the frame's class carries no boot_session, or it does not decode. */
+    public static long bootSessionOf(int msgType, PolariPacket p) {{
+        try {{
+            switch (msgType) {{
+{boot_of}
+                default: return -1L;
+            }}
+        }} catch (RuntimeException e) {{
+            return -1L;
+        }}
+    }}
+
+    /** The snapshot-request command packet for this class at `index`, or null when it declares no `snapshot` field. */
+    public static PolariPacket snapshotPacket(int msgType, int index) {{
+        switch (msgType) {{
+{snap_of}
+            default: return null;
+        }}
+    }}
+
+    /** The wire version this class's frames carry (v1 legacy default when unknown). */
+    public static int wireVersionOf(int msgType) {{
+        switch (msgType) {{
+{wire_version_of}
+            default: return 1;
+        }}
+    }}
+
+    /** Bridge-lifecycle test seam: a real v2+ frame for this class with
+     *  `boot_session` forced to `bootSession` — null when the class
+     *  carries no such field. */
+    public static byte[] withBootSession(int msgType, long seq, long bootSession) {{
+        switch (msgType) {{
+{with_boot}
+            default: return null;
+        }}
     }}
 '''
 

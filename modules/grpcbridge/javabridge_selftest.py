@@ -78,6 +78,19 @@ SNAPSHOTS = {
         'unit': {'dominantType': 'str', 'dominantAffinity': 'TEXT',
                  'schemaStrategy': 'typed'},
     },
+    # ucd-0e3: a selftest-only fixture exercising both lifecycle
+    # fields (boot_session, snapshot) — the real ButtonClockState
+    # lands on another branch; CodecRegistry's generated knowledge
+    # (HAS_BOOT_SESSION / HAS_SNAPSHOT_COMMAND) will light up for it
+    # identically once it merges.
+    'RigState': {
+        'boot_session': {'dominantType': 'int',
+                         'dominantAffinity': 'INTEGER',
+                         'schemaStrategy': 'typed'},
+        'snapshot': {'dominantType': 'bool',
+                    'dominantAffinity': 'INTEGER',
+                    'schemaStrategy': 'typed'},
+    },
 }
 
 
@@ -287,6 +300,54 @@ def _wire_many(mgr, javac, java):
               comp.stderr[:400] + (loop.stdout[-400:] if loop else ''))
 
 
+def _lifecycle_checks(mgr, javac, java):
+    """ucd-0e3: the bridge lifecycle — reconnect+backoff, SNAPSHOT on
+    (re)attach, sequence-gap counting, reboot vs reconnect by
+    boot_session — proven generically (CodecRegistry's generated
+    knowledge) against a bridge whose one class (RigState — see the
+    SNAPSHOTS fixture above) declares BOTH `boot_session` and
+    `snapshot`."""
+    _enable(mgr, 'RigState')
+    bridge = _bridge_row(['RigState'], bridge_name='rigstate',
+                         name='rigstate-hw-bridge', source='serial')
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+    rep = jb.generate_project(mgr, bridge)
+    check('ucd-0e3 generate: a bridge whose class declares '
+          'boot_session + snapshot', rep.get('ok'), str(rep.get('error')))
+    if not rep.get('ok'):
+        return
+    codec = rep['files'][f'{jb.JAVA_DIR}/codec/RigStateCodec.java']
+    check('ucd-0e3 generated knowledge: HAS_BOOT_SESSION / '
+          'HAS_SNAPSHOT_COMMAND true for RigState (field names only, '
+          'never guessed)',
+          'HAS_BOOT_SESSION = true;' in codec
+          and 'HAS_SNAPSHOT_COMMAND = true;' in codec)
+    if not (javac and java):
+        skip('ucd-0e3 lifecycle JVM proof', 'no JDK on PATH')
+        return
+    with tempfile.TemporaryDirectory(prefix='polari-jlifecycle-') as tmp:
+        root = Path(tmp)
+        for path, text in rep['files'].items():
+            target = root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        core = [str(p) for p in (root / 'src/main/java').rglob('*.java')
+                if '/grpc/' not in str(p)]
+        comp = _run([javac, '--release', '17', '-d', str(root / 'out')]
+                    + core)
+        run = _run([java, '-cp', str(root / 'out'),
+                    'org.polari.bridge.LifecycleSelfTest']) \
+            if comp.returncode == 0 else None
+        check('ucd-0e3 lifecycle JVM: reconnect, gap, reboot and '
+              'snapshot-on-attach all PASS for a class with both '
+              'fields (no SKIP, no FAIL)',
+              comp.returncode == 0 and run is not None
+              and run.returncode == 0
+              and run.stdout.count('PASS: lifecycle') == 4
+              and 'SKIP' not in run.stdout and 'FAIL' not in run.stdout,
+              comp.stderr[:800] + (run.stdout[-800:] if run else ''))
+
+
 def main():
     ss._STATUS_CACHE.clear()
     mgr = _mgr()
@@ -421,10 +482,20 @@ def main():
                       and 'Widget{' in run.stdout
                       and 'SensorFrame{' in run.stdout,
                       run.stdout[-800:] + run.stderr[-200:])
+                lifecycle = _run([java, '-cp', str(out),
+                                  'org.polari.bridge.LifecycleSelfTest'])
+                check('ucd-0e3 lifecycle generic: a bridge whose classes '
+                      'carry neither field skips reboot/snapshot '
+                      'honestly, still proves reconnect + gap',
+                      lifecycle.returncode == 0
+                      and lifecycle.stdout.count('PASS: lifecycle') == 2
+                      and lifecycle.stdout.count('SKIP: lifecycle') == 2,
+                      lifecycle.stdout[-600:] + lifecycle.stderr[-200:])
 
     if wire_files and javac and java:
         _wire_jvm(wire_files, javac, java)
     _wire_many(mgr, javac, java)
+    _lifecycle_checks(mgr, javac, java)
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
