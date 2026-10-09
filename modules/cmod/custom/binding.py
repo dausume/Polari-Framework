@@ -143,6 +143,30 @@ def validity(name, graph, board, manager=None):
     pins_by_canon = {p['canonical']: p for p in r['pins']}
     soc_by_pin = {s['pin']: s for s in r.get('soc_pins', [])}
     rows = _rows_for_binding(name, graph, manager=manager)
+    # ucd-0b2d (§5h, the HardwareBinding fix): a required row of resource_kind peripheral/signal is never pin-bound
+    # (targets.py never guesses one) — it is met through this binding's own PeripheralClaims, computed once here
+    # (never per-row), from a minimal binding-shaped dict (the same shape `derive()`/`chain_refs()` already pass).
+    from cmod.custom import claims as C
+    sol_name = name.partition('@')[0]
+    periph_claims = C.peripheral_claims({'name': name, 'solution': sol_name, 'board': board, 'is_default': True},
+                                         graph, manager=manager)
+
+    def _peripheral_met(pid):
+        return next((c for c in periph_claims if c['peripheral'] == pid), None) if pid else None
+
+    def _signal_met(sig):
+        """A RegisterAssignment ref | PeripheralClaim ref | None — this binding's own assignment rows carrying
+        `sig` (its signal_route, or the typed `signal` column), OR a PeripheralClaim on the signal's OWN
+        peripheral (his wording: 'a pin assignment carrying the RXD signal ... or a PeripheralClaim on USART0')."""
+        if not sig:
+            return None
+        sig_name = sig.rsplit(':', 1)[-1]
+        for a in rows:
+            if a.get('signal') == sig or (a.get('signal_route') or '').endswith(':%s' % sig_name):
+                return 'RegisterAssignment:%s' % a['name']
+        periph = sig.rsplit(':', 1)[0]
+        c = _peripheral_met(periph)
+        return ('PeripheralClaim:%s' % c['name']) if c else None
 
     def _ordinal_keys(items, task_key, port_key):
         """{(task, port, i): item} — the i-th occurrence of (task, port) IN THE ORDER GIVEN. A task may carry
@@ -164,11 +188,30 @@ def validity(name, graph, board, manager=None):
     why, met, refs = [], 0, []
     invalid, incomplete = False, False
     for t in required:
+        label = t['node'] + ('.' + t['port'] if t.get('port') else ' (%s)' % t.get('requirement_kind', ''))
+        resource_kind = t.get('resource_kind', 'undetermined')
+        if resource_kind == 'peripheral':
+            hit = _peripheral_met(t.get('peripheral', ''))
+            if hit is None:
+                why.append('%s: no PeripheralClaim for %s' % (label, t.get('peripheral') or t.get('requirement_kind', '')))
+                incomplete = True
+            else:
+                met += 1
+                refs.append('PeripheralClaim:%s' % hit['name'])
+            continue
+        if resource_kind == 'signal':
+            ref = _signal_met(t.get('signal', ''))
+            if ref is None:
+                why.append('%s: no assignment or PeripheralClaim carries %s' % (label, t.get('signal') or t.get('requirement_kind', '')))
+                incomplete = True
+            else:
+                met += 1
+                refs.append(ref)
+            continue
         k = (t['node'], t.get('port', '') or '')
         i = required_counts.get(k, 0)
         required_counts[k] = i + 1
         a = assignment_by_key.get((k[0], k[1], i))
-        label = t['node'] + ('.' + t['port'] if t.get('port') else ' (%s)' % t.get('requirement_kind', ''))
         if a is None or a.get('lives_on', 'unbound') in ('', 'unbound'):
             why.append('%s: unbound (%s)' % (label, t.get('controls', '') or t.get('requirement_kind', '')))
             incomplete = True

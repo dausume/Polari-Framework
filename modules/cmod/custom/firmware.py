@@ -191,6 +191,7 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
         status = 'unbound'
         notes = ''
         signal_route = ''
+        peripheral_val, signal_val = '', ''
         if lives_on != 'unbound':
             owners = {x['node'] for x in claimed[lives_on]} - dispatchers - {n for n in per_node_pins if n.endswith('_init')
                                                                              and n in {x['node'] for x in claimed[lives_on]}
@@ -201,10 +202,18 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
             else:
                 status = 'bound'
             signal_route = route_for(t['board'], lives_on.rpartition(':')[2])
+        # ucd-0b2d (§5h, the HardwareBinding fix): a TargetDefinition row of resource_kind peripheral/signal is
+        # never pin-bound (lives_on stays 'unbound' above) — its typed `peripheral`/`signal` column (ucd-0b2a)
+        # carries the resource instead, status 'bound' (it IS a real requirement this solution satisfies, just
+        # not on a pin), provenance derived from the row (never a pin, never guessed).
+        elif t.get('resource_kind') == 'peripheral' and t.get('peripheral'):
+            peripheral_val, status = t['peripheral'], 'bound'
+        elif t.get('resource_kind') == 'signal' and t.get('signal'):
+            signal_val, status = t['signal'], 'bound'
         out.append({'name': '%s:%s' % (name_prefix, t['port_ref']), 'solution': sol, 'task': t['node'], 'port': t['port'],
                     'target_kind': t['kind'], 'controls': t['controls'], 'lives_on': lives_on, 'status': status,
-                    'provenance': t['provenance'], 'peripheral': '', 'signal': '', 'bus': '', 'signal_route': signal_route,
-                    'configuration': cfg, 'notes': notes})
+                    'provenance': t['provenance'], 'peripheral': peripheral_val, 'signal': signal_val, 'bus': '',
+                    'signal_route': signal_route, 'configuration': cfg, 'notes': notes})
     return out
 
 

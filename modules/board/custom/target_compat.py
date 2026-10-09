@@ -24,9 +24,15 @@ import json
 from board.custom import pin_roles as PR
 from board.custom.soc_atmega328p import FUNCTION_PERIPHERAL, PWM_FUNCTIONS
 
-#: the task target kind vocabulary (his ruling 2026-10-06) — never assignable kinds last
+#: the task target kind vocabulary (his ruling 2026-10-06) — never assignable kinds last. ucd-0b2d (§5h, the
+#: HardwareBinding fix): 'timer' | 'usart' | 'adc' | 'spi' | 'twi' | 'exint' | 'pcint' | 'gpio-port' are
+#: PERIPHERAL-level kinds (a TargetDefinition row with resource_kind='peripheral' — the whole block, never one
+#: pin) — a task that configures a peripheral with no pin/signal touch at all (hal_tick_init: Timer2's CTC mode,
+#: no Output Compare pin driven) names ONE of these, never a pin-flavoured kind like pwm-out just because the
+#: register family happens to overlap one.
 TASK_KINDS = ('analog-in', 'pwm-out', 'uart-rx', 'uart-tx', 'i2c-sda', 'i2c-scl', 'spi-mosi', 'spi-miso', 'spi-sck',
-              'spi-ss', 'digital-in', 'digital-out', 'interrupt-in', 'power', 'ground')
+              'spi-ss', 'digital-in', 'digital-out', 'interrupt-in', 'timer', 'usart', 'adc', 'spi', 'twi', 'exint',
+              'pcint', 'gpio-port', 'power', 'ground')
 NEVER_ASSIGNABLE = ('power', 'ground')
 #: the INTERRUPT chapters were NOT re-fetched/re-paginated this session (unlike ADC/PWM/USART/TWI/SPI, whose pages
 #: soc_atmega328p.py cites from the 2026-10-01 read) — cited by document + revision only, the gap named honestly
@@ -55,6 +61,21 @@ _KIND_META = {
                      'wakes firmware on an edge — a dedicated external interrupt (INT0/INT1) or a pin-change interrupt (PCINTn)'),
     'power': ('Power', ('power',), (), 'a supply pin — never a firmware task\'s target'),
     'ground': ('Ground', ('ground',), (), 'the 0 V reference — never a firmware task\'s target'),
+    # ucd-0b2d: peripheral-level kinds — the WHOLE functional block, never one pin (resource_kind='peripheral')
+    'timer': ('Timer/Counter peripheral', ('pwm',), (), 'the whole timer block (clock source, counting mode) — '
+              'not a specific Output Compare pin (e.g. Timer2 run as a plain 1 ms tick, driving no pin at all)'),
+    'usart': ('USART peripheral', ('uart',), (), 'the whole serial port block (baud rate, frame format) — not '
+              'either of its RXD/TXD signal lines'),
+    'adc': ('ADC peripheral', ('adc',), (), 'the whole analog-to-digital converter block (reference, prescaler) — '
+            'not one channel pin'),
+    'spi': ('SPI peripheral', ('spi',), (), 'the whole SPI bus block (clock rate, mode) — not one of its signal lines'),
+    'twi': ('TWI (I2C) peripheral', ('i2c',), (), 'the whole 2-wire bus block (bit rate, address) — not one of its signal lines'),
+    'exint': ('External interrupt unit', (), (_wiki('Wikipedia — Interrupt', 'https://en.wikipedia.org/wiki/Interrupt'),),
+              'the external-interrupt unit as a whole (EICRA/EIMSK) — not one INT0/INT1 pin'),
+    'pcint': ('Pin-change interrupt unit', (), (_wiki('Wikipedia — Interrupt', 'https://en.wikipedia.org/wiki/Interrupt'),),
+              'the pin-change-interrupt unit as a whole (PCICR/PCMSKn bank enables) — not one pin'),
+    'gpio-port': ('GPIO port peripheral', ('gpio',), (), 'a whole I/O port block (e.g. all of PORTB\'s direction/pull '
+                  'bits) — not one pin of it'),
 }
 
 
@@ -89,6 +110,14 @@ def rows():
             'digital-in': 'any non-power/ground I/O pin (every SoC pin can be a plain GPIO input)',
             'digital-out': 'any non-power/ground I/O pin (every SoC pin can be a plain GPIO output)',
             'interrupt-in': 'INT0/INT1 pins are valid; a PCINTn-only pin is undetermined (its PCICR/PCMSKn bank is not modeled yet)',
+            'timer': 'not a pin at all — met by a PeripheralClaim on the whole Timer/Counter block',
+            'usart': 'not a pin at all — met by a PeripheralClaim on the whole USART0 block',
+            'adc': 'not a pin at all — met by a PeripheralClaim on the whole ADC block',
+            'spi': 'not a pin at all — met by a PeripheralClaim on the whole SPI block',
+            'twi': 'not a pin at all — met by a PeripheralClaim on the whole TWI block',
+            'exint': 'not a pin at all — met by a PeripheralClaim on the external-interrupt unit',
+            'pcint': 'not a pin at all — met by a PeripheralClaim on the pin-change-interrupt unit',
+            'gpio-port': 'not a pin at all — met by a PeripheralClaim on the whole GPIO port block',
             'power': '(never — power/ground pins are not assignable to any task)',
             'ground': '(never — power/ground pins are not assignable to any task)',
         }[kind]

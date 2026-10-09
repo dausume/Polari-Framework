@@ -13,6 +13,9 @@ def binding_parts(check):
     def default_binding():
         _default_binding(check)
 
+    def fixed_kinds():
+        _fixed_kinds(check)
+
     def reverse_refs_resolve():
         _reverse_refs_resolve(check)
 
@@ -25,7 +28,7 @@ def binding_parts(check):
     def live_api():
         _live_api(check)
 
-    return (default_binding, reverse_refs_resolve, claims_carry_binding, esp32c3_incomplete, live_api)
+    return (default_binding, fixed_kinds, reverse_refs_resolve, claims_carry_binding, esp32c3_incomplete, live_api)
 
 
 # ---------------------------------------------------------------- part 1: the pure default binding
@@ -36,16 +39,44 @@ def _default_binding(check):
           b is not None and b['name'] == DEFAULT_NAME and b['is_default'] is True and b['provenance'] == 'derived', b)
     check('uno-sim-rig has 14 required TargetDefinition rows (16 total minus the 2 memory-field rows, required=False)',
           b['requirements_total'] == 14, b)
-    check('status incomplete (3 unmet required rows: tick_init, led_init, rx_pop — the 2 memory-field rows are '
-          'required=False and must NOT count), requirements_met == 11',
-          b['status'] == 'incomplete' and b['requirements_met'] == 11, b)
-    for name in ('tick_init', 'led_init', 'rx_pop'):
-        check('why names the unbound required task %r' % name, name in b['why'], b['why'])
-    check('why does NOT name the two (non-required) memory-field rows (clock.return, temp.return)',
-          'clock.return' not in b['why'] and 'temp.return' not in b['why'], b['why'])
+    # ucd-0b2d (§5h, the HardwareBinding fix): tick_init/led_init/rx_pop were WRONGLY kinded (pwm-out/undetermined/
+    # pin instead of the real peripheral/pin/signal resource they are) — fixed in targets.py's derivation, never by
+    # editing data: the board DOES meet all 14 required rows, so the default binding reads valid, 14/14, why empty.
+    check('status valid (every required row met by derivation, not by editing data), requirements_met == 14, '
+          'why empty', b['status'] == 'valid' and b['requirements_met'] == 14 and b['why'] == '', b)
     check('requirements_total/met are stable across a second derivation (idempotent)',
           BND.derive(SOLUTION, manager=None)['requirements_total'] == b['requirements_total']
           and BND.derive(SOLUTION, manager=None)['requirements_met'] == b['requirements_met'])
+
+
+# ---------------------------------------------------------------- part 1b: the three previously-mis-kinded rows
+def _fixed_kinds(check):
+    """ucd-0b2d: tick_init (Timer2's CTC tick — a PERIPHERAL, not pwm-out: no OCR-to-a-pin, no pin declared),
+    led_init (the SAME D13 `led` is bound to — one pin, two tasks of one Purpose), rx_pop (the USART0 RXD SIGNAL
+    through the RX ring, never a pin)."""
+    from cmod.custom import targets as T
+    from cmod.custom import binding as BND
+    rows = {r['node']: r for r in T.derive(GRAPH) if r['node'] in ('tick_init', 'led_init', 'rx_pop')}
+    check('tick_init: resource_kind peripheral, requirement_kind timer, role clock, peripheral atmega328p:TIMER2, unbound',
+          rows['tick_init']['resource_kind'] == 'peripheral' and rows['tick_init']['requirement_kind'] == 'timer'
+          and rows['tick_init']['role'] == 'clock' and rows['tick_init']['peripheral'] == 'atmega328p:TIMER2'
+          and rows['tick_init']['lives_on'] == 'unbound', rows['tick_init'])
+    check('led_init: bound to D13 (the SAME BoardPin `led` is bound to), requirement_kind digital-out, resource_kind pin',
+          rows['led_init']['lives_on'] == 'arduino-uno-r3:D13' and rows['led_init']['requirement_kind'] == 'digital-out'
+          and rows['led_init']['resource_kind'] == 'pin', rows['led_init'])
+    led = next(r for r in T.derive(GRAPH) if r['node'] == 'led')
+    check('led_init and led share the exact same lives_on', rows['led_init']['lives_on'] == led['lives_on'])
+    check('rx_pop: resource_kind signal, requirement_kind uart-rx, role receive, signal atmega328p:USART0:RXD, unbound',
+          rows['rx_pop']['resource_kind'] == 'signal' and rows['rx_pop']['requirement_kind'] == 'uart-rx'
+          and rows['rx_pop']['role'] == 'receive' and rows['rx_pop']['signal'] == 'atmega328p:USART0:RXD'
+          and rows['rx_pop']['lives_on'] == 'unbound', rows['rx_pop'])
+
+    b = BND.derive(SOLUTION, manager=None)
+    check('tick_init is met by the existing TIMER2 PeripheralClaim',
+          any('PeripheralClaim:%s:TIMER2' % SOLUTION == ref for ref in json.loads(b['assignments_refs_json'])),
+          b['assignments_refs_json'])
+    check('rx_pop is met (through D0\'s RXD assignment or the USART0 PeripheralClaim) — never bound to a pin itself',
+          b['status'] == 'valid')
 
 
 # ---------------------------------------------------------------- part 2: every reverse ref resolves
@@ -61,11 +92,13 @@ def _reverse_refs_resolve(check):
     settings_names = ({'RegisterSetting:%s' % s['name'] for s in gen['RegisterSetting']}
                        | {'RegisterFieldSetting:%s' % s['name'] for s in gen['RegisterFieldSetting']})
     routes_names = {'SignalRoute:%s' % s['name'] for s in gen['SignalRoute']}
-    bad_a = [r for r in json.loads(b['assignments_refs_json']) if r not in assigns]
+    # ucd-0b2d: a met requirement of resource_kind peripheral/signal names its PeripheralClaim (never a
+    # RegisterAssignment — it is never pin-bound) — assignments_refs_json may carry EITHER ref kind now
+    bad_a = [r for r in json.loads(b['assignments_refs_json']) if r not in assigns and r not in claims_names]
     bad_c = [r for r in json.loads(b['claims_refs_json']) if r not in claims_names]
     bad_s = [r for r in json.loads(b['settings_refs_json']) if r not in settings_names]
     bad_r = [r for r in json.loads(b['routes_refs_json']) if r not in routes_names]
-    check('every assignments_refs_json ref resolves to a real RegisterAssignment row', not bad_a, bad_a)
+    check('every assignments_refs_json ref resolves to a real RegisterAssignment or PeripheralClaim row', not bad_a, bad_a)
     check('every claims_refs_json ref resolves to a real PinClaim/PeripheralClaim row', not bad_c, bad_c)
     check('every settings_refs_json ref resolves to a real RegisterSetting/RegisterFieldSetting row', not bad_s, bad_s)
     check('every routes_refs_json ref resolves to a real SignalRoute row', not bad_r, bad_r)

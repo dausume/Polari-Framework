@@ -24,6 +24,7 @@ import json
 import os
 
 from cmod.custom import projects as P
+from board.custom.soc_atmega328p import SOC
 
 
 def _csv_set(s):
@@ -65,6 +66,40 @@ def _match_pins(pins, atom):
         elif p.get('peripheral') and p['peripheral'] in peripherals:
             out.append(p)
     return out
+
+
+def _gpio_port_letter(peripheral_id):
+    """'GPIO PORTB' -> 'B'; '' for anything else."""
+    return peripheral_id[len('GPIO PORT'):] if peripheral_id.startswith('GPIO PORT') else ''
+
+
+def _init_counterpart_match(node_instance, atom, by_instance, atoms, pins):
+    """([BoardPin, ...], atom_kind) for an '*_init' node whose OWN registers touch only a GPIO port, with no
+    declared pin macro (hal_led_init's `LED_DDR |= _BV(LED_BIT)` records only a DDRB register touch — the parser
+    has no POLARI_NODE on it to name LED_PIN, so it cannot be matched by declared name or by peripheral the way
+    pwm_init is matched to D6 via TIMER0). Many pins share one port, so the register touch alone never says WHICH
+    one. Its own RUNTIME COUNTERPART — the same base instance name with '_init' stripped ('led_init' -> 'led') —
+    already resolves to the exact declared-macro pin (LED_PIN -> D13, via `_match_pins`, never a new guess): when
+    that pin's own GPIO port matches the one THIS atom's registers touch, the two tasks share one physical pin,
+    the same Purpose (init + runtime, §5h B1's own wording) — never a new heuristic, only the counterpart's
+    already-resolved pin and kind (ucd-0b2d). ([], 'undetermined') when there is no such counterpart or no shared
+    port (never a guess otherwise)."""
+    if not node_instance.endswith('_init') or _declared_names(atom):
+        return [], 'undetermined'
+    ports_touched = {_gpio_port_letter(p) for p in _peripherals(atom)} - {''}
+    if not ports_touched:
+        return [], 'undetermined'
+    base = node_instance[:-len('_init')]
+    counterpart = by_instance.get(base)
+    if counterpart is None or counterpart.get('kind') != 'c-atom' or not counterpart.get('atom'):
+        return [], 'undetermined'
+    c_atom = atoms.get(counterpart['atom'].partition(':')[2])
+    if c_atom is None:
+        return [], 'undetermined'
+    shared = [p for p in _match_pins(pins, c_atom) if (p.get('soc_pin') or '')[1:2] in ports_touched]
+    if not shared:
+        return [], 'undetermined'
+    return shared, _atom_requirement_kind(c_atom)
 
 
 def _bindings_dict(bindings):
@@ -128,7 +163,12 @@ def _atom_requirement_kind(atom):
         if peripheral in peripherals:
             return kind
     if peripherals & set(_TIMER_PERIPHERALS):
-        if any(res.get('kind') == 'register' and res['name'].startswith('OCR') and 'w' in (res.get('access') or '') for res in resources):
+        # an OCR write ALONE is not PWM — e.g. hal_tick_init writes OCR2A to set Timer2's CTC compare value for a
+        # 1 ms tick, driving no pin at all (ucd-0b2d: §5h, the HardwareBinding fix). Real PWM ALSO sets the output
+        # pin's own DDR (hal_pwm_init: DDRD/DDRB beside TCCR0x/OCR0x) — require that GPIO-port co-touch too, never
+        # guess pwm-out from the timer family alone.
+        has_gpio_touch = any(res.get('kind') == 'register' and (res.get('peripheral') or '').startswith('GPIO PORT') for res in resources)
+        if has_gpio_touch and any(res.get('kind') == 'register' and res['name'].startswith('OCR') and 'w' in (res.get('access') or '') for res in resources):
             return 'pwm-out'
     if 'USART0' in peripherals:
         udr = next((res for res in resources if res.get('kind') == 'register' and res['name'].startswith('UDR')), None)
@@ -165,7 +205,26 @@ _FUNCTION_KIND = {'adc': 'analog-in', 'pwm': 'pwm-out'}
 #: TASK_KINDS entry maps to one; '' (not listed) covers 'undetermined' and any kind outside the vocabulary
 _ROLE_BY_KIND = {'analog-in': 'input', 'pwm-out': 'output', 'uart-rx': 'receive', 'uart-tx': 'transmit',
                  'i2c-sda': 'data', 'i2c-scl': 'clock', 'spi-mosi': 'data', 'spi-miso': 'data', 'spi-sck': 'clock',
-                 'spi-ss': 'select', 'digital-in': 'input', 'digital-out': 'output', 'interrupt-in': 'receive'}
+                 'spi-ss': 'select', 'digital-in': 'input', 'digital-out': 'output', 'interrupt-in': 'receive',
+                 'timer': 'clock'}
+#: a declared uses() name that is itself a whole PERIPHERAL id (board.custom.registers.PERIPHERAL_RULES /
+#: soc_atmega328p.FUNCTION_PERIPHERAL's own vocabulary) rather than a board_config.h PIN macro (LED_PIN, PWM_PIN) —
+#: hal_rx_pop's uses(USART0) names the peripheral its ring buffer is filled from, never a pin (ucd-0b2d)
+_PERIPHERAL_IDS = frozenset({'USART0', 'TIMER0', 'TIMER1', 'TIMER2', 'ADC', 'SPI', 'TWI', 'EXINT', 'PCINT'})
+#: requirement_kind -> the PeripheralSignal's own signal name, for a resource_kind='signal' row (the inverse of
+#: `_SIGNAL_KIND` above, restricted to the kinds a signal-only atom (no register touch) can settle)
+_KIND_TO_SIGNAL = {'uart-rx': 'RXD', 'uart-tx': 'TXD', 'i2c-sda': 'SDA', 'i2c-scl': 'SCL', 'spi-mosi': 'MOSI',
+                    'spi-miso': 'MISO', 'spi-sck': 'SCK', 'spi-ss': 'SS'}
+#: a SOLE register-touched peripheral family, with NO GPIO-port co-touch and no declared pin macro (hal_tick_init's
+#: Timer2 CTC setup) -> the peripheral-level requirement_kind (board.custom.target_compat.TASK_KINDS, ucd-0b2d)
+_SOLE_PERIPHERAL_KIND = {'TIMER0': 'timer', 'TIMER1': 'timer', 'TIMER2': 'timer', 'USART0': 'usart', 'ADC': 'adc',
+                         'SPI': 'spi', 'TWI': 'twi', 'EXINT': 'exint', 'PCINT': 'pcint'}
+
+
+def _sole_peripheral_kind(pid):
+    if pid in _SOLE_PERIPHERAL_KIND:
+        return _SOLE_PERIPHERAL_KIND[pid]
+    return 'gpio-port' if pid.startswith('GPIO PORT') else 'undetermined'
 
 
 def _kind_for_pin(pin, atom_kind):
@@ -223,7 +282,8 @@ def derive(graph_name, manager=None):
     by_instance = {n['instance']: n for n in nodes}
     out, seen = [], set()
 
-    def add(node, port_name, kind, controls, lives_on, port=None, provenance='annotation', notes='', req_kind='undetermined'):
+    def add(node, port_name, kind, controls, lives_on, port=None, provenance='annotation', notes='', req_kind='undetermined',
+            resource_kind=None, peripheral='', signal=''):
         port_ref = '%s.%s' % (node, port_name) if port_name else node
         key = (port_ref, kind, lives_on)
         if key in seen:
@@ -235,13 +295,18 @@ def derive(graph_name, manager=None):
         polari_type = (port or {}).get('polari_type', '')
         unit = (port or {}).get('unit', '')
         constraints = ('%s, width %d B' % (direction, width)) if direction else ('width %d B' % width if width else '')
-        role, required, resource_kind = _resource_fields(kind, req_kind)
+        role, required, inferred_resource_kind = _resource_fields(kind, req_kind)
+        # ucd-0b2d: a row whose requirement is a whole PERIPHERAL or a SIGNAL through memory (never a pin —
+        # hal_tick_init/hal_rx_pop) names its resource_kind explicitly; every other row keeps the pre-existing
+        # pin-vocabulary inference (_resource_fields) unchanged.
+        rk = resource_kind if resource_kind is not None else inferred_resource_kind
         out.append({'name': '%s:%s' % (graph_name, port_ref), 'graph': graph_name, 'node': node, 'port': port_name or '',
                     'port_ref': port_ref, 'kind': kind, 'controls': controls, 'lives_on': lives_on,
                     'board': g.get('board', '') if lives_on != 'unbound' else '', 'direction': direction, 'ctype': ctype,
                     'width_bytes': width, 'polari_type': polari_type, 'unit': unit, 'constraints': constraints,
                     'provenance': provenance, 'requirement_kind': req_kind if kind != 'memory-field' else '',
-                    'role': role, 'required': required, 'resource_kind': resource_kind, 'notes': notes})
+                    'role': role, 'required': required, 'resource_kind': rk, 'peripheral': peripheral,
+                    'signal': signal, 'notes': notes})
 
     for n in nodes:
         if n.get('kind') != 'c-atom' or not n.get('atom'):
@@ -264,9 +329,37 @@ def derive(graph_name, manager=None):
                 add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, pin, port),
                     '%s:%s' % (g.get('board', ''), pin['canonical']), port=port, provenance='annotation',
                     req_kind=_kind_for_pin(pin, atom_kind))
-        else:
+            continue
+        # ucd-0b2d (§5h, the HardwareBinding fix): nothing matched a board pin — three distinct, never-guessed
+        # shapes before falling back to the old plain 'unbound' row.
+        # (1) an '*_init' task sharing its runtime counterpart's exact pin (hal_led_init -> led's own D13)
+        counterpart_pins, counterpart_kind = _init_counterpart_match(n['instance'], atom, by_instance, atoms, pins)
+        if counterpart_pins:
+            for pin in counterpart_pins:
+                add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, pin, port),
+                    '%s:%s' % (g.get('board', ''), pin['canonical']), port=port, provenance='annotation',
+                    req_kind=_kind_for_pin(pin, counterpart_kind))
+            continue
+        declared = _declared_names(atom)
+        periphs = _peripherals(atom)
+        # (2) a declared uses() name that is itself a whole PERIPHERAL id (never a pin macro), no register touch
+        # at all — the task reads/writes that peripheral's signal through memory only (hal_rx_pop's RX ring)
+        if not periphs and len(declared) == 1 and declared[0] in _PERIPHERAL_IDS and atom_kind in _KIND_TO_SIGNAL:
+            sig = '%s:%s:%s' % (SOC, declared[0], _KIND_TO_SIGNAL[atom_kind])
             add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, None, port), 'unbound',
-                port=port, provenance='annotation', req_kind=atom_kind)
+                port=port, provenance='annotation', req_kind=atom_kind, resource_kind='signal', signal=sig)
+            continue
+        # (3) EXACTLY ONE register-touched peripheral family, no GPIO-port co-touch, no declared pin macro — a
+        # whole-PERIPHERAL requirement (hal_tick_init's Timer2 CTC setup: no OCR-to-a-pin, no pin declared)
+        has_gpio_touch = any(p.startswith('GPIO PORT') for p in periphs)
+        if len(periphs) == 1 and not has_gpio_touch and not declared:
+            pid = next(iter(periphs))
+            add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, None, port), 'unbound',
+                port=port, provenance='annotation', req_kind=_sole_peripheral_kind(pid), resource_kind='peripheral',
+                peripheral='%s:%s' % (SOC, pid))
+            continue
+        add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, None, port), 'unbound',
+            port=port, provenance='annotation', req_kind=atom_kind)
 
     for e in edges:
         if e.get('kind') != 'field':

@@ -149,7 +149,12 @@ def _groups(rows):
 def _representative(rows_at_pin, dispatchers):
     """The ONE assignment row that CONFIGURES this pin: an '_init' task first (it is the one that calls DDR/PORT/
     peripheral setup), else the sole non-dispatcher task, else (every candidate is a dispatcher, e.g. USART0's own
-    init touching both D0 and D1) the lexically first. Never ambiguous — deterministic, never guessed."""
+    init touching both D0 and D1) the lexically first. Never ambiguous — deterministic, never guessed.
+
+    ucd-0b2d (§5h, the HardwareBinding fix): hal_led_init now derives a D13 row too (it shares led's own pin, one
+    Purpose, two tasks — targets.py's `_init_counterpart_match`), so this SAME pre-existing rule now picks
+    led_init over led here, exactly as it already picks pwm_init over `pwm` on D6 and usart_init over `send` on
+    D0/D1 — never a special case for LED; the established convention extends to it unchanged."""
     inits = [r for r in rows_at_pin if r['task'].endswith('_init')]
     pool = inits if inits else rows_at_pin
     non_disp = [r for r in pool if r['task'] not in dispatchers]
@@ -235,7 +240,13 @@ def pin_claims(binding, graph, manager=None, overrides=None):
         kind = _kind_for(graph, rep, bp)
         mode = _MODE_BY_KIND.get(kind) or ('alt' if bp.get('function') not in ('', 'gpio', 'led') else 'undetermined')
         defaults = _defaults(kind)
-        eff_mode, pull, edge, initial, overridden = _effective(bp['canonical'], defaults, mode, rep, overrides)
+        # ucd-0b2d: a person's canvas override (fs-1's pin-page `config_json`) may be persisted on ANY row sharing
+        # this pin, not only the representative's own — e.g. D13's representative is led_init (the DDR setup,
+        # same convention as pwm_init on D6), but a drag/override is naturally authored against `led` (the port
+        # with a real, named electrical behavior). Read it from whichever row actually carries one; `rep` stays
+        # the fallback (and the ONLY source for kind/mode/pin_function above — never re-derived from another row).
+        cfg_source = next((r for r in group if json.loads(r.get('config_json') or '{}')), rep)
+        eff_mode, pull, edge, initial, overridden = _effective(bp['canonical'], defaults, mode, cfg_source, overrides)
         pin_function = ''
         if eff_mode == 'alt':
             if bp.get('signal'):
