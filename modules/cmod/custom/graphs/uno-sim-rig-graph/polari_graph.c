@@ -5,7 +5,9 @@
  */
 #include <stdint.h>
 #include <string.h>
+#include <avr/eeprom.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 
 #include "board_config.h"
 #include "hal.h"

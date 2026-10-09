@@ -18,7 +18,10 @@ from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
 from cmod.custom import capabilities as CAP
+import json
+
 from cmod.custom.graph_seed import GRAPH as _DEFAULT_GRAPH
+from cmod.custom.graph_seed import BC_GRAPH as _BC_GRAPH
 
 _HAND = ('title', 'notes')
 
@@ -29,7 +32,7 @@ def _owned(rows, keep=_HAND):
 
 SEED_ROWS = template_rows()
 GRAPH_ROWS = graph_rows()
-TARGET_ROWS = T.derive(_DEFAULT_GRAPH)
+TARGET_ROWS = T.derive(_DEFAULT_GRAPH) + T.derive(_BC_GRAPH)
 
 # hw priorities P1 (AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md §1/§4): the two widened-field seeds, over the SAME
 # uno-sim-rig-graph as the demo-4 capability above (no new graph, no new canvas) — `status`/`last_proof` are DERIVED
@@ -72,6 +75,43 @@ FIRMWARE_ROWS[0]['validation'] = 'ok' if _ok else 'refused'
 FIRMWARE_ROWS[0]['validation_why'] = _why
 FIRMWARE_ROWS[0]['status'] = 'validated' if _ok else 'refused'
 
+# ucd-0e2b (UNO_CORE_DEMO_PLAN.md §1/§5f/§5g): uno-button-clock — the SECOND FirmwareSolution, over the NEW
+# uno-button-clock-graph (ucd-0e2b's own graph, just seeded in custom/graph_seed.py) + board arduino-uno-r3.
+# D2/D3's PinClaim mode/pull/edge are AUTHORED (never derivable from a register name, §5f point 1) — a person's
+# choice, carried on the representative RegisterAssignment row's `config_json`, provenance='canvas' SAID so by the
+# claim it produces (cmod.custom.claims.pin_claims: 'canvas' once config_json merges anything); D6/D13 (plain
+# digital-out) carry their own config_json too, though it only restates `_defaults('digital-out')` — his choice,
+# written down rather than left implicit. `keep=('notes', 'config_json')` (same as uno-sim-rig's own row below)
+# means config_json SURVIVES every reseed/converge — only this first seed ever sets it.
+BC_FIRMWARE_NAME = 'uno-button-clock'
+BC_FIRMWARE_ROWS = [{
+    'name': BC_FIRMWARE_NAME, 'title': 'UNO button-clock firmware', 'graph': _BC_GRAPH, 'board_definition': 'arduino-uno-r3',
+    'board_variable': '', 'runtime': 'c-device', 'status': 'seeded', 'last_build': '', 'board_resolved': 'arduino-uno-r3',
+    'board_exists': True, 'validation': '', 'validation_why': '', 'task_count': 0,
+    'purpose': 'The firmware-only half of the core demo: a debounced D2 button (INT0, falling, pull-up) toggles D6+D13, a '
+               'jumper D6->D3 (INT1, any-edge) independently witnesses the LED line, a software wall clock is synced by '
+               'SET_TIME (drift from the 2nd sync on), every transition queues a ButtonClockEvent (UNO_CORE_DEMO_PLAN.md '
+               '§1/§5f/§5g, ucd-0e2b).', 'notes': ''}]
+BC_SCHEDULE_ROWS = FW.schedule_for(_BC_GRAPH, BC_FIRMWARE_NAME)
+BC_ASSIGNMENT_ROWS = FW.assignments_for(_BC_GRAPH, BC_FIRMWARE_NAME)
+#: the one source of truth for D2/D3/D6/D13's authored config (cmod.custom.claims.PURE_CONFIG_SEED — claims.py's
+#: OWN pure/no-manager fallback reads the SAME constant, so an offline build/prove/selftest and this seed row agree
+#: with no duplication); the representative (the '_init' task) of each claimed pin, exactly as
+#: `cmod.custom.claims._representative` would itself pick (never a different row — a config_json elsewhere would
+#: simply never be read, claims.py's own `cfg_source` search would skip it).
+from cmod.custom.claims import PURE_CONFIG_SEED as _PURE_CONFIG_SEED
+_BC_CONFIG = _PURE_CONFIG_SEED.get('%s@arduino-uno-r3' % BC_FIRMWARE_NAME, {})
+for _a in BC_ASSIGNMENT_ROWS:
+    if _a['name'] in _BC_CONFIG:
+        _a['config_json'] = json.dumps(_BC_CONFIG[_a['name']])
+_missed = set(_BC_CONFIG) - {_a['name'] for _a in BC_ASSIGNMENT_ROWS}
+assert not _missed, 'cmod_seed: PURE_CONFIG_SEED names row(s) assignments_for never produced: %s' % sorted(_missed)
+_bc_ok, _bc_why, _ = FW.validate(BC_FIRMWARE_ROWS[0], manager=None)
+BC_FIRMWARE_ROWS[0]['task_count'] = sum(1 for n in GRAPH_ROWS['CGraphNode'] if n['graph'] == _BC_GRAPH and n['kind'] == 'c-atom')
+BC_FIRMWARE_ROWS[0]['validation'] = 'ok' if _bc_ok else 'refused'
+BC_FIRMWARE_ROWS[0]['validation_why'] = _bc_why
+BC_FIRMWARE_ROWS[0]['status'] = 'validated' if _bc_ok else 'refused'
+
 CMOD_SEED_PAIRS = [
     ('CProject', CProject, _owned(SEED_ROWS['CProject'], keep=('notes',))),
     ('CModule', CModule, _owned(SEED_ROWS['CModule'], keep=('notes',))),
@@ -85,9 +125,9 @@ CMOD_SEED_PAIRS = [
     ('CapabilityDefinition', CapabilityDefinition, _owned(CAPABILITY_ROWS, keep=('notes',))),
     ('CapabilityInstance', CapabilityInstance, _owned(CAPABILITY_INSTANCE_ROWS, keep=('notes',))),
     ('FirmwareExport', FirmwareExport, []),   # ucd-0f: observed (created by the export door / pol firmware export), never seeded
-    ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS, keep=('title', 'notes'))),
-    ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS, keep=('notes',))),
-    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS, keep=('notes', 'config_json'))),
+    ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS + BC_FIRMWARE_ROWS, keep=('title', 'notes'))),
+    ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS + BC_SCHEDULE_ROWS, keep=('notes',))),
+    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS + BC_ASSIGNMENT_ROWS, keep=('notes', 'config_json'))),
     # ucd-0b: observed rows (materialized by cmod_firmware_api on every GET of a solution, upserted by name) —
     # never seeded, same posture as FirmwareExport above.
     ('PinClaim', PinClaim, []),
@@ -100,5 +140,5 @@ CMOD_SEED_PAIRS = [
 # is POST-created (cmod.custom.binding.create), never seeded, and is KEPT across a reseed (its own row is never in
 # this list, so `_converge` never touches it).
 from cmod.custom import binding as _BND
-BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None),) if _b is not None]
+BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None), _BND.derive(BC_FIRMWARE_NAME, manager=None)) if _b is not None]
 CMOD_SEED_PAIRS.append(('HardwareBinding', HardwareBinding, _owned(BINDING_ROWS, keep=('notes',))))

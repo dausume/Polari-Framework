@@ -28,7 +28,10 @@ def binding_parts(check):
     def live_api():
         _live_api(check)
 
-    return (default_binding, fixed_kinds, reverse_refs_resolve, claims_carry_binding, esp32c3_incomplete, live_api)
+    def button_clock_binding():
+        _button_clock_binding(check)
+
+    return (default_binding, fixed_kinds, reverse_refs_resolve, claims_carry_binding, esp32c3_incomplete, live_api, button_clock_binding)
 
 
 # ---------------------------------------------------------------- part 1: the pure default binding
@@ -231,3 +234,24 @@ def _live_api(check):
     status, why, total, met, refs = BND.validity(second, GRAPH, BOARD, manager=mgr)
     check('validity() over the FORCED-bad live row: status invalid, why names D7 and the ADC mismatch',
           status == 'invalid' and any('D7' in w and 'ADC' in w for w in why), (status, why))
+
+
+#: ucd-0e2b: the SECOND solution's own default binding (`pol firmware bindings` shows uno-button-clock@arduino-uno-r3)
+BC_SOLUTION, BC_GRAPH = 'uno-button-clock', 'uno-button-clock-graph'
+BC_DEFAULT_NAME = '%s@%s' % (BC_SOLUTION, BOARD)
+
+
+def _button_clock_binding(check):
+    from cmod.custom import binding as BND
+    b = BND.derive(BC_SOLUTION, manager=None)
+    check('the default binding exists, named uno-button-clock@arduino-uno-r3, is_default, provenance derived',
+          b is not None and b['name'] == BC_DEFAULT_NAME and b['is_default'] is True and b['provenance'] == 'derived', b)
+    check('status valid, requirements_met == requirements_total == 17 (every required row met — D2/D3\'s interrupt-in '
+          'claims resolve through PURE_CONFIG_SEED\'s authored edge/pull, never left incomplete)',
+          b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 17 and b['why'] == '', b)
+    claims_refs = json.loads(b['claims_refs_json'])
+    check('claims_refs names PinClaim:…:D2/D3/D6/D13 and the PeripheralClaim(s) for EXINT/GPIO PORTD/USART0',
+          all(('PinClaim:%s:%s' % (BC_SOLUTION, p)) in claims_refs for p in ('D2', 'D3', 'D6', 'D13')), claims_refs)
+    routes_refs = json.loads(b['routes_refs_json'])
+    check('routes_refs names the two ACTIVE SignalRoutes (D2:INT0, D3:INT1)',
+          ('SignalRoute:%s:D2:INT0' % BC_SOLUTION) in routes_refs and ('SignalRoute:%s:D3:INT1' % BC_SOLUTION) in routes_refs, routes_refs)

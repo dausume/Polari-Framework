@@ -70,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "d4e9f6cd31ee87791aad3953b1994f23970b7aabbc5b4732f3977f66d6ed87c8"
+     "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
     },
     {
      "path": "hal.h",
@@ -116,11 +116,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "923fdd000e0807eab695899e6b43f4456ac9c70a2785f6f356e3da6b3d898096"
+     "sha256": "bcebaac9c4f2a7dd78d1aa32c82a2b40e30afbd6600ac6ded765feb2bede4434"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "fb35a14ef0a3e1c95509a179fcdf58df43fc42a798c5766d922020ae913777a1"
+     "sha256": "0d74ba9604623e5281b2ea73909cae1f9304af910bbe2b97dd1291e861ad9fb1"
     }
    ],
    "atoms": [
@@ -290,7 +290,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 319,
+   "line": 328,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -346,7 +346,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 327,
+   "line": 336,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -408,7 +408,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 325,
+    "line": 334,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -436,7 +436,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 268,
+   "line": 277,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -481,7 +481,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 266,
+    "line": 275,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -511,7 +511,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 259,
+   "line": 268,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -626,7 +626,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 308,
+   "line": 317,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -681,7 +681,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 306,
+    "line": 315,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -711,7 +711,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 288,
+   "line": 297,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -1166,7 +1166,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 42,
+   "line": 44,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1222,7 +1222,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 40,
+    "line": 42,
     "role": "apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded",
     "uses": [
      "LED_PIN",
@@ -1254,7 +1254,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 65,
+   "line": 67,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1361,7 +1361,7 @@
    "name": "polari_graph.sensor_value",
    "function": "sensor_value",
    "module": "polari_graph.c",
-   "line": 27,
+   "line": 29,
    "kind": "function",
    "isr_vector": "",
    "signature": "polari_avr_double_t sensor_value(uint16_t adc)",
@@ -1401,7 +1401,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 24,
+    "line": 26,
     "role": "ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)",
     "uses": [],
     "raw": "POLARI_NODE(sensor_value, in(adc, \"count\", \"10-bit ADC reading\"), out(return, \"degC\", \"TMP36 temperature (or the raw count when TEMP_TMP36 is 0)\"), role(\"ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)\"))"
@@ -1437,9 +1437,11 @@
  },
  "problems": [],
  "annotated_not_compiled": [
+  "hal.hal_button_init",
   "hal.hal_presses",
+  "hal.hal_sense_init",
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-09T07:50:39"
+ "conformed_at": "2026-10-09T09:06:40"
 }

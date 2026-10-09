@@ -1,0 +1,2664 @@
+{
+ "schema": "polari-firmware/1",
+ "project": "uno-button-clock-graph",
+ "kind": "plain",
+ "title": "uno-button-clock-graph",
+ "description": "",
+ "notes": "",
+ "root": "cmod/custom/graphs/uno-button-clock-graph",
+ "board": "",
+ "mcu": "atmega328p",
+ "parser": {
+  "engine": "pycparser",
+  "version": "2.21",
+  "licence": "BSD-3-Clause",
+  "runs": "in the framework process (pure Python; cffi already pins it — requirements.txt pycparser==2.21)",
+  "preprocessor": "pycparser.ply.cpp (pure Python) + cmod fake avr-libc headers",
+  "fake_headers_sha256": "35cf5dc88acbab00b5fac625254e8959c38bed1185fcf517d60b2d9541b7f40b",
+  "registers": {
+   "mcu": "atmega328p",
+   "avr_libc": "2.2.1",
+   "dm_sha256": "45dba0b820ff25c6fa7f50c2f7a0d527988bea35dd65551c31d072704500d0ce",
+   "count": 96,
+   "vectors": 25
+  }
+ },
+ "build": {
+  "cc": "avr-gcc",
+  "cflags": [
+   "-mmcu=atmega328p",
+   "-DF_CPU=16000000UL",
+   "-Os",
+   "-std=gnu99",
+   "-Wall",
+   "-Wextra",
+   "-Werror",
+   "-ffunction-sections",
+   "-fdata-sections",
+   "-DPOLARI_PIN_CONFIG=1"
+  ],
+  "ldflags": [
+   "-Wl,--gc-sections"
+  ],
+  "from": "the project Makefile",
+  "measure": "shipped = the Makefile flags + -fstack-usage -Wno-error (no code change); noinline = + -fno-inline; text = nm -S --size-sort; stack = the .su frame",
+  "cc_version": "avr-gcc (GCC) 14.2.0"
+ },
+ "configurations": [
+  {
+   "name": "default",
+   "kind": "as-is",
+   "app": "",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "pin_config.c",
+    "polari_graph.c"
+   ],
+   "generated": [],
+   "source_sha": "",
+   "elf_sha256": {
+    "shipped": "733173b060c19db50c6ef86f77b9ce77d35f01dab0f26ed390215ac52b224d30",
+    "noinline": "a2b6410e618a9c90029561bbeb0d9f219d8776194595d2167371ed135b1e6979"
+   }
+  }
+ ],
+ "modules": [
+  {
+   "name": "hal",
+   "role": "source",
+   "files": [
+    {
+     "path": "hal.c",
+     "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
+    },
+    {
+     "path": "hal.h",
+     "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+    }
+   ],
+   "atoms": [
+    "hal.INT0_vect",
+    "hal.INT1_vect",
+    "hal.TIMER2_COMPA_vect",
+    "hal.USART_RX_vect",
+    "hal.hal_button_init",
+    "hal.hal_led",
+    "hal.hal_led_init",
+    "hal.hal_millis",
+    "hal.hal_presses",
+    "hal.hal_rx_pop",
+    "hal.hal_sense_init",
+    "hal.hal_sense_read",
+    "hal.hal_take_toggle_pending",
+    "hal.hal_tick_init",
+    "hal.hal_usart_init",
+    "hal.hal_usart_send"
+   ]
+  },
+  {
+   "name": "pin_config",
+   "role": "source",
+   "files": [
+    {
+     "path": "pin_config.c",
+     "sha256": "cb293e7c85492b48d20b036b2b90e675a3e3b984ea90a41f9371d2798985fb7f"
+    },
+    {
+     "path": "pin_config.h",
+     "sha256": "292371ecfb9839516240932b1fba969728ed6ae198c7ed02f480ddca79f4bee7"
+    }
+   ],
+   "atoms": [
+    "pin_config.pin_config_init"
+   ]
+  },
+  {
+   "name": "polari_graph",
+   "role": "source",
+   "files": [
+    {
+     "path": "polari_graph.c",
+     "sha256": "a11f971acaca00cbee422bc2d85a890d310e810e9b5cbb5dea2a4b0ac4fcefe7"
+    },
+    {
+     "path": "polari_graph.h",
+     "sha256": "8cafa98922a8a88882705fbef6ac6620b0947c6fd7773e524127bca7b0cb55f3"
+    }
+   ],
+   "atoms": [
+    "polari_graph.apply_command",
+    "polari_graph.boot_session_mint",
+    "polari_graph.clock_set",
+    "polari_graph.clock_tick",
+    "polari_graph.events_drain",
+    "polari_graph.events_queue",
+    "polari_graph.l_led_init",
+    "polari_graph.l_led_set",
+    "polari_graph.led_toggle",
+    "polari_graph.main",
+    "polari_graph.queue_pop",
+    "polari_graph.sense_isr",
+    "polari_graph.telemetry_send"
+   ]
+  },
+  {
+   "name": "board_config",
+   "role": "header",
+   "files": [
+    {
+     "path": "board_config.h",
+     "sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "button_clock_defs",
+   "role": "header",
+   "files": [
+    {
+     "path": "button_clock_defs.h",
+     "sha256": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "buttonclockevent_packets",
+   "role": "header",
+   "files": [
+    {
+     "path": "buttonclockevent_packets.h",
+     "sha256": "d7c29234aef022c6b998cdd1cecf0574a8a02ad84731c354b4744b14060edc48"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "buttonclockstate_packets",
+   "role": "header",
+   "files": [
+    {
+     "path": "buttonclockstate_packets.h",
+     "sha256": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210"
+    }
+   ],
+   "atoms": []
+  }
+ ],
+ "atoms": [
+  {
+   "name": "hal.INT0_vect",
+   "function": "__polari_isr_INT0_vect",
+   "module": "hal.c",
+   "line": 158,
+   "kind": "isr",
+   "isr_vector": "INT0_vect",
+   "signature": "ISR(INT0_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "INT0_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 1"
+    },
+    {
+     "kind": "global",
+     "name": "g_last_press",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed_once",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_toggle_pending",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "__vector_1",
+    "text_bytes": 170,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 170,
+    "stack_bytes": 17,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 17,
+    "text_bytes_range": [
+     170,
+     170
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.INT1_vect",
+   "function": "__polari_isr_INT1_vect",
+   "module": "hal.c",
+   "line": 215,
+   "kind": "isr",
+   "isr_vector": "INT1_vect",
+   "signature": "ISR(INT1_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "INT1_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 2"
+    },
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "__vector_2",
+    "text_bytes": 110,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 110,
+    "stack_bytes": 11,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 11,
+    "text_bytes_range": [
+     110,
+     110
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.TIMER2_COMPA_vect",
+   "function": "__polari_isr_TIMER2_COMPA_vect",
+   "module": "hal.c",
+   "line": 115,
+   "kind": "isr",
+   "isr_vector": "TIMER2_COMPA_vect",
+   "signature": "ISR(TIMER2_COMPA_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "TIMER2_COMPA_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 7"
+    },
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "__vector_7",
+    "text_bytes": 70,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 70,
+    "stack_bytes": 9,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     70,
+     70
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.USART_RX_vect",
+   "function": "__polari_isr_USART_RX_vect",
+   "module": "hal.c",
+   "line": 63,
+   "kind": "isr",
+   "isr_vector": "USART_RX_vect",
+   "signature": "ISR(USART_RX_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "USART_RX_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 18"
+    },
+    {
+     "kind": "register",
+     "name": "UDR0",
+     "access": "r",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "rx_head",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "rx_ring",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t[64], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "rx_tail",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "__vector_18",
+    "text_bytes": 66,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 66,
+    "stack_bytes": 10,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 10,
+    "text_bytes_range": [
+     66,
+     66
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_button_init",
+   "function": "hal_button_init",
+   "module": "hal.c",
+   "line": 176,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_button_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EICRA",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIFR",
+     "access": "w",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIMSK",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PORTD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "BUTTON_PIN",
+     "access": "",
+     "peripheral": "BUTTON_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRD, EICRA, EIFR, EIMSK, PORTD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 174,
+    "role": "D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)",
+    "uses": [
+     "BUTTON_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_button_init, uses(BUTTON_PIN), role(\"D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_button_init",
+    "text_bytes": 2,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 2,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     2,
+     2
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_led",
+   "function": "hal_led",
+   "module": "hal.c",
+   "line": 277,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_led(uint8_t on)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "on",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "bool",
+     "meaning": "0 = off, anything else = on",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "PORTD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register PORTD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 275,
+    "role": "set the LED on LED_PIN",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_led, in(on, \"bool\", \"0 = off, anything else = on\"), uses(LED_PIN), role(\"set the LED on LED_PIN\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_led",
+    "text_bytes": 12,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 12,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     12,
+     12
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_led_init",
+   "function": "hal_led_init",
+   "module": "hal.c",
+   "line": 268,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_led_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_led_init",
+    "text_bytes": 2,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 2,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     2,
+     2
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_millis",
+   "function": "hal_millis",
+   "module": "hal.c",
+   "line": 135,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t hal_millis(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "milliseconds since hal_tick_init, from the Timer2 1 ms tick",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B, shared with ISR INT0_vect, INT1_vect, TIMER2_COMPA_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_ms",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 133,
+    "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
+    "uses": [],
+    "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_millis",
+    "text_bytes": 24,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 54,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 7,
+    "text_bytes_range": [
+     24,
+     24
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_presses",
+   "function": "hal_presses",
+   "module": "hal.c",
+   "line": 192,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_presses(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "count",
+     "meaning": "D2 debounced press count since boot",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR INT0_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "declared",
+     "name": "BUTTON_PIN",
+     "access": "",
+     "peripheral": "BUTTON_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_presses",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 190,
+    "role": "atomic read of the INT0 press counter",
+    "uses": [
+     "BUTTON_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_presses, out(return, \"count\", \"D2 debounced press count since boot\"), uses(BUTTON_PIN), role(\"atomic read of the INT0 press counter\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_presses",
+    "text_bytes": 16,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 5,
+    "text_bytes_range": [
+     16,
+     16
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_rx_pop",
+   "function": "hal_rx_pop",
+   "module": "hal.c",
+   "line": 76,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int hal_rx_pop(uint8_t * b)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "b",
+     "direction": "out",
+     "ctype": "uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "byte",
+     "meaning": "the oldest received byte, when one is waiting",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "flag",
+     "meaning": "1 = a byte was popped, 0 = the ring is empty",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "rx_head",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "global",
+     "name": "rx_ring",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint8_t[64], 1 B (element), shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "global",
+     "name": "rx_tail",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR USART_RX_vect"
+    },
+    {
+     "kind": "declared",
+     "name": "USART0",
+     "access": "",
+     "peripheral": "USART0",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches rx_head, rx_ring, rx_tail",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 73,
+    "role": "pop one byte from the USART0 RX ring the RX ISR fills",
+    "uses": [
+     "USART0"
+    ],
+    "raw": "POLARI_NODE(hal_rx_pop, out(b, \"byte\", \"the oldest received byte, when one is waiting\"), out(return, \"flag\", \"1 = a byte was popped, 0 = the ring is empty\"), uses(USART0), role(\"pop one byte from the USART0 RX ring the RX ISR fills\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_rx_pop",
+    "text_bytes": 52,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 52,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     52,
+     52
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_sense_init",
+   "function": "hal_sense_init",
+   "module": "hal.c",
+   "line": 225,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EICRA",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIFR",
+     "access": "w",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIMSK",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRD, EICRA, EIFR, EIMSK",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 223,
+    "role": "D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_sense_init, uses(SENSE_PIN), role(\"D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_sense_init",
+    "text_bytes": 2,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 2,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     2,
+     2
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_sense_read",
+   "function": "hal_sense_read",
+   "module": "hal.c",
+   "line": 238,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "rises",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "count",
+     "meaning": "D3 rising edges seen since boot",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "falls",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "count",
+     "meaning": "D3 falling edges seen since boot",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "last_ms",
+     "direction": "out",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "hal_millis() at the last edge",
+     "source": "derived: only written through + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B, shared with ISR INT1_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR INT1_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR INT1_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_last_edge_ms, g_sense_falls, g_sense_rises",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 235,
+    "role": "atomic snapshot of the INT1 edge counters + the last edge's timestamp",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_sense_read, out(rises, \"count\", \"D3 rising edges seen since boot\"), out(falls, \"count\", \"D3 falling edges seen since boot\"), out(last_ms, \"ms\", \"hal_millis() at the last edge\"), uses(SENSE_PIN), role(\"atomic snapshot of the INT1 edge counters + the last edge's timestamp\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_sense_read",
+    "text_bytes": 70,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 98,
+    "stack_bytes": 4,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     70,
+     70
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_take_toggle_pending",
+   "function": "hal_take_toggle_pending",
+   "module": "hal.c",
+   "line": 199,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t hal_take_toggle_pending(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_toggle_pending",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR INT0_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_toggle_pending",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_take_toggle_pending",
+    "text_bytes": 16,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 32,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 4,
+    "text_bytes_range": [
+     16,
+     16
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_tick_init",
+   "function": "hal_tick_init",
+   "module": "hal.c",
+   "line": 117,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_tick_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "OCR2A",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR2A",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TCCR2B",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "TIMSK2",
+     "access": "w",
+     "peripheral": "TIMER2",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register OCR2A, TCCR2A, TCCR2B, TIMSK2",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_tick_init",
+    "text_bytes": 24,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 24,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     24,
+     24
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_usart_init",
+   "function": "hal_usart_init",
+   "module": "hal.c",
+   "line": 85,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_usart_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "UBRR0H",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UBRR0L",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0A",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0B",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UCSR0C",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register UBRR0H, UBRR0L, UCSR0A, UCSR0B, UCSR0C",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_usart_init",
+    "text_bytes": 30,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 30,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     30,
+     30
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal.hal_usart_send",
+   "function": "hal_usart_send",
+   "module": "hal.c",
+   "line": 104,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "b",
+     "direction": "in",
+     "ctype": "const uint8_t *",
+     "width_bytes": 1,
+     "polari_type": "bytes",
+     "unit": "bytes",
+     "meaning": "the frame to send",
+     "source": "derived: const pointer + annotation"
+    },
+    {
+     "name": "n",
+     "direction": "in",
+     "ctype": "size_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "B",
+     "meaning": "how many bytes",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "UCSR0A",
+     "access": "r",
+     "peripheral": "USART0",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "UDR0",
+     "access": "w",
+     "peripheral": "USART0",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register UCSR0A, UDR0",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 102,
+    "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
+    "uses": [],
+    "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_usart_send",
+    "text_bytes": 34,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 34,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     34,
+     34
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "pin_config.pin_config_init",
+   "function": "pin_config_init",
+   "module": "pin_config.c",
+   "line": 17,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void pin_config_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EICRA",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIFR",
+     "access": "w",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "EIMSK",
+     "access": "rw",
+     "peripheral": "EXINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PORTD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register DDRB, DDRD, EICRA, EIFR, EIMSK, PORTD",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "pin_config_init",
+    "text_bytes": 36,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     36,
+     36
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.apply_command",
+   "function": "apply_command",
+   "module": "polari_graph.c",
+   "line": 205,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void apply_command(const polari_rx_t * r)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "r",
+     "direction": "in",
+     "ctype": "const polari_rx_t *",
+     "width_bytes": 250,
+     "polari_type": "ref:polari_rx_t",
+     "unit": "frame",
+     "meaning": "a parsed PolariPacket ButtonClockState command",
+     "source": "derived: const pointer + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_status_base",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_millis",
+    "ButtonClockState_decode_rx",
+    "clock_set",
+    "events_queue",
+    "hal_led",
+    "l_led_set",
+    "clock_tick",
+    "telemetry_send"
+   ],
+   "pure": false,
+   "pure_why": "touches g_status_base, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 203,
+    "role": "SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), uses(LED_PIN), role(\"SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "apply_command",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 942,
+    "stack_bytes": 274,
+    "stack_kind": "dynamic,bounded",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 274,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.boot_session_mint",
+   "function": "boot_session_mint",
+   "module": "polari_graph.c",
+   "line": 43,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t boot_session_mint(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "the freshly-minted boot_session (1 on a virgin chip, else +1)",
+     "source": "derived: return value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "eeprom_read_dword",
+     "access": "call",
+     "peripheral": "EEPROM",
+     "detail": "avr-libc"
+    },
+    {
+     "kind": "library",
+     "name": "eeprom_write_dword",
+     "access": "call",
+     "peripheral": "EEPROM",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "eeprom_read_dword",
+    "eeprom_write_dword"
+   ],
+   "pure": false,
+   "pure_why": "calls eeprom_read_dword (EEPROM)",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 41,
+    "role": "mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)",
+    "uses": [],
+    "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "boot_session_mint",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 74,
+    "stack_bytes": 6,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 6,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.clock_set",
+   "function": "clock_set",
+   "module": "polari_graph.c",
+   "line": 70,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void clock_set(int64_t set_epoch_s, int64_t set_ms, int64_t set_sync_generation, uint32_t now_ms)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "set_epoch_s",
+     "direction": "in",
+     "ctype": "int64_t",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "s",
+     "meaning": "the host's SET_TIME",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "set_ms",
+     "direction": "in",
+     "ctype": "int64_t",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "...within the second",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "set_sync_generation",
+     "direction": "in",
+     "ctype": "int64_t",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "the host's generation counter",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "now_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "hal_millis() right now",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_sync_base_epoch_s",
+     "access": "w",
+     "peripheral": "",
+     "detail": "int64_t, 8 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sync_base_ms",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sync_base_uptime_ms",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    }
+   ],
+   "calls": [
+    "clock_tick"
+   ],
+   "pure": false,
+   "pure_why": "touches g_sync_base_epoch_s, g_sync_base_ms, g_sync_base_uptime_ms, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 67,
+    "role": "record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on",
+    "uses": [],
+    "raw": "POLARI_NODE(clock_set, in(set_epoch_s, \"s\", \"the host's SET_TIME\"), in(set_ms, \"ms\", \"...within the second\"), in(set_sync_generation, \"\", \"the host's generation counter\"), in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "clock_set",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 564,
+    "stack_bytes": 60,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 60,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.clock_tick",
+   "function": "clock_tick",
+   "module": "polari_graph.c",
+   "line": 56,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void clock_tick(uint32_t now_ms, int64_t * epoch_s, int64_t * ms)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "now_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "hal_millis() right now",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "epoch_s",
+     "direction": "out",
+     "ctype": "int64_t *",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "s",
+     "meaning": "the device's current wall-clock estimate",
+     "source": "derived: only written through + annotation"
+    },
+    {
+     "name": "ms",
+     "direction": "out",
+     "ctype": "int64_t *",
+     "width_bytes": 8,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "...within the second",
+     "source": "derived: only written through + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_sync_base_epoch_s",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int64_t, 8 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sync_base_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sync_base_uptime_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_sync_base_epoch_s, g_sync_base_ms, g_sync_base_uptime_ms, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 53,
+    "role": "advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it",
+    "uses": [],
+    "raw": "POLARI_NODE(clock_tick, in(now_ms, \"ms\", \"hal_millis() right now\"), out(epoch_s, \"s\", \"the device's current wall-clock estimate\"), out(ms, \"ms\", \"...within the second\"), role(\"advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "clock_tick",
+    "text_bytes": 284,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 284,
+    "stack_bytes": 18,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 18,
+    "text_bytes_range": [
+     284,
+     284
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.events_drain",
+   "function": "events_drain",
+   "module": "polari_graph.c",
+   "line": 164,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void events_drain(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_seq_e",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[], 1 B (element)"
+    }
+   ],
+   "calls": [
+    "queue_pop",
+    "memset",
+    "strcpy",
+    "hal_usart_send",
+    "ButtonClockEvent_frame",
+    "ButtonClockEvent_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches g_seq_e, payload, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "events_drain",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 462,
+    "stack_bytes": 135,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 135,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.events_queue",
+   "function": "events_queue",
+   "module": "polari_graph.c",
+   "line": 91,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void events_queue(uint8_t kind, uint32_t at_ms)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "kind",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "enum",
+     "meaning": "press | led_on | led_off | sense_rise | sense_fall | sync",
+     "source": "derived: by value + annotation"
+    },
+    {
+     "name": "at_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "device uptime at the moment of the event",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_qcount",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_qhead",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_qtail",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_queue",
+     "access": "w",
+     "peripheral": "",
+     "detail": "qevent_t[16], 11 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    }
+   ],
+   "calls": [
+    "clock_tick"
+   ],
+   "pure": false,
+   "pure_why": "touches g_qcount, g_qhead, g_qtail, g_queue, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 88,
+    "role": "push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events",
+    "uses": [],
+    "raw": "POLARI_NODE(events_queue, in(kind, \"enum\", \"press | led_on | led_off | sense_rise | sense_fall | sync\"), in(at_ms, \"ms\", \"device uptime at the moment of the event\"), role(\"push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "events_queue",
+    "text_bytes": 252,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 252,
+    "stack_bytes": 26,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 26,
+    "text_bytes_range": [
+     252,
+     252
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.l_led_init",
+   "function": "l_led_init",
+   "module": "polari_graph.c",
+   "line": 25,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void l_led_init(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    }
+   ],
+   "calls": [
+    "_BV"
+   ],
+   "pure": false,
+   "pure_why": "touches register DDRB",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "l_led_init",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": false,
+    "text_bytes_noinline": 0,
+    "stack_bytes": null,
+    "stack_kind": "",
+    "stack_from": "",
+    "stack_bytes_noinline": null,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "no symbol in either build; no .su frame: GCC cannot compute the stack of a naked function (it has no prologue)"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.l_led_set",
+   "function": "l_led_set",
+   "module": "polari_graph.c",
+   "line": 35,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void l_led_set(uint8_t on)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "on",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "bool",
+     "meaning": "0 = off, anything else = on",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "PORTB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "L_LED_PIN",
+     "access": "",
+     "peripheral": "L_LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "_BV"
+   ],
+   "pure": false,
+   "pure_why": "touches register PORTB",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 33,
+    "role": "mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)",
+    "uses": [
+     "L_LED_PIN"
+    ],
+    "raw": "POLARI_NODE(l_led_set, in(on, \"bool\", \"0 = off, anything else = on\"), uses(L_LED_PIN), role(\"mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "l_led_set",
+    "text_bytes": 12,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 12,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     12,
+     12
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.led_toggle",
+   "function": "led_toggle",
+   "module": "polari_graph.c",
+   "line": 120,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_toggle(uint32_t now_ms)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "now_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: by value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_take_toggle_pending",
+    "hal_presses",
+    "events_queue",
+    "hal_led",
+    "l_led_set",
+    "clock_tick"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 119,
+    "role": "on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(led_toggle, uses(LED_PIN), role(\"on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "led_toggle",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 256,
+    "stack_bytes": 24,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 24,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.main",
+   "function": "main",
+   "module": "polari_graph.c",
+   "line": 239,
+   "kind": "entry",
+   "isr_vector": "",
+   "signature": "int main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t, 250 B"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "library",
+     "name": "sei",
+     "access": "call",
+     "peripheral": "SREG.I (interrupts on)",
+     "detail": "avr-libc"
+    }
+   ],
+   "calls": [
+    "pin_config_init",
+    "hal_usart_init",
+    "hal_tick_init",
+    "hal_led_init",
+    "l_led_init",
+    "hal_button_init",
+    "hal_sense_init",
+    "boot_session_mint",
+    "memset",
+    "strcpy",
+    "sei",
+    "hal_rx_pop",
+    "polari_rx_feed",
+    "apply_command",
+    "hal_millis",
+    "led_toggle",
+    "sense_isr",
+    "telemetry_send"
+   ],
+   "pure": false,
+   "pure_why": "touches rx, state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "main",
+    "text_bytes": 8418,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 216,
+    "stack_bytes": 293,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 3,
+    "text_bytes_range": [
+     8418,
+     8418
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.queue_pop",
+   "function": "queue_pop",
+   "module": "polari_graph.c",
+   "line": 109,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int queue_pop(qevent_t * out)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "out",
+     "direction": "out",
+     "ctype": "qevent_t *",
+     "width_bytes": 11,
+     "polari_type": "ref:qevent_t",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_qcount",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_qtail",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_queue",
+     "access": "r",
+     "peripheral": "",
+     "detail": "qevent_t[16], 11 B (element)"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_qcount, g_qtail, g_queue",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "queue_pop",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 60,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.sense_isr",
+   "function": "sense_isr",
+   "module": "polari_graph.c",
+   "line": 140,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void sense_isr(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "w",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_sense_read",
+    "clock_tick",
+    "events_queue"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 139,
+    "role": "drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(sense_isr, uses(SENSE_PIN), role(\"drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "sense_isr",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 384,
+    "stack_bytes": 32,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 32,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.telemetry_send",
+   "function": "telemetry_send",
+   "module": "polari_graph.c",
+   "line": 187,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void telemetry_send(uint32_t now_ms)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "now_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "ms",
+     "meaning": "hal_millis() right now",
+     "source": "derived: by value + annotation"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_seq_s",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[], 1 B (element)"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[], 1 B (element)"
+    }
+   ],
+   "calls": [
+    "clock_tick",
+    "hal_usart_send",
+    "ButtonClockState_frame",
+    "ButtonClockState_encode",
+    "events_drain"
+   ],
+   "pure": false,
+   "pure_why": "touches g_seq_s, payload, state, wire",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 185,
+    "role": "one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames",
+    "uses": [],
+    "raw": "POLARI_NODE(telemetry_send, in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "telemetry_send",
+    "text_bytes": 3152,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 480,
+    "stack_bytes": 367,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 239,
+    "text_bytes_range": [
+     3152,
+     3152
+    ]
+   },
+   "title": "",
+   "notes": ""
+  }
+ ],
+ "counts": {
+  "atoms": 30,
+  "annotated": 17,
+  "isr": 4,
+  "pure": 0,
+  "ports": 28,
+  "not_isr_safe": 0
+ },
+ "problems": [],
+ "annotated_not_compiled": [
+  "hal.hal_adc_read",
+  "hal.hal_pwm_apply"
+ ],
+ "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
+ "conformed_at": "2026-10-09T09:02:17"
+}

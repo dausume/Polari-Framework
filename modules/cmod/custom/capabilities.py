@@ -17,6 +17,7 @@ CapabilityDefinition/CapabilityInstance/`capability` names unchanged.
 import json
 
 GRAPH = 'uno-sim-rig-graph'
+BC_GRAPH = 'uno-button-clock-graph'
 RUNTIMES = ('c-device', 'java-bridge', 'python-backend', 'typescript-browser')
 
 
@@ -52,7 +53,7 @@ SEED_CAPABILITIES = [
          python_backend=['temp-analysis:flag-on', 'temp-analysis:flag-off', 'temp-analysis:commit']),
      'acceptance_scenario': 'blink-on-command-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
      'notes': 'hw priorities P1 seed 2; stays planned unless its own acceptance run also passes (never copies seed 1\'s proof)'},
-    {'name': 'button-clock-to-os', 'graph': '', 'title': 'Button + clock to the OS',
+    {'name': 'button-clock-to-os', 'graph': BC_GRAPH, 'title': 'Button + clock to the OS',
      'goal': 'a button on the board turns the light on and off; the board keeps a clock the OS sets; every press and '
              'every light change, with its time, reaches the OS',
      'purpose': 'UNO_CORE_DEMO_PLAN.md §1 — the core demo/proof for a Polari Hardware App: a debounced D2 button '
@@ -61,8 +62,12 @@ SEED_CAPABILITIES = [
      'required_targets': '',
      'exposes_fields': 'button_presses,led_on,sense_rises,sense_falls,epoch_s,drift_ms',
      'tasks_by_runtime_json': _tasks(
-         c_device=['uno-button-clock:clock_tick', 'uno-button-clock:clock_set', 'uno-button-clock:led_toggle',
-                   'uno-button-clock:sense_isr', 'uno-button-clock:events_queue', 'uno-button-clock:telemetry_send'],
+         # ucd-0e2b: these now name uno-button-clock-graph's own CGraphNode instances (the graph that exists as of
+         # this slice), replacing the 0e2a stopgap `_project_atom_exists` ref ('uno-button-clock:<atom>', validated
+         # directly against the app's POLARI_NODE annotations because no graph existed yet) — same six tasks, the
+         # resolver now takes the ordinary `_c_device_task_exists` graph branch like temp-sensor-to-os's own refs.
+         c_device=['%s:clock_tick' % BC_GRAPH, '%s:clock_set' % BC_GRAPH, '%s:led_toggle' % BC_GRAPH,
+                   '%s:sense_isr' % BC_GRAPH, '%s:events_queue' % BC_GRAPH, '%s:telemetry_send' % BC_GRAPH],
          # java-bridge / python-backend / typescript-browser: PLANNED — ucd-0e1 built the wire contract + the
          # HardwareBridgeDefinition dict (grpcbridge.mapping_basis.SEED_BUTTON_CLOCK_BRIDGE, not a live row) and
          # ucd-0e3 built the bridge's reconnect/snapshot lifecycle; there is no Cross-Domain Solution, backend
@@ -70,12 +75,12 @@ SEED_CAPABILITIES = [
          # (the empty lists below validate trivially, the same posture typescript-browser already uses).
          java_bridge=[], python_backend=[], typescript_browser=[]),
      'acceptance_scenario': 'button-clock-to-os-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
-     'notes': 'ucd-0e2 seed. java-bridge: the generated bridge (grpcbridge.mapping_basis.BUTTON_CLOCK_BRIDGE) — '
-              'planned/wired, not yet a resolvable task ref. python-backend: the relay (button-clock-ledger) — '
-              'planned, not built. typescript-browser: the display — planned, not built. No CGraph/FirmwareSolution '
-              'for uno-button-clock exists yet (0e2b); c-device tasks are validated directly against the atoms '
-              'cmod\'s annotation parser finds in apps/button_clock.c + hal.c (cmod.custom.capabilities.'
-              '_project_atom_exists), never hand-listed.'},
+     'notes': 'ucd-0e2 seed, ucd-0e2b re-pointed at the graph. java-bridge: the generated bridge '
+              '(grpcbridge.mapping_basis.BUTTON_CLOCK_BRIDGE) — planned/wired, not yet a resolvable task ref. '
+              'python-backend: the relay (button-clock-ledger) — planned, not built. typescript-browser: the '
+              'display — planned, not built. The live acceptance ScenarioRun (proven-on-twin) is keyed by '
+              '`acceptance_scenario`, unaffected by this ref change — status/last_proof still derive unchanged on a '
+              'live server (derive_status reads the latest ScenarioRun, never this list).'},
 ]
 
 

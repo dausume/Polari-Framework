@@ -187,9 +187,12 @@ def graph_parts(check):
         from cmod.custom.rows import graph_rows
         gr = graph_rows()
         g = gr['CGraph'][0]
-        check('rows: CGraph status proven (the record matches the current graph), 18 nodes, 15 edges, 13 atoms; one CGlueBuild row, equivalent',
-              g['status'] == 'proven' and (g['node_count'], g['edge_count'], g['atom_count']) == (18, 15, 13) and len(gr['CGlueBuild']) == 1
-              and gr['CGlueBuild'][0]['equivalent'], (g['status'], g['node_count'], g['edge_count'], g['atom_count']))
+        # ucd-0e2b: a second graph (uno-button-clock-graph) now ALSO carries a proven CGlueBuild row — this check
+        # stays scoped to uno-sim-rig-graph's OWN row (never a bare len()==1 over every graph's glue builds).
+        own = [b for b in gr['CGlueBuild'] if b['graph'] == G]
+        check('rows: CGraph status proven (the record matches the current graph), 18 nodes, 15 edges, 13 atoms; one CGlueBuild row for THIS graph, equivalent',
+              g['status'] == 'proven' and (g['node_count'], g['edge_count'], g['atom_count']) == (18, 15, 13) and len(own) == 1
+              and own[0]['equivalent'], (g['status'], g['node_count'], g['edge_count'], g['atom_count']))
         nodes = {n['instance']: n for n in gr['CGraphNode']}
         check('node rows carry the atom\'s derived ports / cost / ISR-safety (adc: in channel, out return; 36 B as a node)',
               'in channel:int64' in nodes['adc']['ports_summary'] and nodes['adc']['cost_bytes'] == 36 and nodes['adc']['isr_safe'] == 'yes')
