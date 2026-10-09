@@ -44,6 +44,20 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
 APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app', 'access-app')
 
+#: D-ucd-2 (ruled 2026-10-07, UNO_CORE_DEMO_PLAN.md §5): a hardware-app's REQUIRED `app.realization` — ONE kind
+#: beside the others, two REALIZATIONS: `kvm` (a QEMU/KVM guest owning hardware by passthrough — the original
+#: reading) or `bridge` (a JavaFX app on the host binding to external hardware over USB/serial, owning no guest of
+#: its own — the Polari Firmware Installer is the first). Person-facing names live in appstore.custom.app_forms.
+#: kind_title (the one place a kind/realization pair is titled): "Hardware App (KVM)" / "Hardware Bridge App".
+REALIZATIONS = ('kvm', 'bridge')
+
+#: ucd-2 (UNO_CORE_DEMO_PLAN.md §3): the OPTIONAL `parts` block a hardware-app's manifest may carry, naming the
+#: no-code parts it composes (by class + name) so a readiness page — or any reader — can resolve them without
+#: guessing. `polari_app` is the one entry with no single `class`: a Polari app component is a SolutionDefinition
+#: PLUS a DisplayDefinition, named by `solution`/`display` instead.
+PARTS_KEYS = ('firmware', 'bridge', 'polari_app', 'cross_domain', 'circuit', 'purpose')
+PARTS_STR_FIELDS_MAX = 200
+
 #: app.roles (his ask 2026-09-18): the ROLES this module's capability belongs to — plain Keycloak GROUP names
 #: ('journalist', 'data-scientist', 'operators'). HAND-SET, like the security stanza: it survives regeneration
 #: and nothing derives it. polariapps turns it into RoleAppBinding rows — every Polari-App carrying the module is
@@ -289,6 +303,40 @@ def owned_findings(owned):
             out.append('app.owned declares %r twice — one policy per class' % cls)
         if cls:
             seen.add(cls)
+    return out
+
+
+def parts_findings(parts):
+    """Findings for a manifest's OPTIONAL top-level `parts` block ({} or absent = fine — most modules compose
+    nothing). ucd-2 (UNO_CORE_DEMO_PLAN.md §3): one entry per composed no-code part, naming its row CLASS and NAME
+    (or, for `polari_app`, its `solution`/`display`) so a reader never guesses. HAND-SET like `app.roles`/`app.flows`
+    /`app.owned`: nothing derives which parts a module composes, so the hand-set-preserving refresh step keeps this
+    across a regeneration."""
+    if parts is None:
+        return []
+    if not isinstance(parts, dict):
+        return ['parts must be an object of {firmware|bridge|polari_app|cross_domain|circuit|purpose: {...}} (omit the key when there are none)']
+    out = []
+    for key, entry in parts.items():
+        if key not in PARTS_KEYS:
+            out.append('parts.%s is not one of %s' % (key, PARTS_KEYS))
+            continue
+        if not isinstance(entry, dict):
+            out.append('parts.%s must be an object, got %r' % (key, entry))
+            continue
+        for v in entry.values():
+            if not isinstance(v, str):
+                out.append('parts.%s values must be strings, got %r' % (key, v))
+            elif len(v) > PARTS_STR_FIELDS_MAX:
+                out.append('parts.%s has a value longer than %d characters' % (key, PARTS_STR_FIELDS_MAX))
+        if key == 'polari_app':
+            if not entry.get('solution') and not entry.get('display'):
+                out.append('parts.polari_app needs `solution` and/or `display` (a Polari app component has no single row class)')
+        else:
+            if not entry.get('class'):
+                out.append('parts.%s needs `class` (the row class that defines this part)' % key)
+            if not entry.get('name'):
+                out.append('parts.%s needs `name` (the row\'s name)' % key)
     return out
 
 
@@ -662,6 +710,9 @@ def generate(pkg, tables=None, registry=None):
             'extends': '',
             'catalogKinds': sorted(catalog_kinds),
             'agentTier': 'member',
+            # D-ucd-2: hand-set, like kind/family/extends/agentTier — generate() cannot derive a hardware-app's
+            # realization (kvm vs bridge is a design choice, not a fact in the code); '' for every other kind.
+            'realization': '',
         },
         'requires': {
             'modules': requires_mods,
@@ -704,9 +755,14 @@ def _preserve_hand_set(pkg, manifest):
         # nothing can derive where an app's rows are MEANT to go — only where they were seen going. `owned`
         # joins them too (op-4, design §7): nothing can derive which of a module's classes belong to the person
         # who created the row, and dropping the stanza would quietly un-opt a class from owner-defined
-        # permissions on the next regeneration.
-        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles', 'flows', 'owned')})
+        # permissions on the next regeneration. `realization` joins them too (D-ucd-2): a hardware-app's kvm-vs-
+        # bridge choice is a design decision generate() cannot derive, so a regeneration must never blank it.
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles', 'flows', 'owned', 'realization')})
         manifest['app'] = app
+        # `parts` (ucd-2): nothing derives which no-code parts a module composes — survives a regeneration like
+        # the security stanza does.
+        if old.get('parts') is not None:
+            manifest['parts'] = old['parts']
     return manifest
 
 
@@ -739,11 +795,21 @@ def validate(manifest):
     problems.extend(_tax_problems(app))
     if app.get('kind') == 'hardware-extension-app' and not app.get('extends'):
         problems.append('a hardware-extension-app must name the hardware app it extends (app.extends)')
-    if app.get('kind') in ('hardware-app', 'hardware-extension-app') and app.get('agentTier') != 'hardware':
-        problems.append('hardware kinds need app.agentTier = hardware')
+    if app.get('kind') == 'hardware-extension-app' and app.get('agentTier') != 'hardware':
+        problems.append('hardware-extension-app needs app.agentTier = hardware (it extends a guest already running there)')
+    if app.get('kind') == 'hardware-app':
+        # D-ucd-2 (ruled 2026-10-07): REQUIRED — `pol modules conform` refuses a hardware-app without one
+        if app.get('realization') not in REALIZATIONS:
+            problems.append('a hardware-app must declare app.realization: one of %s (D-ucd-2)' % (REALIZATIONS,))
+        elif app['realization'] == 'kvm' and app.get('agentTier') != 'hardware':
+            problems.append('a hardware-app realization=kvm needs app.agentTier = hardware (it owns a guest by passthrough)')
+        elif app['realization'] == 'bridge' and app.get('agentTier') not in ('member', 'hardware'):
+            problems.append("a hardware-app realization=bridge needs app.agentTier = member (tier_reach's \"host\" tier) "
+                            'or hardware — it never needs libvirt (D-ucd-2)')
     problems.extend(role_findings(app.get('roles')))
     problems.extend(flow_findings(app.get('flows')))
     problems.extend(owned_findings(app.get('owned')))
+    problems.extend(parts_findings(manifest.get('parts')))
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:

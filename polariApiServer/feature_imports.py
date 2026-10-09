@@ -1171,7 +1171,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     ('hardwareapps', (
         ('hardwareapps.hardwareapps_basis', (
-            'HardwareAppDefinition', 'HardwareAppState', 'HARDWAREAPPS_SEED_PAIRS',
+            'HardwareAppDefinition', 'HardwareAppState', 'BridgingCapability', 'SEED_BRIDGING_CAPABILITIES', 'HARDWAREAPPS_SEED_PAIRS',
         )),
         ('hardwareapps.hardwareapps_page', (
             'SEED_HARDWAREAPPS_PAGE_DISPLAYS',
@@ -1353,6 +1353,12 @@ FEATURE_IMPORT_BLOCKS = (
         ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),
         ('iso.iso_seed', ('ISO_SEED_PAIRS',)),
         ('iso.iso_page', ('SEED_ISO_PAGE_DISPLAYS',)),
+    )),
+    # ucd-2 (UNO_CORE_DEMO_PLAN.md §2/§3): the demo's own hardware-app module — names the three composed parts
+    # (firmware/bridge/polari_app + cross_domain/circuit/purpose) by manifest `parts`, derives their readiness
+    ('uno_core_demo', (
+        ('uno_core_demo.uno_core_demo_basis', ('DemoReadiness', 'UNO_CORE_DEMO_SEED_PAIRS')),
+        ('uno_core_demo.uno_core_demo_page', ('SEED_UNO_CORE_DEMO_PAGE_DISPLAYS',)),
     )),
     ('printcam', (
         ('printcam.printcam_basis', (

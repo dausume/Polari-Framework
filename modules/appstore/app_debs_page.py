@@ -219,7 +219,7 @@ def _forms_for(module, flavor, app, tier):
 
 
 def _module_card(module, entry, analysis, flavor='online', app=None, show_category=False, tier=''):
-    from appstore.custom.app_forms import manifest_app, HARDWARE_KINDS, EXPANSION_KINDS
+    from appstore.custom.app_forms import manifest_app, kind_title, HARDWARE_KINDS, EXPANSION_KINDS
     app = app or manifest_app(module, entry=entry)
     title = app.get('title') or module
     description = app.get('description') or entry.get('description', '')
@@ -250,7 +250,7 @@ def _module_card(module, entry, analysis, flavor='online', app=None, show_catego
         return f'''
 <li class="dl-card dl-card-forms">
   <span class="dl-info">
-    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind)}</small></span>
+    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind_title(app))}</small></span>
     {blurb}
     <span class="prov prov-demand">Not available here (the install form) — {html.escape(reason)}.</span>
     <div class="forms">{_form_block(module, flavor, 'access')}</div>
@@ -267,7 +267,7 @@ def _module_card(module, entry, analysis, flavor='online', app=None, show_catego
     return f'''
 <li class="dl-card dl-card-forms">
   <span class="dl-info">
-    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind)}</small></span>
+    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind_title(app))}</small></span>
     {blurb}
     {req_lines}
     <span class="dl-meta">steps on download: {GENERATION_STEPS}</span>

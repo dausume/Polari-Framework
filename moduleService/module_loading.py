@@ -56,6 +56,8 @@ FEATURE_MODULES = frozenset({
     'hwnocode',
     # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine for schematics/boards — rows, ingest, ERC/DRC/exports
     'pcb',
+    # ucd-2 (UNO_CORE_DEMO_PLAN.md §2): the UNO core demo's own hardware-app (realization=bridge) module
+    'uno_core_demo',
 })
 
 # Cross-feature top-level imports (survey 2026-07-18): dropping a

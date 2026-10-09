@@ -38,6 +38,26 @@ DEV_STANDING_WARNING = ('DEV VARIANT: security on this app WARNS and never block
 HARDWARE_KINDS = ('hardware-app',)
 EXPANSION_KINDS = ('hardware-extension-app',)
 
+#: D-ucd-2 (ruled 2026-10-07): person-facing names for a (kind, realization) pair whose plain id would read as
+#: jargon — a hardware-app's name DEPENDS on its required realization. Every other kind keeps its id, title-cased.
+#: THE ONE PLACE a kind is titled (modules/README.md §2's table mirrors these two names by hand; every surface that
+#: shows a kind to a person — the apps page's kind column, a card — calls this instead of titling the string itself).
+KIND_TITLES = {
+    ('hardware-app', 'kvm'): 'Hardware App (KVM)',
+    ('hardware-app', 'bridge'): 'Hardware Bridge App',
+}
+
+
+def kind_title(app):
+    """The person-facing name for `app['kind']` (+ `app.get('realization')` for a hardware-app) — call this with
+    the dict `manifest_app()` returns (or any `{kind, realization}` mapping) rather than titling a kind string
+    anywhere else."""
+    kind = (app or {}).get('kind') or 'polari-app'
+    key = (kind, (app or {}).get('realization') or '')
+    if key in KIND_TITLES:
+        return KIND_TITLES[key]
+    return ' '.join(w.capitalize() for w in kind.replace('-', ' ').split())
+
 #: the sentences the debs print (his words), one place
 LIGHTWEIGHT_ISLE_REFUSAL = ('the isle you are on is a lightweight isle, based on docker swarm, you need to install a '
                             'full isle version of Polari to install hardware apps')
@@ -60,7 +80,7 @@ def manifest_app(module, root=None, entry=None):
     root = root or _framework_root()
     rel = (entry or {}).get('path') or f'modules/{module}'
     out = {'module': module, 'kind': 'polari-app', 'title': module, 'extends': '', 'agentTier': 'member', 'description': (entry or {}).get('description', ''),
-           'category': '', 'subcategories': [], 'tags': [], 'devVariant': list(DEV_VARIANT_DEFAULT)}
+           'category': '', 'subcategories': [], 'tags': [], 'devVariant': list(DEV_VARIANT_DEFAULT), 'realization': ''}
     try:
         with open(os.path.join(root, rel, 'polari-app.json'), encoding='utf-8') as fh:
             m = json.load(fh)
@@ -70,7 +90,9 @@ def manifest_app(module, root=None, entry=None):
         out.update({'kind': app.get('kind') or 'polari-app', 'title': m.get('title') or module, 'extends': app.get('extends') or '',
                     'agentTier': app.get('agentTier') or 'member', 'description': m.get('description') or out['description'],
                     'category': app.get('category') or '', 'subcategories': list(app.get('subcategories') or []), 'tags': list(app.get('tags') or []),
-                    'devVariant': [c for c in dv if c in DEV_VARIANT_CONTROLS] if isinstance(dv, list) else list(DEV_VARIANT_DEFAULT)})
+                    'devVariant': [c for c in dv if c in DEV_VARIANT_CONTROLS] if isinstance(dv, list) else list(DEV_VARIANT_DEFAULT),
+                    # D-ucd-2: a hardware-app's realization (kvm | bridge) — '' for every other kind
+                    'realization': app.get('realization') or ''})
     except Exception:
         pass
     from moduleService.app_taxonomy import classify
