@@ -21,7 +21,10 @@ def _usb(board, boards):
 
 
 def build(boards):
-    """boards = the register's BoardDefinition dicts (the usb ids are copied from the Identity row, never typed twice)."""
+    """boards = the register's BoardDefinition dicts (the usb ids are copied from the Identity row, never typed twice).
+    MUTATED IN PLACE: each gains `datasheets_json` (ucd-doc) once the Datasheet rows below are resolved — so both
+    callers (board_seed.py's module-level seed AND board.custom.board_object.seed_tables()'s on-demand rebuild, the
+    same `boards` list passed by reference in each) see the same coverage, computed once, here."""
     conns, cpins = U.connectors()
     nets, seen = [], set()
     for n in U.nets() + C.nets():
@@ -33,6 +36,14 @@ def build(boards):
     # RegisterField rows derived from the same sources, and the SocPin / BoardPin rows gain their reverse links in place
     from board.custom import hardware_chain as HC
     out.update(HC.build(out['SocPin'], out['BoardPin']))
+    # ucd-doc: THE DATASHEETS, as rows — resolved from every DatasheetFact/RegisterField this build produced PLUS the
+    # UNO's own uno_facts.SEED_UNO_FACTS (seeded separately, board_seed.BOARD_SEED_PAIRS's 'DatasheetFact' entry) —
+    # mutates every one of those dicts in place, adding `datasheet`, so whichever entry point built them carries it.
+    from board.custom.uno_facts import SEED_UNO_FACTS
+    from board.custom import datasheets as DS
+    out['Datasheet'] = DS.rows(SEED_UNO_FACTS + out['DatasheetFact'], out['RegisterField'])
+    for b in boards:
+        b['datasheets_json'] = DS.board_coverage_json(b['name'], b.get('soc_definition', ''), out['Datasheet'])
     return out
 
 

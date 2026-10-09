@@ -31,7 +31,8 @@ class BoardDefinition(treeObject):
                  board_origin: str = '', tiers_proven: str = '', radios: str = '', power_bms: str = '',
                  polari_role: str = '', relied_on: str = '', cost_measured: str = '', licence_notes: str = '',
                  designer: str = 'others', road: str = '', road_status: str = 'todo', notes: str = '',
-                 soc_definition: str = '', revision: str = '', upstream_board: str = '', manager=None):
+                 soc_definition: str = '', revision: str = '', upstream_board: str = '',
+                 datasheets_json: str = '{}', manager=None):
         self.name = name  # the register id (kebab-case)
         self.title = title
         self.register_id = register_id  # the register row key, verbatim
@@ -77,3 +78,6 @@ class BoardDefinition(treeObject):
         self.soc_definition = soc_definition  # the SocDefinition row ('' = not modelled yet)
         self.revision = revision  # the board revision the pin rows describe (R3, DevKitM …)
         self.upstream_board = upstream_board  # an upstream board the rows were ingested from (zephyr:esp32c3_devkitm@v4.4.2)
+        # ucd-doc: {"soc": slug|"", "board": slug|"", "programming": slug|"", "combined": slug|""} — which Datasheet row
+        # covers each of the three kinds for THIS board (board.custom.datasheets.board_coverage), '' = missing, named
+        self.datasheets_json = datasheets_json

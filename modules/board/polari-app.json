@@ -14,6 +14,7 @@
   "extends": "",
   "catalogKinds": [],
   "agentTier": "member",
+  "realization": "",
   "category": "polari",
   "subcategories": [
    "materials-devices",
@@ -85,6 +86,7 @@
    "objects/board/ButtonClockState",
    "objects/board/Connector",
    "objects/board/ConnectorPin",
+   "objects/board/Datasheet",
    "objects/board/DatasheetFact",
    "objects/board/FirmwareBuild",
    "objects/board/FirmwareVariant",
@@ -133,6 +135,7 @@
    "board_c3_selftest",
    "board_chain_selftest",
    "board_circuit_selftest",
+   "board_datasheets_selftest",
    "board_installer_selftest",
    "board_kit_parts_selftest",
    "board_mapping_selftest",
@@ -156,6 +159,7 @@
    "custom/build_c3",
    "custom/button_clock_acceptance",
    "custom/compat",
+   "custom/datasheets",
    "custom/detect",
    "custom/dts",
    "custom/electrical_check",
@@ -217,6 +221,7 @@
   "ButtonClockState",
   "Connector",
   "ConnectorPin",
+  "Datasheet",
   "DatasheetFact",
   "FirmwareBuild",
   "FirmwareVariant",
@@ -285,6 +290,7 @@
     "MemoryRegion",
     "ButtonClockState",
     "ButtonClockEvent",
+    "Datasheet",
     "BOARD_CLASSES"
    ]
   ],

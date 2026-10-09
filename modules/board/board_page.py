@@ -96,8 +96,10 @@ _BOARDS_PAGES = [
                               columns='name,definition,definition_kind,state,host,usb_id,by_id_path,possible_targets_json,last_seen_at'),
                        _table('boards-facts', 1, 5, 'Datasheet facts (cited)', 'DatasheetFact',
                               description='What this is for: numbers about a board that are CITED, never guessed. One row = one fact. Columns: '
-                                          'fact_key/value/unit (the number), document/page_table (where it came from), url (the source).',
-                              columns='board,fact_key,value,unit,document,page_table,url')]),
+                                          'fact_key/value/unit (the number), document/page_table (where it came from), url (the source), '
+                                          'datasheet (ucd-doc: the Datasheet row this document resolves to — link).',
+                              columns='board,fact_key,value,unit,document,page_table,url,datasheet',
+                              column_formats='datasheet:ref:Datasheet')]),
               # brd-wire (grpc-j4): which Polari row IS which hardware interface — the chain of one instance is
               # GET /api/board/instances/<instance>/interface
               _row(7, [_table('boards-bindings', 0, 12, 'Hardware-interface bindings — which row is which interface: bridge, instance index '
@@ -184,6 +186,28 @@ _BOARDS_PAGES = [
                               columns='kit,title,what_it_is,interface_kind,driver_needed,pin_count,pin_roles,connects_to,electrical_notes,'
                                       'polarity,kit_quantity,sample_capabilities,source',
                               data_path='/api/board/kit-parts')]),
+              # ucd-doc (his ask, 2026-10-09: "we should also be tracking data sheets as both documents ... there are 3
+              # different kinds of data sheets usually for a board ... some happen to have all 3 in 1") — the documents
+              # themselves, as rows: one per cited (document, revision), kinded soc | board | programming | combined |
+              # other, every DatasheetFact/RegisterField citing it linked back.
+              _row(14, [_table('boards-datasheets', 0, 12, 'Datasheets — the documents themselves: the chip\'s own datasheet (soc), '
+                              'the board\'s own reference (board), bootloader/flash/toolchain (programming), one document carrying '
+                              'all three (combined), or none of those (other/undetermined)', 'Datasheet',
+                              description='What this is for: one row per DOCUMENT a DatasheetFact or RegisterField cites, tracked '
+                                          'as a first-class thing rather than a repeated string (his ask, verbatim above). One row '
+                                          '= one Datasheet. Columns: kind (soc | board | programming | combined | other | '
+                                          'undetermined — a citation this table does not yet recognize, never dropped), for_soc / '
+                                          'for_board (the SocDefinition/BoardDefinition this document is OF — a BoardDefinition\'s '
+                                          'own datasheets_json is derived from these two, so a board\'s page can say "programming '
+                                          'reference: missing" by name), publisher/revision/url/sha256/fetched_at/pages/format/'
+                                          'licence_note (the document itself), facts_refs_json/fields_refs_json (every cited fact '
+                                          'or register field naming it — links), covers_json (for kind=combined: which of soc/'
+                                          'board/programming it stands in for). Computed at seed time (board.custom.datasheets) '
+                                          'by scanning the actual DatasheetFact/RegisterField rows — never hand-maintained.',
+                              columns='name,title,kind,for_soc,for_board,publisher,revision,url,sha256,fetched_at,pages,format,'
+                                      'licence_note,facts_refs_json,fields_refs_json,covers_json,undetermined,notes',
+                              column_formats='name:ref:Datasheet,for_soc:ref:SocDefinition,for_board:ref:BoardDefinition,'
+                                             'url:link,facts_refs_json:refs,fields_refs_json:refs')]),
           ]),
 ]
 
@@ -269,9 +293,10 @@ _CHAIN_PAGES = [
                                           'writing a ONE to it — never read-modify-write; w-strobe = writing acts, reads zero; rw-toggle = '
                                           'writing one toggles another register\'s bit), reset_value, description (the datasheet\'s bit '
                                           'title), values_json (each value → the datasheet\'s own sentence), affects_signal / affects_pin '
-                                          '(the signal or pin this field configures — links), page_table (the citation).',
-                              columns='name,register,field,bit_hi,bit_lo,width,access,reset_value,description,values_json,affects_signal,affects_pin,page_table,notes',
-                              column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin')]),
+                                          '(the signal or pin this field configures — links), page_table (the citation), datasheet '
+                                          '(ucd-doc: the Datasheet row this field\'s document resolves to — link).',
+                              columns='name,register,field,bit_hi,bit_lo,width,access,reset_value,description,values_json,affects_signal,affects_pin,page_table,datasheet,notes',
+                              column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin,datasheet:ref:Datasheet')]),
               # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9) — the alias Register.addr/
               # addr_mem used to carry as two columns is now rows: AddressSpace (io | data) + RegisterAddressMapping
               # (one per register per space it is reachable in); RegisterBlock makes the datasheet's own register-
