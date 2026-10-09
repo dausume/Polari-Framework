@@ -23,12 +23,18 @@ HAL_ATOMS = {'hal.hal_rx_pop', 'hal.hal_usart_init', 'hal.hal_usart_send', 'hal.
 ANNOTATED = {'hal.hal_rx_pop', 'hal.hal_usart_send', 'hal.hal_millis', 'hal.hal_led', 'hal.hal_pwm_apply', 'hal.hal_adc_read',
              # ucd-0e2: hal_presses (read by button_clock's led_toggle) and hal_sense_read now carry POLARI_NODE too
              'hal.hal_presses', 'hal.hal_sense_read',
+             # ucd-0e2b: uses(BUTTON_PIN)/uses(SENSE_PIN) on the two EXINT init atoms — so cmod.custom.targets binds
+             # them to D2/D3 by name instead of guessing from the shared EICRA/EIFR/EIMSK register touch alone
+             'hal.hal_button_init', 'hal.hal_sense_init',
              'apps/sim_rig.sensor_value', 'apps/sim_rig.apply_command', 'apps/echo.echo_command', 'apps/scenario_rig.crc8',
              'apps/scenario_rig.slot_read', 'apps/scenario_rig.ack_step',
              # ucd-0e2: the six tasks of apps/button_clock.c + its apply_command
              'apps/button_clock.clock_tick', 'apps/button_clock.clock_set', 'apps/button_clock.led_toggle',
              'apps/button_clock.sense_isr', 'apps/button_clock.events_queue', 'apps/button_clock.telemetry_send',
-             'apps/button_clock.apply_command'}
+             'apps/button_clock.apply_command',
+             # ucd-0e2b: uses(L_LED_PIN) on l_led_set (D13's runtime counterpart to l_led_init) + a role() on
+             # boot_session_mint (wired as an init field edge into state.boot_session by the new graph)
+             'apps/button_clock.l_led_set', 'apps/button_clock.boot_session_mint'}
 
 
 def uno_parts(check):
@@ -44,7 +50,7 @@ def uno_parts(check):
         check('every hal.c function is an atom (22 incl. the 4 ISRs and the knob-gated ones: hal_uart_errors, hal_presses, hal_wdt_boot, '
               'hal_sense_init/hal_sense_read, hal_take_toggle_pending)',
               HAL_ATOMS <= set(a), sorted(HAL_ATOMS - set(a)))
-        check('the 21 POLARI_NODE annotations attach to their functions (hal 8, sim_rig 2, echo 1, scenario_rig 3, button_clock 7)',
+        check('the 25 POLARI_NODE annotations attach to their functions (hal 10, sim_rig 2, echo 1, scenario_rig 3, button_clock 9)',
               {k for k, v in a.items() if v.get('annotation')} == ANNOTATED, sorted({k for k, v in a.items() if v.get('annotation')} ^ ANNOTATED))
         m = a['hal.hal_millis']
         check('hal_millis: out(return) uint32_t → int64 [ms], reads g_ms (shared with the tick ISR) INSIDE the atomic block → isr_safe yes',
@@ -89,9 +95,9 @@ def uno_parts(check):
         p = state['p']
         cfg = p['configs'][0]
         text, _ = preprocess(os.path.join(cfg['dir'], 'hal.c'), [cfg['dir']])
-        check('the preprocessed hal.c of uno-sim-rig contains no POLARI_NODE token (8 annotations in the source — ucd-0e2 '
-              'added hal_presses + hal_sense_read — 0 after cpp)',
-              'POLARI_NODE' not in text and open(os.path.join(UNO, 'hal.c')).read().count('\nPOLARI_NODE(') == 8)
+        check('the preprocessed hal.c of uno-sim-rig contains no POLARI_NODE token (10 annotations in the source — '
+              'ucd-0e2b added hal_button_init + hal_sense_init — 0 after cpp)',
+              'POLARI_NODE' not in text and open(os.path.join(UNO, 'hal.c')).read().count('\nPOLARI_NODE(') == 10)
 
     def cross_check_cpp():
         """An independent preprocessor: the host's GNU cpp with the same fake headers → the same functions."""
@@ -157,17 +163,18 @@ def uno_parts(check):
         from cmod.cmod_api import CModAPI
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
-        check('seeds = the committed manifest projected: 1 project, 8 modules (ucd-0e2: + apps/button_clock), 51 atoms, %d ports; cmod-1: '
-              '1 graph, 18 nodes, 15 edges, 1 glue build; demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over '
-              'the seeded graph; hw priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; '
-              'ucd-0e2: +1 CapabilityDefinition (button-clock-to-os; no CapabilityInstance — no FirmwareSolution to bind against yet, '
-              '0e2b\'s job); fs-0: one FirmwareSolution (uno-sim-rig) + its derived ScheduleSlot/RegisterAssignment rows; ucd-0b: PinClaim/'
+        check('seeds = the committed manifest projected: 1 project, 9 modules (ucd-0e2b: + apps/button_clock_defs header), 51 atoms, %d ports; '
+              'cmod-1: 2 graphs (uno-sim-rig-graph, uno-button-clock-graph — ucd-0e2b\'s own), 45 nodes, 33 edges, 2 glue builds (both '
+              'rendered/built/proven — EQUIVALENT); demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over both graphs; hw '
+              'priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; ucd-0e2b: button-clock-to-os '
+              'now names uno-button-clock-graph\'s own nodes; fs-0/ucd-0e2b: TWO FirmwareSolutions (uno-sim-rig, uno-button-clock) + their '
+              'derived ScheduleSlot/RegisterAssignment rows (D2/D3/D6/D13\'s config_json authored, provenance canvas); ucd-0b: PinClaim/'
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
-              'ucd-0b2b: one default HardwareBinding derived per solution' % m['counts']['ports'],
-              counts == {'CProject': 1, 'CModule': 8, 'CFunctionAtom': 51, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
-                         'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 4, 'CapabilityInstance': 5,
-                         'FirmwareExport': 0, 'FirmwareSolution': 1, 'ScheduleSlot': 18, 'RegisterAssignment': 16,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 1}, counts)   # ucd-0f: + FirmwareExport (observed); ucd-0b: + PinClaim/PeripheralClaim (observed); ucd-0b2b: + HardwareBinding (1 default); ucd-0e2: ScheduleSlot 17->18 (the project's new INT1_vect ISR lane), CapabilityDefinition 3->4
+              'ucd-0b2b: one default HardwareBinding derived per solution (2 now)' % m['counts']['ports'],
+              counts == {'CProject': 1, 'CModule': 9, 'CFunctionAtom': 51, 'CPort': m['counts']['ports'], 'CGraph': 2, 'CGraphNode': 45,
+                         'CGraphEdge': 33, 'CGlueBuild': 2, 'TargetDefinition': 34, 'CapabilityDefinition': 4, 'CapabilityInstance': 5,
+                         'FirmwareExport': 0, 'FirmwareSolution': 2, 'ScheduleSlot': 47, 'RegisterAssignment': 34,
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 2}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

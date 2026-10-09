@@ -107,10 +107,31 @@ def _as_binding(binding, manager=None):
     return b, naming
 
 
+#: ucd-0e2b: the pure/no-manager fallback for a person's AUTHORED pin config (`RegisterAssignment.config_json`) —
+#: {binding name: {RegisterAssignment row name: config dict}}. In a LIVE system this is persisted on the row itself
+#: (the assign door's job); offline (`pol cmod build`/`prove`/a selftest, no server), `FW.assignments_for()` is
+#: recomputed FRESH every call and carries no memory of it at all, so a build/prove run with no manager would
+#: silently generate D2/D3's EICRA/EIFR/EIMSK/PORTD bits as if nothing had ever been authored. Defined HERE (never
+#: read back from `cmod.cmod_seed.CMOD_SEED_PAIRS`, the live system's own pure fallback for other rows) because
+#: `cmod.cmod_seed` calls `cmod.custom.firmware.validate()` -> here DURING ITS OWN module-level construction,
+#: before `CMOD_SEED_PAIRS` itself exists — reading it back would be circular. `cmod.cmod_seed` imports THIS
+#: constant instead (one source of truth, read by both sides, never duplicated).
+PURE_CONFIG_SEED = {
+    'uno-button-clock@arduino-uno-r3': {
+        'uno-button-clock:button_init': {'mode': 'alt', 'pull': 'up', 'edge': 'falling'},
+        'uno-button-clock:sense_init': {'mode': 'alt', 'pull': 'none', 'edge': 'any'},
+        'uno-button-clock:led_init': {'mode': 'out', 'initial': 'low'},
+        'uno-button-clock:l_led_init': {'mode': 'out', 'initial': 'low'},
+    },
+}
+
+
 def _live_assignments(binding, graph, manager=None):
     """[RegisterAssignment dict, …] — the LIVE rows (carrying a canvas-authored `config_json`) when a manager has
     them, else the pure re-derivation (`cmod.custom.firmware.assignments_for`), same duality as
-    `cmod.custom.firmware._occupants`. ucd-0b2b: filtered by `configuration` == this BINDING's own name."""
+    `cmod.custom.firmware._occupants`. ucd-0b2b: filtered by `configuration` == this BINDING's own name. ucd-0e2b:
+    the pure path overlays `PURE_CONFIG_SEED` by row name (never a different row, never a guess) so an offline
+    build/prove/selftest sees the SAME authored config a live server would have persisted."""
     b, naming = _as_binding(binding, manager=manager)
     cfg = b.get('name') or naming
     if manager is not None:
@@ -124,8 +145,9 @@ def _live_assignments(binding, graph, manager=None):
             return rows
     from cmod.custom import firmware as FW
     rows = FW.assignments_for(graph, solution_name=b.get('solution') or naming, binding_name=cfg)
+    overlay = PURE_CONFIG_SEED.get(cfg, {})
     for r in rows:
-        r.setdefault('config_json', '{}')
+        r['config_json'] = json.dumps(overlay[r['name']]) if r['name'] in overlay else (r.get('config_json') or '{}')
     return rows
 
 

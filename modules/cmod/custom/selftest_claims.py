@@ -21,7 +21,10 @@ def claims_parts(check):
     def live_api():
         _live_api(check)
 
-    return (pin_and_peripheral_claims, register_generation, overrides_and_conflicts, refs_and_validate, live_api)
+    def button_clock():
+        _button_clock(check)
+
+    return (pin_and_peripheral_claims, register_generation, overrides_and_conflicts, refs_and_validate, live_api, button_clock)
 
 
 SOLUTION, GRAPH = 'uno-sim-rig', 'uno-sim-rig-graph'
@@ -248,3 +251,53 @@ def _live_api(check):
           and r4.json['hops'][0]['kind'] == 'BoardPin' and len(r4.json['hops']) > 5, r4.text[:300])
     r5 = c.simulate_get('/api/firmware/solutions/%s/pins/NOPE/chain' % SOLUTION)
     check('…an unclaimed/unknown pin is refused by name, 404', r5.status_code == 404, r5.text[:200])
+
+
+#: ucd-0e2b: the SAME chain over the second solution (uno-button-clock), its AUTHORED D2/D3 edge/pull (never
+#: derivable from a register name, §5f point 1 — PURE_CONFIG_SEED is the pure-mode stand-in for a live canvas
+#: edit) read back through claims.py's own pure fallback.
+BC_SOLUTION, BC_GRAPH = 'uno-button-clock', 'uno-button-clock-graph'
+
+
+def _button_clock(check):
+    from cmod.custom import claims as C
+    pins = C.pin_claims(BC_SOLUTION, BC_GRAPH)
+    by = _by_canonical(pins)
+    check('pin_claims(uno-button-clock) binds D0, D1, D2, D3, D6, D13 — 6 pins',
+          set(by) == {'D0', 'D1', 'D2', 'D3', 'D6', 'D13'}, sorted(by))
+    check('D2: interrupt-in, mode alt, pull up, edge falling, provenance canvas (the button, debounced, internal pull-up)',
+          by['D2']['requirement_kind'] == 'interrupt-in' and by['D2']['mode'] == 'alt' and by['D2']['pull'] == 'up'
+          and by['D2']['edge'] == 'falling' and by['D2']['provenance'] == 'canvas' and by['D2']['status'] == 'ok', by['D2'])
+    check('D3: interrupt-in, mode alt, pull none, edge any, provenance canvas (the witness pin — driven by D6, no pull needed)',
+          by['D3']['requirement_kind'] == 'interrupt-in' and by['D3']['mode'] == 'alt' and by['D3']['pull'] == 'none'
+          and by['D3']['edge'] == 'any' and by['D3']['provenance'] == 'canvas' and by['D3']['status'] == 'ok', by['D3'])
+    check('D6/D13: digital-out, mode out, initial low, provenance canvas (the LED lines, authored explicitly though they '
+          'restate the default)', all(by[p]['requirement_kind'] == 'digital-out' and by[p]['mode'] == 'out'
+          and by[p]['initial'] == 'low' and by[p]['provenance'] == 'canvas' for p in ('D6', 'D13')), (by['D6'], by['D13']))
+    check('D2\'s representative task is button_init (the setup atom), D3\'s is sense_init — never the "called"/"button"/"sense" '
+          'runtime readers', by['D2']['task'] == 'button_init' and by['D3']['task'] == 'sense_init', (by['D2'], by['D3']))
+
+    gen = C.register_settings(BC_SOLUTION, BC_GRAPH)
+    rs = {r['register'].rsplit(':', 1)[1]: r for r in gen['RegisterSetting']}
+    check('RegisterSetting: DDRD = 0x40 mask 0x4C (DDD6=1, DDD2=0, DDD3=0), DDRB = 0x20 mask 0x20 (DDB5=1)',
+          rs['DDRD']['value'] == '0x40' and rs['DDRD']['write_mask'] == '0x4C'
+          and rs['DDRB']['value'] == '0x20' and rs['DDRB']['write_mask'] == '0x20', (rs['DDRD'], rs['DDRB']))
+    check('PORTD = 0x04 mask 0x04 (PORTD2=1, the pull-up; D6\'s initial=low needs no PORT write — the reset value is already 0)',
+          rs['PORTD']['value'] == '0x04' and rs['PORTD']['write_mask'] == '0x04', rs['PORTD'])
+    check('EICRA = 0x06 mask 0x0F (ISC01:00=10 falling for INT0, ISC11:10=01 any for INT1)',
+          rs['EICRA']['value'] == '0x06' and rs['EICRA']['write_mask'] == '0x0F', rs['EICRA'])
+    check('EIFR = 0x03 mask 0x03, a PLAIN write (access w1c — clearing INTF0/INTF1 never read-modify-writes)',
+          rs['EIFR']['value'] == '0x03' and rs['EIFR']['write_mask'] == '0x03', rs['EIFR'])
+    check('EIMSK = 0x03 mask 0x03 (INT0 + INT1 both enabled)',
+          rs['EIMSK']['value'] == '0x03' and rs['EIMSK']['write_mask'] == '0x03', rs['EIMSK'])
+
+    routes = {r['name'].rsplit(':', 1)[1]: r for r in gen['SignalRoute']}
+    check('SignalRoute D2:INT0 and D3:INT1 are ACTIVE (a RegisterFieldSetting that actually enables the interrupt exists '
+          'for each — never merely "planned")',
+          routes['INT0']['status'] == 'active' and routes['INT0']['pin_function'] == 'atmega328p:PD2:INT0'
+          and routes['INT1']['status'] == 'active' and routes['INT1']['pin_function'] == 'atmega328p:PD3:INT1', routes)
+
+    from cmod.custom import firmware as FW
+    fs = {'name': BC_SOLUTION, 'graph': BC_GRAPH, 'board_definition': 'arduino-uno-r3', 'board_variable': ''}
+    ok, why, details = FW.validate(fs, manager=None)
+    check('validate(uno-button-clock) over the pure PURE_CONFIG_SEED path: ok, 0 incomplete claims', ok and 'incomplete' not in why, why)

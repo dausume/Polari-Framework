@@ -46,6 +46,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.dirname(HERE)
 TEMPLATES = {'arduino-uno-r3': os.path.join(HERE, 'firmware', 'uno')}
 TEMPLATE_FILES = ('hal.c', 'hal.h', 'Makefile')   # + apps/<app>.c → main.c
+#: ucd-0e2b: an app whose atoms share macros/globals through their OWN header (button_clock_defs.h, never a board-
+#: wide one like hal.h) — copied alongside main.c, same reasoning as TEMPLATE_FILES
+APP_EXTRA_HEADERS = {'button_clock': ('apps/button_clock_defs.h',)}
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3'}
 #: the classes a template has an app for (another class = a new app, brd-4)
 TEMPLATE_CLASSES = {'arduino-uno-r3': tuple(sorted({c for cs in V.APP_CLASSES.values() for c in cs}))}
@@ -216,6 +219,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
         shutil.copy(os.path.join(tpl, fn), os.path.join(project, fn))
     app_src = os.path.join(tpl, 'apps', '%s.c' % r['app'])
     shutil.copy(app_src, os.path.join(project, 'main.c'))
+    extra_headers = APP_EXTRA_HEADERS.get(r['app'], ())
+    for rel in extra_headers:
+        shutil.copy(os.path.join(tpl, rel), os.path.join(project, os.path.basename(rel)))
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
@@ -243,7 +249,8 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     ssha = source_sha(project)
     now = datetime.datetime.now().isoformat(timespec='seconds')
     tfiles = [('template ' + fn, 'board/custom/firmware/uno/' + fn, os.path.join(tpl, fn)) for fn in TEMPLATE_FILES] \
-        + [('template app %s (main.c)' % r['app'], 'board/custom/firmware/uno/apps/%s.c' % r['app'], app_src)]
+        + [('template app %s (main.c)' % r['app'], 'board/custom/firmware/uno/apps/%s.c' % r['app'], app_src)] \
+        + [('template app header %s' % os.path.basename(rel), 'board/custom/firmware/uno/' + rel, os.path.join(tpl, rel)) for rel in extra_headers]
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': board, 'state': 'generated', 'variant': r['name'],
            'classes_json': json.dumps(class_rows), 'template': 'board/custom/firmware/uno', 'source_sha': ssha,
            'header_sha256': compat.combined_sha(class_rows), 'tag_order_json': json.dumps(orders),

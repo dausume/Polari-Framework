@@ -38,6 +38,11 @@ GENERATOR = 'cmod.custom.glue 1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 RECORDS = os.path.join(HERE, 'glue_builds')
 GENERATED = ('polari_graph.c', 'polari_graph.h', 'Makefile')
+#: ucd-0e2b: an 'app' module's OWN extra header(s) (never the atom-matched whole-module copy above, which only
+#: triggers for a module an ATOM belongs to — a header with no functions of its own, like button_clock_defs.h, has
+#: none) — copied + #included whenever one of the app's OWN atoms is used, same reasoning as board.custom.gen's
+#: APP_EXTRA_HEADERS (the hand-written build's own copy of the same rule).
+APP_EXTRA_HEADER_MODULES = {'apps/button_clock.c': ('apps/button_clock_defs.h',)}
 
 
 class GlueRefused(ValueError):
@@ -93,6 +98,13 @@ def context(g):
             raise GlueRefused('the base configuration %s does not speak %s' % (g['base_configuration'], g['class_name']))
         bc, ch = open(os.path.join(d, 'board_config.h')).read(), open(os.path.join(d, hdr)).read()
         classes = json.loads(row['classes_json'])
+        # ucd-0e2b: a variant may speak MORE THAN ONE wire class (button_clock: ButtonClockState + ButtonClockEvent)
+        # — cmod-1's graph model is single-class (one `class`/`frame`/`parser` node kind), but an app whose copied
+        # atoms assemble a SECOND class's frames themselves (never through glue nodes, e.g. events_drain) still
+        # needs that class's own generated header on disk to compile. Carried here, always rendered (never gated
+        # on an atom "using" it — nothing in `model` names a header file, only a class_name).
+        other_headers = {'%s_packets.h' % c['class'].lower(): open(os.path.join(d, '%s_packets.h' % c['class'].lower())).read()
+                          for c in classes if c['class'] != g['class_name'] and os.path.isfile(os.path.join(d, '%s_packets.h' % c['class'].lower()))}
     finally:
         shutil.rmtree(work, ignore_errors=True)
     atoms = {a['name']: a for a in m['atoms']}
@@ -100,7 +112,7 @@ def context(g):
     headers = [open(os.path.join(spec['root'], f)).read() for f in sorted(mods) if f.endswith('.h') and mods[f][1] != 'config']
     return {'spec': spec, 'manifest': m, 'manifest_sha256': sha(open(mpath, 'rb').read()), 'atoms': atoms, 'modules': mods,
             'base': cfg, 'board_config_h': bc, 'class_header': ch, 'class_header_name': hdr, 'module_headers': headers,
-            'class_provenance': next((c for c in classes if c['class'] == g['class_name']), {})}
+            'other_class_headers': other_headers, 'class_provenance': next((c for c in classes if c['class'] == g['class_name']), {})}
 
 
 # ------------------------------------------------------------------ copying an app atom out of its file, verbatim
@@ -185,7 +197,12 @@ def _render_c(model, ctx, copies, header_comment, pin_config=False):
     g, nodes, edges, cls, up = model['graph'], model['nodes'], model['edges'], model['graph']['class_name'], model['cls_up']
     hdr = ctx['class_header_name']
     indexed = ('#define %s_INDEX_WIDTH' % up) in ctx['class_header']
-    out = [header_comment, '#include <stdint.h>', '#include <string.h>', '#include <avr/interrupt.h>', '',
+    # ucd-0e2b: button_clock.c's own atoms use <avr/eeprom.h> (boot_session_mint) and <util/atomic.h> (telemetry_send's
+    # ATOMIC_BLOCK snapshot) — the first 'app' atoms to need more than hal.c's own <avr/interrupt.h>. Both are tiny
+    # avr-libc headers (macros + static inlines), harmless to include unconditionally even where unused (no
+    # -Wunused-function on a macro), so they are added to the FIXED list rather than tracked per atom.
+    out = [header_comment, '#include <stdint.h>', '#include <string.h>', '#include <avr/eeprom.h>', '#include <avr/interrupt.h>',
+           '#include <util/atomic.h>', '',
            '#include "board_config.h"']
     out += ['#include "%s"' % h for h in ctx['files_out'] if h.endswith('.h') and h not in ('board_config.h', hdr, 'polari_graph.h')]
     out += ['#include "%s"   /* GENERATED (c_twin target=avr) */' % hdr, '#include "polari_graph.h"', '']
@@ -299,6 +316,12 @@ def _render_c(model, ctx, copies, header_comment, pin_config=False):
         out.append('    %s   /* %s */' % (call(i)[1], i))
     ordered = sorted(nodes, key=lambda i: (nodes[i]['order'], i))
     out += ['    memset(&%s, 0, sizeof %s);' % (i, i) for i in ordered if nodes[i]['kind'] in ('class', 'parser')]
+    # ucd-0e2b: a field edge sourced from an INIT atom (e.g. boot_session_mint's return -> state.boot_session) is
+    # scoped 'init' by graph.py's own scope_of() but was never rendered anywhere — the init loop above only calls
+    # the atom, it never writes its ports into a class field. Emitted HERE, after the memset block (never before:
+    # memset would wipe a field an init atom wrote right after calling it), using the `<node>_<port>` local the
+    # init call above already declared (same C statement scope, main()'s own body).
+    out += [field_write(ed) for ed in edges if ed['kind'] == 'field' and ed.get('scope') == 'init']
     for i in ordered:
         n = nodes[i]
         if n['kind'] == 'class':
@@ -358,14 +381,20 @@ def render_files(rows, ctx=None, manager=None):
     ctx = ctx or context(rows['graph'])
     model = GR.resolve(rows, ctx)
     root = ctx['spec']['root']
+    # ucd-0e2b: `whole` maps the project-side (FLAT — this generated project has no subdirectories) name to
+    # (provenance label, path to read relative to `root`); every existing module (hal.c/hal.h/board_config.h) was
+    # already flat, so basename(f) == f for them — only a header living under apps/ (button_clock_defs.h) needs
+    # the two to differ.
     whole, copies = {}, []
     for k in model['atoms_used'] + model['isrs']:
         a = ctx['atoms'][k]
         name, role, files = ctx['modules'][a['module']]
         if role in ('hal', 'source', 'header'):
             for f in files:
-                whole[f] = '%s/%s' % (ctx['manifest']['root'], f)
+                whole[os.path.basename(f)] = ('%s/%s' % (ctx['manifest']['root'], f), f)
         elif role == 'app' and k in model['atoms_used']:
+            for h in APP_EXTRA_HEADER_MODULES.get(a['module'], ()):
+                whole[os.path.basename(h)] = ('%s/%s' % (ctx['manifest']['root'], h), h)
             text = open(os.path.join(root, a['module'])).read()
             body, first, last = extract(text, a, a['module'])
             copies.append({'atom': k, 'file': '%s/%s' % (ctx['manifest']['root'], a['module']), 'first': first, 'last': last,
@@ -373,9 +402,11 @@ def render_files(rows, ctx=None, manager=None):
         else:
             raise GlueRefused('%s: module role %s cannot be carried' % (k, role))
     copies.sort(key=lambda c: (c['file'], c['first']))
-    files = {f: open(os.path.join(root, f), 'rb').read() for f in whole}
+    files = {dest: open(os.path.join(root, src), 'rb').read() for dest, (_prov, src) in whole.items()}
     files['board_config.h'] = ctx['board_config_h'].encode()
     files[ctx['class_header_name']] = ctx['class_header'].encode()
+    for hfn, text in ctx.get('other_class_headers', {}).items():
+        files[hfn] = text.encode()
     # ucd-0b: a graph with a FirmwareSolution over it gains the GENERATED pin_config.h/.c (claims -> bits, in the
     # fixed init order) — ridden along below like any other file (SRCS/HDRS/#include derive from `files`, never a
     # second list to keep in sync).
@@ -390,10 +421,12 @@ def render_files(rows, ctx=None, manager=None):
     sources = sorted(f for f in files if f.endswith('.c')) + ['polari_graph.c']
     ctx['files_out'] = sorted(files) + ['polari_graph.h']
     cp = ctx['class_provenance']
-    prov = [(f, sha(files[f]), 'copied verbatim from %s' % whole[f]) for f in sorted(whole)]
+    prov = [(f, sha(files[f]), 'copied verbatim from %s' % whole[f][0]) for f in sorted(whole)]
     prov += [('board_config.h', sha(files['board_config.h']), 'board gen: the %s knobs' % rows['graph']['base_configuration']),
              (ctx['class_header_name'], sha(files[ctx['class_header_name']]),
               'c_twin target=avr, contract v%s %s (%s %s)' % (cp.get('contract_version', '?'), cp.get('contract_hash', ''), cp.get('source', ''), cp.get('path', '')))]
+    prov += [(hfn, sha(files[hfn]), 'c_twin target=avr: a second wire class %s\'s own atoms assemble (never a glue class/frame node)' % hfn)
+             for hfn in sorted(ctx.get('other_class_headers', {}))]
     if pin_config:
         prov += [('pin_config.h', sha(files['pin_config.h']), 'GENERATED (cmod.custom.pin_config_gen) from %s\'s pin claims' % sol['name']),
                  ('pin_config.c', '-' * 16, 'GENERATED (cmod.custom.pin_config_gen) from %s\'s pin claims' % sol['name'])]

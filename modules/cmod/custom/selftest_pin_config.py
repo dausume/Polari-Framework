@@ -24,7 +24,10 @@ def pin_config_parts(check):
     def no_runtime_dependency():
         _no_runtime_dependency(check)
 
-    return (uno_sim_rig_render, fixed_order_and_comments, w1c_plain_write, refusals, no_runtime_dependency)
+    def button_clock_render():
+        _button_clock_render(check)
+
+    return (uno_sim_rig_render, fixed_order_and_comments, w1c_plain_write, refusals, no_runtime_dependency, button_clock_render)
 
 
 def _soc_pin_bit(canonical):
@@ -171,3 +174,29 @@ def _no_runtime_dependency(check):
     check('pin_config.h includes nothing (just the include guard, the #defines and the prototype)', includes_h == [], includes_h)
     check('no "import" / "polari" runtime token appears in either generated file (python/runtime-free C)',
           'import ' not in c and 'import ' not in h and 'PolariManager' not in c and 'PolariManager' not in h)
+
+
+def _button_clock_render(check):
+    """ucd-0e2b: pin_config.c over uno-button-clock's real claims — the fixed order (DDR, PORT, EICRA, EIFR, EIMSK),
+    EIFR as a plain write (never read-modify-write — w1c), and every line's comment naming the claim + task + rule."""
+    from cmod.custom import pin_config_gen as PG
+    out = PG.render('uno-button-clock', 'uno-button-clock-graph')
+    c = out['pin_config.c'].decode()
+    order = [m.start() for reg in ('PIN_CONFIG_D13_DDR', 'PIN_CONFIG_D2_DDR', 'PIN_CONFIG_D2_PORT', 'PIN_CONFIG_D2_EICRA',
+                                    'PIN_CONFIG_D2_EIFR', 'PIN_CONFIG_D2_EIMSK') for m in [re.search(r'%s\s*=' % reg, c)]]
+    check('the fixed order: DDR (B then D), PORT, EICRA, EIFR, EIMSK — each register appears once, in that order',
+          None not in order and order == sorted(order), order)
+    eifr_line = re.search(r'PIN_CONFIG_D2_EIFR = [^;]+;', c).group()
+    check('EIFR is a PLAIN write (no `& ~(...)` read-modify-write — w1c clearing a pending flag never reads first)',
+          '&' not in eifr_line or '~' not in eifr_line, eifr_line)
+    check('every init write\'s comment names its claim (uno-button-clock:D2/D3/D6/D13), its task (button_init/sense_init/'
+          'led_init/l_led_init) and a rule',
+          all(('claim uno-button-clock:%s' % p) in c for p in ('D2', 'D3', 'D6', 'D13'))
+          and all(('task %s' % t) in c for t in ('button_init', 'sense_init', 'led_init', 'l_led_init'))
+          and 'rule ddr-from-interrupt-in' in c and 'rule edge-falling-to-ISC0' in c and 'rule edge-any-to-ISC1' in c
+          and 'rule clear-pending-before-enable' in c and 'rule enable-external-interrupt' in c, c)
+    check('the EXINT lines carry the exact bit values the plan specifies: EICRA = 00000110 (ISC0=10 falling, ISC1=01 '
+          'any, write_mask 0x0F), EIFR = 00000011 (write_mask 0x03), EIMSK = 00000011 (write_mask 0x03)',
+          re.search(r'EICRA:init = 00000110 \(write_mask 0x0F\)', c) is not None
+          and re.search(r'EIFR:init = 00000011 \(write_mask 0x03\)', c) is not None
+          and re.search(r'EIMSK:init = 00000011 \(write_mask 0x03\)', c) is not None, c)

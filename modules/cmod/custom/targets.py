@@ -57,8 +57,48 @@ def _peripherals(atom):
     return sorted({r['peripheral'] for r in (atom.get('resources') or []) if r.get('kind') == 'register' and r.get('peripheral')})
 
 
-def _match_pins(pins, atom):
+#: a declared macro -> the board_config.h pin KNOB a variant may override away from the board's own default
+#: (board.custom.board_object.SYMBOL_KNOBS, the pins' own firmware_symbol) — LED_PIN/PWM_PIN/ADC_CHANNEL only;
+#: BUTTON_PIN/SENSE_PIN/L_LED_PIN never appear here (fixed, see _FIXED_DECLARED_CANONICALS below)
+_VARIANT_PIN_KNOBS = {'LED_PIN': 'led_pin', 'PWM_PIN': 'pwm_pin', 'ADC_CHANNEL': 'adc_channel'}
+#: a declared macro that is HARDWARE-FIXED (never a board_config.h knob a variant resolves) -> the one canonical pin
+#: it always names (board.custom.variants.resolve refuses button_pin/sense_pin at any other value; L_LED_PIN is the
+#: on-board L LED, button_clock.c's own comment: "not a configurable knob of this demo")
+_FIXED_DECLARED_CANONICALS = {'BUTTON_PIN': 'D2', 'SENSE_PIN': 'D3', 'L_LED_PIN': 'D13'}
+
+
+def _declared_canonicals(board, base_configuration):
+    """{declared macro name: canonical pin} for ONE graph's base_configuration — ucd-0e2b: a variant may override
+    led_pin/pwm_pin/adc_channel away from the board's own default pin for that symbol (uno-button-clock sets
+    led_pin=6, not the board's own LED_PIN=D13), so matching a declared macro against the BOARD's static
+    firmware_symbol alone (as `_match_pins` always did) binds the WRONG pin whenever a variant overrides it — fixed
+    here by resolving the macro through THIS configuration's own knobs instead (`board.custom.variants.resolve`,
+    the same resolution `pol board gen` itself applies), falling back to the board's own default when the variant
+    does not override it (so uno-sim-rig's existing rows are unchanged). Fixed/hardware-pinned macros
+    (`_FIXED_DECLARED_CANONICALS`) are added unconditionally — they carry no BoardPin.firmware_symbol at all."""
+    out = dict(_FIXED_DECLARED_CANONICALS)
+    try:
+        from board.custom import board_object as BO
+        from board.custom import variants as V
+        base_pins, _src = BO.pin_knobs(board)
+        v = V.find(base_configuration)
+        r = V.resolve(v, base=base_pins)
+    except Exception:
+        return out
+    for macro, knob in _VARIANT_PIN_KNOBS.items():
+        if knob in r['knobs']:
+            n = int(r['knobs'][knob])
+            out[macro] = ('A%d' % n) if knob == 'adc_channel' else ('D%d' % n)
+    return out
+
+
+def _match_pins(pins, atom, fixed=None):
     declared, peripherals = _declared_names(atom), _peripherals(atom)
+    fixed = fixed or {}
+    by_canon = {p['canonical']: p for p in pins}
+    named = {fixed[d] for d in declared if d in fixed}
+    if named:
+        return [by_canon[c] for c in sorted(named) if c in by_canon]
     out = []
     for p in pins:
         if p.get('firmware_symbol') and p['firmware_symbol'] in declared:
@@ -73,7 +113,7 @@ def _gpio_port_letter(peripheral_id):
     return peripheral_id[len('GPIO PORT'):] if peripheral_id.startswith('GPIO PORT') else ''
 
 
-def _init_counterpart_match(node_instance, atom, by_instance, atoms, pins):
+def _init_counterpart_match(node_instance, atom, by_instance, atoms, pins, fixed=None):
     """([BoardPin, ...], atom_kind) for an '*_init' node whose OWN registers touch only a GPIO port, with no
     declared pin macro (hal_led_init's `LED_DDR |= _BV(LED_BIT)` records only a DDRB register touch — the parser
     has no POLARI_NODE on it to name LED_PIN, so it cannot be matched by declared name or by peripheral the way
@@ -96,7 +136,7 @@ def _init_counterpart_match(node_instance, atom, by_instance, atoms, pins):
     c_atom = atoms.get(counterpart['atom'].partition(':')[2])
     if c_atom is None:
         return [], 'undetermined'
-    shared = [p for p in _match_pins(pins, c_atom) if (p.get('soc_pin') or '')[1:2] in ports_touched]
+    shared = [p for p in _match_pins(pins, c_atom, fixed=fixed) if (p.get('soc_pin') or '')[1:2] in ports_touched]
     if not shared:
         return [], 'undetermined'
     return shared, _atom_requirement_kind(c_atom)
@@ -279,6 +319,7 @@ def derive(graph_name, manager=None):
     g, nodes, edges = rows['graph'], rows['nodes'], rows['edges']
     atoms = _manifest_atoms(g['project'])
     pins = _board_pins(g.get('board', ''))
+    fixed = _declared_canonicals(g.get('board', ''), g.get('base_configuration', ''))
     by_instance = {n['instance']: n for n in nodes}
     out, seen = [], set()
 
@@ -316,7 +357,7 @@ def derive(graph_name, manager=None):
         if atom is None:
             continue
         port = _representative_port(atom, n.get('bindings'))
-        matched = _match_pins(pins, atom)
+        matched = _match_pins(pins, atom, fixed=fixed)
         if not atom.get('resources'):
             continue
         has_register_or_declared = any(r.get('kind') in ('register', 'declared') for r in atom['resources'])
@@ -333,7 +374,7 @@ def derive(graph_name, manager=None):
         # ucd-0b2d (§5h, the HardwareBinding fix): nothing matched a board pin — three distinct, never-guessed
         # shapes before falling back to the old plain 'unbound' row.
         # (1) an '*_init' task sharing its runtime counterpart's exact pin (hal_led_init -> led's own D13)
-        counterpart_pins, counterpart_kind = _init_counterpart_match(n['instance'], atom, by_instance, atoms, pins)
+        counterpart_pins, counterpart_kind = _init_counterpart_match(n['instance'], atom, by_instance, atoms, pins, fixed=fixed)
         if counterpart_pins:
             for pin in counterpart_pins:
                 add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, pin, port),

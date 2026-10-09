@@ -211,9 +211,16 @@ def assignments_for(graph_name, solution_name=None, binding_name=None):
         signal_route = ''
         peripheral_val, signal_val = '', ''
         if lives_on != 'unbound':
-            owners = {x['node'] for x in claimed[lives_on]} - dispatchers - {n for n in per_node_pins if n.endswith('_init')
-                                                                             and n in {x['node'] for x in claimed[lives_on]}
-                                                                             and len(claimed[lives_on]) > 1}
+            # ucd-0e2b (§5h, generalizing the init/counterpart exemption): once an '_init' task claims this pin, it
+            # is the pin's one owner and EVERY OTHER non-dispatcher claimant is a runtime USER of what it set up —
+            # cooperation, never conflict (not just the single counterpart the old rule subtracted). button-clock's
+            # D6 is claimed by led_init, hal_led ('led'), led_toggle AND apply_command (each carries its own
+            # uses(LED_PIN)) — four legitimate claimants, one owner. Two DIFFERENT '_init' tasks on one pin still
+            # conflict (inits_here keeps every one of them); sim-rig's own rows are unaffected (there, as before,
+            # exactly one non-dispatcher claimant remains either way).
+            non_disp = {x['node'] for x in claimed[lives_on]} - dispatchers
+            inits_here = {n for n in non_disp if n.endswith('_init')}
+            owners = inits_here if inits_here else non_disp
             if len(owners) > 1:
                 status = 'conflict'
                 notes = 'conflict: also claimed by %s' % ', '.join(sorted(owners - {t['node']}))

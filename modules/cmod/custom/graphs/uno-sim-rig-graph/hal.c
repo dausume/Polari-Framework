@@ -167,6 +167,12 @@ ISR(INT0_vect)
     g_toggle_pending = 1u;   /* ucd-0e2 (button_clock.c led_toggle): the ISR only counts + marks; no other work here */
 }
 
+/* ucd-0e2b: uses(BUTTON_PIN) names the pin this init claims (the body itself hardcodes PD2 — BUTTON_PIN is
+ * hardware-fixed, board.custom.variants.resolve refuses any other value) so cmod.custom.targets can bind this
+ * task to D2 directly, by name, instead of guessing from the EXINT/GPIO PORTD register touch alone (which cannot
+ * tell D2/INT0 from D3/INT1). Annotation only — POLARI_NODE expands to nothing, same compiled bytes. */
+POLARI_NODE(hal_button_init, uses(BUTTON_PIN),
+            role("D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)"))
 void hal_button_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
@@ -213,6 +219,9 @@ ISR(INT1_vect)
     if (level) g_sense_rises++; else g_sense_falls++;
 }
 
+/* ucd-0e2b: uses(SENSE_PIN) — same reasoning as hal_button_init's own annotation just above, for D3/INT1. */
+POLARI_NODE(hal_sense_init, uses(SENSE_PIN),
+            role("D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)"))
 void hal_sense_init(void)
 {
 #ifndef POLARI_PIN_CONFIG

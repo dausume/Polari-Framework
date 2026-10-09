@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "5813ad7617e7b52fbadb923cf40b165ad6c21beee33a723e762e8685290ea1b2",
+   "source_sha": "1f9c19384ac95b4b17003489e53a68793491931fe5b2a1c8a73f7b20ff8136dd",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a3ae4017191e425c45c29bb2d737e7c4e684cad45f7618871d75567568ad23c2",
+   "source_sha": "fb6f53db888eaf73aa50aa35e83a1909ad34a874d60207f6f575c60daffe3ddd",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "e908cba119949a6731a8aebbd29b633cc933147634d666b641f8ef0ba022f212",
+   "source_sha": "bb18194163615c66cda3006718df1c13fcdc3ea4c5d5e350d93dae11383e7acf",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f8be9e3c7717a5124c036ebe9d6f91bbfdb5114d79dfab5e82f7ce4e964fabce",
+   "source_sha": "4680cd6b6d0ced3c45b72fa41393eeacf7405fc16508460806767a26c6f574f1",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,14 +150,14 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "01c6b3b21b2c4f63af78aa744d05b129171943ce3899d14bad11d2206cf093c1",
+   "source_sha": "a163dc76ffcd2128187a27d2bef8f9318f53fe2291fbb7f3cd8b963513529f3c",
    "elf_sha256": {
-    "shipped": "45e5bb3abb14b7dfce09f53db5fe8ee9c31eead70f09e056a3c2503c3efa54a3",
-    "noinline": "22bc3f424d374a455a55c64267611d3243c4a5fc77deefd2b38fe458e7733860"
+    "shipped": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
+    "noinline": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "4bb0a020137f41cffc2413d112d41245eb8232519a2851c722b6456eae911e5f"
+    "hex_sha256": "4cbe660a00049cf7aaad5037c3c4eaeed6133d359bd5f5e03fc1b7b67e0b9c0a"
    }
   },
   {
@@ -181,7 +181,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "30dedc85d9bb718b5d70a146d977cc8c5aca0f3403e0920a847368d0c9075b93",
+   "source_sha": "f6dc07fd4cd0d31ea6909b9304d181a12ec9fc407549d87d081dd37e9e2c27de",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -208,7 +208,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "784d5488f5121de77d83e5835f8e073831677966a634ae4a39616c3929ea1c9e",
+   "source_sha": "1bf8dc3bef7262d0b99b900e00c83332883376abd88b24618b1f6ffc7d1c32ec",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -226,7 +226,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "d4e9f6cd31ee87791aad3953b1994f23970b7aabbc5b4732f3977f66d6ed87c8"
+     "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
     },
     {
      "path": "hal.h",
@@ -265,6 +265,17 @@
     {
      "path": "board_config.h",
      "sha256": "078f23a05f4fb02253918424d04f3aa3877fa3c3d7003d37be8494a7c2b5ee53"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "apps/button_clock_defs",
+   "role": "header",
+   "files": [
+    {
+     "path": "apps/button_clock_defs.h",
+     "sha256": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807"
     }
    ],
    "atoms": []
@@ -351,7 +362,7 @@
    "files": [
     {
      "path": "apps/button_clock.c",
-     "sha256": "59f9c6f45552226f3efe4ad9eebd68d2c869bb71046f6ea09a878d4bd37f6a31"
+     "sha256": "5931a7efa0004dd5864d4bca1314b70ca1e86cd9facf95f2defbe6b7d058b0e3"
     }
    ],
    "atoms": [
@@ -562,7 +573,7 @@
    "name": "apps/button_clock.apply_command",
    "function": "apply_command",
    "module": "apps/button_clock.c",
-   "line": 294,
+   "line": 258,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -623,7 +634,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 292,
+    "line": 256,
     "role": "SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now",
     "uses": [
      "LED_PIN"
@@ -654,7 +665,7 @@
    "name": "apps/button_clock.boot_session_mint",
    "function": "boot_session_mint",
    "module": "apps/button_clock.c",
-   "line": 88,
+   "line": 77,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t boot_session_mint(void)",
@@ -668,8 +679,8 @@
      "width_bytes": 4,
      "polari_type": "int64",
      "unit": "",
-     "meaning": "",
-     "source": "derived: return value"
+     "meaning": "the freshly-minted boot_session (1 on a virgin chip, else +1)",
+     "source": "derived: return value + annotation"
     }
    ],
    "resources": [
@@ -700,7 +711,13 @@
    "configs": [
     "uno-button-clock"
    ],
-   "annotation": null,
+   "annotation": {
+    "form": "macro",
+    "line": 75,
+    "role": "mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)",
+    "uses": [],
+    "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)\"))"
+   },
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "boot_session_mint",
@@ -725,7 +742,7 @@
    "name": "apps/button_clock.clock_set",
    "function": "clock_set",
    "module": "apps/button_clock.c",
-   "line": 148,
+   "line": 117,
    "kind": "function",
    "isr_vector": "",
    "signature": "void clock_set(int64_t set_epoch_s, int64_t set_ms, int64_t set_sync_generation, uint32_t now_ms)",
@@ -816,7 +833,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 145,
+    "line": 114,
     "role": "record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on",
     "uses": [],
     "raw": "POLARI_NODE(clock_set, in(set_epoch_s, \"s\", \"the host's SET_TIME\"), in(set_ms, \"ms\", \"...within the second\"), in(set_sync_generation, \"\", \"the host's generation counter\"), in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on\"))"
@@ -845,7 +862,7 @@
    "name": "apps/button_clock.clock_tick",
    "function": "clock_tick",
    "module": "apps/button_clock.c",
-   "line": 130,
+   "line": 99,
    "kind": "function",
    "isr_vector": "",
    "signature": "void clock_tick(uint32_t now_ms, int64_t * epoch_s, int64_t * ms)",
@@ -924,7 +941,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 127,
+    "line": 96,
     "role": "advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it",
     "uses": [],
     "raw": "POLARI_NODE(clock_tick, in(now_ms, \"ms\", \"hal_millis() right now\"), out(epoch_s, \"s\", \"the device's current wall-clock estimate\"), out(ms, \"ms\", \"...within the second\"), role(\"advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it\"))"
@@ -952,7 +969,7 @@
    "name": "apps/button_clock.events_drain",
    "function": "events_drain",
    "module": "apps/button_clock.c",
-   "line": 251,
+   "line": 215,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_drain(void)",
@@ -1030,7 +1047,7 @@
    "name": "apps/button_clock.events_queue",
    "function": "events_queue",
    "module": "apps/button_clock.c",
-   "line": 170,
+   "line": 139,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_queue(uint8_t kind, uint32_t at_ms)",
@@ -1108,7 +1125,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 167,
+    "line": 136,
     "role": "push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events",
     "uses": [],
     "raw": "POLARI_NODE(events_queue, in(kind, \"enum\", \"press | led_on | led_off | sense_rise | sense_fall | sync\"), in(at_ms, \"ms\", \"device uptime at the moment of the event\"), role(\"push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events\"))"
@@ -1136,7 +1153,7 @@
    "name": "apps/button_clock.l_led_init",
    "function": "l_led_init",
    "module": "apps/button_clock.c",
-   "line": 69,
+   "line": 52,
    "kind": "function",
    "isr_vector": "",
    "signature": "void l_led_init(void)",
@@ -1186,7 +1203,7 @@
    "name": "apps/button_clock.l_led_set",
    "function": "l_led_set",
    "module": "apps/button_clock.c",
-   "line": 76,
+   "line": 65,
    "kind": "function",
    "isr_vector": "",
    "signature": "void l_led_set(uint8_t on)",
@@ -1199,9 +1216,9 @@
      "ctype": "uint8_t",
      "width_bytes": 1,
      "polari_type": "int64",
-     "unit": "",
-     "meaning": "",
-     "source": "derived: by value"
+     "unit": "bool",
+     "meaning": "0 = off, anything else = on",
+     "source": "derived: by value + annotation"
     }
    ],
    "resources": [
@@ -1211,6 +1228,13 @@
      "access": "rw",
      "peripheral": "GPIO PORTB",
      "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "L_LED_PIN",
+     "access": "",
+     "peripheral": "L_LED_PIN",
+     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [],
@@ -1222,7 +1246,15 @@
    "configs": [
     "uno-button-clock"
    ],
-   "annotation": null,
+   "annotation": {
+    "form": "macro",
+    "line": 63,
+    "role": "mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)",
+    "uses": [
+     "L_LED_PIN"
+    ],
+    "raw": "POLARI_NODE(l_led_set, in(on, \"bool\", \"0 = off, anything else = on\"), uses(L_LED_PIN), role(\"mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)\"))"
+   },
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "l_led_set",
@@ -1246,7 +1278,7 @@
    "name": "apps/button_clock.led_toggle",
    "function": "led_toggle",
    "module": "apps/button_clock.c",
-   "line": 200,
+   "line": 169,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_toggle(uint32_t now_ms)",
@@ -1298,7 +1330,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 199,
+    "line": 168,
     "role": "on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events",
     "uses": [
      "LED_PIN"
@@ -1329,7 +1361,7 @@
    "name": "apps/button_clock.main",
    "function": "main",
    "module": "apps/button_clock.c",
-   "line": 328,
+   "line": 292,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1428,7 +1460,7 @@
    "name": "apps/button_clock.queue_pop",
    "function": "queue_pop",
    "module": "apps/button_clock.c",
-   "line": 187,
+   "line": 156,
    "kind": "function",
    "isr_vector": "",
    "signature": "int queue_pop(qevent_t * out)",
@@ -1513,7 +1545,7 @@
    "name": "apps/button_clock.sense_isr",
    "function": "sense_isr",
    "module": "apps/button_clock.c",
-   "line": 221,
+   "line": 190,
    "kind": "function",
    "isr_vector": "",
    "signature": "void sense_isr(void)",
@@ -1551,7 +1583,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 220,
+    "line": 189,
     "role": "drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges",
     "uses": [
      "SENSE_PIN"
@@ -1582,7 +1614,7 @@
    "name": "apps/button_clock.telemetry_send",
    "function": "telemetry_send",
    "module": "apps/button_clock.c",
-   "line": 277,
+   "line": 241,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(uint32_t now_ms)",
@@ -1647,7 +1679,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 275,
+    "line": 239,
     "role": "one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames\"))"
@@ -3004,7 +3036,7 @@
    "name": "hal.INT1_vect",
    "function": "__polari_isr_INT1_vect",
    "module": "hal.c",
-   "line": 209,
+   "line": 215,
    "kind": "isr",
    "isr_vector": "INT1_vect",
    "signature": "ISR(INT1_vect)",
@@ -3259,7 +3291,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 319,
+   "line": 328,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -3316,7 +3348,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 327,
+   "line": 336,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -3379,7 +3411,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 325,
+    "line": 334,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -3407,7 +3439,7 @@
    "name": "hal.hal_button_init",
    "function": "hal_button_init",
    "module": "hal.c",
-   "line": 170,
+   "line": 176,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_init(void)",
@@ -3449,6 +3481,13 @@
      "access": "rw",
      "peripheral": "GPIO PORTD",
      "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "BUTTON_PIN",
+     "access": "",
+     "peripheral": "BUTTON_PIN",
+     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [],
@@ -3462,7 +3501,15 @@
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
-   "annotation": null,
+   "annotation": {
+    "form": "macro",
+    "line": 174,
+    "role": "D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)",
+    "uses": [
+     "BUTTON_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_button_init, uses(BUTTON_PIN), role(\"D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)\"))"
+   },
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "hal_button_init",
@@ -3486,7 +3533,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 268,
+   "line": 277,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -3542,7 +3589,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 266,
+    "line": 275,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -3572,7 +3619,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 259,
+   "line": 268,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -3704,7 +3751,7 @@
    "name": "hal.hal_presses",
    "function": "hal_presses",
    "module": "hal.c",
-   "line": 186,
+   "line": 192,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_presses(void)",
@@ -3751,7 +3798,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 184,
+    "line": 190,
     "role": "atomic read of the INT0 press counter",
     "uses": [
      "BUTTON_PIN"
@@ -3781,7 +3828,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 308,
+   "line": 317,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -3836,7 +3883,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 306,
+    "line": 315,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -3866,7 +3913,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 288,
+   "line": 297,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -4039,7 +4086,7 @@
    "name": "hal.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal.c",
-   "line": 216,
+   "line": 225,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -4074,6 +4121,13 @@
      "access": "rw",
      "peripheral": "EXINT",
      "detail": ""
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [],
@@ -4085,7 +4139,15 @@
    "configs": [
     "uno-button-clock"
    ],
-   "annotation": null,
+   "annotation": {
+    "form": "macro",
+    "line": 223,
+    "role": "D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(hal_sense_init, uses(SENSE_PIN), role(\"D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)\"))"
+   },
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "hal_sense_init",
@@ -4109,7 +4171,7 @@
    "name": "hal.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal.c",
-   "line": 229,
+   "line": 238,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -4188,7 +4250,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 226,
+    "line": 235,
     "role": "atomic snapshot of the INT1 edge counters + the last edge's timestamp",
     "uses": [
      "SENSE_PIN"
@@ -4218,7 +4280,7 @@
    "name": "hal.hal_take_toggle_pending",
    "function": "hal_take_toggle_pending",
    "module": "hal.c",
-   "line": 193,
+   "line": 199,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint8_t hal_take_toggle_pending(void)",
@@ -4613,7 +4675,7 @@
    "name": "hal.hal_wdt_boot",
    "function": "hal_wdt_boot",
    "module": "hal.c",
-   "line": 240,
+   "line": 249,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_wdt_boot(void)",
@@ -4671,7 +4733,7 @@
  ],
  "counts": {
   "atoms": 51,
-  "annotated": 21,
+  "annotated": 25,
   "isr": 4,
   "pure": 2,
   "ports": 53,
@@ -4680,5 +4742,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-09T07:42:46"
+ "conformed_at": "2026-10-09T09:03:40"
 }

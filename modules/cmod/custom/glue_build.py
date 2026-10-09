@@ -157,13 +157,134 @@ def decode(uart, txlog=b''):
     return out
 
 
-def run_twin(hexb):
+def run_twin(hexb, argv=None, files=None):
+    """ucd-0e2b: `argv`/`files` default to the sim-rig stimulus (every pre-existing caller) — a second graph's own
+    profile (STIMULI below) passes its own."""
     from firmwarefaults.custom import harness
-    argv, files = twin_args()
-    r = harness.run_files(argv, hexb, files)
+    if argv is None:
+        argv, files = twin_args()
+    r = harness.run_files(argv, hexb, files or {})
     if not r['ok']:
         raise GL.GlueRefused('the twin run failed (%s %s): %s' % (r.get('how'), r.get('where'), (r.get('stderr') or r.get('stdout') or '')[-400:]))
     return r
+
+
+# ------------------------------------------------------------------ ucd-0e2b: a SECOND graph's own stimulus profile
+#: button-clock-graph's own proof stimulus (UNO_CORE_DEMO_PLAN.md, ucd-0e2b): N debounced presses on D2 (--pin-at,
+#: the SAME cycle schedule board.board_button_clock_twin_selftest/button_clock_acceptance already prove with — never
+#: a second harness idiom) + --wire PD6:PD3 (the sense pin witnesses the LED line) + ONE injected SET_TIME, so the
+#: proof also covers the command path (clock_set) the sim-rig stimulus has no equivalent of. Decoded with the SAME
+#: independent Python reference codec (board.custom.packet_ref / grpcbridge.custom.wire_ref) over BOTH wire classes.
+BC_N_PRESSES = 4
+BC_STATE_FIELDS = ('boot_session', 'uptime_ms', 'epoch_s', 'ms', 'clock_synced', 'sync_generation', 'sync_uncertainty_ms',
+                    'drift_ms', 'button_presses', 'led_on', 'led_changed_at', 'sense_rises', 'sense_falls', 'last_edge_at',
+                    'last_edge_ms', 'dropped_events', 'status', 'name')
+BC_EVENT_FIELDS = ('boot_session', 'kind', 'uptime_ms', 'epoch_s', 'ms', 'name')
+
+
+def _bc_specs():
+    from board import board_button_clock_twin_selftest as T
+    return T._specs()
+
+
+def _bc_set_time_frame(spec_s, seq, epoch_s, ms, generation):
+    from board.custom import packet_ref
+    from grpcbridge.custom import wire_ref
+    vals = {'set_epoch_s': epoch_s, 'set_ms': ms, 'set_sync_generation': generation}
+    payload = wire_ref.encode(spec_s, vals, present=sorted(vals))
+    return packet_ref.frame(1, 0, seq, payload, version=spec_s['wire_version'])
+
+
+def bc_stimulus_argv():
+    """-> (argv, files, seconds): the button-clock-graph stimulus. N presses on D2 (--pin-at), --wire PD6:PD3, one
+    SET_TIME injected a beat after the last press (so clock_set's own atom runs too, and a few telemetry frames
+    follow it for the proof to compare)."""
+    from board import board_button_clock_twin_selftest as T
+    fmap_s, spec_s, _fmap_e, _spec_e = _bc_specs()
+    pinat, end_cycle = T._press_pinat(BC_N_PRESSES)
+    set_time_cycle = end_cycle + 1600000              # 100 ms after the last press (past the final debounce)
+    cmd = _bc_set_time_frame(spec_s, 1, epoch_s=1000000000, ms=0, generation=1)
+    seconds = (set_time_cycle + 1600000 * 4) / float(F_CPU)   # 4 more telemetry periods (400 ms) after SET_TIME
+    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', str(F_CPU), '--free', '--seconds', '%g' % seconds,
+            '--status-ms', '0', '--uart-out', 'uart.bin', '--uart-tx-log', 'tx.bin', '--wire', 'PD6:PD3'] + pinat \
+        + ['--inject', 'cmd0.bin@%d' % set_time_cycle]
+    return argv, {'cmd0.bin': cmd}, seconds
+
+
+def bc_decode(uart, txlog=b''):
+    """-> (states, events): the SAME StreamParser/decode_any reference codec board_button_clock_twin_selftest proves
+    with, each frame tagged with the cycle its first byte left the UART (--uart-tx-log), same idiom as `decode()`."""
+    from board.custom import packet_ref
+    fmap_s, spec_s, fmap_e, spec_e = _bc_specs()
+    cyc = tx_cycles(txlog) if txlog else []
+    data = bytes(uart)
+    p = packet_ref.StreamParser()
+    states, events, pos = [], [], 0
+    for mt, dev, seq, payload, ver in p.feed(data):
+        fmap, spec, fields = (fmap_s, spec_s, BC_STATE_FIELDS) if mt == 1 else (fmap_e, spec_e, BC_EVENT_FIELDS)
+        f = packet_ref.decode_any(fmap, payload, ver, spec)
+        hdr = struct.pack('<HBBHI', 0x504C, ver, mt, dev, seq)
+        at = data.find(hdr, pos)
+        pos = at + 1 if at >= 0 else pos
+        row = dict({k: f.get(k) for k in fields}, seq=seq, device_id=dev, msg_type=mt, cycle=cyc[at][0] if 0 <= at < len(cyc) else None)
+        (states if mt == 1 else events).append(row)
+    return states, events
+
+
+def _bc_compare_one(a, b, fields):
+    diffs = []
+    if len(a) != len(b):
+        diffs.append('frame count %d vs %d' % (len(a), len(b)))
+    for i, (x, y) in enumerate(zip(a, b)):
+        for k in ('seq', 'device_id', 'msg_type') + tuple(fields):
+            if x.get(k) != y.get(k):
+                diffs.append('frame %d %s: %r vs %r' % (i, k, x.get(k), y.get(k)))
+    return diffs
+
+
+def bc_compare(fa_s, fa_e, fb_s, fb_e):
+    diffs = _bc_compare_one(fa_s, fb_s, BC_STATE_FIELDS) + _bc_compare_one(fa_e, fb_e, BC_EVENT_FIELDS)
+    return {'equivalent': not diffs, 'frames': min(len(fa_s), len(fb_s)) + min(len(fa_e), len(fb_e)),
+            'differences': diffs[:20], 'n_differences': len(diffs)}
+
+
+def _prove_button_clock(ref, mk):
+    argv, files, seconds = bc_stimulus_argv()
+    rr, rg = run_twin(ref['hex'], argv, files), run_twin(mk['hex'], argv, files)
+    fa_s, fa_e = bc_decode(rr['uart'], rr['tx'])
+    fb_s, fb_e = bc_decode(rg['uart'], rg['tx'])
+    cmp_ = bc_compare(fa_s, fa_e, fb_s, fb_e)
+    return {'equivalent': cmp_['equivalent'], 'frames_compared': cmp_['frames'],
+            'frames_hand': len(fa_s) + len(fa_e), 'frames_glue': len(fb_s) + len(fb_e),
+            'fields_compared': ['seq', 'device_id', 'msg_type'] + list(BC_STATE_FIELDS) + list(BC_EVENT_FIELDS),
+            'differences': cmp_['differences'], 'n_differences': cmp_['n_differences'],
+            'raw_uart_identical': rr['uart'] == rg['uart'], 'uart_sha256': {'hand': sha(rr['uart']), 'glue': sha(rg['uart'])},
+            'reference': {'variant': 'uno-button-clock', 'built_by': 'board gen + board build (the shipped pipeline)',
+                          'hex_sha256': ref['hex_sha256'], 'size_text': ref['size_text'], 'size_data': ref['size_data'], 'size_bss': ref['size_bss']},
+            'glue': {'hex_sha256': mk['hex_sha256'], 'size_text': mk['sizes'].get('.text', 0), 'size_data': mk['sizes'].get('.data', 0),
+                     'size_bss': mk['sizes'].get('.bss', 0), 'built_by': 'make alone (%s %s)' % (mk['how'], mk['where'])},
+            'hex_identical': ref['hex_sha256'] == mk['hex_sha256'],
+            'cycles': {'total_hand': (rr['final'] or {}).get('cycles'), 'total_glue': (rg['final'] or {}).get('cycles'),
+                       'frame_tx_cycle_delta_min': None, 'frame_tx_cycle_delta_max': None,
+                       'first_frame_cycle_hand': fa_s[0]['cycle'] if fa_s else None, 'first_frame_cycle_glue': fb_s[0]['cycle'] if fb_s else None},
+            # 'seed'/'adc0_ramp_mv' carry '-' (this stimulus has neither — N presses + --wire + one SET_TIME, not an
+            # ADC ramp): cmod.custom.rows.graph_rows() formats every graph's stimulus the SAME way (its own 'stimulus'
+            # CGlueBuild column), so this dict keeps the sim-rig-shaped keys rather than asking that generic reader
+            # to branch per graph.
+            'stimulus': {'seconds': round(seconds, 3), 'seed': '-', 'adc0_ramp_mv': '-',
+                         'commands': ['%d press(es) on D2' % BC_N_PRESSES, '--wire PD6:PD3',
+                                      'SET_TIME epoch_s=1000000000 ms=0 sync_generation=1'],
+                         'argv': ['polari-avr-twin'] + argv},
+            'first_commanded_frame': next((i for i, f in enumerate(fb_s) if f.get('status') == 'synced'), None),
+            'samples': [{k: f[k] for k in ('seq',) + BC_STATE_FIELDS} for f in (fb_s[:1] + fb_s[-1:])],
+            'twin': {'how': rg.get('how'), 'where': rg.get('where'), 'simulator': 'polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)'},
+            'proven_at': _now()}
+
+
+#: graph name -> the proof runner over (ref, mk) — 'uno-sim-rig-graph' is cmod-1's own, UNCHANGED (prove_dir's
+#: inline body, below, is still exactly what it always was for that key, called directly); ucd-0e2b adds the second
+#: entry so `pol cmod prove <graph>` dispatches on the graph instead of assuming sim-rig's stimulus for everyone.
+STIMULI = {'uno-button-clock-graph': _prove_button_clock}
 
 
 def compare(a, b):
@@ -195,12 +316,17 @@ def reference_build(base):
         shutil.rmtree(w, ignore_errors=True)
 
 
-def prove_dir(d, base):
-    """The equivalence of ONE rendered project dir against the hand-written base configuration → the proof dict (no record)."""
+def prove_dir(d, base, graph=None):
+    """The equivalence of ONE rendered project dir against the hand-written base configuration → the proof dict (no
+    record). ucd-0e2b: `graph` dispatches to that graph's own STIMULI entry (a sim-rig-shaped stimulus is wrong for
+    button-clock — a different wire class, a different invariant); omitted or unknown falls back to this function's
+    own body below (the sim-rig stimulus, unchanged — every pre-existing caller)."""
     ref = reference_build(base)
     mk = make_alone(d)
     if not mk['ok']:
         raise GL.GlueRefused('make alone failed: %s' % (mk['stderr'] or mk['stdout']))
+    if graph in STIMULI:
+        return STIMULI[graph](ref, mk)
     rr, rg = run_twin(ref['hex']), run_twin(mk['hex'])
     fa, fb = decode(rr['uart'], rr['tx']), decode(rg['uart'], rg['tx'])
     cmp_ = compare(fa, fb)
@@ -233,7 +359,7 @@ def prove(name, manager=None, write=True):
     rec = GL.load_record(name)
     if not rec or not os.path.isdir(d):
         raise GL.GlueRefused('%s is not rendered yet — pol cmod render %s' % (name, name))
-    proof = prove_dir(d, g['base_configuration'])
+    proof = prove_dir(d, g['base_configuration'], graph=g['name'])
     proof.update(graph_sha256=rec['graph_sha256'], files_sha256=rec['files_sha256'], hand_edited=GL.diff(name, manager)['hand_edited'])
     if write:
         rec['proof'] = proof

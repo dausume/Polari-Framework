@@ -1,0 +1,459 @@
+{
+ "graph": "uno-button-clock-graph",
+ "graph_sha256": "35e45e943500ffbc1cbae25259ddce881ebd6b2c272e65b61ec35e62928d7795",
+ "generator": "cmod.custom.glue 1",
+ "generated_project": "cmod/custom/graphs/uno-button-clock-graph",
+ "files": {
+  "button_clock_defs.h": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807",
+  "hal.c": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5",
+  "hal.h": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0",
+  "board_config.h": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008",
+  "buttonclockstate_packets.h": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210",
+  "buttonclockevent_packets.h": "d7c29234aef022c6b998cdd1cecf0574a8a02ad84731c354b4744b14060edc48",
+  "pin_config.h": "292371ecfb9839516240932b1fba969728ed6ae198c7ed02f480ddca79f4bee7",
+  "pin_config.c": "cb293e7c85492b48d20b036b2b90e675a3e3b984ea90a41f9371d2798985fb7f",
+  "polari_graph.c": "a11f971acaca00cbee422bc2d85a890d310e810e9b5cbb5dea2a4b0ac4fcefe7",
+  "polari_graph.h": "8cafa98922a8a88882705fbef6ac6620b0947c6fd7773e524127bca7b0cb55f3",
+  "Makefile": "56b796d39cf868fcaa14d51b39bd073db76e0689913a2840e58633c34aa1e2ee"
+ },
+ "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
+ "rendered_at": "2026-10-09T09:01:52",
+ "inputs": [
+  {
+   "label": "copied verbatim from board/custom/firmware/uno/apps/button_clock_defs.h",
+   "file": "button_clock_defs.h",
+   "sha256": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807"
+  },
+  {
+   "label": "copied verbatim from board/custom/firmware/uno/hal.c",
+   "file": "hal.c",
+   "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
+  },
+  {
+   "label": "copied verbatim from board/custom/firmware/uno/hal.h",
+   "file": "hal.h",
+   "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+  },
+  {
+   "label": "board gen: the uno-button-clock knobs",
+   "file": "board_config.h",
+   "sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008"
+  },
+  {
+   "label": "c_twin target=avr, contract v1 9d32ede2fa51ab74 (pinned board/custom/contracts/ButtonClockState.v1.json)",
+   "file": "buttonclockstate_packets.h",
+   "sha256": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210"
+  },
+  {
+   "label": "c_twin target=avr: a second wire class buttonclockevent_packets.h's own atoms assemble (never a glue class/frame node)",
+   "file": "buttonclockevent_packets.h",
+   "sha256": "d7c29234aef022c6b998cdd1cecf0574a8a02ad84731c354b4744b14060edc48"
+  },
+  {
+   "label": "GENERATED (cmod.custom.pin_config_gen) from uno-button-clock's pin claims",
+   "file": "pin_config.h",
+   "sha256": "292371ecfb9839516240932b1fba969728ed6ae198c7ed02f480ddca79f4bee7"
+  },
+  {
+   "label": "atoms manifest",
+   "file": "board/custom/firmware/uno/polari-firmware.json",
+   "sha256": "03e4bfe7881699c3d1e74b6f1ce780cad30eadb1ee59e76ece14b8b25054e538"
+  }
+ ],
+ "cost_estimate": {
+  "total_bytes": 13032,
+  "why": "atoms as nodes 4196 B + ISRs 416 B + glue/library reference 8420 B (apps/button_clock.main shipped) = 13032 B — an upper bound for the attributable code (inlined atoms counted twice); the C runtime (vectors, crt, libgcc float) is not in it",
+  "parts": [
+   {
+    "atom": "apps/button_clock.apply_command",
+    "bytes": 942,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.boot_session_mint",
+    "bytes": 74,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.clock_set",
+    "bytes": 564,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.clock_tick",
+    "bytes": 284,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.events_drain",
+    "bytes": 462,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.events_queue",
+    "bytes": 252,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.l_led_init",
+    "bytes": 4,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.l_led_set",
+    "bytes": 12,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.led_toggle",
+    "bytes": 256,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.queue_pop",
+    "bytes": 60,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.sense_isr",
+    "bytes": 384,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/button_clock.telemetry_send",
+    "bytes": 480,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_button_init",
+    "bytes": 24,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_led",
+    "bytes": 12,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_led_init",
+    "bytes": 4,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_millis",
+    "bytes": 54,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_presses",
+    "bytes": 36,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_rx_pop",
+    "bytes": 52,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_sense_init",
+    "bytes": 22,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_sense_read",
+    "bytes": 98,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_take_toggle_pending",
+    "bytes": 32,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_tick_init",
+    "bytes": 24,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_usart_init",
+    "bytes": 30,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.hal_usart_send",
+    "bytes": 34,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal.INT0_vect",
+    "bytes": 170,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "hal.INT1_vect",
+    "bytes": 110,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "hal.TIMER2_COMPA_vect",
+    "bytes": 70,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "hal.USART_RX_vect",
+    "bytes": 66,
+    "as": "ISR it shares a global with"
+   },
+   {
+    "atom": "apps/button_clock.main",
+    "bytes": 8420,
+    "as": "glue + library reference: the replaced main() as shipped"
+   }
+  ]
+ },
+ "glue_contains": [
+  "main() and its loop (the scheduler)",
+  "init: hal_usart_init → hal_tick_init → hal_led_init → l_led_init → hal_button_init → hal_sense_init → boot_session_mint, then sei()",
+  "the class instance `state` (ButtonClockState_t): zeroed, name = RIG_NAME, status = IDLE",
+  "the parser `rx` (polari_rx_t) fed by the on-rx drain, msg_type gate → on-command atoms",
+  "tick `telemetry`: every TELEMETRY_MS ms on the uint32_t clock, wrap-safe ((int32_t)(now - next) >= 0)",
+  "1 field write(s) into the class instance",
+  "the app atoms copied verbatim: apps/button_clock.l_led_init, apps/button_clock.l_led_set, apps/button_clock.boot_session_mint, apps/button_clock.clock_tick, apps/button_clock.clock_set, apps/button_clock.events_queue, apps/button_clock.queue_pop, apps/button_clock.led_toggle, apps/button_clock.sense_isr, apps/button_clock.events_drain, apps/button_clock.telemetry_send, apps/button_clock.apply_command"
+ ],
+ "advice": [],
+ "build": {
+  "ok": true,
+  "built_by": "make alone (local-image prf-board-engines:trixie)",
+  "hex_sha256": "d26ddf2e622d2ee5dcf95c5ceb36e65f2251abcfeccd7f27c75b07683119aeb7",
+  "size_text": 13772,
+  "size_data": 18,
+  "size_bss": 1206,
+  "flash_bytes": 13790,
+  "cost_estimate_bytes": 13032,
+  "cost_measured_attributable_bytes": 12818,
+  "cost_measured_breakdown": {
+   "atoms (shipped symbols)": 3984,
+   "ISR vectors": 416,
+   "main (glue + inlined atoms + inlined library)": 8418
+  },
+  "runtime_bytes": 954,
+  "cost_why": "estimated 13032 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 12818 B attributable (atoms (shipped symbols) 3984, ISR vectors 416, main (glue + inlined atoms + inlined library) 8418) + 954 B C runtime (vectors, crt, libgcc) = .text 13772 B",
+  "estimate_minus_attributable": {
+   "bytes": 214,
+   "atoms_inlined_or_smaller_shipped": {
+    "apps/button_clock.apply_command": 942,
+    "apps/button_clock.boot_session_mint": 74,
+    "apps/button_clock.clock_set": 564,
+    "apps/button_clock.events_drain": 462,
+    "apps/button_clock.l_led_init": 4,
+    "apps/button_clock.led_toggle": 256,
+    "apps/button_clock.queue_pop": 60,
+    "apps/button_clock.sense_isr": 384,
+    "apps/button_clock.telemetry_send": -2672,
+    "hal.hal_button_init": 22,
+    "hal.hal_led_init": 2,
+    "hal.hal_millis": 30,
+    "hal.hal_presses": 20,
+    "hal.hal_sense_init": 20,
+    "hal.hal_sense_read": 28,
+    "hal.hal_take_toggle_pending": 16
+   },
+   "explained_bytes": 212
+  },
+  "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
+  "hand_edited": [],
+  "stale": [],
+  "measured_elf_sha256": "733173b060c19db50c6ef86f77b9ce77d35f01dab0f26ed390215ac52b224d30",
+  "built_at": "2026-10-09T09:02:08"
+ },
+ "proof": {
+  "equivalent": true,
+  "frames_compared": 25,
+  "frames_hand": 25,
+  "frames_glue": 25,
+  "fields_compared": [
+   "seq",
+   "device_id",
+   "msg_type",
+   "boot_session",
+   "uptime_ms",
+   "epoch_s",
+   "ms",
+   "clock_synced",
+   "sync_generation",
+   "sync_uncertainty_ms",
+   "drift_ms",
+   "button_presses",
+   "led_on",
+   "led_changed_at",
+   "sense_rises",
+   "sense_falls",
+   "last_edge_at",
+   "last_edge_ms",
+   "dropped_events",
+   "status",
+   "name",
+   "boot_session",
+   "kind",
+   "uptime_ms",
+   "epoch_s",
+   "ms",
+   "name"
+  ],
+  "differences": [],
+  "n_differences": 0,
+  "raw_uart_identical": true,
+  "uart_sha256": {
+   "hand": "1b24e97c61abd2cfe35de774feab9d2c4e905f575954c066a8cea55aec787a5e",
+   "glue": "1b24e97c61abd2cfe35de774feab9d2c4e905f575954c066a8cea55aec787a5e"
+  },
+  "reference": {
+   "variant": "uno-button-clock",
+   "built_by": "board gen + board build (the shipped pipeline)",
+   "hex_sha256": "4cbe660a00049cf7aaad5037c3c4eaeed6133d359bd5f5e03fc1b7b67e0b9c0a",
+   "size_text": 13782,
+   "size_data": 18,
+   "size_bss": 1206
+  },
+  "glue": {
+   "hex_sha256": "d26ddf2e622d2ee5dcf95c5ceb36e65f2251abcfeccd7f27c75b07683119aeb7",
+   "size_text": 13772,
+   "size_data": 18,
+   "size_bss": 1206,
+   "built_by": "make alone (local-image prf-board-engines:trixie)"
+  },
+  "hex_identical": false,
+  "cycles": {
+   "total_hand": 19201565,
+   "total_glue": 19201552,
+   "frame_tx_cycle_delta_min": null,
+   "frame_tx_cycle_delta_max": null,
+   "first_frame_cycle_hand": 53958,
+   "first_frame_cycle_glue": 53911
+  },
+  "stimulus": {
+   "seconds": 1.2,
+   "seed": "-",
+   "adc0_ramp_mv": "-",
+   "commands": [
+    "4 press(es) on D2",
+    "--wire PD6:PD3",
+    "SET_TIME epoch_s=1000000000 ms=0 sync_generation=1"
+   ],
+   "argv": [
+    "polari-avr-twin",
+    "--hex",
+    "firmware.hex",
+    "--mcu",
+    "atmega328p",
+    "--freq",
+    "16000000",
+    "--free",
+    "--seconds",
+    "1.2",
+    "--status-ms",
+    "0",
+    "--uart-out",
+    "uart.bin",
+    "--uart-tx-log",
+    "tx.bin",
+    "--wire",
+    "PD6:PD3",
+    "--pin-at",
+    "cycle=1600000,pin=PD2,level=0",
+    "--pin-at",
+    "cycle=1680000,pin=PD2,level=1",
+    "--pin-at",
+    "cycle=4000000,pin=PD2,level=0",
+    "--pin-at",
+    "cycle=4080000,pin=PD2,level=1",
+    "--pin-at",
+    "cycle=6400000,pin=PD2,level=0",
+    "--pin-at",
+    "cycle=6480000,pin=PD2,level=1",
+    "--pin-at",
+    "cycle=8800000,pin=PD2,level=0",
+    "--pin-at",
+    "cycle=8880000,pin=PD2,level=1",
+    "--inject",
+    "cmd0.bin@12800000"
+   ]
+  },
+  "first_commanded_frame": 9,
+  "samples": [
+   {
+    "seq": 0,
+    "boot_session": 1,
+    "uptime_ms": 0,
+    "epoch_s": 0,
+    "ms": 0,
+    "clock_synced": false,
+    "sync_generation": 0,
+    "sync_uncertainty_ms": 0,
+    "drift_ms": 0,
+    "button_presses": 0,
+    "led_on": false,
+    "led_changed_at": 0,
+    "sense_rises": 0,
+    "sense_falls": 0,
+    "last_edge_at": 0,
+    "last_edge_ms": 0,
+    "dropped_events": 0,
+    "status": "idle",
+    "name": "uno-button-clock"
+   },
+   {
+    "seq": 11,
+    "boot_session": 1,
+    "uptime_ms": 1100,
+    "epoch_s": 1000000000,
+    "ms": 267,
+    "clock_synced": true,
+    "sync_generation": 1,
+    "sync_uncertainty_ms": 100,
+    "drift_ms": 0,
+    "button_presses": 4,
+    "led_on": false,
+    "led_changed_at": 0,
+    "sense_rises": 2,
+    "sense_falls": 2,
+    "last_edge_at": 0,
+    "last_edge_ms": 0,
+    "dropped_events": 0,
+    "status": "synced",
+    "name": "uno-button-clock"
+   }
+  ],
+  "twin": {
+   "how": "local-image",
+   "where": "prf-board-engines:trixie",
+   "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
+  },
+  "proven_at": "2026-10-09T09:02:35",
+  "graph_sha256": "35e45e943500ffbc1cbae25259ddce881ebd6b2c272e65b61ec35e62928d7795",
+  "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
+  "hand_edited": []
+ },
+ "conformed": {
+  "manifest": "cmod/custom/graphs/uno-button-clock-graph/polari-firmware.json",
+  "manifest_sha256": "c6121943a9e083200b2786ced7fea0b2350bfa787c8de83f2ad13c89aaab8b10",
+  "atoms": 30,
+  "glue_atoms": [
+   "polari_graph.apply_command",
+   "polari_graph.boot_session_mint",
+   "polari_graph.clock_set",
+   "polari_graph.clock_tick",
+   "polari_graph.events_drain",
+   "polari_graph.events_queue",
+   "polari_graph.l_led_init",
+   "polari_graph.l_led_set",
+   "polari_graph.led_toggle",
+   "polari_graph.main",
+   "polari_graph.queue_pop",
+   "polari_graph.sense_isr",
+   "polari_graph.telemetry_send"
+  ],
+  "not_isr_safe": 0,
+  "written": true
+ }
+}

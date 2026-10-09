@@ -147,4 +147,44 @@ def firmware_parts(check):
         check('…and REFUSES a copy that still contains moving-avg\'s compute (ConditionalChain), NAMING the offending state',
               not ok2 and 'over?' in why2 and 'ConditionalChain' in why2, why2)
 
-    return (schedule_derivation, assignments_and_validate, target_compat_and_valid_targets, cross_domain_validator)
+    def button_clock_solution():
+        """ucd-0e2b: the SECOND FirmwareSolution (uno-button-clock, over uno-button-clock-graph) — the schedule/
+        register map derive cleanly, D2/D3/D6/D13 all bind (the owners fix: led/led_toggle/apply_command legitimately
+        cooperate on D6, button_init/button on D2, sense_init/sense/sense_isr on D3), the pin-claim config_json
+        authored in cmod.cmod_seed (via cmod.custom.claims.PURE_CONFIG_SEED) reaches validate() with no incomplete
+        claims, and the binding comes out valid N/N."""
+        from cmod.custom import firmware as FW
+        g, sol = 'uno-button-clock-graph', 'uno-button-clock'
+        rows = FW.assignments_for(g, sol)
+        by_pin = {}
+        for r in rows:
+            if r['lives_on'] != 'unbound':
+                by_pin.setdefault(r['lives_on'], []).append(r)
+        check('D2/D3/D6/D13 all bound, no conflicts (led/led_toggle/apply_command cooperate on D6; button_init/button '
+              'on D2; sense_init/sense/sense_isr on D3 — the generalized init-owner exemption, ucd-0e2b)',
+              all(x['status'] == 'bound' for p in ('arduino-uno-r3:D2', 'arduino-uno-r3:D3', 'arduino-uno-r3:D6', 'arduino-uno-r3:D13')
+                  for x in by_pin.get(p, [])) and len(by_pin.get('arduino-uno-r3:D6', [])) == 4,
+              {p: [(x['task'], x['status']) for x in xs] for p, xs in by_pin.items()})
+        check('tick_init (Timer2 CTC setup) is a whole-PERIPHERAL requirement, unbound-but-bound (0b2d\'s own fix, '
+              'reused unchanged for this graph)',
+              next(r['status'] for r in rows if r['task'] == 'tick_init') == 'bound')
+
+        fs = {'name': sol, 'graph': g, 'board_definition': 'arduino-uno-r3', 'board_variable': ''}
+        ok, why, details = FW.validate(fs, manager=None)
+        check('validate(uno-button-clock): ok, no pin claim conflict, no "incomplete" (D2/D3\'s authored edge/pull '
+              'resolve the interrupt-in claim)', ok and 'conflict' not in why and 'incomplete' not in why, why)
+        claims = {c['name'].rsplit(':', 1)[1]: c for c in details['claims']}
+        check('D2: mode=alt pull=up edge=falling (falling-edge debounced button, internal pull-up)',
+              (claims['D2']['mode'], claims['D2']['pull'], claims['D2']['edge']) == ('alt', 'up', 'falling'), claims.get('D2'))
+        check('D3: mode=alt pull=none edge=any (the witness pin, no internal pull needed — it is driven by D6)',
+              (claims['D3']['mode'], claims['D3']['pull'], claims['D3']['edge']) == ('alt', 'none', 'any'), claims.get('D3'))
+        check('D6/D13: mode=out initial=low (the LED lines, off at boot)',
+              claims['D6']['mode'] == 'out' and claims['D6']['initial'] == 'low'
+              and claims['D13']['mode'] == 'out' and claims['D13']['initial'] == 'low', (claims.get('D6'), claims.get('D13')))
+
+        from cmod.custom import binding as BND
+        b = BND.derive(sol, manager=None)
+        check('the default HardwareBinding (uno-button-clock@arduino-uno-r3) is valid, 17/17 requirements met',
+              b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 17, b)
+
+    return (schedule_derivation, assignments_and_validate, target_compat_and_valid_targets, cross_domain_validator, button_clock_solution)
