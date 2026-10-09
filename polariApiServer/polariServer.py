@@ -1311,6 +1311,8 @@ class polariServer(treeObject):
             BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
             # brd-fi: the firmware installer — variants, plans, records — and the UNO's second class
             FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
+            # ucd-0e1: THE WIRE CONTRACT of the button-clock demo — the third and fourth wire classes
+            ButtonClockState, ButtonClockEvent,
             # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoC / hardware / pin-assignment / runtime layers + views, conflicts
             SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
             # fs-2a: the compatibility table between a firmware task's target kind and a board's pin roles/capabilities

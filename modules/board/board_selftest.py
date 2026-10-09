@@ -25,11 +25,12 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('thirty-seven row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('thirty-nine row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
-          'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion)',
-          len(BOARD_CLASSES) == 37)
+          'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
+          'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract)',
+          len(BOARD_CLASSES) == 39)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -49,9 +50,10 @@ def rows_and_classes():
     check('the register cells are carried verbatim (status, origin, USB route, adapter)',
           uno['register_status'] == 'HIS PICK (bare C)' and uno['board_origin'] == 'Arduino (Italy, OSHW)'
           and 'Optiboot' in uno['usb_route'] and uno['adapter_needed'].startswith('none (native USB'))
-    check('the five seed pair classes with rows + the measured BoardSimCost (two rows: brd-1 UNO, sc-3 C3) + two observed classes with none',
+    check('the five seed pair classes with rows + the measured BoardSimCost (two rows: brd-1 UNO, sc-3 C3) + observed classes with none',
           {n for n, _, rows in BOARD_SEED_PAIRS if rows} >= {'BoardDefinition', 'AdapterDefinition', 'ProgrammerKind', 'DatasheetFact', 'Road', 'BoardSimCost'}
-          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild', 'InstallPlan', 'InstallRecord', 'UnoAnalogState'))
+          and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n in ('BoardInstance', 'FirmwareBuild', 'InstallPlan', 'InstallRecord', 'UnoAnalogState',
+                                                                       'ButtonClockState', 'ButtonClockEvent'))   # ucd-0e1: observed, never seeded
           and len(next(rows for n, _, rows in BOARD_SEED_PAIRS if n == 'BoardSimCost')) == 2)   # sc-3: + the C3's QEMU twin
     return B, A, P, F, R, N
 
@@ -370,6 +372,8 @@ def main():
     run_circuit(check)
     from board.board_pinlevel_selftest import pin_parts   # ucd-0d: PIN-LEVEL forcing + pin-to-pin wiring on the twin
     pin_parts(check)
+    from board.board_button_clock_selftest import run_button_clock   # ucd-0e1: THE WIRE CONTRACT of the button-clock demo
+    run_button_clock(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

@@ -1,0 +1,132 @@
+{
+ "class": "ButtonClockState",
+ "contract_version": 1,
+ "contract_hash": "9d32ede2fa51ab74",
+ "msg_type": 1,
+ "source": "pinned offline snapshot of the ButtonClockState contract v1 — exactly what a fresh server generates (ucd-0e1, 2026-10-09: a throwaway in-process server, one seeded row, stabilize, enable -> v1, hash 9d32ede2fa51ab74, tags alphabetical). The server's ProtoContractVersion ledger is authoritative -- `pol board gen --api URL` fetches the live header, and the installer's compat check compares against what the server generates NOW",
+ "field_map": {
+  "fields": {
+   "boot_session": {
+    "tag": 1,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "button_presses": {
+    "tag": 2,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "clock_synced": {
+    "tag": 3,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "drift_ms": {
+    "tag": 4,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "dropped_events": {
+    "tag": 5,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "epoch_s": {
+    "tag": 6,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "last_edge_at": {
+    "tag": 7,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "last_edge_ms": {
+    "tag": 8,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "led_changed_at": {
+    "tag": 9,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "led_on": {
+    "tag": 10,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "ms": {
+    "tag": 11,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "name": {
+    "tag": 12,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "sense_falls": {
+    "tag": 13,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "sense_rises": {
+    "tag": 14,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "seq": {
+    "tag": 15,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "set_epoch_s": {
+    "tag": 16,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "set_led": {
+    "tag": 17,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "set_ms": {
+    "tag": 18,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "set_sync_generation": {
+    "tag": 19,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "snapshot": {
+    "tag": 20,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "status": {
+    "tag": 21,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "sync_generation": {
+    "tag": 22,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "sync_uncertainty_ms": {
+    "tag": 23,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "uptime_ms": {
+    "tag": 24,
+    "proto_type": "int64",
+    "comment": ""
+   }
+  },
+  "reserved": []
+ }
+}

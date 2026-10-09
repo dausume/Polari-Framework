@@ -1,0 +1,47 @@
+{
+ "class": "ButtonClockEvent",
+ "contract_version": 1,
+ "contract_hash": "b3193728aa68a383",
+ "msg_type": 2,
+ "source": "pinned offline snapshot of the ButtonClockEvent contract v1 — exactly what a fresh server generates (ucd-0e1, 2026-10-09: a throwaway in-process server, one seeded row, stabilize, enable -> v1, hash b3193728aa68a383, tags alphabetical). The server's ProtoContractVersion ledger is authoritative -- `pol board gen --api URL` fetches the live header, and the installer's compat check compares against what the server generates NOW",
+ "field_map": {
+  "fields": {
+   "boot_session": {
+    "tag": 1,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "epoch_s": {
+    "tag": 2,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "kind": {
+    "tag": 3,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "ms": {
+    "tag": 4,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "name": {
+    "tag": 5,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "seq": {
+    "tag": 6,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "uptime_ms": {
+    "tag": 7,
+    "proto_type": "int64",
+    "comment": ""
+   }
+  },
+  "reserved": []
+ }
+}

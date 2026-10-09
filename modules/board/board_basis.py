@@ -49,6 +49,10 @@ from board.objects.board.AddressSpace import AddressSpace  # noqa: F401
 from board.objects.board.RegisterAddressMapping import RegisterAddressMapping  # noqa: F401
 from board.objects.board.RegisterBlock import RegisterBlock  # noqa: F401
 from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
+# ucd-0e1: THE WIRE CONTRACT of the button-clock demo — the third and fourth wire classes (brd-fi's pattern: a
+# telemetry+command state class and a telemetry-only event class, both generated through the same c_twin codegen)
+from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
+from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -59,4 +63,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  KitPart,   # fs-2d: the kit parts register (cited to the kit's own book)
                  Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
                  BoardPinNet,   # ucd-0a: the hardware chain (nine)
-                 AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion]   # ucd-0b2a: address space as rows (four)
+                 AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
+                 ButtonClockState, ButtonClockEvent]   # ucd-0e1: the third and fourth wire classes
