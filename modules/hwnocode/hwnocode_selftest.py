@@ -389,11 +389,14 @@ def seeds_page_api():
     from hwnocode.hwnocode_page import SEED_HWNOCODE_PAGE_DISPLAYS, SEED_HWNOCODE_GRAPHS
     from hwnocode.hwnocode_api import HwNoCodeAPI
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
-    check('seeds (fs-1 migration): 1 HardwareSolution, 24 placements (18 twin + 2 bridge + 3 backend + 1 browser), '
-          '3 SolutionDefinitions (the cross-domain canvas + its derived backend half + temp-analysis), 1 AnalysisDefinition, '
-          '1 EventTrigger, 1 HardwareInterfaceBinding, 1 GraphDefinition, 6 Runtimes (demo-4b)', counts == {
-              'HardwareSolution': 1, 'HardwareNodePlacement': 24, 'SolutionDefinition': 3, 'AnalysisDefinition': 1, 'EventTrigger': 1,
-              'HardwareInterfaceBinding': 1, 'GraphDefinition': 1, 'Runtime': 6}, counts)
+    check('seeds (fs-1 migration + ucd-1): 2 HardwareSolutions (uno-temp-split + uno-button-clock — the latter\'s own '
+          'Firmware Run is planned, its cgraph does not exist, so it contributes 0 placements), 24 placements '
+          '(18 twin + 2 bridge + 3 backend + 1 browser, all uno-temp-split\'s), 6 SolutionDefinitions (uno-temp-split\'s '
+          'canvas + its derived backend half + temp-analysis + uno-button-clock\'s canvas + button-clock-ledger + its '
+          'own hand-built backend half), 2 AnalysisDefinitions, 2 EventTriggers, 2 HardwareInterfaceBindings, '
+          '2 GraphDefinitions, 6 Runtimes (demo-4b)', counts == {
+              'HardwareSolution': 2, 'HardwareNodePlacement': 24, 'SolutionDefinition': 6, 'AnalysisDefinition': 2, 'EventTrigger': 2,
+              'HardwareInterfaceBinding': 2, 'GraphDefinition': 2, 'Runtime': 6}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
     # canvas position/shape — graph_builder.node() deliberately emits none (shared, parity-pinned
@@ -471,8 +474,8 @@ def seeds_page_api():
     HwNoCodeAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
     c = testing.TestClient(app)
     r = c.simulate_get('/api/hwnocode')
-    check('GET /api/hwnocode → uno-temp-split + the four node kinds (fs-0/fs-2 adds FirmwareRunState)',
-          r.status_code == 200 and r.json['solutions'][0]['name'] == 'uno-temp-split'
+    check('GET /api/hwnocode → uno-temp-split + uno-button-clock (ucd-1, sorted by name) + the four node kinds (fs-0/fs-2 adds FirmwareRunState)',
+          r.status_code == 200 and {s['name'] for s in r.json['solutions']} == {'uno-temp-split', 'uno-button-clock'}
           and len(r.json['node_kinds']) == 4, r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/uno-temp-split/placement')
     check('GET …/placement → computed now: twin 18, bridge 2, backend 3, browser 1', r.status_code == 200 and r.json['summary'] == 'twin 18, bridge 2, backend 3, browser 1', r.text[:200])
@@ -544,6 +547,181 @@ def connectors_and_hardware_mode():
           hs['hardware_mode'] == 'digital-twin' and 'twin' in hs['route_report'] and 'pty' in hs['route_report'])
 
 
+def button_clock_compute():
+    """ucd-1 (UNO_CORE_DEMO_PLAN.md §5 D-ucd-5): hwnocode.custom.button_clock — the invariant (valid + a broken case
+    naming the actual numbers), presses_per_min over the device's own clock, button_clock_derive's upsert of
+    ButtonClockDerived, and retention pruning (oldest-first by boot_session/seq, newest kept) — all on synthetic rows
+    through a fake manager (the derive.py idiom: SimpleNamespace objectTables, no real DB)."""
+    from types import SimpleNamespace
+    from hwnocode.custom import button_clock as BC
+
+    def _mgr():
+        return SimpleNamespace(objectTables={}, objectTypingDict={}, db=None)
+
+    def _state(mgr, name='uno-button-clock', **f):
+        base = dict(uptime_ms=120000, sense_rises=5, sense_falls=4, button_presses=9, led_on=True,
+                    dropped_events=0, sync_generation=1, drift_ms=12)
+        base.update(f)
+        inst = SimpleNamespace(name=name, id=name, **base)
+        mgr.objectTables.setdefault('ButtonClockState', {})[name] = inst
+        return inst
+
+    def _event(mgr, i, kind='press', uptime_ms=0, boot_session=1, seq=None):
+        seq = i if seq is None else seq
+        nm = 'evt-%04d' % i
+        inst = SimpleNamespace(name=nm, id=nm, seq=seq, boot_session=boot_session, kind=kind, uptime_ms=uptime_ms, epoch_s=0, ms=0)
+        mgr.objectTables.setdefault('ButtonClockEvent', {})[nm] = inst
+        return inst
+
+    ok, why = BC.invariant(sense_rises=5, sense_falls=4, button_presses=9, led_on=True)
+    check('invariant: 5+4==9 and led_on==(5>4) -> ok', ok and why.startswith('ok:'), why)
+    ok, why = BC.invariant(sense_rises=5, sense_falls=4, button_presses=9, led_on=False)
+    check('invariant: led_on False but sense_rises>sense_falls -> broken, names the mismatch', not ok and 'led_on' in why, why)
+    ok, why = BC.invariant(sense_rises=3, sense_falls=2, button_presses=4, led_on=True)
+    check('invariant: 3+2=5 != button_presses(4) -> broken, names the actual numbers', not ok and '5' in why and '4' in why, why)
+
+    mgr = _mgr()
+    _state(mgr, uptime_ms=90000, sense_rises=3, sense_falls=2, button_presses=5, led_on=True,
+          dropped_events=1, sync_generation=2, drift_ms=-7)
+    for i in range(4):
+        _event(mgr, i, kind='press', uptime_ms=40000 + i * 10000)   # within the last 60s of uptime 90000
+    _event(mgr, 10, kind='press', uptime_ms=10000)                  # outside the window (90000-60000=30000)
+    r = BC.button_clock_derive(mgr, board_instance='uno-button-clock')
+    check('button_clock_derive: ok, invariant_ok True (3+2==5, led_on==(3>2))', r['ok'] and r['invariant_ok'] is True, r)
+    check('button_clock_derive: presses_per_min counts only the 4 in-window presses (the 5th at uptime 10000 is outside the last minute)',
+          r['presses_per_min'] == 4.0, r)
+    check('button_clock_derive: dropped_events_total/last_sync_generation/drift_ms mirrored straight from the wire',
+          r['dropped_events_total'] == 1 and r['last_sync_generation'] == 2 and r['drift_ms'] == -7, r)
+    derived_rows = list(mgr.objectTables.get('ButtonClockDerived', {}).values())
+    check('button_clock_derive upserts exactly one ButtonClockDerived row, name == board_instance',
+          len(derived_rows) == 1 and derived_rows[0].name == 'uno-button-clock' and derived_rows[0].board_instance == 'uno-button-clock'
+          and derived_rows[0].invariant_ok is True, [getattr(r, 'name', '?') for r in derived_rows])
+
+    mgr2 = _mgr()
+    _state(mgr2, uptime_ms=5000, sense_rises=1, sense_falls=0, button_presses=3, led_on=True)
+    r2 = BC.button_clock_derive(mgr2, board_instance='uno-button-clock')
+    check('button_clock_derive: a broken wire (1+0=1 != 3) -> invariant_ok False, why names 1 and 3',
+          r2['ok'] and r2['invariant_ok'] is False and '1' in r2['invariant_why'] and '3' in r2['invariant_why'], r2)
+
+    mgr3 = _mgr()
+    r3 = BC.button_clock_derive(mgr3, board_instance='nope')
+    check('button_clock_derive: no ButtonClockState row yet -> ok False, named', r3['ok'] is False and 'no ButtonClockState' in r3['error'], r3)
+
+    mgr4 = _mgr()
+    for i in range(12):
+        _event(mgr4, i, kind='press', uptime_ms=i * 1000, boot_session=1, seq=i)
+    doomed = BC.rows_to_prune(mgr4, retention=5)
+    check('rows_to_prune (pure, deletes nothing): 12 events, retention 5 -> 7 doomed, the OLDEST 7 (seq 0..6)',
+          sorted(int(getattr(r, 'seq')) for r in doomed) == list(range(7)), [getattr(r, 'seq') for r in doomed])
+    check('…and the 12 events are all still there (pure function)', len(BC._rows(mgr4, 'ButtonClockEvent')) == 12)
+    res = BC.prune_events(mgr4, retention=5)
+    kept_seqs = sorted(int(getattr(r, 'seq')) for r in BC._rows(mgr4, 'ButtonClockEvent'))
+    check('prune_events: removed 7, kept 5 (the NEWEST, seq 7..11)',
+          res['removed'] == 7 and res['kept'] == 5 and kept_seqs == list(range(7, 12)), (res, kept_seqs))
+    res2 = BC.prune_events(mgr4, retention=5)
+    check('prune_events: idempotent — nothing left to prune once at the bound', res2['removed'] == 0 and res2['kept'] == 5, res2)
+
+
+def button_clock_cross_domain():
+    """ucd-1 (UNO_CORE_DEMO_PLAN.md §3): uno-button-clock's own Cross-Domain canvas — the SAME validator accepts it
+    (no compute states, beside uno-temp-split), every state carries a detail_ref whose `class` is a REGISTERED Polari
+    class (his fourth message's traversal rule), and the one state whose named row does not exist yet (Firmware Run,
+    its FirmwareSolution is ucd-0e2b's) says `planned` plainly rather than pretending it ran."""
+    from hwnocode.custom import solutions as S
+    from hwnocode.custom import cross_domain as CD
+    d = S.button_clock_definition()
+    ok, why = CD.validate(d)
+    check('uno-button-clock validates as a Cross-Domain Solution (bridging/relay states only, no compute)', ok, why)
+    names = {s['stateName'] for s in d['stateInstances']}
+    check('6 states: firmware-run, the bridge, relay-in, call-button-clock-ledger, relay-out, frontend-emit',
+          names == {'firmware-run', 'uno-button-clock-bridge', 'relay-in', 'call-button-clock-ledger', 'relay-out', 'frontend-emit'}, names)
+
+    from hwnocode.hwnocode_basis import HWNOCODE_CLASSES
+    from grpcbridge.mapping_basis import MAPPING_CLASSES
+    from cmod.cmod_basis import CMOD_CLASSES
+    known = {c.__name__ for c in list(HWNOCODE_CLASSES) + list(MAPPING_CLASSES) + list(CMOD_CLASSES)} | {'SolutionDefinition', 'DisplayDefinition'}
+    bad, missing_ref, planned_states = [], [], []
+    for s in d['stateInstances']:
+        ref = (s.get('boundObjectFieldValues') or {}).get('detail_ref')
+        if not ref or not ref.get('class') or not ref.get('name'):
+            missing_ref.append(s['stateName'])
+            continue
+        if ref['class'] not in known:
+            bad.append('%s: detail_ref.class %r unknown' % (s['stateName'], ref['class']))
+        if ref.get('planned'):
+            planned_states.append(s['stateName'])
+    check('every state carries a detail_ref {class, name}', not missing_ref, missing_ref)
+    check('every detail_ref names a REGISTERED Polari class', not bad, bad)
+    check('exactly Firmware Run is planned (its FirmwareSolution does not exist yet, ucd-0e2b) — said, never hidden',
+          planned_states == ['firmware-run'], planned_states)
+    fr = _state(d, 'firmware-run')
+    check('Firmware Run: route_taken == planned, route_why names ucd-0e2b', fr['boundObjectFieldValues']['route_taken'] == 'planned'
+          and 'ucd-0e2b' in fr['boundObjectFieldValues']['route_why'])
+    check('Firmware Run\'s own detail_ref also carries planned=True + a why', fr['boundObjectFieldValues']['detail_ref']['planned'] is True
+          and bool(fr['boundObjectFieldValues']['detail_ref'].get('why')))
+
+    bdef = S.button_clock_backend_definition()
+    bnames = [s['stateName'] for s in bdef['stateInstances']]
+    check('the executable backend half keeps only relay-in/call/relay-out/frontend-emit (Firmware Run / Bridge dropped — '
+          'no SolutionExecutionEngine handler exists for FirmwareRunState/HardwareInterface, the same fact hn-split\'s own '
+          'backend_partition relies on)', bnames == ['relay-in', 'call-button-clock-ledger', 'relay-out', 'frontend-emit'], bnames)
+
+
+def button_clock_page():
+    """ucd-1: /display/uno-core-demo — CONFIGURED tables + exactly ONE sci-xy-chart (named-graph-panel), never a raw
+    api-json-panel or any custom component; every table names a class that exists (ButtonClockState/ButtonClockEvent,
+    board module; ButtonClockDerived, hwnocode) and only columns those classes actually have."""
+    import inspect
+    from hwnocode.hwnocode_page import SEED_HWNOCODE_PAGE_DISPLAYS, SEED_HWNOCODE_GRAPHS
+    from hwnocode.hwnocode_basis import HWNOCODE_CLASSES
+    from board.board_basis import BOARD_CLASSES
+    page = next(p for p in SEED_HWNOCODE_PAGE_DISPLAYS if p['name'] == 'uno-core-demo')
+    check('page route == uno-core-demo, a non-empty one-paragraph description (the bench, what moves)',
+          page['pageRoute'] == 'uno-core-demo' and len(page['description']) > 80)
+    items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
+    comps = [it['componentProps']['componentName'] for it in items]
+    check('ONLY configured tables (class-rows-table) + exactly ONE named-graph-panel — never api-json-panel, never a '
+          'custom component', comps.count('named-graph-panel') == 1 and set(comps) == {'class-rows-table', 'named-graph-panel'}, comps)
+    check('every item (tables + the chart) carries a non-empty description',
+          all(it.get('description') for it in items), [it['id'] for it in items if not it.get('description')])
+    known = {c.__name__: c for c in list(HWNOCODE_CLASSES) + list(BOARD_CLASSES)}
+    bad, tables_classes = [], []
+    for it in items:
+        cn = it['componentProps']['inputs'].get('className')
+        if cn:
+            tables_classes.append(cn)
+            if cn not in known:
+                bad.append('%s.<unknown class>' % cn)
+                continue
+            params = set(inspect.signature(known[cn].__init__).parameters)
+            bad += ['%s.%s' % (cn, c) for c in it['componentProps']['inputs']['columns'].split(',') if c not in params]
+    check('tables name ButtonClockState, ButtonClockDerived, ButtonClockEvent — the three classes the demo writes/reads, '
+          'all REGISTERED (board + hwnocode)', sorted(tables_classes) == ['ButtonClockDerived', 'ButtonClockEvent', 'ButtonClockState'], tables_classes)
+    check('…every column named is a real field of its class', not bad, bad)
+    chart_item = next(it for it in items if it['componentProps']['componentName'] == 'named-graph-panel')
+    check('the chart reads GET /api/hwnocode/button-clock/chart',
+          chart_item['componentProps']['inputs']['dataPath'] == '/api/hwnocode/button-clock/chart')
+    g = next(g for g in SEED_HWNOCODE_GRAPHS if g['name'] == chart_item['componentProps']['inputs']['graphName'])
+    gc = json.loads(g['definition'])['graphConfig']
+    check('the chart: x=uptime_s, 3 cumulative series (presses/rises/falls), one colour each',
+          gc['xDimension'] == 'uptime_s' and gc['yDimensions'] == ['presses_cum', 'rises_cum', 'falls_cum'] and len(gc['seriesColors']) == 3)
+
+
+def button_clock_registration():
+    """ucd-1: ButtonClockDerived is wired everywhere a module row must be (basis, objects __init__, polari-app.json,
+    feature_imports, polariServer defClassList) — never only half-registered."""
+    from hwnocode.hwnocode_basis import HWNOCODE_CLASSES
+    from hwnocode.objects.hwnocode import ButtonClockDerived
+    check('ButtonClockDerived is importable from hwnocode.objects.hwnocode (the __init__ re-export)', ButtonClockDerived is not None)
+    check('ButtonClockDerived is in HWNOCODE_CLASSES (the basis class list the server registers)',
+          any(c.__name__ == 'ButtonClockDerived' for c in HWNOCODE_CLASSES))
+    from moduleService import manifests as M
+    m = M.load('hwnocode')
+    check('polari-app.json: ButtonClockDerived in files.objects, classes, and the hwnocode_basis import tuple',
+          'objects/hwnocode/ButtonClockDerived' in m['files']['objects'] and 'ButtonClockDerived' in m['classes']
+          and 'ButtonClockDerived' in dict(m['imports'])['hwnocode.hwnocode_basis'])
+
+
 def manifest_conform():
     from moduleService import manifests as M
     r = M.conform('hwnocode')
@@ -557,6 +735,7 @@ def main():
     print('hwnocode selftest (hn-0)')
     for part in (placement_on_seed, runtimes_demo_4b, refusals, cross_domain_validator, subgraph_reference, knob_refusals,
                  suggestion_fixtures, backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode,
+                 button_clock_compute, button_clock_cross_domain, button_clock_page, button_clock_registration,
                  manifest_conform):
         print('-- %s' % part.__name__)
         try:

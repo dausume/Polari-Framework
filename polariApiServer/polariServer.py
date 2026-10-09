@@ -1352,7 +1352,9 @@ class polariServer(treeObject):
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
             # fs-0/fs-2: the Cross-Domain category's one new node kind (Bridge/Relay/API-call/Frontend-emit reuse existing kinds)
-            FirmwareRunState]
+            FirmwareRunState,
+            # ucd-1: the uno-button-clock demo's own derived ledger row (SimRigTempDerived's sibling)
+            ButtonClockDerived]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing

@@ -11,7 +11,7 @@ data from GET /api/hwnocode/solutions/uno-temp-split/chart ({ok, rows}).
 import json
 
 from polariApiServer.module_pages_seed import _page, _row, _table
-from hwnocode.custom.solutions import SOLUTION, GRAPH, DISPLAY, CGRAPH
+from hwnocode.custom.solutions import SOLUTION, GRAPH, DISPLAY, CGRAPH, BC_SOLUTION, BC_DISPLAY
 
 
 def _graph_panel(item_id, index, segments, title, graph_name, data_path, description=''):
@@ -38,6 +38,28 @@ SEED_HWNOCODE_GRAPHS = [{
                     'moving average the backend half computed per frame (AnalysisCall hwnocode-temp-derive; window = the trigger\'s '
                     'knob). The threshold flag is SimRigTempDerived.over_threshold.'),
     'definition': json.dumps({'graphConfig': _graph_config()})}]
+
+# ucd-1: uno-button-clock's own sci-xy-chart — x = uptime_ms (the device's own monotonic clock, always valid even
+# unsynced), y = three RUNNING CUMULATIVE counters (presses, D3-sensed rises, D3-sensed falls) over time, the plan's
+# own accepted alternative to a numeric-lane encoding (UNO_CORE_DEMO_PLAN.md §3). Data: GET /api/hwnocode/button-clock/chart.
+BC_GRAPH = 'hwnocode-uno-button-clock-events'
+
+
+def _bc_graph_config():
+    return {'renderStyle': 'lineY', 'xDimension': 'uptime_s', 'yDimensions': ['presses_cum', 'rises_cum', 'falls_cum'],
+            'seriesColors': ['#e65100', '#1565c0', '#6a1b9a'],
+            'options': {'width': 800, 'height': 320, 'marginTop': 20, 'marginRight': 30, 'marginBottom': 40, 'marginLeft': 60,
+                        'showLegend': True, 'showGrid': True, 'xLabel': 'firmware uptime (s)', 'yLabel': 'events, cumulative'},
+            'aggregation': {'enabled': False, 'strategy': 'average'}}
+
+
+SEED_HWNOCODE_GRAPHS += [{
+    'name': BC_GRAPH, 'source_class': 'ButtonClockEvent',
+    'description': ('uno-button-clock (ucd-1): every ButtonClockEvent (press, sense_rise, sense_fall, led_on/off, sync) plotted as '
+                    'three running totals against the device\'s own uptime — presses_cum (D2, debounced), rises_cum/falls_cum (D3, '
+                    'the independent witness of the LED line). The invariant button-clock-ledger checks is presses_cum == '
+                    'rises_cum + falls_cum at any point in time; a divergence is visible as the lines drifting apart.'),
+    'definition': json.dumps({'graphConfig': _bc_graph_config()})}]
 
 def _canvas_solution(item_id, index, segments, title, graph, solution, description=''):
     """demo-4b: the canvas opened on the SOLUTION itself (its real SolutionDefinition — sim-rig/uno-digital-twin/backend
@@ -140,5 +162,62 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                           'kind or device), entered_via (process | browser | firmware image | JVM), description (plain '
                                           'words — his C-hardware / Java-JavaFX-native-bridge split).',
                               columns='name,kind,language,executes_on,entered_via,description')], min_height=220),
+          ]),
+]
+
+# =============================================================================================================
+# /display/uno-core-demo (ucd-1, UNO_CORE_DEMO_PLAN.md §3): the UNO core demo's OWN page — CONFIGURED tables + ONE
+# sci-xy-chart, nothing custom (his rule: no raw JSON on screens, no api-json-panel). Links back to /display/firmware
+# (the Firmware Run's detail — the canvas + export table) and /display/hardware-chain (the Bridge/wire-contract detail)
+# are named in the description rows below (the existing idiom every other hwnocode page uses — prose, not a component).
+# =============================================================================================================
+SEED_HWNOCODE_PAGE_DISPLAYS += [
+    _page(BC_DISPLAY, BC_DISPLAY,
+          'The UNO core demo (ucd arc): a pushbutton on D2 toggles an LED on D6; a jumper from D6 to D3 lets the firmware '
+          'independently WITNESS its own LED line switching (sense_rises/sense_falls); a software wall clock is kept on the '
+          'device and synced from the host (SET_TIME) at attach and periodically. The board\'s latest state and every '
+          'button/LED/sense/sync edge arrive as rows (ButtonClockState upserted, ButtonClockEvent appended, bounded by a '
+          'retention knob); button-clock-ledger computes presses per minute and checks that sense_rises + sense_falls == '
+          'button_presses and led_on == (sense_rises > sense_falls) — the proof this demo exists to show. The Cross-Domain '
+          'canvas composing all of this (Firmware Run → Bridge → Relay in → call button-clock-ledger → Relay out → this '
+          'screen) opens at /display/firmware?solution=%s; the pin-level register chain behind the Bridge is at '
+          '/display/hardware-chain.' % BC_SOLUTION,
+          'ButtonClockState', [
+              _row(0, [_table('ucd-state', 0, 12, 'Latest board state — one row per bound board instance, the wire\'s own '
+                              'telemetry (ButtonClockState is UPSERTED by the bridge, never appended)', 'ButtonClockState',
+                              description='What this is for: the board AS IT IS RIGHT NOW. One row = one board instance. Columns: '
+                                          'seq/boot_session (the wire\'s own frame + reset counters), uptime_ms (monotonic, always '
+                                          'valid), epoch_s/clock_synced/sync_generation/drift_ms (the SET_TIME-synced wall clock and '
+                                          'how well it is synced), button_presses/led_on/sense_rises/sense_falls (the demo\'s own '
+                                          'counts — button-clock-ledger\'s invariant checks these), dropped_events (the device\'s own '
+                                          'queue-overflow count), status (idle | commanded | synced | snapshot).',
+                              columns='name,seq,boot_session,uptime_ms,epoch_s,clock_synced,sync_generation,drift_ms,button_presses,'
+                                      'led_on,sense_rises,sense_falls,dropped_events,status')], min_height=160),
+              _row(1, [_table('ucd-derived', 0, 12, 'The ledger — presses/min and the sense/press/LED invariant, computed by '
+                              'button-clock-ledger per frame', 'ButtonClockDerived',
+                              description='What this is for: THE PROOF, as a row — does the board\'s own count of presses agree '
+                                          'with the independent D3 witness, and how fast is the button actually being pressed. One '
+                                          'row = one board instance. Columns: presses_per_min (over the last minute of the device\'s '
+                                          'own clock), invariant_ok/invariant_why (the verdict, ALWAYS said in plain words, not only '
+                                          'on a break), events_seen (ButtonClockEvent rows at computation time, before any prune), '
+                                          'dropped_events_total/last_sync_generation/drift_ms (mirrored from the wire for one-stop '
+                                          'reading), received_at/computed_at (the SERVER\'s own clock — never a device/host fact).',
+                              columns='name,board_instance,presses_per_min,invariant_ok,invariant_why,events_seen,'
+                                      'dropped_events_total,last_sync_generation,drift_ms,received_at,computed_at')], min_height=160),
+              _row(2, [_graph_panel('ucd-chart', 0, 12, 'Button presses and sensed LED edges over time (cumulative)',
+                                    BC_GRAPH, '/api/hwnocode/button-clock/chart',
+                                    description='What this is for: the demonstrable — every press (D2) and every independently '
+                                                'sensed LED edge (D3) as running totals against the firmware\'s own uptime, so the '
+                                                'invariant is something you can SEE: presses_cum should always equal rises_cum + '
+                                                'falls_cum. Three series: presses_cum, rises_cum, falls_cum.')], min_height=380),
+              _row(3, [_table('ucd-events', 0, 12, 'Event ledger — the last 200 ButtonClockEvent rows (press · led_on · led_off · '
+                              'sense_rise · sense_fall · sync), oldest first', 'ButtonClockEvent', max_rows=200,
+                              description='What this is for: the RAW edge-by-edge ledger the chart above and the invariant both '
+                                          'read — one row = one transition, never converged/reused (ButtonClockEvent\'s own rule). '
+                                          'Columns: seq/boot_session (this event stream\'s own counters, independent of '
+                                          'ButtonClockState\'s), kind, uptime_ms/epoch_s/ms (the device\'s clock at the moment it '
+                                          'happened). Bounded by a retention knob (default 10 000, oldest pruned first) — a pure '
+                                          'function plus a door, never run on the frame-push path (UNO_CORE_DEMO_PLAN.md §5 D-ucd-5).',
+                              columns='name,seq,kind,uptime_ms,epoch_s,ms,boot_session')], min_height=320),
           ]),
 ]
