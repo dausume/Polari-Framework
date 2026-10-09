@@ -166,6 +166,19 @@ class FirmwareAPI(treeObject):
         live = {r.name: {k: v for k, v in self._d(r).items() if v is not None} for r in asg}
         assignments = [dict(derived.get(n, {}), **live.get(n, {})) for n in sorted(set(derived) | set(live),
                        key=lambda n: ((derived.get(n) or live.get(n) or {}).get('target_kind', ''), (derived.get(n) or live.get(n) or {}).get('task', '')))]
+        # ucd-0b2a: the REQUIREMENT facts (kind per row, role, required, resource_kind) live on the TargetDefinition rows; the page's
+        # "Resources this task uses" reads them beside the assignment, so join them in by (task, port) — never recomputed here
+        try:
+            from cmod.custom import targets as TG
+            req = {(t.get('node'), t.get('port') or ''): t for t in TG.derive(s.graph)}
+            for a in assignments:
+                t = req.get((a.get('task'), a.get('port') or ''))
+                if t:
+                    for k in ('requirement_kind', 'role', 'required', 'resource_kind'):
+                        if a.get(k) in (None, ''):
+                            a[k] = t.get(k)
+        except Exception as e:  # noqa: BLE001 — a derivation refusal must not take the page down; the rows just lack the facts
+            why = '%s (requirement facts unavailable: %s)' % (why, e)
         caps = self._capabilities(s)
         schedule_rows = [self._d(r) for r in sched]
         for row in schedule_rows:
