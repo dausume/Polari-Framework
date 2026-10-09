@@ -9,6 +9,10 @@ and the two seeds (temp-sensor-to-os, blink-on-command) — both over the ONE ex
 no new solution, no new canvas (the plan's own "must not add"). Pure over rows already produced elsewhere, same
 posture as custom/targets.py and custom/firmware.py: no manager required to validate a SEEDED capability; a manager
 only to read/write the live row and its acceptance Scenario's runs.
+
+D-ucd-12 (his ruling): person-facing text (titles, descriptions, plain_words, CLI output) calls this grouping of
+tasks a Purpose, and a task may be named by several Purposes — the classes/fields/routes below keep their
+CapabilityDefinition/CapabilityInstance/`capability` names unchanged.
 """
 import json
 

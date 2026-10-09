@@ -128,7 +128,10 @@ class FirmwareAPI(treeObject):
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
                           'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],
-                          'capabilities': caps,
+                          # D-ucd-12 (his ruling): person-facing word is Purpose, a task may name several. `purposes`
+                          # is the SAME rows as `capabilities` — kept one release for the installer panel/tests that
+                          # still read the old key. DEPRECATED: drop `capabilities` once those callers move over.
+                          'capabilities': caps, 'purposes': caps,
                           'claims': chain['claims'], 'peripheral_claims': chain['peripheral_claims'],
                           'register_settings': chain['register_settings'], 'field_settings': chain['field_settings'],
                           'routes': chain['routes']}
@@ -182,14 +185,18 @@ class FirmwareAPI(treeObject):
         hw = sorted({getattr(r, 'name', '') for r in self._rows('HardwareSolution') if getattr(r, 'cgraph', '') == graph})
         caps = caps if caps is not None else self._capabilities(s)
         cap_names = sorted({c['name'] for c in caps if task in c.get('task_names', [])})
+        # D-ucd-12: `purposes` is the same list as `capabilities` (a task may be named by several Purposes) — the
+        # old key stays this release for callers that have not moved over yet. DEPRECATED: drop `capabilities`.
         return {'graph': graph, 'node': task, 'canvas_route': '/display/c-canvas?graph=%s&node=%s' % (graph, task),
-                'solution': hw[0] if hw else '', 'capabilities': cap_names}
+                'solution': hw[0] if hw else '', 'capabilities': cap_names, 'purposes': cap_names}
 
     def _capabilities(self, s):
-        """hw priorities P1: the Capabilities grouping the firmware panel's Tasks section by (D-hw-2/P1 §4
-        'Capability' — the UI word everywhere) — every CapabilityDefinition over this solution's own graph (the
-        live rows when a manager is present, else the seed functions directly — same pure/live duality as
-        FW.validate), status re-derived from its acceptance Scenario's latest run, never hand-set."""
+        """hw priorities P1: the Purposes (D-ucd-12: the person-facing word; was 'Capability' per D-hw-2/P1 §4)
+        grouping the firmware panel's Tasks section by — every CapabilityDefinition over this solution's own graph
+        (the live rows when a manager is present, else the seed functions directly — same pure/live duality as
+        FW.validate), status re-derived from its acceptance Scenario's latest run, never hand-set. A task may be
+        named by several CapabilityDefinition rows — each one's own `task_names` is computed independently, so the
+        task lands in every Purpose that names it, never just one."""
         import json as _json
         from cmod.custom import capabilities as CAP
         live = [r for r in self._rows('CapabilityDefinition') if getattr(r, 'graph', '') == s.graph]

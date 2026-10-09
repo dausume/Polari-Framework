@@ -235,6 +235,31 @@ def page():
     check('/display/c-canvas opens the canvas FIRST (demo-1\'s rule: the demonstrable before the tables)',
           citems[0]['componentProps']['componentName'] == 'c-graph-canvas-panel')
 
+    # D-ucd-12 (his ruling): the person-facing word is Purpose, not Capability — the CapabilityDefinition-titled
+    # tables on c-canvas/firmware/firmware-solutions say "Purpose" and never "Capabilit" in title or description.
+    by_id = {it['id']: it for it in citems}
+    cap_item = by_id.get('c-canvas-capabilities')
+    check('/display/c-canvas\'s CapabilityDefinition table titles itself Purpose, not Capabilit',
+          cap_item is not None and 'Purpose' in cap_item['title'] and 'Capabilit' not in cap_item['title']
+          and 'Capabilit' not in cap_item.get('description', ''), cap_item and cap_item['title'])
+    frows = json.loads(P[2]['definition'])['rows']
+    fitems = [it for row in frows for it in row['items']]
+    panel_lean = next((it for it in fitems if it['id'] == 'firmware-panel-lean'), None)
+    check('/display/firmware\'s panel description reads "grouped by capability" nowhere (D-ucd-12)',
+          panel_lean is not None and 'capability' not in panel_lean.get('description', '').lower(),
+          panel_lean and panel_lean.get('description'))
+    srows = json.loads(P[3]['definition'])['rows']
+    sitems = [it for row in srows for it in row['items']]
+    by_sid = {it['id']: it for it in sitems}
+    fw_cap_item = by_sid.get('firmware-capabilities')
+    check('/display/firmware-solutions\' CapabilityDefinition table titles itself Purpose, not Capabilit',
+          fw_cap_item is not None and 'Purpose' in fw_cap_item['title'] and 'Capabilit' not in fw_cap_item['title'],
+          fw_cap_item and fw_cap_item['title'])
+    panel_item = next((it for it in sitems if it['id'] == 'firmware-solution-panel'), None)
+    check('…and the firmware-solution-panel description says "GROUPED by Purpose", not "by Capability"',
+          panel_item is not None and 'GROUPED by Purpose' in panel_item.get('description', '')
+          and 'by Capability' not in panel_item.get('description', ''), panel_item and panel_item.get('description'))
+
 
 def demo4_targets():
     """demo-4 (DEMONSTRABLES_PLAN.md §3): targets derived for uno-sim-rig, the seeded capability + its two instances,
@@ -340,6 +365,38 @@ def demo4_targets():
     check('the firmware solution payload gains capabilities: [{name, goal, status, task_names}] for the UI to group Tasks by',
           r.status_code == 200 and cap_names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command'])
           and 'led' in next(c_ for c_ in r.json['capabilities'] if c_['name'] == 'blink-on-command')['task_names'], cap_names)
+    # D-ucd-12 (his ruling): person-facing word is Purpose — `purposes` carries the SAME rows as the deprecated
+    # `capabilities` key, for the Tasks section to group by without saying "capability" anywhere a person reads.
+    purpose_names = sorted(p['name'] for p in (r.json.get('purposes') or []))
+    check('…and the SAME payload also carries purposes: [{name, goal, status, task_names}], byte-identical to '
+          'capabilities (D-ucd-12 — capabilities stays one release, deprecated)',
+          purpose_names == cap_names and r.json.get('purposes') == r.json.get('capabilities'),
+          (purpose_names, r.json.get('purposes'), r.json.get('capabilities')))
+
+    # D-ucd-12: a task may be named by SEVERAL Purposes (never one exclusive bucket) — temp-sensor-to-os and
+    # blink-on-command share no task today, so seed a THIRD, synthetic CapabilityDefinition over the same graph
+    # that also names 'send' (already temp-sensor-to-os's) to prove 'send' lands in BOTH rows' task_names; removed
+    # from the table immediately after so it leaves no trace on the real seed.
+    from cmod.cmod_basis import CapabilityDefinition as _CapDef
+    synth = _CapDef(manager=mgr, name='uplink-shared-test-only', graph='uno-sim-rig-graph', title='Test-only shared uplink',
+                    goal='TEST ONLY: shares the send task with temp-sensor-to-os to prove multi-Purpose membership',
+                    tasks_by_runtime_json=_json.dumps({'c-device': ['uno-sim-rig-graph:send'], 'java-bridge': [],
+                                                       'python-backend': [], 'typescript-browser': []}))
+    tables.setdefault('CapabilityDefinition', {})[synth.id] = synth
+    try:
+        r = c.simulate_get('/api/firmware/solutions/uno-sim-rig')
+        by_name = {p['name']: p for p in r.json['purposes']}
+        check('…and a task named by TWO Purposes (send: temp-sensor-to-os + the synthetic uplink-shared-test-only) '
+              'appears in BOTH rows\' task_names — never exclusively one',
+              'send' in by_name.get('temp-sensor-to-os', {}).get('task_names', [])
+              and 'send' in by_name.get('uplink-shared-test-only', {}).get('task_names', []),
+              {k: v.get('task_names') for k, v in by_name.items()})
+        composed = next((row for row in r.json['schedule'] if row['task'] == 'send'), None)
+        check('…and the reverse link (composed_by.purposes, D-ucd-12) names BOTH Purposes for that one task',
+              composed is not None and {'temp-sensor-to-os', 'uplink-shared-test-only'} <= set(composed['composed_by'].get('purposes', [])),
+              composed and composed.get('composed_by'))
+    finally:
+        del tables['CapabilityDefinition'][synth.id]
 
     # proof-push rule (a proof counts only when its run row exists on the server the pages read): the honest /prove
     # door refuses 409 (writing NO ScenarioRun) when its own engines rung cannot run a twin build, and the new
