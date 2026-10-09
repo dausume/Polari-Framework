@@ -25,12 +25,13 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('thirty-nine row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('forty row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
-          'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract)',
-          len(BOARD_CLASSES) == 39)
+          'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract; '
+          'ucd-doc one: Datasheet — datasheets as documents)',
+          len(BOARD_CLASSES) == 40)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -216,7 +217,7 @@ def page():
     # the pin-roles table right under it, then the devices tables (demo1: usable/tracked split; brd-wire:
     # + bindings; brd-bo: + SoCs, pins, runtime, views, conflicts; ucd-0a's six chain tables live on /display/hardware-chain)
     check('/display/boards is the pin-map drawing + configured tables only (no JSON panel)', P[0]['pageRoute'] == 'boards'
-          and len(names) == 17 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
+          and len(names) == 18 and set(names) == {'api-svg-panel', 'class-rows-table'}, str(names))
     check('/display/boards: the FIRST item is the pin-map drawing (api-svg-panel)', names[0] == 'api-svg-panel', str(names))
     check('the usable/tracked tables carry class, status, chip, ISA, USB route, adapter, simulated, road status',
           all(c in text for c in ('device_class', 'register_status', 'soc', 'isa', 'usb_route', 'adapter_needed', 'simulated', 'road_status')))
@@ -368,6 +369,8 @@ def main():
     run_kit_parts(check)
     from board.board_chain_selftest import run_chain   # ucd-0a: THE HARDWARE CHAIN — rows, links both ways, the D3 walk
     run_chain(check)
+    from board.board_datasheets_selftest import run_datasheets   # ucd-doc: datasheets as documents
+    run_datasheets(check)
     from board.board_circuit_selftest import run_circuit   # ucd-0c: the demo bench as rows + the electrical findings
     run_circuit(check)
     from board.board_pinlevel_selftest import pin_parts   # ucd-0d: PIN-LEVEL forcing + pin-to-pin wiring on the twin

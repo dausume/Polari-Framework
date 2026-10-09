@@ -10,7 +10,8 @@ The 'board-roads' tech tree (one concept node per device) is seeded only when te
 """
 from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
-                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart)
+                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart,
+                               Datasheet)   # ucd-doc: datasheets as documents
 from board.board_basis import ButtonClockState, ButtonClockEvent   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -30,8 +31,13 @@ from board.custom import board_pin_nets as BPN
 SEED_BOARD_DEFINITIONS = board_rows()
 for _b in SEED_BOARD_DEFINITIONS:   # brd-bo: the Identity layer gains the board object's links (soc, revision, upstream board)
     _b.update(board_object_seed.IDENTITY.get(_b['name'], {}))
-#: brd-bo: THE BOARD OBJECT's layers (custom/board_object_seed.py — the UNO cited, the C3 ingested from Zephyr upstream)
+#: brd-bo: THE BOARD OBJECT's layers (custom/board_object_seed.py — the UNO cited, the C3 ingested from Zephyr upstream).
+#: ucd-doc: build() ALSO resolves THE DATASHEETS (board.custom.datasheets) from every DatasheetFact/RegisterField this
+#: produces plus uno_facts.SEED_UNO_FACTS, mutating each in place with its own `datasheet` slug, and sets each board
+#: definition's own `datasheets_json` — all BEFORE _register_owned() wraps these lists below, so every resolved field
+#: converges with everything else code-owned.
 SEED_BOARD_OBJECT = board_object_seed.build(SEED_BOARD_DEFINITIONS)
+SEED_DATASHEETS = SEED_BOARD_OBJECT['Datasheet']
 SEED_ADAPTER_DEFINITIONS = adapter_rows()
 SEED_BOARD_ROADS = road_rows(SEED_BOARD_DEFINITIONS)
 SEED_BOARD_TECH_TREES, SEED_BOARD_TECH_NODES = tech_tree_rows(SEED_BOARD_DEFINITIONS)
@@ -47,6 +53,9 @@ BOARD_SEED_PAIRS = [
     ('AdapterDefinition', AdapterDefinition, _register_owned(SEED_ADAPTER_DEFINITIONS)),
     ('ProgrammerKind', ProgrammerKind, _register_owned(SEED_PROGRAMMER_KINDS)),
     ('DatasheetFact', DatasheetFact, _register_owned(SEED_UNO_FACTS + SEED_BOARD_OBJECT['DatasheetFact'])),   # brd-bo: + the SoC / pinout / Zephyr-file facts
+    # ucd-doc: the documents themselves — code-owned (board.custom.datasheets.rows(), derived from the same fact/field
+    # rows above; an undetermined row a person renamed is still code-owned — re-deriving just adds the citation back)
+    ('Datasheet', Datasheet, _register_owned(SEED_DATASHEETS)),
     ('Road', Road, SEED_BOARD_ROADS),             # a road's progress belongs to the instance once seeded (no converge)
     ('BoardInstance', BoardInstance, []),
     ('FirmwareBuild', FirmwareBuild, []),

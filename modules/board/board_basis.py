@@ -10,6 +10,7 @@ from board.objects.board.FirmwareBuild import FirmwareBuild  # noqa: F401
 from board.objects.board.ProgrammerKind import ProgrammerKind  # noqa: F401
 from board.objects.board.AdapterDefinition import AdapterDefinition  # noqa: F401
 from board.objects.board.DatasheetFact import DatasheetFact  # noqa: F401
+from board.objects.board.Datasheet import Datasheet  # noqa: F401
 from board.objects.board.BoardSimCost import BoardSimCost  # noqa: F401
 from board.objects.board.Road import Road  # noqa: F401
 from board.objects.board.FirmwareVariant import FirmwareVariant  # noqa: F401
@@ -64,4 +65,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
                  BoardPinNet,   # ucd-0a: the hardware chain (nine)
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
-                 ButtonClockState, ButtonClockEvent]   # ucd-0e1: the third and fourth wire classes
+                 ButtonClockState, ButtonClockEvent,   # ucd-0e1: the third and fourth wire classes
+                 Datasheet]   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)

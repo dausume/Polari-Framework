@@ -9,6 +9,7 @@ from board.objects.board.FirmwareBuild import FirmwareBuild  # noqa: F401
 from board.objects.board.ProgrammerKind import ProgrammerKind  # noqa: F401
 from board.objects.board.AdapterDefinition import AdapterDefinition  # noqa: F401
 from board.objects.board.DatasheetFact import DatasheetFact  # noqa: F401
+from board.objects.board.Datasheet import Datasheet  # noqa: F401
 from board.objects.board.BoardSimCost import BoardSimCost  # noqa: F401
 from board.objects.board.Road import Road  # noqa: F401
 from board.objects.board.FirmwareVariant import FirmwareVariant  # noqa: F401

@@ -1326,6 +1326,8 @@ class polariServer(treeObject):
             Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet,
             # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9)
             AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,
+            # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
+            Datasheet,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

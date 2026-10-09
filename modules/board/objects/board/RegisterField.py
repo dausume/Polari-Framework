@@ -17,7 +17,9 @@ class RegisterField(treeObject):
     (PIND.PIND3 toggles PORTD3, §14.2.2). `values_json` maps each value to its meaning in the datasheet's words
     ("01": "Any logical change on INT1 generates an interrupt request"). `affects_signal` names the PeripheralSignal the
     field configures when it is one signal's (ISC1 → INT1), so a signal's page reaches its control bits.
-    Related concepts: `Register`, `PeripheralSignal`, `RegisterFieldSetting` (a solution's value for this field).
+    Related concepts: `Register`, `PeripheralSignal`, `RegisterFieldSetting` (a solution's value for this field),
+    `Datasheet` (ucd-doc: the document itself, as a first-class row — `datasheet` names it, resolved at seed time
+    from `document`+`url` by board.custom.datasheets.rows()).
     """
 
     plain_words = ('A register field is a group of one or more bits inside a register that mean one thing — which edge '
@@ -28,7 +30,7 @@ class RegisterField(treeObject):
     def __init__(self, name: str = '', soc: str = '', register: str = '', field: str = '', bit_hi: int = 0, bit_lo: int = 0,
                  width: int = 1, access: str = 'rw', reset_value: str = '0', description: str = '', values_json: str = '{}',
                  affects_signal: str = '', affects_pin: str = '', document: str = '', page_table: str = '', url: str = '',
-                 origin: str = 'cited', undetermined: str = '', notes: str = '', manager=None):
+                 origin: str = 'cited', undetermined: str = '', notes: str = '', datasheet: str = '', manager=None):
         self.name = name                    # '<soc>:<REGISTER>.<FIELD>' (atmega328p:EICRA.ISC1)
         self.soc = soc
         self.register = register            # the Register row name ('<soc>:EICRA')
@@ -48,3 +50,4 @@ class RegisterField(treeObject):
         self.origin = origin                # cited
         self.undetermined = undetermined
         self.notes = notes
+        self.datasheet = datasheet          # ucd-doc: the Datasheet row this (document, url) resolves to
