@@ -228,8 +228,9 @@ def subgraph_reference():
     out = compile_with(g, {'HardwareSolution': [hs], 'SolutionDefinition': [{'definition': json.dumps(p['definition'])}],
                            'CGraph': [p['cgraph']['graph']], 'CGraphNode': p['cgraph']['nodes'], 'CGraphEdge': p['cgraph']['edges']})
     check('the GraphCompilerDefinition row `hn-split` (domain hwnocode) compiles through compile_with: artifacts = cmod-glue\'s '
-          '(unchanged), the definition = the backend half', out['provenance']['glue_files_sha256'] == rec['files_sha256']
-          and out['definition']['solutionName'] == 'uno-temp-split.backend' and len(out['artifacts']) == 7)
+          '(unchanged, %d files — read live from cmod-1\'s committed record, not a literal: ucd-0b added pin_config.h/.c), '
+          'the definition = the backend half' % len(rec['files']), out['provenance']['glue_files_sha256'] == rec['files_sha256']
+          and out['definition']['solutionName'] == 'uno-temp-split.backend' and len(out['artifacts']) == len(rec['files']))
     st = json.load(open(SP.record_path('uno-temp-split'))) if SP.load_record('uno-temp-split') else {}
     check('the committed split record names the same split sha and says the board half equals cmod-1\'s record',
           st.get('split_sha256') == pv['split_sha256'] and (st.get('board_half') or {}).get('equal_to_cmod_record') is True,
@@ -263,13 +264,20 @@ def knob_refusals():
 
 
 def suggestion_fixtures():
+    from cmod.custom import glue as GL
     from hwnocode.custom import suggest as SG
     p = _parts()
     r = SG.suggest('uno-temp-split', parts=p)
     ev = [e for ru in r['rules'] if ru['rule'] == 1 for e in ru['evidence']]
+    # read cmod-1's committed glue-build record LIVE (never a literal sha/flash-size: ucd-0b's pin_config.h/.c moved both)
+    crec = GL.load_record('uno-sim-rig-graph') or {}
+    cbuild = crec.get('build') or {}
+    glue_tag = 'CGlueBuild uno-sim-rig-graph@%s' % (crec.get('files_sha256') or '')[:12]
+    flash_b = '%s B' % cbuild.get('flash_bytes', '?')
+    ram_b = '%s B' % (int(cbuild.get('size_data') or 0) + int(cbuild.get('size_bss') or 0))
     check('UNO: suggested bare-c by rule 1 (memory class S); evidence = the BoardDefinition row + the CGlueBuild\'s measured flash/RAM',
           r['suggested'] == 'bare-c' and r['decisive_rule'] == 1 and any(e.startswith('BoardDefinition arduino-uno-r3') and 'ram_kb 2' in e for e in ev)
-          and any(e.startswith('CGlueBuild uno-sim-rig-graph@926ae056472c') and '4310 B' in e and '491 B' in e for e in ev), ev)
+          and any(e.startswith(glue_tag) and flash_b in e and ram_b in e for e in ev), ev)
     f = r['features']
     check('features: 1 main loop / 1 tick / no independent periods; blocking atoms read from the annotation (hal_adc_read in the tick); '
           'no radio; nothing shared across priorities', f['activities']['concurrent_activities'] == 1 and f['radios'] == ''
