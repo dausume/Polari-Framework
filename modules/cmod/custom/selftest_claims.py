@@ -94,8 +94,11 @@ def _register_generation(check):
     for f in gen['RegisterFieldSetting']:
         fs_by_reg.setdefault(f['register_setting'].rsplit(':', 2)[-2], []).append(f)
     ddb5 = next(f for f in gen['RegisterFieldSetting'] if f['register_field'] == 'atmega328p:DDRB.DDB5')
-    check('the DDRB.DDB5 field setting NAMES its PinClaim (uno-sim-rig:D13), its task (led) and its rule — the row a '
-          'novice reads to see WHY', ddb5['pin_claim'] == 'uno-sim-rig:D13' and ddb5['task'] == 'led' and ddb5['rule'] == 'ddr-from-digital-out'
+    # ucd-0b2d (§5h, the HardwareBinding fix): hal_led_init now derives its own D13 row (bound like `led` is — one
+    # pin, two tasks of one Purpose) and, same convention as pwm_init/D6 and usart_init/D0-D1 below, the '_init'
+    # task that actually calls the DDR write is representative — never 'led' (which only ever wrote PORTB).
+    check('the DDRB.DDB5 field setting NAMES its PinClaim (uno-sim-rig:D13), its task (led_init) and its rule — the row '
+          'a novice reads to see WHY', ddb5['pin_claim'] == 'uno-sim-rig:D13' and ddb5['task'] == 'led_init' and ddb5['rule'] == 'ddr-from-digital-out'
           and ddb5['value'] == '1' and 'output' in ddb5['meaning'], ddb5)
     ddd6 = next(f for f in gen['RegisterFieldSetting'] if f['register_field'] == 'atmega328p:DDRD.DDD6')
     check('the DDRD.DDD6 field setting names its PinClaim (D6) and task (pwm_init)',

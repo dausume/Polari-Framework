@@ -88,8 +88,17 @@ def _widened_register_assignment(check):
           'rename-later; the row NAME itself stays <solution>:<task>.<port> for the default binding)',
           all(r['configuration'] == 'uno-sim-rig@arduino-uno-r3' for r in rows)
           and all(r['name'].startswith(SOLUTION + ':') for r in rows))
-    check('peripheral/signal/bus stay \'\' today — this deriver only ever binds by lives_on',
-          all(r['peripheral'] == '' and r['signal'] == '' and r['bus'] == '' for r in rows))
+    # ucd-0b2d (§5h, the HardwareBinding fix): a row whose TargetDefinition is resource_kind peripheral/signal
+    # (tick_init, rx_pop) now carries that typed column instead of a pin; bus stays '' — this deriver never binds one
+    by_task = {r['task']: r for r in rows}
+    check('tick_init carries peripheral atmega328p:TIMER2, no lives_on pin', by_task['tick_init']['peripheral'] == 'atmega328p:TIMER2'
+          and by_task['tick_init']['lives_on'] == 'unbound' and by_task['tick_init']['signal'] == '', by_task['tick_init'])
+    check('rx_pop carries signal atmega328p:USART0:RXD, no lives_on pin', by_task['rx_pop']['signal'] == 'atmega328p:USART0:RXD'
+          and by_task['rx_pop']['lives_on'] == 'unbound' and by_task['rx_pop']['peripheral'] == '', by_task['rx_pop'])
+    check('every OTHER row still has peripheral/signal \'\' (this deriver only ever binds those two by typed column) '
+          'and bus is always \'\' (not modeled this slice)',
+          all(r['bus'] == '' for r in rows)
+          and all(r['peripheral'] == '' and r['signal'] == '' for r in rows if r['task'] not in ('tick_init', 'rx_pop')))
     by_pin = {r['lives_on']: r for r in rows if r['lives_on'] != 'unbound'}
     check('a bound alt-function pin (D6, OC0A) carries its signal_route (the PinFunction it activates)',
           by_pin['arduino-uno-r3:D6']['signal_route'] == 'atmega328p:PD6:OC0A', by_pin['arduino-uno-r3:D6'])

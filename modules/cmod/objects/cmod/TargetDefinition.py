@@ -42,7 +42,8 @@ class TargetDefinition(treeObject):
                  kind: str = 'dynamic', controls: str = '', lives_on: str = '', board: str = '', direction: str = '',
                  ctype: str = '', width_bytes: int = 0, polari_type: str = '', unit: str = '', constraints: str = '',
                  provenance: str = 'derived', requirement_kind: str = 'undetermined', role: str = '',
-                 required: bool = True, resource_kind: str = 'undetermined', notes: str = '', manager=None):
+                 required: bool = True, resource_kind: str = 'undetermined', peripheral: str = '', signal: str = '',
+                 notes: str = '', manager=None):
         self.name = name                # '<graph>:<port_ref>'
         self.graph = graph
         self.node = node                # the CGraphNode instance this target is on
@@ -63,4 +64,10 @@ class TargetDefinition(treeObject):
         self.role = role                # input | output | receive | transmit | clock | select | data | address | ''
         self.required = required        # False only for a memory-field row
         self.resource_kind = resource_kind  # pin | signal | peripheral | bus | undetermined | '' (memory-field)
+        # ucd-0b2d (§5h, the HardwareBinding fix): the SPECIFIC resource named, beside lives_on — a `board.Peripheral`
+        # row name ('atmega328p:TIMER2') when resource_kind='peripheral', a `board.PeripheralSignal` row name
+        # ('atmega328p:USART0:RXD') when resource_kind='signal'; '' otherwise (incl. every 'pin' row — the BOUND
+        # PIN already names the resource via lives_on, never duplicated here).
+        self.peripheral = peripheral
+        self.signal = signal
         self.notes = notes
