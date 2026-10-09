@@ -125,6 +125,7 @@
    "custom/registers",
    "custom/rows",
    "custom/scan",
+   "custom/scope",
    "custom/selftest_binding",
    "custom/selftest_claims",
    "custom/selftest_export",
@@ -132,6 +133,7 @@
    "custom/selftest_glue",
    "custom/selftest_pin_config",
    "custom/selftest_requirements",
+   "custom/selftest_scope",
    "custom/selftest_uno",
    "custom/targets"
   ]
