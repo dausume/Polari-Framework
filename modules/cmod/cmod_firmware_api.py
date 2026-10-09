@@ -158,7 +158,14 @@ class FirmwareAPI(treeObject):
         sched = sorted((r for r in self._rows('ScheduleSlot') if r.solution == name), key=lambda r: (r.lane, r.order))
         asg = sorted((r for r in self._rows('RegisterAssignment') if r.solution == name), key=lambda r: (r.target_kind, r.task))
         builds = sorted((r for r in self._rows('CGlueBuild') if r.graph == s.graph), key=lambda r: r.name)
-        assignments = [self._d(r) for r in asg] or details.get('assignments', [])
+        # ucd-0b2: the DERIVED rows (validate() → assignments_for) carry every widened field (requirement_kind, role, required,
+        # resource_kind, peripheral, signal, signal_route, configuration); a live row loaded from a store that predates a field
+        # answers None for it (the seed-field-addition gotcha) — so serve the derived row and let the live row's own non-None
+        # values (config_json, status a person's assign set) overlay it, never the other way round
+        derived = {a['name']: dict(a) for a in details.get('assignments', []) if a.get('name')}
+        live = {r.name: {k: v for k, v in self._d(r).items() if v is not None} for r in asg}
+        assignments = [dict(derived.get(n, {}), **live.get(n, {})) for n in sorted(set(derived) | set(live),
+                       key=lambda n: ((derived.get(n) or live.get(n) or {}).get('target_kind', ''), (derived.get(n) or live.get(n) or {}).get('task', '')))]
         caps = self._capabilities(s)
         schedule_rows = [self._d(r) for r in sched]
         for row in schedule_rows:
