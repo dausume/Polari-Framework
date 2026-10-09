@@ -128,6 +128,7 @@
    "custom/selftest_firmwaresol",
    "custom/selftest_glue",
    "custom/selftest_pin_config",
+   "custom/selftest_requirements",
    "custom/selftest_uno",
    "custom/targets"
   ]

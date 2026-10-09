@@ -133,24 +133,17 @@ def _int_capable(soc_pin_row):
 
 # ---------------------------------------------------------------- PinClaim
 
-def _kind_for(graph, rep_task, board_pin):
-    """requirement_kind, falling back to the BOARD PIN's own already-known alternate function (its `function`/
-    `signal`, assigned when the board was defined — authoritative, not a guess) when the atom-scan heuristic cannot
-    settle it (e.g. a USART init atom that only touches UBRR/UCSR, never UDR0, so the port-shape rule alone cannot
-    tell RX from TX)."""
+def _kind_for(graph, rep, board_pin):
+    """requirement_kind, READ DIRECTLY from the widened TargetDefinition row (cmod.custom.targets.derive) that
+    names this (task, port, pin) — ucd-0b2a (§5h B1/B2): the row itself already applied the per-row fallback
+    (the BOARD PIN's own already-known signal/function, authoritative — never a guess) for a task the atom-scan
+    heuristic alone cannot settle (e.g. the shared usart_init atom, which only touches UBRR/UCSR never UDR0, so the
+    port-shape rule alone cannot tell D0's RX from D1's TX); never recomputed here."""
     from cmod.custom import targets as T
-    kind = T.requirement_kind(graph, rep_task)
-    if kind != 'undetermined':
-        return kind
-    fn = board_pin.get('function') or ''
-    sig = board_pin.get('signal') or ''
-    if fn == 'adc':
-        return 'analog-in'
-    if fn == 'pwm':
-        return 'pwm-out'
-    if fn == 'uart':
-        return 'uart-rx' if sig == 'RXD' else ('uart-tx' if sig == 'TXD' else 'undetermined')
-    return 'undetermined'   # spi/i2c: a bare register touch does not say which signal of the bus (targets.py's own posture)
+    rows = T.derive(graph)
+    row = next((r for r in rows if r['node'] == rep['task'] and r.get('port', '') == rep.get('port', '')
+               and r['lives_on'] == board_pin.get('name', '')), None)
+    return row['requirement_kind'] if row is not None else 'undetermined'
 
 
 def _defaults(kind):
@@ -197,7 +190,7 @@ def pin_claims(solution_name, graph, manager=None, overrides=None):
         rep = _representative(group, dispatchers)
         soc_pin_name = '%s:%s' % (SOC, bp['soc_pin']) if bp.get('soc_pin') else ''
         sp = soc_pins.get(soc_pin_name)
-        kind = _kind_for(graph, rep['task'], bp)
+        kind = _kind_for(graph, rep, bp)
         mode = _MODE_BY_KIND.get(kind) or ('alt' if bp.get('function') not in ('', 'gpio', 'led') else 'undetermined')
         defaults = _defaults(kind)
         eff_mode, pull, edge, initial, overridden = _effective(bp['canonical'], defaults, mode, rep, overrides)

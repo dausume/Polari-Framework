@@ -176,7 +176,9 @@ def pin_functions(soc_pin_rows):
 
 
 def registers():
-    """One Register row per snapshot register; cited title/page/reset where register_fields_atmega328p names it."""
+    """One Register row per snapshot register; cited title/page/reset where register_fields_atmega328p names it.
+    `addr`/`addr_mem`/`block`/`mappings_refs_json` are placeholders here — `build()` sets them FROM the
+    RegisterAddressMapping/RegisterBlock rows (ucd-0b2a: one source, never computed twice)."""
     snap = R.load(SOC)
     origin = _snapshot_origin()
     fields_by_reg = {}
@@ -184,18 +186,116 @@ def registers():
         fields_by_reg.setdefault(f['register'], []).append(_ref('RegisterField', '%s:%s.%s' % (SOC, f['register'], f['field'])))
     out = []
     for name, r in sorted(snap['registers'].items()):
-        title, where, reset, addr_mem = RF.REGISTER_CITES.get(name, ('', '', '', ''))
+        title, where, reset, _addr_mem_cite = RF.REGISTER_CITES.get(name, ('', '', '', ''))
         space = r.get('space', '')
-        if space == 'io' and not addr_mem:
-            addr_mem = '0x%02X' % (int(r['addr'], 16) + 0x20)
         row = {'name': '%s:%s' % (SOC, name), 'soc': SOC, 'register': name, 'peripheral': '%s:%s' % (SOC, R.peripheral(name)),
-               'addr': r.get('addr', ''), 'addr_mem': addr_mem if space == 'io' else '', 'space': space, 'width_bytes': int(r.get('width_bytes') or 1),
-               'reset_value': reset, 'description': title, 'fields_refs_json': json.dumps(fields_by_reg.get(name, [])),
+               'block': '%s:%s-block' % (SOC, R.peripheral(name)), 'addr': r.get('addr', ''), 'addr_mem': '', 'space': space,
+               'width_bytes': int(r.get('width_bytes') or 1), 'reset_value': reset, 'description': title,
+               'fields_refs_json': json.dumps(fields_by_reg.get(name, [])), 'mappings_refs_json': '[]',
                'origin': origin + ('; io+0x20 = data-space address (the datasheet prints both, e.g. EIMSK 0x1D (0x3D) p.81)' if space == 'io' else ''),
                'undetermined': '' if name in fields_by_reg else 'bit fields not captured yet (ucd-0a cites EXINT, ports B/D, Timer2)',
                'notes': ''}
         row.update(_cite(where) if where else {'document': '', 'page_table': '', 'url': ''})
         out.append(row)
+    return out
+
+
+# ---------------------------------------------------------------- ucd-0b2a: address space as rows (§5h B3/D-ucd-9)
+_IO_MEM_CITE = ('Microchip ATmega48A/PA/88A/PA/168A/PA/328/P datasheet DS40002061B, §8.5 "I/O Memory", p.30: '
+                '"When using the I/O specific commands IN and OUT, the I/O addresses 0x00 - 0x3F must be used. '
+                'When addressing I/O Registers as data space using LD and ST instructions, 0x20 must be added to '
+                'these addresses ... For the Extended I/O space from 0x60 - 0xFF in SRAM, only the ST/STS/STD and '
+                'LD/LDS/LDD instructions can be used."')
+
+
+def address_spaces():
+    """Two AddressSpace rows: `io` (IN/OUT, 0x00-0x3F) and `data` (LD/ST/LDS/STS/LDD/STD — the SAME registers at
+    +0x20, plus the extended I/O 0x60-0xFF that has no io alias at all) — cited §8.5 p.30."""
+    cite = _cite('§8.5 I/O Memory, p.30')
+    out = [{'name': '%s:io' % SOC, 'soc': SOC, 'space': 'io', 'title': 'I/O space',
+            'access_instructions': 'IN/OUT; SBI/CBI/SBIS/SBIC for 0x00–0x1F', 'range_lo': '0x00', 'range_hi': '0x3F',
+            'offset_from_io': '', 'description': 'the short I/O address space every register below 0x40 is reachable through.',
+            'origin': 'cited:' + _IO_MEM_CITE, 'undetermined': '', 'notes': ''},
+           {'name': '%s:data' % SOC, 'soc': SOC, 'space': 'data', 'title': 'Data space',
+            'access_instructions': 'LD/ST/LDS/STS/LDD/STD', 'range_lo': '0x20', 'range_hi': '0xFF', 'offset_from_io': '0x20',
+            'description': 'the data address space: the I/O registers seen at +0x20 (0x20-0x5F) plus the extended '
+                           'I/O space (0x60-0xFF) that has NO io alias — LD/ST/LDS/STS/LDD/STD only, never IN/OUT.',
+            'origin': 'cited:' + _IO_MEM_CITE, 'undetermined': '', 'notes': ''}]
+    for row in out:
+        row.update(cite)
+    return out
+
+
+def register_address_mappings():
+    """One or two RegisterAddressMapping rows per snapshot register: an io-space register gets BOTH an io mapping
+    (its own address) and a data mapping (io + 0x20, cited §8.5); a mem-space register gets a data mapping only
+    (its own address — the snapshot's `mem` IS the data-space address; no io alias is ever invented for it, and an
+    address below 0x60 would be NOTED rather than aliased — none exist on the atmega328p today)."""
+    snap = R.load(SOC)
+    origin = _snapshot_origin()
+    out = []
+    for name, r in sorted(snap['registers'].items()):
+        space, addr = r.get('space', ''), r.get('addr', '')
+        reg_name = '%s:%s' % (SOC, name)
+        if space == 'io':
+            out.append({'name': '%s:%s@io' % (SOC, name), 'soc': SOC, 'register': reg_name, 'address_space': '%s:io' % SOC,
+                        'address': addr, 'how': 'IN/OUT; SBI/CBI/SBIS/SBIC for 0x00–0x1F' if int(addr, 16) <= 0x1F else 'IN/OUT',
+                        'origin': origin, 'undetermined': '', 'notes': ''})
+            data_addr = '0x%02X' % (int(addr, 16) + 0x20)
+            out.append({'name': '%s:%s@data' % (SOC, name), 'soc': SOC, 'register': reg_name, 'address_space': '%s:data' % SOC,
+                        'address': data_addr, 'how': 'LD/ST/LDS/STS/LDD/STD', 'origin': origin + '; io+0x20 per §8.5 p.30',
+                        'undetermined': '', 'notes': ''})
+        elif space == 'mem':
+            note = '' if int(addr, 16) >= 0x60 else ('the snapshot says mem at %s (below the 0x60 extended-I/O start) '
+                                                       '— no io alias invented' % addr)
+            out.append({'name': '%s:%s@data' % (SOC, name), 'soc': SOC, 'register': reg_name, 'address_space': '%s:data' % SOC,
+                        'address': addr, 'how': 'LD/ST/LDS/STS/LDD/STD', 'origin': origin, 'undetermined': note, 'notes': ''})
+    return out
+
+
+#: the one shared block this slice derives (cited, never guessed further): MCUCR.PUD (Pull-up Disable) configures
+#: every GPIO port's pull-ups, not just the CPU's own registers — DS40002061B §14.4.1 MCUCR, p.100 ("...even if the
+#: DDxn and PORTxn Registers are configured to enable them")
+_SHARED_BLOCKS = {'CPU': ('GPIO PORTB', 'GPIO PORTC', 'GPIO PORTD')}
+_SHARED_WHY = ('MCUCR.PUD (RegisterField atmega328p:MCUCR.PUD) disables the pull-ups of every I/O port regardless '
+              'of DDxn/PORTxn, cited §14.4.1 MCUCR, p.100; §14.1 p.84')
+
+
+def register_blocks():
+    """One RegisterBlock row per Peripheral id (the datasheet's own register-summary grouping) — `registers_refs_json`
+    filled by `link()`; `shared_with_refs_json` filled here for the one cited case (`_SHARED_BLOCKS`)."""
+    out = []
+    for p in peripherals():
+        pid = p['peripheral']
+        shared = [_ref('Peripheral', '%s:%s' % (SOC, other)) for other in _SHARED_BLOCKS.get(pid, ())]
+        out.append({'name': '%s:%s-block' % (SOC, pid), 'soc': SOC, 'peripheral': p['name'], 'title': p['title'],
+                    'registers_refs_json': '[]', 'shared_with_refs_json': json.dumps(shared),
+                    'origin': 'derived: one register block per peripheral = the datasheet\'s register-summary grouping '
+                              '(board.custom.registers.PERIPHERAL_RULES / soc_atmega328p.FUNCTION_PERIPHERAL)',
+                    'undetermined': '', 'notes': _SHARED_WHY if shared else ''})
+    return out
+
+
+#: region -> (AddressSpace row name or '', the undetermined note when it has none) — flash is program memory (fetched
+#: by the instruction unit, not addressed through io/data at all, §8.1); eeprom is addressed through its OWN EEAR/EEDR
+#: register pair, never LD/ST (§8.4); sram IS the data space's general-purpose part
+_REGION_SPACE = {'flash': ('', 'program memory (§8.1 Program Memory) — not addressed through the io/data space'),
+                 'sram': ('%s:data' % SOC, ''),
+                 'eeprom': ('', 'EEPROM is addressed through EEAR/EEDR, not the data space (§8.4 EEPROM Data Memory)')}
+
+
+def memory_regions():
+    """The three MemoryRegion rows, from `soc_atmega328p.soc_definition()`'s own cited `memory_map_json` — one
+    source, never re-typed."""
+    from board.custom import soc_atmega328p as SA
+    mm = {r['region']: r for r in json.loads(SA.soc_definition()['memory_map_json'])}
+    out = []
+    for region in ('flash', 'sram', 'eeprom'):
+        r = mm[region]
+        address_space, undetermined = _REGION_SPACE[region]
+        out.append({'name': '%s:%s' % (SOC, region), 'soc': SOC, 'region': region, 'start': r['start'], 'size': r['size'],
+                    'address_space': address_space, 'fact': r['fact'], 'origin': 'derived:soc_atmega328p.soc_definition().memory_map_json',
+                    'undetermined': undetermined, 'notes': ''})
     return out
 
 
@@ -217,12 +317,14 @@ def register_fields():
 
 def link(rows):
     """Fill every `*_refs_json` reverse column from the forward references the rows already carry. `rows` =
-    {class: [dict]} holding Peripheral, PeripheralSignal, PinFunction, Register, RegisterField, SocPin, BoardPin."""
+    {class: [dict]} holding Peripheral, PeripheralSignal, PinFunction, Register, RegisterField, SocPin, BoardPin,
+    RegisterBlock, RegisterAddressMapping (ucd-0b2a)."""
     P = {r['name']: r for r in rows.get('Peripheral', [])}
     S = {r['name']: r for r in rows.get('PeripheralSignal', [])}
     F = {r['name']: r for r in rows.get('PinFunction', [])}
     G = {r['name']: r for r in rows.get('Register', [])}
     SP = {r['name']: r for r in rows.get('SocPin', [])}
+    RB = {r['name']: r for r in rows.get('RegisterBlock', [])}
     back = {}
 
     def add(target, cls, name):
@@ -236,6 +338,9 @@ def link(rows):
         add(f['soc_pin'], 'PinFunction', f['name'])
     for g in G.values():
         add(g['peripheral'], 'Register', g['name'])
+        add(g['block'], 'Register', g['name'])
+    for m in rows.get('RegisterAddressMapping', []):
+        add(m['register'], 'RegisterAddressMapping', m['name'])
     for fld in rows.get('RegisterField', []):
         if fld.get('affects_signal'):
             add(fld['affects_signal'], 'RegisterField', fld['name'])
@@ -253,6 +358,10 @@ def link(rows):
         p['registers_refs_json'] = json.dumps(sorted(x for x in refs if x.startswith('Register:')))
         p['signals_refs_json'] = json.dumps(sorted(x for x in refs if x.startswith('PeripheralSignal:')))
         p['pin_functions_refs_json'] = json.dumps(sorted(x for x in refs if x.startswith('PinFunction:')))
+    for rb in RB.values():
+        rb['registers_refs_json'] = json.dumps(sorted(x for x in back.get(rb['name'], []) if x.startswith('Register:')))
+    for g in G.values():
+        g['mappings_refs_json'] = json.dumps(sorted(x for x in back.get(g['name'], []) if x.startswith('RegisterAddressMapping:')))
     for s in S.values():
         refs = back.get(s['name'], [])
         s['pin_functions_refs_json'] = json.dumps(sorted(x for x in refs if x.startswith('PinFunction:')))
@@ -276,15 +385,26 @@ def link(rows):
 
 def build(soc_pin_rows, board_pin_rows):
     """The chain rows for the seed: {class: [dict]} with the reverse links filled; the SocPin/BoardPin rows given
-    gain their `links_refs_json` in place."""
+    gain their `links_refs_json` in place. ucd-0b2a: + AddressSpace/RegisterAddressMapping/RegisterBlock/
+    MemoryRegion — `Register.addr`/`addr_mem` are then OVERWRITTEN from the mapping rows (one source)."""
     rows = {'Peripheral': peripherals(), 'PeripheralSignal': signals(), 'PinFunction': pin_functions(soc_pin_rows),
-            'Register': registers(), 'RegisterField': register_fields(), 'SocPin': soc_pin_rows, 'BoardPin': board_pin_rows}
+            'Register': registers(), 'RegisterField': register_fields(), 'SocPin': soc_pin_rows, 'BoardPin': board_pin_rows,
+            'AddressSpace': address_spaces(), 'RegisterAddressMapping': register_address_mappings(),
+            'RegisterBlock': register_blocks(), 'MemoryRegion': memory_regions()}
     link(rows)
+    mapping_by_register = {}
+    for m in rows['RegisterAddressMapping']:
+        mapping_by_register.setdefault(m['register'], {})[m['address_space']] = m['address']
+    for g in rows['Register']:
+        addrs = mapping_by_register.get(g['name'], {})
+        g['addr'] = addrs.get('%s:io' % SOC) or addrs.get('%s:data' % SOC) or g['addr']
+        g['addr_mem'] = addrs.get('%s:data' % SOC, '') if g['space'] == 'io' else ''
     for sp in soc_pin_rows:
         sp.setdefault('links_refs_json', '[]')
     for bp in board_pin_rows:
         bp.setdefault('links_refs_json', '[]')
-    return {k: rows[k] for k in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')}
+    return {k: rows[k] for k in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField',
+                                 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion')}
 
 
 CHAIN_CLASSES = ('Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',

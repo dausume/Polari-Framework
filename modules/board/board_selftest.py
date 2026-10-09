@@ -25,10 +25,11 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('thirty-three row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('thirty-seven row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
-          'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet)',
-          len(BOARD_CLASSES) == 33)
+          'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
+          'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion)',
+          len(BOARD_CLASSES) == 37)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])

@@ -119,15 +119,45 @@ def schedule_for(graph_name, solution_name=None):
     return out
 
 
+#: ucd-0b2a (§5h B2): the signal_route cache, one board_object lookup per board per assignments_for() call — never
+#: per row (board.custom.board_object.rows_for rebuilds every row of the board)
+def _signal_route_cache():
+    cache = {}
+
+    def route_for(board, canonical):
+        if board not in cache:
+            try:
+                from board.custom import board_object as BO
+                cache[board] = BO.rows_for(board)
+            except Exception:
+                cache[board] = None
+        r = cache[board]
+        if r is None:
+            return ''
+        from board.custom import board_object as BO
+        from board.custom.soc_atmega328p import SOC
+        pin = BO.pin_by_canonical(r, canonical)
+        if pin and pin.get('signal') and pin.get('soc_pin'):
+            return '%s:%s:%s' % (SOC, pin['soc_pin'], pin['signal'])
+        return ''
+    return route_for
+
+
 # ------------------------------------------------------------------ D-fs-2: the DERIVED register map
 def assignments_for(graph_name, solution_name=None):
     """[RegisterAssignment dict, …] for one graph's targets (`cmod.custom.targets.derive`), re-homed per solution and
     re-checked for CONFLICT (two tasks resolving to the same BoardPin). fs-0 scope: the graph's own seeded board (the
     common case — a graph is authored against the board it is seeded with); re-matching against a DIFFERENT board a
-    `board_variable` resolves to at run time is demo-5/fs-1 scope (the pin-map drag), not re-derived here."""
+    `board_variable` resolves to at run time is demo-5/fs-1 scope (the pin-map drag), not re-derived here.
+
+    ucd-0b2a (§5h B2): every row also carries `peripheral`/`signal`/`bus` (the typed-resource binding modes beside
+    `lives_on` — '' today: this deriver only ever binds by pin), `signal_route` (the PinFunction the bound pin's own
+    alternate function activates, '' for plain GPIO or unbound), and `configuration` (= `sol`, explicit — the
+    review's HardwareConfiguration split is a rename later, never a migration)."""
     from cmod.custom import targets as T
     sol = solution_name or graph_name
     targets = T.derive(graph_name)
+    route_for = _signal_route_cache()
     # nodes that themselves touch MORE THAN ONE pin (a dispatcher — e.g. `apply` calling hal_led + hal_pwm) are not
     # counted as a pin's OWNER for conflict purposes, same as an '*_init' setup task sharing its peripheral's pin
     # with the atom that actually drives it — both are legitimate COOPERATION within one graph, never a conflict.
@@ -145,6 +175,7 @@ def assignments_for(graph_name, solution_name=None):
         lives_on = t['lives_on']
         status = 'unbound'
         notes = ''
+        signal_route = ''
         if lives_on != 'unbound':
             owners = {x['node'] for x in claimed[lives_on]} - dispatchers - {n for n in per_node_pins if n.endswith('_init')
                                                                              and n in {x['node'] for x in claimed[lives_on]}
@@ -154,9 +185,24 @@ def assignments_for(graph_name, solution_name=None):
                 notes = 'conflict: also claimed by %s' % ', '.join(sorted(owners - {t['node']}))
             else:
                 status = 'bound'
+            signal_route = route_for(t['board'], lives_on.rpartition(':')[2])
         out.append({'name': '%s:%s' % (sol, t['port_ref']), 'solution': sol, 'task': t['node'], 'port': t['port'],
                     'target_kind': t['kind'], 'controls': t['controls'], 'lives_on': lives_on, 'status': status,
-                    'provenance': t['provenance'], 'notes': notes})
+                    'provenance': t['provenance'], 'peripheral': '', 'signal': '', 'bus': '', 'signal_route': signal_route,
+                    'configuration': sol, 'notes': notes})
+    return out
+
+
+def resource_conflicts(assigns):
+    """[name, …] of RegisterAssignment dicts naming MORE THAN ONE resource (lives_on-bound / peripheral / signal /
+    bus) — AT MOST ONE is ever allowed per row (ucd-0b2a §5h B2); today's deriver never sets peripheral/signal/bus,
+    so this only fires for a future/canvas-authored row, never the seeded ones."""
+    out = []
+    for a in assigns:
+        count = sum(1 for v in (a.get('lives_on') if a.get('lives_on', 'unbound') != 'unbound' else '',
+                                a.get('peripheral', ''), a.get('signal', ''), a.get('bus', '')) if v)
+        if count > 1:
+            out.append(a['name'])
     return out
 
 
@@ -305,6 +351,10 @@ def validate(fs, manager=None):
         names = ', '.join(sorted({a['lives_on'] for a in conflicts}))
         return False, 'refused: pin conflict on %s (%s)' % (names, '; '.join(a['notes'] for a in conflicts)), \
             {'board': board, 'assignments': assigns}
+    multi = resource_conflicts(assigns)
+    if multi:
+        return False, ('refused: %s names more than one resource — at most one of lives_on/peripheral/signal/bus '
+                       'may be non-empty (ucd-0b2a §5h B2)' % ', '.join(sorted(multi))), {'board': board, 'assignments': assigns}
     from cmod.custom import claims as C
     pin_claims = C.pin_claims(name, graph, manager=manager)
     pin_conflicts = [c for c in pin_claims if c['status'] == 'conflict']
