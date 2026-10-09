@@ -27,7 +27,10 @@ def requirements_parts(check):
     def fixture_spi():
         _fixture_spi(check)
 
-    return (widened_target_definition, widened_register_assignment, legacy_lives_on, fixture_twi, fixture_spi)
+    def naming_fix():
+        _naming_fix(check)
+
+    return (widened_target_definition, widened_register_assignment, legacy_lives_on, fixture_twi, fixture_spi, naming_fix)
 
 
 # ---------------------------------------------------------------- part 2: TargetDefinition widened, per row
@@ -221,3 +224,82 @@ def _fixture_spi(check):
 def _bare_atom_kind(atom):
     from cmod.custom import targets as T
     return T._atom_requirement_kind(atom)
+
+
+# ---------------------------------------------------------------- part 0 (ucd-0c): the naming fix
+def _naming_fix(check):
+    """ucd-0c Part 0 (UNO_CORE_DEMO_PLAN.md §5h, the known gap named at the end of ucd-0b2d): usart_init is a
+    WHOLE-NODE target (its own ports never settle a single pin — it only touches UBRR0/UCSR0x, never a named port),
+    matched to BOTH D0 and D1 by peripheral (USART0). Before this fix both rows shared the SAME un-suffixed name
+    ('uno-sim-rig:usart_init'), so keying RegisterAssignment rows by `name` (the manager's own table on upsert, and
+    `cmod_firmware_api.on_get_solution_one`'s own `{name: row}` join) silently kept only one of the two."""
+    from cmod.custom import firmware as FW
+    from cmod.custom import targets as T
+    rows = FW.assignments_for(GRAPH, SOLUTION)
+    # scope: every WHOLE-NODE row (port == '') is what this fix makes unique — a NAMED-port dispatcher touching
+    # several pins (apply.r on D13+D6, send.b on D0+D1) is a SEPARATE, pre-existing name collision (same shape, a
+    # different cause — a shared representative port, not an empty one) that this slice does not touch; named here
+    # so the gap is never silent, never asserted away.
+    whole_node = [r for r in rows if r['port'] == '']
+    check('every WHOLE-NODE RegisterAssignment row (port == \'\') has a UNIQUE name — the bug this fix closes',
+          len(whole_node) == len({r['name'] for r in whole_node}), [r['name'] for r in whole_node])
+
+    usart = [r for r in rows if r['task'] == 'usart_init']
+    check('usart_init yields TWO RegisterAssignment rows (D0, D1), not one',
+          len(usart) == 2, usart)
+    by_pin = {r['lives_on']: r for r in usart}
+    check('usart_init\'s D0 row is named "<solution>:usart_init@D0", its D1 row "<solution>:usart_init@D1" '
+          '(disambiguated by the pin — never the bare task name both used to share)',
+          by_pin.get('arduino-uno-r3:D0', {}).get('name') == '%s:usart_init@D0' % SOLUTION
+          and by_pin.get('arduino-uno-r3:D1', {}).get('name') == '%s:usart_init@D1' % SOLUTION, by_pin)
+
+    # a task with exactly ONE whole-node target keeps its old, stable id (no '@' suffix) — tick_init (bound to the
+    # TIMER2 peripheral, never a pin) is the one whole-node task in this graph that is never duplicated this way.
+    tick = next(r for r in rows if r['task'] == 'tick_init')
+    check('tick_init (exactly one whole-node target) keeps the OLD stable id "<solution>:tick_init", unsuffixed',
+          tick['name'] == '%s:tick_init' % SOLUTION, tick)
+
+    # the API payload join (cmod_firmware_api.on_get_solution_one): the requirement facts (requirement_kind/role/
+    # required/resource_kind) must land on the RIGHT assignment row — D0 gets uart-rx, D1 gets uart-tx, never the
+    # same kind twice (a bare (task, port) join key cannot tell them apart; (task, port, lives_on) can).
+    req = {(t.get('node'), t.get('port') or '', t.get('lives_on', 'unbound')): t for t in T.derive(GRAPH)}
+    joined = []
+    for a in usart:
+        t = req.get((a.get('task'), a.get('port') or '', a.get('lives_on', 'unbound')))
+        joined.append(dict(a, requirement_kind=(t or {}).get('requirement_kind', '')))
+    kinds_by_pin = {j['lives_on']: j['requirement_kind'] for j in joined}
+    check('the (task, port, lives_on) join gives usart_init\'s D0 row uart-rx and its D1 row uart-tx — never the '
+          'same kind on both (the bare (task, port) join this replaces could not tell them apart)',
+          kinds_by_pin == {'arduino-uno-r3:D0': 'uart-rx', 'arduino-uno-r3:D1': 'uart-tx'}, kinds_by_pin)
+
+    # the live door: GET /api/firmware/solutions/<name> must SERVE both rows, each with its own kind — this is the
+    # actual regression this fix closes (`cmod_firmware_api.on_get_solution_one`'s own `{name: row}` join used to
+    # collapse the two assignments into one before the facts were even attached).
+    _naming_fix_live(check)
+
+
+def _naming_fix_live(check):
+    from types import SimpleNamespace
+    import falcon
+    from falcon import testing
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    from board.board_seed import BOARD_SEED_PAIRS
+    from cmod.cmod_firmware_api import FirmwareAPI
+    tables = {}
+    mgr = SimpleNamespace(objectTables=tables, idList=[], db=None, saveObjToDB=lambda o: None)
+    for _mid, pairs in (('board', BOARD_SEED_PAIRS), ('cmod', CMOD_SEED_PAIRS)):
+        for name, cls, seed_rows in pairs:
+            for row in seed_rows:
+                o = cls(manager=mgr, **{k: v for k, v in row.items() if k != '_converge'})
+                tables.setdefault(name, {})[o.id] = o
+    app = falcon.App()
+    FirmwareAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
+    c = testing.TestClient(app)
+    r = c.simulate_get('/api/firmware/solutions/%s' % SOLUTION)
+    check('GET /api/firmware/solutions/<name> answers 200', r.status_code == 200, r.text[:300])
+    usart_served = [a for a in r.json.get('assignments', []) if a.get('task') == 'usart_init']
+    check('the served payload shows TWO usart_init rows (not one collapsed by a shared name)',
+          len(usart_served) == 2, usart_served)
+    kinds = sorted(a.get('requirement_kind') for a in usart_served)
+    check('the served rows carry uart-rx (D0) and uart-tx (D1) — distinct facts on distinct rows',
+          kinds == ['uart-rx', 'uart-tx'], usart_served)

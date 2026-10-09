@@ -26,11 +26,22 @@ def run_chain(check):
     seeded = {c: rows for c, _cls, rows in BOARD_SEED_PAIRS}
     check('chain: Peripheral / PeripheralSignal / PinFunction / Register / RegisterField are seeded (code-owned, converge)',
           all(seeded.get(c) and all('_converge' in r for r in seeded[c]) for c in HC.CHAIN_CLASSES if c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')))
-    check('chain: SignalRoute / RegisterSetting / RegisterFieldSetting / BoardPinNet are defined, observed, empty until ucd-0b/0c',
-          all(seeded.get(c) == [] for c in ('SignalRoute', 'RegisterSetting', 'RegisterFieldSetting', 'BoardPinNet')))
+    check('chain: SignalRoute / RegisterSetting / RegisterFieldSetting are defined, observed, empty until ucd-0b '
+          '(claims not materialized at board-seed time)',
+          all(seeded.get(c) == [] for c in ('SignalRoute', 'RegisterSetting', 'RegisterFieldSetting')))
+    # ucd-0c: BoardPinNet is now POPULATED — the demo bench's four rows (board.custom.board_pin_nets), code-owned
+    check('chain: BoardPinNet is populated (ucd-0c, the demo bench) — 4 rows, every one code-owned (converges)',
+          seeded.get('BoardPinNet') and len(seeded['BoardPinNet']) == 4
+          and all('_converge' in r for r in seeded['BoardPinNet']))
     try:
         built = [cls(**{k: v for k, v in r.items() if k != '_converge'}) for c, cls, rows in BOARD_SEED_PAIRS if c in HC.CHAIN_CLASSES for r in rows]
-        check('chain: every seed row constructs its class (no stray field)', len(built) == sum(len(tables[c]) for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')))
+        # ucd-0c: BoardPinNet (CHAIN_CLASSES member) now contributes its own 4 rows too — counted here beside the
+        # five ucd-0a classes (from `tables`, the generic board-object seed) + BoardPinNet (from `seeded`, its own
+        # seed pair — BO.seed_tables() does not carry it, board_seed.BOARD_SEED_PAIRS does), same check (every seed
+        # row constructs its class, nothing dropped, nothing stray).
+        check('chain: every seed row constructs its class (no stray field)',
+              len(built) == sum(len(tables[c]) for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField'))
+                            + len(seeded.get('BoardPinNet') or []))
     except TypeError as e:
         check('chain: every seed row constructs its class (no stray field)', False, str(e))
 

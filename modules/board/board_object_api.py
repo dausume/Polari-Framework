@@ -52,6 +52,7 @@ class BoardObjectAPI(treeObject):
             add('/api/board/{board}/ingest', self, suffix='ingest')
             add('/api/board/kit-parts', self, suffix='kit_parts')
             add('/api/board/kit-parts/{part}', self, suffix='kit_part_one')
+            add('/api/board/circuits/{circuit}/check', self, suffix='circuit_check')   # ucd-0c: the electrical findings
 
     def _tables(self):
         from board.custom import board_object as bo
@@ -192,6 +193,21 @@ class BoardObjectAPI(treeObject):
             response.media = {'ok': False, 'error': 'no kit part %r (GET /api/board/kit-parts lists them)' % part}
             return
         response.media = {'ok': True, 'part': row}
+
+    def on_get_circuit_check(self, request, response, circuit):
+        """ucd-0c: GET /api/board/circuits/{circuit}/check?board=<board> (or ?board=<solution>[@<board>] to also
+        read a real FirmwareSolution's own PinClaims for rule (e)) — THE ELECTRICAL FINDINGS over one circuit's
+        BoardPinNet/CircuitNetDefinition/CircuitComponentDefinition rows (`board.custom.electrical_check.check`),
+        {'ok', 'rows': findings} (class-rows-table's dataPath contract — the /display/firmware-solutions table
+        reads this directly, no JSON wall). `ok` is False only when some finding REFUSES — warn/undetermined are
+        not failures of the door itself, they are the honest content."""
+        from board.custom import electrical_check as EC
+        board_or_binding = request.params.get('board') or 'arduino-uno-r3'
+        tables = EC.tables_for(manager=self.manager)
+        findings = EC.check(circuit, board_or_binding, tables)
+        ok = not any(f['status'] == 'refuse' for f in findings)
+        response.media = {'ok': True, 'circuit': circuit, 'board': board_or_binding, 'checked_ok': ok,
+                          'findings': findings, 'rows': findings}
 
     def _cross_module_rows(self, cls):
         """Raw attribute rows of a class NOT owned by this module (RegisterAssignment/ScheduleSlot are cmod's) —

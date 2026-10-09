@@ -24,6 +24,7 @@ from board.custom.sim_cost_c3 import SEED_C3_SIM_COSTS
 from board.custom import board_object_seed
 from board.custom import target_compat as TC
 from board.custom import kit_parts as KP
+from board.custom import board_pin_nets as BPN
 
 SEED_BOARD_DEFINITIONS = board_rows()
 for _b in SEED_BOARD_DEFINITIONS:   # brd-bo: the Identity layer gains the board object's links (soc, revision, upstream board)
@@ -72,7 +73,9 @@ BOARD_SEED_PAIRS = [
 ] + [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (('Peripheral', Peripheral), ('PeripheralSignal', PeripheralSignal),
                                                                      ('PinFunction', PinFunction), ('Register', Register), ('RegisterField', RegisterField))] + [
     ('SignalRoute', SignalRoute, []), ('RegisterSetting', RegisterSetting, []), ('RegisterFieldSetting', RegisterFieldSetting, []),
-    ('BoardPinNet', BoardPinNet, []),
+    # ucd-0c: the demo bench's four BoardPinNet rows — code-owned (board.custom.board_pin_nets.SEED_BOARD_PIN_NETS,
+    # cited to the plan's bench + board_uno's own facts); a person's own canvas wiring is kept, never converged away
+    ('BoardPinNet', BoardPinNet, _register_owned(BPN.SEED_BOARD_PIN_NETS)),
     # ucd-0b2a: address space as rows — code-owned (derived from the same register snapshot + the cited §8.5 rule;
     # re-derive the source, the rows follow)
 ] + [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (('AddressSpace', AddressSpace), ('RegisterAddressMapping', RegisterAddressMapping),

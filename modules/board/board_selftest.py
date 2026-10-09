@@ -366,6 +366,8 @@ def main():
     run_kit_parts(check)
     from board.board_chain_selftest import run_chain   # ucd-0a: THE HARDWARE CHAIN — rows, links both ways, the D3 walk
     run_chain(check)
+    from board.board_circuit_selftest import run_circuit   # ucd-0c: the demo bench as rows + the electrical findings
+    run_circuit(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
