@@ -144,7 +144,7 @@ def _signal_route_cache():
 
 
 # ------------------------------------------------------------------ D-fs-2: the DERIVED register map
-def assignments_for(graph_name, solution_name=None):
+def assignments_for(graph_name, solution_name=None, binding_name=None):
     """[RegisterAssignment dict, …] for one graph's targets (`cmod.custom.targets.derive`), re-homed per solution and
     re-checked for CONFLICT (two tasks resolving to the same BoardPin). fs-0 scope: the graph's own seeded board (the
     common case — a graph is authored against the board it is seeded with); re-matching against a DIFFERENT board a
@@ -152,11 +152,26 @@ def assignments_for(graph_name, solution_name=None):
 
     ucd-0b2a (§5h B2): every row also carries `peripheral`/`signal`/`bus` (the typed-resource binding modes beside
     `lives_on` — '' today: this deriver only ever binds by pin), `signal_route` (the PinFunction the bound pin's own
-    alternate function activates, '' for plain GPIO or unbound), and `configuration` (= `sol`, explicit — the
-    review's HardwareConfiguration split is a rename later, never a migration)."""
+    alternate function activates, '' for plain GPIO or unbound).
+
+    ucd-0b2b (§5h, the HardwareBinding): `configuration` is now the BINDING's own name (`cmod.custom.binding.
+    binding_name`), not the bare solution — "a FirmwareSolution is hardware-agnostic; a HardwareBinding owns the
+    assignments". `binding_name` defaults to the solution's OWN default binding ('<solution>@<board>', the graph's
+    own recorded board) when not given — every pre-0b2b caller keeps the SAME row `name` prefix ('<solution>:...')
+    for that default binding (D-ucd-8 posture: widen, never rename / never churn); only an EXPLICIT, non-default
+    `binding_name` (a second binding, fs-2a's drag over a canvas-created one) renames the row prefix to the binding's
+    own name, so two bindings' rows never collide."""
     from cmod.custom import targets as T
     sol = solution_name or graph_name
     targets = T.derive(graph_name)
+    board_for_cfg = targets[0]['board'] if targets and targets[0].get('board') else ''
+    if not board_for_cfg:
+        from cmod.custom.graph_seed import seed_graph
+        _rows = seed_graph(graph_name)
+        board_for_cfg = (_rows or {}).get('graph', {}).get('board', '')
+    default_cfg = ('%s@%s' % (sol, board_for_cfg)) if board_for_cfg else sol
+    cfg = binding_name or default_cfg
+    name_prefix = sol if cfg == default_cfg else cfg
     route_for = _signal_route_cache()
     # nodes that themselves touch MORE THAN ONE pin (a dispatcher — e.g. `apply` calling hal_led + hal_pwm) are not
     # counted as a pin's OWNER for conflict purposes, same as an '*_init' setup task sharing its peripheral's pin
@@ -186,10 +201,10 @@ def assignments_for(graph_name, solution_name=None):
             else:
                 status = 'bound'
             signal_route = route_for(t['board'], lives_on.rpartition(':')[2])
-        out.append({'name': '%s:%s' % (sol, t['port_ref']), 'solution': sol, 'task': t['node'], 'port': t['port'],
+        out.append({'name': '%s:%s' % (name_prefix, t['port_ref']), 'solution': sol, 'task': t['node'], 'port': t['port'],
                     'target_kind': t['kind'], 'controls': t['controls'], 'lives_on': lives_on, 'status': status,
                     'provenance': t['provenance'], 'peripheral': '', 'signal': '', 'bus': '', 'signal_route': signal_route,
-                    'configuration': sol, 'notes': notes})
+                    'configuration': cfg, 'notes': notes})
     return out
 
 
@@ -207,15 +222,23 @@ def resource_conflicts(assigns):
 
 
 # ------------------------------------------------------------------ fs-2a: valid targets + the /assign refusal (his ruling 2026-10-06)
-def _occupants(graph_name, solution_name, manager=None):
+def _occupants(graph_name, solution_name, manager=None, binding_name=None):
     """{lives_on: [task, ...]} — who currently claims each bound pin, from the LIVE RegisterAssignment rows when a
     manager is given (a prior POST .../assign may have moved things — the live rows are the truth then), else the
-    pure re-derivation (assignments_for) for the no-manager / seed-time path."""
+    pure re-derivation (assignments_for) for the no-manager / seed-time path.
+
+    ucd-0b2b: filtered by `binding_name` (the HardwareBinding's own `configuration`) when given — so two bindings of
+    the SAME solution never see each other's claims as a conflict; falls back to the old `solution`-wide filter
+    only when no binding is named (every pre-0b2b caller)."""
     if manager is not None:
-        rows = [{'task': getattr(r, 'task', ''), 'lives_on': getattr(r, 'lives_on', ''), 'status': getattr(r, 'status', '')}
-                for r in (manager.objectTables or {}).get('RegisterAssignment', {}).values() if getattr(r, 'solution', '') == solution_name]
+        if binding_name:
+            rows = [{'task': getattr(r, 'task', ''), 'lives_on': getattr(r, 'lives_on', ''), 'status': getattr(r, 'status', '')}
+                    for r in (manager.objectTables or {}).get('RegisterAssignment', {}).values() if getattr(r, 'configuration', '') == binding_name]
+        else:
+            rows = [{'task': getattr(r, 'task', ''), 'lives_on': getattr(r, 'lives_on', ''), 'status': getattr(r, 'status', '')}
+                    for r in (manager.objectTables or {}).get('RegisterAssignment', {}).values() if getattr(r, 'solution', '') == solution_name]
     else:
-        rows = assignments_for(graph_name, solution_name)
+        rows = assignments_for(graph_name, solution_name, binding_name=binding_name)
     out = {}
     for r in rows:
         if r['lives_on'] and r['lives_on'] != 'unbound':
@@ -300,11 +323,13 @@ def registered_tasks_by_pin(assignment_rows):
     return out
 
 
-def check_drop(graph_name, solution_name, task, lives_on, manager=None):
+def check_drop(graph_name, solution_name, task, lives_on, manager=None, binding_name=None):
     """(ok, status, reason) for dragging `task`'s target onto `lives_on` (a '<board>:<canonical>' BoardPin name, or
     'unbound'/''). Refuses (ok=False) when board.custom.target_compat.compatible() says no, when the pin is
     power/ground (compatible() already covers this), or when it would conflict with a non-cooperating task;
-    'undetermined' is allowed, with a warning (his ruling: never silently guessed, never silently refused either)."""
+    'undetermined' is allowed, with a warning (his ruling: never silently guessed, never silently refused either).
+    ucd-0b2b: `binding_name` scopes the occupancy check to one HardwareBinding (never a false conflict against a
+    DIFFERENT binding of the same solution) — omitted, it falls back to the old solution-wide check."""
     if lives_on in ('', 'unbound'):
         return True, 'unbound', 'unbound is always allowed — a real target, just not placed'
     board, _, canonical = lives_on.partition(':')
@@ -325,7 +350,7 @@ def check_drop(graph_name, solution_name, task, lives_on, manager=None):
     verdict, reason = TC.compatible(kind, pin, soc_pin)
     if verdict == 'no':
         return False, 'refused', reason
-    others = [o for o in _occupants(graph_name, solution_name, manager).get(lives_on, []) if o != task]
+    others = [o for o in _occupants(graph_name, solution_name, manager, binding_name=binding_name).get(lives_on, []) if o != task]
     if others and not _cooperates(graph_name, task, others):
         return False, 'refused', 'pin %s is already registered to %s (not a cooperating init/use pair) — conflict' % (lives_on, ', '.join(sorted(others)))
     if verdict == 'undetermined':
@@ -356,13 +381,16 @@ def validate(fs, manager=None):
         return False, ('refused: %s names more than one resource — at most one of lives_on/peripheral/signal/bus '
                        'may be non-empty (ucd-0b2a §5h B2)' % ', '.join(sorted(multi))), {'board': board, 'assignments': assigns}
     from cmod.custom import claims as C
-    pin_claims = C.pin_claims(name, graph, manager=manager)
+    # ucd-0b2b: pass `fs` itself (not just its name) — claims._as_binding resolves the board straight off this
+    # dict/row, never through cmod.cmod_seed.CMOD_SEED_PAIRS (this runs AT SEED TIME, before that list is built —
+    # a lookup there would be a circular import)
+    pin_claims = C.pin_claims(fs, graph, manager=manager)
     pin_conflicts = [c for c in pin_claims if c['status'] == 'conflict']
     if pin_conflicts:
         return False, 'refused: pin claim conflict on %s (%s)' % (', '.join(c['name'] for c in pin_conflicts),
                                                                    '; '.join(c['why'] for c in pin_conflicts)), \
             {'board': board, 'assignments': assigns, 'claims': pin_claims}
-    periph_claims = C.peripheral_claims(name, graph, manager=manager)
+    periph_claims = C.peripheral_claims(fs, graph, manager=manager)
     periph_conflicts = [p for p in periph_claims if p['status'] == 'conflict']
     if periph_conflicts:
         return False, 'refused: peripheral claim conflict on %s (%s)' % (', '.join(p['name'] for p in periph_conflicts),
@@ -376,12 +404,49 @@ def validate(fs, manager=None):
     return True, ok_why, {'board': board, 'assignments': assigns, 'claims': pin_claims, 'peripheral_claims': periph_claims}
 
 
+# ------------------------------------------------------------------ ucd-0b2b: accept a HardwareBinding, not just a bare solution
+def as_solution_target(fs_or_binding, manager=None):
+    """(solution dict/row, binding dict/row|None) — a `FirmwareSolution` (unchanged; `binding` is None) or a
+    `HardwareBinding` (resolved to its underlying solution; `binding` carries it). Only the DEFAULT binding has a
+    compiled project this phase (cmod-glue renders ONE project per graph, matched against the graph's own recorded
+    board) — a non-default binding's build/run is refused, named 'Phase 2', never silently building the wrong
+    board's firmware."""
+    is_dict = isinstance(fs_or_binding, dict)
+    has_board_def = ('board_definition' in fs_or_binding) if is_dict else hasattr(fs_or_binding, 'board_definition')
+    if has_board_def:
+        return fs_or_binding, None
+    sol_name = fs_or_binding.get('solution') if is_dict else getattr(fs_or_binding, 'solution', '')
+    from cmod.custom import binding as BND
+    sol = BND._solution_dict(sol_name, manager=manager)
+    return sol, fs_or_binding
+
+
+def _binding_build_guard(bnd, sol):
+    if bnd is None:
+        return None
+    is_default = bnd.get('is_default') if isinstance(bnd, dict) else getattr(bnd, 'is_default', False)
+    if is_default:
+        return None
+    bname = bnd.get('name') if isinstance(bnd, dict) else getattr(bnd, 'name', '')
+    sname = (sol or {}).get('name', '') if isinstance(sol, dict) else getattr(sol, 'name', '')
+    return ('%s: building/running a non-default HardwareBinding is Phase 2 — only %s\'s default binding has a '
+            'compiled project this phase (cmod-glue renders one project per graph, against the graph\'s own board)'
+            % (bname, sname))
+
+
 # ------------------------------------------------------------------ build / run — WIRE the existing verbs, never reimplement
 def build(fs, manager=None):
     """-> the CGlueBuild/FirmwareBuild this solution's graph produces. Reuses cmod-glue entirely (`glue_build.build`) —
-    fs-0 adds no new compiler. Refuses (raises GlueRefused, same type the caller already catches) if validate() fails."""
+    fs-0 adds no new compiler. Refuses (raises GlueRefused, same type the caller already catches) if validate() fails.
+    ucd-0b2b: `fs` may be a FirmwareSolution OR a HardwareBinding (`as_solution_target`) — only a DEFAULT binding is
+    backed by a build this phase."""
     from cmod.custom.glue import GlueRefused
     from cmod.custom import glue_build as GB
+    sol, bnd = as_solution_target(fs, manager=manager)
+    guard = _binding_build_guard(bnd, sol)
+    if guard:
+        raise GlueRefused(guard)
+    fs = sol
     name = fs.get('name') if isinstance(fs, dict) else getattr(fs, 'name', '')
     graph = fs.get('graph') if isinstance(fs, dict) else getattr(fs, 'graph', '')
     ok, why, _ = validate(fs, manager=manager)
@@ -395,8 +460,14 @@ def run(fs, mode, manager=None):
     SAME twin equivalence proof cmod-1 already makes, reused as this solution's run); mode 'hardware' resolves the
     solution's board to a detected BoardInstance and reports the flash route through the EXISTING installer
     (`board.custom.installer.detected`) — never reimplementing flashing. validate() gates both; a validation refusal
-    is returned (not raised) so a caller can show it beside the route, same posture as hwnocode's `_hardware_route`."""
+    is returned (not raised) so a caller can show it beside the route, same posture as hwnocode's `_hardware_route`.
+    ucd-0b2b: `fs` may be a FirmwareSolution OR a HardwareBinding — only its DEFAULT binding runs this phase."""
     from cmod.custom import glue_build as GB
+    sol, bnd = as_solution_target(fs, manager=manager)
+    guard = _binding_build_guard(bnd, sol)
+    if guard:
+        return {'ok': False, 'route': 'refused', 'why': guard}
+    fs = sol
     name = fs.get('name') if isinstance(fs, dict) else getattr(fs, 'name', '')
     graph = fs.get('graph') if isinstance(fs, dict) else getattr(fs, 'graph', '')
     ok, why, details = validate(fs, manager=manager)

@@ -192,7 +192,18 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                                    'confirm Register. EXPORT (top bar): writes the CMake project + README + manifest, '
                                                    'verifies it rebuilds on the engines image to the same hex sha, and gives the download.')],
                    min_height=640),
-              _row(1, [_table('firmware-exports', 0, 12, 'Exports — every export made on this server: what it is, whether the CMake build '
+              _row(1, [_table('firmware-bindings-lean', 0, 12, 'Bindings — which board a solution is laid over, whether that board '
+                              'meets every task requirement, and why not', 'HardwareBinding',
+                              description='What this is for: ucd-0b2b (his ruling 2026-10-08) — a FirmwareSolution is hardware-'
+                                          'agnostic; a HardwareBinding is the mask laying it over ONE board. One row = one binding. '
+                                          'Columns: solution/board (the pair this binding is), status (valid | incomplete | invalid — '
+                                          'computed from rows only: every required task requirement bound to a resource the board '
+                                          'actually has), why (every unmet/conflicting/incompatible requirement, named), '
+                                          'requirements_met/total, provenance (derived = the one converged default per solution; '
+                                          'canvas = a person added it — kept).',
+                              columns='name,solution,board,status,why,requirements_met,requirements_total,is_default,provenance',
+                              column_formats='solution:ref:FirmwareSolution,board:ref:BoardDefinition')], min_height=200),
+              _row(2, [_table('firmware-exports', 0, 12, 'Exports — every export made on this server: what it is, whether the CMake build '
                               'reproduced the Makefile build byte for byte (parity), the download', 'FirmwareExport',
                               description='What this is for: the record of each export. One row = one export of one solution. Columns: '
                                           'solution (link), board, target (both | board | twin), parity (identical = the exported CMake '
@@ -246,7 +257,18 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,title,graph,board_definition,board_variable,board_resolved,runtime,status,'
                                       'validation,validation_why,task_count,last_build',
                               column_formats='graph:ref:CGraph,board_definition:ref:BoardDefinition')], min_height=160),
-              _row(3, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
+              _row(3, [_table('firmware-bindings', 0, 12, 'Bindings — which board a solution is laid over, whether that board '
+                              'meets every task requirement, and why not', 'HardwareBinding',
+                              description='What this is for: ucd-0b2b (his ruling 2026-10-08) — a FirmwareSolution is hardware-'
+                                          'agnostic; a HardwareBinding is the mask laying it over ONE board. One row = one binding. '
+                                          'Columns: solution/board (the pair this binding is), status (valid | incomplete | invalid — '
+                                          'computed from rows only: every required task requirement bound to a resource the board '
+                                          'actually has), why (every unmet/conflicting/incompatible requirement, named), '
+                                          'requirements_met/total, provenance (derived = the one converged default per solution; '
+                                          'canvas = a person added it — kept).',
+                              columns='name,solution,board,status,why,requirements_met,requirements_total,is_default,provenance',
+                              column_formats='solution:ref:FirmwareSolution,board:ref:BoardDefinition')], min_height=200),
+              _row(4, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
                               'ISR/tick/loop/init annotations (D-fs-1, his ruling: never authored by dragging)', 'ScheduleSlot',
                               description='What this is for: one row per task\'s schedule slot. One row = one ScheduleSlot. '
                                           'Columns: lane (isr | tick | loop | init | called), order (mirrors the glue\'s own '
@@ -255,7 +277,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'stack, not per-atom cycles).',
                               columns='solution,task,lane,order,trigger,period_ms,measured_cycles,isr_vector,provenance',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(4, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
+              _row(5, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
                               'BoardPin rows, or named unbound (D-fs-2: the pin-map drag sets this; fs-0 builds the row + '
                               'the assign door)', 'RegisterAssignment',
                               description='What this is for: one row per required target. One row = one RegisterAssignment. '
@@ -265,7 +287,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'claiming one pin with no cooperating relationship).',
                               columns='solution,task,port,target_kind,controls,lives_on,status,provenance,notes',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(5, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
+              _row(6, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
                               '(cmod-glue, reused unchanged; `POST /api/firmware/solutions/{name}/build`)', 'CGlueBuild',
                               description='What this is for: the SAME CGlueBuild rows /display/c-atoms shows, filtered to '
                                           'this solution\'s graph. One row = one build-and-prove run.',

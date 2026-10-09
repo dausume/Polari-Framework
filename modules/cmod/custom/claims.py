@@ -69,21 +69,61 @@ def _index(tables, cls):
     return {r['name']: r for r in tables.get(cls, [])}
 
 
-def _live_assignments(solution_name, graph, manager=None):
+def _as_binding(binding, manager=None):
+    """(binding dict, naming_prefix) — ucd-0b2b. `binding` is ONE of:
+      - a plain solution-name string (the OLD calling convention: every pre-0b2b caller/test) — resolved to its
+        DEFAULT binding (board via `cmod.custom.firmware.resolve_board`), with the SAME row naming
+        ('<solution>:<canonical>') it always had;
+      - a `FirmwareSolution` dict/row (an internal caller that already has it, e.g. `cmod.custom.firmware.validate`
+        at SEED time, before `cmod.cmod_seed.CMOD_SEED_PAIRS` itself is fully built — resolving the board straight
+        off this dict/row, never through a CMOD_SEED_PAIRS lookup, avoids that circular import entirely);
+      - a `HardwareBinding` dict/row, whose own `name` becomes the naming prefix UNLESS it is the default (the
+        default keeps '<solution>:...')."""
+    def _get(x, k, default=''):
+        return x.get(k, default) if isinstance(x, dict) else getattr(x, k, default)
+    if isinstance(binding, str):
+        from cmod.custom import firmware as FW
+        if manager is not None:
+            rows = [r for r in (manager.objectTables or {}).get('FirmwareSolution', {}).values() if getattr(r, 'name', '') == binding]
+            sol = {k: getattr(rows[0], k, '') for k in ('name', 'board_definition', 'board_variable')} if rows else {'name': binding}
+        else:
+            from cmod.cmod_seed import CMOD_SEED_PAIRS
+            rows = next((rs for n, _c, rs in CMOD_SEED_PAIRS if n == 'FirmwareSolution'), [])
+            sol = next((dict(r) for r in rows if r['name'] == binding), {'name': binding})
+        board, _exists, _why = FW.resolve_board(sol, manager=manager)
+        b = {'name': ('%s@%s' % (binding, board)) if board else binding, 'solution': binding, 'board': board, 'is_default': True}
+    elif _get(binding, 'board_definition', None) is not None or _get(binding, 'board_variable', None) is not None:
+        from cmod.custom import firmware as FW
+        sol_name = _get(binding, 'name', '')
+        sol_as_dict = {'name': sol_name, 'board_definition': _get(binding, 'board_definition', ''),
+                       'board_variable': _get(binding, 'board_variable', '')}
+        board, _exists, _why = FW.resolve_board(sol_as_dict, manager=manager)
+        b = {'name': ('%s@%s' % (sol_name, board)) if board else sol_name, 'solution': sol_name, 'board': board, 'is_default': True}
+    elif isinstance(binding, dict):
+        b = binding
+    else:
+        b = {k: getattr(binding, k, '') for k in ('name', 'solution', 'board', 'is_default')}
+    naming = b.get('solution', '') if b.get('is_default', True) else (b.get('name') or b.get('solution', ''))
+    return b, naming
+
+
+def _live_assignments(binding, graph, manager=None):
     """[RegisterAssignment dict, …] — the LIVE rows (carrying a canvas-authored `config_json`) when a manager has
     them, else the pure re-derivation (`cmod.custom.firmware.assignments_for`), same duality as
-    `cmod.custom.firmware._occupants`."""
+    `cmod.custom.firmware._occupants`. ucd-0b2b: filtered by `configuration` == this BINDING's own name."""
+    b, naming = _as_binding(binding, manager=manager)
+    cfg = b.get('name') or naming
     if manager is not None:
         rows = [{'name': getattr(r, 'name', ''), 'task': getattr(r, 'task', ''), 'port': getattr(r, 'port', ''),
                  'target_kind': getattr(r, 'target_kind', ''), 'lives_on': getattr(r, 'lives_on', 'unbound'),
                  'status': getattr(r, 'status', 'unbound'), 'provenance': getattr(r, 'provenance', 'derived'),
                  'config_json': getattr(r, 'config_json', '{}') or '{}', 'notes': getattr(r, 'notes', '')}
                 for r in (manager.objectTables or {}).get('RegisterAssignment', {}).values()
-                if getattr(r, 'solution', '') == solution_name]
+                if getattr(r, 'configuration', '') == cfg]
         if rows:
             return rows
     from cmod.custom import firmware as FW
-    rows = FW.assignments_for(graph, solution_name)
+    rows = FW.assignments_for(graph, solution_name=b.get('solution') or naming, binding_name=cfg)
     for r in rows:
         r.setdefault('config_json', '{}')
     return rows
@@ -173,14 +213,16 @@ def _effective(canonical, defaults, mode, rep, overrides):
     return eff_mode, eff_pull, eff_edge, eff_initial, bool(merged)
 
 
-def pin_claims(solution_name, graph, manager=None, overrides=None):
+def pin_claims(binding, graph, manager=None, overrides=None):
     """[PinClaim dict, …] — one per physical pin this solution's RegisterAssignment rows bind. `overrides` =
     {canonical: {mode?, pull?, edge?, initial?}}, layered over whatever is already persisted on the representative
-    assignment's `config_json`."""
+    assignment's `config_json`. ucd-0b2b: `binding` is a solution-name string (resolved to its default binding,
+    pre-0b2b callers unchanged) or a `HardwareBinding` dict/row."""
+    b, naming = _as_binding(binding, manager=manager)
     tables = _chain_tables(manager)
     board_pins = _index(tables, 'BoardPin')
     soc_pins = _index(tables, 'SocPin')
-    rows = _live_assignments(solution_name, graph, manager)
+    rows = _live_assignments(b, graph, manager)
     dispatchers = _dispatchers(graph)
     out = []
     for lives_on, group in _groups(rows).items():
@@ -208,7 +250,8 @@ def pin_claims(solution_name, graph, manager=None, overrides=None):
         elif kind == 'interrupt-in' and edge == 'undetermined':
             status, why = 'incomplete', 'edge not yet chosen for this interrupt-in claim — author it on the pin page (any/rising/falling/low)'
         others = sorted({r['task'] for r in group} - {rep['task']})
-        out.append({'name': '%s:%s' % (solution_name, bp['canonical']), 'solution': solution_name, 'board': bp.get('board', ''),
+        out.append({'name': '%s:%s' % (naming, bp['canonical']), 'solution': b.get('solution', naming),
+                    'binding': b.get('name', naming), 'board': bp.get('board', ''),
                     'board_pin': bp['name'], 'soc_pin': soc_pin_name, 'task': rep['task'], 'port': rep.get('port', ''),
                     'assignment': rep['name'], 'requirement_kind': kind, 'mode': eff_mode, 'pin_function': pin_function,
                     'pull': pull, 'edge': edge, 'initial': initial, 'rule': 'kind-%s' % kind,
@@ -260,9 +303,11 @@ def _timer_channel(pid, reg):
     return '', 'exclusive'
 
 
-def peripheral_claims(solution_name, graph, manager=None):
+def peripheral_claims(binding, graph, manager=None):
     """[PeripheralClaim dict, …] — every peripheral (or channel of it) this solution's atoms touch, grouped from
-    their own register resources (never re-typed)."""
+    their own register resources (never re-typed). ucd-0b2b: `binding` is a solution-name string (resolved to its
+    default binding) or a `HardwareBinding` dict/row."""
+    b, naming = _as_binding(binding, manager=manager)
     atoms = _atom_resources(graph)
     groups = {}
     for task, resources in atoms:
@@ -275,7 +320,7 @@ def peripheral_claims(solution_name, graph, manager=None):
             slot['tasks'].add(task)
             slot['registers'].add(reg)
     if ('ADC', '') in groups:
-        pins = pin_claims(solution_name, graph, manager=manager)
+        pins = pin_claims(b, graph, manager=manager)
         chans = sorted({p['pin_function'].rsplit(':', 1)[-1][3:] for p in pins
                         if p['requirement_kind'] == 'analog-in' and p['pin_function']})
         groups[('ADC', chans[0] if len(chans) == 1 else ('undetermined' if not chans else '+'.join(chans)))] = groups.pop(('ADC', ''))
@@ -287,7 +332,8 @@ def peripheral_claims(solution_name, graph, manager=None):
         if slot['usage'] == 'exclusive' and len(non_init) > 1:
             status = 'conflict'
             why = 'two non-cooperating tasks hold %s%s exclusively: %s' % (pid, (':' + channel if channel else ''), ', '.join(non_init))
-        out.append({'name': '%s:%s%s' % (solution_name, pid, (':' + channel if channel else '')), 'solution': solution_name,
+        out.append({'name': '%s:%s%s' % (naming, pid, (':' + channel if channel else '')), 'solution': b.get('solution', naming),
+                    'binding': b.get('name', naming),
                     'peripheral': '%s:%s' % (SOC, pid), 'channel': channel, 'tasks_json': json.dumps(tasks),
                     'usage': slot['usage'], 'registers_json': json.dumps(sorted(slot['registers'])),
                     'rule': 'timer-channel-split' if pid.startswith('TIMER') else 'peripheral-wide',
@@ -297,7 +343,7 @@ def peripheral_claims(solution_name, graph, manager=None):
 
 # ---------------------------------------------------------------- RegisterSetting / RegisterFieldSetting / SignalRoute
 
-def _combine(solution_name, register_name, phase, specs, tables, source_file='pin_config.c'):
+def _combine(solution_name, register_name, phase, specs, tables, source_file='pin_config.c', binding_name=''):
     """One RegisterSetting + its RegisterFieldSetting rows for one (solution, register, phase), from `specs` =
     [(RegisterField dict, bit_value:int, pin_claim_name, peripheral_claim_name, task, rule), …]. Two specs whose bit
     ranges overlap -> both (and the RegisterSetting) go to status='conflict', NAMED — never last-write-wins. Bit
@@ -322,7 +368,7 @@ def _combine(solution_name, register_name, phase, specs, tables, source_file='pi
         mask |= (((1 << width) - 1) << lo)
         vals = json.loads(field_row['values_json'])
         bitstr = format(bit_value, '0%db' % width)
-        fs_rows.append({'name': fs_name, 'solution': solution_name, 'register_setting': rs_name,
+        fs_rows.append({'name': fs_name, 'solution': solution_name, 'binding': binding_name, 'register_setting': rs_name,
                         'register_field': field_row['name'], 'value': bitstr, 'meaning': vals.get(bitstr, ''),
                         'pin_claim': pin_claim, 'peripheral_claim': peripheral_claim, 'task': task, 'rule': rule,
                         'status': 'planned', 'provenance': 'derived', 'notes': ''})
@@ -331,7 +377,7 @@ def _combine(solution_name, register_name, phase, specs, tables, source_file='pi
             fs['status'] = 'conflict'
             fs['notes'] = conflict_why
     width_bits = int((reg or {}).get('width_bytes') or 1) * 8
-    rs = {'name': rs_name, 'solution': solution_name, 'register': '%s:%s' % (SOC, register_name), 'phase': phase,
+    rs = {'name': rs_name, 'solution': solution_name, 'binding': binding_name, 'register': '%s:%s' % (SOC, register_name), 'phase': phase,
          'value': '0x%02X' % value, 'value_bits': format(value, '0%db' % width_bits), 'write_mask': '0x%02X' % mask,
          'field_settings_refs_json': json.dumps(['RegisterFieldSetting:%s' % fs['name'] for fs in fs_rows]),
          'source_file': source_file, 'source_line': 0, 'status': 'conflict' if conflict else 'planned',
@@ -339,22 +385,26 @@ def _combine(solution_name, register_name, phase, specs, tables, source_file='pi
     return rs, fs_rows
 
 
-def _route_for(solution_name, claim, pf_name, pf_row):
+def _route_for(solution_name, claim, pf_name, pf_row, binding_name=''):
     canonical = claim['name'].split(':', 1)[1]
     return {'name': '%s:%s:%s' % (solution_name, canonical, pf_row['function']), 'solution': solution_name,
+           'binding': binding_name,
            'pin_claim': claim['name'], 'board_pin': claim['board_pin'], 'soc_pin': claim['soc_pin'],
            'pin_function': pf_name, 'signal': pf_row.get('signal', ''), 'peripheral': pf_row.get('peripheral', ''),
            'routing': pf_row.get('routing', 'fixed'), 'configuration_refs_json': '[]', 'status': 'planned',
            'provenance': 'derived', 'notes': ''}
 
 
-def register_settings(solution_name, graph, manager=None, overrides=None):
+def register_settings(binding, graph, manager=None, overrides=None):
     """{'RegisterSetting': […], 'RegisterFieldSetting': […], 'SignalRoute': […]} — GPIO direction/level + external-
     interrupt/pin-change enable for this solution's PinClaims ONLY; timer and USART configuration stay in the HAL
     for now (hal_pwm_init/hal_tick_init/hal_usart_init/hal_adc_init), named here so the gap is never silent.
     `overrides` is the same {canonical: {...}} `pin_claims` takes — with a live manager an override is normally
     already persisted on the RegisterAssignment (the assign door's job); this lets a pure/no-manager caller (a dry
-    run, a selftest) see the effect without a server."""
+    run, a selftest) see the effect without a server. ucd-0b2b: `binding` is a solution-name string (resolved to
+    its default binding) or a `HardwareBinding` dict/row."""
+    b, solution_name = _as_binding(binding, manager=manager)
+    binding_name = b.get('name', solution_name)
     tables = _chain_tables(manager)
     soc_pins = _index(tables, 'SocPin')
     pin_functions = _index(tables, 'PinFunction')
@@ -369,9 +419,9 @@ def register_settings(solution_name, graph, manager=None, overrides=None):
     def add_route(pf_name, claim):
         if pf_name and pf_name in pin_functions and pf_name not in routed_functions:
             routed_functions.add(pf_name)
-            routes.append(_route_for(solution_name, claim, pf_name, pin_functions[pf_name]))
+            routes.append(_route_for(solution_name, claim, pf_name, pin_functions[pf_name], binding_name=binding_name))
 
-    for c in pin_claims(solution_name, graph, manager=manager, overrides=overrides):
+    for c in pin_claims(b, graph, manager=manager, overrides=overrides):
         sp = soc_pins.get(c['soc_pin'])
         if sp is None:
             continue
@@ -421,7 +471,7 @@ def register_settings(solution_name, graph, manager=None, overrides=None):
 
     settings, field_settings = [], []
     for reg_name, specs in sorted(by_register.items()):
-        rs, fss = _combine(solution_name, reg_name, 'init', specs, tables)
+        rs, fss = _combine(solution_name, reg_name, 'init', specs, tables, binding_name=binding_name)
         settings.append(rs)
         field_settings.extend(fss)
     # a route is 'active' only once a setting that actually ENABLES that alternate function exists — a DDRx/PORTx

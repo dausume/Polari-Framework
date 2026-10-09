@@ -62,6 +62,9 @@ class FirmwareAPI(treeObject):
             add('/api/firmware/solutions/{name}/assign', self, suffix='assign')
             add('/api/firmware/solutions/{name}/tasks/{task}/valid-targets', self, suffix='valid_targets')
             add('/api/firmware/solutions/for-installer', self, suffix='for_installer')
+            # ucd-0b2b: the HardwareBinding doors (§5h, his ruling 2026-10-08) — every row, and creating one
+            add('/api/firmware/bindings', self, suffix='bindings_all')
+            add('/api/firmware/solutions/{name}/bindings', self, suffix='solution_bindings')
             add('/api/firmware/solutions/{name}/export', self, suffix='export')      # ucd-0f: POST → the CMake export dir + tar.gz
             add('/api/firmware/exports', self, suffix='exports')                       # ucd-0f: every FirmwareExport row
             add('/api/firmware/exports/{name}/download', self, suffix='download')     # ucd-0f: the tar.gz
@@ -79,15 +82,56 @@ class FirmwareAPI(treeObject):
         return {k: getattr(row, k, None) for k in keys}
 
     def _solution(self, name, response):
+        """Looks up the FirmwareSolution by name — ucd-0b2b: `name` may be '<solution>' or
+        '<solution>@<board-or-binding-suffix>' (every door that takes a {name} path segment accepts either; the
+        '@...' part, when present, is resolved to a specific HardwareBinding by the callers that need one)."""
         import falcon
-        hit = [r for r in self._rows('FirmwareSolution') if r.name == name]
+        sol_name = name.partition('@')[0] if name else name
+        hit = [r for r in self._rows('FirmwareSolution') if r.name == sol_name]
         if not hit:
             response.status = falcon.HTTP_404
-            response.media = {'ok': False, 'error': 'no FirmwareSolution %r (GET /api/firmware/solutions lists them)' % name}
+            response.media = {'ok': False, 'error': 'no FirmwareSolution %r (GET /api/firmware/solutions lists them)' % sol_name}
         return hit[0] if hit else None
 
     def on_get_solutions(self, request, response):
         response.media = {'ok': True, 'solutions': [self._d(r) for r in sorted(self._rows('FirmwareSolution'), key=lambda r: r.name)]}
+
+    def on_get_bindings_all(self, request, response):
+        """ucd-0b2b: GET /api/firmware/bindings — every HardwareBinding row (every solution's)."""
+        response.media = {'ok': True, 'bindings': [self._d(r) for r in sorted(self._rows('HardwareBinding'), key=lambda r: r.name)]}
+
+    def on_post_solution_bindings(self, request, response, name):
+        """ucd-0b2b: POST /api/firmware/solutions/{name}/bindings {"board": "..."} — a person's own addition
+        (provenance='canvas'), KEPT across a reseed. Derives the binding + its initial RegisterAssignment rows
+        (only when the board's own hardware chain is materialized, §5h B3/B5 — else there is nothing to assign yet,
+        named 'Phase 2', never a crash) and upserts both."""
+        import falcon
+        s = self._solution(name, response)
+        if s is None:
+            return
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        board = body.get('board', '')
+        if not board:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': "'board' is required (a BoardDefinition name)"}
+            return
+        from cmod.custom import binding as BND
+        try:
+            b = BND.create(s.name, board, manager=self.manager)
+        except ValueError as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        from cmod.cmod_basis import HardwareBinding
+        self._upsert('HardwareBinding', HardwareBinding, [b])
+        if BND.chain_materialized(b['board']):
+            from cmod.cmod_basis import RegisterAssignment
+            rows = BND.assignment_rows(b['name'], s.graph, manager=self.manager)
+            self._upsert('RegisterAssignment', RegisterAssignment, rows)
+        response.media = {'ok': True, 'binding': b}
 
     def on_get_for_installer(self, request, response):
         """fs-1 item 4's FALLBACK table (/display/firmware-installer): one row per FirmwareSolution with the
@@ -123,11 +167,16 @@ class FirmwareAPI(treeObject):
         # ucd-0b: the claims chain, materialized into the manager's tables on every GET (upsert by name, same idiom
         # as assignments/schedule above — the object pages read these rows straight off the register)
         chain = self._claims_chain(s)
+        # ucd-0b2b: `binding` is the DEFAULT HardwareBinding row; `bindings` lists every one of this solution's
+        from cmod.custom import binding as BND
+        bindings = BND.bindings_for_solution(s.name, manager=self.manager)
+        default_binding = next((b for b in bindings if b.get('is_default')), None) or (bindings[0] if bindings else None)
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
                           'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],
+                          'binding': default_binding, 'bindings': bindings,
                           # D-ucd-12 (his ruling): person-facing word is Purpose, a task may name several. `purposes`
                           # is the SAME rows as `capabilities` — kept one release for the installer panel/tests that
                           # still read the old key. DEPRECATED: drop `capabilities` once those callers move over.
@@ -136,17 +185,19 @@ class FirmwareAPI(treeObject):
                           'register_settings': chain['register_settings'], 'field_settings': chain['field_settings'],
                           'routes': chain['routes']}
 
-    def _claims_chain(self, s):
+    def _claims_chain(self, s, binding=None):
         """ucd-0b: {claims, peripheral_claims, register_settings, field_settings, routes} for one FirmwareSolution
         row — derived (`cmod.custom.claims`) and MATERIALIZED into the manager's own tables (PinClaim/
         PeripheralClaim here, RegisterSetting/RegisterFieldSetting/SignalRoute in the board module — one flat
         object register, same posture as every cross-module reference in this file), upserted by name so the
-        generic object pages (`/object/<Class>/<name>`) show them."""
+        generic object pages (`/object/<Class>/<name>`) show them. ucd-0b2b: `binding` (a HardwareBinding dict/row)
+        scopes this to ONE binding; omitted, it is the solution's own DEFAULT binding (unchanged pre-0b2b posture)."""
         from cmod.custom import claims as C
-        name, graph = getattr(s, 'name', ''), getattr(s, 'graph', '')
-        claims = C.pin_claims(name, graph, manager=self.manager)
-        periph = C.peripheral_claims(name, graph, manager=self.manager)
-        gen = C.register_settings(name, graph, manager=self.manager)
+        target = binding if binding is not None else s
+        graph = getattr(s, 'graph', '')
+        claims = C.pin_claims(target, graph, manager=self.manager)
+        periph = C.peripheral_claims(target, graph, manager=self.manager)
+        gen = C.register_settings(target, graph, manager=self.manager)
         if self.manager is not None:
             from cmod.cmod_basis import PinClaim, PeripheralClaim
             from board.board_basis import RegisterSetting, RegisterFieldSetting, SignalRoute
@@ -215,16 +266,20 @@ class FirmwareAPI(treeObject):
         RegisterFieldSettings/RegisterSetting values it produced + the board's own hardware-chain hops (BoardPin ->
         SocPin -> PinFunction -> PeripheralSignal -> Peripheral -> Register -> RegisterField), reusing
         `board.custom.hardware_chain.chain_for` over the SAME live tables — never a second chain walk. This is the
-        frontend's Target-details "why" in one door."""
+        frontend's Target-details "why" in one door. ucd-0b2b: `name` may be '<solution>@<board>' — answers for the
+        NAMED binding (default when `name` has no '@', same as before)."""
         import falcon
         s = self._solution(name, response)
         if s is None:
             return
         from cmod.custom import claims as C
+        from cmod.custom import binding as BND
         from board.custom import board_object as BO
         from board.custom import hardware_chain as HC
-        chain = self._claims_chain(s)
-        claim = next((c for c in chain['claims'] if c['name'] == '%s:%s' % (name, canonical)), None)
+        b = BND.resolve(name, manager=self.manager)
+        chain = self._claims_chain(s, binding=b)
+        naming = s.name if (b is None or b.get('is_default', True)) else b['name']
+        claim = next((c for c in chain['claims'] if c['name'] == '%s:%s' % (naming, canonical)), None)
         # an unclaimed pin is NOT an error: the page still shows the board's own chain for it, with claim = null
         # ("no task claims this pin in <solution>"); only a pin the board does not have refuses (chain_for's KeyError)
         field_settings = [f for f in chain['field_settings'] if claim and f['pin_claim'] == claim['name']]
@@ -232,20 +287,21 @@ class FirmwareAPI(treeObject):
                              if r['name'] in {f['register_setting'] for f in field_settings}]
         routes = [r for r in chain['routes'] if claim and r['pin_claim'] == claim['name']]
         tables = C._chain_tables(self.manager)
+        board = (b or {}).get('board') or getattr(s, 'board_resolved', '') or getattr(s, 'board_definition', '')
         try:
-            hops = HC.chain_for(getattr(s, 'board_resolved', '') or getattr(s, 'board_definition', ''), canonical, tables)
+            hops = HC.chain_for(board, canonical, tables)
         except KeyError as e:
             response.status = falcon.HTTP_404
             response.media = {'ok': False, 'error': '%s (GET /api/board/<board>/pins lists them)' % e.args[0], 'solution': name, 'canonical': canonical}
             return
         except BO.BoardObjectRefused as e:
             hops = []
-            response.media = {'ok': True, 'solution': name, 'canonical': canonical, 'claim': claim,
-                              'field_settings': field_settings, 'register_settings': register_settings,
+            response.media = {'ok': True, 'solution': name, 'binding': (b['name'] if b else name), 'canonical': canonical,
+                              'claim': claim, 'field_settings': field_settings, 'register_settings': register_settings,
                               'routes': routes, 'hops': hops, 'hops_why': str(e)}
             return
-        response.media = {'ok': True, 'solution': name, 'canonical': canonical, 'claim': claim,
-                          'field_settings': field_settings, 'register_settings': register_settings,
+        response.media = {'ok': True, 'solution': name, 'binding': (b['name'] if b else name), 'canonical': canonical,
+                          'claim': claim, 'field_settings': field_settings, 'register_settings': register_settings,
                           'routes': routes, 'hops': hops}
 
     def on_get_valid_targets(self, request, response, name, task):
@@ -348,9 +404,18 @@ class FirmwareAPI(treeObject):
         response.media = dict(r, solution=name)
 
     def on_post_assign(self, request, response, name):
+        """ucd-0b2b: `name` may be '<solution>@<board>' — binds onto that SPECIFIC HardwareBinding's own
+        RegisterAssignment rows (the default binding when `name` has no '@', unchanged pre-0b2b behaviour and row
+        naming)."""
         import falcon
         s = self._solution(name, response)
         if s is None:
+            return
+        from cmod.custom import binding as BND
+        b = BND.resolve(name, manager=self.manager)
+        if b is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no HardwareBinding resolvable for %r' % name}
             return
         try:
             body = json.loads(request.bounded_stream.read() or b'{}')
@@ -364,13 +429,16 @@ class FirmwareAPI(treeObject):
             return
         # fs-2a (his ruling 2026-10-06): an invalid drop is REFUSED — compat says no, the pin is power/ground, or a
         # non-cooperating conflict. 'undetermined' is allowed, with a warning in the response (never silently guessed).
+        # ucd-0b2b: occupancy is scoped to THIS binding (`binding_name=b['name']`) — two bindings of the same
+        # solution never see each other's claims as a false conflict.
         from cmod.custom import firmware as FW
-        drop_ok, drop_status, drop_why = FW.check_drop(s.graph, name, task, lives_on, manager=self.manager)
+        drop_ok, drop_status, drop_why = FW.check_drop(s.graph, s.name, task, lives_on, manager=self.manager, binding_name=b['name'])
         if not drop_ok:
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': True, 'error': drop_why, 'task': task, 'lives_on': lives_on}
             return
-        row_name = '%s:%s%s' % (name, task, ('.' + port) if port else '')
+        naming = s.name if b.get('is_default', True) else b['name']
+        row_name = '%s:%s%s' % (naming, task, ('.' + port) if port else '')
         existing = next((r for r in self._rows('RegisterAssignment') if r.name == row_name), None)
         status = 'unbound' if lives_on in ('', 'unbound') else 'bound'
         if existing is not None and self.manager is not None:
@@ -385,11 +453,13 @@ class FirmwareAPI(treeObject):
                 merged.update({k: v for k, v in config.items() if k in ('mode', 'pull', 'edge', 'initial')})
                 existing.config_json = json.dumps(merged)
             self.manager.saveObjToDB(existing) if hasattr(self.manager, 'saveObjToDB') else None
-            resp = {'ok': True, 'assignment': self._d(existing), 'how': 'updated in place (canvas-set, fs-1\'s drag)'}
+            resp = {'ok': True, 'assignment': self._d(existing), 'binding': b['name'],
+                    'how': 'updated in place (canvas-set, fs-1\'s drag)'}
             if drop_status == 'undetermined':
                 resp['warning'] = drop_why
             response.media = resp
             return
-        response.media = {'ok': False, 'error': 'no existing RegisterAssignment row %r to assign onto (fs-0 does not create '
-                                                'new targets — only (fs-1\'s drag over) a derived one, task %r port %r)'
-                                                % (row_name, task, port)}
+        response.media = {'ok': False, 'binding': b['name'],
+                          'error': 'no existing RegisterAssignment row %r to assign onto (fs-0 does not create '
+                                   'new targets — only (fs-1\'s drag over) a derived one, task %r port %r)'
+                                   % (row_name, task, port)}

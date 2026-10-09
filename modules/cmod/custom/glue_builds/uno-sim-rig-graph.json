@@ -305,7 +305,7 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-10-08T20:59:17",
+  "proven_at": "2026-10-08T23:50:13",
   "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
   "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
   "hand_edited": []

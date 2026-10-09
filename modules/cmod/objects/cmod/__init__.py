@@ -16,3 +16,4 @@ from cmod.objects.cmod.RegisterAssignment import RegisterAssignment  # noqa: F40
 from cmod.objects.cmod.FirmwareExport import FirmwareExport  # noqa: F401  (ucd-0f)
 from cmod.objects.cmod.PinClaim import PinClaim  # noqa: F401  (ucd-0b)
 from cmod.objects.cmod.PeripheralClaim import PeripheralClaim  # noqa: F401  (ucd-0b)
+from cmod.objects.cmod.HardwareBinding import HardwareBinding  # noqa: F401  (ucd-0b2b)

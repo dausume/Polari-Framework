@@ -24,9 +24,10 @@ class SignalRoute(treeObject):
     def __init__(self, name: str = '', solution: str = '', pin_claim: str = '', board_pin: str = '', soc_pin: str = '',
                  pin_function: str = '', signal: str = '', peripheral: str = '', routing: str = 'fixed',
                  configuration_refs_json: str = '[]', status: str = 'planned', provenance: str = 'derived',
-                 notes: str = '', manager=None):
+                 binding: str = '', notes: str = '', manager=None):
         self.name = name                    # '<solution>:<canonical>:<function>' (uno-button-clock:D3:INT1)
         self.solution = solution            # the FirmwareSolution row
+        self.binding = binding              # ucd-0b2b: the HardwareBinding row this route belongs to ('' pre-0b2b rows)
         self.pin_claim = pin_claim          # the PinClaim row (cmod) that selected this route
         self.board_pin = board_pin          # the BoardPin row name
         self.soc_pin = soc_pin              # the SocPin row name
