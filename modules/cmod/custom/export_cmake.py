@@ -229,7 +229,11 @@ def export(fs, manager=None, target='both', out_root=None, verify_build=False):
     """Write the export directory + tar.gz for one FirmwareSolution (dict or row). -> the FirmwareExport row fields
     (+ 'files'). Raises ExportRefused with the reason (no graph, no rendered project, validation refused)."""
     from cmod.custom import firmware as FW
-    fsd = fs if isinstance(fs, dict) else {k: getattr(fs, k, '') for k in ('name', 'title', 'graph', 'purpose', 'board_definition', 'board_variable')}
+    sol, bnd = FW.as_solution_target(fs, manager=manager)
+    guard = FW._binding_build_guard(bnd, sol)
+    if guard:
+        raise ExportRefused(guard)
+    fsd = sol if isinstance(sol, dict) else {k: getattr(sol, k, '') for k in ('name', 'title', 'graph', 'purpose', 'board_definition', 'board_variable')}
     solution = fsd.get('name', '')
     if target not in ('both', 'board', 'twin'):
         raise ExportRefused('target %r is not both | board | twin' % target)

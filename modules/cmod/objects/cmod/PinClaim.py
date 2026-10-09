@@ -33,9 +33,11 @@ class PinClaim(treeObject):
                  task: str = '', port: str = '', assignment: str = '', requirement_kind: str = 'undetermined',
                  mode: str = 'undetermined', pin_function: str = '', pull: str = 'none', edge: str = 'none',
                  initial: str = 'none', rule: str = '', provenance: str = 'derived', status: str = 'ok',
-                 why: str = '', notes: str = '', manager=None):
-        self.name = name                        # '<solution>:<canonical>' ('uno-sim-rig:D6')
-        self.solution = solution                # the FirmwareSolution row
+                 why: str = '', binding: str = '', notes: str = '', manager=None):
+        self.name = name                        # '<solution>:<canonical>' ('uno-sim-rig:D6') for the default binding;
+                                                  # '<binding>:<canonical>' for a non-default one (ucd-0b2b)
+        self.solution = solution                # the FirmwareSolution row (the base solution — never the binding name)
+        self.binding = binding                  # ucd-0b2b: the HardwareBinding row this claim belongs to ('' pre-0b2b rows)
         self.board = board                      # the BoardDefinition name
         self.board_pin = board_pin               # the BoardPin row name ('<board>:<canonical>')
         self.soc_pin = soc_pin                   # the SocPin row name ('<soc>:<pin>')

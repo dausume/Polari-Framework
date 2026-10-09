@@ -1343,6 +1343,9 @@ class polariServer(treeObject):
             # PeripheralClaim per peripheral/channel a solution holds (exclusive/shared) — observed rows, materialized
             # on every GET of the solution, never seeded
             PinClaim, PeripheralClaim,
+            # ucd-0b2b: the hardware-specific mask laying a FirmwareSolution over one board (his ruling 2026-10-08) —
+            # one default per solution, converged at boot; a person's own (canvas) binding is kept across a reseed
+            HardwareBinding,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

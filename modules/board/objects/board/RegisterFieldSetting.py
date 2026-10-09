@@ -23,9 +23,11 @@ class RegisterFieldSetting(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', solution: str = '', register_setting: str = '', register_field: str = '',
                  value: str = '', meaning: str = '', pin_claim: str = '', peripheral_claim: str = '', task: str = '',
-                 rule: str = '', status: str = 'planned', provenance: str = 'derived', notes: str = '', manager=None):
+                 rule: str = '', status: str = 'planned', provenance: str = 'derived', binding: str = '',
+                 notes: str = '', manager=None):
         self.name = name                    # '<solution>:<REGISTER>.<FIELD>:<phase>' (uno-button-clock:EICRA.ISC1:init)
         self.solution = solution
+        self.binding = binding              # ucd-0b2b: the HardwareBinding row this setting belongs to ('' pre-0b2b rows)
         self.register_setting = register_setting  # the RegisterSetting row name
         self.register_field = register_field      # the RegisterField row name ('<soc>:EICRA.ISC1')
         self.value = value                  # '01'

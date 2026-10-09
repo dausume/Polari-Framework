@@ -12,7 +12,8 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 """
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                              TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
-                             FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim)
+                             FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
+                             HardwareBinding)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
@@ -92,3 +93,12 @@ CMOD_SEED_PAIRS = [
     ('PinClaim', PinClaim, []),
     ('PeripheralClaim', PeripheralClaim, []),
 ]
+
+# ucd-0b2b (§5h, his ruling: "we should have hardware specific objects that are bindings or masks that bind to the
+# solutions"): ONE default HardwareBinding per seeded FirmwareSolution, derived from its resolved board — converges
+# at boot same as everything above (`_owned`'s keep list spares only `notes`); a person's own canvas-added binding
+# is POST-created (cmod.custom.binding.create), never seeded, and is KEPT across a reseed (its own row is never in
+# this list, so `_converge` never touches it).
+from cmod.custom import binding as _BND
+BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None),) if _b is not None]
+CMOD_SEED_PAIRS.append(('HardwareBinding', HardwareBinding, _owned(BINDING_ROWS, keep=('notes',))))

@@ -23,9 +23,11 @@ class RegisterSetting(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', solution: str = '', register: str = '', phase: str = 'init', value: str = '',
                  value_bits: str = '', write_mask: str = '', field_settings_refs_json: str = '[]', source_file: str = '',
-                 source_line: int = 0, status: str = 'planned', provenance: str = 'derived', notes: str = '', manager=None):
+                 source_line: int = 0, status: str = 'planned', provenance: str = 'derived', binding: str = '',
+                 notes: str = '', manager=None):
         self.name = name                    # '<solution>:<REGISTER>:<phase>' (uno-button-clock:EICRA:init)
         self.solution = solution            # the FirmwareSolution row
+        self.binding = binding              # ucd-0b2b: the HardwareBinding row this setting belongs to ('' pre-0b2b rows)
         self.register = register            # the Register row name ('<soc>:EICRA')
         self.phase = phase                  # init | runtime
         self.value = value                  # '0x05'

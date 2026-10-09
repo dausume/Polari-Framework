@@ -2,15 +2,21 @@
 @module cmod.custom.firmware_cli
 
 `pol firmware` — fs-0 (DEMONSTRABLES_PLAN.md §9): FirmwareSolutions (a CGraph + a board in, a firmware build out).
+ucd-0b2b (§5h, his ruling 2026-10-08): every verb that took `<solution>` also accepts `<solution>@<board>` (a
+specific HardwareBinding — the default binding when omitted, unchanged).
 
     list                          every FirmwareSolution row
-    show <solution>                its DERIVED schedule (lane/order/trigger) + register map (bound/unbound/conflict)
-    validate <solution>            re-run validate() now: board exists + usable, targets named, no pin conflicts
+    show <solution>[@<board>]      its DERIVED schedule (lane/order/trigger) + register map (bound/unbound/conflict)
+    validate <solution>[@<board>]  re-run validate() now: board exists + usable, targets named, no pin conflicts
     build <solution>                cmod-glue render+build (reused) — refuses if validate() fails first
     run <solution> --mode digital-twin|hardware
                                    validate -> build's twin proof, or the detected board's flash route
-    assign <solution> --task T --port P --pin <BoardPin>
+    assign <solution>[@<board>] --task T --port P --pin <BoardPin>
                                    the door the pin-map drag (fs-1) will call
+    bindings [<solution>]          every HardwareBinding (or just one solution's) with status/why
+    bind <solution> --board <board>
+                                   a NEW HardwareBinding over `solution` (a dry-run preview — PURE, no manager; a
+                                   running server's POST /api/firmware/solutions/{name}/bindings persists it)
 """
 import json
 import sys
@@ -18,12 +24,25 @@ import sys
 
 def _solution(name):
     from cmod.cmod_seed import CMOD_SEED_PAIRS
+    sol_name = (name or '').partition('@')[0]
     for n, _cls, rs in CMOD_SEED_PAIRS:
         if n == 'FirmwareSolution':
             for r in rs:
-                if r['name'] == name:
+                if r['name'] == sol_name:
                     return r
     return None
+
+
+def _target(name):
+    """(solution_name, binding_dict_or_None) — binding is None for a bare solution name (every verb's pre-0b2b
+    behavior, unchanged: claims.py's thin wrapper resolves the default binding itself); set to the resolved
+    HardwareBinding dict when `name` carries '@board' (ucd-0b2b). PURE (manager=None) — this CLI never touches a
+    running server's own rows."""
+    from cmod.custom import binding as BND
+    sol_name, rest = BND.parse_target(name)
+    if not rest:
+        return sol_name, None
+    return sol_name, BND.resolve(name, manager=None)
 
 
 def _list():
@@ -103,7 +122,8 @@ def _assign(name, task, port, pin):
     if not task or not pin:
         print('usage: pol firmware assign <solution> --task <task> [--port <port>] --pin <BoardPin|unbound>')
         return 2
-    ok, status, why = FW.check_drop(fs['graph'], name, task, pin, manager=None)
+    sol_name, b = _target(name)
+    ok, status, why = FW.check_drop(fs['graph'], sol_name, task, pin, manager=None, binding_name=(b['name'] if b else None))
     if not ok:
         print('refused: %s' % why)
     elif status == 'undetermined':
@@ -118,15 +138,17 @@ def _assign(name, task, port, pin):
 def _claims(name, as_json):
     """ucd-0b: pin claims + peripheral claims + register settings (+ their field lines) — the PURE, seed-time
     derivation (no manager, no persisted canvas overrides); a running server's GET /api/firmware/solutions/<name>
-    carries the live, materialized rows instead."""
+    carries the live, materialized rows instead. ucd-0b2b: `name` may be '<solution>@<board>'."""
     from cmod.custom import claims as C
     fs = _solution(name)
     if fs is None:
         print('no FirmwareSolution %r (pol firmware list)' % name)
         return 2
-    pins = C.pin_claims(name, fs['graph'])
-    periph = C.peripheral_claims(name, fs['graph'])
-    gen = C.register_settings(name, fs['graph'])
+    sol_name, b = _target(name)
+    target = b if b is not None else sol_name
+    pins = C.pin_claims(target, fs['graph'])
+    periph = C.peripheral_claims(target, fs['graph'])
+    gen = C.register_settings(target, fs['graph'])
     if as_json:
         print(json.dumps({'claims': pins, 'peripheral_claims': periph, 'register_settings': gen['RegisterSetting'],
                           'field_settings': gen['RegisterFieldSetting'], 'routes': gen['SignalRoute']}, indent=1))
@@ -170,10 +192,52 @@ def _export(name, target, out, verify, as_json):
     return 0 if row['status'] != 'refused' else 1
 
 
+def _bindings(name):
+    """ucd-0b2b: `pol firmware bindings [<solution>]` — every HardwareBinding (just one solution's default, pure/
+    seed-time path) with status/why. PURE: a running server may carry MORE bindings (a canvas-added one); this CLI
+    only ever sees the one converged default, named so."""
+    from cmod.custom import binding as BND
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    if name:
+        sols = [name]
+    else:
+        sols = [r['name'] for r in next((rs for n, _c, rs in CMOD_SEED_PAIRS if n == 'FirmwareSolution'), [])]
+    for sol_name in sols:
+        b = BND.derive(sol_name, manager=None)
+        if b is None:
+            print('no FirmwareSolution %r (pol firmware list)' % sol_name)
+            continue
+        print('%-28s board=%-16s default=%-5s [%s] %d/%d met' % (b['name'], b['board'], b['is_default'], b['status'],
+                                                                   b['requirements_met'], b['requirements_total']))
+        if b['why']:
+            print('  why: %s' % b['why'])
+    print('(PURE/seed-time: a running server may carry more bindings — GET /api/firmware/bindings lists them all)')
+    return 0
+
+
+def _bind(name, board):
+    """ucd-0b2b: `pol firmware bind <solution> --board <board>` — a dry-run PREVIEW of a new HardwareBinding (never
+    persisted; a running server's POST /api/firmware/solutions/{name}/bindings does the real create)."""
+    from cmod.custom import binding as BND
+    if _solution(name) is None:
+        print('no FirmwareSolution %r (pol firmware list)' % name)
+        return 2
+    if not board:
+        print('usage: pol firmware bind <solution> --board <board>')
+        return 2
+    b = BND.create(name, board, manager=None)
+    print('%s [%s] %d/%d requirement(s) met' % (b['name'], b['status'], b['requirements_met'], b['requirements_total']))
+    if b['why']:
+        print('  why: %s' % b['why'])
+    print('(dry run — PURE preview, not persisted; against a RUNNING server use '
+          'POST /api/firmware/solutions/%s/bindings {"board": %r})' % (name, board))
+    return 0
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol firmware')
-    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export', 'claims'))
+    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export', 'claims', 'bindings', 'bind'))
     ap.add_argument('--target', dest='target_kind', default='both', choices=('both', 'board', 'twin'))   # export
     ap.add_argument('--out', default=None)        # export: the directory to write under (default module_home('exp'))
     ap.add_argument('--verify', action='store_true')   # export: run the exported CMake build on the engines rung + compare shas
@@ -183,15 +247,18 @@ def main(argv):
     ap.add_argument('--task', default='')
     ap.add_argument('--port', default='')
     ap.add_argument('--pin', default='')
+    ap.add_argument('--board', default='')   # bind: the board a new HardwareBinding lays the solution over
     a = ap.parse_args(argv)
     if a.verb == 'list':
         return _list()
+    if a.verb == 'bindings':
+        return _bindings(a.target)
     if not a.target:
         print('usage: pol firmware %s <solution>   (pol firmware list)' % a.verb)
         return 2
     return {'export': lambda: _export(a.target, a.target_kind, a.out, a.verify, a.json), 'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
             'run': lambda: _run(a.target, a.mode), 'assign': lambda: _assign(a.target, a.task, a.port, a.pin),
-            'claims': lambda: _claims(a.target, a.json)}[a.verb]()
+            'claims': lambda: _claims(a.target, a.json), 'bind': lambda: _bind(a.target, a.board)}[a.verb]()
 
 
 if __name__ == '__main__':

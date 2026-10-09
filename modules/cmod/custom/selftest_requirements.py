@@ -84,8 +84,10 @@ def _widened_register_assignment(check):
     check('every RegisterAssignment row carries peripheral/signal/bus/signal_route/configuration (additive — the class constructs)',
           all(hasattr(RA(**{k: v for k, v in r.items()}), 'signal_route') for r in rows[:1])
           and all(all(k in r for k in ('peripheral', 'signal', 'bus', 'signal_route', 'configuration')) for r in rows))
-    check('configuration is the solution name (explicit today — the HardwareBinding split is a rename later, never a migration)',
-          all(r['configuration'] == SOLUTION for r in rows))
+    check('configuration is the DEFAULT HardwareBinding\'s own name (ucd-0b2b: the HardwareBinding split, not a '
+          'rename-later; the row NAME itself stays <solution>:<task>.<port> for the default binding)',
+          all(r['configuration'] == 'uno-sim-rig@arduino-uno-r3' for r in rows)
+          and all(r['name'].startswith(SOLUTION + ':') for r in rows))
     check('peripheral/signal/bus stay \'\' today — this deriver only ever binds by lives_on',
           all(r['peripheral'] == '' and r['signal'] == '' and r['bus'] == '' for r in rows))
     by_pin = {r['lives_on']: r for r in rows if r['lives_on'] != 'unbound'}

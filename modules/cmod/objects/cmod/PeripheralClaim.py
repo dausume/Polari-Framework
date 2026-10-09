@@ -27,9 +27,12 @@ class PeripheralClaim(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', solution: str = '', peripheral: str = '', channel: str = '',
                  tasks_json: str = '[]', usage: str = 'exclusive', registers_json: str = '[]', rule: str = '',
-                 status: str = 'ok', why: str = '', provenance: str = 'derived', notes: str = '', manager=None):
-        self.name = name                 # '<solution>:<peripheral>[:<channel>]' ('uno-sim-rig:TIMER0:A')
-        self.solution = solution         # the FirmwareSolution row
+                 status: str = 'ok', why: str = '', provenance: str = 'derived', binding: str = '',
+                 notes: str = '', manager=None):
+        self.name = name                 # '<solution>:<peripheral>[:<channel>]' ('uno-sim-rig:TIMER0:A') for the
+                                          # default binding; '<binding>:<peripheral>[:<channel>]' otherwise (ucd-0b2b)
+        self.solution = solution         # the FirmwareSolution row (the base solution — never the binding name)
+        self.binding = binding           # ucd-0b2b: the HardwareBinding row this claim belongs to ('' pre-0b2b rows)
         self.peripheral = peripheral     # the Peripheral row name ('<soc>:TIMER0')
         self.channel = channel           # '' | 'A' | 'B' | '0' … (a channel of the peripheral, when it has one)
         self.tasks_json = tasks_json     # ["task", …] — every CGraphNode instance touching this peripheral/channel
