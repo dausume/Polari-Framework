@@ -120,7 +120,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
           ]),
     _page('c-canvas', 'c-canvas',
           'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3): the EXISTING canvas, not a second editor — '
-          'a graph picker, Render/Build/Prove buttons over `pol cmod render | build | prove`, and the atom/target/capability rows the '
+          'a graph picker, Render/Build/Prove buttons over `pol cmod render | build | prove`, and the atom/target/purpose rows the '
           'badges on the canvas come from. Linked from /display/c-atoms and /display/hardware-solutions; this page is the canvas\'s own '
           'home (D-demo-3: embedded where it belongs, not a third place).',
           'CGraph', [
@@ -156,22 +156,23 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'structural field edge).',
                               columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
                               column_formats='graph:ref:CGraph')], min_height=320),
-              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Capabilities — a named, reusable ability over a graph (his worked examples: '
+              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Purposes — a named, reusable grouping of tasks over a graph (his worked examples: '
                               '"temperature sensor solution", "data is retrieved from a temp sensor and gets sent back over USB to the OS", '
                               '"the OS turns the board\'s LED on and off on command"), with the targets it requires, the fields it exposes, '
-                              'and its status DERIVED from its acceptance proof (hw priorities P1)', 'CapabilityDefinition',
-                              description='What this is for: a TEMPLATE capability, generalized from targets. One row = one capability. '
+                              'and its status DERIVED from its acceptance proof (hw priorities P1; D-ucd-12: a task may belong to several '
+                              'Purposes)', 'CapabilityDefinition',
+                              description='What this is for: a TEMPLATE Purpose, generalized from targets. One row = one Purpose. '
                                           'Columns: goal (the one-sentence claim, his words), status (planned | proven-on-twin | '
                                           'proven-on-hardware | failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never '
                                           'hand-set), last_proof, required_targets (the port_refs it needs bound), exposes_fields (what it '
-                                          'makes available once wired — temp_c), instance_count (how many CapabilityInstance rows use it, '
+                                          'makes available once wired — temp_c), instance_count (how many instance rows use it, '
                                           'below).',
                               columns='name,title,goal,status,last_proof,required_targets,exposes_fields,instance_count',
                               column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario'),
-                       _table('c-canvas-instances', 1, 6, 'Capability instances — one row per USE of a capability (two here: "define '
+                       _table('c-canvas-instances', 1, 6, 'Purpose instances — one row per USE of a Purpose (two here: "define '
                               'multiple temperature sensors" proven as rows, not just a template)', 'CapabilityInstance',
-                              description='What this is for: ONE use of a capability. One row = one instance. Columns: index (1, 2, … among '
-                                          "this capability's instances), bindings (its targets' current lives_on, 'unbound' until a person "
+                              description='What this is for: ONE use of a Purpose. One row = one instance. Columns: index (1, 2, … among '
+                                          "this Purpose's instances), bindings (its targets' current lives_on, 'unbound' until a person "
                                           'ties this specific instance to a board pin — demo-5), status.',
                               columns='name,capability,index,bindings,status',
                               column_formats='capability:ref:CapabilityDefinition,graph:ref:CGraph')], min_height=200),
@@ -186,7 +187,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
           '/display/hardware-chain.', 'FirmwareSolution', [
               _row(0, [_firmware_panel('firmware-panel-lean', 0, 12, 'Firmware no-code — pick a solution, bind targets to pins, export',
                                        '/api/firmware/solutions', initial='uno-sim-rig',
-                                       description='Pick a Firmware Solution. LEFT: its tasks grouped by capability. MIDDLE: the derived '
+                                       description='Pick a Firmware Solution. LEFT: its tasks grouped by Purpose. MIDDLE: the derived '
                                                    'schedule. RIGHT: the board\'s pin map — select a task, then a valid (outlined) pin, '
                                                    'confirm Register. EXPORT (top bar): writes the CMake project + README + manifest, '
                                                    'verifies it rebuilds on the engines image to the same hex sha, and gives the download.')],
@@ -213,21 +214,21 @@ SEED_CMOD_PAGE_DISPLAYS = [
               _row(0, [_firmware_panel('firmware-solution-panel', 0, 12, 'The firmware canvas — tasks · schedule · register map (drag a target onto a pin)',
                                        '/api/firmware/solutions', initial='uno-sim-rig',
                                        description='What this is for: THE DEMONSTRABLE (fs-1) — pick a FirmwareSolution; LEFT lists its '
-                                                   'tasks (name, kind, ports, resources, cost, lane), GROUPED by Capability (hw priorities '
-                                                   'P1 — the solution payload\'s capabilities field names which Capability each task belongs '
-                                                   'to); MIDDLE lays its schedule out in four '
+                                                   'tasks (name, kind, ports, resources, cost, lane), GROUPED by Purpose (hw priorities '
+                                                   'P1 — the solution payload\'s purposes field names which Purpose(s) each task belongs '
+                                                   'to; D-ucd-12: a task may belong to several); MIDDLE lays its schedule out in four '
                                                    'DERIVED lanes (init · isr · tick · loop, D-fs-1 — never authored), called tasks nested '
                                                    'under their caller; RIGHT draws the board\'s own pin map with bound pins coloured by '
                                                    'lane and unbound targets as chips — drag a chip onto a pin (or select it and click a '
                                                    'pin) to bind it (D-fs-2, `POST .../assign`); a drop that would conflict with another '
                                                    'task\'s pin is refused, named, never silently overwritten.')], min_height=640),
-              _row(1, [_table('firmware-capabilities', 0, 12, 'Capabilities — hw priorities P1: the GOAL each group of tasks across runtimes '
+              _row(1, [_table('firmware-capabilities', 0, 12, 'Purposes — hw priorities P1: the GOAL each group of tasks across runtimes '
                               'achieves (his worked examples: "data is retrieved from a temp sensor and gets sent back over USB to the OS"; '
                               '"the OS turns the board\'s LED on and off on command"), its status DERIVED from its acceptance proof, and '
-                              'which tasks per runtime realise it', 'CapabilityDefinition',
+                              'which tasks per runtime realise it (D-ucd-12: a task may realise several Purposes)', 'CapabilityDefinition',
                               description='What this is for: THE THREAD that runs through the firmware/cross-domain/backend canvases — one '
                                           'row a person reads to ask "is this goal actually working" (HARDWARE_DEV_PRIORITIES.md §1). '
-                                          'One row = one CapabilityDefinition. Columns: goal (the one-sentence claim, his words), status '
+                                          'One row = one Purpose. Columns: goal (the one-sentence claim, his words), status '
                                           '(planned | proven-on-twin | proven-on-hardware | failing — DERIVED from the latest ScenarioRun of '
                                           'acceptance_scenario, never hand-set), last_proof (which run proved it, and when), '
                                           'tasks_by_runtime_json (c-device/java-bridge/python-backend/typescript-browser task refs), '

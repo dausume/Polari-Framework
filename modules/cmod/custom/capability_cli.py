@@ -45,7 +45,7 @@ def cmd_prove(a):
     from firmwarefaults.custom.sink import LocalSink
     cap = CAP.find(a.name)
     if cap is None:
-        print('[REFUSED] no capability %r (pol capability list)' % a.name)
+        print('[REFUSED] no Purpose %r (pol capability list)' % a.name)
         return 3
     ok, why = CAP.validate(cap)
     if not ok:
