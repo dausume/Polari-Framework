@@ -1261,6 +1261,8 @@ class polariServer(treeObject):
             AppBenchmark, TestCoveragePlan,
             # hw-app-1: hardware apps (KVM guests) + the relay / guest-network guests
             HardwareAppDefinition, HardwareAppState,
+            # ucd-2: a Hardware Bridge App's proven (or never-run) usb-serial BridgingCapability
+            BridgingCapability,
             RelayNodeDefinition, RelayNodeState,
             GuestNetworkDefinition, GuestNetworkExposure, GuestNetworkState,
             # hwm-1: the hardware map; voron: the printer as a hardware app
@@ -1354,7 +1356,9 @@ class polariServer(treeObject):
             # fs-0/fs-2: the Cross-Domain category's one new node kind (Bridge/Relay/API-call/Frontend-emit reuse existing kinds)
             FirmwareRunState,
             # ucd-1: the uno-button-clock demo's own derived ledger row (SimRigTempDerived's sibling)
-            ButtonClockDerived]
+            ButtonClockDerived,
+            # ucd-2: the UNO core demo's own readiness row — one per composed part + the composition's weakest-link status
+            DemoReadiness]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2440,6 +2444,8 @@ class polariServer(treeObject):
              + (SEED_PCB_PAGE_DISPLAYS or [])
              # hn-0: /display/hardware-solutions
              + (SEED_HWNOCODE_PAGE_DISPLAYS or [])
+             # ucd-2: /display/uno-core-demo-readiness
+             + (SEED_UNO_CORE_DEMO_PAGE_DISPLAYS or [])
              # ci-8: /display/cicd, cicd-stages, cicd-runs, cicd-releases
              + (SEED_CICD_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
@@ -3342,6 +3348,8 @@ class polariServer(treeObject):
              + (SEED_VORON_HARDWARE_APPS or []) + (SEED_PRINTCAM_HARDWARE_APPS or [])
              # vpn-4: the VPN guests (own guest) + router extensions
              + (SEED_VPN_HARDWARE_APPS or [])),
+            # ucd-2: the Polari Firmware Installer's never-run BridgingCapability (FIRMWARE_EXPORT_PLAN §2b)
+            ('BridgingCapability', BridgingCapability, SEED_BRIDGING_CAPABILITIES or []),
         ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or []) \
           + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or []) + list(SUITEAPPS_SEED_PAIRS or []) \
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
@@ -3349,6 +3357,7 @@ class polariServer(treeObject):
           + list(CICD_SEED_PAIRS or []) \
           + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) \
           + list(HWNOCODE_SEED_PAIRS or []) \
+          + list(UNO_CORE_DEMO_SEED_PAIRS or []) \
           + list(PCB_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),

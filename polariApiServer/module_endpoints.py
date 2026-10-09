@@ -487,6 +487,13 @@ def construct_suiteapps_endpoints(polServer):
     suiteAppsEndpoint = SuiteAppsAPI(polServer=polServer, manager=manager)
 
 
+def construct_uno_core_demo_endpoints(polServer):
+    # ucd-2: GET /api/uno-core-demo/readiness
+    manager = polServer.manager
+    from uno_core_demo.uno_core_demo_api import UnoCoreDemoAPI
+    unoCoreDemoEndpoint = UnoCoreDemoAPI(polServer=polServer, manager=manager)
+
+
 def construct_printing_suite_endpoints(polServer):
     manager = polServer.manager
     from printing_suite.printing_suite_api import PrintingSuiteAPI
@@ -590,6 +597,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'firmwarefaults': construct_firmwarefaults_endpoints,
     'cmod': construct_cmod_endpoints,
     'hwnocode': construct_hwnocode_endpoints,
+    'uno_core_demo': construct_uno_core_demo_endpoints,
     'cicd': construct_cicd_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,

@@ -764,6 +764,21 @@
    "tier": "optional",
    "description": "Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware — a HardwareSolution ties a backend solution to a cmod CGraph (the hardware subgraph), the board/twin, the hw-interface (the split point) and its displays; the placement rule derives where every node runs and refuses Python on a device (RULE 2); hn-split renders the board half through cmod-glue; the runtime suggestion is shown, never applied."
   },
+  "uno_core_demo": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/uno_core_demo",
+   "repo": "https://github.com/dausume/polari-module-uno-core-demo.git",
+   "requires": [
+    "board",
+    "cmod",
+    "hwnocode",
+    "grpcbridge",
+    "electrodevice"
+   ],
+   "tier": "optional",
+   "description": "The UNO core demo (ucd arc): a Polari Hardware App of realization `bridge` whose manifest NAMES the three parts a bare-bones proof combines — a Firmware Solution (uno-button-clock), a Hardware Bridge (ButtonClockState/ButtonClockEvent on the button-clock HardwareBridgeDefinition) and a Polari app component (button-clock-ledger + /display/uno-core-demo) — composed as one Cross-Domain Solution, plus the breadboard circuit and the Purpose. Derives DemoReadiness (never seeded) over the six parts + the composition's weakest-link status."
+  },
   "mathproofs": {
    "kind": "official",
    "downloaded": true,

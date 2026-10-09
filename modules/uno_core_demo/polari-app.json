@@ -1,0 +1,137 @@
+{
+ "schema": "polari-app/1",
+ "id": "uno_core_demo",
+ "package": "uno_core_demo",
+ "title": "Uno Core Demo",
+ "description": "The UNO core demo (ucd arc): \"a simple proof based on the arduino uno, that can show thoroughly that everything makes sense and works and talks to one another\" — a bare-bones firmware that keeps a date-time synced with the OS while one button simultaneously turns an LED on and off and an independent pin detects that switching, maintaining a struct on the microcontroller which gets sent back through a configured bridge through the kernel and the JavaFX app and up into Polari (his words, UNO_CORE_DEMO_PLAN.md §0). This module composes the demo's three parts by manifest — a Firmware Solution, a Hardware Bridge, and a Polari app component — as one Cross-Domain Solution, and derives each part's readiness (never a hand-set claim).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-uno-core-demo.git",
+ "app": {
+  "kind": "hardware-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "realization": "bridge",
+  "category": "hardware",
+  "subcategories": [],
+  "tags": [
+   "uno",
+   "firmware",
+   "bridge",
+   "demo"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board",
+   "cmod",
+   "electrodevice",
+   "grpcbridge",
+   "hwnocode"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/uno_core_demo/DemoReadiness"
+  ],
+  "basis": [
+   "uno_core_demo_basis"
+  ],
+  "api": [
+   "uno_core_demo_api"
+  ],
+  "page": [
+   "uno_core_demo_page"
+  ],
+  "selftests": [
+   "uno_core_demo_selftest"
+  ],
+  "custom": [
+   "custom/readiness"
+  ]
+ },
+ "classes": [
+  "DemoReadiness",
+  "UnoCoreDemoAPI"
+ ],
+ "imports": [
+  [
+   "uno_core_demo.uno_core_demo_basis",
+   [
+    "DemoReadiness",
+    "UNO_CORE_DEMO_SEED_PAIRS"
+   ]
+  ],
+  [
+   "uno_core_demo.uno_core_demo_page",
+   [
+    "SEED_UNO_CORE_DEMO_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_uno_core_demo_endpoints",
+ "seedPairs": "uno_core_demo.uno_core_demo_basis:UNO_CORE_DEMO_SEED_PAIRS",
+ "pages": [
+  "uno_core_demo.uno_core_demo_page:SEED_UNO_CORE_DEMO_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "uno_core_demo_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false,
+ "parts": {
+  "firmware": {
+   "class": "FirmwareSolution",
+   "name": "uno-button-clock"
+  },
+  "bridge": {
+   "class": "HardwareBridgeDefinition",
+   "name": "button-clock",
+   "state_class": "ButtonClockState",
+   "event_class": "ButtonClockEvent"
+  },
+  "polari_app": {
+   "solution": "button-clock-ledger",
+   "display": "uno-core-demo"
+  },
+  "cross_domain": {
+   "class": "SolutionDefinition",
+   "name": "uno-button-clock"
+  },
+  "circuit": {
+   "class": "CircuitDefinition",
+   "name": "uno-button-clock"
+  },
+  "purpose": {
+   "class": "CapabilityDefinition",
+   "name": "button-clock-to-os"
+  }
+ }
+}

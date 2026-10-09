@@ -17,7 +17,7 @@ def main():
     from hardwareapps.custom.domain_xml import render_domain
     from hardwareapps.custom.uci_profiles import render_uci
     from hardwareapps.hardwareapps_basis import HardwareAppDefinition, HARDWAREAPPS_CLASSES
-    check('two row classes', len(HARDWAREAPPS_CLASSES) == 2)
+    check('three row classes (ucd-2: + BridgingCapability)', len(HARDWAREAPPS_CLASSES) == 3)
     good = {'name': 'isle-relay', 'kind': 'hardware-app', 'role': 'relay', 'guest_kind': 'openwrt', 'vm_image_ref': 'openwrt-isle-router.qcow2',
             'image_sha256_raw': 'ab' * 32, 'memory_mb': 512, 'vcpus': 2, 'bridges_json': '["br-mgmt", "isle-br-0"]',
             'uci_profile': 'relay', 'uci_params_json': '{"uci": "relay", "vlan": 30, "cidr": "10.30.0.0/24", "ssid": "isle-relay"}'}

@@ -109,6 +109,8 @@ DEFAULTS = {
     'iso': ('polari', ['platform-operations'], ['iso', 'ubuntu', 'installer']),
     'suiteapps': ('polari', ['platform-operations'], ['suites']),
     'hardwareapps': ('polari', ['platform-operations', 'network-devices'], ['hardware apps', 'kvm']),
+    # ucd-2: the UNO core demo — a Hardware Bridge App (the manifest's own category/tags win; this is the fallback)
+    'uno_core_demo': ('hardware', [], ['uno', 'firmware', 'bridge', 'demo']),
     'islemesh': ('polari', ['platform-operations', 'isle-guests'], ['isle', 'mesh']),
     'vpn': ('network', ['vpn-links'], ['wireguard', 'vpn']),
     'reticulum': ('network', ['mesh-radio', 'network-devices'], ['reticulum', 'lora', 'mesh']),

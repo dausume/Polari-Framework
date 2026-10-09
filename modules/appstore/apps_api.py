@@ -29,7 +29,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from appstore.custom import app_deb_builder as builder
 from appstore.custom import module_requirements as modreqs
 from moduleService.tier_reach import tiers_for, access_form, tier_notice, install_allowed
-from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, dev_deb_name, DEV_STANDING_WARNING, HARDWARE_KINDS, EXPANSION_KINDS
+from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, dev_deb_name, kind_title, DEV_STANDING_WARNING, HARDWARE_KINDS, EXPANSION_KINDS
 
 FLAVORS = ('online', 'offline')
 SPACE_MARGIN_BYTES = 200 * 1024 * 1024   # keep this much free after a generation
@@ -146,7 +146,7 @@ def status_of(module, flavor, registry=None, form='install'):
     job = builder.generation_job(module, flavor, form)
     app = manifest_app(module, entry=entry)
     hold = builder.pool_entry(pool['file']) if pool else {}
-    out = {'ok': True, 'module': module, 'flavor': flavor, 'form': form, 'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app),
+    out = {'ok': True, 'module': module, 'flavor': flavor, 'form': form, 'app_kind': app['kind'], 'kind_title': kind_title(app), 'title': app['title'], 'extends': app['extends'], 'group': group_of(app),
            'package': (access_deb_name(module, flavor) if form == 'access' else (dev_deb_name(module, flavor) if form == 'dev' else builder.deb_package_name(module) + ('-offline' if flavor == 'offline' else ''))),
            'dev_variant': ({'relaxes': app.get('devVariant', []), 'refuses_unless': 'the machine is in dev posture (never on a production route)', 'warning': DEV_STANDING_WARNING} if form == 'dev' else None),
            'refuses_at_install': ('a hardware app refuses on a lightweight (docker-swarm) isle or a non-hardware member' if app['kind'] in HARDWARE_KINDS else (f"refuses without {app['extends']} installed" if app['kind'] in EXPANSION_KINDS else '')) if form == 'install' else '', 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
@@ -260,7 +260,7 @@ class AppsAPI(treeObject):
             row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
             app = manifest_app(module, entry=entry)
-            row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app),
+            row.update({'app_kind': app['kind'], 'kind_title': kind_title(app), 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app),
                         'category': app['category'], 'subcategories': app['subcategories'], 'secondary_categories': app.get('secondary', []), 'tags': app['tags'], 'runs_on': tiers_for(app['kind'], app),
                         'core_exclusive': app.get('agentTier') == 'core', 'forms_on_tier': ({'install': install_allowed(app, request.params.get('tier')), 'access': True, 'dev': install_allowed(app, request.params.get('tier')) and _instance_dev} if request.params.get('tier') else None),
                         # ISLE_HARDENING_PLAN §17: the dev variant — which controls it relaxes; offered only on a dev-posture instance
