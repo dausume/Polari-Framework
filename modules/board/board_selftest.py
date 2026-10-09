@@ -366,6 +366,8 @@ def main():
     run_kit_parts(check)
     from board.board_chain_selftest import run_chain   # ucd-0a: THE HARDWARE CHAIN — rows, links both ways, the D3 walk
     run_chain(check)
+    from board.board_pinlevel_selftest import pin_parts   # ucd-0d: PIN-LEVEL forcing + pin-to-pin wiring on the twin
+    pin_parts(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
