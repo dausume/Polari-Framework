@@ -9,13 +9,13 @@
   "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
   "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b",
   "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
-  "pin_config.c": "80c7df727f1e0b29e2ccdda96f677a8a2105f278e1b673deb6b1142422d1ab83",
+  "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
   "polari_graph.c": "923fdd000e0807eab695899e6b43f4456ac9c70a2785f6f356e3da6b3d898096",
   "polari_graph.h": "16cf877176a538a7965dc6d90e288a289e9d765bdd849c2bf99244c1e57f55d4",
   "Makefile": "f372920382254cf53ca7ee91cb4439c620268a57c52456595b0fee7ef8fd1695"
  },
- "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
- "rendered_at": "2026-10-08T20:58:37",
+ "files_sha256": "c759a47e3c837dda48d56ba969702c0f5935daaa8d804e7f8f442c947757d5ed",
+ "rendered_at": "2026-10-09T00:30:43",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
@@ -45,7 +45,7 @@
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "176256595e86b9e969e9f676fb2d36f5d1e89f430c4ad95af201c91cbeb06919"
+   "sha256": "d1f26ebce1538e28943422d1f54a31776389f52af50e8da80176cac9a5a4bab3"
   }
  ],
  "cost_estimate": {
@@ -174,11 +174,11 @@
    },
    "explained_bytes": 274
   },
-  "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
+  "files_sha256": "c759a47e3c837dda48d56ba969702c0f5935daaa8d804e7f8f442c947757d5ed",
   "hand_edited": [],
   "stale": [],
   "measured_elf_sha256": "c729b6f258e00583835deee8e7ad86ea816422d16954aed2694450bf5de8daae",
-  "built_at": "2026-10-08T20:59:01"
+  "built_at": "2026-10-09T00:30:47"
  },
  "proof": {
   "equivalent": true,
@@ -305,14 +305,14 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-10-08T23:50:13",
+  "proven_at": "2026-10-09T00:30:57",
   "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
-  "files_sha256": "b7634555386884d493e80c3de5e7343cc75e4d7b62d8322dd954804537f48265",
+  "files_sha256": "c759a47e3c837dda48d56ba969702c0f5935daaa8d804e7f8f442c947757d5ed",
   "hand_edited": []
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-sim-rig-graph/polari-firmware.json",
-  "manifest_sha256": "700ba8f1632feec1d354e4fcb6672eba8b3439ac78b4b30b4550cd5491dc495d",
+  "manifest_sha256": "25b3a4e832cefa6ca35d50d928af4de130f9f1f8804b1307ae7a829bc0653d3e",
   "atoms": 17,
   "glue_atoms": [
    "polari_graph.apply_command",

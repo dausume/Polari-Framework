@@ -99,7 +99,7 @@
    "files": [
     {
      "path": "pin_config.c",
-     "sha256": "80c7df727f1e0b29e2ccdda96f677a8a2105f278e1b673deb6b1142422d1ab83"
+     "sha256": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c"
     },
     {
      "path": "pin_config.h",
@@ -1438,5 +1438,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-08T20:59:04"
+ "conformed_at": "2026-10-09T00:30:50"
 }

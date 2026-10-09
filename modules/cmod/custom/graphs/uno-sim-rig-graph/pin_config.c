@@ -17,7 +17,7 @@
 void pin_config_init(void)
 {
     /* uno-sim-rig:DDRB:init = 00100000 (write_mask 0x20)
-     *   DDB5     = 1     — the pin is configured as an output pin · claim uno-sim-rig:D13 · task led · rule ddr-from-digital-out
+     *   DDB5     = 1     — the pin is configured as an output pin · claim uno-sim-rig:D13 · task led_init · rule ddr-from-digital-out
      */
     PIN_CONFIG_D13_DDR = (uint8_t)((PIN_CONFIG_D13_DDR & (uint8_t)~(((uint8_t)0x01 << PIN_CONFIG_D13_BIT))) | (((uint8_t)0x01 << PIN_CONFIG_D13_BIT)));   /* bits outside write_mask 0x20 keep the chip's
                                     reset value */
