@@ -24,6 +24,18 @@ POST /api/capabilities/{name}/runs       body = a finished ScenarioRun record (t
                                           reads actually exists on the server those pages read (the proof-push rule:
                                           a proof counts only when its run row exists on the server). Stores the row,
                                           re-derives the capability's status and returns it. Never runs anything.
+POST /api/capabilities/{name}/attest     ucd-attest (his ruling 2026-10-09, "yes on attestation and overrides"): body
+                                          {"mode": "hardware"|"digital-twin", "board_instance"?, "observed", "outcome":
+                                          "passed"|"failed"} — a PERSON'S OWN confirmation of the Purpose's acceptance
+                                          Scenario, written as a ScenarioRun of kind='attested' (no engine runs —
+                                          nothing changes before this confirm). Refuses 422 when the capability has no
+                                          acceptance_scenario, and 400 when `observed` or a valid `outcome` is missing
+                                          (a person's words are required, never defaulted). Stamped with the acting
+                                          person's Keycloak subject id, read the SAME way every other door does
+                                          (`request.context.user_info['sub']`) — '' when the request carried none,
+                                          and the response says so rather than silently writing a blank attester.
+                                          Re-derives + persists the capability's status (same tail as /prove and
+                                          /runs) and returns {ok, run, status, last_proof, status_why, proof_kind}.
 """
 import inspect
 import json
@@ -42,6 +54,7 @@ class CapabilityAPI(treeObject):
             add('/api/capabilities/{name}', self, suffix='capability_one')
             add('/api/capabilities/{name}/prove', self, suffix='prove')
             add('/api/capabilities/{name}/runs', self, suffix='runs')
+            add('/api/capabilities/{name}/attest', self, suffix='attest')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -59,10 +72,17 @@ class CapabilityAPI(treeObject):
             response.media = {'ok': False, 'error': 'no CapabilityDefinition %r (GET /api/capabilities lists them)' % name}
         return hit[0] if hit else None
 
+    def _sub(self, request):
+        """The caller's opaque Keycloak subject id — the SAME read every other door uses (security_api.py's own
+        `_sub`): `request.context.user_info['sub']`, '' when the request carried no identity. Polari rows key a
+        person by `sub` alone (D18-1) — never a name."""
+        ui = getattr(getattr(request, 'context', None), 'user_info', None)
+        return str(ui.get('sub') or '') if isinstance(ui, dict) else ''
+
     def _summary(self, row):
         from cmod.custom import capabilities as CAP
         cap = self._d(row)
-        status, last_proof, why = CAP.derive_status(cap, manager=self.manager)
+        status, last_proof, why, proof_kind = CAP.derive_status(cap, manager=self.manager)
         if (status, last_proof) != (row.status, row.last_proof) and self.manager is not None:
             row.status, row.last_proof = status, last_proof
             db = getattr(self.manager, 'db', None)
@@ -70,6 +90,7 @@ class CapabilityAPI(treeObject):
                 db.saveInstanceInDB(row)
         cap['status'], cap['last_proof'] = status, last_proof
         cap['status_why'] = why
+        cap['proof_kind'] = proof_kind
         return cap
 
     def on_get_capabilities(self, request, response):
@@ -133,14 +154,14 @@ class CapabilityAPI(treeObject):
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': True, 'error': out['verdict_words'] or out['result'].get('why', '')}
             return
-        status, last_proof, swhy = CAP.derive_status(cap, manager=self.manager)
+        status, last_proof, swhy, proof_kind = CAP.derive_status(cap, manager=self.manager)
         if self.manager is not None:
             row.status, row.last_proof = status, last_proof
             db = getattr(self.manager, 'db', None)
             if db is not None and hasattr(db, 'saveInstanceInDB'):
                 db.saveInstanceInDB(row)
         response.media = {'ok': True, 'capability': name, 'mode': mode, 'run': out, 'status': status,
-                          'last_proof': last_proof, 'status_why': swhy}
+                          'last_proof': last_proof, 'status_why': swhy, 'proof_kind': proof_kind}
 
     def on_post_runs(self, request, response, name):
         """Store a ScenarioRun proved ELSEWHERE (the proof-push rule) and re-derive the capability's status from it.
@@ -175,10 +196,68 @@ class CapabilityAPI(treeObject):
         from firmwarefaults.custom.sink import ManagerSink
         sink = ManagerSink(self.manager)
         sink.upsert('ScenarioRun', run_row)
-        status, last_proof, swhy = CAP.derive_status(cap, manager=self.manager)
+        status, last_proof, swhy, proof_kind = CAP.derive_status(cap, manager=self.manager)
         row.status, row.last_proof = status, last_proof
         db = getattr(self.manager, 'db', None)
         if db is not None and hasattr(db, 'saveInstanceInDB'):
             db.saveInstanceInDB(row)
         response.media = {'ok': True, 'capability': name, 'run': run_row, 'status': status,
-                          'last_proof': last_proof, 'status_why': swhy}
+                          'last_proof': last_proof, 'status_why': swhy, 'proof_kind': proof_kind}
+
+    def on_post_attest(self, request, response, name):
+        """ucd-attest: a PERSON'S OWN confirmation, written as a ScenarioRun of kind='attested' — no engine runs,
+        nothing changes before this confirm. See the module docstring for the door's shape."""
+        import datetime
+        import falcon
+        row = self._capability(name, response)
+        if row is None:
+            return
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        from cmod.custom import capabilities as CAP
+        cap = self._d(row)
+        scen = cap.get('acceptance_scenario', '')
+        if not scen:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'Purpose %r has no acceptance_scenario — nothing to attest' % name}
+            return
+        observed = (body.get('observed') or '').strip()
+        outcome = body.get('outcome', '')
+        if not observed:
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': "'observed' is required: a person's own words on what was seen (never defaulted)"}
+            return
+        if outcome not in ('passed', 'failed'):
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': "'outcome' must be 'passed' or 'failed'"}
+            return
+        mode = body.get('mode', 'digital-twin')
+        if mode not in ('hardware', 'digital-twin'):
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': "'mode' must be 'hardware' or 'digital-twin'"}
+            return
+        sub = self._sub(request)
+        ran_at = datetime.datetime.now().isoformat(timespec='seconds')
+        who_words = sub if sub else 'an unauthenticated request (no signed-in person on this request)'
+        verdict_words = 'attested by %s: %s' % (who_words, observed)
+        run_row = {'name': '%s@attested@%s' % (scen, ran_at), 'scenario': scen, 'side': 'acceptance',
+                  'outcome': outcome, 'verdict_words': verdict_words, 'kind': 'attested', 'attested_by': sub,
+                  'observed': observed, 'board_instance': body.get('board_instance', '') or '',
+                  'repro_json': json.dumps({'mode': mode, 'scenario': scen, 'capability': name, 'attested': True}),
+                  'ran_at': ran_at, 'notes': "a person's confirmation (ucd-attest) — no engine ran"}
+        if self.manager is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'no live manager on this server to store an attestation on'}
+            return
+        from firmwarefaults.custom.sink import ManagerSink
+        sink = ManagerSink(self.manager)
+        sink.upsert('ScenarioRun', run_row)
+        status, last_proof, swhy, proof_kind = CAP.derive_status(cap, manager=self.manager)
+        row.status, row.last_proof = status, last_proof
+        db = getattr(self.manager, 'db', None)
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(row)
+        response.media = {'ok': True, 'capability': name, 'run': run_row, 'status': status,
+                          'last_proof': last_proof, 'status_why': swhy, 'proof_kind': proof_kind}

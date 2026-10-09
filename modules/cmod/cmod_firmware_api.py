@@ -84,6 +84,10 @@ class FirmwareAPI(treeObject):
             # own chain for the frontend's Target details ("why")
             add('/api/firmware/solutions/{name}/pins/{canonical}/chain', self, suffix='pin_chain')
             add('/api/firmware/solutions/{name}/hardware', self, suffix='hardware')   # ucd-scope: THE SCOPED chain
+            # ucd-attest: a person's own correction of one derived field (TargetDefinition.requirement_kind/.role,
+            # PinClaim.pull/edge/mode/initial, HardwareBinding.status) — kept beside the derivation, never over it
+            add('/api/firmware/overrides', self, suffix='overrides')
+            add('/api/firmware/overrides/{name}', self, suffix='override_one')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -123,6 +127,8 @@ class FirmwareAPI(treeObject):
                     except Exception:  # noqa: BLE001
                         pass
             rows.append(self._d(r))
+        from cmod.custom.overrides import apply_overrides
+        rows = apply_overrides(rows, 'HardwareBinding', manager=self.manager)
         response.media = {'ok': True, 'bindings': rows}
 
     def on_post_solution_bindings(self, request, response, name):
@@ -201,13 +207,24 @@ class FirmwareAPI(treeObject):
         # the served payload shows TWO usart_init rows (uart-rx on D0, uart-tx on D1), never one.
         try:
             from cmod.custom import targets as TG
-            req = {(t.get('node'), t.get('port') or '', t.get('lives_on', 'unbound')): t for t in TG.derive(s.graph)}
+            from cmod.custom.overrides import apply_overrides
+            # ucd-attest: a person's requirement_kind/role override is laid over the TargetDefinition rows BEFORE
+            # they are joined onto the assignment rows below, so an overridden row's `derived_requirement_kind`/
+            # `derived_role`/`overrides_refs_json` ride along the SAME join the plain facts already use.
+            t_rows = apply_overrides(TG.derive(s.graph), 'TargetDefinition', manager=self.manager)
+            req = {(t.get('node'), t.get('port') or '', t.get('lives_on', 'unbound')): t for t in t_rows}
             for a in assignments:
                 t = req.get((a.get('task'), a.get('port') or '', a.get('lives_on', 'unbound')))
                 if t:
                     for k in ('requirement_kind', 'role', 'required', 'resource_kind'):
                         if a.get(k) in (None, ''):
                             a[k] = t.get(k)
+                    for k in ('derived_requirement_kind', 'derived_role', 'overrides_refs_json'):
+                        if k in t:
+                            a[k] = t[k]
+                    # ucd-attest: the TargetDefinition row's OWN name — the Override dialog's `target_name` (never
+                    # the RegisterAssignment's own name, a different row entirely)
+                    a['target_definition_name'] = t.get('name', '')
         except Exception as e:  # noqa: BLE001 — a derivation refusal must not take the page down; the rows just lack the facts
             why = '%s (requirement facts unavailable: %s)' % (why, e)
         caps = self._capabilities(s)
@@ -228,7 +245,8 @@ class FirmwareAPI(treeObject):
         chain = self._claims_chain(s)
         # ucd-0b2b: `binding` is the DEFAULT HardwareBinding row; `bindings` lists every one of this solution's
         from cmod.custom import binding as BND
-        bindings = BND.bindings_for_solution(s.name, manager=self.manager)
+        from cmod.custom.overrides import apply_overrides
+        bindings = apply_overrides(BND.bindings_for_solution(s.name, manager=self.manager), 'HardwareBinding', manager=self.manager)
         default_binding = next((b for b in bindings if b.get('is_default')), None) or (bindings[0] if bindings else None)
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
@@ -266,6 +284,11 @@ class FirmwareAPI(treeObject):
             self._upsert('RegisterSetting', RegisterSetting, gen['RegisterSetting'])
             self._upsert('RegisterFieldSetting', RegisterFieldSetting, gen['RegisterFieldSetting'])
             self._upsert('SignalRoute', SignalRoute, gen['SignalRoute'])
+        # ucd-attest: overrides are applied to the SERVED copy only — the upserts above persist the bare
+        # derivation (what claims.py itself computed), never the person's override, so a re-derive is never
+        # corrupted by its own prior override.
+        from cmod.custom.overrides import apply_overrides
+        claims = apply_overrides(claims, 'PinClaim', manager=self.manager)
         return {'claims': claims, 'peripheral_claims': periph, 'register_settings': gen['RegisterSetting'],
                'field_settings': gen['RegisterFieldSetting'], 'routes': gen['SignalRoute']}
 
@@ -314,7 +337,7 @@ class FirmwareAPI(treeObject):
         caps = [self._d(r) for r in live] if live else [c for c in CAP.SEED_CAPABILITIES if c['graph'] == s.graph]
         out = []
         for d in caps:
-            status, last_proof, _ = CAP.derive_status(d, manager=self.manager)
+            status, last_proof, _, _ = CAP.derive_status(d, manager=self.manager)
             tasks = _json.loads(d.get('tasks_by_runtime_json') or '{}')
             task_names = sorted({t.rpartition(':')[2] for refs in tasks.values() for t in refs})
             out.append({'name': d.get('name'), 'goal': d.get('goal', ''), 'status': status, 'last_proof': last_proof,
@@ -550,3 +573,61 @@ class FirmwareAPI(treeObject):
                           'error': 'no existing RegisterAssignment row %r to assign onto (fs-0 does not create '
                                    'new targets — only (fs-1\'s drag over) a derived one, task %r port %r)'
                                    % (row_name, task, port)}
+
+    # ------------------------------------------------------------------------------------------------- ucd-attest
+
+    def _sub(self, request):
+        """The caller's opaque Keycloak subject id — the SAME read every other door uses (security_api.py's own
+        `_sub`, cmod_capability_api's own copy): `request.context.user_info['sub']`, '' when the request carried no
+        identity. Polari rows key a person by `sub` alone (D18-1) — never a name."""
+        ui = getattr(getattr(request, 'context', None), 'user_info', None)
+        return str(ui.get('sub') or '') if isinstance(ui, dict) else ''
+
+    def on_post_overrides(self, request, response):
+        """POST /api/firmware/overrides {target_class, target_name, field, value, why} — a person's own correction
+        of one derived field (TargetDefinition.requirement_kind/.role, PinClaim.pull/edge/mode/initial,
+        HardwareBinding.status this slice). Writes the ONE DerivedOverride row for (target_class, target_name,
+        field) — a repeat call replaces its own prior row, never stacking. `why` is required; refused (422) by name
+        without it. Nothing is written before this call (the frontend's confirm dialog), and nothing else changes —
+        the next read of the target's own row applies it (`cmod.custom.overrides.apply_overrides`)."""
+        import falcon
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        target_class = body.get('target_class', '')
+        target_name = body.get('target_name', '')
+        field = body.get('field', '')
+        value = body.get('value')
+        why = body.get('why', '')
+        if not (target_class and target_name and field) or value is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': "'target_class', 'target_name', 'field' and 'value' are all required"}
+            return
+        if self.manager is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'no live manager on this server to store an override on'}
+            return
+        from cmod.custom import overrides as OV
+        out, why_refused = OV.create(target_class, target_name, field, value, why, self._sub(request), self.manager)
+        if out is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': why_refused}
+            return
+        response.media = {'ok': True, 'override': self._d(out)}
+
+    def on_delete_override_one(self, request, response, name):
+        """DELETE /api/firmware/overrides/{name} — retires the override (status='retired'; the row itself, and its
+        who/when/why, survives as the record of the manual change)."""
+        import falcon
+        if self.manager is None:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'no live manager on this server to retire an override on'}
+            return
+        from cmod.custom import overrides as OV
+        ok, why = OV.retire(name, self.manager)
+        if not ok:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': why}
+            return
+        response.media = {'ok': True, 'retired': name}
