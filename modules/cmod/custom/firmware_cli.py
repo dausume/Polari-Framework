@@ -189,12 +189,12 @@ def _server_statuses():
         return None
 
 
-def _export(name, target, out, verify, as_json):
+def _export(name, target, out, verify, as_json, form='source-dir'):
     from cmod.custom import export_cmake as EX
     fs = _solution(name)
     try:
         statuses = _server_statuses()
-        row = EX.export(fs, target=target, out_root=out, verify_build=verify, statuses=statuses)
+        row = EX.export(fs, target=target, out_root=out, verify_build=verify, statuses=statuses, form=form)
     except EX.ExportRefused as e:
         print('refused: %s' % e)
         return 2
@@ -259,6 +259,7 @@ def main(argv):
     ap = argparse.ArgumentParser(prog='pol firmware')
     ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export', 'claims', 'bindings', 'bind'))
     ap.add_argument('--target', dest='target_kind', default='both', choices=('both', 'board', 'twin'))   # export
+    ap.add_argument('--form', default='source-dir', choices=('source-dir', 'install-bundle', 'solution'))   # export
     ap.add_argument('--out', default=None)        # export: the directory to write under (default module_home('exp'))
     ap.add_argument('--verify', action='store_true')   # export: run the exported CMake build on the engines rung + compare shas
     ap.add_argument('--json', action='store_true')
@@ -276,7 +277,7 @@ def main(argv):
     if not a.target:
         print('usage: pol firmware %s <solution>   (pol firmware list)' % a.verb)
         return 2
-    return {'export': lambda: _export(a.target, a.target_kind, a.out, a.verify, a.json), 'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
+    return {'export': lambda: _export(a.target, a.target_kind, a.out, a.verify, a.json, a.form), 'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
             'run': lambda: _run(a.target, a.mode), 'assign': lambda: _assign(a.target, a.task, a.port, a.pin),
             'claims': lambda: _claims(a.target, a.json), 'bind': lambda: _bind(a.target, a.board)}[a.verb]()
 

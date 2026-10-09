@@ -379,6 +379,8 @@ def main():
     run_button_clock(check)
     from board.board_button_clock_twin_selftest import button_clock_parts   # ucd-0e2: THE FIRMWARE + its proof on the twin
     button_clock_parts(check)
+    from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
+    run_attach(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

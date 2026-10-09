@@ -233,9 +233,19 @@ def readme(solution, fs, graph, g, board, schedule, assigns, record, files, make
 
 # ---------------------------------------------------------------- the export
 
-def export(fs, manager=None, target='both', out_root=None, verify_build=False, statuses=None):
-    """Write the export directory + tar.gz for one FirmwareSolution (dict or row). -> the FirmwareExport row fields
-    (+ 'files'). Raises ExportRefused with the reason (no graph, no rendered project, validation refused)."""
+#: FirmwareExport.form (ucd-frames+bundle, UNO_CORE_DEMO_PLAN.md §5b): source-dir (the original, unchanged) + two new
+#: forms — install-bundle (ONLY what a person flashes with: firmware.hex + polari-install.json + INSTALL.md, no
+#: sources) and solution (the board-agnostic C + graph/requirements/purposes as data, no pin_config.*/board_config.h/
+#: Makefile — "builds nothing by itself").
+FORMS = ('source-dir', 'install-bundle', 'solution')
+
+
+def export(fs, manager=None, target='both', out_root=None, verify_build=False, statuses=None, form='source-dir'):
+    """Write the export directory + tar.gz for one FirmwareSolution (dict or row), in one of FORMS. -> the
+    FirmwareExport row fields (+ 'files'). Raises ExportRefused with the reason (no graph, no rendered project,
+    validation refused, an unknown form)."""
+    if form not in FORMS:
+        raise ExportRefused('form %r is not one of %s' % (form, ', '.join(FORMS)))
     from cmod.custom import firmware as FW
     sol, bnd = FW.as_solution_target(fs, manager=manager)
     guard = FW._binding_build_guard(bnd, sol)
@@ -259,16 +269,25 @@ def export(fs, manager=None, target='both', out_root=None, verify_build=False, s
     board = _board_facts(details['board'], manager=manager)
     record = GL.load_record(graph)
     makefile_sha = ((record or {}).get('build') or {}).get('hex_sha256', '')
-    project = {f: open(os.path.join(d, f), 'rb').read() for f in sorted(os.listdir(d))
-               if os.path.isfile(os.path.join(d, f)) and not f.startswith('firmware.')}
-    sources = sorted(f for f in project if f.endswith('.c'))
-    headers = sorted(f for f in project if f.endswith('.h'))
     name = '%s@%s' % (solution, _stamp())
     root = out_root or home()
     path = os.path.join(root, name)
     if os.path.exists(path):
         shutil.rmtree(path)
     os.makedirs(path)
+    if form == 'install-bundle':
+        return _export_install_bundle(path, name, solution, board, record, makefile_sha, proof, d, target, graph)
+    if form == 'solution':
+        return _export_solution(path, name, solution, fsd, graph, proof, d)
+    return _export_source_dir(path, name, solution, fsd, graph, g, board, record, makefile_sha, proof, d, target, verify_build)
+
+
+def _export_source_dir(path, name, solution, fsd, graph, g, board, record, makefile_sha, proof, d, target, verify_build):
+    from cmod.custom import firmware as FW
+    project = {f: open(os.path.join(d, f), 'rb').read() for f in sorted(os.listdir(d))
+               if os.path.isfile(os.path.join(d, f)) and not f.startswith('firmware.')}
+    sources = sorted(f for f in project if f.endswith('.c'))
+    headers = sorted(f for f in project if f.endswith('.h'))
     out = dict(project)
     out['CMakeLists.txt'] = cmakelists(solution, sources, headers, board['name']).encode()
     out['avr-gcc.toolchain.cmake'] = TOOLCHAIN.encode()
@@ -299,6 +318,164 @@ def export(fs, manager=None, target='both', out_root=None, verify_build=False, s
     if verify_build:
         row.update(verify(path, makefile_sha))
     return row
+
+
+# ---------------------------------------------------------------- form: install-bundle (ucd-frames+bundle)
+
+def _install_bundle_hex(d, makefile_sha, solution):
+    """firmware.hex bytes + its sha256 — built on the spot (glue_build.make_alone, the SAME `make` rung the glue
+    record's own build used) when the project dir has none yet; refuses (never silently accepts) a mismatch against
+    the glue record's own hex_sha256."""
+    from cmod.custom import glue_build as GLB
+    hex_path = os.path.join(d, 'firmware.hex')
+    hexb = open(hex_path, 'rb').read() if os.path.isfile(hex_path) else None
+    if hexb is None:
+        mk = GLB.make_alone(d)
+        if not mk.get('ok'):
+            raise ExportRefused('install-bundle: `make` did not produce firmware.hex for %s (%s)'
+                                % (solution, (mk.get('stdout', '') or '')[-300:]))
+        hexb = mk['hex']
+        if makefile_sha and mk['hex_sha256'] != makefile_sha:
+            raise ExportRefused('install-bundle: the freshly built hex (sha256 %s…) does not match the glue record\'s '
+                                '(%s…) for %s — rebuild (`pol firmware build %s`) first'
+                                % (mk['hex_sha256'][:16], makefile_sha[:16], solution, solution))
+        makefile_sha = makefile_sha or mk['hex_sha256']
+    hex_sha = _sha(hexb)
+    if makefile_sha and hex_sha != makefile_sha:
+        raise ExportRefused('install-bundle: firmware.hex on disk (sha256 %s…) does not match the glue record\'s '
+                            '(%s…) for %s — rebuild (`pol firmware build %s`) first'
+                            % (hex_sha[:16], makefile_sha[:16], solution, solution))
+    return hexb, hex_sha
+
+
+def _install_readme(solution, board, hex_sha, argv_text, proof):
+    return '''# %(sol)s — install bundle
+
+Everything a person needs to FLASH `%(sol)s` onto a real **%(board)s** — nothing else. No sources are in this bundle
+(the board-agnostic C + build files are the `solution` / `source-dir` export forms).
+
+## 1. Compare the sha first (the gate)
+
+Never flash a `firmware.hex` that does not match `hex_sha256` in `polari-install.json`:
+
+```
+sha256sum firmware.hex
+# must read: %(sha)s
+```
+
+## 2. Flash
+
+With the board on USB (%(programmer)s, %(baud)d baud) and `<port>` replaced by its serial port (e.g. `/dev/ttyACM0`):
+
+```
+%(argv)s
+```
+
+`-D` skips the chip-erase (Optiboot has none to skip); `-U flash:w:firmware.hex:i` WRITES and THEN READS BACK the
+flash, comparing every byte — the write is verified by avrdude itself, never assumed.
+
+## 3. Is this firmware advised for a real board?
+
+**%(advice)s** — %(why)s
+''' % {'sol': solution, 'board': board.get('name', ''), 'sha': hex_sha, 'programmer': board.get('programmer') or '?',
+       'baud': BAUD, 'argv': argv_text, 'advice': proof.get('advice', ''), 'why': proof.get('proof_why', '')}
+
+
+def _export_install_bundle(path, name, solution, board, record, makefile_sha, proof, d, target, graph):
+    from board.custom import flash as FL
+    hexb, hex_sha = _install_bundle_hex(d, makefile_sha, solution)
+    argv = FL.argv_for(board['name'], '<port>', 'firmware.hex')
+    argv_text = ' '.join(argv)
+    manifest = {'schema': 'polari-install/1', 'solution': solution, 'board': board['name'], 'form': 'install-bundle',
+               'generated_at': _stamp(), 'mcu': MCU, 'baud': BAUD, 'usb_ids': board.get('usb_ids'),
+               'programmer': board.get('programmer'), 'hex_sha256': hex_sha, 'argv': argv, 'argv_text': argv_text,
+               'proof': proof,
+               'gate': 'compare hex_sha256 against firmware.hex\'s own sha256 before flashing — never flash a file that differs'}
+    out = {'firmware.hex': hexb, 'polari-install.json': (json.dumps(manifest, indent=1, ensure_ascii=False) + '\n').encode(),
+          'INSTALL.md': _install_readme(solution, board, hex_sha, argv_text, proof).encode()}
+    for f, b in out.items():
+        open(os.path.join(path, f), 'wb').write(b)
+    files = [{'file': f, 'sha256': _sha(b), 'bytes': len(b)} for f, b in sorted(out.items())]
+    tar_path = path + '.tar.gz'
+    with tarfile.open(tar_path, 'w:gz') as tar:
+        tar.add(path, arcname=name)
+    tar_sha = _sha(open(tar_path, 'rb').read())
+    return {'name': name, 'solution': solution, 'graph': graph, 'board': board['name'], 'form': 'install-bundle',
+           'target': target, 'mode': 'online', 'path': path, 'tar_path': tar_path, 'tar_sha256': tar_sha,
+           'files_json': json.dumps(files), 'makefile_sha256': hex_sha, 'cmake_sha256': '', 'parity': 'not-run',
+           'verify_log': '', 'download_url': '/api/firmware/exports/%s/download' % name,
+           'created_at': datetime.datetime.now().isoformat(timespec='seconds'), 'status': 'created', 'why': '',
+           'notes': '%s · %s' % (proof.get('proof_status', ''), proof.get('advice', ''))}
+
+
+# ---------------------------------------------------------------- form: solution (board-agnostic, ucd-frames+bundle)
+
+#: project files that belong to a BOARD BINDING, never the board-agnostic solution
+_BOUND_ONLY = {'pin_config.c', 'pin_config.h', 'board_config.h', 'Makefile', 'polari-firmware.json'}
+
+
+def _solution_readme(solution, fsd, graph, reqs, purposes, proof):
+    lines = ['# %s — board-agnostic solution' % (fsd.get('title') or solution), '',
+             fsd.get('purpose') or ('A Polari Firmware Solution exported board-agnostically: the C tasks graph `%s` '
+                                    'schedules, never bound to a board.' % graph), '',
+             'This folder **builds nothing by itself** — there is no `board_config.h`, no `pin_config.*`, no `Makefile`. '
+             'It is the SOLUTION: the atoms\' own C + its requirements + its Purposes, so a person (or Polari) can check '
+             'whether a board is a valid target before binding it.', '',
+             '## Requirements a board must meet (`requirements.json`)', '',
+             '| node | kind | role | required | resource_kind | constraints |', '|---|---|---|---|---|---|']
+    for r in reqs:
+        lines.append('| %s | %s | %s | %s | %s | %s |' % (r.get('node', ''), r.get('kind', ''), r.get('role', ''),
+                                                            r.get('required'), r.get('resource_kind', ''), r.get('constraints', '')))
+    lines += ['', '## Purposes (`purposes.json`)', '', '| name | goal | acceptance scenario |', '|---|---|---|']
+    for p in purposes:
+        lines.append('| %s | %s | %s |' % (p['name'], p['goal'], p['acceptance_scenario']))
+    lines += ['', '## Binding this solution to a board', '', '```', 'pol firmware bind %s --board <b>' % solution, '```', '',
+             'Binding checks `requirements.json` against the board\'s own pins/peripherals and produces a BOUND firmware '
+             '(the `source-dir` / `install-bundle` export forms) — never the other way around.', '',
+             '## Proof so far', '', '**%s** — %s' % (proof.get('advice', ''), proof.get('proof_why', '')), '',
+             '## Files', '',
+             '- `hal.c` / `hal.h` — the board-independent hardware abstraction the atoms call',
+             '- `polari_graph.c` / `polari_graph.h` — the generated app: the schedule over the atoms, from the graph',
+             '- `*_packets.h` — the wire headers (board-agnostic: generated from the class contract, not the board)',
+             '- `graph.json` — the CGraph + its nodes/edges, as rows',
+             '- `requirements.json`, `purposes.json`, `polari-solution.json` — this solution as data', '']
+    return '\n'.join(lines)
+
+
+def _export_solution(path, name, solution, fsd, graph, proof, d):
+    from cmod.custom import graph_seed as GS
+    from cmod.custom import targets as TG
+    from cmod.custom import capabilities as CAP
+    rows = GS.seed_graph(graph)
+    project = {f: open(os.path.join(d, f), 'rb').read() for f in sorted(os.listdir(d))
+               if os.path.isfile(os.path.join(d, f)) and f not in _BOUND_ONLY and not f.startswith('firmware.')}
+    out = dict(project)
+    out['graph.json'] = (json.dumps({'graph': rows['graph'], 'nodes': rows['nodes'], 'edges': rows['edges']},
+                                    indent=1, ensure_ascii=False) + '\n').encode()
+    reqs = [{k: v for k, v in r.items() if k not in ('lives_on', 'board')} for r in TG.derive(graph)]
+    out['requirements.json'] = (json.dumps(reqs, indent=1, ensure_ascii=False) + '\n').encode()
+    purposes = [{'name': c['name'], 'title': c.get('title', ''), 'goal': c.get('goal', ''),
+                'acceptance_scenario': c.get('acceptance_scenario', '')} for c in CAP.purposes_for_graph(graph)]
+    out['purposes.json'] = (json.dumps(purposes, indent=1, ensure_ascii=False) + '\n').encode()
+    out['README.md'] = _solution_readme(solution, fsd, graph, reqs, purposes, proof).encode()
+    files = [{'file': f, 'sha256': _sha(b), 'bytes': len(b)} for f, b in sorted(out.items())]
+    manifest = {'schema': 'polari-solution/1', 'solution': solution, 'graph': graph, 'form': 'solution',
+               'generated_at': _stamp(), 'files': files, 'requirements': len(reqs), 'purposes': [p['name'] for p in purposes],
+               'notes': 'board-agnostic: builds nothing by itself — bind it with `pol firmware bind %s --board <b>`' % solution}
+    out['polari-solution.json'] = (json.dumps(manifest, indent=1, ensure_ascii=False) + '\n').encode()
+    files = [{'file': f, 'sha256': _sha(b), 'bytes': len(b)} for f, b in sorted(out.items())]
+    for f, b in out.items():
+        open(os.path.join(path, f), 'wb').write(b)
+    tar_path = path + '.tar.gz'
+    with tarfile.open(tar_path, 'w:gz') as tar:
+        tar.add(path, arcname=name)
+    tar_sha = _sha(open(tar_path, 'rb').read())
+    return {'name': name, 'solution': solution, 'graph': graph, 'board': '', 'form': 'solution', 'target': 'none',
+           'mode': 'online', 'path': path, 'tar_path': tar_path, 'tar_sha256': tar_sha, 'files_json': json.dumps(files),
+           'makefile_sha256': '', 'cmake_sha256': '', 'parity': 'not-run', 'verify_log': '',
+           'download_url': '/api/firmware/exports/%s/download' % name,
+           'created_at': datetime.datetime.now().isoformat(timespec='seconds'), 'status': 'created', 'why': '',
+           'notes': 'board-agnostic solution export (%d requirement(s), %d purpose(s))' % (len(reqs), len(purposes))}
 
 
 def verify(path, makefile_sha=''):

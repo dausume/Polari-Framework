@@ -130,6 +130,7 @@
    "board_page"
   ],
   "selftests": [
+   "board_attach_selftest",
    "board_button_clock_selftest",
    "board_button_clock_twin_selftest",
    "board_c3_selftest",
@@ -147,6 +148,7 @@
   ],
   "custom": [
    "custom/attach",
+   "custom/attach_cli",
    "custom/board_c3",
    "custom/board_cli",
    "custom/board_engines",
