@@ -149,6 +149,7 @@ uint32_t hal_millis(void)
  * cannot be split by the tick. ---- */
 #if HAL_INT0
 static volatile uint16_t g_presses;
+static volatile uint8_t g_toggle_pending;   /* ucd-0e2: set by the ISR, consumed (cleared) by hal_take_toggle_pending */
 #if HAL_INT0_DEBOUNCE_MS
 static uint32_t g_last_press;
 static uint8_t g_pressed_once;
@@ -163,26 +164,71 @@ ISR(INT0_vect)
     g_last_press = now;
 #endif
     g_presses++;
+    g_toggle_pending = 1u;   /* ucd-0e2 (button_clock.c led_toggle): the ISR only counts + marks; no other work here */
 }
 
 void hal_button_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
     /* a GENERATED pin_config_init() (cmod.custom.pin_config_gen) owns these DDRD/PORTD/EICRA/EIFR/EIMSK writes when
-     * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run */
+     * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run. EICRA/EIMSK are read-modify-write: D3's sense
+     * atom (HAL_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
     DDRD &= (uint8_t)~_BV(PD2);
     PORTD |= _BV(PD2);                                 /* pull-up: the button pulls D2 to ground */
-    EICRA = _BV(ISC01);                                /* falling edge */
-    EIFR = _BV(INTF0);
-    EIMSK = _BV(INT0);
+    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC01) | _BV(ISC00))) | _BV(ISC01));   /* falling edge, ISC1x untouched */
+    EIFR = _BV(INTF0);                                 /* w1c: clears only INTF0 (DS40002061B §13.2.5) */
+    EIMSK |= _BV(INT0);                                 /* OR, not assign: INT1 may already be enabled (HAL_INT1) */
 #endif
 }
 
+POLARI_NODE(hal_presses, out(return, "count", "D2 debounced press count since boot"), uses(BUTTON_PIN),
+            role("atomic read of the INT0 press counter"))
 uint16_t hal_presses(void)
 {
     uint16_t v;
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_presses; }
     return v;
+}
+
+uint8_t hal_take_toggle_pending(void)
+{
+    uint8_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_toggle_pending; g_toggle_pending = 0u; }
+    return v;
+}
+#endif
+
+/* ---- ucd-0e2: the sense pin, D3 = INT1, ANY edge (ISC11:ISC10 = 01 — DS40002061B §13.2.1 p.80, Table 13-1) — the
+ * independent witness that the LED line (wired D6->D3 on the bench/twin) really switched. The ISR ONLY counts and
+ * stamps (reads g_ms bare: interrupts are off inside an ISR, so its four loads cannot be split by the tick); emitting
+ * sense_rise/sense_fall ButtonClockEvents is the main loop's job (button_clock.c), never the ISR's. ---- */
+#if HAL_INT1
+static volatile uint16_t g_sense_rises, g_sense_falls;
+static volatile uint32_t g_last_edge_ms;
+
+ISR(INT1_vect)
+{
+    uint8_t level = (PIND & _BV(PD3)) != 0u;
+    g_last_edge_ms = g_ms;
+    if (level) g_sense_rises++; else g_sense_falls++;
+}
+
+void hal_sense_init(void)
+{
+#ifndef POLARI_PIN_CONFIG
+    DDRD &= (uint8_t)~_BV(PD3);                        /* D3 input (the wired/witness pin, never driven by this build) */
+    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC11) | _BV(ISC10))) | _BV(ISC10));   /* ISC11:10 = 01: any logical change */
+    EIFR = _BV(INTF1);                                 /* w1c: clears only INTF1 */
+    EIMSK |= _BV(INT1);                                 /* OR, not assign: INT0 may already be enabled (HAL_INT0) */
+#endif
+}
+
+POLARI_NODE(hal_sense_read, out(rises, "count", "D3 rising edges seen since boot"),
+            out(falls, "count", "D3 falling edges seen since boot"), out(last_ms, "ms", "hal_millis() at the last edge"),
+            uses(SENSE_PIN), role("atomic snapshot of the INT1 edge counters + the last edge's timestamp"))
+void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
+{
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { *rises = g_sense_rises; *falls = g_sense_falls; *last_ms = g_last_edge_ms; }
 }
 #endif
 

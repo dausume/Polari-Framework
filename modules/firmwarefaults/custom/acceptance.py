@@ -40,6 +40,17 @@ ACCEPTANCE_SCENARIOS = [
      'observable_kind': 'command-echo', 'window_cycles': int(0.3 * 16000000), 'run_seconds': 0.3,
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
      'capability': 'blink-on-command', 'provenance': 'hw priorities P1 seed', 'notes': ''},
+    {'name': 'button-clock-to-os-acceptance', 'title': 'Acceptance — button-clock-to-os',
+     'description': "N debounced presses on D2 + --wire PD6:PD3 (ucd-0d) -> button_presses == N, sense_rises + "
+                    "sense_falls == N, led_on == (N odd), no dropped events; the SAME presses with NO --wire -> the "
+                    "sense counters stay 0 (the probe's cases (a) and (f), UNO_CORE_DEMO_PLAN.md §1).",
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-button-clock', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'button_presses == N and sense_rises + sense_falls == N and led_on == (N odd) when wired; '
+                            'sense_rises == sense_falls == 0 when not wired, in the SAME run of presses',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'button-clock-to-os', 'provenance': 'ucd-0e2 seed', 'notes': ''},
 ]
 
 
@@ -47,7 +58,7 @@ ACCEPTANCE_SCENARIOS = [
 #: printable vocabulary `pol faults list` reads) — duplicated as plain True here, never imported from scenarios.py at
 #: module load time, to avoid a load-order cycle: scenarios.py itself imports THIS module (to merge the acceptance
 #: rows into SEED_SCENARIOS/SEED_STEPS), so acceptance.py must not need scenarios.py to finish loading first.
-_FORCIBLE = {'drive-adc-ramp', 'assert-field-arrival', 'assert-command-echo'}
+_FORCIBLE = {'drive-adc-ramp', 'assert-field-arrival', 'assert-command-echo', 'pin-at'}   # ucd-0e2: pin-at (ucd-0d), proven on the twin
 
 
 def _step(scenario, position, kind, args, notes=''):
@@ -64,6 +75,13 @@ ACCEPTANCE_STEPS = [
           notes='glue_build.prove\'s frame-by-field equivalence, read for temp_c'),
     _step('blink-on-command-acceptance', 1, 'assert-command-echo', {'field': 'led_on', 'value': 1, 'window_ms': 100},
           notes='a PUT led_on=1 followed by the next frame reporting it'),
+    _step('button-clock-to-os-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD2', 'level': 0},
+          notes='button-clock probe case (a): the first of N presses on D2 (board.board_button_clock_twin_selftest._press_pinat)'),
+    _step('button-clock-to-os-acceptance', 2, 'assert-field-arrival',
+          {'field': 'sense_rises+sense_falls==button_presses', 'window_ms': 100},
+          notes='the wired invariant: sense_rises + sense_falls == button_presses, led_on == (presses odd)'),
+    _step('button-clock-to-os-acceptance', 3, 'assert-field-arrival', {'field': 'sense_rises+sense_falls==0 (no --wire)', 'window_ms': 100},
+          notes='probe case (f), the NEGATIVE: the same presses with no --wire -> sense counters stay 0'),
 ]
 
 
@@ -88,14 +106,21 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     cap = CAP.find(sc['capability'])
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
-    from cmod.custom import firmware as FW
-    fs = {'name': 'uno-sim-rig', 'graph': cap['graph'], 'board_definition': sc['target_board']}
-    if manager is not None:
-        hit = next((r for r in (manager.objectTables or {}).get('FirmwareSolution', {}).values() if getattr(r, 'graph', '') == cap['graph']), None)
-        if hit is not None:
-            fs = hit
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    result = FW.run(fs, run_mode, manager=manager)
+    if sc['capability'] == 'button-clock-to-os':
+        # ucd-0e2: no FirmwareSolution/CGraph for uno-button-clock yet (0e2b's job) — FW.run()'s glue-equivalence
+        # proof has nothing to run against; a dedicated runner proves the GOAL directly instead (board.custom.
+        # button_clock_acceptance), reusing the SAME twin + codec the probe/twin-selftest already prove with.
+        from board.custom import button_clock_acceptance as BCA
+        result = BCA.run_acceptance(run_mode)
+    else:
+        from cmod.custom import firmware as FW
+        fs = {'name': 'uno-sim-rig', 'graph': cap['graph'], 'board_definition': sc['target_board']}
+        if manager is not None:
+            hit = next((r for r in (manager.objectTables or {}).get('FirmwareSolution', {}).values() if getattr(r, 'graph', '') == cap['graph']), None)
+            if hit is not None:
+                fs = hit
+        result = FW.run(fs, run_mode, manager=manager)
     ran_at = _now()
     if result.get('ok'):
         outcome = 'passed'

@@ -52,6 +52,30 @@ SEED_CAPABILITIES = [
          python_backend=['temp-analysis:flag-on', 'temp-analysis:flag-off', 'temp-analysis:commit']),
      'acceptance_scenario': 'blink-on-command-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
      'notes': 'hw priorities P1 seed 2; stays planned unless its own acceptance run also passes (never copies seed 1\'s proof)'},
+    {'name': 'button-clock-to-os', 'graph': '', 'title': 'Button + clock to the OS',
+     'goal': 'a button on the board turns the light on and off; the board keeps a clock the OS sets; every press and '
+             'every light change, with its time, reaches the OS',
+     'purpose': 'UNO_CORE_DEMO_PLAN.md §1 — the core demo/proof for a Polari Hardware App: a debounced D2 button '
+                'toggles D6+D13, a jumper D6->D3 independently witnesses the LED line, a software clock is synced by '
+                'SET_TIME (drift measured from the 2nd sync), and every transition is queued as a ButtonClockEvent.',
+     'required_targets': '',
+     'exposes_fields': 'button_presses,led_on,sense_rises,sense_falls,epoch_s,drift_ms',
+     'tasks_by_runtime_json': _tasks(
+         c_device=['uno-button-clock:clock_tick', 'uno-button-clock:clock_set', 'uno-button-clock:led_toggle',
+                   'uno-button-clock:sense_isr', 'uno-button-clock:events_queue', 'uno-button-clock:telemetry_send'],
+         # java-bridge / python-backend / typescript-browser: PLANNED — ucd-0e1 built the wire contract + the
+         # HardwareBridgeDefinition dict (grpcbridge.mapping_basis.SEED_BUTTON_CLOCK_BRIDGE, not a live row) and
+         # ucd-0e3 built the bridge's reconnect/snapshot lifecycle; there is no Cross-Domain Solution, backend
+         # relay or display yet (ucd-1, out of scope here) — named honestly as planned, never a fabricated ref
+         # (the empty lists below validate trivially, the same posture typescript-browser already uses).
+         java_bridge=[], python_backend=[], typescript_browser=[]),
+     'acceptance_scenario': 'button-clock-to-os-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
+     'notes': 'ucd-0e2 seed. java-bridge: the generated bridge (grpcbridge.mapping_basis.BUTTON_CLOCK_BRIDGE) — '
+              'planned/wired, not yet a resolvable task ref. python-backend: the relay (button-clock-ledger) — '
+              'planned, not built. typescript-browser: the display — planned, not built. No CGraph/FirmwareSolution '
+              'for uno-button-clock exists yet (0e2b); c-device tasks are validated directly against the atoms '
+              'cmod\'s annotation parser finds in apps/button_clock.c + hal.c (cmod.custom.capabilities.'
+              '_project_atom_exists), never hand-listed.'},
 ]
 
 
@@ -59,7 +83,36 @@ def find(name, rows=None):
     return next((dict(c) for c in (rows or SEED_CAPABILITIES) if c['name'] == name), None)
 
 
+#: ucd-0e2: button-clock-to-os has NO CGraph/FirmwareSolution yet (0e2b's job — explicitly out of scope here), so its
+#: c-device tasks cannot be 'graph:node' refs the way temp-sensor-to-os's are. Validated directly against the atoms
+#: cmod's own annotation parser finds in the app's own source + the hal it uses — 'project:atom', never hand-listed.
+_PROJECT_SOURCES = {
+    'uno-button-clock': ('board/custom/firmware/uno/apps/button_clock.c', 'board/custom/firmware/uno/hal.c'),
+}
+
+
+def _project_atom_exists(ref):
+    import os
+    project, _, atom = ref.partition(':')
+    files = _PROJECT_SOURCES.get(project)
+    if files is None:
+        return False, 'unknown c-device project %r (known: %s)' % (project, ', '.join(sorted(_PROJECT_SOURCES)))
+    from cmod.custom import annotation
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # modules/
+    for rel in files:
+        path = os.path.join(root, rel)
+        try:
+            text = open(path).read()
+        except OSError:
+            continue
+        if any(a['name'] == atom for a in annotation.find(text, rel)):
+            return True, ''
+    return False, 'no POLARI_NODE %r found in %s' % (atom, ', '.join(files))
+
+
 def _c_device_task_exists(ref):
+    if ref.partition(':')[0] in _PROJECT_SOURCES:
+        return _project_atom_exists(ref)
     graph, _, node = ref.partition(':')
     from cmod.custom.graph_seed import seed_graph
     rows = seed_graph(graph)

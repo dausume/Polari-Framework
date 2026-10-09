@@ -70,11 +70,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "5fe5f814914e3a056e3ccc59df3f9e4b27a48cde7c6a2e8e87478bbf3cdb064c"
+     "sha256": "d4e9f6cd31ee87791aad3953b1994f23970b7aabbc5b4732f3977f66d6ed87c8"
     },
     {
      "path": "hal.h",
-     "sha256": "cc5bd26265aa30fe08cbde704eada448886fe479fce402eec18ce8fe8b730134"
+     "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
     }
    ],
    "atoms": [
@@ -120,7 +120,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "16cf877176a538a7965dc6d90e288a289e9d765bdd849c2bf99244c1e57f55d4"
+     "sha256": "fb35a14ef0a3e1c95509a179fcdf58df43fc42a798c5766d922020ae913777a1"
     }
    ],
    "atoms": [
@@ -290,7 +290,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 273,
+   "line": 319,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -346,7 +346,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 281,
+   "line": 327,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -408,7 +408,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 279,
+    "line": 325,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -436,7 +436,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 222,
+   "line": 268,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -481,7 +481,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 220,
+    "line": 266,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -511,7 +511,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 213,
+   "line": 259,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -626,7 +626,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 262,
+   "line": 308,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -681,7 +681,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 260,
+    "line": 306,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -711,7 +711,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 242,
+   "line": 288,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -1436,7 +1436,10 @@
   "not_isr_safe": 0
  },
  "problems": [],
- "annotated_not_compiled": [],
+ "annotated_not_compiled": [
+  "hal.hal_presses",
+  "hal.hal_sense_read"
+ ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-09T00:30:50"
+ "conformed_at": "2026-10-09T07:50:39"
 }

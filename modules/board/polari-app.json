@@ -129,6 +129,7 @@
   ],
   "selftests": [
    "board_button_clock_selftest",
+   "board_button_clock_twin_selftest",
    "board_c3_selftest",
    "board_chain_selftest",
    "board_circuit_selftest",
@@ -153,6 +154,7 @@
    "custom/board_uno",
    "custom/build",
    "custom/build_c3",
+   "custom/button_clock_acceptance",
    "custom/compat",
    "custom/detect",
    "custom/dts",
