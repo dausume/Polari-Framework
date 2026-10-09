@@ -126,6 +126,7 @@
    "custom/rows",
    "custom/scan",
    "custom/selftest_binding",
+   "custom/selftest_bundle",
    "custom/selftest_claims",
    "custom/selftest_export",
    "custom/selftest_firmwaresol",

@@ -396,7 +396,8 @@ class FirmwareAPI(treeObject):
         except Exception:  # noqa: BLE001
             body = {}
         try:
-            row = EX.export(s, manager=self.manager, target=body.get('target', 'both'), verify_build=bool(body.get('verify', True)))
+            row = EX.export(s, manager=self.manager, target=body.get('target', 'both'), verify_build=bool(body.get('verify', True)),
+                            form=body.get('form', 'source-dir'))
         except EX.ExportRefused as e:
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': str(e), 'solution': name}
