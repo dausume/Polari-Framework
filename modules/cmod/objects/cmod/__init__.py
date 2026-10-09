@@ -14,3 +14,5 @@ from cmod.objects.cmod.FirmwareSolution import FirmwareSolution  # noqa: F401
 from cmod.objects.cmod.ScheduleSlot import ScheduleSlot  # noqa: F401
 from cmod.objects.cmod.RegisterAssignment import RegisterAssignment  # noqa: F401
 from cmod.objects.cmod.FirmwareExport import FirmwareExport  # noqa: F401  (ucd-0f)
+from cmod.objects.cmod.PinClaim import PinClaim  # noqa: F401  (ucd-0b)
+from cmod.objects.cmod.PeripheralClaim import PeripheralClaim  # noqa: F401  (ucd-0b)

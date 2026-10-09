@@ -12,7 +12,7 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 """
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                              TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
-                             FirmwareSolution, ScheduleSlot, RegisterAssignment)
+                             FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
@@ -86,5 +86,9 @@ CMOD_SEED_PAIRS = [
     ('FirmwareExport', FirmwareExport, []),   # ucd-0f: observed (created by the export door / pol firmware export), never seeded
     ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS, keep=('title', 'notes'))),
     ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS, keep=('notes',))),
-    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS, keep=('notes',))),
+    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS, keep=('notes', 'config_json'))),
+    # ucd-0b: observed rows (materialized by cmod_firmware_api on every GET of a solution, upserted by name) —
+    # never seeded, same posture as FirmwareExport above.
+    ('PinClaim', PinClaim, []),
+    ('PeripheralClaim', PeripheralClaim, []),
 ]
