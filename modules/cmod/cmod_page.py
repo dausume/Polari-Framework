@@ -319,6 +319,6 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'board/datasheet/kit-part facts used). `GET /api/board/circuits/<circuit>/check'
                                           '?board=<board>`; `pol board circuit-check uno-button-clock`.',
                               columns='rule,status,subject,detail,cite',
-                              data_path='/api/board/circuits/uno-button-clock/check?board=uno-button-clock@arduino-uno-r3')   # the BINDING, so pull_defined reads D2's claim], min_height=260),
+                              data_path='/api/board/circuits/uno-button-clock/check?board=uno-button-clock@arduino-uno-r3')], min_height=260),   # the BINDING, so pull_defined reads D2's claim
           ]),
 ]
