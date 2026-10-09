@@ -72,6 +72,8 @@
    "objects/cmod/CapabilityInstance",
    "objects/cmod/FirmwareExport",
    "objects/cmod/FirmwareSolution",
+   "objects/cmod/PeripheralClaim",
+   "objects/cmod/PinClaim",
    "objects/cmod/RegisterAssignment",
    "objects/cmod/ScheduleSlot",
    "objects/cmod/TargetDefinition"
@@ -103,6 +105,7 @@
    "custom/c_types",
    "custom/capabilities",
    "custom/capability_cli",
+   "custom/claims",
    "custom/cmod_cli",
    "custom/cmod_engines",
    "custom/export_cmake",
@@ -119,6 +122,7 @@
    "custom/registers",
    "custom/rows",
    "custom/scan",
+   "custom/selftest_claims",
    "custom/selftest_export",
    "custom/selftest_firmwaresol",
    "custom/selftest_glue",
@@ -142,6 +146,8 @@
   "FirmwareAPI",
   "FirmwareExport",
   "FirmwareSolution",
+  "PeripheralClaim",
+  "PinClaim",
   "RegisterAssignment",
   "ScheduleSlot",
   "TargetDefinition"
@@ -165,6 +171,8 @@
     "ScheduleSlot",
     "RegisterAssignment",
     "FirmwareExport",
+    "PinClaim",
+    "PeripheralClaim",
     "CMOD_CLASSES"
    ]
   ],

@@ -150,10 +150,12 @@ def uno_parts(check):
         check('seeds = the committed manifest projected: 1 project, 7 modules, 34 atoms, %d ports; cmod-1: 1 graph, 18 nodes, 15 edges, '
               '1 glue build; demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over the seeded graph; hw '
               'priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; '
-              'fs-0: one FirmwareSolution (uno-sim-rig) + its derived ScheduleSlot/RegisterAssignment rows' % m['counts']['ports'],
+              'fs-0: one FirmwareSolution (uno-sim-rig) + its derived ScheduleSlot/RegisterAssignment rows; ucd-0b: PinClaim/'
+              'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded)' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 7, 'CFunctionAtom': 34, 'CPort': m['counts']['ports'], 'CGraph': 1, 'CGraphNode': 18,
                          'CGraphEdge': 15, 'CGlueBuild': 1, 'TargetDefinition': 16, 'CapabilityDefinition': 3, 'CapabilityInstance': 5,
-                         'FirmwareExport': 0, 'FirmwareSolution': 1, 'ScheduleSlot': 17, 'RegisterAssignment': 16}, counts)   # ucd-0f: + FirmwareExport (observed)
+                         'FirmwareExport': 0, 'FirmwareSolution': 1, 'ScheduleSlot': 17, 'RegisterAssignment': 16,
+                         'PinClaim': 0, 'PeripheralClaim': 0}, counts)   # ucd-0f: + FirmwareExport (observed); ucd-0b: + PinClaim/PeripheralClaim (observed)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

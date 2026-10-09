@@ -276,8 +276,10 @@ def check_drop(graph_name, solution_name, task, lives_on, manager=None):
 # ------------------------------------------------------------------ validation (board exists+usable, targets bound/named, no conflicts)
 def validate(fs, manager=None):
     """(ok, why, details) for one FirmwareSolution dict/row: the board resolves and is usable (readiness), every
-    required target is bound or explicitly named unbound (never silently missing), and no two tasks conflict on one
-    pin. Never raises — a refusal is a returned, named reason (his posture, `knobs.check_runtime()`'s own idiom)."""
+    required target is bound or explicitly named unbound (never silently missing), no two tasks conflict on one
+    pin, and (ucd-0b) no two tasks conflict on one PinClaim or one exclusive PeripheralClaim — a claim 'incomplete'
+    (e.g. an interrupt-in with no edge chosen yet) is NAMED in `why` but never refuses (same posture as an unbound
+    target). Never raises — a refusal is a returned, named reason (his posture, `knobs.check_runtime()`'s own idiom)."""
     name = fs.get('name') if isinstance(fs, dict) else getattr(fs, 'name', '')
     graph = fs.get('graph') if isinstance(fs, dict) else getattr(fs, 'graph', '')
     board, exists, why = resolve_board(fs, manager=manager)
@@ -289,10 +291,25 @@ def validate(fs, manager=None):
         names = ', '.join(sorted({a['lives_on'] for a in conflicts}))
         return False, 'refused: pin conflict on %s (%s)' % (names, '; '.join(a['notes'] for a in conflicts)), \
             {'board': board, 'assignments': assigns}
+    from cmod.custom import claims as C
+    pin_claims = C.pin_claims(name, graph, manager=manager)
+    pin_conflicts = [c for c in pin_claims if c['status'] == 'conflict']
+    if pin_conflicts:
+        return False, 'refused: pin claim conflict on %s (%s)' % (', '.join(c['name'] for c in pin_conflicts),
+                                                                   '; '.join(c['why'] for c in pin_conflicts)), \
+            {'board': board, 'assignments': assigns, 'claims': pin_claims}
+    periph_claims = C.peripheral_claims(name, graph, manager=manager)
+    periph_conflicts = [p for p in periph_claims if p['status'] == 'conflict']
+    if periph_conflicts:
+        return False, 'refused: peripheral claim conflict on %s (%s)' % (', '.join(p['name'] for p in periph_conflicts),
+                                                                          '; '.join(p['why'] for p in periph_conflicts)), \
+            {'board': board, 'assignments': assigns, 'claims': pin_claims, 'peripheral_claims': periph_claims}
     unbound = [a['task'] + ('.' + a['port'] if a['port'] else '') for a in assigns if a['status'] == 'unbound']
-    ok_why = 'ok: board %s resolved (%s); %d target(s), %d unbound (%s)' % (
-        board, why, len(assigns), len(unbound), ', '.join(unbound) or 'none')
-    return True, ok_why, {'board': board, 'assignments': assigns}
+    incomplete = [c['name'] for c in pin_claims if c['status'] == 'incomplete']
+    ok_why = 'ok: board %s resolved (%s); %d target(s), %d unbound (%s)%s' % (
+        board, why, len(assigns), len(unbound), ', '.join(unbound) or 'none',
+        ('; %d pin claim(s) incomplete (%s)' % (len(incomplete), ', '.join(incomplete))) if incomplete else '')
+    return True, ok_why, {'board': board, 'assignments': assigns, 'claims': pin_claims, 'peripheral_claims': periph_claims}
 
 
 # ------------------------------------------------------------------ build / run — WIRE the existing verbs, never reimplement

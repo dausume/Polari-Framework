@@ -115,6 +115,40 @@ def _assign(name, task, port, pin):
     return 0 if ok else 1
 
 
+def _claims(name, as_json):
+    """ucd-0b: pin claims + peripheral claims + register settings (+ their field lines) — the PURE, seed-time
+    derivation (no manager, no persisted canvas overrides); a running server's GET /api/firmware/solutions/<name>
+    carries the live, materialized rows instead."""
+    from cmod.custom import claims as C
+    fs = _solution(name)
+    if fs is None:
+        print('no FirmwareSolution %r (pol firmware list)' % name)
+        return 2
+    pins = C.pin_claims(name, fs['graph'])
+    periph = C.peripheral_claims(name, fs['graph'])
+    gen = C.register_settings(name, fs['graph'])
+    if as_json:
+        print(json.dumps({'claims': pins, 'peripheral_claims': periph, 'register_settings': gen['RegisterSetting'],
+                          'field_settings': gen['RegisterFieldSetting'], 'routes': gen['SignalRoute']}, indent=1))
+        return 0
+    print('%s — pin claims:' % name)
+    for c in pins:
+        canonical = c['name'].split(':', 1)[1]
+        print('  %-5s %-13s mode=%-4s pin_function=%-22s pull=%-11s edge=%-11s initial=%-5s [%s] %s'
+              % (canonical, c['requirement_kind'], c['mode'], c['pin_function'] or '-', c['pull'], c['edge'], c['initial'], c['status'], c['why']))
+    print('peripheral claims:')
+    for p in periph:
+        tasks = ', '.join(json.loads(p['tasks_json']))
+        print('  %-20s %-14s [%s] tasks=%s' % (p['name'].split(':', 1)[1], p['usage'], p['status'], tasks))
+    print('register settings (init):')
+    for r in gen['RegisterSetting']:
+        print('  %-10s = %s (mask %s) [%s]' % (r['register'].split(':', 1)[1], r['value'], r['write_mask'], r['status']))
+        for f in gen['RegisterFieldSetting']:
+            if f['register_setting'] == r['name']:
+                print('      %-10s = %-4s %-10s (%s)' % (f['register_field'].split('.', 1)[1], f['value'], f['rule'], f['meaning'][:60]))
+    return 0
+
+
 def _export(name, target, out, verify, as_json):
     from cmod.custom import export_cmake as EX
     fs = _solution(name)
@@ -139,7 +173,7 @@ def _export(name, target, out, verify, as_json):
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol firmware')
-    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export'))
+    ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export', 'claims'))
     ap.add_argument('--target', dest='target_kind', default='both', choices=('both', 'board', 'twin'))   # export
     ap.add_argument('--out', default=None)        # export: the directory to write under (default module_home('exp'))
     ap.add_argument('--verify', action='store_true')   # export: run the exported CMake build on the engines rung + compare shas
@@ -156,7 +190,8 @@ def main(argv):
         print('usage: pol firmware %s <solution>   (pol firmware list)' % a.verb)
         return 2
     return {'export': lambda: _export(a.target, a.target_kind, a.out, a.verify, a.json), 'show': lambda: _show(a.target), 'validate': lambda: _validate(a.target), 'build': lambda: _build(a.target),
-            'run': lambda: _run(a.target, a.mode), 'assign': lambda: _assign(a.target, a.task, a.port, a.pin)}[a.verb]()
+            'run': lambda: _run(a.target, a.mode), 'assign': lambda: _assign(a.target, a.task, a.port, a.pin),
+            'claims': lambda: _claims(a.target, a.json)}[a.verb]()
 
 
 if __name__ == '__main__':

@@ -65,6 +65,10 @@ class FirmwareAPI(treeObject):
             add('/api/firmware/solutions/{name}/export', self, suffix='export')      # ucd-0f: POST → the CMake export dir + tar.gz
             add('/api/firmware/exports', self, suffix='exports')                       # ucd-0f: every FirmwareExport row
             add('/api/firmware/exports/{name}/download', self, suffix='download')     # ucd-0f: the tar.gz
+            # ucd-0b: the claims chain — PinClaim/PeripheralClaim (cmod) + RegisterSetting/RegisterFieldSetting/
+            # SignalRoute (board), materialized into the manager's tables on every GET of the solution; one pin's
+            # own chain for the frontend's Target details ("why")
+            add('/api/firmware/solutions/{name}/pins/{canonical}/chain', self, suffix='pin_chain')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -116,12 +120,54 @@ class FirmwareAPI(treeObject):
         for row in schedule_rows:
             row['composed_by'] = self._composed_by(s, row['task'], caps)
         assignments = [dict(a, composed_by=self._composed_by(s, a['task'], caps)) for a in assignments]
+        # ucd-0b: the claims chain, materialized into the manager's tables on every GET (upsert by name, same idiom
+        # as assignments/schedule above — the object pages read these rows straight off the register)
+        chain = self._claims_chain(s)
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
                           'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],
-                          'capabilities': caps}
+                          'capabilities': caps,
+                          'claims': chain['claims'], 'peripheral_claims': chain['peripheral_claims'],
+                          'register_settings': chain['register_settings'], 'field_settings': chain['field_settings'],
+                          'routes': chain['routes']}
+
+    def _claims_chain(self, s):
+        """ucd-0b: {claims, peripheral_claims, register_settings, field_settings, routes} for one FirmwareSolution
+        row — derived (`cmod.custom.claims`) and MATERIALIZED into the manager's own tables (PinClaim/
+        PeripheralClaim here, RegisterSetting/RegisterFieldSetting/SignalRoute in the board module — one flat
+        object register, same posture as every cross-module reference in this file), upserted by name so the
+        generic object pages (`/object/<Class>/<name>`) show them."""
+        from cmod.custom import claims as C
+        name, graph = getattr(s, 'name', ''), getattr(s, 'graph', '')
+        claims = C.pin_claims(name, graph, manager=self.manager)
+        periph = C.peripheral_claims(name, graph, manager=self.manager)
+        gen = C.register_settings(name, graph, manager=self.manager)
+        if self.manager is not None:
+            from cmod.cmod_basis import PinClaim, PeripheralClaim
+            from board.board_basis import RegisterSetting, RegisterFieldSetting, SignalRoute
+            self._upsert('PinClaim', PinClaim, claims)
+            self._upsert('PeripheralClaim', PeripheralClaim, periph)
+            self._upsert('RegisterSetting', RegisterSetting, gen['RegisterSetting'])
+            self._upsert('RegisterFieldSetting', RegisterFieldSetting, gen['RegisterFieldSetting'])
+            self._upsert('SignalRoute', SignalRoute, gen['SignalRoute'])
+        return {'claims': claims, 'peripheral_claims': periph, 'register_settings': gen['RegisterSetting'],
+               'field_settings': gen['RegisterFieldSetting'], 'routes': gen['SignalRoute']}
+
+    def _upsert(self, cls_name, cls, rows):
+        """Upsert `rows` (dicts) into `self.manager.objectTables[cls_name]` by `name` — update an existing row's
+        fields in place (never a duplicate), construct+register a new one (treeObjectInit auto-registers it onto
+        the manager). Same idiom as `_record_export` above."""
+        table = (self.manager.objectTables or {}).setdefault(cls_name, {})
+        by_name = {getattr(r, 'name', ''): r for r in table.values()}
+        for row in rows:
+            existing = by_name.get(row['name'])
+            if existing is not None:
+                for k, v in row.items():
+                    setattr(existing, k, v)
+            else:
+                cls(manager=self.manager, **row)
 
     def _composed_by(self, s, task, caps=None):
         """fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them") — the
@@ -156,6 +202,42 @@ class FirmwareAPI(treeObject):
             out.append({'name': d.get('name'), 'goal': d.get('goal', ''), 'status': status, 'last_proof': last_proof,
                        'task_names': task_names})
         return sorted(out, key=lambda c: c['name'])
+
+    def on_get_pin_chain(self, request, response, name, canonical):
+        """ucd-0b: GET /api/firmware/solutions/{name}/pins/{canonical}/chain — one pin's PinClaim + the
+        RegisterFieldSettings/RegisterSetting values it produced + the board's own hardware-chain hops (BoardPin ->
+        SocPin -> PinFunction -> PeripheralSignal -> Peripheral -> Register -> RegisterField), reusing
+        `board.custom.hardware_chain.chain_for` over the SAME live tables — never a second chain walk. This is the
+        frontend's Target-details "why" in one door."""
+        import falcon
+        s = self._solution(name, response)
+        if s is None:
+            return
+        from cmod.custom import claims as C
+        from board.custom import board_object as BO
+        from board.custom import hardware_chain as HC
+        chain = self._claims_chain(s)
+        claim = next((c for c in chain['claims'] if c['name'] == '%s:%s' % (name, canonical)), None)
+        if claim is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no PinClaim for %s:%s (GET /api/firmware/solutions/%s lists the bound pins)' % (name, canonical, name)}
+            return
+        field_settings = [f for f in chain['field_settings'] if f['pin_claim'] == claim['name']]
+        register_settings = [r for r in chain['register_settings']
+                             if r['name'] in {f['register_setting'] for f in field_settings}]
+        routes = [r for r in chain['routes'] if r['pin_claim'] == claim['name']]
+        tables = C._chain_tables(self.manager)
+        try:
+            hops = HC.chain_for(getattr(s, 'board_resolved', '') or getattr(s, 'board_definition', ''), canonical, tables)
+        except (KeyError, BO.BoardObjectRefused) as e:
+            hops = []
+            response.media = {'ok': True, 'solution': name, 'canonical': canonical, 'claim': claim,
+                              'field_settings': field_settings, 'register_settings': register_settings,
+                              'routes': routes, 'hops': hops, 'hops_why': str(e)}
+            return
+        response.media = {'ok': True, 'solution': name, 'canonical': canonical, 'claim': claim,
+                          'field_settings': field_settings, 'register_settings': register_settings,
+                          'routes': routes, 'hops': hops}
 
     def on_get_valid_targets(self, request, response, name, task):
         """fs-2a: GET /api/firmware/solutions/{name}/tasks/{task}/valid-targets — board.custom.target_compat checked
@@ -266,6 +348,7 @@ class FirmwareAPI(treeObject):
         except Exception:  # noqa: BLE001
             body = {}
         task, port, lives_on = body.get('task', ''), body.get('port', ''), body.get('lives_on', '')
+        config = body.get('config')   # ucd-0b: {mode?, pull?, edge?, initial?} — the pin page's design choice, persisted
         if not task or not lives_on:
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'error': "'task' and 'lives_on' are required (the pin map's drag, fs-1)"}
@@ -283,6 +366,15 @@ class FirmwareAPI(treeObject):
         status = 'unbound' if lives_on in ('', 'unbound') else 'bound'
         if existing is not None and self.manager is not None:
             existing.lives_on, existing.status, existing.provenance = lives_on, status, 'canvas'
+            if config is not None:
+                # ucd-0b: merge onto whatever is already persisted — a person setting only `pull` on the pin page
+                # does not erase an `edge` chosen earlier
+                try:
+                    merged = json.loads(getattr(existing, 'config_json', '') or '{}')
+                except (TypeError, ValueError):
+                    merged = {}
+                merged.update({k: v for k, v in config.items() if k in ('mode', 'pull', 'edge', 'initial')})
+                existing.config_json = json.dumps(merged)
             self.manager.saveObjToDB(existing) if hasattr(self.manager, 'saveObjToDB') else None
             resp = {'ok': True, 'assignment': self._d(existing), 'how': 'updated in place (canvas-set, fs-1\'s drag)'}
             if drop_status == 'undetermined':

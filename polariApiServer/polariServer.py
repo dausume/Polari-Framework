@@ -1337,6 +1337,10 @@ class polariServer(treeObject):
             FirmwareExport,   # ucd-0f: the CMake export record
             # fs-0: a FirmwareSolution over a graph + a board, its DERIVED schedule (D-fs-1) and register map (D-fs-2)
             FirmwareSolution, ScheduleSlot, RegisterAssignment,
+            # ucd-0b: one PinClaim per physical pin a solution claims (design choice: mode/pull/edge/initial) + one
+            # PeripheralClaim per peripheral/channel a solution holds (exclusive/shared) — observed rows, materialized
+            # on every GET of the solution, never seeded
+            PinClaim, PeripheralClaim,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
