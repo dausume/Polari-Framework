@@ -28,6 +28,17 @@ GET  /api/firmware/solutions/for-installer    {ok, rows:[...]} — fs-1 item 4's
                                                --mode digital-twin` — the safe, non-flashing default; hardware mode
                                                is a person's own choice, never defaulted to)
 
+GET  /api/firmware/solutions/{name}/hardware  ucd-scope (his ruling 2026-10-09: a page is scoped to the binding in
+                                               use, never "everything possible"): {ok, binding, board, soc, rows:
+                                               {pins, soc_pins, pin_functions, signals, peripherals, registers,
+                                               fields, settings, field_settings, routes}} — every list holds ONLY
+                                               what THIS binding claims/activates/sets (`cmod.custom.scope.
+                                               scope_for`, pure over `cmod.custom.claims`/`binding` — never a second
+                                               derivation). `?list=<key>` (one of `cmod.custom.scope.LIST_KEYS`)
+                                               narrows the answer to `{ok, rows: [...]}` for one list (class-rows-
+                                               table's dataPath contract) — /display/hardware-chain's scoped tables
+                                               read this per list.
+
 fs-2d (his ask, verbatim: "we should already have a way of describing and defining the tasks in C using no-code, so
 we will want our tasks to be linked to their no-code solutions that compose them as well"): every `schedule` and
 `assignments` row GET /api/firmware/solutions/{name} returns now carries `composed_by` — {graph, node, canvas_route,
@@ -72,6 +83,7 @@ class FirmwareAPI(treeObject):
             # SignalRoute (board), materialized into the manager's tables on every GET of the solution; one pin's
             # own chain for the frontend's Target details ("why")
             add('/api/firmware/solutions/{name}/pins/{canonical}/chain', self, suffix='pin_chain')
+            add('/api/firmware/solutions/{name}/hardware', self, suffix='hardware')   # ucd-scope: THE SCOPED chain
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -351,6 +363,32 @@ class FirmwareAPI(treeObject):
         response.media = {'ok': True, 'solution': name, 'binding': (b['name'] if b else name), 'canonical': canonical,
                           'claim': claim, 'field_settings': field_settings, 'register_settings': register_settings,
                           'routes': routes, 'hops': hops}
+
+    def on_get_hardware(self, request, response, name):
+        """ucd-scope (UNO_CORE_DEMO_PLAN.md §5f, his ruling 2026-10-09): GET /api/firmware/solutions/{name}/hardware
+        — THE SCOPED HARDWARE CHAIN of one binding (`name` = '<solution>' or '<solution>@<board>'), reusing
+        `cmod.custom.claims`/`cmod.custom.binding` (never a second derivation): {ok, binding, board, soc, rows:
+        {pins, soc_pins, pin_functions, signals, peripherals, registers, fields, settings, field_settings, routes}}.
+        `?list=<key>` (`cmod.custom.scope.LIST_KEYS`) narrows to `{ok, rows: [...]}` for one list — the contract
+        class-rows-table's `dataPath` reads, so /display/hardware-chain's scoped tables point straight at this door
+        with a `list` query param each, never a second door per list."""
+        import falcon
+        from cmod.custom import binding as BND
+        from cmod.custom import scope as SCOPE
+        s = self._solution(name, response)
+        if s is None:
+            return
+        b = BND.resolve(name, manager=self.manager)
+        result = SCOPE.scope_for(b if b is not None else name, s.graph, manager=self.manager)
+        list_key = request.params.get('list', '')
+        if list_key:
+            if list_key not in SCOPE.LIST_KEYS:
+                response.status = falcon.HTTP_404
+                response.media = {'ok': False, 'error': 'no such list %r (one of %s)' % (list_key, ', '.join(SCOPE.LIST_KEYS))}
+                return
+            response.media = {'ok': True, 'rows': result['rows'][list_key]}
+            return
+        response.media = dict(ok=True, **result)
 
     def on_get_valid_targets(self, request, response, name, task):
         """fs-2a: GET /api/firmware/solutions/{name}/tasks/{task}/valid-targets — board.custom.target_compat checked

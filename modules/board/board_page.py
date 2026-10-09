@@ -5,6 +5,11 @@ its USB route, adapter and road status; the adapters; the roads; the programmer 
 boards and adapters seen plugged in; the cited datasheet facts; (brd-bo) THE BOARD OBJECT — SoCs, pins, runtime profiles, views,
 conflicts.
 
+/display/hardware-chain — ucd-scope (his ruling 2026-10-09): THE SCOPED HARDWARE CHAIN of ONE binding (the demo,
+uno-button-clock@arduino-uno-r3) — only the pins it claims, the functions it activates, the peripherals it claims,
+the registers/fields it sets, over `GET /api/firmware/solutions/<binding>/hardware` (cmod.custom.scope). The
+exhaustive "every possible" tables this page used to carry moved to the CLASS pages (/class-main-page/<Class>).
+
 /display/firmware-installer — THE FIRMWARE INSTALLER APP's page (brd-fi, plan §7a). His intent: "that way we can test
 different kinds of things on the arduino uno to see if it works".
 
@@ -25,8 +30,13 @@ _BOARDS_PAGES = [
           'it. Readiness (usable / partial / tracked) is DERIVED from whether a board has a twin, a firmware template and something that runs '
           'it — never hand-set (`pol board detect`; `pol board pins <board>`). Goes with /display/firmware-installer (install firmware on a '
           'usable board) and /display/hardware-solutions (no-code on a usable board); the physical layers (SoCs, pins, runtime profiles, '
-          'views, conflicts) are THE BOARD OBJECT, brd-bo.',
+          'views, conflicts) are THE BOARD OBJECT, brd-bo. His ruling 2026-10-09, verbatim: this is the "dedicated '
+          'Board pages for going through all possible boards" — never scoped to one binding (that is /display/'
+          'hardware-chain\'s job now, scoped to the binding in use).',
           'BoardDefinition', [
+              # his ruling 2026-10-09 (ucd-scope): THIS page is the one "dedicated Board page for going through all
+              # possible boards" — never scoped to one binding, never gains a per-binding table; the SCOPED views
+              # (one binding's own pins/functions/peripherals/registers) live on /display/hardware-chain instead.
               _row(0, [_svg_panel('boards-pinmap-svg', 0, 12,
                                   'Pin map, drawn — pick a board; its headers (or, with none modelled, its bare pin list) named, '
                                   'coloured by role (PWM, ADC, UART, I2C/SPI, power, ground, GPIO, button, LED)',
@@ -224,18 +234,32 @@ def _panel(item_id, index, segments, title, path='/api/board/installer', board='
 
 
 
-# ucd-0a/0f (his ruling 2026-10-08: "The page has been overwhelmed with the tables. We should keep them for more specialized or
-# tabular displays we can open"): THE HARDWARE CHAIN has its own page; /display/boards is the readiness page it was.
+# ucd-scope (his ruling 2026-10-09, verbatim: "when we have a page we only want to be concerned about pins and
+# properties we know belong to just the board, chip, and firmware we are using. We do not want a page with
+# everything possible on it ... those should be object specific pages"): /display/hardware-chain is now SCOPED to
+# ONE binding (the demo, uno-button-clock@arduino-uno-r3 — a configured table has no binding picker yet; /display/
+# firmware's own canvas already scopes by its Binding picker). The EXHAUSTIVE tables this page used to carry
+# (every Peripheral/PeripheralSignal/PinFunction/Register/RegisterField the chip COULD have, + the address-space/
+# register-block rows) moved OFF this page entirely — they stay in the module as rows and in the selftests, reached
+# from a scoped row's own `ref` link into its class page (`/class-main-page/<Class>`) or `/object/<Class>/<name>`.
+DEMO_BINDING = 'uno-button-clock@arduino-uno-r3'   # ucd-scope: the ONE binding this page is fixed to, named in its description
+_HARDWARE_DOOR = '/api/firmware/solutions/%s/hardware' % DEMO_BINDING
+
 _CHAIN_PAGES = [
     _page('hardware-chain', 'hardware-chain',
-          'The hardware chain — Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, as '
-          'rows derived from the register snapshot and cited to the datasheet, navigable both ways (every link opens that row\'s own '
-          'page; every `_refs` chip is a reverse link). Start with the D3 walk; `pol board chain <board> <pin>` prints the same.',
+          'The hardware chain — SCOPED to the binding in use (his ruling 2026-10-09, verbatim: "we only want to be '
+          'concerned about pins and properties we know belong to just the board, chip, and firmware we are using. '
+          'We do not want a page with everything possible on it"). This page is fixed to the demo binding '
+          '%s (GET %s) — every table below holds ONLY the pins it claims, the functions it '
+          'activates, the peripherals it claims, and the registers/fields it sets; a different Firmware Solution\'s '
+          'own canvas (/display/firmware) scopes to ITS OWN binding through its Binding picker. For every board, '
+          'every pin, every register or peripheral the CHIP COULD have — the exhaustive, object-specific views — '
+          'open /class-main-page/BoardPin, /class-main-page/PinFunction, /class-main-page/Peripheral, '
+          '/class-main-page/Register, /class-main-page/RegisterField or /class-main-page/Datasheet (or '
+          '/display/boards, his dedicated "every possible board" page) and follow any `ref` link below straight '
+          'into the row\'s own object page. Start with the D3 walk — one pin\'s full chain, scoped by nature.'
+          % (DEMO_BINDING, _HARDWARE_DOOR),
           'BoardPin', [
-              # ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g — his measure of success: "a novice can inspect the model and
-              # understand why that firmware configures the hardware the way it does"). Every table below is a configured table over
-              # derived+cited rows; every `:ref:` column is a link to that row's own object page, every `:refs` list the reverse links —
-              # Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField, and back, no custom component.
               _row(0, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>, '
                               '`pol board chain arduino-uno-r3 D3`)', '',
                               description='What this is for: the whole chain for one pin, in order, so a person new to hardware can read D3 top '
@@ -244,89 +268,58 @@ _CHAIN_PAGES = [
                                           'peripherals (External Interrupts, Timer/Counter2, Pin Change Interrupts, Port D) → their registers '
                                           '(the ones holding bits for THIS pin first) → the cited bit fields that configure this pin, each with '
                                           'its values and what they mean. One row = one hop; `ref` opens the hop\'s own page. Computed on every '
-                                          'load from the same rows the tables below show.',
+                                          'load from the same rows the tables below show. (Scoped by nature — one pin\'s own chain, never '
+                                          'every pin\'s.)',
                               columns='hop,kind,name,what,detail,ref', column_formats='ref:refs',
                               data_path='/api/board/arduino-uno-r3/chain/D3')]),
-              _row(1, [_table('boards-peripherals', 0, 12, 'Peripherals — the chip\'s functional blocks: what each does, its chapter, its signals and registers',
-                              'Peripheral',
-                              description='What this is for: one row per functional block of the SoC (a timer, the serial port, an I/O port, '
-                                          'the ADC, the external-interrupt unit). Columns: kind, title (the datasheet chapter), chapter (the '
-                                          'citation, or undetermined when that chapter was not read), description (plain words), '
-                                          'signals_refs_json (the signals it can put on pins — links), registers_refs_json (the registers '
-                                          'that configure it — links), pin_functions_refs_json (every pin function that reaches it — links). '
-                                          'Derived from the register snapshot\'s grouping rules and the datasheet port tables; never typed in.',
-                              columns='name,peripheral,kind,title,chapter,description,signals_refs_json,registers_refs_json,pin_functions_refs_json,origin,undetermined',
-                              column_formats='name:ref:Peripheral,signals_refs_json:refs,registers_refs_json:refs,pin_functions_refs_json:refs')]),
-              _row(2, [_table('boards-peripheral-signals', 0, 6, 'Peripheral signals — one line a block can drive or read through a pin (OC2B, INT1, RXD, ADC0, PD3 as GPIO)',
-                              'PeripheralSignal',
-                              description='What this is for: the peripheral\'s side of the pin ↔ peripheral link. One row = one signal of one '
-                                          'peripheral. Columns: peripheral (link), signal, channel, direction (in | out | inout | undetermined — '
-                                          'derived from the signal family, said so), pin_functions_refs_json (which pin functions carry it — '
-                                          'links), notes (which register fields configure it, when cited). Derived from the datasheet port '
-                                          'tables (one row per alternate-function name) + one GPIO signal per port bit.',
-                              columns='name,peripheral,signal,channel,direction,description,pin_functions_refs_json,notes,undetermined',
-                              column_formats='name:ref:PeripheralSignal,peripheral:ref:Peripheral,pin_functions_refs_json:refs'),
-                       _table('boards-pin-functions', 1, 6, 'Pin functions — what each SoC pin CAN do (available; a firmware activates one as a SignalRoute)',
-                              'PinFunction',
-                              description='What this is for: the pin\'s side of the link. One row = one (SoC pin × function): PD3 has GPIO, '
-                                          'INT1, OC2B, PCINT19. Columns: soc_pin (link), function, signal (link), peripheral (link), routing '
-                                          '(fixed on the AVR — one pin per function; mux/matrix reserved for chips that choose), overrides_gpio '
-                                          '(§14.3: an enabled alternate function overrides DDR/PORT), exclusive_group (undetermined until '
-                                          'cited), board_pins_refs_json (which board pins expose this SoC pin — links back up the chain).',
-                              columns='name,soc_pin,function,signal,peripheral,routing,overrides_gpio,exclusive_group,description,board_pins_refs_json,undetermined',
-                              column_formats='name:ref:PinFunction,soc_pin:ref:SocPin,signal:ref:PeripheralSignal,peripheral:ref:Peripheral,board_pins_refs_json:refs')]),
-              _row(3, [_table('boards-registers', 0, 5, 'Registers — every register of the SoC: address, I/O vs data space, its peripheral, its cited bit fields',
-                              'Register',
-                              description='What this is for: the chip\'s register map as rows, one per register the toolchain\'s own header '
-                                          'defines (avr-libc <avr/io.h>, read with avr-gcc -dM — the snapshot\'s sha is in origin). Columns: '
-                                          'register, peripheral (link), addr (the address avr-libc defines), addr_mem (the data-space address '
-                                          'for an I/O-space register: io + 0x20, as the datasheet prints both), space (io | mem), width_bytes, '
-                                          'reset_value (cited), description (the datasheet\'s register title, cited), fields_refs_json (its '
-                                          'cited bit fields — links; undetermined names the registers whose fields are not captured yet).',
-                              columns='name,register,peripheral,addr,addr_mem,space,width_bytes,reset_value,description,page_table,fields_refs_json,undetermined',
-                              column_formats='name:ref:Register,peripheral:ref:Peripheral,fields_refs_json:refs'),
-                       _table('boards-register-fields', 1, 7, 'Register fields — each bit field, its values and what they mean, how it may be accessed (rw | r | w1c | w-strobe | rw-toggle), cited to the page',
-                              'RegisterField',
-                              description='What this is for: the last hop — the bits themselves, cited one by one to the ATmega328P datasheet '
-                                          '(DS40002061B, section/table/page in page_table). One row = one bit field of one register. Columns: '
-                                          'register (link), field, bit_hi/bit_lo/width, access (rw plain; r read-only; w1c = a flag cleared by '
-                                          'writing a ONE to it — never read-modify-write; w-strobe = writing acts, reads zero; rw-toggle = '
-                                          'writing one toggles another register\'s bit), reset_value, description (the datasheet\'s bit '
-                                          'title), values_json (each value → the datasheet\'s own sentence), affects_signal / affects_pin '
-                                          '(the signal or pin this field configures — links), page_table (the citation), datasheet '
-                                          '(ucd-doc: the Datasheet row this field\'s document resolves to — link).',
-                              columns='name,register,field,bit_hi,bit_lo,width,access,reset_value,description,values_json,affects_signal,affects_pin,page_table,datasheet,notes',
-                              column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin,datasheet:ref:Datasheet')]),
-              # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9) — the alias Register.addr/
-              # addr_mem used to carry as two columns is now rows: AddressSpace (io | data) + RegisterAddressMapping
-              # (one per register per space it is reachable in); RegisterBlock makes the datasheet's own register-
-              # summary grouping a row (+ shared blocks, e.g. MCUCR.PUD for every GPIO port); MemoryRegion the three
-              # memories. AddressSpace/MemoryRegion rows open from their own object page (/object/AddressSpace/<name>,
-              # /object/MemoryRegion/<name>) or by following a link below — no separate table needed for two-and-three rows.
-              _row(4, [_table('boards-address-mappings', 0, 6, 'Address spaces + mappings — every register, by which address space(s) it is reachable through',
-                              'RegisterAddressMapping',
-                              description='What this is for: the AVR\'s two address spaces (io: IN/OUT, 0x00-0x3F; data: LD/ST/LDS/STS/'
-                                          'LDD/STD, the SAME io registers at +0x20, plus the extended I/O 0x60-0xFF that has no io alias) '
-                                          'as ROWS, cited DS40002061B §8.5 "I/O Memory", p.30. One row = one (register × address space) '
-                                          'it is reachable through — an io-space register carries BOTH an @io and an @data row (EIMSK: '
-                                          '0x1D and 0x3D); a mem-space register carries only @data. Columns: register (link), '
-                                          'address_space (link — open it for the space\'s own range/instructions), address (hex), how '
-                                          '(the instruction family), origin.',
-                              columns='name,register,address_space,address,how,origin,undetermined',
-                              column_formats='name:ref:RegisterAddressMapping,register:ref:Register,address_space:ref:AddressSpace'),
-                       _table('boards-register-blocks', 1, 6, 'Register blocks + memory regions — the datasheet\'s own register-summary grouping, and the three memories',
-                              'RegisterBlock',
-                              description='What this is for: one row per Peripheral\'s own register-summary grouping (RegisterBlock — '
-                                          'today one block per peripheral); `registers_refs_json` lists every Register in it, '
-                                          '`shared_with_refs_json` names OTHER peripherals that configure THROUGH this block (cited: '
-                                          'MCUCR.PUD disables every GPIO port\'s pull-ups regardless of DDxn/PORTxn, §14.4.1 p.100 — the '
-                                          'CPU block\'s only shared case this slice). The chip\'s three memories (flash/sram/eeprom) are '
-                                          'MemoryRegion rows, open from Register.block\'s own peripheral page or by name '
-                                          '(/object/MemoryRegion/atmega328p:flash|sram|eeprom) — sram shares the data AddressSpace the '
-                                          'table above shows; flash is program memory and eeprom is reached through EEAR/EEDR, neither '
-                                          'addressed through io/data at all (said so in each row\'s own `undetermined`).',
-                              columns='name,peripheral,title,registers_refs_json,shared_with_refs_json,origin',
-                              column_formats='name:ref:RegisterBlock,peripheral:ref:Peripheral,registers_refs_json:refs,shared_with_refs_json:refs')]),
+              # ucd-scope: the five SCOPED tables, each reading ONE list off the scoped door (GET .../hardware?
+              # list=<key>) — never the class's full table (that moved to /class-main-page/<Class>).
+              _row(1, [_table('scope-pins', 0, 12, 'Pins in use — the BoardPins %s actually claims, each with the claim itself '
+                              '(mode/pull/edge/initial, the task that owns it)' % DEMO_BINDING, '',
+                              description='What this is for: ONLY the pins this binding claims (never every pin the board has — that is '
+                                          '/class-main-page/BoardPin). One row = one claimed BoardPin. Columns: canonical (the pin\'s own '
+                                          'name), soc_pin (link — the chip pin behind it), claim_mode/claim_pull/claim_edge/claim_initial '
+                                          '(what the claim configures it as), task (the c-atom that owns the claim), ref (this row\'s own '
+                                          'object page). GET %s?list=pins.' % _HARDWARE_DOOR,
+                              columns='canonical,soc_pin,claim_mode,claim_pull,claim_edge,claim_initial,task,ref',
+                              column_formats='soc_pin:ref:SocPin,ref:refs',
+                              data_path='%s?list=pins' % _HARDWARE_DOOR)]),
+              _row(2, [_table('scope-functions', 0, 6, 'Functions activated — the one function each claimed pin actually takes (never every function it COULD take)',
+                              '',
+                              description='What this is for: the PinFunctions this binding\'s claims put to use — an alternate function '
+                                          '(INT0, INT1, RXD, TXD, …) for a claimed "alt" pin, the plain GPIO function for a claimed out/in '
+                                          'pin. Never the full PinFunction table (/class-main-page/PinFunction has that). Columns: name '
+                                          '(link), signal (link — the peripheral signal it carries), peripheral (link). GET '
+                                          '%s?list=pin_functions.' % _HARDWARE_DOOR,
+                              columns='name,signal,peripheral',
+                              column_formats='name:ref:PinFunction,signal:ref:PeripheralSignal,peripheral:ref:Peripheral',
+                              data_path='%s?list=pin_functions' % _HARDWARE_DOOR),
+                       _table('scope-peripherals', 1, 6, 'Peripherals claimed — the functional blocks this firmware actually uses (never every block the chip has)',
+                              '',
+                              description='What this is for: the Peripherals this binding\'s PeripheralClaims hold (exclusive | shared-read '
+                                          '| shared-config) — never the full Peripheral table (/class-main-page/Peripheral has that). '
+                                          'Columns: name (link), usage (the claim\'s own kind), tasks (which c-atoms claim it), description. '
+                                          'GET %s?list=peripherals.' % _HARDWARE_DOOR,
+                              columns='name,usage,tasks,description', column_formats='name:ref:Peripheral',
+                              data_path='%s?list=peripherals' % _HARDWARE_DOOR)]),
+              _row(3, [_table('scope-registers', 0, 6, 'Registers set or claimed — why each one is in scope (set at init | claimed peripheral), the value/mask when set',
+                              '',
+                              description='What this is for: the registers THIS firmware touches — either because a RegisterSetting '
+                                          'writes it at init (why = "set at init", value/mask shown) or because a claimed Peripheral owns '
+                                          'it even though this slice never writes it (why = "claimed peripheral", e.g. TIMER2\'s OCR2A or '
+                                          'USART0\'s UDR0). Never the chip\'s full register map (/class-main-page/Register has that). '
+                                          'Columns: name (link), why, value, mask, description. GET %s?list=registers.' % _HARDWARE_DOOR,
+                              columns='name,why,value,mask,description', column_formats='name:ref:Register',
+                              data_path='%s?list=registers' % _HARDWARE_DOOR),
+                       _table('scope-fields', 1, 6, 'Fields set — the exact bits this firmware\'s init writes, cited (never every field of the register)',
+                              '',
+                              description='What this is for: the RegisterFields a RegisterFieldSetting actually sets at init — one row '
+                                          'per bit (or bit group) written, with the VALUE written, what that value MEANS (the datasheet\'s '
+                                          'own sentence), which claim/task put it there and the rule that derived it. Never every field of '
+                                          'the register (/class-main-page/RegisterField has that). Columns: name (link), value, meaning, '
+                                          'claim, task, rule. GET %s?list=fields.' % _HARDWARE_DOOR,
+                              columns='name,value,meaning,claim,task,rule', column_formats='name:ref:RegisterField',
+                              data_path='%s?list=fields' % _HARDWARE_DOOR)]),
           ]),
 ]
 
