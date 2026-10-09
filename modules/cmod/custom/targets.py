@@ -106,26 +106,17 @@ _PERIPHERAL_KIND = {'ADC': 'analog-in', 'EXINT': 'interrupt-in', 'PCINT': 'inter
 _TIMER_PERIPHERALS = ('TIMER0', 'TIMER1', 'TIMER2')
 
 
-def requirement_kind(graph_name, task):
-    """THE TASK TARGET KIND (board.custom.target_compat.TASK_KINDS vocabulary, his ruling 2026-10-06), derived from
-    one graph node's atom resources — never typed in. A peripheral with one unambiguous direction (ADC, EXINT/
-    PCINT) settles it outright; USART0 is settled by WHICH register the atom touches (UDR0 write = uart-tx, read =
-    uart-rx) or, with no register touch at all (e.g. a ring-buffer consumer like hal_rx_pop), by the atom's own
-    port shape (only 'out' ports = it reads a byte IN from the world = uart-rx; only 'in' ports = it writes a byte
-    OUT = uart-tx); a bare TWI/SPI register touch does not say WHICH signal of the bus, so it is 'undetermined'
-    rather than guessed. A bare pin (a declared macro with no recognised peripheral, e.g. LED_PIN) falls back to the
-    same port-shape rule: only 'in' ports (it is WRITTEN to) = digital-out; only 'out' ports (it is READ) =
-    digital-in. 'undetermined' when none of this settles it (never guessed)."""
-    from cmod.custom.graph_seed import seed_graph
-    rows = seed_graph(graph_name)
-    if rows is None:
-        return 'undetermined'
-    g, nodes = rows['graph'], rows['nodes']
-    node = next((n for n in nodes if n['instance'] == task), None)
-    if node is None or node.get('kind') != 'c-atom' or not node.get('atom'):
-        return 'undetermined'
-    atoms = _manifest_atoms(g['project'])
-    atom = atoms.get(node['atom'].partition(':')[2])
+def _atom_requirement_kind(atom):
+    """THE ATOM-LEVEL KIND (board.custom.target_compat.TASK_KINDS vocabulary, his ruling 2026-10-06), from one
+    atom's own resources/ports alone — never looks at a board pin. A peripheral with one unambiguous direction
+    (ADC, EXINT/PCINT) settles it outright; USART0 is settled by WHICH register the atom touches (UDR0 write =
+    uart-tx, read = uart-rx) or, with no register touch at all (e.g. a ring-buffer consumer like hal_rx_pop), by the
+    atom's own port shape (only 'out' ports = it reads a byte IN from the world = uart-rx; only 'in' ports = it
+    writes a byte OUT = uart-tx); a bare TWI/SPI register touch does not say WHICH signal of the bus, so it is
+    'undetermined' rather than guessed. A bare pin (a declared macro with no recognised peripheral, e.g. LED_PIN)
+    falls back to the same port-shape rule: only 'in' ports (it is WRITTEN to) = digital-out; only 'out' ports (it
+    is READ) = digital-in. 'undetermined' when none of this settles it (never guessed) — ucd-0b2a's `_kind_for_pin`
+    then falls back to the BOUND PIN's own already-known signal, per TargetDefinition row."""
     if atom is None or not atom.get('resources'):
         return 'undetermined'
     resources = atom['resources']
@@ -150,12 +141,72 @@ def requirement_kind(graph_name, task):
         return 'undetermined'
     if 'TWI' in peripherals or 'SPI' in peripherals:
         return 'undetermined'
+    declared = [res['name'] for res in resources if res.get('kind') == 'declared']
+    if len(declared) > 1:
+        # a SELECTABLE resource (uses() names more than one pin, e.g. spi_select(cs) choosing CS0_PIN/CS1_PIN) is
+        # never guessed one direction at the atom level — _kind_for_pin decides each row from its own board pin
+        return 'undetermined'
     # a bare pin (declared macro only, or a plain GPIO port register) — digital in/out from the port shape
     if has_in and not has_out:
         return 'digital-out'
     if has_out and not has_in:
         return 'digital-in'
     return 'undetermined'
+
+
+#: a BoardPin's own `signal` (its already-known alternate function, authoritative — never a guess) -> requirement_kind,
+#: for the rows the atom-level heuristic alone cannot settle (ucd-0b2a §5h B1 — the fallback cmod.custom.claims._kind_for
+#: already used per solution; this is the SAME table, applied per TargetDefinition row so it is never recomputed downstream)
+_SIGNAL_KIND = {'RXD': 'uart-rx', 'TXD': 'uart-tx', 'SDA': 'i2c-sda', 'SCL': 'i2c-scl', 'MOSI': 'spi-mosi', 'COPI': 'spi-mosi',
+                'MISO': 'spi-miso', 'CIPO': 'spi-miso', 'SCK': 'spi-sck', 'SS': 'spi-ss'}
+#: a BoardPin's own `function` -> requirement_kind, for the two kinds a bare function settles without a signal name
+_FUNCTION_KIND = {'adc': 'analog-in', 'pwm': 'pwm-out'}
+#: requirement_kind -> role (input | output | receive | transmit | clock | select | data | address | '') — every
+#: TASK_KINDS entry maps to one; '' (not listed) covers 'undetermined' and any kind outside the vocabulary
+_ROLE_BY_KIND = {'analog-in': 'input', 'pwm-out': 'output', 'uart-rx': 'receive', 'uart-tx': 'transmit',
+                 'i2c-sda': 'data', 'i2c-scl': 'clock', 'spi-mosi': 'data', 'spi-miso': 'data', 'spi-sck': 'clock',
+                 'spi-ss': 'select', 'digital-in': 'input', 'digital-out': 'output', 'interrupt-in': 'receive'}
+
+
+def _kind_for_pin(pin, atom_kind):
+    """The per-ROW requirement_kind: the atom-level kind wins when it settled one; otherwise the BOUND pin's own
+    already-known signal/function (never a guess from a register name — the same posture as cmod.custom.claims.
+    _kind_for's fallback, reused here so claims.py can read the row instead of recomputing it)."""
+    if atom_kind != 'undetermined':
+        return atom_kind
+    pin = pin or {}
+    sig = pin.get('signal') or ''
+    if sig in _SIGNAL_KIND:
+        return _SIGNAL_KIND[sig]
+    fn = pin.get('function') or ''
+    if fn in _FUNCTION_KIND:
+        return _FUNCTION_KIND[fn]
+    if fn == 'uart':   # the bare 'uart' function with a signal this table does not (yet) name
+        return 'undetermined'
+    return atom_kind
+
+
+def _resource_fields(target_kind, requirement_kind):
+    """(role, required, resource_kind) for one TargetDefinition row, from its `kind` (register | pin | peripheral |
+    memory-field | bus | dynamic) and its just-derived `requirement_kind`. A memory-field row is not a hardware
+    requirement at all (his rule, demo-4) — role/resource_kind stay '' and required is False; every other row's
+    resource is inherently a PIN once its kind resolves (board.custom.target_compat: "the pins are the targets"),
+    'undetermined' only while the kind itself is."""
+    if target_kind == 'memory-field':
+        return '', False, ''
+    role = _ROLE_BY_KIND.get(requirement_kind, '')
+    resource_kind = 'pin' if requirement_kind in _ROLE_BY_KIND else 'undetermined'
+    return role, True, resource_kind
+
+
+def requirement_kind(graph_name, task):
+    """THE TASK TARGET KIND for existing callers (board.custom.target_compat.TASK_KINDS vocabulary) — ucd-0b2a:
+    now READS the first of this task's own (per-row) `derive()` rows rather than recomputing; a task with several
+    rows (a dispatcher, or one the atom alone cannot settle) may carry DIFFERENT kinds per row — this keeps
+    returning one, for callers that only ever wanted one (`cmod.custom.firmware.valid_targets_for_task`,
+    `check_drop`)."""
+    rows = [r for r in derive(graph_name) if r['node'] == task]
+    return rows[0]['requirement_kind'] if rows else 'undetermined'
 
 
 def derive(graph_name, manager=None):
@@ -172,7 +223,7 @@ def derive(graph_name, manager=None):
     by_instance = {n['instance']: n for n in nodes}
     out, seen = [], set()
 
-    def add(node, port_name, kind, controls, lives_on, port=None, provenance='annotation', notes=''):
+    def add(node, port_name, kind, controls, lives_on, port=None, provenance='annotation', notes='', req_kind='undetermined'):
         port_ref = '%s.%s' % (node, port_name) if port_name else node
         key = (port_ref, kind, lives_on)
         if key in seen:
@@ -184,11 +235,13 @@ def derive(graph_name, manager=None):
         polari_type = (port or {}).get('polari_type', '')
         unit = (port or {}).get('unit', '')
         constraints = ('%s, width %d B' % (direction, width)) if direction else ('width %d B' % width if width else '')
+        role, required, resource_kind = _resource_fields(kind, req_kind)
         out.append({'name': '%s:%s' % (graph_name, port_ref), 'graph': graph_name, 'node': node, 'port': port_name or '',
                     'port_ref': port_ref, 'kind': kind, 'controls': controls, 'lives_on': lives_on,
                     'board': g.get('board', '') if lives_on != 'unbound' else '', 'direction': direction, 'ctype': ctype,
                     'width_bytes': width, 'polari_type': polari_type, 'unit': unit, 'constraints': constraints,
-                    'provenance': provenance, 'notes': notes})
+                    'provenance': provenance, 'requirement_kind': req_kind if kind != 'memory-field' else '',
+                    'role': role, 'required': required, 'resource_kind': resource_kind, 'notes': notes})
 
     for n in nodes:
         if n.get('kind') != 'c-atom' or not n.get('atom'):
@@ -205,13 +258,15 @@ def derive(graph_name, manager=None):
         if not has_register_or_declared:
             continue
         kind = 'register' if _peripherals(atom) else ('pin' if _declared_names(atom) else 'dynamic')
+        atom_kind = _atom_requirement_kind(atom)
         if matched:
             for pin in matched:
                 add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, pin, port),
-                    '%s:%s' % (g.get('board', ''), pin['canonical']), port=port, provenance='annotation')
+                    '%s:%s' % (g.get('board', ''), pin['canonical']), port=port, provenance='annotation',
+                    req_kind=_kind_for_pin(pin, atom_kind))
         else:
             add(n['instance'], port['name'] if port else '', kind, _node_controls(atom, None, port), 'unbound',
-                port=port, provenance='annotation')
+                port=port, provenance='annotation', req_kind=atom_kind)
 
     for e in edges:
         if e.get('kind') != 'field':

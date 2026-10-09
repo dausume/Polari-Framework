@@ -14,6 +14,7 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
                                RegisterFieldSetting, BoardPinNet)   # ucd-0a: the hardware chain
+from board.board_basis import AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion   # ucd-0b2a: address space as rows
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
 from board.custom.sim_cost import SEED_BOARD_SIM_COSTS
@@ -72,7 +73,10 @@ BOARD_SEED_PAIRS = [
                                                                      ('PinFunction', PinFunction), ('Register', Register), ('RegisterField', RegisterField))] + [
     ('SignalRoute', SignalRoute, []), ('RegisterSetting', RegisterSetting, []), ('RegisterFieldSetting', RegisterFieldSetting, []),
     ('BoardPinNet', BoardPinNet, []),
-]
+    # ucd-0b2a: address space as rows — code-owned (derived from the same register snapshot + the cited §8.5 rule;
+    # re-derive the source, the rows follow)
+] + [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (('AddressSpace', AddressSpace), ('RegisterAddressMapping', RegisterAddressMapping),
+                                                                     ('RegisterBlock', RegisterBlock), ('MemoryRegion', MemoryRegion))]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode
     BOARD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_BOARD_TECH_TREES),

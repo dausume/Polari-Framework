@@ -43,6 +43,12 @@ from board.objects.board.RegisterField import RegisterField  # noqa: F401
 from board.objects.board.RegisterSetting import RegisterSetting  # noqa: F401
 from board.objects.board.RegisterFieldSetting import RegisterFieldSetting  # noqa: F401
 from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401
+# ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9) — AddressSpace, RegisterAddressMapping,
+# RegisterBlock, MemoryRegion; materialized beside the hardware chain, atmega328p only (Phase 2 for the C3)
+from board.objects.board.AddressSpace import AddressSpace  # noqa: F401
+from board.objects.board.RegisterAddressMapping import RegisterAddressMapping  # noqa: F401
+from board.objects.board.RegisterBlock import RegisterBlock  # noqa: F401
+from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -52,4 +58,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  TargetCompatibilityRule,   # fs-2a: task-kind <-> pin-role compatibility, cited
                  KitPart,   # fs-2d: the kit parts register (cited to the kit's own book)
                  Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
-                 BoardPinNet]   # ucd-0a: the hardware chain (nine)
+                 BoardPinNet,   # ucd-0a: the hardware chain (nine)
+                 AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion]   # ucd-0b2a: address space as rows (four)

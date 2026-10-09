@@ -121,6 +121,92 @@ def run_chain(check):
     check('chain: the UNO board object still validates and its pin assignment is unchanged (D3 ↔ PD3, D6 ↔ PD6/OC0A, A0 ↔ PC0/ADC0)',
           (BO.validate(r) or ['ok']) == ['ok'] and {p['canonical']: p['soc_pin'] for p in r['pins']}.items() >= {'D3': 'PD3', 'D6': 'PD6', 'A0': 'PC0'}.items())
 
+    # 7. ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9)
+    run_address_space(check, HC, tables)
+
+
+def run_address_space(check, HC, tables):
+    """ucd-0b2a: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion — derived + cited, one source
+    for Register.addr/addr_mem, materializes twice identically, every ref resolves."""
+    AS = {r['name']: r for r in tables['AddressSpace']}
+    M = tables['RegisterAddressMapping']
+    RB = {r['name']: r for r in tables['RegisterBlock']}
+    MR = {r['name']: r for r in tables['MemoryRegion']}
+    G = {r['name']: r for r in tables['Register']}
+
+    check('address-space: exactly 2 AddressSpace rows (io, data), both cited §8.5 "I/O Memory", p.30',
+          set(AS) == {'atmega328p:io', 'atmega328p:data'}
+          and all(a['document'] and 'p.30' in a['page_table'] and '§8.5' in a['page_table'] for a in AS.values()))
+    check('address-space: io = IN/OUT 0x00-0x3F; data = LD/ST… at +0x20, 0x20-0xFF',
+          AS['atmega328p:io']['access_instructions'].startswith('IN/OUT') and (AS['atmega328p:io']['range_lo'], AS['atmega328p:io']['range_hi']) == ('0x00', '0x3F')
+          and AS['atmega328p:data']['access_instructions'] == 'LD/ST/LDS/STS/LDD/STD' and AS['atmega328p:data']['offset_from_io'] == '0x20')
+
+    by_reg = {}
+    for m in M:
+        by_reg.setdefault(m['register'], []).append(m)
+    io_regs = {g['name'] for g in G.values() if g['space'] == 'io'}
+    mem_regs = {g['name'] for g in G.values() if g['space'] == 'mem'}
+    check('address-space: every io-space register has exactly 2 mappings (@io + @data), every mem-space register exactly 1 (@data)',
+          all(len(by_reg.get(n, [])) == 2 for n in io_regs) and all(len(by_reg.get(n, [])) == 1 for n in mem_regs))
+    eimsk = {m['address_space']: m['address'] for m in by_reg['atmega328p:EIMSK']}
+    check('address-space: EIMSK maps to io 0x1d and data 0x3D (io + 0x20, cited §8.5 p.30)',
+          eimsk.get('atmega328p:io') == '0x1d' and eimsk.get('atmega328p:data') == '0x3D'
+          and any('§8.5' in m['origin'] for m in by_reg['atmega328p:EIMSK'] if m['address_space'] == 'atmega328p:data'))
+    check('address-space: no mem-space register address is below 0x60 (no invented io alias — the UNO snapshot has none)',
+          all(int(G[n]['addr'], 16) >= 0x60 for n in mem_regs))
+
+    check('address-space: every Register.block resolves to a RegisterBlock, and that block\'s registers_refs_json names it back',
+          all(g['block'] in RB for g in G.values())
+          and all(('Register:%s' % g['name']) in json.loads(RB[g['block']]['registers_refs_json']) for g in G.values()))
+    check('address-space: MCUCR\'s block (CPU) is shared with the three GPIO port peripherals, cited §14.4.1 MCUCR, p.100',
+          {'Peripheral:atmega328p:GPIO PORTB', 'Peripheral:atmega328p:GPIO PORTC', 'Peripheral:atmega328p:GPIO PORTD'}
+          == set(json.loads(RB[G['atmega328p:MCUCR']['block']]['shared_with_refs_json']))
+          and 'p.100' in RB[G['atmega328p:MCUCR']['block']]['notes'])
+
+    check('address-space: 3 MemoryRegion rows (flash, sram, eeprom), each carrying its own cited DatasheetFact',
+          set(MR) == {'atmega328p:flash', 'atmega328p:sram', 'atmega328p:eeprom'} and all(r['fact'] for r in MR.values())
+          and all(any(f['name'] == r['fact'] for f in tables['DatasheetFact']) for r in MR.values()))
+    check('address-space: sram is addressed through the data AddressSpace; flash/eeprom are not (said so in undetermined, never guessed)',
+          MR['atmega328p:sram']['address_space'] == 'atmega328p:data'
+          and MR['atmega328p:flash']['address_space'] == '' and MR['atmega328p:flash']['undetermined']
+          and MR['atmega328p:eeprom']['address_space'] == '' and MR['atmega328p:eeprom']['undetermined'])
+
+    # materialize twice → identical rows (deep-compare, the same posture as the rest of the chain)
+    sp2 = [dict(s) for s in tables['SocPin'] if s['soc'] == 'atmega328p']
+    bp2 = [dict(b) for b in tables['BoardPin'] if b['board'] == 'arduino-uno-r3']
+    again = HC.build(sp2, bp2)
+    check('address-space: materializing twice gives byte-identical AddressSpace/RegisterAddressMapping/RegisterBlock/MemoryRegion rows',
+          all(sorted(again[c], key=lambda r: r['name']) == sorted([dict(r) for r in tables[c]], key=lambda r: r['name'])
+              for c in ('AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion')))
+
+    # every ref resolves — forward + reverse, the new classes included
+    dangling = []
+    for m in M:
+        for col, cls in (('register', 'Register'), ('address_space', 'AddressSpace')):
+            if m.get(col) and not _resolve(tables, cls, m[col]):
+                dangling.append(('RegisterAddressMapping', m['name'], col))
+    for rb in RB.values():
+        if rb.get('peripheral') and not _resolve(tables, 'Peripheral', rb['peripheral']):
+            dangling.append(('RegisterBlock', rb['name'], 'peripheral'))
+        for col in ('registers_refs_json', 'shared_with_refs_json'):
+            for ref in json.loads(rb[col] or '[]'):
+                cls, _, name = ref.partition(':')
+                if not _resolve(tables, cls, name):
+                    dangling.append(('RegisterBlock', rb['name'], col))
+    for mr in MR.values():
+        if mr.get('address_space') and not _resolve(tables, 'AddressSpace', mr['address_space']):
+            dangling.append(('MemoryRegion', mr['name'], 'address_space'))
+        if mr.get('fact') and not _resolve(tables, 'DatasheetFact', mr['fact']):
+            dangling.append(('MemoryRegion', mr['name'], 'fact'))
+    for g in G.values():
+        for ref in json.loads(g.get('mappings_refs_json') or '[]'):
+            cls, _, name = ref.partition(':')
+            if not _resolve(tables, cls, name):
+                dangling.append(('Register', g['name'], 'mappings_refs_json'))
+        if g.get('block') and not _resolve(tables, 'RegisterBlock', g['block']):
+            dangling.append(('Register', g['name'], 'block'))
+    check('address-space: every reference (forward and reverse) of the four new classes resolves', not dangling, str(dangling[:5]))
+
 
 def _refuses(HC, tables):
     try:

@@ -272,6 +272,36 @@ _CHAIN_PAGES = [
                                           '(the signal or pin this field configures — links), page_table (the citation).',
                               columns='name,register,field,bit_hi,bit_lo,width,access,reset_value,description,values_json,affects_signal,affects_pin,page_table,notes',
                               column_formats='name:ref:RegisterField,register:ref:Register,affects_signal:ref:PeripheralSignal,affects_pin:ref:SocPin')]),
+              # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9) — the alias Register.addr/
+              # addr_mem used to carry as two columns is now rows: AddressSpace (io | data) + RegisterAddressMapping
+              # (one per register per space it is reachable in); RegisterBlock makes the datasheet's own register-
+              # summary grouping a row (+ shared blocks, e.g. MCUCR.PUD for every GPIO port); MemoryRegion the three
+              # memories. AddressSpace/MemoryRegion rows open from their own object page (/object/AddressSpace/<name>,
+              # /object/MemoryRegion/<name>) or by following a link below — no separate table needed for two-and-three rows.
+              _row(4, [_table('boards-address-mappings', 0, 6, 'Address spaces + mappings — every register, by which address space(s) it is reachable through',
+                              'RegisterAddressMapping',
+                              description='What this is for: the AVR\'s two address spaces (io: IN/OUT, 0x00-0x3F; data: LD/ST/LDS/STS/'
+                                          'LDD/STD, the SAME io registers at +0x20, plus the extended I/O 0x60-0xFF that has no io alias) '
+                                          'as ROWS, cited DS40002061B §8.5 "I/O Memory", p.30. One row = one (register × address space) '
+                                          'it is reachable through — an io-space register carries BOTH an @io and an @data row (EIMSK: '
+                                          '0x1D and 0x3D); a mem-space register carries only @data. Columns: register (link), '
+                                          'address_space (link — open it for the space\'s own range/instructions), address (hex), how '
+                                          '(the instruction family), origin.',
+                              columns='name,register,address_space,address,how,origin,undetermined',
+                              column_formats='name:ref:RegisterAddressMapping,register:ref:Register,address_space:ref:AddressSpace'),
+                       _table('boards-register-blocks', 1, 6, 'Register blocks + memory regions — the datasheet\'s own register-summary grouping, and the three memories',
+                              'RegisterBlock',
+                              description='What this is for: one row per Peripheral\'s own register-summary grouping (RegisterBlock — '
+                                          'today one block per peripheral); `registers_refs_json` lists every Register in it, '
+                                          '`shared_with_refs_json` names OTHER peripherals that configure THROUGH this block (cited: '
+                                          'MCUCR.PUD disables every GPIO port\'s pull-ups regardless of DDxn/PORTxn, §14.4.1 p.100 — the '
+                                          'CPU block\'s only shared case this slice). The chip\'s three memories (flash/sram/eeprom) are '
+                                          'MemoryRegion rows, open from Register.block\'s own peripheral page or by name '
+                                          '(/object/MemoryRegion/atmega328p:flash|sram|eeprom) — sram shares the data AddressSpace the '
+                                          'table above shows; flash is program memory and eeprom is reached through EEAR/EEDR, neither '
+                                          'addressed through io/data at all (said so in each row\'s own `undetermined`).',
+                              columns='name,peripheral,title,registers_refs_json,shared_with_refs_json,origin',
+                              column_formats='name:ref:RegisterBlock,peripheral:ref:Peripheral,registers_refs_json:refs,shared_with_refs_json:refs')]),
           ]),
 ]
 
