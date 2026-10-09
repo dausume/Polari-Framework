@@ -211,6 +211,15 @@ public interface DevicePort extends AutoCloseable {
         send(packet);
     }
 
+    /**
+     * ucd-0e3 bridge lifecycle: how many times this port's physical
+     * connection was lost and reopened. 0 for a port that never
+     * disconnects (the simulated MCU).
+     */
+    default long reconnects() {
+        return 0;
+    }
+
     String describe();
 
     @Override
@@ -294,6 +303,7 @@ SERIAL_PORT_JAVA = r'''package org.polari.bridge;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PushbackInputStream;
@@ -303,32 +313,126 @@ import java.io.PushbackInputStream;
  * Plain file I/O — the kernel's cdc_acm driver does the transport;
  * stty puts the line in raw mode first. No native libraries, no
  * custom kernel module.
+ *
+ * ucd-0e3 bridge lifecycle: a lost connection (EOF or any IOException
+ * while reading) never crashes the bridge — the stream is closed,
+ * logged, and REOPENED with backoff (0.5s, 1, 2, 4, capped at 8s;
+ * forever). Every successful (re)open requests a SNAPSHOT from every
+ * exposed class that declares one (CodecRegistry's generated
+ * knowledge — HAS_SNAPSHOT_COMMAND); a class without a `snapshot`
+ * field gets nothing sent.
  */
 public final class SerialCdcPort implements DevicePort {
+    /**
+     * Test seam (package-private): how open() gets its raw streams.
+     * `attempt` is the 0-based count of opens so far. Production code
+     * never supplies one — the real CDC-ACM path (RealOpener) is used.
+     */
+    interface Opener {
+        InputStream[] openInput(String device, int baud, int attempt)
+                throws Exception;
+
+        OutputStream openOutput(String device, int attempt)
+                throws Exception;
+    }
+
     private final String device;
-    private final InputStream in;
-    private final OutputStream out;
+    private final int baud;
+    private final Opener opener;
+    private PushbackInputStream in;
+    private OutputStream out;
+    private long framesSinceOpen;
+    private int openAttempts;
+    private long reconnectCount;
 
     public SerialCdcPort(String device, int baud) throws Exception {
+        this(device, baud, null);
+    }
+
+    SerialCdcPort(String device, int baud, Opener opener) throws Exception {
         this.device = device;
-        Process stty = new ProcessBuilder(
-                "stty", "-F", device, "raw", "-echo",
-                String.valueOf(baud)).inheritIO().start();
-        if (stty.waitFor() != 0) {
-            throw new IllegalStateException(
-                    "stty failed for " + device
-                    + " — is the device present and are you in the "
-                    + "dialout group?");
+        this.baud = baud;
+        this.opener = opener != null ? opener : new RealOpener();
+        open();
+    }
+
+    private void open() throws Exception {
+        InputStream[] raw = opener.openInput(device, baud, openAttempts);
+        InputStream first = raw[0];
+        this.in = first instanceof PushbackInputStream
+                ? (PushbackInputStream) first
+                : new PushbackInputStream(first,
+                        PolariPacket.HEADER_LEN + PolariPacket.MAX_PAYLOAD + 4);
+        this.out = opener.openOutput(device, openAttempts);
+        framesSinceOpen = 0;
+        openAttempts++;
+        System.out.println("{\"t\":\"serial-open\",\"device\":\""
+                + device + "\",\"attempt\":" + openAttempts + "}");
+        requestSnapshots();
+    }
+
+    /** ucd-0e3: SNAPSHOT on attach — one command frame per exposed
+     *  class that declares a `snapshot` field; nothing for a class
+     *  that does not. */
+    private void requestSnapshots() throws Exception {
+        for (int msgType : CodecRegistry.msgTypes()) {
+            if (!CodecRegistry.hasSnapshotCommand(msgType)) continue;
+            PolariPacket pkt = CodecRegistry.snapshotPacket(msgType, 0);
+            if (pkt == null) continue;
+            send(pkt);
+            System.out.println("{\"t\":\"snapshot-requested\"}");
         }
-        // pushback: a rejected candidate's bytes are re-scanned (grpc-j4)
-        this.in = new PushbackInputStream(new FileInputStream(device),
-                PolariPacket.HEADER_LEN + PolariPacket.MAX_PAYLOAD + 4);
-        this.out = new FileOutputStream(device);
     }
 
     @Override
     public PolariPacket next() throws Exception {
-        return PolariPacket.read(in);
+        while (true) {
+            try {
+                PolariPacket p = PolariPacket.read(in);
+                framesSinceOpen++;
+                return p;
+            } catch (IOException lost) {  // EOFException IS an IOException
+                System.out.println("{\"t\":\"serial-lost\",\"device\":\""
+                        + device + "\",\"after_frames\":" + framesSinceOpen
+                        + "}");
+                closeQuiet();
+                reconnectCount++;
+                reopenWithBackoff();
+            }
+        }
+    }
+
+    /** Reopen forever, 0.5s / 1 / 2 / 4, capped at 8s between tries —
+     *  a reconnect, never a crash. */
+    private void reopenWithBackoff() throws Exception {
+        long backoffMs = 500;
+        while (true) {
+            try {
+                open();
+                return;
+            } catch (Exception failed) {
+                try {
+                    Thread.sleep(backoffMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw failed;
+                }
+                backoffMs = Math.min(backoffMs * 2, 8000);
+            }
+        }
+    }
+
+    private void closeQuiet() {
+        try {
+            if (in != null) in.close();
+        } catch (Exception ignore) {
+            // best-effort: the stream is already gone
+        }
+        try {
+            if (out != null) out.close();
+        } catch (Exception ignore) {
+            // best-effort: the stream is already gone
+        }
     }
 
     @Override
@@ -338,14 +442,369 @@ public final class SerialCdcPort implements DevicePort {
     }
 
     @Override
+    public long reconnects() {
+        return reconnectCount;
+    }
+
+    @Override
     public String describe() {
         return "serial " + device;
     }
 
     @Override
     public void close() throws Exception {
-        in.close();
-        out.close();
+        closeQuiet();
+    }
+
+    /** Production path: stty raw mode, then plain CDC-ACM file I/O —
+     *  the device path, baud and dialout check are unchanged. */
+    private static final class RealOpener implements Opener {
+        @Override
+        public InputStream[] openInput(String device, int baud,
+                                       int attempt) throws Exception {
+            Process stty = new ProcessBuilder(
+                    "stty", "-F", device, "raw", "-echo",
+                    String.valueOf(baud)).inheritIO().start();
+            if (stty.waitFor() != 0) {
+                throw new IllegalStateException(
+                        "stty failed for " + device
+                        + " — is the device present and are you in the "
+                        + "dialout group?");
+            }
+            return new InputStream[]{new FileInputStream(device)};
+        }
+
+        @Override
+        public OutputStream openOutput(String device, int attempt)
+                throws Exception {
+            return new FileOutputStream(device);
+        }
+    }
+}
+'''
+
+SEQUENCE_TRACKER_JAVA = r'''package org.polari.bridge;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * ucd-0e3 bridge lifecycle: per msg_type sequence-gap counting, plus
+ * reboot-vs-reconnect by `boot_session` (CodecRegistry.hasBootSession
+ * names which classes carry the field — a class without it is inert
+ * to the reboot rule, only gap/reorder counting applies).
+ *
+ * Boot session != packet sequence: a NEW boot_session for a msg_type
+ * is a REBOOT — fresh state, sequence tracking resets for EVERY
+ * msg_type (no gap counted across it). The SAME boot_session with
+ * sequence > last+1 is a transport loss (gapsSeen/framesLost). The
+ * SAME boot_session with sequence <= last is a duplicate/out-of-order
+ * frame (reordered) — still forwarded by the caller, never dropped.
+ */
+public final class SequenceTracker {
+    public static final class Result {
+        public final boolean reboot;
+        public final long gap;
+        public final boolean reordered;
+        public final Long previousBootSession;
+
+        Result(boolean reboot, long gap, boolean reordered,
+               Long previousBootSession) {
+            this.reboot = reboot;
+            this.gap = gap;
+            this.reordered = reordered;
+            this.previousBootSession = previousBootSession;
+        }
+    }
+
+    private final Map<Integer, Long> lastSeq = new HashMap<>();
+    private final Map<Integer, Long> lastBoot = new HashMap<>();
+    public long gapsSeen;
+    public long framesLost;
+    public long reordered;
+    public long reboots;
+
+    /** `bootSession` is null for a class with no boot_session field —
+     *  the reboot rule is inert for it; only gap/reorder applies. */
+    public Result observe(int msgType, long sequence, Long bootSession) {
+        boolean isReboot = false;
+        Long previous = null;
+        if (bootSession != null) {
+            Long prevBoot = lastBoot.get(msgType);
+            if (prevBoot != null && !prevBoot.equals(bootSession)) {
+                isReboot = true;
+                previous = prevBoot;
+                reboots++;
+                lastSeq.clear();   // a reboot resets tracking for EVERY msg_type
+            }
+            lastBoot.put(msgType, bootSession);
+        }
+        long gap = 0;
+        boolean isReordered = false;
+        if (!isReboot) {
+            Long prevSeq = lastSeq.get(msgType);
+            if (prevSeq != null) {
+                if (sequence > prevSeq + 1) {
+                    gap = sequence - prevSeq - 1;
+                    gapsSeen++;
+                    framesLost += gap;
+                } else if (sequence <= prevSeq) {
+                    isReordered = true;
+                    reordered++;
+                }
+            }
+        }
+        lastSeq.put(msgType, sequence);
+        return new Result(isReboot, gap, isReordered, previous);
+    }
+}
+'''
+
+LIFECYCLE_SELFTEST_JAVA = r'''package org.polari.bridge;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * ucd-0e3 bridge lifecycle, proven generically against whichever
+ * classes THIS bridge carries (CodecRegistry's generated knowledge
+ * decides which cases exercise a real class; a bridge with no
+ * boot_session / snapshot field prints an honest SKIP for those two
+ * — never a guess):
+ *
+ *  (a) reconnect: a lost stream is reopened with backoff, never a
+ *      crash — every frame still forwarded, no gap across it;
+ *  (b) sequence-gap counting (generic: needs no class at all);
+ *  (c) reboot vs reconnect by `boot_session` (needs a class that
+ *      declares one);
+ *  (d) SNAPSHOT requested on every (re)attach (needs a class that
+ *      declares `snapshot`).
+ */
+public final class LifecycleSelfTest {
+    public static void main(String[] args) throws Exception {
+        int failures = 0;
+        failures += testReconnect();
+        failures += testGap();
+        failures += testReboot();
+        failures += testSnapshotOnAttach();
+        if (failures > 0) {
+            System.out.println("LIFECYCLE FAILED: " + failures);
+            System.exit(1);
+        }
+        System.out.println("LIFECYCLE OK");
+    }
+
+    private static int firstMsgType() {
+        int[] types = CodecRegistry.msgTypes();
+        return types.length > 0 ? types[0] : -1;
+    }
+
+    /** (a) a stream that ends after frames 50,51; a second stream that
+     *  continues with 52 — serial-lost then serial-open attempt=2, no
+     *  gap, all 3 frames forwarded. */
+    private static int testReconnect() {
+        int msgType = firstMsgType();
+        if (msgType < 0) {
+            System.out.println(
+                    "SKIP: lifecycle reconnect — no exposed class");
+            return 0;
+        }
+        PrintStream prev = System.out;
+        try {
+            byte[] f50 = new PolariPacket(msgType, 7, 50,
+                    CodecRegistry.sampleFrame(msgType, 50)).encode();
+            byte[] f51 = new PolariPacket(msgType, 7, 51,
+                    CodecRegistry.sampleFrame(msgType, 51)).encode();
+            byte[] f52 = new PolariPacket(msgType, 7, 52,
+                    CodecRegistry.sampleFrame(msgType, 52)).encode();
+            final byte[] stream1 = concat(f50, f51);
+            final byte[] stream2 = f52;
+
+            ByteArrayOutputStream log = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(log, true));
+            SerialCdcPort port = new SerialCdcPort("test-device", 115200,
+                    new SerialCdcPort.Opener() {
+                        @Override
+                        public InputStream[] openInput(String device,
+                                int baud, int attempt) {
+                            return new InputStream[]{new ByteArrayInputStream(
+                                    attempt == 0 ? stream1 : stream2)};
+                        }
+
+                        @Override
+                        public OutputStream openOutput(String device,
+                                int attempt) {
+                            return new ByteArrayOutputStream();
+                        }
+                    });
+            List<Long> seqs = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                PolariPacket p = port.next();
+                if (p != null) seqs.add(p.sequence);
+            }
+            System.setOut(prev);
+            String logged = log.toString();
+            boolean ok = seqs.equals(Arrays.asList(50L, 51L, 52L))
+                    && port.reconnects() == 1
+                    && logged.contains("\"t\":\"serial-lost\"")
+                    && logged.contains("\"t\":\"serial-open\",\"device\":"
+                            + "\"test-device\",\"attempt\":2");
+            System.out.println((ok ? "PASS" : "FAIL")
+                    + ": lifecycle reconnect seqs=" + seqs
+                    + " reconnects=" + port.reconnects());
+            return ok ? 0 : 1;
+        } catch (Exception e) {
+            System.setOut(prev);
+            System.out.println("FAIL: lifecycle reconnect threw " + e);
+            return 1;
+        }
+    }
+
+    /** (b) 50, 51, 55 on one msg_type — gapsSeen 1, framesLost 3. */
+    private static int testGap() {
+        SequenceTracker t = new SequenceTracker();
+        t.observe(1, 50, null);
+        t.observe(1, 51, null);
+        t.observe(1, 55, null);
+        boolean ok = t.gapsSeen == 1 && t.framesLost == 3;
+        System.out.println((ok ? "PASS" : "FAIL")
+                + ": lifecycle gap gapsSeen=" + t.gapsSeen
+                + " framesLost=" + t.framesLost);
+        return ok ? 0 : 1;
+    }
+
+    /** (c) boot_session A: 10,11 then B: 1,2 — device-reboot, no gap
+     *  across the boundary, reboots=1. Runs against a real class of
+     *  this bridge when one declares boot_session; none (today: every
+     *  shipped class) skips honestly. */
+    private static int testReboot() {
+        int msgType = -1;
+        for (int mt : CodecRegistry.msgTypes()) {
+            if (CodecRegistry.hasBootSession(mt)) {
+                msgType = mt;
+                break;
+            }
+        }
+        if (msgType < 0) {
+            System.out.println("SKIP: lifecycle reboot — no class on "
+                    + "this bridge declares boot_session");
+            return 0;
+        }
+        try {
+            SequenceTracker t = new SequenceTracker();
+            PolariPacket p10 = withBootSessionPacket(msgType, 10, 100L);
+            PolariPacket p11 = withBootSessionPacket(msgType, 11, 100L);
+            PolariPacket p1 = withBootSessionPacket(msgType, 1, 200L);
+            PolariPacket p2 = withBootSessionPacket(msgType, 2, 200L);
+
+            observeOne(t, p10);
+            observeOne(t, p11);
+            SequenceTracker.Result r = observeOne(t, p1);
+            observeOne(t, p2);
+
+            boolean ok = r.reboot && t.gapsSeen == 0 && t.reboots == 1;
+            System.out.println((ok ? "PASS" : "FAIL")
+                    + ": lifecycle reboot reboot=" + r.reboot
+                    + " gapsSeen=" + t.gapsSeen + " reboots=" + t.reboots);
+            return ok ? 0 : 1;
+        } catch (Exception e) {
+            System.out.println("FAIL: lifecycle reboot threw " + e);
+            return 1;
+        }
+    }
+
+    private static PolariPacket withBootSessionPacket(int msgType, long seq,
+            long bootSession) throws Exception {
+        byte[] payload = CodecRegistry.withBootSession(msgType, seq,
+                bootSession);
+        byte[] wire = new PolariPacket(CodecRegistry.wireVersionOf(msgType),
+                msgType, 7, seq, payload).encode();
+        return PolariPacket.read(new ByteArrayInputStream(wire));
+    }
+
+    private static SequenceTracker.Result observeOne(SequenceTracker t,
+            PolariPacket p) {
+        Long boot = CodecRegistry.hasBootSession(p.msgType)
+                ? CodecRegistry.bootSessionOf(p.msgType, p) : null;
+        return t.observe(p.msgType, p.sequence, boot);
+    }
+
+    /** (d) the first bytes written to the port after open ARE the
+     *  snapshot command — for whichever class of this bridge declares
+     *  `snapshot` (none: nothing written, SKIP honestly). */
+    private static int testSnapshotOnAttach() {
+        boolean any = false;
+        for (int mt : CodecRegistry.msgTypes()) {
+            if (CodecRegistry.hasSnapshotCommand(mt)) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            System.out.println("SKIP: lifecycle snapshot-on-attach — no "
+                    + "class on this bridge declares `snapshot`");
+            return 0;
+        }
+        PrintStream prev = System.out;
+        try {
+            final ByteArrayOutputStream capturedOut =
+                    new ByteArrayOutputStream();
+            ByteArrayOutputStream log = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(log, true));
+            new SerialCdcPort("test-device", 115200,
+                    new SerialCdcPort.Opener() {
+                        @Override
+                        public InputStream[] openInput(String device,
+                                int baud, int attempt) {
+                            return new InputStream[]{
+                                    new ByteArrayInputStream(new byte[0])};
+                        }
+
+                        @Override
+                        public OutputStream openOutput(String device,
+                                int attempt) {
+                            return capturedOut;
+                        }
+                    });
+            System.setOut(prev);
+            byte[] written = capturedOut.toByteArray();
+            String logged = log.toString();
+            PolariPacket cmd = written.length > 0
+                    ? PolariPacket.read(new ByteArrayInputStream(written))
+                    : null;
+            boolean ok = cmd != null
+                    && CodecRegistry.hasSnapshotCommand(cmd.msgType)
+                    && CodecRegistry.describe(cmd).contains("snapshot=true")
+                    && logged.contains("\"t\":\"snapshot-requested\"");
+            System.out.println((ok ? "PASS" : "FAIL")
+                    + ": lifecycle snapshot-on-attach "
+                    + (cmd != null ? CodecRegistry.describe(cmd)
+                                   : "(nothing written)"));
+            return ok ? 0 : 1;
+        } catch (Exception e) {
+            System.setOut(prev);
+            System.out.println(
+                    "FAIL: lifecycle snapshot-on-attach threw " + e);
+            return 1;
+        }
+    }
+
+    private static byte[] concat(byte[]... parts) {
+        int n = 0;
+        for (byte[] p : parts) n += p.length;
+        byte[] out = new byte[n];
+        int off = 0;
+        for (byte[] p : parts) {
+            System.arraycopy(p, 0, out, off, p.length);
+            off += p.length;
+        }
+        return out;
     }
 }
 '''
@@ -485,6 +944,11 @@ public final class BridgeMain {
                 + " grpc="
                 + (cfg.grpcEnabled ? cfg.grpcTarget : "off"));
 
+        // ucd-0e3 bridge lifecycle: per msg_type sequence-gap counting
+        // + reboot vs reconnect by boot_session (inert for a class
+        // with neither field — CodecRegistry's generated knowledge).
+        SequenceTracker tracker = new SequenceTracker();
+
         long frames = 0, bytes = 0, corrupted = 0;
         long started = System.nanoTime();
         try {
@@ -502,11 +966,27 @@ public final class BridgeMain {
                 }
                 frames++;
                 bytes += packet.wireLength();
+                Long bootSession = CodecRegistry.hasBootSession(packet.msgType)
+                        ? CodecRegistry.bootSessionOf(packet.msgType, packet)
+                        : null;
+                SequenceTracker.Result lc = tracker.observe(
+                        packet.msgType, packet.sequence, bootSession);
+                if (lc.reboot) {
+                    System.out.println("{\"t\":\"device-reboot\","
+                            + "\"boot_session\":" + bootSession
+                            + ",\"previous\":" + lc.previousBootSession
+                            + "}");
+                }
                 System.out.println("[bridge] seq=" + packet.sequence
                         + " device=" + packet.deviceId + " "
                         + (packet.version >= 2 ? "index="
                            + CodecRegistry.indexOf(packet) + " " : "")
-                        + CodecRegistry.describe(packet));
+                        + CodecRegistry.describe(packet)
+                        + " gaps=" + tracker.gapsSeen
+                        + " lost=" + tracker.framesLost
+                        + " reordered=" + tracker.reordered
+                        + " reboots=" + tracker.reboots
+                        + " reconnects=" + port.reconnects());
                 if (push != null) {
                     push.invoke(forwarder, packet);
                 }

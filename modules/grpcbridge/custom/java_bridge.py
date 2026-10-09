@@ -198,6 +198,9 @@ def generate_project(manager, bridge, row_factory=None):
     files[f'{JAVA_DIR}/BridgeMain.java'] = jt.BRIDGE_MAIN_JAVA
     files[f'{JAVA_DIR}/LoopbackSelfTest.java'] = \
         jt.LOOPBACK_SELFTEST_JAVA
+    files[f'{JAVA_DIR}/SequenceTracker.java'] = jt.SEQUENCE_TRACKER_JAVA
+    files[f'{JAVA_DIR}/LifecycleSelfTest.java'] = \
+        jt.LIFECYCLE_SELFTEST_JAVA
     for idx, (class_name, field_map) in enumerate(classes_with_maps):
         msg_type = idx + 1
         exposure = get_exposure(manager, class_name)
@@ -209,13 +212,16 @@ def generate_project(manager, bridge, row_factory=None):
         files[f'{JAVA_DIR}/codec/{class_name}Codec.java'] = \
             jw.insert_into_codec(
                 jcg.render_codec(class_name, field_map, msg_type),
-                jw.render_codec_wire(class_name, specs[class_name]))
+                jw.render_codec_wire(class_name, specs[class_name])
+                + jw.render_codec_lifecycle(class_name, specs[class_name]))
         for fn, text in jw.render_enums(class_name,
                                         specs[class_name]).items():
             files[f'{JAVA_DIR}/codec/{fn}'] = text
     names = [c for c, _ in classes_with_maps]
     files[f'{JAVA_DIR}/CodecRegistry.java'] = jw.insert_into_codec(
-        jcg.render_registry(names), jw.registry_methods(names))
+        jcg.render_registry(names),
+        jw.registry_methods(names)
+        + jw.registry_lifecycle_methods([(c, specs[c]) for c in names]))
     files[f'{JAVA_DIR}/grpc/GrpcForwarder.java'] = \
         jcg.render_forwarder(classes_with_maps)
 

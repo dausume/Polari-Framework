@@ -21,6 +21,7 @@ class HardwareInterfaceBinding(treeObject):
                  board_instance: str = '', board_definition: str = '', interface_kind: str = 'serial', interface_name: str = '',
                  port: str = '', adapter: str = '', instance_index: int = 0, wire_version: int = 2, contract_hash_v2: str = '',
                  frames_seen: int = 0, last_sequence: int = 0, last_seen_at: str = '', refused_frames: int = 0,
+                 gaps_seen: int = 0, frames_lost: int = 0, reconnects: int = 0, reboots: int = 0,
                  origin: str = 'person', notes: str = '', manager=None):
         self.name = name  # e.g. uno-pair/SimRigState/0
         self.bridge_name = bridge_name  # the HardwareBridgeDefinition this interface is served by
@@ -39,5 +40,13 @@ class HardwareInterfaceBinding(treeObject):
         self.last_sequence = last_sequence
         self.last_seen_at = last_seen_at
         self.refused_frames = refused_frames  # frames whose index/port did not match (counted, never applied)
+        # ucd-0e3 bridge lifecycle: additive, 0-default — PREPARED, not yet populated. The Java bridge keeps these
+        # counters itself (SequenceTracker + SerialCdcPort.reconnects()) and prints them in its status line; neither
+        # the gRPC Push path (HardwareInterface carries no such fields — the proto was deliberately left alone) nor
+        # a log-line parser (none exists yet) stamps them onto this row today. Wiring one of those two is DEBT.
+        self.gaps_seen = gaps_seen  # transport-loss events this binding's port observed (sequence > last + 1)
+        self.frames_lost = frames_lost  # total frames implied missing by those gaps
+        self.reconnects = reconnects  # times this binding's physical port was lost and reopened
+        self.reboots = reboots  # times a NEW boot_session was seen on this binding (fresh device state)
         self.origin = origin  # seeded | person | installer
         self.notes = notes
