@@ -171,11 +171,30 @@ def _claims(name, as_json):
     return 0
 
 
+def _server_statuses():
+    """{Purpose name: derived status} from the server POLARI_API names (its ScenarioRuns live there); None when unset or
+    unreachable (then the seed's own status is used and the export says so)."""
+    import os, ssl, urllib.request
+    api = os.environ.get('POLARI_API', '').rstrip('/')
+    if not api:
+        return None
+    try:
+        ctx = ssl._create_unverified_context()
+        with urllib.request.urlopen(urllib.request.Request(api + '/api/capabilities'), timeout=15, context=ctx) as r:
+            d = json.load(r)
+        rows = d if isinstance(d, list) else (d.get('rows') or d.get('capabilities') or [])
+        return {x.get('name'): x.get('status', 'planned') for x in rows if x.get('name')}
+    except Exception as e:  # noqa: BLE001 — said, not raised
+        print('  (Purpose statuses not read from %s: %s — the seed\'s own statuses are used)' % (api, e))
+        return None
+
+
 def _export(name, target, out, verify, as_json):
     from cmod.custom import export_cmake as EX
     fs = _solution(name)
     try:
-        row = EX.export(fs, target=target, out_root=out, verify_build=verify)
+        statuses = _server_statuses()
+        row = EX.export(fs, target=target, out_root=out, verify_build=verify, statuses=statuses)
     except EX.ExportRefused as e:
         print('refused: %s' % e)
         return 2
@@ -187,6 +206,7 @@ def _export(name, target, out, verify, as_json):
     print('  files    %s' % ', '.join(f['file'] for f in json.loads(row['files_json'])))
     print('  build    cmake -S . -B build && cmake --build build   |   cmake -P polari-build.cmake')
     print('  parity   %s (makefile hex %s, cmake hex %s)' % (row['parity'], row['makefile_sha256'][:16] or '—', row['cmake_sha256'][:16] or '—'))
+    print('  proof    %s' % row['notes'])
     if row['verify_log']:
         print('  verify   ' + row['verify_log'].strip().splitlines()[0][:140])
     return 0 if row['status'] != 'refused' else 1

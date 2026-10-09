@@ -437,7 +437,8 @@ def temperature_sensor_capability(graph_name='uno-sim-rig-graph'):
                        "\"assign to 1 specific register this part of a struct ... generalize that ... as 'temperature "
                        "sensor solution'\")." % where,
             'required_targets': ', '.join(required), 'exposes_fields': 'temp_c',
-            'instance_count': 2, 'notes': ''}
+            'instance_count': 2, 'acceptance_scenario': 'temp-sensor-to-os-acceptance',   # the same path temp-sensor-to-os proves
+            'notes': 'demo-4 example over the same graph; its proof IS temp-sensor-to-os-acceptance (one path, one run)'}
 
 
 def temperature_sensor_instances(graph_name='uno-sim-rig-graph'):

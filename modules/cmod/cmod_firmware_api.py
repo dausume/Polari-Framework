@@ -97,8 +97,21 @@ class FirmwareAPI(treeObject):
         response.media = {'ok': True, 'solutions': [self._d(r) for r in sorted(self._rows('FirmwareSolution'), key=lambda r: r.name)]}
 
     def on_get_bindings_all(self, request, response):
-        """ucd-0b2b: GET /api/firmware/bindings — every HardwareBinding row (every solution's)."""
-        response.media = {'ok': True, 'bindings': [self._d(r) for r in sorted(self._rows('HardwareBinding'), key=lambda r: r.name)]}
+        """ucd-0b2b: GET /api/firmware/bindings — every HardwareBinding row (every solution's), each with its proof summary
+        (his ruling 2026-10-09) refreshed from the Purposes' latest runs on this server."""
+        from cmod.custom import capabilities as CAP
+        rows = []
+        for r in sorted(self._rows('HardwareBinding'), key=lambda r: r.name):
+            sol = next((x for x in self._rows('FirmwareSolution') if x.name == getattr(r, 'solution', '')), None)
+            if sol is not None:
+                summ = CAP.purpose_summary(sol.graph, manager=self.manager, board=getattr(r, 'board', ''))
+                for k in ('proof_status', 'proof_why', 'purposes_total', 'purposes_proven_twin', 'purposes_proven_hardware', 'advice'):
+                    try:
+                        setattr(r, k, summ[k])
+                    except Exception:  # noqa: BLE001
+                        pass
+            rows.append(self._d(r))
+        response.media = {'ok': True, 'bindings': rows}
 
     def on_post_solution_bindings(self, request, response, name):
         """ucd-0b2b: POST /api/firmware/solutions/{name}/bindings {"board": "..."} — a person's own addition
@@ -186,6 +199,14 @@ class FirmwareAPI(treeObject):
         except Exception as e:  # noqa: BLE001 — a derivation refusal must not take the page down; the rows just lack the facts
             why = '%s (requirement facts unavailable: %s)' % (why, e)
         caps = self._capabilities(s)
+        # his ruling 2026-10-09: the solution's own state = the summary of its Purposes — derived here, written onto the row
+        from cmod.custom import capabilities as CAP
+        proof = CAP.purpose_summary(s.graph, manager=self.manager, board=getattr(s, 'board_resolved', '') or getattr(s, 'board_definition', ''))
+        for k in ('proof_status', 'proof_why', 'purposes_total', 'purposes_proven_twin', 'purposes_proven_hardware'):
+            try:
+                setattr(s, k, proof[k])
+            except Exception:  # noqa: BLE001
+                pass
         schedule_rows = [self._d(r) for r in sched]
         for row in schedule_rows:
             row['composed_by'] = self._composed_by(s, row['task'], caps)
@@ -199,6 +220,7 @@ class FirmwareAPI(treeObject):
         default_binding = next((b for b in bindings if b.get('is_default')), None) or (bindings[0] if bindings else None)
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
+                          'proof': proof,   # the firmware's state as a summary of its Purposes (+ advice)
                           'assignments': assignments, 'unregistered_tasks': FW.unregistered_tasks(assignments),
                           'registered_tasks': FW.registered_tasks_by_pin(assignments),
                           'validation': {'ok': ok, 'why': why}, 'builds': [self._d(r) for r in builds],

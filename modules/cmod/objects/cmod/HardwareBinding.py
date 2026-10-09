@@ -37,6 +37,8 @@ class HardwareBinding(treeObject):
                  status: str = 'incomplete', why: str = '', requirements_total: int = 0, requirements_met: int = 0,
                  assignments_refs_json: str = '[]', claims_refs_json: str = '[]', settings_refs_json: str = '[]',
                  routes_refs_json: str = '[]', last_build: str = '', provenance: str = 'derived', notes: str = '',
+                 proof_status: str = 'planned', proof_why: str = '', purposes_total: int = 0, purposes_proven_twin: int = 0,
+                 purposes_proven_hardware: int = 0, advice: str = '',
                  manager=None):
         self.name = name                        # '<solution>@<board>' ('uno-sim-rig@arduino-uno-r3')
         self.solution = solution                # the FirmwareSolution row
@@ -54,3 +56,11 @@ class HardwareBinding(treeObject):
         self.last_build = last_build            # the FirmwareBuild/CGlueBuild this binding last produced
         self.provenance = provenance            # derived (the converged default) | canvas (a person added it — kept)
         self.notes = notes
+        # his ruling 2026-10-09: the firmware ON THIS BOARD, summarized from its Purposes' proofs (capabilities.purpose_summary(board=…));
+        # `advice` is the sentence an export/install shows — advised or not advised, never a block
+        self.proof_status = proof_status
+        self.proof_why = proof_why
+        self.purposes_total = purposes_total
+        self.purposes_proven_twin = purposes_proven_twin
+        self.purposes_proven_hardware = purposes_proven_hardware
+        self.advice = advice

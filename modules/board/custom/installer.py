@@ -220,8 +220,29 @@ def plan(manager, instance, build_name, work=None, scan=None):
     base.update(argv_json=json.dumps(argv), argv_text=' '.join(argv), wrapper_text=' '.join(wrapper), engine_how=where['how'],
                 engine_where=where.get('where') or where.get('why', ''), state='refused' if why else 'planned',
                 notes='; '.join(why) if why else 'DRY-RUN: nothing was opened. Install needs this plan AND confirm.')
+    # his rulings 2026-10-09: the plan carries the firmware's proof summary and ADVISES (never blocks) a real-board install
+    advice = _proof_advice(manager, variant, t.get('kind'), t.get('definition') or '')
+    if advice:
+        base['notes'] = base['notes'] + ' · ' + advice
     row = upsert(manager, InstallPlan, base)
-    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row)
+    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row, advice=advice)
+
+
+def _proof_advice(manager, variant, target_kind, board):
+    """The sentence a plan shows about proof (capabilities.purpose_summary over the FirmwareSolution that carries this
+    variant, if one does): advised / NOT ADVISED on a real board; '' for a twin plan; a variant no solution carries
+    (blink-only, echo — bench tests) says so and is never blocked."""
+    if target_kind != 'board':
+        return ''
+    try:
+        from cmod.custom import capabilities as CAP
+        sol = _by_name(manager, 'FirmwareSolution', variant) if manager is not None else None
+        if sol is None:
+            return 'proof: no Firmware Solution carries variant %s — no Purpose is modeled for it, nothing is proven (a bench test)' % variant
+        summ = CAP.purpose_summary(getattr(sol, 'graph', ''), manager=manager, board=board)
+        return 'proof: %s — %s' % (summ['proof_status'], summ['advice'])
+    except Exception as e:  # noqa: BLE001
+        return 'proof: summary unavailable (%s)' % e
 
 
 def _variant(manager, name):

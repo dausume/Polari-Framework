@@ -281,6 +281,9 @@ def derive(solution_name, board=None, manager=None, is_default=None, provenance=
            'routes_refs_json': '[]', 'last_build': sol.get('last_build', ''), 'provenance': provenance, 'notes': ''}
     if with_chain and target_board and chain_materialized(target_board):
         out.update(chain_refs(out, graph, manager=manager))
+    from cmod.custom import capabilities as CAP
+    summ = CAP.purpose_summary(graph, manager=manager, board=board)
+    out.update({k: summ[k] for k in ('proof_status', 'proof_why', 'purposes_total', 'purposes_proven_twin', 'purposes_proven_hardware', 'advice')})
     return out
 
 

@@ -252,3 +252,56 @@ def derive_status(cap, manager=None):
     except Exception:  # noqa: BLE001
         mode = 'digital-twin'
     return ('proven-on-hardware' if mode == 'hardware' else 'proven-on-twin'), proof, 'latest run %s: passed' % latest.name
+
+
+# ---------------------------------------------------------------- the firmware's state as a SUMMARY of its Purposes (his ruling 2026-10-09)
+#: proof ladder, weakest first
+PROOF_ORDER = ('failing', 'planned', 'proven-on-twin', 'proven-on-hardware')
+
+
+def purposes_for_graph(graph, manager=None):
+    """Every Purpose (CapabilityDefinition) over one graph — the live rows when a manager holds them, else the seed."""
+    live = []
+    if manager is not None:
+        live = [r for r in (getattr(manager, 'objectTables', {}) or {}).get('CapabilityDefinition', {}).values() if getattr(r, 'graph', '') == graph]
+    if live:
+        import inspect
+        keys = [k for k in inspect.signature(type(live[0]).__init__).parameters if k not in ('self', 'manager')]
+        return [{k: getattr(r, k, None) for k in keys} for r in live]
+    return [dict(c) for c in SEED_CAPABILITIES if c.get('graph') == graph]
+
+
+def purpose_summary(graph, manager=None, board='', statuses=None):
+    """His ruling 2026-10-09: "track the state of the overall firmware and the firmware in respect to a board, as a
+    summary of the Purposes, in the way the Purposes are a summary of the tasks." -> {proof_status, proof_why,
+    purposes_total, purposes_proven_twin, purposes_proven_hardware, purposes: [{name, status, last_proof, why}],
+    advice}. `proof_status` = the WEAKEST Purpose on the ladder failing < planned < proven-on-twin < proven-on-hardware
+    (no Purpose at all = planned, said). `statuses` = {name: status} read from a server (the CLI with POLARI_API) when no
+    manager holds the runs here. `board`: the summary for the firmware ON ONE BOARD — a ScenarioRun carries no board
+    instance today, so a hardware proof is counted for every board of that solution and the why says so (DEBT: stamp
+    the BoardInstance on hardware runs). `advice` is the sentence a build/export/install shows — his ruling the same
+    day: ADVISE, never block ("useful to still have it try and compile … to see what happens for debugging")."""
+    rows = []
+    for c in purposes_for_graph(graph, manager):
+        if statuses is not None:
+            st, last, why = statuses.get(c.get('name'), 'planned'), '', 'status read from the server'
+        else:
+            st, last, why = derive_status(c, manager=manager)
+        if board and st == 'proven-on-hardware':
+            why = (why + '; ' if why else '') + 'counted for board %s: hardware runs carry no board instance yet (DEBT)' % board
+        rows.append({'name': c.get('name'), 'goal': c.get('goal', ''), 'status': st, 'last_proof': last, 'why': why})
+    if not rows:
+        return {'proof_status': 'planned', 'proof_why': 'no Purpose is modeled over graph %s — nothing is proven' % graph,
+                'purposes_total': 0, 'purposes_proven_twin': 0, 'purposes_proven_hardware': 0, 'purposes': [],
+                'advice': 'NOT ADVISED for a real board: no Purpose over this firmware has been proven on the sim'}
+    rank = lambda st: PROOF_ORDER.index(st) if st in PROOF_ORDER else 0   # noqa: E731
+    weakest = min(rows, key=lambda r: rank(r['status']))
+    twin = sum(1 for r in rows if rank(r['status']) >= PROOF_ORDER.index('proven-on-twin'))
+    hw = sum(1 for r in rows if r['status'] == 'proven-on-hardware')
+    unproven = [r['name'] for r in rows if rank(r['status']) < PROOF_ORDER.index('proven-on-twin')]
+    status = weakest['status'] if weakest['status'] in PROOF_ORDER else 'planned'
+    why = '%d Purpose(s): %d proven on the sim, %d on hardware; weakest %s (%s)' % (len(rows), twin, hw, weakest['name'], status)
+    advice = ('ADVISED: every Purpose is proven on the sim (%s)' % ('and on hardware' if hw == len(rows) else 'not yet on hardware')) if not unproven \
+        else 'NOT ADVISED for a real board: not proven on the sim — %s (prove: pol capability prove <name> --twin); a twin build is fine' % ', '.join(unproven)
+    return {'proof_status': status, 'proof_why': why, 'purposes_total': len(rows), 'purposes_proven_twin': twin,
+            'purposes_proven_hardware': hw, 'purposes': rows, 'advice': advice}

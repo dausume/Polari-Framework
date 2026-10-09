@@ -255,3 +255,32 @@ def _button_clock_binding(check):
     routes_refs = json.loads(b['routes_refs_json'])
     check('routes_refs names the two ACTIVE SignalRoutes (D2:INT0, D3:INT1)',
           ('SignalRoute:%s:D2:INT0' % BC_SOLUTION) in routes_refs and ('SignalRoute:%s:D3:INT1' % BC_SOLUTION) in routes_refs, routes_refs)
+
+def proof_summary_parts(check):
+    """His ruling 2026-10-09: the firmware's state is a summary of its Purposes; advise, never block."""
+    from cmod.custom import capabilities as CAP
+    from cmod.custom import binding as BI
+    seed = CAP.purpose_summary('uno-button-clock-graph')
+    check('summary (seed, no runs): planned, 1 Purpose, 0 proven, NOT ADVISED naming button-clock-to-os',
+          seed['proof_status'] == 'planned' and seed['purposes_total'] == 1 and seed['purposes_proven_twin'] == 0
+          and seed['advice'].startswith('NOT ADVISED') and 'button-clock-to-os' in seed['advice'], seed)
+    srv = CAP.purpose_summary('uno-button-clock-graph', statuses={'button-clock-to-os': 'proven-on-twin'})
+    check('summary (server statuses): proven-on-twin, 1/1 on the sim, ADVISED (not yet on hardware)',
+          srv['proof_status'] == 'proven-on-twin' and srv['purposes_proven_twin'] == 1 and srv['advice'].startswith('ADVISED') and 'not yet on hardware' in srv['advice'], srv)
+    sim = CAP.purpose_summary('uno-sim-rig-graph', statuses={'temp-sensor-to-os': 'proven-on-hardware', 'blink-on-command': 'proven-on-twin'})
+    check('summary ladder: the WEAKEST Purpose wins (hardware + twin → proven-on-twin), counts 2/2 sim, 1 hardware (the two seeded Purposes; '
+          'the demo-4 example row is seeded by targets, not SEED_CAPABILITIES)',
+          sim['proof_status'] == 'proven-on-twin' and sim['purposes_total'] == 2 and sim['purposes_proven_twin'] == 2 and sim['purposes_proven_hardware'] == 1, sim)
+    none = CAP.purpose_summary('no-such-graph')
+    check('summary with no Purpose at all: planned, said, NOT ADVISED', none['purposes_total'] == 0 and none['proof_status'] == 'planned' and 'no Purpose' in none['proof_why'])
+    b = BI.derive('uno-button-clock', board='arduino-uno-r3')
+    check('the HardwareBinding row carries the summary (proof_status, counts, advice) beside its validity',
+          b is not None and b['status'] == 'valid' and b['proof_status'] in ('planned', 'proven-on-twin') and b['purposes_total'] == 1 and b['advice'], b and {k: b.get(k) for k in ('status', 'proof_status', 'advice')})
+    check('the example demo-4 Purpose is proven by the temp-sensor acceptance (one path, one run)',
+          __import__('cmod.custom.targets', fromlist=['temperature_sensor_capability']).temperature_sensor_capability().get('acceptance_scenario') == 'temp-sensor-to-os-acceptance')
+
+
+def _proof_parts(check):
+    def proof_summary():
+        proof_summary_parts(check)
+    return (proof_summary,)

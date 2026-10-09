@@ -29,7 +29,8 @@ class FirmwareSolution(treeObject):
     def __init__(self, name: str = '', title: str = '', graph: str = '', board_definition: str = '', board_variable: str = '',
                  runtime: str = 'c-device', status: str = 'seeded', last_build: str = '', board_resolved: str = '',
                  board_exists: bool = True, validation: str = '', validation_why: str = '', task_count: int = 0,
-                 purpose: str = '', notes: str = '', manager=None):
+                 purpose: str = '', notes: str = '', proof_status: str = 'planned', proof_why: str = '', purposes_total: int = 0,
+                 purposes_proven_twin: int = 0, purposes_proven_hardware: int = 0, manager=None):
         self.name = name
         self.title = title
         self.graph = graph                        # the CGraph whose c-atom nodes ARE the tasks
@@ -45,3 +46,10 @@ class FirmwareSolution(treeObject):
         self.task_count = task_count
         self.purpose = purpose
         self.notes = notes
+        # his ruling 2026-10-09: the firmware's state is a SUMMARY of its Purposes (the weakest on the ladder failing < planned <
+        # proven-on-twin < proven-on-hardware), the way a Purpose summarizes its tasks — derived (capabilities.purpose_summary)
+        self.proof_status = proof_status
+        self.proof_why = proof_why
+        self.purposes_total = purposes_total
+        self.purposes_proven_twin = purposes_proven_twin
+        self.purposes_proven_hardware = purposes_proven_hardware
