@@ -133,6 +133,7 @@
    "board_kit_parts_selftest",
    "board_mapping_selftest",
    "board_object_selftest",
+   "board_pinlevel_selftest",
    "board_selftest",
    "board_target_compat_selftest",
    "board_uno_selftest"
