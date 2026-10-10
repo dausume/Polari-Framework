@@ -7,7 +7,7 @@ file re-exports them and holds the class list the server registers.
 from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,  # noqa: F401
                                TargetDefinition, CapabilityDefinition, CapabilityInstance,
                                FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
-                               HardwareBinding, DerivedOverride)
+                               HardwareBinding, DerivedOverride, CIsotope)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -19,4 +19,5 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                FirmwareSolution, ScheduleSlot, RegisterAssignment,
                 FirmwareExport, PinClaim, PeripheralClaim,
                 HardwareBinding,  # ucd-0b2b: the hardware-specific mask laying a solution over one board
-                DerivedOverride]  # ucd-attest: a person's own correction of one derived field, kept beside it
+                DerivedOverride,  # ucd-attest: a person's own correction of one derived field, kept beside it
+                CIsotope]  # ucd-iso-0: a C-atom's code interface variant, already carrying one binding's own values

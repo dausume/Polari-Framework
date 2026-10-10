@@ -1355,6 +1355,9 @@ class polariServer(treeObject):
             # ucd-attest: a person's own correction of one DERIVED field, kept beside it (who/when/why) — never a
             # silent overwrite; applied at serve time by cmod.custom.overrides.apply_overrides
             DerivedOverride,
+            # ucd-iso-0: a C-atom's code interface + its C-isotopes — observed rows, materialized on every GET of a
+            # solution's bindings (same idiom as PinClaim/PeripheralClaim above) or GET /api/cmod/atoms/{atom}/isotopes
+            CIsotope,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
