@@ -63,10 +63,14 @@ SEED_HWNOCODE_GRAPHS += [{
 
 def _canvas_solution(item_id, index, segments, title, graph, solution, description=''):
     """demo-4b: the canvas opened on the SOLUTION itself (its real SolutionDefinition — sim-rig/uno-digital-twin/backend
-    nodes), not a synthetic one-node wrapper, so every runtime (c-device/java-bridge/python-backend) is visible as a lane."""
+    nodes), not a synthetic one-node wrapper, so every runtime (c-device/java-bridge/python-backend) is visible as a lane.
+    ucd-hdr follow-up (his ruling 2026-10-10): the canvas component ITSELF ('custom-no-code', the SAME header every other
+    no-code canvas uses) — never the deleted c-graph-canvas-panel wrapper. Its `solution` input wins outright over `graph`
+    (dispatchHeaderSolution, custom-no-code.ts): `graph` only names this solution's own board-half CGraph here, so it does
+    NOT force the Runtime select to c-device — the loaded solution's own states/targetRuntime decide instead."""
     return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
             'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
-            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph, 'solution': solution}},
+            'componentProps': {'componentName': 'custom-no-code', 'inputs': {'graph': graph, 'solution': solution}},
             'item': None, 'nestedRows': []}
 
 
@@ -86,7 +90,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                            'the hw-interface split point, the backend chain), coloured and grouped into one lane per '
                                            'runtime (c-device: the sim-rig subgraph; java-bridge: uno-digital-twin, the split point; '
                                            'python-backend: the moving-average chain). Expand the Hardware Subgraph node in place to see its C atoms, still '
-                                           'in the c-device lane — never a second canvas, the SAME `c-graph-canvas-panel` /display/c-canvas '
+                                           'in the c-device lane — never a second canvas, the SAME canvas (custom-no-code) /display/c-canvas '
                                            "uses. The REVERSE link ('used by') is shown on /display/c-atoms and /display/c-canvas.")],
                    min_height=640),
               _row(1, [_table('hwnocode-capabilities', 0, 12, 'Capabilities — hw priorities P1: the GOAL each group of tasks across '
