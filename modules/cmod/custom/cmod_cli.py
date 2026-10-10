@@ -98,6 +98,23 @@ def _show(atom, project):
     return 0
 
 
+def _code(atom, binding):
+    from cmod.custom import code_interface as CI
+    r = CI.render(atom, binding=binding or None)
+    print(r['rendered'])
+    return 0
+
+
+def _isotopes(atom):
+    from cmod.custom import code_interface as CI
+    rows = CI.isotopes_for_atom(atom)
+    print('%s — %d isotope(s)' % (atom, len(rows)))
+    for r in rows:
+        print('  %-55s bindings=%s minimum_level=%s%s' % (r['name'], r['bindings_json'], r['minimum_level'],
+              ' FOUNDATIONAL' if r['foundational'] else ''))
+    return 0
+
+
 def _graphs():
     from cmod.custom import glue as GL
     from cmod.custom.graph_seed import SEED_GRAPHS
@@ -186,13 +203,15 @@ def _prove(graph):
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol cmod')
-    ap.add_argument('verb', choices=('atoms', 'conform', 'show', 'drift', 'registers', 'engines', 'graphs', 'cost', 'render', 'diff', 'build', 'prove'))
+    ap.add_argument('verb', choices=('atoms', 'conform', 'show', 'drift', 'registers', 'engines', 'graphs', 'cost', 'render', 'diff', 'build', 'prove',
+                                     'code', 'isotopes'))
     ap.add_argument('target', nargs='?', default='')
     ap.add_argument('--project', default='uno')
     ap.add_argument('--no-measure', action='store_true')
     ap.add_argument('--refresh', action='store_true')
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--no-conform', action='store_true')
+    ap.add_argument('--binding', default='')
     a = ap.parse_args(argv)
     from cmod.custom.annotation import AnnotationRefused
     from cmod.custom.atoms import CModRefused
@@ -200,7 +219,12 @@ def main(argv):
     from cmod.custom.glue import GlueRefused
     from cmod.custom.graph import GraphRefused
     from cmod.custom.graph_seed import GRAPH
+    from cmod.custom.code_interface import CodeInterfaceRefused
     try:
+        if a.verb == 'code':
+            return _code(a.target, a.binding)
+        if a.verb == 'isotopes':
+            return _isotopes(a.target)
         if a.verb == 'graphs':
             return _graphs()
         if a.verb in ('cost', 'render', 'diff', 'build', 'prove'):
@@ -232,7 +256,7 @@ def main(argv):
         for e, w in cmod_engines.placement().items():
             print('  %-8s %-13s %s  %s' % (e, w['how'], w.get('where', ''), w.get('why', '')))
         return 0
-    except (AnnotationRefused, CModRefused, ProjectRefused, GlueRefused, GraphRefused) as e:
+    except (AnnotationRefused, CModRefused, ProjectRefused, GlueRefused, GraphRefused, CodeInterfaceRefused) as e:
         print('refused: %s' % e)
         return 2
 

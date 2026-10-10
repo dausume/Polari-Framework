@@ -13,7 +13,7 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                              TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
                              FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
-                             HardwareBinding)
+                             HardwareBinding, CIsotope)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
@@ -132,6 +132,9 @@ CMOD_SEED_PAIRS = [
     # never seeded, same posture as FirmwareExport above.
     ('PinClaim', PinClaim, []),
     ('PeripheralClaim', PeripheralClaim, []),
+    # ucd-iso-0: observed (materialized by the firmware API / the code-interface door on every GET of a solution's
+    # bindings, or `GET /api/cmod/atoms/{atom}/isotopes`), never seeded — same posture as PinClaim/PeripheralClaim.
+    ('CIsotope', CIsotope, []),
 ]
 
 # ucd-0b2b (§5h, his ruling: "we should have hardware specific objects that are bindings or masks that bind to the

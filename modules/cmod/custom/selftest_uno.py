@@ -170,11 +170,12 @@ def uno_parts(check):
               'now names uno-button-clock-graph\'s own nodes; fs-0/ucd-0e2b: TWO FirmwareSolutions (uno-sim-rig, uno-button-clock) + their '
               'derived ScheduleSlot/RegisterAssignment rows (D2/D3/D6/D13\'s config_json authored, provenance canvas); ucd-0b: PinClaim/'
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
-              'ucd-0b2b: one default HardwareBinding derived per solution (2 now)' % m['counts']['ports'],
+              'ucd-0b2b: one default HardwareBinding derived per solution (2 now); ucd-iso-0: CIsotope observed too '
+              '(empty by design — materialized on a GET, never seeded)' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 9, 'CFunctionAtom': 51, 'CPort': m['counts']['ports'], 'CGraph': 2, 'CGraphNode': 45,
                          'CGraphEdge': 33, 'CGlueBuild': 2, 'TargetDefinition': 34, 'CapabilityDefinition': 4, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 2, 'ScheduleSlot': 47, 'RegisterAssignment': 34,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 2}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 2, 'CIsotope': 0}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

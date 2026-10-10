@@ -26,7 +26,7 @@ class CFunctionAtom(treeObject):
                      annotation_form: str = '', role: str = '', configs: str = '', text_bytes: int = 0,
                      in_shipped_build: bool = False, inlined: bool = False, text_bytes_noinline: int = 0,
                      stack_bytes: int = -1, stack_kind: str = '', measured_in: str = '', cost_why: str = '',
-                     title: str = '', notes: str = '', manager=None):
+                     title: str = '', notes: str = '', isotopes_refs_json: str = '[]', manager=None):
         self.name = name
         self.project = project
         self.module = module
@@ -62,3 +62,7 @@ class CFunctionAtom(treeObject):
         self.cost_why = cost_why
         self.title = title
         self.notes = notes
+        # ucd-iso-0: reverse links to this atom's own CIsotope rows ('CIsotope:<name>') — filled when the atom's row
+        # is SERVED (cmod_api.CModAPI.on_get_atom_one), never recomputed at seed time (an isotope is materialized
+        # per binding, on demand, the same idiom PinClaim/PeripheralClaim already use)
+        self.isotopes_refs_json = isotopes_refs_json

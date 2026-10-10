@@ -706,10 +706,11 @@ def main():
     from cmod.custom.selftest_requirements import requirements_parts   # ucd-0b2a: widened TargetDefinition/RegisterAssignment + TWI/SPI fixtures
     from cmod.custom.selftest_binding import binding_parts, _proof_parts   # ucd-0b2b: the HardwareBinding
     from cmod.custom.selftest_scope import scope_parts   # ucd-scope: THE SCOPED HARDWARE CHAIN
+    from cmod.custom.selftest_isotopes import isotope_parts   # ucd-iso-0: the code interface + C-isotopes
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
-                 + scope_parts(check) + bundle_parts(check)):
+                 + scope_parts(check) + bundle_parts(check) + isotope_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

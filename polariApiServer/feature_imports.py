@@ -1339,7 +1339,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
                             'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance',
                             'FirmwareSolution', 'ScheduleSlot', 'RegisterAssignment', 'FirmwareExport',
-                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride
+                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CIsotope', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride; ucd-iso-0: + CIsotope
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),

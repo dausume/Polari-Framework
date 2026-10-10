@@ -248,6 +248,12 @@ class FirmwareAPI(treeObject):
         from cmod.custom.overrides import apply_overrides
         bindings = apply_overrides(BND.bindings_for_solution(s.name, manager=self.manager), 'HardwareBinding', manager=self.manager)
         default_binding = next((b for b in bindings if b.get('is_default')), None) or (bindings[0] if bindings else None)
+        # ucd-iso-0: every atom of the default binding's own graph that has >= 1 datasheet-bound identifier,
+        # materialized the SAME way (upsert by name) — read off the generic object pages, never recomputed per view
+        if default_binding is not None:
+            from cmod.custom import code_interface as CI
+            from cmod.cmod_basis import CIsotope
+            self._upsert('CIsotope', CIsotope, CI.isotopes_for_binding(default_binding, manager=self.manager))
         # fs-2a (his naming, verbatim): 'Unregistered Tasks' / per-pin 'Registered Tasks'
         response.media = {'ok': True, 'solution': self._d(s), 'schedule': schedule_rows,
                           'proof': proof,   # the firmware's state as a summary of its Purposes (+ advice)
