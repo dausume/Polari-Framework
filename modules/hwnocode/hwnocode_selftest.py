@@ -448,11 +448,11 @@ def seeds_page_api():
     comps = [it['componentProps']['componentName'] for it in items]
     check('/display/hardware-solutions = the canvas FIRST (demo-4b: opened on the whole solution, every runtime a lane) + 5 '
           'configured tables (hw priorities P1: Capabilities, solutions, derived, placement-by-runtime, the Runtime catalog) + '
-          '1 named-graph-panel',
-          page['pageRoute'] == 'hardware-solutions' and items[0]['componentProps']['componentName'] == 'c-graph-canvas-panel'
+          '1 named-graph-panel — ucd-hdr: the canvas itself (custom-no-code), never the deleted c-graph-canvas-panel wrapper',
+          page['pageRoute'] == 'hardware-solutions' and items[0]['componentProps']['componentName'] == 'custom-no-code'
           and items[0]['componentProps']['inputs'].get('solution') == 'uno-temp-split'
-          and sorted(comps) == ['c-graph-canvas-panel', 'class-rows-table', 'class-rows-table', 'class-rows-table',
-                                'class-rows-table', 'class-rows-table', 'named-graph-panel'], comps)
+          and sorted(comps) == ['class-rows-table', 'class-rows-table', 'class-rows-table',
+                                'class-rows-table', 'class-rows-table', 'custom-no-code', 'named-graph-panel'], comps)
     gc = json.loads(SEED_HWNOCODE_GRAPHS[0]['definition'])['graphConfig']
     check('the chart = a GraphDefinition (x uptime_s; y temp_c + temp_avg; colours set, showLegend) fed by the chart endpoint',
           gc['xDimension'] == 'uptime_s' and gc['yDimensions'] == ['temp_c', 'temp_avg'] and len(gc['seriesColors']) == 2

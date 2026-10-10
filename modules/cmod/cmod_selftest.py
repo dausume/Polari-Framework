@@ -232,8 +232,9 @@ def page():
     citems = [it for row in crows for it in row['items']]
     check('/display/c-canvas: every item (the canvas + the described tables) carries a non-empty description',
           citems and all(it.get('description') for it in citems), str([it['id'] for it in citems if not it.get('description')]))
-    check('/display/c-canvas opens the canvas FIRST (demo-1\'s rule: the demonstrable before the tables)',
-          citems[0]['componentProps']['componentName'] == 'c-graph-canvas-panel')
+    check('/display/c-canvas opens the canvas FIRST (demo-1\'s rule: the demonstrable before the tables) — '
+          'ucd-hdr: the canvas itself (custom-no-code), never the deleted c-graph-canvas-panel wrapper',
+          citems[0]['componentProps']['componentName'] == 'custom-no-code')
 
     # D-ucd-12 (his ruling): the person-facing word is Purpose, not Capability — the CapabilityDefinition-titled
     # tables on c-canvas/firmware/firmware-solutions say "Purpose" and never "Capabilit" in title or description.

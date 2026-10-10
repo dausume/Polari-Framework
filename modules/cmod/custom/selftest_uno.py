@@ -184,8 +184,9 @@ def uno_parts(check):
               page['pageRoute'] == 'c-atoms' and len(items) == 10 and comp_names == {'class-rows-table', 'api-structured-panel'})
         canvas_page = SEED_CMOD_PAGE_DISPLAYS[1]
         canvas_items = [it for row in json.loads(canvas_page['definition'])['rows'] for it in row['items']]
-        check('/display/c-canvas: the canvas panel first, then described tables (atoms available, targets, capabilities, instances)',
-              canvas_page['pageRoute'] == 'c-canvas' and canvas_items[0]['componentProps']['componentName'] == 'c-graph-canvas-panel'
+        check('/display/c-canvas: the canvas (custom-no-code, ucd-hdr — never the deleted c-graph-canvas-panel) first, '
+              'then described tables (atoms available, targets, capabilities, instances)',
+              canvas_page['pageRoute'] == 'c-canvas' and canvas_items[0]['componentProps']['componentName'] == 'custom-no-code'
               and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-sim-rig-graph'
               and {it['componentProps']['componentName'] for it in canvas_items[1:]} == {'class-rows-table'})
         import inspect
