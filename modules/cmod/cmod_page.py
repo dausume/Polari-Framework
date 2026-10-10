@@ -130,15 +130,20 @@ SEED_CMOD_PAGE_DISPLAYS = [
           'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3; ucd-hdr his ruling 2026-10-10): the EXISTING '
           'canvas and its ONE header, not a second editor or a second component — the Runtime select derives to c-device for this '
           'CGraph, and the header\'s c-device command group (graph picker, Render/Build/Prove buttons over `pol cmod render | build | '
-          'prove`, the lanes legend) shows automatically. The atom/target/purpose rows below are the badges on the canvas, described. '
-          'Linked from /display/c-atoms; this page is the canvas\'s own home (D-demo-3: embedded where it belongs, not a third place).',
+          'prove`, the Scope control + Purpose chips, the lanes legend) shows automatically. Default graph: '
+          'uno-button-clock-graph — THE core demo in use (UNO_CORE_DEMO_PLAN.md, his rule: pages scope to the firmware in use); '
+          'uno-sim-rig-graph stays reachable via ?graph=uno-sim-rig-graph. The atom/target/purpose rows below are the badges on the '
+          'canvas, described. Linked from /display/c-atoms; this page is the canvas\'s own home (D-demo-3: embedded where it belongs, '
+          'not a third place).',
           'CGraph', [
-              _row(0, [_canvas('c-canvas-panel', 0, 12, 'uno-sim-rig-graph on the canvas', 'uno-sim-rig-graph',
-                               description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph, drop a "C Atom" '
-                                           'or "Temperature sensor solution" from the palette and wire it, or expand the Hardware Subgraph '
-                                           'node to see its atoms, ports, wires and derived target badges. Render/Build/Prove call the same '
-                                           'doors `pol cmod render|build|prove` do. demo-4b: every atom shown is a REAL node (one per '
-                                           'CGraphNode), all in the c-device lane — never a single collapsed HardwareSubgraph wrapper here.')],
+              _row(0, [_canvas('c-canvas-panel', 0, 12, 'uno-button-clock-graph on the canvas', 'uno-button-clock-graph',
+                               description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph (?graph= names '
+                                           'another one directly, e.g. uno-sim-rig-graph), drop a "C Atom" from the palette and wire it, or '
+                                           'use the Scope control (task/purpose/graph) to focus on just the atoms of one task instead of the '
+                                           'whole graph at once (?node=&scope=&purpose= fast-nav the same view). Render/Build/Prove call the '
+                                           'same doors `pol cmod render|build|prove` do. demo-4b: every atom shown is a REAL node (one per '
+                                           'CGraphNode), all in the c-device lane, laid out in STAGE columns (init -> loop -> called -> the '
+                                           'glue-generated kinds) — never a single collapsed HardwareSubgraph wrapper, never one tall column.')],
                    min_height=640),
               _row(1, [_table('c-canvas-runtimes', 0, 12, 'Nodes by runtime — every node this graph places, each resolved to one Runtime '
                               '(demo-4b: a CGraph is C on the device by construction, so every row here reads c-device)', 'CGraphNode',
@@ -152,7 +157,8 @@ SEED_CMOD_PAGE_DISPLAYS = [
               _row(2, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
                               'palette node, then type one of these names into its overlay to wire it)', 'CFunctionAtom',
                               description='What this is for: which atoms a dropped "C Atom" node can be pointed at. One row = one atom of '
-                                          'the project uno-sim-rig-graph is drawn over. Columns: same as /display/c-atoms\' atoms table.',
+                                          'the project uno-button-clock-graph (the default graph) is drawn over. Columns: same as '
+                                          '/display/c-atoms\' atoms table.',
                               columns='name,kind,signature,ports_summary,resources_summary,isr_safe,role',
                               filter_field='project', filter_value='uno')], min_height=240),
               _row(3, [_table('c-canvas-targets', 0, 12, 'Target definitions — what each port or memory-field write actually controls, '

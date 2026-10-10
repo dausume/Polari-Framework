@@ -41,6 +41,15 @@ fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions tha
 GET /api/cmod/graphs/{graph}'s `nodes` now also carries `firmware` — [{solution, lane, order, registered_pin}, ...],
 every FirmwareSolution task that IS this node (`_node_firmware`). The reverse half (a firmware task row's own
 `composed_by`, pointing back at this graph/node) is GET /api/firmware/solutions/{name} (cmod_firmware_api.FirmwareAPI).
+
+ucd-hdr2 (defect "scope", his report 2026-10-10 verbatim: "the only interface I see has an absurd amount of c-atoms
+... it does not look like the c-atoms for just a single task at all, it seems like everything in one disorganized
+place"): GET /api/cmod/graphs/{graph} now ALSO carries `purposes` — [{name, title, task_names}], one per Purpose
+(CapabilityDefinition) over this graph, task_names = THIS graph's own c-device node instances only (never
+cmod_firmware_api.FirmwareAPI._capabilities' cross-runtime union, `_purposes`). `?node=<instance>` additionally
+returns `scope` — {node, purposes: [names naming it], task_names: [their union, always including node],
+neighbours: [nodes one CGraphEdge away]} — the frontend's c-canvas Scope control (task/purpose/graph) filters the
+canvas down to THIS, instead of always drawing the whole graph.
 """
 import inspect
 import json
@@ -221,6 +230,27 @@ class CModAPI(treeObject):
                        'registered_pin': lives_on if lives_on and lives_on != 'unbound' else ''})
         return out
 
+    def _purposes(self, graph):
+        """ucd-hdr2 (defect "scope", deliverable 2, his report 2026-10-10 verbatim: "the only
+        interface I see has an absurd amount of c-atoms ... it does not look like the c-atoms for
+        just a single task at all"). Every Purpose (CapabilityDefinition) over THIS graph, as
+        {name, title, task_names} — task_names here is THIS GRAPH's own c-device CGraphNode
+        instances only (never the cross-runtime union cmod_firmware_api.FirmwareAPI._capabilities
+        computes for the firmware panel's Tasks section — a java-bridge/python-backend task name
+        would not exist as a node on this canvas at all). Same live/seed duality as
+        FirmwareAPI._capabilities (no new truth — reuses cmod.custom.capabilities, the SAME
+        CapabilityDefinition rows / seeds)."""
+        from cmod.custom import capabilities as CAP
+        live = [r for r in self._rows('CapabilityDefinition') if getattr(r, 'graph', '') == graph]
+        caps = [self._d(r) for r in live] if live else [c for c in CAP.SEED_CAPABILITIES if c['graph'] == graph]
+        out = []
+        for d in caps:
+            tasks = json.loads(d.get('tasks_by_runtime_json') or '{}')
+            c_device_refs = tasks.get('c-device', [])
+            task_names = sorted({ref.rpartition(':')[2] for ref in c_device_refs if ref.rpartition(':')[0] == graph})
+            out.append({'name': d.get('name'), 'title': d.get('title', d.get('name')), 'task_names': task_names})
+        return sorted(out, key=lambda c: c['name'])
+
     def on_get_graph_one(self, request, response, graph):
         g = self._graph(graph, response)
         if g is None:
@@ -230,11 +260,25 @@ class CModAPI(treeObject):
         nodes = pick('CGraphNode', lambda r: (r.order, r.instance))
         for n in nodes:
             n['firmware'] = self._node_firmware(n['instance'])
-        response.media = {'ok': True, 'graph': self._d(g), 'nodes': nodes,
-                          'edges': pick('CGraphEdge', lambda r: (r.order, r.name)), 'glue_builds': pick('CGlueBuild', lambda r: r.name),
-                          'targets': pick('TargetDefinition', lambda r: (r.kind, r.port_ref)),
-                          'used_by': used_by,
-                          'used_by_how': 'every HardwareSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)'}
+        edges = pick('CGraphEdge', lambda r: (r.order, r.name))
+        purposes = self._purposes(graph)
+        media = {'ok': True, 'graph': self._d(g), 'nodes': nodes,
+                 'edges': edges, 'glue_builds': pick('CGlueBuild', lambda r: r.name),
+                 'targets': pick('TargetDefinition', lambda r: (r.kind, r.port_ref)),
+                 'used_by': used_by,
+                 'used_by_how': 'every HardwareSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)',
+                 'purposes': purposes}
+        node_param = request.get_param('node') or ''
+        if node_param:
+            naming = [p for p in purposes if node_param in p['task_names']]
+            task_names = sorted({node_param} | {t for p in naming for t in p['task_names']})
+            neighbours = sorted({e['to_node'] for e in edges if e['from_node'] == node_param}
+                                 | {e['from_node'] for e in edges if e['to_node'] == node_param})
+            media['scope'] = {'node': node_param, 'purposes': [p['name'] for p in naming],
+                               'task_names': task_names, 'neighbours': neighbours,
+                               'how': 'purposes = every Purpose whose task_names names this node; task_names = their union '
+                                      '(always including the node itself); neighbours = every node one CGraphEdge away'}
+        response.media = media
 
     def on_get_graph_render(self, request, response, graph):
         import falcon

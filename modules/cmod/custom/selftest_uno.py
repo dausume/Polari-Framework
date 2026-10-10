@@ -185,9 +185,11 @@ def uno_parts(check):
         canvas_page = SEED_CMOD_PAGE_DISPLAYS[1]
         canvas_items = [it for row in json.loads(canvas_page['definition'])['rows'] for it in row['items']]
         check('/display/c-canvas: the canvas (custom-no-code, ucd-hdr — never the deleted c-graph-canvas-panel) first, '
-              'then described tables (atoms available, targets, capabilities, instances)',
+              'then described tables (atoms available, targets, capabilities, instances); ucd-hdr2: default graph is '
+              'uno-button-clock-graph (THE core demo in use, his rule: pages scope to the firmware in use) — '
+              'uno-sim-rig-graph stays reachable via ?graph=',
               canvas_page['pageRoute'] == 'c-canvas' and canvas_items[0]['componentProps']['componentName'] == 'custom-no-code'
-              and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-sim-rig-graph'
+              and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-button-clock-graph'
               and {it['componentProps']['componentName'] for it in canvas_items[1:]} == {'class-rows-table'})
         import inspect
         from cmod.cmod_basis import CMOD_CLASSES
@@ -220,6 +222,26 @@ def uno_parts(check):
         check('GET /api/cmod/atoms?kind=isr → the 4 ISRs (ucd-0e2: + INT1_vect, the sense atom)', r.status_code == 200 and len(r.json['atoms']) == 4)
         r = c.simulate_get('/api/cmod/projects/uno/drift')
         check('GET /api/cmod/projects/uno/drift → not stale (parsed now, nothing measured or written)', r.status_code == 200 and r.json['stale'] is False, r.text[:200])
+
+        # ucd-hdr2 (defect "scope", deliverable 2): GET .../graphs/{graph} carries `purposes`
+        # (c-canvas's new Scope control + Purpose chips), and ?node= additionally carries `scope`.
+        r = c.simulate_get('/api/cmod/graphs/uno-button-clock-graph')
+        bcos = next((p for p in r.json.get('purposes', []) if p['name'] == 'button-clock-to-os'), None)
+        check("GET /api/cmod/graphs/uno-button-clock-graph -> purposes carries button-clock-to-os, "
+              "task_names are THIS graph's own c-device node instances (never the cross-runtime union)",
+              r.status_code == 200 and bcos is not None and 'clock_tick' in bcos['task_names']
+              and 'led_toggle' in bcos['task_names'], r.text[:300])
+        r = c.simulate_get('/api/cmod/graphs/uno-button-clock-graph', params={'node': 'clock_tick'})
+        scope = r.json.get('scope')
+        check("…?node=clock_tick -> scope.task_names always includes the node itself, scope.purposes names "
+              "button-clock-to-os, scope.neighbours is the one edge away node (led_toggle calls clock_tick)",
+              r.status_code == 200 and scope is not None and 'clock_tick' in scope['task_names']
+              and 'button-clock-to-os' in scope['purposes'] and scope['neighbours'] == ['led_toggle'], r.text[:300])
+        r = c.simulate_get('/api/cmod/graphs/uno-button-clock-graph', params={'node': 'usart_init'})
+        scope2 = r.json.get('scope')
+        check('…a node no Purpose names still gets an honest scope — task_names is just the node, purposes empty',
+              r.status_code == 200 and scope2 is not None and scope2['task_names'] == ['usart_init'] and scope2['purposes'] == [],
+              r.text[:300])
 
     def manifest_conform():
         from moduleService import manifests as M
