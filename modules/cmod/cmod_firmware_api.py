@@ -59,6 +59,9 @@ import os
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
+NO_PURPOSE_ADVICE = 'no Purpose names this task — add it to one'
+
+
 class FirmwareAPI(treeObject):
     @treeObjectInit
     def __init__(self, polServer=None, manager=None):
@@ -328,7 +331,10 @@ class FirmwareAPI(treeObject):
         # D-ucd-12: `purposes` is the same list as `capabilities` (a task may be named by several Purposes) — the
         # old key stays this release for callers that have not moved over yet. DEPRECATED: drop `capabilities`.
         return {'graph': graph, 'node': task, 'canvas_route': '/display/c-canvas?graph=%s&node=%s' % (graph, task),
-                'solution': hw[0] if hw else '', 'capabilities': cap_names, 'purposes': cap_names}
+                'solution': hw[0] if hw else '', 'capabilities': cap_names, 'purposes': cap_names,
+                # his ruling 2026-10-10: "try and ensure every task has at least one purpose, but it should not
+                # be enforced" — ADVICE only, never a validation failure or a block.
+                'advice': '' if cap_names else NO_PURPOSE_ADVICE}
 
     def _capabilities(self, s):
         """hw priorities P1: the Purposes (D-ucd-12: the person-facing word; was 'Capability' per D-hw-2/P1 §4)
