@@ -394,6 +394,12 @@ def demo4_targets():
               and 'send' in by_name.get('uplink-shared-test-only', {}).get('task_names', []),
               {k: v.get('task_names') for k, v in by_name.items()})
         composed = next((row for row in r.json['schedule'] if row['task'] == 'send'), None)
+        check('composed_by.advice is "" when a Purpose names the task and the no-Purpose advice when none does',
+              composed is not None and composed['composed_by'].get('advice') == ''
+              and all((row['composed_by']['advice'] == '') == bool(row['composed_by']['purposes'])
+                      and row['composed_by']['advice'] in ('', 'no Purpose names this task — add it to one')
+                      for row in r.json['schedule']),
+              composed and composed.get('composed_by'))
         check('…and the reverse link (composed_by.purposes, D-ucd-12) names BOTH Purposes for that one task',
               composed is not None and {'temp-sensor-to-os', 'uplink-shared-test-only'} <= set(composed['composed_by'].get('purposes', [])),
               composed and composed.get('composed_by'))
@@ -655,6 +661,13 @@ def demo4_targets():
           any(getattr(h, 'cgraph', '') == 'uno-sim-rig-graph' for h in tables.get('HardwareSolution', {}).values()))
     check('the REVERSE link resolves on GET /api/cmod/graphs/{g}: used_by lists uno-temp-split',
           any(h['name'] == 'uno-temp-split' for h in used_by), used_by)
+    cov = r.json.get('purpose_coverage') or {}
+    check('GET /api/cmod/graphs/{g} carries purpose_coverage {named, unnamed} (advice only, never enforced)',
+          set(cov) == {'named', 'unnamed'} and cov['named'] + len(cov['unnamed']) == len(r.json['nodes']), cov)
+    if cov.get('unnamed'):
+        r2 = c.simulate_get('/api/cmod/graphs/uno-sim-rig-graph?node=' + cov['unnamed'][0])
+        check('…and ?node= on an unnamed task puts the advice string in scope.advice',
+              'no Purpose names this task' in (r2.json['scope'].get('advice') or {}).get(cov['unnamed'][0], ''), r2.json.get('scope'))
     check('GET /api/cmod/graphs/{g} also carries the targets inline (badges on the canvas read this)',
           len(r.json.get('targets') or []) == 16)
 

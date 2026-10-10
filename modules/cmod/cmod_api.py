@@ -57,6 +57,10 @@ import json
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
+# same string as cmod_firmware_api.NO_PURPOSE_ADVICE (kept literal here: no cross-module import for one line)
+NO_PURPOSE_ADVICE = 'no Purpose names this task — add it to one'
+
+
 class CModAPI(treeObject):
     @treeObjectInit
     def __init__(self, polServer=None, manager=None):
@@ -268,6 +272,10 @@ class CModAPI(treeObject):
                  'used_by': used_by,
                  'used_by_how': 'every HardwareSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)',
                  'purposes': purposes}
+        # his ruling 2026-10-10: every task SHOULD have >= 1 Purpose but it is never enforced — advice only.
+        named_nodes = {t for p in purposes for t in p['task_names']}
+        unnamed = [n['instance'] for n in nodes if n['instance'] not in named_nodes]
+        media['purpose_coverage'] = {'named': len(nodes) - len(unnamed), 'unnamed': unnamed}
         node_param = request.get_param('node') or ''
         if node_param:
             naming = [p for p in purposes if node_param in p['task_names']]
@@ -277,7 +285,8 @@ class CModAPI(treeObject):
             media['scope'] = {'node': node_param, 'purposes': [p['name'] for p in naming],
                                'task_names': task_names, 'neighbours': neighbours,
                                'how': 'purposes = every Purpose whose task_names names this node; task_names = their union '
-                                      '(always including the node itself); neighbours = every node one CGraphEdge away'}
+                                      '(always including the node itself); neighbours = every node one CGraphEdge away',
+                               'advice': {t: NO_PURPOSE_ADVICE for t in task_names if t in unnamed}}
         response.media = media
 
     def on_get_graph_render(self, request, response, graph):
