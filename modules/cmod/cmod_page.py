@@ -7,9 +7,11 @@ ports, resources, pure, ISR-safe, annotation), the ports (direction, C type, Pol
 bytes shipped / as a node, stack frame). cmod-1 adds four more configured tables: the graphs over atoms, their nodes and edges,
 and the glue builds (the generated project, its sizes, the cost estimated vs measured, the twin equivalence proof).
 
-demo-4 (DEMONSTRABLES_PLAN.md §3) adds /display/c-canvas — the ONE new component (`c-graph-canvas-panel`, justified like
-firmware-installer-panel: a configured table cannot host the canvas itself, a graph picker, or render/build/prove buttons)
-ABOVE described tables of the atoms available to drop, the derived TargetDefinition rows (badges on the canvas already;
+demo-4 (DEMONSTRABLES_PLAN.md §3) adds /display/c-canvas — the EXISTING canvas (`custom-no-code`, the ONE header that
+carries every runtime's own command group, ucd-hdr his ruling 2026-10-10 — never a second component: a graph picker,
+render/build/prove buttons and the atoms-only solution adapter are its c-device command group, shown when the loaded
+CGraph derives that runtime) ABOVE described tables of the atoms available to drop, the derived TargetDefinition rows
+(badges on the canvas already;
 the table is the same rows, described), the seeded "temperature sensor solution" CapabilityDefinition + its two
 CapabilityInstance rows, and which HardwareSolutions use this graph (the reverse link — `/display/hardware-solutions`
 carries the forward one). `/display/c-atoms` gets a link to the canvas plus the same "used by" table.
@@ -18,9 +20,15 @@ from polariApiServer.module_pages_seed import _page, _row, _table, _sapi, _firmw
 
 
 def _canvas(item_id, index, segments, title, graph, description=''):
+    # ucd-hdr (his ruling 2026-10-10): the canvas component ITSELF ('custom-no-code', the SAME header that drives
+    # every other no-code canvas) — never the deleted c-graph-canvas-panel wrapper. Its `graph` input tells the
+    # header which CGraph to open (the c-device-only atoms SolutionDefinition, demo-4b's adapter, now built by
+    # custom-no-code.ts directly) and derives the Runtime select to c-device on load (RULE 2: a CGraph is C on
+    # the device by construction). The CGraph picker / Render·Build·Prove / lanes legend are the header's own
+    # runtime-scoped command group for c-device (commandGroupFor), shown automatically — no separate component.
     return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
             'title': title, 'description': description, 'visible': True, 'collapsed': False, 'cssClass': '',
-            'componentProps': {'componentName': 'c-graph-canvas-panel', 'inputs': {'graph': graph}},
+            'componentProps': {'componentName': 'custom-no-code', 'inputs': {'graph': graph}},
             'item': None, 'nestedRows': []}
 
 
@@ -119,10 +127,11 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                          'not an error.')], min_height=140),
           ]),
     _page('c-canvas', 'c-canvas',
-          'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3): the EXISTING canvas, not a second editor — '
-          'a graph picker, Render/Build/Prove buttons over `pol cmod render | build | prove`, and the atom/target/purpose rows the '
-          'badges on the canvas come from. Linked from /display/c-atoms and /display/hardware-solutions; this page is the canvas\'s own '
-          'home (D-demo-3: embedded where it belongs, not a third place).',
+          'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3; ucd-hdr his ruling 2026-10-10): the EXISTING '
+          'canvas and its ONE header, not a second editor or a second component — the Runtime select derives to c-device for this '
+          'CGraph, and the header\'s c-device command group (graph picker, Render/Build/Prove buttons over `pol cmod render | build | '
+          'prove`, the lanes legend) shows automatically. The atom/target/purpose rows below are the badges on the canvas, described. '
+          'Linked from /display/c-atoms; this page is the canvas\'s own home (D-demo-3: embedded where it belongs, not a third place).',
           'CGraph', [
               _row(0, [_canvas('c-canvas-panel', 0, 12, 'uno-sim-rig-graph on the canvas', 'uno-sim-rig-graph',
                                description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph, drop a "C Atom" '
