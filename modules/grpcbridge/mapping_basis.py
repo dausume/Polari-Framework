@@ -49,6 +49,11 @@ SEED_ENUM_MAPPINGS = [
           'the status words the UNO firmwares (sim_rig, blink, echo) and the Renode twin report; fault is reserved for a '
           'firmware that detects one. Wire: 1 byte (0 = unknown) instead of a u16-prefixed string of up to 9 bytes.'),
     _enum('UnoAnalogState', 'status', ['boot', 'ok', 'fault'], 'the analog sweep reports boot → ok after 1 s.'),
+    _enum('LightState', 'source', ['command', 'button'],
+          'ucd-light: who made the last change to the light — command (a person asked from the screen) or button (the '
+          'pushbutton on the board). Wire: 1 byte (0 = unknown).'),
+    _enum('LightState', 'status', ['idle', 'active'],
+          'ucd-light: idle until the light first changes after the board starts, then active. Wire: 1 byte (0 = unknown).'),
 ]
 
 
@@ -75,6 +80,18 @@ SEED_BUTTON_CLOCK_BRIDGE = {
     'last_generated_at': '', 'manifest_json': '{}', 'contract_hashes_json': '{}',
     'notes': 'ucd-0e1: the button-clock demo\'s bridge (UNO_CORE_DEMO_PLAN.md §3 "Bridge"); source=serial (the real '
              'device, not the internal simulation) at the kit\'s 115200 baud.',
+}
+
+#: ucd-light: the light test's bridge — ONE wire class (LightState = msg_type 1), source serial at the kit's 115200 baud.
+LIGHT_BRIDGE = 'uno-light'
+SEED_LIGHT_BRIDGE = {
+    'name': '%s-bridge' % LIGHT_BRIDGE, 'bridge_name': LIGHT_BRIDGE, 'source': 'serial',
+    'serial_device': '/dev/ttyACM0', 'baud': 115200,
+    'exposed_classes_json': json.dumps(['LightState']),
+    'sim_rate_hz': 10, 'grpc_enabled': False, 'grpc_target': 'localhost:3002', 'device_id': 1,
+    'last_generated_at': '', 'manifest_json': '{}', 'contract_hashes_json': '{}',
+    'notes': 'The light test\'s bridge: the board\'s serial link to Polari carries one struct, LightState, in both '
+             'directions (the light\'s state up, the on/off command down).',
 }
 
 #: every mapping row class, in registration order

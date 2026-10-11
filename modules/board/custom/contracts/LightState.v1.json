@@ -1,0 +1,47 @@
+{
+ "class": "LightState",
+ "contract_version": 1,
+ "contract_hash": "e05aeb148924b730",
+ "msg_type": 1,
+ "source": "pinned offline snapshot of the LightState contract v1 (ucd-light, 2026-10-11): derived with the framework's own rules (proto_gen.merge_field_map + contract_hash over the class's seven fields, tags alphabetical), not from a live server. The server's ProtoContractVersion ledger is authoritative -- `pol board gen --api URL` fetches the live header, and the installer's compat check compares against what the server generates NOW",
+ "field_map": {
+  "fields": {
+   "boot_session": {
+    "tag": 1,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "led_on": {
+    "tag": 2,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "name": {
+    "tag": 3,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "seq": {
+    "tag": 4,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "source": {
+    "tag": 5,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "status": {
+    "tag": 6,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "toggles": {
+    "tag": 7,
+    "proto_type": "int64",
+    "comment": ""
+   }
+  },
+  "reserved": []
+ }
+}

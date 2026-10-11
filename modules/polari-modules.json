@@ -777,7 +777,7 @@
     "electrodevice"
    ],
    "tier": "optional",
-   "description": "The UNO core demo (ucd arc): a Polari Hardware App of realization `bridge` whose manifest NAMES the three parts a bare-bones proof combines — a Firmware Solution (uno-button-clock), a Hardware Bridge (ButtonClockState/ButtonClockEvent on the button-clock HardwareBridgeDefinition) and a Polari app component (button-clock-ledger + /display/uno-core-demo) — composed as one Cross-Domain Solution, plus the breadboard circuit and the Purpose. Derives DemoReadiness (never seeded) over the six parts + the composition's weakest-link status."
+   "description": "The light test: the simplest proof that data and signals travel in both directions between a Polari screen and a board. One light on an Arduino UNO can be switched from a Polari screen and from the pushbutton on the board; every change of the light is reported back up as one small record (LightState), so the screen's indicator always follows. This module composes the test's parts by manifest — the firmware (uno-light), the serial link, the cross-domain solution that ties them together and the two Purposes (the screen switches the light, the button switches it) — and works out each part's readiness from the rows themselves, never from a typed-in claim."
   },
   "mathproofs": {
    "kind": "official",

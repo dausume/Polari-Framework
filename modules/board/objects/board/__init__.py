@@ -45,3 +45,4 @@ from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 # ucd-0e1: THE WIRE CONTRACT of the button-clock demo — the third and fourth wire classes (brd-fi's pattern)
 from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
 from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
+from board.objects.board.LightState import LightState  # noqa: F401

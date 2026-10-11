@@ -54,6 +54,7 @@ from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 # telemetry+command state class and a telemetry-only event class, both generated through the same c_twin codegen)
 from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
 from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
+from board.objects.board.LightState import LightState  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -66,4 +67,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  BoardPinNet,   # ucd-0a: the hardware chain (nine)
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
                  ButtonClockState, ButtonClockEvent,   # ucd-0e1: the third and fourth wire classes
+                 LightState,   # ucd-light: the light test's one wire struct
                  Datasheet]   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)

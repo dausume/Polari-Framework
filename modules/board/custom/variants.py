@@ -26,13 +26,16 @@ APP_CLASSES = {'sim_rig': ('SimRigState',), 'blink': ('SimRigState',), 'echo': (
                # board variant uses it (its variants are seeded by firmwarefaults, each marked SCENARIO ONLY)
                'scenario_rig': ('SimRigState',),
                # ucd-0e2: the button-clock demo — one app, TWO classes (telemetry + the event stream)
-               'button_clock': ('ButtonClockState', 'ButtonClockEvent')}
+               'button_clock': ('ButtonClockState', 'ButtonClockEvent'),
+               # ucd-light: the light test — one app, ONE class (the light's state, both directions)
+               'light': ('LightState',)}
 #: app → the features it can use (a feature an app cannot use is refused, not ignored)
 APP_FEATURES = {'sim_rig': {'led', 'pwm', 'adc', 'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'},
-                'scenario_rig': {'led', 'commands'}, 'button_clock': {'led', 'commands', 'button', 'sense'}}
+                'scenario_rig': {'led', 'commands'}, 'button_clock': {'led', 'commands', 'button', 'sense'},
+                'light': {'led', 'commands', 'button'}}
 #: app → the features it cannot work without
 APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}, 'scenario_rig': {'commands'},
-             'button_clock': {'led', 'commands', 'button', 'sense'}}
+             'button_clock': {'led', 'commands', 'button', 'sense'}, 'light': {'led', 'commands', 'button'}}
 #: sc-1: the generated header's RX parser (grpcbridge.custom.c_twin_v2.RX_PARSERS). A knob only a variant that sets it
 #: carries (absent = 'resync', so every existing build's repro block is unchanged)
 RX_PARSERS = ('resync', 'keep-tail')
@@ -132,6 +135,16 @@ SEED_FIRMWARE_VARIANTS = [
        'pressing the button on D2 flips D6 + D13 and bumps button_presses; with D6 wired to D3, sense_rises + '
        'sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); SET_TIME syncs the clock '
        '(drift_ms reported from the second sync on); SNAPSHOT replays the full state + queued events now.', {}),
+    _v('uno-light', 'The light test: a light on D6 that the screen and the board\'s pushbutton both switch',
+       'The simplest two-way test of a Polari Hardware App. D6 carries the light; a person can switch it from a Polari '
+       'screen (the SET_LED command down), and the pushbutton on D2 (debounced) switches the same light and the board '
+       'reports the change up. One struct, LightState, carries the light\'s state both ways. No clock, no sense pin, '
+       'no event queue.',
+       'light', ['LightState'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': False},
+       {'rig_name': 'uno-light', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'debounce_ms': 30},
+       'pressing the button on D2 flips the light on D6, bumps toggles and reports source=button; setting led_on from '
+       'the screen (SET_LED) switches the light and reports source=command; toggles counts every change.', {}),
     _v('uno-echo', 'Echo: no sensors, a command comes back whole',
        'The protocol test. No sensors and no actuators: whatever Polari sends is copied back, every field, and status '
        'says "echoed". If the values return unchanged, the wire, the header, the parser and the bridge all agree.',

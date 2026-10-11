@@ -48,7 +48,7 @@ TEMPLATES = {'arduino-uno-r3': os.path.join(HERE, 'firmware', 'uno')}
 TEMPLATE_FILES = ('hal.c', 'hal.h', 'Makefile')   # + apps/<app>.c → main.c
 #: ucd-0e2b: an app whose atoms share macros/globals through their OWN header (button_clock_defs.h, never a board-
 #: wide one like hal.h) — copied alongside main.c, same reasoning as TEMPLATE_FILES
-APP_EXTRA_HEADERS = {'button_clock': ('apps/button_clock_defs.h',)}
+APP_EXTRA_HEADERS = {'button_clock': ('apps/button_clock_defs.h',), 'light': ('apps/light_defs.h',)}
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3'}
 #: the classes a template has an app for (another class = a new app, brd-4)
 TEMPLATE_CLASSES = {'arduino-uno-r3': tuple(sorted({c for cs in V.APP_CLASSES.values() for c in cs}))}

@@ -74,7 +74,8 @@
    "hwnocode_seed"
   ],
   "page": [
-   "hwnocode_page"
+   "hwnocode_page",
+   "light_page"
   ],
   "selftests": [
    "hwnocode_selftest"
@@ -86,9 +87,11 @@
    "custom/derive",
    "custom/hwnocode_cli",
    "custom/knobs",
+   "custom/light_solutions",
    "custom/placement",
    "custom/runtimes",
    "custom/seed_rows",
+   "custom/selftest_light",
    "custom/solutions",
    "custom/split",
    "custom/suggest",

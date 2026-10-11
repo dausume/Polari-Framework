@@ -32,6 +32,8 @@ ANNOTATED = {'hal.hal_rx_pop', 'hal.hal_usart_send', 'hal.hal_millis', 'hal.hal_
              'apps/button_clock.clock_tick', 'apps/button_clock.clock_set', 'apps/button_clock.led_toggle',
              'apps/button_clock.sense_isr', 'apps/button_clock.events_queue', 'apps/button_clock.telemetry_send',
              'apps/button_clock.apply_command',
+             # ucd-light: the four atoms of apps/light.c
+             'apps/light.boot_session_mint', 'apps/light.led_toggle', 'apps/light.apply_command', 'apps/light.telemetry_send',
              # ucd-0e2b: uses(L_LED_PIN) on l_led_set (D13's runtime counterpart to l_led_init) + a role() on
              # boot_session_mint (wired as an init field edge into state.boot_session by the new graph)
              'apps/button_clock.l_led_set', 'apps/button_clock.boot_session_mint'}
@@ -45,12 +47,12 @@ def uno_parts(check):
         p = AN.parse_project('uno')
         state['p'] = p
         a = p['atoms']
-        check('the UNO template parses over its 7 configurations (5 seeded variants + 2 coverage) into 51 atoms, no preprocessor problem',
-              len(p['configs']) == 7 and len(a) == 51 and not p['problems'], (len(a), p['problems'][:3]))
+        check('the UNO template parses over its 8 configurations (6 seeded variants + 2 coverage) into 56 atoms, no preprocessor problem',
+              len(p['configs']) == 8 and len(a) == 56 and not p['problems'], (len(a), p['problems'][:3]))
         check('every hal.c function is an atom (22 incl. the 4 ISRs and the knob-gated ones: hal_uart_errors, hal_presses, hal_wdt_boot, '
               'hal_sense_init/hal_sense_read, hal_take_toggle_pending)',
               HAL_ATOMS <= set(a), sorted(HAL_ATOMS - set(a)))
-        check('the 25 POLARI_NODE annotations attach to their functions (hal 10, sim_rig 2, echo 1, scenario_rig 3, button_clock 9)',
+        check('the 29 POLARI_NODE annotations attach to their functions (hal 10, sim_rig 2, echo 1, scenario_rig 3, button_clock 9, light 4)',
               {k for k, v in a.items() if v.get('annotation')} == ANNOTATED, sorted({k for k, v in a.items() if v.get('annotation')} ^ ANNOTATED))
         m = a['hal.hal_millis']
         check('hal_millis: out(return) uint32_t → int64 [ms], reads g_ms (shared with the tick ISR) INSIDE the atomic block → isr_safe yes',
@@ -63,7 +65,7 @@ def uno_parts(check):
         rx = a['hal.USART_RX_vect']
         check('ISR(USART_RX_vect) (both #if branches, unioned) reads UCSR0A + UDR0 (USART0), writes rx_head / rx_ring and the error counters',
               rx['isr'] == 'USART_RX_vect' and {'UCSR0A', 'UDR0'} <= set(rx['registers']) and rx['globals']['rx_head']['w']
-              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 5)   # ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1)
+              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 6)   # ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1); ucd-light: + uno-light
         check('hal_rx_pop: the 1-byte ring indices the RX ISR writes need no atomic block (one lds each) → isr_safe yes; b → out',
               a['hal.hal_rx_pop']['isr_safe'] == 'yes' and a['hal.hal_rx_pop']['ports'][0]['direction'] == 'out')
         check('pure atoms are exactly the two that compute: sim_rig.sensor_value (the TMP36 formula) and scenario_rig.crc8',
@@ -125,21 +127,21 @@ def uno_parts(check):
         from cmod.custom import manifest as MF
         path = os.path.join(UNO, 'polari-firmware.json')
         m = json.load(open(path))
-        check('the UNO\'s polari-firmware.json is committed beside its Makefile, validates, schema polari-firmware/1, 51 atoms',
-              not MF.validate(m) and m['schema'] == 'polari-firmware/1' and m['counts']['atoms'] == 51, MF.validate(m))
+        check('the UNO\'s polari-firmware.json is committed beside its Makefile, validates, schema polari-firmware/1, 56 atoms',
+              not MF.validate(m) and m['schema'] == 'polari-firmware/1' and m['counts']['atoms'] == 56, MF.validate(m))
         r = MF.conform('uno', measure=False, write=False)
         check('no drift: a parse NOW equals the committed manifest (conform without measuring would write nothing)',
               not r['changed'], (r['added'], r['removed'], r['edited'][:4]))
         atoms = m['atoms']
         costed = [a for a in atoms if a['cost'] and isinstance(a['cost'].get('text_bytes_noinline'), int) and a['cost']['text_bytes_noinline'] > 0]
-        check('every atom carries ports (a list), resources (a list) and a measured cost: text bytes as a node > 0 for all 51',
-              all(isinstance(a['ports'], list) and isinstance(a['resources'], list) for a in atoms) and len(costed) == 51, len(costed))
+        check('every atom carries ports (a list), resources (a list) and a measured cost: text bytes as a node > 0 for all 56',
+              all(isinstance(a['ports'], list) and isinstance(a['resources'], list) for a in atoms) and len(costed) == 56, len(costed))
         nostack = [a['name'] for a in atoms if a['cost']['stack_bytes'] is None]
-        check('stack frames from GCC\'s .su for 50 atoms; the one without is hal_wdt_boot — a naked function, stated in the cost row',
+        check('stack frames from GCC\'s .su for 55 atoms; the one without is hal_wdt_boot — a naked function, stated in the cost row',
               nostack == ['hal.hal_wdt_boot'] and 'naked' in next(a for a in atoms if a['name'] == 'hal.hal_wdt_boot')['cost']['why'], nostack)
         mk = [c.get('make_alone') or {} for c in m['configurations']]
-        check('make ALONE built every configuration (7/7, the .hex sha recorded) — no Polari in that loop',
-              len(mk) == 7 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
+        check('make ALONE built every configuration (8/8, the .hex sha recorded) — no Polari in that loop',
+              len(mk) == 8 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
         check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (4188f6ae…, unchanged by the annotations)',
               sim['make_alone']['hex_sha256'].startswith('4188f6ae7d65bfc7'), sim['make_alone']['hex_sha256'][:16])
@@ -163,19 +165,19 @@ def uno_parts(check):
         from cmod.cmod_api import CModAPI
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
-        check('seeds = the committed manifest projected: 1 project, 9 modules (ucd-0e2b: + apps/button_clock_defs header), 51 atoms, %d ports; '
-              'cmod-1: 2 graphs (uno-sim-rig-graph, uno-button-clock-graph — ucd-0e2b\'s own), 45 nodes, 33 edges, 2 glue builds (both '
+        check('seeds = the committed manifest projected: 1 project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 56 atoms, %d ports; '
+              'cmod-1: 3 graphs (uno-sim-rig-graph, uno-button-clock-graph — ucd-0e2b\'s own, uno-light-graph — ucd-light\'s), 61 nodes, 42 edges, 3 glue builds (all '
               'rendered/built/proven — EQUIVALENT); demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over both graphs; hw '
               'priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; ucd-0e2b: button-clock-to-os '
-              'now names uno-button-clock-graph\'s own nodes; fs-0/ucd-0e2b: TWO FirmwareSolutions (uno-sim-rig, uno-button-clock) + their '
+              'now names uno-button-clock-graph\'s own nodes; fs-0/ucd-0e2b: THREE FirmwareSolutions (uno-sim-rig, uno-button-clock, uno-light) + their '
               'derived ScheduleSlot/RegisterAssignment rows (D2/D3/D6/D13\'s config_json authored, provenance canvas); ucd-0b: PinClaim/'
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
-              'ucd-0b2b: one default HardwareBinding derived per solution (2 now); ucd-iso-0: CIsotope observed too '
+              'ucd-0b2b: one default HardwareBinding derived per solution (3 now); ucd-light: 8 more CapabilityDefinition (the two light Purposes + six plumbing Purposes of the sample graphs); ucd-iso-0: CIsotope observed too '
               '(empty by design — materialized on a GET, never seeded)' % m['counts']['ports'],
-              counts == {'CProject': 1, 'CModule': 9, 'CFunctionAtom': 51, 'CPort': m['counts']['ports'], 'CGraph': 2, 'CGraphNode': 45,
-                         'CGraphEdge': 33, 'CGlueBuild': 2, 'TargetDefinition': 34, 'CapabilityDefinition': 4, 'CapabilityInstance': 5,
-                         'FirmwareExport': 0, 'FirmwareSolution': 2, 'ScheduleSlot': 47, 'RegisterAssignment': 34,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 2, 'CIsotope': 0}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope
+              counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 56, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
+                         'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 12, 'CapabilityInstance': 5,
+                         'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 65, 'RegisterAssignment': 46,
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}
@@ -186,10 +188,10 @@ def uno_parts(check):
         canvas_items = [it for row in json.loads(canvas_page['definition'])['rows'] for it in row['items']]
         check('/display/c-canvas: the canvas (custom-no-code, ucd-hdr — never the deleted c-graph-canvas-panel) first, '
               'then described tables (atoms available, targets, capabilities, instances); ucd-hdr2: default graph is '
-              'uno-button-clock-graph (THE core demo in use, his rule: pages scope to the firmware in use) — '
+              'uno-light-graph (THE core demo in use, his rule: pages scope to the firmware in use) — '
               'uno-sim-rig-graph stays reachable via ?graph=',
               canvas_page['pageRoute'] == 'c-canvas' and canvas_items[0]['componentProps']['componentName'] == 'custom-no-code'
-              and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-button-clock-graph'
+              and canvas_items[0]['componentProps']['inputs']['graph'] == 'uno-light-graph'
               and {it['componentProps']['componentName'] for it in canvas_items[1:]} == {'class-rows-table'})
         import inspect
         from cmod.cmod_basis import CMOD_CLASSES
@@ -210,7 +212,7 @@ def uno_parts(check):
         CModAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
         c = testing.TestClient(app)
         r = c.simulate_get('/api/cmod')
-        check('GET /api/cmod → the uno project with 51 atoms, the parser named', r.status_code == 200 and r.json['projects'][0]['atoms'] == 51
+        check('GET /api/cmod → the uno project with 56 atoms, the parser named', r.status_code == 200 and r.json['projects'][0]['atoms'] == 56
               and r.json['parser']['engine'] == 'pycparser', r.text[:200])
         r = c.simulate_get('/api/cmod/atoms/hal_millis')
         check('GET /api/cmod/atoms/hal_millis → uno:hal.hal_millis with its one port', r.status_code == 200 and r.json['atom']['name'] == 'uno:hal.hal_millis'
@@ -239,8 +241,9 @@ def uno_parts(check):
               and 'button-clock-to-os' in scope['purposes'] and scope['neighbours'] == ['led_toggle'], r.text[:300])
         r = c.simulate_get('/api/cmod/graphs/uno-button-clock-graph', params={'node': 'usart_init'})
         scope2 = r.json.get('scope')
-        check('…a node no Purpose names still gets an honest scope — task_names is just the node, purposes empty',
-              r.status_code == 200 and scope2 is not None and scope2['task_names'] == ['usart_init'] and scope2['purposes'] == [],
+        check('…ucd-light: even set-up plumbing (usart_init) is named by a Purpose that says why it is in the firmware '
+              '(no task is left without one): purposes == [button-clock-serial-link], the node is among its task_names',
+              r.status_code == 200 and scope2 is not None and 'usart_init' in scope2['task_names'] and scope2['purposes'] == ['button-clock-serial-link'],
               r.text[:300])
 
     def manifest_conform():

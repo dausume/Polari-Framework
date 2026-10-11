@@ -51,6 +51,24 @@ ACCEPTANCE_SCENARIOS = [
      'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
      'capability': 'button-clock-to-os', 'provenance': 'ucd-0e2 seed', 'notes': ''},
+    {'name': 'light-from-button-acceptance', 'title': 'Acceptance — light-from-button',
+     'description': 'Three debounced presses on the board\'s button (D2): each one flips the light, the board counts it, and its '
+                    'next frame says source=button; the light is on after an odd number of presses.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'led_on flips on every press, toggles == presses, source == button in every frame after the first press',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'light-from-button', 'provenance': 'ucd-light seed', 'notes': ''},
+    {'name': 'light-from-polari-acceptance', 'title': 'Acceptance — light-from-polari',
+     'description': 'The OS sends SET_LED on, then SET_LED off over the serial link: the light follows each command, the board '
+                    'counts both changes, and its frames say source=command.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'after SET_LED 1: led_on true, toggles 1, source command; after SET_LED 0: led_on false, toggles 2, source command',
+     'observable_kind': 'command-echo', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'light-from-polari', 'provenance': 'ucd-light seed', 'notes': ''},
 ]
 
 
@@ -82,6 +100,14 @@ ACCEPTANCE_STEPS = [
           notes='the wired invariant: sense_rises + sense_falls == button_presses, led_on == (presses odd)'),
     _step('button-clock-to-os-acceptance', 3, 'assert-field-arrival', {'field': 'sense_rises+sense_falls==0 (no --wire)', 'window_ms': 100},
           notes='probe case (f), the NEGATIVE: the same presses with no --wire -> sense counters stay 0'),
+    _step('light-from-button-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD2', 'level': 0},
+          notes='the first of three presses on D2 (board.custom.light_twin.press_pinat)'),
+    _step('light-from-button-acceptance', 2, 'assert-field-arrival', {'field': 'led_on flips, toggles==presses, source==button', 'window_ms': 100},
+          notes='read off the decoded LightState frames of the same run'),
+    _step('light-from-polari-acceptance', 1, 'assert-command-echo', {'field': 'led_on', 'value': 1, 'window_ms': 100},
+          notes='SET_LED 1: the next frames report the light on, source=command'),
+    _step('light-from-polari-acceptance', 2, 'assert-command-echo', {'field': 'led_on', 'value': 0, 'window_ms': 100},
+          notes='SET_LED 0: the last frame reports the light off, toggles 2'),
 ]
 
 
@@ -107,7 +133,11 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    if sc['capability'] == 'button-clock-to-os':
+    if sc['capability'] in ('light-from-button', 'light-from-polari'):
+        # ucd-light: the light test's own twin runner (board.custom.light_twin) proves the GOAL directly on the simavr twin
+        from board.custom import light_twin as LT
+        result = LT.prove('button' if sc['capability'] == 'light-from-button' else 'polari', run_mode)
+    elif sc['capability'] == 'button-clock-to-os':
         # ucd-0e2: no FirmwareSolution/CGraph for uno-button-clock yet (0e2b's job) — FW.run()'s glue-equivalence
         # proof has nothing to run against; a dedicated runner proves the GOAL directly instead (board.custom.
         # button_clock_acceptance), reusing the SAME twin + codec the probe/twin-selftest already prove with.

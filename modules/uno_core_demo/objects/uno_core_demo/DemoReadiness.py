@@ -7,7 +7,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 #: UNO_CORE_DEMO_PLAN.md §3: the six composed parts the manifest's `parts` block names, plus the composition itself
 #: (the synthetic row whose `status` is the weakest of the six).
-PARTS = ('firmware', 'bridge', 'polari_app', 'cross_domain', 'circuit', 'purpose', 'composition')
+PARTS = ('firmware', 'bridge', 'cross_domain', 'purpose_from_polari', 'purpose_from_button', 'composition',
+         'polari_app', 'circuit', 'purpose')   # the last three: the older six-part demo's, still readable if a manifest names them
 
 
 class DemoReadiness(treeObject):
@@ -30,15 +31,15 @@ class DemoReadiness(treeObject):
     name; nothing here is ever hand-seeded with a claim (modules/README.md §5's refusal rule: an absent part is
     `exists=False, status='missing'`, named, never a crash and never a guess)."""
 
-    plain_words = ('One row per part of the UNO core demo (firmware, bridge, the Polari app, the cross-domain '
-                   'canvas, the circuit, the Purpose) plus one row for the whole composition — read fresh from '
-                   'each part\'s own rows, never typed in by hand.')
+    plain_words = ('One row per part of the light test (the firmware, the serial link, the cross-domain solution, and the '
+                   'two Purposes: the OS switches the light, the board\'s button switches it) plus one row for the whole '
+                   'composition — read fresh from each part\'s own rows, never typed in by hand.')
 
     @treeObjectInit
     def __init__(self, name: str = '', part: str = '', ref_class: str = '', ref_name: str = '', refs: str = '',
                  exists: bool = False, status: str = '', why: str = '', checked_at: str = '', manager=None):
         self.name = name
-        self.part = part               # firmware | bridge | polari_app | cross_domain | circuit | purpose | composition
+        self.part = part               # firmware | bridge | cross_domain | purpose_from_polari | purpose_from_button | composition
         self.ref_class = ref_class     # the row class this part names (empty for `polari_app`, which names two)
         self.ref_name = ref_name       # the row name this part names (or 'solution + display' for polari_app)
         self.refs = refs               # 'Class:name[, Class:name]' — the configured table's `refs` column

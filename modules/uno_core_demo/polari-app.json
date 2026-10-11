@@ -3,7 +3,7 @@
  "id": "uno_core_demo",
  "package": "uno_core_demo",
  "title": "Uno Core Demo",
- "description": "The UNO core demo (ucd arc): \"a simple proof based on the arduino uno, that can show thoroughly that everything makes sense and works and talks to one another\" — a bare-bones firmware that keeps a date-time synced with the OS while one button simultaneously turns an LED on and off and an independent pin detects that switching, maintaining a struct on the microcontroller which gets sent back through a configured bridge through the kernel and the JavaFX app and up into Polari (his words, UNO_CORE_DEMO_PLAN.md §0). This module composes the demo's three parts by manifest — a Firmware Solution, a Hardware Bridge, and a Polari app component — as one Cross-Domain Solution, and derives each part's readiness (never a hand-set claim).",
+ "description": "The light test: the simplest proof that data and signals travel in both directions between a Polari screen and a board. One light on an Arduino UNO can be switched from a Polari screen and from the pushbutton on the board; every change of the light is reported back up as one small record (LightState), so the screen's indicator always follows. This module composes the test's parts by manifest — the firmware (uno-light), the serial link, the cross-domain solution that ties them together and the two Purposes (the screen switches the light, the button switches it) — and works out each part's readiness from the rows themselves, never from a typed-in claim.",
  "version": "0.1.0",
  "kind": "official",
  "wave": null,
@@ -109,29 +109,24 @@
  "parts": {
   "firmware": {
    "class": "FirmwareSolution",
-   "name": "uno-button-clock"
+   "name": "uno-light"
   },
   "bridge": {
    "class": "HardwareBridgeDefinition",
-   "name": "button-clock",
-   "state_class": "ButtonClockState",
-   "event_class": "ButtonClockEvent"
-  },
-  "polari_app": {
-   "solution": "button-clock-ledger",
-   "display": "uno-core-demo"
+   "name": "uno-light",
+   "state_class": "LightState"
   },
   "cross_domain": {
    "class": "SolutionDefinition",
-   "name": "uno-button-clock"
+   "name": "uno-light"
   },
-  "circuit": {
-   "class": "CircuitDefinition",
-   "name": "uno-button-clock"
-  },
-  "purpose": {
+  "purpose_from_polari": {
    "class": "CapabilityDefinition",
-   "name": "button-clock-to-os"
+   "name": "light-from-polari"
+  },
+  "purpose_from_button": {
+   "class": "CapabilityDefinition",
+   "name": "light-from-button"
   }
  }
 }

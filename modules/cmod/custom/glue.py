@@ -42,7 +42,7 @@ GENERATED = ('polari_graph.c', 'polari_graph.h', 'Makefile')
 #: triggers for a module an ATOM belongs to — a header with no functions of its own, like button_clock_defs.h, has
 #: none) — copied + #included whenever one of the app's OWN atoms is used, same reasoning as board.custom.gen's
 #: APP_EXTRA_HEADERS (the hand-written build's own copy of the same rule).
-APP_EXTRA_HEADER_MODULES = {'apps/button_clock.c': ('apps/button_clock_defs.h',)}
+APP_EXTRA_HEADER_MODULES = {'apps/button_clock.c': ('apps/button_clock_defs.h',), 'apps/light.c': ('apps/light_defs.h',)}
 
 
 class GlueRefused(ValueError):

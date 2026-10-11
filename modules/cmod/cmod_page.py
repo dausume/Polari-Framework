@@ -127,23 +127,17 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                          'not an error.')], min_height=140),
           ]),
     _page('c-canvas', 'c-canvas',
-          'The no-code canvas opened on a cmod CGraph (demo-4, DEMONSTRABLES_PLAN.md §3; ucd-hdr his ruling 2026-10-10): the EXISTING '
-          'canvas and its ONE header, not a second editor or a second component — the Runtime select derives to c-device for this '
-          'CGraph, and the header\'s c-device command group (graph picker, Render/Build/Prove buttons over `pol cmod render | build | '
-          'prove`, the Scope control + Purpose chips, the lanes legend) shows automatically. Default graph: '
-          'uno-button-clock-graph — THE core demo in use (UNO_CORE_DEMO_PLAN.md, his rule: pages scope to the firmware in use); '
-          'uno-sim-rig-graph stays reachable via ?graph=uno-sim-rig-graph. The atom/target/purpose rows below are the badges on the '
-          'canvas, described. Linked from /display/c-atoms; this page is the canvas\'s own home (D-demo-3: embedded where it belongs, '
-          'not a third place).',
+          'The firmware canvas: the program that runs on the board, drawn as boxes (steps) joined by arrows, grouped into columns '
+          'by when each step runs (set-up first, then the repeating loop, then the small helpers they call). It opens on the light '
+          'test (uno-light-graph): a light on the board that both a Polari screen and the board\'s own button can switch. Pick '
+          'another program from the picker at the top (for example uno-sim-rig-graph, the temperature sample, or '
+          'uno-button-clock-graph, the clock-and-button sample). Click a box to see what it is, what it reads and writes, and its C code.',
           'CGraph', [
-              _row(0, [_canvas('c-canvas-panel', 0, 12, 'uno-button-clock-graph on the canvas', 'uno-button-clock-graph',
-                               description='What this is for: THE DEMONSTRABLE — drag the graph picker to open any CGraph (?graph= names '
-                                           'another one directly, e.g. uno-sim-rig-graph), drop a "C Atom" from the palette and wire it, or '
-                                           'use the Scope control (task/purpose/graph) to focus on just the atoms of one task instead of the '
-                                           'whole graph at once (?node=&scope=&purpose= fast-nav the same view). Render/Build/Prove call the '
-                                           'same doors `pol cmod render|build|prove` do. demo-4b: every atom shown is a REAL node (one per '
-                                           'CGraphNode), all in the c-device lane, laid out in STAGE columns (init -> loop -> called -> the '
-                                           'glue-generated kinds) — never a single collapsed HardwareSubgraph wrapper, never one tall column.')],
+              _row(0, [_canvas('c-canvas-panel', 0, 12, 'The light test program (uno-light-graph) on the canvas', 'uno-light-graph',
+                               description='Every box here is one step of the program on the board (one per box in the program\'s '
+                                           'list). Columns run left to right: set-up steps, the repeating loop, the helpers they call, '
+                                           'then the parts Polari writes for you. Use the buttons at the top to turn the program into '
+                                           'C code, build it and prove it on the simulated board. Click a box for its details.')],
                    min_height=640),
               _row(1, [_table('c-canvas-runtimes', 0, 12, 'Nodes by runtime — every node this graph places, each resolved to one Runtime '
                               '(demo-4b: a CGraph is C on the device by construction, so every row here reads c-device)', 'CGraphNode',
@@ -157,11 +151,11 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               # ui-pass 2026-10-11: scoped to the graph this page opens (his rule: pages scope to
                               # the firmware in use) — unfiltered it listed uno-sim-rig-graph's rows first, under a
                               # canvas showing uno-button-clock-graph.
-                              filter_field='graph', filter_value='uno-button-clock-graph')], min_height=200),
+                              filter_field='graph', filter_value='uno-light-graph')], min_height=200),
               _row(2, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
                               'palette node, then type one of these names into its overlay to wire it)', 'CFunctionAtom',
                               description='What this is for: which atoms a dropped "C Atom" node can be pointed at. One row = one atom of '
-                                          'the project uno-button-clock-graph (the default graph) is drawn over. Columns: same as '
+                                          'the project that uno-light-graph (the default program) is drawn over. Columns: same as '
                                           '/display/c-atoms\' atoms table.',
                               columns='name,kind,signature,ports_summary,resources_summary,isr_safe,role',
                               filter_field='project', filter_value='uno')], min_height=240),
@@ -199,13 +193,12 @@ SEED_CMOD_PAGE_DISPLAYS = [
     # ucd-0f (his ask 2026-10-08: "a link that shows just the UI for firmware no code and an export"): ONE lean page —
     # the canvas and the exports, nothing else; /display/firmware-solutions keeps the full set of described tables.
     _page('firmware', 'firmware',
-          'Firmware — the no-code canvas for one Firmware Solution (tasks · schedule · register map on the board\'s pin map) and '
-          'its EXPORT: a folder you download and build with plain CMake, no Polari needed (the rendered C, CMakeLists.txt, the '
-          'avr-gcc toolchain file, a README that explains the firmware, every file\'s sha). The full tables are on '
-          '/display/firmware-solutions; the hardware chain (pins → functions → peripherals → registers → bit fields) on '
-          '/display/hardware-chain.', 'FirmwareSolution', [
+          'Firmware: the canvas for one Firmware Solution (the steps of the board\'s program, when each runs, and which pin each '
+          'uses) and its export: a folder you can download and build with plain CMake, with no Polari needed (the C code, the build '
+          'file, the compiler settings and a README that explains the firmware). It opens on the light test (uno-light). The full '
+          'tables are on /display/firmware-solutions; the chain from pins down to registers is on /display/hardware-chain.', 'FirmwareSolution', [
               _row(0, [_firmware_panel('firmware-panel-lean', 0, 12, 'Firmware no-code — pick a solution, bind targets to pins, export',
-                                       '/api/firmware/solutions', initial='uno-sim-rig',
+                                       '/api/firmware/solutions', initial='uno-light',
                                        description='Pick a Firmware Solution. LEFT: its tasks grouped by Purpose. MIDDLE: the derived '
                                                    'schedule. RIGHT: the board\'s pin map — select a task, then a valid (outlined) pin, '
                                                    'confirm Register. EXPORT (top bar): writes the CMake project + README + manifest, '
@@ -234,15 +227,13 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               column_formats='solution:ref:FirmwareSolution,download_url:link')]),
           ]),
     _page('firmware-solutions', 'firmware-solutions',
-          'Firmware Solutions (fs-0, DEMONSTRABLES_PLAN.md §9): a `FirmwareSolution` takes a `CGraph` (its tasks = the '
-          'graph\'s c-atoms) and a board (fixed or a run-time variable, validated it still exists) and derives its SCHEDULE '
-          '(D-fs-1: from the atoms\' own ISR/tick/loop/init annotations, never authored) and REGISTER MAP (D-fs-2: bound/'
-          'unbound/conflict against the board\'s own BoardPin rows). `uno-sim-rig` is the first one, over the existing '
-          'uno-sim-rig-graph. Build/run reuse cmod-glue and the board installer/twin — nothing reimplemented here. The '
-          'three-part canvas (task list · schedule lane · register map with the drag) is fs-1 — the canvas is now LIVE '
-          '(the described tables below are the same rows, read-only confirmation).', 'FirmwareSolution', [
+          'Firmware Solutions: a Firmware Solution is a program for a board (its steps are the boxes of a firmware canvas) together '
+          'with the board it runs on. From the steps themselves Polari works out WHEN each one runs (set-up, repeating loop, '
+          'interrupt) and WHICH pin or register each one uses on the board, and it tells you when two steps want the same pin. It '
+          'opens on the light test (uno-light): a light that a screen and the board\'s button both switch. Below the canvas are the '
+          'same facts as tables: the goals each group of steps serves (Purposes), the schedule, the pins and the proofs.', 'FirmwareSolution', [
               _row(0, [_firmware_panel('firmware-solution-panel', 0, 12, 'The firmware canvas — tasks · schedule · register map (drag a target onto a pin)',
-                                       '/api/firmware/solutions', initial='uno-sim-rig',
+                                       '/api/firmware/solutions', initial='uno-light',
                                        description='What this is for: THE DEMONSTRABLE (fs-1) — pick a FirmwareSolution; LEFT lists its '
                                                    'tasks (name, kind, ports, resources, cost, lane), GROUPED by Purpose (hw priorities '
                                                    'P1 — the solution payload\'s purposes field names which Purpose(s) each task belongs '

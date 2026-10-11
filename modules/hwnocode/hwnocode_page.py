@@ -225,3 +225,8 @@ SEED_HWNOCODE_PAGE_DISPLAYS += [
                               columns='name,seq,kind,uptime_ms,epoch_s,ms,boot_session')], min_height=320),
           ]),
 ]
+
+
+# ucd-light: /display/uno-core-demo is now the light test (hwnocode.light_page); the button-clock page above moved to its own route
+from hwnocode.light_page import LIGHT_PAGES   # noqa: E402
+SEED_HWNOCODE_PAGE_DISPLAYS += LIGHT_PAGES

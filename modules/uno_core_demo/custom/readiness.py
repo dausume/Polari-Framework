@@ -14,12 +14,13 @@ never crashed on (modules/README.md §5's refusal rule).
 import time
 
 DEFAULT_PARTS = {
-    'firmware': {'class': 'FirmwareSolution', 'name': 'uno-button-clock'},
-    'bridge': {'class': 'HardwareBridgeDefinition', 'name': 'button-clock', 'state_class': 'ButtonClockState', 'event_class': 'ButtonClockEvent'},
-    'polari_app': {'solution': 'button-clock-ledger', 'display': 'uno-core-demo'},
-    'cross_domain': {'class': 'SolutionDefinition', 'name': 'uno-button-clock'},
-    'circuit': {'class': 'CircuitDefinition', 'name': 'uno-button-clock'},
-    'purpose': {'class': 'CapabilityDefinition', 'name': 'button-clock-to-os'},
+    # ucd-light: the demo is the light test — its firmware, its serial link, the cross-domain solution that composes them,
+    # and the two Purposes (the OS switches the light / the board's button switches it)
+    'firmware': {'class': 'FirmwareSolution', 'name': 'uno-light'},
+    'bridge': {'class': 'HardwareBridgeDefinition', 'name': 'uno-light', 'state_class': 'LightState'},
+    'cross_domain': {'class': 'SolutionDefinition', 'name': 'uno-light'},
+    'purpose_from_polari': {'class': 'CapabilityDefinition', 'name': 'light-from-polari'},
+    'purpose_from_button': {'class': 'CapabilityDefinition', 'name': 'light-from-button'},
 }
 
 #: a part's status word, ranked worst (0) to best (5) — the composition takes the WEAKEST of its six parts' ranks;
@@ -179,7 +180,7 @@ def _circuit_part(spec, manager, checked_at):
                     % (name, type(exc).__name__, exc), checked_at)
 
 
-def _purpose_part(spec, manager, checked_at):
+def _purpose_part(spec, manager, checked_at, part='purpose'):
     name = spec.get('name', '')
     try:
         from cmod.custom.capabilities import SEED_CAPABILITIES
@@ -188,19 +189,23 @@ def _purpose_part(spec, manager, checked_at):
     rows = _rows(manager, [('CapabilityDefinition', None, SEED_CAPABILITIES)], 'CapabilityDefinition')
     row = next((r for r in rows if _g(r, 'name') == name), None)
     if row is None:
-        return _row('purpose', 'CapabilityDefinition', name, False, 'missing', 'no CapabilityDefinition (Purpose) named %r' % name, checked_at)
+        return _row(part, 'CapabilityDefinition', name, False, 'missing', 'no CapabilityDefinition (Purpose) named %r' % name, checked_at)
     status = _g(row, 'status', 'planned')
     why = 'Purpose %r: %s' % (name, _g(row, 'last_proof') or 'no proof run yet')
-    return _row('purpose', 'CapabilityDefinition', name, True, status, why, checked_at)
+    return _row(part, 'CapabilityDefinition', name, True, status, why, checked_at)
 
 
 _BUILDERS = {
     'firmware': _firmware_part, 'bridge': _bridge_part, 'polari_app': _polari_app_part,
     'cross_domain': _cross_domain_part, 'circuit': _circuit_part, 'purpose': _purpose_part,
+    'purpose_from_polari': lambda spec, manager, checked_at: _purpose_part(spec, manager, checked_at, 'purpose_from_polari'),
+    'purpose_from_button': lambda spec, manager, checked_at: _purpose_part(spec, manager, checked_at, 'purpose_from_button'),
 }
 
 #: the plain-words order every reader (the page, the API, the selftest) shows the six parts in, before `composition`
-PARTS_ORDER = ('firmware', 'bridge', 'polari_app', 'cross_domain', 'circuit', 'purpose')
+PARTS_ORDER = ('firmware', 'bridge', 'cross_domain', 'purpose_from_polari', 'purpose_from_button')
+#: parts an older manifest may still name (the button-clock demo's six): built when the manifest's `parts` names them
+LEGACY_PARTS = ('polari_app', 'circuit', 'purpose')
 
 
 def readiness(manager=None, parts=None):
@@ -212,7 +217,8 @@ def readiness(manager=None, parts=None):
     parts = parts or DEFAULT_PARTS
     checked_at = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     rows = []
-    for part in PARTS_ORDER:
+    order = list(PARTS_ORDER) + [p for p in LEGACY_PARTS if p in parts]
+    for part in order:
         spec = parts.get(part) or {}
         rows.append(_BUILDERS[part](spec, manager, checked_at))
     weakest = min(rows, key=lambda r: _rank(r['status']))

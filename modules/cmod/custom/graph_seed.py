@@ -17,6 +17,7 @@ Rows are written here as dicts (the seeds); a person adds a graph as rows (CRUDE
 
 GRAPH = 'uno-sim-rig-graph'
 BC_GRAPH = 'uno-button-clock-graph'
+LIGHT_GRAPH = 'uno-light-graph'
 
 
 def _n(instance, kind, order, atom='', stage='', bindings='', params='', notes='', graph=GRAPH):
@@ -168,6 +169,61 @@ BC_SEED_GRAPH_EDGES = [
 SEED_GRAPHS += BC_SEED_GRAPHS
 SEED_GRAPH_NODES += BC_SEED_GRAPH_NODES
 SEED_GRAPH_EDGES += BC_SEED_GRAPH_EDGES
+
+
+#: ucd-light (UNO_CORE_DEMO_PLAN.md §5i): `uno-light-graph` = the light test (board/custom/firmware/uno/apps/light.c, variant
+#: uno-light) as nodes over the atoms — the button-clock graph with the clock, the sense pin, the event queue and the second
+#: class taken away:
+#:   init     usart_init -> tick_init -> led_init -> button_init, boot_session_mint (its return wired into state.boot_session)
+#:   on-rx    rx_pop -> the parser -> apply_command (SET_LED) on a complete frame; apply calls the led
+#:   loop     clock every pass -> led_toggle() (a debounced press flips the light) -> the 10 Hz telemetry tick -> telemetry_send
+#:   called   usart_send / led / toggle_pending: each copied in because a loop atom's own body calls it
+LIGHT_SEED_GRAPHS = [{
+    'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light', 'class_name': 'LightState',
+    'replaces': 'uno:apps/light.c (variant uno-light)', 'generated_project': 'cmod/custom/graphs/uno-light-graph',
+    'title': 'The light test as a graph over the UNO atoms',
+    'purpose': 'A light on D6 that a Polari screen and the board\'s pushbutton on D2 both switch, with the change reported back '
+               'up in one struct (LightState): the simplest proof that data and signals travel in both directions.',
+    'notes': 'One wire class, one command (SET_LED), no clock, no sense pin, no event queue.'}]
+
+LIGHT_SEED_GRAPH_NODES = [
+    _n('usart_init', 'c-atom', 1, 'uno:hal.hal_usart_init', 'init', graph=LIGHT_GRAPH),
+    _n('tick_init', 'c-atom', 2, 'uno:hal.hal_tick_init', 'init', graph=LIGHT_GRAPH),
+    _n('led_init', 'c-atom', 3, 'uno:hal.hal_led_init', 'init', graph=LIGHT_GRAPH),
+    _n('button_init', 'c-atom', 4, 'uno:hal.hal_button_init', 'init', graph=LIGHT_GRAPH),
+    _n('boot_session_mint', 'c-atom', 5, 'uno:apps/light.boot_session_mint', 'init', graph=LIGHT_GRAPH,
+       notes='its return is wired into state.boot_session by a field edge, scoped init (after the class memset)'),
+    _n('state', 'class', 6, params='class=LightState; name=RIG_NAME; status=IDLE', graph=LIGHT_GRAPH,
+       notes='the class instance the frames carry; every atom below writes it by this name'),
+    _n('rx', 'parser', 7, params='class=LightState', graph=LIGHT_GRAPH,
+       notes='the generated header\'s receiver (polari_rx_t + polari_rx_feed)'),
+    _n('rx_pop', 'c-atom', 10, 'uno:hal.hal_rx_pop', 'loop', graph=LIGHT_GRAPH),
+    _n('apply', 'c-atom', 11, 'uno:apps/light.apply_command', 'loop', graph=LIGHT_GRAPH),
+    _n('usart_send', 'c-atom', 12, 'uno:hal.hal_usart_send', 'called', graph=LIGHT_GRAPH),
+    _n('led', 'c-atom', 13, 'uno:hal.hal_led', 'called', graph=LIGHT_GRAPH),
+    _n('toggle_pending', 'c-atom', 14, 'uno:hal.hal_take_toggle_pending', 'called', graph=LIGHT_GRAPH),
+    _n('clock', 'c-atom', 15, 'uno:hal.hal_millis', 'loop', graph=LIGHT_GRAPH),
+    _n('led_toggle', 'c-atom', 16, 'uno:apps/light.led_toggle', 'loop', graph=LIGHT_GRAPH),
+    _n('telemetry', 'tick', 17, params='period_ms=TELEMETRY_MS', graph=LIGHT_GRAPH),
+    _n('telemetry_send', 'c-atom', 18, 'uno:apps/light.telemetry_send', 'loop', graph=LIGHT_GRAPH),
+]
+
+LIGHT_SEED_GRAPH_EDGES = [
+    _e(1, 'on-rx', 'rx_pop', 'b', 'rx', 'byte', graph=LIGHT_GRAPH),
+    _e(2, 'on-command', 'rx', 'frame', 'apply', 'r', graph=LIGHT_GRAPH),
+    _e(3, 'calls', 'apply', '', 'led', 'on', notes='apply_command: SET_LED puts the light where the host says', graph=LIGHT_GRAPH),
+    _e(4, 'calls', 'led_toggle', '', 'led', 'on', graph=LIGHT_GRAPH),
+    _e(5, 'calls', 'led_toggle', '', 'toggle_pending', 'return', graph=LIGHT_GRAPH),
+    _e(6, 'calls', 'telemetry_send', '', 'usart_send', 'b', graph=LIGHT_GRAPH),
+    _e(7, 'data', 'clock', 'return', 'telemetry', 'now', graph=LIGHT_GRAPH),
+    _e(8, 'tick', 'telemetry', '', 'telemetry_send', graph=LIGHT_GRAPH),
+    _e(9, 'field', 'boot_session_mint', 'return', 'state', 'boot_session',
+       notes='init-scope: after the class memset, before sei() (cmod.custom.glue\'s own fixed order)', graph=LIGHT_GRAPH),
+]
+
+SEED_GRAPHS += LIGHT_SEED_GRAPHS
+SEED_GRAPH_NODES += LIGHT_SEED_GRAPH_NODES
+SEED_GRAPH_EDGES += LIGHT_SEED_GRAPH_EDGES
 
 
 def seed_graph(name=GRAPH):

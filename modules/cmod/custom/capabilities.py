@@ -18,6 +18,7 @@ import json
 
 GRAPH = 'uno-sim-rig-graph'
 BC_GRAPH = 'uno-button-clock-graph'
+LIGHT_GRAPH = 'uno-light-graph'
 RUNTIMES = ('c-device', 'java-bridge', 'python-backend', 'typescript-browser')
 
 
@@ -84,6 +85,93 @@ SEED_CAPABILITIES = [
 ]
 
 
+def _graph_tasks(graph, *nodes):
+    return ['%s:%s' % (graph, n) for n in nodes]
+
+
+#: ucd-light (UNO_CORE_DEMO_PLAN.md §5i): the light test's two Purposes, and the Purposes that group the leftover tasks of the two
+#: SAMPLE graphs (uno-sim-rig-graph, uno-button-clock-graph). A Purpose answers "why is this in this firmware" (§5j) — plain
+#: plumbing is named under the Purpose it serves, never left an orphan. Every node of uno-light-graph is named by >= 1 of the
+#: first two (serial link / light / bring-up pieces serve BOTH directions, so they are named by both).
+LIGHT_SEED_CAPABILITIES = [
+    {'name': 'light-from-polari', 'graph': LIGHT_GRAPH, 'title': 'Light from Polari',
+     'goal': 'the OS turns the board\'s light on and off on command, and the board reports that the light changed',
+     'purpose': 'Down: a person presses the light button on a Polari screen, led_on on the LightState row changes, the command '
+                'rides the serial link to the board, the board switches the light on D6 and says source=command in its next frame.',
+     'required_targets': '',
+     'exposes_fields': 'led_on,toggles,source',
+     'tasks_by_runtime_json': _tasks(
+         c_device=_graph_tasks(LIGHT_GRAPH, 'usart_init', 'led_init', 'rx_pop', 'rx', 'state', 'apply', 'led', 'usart_send',
+                               'boot_session_mint', 'tick_init', 'clock', 'telemetry', 'telemetry_send'),
+         java_bridge=['uno-light:relay-out'], python_backend=['light-toggle:flip']),
+     'acceptance_scenario': 'light-from-polari-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
+     'notes': 'ucd-light seed. The serial-link, light-pin and report tasks are named here too: the command path cannot work, '
+              'and cannot be seen to work, without them.'},
+    {'name': 'light-from-button', 'graph': LIGHT_GRAPH, 'title': 'Light from the board\'s button',
+     'goal': 'a press on the board\'s button turns the light on or off, and the OS learns of the change',
+     'purpose': 'Up: the pushbutton on D2 (debounced) flips the light on D6, the board counts the change, says source=button in '
+                'its next frame, and the bridge writes that onto the LightState row so a screen can show it.',
+     'required_targets': '',
+     'exposes_fields': 'led_on,toggles,source',
+     'tasks_by_runtime_json': _tasks(
+         c_device=_graph_tasks(LIGHT_GRAPH, 'usart_init', 'led_init', 'tick_init', 'button_init', 'toggle_pending', 'led_toggle',
+                               'led', 'clock', 'state', 'telemetry', 'telemetry_send', 'usart_send', 'boot_session_mint'),
+         java_bridge=['uno-light:relay-in'], python_backend=[]),
+     'acceptance_scenario': 'light-from-button-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
+     'notes': 'ucd-light seed. The init, clock and report tasks are named here too: a press is only debounced with the clock '
+              'running and only reaches the OS through the report.'},
+]
+
+#: leftover tasks of the two sample graphs, grouped under the reason each is in that firmware (his ruling 2026-10-11: sensible
+#: Purposes first; only what fits nowhere goes under "Un-used components on board"). These track plumbing, so they carry no
+#: acceptance scenario of their own (purpose_summary leaves them out of the weakest-proof rule).
+SAMPLE_PLUMBING_CAPABILITIES = [
+    {'name': 'sim-rig-serial-link', 'graph': GRAPH, 'title': 'Serial link to the OS',
+     'goal': 'the board talks to the OS over the USB serial link: it starts the link and speaks the SimRigState frames both ways',
+     'purpose': 'Why these are in the sim rig firmware: nothing reaches the OS, and no command reaches the board, without the link.',
+     'required_targets': '', 'exposes_fields': '',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(GRAPH, 'usart_init', 'state', 'rx')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
+    {'name': 'sim-rig-bring-up', 'graph': GRAPH, 'title': 'Board bring-up',
+     'goal': 'the board gets its clock running, its indicator ready and reports boot then ok after the first second',
+     'purpose': 'Why these are in the sim rig firmware: the 1 ms clock times everything, the LED pin must be set up before the '
+                'command can use it, and status moves from boot to ok once the board has been up for a second.',
+     'required_targets': '', 'exposes_fields': 'status',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(GRAPH, 'tick_init', 'led_init', 'clock', 'boot_ok')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
+    {'name': 'sim-rig-unused-components', 'graph': GRAPH, 'title': 'Un-used components on board',
+     'goal': 'the parts of the board the sim rig sets up but no Purpose uses (the PWM output on D6), kept visible so they are not forgotten',
+     'purpose': 'Why these are in the sim rig firmware: the sample carries the PWM output so the whole board can be exercised; '
+                'tracking what the board offers and this firmware does not use is a legitimate Purpose.',
+     'required_targets': '', 'exposes_fields': 'pwm_duty',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(GRAPH, 'pwm_init', 'pwm')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: the one bucket for what fits nowhere'},
+    {'name': 'button-clock-serial-link', 'graph': BC_GRAPH, 'title': 'Serial link to the OS',
+     'goal': 'the board talks to the OS over the USB serial link: it starts the link, reads commands, and sends every state and event frame',
+     'purpose': 'Why these are in the button-clock firmware: the clock, the button and the events only matter if they reach the OS.',
+     'required_targets': '', 'exposes_fields': '',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(BC_GRAPH, 'usart_init', 'usart_send', 'rx_pop', 'rx', 'state', 'apply',
+                                                         'events_drain', 'queue_pop', 'boot_session_mint')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
+    {'name': 'button-clock-bring-up', 'graph': BC_GRAPH, 'title': 'Board bring-up',
+     'goal': 'the board starts its clock, sets up the light pins, the button and the sense pin, and keeps the report rhythm',
+     'purpose': 'Why these are in the button-clock firmware: each input and output must be set up before it is used, and the '
+                'tick sets how often a report goes up.',
+     'required_targets': '', 'exposes_fields': '',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(BC_GRAPH, 'tick_init', 'led_init', 'l_led_init', 'button_init', 'sense_init',
+                                                         'clock', 'telemetry')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
+    {'name': 'button-clock-light-and-sensing', 'graph': BC_GRAPH, 'title': 'Light, button and sense-pin access',
+     'goal': 'the board reads the button\'s press count and the sense pin\'s edges, and drives the light and the on-board indicator',
+     'purpose': 'Why these are in the button-clock firmware: they are the small reads and writes the toggle and the sense check are built from.',
+     'required_targets': '', 'exposes_fields': '',
+     'tasks_by_runtime_json': _tasks(c_device=_graph_tasks(BC_GRAPH, 'led', 'l_led', 'button', 'toggle_pending', 'sense')),
+     'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
+]
+
+SEED_CAPABILITIES += LIGHT_SEED_CAPABILITIES + SAMPLE_PLUMBING_CAPABILITIES
+
+
 def find(name, rows=None):
     return next((dict(c) for c in (rows or SEED_CAPABILITIES) if c['name'] == name), None)
 
@@ -137,7 +225,18 @@ def _temp_analysis_definition():
     return TA.definition()
 
 
-_SOLUTION_DEFS = {'uno-temp-split': _uno_temp_split_definition, 'temp-analysis': _temp_analysis_definition}
+def _uno_light_definition():
+    from hwnocode.custom import light_solutions as LS
+    return LS.light_definition()
+
+
+def _light_toggle_definition():
+    from hwnocode.custom import light_solutions as LS
+    return LS.toggle_definition()
+
+
+_SOLUTION_DEFS = {'uno-temp-split': _uno_temp_split_definition, 'temp-analysis': _temp_analysis_definition,
+                  'uno-light': _uno_light_definition, 'light-toggle': _light_toggle_definition}
 
 
 def _state_task_exists(ref, manager=None):
@@ -301,7 +400,11 @@ def purpose_summary(graph, manager=None, board='', statuses=None):
         if board and st == 'proven-on-hardware':
             why = (why + '; ' if why else '') + 'counted for board %s: hardware runs carry no board instance yet (DEBT)' % board
         rows.append({'name': c.get('name'), 'goal': c.get('goal', ''), 'status': st, 'last_proof': last, 'why': why,
-                    'proof_kind': pk})
+                    'proof_kind': pk, 'tracking_only': not c.get('acceptance_scenario')})
+    # ucd-light: a Purpose with NO acceptance scenario tracks plumbing or what the board offers unused (it states why a task is
+    # in the firmware, there is nothing to run): it is listed, but never decides the proof status or the counts
+    listed = rows
+    rows = [r for r in listed if not r['tracking_only']] or listed
     if not rows:
         return {'proof_status': 'planned', 'proof_why': 'no Purpose is modeled over graph %s — nothing is proven' % graph,
                 'purposes_total': 0, 'purposes_proven_twin': 0, 'purposes_proven_hardware': 0, 'purposes': [],
@@ -322,4 +425,4 @@ def purpose_summary(graph, manager=None, board='', statuses=None):
         advice += '; %d of these %s a person\'s confirmation, not a measured run — pol capability attest <name> was used' \
                   % (len(attested), 'carries' if len(attested) == 1 else 'carry')
     return {'proof_status': status, 'proof_why': why, 'purposes_total': len(rows), 'purposes_proven_twin': twin,
-            'purposes_proven_hardware': hw, 'purposes': rows, 'advice': advice}
+            'purposes_proven_hardware': hw, 'purposes': listed, 'advice': advice}

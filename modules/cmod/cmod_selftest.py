@@ -69,6 +69,11 @@ int lives(void) { return add(1, 2); }
 FX_MK = 'CC = gcc\nCFLAGS = -Os -std=gnu99 -Wall -DPOLARI_HOST -Ihostinc\nLDFLAGS =\nall:\n\t$(CC) $(CFLAGS) -c fx.c\n'
 
 
+#: ucd-light: the Purposes the light test and the sample-graph grouping add to the seeded set
+LIGHT_CAP_NAMES = ['light-from-polari', 'light-from-button', 'sim-rig-serial-link', 'sim-rig-bring-up', 'sim-rig-unused-components',
+                   'button-clock-serial-link', 'button-clock-bring-up', 'button-clock-light-and-sensing']
+
+
 def check(label, cond, extra=''):
     global passed, total
     total += 1
@@ -354,9 +359,9 @@ def demo4_targets():
     c = testing.TestClient(app)
     r = c.simulate_get('/api/capabilities')
     names = sorted(x['name'] for x in (r.json.get('capabilities') or []))
-    check('GET /api/capabilities lists the 4 CapabilityDefinition rows (goal, status, last_proof per row) — ucd-0e2: + button-clock-to-os',
+    check('GET /api/capabilities lists the 12 CapabilityDefinition rows (goal, status, last_proof per row) — ucd-0e2: + button-clock-to-os; ucd-light: + the two light Purposes and the six plumbing Purposes',
           r.status_code == 200 and names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command',
-                                                     'button-clock-to-os']),
+                                                     'button-clock-to-os'] + LIGHT_CAP_NAMES),
           names)
     r = c.simulate_get('/api/capabilities/temp-sensor-to-os')
     check('GET /api/capabilities/{name} carries tasks grouped by runtime + targets with their registration state',
@@ -365,7 +370,8 @@ def demo4_targets():
     r = c.simulate_get('/api/firmware/solutions/uno-sim-rig')
     cap_names = sorted(c_['name'] for c_ in (r.json.get('capabilities') or []))
     check('the firmware solution payload gains capabilities: [{name, goal, status, task_names}] for the UI to group Tasks by',
-          r.status_code == 200 and cap_names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command'])
+          r.status_code == 200 and cap_names == sorted(['uno-sim-rig-graph:temperature-sensor-solution', 'temp-sensor-to-os', 'blink-on-command',
+                                'sim-rig-serial-link', 'sim-rig-bring-up', 'sim-rig-unused-components'])
           and 'led' in next(c_ for c_ in r.json['capabilities'] if c_['name'] == 'blink-on-command')['task_names'], cap_names)
     # D-ucd-12 (his ruling): person-facing word is Purpose — `purposes` carries the SAME rows as the deprecated
     # `capabilities` key, for the Tasks section to group by without saying "capability" anywhere a person reads.
@@ -684,9 +690,9 @@ def demo4_targets():
     # hw priorities P1: two MORE CapabilityDefinition rows now exist over the same graph (temp-sensor-to-os,
     # blink-on-command, cmod.custom.capabilities.SEED_CAPABILITIES) — this demo-4 row and its 2 instances still
     # resolve exactly as before, it is just no longer the ONLY capability.
-    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline (4 capabilities total: '
-          'demo-4\'s + hw priorities P1\'s temp-sensor-to-os/blink-on-command + ucd-0e2\'s button-clock-to-os)',
-          len(caps) == 4 and this_cap is not None and len(this_cap['instances']) == 2, caps)
+    check('GET /api/cmod/capabilities → the seeded capability with its 2 instances inline (12 capabilities total: '
+          'demo-4\'s + hw priorities P1\'s temp-sensor-to-os/blink-on-command + ucd-0e2\'s button-clock-to-os + ucd-light\'s eight)',
+          len(caps) == 12 and this_cap is not None and len(this_cap['instances']) == 2, caps)
     r = c.simulate_get('/api/cmod/capabilities/%s' % cap['name'])
     check('GET /api/cmod/capabilities/{cap} → one capability + its instances',
           r.status_code == 200 and len(r.json['instances']) == 2, r.text[:200])
@@ -728,10 +734,11 @@ def main():
     from cmod.custom.selftest_binding import binding_parts, _proof_parts   # ucd-0b2b: the HardwareBinding
     from cmod.custom.selftest_scope import scope_parts   # ucd-scope: THE SCOPED HARDWARE CHAIN
     from cmod.custom.selftest_isotopes import isotope_parts   # ucd-iso-0: the code interface + C-isotopes
+    from cmod.custom.selftest_light import light_parts   # ucd-light: the light test's firmware side
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
-                 + scope_parts(check) + bundle_parts(check) + isotope_parts(check)):
+                 + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

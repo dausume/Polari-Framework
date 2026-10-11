@@ -188,6 +188,8 @@ class SolutionExecutionAPI(treeObject):
             # Convert to plain dict before any treeObject interaction
             trace_dict = trace.to_dict()
 
+            summary = self._display_summary(trace)
+            summary['commandsRelayed'] = self._relay_committed_to_commands(summary.get('committed'))
             response.status = falcon.HTTP_200
             response.media = {
                 'success': True,
@@ -197,7 +199,7 @@ class SolutionExecutionAPI(treeObject):
                 # Distilled outcome for display consumers (forms/buttons):
                 # validation verdicts, emitted events, committed changes —
                 # so the client doesn't dig through step contexts.
-                'displaySummary': self._display_summary(trace),
+                'displaySummary': summary,
             }
 
         except Exception as e:
@@ -207,6 +209,34 @@ class SolutionExecutionAPI(treeObject):
             traceback.print_exc()
 
         response.set_header('Powered-By', 'Polari')
+
+    def _relay_committed_to_commands(self, committed):
+        """ucd-light: a StateChangeCommit writes a row straight through the engine, which (unlike a CRUDE PUT) does not
+        reach the hardware command-down leg. When a run committed fields onto a row of a class a gRPC Commands stream
+        serves, hand the committed values to that leg the way polariCRUDE does after an update (note_command, then
+        notify_commands). Returns [{'className', 'instance', 'sent'}], empty when no gRPC server is up or nothing was
+        committed; never raises (a relay failure must not break the execution response)."""
+        out = []
+        try:
+            from grpcbridge.custom.grpc_server import get_grpc_server, note_command
+            srv = get_grpc_server()
+            if srv is None or not isinstance(committed, list):
+                return out
+            tables = getattr(self.manager, 'objectTables', None) or {}
+            for c in committed:
+                cls, ref, fields = c.get('className'), str(c.get('instance')), c.get('fields')
+                if not cls or not isinstance(fields, dict):
+                    continue
+                inst = next((i for i in (tables.get(cls) or {}).values()
+                             if str(getattr(i, 'name', '')) == ref or str(getattr(i, 'id', '')) == ref), None)
+                if inst is None:
+                    continue
+                pid = getattr(inst, 'id', '')
+                note_command(cls, pid, fields)
+                out.append({'className': cls, 'instance': ref, 'sent': srv.notify_commands(cls, [pid])})
+        except Exception as e:  # noqa: BLE001
+            print(f'[solutionExecution] commands relay skipped: {e}', flush=True)
+        return out
 
     @staticmethod
     def _display_summary(trace):

@@ -23,15 +23,14 @@ def manifest_names_every_part():
     m = load('uno_core_demo')
     check('polari-app.json loads', m is not None)
     parts = (m or {}).get('parts') or {}
-    check('the manifest\'s `parts` names every one of the six composed parts', set(PARTS_ORDER) <= set(parts),
+    check('the manifest\'s `parts` names every one of the five parts of the light test (ucd-light)', set(PARTS_ORDER) <= set(parts) and len(PARTS_ORDER) == 5,
           [p for p in PARTS_ORDER if p not in parts])
-    check('firmware names FirmwareSolution uno-button-clock', parts.get('firmware') == {'class': 'FirmwareSolution', 'name': 'uno-button-clock'})
-    check('bridge names the button-clock HardwareBridgeDefinition + its two wire classes',
-          parts.get('bridge', {}).get('name') == 'button-clock' and parts.get('bridge', {}).get('state_class') == 'ButtonClockState'
-          and parts.get('bridge', {}).get('event_class') == 'ButtonClockEvent')
-    check('polari_app names the solution + the display', parts.get('polari_app') == {'solution': 'button-clock-ledger', 'display': 'uno-core-demo'})
-    check('cross_domain/circuit/purpose each name a class + a name',
-          all(parts.get(p, {}).get('class') and parts.get(p, {}).get('name') for p in ('cross_domain', 'circuit', 'purpose')))
+    check('firmware names FirmwareSolution uno-light', parts.get('firmware') == {'class': 'FirmwareSolution', 'name': 'uno-light'})
+    check('bridge names the uno-light HardwareBridgeDefinition + its one wire class (LightState)',
+          parts.get('bridge', {}).get('name') == 'uno-light' and parts.get('bridge', {}).get('state_class') == 'LightState')
+    check('cross_domain names the SolutionDefinition uno-light', parts.get('cross_domain') == {'class': 'SolutionDefinition', 'name': 'uno-light'})
+    check('the two Purposes are named: light-from-polari and light-from-button',
+          parts.get('purpose_from_polari', {}).get('name') == 'light-from-polari' and parts.get('purpose_from_button', {}).get('name') == 'light-from-button')
 
 
 def conforms():
@@ -95,10 +94,11 @@ def readiness_over_seed_tables():
     check('every row names a plain-words why, never empty', all(r['why'] for r in rows))
     check('every row carries exists as a real bool', all(isinstance(r['exists'], bool) for r in rows))
     by_part = {r['part']: r for r in rows}
-    check('circuit (seeded in electrodevice) exists', by_part['circuit']['exists'] is True, by_part['circuit'])
-    check('purpose (seeded in cmod) exists', by_part['purpose']['exists'] is True, by_part['purpose'])
-    check('cross_domain (seeded in hwnocode, ucd-1) exists', by_part['cross_domain']['exists'] is True, by_part['cross_domain'])
-    check('polari_app (button-clock-ledger + /display/uno-core-demo, ucd-1) exists', by_part['polari_app']['exists'] is True, by_part['polari_app'])
+    check('firmware (FirmwareSolution uno-light, seeded in cmod) exists and is validated', by_part['firmware']['exists'] is True
+          and by_part['firmware']['status'] in ('ok', 'validated'), by_part['firmware'])
+    check('both Purposes (seeded in cmod) exist', by_part['purpose_from_polari']['exists'] is True and by_part['purpose_from_button']['exists'] is True)
+    check('cross_domain (SolutionDefinition uno-light, seeded in hwnocode) exists and validates as bridging/relay only',
+          by_part['cross_domain']['exists'] is True and by_part['cross_domain']['status'] == 'ok', by_part['cross_domain'])
     comp = by_part['composition']
     missing_parts = [p for p, r in by_part.items() if p != 'composition' and not r['exists']]
     if missing_parts:

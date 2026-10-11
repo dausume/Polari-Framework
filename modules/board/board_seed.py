@@ -12,7 +12,7 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
                                Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart,
                                Datasheet)   # ucd-doc: datasheets as documents
-from board.board_basis import ButtonClockState, ButtonClockEvent   # ucd-0e1: the wire contract's two new classes
+from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
                                RegisterFieldSetting, BoardPinNet)   # ucd-0a: the hardware chain
@@ -70,6 +70,7 @@ BOARD_SEED_PAIRS = [
     # bridge appends them (ButtonClockEvent), exactly like UnoAnalogState above
     ('ButtonClockState', ButtonClockState, []),
     ('ButtonClockEvent', ButtonClockEvent, []),
+    ('LightState', LightState, []),   # ucd-light: observed, never seeded
     # brd-bo: the board object's layers are code-owned (cited / ingested — re-read the source, the rows follow); a person's edit of a
     # BoardPin on a server is the instance's until the next seed converges it back (the edit belongs in the source: the seed file or
     # an ingested view). Views and conflicts are observed, never seeded.

@@ -25,13 +25,13 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('forty row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('forty-one row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
           'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract; '
-          'ucd-doc one: Datasheet — datasheets as documents)',
-          len(BOARD_CLASSES) == 40)
+          'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct)',
+          len(BOARD_CLASSES) == 41)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -379,6 +379,8 @@ def main():
     run_button_clock(check)
     from board.board_button_clock_twin_selftest import button_clock_parts   # ucd-0e2: THE FIRMWARE + its proof on the twin
     button_clock_parts(check)
+    from board.board_light_selftest import run_light   # ucd-light: the light test's wire struct, variant and twin proof
+    run_light(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     print('\n%d/%d checks passed' % (passed, total))

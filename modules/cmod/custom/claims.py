@@ -123,6 +123,11 @@ PURE_CONFIG_SEED = {
         'uno-button-clock:led_init': {'mode': 'out', 'initial': 'low'},
         'uno-button-clock:l_led_init': {'mode': 'out', 'initial': 'low'},
     },
+    # ucd-light: the light test's two authored pins — the pushbutton on D2 (INT0, falling, pull-up) and the light on D6
+    'uno-light@arduino-uno-r3': {
+        'uno-light:button_init': {'mode': 'alt', 'pull': 'up', 'edge': 'falling'},
+        'uno-light:led_init': {'mode': 'out', 'initial': 'low'},
+    },
 }
 
 

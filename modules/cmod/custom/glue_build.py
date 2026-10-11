@@ -284,7 +284,12 @@ def _prove_button_clock(ref, mk):
 #: graph name -> the proof runner over (ref, mk) — 'uno-sim-rig-graph' is cmod-1's own, UNCHANGED (prove_dir's
 #: inline body, below, is still exactly what it always was for that key, called directly); ucd-0e2b adds the second
 #: entry so `pol cmod prove <graph>` dispatches on the graph instead of assuming sim-rig's stimulus for everyone.
-STIMULI = {'uno-button-clock-graph': _prove_button_clock}
+def _prove_light(ref, mk):
+    from cmod.custom import glue_build_light as GBL
+    return GBL.prove(ref, mk)
+
+
+STIMULI = {'uno-button-clock-graph': _prove_button_clock, 'uno-light-graph': _prove_light}
 
 
 def compare(a, b):

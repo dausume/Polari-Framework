@@ -22,6 +22,7 @@ import json
 
 from cmod.custom.graph_seed import GRAPH as _DEFAULT_GRAPH
 from cmod.custom.graph_seed import BC_GRAPH as _BC_GRAPH
+from cmod.custom.graph_seed import LIGHT_GRAPH as _LIGHT_GRAPH
 
 _HAND = ('title', 'notes')
 
@@ -32,7 +33,7 @@ def _owned(rows, keep=_HAND):
 
 SEED_ROWS = template_rows()
 GRAPH_ROWS = graph_rows()
-TARGET_ROWS = T.derive(_DEFAULT_GRAPH) + T.derive(_BC_GRAPH)
+TARGET_ROWS = T.derive(_DEFAULT_GRAPH) + T.derive(_BC_GRAPH) + T.derive(_LIGHT_GRAPH)
 
 # hw priorities P1 (AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md §1/§4): the two widened-field seeds, over the SAME
 # uno-sim-rig-graph as the demo-4 capability above (no new graph, no new canvas) — `status`/`last_proof` are DERIVED
@@ -112,6 +113,30 @@ BC_FIRMWARE_ROWS[0]['validation'] = 'ok' if _bc_ok else 'refused'
 BC_FIRMWARE_ROWS[0]['validation_why'] = _bc_why
 BC_FIRMWARE_ROWS[0]['status'] = 'validated' if _bc_ok else 'refused'
 
+# ucd-light (UNO_CORE_DEMO_PLAN.md §5i): uno-light — the THIRD FirmwareSolution and the demo's own: the light test over
+# uno-light-graph (D2 button -> D6 light; one struct, both directions). D2's pin mode/pull/edge are authored the same way
+# the button-clock's are (cmod.custom.claims.PURE_CONFIG_SEED).
+LIGHT_FIRMWARE_NAME = 'uno-light'
+LIGHT_FIRMWARE_ROWS = [{
+    'name': LIGHT_FIRMWARE_NAME, 'title': 'UNO light-test firmware', 'graph': _LIGHT_GRAPH, 'board_definition': 'arduino-uno-r3',
+    'board_variable': '', 'runtime': 'c-device', 'status': 'seeded', 'last_build': '', 'board_resolved': 'arduino-uno-r3',
+    'board_exists': True, 'validation': '', 'validation_why': '', 'task_count': 0,
+    'purpose': 'A light on D6 that a Polari screen and the board\'s pushbutton on D2 both switch; the light\'s state travels up '
+               'in one struct (LightState) and the on/off command travels down in the same struct.', 'notes': ''}]
+LIGHT_SCHEDULE_ROWS = FW.schedule_for(_LIGHT_GRAPH, LIGHT_FIRMWARE_NAME)
+LIGHT_ASSIGNMENT_ROWS = FW.assignments_for(_LIGHT_GRAPH, LIGHT_FIRMWARE_NAME)
+_LIGHT_CONFIG = _PURE_CONFIG_SEED.get('%s@arduino-uno-r3' % LIGHT_FIRMWARE_NAME, {})
+for _a in LIGHT_ASSIGNMENT_ROWS:
+    if _a['name'] in _LIGHT_CONFIG:
+        _a['config_json'] = json.dumps(_LIGHT_CONFIG[_a['name']])
+_missed = set(_LIGHT_CONFIG) - {_a['name'] for _a in LIGHT_ASSIGNMENT_ROWS}
+assert not _missed, 'cmod_seed: PURE_CONFIG_SEED names row(s) assignments_for never produced: %s' % sorted(_missed)
+_lt_ok, _lt_why, _ = FW.validate(LIGHT_FIRMWARE_ROWS[0], manager=None)
+LIGHT_FIRMWARE_ROWS[0]['task_count'] = sum(1 for n in GRAPH_ROWS['CGraphNode'] if n['graph'] == _LIGHT_GRAPH and n['kind'] == 'c-atom')
+LIGHT_FIRMWARE_ROWS[0]['validation'] = 'ok' if _lt_ok else 'refused'
+LIGHT_FIRMWARE_ROWS[0]['validation_why'] = _lt_why
+LIGHT_FIRMWARE_ROWS[0]['status'] = 'validated' if _lt_ok else 'refused'
+
 CMOD_SEED_PAIRS = [
     ('CProject', CProject, _owned(SEED_ROWS['CProject'], keep=('notes',))),
     ('CModule', CModule, _owned(SEED_ROWS['CModule'], keep=('notes',))),
@@ -125,9 +150,9 @@ CMOD_SEED_PAIRS = [
     ('CapabilityDefinition', CapabilityDefinition, _owned(CAPABILITY_ROWS, keep=('notes',))),
     ('CapabilityInstance', CapabilityInstance, _owned(CAPABILITY_INSTANCE_ROWS, keep=('notes',))),
     ('FirmwareExport', FirmwareExport, []),   # ucd-0f: observed (created by the export door / pol firmware export), never seeded
-    ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS + BC_FIRMWARE_ROWS, keep=('title', 'notes'))),
-    ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS + BC_SCHEDULE_ROWS, keep=('notes',))),
-    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS + BC_ASSIGNMENT_ROWS, keep=('notes', 'config_json'))),
+    ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS + BC_FIRMWARE_ROWS + LIGHT_FIRMWARE_ROWS, keep=('title', 'notes'))),
+    ('ScheduleSlot', ScheduleSlot, _owned(SCHEDULE_ROWS + BC_SCHEDULE_ROWS + LIGHT_SCHEDULE_ROWS, keep=('notes',))),
+    ('RegisterAssignment', RegisterAssignment, _owned(ASSIGNMENT_ROWS + BC_ASSIGNMENT_ROWS + LIGHT_ASSIGNMENT_ROWS, keep=('notes', 'config_json'))),
     # ucd-0b: observed rows (materialized by cmod_firmware_api on every GET of a solution, upserted by name) —
     # never seeded, same posture as FirmwareExport above.
     ('PinClaim', PinClaim, []),
@@ -143,5 +168,5 @@ CMOD_SEED_PAIRS = [
 # is POST-created (cmod.custom.binding.create), never seeded, and is KEPT across a reseed (its own row is never in
 # this list, so `_converge` never touches it).
 from cmod.custom import binding as _BND
-BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None), _BND.derive(BC_FIRMWARE_NAME, manager=None)) if _b is not None]
+BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None), _BND.derive(BC_FIRMWARE_NAME, manager=None), _BND.derive(LIGHT_FIRMWARE_NAME, manager=None)) if _b is not None]
 CMOD_SEED_PAIRS.append(('HardwareBinding', HardwareBinding, _owned(BINDING_ROWS, keep=('notes',))))

@@ -119,6 +119,9 @@ def solution_definitions():
     out.append({'name': S.BC_BACKEND_SOLUTION, 'function_name': S.BC_BACKEND_SOLUTION.replace('-', '_').replace('.', '_'),
                'target_runtime': 'python_backend', 'definition': json.dumps(S.button_clock_backend_definition()),
                'contract_json': json.dumps(S.button_clock_contract()), 'category': ''})
+    # ucd-light: the light test's two solutions (the Cross-Domain uno-light + the screen's button light-toggle)
+    from hwnocode.custom import light_solutions as LS
+    out.extend(LS.definition_rows())
     return out
 
 
@@ -170,3 +173,11 @@ BINDINGS = [{
     'interface_name': 'usart0', 'port': S.BC_ROUTE['port'], 'adapter': '', 'instance_index': 0, 'wire_version': 2, 'origin': 'seeded',
     'notes': 'uno-button-clock\'s hw-interface node (ucd-1): ButtonClockState only (latest-state, upserted); the twin\'s OWN '
              'pty link (never shares uno-temp-split\'s), one instance on the bridge → no index on the wire'}]
+
+
+def _light_binding():
+    from hwnocode.custom import light_solutions as LS
+    return LS.binding_row()
+
+
+BINDINGS.append(_light_binding())   # ucd-light: the light test's LightState binding

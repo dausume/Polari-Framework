@@ -119,6 +119,12 @@ SNAPSHOTS['ButtonClockEvent'] = {
 }
 
 
+# ucd-light: the light test's ONE wire struct (board/custom/contracts/LightState.v1.json) — the same seven fields
+SNAPSHOTS['LightState'] = {
+    'name': _str(), 'seq': _int(), 'boot_session': _int(), 'led_on': _bool(), 'toggles': _int(), 'source': _str(), 'status': _str(),
+}
+
+
 def _mgr():
     mgr = types.SimpleNamespace(
         objectTables={'SchemaStabilityProfile': {},
@@ -273,6 +279,38 @@ def _wire_jvm(files, javac, java):
               and 'PASS: v2 round-trip index=0 v2 SensorFrame{'
               in loop.stdout,
               (comp.stderr[:600] + (loop.stdout[-600:] if loop else '')))
+
+
+def _light_checks(mgr):
+    """ucd-light: the light test's bridge end to end through the same machinery — ONE class on the bridge, a fresh in-process
+    contract equal to the pinned one (same hash), a WireContract derived, the Java project generated (record + codec + the two enums)."""
+    import os
+    from grpcbridge.custom import wire_contract as wc
+    from grpcbridge.mapping_basis import SEED_LIGHT_BRIDGE, SEED_ENUM_MAPPINGS
+    for row in SEED_ENUM_MAPPINGS:
+        if row['object_class'] == 'LightState':
+            _track(mgr, _factory(**row), 'EnumMapping')
+    _enable(mgr, 'LightState')
+    exp = pg.get_exposure(mgr, 'LightState')
+    pinned = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'board', 'custom', 'contracts', 'LightState.v1.json')))
+    check('ucd-light: a fresh in-process LightState contract equals the pinned snapshot (v1, same hash %s)' % pinned['contract_hash'],
+          exp.proto_version == 1 and exp.contract_hash == pinned['contract_hash'], (exp.proto_version, exp.contract_hash))
+    bridge = _bridge_row(['LightState'], **SEED_LIGHT_BRIDGE)
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+    fm = jb._field_map_for(mgr, 'LightState', exp.proto_version)
+    row, s = wc.derive(mgr, 'LightState', 'uno-light', fm, exp.proto_version, exp.contract_hash, 'live', factory=_factory)
+    check('ucd-light: WireContract LightState@uno-light derives — one unbound serial device, boot_session in field_order, both enums present',
+          row.instance_count == 1 and row.index_repr == 'none' and any(n == 'boot_session' for n, _ in json.loads(row.field_order_json))
+          and sorted(json.loads(row.enums_json)) == ['source', 'status'], row.enums_json)
+    rep = jb.generate_project(mgr, bridge, row_factory=_factory)
+    check('ucd-light: generate_project ok for the uno-light bridge (one contract ready)', rep.get('ok'), str(rep.get('error')))
+    if rep.get('ok'):
+        f = rep['files']
+        record = f[f'{jb.JAVA_DIR}/codec/LightStateRecord.java']
+        check('ucd-light: LightState is msg_type 1; led_on, toggles and boot_session are Java fields; both enums are generated',
+              'MSG_TYPE = 1' in f[f'{jb.JAVA_DIR}/codec/LightStateCodec.java'] and 'public boolean led_on;' in record
+              and 'public long toggles;' in record and 'public long boot_session;' in record
+              and f'{jb.JAVA_DIR}/codec/LightStateSourceEnum.java' in f and f'{jb.JAVA_DIR}/codec/LightStateStatusEnum.java' in f, sorted(f)[:12])
 
 
 def _button_clock_checks(mgr, javac, java):
@@ -612,6 +650,7 @@ def main():
     _wire_many(mgr, javac, java)
     _lifecycle_checks(mgr, javac, java)      # ucd-0e3: reconnect, snapshot on attach, gaps, reboot vs reconnect
     _button_clock_checks(mgr, javac, java)   # ucd-0e1: THE WIRE CONTRACT of the button-clock demo
+    _light_checks(mgr)   # ucd-light: the light test's bridge
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '

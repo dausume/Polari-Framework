@@ -55,7 +55,7 @@ REALIZATIONS = ('kvm', 'bridge')
 #: no-code parts it composes (by class + name) so a readiness page — or any reader — can resolve them without
 #: guessing. `polari_app` is the one entry with no single `class`: a Polari app component is a SolutionDefinition
 #: PLUS a DisplayDefinition, named by `solution`/`display` instead.
-PARTS_KEYS = ('firmware', 'bridge', 'polari_app', 'cross_domain', 'circuit', 'purpose')
+PARTS_KEYS = ('firmware', 'bridge', 'polari_app', 'cross_domain', 'circuit', 'purpose', 'purpose_from_polari', 'purpose_from_button')   # ucd-light: the light test names two Purposes
 PARTS_STR_FIELDS_MAX = 200
 
 #: app.roles (his ask 2026-09-18): the ROLES this module's capability belongs to — plain Keycloak GROUP names

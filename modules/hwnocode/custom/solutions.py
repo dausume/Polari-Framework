@@ -253,7 +253,7 @@ BC_OBJECT_CLASS = 'ButtonClockState'
 BC_OBJECT_NAME = 'uno-button-clock'                 # the Push match key: one row, the board instance's latest state
 BC_BINDING = '%s/%s/0' % (BC_BRIDGE, BC_OBJECT_CLASS)
 BC_TWIN_LINK = '/tmp/polari-uno-button-clock-twin-uart'   # its OWN pty — never shares uno-temp-split's twin link
-BC_DISPLAY = 'uno-core-demo'
+BC_DISPLAY = 'uno-button-clock-sample'   # ucd-light: /display/uno-core-demo is now the light test; the clock-and-button demo's page keeps its content here
 BC_KNOBS = {'retention': 10000, 'sync_every_s': 300}
 
 

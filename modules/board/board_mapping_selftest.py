@@ -57,8 +57,9 @@ def rows_and_rules(check, m, fm, v1hash):
     from grpcbridge.mapping_basis import SEED_ENUM_MAPPINGS, SEED_HARDWARE_BINDINGS, HardwareInterfaceBinding
     from grpcbridge.custom import wire_contract as W
     check('mapping: seeded EnumMappings — ButtonClockEvent.kind, ButtonClockState.status (ucd-0e1), SimRigState.status '
-          '{boot, ok, commanded, echoed, fault}, UnoAnalogState.status',
-          [e['name'] for e in SEED_ENUM_MAPPINGS] == ['ButtonClockEvent.kind', 'ButtonClockState.status', 'SimRigState.status', 'UnoAnalogState.status']
+          '{boot, ok, commanded, echoed, fault}, UnoAnalogState.status, LightState source/status (ucd-light)',
+          [e['name'] for e in SEED_ENUM_MAPPINGS] == ['ButtonClockEvent.kind', 'ButtonClockState.status', 'SimRigState.status', 'UnoAnalogState.status',
+                                                      'LightState.source', 'LightState.status']
           and json.loads(SEED_ENUM_MAPPINGS[2]['labels_json']) == ['boot', 'ok', 'commanded', 'echoed', 'fault'])
     check('mapping: two seeded bindings on ONE bridge (uno-pair): rows uno-twin-0 / -1 ↔ twin instances #0 / #1, index 0 / 1, '
           'distinct ports, interface usart0',
