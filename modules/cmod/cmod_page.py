@@ -153,7 +153,11 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'ISRs, read-only on the canvas), runtime (always c-device here — RULE 2, a CGraph never holds '
                                           'anything else), isr_safe/pure (carried from the atom).',
                               columns='name,kind,atom,stage,runtime,isr_safe,pure,role',
-                              column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph')], min_height=200),
+                              column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph',
+                              # ui-pass 2026-10-11: scoped to the graph this page opens (his rule: pages scope to
+                              # the firmware in use) — unfiltered it listed uno-sim-rig-graph's rows first, under a
+                              # canvas showing uno-button-clock-graph.
+                              filter_field='graph', filter_value='uno-button-clock-graph')], min_height=200),
               _row(2, [_table('c-canvas-atoms', 0, 12, 'Atoms available to drop — the graph\'s project\'s CFunctionAtom rows (drop a "C Atom" '
                               'palette node, then type one of these names into its overlay to wire it)', 'CFunctionAtom',
                               description='What this is for: which atoms a dropped "C Atom" node can be pointed at. One row = one atom of '

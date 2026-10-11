@@ -74,6 +74,12 @@ class CModAPI(treeObject):
             add('/api/cmod/atoms/{atom}', self, suffix='atom_one')
             add('/api/cmod/atoms/{atom}/code', self, suffix='atom_code')   # ucd-iso-0
             add('/api/cmod/atoms/{atom}/isotopes', self, suffix='atom_isotopes')   # ucd-iso-0
+            # ui-pass 2026-10-11: an atom of an app module is named with a SLASH — `uno:apps/button_clock.led_toggle`
+            # (CProject root + module path) — so the one-segment routes above never match it (the canvas showed every
+            # app atom as "could not read"; `uno:hal.hal_led_init` worked). The two-segment forms join the halves back.
+            add('/api/cmod/atoms/{head}/{atom}', self, suffix='atom_one_2')
+            add('/api/cmod/atoms/{head}/{atom}/code', self, suffix='atom_code_2')
+            add('/api/cmod/atoms/{head}/{atom}/isotopes', self, suffix='atom_isotopes_2')
             add('/api/cmod/ports', self, suffix='ports')
             add('/api/cmod/engines', self, suffix='engines')
             add('/api/cmod/projects/{project}/drift', self, suffix='drift')
@@ -135,6 +141,16 @@ class CModAPI(treeObject):
         if self.manager is not None:
             setattr(a, 'isotopes_refs_json', json.dumps(iso_refs))
         response.media = {'ok': True, 'atom': dict(self._d(a), isotopes_refs_json=json.dumps(iso_refs)), 'ports': [self._d(p) for p in ports]}
+
+    # the slash-named forms (see the routes): `/atoms/uno:apps/button_clock.led_toggle[...]`
+    def on_get_atom_one_2(self, request, response, head, atom):
+        return self.on_get_atom_one(request, response, '%s/%s' % (head, atom))
+
+    def on_get_atom_code_2(self, request, response, head, atom):
+        return self.on_get_atom_code(request, response, '%s/%s' % (head, atom))
+
+    def on_get_atom_isotopes_2(self, request, response, head, atom):
+        return self.on_get_atom_isotopes(request, response, '%s/%s' % (head, atom))
 
     def on_get_atom_code(self, request, response, atom):
         import falcon
