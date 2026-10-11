@@ -19,6 +19,7 @@ specific HardwareBinding — the default binding when omitted, unchanged).
                                    running server's POST /api/firmware/solutions/{name}/bindings persists it)
 """
 import json
+import os
 import sys
 
 
@@ -194,7 +195,8 @@ def _export(name, target, out, verify, as_json, form='source-dir'):
     fs = _solution(name)
     try:
         statuses = _server_statuses()
-        row = EX.export(fs, target=target, out_root=out, verify_build=verify, statuses=statuses, form=form)
+        row = EX.export(fs, target=target, out_root=out, verify_build=verify, statuses=statuses, form=form,
+                       api_host=os.environ.get('POLARI_API', ''))
     except EX.ExportRefused as e:
         print('refused: %s' % e)
         return 2
@@ -204,7 +206,11 @@ def _export(name, target, out, verify, as_json, form='source-dir'):
     print('exported %s -> %s' % (name, row['path']))
     print('  tar      %s  sha256 %s' % (row['tar_path'], row['tar_sha256'][:16]))
     print('  files    %s' % ', '.join(f['file'] for f in json.loads(row['files_json'])))
-    print('  build    cmake -S . -B build && cmake --build build   |   cmake -P polari-build.cmake')
+    if row['form'] == 'source-dir':
+        print('  build    cmake -S . -B build && cmake --build build   |   cmake -P polari-build.cmake')
+    if row['form'] == 'demo-bundle':
+        print('  bridge   %s' % ('polari-hw-bridge.jar built' if any(f['file'] == 'polari-hw-bridge.jar' for f in json.loads(row['files_json']))
+                                 else 'NOT built — see BRIDGE-NOT-BUILT.txt'))
     print('  parity   %s (makefile hex %s, cmake hex %s)' % (row['parity'], row['makefile_sha256'][:16] or '—', row['cmake_sha256'][:16] or '—'))
     print('  proof    %s' % row['notes'])
     if row['verify_log']:
@@ -259,7 +265,7 @@ def main(argv):
     ap = argparse.ArgumentParser(prog='pol firmware')
     ap.add_argument('verb', choices=('list', 'show', 'validate', 'build', 'run', 'assign', 'export', 'claims', 'bindings', 'bind'))
     ap.add_argument('--target', dest='target_kind', default='both', choices=('both', 'board', 'twin'))   # export
-    ap.add_argument('--form', default='source-dir', choices=('source-dir', 'install-bundle', 'solution'))   # export
+    ap.add_argument('--form', default='source-dir', choices=('source-dir', 'install-bundle', 'solution', 'demo-bundle'))   # export
     ap.add_argument('--out', default=None)        # export: the directory to write under (default module_home('exp'))
     ap.add_argument('--verify', action='store_true')   # export: run the exported CMake build on the engines rung + compare shas
     ap.add_argument('--json', action='store_true')

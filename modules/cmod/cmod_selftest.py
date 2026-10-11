@@ -735,10 +735,11 @@ def main():
     from cmod.custom.selftest_scope import scope_parts   # ucd-scope: THE SCOPED HARDWARE CHAIN
     from cmod.custom.selftest_isotopes import isotope_parts   # ucd-iso-0: the code interface + C-isotopes
     from cmod.custom.selftest_light import light_parts   # ucd-light: the light test's firmware side
+    from cmod.custom.selftest_demo import demo_parts   # ucd-app: the demo-bundle export form + the upload door
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
-                 + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check)):
+                 + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check) + demo_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

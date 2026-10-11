@@ -28,5 +28,17 @@ LIGHT_PAGES = [
                                           'and status reads idle until the light first changes, then active.',
                               columns='name,led_on,toggles,source,seq,boot_session,status',
                               column_formats='name:ref:LightState')], min_height=200),
+              _row(1, [_table('light-downloads', 0, 12, 'Downloads: the firmware and the app', 'FirmwareExport',
+                              description='Everything you need to put the demo on a real board, one row per file. The form column says '
+                                          'which file it is: install-bundle is the firmware to flash (the program and the notes for '
+                                          'flashing it); demo-bundle is the firmware plus the bridge program, its settings and the '
+                                          'Hardware App\'s definition, all in one folder; bridge-app-deb is the Hardware App '
+                                          'installer for this demo; shell-core-deb is the shared program the Hardware App runs on, '
+                                          'which it needs. Click download_url to fetch a row\'s file. tar_sha256 is the file\'s '
+                                          'fingerprint, to compare after downloading; parity says whether the two ways of building '
+                                          'the firmware gave the same bytes; created_at is when the file was made.',
+                              columns='form,download_url,tar_sha256,parity,created_at',
+                              column_formats='download_url:link',
+                              filter_field='solution', filter_value='uno-light')], min_height=220),
           ]),
 ]

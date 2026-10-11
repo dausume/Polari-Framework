@@ -399,11 +399,11 @@ def seeds_page_api():
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
     check('seeds (fs-1 migration + ucd-1): 2 HardwareSolutions (uno-temp-split + uno-button-clock — the latter\'s own '
           'Firmware Run is backed by uno-button-clock-graph since 0e2b, so it contributes its own placements), 58 placements '
-          '(uno-temp-split\'s 24 = 18 twin + 2 bridge + 3 backend + 1 browser, + uno-button-clock\'s), 9 SolutionDefinitions (ucd-light: + uno-light + light-toggle; uno-temp-split\'s '
+          '(uno-temp-split\'s 24 = 18 twin + 2 bridge + 3 backend + 1 browser, + uno-button-clock\'s), 10 SolutionDefinitions (ucd-light: + uno-light + light-toggle; ucd-app: + uno-light-app; uno-temp-split\'s '
           'canvas + its derived backend half + temp-analysis + uno-button-clock\'s canvas + button-clock-ledger + its '
           'own hand-built backend half + the 0e2b button-clock graph\'s own), 2 AnalysisDefinitions, 2 EventTriggers, 3 HardwareInterfaceBindings (ucd-light: + uno-light/LightState/0), '
           '2 GraphDefinitions, 6 Runtimes (demo-4b)', counts == {
-              'HardwareSolution': 2, 'HardwareNodePlacement': 58, 'SolutionDefinition': 9, 'AnalysisDefinition': 2, 'EventTrigger': 2,
+              'HardwareSolution': 2, 'HardwareNodePlacement': 58, 'SolutionDefinition': 10, 'AnalysisDefinition': 2, 'EventTrigger': 2,
               'HardwareInterfaceBinding': 3, 'GraphDefinition': 2, 'Runtime': 6}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
@@ -832,10 +832,12 @@ def main():
     print('hwnocode selftest (hn-0)')
     from hwnocode.custom.selftest_light import light_parts as _lp   # ucd-light
     light_parts = lambda _c: _lp(check)   # noqa: E731
+    from hwnocode.custom.selftest_app import app_parts as _ap   # ucd-app: the Hardware App's no-code definition
+    app_parts = lambda _c: _ap(check)   # noqa: E731
     for part in (placement_on_seed, runtimes_demo_4b, refusals, cross_domain_validator, subgraph_reference, knob_refusals,
                  suggestion_fixtures, backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode,
                  button_clock_compute, button_clock_relay_in_engine, button_clock_cross_domain, button_clock_page,
-                 button_clock_registration, manifest_conform) + light_parts(None):
+                 button_clock_registration, manifest_conform) + light_parts(None) + app_parts(None):
         print('-- %s' % part.__name__)
         try:
             part()

@@ -82,6 +82,7 @@ class FirmwareAPI(treeObject):
             add('/api/firmware/solutions/{name}/export', self, suffix='export')      # ucd-0f: POST → the CMake export dir + tar.gz
             add('/api/firmware/exports', self, suffix='exports')                       # ucd-0f: every FirmwareExport row
             add('/api/firmware/exports/{name}/download', self, suffix='download')     # ucd-0f: the tar.gz
+            add('/api/firmware/exports/upload', self, suffix='upload')                # ucd-app: a host PUSHES a built installer
             # ucd-0b: the claims chain — PinClaim/PeripheralClaim (cmod) + RegisterSetting/RegisterFieldSetting/
             # SignalRoute (board), materialized into the manager's tables on every GET of the solution; one pin's
             # own chain for the frontend's Target details ("why")
@@ -470,7 +471,7 @@ class FirmwareAPI(treeObject):
             body = {}
         try:
             row = EX.export(s, manager=self.manager, target=body.get('target', 'both'), verify_build=bool(body.get('verify', True)),
-                            form=body.get('form', 'source-dir'))
+                            form=body.get('form', 'source-dir'), api_host=request.host or '')
         except EX.ExportRefused as e:
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': str(e), 'solution': name}
@@ -509,9 +510,32 @@ class FirmwareAPI(treeObject):
             response.status = falcon.HTTP_404
             response.media = {'ok': False, 'error': 'no export %r on this server (GET /api/firmware/exports lists them; exports are transient)' % name}
             return
+        tp = getattr(r, 'tar_path', '') or ''
+        if getattr(r, 'form', '') in ('bridge-app-deb', 'shell-core-deb') and os.path.isfile(tp):   # an uploaded installer: its own bytes
+            response.content_type = 'application/vnd.debian.binary-package' if tp.endswith('.deb') else 'application/octet-stream'
+            response.downloadable_as = os.path.basename(tp)
+            response.data = open(tp, 'rb').read()
+            return
         response.content_type = 'application/gzip'
         response.downloadable_as = '%s.tar.gz' % name
         response.data = EX.tarball({'name': name, 'path': r.path, 'tar_path': r.tar_path})
+
+    def on_post_upload(self, request, response):
+        """ucd-app: POST /api/firmware/exports/upload — multipart fields `solution`, `form` (bridge-app-deb | shell-core-deb),
+        `sha256`, file field `file` (or JSON with `file` base64) → stores the file under the exports root, records a FirmwareExport
+        row (tar_sha256 verified against the given sha: 422 on mismatch) and returns {ok, export: {name, form, download_url,
+        tar_sha256, ...}}. This is how `pol apps shell <app> --publish` / `pol shell dist --publish` register the debs they built."""
+        import falcon
+        from cmod.custom import export_cmake as EX
+        from cmod.custom import export_upload as UP
+        try:
+            row = UP.store(request, EX.home())
+        except UP.UploadRefused as e:
+            response.status = falcon.HTTP_422 if e.status == 422 else falcon.HTTP_400
+            response.media = {'ok': False, 'refused': str(e)}
+            return
+        self._record_export(row)
+        response.media = {'ok': True, 'export': {k: row[k] for k in ('name', 'solution', 'form', 'download_url', 'tar_sha256', 'created_at')}}
 
     def on_post_run(self, request, response, name):
         s = self._solution(name, response)

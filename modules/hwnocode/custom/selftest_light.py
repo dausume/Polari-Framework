@@ -117,15 +117,25 @@ def _page(check):
     from board.board_basis import LightState
     page = next(p for p in SEED_HWNOCODE_PAGE_DISPLAYS if p['name'] == 'uno-core-demo')
     items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
-    check('/display/uno-core-demo = ONE class-rows-table over LightState (no raw JSON, no chart, no new component)',
-          len(items) == 1 and items[0]['componentProps']['componentName'] == 'class-rows-table'
-          and items[0]['componentProps']['inputs']['className'] == 'LightState', [i['componentProps']['componentName'] for i in items])
+    check('/display/uno-core-demo = two class-rows-tables, LightState then FirmwareExport (the downloads) — no raw JSON, no chart, no new component',
+          len(items) == 2 and all(i['componentProps']['componentName'] == 'class-rows-table' for i in items)
+          and [i['componentProps']['inputs']['className'] for i in items] == ['LightState', 'FirmwareExport'],
+          [i['componentProps']['componentName'] for i in items])
+    dl = items[1]['componentProps']['inputs']
+    check('the Downloads table: FirmwareExport rows of solution uno-light, columns form,download_url,tar_sha256,parity,created_at, download_url a link',
+          dl['columns'] == 'form,download_url,tar_sha256,parity,created_at' and dl['columnFormats'] == 'download_url:link'
+          and dl.get('filterField') == 'solution' and dl.get('filterValue') == 'uno-light', dl)
+    from cmod.objects.cmod.FirmwareExport import FirmwareExport
+    check('…every Downloads column is a real field of FirmwareExport', set(dl['columns'].split(',')) <= set(inspect.signature(FirmwareExport.__init__).parameters))
+    dtext = items[1]['description']
+    check('…and its description names all four files (install bundle, demo bundle, Hardware App installer, shared runtime)',
+          all(k in dtext for k in ('install-bundle', 'demo-bundle', 'bridge-app-deb', 'shell-core-deb')))
     inp = items[0]['componentProps']['inputs']
     cols = inp['columns'].split(',')
     check('the table shows name, led_on, toggles, source, seq, boot_session, status — all real fields of LightState',
           cols == ['name', 'led_on', 'toggles', 'source', 'seq', 'boot_session', 'status'] and set(cols) <= set(inspect.signature(LightState.__init__).parameters), cols)
     check('the name column links to the row\'s own page (ref:LightState)', inp['columnFormats'] == 'name:ref:LightState', inp['columnFormats'])
-    text = page['description'] + ' ' + items[0]['description']
+    text = page['description'] + ' ' + items[0]['description'] + ' ' + dtext
     check('the description says how to switch the light from the screen (light-toggle / led_on) and how the board\'s button shows up (source ... button)',
           'light-toggle' in text and 'led_on' in text and 'source' in text and 'button' in text)
     leaks = re.findall(r'\.md\b|his ruling|ucd-|D-ucd|hn-\d|fs-\d|`', text)

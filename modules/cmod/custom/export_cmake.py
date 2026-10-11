@@ -237,10 +237,10 @@ def readme(solution, fs, graph, g, board, schedule, assigns, record, files, make
 #: forms — install-bundle (ONLY what a person flashes with: firmware.hex + polari-install.json + INSTALL.md, no
 #: sources) and solution (the board-agnostic C + graph/requirements/purposes as data, no pin_config.*/board_config.h/
 #: Makefile — "builds nothing by itself").
-FORMS = ('source-dir', 'install-bundle', 'solution')
+FORMS = ('source-dir', 'install-bundle', 'solution', 'demo-bundle')
 
 
-def export(fs, manager=None, target='both', out_root=None, verify_build=False, statuses=None, form='source-dir'):
+def export(fs, manager=None, target='both', out_root=None, verify_build=False, statuses=None, form='source-dir', api_host=''):
     """Write the export directory + tar.gz for one FirmwareSolution (dict or row), in one of FORMS. -> the
     FirmwareExport row fields (+ 'files'). Raises ExportRefused with the reason (no graph, no rendered project,
     validation refused, an unknown form)."""
@@ -279,6 +279,9 @@ def export(fs, manager=None, target='both', out_root=None, verify_build=False, s
         return _export_install_bundle(path, name, solution, board, record, makefile_sha, proof, d, target, graph)
     if form == 'solution':
         return _export_solution(path, name, solution, fsd, graph, proof, d)
+    if form == 'demo-bundle':
+        from hwnocode.custom import export_demo as DEMO
+        return DEMO.export_demo_bundle(path, name, solution, board, makefile_sha, proof, d, target, graph, manager=manager, api_host=api_host)
     return _export_source_dir(path, name, solution, fsd, graph, g, board, record, makefile_sha, proof, d, target, verify_build)
 
 
@@ -381,7 +384,9 @@ flash, comparing every byte — the write is verified by avrdude itself, never a
        'baud': BAUD, 'argv': argv_text, 'advice': proof.get('advice', ''), 'why': proof.get('proof_why', '')}
 
 
-def _export_install_bundle(path, name, solution, board, record, makefile_sha, proof, d, target, graph):
+def install_files(solution, board, makefile_sha, proof, d):
+    """The install bundle's three files as {name: bytes} (firmware.hex, polari-install.json, INSTALL.md) + the hex sha and the
+    manifest — shared by the install-bundle and demo-bundle forms."""
     from board.custom import flash as FL
     hexb, hex_sha = _install_bundle_hex(d, makefile_sha, solution)
     argv = FL.argv_for(board['name'], '<port>', 'firmware.hex')
@@ -393,13 +398,23 @@ def _export_install_bundle(path, name, solution, board, record, makefile_sha, pr
                'gate': 'compare hex_sha256 against firmware.hex\'s own sha256 before flashing — never flash a file that differs'}
     out = {'firmware.hex': hexb, 'polari-install.json': (json.dumps(manifest, indent=1, ensure_ascii=False) + '\n').encode(),
           'INSTALL.md': _install_readme(solution, board, hex_sha, argv_text, proof).encode()}
+    return out, hex_sha
+
+
+def pack(path, name, out):
+    """Write {file: bytes} into `path`, tar.gz it beside it. -> (files list, tar_path, tar_sha256)."""
     for f, b in out.items():
         open(os.path.join(path, f), 'wb').write(b)
     files = [{'file': f, 'sha256': _sha(b), 'bytes': len(b)} for f, b in sorted(out.items())]
     tar_path = path + '.tar.gz'
     with tarfile.open(tar_path, 'w:gz') as tar:
         tar.add(path, arcname=name)
-    tar_sha = _sha(open(tar_path, 'rb').read())
+    return files, tar_path, _sha(open(tar_path, 'rb').read())
+
+
+def _export_install_bundle(path, name, solution, board, record, makefile_sha, proof, d, target, graph):
+    out, hex_sha = install_files(solution, board, makefile_sha, proof, d)
+    files, tar_path, tar_sha = pack(path, name, out)
     return {'name': name, 'solution': solution, 'graph': graph, 'board': board['name'], 'form': 'install-bundle',
            'target': target, 'mode': 'online', 'path': path, 'tar_path': tar_path, 'tar_sha256': tar_sha,
            'files_json': json.dumps(files), 'makefile_sha256': hex_sha, 'cmake_sha256': '', 'parity': 'not-run',

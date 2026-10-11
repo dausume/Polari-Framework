@@ -146,6 +146,18 @@ if __name__ == '__main__':
           and any(it['route'] == '/testing'
                   and it['requires_module'] == 'testing'
                   for it in sw_items))
+    hw_nav = json.loads(by_name['app-hardware']['nav_json'])
+    demo = hw_nav[0] if hw_nav else {}
+    check('ucd-demo: app-hardware\'s FIRST nav group is "The light demo", promoted to the top bar, with the seven links in order',
+          demo.get('group') == 'The light demo' and demo.get('top_menu') is True
+          and [it['label'] for it in demo['items']] == [
+              'The whole demo: how the pieces connect', 'The firmware\'s no-code', 'The Hardware App\'s no-code',
+              'The Polari side: the toggle', 'The light right now', 'Is it ready?', 'Downloads: the firmware and the app']
+          and [it['route'] for it in demo['items']] == [
+              '/display/firmware?solution=uno-light', '/display/c-canvas?graph=uno-light-graph',
+              '/display/firmware?solution=uno-light-app', '/custom-no-code?focusSolution=light-toggle',
+              '/display/uno-core-demo', '/display/uno-core-demo-readiness', '/display/uno-core-demo'],
+          [it.get('route') for it in demo.get('items', [])])
     check('every discipline app promotes at least one group to the '
           'top bar, and none promotes all of them (the side map '
           'stays the complete map)',

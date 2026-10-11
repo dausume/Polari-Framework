@@ -122,6 +122,9 @@ def solution_definitions():
     # ucd-light: the light test's two solutions (the Cross-Domain uno-light + the screen's button light-toggle)
     from hwnocode.custom import light_solutions as LS
     out.extend(LS.definition_rows())
+    # ucd-app: the Hardware App's own no-code definition (category 'hardware-app', six javafx-native states)
+    from hwnocode.custom import app_solution as AS
+    out.extend(AS.definition_rows())
     return out
 
 

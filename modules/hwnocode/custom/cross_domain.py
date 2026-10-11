@@ -32,20 +32,34 @@ ALLOWED_KINDS = FIRMWARE_RUN_KINDS | BRIDGE_KINDS | RELAY_KINDS | API_CALL_KINDS
 COMPUTE_KINDS = {'ConditionalChain', 'VariableAssignment', 'MatrixEquationOperation', 'EquationEvaluate', 'FilterChainApply'}
 
 
-def validate(definition):
+#: slice ucd-app: category 'hardware-app' (the native Hardware App's no-code definition) — same posture, no compute; its states
+#: may only be steps of the native JavaFX shell (runtime javafx-native) or the Java bridge (runtime java-bridge)
+HARDWARE_APP_CATEGORY = 'hardware-app'
+NATIVE_KINDS = {'NativeAppStep'}
+HARDWARE_APP_KINDS = NATIVE_KINDS | BRIDGE_KINDS
+
+
+def validate(definition, category='cross-domain'):
     """(ok, why) for ONE SolutionDefinition's parsed `definition` dict (graph_builder shape: {'stateInstances': [...]})
     — refuses the FIRST state whose `stateClass` is not in ALLOWED_KINDS, naming it (his rule: "bridging ... relay
     specifications only"). An AnalysisCall is allowed ONLY as the outbound call a Relay makes to a backend solution
     (fs-0 cannot yet distinguish "calls out" from "computes inline" structurally — both are the same node kind — so
     this is stated as the category's rule, enforced here at the node-kind level: no ConditionalChain/VariableAssignment/
-    equation-evaluating kind may ever appear, full stop)."""
+    equation-evaluating kind may ever appear, full stop). `category='hardware-app'` (ucd-app) holds the same posture for the
+    Hardware App: native-shell steps (javafx-native) and bridge states (java-bridge) only; compute refused by name."""
+    allowed, label = ALLOWED_KINDS, 'Cross-Domain'
+    if category == HARDWARE_APP_CATEGORY:
+        allowed, label = HARDWARE_APP_KINDS, 'Hardware App'
     for s in (definition or {}).get('stateInstances', []):
         kind = s.get('stateClass', '')
         if kind in COMPUTE_KINDS:
-            return False, ('refused: state %r is %s — a Cross-Domain Solution holds bridging/relay states only '
-                           '(Firmware Run, Bridge, Relay, API call, Frontend emit); compute belongs in a backend '
-                           'SolutionDefinition a Relay state calls OUT to' % (s.get('stateName', ''), kind))
-        if kind not in ALLOWED_KINDS:
-            return False, ('refused: state %r is %s, not one of the Cross-Domain kinds (%s)'
-                           % (s.get('stateName', ''), kind, ', '.join(sorted(ALLOWED_KINDS))))
-    return True, 'ok: every state is a bridging/relay kind (%s)' % ', '.join(sorted(ALLOWED_KINDS))
+            return False, ('refused: state %r is %s — a %s Solution holds %s only; compute belongs in a backend '
+                           'SolutionDefinition it calls OUT to' % (
+                               s.get('stateName', ''), kind, label,
+                               'native-shell steps and bridge states' if allowed is HARDWARE_APP_KINDS else
+                               'bridging/relay states (Firmware Run, Bridge, Relay, API call, Frontend emit)'))
+        if kind not in allowed:
+            return False, ('refused: state %r is %s, not one of the %s kinds (%s)'
+                           % (s.get('stateName', ''), kind, label, ', '.join(sorted(allowed))))
+    return True, 'ok: every state is a %s kind (%s)' % ('native-shell/bridge' if allowed is HARDWARE_APP_KINDS else 'bridging/relay',
+                                                      ', '.join(sorted(allowed)))

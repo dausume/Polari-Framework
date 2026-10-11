@@ -81,6 +81,8 @@ def _lay_out(definition):
         fields.setdefault('displayName', spot['label'])
         fields.setdefault('purpose', STATE_PURPOSES.get(name, ''))
         fields['detail_ref'] = refs.get(name, {})
+        if name == 'uno-light-bridge':   # ucd-app: the interconnect with the Hardware App, as data (it links back)
+            fields['links'] = [{'label': 'The Hardware App that runs this bridge', 'route': '/display/firmware?solution=uno-light-app'}]
         s['boundObjectFieldValues'] = fields
     return S._wire_connectors(definition)
 

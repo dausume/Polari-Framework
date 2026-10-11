@@ -32,8 +32,8 @@ RUNTIME_ROWS = [
                     'and routes Commands DOWN — the ONE split point between the device and the backend/browser.'},
     {'name': 'javafx-native', 'kind': 'native-bridge-frontend', 'language': 'Java (JavaFX)', 'executes_on': 'a native-shell JavaFX process on the host',
      'entered_via': 'JVM',
-     'description': 'His "Native Bridge Frontend": a native desktop UI process (JavaFX) beside the Java bridge — reserved; no '
-                    'no-code node places into it yet (today\'s solutions are browser-first).'},
+     'description': 'His "Native Bridge Frontend": a native desktop UI process (JavaFX) beside the Java bridge — the '
+                    'Hardware App\'s steps (the solution uno-light-app) run here.'},
 ]
 
 #: node kinds that are C-on-the-device (mirrors hwnocode.custom.placement.DEVICE_KINDS + cmod's CMOD_KINDS)
@@ -42,6 +42,8 @@ _DEVICE_KINDS = {'HardwareSubgraph', 'CAtom', 'c-atom', 'hardware-subgraph', 'cl
 _BRIDGE_KINDS = {'HardwareInterface', 'hw-interface'}
 #: client-side state classes (mirrors hwnocode.custom.placement.BROWSER_KINDS) + the display layer
 _BROWSER_KINDS = {'EmitFrontendEvent', 'FormSubscription', 'ReactiveTransform', 'display'}
+#: a step of a Hardware App, run by the native JavaFX shell (hwnocode.custom.app_solution)
+_NATIVE_KINDS = {'NativeAppStep'}
 
 
 def runtime_for_kind(kind, placement='', refused=False):
@@ -54,6 +56,8 @@ def runtime_for_kind(kind, placement='', refused=False):
     names no runtime: it cannot run where it was drawn."""
     if refused or placement == 'refused':
         return ''
+    if kind in _NATIVE_KINDS:
+        return 'javafx-native'
     if kind in _BRIDGE_KINDS:
         return 'java-bridge'
     if kind in _DEVICE_KINDS:
