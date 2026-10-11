@@ -17,10 +17,10 @@ from polariApiServer.module_pages_seed import _page, _row, _table, _svg_panel
 
 _PAGES = [
     _page('board-schematic', 'board-schematic',
-          'Board schematics — one row per `.kicad_sch` (rendered by Polari from rows, D-pcb-1, or ingested from an open '
-          'board), its sheets, the symbols it embeds, and the ERC findings kicad-cli reported (a clean run is one row, '
-          'never hidden). Data comes from `pol pcb render` (Polari-authored) or `pol pcb ingest` (an open board\'s own '
-          '.kicad_sch read in verbatim). Goes with /display/board-layout (the physical board for the same board name), '
+          'Board schematics — one row per KiCad schematic file (drawn by Polari from its own rows, or read in from an open '
+          'board), its sheets, the symbols it embeds, and the electrical-rule findings KiCad reported (a clean run is one row, '
+          'never hidden). Click a schematic to see its sheets and findings. From the command line: pol pcb render (Polari-authored) or pol pcb ingest (an open board\'s own '
+          'file read in verbatim). Goes with /display/board-layout (the physical board for the same board name), '
           '/display/board-bom (the parts the symbols reference) and /display/board-fab (the fab checks).',
           'Schematic', [
               _row(0, [_svg_panel('pcb-schematic-svg', 0, 12, 'The schematic, drawn — every schematic SVG Polari has (rendered or ingested)',
@@ -63,9 +63,9 @@ _PAGES = [
           ]),
     _page('board-layout', 'board-layout',
           'Board layout — the physical board as KiCad holds it: layer stack, outline, footprint placements and the '
-          'copper of each net SUMMARISED (never authored by Polari — a person places and routes in KiCad, D-pcb-2), plus '
+          'copper of each net SUMMARISED (never authored by Polari — a person places and routes in KiCad), plus '
           'one per-layer SVG per export (kicad-cli pcb export svg, /api/pcb/artifacts/<board>/layers/<file>.svg — click '
-          'artifact_url below to open a layer; Polari does not yet render these inline, D-pcb follow-up). Goes with '
+          'artifact_url below to open a layer; Polari does not yet show these inline). Goes with '
           '/display/board-schematic (the circuit this board was routed from), /display/board-bom (the Placements\' '
           'parts) and /display/board-fab (the DRC findings against this same PcbBoard).',
           'PcbBoard', [
@@ -130,7 +130,7 @@ _PAGES = [
                                           '= one Footprint. Columns: lib/footprint (the KiCad library reference), source/lib_version, licence, '
                                           'pad_count, mount.',
                               columns='name,lib,footprint,source,lib_version,licence,pad_count,mount,description'),
-                       _table('pcb-landpatterns', 1, 6, 'Land patterns — dimensions as drawn (pcb-0) or IPC-7351-derived (pcb-3)', 'LandPattern',
+                       _table('pcb-landpatterns', 1, 6, 'Land patterns — dimensions as drawn or IPC-7351-derived', 'LandPattern',
                               description='What this is for: the actual pad geometry a footprint draws, with where the numbers came from. One '
                                           'row = one LandPattern. Columns: pitch_mm/pad_w_mm/pad_h_mm/drill_mm/pads (the dimensions), '
                                           'derivation (as-drawn from the source file, or IPC-7351-derived), undetermined.',
@@ -138,8 +138,7 @@ _PAGES = [
           ]),
     _page('board-fab', 'board-fab',
           'Fabrication — DKRed\'s constraints as cited rows, the DRC/fab-rule findings checked against them, and every '
-          'exported file with the fab\'s verdict on its name (accepted | no | discrepancy — settled at the first upload, '
-          'pcb-2). Checks the same PcbBoard shown at /display/board-layout (that page\'s table shows its title/'
+          'exported file with the fab\'s verdict on its name (accepted | no | discrepancy — settled at the first upload). Checks the same PcbBoard shown at /display/board-layout (that page\'s table shows its title/'
           'description/licence first); its exported files overlap with the "every export" table there (this page adds '
           'the fab-naming verdict).',
           'FabRuleSet', [

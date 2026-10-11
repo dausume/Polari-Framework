@@ -34,12 +34,12 @@ def _canvas(item_id, index, segments, title, graph, description=''):
 
 SEED_CMOD_PAGE_DISPLAYS = [
     _page('c-atoms', 'c-atoms',
-          'C atoms — the functions of a NORMAL C firmware project (it builds with make alone) read by Polari as building blocks: '
-          'their ports, the registers and globals they touch, whether they are ISR-safe, and what each costs '
-          '(`pol cmod conform uno`; `pol cmod atoms uno`; `pol cmod show hal_millis`). Data comes from parsing a project\'s own C '
-          '(pycparser, in the framework process) — nothing here is authored by hand. The graphs built over these atoms become the '
-          'board half of /display/hardware-solutions (hn-split: the glue IS a CGraph rendered here), and their build sizes feed '
-          'the compat check on /display/firmware-installer.',
+          'C tasks — the functions of an ordinary C firmware project (one that builds with make alone), read by Polari as building blocks called tasks: '
+          'their ports, the registers and globals they touch, whether they are safe to call from an interrupt, and what each costs. '
+          'Open a project, then a module, then a task to see its details. The data comes from reading a project\'s own C code, so nothing here is typed in by hand. '
+          'The graphs built over these tasks become the board half of Hardware Solutions (/display/hardware-solutions) and are drawn on the Firmware Canvas (/display/c-canvas); '
+          'their build sizes feed the compatibility check on Install Firmware (/display/firmware-installer). '
+          'From the command line: pol cmod conform, pol cmod atoms, pol cmod show.',
           'CFunctionAtom', [
               _row(0, [_table('cmod-projects', 0, 12, 'Projects — where the C lives, how it was parsed (pycparser, in the framework process), the '
                               'configurations rendered, and the proof that each builds with make alone (the .hex sha)', 'CProject',
@@ -82,8 +82,8 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'CModule. Columns: role (hal | app | …), files/sha256 (exact fingerprints), atoms (which ones it '
                                           'defines).',
                               columns='name,project,module,role,files,atoms,sha256', column_formats='project:ref:CProject')], min_height=160),
-              _row(4, [_table('cmod-graphs', 0, 12, 'Graphs over atoms (cmod-1) — a no-code graph that Polari renders into plain-C glue committed as a '
-                              'real C project (`pol cmod render | build | prove | diff <graph>`); what the glue owns, the cost BEFORE building',
+              _row(4, [_table('cmod-graphs', 0, 12, 'Graphs over tasks — a no-code graph that Polari turns into plain-C glue code saved as a '
+                              'real C project; what the glue owns, and the cost BEFORE building',
                               'CGraph',
                               description='What this is for: a NO-CODE composition of atoms that Polari can render back into real, compiling '
                                           'C. One row = one CGraph. Columns: base_configuration/class_name/replaces (what hand-written code '
@@ -119,10 +119,10 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                       'size_bss,ref_hex_sha256,ref_size_text,ref_size_data,ref_size_bss,cost_estimate_bytes,cost_measured_bytes,'
                                       'cost_why,stimulus,cycles,built_by,conformed,files,files_sha256,graph_sha256,proven_at',
                               column_formats='graph:ref:CGraph')], min_height=200),
-              _row(7, [_sapi('cmod-used-by', 0, 12, 'Used by — the HardwareSolutions whose board half IS uno-sim-rig-graph (the reverse of '
+              _row(7, [_sapi('cmod-used-by', 0, 12, 'Used by — the Hardware Solutions whose board half IS uno-sim-rig-graph (the reverse of '
                              '/display/hardware-solutions\' cgraph column); open it on the canvas at /display/c-canvas',
                              '/api/cmod/graphs/uno-sim-rig-graph', pick='used_by',
-                             description='What this is for: the REVERSE link (demo-4 "both ways") — every HardwareSolution that places this '
+                             description='What this is for: the REVERSE link — every Hardware Solution that places this '
                                          'graph on a board, derived from HardwareSolution.cgraph. Empty is honest (no solution uses it yet), '
                                          'not an error.')], min_height=140),
           ]),
@@ -140,11 +140,11 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                            'C code, build it and prove it on the simulated board. Click a box for its details.')],
                    min_height=640),
               _row(1, [_table('c-canvas-runtimes', 0, 12, 'Nodes by runtime — every node this graph places, each resolved to one Runtime '
-                              '(demo-4b: a CGraph is C on the device by construction, so every row here reads c-device)', 'CGraphNode',
+                              '(a graph is C on the device by construction, so every row here reads c-device)', 'CGraphNode',
                               description='What this is for: the SAME rows drawn as atoms on the canvas above, read as a table: which '
-                                          'Runtime (hwnocode.Runtime catalog) each node resolved to. One row = one CGraphNode. Columns: '
+                                          'Runtime each node resolved to. One row = one CGraphNode. Columns: '
                                           'kind (c-atom = an atom instance; class/parser/frame/tick/rule = the glue\'s own generated main/'
-                                          'ISRs, read-only on the canvas), runtime (always c-device here — RULE 2, a CGraph never holds '
+                                          'ISRs, read-only on the canvas), runtime (always c-device here — a graph never holds '
                                           'anything else), isr_safe/pure (carried from the atom).',
                               columns='name,kind,atom,stage,runtime,isr_safe,pure,role',
                               column_formats='atom:ref:CFunctionAtom,graph:ref:CGraph',
@@ -169,14 +169,14 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'structural field edge).',
                               columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
                               column_formats='graph:ref:CGraph')], min_height=320),
-              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Purposes — a named, reusable grouping of tasks over a graph (his worked examples: '
-                              '"temperature sensor solution", "data is retrieved from a temp sensor and gets sent back over USB to the OS", '
-                              '"the OS turns the board\'s LED on and off on command"), with the targets it requires, the fields it exposes, '
-                              'and its status DERIVED from its acceptance proof (hw priorities P1; D-ucd-12: a task may belong to several '
+              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Purposes — a named, reusable group of tasks over a graph (for example "temperature sensor solution", '
+                              '"data is read from a temperature sensor and sent back over USB to the computer", '
+                              '"the computer turns the board\'s LED on and off on command"), with the targets it requires, the fields it exposes, '
+                              'and its status WORKED OUT from its acceptance proof (a task may belong to several '
                               'Purposes)', 'CapabilityDefinition',
                               description='What this is for: a TEMPLATE Purpose, generalized from targets. One row = one Purpose. '
-                                          'Columns: goal (the one-sentence claim, his words), status (planned | proven-on-twin | '
-                                          'proven-on-hardware | failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never '
+                                          'Columns: goal (the one-sentence claim), status (planned | proven on the twin | '
+                                          'proven on hardware | failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never '
                                           'hand-set), last_proof, required_targets (the port_refs it needs bound), exposes_fields (what it '
                                           'makes available once wired — temp_c), instance_count (how many instance rows use it, '
                                           'below).',
@@ -186,7 +186,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               'multiple temperature sensors" proven as rows, not just a template)', 'CapabilityInstance',
                               description='What this is for: ONE use of a Purpose. One row = one instance. Columns: index (1, 2, … among '
                                           "this Purpose's instances), bindings (its targets' current lives_on, 'unbound' until a person "
-                                          'ties this specific instance to a board pin — demo-5), status.',
+                                          'ties this specific instance to a board pin), status.',
                               columns='name,capability,index,bindings,status',
                               column_formats='capability:ref:CapabilityDefinition,graph:ref:CGraph')], min_height=200),
           ]),
@@ -206,8 +206,8 @@ SEED_CMOD_PAGE_DISPLAYS = [
                    min_height=640),
               _row(1, [_table('firmware-bindings-lean', 0, 12, 'Bindings — which board a solution is laid over, whether that board '
                               'meets every task requirement, and why not', 'HardwareBinding',
-                              description='What this is for: ucd-0b2b (his ruling 2026-10-08) — a FirmwareSolution is hardware-'
-                                          'agnostic; a HardwareBinding is the mask laying it over ONE board. One row = one binding. '
+                              description='What this is for: a Firmware Solution is hardware-'
+                                          'agnostic; a Hardware Binding lays it over ONE board. One row = one binding. '
                                           'Columns: solution/board (the pair this binding is), status (valid | incomplete | invalid — '
                                           'computed from rows only: every required task requirement bound to a resource the board '
                                           'actually has), why (every unmet/conflicting/incompatible requirement, named), '
@@ -234,23 +234,22 @@ SEED_CMOD_PAGE_DISPLAYS = [
           'same facts as tables: the goals each group of steps serves (Purposes), the schedule, the pins and the proofs.', 'FirmwareSolution', [
               _row(0, [_firmware_panel('firmware-solution-panel', 0, 12, 'The firmware canvas — tasks · schedule · register map (drag a target onto a pin)',
                                        '/api/firmware/solutions', initial='uno-light',
-                                       description='What this is for: THE DEMONSTRABLE (fs-1) — pick a FirmwareSolution; LEFT lists its '
-                                                   'tasks (name, kind, ports, resources, cost, lane), GROUPED by Purpose (hw priorities '
-                                                   'P1 — the solution payload\'s purposes field names which Purpose(s) each task belongs '
-                                                   'to; D-ucd-12: a task may belong to several); MIDDLE lays its schedule out in four '
-                                                   'DERIVED lanes (init · isr · tick · loop, D-fs-1 — never authored), called tasks nested '
+                                       description='What this is for: pick a Firmware Solution; LEFT lists its '
+                                                   'tasks (name, kind, ports, resources, cost, lane), GROUPED by Purpose '
+                                                   '(a task may belong to several); MIDDLE lays its schedule out in four '
+                                                   'lanes worked out for you (init · isr · tick · loop — never typed in), called tasks nested '
                                                    'under their caller; RIGHT draws the board\'s own pin map with bound pins coloured by '
                                                    'lane and unbound targets as chips — drag a chip onto a pin (or select it and click a '
-                                                   'pin) to bind it (D-fs-2, `POST .../assign`); a drop that would conflict with another '
+                                                   'pin) to bind it; a drop that would conflict with another '
                                                    'task\'s pin is refused, named, never silently overwritten.')], min_height=640),
-              _row(1, [_table('firmware-capabilities', 0, 12, 'Purposes — hw priorities P1: the GOAL each group of tasks across runtimes '
-                              'achieves (his worked examples: "data is retrieved from a temp sensor and gets sent back over USB to the OS"; '
-                              '"the OS turns the board\'s LED on and off on command"), its status DERIVED from its acceptance proof, and '
-                              'which tasks per runtime realise it (D-ucd-12: a task may realise several Purposes)', 'CapabilityDefinition',
-                              description='What this is for: THE THREAD that runs through the firmware/cross-domain/backend canvases — one '
-                                          'row a person reads to ask "is this goal actually working" (HARDWARE_DEV_PRIORITIES.md §1). '
-                                          'One row = one Purpose. Columns: goal (the one-sentence claim, his words), status '
-                                          '(planned | proven-on-twin | proven-on-hardware | failing — DERIVED from the latest ScenarioRun of '
+              _row(1, [_table('firmware-capabilities', 0, 12, 'Purposes — the GOAL each group of tasks across runtimes '
+                              'achieves (for example "data is read from a temperature sensor and sent back over USB to the computer"; '
+                              '"the computer turns the board\'s LED on and off on command"), its status WORKED OUT from its acceptance proof, and '
+                              'which tasks per runtime carry it out (a task may carry out several Purposes)', 'CapabilityDefinition',
+                              description='What this is for: THE THREAD that runs through the firmware, cross-domain and backend canvases — one '
+                                          'row a person reads to ask "is this goal actually working". '
+                                          'One row = one Purpose. Columns: goal (the one-sentence claim), status '
+                                          '(planned | proven on the twin | proven on hardware | failing — DERIVED from the latest ScenarioRun of '
                                           'acceptance_scenario, never hand-set), last_proof (which run proved it, and when), '
                                           'tasks_by_runtime_json (c-device/java-bridge/python-backend/typescript-browser task refs), '
                                           'required_targets (the pins/registers it needs registered), acceptance_scenario (the firmwarefaults '
@@ -269,8 +268,8 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               column_formats='graph:ref:CGraph,board_definition:ref:BoardDefinition')], min_height=160),
               _row(3, [_table('firmware-bindings', 0, 12, 'Bindings — which board a solution is laid over, whether that board '
                               'meets every task requirement, and why not', 'HardwareBinding',
-                              description='What this is for: ucd-0b2b (his ruling 2026-10-08) — a FirmwareSolution is hardware-'
-                                          'agnostic; a HardwareBinding is the mask laying it over ONE board. One row = one binding. '
+                              description='What this is for: a Firmware Solution is hardware-'
+                                          'agnostic; a Hardware Binding lays it over ONE board. One row = one binding. '
                                           'Columns: solution/board (the pair this binding is), status (valid | incomplete | invalid — '
                                           'computed from rows only: every required task requirement bound to a resource the board '
                                           'actually has), why (every unmet/conflicting/incompatible requirement, named), '
@@ -279,17 +278,16 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               columns='name,solution,board,status,why,requirements_met,requirements_total,is_default,provenance',
                               column_formats='solution:ref:FirmwareSolution,board:ref:BoardDefinition')], min_height=200),
               _row(4, [_table('firmware-schedule', 0, 12, 'Schedule — WHEN each task runs, DERIVED from the atoms\' own '
-                              'ISR/tick/loop/init annotations (D-fs-1, his ruling: never authored by dragging)', 'ScheduleSlot',
+                              'ISR/tick/loop/init annotations (never set by dragging)', 'ScheduleSlot',
                               description='What this is for: one row per task\'s schedule slot. One row = one ScheduleSlot. '
                                           'Columns: lane (isr | tick | loop | init | called), order (mirrors the glue\'s own '
                                           'emission order — never a second ordering scheme), trigger (the ISR vector or tick '
-                                          'period macro), measured_cycles (-1 = not measured yet — cmod-0\'s cost is bytes/'
-                                          'stack, not per-atom cycles).',
+                                          'period macro), measured_cycles (-1 = not measured yet — cost is counted in bytes and '
+                                          'stack, not cycles per task).',
                               columns='solution,task,lane,order,trigger,period_ms,measured_cycles,isr_vector,provenance',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
               _row(5, [_table('firmware-assignments', 0, 12, 'Register map — each task\'s target bound to the board\'s own '
-                              'BoardPin rows, or named unbound (D-fs-2: the pin-map drag sets this; fs-0 builds the row + '
-                              'the assign door)', 'RegisterAssignment',
+                              'BoardPin rows, or named unbound (dragging onto the pin map sets this)', 'RegisterAssignment',
                               description='What this is for: one row per required target. One row = one RegisterAssignment. '
                                           'Columns: target_kind (register | pin | peripheral | memory-field | bus | dynamic), '
                                           'controls (the physical quantity/actuator, in plain words), lives_on (a BoardPin '
@@ -297,8 +295,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'claiming one pin with no cooperating relationship).',
                               columns='solution,task,port,target_kind,controls,lives_on,status,provenance,notes',
                               column_formats='solution:ref:FirmwareSolution')], min_height=280),
-              _row(6, [_table('firmware-builds', 0, 12, 'Builds — the CGlueBuild rows this solution\'s graph produced '
-                              '(cmod-glue, reused unchanged; `POST /api/firmware/solutions/{name}/build`)', 'CGlueBuild',
+              _row(6, [_table('firmware-builds', 0, 12, 'Builds — the glue builds this solution\'s graph produced', 'CGlueBuild',
                               description='What this is for: the SAME CGlueBuild rows /display/c-atoms shows, filtered to '
                                           'this solution\'s graph. One row = one build-and-prove run.',
                               columns='name,graph,equivalent,proof,hex_sha256,size_text,size_data,size_bss,built_by',
@@ -309,11 +306,10 @@ SEED_CMOD_PAGE_DISPLAYS = [
               # own register map, because the bench wires a BOARD pin (D6/D3/D2) onto an electrodevice circuit net.
               _row(7, [_table('board-pin-nets', 0, 6, 'Board pin nets — which board pin sits on which net of the demo '
                               'circuit, and whether it drives that net or only listens to it', 'BoardPinNet',
-                              description='What this is for: one row per board-pin/circuit-net link (ucd-0c). One row = '
+                              description='What this is for: one row per board-pin/circuit-net link. One row = '
                                           'one BoardPinNet. Columns: board_pin/circuit_net (links), role (driver = this '
                                           'pin drives the net; input = it reads the net; ground = the board\'s own GND '
-                                          'ties in here — never a BoardPin row itself, board_pin is \'\'). The demo bench '
-                                          '(UNO_CORE_DEMO_PLAN.md §1): D6 drives LED_CONTROL (the LED through its 220 ohm '
+                                          'ties in here — never a BoardPin row itself, board_pin is \'\'). The demo bench: D6 drives LED_CONTROL (the LED through its 220 ohm '
                                           'resistor to GND); D3 only senses it (the jumper wire — the "sense pin"); D2 '
                                           'reads BUTTON_INPUT (the pushbutton, internal pull-up).',
                               columns='name,board_pin,circuit_net,role,provenance,notes',
@@ -321,13 +317,12 @@ SEED_CMOD_PAGE_DISPLAYS = [
                        _table('circuit-check-findings', 6, 6, 'Circuit check — the electrical findings for '
                               'uno-button-clock on arduino-uno-r3 (LED current, single driver, shared ground, level '
                               'compatibility, the button\'s pull)', '',
-                              description='What this is for: THE PHASE-1 ELECTRICAL CHECK (board.custom.electrical_check) '
+                              description='What this is for: THE ELECTRICAL CHECK (board.custom.electrical_check) '
                                           'over the demo circuit\'s rows. One row = one finding: rule (led_current | '
                                           'single_driver | shared_ground | level_compatible | pull_defined), status (ok | '
                                           'warn | refuse | undetermined — undetermined means a number was not cited, '
                                           'never guessed), subject, detail (the computed figure or the reason), cite (the '
-                                          'board/datasheet/kit-part facts used). `GET /api/board/circuits/<circuit>/check'
-                                          '?board=<board>`; `pol board circuit-check uno-button-clock`.',
+                                          'board/datasheet/kit-part facts used). From the command line: pol board circuit-check.',
                               columns='rule,status,subject,detail,cite',
                               data_path='/api/board/circuits/uno-button-clock/check?board=uno-button-clock@arduino-uno-r3')], min_height=260),   # the BINDING, so pull_defined reads D2's claim
           ]),

@@ -175,8 +175,8 @@ def _page_has_no_all_rows_table(check):
               '/api/firmware/solutions/%s/hardware?list=' % BC_BINDING) for it in scoped_items), scoped_items)
     check('every table on /display/hardware-chain carries a non-empty description', all(it.get('description') for it in items))
     boards_page = next(p for p in P if p['pageRoute'] == 'boards')
-    check('/display/boards names "dedicated Board pages for going through all possible boards" (his words) in its own description',
-          'all possible boards' in boards_page['description'])
+    check('/display/boards says in its own description that it is for browsing every possible board',
+          'browsing every possible board' in boards_page['description'])
     boards_rows = json.loads(boards_page['definition'])['rows']
     check('/display/boards gained no new tables (still the pre-existing 18 items)',
           sum(len(row['items']) for row in boards_rows) == 18)
