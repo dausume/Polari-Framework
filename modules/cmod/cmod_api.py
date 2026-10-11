@@ -77,9 +77,11 @@ class CModAPI(treeObject):
             # ui-pass 2026-10-11: an atom of an app module is named with a SLASH — `uno:apps/button_clock.led_toggle`
             # (CProject root + module path) — so the one-segment routes above never match it (the canvas showed every
             # app atom as "could not read"; `uno:hal.hal_led_init` worked). The two-segment forms join the halves back.
-            add('/api/cmod/atoms/{head}/{atom}', self, suffix='atom_one_2')
-            add('/api/cmod/atoms/{head}/{atom}/code', self, suffix='atom_code_2')
-            add('/api/cmod/atoms/{head}/{atom}/isotopes', self, suffix='atom_isotopes_2')
+            # (Falcon's compiled router needs the SAME field name at the same depth — `{atom}` here, like the
+            # one-segment routes — or it refuses the template at boot; `{head}/{atom}` crash-looped the test node.)
+            add('/api/cmod/atoms/{atom}/{tail}', self, suffix='atom_one_2')
+            add('/api/cmod/atoms/{atom}/{tail}/code', self, suffix='atom_code_2')
+            add('/api/cmod/atoms/{atom}/{tail}/isotopes', self, suffix='atom_isotopes_2')
             add('/api/cmod/ports', self, suffix='ports')
             add('/api/cmod/engines', self, suffix='engines')
             add('/api/cmod/projects/{project}/drift', self, suffix='drift')
@@ -143,14 +145,14 @@ class CModAPI(treeObject):
         response.media = {'ok': True, 'atom': dict(self._d(a), isotopes_refs_json=json.dumps(iso_refs)), 'ports': [self._d(p) for p in ports]}
 
     # the slash-named forms (see the routes): `/atoms/uno:apps/button_clock.led_toggle[...]`
-    def on_get_atom_one_2(self, request, response, head, atom):
-        return self.on_get_atom_one(request, response, '%s/%s' % (head, atom))
+    def on_get_atom_one_2(self, request, response, atom, tail):
+        return self.on_get_atom_one(request, response, '%s/%s' % (atom, tail))
 
-    def on_get_atom_code_2(self, request, response, head, atom):
-        return self.on_get_atom_code(request, response, '%s/%s' % (head, atom))
+    def on_get_atom_code_2(self, request, response, atom, tail):
+        return self.on_get_atom_code(request, response, '%s/%s' % (atom, tail))
 
-    def on_get_atom_isotopes_2(self, request, response, head, atom):
-        return self.on_get_atom_isotopes(request, response, '%s/%s' % (head, atom))
+    def on_get_atom_isotopes_2(self, request, response, atom, tail):
+        return self.on_get_atom_isotopes(request, response, '%s/%s' % (atom, tail))
 
     def on_get_atom_code(self, request, response, atom):
         import falcon
