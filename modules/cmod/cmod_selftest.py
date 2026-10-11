@@ -630,7 +630,8 @@ def demo4_targets():
         # proof-push (2026-10-07): the prove door 409s HONESTLY when this device cannot run a twin (the make rung is
         # remote or absent) and writes no hollow run. A test node without a board-engines worker (econ-core,
         # 2026-10-11) lands here — the twin proof is proven on the box that hosts the worker, not faked here.
-        print('  [SKIP] the twin proof: this device cannot run the simavr twin — %s' % (r.json.get('why') or r.text[:160]))
+        print('  [SKIP] the twin proof: this device cannot run the simavr twin — %s'
+              % (r.json.get('error') or r.json.get('why') or r.text[:160]))   # the door's body: {ok, refused, error, …}
     else:
         check('POST /api/capabilities/button-clock-to-os/prove --twin runs the dedicated runner on the REAL simavr twin '
               '(gen/build/harness, --pin-at + --wire, the Python wire reference codec) and passes',
