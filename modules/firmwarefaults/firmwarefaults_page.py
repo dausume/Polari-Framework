@@ -54,11 +54,11 @@ def _kind_rows(start):
 
 SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
     _page('firmware-faults', 'firmware-faults',
-          'Firmware faults — force a concurrency or physics bug on purpose on the UNO twin, see the cycle where it goes wrong, then see '
-          'the technique that makes it safe and what that technique costs (`pol faults run <scenario> --both`; `pol faults stats <scenario>`). '
-          'Every scenario targets a FirmwareVariant from /display/firmware-installer; the C each variant compiles can be read as atoms on '
-          '/display/c-atoms. Below the scenario/run tables sit one pair of tables per FAULT KIND (concurrency, physical, space/safety), '
-          'each the cited facts for that one bug.',
+          'Firmware faults — force a concurrency or physics bug on purpose on the UNO digital twin, see the cycle where it goes wrong, then see '
+          'the technique that makes it safe and what that technique costs. Click a scenario to see its steps and its runs. '
+          'Every scenario targets a firmware variant from Install Firmware (/display/firmware-installer); the C each variant compiles can be read as tasks on '
+          'C Tasks (/display/c-atoms). Below the scenario and run tables sit one pair of tables per FAULT KIND (concurrency, physical, space/safety), '
+          'each holding the cited facts for that one bug. From the command line: pol faults run and pol faults stats.',
           'Scenario', [
               _row(0, [_table('ff-scenarios', 0, 12, 'Scenarios — the forcing recipe: BEFORE variant (no technique), AFTER variant (with it), the fault, '
                               'the assumption it breaks, the observable that decides', 'Scenario',
@@ -114,7 +114,7 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                                       'measured_cost_bytes,measured_ram_bytes,measured_cost_cycles,measured_cost_what,measured_latency_delta_cycles,'
                                       'measured_by_run,caveats',
                               column_formats='name:ref:Technique,restores:ref:Assumption,measured_by_run:ref:ScenarioRun')], min_height=240),
-              _row(5, [_table('ff-stats', 0, 12, 'Statistics (sc-1) — many seeded runs → a rate with its 95 % Wilson interval: scenario 4 under '
+              _row(5, [_table('ff-stats', 0, 12, 'Statistics — many seeded runs → a rate with its 95 % Wilson interval: scenario 4 under '
                               'a bit error rate (commands lost, and the RESIDUAL the parser itself adds beyond what the line destroyed), scenario 1 '
                               'under asynchronous traffic (torn reads per byte-0 carry). Coverage = these seeds, this window, this build', 'ScenarioStatistic',
                               description='What this is for: ONE scenario run MANY times (many seeds) to turn a pass/fail into a RATE with a '
@@ -144,9 +144,8 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                               columns='scenario,position,kind,args_json,condition_json,forcible,not_forcible_reason,notes',
                               column_formats='scenario:ref:Scenario')], min_height=180),
               # sc-2: the statistics tier as campaigns + the likelihood table per fault kind
-              _row(8, [_table('ff-campaigns', 0, 12, 'Campaigns (sc-2) — the fault\'s RATE as the stimulus: scenario x fault x rate(s) x seeds; per '
-                              'rate the likelihood WITHOUT the technique and the technique\'s RESIDUAL (95 % Wilson), the time to the first fault; '
-                              '`pol faults campaign run <name>`', 'ScenarioCampaign',
+              _row(8, [_table('ff-campaigns', 0, 12, 'Campaigns — the fault\'s RATE as the stimulus: scenario x fault x rate(s) x seeds; per '
+                              'rate the likelihood WITHOUT the technique and the technique\'s RESIDUAL (95 % Wilson), the time to the first fault', 'ScenarioCampaign',
                               description='What this is for: a scenario run across MULTIPLE physical rates at once (e.g. several bit-error '
                                           'rates), each with many seeds — the campaign IS the physical-rate sweep. One row = one campaign. '
                                           'Columns: rates_json (the stimulus values swept), likelihood_summary/ttff_summary (the headline '
@@ -154,7 +153,7 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                               columns='name,scenario,fault_class,fault,parameter,rates_json,seeds,run_seconds,status,likelihood_summary,ttff_summary,'
                                       'event_before,event_after,stimulus,runs,wall_s,ran_at',
                               column_formats='name:ref:ScenarioCampaign,scenario:ref:Scenario')], min_height=220),
-              _row(9, [_table('ff-likelihoods', 0, 12, 'Likelihood per fault kind (sc-2) — one row per (fault, stimulus value): how often the bug '
+              _row(9, [_table('ff-likelihoods', 0, 12, 'Likelihood per fault kind — one row per (fault, stimulus value): how often the bug '
                               'happened without the technique and with it, each with its 95 % Wilson interval; coverage stated (a twin under these '
                               'seeds — never a field rate until a cited physical rate is the stimulus)', 'FaultLikelihood',
                               description='What this is for: the per-rate DETAIL behind a campaign\'s summary. One row = one (fault, stimulus '
@@ -166,11 +165,10 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                                       'coverage,notes',
                               column_formats='campaign:ref:ScenarioCampaign,technique:ref:Technique,scenario:ref:Scenario')], min_height=220),
               # sc-2b: the formal tier (CBMC) and the static rules (cppcheck)
-              _row(10, [_table('ff-formal', 0, 12, 'Formal checks (sc-2b + sc-2c) — two engines on the variant\'s own hal.c: CBMC with the '
+              _row(10, [_table('ff-formal', 0, 12, 'Formal checks — two engines on the variant\'s own hal.c: CBMC with the '
                                'interrupt as nondeterminism (decided (bounded, k)) and Frama-C/Mthread with the ISR as a thread and cli/sei/'
                                'ATOMIC_BLOCK as one interrupt lock (decided (unbounded) — no k); never proved; refuted with its trace or the two '
-                               'racing lines, inapplicable when the source does not compile; the model\'s limits on every row '
-                               '(`pol faults formal run all`)', 'FormalCheck',
+                               'racing lines, inapplicable when the source does not compile; the model\'s limits on every row', 'FormalCheck',
                                description='What this is for: TWO independent formal engines (CBMC, Frama-C/Mthread) checking a variant\'s '
                                            'hal.c directly, no simulation. One row = one engine run on one variant. Columns: engine/bound '
                                            '(CBMC: bounded,k; Mthread: unbounded, no k), outcome/claim_status (refuted with a trace/race, or '
@@ -180,7 +178,7 @@ SEED_FIRMWAREFAULTS_PAGE_DISPLAYS = [
                                        'expected,engine_version,trace_sha256,claim,limits,ran_at',
                                column_formats='name:ref:FormalCheck,variant:ref:FirmwareVariant,claim:ref:MathClaim,scenario:ref:Scenario')],
                    min_height=220),
-              _row(11, [_table('ff-static', 0, 5, 'Static rules per variant (sc-2b) — cppcheck built-ins + threadsafety (MISRA not run: its texts '
+              _row(11, [_table('ff-static', 0, 5, 'Static rules per variant — cppcheck built-ins + threadsafety (MISRA not run: its texts '
                                'are not free); findings are rows, never a build failure', 'StaticCheck',
                                description='What this is for: cppcheck run over a variant\'s C — findings are ROWS, never a build failure. One '
                                            'row = one variant\'s static-check summary. Columns: errors/warnings/style/portability/performance '

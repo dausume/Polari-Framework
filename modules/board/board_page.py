@@ -25,14 +25,12 @@ from polariApiServer.module_pages_seed import _page, _row, _table, _svg_panel
 
 _BOARDS_PAGES = [
     _page('boards', 'boards',
-          'Boards — every device the board arc tracks (track all, simulate few: the UNO in simavr and, since sc-3, the ESP32-C3 in Espressif\'s '
-          'QEMU fork), how each is reached from the Polari host over USB (directly or through a known adapter), and the road still to walk for '
-          'it. Readiness (usable / partial / tracked) is DERIVED from whether a board has a twin, a firmware template and something that runs '
-          'it — never hand-set (`pol board detect`; `pol board pins <board>`). Goes with /display/firmware-installer (install firmware on a '
-          'usable board) and /display/hardware-solutions (no-code on a usable board); the physical layers (SoCs, pins, runtime profiles, '
-          'views, conflicts) are THE BOARD OBJECT, brd-bo. His ruling 2026-10-09, verbatim: this is the "dedicated '
-          'Board pages for going through all possible boards" — never scoped to one binding (that is /display/'
-          'hardware-chain\'s job now, scoped to the binding in use).',
+          'Boards — every board Polari knows about. Every board is listed, but only a few are simulated: the UNO and the ESP32-C3 each have a digital twin. '
+          'This page shows how each board is reached from the Polari computer over USB (directly or through a known adapter) and what is still missing for it. '
+          'Whether a board is usable, partial or only listed is worked out from whether it has a digital twin, a firmware template and something that runs '
+          'it, never set by hand. Click a board to see its details, then go to Install Firmware (/display/firmware-installer) to put firmware on a '
+          'usable board, or to Hardware Solutions (/display/hardware-solutions) to build for it without code. '
+          'This page is for browsing every possible board; for just the pins and registers one project uses, open the Hardware Chain page (/display/hardware-chain).',
           'BoardDefinition', [
               # his ruling 2026-10-09 (ucd-scope): THIS page is the one "dedicated Board page for going through all
               # possible boards" — never scoped to one binding, never gains a per-binding table; the SCOPED views
@@ -41,11 +39,11 @@ _BOARDS_PAGES = [
                                   'Pin map, drawn — pick a board; its headers (or, with none modelled, its bare pin list) named, '
                                   'coloured by role (PWM, ADC, UART, I2C/SPI, power, ground, GPIO, button, LED)',
                                   '/api/board/pinmaps',
-                                  description='What this is for: THE PIN ASSIGNMENT drawn straight from brd-bo\'s own rows (board.custom.'
+                                  description='What this is for: THE PIN ASSIGNMENT drawn straight from the board\'s own rows (board.custom.'
                                               'pinmap_svg) for ANY board that has BoardPin rows — not a screenshot, not hand-drawn, not one '
                                               'board wired into the page: GET /api/board/pinmaps lists every modelled board and this panel\'s '
-                                              'own selector switches between them. `pol board assign <board> <role> <pin>` moves a net to a '
-                                              'different pin and the drawing changes with it, the same rows every other view (KiCad, Zephyr, '
+                                              'own selector switches between them. Moving a net to a '
+                                              'different pin changes the drawing, the same rows every other view (KiCad, Zephyr, '
                                               'bare C) renders from. Hover a pin for its SoC pin, net and C firmware symbol.')], min_height=300),
               _row(1, [_table('boards-pin-roles', 0, 12,
                               'Pin roles — what each kind is for (arduino-uno-r3)', '',
@@ -98,8 +96,8 @@ _BOARDS_PAGES = [
                                           'AdapterDefinition it rides over), dry_run_template (the argv template shown verbatim before any '
                                           'install runs), placement (where it runs: host | bridge).',
                               columns='name,engine,engine_kind,adapter_kind,dry_run_template,placement', column_formats='name:ref:ProgrammerKind')]),
-              _row(6, [_table('boards-instances', 0, 7, 'Seen plugged in (pol board detect)', 'BoardInstance',
-                              description='What this is for: actual hardware the host has SEEN on USB, via `pol board detect`. One row = one '
+              _row(6, [_table('boards-instances', 0, 7, 'Seen plugged in', 'BoardInstance',
+                              description='What this is for: actual hardware this computer has SEEN plugged in over USB. One row = one '
                                           'physical device instance. Columns: definition/definition_kind (which BoardDefinition or '
                                           'AdapterDefinition it matched, or unadmitted), state, host (which machine saw it), usb_id/by_id_path '
                                           '(how it is addressed), possible_targets_json (candidate boards when ambiguous), last_seen_at.',
@@ -107,7 +105,7 @@ _BOARDS_PAGES = [
                        _table('boards-facts', 1, 5, 'Datasheet facts (cited)', 'DatasheetFact',
                               description='What this is for: numbers about a board that are CITED, never guessed. One row = one fact. Columns: '
                                           'fact_key/value/unit (the number), document/page_table (where it came from), url (the source), '
-                                          'datasheet (ucd-doc: the Datasheet row this document resolves to — link).',
+                                          'datasheet (the Datasheet row this document resolves to — link).',
                               columns='board,fact_key,value,unit,document,page_table,url,datasheet',
                               column_formats='datasheet:ref:Datasheet')]),
               # brd-wire (grpc-j4): which Polari row IS which hardware interface — the chain of one instance is
@@ -135,7 +133,7 @@ _BOARDS_PAGES = [
               _row(9, [_table('boards-pins', 0, 12, 'Pins — named ONCE: the canonical name every view uses (KiCad, Zephyr, ESP-IDF, bare C) ↔ SoC pin ↔ net ↔ '
                               'connector pin, the function / peripheral / signal, the C symbol, where it came from', 'BoardPin',
                               description='What this is for: the ONE pin assignment every view (KiCad, Zephyr, ESP-IDF, bare C) renders from — '
-                                          'change a row here and every view changes with it (`pol board assign <board> <role> <pin>`). One row '
+                                          'change a row here and every view changes with it. One row '
                                           '= one named pin. Columns: canonical (the name every view uses) ↔ soc_pin/net/connector_pin (the '
                                           'physical identity), function/peripheral/signal (what it does), firmware_symbol (the C name), origin, '
                                           'undetermined.',
@@ -204,7 +202,7 @@ _BOARDS_PAGES = [
                               'the board\'s own reference (board), bootloader/flash/toolchain (programming), one document carrying '
                               'all three (combined), or none of those (other/undetermined)', 'Datasheet',
                               description='What this is for: one row per DOCUMENT a DatasheetFact or RegisterField cites, tracked '
-                                          'as a first-class thing rather than a repeated string (his ask, verbatim above). One row '
+                                          'as its own row rather than a repeated string. One row '
                                           '= one Datasheet. Columns: kind (soc | board | programming | combined | other | '
                                           'undetermined — a citation this table does not yet recognize, never dropped), for_soc / '
                                           'for_board (the SocDefinition/BoardDefinition this document is OF — a BoardDefinition\'s '
@@ -247,27 +245,24 @@ _HARDWARE_DOOR = '/api/firmware/solutions/%s/hardware' % DEMO_BINDING
 
 _CHAIN_PAGES = [
     _page('hardware-chain', 'hardware-chain',
-          'The hardware chain — SCOPED to the binding in use (his ruling 2026-10-09, verbatim: "we only want to be '
-          'concerned about pins and properties we know belong to just the board, chip, and firmware we are using. '
-          'We do not want a page with everything possible on it"). This page is fixed to the demo binding '
-          '%s (GET %s) — every table below holds ONLY the pins it claims, the functions it '
-          'activates, the peripherals it claims, and the registers/fields it sets; a different Firmware Solution\'s '
-          'own canvas (/display/firmware) scopes to ITS OWN binding through its Binding picker. For every board, '
-          'every pin, every register or peripheral the CHIP COULD have — the exhaustive, object-specific views — '
+          'The hardware chain — only the pins, chip and firmware this project actually uses, not everything the chip could do. '
+          'This page is fixed to the demo binding '
+          '%s (GET %s). Every table below holds ONLY the pins it claims, the functions it '
+          'activates, the peripherals it claims, and the registers and fields it sets. Another Firmware Solution\'s '
+          'own canvas (/display/firmware) shows ITS OWN binding through its Binding picker. To see every board, '
+          'every pin, and every register or peripheral the chip could have, '
           'open /class-main-page/BoardPin, /class-main-page/PinFunction, /class-main-page/Peripheral, '
-          '/class-main-page/Register, /class-main-page/RegisterField or /class-main-page/Datasheet (or '
-          '/display/boards, his dedicated "every possible board" page) and follow any `ref` link below straight '
-          'into the row\'s own object page. Start with the D3 walk — one pin\'s full chain, scoped by nature.'
+          '/class-main-page/Register, /class-main-page/RegisterField or /class-main-page/Datasheet (or the Boards page, '
+          '/display/boards), and follow any link in the tables below into that row\'s own page. Start with the D3 walk: one pin\'s full chain, step by step.'
           % (DEMO_BINDING, _HARDWARE_DOOR),
           'BoardPin', [
-              _row(0, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>, '
-                              '`pol board chain arduino-uno-r3 D3`)', '',
+              _row(0, [_table('boards-chain-d3', 0, 12, 'The hardware chain of ONE pin, walked — Arduino D3 (pick any other pin: GET /api/board/<board>/chain/<pin>)', '',
                               description='What this is for: the whole chain for one pin, in order, so a person new to hardware can read D3 top '
                                           'to bottom: the board pin (net, connector, C symbol) → its SoC pin (port/bit, package pin) → every '
                                           'function that pin can take (GPIO, INT1, OC2B, PCINT19) → the peripheral signals behind them → the '
                                           'peripherals (External Interrupts, Timer/Counter2, Pin Change Interrupts, Port D) → their registers '
                                           '(the ones holding bits for THIS pin first) → the cited bit fields that configure this pin, each with '
-                                          'its values and what they mean. One row = one hop; `ref` opens the hop\'s own page. Computed on every '
+                                          'its values and what they mean. One row = one hop; its link opens the hop\'s own page. Computed on every '
                                           'load from the same rows the tables below show. (Scoped by nature — one pin\'s own chain, never '
                                           'every pin\'s.)',
                               columns='hop,kind,name,what,detail,ref', column_formats='ref:refs',
@@ -333,8 +328,8 @@ INSTALLER_PAGES = [
           'FirmwareVariant', [
               _row(0, [_panel('fi-flow', 0, 12, 'Install a variant — pick, build, read the command, confirm, watch it run, try another')], min_height=520),
               _row(1, [_table('fi-variants', 0, 12, 'Variants — each one a different thing to test on the UNO (add your own row here)', 'FirmwareVariant',
-                              description='What this is for: named firmware RECIPES to try (his words: "test different kinds of things on the '
-                                          'arduino uno to see if it works"). One row = one FirmwareVariant. Columns: app (the template: sim_rig | '
+                              description='What this is for: named firmware RECIPES to try (try different kinds of things on the '
+                                          'Arduino UNO to see if they work). One row = one FirmwareVariant. Columns: app (the template: sim_rig | '
                                           'blink | analog | echo), classes_json (which Polari classes it speaks), features_json/knobs_json (what '
                                           'is compiled in and tunable), what_to_watch (the effect to look for when it runs), origin (seeded | '
                                           'person).',
@@ -376,12 +371,12 @@ INSTALLER_PAGES = [
               # the exact command a person runs themselves (never composed/run by this page).
               _row(6, [_table('fi-firmware-solutions', 0, 12, 'Firmware Solutions — validate -> build -> run(mode), '
                               'by hand (DRY-RUN default: digital-twin, never hardware unless named)', 'FirmwareSolution',
-                              description='What this is for: every FirmwareSolution (fs-0/fs-1, /display/firmware-solutions '
+                              description='What this is for: every Firmware Solution (/display/firmware-solutions '
                                           'has the live canvas), with the command that runs it. One row = one FirmwareSolution. '
                                           'Columns: validation/validation_why (board resolved, targets bound-or-named, no pin '
                                           'conflicts — the same validate() the command itself gates on), run_command (verbatim '
-                                          '`pol firmware run <name> --mode digital-twin` — the digital-twin mode never touches '
-                                          'real hardware; `--mode hardware` is a person\'s own, separate choice).',
+                                          'the digital-twin run command; the digital-twin mode never touches '
+                                          'real hardware, and running on hardware is a separate choice only a person makes). From the command line: pol firmware run.',
                               columns='name,title,graph,board_resolved,runtime,validation,validation_why,task_count,run_command',
                               data_path='/api/firmware/solutions/for-installer')]),
           ]),

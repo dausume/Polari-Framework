@@ -55,7 +55,7 @@ def _bc_graph_config():
 
 SEED_HWNOCODE_GRAPHS += [{
     'name': BC_GRAPH, 'source_class': 'ButtonClockEvent',
-    'description': ('uno-button-clock (ucd-1): every ButtonClockEvent (press, sense_rise, sense_fall, led_on/off, sync) plotted as '
+    'description': ('uno-button-clock: every ButtonClockEvent (press, sense_rise, sense_fall, led_on/off, sync) plotted as '
                     'three running totals against the device\'s own uptime — presses_cum (D2, debounced), rises_cum/falls_cum (D3, '
                     'the independent witness of the LED line). The invariant button-clock-ledger checks is presses_cum == '
                     'rises_cum + falls_cum at any point in time; a divergence is visible as the lines drifting apart.'),
@@ -76,38 +76,38 @@ def _canvas_solution(item_id, index, segments, title, graph, solution, descripti
 
 SEED_HWNOCODE_PAGE_DISPLAYS = [
     _page(DISPLAY, DISPLAY,
-          'Hardware solutions — one no-code graph across a board, the bridge, the backend and this screen (hn arc): where each node '
-          'runs and why, the board half rendered by cmod-glue (byte-identical firmware), the backend half run per frame, the chart '
-          '(`pol hwnocode place | render | build | suggest uno-temp-split`). Today\'s one solution targets arduino-uno-r3 — see '
-          '/display/boards for which boards are usable at all; the board half\'s C graph is the SAME CGraph shown at /display/c-atoms, '
-          'and installing it onto real hardware is /display/firmware-installer. demo-4b (his ruling): C-on-hardware and the Java/JavaFX '
-          'native bridge are each their OWN runtime (see the Runtime table below) — the canvas opens FIRST, below, grouping this '
-          'solution\'s nodes into one lane per runtime present.',
+          'Hardware solutions — one no-code graph that spans a board, the bridge, the backend and this screen. Below you can see where each node '
+          'runs and why, the board half turned into C code (the same firmware every time), the backend half run for every frame, and the chart. '
+          'Start with the canvas: it groups this solution\'s nodes into one lane per runtime, and clicking a node shows what it does. '
+          'Today\'s one solution targets the Arduino UNO R3; the Boards page (/display/boards) shows which boards are usable at all. '
+          'The board half\'s C graph is the same graph shown on C Tasks (/display/c-atoms), and installing it onto real hardware is done from '
+          'Install Firmware (/display/firmware-installer). C on the board and the Java/JavaFX bridge are each their OWN runtime (see the Runtimes table below). '
+          'From the command line: pol hwnocode place, render, build and suggest.',
           'HardwareSolution', [
               _row(0, [_canvas_solution('hwnocode-canvas', 0, 12, '%s opened on the no-code canvas — ALL its runtimes as lanes '
                                         '(demonstrable first)' % SOLUTION, CGRAPH, SOLUTION,
                                description="What this is for: THE DEMONSTRABLE, first on the page — this solution's REAL drawing (sim-rig, "
                                            'the hw-interface split point, the backend chain), coloured and grouped into one lane per '
                                            'runtime (c-device: the sim-rig subgraph; java-bridge: uno-digital-twin, the split point; '
-                                           'python-backend: the moving-average chain). Expand the Hardware Subgraph node in place to see its C atoms, still '
-                                           'in the c-device lane — never a second canvas, the SAME canvas (custom-no-code) /display/c-canvas '
-                                           "uses. The REVERSE link ('used by') is shown on /display/c-atoms and /display/c-canvas.")],
+                                           'python-backend: the moving-average chain). Expand the Hardware Subgraph node in place to see its C tasks, still '
+                                           'in the c-device lane — the SAME canvas as the Firmware Canvas page (/display/c-canvas). '
+                                           "The REVERSE link ('used by') is shown on /display/c-atoms and /display/c-canvas.")],
                    min_height=640),
-              _row(1, [_table('hwnocode-capabilities', 0, 12, 'Capabilities — hw priorities P1: the GOAL each group of tasks across '
-                              'runtimes achieves over this same graph ("data is retrieved from a temp sensor and gets sent back over USB '
-                              'to the OS"; "the OS turns the board\'s LED on and off on command"), its status DERIVED from its acceptance '
+              _row(1, [_table('hwnocode-capabilities', 0, 12, 'Purposes — the GOAL each group of tasks across '
+                              'runtimes achieves over this same graph ("data is read from a temperature sensor and sent back over USB '
+                              'to the computer"; "the computer turns the board\'s LED on and off on command"), its status WORKED OUT from its acceptance '
                               'proof', 'CapabilityDefinition',
                               description='What this is for: THE THREAD that runs through this solution\'s own board/bridge/backend split '
                                           '— one row a person reads to ask "is this goal actually working" without opening either canvas '
-                                          'separately (HARDWARE_DEV_PRIORITIES.md §1). One row = one CapabilityDefinition. Columns: '
-                                          'goal (the one-sentence claim, his words), status (planned | proven-on-twin | proven-on-hardware | '
+                                          'separately. One row = one Purpose. Columns: '
+                                          'goal (the one-sentence claim), status (planned | proven on the twin | proven on hardware | '
                                           'failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never hand-set), last_proof, '
                                           'tasks_by_runtime_json (c-device/java-bridge/python-backend/typescript-browser task refs).',
                               columns='name,title,goal,status,last_proof,acceptance_scenario,required_targets,exposes_fields,'
                                       'tasks_by_runtime_json',
                               column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario')], min_height=200),
               _row(2, [_table('hwnocode-solutions', 0, 12, 'Hardware solutions — the subgraph (a cmod CGraph), the hw-interface (the split '
-                              'point), the firmware_runtime knob (yours; hn-0 renders bare-c and refuses the rest with the reason), the '
+                              'point), the firmware_runtime knob (yours to pick; bare-c works today and the rest are refused with the reason), the '
                               'placement summary, the split and the glue shas, the proof', 'HardwareSolution',
                               description='What this is for: ONE no-code solution end to end — a drawing that spans a board, the bridge, the '
                                           'server and this screen. One row = one HardwareSolution. Columns: cgraph (the cmod CGraph that IS '
@@ -141,30 +141,29 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                           'StateChangeCommit watches), last_temp_c/last_uptime_ms (the latest frame it saw).',
                               columns='name,temp_avg,over_threshold,threshold_c,window,samples,last_temp_c,last_uptime_ms,updated_at,solution')],
                    min_height=120),
-              _row(5, [_table('hwnocode-placement', 0, 12, 'Placement / Nodes by runtime — WHAT EACH STATE DOES (the `purpose` column, '
+              _row(5, [_table('hwnocode-placement', 0, 12, 'Placement / Nodes by runtime — WHAT EACH STATE DOES (the purpose column, '
                               'solution-layer rows) and where it runs: board / twin (C on the device), bridge (the split point), backend '
                               '(the Python engine), browser (displays); a Python node on the device side is refused, named', 'HardwareNodePlacement',
                               description='What this is for: WHERE every node of every solution actually runs, and why — placement is '
                                           'derived, never typed in — AND, for this solution\'s own 8 canvas states (layer=solution), what '
-                                          'each one actually does in plain words (his question: "it is not clear what the backend state '
-                                          'change is for... not sure what the analysis call is"): sim-rig is the firmware reading the '
+                                          'each one actually does in plain words: sim-rig is the firmware reading the '
                                           'TMP36; uno-digital-twin is the bridge (the split point); on-temp is the backend event a frame '
                                           'arrived; moving-avg is the backend analysis (the moving average); over?/flag-on/flag-off are the '
                                           'threshold check and the LED command; commit sends that command back through the bridge. One row '
                                           '= one node\'s placement. Columns: purpose (plain words, solution-layer rows only), layer/placement '
                                           '(board/twin | bridge | backend | browser), kind/language (what the node is and what it compiles '
-                                          'to there), runtime (demo-4b: the Runtime row this node resolved to — c-device/java-bridge/'
+                                          'to there), runtime (the Runtime this node resolved to — c-device/java-bridge/'
                                           'python-backend/typescript-browser; blank when refused), refused/why (a node that cannot run where '
                                           'it was drawn — e.g. Python on the device — named, not silently moved; for uno-digital-twin, why '
                                           'also carries the HARDWARE_MODE route report).',
                               columns='solution,layer,node,purpose,kind,placement,runtime,language,refused,why',
                               column_formats='solution:ref:HardwareSolution')], min_height=320),
               _row(6, [_table('hwnocode-runtimes', 0, 12, 'Runtimes — the six execution environments a no-code node can be placed into '
-                              '(his ruling: C-on-hardware and the Java/JavaFX native bridge are each their own runtime)', 'Runtime',
-                              description='What this is for: the CATALOG every node\'s `runtime` column above names one row of. One row '
+                              '(C on the board and the Java/JavaFX bridge are each their own runtime)', 'Runtime',
+                              description='What this is for: the CATALOG every node\'s runtime column above names one row of. One row '
                                           '= one runtime. Columns: kind/language (what it is and what it runs), executes_on (the instance '
                                           'kind or device), entered_via (process | browser | firmware image | JVM), description (plain '
-                                          'words — his C-hardware / Java-JavaFX-native-bridge split).',
+                                          'words).',
                               columns='name,kind,language,executes_on,entered_via,description')], min_height=220),
           ]),
 ]
@@ -177,7 +176,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
 # =============================================================================================================
 SEED_HWNOCODE_PAGE_DISPLAYS += [
     _page(BC_DISPLAY, BC_DISPLAY,
-          'The UNO core demo (ucd arc): a pushbutton on D2 toggles an LED on D6; a jumper from D6 to D3 lets the firmware '
+          'The UNO core demo: a pushbutton on D2 toggles an LED on D6; a jumper from D6 to D3 lets the firmware '
           'independently WITNESS its own LED line switching (sense_rises/sense_falls); a software wall clock is kept on the '
           'device and synced from the host (SET_TIME) at attach and periodically. The board\'s latest state and every '
           'button/LED/sense/sync edge arrive as rows (ButtonClockState upserted, ButtonClockEvent appended, bounded by a '
@@ -220,8 +219,8 @@ SEED_HWNOCODE_PAGE_DISPLAYS += [
                                           'read — one row = one transition, never converged/reused (ButtonClockEvent\'s own rule). '
                                           'Columns: seq/boot_session (this event stream\'s own counters, independent of '
                                           'ButtonClockState\'s), kind, uptime_ms/epoch_s/ms (the device\'s clock at the moment it '
-                                          'happened). Bounded by a retention knob (default 10 000, oldest pruned first) — a pure '
-                                          'function plus a door, never run on the frame-push path (UNO_CORE_DEMO_PLAN.md §5 D-ucd-5).',
+                                          'happened). Bounded by a retention knob (default 10 000, oldest pruned first) — it is '
+                                          'pruned on request and never while frames are arriving.',
                               columns='name,seq,kind,uptime_ms,epoch_s,ms,boot_session')], min_height=320),
           ]),
 ]
