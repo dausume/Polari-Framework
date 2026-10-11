@@ -154,8 +154,8 @@ if __name__ == '__main__':
               'The whole demo: how the pieces connect', 'The firmware\'s no-code', 'The Hardware App\'s no-code',
               'The Polari side: the toggle', 'The light right now', 'Is it ready?', 'Downloads: the firmware and the app']
           and [it['route'] for it in demo['items']] == [
-              '/display/firmware?solution=uno-light', '/display/c-canvas?graph=uno-light-graph',
-              '/display/firmware?solution=uno-light-app', '/custom-no-code?focusSolution=light-toggle',
+              '/display/hardware-solutions?solution=uno-light', '/display/c-canvas?graph=uno-light-graph',
+              '/display/hardware-solutions?solution=uno-light-app', '/custom-no-code?focusSolution=light-toggle',
               '/display/uno-core-demo', '/display/uno-core-demo-readiness', '/display/uno-core-demo'],
           [it.get('route') for it in demo.get('items', [])])
     check('every discipline app promotes at least one group to the '

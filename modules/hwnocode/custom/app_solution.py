@@ -26,7 +26,7 @@ NATIVE_KIND = 'NativeAppStep'
 APP_RUNTIME = 'javafx-native'
 FIRMWARE_ROUTE = '/display/firmware?solution=uno-light'
 CANVAS_ROUTE = '/display/c-canvas?graph=uno-light-graph'
-APP_ROUTE = '/display/firmware?solution=%s' % APP_SOLUTION
+APP_ROUTE = '/display/hardware-solutions?solution=%s' % APP_SOLUTION   # a SolutionDefinition opens on the solutions canvas, not the firmware page
 DEMO_ROUTE = '/display/uno-core-demo'
 CHAIN_ROUTE = '/display/hardware-chain'
 

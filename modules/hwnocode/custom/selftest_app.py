@@ -68,7 +68,7 @@ def _links(check):
     light = {s['stateName']: s['boundObjectFieldValues'] for s in LS.light_definition()['stateInstances']}
     back = light['uno-light-bridge'].get('links') or []
     check('uno-light\'s Bridge state links to the Hardware App ("the Hardware App that runs this bridge")',
-          any(l['route'] == '/display/firmware?solution=uno-light-app' and 'Hardware App' in l['label'] for l in back), back)
+          any(l['route'] == '/display/hardware-solutions?solution=uno-light-app' and 'Hardware App' in l['label'] for l in back), back)
     want = {'open-bundle': '/display/uno-core-demo', 'flash': ['/display/firmware?solution=uno-light', '/display/c-canvas?graph=uno-light-graph'],
             'host-bridge': '/display/hardware-chain', 'sync-state': '/display/uno-core-demo'}
     for st, routes in want.items():

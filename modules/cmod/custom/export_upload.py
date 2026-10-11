@@ -5,7 +5,7 @@ THE UPLOAD DOOR's work (POST /api/firmware/exports/upload, slice ucd-app): a hos
 cannot build (it has no JDK) PUSHES the file here and gets a `FirmwareExport` row, so the demo page's Downloads table lists it
 and anybody can fetch it from the same download door as every other export.
 
-Body: multipart/form-data with fields `solution`, `form` (bridge-app-deb | shell-core-deb), `sha256` and the file in `file`
+Body: multipart/form-data with fields `solution`, `form` (bridge-app-deb | shell-core-deb | demo-bundle | install-bundle), `sha256` and the file in `file`
 (or a JSON body with the same names and the file as base64 in `file`, plus `filename`). The bytes are streamed to disk and hashed;
 a sha256 that differs from the one given is refused (422) and nothing is kept.
 """
@@ -16,7 +16,7 @@ import json
 import os
 import re
 
-UPLOAD_FORMS = ('bridge-app-deb', 'shell-core-deb')
+UPLOAD_FORMS = ('bridge-app-deb', 'shell-core-deb', 'demo-bundle', 'install-bundle')   # the bundles too: a host with mvn builds the jar and uploads (the backend image has no JDK)
 _NAME = re.compile(r'[^A-Za-z0-9._+-]')
 _SOL = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$')
 _CHUNK = 1 << 20
