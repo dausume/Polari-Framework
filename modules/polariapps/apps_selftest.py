@@ -73,11 +73,11 @@ if __name__ == '__main__':
           == ['ai-assistant-reasoning', 'ai-voice',
               'dmv-policy-analysis', 'engine-cad', 'engine-msci',
               'judicial-lean', 'nutrition-planner', 'wax-print-shop'])
-    check('ten discipline apps seeded (nav-1 + mtg-3 collaboration '
-          '+ ret-1b archipelago)',
+    check('eleven discipline apps seeded (nav-1 + mtg-3 collaboration '
+          '+ ret-1b archipelago + the Hardware App home, 2026-10-11)',
           sorted(s['name'] for s in discipline_apps)
           == ['app-archipelago', 'app-business', 'app-collaboration',
-              'app-magnetics', 'app-materials-science',
+              'app-hardware', 'app-magnetics', 'app-materials-science',
               'app-mechanical', 'app-policy',
               'app-scorecards-data-analysis',
               'app-software-engineering', 'app-topology-network'])
@@ -227,13 +227,13 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 18 apps (14 + sep-4 engine '
-          'tiles + ai-4 linkage apps), gating readable',
+    check('nav payload covers all 19 apps (14 + sep-4 engine '
+          'tiles + ai-4 linkage apps + the Hardware App home), gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 18)
+          and len(napps) == 19)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
-          == 10)
+          == 11)
     mag = napps['app-magnetics']
     mag_items = [it for g in mag['nav'] for it in g['items']]
     absent = [it for it in mag_items
@@ -253,9 +253,9 @@ if __name__ == '__main__':
               for it in mag_items if it not in absent))
     check('topMenu placement carried through',
           [g['topMenu'] for g in mag['nav']] == [True, False])
-    check('persona index maps EE to app-magnetics',
-          result['personas']['electrical-engineer']
-          == ['app-magnetics'])
+    check('persona index maps EE to app-hardware + app-magnetics',
+          sorted(result['personas']['electrical-engineer'])
+          == ['app-hardware', 'app-magnetics'])
     check('per-module tri-state strip computed server-side',
           mag['moduleStates'] == {'magnetics': 'enabled',
                                   'motors': 'enabled',
