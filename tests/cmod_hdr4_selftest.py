@@ -1,7 +1,7 @@
-"""cmod_selftest_hdr4 — ucd-hdr4: the Purpose task doors (POST /api/capabilities/{name}/tasks, DELETE .../tasks/{node}),
+"""cmod_hdr4_selftest — ucd-hdr4: the Purpose task doors (POST /api/capabilities/{name}/tasks, DELETE .../tasks/{node}),
 against a seeded manager and a REAL falcon.App (a route-template conflict crashes boot; an import proves nothing).
 
-    PYTHONPATH=.:modules python3 -m cmod.cmod_selftest_hdr4      # from polari-framework/
+    PYTHONPATH=.:modules python3 tests/cmod_hdr4_selftest.py   # from polari-framework/
 """
 import json
 import sys
