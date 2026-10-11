@@ -36,6 +36,15 @@ POST /api/capabilities/{name}/attest     ucd-attest (his ruling 2026-10-09, "yes
                                           and the response says so rather than silently writing a blank attester.
                                           Re-derives + persists the capability's status (same tail as /prove and
                                           /runs) and returns {ok, run, status, last_proof, status_why, proof_kind}.
+POST   /api/capabilities/{name}/tasks    ucd-hdr4: body {"graph", "node"} — makes the atom (a CGraphNode instance of that
+                                          graph) part of this Purpose: adds the c-device task ref '<graph>:<node>' to the
+                                          row's tasks_by_runtime_json. Idempotent (a second add changes nothing, says
+                                          "added": false). 404 unknown Purpose; 400 body lacks graph/node; 422 when the
+                                          graph is not the Purpose's own graph or the node is unknown (named). Returns
+                                          {ok, added, ref, task_names}.
+DELETE /api/capabilities/{name}/tasks/{node}   the reverse (?graph= optional, defaults to the Purpose's graph): removes
+                                          the ref; idempotent ("removed": false when it was not there). 404 unknown Purpose.
+Advice only: nothing here refuses an atom that ends up in no Purpose.
 """
 import inspect
 import json
@@ -55,6 +64,8 @@ class CapabilityAPI(treeObject):
             add('/api/capabilities/{name}/prove', self, suffix='prove')
             add('/api/capabilities/{name}/runs', self, suffix='runs')
             add('/api/capabilities/{name}/attest', self, suffix='attest')
+            add('/api/capabilities/{name}/tasks', self, suffix='tasks')
+            add('/api/capabilities/{name}/tasks/{node}', self, suffix='task_one')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -261,3 +272,70 @@ class CapabilityAPI(treeObject):
             db.saveInstanceInDB(row)
         response.media = {'ok': True, 'capability': name, 'run': run_row, 'status': status,
                           'last_proof': last_proof, 'status_why': swhy, 'proof_kind': proof_kind}
+
+    # ---- ucd-hdr4: a Purpose's c-device atoms (add / remove) --------------------------------------------------
+
+    def _node_known(self, graph, node):
+        """A CGraphNode instance of `graph`: a live row if the manager holds any for it, else the seeded graph."""
+        live = [r for r in self._rows('CGraphNode') if getattr(r, 'graph', '') == graph]
+        if live:
+            return any(r.instance == node for r in live)
+        from cmod.custom.graph_seed import seed_graph
+        rows = seed_graph(graph)
+        return rows is not None and any(n['instance'] == node for n in rows['nodes'])
+
+    def _save_tasks(self, row, tasks):
+        row.tasks_by_runtime_json = json.dumps(tasks)
+        db = getattr(self.manager, 'db', None) if self.manager is not None else None
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(row)
+
+    @staticmethod
+    def _c_names(tasks, graph):
+        return sorted({r.rpartition(':')[2] for r in tasks.get('c-device', []) if r.rpartition(':')[0] == graph})
+
+    def on_post_tasks(self, request, response, name):
+        import falcon
+        row = self._capability(name, response)
+        if row is None:
+            return
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = {}
+        graph, node = (body.get('graph') or '').strip(), (body.get('node') or '').strip()
+        if not graph or not node:
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': "'graph' and 'node' are required"}
+            return
+        if graph != getattr(row, 'graph', ''):
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'Purpose %r is over graph %r, not %r' % (name, row.graph, graph)}
+            return
+        if not self._node_known(graph, node):
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': 'graph %r has no atom named %r' % (graph, node)}
+            return
+        tasks = json.loads(row.tasks_by_runtime_json or '{}')
+        ref = '%s:%s' % (graph, node)
+        refs = list(tasks.get('c-device', []))
+        added = ref not in refs
+        if added:
+            refs.append(ref)
+            tasks['c-device'] = refs
+            self._save_tasks(row, tasks)
+        response.media = {'ok': True, 'added': added, 'ref': ref, 'task_names': self._c_names(tasks, graph)}
+
+    def on_delete_task_one(self, request, response, name, node):
+        row = self._capability(name, response)
+        if row is None:
+            return
+        graph = request.get_param('graph') or getattr(row, 'graph', '')
+        tasks = json.loads(row.tasks_by_runtime_json or '{}')
+        ref = '%s:%s' % (graph, node)
+        refs = list(tasks.get('c-device', []))
+        removed = ref in refs
+        if removed:
+            tasks['c-device'] = [r for r in refs if r != ref]
+            self._save_tasks(row, tasks)
+        response.media = {'ok': True, 'removed': removed, 'ref': ref, 'task_names': self._c_names(tasks, row.graph)}
