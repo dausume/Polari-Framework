@@ -21,6 +21,9 @@ SEED_UNO_CORE_DEMO_PAGE_DISPLAYS = [
           'and why; the last row (composition) is only as good as the weakest of them. The light itself is on '
           '/display/uno-core-demo.',
           'DemoReadiness', [
+              # data_path: the table reads the readiness DOOR (which derives the rows on every GET) — without it the
+              # table read the DemoReadiness class rows, which exist only after someone has called the door, so a fresh
+              # instance showed "No DemoReadiness rows" (seen on the test node 2026-10-11).
               _row(0, [_table('ucd-readiness', 0, 12,
                               'What the light test needs, and whether each part is ready', 'DemoReadiness',
                               description='One row for each thing the test needs: part names which one, refs opens it, '
@@ -28,6 +31,7 @@ SEED_UNO_CORE_DEMO_PAGE_DISPLAYS = [
                                           'and checked_at says when this was last worked out. The composition row at the bottom '
                                           'is the weakest of the rest.',
                               columns='part,refs,exists,status,why,checked_at',
-                              column_formats='refs:refs')], min_height=320),
+                              column_formats='refs:refs',
+                              data_path='/api/uno-core-demo/readiness')], min_height=320),
           ]),
 ]

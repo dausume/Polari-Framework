@@ -70,7 +70,12 @@ BOARD_SEED_PAIRS = [
     # bridge appends them (ButtonClockEvent), exactly like UnoAnalogState above
     ('ButtonClockState', ButtonClockState, []),
     ('ButtonClockEvent', ButtonClockEvent, []),
-    ('LightState', LightState, []),   # ucd-light: observed, never seeded
+    # ucd-light: ONE placeholder row per light so the screen has its indicator before the board's first report (the
+    # demo page showed "No LightState rows" on a fresh instance, 2026-10-11). Only `name` is code-owned: every other
+    # field is the board's (or a person's SET_LED) and is never overwritten by a later boot.
+    ('LightState', LightState, _register_owned([{'name': 'uno-light', 'seq': 0, 'boot_session': 0, 'led_on': False,
+                                                 'toggles': 0, 'source': '', 'status': 'idle'}],
+                                               keep=('seq', 'boot_session', 'led_on', 'toggles', 'source', 'status'))),
     # brd-bo: the board object's layers are code-owned (cited / ingested — re-read the source, the rows follow); a person's edit of a
     # BoardPin on a server is the instance's until the next seed converges it back (the edit belongs in the source: the seed file or
     # an ingested view). Views and conflicts are observed, never seeded.

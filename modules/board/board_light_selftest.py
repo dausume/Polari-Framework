@@ -18,8 +18,13 @@ def run_light(check):
     s = LightState(name='uno-light', seq=3, boot_session=2, led_on=True, toggles=1, source='button', status='active')
     check('ucd-light: LightState constructs with the 7 fields of the struct (name, seq, boot_session, led_on, toggles, source, status)',
           (s.name, s.seq, s.boot_session, s.led_on, s.toggles, s.source, s.status) == ('uno-light', 3, 2, True, 1, 'button', 'active'))
-    check('ucd-light: LightState is registered in BOARD_CLASSES and OBSERVED, never seeded (the board fills it)',
-          LightState in BOARD_CLASSES and all(not rows for n, _, rows in BOARD_SEED_PAIRS if n == 'LightState') and any(n == 'LightState' for n, _, _ in BOARD_SEED_PAIRS))
+    # 2026-10-11: ONE placeholder row ('uno-light') so the screen's indicator exists before the board's first report;
+    # only `name` is code-owned (_converge) — the board's values are never overwritten by a later boot.
+    light_seeds = [rows for n, _, rows in BOARD_SEED_PAIRS if n == 'LightState']
+    check('ucd-light: LightState is registered in BOARD_CLASSES with ONE placeholder row (uno-light) whose fields the board owns '
+          '(nothing but the name converges)',
+          LightState in BOARD_CLASSES and len(light_seeds) == 1 and [r['name'] for r in light_seeds[0]] == ['uno-light']
+          and light_seeds[0][0].get('_converge') == [] and light_seeds[0][0]['led_on'] is False)
     c, _ = gen.pinned_contract('LightState')
     check('ucd-light: pinned contract v1 — 7 fields, tags alphabetical (the framework rule), led_on a bool that doubles as the command',
           c['contract_version'] == 1 and len(c['field_map']['fields']) == 7 and compat.tag_order(c['field_map']) == sorted(c['field_map']['fields'])
