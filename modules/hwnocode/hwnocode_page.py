@@ -84,8 +84,8 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
           'Install Firmware (/display/firmware-installer). C on the board and the Java/JavaFX bridge are each their OWN runtime (see the Runtimes table below). '
           'From the command line: pol hwnocode place, render, build and suggest.',
           'HardwareSolution', [
-              _row(0, [_canvas_solution('hwnocode-canvas', 0, 12, '%s opened on the no-code canvas — ALL its runtimes as lanes '
-                                        '(demonstrable first)' % SOLUTION, CGRAPH, SOLUTION,
+              _row(0, [_canvas_solution('hwnocode-canvas', 0, 12, 'The solution opened on the no-code canvas — all its runtimes as lanes (open any '
+                                        'solution with ?solution=<name>; this page starts on %s)' % SOLUTION, CGRAPH, SOLUTION,
                                description="What this is for: THE DEMONSTRABLE, first on the page — this solution's REAL drawing (sim-rig, "
                                            'the hw-interface split point, the backend chain), coloured and grouped into one lane per '
                                            'runtime (c-device: the sim-rig subgraph; java-bridge: uno-digital-twin, the split point; '
