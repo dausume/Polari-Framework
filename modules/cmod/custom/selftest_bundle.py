@@ -22,6 +22,16 @@ def bundle_parts(check):
 def _run_install_bundle(check):
     from cmod.custom import export_cmake as EX
     from cmod.custom import firmware_cli as CLI
+    from cmod.custom import cmod_engines as CE
+
+    # The install bundle BUILDS the hex (make-alone through the board engines). On a device with no rung for
+    # `make` — a test node without a board-engines worker (econ-core, 2026-10-11) — export() raised
+    # EngineRefused out of the selftest and aborted every later section. Skip BY NAME instead, the way the
+    # host-toolchain sections do; the rung itself is proven where a worker exists.
+    where = CE.resolve('make')
+    if where['how'] == 'refused':
+        print('  [SKIP] install-bundle needs the make rung — %s' % where['why'])
+        return
 
     fs = CLI._solution('uno-button-clock')
     tmp = tempfile.mkdtemp(prefix='polari-bundle-selftest-')

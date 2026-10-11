@@ -626,12 +626,18 @@ def demo4_targets():
           sc_bc is not None and sc_bc['kind'] == 'acceptance' and sc_bc['capability'] == 'button-clock-to-os'
           and any(s['kind'] == 'pin-at' for s in ACC.steps_of('button-clock-to-os-acceptance')), sc_bc)
     r = c.simulate_post('/api/capabilities/button-clock-to-os/prove', body=_json.dumps({'mode': 'digital-twin'}))
-    check('POST /api/capabilities/button-clock-to-os/prove --twin runs the dedicated runner on the REAL simavr twin '
-          '(gen/build/harness, --pin-at + --wire, the Python wire reference codec) and passes',
-          r.status_code == 200 and r.json.get('ok') and r.json['run']['outcome'] == 'passed', r.text[:300])
-    r2 = c.simulate_get('/api/capabilities/button-clock-to-os')
-    check('…the derived status is proven-on-twin, persisted onto the row',
-          r2.json['capability'].get('status') == 'proven-on-twin', r2.json['capability'].get('status'))
+    if r.status_code == 409:
+        # proof-push (2026-10-07): the prove door 409s HONESTLY when this device cannot run a twin (the make rung is
+        # remote or absent) and writes no hollow run. A test node without a board-engines worker (econ-core,
+        # 2026-10-11) lands here — the twin proof is proven on the box that hosts the worker, not faked here.
+        print('  [SKIP] the twin proof: this device cannot run the simavr twin — %s' % (r.json.get('why') or r.text[:160]))
+    else:
+        check('POST /api/capabilities/button-clock-to-os/prove --twin runs the dedicated runner on the REAL simavr twin '
+              '(gen/build/harness, --pin-at + --wire, the Python wire reference codec) and passes',
+              r.status_code == 200 and r.json.get('ok') and r.json['run']['outcome'] == 'passed', r.text[:300])
+        r2 = c.simulate_get('/api/capabilities/button-clock-to-os')
+        check('…the derived status is proven-on-twin, persisted onto the row',
+              r2.json['capability'].get('status') == 'proven-on-twin', r2.json['capability'].get('status'))
 
     # the API: both link directions + the new doors, over a manager seeded exactly like the server boots it
     from types import SimpleNamespace
