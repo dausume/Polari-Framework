@@ -561,4 +561,77 @@ SEED_POLARI_APPS = [
                       route='/ai-hosting')),),
          personas=('business-operator',),
          engine_page='/engines/reasoning'),
+    # The Hardware App home (his ask 2026-10-11): ONE place that links the Hardware App to the hardware
+    # no-code and every other piece used for it — "where we can intuitively navigate to where we need to
+    # be able to easily put together hardware and firmware via no-code, as well as building Hardware Apps
+    # and polari apps to link hardware apps together". Four groups, in the order a person works: build
+    # the firmware → the board it runs on → the Hardware App that carries it → the Polari apps that link
+    # hardware together. Every route is a page that exists today; nothing new is rendered.
+    _app('app-hardware', 'Hardware & Firmware',
+         'Put hardware and firmware together without writing code: pick a '
+         'board, compose a firmware from C tasks grouped by Purpose, bind the '
+         'tasks to pins, prove the firmware on the digital twin, export or '
+         'install it, and link the board to Polari through a Hardware App '
+         'and the Polari apps that use it.',
+         'Boards, pins, datasheets and kit parts (board); C tasks, firmware '
+         'solutions, Purposes and exports (cmod); the no-code canvas and the '
+         'cross-domain solutions that bridge a board to Polari (hwnocode, '
+         'grpcbridge); fault scenarios and proofs (firmwarefaults); PCB design '
+         '(pcb); Hardware Apps and the light demo (hardwareapps, '
+         'uno_core_demo); what is plugged into this computer (hwmap).',
+         ('board', 'cmod', 'hwnocode', 'grpcbridge', 'firmwarefaults',
+          'pcb', 'hardwareapps', 'uno_core_demo', 'hwmap'),
+         ('/display/firmware', '/display/c-canvas',
+          '/display/uno-core-demo'),
+         nav=(
+             _tgrp('Build firmware',
+                  _it('Firmware no-code: tasks, pins, export', 'page',
+                      route='/display/firmware', requires_module='cmod'),
+                  _it('C atoms on the canvas', 'page',
+                      route='/display/c-canvas', requires_module='cmod'),
+                  _it('C atoms: the parts list', 'page',
+                      route='/display/c-atoms', requires_module='cmod'),
+                  _it('Firmware solutions: every table', 'page',
+                      route='/display/firmware-solutions',
+                      requires_module='cmod'),
+                  _it('Fault scenarios and proofs', 'page',
+                      route='/display/firmware-faults',
+                      requires_module='firmwarefaults')),
+             _tgrp('The board',
+                  _it('Boards, pins and kit parts', 'page',
+                      route='/display/boards', requires_module='board'),
+                  _it('Pin to register: the chain', 'page',
+                      route='/display/hardware-chain',
+                      requires_module='board'),
+                  _it('What is plugged in here', 'page',
+                      route='/display/hardware-map', requires_module='hwmap'),
+                  _it('PCB: schematic', 'page',
+                      route='/display/board-schematic', requires_module='pcb'),
+                  _it('PCB: layout', 'page',
+                      route='/display/board-layout', requires_module='pcb'),
+                  _it('PCB: parts to buy', 'page',
+                      route='/display/board-bom', requires_module='pcb'),
+                  _it('PCB: send to fabrication', 'page',
+                      route='/display/board-fab', requires_module='pcb')),
+             _tgrp('Hardware Apps',
+                  _it('The light demo: the core Hardware App', 'page',
+                      route='/display/uno-core-demo',
+                      requires_module='uno_core_demo'),
+                  _it('Is the demo ready?', 'page',
+                      route='/display/uno-core-demo-readiness',
+                      requires_module='uno_core_demo'),
+                  _it('Install firmware on a board', 'page',
+                      route='/display/firmware-installer',
+                      requires_module='board'),
+                  _it('Hardware Apps catalog', 'page',
+                      route='/display/hardware-apps',
+                      requires_module='hardwareapps')),
+             _grp('Link hardware to Polari',
+                  _it('Cross-domain solutions: board, bridge, Polari', 'page',
+                      route='/display/hardware-solutions',
+                      requires_module='hwnocode'),
+                  _it('All Polari apps', 'page', route='/apps'))),
+         personas=('hardware-maker', 'electrical-engineer',
+                   'software-engineer'),
+         discipline='hardware'),
 ]
