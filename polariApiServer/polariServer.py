@@ -3810,8 +3810,10 @@ class polariServer(treeObject):
         # and the legacy insert-only pass would never deliver the new
         # fields (the ten-strikes gotcha). The legacy entry stays as
         # the no-composition fallback; this pass converges live rows.
-        if (_feature_available('composition')
-                and _feature_available('polariapps') and (
+        # 2026-10-12: no `composition` gate — seed_upsert is CORE (moved 2026-09-12); the gate kept this pass from
+        # running on an instance without that module (pol-core), so a changed app seed (a new nav group) never
+        # reached its live prior row.
+        if (_feature_available('polariapps') and (
                 only_classes is None
                 or 'PolariAppDefinition' in only_classes)):
             try:

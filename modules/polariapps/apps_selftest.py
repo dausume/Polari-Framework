@@ -72,7 +72,8 @@ if __name__ == '__main__':
           sorted(s['name'] for s in use_case_apps)
           == ['ai-assistant-reasoning', 'ai-voice',
               'dmv-policy-analysis', 'engine-cad', 'engine-msci',
-              'judicial-lean', 'nutrition-planner', 'wax-print-shop'])
+              'judicial-lean', 'nutrition-planner', 'uno_core_demo',
+              'wax-print-shop'])
     check('eleven discipline apps seeded (nav-1 + mtg-3 collaboration '
           '+ ret-1b archipelago + the Hardware App home, 2026-10-11)',
           sorted(s['name'] for s in discipline_apps)
@@ -239,10 +240,10 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 19 apps (14 + sep-4 engine '
+    check('nav payload covers all 20 apps (14 + sep-4 engine '
           'tiles + ai-4 linkage apps + the Hardware App home), gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 19)
+          and len(napps) == 20)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
           == 11)

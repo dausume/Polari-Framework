@@ -80,6 +80,7 @@ def _lay_out(definition):
         f.setdefault('displayName', '%d. %s' % (i + 1, label))
         f.setdefault('purpose', purpose)
         f['runtime'] = APP_RUNTIME
+        s['runtime'] = APP_RUNTIME   # the canvas derives the header's Runtime from the STATE's own `runtime` (not the field values)
         if links:
             f['detail_ref'] = {'class': 'LinkTarget', 'name': links[0][0], 'route': links[0][1]}
             f['links'] = [{'label': a, 'route': b} for a, b in links]

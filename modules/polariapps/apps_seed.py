@@ -561,6 +561,36 @@ SEED_POLARI_APPS = [
                       route='/ai-hosting')),),
          personas=('business-operator',),
          engine_page='/engines/reasoning'),
+    # The light demo as a Polari app (ucd-app, 2026-10-12): the content-layer row the launcher deb is made FROM —
+    # `pol apps shell uno_core_demo` reads this row (and the module manifest of the same name for its hardware-app /
+    # bridge realization) and builds the thin launcher by configuration. Its name equals the module's on purpose.
+    _app('uno_core_demo', 'The light demo (Hardware App)',
+         'One light on an Arduino UNO, switched from a Polari screen and from '
+         'the board\'s own button, with the board always reporting the light\'s '
+         'state back: the smallest proof that data and commands travel both '
+         'ways between Polari and real hardware.',
+         'The light firmware and its two Purposes (cmod, board), the bridge '
+         'that carries the light\'s state up and the command down (grpcbridge), '
+         'the cross-domain solution and the on-screen toggle (hwnocode), and '
+         'the readiness view (uno_core_demo).',
+         ('uno_core_demo', 'hwnocode', 'cmod', 'board', 'grpcbridge'),
+         ('/display/uno-core-demo', '/display/uno-core-demo-readiness',
+          '/display/hardware-solutions?solution=uno-light'),
+         nav=(
+             _grp('The light demo',
+                  _it('The light right now', 'page',
+                      route='/display/uno-core-demo',
+                      requires_module='uno_core_demo'),
+                  _it('Is it ready?', 'page',
+                      route='/display/uno-core-demo-readiness',
+                      requires_module='uno_core_demo'),
+                  _it('The whole demo: how the pieces connect', 'page',
+                      route='/display/hardware-solutions?solution=uno-light',
+                      requires_module='hwnocode'),
+                  _it('The Hardware App\'s steps', 'page',
+                      route='/display/hardware-solutions?solution=uno-light-app',
+                      requires_module='hwnocode')),),
+         personas=('hardware-maker',)),
     # The Hardware App home (his ask 2026-10-11): ONE place that links the Hardware App to the hardware
     # no-code and every other piece used for it — "where we can intuitively navigate to where we need to
     # be able to easily put together hardware and firmware via no-code, as well as building Hardware Apps
