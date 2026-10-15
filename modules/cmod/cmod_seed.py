@@ -147,7 +147,10 @@ CMOD_SEED_PAIRS = [
     ('CGraphEdge', CGraphEdge, _owned(GRAPH_ROWS['CGraphEdge'], keep=('notes',))),
     ('CGlueBuild', CGlueBuild, _owned(GRAPH_ROWS['CGlueBuild'], keep=('notes',))),
     ('TargetDefinition', TargetDefinition, _owned(TARGET_ROWS, keep=('notes',))),
-    ('CapabilityDefinition', CapabilityDefinition, _owned(CAPABILITY_ROWS, keep=('notes',))),
+    # 2026-10-15: `lifecycle` is a person's intent (set through the Purpose door) and `status` / `last_proof` are DERIVED from
+    # ScenarioRuns — a boot-time reseed must never reset any of them (it used to: every roll put proven Purposes back to 'planned'
+    # until a proof was re-pushed). The declarative contract fields stay code-converged.
+    ('CapabilityDefinition', CapabilityDefinition, _owned(CAPABILITY_ROWS, keep=('notes', 'lifecycle', 'status', 'last_proof'))),
     ('CapabilityInstance', CapabilityInstance, _owned(CAPABILITY_INSTANCE_ROWS, keep=('notes',))),
     ('FirmwareExport', FirmwareExport, []),   # ucd-0f: observed (created by the export door / pol firmware export), never seeded
     ('FirmwareSolution', FirmwareSolution, _owned(FIRMWARE_ROWS + BC_FIRMWARE_ROWS + LIGHT_FIRMWARE_ROWS, keep=('title', 'notes'))),
