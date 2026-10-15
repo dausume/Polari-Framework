@@ -110,7 +110,9 @@ def _readme(solution, hex_sha, shas, bridge_note, target):
              ('INSTALL.md', 'The same instructions for a person, if you would rather flash by hand.'),
              (JAR, 'The bridge: a small Java program that carries the light\'s state from the board up to Polari and commands back down.'),
              ('bridge.properties', 'The bridge\'s settings (the board\'s serial port, and %s as the place Polari listens).' % target),
-             ('app-definition.json', 'The Hardware App\'s steps and the light demo\'s steps, as Polari holds them.')]
+             ('app-definition.json', 'The Hardware App\'s steps and the light demo\'s steps, as Polari holds them.'),
+             ('usb-interfaces.json', 'The USB-serial chips this board design can have (the genuine bridge and known clones), their USB ids and '
+                                     'whether each is confirmed by a document: the app\'s Detect step finds the board with these.')]
     lines = ['# %s: demo bundle' % solution, '',
              'Everything the Hardware App needs to run the light demo from this one folder. Open it in the Hardware App (it checks',
              'the firmware, finds the board, flashes it and starts the bridge), or follow INSTALL.md by hand.', '',
@@ -122,6 +124,39 @@ def _readme(solution, hex_sha, shas, bridge_note, target):
     if bridge_note:
         lines += ['## The bridge was not built', '', bridge_note, '']
     return '\n'.join(lines) + '\n'
+
+
+def usb_interfaces_json(board, manager=None):
+    """The board design's USB-interface variants for the app's Detect step: the UsbInterfaceDefinition rows allowed on `board`
+    (live rows when a manager holds them, else the board module's seed) -> {"interfaces": [{name, title, ids[], verification,
+    dtr_resets_mcu}]}. The physical board's actual variant is never asserted here — Detect reports which one it saw.
+    `board` is the board's name or the export's board-facts dict (its `name`)."""
+    if isinstance(board, dict):
+        board = board.get('name') or board.get('board') or ''
+    rows = []
+    tables = (getattr(manager, 'objectTables', None) or {}) if manager is not None else {}
+    live = list((tables.get('UsbInterfaceDefinition') or {}).values())
+    if live:
+        rows = [{k: getattr(r, k, '') for k in ('name', 'title', 'usb_ids_json', 'verification', 'dtr_resets_mcu', 'allowed_boards_json')}
+                for r in live]
+    else:
+        from board.custom.usb_interfaces import usb_interfaces
+        rows = usb_interfaces()
+    out = []
+    for r in rows:
+        try:
+            allowed = json.loads(r.get('allowed_boards_json') or '[]')
+        except ValueError:
+            allowed = []
+        if allowed and board not in allowed:
+            continue
+        try:
+            ids = [i['id'] if isinstance(i, dict) else str(i) for i in json.loads(r.get('usb_ids_json') or '[]')]
+        except ValueError:
+            ids = []
+        out.append({'name': r.get('name', ''), 'title': r.get('title', ''), 'ids': ids,
+                    'verification': r.get('verification', ''), 'dtr_resets_mcu': r.get('dtr_resets_mcu', '')})
+    return {'schema': 'polari-usb-interfaces/1', 'board': board, 'interfaces': out}
 
 
 def export_demo_bundle(path, name, solution, board, makefile_sha, proof, d, target, graph, manager=None, api_host='', work=None):
@@ -148,6 +183,7 @@ def export_demo_bundle(path, name, solution, board, makefile_sha, proof, d, targ
                                        'Build it where Java and Maven are installed with: pol firmware export %s --form demo-bundle\n'
                                        % (JAR, bridge_note, solution)).encode()
     out['app-definition.json'] = (json.dumps(app_definition_json(manager), indent=1, ensure_ascii=False) + '\n').encode()
+    out['usb-interfaces.json'] = (json.dumps(usb_interfaces_json(board, manager), indent=1, ensure_ascii=False) + '\n').encode()
     out['README.md'] = _readme(solution, hex_sha, {f: _sha(b) for f, b in out.items()}, bridge_note, tgt).encode()
     files, tar_path, tar_sha = EX.pack(path, name, out)
     return {'name': name, 'solution': solution, 'graph': graph, 'board': board['name'], 'form': 'demo-bundle',

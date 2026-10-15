@@ -53,6 +53,13 @@ def _bundle(check):
     check('demo-bundle: bridge.properties = serial source + a serial-port placeholder + gRPC on + grpc.target host:3002 derived from the asked-from address',
           'source=serial' in props and 'serial.device=/dev/ttyACM0' in props and 'grpc.enabled=true' in props
           and 'grpc.target=node.invalid:3002' in props and 'twin-uart' not in props, props[:400])
+    usb = json.load(open(os.path.join(d, 'usb-interfaces.json')))
+    by = {i['name']: i for i in usb.get('interfaces', [])}
+    check('demo-bundle: usb-interfaces.json carries the board design\'s USB-serial variants from the model (16U2 verified with its three ids, '
+          'CH340 unverified) — the app\'s Detect matches these, never a hard-coded list',
+          usb.get('board') == 'arduino-uno-r3' and by.get('atmega16u2-bridge', {}).get('verification') == 'verified'
+          and '2341:0043' in by.get('atmega16u2-bridge', {}).get('ids', []) and by.get('ch340-bridge', {}).get('verification') == 'unverified',
+          usb)
     app = json.load(open(os.path.join(d, 'app-definition.json')))
     names = {s['name']: s for s in app['solutions']}
     check('demo-bundle: app-definition.json = the uno-light-app (hardware-app) and uno-light (cross-domain) rows, definitions parsed',
