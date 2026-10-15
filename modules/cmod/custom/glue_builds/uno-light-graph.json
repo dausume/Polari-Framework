@@ -2,6 +2,16 @@
  "graph": "uno-light-graph",
  "graph_sha256": "a2bbe291ff9d9a62cb5b87237f7df6612f40c3f194d98246ce99fdedc050f28d",
  "generator": "cmod.custom.glue 1",
+ "templates": {
+  "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
+  "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
+  "avr/_pin_lib.j2": "ccd8a903f38c89ca20dc4ad8201c153ae7df20515723db9a5dc184a9884d678b",
+  "avr/pin_config.c.j2": "384801a7ce52cbcf032013764d83af6fa44f5eb815f4aab56f8726a37063c4a2",
+  "avr/pin_config.h.j2": "3f3480c0f500a186427004e7c7c170ed615b1ec94fc9d13fb80686a934692e72",
+  "avr/polari_graph.c.j2": "767bdc387ceedad8b0e27d240e94799d57d4e3031176e2d19f6db09eb3d09df8",
+  "avr/polari_graph.h.j2": "f586f13f58e9dbc819298f07fad40052f568d0a0f1fa12ccdd48413dd61c1b17"
+ },
+ "template_generator": "jinja2 3.1.6",
  "generated_project": "cmod/custom/graphs/uno-light-graph",
  "files": {
   "light_defs.h": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5",
@@ -186,7 +196,17 @@
   "hand_edited": [],
   "stale": [],
   "measured_elf_sha256": "ac4dc4089ec8b8d6949158af215aa438b587c084bbcbd0e89147be282afe2631",
-  "built_at": "2026-10-11T13:46:00"
+  "built_at": "2026-10-11T13:46:00",
+  "templates": {
+   "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
+   "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
+   "avr/_pin_lib.j2": "ccd8a903f38c89ca20dc4ad8201c153ae7df20515723db9a5dc184a9884d678b",
+   "avr/pin_config.c.j2": "384801a7ce52cbcf032013764d83af6fa44f5eb815f4aab56f8726a37063c4a2",
+   "avr/pin_config.h.j2": "3f3480c0f500a186427004e7c7c170ed615b1ec94fc9d13fb80686a934692e72",
+   "avr/polari_graph.c.j2": "767bdc387ceedad8b0e27d240e94799d57d4e3031176e2d19f6db09eb3d09df8",
+   "avr/polari_graph.h.j2": "f586f13f58e9dbc819298f07fad40052f568d0a0f1fa12ccdd48413dd61c1b17"
+  },
+  "template_generator": "jinja2 3.1.6"
  },
  "proof": {
   "equivalent": true,

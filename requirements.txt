@@ -8,6 +8,8 @@ falcon==4.2.0
 PyJWT[crypto]>=2.13.0   # Dependabot 2026-09-14: six advisories below 2.13.0 (JWK-as-HMAC, crit headers, DoS)
 psutil==5.9.8
 pycparser==2.21
+# fgm-0: generated firmware C is rendered from Jinja2 templates (cmod/custom/templates; BSD-3-Clause, GPLv3-compatible)
+Jinja2==3.1.6
 PyYAML==6.0.2
 # acct-3: code coverage for the accountability matrix
 # (POLARI_COVERAGE=true wraps every subprocess check).

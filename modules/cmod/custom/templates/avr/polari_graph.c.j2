@@ -1,0 +1,71 @@
+{% import 'avr/_lib.j2' as L %}
+{{ L.banner("polari_graph.c: the glue — main() as a scheduler over the graph's edges, calling the atoms by name", banner)|trim }}
+#include <stdint.h>
+#include <string.h>
+#include <avr/eeprom.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
+
+#include "board_config.h"
+{% for h in extra_headers %}
+#include "{{ h|c_str }}"
+{% endfor %}
+#include "{{ class_header|c_str }}"   /* GENERATED (c_twin target=avr) */
+#include "polari_graph.h"
+
+/* the glue's state (file-scope statics, so avr-size counts them): */
+{% for s in statics %}
+{% if s.kind == 'class' %}
+static {{ cls|c_ident }}_t {{ s.name|c_ident }};   /* class node {{ s.name }}: the {{ cls }} instance the frames carry */
+{% elif s.kind == 'parser' %}
+static polari_rx_t {{ s.name|c_ident }};   /* parser node {{ s.name }}: the generated header's receiver */
+{% else %}
+static uint8_t {{ s.name|c_ident }}_payload[{{ up|c_ident }}_PAYLOAD_MAX];   /* frame node {{ s.name }} */
+static uint8_t {{ s.name }}_wire[POLARI_HEADER_LEN + {{ up }}_PAYLOAD_MAX + 4u];
+{% endif %}
+{% endfor %}
+{% for c in copies %}
+
+/* atom {{ c.atom|c_comment }} — copied VERBATIM from {{ c.file|c_comment }} lines {{ c.first|c_int }}-{{ c.last|c_int }} (sha256 {{ c.sha256[:16]|c_comment }}) */
+{{ c.text|c_block }}
+{% endfor %}
+
+int main(void)
+{
+{% for l in main_locals %}
+{% if l.kind == 'tick' %}
+    uint32_t {{ l.name|c_ident }}_next_ms = 0u;
+{% else %}
+    uint32_t {{ l.name|c_ident }}_seq = 0u;
+{% endif %}
+{% endfor %}
+
+    /* init: the init atoms in graph order, the class identity, then interrupts on */
+{% if pin_config %}
+    pin_config_init();   /* GENERATED (cmod.custom.pin_config_gen) — runs FIRST, before every other init (his fixed order) */
+{% endif %}
+{% for c in init_calls %}
+{{ L.stmt(c)|trim('\n') }}
+{% endfor %}
+{% for i in zeroed %}
+    memset(&{{ i|c_ident }}, 0, sizeof {{ i }});
+{% endfor %}
+{% for f in init_fields %}
+{{ L.stmt(f)|trim('\n') }}
+{% endfor %}
+{% for c in identity %}
+{% if c.cls_name %}
+    strcpy({{ c.name|c_ident }}.name, {{ c.cls_name|c_expr }});
+{% endif %}
+{% if c.status %}
+    {{ c.name|c_ident }}.status = {{ up|c_ident }}_STATUS_{{ c.status|c_ident }};
+{% endif %}
+{% endfor %}
+    sei();
+
+    for (;;) {
+{% for s in loop_stmts %}
+{{ L.stmt(s)|trim('\n') }}
+{% endfor %}
+    }
+}

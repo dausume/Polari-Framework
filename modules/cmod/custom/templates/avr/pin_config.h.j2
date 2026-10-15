@@ -1,0 +1,17 @@
+{% import 'avr/_pin_lib.j2' as L %}
+{{ L.banner("pin_config.h — the pin claims' register/bit facts, as #defines pin_config.c uses.", banner) }}
+#ifndef POLARI_PIN_CONFIG_H
+#define POLARI_PIN_CONFIG_H
+
+{% if defines %}
+/* one #define per claimed pin's register/bit fact pin_config.c uses — derived from the SocPin + 
+ * RegisterField rows (board.custom.hardware_chain), never a bare bit number written below. */
+{% for d in defines %}
+{{ '#define %-32s %-8s /* %s */'|format(d.macro|c_ident, d.value|c_expr, d.why|c_comment) }}
+{% endfor %}
+
+{% endif %}
+void pin_config_init(void);
+
+#endif /* POLARI_PIN_CONFIG_H */
+

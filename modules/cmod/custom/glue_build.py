@@ -99,6 +99,7 @@ def build(name, manager=None, conform=True):
                                                  'explained_bytes': sum(shrunk.values())},
                  'files_sha256': rec['files_sha256'], 'hand_edited': df['hand_edited'], 'stale': df['stale'],
                  'measured_elf_sha256': meas['modes']['shipped']['elf_sha256'], 'built_at': _now()}
+    build_rec.update({k: rec[k] for k in ('templates', 'template_generator') if k in rec})   # fgm-0: which templates rendered these bytes
     rec['build'] = build_rec
     if conform:
         from cmod.custom import manifest as MF

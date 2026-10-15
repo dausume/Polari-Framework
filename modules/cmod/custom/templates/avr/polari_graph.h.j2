@@ -1,0 +1,22 @@
+{% import 'avr/_lib.j2' as L %}
+{{ L.banner("polari_graph.h: the graph's identity, the frame masks, where every file came from", banner)|trim }}
+#ifndef POLARI_GRAPH_H
+#define POLARI_GRAPH_H
+
+#include "{{ class_header|c_str }}"
+
+#define POLARI_GRAPH_NAME   "{{ graph|c_str }}"
+#define POLARI_GRAPH_SHA256 "{{ sha|c_str }}"
+
+{% for f in frames %}
+/* frame node {{ f.name|c_ident }}: the fields its telemetry carries */
+#define {{ f.upper|c_ident }}_MASK (({{ cls|c_ident }}_mask_t)({% for x in f.fields %}{{ up|c_ident }}_F_{{ x.upper()|c_ident }}{{ ' | ' if not loop.last else '' }}{% endfor %}))
+{% endfor %}
+
+/* the files of this project (sha256 of the bytes written):
+{% for p in provenance %}
+{{ ' *   %-24s %s  %s'|format(p.file|c_str, p.sha16|c_str, p.src|c_comment) }}
+{% endfor %}
+ */
+
+#endif /* POLARI_GRAPH_H */

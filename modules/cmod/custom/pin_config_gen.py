@@ -24,6 +24,7 @@ Deterministic: no wall-clock timestamp in the file bytes (a render's `rendered_a
 cmod.custom.glue — embedding it here would make every re-render "changed" and defeat `pol cmod conform`'s idempotence).
 """
 import json
+import os
 
 from cmod.custom import claims as C
 
@@ -167,57 +168,49 @@ def plan_from_rows(register_settings, field_settings, manager=None):
     return plan, defines
 
 
+def _modes(plan):
+    """'rw' | 'w1c' per plan item; a register mixing w1c with rw fields is refused (not generated this slice)."""
+    out = []
+    for item in plan:
+        access_set = {f['access'] for f in item['fields']}
+        if access_set == {'w1c'}:
+            out.append('w1c')
+        elif 'w1c' not in access_set:
+            out.append('rw')
+        else:
+            raise GenRefused('%s mixes w1c with rw fields in one register — not generated this slice' % item['register_setting']['name'])
+    return out
+
+
+#: the avr templates the pin-config path renders (their sha256 goes into the glue record: `templates`)
+TEMPLATES = ('avr/pin_config.h.j2', 'avr/pin_config.c.j2', 'avr/_pin_lib.j2')
+
+
+def _legacy():
+    return os.environ.get('POLARI_GLUE_LEGACY') == '1'
+
+
 def _render_h(plan, defines, solution_name, graph, board):
-    out = [_comment('pin_config.h — the pin claims\' register/bit facts, as #defines pin_config.c uses.', solution_name, graph, board),
-           '#ifndef POLARI_PIN_CONFIG_H', '#define POLARI_PIN_CONFIG_H', '']
-    if defines:
-        out.append('/* one #define per claimed pin\'s register/bit fact pin_config.c uses — derived from the SocPin + ')
-        out.append(' * RegisterField rows (board.custom.hardware_chain), never a bare bit number written below. */')
-        for macro, value, why in defines:
-            out.append('#define %-32s %-8s /* %s */' % (macro, value, why))
-        out.append('')
-    out += ['void pin_config_init(void);', '', '#endif /* POLARI_PIN_CONFIG_H */', '']
-    return ('\n'.join(out) + '\n').encode()
+    if _legacy():
+        from cmod.custom import pin_config_legacy as L
+        return L._render_h(plan, defines, solution_name, graph, board)
+    from cmod.custom.generator import env as E
+    from cmod.custom.generator import pin_context as X
+    return E.render('avr/pin_config.h.j2', X.h_context(defines, solution_name, graph, board))
 
 
 def _render_c(plan, solution_name, graph, board):
-    out = [_comment('pin_config.c — pin_config_init(): the fixed init order (DDR, PORT, EICRA, EIFR, EIMSK, PCMSKx, '
-                     'PCICR); sei() stays in main(), after every init, never here.', solution_name, graph, board),
-           '#include <avr/io.h>', '#include <stdint.h>', '', '#include "pin_config.h"', '',
-           'void pin_config_init(void)', '{']
-    if not plan:
-        out.append('    /* this solution\'s claims produced no GPIO / external-interrupt / pin-change settings */')
-    for item in plan:
-        rs, regname, fields = item['register_setting'], item['regname'], item['fields']
-        out.append('    /* %s = %s (write_mask %s)' % (rs['name'], rs['value_bits'], rs['write_mask']))
-        for f in fields:
-            claim = f['pin_claim'] or f['peripheral_claim']
-            out.append('     *   %-8s = %-5s %s' % (f['field'], f['value'], '— %s · claim %s · task %s · rule %s'
-                        % (f['meaning'], claim, f['task'], f['rule'])))
-        out.append('     */')
-        access_set = {f['access'] for f in fields}
-        value_terms = ['((uint8_t)0x%02X << %s)' % (f['value_int'], f['bit_macro']) for f in fields]
-        mask_terms = ['((uint8_t)0x%02X << %s)' % (f['width_mask'], f['bit_macro']) for f in fields]
-        value_expr = ' | '.join(value_terms)
-        mask_expr = ' | '.join(mask_terms)
-        lhs = fields[0]['reg_macro']
-        if access_set == {'w1c'}:
-            out.append('    %s = (uint8_t)(%s);   /* plain write (access w1c): writing a one CLEARS that pending flag; a' % (lhs, value_expr))
-            out.append('                                    read-modify-write would also clear every OTHER pending flag */')
-        elif 'w1c' not in access_set:
-            out.append('    %s = (uint8_t)((%s & (uint8_t)~(%s)) | (%s));   /* bits outside write_mask %s keep the chip\'s' % (lhs, lhs, mask_expr, value_expr, rs['write_mask']))
-            out.append('                                    reset value */')
-        else:
-            raise GenRefused('%s mixes w1c with rw fields in one register — not generated this slice' % rs['name'])
-        out.append('')
-    if out[-1] == '':
-        out.pop()
-    out += ['}', '']
-    return ('\n'.join(out) + '\n').encode()
+    if _legacy():
+        from cmod.custom import pin_config_legacy as L
+        return L._render_c(plan, solution_name, graph, board)
+    from cmod.custom.generator import env as E
+    from cmod.custom.generator import pin_context as X
+    return E.render('avr/pin_config.c.j2', X.c_context(plan, _modes(plan), solution_name, graph, board))
 
 
 def render(solution_name, graph, manager=None, overrides=None):
-    """{'pin_config.h': bytes, 'pin_config.c': bytes} for one FirmwareSolution's claims over one graph."""
+    """{'pin_config.h': bytes, 'pin_config.c': bytes} for one FirmwareSolution's claims over one graph.
+    Templates by default; POLARI_GLUE_LEGACY=1 -> the pre-fgm-0 Python emitters (pin_config_legacy)."""
     plan, defines = _plan(solution_name, graph, manager=manager, overrides=overrides)
     board = _graph_board(graph, manager)
     return {'pin_config.h': _render_h(plan, defines, solution_name, graph, board),

@@ -1,0 +1,31 @@
+{% import 'avr/_pin_lib.j2' as L %}
+{{ L.banner("pin_config.c — pin_config_init(): the fixed init order (DDR, PORT, EICRA, EIFR, EIMSK, PCMSKx, PCICR); sei() stays in main(), after every init, never here.", banner) }}
+#include <avr/io.h>
+#include <stdint.h>
+
+#include "pin_config.h"
+
+void pin_config_init(void)
+{
+{% if not plan %}
+    /* this solution's claims produced no GPIO / external-interrupt / pin-change settings */
+{% endif %}
+{% for it in plan %}
+    /* {{ it.name|c_comment }} = {{ it.value_bits|c_comment }} (write_mask {{ it.write_mask|c_comment }})
+{% for f in it.fields %}
+{{ '     *   %-8s = %-5s %s'|format(f.field|c_comment, f.value|c_comment, '— %s · claim %s · task %s · rule %s'|format(f.meaning|c_comment, (f.pin_claim or f.peripheral_claim)|c_comment, f.task|c_comment, f.rule|c_comment)) }}
+{% endfor %}
+     */
+{% if it.mode == 'w1c' %}
+    {{ it.lhs|c_ident }} = (uint8_t)({{ it.value_expr|c_expr }});   /* plain write (access w1c): writing a one CLEARS that pending flag; a
+                                    read-modify-write would also clear every OTHER pending flag */
+{% else %}
+    {{ it.lhs|c_ident }} = (uint8_t)(({{ it.lhs }} & (uint8_t)~({{ it.mask_expr|c_expr }})) | ({{ it.value_expr|c_expr }}));   /* bits outside write_mask {{ it.write_mask|c_comment }} keep the chip's
+                                    reset value */
+{% endif %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+}
+
