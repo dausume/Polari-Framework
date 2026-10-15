@@ -153,7 +153,7 @@ _PARTS = [
                       "halves, giving a voltage that changes as you turn the knob.",
         'interface_kind': 'analog-in', 'driver_needed': '', 'pin_count': 3, 'pin_roles': 'two end pins to 5V and GND, middle pin (wiper) = the analog-in signal',
         'connects_to': "analog-in (wiper) + 5V and GND (ends)", 'connects_to_kinds': 'analog-in,power,ground',
-        'electrical_notes': "0-5V at the wiper when the ends are at 5V/GND (the book: \"the middle leg will give the difference in voltage as you turn the knob\")",
+        'electrical_notes': "10 kohm end-to-end (the box: Potentiometer 10 kΩ x3); 0-5V at the wiper when the ends are at 5V/GND (the book: \"the middle leg will give the difference in voltage as you turn the knob\")",
         'polarity': '', 'kit_quantity': 'undetermined', 'source': _page(8),
     }),
     ('pushbutton', 'Pushbutton', {
@@ -221,6 +221,20 @@ _PARTS = [
         'connects_to_kinds': 'uart,power', 'electrical_notes': "5V bus power (board_uno fact pinout.power_header reused; no separate USB-specific current fact cited)",
         'polarity': '', 'kit_quantity': 'undetermined', 'source': _page(9),
     }),
+    # fgm-2: the two box lines the book's "Parts in your kit" pages do not list as their own part (his rule "all parts we can use", plan §7.10)
+    ('mosfet', 'MOSFET transistor', {
+        'what_it_is': "A field-effect transistor used as an electronic switch for a load the Arduino pin cannot drive directly; a different device from the kit's bipolar transistors.",
+        'interface_kind': 'digital-out', 'driver_needed': "undetermined (the gate drive, threshold and load rating depend on the part number, which the box does not print)",
+        'pin_count': 3, 'pin_roles': 'undetermined: gate / drain / source order depends on the part number (not printed on the box)',
+        'connects_to': "digital-out to the gate (through whatever the part number requires) + GND + the switched load", 'connects_to_kinds': 'digital-out,via-driver',
+        'electrical_notes': 'undetermined: part number, gate threshold and Rds(on) — read the markings off the two parts (the attestation path, plan §7.10)',
+        'polarity': 'undetermined (N- or P-channel is not stated by the box)', 'source': 'Arduino Starter Kit box (A000066_K7), THIS KIT INCLUDES panel (not in the book\'s Parts pages)',
+    }),
+    ('assembly-base', 'Easy-to-assemble base', {
+        'what_it_is': "The mechanical base the board and breadboard are mounted on.",
+        'interface_kind': '', 'driver_needed': '', 'pin_count': 0, 'pin_roles': '', 'connects_to': "mechanical only — no electrical role", 'connects_to_kinds': '',
+        'electrical_notes': '', 'polarity': '', 'source': 'Arduino Starter Kit box (A000066_K7), THIS KIT INCLUDES panel (not in the book\'s Parts pages)',
+    }),
 ]
 
 #: part key -> case-insensitive words that tie it to a seeded Capability's own text (cmod.custom.capabilities) —
@@ -248,6 +262,33 @@ def _sample_capabilities(part_key):
     return sorted(set(out))
 
 
+#: fgm-2 (his photos 2026-10-15, FIRMWARE_GENERATION_MODULE_PLAN.md §7.10): THE BOX'S COUNTS. The book prints none; the box's "THIS KIT INCLUDES" panel does.
+#: part key -> (total quantity as printed on the box lines, [variants]). A VARIANTS FIELD on the one part row (not a row per colour/value) was the smaller
+#: change: parts_for_pin / parts_that_connect_here and sample_capabilities are keyed by part, so they keep working untouched, and kit_quantity stays the
+#: part's total. A per-variant number the box does not print (an LED's forward voltage per colour) is `undetermined`, never guessed.
+BOX_CITE = 'Arduino Starter Kit box (A000066_K7), THIS KIT INCLUDES panel'
+_LED_VF = 'undetermined: neither the box nor the book prints a forward voltage per colour — read the LED datasheet / measure (a person can read the part marking)'
+
+
+def _v(variant, quantity, **extra):
+    return dict(variant=variant, quantity=quantity, **extra)
+
+
+_BOX = {
+    'arduino-uno': (1, []), 'usb-cable': (1, []), 'breadboard': (1, []), 'assembly-base': (1, []), 'battery-snap': (1, []),
+    'jumper-wires': (72, [_v('solid core', 70), _v('stranded', 2)]),
+    'phototransistor': (6, []),
+    'potentiometer': (3, [_v('10 kohm', 3, ohms=10000)]),
+    'pushbutton': (10, []), 'tmp36': (1, []), 'tilt-sensor': (1, []), 'lcd-16x2': (1, []), 'dc-motor': (1, []), 'servo': (1, []), 'piezo': (1, []),
+    'h-bridge': (1, []), 'optocoupler': (2, []), 'mosfet': (2, []), 'transistor': (5, []), 'diode': (7, []), 'gels': (3, []), 'male-header-pins': (1, []),
+    'led': (29, [_v('red', 8, v_forward=_LED_VF), _v('green', 8, v_forward=_LED_VF), _v('yellow', 8, v_forward=_LED_VF), _v('blue', 3, v_forward=_LED_VF),
+                 _v('bright white', 1, v_forward=_LED_VF),
+                 _v('rgb', 1, legs=4, polarity='4 legs, a common lead — common anode vs common cathode undetermined (not printed on the box)', v_forward=_LED_VF)]),
+    'resistors': (79, [_v('220 ohm', 22, ohms=220), _v('560 ohm', 7, ohms=560), _v('1 kohm', 7, ohms=1000), _v('4.7 kohm', 7, ohms=4700), _v('10 kohm', 22, ohms=10000),
+                       _v('1 Mohm', 7, ohms=1000000), _v('10 Mohm', 7, ohms=10000000)]),
+    'capacitors': (13, [_v('100 uF', 3, farads=1e-4), _v('100 nF', 5, farads=1e-7), _v('100 pF', 5, farads=1e-10)]),
+}
+
 _ROWS = None
 
 
@@ -260,6 +301,13 @@ def rows():
             row = {'name': '%s:%s' % (KIT, key), 'kit': KIT, 'title': title, 'source': PARTS_PAGES, 'notes': '',
                    'connects_to_kinds': '', 'sample_capabilities': ','.join(_sample_capabilities(key))}
             row.update(fields)
+            total, variants = _BOX[key]   # fgm-2: every row carries the box's count (KeyError = a part added without its box line: loud, never silently undetermined)
+            row['kit_quantity'] = str(total)
+            row['variants_json'] = json.dumps(variants)
+            if BOX_CITE not in row['source']:
+                row['source'] = '%s; count: %s' % (row['source'], BOX_CITE)
+            if variants:
+                row['notes'] = (row['notes'] + ' ' if row['notes'] else '') + 'variants on the box: ' + ', '.join('%s x%d' % (v['variant'], v['quantity']) for v in variants) + '.'
             out.append(row)
         _ROWS = out
     return [dict(r) for r in _ROWS]

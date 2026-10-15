@@ -12,6 +12,8 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
                                Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart,
                                Datasheet)   # ucd-doc: datasheets as documents
+from board.board_basis import (PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget,
+                               PinLifecycleConstraint)   # fgm-2: the UNO hardware truth
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -100,6 +102,12 @@ BOARD_SEED_PAIRS = [
     # re-derive the source, the rows follow)
 ] + [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (('AddressSpace', AddressSpace), ('RegisterAddressMapping', RegisterAddressMapping),
                                                                      ('RegisterBlock', RegisterBlock), ('MemoryRegion', MemoryRegion))]
+# fgm-2: the UNO hardware truth — code-owned (cited to the datasheets / schematic / box; re-derive the source, the rows follow). The physical board's
+# actual (package, USB interface) pair is NOT a seed row: it is BoardInstance.package_variant / usb_interface, PENDING until Detect + attestation.
+BOARD_SEED_PAIRS += [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls in (
+    ('PackageDefinition', PackageDefinition), ('PackageContact', PackageContact), ('UsbInterfaceDefinition', UsbInterfaceDefinition),
+    ('BoardComponent', BoardComponent), ('ElectricalCharacteristic', ElectricalCharacteristic), ('PinGroupBudget', PinGroupBudget),
+    ('PinLifecycleConstraint', PinLifecycleConstraint))]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode
     BOARD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_BOARD_TECH_TREES),

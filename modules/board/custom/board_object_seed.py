@@ -5,12 +5,22 @@ THE BOARD OBJECT's seed rows (brd-bo, PCB_FROM_SCRATCH_PLAN §2b) — the UNO ty
 (board.custom.board_uno, board.custom.soc_atmega328p), the ESP32-C3 INGESTED from Zephyr's upstream board dir + the C3 datasheet
 (board.custom.board_c3). The Identity layer is the existing BoardDefinition row; IDENTITY is what brd-bo adds to it.
 """
+import json
+
 from board.custom import board_c3 as C
 from board.custom import board_uno as U
 from board.custom import soc_atmega328p as A
+from board.custom import packages_atmega328p as PK     # fgm-2: the UNO hardware truth
+from board.custom import usb_interfaces as UI
+from board.custom import electrical_atmega328p as EL
+from board.custom import lifecycle_uno as LC
+from board.custom import uno_evidence as EV
 
 IDENTITY = {
-    U.BOARD: {'soc_definition': A.SOC, 'revision': 'R3 (A000066)', 'upstream_board': ''},
+    # fgm-2 (his ruling 2026-10-15): the design allows these package / USB-interface variants INDEPENDENTLY; which pair is on the bench is PENDING
+    U.BOARD: {'soc_definition': A.SOC, 'revision': 'R3 (A000066)', 'upstream_board': '',
+              'allowed_packages_json': json.dumps([PK.SPDIP, PK.TQFP]), 'allowed_usb_interfaces_json': json.dumps([UI.BRIDGE_16U2, UI.BRIDGE_CH340]),
+              'variant_status': 'pending'},
     C.BOARD: {'soc_definition': C.SOC, 'revision': 'DevKitM (the reference board — Zephyr esp32c3_devkitm; his board undetermined)',
               'upstream_board': 'zephyr:esp32c3_devkitm@%s' % C.TAG},
 }
@@ -32,6 +42,7 @@ def build(boards):
             seen.add(n['name'])
             nets.append(n)
     out = _layers(boards, conns, cpins, nets)
+    PK.link_soc_pins(out['SocPin'], out['PackageContact'])   # fgm-2: SocPin gains its pad class + the package contacts it appears on (in place)
     # ucd-0a: THE HARDWARE CHAIN (board.custom.hardware_chain) — Peripheral / PeripheralSignal / PinFunction / Register /
     # RegisterField rows derived from the same sources, and the SocPin / BoardPin rows gain their reverse links in place
     from board.custom import hardware_chain as HC
@@ -48,8 +59,13 @@ def build(boards):
 
 
 def _layers(boards, conns, cpins, nets):
+    contacts = PK.contacts()
     return {
-        'SocDefinition': [A.soc_definition(), C.soc_definition()],
+        'SocDefinition': [A.soc_definition(), C.soc_definition(), UI.soc_16u2()],
+        # fgm-2: the UNO hardware truth (package + USB-interface axes, chips as rows, numbers per pad class, group budgets, lifecycle)
+        'PackageContact': contacts, 'PackageDefinition': PK.package_definitions(contacts), 'UsbInterfaceDefinition': UI.usb_interfaces(),
+        'BoardComponent': UI.components(), 'ElectricalCharacteristic': EL.characteristics(), 'PinGroupBudget': EL.budgets(),
+        'PinLifecycleConstraint': LC.constraints(),
         'SocPin': A.soc_pins() + C.soc_pins(),
         'BoardHardware': [U.hardware(_usb(U.BOARD, boards)), C.hardware(_usb(C.BOARD, boards))],
         'BoardNet': nets,
@@ -57,5 +73,5 @@ def _layers(boards, conns, cpins, nets):
         'ConnectorPin': cpins,
         'BoardPin': U.board_pins() + C.board_pins(),
         'RuntimeProfile': U.runtime_profiles() + C.runtime_profiles(),
-        'DatasheetFact': A.soc_facts() + U.facts() + C.facts(),
+        'DatasheetFact': A.soc_facts() + U.facts() + C.facts() + EV.facts(),
     }

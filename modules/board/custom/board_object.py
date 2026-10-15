@@ -22,7 +22,10 @@ import json
 
 LAYER_CLASSES = ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin', 'BoardPin', 'RuntimeProfile',
                  # ucd-0a: the hardware chain's rows travel with the layers (chain_for walks them from the same tables)
-                 'Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')
+                 'Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField',
+                 # fgm-2: the UNO hardware truth travels with the layers (the chain door and electrical_check read it from the same tables)
+                 'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
+                 'PinLifecycleConstraint')
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3',
            'c3': 'esp32-c3', 'esp32c3': 'esp32-c3', 'esp32-c3': 'esp32-c3'}
 #: the BoardPin fields that ARE the assignment (what views carry and conflicts compare)
@@ -30,6 +33,11 @@ ASSIGN_FIELDS = ('canonical', 'number', 'soc_pin', 'net', 'connector_pin', 'func
                  'alias', 'electrical_json')
 #: bare-C firmware symbols → the gen knob they feed (board.custom.variants)
 SYMBOL_KNOBS = {'LED_PIN': 'led_pin', 'PWM_PIN': 'pwm_pin', 'ADC_CHANNEL': 'adc_channel'}
+
+
+#: fgm-2: derived SocPin reference columns (pad class + package-contact refs) — added AFTER the board sha was defined; excluded so every existing view's
+#: board_sha stays byte-identical (the hashed layers are the pin/net assignment; the electrical rows are their own classes)
+_SHA_EXCLUDED = ('electrical_class', 'electrical_alt_classes_json', 'package_contacts_refs_json')
 
 
 class BoardObjectRefused(ValueError):
@@ -100,7 +108,7 @@ def rows_for(board, tables=None):
 def board_sha(r):
     """The canonical hash of a board's layers (Identity's soc/revision + every layer row). Views carry it."""
     def clean(rows):
-        return sorted([{k: v for k, v in x.items() if k not in ('id',)} for x in rows], key=lambda x: str(x.get('name')))
+        return sorted([{k: v for k, v in x.items() if k not in ('id',) + _SHA_EXCLUDED} for x in rows], key=lambda x: str(x.get('name')))
     body = {'board': r['board'], 'soc': (r['soc'] or {}).get('name', ''), 'revision': r['identity'].get('revision', ''),
             'pins': clean(r['pins']), 'nets': clean(r['nets']), 'connectors': clean(r['connectors']),
             'connector_pins': clean(r['connector_pins']), 'hardware': clean([r['hardware']] if r['hardware'] else []),

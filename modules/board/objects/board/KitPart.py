@@ -44,7 +44,8 @@ class KitPart(treeObject):
     def __init__(self, name: str = '', kit: str = '', title: str = '', what_it_is: str = '', interface_kind: str = '',
                  driver_needed: str = '', pin_count: int = 0, pin_roles: str = '', connects_to: str = '',
                  connects_to_kinds: str = '', electrical_notes: str = '', polarity: str = '', kit_quantity: str = '',
-                 source: str = '', sample_capabilities: str = '', notes: str = '', manager=None):
+                 source: str = '', sample_capabilities: str = '', notes: str = '', variants_json: str = '[]',
+                 manager=None):
         self.name = name                          # '<kit>:<part>' e.g. 'arduino-starter-kit:tmp36'
         self.kit = kit                             # 'arduino-starter-kit' (other kits can follow, same class)
         self.title = title                         # e.g. 'Temperature sensor (TMP36)'
@@ -62,3 +63,7 @@ class KitPart(treeObject):
         self.source = source                       # the citation string
         self.sample_capabilities = sample_capabilities  # comma list of CapabilityDefinition names (derived)
         self.notes = notes
+        # fgm-2: the box's per-variant counts (LED colours, resistor / capacitor values, solid vs stranded jumpers) as data on the ONE
+        # part row — [{variant, quantity, ...}]; kit_quantity is then their TOTAL. A variants field (not a row per variant) keeps
+        # parts_that_connect_here and sample_capabilities working per part, exactly as before.
+        self.variants_json = variants_json

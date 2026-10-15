@@ -15,7 +15,8 @@ class SocPin(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', soc: str = '', pin: str = '', port: str = '', bit: int = 0,
                  package_pin: str = '', functions_json: str = '[]', default_function: str = '', fact: str = '',
-                 notes: str = '', links_refs_json: str = '[]', manager=None):
+                 notes: str = '', links_refs_json: str = '[]', electrical_class: str = '',
+                 electrical_alt_classes_json: str = '{}', package_contacts_refs_json: str = '[]', manager=None):
         self.name = name  # '<soc>:<pin>'
         self.soc = soc
         self.pin = pin  # PD6 | GPIO21
@@ -30,3 +31,9 @@ class SocPin(treeObject):
         # (board.custom.hardware_chain.link), read by the generic object page so a SoC pin walks UP to its board pins and DOWN
         # to what it can do and the bits that configure it
         self.links_refs_json = links_refs_json
+        # fgm-2: the pad class whose ElectricalCharacteristic rows state this pin's numbers (once per class, never per pin), the class an
+        # alternate function uses when it differs ({'XTAL1': 'atmega328p:xtal1'}), and the PackageContact rows this pin appears on
+        # (the package axis: 28-SPDIP and 32-TQFP) — `package_pin` keeps the SPDIP number the UNO R3 model uses
+        self.electrical_class = electrical_class
+        self.electrical_alt_classes_json = electrical_alt_classes_json
+        self.package_contacts_refs_json = package_contacts_refs_json
