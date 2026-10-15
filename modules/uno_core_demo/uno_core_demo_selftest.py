@@ -29,8 +29,8 @@ def manifest_names_every_part():
     check('bridge names the uno-light HardwareBridgeDefinition + its one wire class (LightState)',
           parts.get('bridge', {}).get('name') == 'uno-light' and parts.get('bridge', {}).get('state_class') == 'LightState')
     check('cross_domain names the SolutionDefinition uno-light', parts.get('cross_domain') == {'class': 'SolutionDefinition', 'name': 'uno-light'})
-    check('the two Purposes are named: light-from-polari and light-from-button',
-          parts.get('purpose_from_polari', {}).get('name') == 'light-from-polari' and parts.get('purpose_from_button', {}).get('name') == 'light-from-button')
+    check('the two Purposes are named: ensure-polari-can-control-light and ensure-button-controls-light (fgm-1: they replace the retired light-from-polari / light-from-button)',
+          parts.get('purpose_from_polari', {}).get('name') == 'ensure-polari-can-control-light' and parts.get('purpose_from_button', {}).get('name') == 'ensure-button-controls-light')
 
 
 def conforms():

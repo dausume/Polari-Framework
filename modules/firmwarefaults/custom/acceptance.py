@@ -59,7 +59,19 @@ ACCEPTANCE_SCENARIOS = [
      'expected_observable': 'led_on flips on every press, toggles == presses, source == button in every frame after the first press',
      'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
-     'capability': 'light-from-button', 'provenance': 'ucd-light seed', 'notes': ''},
+     'capability': 'ensure-button-controls-light', 'provenance': 'ucd-light seed',
+     'notes': 'fgm-1: re-pointed from the retired light-from-button to ensure-button-controls-light; the steps are unchanged, so runs recorded '
+              'before the re-point (under the old Purpose) are the same test and are counted by the new Purpose'},
+    {'name': 'ensure-polari-observes-hardware-state-acceptance', 'title': 'Acceptance - ensure-polari-observes-hardware-state',
+     'description': 'The same three debounced presses as the button test, read from what Polari sees: every state report decoded from the '
+                    'serial stream shows the light flipping with each press, the toggle count equal to the presses and source=button.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'the decoded reports show led_on flipping on every press, toggles == presses, source == button',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-observes-hardware-state', 'provenance': 'fgm-1 seed',
+     'notes': 'fgm-1: its own Scenario (so its runs are its own) reusing the button test\'s frame assertions; it has NO runs until it is run'},
     {'name': 'light-from-polari-acceptance', 'title': 'Acceptance — light-from-polari',
      'description': 'The OS sends SET_LED on, then SET_LED off over the serial link: the light follows each command, the board '
                     'counts both changes, and its frames say source=command.',
@@ -68,7 +80,9 @@ ACCEPTANCE_SCENARIOS = [
      'expected_observable': 'after SET_LED 1: led_on true, toggles 1, source command; after SET_LED 0: led_on false, toggles 2, source command',
      'observable_kind': 'command-echo', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
-     'capability': 'light-from-polari', 'provenance': 'ucd-light seed', 'notes': ''},
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'ucd-light seed',
+     'notes': 'fgm-1: re-pointed from the retired light-from-polari to ensure-polari-can-control-light; the steps are unchanged, so runs '
+              'recorded before the re-point (under the old Purpose) are the same test and are counted by the new Purpose'},
 ]
 
 
@@ -104,11 +118,21 @@ ACCEPTANCE_STEPS = [
           notes='the first of three presses on D2 (board.custom.light_twin.press_pinat)'),
     _step('light-from-button-acceptance', 2, 'assert-field-arrival', {'field': 'led_on flips, toggles==presses, source==button', 'window_ms': 100},
           notes='read off the decoded LightState frames of the same run'),
+    _step('ensure-polari-observes-hardware-state-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD2', 'level': 0},
+          notes='the first of three presses on D2, the same stimulus as the button test'),
+    _step('ensure-polari-observes-hardware-state-acceptance', 2, 'assert-field-arrival',
+          {'field': 'led_on flips, toggles==presses, source==button', 'window_ms': 100},
+          notes='read off the decoded LightState reports - what Polari sees - of the same run'),
     _step('light-from-polari-acceptance', 1, 'assert-command-echo', {'field': 'led_on', 'value': 1, 'window_ms': 100},
           notes='SET_LED 1: the next frames report the light on, source=command'),
     _step('light-from-polari-acceptance', 2, 'assert-command-echo', {'field': 'led_on', 'value': 0, 'window_ms': 100},
           notes='SET_LED 0: the last frame reports the light off, toggles 2'),
 ]
+
+
+#: the light test's Purposes (fgm-1: the new names; the retired light-from-* names still run, for history) -> which twin check proves them
+LIGHT_WHICH = {'ensure-button-controls-light': 'button', 'ensure-polari-observes-hardware-state': 'button',
+               'ensure-polari-can-control-light': 'polari', 'light-from-button': 'button', 'light-from-polari': 'polari'}
 
 
 def find(name):
@@ -133,10 +157,10 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    if sc['capability'] in ('light-from-button', 'light-from-polari'):
+    if sc['capability'] in LIGHT_WHICH:
         # ucd-light: the light test's own twin runner (board.custom.light_twin) proves the GOAL directly on the simavr twin
         from board.custom import light_twin as LT
-        result = LT.prove('button' if sc['capability'] == 'light-from-button' else 'polari', run_mode)
+        result = LT.prove(LIGHT_WHICH[sc['capability']], run_mode)
     elif sc['capability'] == 'button-clock-to-os':
         # ucd-0e2: no FirmwareSolution/CGraph for uno-button-clock yet (0e2b's job) — FW.run()'s glue-equivalence
         # proof has nothing to run against; a dedicated runner proves the GOAL directly instead (board.custom.

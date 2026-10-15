@@ -169,19 +169,22 @@ SEED_CMOD_PAGE_DISPLAYS = [
                                           'structural field edge).',
                               columns='port_ref,kind,controls,lives_on,board,direction,ctype,polari_type,unit,provenance',
                               column_formats='graph:ref:CGraph')], min_height=320),
-              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Purposes — a named, reusable group of tasks over a graph (for example "temperature sensor solution", '
-                              '"data is read from a temperature sensor and sent back over USB to the computer", '
-                              '"the computer turns the board\'s LED on and off on command"), with the targets it requires, the fields it exposes, '
-                              'and its status WORKED OUT from its acceptance proof (a task may belong to several '
-                              'Purposes)', 'CapabilityDefinition',
-                              description='What this is for: a TEMPLATE Purpose, generalized from targets. One row = one Purpose. '
-                                          'Columns: goal (the one-sentence claim), status (planned | proven on the twin | '
-                                          'proven on hardware | failing — DERIVED from the latest ScenarioRun of acceptance_scenario, never '
-                                          'hand-set), last_proof, required_targets (the port_refs it needs bound), exposes_fields (what it '
-                                          'makes available once wired — temp_c), instance_count (how many instance rows use it, '
-                                          'below).',
-                              columns='name,title,goal,status,last_proof,required_targets,exposes_fields,instance_count',
-                              column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario'),
+              _row(4, [_table('c-canvas-capabilities', 0, 6, 'Purposes: why each part of the firmware is there. Each one says what it is for, '
+                              'what starts it, what you will see, how far it is proven, whether it can run on a board, and what each '
+                              'deployed board reports. Open the drawing to read it as a sentence.', 'CapabilityDefinition',
+                              description='What this is for: one row is one Purpose, the reason some tasks are in the firmware. '
+                                          'Columns: goal (the one sentence), lifecycle (draft, enabled, suspended or retired; a retired '
+                                          'Purpose is kept for its history), status (planned, proven on the twin, proven on hardware '
+                                          'or failing, worked out from the runs of its test and never typed in), resolution (worked out '
+                                          'from the real hardware bindings: resolved when a valid binding exists, unresolved when there '
+                                          'is nothing to bind, blocked with the reason when a binding is not valid), observed (worked out '
+                                          'from what each deployed board has reported; the weakest board is shown), last_proof, '
+                                          'required_targets (the pins it needs bound), exposes_fields (what it makes available), '
+                                          'instance_count (how many uses of it there are, below), and drawing (click to open the Purpose '
+                                          'drawn as a sentence; a task can belong to several Purposes).',
+                              columns='name,title,goal,lifecycle,status,resolution,observed,last_proof,required_targets,exposes_fields,instance_count,drawing',
+                              column_formats='drawing:link',
+                              data_path='/api/purposes'),
                        _table('c-canvas-instances', 1, 6, 'Purpose instances — one row per USE of a Purpose (two here: "define '
                               'multiple temperature sensors" proven as rows, not just a template)', 'CapabilityInstance',
                               description='What this is for: ONE use of a Purpose. One row = one instance. Columns: index (1, 2, … among '

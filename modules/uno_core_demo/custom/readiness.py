@@ -15,12 +15,12 @@ import time
 
 DEFAULT_PARTS = {
     # ucd-light: the demo is the light test — its firmware, its serial link, the cross-domain solution that composes them,
-    # and the two Purposes (the OS switches the light / the board's button switches it)
+    # and the two Purposes (the OS switches the light / the board's button switches it; fgm-1: renamed from light-from-polari / light-from-button)
     'firmware': {'class': 'FirmwareSolution', 'name': 'uno-light'},
     'bridge': {'class': 'HardwareBridgeDefinition', 'name': 'uno-light', 'state_class': 'LightState'},
     'cross_domain': {'class': 'SolutionDefinition', 'name': 'uno-light'},
-    'purpose_from_polari': {'class': 'CapabilityDefinition', 'name': 'light-from-polari'},
-    'purpose_from_button': {'class': 'CapabilityDefinition', 'name': 'light-from-button'},
+    'purpose_from_polari': {'class': 'CapabilityDefinition', 'name': 'ensure-polari-can-control-light'},
+    'purpose_from_button': {'class': 'CapabilityDefinition', 'name': 'ensure-button-controls-light'},
 }
 
 #: a part's status word, ranked worst (0) to best (5) — the composition takes the WEAKEST of its six parts' ranks;

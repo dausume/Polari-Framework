@@ -1360,6 +1360,8 @@ class polariServer(treeObject):
             # ucd-iso-0: a C-atom's code interface + its C-isotopes — observed rows, materialized on every GET of a
             # solution's bindings (same idiom as PinClaim/PeripheralClaim above) or GET /api/cmod/atoms/{atom}/isotopes
             CIsotope,
+            # fgm-1: what one deployed board does for one Purpose + the eleven node kinds a Purpose is drawn with
+            PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

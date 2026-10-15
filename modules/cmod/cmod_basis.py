@@ -7,7 +7,8 @@ file re-exports them and holds the class list the server registers.
 from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,  # noqa: F401
                                TargetDefinition, CapabilityDefinition, CapabilityInstance,
                                FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
-                               HardwareBinding, DerivedOverride, CIsotope)
+                               HardwareBinding, DerivedOverride, CIsotope,
+                               PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -20,4 +21,9 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 FirmwareExport, PinClaim, PeripheralClaim,
                 HardwareBinding,  # ucd-0b2b: the hardware-specific mask laying a solution over one board
                 DerivedOverride,  # ucd-attest: a person's own correction of one derived field, kept beside it
-                CIsotope]  # ucd-iso-0: a C-atom's code interface variant, already carrying one binding's own values
+                CIsotope,  # ucd-iso-0: a C-atom's code interface variant, already carrying one binding's own values
+                # fgm-1: what one deployed board does for one Purpose, and the eleven node kinds a Purpose is DRAWN with
+                PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]
+
+#: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
+PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]
