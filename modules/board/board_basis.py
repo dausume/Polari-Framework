@@ -55,6 +55,14 @@ from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
 from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
 from board.objects.board.LightState import LightState  # noqa: F401
+# fgm-2: the UNO hardware truth (FIRMWARE_GENERATION_MODULE_PLAN.md §7.7 slice 1')
+from board.objects.board.PackageDefinition import PackageDefinition  # noqa: F401
+from board.objects.board.PackageContact import PackageContact  # noqa: F401
+from board.objects.board.UsbInterfaceDefinition import UsbInterfaceDefinition  # noqa: F401
+from board.objects.board.BoardComponent import BoardComponent  # noqa: F401
+from board.objects.board.ElectricalCharacteristic import ElectricalCharacteristic  # noqa: F401
+from board.objects.board.PinGroupBudget import PinGroupBudget  # noqa: F401
+from board.objects.board.PinLifecycleConstraint import PinLifecycleConstraint  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -68,4 +76,6 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
                  ButtonClockState, ButtonClockEvent,   # ucd-0e1: the third and fourth wire classes
                  LightState,   # ucd-light: the light test's one wire struct
-                 Datasheet]   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
+                 Datasheet,   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
+                 PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent,   # fgm-2: package + USB-interface axes, chips as rows
+                 ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint]   # fgm-2: numbers per pad class, group budgets, lifecycle

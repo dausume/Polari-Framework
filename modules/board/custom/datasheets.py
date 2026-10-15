@@ -30,6 +30,7 @@ from board.custom import board_uno as U
 from board.custom import kit_parts as KP
 from board.custom import pin_roles as PR
 from board.custom import target_compat as TC
+from board.custom import uno_evidence as EV   # fgm-2: the schematic / product datasheet / ATmega16U2 datasheet / kit box
 from board.custom.uno_facts import (BOARDS_TXT, BOARDS_TXT_REV, UNO_DOC, DOUBLE_DOC, OPTIBOOT, M328_DOC, M328_REV,
                                     M328_URL, TMP36_DOC, TMP36_REV, TMP36_URL)
 
@@ -135,6 +136,29 @@ def _static_rows():
                    "DatasheetFact/RegisterField of its own (KitPart rows are a different class), so this row carries "
                    "no facts_refs/fields_refs — named as his example row regardless",
          'notes': 'a physical book, not re-fetched this session — no url/sha256 to cite',
+         '_match': [], '_url': []},
+        # ------------------------------------------------------------------ fgm-2: the UNO hardware truth's new documents (fetched + hashed 2026-10-15)
+        {'name': 'arduino-uno-r3-schematic', 'title': EV.SCH_DOC, 'kind': 'board', 'for_soc': '', 'for_board': 'arduino-uno-r3', 'publisher': 'Arduino',
+         'revision': EV.SCH_REV, 'url': EV.SCH_URL, 'sha256': EV.SCH_SHA, 'fetched_at': '2026-10-15', 'pages': 2, 'format': 'pdf',
+         'licence_note': 'CC BY-SA 4.0 (we cite its facts, we do not copy the drawing)', 'covers': [],
+         'origin': 'derived:board.custom.uno_evidence.SCH_* — the schematic.* facts and the lifecycle/USB-interface rows cite it',
+         'notes': 'the page was rendered and read (the PDF text layer is positional): reset path, serial resistors, L LED buffer, clock part',
+         '_match': [(EV.SCH_DOC, EV.SCH_REV)], '_url': [EV.SCH_URL]},
+        {'name': 'arduino-uno-r3-product-datasheet', 'title': EV.PD_DOC, 'kind': 'board', 'for_soc': '', 'for_board': 'arduino-uno-r3', 'publisher': 'Arduino',
+         'revision': EV.PD_REV, 'url': EV.PD_URL, 'sha256': EV.PD_SHA, 'fetched_at': '2026-10-15', 'pages': 8, 'format': 'pdf', 'licence_note': '', 'covers': [],
+         'origin': 'derived:board.custom.uno_evidence.PD_* — board.thermal_limits and board.vin_range cite it',
+         'notes': 'the board vendor\'s own product datasheet (ratings, topology, pin tables)',
+         '_match': [(EV.PD_DOC, EV.PD_REV)], '_url': [EV.PD_URL]},
+        {'name': 'atmega16u2-doc7799', 'title': EV.U2_DOC, 'kind': 'soc', 'for_soc': 'atmega16u2', 'for_board': '', 'publisher': 'Microchip (Atmel)', 'revision': EV.U2_REV,
+         'url': EV.U2_URL, 'sha256': EV.U2_SHA, 'fetched_at': '2026-10-15', 'pages': 310, 'format': 'pdf', 'licence_note': '', 'covers': [],
+         'origin': 'derived:board.custom.uno_evidence.U2_* — the atmega16u2 facts (memory, signature, packages, USB) cite it',
+         'notes': 'the USB bridge chip\'s own datasheet; only identity facts are modelled (milestone-1 firmware targets the ATmega328P)',
+         '_match': [(EV.U2_DOC, EV.U2_REV)], '_url': [EV.U2_URL]},
+        {'name': 'arduino-starter-kit-box-a000066-k7', 'title': EV.BOX_DOC, 'kind': 'other', 'for_soc': '', 'for_board': '', 'publisher': 'Arduino', 'revision': EV.BOX_REV,
+         'url': '', 'sha256': '', 'fetched_at': '', 'pages': 0, 'format': 'text', 'licence_note': '', 'covers': [],
+         'origin': 'derived:board.custom.kit_parts (BOX_CITE) — every KitPart.kit_quantity / variants_json cites the box\'s "THIS KIT INCLUDES" panel',
+         'notes': 'a physical box (his photos are not committed: barcode + personal background); the counts are transcribed in FIRMWARE_GENERATION_MODULE_PLAN.md §7.10; '
+                  'the box is ALSO evidence for the board identification, which stays pending',
          '_match': [], '_url': []},
         # ------------------------------------------------------------------ the ESP32-C3
         {'name': 'espressif-esp32-c3-datasheet', 'title': C.DS_DOC, 'kind': 'soc', 'for_soc': 'esp32c3', 'for_board': '',

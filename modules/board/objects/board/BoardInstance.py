@@ -19,7 +19,8 @@ class BoardInstance(treeObject):
                  host: str = '', usb_id: str = '', usb_path: str = '', by_id_path: str = '', port: str = '',
                  serial_number: str = '', matched_by: str = '', target_board: str = '',
                  possible_targets_json: str = '[]', firmware_sha: str = '', last_flash_at: str = '',
-                 last_seen_at: str = '', bridge_name: str = '', notes: str = '', manager=None):
+                 last_seen_at: str = '', bridge_name: str = '', package_variant: str = '', usb_interface: str = '',
+                 variant_status: str = 'pending', notes: str = '', manager=None):
         self.name = name
         self.definition = definition  # BoardDefinition or AdapterDefinition name
         self.definition_kind = definition_kind  # board | adapter
@@ -37,4 +38,9 @@ class BoardInstance(treeObject):
         self.last_flash_at = last_flash_at
         self.last_seen_at = last_seen_at
         self.bridge_name = bridge_name
+        # fgm-2 (his ruling 2026-10-15): a physical board = one board design x one PackageDefinition x one UsbInterfaceDefinition. The
+        # actual pair is PENDING until Detect reads the USB ids (usb_interface) and a person confirms the package (attestation).
+        self.package_variant = package_variant  # a PackageDefinition name ('' = pending — never assumed)
+        self.usb_interface = usb_interface  # a UsbInterfaceDefinition name ('' = pending)
+        self.variant_status = variant_status  # pending | detected (USB interface read) | attested (a person confirmed)
         self.notes = notes

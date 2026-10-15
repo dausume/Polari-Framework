@@ -17,6 +17,9 @@ reaches the circuit's own ground net, which itself ties to the board's GND; (d) 
 by this SAME board is level-compatible (one board, one logic level); (e) the button's pull is DEFINED — either an
 external pull resistor on its net, or a PinClaim with `pull='up'` for its board pin — else a WARN naming the gap.
 
+fgm-2 adds rules (f)-(j) — VOH under load, group budgets, input thresholds, abs-max never a target, pin lifecycle — in board.custom.electrical_hw
+over the ElectricalCharacteristic / PinGroupBudget / PinLifecycleConstraint rows.
+
 Nothing here is a guess: a number not cited (a board's own logic level, a part's own rating) makes that finding
 `undetermined`, naming exactly what is missing — never a made-up value.
 """
@@ -270,10 +273,13 @@ def _check_pull_defined(nets, comps, pin_nets, pin_claims):
 
 
 # -------------------------------------------------------------------- the public door
-def check(circuit_name, binding_or_board, tables, pin_claims=None):
+def check(circuit_name, binding_or_board, tables, pin_claims=None, context=None, overrides=None):
     """[finding, ...] for one circuit over one board (or a '<solution>@<board>'/'<solution>' binding — see
     `_resolve` below). `tables` = {'CircuitDefinition'|'CircuitNetDefinition'|'CircuitComponentDefinition'|
     'BoardPinNet'|'BoardPin': [dict, ...]} (`tables_for` below builds this from a live manager or the seeds).
+    fgm-2: `context` ({transport, acknowledged, icsp, ...}) and `overrides` (DerivedOverride-shaped dicts, read by the lifecycle rule ONLY) feed the five
+    hardware-truth rules (f)-(j) of board.custom.electrical_hw, appended after the Phase-1 five; a design that is not a circuit goes through
+    `electrical_hw.check_design` directly.
     `pin_claims` overrides the derived PinClaim list for rule (e) — a test seam (`cmod.custom.claims.pin_claims`'s
     own `overrides` only edits an EXISTING assignment-derived claim; a bare board/circuit test has no task claiming
     D2 at all, so a caller that wants to PROVE the 'turns ok' half of rule (e) hands a synthetic claim list here)."""
@@ -290,6 +296,9 @@ def check(circuit_name, binding_or_board, tables, pin_claims=None):
     out += _check_shared_ground(nets, comps, pin_nets)
     out += _check_level_compatible(nets, pin_nets)
     out += _check_pull_defined(nets, comps, pin_nets, claims)
+    from board.custom import electrical_hw as HW   # fgm-2: (f) VOH under load, (g) group budgets, (h) input thresholds, (i) abs-max never a target, (j) lifecycle
+    design = HW.design_from_circuit(nets, comps, pin_nets, claims, context, (_pins, _params, _net_row_by_label, _pin_nets_on))
+    out += HW.check_design(board, design, tables, overrides)
     return out
 
 

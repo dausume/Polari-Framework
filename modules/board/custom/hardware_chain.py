@@ -433,6 +433,19 @@ def chain_for(board, pin, tables):
         return hops
     hops.append(_hop(1, 'SocPin', sp['name'], 'SoC pin %s — port %s bit %s, package pin %s' % (sp['pin'], sp['port'], sp['bit'], sp['package_pin']),
                      'functions ' + '/'.join(['GPIO'] + json.loads(sp.get('functions_json') or '[]')) + ' · ' + sp.get('fact', '')))
+    # fgm-2: the package axis and the pin's lifecycle — where this SoC pin sits on each package (28-SPDIP, 32-TQFP) and what it may do at each phase of the
+    # board's life (RESET <- DTR, D0/D1 transport + bootloader, the D13 L LED buffer, ICSP sharing, AREF); empty on a server that has not seeded them yet
+    contacts = {c['name']: c for c in tables.get('PackageContact', [])}
+    for ref in json.loads(sp.get('package_contacts_refs_json') or '[]'):
+        c = contacts.get(ref.partition(':')[2])
+        if c is not None:
+            hops.append(_hop(2, 'PackageContact', c['name'], 'package leg %s of %s — %s' % (c['number'], c['package'], c['label']),
+                             'electrical class %s · %s' % (c['electrical_class'] or '—', c['page_table'])))
+    life = [x for x in tables.get('PinLifecycleConstraint', []) if x.get('board') == r['board'] and x.get('pin') == bp['canonical']]
+    order = ('power-up', 'reset', 'bootloader', 'init', 'runtime', 'programming', 'debug')
+    for x in sorted(life, key=lambda x: (order.index(x['phase']) if x['phase'] in order else 99, x['name'])):
+        hops.append(_hop(2, 'PinLifecycleConstraint', x['name'], '%s at %s: %s%s' % (bp['canonical'], x['phase'], x['policy'].upper(), (' while ' + x['condition']) if x['condition'] else ''),
+                         x['reason'] + ' · ' + x['page_table']))
     pfs = [f for f in by['PinFunction'].values() if f['soc_pin'] == sp['name']]
     pfs.sort(key=lambda f: (f['function'] != 'GPIO', f['function']))
     sigs, pers, regs, fields = [], [], [], []

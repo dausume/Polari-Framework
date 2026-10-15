@@ -32,7 +32,8 @@ class BoardDefinition(treeObject):
                  polari_role: str = '', relied_on: str = '', cost_measured: str = '', licence_notes: str = '',
                  designer: str = 'others', road: str = '', road_status: str = 'todo', notes: str = '',
                  soc_definition: str = '', revision: str = '', upstream_board: str = '',
-                 datasheets_json: str = '{}', manager=None):
+                 datasheets_json: str = '{}', allowed_packages_json: str = '[]',
+                 allowed_usb_interfaces_json: str = '[]', variant_status: str = '', manager=None):
         self.name = name  # the register id (kebab-case)
         self.title = title
         self.register_id = register_id  # the register row key, verbatim
@@ -81,3 +82,8 @@ class BoardDefinition(treeObject):
         # ucd-doc: {"soc": slug|"", "board": slug|"", "programming": slug|"", "combined": slug|""} — which Datasheet row
         # covers each of the three kinds for THIS board (board.custom.datasheets.board_coverage), '' = missing, named
         self.datasheets_json = datasheets_json
+        # fgm-2 (his ruling 2026-10-15): the board's package and USB-interface variants are INDEPENDENT axes; the physical board's actual
+        # pair is PENDING identification (BoardInstance.package_variant / usb_interface / variant_status)
+        self.allowed_packages_json = allowed_packages_json  # PackageDefinition names this design may carry for its main chip
+        self.allowed_usb_interfaces_json = allowed_usb_interfaces_json  # UsbInterfaceDefinition names this design may carry
+        self.variant_status = variant_status  # pending (not identified on a bench board) | '' (not applicable / not modelled)

@@ -25,13 +25,14 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('forty-one row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('forty-eight row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
           'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract; '
-          'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct)',
-          len(BOARD_CLASSES) == 41)
+          'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
+          'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth)',
+          len(BOARD_CLASSES) == 48)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -371,6 +372,8 @@ def main():
     run_chain(check)
     from board.board_datasheets_selftest import run_datasheets   # ucd-doc: datasheets as documents
     run_datasheets(check)
+    from board.board_hardware_truth_selftest import run_hardware_truth   # fgm-2: the UNO hardware truth (packages, USB interfaces, numbers per pad class, rules f-j)
+    run_hardware_truth(check)
     from board.board_circuit_selftest import run_circuit   # ucd-0c: the demo bench as rows + the electrical findings
     run_circuit(check)
     from board.board_pinlevel_selftest import pin_parts   # ucd-0d: PIN-LEVEL forcing + pin-to-pin wiring on the twin
