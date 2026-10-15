@@ -27,12 +27,15 @@ class CapabilityDefinition(treeObject):
     #: leave 'planned' unless `cmod.custom.capabilities.validate()` passes (every task resolves, every required
     #: target is a bound RegisterAssignment or an inherently-unbound memory-field target).
     STATUSES = ('planned', 'proven-on-twin', 'proven-on-hardware', 'failing')
+    LIFECYCLES = ('draft', 'enabled', 'suspended', 'retired')
     RUNTIMES = ('c-device', 'java-bridge', 'python-backend', 'typescript-browser')
 
     @treeObjectInit
     def __init__(self, name: str = '', graph: str = '', title: str = '', purpose: str = '', required_targets: str = '',
                  exposes_fields: str = '', instance_count: int = 0, goal: str = '', tasks_by_runtime_json: str = '{}',
-                 acceptance_scenario: str = '', status: str = 'planned', last_proof: str = '', notes: str = '', manager=None):
+                 acceptance_scenario: str = '', status: str = 'planned', last_proof: str = '', notes: str = '',
+                 lifecycle: str = 'enabled', criteria_json: str = '{}', observes_json: str = '[]', participants_json: str = '[]',
+                 depends_on: str = '', manager=None):
         self.name = name
         self.graph = graph                        # the CGraph this capability is drawn from
         self.title = title
@@ -46,3 +49,10 @@ class CapabilityDefinition(treeObject):
         self.status = status                       # planned | proven-on-twin | proven-on-hardware | failing — DERIVED, never hand-set
         self.last_proof = last_proof                # 'ScenarioRun <name> @ <ran_at>' or '' (no run yet)
         self.notes = notes
+        # fgm-1 (FIRMWARE_GENERATION_MODULE_PLAN.md §8.3): the Purpose's declared contract. Resolution ("can it run here?") and the
+        # per-device fulfillment are DERIVED (cmod.custom.purpose_derived) and have NO field here, on purpose.
+        self.lifecycle = lifecycle                  # draft | enabled | suspended | retired — STORED, a person's/seed's word
+        self.criteria_json = criteria_json          # {"trigger": {kind, what}, "outcome": {what}, "criteria": [{key, value, unit}]}
+        self.observes_json = observes_json          # [{item, kind: field|event|correlation, delivery}] what Polari must see
+        self.participants_json = participants_json  # [{role, kind: board|soc|host|polari, ref, variant}]
+        self.depends_on = depends_on                # the Purpose (name) that must hold first ('' for initialization itself)

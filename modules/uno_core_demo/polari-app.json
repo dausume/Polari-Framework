@@ -122,11 +122,11 @@
   },
   "purpose_from_polari": {
    "class": "CapabilityDefinition",
-   "name": "light-from-polari"
+   "name": "ensure-polari-can-control-light"
   },
   "purpose_from_button": {
    "class": "CapabilityDefinition",
-   "name": "light-from-button"
+   "name": "ensure-button-controls-light"
   }
  }
 }

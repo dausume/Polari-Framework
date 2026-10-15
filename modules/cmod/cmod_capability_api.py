@@ -45,6 +45,10 @@ POST   /api/capabilities/{name}/tasks    ucd-hdr4: body {"graph", "node"} — ma
 DELETE /api/capabilities/{name}/tasks/{node}   the reverse (?graph= optional, defaults to the Purpose's graph): removes
                                           the ref; idempotent ("removed": false when it was not there). 404 unknown Purpose.
 Advice only: nothing here refuses an atom that ends up in no Purpose.
+
+fgm-1 (Purpose no-code; contracts in purpose_doors.py): GET/PUT /api/capabilities/{name}/solution (the Purpose drawn as a no-code
+solution / edits written back to the row), GET .../resolution (derived from the real bindings), GET/POST .../observations (POST = the
+backend's writer, 403 for a person), GET /api/purposes (the Purposes table with its derived columns).
 """
 import inspect
 import json
@@ -66,6 +70,10 @@ class CapabilityAPI(treeObject):
             add('/api/capabilities/{name}/attest', self, suffix='attest')
             add('/api/capabilities/{name}/tasks', self, suffix='tasks')
             add('/api/capabilities/{name}/tasks/{node}', self, suffix='task_one')
+            add('/api/capabilities/{name}/solution', self, suffix='solution')          # fgm-1
+            add('/api/capabilities/{name}/resolution', self, suffix='resolution')
+            add('/api/capabilities/{name}/observations', self, suffix='observations')
+            add('/api/purposes', self, suffix='purposes')
 
     def _rows(self, cls):
         return list(((self.manager.objectTables or {}).get(cls, {}) or {}).values()) if self.manager is not None else []
@@ -339,3 +347,29 @@ class CapabilityAPI(treeObject):
             tasks['c-device'] = [r for r in refs if r != ref]
             self._save_tasks(row, tasks)
         response.media = {'ok': True, 'removed': removed, 'ref': ref, 'task_names': self._c_names(tasks, row.graph)}
+
+    # ---- fgm-1: the Purpose no-code doors (the work is in purpose_doors) ------------------------------------
+
+    def on_get_solution(self, request, response, name):
+        from cmod.custom import purpose_doors as D
+        D.get_solution(self, request, response, name)
+
+    def on_put_solution(self, request, response, name):
+        from cmod.custom import purpose_doors as D
+        D.put_solution(self, request, response, name)
+
+    def on_get_resolution(self, request, response, name):
+        from cmod.custom import purpose_doors as D
+        D.get_resolution(self, request, response, name)
+
+    def on_get_observations(self, request, response, name):
+        from cmod.custom import purpose_doors as D
+        D.get_observations(self, request, response, name)
+
+    def on_post_observations(self, request, response, name):
+        from cmod.custom import purpose_doors as D
+        D.post_observations(self, request, response, name)
+
+    def on_get_purposes(self, request, response):
+        from cmod.custom import purpose_doors as D
+        D.purposes_table(self, request, response)

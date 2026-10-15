@@ -105,7 +105,8 @@ LIGHT_SEED_CAPABILITIES = [
                                'boot_session_mint', 'tick_init', 'clock', 'telemetry', 'telemetry_send'),
          java_bridge=['uno-light:relay-out'], python_backend=['light-toggle:flip']),
      'acceptance_scenario': 'light-from-polari-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
-     'notes': 'ucd-light seed. The serial-link, light-pin and report tasks are named here too: the command path cannot work, '
+     'lifecycle': 'retired',
+     'notes': 'RETIRED by fgm-1 (replaced by ensure-polari-can-control-light, which took over its acceptance Scenario); kept so its history stays. ucd-light seed. The serial-link, light-pin and report tasks are named here too: the command path cannot work, '
               'and cannot be seen to work, without them.'},
     {'name': 'light-from-button', 'graph': LIGHT_GRAPH, 'title': 'Light from the board\'s button',
      'goal': 'a press on the board\'s button turns the light on or off, and the OS learns of the change',
@@ -118,7 +119,8 @@ LIGHT_SEED_CAPABILITIES = [
                                'led', 'clock', 'state', 'telemetry', 'telemetry_send', 'usart_send', 'boot_session_mint'),
          java_bridge=['uno-light:relay-in'], python_backend=[]),
      'acceptance_scenario': 'light-from-button-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
-     'notes': 'ucd-light seed. The init, clock and report tasks are named here too: a press is only debounced with the clock '
+     'lifecycle': 'retired',
+     'notes': 'RETIRED by fgm-1 (replaced by ensure-button-controls-light, which took over its acceptance Scenario); kept so its history stays. ucd-light seed. The init, clock and report tasks are named here too: a press is only debounced with the clock '
               'running and only reaches the OS through the report.'},
 ]
 
@@ -169,7 +171,9 @@ SAMPLE_PLUMBING_CAPABILITIES = [
      'acceptance_scenario': '', 'instance_count': 1, 'status': 'planned', 'last_proof': '', 'notes': 'ucd-light: leftover tasks grouped'},
 ]
 
-SEED_CAPABILITIES += LIGHT_SEED_CAPABILITIES + SAMPLE_PLUMBING_CAPABILITIES
+from cmod.custom.purpose_seeds import PURPOSE_SEEDS   # noqa: E402  (fgm-1: initialization + the three light Purposes)
+
+SEED_CAPABILITIES += LIGHT_SEED_CAPABILITIES + SAMPLE_PLUMBING_CAPABILITIES + PURPOSE_SEEDS
 
 
 def find(name, rows=None):
@@ -400,11 +404,12 @@ def purpose_summary(graph, manager=None, board='', statuses=None):
         if board and st == 'proven-on-hardware':
             why = (why + '; ' if why else '') + 'counted for board %s: hardware runs carry no board instance yet (DEBT)' % board
         rows.append({'name': c.get('name'), 'goal': c.get('goal', ''), 'status': st, 'last_proof': last, 'why': why,
-                    'proof_kind': pk, 'tracking_only': not c.get('acceptance_scenario')})
+                    'proof_kind': pk, 'tracking_only': not c.get('acceptance_scenario'),
+                    'retired': c.get('lifecycle') == 'retired'})   # fgm-1: a retired Purpose stays listed, never decides
     # ucd-light: a Purpose with NO acceptance scenario tracks plumbing or what the board offers unused (it states why a task is
     # in the firmware, there is nothing to run): it is listed, but never decides the proof status or the counts
     listed = rows
-    rows = [r for r in listed if not r['tracking_only']] or listed
+    rows = [r for r in listed if not r['tracking_only'] and not r['retired']] or [r for r in listed if not r['retired']] or listed
     if not rows:
         return {'proof_status': 'planned', 'proof_why': 'no Purpose is modeled over graph %s — nothing is proven' % graph,
                 'purposes_total': 0, 'purposes_proven_twin': 0, 'purposes_proven_hardware': 0, 'purposes': [],

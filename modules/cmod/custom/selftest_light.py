@@ -78,11 +78,12 @@ def _graph_solution_binding(check):
 
 def _purposes(check):
     from cmod.custom import capabilities as CAP
-    for name in ('light-from-polari', 'light-from-button'):
+    for name in ('light-from-polari', 'light-from-button'):   # fgm-1: both retired, still valid and still naming their (now shared) scenario
         c = CAP.find(name)
         ok, why = CAP.validate(c)
-        check('Purpose %s resolves every task it names (c-device, bridge, backend)' % name, ok, why)
-        check('Purpose %s names a goal and an acceptance scenario' % name, bool(c['goal']) and c['acceptance_scenario'] == name + '-acceptance')
+        check('Purpose %s (retired) still resolves every task it names (c-device, bridge, backend)' % name, ok, why)
+        check('Purpose %s names a goal and its acceptance scenario' % name, bool(c['goal']) and c['acceptance_scenario'] == name + '-acceptance'
+              and c['lifecycle'] == 'retired')
     from firmwarefaults.custom import acceptance as ACC
     kinds = {n: [s['kind'] for s in ACC.steps_of(n)] for n in ('light-from-button-acceptance', 'light-from-polari-acceptance')}
     sc = [ACC.find(n) for n in kinds]
@@ -93,8 +94,8 @@ def _purposes(check):
           'uno-light:relay-out' in json.loads(CAP.find('light-from-polari')['tasks_by_runtime_json'])['java-bridge']
           and 'uno-light:relay-in' in json.loads(CAP.find('light-from-button')['tasks_by_runtime_json'])['java-bridge'])
     summ = CAP.purpose_summary(GRAPH)
-    check('purpose_summary over uno-light-graph: exactly the two light Purposes decide the proof (planned until a run is recorded)',
-          summ['purposes_total'] == 2 and summ['proof_status'] == 'planned', summ['proof_why'])
+    check('purpose_summary over uno-light-graph: exactly the three tested Purposes decide the proof (planned until a run is recorded); the retired pair never does',
+          summ['purposes_total'] == 3 and summ['proof_status'] == 'planned', summ['proof_why'])
     sim = CAP.purpose_summary('uno-sim-rig-graph')
     check('the plumbing/un-used Purposes of the sample graphs are LISTED but never decide the proof (sim-rig: 2 deciding of 5 listed)',
           sim['purposes_total'] == 2 and len(sim['purposes']) == 5, (sim['purposes_total'], len(sim['purposes'])))

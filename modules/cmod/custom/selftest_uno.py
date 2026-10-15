@@ -172,10 +172,10 @@ def uno_parts(check):
               'now names uno-button-clock-graph\'s own nodes; fs-0/ucd-0e2b: THREE FirmwareSolutions (uno-sim-rig, uno-button-clock, uno-light) + their '
               'derived ScheduleSlot/RegisterAssignment rows (D2/D3/D6/D13\'s config_json authored, provenance canvas); ucd-0b: PinClaim/'
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
-              'ucd-0b2b: one default HardwareBinding derived per solution (3 now); ucd-light: 8 more CapabilityDefinition (the two light Purposes + six plumbing Purposes of the sample graphs); ucd-iso-0: CIsotope observed too '
+              'ucd-0b2b: one default HardwareBinding derived per solution (3 now); ucd-light: 8 more CapabilityDefinition (the two light Purposes + six plumbing Purposes of the sample graphs); fgm-1: 4 more (initialization + the three that replace the light pair); ucd-iso-0: CIsotope observed too '
               '(empty by design — materialized on a GET, never seeded)' % m['counts']['ports'],
               counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 56, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
-                         'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 12, 'CapabilityInstance': 5,
+                         'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 65, 'RegisterAssignment': 46,
                          'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope
         page = SEED_CMOD_PAGE_DISPLAYS[0]
@@ -199,6 +199,8 @@ def uno_parts(check):
         bad = []
         for it in [i for i in items + canvas_items if i['componentProps']['componentName'] == 'class-rows-table']:
             cn = it['componentProps']['inputs']['className']
+            if it['componentProps']['inputs'].get('dataPath'):
+                continue   # fgm-1: a table that reads a door serves its own (derived) columns; selftest_purpose checks the door covers them
             params = set(inspect.signature(known[cn].__init__).parameters) if cn in known else set()
             bad += ['%s.%s' % (cn, col) for col in it['componentProps']['inputs']['columns'].split(',') if col and col not in params]
         check('…every table (c-atoms + c-canvas) names a cmod class and only columns that class has', not bad, bad)

@@ -125,6 +125,12 @@ def solution_definitions():
     # ucd-app: the Hardware App's own no-code definition (category 'hardware-app', six javafx-native states)
     from hwnocode.custom import app_solution as AS
     out.extend(AS.definition_rows())
+    # fgm-1: one declarative `purpose-<name>` solution per DECLARED Purpose (one that carries a fulfillment contract), RENDERED FROM the
+    # CapabilityDefinition row by cmod.custom.purpose_nocode - never typed here. The derived states are left as "worked out when
+    # asked" (nothing derived is stored); GET /api/capabilities/{name}/solution serves them live.
+    from cmod.custom import capabilities as CAPS
+    from cmod.custom import purpose_nocode as PN
+    out.extend(PN.render(c, derive=False) for c in CAPS.SEED_CAPABILITIES if (c.get('criteria_json') or '{}') != '{}')
     return out
 
 
