@@ -102,9 +102,9 @@ def _findings_ok_path(check):
     findings = EC.check(CIRCUIT, BOARD, tables)
     by_rule = {f['rule']: f for f in findings}
 
-    check('led_current: ok, with a computed mA figure and its cites',
-          by_rule['led_current']['status'] == 'ok' and 'mA' in by_rule['led_current']['detail']
-          and by_rule['led_current']['cite'], by_rule.get('led_current'))
+    check('led_current: undetermined (the LED Vf is marked ASSUMED on its row), still showing the computed figure, the Vf-free ceiling and its cites',
+          by_rule['led_current']['status'] == 'undetermined' and 'assumed' in by_rule['led_current']['detail']
+          and 'ceiling' in by_rule['led_current']['detail'] and by_rule['led_current']['cite'], by_rule.get('led_current'))
     import re
     m = re.search(r'([-+]?[0-9.]+) mA', by_rule['led_current']['detail'])
     check('led_current: the computed figure is 13.636 mA ((5.0 - 2.0) / 220 * 1000), under the pin\'s 20 mA limit',

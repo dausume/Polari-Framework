@@ -115,7 +115,7 @@ SEED_CIRCUIT_COMPONENTS = [
                     "arduino-starter-kit:resistors (exact ohm values of the kit's own resistors are not listed "
                     "on its cited page either -- read from colour-code bands in hand)."},
     {'name': 'ubc-led1', 'circuit_name': 'uno-button-clock', 'kind': 'led',
-     'params_json': '{"v_forward": 2.0}', 'pins_json': '["LED_ANODE", "GND"]',
+     'params_json': '{"v_forward": 2.0, "v_forward_basis": "assumed"}', 'pins_json': '["LED_ANODE", "GND"]',
      'description': "the kit's indicator LED (KitPart arduino-starter-kit:led, Arduino Starter Kit book, Parts in "
                     "your kit p.7); anode on LED_ANODE (through R1), cathode on GND. v_forward: ASSUMED 2.0 V "
                     "typical red LED -- an ASSUMPTION, NOT A FACT (the KitPart's own electrical_notes: 'no "

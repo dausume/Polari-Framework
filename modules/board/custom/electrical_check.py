@@ -166,6 +166,21 @@ def _check_led_current(board, nets, comps, pin_nets, board_pins_by_name):
                                 led.get('description', '')))
             continue
         current_ma = (v_pin - v_forward) / ohms * 1000.0
+        # 2026-10-15: a forward voltage the row itself marks ASSUMED (v_forward_basis) is not evidence. The finding stays
+        # `undetermined` (matching electrical_hw rule (f)), shows the figure the assumption WOULD give and the Vf-free
+        # ceiling V_pin / R that holds whatever the LED; it never reports `ok` from an assumption. A refusal is still a
+        # refusal (if even the assumed figure exceeds the pin limit the circuit is wrong either way).
+        basis = str(_params(led).get('v_forward_basis') or 'cited')
+        if basis != 'cited' and current_ma <= max_ma:
+            ceiling_ma = v_pin / ohms * 1000.0
+            out.append(_finding('led_current', 'undetermined', led.get('name', '?'),
+                                'the LED forward voltage is %s, not cited: with the assumed %.2f V, I = (%.2f V - %.2f V) / %s ohm = '
+                                '%.3f mA <= pin %s max_ma=%s; the Vf-free ceiling is I <= %.2f V / %s ohm = %.3f mA%s'
+                                % (basis, v_forward, v_pin, v_forward, ohms, current_ma, pin_row.get('canonical', '?'), max_ma,
+                                   v_pin, ohms, ceiling_ma, ' (within the limit even with no Vf)' if ceiling_ma <= max_ma
+                                   else ' (above the limit: a cited Vf decides)'),
+                                '%s; %s; LED v_forward: %s' % (v_cite, max_ma_cite, led.get('description', '(no citation on the row)'))))
+            continue
         status = 'ok' if current_ma <= max_ma else 'refuse'
         detail = ('I = (%.2f V - %.2f V) / %s ohm = %.3f mA <= pin %s max_ma=%s'
                  % (v_pin, v_forward, ohms, current_ma, pin_row.get('canonical', '?'), max_ma)) if status == 'ok' else \
