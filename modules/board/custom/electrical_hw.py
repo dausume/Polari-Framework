@@ -18,9 +18,10 @@ guessed — `detail` names what is missing).
                            NOTHING overrides an electrical refusal ((f)-(i) never read overrides).
 
 A `design` is plain data: {board, vcc, context: {transport, acknowledged: [token], icsp?, dtr?, dwen?, phases?}, loads: [{pin, kind, led_variant?, series_ohms?,
-v_forward?, current_ma?, direction?, limit_basis?}], links: [{driver, input}], buttons: [{pin, pull, switch_ohms?}], claims: [{pin, mode, function?}]} — built from the
+v_forward?, current_ma?, direction?, limit_basis?}], links: [{output, input}], buttons: [{pin, pull, switch_ohms?}], claims: [{pin, mode, function?}]} — built from the
 circuit rows by `design_from_circuit` or handed in directly (`check_design`).
 """
+from board.custom import board_pin_nets as BPN   # D-pv-7: signal roles (output | input), is_output()
 import json
 import re
 
@@ -244,7 +245,7 @@ def rule_input_threshold(tables, design):
     out = []
     loads = {ld['pin']: ld for ld in design.get('loads', [])}
     for lk in design.get('links', []):
-        drv, inp = lk['driver'], lk['input']
+        drv, inp = lk['output'], lk['input']
         dpad, _a = pad_class_of(tables, drv)
         ipad, _b = pad_class_of(tables, inp)
         voh, vol = characteristic(tables, dpad, 'VOH', vcc, slug='5v-20ma-85c'), characteristic(tables, dpad, 'VOL', vcc, slug='5v-20ma-85c')
@@ -380,7 +381,7 @@ def design_from_circuit(nets, comps, pin_nets, claims, context, helpers):
         res = next((c for c in comps if c.get('kind') == 'resistor' and anode in _pins(c)), None)
         upstream = next((p for p in _pins(res) if p != anode), None) if res else anode
         row = _net_row_by_label(nets, upstream) if upstream else None
-        drv = [p for p in (_pin_nets_on(pin_nets, row['name']) if row else []) if p.get('role') == 'driver']
+        drv = [p for p in (_pin_nets_on(pin_nets, row['name']) if row else []) if BPN.is_output(p.get('role'))]
         if drv:
             d['loads'].append({'pin': drv[0]['board_pin'].rpartition(':')[2], 'kind': 'led', 'led_variant': '', 'series_ohms': _params(res).get('ohms') if res else 0,
                                'v_forward': None})   # a CITED Vf only: the circuit row's v_forward is an ASSUMPTION its own description says so — never evidence here
@@ -388,13 +389,13 @@ def design_from_circuit(nets, comps, pin_nets, claims, context, helpers):
     for p in pin_nets:
         by_net.setdefault(p['circuit_net'], []).append(p)
     for rows in by_net.values():
-        drivers = [r for r in rows if r.get('role') == 'driver' and r.get('board_pin')]
+        outputs = [r for r in rows if BPN.is_output(r.get('role')) and r.get('board_pin')]
         inputs = [r for r in rows if r.get('role') == 'input' and r.get('board_pin')]
-        for dr in drivers:
+        for dr in outputs:
             for ip in inputs:
-                d['links'].append({'driver': dr['board_pin'].rpartition(':')[2], 'input': ip['board_pin'].rpartition(':')[2]})
+                d['links'].append({'output': dr['board_pin'].rpartition(':')[2], 'input': ip['board_pin'].rpartition(':')[2]})
     for p in pin_nets:
-        if p.get('role') == 'input' and p.get('board_pin') and not any(r.get('role') == 'driver' and r.get('circuit_net') == p['circuit_net'] for r in pin_nets):
+        if p.get('role') == 'input' and p.get('board_pin') and not any(BPN.is_output(r.get('role')) and r.get('circuit_net') == p['circuit_net'] for r in pin_nets):
             net = next((n for n in nets if n['name'] == p['circuit_net']), None)
             sw = next((c for c in comps if c.get('kind') == 'switch' and net and net['net'] in _pins(c)), None)
             if sw is None:

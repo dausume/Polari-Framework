@@ -66,7 +66,7 @@ def polari_to_led(ctx, links):
     h += [cross, fn]
     h.append(CH.firmware_hop(ctx, 'the firmware: rx_pop -> rx -> apply (command handler) -> led -> the state report (source=command)', 'ensure-polari-can-control-light'))
     h += CH.pin_out(ctx, 'D6', 'GPIO')
-    h.append(_net_hop(ctx, 'D6', 'LED_CONTROL', 'D6', 'GPIO', 'D6 drives net LED_CONTROL (the one driver)', ('single_driver',), ('LED_CONTROL',)))
+    h.append(_net_hop(ctx, 'D6', 'LED_CONTROL', 'D6', 'GPIO', 'D6 outputs the signal on net LED_CONTROL (the one output)', ('single_output',), ('LED_CONTROL',)))
     parts = {p['role']: p['ref'] for p in json.loads(ctx.system['participants_json'])}
     h.append(_electrical(ctx, parts['resistor R1'], 'R1 220 ohm limits the LED current', ('led_current',), ('',), '(a) led_current'))
     h.append(_electrical(ctx, parts['LED1'], 'LED1 lights: the current through it and the pin level it needs', ('led_current', 'voh_under_load'), ('', 'D6'), '(a) led_current + (f) voh_under_load'))
@@ -74,7 +74,7 @@ def polari_to_led(ctx, links):
 
 
 def led_line_to_d3(ctx, links):
-    h = [_net_hop(ctx, 'D6', 'LED_CONTROL', 'D6', 'GPIO', 'D6 drives net LED_CONTROL (the driver end of the jumper)', ('single_driver',), ('LED_CONTROL',)),
+    h = [_net_hop(ctx, 'D6', 'LED_CONTROL', 'D6', 'GPIO', 'D6 outputs the signal on net LED_CONTROL (the output end of the jumper)', ('single_output',), ('LED_CONTROL',)),
          _net_hop(ctx, 'D3', 'LED_CONTROL', 'D3', 'INT1', 'the jumper wire lands on D3 (net LED_CONTROL, role input)', ('level_compatible', 'input_threshold'), ('LED_CONTROL', 'D6 -> D3')),
          CH.link_hop(ctx, links, 'd6-d3-jumper', 'the bench jumper wire D6 -> D3')]
     if not links.get('d6-d3-jumper'):

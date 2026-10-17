@@ -15,6 +15,7 @@ or `--adc0-ramp 700,800,20000` (a 20 s triangle, 20 → 30 °C). No build-time k
 
 State lives in <work>/twin.json; the twin's JSON lines (ready / status / pb5 edges) in <work>/twin.log.
 """
+from board.custom import board_pin_nets as BPN   # D-pv-7: signal roles (output | input), is_output()
 import datetime
 import json
 import os
@@ -85,8 +86,8 @@ def twin_args(hex_path, tcp, adc0_mv=750, adc0_ramp='', realtime=True, adc_mv=No
 
 def wires_from_circuit(board, circuit_name, tables):
     """ucd-0d (UNO_CORE_DEMO_PLAN.md §5e Q2, §5g): derive the twin's --wire list from ucd-0c's BoardPinNet rows — two
-    BoardPin rows placed on the SAME circuit net, one `role=driver` and one `role=input`, become one wire (the
-    driver's BoardPin.soc_pin → the input's BoardPin.soc_pin; soc_pin is already 'PD6'-shaped, the twin's own syntax).
+    BoardPin rows placed on the SAME circuit net, one `role=output` and one `role=input`, become one wire (the
+    output's BoardPin.soc_pin → the input's BoardPin.soc_pin; soc_pin is already 'PD6'-shaped, the twin's own syntax).
     Lazy import (a server older than ucd-0a has no BoardPinNet class at all) and an honest reason whenever the answer
     is "no wires": no class, no rows for this board+circuit yet (ucd-0c not populated), or a BoardPinNet pointing at a
     BoardPin row that is not in `tables` (named, not guessed). → ([(src_pin, dst_pin), …], why_empty)."""
@@ -104,9 +105,9 @@ def wires_from_circuit(board, circuit_name, tables):
     wires, why = [], []
     for net in sorted(by_net):
         members = by_net[net]
-        drivers = [m for m in members if m.get('role') == 'driver']
+        outputs = [m for m in members if BPN.is_output(m.get('role'))]
         inputs = [m for m in members if m.get('role') == 'input']
-        for d in drivers:
+        for d in outputs:
             for i in inputs:
                 dp, ip = pins.get(d['board_pin']), pins.get(i['board_pin'])
                 if not dp or not ip:

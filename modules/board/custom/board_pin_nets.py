@@ -14,13 +14,23 @@ The bench (UNO_CORE_DEMO_PLAN.md §1, the bare numbers board.custom.board_uno al
   - an LED on **D6** through the kit's 220 Ω resistor to GND (D6 already carries the LED in `uno-sim-rig`);
   - one jumper wire **D6 → D3** (INT1) — "the sense pin": the MCU independently detects the edges on the LED's
     OWN line through a REAL WIRE, never by reading its own output latch. D6 and D3 sit on the SAME net
-    (`LED_CONTROL`): D6 drives it (`role='driver'`), D3 only listens (`role='input'`) — `electrical_check`'s own
+    (`LED_CONTROL`): D6 outputs the signal on it (`role='output'`), D3 only listens (`role='input'`) — `electrical_check`'s own
     rule (b) refuses two drivers on one net; this wiring is valid because D3 is role input, never a second driver.
 
 GND is a power/reference connector label (`board.custom.power_pins`), never a `BoardPin` row (`board_uno.py` only
 makes one per SoC-backed D/A signal pin) — its row's `board_pin` is `''`, and `notes` names the connector pins the
 kit book's own "GND and 5V pins" (p.11) are physically on (`board_uno.CONNECTORS`: POWER header 6/7, DIGITAL_H 7).
 """
+#: D-pv-7 (his ruling 2026-10-17: "drive means electricity flow and supply, signals are different"): a pin's role on a net names its SIGNAL
+#: direction — `output` | `input` | power | ground | undetermined. "drive" is kept for current and supply (DrivePotential). A row stored before
+#: the rename with role `driver` is read as `output` (never rewritten by a reader; the code-owned seed converges to `output`).
+OUTPUT_ROLES = ('output', 'driver')
+
+
+def is_output(role):
+    return role in OUTPUT_ROLES
+
+
 CIRCUIT = 'uno-button-clock'
 BOARD = 'arduino-uno-r3'
 
@@ -32,7 +42,7 @@ def _name(canonical, net):
 SEED_BOARD_PIN_NETS = [
     {
         'name': _name('D6', 'LED_CONTROL'), 'board': BOARD, 'board_pin': '%s:D6' % BOARD,
-        'circuit': CIRCUIT, 'circuit_net': 'ubc-net-led-control', 'role': 'driver', 'provenance': 'seed',
+        'circuit': CIRCUIT, 'circuit_net': 'ubc-net-led-control', 'role': 'output', 'provenance': 'seed',
         'notes': "drives the LED's own line (UNO_CORE_DEMO_PLAN.md §1: the kit's R1 220 ohm + LED1 branch to GND); "
                 "already carries the LED in uno-sim-rig.",
     },

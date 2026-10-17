@@ -7,12 +7,12 @@ as rows — `BoardPinNet` (board.custom.board_pin_nets) ties a `BoardPin` to one
 answers a short, named list of FINDINGS: {rule, status, subject, detail, cite}. `status` is one of:
   ok            the rule checked out, the number/why said plainly
   warn          the rule did not refuse but names something to define/fix (e.g. an undefined pull)
-  refuse        the rule failed outright (a real electrical problem — two drivers, no shared ground, over current)
+  refuse        the rule failed outright (a real electrical problem — two outputs fighting on one net, no shared ground, over current)
   undetermined  the rule could not be evaluated because a number is not cited — NEVER a guess; `detail` names what
                 is missing
 
 Phase-1 rules (§1's bench, uno-button-clock): (a) LED current against the DRIVING PIN's own cited max_ma and the
-board's own cited logic level; (b) a net with a driver-role BoardPinNet has exactly one driver; (c) every component
+board's own cited logic level; (b) a net with an output-role BoardPinNet has exactly one output (two outputs on one net fight: current flows between them); (c) every component
 reaches the circuit's own ground net, which itself ties to the board's GND; (d) an input-role pin on a net driven
 by this SAME board is level-compatible (one board, one logic level); (e) the button's pull is DEFINED — either an
 external pull resistor on its net, or a PinClaim with `pull='up'` for its board pin — else a WARN naming the gap.
@@ -23,6 +23,7 @@ over the ElectricalCharacteristic / PinGroupBudget / PinLifecycleConstraint rows
 Nothing here is a guess: a number not cited (a board's own logic level, a part's own rating) makes that finding
 `undetermined`, naming exactly what is missing — never a made-up value.
 """
+from board.custom import board_pin_nets as BPN   # D-pv-7: signal roles (output | input), is_output()
 import json
 
 
@@ -154,10 +155,10 @@ def _check_led_current(board, nets, comps, pin_nets, board_pins_by_name):
         ohms = _params(resistor).get('ohms')
         v_forward = _params(led).get('v_forward')
         upstream_row = _net_row_by_label(nets, upstream_label) if upstream_label else None
-        drivers = [p for p in _pin_nets_on(pin_nets, upstream_row['name'])] if upstream_row else []
-        drivers = [p for p in drivers if p.get('role') == 'driver']
-        v_pin, v_cite = (None, '') if not drivers else _board_logic_level(board)
-        pin_row = board_pins_by_name.get(drivers[0].get('board_pin', '')) if drivers else None
+        outputs = [p for p in _pin_nets_on(pin_nets, upstream_row['name'])] if upstream_row else []
+        outputs = [p for p in outputs if BPN.is_output(p.get('role'))]
+        v_pin, v_cite = (None, '') if not outputs else _board_logic_level(board)
+        pin_row = board_pins_by_name.get(outputs[0].get('board_pin', '')) if outputs else None
         max_ma, max_ma_cite = _pin_max_ma(pin_row) if pin_row is not None else (None, 'no driving BoardPinNet found on %s' % upstream_label)
         missing = [name for name, val in (('ohms', ohms), ('v_forward', v_forward), ('V_pin', v_pin), ('pin max_ma', max_ma)) if val is None]
         if missing:
@@ -191,22 +192,22 @@ def _check_led_current(board, nets, comps, pin_nets, board_pins_by_name):
     return out
 
 
-def _check_single_driver(nets, pin_nets):
-    """(b) a net with at least one driver-role BoardPinNet has EXACTLY one — never two."""
+def _check_single_output(nets, pin_nets):
+    """(b) a net with at least one output-role BoardPinNet has EXACTLY one — never two."""
     out = []
     by_net = {}
     for p in pin_nets:
-        if p.get('role') == 'driver':
+        if BPN.is_output(p.get('role')):
             by_net.setdefault(p['circuit_net'], []).append(p)
-    for net_row_name, drivers in sorted(by_net.items()):
+    for net_row_name, outputs in sorted(by_net.items()):
         net = next((n for n in nets if n['name'] == net_row_name), {'net': net_row_name})
-        names = sorted(d.get('board_pin', '') for d in drivers)
-        if len(drivers) > 1:
-            out.append(_finding('single_driver', 'refuse', net['net'],
-                                'TWO OR MORE drivers on one net: %s — a net may have at most one' % ', '.join(names), ''))
+        names = sorted(d.get('board_pin', '') for d in outputs)
+        if len(outputs) > 1:
+            out.append(_finding('single_output', 'refuse', net['net'],
+                                'TWO OR MORE outputs on one net: %s — a net may have at most one' % ', '.join(names), ''))
         else:
-            out.append(_finding('single_driver', 'ok', net['net'],
-                                'exactly one driver: %s' % names[0], ''))
+            out.append(_finding('single_output', 'ok', net['net'],
+                                'exactly one output: %s' % names[0], ''))
     return out
 
 
@@ -242,11 +243,11 @@ def _check_level_compatible(nets, pin_nets):
         by_net.setdefault(p['circuit_net'], []).append(p)
     for net_row_name, rows in sorted(by_net.items()):
         net = next((n for n in nets if n['name'] == net_row_name), {'net': net_row_name})
-        drivers = [r for r in rows if r.get('role') == 'driver']
+        outputs = [r for r in rows if BPN.is_output(r.get('role'))]
         inputs = [r for r in rows if r.get('role') == 'input']
-        if not drivers or not inputs:
+        if not outputs or not inputs:
             continue
-        boards = {d.get('board') for d in drivers} | {i.get('board') for i in inputs}
+        boards = {d.get('board') for d in outputs} | {i.get('board') for i in inputs}
         if len(boards) == 1:
             board = next(iter(boards))
             v, cite = _board_logic_level(board)
@@ -254,7 +255,7 @@ def _check_level_compatible(nets, pin_nets):
                 out.append(_finding('level_compatible', 'undetermined', net['net'], cite, ''))
             else:
                 out.append(_finding('level_compatible', 'ok', net['net'],
-                                    'driver and input share one board (%s) at one cited logic level (%s V) — compatible'
+                                    'output and input share one board (%s) at one cited logic level (%s V) — compatible'
                                     % (board, v), cite))
         else:
             out.append(_finding('level_compatible', 'undetermined', net['net'],
@@ -267,7 +268,7 @@ def _check_pull_defined(nets, comps, pin_nets, pin_claims):
     """(e) the button pin's pull is DEFINED: an external pull resistor on its net, OR a PinClaim pull='up' for its
     board pin — else a WARN naming the gap (never a refusal — a novice still gets a working, if incomplete, bench)."""
     button_pins = [p for p in pin_nets if p.get('role') == 'input' and p.get('board_pin')
-                  and not any(d.get('role') == 'driver' and d.get('circuit_net') == p.get('circuit_net') for d in pin_nets)]
+                  and not any(BPN.is_output(d.get('role')) and d.get('circuit_net') == p.get('circuit_net') for d in pin_nets)]
     out = []
     for bp in button_pins:
         net = next((n for n in nets if n['name'] == bp['circuit_net']), {'net': bp['circuit_net']})
@@ -307,7 +308,7 @@ def check(circuit_name, binding_or_board, tables, pin_claims=None, context=None,
     claims = pin_claims if pin_claims is not None else derived_claims
     out = []
     out += _check_led_current(board, nets, comps, pin_nets, board_pins_by_name)
-    out += _check_single_driver(nets, pin_nets)
+    out += _check_single_output(nets, pin_nets)
     out += _check_shared_ground(nets, comps, pin_nets)
     out += _check_level_compatible(nets, pin_nets)
     out += _check_pull_defined(nets, comps, pin_nets, claims)

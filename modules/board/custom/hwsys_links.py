@@ -7,8 +7,9 @@ bridge ends come from the grpcbridge light bridge seed; the protocol is the PINN
   a  u1-usart0-u2-usart1   U1 PD0/PD1 <-> U2 PD3/PD2 through RN4B / RN4A 1 kOhm      e  button-d2          SW1 -> BUTTON_INPUT -> D2 (internal pull-up if the firmware claims it)
   b  u2-usb-host           U2 D+/D- -> USB connector -> the host's serial port        f  d6-r1-led1-gnd     D6 -> R1 -> LED1 -> GND
   c  u2-dtr-u1-reset       U2 PD7 (DTR) -> C5 100 nF -> U1 RESET                      g  bridge-backend-grpc  Java bridge <-> backend (gRPC :3002) <-> Polari page
-  d  d6-d3-jumper          the bench wire from the D6 driver to the D3 sense input
+  d  d6-d3-jumper          the bench wire from the D6 output to the D3 sense input
 """
+from board.custom import board_pin_nets as BPN   # D-pv-7: signal roles (output | input), is_output()
 import json
 
 from board.custom import exposure_view as V
@@ -111,7 +112,7 @@ def links(ctx, system):
                          notes='EVERY serial reconnect by the host pulses DTR and reboots the UNO (auto-reset) — the firmware starts again and picks a new boot_session'))
     # d ---- the bench jumper D6 -> D3
     drv, sns = _net(ctx, 'D6', 'LED_CONTROL'), _net(ctx, 'D3', 'LED_CONTROL')
-    if drv and sns and drv['circuit_net'] == sns['circuit_net'] and drv['role'] == 'driver' and sns['role'] == 'input':
+    if drv and sns and drv['circuit_net'] == sns['circuit_net'] and BPN.is_output(drv['role']) and sns['role'] == 'input':
         cs = [c for p in ('D6', 'D3') for c in _leg_crossings(ctx, p)[0]]
         out.append(_link(system, 'd6-d3-jumper', 'the bench jumper wire D6 -> D3 (the sense pin)',
                          {'participant': 'jumper D6-D3', 'refs': [pin('D6'), 'BoardPinNet:%s' % drv['name']], 'what': 'D6 drives net LED_CONTROL'},

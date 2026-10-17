@@ -2,8 +2,8 @@
 ROWS + THE ELECTRICAL FINDINGS. The bench: pushbutton on D2 (internal pull-up), LED on D6 through a 220 ohm
 resistor to GND, jumper D6->D3 (the sense pin). Checks: the circuit seeds (nets, parts, the new `switch` kind
 renders in the netlist seed without an exception), the four BoardPinNet rows resolve both ways, the Phase-1
-findings for uno-button-clock on arduino-uno-r3 (LED current, single driver, shared ground, level compatibility,
-the button's pull — warn today, ok once a claim defines it), a synthetic two-driver circuit refuses, and a rule
+findings for uno-button-clock on arduino-uno-r3 (LED current, single output, shared ground, level compatibility,
+the button's pull — warn today, ok once a claim defines it), a synthetic two-output circuit refuses, and a rule
 with a missing cite reads undetermined, never a guess. Run by board_selftest.main().
 """
 BOARD = 'arduino-uno-r3'
@@ -15,7 +15,7 @@ def run_circuit(check):
     _board_pin_net_rows(check)
     _findings_ok_path(check)
     _pull_rule_warn_then_ok(check)
-    _two_drivers_refuse(check)
+    _two_outputs_refuse(check)
     _missing_cite_undetermined(check)
 
 
@@ -62,9 +62,9 @@ def _board_pin_net_rows(check):
     from board.custom import board_object as BO
     r = BO.rows_for(BOARD)
     board_pins = {p['name'] for p in r['pins']}
-    check('four BoardPinNet rows: D6 driver, D3 input, D2 input, GND ground', len(SEED_BOARD_PIN_NETS) == 4, SEED_BOARD_PIN_NETS)
-    by_role = {row['role']: row for row in SEED_BOARD_PIN_NETS if row['role'] in ('driver', 'ground')}
-    check('D6 is the one driver (LED_CONTROL)', by_role['driver']['board_pin'] == '%s:D6' % BOARD, by_role.get('driver'))
+    check('four BoardPinNet rows: D6 output, D3 input, D2 input, GND ground', len(SEED_BOARD_PIN_NETS) == 4, SEED_BOARD_PIN_NETS)
+    by_role = {row['role']: row for row in SEED_BOARD_PIN_NETS if row['role'] in ('output', 'ground')}
+    check('D6 is the one output (LED_CONTROL)', by_role['output']['board_pin'] == '%s:D6' % BOARD, by_role.get('output'))
     inputs = sorted(row['board_pin'] for row in SEED_BOARD_PIN_NETS if row['role'] == 'input')
     check('D2 and D3 are both role input (D3 senses what D6 drives; D2 reads the button)',
           inputs == ['%s:D2' % BOARD, '%s:D3' % BOARD], inputs)
@@ -109,8 +109,8 @@ def _findings_ok_path(check):
     m = re.search(r'([-+]?[0-9.]+) mA', by_rule['led_current']['detail'])
     check('led_current: the computed figure is 13.636 mA ((5.0 - 2.0) / 220 * 1000), under the pin\'s 20 mA limit',
           m is not None and abs(float(m.group(1)) - 13.636) < 0.01, by_rule['led_current']['detail'])
-    check('single_driver: ok (D6 is the only driver of LED_CONTROL — D3 is role input, never a second driver)',
-          by_rule['single_driver']['status'] == 'ok', by_rule.get('single_driver'))
+    check('single_output: ok (D6 is the only output on LED_CONTROL — D3 is role input, never a second output)',
+          by_rule['single_output']['status'] == 'ok', by_rule.get('single_output'))
     check('shared_ground: ok (every part reaches GND, which ties to the board\'s own GND)',
           by_rule['shared_ground']['status'] == 'ok', by_rule.get('shared_ground'))
     check('level_compatible: ok (D6 drives, D3 reads — one board, one cited logic level)',
@@ -134,24 +134,24 @@ def _pull_rule_warn_then_ok(check):
           pull2['status'] == 'ok' and 'up' in pull2['detail'], pull2)
 
 
-# ---------------------------------------------------------------- part 4: a synthetic two-driver circuit refuses
-def _two_drivers_refuse(check):
+# ---------------------------------------------------------------- part 4: a synthetic two-output circuit refuses
+def _two_outputs_refuse(check):
     from board.custom import electrical_check as EC
     tables = EC.tables_for(manager=None)
     tables = dict(tables)
     tables['CircuitDefinition'] = tables['CircuitDefinition'] + [
-        {'name': 'synthetic-two-drivers', 'description': 'test fixture', 'analyses_json': '[]', 'probes_json': '[]'}]
+        {'name': 'synthetic-two-outputs', 'description': 'test fixture', 'analyses_json': '[]', 'probes_json': '[]'}]
     tables['CircuitNetDefinition'] = tables['CircuitNetDefinition'] + [
-        {'name': 'syn-net-x', 'circuit_name': 'synthetic-two-drivers', 'net': 'X', 'is_ground': False, 'description': ''}]
+        {'name': 'syn-net-x', 'circuit_name': 'synthetic-two-outputs', 'net': 'X', 'is_ground': False, 'description': ''}]
     tables['BoardPinNet'] = tables['BoardPinNet'] + [
-        {'name': '%s:D6@synthetic-two-drivers:X' % BOARD, 'board': BOARD, 'board_pin': '%s:D6' % BOARD,
-         'circuit': 'synthetic-two-drivers', 'circuit_net': 'syn-net-x', 'role': 'driver', 'provenance': 'seed', 'notes': ''},
-        {'name': '%s:D5@synthetic-two-drivers:X' % BOARD, 'board': BOARD, 'board_pin': '%s:D5' % BOARD,
-         'circuit': 'synthetic-two-drivers', 'circuit_net': 'syn-net-x', 'role': 'driver', 'provenance': 'seed', 'notes': ''},
+        {'name': '%s:D6@synthetic-two-outputs:X' % BOARD, 'board': BOARD, 'board_pin': '%s:D6' % BOARD,
+         'circuit': 'synthetic-two-outputs', 'circuit_net': 'syn-net-x', 'role': 'output', 'provenance': 'seed', 'notes': ''},
+        {'name': '%s:D5@synthetic-two-outputs:X' % BOARD, 'board': BOARD, 'board_pin': '%s:D5' % BOARD,
+         'circuit': 'synthetic-two-outputs', 'circuit_net': 'syn-net-x', 'role': 'output', 'provenance': 'seed', 'notes': ''},
     ]
-    findings = EC.check('synthetic-two-drivers', BOARD, tables)
-    single = next(f for f in findings if f['rule'] == 'single_driver')
-    check('D6 AND D5 both role driver on one net -> single_driver REFUSES, naming both pins',
+    findings = EC.check('synthetic-two-outputs', BOARD, tables)
+    single = next(f for f in findings if f['rule'] == 'single_output')
+    check('D6 AND D5 both role output on one net -> single_output REFUSES, naming both pins',
           single['status'] == 'refuse' and 'D6' in single['detail'] and 'D5' in single['detail'], single)
 
 

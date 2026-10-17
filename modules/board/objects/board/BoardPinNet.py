@@ -11,7 +11,7 @@ class BoardPinNet(treeObject):
     uno-button-clock". The ONE link between the board object (`BoardPin`) and the electrodevice circuit rows
     (`CircuitNetDefinition`, `CircuitComponentDefinition` — the breadboard as data, rendering to ngspice), so the same
     rows drive the electrical checks, the twin's pin-to-pin wiring and the wiring drawing. `role` says what the pin is
-    on that net (driver = the pin drives it as an output; input = the pin reads it; power/ground = a rail). Authored
+    on that net (output = the pin puts the signal on it; input = the pin reads it; power/ground = a rail — "drive" is kept for current and supply, D-pv-7). Authored
     with the circuit (a seed or the canvas), provenance says which; never a free string on either side.
     Related concepts: `BoardPin`, electrodevice's `CircuitNetDefinition` / `CircuitComponentDefinition` /
     `ComponentPlacement`, `BoardNet` (the board's OWN internal nets — a different thing, kept separate).
@@ -28,6 +28,6 @@ class BoardPinNet(treeObject):
         self.board_pin = board_pin          # the BoardPin row name ('<board>:<canonical>')
         self.circuit = circuit              # the CircuitDefinition row name
         self.circuit_net = circuit_net      # the CircuitNetDefinition row name
-        self.role = role                    # driver | input | power | ground | undetermined
+        self.role = role                    # output | input | power | ground | undetermined ('driver' = pre-rename output)
         self.provenance = provenance        # seed | canvas
         self.notes = notes

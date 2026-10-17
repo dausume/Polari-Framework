@@ -12,7 +12,7 @@ genuinely uncited — the LED forward voltage, the pushbutton's closed resistanc
 import json
 
 LIGHT = {'loads': [{'pin': 'D6', 'kind': 'led', 'led_variant': 'red', 'series_ohms': 220, 'v_forward': None}],
-         'links': [{'driver': 'D6', 'input': 'D3'}], 'buttons': [{'pin': 'D2', 'pull': 'up'}],
+         'links': [{'output': 'D6', 'input': 'D3'}], 'buttons': [{'pin': 'D2', 'pull': 'up'}],
          'claims': [{'pin': 'D6', 'mode': 'output'}, {'pin': 'D3', 'mode': 'input', 'function': 'INT1'}, {'pin': 'D2', 'mode': 'input', 'function': 'INT0'}]}
 
 
@@ -231,10 +231,10 @@ def _rules(check):
     hit = [x for x in _by(f, 'power_budget') if x['status'] == 'refuse']
     check('REFUSED by name: nine pins at 17 mA = 153 mA exceed the 150 mA recommended sourcing group -> power_budget refuse', hit and 'EXCEEDS the recommended 150.0 mA' in hit[0]['detail'], _by(f, 'power_budget'))
     # ---- (h) the D6 -> D3 feedback with a heavier load
-    f = run(loads=[{'pin': 'D6', 'kind': 'led', 'current_ma': 25}], links=[{'driver': 'D6', 'input': 'D3'}])
+    f = run(loads=[{'pin': 'D6', 'kind': 'led', 'current_ma': 25}], links=[{'output': 'D6', 'input': 'D3'}])
     check('(h) D6 -> D3: a 25 mA load is past the 20 mA VOH is guaranteed at -> input_threshold (high) refuse; the same net at 13.6 mA is ok on both levels',
           [x['status'] for x in _by(f, 'input_threshold') if x['subject'].endswith('(high)')] == ['refuse']
-          and _status(run(loads=[{'pin': 'D6', 'kind': 'led', 'current_ma': 13.6}], links=[{'driver': 'D6', 'input': 'D3'}]), 'input_threshold') == ['ok'])
+          and _status(run(loads=[{'pin': 'D6', 'kind': 'led', 'current_ma': 13.6}], links=[{'output': 'D6', 'input': 'D3'}]), 'input_threshold') == ['ok'])
 
     # ---- the light test circuit
     f = run(**LIGHT)

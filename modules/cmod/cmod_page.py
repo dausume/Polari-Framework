@@ -322,7 +322,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               'compatibility, the button\'s pull)', '',
                               description='What this is for: THE ELECTRICAL CHECK (board.custom.electrical_check) '
                                           'over the demo circuit\'s rows. One row = one finding: rule (led_current | '
-                                          'single_driver | shared_ground | level_compatible | pull_defined), status (ok | '
+                                          'single_output | shared_ground | level_compatible | pull_defined), status (ok | '
                                           'warn | refuse | undetermined — undetermined means a number was not cited, '
                                           'never guessed), subject, detail (the computed figure or the reason), cite (the '
                                           'board/datasheet/kit-part facts used). From the command line: pol board circuit-check.',
