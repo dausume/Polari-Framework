@@ -185,7 +185,7 @@ def run_pin_view(check):
           next(r for r in pr['rows'] if r['id'] == 'SocPin:atmega328p:PD6')['drive_class'] == 'atmega328p:io-standard' and 'pwm-timer' in next(r for r in pr['rows'] if r['id'] == 'SocPin:atmega328p:PD6')['families']
           and not any(UNIT.search(json.dumps(r['drive_class'])) for r in pr['rows']), '')
     from board.board_page import SEED_BOARD_PAGE_DISPLAYS as PAGES
-    from board.pin_view_pages import PIN_VIEW_PAGES
+    from board.pin_view_page import PIN_VIEW_PAGES
     mine = [p for p in PAGES if p['name'] in ('pin-view-pins', 'pin-view-connections', 'pin-view-surfaces')]
     items = [it for p in mine for r in json.loads(p['definition'])['rows'] for it in r['items']]
     check('PAGES: the three DisplayDefinitions exist (Pins, Connections, Surfaces) and are configured tables only — every item is a class-rows-table over a pin-view row door, none is an api-json-panel or a new component; their text says what a row is',

@@ -133,6 +133,7 @@
    "board_api",
    "board_object_api",
    "installer_api",
+   "pin_view_api",
    "register_profile_api"
   ],
   "endpoints": [
@@ -143,6 +144,7 @@
   ],
   "page": [
    "board_page",
+   "pin_view_page",
    "register_profile_page"
   ],
   "selftests": [
@@ -162,6 +164,7 @@
    "board_mapping_selftest",
    "board_register_profile_selftest",
    "board_object_selftest",
+   "board_pin_view_selftest",
    "board_pinlevel_selftest",
    "board_selftest",
    "board_target_compat_selftest",
@@ -231,6 +234,11 @@
    "custom/readiness",
    "custom/register_fields_atmega328p",
    "custom/register_import",
+   "custom/pin_view",
+   "custom/pin_view_model",
+   "custom/pin_view_state",
+   "custom/pv_families",
+   "custom/pv_shapes",
    "custom/register_map",
    "custom/registers",
    "custom/register_profile",
@@ -298,6 +306,7 @@
   "PinFunction",
   "PinGroupBudget",
   "PinLifecycleConstraint",
+  "PinViewAPI",
   "ProgrammerKind",
   "Register",
   "RegisterAddressMapping",

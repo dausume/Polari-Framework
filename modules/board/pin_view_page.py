@@ -1,5 +1,5 @@
 """
-@module board.pin_view_pages
+@module board.pin_view_page
 
 pv-0 (PIN_VIEW_PLAN.md 2.9): the pin view's DATA VIEWS beside the d3 view — three configured pages (tables only: no raw JSON, no new component): Pins, Connections, Surfaces. Each table reads one of
 the row doors `GET /api/board/<board>/pin-view/{pins|connections|surfaces}`; a table's stage / protocol / system / binding are fixed in its data path (the generic table filters by a column, it
@@ -79,4 +79,3 @@ PIN_VIEW_PAGES = [
           ]),
 ]
 
-SEED_PIN_VIEW_PAGE_DISPLAYS = PIN_VIEW_PAGES
