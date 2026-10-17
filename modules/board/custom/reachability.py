@@ -113,10 +113,12 @@ def exposure(board, pin=None, tables=None):
     if pin is None:
         return rows
     refs = set()
+    # a BoardPin's soc_pin belongs to the board's OWN SoC (Identity.soc_definition) — never another chip's pin of the same name (the 16U2 also has a PB5)
+    board_soc = ((BO.rows_for(board, tables).get('soc')) or {}).get('name', '')
     for bp in tables.get('BoardPin', []):
         if bp['board'] == board and bp['canonical'] == pin:
             refs.add('BoardPin:%s' % bp['name'])
-            refs |= {'SocPin:%s' % s['name'] for s in tables.get('SocPin', []) if s['pin'] == bp['soc_pin'] and s['soc'] in {c['soc'] for c in _components(tables, board)}}
+            refs |= {'SocPin:%s' % s['name'] for s in tables.get('SocPin', []) if s['pin'] == bp['soc_pin'] and s['soc'] == board_soc}
     for cp in tables.get('ConnectorPin', []):
         if cp['board'] == board and (cp['label'] == pin or cp.get('board_pin') == pin):
             refs.add('ConnectorPin:%s' % cp['name'])

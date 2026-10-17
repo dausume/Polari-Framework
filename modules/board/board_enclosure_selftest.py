@@ -200,6 +200,10 @@ def run_enclosure(check):
         b = cli(['reach', BOARD, '--json'])
     with contextlib.redirect_stdout(io.StringIO()) as o3:
         c = cli(['ladder', BOARD, 'D0', 'RXD', '--package', SPDIP, '--transport', 'usb-serial'])
+    from board.custom import reachability as RCH
+    d13 = RCH.exposure(BOARD, 'D13', t)
+    check('SCOPE: a board pin\'s exposure is its OWN SoC\'s pin only — D13 (328P PB5) never lists the 16U2\'s PB5 crossings',
+          d13 and not any('atmega16u2' in (c['inner_ref'] + c['outer_ref']) for c in d13), str([c['name'] for c in d13 if 'atmega16u2' in c['inner_ref'] + c['outer_ref']]))
     check('CLI: `exposure <board> [<pin>]`, `reach <board> --json` and `ladder` run', a == b == c == 0 and 'RN4B' in o1.getvalue() and json.loads(o2.getvalue())['ok'] and 'blocked at rung 8' in o3.getvalue())
 
 
