@@ -25,15 +25,16 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('fifty-one row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('fifty-four row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
           'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract; '
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
-          'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps)',
-          len(BOARD_CLASSES) == 51)
+          'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
+          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths)',
+          len(BOARD_CLASSES) == 54)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -387,6 +388,8 @@ def main():
     run_light(check)
     from board.board_enclosure_selftest import run_enclosure   # hsp-0: enclosure kinds, exposure maps, the 16U2 rows, reachability + ladder, the doors
     run_enclosure(check)
+    from board.board_hardware_system_selftest import run_hardware_system   # hsp-1: the hardware system, its links, the three signal paths, the doors
+    run_hardware_system(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     print('\n%d/%d checks passed' % (passed, total))

@@ -323,6 +323,16 @@ def _resolve(binding_or_board, tables):
     '<solution>' / '<solution>@<board>' naming a real FirmwareSolution: its DEFAULT binding's own PinClaims are
     derived (`cmod.custom.claims.pin_claims`) so rule (e) can read a REAL pull claim when one exists. Never raises
     — any resolution failure just means no claims (honest warn, never a guess)."""
+    memo = tables.get('_resolved')   # hsp-1: a caller that asks many questions of one design lends a dict; the (slow) binding derivation runs once
+    if memo is not None and binding_or_board in memo:
+        return memo[binding_or_board]
+    res = _resolve_uncached(binding_or_board, tables)
+    if memo is not None:
+        memo[binding_or_board] = res
+    return res
+
+
+def _resolve_uncached(binding_or_board, tables):
     from board.custom import board_object as BO
     try:
         from cmod.custom import binding as BND

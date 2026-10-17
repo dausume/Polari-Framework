@@ -106,7 +106,7 @@ def _open_rungs(rungs):
     return (' so far (%s)' % '; '.join(bits)) if bits else ''
 
 
-def availability(pin, function, ctx, tables=None):
+def availability(pin, function, ctx, tables=None, cache=None):
     """-> {board, pin, soc_pin, function, context, results: [{package, rungs, available, blocked_at, conditions}], differs}."""
     from board.custom import board_object as BO
     ctx = context_from(ctx)
@@ -114,7 +114,7 @@ def availability(pin, function, ctx, tables=None):
     tables = tables if tables is not None else BO.seed_tables()
     comp, sp, bp, label = _resolve(pin, tables, board, ctx.get('chip', ''))
     function = function or 'GPIO'
-    cache = {}
+    cache = {} if cache is None else cache   # hsp-1: a caller that asks many questions of one design shares the cache (the electrical findings and the binding's claims are computed once)
     results = []
     for package in _packages(comp, ctx, tables, board):
         rungs = _walk(tables, board, comp, sp, bp, label, function, package, ctx, cache)
@@ -232,6 +232,9 @@ def _etables(tables, cache):
         for k, v in tables.items():
             if v and k not in ('CircuitDefinition', 'CircuitNetDefinition', 'CircuitComponentDefinition', 'BoardPinNet') and k != '_manager':
                 et[k] = v
+        et['_resolved'] = {}   # hsp-1: shared by every electrical check and claim lookup of this design
+        if 'BoardPinNet' in tables:   # hsp-1: the bench wiring of the tables in hand (a removed jumper must show), not the seed's
+            et['BoardPinNet'] = tables['BoardPinNet']
         cache['et'] = et
     return cache['et']
 
@@ -240,9 +243,10 @@ def _rung7(tables, board, bp, label, ctx, cache):
     if not ctx.get('circuit'):
         return _r(7, 'unchecked', 'no circuit in the context: the electrical rules run on a circuit')
     from board.custom import electrical_check as EC
-    key = ('ec', ctx['circuit'])
-    if key not in cache:
-        cache[key] = EC.check(ctx['circuit'], board, _etables(tables, cache), context={k: ctx[k] for k in ('transport', 'acknowledged', 'icsp') if k in ctx})
+    key = ('ec', ctx['circuit'], ctx.get('binding', ''))
+    if key not in cache:   # hsp-1: with a binding in the context the rules read ITS PinClaims (rule (e) sees a real pull='up')
+        cache[key] = EC.check(ctx['circuit'], ctx.get('binding') or board, _etables(tables, cache),
+                              context={k: ctx[k] for k in ('transport', 'acknowledged', 'icsp') if k in ctx})
     canon = bp['canonical'] if bp else label
     mine = [f for f in cache[key] if re.search(r'(?<![A-Za-z0-9])%s(?![A-Za-z0-9])' % re.escape(canon), f['subject'] + ' ' + f['detail'])]
     bad = [f for f in mine if f['status'] == 'refuse']
@@ -281,12 +285,18 @@ def _rung9(tables, board, bp, fn, ctx, cache):
     if not ctx.get('binding'):
         return _r(9, 'unchecked', 'no binding in the context: PinClaim / PeripheralClaim belong to a firmware solution\'s binding')
     from board.custom import electrical_check as EC
-    _b, claims = EC._resolve(ctx['binding'], _etables(tables, cache))
+    if ('claims', ctx['binding']) not in cache:
+        cache[('claims', ctx['binding'])] = EC._resolve(ctx['binding'], _etables(tables, cache))
+    _b, claims = cache[('claims', ctx['binding'])]
     mine = [c for c in claims if bp and c.get('board_pin', '').rpartition(':')[2] == bp['canonical']]
     if not mine:
         return _r(9, 'ok', 'no PinClaim of binding %s sits on %s (PeripheralClaim rows are not read here)' % (ctx['binding'], bp['canonical'] if bp else '?'), 'cmod.custom.claims.pin_claims')
-    other = [c for c in mine if (c.get('pin_function') or '') not in ('', fn)]
-    return _r(9, 'blocked' if other else 'conditional', '; '.join('%s claims %s as %s (%s)' % (c.get('solution', ''), c.get('board_pin', ''), c.get('pin_function') or c.get('mode'), c.get('status', '')) for c in mine),
+    # hsp-1: a claim of the binding IN THE CONTEXT is the asked claim itself (same function, or a plain GPIO mode) — it confirms, it does not compete
+    other = [c for c in mine if (c.get('pin_function') or '').rpartition(':')[2] not in ('', fn)]
+    if not other:
+        return _r(9, 'ok' if all(c.get('status') in ('ok', '', None) for c in mine) else 'conditional', '; '.join('%s claims %s as %s (%s) — the claim being asked' % (c.get('solution', ''), c.get('board_pin', ''), c.get('pin_function') or c.get('mode'),
+                                                                                     c.get('status', '')) for c in mine), 'cmod.custom.claims.pin_claims')
+    return _r(9, 'blocked', '; '.join('%s claims %s as %s (%s)' % (c.get('solution', ''), c.get('board_pin', ''), c.get('pin_function') or c.get('mode'), c.get('status', '')) for c in mine),
               'cmod.custom.claims.pin_claims')
 
 

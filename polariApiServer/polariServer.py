@@ -1332,6 +1332,8 @@ class polariServer(treeObject):
             PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint,
             # hsp-0: enclosure kinds (tentative catalogue), enclosures, exposure maps (one row per pin crossing)
             EnclosureKind, HardwareEnclosure, EnclosureContact,
+            # hsp-1: the hardware system, its links and its derived signal paths
+            HardwareSystem, SystemLink, SignalPath,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

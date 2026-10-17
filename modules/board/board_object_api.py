@@ -31,6 +31,12 @@ GET  /api/board/{board}/exposure/{pin}    the crossings touching one pin (D13, R
 GET  /api/board/{board}/reachability      a verdict per SoC pin (header | internal | not-bonded | undetermined), a reachable flag per function, the inward trace per
                                           header pin; with ?pin=&function= (+ package, circuit, binding, phase, transport) the ten-rung availability ladder
 
+hsp-1 (L6/L7/L9): the hardware system, its links and signal paths —
+GET  /api/hardware-systems                      every system (stage, solution, links, each path's verdict)
+GET  /api/hardware-systems/{name}               one system with participants and links
+GET  /api/hardware-systems/{name}/links         its SystemLink rows
+GET  /api/hardware-systems/{name}/paths[?path=] its SignalPath rows, hop by hop (`rows` paths, `hops` one row per hop)
+
 GET  /api/board/kit-parts           every KitPart row (board.custom.kit_parts) + `parts_without_sample` (the names
                                     with no sample_capabilities yet — the backlog for future sample firmwares)
 GET  /api/board/kit-parts/{part}    one KitPart row by its bare key (e.g. 'tmp36') or full name ('arduino-starter-kit:tmp36')
@@ -55,6 +61,10 @@ class BoardObjectAPI(treeObject):
             add('/api/board/{board}/exposure', self, suffix='exposure')   # hsp-0: every pin crossing of the board's enclosures
             add('/api/board/{board}/exposure/{pin}', self, suffix='exposure_pin')   # hsp-0: the crossings of one pin + its inward trace
             add('/api/board/{board}/reachability', self, suffix='reachability')   # hsp-0: header / internal / not-bonded per SoC pin; ?pin=&function= adds the ladder
+            add('/api/hardware-systems', self, suffix='hwsystems')   # hsp-1: the hardware systems, their links and signal paths
+            add('/api/hardware-systems/{name}', self, suffix='hwsystem')
+            add('/api/hardware-systems/{name}/links', self, suffix='hwsystem_links')
+            add('/api/hardware-systems/{name}/paths', self, suffix='hwsystem_paths')
             add('/api/board/{board}/views', self, suffix='views')
             add('/api/board/{board}/conflicts', self, suffix='conflicts')
             add('/api/board/{board}/render', self, suffix='render')
@@ -232,6 +242,28 @@ class BoardObjectAPI(treeObject):
             response.media = {'ok': False, 'error': str(e.args[0])}
             return
         response.media = dict(res, ok=True, source=note, rows=res['pins'])
+
+    def _hws(self, response, fn, *args):
+        from board.custom import hwsys_doors as D
+        status, payload = getattr(D, fn)(self.manager, *args)
+        response.status = {200: falcon.HTTP_200, 404: falcon.HTTP_404}[status]
+        response.media = payload
+
+    def on_get_hwsystems(self, request, response):
+        """hsp-1 (L9): GET /api/hardware-systems — every hardware system: stage, solution, links, each signal path's verdict. `pol board systems`."""
+        self._hws(response, 'systems')
+
+    def on_get_hwsystem(self, request, response, name):
+        """hsp-1: GET /api/hardware-systems/{name} — one system with its participants and links."""
+        self._hws(response, 'system_one', name)
+
+    def on_get_hwsystem_links(self, request, response, name):
+        """hsp-1: GET /api/hardware-systems/{name}/links — its SystemLink rows (endpoints, medium, signal kind, protocol, the crossings it rides on)."""
+        self._hws(response, 'links', name)
+
+    def on_get_hwsystem_paths(self, request, response, name):
+        """hsp-1: GET /api/hardware-systems/{name}/paths[?path=<slug>] — its signal paths hop by hop, each hop with the verdict of the check that owns it. `pol board paths <system>`."""
+        self._hws(response, 'paths', name, request.params.get('path') or '')
 
     def _power_pin_detail(self, request, response, r, pin, KP):
         """fs-2d: the pin-detail door for a power/reference connector label (never a BoardPin row — IOREF, RESET,

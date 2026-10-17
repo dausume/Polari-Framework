@@ -15,6 +15,7 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
 from board.board_basis import (PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget,
                                PinLifecycleConstraint)   # fgm-2: the UNO hardware truth
 from board.board_basis import EnclosureKind, HardwareEnclosure, EnclosureContact   # hsp-0: enclosures + exposure maps
+from board.board_basis import HardwareSystem, SystemLink, SignalPath   # hsp-1: Hardware System, links, signal paths
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -111,6 +112,11 @@ BOARD_SEED_PAIRS += [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls 
     ('PinLifecycleConstraint', PinLifecycleConstraint),
     # hsp-0: kinds catalogue (tentative), the enclosures, the exposure maps — derived from the rows above (board.custom.exposure)
     ('EnclosureKind', EnclosureKind), ('HardwareEnclosure', HardwareEnclosure), ('EnclosureContact', EnclosureContact))]
+# hsp-1: the Hardware System, its links and its three signal paths — code-owned and RECOMPUTED on every seed (board.custom.hardware_system.seed_rows: derived from the rows above
+# and from the owners of each check; a path is never typed)
+from board.custom import hardware_system as _HWS   # noqa: E402
+_HW_SYSTEM = _HWS.seed_rows()
+BOARD_SEED_PAIRS += [(c, cls, _register_owned(_HW_SYSTEM[c])) for c, cls in (('HardwareSystem', HardwareSystem), ('SystemLink', SystemLink), ('SignalPath', SignalPath))]
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode
     BOARD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_BOARD_TECH_TREES),
