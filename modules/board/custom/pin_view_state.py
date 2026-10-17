@@ -297,6 +297,13 @@ def summarise(model, ctx, tables, board):
         adj.setdefault(c['a'], []).append(c['b'])
         adj.setdefault(c['b'], []).append(c['a'])
     bp_role = {b['canonical']: b['function'] for b in tables.get('BoardPin', []) if b['board'] == board}
+    # a header pin on a bench net carries the chip pin's SIGNAL role there (BoardPinNet: output | input — D-pv-7); without one it only passes the signal
+    from board.custom import board_pin_nets as BPN
+    net_role = {}
+    for r in tables.get('BoardPinNet', []):
+        if r.get('board') == board and r.get('board_pin'):
+            canon_r = r['board_pin'].rpartition(':')[2]
+            net_role[canon_r] = 'outputs' if BPN.is_output(r.get('role')) else 'inputs' if r.get('role') == 'input' else net_role.get(canon_r, '')
     for c in model.connections:
         a, b = model.pins[c['a']], model.pins[c['b']]
         # ---- signal (SignalPotential)
@@ -316,13 +323,15 @@ def summarise(model, ctx, tables, board):
         def word(s, pin):
             if pin['level'] in ('die', 'package') and s:
                 return 'outputs' if (mode == 'out' and s['family'] == 'gpio') else 'inputs' if (mode == 'in' and s['family'] == 'gpio') else SIGNAL_DIR.get(s['direction'], 'undetermined')
-            return 'passes' if pin['level'] == 'board' else 'undetermined'
+            if pin['level'] == 'board':
+                return net_role.get(pin.get('canonical') or '', '') or 'passes'
+            return 'undetermined'
         sig_a, sig_b = word(sa, a), word(sb, b)
         if fam in ('power', 'ground'):
             sig_a = sig_b = 'none'   # a supply or a return carries no signal
         names = [x['signal'].partition(':')[2] or x['function'] for x in (sa, sb) if x]
         c['signal'] = {'a': sig_a, 'b': sig_b, 'family': fam, 'token': F.token(fam) if fam else '', 'protocol_signal': ' <-> '.join(dict.fromkeys(names)) if names else '',
-                       'function_a': sa['function'] if sa else '', 'function_b': sb['function'] if sb else '', 'note': 'signal words only: outputs / inputs / bidirectional / passes (a header or a wire only passes the signal)'}
+                       'function_a': sa['function'] if sa else '', 'function_b': sb['function'] if sb else '', 'note': 'signal words only: outputs / inputs / bidirectional / passes (a header pin takes its bench-net role when it has one, else it only passes the signal)'}
         # ---- drive (DrivePotential): roles, rail and domain as words, the pull, the class of the limit
         kinds = [x['kind'] for x in (ca, cb) if x['level'] in ('die', 'package')]
         rail = next((RAIL[k] for k in kinds if k in RAIL), '')
