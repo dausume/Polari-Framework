@@ -116,10 +116,11 @@ def part_box(p):
 def header(p):
     """A header row (1 x N, or 2 x N/2 for an ICSP): {number: (x, y)} in the board frame; `pitch` is the cited 2.54 mm."""
     n, pitch, rows = int(p['pins']), float(p['pitch']), int(p.get('rows', 1))
+    step = pitch * (-1 if p.get('dir', 1) < 0 else 1)   # dir -1: pin numbers run right-to-left (the UNO's top headers: D0 at the right edge)
     out = []
     for i in range(n):
         if rows == 1:
-            out.append({'number': i + 1, 'x': p['x'] + i * pitch, 'y': p['y']})
+            out.append({'number': i + 1, 'x': p['x'] + i * step, 'y': p['y']})
         else:
             col, row = i % rows, i // rows   # odd pins in one column, even in the other (the ICSP numbering)
             out.append({'number': i + 1, 'x': p['x'] + col * pitch, 'y': p['y'] + row * pitch})
@@ -214,8 +215,10 @@ def die_row(soc):
 # ---- the UNO board
 BOARD_BBOX = (66.04, 50.80)
 HOLE_D = 3.20
-#: header rows on the UNO: connector -> (x, y of pin 1, rows). Positions are DRAWING KNOBS (the cited drawing dimensions the outline, holes and the 100 mil pitch only).
-HEADERS = {'DIGITAL_H': (21.0, 2.54, 1), 'DIGITAL_L': (47.0, 2.54, 1), 'POWER': (24.0, 48.26, 1), 'ANALOG': (46.0, 48.26, 1), 'ICSP': (61.5, 22.0, 2)}
+#: header rows on the UNO: connector -> (x, y of pin 1, rows, dir). Positions are DRAWING KNOBS (the cited drawing dimensions the outline, holes and the 100 mil
+#: pitch only). With the USB connector on the left, the top headers number right-to-left: D0 sits at the right edge, D7 then a wider gap then D8 … D13, GND,
+#: AREF, SDA, SCL towards the left (the UNO's printed header order); the bottom headers read left-to-right (NC, IOREF, RESET, 3V3, 5V, GND, GND, VIN; A0–A5).
+HEADERS = {'DIGITAL_L': (63.5, 2.54, 1, -1), 'DIGITAL_H': (41.6, 2.54, 1, -1), 'POWER': (24.0, 48.26, 1, 1), 'ANALOG': (46.0, 48.26, 1, 1), 'ICSP': (61.5, 22.0, 2, 1)}
 #: placed footprints: ref -> (x, y, rotation degrees) in the board frame, centre of the footprint. KNOBS.
 PLACE = {'U1': (38.0, 25.4, 90), 'U2': (13.0, 26.0, 0), 'X2': (5.0, 14.0, 0)}
 
@@ -282,8 +285,8 @@ def board_row(board, tables):
     conns = [c for c in tables.get('Connector', []) if c['board'] == board]
     heads = []
     for c in conns:
-        x, y, rows = HEADERS.get(c['connector'], (5.0, 5.0, 1))
-        heads.append({'connector': c['connector'], 'ref': c.get('ref', ''), 'pins': c['pin_count'], 'pitch': 2.54, 'rows': rows, 'x': x, 'y': y, 'name': c['name']})
+        x, y, rows, dirn = HEADERS.get(c['connector'], (5.0, 5.0, 1, 1))
+        heads.append({'connector': c['connector'], 'ref': c.get('ref', ''), 'pins': c['pin_count'], 'pitch': 2.54, 'rows': rows, 'dir': dirn, 'x': x, 'y': y, 'name': c['name']})
     w, h = BOARD_BBOX
     outline = [[0, 0], [w, 0], [w, 12.7], [w + 2.54, 15.24], [w + 2.54, 48.26], [w, h], [0, h]]
     holes = [{'x': 15.24, 'y': 2.54, 'd': HOLE_D, 'cited': True}, {'x': 66.04, 'y': 17.78, 'd': HOLE_D, 'cited': True}, {'x': 66.04, 'y': 45.72, 'd': HOLE_D, 'cited': True},
