@@ -1330,6 +1330,8 @@ class polariServer(treeObject):
             Datasheet,
             # fgm-2: the UNO hardware truth — package + USB-interface axes, chips as rows, numbers per pad class, group budgets, pin lifecycle
             PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint,
+            # hsp-0: enclosure kinds (tentative catalogue), enclosures, exposure maps (one row per pin crossing)
+            EnclosureKind, HardwareEnclosure, EnclosureContact,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

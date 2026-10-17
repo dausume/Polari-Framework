@@ -15,6 +15,8 @@ from board.custom import usb_interfaces as UI
 from board.custom import electrical_atmega328p as EL
 from board.custom import lifecycle_uno as LC
 from board.custom import uno_evidence as EV
+from board.custom import packages_atmega16u2 as P2     # hsp-0: the 16U2's QFN32 + its SocPins
+from board.custom import soc_atmega16u2 as S2
 
 IDENTITY = {
     # fgm-2 (his ruling 2026-10-15): the design allows these package / USB-interface variants INDEPENDENTLY; which pair is on the bench is PENDING
@@ -42,6 +44,7 @@ def build(boards):
             seen.add(n['name'])
             nets.append(n)
     out = _layers(boards, conns, cpins, nets)
+    P2.link_soc_pins(out['SocPin'], out['PackageContact'])   # hsp-0: the 16U2's SocPins gain their package-contact refs
     PK.link_soc_pins(out['SocPin'], out['PackageContact'])   # fgm-2: SocPin gains its pad class + the package contacts it appears on (in place)
     # ucd-0a: THE HARDWARE CHAIN (board.custom.hardware_chain) — Peripheral / PeripheralSignal / PinFunction / Register /
     # RegisterField rows derived from the same sources, and the SocPin / BoardPin rows gain their reverse links in place
@@ -50,6 +53,9 @@ def build(boards):
     # ucd-doc: THE DATASHEETS, as rows — resolved from every DatasheetFact/RegisterField this build produced PLUS the
     # UNO's own uno_facts.SEED_UNO_FACTS (seeded separately, board_seed.BOARD_SEED_PAIRS's 'DatasheetFact' entry) —
     # mutates every one of those dicts in place, adding `datasheet`, so whichever entry point built them carries it.
+    # hsp-0: THE ENCLOSURES — kinds (tentative), enclosures, the exposure maps, derived from the rows built above
+    from board.custom import exposure as EXP
+    out.update(EXP.build(out))
     from board.custom.uno_facts import SEED_UNO_FACTS
     from board.custom import datasheets as DS
     out['Datasheet'] = DS.rows(SEED_UNO_FACTS + out['DatasheetFact'], out['RegisterField'])
@@ -63,15 +69,15 @@ def _layers(boards, conns, cpins, nets):
     return {
         'SocDefinition': [A.soc_definition(), C.soc_definition(), UI.soc_16u2()],
         # fgm-2: the UNO hardware truth (package + USB-interface axes, chips as rows, numbers per pad class, group budgets, lifecycle)
-        'PackageContact': contacts, 'PackageDefinition': PK.package_definitions(contacts), 'UsbInterfaceDefinition': UI.usb_interfaces(),
+        'PackageContact': contacts + P2.contacts(), 'PackageDefinition': PK.package_definitions(contacts) + [P2.package_definition()], 'UsbInterfaceDefinition': UI.usb_interfaces(),
         'BoardComponent': UI.components(), 'ElectricalCharacteristic': EL.characteristics(), 'PinGroupBudget': EL.budgets(),
         'PinLifecycleConstraint': LC.constraints(),
-        'SocPin': A.soc_pins() + C.soc_pins(),
+        'SocPin': A.soc_pins() + C.soc_pins() + S2.soc_pins(),
         'BoardHardware': [U.hardware(_usb(U.BOARD, boards)), C.hardware(_usb(C.BOARD, boards))],
         'BoardNet': nets,
         'Connector': conns,
         'ConnectorPin': cpins,
         'BoardPin': U.board_pins() + C.board_pins(),
         'RuntimeProfile': U.runtime_profiles() + C.runtime_profiles(),
-        'DatasheetFact': A.soc_facts() + U.facts() + C.facts() + EV.facts(),
+        'DatasheetFact': A.soc_facts() + U.facts() + C.facts() + EV.facts() + S2.soc_facts(),
     }

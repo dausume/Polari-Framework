@@ -55,3 +55,7 @@ from board.objects.board.BoardComponent import BoardComponent  # noqa: F401
 from board.objects.board.ElectricalCharacteristic import ElectricalCharacteristic  # noqa: F401
 from board.objects.board.PinGroupBudget import PinGroupBudget  # noqa: F401
 from board.objects.board.PinLifecycleConstraint import PinLifecycleConstraint  # noqa: F401
+# hsp-0: enclosures and exposure maps (HARDWARE_SYSTEM_PINS_PLAN.md L1-L3)
+from board.objects.board.EnclosureKind import EnclosureKind  # noqa: F401
+from board.objects.board.HardwareEnclosure import HardwareEnclosure  # noqa: F401
+from board.objects.board.EnclosureContact import EnclosureContact  # noqa: F401

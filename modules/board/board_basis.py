@@ -63,6 +63,10 @@ from board.objects.board.BoardComponent import BoardComponent  # noqa: F401
 from board.objects.board.ElectricalCharacteristic import ElectricalCharacteristic  # noqa: F401
 from board.objects.board.PinGroupBudget import PinGroupBudget  # noqa: F401
 from board.objects.board.PinLifecycleConstraint import PinLifecycleConstraint  # noqa: F401
+# hsp-0: enclosures and exposure maps (HARDWARE_SYSTEM_PINS_PLAN.md L1-L3) — kinds catalogue (tentative), instances, one row per pin crossing
+from board.objects.board.EnclosureKind import EnclosureKind  # noqa: F401
+from board.objects.board.HardwareEnclosure import HardwareEnclosure  # noqa: F401
+from board.objects.board.EnclosureContact import EnclosureContact  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -78,4 +82,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  LightState,   # ucd-light: the light test's one wire struct
                  Datasheet,   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
                  PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent,   # fgm-2: package + USB-interface axes, chips as rows
-                 ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint]   # fgm-2: numbers per pad class, group budgets, lifecycle
+                 ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint,   # fgm-2: numbers per pad class, group budgets, lifecycle
+                 EnclosureKind, HardwareEnclosure, EnclosureContact]   # hsp-0: enclosure kinds (tentative), enclosures, exposure maps

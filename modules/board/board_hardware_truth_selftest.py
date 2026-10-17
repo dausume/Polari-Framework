@@ -38,7 +38,7 @@ def _model(check):
     from board.custom import board_object as BO
     t = BO.seed_tables()
     names = ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget', 'PinLifecycleConstraint')
-    check('fgm-2: the seven new classes are BOARD_CLASSES members', {c.__name__ for c in BOARD_CLASSES} >= set(names) and len(BOARD_CLASSES) == 48, len(BOARD_CLASSES))
+    check('fgm-2: the seven new classes are BOARD_CLASSES members', {c.__name__ for c in BOARD_CLASSES} >= set(names) and len(BOARD_CLASSES) == 51, len(BOARD_CLASSES))   # hsp-0: 48 + EnclosureKind, HardwareEnclosure, EnclosureContact
     seeded = {c: (cls, rows) for c, cls, rows in BOARD_SEED_PAIRS}
     check('fgm-2: every new class is a seed pair, code-owned (rows converge)', all(c in seeded and seeded[c][1] and all('_converge' in r for r in seeded[c][1]) for c in names))
     try:
@@ -49,8 +49,8 @@ def _model(check):
         check('fgm-2: every seed row constructs its class (no stray field) — %d rows' % len(built), len(built) == sum(len(seeded[c][1]) for c in names))
     except TypeError as e:
         check('fgm-2: every seed row constructs its class (no stray field)', False, str(e))
-    check('fgm-2: row counts — 2 packages, 60 contacts (28 + 32), 2 USB interfaces, 2 components, 7 group budgets',
-          [len(t[c]) for c in ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'PinGroupBudget')] == [2, 60, 2, 2, 7], {c: len(t[c]) for c in names})
+    check('fgm-2: row counts — 3 packages (hsp-0: + the 16U2 QFN), 93 contacts (28 + 32 + 33 QFN), 2 USB interfaces, 2 components, 7 group budgets',
+          [len(t[c]) for c in ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'PinGroupBudget')] == [3, 93, 2, 2, 7], {c: len(t[c]) for c in names})
 
     # ---- packages
     pc = {c['name']: c for c in t['PackageContact']}
@@ -68,7 +68,7 @@ def _model(check):
     pdef = {p['name']: p for p in t['PackageDefinition']}
     check('packages: adc_channels 6 (SPDIP) vs 8 (TQFP); contacts_refs resolve; every contact cites a figure page',
           pdef['atmega328p-28-spdip']['adc_channels'] == 6 and pdef['atmega328p-32-tqfp']['adc_channels'] == 8
-          and all(r.partition(':')[2] in pc for p in pdef.values() for r in json.loads(p['contacts_refs_json'])) and all('p.12' in c['page_table'] for c in pc.values()))
+          and all(r.partition(':')[2] in pc for p in pdef.values() for r in json.loads(p['contacts_refs_json'])) and all('p.12' in c['page_table'] for c in pc.values() if c['package'].startswith('atmega328p')))   # hsp-0: the QFN's contacts cite p.2
     check('packages: SocPin rows carry electrical_class (PC6 -> reset, the rest io-standard) and PB6 names the XTAL1 alternate class',
           sp['atmega328p:PC6']['electrical_class'] == 'atmega328p:reset' and sp['atmega328p:PD6']['electrical_class'] == 'atmega328p:io-standard'
           and json.loads(sp['atmega328p:PB6']['electrical_alt_classes_json']) == {'XTAL1': 'atmega328p:xtal1'})
@@ -108,8 +108,8 @@ def _model(check):
           and comp['U2']['usb_interface'] == 'atmega16u2-bridge' and comp['U2']['soc'] in socs and ui['atmega16u2-bridge']['programmable_soc'] == 'atmega16u2')
     comps_json = {c['ref']: c for c in json.loads(next(h for h in t['BoardHardware'] if h['board'] == 'arduino-uno-r3')['components_json'])}
     check('components: derived from BoardHardware.components_json (same value strings) — the JSON itself is unchanged', comps_json['U1']['value'] == comp['U1']['value'] and comps_json['U2']['value'] == comp['U2']['value'])
-    check('components: U2 SocDefinition cites its own datasheet (16 KB flash / 512 B SRAM) and says its pins are not modelled', json.loads(socs['atmega16u2']['memory_map_json'])[0]['size'] == 16384
-          and 'NOT modelled' in socs['atmega16u2']['undetermined'])
+    check('components: U2 SocDefinition cites its own datasheet (16 KB flash / 512 B SRAM) and says its registers / PinFunctions are not modelled (hsp-0: its pins are SocPins)', json.loads(socs['atmega16u2']['memory_map_json'])[0]['size'] == 16384
+          and 'PinFunctions are not modelled' in socs['atmega16u2']['undetermined'])
 
 
 def _numbers(check):

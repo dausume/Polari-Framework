@@ -441,6 +441,16 @@ def chain_for(board, pin, tables):
         if c is not None:
             hops.append(_hop(2, 'PackageContact', c['name'], 'package leg %s of %s — %s' % (c['number'], c['package'], c['label']),
                              'electrical class %s · %s' % (c['electrical_class'] or '—', c['page_table'])))
+    # hsp-0: the exposure hops — every crossing (E1 package leg, E2 header / part) that touches this SoC pin, its legs or its board pin: via + part + value +
+    # what an internal line is consumed by (EnclosureContact rows; absent on a server that has not seeded them yet)
+    if tables.get('EnclosureContact'):
+        from board.custom import exposure_view as V
+        refs = {'SocPin:%s' % sp['name'], 'BoardPin:%s' % bp['name']} | set(json.loads(sp.get('package_contacts_refs_json') or '[]'))
+        refs |= {'ConnectorPin:%s' % cp['name'] for cp in tables.get('ConnectorPin', []) if cp.get('board') == r['board'] and cp.get('board_pin') == bp['canonical']}
+        for c in sorted(V.touching(V.board_rows(tables, r['board']), refs), key=lambda c: (c['level'], c['name'])):
+            hops.append(_hop(2, 'EnclosureContact', c['name'], '%s crossing: %s -> %s' % (c['level'], c['inner_ref'] or '(die pad undetermined)', c['outer_ref'] or c['via']),
+                             '%s%s%s · %s' % (c['via'], (' ' + ' '.join(x for x in (c['via_part'], c['via_value']) if x)) if c['via_part'] or c['via_value'] else '',
+                                              (' · consumed by ' + c['consumed_by']) if c['consumed_by'] else '', c['verification'])))
     life = [x for x in tables.get('PinLifecycleConstraint', []) if x.get('board') == r['board'] and x.get('pin') == bp['canonical']]
     order = ('power-up', 'reset', 'bootloader', 'init', 'runtime', 'programming', 'debug')
     for x in sorted(life, key=lambda x: (order.index(x['phase']) if x['phase'] in order else 99, x['name'])):

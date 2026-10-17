@@ -25,6 +25,12 @@ location / citations), alongside `parts_that_connect_here` (board.custom.kit_par
 the kit parts register a sample firmware is built from) in place of `registered_tasks` (a power rail is never a task
 target, so it never has any).
 
+hsp-0 (HARDWARE_SYSTEM_PINS_PLAN.md L3/L4/L9): the enclosures' pin side —
+GET  /api/board/{board}/exposure          every crossing of the board's enclosures (E1 package legs, E2 board): via, part, value, consumed_by, verification
+GET  /api/board/{board}/exposure/{pin}    the crossings touching one pin (D13, RESET, AREF, PB6 ...) + the inward trace of the header pins it reaches
+GET  /api/board/{board}/reachability      a verdict per SoC pin (header | internal | not-bonded | undetermined), a reachable flag per function, the inward trace per
+                                          header pin; with ?pin=&function= (+ package, circuit, binding, phase, transport) the ten-rung availability ladder
+
 GET  /api/board/kit-parts           every KitPart row (board.custom.kit_parts) + `parts_without_sample` (the names
                                     with no sample_capabilities yet — the backlog for future sample firmwares)
 GET  /api/board/kit-parts/{part}    one KitPart row by its bare key (e.g. 'tmp36') or full name ('arduino-starter-kit:tmp36')
@@ -46,6 +52,9 @@ class BoardObjectAPI(treeObject):
             add('/api/board/{board}/pins', self, suffix='pins')
             add('/api/board/{board}/pins/{pin}', self, suffix='pin_one')
             add('/api/board/{board}/chain/{pin}', self, suffix='chain')   # ucd-0a: the hardware chain of one pin, as rows
+            add('/api/board/{board}/exposure', self, suffix='exposure')   # hsp-0: every pin crossing of the board's enclosures
+            add('/api/board/{board}/exposure/{pin}', self, suffix='exposure_pin')   # hsp-0: the crossings of one pin + its inward trace
+            add('/api/board/{board}/reachability', self, suffix='reachability')   # hsp-0: header / internal / not-bonded per SoC pin; ?pin=&function= adds the ladder
             add('/api/board/{board}/views', self, suffix='views')
             add('/api/board/{board}/conflicts', self, suffix='conflicts')
             add('/api/board/{board}/render', self, suffix='render')
@@ -152,6 +161,77 @@ class BoardObjectAPI(treeObject):
             response.media = {'ok': False, 'error': '%s (GET /api/board/%s/pins lists them)' % (e.args[0], bo.board_name(board))}
             return
         response.media = {'ok': True, 'board': bo.board_name(board), 'pin': pin, 'source': note, 'rows': hops}
+
+    def _exposure_tables(self):
+        """(tables, source): the live rows when this server holds the enclosure rows, else the seed's (said)."""
+        from board.custom import board_object as bo
+        tables = self._tables()
+        if not tables.get('EnclosureContact') or not tables.get('SocPin'):
+            return bo.seed_tables(), 'seed (the live server has no EnclosureContact rows yet)'
+        return tables, 'live'
+
+    def on_get_exposure(self, request, response, board):
+        """hsp-0 (L3/L9): GET /api/board/<board>/exposure — every crossing of the board's enclosures (E1 package legs, E2 board), `rows` for a configured
+        table. `pol board exposure <board>`."""
+        from board.custom import board_object as bo
+        from board.custom import reachability as RA
+        tables, note = self._exposure_tables()
+        try:
+            rows = RA.exposure(board, None, tables)
+        except bo.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        response.media = {'ok': True, 'board': bo.board_name(board), 'source': note, 'rows': rows, 'count': len(rows),
+                          'by_via': {v: sum(1 for r in rows if r['via'] == v) for v in sorted({r['via'] for r in rows})}}
+
+    def on_get_exposure_pin(self, request, response, board, pin):
+        """hsp-0: GET /api/board/<board>/exposure/<pin> — the crossings touching one pin (a BoardPin like D13, a connector label like RESET or AREF, or a SoC pin
+        like PB6), plus the inward trace of the header pins it reaches."""
+        from board.custom import board_object as bo
+        from board.custom import reachability as RA
+        from board.custom import exposure_view as V
+        tables, note = self._exposure_tables()
+        try:
+            rows = RA.exposure(board, pin, tables)
+        except bo.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        except KeyError as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': '%s (GET /api/board/%s/pins lists them)' % (e.args[0], bo.board_name(board))}
+            return
+        traces = RA.header_traces(tables, bo.board_name(board))
+        hdr = sorted({h for r in rows if r['exposed'] for h in V.header_pins(r['outer_ref'], tables) if h in traces})
+        response.media = {'ok': True, 'board': bo.board_name(board), 'pin': pin, 'source': note, 'rows': rows, 'count': len(rows),
+                          'header_pins': {h: traces[h] for h in hdr}}
+
+    def on_get_reachability(self, request, response, board):
+        """hsp-0 (L4): GET /api/board/<board>/reachability — a verdict per SoC pin (header | internal | not-bonded | undetermined), a reachable flag per function,
+        the inward trace per header pin. With ?pin=<pin>&function=<fn> (+ &package= &circuit= &binding= &phase= &transport=) the ten-rung availability ladder
+        of that function in that context (every allowed package when the variant is pending)."""
+        from board.custom import board_object as bo
+        from board.custom import reachability as RA
+        from board.custom import ladder as LD
+        tables, note = self._exposure_tables()
+        try:
+            if request.params.get('pin'):
+                ctx = {k: request.params[k] for k in ('package', 'circuit', 'binding', 'phase', 'transport', 'chip') if request.params.get(k)}
+                ctx['board'] = board
+                res = LD.availability(request.params['pin'], request.params.get('function') or 'GPIO', ctx, tables)
+                response.media = dict(res, ok=True, source=note)
+                return
+            res = RA.reach(board, tables)
+        except bo.BoardObjectRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        except KeyError as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e.args[0])}
+            return
+        response.media = dict(res, ok=True, source=note, rows=res['pins'])
 
     def _power_pin_detail(self, request, response, r, pin, KP):
         """fs-2d: the pin-detail door for a power/reference connector label (never a BoardPin row — IOREF, RESET,

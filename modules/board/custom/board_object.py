@@ -25,7 +25,9 @@ LAYER_CLASSES = ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connec
                  'Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField',
                  # fgm-2: the UNO hardware truth travels with the layers (the chain door and electrical_check read it from the same tables)
                  'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
-                 'PinLifecycleConstraint')
+                 'PinLifecycleConstraint',
+                 # hsp-0: enclosures + exposure maps
+                 'EnclosureKind', 'HardwareEnclosure', 'EnclosureContact')
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3',
            'c3': 'esp32-c3', 'esp32c3': 'esp32-c3', 'esp32-c3': 'esp32-c3'}
 #: the BoardPin fields that ARE the assignment (what views carry and conflicts compare)

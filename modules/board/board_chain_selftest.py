@@ -92,7 +92,7 @@ def run_chain(check):
     names = {h['name'] for h in hops}
     check('chain: D3 forward — BoardPin → SocPin PD3 → package contacts + lifecycle → 4 PinFunctions → signals → peripherals → registers → fields, in that order (%d hops)' % len(hops),
           kinds[:2] == ['BoardPin', 'SocPin'] and hops[1]['name'] == 'atmega328p:PD3'
-          and kinds.count('PinFunction') == 4 and kinds == sorted(kinds, key=['BoardPin', 'SocPin', 'PackageContact', 'PinLifecycleConstraint', 'PinFunction', 'PeripheralSignal', 'Peripheral', 'Register', 'RegisterField'].index))   # fgm-2: the package-contact + lifecycle hops sit under the SoC pin
+          and kinds.count('PinFunction') == 4 and kinds == sorted(kinds, key=['BoardPin', 'SocPin', 'PackageContact', 'EnclosureContact', 'PinLifecycleConstraint', 'PinFunction', 'PeripheralSignal', 'Peripheral', 'Register', 'RegisterField'].index))   # fgm-2: the package-contact + lifecycle hops sit under the SoC pin
     check('chain: D3 discovers its functions GPIO, INT1, OC2B, PCINT19',
           {'atmega328p:PD3:GPIO', 'atmega328p:PD3:INT1', 'atmega328p:PD3:OC2B', 'atmega328p:PD3:PCINT19'} <= names)
     check('chain: D3 reaches its peripherals EXINT, TIMER2, PCINT, GPIO PORTD',

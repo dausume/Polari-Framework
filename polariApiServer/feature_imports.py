@@ -1311,6 +1311,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'ButtonClockState', 'ButtonClockEvent', 'LightState', 'Datasheet',
                                'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
                                'PinLifecycleConstraint',   # fgm-2: the UNO hardware truth (seven)
+                               'EnclosureKind', 'HardwareEnclosure', 'EnclosureContact',   # hsp-0: enclosures + exposure maps (three)
                                'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart; ucd-0a: + the
                                # hardware chain's nine; ucd-0b2a: + address space as rows (four); ucd-0e1: + the button-clock wire classes (two);
                                # ucd-doc: + Datasheet
