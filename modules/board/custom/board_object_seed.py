@@ -17,6 +17,7 @@ from board.custom import lifecycle_uno as LC
 from board.custom import uno_evidence as EV
 from board.custom import packages_atmega16u2 as P2     # hsp-0: the 16U2's QFN32 + its SocPins
 from board.custom import soc_atmega16u2 as S2
+from board.custom import memory_map_atmega328p as MM   # rp-0: the memory-map regions' cited facts
 
 IDENTITY = {
     # fgm-2 (his ruling 2026-10-15): the design allows these package / USB-interface variants INDEPENDENTLY; which pair is on the bench is PENDING
@@ -79,5 +80,5 @@ def _layers(boards, conns, cpins, nets):
         'ConnectorPin': cpins,
         'BoardPin': U.board_pins() + C.board_pins(),
         'RuntimeProfile': U.runtime_profiles() + C.runtime_profiles(),
-        'DatasheetFact': A.soc_facts() + U.facts() + C.facts() + EV.facts() + S2.soc_facts(),
+        'DatasheetFact': A.soc_facts() + U.facts() + C.facts() + EV.facts() + S2.soc_facts() + MM.facts(),   # rp-0: + the memory-map regions' cites
     }

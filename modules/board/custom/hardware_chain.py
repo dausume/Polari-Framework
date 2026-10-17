@@ -296,7 +296,8 @@ def memory_regions():
         out.append({'name': '%s:%s' % (SOC, region), 'soc': SOC, 'region': region, 'start': r['start'], 'size': r['size'],
                     'address_space': address_space, 'fact': r['fact'], 'origin': 'derived:soc_atmega328p.soc_definition().memory_map_json',
                     'undetermined': undetermined, 'notes': ''})
-    return out
+    from board.custom import memory_map_atmega328p as MM   # rp-0: + register file, I/O, extended I/O, flash application / boot sections
+    return out + MM.region_rows()
 
 
 def register_fields():

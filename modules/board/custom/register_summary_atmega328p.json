@@ -1,0 +1,1227 @@
+{
+ "schema": "board-register-summary/1",
+ "soc": "atmega328p",
+ "derived_from": "Microchip ATmega48A/PA/88A/PA/168A/PA/328/P datasheet DS40002061B (2020), section 36 \"Register Summary\", pp.621-624, pdftotext -layout; file sha256 b9b9d83cda56a95d999ea8d54fe5a540748ae9020e5e7ae19b913d384ba9320e",
+ "filled_by_hand": "described_page of OCR0B, OCR0A, TCNT0, TCCR0B, TCCR0A, PCIFR, TIFR0 read from the chapter headings (the summary column is blank in the layout text): OCR0B §p.117; OCR0A §p.117; TCNT0 §p.117; TCCR0B §p.116; TCCR0A §p.113; PCIFR §p.82; TIFR0 §p.118",
+ "registers": {
+  "ACSR": {
+   "io": "0x30",
+   "data": "0x50",
+   "bits": [
+    "ACD",
+    "ACBG",
+    "ACO",
+    "ACI",
+    "ACIE",
+    "ACIC",
+    "ACIS1",
+    "ACIS0"
+   ],
+   "title": "",
+   "described_page": "244",
+   "summary_page": 623
+  },
+  "ADCH": {
+   "io": "",
+   "data": "0x79",
+   "bits": [],
+   "title": "ADC Data Register High byte",
+   "described_page": "259",
+   "summary_page": 623
+  },
+  "ADCL": {
+   "io": "",
+   "data": "0x78",
+   "bits": [],
+   "title": "ADC Data Register Low byte",
+   "described_page": "259",
+   "summary_page": 623
+  },
+  "ADCSRA": {
+   "io": "",
+   "data": "0x7A",
+   "bits": [
+    "ADEN",
+    "ADSC",
+    "ADATE",
+    "ADIF",
+    "ADIE",
+    "ADPS2",
+    "ADPS1",
+    "ADPS0"
+   ],
+   "title": "",
+   "described_page": "258",
+   "summary_page": 622
+  },
+  "ADCSRB": {
+   "io": "",
+   "data": "0x7B",
+   "bits": [
+    "–",
+    "ACME",
+    "–",
+    "–",
+    "–",
+    "ADTS2",
+    "ADTS1",
+    "ADTS0"
+   ],
+   "title": "",
+   "described_page": "260",
+   "summary_page": 622
+  },
+  "ADMUX": {
+   "io": "",
+   "data": "0x7C",
+   "bits": [
+    "REFS1",
+    "REFS0",
+    "ADLAR",
+    "–",
+    "MUX3",
+    "MUX2",
+    "MUX1",
+    "MUX0"
+   ],
+   "title": "",
+   "described_page": "257",
+   "summary_page": 622
+  },
+  "ASSR": {
+   "io": "",
+   "data": "0xB6",
+   "bits": [
+    "–",
+    "EXCLK",
+    "AS2",
+    "TCN2UB",
+    "OCR2AUB",
+    "OCR2BUB",
+    "TCR2AUB",
+    "TCR2BUB"
+   ],
+   "title": "",
+   "described_page": "167",
+   "summary_page": 622
+  },
+  "CLKPR": {
+   "io": "",
+   "data": "0x61",
+   "bits": [
+    "CLKPCE",
+    "–",
+    "–",
+    "–",
+    "CLKPS3",
+    "CLKPS2",
+    "CLKPS1",
+    "CLKPS0"
+   ],
+   "title": "",
+   "described_page": "46",
+   "summary_page": 623
+  },
+  "DDRB": {
+   "io": "0x04",
+   "data": "0x24",
+   "bits": [
+    "DDB7",
+    "DDB6",
+    "DDB5",
+    "DDB4",
+    "DDB3",
+    "DDB2",
+    "DDB1",
+    "DDB0"
+   ],
+   "title": "",
+   "described_page": "100",
+   "summary_page": 624
+  },
+  "DDRC": {
+   "io": "0x07",
+   "data": "0x27",
+   "bits": [
+    "–",
+    "DDC6",
+    "DDC5",
+    "DDC4",
+    "DDC3",
+    "DDC2",
+    "DDC1",
+    "DDC0"
+   ],
+   "title": "",
+   "described_page": "100",
+   "summary_page": 624
+  },
+  "DDRD": {
+   "io": "0x0A",
+   "data": "0x2A",
+   "bits": [
+    "DDD7",
+    "DDD6",
+    "DDD5",
+    "DDD4",
+    "DDD3",
+    "DDD2",
+    "DDD1",
+    "DDD0"
+   ],
+   "title": "",
+   "described_page": "101",
+   "summary_page": 624
+  },
+  "DIDR0": {
+   "io": "",
+   "data": "0x7E",
+   "bits": [
+    "–",
+    "–",
+    "ADC5D",
+    "ADC4D",
+    "ADC3D",
+    "ADC2D",
+    "ADC1D",
+    "ADC0D"
+   ],
+   "title": "",
+   "described_page": "260",
+   "summary_page": 622
+  },
+  "DIDR1": {
+   "io": "",
+   "data": "0x7F",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "AIN1D",
+    "AIN0D"
+   ],
+   "title": "",
+   "described_page": "245",
+   "summary_page": 622
+  },
+  "EEARH": {
+   "io": "0x22",
+   "data": "0x42",
+   "bits": [],
+   "title": "(EEPROM Address Register High Byte) 5.",
+   "described_page": "31",
+   "summary_page": 623
+  },
+  "EEARL": {
+   "io": "0x21",
+   "data": "0x41",
+   "bits": [],
+   "title": "EEPROM Address Register Low Byte",
+   "described_page": "31",
+   "summary_page": 623
+  },
+  "EECR": {
+   "io": "0x1F",
+   "data": "0x3F",
+   "bits": [
+    "–",
+    "–",
+    "EEPM1",
+    "EEPM0",
+    "EERIE",
+    "EEMPE",
+    "EEPE",
+    "EERE"
+   ],
+   "title": "",
+   "described_page": "31",
+   "summary_page": 623
+  },
+  "EEDR": {
+   "io": "0x20",
+   "data": "0x40",
+   "bits": [],
+   "title": "EEPROM Data Register",
+   "described_page": "31",
+   "summary_page": 623
+  },
+  "EICRA": {
+   "io": "",
+   "data": "0x69",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "ISC11",
+    "ISC10",
+    "ISC01",
+    "ISC00"
+   ],
+   "title": "",
+   "described_page": "80",
+   "summary_page": 623
+  },
+  "EIFR": {
+   "io": "0x1C",
+   "data": "0x3C",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "INTF1",
+    "INTF0"
+   ],
+   "title": "",
+   "described_page": "81",
+   "summary_page": 623
+  },
+  "EIMSK": {
+   "io": "0x1D",
+   "data": "0x3D",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "INT1",
+    "INT0"
+   ],
+   "title": "",
+   "described_page": "81",
+   "summary_page": 623
+  },
+  "GPIOR0": {
+   "io": "0x1E",
+   "data": "0x3E",
+   "bits": [],
+   "title": "General Purpose I/O Register 0",
+   "described_page": "35",
+   "summary_page": 623
+  },
+  "GPIOR1": {
+   "io": "0x2A",
+   "data": "0x4A",
+   "bits": [],
+   "title": "General Purpose I/O Register 1",
+   "described_page": "35",
+   "summary_page": 623
+  },
+  "GPIOR2": {
+   "io": "0x2B",
+   "data": "0x4B",
+   "bits": [],
+   "title": "General Purpose I/O Register 2",
+   "described_page": "35",
+   "summary_page": 623
+  },
+  "GTCCR": {
+   "io": "0x23",
+   "data": "0x43",
+   "bits": [
+    "TSM",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "PSRASY",
+    "PSRSYNC"
+   ],
+   "title": "",
+   "described_page": "149/168",
+   "summary_page": 623
+  },
+  "ICR1H": {
+   "io": "",
+   "data": "0x87",
+   "bits": [],
+   "title": "Timer/Counter1 - Input Capture Register High Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "ICR1L": {
+   "io": "",
+   "data": "0x86",
+   "bits": [],
+   "title": "Timer/Counter1 - Input Capture Register Low Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "MCUCR": {
+   "io": "0x35",
+   "data": "0x55",
+   "bits": [
+    "–",
+    "BODS(6)",
+    "BODSE(6)",
+    "PUD",
+    "–",
+    "–",
+    "IVSEL",
+    "IVCE"
+   ],
+   "title": "",
+   "described_page": "54/77/100",
+   "summary_page": 623
+  },
+  "MCUSR": {
+   "io": "0x34",
+   "data": "0x54",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "WDRF",
+    "BORF",
+    "EXTRF",
+    "PORF"
+   ],
+   "title": "",
+   "described_page": "63",
+   "summary_page": 623
+  },
+  "OCR0A": {
+   "io": "0x27",
+   "data": "0x47",
+   "bits": [],
+   "title": "Timer/Counter0 Output Compare Register A",
+   "described_page": "117",
+   "summary_page": 623
+  },
+  "OCR0B": {
+   "io": "0x28",
+   "data": "0x48",
+   "bits": [],
+   "title": "Timer/Counter0 Output Compare Register B",
+   "described_page": "117",
+   "summary_page": 623
+  },
+  "OCR1AH": {
+   "io": "",
+   "data": "0x89",
+   "bits": [],
+   "title": "Timer/Counter1 - Output Compare Register A High Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "OCR1AL": {
+   "io": "",
+   "data": "0x88",
+   "bits": [],
+   "title": "Timer/Counter1 - Output Compare Register A Low Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "OCR1BH": {
+   "io": "",
+   "data": "0x8B",
+   "bits": [],
+   "title": "Timer/Counter1 - Output Compare Register B High Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "OCR1BL": {
+   "io": "",
+   "data": "0x8A",
+   "bits": [],
+   "title": "Timer/Counter1 - Output Compare Register B Low Byte",
+   "described_page": "144",
+   "summary_page": 622
+  },
+  "OCR2A": {
+   "io": "",
+   "data": "0xB3",
+   "bits": [],
+   "title": "Timer/Counter2 Output Compare Register A",
+   "described_page": "166",
+   "summary_page": 622
+  },
+  "OCR2B": {
+   "io": "",
+   "data": "0xB4",
+   "bits": [],
+   "title": "Timer/Counter2 Output Compare Register B",
+   "described_page": "166",
+   "summary_page": 622
+  },
+  "OSCCAL": {
+   "io": "",
+   "data": "0x66",
+   "bits": [],
+   "title": "Oscillator Calibration Register",
+   "described_page": "46",
+   "summary_page": 623
+  },
+  "PCICR": {
+   "io": "",
+   "data": "0x68",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "PCIE2",
+    "PCIE1",
+    "PCIE0"
+   ],
+   "title": "",
+   "described_page": "82",
+   "summary_page": 623
+  },
+  "PCIFR": {
+   "io": "0x1B",
+   "data": "0x3B",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "PCIF2",
+    "PCIF1",
+    "PCIF0"
+   ],
+   "title": "",
+   "described_page": "82",
+   "summary_page": 623
+  },
+  "PCMSK0": {
+   "io": "",
+   "data": "0x6B",
+   "bits": [
+    "PCINT7",
+    "PCINT6",
+    "PCINT5",
+    "PCINT4",
+    "PCINT3",
+    "PCINT2",
+    "PCINT1",
+    "PCINT0"
+   ],
+   "title": "",
+   "described_page": "83",
+   "summary_page": 623
+  },
+  "PCMSK1": {
+   "io": "",
+   "data": "0x6C",
+   "bits": [
+    "–",
+    "PCINT14",
+    "PCINT13",
+    "PCINT12",
+    "PCINT11",
+    "PCINT10",
+    "PCINT9",
+    "PCINT8"
+   ],
+   "title": "",
+   "described_page": "83",
+   "summary_page": 623
+  },
+  "PCMSK2": {
+   "io": "",
+   "data": "0x6D",
+   "bits": [
+    "PCINT23",
+    "PCINT22",
+    "PCINT21",
+    "PCINT20",
+    "PCINT19",
+    "PCINT18",
+    "PCINT17",
+    "PCINT16"
+   ],
+   "title": "",
+   "described_page": "83",
+   "summary_page": 623
+  },
+  "PINB": {
+   "io": "0x03",
+   "data": "0x23",
+   "bits": [
+    "PINB7",
+    "PINB6",
+    "PINB5",
+    "PINB4",
+    "PINB3",
+    "PINB2",
+    "PINB1",
+    "PINB0"
+   ],
+   "title": "",
+   "described_page": "100",
+   "summary_page": 624
+  },
+  "PINC": {
+   "io": "0x06",
+   "data": "0x26",
+   "bits": [
+    "–",
+    "PINC6",
+    "PINC5",
+    "PINC4",
+    "PINC3",
+    "PINC2",
+    "PINC1",
+    "PINC0"
+   ],
+   "title": "",
+   "described_page": "101",
+   "summary_page": 624
+  },
+  "PIND": {
+   "io": "0x09",
+   "data": "0x29",
+   "bits": [
+    "PIND7",
+    "PIND6",
+    "PIND5",
+    "PIND4",
+    "PIND3",
+    "PIND2",
+    "PIND1",
+    "PIND0"
+   ],
+   "title": "",
+   "described_page": "101",
+   "summary_page": 624
+  },
+  "PORTB": {
+   "io": "0x05",
+   "data": "0x25",
+   "bits": [
+    "PORTB7",
+    "PORTB6",
+    "PORTB5",
+    "PORTB4",
+    "PORTB3",
+    "PORTB2",
+    "PORTB1",
+    "PORTB0"
+   ],
+   "title": "",
+   "described_page": "100",
+   "summary_page": 624
+  },
+  "PORTC": {
+   "io": "0x08",
+   "data": "0x28",
+   "bits": [
+    "–",
+    "PORTC6",
+    "PORTC5",
+    "PORTC4",
+    "PORTC3",
+    "PORTC2",
+    "PORTC1",
+    "PORTC0"
+   ],
+   "title": "",
+   "described_page": "100",
+   "summary_page": 624
+  },
+  "PORTD": {
+   "io": "0x0B",
+   "data": "0x2B",
+   "bits": [
+    "PORTD7",
+    "PORTD6",
+    "PORTD5",
+    "PORTD4",
+    "PORTD3",
+    "PORTD2",
+    "PORTD1",
+    "PORTD0"
+   ],
+   "title": "",
+   "described_page": "101",
+   "summary_page": 624
+  },
+  "PRR": {
+   "io": "",
+   "data": "0x64",
+   "bits": [
+    "PRTWI",
+    "PRTIM2",
+    "PRTIM0",
+    "–",
+    "PRTIM1",
+    "PRSPI",
+    "PRUSART0",
+    "PRADC"
+   ],
+   "title": "",
+   "described_page": "51",
+   "summary_page": 623
+  },
+  "SMCR": {
+   "io": "0x33",
+   "data": "0x53",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "SM2",
+    "SM1",
+    "SM0",
+    "SE"
+   ],
+   "title": "",
+   "described_page": "53",
+   "summary_page": 623
+  },
+  "SPCR": {
+   "io": "0x2C",
+   "data": "0x4C",
+   "bits": [
+    "SPIE",
+    "SPE",
+    "DORD",
+    "MSTR",
+    "CPOL",
+    "CPHA",
+    "SPR1",
+    "SPR0"
+   ],
+   "title": "",
+   "described_page": "176",
+   "summary_page": 623
+  },
+  "SPDR": {
+   "io": "0x2E",
+   "data": "0x4E",
+   "bits": [],
+   "title": "SPI Data Register",
+   "described_page": "178",
+   "summary_page": 623
+  },
+  "SPH": {
+   "io": "0x3E",
+   "data": "0x5E",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "(SP10) 5.",
+    "SP9",
+    "SP8"
+   ],
+   "title": "",
+   "described_page": "22",
+   "summary_page": 623
+  },
+  "SPL": {
+   "io": "0x3D",
+   "data": "0x5D",
+   "bits": [
+    "SP7",
+    "SP6",
+    "SP5",
+    "SP4",
+    "SP3",
+    "SP2",
+    "SP1",
+    "SP0"
+   ],
+   "title": "",
+   "described_page": "22",
+   "summary_page": 623
+  },
+  "SPMCSR": {
+   "io": "0x37",
+   "data": "0x57",
+   "bits": [
+    "SPMIE",
+    "(RWWSB)5.",
+    "SIGRD",
+    "(RWWSRE)5.",
+    "BLBSET",
+    "PGWRT",
+    "PGERS",
+    "SPMEN"
+   ],
+   "title": "",
+   "described_page": "287",
+   "summary_page": 623
+  },
+  "SPSR": {
+   "io": "0x2D",
+   "data": "0x4D",
+   "bits": [
+    "SPIF",
+    "WCOL",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "SPI2X"
+   ],
+   "title": "",
+   "described_page": "177",
+   "summary_page": 623
+  },
+  "SREG": {
+   "io": "0x3F",
+   "data": "0x5F",
+   "bits": [
+    "I",
+    "T",
+    "H",
+    "S",
+    "V",
+    "N",
+    "Z",
+    "C"
+   ],
+   "title": "",
+   "described_page": "19",
+   "summary_page": 623
+  },
+  "TCCR0A": {
+   "io": "0x24",
+   "data": "0x44",
+   "bits": [
+    "COM0A1",
+    "COM0A0",
+    "COM0B1",
+    "COM0B0",
+    "–",
+    "–",
+    "WGM01",
+    "WGM00"
+   ],
+   "title": "",
+   "described_page": "113",
+   "summary_page": 623
+  },
+  "TCCR0B": {
+   "io": "0x25",
+   "data": "0x45",
+   "bits": [
+    "FOC0A",
+    "FOC0B",
+    "–",
+    "–",
+    "WGM02",
+    "CS02",
+    "CS01",
+    "CS00"
+   ],
+   "title": "",
+   "described_page": "116",
+   "summary_page": 623
+  },
+  "TCCR1A": {
+   "io": "",
+   "data": "0x80",
+   "bits": [
+    "COM1A1",
+    "COM1A0",
+    "COM1B1",
+    "COM1B0",
+    "–",
+    "–",
+    "WGM11",
+    "WGM10"
+   ],
+   "title": "",
+   "described_page": "140",
+   "summary_page": 622
+  },
+  "TCCR1B": {
+   "io": "",
+   "data": "0x81",
+   "bits": [
+    "ICNC1",
+    "ICES1",
+    "–",
+    "WGM13",
+    "WGM12",
+    "CS12",
+    "CS11",
+    "CS10"
+   ],
+   "title": "",
+   "described_page": "142",
+   "summary_page": 622
+  },
+  "TCCR1C": {
+   "io": "",
+   "data": "0x82",
+   "bits": [
+    "FOC1A",
+    "FOC1B",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "–"
+   ],
+   "title": "",
+   "described_page": "143",
+   "summary_page": 622
+  },
+  "TCCR2A": {
+   "io": "",
+   "data": "0xB0",
+   "bits": [
+    "COM2A1",
+    "COM2A0",
+    "COM2B1",
+    "COM2B0",
+    "–",
+    "–",
+    "WGM21",
+    "WGM20"
+   ],
+   "title": "",
+   "described_page": "162",
+   "summary_page": 622
+  },
+  "TCCR2B": {
+   "io": "",
+   "data": "0xB1",
+   "bits": [
+    "FOC2A",
+    "FOC2B",
+    "–",
+    "–",
+    "WGM22",
+    "CS22",
+    "CS21",
+    "CS20"
+   ],
+   "title": "",
+   "described_page": "165",
+   "summary_page": 622
+  },
+  "TCNT0": {
+   "io": "0x26",
+   "data": "0x46",
+   "bits": [],
+   "title": "Timer/Counter0 (8-bit)",
+   "described_page": "117",
+   "summary_page": 623
+  },
+  "TCNT1H": {
+   "io": "",
+   "data": "0x85",
+   "bits": [],
+   "title": "Timer/Counter1 - Counter Register High Byte",
+   "described_page": "143",
+   "summary_page": 622
+  },
+  "TCNT1L": {
+   "io": "",
+   "data": "0x84",
+   "bits": [],
+   "title": "Timer/Counter1 - Counter Register Low Byte",
+   "described_page": "143",
+   "summary_page": 622
+  },
+  "TCNT2": {
+   "io": "",
+   "data": "0xB2",
+   "bits": [],
+   "title": "Timer/Counter2 (8-bit)",
+   "described_page": "166",
+   "summary_page": 622
+  },
+  "TIFR0": {
+   "io": "0x15",
+   "data": "0x35",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "OCF0B",
+    "OCF0A",
+    "TOV0"
+   ],
+   "title": "",
+   "described_page": "118",
+   "summary_page": 624
+  },
+  "TIFR1": {
+   "io": "0x16",
+   "data": "0x36",
+   "bits": [
+    "–",
+    "–",
+    "ICF1",
+    "–",
+    "–",
+    "OCF1B",
+    "OCF1A",
+    "TOV1"
+   ],
+   "title": "",
+   "described_page": "145",
+   "summary_page": 623
+  },
+  "TIFR2": {
+   "io": "0x17",
+   "data": "0x37",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "OCF2B",
+    "OCF2A",
+    "TOV2"
+   ],
+   "title": "",
+   "described_page": "167",
+   "summary_page": 623
+  },
+  "TIMSK0": {
+   "io": "",
+   "data": "0x6E",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "OCIE0B",
+    "OCIE0A",
+    "TOIE0"
+   ],
+   "title": "",
+   "described_page": "118",
+   "summary_page": 623
+  },
+  "TIMSK1": {
+   "io": "",
+   "data": "0x6F",
+   "bits": [
+    "–",
+    "–",
+    "ICIE1",
+    "–",
+    "–",
+    "OCIE1B",
+    "OCIE1A",
+    "TOIE1"
+   ],
+   "title": "",
+   "described_page": "144",
+   "summary_page": 623
+  },
+  "TIMSK2": {
+   "io": "",
+   "data": "0x70",
+   "bits": [
+    "–",
+    "–",
+    "–",
+    "–",
+    "–",
+    "OCIE2B",
+    "OCIE2A",
+    "TOIE2"
+   ],
+   "title": "",
+   "described_page": "166",
+   "summary_page": 623
+  },
+  "TWAMR": {
+   "io": "",
+   "data": "0xBD",
+   "bits": [
+    "TWAM6",
+    "TWAM5",
+    "TWAM4",
+    "TWAM3",
+    "TWAM2",
+    "TWAM1",
+    "TWAM0",
+    "–"
+   ],
+   "title": "",
+   "described_page": "242",
+   "summary_page": 622
+  },
+  "TWAR": {
+   "io": "",
+   "data": "0xBA",
+   "bits": [
+    "TWA6",
+    "TWA5",
+    "TWA4",
+    "TWA3",
+    "TWA2",
+    "TWA1",
+    "TWA0",
+    "TWGCE"
+   ],
+   "title": "",
+   "described_page": "241",
+   "summary_page": 622
+  },
+  "TWBR": {
+   "io": "",
+   "data": "0xB8",
+   "bits": [],
+   "title": "2-wire Serial Interface Bit Rate Register",
+   "described_page": "239",
+   "summary_page": 622
+  },
+  "TWCR": {
+   "io": "",
+   "data": "0xBC",
+   "bits": [
+    "TWINT",
+    "TWEA",
+    "TWSTA",
+    "TWSTO",
+    "TWWC",
+    "TWEN",
+    "–",
+    "TWIE"
+   ],
+   "title": "",
+   "described_page": "239",
+   "summary_page": 622
+  },
+  "TWDR": {
+   "io": "",
+   "data": "0xBB",
+   "bits": [],
+   "title": "2-wire Serial Interface Data Register",
+   "described_page": "241",
+   "summary_page": 622
+  },
+  "TWSR": {
+   "io": "",
+   "data": "0xB9",
+   "bits": [
+    "TWS7",
+    "TWS6",
+    "TWS5",
+    "TWS4",
+    "TWS3",
+    "–",
+    "TWPS1",
+    "TWPS0"
+   ],
+   "title": "",
+   "described_page": "240",
+   "summary_page": 622
+  },
+  "UBRR0H": {
+   "io": "",
+   "data": "0xC5",
+   "bits": [],
+   "title": "USART Baud Rate Register High",
+   "described_page": "204",
+   "summary_page": 621
+  },
+  "UBRR0L": {
+   "io": "",
+   "data": "0xC4",
+   "bits": [],
+   "title": "USART Baud Rate Register Low",
+   "described_page": "204",
+   "summary_page": 621
+  },
+  "UCSR0A": {
+   "io": "",
+   "data": "0xC0",
+   "bits": [
+    "RXC0",
+    "TXC0",
+    "UDRE0",
+    "FE0",
+    "DOR0",
+    "UPE0",
+    "U2X0",
+    "MPCM0"
+   ],
+   "title": "",
+   "described_page": "200",
+   "summary_page": 621
+  },
+  "UCSR0B": {
+   "io": "",
+   "data": "0xC1",
+   "bits": [
+    "RXCIE0",
+    "TXCIE0",
+    "UDRIE0",
+    "RXEN0",
+    "TXEN0",
+    "UCSZ02",
+    "RXB80",
+    "TXB80"
+   ],
+   "title": "",
+   "described_page": "201",
+   "summary_page": 621
+  },
+  "UCSR0C": {
+   "io": "",
+   "data": "0xC2",
+   "bits": [
+    "UMSEL01",
+    "UMSEL00",
+    "UPM01",
+    "UPM00",
+    "USBS0",
+    "UCSZ01 /UDORD0",
+    "UCSZ00 / UCPHA0",
+    "UCPOL0"
+   ],
+   "title": "",
+   "described_page": "202/213",
+   "summary_page": 621
+  },
+  "UDR0": {
+   "io": "",
+   "data": "0xC6",
+   "bits": [],
+   "title": "USART I/O Data Register",
+   "described_page": "200",
+   "summary_page": 621
+  },
+  "WDTCSR": {
+   "io": "",
+   "data": "0x60",
+   "bits": [
+    "WDIF",
+    "WDIE",
+    "WDP3",
+    "WDCE",
+    "WDE",
+    "WDP2",
+    "WDP1",
+    "WDP0"
+   ],
+   "title": "",
+   "described_page": "63",
+   "summary_page": 623
+  }
+ },
+ "method": "parsed from the layout text of section 36 by splitting each row on runs of 2+ spaces: the bit cells (8) or the one-cell description, the \"Page\" column; summary_page is the datasheet page the row sits on (DS40002061B-page footers 621-624); an empty Page cell was filled by hand from the chapter heading (filled_by_hand)"
+}

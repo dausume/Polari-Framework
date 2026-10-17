@@ -132,7 +132,8 @@
   "api": [
    "board_api",
    "board_object_api",
-   "installer_api"
+   "installer_api",
+   "register_profile_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -141,7 +142,8 @@
    "board_seed"
   ],
   "page": [
-   "board_page"
+   "board_page",
+   "register_profile_page"
   ],
   "selftests": [
    "board_attach_selftest",
@@ -158,6 +160,7 @@
    "board_kit_parts_selftest",
    "board_light_selftest",
    "board_mapping_selftest",
+   "board_register_profile_selftest",
    "board_object_selftest",
    "board_pinlevel_selftest",
    "board_selftest",
@@ -230,6 +233,9 @@
    "custom/register_import",
    "custom/register_map",
    "custom/registers",
+   "custom/register_profile",
+   "custom/memory_map_atmega328p",
+   "custom/memory_map_view",
    "custom/sexpr",
    "custom/sim_cost",
    "custom/sim_cost_c3",
@@ -298,6 +304,7 @@
   "RegisterBlock",
   "RegisterField",
   "RegisterFieldSetting",
+  "RegisterProfileAPI",
   "RegisterSetting",
   "Road",
   "RuntimeProfile",
