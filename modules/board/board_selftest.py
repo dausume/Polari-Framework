@@ -394,6 +394,8 @@ def main():
     run_pin_view(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
+    from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI
+    run_register_profile(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

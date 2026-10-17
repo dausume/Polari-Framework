@@ -174,8 +174,9 @@ def run_address_space(check, HC, tables):
           == set(json.loads(RB[G['atmega328p:MCUCR']['block']]['shared_with_refs_json']))
           and 'p.100' in RB[G['atmega328p:MCUCR']['block']]['notes'])
 
-    check('address-space: 3 MemoryRegion rows (flash, sram, eeprom), each carrying its own cited DatasheetFact',
-          set(MR) == {'atmega328p:flash', 'atmega328p:sram', 'atmega328p:eeprom'} and all(r['fact'] for r in MR.values())
+    check('address-space: the 3 MemoryRegion rows of the SoC definition (flash, sram, eeprom) + rp-0\'s 5 (register-file, io-registers, ext-io-registers, flash.application, flash.boot), each carrying its own cited DatasheetFact',
+          set(MR) == {'atmega328p:flash', 'atmega328p:sram', 'atmega328p:eeprom', 'atmega328p:register-file', 'atmega328p:io-registers', 'atmega328p:ext-io-registers',
+                      'atmega328p:flash.application', 'atmega328p:flash.boot'} and all(r['fact'] for r in MR.values())
           and all(any(f['name'] == r['fact'] for f in tables['DatasheetFact']) for r in MR.values()))
     check('address-space: sram is addressed through the data AddressSpace; flash/eeprom are not (said so in undetermined, never guessed)',
           MR['atmega328p:sram']['address_space'] == 'atmega328p:data'

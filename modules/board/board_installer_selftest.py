@@ -246,7 +246,7 @@ def page(check):
     check('/display/firmware-installer: configured tables + exactly ONE new component (firmware-installer-panel); no api-json-panel',
           P[0]['pageRoute'] == 'firmware-installer' and names.count('firmware-installer-panel') == 1
           and set(names) == {'firmware-installer-panel', 'class-rows-table'} and 'api-json-panel' not in P[0]['definition'], names)
-    check('the installer page is exported with /display/boards and /display/hardware-chain (one manifest page list; ucd-0a)', [p['pageRoute'] for p in ALL][:3] == ['boards', 'hardware-chain', 'firmware-installer'])   # the first three are fixed; later arcs append their own pages (pv-0: the pin view's three)
+    check('the installer page is exported with /display/boards and /display/hardware-chain (one manifest page list; ucd-0a)', [p['pageRoute'] for p in ALL][:3] == ['boards', 'hardware-chain', 'firmware-installer'])   # rp-0: the register profile / memory map pages follow
     tables = {it['componentProps']['inputs'].get('className') for row in d['rows'] for it in row['items'] if it['componentProps']['componentName'] == 'class-rows-table'}
     check('the installer page tables cover variants, builds, devices, programmer kinds, plans, records, firmware solutions '
           '(fs-1 item 4 fallback: a described table + documented `pol firmware run` command, no live door wired in)',

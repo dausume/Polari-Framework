@@ -383,6 +383,7 @@ INSTALLER_PAGES = [
 ]
 
 #: the module's one page export (manifest `pages`): /display/boards + /display/firmware-installer
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES   # ucd-0a: + /display/hardware-chain
+from board.register_profile_page import REGISTER_PROFILE_PAGES   # noqa: E402  rp-0: /display/register-profile + /display/memory-map
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES   # ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map
 from board.pin_view_pages import PIN_VIEW_PAGES   # noqa: E402  pv-0: + the pin view's three data pages
 SEED_BOARD_PAGE_DISPLAYS = SEED_BOARD_PAGE_DISPLAYS + PIN_VIEW_PAGES
