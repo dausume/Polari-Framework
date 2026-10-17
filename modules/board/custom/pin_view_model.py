@@ -1,0 +1,353 @@
+"""
+@module board.custom.pin_view_model
+
+pv-0 (PIN_VIEW_PLAN.md 2.5 / 2.6 / 2.9): THE STRUCTURE of the pin view — surfaces, the pins at every level and the pin-to-pin connections between them — DERIVED on every read from the rows
+the earlier arcs built (never retyped): SocPin / PackageContact / ConnectorPin / EnclosureContact (hsp-0), BoardPinNet + the circuit rows (ucd-0c), PinFunction / PeripheralSignal (the
+signals), ElectricalCharacteristic (the pad class NAME only) and the shape rows (board.custom.pv_shapes).
+
+LEVELS (his sketch, concentric: die inside package inside board)   die · package · board · part · bench
+SURFACES                                                             board · enclosure (a package) · soc (a die) · board-part · bench-part
+CONNECTIONS are PIN TO PIN ONLY: both ends are pin ids. Kinds:
+  pad-to-leg   die pad <-> package leg                   to-header    leg <-> a header pin (or the ICSP1 header's pin)
+  on-board     two legs on one rail                      to-board-part  leg <-> a pin of a part on the board
+  chip-to-chip leg of one chip <-> leg of the other      to-bench     a header pin <-> a bench part's pin, or <-> another header pin by a bench wire
+A crossing that ends nowhere a pin exists (an unused leg, a not-bonded pad, a line the rows only name by what consumes it) is NOT a connection: it is listed in `unresolved` with the reason.
+A via is a WORD only (series resistor, buffer, capacitor ...) plus the part's name; no value is carried here — the numbers belong to the electrical view.
+"""
+import json
+
+from board.custom import exposure_view as V
+from board.custom import pv_families as F
+from board.custom import pv_shapes as S
+
+LEVELS = ('die', 'package', 'board', 'part', 'bench')
+VIA_WORD = {'direct': 'direct', 'series-resistor': 'series resistor', 'buffer': 'buffer', 'capacitor': 'capacitor', 'jumper': 'jumper', 'series-inductor': 'series inductor',
+            'series-fuse': 'series fuse', 'not-bonded': 'not bonded', 'internal-only': ''}
+POWER_KINDS = ('power', 'analog-supply', 'usb-supply')
+GROUND_KINDS = ('ground', 'usb-ground', 'thermal-pad')
+
+
+def _short(ref):
+    return ref.partition(':')[2] if ':' in ref else ref
+
+
+class Model:
+    def __init__(self, tables, board):
+        self.t, self.board = tables, board
+        self.surfaces, self.pins, self.connections, self.unresolved = [], {}, [], []
+        self.shapes = {r['name']: r for r in S.shape_rows(tables, board)}
+        self.pos = {}   # surface id -> {'x','y','rot','parent'}
+        self._fn_rows = {}
+        for f in tables.get('PinFunction', []):
+            self._fn_rows.setdefault(f['soc_pin'], {})[f['function']] = f
+        self._sig = {s['name']: s for s in tables.get('PeripheralSignal', [])}
+        self._soc = {s['name']: s for s in tables.get('SocPin', [])}
+        self._cls = {c['name']: c for c in tables.get('ConnectorPin', [])}
+        self._bp = {b['canonical']: b for b in tables.get('BoardPin', []) if b['board'] == board}
+        self._contacts = V.board_rows(tables, board)
+        self.comps = [c for c in tables.get('BoardComponent', []) if c['board'] == board and c.get('package')]
+        self._conn_seen, self._ids = set(), set()
+        self.labels = S.leg_labels(tables)
+
+    # ------------------------------------------------------------ pins
+    def signals_of(self, soc_pin_name, functions):
+        out = []
+        for fn in functions:
+            fr = self._fn_rows.get(soc_pin_name, {}).get(fn)
+            srows = [self._sig[fr['signal']]] if fr and fr.get('signal') in self._sig else []
+            for fam in (F.families_of_function(fn) or ['']):
+                if fam:
+                    out.append({'function': fn, 'family': fam, 'signal': srows[0]['name'] if srows else '', 'direction': F.direction_of(fn, srows)})
+        return out
+
+    def add_pin(self, **kw):
+        sig = kw.pop('signals', [])
+        fams = []
+        for s in sig:
+            if s['family'] not in fams:
+                fams.append(s['family'])
+        for extra in kw.pop('extra_families', []):
+            if extra and extra not in fams:
+                fams.append(extra)
+        pin = dict({'id': '', 'level': '', 'surface': '', 'label': '', 'number': None, 'x': 0.0, 'y': 0.0, 'side': '', 'kind': '', 'bonded': True, 'soc': '', 'soc_pin': '', 'canonical': '',
+                    'functions': [], 'default_function': '', 'drive_class': '', 'drive_role': 'undetermined', 'ref': '', 'notes': '', 'stage': 'unassigned', 'stage_why': '', 'consumers': [],
+                    'lit': None, 'dim': False}, **kw)
+        pin['signals'], pin['families'] = sig, fams
+        self.pins[pin['id']] = pin
+        return pin
+
+    def add_surface(self, **kw):
+        s = dict({'id': '', 'kind': '', 'level': '', 'title': '', 'parent': '', 'shape': '', 'x': 0.0, 'y': 0.0, 'rot': 0, 'w': 0.0, 'h': 0.0, 'ref': '', 'component': '', 'soc': '', 'package': '',
+                  'pin_ids': [], 'notes': '', 'links': {}}, **kw)
+        self.surfaces.append(s)
+        return s
+
+    def connect(self, kind, a, b, via='direct', via_part='', source='', enclosure='', verification='', note=''):
+        if a not in self.pins or b not in self.pins or a == b:
+            self.unresolved.append({'source': source, 'reason': 'an end is not a pin (%s / %s)' % (a if a not in self.pins else 'ok', b if b not in self.pins else 'ok'), 'a': a, 'b': b})
+            return None
+        key = (kind, tuple(sorted((a, b))), via_part, source)
+        if key in self._conn_seen:
+            return None
+        self._conn_seen.add(key)
+        source = 'rail' if source.startswith('rail:') else source.split('=')[0]   # the row name without its outer end (a net name like +5V is not carried in a connection)
+        cid, n = '%s--%s' % (a, b), 1
+        while cid in self._ids:
+            n += 1
+            cid = '%s--%s#%d' % (a, b, n)
+        self._ids.add(cid)
+        c = {'id': cid, 'a': a, 'b': b, 'kind': kind, 'via': VIA_WORD.get(via, via), 'via_part': via_part, 'enclosure': enclosure, 'source': source, 'verification': verification, 'note': note}
+        self.connections.append(c)
+        return c
+
+    # ------------------------------------------------------------ build
+    def build(self):
+        self._board_surface()
+        for comp in self.comps:
+            self._chip(comp)
+        self._parts()
+        self._headers()
+        self._crossings()
+        self._bench()
+        self._canonicals()
+        self._finish_surfaces()
+        return self
+
+    def _board_surface(self):
+        shp = self.shapes[S.shape_name('board', self.board)]
+        p = S.params(shp)
+        self.board_p = p
+        self.add_surface(id='board:%s' % self.board, kind='board', level='board', title='%s board' % self.board, shape=shp['name'], w=p['bbox'][0], h=p['bbox'][1], ref='HardwareEnclosure:%s:board' % self.board)
+        self.board_id = 'board:%s' % self.board
+        self.place = {pl['ref']: pl for pl in p['placements']}
+
+    def _chip(self, comp):
+        pkg = next(p for p in self.t['PackageDefinition'] if p['name'] == comp['package'])
+        pkg_shape = self.shapes[S.shape_name('pkg', pkg['name'])]
+        lay = S.layout(pkg_shape)
+        pl = self.place.get(comp['ref'], {'x': 0.0, 'y': 0.0, 'rot': 0})
+        pid = 'package:%s:%s' % (self.board, comp['ref'])
+        did = 'die:%s:%s' % (self.board, comp['ref'])
+        body = S.params(pkg_shape)['body']
+        self.add_surface(id=pid, kind='enclosure', level='package', title='%s %s package (%s)' % (comp['ref'], comp['soc'], pkg['package_type']), parent=self.board_id, shape=pkg_shape['name'],
+                         x=pl['x'], y=pl['y'], rot=pl['rot'], w=body[0], h=body[1], ref='HardwareEnclosure:%s:%s:package' % (self.board, comp['ref']), component=comp['ref'], soc=comp['soc'], package=pkg['name'])
+        legs = {}
+        pcs = [c for c in self.t['PackageContact'] if c['package'] == pkg['name']]
+        by_num = {p['number']: p for p in lay['pins']}
+        for c in pcs:
+            pos = by_num.get(c['number']) or (lay['pad'] and {'x': lay['pad']['x'], 'y': lay['pad']['y'], 'side': 'center'}) or {'x': 0.0, 'y': 0.0, 'side': ''}
+            sp = self._soc.get(c.get('soc_pin') or '')
+            fns = (['GPIO'] + json.loads(sp['functions_json'] or '[]')) if sp else json.loads(c.get('functions_json') or '[]')
+            fam_kind = F.family_of_kind(c['kind'])
+            legs[c['number']] = self.add_pin(
+                id='PackageContact:%s' % c['name'], level='package', surface=pid, label=c['label'], number=c['number'], x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos.get('side', ''), kind=c['kind'],
+                soc=comp['soc'], soc_pin=c.get('soc_pin', ''), functions=fns, default_function=(sp or {}).get('default_function', ''), drive_class=c.get('electrical_class', ''), ref='PackageContact:%s' % c['name'],
+                drive_role=self.drive_role(c['kind']), signals=self.signals_of(c.get('soc_pin', ''), fns) if sp else self._named(fns), extra_families=[fam_kind], notes=c.get('undetermined', ''))
+        # the die: one pad per SocPin of this chip + one per supply / signal pad the package's crossings name
+        e1 = [x for x in V.contacts(self.t) if x['enclosure'] == '%s:%s:package' % (self.board, comp['ref'])]
+        groups, order = {}, []
+        for x in e1:
+            if not x['inner_ref']:   # the exposed pad: the package has it, the rows name no die pad behind it
+                self.unresolved.append({'source': 'EnclosureContact:%s' % x['name'], 'reason': 'no die pad is named behind %s (%s)' % (x['label'], x['undetermined'] or 'die pads undetermined'), 'a': '', 'b': x['outer_ref']})
+                continue
+            if x['inner_ref'] not in groups:
+                order.append(x['inner_ref'])
+            groups.setdefault(x['inner_ref'], []).append(x)
+        for sp in self.t['SocPin']:
+            if sp['soc'] == comp['soc'] and 'SocPin:%s' % sp['name'] not in groups:
+                order.append('SocPin:%s' % sp['name'])
+                groups['SocPin:%s' % sp['name']] = []
+
+        def first_leg(ref):
+            nums = [int(x['outer_ref'].rpartition(':')[2]) for x in groups[ref] if x['outer_ref']]
+            return min(nums) if nums else 10 ** 6
+        order.sort(key=lambda r: (first_leg(r), r))
+        die_shape = self.shapes[S.shape_name('die', comp['soc'])]
+        dl = S.die(S.params(die_shape), len(order))
+        self.add_surface(id=did, kind='soc', level='die', title='%s die (%s)' % (comp['ref'], comp['soc']), parent=pid, shape=die_shape['name'], w=dl['ring']['w'], h=dl['ring']['h'],
+                         ref='SocDefinition:%s' % comp['soc'], component=comp['ref'], soc=comp['soc'], links={'register_profile': '/api/board/socs/%s/register-profile' % comp['soc']})
+        for ref, pos in zip(order, dl['pins']):
+            xs = groups[ref]
+            cls, _, rest = ref.partition(':')
+            sp = self._soc.get(rest) if cls == 'SocPin' else None
+            label = sp['pin'] if sp else rest.rpartition(':')[2]
+            leg = next((legs.get(int(x['outer_ref'].rpartition(':')[2])) for x in xs if x['outer_ref']), None)
+            if sp:
+                fns = ['GPIO'] + json.loads(sp['functions_json'] or '[]')
+                sig = self.signals_of(sp['name'], fns)
+            elif cls == 'SocSignal':
+                fns = [label]
+                sig = self._named(fns)
+            else:
+                fns, sig = [], []
+            bonded = any(x['outer_ref'] for x in xs) if xs else bool(sp and sp['package_contacts_refs_json'] != '[]')
+            kind = (leg or {}).get('kind') or ('io' if sp else 'signal')
+            self.add_pin(id=ref, level='die', surface=did, label=label, x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos['side'], kind=kind, bonded=bonded, soc=comp['soc'],
+                         soc_pin=sp['name'] if sp else '', functions=fns, default_function=(sp or {}).get('default_function', ''), drive_class=(sp or {}).get('electrical_class', '') or (leg or {}).get('drive_class', ''),
+                         drive_role=self.drive_role(kind), ref=ref, signals=sig, extra_families=[F.family_of_kind(kind)],
+                         notes='' if bonded else (xs[0]['notes'] if xs else 'no package crossing names this pad'))
+            for x in xs:
+                lg = legs.get(int(x['outer_ref'].rpartition(':')[2])) if x['outer_ref'] else None
+                if lg:
+                    self.connect('pad-to-leg', ref, lg['id'], x['via'], x['via_part'], source='EnclosureContact:%s' % x['name'], enclosure=x['enclosure'], verification=x['verification'])
+                else:
+                    self.unresolved.append({'source': 'EnclosureContact:%s' % x['name'], 'reason': '%s: %s' % (x['via'], x['notes'] or x['label']), 'a': ref, 'b': ''})
+
+    def _named(self, fns):
+        return [{'function': f, 'family': fam, 'signal': '', 'direction': F.direction_of(f, [])} for f in fns for fam in (F.families_of_function(f) or [])]
+
+    @staticmethod
+    def drive_role(kind):
+        """The ELECTRICAL role of a pad / leg kind (drive side, never the signal direction): sources-and-sinks | supplied | returns | sources | draws-leakage-only | differential-pair | undetermined."""
+        if kind == 'io':
+            return 'sources-and-sinks'
+        if kind in POWER_KINDS:
+            return 'supplied'
+        if kind in GROUND_KINDS:
+            return 'returns'
+        if kind == 'regulator-output':
+            return 'sources'
+        if kind in ('analog-input', 'clock-input', 'analog-reference'):
+            return 'draws-leakage-only'
+        if kind == 'usb-data':
+            return 'differential-pair'
+        return 'undetermined'
+
+    # ------------------------------------------------------------ board parts, headers
+    def _parts(self):
+        for ref, names in S.part_names(self.t, self.board).items():
+            shp = self.shapes[S.shape_name('part', ref.replace(' ', '_'))]
+            lay = S.layout(shp)
+            pl = self.place.get(ref, {'x': 0.0, 'y': 0.0, 'rot': 0})
+            sid = 'part:%s:%s' % (self.board, ref)
+            bx = S.params(shp)['box']
+            self.add_surface(id=sid, kind='board-part', level='part', title=ref, parent=self.board_id, shape=shp['name'], x=pl['x'], y=pl['y'], rot=pl['rot'], w=bx[0], h=bx[1], ref='SchematicPart:%s' % ref)
+            by = {p['name']: p for p in lay['pins']}
+            for n in names:
+                p = by[n]
+                self.add_pin(id=self.part_pin_id(ref, n), level='part', surface=sid, label=n, x=round(p['x'], 4), y=round(p['y'], 4), side=p['side'], kind='part', drive_role='undetermined', ref='SchematicPart:%s' % ref,
+                             notes='the schematic pin number of this part is `undetermined` in the rows (the line is named by what it carries)' if ':' not in n and not n.isdigit() and ref.startswith(('C', 'RN', 'Y', 'CST')) else '')
+
+    @staticmethod
+    def part_pin_id(ref, name):
+        return 'SchematicPart:%s:%s' % (ref, name)
+
+    def _headers(self):
+        sid = self.board_id
+        for h in self.board_p['headers']:
+            pos = {p['number']: p for p in S.header(h)}
+            for cp in [c for c in self.t['ConnectorPin'] if c['name'].startswith(h['name'] + ':')]:
+                p = pos.get(cp['number'], {'x': h['x'], 'y': h['y']})
+                self.add_pin(id='ConnectorPin:%s' % cp['name'], level='board', surface=sid, label=cp['label'], number=cp['number'], x=round(p['x'], 4), y=round(p['y'], 4), kind='header:%s' % h['connector'],
+                             canonical=cp.get('board_pin', ''), ref='ConnectorPin:%s' % cp['name'], drive_role='undetermined')
+
+    # ------------------------------------------------------------ crossings of the board (E2)
+    def _crossings(self):
+        rails = {}
+        for x in [c for c in self._contacts if c['level'] == 'E2']:
+            a = x['inner_ref']
+            if a not in self.pins:
+                self.unresolved.append({'source': 'EnclosureContact:%s' % x['name'], 'reason': 'inner end %s is not a pin of the modelled packages' % a, 'a': a, 'b': ''})
+                continue
+            o = x['outer_ref']
+            src, enc = 'EnclosureContact:%s' % x['name'], x['enclosure']
+            args = dict(via=x['via'], via_part=x['via_part'], source=src, enclosure=enc, verification=x['verification'])
+            cls, _, rest = o.partition(':')
+            if cls == 'ConnectorPin':
+                self.connect('to-header', a, o, **args)
+            elif cls == 'BoardNet':
+                net = rest.split(':', 1)[1] if ':' in rest else rest
+                rails.setdefault(net, []).append((a, x))
+                for hp in V.header_pins(o, self.t):
+                    self.connect('to-header', a, 'ConnectorPin:%s' % hp, **args)
+            elif cls == 'PackageContact':
+                self.connect('chip-to-chip', a, o, **args)
+            elif cls == 'SchematicPart':
+                ref, _, pin = rest.rpartition(':')
+                self.connect('to-header' if ref.startswith('ICSP') else 'to-board-part', a, self.part_pin_id(ref, pin), **args)
+            elif x['via'] == 'internal-only' and x['via_part']:
+                self.connect('to-board-part', a, self.part_pin_id(x['via_part'], S.part_pin_name(x, self.labels)), **dict(args, via='direct', via_part=''))
+            else:
+                self.unresolved.append({'source': src, 'reason': '%s: %s' % (x['via'], x['consumed_by'] or x['notes'] or x['label']), 'a': a, 'b': ''})
+        for net, ends in sorted(rails.items()):   # two legs on one rail: on-board
+            for i, (a, xa) in enumerate(ends):
+                for b, xb in ends[i + 1:]:
+                    self.connect('on-board', a, b, via='direct', source='rail:%s' % net, enclosure=xa['enclosure'], verification=xa['verification'])
+
+    # ------------------------------------------------------------ the bench (BoardPinNet + the circuit rows)
+    def _bench(self):
+        nets = [n for n in self.t.get('BoardPinNet', []) if n['board'] == self.board]
+        if not nets:
+            return
+        net_row = {n['name']: n for n in self.t.get('CircuitNetDefinition', [])}
+        bp_header = {b['name']: 'ConnectorPin:%s:%s' % (self.board, b['connector_pin']) for b in self.t['BoardPin'] if b['board'] == self.board and b.get('connector_pin')}
+        for circuit, c, label in S.bench_components(self.t, self.board):
+            sid = 'bench:%s:%s' % (circuit, c['name'])
+            shp = self.shapes[S.shape_name('part', 'bench-%s' % c['name'])]
+            if not any(s['id'] == sid for s in self.surfaces):
+                bx = S.params(shp)['box']
+                self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s)' % (c['name'], c['kind'], circuit), shape=shp['name'], w=bx[0], h=bx[1], ref='CircuitComponentDefinition:%s' % c['name'])
+            pos = {p['name']: p for p in S.layout(shp)['pins']}[label]
+            self.add_pin(id='CircuitPin:%s:%s:%s' % (circuit, c['name'], label), level='bench', surface=sid, label=label, x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos['side'], kind=c['kind'],
+                         drive_role='undetermined', ref='CircuitComponentDefinition:%s' % c['name'])
+        by_net = {}
+        for n in nets:
+            by_net.setdefault((n['circuit'], n['circuit_net']), []).append(n)
+        for (circuit, net_name), rows in sorted(by_net.items()):
+            nr = net_row.get(net_name)
+            if nr is None:
+                self.unresolved.append({'source': 'BoardPinNet:%s' % rows[0]['name'], 'reason': 'no circuit net row %s' % net_name, 'a': '', 'b': ''})
+                continue
+            label = nr['net']
+            heads = []
+            for r in rows:
+                if r['board_pin']:
+                    heads.append((bp_header.get(r['board_pin'], ''), r))
+                else:   # a rail (GND): every header pin of that label
+                    heads += [('ConnectorPin:%s' % cp['name'], r) for cp in self.t['ConnectorPin'] if cp['board'] == self.board and cp['label'] == label]
+            targets = [pid for pid, p in self.pins.items() if p['level'] == 'bench' and p['id'].startswith('CircuitPin:%s:' % circuit) and p['label'] == label]
+            for hid, r in heads:
+                if hid not in self.pins:
+                    self.unresolved.append({'source': 'BoardPinNet:%s' % r['name'], 'reason': 'its header pin is not a pin of this board', 'a': hid, 'b': ''})
+                    continue
+                for tid in targets:
+                    self.connect('to-bench', hid, tid, via='bench wire', source='BoardPinNet:%s' % r['name'])
+            hh = [h for h, _ in heads if h and not self.pins[h]['label'] == label]   # a rail's header pins are not jumpered to each other
+            for i, a in enumerate(hh):   # two header pins on one bench net: the jumper wire between them
+                for b in hh[i + 1:]:
+                    self.connect('to-bench', a, b, via='jumper', source='BoardPinNet:%s' % rows[0]['name'])
+
+    def _canonicals(self):
+        """The board's own pin names (D0 .. A5) on the die pad, the leg and the header pins of the line: BoardPin rows name the SoC pin of the board's MCU; headers follow the crossings."""
+        mcu = next((c for c in self.comps if c['role'] == 'mcu'), None)
+        if mcu is None:
+            return
+        by_soc = {'%s:%s' % (mcu['soc'], b['soc_pin']): b['canonical'] for b in self._bp.values()}
+        for p in self.pins.values():
+            if p['level'] in ('die', 'package') and p['soc_pin'] in by_soc and p['soc'] == mcu['soc']:
+                p['canonical'] = by_soc[p['soc_pin']]
+        for c in self.connections:
+            if c['kind'] == 'to-header':
+                a, b = self.pins[c['a']], self.pins[c['b']]
+                if a['canonical'] and not b['canonical'] and b['level'] == 'board':
+                    b['canonical'] = a['canonical']
+
+    def _finish_surfaces(self):
+        by = {}
+        for p in self.pins.values():
+            by.setdefault(p['surface'], []).append(p['id'])
+        for s in self.surfaces:
+            s['pin_ids'] = by.get(s['id'], [])
+        # bench parts sit outside the board: place them in a column to its right (a drawing knob)
+        bx = self.board_p['bbox'][0] + 12.0
+        for i, s in enumerate([s for s in self.surfaces if s['level'] == 'bench']):
+            s['x'], s['y'] = bx, 8.0 + i * 8.0
+        # a part on the board without a placement keeps (0,0) only if the board row has none: the board row always places every part
+        for s in self.surfaces:
+            if s['level'] == 'part' and s['ref'].partition(':')[2] in self.place:
+                pl = self.place[s['ref'].partition(':')[2]]
+                s['x'], s['y'], s['rot'] = pl['x'], pl['y'], pl['rot']
+
+
+def build(tables, board='arduino-uno-r3'):
+    return Model(tables, board).build()

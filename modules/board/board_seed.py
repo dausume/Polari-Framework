@@ -117,6 +117,12 @@ BOARD_SEED_PAIRS += [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls 
 from board.custom import hardware_system as _HWS   # noqa: E402
 _HW_SYSTEM = _HWS.seed_rows()
 BOARD_SEED_PAIRS += [(c, cls, _register_owned(_HW_SYSTEM[c])) for c, cls in (('HardwareSystem', HardwareSystem), ('SystemLink', SystemLink), ('SignalPath', SignalPath))]
+try:   # pv-0: the pin view's math-defined shapes (board.custom.pv_shapes) are MathShapeDefinition rows of the mathshapes module — code-owned, derived from the rows above; skipped when mathshapes is absent
+    from mathshapes.shape_basis import MathShapeDefinition as _MSD
+    from board.custom import pv_shapes as _PVS
+    BOARD_SEED_PAIRS += [('MathShapeDefinition', _MSD, _register_owned(_PVS.seed_rows()))]
+except Exception:   # pragma: no cover — mathshapes absent: the pin view still computes its shapes from the same generators
+    pass
 try:   # the tree rows belong to the techtree module; seeded only when it is present
     from techtree.techtree_basis import TechTreeDefinition, TechNode
     BOARD_SEED_PAIRS += [('TechTreeDefinition', TechTreeDefinition, SEED_BOARD_TECH_TREES),

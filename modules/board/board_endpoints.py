@@ -7,10 +7,12 @@ brd-fi: the firmware installer's doors (board.installer_api) are constructed bes
 from board.board_api import BoardAPI
 from board.installer_api import BoardInstallerAPI
 from board.board_object_api import BoardObjectAPI
+from board.pin_view_api import PinViewAPI
 
 
 def construct_board_endpoints(polServer):
     api = BoardAPI(polServer=polServer, manager=polServer.manager)
     api.installer = BoardInstallerAPI(polServer=polServer, manager=polServer.manager)
     api.board_object = BoardObjectAPI(polServer=polServer, manager=polServer.manager)   # brd-bo: /api/board/{board}/pins|views|conflicts|render|ingest
+    api.pin_view = PinViewAPI(polServer=polServer, manager=polServer.manager)   # pv-0: /api/board/{board}/pin-view[/pins|/connections|/surfaces]
     return api

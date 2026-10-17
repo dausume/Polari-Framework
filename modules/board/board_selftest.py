@@ -390,6 +390,8 @@ def main():
     run_enclosure(check)
     from board.board_hardware_system_selftest import run_hardware_system   # hsp-1: the hardware system, its links, the three signal paths, the doors
     run_hardware_system(check)
+    from board.board_pin_view_selftest import run_pin_view   # pv-0: math-defined shapes, protocol families, the pin-view doors, stages, the data pages
+    run_pin_view(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     print('\n%d/%d checks passed' % (passed, total))
