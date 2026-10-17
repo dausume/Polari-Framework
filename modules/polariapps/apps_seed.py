@@ -669,6 +669,8 @@ SEED_POLARI_APPS = [
                   _it('PCB: send to fabrication', 'page',
                       route='/display/board-fab', requires_module='pcb')),
              _tgrp('Pin data views',
+                  _it('Pin view: boards, chips and parts, drawn', 'page',
+                      route='/display/pin-view', requires_module='board'),
                   _it('Pins: every pin at every level', 'page',
                       route='/display/pin-view-pins', requires_module='board'),
                   _it('Connections: pin to pin', 'page',

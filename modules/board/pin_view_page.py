@@ -5,6 +5,9 @@ pv-0 (PIN_VIEW_PLAN.md 2.9): the pin view's DATA VIEWS beside the d3 view — th
 the row doors `GET /api/board/<board>/pin-view/{pins|connections|surfaces}`; a table's stage / protocol / system / binding are fixed in its data path (the generic table filters by a column, it
 does not send query parameters), and each page's text says which other values the door takes. Plain words only; the pages are fixed to the UNO and its light demo, the way /display/hardware-chain
 is fixed to one binding. The d3 view (pv-1) selects together with these tables.
+
+pv-1: `/display/pin-view` — the d3 view itself, ONE item mounting the registered component `hardware-pin-view` (his explicit exception to "no new custom components", PIN_VIEW_PLAN
+2.9/§4 D-pv-1); the three table pages above are its data views and are named on it. The component takes board / system / binding / stage as inputs (and the same names as route query).
 """
 from polariApiServer.module_pages_seed import _page, _row, _table
 
@@ -23,7 +26,7 @@ _PIN_COLS = 'owner,level,label,number,kind,canonical,families,drive_class,stage,
 _CONN_COLS = 'a_owner,a_label,b_owner,b_label,kind,via,drive,signal,use,stage,lit'
 _SURF_COLS = 'title,kind,level,parent,shape,pin_count,unassigned,available,proposed,committed'
 
-PIN_VIEW_PAGES = [
+_TABLE_PAGES = [
     _page('pin-view-pins', 'pin-view-pins',
           'Pins — every pin at every level of the UNO: the silicon pads of the ATmega328P and the ATmega16U2, the legs of their packages, the header pins of the board, the pins of the parts on the board '
           'and the bench parts. One row is one pin. Colour in the picture is the protocol family; here the family is a word. %s %s' % (STAGES_TEXT, DOOR_TEXT),
@@ -79,3 +82,34 @@ PIN_VIEW_PAGES = [
           ]),
 ]
 
+
+
+# ---------------------------------------------------------------- pv-1: the d3 view (the ONE sanctioned new component for pins)
+_VIEW_TEXT = ('Pin view — a picture of the UNO and its parts with their pins. The board is the outline, each chip sits on it as a package (its legs on the edge) with the silicon die inside '
+              '(its pads in a ring), and the other parts of the board and the bench parts sit beside them. Colour is the signal family (GPIO, PWM, analog, UART, SPI, I2C, USB, clock, reset, '
+              'power, ground); the symbol says what a pin does; a hollow ring is a pin nothing has been assigned to yet, a tinted one is proposed by a task, a solid one is committed by the '
+              'firmware, a hatched one is blocked or undetermined on the availability ladder. Nothing is wired until you pick something: click a board, a package, the silicon or a part to see '
+              'its pin-to-pin connections and its pins grouped by kind; click a pin to see what it connects to; click a connection for three separate readings — Drive (the electricity: current '
+              'and supply, no numbers), Signal (which end outputs or inputs, the protocol it carries) and Use (the tasks and Purposes that claim it). Click again, or press Escape, to clear. '
+              'The stage selector shows the same parts as composed (base, before any init), after init, with the tasks assigned, or with the firmware committed; the protocol filter dims every '
+              'pin that cannot carry it (SPI means SCK, MOSI, MISO and SS). The same data as tables: Pins (/display/pin-view-pins), Connections (/display/pin-view-connections), '
+              'Surfaces (/display/pin-view-surfaces).')
+
+
+def _view_item(item_id='pin-view-d3', index=0, segments=12, board=BOARD, system=SYSTEM, binding='', stage='base'):
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': 'Pin view — boards, chips and parts with their pins',
+        'description': 'What this is for: seeing which pins exist at every level (die pad, package leg, board pin, board part, bench part), what each can do, and what is connected to what. '
+                       'Nothing here is edited; it only reads GET %s.' % DOOR,
+        'visible': True, 'collapsed': False, 'cssClass': '',
+        'componentProps': {'componentName': 'hardware-pin-view', 'inputs': {'board': board, 'system': system, 'binding': binding, 'stage': stage}},
+        'item': None, 'nestedRows': [],
+    }
+
+
+_VIEW_PAGE = _page('pin-view', 'pin-view', _VIEW_TEXT, 'BoardPin', [_row(0, [_view_item()], min_height=640)])
+
+#: the pin view's pages: the d3 view first, then its three table pages
+PIN_VIEW_PAGES = [_VIEW_PAGE] + _TABLE_PAGES

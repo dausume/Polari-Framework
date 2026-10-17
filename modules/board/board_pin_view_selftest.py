@@ -189,11 +189,19 @@ def run_pin_view(check):
     mine = [p for p in PAGES if p['name'] in ('pin-view-pins', 'pin-view-connections', 'pin-view-surfaces')]
     items = [it for p in mine for r in json.loads(p['definition'])['rows'] for it in r['items']]
     check('PAGES: the three DisplayDefinitions exist (Pins, Connections, Surfaces) and are configured tables only — every item is a class-rows-table over a pin-view row door, none is an api-json-panel or a new component; their text says what a row is',
-          len(mine) == 3 and len(PIN_VIEW_PAGES) == 3 and items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items)
+          len(mine) == 3 and len(PIN_VIEW_PAGES) == 4 and items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items)
           and all(it['componentProps']['inputs']['dataPath'].startswith('/api/board/%s/pin-view/' % BOARD) and it['description'].startswith('What this is for') for it in items)
           and not any('api-json-panel' in json.dumps(p['definition']) for p in mine), str(len(items)))
+    view = next((p for p in PAGES if p['name'] == 'pin-view'), None)
+    vitems = [it for r in json.loads(view['definition'])['rows'] for it in r['items']] if view else []
+    check('PAGES (pv-1): /display/pin-view mounts exactly ONE item, the registered component hardware-pin-view (his explicit exception), with board / system / binding / stage inputs; it names its three table pages; no api-json-panel',
+          view is not None and view['pageRoute'] == 'pin-view' and PIN_VIEW_PAGES[0] is view and len(vitems) == 1 and vitems[0]['componentProps']['componentName'] == 'hardware-pin-view'
+          and set(vitems[0]['componentProps']['inputs']) == {'board', 'system', 'binding', 'stage'} and vitems[0]['componentProps']['inputs']['board'] == BOARD
+          and all(r in view['description'] for r in ('/display/pin-view-pins', '/display/pin-view-connections', '/display/pin-view-surfaces')) and 'api-json-panel' not in view['definition'], '')
     from polariapps.apps_seed import SEED_POLARI_APPS as APPS
     nav = json.dumps([a for a in APPS if a['name'] == 'app-hardware'], default=str)
+    check('NAV (pv-1): the Hardware home lists the Pin view FIRST in the "Pin data views" group, before the Pins table page',
+          '/display/pin-view\\"' in nav and nav.index('/display/pin-view\\"') < nav.index('/display/pin-view-pins') and nav.index('Pin data views') < nav.index('/display/pin-view\\"'), '')
     check('NAV: the Hardware home links the three data pages in their own group ("Pin data views")', all(r in nav for r in ('/display/pin-view-pins', '/display/pin-view-connections', '/display/pin-view-surfaces', 'Pin data views')), '')
 
     # ---- the doors on a real falcon.App
