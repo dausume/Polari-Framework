@@ -98,6 +98,14 @@ def _leg(tables, package, sp, label):
     return None
 
 
+def _open_rungs(rungs):
+    """What the headline must not hide: rungs not checked in this context (never a silent ok)."""
+    un = [str(r['rung']) for r in rungs if r['verdict'] == 'unchecked']
+    ny = [str(r['rung']) for r in rungs if r['verdict'] == 'not-yet']
+    bits = (['unchecked: rungs %s' % ', '.join(un)] if un else []) + (['not yet: rung %s' % ', '.join(ny)] if ny else [])
+    return (' so far (%s)' % '; '.join(bits)) if bits else ''
+
+
 def availability(pin, function, ctx, tables=None):
     """-> {board, pin, soc_pin, function, context, results: [{package, rungs, available, blocked_at, conditions}], differs}."""
     from board.custom import board_object as BO
@@ -114,7 +122,7 @@ def availability(pin, function, ctx, tables=None):
         conds = [r for r in rungs if r['verdict'] in ('conditional', 'undetermined')]
         results.append({'package': package, 'rungs': rungs, 'blocked_at': first['rung'] if first else 0,
                         'available': ('blocked at rung %d (%s): %s' % (first['rung'], first['name'], first['detail'])) if first else
-                                     ('available with conditions (rungs %s)' % ', '.join(str(r['rung']) for r in conds)) if conds else 'available',
+                                     (('available with conditions (rungs %s)' % ', '.join(str(r['rung']) for r in conds)) if conds else 'available') + _open_rungs(rungs),
                         'conditions': [{'rung': r['rung'], 'verdict': r['verdict'], 'detail': r['detail']} for r in conds]})
     differs = len({r['blocked_at'] for r in results}) > 1
     return {'board': board, 'pin': pin, 'soc_pin': sp['name'] if sp else '', 'signal': '' if sp else '%s:%s' % (comp['soc'], label), 'function': function,
