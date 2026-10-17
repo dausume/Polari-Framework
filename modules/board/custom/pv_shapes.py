@@ -301,8 +301,8 @@ def board_row(board, tables):
                 'pv-0: board generator; bbox + holes + pitch cited from the UNO product datasheet p.12; every placement a drawing knob')
 
 
-def part_cells(refs, start=(22.0, 38.0), cell=7.0, per_row=6):
-    """Auto-layout KNOB: board parts in a grid below the chips; deterministic by ref order."""
+def part_cells(refs, start=(4.0, 34.0), cell=7.0, per_row=4):
+    """Auto-layout KNOB: board parts in a grid in the free lower-left area (clear of U1 at x 34.4-41.6 and the bottom headers); deterministic by ref order."""
     out = {}
     for i, ref in enumerate(sorted(refs)):
         out[ref] = (start[0] + (i % per_row) * cell, start[1] + (i // per_row) * 4.5)
