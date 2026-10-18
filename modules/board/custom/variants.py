@@ -66,13 +66,20 @@ def _board_pins():
 ROW_PIN_KNOBS, PWM_PINS = _board_pins()   # ({'led_pin': 13, 'pwm_pin': 6, 'adc_channel': 0}, (5, 6, 9, 10)) from the seed rows
 DEFAULT_KNOBS.update(ROW_PIN_KNOBS)
 PIN_KNOBS = ('led_pin', 'pwm_pin', 'adc_channel')
+#: fgm-5a: the button ROUTE knob (absent = 'int0', hal.c's hand-written INT0 button, so every existing variant is unchanged) and the apps
+#: whose button code is written against hal.h's three button functions only (light.c) - the others also use INT0-only facts
+ROUTE_APPS = ('light',)
+ROUTE_KNOB_DEFAULTS = {'button_route': 'int0'}
+ROUTE_INT_KNOBS = ('button_adc_channel', 'adc_press_below_mv', 'adc_release_above_mv', 'adc_pullup_ohms')
 FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
 RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED', 'FEATURE_PWM', 'FEATURE_ADC', 'LED_PIN',
             'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU', 'INSTANCE_INDEX', 'SEND_NAME', 'FEATURE_COMMANDS',
             # ucd-0e2's own new knobs — NOT HAL_INT0/HAL_INT0_DEBOUNCE_MS, which firmwarefaults' own sc-1 scenario
             # variants (uno-button-count etc.) already set directly as build flags, predating the 'button' feature
-            'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN'}
+            'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN',
+            # fgm-5a: the button route (hal_button_*.c rendered from catoms/read-button/)
+            'HAL_BUTTON_ROUTE'}
 
 
 class VariantRefused(ValueError):
@@ -145,6 +152,27 @@ SEED_FIRMWARE_VARIANTS = [
        {'rig_name': 'uno-light', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'debounce_ms': 30},
        'pressing the button on D2 flips the light on D6, bumps toggles and reports source=button; setting led_on from '
        'the screen (SET_LED) switches the light and reports source=command; toggles counts every change.', {}),
+    _v('uno-light-pcint', 'The light test with the button on a pin-change interrupt (D4)',
+       'fgm-5a (MISSION_PROFILE_SOLVER_PLAN.md 8.5): the uno-light behaviour with the button read by the PIN-CHANGE-INTERRUPT isotope '
+       'of read-button, rendered from a Jinja2 template (catoms/read-button), on D4 - a pin with no INT0/INT1 - and the light still '
+       'on D6. The same debounce lockout as the INT0 isotope. Opt-in: uno-light itself is unchanged.',
+       'light', ['LightState'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': False},
+       {'rig_name': 'uno-light-pcint', 'telemetry_hz': 10, 'led_pin': 6, 'button_route': 'pcint', 'button_pin': 4, 'debounce_ms': 30},
+       'pressing the button on D4 flips the light on D6, bumps toggles and reports source=button, exactly as uno-light does with D2; '
+       'SET_LED from the screen still works.', {},
+       notes='the button route is the template read-button/isotopes/pin-change-interrupt (rendered to hal_button_pcint.c)'),
+    _v('uno-light-analog', 'The light test with the button read as a voltage on A0 (analog threshold)',
+       'fgm-5a: the uno-light behaviour with the button read by the ANALOG-THRESHOLD isotope of read-button: a 10 kohm resistor holds A0 '
+       'at 5 V, the switch pulls it to ground, and the firmware does one ADC conversion per main-loop pass (below 1500 mV = pressed, '
+       'above 3500 mV = released, the gap is the hysteresis). No interrupt and no digital pin; the light stays on D6. Opt-in.',
+       'light', ['LightState'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': False},
+       {'rig_name': 'uno-light-analog', 'telemetry_hz': 10, 'led_pin': 6, 'button_route': 'adc', 'button_adc_channel': 0,
+        'adc_press_below_mv': 1500, 'adc_release_above_mv': 3500, 'adc_pullup_ohms': 10000, 'debounce_ms': 30},
+       'pulling A0 below 1500 mV (a press) flips the light on D6, bumps toggles and reports source=button; the button released above '
+       '3500 mV; a switch already closed at boot is not a press.', {},
+       notes='the button route is the template read-button/isotopes/analog-threshold (rendered to hal_button_adc.c)'),
     _v('uno-echo', 'Echo: no sensors, a command comes back whole',
        'The protocol test. No sensors and no actuators: whatever Polari sends is copied back, every field, and status '
        'says "echoed". If the values return unchanged, the wire, the header, the parser and the bridge all agree.',
@@ -205,6 +233,9 @@ def resolve(variant, overrides=None, base=None):
         k['instance_index'], k['send_name'] = int(k['instance_index']), int(k['send_name'])
         k['button_pin'], k['sense_pin'] = int(k['button_pin']), int(k['sense_pin'])
         k['debounce_ms'], k['event_queue_len'] = int(k['debounce_ms']), int(k['event_queue_len'])
+        for rk in ROUTE_INT_KNOBS:
+            if rk in k:
+                k[rk] = int(k[rk])
     except (TypeError, ValueError) as e:
         raise VariantRefused('a knob is not a number: %s' % e)
     if not 1 <= k['telemetry_hz'] <= 50:
@@ -229,7 +260,25 @@ def resolve(variant, overrides=None, base=None):
         why.append('instance_index %d without a bridge: one unbound instance is index 0' % k['instance_index'])
     if not k['send_name'] and not k['bridge']:
         why.append('send_name 0 without a bridge: an unbound board is identified by the name it sends')
-    if feats['button'] and k['button_pin'] != 2:
+    route = str(k.get('button_route', 'int0'))
+    if route not in ('int0', 'pcint', 'adc'):
+        why.append('button_route %r: int0 (hal.c) | pcint | adc (rendered from catoms/read-button/)' % route)
+    elif route != 'int0':
+        if not feats['button']:
+            why.append('button_route %s without the button feature' % route)
+        elif app not in ROUTE_APPS:
+            why.append('button_route %s: the %s app is not written for it (only %s use hal.h\'s three button functions alone)' % (route, app, ', '.join(ROUTE_APPS)))
+        else:
+            from board.custom import button_routes as BR
+            try:
+                BR.check(route, k)
+            except BR.RouteRefused as e:
+                why.append('button_route %s: %s' % (route, e))
+            if route == 'pcint' and feats['led'] and k['button_pin'] == k['led_pin']:
+                why.append('button_pin and led_pin are the same pin (D%d)' % k['led_pin'])
+            if route == 'adc' and feats['led'] and k['led_pin'] == 14 + int(k.get('button_adc_channel', 0)):
+                why.append('led_pin and the button\'s ADC pin are the same pin')
+    if feats['button'] and route == 'int0' and k['button_pin'] != 2:
         why.append('button_pin D%d: the button is hardware-fixed to D2 (INT0) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['button_pin'])
     if feats['sense'] and k['sense_pin'] != 3:
         why.append('sense_pin D%d: the sense atom is hardware-fixed to D3 (INT1) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['sense_pin'])
@@ -287,9 +336,17 @@ def render_config(r, indexed=False):
     if f['button'] or f['sense']:
         lines += ['#define FEATURE_BUTTON %d' % int(f['button']), '#define FEATURE_SENSE  %d' % int(f['sense'])]
         if f['button']:
-            lines += ['#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */',
-                       '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
-                       '#define BUTTON_PIN   %d' % k['button_pin']]
+            route = str(k.get('button_route', 'int0'))
+            if route == 'int0':
+                lines += ['#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */',
+                           '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
+                           '#define BUTTON_PIN   %d' % k['button_pin']]
+            else:   # fgm-5a: the button atom is rendered into hal_button_*.c; hal.c's INT0 block is off, the app still sees HAL_INT0
+                from board.custom import button_routes as BR
+                lines += ['#define HAL_INT0     1              /* the app\'s button guard; the atom itself is the rendered hal_button_*.c */',
+                           '#define HAL_BUTTON_ROUTE %d          /* fgm-5a: %s (catoms/read-button) */' % (BR.ROUTES[route][0], BR.ROUTES[route][1]),
+                           '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
+                           '#define BUTTON_PIN   %d' % (k['button_pin'] if route == 'pcint' else 14 + int(k.get('button_adc_channel', 0)))]
         if f['sense']:
             lines += ['#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
                        '#define SENSE_PIN    %d' % k['sense_pin']]

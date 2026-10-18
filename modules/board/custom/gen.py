@@ -222,6 +222,16 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     extra_headers = APP_EXTRA_HEADERS.get(r['app'], ())
     for rel in extra_headers:
         shutil.copy(os.path.join(tpl, rel), os.path.join(project, os.path.basename(rel)))
+    # fgm-5a: a non-INT0 button route is RENDERED (Jinja2, catoms/read-button/isotopes/<iso>/template.c.j2) into one extra .c file
+    route = str(r['knobs'].get('button_route') or 'int0')
+    rendered = None
+    if r['features']['button'] and route != 'int0':
+        from board.custom import button_routes as BR
+        try:
+            rendered = BR.render(route, r['knobs'])
+        except BR.RouteRefused as e:
+            raise GenRefused(str(e))
+        open(os.path.join(project, rendered['file']), 'w').write(rendered['text'])
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
@@ -251,6 +261,10 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     tfiles = [('template ' + fn, 'board/custom/firmware/uno/' + fn, os.path.join(tpl, fn)) for fn in TEMPLATE_FILES] \
         + [('template app %s (main.c)' % r['app'], 'board/custom/firmware/uno/apps/%s.c' % r['app'], app_src)] \
         + [('template app header %s' % os.path.basename(rel), 'board/custom/firmware/uno/' + rel, os.path.join(tpl, rel)) for rel in extra_headers]
+    tinputs = []
+    if rendered:   # the template + its macro file by sha256, and what rendered from them (the file is also hashed as a project input)
+        tinputs = [{'label': 'isotope template (jinja2)', 'path': rendered['template'], 'sha256': rendered['template_sha256']},
+                   {'label': 'isotope template macros (jinja2)', 'path': 'board/custom/firmware/uno/catoms/read-button/_common.j2', 'sha256': rendered['common_sha256']}]
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': board, 'state': 'generated', 'variant': r['name'],
            'classes_json': json.dumps(class_rows), 'template': 'board/custom/firmware/uno', 'source_sha': ssha,
            'header_sha256': compat.combined_sha(class_rows), 'tag_order_json': json.dumps(orders),
@@ -259,6 +273,7 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
            'artifact_sha256': '', 'engines_json': '{}', 'size_text': 0, 'size_data': 0, 'size_bss': 0, 'built_at': '',
            'flashed_to': '', 'flash_log': '', 'generated_at': now, 'hex_path': '',
            'repro_json': json.dumps({'inputs': [{'label': lab, 'path': p, 'sha256': sha256(open(fp, 'rb').read())} for lab, p, fp in tfiles]
+                                    + tinputs
                                     + [{'label': 'contract %s' % c['class'], 'path': c.get('path', c.get('url', '')), 'sha256': c.get('sha256', c['header_sha256'])} for c in class_rows],
                                     'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], features=r['features'],
                                                   build_flags=['%s=%d' % f for f in r['flags']]),

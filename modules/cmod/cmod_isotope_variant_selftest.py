@@ -107,7 +107,7 @@ def isotope_variant_parts(check):
               all(IV.status(vs[n])['status'] == 'compiles' for n in ('sense-led-line:ext-interrupt', 'report-state:uart-tx', 'receive-command:uart-rx-interrupt')))
         decl = [n for n, v in vs.items() if not json.loads(v['implemented_by_json']).get('atoms')]
         check('every route with no atom is `declared`, with the reason in words (never optimistic)',
-              all(IV.status(vs[n])['status'] == 'declared' and IV.status(vs[n])['why'] for n in decl) and len(decl) == 15, len(decl))
+              all(IV.status(vs[n])['status'] == 'declared' and IV.status(vs[n])['why'] for n in decl) and len(decl) == 13, len(decl))   # fgm-5a: -2 (the PCINT and analog-threshold buttons have templates now)
         ts = IV.status(vs['drive-led:transistor-switch'])
         check('the transistor route shares the plain output atoms\' C but is not wired anywhere: declared, and its estimated size is that C\'s measured 16 B, said so',
               ts['status'] == 'declared' and 'drive-led:gpio-out' in ts['why'] and IV.costs(vs['drive-led:transistor-switch'])['flash_bytes']['value'] == IV.costs(vs['drive-led:gpio-out'])['flash_bytes']['value'] == 16)
@@ -133,10 +133,10 @@ def isotope_variant_parts(check):
                     bad.append((v['name'], k, e))
         check('every cost field of every variant is measured / estimated / undetermined, carries its basis, and a value only when it is not undetermined', not bad, bad[:3])
         meas = {v['name'] for v in vs if any(IV.costs(v)[k]['kind'] == 'measured' for k in ('flash_bytes', 'ram_bytes'))}
-        check('a size is `measured` only on the routes that have atoms in a build (the 7 implemented ones) - estimates never pose as measurements',
-              meas == {n for n, v in _by(vs).items() if json.loads(v['implemented_by_json']).get('atoms')} and len(meas) == 7, sorted(meas))
+        check('a size is `measured` only on the routes that have atoms in a build (the 9 implemented ones; fgm-5a: + PCINT and analog-threshold) - estimates never pose as measurements',
+              meas == {n for n, v in _by(vs).items() if json.loads(v['implemented_by_json']).get('atoms')} and len(meas) == 9, sorted(meas))
         unb = [v['name'] for v in vs if not json.loads(v['implemented_by_json']).get('atoms') and IV.costs(v)['flash_bytes']['kind'] == 'undetermined']
-        check('the routes with no build have flash undetermined (or a labelled lower bound / borrowed number), never a bare guess', len(unb) >= 12 and all(
+        check('the routes with no build have flash undetermined (or a labelled lower bound / borrowed number), never a bare guess', len(unb) >= 11 and all(
             IV.costs(v)['flash_bytes']['kind'] in ('undetermined', 'estimated') and ('LOWER BOUND' in IV.costs(v)['flash_bytes']['basis'] or 'same C' in IV.costs(v)['flash_bytes']['basis'] or IV.costs(v)['flash_bytes']['kind'] == 'undetermined')
             for v in vs if not json.loads(v['implemented_by_json']).get('atoms')))
         ow = IV.costs(_by(vs)['read-temperature:one-wire'])
@@ -262,7 +262,7 @@ def isotope_variant_parts(check):
         r = c.simulate_get('/api/atom-jobs')
         check('GET /api/atom-jobs: six jobs on ONE real falcon.App beside every other cmod door (no route-template conflict), each with atoms and counts',
               r.status_code == 200 and [j['name'] for j in r.json['rows']][:4] == ['read-button', 'drive-led', 'sense-led-line', 'read-temperature']
-              and r.json['rows'][0]['variant_count'] == 7 and r.json['rows'][0]['implemented_count'] == 1, r.text[:200])
+              and r.json['rows'][0]['variant_count'] == 7 and r.json['rows'][0]['implemented_count'] == 3, r.text[:200])
         r = c.simulate_get('/api/atom-jobs/read-button/variants', params={'board': UNO})
         rows = {x['name']: x for x in r.json['rows']} if r.status_code == 200 else {}
         check('GET /api/atom-jobs/read-button/variants?board=arduino-uno-r3: 7 variants, each with status, costs, parts and its eligibility on the UNO',

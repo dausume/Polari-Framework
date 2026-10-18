@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "1f9c19384ac95b4b17003489e53a68793491931fe5b2a1c8a73f7b20ff8136dd",
+   "source_sha": "1b570d1b34fb7ace2165c308a7b280a6689fcbd202d2d80b12c7e05ee588ed3c",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "fb6f53db888eaf73aa50aa35e83a1909ad34a874d60207f6f575c60daffe3ddd",
+   "source_sha": "ab93d49f282b985d5be01f8c040897096ace59cabe2168038232b856543406f1",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "bb18194163615c66cda3006718df1c13fcdc3ea4c5d5e350d93dae11383e7acf",
+   "source_sha": "6b15e9b31cb7bbdfd2d2e9c05e8b0cbab710c3dd03cc82e1823bf9bc8d49c58c",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "4680cd6b6d0ced3c45b72fa41393eeacf7405fc16508460806767a26c6f574f1",
+   "source_sha": "eae61ceb79019cbd341810211ad5581cd17622a4cb2144a80033779b089ee999",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a163dc76ffcd2128187a27d2bef8f9318f53fe2291fbb7f3cd8b963513529f3c",
+   "source_sha": "a91eced84e208cc3a02fe843b1ba7dff1fed2a0186688916af3d021e7d68b22e",
    "elf_sha256": {
     "shipped": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
     "noinline": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860"
@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "95df5abe6ecb28e09a17c7068706a4deab1bcafc268d61d63d340c2d9660c3da",
+   "source_sha": "97bd6dc791fc775909b88cd17d736754253f517f70095fc8751edfa7131dd19b",
    "elf_sha256": {
     "shipped": "98debcdb58f1d5f8b86e6781374da6cbba885c479ac044452c4387d2647aa3c8",
     "noinline": "a7e402f7a883b2e402a573c2f50969c2ae7531ef58ecffdff80f6381a58822c2"
@@ -181,6 +181,54 @@
    "make_alone": {
     "ok": true,
     "hex_sha256": "94b9b77f9f8c9b19f537dbb202aff0dfc3e0e29c93933201577f8857a4dc45d7"
+   }
+  },
+  {
+   "name": "uno-light-pcint",
+   "kind": "board-variant",
+   "app": "light",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "hal_button_pcint.c",
+    "apps/light.c"
+   ],
+   "generated": [
+    "lightstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "2a30a0a9bd988cc9ac4431cfc5c8df0b09024125dd8d9a4d2af14e0b13bebef2",
+   "elf_sha256": {
+    "shipped": "02fba6a8f98b4ca0111190dc54f2a22c3448e6347a250a6001d3f01baa99057e",
+    "noinline": "e8dfa587a47641b5b53a61e5165fff661b38e5cce441f655c0851f13987d1fbe"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "4298c765324b0babc1f02e2652a069085072717626ad13199975001edb4da1b0"
+   }
+  },
+  {
+   "name": "uno-light-analog",
+   "kind": "board-variant",
+   "app": "light",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "hal_button_adc.c",
+    "apps/light.c"
+   ],
+   "generated": [
+    "lightstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "ab4a1c93d53d0ae65aafdb064758b48ead4092694540bed55b4470b2d164f745",
+   "elf_sha256": {
+    "shipped": "b573f50f51ed89c1d0975f38943c5ffe443f0cbfbe67ef625a34da1867f92ce9",
+    "noinline": "65edee5f4cf0e29b434c9d4430f9bfb57b7c1c644de526d7a899d5df3a84d511"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "bc0935f9b21e1bd4572b668e497e1c9f70d54388d40754d3dd548f658bde964e"
    }
   },
   {
@@ -204,7 +252,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f6dc07fd4cd0d31ea6909b9304d181a12ec9fc407549d87d081dd37e9e2c27de",
+   "source_sha": "7bc80230fa2456ddfbc87754f9ce80602bec7cae5d79058131002c9f80a19899",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -231,7 +279,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "1bf8dc3bef7262d0b99b900e00c83332883376abd88b24618b1f6ffc7d1c32ec",
+   "source_sha": "fe1ef30061a2a6bf59415528d94390273d94e85887b14bda4c36d4df7fa76c20",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -249,7 +297,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
+     "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
     },
     {
      "path": "hal.h",
@@ -1988,7 +2036,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light"
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
@@ -2067,7 +2117,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light"
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
@@ -2133,7 +2185,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light"
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
@@ -2231,7 +2285,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light"
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
    ],
    "annotation": null,
    "cost": {
@@ -2305,7 +2361,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light"
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
@@ -3602,6 +3660,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -3712,6 +3772,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4034,6 +4096,8 @@
     "uno-blink-only",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4103,6 +4167,8 @@
     "uno-blink-only",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4154,7 +4220,7 @@
      "name": "g_ms",
      "access": "r",
      "peripheral": "",
-     "detail": "volatile uint32_t, 4 B, shared with ISR INT0_vect, INT1_vect, TIMER2_COMPA_vect, inside ATOMIC_BLOCK"
+     "detail": "volatile uint32_t, 4 B, shared with ISR INT0_vect, INT1_vect, TIMER2_COMPA_vect, hal_millis, inside ATOMIC_BLOCK"
     }
    ],
    "calls": [],
@@ -4170,6 +4236,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4505,6 +4573,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4847,6 +4917,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5016,6 +5088,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5100,6 +5174,8 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5187,18 +5263,621 @@
    },
    "title": "",
    "notes": ""
+  },
+  {
+   "name": "hal_button_adc.button_counts",
+   "function": "button_counts",
+   "module": "hal_button_adc.c",
+   "line": 37,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t button_counts(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "ADC",
+     "access": "r",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "ADCSRA",
+     "access": "rw",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "ADMUX",
+     "access": "w",
+     "peripheral": "ADC",
+     "detail": ""
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches register ADC, ADCSRA, ADMUX",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-analog"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-analog",
+    "symbol": "button_counts",
+    "text_bytes": 34,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 34,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     34,
+     34
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_adc.hal_button_init",
+   "function": "hal_button_init",
+   "module": "hal_button_adc.c",
+   "line": 45,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_button_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "ADCSRA",
+     "access": "w",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "DDRC",
+     "access": "rw",
+     "peripheral": "GPIO PORTC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "DIDR0",
+     "access": "rw",
+     "peripheral": "ADC",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PORTC",
+     "access": "rw",
+     "peripheral": "GPIO PORTC",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    }
+   ],
+   "calls": [
+    "button_counts"
+   ],
+   "pure": false,
+   "pure_why": "touches g_pressed",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-analog"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-analog",
+    "symbol": "hal_button_init",
+    "text_bytes": 42,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 42,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     42,
+     42
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_adc.hal_presses",
+   "function": "hal_presses",
+   "module": "hal_button_adc.c",
+   "line": 54,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_presses(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_presses",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "uno-light-analog"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-analog",
+    "symbol": "hal_presses",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 5,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_adc.hal_take_toggle_pending",
+   "function": "hal_take_toggle_pending",
+   "module": "hal_button_adc.c",
+   "line": 62,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t hal_take_toggle_pending(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_last_press",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed_once",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    }
+   ],
+   "calls": [
+    "button_counts",
+    "hal_millis"
+   ],
+   "pure": false,
+   "pure_why": "touches g_last_press, g_pressed, g_pressed_once, g_presses",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-analog"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-analog",
+    "symbol": "hal_take_toggle_pending",
+    "text_bytes": 150,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 150,
+    "stack_bytes": 4,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 4,
+    "text_bytes_range": [
+     150,
+     150
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_pcint.PCINT2_vect",
+   "function": "__polari_isr_PCINT2_vect",
+   "module": "hal_button_pcint.c",
+   "line": 38,
+   "kind": "isr",
+   "isr_vector": "PCINT2_vect",
+   "signature": "ISR(PCINT2_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "PCINT2_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 5"
+    },
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_last_press",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_pressed_once",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_released",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_toggle_pending",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    }
+   ],
+   "calls": [
+    "hal_millis"
+   ],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-pcint",
+    "symbol": "__vector_5",
+    "text_bytes": 202,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 202,
+    "stack_bytes": 19,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 19,
+    "text_bytes_range": [
+     202,
+     202
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_pcint.hal_button_init",
+   "function": "hal_button_init",
+   "module": "hal_button_pcint.c",
+   "line": 57,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_button_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCICR",
+     "access": "rw",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCIFR",
+     "access": "w",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCMSK2",
+     "access": "rw",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PORTD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_released",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR PCINT2_vect"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_released",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-pcint",
+    "symbol": "hal_button_init",
+    "text_bytes": 40,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 40,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     40,
+     40
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_pcint.hal_presses",
+   "function": "hal_presses",
+   "module": "hal_button_pcint.c",
+   "line": 67,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint16_t hal_presses(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint16_t",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_presses",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR PCINT2_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_presses",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "uno-light-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-pcint",
+    "symbol": "hal_presses",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 5,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_button_pcint.hal_take_toggle_pending",
+   "function": "hal_take_toggle_pending",
+   "module": "hal_button_pcint.c",
+   "line": 74,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t hal_take_toggle_pending(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_toggle_pending",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR PCINT2_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_toggle_pending",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "uno-light-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-pcint",
+    "symbol": "hal_take_toggle_pending",
+    "text_bytes": 16,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 32,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 4,
+    "text_bytes_range": [
+     16,
+     16
+    ]
+   },
+   "title": "",
+   "notes": ""
   }
  ],
  "counts": {
-  "atoms": 56,
+  "atoms": 64,
   "annotated": 29,
-  "isr": 4,
+  "isr": 5,
   "pure": 2,
-  "ports": 56,
+  "ports": 61,
   "not_isr_safe": 0
  },
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-11T13:56:56"
+ "conformed_at": "2026-10-18T03:04:41"
 }

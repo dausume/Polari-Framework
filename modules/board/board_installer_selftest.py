@@ -44,16 +44,16 @@ def _expose(m, cls, version, fmap, chash, transport='both'):
 def variants(check):
     from board.custom import variants as V
     vs = V.SEED_FIRMWARE_VARIANTS
-    check('firmware_installer: seven seeded UNO variants — uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-pair (brd-wire), '
-          'uno-button-clock (ucd-0e2), uno-light (ucd-light), uno-echo',
-          [v['name'] for v in vs] == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-pair', 'uno-button-clock', 'uno-light', 'uno-echo'])
+    check('firmware_installer: nine seeded UNO variants — uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-pair (brd-wire), '
+          'uno-button-clock (ucd-0e2), uno-light (ucd-light), uno-light-pcint + uno-light-analog (fgm-5a), uno-echo',
+          [v['name'] for v in vs] == ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-pair', 'uno-button-clock', 'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-echo'])
     res = {v['name']: V.resolve(v) for v in vs}
-    check('variants: six DIFFERENT apps; the adc sweep speaks a second class (UnoAnalogState), button-clock speaks TWO '
+    check('variants: six DIFFERENT apps (fgm-5a: the two new variants reuse the light app); the adc sweep speaks a second class (UnoAnalogState), button-clock speaks TWO '
           '(ButtonClockState, ButtonClockEvent), the light test speaks LightState',
           len({r['app'] for r in res.values()}) == 6 and res['uno-adc-sweep']['classes'] == ['UnoAnalogState']
           and res['uno-button-clock']['classes'] == ['ButtonClockState', 'ButtonClockEvent']
-          and res['uno-light']['classes'] == ['LightState']
-          and all(r['classes'] == ['SimRigState'] for n, r in res.items() if n not in ('uno-adc-sweep', 'uno-button-clock', 'uno-light')))
+          and res['uno-light']['classes'] == ['LightState'] and res['uno-light-pcint']['classes'] == ['LightState']
+          and all(r['classes'] == ['SimRigState'] for n, r in res.items() if n not in ('uno-adc-sweep', 'uno-button-clock', 'uno-light', 'uno-light-pcint', 'uno-light-analog')))
     check('variants: features differ — blink = LED only, echo = commands only, adc = ADC only, sim-rig = led/pwm/adc/'
           'commands, button-clock = led/commands/button/sense',
           res['uno-blink-only']['features']['led'] and not any(res['uno-blink-only']['features'][f] for f in ('pwm', 'adc', 'commands', 'button', 'sense'))
@@ -147,7 +147,7 @@ def flow(check, tmp, fake_runner, size_text, fake_bin, old_path):
     doc = I.document(m, work, scan={'host': I.this_host(), 'usb': [], 'serial': []})
     names = {b['name']: b for b in doc['builds']}
     check('installer document: targets (the twin always), variants, builds with sizes vs the cited limits, sha, compat, installable',
-          doc['targets'][0]['name'] == I.TWIN and len(doc['variants']) == 7 and rec['name'] in names and blink['name'] in names
+          doc['targets'][0]['name'] == I.TWIN and len(doc['variants']) == 9 and rec['name'] in names and blink['name'] in names
           and names[rec['name']]['flash_bytes'] == 3244 and names[rec['name']]['flash_max'] == 32256 and names[rec['name']]['compat'] == 'compatible'
           and names[rec['name']]['installable'] is True and doc['host'] == I.this_host())
     p = I.plan(m, I.TWIN, rec['name'], work)

@@ -2,20 +2,10 @@
  "graph": "uno-button-clock-graph",
  "graph_sha256": "35e45e943500ffbc1cbae25259ddce881ebd6b2c272e65b61ec35e62928d7795",
  "generator": "cmod.custom.glue 1",
- "templates": {
-  "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
-  "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
-  "avr/_pin_lib.j2": "ccd8a903f38c89ca20dc4ad8201c153ae7df20515723db9a5dc184a9884d678b",
-  "avr/pin_config.c.j2": "384801a7ce52cbcf032013764d83af6fa44f5eb815f4aab56f8726a37063c4a2",
-  "avr/pin_config.h.j2": "3f3480c0f500a186427004e7c7c170ed615b1ec94fc9d13fb80686a934692e72",
-  "avr/polari_graph.c.j2": "767bdc387ceedad8b0e27d240e94799d57d4e3031176e2d19f6db09eb3d09df8",
-  "avr/polari_graph.h.j2": "f586f13f58e9dbc819298f07fad40052f568d0a0f1fa12ccdd48413dd61c1b17"
- },
- "template_generator": "jinja2 3.1.6",
  "generated_project": "cmod/custom/graphs/uno-button-clock-graph",
  "files": {
   "button_clock_defs.h": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807",
-  "hal.c": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5",
+  "hal.c": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884",
   "hal.h": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0",
   "board_config.h": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008",
   "buttonclockstate_packets.h": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210",
@@ -23,11 +13,11 @@
   "pin_config.h": "292371ecfb9839516240932b1fba969728ed6ae198c7ed02f480ddca79f4bee7",
   "pin_config.c": "cb293e7c85492b48d20b036b2b90e675a3e3b984ea90a41f9371d2798985fb7f",
   "polari_graph.c": "a11f971acaca00cbee422bc2d85a890d310e810e9b5cbb5dea2a4b0ac4fcefe7",
-  "polari_graph.h": "8cafa98922a8a88882705fbef6ac6620b0947c6fd7773e524127bca7b0cb55f3",
+  "polari_graph.h": "20a99bdceef999cf17fbe37b18ab0058749aab3add0efb893b549b64b161155c",
   "Makefile": "56b796d39cf868fcaa14d51b39bd073db76e0689913a2840e58633c34aa1e2ee"
  },
- "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
- "rendered_at": "2026-10-09T09:01:52",
+ "files_sha256": "39501b25e794f65b47bd28b959b447f61024fa8952a110504153ac42763edc25",
+ "rendered_at": "2026-10-18T03:02:22",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/apps/button_clock_defs.h",
@@ -37,7 +27,7 @@
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
    "file": "hal.c",
-   "sha256": "978c2492405808c9fd3667c81c5fa533fa767fc83903d97e6fc174c24dfd8ed5"
+   "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
   },
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.h",
@@ -67,7 +57,7 @@
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "03e4bfe7881699c3d1e74b6f1ce780cad30eadb1ee59e76ece14b8b25054e538"
+   "sha256": "96ca68bc938df4386f0ca947f69576b5f5513e7ab594cc6687ea832dfc8e8379"
   }
  ],
  "cost_estimate": {
@@ -231,6 +221,16 @@
   "the app atoms copied verbatim: apps/button_clock.l_led_init, apps/button_clock.l_led_set, apps/button_clock.boot_session_mint, apps/button_clock.clock_tick, apps/button_clock.clock_set, apps/button_clock.events_queue, apps/button_clock.queue_pop, apps/button_clock.led_toggle, apps/button_clock.sense_isr, apps/button_clock.events_drain, apps/button_clock.telemetry_send, apps/button_clock.apply_command"
  ],
  "advice": [],
+ "templates": {
+  "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
+  "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
+  "avr/_pin_lib.j2": "ccd8a903f38c89ca20dc4ad8201c153ae7df20515723db9a5dc184a9884d678b",
+  "avr/pin_config.c.j2": "384801a7ce52cbcf032013764d83af6fa44f5eb815f4aab56f8726a37063c4a2",
+  "avr/pin_config.h.j2": "3f3480c0f500a186427004e7c7c170ed615b1ec94fc9d13fb80686a934692e72",
+  "avr/polari_graph.c.j2": "767bdc387ceedad8b0e27d240e94799d57d4e3031176e2d19f6db09eb3d09df8",
+  "avr/polari_graph.h.j2": "f586f13f58e9dbc819298f07fad40052f568d0a0f1fa12ccdd48413dd61c1b17"
+ },
+ "template_generator": "jinja2 3.1.6",
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
@@ -270,11 +270,11 @@
    },
    "explained_bytes": 212
   },
-  "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
+  "files_sha256": "39501b25e794f65b47bd28b959b447f61024fa8952a110504153ac42763edc25",
   "hand_edited": [],
   "stale": [],
   "measured_elf_sha256": "733173b060c19db50c6ef86f77b9ce77d35f01dab0f26ed390215ac52b224d30",
-  "built_at": "2026-10-09T09:02:08",
+  "built_at": "2026-10-18T03:02:36",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -449,14 +449,14 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-10-09T09:02:35",
+  "proven_at": "2026-10-18T03:02:54",
   "graph_sha256": "35e45e943500ffbc1cbae25259ddce881ebd6b2c272e65b61ec35e62928d7795",
-  "files_sha256": "f1600a2590108fe26bb022b776540dd36f06110f5c8c5a34a906e36c0af76773",
+  "files_sha256": "39501b25e794f65b47bd28b959b447f61024fa8952a110504153ac42763edc25",
   "hand_edited": []
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-button-clock-graph/polari-firmware.json",
-  "manifest_sha256": "c6121943a9e083200b2786ced7fea0b2350bfa787c8de83f2ad13c89aaab8b10",
+  "manifest_sha256": "45596ed77789c30fed9dc96b40274914cf2e97c51e99e3eab142402fcd93fe38",
   "atoms": 30,
   "glue_atoms": [
    "polari_graph.apply_command",

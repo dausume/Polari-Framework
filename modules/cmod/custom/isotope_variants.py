@@ -141,7 +141,8 @@ def _implementation(variant):
         config_ok = bool(cfg and (cfg.get('make_alone') or {}).get('ok'))
     return {'atoms': found, 'missing': [n for n in imp.get('atoms', []) if n not in have], 'config': config, 'config_ok': config_ok,
             'in_config': [n for n, a, _m in found if config and config in a.get('configs', [])],
-            'shares_c_with': imp.get('shares_c_with', ''), 'shares_note': imp.get('shares_note', ''), 'proof_purposes': imp.get('proof_purposes', [])}
+            'shares_c_with': imp.get('shares_c_with', ''), 'shares_note': imp.get('shares_note', ''), 'proof_purposes': imp.get('proof_purposes', []),
+            'proof_scenarios': imp.get('proof_scenarios', [])}
 
 
 def _graph_atoms(graph):
@@ -153,6 +154,22 @@ def _graph_atoms(graph):
                 g.setdefault(n['graph'], set()).add(n['atom'])
         _CACHE['graphs'] = g
     return _CACHE['graphs'].get(graph, set())
+
+
+def scenario_status(scenario, manager):
+    """(status, proof, why) of ONE acceptance Scenario read off its latest EVIDENTIAL ScenarioRun, by the same rule capabilities.derive_status
+    uses for a Purpose (an 'undetermined' run is an engine refusal, not evidence; a newer failure takes a pass away; a hardware-mode pass
+    is proven-on-hardware)."""
+    runs = sorted((r for r in ((manager.objectTables or {}).get('ScenarioRun', {}) or {}).values() if getattr(r, 'scenario', '') == scenario),
+                  key=lambda r: getattr(r, 'ran_at', ''))
+    runs = [r for r in runs if getattr(r, 'outcome', '') != 'undetermined']
+    if not runs:
+        return 'compiles', '', 'no evidential ScenarioRun yet for %r' % scenario
+    latest = runs[-1]
+    if latest.outcome != 'passed':
+        return 'compiles', '', 'latest run %s: %s' % (latest.name, latest.outcome)
+    mode = _j(getattr(latest, 'repro_json', '{}'), {}).get('mode', 'digital-twin')
+    return ('proven-on-hardware' if mode == 'hardware' else 'proven-on-twin'), 'ScenarioRun %s @ %s' % (latest.name, latest.ran_at), 'passed'
 
 
 def status(variant, manager=None):
@@ -188,6 +205,13 @@ def status(variant, manager=None):
             used.append(pname)
     if best != st:
         return {'status': best, 'why': 'a Purpose whose graph holds this route\'s atoms passed: %s' % best_proof, 'proof': best_proof, 'proof_purposes_used': used}
+    # fgm-5a: the route's OWN acceptance Scenarios (a variant that builds it, driven on the twin): the latest evidential ScenarioRun of each decides
+    for scen in imp['proof_scenarios']:
+        cstat, proof, w = scenario_status(scen, manager)
+        if cstat in PROOF_ORDER and PROOF_ORDER.index(cstat) > PROOF_ORDER.index(best):
+            best, best_proof, used = cstat, proof, [scen]
+    if best != st:
+        return {'status': best, 'why': 'the route\'s own variant passed on its acceptance Scenario: %s' % best_proof, 'proof': best_proof, 'proof_purposes_used': used}
     return {'status': st, 'why': why + '; no passing ScenarioRun yet for the Purposes that use these atoms', 'proof': '', 'proof_purposes_used': []}
 
 

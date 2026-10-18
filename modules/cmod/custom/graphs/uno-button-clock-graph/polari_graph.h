@@ -14,7 +14,7 @@
 
 /* the files of this project (sha256 of the bytes written):
  *   button_clock_defs.h      346438094259cb56  copied verbatim from board/custom/firmware/uno/apps/button_clock_defs.h
- *   hal.c                    978c2492405808c9  copied verbatim from board/custom/firmware/uno/hal.c
+ *   hal.c                    87df745b54d8cb78  copied verbatim from board/custom/firmware/uno/hal.c
  *   hal.h                    58cfacfb3cad8403  copied verbatim from board/custom/firmware/uno/hal.h
  *   board_config.h           d5b563cfde8d862b  board gen: the uno-button-clock knobs
  *   buttonclockstate_packets.h 1c9d335a5ae6d1a0  c_twin target=avr, contract v1 9d32ede2fa51ab74 (pinned board/custom/contracts/ButtonClockState.v1.json)

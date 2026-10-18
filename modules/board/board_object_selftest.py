@@ -155,6 +155,8 @@ def uno_byte_identity(check):
     try:
         for name, kn in [(v['name'], {}) for v in rows] + [('uno-pair', {'instance_index': 1})]:
             key = name + ('#1' if kn else '')
+            if key not in base:   # fgm-5a: variants added after dev-hn-0 (uno-light-pcint / -analog) have no baseline; the existing ones are what this proves
+                continue
             row = gen.gen('uno', None, os.path.join(tmp, key.replace('#', '_')), variant=name, variant_rows=rows, **kn)
             text = open(os.path.join(row['project_dir'], 'board_config.h')).read()
             same += hashlib.sha256(text.encode()).hexdigest() == base[key]['board_config_sha256']

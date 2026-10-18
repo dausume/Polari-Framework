@@ -386,6 +386,8 @@ def main():
     button_clock_parts(check)
     from board.board_light_selftest import run_light   # ucd-light: the light test's wire struct, variant and twin proof
     run_light(check)
+    from board.board_variant_twin_selftest import run_variant_twin   # fgm-5a: the isotope variants (PCINT button, analog button, PWM LED) proven on the twin
+    run_variant_twin(check)
     from board.board_enclosure_selftest import run_enclosure   # hsp-0: enclosure kinds, exposure maps, the 16U2 rows, reachability + ladder, the doors
     run_enclosure(check)
     from board.board_hardware_system_selftest import run_hardware_system   # hsp-1: the hardware system, its links, the three signal paths, the doors
