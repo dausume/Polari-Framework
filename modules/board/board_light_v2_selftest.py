@@ -136,6 +136,25 @@ def run_light_v2(check):
     LC.expire([c7], 105.0)
     LC.observe_report([c7], rep(9, 0, ''), 105.1)
     check('fgm-6a rule: an unconfirmed command whose board then restarts becomes unknown-resend', c7.status == 'unknown-resend')
+    # the stale-id hazard: the row's outgoing command_id from boot 7 must not survive into boot 8 (a later whole-row push would make the board APPLY it again)
+    saved = []
+    row = SimpleNamespace(name='uno-light-v2', boot_session=8, command_id=11, last_command_id=0, last_command_result='')
+    c11 = cmd(11, sess=7)
+    _orig_cmds, _orig_save = LC.commands_of, LC._save
+    try:
+        LC.commands_of, LC._save = (lambda manager, name: [c11]), (lambda manager, r: saved.append(r))
+        LC.on_report(None, None, row, 110.0)
+    finally:
+        LC.commands_of, LC._save = _orig_cmds, _orig_save
+    row2 = SimpleNamespace(name='uno-light-v2', boot_session=7, command_id=12, last_command_id=0, last_command_result='')
+    c12 = cmd(12, sess=7)
+    try:
+        LC.commands_of, LC._save = (lambda manager, name: [c12]), (lambda manager, r: None)
+        LC.on_report(None, None, row2, 110.0)
+    finally:
+        LC.commands_of, LC._save = _orig_cmds, _orig_save
+    check('fgm-6a rule: after a board restart the row\'s outgoing command_id is CLEARED (no stale id resent and applied by the new boot) and the command is unknown-resend; within the same boot it is kept',
+          row.command_id == 0 and row in saved and c11.status == 'unknown-resend' and row2.command_id == 12, (row.command_id, c11.status, row2.command_id))
     ten = [cmd(i, at=100.0 + i / 100.0, led=bool(i % 2)) for i in range(1, 21)]
     seq = []
     for i in range(1, 21):   # every answer is interleaved with ticks that repeat the PREVIOUS answer and with a button report

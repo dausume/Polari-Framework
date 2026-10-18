@@ -170,6 +170,16 @@ def on_report(manager, cls, row, now=None):
     """The frame observer: a LightStateV2 report was applied to `row` - resolve the commands it answers."""
     name = getattr(row, 'name', '')
     cmds = commands_of(manager, name)
+    # a board that restarted forgets the id it last answered: a `command_id` still on the row from the previous boot session would be APPLIED again
+    # by a later whole-row push (the stale-id hazard). The row's outgoing command_id is cleared the first time a report shows a new boot_session than
+    # the one it was sent into; the open command itself resolves to `unknown-resend` below (never `confirmed`).
+    sess = int(getattr(row, 'boot_session', 0) or 0)
+    out_id = int(getattr(row, 'command_id', 0) or 0)
+    if out_id:
+        sent_into = next((int(c.device_session_at_send) for c in cmds if int(c.command_id) == out_id), None)
+        if sent_into is not None and sess and sess != sent_into:
+            row.command_id = 0
+            _save(manager, row)
     if not cmds:
         return []
     ch = observe_report(cmds, {'boot_session': getattr(row, 'boot_session', 0), 'last_command_id': getattr(row, 'last_command_id', 0),
