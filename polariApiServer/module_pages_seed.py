@@ -27,7 +27,7 @@ def _table(item_id, index, segments, title, class_name, columns='',
            max_rows=0, column_formats='', description='',
            filter_field='', filter_value='', data_path='',
            select_field='', select_scope='', selected_value='', empty_text='', row_link_tab_field='',
-           edit_fields='', edit_action=None, edit_enabled_field='', row_action=None):
+           edit_fields='', edit_action=None, edit_enabled_field='', row_action=None, max_height=0):
     """`column_formats` = csv of `column:format` pairs, handed to
     class-rows-table as `columnFormats`. The one format so far is
     `person` (his rule D18-1): the column holds an opaque Keycloak
@@ -63,7 +63,11 @@ def _table(item_id, index, segments, title, class_name, columns='',
     editable (otherwise it shows as plain text). `row_action` = {label, method, path, body_template, show_when_field, [then_scope]}:
     a button in the row's last cell (shown when that row field is truthy), same templating. `then_scope` = {key, from} sets page scope
     `key` to the response's field `from` after the call. After every successful call the table sets page scope `rev` (a counter), so
-    any table whose data_path carries `rev=r{scope:rev}` fetches again."""
+    any table whose data_path carries `rev=r{scope:rev}` fetches again.
+
+    fsc-3b: `max_height` (px, 0 = none) caps the table's height: it scrolls INSIDE its own box and its header row stays in view - for a long list
+    that must not push the rest of the page down. `column_formats` also takes `column:fixed:N` (a number shown with N decimals, default 1; the
+    cell's tooltip keeps the precise value)."""
     inputs = {'className': class_name, 'columns': columns,
               'maxRows': max_rows,
               'columnFormats': column_formats,
@@ -74,6 +78,8 @@ def _table(item_id, index, segments, title, class_name, columns='',
                  ('emptyText', empty_text), ('rowLinkTabField', row_link_tab_field)):
         if v:
             inputs[k] = v
+    if max_height:
+        inputs['maxHeight'] = int(max_height)
     for k, v in (('editFields', edit_fields), ('editAction', edit_action), ('editEnabledField', edit_enabled_field), ('rowAction', row_action)):
         if v:
             inputs[k] = v
@@ -172,11 +178,12 @@ def _firmware_panel(item_id, index, segments, title, solutions_path, description
     }
 
 
-def _row(index, items, min_height=320):
+def _row(index, items, min_height=320, css_class=''):
+    """`css_class='side-by-side'` (fsc-3b): the row's panels sit in ONE line on a wide page and stack, one under the other, when the page body is narrow."""
     return {
         'index': index, 'rowSegments': 12,
         'minRowHeight': min_height, 'maxRowHeight': 0,
-        'autoHeight': True, 'cssClass': '', 'items': items,
+        'autoHeight': True, 'cssClass': css_class, 'items': items,
     }
 
 

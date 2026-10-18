@@ -97,6 +97,27 @@ def _fit(row, exponent):
         row['purpose'], cyc, bud, crit.get('why', ''), exponent, '; the deadline is flagged SAFETY-CRITICAL' if crit.get('safety_critical') else ''))
 
 
+#: the size terms of a PLAN: summed from per-route atom sizes (and the declared on-chip blocks), never read off a build of the whole solution
+PLAN_SIZED = ('flash-free', 'ram-free', 'blocks-free')
+
+
+def honest_kinds(values, state):
+    """A PLAN (nothing built, or built with a Purpose unproven) must not call its sizes measured: flash-free / ram-free / blocks-free are route-sum figures, so
+    they read `estimated` and say so. `pins-free` (and the counted risk/sharing terms) stay measured: they are COUNTED from the solution's own pin assignment /
+    placement, which is exact for a plan too - their basis says it is the plan's assignment. A finished solution is left as it is. -> values (edited in place)."""
+    if state == 'finished':
+        return values
+    for term in PLAN_SIZED:
+        x = values.get(term)
+        if x and x['kind'] == 'measured':
+            x['kind'] = 'estimated'
+            x['basis'] += ' | PLAN: summed from the routes\' own sizes, not read from a build of this whole solution, so estimated'
+    pins = values.get('pins-free')
+    if pins and pins['kind'] == 'measured':
+        pins['basis'] += ' | counted from this plan\'s own pin assignment (exact, not a build)'
+    return values
+
+
 def hardware_values(c, ctx, f, evidence, also_runs_on, manager=None, exponent=T.DEADLINE_EXPONENT, knobs=None):
     """-> {term: q} for the context hardware:<board>."""
     from cmod.custom import solve_inputs as SI

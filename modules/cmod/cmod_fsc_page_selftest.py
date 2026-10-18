@@ -40,6 +40,10 @@ def main():
     plain = _page('x', 'x', 'd', 'C', [_row(0, [_table('t', 0, 12, 'T', 'C')])])
     d = json.loads(plain['definition'])
     check('a page without tabs has no `tabs` / `tabs_from` key (renders unchanged)', set(d) == {'rows'}, list(d))
+    capped = _table('t2', 0, 12, 'T', 'C', max_height=300)['componentProps']['inputs']
+    check('fsc-3b: `max_height` rides as maxHeight when set and is absent otherwise (older seeds converge unchanged)',
+          capped.get('maxHeight') == 300 and 'maxHeight' not in _table('t3', 0, 12, 'T', 'C')['componentProps']['inputs'])
+    check('fsc-3b: `_row(css_class=)` sets the row class (default empty)', _row(0, [], css_class='side-by-side')['cssClass'] == 'side-by-side' and _row(0, [])['cssClass'] == '')
     check('a table without the fsc-3 options has exactly the old inputs (older seeds converge unchanged)',
           set(d['rows'][0]['items'][0]['componentProps']['inputs']) == {'className', 'columns', 'maxRows', 'columnFormats', 'filterField', 'filterValue', 'dataPath'})
     t = _table('t', 0, 12, 'T', '', select_field='a', select_scope='b', selected_value='{scope:b}', empty_text='e', row_link_tab_field='p')['componentProps']['inputs']
@@ -71,6 +75,12 @@ def main():
     check('profile tab: ranking sets the `solution` scope and shows it selected; the breakdown reads {scope:solution} + {key}',
           ids['fsc-ranked']['selectScope'] == 'solution' and ids['fsc-ranked']['selectedValue'] == '{scope:solution}' and ids['fsc-ranked']['selectField'] == 'solution'
           and '{scope:solution}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-ranked']['dataPath'] and ids['fsc-breakdown']['emptyText'])
+    ranked_row = [r for r in __import__('cmod.cmod_fsc_page', fromlist=['x'])._profile_rows() if any(i['id'] == 'fsc-ranked' for i in r['items'])][0]
+    check('fsc-3b: the ranked list (capped 600 px, scrolls inside) and its breakdown sit in ONE row, 6 + 6 segments, marked side-by-side (stacks when narrow)',
+          [i['id'] for i in ranked_row['items']] == ['fsc-ranked', 'fsc-breakdown'] and [i['rowSegmentsUsed'] for i in ranked_row['items']] == [6, 6] and ranked_row['cssClass'] == 'side-by-side'
+          and ids['fsc-ranked']['maxHeight'] == 600)
+    check('fsc-3b: scores read to one decimal through the table\'s fixed format (the data keeps its precision)',
+          'score:fixed:1' in ids['fsc-ranked']['columnFormats'] and 'score:fixed:1' in top['columnFormats'] and 'points:fixed:1' in ids['fsc-breakdown']['columnFormats'])
     check('profile tab: the bar chart is a named-graph-panel on the scores door limited to the best twelve',
           ids['fsc-bars']['graphName'] == 'firmware-score-top' and '&profile={key}&limit=12' in ids['fsc-bars']['dataPath'])
     check('every {token} in the template is {key}, {scope:solution} or {scope:rev} (nothing else is left unresolved)',
@@ -111,6 +121,20 @@ def main():
     bd = get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, sol, first)).json
     served['fsc-breakdown'] = bd['rows'][0]
     check('breakdown door: `rows` mirrors `terms` (so a table can read it)', bd['rows'] == bd['terms'] and len(bd['rows']) > 0)
+    allrows = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']
+    plan = next((r for r in allrows if r['state'] == 'plan'), None)
+    if plan:
+        pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, plan['solution'], 'fsc-room-to-grow')).json['rows']}
+        check('fsc-3b: a PLAN\'s flash / RAM / blocks left read "estimated" (route-sum sizes, never "measured"); pins left stay measured (counted from its assignment)',
+              [pk.get('Flash left'), pk.get('RAM left'), pk.get('Chip blocks left'), pk.get('Pins left')] == ['estimated', 'estimated', 'estimated', 'measured'], pk)
+    from cmod.custom import fsc_values as V
+    done = {'flash-free': {'kind': 'measured', 'basis': 'b'}, 'pins-free': {'kind': 'measured', 'basis': 'b'}}
+    V.honest_kinds(done, 'finished')
+    check('fsc-3b: a finished solution\'s kinds are left as they are', done['flash-free']['kind'] == 'measured' and done['flash-free']['basis'] == 'b')
+    pl = {'flash-free': {'kind': 'measured', 'basis': 'b'}, 'ram-free': {'kind': 'cited', 'basis': 'b'}, 'pins-free': {'kind': 'measured', 'basis': 'b'}}
+    V.honest_kinds(pl, 'plan')
+    check('fsc-3b: honest_kinds on a plan: measured sizes -> estimated (with the reason), a cited one untouched, pins stay measured and say they are counted from the plan\'s assignment',
+          pl['flash-free']['kind'] == 'estimated' and 'PLAN' in pl['flash-free']['basis'] and pl['ram-free']['kind'] == 'cited' and pl['pins-free']['kind'] == 'measured' and 'pin assignment' in pl['pins-free']['basis'])
     lim = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json
     ranked = [r for r in lim['rows'] if r['state'] != 'failed']
     check('scores door: limit=12 keeps the 12 best ranked rows, the best first with score 100', len(ranked) == 12 and ranked[0]['rank'] == 1 and ranked[0]['score'] == 100.0)
@@ -149,6 +173,12 @@ def main():
     seeded_try = post({'name': first, 'weights': {'wires': 1}})
     cp = post({'name': 'my-' + first, 'copy_of': first})
     check('Copy to edit: a seeded profile edit is refused (409) and POST copy_of makes the person\'s own (201)', seeded_try.status_code == 409 and cp.status_code == 201, (seeded_try.status_code, cp.status_code))
+    seeded_title = [r for r in prof['rows'] if r['name'] == first][0]['display_name']
+    check('fsc-3b: an unnamed copy is titled "My <title>" (no second "%s" tab)' % seeded_title, cp.json['display_name'] == 'My ' + seeded_title, cp.json.get('display_name'))
+    named = post({'name': 'named-' + first, 'copy_of': first, 'display_name': 'Chosen name'})
+    check('fsc-3b: a copy the person names keeps their name', named.json['display_name'] == 'Chosen name')
+    again = post({'name': 'again-' + first, 'copy_of': 'my-' + first})
+    check('fsc-3b: a copy of a "My ..." profile is not titled "My My ..."', again.json['display_name'] == 'My ' + seeded_title, again.json.get('display_name'))
     mine = get('/api/firmware-score-profiles/my-%s/terms' % first).json
     check('terms door (own profile): rows are editable:true', not mine['seeded'] and all(r['editable'] for r in mine['rows'] if not r['purpose']))
     from cmod.custom import fsc_score as S

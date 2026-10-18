@@ -94,6 +94,7 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
         f = V.facts(c, ctx, manager)
         n = len(runs_on[tuple(sorted(c['routes'].items()))]) - 1
         hw = V.hardware_values(c, ctx, f, _evidence(c, link, proof, ctx, manager), n, manager)
+        V.honest_kinds(hw, st['state'])
         pv = V.purpose_values(c, ctx, f, manager)
         rts = [d['route-time'] for d in pv.values() if 'route-time' in d]
         hw['route-time'] = V.T.q(V.T.weakest([x['kind'] for x in rts]), round(sum(x['value'] for x in rts), 3), 'route work counted once: the sum of the Purposes\' attributed shares (a shared route is split by importance weight, so it is not counted twice)')

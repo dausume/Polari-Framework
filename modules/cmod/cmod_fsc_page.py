@@ -18,6 +18,7 @@ from polariApiServer.module_pages_seed import _page, _row, _table, _tab, _tabs_f
 
 MISSION = 'uno-light-mission'
 GRAPH = 'firmware-score-top'
+RANKED_MAX_HEIGHT = 600     # px: the ranked list (hundreds of rows) scrolls inside its own box, so the breakdown beside it stays in view
 
 _COMPETITIVE = ('Scores are competitive: for each measured term the best of the compared set gets 100 and the worst 0, and then each profile is scaled the same way, '
                 'so the top solution reads 100 and the bottom reads 0. A failed solution is never scored.')
@@ -49,6 +50,7 @@ def _top_tab():
                                     'always reads 100); runner up and runner up score (how close the second best is); compared set (which solutions competed); failed count (solutions '
                                     'kept out because they do not fulfil every Purpose). ' + _COMPETITIVE + ' Click a row to open that profile\'s tab.',
                         columns='profile_title,top_solution,top_state,score,runner_up,runner_up_score,compared_set,failed_count',
+                        column_formats='score:fixed:1,runner_up_score:fixed:1',
                         data_path='/api/firmware-scores/top?mission=%s' % MISSION, row_link_tab_field='profile')], min_height=260),
     ])
 
@@ -57,22 +59,23 @@ def _profile_rows():
     """The rows of ONE profile tab; `{key}` is the profile's name (templated by the page), `{scope:solution}` the picked solution."""
     ranked = '/api/firmware-scores?mission=%s&profile={key}&rev=r{scope:rev}' % MISSION
     return [
-        _row(0, [_table('fsc-ranked', 0, 12, 'Every solution, best to worst', '',
+        _row(0, [_table('fsc-ranked', 0, 6, 'Every solution, best to worst', '',
                         description='What this is for: the full ranking under this profile. One row = one non-failed solution. Columns: rank (1 = best); label (short: the route chosen for each '
-                                    'job that varies, then the board); solution (its full name); score (0-100, competitive); state (' + _STATE + '); deciding terms (what earned most of its points). ' + _COMPETITIVE +
-                                    ' Click a row to see how its score was worked out below; click it again, or press Escape, to close.',
-                        columns='rank,label,score,state,deciding_terms,solution',
+                                    'job that varies, then the board); score (0-100, competitive, shown to one decimal); state (' + _STATE + '); deciding terms (what earned most of its points); solution (its full name). ' + _COMPETITIVE +
+                                    ' The list scrolls inside its own box. Click a row to see how its score was worked out beside it (below it on a narrow page); click it again, or press Escape, to close.',
+                        columns='rank,label,score,state,deciding_terms,solution', column_formats='score:fixed:1', max_height=RANKED_MAX_HEIGHT,
                         data_path=ranked, filter_field='state', filter_value='finished,plan',
                         select_field='solution', select_scope='solution', selected_value='{scope:solution}',
-                        empty_text='No solution can be scored yet.')], min_height=300),
-        _row(1, [_table('fsc-breakdown', 0, 12, 'How the picked solution\'s score was worked out', '',
+                        empty_text='No solution can be scored yet.'),
+                 _table('fsc-breakdown', 1, 6, 'How the picked solution\'s score was worked out', '',
                         description='What this is for: the term-by-term working behind one score. One row = one term of this profile (for example cycle time or cost). Columns: label (the term); '
-                                    'value and unit (what was measured, estimated or cited); kind (measured | cited | estimated | undetermined); normalized (0-100 among the compared set: best 100, '
-                                    'worst 0); weight (how much this profile cares); points (normalized x weight share, summing to the raw score); basis (where the value comes from).',
-                        columns='label,value,unit,kind,normalized,weight,points,basis',
+                                    'value and unit (what was measured, estimated or cited); kind (measured | cited | estimated | undetermined; a plan\'s sizes are always estimated, its counted pins stay measured); '
+                                    'normalized (0-100 among the compared set: best 100, worst 0); weight (how much this profile cares); points (normalized x weight share, summing to the raw score); basis (where the value comes from).',
+                        columns='label,value,unit,kind,normalized,weight,points,basis', column_formats='normalized:fixed:1,points:fixed:1', max_height=RANKED_MAX_HEIGHT,
                         data_path='/api/firmware-scores/breakdown?mission=%s&solution={scope:solution}&profile={key}' % MISSION,
-                        empty_text='Click a solution in the table above to see how its score was worked out.')], min_height=200),
-        _row(2, [_graph_panel('fsc-bars', 0, 12, 'The twelve best, as bars',
+                        empty_text='Click a solution in the ranked list to see how its score was worked out.')],
+             min_height=300, css_class='side-by-side'),
+        _row(1, [_graph_panel('fsc-bars', 0, 12, 'The twelve best, as bars',
                               GRAPH, '/api/firmware-scores?mission=%s&profile={key}&limit=12&rev=r{scope:rev}' % MISSION,
                               description='What this is for: how far apart the leaders are. One bar = one scored solution, labelled with its short label, longest = rank 1 (score 100). The numbers are the ranked table\'s score column.')],
              min_height=360),
@@ -115,7 +118,7 @@ def _editor_tab():
                         description='What this is for: see a weight change take effect. One row = one of the ten best-scoring solutions under the picked profile, best first. Columns: rank; label (short); '
                                     'score (0-100, competitive: the best of the compared set reads 100, the worst 0); state (finished or plan); deciding terms. Change a weight in step 2 and this list '
                                     're-ranks.',
-                        columns='rank,label,score,state,deciding_terms',
+                        columns='rank,label,score,state,deciding_terms', column_formats='score:fixed:1',
                         data_path='/api/firmware-scores?mission=%s&profile={scope:profile}&limit=10&rev=r{scope:rev}' % MISSION,
                         empty_text='Pick a profile in step 1 to see how it ranks the solutions.')], min_height=260),
     ])

@@ -278,7 +278,12 @@ def post_profile(api, request, response):
     entries, knobs = P.apply_body(base, body)
     if not entries:
         return _fail(response, falcon.HTTP_422, 'a profile needs at least one term with a weight above 0 (known terms: %s)' % ', '.join(T.TERM_NAMES))
-    row = P.save(api.manager, name, base, entries, knobs, body.get('display_name', ''), body.get('description', ''))
+    display = body.get('display_name', '')
+    if existing is None and body.get('copy_of') and not display:
+        # a copy that the person did not name is "My <title>" - never a second "Fastest" next to the seeded one
+        title = base['display_name']
+        display = title if title.startswith('My ') else 'My %s' % title
+    row = P.save(api.manager, name, base, entries, knobs, display, body.get('description', ''))
     R.clear_scores(name)      # the profile's sha changed, so no stale result can be served; this frees the old ones
     created = existing is None
     response.status = falcon.HTTP_201 if created else falcon.HTTP_200
