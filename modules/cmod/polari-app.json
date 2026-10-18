@@ -111,7 +111,8 @@
    "cmod_capability_api",
    "cmod_mission_api",
    "cmod_isotope_api",
-   "cmod_firmware_api"
+   "cmod_firmware_api",
+   "cmod_pin_profile_api"
   ],
   "endpoints": [
    "cmod_endpoints"
@@ -121,9 +122,11 @@
   ],
   "page": [
    "cmod_page",
+   "cmod_pin_profile_page",
    "cmod_isotope_page"
   ],
   "selftests": [
+   "cmod_pin_profile_selftest",
    "cmod_selftest",
    "cmod_isotope_variant_selftest"
   ],
@@ -154,6 +157,10 @@
    "custom/overrides",
    "custom/pin_config_gen",
    "custom/pin_config_legacy",
+   "custom/pin_profile_bench",
+   "custom/pin_profile_doors",
+   "custom/pin_profile_mission",
+   "custom/pin_profiles",
    "custom/preprocess",
    "custom/projects",
    "custom/purpose_derived",
@@ -231,6 +238,7 @@
   "MissionSettingsState",
   "PeripheralClaim",
   "PinClaim",
+  "PinProfileAPI",
   "PurposeCriterionState",
   "PurposeDependsState",
   "PurposeGoalState",
@@ -284,14 +292,14 @@
     "PurposeResolutionState",
     "PurposeObservedState",
     "HardwareMission",
-    "AtomJob",
-    "IsotopeVariant",
     "MissionGoalState",
     "MissionSettingsState",
     "MissionPurposeState",
     "MissionParticipantState",
     "MissionConstraintState",
     "MissionResolutionState",
+    "AtomJob",
+    "IsotopeVariant",
     "PURPOSE_NODE_KIND_CLASSES",
     "MISSION_NODE_KIND_CLASSES",
     "CMOD_CLASSES"

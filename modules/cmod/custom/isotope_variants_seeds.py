@@ -68,7 +68,14 @@ _EXPANDER = _pt('PCF8574-class I2C I/O expander', 'puts 8 inputs/outputs on the 
 _I2C_PULL = _pt('I2C pull-up resistors (4.7 kohm)', 'the bus lines idle high through them', ('resistors',), spec={'ohms': 4700})
 
 
+#: the Mission-level ROLE each job's pins serve, in the words pin profiles (cmod.custom.pin_profiles / pin_profile_bench) use, so the engine can match a
+#: variant to a Mission's profiles by (kind, role). Inside a profile, `role` is that Mission-level role and `part` says which pin of the ROUTE it is.
+JOB_ROLE = {'read-button': 'the button', 'drive-led': 'the LED', 'sense-led-line': 'the sense line', 'read-temperature': 'the temperature sensor',
+            'report-state': 'the transport', 'receive-command': 'the transport'}
+
+
 def _v(job, route, title, plain, profiles, peripherals, parts, wasteful, cost, minimum_level='bare-c', implemented=None, cites=(), notes=''):
+    profiles = [dict(p, part=p['role'], role=JOB_ROLE[job]) for p in profiles]
     full = {'flash_bytes': _und(_NO_BUILD), 'ram_bytes': _und(_NO_BUILD)}
     full.update(cost)
     return {'name': '%s:%s' % (job, route), 'job': job, 'route': route, 'title': title, 'plain': plain,

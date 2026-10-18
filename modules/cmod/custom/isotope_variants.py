@@ -251,7 +251,7 @@ def _covers(kind, got):
 
 # ------------------------------------------------------------------ one variant / one job, served
 def pin_text(prof):
-    return '; '.join('%s x%s (%s)' % (p['kind'], p.get('count', 1), p['role']) for p in prof)
+    return '; '.join('%s x%s (%s)' % (p['kind'], p.get('count', 1), p.get('part') or p['role']) for p in prof)
 
 
 def variant_dict(variant, ctx=None, manager=None, tier=None):

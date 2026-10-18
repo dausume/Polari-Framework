@@ -334,3 +334,6 @@ SEED_CMOD_PAGE_DISPLAYS = [
 # iso-0: the Isotope variants page (its own file, cmod/cmod_isotope_page.py)
 from cmod.cmod_isotope_page import ISOTOPE_PAGES as _ISOTOPE_PAGES
 SEED_CMOD_PAGE_DISPLAYS.extend(_ISOTOPE_PAGES)
+
+from cmod.cmod_pin_profile_page import PIN_PROFILE_PAGES   # noqa: E402  pp-0: /display/pin-profiles
+SEED_CMOD_PAGE_DISPLAYS += PIN_PROFILE_PAGES

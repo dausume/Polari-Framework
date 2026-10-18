@@ -48,6 +48,12 @@ def isotope_variant_parts(check):
         bad = [(v['name'], p['kind']) for v in vs for p in json.loads(v['profiles_json']) if p['kind'] not in TASK_KINDS]
         check('every pin profile kind is a TASK_KINDS entry (the pp-0 vocabulary), with a role and a count', not bad
               and all(p.get('role') and int(p.get('count', 1)) >= 1 for v in vs for p in json.loads(v['profiles_json'])), bad)
+        check('every profile speaks pp-0\'s vocabulary: `role` is the Mission-level role (the button / the LED / the sense line / the transport / the temperature sensor) and `part` names the route\'s own pin',
+              all(p['role'] in S.JOB_ROLE.values() and p['role'] == S.JOB_ROLE[v['job']] and p.get('part') for v in vs for p in json.loads(v['profiles_json'])))
+        from cmod.custom import pin_profile_mission as PP
+        got = {(p['kind'], p['role']) for p in PP.mission_profiles('uno-light-mission')['profiles']}
+        mine = {(p['kind'], p['role']) for v in vs for p in json.loads(v['profiles_json'])}
+        check('the variants can answer the uno-light-mission\'s derived profiles: every (kind, role) pp-0 derives for it is offered by at least one variant', got <= mine and bool(got), sorted(got - mine))
         badp = [(v['name'], p['kind']) for v in vs for p in json.loads(v['peripherals_json']) if p['kind'] not in S.PERIPHERAL_KINDS]
         check('every claimed on-chip block is of a known kind, each with its reason', not badp and all(p.get('why') for v in vs for p in json.loads(v['peripherals_json'])), badp)
         check('the minimum levels are on the runtime ladder (and the class and the ladder agree); all of today\'s are bare-c',

@@ -103,6 +103,13 @@ def _target_row(target_class, target_name, manager):
     if target_class == 'HardwareBinding':
         from cmod.custom import binding as BND
         return BND.resolve(target_name, manager=manager)
+    if target_class == 'PinProfile':   # pp-0: the bare derivation (no corrections laid over it), as a flat row of the overridable fields
+        from cmod.custom import pin_profiles as PP
+        try:
+            res = PP.derive_profiles(target_name.partition(':')[0], manager=manager, apply_overrides=False)
+        except ValueError:
+            return None
+        return next((PP.flat_view(p) for p in res['profiles'] if p['id'] == target_name), None)
     return None
 
 
@@ -116,11 +123,12 @@ def create(target_class, target_name, field, override_value, why, who, manager):
     import datetime
     if not (why or '').strip():
         return None, "'why' is required: a person's own words for the correction (never defaulted)"
-    if target_class not in ('TargetDefinition', 'PinClaim', 'HardwareBinding'):
+    if target_class not in ('TargetDefinition', 'PinClaim', 'HardwareBinding', 'PinProfile'):
         return None, ('overrides are defined for TargetDefinition.requirement_kind/.role, PinClaim.pull/edge/mode/'
-                      'initial and HardwareBinding.status this slice — not %r' % target_class)
+                      'initial, HardwareBinding.status and PinProfile (pp-0) fields — not %r' % target_class)
+    from cmod.custom.pin_profiles import OVERRIDABLE
     allowed_fields = {'TargetDefinition': ('requirement_kind', 'role'), 'PinClaim': ('pull', 'edge', 'mode', 'initial'),
-                      'HardwareBinding': ('status',)}
+                      'HardwareBinding': ('status',), 'PinProfile': OVERRIDABLE}
     if field not in allowed_fields[target_class]:
         return None, '%s has no overridable field %r (allowed: %s)' % (target_class, field, ', '.join(allowed_fields[target_class]))
     row = _target_row(target_class, target_name, manager)
