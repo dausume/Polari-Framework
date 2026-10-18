@@ -340,3 +340,6 @@ SEED_CMOD_PAGE_DISPLAYS += PIN_PROFILE_PAGES
 
 from cmod.cmod_approach_profile_page import APPROACH_PAGES   # noqa: E402  rt-0: /display/approach
 SEED_CMOD_PAGE_DISPLAYS += APPROACH_PAGES
+
+from cmod.cmod_solve_page import SOLVE_PAGES   # noqa: E402  sol-0: /display/solutions-found
+SEED_CMOD_PAGE_DISPLAYS += SOLVE_PAGES

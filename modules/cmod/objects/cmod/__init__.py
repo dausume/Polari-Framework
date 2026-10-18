@@ -40,3 +40,4 @@ from cmod.objects.cmod.MissionConstraintState import MissionConstraintState  # n
 from cmod.objects.cmod.MissionResolutionState import MissionResolutionState  # noqa: F401  (mis-0)
 from cmod.objects.cmod.AtomJob import AtomJob  # noqa: F401  (iso-0)
 from cmod.objects.cmod.IsotopeVariant import IsotopeVariant  # noqa: F401  (iso-0)
+from cmod.objects.cmod.SolveRun import SolveRun  # noqa: F401  (sol-0)

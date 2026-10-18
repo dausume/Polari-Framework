@@ -86,6 +86,7 @@
    "objects/cmod/HardwareMission",
    "objects/cmod/AtomJob",
    "objects/cmod/IsotopeVariant",
+   "objects/cmod/SolveRun",
    "objects/cmod/MissionGoalState",
    "objects/cmod/MissionSettingsState",
    "objects/cmod/MissionPurposeState",
@@ -112,6 +113,7 @@
    "cmod_mission_api",
    "cmod_isotope_api",
    "cmod_approach_profile_api",
+   "cmod_solve_api",
    "cmod_firmware_api",
    "cmod_pin_profile_api",
    "cmod_colocation_api"
@@ -126,14 +128,16 @@
    "cmod_page",
    "cmod_pin_profile_page",
    "cmod_isotope_page",
-   "cmod_approach_profile_page"
+   "cmod_approach_profile_page",
+   "cmod_solve_page"
   ],
   "selftests": [
    "cmod_pin_profile_selftest",
    "cmod_colocation_selftest",
    "cmod_selftest",
    "cmod_isotope_variant_selftest",
-   "cmod_approach_profile_selftest"
+   "cmod_approach_profile_selftest",
+   "cmod_solve_selftest"
   ],
   "custom": [
    "custom/analyse",
@@ -184,6 +188,16 @@
    "custom/approach_profile_doors",
    "custom/approach_profile_input",
    "custom/approach_profile_tiers",
+   "custom/solve",
+   "custom/solve_assign",
+   "custom/solve_cost",
+   "custom/solve_doors",
+   "custom/solve_engine",
+   "custom/solve_inputs",
+   "custom/solve_needs",
+   "custom/solve_oracle",
+   "custom/solve_record",
+   "custom/solve_report",
    "custom/mission_derived",
    "custom/mission_doors",
    "custom/mission_nocode",
@@ -232,6 +246,7 @@
   "MissionAPI",
   "IsotopeVariantAPI",
   "ApproachProfileAPI",
+  "SolveAPI",
   "CapabilityDefinition",
   "CapabilityInstance",
   "DerivedOverride",
@@ -242,6 +257,7 @@
   "HardwareMission",
   "AtomJob",
   "IsotopeVariant",
+  "SolveRun",
   "MissionConstraintState",
   "MissionGoalState",
   "MissionParticipantState",
@@ -313,6 +329,7 @@
     "MissionResolutionState",
     "AtomJob",
     "IsotopeVariant",
+    "SolveRun",
     "PURPOSE_NODE_KIND_CLASSES",
     "MISSION_NODE_KIND_CLASSES",
     "CMOD_CLASSES"
