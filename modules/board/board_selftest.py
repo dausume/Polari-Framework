@@ -25,7 +25,7 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('fifty-four row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('fifty-five row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
@@ -33,8 +33,8 @@ def rows_and_classes():
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
-          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths)',
-          len(BOARD_CLASSES) == 54)
+          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent)',
+          len(BOARD_CLASSES) == 55)
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -394,6 +394,8 @@ def main():
     run_pin_view(check)
     from board.board_pin_view_modes_selftest import run_pin_view_modes   # pv-2: drive + signal modes, multi-protocol / activated-only filters, drive row filters, label layout
     run_pin_view_modes(check)
+    from board.board_pin_view_phases_selftest import run_pin_view_phases   # pv-4: phases + blank baselines, configuration events (derived + recorded), the config-events doors
+    run_pin_view_phases(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

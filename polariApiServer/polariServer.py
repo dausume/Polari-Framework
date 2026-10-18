@@ -1334,6 +1334,8 @@ class polariServer(treeObject):
             EnclosureKind, HardwareEnclosure, EnclosureContact,
             # hsp-1: the hardware system, its links and its derived signal paths
             HardwareSystem, SystemLink, SignalPath,
+            # pv-4: real-world configuration changes of a board (a flash, a wire, a shield, a binding choice, a reset)
+            ConfigurationEvent,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

@@ -71,6 +71,7 @@ from board.objects.board.EnclosureContact import EnclosureContact  # noqa: F401
 from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401
 from board.objects.board.SystemLink import SystemLink  # noqa: F401
 from board.objects.board.SignalPath import SignalPath  # noqa: F401
+from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -88,4 +89,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent,   # fgm-2: package + USB-interface axes, chips as rows
                  ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint,   # fgm-2: numbers per pad class, group budgets, lifecycle
                  EnclosureKind, HardwareEnclosure, EnclosureContact,   # hsp-0: enclosure kinds (tentative), enclosures, exposure maps
-                 HardwareSystem, SystemLink, SignalPath]   # hsp-1: Hardware System, links, signal paths
+                 HardwareSystem, SystemLink, SignalPath,   # hsp-1: Hardware System, links, signal paths
+                 ConfigurationEvent]   # pv-4: real-world configuration changes (observed, never seeded)

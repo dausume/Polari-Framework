@@ -22,12 +22,13 @@ from board.custom import hardware_system as HS
 from board.custom import hwsys_system as SYS
 from board.custom import pin_view_model as M
 from board.custom import pin_view_modes as MD
+from board.custom import pin_view_phases as PH
 from board.custom import pin_view_state as ST
 from board.custom import pv_families as F
 from board.custom import pv_shapes as S
 from board.custom.hwsys_context import Ctx
 
-PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'protocol', 'activated_only')
+PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'blank', 'protocol', 'activated_only')
 FILTERS = ('level', 'surface', 'kind', 'rail', 'drive_status', 'limit_class')   # the last three are the drive filters (comma lists)
 TRUE = ('1', 'true', 'yes', 'on')
 
@@ -66,10 +67,18 @@ def build(board, params=None, manager=None, tables=None):
     stage = params.get('stage') or 'base'
     if stage not in ST.STAGES:
         raise Refused('unknown stage %r (stages: %s)' % (stage, ', '.join(ST.STAGES)))
+    try:   # pv-4: the phase and the blank baseline; a phase before init shows no claims, init shows the Initialization Purpose's, runtime the requested stage
+        phase, blank = PH.check_params(params.get('phase'), params.get('blank'))
+    except PH.PhaseError as e:
+        raise Refused(str(e))
+    requested_stage, stage = stage, PH.effective_stage(phase, stage)
     ctx = _context(tables, manager, board, params.get('system', ''), params.get('binding', ''))
     model = M.build(tables, board)
     info = ST.apply_stage(model, tables, ctx, stage, ctx.binding, board)
-    MD.apply_pins(model, tables, ctx, params.get('phase') or 'runtime')
+    info['requested'] = requested_stage
+    MD.apply_pins(model, tables, ctx, phase)
+    phase_info = PH.apply(model, tables, phase, blank, board)
+    phase_info.update({'requested_stage': requested_stage, 'effective_stage': stage, 'blank_facts': PH.blank_block(tables, board, blank, phase)})
     proto = None
     if params.get('protocol'):
         try:
@@ -87,7 +96,7 @@ def build(board, params=None, manager=None, tables=None):
     surf_title = {s['id']: s['title'] for s in model.surfaces}
     for p in model.pins.values():
         p['surface_title'] = surf_title.get(p['surface'], '')
-    return {'ok': True, 'board': board, 'source': 'live' if live else 'seed (the live server has no enclosure rows yet)', 'system': ctx.system_name, 'binding': ctx.binding, 'phase': params.get('phase') or 'runtime',
+    return {'ok': True, 'board': board, 'source': 'live' if live else 'seed (the live server has no enclosure rows yet)', 'system': ctx.system_name, 'binding': ctx.binding, 'phase': phase, 'blank': blank, 'phase_info': phase_info,
             'mission': {'name': mission, 'status': 'undetermined' if mission else 'none', 'why': 'Task definitions on a Mission arrive with fgm-3; `tasks-assigned` reads the binding\'s graph-node claims today' if mission else ''},
             'stage': info, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
             'shapes': shapes, 'counts': {'surfaces': len(model.surfaces), 'pins': len(model.pins), 'connections': len(model.connections), 'unresolved': len(model.unresolved),
@@ -115,7 +124,7 @@ def pin_rows(res, flt=None):
                      'consumers': cons, 'drive_relevant': 'yes' if p['drive_relevant'] else 'no', 'drive_status': p['drive_status'], 'rail': p['rail'], 'pull': p['pull'], 'limit_class': p['limit_class'],
                      'group_budget': ', '.join(p['group_budget']), 'signal_relevant': 'yes' if p['signal_relevant'] else 'no', 'activated': p['activated']['function'] if p['activated'] else '',
                      'capable': ', '.join(c['function'] for c in p['capable']), 'lifecycle': ', '.join('%s %s' % (x['policy'], x['phase']) for x in p['lifecycle']), 'lit': 'lit' if p['lit'] else ('dimmed' if p['dim'] else ''),
-                     'lit_why': '; '.join('%s: %s' % (c['child'], c['headline']) for c in p['lit']['children']) if p['lit'] else '', 'notes': p['notes']})
+                     'phase_basis': ' | '.join(p.get('phase_basis', [])), 'lit_why': '; '.join('%s: %s' % (c['child'], c['headline']) for c in p['lit']['children']) if p['lit'] else '', 'notes': p['notes']})
     return _flt(rows, flt)
 
 

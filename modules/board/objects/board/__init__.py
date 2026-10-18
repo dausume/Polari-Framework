@@ -63,3 +63,4 @@ from board.objects.board.EnclosureContact import EnclosureContact  # noqa: F401
 from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401
 from board.objects.board.SystemLink import SystemLink  # noqa: F401
 from board.objects.board.SignalPath import SignalPath  # noqa: F401
+from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F401
