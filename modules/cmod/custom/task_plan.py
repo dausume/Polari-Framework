@@ -301,14 +301,26 @@ def derive_task_plan(mission, hardware_system=None, solve_run=None, candidate=No
 
 
 def _variant_steps(job, route, graph):
-    """Steps of a job-only Task (no Purpose graph node): the atoms the chosen route is implemented by, with the lane any seeded graph gives them ('' when none schedules them)."""
+    """Steps of a job-only Task (no Purpose graph node): the atoms the chosen route is implemented by, with the lane any seeded graph gives them ('' when none schedules them).
+    fgm-5b: an isotope's own atom (hal_sense_poll.hal_sense_read) is in no graph; it takes the lane of the shipped atom of the same function it replaces. A `called` atom of a route WITH an interrupt in it stays
+    `called` (the interrupt is the task's entry); in a route with none (polling) it runs where its caller runs - the main loop."""
     from cmod.custom import isotope_variants as V
     v = next((x for x in V.variants(job=job) if x['route'] == route), None)
     atoms = _j((v or {}).get('implemented_by_json'), {}).get('atoms', [])
-    steps = []
-    for i, a in enumerate(atoms, 1):
+    found = []
+    for a in atoms:
         lane, g = ST.lane_of_atom(a, graph)
-        steps.append({'n': i, 'instance': a.partition(':')[2], 'atom': a, 'lane': lane, 'role': ('lane read from graph %s' % g) if g else 'not scheduled in any graph'})
+        found.append([a, lane, g, ''])
+    has_isr = any(f[1] == 'isr' for f in found)
+    for f in found:
+        if not f[1]:
+            lane, g, why = ST.lane_of_equivalent(f[0], graph, follow_caller=not has_isr)
+            if lane == 'called':
+                why = 'called by the loop task; the interrupt of this route is the entry'
+            f[1:] = [lane, g, why]
+    steps = []
+    for i, (a, lane, g, why) in enumerate(found, 1):
+        steps.append({'n': i, 'instance': a.partition(':')[2], 'atom': a, 'lane': lane, 'role': why or (('lane read from graph %s' % g) if g else 'not scheduled in any graph')})
     return steps
 
 

@@ -20,6 +20,13 @@ from board.custom import hwsys_system as HS
 from board.custom.hwsys_context import Ctx
 
 
+def linked_task_plan(system, manager=None):
+    """fgm-5b: the name of the recorded Task Plan ('<mission>:<system>', the newest when several Missions are planned on it) of a Hardware System, read off the live TaskPlan rows; '' when none is recorded."""
+    rows = [r for r in ((getattr(manager, 'objectTables', None) or {}).get('TaskPlan') or {}).values() if getattr(r, 'hardware_system', '') == system]
+    rows.sort(key=lambda r: (getattr(r, 'derived_at', '') or '', getattr(r, 'name', '')))
+    return rows[-1].name if rows else ''
+
+
 def build(tables, manager=None, strict=False, only=None):
     out = {'HardwareSystem': [], 'SystemLink': [], 'SignalPath': []}
     for s in HS.rows(tables):
@@ -27,7 +34,7 @@ def build(tables, manager=None, strict=False, only=None):
         lk = HL.links(ctx, s['name'])
         links = {l['name'].partition(':')[2]: l for l in lk}
         ctx.extra = {'SystemLink': {l['name'] for l in lk}}
-        out['HardwareSystem'].append(dict(s, links_refs_json=json.dumps(['SystemLink:%s' % l['name'] for l in lk])))
+        out['HardwareSystem'].append(dict(s, links_refs_json=json.dumps(['SystemLink:%s' % l['name'] for l in lk]), task_plan=linked_task_plan(s['name'], manager) or s.get('task_plan', '')))
         out['SystemLink'] += lk
         for slug, fn in HP.PATHS:
             if only and slug != only:

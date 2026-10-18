@@ -10,6 +10,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 from types import SimpleNamespace
 
@@ -79,7 +80,14 @@ def solve_parts(check):
         pd = _pins(demo) if demo else {}
         check('sol-0 ACCEPTANCE: the UNO demo\'s own plan - button INT0 on D2, LED on D6, sense INT1 on D3 - is a candidate with exactly those pins, and the score card says why it is not first',
               pd.get('the button') == ('D2', 'INT0') and pd.get('the LED') == ('D6', 'GPIO') and pd.get('the sense line') == ('D3', 'INT1')
-              and demo['rank'] > 1 and 'sense led line: ext-interrupt instead of' in next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'], pd)
+              and ('sense led line: ext-interrupt instead of' in next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] if demo['rank'] > 1
+                   else next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] == 'the chosen plan'), (pd, demo['rank']))
+        # fgm-5b: the polled sense route has atoms now, so its loop step is no longer free (hal_sense_read is counted into the cycle: +348 us) - under fastest-cycle the INT1 sense wins, the demo plan can be rank 1
+        pr = next((x for x in r['_ranked'] if x['routes'].get('sense-led-line') == 'gpio-poll' and x['routes'].get('read-button') == 'ext-interrupt' and x['routes'].get('drive-led') == 'gpio-out'
+                   and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
+        check('sol-0 / fgm-5b: the polled sense line is priced by its own atoms now - under fastest-cycle it costs loop time (cycle + ... us) against the INT1 sense and ranks below it, and the score card says so',
+              pr is not None and pr['rank'] > demo['rank'] and 'sense led line: gpio-poll instead of ext-interrupt' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference']
+              and 'cycle +' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference'], pr and pr['rank'])
         d = run('base', boards=[UNO])
         cd = d['chosen_candidate']
         pdft = _pins(cd)
@@ -190,8 +198,8 @@ def solve_parts(check):
         check('sol-0 ACCEPTANCE: the objective switch changes the ranking where the variants differ - minimum-resources picks %s for the button, fastest-cycle picks %s' % (ra['read-button'], rb['read-button']),
               ra['read-button'] == 'gpio-poll' and rb['read-button'] == 'ext-interrupt' and ra != rb, (ra, rb))
         check('sol-0: ...and the reason is in plain words: fastest-cycle wins by the polled button\'s wait for the main loop (one pass, rt-0), minimum-resources by the on-chip block the interrupt claims',
-              any('ext-interrupt instead of gpio-poll' in x['deciding_difference'] and 'on-chip blocks claimed' in x['deciding_difference'] and 'cycle - 10.7 ms' in x['deciding_difference'] for x in a['score_card'])
-              and any('gpio-poll instead of ext-interrupt' in x['deciding_difference'] and 'cycle + 10.7 ms' in x['deciding_difference'] for x in b['score_card']), row and row['deciding_difference'])
+              any('ext-interrupt instead of gpio-poll' in x['deciding_difference'] and 'on-chip blocks claimed' in x['deciding_difference'] and re.search(r'cycle - 10\.[789] ms', x['deciding_difference']) for x in a['score_card'])
+              and any('gpio-poll instead of ext-interrupt' in x['deciding_difference'] and re.search(r'cycle \+ 10\.[789] ms', x['deciding_difference']) for x in b['score_card']), row and row['deciding_difference'])   # cyc-0: the pass is 10.7 ms from size bounds, 10.8-10.9 ms with the atoms measured
         check('sol-0: the other objective is always the secondary column (resources beside cycle time, cycle beside resources)',
               a['secondary_objective'] == 'fastest-cycle' and b['secondary_objective'] == 'minimum-resources' and all(x['other_objective'] for x in a['score_card'] + b['score_card'] if x['verdict'] != 'could not be placed'))
         w = S.solve(LIGHT, boards=[UNO], limits={'weights': {'pins': 30.0}})

@@ -14,6 +14,9 @@ shipped pipeline (gen + build, the board engines seam), drives it deterministica
   uno-light-analog   A0 driven by the twin's triangle ramp (--adc0-ramp 200,4800,1000): the falling crossings of the press
                      threshold are the presses, counted by a pure model of the ramp and compared with the frames; a constant
                      high level (never pressed) and a switch already closed at boot (200 mV constant) count nothing
+  uno-light-sense-poll / uno-light-sense-pcint   (fgm-5b) the sense-led-line isotopes on the button-clock app: 4 debounced presses on D2 toggle the LED on D6; with the jumper D6 -> the sense
+                     pin (D3 polled, D8 on a pin-change interrupt) every toggle is ONE counted edge (sense_rises + sense_falls == presses, led_on == rises > falls, one
+                     sense_rise / sense_fall event each, nothing dropped); NEGATIVE controls: the same presses with NO wire, and with the wire on the OTHER variant's pin, count 0 edges
   uno-sim-rig PWM    SET pwm_duty 25 / 50 / 100 over the serial link -> OCR0A read from the twin's status lines becomes
                      63 / 127 / 255 (= duty x 255 / 100) and the duty the timer produces = OCR0A / 255 is within 0.5 percentage points
 """
@@ -32,8 +35,11 @@ PWM_SECONDS = 2.0
 PORTD_ADDR, OCR0A_ADDR = 0x2B, 0x47    # data-space addresses (I/O 0x0B + 0x20, 0x27 + 0x20)
 LED_BIT = 6
 
+SENSE_CHECKS = ('sense-edges', 'sense-no-wire', 'sense-wrong-wire')
 CHECKS = {'uno-light-pcint': ('presses', 'wrong-pin', 'bounce'), 'uno-light-analog': ('ramp', 'high', 'closed-at-boot'),
-          'uno-sim-rig': ('pwm',)}
+          'uno-sim-rig': ('pwm',), 'uno-light-sense-poll': SENSE_CHECKS, 'uno-light-sense-pcint': SENSE_CHECKS}
+#: the sense variants: the jumper's FAR end, and a pin the other variant listens on (the wrong-wire control wires the LED line there instead)
+SENSE_N_PRESSES = 4
 
 
 def engine_ready():
@@ -223,8 +229,68 @@ def check_pwm(hex_bytes):
     return ok, '; '.join(parts), len(frames)
 
 
+# ------------------------------------------------------------------ the sense variants (fgm-5b)
+def sense_soc_pin(variant):
+    """The SoC pin ('PD3', 'PB0') the variant's sense atom listens on - read off the variant's own knob through the BoardPin / SocPin rows."""
+    from board.custom import button_routes as BR
+    from board.custom import variants as V
+    return BR._pin(V.resolve(V.find(variant))['knobs']['sense_pin'])[1]['pin']
+
+
+def _other_sense_pin(variant):
+    return 'PD3' if sense_soc_pin(variant) != 'PD3' else 'PB0'
+
+
+def _sense_run(hex_bytes, wire):
+    """4 presses on D2 (INT0, 30 ms debounce, 150 ms apart) with the LED line (PD6) jumpered to `wire` (or no jumper) -> (run, states, events, bad_crc)."""
+    from board.board_button_clock_twin_selftest import _decode_frames, _specs, _press_pinat
+    from firmwarefaults.custom import harness
+    fmap_s, spec_s, fmap_e, spec_e = _specs()
+    pinat, end = _press_pinat(SENSE_N_PRESSES)
+    argv = _argv((end + RUN_TAIL) / 16e6, pinat + (['--wire', 'PD6:%s' % wire] if wire else []))
+    r = harness.run(argv, hex_bytes, timeout=120)
+    try:
+        states, events, bad = _decode_frames(r['uart'], fmap_s, spec_s, fmap_e, spec_e)
+    except Exception:   # noqa: BLE001 - firmware that speaks another class (a control run on uno-light): its frames are no ButtonClockState, so nothing it says counts
+        states, events, bad = [], [], 1
+    return r, states, events, bad
+
+
+def check_sense_edges(hex_bytes, variant):
+    pin = sense_soc_pin(variant)
+    r, states, events, bad = _sense_run(hex_bytes, pin)
+    last = _last(states)
+    n = SENSE_N_PRESSES
+    kinds = [e.get('kind') for e in events]
+    edges = last.get('sense_rises', 0) + last.get('sense_falls', 0)
+    ok = (r['ok'] and bad == 0 and bool(states) and last.get('button_presses') == n and edges == n and bool(last.get('led_on')) == bool(n % 2)
+          and bool(last.get('led_on')) == (last.get('sense_rises', 0) > last.get('sense_falls', 0)) and last.get('dropped_events', -1) == 0
+          and kinds.count('sense_rise') + kinds.count('sense_fall') == n and kinds.count('press') == n)
+    return ok, '%d presses on D2, jumper PD6:%s: button_presses=%s, sense_rises=%s + sense_falls=%s = %s edges (want %d), led_on=%s, %d sense events, dropped=%s' % (
+        n, pin, last.get('button_presses'), last.get('sense_rises'), last.get('sense_falls'), edges, n, last.get('led_on'),
+        kinds.count('sense_rise') + kinds.count('sense_fall'), last.get('dropped_events')), len(states) + len(events)
+
+
+def check_sense_no_wire(hex_bytes, variant):
+    r, states, _events, bad = _sense_run(hex_bytes, '')
+    last = _last(states)
+    return (r['ok'] and bad == 0 and bool(states) and last.get('button_presses') == SENSE_N_PRESSES and last.get('sense_rises', -1) == 0 and last.get('sense_falls', -1) == 0,
+            'NEGATIVE: the same %d presses with NO jumper: button_presses=%s, sense_rises=%s, sense_falls=%s - nothing is counted without the wire'
+            % (SENSE_N_PRESSES, last.get('button_presses'), last.get('sense_rises'), last.get('sense_falls')), len(states))
+
+
+def check_sense_wrong_wire(hex_bytes, variant):
+    other = _other_sense_pin(variant)
+    r, states, _events, bad = _sense_run(hex_bytes, other)
+    last = _last(states)
+    return (r['ok'] and bad == 0 and bool(states) and last.get('button_presses') == SENSE_N_PRESSES and last.get('sense_rises', -1) == 0 and last.get('sense_falls', -1) == 0,
+            'NEGATIVE: the jumper on PD6:%s (not the sense pin %s of this build): button_presses=%s, sense_rises=%s, sense_falls=%s'
+            % (other, sense_soc_pin(variant), last.get('button_presses'), last.get('sense_rises'), last.get('sense_falls')), len(states))
+
+
 FNS = {'presses': check_presses, 'wrong-pin': check_wrong_pin, 'bounce': check_bounce, 'ramp': check_ramp, 'high': check_high,
-       'closed-at-boot': check_closed_at_boot, 'pwm': check_pwm}
+       'closed-at-boot': check_closed_at_boot, 'pwm': check_pwm,
+       'sense-edges': check_sense_edges, 'sense-no-wire': check_sense_no_wire, 'sense-wrong-wire': check_sense_wrong_wire}
 
 
 def prove(variant, mode='digital-twin'):
@@ -236,7 +302,7 @@ def prove(variant, mode='digital-twin'):
     ready, why = engine_ready()
     if not ready:
         return {'ok': False, 'route': 'refused', 'why': 'no simavr twin here: %s' % why}
-    work = tempfile.mkdtemp(prefix='fgm5a-')
+    work = tempfile.mkdtemp(prefix='fgm5-')
     try:
         row = build(variant, work)
         if row.get('state') != 'built':
@@ -244,7 +310,7 @@ def prove(variant, mode='digital-twin'):
         hex_bytes = open(row['hex_path'], 'rb').read()
         ok, parts, seen = True, [], 0
         for name in CHECKS[variant]:
-            good, words, n = FNS[name](hex_bytes)
+            good, words, n = FNS[name](hex_bytes, variant) if name in SENSE_CHECKS else FNS[name](hex_bytes)
             ok, seen = ok and good, seen + n
             parts.append('%s: %s%s' % (name, words, '' if good else ' [FAILED]'))
         return {'ok': ok, 'route': 'digital-twin', 'why': '; '.join(parts), 'frames_compared': seen,

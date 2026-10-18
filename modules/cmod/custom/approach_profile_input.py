@@ -11,6 +11,7 @@ spec = {mission, board_ref, source, purposes: [Purpose], processors: [Processor]
               tasks [instance names], graph}
   Processor  {name (the graph), board, clock_hz, baud, frame_bytes, tasks [Task], isrs [Isr], build {...}|None, builds_note}
   Task       {name, lane (init|loop|called|thread), period_ms (q|None), wcet_us (q), known_us (float, the bounded part), unbounded [reasons],
+              cycles_basis (measured|mixed|upper-bound; cyc-0: measured = a cycle record's twin run), measured ({cycles, ref, basis ..}|None),
               blocking [{atom, kind, what, worst_us (q)}], text_bytes, stack_bytes, peripherals [ids], serves [purposes], atom}
   Isr        {name, vector, cycles_ub, per_event_us (q), rate_hz (q), text_bytes, stack_bytes}
 `q` = {kind: measured|estimated|cited|criterion|undetermined, value, unit, basis}.
@@ -146,7 +147,8 @@ def processor(graph, purposes, manager=None):
     mb = re.search(r'(\d{4,7}) Bd', usart.get('use', ''))
     baud = int(mb.group(1)) if mb else None
     fb, fbasis = frame_bytes(graph)
-    ctx = {'baud': baud, 'frame_bytes': fb}
+    from board.custom import cycle_records as CR
+    ctx = {'baud': baud, 'frame_bytes': fb, 'variant': CR.GRAPH_VARIANT.get(graph)}   # cyc-0: the variant whose measured atoms this graph's firmware calls
     clock = int(rt.get('clock_hz') or 0) or None
     periods = {}
     for e in g['edges']:
@@ -167,22 +169,28 @@ def processor(graph, purposes, manager=None):
         known = A.cycles_to_us(an['cycles_ub'], clock) if clock else None
         if not an['bounded'] or known is None:
             wcet = undetermined('; '.join(an['unbounded']) or 'no CPU clock for the board')
+        elif an['cycles_basis'] == 'measured':
+            wcet = q('measured', round(known, 2), 'us', '%s; %d cycles at %d Hz' % (an['measured']['basis'], an['cycles_ub'], clock))
         else:
             wcet = q('estimated', round(known, 2), 'us', 'upper bound: %d B / 2 B per instruction x 4 cycles = %d cycles at %d Hz (no loop, no call outside the atoms); not a measured cycle count' % (
                 an['text_bytes'], an['cycles_ub'], clock))
         tasks.append({'name': inst, 'lane': lane, 'period_ms': periods.get(inst), 'wcet_us': wcet, 'known_us': known or 0.0, 'unbounded': an['unbounded'],
                       'blocking': an['blocking'], 'text_bytes': an['text_bytes'], 'stack_bytes': an['stack_bytes'], 'peripherals': an['peripherals'],
-                      'serves': serves.get(inst, []), 'atom': n['atom']})
+                      'serves': serves.get(inst, []), 'atom': n['atom'], 'cycles_basis': an['cycles_basis'], 'measured': an['measured'],
+                      'cycles': an['cycles_ub']})
     isrs = []
     for s in sorted((s for s in slots.values() if s['lane'] == 'isr'), key=lambda s: s['order']):
         project, _m, atom = CI.find_atom('%s:%s' % (graph_row.get('project', 'uno'), s['task']))
         an = A.analyse(project, atom, ctx)
         us = A.cycles_to_us(an['cycles_ub'], clock) if clock else None
         isrs.append({'name': s['task'], 'vector': s['isr_vector'], 'cycles_ub': an['cycles_ub'], 'text_bytes': an['text_bytes'], 'stack_bytes': an['stack_bytes'],
-                     'per_event_us': q('estimated', round(us, 2), 'us', 'upper bound: %d B / 2 x 4 cycles at %d Hz' % (an['text_bytes'], clock)) if us is not None else undetermined('no clock'),
+                     'cycles_basis': an['cycles_basis'],
+                     'per_event_us': (q('measured', round(us, 2), 'us', '%s; %d cycles at %d Hz' % (an['measured']['basis'], an['cycles_ub'], clock)) if an['cycles_basis'] == 'measured' else
+                                      q('estimated', round(us, 2), 'us', 'upper bound: %d B / 2 x 4 cycles at %d Hz' % (an['text_bytes'], clock))) if us is not None else undetermined('no clock'),
                      'rate_hz': _isr_rate(s['isr_vector'], per, baud)})
     build = _build(graph)
-    return {'name': graph, 'board': board, 'clock_hz': clock, 'baud': baud, 'frame_bytes': fb, 'frame_basis': fbasis, 'tasks': tasks, 'isrs': isrs, 'build': build,
+    loop_measured = CR.loop_of(ctx['variant']) if ctx['variant'] else None
+    return {'loop_measured': loop_measured, 'name': graph, 'board': board, 'clock_hz': clock, 'baud': baud, 'frame_bytes': fb, 'frame_basis': fbasis, 'tasks': tasks, 'isrs': isrs, 'build': build,
             'runtime_row': rt.get('name', '')}
 
 

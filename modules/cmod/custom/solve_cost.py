@@ -11,7 +11,8 @@ MINIMUM-RESOURCES  a weighted sum of FRACTIONS OF WHAT THE HARDWARE HAS:  pins u
                    plus the runtime tier's own kernel footprint (rt-0: measured, cited, or undetermined -> stand-in 25% of the limit).
 FASTEST-CYCLE      the estimated MISSION CYCLE TIME in microseconds, by his definitions: a Purpose cycle = every task relevant to that one Purpose once (from its trigger to the last
                    one done: a POLLED trigger waits up to one pass of the main loop - rt-0's bound), the Mission cycle = one pass through every Purpose. Per task: the atoms'
-                   rt-0 cycle UPPER BOUNDS where the route has atoms; counted instructions / the bus rate for a route that has none (labelled). The unchanged tasks of the firmware
+                   cyc-0 MEASURED cycles (a recorded simavr twin run, board.custom.cycle_records) where a cycle record has the route's atoms, else rt-0 cycle UPPER BOUNDS
+                   where the route has atoms; counted instructions / the bus rate for a route that has none (labelled). Every candidate says which basis each part used. The unchanged tasks of the firmware
                    (apply, telemetry ...) add the same to every candidate; they are included so the number is a cycle, not a delta, and their unbounded parts are said.
 The other objective is always computed too and shown as the secondary column.
 """
@@ -167,10 +168,11 @@ def _atoms_us(v, clock_hz, spec_ctx):
         return None
     init_c = work_c = 0
     und, event, blocks = [], False, 0.0
-    names = []
+    names, bases = [], []
+    ctx = dict(spec_ctx or {}, variant=imp.get('config') or (spec_ctx or {}).get('variant'))   # cyc-0: read the run of the variant that builds this route
     for n, _a, _m in imp['atoms']:
         project, _man, atom = CI.find_atom(n)
-        an = A.analyse(project, atom, spec_ctx)
+        an = A.analyse(project, atom, ctx)
         if not an['bounded']:
             und.append('%s: %s' % (n, '; '.join(an['unbounded'])))
         isr = n.endswith('_vect')
@@ -180,15 +182,22 @@ def _atoms_us(v, clock_hz, spec_ctx):
             init_c += c
         else:
             work_c += c
-        names.append('%s %d' % (n.split(':', 1)[1], c))
+        bases.append(an['cycles_basis'])
+        names.append('%s %d%s' % (n.split(':', 1)[1], c, ' measured' if an['cycles_basis'] == 'measured' else ''))
         for b in an['blocking']:
             val = b['worst_us']['value']
+            if b.get('inside_measured'):
+                continue
             if val is None:
                 und.append('%s waits: %s' % (n, b['worst_us']['basis'][:80]))
             else:
                 blocks += val
-    return {'init_us': init_c / clock_hz * 1e6, 'work_us': work_c / clock_hz * 1e6 + blocks, 'event': event, 'und': und,
-            'basis': 'rt-0 cycle upper bounds of the route\'s atoms (%s cycles) at %.0f MHz%s' % (', '.join(names), clock_hz / 1e6, (' plus %.0f us of waiting on hardware' % blocks) if blocks else '')}
+    measured = bool(bases) and all(b == 'measured' for b in bases)
+    waits = blocks
+    word = 'MEASURED cycles on the simavr twin (cycle record of %s)' % ctx['variant'] if measured else (
+        'measured cycles where a cycle record has them, else rt-0 upper bounds' if any(b != 'upper-bound' for b in bases) else 'rt-0 cycle upper bounds')
+    return {'init_us': init_c / clock_hz * 1e6, 'work_us': work_c / clock_hz * 1e6 + blocks, 'event': event, 'und': und, 'measured': measured, 'waits_us': waits,
+            'basis': '%s of the route\'s atoms (%s cycles) at %.0f MHz%s' % (word, ', '.join(names), clock_hz / 1e6, (' plus %.0f us of waiting on hardware' % blocks) if blocks else '')}
 
 
 #: a route with no atoms of its own is timed from the route that has them (same ISR plumbing) plus the extra cycles it needs - one basis, so the two compare fairly
@@ -220,10 +229,12 @@ def route_timing(v, direction, hw, spec_ctx, siblings=None):
         if at0 is not None:
             base_init_c = ROUTE_CYCLES[sib[0]][2] or 0
             return {'init_us': at0['init_us'] + max(0, (init_c or 0) - base_init_c) / clock * 1e6, 'work_us': at0['work_us'] + sib[1] / clock * 1e6, 'mode': 'event', 'und': list(und) + at0['und'],
-                    'basis': 'the %s route\'s rt-0 bound (%s) plus %d counted cycles (%s); %s' % (sib[0], at0['basis'], sib[1], sib[2], how), 'source': 'rt-0 atoms + counted'}
+                    'basis': 'the %s route\'s bound (%s) plus %d counted cycles (%s); %s' % (sib[0], at0['basis'], sib[1], sib[2], how),
+                    'source': ('measured atoms + counted' if at0['measured'] else 'rt-0 atoms + counted')}
     at = _atoms_us(v, clock, spec_ctx)
     if at is not None:
-        return {'init_us': at['init_us'], 'work_us': at['work_us'], 'mode': 'event' if at['event'] else mode, 'und': at['und'], 'basis': at['basis'], 'source': 'rt-0 atoms'}
+        return {'init_us': at['init_us'], 'work_us': at['work_us'], 'mode': 'event' if at['event'] else mode, 'und': at['und'], 'basis': at['basis'],
+                'source': ('measured atoms' if not at['waits_us'] else 'measured atoms + estimated wait') if at['measured'] else 'rt-0 atoms'}
     if route in ('analog-threshold', 'analog-read', 'analog-sensor'):
         work = 13.0 * 128 / clock * 1e6 + 20 / clock * 1e6
     elif cyc == 'bus':
@@ -248,14 +259,18 @@ def cycle(combo, timing_for, mission_purposes, hw, spec, approach, job_purposes,
         trig = (p.get('trigger') or {}).get('kind', '')
         boot = trig == 'boot'
         us, parts = 0.0, []
-        fixed = 0.0
+        fixed, fixed_bases = 0.0, []
         for proc_ in (spec or {}).get('processors', []):
             for t in proc_['tasks']:
                 if p['purpose'] in t['serves'] and t['atom'] not in fixed_atoms_skip and (t['lane'] == 'init') == boot:
                     fixed += t['known_us'] or 0.0
+                    fixed_bases.append(t.get('cycles_basis', 'upper-bound'))
         if fixed:
             us += fixed
-            parts.append({'what': 'the firmware\'s other tasks (apply, telemetry, clock ...)', 'us': round(fixed, 2), 'kind': 'estimated', 'basis': 'rt-0 cycle upper bounds of the tasks no route replaces; their unbounded parts are left out (a lower bound)'})
+            all_m = bool(fixed_bases) and all(b == 'measured' for b in fixed_bases)
+            parts.append({'what': 'the firmware\'s other tasks (apply, telemetry, clock ...)', 'us': round(fixed, 2), 'kind': 'measured' if all_m else 'estimated',
+                          'basis': ('cycle counts MEASURED on the simavr twin (cycle record; the CPU part where a task waits on the USART) of the tasks no route replaces' if all_m else
+                                    'rt-0 cycle upper bounds (measured where a cycle record has them) of the tasks no route replaces; their unbounded parts are left out (a lower bound)')})
         for job, v in combo.items():
             if p['purpose'] not in job_purposes.get(job, ()):
                 continue
@@ -266,7 +281,7 @@ def cycle(combo, timing_for, mission_purposes, hw, spec, approach, job_purposes,
                 n_und += 1
                 basis = 'undetermined (%s) -> stand-in %s' % ('; '.join(t['und'][:2]) or 'no figure', stand_basis)
             else:
-                kind = 'estimated'
+                kind = 'measured' if t['source'] == 'measured atoms' else 'estimated'
                 basis = '%s: %s' % (v['route'], t['basis'])
                 if t['und']:
                     val += stand
@@ -296,8 +311,11 @@ def cycle(combo, timing_for, mission_purposes, hw, spec, approach, job_purposes,
                     'why': '%s: the Purpose cycle %s against its deadline %s ms%s' % (p['purpose'], '%.0f us' % us, dl, (' minus the %s ms debounce' % db) if db else '')}
         rows.append({'purpose': p['purpose'], 'trigger': trig, 'us': round(us, 2), 'parts': parts, 'criterion': crit})
         total += us
-    return {'total_us': q('undetermined' if n_und else 'estimated', round(total, 2), 'us', 'sum of the Purpose cycles: each Purpose once, from its trigger to its last task (his definitions)%s' % (
-        '; %d part(s) scored at a stand-in' % n_und if n_und else '')), 'purposes': rows, 'undetermined': n_und, 'criteria_violated': [r['criterion']['why'] for r in rows if r['criterion']['state'] == 'violates'], 'timings': {j: {k: t[k] for k in ('mode', 'basis', 'source', 'und')} for j, t in timings.items()}}
+    kinds = [x['kind'] for r_ in rows for x in r_['parts']]
+    mix = 'basis of the parts: %d measured on the twin, %d estimated/counted, %d undetermined' % (kinds.count('measured'), kinds.count('estimated'), kinds.count('undetermined'))
+    return {'bases': {k: kinds.count(k) for k in ('measured', 'estimated', 'undetermined')},
+            'total_us': q('undetermined' if n_und else ('measured' if kinds and all(k == 'measured' for k in kinds) else 'estimated'), round(total, 2), 'us',
+                          'sum of the Purpose cycles: each Purpose once, from its trigger to its last task (his definitions); %s%s' % (mix, '; %d part(s) scored at a stand-in' % n_und if n_und else '')), 'purposes': rows, 'undetermined': n_und, 'criteria_violated': [r['criterion']['why'] for r in rows if r['criterion']['state'] == 'violates'], 'timings': {j: {k: t[k] for k in ('mode', 'basis', 'source', 'und')} for j, t in timings.items()}}
 
 
 def SC_standin(hw):

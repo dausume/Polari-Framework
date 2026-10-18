@@ -75,6 +75,15 @@ class CodeInterfaceRefused(ValueError):
 
 # ------------------------------------------------------------------ finding one atom in a committed manifest (pure)
 
+def _with_cycles(project, atom):
+    """cyc-0: a measured `cost.cycles` (twin run, with its reference) laid over the committed manifest's atom when a cycle record measured it; read-only."""
+    try:
+        from board.custom import cycle_records as CR
+        return CR.annotate(project, atom)
+    except Exception:  # noqa: BLE001 - a missing/odd record leaves the atom as the manifest has it
+        return atom
+
+
 def _manifest_candidates():
     """[(project, manifest_dict, atom_dict), ...] every atom of every committed TEMPLATE project's manifest — pure,
     no engine, no manager (the committed polari-firmware.json is the derived truth; a live CFunctionAtom row's own
@@ -87,7 +96,7 @@ def _manifest_candidates():
         if os.path.isfile(path):
             m = json.load(open(path))
             for a in m.get('atoms', []):
-                out.append((name, m, a))
+                out.append((name, m, _with_cycles(name, a)))
     return out
 
 

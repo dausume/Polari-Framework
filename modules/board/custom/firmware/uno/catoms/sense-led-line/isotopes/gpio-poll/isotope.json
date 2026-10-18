@@ -1,0 +1,19 @@
+{
+ "isotope": "gpio-poll",
+ "sense_route": "poll",
+ "hal_sense_route_code": 1,
+ "variant_row": "sense-led-line:gpio-poll",
+ "renders_to": "hal_sense_poll.c",
+ "template": "template.c.j2",
+ "firmware_variants": [
+  "uno-light-sense-poll"
+ ],
+ "claims": {
+  "pins": "one digital-capable pin (the sense_pin knob; D3 in uno-light-sense-poll)",
+  "peripherals": [
+   "gpio-port"
+  ]
+ },
+ "minimum_level": "bare-c",
+ "notes": "fgm-5b. A blink shorter than one main-loop pass is missed; the twin proof drives person-speed toggles (150 ms apart)."
+}

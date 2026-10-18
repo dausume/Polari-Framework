@@ -1,0 +1,404 @@
+{
+ "clock_hz": 16000000,
+ "functions": {
+  "apps/button_clock.apply_command": {
+   "entry": "0x247a",
+   "function": "apply_command",
+   "max": 0,
+   "min": 0,
+   "n": 0,
+   "note": "the stimulus never called it (or only from inside an interrupt)",
+   "symbol": "apply_command.constprop.0"
+  },
+  "apps/button_clock.boot_session_mint": {
+   "entry": "0x928",
+   "function": "boot_session_mint",
+   "max": 221,
+   "min": 221,
+   "n": 1,
+   "symbol": "boot_session_mint",
+   "twin_caveat": "EEPROM writes complete at once in simavr; the chip waits per byte for EEPE (init only, not in the loop) - not applied here"
+  },
+  "apps/button_clock.clock_set": {
+   "entry": "0x5bc",
+   "function": "clock_set",
+   "max": 0,
+   "min": 0,
+   "n": 0,
+   "note": "the stimulus never called it (or only from inside an interrupt)",
+   "symbol": "clock_set"
+  },
+  "apps/button_clock.clock_tick": {
+   "entry": "0x4a0",
+   "function": "clock_tick",
+   "max": 129,
+   "min": 129,
+   "n": 38,
+   "symbol": "clock_tick"
+  },
+  "apps/button_clock.events_drain": {
+   "blocks_on_uart": true,
+   "entry": "0x20c4",
+   "function": "events_drain",
+   "max": 735348,
+   "min": 114,
+   "n": 13,
+   "symbol": "events_drain",
+   "twin_caveat": "includes the twin's USART wait (its byte time is longer than the chip's); the wait could not be separated (calls != frames sent, or the frames differ in length)"
+  },
+  "apps/button_clock.events_queue": {
+   "entry": "0x7f0",
+   "function": "events_queue",
+   "max": 255,
+   "min": 255,
+   "n": 15,
+   "symbol": "events_queue"
+  },
+  "apps/button_clock.l_led_init": {
+   "entry": "0x490",
+   "function": "l_led_init",
+   "max": 6,
+   "min": 6,
+   "n": 1,
+   "symbol": "l_led_init"
+  },
+  "apps/button_clock.l_led_set": {
+   "entry": "0x494",
+   "function": "l_led_set",
+   "max": 9,
+   "min": 8,
+   "n": 5,
+   "symbol": "l_led_set"
+  },
+  "apps/button_clock.led_toggle": {
+   "entry": "0x16c2",
+   "function": "led_toggle",
+   "max": 955,
+   "min": 91,
+   "n": 28376,
+   "symbol": "led_toggle"
+  },
+  "apps/button_clock.queue_pop": {
+   "entry": "0x8ec",
+   "function": "queue_pop",
+   "max": 103,
+   "min": 12,
+   "n": 28,
+   "symbol": "queue_pop"
+  },
+  "apps/button_clock.sense_isr": {
+   "entry": "0x17c2",
+   "function": "sense_isr",
+   "max": 711,
+   "min": 170,
+   "n": 28376,
+   "symbol": "sense_isr"
+  },
+  "apps/button_clock.telemetry_send": {
+   "blocks_on_uart": true,
+   "entry": "0x229a",
+   "function": "telemetry_send",
+   "max": 1256108,
+   "min": 520819,
+   "n": 13,
+   "symbol": "telemetry_send",
+   "twin_caveat": "includes the twin's USART wait (its byte time is longer than the chip's); the wait could not be separated (calls != frames sent, or the frames differ in length)"
+  },
+  "hal.hal_button_init": {
+   "entry": "0x2a2",
+   "function": "hal_button_init",
+   "max": 20,
+   "min": 20,
+   "n": 1,
+   "symbol": "hal_button_init"
+  },
+  "hal.hal_led": {
+   "entry": "0x3e8",
+   "function": "hal_led",
+   "max": 78,
+   "min": 74,
+   "n": 5,
+   "symbol": "hal_led"
+  },
+  "hal.hal_led_init": {
+   "entry": "0x3e4",
+   "function": "hal_led_init",
+   "max": 6,
+   "min": 6,
+   "n": 1,
+   "symbol": "hal_led_init"
+  },
+  "hal.hal_millis": {
+   "entry": "0x1c2",
+   "function": "hal_millis",
+   "max": 108,
+   "min": 54,
+   "n": 28377,
+   "symbol": "hal_millis"
+  },
+  "hal.hal_presses": {
+   "entry": "0x2ba",
+   "function": "hal_presses",
+   "max": 41,
+   "min": 41,
+   "n": 5,
+   "symbol": "hal_presses"
+  },
+  "hal.hal_rx_pop": {
+   "entry": "0xf0",
+   "function": "hal_rx_pop",
+   "max": 68,
+   "min": 14,
+   "n": 28377,
+   "symbol": "hal_rx_pop"
+  },
+  "hal.hal_sense_init": {
+   "entry": "0x36c",
+   "function": "hal_sense_init",
+   "max": 18,
+   "min": 18,
+   "n": 1,
+   "symbol": "hal_sense_init"
+  },
+  "hal.hal_sense_read": {
+   "entry": "0x382",
+   "function": "hal_sense_read",
+   "max": 138,
+   "min": 84,
+   "n": 28376,
+   "symbol": "hal_sense_read"
+  },
+  "hal.hal_take_toggle_pending": {
+   "entry": "0x2de",
+   "function": "hal_take_toggle_pending",
+   "max": 91,
+   "min": 37,
+   "n": 28376,
+   "symbol": "hal_take_toggle_pending"
+  },
+  "hal.hal_tick_init": {
+   "entry": "0x1aa",
+   "function": "hal_tick_init",
+   "max": 15,
+   "min": 15,
+   "n": 1,
+   "symbol": "hal_tick_init"
+  },
+  "hal.hal_usart_init": {
+   "entry": "0x124",
+   "function": "hal_usart_init",
+   "max": 18,
+   "min": 18,
+   "n": 1,
+   "symbol": "hal_usart_init"
+  },
+  "hal.hal_usart_send": {
+   "blocks_on_uart": true,
+   "entry": "0x142",
+   "function": "hal_usart_send",
+   "max": 477210,
+   "min": 225087,
+   "n": 28,
+   "symbol": "hal_usart_send",
+   "twin_caveat": "includes the twin's USART wait (its byte time is longer than the chip's); the wait could not be separated (calls != frames sent, or the frames differ in length)"
+  }
+ },
+ "inputs": {
+  "cflags": [
+   "-mmcu=atmega328p",
+   "-DF_CPU=16000000UL",
+   "-Os",
+   "-std=gnu99",
+   "-Wall",
+   "-Wextra",
+   "-Werror",
+   "-ffunction-sections",
+   "-fdata-sections"
+  ],
+  "flash_bytes": 13800,
+  "ldflags": [
+   "-Wl,--gc-sections"
+  ],
+  "noinline_elf_sha256": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860",
+  "noinline_extra": [
+   "-fno-inline",
+   "-Wno-error",
+   "-Wl,--no-gc-sections"
+  ],
+  "noinline_hex_sha256": "d7d2571025d9f8173d28b37d4301fdda036e92d04d25eaa00bbbfb393b63cee9",
+  "ram_bytes": 1224,
+  "shipped_elf_sha256": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
+  "shipped_hex_sha256": "4cbe660a00049cf7aaad5037c3c4eaeed6133d359bd5f5e03fc1b7b67e0b9c0a",
+  "sources": [
+   {
+    "path": "board_config.h",
+    "sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008"
+   },
+   {
+    "path": "button_clock_defs.h",
+    "sha256": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807"
+   },
+   {
+    "path": "buttonclockevent_packets.h",
+    "sha256": "d7c29234aef022c6b998cdd1cecf0574a8a02ad84731c354b4744b14060edc48"
+   },
+   {
+    "path": "buttonclockstate_packets.h",
+    "sha256": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210"
+   },
+   {
+    "path": "hal.c",
+    "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
+   },
+   {
+    "path": "hal.h",
+    "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+   },
+   {
+    "path": "main.c",
+    "sha256": "5931a7efa0004dd5864d4bca1314b70ca1e86cd9facf95f2defbe6b7d058b0e3"
+   }
+  ]
+ },
+ "isrs": {
+  "INT0_vect": {
+   "basis": "shipped hex, RUNNING raised -> lowered at reti",
+   "latency_max": 2,
+   "max": 116,
+   "mean": 112.4,
+   "min": 98,
+   "n": 5,
+   "vector": 1
+  },
+  "INT1_vect": {
+   "basis": "shipped hex, RUNNING raised -> lowered at reti",
+   "latency_max": 2,
+   "max": 65,
+   "mean": 63.2,
+   "min": 62,
+   "n": 5,
+   "vector": 2
+  },
+  "TIMER2_COMPA_vect": {
+   "basis": "shipped hex, RUNNING raised -> lowered at reti",
+   "latency_max": 37,
+   "max": 50,
+   "mean": 50.0,
+   "min": 50,
+   "n": 1299,
+   "vector": 7
+  }
+ },
+ "loop": {
+  "conditional_back_jumps_not_separable": [],
+  "gaps": [
+   {
+    "back_jump": "0x1608",
+    "max_cycles": 1652,
+    "measure": "poll point -> rjmp at 0x1608, + the jump's own 2 cycles",
+    "min_cycles": 185,
+    "n": 55694,
+    "op": "rjmp"
+   },
+   {
+    "back_jump": "0x162a",
+    "max_cycles": 1255302,
+    "measure": "poll point -> rjmp at 0x162a, + the jump's own 2 cycles",
+    "min_cycles": 520956,
+    "n": 13,
+    "op": "rjmp"
+   }
+  ],
+  "poll_point": "0x1352",
+  "worst_gap_chip_timed_cycles": 1255302,
+  "worst_gap_cycles": 1255302
+ },
+ "mcu": "atmega328p",
+ "record_sha256": "dccfbdab021197930fb11edc7c3dadc317d48eecf6b68d6404d39789571cf775",
+ "recorded_at": "2026-10-18T07:27:48",
+ "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
+ "schema": "cycle-measurement/1",
+ "stimulus": {
+  "argv": [
+   "--hex",
+   "firmware.hex",
+   "--mcu",
+   "atmega328p",
+   "--freq",
+   "16000000",
+   "--free",
+   "--seconds",
+   "1.3",
+   "--status-ms",
+   "0",
+   "--uart-out",
+   "uart.bin",
+   "--seed",
+   "1",
+   "--adc0-mv",
+   "750",
+   "--pin-at",
+   "cycle=1600000,pin=PD2,level=0",
+   "--pin-at",
+   "cycle=1680000,pin=PD2,level=1",
+   "--pin-at",
+   "cycle=4112000,pin=PD2,level=0",
+   "--pin-at",
+   "cycle=4192000,pin=PD2,level=1",
+   "--pin-at",
+   "cycle=6624000,pin=PD2,level=0",
+   "--pin-at",
+   "cycle=6704000,pin=PD2,level=1",
+   "--pin-at",
+   "cycle=9136000,pin=PD2,level=0",
+   "--pin-at",
+   "cycle=9216000,pin=PD2,level=1",
+   "--pin-at",
+   "cycle=11648000,pin=PD2,level=0",
+   "--pin-at",
+   "cycle=11728000,pin=PD2,level=1",
+   "--wire",
+   "PD6:PD3"
+  ],
+  "describe": "deterministic, cycle-scheduled, --free; 5 presses on PD2 (157 ms apart, closed ~5 ms); D6 wired to D3 so the sense interrupt runs; no commands (the clock-set path is not exercised)",
+  "drives": [
+   "5 presses on PD2 (157 ms apart, closed ~5 ms)",
+   "D6 wired to D3 so the sense interrupt runs; no commands (the clock-set path is not exercised)"
+  ],
+  "files_sha256": {},
+  "frame_bytes_max": 160,
+  "frame_bytes_min": 76,
+  "frames_sent": 28,
+  "name": "uno-button-clock/cyc0-v1",
+  "seconds": 1.3,
+  "seed": 1,
+  "sim_cycles": 20800467,
+  "uart_tx_bytes": 3220
+ },
+ "tools": {
+  "avr-gcc": "avr-gcc (GCC) 14.2.0",
+  "binutils": "avr-nm / avr-objdump 2.43 (binutils-avr, same image)",
+  "image": {
+   "id": "sha256:1c4832c827616e2d76131db9772a884266e7f38e4a78dd20bba4d6334b3ffa90",
+   "name": "prf-board-engines:trixie"
+  },
+  "simavr": "libsimavr2 / simavr 1.6+dfsg-3 (Debian trixie), via polari-avr-twin in the image above (prf-board-engines/Dockerfile)"
+ },
+ "twin_runs": 61,
+ "uart": {
+  "bytes_logged": 3220,
+  "chip_cycles_per_byte": 1360,
+  "chip_formula": "10 bit times x (8 if U2X else 16) x (UBRR+1) cycles (ATmega328P USART baud equations; the divisor is read from the build's own hal.c / board_config.h)",
+  "note": "the twin spaces bytes 3000 cycles apart, the chip 1360: the twin's send wait is 2.21x the chip's",
+  "twin_cycles_per_byte_min": 3000,
+  "u2x": 1,
+  "ubrr": 16
+ },
+ "variant": "uno-button-clock",
+ "what": {
+  "functions": "cycles per call, entry -> ret, in the -fno-inline build (atom as a node; includes everything it calls and any interrupt that landed inside); the caller's CALL (4 cycles) is not counted",
+  "isrs": "cycles per interrupt, vector taken -> reti, in the shipped hex",
+  "loop": "cycles between two visits of the loop's poll point, by the way the loop came back, in the shipped hex",
+  "mean": "a function's mean is not offered by the twin (n / min / max only); an interrupt's is"
+ }
+}

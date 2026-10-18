@@ -35,7 +35,7 @@ SOLVE_PAGES = [
                               description='What this is for: all candidates compared. One row = one candidate. Columns: hardware, tier, routes (the way each job is done), pins, resources (the weighted '
                                           'fraction of what the hardware has - lower is better), cycle (the estimated time to run once through every Purpose), parts_to_get, placement, open_rungs, '
                                           'undetermined_costs (how many costs were scored at a stand-in). GET %s?view=trade-study.' % _M,
-                              columns='rank,hardware,tier,routes,pins,resources,cycle,parts_to_get,placement,open_rungs,undetermined_costs', data_path='%s?view=trade-study' % _M)], min_height=420),
+                              columns='rank,hardware,tier,routes,pins,resources,cycle,cycle_basis,parts_to_get,placement,open_rungs,undetermined_costs', data_path='%s?view=trade-study' % _M)], min_height=420),
               _row(4, [_table('sol-pruned', 0, 12, 'Every branch that was pruned, and why', 'HardwareMission',
                               description='What this is for: nothing is dropped silently. One row = the first examples of one kind of pruned branch. Columns: kind (tier blocked, no variant, pin refused, '
                                           'could not be placed ...), count (how many of that kind), where, reason. GET %s?view=pruned.' % _M,

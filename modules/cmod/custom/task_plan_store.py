@@ -81,6 +81,7 @@ def store_plan(plan, manager, who=''):
               'designed_for_json': json.dumps(df, sort_keys=True), 'also_runs_on_json': old.also_runs_on_json if old is not None else '[]', 'source': 'derived',
               'task_count': len(plan['tasks']), 'derived_at': now, 'who': who, 'notes': plan['run_basis']}
     row = _upsert(manager, TaskPlan, 'TaskPlan', plan['name'], fields)
+    link_system(plan, manager)
     keep = {t['name'] for t in plan['tasks']}
     for t in plan['tasks']:
         _upsert(manager, TaskDefinition, 'TaskDefinition', t['name'], {
@@ -101,6 +102,22 @@ def store_plan(plan, manager, who=''):
                 if cls_name == 'TaskDefinition':
                     r.source = 'retired'
                     r.notes = 'no longer derived by the latest record of this plan'
+    return row
+
+
+def link_system(plan, manager):
+    """fgm-5b: the Hardware System the plan is for carries the plan's name in its `task_plan` field (the row, saved; the door derives the same link from the TaskPlan rows on every read, so a re-seed that blanks
+    the code-owned row loses nothing). A server with no HardwareSystem row for it (the seeds not loaded) is left alone."""
+    row = next((r for r in ((getattr(manager, 'objectTables', None) or {}).get('HardwareSystem') or {}).values() if getattr(r, 'name', '') == plan['hardware_system']), None)
+    if row is None:
+        return None
+    row.task_plan = plan['name']
+    db = getattr(manager, 'db', None)
+    if db is not None and hasattr(db, 'saveInstanceInDB'):
+        try:
+            db.saveInstanceInDB(row)
+        except Exception:  # noqa: BLE001
+            pass
     return row
 
 
