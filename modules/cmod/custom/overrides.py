@@ -110,6 +110,9 @@ def _target_row(target_class, target_name, manager):
         except ValueError:
             return None
         return next((PP.flat_view(p) for p in res['profiles'] if p['id'] == target_name), None)
+    if target_class == 'TaskDefinition':   # fgm-3: the CURRENT derived Task (no corrections laid over it)
+        from cmod.custom import task_plan_edit as TE
+        return TE.derived_row(target_name, manager)
     return None
 
 
@@ -123,12 +126,13 @@ def create(target_class, target_name, field, override_value, why, who, manager):
     import datetime
     if not (why or '').strip():
         return None, "'why' is required: a person's own words for the correction (never defaulted)"
-    if target_class not in ('TargetDefinition', 'PinClaim', 'HardwareBinding', 'PinProfile'):
+    if target_class not in ('TargetDefinition', 'PinClaim', 'HardwareBinding', 'PinProfile', 'TaskDefinition'):
         return None, ('overrides are defined for TargetDefinition.requirement_kind/.role, PinClaim.pull/edge/mode/'
-                      'initial, HardwareBinding.status and PinProfile (pp-0) fields — not %r' % target_class)
+                      'initial, HardwareBinding.status, PinProfile (pp-0) and TaskDefinition (fgm-3) fields — not %r' % target_class)
     from cmod.custom.pin_profiles import OVERRIDABLE
+    from cmod.custom.task_plan_edit import OVERRIDABLE as TASK_OVERRIDABLE
     allowed_fields = {'TargetDefinition': ('requirement_kind', 'role'), 'PinClaim': ('pull', 'edge', 'mode', 'initial'),
-                      'HardwareBinding': ('status',), 'PinProfile': OVERRIDABLE}
+                      'HardwareBinding': ('status',), 'PinProfile': OVERRIDABLE, 'TaskDefinition': TASK_OVERRIDABLE}
     if field not in allowed_fields[target_class]:
         return None, '%s has no overridable field %r (allowed: %s)' % (target_class, field, ', '.join(allowed_fields[target_class]))
     row = _target_row(target_class, target_name, manager)

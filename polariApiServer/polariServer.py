@@ -1374,6 +1374,8 @@ class polariServer(treeObject):
             AtomJob, IsotopeVariant,
             # sol-0: one run of the attempt engine, its inputs fingerprinted
             SolveRun,
+            # fgm-3: the Task Plan of a Mission on one Hardware System + its Tasks, triggers and shared-data bindings (derived, editable by DerivedOverride)
+            TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

@@ -343,3 +343,6 @@ SEED_CMOD_PAGE_DISPLAYS += APPROACH_PAGES
 
 from cmod.cmod_solve_page import SOLVE_PAGES   # noqa: E402  sol-0: /display/solutions-found
 SEED_CMOD_PAGE_DISPLAYS += SOLVE_PAGES
+
+from cmod.cmod_task_plan_page import TASK_PLAN_PAGES   # noqa: E402  fgm-3: /display/task-plan
+SEED_CMOD_PAGE_DISPLAYS += TASK_PLAN_PAGES

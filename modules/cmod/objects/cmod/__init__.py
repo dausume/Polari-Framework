@@ -41,3 +41,7 @@ from cmod.objects.cmod.MissionResolutionState import MissionResolutionState  # n
 from cmod.objects.cmod.AtomJob import AtomJob  # noqa: F401  (iso-0)
 from cmod.objects.cmod.IsotopeVariant import IsotopeVariant  # noqa: F401  (iso-0)
 from cmod.objects.cmod.SolveRun import SolveRun  # noqa: F401  (sol-0)
+from cmod.objects.cmod.TaskDefinition import TaskDefinition  # noqa: F401  (fgm-3)
+from cmod.objects.cmod.TaskTrigger import TaskTrigger  # noqa: F401  (fgm-3)
+from cmod.objects.cmod.TaskStructBinding import TaskStructBinding  # noqa: F401  (fgm-3)
+from cmod.objects.cmod.TaskPlan import TaskPlan  # noqa: F401  (fgm-3)
