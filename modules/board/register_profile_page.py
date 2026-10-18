@@ -52,7 +52,7 @@ REGISTER_PROFILE_PAGES = [
                                           'register-summary = named from the datasheet Register Summary and classified by its register), reason, cite. '
                                           'GET %s?list=fields.' % _RP,
                               columns='register,field,bits,class,register_class,source,reason,cite', data_path='%s?list=fields' % _RP)]),
-          ]),
+          ], title='Register profile'),
     _page('memory-map', 'memory-map',
           'Memory map - where everything lives on the ATmega328P: the 32 working registers, the 64 I/O registers and the 160 extended I/O registers (the '
           'first 256 bytes of the data space), the 2 KB of SRAM, the 32 KB of flash split into the application and the boot loader section, and the 1 KB '
@@ -77,5 +77,5 @@ REGISTER_PROFILE_PAGES = [
                                           'rows). One row = one register. Columns: region (io-registers 0x0020-0x005F or ext-io-registers 0x0060-0x00FF), '
                                           'address (data space), io_address (the IN/OUT address, empty for extended I/O), width_bytes. GET %s?list=registers.' % _MM,
                               columns='region,register,address,io_address,width_bytes', data_path='%s?list=registers' % _MM)]),
-          ]),
+          ], title='Memory map'),
 ]
