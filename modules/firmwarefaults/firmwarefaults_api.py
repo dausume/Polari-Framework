@@ -13,6 +13,9 @@ GET  /api/firmwarefaults/statistics      sc-1: the ScenarioStatistic rows (seede
 POST /api/firmwarefaults/stats           sc-1: body {scenario: uart-residual-frame-loss | torn-millis-read, seeds?, bers?} (sc-3: or a C3 scenario
                                          + seeds 1..50 → campaign_sc3) — runs the
                                          statistics batch HERE (minutes) and writes the rows + the fault row's measured rate
+POST /api/firmwarefaults/runs            route proof: a finished ScenarioRun of an isotope-variant acceptance scenario that is NOT a Purpose's own
+                                         acceptance_scenario (custom/route_proof.py) — stored, never changes a Purpose's status; returns
+                                         {ok, run, scenario, variant, variant_rows}
 POST /api/firmwarefaults/run             body {scenario, side: before|after|both|natural|control, seconds?, seed?} — RUNS it here (the
                                          engines resolve on THIS server's device), writes ScenarioRun + ScenarioTraceCycle rows,
                                          the MathClaim + ProofRun, a pair's measured technique cost, a natural run's measured rate
@@ -98,6 +101,16 @@ class FirmwareFaultsAPI(Sc2Doors, treeObject):
                 'reset_count', 'isr_cycles_max')
         runs = sorted(self._rows('ScenarioRun'), key=lambda r: getattr(r, 'ran_at', '') or '', reverse=True)
         response.media = {'ok': True, 'runs': [self._d(r, keys) for r in runs]}
+
+    def on_post_runs(self, request, response):
+        from firmwarefaults.custom import route_proof
+        try:
+            body = json.loads(request.bounded_stream.read() or b'{}')
+        except Exception:  # noqa: BLE001
+            body = None
+        status, media = route_proof.accept(body, self.manager)
+        response.status = {201: falcon.HTTP_201, 422: falcon.HTTP_422}[status]
+        response.media = media
 
     def on_get_run_one(self, request, response, run):
         r = next((x for x in self._rows('ScenarioRun') if x.name == run), None)

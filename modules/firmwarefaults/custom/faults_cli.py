@@ -41,6 +41,11 @@ def _http(method, url, body=None):
             return {'ok': False, 'error': str(e)}
 
 
+def route_proof_refused(d):
+    """True when the capability door refused only because the scenario is not that Purpose's own acceptance_scenario."""
+    return not d.get('ok') and "acceptance_scenario" in str(d.get('error', '')) and 'run names scenario' in str(d.get('error', ''))
+
+
 def _acceptance_window_ms(scenario):
     """hw priorities P1 fix: the acceptance scenario's own 'window_ms' (its assert-field-arrival /
     assert-command-echo step's arg) — the ONLY source of "field arrival ms", never re-measured here."""
@@ -132,16 +137,26 @@ def cmd_run(a):
         # the server's own door (POST /api/capabilities/<name>/runs) so GET /api/capabilities/<name> stops reading
         # 'planned'; the acceptance branch used to return before ever consulting a.api.
         pushed_note = ''
+        status_from_server = False
         capability_name = row.get('capability', '')
         if getattr(a, 'api', ''):
             d = _http('POST', '%s/api/capabilities/%s/runs' % (a.api.rstrip('/'), capability_name),
                       {k: v for k, v in out.items() if k != 'result'})
             if d.get('ok'):
                 status, last_proof, status_why = d.get('status', ''), d.get('last_proof', ''), d.get('status_why', '')
+                status_from_server = True
                 pushed_note = 'pushed to %s — status now %s' % (a.api, status)
+            elif route_proof_refused(d):
+                # a route (isotope-variant) scenario is not the Purpose's own: its door is the route-proof door
+                d = _http('POST', '%s/api/firmwarefaults/runs' % a.api.rstrip('/'), {k: v for k, v in out.items() if k != 'result'})
+                if d.get('ok'):
+                    pushed_note = 'pushed as a route proof to %s/api/firmwarefaults/runs — proves %s (catalogue rows: %s); no Purpose status changed' % (
+                        a.api, d.get('variant', ''), ', '.join(d.get('variant_rows') or []) or 'none')
+                else:
+                    pushed_note = 'NOT pushed to %s: %s' % (a.api, d.get('error', d))
             else:
                 pushed_note = 'NOT pushed to %s: %s' % (a.api, d.get('error', d))
-        if not pushed_note.startswith('pushed'):
+        if not status_from_server:   # no Purpose status came back (not pushed, or pushed as a route proof): the Purpose reads as it does locally
             cap = CAP.find(capability_name)
             if cap is not None:
                 status, last_proof, status_why, _proof_kind = CAP.derive_status(cap, manager=None)

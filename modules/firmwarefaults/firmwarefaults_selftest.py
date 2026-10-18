@@ -449,8 +449,9 @@ def main():
     from firmwarefaults.custom.selftest_sc1 import sc1_parts
     from firmwarefaults.custom.selftest_sc2 import sc2_parts
     from firmwarefaults.custom.selftest_sc2c import sc2c_parts
+    from firmwarefaults.custom.selftest_routeproof import routeproof_parts
     for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware) + sc1_parts(check) \
-            + sc2_parts(check) + sc2c_parts(check) + (seeds_page_api, acceptance_cli_print, manifest):
+            + sc2_parts(check) + sc2c_parts(check) + routeproof_parts(check) + (seeds_page_api, acceptance_cli_print, manifest):
         print('-- %s' % part.__name__)
         part()
     from firmwarefaults.custom.selftest_sc3 import run as sc3   # sc-3: the RTOS rows, the C3 trace, the wait-for graph, the campaign
