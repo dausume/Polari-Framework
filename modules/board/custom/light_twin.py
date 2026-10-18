@@ -12,6 +12,7 @@ frame with the independent Python reference codec (board.custom.packet_ref / grp
 runner (firmwarefaults.custom.acceptance) can turn it into a ScenarioRun the same way it does for the other Purposes.
 Refuses honestly (route 'refused') when no avr twin engine is reachable on this device.
 """
+import shutil
 import tempfile
 
 VARIANT = 'uno-light'
@@ -119,6 +120,13 @@ def prove(which='both', mode='digital-twin'):
     if not ready:
         return {'ok': False, 'route': 'refused', 'why': 'no simavr twin here: %s' % why}
     work = tempfile.mkdtemp(prefix='ucd-light-')
+    try:
+        return _prove_in(work, which)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)   # fsc-0b: the temp dir used to leak on every run (pol-core's disk is tight)
+
+
+def _prove_in(work, which):
     row = build(work)
     if row.get('state') != 'built':
         return {'ok': False, 'route': 'digital-twin', 'why': 'uno-light did not build: %s' % row.get('notes')}

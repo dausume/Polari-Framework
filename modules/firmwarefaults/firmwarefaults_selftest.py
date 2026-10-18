@@ -143,7 +143,7 @@ def steps_and_scenarios():
                                                           'two-lock-deadlock', 'two-lock-deadlock-backoff',
                                                           'temp-sensor-to-os-acceptance', 'blink-on-command-acceptance',
                                                           'light-from-polari-acceptance', 'light-analog-button-acceptance', 'sim-rig-pwm-duty-acceptance',
-                                                          'light-v2-rapid-commands-acceptance', 'light-v2-reboot-acceptance', 'light-v2-malformed-acceptance'])   # fgm-6a: + three of the v2 light's proofs (the fourth uses pin-at, not counted here)   # fgm-5a: + the analog-button and PWM proofs (no pin-at)   # ucd-light: + light-from-polari (assert-command-echo only); light-from-button and button-clock-to-os use pin-at, which this runnable() rule does not count
+                                                          'light-v2-rapid-commands-acceptance', 'light-v2-reboot-acceptance', 'light-v2-malformed-acceptance', 'initialization-acceptance'])   # fgm-6a: + three of the v2 light's proofs (the fourth uses pin-at, not counted here)   # fgm-5a: + the analog-button and PWM proofs (no pin-at)   # ucd-light: + light-from-polari (assert-command-echo only); light-from-button and button-clock-to-os use pin-at, which this runnable() rule does not count
           and all(st['forcible'] and not st['not_forcible_reason'] for sc in runnable for st in SC.steps_of(sc['name'])))
     fake_sc = dict(SC.SEED_SCENARIOS[0], name='fixture-lock')
     fake_steps = [{'name': 'fixture-lock#1', 'scenario': 'fixture-lock', 'position': 1, 'kind': 'clock-skew', 'args_json': '{"ppm": 50}',
@@ -168,8 +168,8 @@ def steps_and_scenarios():
           (SC.find('rx-ring-over-256')['observable_kind'], SC.find('rx-ring-over-256')['technique']) == ('build-refused', 'static-guard'))
     # hw priorities P1 (D-hw-2): a Scenario of kind='acceptance' proves a CapabilityDefinition's goal, no fault forced
     every_kind = [s.get('kind', 'fault') for s in SC.SEED_SCENARIOS]
-    check('every pre-existing Scenario defaults to kind=fault; the fifteen acceptance ones name their Purpose (fgm-5b: + the two sense-line proofs) (fgm-6a: + the four v2 light command-confirmation proofs) (fgm-5a: + the three isotope-variant proofs) (0e2a: + button-clock-to-os; ucd-light: + the light pair, fgm-1: re-pointed to ensure-button-controls-light / ensure-polari-can-control-light, + ensure-polari-observes-hardware-state)',
-          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 15
+    check('every pre-existing Scenario defaults to kind=fault; the sixteen acceptance ones (fsc-0b: + initialization-acceptance) name their Purpose (fgm-5b: + the two sense-line proofs) (fgm-6a: + the four v2 light command-confirmation proofs) (fgm-5a: + the three isotope-variant proofs) (0e2a: + button-clock-to-os; ucd-light: + the light pair, fgm-1: re-pointed to ensure-button-controls-light / ensure-polari-can-control-light, + ensure-polari-observes-hardware-state)',
+          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 16
           and SC.find('light-from-button-acceptance')['capability'] == 'ensure-button-controls-light'
           and SC.find('light-from-polari-acceptance')['capability'] == 'ensure-polari-can-control-light'
           and SC.find('ensure-polari-observes-hardware-state-acceptance')['capability'] == 'ensure-polari-observes-hardware-state'
@@ -304,13 +304,13 @@ def seeds_page_api():
                 print('      ', cname, r.get('name'), e)
     check('every seed row constructs its class (no stray field)', ok)
     seeded = {n: len(rows) for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS}
-    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 27 scenarios (fgm-5b: +2 sense-line acceptance; fgm-6a: +4 v2-light acceptance; fgm-5a: +3 isotope-variant acceptance; hw priorities P1: +2 acceptance; 0e2a: + button-clock-to-os; ucd-light: + 2; fgm-1: + ensure-polari-observes-hardware-state-acceptance), '
-          '46 steps (acceptance-kind incl. pin-at, reset-at), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
+    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 28 scenarios (fsc-0b: +initialization-acceptance; fgm-5b: +2 sense-line acceptance; fgm-6a: +4 v2-light acceptance; fgm-5a: +3 isotope-variant acceptance; hw priorities P1: +2 acceptance; 0e2a: + button-clock-to-os; ucd-light: + 2; fgm-1: + ensure-polari-observes-hardware-state-acceptance), '
+          '48 steps (acceptance-kind incl. pin-at, reset-at), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
           'runs, trace rows, statistics, likelihoods and static checks/findings observed only',
           (seeded['ConcurrencyPrimitive'], seeded['Assumption'], seeded['Technique'], seeded['Scenario'], seeded['ScenarioStep'],
            seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle'], seeded['ScenarioStatistic'], seeded['ScenarioCampaign'],
            seeded['FormalCheck'], seeded['FaultLikelihood'], seeded['StaticCheck'], seeded['StaticFinding'])
-          == (6, 13, 12, 27, 46, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
+          == (6, 13, 12, 28, 48, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
     check('what a run MEASURES is not converged by a re-seed (technique measured_*, a fault\'s rate / rate_source)',
           all('measured_by_run' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n == 'Technique' for r in rows)
           and all('rate_source' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n.endswith('Fault') for r in rows))
@@ -347,8 +347,8 @@ def seeds_page_api():
     construct_firmwarefaults_endpoints(SimpleNamespace(falconServer=app, manager=mgr, idList=[]))
     c = testing.TestClient(app)
     s = c.simulate_get('/api/firmwarefaults').json
-    check('GET /api/firmwarefaults: 17 fault rows by family, 20 scenarios runnable (9 UNO + 3 C3, sc-3 + 4 acceptance + 3 of fgm-6a), 19 step kinds',
-          s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 20 and len(s['step_kinds']) == 19, str(s)[:300])
+    check('GET /api/firmwarefaults: 17 fault rows by family, 21 scenarios runnable (9 UNO + 3 C3, sc-3 + 4 acceptance + 3 of fgm-6a + fsc-0b initialization-acceptance), 19 step kinds',
+          s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 21 and len(s['step_kinds']) == 19, str(s)[:300])
     f = c.simulate_get('/api/firmwarefaults/faults').json
     check('GET /api/firmwarefaults/faults groups the rows by family with the kind fields',
           [len(f['families'][k]) for k in ('concurrency', 'physical-trigger', 'space-safety')] == [8, 6, 3]
@@ -368,7 +368,8 @@ def seeds_page_api():
                                                                     'light-analog-button-acceptance': 2, 'sim-rig-pwm-duty-acceptance': 2,
                                                                     'sense-poll-line-acceptance': 2, 'sense-pcint-line-acceptance': 2,
                                                                     'light-v2-rapid-commands-acceptance': 1, 'light-v2-reboot-acceptance': 2,
-                                                                    'light-v2-malformed-acceptance': 1, 'light-v2-button-no-confirm-acceptance': 2})
+                                                                    'light-v2-malformed-acceptance': 1, 'light-v2-button-no-confirm-acceptance': 2,
+                                                                    'initialization-acceptance': 2})
     check('GET /api/firmwarefaults/runs/<missing> → 404; POST /run without a scenario → 400',
           c.simulate_get('/api/firmwarefaults/runs/nope').status_code == 404
           and c.simulate_post('/api/firmwarefaults/run', body='{}').status_code == 400)
@@ -450,8 +451,9 @@ def main():
     from firmwarefaults.custom.selftest_sc2 import sc2_parts
     from firmwarefaults.custom.selftest_sc2c import sc2c_parts
     from firmwarefaults.custom.selftest_routeproof import routeproof_parts
+    from firmwarefaults.custom.selftest_boot import boot_parts
     for part in (classes_and_rows, steps_and_scenarios, outcome_logic, disassembly_and_flags, claims, variants_and_firmware) + sc1_parts(check) \
-            + sc2_parts(check) + sc2c_parts(check) + routeproof_parts(check) + (seeds_page_api, acceptance_cli_print, manifest):
+            + sc2_parts(check) + sc2c_parts(check) + routeproof_parts(check) + boot_parts(check) + (seeds_page_api, acceptance_cli_print, manifest):
         print('-- %s' % part.__name__)
         part()
     from firmwarefaults.custom.selftest_sc3 import run as sc3   # sc-3: the RTOS rows, the C3 trace, the wait-for graph, the campaign

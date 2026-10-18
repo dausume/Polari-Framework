@@ -34,13 +34,13 @@ PURPOSE_SEEDS = [
          purpose='Why these are in the light firmware: nothing else works until the serial link, the clock, the light pin, the button '
                  'and the boot session number are set up.',
          tasks_by_runtime_json=_t(['usart_init', 'tick_init', 'led_init', 'button_init', 'boot_session_mint']),
-         acceptance_scenario='', depends_on='',
+         acceptance_scenario='initialization-acceptance', depends_on='',
          criteria_json=json.dumps({'trigger': {'kind': 'boot', 'what': 'the board starts or restarts'},
                                    'outcome': {'what': 'the first report arrives carrying a new boot session number'},
                                    'criteria': [{'key': 'max_latency_ms', 'value': 100, 'unit': 'ms'}]}),
          observes_json=json.dumps([{'item': 'LightState.boot_session', 'kind': 'field', 'delivery': 'latest'}]),
-         notes='fgm-1 seed. No acceptance test yet: the twin test does not look at boot_session, and no existing test step can '
-               'check it, so this Purpose stays planned and does not decide the firmware proof status.'),
+         notes='fgm-1 seed; fsc-0b: proven by initialization-acceptance (board.custom.light_boot_twin): the first report inside 100 ms of reset carries boot_session, '
+               'and after a second reset the first report carries a different one; four negative controls go through the same judge.'),
     dict(_BASE, name='ensure-button-controls-light', title='The board\'s button controls the light', exposes_fields=_LIGHT_FIELDS,
          goal='a press on the board\'s button turns the light on or off, and Polari learns of the change',
          purpose='Up: the pushbutton on D2 (debounced) flips the light on D6, the board counts the change, says source=button in its '

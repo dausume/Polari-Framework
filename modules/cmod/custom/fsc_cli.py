@@ -98,7 +98,7 @@ def cmd_scores(a):
     for s in d['suggestions']:
         print('  suggestion: ' + s['message'])
     for u in d['unmatched_configs'][:10]:
-        print('  not a full realisation: %s - %s' % (u['config'], u['why'][:150]))
+        print('  not a candidate for this Mission: %s - %s' % (u['config'], u['why'][:150]))
     return 0
 
 
