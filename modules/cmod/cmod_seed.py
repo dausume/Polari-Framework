@@ -201,3 +201,11 @@ try:
     CMOD_SEED_PAIRS.append(('ScoreConcept', _ScoreConcept, _owned(_FP.seed_rows(), keep=('notes',))))
 except ImportError:
     pass
+
+# fsc-3: the Firmware Scores page's bar graph (a GraphDefinition row, drawn by the generic named-graph-panel). Code-owned like the pairs above.
+try:
+    from polariApiServer.graphDefinition import GraphDefinition as _GraphDefinition
+    from cmod.cmod_fsc_page import FSC_GRAPHS as _FSC_GRAPHS
+    CMOD_SEED_PAIRS.append(('GraphDefinition', _GraphDefinition, _owned(_FSC_GRAPHS, keep=('description',))))
+except ImportError:
+    pass

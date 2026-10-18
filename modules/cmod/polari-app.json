@@ -138,7 +138,8 @@
    "cmod_isotope_page",
    "cmod_approach_profile_page",
    "cmod_solve_page",
-   "cmod_task_plan_page"
+   "cmod_task_plan_page",
+   "cmod_fsc_page"
   ],
   "selftests": [
    "cmod_pin_profile_selftest",
@@ -148,7 +149,8 @@
    "cmod_approach_profile_selftest",
    "cmod_solve_selftest",
    "cmod_fsc_selftest",
-   "cmod_task_plan_selftest"
+   "cmod_task_plan_selftest",
+   "cmod_fsc_page_selftest"
   ],
   "custom": [
    "custom/analyse",

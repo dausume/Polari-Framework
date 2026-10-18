@@ -3,12 +3,13 @@
 
 fsc-2 doors (plain functions over a FscAPI; `cmod_fsc_api` registers the routes). Plain-words fields only - the frontend reads them with configured tables. Advised, never blocking.
 
-GET  /api/firmware-scores?mission=&profile=&scope=&board=&normalization=
+GET  /api/firmware-scores?mission=&profile=&scope=&board=&normalization=&limit=
+       (fsc-3: `limit=N` keeps only the N best ranked rows - the page's bar chart; failed rows still follow)
        rows top -> bottom by the first profile asked (default: every profile, sorted by the first): {rank, solution, label, state finished|plan|failed, score, raw, confidence,
        deciding_terms (the 2-3 largest weighted contributions, single profile only), routes, built_as, also_on, scores {profile: {score, rank, rank_among_finished}}}; failed
        solutions follow with state `failed`, the Purpose they fail and the reason, and NO score. Also: failures[], suggestions[] (flag a safety deadline?), unmatched_configs[], set.
 GET  /api/firmware-scores/top?mission=&scope=      the main tab: one row per profile {profile, profile_title, top_solution, top_state, score 100, runner_up, runner_up_score, compared_set, failed_count}
-GET  /api/firmware-scores/breakdown?mission=&solution=&profile=    term rows {term, context, value, unit, kind, normalized, weight, points, basis, normalization}
+GET  /api/firmware-scores/breakdown?mission=&solution=&profile=    term rows (also under `rows`, for the tables) {term, context, value, unit, kind, normalized, weight, points, basis, normalization}
 POST /api/firmware-scores/values   {mission?, limit?}   write the term values down as ScoreContext / ScoreSubject / ContextualizedValue rows (pol firmware score-values refresh)
 GET  /api/firmware-score-profiles      every profile (seeded + the person's own)
 POST /api/firmware-score-profiles      {name, copy_of?, display_name?, description?, weights?{term: w}, purpose_weights?{purpose: {term: w}}, alpha?, knobs?, hardware?}
@@ -25,7 +26,7 @@ from cmod.custom import fsc_store as ST
 from cmod.custom import fsc_terms as T
 
 DEFAULT_MISSION = 'uno-light-mission'
-GET_KEYS = {'scores': ('mission', 'profile', 'scope', 'board', 'normalization', 'unprovable'), 'top': ('mission', 'scope', 'board', 'normalization', 'unprovable'),
+GET_KEYS = {'scores': ('mission', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'limit'), 'top': ('mission', 'scope', 'board', 'normalization', 'unprovable'),
             'breakdown': ('mission', 'solution', 'profile', 'scope', 'board', 'normalization', 'unprovable')}
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,62}$')
 
@@ -112,7 +113,10 @@ def get_scores(api, request, response):
     recs = {r['id']: r for r in built['records']}
     res0 = out['profiles'][first]
     rows = []
-    for i in res0['order']:
+    limit = p.get('limit', '')
+    if limit and not (limit.isdigit() and int(limit) > 0):
+        return _fail(response, falcon.HTTP_422, 'limit is a whole number above 0 (the N best ranked rows to keep)')
+    for i in (res0['order'][:int(limit)] if limit else res0['order']):
         row = next(r for r in out['rows'] if r['id'] == i)
         s = res0['scores'][i]
         flat = {'rank': s['rank'], 'solution': row['solution'], 'label': row['label'], 'state': row['state'], 'state_why': row['state_why'], 'score': s['score'], 'raw': s['raw'],
@@ -193,7 +197,7 @@ def get_breakdown(api, request, response):
     terms = [{k: r[k] for k in ('term', 'label', 'context', 'value', 'unit', 'kind', 'normalized', 'weight', 'weight_share', 'alpha', 'points', 'basis', 'normalization', 'fallback_for')} for r in s['rows']]
     response.media = {'ok': True, 'mission': built['mission'], 'solution': hit['name'], 'label': hit['label'], 'state': hit['state'], 'state_why': hit['state_why'], 'profile': profs[0]['name'],
                       'mode': res['mode'], 'score': s['score'], 'rank': s['rank'], 'raw_weighted': s['raw'], 'profile_normalization': s['profile_norm'], 'confidence': s['confidence'],
-                      'set': out['set_words'], 'notes': res['notes'], 'groups': s['groups'], 'count': len(terms), 'terms': terms}
+                      'set': out['set_words'], 'notes': res['notes'], 'groups': s['groups'], 'count': len(terms), 'terms': terms, 'rows': terms}
 
 
 def post_values(api, request, response):
@@ -214,6 +218,9 @@ def post_values(api, request, response):
 def get_profiles(api, request, response):
     allp = P.all_profiles(api.manager)
     rows = [P.public(p) for p in allp.values()]
+    for r in rows:   # fsc-3: plain-words columns for the page's profile table (the `terms` list stays for programs)
+        r['weights_text'] = '; '.join('%s %g' % (t['term'], t['weight']) for t in r['terms'])
+        r['edit_words'] = 'copy it first, then set weights on the copy' if r['seeded'] else 'yours: weights can be set in place'
     response.media = {'ok': True, 'count': len(rows), 'rows': rows, 'terms': list(T.TERM_NAMES), 'knobs': list(P.KNOWN_KNOBS),
                       'note': 'Seeded profiles are copied before they are edited: POST {name: <new>, copy_of: <seeded>, weights: {...}}.'}
 

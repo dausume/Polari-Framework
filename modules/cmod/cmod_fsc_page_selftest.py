@@ -1,0 +1,136 @@
+"""cmod_fsc_page_selftest - fsc-3: the tabbed Firmware Scores page (cmod.cmod_fsc_page) and the generic tabs helpers (polariApiServer.module_pages_seed `_tab` / `_tabs_from`).
+
+Checks: a page WITHOUT tabs is unchanged (no `tabs` key; a table without the new options has the old inputs), the tab shape, the `{key}` template tokens, every table
+column is a field of the row its door serves, every table has a plain-words description, the selection scope wiring (ranking sets `solution`, breakdown reads it), the
+`limit` door option and the breakdown `rows` alias, the graph row, the nav entry, the manifest.
+
+    PYTHONPATH=.:modules python3 -m cmod.cmod_fsc_page_selftest
+"""
+import contextlib
+import io
+import json
+import os
+import re
+import sys
+from types import SimpleNamespace
+
+MISSION = 'uno-light-mission'
+
+
+def _tables(rows):
+    return [i for r in rows for i in r['items']]
+
+
+def main():
+    passed = total = 0
+    failures = []
+
+    def check(label, cond, detail=None):
+        nonlocal passed, total
+        total += 1
+        if cond:
+            passed += 1
+        else:
+            failures.append(label)
+        print('  [%s] %s%s' % ('ok' if cond else 'FAIL', label, '' if cond else '  <- %s' % (str(detail)[:300],)))
+    print('cmod fsc page selftest (fsc-3)')
+
+    from polariApiServer.module_pages_seed import _page, _row, _table, _tab, _tabs_from
+    print('-- helpers')
+    plain = _page('x', 'x', 'd', 'C', [_row(0, [_table('t', 0, 12, 'T', 'C')])])
+    d = json.loads(plain['definition'])
+    check('a page without tabs has no `tabs` / `tabs_from` key (renders unchanged)', set(d) == {'rows'}, list(d))
+    check('a table without the fsc-3 options has exactly the old inputs (older seeds converge unchanged)',
+          set(d['rows'][0]['items'][0]['componentProps']['inputs']) == {'className', 'columns', 'maxRows', 'columnFormats', 'filterField', 'filterValue', 'dataPath'})
+    t = _table('t', 0, 12, 'T', '', select_field='a', select_scope='b', selected_value='{scope:b}', empty_text='e', row_link_tab_field='p')['componentProps']['inputs']
+    check('the row-interaction options ride in the inputs when set', (t['selectField'], t['selectScope'], t['selectedValue'], t['emptyText'], t['rowLinkTabField']) == ('a', 'b', '{scope:b}', 'e', 'p'))
+    tf = _tabs_from('/api/x', 'name', 'title', [], insert_at=1)
+    check('_tab / _tabs_from give {key,title,rows} and {data_path,key_field,title_field,rows_template,insert_at}',
+          _tab('k', 'K', [])['key'] == 'k' and set(tf) == {'data_path', 'key_field', 'title_field', 'rows_template', 'insert_at'} and 'insert_at' not in _tabs_from('/a', 'n', 't', []))
+
+    print('-- the page')
+    from cmod.cmod_page import SEED_CMOD_PAGE_DISPLAYS as P
+    pg = next((p for p in P if p['pageRoute'] == 'firmware-scores'), None)
+    check('/display/firmware-scores is registered in SEED_CMOD_PAGE_DISPLAYS as a page', pg is not None and pg['isPage'] is True)
+    d = json.loads(pg['definition'])
+    keys = [x['key'] for x in d['tabs']]
+    check('static tabs: Top scorers, Failures, Profile editor; generated profile tabs go in after the first (insert_at 1)',
+          keys == ['top', 'failures', 'profile-editor'] and d['tabs_from']['insert_at'] == 1 and d['tabs_from']['key_field'] == 'name' and d['tabs_from']['data_path'] == '/api/firmware-score-profiles')
+    tpl = d['tabs_from']['rows_template']
+    all_tables = _tables(d['tabs'][0]['rows']) + _tables(d['tabs'][1]['rows']) + _tables(d['tabs'][2]['rows']) + _tables(tpl)
+    names = {i['componentProps']['componentName'] for i in all_tables}
+    check('only configured tables and the configured graph panel: class-rows-table + named-graph-panel (no JSON panel, no custom component)', names == {'class-rows-table', 'named-graph-panel'}, names)
+    check('every table and graph carries a plain-words description that says what a row (or bar) is',
+          all(i['description'] and ('One row' in i['description'] or 'One bar' in i['description']) for i in all_tables))
+    check('the competitive reading (best = 100, worst = 0) is stated on the top and ranking tables',
+          all('best' in i['description'] and '100' in i['description'] for i in all_tables if i['id'] in ('fsc-top', 'fsc-ranked')))
+    top = _tables(d['tabs'][0]['rows'])[0]['componentProps']['inputs']
+    check('the top table reads /api/firmware-scores/top and a row opens the tab named by the row\'s `profile`',
+          top['dataPath'] == '/api/firmware-scores/top?mission=%s' % MISSION and top['rowLinkTabField'] == 'profile')
+    ids = {i['id']: i['componentProps']['inputs'] for i in tpl[0]['items'] + tpl[1]['items'] + tpl[2]['items']}
+    check('profile tab: ranking sets the `solution` scope and shows it selected; the breakdown reads {scope:solution} + {key}',
+          ids['fsc-ranked']['selectScope'] == 'solution' and ids['fsc-ranked']['selectedValue'] == '{scope:solution}' and ids['fsc-ranked']['selectField'] == 'solution'
+          and '{scope:solution}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-ranked']['dataPath'] and ids['fsc-breakdown']['emptyText'])
+    check('profile tab: the bar chart is a named-graph-panel on the scores door limited to the best twelve',
+          ids['fsc-bars']['graphName'] == 'firmware-score-top' and ids['fsc-bars']['dataPath'].endswith('&profile={key}&limit=12'))
+    check('every {token} in the template is {key} or {scope:solution} (nothing else is left unresolved)',
+          all(x in ('key', 'scope:solution') for x in re.findall(r'\{([a-z]+(?::[a-z]+)?)\}', json.dumps(tpl))))
+
+    print('-- the columns exist in the rows the doors serve')
+    import falcon
+    from falcon import testing
+    from cmod.cmod_fsc_api import FscAPI
+    app = falcon.App()
+
+    class _FS:
+        def add_route(self, path, res, suffix=None):
+            app.add_route(path, res, suffix=suffix)
+    with contextlib.redirect_stdout(io.StringIO()):
+        FscAPI(polServer=SimpleNamespace(falconServer=_FS()), manager=None)
+    c = testing.TestClient(app)
+
+    def get(path):
+        base, _, q = path.partition('?')
+        return c.simulate_get(base, query_string=q)
+    prof = get('/api/firmware-score-profiles').json
+    first = prof['rows'][0]['name']
+    check('profiles door: plain-words weights_text and edit_words on every row (the editor table\'s columns)', all(r['weights_text'] and r['edit_words'] for r in prof['rows']))
+    served = {'fsc-top': get('/api/firmware-scores/top?mission=%s' % MISSION).json['rows'][0],
+              'fsc-ranked': get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0],
+              'fsc-profiles': prof['rows'][0]}
+    sol = served['fsc-top']['top_solution_name']
+    bd = get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, sol, first)).json
+    served['fsc-breakdown'] = bd['rows'][0]
+    check('breakdown door: `rows` mirrors `terms` (so a table can read it)', bd['rows'] == bd['terms'] and len(bd['rows']) > 0)
+    lim = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json
+    ranked = [r for r in lim['rows'] if r['state'] != 'failed']
+    check('scores door: limit=12 keeps the 12 best ranked rows, the best first with score 100', len(ranked) == 12 and ranked[0]['rank'] == 1 and ranked[0]['score'] == 100.0)
+    check('scores door: a bad limit is refused with words (422)', get('/api/firmware-scores?mission=%s&profile=%s&limit=zero' % (MISSION, first)).status_code == 422)
+    allrows = get('/api/firmware-scores?mission=%s' % MISSION).json['rows']
+    # the default Mission has no failure: the failed-row keys are fixed by the door (label, failed_purpose, reason, hardware)
+    served['fsc-failures'] = next((r for r in allrows if r['state'] == 'failed'), {'label': 1, 'failed_purpose': 1, 'reason': 1, 'hardware': 1})
+    miss = {}
+    for i in all_tables:
+        if i['id'] in served and i['componentProps']['componentName'] == 'class-rows-table':
+            gone = [x for x in i['componentProps']['inputs']['columns'].split(',') if x not in served[i['id']]]
+            if gone:
+                miss[i['id']] = gone
+    check('every column a table asks for is a field of the row its door serves', not miss, miss)
+
+    print('-- graph, nav, manifest')
+    from cmod.cmod_fsc_page import FSC_GRAPHS
+    gc = json.loads(FSC_GRAPHS[0]['definition'])['graphConfig']
+    check('the graph row: barX, category = rank, value = score, named like the panel\'s graphName',
+          FSC_GRAPHS[0]['name'] == 'firmware-score-top' and gc['renderStyle'] == 'barX' and gc['xDimension'] == 'rank' and gc['yDimensions'] == ['score'])
+    from cmod.cmod_seed import CMOD_SEED_PAIRS
+    check('the graph converges through CMOD_SEED_PAIRS as a GraphDefinition', any(n == 'GraphDefinition' and any(r['name'] == 'firmware-score-top' for r in rows) for n, _c, rows in CMOD_SEED_PAIRS))
+    from polariapps.apps_seed import SEED_POLARI_APPS
+    check('the page is in the app navigation', '/display/firmware-scores' in json.dumps(SEED_POLARI_APPS, default=str))
+    m = json.load(open(os.path.join(os.path.dirname(__file__), 'polari-app.json')))['files']
+    check('polari-app.json lists the page and this selftest', 'cmod_fsc_page' in m['page'] and 'cmod_fsc_page_selftest' in m['selftests'])
+    print('\n%d/%d checks passed' % (passed, total))
+    return 0 if passed == total else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -658,6 +658,9 @@ SEED_POLARI_APPS = [
              _tgrp('Solutions found',   # sol-0 (own group entry)
                   _it('Solutions found: where the Mission fits, and why', 'page',
                       route='/display/solutions-found', requires_module='cmod')),
+             _tgrp('Firmware scores',   # fsc-3 (own group entry, beside Solutions found)
+                  _it('Firmware scores: the top solution under each way of scoring', 'page',
+                      route='/display/firmware-scores', requires_module='cmod')),
              _tgrp('Task plan',   # fgm-3 (own group entry, beside Solutions found)
                   _it('Task plan: what the board does, in what order, and why', 'page',
                       route='/display/task-plan', requires_module='cmod')),

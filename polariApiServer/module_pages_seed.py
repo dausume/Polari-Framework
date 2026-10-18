@@ -25,7 +25,8 @@ import json
 
 def _table(item_id, index, segments, title, class_name, columns='',
            max_rows=0, column_formats='', description='',
-           filter_field='', filter_value='', data_path=''):
+           filter_field='', filter_value='', data_path='',
+           select_field='', select_scope='', selected_value='', empty_text='', row_link_tab_field=''):
     """`column_formats` = csv of `column:format` pairs, handed to
     class-rows-table as `columnFormats`. The one format so far is
     `person` (his rule D18-1): the column holds an opaque Keycloak
@@ -46,7 +47,24 @@ def _table(item_id, index, segments, title, class_name, columns='',
 
     `filter_field`/`filter_value` push straight through to
     class-rows-table's existing filter inputs (readiness split etc.);
-    `filter_value` may be a csv SET, handled there already."""
+    `filter_value` may be a csv SET, handled there already.
+
+    fsc-3 row interaction (all optional, generic, only written when set so every older page's seed is unchanged):
+    `select_field` + `select_scope` make a row CLICKABLE: it sets the page scope key `select_scope` to the row's `select_field`
+    (a second click on the selected row, or Escape, clears it); `selected_value` is normally `'{scope:<select_scope>}'` so the
+    table can show which row is selected. Another table reads the same scope as `{scope:<key>}` inside ITS data_path.
+    `empty_text`: shown instead of a fetch while the data_path still has an empty `param=` (a scope nothing has picked yet).
+    `row_link_tab_field`: clicking a row opens the page tab whose key is that field of the row (`?tab=`)."""
+    inputs = {'className': class_name, 'columns': columns,
+              'maxRows': max_rows,
+              'columnFormats': column_formats,
+              'filterField': filter_field,
+              'filterValue': filter_value,
+              'dataPath': data_path}
+    for k, v in (('selectField', select_field), ('selectScope', select_scope), ('selectedValue', selected_value),
+                 ('emptyText', empty_text), ('rowLinkTabField', row_link_tab_field)):
+        if v:
+            inputs[k] = v
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
@@ -55,12 +73,7 @@ def _table(item_id, index, segments, title, class_name, columns='',
         'cssClass': '',
         'componentProps': {
             'componentName': 'class-rows-table',
-            'inputs': {'className': class_name, 'columns': columns,
-                       'maxRows': max_rows,
-                       'columnFormats': column_formats,
-                       'filterField': filter_field,
-                       'filterValue': filter_value,
-                       'dataPath': data_path},
+            'inputs': inputs,
         },
         'item': None, 'nestedRows': [],
     }
@@ -155,12 +168,40 @@ def _row(index, items, min_height=320):
     }
 
 
-def _page(name, route, description, source_class, rows, title=''):
+def _tab(key, title, rows, description=''):
+    """fsc-3: one STATIC tab of a tabbed page: `key` (the `?tab=` value), `title` (the label) and `rows` exactly as a page's rows
+    (built with `_row` / `_table`). `description` is a plain-words line under the tab strip while the tab is open."""
+    tab = {'key': key, 'title': title, 'rows': rows}
+    if description:
+        tab['description'] = description
+    return tab
+
+
+def _tabs_from(data_path, key_field, title_field, rows_template, insert_at=None):
+    """fsc-3: GENERATED tabs - one tab per row of the list door `data_path` (GET returning {rows: [...]} or a bare list). The tab's key
+    is the row's `key_field`, its label the row's `title_field`; `rows_template` is page rows in which every `{key}` (and `{title}`) is
+    replaced by that tab's key (title) - typically inside a table's data_path. `insert_at` = how many static tabs come BEFORE the
+    generated ones (default None = after every static tab)."""
+    out = {'data_path': data_path, 'key_field': key_field, 'title_field': title_field, 'rows_template': rows_template}
+    if insert_at is not None:
+        out['insert_at'] = insert_at
+    return out
+
+
+def _page(name, route, description, source_class, rows, title='', tabs=None, tabs_from=None):
     """`title` (optional) is the readable page title the header shows; it rides in the definition JSON (`title`). Without it the header
-    humanizes `name` ("pin-view" -> "Pin view")."""
+    humanizes `name` ("pin-view" -> "Pin view").
+
+    fsc-3 TABS (optional; a page without them renders exactly as before): `tabs` = list of `_tab(...)` (static tabs, in order) and
+    `tabs_from` = one `_tabs_from(...)` (generated tabs, spliced in at its `insert_at`). `rows` still render above the tab strip and are
+    shared by every tab. The open tab is kept in the URL (`?tab=<key>`) so a shared link opens it; no `?tab=` opens the first tab."""
     definition = {'rows': rows}
     if title:
         definition['title'] = title
+    if tabs:
+        definition['tabs'] = tabs
+    if tabs_from:
+        definition['tabs_from'] = tabs_from
     return {
         'name': name,
         'description': description,
