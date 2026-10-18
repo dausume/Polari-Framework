@@ -398,6 +398,8 @@ def main():
     run_pin_view_modes(check)
     from board.board_pin_view_phases_selftest import run_pin_view_phases   # pv-4: phases + blank baselines, configuration events (derived + recorded), the config-events doors
     run_pin_view_phases(check)
+    from board.board_pin_view_candidate_selftest import run_pin_view_candidate   # pv-5: the candidate stage (a stored solution search drawn), the Configuration events page + CLI
+    run_pin_view_candidate(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

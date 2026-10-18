@@ -28,8 +28,9 @@ from board.custom import pv_families as F
 from board.custom import pv_shapes as S
 from board.custom.hwsys_context import Ctx
 
-PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'blank', 'protocol', 'activated_only')
+PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'blank', 'protocol', 'activated_only', 'run', 'candidate')
 FILTERS = ('level', 'surface', 'kind', 'rail', 'drive_status', 'limit_class')   # the last three are the drive filters (comma lists)
+CAND_STAGE = 'candidate'   # pv-5: draws a solution the attempt engine found (board.custom.pin_view_candidate)
 TRUE = ('1', 'true', 'yes', 'on')
 
 
@@ -65,8 +66,8 @@ def build(board, params=None, manager=None, tables=None):
     except BO.BoardObjectRefused as e:
         raise Refused(str(e), 404)
     stage = params.get('stage') or 'base'
-    if stage not in ST.STAGES:
-        raise Refused('unknown stage %r (stages: %s)' % (stage, ', '.join(ST.STAGES)))
+    if stage not in ST.STAGES + (CAND_STAGE,):
+        raise Refused('unknown stage %r (stages: %s)' % (stage, ', '.join(ST.STAGES + (CAND_STAGE,))))
     try:   # pv-4: the phase and the blank baseline; a phase before init shows no claims, init shows the Initialization Purpose's, runtime the requested stage
         phase, blank = PH.check_params(params.get('phase'), params.get('blank'))
     except PH.PhaseError as e:
@@ -74,7 +75,16 @@ def build(board, params=None, manager=None, tables=None):
     requested_stage, stage = stage, PH.effective_stage(phase, stage)
     ctx = _context(tables, manager, board, params.get('system', ''), params.get('binding', ''))
     model = M.build(tables, board)
-    info = ST.apply_stage(model, tables, ctx, stage, ctx.binding, board)
+    info = ST.apply_stage(model, tables, ctx, 'base' if stage == CAND_STAGE else stage, ctx.binding, board)
+    candidate = None
+    if stage == CAND_STAGE:   # pv-5: the base picture, then the chosen run's candidate marks its pins proposed
+        from board.custom import pin_view_candidate as CAND
+        try:
+            candidate = CAND.block(model, tables, board, params, manager)
+        except CAND.CandidateRefused as e:
+            raise Refused(str(e), e.status)
+        info['stage'] = CAND_STAGE
+        info['notes'] = ['candidate: the assignment of candidate %s (rank %s) of solution search %s, drawn as proposed; the other pins keep their base stage' % (candidate['id'], candidate['rank'], candidate['run'])]
     info['requested'] = requested_stage
     MD.apply_pins(model, tables, ctx, phase)
     phase_info = PH.apply(model, tables, phase, blank, board)
@@ -98,7 +108,7 @@ def build(board, params=None, manager=None, tables=None):
         p['surface_title'] = surf_title.get(p['surface'], '')
     return {'ok': True, 'board': board, 'source': 'live' if live else 'seed (the live server has no enclosure rows yet)', 'system': ctx.system_name, 'binding': ctx.binding, 'phase': phase, 'blank': blank, 'phase_info': phase_info,
             'mission': {'name': mission, 'status': 'undetermined' if mission else 'none', 'why': 'Task definitions on a Mission arrive with fgm-3; `tasks-assigned` reads the binding\'s graph-node claims today' if mission else ''},
-            'stage': info, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
+            'stage': info, 'candidate': candidate, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
             'shapes': shapes, 'counts': {'surfaces': len(model.surfaces), 'pins': len(model.pins), 'connections': len(model.connections), 'unresolved': len(model.unresolved),
                                          'by_level': {lv: sum(1 for p in model.pins.values() if p['level'] == lv) for lv in M.LEVELS},
                                          'by_kind': {k: sum(1 for c in model.connections if c['kind'] == k) for k in sorted({c['kind'] for c in model.connections})}},

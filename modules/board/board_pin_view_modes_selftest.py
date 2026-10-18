@@ -245,10 +245,10 @@ def run_pin_view_modes(check):
     tables = [it for pg in PIN_VIEW_PAGES if pg['name'] != 'pin-view' for r in _json.loads(pg['definition'])['rows'] for it in r['items']]
     links = {it['componentProps']['inputs']['columnFormats'] for it in tables}
     check('PAGE titles: the pin view, its three table pages, the register profile and the memory map carry a readable title in their definition (a page without one has none: the header humanizes its name); every table on the three '
-          'table pages has a `view` link column ({id} into /display/pin-view?pin= | connection= | surface=)',
-          titles == {'pin-view': 'Pin view', 'pin-view-pins': 'Pins', 'pin-view-connections': 'Connections', 'pin-view-surfaces': 'Surfaces', 'register-profile': 'Register profile', 'memory-map': 'Memory map'}
+          'table pages and the Configuration events page has a `view` link column ({id} into /display/pin-view?pin= | connection= | surface= | event=)',
+          titles == {'pin-view': 'Pin view', 'pin-view-pins': 'Pins', 'pin-view-connections': 'Connections', 'pin-view-surfaces': 'Surfaces', 'config-events': 'Configuration events', 'register-profile': 'Register profile', 'memory-map': 'Memory map'}
           and 'title' not in _json.loads(plain['definition'])
-          and links == {'view:view:/display/pin-view?pin={id}', 'view:view:/display/pin-view?connection={id}', 'view:view:/display/pin-view?surface={id}'}
+          and links == {'view:view:/display/pin-view?pin={id}', 'view:view:/display/pin-view?connection={id}', 'view:view:/display/pin-view?surface={id}', 'view:view:/display/pin-view?event={id}'}
           and all(it['componentProps']['inputs']['columns'].endswith(',view') for it in tables), str(titles))
     forced = _overlap({'x0': 0, 'x1': 2, 'y0': 0, 'y1': 1}, {'x0': 1.5, 'x1': 3, 'y0': 0.5, 'y1': 2}) and not _overlap({'x0': 0, 'x1': 2, 'y0': 0, 'y1': 1}, {'x0': 2, 'x1': 3, 'y0': 0, 'y1': 1})
     items = [('a', {'x0': -2.0, 'y0': -1.0, 'x1': 2.0, 'y1': 1.0}), ('b', {'x0': -2.0, 'y0': -1.0, 'x1': 2.0, 'y1': 1.0})]

@@ -17,6 +17,8 @@ Kinds: flash | wiring-added | wiring-removed | shield-attached | shield-detached
 a connection that appeared or vanished. A flash and a binding choice compare stage base with stage firmware-committed of the binding; a reset compares the chosen stage's runtime with the reset phase; a wiring
 event compares the payload without and with the BoardPinNet row. The `pins_basis` text says what was compared, or why nothing could be (no binding names the firmware's pin assignments; a shield has no model yet).
 Cost: one pin_view build (about 2-5 s) per distinct comparison; `pins=0` skips the difference.
+
+    python3 -m board.custom.config_events list <board> [--instance I] [--system S] [--binding B] [--no-pins] [--json]      (pol board events)
 """
 import datetime
 import json
@@ -278,6 +280,23 @@ def timeline(board, manager=None, tables=None, instance='', system='', binding='
             'note': 'derived events are read from InstallRecord rows and canvas BoardPinNet rows on every request; recorded events are ConfigurationEvent rows. The per-phase pin states are derived, never stored.'}
 
 
+# ---------------------------------------------------------------- the flat rows (the configured "Configuration events" table reads `rows`)
+def _when_text(e):
+    if not e.get('dated'):
+        return 'time not recorded'
+    w = e['when']
+    try:
+        return datetime.datetime.fromisoformat(w).strftime('%d %b %Y, %H:%M')
+    except ValueError:
+        return w
+
+
+def event_rows(events):
+    """One plain row per event: what happened, when, who, why, and how many pins changed (the pins themselves are in the pin view, opened by the row's link)."""
+    return [{'id': e['name'], 'name': e['name'], 'seq': e['seq'], 'kind': e['label'], 'when': _when_text(e), 'who': e['who'], 'cause': e['cause'], 'pins_changed': len(e.get('pins_changed') or []),
+             'instance': e['board_instance'] or 'the design', 'source': 'read from the records' if e['provenance'] == 'derived' else 'recorded by a person or a bridge'} for e in events]
+
+
 # ---------------------------------------------------------------- the POST door
 def _check_refs(kind, refs, board, tables, manager):
     if not isinstance(refs, list) or not all(isinstance(r, str) for r in refs):
@@ -396,8 +415,10 @@ def record(manager, board, body, tables=None, now=None):
 # ---------------------------------------------------------------- the door bodies (config_events_api calls these)
 def get_door(manager, board, params):
     try:
-        return 200, timeline(board, manager, instance=params.get('instance', ''), system=params.get('system', ''), binding=params.get('binding', ''),
-                             with_pins=params.get('pins', '1') not in ('0', 'false', 'no'))
+        out = timeline(board, manager, instance=params.get('instance', ''), system=params.get('system', ''), binding=params.get('binding', ''),
+                       with_pins=params.get('pins', '1') not in ('0', 'false', 'no'))
+        out['rows'] = event_rows(out['events'])   # pv-5: the flat view for the configured table
+        return 200, out
     except EventRefused as e:
         return e.status, {'ok': False, 'error': str(e)}
 
@@ -407,3 +428,49 @@ def post_door(manager, board, body):
         return 201, {'ok': True, 'event': record(manager, board, body)}
     except EventRefused as e:
         return e.status, {'ok': False, 'error': str(e), 'kinds': list(KINDS)}
+
+
+# ---------------------------------------------------------------- CLI (pol board events <board>)
+def render(out):
+    """The timeline as plain lines: one per event, then what changed on which pins."""
+    if not out['events']:
+        return '%s: no real-world changes are recorded (no install, no wire drawn on the canvas).' % out['board']
+    lines = ['%s: %d configuration event(s) (%d read from records, %d recorded)' % (out['board'], out['count'], out['derived'], out['recorded'])]
+    for e, r in zip(out['events'], out['rows']):
+        lines.append('  %2d. %-16s %-20s %-14s %2d pin(s)  %s' % (e['seq'], e['label'], r['when'], str(e['who'])[:14], r['pins_changed'], e['cause'][:90]))
+        for p in e.get('pins_changed') or []:
+            lines.append('        %-8s %s' % (p['label'], '; '.join(p['what'])[:120]))
+    return '\n'.join(lines)
+
+
+def main(argv=None):
+    import sys
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) < 2 or argv[0] != 'list':
+        print(__doc__)
+        return 2
+    board, params, as_json, i = argv[1], {}, False, 2
+    while i < len(argv):
+        a = argv[i]
+        if a == '--json':
+            as_json = True
+        elif a == '--no-pins':
+            params['pins'] = '0'
+        elif a in ('--instance', '--system', '--binding') and i + 1 < len(argv):
+            params[a[2:]] = argv[i + 1]
+            i += 1
+        else:
+            print('unknown option %s' % a)
+            return 2
+        i += 1
+    status, out = get_door(None, board, params)
+    if status != 200:
+        print('refused: %s' % out['error'])
+        return 1
+    print(json.dumps(out, indent=2) if as_json else render(out))
+    return 0
+
+
+if __name__ == '__main__':
+    import sys
+    sys.exit(main())

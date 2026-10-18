@@ -189,7 +189,7 @@ def run_pin_view(check):
     mine = [p for p in PAGES if p['name'] in ('pin-view-pins', 'pin-view-connections', 'pin-view-surfaces')]
     items = [it for p in mine for r in json.loads(p['definition'])['rows'] for it in r['items']]
     check('PAGES: the three DisplayDefinitions exist (Pins, Connections, Surfaces) and are configured tables only — every item is a class-rows-table over a pin-view row door, none is an api-json-panel or a new component; their text says what a row is',
-          len(mine) == 3 and len(PIN_VIEW_PAGES) == 4 and items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items)
+          len(mine) == 3 and len(PIN_VIEW_PAGES) == 5 and items and all(it['componentProps']['componentName'] == 'class-rows-table' for it in items)
           and all(it['componentProps']['inputs']['dataPath'].startswith('/api/board/%s/pin-view/' % BOARD) and it['description'].startswith('What this is for') for it in items)
           and not any('api-json-panel' in json.dumps(p['definition']) for p in mine), str(len(items)))
     view = next((p for p in PAGES if p['name'] == 'pin-view'), None)
