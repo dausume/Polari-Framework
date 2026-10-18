@@ -134,7 +134,8 @@
    "board_object_api",
    "installer_api",
    "pin_view_api",
-   "register_profile_api"
+   "register_profile_api",
+   "profile_overlap_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -145,7 +146,8 @@
   "page": [
    "board_page",
    "pin_view_page",
-   "register_profile_page"
+   "register_profile_page",
+   "profile_overlap_page"
   ],
   "selftests": [
    "board_attach_selftest",
@@ -163,6 +165,7 @@
    "board_light_selftest",
    "board_mapping_selftest",
    "board_register_profile_selftest",
+   "board_profile_overlap_selftest",
    "board_object_selftest",
    "board_pin_view_selftest",
    "board_pin_view_modes_selftest",
@@ -244,6 +247,12 @@
    "custom/register_map",
    "custom/registers",
    "custom/register_profile",
+   "custom/profile_overlap",
+   "custom/profile_overlap_cites",
+   "custom/profile_overlap_kinds",
+   "custom/profile_overlap_net",
+   "custom/profile_overlap_periph",
+   "custom/profile_overlap_pin",
    "custom/memory_map_atmega328p",
    "custom/memory_map_view",
    "custom/sexpr",
@@ -309,6 +318,7 @@
   "PinGroupBudget",
   "PinLifecycleConstraint",
   "PinViewAPI",
+  "ProfileOverlapAPI",
   "ProgrammerKind",
   "Register",
   "RegisterAddressMapping",

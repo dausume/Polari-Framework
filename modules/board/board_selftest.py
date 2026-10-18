@@ -398,6 +398,8 @@ def main():
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI
     run_register_profile(check)
+    from board.board_profile_overlap_selftest import run_profile_overlap   # pp-1: the cited profile-overlap table, its door, page, nav, manifest, CLI
+    run_profile_overlap(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
