@@ -642,6 +642,9 @@ SEED_POLARI_APPS = [
              _tgrp('Pin profiles',   # pp-0 (own group entry, beside the Purposes)
                   _it('Pin profiles: what each Purpose needs from a pin', 'page',
                       route='/display/pin-profiles', requires_module='cmod')),
+             _tgrp('Profile overlap',   # pp-1 (own group entry, beside the Pin profiles)
+                  _it('Profile overlap: which needs may share a pin', 'page',
+                      route='/display/profile-overlap', requires_module='board')),
              _tgrp('Missions',
                   _it('The light Mission: why the demo exists', 'page',
                       route='/display/hardware-solutions?solution=mission-uno-light-mission',

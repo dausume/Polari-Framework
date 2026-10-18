@@ -113,7 +113,8 @@
    "cmod_isotope_api",
    "cmod_approach_profile_api",
    "cmod_firmware_api",
-   "cmod_pin_profile_api"
+   "cmod_pin_profile_api",
+   "cmod_colocation_api"
   ],
   "endpoints": [
    "cmod_endpoints"
@@ -129,6 +130,7 @@
   ],
   "selftests": [
    "cmod_pin_profile_selftest",
+   "cmod_colocation_selftest",
    "cmod_selftest",
    "cmod_isotope_variant_selftest",
    "cmod_approach_profile_selftest"
@@ -164,6 +166,7 @@
    "custom/pin_profile_doors",
    "custom/pin_profile_mission",
    "custom/pin_profiles",
+   "custom/mission_colocation",
    "custom/preprocess",
    "custom/projects",
    "custom/purpose_derived",
@@ -247,6 +250,7 @@
   "MissionSettingsState",
   "PeripheralClaim",
   "PinClaim",
+  "ColocationAPI",
   "PinProfileAPI",
   "PurposeCriterionState",
   "PurposeDependsState",
