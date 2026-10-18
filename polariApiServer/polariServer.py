@@ -1370,6 +1370,8 @@ class polariServer(treeObject):
             HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState,
             # iso-0: the jobs a C atom does and every route of doing each (the isotope variant catalogue)
             AtomJob, IsotopeVariant,
+            # sol-0: one run of the attempt engine, its inputs fingerprinted
+            SolveRun,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
