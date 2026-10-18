@@ -1,13 +1,13 @@
 {
  "solution": "uno-temp-split",
  "compiler": "hwnocode.custom.split 1",
- "split_sha256": "1f22e76429ae7ffcc1bb34832c3a6933e98a245c96072b07a36db5dd5b183654",
- "rendered_at": "2026-10-18T03:35:02",
+ "split_sha256": "d9e964c7e607c755d96a4678cfe63a3222c7fe344ef3e35b456cfe8a9ee599a4",
+ "rendered_at": "2026-10-18T12:46:37",
  "placement_summary": "twin 18, bridge 2, backend 3, browser 1",
  "runtime": {
   "value": "bare-c",
   "ok": true,
-  "why": "bare C: cmod-glue's target (one main loop + ISRs, no kernel) \u2014 what hn-0 renders"
+  "why": "bare C: cmod-glue's target (one main loop + ISRs, no kernel) — what hn-0 renders"
  },
  "placement": [
   {
@@ -16,7 +16,7 @@
    "kind": "firmware-run",
    "placement": "bridge",
    "language": "Python (framework: cmod.custom.firmware)",
-   "why": "orchestrates cmod FirmwareSolution uno-sim-rig: validate -> build -> run (mode digital-twin) \u2014 cmod.custom.firmware, in the framework host process, same as the hw-interface it sits beside"
+   "why": "orchestrates cmod FirmwareSolution uno-sim-rig: validate -> build -> run (mode digital-twin) — cmod.custom.firmware, in the framework host process, same as the hw-interface it sits beside"
   },
   {
    "layer": "solution",
@@ -24,7 +24,7 @@
    "kind": "hw-interface",
    "placement": "bridge",
    "language": "Java (generated bridge)",
-   "why": "THE SPLIT POINT: binding uno-temp-split/SimRigState/0 ties SimRigState/uno-digital-twin to twin:arduino-uno-r3#0 at /tmp/polari-uno-twin-uart on bridge uno-temp-split; the generated Java bridge decodes frames UP and routes Commands DOWN (device side: none \u00b7 backend side: firmware-run, relay-in) \u2014 digital-twin mode: attached to the twin's pty link (/tmp/polari-uno-twin-uart)"
+   "why": "THE SPLIT POINT: binding uno-temp-split/SimRigState/0 ties SimRigState/uno-digital-twin to twin:arduino-uno-r3#0 at /tmp/polari-uno-twin-uart on bridge uno-temp-split; the generated Java bridge decodes frames UP and routes Commands DOWN (device side: none · backend side: firmware-run, relay-in) — digital-twin mode: attached to the twin's pty link (/tmp/polari-uno-twin-uart)"
   },
   {
    "layer": "solution",
@@ -32,7 +32,7 @@
    "kind": "BackendStateChange",
    "placement": "backend",
    "language": "Python (engine)",
-   "why": "engine state class BackendStateChange \u2192 the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
+   "why": "engine state class BackendStateChange → the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
   },
   {
    "layer": "solution",
@@ -40,7 +40,7 @@
    "kind": "SolutionInvocation",
    "placement": "backend",
    "language": "Python (engine)",
-   "why": "engine state class SolutionInvocation \u2192 the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
+   "why": "engine state class SolutionInvocation → the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
   },
   {
    "layer": "solution",
@@ -48,7 +48,7 @@
    "kind": "BackendStateChange",
    "placement": "backend",
    "language": "Python (engine)",
-   "why": "engine state class BackendStateChange \u2192 the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
+   "why": "engine state class BackendStateChange → the Python engine on the backend, fired by EventTrigger uno-temp-split-on-temp on each update of the bound row"
   },
   {
    "layer": "subgraph",
@@ -56,7 +56,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_usart_init (uno:hal.hal_usart_init, stage init) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_usart_init (uno:hal.hal_usart_init, stage init) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -64,7 +64,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_tick_init (uno:hal.hal_tick_init, stage init) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_tick_init (uno:hal.hal_tick_init, stage init) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -72,7 +72,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_led_init (uno:hal.hal_led_init, stage init) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_led_init (uno:hal.hal_led_init, stage init) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -80,7 +80,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_pwm_init (uno:hal.hal_pwm_init, stage init) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_pwm_init (uno:hal.hal_pwm_init, stage init) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -88,7 +88,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_adc_init (uno:hal.hal_adc_init, stage init) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_adc_init (uno:hal.hal_adc_init, stage init) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -96,7 +96,7 @@
    "kind": "class",
    "placement": "twin",
    "language": "C",
-   "why": "class \u2014 the class instance the frames carry \u2014 a static struct in polari_graph.c (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "class — the class instance the frames carry — a static struct in polari_graph.c (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -104,7 +104,7 @@
    "kind": "parser",
    "placement": "twin",
    "language": "C",
-   "why": "parser \u2014 the generated header's receiver (polari_rx_t + polari_rx_feed) \u2014 C (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "parser — the generated header's receiver (polari_rx_t + polari_rx_feed) — C (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -112,7 +112,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_rx_pop (uno:hal.hal_rx_pop, stage loop) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_rx_pop (uno:hal.hal_rx_pop, stage loop) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -120,7 +120,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom apply_command (uno:apps/sim_rig.apply_command, stage loop) \u2014 cmod-glue copies (verbatim) + calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom apply_command (uno:apps/sim_rig.apply_command, stage loop) — cmod-glue copies (verbatim) + calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -128,7 +128,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_led (uno:hal.hal_led, stage called) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_led (uno:hal.hal_led, stage called) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -136,7 +136,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_pwm_apply (uno:hal.hal_pwm_apply, stage called) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_pwm_apply (uno:hal.hal_pwm_apply, stage called) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -144,7 +144,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_millis (uno:hal.hal_millis, stage loop) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_millis (uno:hal.hal_millis, stage loop) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -152,7 +152,7 @@
    "kind": "tick",
    "placement": "twin",
    "language": "C",
-   "why": "tick \u2014 an `if` on the uint32_t ms clock inside main() \u2014 C (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "tick — an `if` on the uint32_t ms clock inside main() — C (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -160,7 +160,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_adc_read (uno:hal.hal_adc_read, stage loop) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_adc_read (uno:hal.hal_adc_read, stage loop) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -168,7 +168,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom sensor_value (uno:apps/sim_rig.sensor_value, stage loop) \u2014 cmod-glue copies (verbatim) + calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom sensor_value (uno:apps/sim_rig.sensor_value, stage loop) — cmod-glue copies (verbatim) + calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -176,7 +176,7 @@
    "kind": "rule",
    "placement": "twin",
    "language": "C",
-   "why": "rule \u2014 a status rule evaluated in its tick \u2014 C (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "rule — a status rule evaluated in its tick — C (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -184,7 +184,7 @@
    "kind": "frame",
    "placement": "twin",
    "language": "C",
-   "why": "frame \u2014 <Class>_encode + _frame + the sequence counter into static buffers \u2014 C (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "frame — <Class>_encode + _frame + the sequence counter into static buffers — C (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "subgraph",
@@ -192,7 +192,7 @@
    "kind": "c-atom",
    "placement": "twin",
    "language": "C",
-   "why": "c-atom hal_usart_send (uno:hal.hal_usart_send, stage loop) \u2014 cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin \u2014 no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
+   "why": "c-atom hal_usart_send (uno:hal.hal_usart_send, stage loop) — cmod-glue calls it in polari_graph.c; C on the ATmega328P (the simavr twin — no BoardInstance attached (twin:arduino-uno-r3#0); the same .hex a board is flashed with)"
   },
   {
    "layer": "display",
@@ -200,7 +200,7 @@
    "kind": "display",
    "placement": "browser",
    "language": "TypeScript (Angular)",
-   "why": "DisplayDefinition hardware-solutions: configured tables + a GraphDefinition chart \u2192 the dashboard renderer (no new component)"
+   "why": "DisplayDefinition hardware-solutions: configured tables + a GraphDefinition chart → the dashboard renderer (no new component)"
   }
  ],
  "board_half": {
@@ -210,18 +210,18 @@
   "files": {
    "Makefile": "f372920382254cf53ca7ee91cb4439c620268a57c52456595b0fee7ef8fd1695",
    "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
-   "hal.c": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884",
+   "hal.c": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8",
    "hal.h": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0",
    "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
    "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
    "polari_graph.c": "bcebaac9c4f2a7dd78d1aa32c82a2b40e30afbd6600ac6ded765feb2bede4434",
-   "polari_graph.h": "fa3427792ed8ed980349b9aed0e7a87d4dd34fe06d98dd2ee8b3d073323bf73b",
+   "polari_graph.h": "169c61a13ba7e37323800ef48f6ce46a9b5c0e4e03061ea96badf2d57a20e9cd",
    "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
   },
-  "files_sha256": "e153235e67487f74ad1af700e31a68cdaaa6bf6044d4e9ff2cf0a088866ca0c5",
+  "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
   "equal_to_cmod_record": true,
   "cmod_record": {
-   "files_sha256": "e153235e67487f74ad1af700e31a68cdaaa6bf6044d4e9ff2cf0a088866ca0c5",
+   "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
    "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
    "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5"
   }

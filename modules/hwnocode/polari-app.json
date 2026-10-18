@@ -82,6 +82,7 @@
   ],
   "custom": [
    "custom/app_solution",
+   "custom/demo_prepare",
    "custom/button_clock",
    "custom/button_clock_ledger",
    "custom/cross_domain",

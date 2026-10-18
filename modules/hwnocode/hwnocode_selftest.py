@@ -828,6 +828,49 @@ def manifest_conform():
           sorted(m['requires']['modules']) == ['board', 'cmod', 'grpcbridge'] and {'make', 'avr-twin'} <= {e['name'] for e in m['requires']['engines']})
 
 
+
+def demo_prepare_steps():
+    """The UNO light demo prepare verb (2026-10-18): idempotent through a fake server — a fresh server gets all four acts in order, a prepared one
+    only the generate; a dry run writes nothing; the bridge body is the code-owned seed, never retyped."""
+    from hwnocode.custom import demo_prepare as DP
+    from grpcbridge.mapping_basis import SEED_LIGHT_BRIDGE
+    def fake(state):
+        calls = []
+        def _call(api, method, path, body=None, timeout=120):
+            calls.append((method, path))
+            if method == 'GET' and path == '/api/grpc/bridges/uno-light':
+                return (200, {}) if state['bridge'] else (404, {'error': 'no bridge'})
+            if method == 'GET' and path.startswith('/api/schema/stability/'):
+                return 200, {'status': 'stabilized' if state['stable'] else 'learning'}
+            if method == 'GET' and path.startswith('/api/grpc/exposures/'):
+                return 200, {'enabled': state['exposed']}
+            if method == 'GET' and path == '/api/uno-core-demo/readiness':
+                return 200, {'rows': [{'part': 'bridge', 'status': 'never-run'}]}
+            if method == 'POST':
+                return 200, {'ok': True, 'files': 23}
+            return 404, {}
+        return calls, _call
+    orig = DP._call
+    try:
+        calls, DP._call = fake({'bridge': False, 'stable': False, 'exposed': False})
+        r = DP.prepare('https://example.invalid')
+        posts = [p for m, p in calls if m == 'POST']
+        calls2, DP._call = fake({'bridge': True, 'stable': True, 'exposed': True})
+        r2 = DP.prepare('https://example.invalid')
+        posts2 = [p for m, p in calls2 if m == 'POST']
+        calls3, DP._call = fake({'bridge': False, 'stable': False, 'exposed': False})
+        r3 = DP.prepare('https://example.invalid', dry_run=True)
+        posts3 = [p for m, p in calls3 if m == 'POST']
+    finally:
+        DP._call = orig
+    check('demo-prepare: a fresh server gets bridge create -> stabilize -> enable exposure -> generate, in that order; readiness read back',
+          r['ok'] and posts == ['/api/grpc/bridges', '/api/schema/stability/LightState', '/api/grpc/exposures/LightState', '/api/grpc/bridges/uno-light']
+          and r['readiness'] == [{'part': 'bridge', 'status': 'never-run'}], posts)
+    check('demo-prepare: a prepared server only re-generates (idempotent); a dry run writes nothing', posts2 == ['/api/grpc/bridges/uno-light'] and r2['ok'] and posts3 == [] and r3['dry_run'], (posts2, posts3))
+    b = DP._bridge_body()
+    check('demo-prepare: the bridge body is the code-owned SEED_LIGHT_BRIDGE (name, classes, serial, baud), never retyped',
+          b['bridgeName'] == SEED_LIGHT_BRIDGE['bridge_name'] and b['classes'] == ['LightState'] and b['baud'] == SEED_LIGHT_BRIDGE['baud'], b)
+
 def main():
     print('hwnocode selftest (hn-0)')
     from hwnocode.custom.selftest_light import light_parts as _lp   # ucd-light
@@ -837,7 +880,7 @@ def main():
     for part in (placement_on_seed, runtimes_demo_4b, refusals, cross_domain_validator, subgraph_reference, knob_refusals,
                  suggestion_fixtures, backend_half_in_engine, palette_metadata, seeds_page_api, connectors_and_hardware_mode,
                  button_clock_compute, button_clock_relay_in_engine, button_clock_cross_domain, button_clock_page,
-                 button_clock_registration, manifest_conform) + light_parts(None) + app_parts(None):
+                 button_clock_registration, manifest_conform, demo_prepare_steps) + light_parts(None) + app_parts(None):
         print('-- %s' % part.__name__)
         try:
             part()
