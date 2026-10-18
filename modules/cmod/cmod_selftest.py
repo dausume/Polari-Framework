@@ -737,6 +737,7 @@ def main():
     from cmod.custom.selftest_isotopes import isotope_parts   # ucd-iso-0: the code interface + C-isotopes
     from cmod.custom.selftest_light import light_parts   # ucd-light: the light test's firmware side
     from cmod.custom.selftest_button_routes import button_route_parts   # fgm-5a: the read-button isotopes as Jinja2 templates
+    from cmod.custom.selftest_sense_routes import sense_route_parts   # fgm-5b: the sense-led-line isotopes as Jinja2 templates
     from cmod.custom.selftest_demo import demo_parts   # ucd-app: the demo-bundle export form + the upload door
     from cmod.custom.selftest_generator import generator_parts   # fgm-0: the Jinja2 identical-hex migration
     from cmod.custom.selftest_purpose import purpose_parts   # fgm-1: Purpose no-code
@@ -751,7 +752,7 @@ def main():
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
                  + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check) + demo_parts(check)
-                 + generator_parts(check) + button_route_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + colocation_parts(check) + isotope_variant_parts(check) + approach_profile_parts(check) + solve_parts(check) + task_plan_parts(check)):
+                 + generator_parts(check) + button_route_parts(check) + sense_route_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + colocation_parts(check) + isotope_variant_parts(check) + approach_profile_parts(check) + solve_parts(check) + task_plan_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

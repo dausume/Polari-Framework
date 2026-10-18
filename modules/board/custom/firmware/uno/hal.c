@@ -208,7 +208,7 @@ uint8_t hal_take_toggle_pending(void)
  * independent witness that the LED line (wired D6->D3 on the bench/twin) really switched. The ISR ONLY counts and
  * stamps (reads g_ms bare: interrupts are off inside an ISR, so its four loads cannot be split by the tick); emitting
  * sense_rise/sense_fall ButtonClockEvents is the main loop's job (button_clock.c), never the ISR's. ---- */
-#if HAL_INT1
+#if HAL_INT1 && !HAL_SENSE_ROUTE   /* fgm-5b: HAL_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = polled, 2 = pin-change interrupt: that route is rendered into hal_sense_*.c from catoms/sense-led-line/ and this INT1 block is off */
 static volatile uint16_t g_sense_rises, g_sense_falls;
 static volatile uint32_t g_last_edge_ms;
 

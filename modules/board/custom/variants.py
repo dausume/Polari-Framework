@@ -73,6 +73,9 @@ PIN_KNOBS = ('led_pin', 'pwm_pin', 'adc_channel')
 #: whose button code is written against hal.h's three button functions only (light.c) - the others also use INT0-only facts
 ROUTE_APPS = ('light',)
 ROUTE_KNOB_DEFAULTS = {'button_route': 'int0'}
+#: fgm-5b: the sense ROUTE knob (absent = 'int1', hal.c's hand-written INT1 sense on D3) and the apps whose sense code is written against hal.h's two sense functions only (button_clock)
+SENSE_ROUTE_APPS = ('button_clock',)
+ROUTE_KNOB_DEFAULTS['sense_route'] = 'int1'
 ROUTE_INT_KNOBS = ('button_adc_channel', 'adc_press_below_mv', 'adc_release_above_mv', 'adc_pullup_ohms')
 FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
@@ -82,7 +85,9 @@ RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED',
             # variants (uno-button-count etc.) already set directly as build flags, predating the 'button' feature
             'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN',
             # fgm-5a: the button route (hal_button_*.c rendered from catoms/read-button/)
-            'HAL_BUTTON_ROUTE'}
+            'HAL_BUTTON_ROUTE',
+            # fgm-5b: the sense route (hal_sense_*.c rendered from catoms/sense-led-line/)
+            'HAL_SENSE_ROUTE'}
 
 
 class VariantRefused(ValueError):
@@ -145,6 +150,24 @@ SEED_FIRMWARE_VARIANTS = [
        'pressing the button on D2 flips D6 + D13 and bumps button_presses; with D6 wired to D3, sense_rises + '
        'sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); SET_TIME syncs the clock '
        '(drift_ms reported from the second sync on); SNAPSHOT replays the full state + queued events now.', {}),
+    _v('uno-light-sense-poll', 'The button-clock demo with the sense pin (D3) POLLED in the main loop instead of read by an interrupt',
+       'fgm-5b (MISSION_PROFILE_SOLVER_PLAN.md section 16): the uno-button-clock behaviour with the LED-line witness read by the GPIO-POLL isotope of sense-led-line, rendered from a Jinja2 template '
+       '(catoms/sense-led-line): the main loop looks at D3 once per pass and counts a change as one edge, so INT1 is left free. The button is still INT0 on D2 and the LED on D6; with the jumper D6->D3 '
+       'every press is one counted edge. Opt-in: uno-button-clock itself is unchanged.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-sense-poll', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'sense_pin': 3, 'sense_route': 'poll', 'debounce_ms': 30, 'event_queue_len': 16},
+       'with D6 wired to D3, sense_rises + sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls), exactly as uno-button-clock does with INT1; with no wire the sense counters stay 0. '
+       'A line that changes twice within one main-loop pass would be seen as no change (the cost of polling).', {},
+       notes='the sense route is the template sense-led-line/isotopes/gpio-poll (rendered to hal_sense_poll.c)'),
+    _v('uno-light-sense-pcint', 'The button-clock demo with the sense pin on a pin-change interrupt (D8, wired from D6)',
+       'fgm-5b: the uno-button-clock behaviour with the LED-line witness read by the PIN-CHANGE-INTERRUPT isotope of sense-led-line, rendered from a Jinja2 template (catoms/sense-led-line), on D8 '
+       '(PB0, PCINT0) - a pin with no INT0/INT1 - so both external-interrupt pins stay free. The button is INT0 on D2 and the LED on D6; the jumper is D6->D8. Opt-in.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-sense-pcint', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'sense_pin': 8, 'sense_route': 'pcint', 'debounce_ms': 30, 'event_queue_len': 16},
+       'with D6 wired to D8, sense_rises + sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); with the old D6->D3 wire (or none) the sense counters stay 0.', {},
+       notes='the sense route is the template sense-led-line/isotopes/pin-change-interrupt (rendered to hal_sense_pcint.c)'),
     _v('uno-light', 'The light test: a light on D6 that the screen and the board\'s pushbutton both switch',
        'The simplest two-way test of a Polari Hardware App. D6 carries the light; a person can switch it from a Polari '
        'screen (the SET_LED command down), and the pushbutton on D2 (debounced) switches the same light and the board '
@@ -300,7 +323,23 @@ def resolve(variant, overrides=None, base=None):
                 why.append('led_pin and the button\'s ADC pin are the same pin')
     if feats['button'] and route == 'int0' and k['button_pin'] != 2:
         why.append('button_pin D%d: the button is hardware-fixed to D2 (INT0) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['button_pin'])
-    if feats['sense'] and k['sense_pin'] != 3:
+    sroute = str(k.get('sense_route', 'int1'))
+    if sroute not in ('int1', 'poll', 'pcint'):
+        why.append('sense_route %r: int1 (hal.c) | poll | pcint (rendered from catoms/sense-led-line/)' % sroute)
+    elif sroute != 'int1':
+        if not feats['sense']:
+            why.append('sense_route %s without the sense feature' % sroute)
+        elif app not in SENSE_ROUTE_APPS:
+            why.append('sense_route %s: the %s app is not written for it (only %s use hal.h\'s two sense functions alone)' % (sroute, app, ', '.join(SENSE_ROUTE_APPS)))
+        else:
+            from board.custom import sense_routes as SR
+            try:
+                SR.check(sroute, k)
+            except SR.RouteRefused as e:
+                why.append('sense_route %s: %s' % (sroute, e))
+            if feats['button'] and k['sense_pin'] == (k['button_pin'] if str(k.get('button_route', 'int0')) in ('int0', 'pcint') else -1):
+                why.append('sense_pin and button_pin are the same pin (D%d)' % k['sense_pin'])
+    if feats['sense'] and sroute == 'int1' and k['sense_pin'] != 3:
         why.append('sense_pin D%d: the sense atom is hardware-fixed to D3 (INT1) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['sense_pin'])
     if feats['sense'] and feats['led'] and k['sense_pin'] == k['led_pin']:
         why.append('sense_pin and led_pin are the same pin (D%d) — the sense pin must be a wire FROM the LED pin, not the LED pin itself' % k['led_pin'])
@@ -368,8 +407,15 @@ def render_config(r, indexed=False):
                            '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
                            '#define BUTTON_PIN   %d' % (k['button_pin'] if route == 'pcint' else 14 + int(k.get('button_adc_channel', 0)))]
         if f['sense']:
-            lines += ['#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
-                       '#define SENSE_PIN    %d' % k['sense_pin']]
+            sroute = str(k.get('sense_route', 'int1'))
+            if sroute == 'int1':
+                lines += ['#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
+                           '#define SENSE_PIN    %d' % k['sense_pin']]
+            else:   # fgm-5b: the sense atom is rendered into hal_sense_*.c; hal.c's INT1 block is off, the app still sees HAL_INT1
+                from board.custom import sense_routes as SR
+                lines += ['#define HAL_INT1     1              /* the app\'s sense guard; the atom itself is the rendered hal_sense_*.c */',
+                           '#define HAL_SENSE_ROUTE %d          /* fgm-5b: %s (catoms/sense-led-line) */' % (SR.ROUTES[sroute][0], SR.ROUTES[sroute][1]),
+                           '#define SENSE_PIN    %d' % k['sense_pin']]
         lines.append('#define EVENT_QUEUE_LEN %du' % k['event_queue_len'])
     if indexed:
         lines.append('#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge']))

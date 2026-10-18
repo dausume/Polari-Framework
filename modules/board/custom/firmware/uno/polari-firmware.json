@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "1b570d1b34fb7ace2165c308a7b280a6689fcbd202d2d80b12c7e05ee588ed3c",
+   "source_sha": "d43306442996a5a08ccaee57916879b73bed299402ca6b4bdc8202e0a5a7bba2",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "ab93d49f282b985d5be01f8c040897096ace59cabe2168038232b856543406f1",
+   "source_sha": "18da528389ad61b95927594027651c29b3d82262418b66de37f1106a1e55e486",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "6b15e9b31cb7bbdfd2d2e9c05e8b0cbab710c3dd03cc82e1823bf9bc8d49c58c",
+   "source_sha": "4745211ba201f7d5219b7482d243ca79c92ed46c6aaed95861d8f2cd728e6b9e",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "eae61ceb79019cbd341810211ad5581cd17622a4cb2144a80033779b089ee999",
+   "source_sha": "c3bed7e7bd1a7cc321bd6dc517ba5a3d85c1188a285c2ab563a951617186c4dc",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a91eced84e208cc3a02fe843b1ba7dff1fed2a0186688916af3d021e7d68b22e",
+   "source_sha": "26e0453ef0f3a1e4468987c1b7cfd1e1c65285bfadda14d162fe722f90419362",
    "elf_sha256": {
     "shipped": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
     "noinline": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860"
@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "97bd6dc791fc775909b88cd17d736754253f517f70095fc8751edfa7131dd19b",
+   "source_sha": "85d6ac4374c8e976eaaad444edf593e6031e09cc9a562f34b51153f9ff514fb6",
    "elf_sha256": {
     "shipped": "98debcdb58f1d5f8b86e6781374da6cbba885c479ac044452c4387d2647aa3c8",
     "noinline": "a7e402f7a883b2e402a573c2f50969c2ae7531ef58ecffdff80f6381a58822c2"
@@ -197,7 +197,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "2a30a0a9bd988cc9ac4431cfc5c8df0b09024125dd8d9a4d2af14e0b13bebef2",
+   "source_sha": "025e923d9b6977cc31ac3630591df5047b1c553a719b61f3af653ac330d54137",
    "elf_sha256": {
     "shipped": "02fba6a8f98b4ca0111190dc54f2a22c3448e6347a250a6001d3f01baa99057e",
     "noinline": "e8dfa587a47641b5b53a61e5165fff661b38e5cce441f655c0851f13987d1fbe"
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "ab4a1c93d53d0ae65aafdb064758b48ead4092694540bed55b4470b2d164f745",
+   "source_sha": "f24a7a686d36d7348f17a5bd9eda967c434ae528bd28e4cc1e15e2c817c1ba60",
    "elf_sha256": {
     "shipped": "b573f50f51ed89c1d0975f38943c5ffe443f0cbfbe67ef625a34da1867f92ce9",
     "noinline": "65edee5f4cf0e29b434c9d4430f9bfb57b7c1c644de526d7a899d5df3a84d511"
@@ -229,6 +229,56 @@
    "make_alone": {
     "ok": true,
     "hex_sha256": "bc0935f9b21e1bd4572b668e497e1c9f70d54388d40754d3dd548f658bde964e"
+   }
+  },
+  {
+   "name": "uno-light-sense-poll",
+   "kind": "board-variant",
+   "app": "button_clock",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "hal_sense_poll.c",
+    "apps/button_clock.c"
+   ],
+   "generated": [
+    "buttonclockevent_packets.h",
+    "buttonclockstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "078427a3addb48b1419e9008b20497ab9c9cc103706b21c78a0c699ab5646612",
+   "elf_sha256": {
+    "shipped": "7282e04c8454649a4f246a88e846c3a80f1ba31c6d3c668ea40d1cbadb3022cf",
+    "noinline": "e9e9f5332081e22abd25cac9d508c7b8f9cf8e8f83401ebc739112c6fc0ab85b"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "38c47b6d16fb118a080604d25937a66eb52ed7ce6781f8e1d4f55c5006ad1e71"
+   }
+  },
+  {
+   "name": "uno-light-sense-pcint",
+   "kind": "board-variant",
+   "app": "button_clock",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "hal_sense_pcint.c",
+    "apps/button_clock.c"
+   ],
+   "generated": [
+    "buttonclockevent_packets.h",
+    "buttonclockstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "c50e5258edd2714f44af2c0225bf52682e0064ad642a891dfe72e6183161114f",
+   "elf_sha256": {
+    "shipped": "a514478c17900cf7577f78bc5b02d94b3d3e7a8a363a5b22c2150c3b87315f51",
+    "noinline": "196bc3aa88da9dc8c7595e702ebf1c236d1c8347059b0f9997ad906272debebe"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "5958f052fdde47105d08f7c35c99dfa4b7435d6c8ed8f7d60f0ece0109840993"
    }
   },
   {
@@ -252,7 +302,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "7bc80230fa2456ddfbc87754f9ce80602bec7cae5d79058131002c9f80a19899",
+   "source_sha": "c01f84729c1b815fa0f86adcdb45696d0e4feb0578679d80b9b07c9675486b51",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -279,7 +329,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "fe1ef30061a2a6bf59415528d94390273d94e85887b14bda4c36d4df7fa76c20",
+   "source_sha": "6ffd3f73a45706f224364f3d549f2d79137104f03c3fa5c63bf16cd4e7aebec5",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -297,7 +347,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
+     "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
     },
     {
      "path": "hal.h",
@@ -729,7 +779,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -808,7 +860,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -928,7 +982,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1036,7 +1092,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1119,7 +1177,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": null,
    "cost": {
@@ -1220,7 +1280,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1275,7 +1337,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": null,
    "cost": {
@@ -1343,7 +1407,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1425,7 +1491,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1533,7 +1601,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": null,
    "cost": {
@@ -1617,7 +1687,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": null,
    "cost": {
@@ -1678,7 +1750,9 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -1774,7 +1848,9 @@
    "isr_safe_why": "",
    "atomic_block": true,
    "configs": [
-    "uno-button-clock"
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
    ],
    "annotation": {
     "form": "macro",
@@ -3513,6 +3589,8 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -3662,6 +3740,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -3774,6 +3854,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4009,6 +4091,8 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4098,6 +4182,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4169,6 +4255,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4238,6 +4326,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4314,6 +4404,8 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4575,6 +4667,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4840,6 +4934,8 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -4919,6 +5015,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5090,6 +5188,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5176,6 +5276,8 @@
     "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint",
     "cmod-cover-commit",
     "cmod-cover-record"
    ],
@@ -5866,18 +5968,455 @@
    },
    "title": "",
    "notes": ""
+  },
+  {
+   "name": "hal_sense_pcint.PCINT0_vect",
+   "function": "__polari_isr_PCINT0_vect",
+   "module": "hal_sense_pcint.c",
+   "line": 35,
+   "kind": "isr",
+   "isr_vector": "PCINT0_vect",
+   "signature": "ISR(PCINT0_vect)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "isr",
+     "name": "PCINT0_vect",
+     "access": "is",
+     "peripheral": "",
+     "detail": "vector 3"
+    },
+    {
+     "kind": "register",
+     "name": "PINB",
+     "access": "r",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B"
+    }
+   ],
+   "calls": [
+    "hal_millis"
+   ],
+   "pure": false,
+   "pure_why": "is an ISR",
+   "isr_safe": "isr",
+   "isr_safe_why": "runs in interrupt context (interrupts are off inside it on the AVR)",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-sense-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-sense-pcint",
+    "symbol": "__vector_3",
+    "text_bytes": 156,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 156,
+    "stack_bytes": 18,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 18,
+    "text_bytes_range": [
+     156,
+     156
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_sense_pcint.hal_sense_init",
+   "function": "hal_sense_init",
+   "module": "hal_sense_pcint.c",
+   "line": 48,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRB",
+     "access": "rw",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCICR",
+     "access": "rw",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCIFR",
+     "access": "w",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PCMSK0",
+     "access": "rw",
+     "peripheral": "PCINT",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PINB",
+     "access": "r",
+     "peripheral": "GPIO PORTB",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint8_t, 1 B, shared with ISR PCINT0_vect"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_sense_level",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-sense-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-sense-pcint",
+    "symbol": "hal_sense_init",
+    "text_bytes": 36,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 36,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     36,
+     36
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_sense_pcint.hal_sense_read",
+   "function": "hal_sense_read",
+   "module": "hal_sense_pcint.c",
+   "line": 57,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "rises",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "falls",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "last_ms",
+     "direction": "out",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t, 4 B, shared with ISR PCINT0_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR PCINT0_vect, inside ATOMIC_BLOCK"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint16_t, 2 B, shared with ISR PCINT0_vect, inside ATOMIC_BLOCK"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_last_edge_ms, g_sense_falls, g_sense_rises",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": true,
+   "configs": [
+    "uno-light-sense-pcint"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-sense-pcint",
+    "symbol": "hal_sense_read",
+    "text_bytes": 70,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 98,
+    "stack_bytes": 4,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     70,
+     70
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_sense_poll.hal_sense_init",
+   "function": "hal_sense_init",
+   "module": "hal_sense_poll.c",
+   "line": 29,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_sense_level",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-sense-poll"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-sense-poll",
+    "symbol": "hal_sense_init",
+    "text_bytes": 14,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 14,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     14,
+     14
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_sense_poll.hal_sense_read",
+   "function": "hal_sense_read",
+   "module": "hal_sense_poll.c",
+   "line": 38,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "rises",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "falls",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "last_ms",
+     "direction": "out",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    }
+   ],
+   "calls": [
+    "hal_millis"
+   ],
+   "pure": false,
+   "pure_why": "touches g_last_edge_ms, g_sense_falls, g_sense_level, g_sense_rises",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light-sense-poll"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "uno-light-sense-poll",
+    "symbol": "hal_sense_read",
+    "text_bytes": 176,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 176,
+    "stack_bytes": 9,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     176,
+     176
+    ]
+   },
+   "title": "",
+   "notes": ""
   }
  ],
  "counts": {
-  "atoms": 64,
+  "atoms": 69,
   "annotated": 29,
-  "isr": 5,
+  "isr": 6,
   "pure": 2,
-  "ports": 61,
+  "ports": 67,
   "not_isr_safe": 0
  },
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T03:04:41"
+ "conformed_at": "2026-10-18T06:40:14"
 }

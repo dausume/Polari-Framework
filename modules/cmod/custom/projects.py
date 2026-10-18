@@ -34,7 +34,7 @@ COVERAGE = [
 TEMPLATES = {
     'uno': {'root': UNO_ROOT, 'root_rel': 'board/custom/firmware/uno', 'board': 'arduino-uno-r3', 'mcu': 'atmega328p',
             'title': 'UNO firmware template (board module)',
-            'variants': ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo', 'uno-button-clock', 'uno-light', 'uno-light-pcint', 'uno-light-analog'], 'coverage': COVERAGE,
+            'variants': ['uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo', 'uno-button-clock', 'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-sense-poll', 'uno-light-sense-pcint'], 'coverage': COVERAGE,
             'modules': [('hal', ['hal.c', 'hal.h'], 'hal'), ('board_config', ['board_config.h'], 'config'),
                         # ucd-0e2b: button_clock.c's own shared macros/typedef/globals, moved out so cmod.custom.glue
                         # can copy its atoms' bodies verbatim (see button_clock_defs.h's own header comment)

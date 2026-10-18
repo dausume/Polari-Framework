@@ -95,8 +95,8 @@ def approach_profile_parts(check):
         text = ' '.join(rec['reasons'] + rec['caveats'])
         check('rt-0: the reasons name the blocking send (9.5 ms), the 100 ms deadline, the 59 ms margin and what is left out (INT0/INT1 rates; the unbounded tasks)',
               '9.5 ms' in text and '100 ms' in text and 'margin is 59' in text and 'INT0' in text and 'apply' in text and 'cannot bound' in text, text)
-        check('rt-0: concurrency from the schedule lanes and pp-0: 5 interrupt vectors (fgm-5a: the ISR atoms of the project, hal_button_pcint.PCINT2_vect among them), 5 loop tasks, only USART0/EEPROM as drivers; 5 pin needs (pp-0), 2 of them interrupt inputs',
-              d['concurrency'][0]['interrupt_vectors']['value'] == 5 and d['concurrency'][0]['loop_tasks']['value'] == 5 and d['concurrency'][0]['drivers'] == ['EEPROM', 'USART0']
+        check('rt-0: concurrency from the schedule lanes and pp-0: 6 interrupt vectors (fgm-5a/5b: the ISR atoms of the project, hal_button_pcint.PCINT2_vect and hal_sense_pcint.PCINT0_vect among them), 5 loop tasks, only USART0/EEPROM as drivers; 5 pin needs (pp-0), 2 of them interrupt inputs',
+              d['concurrency'][0]['interrupt_vectors']['value'] == 6 and d['concurrency'][0]['loop_tasks']['value'] == 5 and d['concurrency'][0]['drivers'] == ['EEPROM', 'USART0']
               and d['pin_profiles']['profiles']['value'] == 5 and d['pin_profiles']['interrupt_inputs']['value'] == 2, (d['concurrency'][0], d['pin_profiles']))
         check('rt-0: data rate - the 10 Hz report is at most 1100 B/s, under 10 percent of the 11520 B/s line (estimated / cited)',
               d['data_rate'] and d['data_rate'][0]['bytes_per_s']['value'] == 1100.0 and d['data_rate'][0]['share_of_line']['value'] < 10 and d['data_rate'][0]['line_capacity']['kind'] == 'cited', d['data_rate'])
@@ -192,7 +192,7 @@ def approach_profile_parts(check):
               and 'offers none at or above it' in AP.approach_profile('synthetic', board=UNO, spec=spec)['recommended']['advice'])
         pr = r['priorities']['rows']
         check('rt-0: derived priorities are DEADLINE-MONOTONIC (10 ms sample > 20 ms control > 50 ms display), marked a preview for fgm-3',
-              [x['task'] for x in pr] == ['sample', 'control', 'display'] and [x['priority'] for x in pr] == [1, 2, 3] and 'Task Plans come in fgm-3' in r['priorities']['preview'] and not r['priorities']['ties'], pr)
+              [x['task'] for x in pr] == ['sample', 'control', 'display'] and [x['priority'] for x in pr] == [1, 2, 3] and '/display/task-plan' in r['priorities']['preview'] and 'come in fgm-3' not in r['priorities']['preview'] and not r['priorities']['ties'], pr)
         # importance breaks a tie on equal deadlines
         t2 = [('a', None, 100, ['pa'], [], []), ('b', None, 100, ['pb'], [], []), ('c', None, 100, ['pc'], [], [])]
         p2 = [('pa', 'desired', 'button', 40, ['a']), ('pb', 'safety', 'button', 40, ['b']), ('pc', 'required', 'button', 40, ['c'])]

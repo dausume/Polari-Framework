@@ -79,7 +79,14 @@ def solve_parts(check):
         pd = _pins(demo) if demo else {}
         check('sol-0 ACCEPTANCE: the UNO demo\'s own plan - button INT0 on D2, LED on D6, sense INT1 on D3 - is a candidate with exactly those pins, and the score card says why it is not first',
               pd.get('the button') == ('D2', 'INT0') and pd.get('the LED') == ('D6', 'GPIO') and pd.get('the sense line') == ('D3', 'INT1')
-              and demo['rank'] > 1 and 'sense led line: ext-interrupt instead of' in next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'], pd)
+              and ('sense led line: ext-interrupt instead of' in next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] if demo['rank'] > 1
+                   else next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] == 'the chosen plan'), (pd, demo['rank']))
+        # fgm-5b: the polled sense route has atoms now, so its loop step is no longer free (hal_sense_read is counted into the cycle: +348 us) - under fastest-cycle the INT1 sense wins, the demo plan can be rank 1
+        pr = next((x for x in r['_ranked'] if x['routes'].get('sense-led-line') == 'gpio-poll' and x['routes'].get('read-button') == 'ext-interrupt' and x['routes'].get('drive-led') == 'gpio-out'
+                   and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
+        check('sol-0 / fgm-5b: the polled sense line is priced by its own atoms now - under fastest-cycle it costs loop time (cycle + ... us) against the INT1 sense and ranks below it, and the score card says so',
+              pr is not None and pr['rank'] > demo['rank'] and 'sense led line: gpio-poll instead of ext-interrupt' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference']
+              and 'cycle +' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference'], pr and pr['rank'])
         d = run('base', boards=[UNO])
         cd = d['chosen_candidate']
         pdft = _pins(cd)

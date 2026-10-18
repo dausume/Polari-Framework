@@ -1,0 +1,65 @@
+{
+ "catom": "sense-led-line",
+ "job": "sense-led-line",
+ "title": "Notice that the LED line really switched, on an independent pin, so the firmware can count and report it",
+ "owner_module": "board",
+ "interface": [
+  {
+   "function": "hal_sense_init",
+   "returns": "void",
+   "args": [],
+   "context": "init",
+   "what": "configure the sense pin (a plain input) and its detection (the interrupt, if the route uses one) once at boot"
+  },
+  {
+   "function": "hal_sense_read",
+   "returns": "void",
+   "args": [
+    "uint16_t *rises",
+    "uint16_t *falls",
+    "uint32_t *last_ms"
+   ],
+   "context": "loop",
+   "what": "an atomic snapshot of the rising-edge count, the falling-edge count and the time of the last edge (the polled route also takes its look at the pin here)"
+  }
+ ],
+ "hal_contract": [
+  {
+   "name": "sense_line",
+   "family": "signal",
+   "kind": "digital_in | edge_interrupt",
+   "what": "the line jumpered from the LED pin, read as a level each pass or as a pin change"
+  },
+  {
+   "name": "sense_detect_registers",
+   "family": "register",
+   "kind": "register",
+   "what": "the registers that enable the detection: PCMSKn / PCICR / PCIFR (pin-change); none for the polled route (PINx / DDRx only) - from cited RegisterField rows"
+  },
+  {
+   "name": "sense_pull",
+   "family": "drive",
+   "kind": "none",
+   "what": "no pull-up: the pin is a wire from the LED line and is never driven by this build"
+  },
+  {
+   "name": "edge_timestamp",
+   "family": "protocol",
+   "kind": "timing",
+   "what": "the hal_millis() value at the last counted edge (the polled route: the pass that noticed it)"
+  },
+  {
+   "name": "edge_counters",
+   "family": "execution",
+   "kind": "isr_shared | loop_only",
+   "what": "the rise/fall counters: written in the ISR and read under ATOMIC_BLOCK (pin-change), or written and read in the main loop (polled)"
+  }
+ ],
+ "isotopes": [
+  "int1 (hal.c, hand-written)",
+  "gpio-poll",
+  "pin-change-interrupt"
+ ],
+ "status": "derived, never stored here (cmod.custom.isotope_variants)",
+ "notes": "fgm-5b 2026-10-18, laid out exactly like catoms/read-button (fgm-5a). The repo ignores *.json by default: these files are force-added."
+}

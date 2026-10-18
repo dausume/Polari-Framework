@@ -1,0 +1,40 @@
+{% import 'sense-led-line/_common.j2' as L %}
+{{ L.banner(file, banner) }}
+#include <avr/io.h>
+#include <stdint.h>
+
+#include "hal.h"
+
+#if !HAL_INT1 || HAL_SENSE_ROUTE != {{ route_code|c_int }}
+#error "hal_sense_poll.c is the sense route {{ route_code|c_int }} (polled): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE {{ route_code|c_int }}"
+#endif
+
+/* Everything here runs in the main loop, never in an interrupt, so nothing needs to be volatile or atomic. */
+static uint16_t g_sense_rises, g_sense_falls;
+static uint32_t g_last_edge_ms;
+static uint8_t g_sense_level;               /* the level seen at the last look: 1 = high */
+
+/* {{ pin_name|c_comment }} = {{ soc_pin|c_comment }} as a plain input (no pull-up: the pin is a wire from the LED line). The first look is taken here, so the level the
+ * line already has at boot is the starting level and not an edge. */
+void hal_sense_init(void)
+{
+    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});
+    g_sense_level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+}
+
+/* Called once per main-loop pass: read the pin and, if it differs from the last look, count ONE edge and stamp it. A line that changes twice
+ * between two looks is seen as no change (a blink shorter than one pass is missed): that is the cost of this route, and the reason it is
+ * only right when the line changes slowly (a person-driven toggle) compared with the loop. */
+void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
+{
+    uint8_t level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+
+    if (level != g_sense_level) {
+        g_sense_level = level;
+        g_last_edge_ms = hal_millis();
+        if (level) g_sense_rises++; else g_sense_falls++;
+    }
+    *rises = g_sense_rises;
+    *falls = g_sense_falls;
+    *last_ms = g_last_edge_ms;
+}

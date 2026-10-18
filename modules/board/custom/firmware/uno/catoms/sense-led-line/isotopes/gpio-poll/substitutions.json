@@ -1,0 +1,11 @@
+{
+ "knobs": {
+  "sense_pin": "the board pin (D2..D13 or A0..A5 as digital; D0/D1 refused - the USB serial line)"
+ },
+ "derived_from_rows": {
+  "pin_name, soc_pin, pin_reg, ddr_reg, pin_bit": "the BoardPin -> SocPin rows",
+  "route_code": "board.custom.sense_routes.ROUTES"
+ },
+ "uncited": "a port C pin has no RegisterField rows (the cited set covers ports B and D): the comment says so, never a made-up page",
+ "notes": "fgm-5b."
+}

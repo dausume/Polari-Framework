@@ -108,6 +108,29 @@ ACCEPTANCE_SCENARIOS = [
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
      'capability': 'ensure-button-controls-light', 'provenance': 'fgm-5a seed',
      'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route read-button:analog-threshold)'},
+    # fgm-5b: the sense-led-line isotopes' own twin proofs (board.custom.variant_twin, the button-clock app with the jumper from the LED pin to the sense pin). Same posture as the fgm-5a ones above.
+    {'name': 'sense-poll-line-acceptance', 'title': 'Acceptance - the LED line sensed by polling the pin in the main loop (sense-led-line:gpio-poll)',
+     'description': 'The button-clock demo with the sense pin D3 polled once per main-loop pass by the gpio-poll isotope rendered from its Jinja2 template: four debounced presses on D2 toggle the LED on D6, '
+                    'the jumper D6->D3 carries each toggle, and every toggle is exactly one counted edge (rises + falls == presses, led_on == rises > falls, one sense event each, nothing dropped); '
+                    'with no jumper, or the jumper on the other build\'s pin, nothing is counted.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-sense-poll', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'button_presses == 4 and sense_rises + sense_falls == 4 with the jumper on D3; 0 edges with no jumper; 0 edges with the jumper on D8',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 0.8,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'button-clock-to-os', 'provenance': 'fgm-5b seed',
+     'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route sense-led-line:gpio-poll), not a second Purpose'},
+    {'name': 'sense-pcint-line-acceptance', 'title': 'Acceptance - the LED line sensed on a pin-change interrupt (sense-led-line:pin-change-interrupt)',
+     'description': 'The button-clock demo with the sense pin D8 on a pin-change interrupt, read by the pin-change-interrupt isotope rendered from its Jinja2 template: four debounced presses on D2 toggle the LED on D6, '
+                    'the jumper D6->D8 carries each toggle, and every toggle is exactly one counted edge (rises + falls == presses, led_on == rises > falls, one sense event each, nothing dropped); '
+                    'with no jumper, or the jumper on D3 (not armed on this build), nothing is counted.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-sense-pcint', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'button_presses == 4 and sense_rises + sense_falls == 4 with the jumper on D8; 0 edges with no jumper; 0 edges with the jumper on D3',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 0.8,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'button-clock-to-os', 'provenance': 'fgm-5b seed',
+     'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route sense-led-line:pin-change-interrupt)'},
     # fgm-6a: command confirmation on the wire (LightStateV2, variant uno-light-v2). Runner: board.custom.light_v2_twin. They restate the
     # command half of ensure-polari-can-control-light for the NEW wire struct; the Purpose's own status still derives from ITS acceptance_scenario.
     {'name': 'light-v2-rapid-commands-acceptance', 'title': 'Acceptance - 20 rapid commands, 20 confirmations (uno-light-v2)',
@@ -208,6 +231,14 @@ ACCEPTANCE_STEPS = [
           notes='the twin\'s triangle ramp on ADC0: the switch closes (low) at the start and at every period'),
     _step('light-analog-button-acceptance', 2, 'assert-field-arrival', {'field': 'toggles == the model\'s falling crossings of the press threshold', 'window_ms': 100},
           notes='read off the decoded LightState frames; plus the held-high and closed-at-boot controls'),
+    _step('sense-poll-line-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD2', 'level': 0},
+          notes='the first of four presses on D2 (board.custom.variant_twin); the twin is started with --wire PD6:PD3 (the jumper)'),
+    _step('sense-poll-line-acceptance', 2, 'assert-field-arrival', {'field': 'sense_rises + sense_falls == button_presses == 4; led_on == rises > falls', 'window_ms': 100},
+          notes='read off the decoded ButtonClockState / ButtonClockEvent frames; plus the no-jumper and wrong-pin controls (0 edges)'),
+    _step('sense-pcint-line-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD2', 'level': 0},
+          notes='the first of four presses on D2 (board.custom.variant_twin); the twin is started with --wire PD6:PB0 (the jumper to D8)'),
+    _step('sense-pcint-line-acceptance', 2, 'assert-field-arrival', {'field': 'sense_rises + sense_falls == button_presses == 4; led_on == rises > falls', 'window_ms': 100},
+          notes='read off the decoded ButtonClockState / ButtonClockEvent frames; plus the no-jumper and wrong-pin controls (0 edges)'),
     _step('light-v2-rapid-commands-acceptance', 1, 'assert-command-echo', {'field': 'last_command_id', 'value': 20, 'window_ms': 100},
           notes='SET_LED ids 1..20 20 ms apart; every id is named by a report'),
     _step('light-v2-reboot-acceptance', 1, 'reset-at', {'cycle': 3260000},
@@ -234,7 +265,8 @@ LIGHT_WHICH = {'ensure-button-controls-light': 'button', 'ensure-polari-observes
 
 #: fgm-5a: Scenario -> the FirmwareVariant board.custom.variant_twin proves (keyed by the Scenario, not its variant: uno-sim-rig has others)
 VARIANT_PROOFS = {'light-pcint-button-acceptance': 'uno-light-pcint', 'light-analog-button-acceptance': 'uno-light-analog',
-                  'sim-rig-pwm-duty-acceptance': 'uno-sim-rig'}
+                  'sim-rig-pwm-duty-acceptance': 'uno-sim-rig',
+                  'sense-poll-line-acceptance': 'uno-light-sense-poll', 'sense-pcint-line-acceptance': 'uno-light-sense-pcint'}
 
 
 #: fgm-6a: Scenario -> the check of board.custom.light_v2_twin that proves it (the v2 light's command confirmation)
