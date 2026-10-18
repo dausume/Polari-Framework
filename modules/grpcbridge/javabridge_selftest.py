@@ -281,6 +281,54 @@ def _wire_jvm(files, javac, java):
               (comp.stderr[:600] + (loop.stdout[-600:] if loop else '')))
 
 
+#: fgm-6a: the LightState v1 Java files and proto message as they were BEFORE LightStateV2 existed (recorded 2026-10-18 on fac5e18)
+V1_LIGHT_JAVA_SHA = {'LightStateCodec.java': 'b3034d61641291764062b9f0ab438ff2ea4ae1f4844d85f8fdb1bc380809f987',
+                     'LightStateRecord.java': '5809d767f91b1f49dc1a74e1cf95b31307351eae29fdc6cc7eb7de87f70cecb1',
+                     'LightStateSourceEnum.java': '0d7a7ae947e12fd57be265b5af136639109e7103e451f36a06192e8c255965a8',
+                     'LightStateStatusEnum.java': '1fc0c283095cdd6ef46abb938f928103be57de985ec9ac88e378011ff2230c11'}
+V1_LIGHT_PROTO_SHA = '1ef55a6f21d7079ffcaf9c4eda18b65cca8c5c8e7718b5e9e1e173382c28580b'
+
+# fgm-6a: LightStateV2 -- the light with command confirmation (board/custom/contracts/LightStateV2.v1.json): the v1 seven fields + command_id,
+# last_command_id, last_command_result
+SNAPSHOTS['LightStateV2'] = dict(SNAPSHOTS['LightState'], command_id=_int(), last_command_id=_int(), last_command_result=_str())
+
+
+def _light_v2_checks(mgr):
+    """fgm-6a: the v2 light's bridge through the same machinery, BESIDE v1: a fresh in-process contract equals the pinned one (same hash), a WireContract
+    derives, the Java project has the v2 record/codec/three enums as NEW files, and the v1 files are not among the changed ones."""
+    import os
+    from grpcbridge.custom import wire_contract as wc
+    from grpcbridge.mapping_basis import SEED_LIGHT_V2_BRIDGE, SEED_ENUM_MAPPINGS
+    for row in SEED_ENUM_MAPPINGS:
+        if row['object_class'] == 'LightStateV2':
+            _track(mgr, _factory(**row), 'EnumMapping')
+    _enable(mgr, 'LightStateV2')
+    exp = pg.get_exposure(mgr, 'LightStateV2')
+    pinned = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'board', 'custom', 'contracts', 'LightStateV2.v1.json')))
+    fm = jb._field_map_for(mgr, 'LightStateV2', exp.proto_version)
+    check('fgm-6a: a fresh in-process LightStateV2 contract equals the pinned snapshot (v1 of the class, same hash %s, same field map and tags)' % pinned['contract_hash'],
+          exp.proto_version == 1 and exp.contract_hash == pinned['contract_hash'] and fm == pinned['field_map'], (exp.proto_version, exp.contract_hash))
+    bridge = _bridge_row(['LightStateV2'], **SEED_LIGHT_V2_BRIDGE)
+    _track(mgr, bridge, 'HardwareBridgeDefinition')
+    row, s = wc.derive(mgr, 'LightStateV2', 'uno-light-v2', fm, exp.proto_version, exp.contract_hash, 'live', factory=_factory)
+    check('fgm-6a: WireContract LightStateV2@uno-light-v2 derives - one unbound serial device, command_id and last_command_id in field_order, three enums (source, status, '
+          'last_command_result), wire hash 5976dfed2e718479',
+          row.instance_count == 1 and row.index_repr == 'none' and [n for n, _ in json.loads(row.field_order_json)][:4] == ['boot_session', 'command_id', 'last_command_id', 'last_command_result']
+          and sorted(json.loads(row.enums_json)) == ['last_command_result', 'source', 'status'] and row.contract_hash_v2 == '5976dfed2e718479', row.enums_json)
+    rep = jb.generate_project(mgr, bridge, row_factory=_factory)
+    check('fgm-6a: generate_project ok for the uno-light-v2 bridge (one contract ready)', rep.get('ok'), str(rep.get('error')))
+    if rep.get('ok'):
+        f = rep['files']
+        record = f[f'{jb.JAVA_DIR}/codec/LightStateV2Record.java']
+        check('fgm-6a: LightStateV2 is msg_type 1; command_id, last_command_id (long), led_on and last_command_result (an enum) are Java fields; the three enums are generated',
+              'MSG_TYPE = 1' in f[f'{jb.JAVA_DIR}/codec/LightStateV2Codec.java'] and 'public long command_id;' in record and 'public long last_command_id;' in record
+              and 'public boolean led_on;' in record and f'{jb.JAVA_DIR}/codec/LightStateV2LastCommandResultEnum.java' in f
+              and f'{jb.JAVA_DIR}/codec/LightStateV2SourceEnum.java' in f and f'{jb.JAVA_DIR}/codec/LightStateV2StatusEnum.java' in f, sorted(f)[:12])
+        enum = f[f'{jb.JAVA_DIR}/codec/LightStateV2LastCommandResultEnum.java']
+        check('fgm-6a: the result enum carries applied, rejected-invalid and rejected-busy in wire order (1, 2, 3; 0 = unknown)',
+              all(w in enum for w in ('applied', 'rejected-invalid', 'rejected-busy')) and enum.index('applied') < enum.index('rejected-invalid') < enum.index('rejected-busy'), enum[:400])
+
+
 def _light_checks(mgr):
     """ucd-light: the light test's bridge end to end through the same machinery — ONE class on the bridge, a fresh in-process
     contract equal to the pinned one (same hash), a WireContract derived, the Java project generated (record + codec + the two enums)."""
@@ -311,6 +359,14 @@ def _light_checks(mgr):
               'MSG_TYPE = 1' in f[f'{jb.JAVA_DIR}/codec/LightStateCodec.java'] and 'public boolean led_on;' in record
               and 'public long toggles;' in record and 'public long boot_session;' in record
               and f'{jb.JAVA_DIR}/codec/LightStateSourceEnum.java' in f and f'{jb.JAVA_DIR}/codec/LightStateStatusEnum.java' in f, sorted(f)[:12])
+        import hashlib
+        v1 = {k.rsplit('/', 1)[1]: hashlib.sha256(v.encode() if isinstance(v, str) else v).hexdigest() for k, v in sorted(f.items()) if 'LightState' in k}
+        check('fgm-6a v1 UNCHANGED: the Java bridge\'s LightState codec, record and two enums are byte-identical to the pre-v2 bytes (sha256 pinned), and the v2 class adds files beside them, not into them',
+              v1 == V1_LIGHT_JAVA_SHA and not any('V2' in k for k in v1), v1)
+        import json as _json
+        from grpcbridge.custom import proto_gen as _pg
+        check('fgm-6a v1 UNCHANGED: the proto message of LightState v1 (pinned field map, tags 1..7 alphabetical) is byte-identical (sha256 pinned)',
+              hashlib.sha256(_pg.render_message('LightState', pinned['field_map']).encode()).hexdigest() == V1_LIGHT_PROTO_SHA)
 
 
 def _button_clock_checks(mgr, javac, java):
@@ -651,6 +707,7 @@ def main():
     _lifecycle_checks(mgr, javac, java)      # ucd-0e3: reconnect, snapshot on attach, gaps, reboot vs reconnect
     _button_clock_checks(mgr, javac, java)   # ucd-0e1: THE WIRE CONTRACT of the button-clock demo
     _light_checks(mgr)   # ucd-light: the light test's bridge
+    _light_v2_checks(mgr)   # fgm-6a: the light with command confirmation, beside v1
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '

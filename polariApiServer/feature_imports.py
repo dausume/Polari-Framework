@@ -1308,7 +1308,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
                                'Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',
                                'RegisterFieldSetting', 'BoardPinNet', 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion',
-                               'ButtonClockState', 'ButtonClockEvent', 'LightState', 'Datasheet',
+                               'ButtonClockState', 'ButtonClockEvent', 'LightState', 'LightStateV2', 'LightCommand', 'Datasheet',
                                'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
                                'PinLifecycleConstraint',   # fgm-2: the UNO hardware truth (seven)
                                'EnclosureKind', 'HardwareEnclosure', 'EnclosureContact',   # hsp-0: enclosures + exposure maps (three)

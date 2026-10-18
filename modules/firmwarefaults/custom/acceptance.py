@@ -108,6 +108,44 @@ ACCEPTANCE_SCENARIOS = [
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
      'capability': 'ensure-button-controls-light', 'provenance': 'fgm-5a seed',
      'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route read-button:analog-threshold)'},
+    # fgm-6a: command confirmation on the wire (LightStateV2, variant uno-light-v2). Runner: board.custom.light_v2_twin. They restate the
+    # command half of ensure-polari-can-control-light for the NEW wire struct; the Purpose's own status still derives from ITS acceptance_scenario.
+    {'name': 'light-v2-rapid-commands-acceptance', 'title': 'Acceptance - 20 rapid commands, 20 confirmations (uno-light-v2)',
+     'description': 'Twenty SET_LED commands, 20 ms apart, ids 1 to 20, alternating on and off: the board answers each at once with a report naming its id, the backend ledger confirms each by its own id and light value, none by an unrelated report, and the light follows all twenty.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-v2', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'every command id 1..20 confirmed by a report with last_command_id == id and result applied; toggles 20; a ledger from another boot session confirms none',
+     'observable_kind': 'command-echo', 'window_cycles': int(3.0 * 16000000), 'run_seconds': 3.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'fgm-6a seed',
+     'notes': 'runner: board.custom.light_v2_twin (check rapid)'},
+    {'name': 'light-v2-reboot-acceptance', 'title': 'Acceptance - a reboot between send and answer is unknown, resend (uno-light-v2)',
+     'description': 'The board is reset (a) while it is still sending its answer to a command it has applied and (b) while the command is still arriving: the backend ledger shows the command as unknown-resend (the boot_session changed), never as done. A control with no reset is confirmed.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-v2', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'boot_session 1 then 2; the command is unknown-resend in both reset cases and no later report names it; confirmed in the no-reset control',
+     'observable_kind': 'command-echo', 'window_cycles': int(2.0 * 16000000), 'run_seconds': 2.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'fgm-6a seed',
+     'notes': 'runner: board.custom.light_v2_twin (check reboot); his ruling 7.8.3'},
+    {'name': 'light-v2-malformed-acceptance', 'title': 'Acceptance - a malformed command is answered rejected-invalid (uno-light-v2)',
+     'description': 'Four malformed commands (no led_on, no command_id, command_id 0, a truncated payload): each is answered rejected-invalid on the wire, the first with its own id and the others leaving last_command_id alone, the light stays off; the next good command is applied.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-v2', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'last_command_result rejected-invalid with last_command_id 5, toggles 0; then command 6 applied, toggles 1',
+     'observable_kind': 'command-echo', 'window_cycles': int(2.5 * 16000000), 'run_seconds': 2.5,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'fgm-6a seed',
+     'notes': 'runner: board.custom.light_v2_twin (check malformed)'},
+    {'name': 'light-v2-button-no-confirm-acceptance', 'title': 'Acceptance - a button press never confirms a command (uno-light-v2)',
+     'description': 'A press of the board button changes the light but leaves last_command_id and last_command_result as they were, so a command that never reached the board stays pending through the press reports and becomes unconfirmed at its timeout; a command sent after the press is confirmed by its own answer.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-v2', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'reports after the press: source button, last_command_id unchanged; the lost command pending then unconfirmed; the next command confirmed',
+     'observable_kind': 'command-echo', 'window_cycles': int(3.0 * 16000000), 'run_seconds': 3.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'fgm-6a seed',
+     'notes': 'runner: board.custom.light_v2_twin (check button)'},
     {'name': 'sim-rig-pwm-duty-acceptance', 'title': 'Acceptance - the PWM LED duty (drive-led:pwm)',
      'description': 'SET pwm_duty 25, 50 and 100 over the serial link to the sim rig: the twin\'s OCR0A (the PWM compare register behind D6) '
                     'becomes 63, 127 and 255 (duty x 255 / 100) and the duty the timer produces, OCR0A / 255, is within half a percentage point.',
@@ -125,7 +163,7 @@ ACCEPTANCE_SCENARIOS = [
 #: printable vocabulary `pol faults list` reads) — duplicated as plain True here, never imported from scenarios.py at
 #: module load time, to avoid a load-order cycle: scenarios.py itself imports THIS module (to merge the acceptance
 #: rows into SEED_SCENARIOS/SEED_STEPS), so acceptance.py must not need scenarios.py to finish loading first.
-_FORCIBLE = {'drive-adc-ramp', 'assert-field-arrival', 'assert-command-echo', 'pin-at'}   # ucd-0e2: pin-at (ucd-0d), proven on the twin
+_FORCIBLE = {'drive-adc-ramp', 'assert-field-arrival', 'assert-command-echo', 'pin-at', 'reset-at'}   # ucd-0e2: pin-at (ucd-0d), proven on the twin
 
 
 def _step(scenario, position, kind, args, notes=''):
@@ -170,6 +208,18 @@ ACCEPTANCE_STEPS = [
           notes='the twin\'s triangle ramp on ADC0: the switch closes (low) at the start and at every period'),
     _step('light-analog-button-acceptance', 2, 'assert-field-arrival', {'field': 'toggles == the model\'s falling crossings of the press threshold', 'window_ms': 100},
           notes='read off the decoded LightState frames; plus the held-high and closed-at-boot controls'),
+    _step('light-v2-rapid-commands-acceptance', 1, 'assert-command-echo', {'field': 'last_command_id', 'value': 20, 'window_ms': 100},
+          notes='SET_LED ids 1..20 20 ms apart; every id is named by a report'),
+    _step('light-v2-reboot-acceptance', 1, 'reset-at', {'cycle': 3260000},
+          notes='avr_reset while the answer to command 1 is half sent (and a second run while the command is arriving)'),
+    _step('light-v2-reboot-acceptance', 2, 'assert-field-arrival', {'field': 'boot_session changes; command 1 -> unknown-resend', 'window_ms': 100},
+          notes='read off the decoded reports and the ledger'),
+    _step('light-v2-malformed-acceptance', 1, 'assert-command-echo', {'field': 'last_command_result', 'value': 'rejected-invalid', 'window_ms': 100},
+          notes='four malformed commands, then a good one'),
+    _step('light-v2-button-no-confirm-acceptance', 1, 'pin-at', {'cycle': 4000000, 'pin': 'PD2', 'level': 0},
+          notes='one press on D2 between two commands'),
+    _step('light-v2-button-no-confirm-acceptance', 2, 'assert-field-arrival', {'field': 'last_command_id unchanged by the press; the lost command unconfirmed', 'window_ms': 100},
+          notes='read off the decoded reports and the ledger'),
     _step('sim-rig-pwm-duty-acceptance', 1, 'assert-command-echo', {'field': 'pwm_duty', 'value': 25, 'window_ms': 100},
           notes='SET pwm_duty 25, then 50, then 100 (inject at cycles 4.8M, 16M, 24M)'),
     _step('sim-rig-pwm-duty-acceptance', 2, 'assert-field-arrival', {'field': 'OCR0A == duty*255//100 (twin status lines)', 'window_ms': 100},
@@ -185,6 +235,11 @@ LIGHT_WHICH = {'ensure-button-controls-light': 'button', 'ensure-polari-observes
 #: fgm-5a: Scenario -> the FirmwareVariant board.custom.variant_twin proves (keyed by the Scenario, not its variant: uno-sim-rig has others)
 VARIANT_PROOFS = {'light-pcint-button-acceptance': 'uno-light-pcint', 'light-analog-button-acceptance': 'uno-light-analog',
                   'sim-rig-pwm-duty-acceptance': 'uno-sim-rig'}
+
+
+#: fgm-6a: Scenario -> the check of board.custom.light_v2_twin that proves it (the v2 light's command confirmation)
+V2_PROOFS = {'light-v2-rapid-commands-acceptance': 'rapid', 'light-v2-reboot-acceptance': 'reboot', 'light-v2-malformed-acceptance': 'malformed',
+             'light-v2-button-no-confirm-acceptance': 'button'}
 
 
 def find(name):
@@ -209,7 +264,10 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    if sc['name'] in VARIANT_PROOFS:
+    if sc['name'] in V2_PROOFS:
+        from board.custom import light_v2_twin as L2
+        result = L2.prove(V2_PROOFS[sc['name']], run_mode)
+    elif sc['name'] in VARIANT_PROOFS:
         # fgm-5a: an isotope variant's own twin proof (the catalogue route it restates is read by cmod.custom.isotope_variants)
         from board.custom import variant_twin as VT
         result = VT.prove(VARIANT_PROOFS[sc['name']], run_mode)

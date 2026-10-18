@@ -238,8 +238,8 @@ def sc2_parts(check):
         r = SR.counts_row({'findings': [{'severity': 'style'}] * 6 + [{'severity': 'warning'}], 'counts': {'style': 6, 'warning': 1}, 'run_info': [1]})
         check('the per-variant row counts findings by severity (run information kept apart)', (r['findings'], r['style'], r['warnings'], r['run_info']) == (7, 6, 1, 1))
         vs = SR.all_variants()
-        check('every UNO variant is scanned: board\'s 9 (ucd-0e2: + uno-button-clock; ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog) + the 11 scenario variants = 20',
-              len(vs) == 20 and 'uno-light' in vs and 'uno-sim-rig-torn' in vs and 'uno-echo' in vs and 'uno-button-clock' in vs, vs)
+        check('every UNO variant is scanned: board\'s 10 (ucd-0e2: + uno-button-clock; ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog; fgm-6a: + uno-light-v2) + the 11 scenario variants = 21',
+              len(vs) == 21 and 'uno-light' in vs and 'uno-light-v2' in vs and 'uno-sim-rig-torn' in vs and 'uno-echo' in vs and 'uno-button-clock' in vs, vs)
 
     def workers():
         import falcon.testing

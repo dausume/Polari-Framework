@@ -54,6 +54,15 @@ SEED_ENUM_MAPPINGS = [
           'pushbutton on the board). Wire: 1 byte (0 = unknown).'),
     _enum('LightState', 'status', ['idle', 'active'],
           'ucd-light: idle until the light first changes after the board starts, then active. Wire: 1 byte (0 = unknown).'),
+    # fgm-6a: LightStateV2 (a NEW class beside LightState): the same two enums + the board's answer to a command
+    _enum('LightStateV2', 'source', ['command', 'button'],
+          'fgm-6a: who made the last change to the light -- command or button. Wire: 1 byte (0 = unknown).'),
+    _enum('LightStateV2', 'status', ['idle', 'active'],
+          'fgm-6a: idle until the light first changes after the board starts, then active. Wire: 1 byte (0 = unknown).'),
+    _enum('LightStateV2', 'last_command_result', ['applied', 'rejected-invalid', 'rejected-busy'],
+          'fgm-6a (FIRMWARE_GENERATION_MODULE_PLAN.md 7.8.3): how the board answered the command named by last_command_id -- applied '
+          '(done, or already done), rejected-invalid (malformed: no command number, no light value) or rejected-busy (the board could '
+          'not take it now). Wire: 1 byte (0 = unknown, i.e. no command answered since the board started).'),
 ]
 
 
@@ -92,6 +101,19 @@ SEED_LIGHT_BRIDGE = {
     'last_generated_at': '', 'manifest_json': '{}', 'contract_hashes_json': '{}',
     'notes': 'The light test\'s bridge: the board\'s serial link to Polari carries one struct, LightState, in both '
              'directions (the light\'s state up, the on/off command down).',
+}
+
+#: fgm-6a: the v2 light's bridge -- ONE wire class (LightStateV2 = msg_type 1), same serial link as the v1 light test. Opt-in: the
+#: v1 bridge (uno-light) stays the default; this one is for a board running the uno-light-v2 firmware.
+LIGHT_V2_BRIDGE = 'uno-light-v2'
+SEED_LIGHT_V2_BRIDGE = {
+    'name': '%s-bridge' % LIGHT_V2_BRIDGE, 'bridge_name': LIGHT_V2_BRIDGE, 'source': 'serial',
+    'serial_device': '/dev/ttyACM0', 'baud': 115200,
+    'exposed_classes_json': json.dumps(['LightStateV2']),
+    'sim_rate_hz': 10, 'grpc_enabled': False, 'grpc_target': 'localhost:3002', 'device_id': 1,
+    'last_generated_at': '', 'manifest_json': '{}', 'contract_hashes_json': '{}',
+    'notes': 'fgm-6a: the v2 light\'s bridge -- one struct, LightStateV2, in both directions: the light\'s state up, the on/off command '
+             '(with its command number) down, and the board\'s answer to the command (last_command_id / last_command_result) up.',
 }
 
 #: every mapping row class, in registration order

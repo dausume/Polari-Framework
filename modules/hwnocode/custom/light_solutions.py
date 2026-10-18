@@ -173,6 +173,69 @@ def toggle_contract():
             'returns': [], 'executionRights': 'definer'}
 
 
+# ------------------------------------------------------------------ light-toggle-v2: the screen's button WITH command confirmation (fgm-6a)
+TOGGLE_V2_SOLUTION = 'light-toggle-v2'
+TOGGLE_V2_ANALYSIS = 'board-light-v2-send'
+LIGHT_V2_OBJECT_CLASS = 'LightStateV2'
+LIGHT_V2_OBJECT_NAME = 'uno-light-v2'
+
+
+def toggle_v2_definition(name=TOGGLE_V2_SOLUTION):
+    """The v2 screen button: entry marker -> ONE AnalysisCall (`board-light-v2-send`, board.custom.light_confirm:analysis_send), which mints a
+    command_id (a u16, monotonic per backend start, never the number the board last answered), writes command_id + led_on on the LightStateV2 row
+    (that write rides the Commands stream down) and records a LightCommand in the ledger. The light's report that names the command confirms it
+    (or a restart makes it `unknown-resend`; silence makes it `unconfirmed`) - read it on the door GET /api/board/light-v2 (`pending_command`).
+    NOT seeded by default: the v1 `light-toggle` stays the screen's button until the app and the page switch."""
+    n = GB.node
+    entry = n('toggle-requested', 'BackendStateChange', {'displayName': 'Toggle the light (with confirmation)', 'modelName': LIGHT_V2_OBJECT_CLASS,
+                                                         'fieldName': 'command_id', 'changeType': 'update',
+                                                         'description': 'entry marker: a person asked for the light to change'},
+              outs=[['send-command']])
+    send = n('send-command', 'AnalysisCall', {'analysis': TOGGLE_V2_ANALYSIS, 'resultVariable': 'sent', 'pick': '',
+                                              'params': {'object': GB.var_src('object'), 'led_on': GB.var_src('led_on')}}, outs=[[]])
+    d = GB.solution(name, entry, send)
+    purposes = {'toggle-requested': 'A person asked for the light to change (this button).',
+                'send-command': 'Numbers the command (command_id), writes it with the new on/off value onto the LightStateV2 row, and records it. '
+                                'It is DONE only when the light reports that number back from the same board start.'}
+    xs = {'toggle-requested': (80, 80), 'send-command': (360, 80)}
+    for s in d['stateInstances']:
+        nm = s['stateName']
+        s['stateLocationX'], s['stateLocationY'] = xs[nm]
+        s['shapeType'] = s['stateSvgName'] = 'rectangle'
+        s['layerName'] = 'rectangle-layer'
+        s['backgroundColor'] = '#1565C0'
+        s['slotRadius'] = 5
+        s['stateSvgWidth'], s['stateSvgHeight'], s['cornerRadius'] = 190, 90, 8
+        s['stateSvgRadius'] = None
+        s['stateSvgSizeX'] = s['stateSvgSizeY'] = None
+        f = dict(s.get('boundObjectFieldValues') or {})
+        f.setdefault('displayName', nm)
+        f.setdefault('purpose', purposes[nm])
+        s['boundObjectFieldValues'] = f
+    return S._wire_connectors(d)
+
+
+def toggle_v2_contract():
+    return {'description': 'light-toggle-v2: the screen\'s button for the v2 light. Mints a command_id and sends SET_LED; the command is confirmed '
+                           'only by a report from the light that names it (see GET /api/board/light-v2).',
+            'inputs': [{'name': 'object', 'required': False, 'description': 'the LightStateV2 row (default uno-light-v2)'},
+                       {'name': 'led_on', 'required': False, 'description': 'the value to set; absent = toggle'}],
+            'returns': [{'name': 'command_id', 'description': 'the number the command was sent with'},
+                        {'name': 'command_status', 'description': 'pending at once; confirmed / rejected-* / unknown-resend / unconfirmed later, on the door'}],
+            'executionRights': 'definer'}
+
+
+def toggle_v2_rows():
+    """The rows that make the v2 button real - a SolutionDefinition and the AnalysisDefinition it calls - for the step that switches the app
+    and the page to v2 to seed (they are NOT in definition_rows(): the v1 light-toggle stays the default)."""
+    return {'solution': {'name': TOGGLE_V2_SOLUTION, 'function_name': TOGGLE_V2_SOLUTION.replace('-', '_'), 'target_runtime': 'python_backend',
+                         'definition': json.dumps(toggle_v2_definition()), 'contract_json': json.dumps(toggle_v2_contract()), 'category': ''},
+            'analysis': {'name': TOGGLE_V2_ANALYSIS, 'domain': 'board', 'callable_ref': 'board.custom.light_confirm:analysis_send',
+                         'description': 'fgm-6a: mint a command_id and send the v2 light\'s SET_LED; record it for confirmation.',
+                         'params_json': json.dumps({'object': LIGHT_V2_OBJECT_NAME, 'led_on': None}), 'enabled': True, 'is_prior': True,
+                         'provenance_id': '', 'notes': ''}}
+
+
 def definition_rows():
     """The two SolutionDefinition seed rows (hwnocode.custom.seed_rows appends them)."""
     return [

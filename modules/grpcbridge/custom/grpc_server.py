@@ -530,6 +530,8 @@ if HAS_GRPC:
         if binding is not None:
             from grpcbridge.custom.wire_contract import note_frame
             note_frame(binding, 0)
+        from grpcbridge.custom.wire_contract import observe_frame
+        observe_frame(manager, cls, inst)   # fgm-6a: a module may correlate the report with what it sent
         return pid, operation
 
     def _hw(msg):

@@ -286,6 +286,11 @@ def solve_parts(check):
                c.simulate_post('/api/missions/%s/solve' % LIGHT, body=json.dumps({'boards': ['nope']})).status_code, c.simulate_post('/api/missions/%s/solve' % LIGHT, body=json.dumps({'limits': {'nope': 1}})).status_code,
                c.simulate_get('/api/missions/%s/solve-runs/nope' % LIGHT).status_code, c.simulate_get('/api/missions/%s/solve' % LIGHT, params={'view': 'nope'}).status_code]
         check('sol-0 DOORS: an unknown Mission is 404; an unknown objective, board, limit or view is 422 naming what is known; an unknown run is 404', bad == [404, 422, 422, 422, 404, 422], bad)
+        top = c.simulate_post('/api/missions/%s/solve' % LIGHT, body=json.dumps({'boards': [UNO], 'objective': 'fastest-cycle', 'prefer': 'bench-wiring', 'store': False}))
+        stray = c.simulate_post('/api/missions/%s/solve' % LIGHT, body=json.dumps({'boards': [UNO], 'preferr': 'bench-wiring'}))
+        pins = {a.get('pin') for a in (top.json.get('assignment') or []) if isinstance(a, dict)} if top.status_code in (200, 201) else set()
+        check('sol-0 DOORS: `prefer` at the TOP LEVEL of the POST body is honoured (bench wiring: D2 / D6 / D3 placed) and an unknown body key is REFUSED 422 by name, never silently ignored',
+              top.status_code in (200, 201) and {'D2', 'D6', 'D3'} <= pins and stray.status_code == 422 and 'preferr' in stray.json['error'], (top.status_code, sorted(p for p in pins if p), stray.status_code))
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc = S.main(['mission', LIGHT, '--board', UNO])

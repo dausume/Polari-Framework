@@ -33,6 +33,12 @@ GET  /api/board/{board}/pin-roles
                                  power/pwm/spi/uart), what it is, how it is used, which pins carry it, and a
                                  cited learn-more link (board.custom.pin_roles + pinmap_svg.pins_by_role)
 
+GET  /api/board/light-v2[?name=]  fgm-6a: the v2 light (LightStateV2) and the confirmation of its commands -- `pending_command`
+                                 {id, sent_at, status: pending | confirmed | rejected-invalid | rejected-busy | unknown-resend |
+                                 unconfirmed, ...} and the recent commands (board.custom.light_confirm)
+POST /api/board/light-v2         body {name?, led_on?}: mint a command_id and send SET_LED (led_on absent = toggle); the answer is
+                                 the new pending_command. 409 by name when no report from the board has been seen yet
+
 brd-fi: the firmware installer's doors (/api/board/installer…, /api/board/variants, /api/board/builds/{b}/compat) live in
 board.installer_api.
 """
@@ -64,6 +70,7 @@ class BoardAPI(treeObject):
             add('/api/board/{board}/pinmap.svg', self, suffix='pinmap_svg')
             add('/api/board/{board}/pin-roles', self, suffix='pin_roles')
             add('/api/board/target-compat', self, suffix='target_compat')
+            add('/api/board/light-v2', self, suffix='light_v2')   # fgm-6a: the v2 light's state + command confirmation
 
     def _table(self, class_name):
         return ((self.manager.objectTables or {}).get(class_name, {}) or {}) if self.manager is not None else {}
@@ -128,6 +135,32 @@ class BoardAPI(treeObject):
                 pass
         response.status = falcon.HTTP_201
         response.media = dict(result, ok=True, stored=stored)
+
+    def on_get_light_v2(self, request, response):
+        from board.custom import light_confirm as LC
+        try:
+            response.media = LC.state(self.manager, request.get_param('name') or LC.DEFAULT_LIGHT)
+        except LC.ConfirmRefused as e:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': str(e)}
+
+    def on_post_light_v2(self, request, response):
+        from board.custom import light_confirm as LC
+        try:
+            raw = request.bounded_stream.read() or b''
+            body = json.loads(raw) if raw.strip() else {}
+            led = body.get('led_on')
+            cmd = LC.send(self.manager, str(body.get('name') or LC.DEFAULT_LIGHT), None if led is None else bool(led))
+        except LC.ConfirmRefused as e:
+            response.status = falcon.HTTP_409
+            response.media = {'ok': False, 'error': str(e)}
+            return
+        except ValueError as e:
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'bad JSON: %s' % e}
+            return
+        response.status = falcon.HTTP_201
+        response.media = {'ok': True, 'pending_command': cmd}
 
     def on_get_readiness(self, request, response):
         """demo1: usable | partial | tracked per board, DERIVED from the rows that already exist
