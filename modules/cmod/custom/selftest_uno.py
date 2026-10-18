@@ -177,7 +177,7 @@ def uno_parts(check):
               counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 69, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
                          'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 71, 'RegisterAssignment': 46,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22, 'ScoreTerm': 24, 'ScoreConcept': 10}, counts)   # fsc-0/2: + the 24 Firmware Score Terms and 10 seeded profiles (the scoring module's own classes)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}
@@ -253,7 +253,7 @@ def uno_parts(check):
         r = M.conform('cmod')
         check('manifests conform cmod: no drift (files, classes, imports, endpoints, seeds, pages, requires)', r['ok'], r['findings'])
         m = M.load('cmod')
-        check('polari-app.json requires board only and declares its engines honestly (pycparser in-process; avr-gcc / avr-nm / make via the board seam)',
-              m['requires']['modules'] == ['board'] and {'pycparser', 'avr-gcc', 'avr-nm', 'make'} <= {e['name'] for e in m['requires']['engines']})
+        check('polari-app.json requires board (and scoring, for the fsc Firmware Score Profiles) only and declares its engines honestly (pycparser in-process; avr-gcc / avr-nm / make via the board seam)',
+              m['requires']['modules'] == ['board', 'scoring'] and {'pycparser', 'avr-gcc', 'avr-nm', 'make'} <= {e['name'] for e in m['requires']['engines']})
 
     return (uno_atoms, torn_build, macro_is_empty, cross_check_cpp, committed_manifest, registers_snapshot, seeds_page_api, manifest_conform)
