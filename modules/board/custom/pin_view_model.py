@@ -131,7 +131,8 @@ class Model:
         did = 'die:%s:%s' % (self.board, comp['ref'])
         body = S.params(pkg_shape)['body']
         self.add_surface(id=pid, kind='enclosure', level='package', title='%s %s package (%s)' % (comp['ref'], comp['soc'], pkg['package_type']), parent=self.board_id, shape=pkg_shape['name'],
-                         x=pl['x'], y=pl['y'], rot=pl['rot'], w=body[0], h=body[1], ref='HardwareEnclosure:%s:%s:package' % (self.board, comp['ref']), component=comp['ref'], soc=comp['soc'], package=pkg['name'])
+                         x=pl['x'], y=pl['y'], rot=pl['rot'], w=body[0], h=body[1], ref='HardwareEnclosure:%s:%s:package' % (self.board, comp['ref']), component=comp['ref'], soc=comp['soc'], package=pkg['name'],
+                         short_title=S.package_short_title(comp['ref'], pkg['package_type']))
         legs = {}
         pcs = [c for c in self.t['PackageContact'] if c['package'] == pkg['name']]
         by_num = {p['number']: p for p in lay['pins']}

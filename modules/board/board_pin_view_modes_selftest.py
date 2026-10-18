@@ -195,6 +195,61 @@ def run_pin_view_modes(check):
           % (S.LABEL['max_title'], S.LABEL['max_pin']),
           all(s['short_title'] and len(s['short_title']) <= S.LABEL['max_title'] and s['title_pos'] and s['extent'] for s in parts) and sh['part:%s:RESET button TS42031-160R-TR-7260' % BOARD]['short_title'].endswith('…')
           and all(p['short_label'] and len(p['short_label']) <= S.LABEL['max_pin'] for p in base['pins'] if p['level'] in ('part', 'bench')) and base['layout']['font'] == S.LABEL['font'], '')
+    # ---- layout: a package title never lies over another chip's leg labels (the U2 title ran into U1's top-left leg label)
+    import math
+    K = S.PKG_TITLE
+    mm = lambda px: px / K['fit_px_per_mm']   # noqa: E731
+    pkgs = [s for s in base['surfaces'] if s['kind'] == 'enclosure']
+    byid = {s['id']: s for s in base['surfaces']}
+
+    def rot(s, x, y):
+        a = math.radians(s.get('rot') or 0)
+        return s['x'] + math.cos(a) * x - math.sin(a) * y, s['y'] + math.sin(a) * x + math.cos(a) * y
+
+    leg_boxes = []   # (chip, label, rect): the leg labels of every package, outward of the leg, estimated at the fit zoom
+    for s in pkgs:
+        for p in base['pins']:
+            if p['surface'] != s['id']:
+                continue
+            x, y = rot(s, p['x'], p['y'])
+            ox, oy = x - s['x'], y - s['y']
+            w, hh = mm(len(p['label']) * K['label_px'] * K['char_em']), mm(K['label_px'])
+            if abs(ox) >= abs(oy):
+                r = {'x0': x, 'x1': x + w, 'y0': y - hh / 2, 'y1': y + hh / 2} if ox >= 0 else {'x0': x - w, 'x1': x, 'y0': y - hh / 2, 'y1': y + hh / 2}
+            else:
+                r = {'x0': x - w / 2, 'x1': x + w / 2, 'y0': y, 'y1': y + hh} if oy >= 0 else {'x0': x - w / 2, 'x1': x + w / 2, 'y0': y - hh, 'y1': y}
+            leg_boxes.append((s['id'], p['label'], r))
+    title_boxes = []
+    for s in pkgs:
+        w, h = (s['h'], s['w']) if s.get('rot') in (90, 270) else (s['w'], s['h'])
+        text = s['short_title'] or s['title']
+        tw = mm(len(text) * K['title_px'] * K['char_em'])
+        top = s['y'] - h / 2 - mm(K['lift_px'])
+        title_boxes.append((s['id'], text, {'x0': s['x'] - w / 2, 'x1': s['x'] - w / 2 + tw, 'y0': top - mm(K['title_px']), 'y1': top}))
+    tclash = [(t[1], l[0], l[1]) for t in title_boxes for l in leg_boxes if t[0] != l[0] and _overlap(t[2], l[2])]
+    tt = [(a[1], b[1]) for i, a in enumerate(title_boxes) for b in title_boxes[i + 1:] if _overlap(a[2], b[2])]
+    u2 = next(b for b in title_boxes if b[0].endswith(':U2'))
+    check('LAYOUT package titles: each package carries a short drawn title (the full name stays the hover text); across %d packages (%d leg-label boxes at the %g px/mm fit zoom) no package title overlaps another chip\'s leg labels or another title - '
+          'U2\'s title is "%s", not the 27-character name that ran into U1\'s top-left leg label' % (len(pkgs), len(leg_boxes), K['fit_px_per_mm'], u2[1]),
+          len(pkgs) == 2 and all(s['short_title'] and len(s['short_title']) < len(s['title']) for s in pkgs) and not tclash and not tt, str((tclash[:3], tt)))
+    ghost = [(title_boxes[0][1], 'U2 atmega16u2 package (QFN)')]
+    long_t = {'x0': u2[2]['x0'], 'x1': u2[2]['x0'] + mm(len('U2 atmega16u2 package (QFN)') * K['title_px'] * K['char_em']), 'y0': u2[2]['y0'], 'y1': u2[2]['y1']}
+    check('LAYOUT package titles detector: the OLD full-length U2 title DOES overlap a U1 leg label under the same test (the check can fail)', any(_overlap(long_t, l[2]) for l in leg_boxes if l[0].endswith(':U1')) and ghost, '')
+    # ---- page titles and table -> view links (sf)
+    import json as _json
+    from board.pin_view_page import PIN_VIEW_PAGES
+    from board.register_profile_page import REGISTER_PROFILE_PAGES
+    from polariApiServer.module_pages_seed import _page as _seed_page
+    titles = {pg['name']: _json.loads(pg['definition']).get('title') for pg in PIN_VIEW_PAGES + REGISTER_PROFILE_PAGES}
+    plain = _seed_page('x-y', 'x-y', 'd', 'C', [])
+    tables = [it for pg in PIN_VIEW_PAGES if pg['name'] != 'pin-view' for r in _json.loads(pg['definition'])['rows'] for it in r['items']]
+    links = {it['componentProps']['inputs']['columnFormats'] for it in tables}
+    check('PAGE titles: the pin view, its three table pages, the register profile and the memory map carry a readable title in their definition (a page without one has none: the header humanizes its name); every table on the three '
+          'table pages has a `view` link column ({id} into /display/pin-view?pin= | connection= | surface=)',
+          titles == {'pin-view': 'Pin view', 'pin-view-pins': 'Pins', 'pin-view-connections': 'Connections', 'pin-view-surfaces': 'Surfaces', 'register-profile': 'Register profile', 'memory-map': 'Memory map'}
+          and 'title' not in _json.loads(plain['definition'])
+          and links == {'view:view:/display/pin-view?pin={id}', 'view:view:/display/pin-view?connection={id}', 'view:view:/display/pin-view?surface={id}'}
+          and all(it['componentProps']['inputs']['columns'].endswith(',view') for it in tables), str(titles))
     forced = _overlap({'x0': 0, 'x1': 2, 'y0': 0, 'y1': 1}, {'x0': 1.5, 'x1': 3, 'y0': 0.5, 'y1': 2}) and not _overlap({'x0': 0, 'x1': 2, 'y0': 0, 'y1': 1}, {'x0': 2, 'x1': 3, 'y0': 0, 'y1': 1})
     items = [('a', {'x0': -2.0, 'y0': -1.0, 'x1': 2.0, 'y1': 1.0}), ('b', {'x0': -2.0, 'y0': -1.0, 'x1': 2.0, 'y1': 1.0})]
     packed = S.pack_parts(items, [{'x0': 0.0, 'y0': 0.0, 'x1': 10.0, 'y1': 10.0}])

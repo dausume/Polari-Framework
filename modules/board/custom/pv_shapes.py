@@ -319,6 +319,15 @@ def text_w(text):
     return len(text) * LABEL['font'] * LABEL['char_w']
 
 
+#: a package's title is drawn at screen size (title_px) above its top-left corner, lifted clear of its own leg labels (lift_px); estimated at a CONSERVATIVE fit zoom (px per mm)
+#: so the keep-out holds from the fit-all view inward. The full "U2 atmega16u2 package (QFN)" ran 170 px - into U1's leg labels - so the drawn text is the short "U2 QFN" (full name on hover).
+PKG_TITLE = {'title_px': 11, 'lift_px': 16, 'label_px': 9, 'char_em': 0.58, 'fit_px_per_mm': 6.0}
+
+
+def package_short_title(ref, package_type):
+    return ('%s %s' % (ref, package_type)).strip()
+
+
 def short(text, limit):
     """The abbreviated drawing text (limit characters, the last one an ellipsis); the full name stays the hover text."""
     return text if len(text) <= limit else text[:limit - 1] + '\u2026'

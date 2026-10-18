@@ -155,7 +155,12 @@ def _row(index, items, min_height=320):
     }
 
 
-def _page(name, route, description, source_class, rows):
+def _page(name, route, description, source_class, rows, title=''):
+    """`title` (optional) is the readable page title the header shows; it rides in the definition JSON (`title`). Without it the header
+    humanizes `name` ("pin-view" -> "Pin view")."""
+    definition = {'rows': rows}
+    if title:
+        definition['title'] = title
     return {
         'name': name,
         'description': description,
@@ -163,7 +168,7 @@ def _page(name, route, description, source_class, rows):
         'isPage': True,
         'pageRoute': route,
         'linkedSolutions': '[]',
-        'definition': json.dumps({'rows': rows}),
+        'definition': json.dumps(definition),
     }
 
 
