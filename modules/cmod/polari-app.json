@@ -230,6 +230,7 @@
    "custom/selftest_glue",
    "custom/selftest_isotopes",
    "custom/selftest_light",
+   "custom/selftest_button_routes",
    "custom/selftest_pin_config",
    "custom/selftest_mission",
    "custom/selftest_purpose",

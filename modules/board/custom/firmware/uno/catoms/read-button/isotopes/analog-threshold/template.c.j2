@@ -1,0 +1,63 @@
+{% import 'read-button/_common.j2' as L %}
+{{ L.banner(file, banner) }}
+#include <avr/io.h>
+#include <stdint.h>
+#include <util/atomic.h>
+
+#include "hal.h"
+
+#if !HAL_INT0 || HAL_BUTTON_ROUTE != {{ route_code|c_int }}
+#error "hal_button_adc.c is the button route {{ route_code|c_int }} (analog threshold): board_config.h must set HAL_INT0 1 and HAL_BUTTON_ROUTE {{ route_code|c_int }}"
+#endif
+
+/* The button pulls {{ pin_name|c_comment }} ({{ soc_pin|c_comment }}, ADC{{ channel|c_int }}) to ground; a {{ pullup_ohms|c_int }} ohm resistor to 5 V holds it high. One blocking conversion per
+ * look (ADC = Vin * 1024 / Vref, Vref = AVcc = {{ vref_mv|c_int }} mV): below {{ press_below_counts|c_int }} counts ({{ press_below_mv|c_int }} mV) = pressed, above
+ * {{ release_above_counts|c_int }} counts ({{ release_above_mv|c_int }} mV) = released, and in between the state does not change (hysteresis, so a slow or noisy
+ * edge cannot count twice). */
+#define BUTTON_PRESS_BELOW   {{ press_below_counts|c_int }}u
+#define BUTTON_RELEASE_ABOVE {{ release_above_counts|c_int }}u
+
+static volatile uint16_t g_presses;
+static uint8_t g_pressed;                   /* 1 = the switch is closed (below the press threshold), updated on every look */
+{{ L.lockout_state() }}
+
+static uint16_t button_counts(void)
+{
+    ADMUX = (uint8_t)(_BV(REFS0) | {{ channel|c_int }}u);       /* AVcc reference, channel {{ channel|c_int }}, right-adjusted */
+    ADCSRA |= _BV(ADSC);
+    while (ADCSRA & _BV(ADSC)) { }
+    return ADC;
+}
+
+void hal_button_init(void)
+{
+    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});         /* input */
+    {{ port_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});        /* internal pull-up OFF: the external resistor holds the level */
+    DIDR0 |= _BV({{ didr_bit|c_ident }});                       /* digital input buffer off on this ADC pin (DS40002061B §24.9.5) */
+    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);   /* enable, clk/128 = 125 kHz */
+    g_pressed = button_counts() < BUTTON_PRESS_BELOW;             /* a switch already closed at boot is not a press */
+}
+
+uint16_t hal_presses(void)
+{
+    uint16_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_presses; }
+    return v;
+}
+
+/* Called once per main-loop pass (there is no interrupt on this route): looks at the pin and returns 1 ONCE per accepted press. */
+uint8_t hal_take_toggle_pending(void)
+{
+    uint32_t now;
+    uint16_t counts = button_counts();
+
+    if (g_pressed) {
+        if (counts > BUTTON_RELEASE_ABOVE) g_pressed = 0u;
+        return 0u;
+    }
+    if (counts >= BUTTON_PRESS_BELOW) return 0u;
+    g_pressed = 1u;
+{% call L.lockout_accept('    ') %}return 0u;{% endcall %}
+    g_presses++;
+    return 1u;
+}

@@ -50,7 +50,11 @@ def text(quantity):
 
 def _functions(project):
     from cmod.custom import code_interface as CI
-    return {a['function']: a for p, _m, a in CI._manifest_candidates() if p == project}
+    out = {}
+    for p, _m, a in CI._manifest_candidates():   # fgm-5a: several isotopes of one job share a function name (hal_take_toggle_pending); the FIRST - the shipped hal.c one, sorted before hal_button_*.c - answers
+        if p == project:
+            out.setdefault(a['function'], a)
+    return out
 
 
 def _body(project, atom):

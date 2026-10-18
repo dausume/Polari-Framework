@@ -83,6 +83,41 @@ ACCEPTANCE_SCENARIOS = [
      'capability': 'ensure-polari-can-control-light', 'provenance': 'ucd-light seed',
      'notes': 'fgm-1: re-pointed from the retired light-from-polari to ensure-polari-can-control-light; the steps are unchanged, so runs '
               'recorded before the re-point (under the old Purpose) are the same test and are counted by the new Purpose'},
+    # fgm-5a: the isotope variants' own twin proofs (board.custom.variant_twin). They name an existing Purpose for the GOAL they restate;
+    # the Purpose's own status still derives from ITS acceptance_scenario - these runs are read by the isotope catalogue
+    # (cmod.custom.isotope_variants: implemented_by.proof_scenarios), never folded into a Purpose.
+    {'name': 'light-pcint-button-acceptance', 'title': 'Acceptance - the button on a pin-change interrupt (read-button:pin-change-interrupt)',
+     'description': 'The light test with the button on D4, read by the pin-change-interrupt isotope rendered from its Jinja2 template: three '
+                    'debounced presses on D4 flip the light, the board counts them and says source=button, the light pin (PD6) itself follows; '
+                    'the same presses on D2 change nothing; a bouncing contact counts once.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-pcint', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'toggles == presses, led_on flips, source == button, PD6 high after an odd count; presses on D2 -> toggles 0; one bounce train -> toggles 1',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 1.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-button-controls-light', 'provenance': 'fgm-5a seed',
+     'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route read-button:pin-change-interrupt), not a second Purpose'},
+    {'name': 'light-analog-button-acceptance', 'title': 'Acceptance - the button as a voltage on A0 (read-button:analog-threshold)',
+     'description': 'The light test with the button read as a voltage on A0 by the analog-threshold isotope rendered from its Jinja2 template: the '
+                    'twin drives A0 with a triangle ramp 200..4800 mV (1 s period); every fall below the press threshold is one press, counted by '
+                    'a pure model of the ramp and compared with the frames; a pin held high and a switch closed from boot count nothing.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light-analog', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'toggles == the model\'s press count, led_on == (toggles odd), source == button; constant 4800 mV -> toggles 0; constant 200 mV -> toggles 0',
+     'observable_kind': 'field-arrival', 'window_cycles': int(1.0 * 16000000), 'run_seconds': 3.6,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-button-controls-light', 'provenance': 'fgm-5a seed',
+     'notes': 'runner: board.custom.variant_twin; proves the ISOTOPE (catalogue route read-button:analog-threshold)'},
+    {'name': 'sim-rig-pwm-duty-acceptance', 'title': 'Acceptance - the PWM LED duty (drive-led:pwm)',
+     'description': 'SET pwm_duty 25, 50 and 100 over the serial link to the sim rig: the twin\'s OCR0A (the PWM compare register behind D6) '
+                    'becomes 63, 127 and 255 (duty x 255 / 100) and the duty the timer produces, OCR0A / 255, is within half a percentage point.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-sim-rig', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'OCR0A read from the twin status lines == duty * 255 // 100 after each command; the frame echoes pwm_duty',
+     'observable_kind': 'command-echo', 'window_cycles': int(2.0 * 16000000), 'run_seconds': 2.0,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'ensure-polari-can-control-light', 'provenance': 'fgm-5a seed',
+     'notes': 'runner: board.custom.variant_twin; proves the catalogue route drive-led:pwm. The duty is OCR0A / 255 as the twin reads it; the pin waveform itself is not sampled'},
 ]
 
 
@@ -127,12 +162,29 @@ ACCEPTANCE_STEPS = [
           notes='SET_LED 1: the next frames report the light on, source=command'),
     _step('light-from-polari-acceptance', 2, 'assert-command-echo', {'field': 'led_on', 'value': 0, 'window_ms': 100},
           notes='SET_LED 0: the last frame reports the light off, toggles 2'),
+    _step('light-pcint-button-acceptance', 1, 'pin-at', {'cycle': 1600000, 'pin': 'PD4', 'level': 0},
+          notes='the first of three presses on D4 (board.custom.variant_twin.press_pinat)'),
+    _step('light-pcint-button-acceptance', 2, 'assert-field-arrival', {'field': 'led_on flips, toggles==presses, source==button, PD6 follows', 'window_ms': 100},
+          notes='read off the decoded LightState frames and PORTD of the same run; plus the D2 and bounce controls'),
+    _step('light-analog-button-acceptance', 1, 'drive-adc-ramp', {'channel': 'A0', 'lo_mv': 200, 'hi_mv': 4800, 'ms': 1000},
+          notes='the twin\'s triangle ramp on ADC0: the switch closes (low) at the start and at every period'),
+    _step('light-analog-button-acceptance', 2, 'assert-field-arrival', {'field': 'toggles == the model\'s falling crossings of the press threshold', 'window_ms': 100},
+          notes='read off the decoded LightState frames; plus the held-high and closed-at-boot controls'),
+    _step('sim-rig-pwm-duty-acceptance', 1, 'assert-command-echo', {'field': 'pwm_duty', 'value': 25, 'window_ms': 100},
+          notes='SET pwm_duty 25, then 50, then 100 (inject at cycles 4.8M, 16M, 24M)'),
+    _step('sim-rig-pwm-duty-acceptance', 2, 'assert-field-arrival', {'field': 'OCR0A == duty*255//100 (twin status lines)', 'window_ms': 100},
+          notes='the twin reports OCR0A on every status line; duty = OCR0A / 255'),
 ]
 
 
 #: the light test's Purposes (fgm-1: the new names; the retired light-from-* names still run, for history) -> which twin check proves them
 LIGHT_WHICH = {'ensure-button-controls-light': 'button', 'ensure-polari-observes-hardware-state': 'button',
                'ensure-polari-can-control-light': 'polari', 'light-from-button': 'button', 'light-from-polari': 'polari'}
+
+
+#: fgm-5a: Scenario -> the FirmwareVariant board.custom.variant_twin proves (keyed by the Scenario, not its variant: uno-sim-rig has others)
+VARIANT_PROOFS = {'light-pcint-button-acceptance': 'uno-light-pcint', 'light-analog-button-acceptance': 'uno-light-analog',
+                  'sim-rig-pwm-duty-acceptance': 'uno-sim-rig'}
 
 
 def find(name):
@@ -157,7 +209,11 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    if sc['capability'] in LIGHT_WHICH:
+    if sc['name'] in VARIANT_PROOFS:
+        # fgm-5a: an isotope variant's own twin proof (the catalogue route it restates is read by cmod.custom.isotope_variants)
+        from board.custom import variant_twin as VT
+        result = VT.prove(VARIANT_PROOFS[sc['name']], run_mode)
+    elif sc['capability'] in LIGHT_WHICH:
         # ucd-light: the light test's own twin runner (board.custom.light_twin) proves the GOAL directly on the simavr twin
         from board.custom import light_twin as LT
         result = LT.prove(LIGHT_WHICH[sc['capability']], run_mode)

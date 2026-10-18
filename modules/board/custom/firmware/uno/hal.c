@@ -147,7 +147,7 @@ uint32_t hal_millis(void)
  * BEFORE build: a ringing contact gives two edges, two counts); > 0 ignores edges within that many ms of the last one
  * it counted (the Technique `debounce`). g_ms is read bare inside the ISR: interrupts are off there, so its four loads
  * cannot be split by the tick. ---- */
-#if HAL_INT0
+#if HAL_INT0 && !HAL_BUTTON_ROUTE   /* fgm-5a: HAL_BUTTON_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = pin-change interrupt, 2 = ADC threshold: that route is rendered into hal_button_*.c from catoms/read-button/ and this INT0 block is off */
 static volatile uint16_t g_presses;
 static volatile uint8_t g_toggle_pending;   /* ucd-0e2: set by the ISR, consumed (cleared) by hal_take_toggle_pending */
 #if HAL_INT0_DEBOUNCE_MS

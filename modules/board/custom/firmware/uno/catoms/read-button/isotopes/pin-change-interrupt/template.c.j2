@@ -1,0 +1,60 @@
+{% import 'read-button/_common.j2' as L %}
+{{ L.banner(file, banner) }}
+#include <avr/interrupt.h>
+#include <avr/io.h>
+#include <stdint.h>
+#include <util/atomic.h>
+
+#include "hal.h"
+
+#if !HAL_INT0 || HAL_BUTTON_ROUTE != {{ route_code|c_int }}
+#error "hal_button_pcint.c is the button route {{ route_code|c_int }} (pin-change interrupt): board_config.h must set HAL_INT0 1 and HAL_BUTTON_ROUTE {{ route_code|c_int }}"
+#endif
+
+static volatile uint16_t g_presses;
+static volatile uint8_t g_toggle_pending;   /* set by the ISR, consumed (cleared) by hal_take_toggle_pending */
+static volatile uint8_t g_released;         /* the level seen at the last real change: 1 = released (pull-up), 0 = pressed */
+{{ L.lockout_state() }}
+
+/* {{ vector|c_comment }}: ONE vector serves the whole bank ({{ mask_reg|c_comment }} picks the pins), so the ISR first checks that
+ * THIS pin ({{ pin_name|c_comment }} = {{ soc_pin|c_comment }}) is the one that moved: it fires on both edges, and only the falling edge
+ * (the switch pulling the pin to ground) is a press. */
+ISR({{ vector|c_ident }})
+{
+    uint32_t now;
+    uint8_t level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+
+    if (level == g_released) return;        /* another pin of the bank moved */
+    g_released = level;
+    if (level) return;                      /* the release edge: not a press */
+{% call L.lockout_accept('    ') %}return;{% endcall %}
+    g_presses++;
+    g_toggle_pending = 1u;                  /* the ISR only counts + marks; the main loop does the work */
+}
+
+/* {{ pin_name|c_comment }} input + pull-up, then (in the order pin_config_gen uses: mask, then clear any pending flag, then enable the bank):
+ * {{ mask_reg|c_comment }}.{{ mask_bit|c_comment }}, {{ flag_reg|c_comment }}.{{ flag_bit|c_comment }} (write one to clear), {{ enable_reg|c_comment }}.{{ enable_bit|c_comment }}. Read-modify-write on the mask and enable:
+ * other pins of the bank may already be armed. */
+void hal_button_init(void)
+{
+    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});
+    {{ port_reg|c_ident }} |= _BV({{ pin_bit|c_ident }});                 /* pull-up: the button pulls the pin to ground */
+    g_released = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+    {{ mask_reg|c_ident }} |= _BV({{ mask_bit|c_ident }});
+    {{ flag_reg|c_ident }} = _BV({{ flag_bit|c_ident }});                  /* w1c: clears only this bank's flag */
+    {{ enable_reg|c_ident }} |= _BV({{ enable_bit|c_ident }});
+}
+
+uint16_t hal_presses(void)
+{
+    uint16_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_presses; }
+    return v;
+}
+
+uint8_t hal_take_toggle_pending(void)
+{
+    uint8_t v;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_toggle_pending; g_toggle_pending = 0u; }
+    return v;
+}

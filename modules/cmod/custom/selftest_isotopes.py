@@ -80,8 +80,8 @@ def _code_interface_with_binding(check):
 def _source_is_verbatim(check):
     from cmod.custom import code_interface as CI
     from cmod.custom import projects as P
-    r = CI.render('hal_button_init')
-    _project, _m, atom = CI.find_atom('hal_button_init')
+    r = CI.render('hal.hal_button_init')   # fgm-5a: the bare name is ambiguous now (the rendered hal_button_pcint / hal_button_adc files have one too)
+    _project, _m, atom = CI.find_atom('hal.hal_button_init')
     spec = P.resolve('uno')
     path = __import__('os').path.join(spec['root'], atom['module'])
     all_lines = open(path, encoding='utf-8').read().split('\n')
