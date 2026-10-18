@@ -170,6 +170,9 @@ if __name__ == '__main__':
     ap = next((g for g in hw_nav if g.get('group') == 'Approach'), {})
     check('rt-0: app-hardware has an "Approach" group opening the runtime-tier page',
           [it['route'] for it in ap.get('items', [])] == ['/display/approach'], ap)
+    sf = next((g for g in hw_nav if g.get('group') == 'Solutions found'), {})
+    check('sol-0: app-hardware has a "Solutions found" group opening the attempt engine\'s page',
+          [it['route'] for it in sf.get('items', [])] == ['/display/solutions-found'], sf)
     check('every discipline app promotes at least one group to the '
           'top bar, and none promotes all of them (the side map '
           'stays the complete map)',

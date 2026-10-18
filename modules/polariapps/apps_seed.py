@@ -655,6 +655,9 @@ SEED_POLARI_APPS = [
              _tgrp('Approach',   # rt-0 (own group entry)
                   _it('Which runtime a Mission needs: bare C, FreeRTOS or Zephyr', 'page',
                       route='/display/approach', requires_module='cmod')),
+             _tgrp('Solutions found',   # sol-0 (own group entry)
+                  _it('Solutions found: where the Mission fits, and why', 'page',
+                      route='/display/solutions-found', requires_module='cmod')),
              _tgrp('Build firmware',
                   _it('Firmware no-code: tasks, pins, export', 'page',
                       route='/display/firmware', requires_module='cmod'),
