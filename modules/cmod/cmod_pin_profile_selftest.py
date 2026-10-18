@@ -129,6 +129,11 @@ def pin_profile_parts(check):
         gi = {(p['role'], p['kind']): p['importance'] for p in m2['profiles']}
         check('pp-0: a HardwareMission row (read from objectTables, no import) supplies the Purposes and their importance; a merged profile takes the strongest (LED: safety)',
               m2['basis'] == 'HardwareMission demo-mission' and gi[('the LED', 'digital-out')] == 'safety' and gi[('the transport', 'uart-rx')] == 'required', gi)
+        real = PM.mission_profiles('uno-light-mission', manager=_manager())
+        pure = PM.mission_profiles('uno-light-mission')
+        check('pp-0: the real seeded HardwareMission uno-light-mission (live row and pure seed) rolls up to the 5 light profiles, importance per Purpose from purposes_json',
+              real['basis'] == 'HardwareMission uno-light-mission' and real['pins_needed'] == pure['pins_needed'] == 5 and len(real['purposes']) == 4
+              and all(p['importance'] == 'required' for p in real['profiles']), (real['pins_needed'], pure['pins_needed']))
         try:
             PM.mission_profiles('none-here', manager=mgr)
             refused = False
@@ -202,6 +207,18 @@ def pin_profile_parts(check):
             check('pp-0: /api/missions/{name}/pin-profiles beside mis-0\'s /api/missions/{name}, /solution, /resolution on one falcon.App (%s registered first): all four answer, none shadows another' % ('mine' if first else 'theirs'),
                   r1.json.get('door') == 'solution' and r2.json.get('door') == 'resolution' and r0.json.get('door') == 'mission'
                   and r3.status_code == 200 and r3.json['ok'] and r3.json['mission'] == 'demo-mission', (r0.text[:80], r1.text[:80], r2.text[:80], r3.text[:120]))
+        from cmod.cmod_mission_api import MissionAPI
+        for first in (False, True):
+            app, real_mgr = falcon.App(), _manager()
+            ps = SimpleNamespace(falconServer=app, manager=real_mgr, idList=[])
+            for cls in ((PinProfileAPI, MissionAPI) if first else (MissionAPI, PinProfileAPI)):
+                cls(polServer=ps, manager=real_mgr)
+            cc = testing.TestClient(app)
+            rm = cc.simulate_get('/api/missions/uno-light-mission/pin-profiles')
+            check('pp-0: with the REAL mis-0 MissionAPI on one falcon.App (%s first): /api/missions/{name}/solution, /resolution, the /api/missions list and my /pin-profiles all answer' % ('mine' if first else 'its'),
+                  rm.status_code == 200 and rm.json['pins_needed'] == 5 and cc.simulate_get('/api/missions/uno-light-mission/solution').status_code == 200
+                  and cc.simulate_get('/api/missions/uno-light-mission/resolution').status_code == 200 and cc.simulate_get('/api/missions').status_code == 200,
+                  (rm.status_code, rm.text[:100]))
         r = c.simulate_get('/api/capabilities/%s/pin-profiles' % BUTTON)
         check('pp-0: GET /api/capabilities/{name}/pin-profiles returns the derived profiles with evidence and one plain-words row each',
               r.status_code == 200 and r.json['ok'] and len(r.json['profiles']) == len(r.json['rows']) == 3 and r.json['rows'][0]['evidence'] and r.json['unresolved'], r.text[:200])

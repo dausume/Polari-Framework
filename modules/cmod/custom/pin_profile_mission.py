@@ -16,6 +16,11 @@ import json
 from cmod.custom import pin_profiles as PP
 
 
+class SimpleRow:
+    def __init__(self, d):
+        self.__dict__.update(d)
+
+
 def _mission_purposes(mission, purposes, manager):
     """-> ([{purpose, importance}], basis text)."""
     if purposes:
@@ -24,6 +29,12 @@ def _mission_purposes(mission, purposes, manager):
         return out, 'an explicit list of Purposes'
     row = next((r for r in ((getattr(manager, 'objectTables', None) or {}).get('HardwareMission') or {}).values() if getattr(r, 'name', '') == mission), None) \
         if manager is not None else None
+    if row is None:     # the pure path: the seeded Mission (mis-0), no manager needed
+        try:
+            from cmod.custom.mission_seeds import MISSION_SEEDS
+            row = next((SimpleRow(r) for r in MISSION_SEEDS if r['name'] == mission), None)
+        except ImportError:
+            row = None
     if row is None:
         raise ValueError('no HardwareMission %r on this server (mis-0 adds them); name the Purposes instead: ?purposes=a,b' % mission)
     try:
