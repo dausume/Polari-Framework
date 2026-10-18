@@ -69,10 +69,14 @@ def task_plan_parts(check):
         steps = {t['task']: [s['instance'] for s in t['steps']] for t in p['tasks']}
         check('fgm-3: steps are the graph\'s atoms in graph order - init: the five init atoms; the button task is fed by INT0_vect; the command task by USART_RX_vect; the report task by the tick (TIMER2_COMPA_vect)',
               steps['init'] == ['usart_init', 'tick_init', 'led_init', 'button_init', 'boot_session_mint'] and steps['handle-button-press'][0] == 'INT0_vect' and steps['handle-button-press'][-1] == 'led_toggle'
-              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and steps['relay-state'][-1] == 'telemetry_send' and steps['sense'] == [], steps)
+              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and steps['relay-state'][-1] == 'telemetry_send' and steps['sense'] == ['hal_sense_poll.hal_sense_read'], steps)
         counts = p['agreement_counts']
-        check('fgm-3: the AGREEMENT CHECK passes for every task whose atoms are scheduled in a graph (4 agree, none disagree); the sense task, whose chosen route (gpio-poll) has no atoms yet, is "unchecked" and says why - never "agrees"',
-              counts == {'agrees': 4, 'disagrees': 0, 'unchecked': 1} and 'gpio-poll' in _t(p, 'sense')['agreement_why'] and all('derived lanes say' in t['agreement_why'] for t in p['tasks'] if t['agreement'] == 'agrees'), counts)
+        check('fgm-3 / fgm-5b: the AGREEMENT CHECK passes for every task - all five agree, none disagree, none is unchecked: the sense task\'s chosen route (gpio-poll) now has atoms (hal_sense_poll, fgm-5b), so its context (loop) is compared with the lane they derive - never "agrees" by default',
+              counts == {'agrees': 5, 'disagrees': 0, 'unchecked': 0} and all('derived lanes say' in t['agreement_why'] for t in p['tasks'] if t['agreement'] == 'agrees'), counts)
+        sn = _t(p, 'sense')
+        check('fgm-5b: the polled sense task\'s step is the route\'s read atom, whose lane (loop) is read from the shipped atom it replaces (called by sense_isr in uno-button-clock-graph); its init atom belongs to the init task; it has a scheduler priority (it is a loop task)',
+              [x['instance'] for x in sn['steps']] == ['hal_sense_poll.hal_sense_read'] and sn['steps'][0]['lane'] == 'loop' and 'sense_isr' in sn['steps'][0]['role'] and sn['context'] == 'loop' and sn['agreement'] == 'agrees'
+              and 'hal_sense_poll.hal_sense_init belongs to the init task' in next(t for t in p['triggers'] if t['task'] == 'sense')['notes'] and sn['priority'] > 0 and 'derived lanes say loop' in sn['agreement_why'], (sn['steps'], sn['agreement_why']))
         pr = {t['task']: t['priority'] for t in p['tasks']}
         check('fgm-3: priorities - init runs once (0); the four 100 ms / required tasks TIE on deadline and importance, so they are ordered by the Mission\'s Purpose order and every one says TIE (never a silent order): %s' % pr,
               pr == {'init': 0, 'handle-button-press': 1, 'receive-command': 2, 'relay-state': 3, 'sense': 4} and all('TIE with' in _t(p, n)['priority_basis'] for n in pr if n != 'init'), pr)
@@ -107,6 +111,43 @@ def task_plan_parts(check):
         b = _t(p, 'handle-button-press')
         check('fgm-3: the button task\'s trigger is the interrupt route here (D2 / INT0) and no note contradicts the graph; on the polled candidate the note names the difference (the graph implements INT0, the chosen route is gpio-poll, status declared)',
               next(t for t in p['triggers'] if t['task'] == 'handle-button-press')['how'] == 'interrupt' and 'INT0_vect' in cache['plan']['triggers'][1]['notes'] and 'declared' in cache['plan']['triggers'][1]['notes'] and b['priority'] == 1, cache['plan']['triggers'][1]['notes'])
+
+    def sense_routes_and_link():
+        from cmod.custom import task_plan as TP
+        from cmod.custom import task_plan_store as STORE
+        from cmod.custom import solve as S
+        r = cache.get('bench')
+        if r is None:
+            r = cache['bench'] = S.solve(LIGHT, boards=['arduino-uno-r3'], objective='fastest-cycle', limits={'prefer': 'bench-wiring', 'max_candidates': 400})
+        pc = next((x for x in r['_ranked'] if x['routes'].get('sense-led-line') == 'pin-change-interrupt' and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
+        check('fgm-5b: the attempt engine offers a candidate whose sense route is pin-change-interrupt (so the sense task must be checkable whatever route it picks)', pc is not None, sorted({x['routes'].get('sense-led-line') for x in r['_ranked']}))
+        if pc is not None:
+            p = TP.derive_task_plan(LIGHT, SYSTEM, solve_run=r, candidate=pc['id'])
+            s = _t(p, 'sense')
+            check('fgm-5b: on the pin-change sense candidate the sense task is fed by the PCINT vector the rendered template defines (an isr-lane atom of the project), the read atom stays `called`, the context is isr, the agreement check says agrees (priority 0: the hardware orders it)',
+                  s['agreement'] == 'agrees' and s['context'] == 'isr' and s['steps'][-1]['instance'].startswith('hal_sense_pcint.PCINT') and s['steps'][-1]['lane'] == 'isr' and s['priority'] == 0
+                  and [x['lane'] for x in s['steps']][:-1] == ['called'], (s['steps'], s['agreement_why']))
+        # the link: HardwareSystem.task_plan <- the recorded TaskPlan
+        from board.custom import hardware_system as HWS
+        from board.custom import hwsys_doors as D
+        mgr = _manager()
+        _register(mgr, 'SolveRun', __import__('cmod.custom.solve_record', fromlist=['store']).store(mgr, solved(), 'sub-test'))
+        hs = SimpleNamespace(id=1, name=SYSTEM, task_plan='', stage='S1-breadboard')
+        mgr.objectTables['HardwareSystem'] = {1: hs}
+        code, before = D.system_one(mgr, SYSTEM)
+        check('fgm-5b: before any Task Plan is recorded the Hardware System door shows no link (task_plan empty) and the row field is empty', code == 200 and before['system']['task_plan'] == '' and hs.task_plan == '', before['system'].get('task_plan'))
+        plan = TP.derive_task_plan(LIGHT, SYSTEM, solve_run=solved(), manager=mgr, apply_edits=False)
+        STORE.store_plan(plan, mgr, 'sub-test')
+        code, after = D.system_one(mgr, SYSTEM)
+        hs2 = SimpleNamespace(id=1, name=SYSTEM)
+        check('fgm-5b: recording the Task Plan (what POST /api/missions/<mission>/task-plan does) links it: the HardwareSystem row field task_plan = %s, and GET /api/hardware-systems/%s shows the same link'
+              % (plan['name'], SYSTEM), hs.task_plan == plan['name'] == '%s:%s' % (LIGHT, SYSTEM) and after['system']['task_plan'] == plan['name'] and HWS.linked_task_plan(SYSTEM, mgr) == plan['name'], (hs.task_plan, after['system'].get('task_plan')))
+        hs.task_plan = ''   # a re-seed of the code-owned row blanks the field: the door still derives the link from the TaskPlan rows
+        code, again = D.system_one(mgr, SYSTEM)
+        check('fgm-5b: the door derives the link from the TaskPlan rows on every read, so a re-seed that blanks the code-owned row loses nothing; another system has no link', again['system']['task_plan'] == plan['name'] and HWS.linked_task_plan('nowhere', mgr) == '')
+        from board.custom import hwsys_system as HS
+        check('fgm-5b: the "Task Plan arrives with fgm-3" text is gone from the system\'s undetermined words, which now say how the link is made',
+              all('arrives with fgm-3' not in r['undetermined'] and 'task_plan' in r['undetermined'] for r in HS.rows(HWS.default_tables())), None)
 
     def priorities():
         from cmod.custom import approach_profile_input as AI
@@ -335,7 +376,7 @@ def task_plan_parts(check):
         check('fgm-3: every class says in plain words what it is (plain_words) and has a docstring that begins "What it is:"',
               all(getattr(c, 'plain_words', '') and (c.__doc__ or '').lstrip().startswith('What it is:') for c in (TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding)))
 
-    return (light_plan, no_run_and_interrupt_plan, priorities, agreement_is_never_silent, edits_survive, designed_for_once, also_runs_on, doors_and_cli, page_and_manifest)
+    return (light_plan, no_run_and_interrupt_plan, sense_routes_and_link, priorities, agreement_is_never_silent, edits_survive, designed_for_once, also_runs_on, doors_and_cli, page_and_manifest)
 
 
 def main():

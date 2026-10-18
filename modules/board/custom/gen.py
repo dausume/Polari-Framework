@@ -233,6 +233,16 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
         except BR.RouteRefused as e:
             raise GenRefused(str(e))
         open(os.path.join(project, rendered['file']), 'w').write(rendered['text'])
+    # fgm-5b: the same for a non-INT1 sense route (catoms/sense-led-line/isotopes/<iso>/template.c.j2 -> hal_sense_*.c)
+    sroute = str(r['knobs'].get('sense_route') or 'int1')
+    rendered_sense = None
+    if r['features']['sense'] and sroute != 'int1':
+        from board.custom import sense_routes as SR
+        try:
+            rendered_sense = SR.render(sroute, r['knobs'])
+        except SR.RouteRefused as e:
+            raise GenRefused(str(e))
+        open(os.path.join(project, rendered_sense['file']), 'w').write(rendered_sense['text'])
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
@@ -266,6 +276,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     if rendered:   # the template + its macro file by sha256, and what rendered from them (the file is also hashed as a project input)
         tinputs = [{'label': 'isotope template (jinja2)', 'path': rendered['template'], 'sha256': rendered['template_sha256']},
                    {'label': 'isotope template macros (jinja2)', 'path': 'board/custom/firmware/uno/catoms/read-button/_common.j2', 'sha256': rendered['common_sha256']}]
+    if rendered_sense:
+        tinputs += [{'label': 'isotope template (jinja2)', 'path': rendered_sense['template'], 'sha256': rendered_sense['template_sha256']},
+                    {'label': 'isotope template macros (jinja2)', 'path': 'board/custom/firmware/uno/catoms/sense-led-line/_common.j2', 'sha256': rendered_sense['common_sha256']}]
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': board, 'state': 'generated', 'variant': r['name'],
            'classes_json': json.dumps(class_rows), 'template': 'board/custom/firmware/uno', 'source_sha': ssha,
            'header_sha256': compat.combined_sha(class_rows), 'tag_order_json': json.dumps(orders),

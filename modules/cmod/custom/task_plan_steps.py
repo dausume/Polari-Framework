@@ -52,6 +52,27 @@ def lane_of_atom(atom, graph):
     return '', ''
 
 
+def lane_of_equivalent(atom, graph, follow_caller=True):
+    """fgm-5b: an isotope's atom (`uno:hal_sense_poll.hal_sense_read`) is in no graph - the graphs hold the shipped isotope's atom of the SAME function (`uno:hal.hal_sense_read`), which the route replaces.
+    -> (lane, graph, role) read from that graph node, with, when `follow_caller`, a `called` atom's lane taken from the node that calls it (the sense atom is called by the loop task `sense_isr`: the loop); ('', '', '') when no
+    graph holds a function of that name."""
+    proj, _sep, rest = atom.partition(':')
+    fn = rest.rpartition('.')[2]
+    for g in [graph] + [x for x in graph_names() if x != graph]:
+        info = graph_info(g)
+        for inst, n in info['nodes'].items():
+            if n.get('kind') != 'c-atom' or not n.get('atom') or n['atom'] == atom or n['atom'].partition(':')[2].rpartition('.')[2] != fn:
+                continue
+            lane = (info['slots'].get(inst) or {}).get('lane') or n.get('stage') or ''
+            if lane == 'called' and follow_caller:
+                callers = _called_by(info).get(inst, [])
+                clane = next(((info['slots'].get(c) or {}).get('lane') for c in callers if (info['slots'].get(c) or {}).get('lane') in ('loop', 'tick', 'init')), '')
+                if clane:
+                    return clane, g, 'called by %s (%s), which runs in the %s lane' % (', '.join(callers), clane, clane)
+            return lane, g, 'the lane of %s in graph %s' % (n['atom'], g)
+    return '', '', ''
+
+
 def _resources(atom_ref):
     try:
         return CI.find_atom(atom_ref)[2].get('resources') or []

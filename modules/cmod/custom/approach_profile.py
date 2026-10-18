@@ -260,7 +260,7 @@ def priorities(spec, tier, demand):
             else 'Priority 1 is the highest.')
     ties = [r['task'] for r in rows if r['tie']]
     return {'tier': tier, 'rule': 'deadline-monotonic: a shorter deadline is a higher priority; equal deadlines: the more important Purpose wins; still equal: the schedule order (marked tie)',
-            'preview': 'preview - Task Plans come in fgm-3; nothing here is stored and a person\'s override will be a DerivedOverride (who, when, why)',
+            'preview': 'preview - the real plan is the Task Plan: page /display/task-plan, door GET /api/missions/<name>/task-plan (recorded by POST); nothing here is stored and a person\'s override is a DerivedOverride (who, when, why)',
             'note': note, 'ties': ties, 'rows': rows,
             'tie_note': ('%d task(s) tie on both deadline and importance, so their relative order is only the schedule order: %s' % (len(ties), ', '.join(ties))) if ties else ''}
 
@@ -356,7 +356,7 @@ def tier_rows(res):
 def priority_rows(res):
     p = res['priorities']
     return [{'priority': r['priority'], 'task': r['task'], 'deadline': A.text(r['deadline_ms']), 'importance': r['importance'], 'serves': r['serves'],
-             'tie': 'tie (schedule order)' if r['tie'] else '', 'note': 'preview - Task Plans come in fgm-3'} for r in p['rows']]
+             'tie': 'tie (schedule order)' if r['tie'] else '', 'note': 'preview - the real plan: /display/task-plan'} for r in p['rows']]
 
 
 # ------------------------------------------------------------------ the CLI

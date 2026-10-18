@@ -29,7 +29,7 @@ APPROACH_PAGES = [
                               data_path='%s?view=tiers&board=arduino-uno-r3' % _M)], min_height=260),
               _row(2, [_table('ap-tiers-c3', 0, 12, 'The same tiers on the modelled ESP32-C3', 'HardwareMission', description=_TIER_WHAT, columns=_TIER_COLS,
                               data_path='%s?view=tiers&board=esp32-c3' % _M)], min_height=260),
-              _row(3, [_table('ap-priorities', 0, 12, 'Derived priorities - a preview (Task Plans come in fgm-3)', 'HardwareMission',
+              _row(3, [_table('ap-priorities', 0, 12, 'Derived priorities - a preview (the real plan is the Task Plan page, /display/task-plan)', 'HardwareMission',
                               description='What this is for: the order the tasks would be served in. One row = one task of the loop. Rule: a shorter deadline is a higher priority; equal '
                                           'deadlines: the more important Purpose wins; still equal: the schedule order, marked as a tie. Nothing here is stored. GET %s?view=priorities.' % _M,
                               columns='priority,task,deadline,importance,serves,tie,note', data_path='%s?view=priorities' % _M)], min_height=260),

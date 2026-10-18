@@ -280,6 +280,7 @@
    "custom/profile_overlap_pin",
    "custom/memory_map_atmega328p",
    "custom/memory_map_view",
+   "custom/sense_routes",
    "custom/sexpr",
    "custom/sim_cost",
    "custom/sim_cost_c3",

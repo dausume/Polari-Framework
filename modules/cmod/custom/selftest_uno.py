@@ -47,8 +47,8 @@ def uno_parts(check):
         p = AN.parse_project('uno')
         state['p'] = p
         a = p['atoms']
-        check('the UNO template parses over its 10 configurations (8 seeded variants + 2 coverage) into 64 atoms (fgm-5a: + the 8 atoms of the two rendered button files), no preprocessor problem',
-              len(p['configs']) == 10 and len(a) == 64 and not p['problems'], (len(a), p['problems'][:3]))
+        check('the UNO template parses over its 12 configurations (10 seeded variants + 2 coverage) into 69 atoms (fgm-5a: + the 8 atoms of the two rendered button files; fgm-5b: + the 5 of the two rendered sense files), no preprocessor problem',
+              len(p['configs']) == 12 and len(a) == 69 and not p['problems'], (len(a), p['problems'][:3]))
         check('every hal.c function is an atom (22 incl. the 4 ISRs and the knob-gated ones: hal_uart_errors, hal_presses, hal_wdt_boot, '
               'hal_sense_init/hal_sense_read, hal_take_toggle_pending)',
               HAL_ATOMS <= set(a), sorted(HAL_ATOMS - set(a)))
@@ -65,7 +65,7 @@ def uno_parts(check):
         rx = a['hal.USART_RX_vect']
         check('ISR(USART_RX_vect) (both #if branches, unioned) reads UCSR0A + UDR0 (USART0), writes rx_head / rx_ring and the error counters',
               rx['isr'] == 'USART_RX_vect' and {'UCSR0A', 'UDR0'} <= set(rx['registers']) and rx['globals']['rx_head']['w']
-              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 8)   # ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1); ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog
+              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 10)   # fgm-5b: + uno-light-sense-poll, uno-light-sense-pcint; ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1); ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog
         check('hal_rx_pop: the 1-byte ring indices the RX ISR writes need no atomic block (one lds each) → isr_safe yes; b → out',
               a['hal.hal_rx_pop']['isr_safe'] == 'yes' and a['hal.hal_rx_pop']['ports'][0]['direction'] == 'out')
         check('pure atoms are exactly the two that compute: sim_rig.sensor_value (the TMP36 formula) and scenario_rig.crc8',
@@ -127,21 +127,21 @@ def uno_parts(check):
         from cmod.custom import manifest as MF
         path = os.path.join(UNO, 'polari-firmware.json')
         m = json.load(open(path))
-        check('the UNO\'s polari-firmware.json is committed beside its Makefile, validates, schema polari-firmware/1, 64 atoms',
-              not MF.validate(m) and m['schema'] == 'polari-firmware/1' and m['counts']['atoms'] == 64, MF.validate(m))
+        check('the UNO\'s polari-firmware.json is committed beside its Makefile, validates, schema polari-firmware/1, 69 atoms',
+              not MF.validate(m) and m['schema'] == 'polari-firmware/1' and m['counts']['atoms'] == 69, MF.validate(m))
         r = MF.conform('uno', measure=False, write=False)
         check('no drift: a parse NOW equals the committed manifest (conform without measuring would write nothing)',
               not r['changed'], (r['added'], r['removed'], r['edited'][:4]))
         atoms = m['atoms']
         costed = [a for a in atoms if a['cost'] and isinstance(a['cost'].get('text_bytes_noinline'), int) and a['cost']['text_bytes_noinline'] > 0]
-        check('every atom carries ports (a list), resources (a list) and a measured cost: text bytes as a node > 0 for all 64',
-              all(isinstance(a['ports'], list) and isinstance(a['resources'], list) for a in atoms) and len(costed) == 64, len(costed))
+        check('every atom carries ports (a list), resources (a list) and a measured cost: text bytes as a node > 0 for all 69',
+              all(isinstance(a['ports'], list) and isinstance(a['resources'], list) for a in atoms) and len(costed) == 69, len(costed))
         nostack = [a['name'] for a in atoms if a['cost']['stack_bytes'] is None]
         check('stack frames from GCC\'s .su for 63 atoms; the one without is hal_wdt_boot — a naked function, stated in the cost row',
               nostack == ['hal.hal_wdt_boot'] and 'naked' in next(a for a in atoms if a['name'] == 'hal.hal_wdt_boot')['cost']['why'], nostack)
         mk = [c.get('make_alone') or {} for c in m['configurations']]
-        check('make ALONE built every configuration (10/10, the .hex sha recorded) — no Polari in that loop',
-              len(mk) == 10 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
+        check('make ALONE built every configuration (12/12, the .hex sha recorded) — no Polari in that loop',
+              len(mk) == 12 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
         check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (4188f6ae…, unchanged by the annotations)',
               sim['make_alone']['hex_sha256'].startswith('4188f6ae7d65bfc7'), sim['make_alone']['hex_sha256'][:16])
@@ -165,7 +165,7 @@ def uno_parts(check):
         from cmod.cmod_api import CModAPI
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
-        check('seeds = the committed manifest projected: 1 project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 64 atoms (fgm-5a: + 8 rendered-button atoms), %d ports; '
+        check('seeds = the committed manifest projected: 1 project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 69 atoms (fgm-5a: + 8 rendered-button atoms; fgm-5b: + 5 rendered-sense atoms), %d ports; '
               'cmod-1: 3 graphs (uno-sim-rig-graph, uno-button-clock-graph — ucd-0e2b\'s own, uno-light-graph — ucd-light\'s), 61 nodes, 42 edges, 3 glue builds (all '
               'rendered/built/proven — EQUIVALENT); demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over both graphs; hw '
               'priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; ucd-0e2b: button-clock-to-os '
@@ -174,9 +174,9 @@ def uno_parts(check):
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
               'ucd-0b2b: one default HardwareBinding derived per solution (3 now); ucd-light: 8 more CapabilityDefinition (the two light Purposes + six plumbing Purposes of the sample graphs); fgm-1: 4 more (initialization + the three that replace the light pair); ucd-iso-0: CIsotope observed too '
               '(empty by design — materialized on a GET, never seeded)' % m['counts']['ports'],
-              counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 64, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
+              counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 69, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
                          'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
-                         'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 68, 'RegisterAssignment': 46,
+                         'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 71, 'RegisterAssignment': 46,
                          'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
@@ -214,7 +214,7 @@ def uno_parts(check):
         CModAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
         c = testing.TestClient(app)
         r = c.simulate_get('/api/cmod')
-        check('GET /api/cmod → the uno project with 64 atoms, the parser named', r.status_code == 200 and r.json['projects'][0]['atoms'] == 64
+        check('GET /api/cmod → the uno project with 69 atoms, the parser named', r.status_code == 200 and r.json['projects'][0]['atoms'] == 69
               and r.json['parser']['engine'] == 'pycparser', r.text[:200])
         r = c.simulate_get('/api/cmod/atoms/hal_millis')
         check('GET /api/cmod/atoms/hal_millis → uno:hal.hal_millis with its one port', r.status_code == 200 and r.json['atom']['name'] == 'uno:hal.hal_millis'
@@ -223,7 +223,7 @@ def uno_parts(check):
         check('an ambiguous short name (apply_command: sim_rig and scenario_rig) → 404 naming both', r.status_code == 404
               and 'uno:apps/sim_rig.apply_command' in r.json['error'] and 'uno:apps/scenario_rig.apply_command' in r.json['error'], r.text[:200])
         r = c.simulate_get('/api/cmod/atoms', params={'kind': 'isr'})
-        check('GET /api/cmod/atoms?kind=isr → the 5 ISRs (ucd-0e2: + INT1_vect, the sense atom; fgm-5a: + hal_button_pcint.PCINT2_vect)', r.status_code == 200 and len(r.json['atoms']) == 5)
+        check('GET /api/cmod/atoms?kind=isr → the 6 ISRs (ucd-0e2: + INT1_vect, the sense atom; fgm-5a: + hal_button_pcint.PCINT2_vect; fgm-5b: + hal_sense_pcint.PCINT0_vect)', r.status_code == 200 and len(r.json['atoms']) == 6)
         r = c.simulate_get('/api/cmod/projects/uno/drift')
         check('GET /api/cmod/projects/uno/drift → not stale (parsed now, nothing measured or written)', r.status_code == 200 and r.json['stale'] is False, r.text[:200])
 

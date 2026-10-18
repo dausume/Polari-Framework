@@ -70,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
+     "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
     },
     {
      "path": "hal.h",
@@ -120,7 +120,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "fa3427792ed8ed980349b9aed0e7a87d4dd34fe06d98dd2ee8b3d073323bf73b"
+     "sha256": "169c61a13ba7e37323800ef48f6ce46a9b5c0e4e03061ea96badf2d57a20e9cd"
     }
    ],
    "atoms": [
@@ -1443,5 +1443,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T03:03:22"
+ "conformed_at": "2026-10-18T06:41:37"
 }

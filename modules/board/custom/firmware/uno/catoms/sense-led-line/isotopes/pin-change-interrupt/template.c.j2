@@ -1,0 +1,46 @@
+{% import 'sense-led-line/_common.j2' as L %}
+{{ L.banner(file, banner) }}
+#include <avr/interrupt.h>
+#include <avr/io.h>
+#include <stdint.h>
+#include <util/atomic.h>
+
+#include "hal.h"
+
+#if !HAL_INT1 || HAL_SENSE_ROUTE != {{ route_code|c_int }}
+#error "hal_sense_pcint.c is the sense route {{ route_code|c_int }} (pin-change interrupt): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE {{ route_code|c_int }}"
+#endif
+
+static volatile uint16_t g_sense_rises, g_sense_falls;
+static volatile uint32_t g_last_edge_ms;
+static volatile uint8_t g_sense_level;      /* the level seen at the last real change: 1 = high */
+
+/* {{ vector|c_comment }}: ONE vector serves the whole bank ({{ mask_reg|c_comment }} picks the pins), so the ISR first checks that THIS pin
+ * ({{ pin_name|c_comment }} = {{ soc_pin|c_comment }}) is the one that moved. It fires on both edges and counts both: a rise and a fall. The ISR only counts and stamps;
+ * emitting the events is the main loop's job. */
+ISR({{ vector|c_ident }})
+{
+    uint8_t level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+
+    if (level == g_sense_level) return;     /* another pin of the bank moved */
+    g_sense_level = level;
+    g_last_edge_ms = hal_millis();
+    if (level) g_sense_rises++; else g_sense_falls++;
+}
+
+/* {{ pin_name|c_comment }} as a plain input (no pull-up: it is a wire from the LED line), then (in the order pin_config_gen uses: mask, then clear any pending flag, then enable the bank):
+ * {{ mask_reg|c_comment }}.{{ mask_bit|c_comment }}, {{ flag_reg|c_comment }}.{{ flag_bit|c_comment }} (write one to clear), {{ enable_reg|c_comment }}.{{ enable_bit|c_comment }}. Read-modify-write on the mask and enable:
+ * other pins of the bank may already be armed. */
+void hal_sense_init(void)
+{
+    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});
+    g_sense_level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+    {{ mask_reg|c_ident }} |= _BV({{ mask_bit|c_ident }});
+    {{ flag_reg|c_ident }} = _BV({{ flag_bit|c_ident }});                  /* w1c: clears only this bank's flag */
+    {{ enable_reg|c_ident }} |= _BV({{ enable_bit|c_ident }});
+}
+
+void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
+{
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { *rises = g_sense_rises; *falls = g_sense_falls; *last_ms = g_last_edge_ms; }
+}

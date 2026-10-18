@@ -51,5 +51,5 @@ def rows(tables):
         'links_refs_json': '[]',   # filled by board.custom.hardware_system.build from the links actually derived
         'task_plan': '', 'solution': LIGHT, 'verification': 'partial',
         'undetermined': 'which package (28-SPDIP or 32-TQFP) and which USB interface (16U2 verified, CH340 unverified) the bench board carries is PENDING identification; '
-                        'there is no Person class yet (the person is a role); nothing here has run on a physical bench; the Task Plan arrives with fgm-3',
+                        'there is no Person class yet (the person is a role); nothing here has run on a physical bench; the Task Plan (fgm-3) is linked in `task_plan` once a plan is recorded for this system (POST /api/missions/<mission>/task-plan)',
         'notes': 'stage S1 Breadboard (SYSTEM_HIERARCHY_TERMINOLOGY.md §11): the bought development board plus a kit button, LED and resistor and one jumper wire'}]

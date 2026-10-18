@@ -232,6 +232,7 @@
    "custom/selftest_light",
    "custom/selftest_button_routes",
    "custom/selftest_cycles",
+   "custom/selftest_sense_routes",
    "custom/selftest_pin_config",
    "custom/selftest_mission",
    "custom/selftest_purpose",

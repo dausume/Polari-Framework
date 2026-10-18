@@ -30,7 +30,7 @@ class HardwareSystem(treeObject):
         self.components_json = components_json  # ["BoardComponent:..." | "CircuitComponentDefinition:..." ...]
         self.circuits_json = circuits_json  # ["CircuitDefinition:..."]
         self.links_refs_json = links_refs_json  # DERIVED: ["SystemLink:<name>"]
-        self.task_plan = task_plan  # '' — the Task Plan ref arrives with fgm-3
+        self.task_plan = task_plan  # fgm-5b: the recorded Task Plan of this system ('<mission>:<system>'; '' until one is recorded) - set when the plan is stored, derived again on every door read
         self.solution = solution  # the Cross-Domain Solution it realises (SolutionDefinition name)
         self.verification = verification  # verified | partial | unverified | conflicted
         self.undetermined = undetermined

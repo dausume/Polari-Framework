@@ -13,7 +13,9 @@ from types import SimpleNamespace
 
 ROUTES = (('uno-light-pcint', 'light-pcint-button-acceptance', 'read-button:pin-change-interrupt'),
           ('uno-light-analog', 'light-analog-button-acceptance', 'read-button:analog-threshold'),
-          ('uno-sim-rig', 'sim-rig-pwm-duty-acceptance', 'drive-led:pwm'))
+          ('uno-sim-rig', 'sim-rig-pwm-duty-acceptance', 'drive-led:pwm'),
+          ('uno-light-sense-poll', 'sense-poll-line-acceptance', 'sense-led-line:gpio-poll'),     # fgm-5b
+          ('uno-light-sense-pcint', 'sense-pcint-line-acceptance', 'sense-led-line:pin-change-interrupt'))
 
 
 def _hex(variant):
@@ -40,11 +42,11 @@ def run_variant_twin(check):
         r = VT.prove(variant)
         proofs[variant] = r
         b = r.get('build') or {}
-        check('fgm-5a %s on the twin: every check passed (%s) - flash %s B, static RAM %s B measured by avr-size'
+        check('fgm-5a/5b %s on the twin: every check passed (%s) - flash %s B, static RAM %s B measured by avr-size'
               % (variant, ', '.join(VT.CHECKS[variant]), b.get('flash_bytes'), b.get('ram_bytes')),
               r['ok'] and r['route'] == 'digital-twin' and r.get('frames_compared', 0) > 0 and 0 < b.get('flash_bytes', 0) <= 32256, r['why'])
         for name in VT.CHECKS[variant]:
-            check('fgm-5a %s: check %r reported its outcome in words' % (variant, name), ('%s: ' % name) in r['why'] and '[FAILED]' not in r['why'], r['why'][:300])
+            check('fgm-5a/5b %s: check %r reported its outcome in words' % (variant, name), ('%s: ' % name) in r['why'] and '[FAILED]' not in r['why'], r['why'][:300])
     # the checks must be able to FAIL: the same stimulus against firmware that does not have the behaviour
     _, int0_hex = _hex('uno-light')
     ok, words, _n = VT.check_presses(int0_hex)
@@ -54,6 +56,15 @@ def run_variant_twin(check):
     check('fgm-5a: the A0 ramp check FAILS on uno-light-pcint (no analog button): %s' % words[:140], not ok)
     ok, words, _n = VT.check_pwm(int0_hex)
     check('fgm-5a: the PWM duty check FAILS on firmware with no PWM (uno-light): %s' % words[:140], not ok)
+    # fgm-5b: the sense checks must be able to FAIL too - the jumper to the OTHER build's pin, and a build with no sense route at all
+    _, poll_hex = _hex('uno-light-sense-poll')
+    _, sp_hex = _hex('uno-light-sense-pcint')
+    ok, words, _n = VT.check_sense_edges(poll_hex, 'uno-light-sense-pcint')
+    check('fgm-5b: the D8 sense check FAILS on uno-light-sense-poll (it polls D3, the jumper on D8 is not seen): %s' % words[:150], not ok)
+    ok, words, _n = VT.check_sense_edges(sp_hex, 'uno-light-sense-poll')
+    check('fgm-5b: the D3 sense check FAILS on uno-light-sense-pcint (it listens on D8, the jumper on D3 is not seen): %s' % words[:150], not ok)
+    ok, words, _n = VT.check_sense_edges(int0_hex, 'uno-light-sense-poll')
+    check('fgm-5b: the sense check FAILS on uno-light (no sense pin at all, no sense counters): %s' % words[:150], not ok)
 
     from cmod.custom import isotope_variants as IV
     from firmwarefaults.custom import acceptance as ACC
@@ -62,7 +73,7 @@ def run_variant_twin(check):
     mgr = SimpleNamespace(objectTables={'ScenarioRun': {}}, idList=[], db=None)
     vs = {v['name']: v for v in IV.variants()}
     before = {row: IV.status(vs[row], mgr)['status'] for _, _, row in ROUTES}
-    check('fgm-5a: before any run the three routes read compiles', set(before.values()) == {'compiles'}, before)
+    check('fgm-5a/5b: before any run the five routes read compiles', set(before.values()) == {'compiles'}, before)
     for variant, scenario, row in ROUTES:
         run = ACC.run(scenario, 'digital-twin', sink=sk)
         check('fgm-5a: acceptance Scenario %s -> a ScenarioRun outcome passed, measured on the simavr twin (%d frames)' % (scenario, run['frames_seen']),
@@ -71,10 +82,11 @@ def run_variant_twin(check):
         mgr.objectTables['ScenarioRun'][len(mgr.objectTables['ScenarioRun']) + 1] = SimpleNamespace(
             name=r['name'], scenario=r['scenario'], outcome=r['outcome'], ran_at=r['ran_at'], kind='measured', repro_json=r['repro_json'], verdict_words=r['verdict_words'])
     after = {row: IV.status(vs[row], mgr) for _, _, row in ROUTES}
-    check('fgm-5a: the iso-0 catalogue READS those ScenarioRuns - all three routes climb compiles -> proven-on-twin, each naming its run',
+    check('fgm-5a/5b: the iso-0 catalogue READS those ScenarioRuns - all five routes climb compiles -> proven-on-twin, each naming its run',
           all(s['status'] == 'proven-on-twin' and 'ScenarioRun' in s['proof'] for s in after.values()), {k: v['status'] for k, v in after.items()})
     check('fgm-5a: the shipped INT0 route and the GPIO LED are not lifted by them (their Purposes have no passing run here)',
-          IV.status(vs['read-button:ext-interrupt'], mgr)['status'] == 'compiles' and IV.status(vs['drive-led:gpio-out'], mgr)['status'] == 'compiles')
+          IV.status(vs['read-button:ext-interrupt'], mgr)['status'] == 'compiles' and IV.status(vs['drive-led:gpio-out'], mgr)['status'] == 'compiles'
+          and IV.status(vs['sense-led-line:ext-interrupt'], mgr)['status'] == 'compiles')
 
 
 if __name__ == '__main__':

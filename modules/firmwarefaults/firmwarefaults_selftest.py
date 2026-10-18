@@ -168,8 +168,8 @@ def steps_and_scenarios():
           (SC.find('rx-ring-over-256')['observable_kind'], SC.find('rx-ring-over-256')['technique']) == ('build-refused', 'static-guard'))
     # hw priorities P1 (D-hw-2): a Scenario of kind='acceptance' proves a CapabilityDefinition's goal, no fault forced
     every_kind = [s.get('kind', 'fault') for s in SC.SEED_SCENARIOS]
-    check('every pre-existing Scenario defaults to kind=fault; the thirteen acceptance ones name their Purpose (fgm-6a: + the four v2 light command-confirmation proofs) (fgm-5a: + the three isotope-variant proofs) (0e2a: + button-clock-to-os; ucd-light: + the light pair, fgm-1: re-pointed to ensure-button-controls-light / ensure-polari-can-control-light, + ensure-polari-observes-hardware-state)',
-          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 13
+    check('every pre-existing Scenario defaults to kind=fault; the fifteen acceptance ones name their Purpose (fgm-5b: + the two sense-line proofs) (fgm-6a: + the four v2 light command-confirmation proofs) (fgm-5a: + the three isotope-variant proofs) (0e2a: + button-clock-to-os; ucd-light: + the light pair, fgm-1: re-pointed to ensure-button-controls-light / ensure-polari-can-control-light, + ensure-polari-observes-hardware-state)',
+          every_kind.count('fault') == 12 and every_kind.count('acceptance') == 15
           and SC.find('light-from-button-acceptance')['capability'] == 'ensure-button-controls-light'
           and SC.find('light-from-polari-acceptance')['capability'] == 'ensure-polari-can-control-light'
           and SC.find('ensure-polari-observes-hardware-state-acceptance')['capability'] == 'ensure-polari-observes-hardware-state'
@@ -304,13 +304,13 @@ def seeds_page_api():
                 print('      ', cname, r.get('name'), e)
     check('every seed row constructs its class (no stray field)', ok)
     seeded = {n: len(rows) for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS}
-    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 25 scenarios (fgm-6a: +4 v2-light acceptance; fgm-5a: +3 isotope-variant acceptance; hw priorities P1: +2 acceptance; 0e2a: + button-clock-to-os; ucd-light: + 2; fgm-1: + ensure-polari-observes-hardware-state-acceptance), '
-          '42 steps (acceptance-kind incl. pin-at, reset-at), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
+    check('seeded: 6 primitives, 13 assumptions, 12 techniques (sc-3: try-lock-backoff), 27 scenarios (fgm-5b: +2 sense-line acceptance; fgm-6a: +4 v2-light acceptance; fgm-5a: +3 isotope-variant acceptance; hw priorities P1: +2 acceptance; 0e2a: + button-clock-to-os; ucd-light: + 2; fgm-1: + ensure-polari-observes-hardware-state-acceptance), '
+          '46 steps (acceptance-kind incl. pin-at, reset-at), 11 scenario variants, 4 campaigns, 9 formal checks (4 CBMC + 5 Mthread); '
           'runs, trace rows, statistics, likelihoods and static checks/findings observed only',
           (seeded['ConcurrencyPrimitive'], seeded['Assumption'], seeded['Technique'], seeded['Scenario'], seeded['ScenarioStep'],
            seeded.get('FirmwareVariant'), seeded['ScenarioRun'], seeded['ScenarioTraceCycle'], seeded['ScenarioStatistic'], seeded['ScenarioCampaign'],
            seeded['FormalCheck'], seeded['FaultLikelihood'], seeded['StaticCheck'], seeded['StaticFinding'])
-          == (6, 13, 12, 25, 42, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
+          == (6, 13, 12, 27, 46, 11, 0, 0, 0, 4, 9, 0, 0, 0), seeded)
     check('what a run MEASURES is not converged by a re-seed (technique measured_*, a fault\'s rate / rate_source)',
           all('measured_by_run' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n == 'Technique' for r in rows)
           and all('rate_source' not in r['_converge'] for n, _, rows in FIRMWAREFAULTS_SEED_PAIRS if n.endswith('Fault') for r in rows))
@@ -366,6 +366,7 @@ def seeds_page_api():
                                                                     'ensure-polari-observes-hardware-state-acceptance': 2,
                                                                     'light-from-polari-acceptance': 2, 'light-pcint-button-acceptance': 2,
                                                                     'light-analog-button-acceptance': 2, 'sim-rig-pwm-duty-acceptance': 2,
+                                                                    'sense-poll-line-acceptance': 2, 'sense-pcint-line-acceptance': 2,
                                                                     'light-v2-rapid-commands-acceptance': 1, 'light-v2-reboot-acceptance': 2,
                                                                     'light-v2-malformed-acceptance': 1, 'light-v2-button-no-confirm-acceptance': 2})
     check('GET /api/firmwarefaults/runs/<missing> → 404; POST /run without a scenario → 400',

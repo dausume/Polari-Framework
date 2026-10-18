@@ -13,7 +13,7 @@
 
 
 /* the files of this project (sha256 of the bytes written):
- *   hal.c                    87df745b54d8cb78  copied verbatim from board/custom/firmware/uno/hal.c
+ *   hal.c                    a4c74f2c2091895c  copied verbatim from board/custom/firmware/uno/hal.c
  *   hal.h                    58cfacfb3cad8403  copied verbatim from board/custom/firmware/uno/hal.h
  *   light_defs.h             e6c88cf5352299a9  copied verbatim from board/custom/firmware/uno/apps/light_defs.h
  *   board_config.h           d6f7a025800d78f0  board gen: the uno-light knobs
