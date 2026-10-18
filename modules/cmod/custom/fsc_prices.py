@@ -3,7 +3,7 @@
 
 fsc-0 (D-fsc-2, his words: "A cited list would be ideal, accounting for the fact you can buy used or locally as well in that."): the READER of cited price OFFERS, one row per
 offer: part_class, variant, condition new|used, channel online|local, vendor, price, currency, pack_qty, unit_price, source_title, url, cited_at, confidence page-read|search-snippet,
-note. File: modules/board/priceOffers/part_price_offers.json ({"offers": [...], "gaps": [...], "method": ...}; a bare list also reads). It is NOT in initialData/ on purpose: that
+note. File: modules/board/custom/price_offers/part_price_offers.json ({"offers": [...], "gaps": [...], "method": ...}; a bare list also reads). It is NOT in initialData/ on purpose: that
 folder is auto-seeded into a class of the same name at boot and this file is not a row set. Env POLARI_PRICE_OFFERS overrides the path (tests).
 
 `cheapest(part_class, knobs)` -> the cheapest offer the PROFILE accepts (knobs accept_used / accept_local, default true), by unit_price, or None. An absent file or a part class with
@@ -13,7 +13,7 @@ no offer is UNDETERMINED: the caller scores it at a stated stand-in (the median 
 import json
 import os
 
-PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'board', 'priceOffers', 'part_price_offers.json')
+PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'board', 'custom', 'price_offers', 'part_price_offers.json')
 #: the board is a part too (bom-cost includes it): board name -> the part class its offers are filed under
 BOARD_PART = {'arduino-uno-r3': 'Arduino Uno R3 (board)', 'esp32-c3': 'ESP32-C3 DevKit (board)'}
 #: the catalogue says "USB bridge", the offer file "USB connector": the same cable (a bridge chip sits behind the connector) - matched, said

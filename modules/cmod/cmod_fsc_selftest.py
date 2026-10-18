@@ -205,7 +205,7 @@ def fsc_parts(check):
         e = PR.price_parts(['widget'], None, empty)
         check('fsc-1 PRICES: with no offers file at all the money is UNDETERMINED (total None, kind stand-in) and says so', e['total'] is None and e['kind'] == 'stand-in' and 'undetermined' in e['basis'])
         real = PR.load()
-        check('fsc-1 PRICES: the committed offers file loads (%d offers) from board/priceOffers (NOT initialData, which is auto-seeded into a class at boot); every offer has a unit_price, url and cited_at' % len(real['offers']),
+        check('fsc-1 PRICES: the committed offers file loads (%d offers) from board/custom/price_offers (NOT initialData, which is auto-seeded into a class at boot); every offer has a unit_price, url and cited_at' % len(real['offers']),
               real['present'] and len(real['offers']) >= 80 and 'initialData' not in real['path'] and all(o.get('url') and o.get('cited_at') for o in real['offers']))
         b = built()
         bom = b['records'][0]['values']['bom-cost']
