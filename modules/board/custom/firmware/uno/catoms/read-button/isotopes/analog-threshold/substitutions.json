@@ -1,0 +1,17 @@
+{
+ "knobs": {
+  "button_adc_channel": "A0..A5 (default 0)",
+  "adc_press_below_mv": "press threshold, mV (default 1500)",
+  "adc_release_above_mv": "release threshold, mV (default 3500)",
+  "adc_pullup_ohms": "the external pull-up (default 10000)",
+  "debounce_ms": "the lockout window"
+ },
+ "derived_from_rows": {
+  "press_below_counts, release_above_counts": "ADC = Vin * 1024 / Vref (DatasheetFact adc.conversion_result)",
+  "vref_mv": "AVcc = 5 V on the UNO (uno_facts)",
+  "port_reg, ddr_reg, pin_bit, didr_bit, soc_pin, pin_name": "the SocPin rows of PC0..PC5 + DIDR0",
+  "channel": "the knob, validated A0..A5",
+  "route_code": "board.custom.button_routes.ROUTES"
+ },
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+}

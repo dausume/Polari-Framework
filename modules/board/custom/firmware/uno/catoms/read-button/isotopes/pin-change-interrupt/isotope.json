@@ -1,0 +1,20 @@
+{
+ "isotope": "pin-change-interrupt",
+ "button_route": "pcint",
+ "hal_button_route_code": 1,
+ "variant_row": "read-button:pin-change-interrupt",
+ "renders_to": "hal_button_pcint.c",
+ "template": "template.c.j2",
+ "firmware_variants": [
+  "uno-light-pcint"
+ ],
+ "claims": {
+  "pins": "one pin-change-capable pin (the button_pin knob; D4 in uno-light-pcint)",
+  "peripherals": [
+   "pcint (the pin's PCINT bank)",
+   "gpio-port"
+  ]
+ },
+ "minimum_level": "bare-c",
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+}
