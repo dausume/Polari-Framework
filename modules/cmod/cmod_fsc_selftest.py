@@ -118,8 +118,18 @@ def fsc_parts(check):
         check('fsc-0 LINK: uno-button-clock is a FirmwareSolution row; the two fgm-5b configs are FirmwareVariants (no FirmwareSolution row exists for them) and the link says which',
               linked['uno-button-clock']['link']['kind'] == 'FirmwareSolution' and linked['uno-light-sense-poll']['link']['kind'] == 'FirmwareVariant')
         un = {u['config']: u['why'] for u in b['unmatched_configs']}
-        check('fsc-0 LINK: every other config is listed as matching NO candidate, with why (uno-light, -pcint, -analog carry no sense line; uno-sim-rig, -blink-only, -adc-sweep, -echo are other jobs)',
-              {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-sim-rig', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} <= set(un) and 'sense-led-line' in un['uno-light'] and 'partial realisation' in un['uno-light'], sorted(un))
+        check('fsc-0 LINK (fsc-0b): configs built for ANOTHER job (uno-sim-rig, -pair, -blink-only, -adc-sweep, -echo: no route for a job that triggers a Purpose) are NOT candidates of this Mission and say why; the light configs are not in that list',
+              set(un) == {'uno-sim-rig', 'uno-pair', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} and all(w.startswith('not a candidate for this Mission: it was built for another job') for w in un.values()) and 'read-button' in un['uno-sim-rig'], sorted(un))
+        cf = {f['config']: f for f in b['failures'] if f['kind'] == 'purpose-unfulfilled'}
+        check('fsc-0b FAILURES: uno-light, -pcint, -analog and -v2 (built for this Mission, no route for sense-led-line) are FAILURES: the Purposes that job serves (derived from the Mission, not typed), the reason in plain words, no rank, no score',
+              set(cf) == {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} and all(f['state'] == 'failed' and f['rank'] is None and f['purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light'
+                                                                                                    and 'sense-led-line' in f['reason'] and 'does not fulfil' in f['reason'] and f['solution'] == f['config'] for f in cf.values()), sorted(cf))
+        check('fsc-0b FAILURES: a failing config never appears among the records (so it is never scored or compared) and is counted in counts.failed (%d)' % b['counts']['failed'],
+              not ({r['link']['config'] for r in b['records'] if r['link']} & set(cf)) and b['counts']['failed'] == len(b['failures']) and len(cf) == 4)
+        from cmod.custom import fsc_context as C
+        ctx = b['ctx']
+        check('fsc-0b ATTEMPT: a config is built for the Mission when it carries a route for the job triggering each Purpose (button -> read-button, command -> receive-command, period -> report-state); uno-sim-rig has no button',
+              L.attempt_of(L.config_routes(L.configs()['uno-light']), ctx)[0] and not L.attempt_of(L.config_routes(L.configs()['uno-sim-rig']), ctx)[0] and not L.attempt_of({}, ctx)[0])
         check('fsc-0 LINK: where the build\'s pins differ from the candidate\'s the link says so (the routes match, the pin choice is the solver\'s)',
               all(isinstance(r['link']['pins_agree'], bool) and r['link']['pins_note'] for r in linked.values()))
         check('fsc-0 FINISHED (no server): nothing is `finished` - no ScenarioRun can be read, so every built solution is listed as plan and says why',
@@ -130,22 +140,50 @@ def fsc_parts(check):
         r0 = next(r for r in mb['records'] if r['link'] and r['link']['config'] == 'uno-button-clock')
         check('fsc-0 FINISHED: built but with Purposes unproven (no passing ScenarioRun) -> plan, naming the unproven Purposes', r0['state'] == 'plan' and 'not every Purpose is proven' in r0['state_why'], r0['state_why'][:200])
         from cmod.custom import capabilities as CAP
-        runs = mgr.objectTables.setdefault('ScenarioRun', {})
-        for i, p in enumerate(mb['ctx']['purposes']):
-            cap = CAP.find(p['purpose'])
-            if cap.get('acceptance_scenario'):
-                runs[i] = SimpleNamespace(name='run-%d' % i, scenario=cap['acceptance_scenario'], outcome='passed', ran_at='2026-10-18T10:00:0%d' % i, repro_json='{"mode": "digital-twin"}', kind='measured', verdict_words='passed')
         from cmod.custom import fsc_run as R
-        strict = R.build(LIGHT, mgr, [UNO])
-        s0 = next(r for r in strict['records'] if r['link'] and r['link']['config'] == 'uno-button-clock')
-        check('fsc-0 FINISHED: the boot Purpose `initialization` has NO acceptance scenario, so it can never be proven: with every other Purpose proven on the twin nothing is finished (the owner\'s "every Purpose proven"), and the reason says so',
-              strict['counts']['finished'] == 0 and 'initialization (unprovable' in s0['state_why'], s0['state_why'][:260])
-        state['mb_proven'] = R.build(LIGHT, mgr, [UNO], unprovable='ignore')
-        fin = {r['link']['config'] for r in state['mb_proven']['records'] if r['state'] == 'finished'}
-        check('fsc-0 FINISHED: built AND every provable Purpose proven on the twin (knob unprovable=ignore) -> finished: %s; every other candidate stays plan' % sorted(fin), fin == {'uno-button-clock', 'uno-light-sense-pcint', 'uno-light-sense-poll'} and state['mb_proven']['counts']['plan'] == 137, state['mb_proven']['counts'])
-        del runs[1]
-        unproven = R.build(LIGHT, mgr, [UNO], unprovable='ignore')
-        check('fsc-0 FINISHED: take one Purpose\'s proof away and nothing is finished any more (unproven = plan, never finished)', unproven['counts']['finished'] == 0)
+        runs = mgr.objectTables.setdefault('ScenarioRun', {})
+        three = ['uno-button-clock', 'uno-light-sense-pcint', 'uno-light-sense-poll']
+
+        def put(config, purposes=None, outcome='passed'):
+            for i, p in enumerate(mb['ctx']['purposes']):
+                if purposes is None or p['purpose'] in purposes:
+                    cap = CAP.find(p['purpose'])
+                    runs[(config, p['purpose'])] = SimpleNamespace(name='run-%s-%d' % (config, i), scenario=cap['acceptance_scenario'], variant=config, outcome=outcome, ran_at='2026-10-18T10:00:0%d' % i,
+                                                                   repro_json='{"mode": "digital-twin"}', kind='measured', verdict_words=outcome)
+
+        def finished(**kw):
+            built_ = R.build(LIGHT, mgr, [UNO], **kw)
+            return built_, {r['link']['config'] for r in built_['records'] if r['state'] == 'finished'}, {r['link']['config']: r for r in built_['records'] if r['link']}
+        check('fsc-0b PROOF: all four Purposes of the Mission now have an acceptance scenario (initialization-acceptance), so nothing is `unprovable`',
+              all(CAP.find(p['purpose']).get('acceptance_scenario') for p in mb['ctx']['purposes']) and CAP.find('initialization')['acceptance_scenario'] == 'initialization-acceptance')
+        put('uno-light')
+        b1, fin, by = finished()
+        check('fsc-0b PROOF (the honest reading): every Purpose proven on uno-light proves NOTHING for the three linked configs - their firmware was not the one run - so none is finished and the reason says so',
+              not fin and b1['counts']['finished'] == 0 and all("no ScenarioRun of config %s's own firmware" % c in by[c]['state_why'] for c in three), by['uno-button-clock']['state_why'][:300])
+        for c in three:
+            put(c)
+        b2, fin, by = finished()
+        check('fsc-0 FINISHED: built AND every Purpose proven by runs of THAT config\'s own firmware -> finished: %s; every other candidate stays plan (%d)' % (sorted(fin), b2['counts']['plan']),
+              fin == set(three) and b2['counts']['finished'] == 3 and b2['counts']['plan'] == b2['counts']['distinct_plans'] - 3, b2['counts'])
+        del runs[('uno-light-sense-poll', 'initialization')]
+        _b3, fin, by = finished()
+        check('fsc-0b PROOF: take away ONE Purpose\'s run for ONE config and only that config drops back to plan (naming the Purpose); the other two stay finished',
+              fin == {'uno-button-clock', 'uno-light-sense-pcint'} and 'initialization' in by['uno-light-sense-poll']['state_why'] and by['uno-light-sense-poll']['state'] == 'plan', by['uno-light-sense-poll']['state_why'][:200])
+        put('uno-light-sense-poll', {'initialization'}, outcome='failed')
+        _b4, fin, _by = finished()
+        check('fsc-0 FINISHED: a LATER FAILED run takes the proof away again (a stale pass is never carried forward)', 'uno-light-sense-poll' not in fin and len(fin) == 2)
+        orig_find = CAP.find
+        CAP.find = lambda name, rows=None: dict(orig_find(name, rows), acceptance_scenario='') if name == 'initialization' else orig_find(name, rows)
+        try:
+            R._CACHE.clear()
+            put('uno-light-sense-poll', {'initialization'})
+            strict, fin_s, by_s = finished()
+            lenient, fin_l, _ = finished(unprovable='ignore')
+        finally:
+            CAP.find = orig_find
+            R._CACHE.clear()
+        check('fsc-0 FINISHED: a Purpose with NO acceptance scenario is `unprovable`: by default it keeps everything from finishing and the reason says so; unprovable=ignore leaves it out of the test',
+              not fin_s and 'initialization (unprovable' in by_s['uno-button-clock']['state_why'] and fin_l == set(three), by_s['uno-button-clock']['state_why'][:200])
 
     # ------------------------------------------------------------------ fsc-1
     def value_writer():
@@ -390,10 +428,15 @@ def fsc_parts(check):
         allp = c.simulate_get('/api/firmware-scores', params=q)
         check('fsc-2 DOOR scores: with no profile asked every profile is scored (%d) and each row carries its score and rank per profile' % len(allp.json['profiles']),
               allp.status_code == 200 and len(allp.json['profiles']) == 10 and all(len(r['scores']) == 10 for r in allp.json['rows'] if r['state'] != 'failed'))
+        cfail = [r for r in g.json['rows'] if r['state'] == 'failed' and r.get('failed_purpose')]
+        check('fsc-0b DOOR scores: GET /api/firmware-scores?mission=uno-light-mission lists the four built light configs as FAILED rows (name, Purpose failed, why, no score) and never ranks them: %s' % sorted(r['solution'] for r in cfail),
+              sorted(r['solution'] for r in cfail) == ['uno-light', 'uno-light-analog', 'uno-light-pcint', 'uno-light-v2'] and all(r['score'] is None and r['rank'] is None and 'sense-led-line' in r['reason']
+                                                                                                                              and r['failed_purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light' for r in cfail)
+              and {f['config'] for f in g.json['failures'] if f['kind'] == 'purpose-unfulfilled'} == {r['solution'] for r in cfail}, [r['solution'] for r in cfail])
         t = c.simulate_get('/api/firmware-scores/top', params=q)
         trow = t.json['rows'][0]
         check('fsc-2 DOOR top (the main tab): one row per profile {profile, profile_title, top_solution, score 100, runner_up, runner_up_score, compared_set, failed_count}',
-              t.status_code == 200 and t.json['count'] == 10 and all(r['score'] == 100.0 and r['runner_up'] and r['compared_set'] and r['failed_count'] == 0 and r['profile_title'] for r in t.json['rows'])
+              t.status_code == 200 and t.json['count'] == 10 and all(r['score'] == 100.0 and r['runner_up'] and r['compared_set'] and r['failed_count'] == 4 and r['profile_title'] for r in t.json['rows'])
               and {'profile', 'profile_title', 'top_solution', 'score', 'runner_up', 'runner_up_score', 'compared_set', 'failed_count'} <= set(trow), trow)
         top1 = rows[0]
         bd = c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution=top1['solution'], profile='fsc-fastest'))
@@ -497,11 +540,11 @@ def fsc_parts(check):
                 R._CTX.clear()
         unf, fl = res[False], res[True]
         check('fsc-0 FAIL RULE end to end: with the deadline tightened but NOT flagged, nothing fails - the polled plans are scored by closeness (deadline-fit below 100) and the miss is listed',
-              unf['counts']['failed'] == 0 and any(r['unflagged_deadline_misses'] for r in unf['records'])
+              [f for f in unf['failures'] if f['kind'] != 'purpose-unfulfilled'] == [] and any(r['unflagged_deadline_misses'] for r in unf['records'])
               and min(r['values']['deadline-fit']['value'] for r in unf['records']) < 100.0 and max(r['values']['deadline-fit']['value'] for r in unf['records']) == 100.0, unf['counts'])
-        check('fsc-0 FAIL RULE end to end: the SAME deadline flagged safety_critical -> the plans that miss it FAIL (%d), each naming the Purpose and the reason; the survivors (%d) all meet it' % (fl['counts']['failed'], len(fl['records'])),
-              fl['counts']['failed'] > 0 and all(f['purpose'] == 'ensure-button-controls-light' and 'safety-critical' in f['reason'] for f in fl['failures'])
-              and all(r['values']['deadline-fit']['value'] == 100.0 for r in fl['records']) and fl['counts']['failed'] + len(fl['records']) == unf['counts']['distinct_plans'], fl['counts'])
+        check('fsc-0 FAIL RULE end to end: the SAME deadline flagged safety_critical -> the plans that miss it FAIL (%d), each naming the Purpose and the reason; the survivors (%d) all meet it' % (len([f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled']), len(fl['records'])),
+              [f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled'] and all(f['purpose'] == 'ensure-button-controls-light' and 'safety-critical' in f['reason'] for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled')
+              and all(r['values']['deadline-fit']['value'] == 100.0 for r in fl['records']) and len([f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled']) + len(fl['records']) == unf['counts']['distinct_plans'], fl['counts'])
         rows = [r for r in g.json['rows'] if r['state'] != 'failed']
         failed = [r for r in g.json['rows'] if r['state'] == 'failed']
         check('fsc-2 FAILURES (door): failed solutions are listed after the ranked ones with state `failed`, the Purpose and the reason, NO score and NO rank, and never enter the compared set (%d ranked, %d failed)' % (len(rows), len(failed)),

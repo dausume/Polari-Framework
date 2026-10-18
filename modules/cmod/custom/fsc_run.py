@@ -5,7 +5,7 @@ fsc-0..2: the ORCHESTRATOR. One Mission -> the solve candidates (cmod.custom.sol
 row that says so, as the score card does) -> each is FAILED (cmod.custom.fsc_failure), or scored: linked to the built firmware that realises it (cmod.custom.fsc_link), marked
 finished | plan, and given its term values (cmod.custom.fsc_values). `scores()` then runs profiles over the compared set (cmod.custom.fsc_score).
 
-    build(mission, manager=None, boards=None) -> {mission, records [non-failed, solver order], failures [...], suggestions [...], unmatched_configs [...], ctx, counts}
+    build(mission, manager=None, boards=None) -> {mission, records [non-failed, solver order], failures [... solve candidates that fail + built configs that miss a Purpose (fsc-0b)], suggestions [...], unmatched_configs [...], ctx, counts}
     scores(built, profiles, scope='both', mode=None) -> {profiles {name: result}, rows [one per record], set_words}
 """
 from cmod.custom import fsc_failure as F
@@ -45,6 +45,12 @@ def _evidence(c, link, proof, ctx, manager):
     return T.q('estimated', round(val, 2), 'no firmware is built for exactly this plan; the mean proof of its routes: %s' % ', '.join('%s:%s %s' % x for x in sts))
 
 
+def _runs_sig(manager):
+    """The ScenarioRuns a per-config proof reads (variant, scenario, time, outcome), so a new run of ANY config re-derives the states."""
+    rows = ((getattr(manager, 'objectTables', None) or {}).get('ScenarioRun') or {}).values()
+    return sorted((getattr(r, 'variant', ''), getattr(r, 'scenario', ''), getattr(r, 'ran_at', ''), getattr(r, 'outcome', '')) for r in rows)
+
+
 def build(mission, manager=None, boards=None, importance_weights=None, unprovable='block'):
     from cmod.custom import solve_doors as SD
     from cmod.custom import fsc_prices as PR
@@ -57,7 +63,7 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
     ctx = _CTX[ck]
     proof = L.purposes_proof(ctx, manager, unprovable)
     po = PR.load()
-    key = SI.sha([res['result_sha256'], boards, importance_weights, {p: s for p, (s, _w) in proof[0].items()}, manager is not None, unprovable, po['path'], len(po['offers']), po['present']])
+    key = SI.sha([res['result_sha256'], boards, importance_weights, {p: s for p, (s, _w) in proof[0].items()}, _runs_sig(manager), manager is not None, unprovable, po['path'], len(po['offers']), po['present']])
     if key in _CACHE:
         return _CACHE[key]
     ranked = res['_ranked']
@@ -77,7 +83,9 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
             failures.append(dict(f, id=c['id'], solution=solution_name(mission, c), routes=c['routes_text'], hardware=c['hardware']['board'], rank=c['rank'], state='failed'))
         else:
             ok.append(c)
-    links, unmatched = L.resolve(list(res['jobs']), ok, manager)
+    links, unmatched = L.resolve(list(res['jobs']), ok, manager, ctx)
+    failures += L.misses(list(res['jobs']), ctx, manager)     # fsc-0b: a config built for this Mission that misses a job's Purposes is a FAILURE
+    cproofs = {}
     runs_on = {}
     for c in ok:
         runs_on.setdefault(tuple(sorted(c['routes'].items())), set()).add((c['hardware']['board'], c['hardware']['package'], c['tier']))
@@ -86,10 +94,11 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
     records = []
     for c in ok:
         link = links.get(c['id'])
-        st = L.state_of(c, link, ctx, proof, manager)
+        cp = cproofs.setdefault(link['config'], L.purposes_proof(ctx, manager, unprovable, config=link['config'])) if link else proof   # a config is proven only by runs of ITS OWN firmware
+        st = L.state_of(c, link, ctx, cp, manager)
         f = V.facts(c, ctx, manager)
         n = len(runs_on[tuple(sorted(c['routes'].items()))]) - 1
-        hw = V.hardware_values(c, ctx, f, _evidence(c, link, proof, ctx, manager), n, manager)
+        hw = V.hardware_values(c, ctx, f, _evidence(c, link, cp, ctx, manager), n, manager)
         pv = V.purpose_values(c, ctx, f, manager)
         rts = [d['route-time'] for d in pv.values() if 'route-time' in d]
         hw['route-time'] = V.T.q(V.T.weakest([x['kind'] for x in rts]), round(sum(x['value'] for x in rts), 3), 'route work counted once: the sum of the Purposes\' attributed shares (a shared route is split by importance weight, so it is not counted twice)')

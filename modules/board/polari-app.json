@@ -250,6 +250,7 @@
    "custom/lifecycle_uno",
    "custom/light_confirm",
    "custom/light_twin",
+   "custom/light_boot_twin",
    "custom/light_v2_twin",
    "custom/packages_atmega328p",
    "custom/packet_ref",

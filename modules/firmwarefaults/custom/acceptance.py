@@ -72,6 +72,16 @@ ACCEPTANCE_SCENARIOS = [
      'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
      'capability': 'ensure-polari-observes-hardware-state', 'provenance': 'fgm-1 seed',
      'notes': 'fgm-1: its own Scenario (so its runs are its own) reusing the button test\'s frame assertions; it has NO runs until it is run'},
+    {'name': 'initialization-acceptance', 'title': 'Acceptance - initialization (the first report after boot carries a new boot session)',
+     'description': 'From reset the first state report arrives inside 100 ms of simulated time and carries boot_session; after a second reset (avr_reset, EEPROM kept) the first report inside its 100 ms carries a DIFFERENT boot_session. '
+                    'Negative controls through the same judge: only 2 ms of the boot seen (no report yet), reports with boot_session removed, a second boot that reports the first one\'s session, and a stream with no reset in it must all be rejected.',
+     'target_board': 'arduino-uno-r3', 'before_variant': 'uno-light', 'after_variant': '',
+     'fault_class': '', 'fault': '', 'breaks': '', 'technique': '',
+     'expected_observable': 'a whole LightState report within 100 ms of reset with boot_session; after the second reset the first report names boot_session + 1 (differs from the first boot\'s)',
+     'observable_kind': 'field-arrival', 'window_cycles': int(0.3 * 16000000), 'run_seconds': 0.3,
+     'seed_policy': 'fixed', 'seed': 0, 'simulator': 'avr-twin', 'status': 'runnable', 'kind': 'acceptance',
+     'capability': 'initialization', 'provenance': 'fsc-0b seed',
+     'notes': 'runner: board.custom.light_boot_twin; max_latency_ms 100 is the Purpose criterion (one report period at 10 Hz)'},
     {'name': 'light-from-polari-acceptance', 'title': 'Acceptance — light-from-polari',
      'description': 'The OS sends SET_LED on, then SET_LED off over the serial link: the light follows each command, the board '
                     'counts both changes, and its frames say source=command.',
@@ -219,6 +229,10 @@ ACCEPTANCE_STEPS = [
     _step('ensure-polari-observes-hardware-state-acceptance', 2, 'assert-field-arrival',
           {'field': 'led_on flips, toggles==presses, source==button', 'window_ms': 100},
           notes='read off the decoded LightState reports - what Polari sees - of the same run'),
+    _step('initialization-acceptance', 1, 'reset-at', {'cycle': 3200000},
+          notes='avr_reset at 200 ms; the first run has no reset and judges the first 100 ms from power-on'),
+    _step('initialization-acceptance', 2, 'assert-field-arrival', {'field': 'first report within 100 ms carries boot_session; after the reset a DIFFERENT boot_session', 'window_ms': 100},
+          notes='read off the decoded LightState reports; plus four negative controls through the same judge'),
     _step('light-from-polari-acceptance', 1, 'assert-command-echo', {'field': 'led_on', 'value': 1, 'window_ms': 100},
           notes='SET_LED 1: the next frames report the light on, source=command'),
     _step('light-from-polari-acceptance', 2, 'assert-command-echo', {'field': 'led_on', 'value': 0, 'window_ms': 100},
@@ -263,6 +277,10 @@ LIGHT_WHICH = {'ensure-button-controls-light': 'button', 'ensure-polari-observes
                'ensure-polari-can-control-light': 'polari', 'light-from-button': 'button', 'light-from-polari': 'polari'}
 
 
+#: fsc-0b: the boot Purpose's Scenario -> the variant board.custom.light_boot_twin proves it on
+BOOT_PROOFS = {'initialization-acceptance': 'uno-light'}
+
+
 #: fgm-5a: Scenario -> the FirmwareVariant board.custom.variant_twin proves (keyed by the Scenario, not its variant: uno-sim-rig has others)
 VARIANT_PROOFS = {'light-pcint-button-acceptance': 'uno-light-pcint', 'light-analog-button-acceptance': 'uno-light-analog',
                   'sim-rig-pwm-duty-acceptance': 'uno-sim-rig',
@@ -299,6 +317,9 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if sc['name'] in V2_PROOFS:
         from board.custom import light_v2_twin as L2
         result = L2.prove(V2_PROOFS[sc['name']], run_mode)
+    elif sc['name'] in BOOT_PROOFS:
+        from board.custom import light_boot_twin as LB
+        result = LB.prove(run_mode, BOOT_PROOFS[sc['name']])
     elif sc['name'] in VARIANT_PROOFS:
         # fgm-5a: an isotope variant's own twin proof (the catalogue route it restates is read by cmod.custom.isotope_variants)
         from board.custom import variant_twin as VT
