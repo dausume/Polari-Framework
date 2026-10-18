@@ -347,8 +347,8 @@ def seeds_page_api():
     construct_firmwarefaults_endpoints(SimpleNamespace(falconServer=app, manager=mgr, idList=[]))
     c = testing.TestClient(app)
     s = c.simulate_get('/api/firmwarefaults').json
-    check('GET /api/firmwarefaults: 17 fault rows by family, 20 scenarios runnable (9 UNO + 3 C3, sc-3 + 4 acceptance + 3 of fgm-6a), 19 step kinds',
-          s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 20 and len(s['step_kinds']) == 19, str(s)[:300])
+    check('GET /api/firmwarefaults: 17 fault rows by family, 21 scenarios runnable (9 UNO + 3 C3, sc-3 + 4 acceptance + 3 of fgm-6a + fsc-0b initialization-acceptance), 19 step kinds',
+          s['ok'] and s['fault_rows'] == 17 and sum(x['runnable'] for x in s['scenarios']) == 21 and len(s['step_kinds']) == 19, str(s)[:300])
     f = c.simulate_get('/api/firmwarefaults/faults').json
     check('GET /api/firmwarefaults/faults groups the rows by family with the kind fields',
           [len(f['families'][k]) for k in ('concurrency', 'physical-trigger', 'space-safety')] == [8, 6, 3]
@@ -368,7 +368,8 @@ def seeds_page_api():
                                                                     'light-analog-button-acceptance': 2, 'sim-rig-pwm-duty-acceptance': 2,
                                                                     'sense-poll-line-acceptance': 2, 'sense-pcint-line-acceptance': 2,
                                                                     'light-v2-rapid-commands-acceptance': 1, 'light-v2-reboot-acceptance': 2,
-                                                                    'light-v2-malformed-acceptance': 1, 'light-v2-button-no-confirm-acceptance': 2})
+                                                                    'light-v2-malformed-acceptance': 1, 'light-v2-button-no-confirm-acceptance': 2,
+                                                                    'initialization-acceptance': 2})
     check('GET /api/firmwarefaults/runs/<missing> → 404; POST /run without a scenario → 400',
           c.simulate_get('/api/firmwarefaults/runs/nope').status_code == 404
           and c.simulate_post('/api/firmwarefaults/run', body='{}').status_code == 400)
