@@ -30,6 +30,7 @@ from board.custom import board_uno as U
 from board.custom import kit_parts as KP
 from board.custom import pin_roles as PR
 from board.custom import target_compat as TC
+from board.custom import esp32c3_evidence as E3   # c3pf: the TRM, the MINI-1 module datasheet, the DevKitM-1 user guide (fetched + hashed 2026-10-18)
 from board.custom import uno_evidence as EV   # fgm-2: the schematic / product datasheet / ATmega16U2 datasheet / kit box
 from board.custom.uno_facts import (BOARDS_TXT, BOARDS_TXT_REV, UNO_DOC, DOUBLE_DOC, OPTIBOOT, M328_DOC, M328_REV,
                                     M328_URL, TMP36_DOC, TMP36_REV, TMP36_URL)
@@ -167,15 +168,25 @@ def _static_rows():
          'origin': 'derived:board.custom.board_c3.DS_DOC/DS_REV/DS_URL — every SocPin IO-MUX fact (Table 2-4/2-6) cites it',
          'notes': "the chip's own datasheet (IO MUX pin functions, analog functions, the USB Serial/JTAG pins)",
          '_match': [(C.DS_DOC, C.DS_REV)], '_url': [C.DS_URL]},
-        {'name': 'espressif-esp32-c3-devkitm-user-guide', 'title': 'Espressif ESP32-C3-DevKitM-1 user guide',
-         'kind': 'board', 'for_soc': '', 'for_board': 'esp32-c3', 'publisher': 'Espressif', 'revision': '',
-         'url': _ESPRESSIF_USER_GUIDE_URL, 'sha256': '', 'fetched_at': '', 'pages': 0, 'format': 'web',
+        {'name': 'espressif-esp32-c3-trm', 'title': E3.TRM_DOC, 'kind': 'soc', 'for_soc': 'esp32c3', 'for_board': '', 'publisher': 'Espressif', 'revision': E3.TRM_REV,
+         'url': E3.TRM_URL, 'sha256': E3.TRM_SHA, 'fetched_at': '2026-10-18', 'pages': 903, 'format': 'pdf', 'licence_note': 'the PDF is not committed (licence, size): the facts read from it are', 'covers': [],
+         'origin': 'derived:board.custom.esp32c3_evidence.TRM_* - the matrix-signal facts (Table 5.11-1), the GPIO interrupt and the peripheral chapter cites cite it',
+         'notes': "the chip's technical reference manual: the IO MUX and GPIO matrix chapter (signal list), GPIO_PINn_REG, the LEDC and SAR ADC chapters; its register map is NOT ingested",
+         '_match': [(E3.TRM_DOC, E3.TRM_REV)], '_url': [E3.TRM_URL]},
+        {'name': 'espressif-esp32-c3-mini-1-datasheet', 'title': E3.MINI_DOC, 'kind': 'other', 'for_soc': 'esp32c3', 'for_board': 'esp32-c3', 'publisher': 'Espressif', 'revision': E3.MINI_REV,
+         'url': E3.MINI_URL, 'sha256': E3.MINI_SHA, 'fetched_at': '2026-10-18', 'pages': 0, 'format': 'pdf', 'licence_note': 'the PDF is not committed', 'covers': [],
+         'origin': 'derived:board.custom.esp32c3_evidence.MINI_* - module.flash / module.pins facts and the flash-pin lifecycle rows cite it',
+         'notes': "the MODULE on the DevKitM-1 (chip + in-package flash + antenna): kept 'other' - the board coverage prefers the DevKitM user guide for 'board'",
+         '_match': [(E3.MINI_DOC, E3.MINI_REV)], '_url': [E3.MINI_URL]},
+        {'name': 'espressif-esp32-c3-devkitm-user-guide', 'title': E3.KIT_DOC,
+         'kind': 'board', 'for_soc': '', 'for_board': 'esp32-c3', 'publisher': 'Espressif', 'revision': E3.KIT_REV,
+         'url': E3.KIT_URL, 'sha256': E3.KIT_SHA, 'fetched_at': '2026-10-18', 'pages': 0, 'format': 'web',
          'licence_note': '', 'covers': [],
-         'origin': 'derived:board.custom.pin_roles.ROLES[\'button\'][\'sources\'] — cited only for the BOOT/user button role',
-         'notes': "kept kind='board' rather than 'combined': nothing board_c3.py cites from this guide names "
+         'origin': 'derived:board.custom.esp32c3_evidence.KIT_* (c3pf: the header tables, the RGB LED, the bridge) + board.custom.pin_roles.ROLES[\'button\'][\'sources\'] (the BOOT/user button role)',
+         'notes': "kept kind='board' rather than 'combined': nothing cited from this guide names "
                   "flashing/bootloader content (the C3's own programming reference is not cited anywhere yet — see "
                   "a board's datasheets_json, which names it missing); decide again if a flashing fact ever cites this url",
-         '_match': [], '_url': [_ESPRESSIF_USER_GUIDE_URL]},
+         '_match': [(E3.KIT_DOC, E3.KIT_REV)], '_url': [E3.KIT_URL]},
         {'name': 'zephyr-esp32c3-devkitm-ingest', 'title': 'Zephyr RTOS — esp32c3_devkitm board directory (ingested)',
          'kind': 'other', 'for_soc': 'esp32c3', 'for_board': 'esp32-c3', 'publisher': 'Zephyr Project (Apache-2.0)',
          'revision': _ZREV, 'url': 'https://github.com/zephyrproject-rtos/zephyr/tree/%s/' % C.TAG, 'sha256': '',

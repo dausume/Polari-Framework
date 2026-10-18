@@ -21,6 +21,7 @@ import fnmatch
 import json
 import re
 
+from board.custom import soc_functions as SF   # c3pf: the ESP32-C3's functions are PinFunction rows, its kinds patterns over their names
 from cmod.custom import solve_inputs as SI
 
 BUS_KINDS = ('spi-sck', 'spi-mosi', 'spi-miso', 'i2c-sda', 'i2c-scl')
@@ -29,7 +30,9 @@ FAMILIES = (('external-interrupt', re.compile(r'^INT[01]$')), ('pin-change', re.
             ('usart', re.compile(r'^(RXD|TXD|XCK)$')), ('timer-clock', re.compile(r'^T[01]$')), ('capture', re.compile(r'^ICP1$')), ('clock-out', re.compile(r'^CLKO$')))
 
 
-def family(fn):
+def family(fn, soc=None):
+    if SF.has_vocab(soc):
+        return SF.family(soc, fn)
     return next((name for name, rx in FAMILIES if rx.match(fn)), None)
 
 
@@ -37,12 +40,19 @@ def pin_universe(hw, tables):
     """[{canonical, soc_pin, number, functions}] in board order (D0..D13, A0..A5) then the package-only analog pins (ADC6, ADC7: bonded on the TQFP, no header)."""
     board = hw['board']
     socpins = {p['pin']: p for p in tables['SocPin'] if p['soc'] == hw['soc']}
+    pf = {}
+    if SF.has_vocab(hw['soc']):   # c3pf: the PinFunction rows ARE the vocabulary (GPIO, GPIO_INT, the IO MUX functions, every GPIO-matrix signal), in row order
+        for f in tables.get('PinFunction', []):
+            if f['soc'] == hw['soc']:
+                pf.setdefault(f['soc_pin'], []).append(f['function'])
     out = []
     for b in tables['BoardPin']:
         if b['board'] != board:
             continue
         sp = socpins.get(b['soc_pin'])
-        fns = (['GPIO'] if sp else []) + (json.loads(sp['functions_json'] or '[]') if sp else [])
+        fns = list(pf.get(sp['name']) if sp and sp['name'] in pf else (['GPIO'] if sp else []) + (json.loads(sp['functions_json'] or '[]') if sp else []))
+        if sp and SF.has_vocab(hw['soc']) and any(x['board'] == board and x['pin'] == b['canonical'] and x['phase'] == 'reset' for x in tables.get('PinLifecycleConstraint', [])):
+            fns.append('@strapping')   # c3pf: a pad sampled at reset (boot mode) is a scarce kind of pad - the family costs a need that does not use it
         out.append({'canonical': b['canonical'], 'soc_pin': b['soc_pin'], 'functions': fns, 'header': True})
     labels = sorted({c['label'] for c in tables.get('PackageContact', []) if re.match(r'^ADC[67]$', c['label'])})
     have = {p['canonical'] for p in out}
@@ -52,12 +62,12 @@ def pin_universe(hw, tables):
     return out
 
 
-def scarcity(universe):
+def scarcity(universe, soc=None):
     """{family: 1 / header pins that carry it} over the header pins."""
     count = {}
     for p in universe:
         if p['header']:
-            for f in {family(fn) for fn in p['functions']} - {None}:
+            for f in {family(fn, soc) for fn in p['functions']} - {None}:
                 count[f] = count.get(f, 0) + 1
     return {f: round(1.0 / n, 4) for f, n in count.items()}
 
@@ -70,10 +80,10 @@ def pick_function(pin, patterns):
     return None
 
 
-def spec_cost(pin, fn, scar):
+def spec_cost(pin, fn, scar, soc=None):
     """The scarce families the pin carries beyond the one the need uses -> (cost, [family names wasted])."""
-    used = family(fn)
-    fams = sorted({family(f) for f in pin['functions']} - {None, used})
+    used = family(fn, soc)
+    fams = sorted({family(f, soc) for f in pin['functions']} - {None, used})
     return round(sum(scar.get(f, 0.0) for f in fams), 4), fams
 
 
@@ -86,7 +96,10 @@ def _okind(kind, pats):
     return kind if kind in K.KINDS else 'digital-in'
 
 
-def _kind_patterns(kind):
+def _kind_patterns(kind, soc=None):
+    own = SF.kind_patterns(soc, kind) if SF.has_vocab(soc) else None
+    if own is not None:
+        return list(own)
     from cmod.custom.isotope_variants_eligibility import KIND_FUNCTIONS
     return KIND_FUNCTIONS.get(kind) or ['GPIO*']
 
@@ -97,8 +110,9 @@ def _need(job, route, role, part, kind, pats, importance, purposes, phases, rese
             'drive': drive, 'note': note, 'also': list(also), 'bus_shared': False}
 
 
-def needs_for(combo, by_job, fixed):
-    """combo = {job: variant row dict}; by_job = {job: [Mission profiles]}; fixed = Mission profiles with no catalogued job -> [need]."""
+def needs_for(combo, by_job, fixed, soc=None):
+    """combo = {job: variant row dict}; by_job = {job: [Mission profiles]}; fixed = Mission profiles with no catalogued job -> [need]. `soc`: the hardware's SoC - on one
+    with its own function vocabulary (the ESP32-C3) the kind names the patterns, the UNO-style functions_any of a route's profile (INT0, OC*) is not used."""
     from cmod.custom import pin_profiles as PP
     needs = []
     for job, v in combo.items():
@@ -110,7 +124,7 @@ def needs_for(combo, by_job, fixed):
         reserved = [m for m in mps if m.get('reserved')]
         if reserved:
             for m in reserved:
-                needs.append(_need(job, v['route'], m['role'], m['role'] + ' (' + m['kind'] + ')', m['kind'], _kind_patterns(m['kind']), m.get('importance') or imp, m['purposes'], phases, True, m.get('drive') or {}))
+                needs.append(_need(job, v['route'], m['role'], m['role'] + ' (' + m['kind'] + ')', m['kind'], _kind_patterns(m['kind'], soc), m.get('importance') or imp, m['purposes'], phases, True, m.get('drive') or {}))
             continue
         drive = (mps[0].get('drive') or {})
         for pr in json.loads(v['profiles_json'] or '[]'):
@@ -123,13 +137,13 @@ def needs_for(combo, by_job, fixed):
                 for fnp in pr['functions_all']:
                     needs.append(_need(job, v['route'], pr['role'], '%s - %s' % (pr.get('part', ''), fnp), kind, [fnp], imp, purposes, phases, False, {}, pr.get('note', '')))
                 continue
-            pats = pr.get('functions_any') or _kind_patterns(kind)
+            pats = (SF.kind_patterns(soc, kind) if SF.has_vocab(soc) else None) or pr.get('functions_any') or _kind_patterns(kind, soc)
             for i in range(int(pr.get('count', 1))):
                 nd = _need(job, v['route'], pr['role'], pr.get('part', '') + ('' if int(pr.get('count', 1)) == 1 else ' #%d' % (i + 1)), kind, pats, imp, purposes, phases, False,
                            drive if direct else {}, pr.get('note', ''))
                 needs.append(nd)
     for m in fixed:
-        needs.append(_need('(none)', 'fixed', m['role'], m['role'] + ' (' + m['kind'] + ')', m['kind'], _kind_patterns(m['kind']), m.get('importance') or 'required', m['purposes'],
+        needs.append(_need('(none)', 'fixed', m['role'], m['role'] + ' (' + m['kind'] + ')', m['kind'], _kind_patterns(m['kind'], soc), m.get('importance') or 'required', m['purposes'],
                            [ph for ph in (m.get('lifecycle_phases') or ['runtime']) if ph in ('init', 'runtime')] or ['runtime'], bool(m.get('reserved')), m.get('drive') or {}))
     return _merge_bus(needs)
 

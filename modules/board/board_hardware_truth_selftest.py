@@ -49,8 +49,8 @@ def _model(check):
         check('fgm-2: every seed row constructs its class (no stray field) — %d rows' % len(built), len(built) == sum(len(seeded[c][1]) for c in names))
     except TypeError as e:
         check('fgm-2: every seed row constructs its class (no stray field)', False, str(e))
-    check('fgm-2: row counts — 3 packages (hsp-0: + the 16U2 QFN), 93 contacts (28 + 32 + 33 QFN), 2 USB interfaces, 2 components, 7 group budgets',
-          [len(t[c]) for c in ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'PinGroupBudget')] == [3, 93, 2, 2, 7], {c: len(t[c]) for c in names})
+    check('fgm-2: row counts — 4 packages (hsp-0: + the 16U2 QFN; c3pf: + the ESP32-C3 QFN32), 126 contacts (28 + 32 + 33 + 33), 2 USB interfaces, 3 components (U1, U2 of the UNO; c3pf: U1 of the C3), 7 group budgets',
+          [len(t[c]) for c in ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'PinGroupBudget')] == [4, 126, 2, 3, 7], {c: len(t[c]) for c in names})
 
     # ---- packages
     pc = {c['name']: c for c in t['PackageContact']}
@@ -100,7 +100,7 @@ def _model(check):
           inst.package_variant == '' and inst.usb_interface == '' and inst.variant_status == 'pending' and seeded['BoardInstance'][1] == [])
 
     # ---- components
-    comp = {c['ref']: c for c in t['BoardComponent']}
+    comp = {c['ref']: c for c in t['BoardComponent'] if c['board'] == 'arduino-uno-r3'}   # c3pf: the C3 has its own U1
     socs = {s['name']: s for s in t['SocDefinition']}
     check('components: U1 = ATmega328P (mcu, targeted by firmware, package modelled 28-SPDIP with TQFP allowed); U2 = ATmega16U2 (usb-bridge, programmable, its own SoC row)',
           comp['U1']['role'] == 'mcu' and comp['U1']['soc'] == 'atmega328p' and comp['U1']['targeted_by_firmware'] and comp['U1']['package'] in json.loads(comp['U1']['package_options_json'])

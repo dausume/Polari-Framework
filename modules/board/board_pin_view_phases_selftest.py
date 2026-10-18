@@ -75,7 +75,7 @@ def run_pin_view_phases(check):
     # ---- bootloader: board as delivered vs chip blank
     bl = PV.build(BOARD, dict(P, phase='bootloader', blank='board'))
     bc = PV.build(BOARD, dict(P, phase='bootloader', blank='chip'))
-    rows = {r['name']: r for r in t['PinLifecycleConstraint'] if r['phase'] == 'bootloader'}
+    rows = {r['name']: r for r in t['PinLifecycleConstraint'] if r['phase'] == 'bootloader' and r['board'] == BOARD}   # c3pf: the UNO's rows (the C3 has its own bootloader rows)
     d0 = next(p for p in bl['pins'] if p['level'] == 'die' and p['canonical'] == 'D0')
     d1 = next(p for p in bl['pins'] if p['level'] == 'die' and p['canonical'] == 'D1')
     d6 = next(p for p in bl['pins'] if p['level'] == 'die' and p['canonical'] == 'D6')

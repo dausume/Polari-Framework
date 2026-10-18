@@ -28,6 +28,7 @@ import json
 import re
 
 from board.custom import exposure_view as V
+from board.custom import soc_functions as SF   # c3pf: the ESP32-C3's kinds are patterns over its PinFunction names
 
 RUNGS = ((1, 'soc-capability'), (2, 'package-exposure'), (3, 'board-routing'), (4, 'connected-components'), (5, 'attached-extensions'),
          (6, 'pin-multiplexing'), (7, 'electrical-limits'), (8, 'lifecycle'), (9, 'existing-claims'), (10, 'isotope-requirements'))
@@ -154,10 +155,24 @@ def _rung1(tables, comp, sp, label, fn):
         return _r(1, 'ok' if ok else 'blocked', ('%s is an analog-only input of %s (leg %d of %s); it has no digital pad, no GPIO' % (label, comp['soc'], known[0]['number'], known[0]['package'])) if ok
                   else '%s has no function %s on %s' % (label, fn, comp['soc']), known[0]['page_table'] if known else '')
     fns = ['GPIO'] + json.loads(sp.get('functions_json') or '[]')
-    pf = next((f for f in tables.get('PinFunction', []) if f['soc_pin'] == sp['name'] and f['function'] == fn), None)
-    if fn in fns:
+    pf = _pin_function(tables, sp['name'], fn)
+    if fn in fns or pf is not None:   # c3pf: a GPIO-matrix signal is a PinFunction row, not in SocPin.functions_json
         return _r(1, 'ok', '%s can be %s (%s)' % (sp['pin'], fn, ('PinFunction %s' % pf['name']) if pf else 'SocPin.functions_json'), sp.get('fact', ''))
     return _r(1, 'blocked', '%s has no function %s (it has %s)' % (sp['pin'], fn, '/'.join(fns)), sp.get('fact', ''))
+
+
+_PF_INDEX = {}
+
+
+def _pin_function(tables, soc_pin, fn):
+    """The PinFunction row of (SocPin name, function) - indexed once per PinFunction list (2.7k rows on a seed with the ESP32-C3)."""
+    rows = tables.get('PinFunction', [])
+    key = id(rows)
+    if _PF_INDEX.get('key') != (key, len(rows)):
+        _PF_INDEX.clear()
+        _PF_INDEX['key'] = (key, len(rows))
+        _PF_INDEX['rows'] = {(f['soc_pin'], f['function']): f for f in rows}
+    return _PF_INDEX['rows'].get((soc_pin, fn))
 
 
 def _rung2(tables, package, sp, label, leg):
@@ -215,14 +230,23 @@ def _rung3_4(tables, board, comp, sp, bp, label, package, leg, ctx):
 
 
 def _rung6(tables, bp, sp, fn):
-    kind = TASK_KIND.get(fn, '')
+    vocab = sp is not None and SF.has_vocab(sp['soc'])
+    kind = SF.function_kind(sp['soc'], fn) if vocab else TASK_KIND.get(fn, '')
     if bp is None or sp is None:
         return _r(6, 'undetermined', 'not on a board pin: no firmware task can be dropped on it, multiplexing is not asked')
     if not kind:
+        pf = _pin_function(tables, sp['name'], fn) if vocab else None
+        if pf and pf.get('exclusive_group'):
+            return _r(6, 'undetermined', 'no firmware task kind names %s; it shares the cited group %s with the other outputs of the pad (datasheet §2.3.1 p.19, TRM §5.5.2 p.164)' % (fn, pf['exclusive_group']))
         return _r(6, 'undetermined', 'no firmware task kind names %s, and PinFunction.exclusive_group is not cited for it' % fn)
     from board.custom import target_compat as TC
-    v, why = TC.compatible(kind, bp, sp)
-    return _r(6, {'ok': 'ok', 'no': 'blocked'}.get(v, 'undetermined'), '%s (task kind %s)' % (why, kind), 'board.custom.target_compat.compatible')
+    v, why = TC.compatible(kind, bp, sp, tables)
+    verdict = {'ok': 'ok', 'no': 'blocked'}.get(v, 'undetermined')
+    pf = _pin_function(tables, sp['name'], fn) if vocab else None
+    m = re.search(r'priority P(\d)( \(use with caution[^)]*\))?', (pf or {}).get('notes', ''))
+    if verdict == 'ok' and m and int(m.group(1)) >= 3:   # Table 2-7: P3 = use with caution, P4 = allocated or not recommended
+        return _r(6, 'conditional', '%s (task kind %s); datasheet Table 2-7 p.24: %s%s' % (why, kind, 'priority P' + m.group(1), m.group(2) or ''), 'board.custom.target_compat.compatible; datasheet §2.3.4 p.23')
+    return _r(6, verdict, '%s (task kind %s)' % (why, kind), 'board.custom.target_compat.compatible')
 
 
 def _etables(tables, cache):

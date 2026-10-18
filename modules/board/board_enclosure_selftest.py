@@ -49,8 +49,8 @@ def run_enclosure(check):
     check('L1: terminology only — no kind carries a digit in its words (no physics number lives in the catalogue)', not [k['name'] for k in kinds if re.search(r'\d', k['description'])])
     # ---- L2 enclosures
     names = {e['name']: e for e in encl}
-    check('L2: four enclosures — U1 SPDIP (E1:dip), U2 QFN (E1:qfn), the TQFP variant (E1:tqfp), the UNO board (E2:board)',
-          len(encl) == 4 and names[BOARD + ':U1:package']['kind'] == 'E1:dip' and names[BOARD + ':U2:package']['kind'] == 'E1:qfn'
+    check('L2: five enclosures — U1 SPDIP (E1:dip), U2 QFN (E1:qfn), the TQFP variant (E1:tqfp), the UNO board (E2:board); c3pf: + the ESP32-C3 QFN32 (E1:qfn, no board enclosure: its headers are not modelled)',
+          len(encl) == 5 and names['esp32-c3:U1:package']['kind'] == 'E1:qfn' and names['esp32-c3:U1:package']['parent'] == '' and 'esp32-c3:board' not in names and names[BOARD + ':U1:package']['kind'] == 'E1:dip' and names[BOARD + ':U2:package']['kind'] == 'E1:qfn'
           and names[TQFP + ':variant']['kind'] == 'E1:tqfp' and names[BOARD + ':board']['kind'] == 'E2:board' and all(e['kind'] in {k['name'] for k in kinds} for e in encl))
     check('L2: the SPDIP and the QFN sit inside the board; the TQFP has no parent and no board; each E1 names its package and component',
           names[BOARD + ':U1:package']['parent'] == names[BOARD + ':U2:package']['parent'] == BOARD + ':board' and names[TQFP + ':variant']['parent'] == ''
@@ -68,8 +68,8 @@ def run_enclosure(check):
           and 'TXD1' in next(s for s in u2pins if s['pin'] == 'PD3')['functions_json'] and {'CTS', 'HWB'} <= set(json.loads(next(s for s in u2pins if s['pin'] == 'PD7')['functions_json']))
           and _find(t['PackageDefinition'], name=QFN)[0]['code'] == '32M1-A' and all(json.loads(s['package_contacts_refs_json']) for s in u2pins))
     # ---- L3 the exposure maps
-    check('L3: E1 — one crossing per contact of every package (60 + 33 = 93, the TQFP counted) plus two not-bonded rows (ADC6, ADC7) on the SPDIP',
-          len([c for c in E1 if c['via'] != 'not-bonded']) == 93 - 0 and len(_find(E1, via='not-bonded')) == 2)
+    check('L3: E1 — one crossing per contact of every package (60 + 33 = 93, the TQFP counted; c3pf: + 33 of the ESP32-C3 QFN32 = 126) plus two not-bonded rows (ADC6, ADC7) on the SPDIP',
+          len([c for c in E1 if c['via'] != 'not-bonded']) == 126 and len(_find(E1, via='not-bonded')) == 2)
     ctr = {c['via'] for c in xc}
     check('L3: every via is one of the allowed kinds; every verification is one of the four; names are unique',
           ctr <= {'direct', 'series-resistor', 'buffer', 'capacitor', 'jumper', 'series-inductor', 'series-fuse', 'not-bonded', 'internal-only'}

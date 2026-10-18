@@ -364,6 +364,8 @@ def main():
     run_mapping(check)
     from board.board_c3_selftest import run_c3   # sc-3: the ESP32-C3 template, its gen/build/flash/twin, the twin's cost
     run_c3(check)
+    from board.board_c3_pins_selftest import run_c3_pins   # c3pf: the ESP32-C3's pin functions as cited rows, the ladder / eligibility / sol-0 on the second board
+    run_c3_pins(check)
     from board.board_object_selftest import run_board_object   # brd-bo: THE BOARD OBJECT — rows, views, ingest, conflicts, the flip
     run_board_object(check)
     from board.board_target_compat_selftest import run_target_compat   # fs-2a: task-kind <-> pin-role compatibility

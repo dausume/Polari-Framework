@@ -168,17 +168,19 @@ def solve_parts(check):
     def c3():
         r = run('c3', boards=[C3])
         c = r['chosen_candidate']
-        check('sol-0 ACCEPTANCE: the ESP32-C3 model is a second hardware and is reported UNDETERMINED, honestly - no BoardPin / PinFunction rows, so no pin is placed and none is pretended; FreeRTOS and Zephyr stay possible tiers, bare C is blocked by name',
-              r['hardware'][0]['placeable'] is False and 'PinFunction' in r['hardware'][0]['why_not'] and all(x['rank_class'] == 4 and not x['assignment'] and x['placement'] == 'undetermined' for x in r['_ranked'])
-              and {x['tier'] for x in r['_ranked']} == {'freertos', 'zephyr'} and any('bare-c' in x['where'] and 'no bare-C template' in x['reason'] for x in r['pruned']['by_kind']['tier-blocked']['first']), r['hardware'])
-        check('sol-0: for the C3 it still says what it CAN: the SoC pins that carry each function by name (unverified), and that routing, headers and overlap rules are not modelled',
-              c['soc_options'] and any(o['soc_pins_by_name'] >= 20 and 'GPIO' not in o['verdict'] and 'not modelled' in o['verdict'] for o in c['soc_options']), c['soc_options'][:2])
+        check('sol-0 ACCEPTANCE (c3pf): the ESP32-C3 is a second hardware that is now PLACED from its PinFunction rows - FreeRTOS and Zephyr are the possible tiers, bare C is blocked by name (no template; FreeRTOS is the lowest tier)',
+              r['hardware'][0]['placeable'] is True and c['rank_class'] == 0 and c['placement'] == 'placed' and c['tier'] == 'freertos' and {x['tier'] for x in r['_ranked']} == {'freertos', 'zephyr'}
+              and all(x['assignment'] and x['placement'] == 'placed' for x in r['_ranked']) and any('bare-c' in x['where'] and 'no bare-C template' in x['reason'] for x in r['pruned']['by_kind']['tier-blocked']['first']), r['hardware'])
+        check('sol-0 (c3pf): on the C3 the transport sits on the UART0 pads GPIO20 / GPIO21 (every GPIO-matrix option for the reserved line is refused by name) and no pad is placed on a flash pad (GPIO11-17) or a USB pad',
+              {(a['pin'], a['function']) for a in c['assignment'] if a['role'] == 'the transport'} == {('GPIO20', 'U0RXD'), ('GPIO21', 'U0TXD')}
+              and not {a['pin'] for a in c['assignment']} & {'GPIO%d' % n for n in list(range(11, 18)) + [18, 19]}
+              and any('transport-wire' in x['reason'] for x in r['pruned']['by_kind']['pin-refused']['first']), [(a['role'], a['pin']) for a in c['assignment']])
         und = [t for x in r['_ranked'] for t in x['resources']['terms'] if t['kind'] == 'undetermined']
         check('sol-0: the C3 candidates carry undetermined costs (kernel footprints, cycle counts) and every one is scored at a STATED stand-in - never zero',
               und and all(t['points'] > 0 and t['stand_in'] and 'stand-in' in t['basis'] for t in und) and all(x['cycle_us'] > 0 for x in r['_ranked']), len(und))
         both = run('both')
-        check('sol-0: asked for both boards together the UNO plans rank first and the undetermined C3 plans last (rank class 4), never mixed in',
-              both['_ranked'][0]['hardware']['board'] == UNO and both['_ranked'][-1]['hardware']['board'] == C3 and all(x['rank_class'] == 4 for x in both['_ranked'] if x['hardware']['board'] == C3))
+        check('sol-0: asked for both boards together the UNO plan ranks first (minimum-resources) and every C3 plan is a placed plan (rank class < 4), ranked by the same rules',
+              both['_ranked'][0]['hardware']['board'] == UNO and any(x['hardware']['board'] == C3 for x in both['_ranked']) and all(x['rank_class'] < 4 for x in both['_ranked'] if x['hardware']['board'] == C3), both['_ranked'][0]['hardware'])
 
     def objectives():
         a = base()

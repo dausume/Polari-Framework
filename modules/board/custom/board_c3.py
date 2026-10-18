@@ -43,6 +43,9 @@ POLARI = {'GPIO4': {'net': 'UART1_TX', 'function': 'uart', 'peripheral': 'UART1'
                     'origin': 'polari:sc-3 template — main/polari_c3.h POLARI_TRACE_TX_GPIO 4 (UART1 TX = the FreeRTOS trace on silicon)'},
           'GPIO21': {'firmware_symbol': 'POLARI_FRAME_TX_GPIO'}, 'GPIO20': {'firmware_symbol': 'POLARI_FRAME_RX_GPIO'}}
 CITED_USB = {'GPIO18': ('USB_D-', 'USB_D-'), 'GPIO19': ('USB_D+', 'USB_D+')}
+#: c3pf: DevKitM-1 header pins the Zephyr devicetree does not use - the user guide's Header Block (J1/J3): (silk name, header position). The guide breaks out GPIO0-10, 18-21 and
+#: no flash pad ("All available GPIO pins (except for the SPI bus for flash) are broken out"); the header NUMBERS are not ConnectorPin rows (headers are not modelled), so they are notes.
+DEVKIT_PINS = {'GPIO0': ('IO0', 'J1 pin 9'), 'GPIO5': ('IO5', 'J3 pin 10'), 'GPIO8': ('IO8', 'J3 pin 6 (also the RGB LED)')}
 _CACHE = {}
 
 
@@ -89,7 +92,7 @@ def soc_pins():
     return [{'name': '%s:GPIO%d' % (SOC, n), 'soc': SOC, 'pin': 'GPIO%d' % n, 'port': 'GPIO', 'bit': n, 'package_pin': PINS[n][0],
              'functions_json': json.dumps(_functions(n)), 'default_function': PINS[n][1], 'fact': '%s:pin.GPIO%d' % (SOC, n),
              'notes': 'default = IO MUX F0 (the PDF\'s bold default marks were not readable from the text extraction)'
-             + ('; connected to the module\'s flash on SPI0/1 (SPI* function) — not a free GPIO on a MINI-1 module (unverified for his board)' if 12 <= n <= 17 else '')}
+             + ('; the in-package flash pad on SPI0/1 (datasheet Table 2-12 p.29; ESP32-C3-MINI-1 datasheet p.4 note 4) - reserved, see lifecycle_c3 (which chip variant is on his board is undetermined)' if 12 <= n <= 17 else '')}
             for n in sorted(PINS)]
 
 
@@ -126,6 +129,12 @@ def board_pins():
         rows[c].update(fields)
         if 'origin' not in fields:
             rows[c]['notes'] = (rows[c].get('notes', '') + ' C identifier from the polari layer (sc-3 template)').strip()
+    for c, (silk, where) in DEVKIT_PINS.items():
+        if c not in rows:
+            rows[c] = {'name': '%s:%s' % (BOARD, c), 'board': BOARD, 'canonical': c, 'number': int(c[4:]), 'soc_pin': c, 'net': silk, 'connector_pin': '',
+                       'function': 'gpio', 'peripheral': '', 'signal': '', 'firmware_symbol': '', 'alias': '', 'electrical_json': '{}',
+                       'facts_json': json.dumps(['%s:devkit.header' % BOARD]), 'origin': 'cited:ESP32-C3-DevKitM-1 user guide, Header Block (J1/J3): %s = %s' % (silk, where),
+                       'undetermined': 'the header position is a note, not a ConnectorPin (the headers are not modelled)', 'notes': ''}
     for c, row in rows.items():
         row['facts_json'] = json.dumps(sorted(set(json.loads(row['facts_json'] or '[]')) | {'%s:pin.%s' % (SOC, c)}))
     return [rows[c] for c in sorted(rows, key=lambda c: int(c[4:]))]

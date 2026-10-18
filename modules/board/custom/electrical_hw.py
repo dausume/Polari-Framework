@@ -320,6 +320,8 @@ def _applies(row, context):
 def _native(claim, pin):
     """A claim that IS the reserved purpose (USART0 on D0/D1; SPI SCK on D13 is NOT native to the L LED: it still needs the acknowledgment)."""
     fn = (claim.get('function') or '').upper()
+    if pin in ('GPIO20', 'GPIO21'):   # c3pf: the ESP32-C3's UART0 pads - the transport through the DevKitM's USB-UART bridge (board.custom.lifecycle_c3)
+        return fn.startswith('U0') and any(t in fn for t in ('RXD', 'TXD'))
     return pin in ('D0', 'D1') and any(t in fn for t in ('USART', 'RXD', 'TXD', 'UART'))
 
 

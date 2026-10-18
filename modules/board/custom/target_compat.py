@@ -22,6 +22,7 @@ marked so in ROLE_FOR_KIND's notes rather than guessed (derive-or-cite).
 import json
 
 from board.custom import pin_roles as PR
+from board.custom import soc_functions as SF   # c3pf: kinds on a SoC whose functions are PinFunction rows (the ESP32-C3)
 from board.custom.soc_atmega328p import FUNCTION_PERIPHERAL, PWM_FUNCTIONS
 
 #: the task target kind vocabulary (his ruling 2026-10-06) — never assignable kinds last. ucd-0b2d (§5h, the
@@ -136,12 +137,13 @@ def _fact_cite(soc_pin, pin):
     return 'datasheet fact %s' % f if f else 'no SoC register fact for pin %s' % pin.get('canonical', '?')
 
 
-def compatible(kind, pin, soc_pin=None):
+def compatible(kind, pin, soc_pin=None, tables=None):
     """(verdict, reason) — verdict in 'ok' | 'no' | 'undetermined'. `pin` is a BoardPin dict (board.custom.
     board_object rows); `soc_pin` is its SocPin dict (board.custom.board_object rows_for(...)['soc_pins'], matched
     by pin['soc_pin']) — the FULL alternate-function capability (not just the pin's CURRENTLY assigned role), so a
     pin already wired to something else (e.g. D13 = LED_BUILTIN today) is still correctly judged by what the SoC
-    pin CAN do. Power/ground pins (board_uno.POWER_NETS / pin.function) are refused for every kind, no exception."""
+    pin CAN do. c3pf: on a SoC in board.custom.soc_functions.VOCAB (the ESP32-C3) the answer comes from the pad's PinFunction names (`tables` = the rows when the
+    caller has them). Power/ground pins (board_uno.POWER_NETS / pin.function) are refused for every kind, no exception."""
     canonical = pin.get('canonical', '?')
     if pin.get('function') in NEVER_ASSIGNABLE or kind in NEVER_ASSIGNABLE:
         which = pin.get('function') if pin.get('function') in NEVER_ASSIGNABLE else kind
@@ -150,6 +152,8 @@ def compatible(kind, pin, soc_pin=None):
         return 'undetermined', 'unknown task target kind %r (not in board.custom.target_compat.TASK_KINDS)' % kind
     fns = _functions(soc_pin)
     cite = _fact_cite(soc_pin, pin)
+    if soc_pin and SF.has_vocab(soc_pin.get('soc')):   # c3pf: the ESP32-C3 - a kind is a pattern over the pad's PinFunction names (the GPIO matrix reaches most signals on any pad)
+        return SF.compatible(kind, pin, soc_pin, SF.pad_functions(soc_pin, tables), cite)
     if not fns:
         return 'undetermined', '%s has no SoC alternate-function facts to check (%s)' % (canonical, cite)
 

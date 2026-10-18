@@ -196,7 +196,7 @@ class Engine:
             oracle = None
             if hw['ladder']:
                 uni = SN.pin_universe(hw, self.tables)
-                oracle = SO.Oracle(hw, self.tables, SN.scarcity(uni), uni, self.lim['occupied'], self.held, SI.bench_pins(hw['board'], self.manager), self.lim['prefer'],
+                oracle = SO.Oracle(hw, self.tables, SN.scarcity(uni, hw['soc']), uni, self.lim['occupied'], self.held, SI.bench_pins(hw['board'], self.manager), self.lim['prefer'],
                                    self.lim['ladder_context'], transport=any(p.get('reserved') for p in self.profiles))
                 hw['n_header'] = sum(1 for p in uni if p['header'])
                 self.oracles[(hw['board'], hw['package'])] = oracle
@@ -245,7 +245,7 @@ class Engine:
         for ci, combo_t in enumerate(combos):
             combo = dict(zip(self.order, combo_t))
             self.counts['combos'] += 1
-            needs = SN.needs_for(combo, self.by_job, self.fixed)
+            needs = SN.needs_for(combo, self.by_job, self.fixed, hw['soc'])
             if oracle is None:
                 made.append(self._candidate(hw, tier, rep, appr, combo, needs, None, [], timing_for, ci, where))
                 continue

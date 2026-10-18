@@ -74,8 +74,8 @@ def c3_ingest(check, c3):
     check('a DISABLED node\'s pins are not an assignment: i2s (GPIO19/6/7/8/18) and twai (GPIO4/5) skipped, so no SoC pin is claimed twice',
           {s['node'] for s in r['skipped']} == {'i2s', 'twai'} and r['twice'] == [])
     pins = {p['canonical']: p for p in c3['pins']}
-    check('the three layers on the C3 rows, each said: 9 ingested + GPIO18/19 USB (cited, datasheet Table 2-6) + GPIO4 UART1 TX (polari: the sc-3 trace)',
-          len(c3['pins']) == 12 and pins['GPIO18']['origin'].startswith('cited:') and pins['GPIO4']['firmware_symbol'] == 'POLARI_TRACE_TX_GPIO'
+    check('the three layers on the C3 rows, each said: 9 ingested + GPIO18/19 USB (cited, datasheet Table 2-6) + GPIO4 UART1 TX (polari: the sc-3 trace) + GPIO0/5/8 (c3pf: the DevKitM-1 header tables, cited)',
+          len(c3['pins']) == 15 and pins['GPIO18']['origin'].startswith('cited:') and all(pins[g]['origin'].startswith('cited:ESP32-C3-DevKitM-1 user guide') for g in ('GPIO0', 'GPIO5', 'GPIO8')) and pins['GPIO4']['firmware_symbol'] == 'POLARI_TRACE_TX_GPIO'
           and pins['GPIO4']['origin'].startswith('polari:'))
     check('the SoC from the ingested dtsi: cpu0 160 MHz, sram1 384 KB @ 0x3fc80000, the module\'s 4 MB flash (esp32c3_mini_n4.dtsi); 22 bonded SocPins',
           c3['soc']['cpu_clock_hz'] == 160000000 and '4194304' in c3['soc']['memory_map_json'] and len(c3['soc_pins']) == 22

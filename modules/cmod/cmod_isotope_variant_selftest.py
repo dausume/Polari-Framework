@@ -191,10 +191,11 @@ def isotope_variant_parts(check):
         check('the ESP32-C3: GPIO out, GPIO poll and the analog routes are ok from its GPIO / ADC functions and devicetree blocks (bare-c rides inside its FreeRTOS tier)',
               all(E.eligible(vs[n], c3)['state'] == 'ok' for n in ('drive-led:gpio-out', 'read-button:gpio-poll', 'read-button:analog-threshold', 'read-temperature:analog-sensor')))
         ex = E.eligible(vs['read-button:ext-interrupt'], c3)
-        check('the C3 INT0/INT1 route is UNDETERMINED (its pin routing is a GPIO matrix, not modelled as PinFunction rows) - not ok, not blocked',
-              ex['state'] == 'undetermined' and 'not modelled' in ex['summary'], ex['summary'][:200])
+        check('the C3 INT0/INT1 route is OK from its PinFunction rows (c3pf: every pad has GPIO_INT - TRM Register 5.14, datasheet §4.1.3.1 p.36), through the GPIO-interrupt Peripheral row',
+              ex['state'] == 'ok' and any(c['check'] == 'pin' and c['state'] == 'ok' for c in ex['checks']) and any(c['check'] == 'peripheral' and c['subject'] == 'exint' and c['state'] == 'ok' and 'esp32c3:GPIO_INT' in c['why'] for c in ex['checks']), [c['why'][:80] for c in ex['checks']])
         cc = E.eligible(vs['read-button:analog-comparator'], c3)
-        check('the C3 comparator route is undetermined, never refused on absence from a devicetree list', cc['state'] == 'undetermined' and not cc['blocked_by'], cc['summary'][:200])
+        check('the C3 comparator route is BLOCKED by name (c3pf: the datasheet\'s own peripheral list, p.4 and §4.2 pp.46-50, names no analog comparator) - not an absence from a devicetree list',
+              cc['state'] == 'blocked' and cc['blocked_by'] == ['peripheral:comparator'] and 'p.4' in cc['summary'], cc['summary'][:200])
         check('the C3 still lacks the shift register on the bench (blocked by the part, same as the UNO); zephyr is available on the C3',
               E.eligible(vs['read-button:spi-shift-register'], c3)['state'] == 'blocked'
               and [c for c in E.eligible(vs['drive-led:gpio-out'], c3, tier='zephyr')['checks'] if c['check'] == 'runtime'][0]['state'] == 'ok')

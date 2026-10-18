@@ -48,7 +48,8 @@ def run_chain(check):
     # 2. derived or cited, stable identities, provenance
     P, S, F, G, X = (tables[c] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField'))
     check('chain: counts — %d peripherals, %d signals, %d pin functions, %d registers, %d fields' % (len(P), len(S), len(F), len(G), len(X)),
-          len(P) >= 15 and len(S) >= 80 and len(F) == 23 + sum(len(json.loads(s['functions_json'])) for s in tables['SocPin'] if s['soc'] == 'atmega328p')
+          len(P) >= 15 and len(S) >= 80
+          and len([f for f in F if f['soc'] == 'atmega328p']) == 23 + sum(len(json.loads(s['functions_json'])) for s in tables['SocPin'] if s['soc'] == 'atmega328p')   # c3pf: + the ESP32-C3's own rows (board_c3_pins_selftest)
           and len(G) == len(__import__('board.custom.registers', fromlist=['load']).load('atmega328p')['registers']) and len(X) == len(RF.FIELDS))
     check('chain: every row has a name, an origin and a soc; names are unique per class',
           all(r['name'] and r['origin'] and r['soc'] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField') for r in tables[c])
@@ -83,8 +84,9 @@ def run_chain(check):
     check('chain: every UNO BoardPin links to its SocPin and PinFunctions; every atmega328p SocPin links back to board pins + functions',
           all(json.loads(b['links_refs_json'])[:1] == ['SocPin:atmega328p:%s' % b['soc_pin']] for b in uno_pins)
           and all(any(x.startswith('PinFunction:') for x in json.loads(s['links_refs_json'])) for s in tables['SocPin'] if s['soc'] == 'atmega328p'))
-    check('chain: the ESP32-C3 SocPins are untouched (links empty — the GPIO matrix is Phase 2, not guessed)',
-          all(json.loads(s.get('links_refs_json') or '[]') == [] for s in tables['SocPin'] if s['soc'] != 'atmega328p'))
+    check('chain: the 16U2 SocPins are untouched (links empty); the ESP32-C3 SocPins link to their PinFunction rows (c3pf: the GPIO matrix is modelled, routing matrix | fixed)',
+          all(json.loads(s.get('links_refs_json') or '[]') == [] for s in tables['SocPin'] if s['soc'] == 'atmega16u2')
+          and all(sum(1 for x in json.loads(s['links_refs_json']) if x.startswith('PinFunction:')) >= 122 for s in tables['SocPin'] if s['soc'] == 'esp32c3'))
 
     # 4. the D3 walk, forward
     hops = HC.chain_for('arduino-uno-r3', 'D3', tables)

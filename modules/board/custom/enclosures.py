@@ -33,6 +33,7 @@ def rows(tables):
     comps = tables.get('BoardComponent', [])
     pkgs = {p['name']: p for p in tables.get('PackageDefinition', [])}
     out, placed = [], set()
+    headers = {c['board'] for c in tables.get('ConnectorPin', [])}
     for board in sorted({c['board'] for c in comps}):
         bc = [c for c in comps if c['board'] == board]
         kids = []
@@ -43,7 +44,9 @@ def rows(tables):
             placed.add(pd['name'])
             nm = package_enclosure_name(board, c['ref'])
             kids.append(nm)
-            out.append(_e1(nm, pd, board, c, parent=board_enclosure_name(board)))
+            out.append(_e1(nm, pd, board, c, parent=board_enclosure_name(board) if board in headers else ''))
+        if board not in headers:   # c3pf: a board whose headers are not modelled (the ESP32-C3's) has its chip's package (E1) but no board crossings (E2): not guessed
+            continue
         out.append({'name': board_enclosure_name(board), 'title': '%s board (E2)' % board, 'kind': 'E2:board', 'level': 'E2', 'parent': '',
                     'contains_json': json.dumps(['HardwareEnclosure:%s' % k for k in kids] + ['BoardComponent:%s' % c['name'] for c in sorted(bc, key=lambda c: c['ref'])]),
                     'board': board, 'component': '', 'package': '', 'status': 'modelled', 'verification': 'partial', **SCH_CITE,
@@ -67,6 +70,6 @@ def _e1(name, pd, board, comp, parent, status='modelled', extra=''):
     return {'name': name, 'title': '%s package (%s%s)' % (pd['soc'], pd['package_type'], (' on ' + comp['ref']) if comp else ', variant'), 'kind': kind, 'level': 'E1', 'parent': parent,
             'contains_json': json.dumps(['SocDefinition:%s' % pd['soc']]), 'board': board, 'component': comp['name'] if comp else '', 'package': pd['name'], 'status': status,
             'verification': 'verified', 'document': pd['document'], 'datasheet': pd['datasheet'], 'page_table': pd['page_table'], 'url': pd['url'],
-            'undetermined': ('which package is on the bench board is PENDING identification (his ruling 2026-10-15)' if comp else pd['undetermined']) +
+            'undetermined': (('which package is on the bench board is PENDING identification (his ruling 2026-10-15)' if board == EV.BOARD else comp.get('undetermined', '')) if comp else pd['undetermined']) +
                             '; the package body (heat, stress, ingress) is not modelled',
             'notes': extra or ('%s: the package as the board design models it (PackageDefinition %s)' % (comp['name'] if comp else 'variant', pd['name']))}

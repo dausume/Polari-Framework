@@ -16,6 +16,7 @@ import fnmatch
 import json
 import re
 
+from board.custom import soc_functions as SF   # c3pf: kinds on the ESP32-C3 are patterns over its PinFunction names
 from cmod.custom.code_interface import LEVEL_ORDER, level_ok
 
 # the functions a pin kind needs when the profile names none (patterns: 'X*' = starts with, else exact)
@@ -57,7 +58,11 @@ def context(board, tables=None, kit=None):
     pins = [p for p in t['SocPin'] if p['soc'] == soc['name']]
     funcs = {f['function'] for f in pf} or {fn for p in pins for fn in json.loads(p['functions_json'] or '[]')}
     from cmod.custom import isotope_variants as IV
+    # c3pf: a SoC's Peripheral rows are COMPLETE when they come from a register snapshot (the UNO) or when a cited fact enumerates the datasheet's peripherals
+    lst = next((f for f in t.get('DatasheetFact', []) if f['name'] == '%s:peripherals.list' % soc['name']), None)
+    complete = bool(lst) or any(json.loads(p.get('registers_refs_json') or '[]') for p in per)
     return {'board': board, 'soc': soc['name'], 'soc_row': soc, 'peripherals': per, 'pin_functions_modelled': bool(pf), 'functions': funcs,
+            'peripherals_complete': complete, 'peripheral_list': lst,
             'dts': json.loads(soc.get('peripherals_json') or '[]') if not per else [],
             'runtime': [r for r in t['RuntimeProfile'] if r['board'] == board], 'kit': kit if kit is not None else IV.kit_rows()}
 
@@ -79,11 +84,20 @@ def check_part(part, ctx):
 def check_peripheral(per, ctx):
     kind = per['kind']
     if ctx['peripherals']:
-        want = _PER_KIND.get(kind)
+        want = (SF.PERIPHERAL_KIND.get(ctx['soc']) or _PER_KIND).get(kind)
         hit = next((p for p in ctx['peripherals'] if p['kind'] == want), None)
         if hit is None:
-            return {'check': 'peripheral', 'subject': kind, 'state': 'blocked', 'why': 'the %s has no %s block (no Peripheral row of kind %s)' % (ctx['soc'], kind, want)}
-        if kind == 'timer-pwm' and not _has(ctx, 'OC*'):
+            if not ctx.get('peripherals_complete', True):
+                return {'check': 'peripheral', 'subject': kind, 'state': 'undetermined', 'why': 'the %s has no %s block among its Peripheral rows, and those rows are not a complete list - not proof it is absent' % (ctx['soc'], kind)}
+            why = 'the %s has no %s block (no Peripheral row of kind %s)' % (ctx['soc'], kind, want)
+            if kind == 'comparator' and ctx['soc'] in SF.NO_COMPARATOR:
+                why += ': ' + SF.NO_COMPARATOR[ctx['soc']]
+            elif ctx.get('peripheral_list'):
+                f = ctx['peripheral_list']
+                why += ' [cited: %s, %s]' % (f['document'], f['page_table'])
+            return {'check': 'peripheral', 'subject': kind, 'state': 'blocked', 'why': why}
+        pwm_pats = SF.kind_patterns(ctx['soc'], 'pwm-out') or ['OC*']
+        if kind == 'timer-pwm' and not any(_has(ctx, p) for p in pwm_pats):
             return {'check': 'peripheral', 'subject': kind, 'state': 'blocked', 'why': 'no pin of the %s carries a timer output-compare function' % ctx['soc']}
         return {'check': 'peripheral', 'subject': kind, 'state': 'ok', 'why': 'Peripheral row %s (%s)' % (hit['name'], hit.get('chapter') or 'chapter not cited')}
     compat = _DTS.get(kind)
@@ -98,7 +112,10 @@ def check_peripheral(per, ctx):
 
 def check_pin(prof, ctx):
     kind = prof['kind']
-    if prof.get('functions_all'):
+    own = SF.kind_patterns(ctx['soc'], kind) if SF.has_vocab(ctx['soc']) else None
+    if own is not None:   # c3pf: the profile's function names (INT0, OC*, AIN0 ...) are the UNO's; on a PinFunction-vocabulary SoC the KIND names the pattern
+        pats, need_all = own, False
+    elif prof.get('functions_all'):
         pats, need_all = prof['functions_all'], True
     else:
         pats, need_all = prof.get('functions_any') or KIND_FUNCTIONS.get(kind), False
