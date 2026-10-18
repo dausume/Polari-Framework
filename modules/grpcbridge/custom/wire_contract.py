@@ -331,3 +331,23 @@ def note_frame(binding, sequence, refused=False):
     binding.frames_seen = int(getattr(binding, 'frames_seen', 0) or 0) + 1
     binding.last_sequence = int(sequence or 0)
     binding.last_seen_at = _now()
+
+
+#: fgm-6a: per-class observers of a pushed frame, called AFTER the frame is applied to its row (grpc_server._apply_push):
+#: {class: [fn(manager, cls, row)]}. A module registers one to correlate what a device reports with what the backend sent
+#: (board.custom.light_confirm: a command counts as done only on a report that names it). An observer never breaks the push.
+FRAME_OBSERVERS = {}
+
+
+def register_frame_observer(cls, fn):
+    lst = FRAME_OBSERVERS.setdefault(cls, [])
+    if fn not in lst:
+        lst.append(fn)
+
+
+def observe_frame(manager, cls, row):
+    for fn in list(FRAME_OBSERVERS.get(cls, ())):
+        try:
+            fn(manager, cls, row)
+        except Exception as exc:  # noqa: BLE001 -- an observer is advisory
+            print(f"[gRPC] frame observer for {cls} failed: {exc}", flush=True)

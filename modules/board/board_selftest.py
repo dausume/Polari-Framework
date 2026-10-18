@@ -25,7 +25,7 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('fifty-five row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('fifty-seven row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
@@ -33,8 +33,8 @@ def rows_and_classes():
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
-          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent)',
-          len(BOARD_CLASSES) == 55)
+          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation)',
+          len(BOARD_CLASSES) == 57)   # fgm-6a: + LightStateV2, LightCommand
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -388,6 +388,8 @@ def main():
     run_light(check)
     from board.board_variant_twin_selftest import run_variant_twin   # fgm-5a: the isotope variants (PCINT button, analog button, PWM LED) proven on the twin
     run_variant_twin(check)
+    from board.board_light_v2_selftest import run_light_v2   # fgm-6a: command confirmation on the wire (LightStateV2, uno-light-v2)
+    run_light_v2(check)
     from board.board_enclosure_selftest import run_enclosure   # hsp-0: enclosure kinds, exposure maps, the 16U2 rows, reachability + ladder, the doors
     run_enclosure(check)
     from board.board_hardware_system_selftest import run_hardware_system   # hsp-1: the hardware system, its links, the three signal paths, the doors

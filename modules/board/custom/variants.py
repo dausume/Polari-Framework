@@ -28,14 +28,17 @@ APP_CLASSES = {'sim_rig': ('SimRigState',), 'blink': ('SimRigState',), 'echo': (
                # ucd-0e2: the button-clock demo — one app, TWO classes (telemetry + the event stream)
                'button_clock': ('ButtonClockState', 'ButtonClockEvent'),
                # ucd-light: the light test — one app, ONE class (the light's state, both directions)
-               'light': ('LightState',)}
+               'light': ('LightState',),
+               # fgm-6a: the light with command confirmation -- a NEW app + class beside light/LightState (v1 untouched)
+               'light_v2': ('LightStateV2',)}
 #: app → the features it can use (a feature an app cannot use is refused, not ignored)
 APP_FEATURES = {'sim_rig': {'led', 'pwm', 'adc', 'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'},
                 'scenario_rig': {'led', 'commands'}, 'button_clock': {'led', 'commands', 'button', 'sense'},
-                'light': {'led', 'commands', 'button'}}
+                'light': {'led', 'commands', 'button'}, 'light_v2': {'led', 'commands', 'button'}}
 #: app → the features it cannot work without
 APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'analog': {'adc'}, 'scenario_rig': {'commands'},
-             'button_clock': {'led', 'commands', 'button', 'sense'}, 'light': {'led', 'commands', 'button'}}
+             'button_clock': {'led', 'commands', 'button', 'sense'}, 'light': {'led', 'commands', 'button'},
+             'light_v2': {'led', 'commands', 'button'}}
 #: sc-1: the generated header's RX parser (grpcbridge.custom.c_twin_v2.RX_PARSERS). A knob only a variant that sets it
 #: carries (absent = 'resync', so every existing build's repro block is unchanged)
 RX_PARSERS = ('resync', 'keep-tail')
@@ -173,6 +176,20 @@ SEED_FIRMWARE_VARIANTS = [
        'pulling A0 below 1500 mV (a press) flips the light on D6, bumps toggles and reports source=button; the button released above '
        '3500 mV; a switch already closed at boot is not a press.', {},
        notes='the button route is the template read-button/isotopes/analog-threshold (rendered to hal_button_adc.c)'),
+    _v('uno-light-v2', 'The light test with command confirmation (LightStateV2): every command is numbered and the board answers by number',
+       'fgm-6a (FIRMWARE_GENERATION_MODULE_PLAN.md 10, his ruling 7.8.3): the uno-light behaviour on a NEW wire struct, LightStateV2, that '
+       'adds command_id (down: the number the sender picked), last_command_id and last_command_result (up: the board\'s answer). The '
+       'board reports at once after every command, rejects a malformed one (no number, no light value) as rejected-invalid, ignores a '
+       'repeat of the number it last answered, and a press of its button changes the light WITHOUT touching last_command_id - so an '
+       'unrelated report can never be mistaken for a command being done. Opt-in: uno-light (LightState v1) stays the default.',
+       'light_v2', ['LightStateV2'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': False},
+       {'rig_name': 'uno-light-v2', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'debounce_ms': 30},
+       'SET_LED with command_id N: the very next report says last_command_id N, last_command_result applied and the light follows; a '
+       'command without a number or without led_on is answered rejected-invalid; pressing the button flips the light, bumps toggles, '
+       'says source=button and leaves last_command_id as it was.', {},
+       notes='the backend (board.custom.light_confirm) counts a command done only on a report with its number from the same boot_session; '
+             'RX_RING=128 so a burst of whole-row commands (~100 B each) is not dropped while the board is sending its answer'),
     _v('uno-echo', 'Echo: no sensors, a command comes back whole',
        'The protocol test. No sensors and no actuators: whatever Polari sends is copied back, every field, and status '
        'says "echoed". If the values return unchanged, the wire, the header, the parser and the bridge all agree.',
@@ -181,6 +198,9 @@ SEED_FIRMWARE_VARIANTS = [
        'set any field (even temp_c, which no sensor could produce) and the next frame carries the same value back with '
        'status "echoed".', {}),
 ]
+for _v2 in SEED_FIRMWARE_VARIANTS:
+    if _v2['name'] == 'uno-light-v2':
+        _v2['build_flags_json'] = json.dumps(['RX_RING=128'])
 VARIANT_NAMES = [v['name'] for v in SEED_FIRMWARE_VARIANTS]
 
 

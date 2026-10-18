@@ -11,6 +11,7 @@ from board.pin_view_api import PinViewAPI
 from board.config_events_api import ConfigEventsAPI   # pv-4
 from board.register_profile_api import RegisterProfileAPI
 from board.profile_overlap_api import ProfileOverlapAPI   # pp-1
+from board.custom import light_confirm   # noqa: F401  fgm-6a: registers the LightStateV2 frame observer (command confirmation)
 
 
 def construct_board_endpoints(polServer):

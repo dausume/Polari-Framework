@@ -1,0 +1,62 @@
+{
+ "class": "LightStateV2",
+ "contract_version": 1,
+ "contract_hash": "7168b2d02d82157e",
+ "msg_type": 1,
+ "source": "pinned offline snapshot of the LightStateV2 contract v1 (fgm-6a, 2026-10-18): LightState's seven fields plus command_id (down: the sender's command number), last_command_id and last_command_result (up: the board's echo), derived with the framework's own rules (proto_gen.merge_field_map + contract_hash over the class's ten fields, tags alphabetical as a fresh server derives them for a new class), not from a live server. LightStateV2 is a NEW class beside LightState: LightState.v1 is unchanged. The server's ProtoContractVersion ledger is authoritative -- `pol board gen --api URL` fetches the live header, and the installer's compat check compares against what the server generates NOW",
+ "field_map": {
+  "fields": {
+   "boot_session": {
+    "tag": 1,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "command_id": {
+    "tag": 2,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "last_command_id": {
+    "tag": 3,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "last_command_result": {
+    "tag": 4,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "led_on": {
+    "tag": 5,
+    "proto_type": "bool",
+    "comment": ""
+   },
+   "name": {
+    "tag": 6,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "seq": {
+    "tag": 7,
+    "proto_type": "int64",
+    "comment": ""
+   },
+   "source": {
+    "tag": 8,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "status": {
+    "tag": 9,
+    "proto_type": "string",
+    "comment": ""
+   },
+   "toggles": {
+    "tag": 10,
+    "proto_type": "int64",
+    "comment": ""
+   }
+  },
+  "reserved": []
+ }
+}

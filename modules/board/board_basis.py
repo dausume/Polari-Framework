@@ -55,6 +55,8 @@ from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
 from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
 from board.objects.board.LightState import LightState  # noqa: F401
+from board.objects.board.LightStateV2 import LightStateV2  # noqa: F401   # fgm-6a
+from board.objects.board.LightCommand import LightCommand  # noqa: F401   # fgm-6a
 # fgm-2: the UNO hardware truth (FIRMWARE_GENERATION_MODULE_PLAN.md §7.7 slice 1')
 from board.objects.board.PackageDefinition import PackageDefinition  # noqa: F401
 from board.objects.board.PackageContact import PackageContact  # noqa: F401
@@ -85,6 +87,7 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
                  ButtonClockState, ButtonClockEvent,   # ucd-0e1: the third and fourth wire classes
                  LightState,   # ucd-light: the light test's one wire struct
+                 LightStateV2, LightCommand,   # fgm-6a: the same struct with command confirmation + the backend's command ledger
                  Datasheet,   # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
                  PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent,   # fgm-2: package + USB-interface axes, chips as rows
                  ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint,   # fgm-2: numbers per pad class, group budgets, lifecycle

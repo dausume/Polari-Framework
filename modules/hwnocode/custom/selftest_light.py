@@ -12,7 +12,7 @@ import re
 
 def light_parts(check):
     return (lambda: _cross_domain(check), lambda: _toggle_engine(check), lambda: _commands_leg(check), lambda: _page(check),
-            lambda: _seeds(check))
+            lambda: _seeds(check), lambda: _toggle_v2(check))
 
 
 def _cross_domain(check):
@@ -152,3 +152,34 @@ def _seeds(check):
     for name, state in (('light-toggle', 'flip'), ('uno-light', 'relay-in'), ('uno-light', 'relay-out')):
         ok, why = CAP._state_task_exists('%s:%s' % (name, state))
         check('the Purposes can name %s:%s (it resolves through the seed definitions)' % (name, state), ok, why)
+
+
+def _toggle_v2(check):
+    """fgm-6a: the v2 screen button - mints a command_id through the REAL engine (an AnalysisCall onto board.custom.light_confirm), and is OPT-IN:
+    nothing about the v1 light-toggle changed and the v2 rows are not in the seeds."""
+    from types import SimpleNamespace
+    from hwnocode.custom import light_solutions as LS, cross_domain as CD, seed_rows as SR
+    from polariNoCode.analysis_calls import AnalysisDefinition
+    from polariNoCode.graph_builder import execute
+    from board.objects.board.LightStateV2 import LightStateV2
+    d = LS.toggle_v2_definition()
+    check('light-toggle-v2 = entry marker -> ONE AnalysisCall (board-light-v2-send), nothing else',
+          [(s['stateName'], s['stateClass']) for s in d['stateInstances']] == [('toggle-requested', 'BackendStateChange'), ('send-command', 'AnalysisCall')])
+    rows = LS.toggle_v2_rows()
+    seeded = {r['name'] for r in SR.solution_definitions()}
+    check('fgm-6a opt-in: light-toggle-v2 is NOT among the seeded solutions (the v1 light-toggle stays the screen\'s button), and the v1 definition is the one it always was',
+          LS.TOGGLE_V2_SOLUTION not in seeded and LS.TOGGLE_SOLUTION in seeded and 'LightStateV2' not in json.dumps(LS.toggle_definition())
+          and rows['solution']['name'] == 'light-toggle-v2' and rows['solution']['category'] == '' and rows['analysis']['callable_ref'] == 'board.custom.light_confirm:analysis_send')
+    mgr = SimpleNamespace(objectTables={'AnalysisDefinition': {}, 'SolutionDefinition': {}, 'LightCommand': {}}, objectTypingDict={}, db=None, idList=[])
+    row = LightStateV2(manager=mgr, name='uno-light-v2', boot_session=7, led_on=False)
+    mgr.objectTables['LightStateV2'] = {row.id: row}
+    ad = AnalysisDefinition(manager=mgr, **rows['analysis'])
+    mgr.objectTables['AnalysisDefinition'][ad.id] = ad
+    tr = execute(d, manager=mgr, params={'object': 'uno-light-v2'})
+    cmds = list(mgr.objectTables['LightCommand'].values())
+    check('light-toggle-v2 through the REAL engine mints a command: the run completes, the row carries command_id and the new led_on, and a LightCommand is pending with the board\'s boot_session',
+          tr.status == 'completed' and len(cmds) == 1 and row.command_id == cmds[0].command_id >= 1 and row.led_on is True
+          and cmds[0].status == 'pending' and cmds[0].device_session_at_send == 7, (tr.status, tr.error_summary))
+    tr2 = execute(d, manager=mgr, params={'object': 'uno-light-v2', 'led_on': False})
+    ids = sorted(c.command_id for c in mgr.objectTables['LightCommand'].values())
+    check('…a second run mints the NEXT id (monotonic) and sets the value asked for', tr2.status == 'completed' and len(ids) == 2 and ids[1] == ids[0] + 1 and row.led_on is False, ids)

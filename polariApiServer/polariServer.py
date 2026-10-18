@@ -1315,6 +1315,7 @@ class polariServer(treeObject):
             FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState,
             # ucd-0e1: THE WIRE CONTRACT of the button-clock demo — the third and fourth wire classes
             ButtonClockState, ButtonClockEvent, LightState,   # ucd-light: the light test's wire struct
+            LightStateV2, LightCommand,   # fgm-6a: the light with command confirmation + the backend's command ledger
             # brd-bo: THE BOARD OBJECT (PCB_FROM_SCRATCH_PLAN §2b) — the SoC / hardware / pin-assignment / runtime layers + views, conflicts
             SocDefinition, SocPin, BoardHardware, BoardNet, Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView,
             # fs-2a: the compatibility table between a firmware task's target kind and a board's pin roles/capabilities

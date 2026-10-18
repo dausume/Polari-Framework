@@ -46,6 +46,8 @@ from board.objects.board.MemoryRegion import MemoryRegion  # noqa: F401
 from board.objects.board.ButtonClockState import ButtonClockState  # noqa: F401
 from board.objects.board.ButtonClockEvent import ButtonClockEvent  # noqa: F401
 from board.objects.board.LightState import LightState  # noqa: F401
+from board.objects.board.LightStateV2 import LightStateV2  # noqa: F401
+from board.objects.board.LightCommand import LightCommand  # noqa: F401
 # fgm-2 (FIRMWARE_GENERATION_MODULE_PLAN.md §7.7 slice 1'): the UNO hardware truth — package + USB-interface axes, chips-on-board as rows,
 # electrical numbers per pad class, group budgets, pin lifecycle constraints
 from board.objects.board.PackageDefinition import PackageDefinition  # noqa: F401
