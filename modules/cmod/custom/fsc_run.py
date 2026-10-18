@@ -89,6 +89,8 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
             ok.append(c)
     links, unmatched = L.resolve(list(res['jobs']), ok, manager, ctx)
     failures += L.misses(list(res['jobs']), ctx, manager)     # fsc-0b: a config built for this Mission that misses a job's Purposes is a FAILURE
+    for f in failures:
+        f.setdefault('short_label', '%s (built firmware)' % f.get('config') if f.get('config') else f.get('solution', ''))   # a built config has no candidate to label from
     cproofs = {}
     runs_on = {}
     for c in ok:
