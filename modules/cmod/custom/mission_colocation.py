@@ -73,6 +73,12 @@ def evaluate(pa, pb, scope):
             if scope == 'pin' and (pa.get('reserved') != pb.get('reserved')) and row['verdict'] in _ALLOWED:
                 row = dict(row, verdict='exclusive', mode='exclusive', rule='pin.reserved-line', condition='',
                            reason='one of the two is a pin the board reserves for the host link; nothing else may take that pin', cite=render('lifecycle'), cites=[render('lifecycle')])
+            # the reservation covers the LINE, not only the pin: a Mission profile wired onto the host link's net would sit on the USB-serial bridge's line
+            # (a button's switch to ground would fight the bridge's output through its series resistor; a listener would only hear serial frames)
+            if scope == 'net' and (pa.get('reserved') != pb.get('reserved')) and row['verdict'] in _ALLOWED:
+                row = dict(row, verdict='exclusive', mode='exclusive', rule='net.reserved-line', condition='',
+                           reason='one of the two is a line the board reserves for the host link (wired to the USB-serial bridge); no other Mission profile is put on that net',
+                           cite=render('lifecycle'), cites=[render('lifecycle')])
             if scope in ('pin', 'net') and pa.get('reserved') and pb.get('reserved') and row['verdict'] in _ALLOWED:
                 row = dict(row, verdict='exclusive', mode='exclusive', rule='%s.reserved-lines' % scope, condition='',
                            reason='both are lines the board wires to the USB-serial bridge and reserves for the host link; they are two different lines and stay apart',
