@@ -28,6 +28,9 @@ import types, inspect, base64, json, os, threading, time, sqlite3
 import psutil
 from datetime import datetime
 
+#: classes whose instances are re-created by the running process itself and must never be re-constructed from stored rows on boot
+RUNTIME_SINGLETON_CLASSES = frozenset({'polariServer'})
+
 def _withTreePathIndex(fn, *args, treePathIndex=None):
     """Call a managedDB serializer with the prebuilt tree-path index,
     falling back to the historical signature for any db double that has
@@ -546,6 +549,19 @@ class managerObject:
                 continue
 
             polyTypedObj = self.objectTypingDict[tName]
+
+            # A DECISION, not a gap (2026-10-18): the server object is a RUNTIME SINGLETON — the process that is booting IS the server. Each boot
+            # persisted another polariServer row, and restoring them re-ran the WHOLE server construction once per old row (DefInit of 815
+            # classes, the API profiler …): measured on the econ-core test node, 28 stale rows = ≈34 of a 51-minute boot, growing by one boot
+            # each redeploy. Their rows stay on disk untouched; they are simply never re-constructed.
+            if tName in RUNTIME_SINGLETON_CLASSES:
+                _managerNoteRestored(self, tName)
+                try:
+                    _n = len(self.db.getAllInTable(tName)[1])
+                except Exception:
+                    _n = '?'
+                print(f'[DB] Skipping {tName}: a runtime singleton (the booting process is the server) - {_n} stored row(s) left on disk, not re-constructed', flush=True)
+                continue
 
             try:
                 columnNames, dataTuples = self.db.getAllInTable(tName)
