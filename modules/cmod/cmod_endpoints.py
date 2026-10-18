@@ -14,6 +14,7 @@ from cmod.cmod_approach_profile_api import ApproachProfileAPI   # rt-0
 from cmod.cmod_solve_api import SolveAPI   # sol-0
 from cmod.cmod_colocation_api import ColocationAPI   # pp-1
 from cmod.cmod_task_plan_api import TaskPlanAPI   # fgm-3
+from cmod.cmod_template_api import TemplateAPI   # ed-0
 
 
 def construct_cmod_endpoints(polServer):
@@ -27,4 +28,5 @@ def construct_cmod_endpoints(polServer):
     api.solve = SolveAPI(polServer=polServer, manager=polServer.manager)   # sol-0
     api.colocation = ColocationAPI(polServer=polServer, manager=polServer.manager)   # pp-1: /api/missions/{name}/colocation
     api.task_plan = TaskPlanAPI(polServer=polServer, manager=polServer.manager)   # fgm-3: /api/missions/{name}/task-plan, /api/task-plans/{plan}/also-runs-on
+    api.templates = TemplateAPI(polServer=polServer, manager=polServer.manager)   # ed-0: /api/cmod/templates[/{tid:path}]
     return api
