@@ -64,10 +64,25 @@ def _run_summary(res):
     return out
 
 
+#: the POST body's keys; anything else is REFUSED by name (a misplaced key was once silently ignored: `prefer` at the top level ran the default search)
+POST_KEYS = ('boards', 'tiers', 'objective', 'limits', 'store', 'prefer', 'occupy', 'only_jobs')
+
+
 def post_solve(api, request, response, name):
     body = _body(request)
+    unknown = sorted(k for k in body if k not in POST_KEYS)
+    if unknown:
+        return _fail(response, falcon.HTTP_422, 'unknown key(s) %s in the solve body (known: %s; prefer / occupy / only_jobs may sit at the top level or inside limits)'
+                     % (', '.join(unknown), ', '.join(POST_KEYS)))
+    lim = dict(body.get('limits') or {})
+    if body.get('prefer'):   # the same short forms the GET door takes, accepted at the top level too
+        lim['prefer'] = body['prefer']
+    if body.get('occupy'):
+        lim['occupied'] = [{'pin': x, 'by': 'the request', 'why': 'occupied on request (occupy)', 'blocks': 'all'} for x in _list(body['occupy'])]
+    if body.get('only_jobs'):
+        lim['only_jobs'] = _list(body['only_jobs'])
     try:
-        res = compute(name, _list(body.get('boards')), _list(body.get('tiers')), body.get('objective') or None, body.get('limits') or {}, api.manager)
+        res = compute(name, _list(body.get('boards')), _list(body.get('tiers')), body.get('objective') or None, lim, api.manager)
     except ValueError as e:
         return _fail(response, falcon.HTTP_404, str(e))
     except KeyError as e:
