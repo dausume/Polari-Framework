@@ -139,7 +139,8 @@
    "pin_view_api",
    "config_events_api",
    "register_profile_api",
-   "profile_overlap_api"
+   "profile_overlap_api",
+   "maintenance_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -363,7 +364,8 @@
   "SocPin",
   "TargetCompatibilityRule",
   "UnoAnalogState",
-  "UsbInterfaceDefinition"
+  "UsbInterfaceDefinition",
+  "MaintenanceAPI"
  ],
  "imports": [
   [

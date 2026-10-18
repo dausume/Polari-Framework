@@ -11,6 +11,7 @@ from board.pin_view_api import PinViewAPI
 from board.config_events_api import ConfigEventsAPI   # pv-4
 from board.register_profile_api import RegisterProfileAPI
 from board.profile_overlap_api import ProfileOverlapAPI   # pp-1
+from board.maintenance_api import MaintenanceAPI   # c3-derive: retire stored rows the code now derives
 from board.custom import light_confirm   # noqa: F401  fgm-6a: registers the LightStateV2 frame observer (command confirmation)
 
 
@@ -22,4 +23,5 @@ def construct_board_endpoints(polServer):
     api.config_events = ConfigEventsAPI(polServer=polServer, manager=polServer.manager)   # pv-4: /api/board/{board}/config-events (GET timeline, POST record)
     api.register_profile = RegisterProfileAPI(polServer=polServer, manager=polServer.manager)   # rp-0: /api/board/socs/{soc}/register-profile|memory-map
     api.profile_overlap = ProfileOverlapAPI(polServer=polServer, manager=polServer.manager)   # pp-1: /api/board/socs/{soc}/profile-overlap
+    api.maintenance = MaintenanceAPI(polServer=polServer, manager=polServer.manager)   # c3-derive: /api/board/maintenance/retire-derived-rows
     return api

@@ -5,7 +5,9 @@
 The equivalence proof is PINNED: the sha256 of the rows the c3pf seed used to STORE (ea22925, per pad, in row order, canonical JSON, every field) is written down below, so the
 derived set is compared with what was stored before - not with a second run of the same code.
 """
+import contextlib
 import copy
+import io
 import hashlib
 import json
 
@@ -123,6 +125,33 @@ def run_c3_derive(check):
     check('c3-derive RETIRE: the dry run changes nothing (2 640 stored matrix rows, 2 639 identical, the person-edited one listed); apply deletes only the identical ones, leaves the edited '
           'row and every fixed / UNO row', dry['stored'] == 2640 and dry['identical'] == 2639 and dry['edited'] == ['esp32c3:GPIO3:ledc_ls_sig_out0'] and left == 2792
           and done['retired'] == 2639 and len(rows) == 2792 - 2639 and len(m.db.deleted) == 2639, (dry, done['retired'], len(rows)))
+    # ---- the door + pol verb that run the retirement on a live server (dry run by default; apply only with {"apply": true})
+    import types as _types
+    import falcon as _falcon
+    import falcon.testing as _ft
+    from board.maintenance_api import MaintenanceAPI
+    m3 = _Mgr()
+    rows3 = {i: _Row({k: v for k, v in f.items() if k != 'provenance'}) for i, f in enumerate(copy.deepcopy(allrows))}
+    m3.objectTables, m3.db, m3.idList = {'PinFunction': rows3}, _DB(), []
+    _app = _falcon.App()
+    with contextlib.redirect_stdout(io.StringIO()):
+        MaintenanceAPI(polServer=_types.SimpleNamespace(falconServer=_app), manager=m3)
+        _none = _falcon.App()
+        MaintenanceAPI(polServer=_types.SimpleNamespace(falconServer=_none), manager=None)
+    _c, _cn = _ft.TestClient(_app), _ft.TestClient(_none)
+    _BO.as_dict = lambda r, c: dict(r.__dict__)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            g = _c.simulate_get('/api/board/maintenance/retire-derived-rows')
+            bad = _c.simulate_post('/api/board/maintenance/retire-derived-rows', body='{"aply": true}')
+            no = _c.simulate_post('/api/board/maintenance/retire-derived-rows', body='{}')
+            yes = _c.simulate_post('/api/board/maintenance/retire-derived-rows', body='{"apply": true}')
+    finally:
+        _BO.as_dict = _orig
+    check('c3-derive DOOR: GET is a dry run (2 640 stored, nothing deleted); POST {} is a dry run too; an unknown key is 422; POST {"apply": true} retires the identical rows; '
+          'no live manager is a 503 naming why', g.status_code == 200 and g.json['identical'] == 2640 and no.json['applied'] is False and bad.status_code == 422
+          and yes.json['retired'] == 2640 and len(rows3) == 2792 - 2640 and _cn.simulate_get('/api/board/maintenance/retire-derived-rows').status_code == 503,
+          (g.status_code, bad.status_code, yes.json.get('retired') if yes.status_code == 200 else yes.text[:80]))
     # ---- the readers answer the same
     from board.custom import ladder as L
     from board.custom import hardware_chain as HC
