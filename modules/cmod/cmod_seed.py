@@ -13,7 +13,7 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                              TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
                              FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
-                             HardwareBinding, CIsotope)
+                             HardwareBinding, CIsotope, HardwareMission)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
@@ -173,3 +173,11 @@ CMOD_SEED_PAIRS = [
 from cmod.custom import binding as _BND
 BINDING_ROWS = [_b for _b in (_BND.derive(FIRMWARE_NAME, manager=None), _BND.derive(BC_FIRMWARE_NAME, manager=None), _BND.derive(LIGHT_FIRMWARE_NAME, manager=None)) if _b is not None]
 CMOD_SEED_PAIRS.append(('HardwareBinding', HardwareBinding, _owned(BINDING_ROWS, keep=('notes',))))
+
+# mis-0 (MISSION_PROFILE_SOLVER_PLAN.md section 2.1): the seeded Hardware Mission(s). EVERY field a person decides through the Mission
+# drawing - title, goal, the Purposes and their importance, participants, settings (the aim), constraints, life stage, notes - is kept
+# across a reseed (it is the first seed only); the derived resolution has no field to keep. A person's own Mission is POST/PUT-created and
+# is not in this list, so a reseed never touches it.
+from cmod.custom.mission_seeds import MISSION_SEEDS as _MISSION_SEEDS
+CMOD_SEED_PAIRS.append(('HardwareMission', HardwareMission, _owned(
+    _MISSION_SEEDS, keep=('title', 'goal', 'purposes_json', 'participants_json', 'settings_json', 'constraints_json', 'lifecycle', 'notes'))))

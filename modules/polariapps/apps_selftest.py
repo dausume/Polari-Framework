@@ -161,6 +161,9 @@ if __name__ == '__main__':
               '/display/uno-core-demo', '/display/uno-core-demo-readiness', '/display/uno-core-demo',
               '/display/hardware-solutions?solution=purpose-ensure-polari-can-control-light'],
           [it.get('route') for it in demo.get('items', [])])
+    miss = next((g for g in hw_nav if g.get('group') == 'Missions'), {})
+    check('mis-0: app-hardware has a "Missions" group opening the light Mission\'s no-code drawing',
+          [it['route'] for it in miss.get('items', [])] == ['/display/hardware-solutions?solution=mission-uno-light-mission'], miss)
     check('every discipline app promotes at least one group to the '
           'top bar, and none promotes all of them (the side map '
           'stays the complete map)',

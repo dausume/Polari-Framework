@@ -739,11 +739,12 @@ def main():
     from cmod.custom.selftest_demo import demo_parts   # ucd-app: the demo-bundle export form + the upload door
     from cmod.custom.selftest_generator import generator_parts   # fgm-0: the Jinja2 identical-hex migration
     from cmod.custom.selftest_purpose import purpose_parts   # fgm-1: Purpose no-code
+    from cmod.custom.selftest_mission import mission_parts   # mis-0: Hardware Mission no-code
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
                  + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check) + demo_parts(check)
-                 + generator_parts(check) + purpose_parts(check)):
+                 + generator_parts(check) + purpose_parts(check) + mission_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

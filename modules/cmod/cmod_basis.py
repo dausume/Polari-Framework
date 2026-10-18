@@ -8,7 +8,8 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                TargetDefinition, CapabilityDefinition, CapabilityInstance,
                                FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
                                HardwareBinding, DerivedOverride, CIsotope,
-                               PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState)
+                               PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
+                               HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -23,7 +24,12 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 DerivedOverride,  # ucd-attest: a person's own correction of one derived field, kept beside it
                 CIsotope,  # ucd-iso-0: a C-atom's code interface variant, already carrying one binding's own values
                 # fgm-1: what one deployed board does for one Purpose, and the eleven node kinds a Purpose is DRAWN with
-                PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]
+                PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
+                # mis-0: the Hardware Mission above the Purposes, and the six node kinds a Mission is DRAWN with
+                HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState]
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]
+
+#: the six Mission node kinds (the canvas palette learns them as data via /stateSpaceClasses)
+MISSION_NODE_KIND_CLASSES = [MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState]

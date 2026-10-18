@@ -131,6 +131,11 @@ def solution_definitions():
     from cmod.custom import capabilities as CAPS
     from cmod.custom import purpose_nocode as PN
     out.extend(PN.render(c, derive=False) for c in CAPS.SEED_CAPABILITIES if (c.get('criteria_json') or '{}') != '{}')
+    # mis-0: one declarative `mission-<name>` solution per seeded Hardware Mission, RENDERED FROM the HardwareMission row by
+    # cmod.custom.mission_nocode (derived fields left as "worked out when asked"; GET /api/missions/{name}/solution serves them live)
+    from cmod.custom import mission_nocode as MN
+    from cmod.custom.mission_seeds import MISSION_SEEDS
+    out.extend(MN.render(m, derive=False) for m in MISSION_SEEDS)
     return out
 
 

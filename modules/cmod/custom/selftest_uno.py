@@ -177,7 +177,7 @@ def uno_parts(check):
               counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 56, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 61,
                          'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 46, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 65, 'RegisterAssignment': 46,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1}, counts)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}
