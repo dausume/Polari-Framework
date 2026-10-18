@@ -392,6 +392,8 @@ def main():
     run_hardware_system(check)
     from board.board_pin_view_selftest import run_pin_view   # pv-0: math-defined shapes, protocol families, the pin-view doors, stages, the data pages
     run_pin_view(check)
+    from board.board_pin_view_modes_selftest import run_pin_view_modes   # pv-2: drive + signal modes, multi-protocol / activated-only filters, drive row filters, label layout
+    run_pin_view_modes(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

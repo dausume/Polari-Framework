@@ -3,8 +3,9 @@
 
 pv-0 (PIN_VIEW_PLAN.md 2.5 / 2.9): THE PIN-VIEW DOOR — one composed read for the d3 view and the three data tables:
 
-    GET /api/board/{board}/pin-view?system=&binding=&mission=&stage=&phase=&protocol=      surfaces + pins + connections (+ shapes, vocabulary, the stage echo)
-    GET /api/board/{board}/pin-view/pins          flat rows, the same filters (+ level= surface= kind=)
+    GET /api/board/{board}/pin-view?system=&binding=&mission=&stage=&phase=&protocol=&activated_only=      surfaces + pins + connections (+ shapes, vocabulary, the stage echo)
+        protocol takes SEVERAL families / sets at once (protocol=i2c,spi); activated_only=1 keeps the pads a claim activated (pv-2)
+    GET /api/board/{board}/pin-view/pins          flat rows, the same filters (+ level= surface= kind= and the drive filters rail= drive_status= limit_class=, each a comma list)
     GET /api/board/{board}/pin-view/connections   flat rows (both ends, kind, via, the three summaries)
     GET /api/board/{board}/pin-view/surfaces      flat rows (pin counts by stage)
 
@@ -20,13 +21,15 @@ from board.custom import board_object as BO
 from board.custom import hardware_system as HS
 from board.custom import hwsys_system as SYS
 from board.custom import pin_view_model as M
+from board.custom import pin_view_modes as MD
 from board.custom import pin_view_state as ST
 from board.custom import pv_families as F
 from board.custom import pv_shapes as S
 from board.custom.hwsys_context import Ctx
 
-PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'protocol')
-FILTERS = ('level', 'surface', 'kind')
+PARAMS = ('system', 'binding', 'mission', 'stage', 'phase', 'protocol', 'activated_only')
+FILTERS = ('level', 'surface', 'kind', 'rail', 'drive_status', 'limit_class')   # the last three are the drive filters (comma lists)
+TRUE = ('1', 'true', 'yes', 'on')
 
 
 class Refused(ValueError):
@@ -66,13 +69,15 @@ def build(board, params=None, manager=None, tables=None):
     ctx = _context(tables, manager, board, params.get('system', ''), params.get('binding', ''))
     model = M.build(tables, board)
     info = ST.apply_stage(model, tables, ctx, stage, ctx.binding, board)
+    MD.apply_pins(model, tables, ctx, params.get('phase') or 'runtime')
     proto = None
     if params.get('protocol'):
         try:
-            proto = ST.apply_protocol(model, ctx, params['protocol'])
+            proto = ST.apply_protocol(model, ctx, params['protocol'], params.get('activated_only', '').lower() in TRUE)
         except ST.PinViewError as e:
             raise Refused(str(e))
     ST.summarise(model, ctx, tables, board)
+    MD.apply_connections(model)
     ST.rollup(model)
     mission = params.get('mission', '')
     shapes = {n: dict(r, parameters=json.loads(r['parameters_json'])) for n, r in model.shapes.items() if any(s['shape'] == n for s in model.surfaces)}
@@ -84,7 +89,7 @@ def build(board, params=None, manager=None, tables=None):
         p['surface_title'] = surf_title.get(p['surface'], '')
     return {'ok': True, 'board': board, 'source': 'live' if live else 'seed (the live server has no enclosure rows yet)', 'system': ctx.system_name, 'binding': ctx.binding, 'phase': params.get('phase') or 'runtime',
             'mission': {'name': mission, 'status': 'undetermined' if mission else 'none', 'why': 'Task definitions on a Mission arrive with fgm-3; `tasks-assigned` reads the binding\'s graph-node claims today' if mission else ''},
-            'stage': info, 'protocol': proto, 'vocabulary': F.vocabulary(), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
+            'stage': info, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
             'shapes': shapes, 'counts': {'surfaces': len(model.surfaces), 'pins': len(model.pins), 'connections': len(model.connections), 'unresolved': len(model.unresolved),
                                          'by_level': {lv: sum(1 for p in model.pins.values() if p['level'] == lv) for lv in M.LEVELS},
                                          'by_kind': {k: sum(1 for c in model.connections if c['kind'] == k) for k in sorted({c['kind'] for c in model.connections})}},
@@ -107,7 +112,9 @@ def pin_rows(res, flt=None):
         cons = ', '.join('%s %s' % (c['kind'], c['who']) for c in p['consumers'])
         rows.append({'id': p['id'], 'level': p['level'], 'surface': p['surface'], 'owner': p.get('surface_title', ''), 'label': p['label'], 'number': p['number'] if p['number'] is not None else '', 'kind': p['kind'],
                      'canonical': p['canonical'], 'families': ', '.join(p['families']), 'drive_class': p['drive_class'], 'stage': p['stage'], 'stage_why': p['stage_why'], 'bonded': 'yes' if p['bonded'] else 'no',
-                     'consumers': cons, 'lit': 'lit' if p['lit'] else ('dimmed' if p['dim'] else ''),
+                     'consumers': cons, 'drive_relevant': 'yes' if p['drive_relevant'] else 'no', 'drive_status': p['drive_status'], 'rail': p['rail'], 'pull': p['pull'], 'limit_class': p['limit_class'],
+                     'group_budget': ', '.join(p['group_budget']), 'signal_relevant': 'yes' if p['signal_relevant'] else 'no', 'activated': p['activated']['function'] if p['activated'] else '',
+                     'capable': ', '.join(c['function'] for c in p['capable']), 'lifecycle': ', '.join('%s %s' % (x['policy'], x['phase']) for x in p['lifecycle']), 'lit': 'lit' if p['lit'] else ('dimmed' if p['dim'] else ''),
                      'lit_why': '; '.join('%s: %s' % (c['child'], c['headline']) for c in p['lit']['children']) if p['lit'] else '', 'notes': p['notes']})
     return _flt(rows, flt)
 
@@ -122,6 +129,7 @@ def connection_rows(res, flt=None):
                      'level': a['level'], 'surface': a['surface'], 'kind': c['kind'], 'via': (c['via'] + (' ' + c['via_part'] if c['via_part'] else '')).strip(),
                      'drive': 'ends %s / %s; rail %s; domain %s; pull %s; limit %s' % (d['a'], d['b'], d['rail'] or '-', d['domain'] or '-', d['pull'], d['limit_verdict']),
                      'signal': '%s / %s; %s%s' % (s['a'], s['b'], s['family'] or 'no family', ('; ' + s['protocol_signal']) if s['protocol_signal'] else ''),
+                     'rail': a['rail'] if a['rail'] != 'undetermined' else b['rail'], 'limit_class': d['limit_verdict'],
                      'use': ('tasks %s; purposes %s' % (', '.join(t['who'] for t in u['tasks']) or 'none', ', '.join(u['purposes']) or 'none')), 'stage': c['stage'], 'lit': ('dimmed' if c.get('dim') else 'lit') if res['protocol'] else ''})
     return _flt(rows, flt)
 
@@ -134,9 +142,11 @@ def surface_rows(res, flt=None):
 
 
 def _flt(rows, flt):
+    """level / surface / kind are exact; the drive filters are comma lists (rail=5V,3V3). A filter whose column the row view does not have (surfaces have no rail) is skipped."""
     for k, v in (flt or {}).items():
-        if v and k in FILTERS:
-            rows = [r for r in rows if r.get(k) == v]
+        if v and k in FILTERS and (not rows or k in rows[0]):
+            want = [x for x in v.split(',') if x]
+            rows = [r for r in rows if r.get(k) in want]
     return rows
 
 

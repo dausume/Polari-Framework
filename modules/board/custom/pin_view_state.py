@@ -176,36 +176,66 @@ def rollup(model):
 
 
 # ---------------------------------------------------------------- the protocol filter (ladder-backed)
-def apply_protocol(model, ctx, protocol):
-    """Lights every pin able to carry `protocol` (a family, or a set whose child signals are expanded) with the LADDER's verdict for that kind in this context; dims the rest."""
-    if protocol not in F.FAMILIES:
-        raise PinViewError('unknown protocol %r (families: %s)' % (protocol, ', '.join(F.FAMILIES)))
-    children = F.set_children(protocol)
+def parse_protocols(protocol):
+    """'i2c,spi' -> ['i2c', 'spi'] (several protocols or sets at once, in the order given, no duplicates); raises PinViewError on an unknown name."""
+    out = []
+    for name in (protocol or '').split(','):
+        name = name.strip()
+        if not name:
+            continue
+        if name not in F.FAMILIES:
+            raise PinViewError('unknown protocol %r (families: %s)' % (name, ', '.join(F.FAMILIES)))
+        if name not in out:
+            out.append(name)
+    return out
+
+
+def _verdicts(ctx, pad, hit):
+    """The ladder's verdict for each (child, function) the pad carries."""
+    verdicts = []
+    for child, fn in hit:
+        try:
+            lad = ctx.ladder(pad['label'], fn, chip=pad['soc'])
+        except KeyError as e:
+            verdicts.append({'child': child, 'function': fn, 'verdict': 'undetermined', 'blocked_at': 0, 'conditions': [], 'headline': 'the ladder cannot place it: %s' % e.args[0]})
+            continue
+        rungs = lad['rungs']
+        blocked = next((r for r in rungs if r['verdict'] == 'blocked'), None)
+        conds = [{'rung': r['rung'], 'name': r['name'], 'verdict': r['verdict'], 'detail': r['detail']} for r in rungs if r['verdict'] in ('conditional', 'undetermined', 'unchecked')]
+        verdicts.append({'child': child, 'function': fn, 'verdict': 'blocked' if blocked else ('conditional' if any(c['verdict'] == 'conditional' for c in conds) else 'available'),
+                         'blocked_at': blocked['rung'] if blocked else 0, 'blocked_why': blocked['detail'] if blocked else '', 'conditions': conds,
+                         'headline': ('blocked at rung %d (%s): %s' % (blocked['rung'], blocked['name'], blocked['detail'])) if blocked else
+                                     ('available with conditions (rungs %s)' % ', '.join(str(c['rung']) for c in conds if c['verdict'] == 'conditional')) if any(c['verdict'] == 'conditional' for c in conds) else 'available'})
+    return verdicts
+
+
+def apply_protocol(model, ctx, protocol, activated_only=False):
+    """Lights every pin able to carry ANY of `protocol` (one family or set, or several: 'i2c,spi'; a set's child signals are expanded) with the LADDER's verdict for that kind in this context; dims the rest.
+    activated_only keeps only the pads whose ACTIVATED function (pv-2: the claim's, null at stage base) is one of the asked signals."""
+    protos = parse_protocols(protocol)
+    if not protos:
+        raise PinViewError('no protocol named (families: %s)' % ', '.join(F.FAMILIES))
     lit = {}
     pads = [p for p in model.pins.values() if p['level'] == 'die' and p['soc_pin']]
-    for pad in pads:
-        if protocol in F.SETS:   # one ladder question per child signal the pad carries
-            hit = [(child, next(fn for fn in pad['functions'] if F.function_matches(protocol, fn) == child)) for child in children if any(F.function_matches(protocol, fn) == child for fn in pad['functions'])]
-        else:   # a family without children: its first function on the pad
-            fn = next((f for f in pad['functions'] if F.function_matches(protocol, f)), None)
-            hit = [('*', fn)] if fn else []
-        if not hit:
-            continue
-        verdicts = []
-        for child, fn in hit:
-            try:
-                lad = ctx.ladder(pad['label'], fn, chip=pad['soc'])
-            except KeyError as e:
-                verdicts.append({'child': child, 'function': fn, 'verdict': 'undetermined', 'blocked_at': 0, 'conditions': [], 'headline': 'the ladder cannot place it: %s' % e.args[0]})
+    for proto in protos:
+        for pad in pads:
+            if proto in F.SETS:   # one ladder question per child signal the pad carries
+                hit = [(child, next(fn for fn in pad['functions'] if F.function_matches(proto, fn) == child)) for child in F.set_children(proto) if any(F.function_matches(proto, fn) == child for fn in pad['functions'])]
+            else:   # a family without children: its first function on the pad
+                fn = next((f for f in pad['functions'] if F.function_matches(proto, f)), None)
+                hit = [('*', fn)] if fn else []
+            if activated_only:   # only what the claim activated: its resource must be one of the asked signals
+                act = pad.get('activated')
+                match = F.function_matches(proto, act['resource']) if act else ''
+                hit = [(match, act['resource'])] if match else []
+            if not hit:
                 continue
-            rungs = lad['rungs']
-            blocked = next((r for r in rungs if r['verdict'] == 'blocked'), None)
-            conds = [{'rung': r['rung'], 'name': r['name'], 'verdict': r['verdict'], 'detail': r['detail']} for r in rungs if r['verdict'] in ('conditional', 'undetermined', 'unchecked')]
-            verdicts.append({'child': child, 'function': fn, 'verdict': 'blocked' if blocked else ('conditional' if any(c['verdict'] == 'conditional' for c in conds) else 'available'),
-                             'blocked_at': blocked['rung'] if blocked else 0, 'blocked_why': blocked['detail'] if blocked else '', 'conditions': conds,
-                             'headline': ('blocked at rung %d (%s): %s' % (blocked['rung'], blocked['name'], blocked['detail'])) if blocked else
-                                         ('available with conditions (rungs %s)' % ', '.join(str(c['rung']) for c in conds if c['verdict'] == 'conditional')) if any(c['verdict'] == 'conditional' for c in conds) else 'available'})
-        lit[pad['id']] = {'family': protocol, 'children': verdicts}
+            kids = [dict(v, protocol=proto) for v in _verdicts(ctx, pad, hit)]
+            if pad['id'] in lit:
+                lit[pad['id']]['children'] += kids
+                lit[pad['id']]['families'].append(proto)
+            else:
+                lit[pad['id']] = {'family': proto, 'families': [proto], 'children': kids}
     line = _outward(model, list(lit))
     for pad, res in lit.items():
         for ref in [pad] + line[pad]:
@@ -214,7 +244,12 @@ def apply_protocol(model, ctx, protocol):
         p['dim'] = p['lit'] is None
     for c in model.connections:   # a connection is lit when both ends are
         c['dim'] = model.pins[c['a']]['lit'] is None or model.pins[c['b']]['lit'] is None
-    return {'protocol': protocol, 'children': children, 'lit_pads': len(lit), 'ladder': 'every lit pad carries the availability ladder\'s verdict for the child signal in this context (rungs 7 and 9 say unchecked without a circuit / binding)'}
+    children = []
+    for proto in protos:
+        children += [c for c in F.set_children(proto) if c not in children]
+    return {'protocol': ','.join(protos), 'protocols': protos, 'children': children, 'lit_pads': len(lit), 'activated_only': bool(activated_only),
+            'ladder': 'every lit pad carries the availability ladder\'s verdict for the child signal in this context (rungs 7 and 9 say unchecked without a circuit / binding)',
+            'note': ('activated only: just the pads whose claim activates one of the asked signals (nothing is activated at stage base)' if activated_only else 'capable: every pad able to carry one of the asked signals')}
 
 
 # ---------------------------------------------------------------- the three summaries of a connection
@@ -315,7 +350,18 @@ def summarise(model, ctx, tables, board):
             claim_fn = 'GPIO'
         if a['level'] == 'die' and b['level'] == 'package':   # one line seen at two levels
             ca, cb = a, a
-        fam, sa, sb = _pick(ca, cb, F.role_family(bp_role.get(canon, '')), claim_fn)
+        # pv-2 (follow-up 1): a line no task claims does not NAME one protocol signal. Only a claim's function, or a family that is the ONLY one two different chips share (U1 RXD <-> U2 TXD1), is named;
+        # otherwise the connection lists what both ends can carry (`capable`) and names none.
+        fams_of = lambda x: {s['family'] for s in x['signals']}   # noqa: E731
+        two_chips = bool(ca['soc'] and cb['soc'] and ca['soc'] != cb['soc'] and ca['signals'] and cb['signals'])
+        shared_fams = [f for f in PRIORITY if f in fams_of(ca) and f in fams_of(cb) and f not in ('gpio', 'interrupt')]
+        if claim_fn:
+            fam, sa, sb = _pick(ca, cb, F.role_family(bp_role.get(canon, '')), claim_fn)
+        elif two_chips and len(shared_fams) == 1:
+            fam, sa, sb = _pick(ca, cb, '', '')
+        else:
+            fam, sa, sb = '', None, None
+        capable_fams = [f for f in PRIORITY if f in fams_of(ca) | fams_of(cb)]
         kind_fam = F.family_of_kind(ca['kind']) or F.family_of_kind(cb['kind'])
         if not fam and kind_fam:
             fam = kind_fam
@@ -331,7 +377,7 @@ def summarise(model, ctx, tables, board):
             sig_a = sig_b = 'none'   # a supply or a return carries no signal
         names = [x['signal'].partition(':')[2] or x['function'] for x in (sa, sb) if x]
         c['signal'] = {'a': sig_a, 'b': sig_b, 'family': fam, 'token': F.token(fam) if fam else '', 'protocol_signal': ' <-> '.join(dict.fromkeys(names)) if names else '',
-                       'function_a': sa['function'] if sa else '', 'function_b': sb['function'] if sb else '', 'note': 'signal words only: outputs / inputs / bidirectional / passes (a header pin takes its bench-net role when it has one, else it only passes the signal)'}
+                       'function_a': sa['function'] if sa else '', 'function_b': sb['function'] if sb else '', 'capable': capable_fams if not fam else [], 'note': 'signal words only: outputs / inputs / bidirectional / passes (a header pin takes its bench-net role when it has one, else it only passes the signal)'}
         # ---- drive (DrivePotential): roles, rail and domain as words, the pull, the class of the limit
         kinds = [x['kind'] for x in (ca, cb) if x['level'] in ('die', 'package')]
         rail = next((RAIL[k] for k in kinds if k in RAIL), '')

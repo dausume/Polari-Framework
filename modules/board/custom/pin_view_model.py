@@ -47,6 +47,7 @@ class Model:
         self._contacts = V.board_rows(tables, board)
         self.comps = [c for c in tables.get('BoardComponent', []) if c['board'] == board and c.get('package')]
         self._conn_seen, self._ids = set(), set()
+        self.rail_of = {}   # leg / pad pin id -> the BoardNet name it ties to (the rail), from the E2 crossings
         self.labels = S.leg_labels(tables)
 
     # ------------------------------------------------------------ pins
@@ -71,14 +72,14 @@ class Model:
                 fams.append(extra)
         pin = dict({'id': '', 'level': '', 'surface': '', 'label': '', 'number': None, 'x': 0.0, 'y': 0.0, 'side': '', 'kind': '', 'bonded': True, 'soc': '', 'soc_pin': '', 'canonical': '',
                     'functions': [], 'default_function': '', 'drive_class': '', 'drive_role': 'undetermined', 'ref': '', 'notes': '', 'stage': 'unassigned', 'stage_why': '', 'consumers': [],
-                    'lit': None, 'dim': False}, **kw)
+                    'lit': None, 'dim': False, 'short_label': ''}, **kw)
         pin['signals'], pin['families'] = sig, fams
         self.pins[pin['id']] = pin
         return pin
 
     def add_surface(self, **kw):
         s = dict({'id': '', 'kind': '', 'level': '', 'title': '', 'parent': '', 'shape': '', 'x': 0.0, 'y': 0.0, 'rot': 0, 'w': 0.0, 'h': 0.0, 'ref': '', 'component': '', 'soc': '', 'package': '',
-                  'pin_ids': [], 'notes': '', 'links': {}}, **kw)
+                  'pin_ids': [], 'notes': '', 'links': {}, 'short_title': '', 'title_pos': None, 'extent': None}, **kw)
         self.surfaces.append(s)
         return s
 
@@ -220,12 +221,14 @@ class Model:
             lay = S.layout(shp)
             pl = self.place.get(ref, {'x': 0.0, 'y': 0.0, 'rot': 0})
             sid = 'part:%s:%s' % (self.board, ref)
+            geo = S.part_geometry(S.params(shp))
             bx = S.params(shp)['box']
-            self.add_surface(id=sid, kind='board-part', level='part', title=ref, parent=self.board_id, shape=shp['name'], x=pl['x'], y=pl['y'], rot=pl['rot'], w=bx[0], h=bx[1], ref='SchematicPart:%s' % ref)
+            self.add_surface(id=sid, kind='board-part', level='part', title=ref, parent=self.board_id, shape=shp['name'], x=pl['x'], y=pl['y'], rot=pl['rot'], w=bx[0], h=bx[1], ref='SchematicPart:%s' % ref,
+                             short_title=geo['short_title'], title_pos=geo['title'], extent=geo['extent'])
             by = {p['name']: p for p in lay['pins']}
             for n in names:
                 p = by[n]
-                self.add_pin(id=self.part_pin_id(ref, n), level='part', surface=sid, label=n, x=round(p['x'], 4), y=round(p['y'], 4), side=p['side'], kind='part', drive_role='undetermined', ref='SchematicPart:%s' % ref,
+                self.add_pin(id=self.part_pin_id(ref, n), level='part', surface=sid, label=n, short_label=geo['pins'][n], x=round(p['x'], 4), y=round(p['y'], 4), side=p['side'], kind='part', drive_role='undetermined', ref='SchematicPart:%s' % ref,
                              notes='the schematic pin number of this part is `undetermined` in the rows (the line is named by what it carries)' if ':' not in n and not n.isdigit() and ref.startswith(('C', 'RN', 'Y', 'CST')) else '')
 
     @staticmethod
@@ -258,6 +261,7 @@ class Model:
             elif cls == 'BoardNet':
                 net = rest.split(':', 1)[1] if ':' in rest else rest
                 rails.setdefault(net, []).append((a, x))
+                self.rail_of[a] = net
                 for hp in V.header_pins(o, self.t):
                     self.connect('to-header', a, 'ConnectorPin:%s' % hp, **args)
             elif cls == 'PackageContact':
@@ -284,11 +288,14 @@ class Model:
         for circuit, c, label in S.bench_components(self.t, self.board):
             sid = 'bench:%s:%s' % (circuit, c['name'])
             shp = self.shapes[S.shape_name('part', 'bench-%s' % c['name'])]
+            geo = S.part_geometry(S.params(shp))
             if not any(s['id'] == sid for s in self.surfaces):
                 bx = S.params(shp)['box']
-                self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s)' % (c['name'], c['kind'], circuit), shape=shp['name'], w=bx[0], h=bx[1], ref='CircuitComponentDefinition:%s' % c['name'])
+                pl = self.place.get('bench-%s' % c['name'], {'x': 0.0, 'y': 0.0})
+                self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s)' % (c['name'], c['kind'], circuit), shape=shp['name'], w=bx[0], h=bx[1], ref='CircuitComponentDefinition:%s' % c['name'],
+                                 x=pl['x'], y=pl['y'], short_title=geo['short_title'], title_pos=geo['title'], extent=geo['extent'])
             pos = {p['name']: p for p in S.layout(shp)['pins']}[label]
-            self.add_pin(id='CircuitPin:%s:%s:%s' % (circuit, c['name'], label), level='bench', surface=sid, label=label, x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos['side'], kind=c['kind'],
+            self.add_pin(id='CircuitPin:%s:%s:%s' % (circuit, c['name'], label), level='bench', surface=sid, label=label, short_label=geo['pins'][label], x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos['side'], kind=c['kind'],
                          drive_role='undetermined', ref='CircuitComponentDefinition:%s' % c['name'])
         by_net = {}
         for n in nets:
@@ -338,10 +345,7 @@ class Model:
             by.setdefault(p['surface'], []).append(p['id'])
         for s in self.surfaces:
             s['pin_ids'] = by.get(s['id'], [])
-        # bench parts sit outside the board: place them in a column to its right (a drawing knob)
-        bx = self.board_p['bbox'][0] + 12.0
-        for i, s in enumerate([s for s in self.surfaces if s['level'] == 'bench']):
-            s['x'], s['y'] = bx, 8.0 + i * 8.0
+        # bench parts sit outside the board: their placement is the board row's (S.part_placements packs them into the bench column, pv-2)
         # a part on the board without a placement keeps (0,0) only if the board row has none: the board row always places every part
         for s in self.surfaces:
             if s['level'] == 'part' and s['ref'].partition(':')[2] in self.place:

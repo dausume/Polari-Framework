@@ -272,11 +272,12 @@ def bench_components(tables, board):
     return out
 
 
-def part_row(board, ref, pin_names):
+def part_row(board, ref, pin_names, title=None):
     n = len(pin_names)
     box = (max(3.0, 1.5 * math.ceil(n / 2)), 3.0) if n > 1 else (1.5, 1.5)
-    g = {'generator': 'part-box', 'part': ref, 'pin_names': pin_names, 'box': list(box), 'pitch': 1.27, 'cited': {},
-         'knobs': ['the box size and the pin pitch (%d pin(s) named by the rows that end on this part)' % n, 'the part\'s real footprint is not modelled; its pin NUMBERS beyond the schematic pin named in the row are `undetermined`']}
+    g = {'generator': 'part-box', 'part': ref, 'title': title or ref, 'pin_names': pin_names, 'box': list(box), 'pitch': 1.27, 'cited': {},
+         'knobs': ['the box size and the pin pitch (%d pin(s) named by the rows that end on this part)' % n, 'the part\'s real footprint is not modelled; its pin NUMBERS beyond the schematic pin named in the row are `undetermined`',
+                   'the label font, the character width, the gap and the abbreviation lengths (LABEL, pv-2): label boxes are estimated from text length x character width']}
     return _row(shape_name('part', ref.replace(' ', '_')), '%s (board part, drawing knob)' % ref, g, _rect(*box), 'pv-0: part-box generator; pins = the lines the exposure rows end on this part')
 
 
@@ -304,12 +305,84 @@ def board_row(board, tables):
                 'pv-0: board generator; bbox + holes + pitch cited from the UNO product datasheet p.12; every placement a drawing knob')
 
 
-def part_cells(refs, start=(4.0, 34.0), cell=7.0, per_row=4):
-    """Auto-layout KNOB: board parts in a grid in the free lower-left area (clear of U1 at x 34.4-41.6 and the bottom headers); deterministic by ref order."""
-    out = {}
-    for i, ref in enumerate(sorted(refs)):
-        out[ref] = (start[0] + (i % per_row) * cell, start[1] + (i // per_row) * 4.5)
+#: pv-2 LABEL KNOBS (drawing knobs, mm in the board frame): a part's title and pin labels are drawn in MODEL units (they scale with the zoom) at this font size; a text box is estimated as
+#: len(text) x font x char_w (an average glyph is about 0.6 em wide). Long names are abbreviated to the max lengths (the full name is the hover text).
+LABEL = {'font': 1.0, 'char_w': 0.6, 'gap': 0.4, 'max_title': 12, 'max_pin': 10, 'margin': 0.8}
+#: where parts are packed (board frame, mm): free bands clear of the headers, U1 (a horizontal 34.7 x 7.2 body at y 21.8-29.0 plus its leg labels), U2 and the USB connector; then the bench column to the right of the board
+PART_REGIONS = [{'x0': 17.0, 'y0': 7.5, 'x1': 59.0, 'y1': 19.0}, {'x0': 2.0, 'y0': 32.0, 'x1': 44.0, 'y1': 44.5}]
+BENCH_REGION = {'x0': 77.0, 'y0': 3.0, 'x1': 120.0, 'y1': 46.0}
+#: the margin a chip's own leg labels need around its body (labels are screen-sized at the chip, so this is a knob): U1 / U2 / X2 reserve body +- this
+CHIP_LABEL_MARGIN = 2.6
+
+
+def text_w(text):
+    return len(text) * LABEL['font'] * LABEL['char_w']
+
+
+def short(text, limit):
+    """The abbreviated drawing text (limit characters, the last one an ellipsis); the full name stays the hover text."""
+    return text if len(text) <= limit else text[:limit - 1] + '\u2026'
+
+
+def part_geometry(p):
+    """-> the LABEL BOXES of one part in its own frame (origin = the box centre): {'short_title', 'title': {x, y}, 'pins': {name: short}, 'boxes': [{kind, text, x0, y0, x1, y1}], 'extent': {x0, y0, x1, y1}}.
+    Pin labels sit outward of their pin (left pins to the left, right pins to the right, a lone pin to its right); the title sits under the box, centred."""
+    names, f, gap = list(p['pin_names']), LABEL['font'], LABEL['gap']
+    lay = part_box(p)
+    bw, bh = float(p['box'][0]), float(p['box'][1])
+    boxes, pins = [], {}
+    for pin in lay['pins']:
+        t = short(pin['name'], LABEL['max_pin'])
+        pins[pin['name']] = t
+        w = text_w(t)
+        if pin['side'] == 'left':
+            x0, x1 = pin['x'] - gap - w, pin['x'] - gap
+        else:   # right, or the lone pin at the centre of a small box: label to its right of the box edge
+            x0, x1 = bw / 2 + gap, bw / 2 + gap + w
+        boxes.append({'kind': 'pin', 'text': t, 'x0': x0, 'x1': x1, 'y0': pin['y'] - f / 2, 'y1': pin['y'] + f / 2})
+    top = min([-bh / 2] + [b['y0'] for b in boxes])
+    bottom = max([bh / 2] + [b['y1'] for b in boxes])
+    st = short(p.get('title') or p.get('part') or '', LABEL['max_title'])
+    tw = text_w(st)
+    ty = bottom + gap
+    boxes.append({'kind': 'title', 'text': st, 'x0': -tw / 2, 'x1': tw / 2, 'y0': ty, 'y1': ty + f})
+    xs0 = min([-bw / 2] + [b['x0'] for b in boxes])
+    xs1 = max([bw / 2] + [b['x1'] for b in boxes])
+    return {'short_title': st, 'title': {'x': 0.0, 'y': ty}, 'pins': pins, 'boxes': boxes,
+            'extent': {'x0': xs0, 'y0': top, 'x1': xs1, 'y1': ty + f}}
+
+
+def pack_parts(items, regions):
+    """Shelf-packs part extents into the regions (deterministic, in the order given). items: [(key, extent)] -> {key: (x, y)} the part's origin in the board frame. A part that fits no region is
+    placed after the last one (the selftest then fails loudly rather than the layout silently overlapping)."""
+    out, m = {}, LABEL['margin']
+    state = [{'r': r, 'x': r['x0'], 'y': r['y0'], 'row_h': 0.0} for r in regions]
+    for key, e in items:
+        w, h = e['x1'] - e['x0'], e['y1'] - e['y0']
+        for st in state:
+            r = st['r']
+            if st['x'] + w > r['x1'] and st['x'] > r['x0']:   # next shelf
+                st['x'], st['y'], st['row_h'] = r['x0'], st['y'] + st['row_h'] + m, 0.0
+            if st['y'] + h <= r['y1'] and st['x'] + w <= r['x1']:
+                out[key] = (round(st['x'] - e['x0'], 3), round(st['y'] - e['y0'], 3))
+                st['x'] += w + m
+                st['row_h'] = max(st['row_h'], h)
+                break
+        else:
+            last = state[-1]
+            out[key] = (round(last['r']['x1'] + 2 * m - e['x0'], 3), round(last['r']['y1'] + m - e['y0'], 3))
     return out
+
+
+def part_placements(rows, parts):
+    """Placements (board frame) of every part the board row does not place by hand (all but X2): board parts packed into the free bands, bench parts into the column right of the board."""
+    by = {r['name']: r for r in rows}
+    ext = lambda ref: part_geometry(params(by[shape_name('part', ref.replace(' ', '_'))]))['extent']   # noqa: E731
+    board_items = [(r, ext(r)) for r in sorted(parts) if r not in PLACE]
+    bench_items = [(r['name'][len('pv-part-'):], ext(r['name'][len('pv-part-'):])) for r in rows if r['name'].startswith('pv-part-bench-')]
+    out = dict(pack_parts(board_items, PART_REGIONS))
+    out.update(pack_parts(bench_items, [BENCH_REGION]))
+    return [{'ref': k, 'x': x, 'y': y, 'rot': 0} for k, (x, y) in sorted(out.items())]
 
 
 def shape_rows(tables, board='arduino-uno-r3'):
@@ -329,11 +402,10 @@ def shape_rows(tables, board='arduino-uno-r3'):
     for circuit, c, label in bench_components(tables, board):
         by_comp.setdefault((circuit, c['name']), []).append(label)
     for (circuit, name), labels in sorted(by_comp.items()):
-        rows.append(part_row(board, 'bench-%s' % name, sorted(labels)))
+        rows.append(part_row(board, 'bench-%s' % name, sorted(labels), title=name))
     b = board_row(board, tables)
     p = json.loads(b['parameters_json'])
-    cells = part_cells([r for r in parts if r not in PLACE])   # bench parts sit outside the board: the model places them in a column to its right
-    p['placements'] += [{'ref': r, 'x': x, 'y': y, 'rot': 0} for r, (x, y) in sorted(cells.items())]
+    p['placements'] += part_placements(rows, parts)
     b['parameters_json'] = json.dumps(p, sort_keys=True)
     rows.append(b)
     return rows
