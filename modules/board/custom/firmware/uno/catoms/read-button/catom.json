@@ -1,0 +1,68 @@
+{
+ "catom": "read-button",
+ "job": "read-button",
+ "title": "Know when a person presses the button, so the firmware can react",
+ "owner_module": "board",
+ "interface": [
+  {
+   "function": "hal_button_init",
+   "returns": "void",
+   "args": [],
+   "context": "init",
+   "what": "configure the button pin and its detection (interrupt or ADC) once at boot"
+  },
+  {
+   "function": "hal_take_toggle_pending",
+   "returns": "uint8_t",
+   "args": [],
+   "context": "loop",
+   "what": "read and clear the 'a press happened' flag set by the detection (taken atomically)"
+  },
+  {
+   "function": "hal_presses",
+   "returns": "uint16_t",
+   "args": [],
+   "context": "loop",
+   "what": "the number of accepted presses since boot"
+  }
+ ],
+ "hal_contract": [
+  {
+   "name": "button_pull",
+   "family": "drive",
+   "kind": "pull",
+   "what": "the pull that holds the button line high: the internal pull-up (interrupt routes) or an external pull-up resistor (analog route, internal pull-up off)"
+  },
+  {
+   "name": "button_detect_registers",
+   "family": "register",
+   "kind": "register",
+   "what": "the registers that enable the detection: PCMSKn / PCICR / PCIFR (pin-change), ADMUX / ADCSRA / DIDR0 (analog) - from cited RegisterField rows"
+  },
+  {
+   "name": "debounce_ms",
+   "family": "protocol",
+   "kind": "timing",
+   "what": "the lockout debounce: a press is accepted at most once per debounce window (the Purpose criterion debounce_ms)"
+  },
+  {
+   "name": "button_line",
+   "family": "signal",
+   "kind": "digital_in | edge_interrupt | analog_in",
+   "what": "the line the button closes to ground, read as a pin change or as an ADC level below a threshold"
+  },
+  {
+   "name": "press_flag",
+   "family": "execution",
+   "kind": "isr_shared",
+   "what": "the flag and counter written in the detection context and read in the loop: read under ATOMIC_BLOCK"
+  }
+ ],
+ "isotopes": [
+  "int0 (hal.c, hand-written)",
+  "pin-change-interrupt",
+  "analog-threshold"
+ ],
+ "status": "derived, never stored here (cmod.custom.isotope_variants)",
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+}

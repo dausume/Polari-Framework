@@ -1,0 +1,19 @@
+{
+ "isotope": "analog-threshold",
+ "button_route": "adc",
+ "hal_button_route_code": 2,
+ "variant_row": "read-button:analog-threshold",
+ "renders_to": "hal_button_adc.c",
+ "template": "template.c.j2",
+ "firmware_variants": [
+  "uno-light-analog"
+ ],
+ "claims": {
+  "pins": "one ADC channel A0..A5 (the button_adc_channel knob; A0 in uno-light-analog)",
+  "peripherals": [
+   "adc"
+  ]
+ },
+ "minimum_level": "bare-c",
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+}
