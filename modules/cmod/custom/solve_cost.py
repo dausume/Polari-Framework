@@ -307,7 +307,7 @@ def cycle(combo, timing_for, mission_purposes, hw, spec, approach, job_purposes,
         else:
             budget = dl * 1000.0 - db * 1000.0
             und_here = any(x['kind'] == 'undetermined' for x in parts)
-            crit = {'state': 'violates' if us > budget else ('fits (with a stand-in)' if und_here else 'fits'), 'budget_us': budget, 'cycle_us': round(us, 2),
+            crit = {'state': 'violates' if us > budget else ('fits (with a stand-in)' if und_here else 'fits'), 'budget_us': budget, 'cycle_us': round(us, 2), 'safety_critical': bool(p.get('safety_critical')),
                     'why': '%s: the Purpose cycle %s against its deadline %s ms%s' % (p['purpose'], '%.0f us' % us, dl, (' minus the %s ms debounce' % db) if db else '')}
         rows.append({'purpose': p['purpose'], 'trigger': trig, 'us': round(us, 2), 'parts': parts, 'criterion': crit})
         total += us

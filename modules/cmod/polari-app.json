@@ -29,7 +29,8 @@
  },
  "requires": {
   "modules": [
-   "board"
+   "board",
+   "scoring"
   ],
   "libraries": [],
   "engines": [
@@ -118,6 +119,7 @@
    "cmod_isotope_api",
    "cmod_approach_profile_api",
    "cmod_solve_api",
+   "cmod_fsc_api",
    "cmod_task_plan_api",
    "cmod_template_api",
    "cmod_firmware_api",
@@ -145,6 +147,7 @@
    "cmod_isotope_variant_selftest",
    "cmod_approach_profile_selftest",
    "cmod_solve_selftest",
+   "cmod_fsc_selftest",
    "cmod_task_plan_selftest"
   ],
   "custom": [
@@ -196,6 +199,18 @@
    "custom/approach_profile_doors",
    "custom/approach_profile_input",
    "custom/approach_profile_tiers",
+   "custom/fsc_context",
+   "custom/fsc_doors",
+   "custom/fsc_failure",
+   "custom/fsc_link",
+   "custom/fsc_prices",
+   "custom/fsc_profiles",
+   "custom/fsc_run",
+   "custom/fsc_score",
+   "custom/fsc_store",
+   "custom/fsc_terms",
+   "custom/fsc_values",
+   "custom/fsc_cli",
    "custom/solve",
    "custom/solve_assign",
    "custom/solve_cost",
@@ -266,6 +281,7 @@
   "IsotopeVariantAPI",
   "ApproachProfileAPI",
   "SolveAPI",
+  "FscAPI",
   "TaskPlanAPI",
   "TemplateAPI",
   "CapabilityDefinition",

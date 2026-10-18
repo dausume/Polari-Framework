@@ -122,9 +122,11 @@ def purposes_of(mission_row, manager=None):
         crit = {c['key']: c for c in spec.get('criteria', []) if isinstance(c, dict) and 'key' in c}
         dl = [(c['value'], k) for k, c in crit.items() if k in ('max_latency_ms', 'freshness_ms', 'deadline_ms') and isinstance(c.get('value'), (int, float))]
         dv = min(dl) if dl else None
+        # fsc-0 (D-fsc-1): a deadline criterion may carry safety_critical: true. Default false; read off the criterion that sets the deadline.
+        safety = bool(dv and crit[dv[1]].get('safety_critical') is True)
         tasks = [t.partition(':') for t in _j(cap.get('tasks_by_runtime_json'), {}).get('c-device', [])]
         out.append({'purpose': name, 'importance': imp, 'title': cap.get('title') or name, 'trigger': spec.get('trigger') or {'kind': '', 'what': ''},
-                    'deadline_ms': q('criterion', dv[0], 'ms', 'Purpose %s criterion %s' % (name, dv[1])) if dv else None, 'deadline_key': dv[1] if dv else '',
+                    'deadline_ms': q('criterion', dv[0], 'ms', 'Purpose %s criterion %s' % (name, dv[1])) if dv else None, 'deadline_key': dv[1] if dv else '', 'safety_critical': safety,
                     'debounce_ms': q('criterion', crit['debounce_ms']['value'], 'ms', 'Purpose %s criterion debounce_ms' % name) if 'debounce_ms' in crit else None,
                     'period_ms': None, 'tasks': [t[2] for t in tasks], 'graph': tasks[0][0] if tasks else ''})
     return out

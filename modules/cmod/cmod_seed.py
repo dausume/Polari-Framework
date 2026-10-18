@@ -188,3 +188,16 @@ CMOD_SEED_PAIRS.append(('HardwareMission', HardwareMission, _owned(
 from cmod.custom.isotope_variants_seeds import JOB_SEEDS as _JOB_SEEDS, VARIANT_SEEDS as _VARIANT_SEEDS
 CMOD_SEED_PAIRS.append(('AtomJob', AtomJob, _owned(_JOB_SEEDS)))
 CMOD_SEED_PAIRS.append(('IsotopeVariant', IsotopeVariant, _owned(_VARIANT_SEEDS)))
+
+# fsc-0/fsc-2 (FIRMWARE_SCORE_PROFILES_PLAN.md, his D-fsc-3 "Yes build on existing score module"): the Firmware Score TERMS and the sample PROFILES are rows of the
+# SCORING module's own classes (ScoreTerm category `firmware`, ScoreConcept) - no new score class. Both converge fully from code (a seeded profile is copied before it is
+# edited, never mutated); the values and contexts they score are written by cmod.custom.fsc_store, not seeded. Guarded: the scoring module may not be admitted yet.
+try:
+    from scoring.scoring_basis import ScoreTerm as _ScoreTerm
+    from scoring.score_concept_basis import ScoreConcept as _ScoreConcept
+    from cmod.custom import fsc_terms as _FT
+    from cmod.custom import fsc_profiles as _FP
+    CMOD_SEED_PAIRS.append(('ScoreTerm', _ScoreTerm, _owned(_FT.term_rows(), keep=('notes',))))
+    CMOD_SEED_PAIRS.append(('ScoreConcept', _ScoreConcept, _owned(_FP.seed_rows(), keep=('notes',))))
+except ImportError:
+    pass
