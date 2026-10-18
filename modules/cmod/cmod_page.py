@@ -337,3 +337,6 @@ SEED_CMOD_PAGE_DISPLAYS.extend(_ISOTOPE_PAGES)
 
 from cmod.cmod_pin_profile_page import PIN_PROFILE_PAGES   # noqa: E402  pp-0: /display/pin-profiles
 SEED_CMOD_PAGE_DISPLAYS += PIN_PROFILE_PAGES
+
+from cmod.cmod_approach_profile_page import APPROACH_PAGES   # noqa: E402  rt-0: /display/approach
+SEED_CMOD_PAGE_DISPLAYS += APPROACH_PAGES

@@ -167,6 +167,9 @@ if __name__ == '__main__':
     iso = next((g for g in hw_nav if g.get('group') == 'Isotope variants'), {})
     check('iso-0: app-hardware has an "Isotope variants" group opening the variant catalogue page',
           [it['route'] for it in iso.get('items', [])] == ['/display/isotope-variants'], iso)
+    ap = next((g for g in hw_nav if g.get('group') == 'Approach'), {})
+    check('rt-0: app-hardware has an "Approach" group opening the runtime-tier page',
+          [it['route'] for it in ap.get('items', [])] == ['/display/approach'], ap)
     check('every discipline app promotes at least one group to the '
           'top bar, and none promotes all of them (the side map '
           'stays the complete map)',

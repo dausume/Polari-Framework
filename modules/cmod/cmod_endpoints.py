@@ -10,6 +10,7 @@ from cmod.cmod_capability_api import CapabilityAPI
 from cmod.cmod_pin_profile_api import PinProfileAPI   # pp-0
 from cmod.cmod_mission_api import MissionAPI
 from cmod.cmod_isotope_api import IsotopeVariantAPI
+from cmod.cmod_approach_profile_api import ApproachProfileAPI   # rt-0
 
 
 def construct_cmod_endpoints(polServer):
@@ -19,4 +20,5 @@ def construct_cmod_endpoints(polServer):
     api.pin_profiles = PinProfileAPI(polServer=polServer, manager=polServer.manager)   # pp-0
     api.mission = MissionAPI(polServer=polServer, manager=polServer.manager)   # mis-0
     api.atom_variants = IsotopeVariantAPI(polServer=polServer, manager=polServer.manager)   # iso-0
+    api.approach_profile = ApproachProfileAPI(polServer=polServer, manager=polServer.manager)   # rt-0
     return api

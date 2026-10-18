@@ -649,6 +649,9 @@ SEED_POLARI_APPS = [
              _tgrp('Isotope variants',
                   _it('Every way a C atom\'s job can be done', 'page',
                       route='/display/isotope-variants', requires_module='cmod')),
+             _tgrp('Approach',   # rt-0 (own group entry)
+                  _it('Which runtime a Mission needs: bare C, FreeRTOS or Zephyr', 'page',
+                      route='/display/approach', requires_module='cmod')),
              _tgrp('Build firmware',
                   _it('Firmware no-code: tasks, pins, export', 'page',
                       route='/display/firmware', requires_module='cmod'),

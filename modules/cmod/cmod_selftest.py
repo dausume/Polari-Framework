@@ -742,11 +742,12 @@ def main():
     from cmod.cmod_pin_profile_selftest import pin_profile_parts   # pp-0: pin profiles per Purpose and Mission
     from cmod.custom.selftest_mission import mission_parts   # mis-0: Hardware Mission no-code
     from cmod.cmod_isotope_variant_selftest import isotope_variant_parts   # iso-0: the isotope variant catalogue
+    from cmod.cmod_approach_profile_selftest import approach_profile_parts   # rt-0: the approach pre-profiler
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
                  + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check) + demo_parts(check)
-                 + generator_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + isotope_variant_parts(check)):
+                 + generator_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + isotope_variant_parts(check) + approach_profile_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

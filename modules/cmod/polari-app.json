@@ -111,6 +111,7 @@
    "cmod_capability_api",
    "cmod_mission_api",
    "cmod_isotope_api",
+   "cmod_approach_profile_api",
    "cmod_firmware_api",
    "cmod_pin_profile_api"
   ],
@@ -123,12 +124,14 @@
   "page": [
    "cmod_page",
    "cmod_pin_profile_page",
-   "cmod_isotope_page"
+   "cmod_isotope_page",
+   "cmod_approach_profile_page"
   ],
   "selftests": [
    "cmod_pin_profile_selftest",
    "cmod_selftest",
-   "cmod_isotope_variant_selftest"
+   "cmod_isotope_variant_selftest",
+   "cmod_approach_profile_selftest"
   ],
   "custom": [
    "custom/analyse",
@@ -173,6 +176,11 @@
    "custom/isotope_variants_doors",
    "custom/isotope_variants_eligibility",
    "custom/isotope_variants_seeds",
+   "custom/approach_profile",
+   "custom/approach_profile_atoms",
+   "custom/approach_profile_doors",
+   "custom/approach_profile_input",
+   "custom/approach_profile_tiers",
    "custom/mission_derived",
    "custom/mission_doors",
    "custom/mission_nocode",
@@ -220,6 +228,7 @@
   "CapabilityAPI",
   "MissionAPI",
   "IsotopeVariantAPI",
+  "ApproachProfileAPI",
   "CapabilityDefinition",
   "CapabilityInstance",
   "DerivedOverride",
