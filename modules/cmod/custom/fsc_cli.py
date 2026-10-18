@@ -79,7 +79,7 @@ def cmd_scores(a):
     if a.top:
         print('Top scorer of each profile - %s' % d['mission'])
         for r in d['rows']:
-            print('  %-34s %-9s %-60s runner-up: %s (%s)' % (r['profile_title'], r['top_state'], r['top_solution'][:60], r['runner_up'][:40], r['runner_up_score']))
+            print('  %-34s %-9s %-60s runner-up: %s (%s)' % (r['profile_title'], r['top_state'], r['top_routes'][:60], r['runner_up_routes'][:40], r['runner_up_score']))
         return 0
     print('Firmware scores - %s - %s' % (d['mission'], d['set']))
     for p in d['profiles']:
@@ -91,10 +91,10 @@ def cmd_scores(a):
         if a.limit and shown >= a.limit:
             break
         shown += 1
-        print('  #%-3s %-8s %7s  %s%s' % (r['rank'], r['state'], r['score'], r['label'][:78], ('\n         ' + r['deciding_terms']) if r.get('deciding_terms') else ''))
+        print('  #%-3s %-8s %7s  %s%s' % (r['rank'], r['state'], r['score'], r['long_label'][:78], ('\n         ' + r['deciding_terms']) if r.get('deciding_terms') else ''))
     fails = [r for r in d['rows'] if r['state'] == 'failed']
     for r in fails[:10]:
-        print('  FAILED  %s - %s' % (r['label'][:70], r['reason'][:160]))
+        print('  FAILED  %s - %s' % (r['long_label'][:70], r['reason'][:160]))
     for s in d['suggestions']:
         print('  suggestion: ' + s['message'])
     for u in d['unmatched_configs'][:10]:

@@ -9,12 +9,14 @@ finished | plan, and given its term values (cmod.custom.fsc_values). `scores()` 
     scores(built, profiles, scope='both', mode=None) -> {profiles {name: result}, rows [one per record], set_words}
 """
 from cmod.custom import fsc_failure as F
+from cmod.custom import fsc_labels as LB
 from cmod.custom import fsc_link as L
 from cmod.custom import fsc_values as V
 from cmod.custom import fsc_profiles as P
 from cmod.custom import solve_inputs as SI
 
 _CACHE = {}
+_SCORES = {}   # fsc-3: score results by their inputs (see scores())
 _CTX = {}
 LADDER_ROUTE = {'declared': 0, 'template-exists': 0, 'compiles': 0, 'proven-on-twin': 50, 'proven-on-hardware': 100}
 
@@ -70,11 +72,13 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
         c['also_on'] = []
         seen[k] = c
         reps.append(c)
+    jobs_vary = LB.varying_jobs(ranked)
+    tier_vary = LB.tiers_vary(ranked)
     failures, ok = [], []
     for c in reps:
         f = F.failure_of(c)
         if f:
-            failures.append(dict(f, id=c['id'], solution=solution_name(mission, c), routes=c['routes_text'], hardware=c['hardware']['board'], rank=c['rank'], state='failed'))
+            failures.append(dict(f, id=c['id'], solution=solution_name(mission, c), routes=c['routes_text'], hardware=c['hardware']['board'], rank=c['rank'], state='failed', short_label=LB.short_label(c, jobs_vary, tier_vary)))
         else:
             ok.append(c)
     links, unmatched = L.resolve(list(res['jobs']), ok, manager)
@@ -94,11 +98,11 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
         rts = [d['route-time'] for d in pv.values() if 'route-time' in d]
         hw['route-time'] = V.T.q(V.T.weakest([x['kind'] for x in rts]), round(sum(x['value'] for x in rts), 3), 'route work counted once: the sum of the Purposes\' attributed shares (a shared route is split by importance weight, so it is not counted twice)')
         records.append({'id': c['id'], 'name': solution_name(mission, c), 'rank': c['rank'], 'candidate': c, 'facts': f, 'state': st['state'], 'state_why': st['why'], 'link': link,
-                        'values': hw, 'purpose_values': pv, 'also_on': c['also_on'], 'label': (link['config'] if link and st['state'] == 'finished' else c['routes_text']),
+                        'values': hw, 'purpose_values': pv, 'also_on': c['also_on'], 'label': (link['config'] if link and st['state'] == 'finished' else c['routes_text']), 'short_label': LB.short_label(c, jobs_vary, tier_vary),
                         'unflagged_deadline_misses': F.unflagged_violations(c)})
     out = {'mission': mission, 'records': records, 'failures': failures, 'suggestions': F.suggestions(ctx['purposes']), 'unmatched_configs': unmatched, 'ctx': ctx,
            'counts': {'candidates': len(ranked), 'distinct_plans': len(reps), 'failed': len(failures), 'finished': sum(1 for r in records if r['state'] == 'finished'),
-                      'plan': sum(1 for r in records if r['state'] == 'plan')}, 'solve_sha256': res['result_sha256'], 'proof': proof[0]}
+                      'plan': sum(1 for r in records if r['state'] == 'plan')}, 'solve_sha256': res['result_sha256'], 'proof': proof[0], 'cache_key': key}
     if len(_CACHE) > 4:
         _CACHE.pop(next(iter(_CACHE)))
     _CACHE[key] = out
@@ -119,15 +123,39 @@ def compared(built, scope='both'):
     return recs, '%s: %d solution(s); failures never enter the set' % (words, len(recs))
 
 
+def profile_sha(p):
+    """A profile's identity for caching: its terms and weights, knobs, name (a weight edit changes it, so the cached result can never be stale)."""
+    return SI.sha([p['name'], p['entries'], p['knobs']])
+
+
+def clear_scores(name=None):
+    """Drop the cached score results of profile `name` (all of them when None). A profile edit calls this; the key already changes with the weights, so this only frees the old results."""
+    for k in [k for k in _SCORES if name is None or k[3] == name]:
+        del _SCORES[k]
+
+
 def scores(built, profiles, scope='both', mode=None):
-    """-> {profiles {name: score_profile result}, set_words, rows [{id, solution, label, state, state_why, link, scores {profile: {score, rank, raw, confidence}}}]}."""
+    """-> {profiles {name: score_profile result}, set_words, rows [{id, solution, label, short_label, state, state_why, link, scores {profile: {score, rank, raw, confidence}}}]}.
+
+    fsc-3: CACHED per profile by (the build's own input key - Mission row sha, solve sha, ScenarioRun statuses, offers file - the scope, the mode, the profile's sha INCLUDING its
+    weights), so a row click or a tab change never recomputes the compared set; a profile edit changes that profile's sha and clear_scores() frees the old results."""
     from cmod.custom import fsc_score as S
     recs, words = compared(built, scope)
-    results = {p['name']: S.score_profile(recs, p, built['ctx'], mode, words) for p in profiles}
+    results = {}
+    for p in profiles:
+        k = (built.get('cache_key'), scope, mode, p['name'], profile_sha(p))
+        if built.get('cache_key') is not None and k in _SCORES:
+            results[p['name']] = _SCORES[k]
+            continue
+        results[p['name']] = S.score_profile(recs, p, built['ctx'], mode, words)
+        if built.get('cache_key') is not None:
+            if len(_SCORES) > 200:
+                _SCORES.pop(next(iter(_SCORES)))
+            _SCORES[k] = results[p['name']]
     fin = [r['id'] for r in recs if r['state'] == 'finished']
     rows = []
     for r in recs:
-        row = {'id': r['id'], 'solution': r['name'], 'label': r['label'], 'state': r['state'], 'state_why': r['state_why'], 'routes': r['candidate']['routes_text'], 'hardware': r['candidate']['hardware']['board'],
+        row = {'id': r['id'], 'solution': r['name'], 'label': r['label'], 'short_label': r['short_label'], 'state': r['state'], 'state_why': r['state_why'], 'routes': r['candidate']['routes_text'], 'hardware': r['candidate']['hardware']['board'],
                'also_on': r['also_on'], 'link': r['link'], 'scores': {}}
         for pn, res in results.items():
             s = res['scores'][r['id']]

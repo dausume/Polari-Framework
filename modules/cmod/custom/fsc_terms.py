@@ -62,6 +62,8 @@ _T = [
 UNDETERMINED = ('active-current', 'noise-immunity')
 TERM_NAMES = tuple(t[0] for t in _T)
 TERM_GROUP = {t[0]: t[7] for t in _T}
+#: fsc-3: term -> (display name, plain words, unit, group) for the profile editor's term table
+TERM_INFO = {t[0]: (t[1], t[2], t[3], t[7]) for t in _T}
 
 
 def term_rows():

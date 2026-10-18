@@ -4,7 +4,8 @@
 fsc-2 doors (plain functions over a FscAPI; `cmod_fsc_api` registers the routes). Plain-words fields only - the frontend reads them with configured tables. Advised, never blocking.
 
 GET  /api/firmware-scores?mission=&profile=&scope=&board=&normalization=&limit=
-       (fsc-3: `limit=N` keeps only the N best ranked rows - the page's bar chart; failed rows still follow)
+       (fsc-3: `label` is the SHORT label, `long_label` the route string; `limit=N` keeps only the N best SCORED rows - the page's bar chart; failed rows are left out when it is set;
+       every row also carries `short_label`, e.g. `button ext-int · sense poll · LED out · UNO`)
        rows top -> bottom by the first profile asked (default: every profile, sorted by the first): {rank, solution, label, state finished|plan|failed, score, raw, confidence,
        deciding_terms (the 2-3 largest weighted contributions, single profile only), routes, built_as, also_on, scores {profile: {score, rank, rank_among_finished}}}; failed
        solutions follow with state `failed`, the Purpose they fail and the reason, and NO score. Also: failures[], suggestions[] (flag a safety deadline?), unmatched_configs[], set.
@@ -26,8 +27,9 @@ from cmod.custom import fsc_store as ST
 from cmod.custom import fsc_terms as T
 
 DEFAULT_MISSION = 'uno-light-mission'
-GET_KEYS = {'scores': ('mission', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'limit'), 'top': ('mission', 'scope', 'board', 'normalization', 'unprovable'),
-            'breakdown': ('mission', 'solution', 'profile', 'scope', 'board', 'normalization', 'unprovable')}
+# `rev` is a page cache-buster (the page appends rev=r<n> after an edit so its tables refetch); it changes nothing here
+GET_KEYS = {'scores': ('mission', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'limit', 'rev'), 'top': ('mission', 'scope', 'board', 'normalization', 'unprovable', 'rev'),
+            'breakdown': ('mission', 'solution', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'rev')}
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,62}$')
 
 
@@ -119,14 +121,14 @@ def get_scores(api, request, response):
     for i in (res0['order'][:int(limit)] if limit else res0['order']):
         row = next(r for r in out['rows'] if r['id'] == i)
         s = res0['scores'][i]
-        flat = {'rank': s['rank'], 'solution': row['solution'], 'label': row['label'], 'state': row['state'], 'state_why': row['state_why'], 'score': s['score'], 'raw': s['raw'],
+        flat = {'rank': s['rank'], 'solution': row['solution'], 'label': row['short_label'], 'short_label': row['short_label'], 'long_label': row['label'], 'state': row['state'], 'state_why': row['state_why'], 'score': s['score'], 'raw': s['raw'],
                 'confidence': s['confidence'], 'routes': row['routes'], 'hardware': row['hardware'], 'built_as': _built_as(recs[i]),
                 'also_on': ', '.join(row['also_on']), 'scores': row['scores']}
         if single:
             flat['deciding_terms'] = deciding(s)
         rows.append(flat)
-    for f in built['failures']:
-        rows.append({'rank': None, 'solution': f['solution'], 'label': f['routes'], 'state': 'failed', 'state_why': f['reason'], 'score': None, 'failed_purpose': f['purpose'], 'reason': f['reason'],
+    for f in ([] if limit else built['failures']):
+        rows.append({'rank': None, 'solution': f['solution'], 'label': f['short_label'], 'short_label': f['short_label'], 'long_label': f['routes'], 'state': 'failed', 'state_why': f['reason'], 'score': None, 'failed_purpose': f['purpose'], 'reason': f['reason'],
                      'routes': f['routes'], 'hardware': f['hardware'], 'scores': {}})
     response.media = {'ok': True, 'mission': built['mission'], 'scope': p.get('scope', 'both'), 'set': out['set_words'], 'profile': first if single else '',
                       'profiles': [{'name': x['name'], 'title': x['display_name'], 'mode': out['profiles'][x['name']]['mode'], 'notes': out['profiles'][x['name']]['notes']} for x in profs],
@@ -153,8 +155,8 @@ def get_top(api, request, response):
             continue
         a = byid[o[0]]
         b = byid[o[1]] if len(o) > 1 else None
-        rows.append({'profile': x['name'], 'profile_title': x['display_name'], 'top_solution': a['label'], 'top_state': a['state'], 'top_solution_name': a['solution'],
-                     'score': res['scores'][o[0]]['score'], 'runner_up': b['label'] if b else '', 'runner_up_state': b['state'] if b else '',
+        rows.append({'profile': x['name'], 'profile_title': x['display_name'], 'top_solution': a['short_label'], 'top_routes': a['label'], 'top_state': a['state'], 'top_solution_name': a['solution'],
+                     'score': res['scores'][o[0]]['score'], 'runner_up': b['short_label'] if b else '', 'runner_up_routes': b['label'] if b else '', 'runner_up_state': b['state'] if b else '',
                      'runner_up_score': res['scores'][o[1]]['score'] if b else None, 'compared_set': out['set_words'], 'failed_count': len(built['failures']),
                      'deciding_terms': deciding(res['scores'][o[0]])})
     response.media = {'ok': True, 'mission': built['mission'], 'scope': p.get('scope', 'both'), 'count': len(rows), 'rows': rows}
@@ -225,6 +227,30 @@ def get_profiles(api, request, response):
                       'note': 'Seeded profiles are copied before they are edited: POST {name: <new>, copy_of: <seeded>, weights: {...}}.'}
 
 
+def get_profile_terms(api, request, response, name):
+    """GET /api/firmware-score-profiles/{name}/terms - the profile editor's table: one row per term {profile, term, label, plain, unit, group, purpose, weight, editable, seeded,
+    in_profile}. Every known term is listed (weight 0 = not counted) so a weight can be given to a term the profile does not use yet; the profile's own weighted terms come first,
+    heaviest first. A per-Purpose entry is listed read-only (`purpose` says which). A seeded profile's rows are `editable: false` (copy it first: POST copy_of)."""
+    allp = P.all_profiles(api.manager)
+    p = allp.get(name)
+    if p is None:
+        return _fail(response, falcon.HTTP_404, 'no profile %r (known: %s)' % (name, ', '.join(sorted(allp))))
+    whole = {e['term']: e['weight'] for e in p['entries'] if not e.get('purpose')}
+    rows = []
+    for e in p['entries']:
+        if e.get('purpose'):
+            label, plain, unit, group = T.TERM_INFO.get(e['term'], (e['term'], '', '', ''))
+            rows.append({'profile': name, 'term': e['term'], 'label': label, 'plain': plain, 'unit': unit, 'group': group, 'purpose': e['purpose'], 'weight': e['weight'],
+                         'editable': False, 'seeded': p['seeded'], 'in_profile': True})
+    for t in T.TERM_NAMES:
+        label, plain, unit, group = T.TERM_INFO[t]
+        rows.append({'profile': name, 'term': t, 'label': label, 'plain': plain, 'unit': unit, 'group': group, 'purpose': '', 'weight': whole.get(t, 0), 'editable': not p['seeded'],
+                     'seeded': p['seeded'], 'in_profile': t in whole})
+    rows.sort(key=lambda r: (not r['in_profile'], -r['weight'], r['term']))
+    response.media = {'ok': True, 'profile': name, 'display_name': p['display_name'], 'seeded': p['seeded'], 'count': len(rows), 'rows': rows,
+                      'note': ('Seeded: copy it first (POST /api/firmware-score-profiles {name, copy_of}).' if p['seeded'] else 'Yours: POST /api/firmware-score-profiles {name, weights: {term: w}} sets a weight (0 removes the term).')}
+
+
 def _known_purposes(manager):
     from cmod.cmod_seed import CAPABILITY_ROWS
     names = {r['name'] for r in CAPABILITY_ROWS}
@@ -253,6 +279,7 @@ def post_profile(api, request, response):
     if not entries:
         return _fail(response, falcon.HTTP_422, 'a profile needs at least one term with a weight above 0 (known terms: %s)' % ', '.join(T.TERM_NAMES))
     row = P.save(api.manager, name, base, entries, knobs, body.get('display_name', ''), body.get('description', ''))
+    R.clear_scores(name)      # the profile's sha changed, so no stale result can be served; this frees the old ones
     created = existing is None
     response.status = falcon.HTTP_201 if created else falcon.HTTP_200
     parsed = P.parse(row if not isinstance(row, dict) else row)

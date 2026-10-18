@@ -72,9 +72,16 @@ def main():
           ids['fsc-ranked']['selectScope'] == 'solution' and ids['fsc-ranked']['selectedValue'] == '{scope:solution}' and ids['fsc-ranked']['selectField'] == 'solution'
           and '{scope:solution}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-ranked']['dataPath'] and ids['fsc-breakdown']['emptyText'])
     check('profile tab: the bar chart is a named-graph-panel on the scores door limited to the best twelve',
-          ids['fsc-bars']['graphName'] == 'firmware-score-top' and ids['fsc-bars']['dataPath'].endswith('&profile={key}&limit=12'))
-    check('every {token} in the template is {key} or {scope:solution} (nothing else is left unresolved)',
-          all(x in ('key', 'scope:solution') for x in re.findall(r'\{([a-z]+(?::[a-z]+)?)\}', json.dumps(tpl))))
+          ids['fsc-bars']['graphName'] == 'firmware-score-top' and '&profile={key}&limit=12' in ids['fsc-bars']['dataPath'])
+    check('every {token} in the template is {key}, {scope:solution} or {scope:rev} (nothing else is left unresolved)',
+          all(x in ('key', 'scope:solution', 'scope:rev') for x in re.findall(r'\{([a-z]+(?::[a-z]+)?)\}', json.dumps(tpl))))
+    ed = {i['id']: i['componentProps']['inputs'] for i in _tables(d['tabs'][2]['rows'])}
+    check('editor tab: step 1 picks a profile (scope `profile`) with a Copy-to-edit action shown for seeded rows; step 2 edits `weight` through POST /api/firmware-score-profiles for the picked profile; step 3 re-ranks',
+          ed['fsc-profiles']['selectScope'] == 'profile' and ed['fsc-profiles']['rowAction']['show_when_field'] == 'seeded' and ed['fsc-profiles']['rowAction']['body_template']['copy_of'] == '{name}'
+          and ed['fsc-terms']['editFields'] == 'weight' and ed['fsc-terms']['editEnabledField'] == 'editable' and ed['fsc-terms']['editAction']['path'] == '/api/firmware-score-profiles'
+          and '{scope:profile}/terms' in ed['fsc-terms']['dataPath'] and 'rev=r{scope:rev}' in ed['fsc-terms']['dataPath'] and 'limit=10' in ed['fsc-reranked']['dataPath'])
+    check('the top and ranked tables show the SHORT label; the chart axis is the short label too',
+          'top_solution' in top['columns'] and 'label' in ids['fsc-ranked']['columns'] and 'long' not in ids['fsc-ranked']['columns'] and json.loads(__import__('cmod.cmod_fsc_page', fromlist=['x']).FSC_GRAPHS[0]['definition'])['graphConfig']['xDimension'] == 'short_label')
 
     print('-- the columns exist in the rows the doors serve')
     import falcon
@@ -85,8 +92,10 @@ def main():
     class _FS:
         def add_route(self, path, res, suffix=None):
             app.add_route(path, res, suffix=suffix)
+    from cmod.custom.selftest_purpose import _manager
+    mgr = _manager()
     with contextlib.redirect_stdout(io.StringIO()):
-        FscAPI(polServer=SimpleNamespace(falconServer=_FS()), manager=None)
+        FscAPI(polServer=SimpleNamespace(falconServer=_FS()), manager=mgr)
     c = testing.TestClient(app)
 
     def get(path):
@@ -105,10 +114,72 @@ def main():
     lim = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json
     ranked = [r for r in lim['rows'] if r['state'] != 'failed']
     check('scores door: limit=12 keeps the 12 best ranked rows, the best first with score 100', len(ranked) == 12 and ranked[0]['rank'] == 1 and ranked[0]['score'] == 100.0)
+    check('scores door: `rev` (the page cache-buster) is accepted and changes nothing', get('/api/firmware-scores?mission=%s&profile=%s&limit=12&rev=r5' % (MISSION, first)).json['rows'] == lim['rows'])
+
+    print('-- short labels')
+    r0 = lim['rows'][0]
+    check('every row has a short label (`label`, also `short_label`): the varying jobs then the board, short, with the long route string kept in `long_label`',
+          all(r['label'] == r['short_label'] and 0 < len(r['label']) < 80 and ':' not in r['label'] and '\u00b7' in r['label'] and ':' in r['long_label'] for r in lim['rows']), r0)
+    labels = [r['short_label'] for r in get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']]
+    check('...and the short labels tell the 380 plans apart well enough to read (%d distinct of %d; the same plan on two boards differs by the board word)' % (len(set(labels)), len(labels)), len(set(labels)) >= len(labels) * 0.9, (len(set(labels)), len(labels)))
+    check('top door: top_solution / runner_up are short labels, the route strings are top_routes / runner_up_routes',
+          ':' not in served['fsc-top']['top_solution'] and ':' in served['fsc-top']['top_routes'] and ':' not in served['fsc-top']['runner_up'] and ':' in served['fsc-top']['runner_up_routes'])
+    from cmod.custom import fsc_doors as D
+    from cmod.custom import fsc_run as R
+    built = R.build(MISSION, mgr, None, None, 'block')
+    fake = dict(built, failures=[{'id': 'x', 'solution': 'msol:x', 'routes': 'a:b', 'short_label': 'a b \u00b7 UNO', 'hardware': 'arduino-uno-r3', 'purpose': 'p', 'reason': 'why', 'state': 'failed'}])
+    real = D._built
+    D._built = lambda api, response, p: fake
+    try:
+        with_fail = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']
+        chart = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json['rows']
+    finally:
+        D._built = real
+    check('chart call (limit set): failed rows are LEFT OUT (the plain call still lists them last)', with_fail[-1]['state'] == 'failed' and all(r['state'] != 'failed' for r in chart) and len(chart) == 12)
+
+    print('-- the editor: terms door, editing, cache')
+    tt = get('/api/firmware-score-profiles/%s/terms' % first).json
+    from cmod.custom import fsc_terms as T
+    check('terms door (seeded profile): one row per known term + plain words, every row editable:false, weighted terms first', tt['seeded'] and len([r for r in tt['rows'] if not r['purpose']]) == len(T.TERM_NAMES)
+          and all(not r['editable'] and r['plain'] and r['label'] for r in tt['rows']) and tt['rows'][0]['in_profile'], tt['rows'][:1])
+    check('terms door: an unknown profile is 404 naming the known ones', get('/api/firmware-score-profiles/nope/terms').status_code == 404)
+    pp = get('/api/firmware-score-profiles/fsc-uno-r3-per-purpose/terms').json['rows']
+    check('terms door: a per-Purpose entry is listed read-only with its Purpose', any(r['purpose'] and not r['editable'] and r['in_profile'] for r in pp))
+    post = lambda body: c.simulate_post('/api/firmware-score-profiles', body=json.dumps(body))   # noqa: E731
+    seeded_try = post({'name': first, 'weights': {'wires': 1}})
+    cp = post({'name': 'my-' + first, 'copy_of': first})
+    check('Copy to edit: a seeded profile edit is refused (409) and POST copy_of makes the person\'s own (201)', seeded_try.status_code == 409 and cp.status_code == 201, (seeded_try.status_code, cp.status_code))
+    mine = get('/api/firmware-score-profiles/my-%s/terms' % first).json
+    check('terms door (own profile): rows are editable:true', not mine['seeded'] and all(r['editable'] for r in mine['rows'] if not r['purpose']))
+    from cmod.custom import fsc_score as S
+    calls = []
+    orig = S.score_profile
+    S.score_profile = lambda *a, **k: (calls.append(1), orig(*a, **k))[1]
+    try:
+        R.clear_scores()
+        url = '/api/firmware-scores?mission=%s&profile=my-%s' % (MISSION, first)
+        r1 = get(url).json
+        n1 = len(calls)
+        get(url)
+        get(url + '&limit=5')
+        get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=my-%s' % (MISSION, r1['rows'][0]['solution'], first))
+        check('cache: the second scores call, a limit call and a breakdown reuse the first result - the compared set is scored once (%d score_profile call)' % n1, n1 == 1 and len(calls) == 1, (n1, len(calls)))
+        other = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution']
+        e = post({'name': 'my-' + first, 'weights': {'mission-cycle': 0.0, 'wires': 1.0, 'flash-free': 1.0}})
+        r2 = get(url).json
+        check('EDIT: a weight edit POST (200) is served as a fresh ranking at once - the cache key carries the weights, so nothing stale (top solution %s -> %s)' % (r1['rows'][0]['solution'][-10:], r2['rows'][0]['solution'][-10:]),
+              e.status_code == 200 and [r['solution'] for r in r2['rows'][:15]] != [r['solution'] for r in r1['rows'][:15]] and len(calls) == 3, (e.status_code, len(calls)))
+        check('...and the seeded profile\'s cached result was not disturbed', get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution'] == other and len(calls) == 3, (other[-8:], len(calls)))
+        t2 = {r['term']: r['weight'] for r in get('/api/firmware-score-profiles/my-%s/terms' % first).json['rows'] if not r['purpose']}
+        check('...and the terms door shows the edited weights (wires 1, mission-cycle 0)', t2['wires'] == 1.0 and t2['mission-cycle'] == 0)
+    finally:
+        S.score_profile = orig
     check('scores door: a bad limit is refused with words (422)', get('/api/firmware-scores?mission=%s&profile=%s&limit=zero' % (MISSION, first)).status_code == 422)
     allrows = get('/api/firmware-scores?mission=%s' % MISSION).json['rows']
     # the default Mission has no failure: the failed-row keys are fixed by the door (label, failed_purpose, reason, hardware)
     served['fsc-failures'] = next((r for r in allrows if r['state'] == 'failed'), {'label': 1, 'failed_purpose': 1, 'reason': 1, 'hardware': 1})
+    served['fsc-terms'] = get('/api/firmware-score-profiles/%s/terms' % first).json['rows'][0]
+    served['fsc-reranked'] = served['fsc-ranked']
     miss = {}
     for i in all_tables:
         if i['id'] in served and i['componentProps']['componentName'] == 'class-rows-table':
@@ -120,8 +191,8 @@ def main():
     print('-- graph, nav, manifest')
     from cmod.cmod_fsc_page import FSC_GRAPHS
     gc = json.loads(FSC_GRAPHS[0]['definition'])['graphConfig']
-    check('the graph row: barX, category = rank, value = score, named like the panel\'s graphName',
-          FSC_GRAPHS[0]['name'] == 'firmware-score-top' and gc['renderStyle'] == 'barX' and gc['xDimension'] == 'rank' and gc['yDimensions'] == ['score'])
+    check('the graph row: barX, category = short_label, value = score, named like the panel\'s graphName',
+          FSC_GRAPHS[0]['name'] == 'firmware-score-top' and gc['renderStyle'] == 'barX' and gc['xDimension'] == 'short_label' and gc['yDimensions'] == ['score'])
     from cmod.cmod_seed import CMOD_SEED_PAIRS
     check('the graph converges through CMOD_SEED_PAIRS as a GraphDefinition', any(n == 'GraphDefinition' and any(r['name'] == 'firmware-score-top' for r in rows) for n, _c, rows in CMOD_SEED_PAIRS))
     from polariapps.apps_seed import SEED_POLARI_APPS

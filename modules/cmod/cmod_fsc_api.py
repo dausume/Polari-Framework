@@ -2,7 +2,7 @@
 @module cmod.cmod_fsc_api
 
 fsc-2 doors (contract in cmod.custom.fsc_doors): GET /api/firmware-scores, /api/firmware-scores/top, /api/firmware-scores/breakdown, POST /api/firmware-scores/values,
-GET|POST /api/firmware-score-profiles. Own class, own file - registered beside the Mission / solve doors.
+GET|POST /api/firmware-score-profiles, GET /api/firmware-score-profiles/{name}/terms (the editor's term table). Own class, own file - registered beside the Mission / solve doors.
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -19,6 +19,7 @@ class FscAPI(treeObject):
             add('/api/firmware-scores/breakdown', self, suffix='breakdown')
             add('/api/firmware-scores/values', self, suffix='values')
             add('/api/firmware-score-profiles', self, suffix='profiles')
+            add('/api/firmware-score-profiles/{name}/terms', self, suffix='profile_terms')
 
     def on_get_scores(self, request, response):
         from cmod.custom import fsc_doors as D
@@ -43,3 +44,7 @@ class FscAPI(treeObject):
     def on_post_profiles(self, request, response):
         from cmod.custom import fsc_doors as D
         D.post_profile(self, request, response)
+
+    def on_get_profile_terms(self, request, response, name):
+        from cmod.custom import fsc_doors as D
+        D.get_profile_terms(self, request, response, name)

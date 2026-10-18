@@ -513,7 +513,7 @@ def fsc_parts(check):
         m = json.load(open(os.path.join(os.path.dirname(__file__), 'polari-app.json')))
         f = m['files']
         want = {'api': ['cmod_fsc_api'], 'selftests': ['cmod_fsc_selftest'],
-                'custom': ['custom/fsc_%s' % n for n in ('context', 'doors', 'failure', 'link', 'prices', 'profiles', 'run', 'score', 'store', 'terms', 'values', 'cli')]}
+                'custom': ['custom/fsc_%s' % n for n in ('context', 'doors', 'failure', 'labels', 'link', 'prices', 'profiles', 'run', 'score', 'store', 'terms', 'values', 'cli')]}
         got = {k: [n for n in names if n not in f.get(k, [])] for k, names in want.items()}
         check('fsc MANIFEST: polari-app.json lists every new file (api, selftest, twelve custom modules), requires the scoring module, and the class FscAPI', not any(got.values()) and 'FscAPI' in m['classes'] and 'scoring' in m['requires']['modules'], got)
         check('...each listed file exists on disk', all(os.path.isfile(os.path.join(os.path.dirname(__file__), n + '.py')) for n in sum(want.values(), [])))
