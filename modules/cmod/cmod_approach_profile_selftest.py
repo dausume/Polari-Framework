@@ -61,7 +61,7 @@ def approach_profile_parts(check):
 
     def atoms_read_off():
         from cmod.custom import code_interface as CI
-        ctx = {'baud': 115200, 'frame_bytes': 110}
+        ctx = {'baud': 115200, 'frame_bytes': 110, 'use_measured': False}   # cyc-0: this part tests the SIZE bound; the measured replacement is in selftest_cycles
         p, _m, send = CI.find_atom('uno:hal.hal_usart_send')
         r = A.analyse(p, send, ctx)
         _p, _m2, millis = CI.find_atom('uno:hal.hal_millis')
@@ -81,20 +81,20 @@ def approach_profile_parts(check):
     def light_demo():
         r = lt()
         d, rec = r['demand'], r['recommended']
-        check('rt-0: the light Mission on the UNO recommends BARE C, provisional (two tasks have parts that cannot be bounded yet), with reasons in plain words',
-              rec['tier'] == 'bare-c' and rec['provisional'] and rec['lowest_available'] == 'bare-c' and len(rec['reasons']) >= 6 and r['board_basis'] == 'asked for'
+        check('rt-0: the light Mission on the UNO recommends BARE C, no longer provisional (cyc-0: every loop task is bounded by a twin cycle count), with reasons in plain words',
+              rec['tier'] == 'bare-c' and not rec['provisional'] and rec['lowest_available'] == 'bare-c' and len(rec['reasons']) >= 6 and r['board_basis'] == 'asked for'
               and AP.approach_profile(LIGHT)['board'] == UNO and AP.approach_profile(LIGHT)['board_basis'] == 'the Mission\'s own board participant', rec)
         check('rt-0: demand summary - 3 independent triggers (button, Polari command, 10 Hz report), tightest deadline 100 ms (a criterion), 1 periodic task of 100 ms, 1 blocking operation',
               d['independent_triggers']['count']['value'] == 3 and d['tightest_deadline']['value']['value'] == 100 and d['tightest_deadline']['value']['kind'] == 'criterion'
               and d['tightest_deadline']['purpose'] != 'initialization' and len(d['periodic']) == 1 and d['periodic'][0]['task'] == 'telemetry_send'
               and d['periodic'][0]['period_ms']['value'] == 100.0 and len(d['blocking']) == 1, (d['independent_triggers']['count'], d['tightest_deadline'], d['periodic']))
         sl = d['superloop'][0]
-        check('rt-0: the argument - the loop pass (known parts) is about 10.7 ms, the button budget 70 ms (100 minus the 30 ms debounce), margin about 59 ms; interrupts take about 10%; verdict fits-known',
+        check('rt-0: the argument - the loop pass is about 10.9 ms (0.9 ms of MEASURED atom code + the 9.5 ms send wait from the baud), the button budget 70 ms (100 minus the 30 ms debounce), margin about 59 ms; interrupts take about 4%; verdict fits-known (only the INT0/INT1/PCINT rates are left out); nothing unbounded',
               sl['verdict'] == 'fits-known' and 10000 < sl['pass_known_us']['value'] < 11500 and sl['worst']['budget_us']['value'] == 70000.0 and 58000 < sl['worst']['margin_us']['value'] < 60500
-              and 9 < sl['isr_share']['value'] < 12 and {u['task'] for u in sl['unbounded']} == {'apply', 'telemetry_send'}, (sl['pass_known_us'], sl['worst'], sl['isr_share']))
+              and 3 < sl['isr_share']['value'] < 6 and not sl['unbounded'] and sl['cycle_basis'] == 'measured' and sl['atom_us']['kind'] == 'measured', (sl['pass_known_us'], sl['worst'], sl['isr_share']))
         text = ' '.join(rec['reasons'] + rec['caveats'])
-        check('rt-0: the reasons name the blocking send (9.5 ms), the 100 ms deadline, the 59 ms margin and what is left out (INT0/INT1 rates; the unbounded tasks)',
-              '9.5 ms' in text and '100 ms' in text and 'margin is 59' in text and 'INT0' in text and 'apply' in text and 'cannot bound' in text, text)
+        check('rt-0: the reasons name the blocking send (9.5 ms), the 100 ms deadline, the 59 ms margin, that the atom code is MEASURED on the twin, and what is left out (INT0/INT1 rates)',
+              '9.5 ms' in text and '100 ms' in text and 'margin is 59' in text and 'INT0' in text and 'MEASURED' in text and 'cannot bound' not in text, text)
         check('rt-0: concurrency from the schedule lanes and pp-0: 5 interrupt vectors (fgm-5a: the ISR atoms of the project, hal_button_pcint.PCINT2_vect among them), 5 loop tasks, only USART0/EEPROM as drivers; 5 pin needs (pp-0), 2 of them interrupt inputs',
               d['concurrency'][0]['interrupt_vectors']['value'] == 5 and d['concurrency'][0]['loop_tasks']['value'] == 5 and d['concurrency'][0]['drivers'] == ['EEPROM', 'USART0']
               and d['pin_profiles']['profiles']['value'] == 5 and d['pin_profiles']['interrupt_inputs']['value'] == 2, (d['concurrency'][0], d['pin_profiles']))

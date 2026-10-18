@@ -89,8 +89,17 @@ def deciding(c, w):
 def trade_rows(cands, n):
     return [{'rank': c['rank'], 'candidate': label(c), 'hardware': short_hw(c), 'tier': c['tier'], 'routes': c['routes_text'], 'pins': pins_text(c),
              'resources': '%.3f' % c['resource_score'], 'cycle': _ms(c['cycle_us']), 'parts_to_get': ', '.join(p['class'] for p in c['parts_missing']) or 'none',
-             'placement': CLASS_WORDS[c['rank_class']], 'open_rungs': c['risk_points'], 'undetermined_costs': c['resources']['undetermined'] + c['cycle']['undetermined']}
+             'placement': CLASS_WORDS[c['rank_class']], 'open_rungs': c['risk_points'], 'undetermined_costs': c['resources']['undetermined'] + c['cycle']['undetermined'],
+             'cycle_basis': cycle_basis_text(c)}
             for c in cands[:n]]
+
+
+def cycle_basis_text(c):
+    """cyc-0: which basis the candidate's cycle used, in plain words ('4 measured on the twin, 2 estimated/counted')."""
+    b = (c.get('cycle') or {}).get('bases')
+    if not b:
+        return 'not stated'
+    return '%d measured on the twin, %d estimated/counted%s' % (b['measured'], b['estimated'], (', %d undetermined' % b['undetermined']) if b['undetermined'] else '')
 
 
 def _twin_key(c):

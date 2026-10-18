@@ -43,9 +43,11 @@ def _superloop(proc, purposes):
     """The argument for a main loop on one processor."""
     loop = [t for t in proc['tasks'] if t['lane'] in ('loop', 'thread')]
     known_us = sum(t['known_us'] for t in loop)
-    blocks = [(t['name'], b) for t in loop for b in t['blocking']]
+    blocks = [(t['name'], b) for t in loop for b in t['blocking'] if not b.get('inside_measured')]   # cyc-0: a wait already inside a measured count is not added twice
     block_us = sum(b['worst_us']['value'] for _n, b in blocks if b['worst_us']['value'] is not None)
     unknown_blocks = [(n, b) for n, b in blocks if b['worst_us']['value'] is None]
+    bases = [t.get('cycles_basis', 'upper-bound') for t in loop]
+    cycle_basis = 'measured' if bases and all(b == 'measured' for b in bases) else ('upper-bound' if not any(b != 'upper-bound' for b in bases) else 'mixed')
     unbounded = [{'task': t['name'], 'why': '; '.join(t['unbounded'])} for t in loop if t['unbounded']]
     util, left_out = 0.0, []
     for i in proc['isrs']:
@@ -77,9 +79,13 @@ def _superloop(proc, purposes):
     if not checks:
         verdict = 'no-deadline'
     return {'processor': proc['name'], 'loop_tasks': [t['name'] for t in loop],
-            'pass_known_us': q('estimated', round(pass_us, 1), 'us', 'one pass of the loop, worst case, known parts: %.1f us of atom code (upper bounds) + %.1f us of waiting on hardware, '
-                               'stretched by the interrupt share %.1f%% (x%.3f)' % (known_us, block_us, util * 100, inflate if inflate != float('inf') else 0)),
-            'atom_us': q('estimated', round(known_us, 1), 'us', 'sum of the loop tasks\' cycle upper bounds'),
+            'cycle_basis': cycle_basis, 'measured_gap': proc.get('loop_measured'), 'uart_split': any(t.get('measured') and t['measured']['split'] for t in loop),
+            'pass_known_us': q('estimated', round(pass_us, 1), 'us', 'one pass of the loop, worst case, known parts: %.1f us of atom code (%s) + %.1f us of waiting on hardware (estimated from the baud), '
+                               'stretched by the interrupt share %.1f%% (x%.3f)' % (known_us, {'measured': 'worst counts MEASURED on the simavr twin', 'mixed': 'measured where a cycle record has it, else upper bounds'}.get(cycle_basis, 'upper bounds'),
+                                                                                  block_us, util * 100, inflate if inflate != float('inf') else 0)),
+            'atom_us': q('measured' if cycle_basis == 'measured' else 'estimated', round(known_us, 1), 'us',
+                         'sum of the loop tasks\' worst %s' % {'measured': 'cycle counts measured on the twin (CPU part where a task waits on the USART): %s' % '; '.join(
+                             '%s %d' % (t['name'], t.get('cycles', 0)) for t in loop), 'mixed': 'cycle counts (measured where a cycle record has them, else upper bounds)'}.get(cycle_basis, 'cycle upper bounds')),
             'blocking_us': q('estimated', round(block_us, 1), 'us', 'sum of the worst waits in the loop'),
             'isr_share': q('estimated', round(util * 100, 2), '%', 'sum over the interrupts of rate x per-event upper bound; interrupts without a rate are left out: %s' % (', '.join(left_out) or 'none')),
             'isr_left_out': left_out, 'checks': checks, 'worst': worst, 'unbounded': unbounded,
@@ -178,6 +184,15 @@ def recommend(demand):
         reasons.append('%s: one pass of a main loop takes at most about %s (%s of atom code + %s waiting, stretched %.1f%% by interrupts); the tightest budget is %s (%s), so the margin is %s.' % (
             s['processor'], _ms(s['pass_known_us']['value']), _ms(s['atom_us']['value']), _ms(s['blocking_us']['value']), s['isr_share']['value'],
             _ms(w['budget_us']['value']), w['purpose'], _ms(w['margin_us']['value'])))
+        if s.get('cycle_basis') == 'measured':
+            reasons.append('The atom code in that pass is MEASURED on the simavr twin, not bounded from sizes (%s; cycles are the worst count per call over a recorded run - see the cycle record).' % s['atom_us']['basis'].split(': ', 1)[-1])
+            if s.get('uart_split'):
+                caveats.append('the wait to send a report is derived from the baud, not read from the twin: the twin\'s USART takes longer per byte than the chip\'s, so the CPU part of the send is measured and the wait is added separately.')
+        mg = s.get('measured_gap')
+        if mg:
+            reasons.append('End to end on the twin, the longest the main loop went without polling was %s (%d cycles, %s)%s.' % (
+                _ms(mg['worst_gap_cycles'] / 16.0), mg['worst_gap_cycles'], mg['ref'],
+                ('; at the chip\'s byte time %s' % _ms(mg['worst_gap_chip_timed_cycles'] / 16.0)) if mg.get('worst_gap_chip_timed_cycles') and mg['worst_gap_chip_timed_cycles'] != mg['worst_gap_cycles'] else ''))
         if s['unbounded']:
             prov = True
             caveats.append('%d task(s) have parts this profiler cannot bound (%s). They may use up to %s of the margin before the answer changes; measure their cycles on the twin to close it.' % (
@@ -308,6 +323,10 @@ def demand_rows(res):
     for s in d['superloop']:
         w = s['worst']
         rows.append({'item': 'Main-loop pass on %s' % s['processor'], 'value': A.text(s['pass_known_us']), 'detail': '%s; interrupts take %s' % (s['pass_known_us']['basis'], A.text(s['isr_share']))})
+        mg = s.get('measured_gap')
+        if mg:
+            rows.append({'item': 'Longest gap between polls, measured (%s)' % s['processor'], 'value': '%.2f ms (measured)' % (mg['worst_gap_cycles'] / 16000.0),
+                         'detail': 'simavr twin, %s; at the chip\'s byte time %.2f ms (derived)' % (mg['ref'], (mg.get('worst_gap_chip_timed_cycles') or mg['worst_gap_cycles']) / 16000.0)})
         if w:
             rows.append({'item': 'Margin on the tightest budget', 'value': A.text(w['margin_us']), 'detail': '%s: budget %s; verdict %s%s' % (w['purpose'], A.text(w['budget_us']), s['verdict'],
                          ('; room for the unbounded parts (%s)' % ', '.join(u['task'] for u in s['unbounded'])) if s['unbounded'] else '')})

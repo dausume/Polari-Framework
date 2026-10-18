@@ -10,6 +10,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 from types import SimpleNamespace
 
@@ -190,8 +191,8 @@ def solve_parts(check):
         check('sol-0 ACCEPTANCE: the objective switch changes the ranking where the variants differ - minimum-resources picks %s for the button, fastest-cycle picks %s' % (ra['read-button'], rb['read-button']),
               ra['read-button'] == 'gpio-poll' and rb['read-button'] == 'ext-interrupt' and ra != rb, (ra, rb))
         check('sol-0: ...and the reason is in plain words: fastest-cycle wins by the polled button\'s wait for the main loop (one pass, rt-0), minimum-resources by the on-chip block the interrupt claims',
-              any('ext-interrupt instead of gpio-poll' in x['deciding_difference'] and 'on-chip blocks claimed' in x['deciding_difference'] and 'cycle - 10.7 ms' in x['deciding_difference'] for x in a['score_card'])
-              and any('gpio-poll instead of ext-interrupt' in x['deciding_difference'] and 'cycle + 10.7 ms' in x['deciding_difference'] for x in b['score_card']), row and row['deciding_difference'])
+              any('ext-interrupt instead of gpio-poll' in x['deciding_difference'] and 'on-chip blocks claimed' in x['deciding_difference'] and re.search(r'cycle - 10\.[789] ms', x['deciding_difference']) for x in a['score_card'])
+              and any('gpio-poll instead of ext-interrupt' in x['deciding_difference'] and re.search(r'cycle \+ 10\.[789] ms', x['deciding_difference']) for x in b['score_card']), row and row['deciding_difference'])   # cyc-0: the pass is 10.7 ms from size bounds, 10.8-10.9 ms with the atoms measured
         check('sol-0: the other objective is always the secondary column (resources beside cycle time, cycle beside resources)',
               a['secondary_objective'] == 'fastest-cycle' and b['secondary_objective'] == 'minimum-resources' and all(x['other_objective'] for x in a['score_card'] + b['score_card'] if x['verdict'] != 'could not be placed'))
         w = S.solve(LIGHT, boards=[UNO], limits={'weights': {'pins': 30.0}})

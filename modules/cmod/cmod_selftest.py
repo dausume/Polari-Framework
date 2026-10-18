@@ -747,11 +747,12 @@ def main():
     from cmod.cmod_approach_profile_selftest import approach_profile_parts   # rt-0: the approach pre-profiler
     from cmod.cmod_solve_selftest import solve_parts   # sol-0: the attempt engine
     from cmod.cmod_task_plan_selftest import task_plan_parts   # fgm-3: Tasks and Task Plans
+    from cmod.custom.selftest_cycles import cycles_parts   # cyc-0: measured twin cycle counts fed into rt-0, sol-0, iso-0
     for part in ((parser_on_fixtures, refusals, types_and_preprocess, manifest_idempotence, host_measure, page, demo4_targets)
                  + uno_parts(check) + graph_parts(check) + firmware_parts(check) + export_parts(check) + claims_parts(check)
                  + pin_config_parts(check) + requirements_parts(check) + binding_parts(check) + _proof_parts(check)
                  + scope_parts(check) + bundle_parts(check) + isotope_parts(check) + light_parts(check) + demo_parts(check)
-                 + generator_parts(check) + button_route_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + colocation_parts(check) + isotope_variant_parts(check) + approach_profile_parts(check) + solve_parts(check) + task_plan_parts(check)):
+                 + generator_parts(check) + button_route_parts(check) + purpose_parts(check) + mission_parts(check) + pin_profile_parts(check) + colocation_parts(check) + isotope_variant_parts(check) + approach_profile_parts(check) + solve_parts(check) + task_plan_parts(check) + cycles_parts(check)):
         print('-- %s' % part.__name__)
         part()
     print('\n%d/%d checks passed' % (passed, total))

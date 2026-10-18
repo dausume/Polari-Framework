@@ -7,8 +7,10 @@ source - never typed. For one atom (and everything it calls that is itself an at
   cycles_ub   an UPPER BOUND on the CPU cycles of one run, only when the code has no loop and calls nothing outside the atoms:
               (the atom's text_bytes_noinline / 2 instructions) x 4 cycles. Every AVR instruction is 2 or 4 bytes, so bytes/2 is at least the
               instruction count of a straight path; no instruction of the ATmega328P takes more than 4 cycles (the datasheet's Instruction Set
-              Summary; this slice did not re-read that table, so the bound is ESTIMATED, not measured). No per-atom cycle count is measured
-              yet (a twin cycle count per task closes this).
+              Summary; this slice did not re-read that table, so the bound is ESTIMATED, not measured).
+              cyc-0: WHERE A CYCLE RECORD MEASURED THE ATOM (board.custom.cycle_records: a recorded simavr twin run, entry to ret, with the generated code and
+              everything it calls inside it), that measured worst count REPLACES the bound and the atom is bounded by measurement (`cycles_basis`
+              'measured'); a measured atom that waits on the USART carries the CPU part (the wait taken out) because the wait is derived from the baud.
   blocking    a busy-wait on a hardware flag (`while (!(REG & _BV(FLAG))) { }`): the CPU spins until the flag sets. The USART transmit-empty
               wait has a duration that can be worked out (one byte = 10 bit times at the baud rate); any other flag is named and left
               undetermined.
@@ -77,7 +79,7 @@ def scan_body(src):
     return {'busy_waits': waits, 'byte_loops': bl, 'other_loops': other}
 
 
-def analyse(project, atom, ctx, _seen=None):
+def _analyse_bound(project, atom, ctx, _seen=None):
     """-> {atom, cycles_ub (int, the bounded part), bounded (bool), blocking [ops], unbounded [reasons], text_bytes, stack_bytes, peripherals [ids]}.
     ctx = {baud, frame_bytes} - what a recognised transmit wait needs to become a duration."""
     seen = set(_seen or ())
@@ -86,7 +88,8 @@ def analyse(project, atom, ctx, _seen=None):
     if tb is None:
         tb = cost.get('text_bytes')
     out = {'atom': atom['name'], 'cycles_ub': 0, 'bounded': True, 'blocking': [], 'unbounded': [], 'text_bytes': tb,
-           'stack_bytes': cost.get('stack_bytes'), 'peripherals': sorted({r['peripheral'] for r in atom.get('resources', []) if r.get('peripheral')})}
+           'stack_bytes': cost.get('stack_bytes'), 'peripherals': sorted({r['peripheral'] for r in atom.get('resources', []) if r.get('peripheral')}),
+           'cycles_basis': 'upper-bound', 'measured': None, 'measured_refs': []}
     if tb is None:
         out['bounded'] = False
         out['unbounded'].append('%s has no measured size, so no cycle bound' % atom['name'])
@@ -116,12 +119,59 @@ def analyse(project, atom, ctx, _seen=None):
             out['unbounded'].append('%s is recursive through %s' % (atom['name'], callee['name']))
         else:
             sub = analyse(project, callee, ctx, seen)
+            out['measured_refs'] += sub['measured_refs']
+            if sub['cycles_basis'] != 'upper-bound' and out['cycles_basis'] == 'upper-bound':
+                out['cycles_basis'] = 'mixed'
             out['cycles_ub'] += sub['cycles_ub']
             out['blocking'] += sub['blocking']
             out['unbounded'] += sub['unbounded']
             out['bounded'] = out['bounded'] and sub['bounded']
             out['peripherals'] = sorted(set(out['peripherals']) | set(sub['peripherals']))
             out['stack_bytes'] = max(out['stack_bytes'] or 0, sub['stack_bytes'] or 0)
+    return out
+
+
+def measured_of(project, atom, ctx):
+    """The cycle record's numbers for this atom, or None: {cycles (the worst count used), n, min, ref, variant, split, blocks_on_uart, basis, caveat}.
+    The ctx variant's own record first; an atom its variant never reached (an interrupt that only another variant's stimulus raises) falls back to the
+    largest measured in any record, said in `basis`."""
+    if project != 'uno' or ctx.get('use_measured') is False:
+        return None
+    try:
+        from board.custom import cycle_records as CR
+    except Exception:  # noqa: BLE001
+        return None
+    variant = ctx.get('variant')
+    isr = atom.get('kind') == 'isr'
+    m = (CR.isr_of(atom['name'], variant) if isr else CR.cycles_of(atom['name'], variant)) if variant else None
+    fell_back = False
+    if m is None:
+        m = CR.isr_of(atom['name']) if isr else CR.cycles_of(atom['name'])
+        fell_back = m is not None and bool(variant)
+    if m is None:
+        return None
+    split = m.get('cpu_max') is not None
+    cycles = m['cpu_max'] if split else m['max']
+    unit = 'event' if isr else 'call'
+    basis = ('measured on the simavr twin: %d cycles worst per %s over %d %ss (min %d), %s; stimulus: %s%s' % (
+        m['max'], unit, m['n'], unit, m['min'], m['ref'], m.get('stimulus', ''), '' if not fell_back else '; this variant\'s own run never reached it, so the run of %s is used' % m['variant']))
+    if split:
+        basis += '; CPU part %d cycles (the twin\'s USART wait of the call taken out - %s)' % (cycles, m['cpu_basis'])
+    return {'cycles': int(cycles), 'n': m['n'], 'min': m['min'], 'max': m['max'], 'ref': m['ref'], 'variant': m['variant'], 'split': split,
+            'blocks_on_uart': bool(m.get('blocks_on_uart')), 'basis': basis, 'caveat': m.get('caveat', '')}
+
+
+def analyse(project, atom, ctx, _seen=None):
+    """-> {atom, cycles_ub (int, the bounded part - the MEASURED worst count where a cycle record has it), bounded (bool), cycles_basis (measured | mixed | upper-bound),
+    measured ({cycles, n, ref, basis ...} | None), measured_refs, blocking [ops, each with inside_measured], unbounded [reasons], text_bytes, stack_bytes, peripherals [ids]}.
+    ctx = {baud, frame_bytes, variant} - what a recognised transmit wait needs to become a duration, and which variant's run to read."""
+    out = _analyse_bound(project, atom, ctx, _seen)
+    m = measured_of(project, atom, ctx)
+    if m is not None:
+        out.update(cycles_ub=m['cycles'], bounded=True, unbounded=[], cycles_basis='measured', measured=m)
+        out['measured_refs'] = sorted(set(out['measured_refs']) | {m['ref']})
+        for b in out['blocking']:    # the wait is inside the measured count unless the measured count had the USART wait taken out
+            b['inside_measured'] = not (m['split'] and b['kind'] == 'usart-transmit-wait')
     return out
 
 

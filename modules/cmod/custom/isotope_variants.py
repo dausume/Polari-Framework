@@ -10,7 +10,7 @@ status    declared -> template-exists -> compiles -> proven-on-twin -> proven-on
           compiles         ... and the named configuration builds with make alone and every atom is in its measured shipped build
           proven-on-*      ... and a Purpose whose graph holds one of those atoms has a passing ScenarioRun (capabilities.derive_status);
                            with no live manager there is no run to read, so the status stops at `compiles` and says why
-costs     measured (from the atoms' own measured sizes), estimated (stored, with basis) or undetermined - never a bare number
+costs     measured (from the atoms' own measured sizes, and from cyc-0's twin cycle counts), estimated (stored, with basis) or undetermined - never a bare number
 eligible  isotope_variants_eligibility.eligible(variant, ctx) -> ok | blocked (reason by name) | undetermined
 
     python3 -m cmod.custom.isotope_variants jobs [--json]
@@ -244,6 +244,7 @@ def costs(variant):
         out['ram_bytes'] = {'kind': 'measured' if len(known) == len(glob) else 'undetermined', 'value': sum(known.values()), 'unit': 'bytes',
                             'basis': 'the declared size of each file-scope global the atoms write (%s), read by the parser; it equals the variable\'s size in .data/.bss (scalars, no padding) but is not an avr-size delta' % (', '.join('%s %s B' % kv for kv in sorted(glob.items())) or 'none written')}
         # the on-chip blocks are cross-checked against the registers the atoms touch (their Peripheral ids) - measured when they cover the declared kinds
+        out['cycles'] = _cycles_cost(imp, text)
         got = _peripheral_kinds([r.get('peripheral') for _n, a, _m in imp['atoms'] for r in a.get('resources', []) if r.get('peripheral')])
         want = {p['kind'] for p in per}
         if want and all(_covers(k, got) for k in want):
@@ -252,6 +253,28 @@ def costs(variant):
     elif imp['shares_c_with']:
         pass   # the stored estimate already borrows the shared route's measured numbers (basis says so)
     return out
+
+
+def _cycles_cost(imp, text):
+    """cyc-0: the route's cycles per use - the worst measured count of each of its atoms except the *_init ones (run once at boot), summed - from the cycle records
+    (board.custom.cycle_records, laid over the atoms' cost by code_interface). Measured only when EVERY such atom has a count; otherwise undetermined, naming the
+    atoms still unmeasured (never a partial sum presented as the route's)."""
+    rows, missing = [], []
+    for (n, _a, _m), (_n2, c) in zip(imp['atoms'], text):
+        if '_init' in n:
+            continue
+        cy = c.get('cycles')
+        if not cy:
+            missing.append(n.split(':', 1)[-1])
+            continue
+        by = cy.get('by_variant') or {}
+        mine = by.get(imp.get('config')) or max(by.values(), key=lambda d: d['max'])
+        rows.append((n.split(':', 1)[-1], mine.get('cpu_max') if mine.get('cpu_max') is not None else mine['max'], mine['ref']))
+    if missing or not rows:
+        return {'kind': 'undetermined', 'value': None, 'unit': 'cycles per use',
+                'basis': 'no cycle record has: %s' % (', '.join(missing) or 'any atom of this route')}
+    return {'kind': 'measured', 'value': sum(r[1] for r in rows), 'unit': 'cycles per use',
+            'basis': 'worst measured cycles on the simavr twin, summed over %s (init atoms excluded); %s' % (', '.join('%s %d' % (a, c) for a, c, _r in rows), rows[0][2])}
 
 
 _PER_ID_KIND = {'EXINT': 'exint', 'PCINT': 'pcint', 'ADC': 'adc', 'AC': 'comparator', 'SPI': 'spi', 'TWI': 'twi', 'USART0': 'usart'}
@@ -294,7 +317,7 @@ def variant_dict(variant, ctx=None, manager=None, tier=None):
               'pins_text': pin_text(d['profiles']), 'peripherals_text': ', '.join(p['kind'] for p in d['peripherals']),
               'parts_text': '; '.join('%s (%s)' % (p['class'], {True: 'on the bench', False: 'NOT on the bench'}.get(p['on_bench'], 'bench status undetermined')) for p in pr),
               'parts_missing': ', '.join(p['class'] for p in pr if p['on_bench'] is False)})
-    for k in COST_KEYS + ('stack_bytes',):
+    for k in COST_KEYS + ('stack_bytes', 'cycles'):
         if k in c:
             v = c[k]
             d['cost_' + k] = '%s (%s)' % ('undetermined' if v['value'] is None else ('%s %s' % (v['value'], v['unit'])).strip(), v['kind'])
