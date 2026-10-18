@@ -54,7 +54,8 @@ def context(board, tables=None, kit=None):
     if soc is None:
         return None
     per = [p for p in t['Peripheral'] if p['soc'] == soc['name']]
-    pf = [f for f in t['PinFunction'] if f['soc'] == soc['name']]
+    from board.custom import soc_functions as _SF
+    pf = _SF.pin_functions(t, soc['name'])   # c3-derive: stored + derived rows
     pins = [p for p in t['SocPin'] if p['soc'] == soc['name']]
     funcs = {f['function'] for f in pf} or {fn for p in pins for fn in json.loads(p['functions_json'] or '[]')}
     from cmod.custom import isotope_variants as IV

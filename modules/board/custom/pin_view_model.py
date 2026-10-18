@@ -19,6 +19,7 @@ import json
 from board.custom import exposure_view as V
 from board.custom import pv_families as F
 from board.custom import pv_shapes as S
+from board.custom import soc_functions as SF
 
 LEVELS = ('die', 'package', 'board', 'part', 'bench')
 VIA_WORD = {'direct': 'direct', 'series-resistor': 'series resistor', 'buffer': 'buffer', 'capacitor': 'capacitor', 'jumper': 'jumper', 'series-inductor': 'series inductor',
@@ -38,7 +39,7 @@ class Model:
         self.shapes = {r['name']: r for r in S.shape_rows(tables, board)}
         self.pos = {}   # surface id -> {'x','y','rot','parent'}
         self._fn_rows = {}
-        for f in tables.get('PinFunction', []):
+        for f in SF.pin_functions(tables):   # c3-derive: stored + derived rows
             self._fn_rows.setdefault(f['soc_pin'], {})[f['function']] = f
         self._sig = {s['name']: s for s in tables.get('PeripheralSignal', [])}
         self._soc = {s['name']: s for s in tables.get('SocPin', [])}

@@ -17,7 +17,8 @@ def run_c3_pins(check):
     from board.custom import ladder as L
     from board.custom import target_compat as TC
     tables = BO.seed_tables()
-    pf = [f for f in tables['PinFunction'] if f['soc'] == SOC]
+    from board.custom import soc_functions as SF
+    pf = SF.pin_functions(tables, SOC)   # c3-derive: the 72 stored fixed rows + the 2 640 derived matrix rows
     sig = [s for s in tables['PeripheralSignal'] if s['soc'] == SOC]
     per = [p for p in tables['Peripheral'] if p['soc'] == SOC]
     socpins = [s for s in tables['SocPin'] if s['soc'] == SOC]

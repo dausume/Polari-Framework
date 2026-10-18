@@ -41,6 +41,9 @@ def _tag(cls, row):
 
 
 def _index(tables, cls):
+    if cls == 'PinFunction':   # c3-derive: stored rows + the ESP32-C3's derived GPIO-matrix rows (board.custom.soc_functions.pin_functions)
+        from board.custom import soc_functions as SF
+        return {r['name']: r for r in SF.pin_functions(tables)}
     return {r['name']: r for r in tables.get(cls, [])}
 
 

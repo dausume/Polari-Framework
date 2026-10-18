@@ -426,7 +426,9 @@ def chain_for(board, pin, tables):
     bp = BO.pin_by_canonical(r, pin)
     if bp is None:
         raise KeyError('%s has no pin %s' % (r['board'], pin))
-    by = {c: {x['name']: x for x in tables.get(c, [])} for c in ('SocPin', 'PinFunction', 'PeripheralSignal', 'Peripheral', 'Register', 'RegisterField')}
+    from board.custom import soc_functions as SF
+    by = {c: {x['name']: x for x in tables.get(c, [])} for c in ('SocPin', 'PeripheralSignal', 'Peripheral', 'Register', 'RegisterField')}
+    by['PinFunction'] = {x['name']: x for x in SF.pin_functions(tables)}   # c3-derive: stored + the C3's derived GPIO-matrix rows
     hops = [_hop(0, 'BoardPin', bp['name'], 'board pin %s' % bp['canonical'], 'net %s · connector %s · C symbol %s' % (bp.get('net') or '—', bp.get('connector_pin') or '—', bp.get('firmware_symbol') or '—'))]
     sp = by['SocPin'].get('%s:%s' % (SOC, bp.get('soc_pin')))
     if sp is None:

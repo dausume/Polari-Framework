@@ -67,24 +67,100 @@ def family(soc, fn):
     return next((name for name, rx in FAMILIES.get(soc, ()) if rx.match(fn)), None)
 
 
-def pad_functions(soc_pin, tables=None):
-    """The function names of one SocPin row: the PinFunction rows of `tables` when it has them, else the builders' (cached) - in row order, 'GPIO' first."""
-    soc = soc_pin['soc']
-    if tables and tables.get('PinFunction'):
-        names = [f['function'] for f in tables['PinFunction'] if f['soc_pin'] == soc_pin['name']]
-        if names:
-            return names
-    if (soc, 'all') not in _CACHE:
-        if soc != 'esp32c3':
-            return ['GPIO'] + json.loads(soc_pin.get('functions_json') or '[]')
+def _derived_c3():
+    """The ESP32-C3's derived (matrix-routed) PinFunction rows, built ONCE per process from the same static builders the seed uses ({soc_pin name: [row]}, in pad order)."""
+    if ('esp32c3', 'derived') not in _CACHE:
+        from board.custom import board_c3 as C
+        from board.custom import hardware_chain_c3 as H
+        sps = C.soc_pins()
+        sig = H.signals(sps)
+        by = {}
+        for f in H.matrix_pin_functions(sps, sig, C.board_pins()):
+            by.setdefault(f['soc_pin'], []).append(f)
+        _CACHE[('esp32c3', 'derived')] = by
+    return _CACHE[('esp32c3', 'derived')]
+
+
+def _fixed_c3():
+    """The C3's stored (fixed) rows as the builders make them - the fallback of a caller that holds no tables ({soc_pin name: [row]})."""
+    if ('esp32c3', 'fixed') not in _CACHE:
         from board.custom import board_c3 as C
         from board.custom import hardware_chain_c3 as H
         sps = C.soc_pins()
         by = {}
-        for f in H.build(sps, C.board_pins())['PinFunction']:
-            by.setdefault(f['soc_pin'], []).append(f['function'])
-        _CACHE[(soc, 'all')] = by
-    return _CACHE[(soc, 'all')].get(soc_pin['name'], [])
+        for f in H.fixed_pin_functions(sps, H.signals(sps)):
+            by.setdefault(f['soc_pin'], []).append(f)
+        _CACHE[('esp32c3', 'fixed')] = by
+    return _CACHE[('esp32c3', 'fixed')]
+
+
+#: SoCs whose GPIO-matrix-routed PinFunction rows are DERIVED on read, not stored (soc -> builder of {soc_pin name: [row]})
+DERIVED = {'esp32c3': _derived_c3}
+
+
+def derived_names(soc=None):
+    """The names of the rows `pin_functions` derives (for the retirement step and the proofs)."""
+    return {f['name'] for s, fn in DERIVED.items() if soc in (None, s) for rows in fn().values() for f in rows}
+
+
+def derived_row(soc, soc_pin, fn):
+    """One derived PinFunction row of (SocPin name, function), or None (an indexed lookup: the ladder asks for one row at a time)."""
+    if soc not in DERIVED:
+        return None
+    if (soc, 'index') not in _CACHE:
+        _CACHE[(soc, 'index')] = {(f['soc_pin'], f['function']): f for rows in DERIVED[soc]().values() for f in rows}
+    return _CACHE[(soc, 'index')].get((soc_pin, fn))
+
+
+def pin_functions(tables, soc=None):
+    """THE ONE ACCESSOR for PinFunction rows (c3-derive): the stored rows of `tables` PLUS, for a SoC whose matrix-routed functions are derived (the ESP32-C3), the derived rows of each of
+    its pads that `tables` knows (a SocPin row of the SoC; `tables` without a 'SocPin' list, or None, means every pad). Derived rows carry `provenance: 'derived'`, are inserted right
+    after the last stored row of their pad (the order the stored set used to have) and never repeat a stored name (a live server still holding the old stored copy answers from it - they
+    are identical). `soc` limits the answer to one SoC. Rows are SHARED (the derived ones from a per-process cache): treat them as read-only."""
+    tables = tables or {}
+    stored = [f for f in (tables.get('PinFunction') or []) if soc is None or f.get('soc') == soc]
+    want = [s for s in DERIVED if soc in (None, s)]
+    if not want:
+        return stored
+    have = {f['name'] for f in stored}
+    pads = None
+    if tables.get('SocPin') is not None:
+        pads = {sp['name'] for sp in tables['SocPin']}
+    add = {}
+    for s in want:
+        for pad, rows in DERIVED[s]().items():
+            if pads is not None and pad not in pads:
+                continue
+            fresh = [r for r in rows if r['name'] not in have]
+            if fresh:
+                add[pad] = fresh
+    if not add:
+        return stored
+    last = {}
+    for i, f in enumerate(stored):
+        last[f['soc_pin']] = i
+    out, done = [], set()
+    for i, f in enumerate(stored):
+        out.append(f)
+        if last[f['soc_pin']] == i and f['soc_pin'] in add:
+            out.extend(add[f['soc_pin']])
+            done.add(f['soc_pin'])
+    for pad, rows in add.items():   # a pad with no stored row at all
+        if pad not in done:
+            out.extend(rows)
+    return out
+
+
+def pad_functions(soc_pin, tables=None):
+    """The function names of one SocPin row: its stored PinFunction rows then its derived ones (a pad with neither keeps the SocPin's own list), in row order, 'GPIO' first."""
+    soc = soc_pin['soc']
+    names = [f['function'] for f in ((tables or {}).get('PinFunction') or []) if f['soc_pin'] == soc_pin['name']]
+    if soc in DERIVED:
+        if not names:   # a caller with no tables: the stored (fixed) rows from the builders
+            names = [f['function'] for f in _fixed_c3().get(soc_pin['name'], ())]
+        seen = set(names)
+        names += [f['function'] for f in DERIVED[soc]().get(soc_pin['name'], ()) if f['function'] not in seen]
+    return names or (['GPIO'] + json.loads(soc_pin.get('functions_json') or '[]') if soc not in DERIVED else [])
 
 
 def matches(soc, kind, fns):

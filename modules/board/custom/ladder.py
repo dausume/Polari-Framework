@@ -165,14 +165,18 @@ _PF_INDEX = {}
 
 
 def _pin_function(tables, soc_pin, fn):
-    """The PinFunction row of (SocPin name, function) - indexed once per PinFunction list (2.7k rows on a seed with the ESP32-C3)."""
+    """The PinFunction row of (SocPin name, function) - indexed once per PinFunction list (the stored rows; the C3's derived matrix rows are looked up through soc_functions.derived_row)."""
     rows = tables.get('PinFunction', [])
     key = id(rows)
     if _PF_INDEX.get('key') != (key, len(rows)):
         _PF_INDEX.clear()
         _PF_INDEX['key'] = (key, len(rows))
         _PF_INDEX['rows'] = {(f['soc_pin'], f['function']): f for f in rows}
-    return _PF_INDEX['rows'].get((soc_pin, fn))
+    got = _PF_INDEX['rows'].get((soc_pin, fn))
+    if got is None:   # c3-derive: the GPIO-matrix rows are derived on read (soc_functions.pin_functions), not stored
+        from board.custom import soc_functions as SF
+        got = SF.derived_row(soc_pin.partition(':')[0], soc_pin, fn)
+    return got
 
 
 def _rung2(tables, package, sp, label, leg):

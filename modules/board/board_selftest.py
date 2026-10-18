@@ -366,6 +366,8 @@ def main():
     run_c3(check)
     from board.board_c3_pins_selftest import run_c3_pins   # c3pf: the ESP32-C3's pin functions as cited rows, the ladder / eligibility / sol-0 on the second board
     run_c3_pins(check)
+    from board.board_c3_derive_selftest import run_c3_derive   # c3-derive: the 2 640 GPIO-matrix PinFunctions derived on read, equivalence pinned to what was stored
+    run_c3_derive(check)
     from board.board_object_selftest import run_board_object   # brd-bo: THE BOARD OBJECT — rows, views, ingest, conflicts, the flip
     run_board_object(check)
     from board.board_target_compat_selftest import run_target_compat   # fs-2a: task-kind <-> pin-role compatibility

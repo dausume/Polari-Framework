@@ -8,7 +8,8 @@ c3pf (FIRMWARE_GENERATION_MODULE_PLAN.md section 11): THE ESP32-C3's HARDWARE CH
   Peripheral        22 blocks (esp32c3_chain_meta.PERIPHERALS), each cited to the datasheet / TRM page that names it
   PeripheralSignal  one per VALID entry of TRM Table 5.11-1 (42 input + 78 output signals, p.169-173), the 4 JTAG signals (datasheet Table 2-3), the 6 ADC channels,
                     USB_D-/USB_D+ and the 2 XTAL_32K pads (Tables 2-5/2-6), and per pad a GPIO signal and a GPIO_INT signal
-  PinFunction       per SocPin: GPIO, GPIO_INT, its IO MUX functions F0/F2 and analog functions (routing 'fixed' - the pad has exactly these), and EVERY valid
+  PinFunction       (c3-derive: ONLY the ~72 'fixed' rows are stored; the 2 640 'matrix' rows are DERIVED on read by soc_functions.pin_functions - code-owned, deterministic,
+                    no stored copy to drift. The text below says what each row is.) per SocPin: GPIO, GPIO_INT, its IO MUX functions F0/F2 and analog functions (routing 'fixed' - the pad has exactly these), and EVERY valid
                     Table 5.11-1 signal with routing 'matrix' ("peripheral input signals can be from any IO pins, and peripheral output signals can be routed to any
                     IO pins", TRM §5.1 p.159) - 22 pads x 120 signals
 
@@ -119,55 +120,119 @@ _GROUP_WHY = ('datasheet §2.3.1 p.19: each pad takes ONE of the IO MUX function
 _ANALOG_UND = ('which digital uses may coexist with an analog function is not tabulated; TRM §5.7 p.166 requires the input enable, pulls and output enable cleared for analog use')
 
 
-def pin_functions(soc_pin_rows, signal_rows):
+def _by_signal(signal_rows):
+    return {s['signal']: s for s in signal_rows if s['peripheral'].split(':', 1)[1] not in ('GPIO', 'GPIO_INT') and s['name'].count(':') == 2}
+
+
+def _caution(sp):
+    g = _gpio(sp)
+    _pn, _name, _lead, prio = T.PRIORITY[g]
+    worst = max(p for _s, p in prio.values())
+    return ('datasheet §2.3.3 p.22: %s is a %s - an IO pin "that require[s] extra caution when used as GPIO"; Table 2-7 p.24: matrix-routed interfaces on it are priority P%d (§2.3.4 p.23)'
+            % (sp['pin'], M.CAUTION[g], worst)) if g in M.CAUTION else ''
+
+
+def fixed_pin_functions(soc_pin_rows, signal_rows):
+    """The STORED PinFunction rows: per pad GPIO, GPIO_INT, its IO MUX functions F0/F2 and analog functions (routing 'fixed') - about 72 rows."""
     S = {(s['peripheral'].split(':', 1)[1], s['signal']): s for s in signal_rows}
-    by_signal = {s['signal']: s for s in signal_rows if s['peripheral'].split(':', 1)[1] not in ('GPIO', 'GPIO_INT') and s['name'].count(':') == 2}
+    by_signal = _by_signal(signal_rows)
     out = []
     for sp in soc_pin_rows:
         if sp['soc'] != SOC:
             continue
-        g = _gpio(sp)
-        _pn, _name, _lead, prio = T.PRIORITY[g]
-        grp = _group(g)
-        pin = sp['pin']
-        worst = max(p for _s, p in prio.values())
-        caution = ('datasheet §2.3.3 p.22: %s is a %s - an IO pin "that require[s] extra caution when used as GPIO"; Table 2-7 p.24: matrix-routed interfaces on it are priority P%d (§2.3.4 p.23)'
-                   % (pin, M.CAUTION[g], worst)) if g in M.CAUTION else ''
-        out.append(_row(sp, 'GPIO', S[('GPIO', pin)], 'fixed', False, 'plain digital input/output of %s (IO MUX F1 = GPIO%d; simple output = matrix index 128)' % (pin, g), sp['fact'],
-                        'cited:datasheet Table 2-4 pp.19-20; TRM §5.5.3 Simple GPIO Output p.165', group=grp, notes=_GROUP_WHY + ('; ' + caution if caution else '')))
-        out.append(_row(sp, 'GPIO_INT', S[('GPIO_INT', '%s_INT' % pin)], 'fixed', False, 'interrupt on %s: rising, falling, any edge, low or high level' % pin, '%s:gpio.interrupt' % SOC,
-                        'cited:TRM Register 5.14 p.184; datasheet §4.1.3.1 p.36',
-                        notes='the pad input must be enabled to see the edge (IO_MUX_GPIOn_FUN_IE, TRM §5.4.3 step 4 p.163); the interrupt reaches the CPU through the interrupt matrix (datasheet §4.1.3.4 p.37)'
-                              + ('; ' + caution if caution else '')))
-        for fn in json.loads(sp['functions_json']):
-            if fn == 'GPIO%d' % g:
+        out.extend(_fixed_for(sp, S, by_signal))
+    return out
+
+
+def _fixed_for(sp, S, by_signal):
+    out = []
+    g = _gpio(sp)
+    grp = _group(g)
+    pin = sp['pin']
+    caution = _caution(sp)
+    out.append(_row(sp, 'GPIO', S[('GPIO', pin)], 'fixed', False, 'plain digital input/output of %s (IO MUX F1 = GPIO%d; simple output = matrix index 128)' % (pin, g), sp['fact'],
+                    'cited:datasheet Table 2-4 pp.19-20; TRM §5.5.3 Simple GPIO Output p.165', group=grp, notes=_GROUP_WHY + ('; ' + caution if caution else '')))
+    out.append(_row(sp, 'GPIO_INT', S[('GPIO_INT', '%s_INT' % pin)], 'fixed', False, 'interrupt on %s: rising, falling, any edge, low or high level' % pin, '%s:gpio.interrupt' % SOC,
+                    'cited:TRM Register 5.14 p.184; datasheet §4.1.3.1 p.36',
+                    notes='the pad input must be enabled to see the edge (IO_MUX_GPIOn_FUN_IE, TRM §5.4.3 step 4 p.163); the interrupt reaches the CPU through the interrupt matrix (datasheet §4.1.3.4 p.37)'
+                          + ('; ' + caution if caution else '')))
+    for fn in json.loads(sp['functions_json']):
+        if fn == 'GPIO%d' % g:
+            continue
+        if fn in M.ANALOG:
+            pid, _d = M.ANALOG[fn]
+            out.append(_row(sp, fn, S[(pid, fn)], 'fixed', False, 'analog function %s of %s' % (fn, pin), sp['fact'], 'cited:datasheet Table 2-6 Analog Functions p.21', und=_ANALOG_UND))
+            continue
+        pid, inp, outp = M.IOMUX[fn]
+        first = S.get((pid, inp)) or S.get((pid, outp)) or by_signal.get(inp or outp)
+        typ = M.IOMUX_TYPE.get(fn, '')
+        others = ', '.join(x for x in (inp, outp) if x and x != first['signal'])
+        out.append(_row(sp, fn, first, 'fixed', True, 'IO MUX function %s of %s (type %s): the %s signal, bypassing the GPIO matrix' % (fn, pin, typ or '?', M.PERIPHERALS[pid][1]), sp['fact'],
+                        'cited:datasheet Table 2-4 pp.19-20 (type %s); TRM Table 5.12-1 p.174' % typ, group=grp,
+                        notes=_GROUP_WHY + ('; also carries %s' % others if others else '')))
+    return out
+
+
+def _matrix_for(sp, by_signal, bp_by_pad):
+    """c3-derive: the 120 GPIO-matrix-routed rows of ONE pad - DERIVED on read (never stored); the same fields the stored rows had, plus provenance 'derived'."""
+    out = []
+    g = _gpio(sp)
+    _pn, _name, _lead, prio = T.PRIORITY[g]
+    grp = _group(g)
+    pin = sp['pin']
+    bp = bp_by_pad.get(sp['name'])
+    refs = json.dumps([_ref('BoardPin', bp['name'])] if bp else [])
+    for no, inp, dflt, din, outp, oen, dout, page in T.SIGNALS:
+        for name, direction in ((inp, 'in'), (outp, 'out')):
+            if not name:
                 continue
-            if fn in M.ANALOG:
-                pid, _d = M.ANALOG[fn]
-                out.append(_row(sp, fn, S[(pid, fn)], 'fixed', False, 'analog function %s of %s' % (fn, pin), sp['fact'], 'cited:datasheet Table 2-6 Analog Functions p.21', und=_ANALOG_UND))
-                continue
-            pid, inp, outp = M.IOMUX[fn]
-            first = S.get((pid, inp)) or S.get((pid, outp)) or by_signal.get(inp or outp)
-            typ = M.IOMUX_TYPE.get(fn, '')
-            others = ', '.join(x for x in (inp, outp) if x and x != first['signal'])
-            out.append(_row(sp, fn, first, 'fixed', True, 'IO MUX function %s of %s (type %s): the %s signal, bypassing the GPIO matrix' % (fn, pin, typ or '?', M.PERIPHERALS[pid][1]), sp['fact'],
-                            'cited:datasheet Table 2-4 pp.19-20 (type %s); TRM Table 5.12-1 p.174' % typ, group=grp,
-                            notes=_GROUP_WHY + ('; also carries %s' % others if others else '')))
-        for no, inp, dflt, din, outp, oen, dout, page in T.SIGNALS:
-            for name, direction in ((inp, 'in'), (outp, 'out')):
-                if not name:
-                    continue
-                srow = by_signal[name]
-                pid = srow['peripheral'].split(':', 1)[1]
-                iface = _IFACE_OF.get(pid)
-                pr = prio.get(iface) if iface else None
-                pnote = ''
-                if pr:
-                    pnote = 'Table 2-7 p.24: %s on %s is priority P%d%s' % (iface, pin, pr[1], (' (use with caution: %s, §2.3.4 p.23)' % M.CAUTION[g]) if pr[1] >= 3 and g in M.CAUTION else '')
-                out.append(_row(sp, name, srow, 'matrix', direction == 'out', '%s on %s through the GPIO matrix (%s signal no. %d)' % (name, pin, 'input' if direction == 'in' else 'output', no),
-                                srow['fact'], 'cited:TRM §5.1 p.159 (any pad) + Table 5.11-1 p.%d' % page, group=grp if direction == 'out' else '',
-                                und='' if direction == 'out' else 'inputs are not grouped: one pad may feed several peripheral input signals (TRM §5.4.3 note 1, p.163)',
-                                notes=pnote))
+            srow = by_signal[name]
+            pid = srow['peripheral'].split(':', 1)[1]
+            iface = _IFACE_OF.get(pid)
+            pr = prio.get(iface) if iface else None
+            pnote = ''
+            if pr:
+                pnote = 'Table 2-7 p.24: %s on %s is priority P%d%s' % (iface, pin, pr[1], (' (use with caution: %s, §2.3.4 p.23)' % M.CAUTION[g]) if pr[1] >= 3 and g in M.CAUTION else '')
+            row = _row(sp, name, srow, 'matrix', direction == 'out', '%s on %s through the GPIO matrix (%s signal no. %d)' % (name, pin, 'input' if direction == 'in' else 'output', no),
+                       srow['fact'], 'cited:TRM §5.1 p.159 (any pad) + Table 5.11-1 p.%d' % page, group=grp if direction == 'out' else '',
+                       und='' if direction == 'out' else 'inputs are not grouped: one pad may feed several peripheral input signals (TRM §5.4.3 note 1, p.163)',
+                       notes=pnote)
+            row['board_pins_refs_json'] = refs
+            row['provenance'] = 'derived'
+            out.append(row)
+    return out
+
+
+def bound_pads(board_pin_rows):
+    """{SocPin row name: BoardPin row} for the C3 board's pads that have a BoardPin."""
+    bps = {}
+    for bp in board_pin_rows:
+        if bp.get('soc_pin', '').startswith('GPIO') and bp.get('board') == EV.BOARD:
+            bps['%s:%s' % (SOC, bp['soc_pin'])] = bp
+    return bps
+
+
+def matrix_pin_functions(soc_pin_rows, signal_rows, board_pin_rows):
+    """The DERIVED PinFunction rows (routing 'matrix'): every valid Table 5.11-1 signal on every pad, in the order they used to be stored (pad by pad)."""
+    by_signal = _by_signal(signal_rows)
+    bps = bound_pads(board_pin_rows)
+    out = []
+    for sp in soc_pin_rows:
+        if sp['soc'] == SOC:
+            out.extend(_matrix_for(sp, by_signal, bps))
+    return out
+
+
+def pin_functions(soc_pin_rows, signal_rows, board_pin_rows=()):
+    """The FULL set as it used to be stored: per pad the fixed rows then the matrix rows (kept for the equivalence proof; the seed stores fixed_pin_functions only)."""
+    S = {(s['peripheral'].split(':', 1)[1], s['signal']): s for s in signal_rows}
+    by_signal = _by_signal(signal_rows)
+    bps = bound_pads(board_pin_rows)
+    out = []
+    for sp in soc_pin_rows:
+        if sp['soc'] == SOC:
+            out.extend(_fixed_for(sp, S, by_signal))
+            out.extend(_matrix_for(sp, by_signal, bps))
     return out
 
 
@@ -203,9 +268,9 @@ def link(peripheral_rows, signal_rows, pf_rows, soc_pin_rows, board_pin_rows):
 
 
 def build(soc_pin_rows, board_pin_rows):
-    """{'Peripheral', 'PeripheralSignal', 'PinFunction'} for the ESP32-C3 with reverse links; the C3's SocPin / BoardPin rows gain their links in place."""
+    """{'Peripheral', 'PeripheralSignal', 'PinFunction' (the ~72 fixed rows only)} for the ESP32-C3 with reverse links (to the stored rows); the C3's SocPin / BoardPin rows gain their links in place."""
     per = peripherals()
     sig = signals(soc_pin_rows)
-    pf = pin_functions(soc_pin_rows, sig)
+    pf = fixed_pin_functions(soc_pin_rows, sig)   # c3-derive: the matrix rows are derived on read (soc_functions.pin_functions), not stored
     link(per, sig, pf, soc_pin_rows, board_pin_rows)
     return {'Peripheral': per, 'PeripheralSignal': sig, 'PinFunction': pf}

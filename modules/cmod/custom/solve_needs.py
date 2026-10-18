@@ -42,7 +42,7 @@ def pin_universe(hw, tables):
     socpins = {p['pin']: p for p in tables['SocPin'] if p['soc'] == hw['soc']}
     pf = {}
     if SF.has_vocab(hw['soc']):   # c3pf: the PinFunction rows ARE the vocabulary (GPIO, GPIO_INT, the IO MUX functions, every GPIO-matrix signal), in row order
-        for f in tables.get('PinFunction', []):
+        for f in SF.pin_functions(tables, hw['soc']):   # c3-derive: stored + derived rows
             if f['soc'] == hw['soc']:
                 pf.setdefault(f['soc_pin'], []).append(f['function'])
     out = []

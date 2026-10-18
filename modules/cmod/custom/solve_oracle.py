@@ -31,7 +31,7 @@ class Oracle:
         self.cache = {}                       # the ladder's shared cache
         self.memo = {}                        # (pin, function, phase, purpose) -> the first result
         self.soc = hw['soc']
-        self.routing = {(f['soc_pin'], f['function']): f['routing'] for f in tables.get('PinFunction', []) if f['soc'] == hw['soc']} if SF.has_vocab(hw['soc']) else {}
+        self.routing = {(f['soc_pin'], f['function']): f['routing'] for f in SF.pin_functions(tables, hw['soc'])} if SF.has_vocab(hw['soc']) else {}
         self.ctx0 = dict({'board': hw['board'], 'package': hw['package']}, **(ladder_extra or {}))
         if transport:
             self.ctx0['transport'] = 'usb-serial'
