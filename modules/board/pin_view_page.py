@@ -111,5 +111,20 @@ def _view_item(item_id='pin-view-d3', index=0, segments=12, board=BOARD, system=
 
 _VIEW_PAGE = _page('pin-view', 'pin-view', _VIEW_TEXT, 'BoardPin', [_row(0, [_view_item()], min_height=640)], title='Pin view')
 
-#: the pin view's pages: the d3 view first, then its three table pages
-PIN_VIEW_PAGES = [_VIEW_PAGE] + _TABLE_PAGES
+# ---------------------------------------------------------------- pv-5: the configuration events as a configured table (the event timeline in words; the picture opens at the event)
+EVENTS_DOOR = '/api/board/%s/config-events' % BOARD
+_EVENTS_PAGE = _page('config-events', 'config-events',
+                     'Configuration events - the real-world changes that alter which pins are doing what: firmware flashed, a wire added or removed, a shield attached or detached, a binding chosen, a board reset. '
+                     'One row is one event: its kind, when it happened (or "time not recorded" - an install record or a canvas wire stores no time and no person, and that is said, not guessed), who did it, '
+                     'the cause in plain words, and how many pins it changed. Use "view" to open the pin view at that event: the timeline there highlights the pins it changed, with the before and after of each. '
+                     'Events read from the install and wiring records are never copied; events recorded by a person or a bridge are ConfigurationEvent rows (POST %s, or `pol board events %s`). '
+                     'The pins-changed count is worked out from the pin view itself, so the table can take a few seconds to load.' % (EVENTS_DOOR, BOARD),
+                     'BoardPin', [
+                         _row(0, [_table('pv-config-events', 0, 12, 'Every configuration event of the UNO', '',
+                                         description='What this is for: the timeline of real-world changes to the board, oldest first (events with no recorded time come first). One row = one event. Columns: kind, when, who, cause, '
+                                                     'pins_changed (how many pins changed state), instance (which physical board, or the design), source (read from the records, or recorded by a person or a bridge).',
+                                         columns='seq,kind,when,who,cause,pins_changed,instance,source,view', column_formats='view:view:/display/pin-view?event={id}', data_path=EVENTS_DOOR)]),
+                     ], title='Configuration events')
+
+#: the pin view's pages: the d3 view first, then its three table pages, then the configuration events
+PIN_VIEW_PAGES = [_VIEW_PAGE] + _TABLE_PAGES + [_EVENTS_PAGE]

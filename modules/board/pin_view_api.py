@@ -31,7 +31,7 @@ class PinViewAPI(treeObject):
     def _serve(self, request, response, board, which):
         from board.custom import pin_view as PV
         status, payload = PV.door(self.manager, board, request.params, which)
-        response.status = {200: falcon.HTTP_200, 400: falcon.HTTP_400, 404: falcon.HTTP_404}[status]
+        response.status = {200: falcon.HTTP_200, 400: falcon.HTTP_400, 404: falcon.HTTP_404, 409: falcon.HTTP_409}[status]
         response.media = payload
 
     def on_get_view(self, request, response, board):
