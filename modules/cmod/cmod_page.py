@@ -330,3 +330,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               data_path='/api/board/circuits/uno-button-clock/check?board=uno-button-clock@arduino-uno-r3')], min_height=260),   # the BINDING, so pull_defined reads D2's claim
           ]),
 ]
+
+
+from cmod.cmod_pin_profile_page import PIN_PROFILE_PAGES   # noqa: E402  pp-0: /display/pin-profiles
+SEED_CMOD_PAGE_DISPLAYS += PIN_PROFILE_PAGES

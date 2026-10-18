@@ -639,6 +639,9 @@ SEED_POLARI_APPS = [
                   _it('The Purposes: why each part exists', 'page',
                       route='/display/hardware-solutions?solution=purpose-ensure-polari-can-control-light',
                       requires_module='cmod')),
+             _tgrp('Pin profiles',   # pp-0 (own group entry, beside the Purposes)
+                  _it('Pin profiles: what each Purpose needs from a pin', 'page',
+                      route='/display/pin-profiles', requires_module='cmod')),
              _tgrp('Build firmware',
                   _it('Firmware no-code: tasks, pins, export', 'page',
                       route='/display/firmware', requires_module='cmod'),
