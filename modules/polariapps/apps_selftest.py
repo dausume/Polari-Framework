@@ -164,6 +164,9 @@ if __name__ == '__main__':
     miss = next((g for g in hw_nav if g.get('group') == 'Missions'), {})
     check('mis-0: app-hardware has a "Missions" group opening the light Mission\'s no-code drawing',
           [it['route'] for it in miss.get('items', [])] == ['/display/hardware-solutions?solution=mission-uno-light-mission'], miss)
+    iso = next((g for g in hw_nav if g.get('group') == 'Isotope variants'), {})
+    check('iso-0: app-hardware has an "Isotope variants" group opening the variant catalogue page',
+          [it['route'] for it in iso.get('items', [])] == ['/display/isotope-variants'], iso)
     check('every discipline app promotes at least one group to the '
           'top bar, and none promotes all of them (the side map '
           'stays the complete map)',

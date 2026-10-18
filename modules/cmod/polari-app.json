@@ -84,6 +84,8 @@
    "objects/cmod/PurposeObservation",
    "objects/cmod/PurposeObservedState",
    "objects/cmod/HardwareMission",
+   "objects/cmod/AtomJob",
+   "objects/cmod/IsotopeVariant",
    "objects/cmod/MissionGoalState",
    "objects/cmod/MissionSettingsState",
    "objects/cmod/MissionPurposeState",
@@ -108,6 +110,7 @@
    "cmod_api",
    "cmod_capability_api",
    "cmod_mission_api",
+   "cmod_isotope_api",
    "cmod_firmware_api"
   ],
   "endpoints": [
@@ -117,10 +120,12 @@
    "cmod_seed"
   ],
   "page": [
-   "cmod_page"
+   "cmod_page",
+   "cmod_isotope_page"
   ],
   "selftests": [
-   "cmod_selftest"
+   "cmod_selftest",
+   "cmod_isotope_variant_selftest"
   ],
   "custom": [
    "custom/analyse",
@@ -157,6 +162,10 @@
    "custom/purpose_palette",
    "custom/purpose_seeds",
    "custom/purpose_text",
+   "custom/isotope_variants",
+   "custom/isotope_variants_doors",
+   "custom/isotope_variants_eligibility",
+   "custom/isotope_variants_seeds",
    "custom/mission_derived",
    "custom/mission_doors",
    "custom/mission_nocode",
@@ -203,6 +212,7 @@
   "CProject",
   "CapabilityAPI",
   "MissionAPI",
+  "IsotopeVariantAPI",
   "CapabilityDefinition",
   "CapabilityInstance",
   "DerivedOverride",
@@ -211,6 +221,8 @@
   "FirmwareSolution",
   "HardwareBinding",
   "HardwareMission",
+  "AtomJob",
+  "IsotopeVariant",
   "MissionConstraintState",
   "MissionGoalState",
   "MissionParticipantState",
@@ -272,6 +284,8 @@
     "PurposeResolutionState",
     "PurposeObservedState",
     "HardwareMission",
+    "AtomJob",
+    "IsotopeVariant",
     "MissionGoalState",
     "MissionSettingsState",
     "MissionPurposeState",

@@ -330,3 +330,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                               data_path='/api/board/circuits/uno-button-clock/check?board=uno-button-clock@arduino-uno-r3')], min_height=260),   # the BINDING, so pull_defined reads D2's claim
           ]),
 ]
+
+# iso-0: the Isotope variants page (its own file, cmod/cmod_isotope_page.py)
+from cmod.cmod_isotope_page import ISOTOPE_PAGES as _ISOTOPE_PAGES
+SEED_CMOD_PAGE_DISPLAYS.extend(_ISOTOPE_PAGES)

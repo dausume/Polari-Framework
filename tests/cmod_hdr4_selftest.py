@@ -25,6 +25,7 @@ def main():
     from cmod.cmod_api import CModAPI
     from cmod.cmod_capability_api import CapabilityAPI
     from cmod.cmod_mission_api import MissionAPI
+    from cmod.cmod_isotope_api import IsotopeVariantAPI
     tables = {}
     mgr = SimpleNamespace(objectTables=tables, idList=[], db=None)
     for name, cls, seed_rows in CMOD_SEED_PAIRS:
@@ -33,7 +34,7 @@ def main():
             tables.setdefault(name, {})[o.id] = o
     app = falcon.App()
     ps = SimpleNamespace(falconServer=app, manager=mgr, idList=[])
-    for api in (CModAPI, FirmwareAPI, CapabilityAPI, MissionAPI):     # every cmod door on ONE app: proves no route-template conflict
+    for api in (CModAPI, FirmwareAPI, CapabilityAPI, MissionAPI, IsotopeVariantAPI):     # every cmod door on ONE app: proves no route-template conflict
         api(polServer=ps, manager=mgr)
     c = testing.TestClient(app)
     G = 'uno-sim-rig-graph'

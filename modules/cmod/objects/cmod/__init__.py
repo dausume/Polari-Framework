@@ -38,3 +38,5 @@ from cmod.objects.cmod.MissionPurposeState import MissionPurposeState  # noqa: F
 from cmod.objects.cmod.MissionParticipantState import MissionParticipantState  # noqa: F401  (mis-0)
 from cmod.objects.cmod.MissionConstraintState import MissionConstraintState  # noqa: F401  (mis-0)
 from cmod.objects.cmod.MissionResolutionState import MissionResolutionState  # noqa: F401  (mis-0)
+from cmod.objects.cmod.AtomJob import AtomJob  # noqa: F401  (iso-0)
+from cmod.objects.cmod.IsotopeVariant import IsotopeVariant  # noqa: F401  (iso-0)

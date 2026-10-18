@@ -8,6 +8,7 @@ from cmod.cmod_api import CModAPI
 from cmod.cmod_firmware_api import FirmwareAPI
 from cmod.cmod_capability_api import CapabilityAPI
 from cmod.cmod_mission_api import MissionAPI
+from cmod.cmod_isotope_api import IsotopeVariantAPI
 
 
 def construct_cmod_endpoints(polServer):
@@ -15,4 +16,5 @@ def construct_cmod_endpoints(polServer):
     api.firmware = FirmwareAPI(polServer=polServer, manager=polServer.manager)
     api.capability = CapabilityAPI(polServer=polServer, manager=polServer.manager)
     api.mission = MissionAPI(polServer=polServer, manager=polServer.manager)   # mis-0
+    api.atom_variants = IsotopeVariantAPI(polServer=polServer, manager=polServer.manager)   # iso-0
     return api

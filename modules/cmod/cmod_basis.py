@@ -9,7 +9,8 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
                                HardwareBinding, DerivedOverride, CIsotope,
                                PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
-                               HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState)
+                               HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState,
+                               AtomJob, IsotopeVariant)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -26,7 +27,9 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 # fgm-1: what one deployed board does for one Purpose, and the eleven node kinds a Purpose is DRAWN with
                 PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
                 # mis-0: the Hardware Mission above the Purposes, and the six node kinds a Mission is DRAWN with
-                HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState]
+                HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState,
+                # iso-0: the jobs a C atom does and every way (route) of doing each
+                AtomJob, IsotopeVariant]
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]

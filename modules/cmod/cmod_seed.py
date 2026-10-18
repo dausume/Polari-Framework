@@ -13,7 +13,7 @@ demo-4: TargetDefinition rows derived over the seeded graph's nodes/ports (custo
 from cmod.cmod_basis import (CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGraphEdge, CGlueBuild,
                              TargetDefinition, CapabilityDefinition, CapabilityInstance, FirmwareExport,
                              FirmwareSolution, ScheduleSlot, RegisterAssignment, PinClaim, PeripheralClaim,
-                             HardwareBinding, CIsotope, HardwareMission)
+                             HardwareBinding, CIsotope, HardwareMission, AtomJob, IsotopeVariant)
 from cmod.custom.rows import template_rows, graph_rows
 from cmod.custom import targets as T
 from cmod.custom import firmware as FW
@@ -181,3 +181,10 @@ CMOD_SEED_PAIRS.append(('HardwareBinding', HardwareBinding, _owned(BINDING_ROWS,
 from cmod.custom.mission_seeds import MISSION_SEEDS as _MISSION_SEEDS
 CMOD_SEED_PAIRS.append(('HardwareMission', HardwareMission, _owned(
     _MISSION_SEEDS, keep=('title', 'goal', 'purposes_json', 'participants_json', 'settings_json', 'constraints_json', 'lifecycle', 'notes'))))
+
+# iso-0 (MISSION_PROFILE_SOLVER_PLAN.md section 8.3): the DECLARED isotope variant catalogue - the jobs a C atom does and every route of doing each.
+# Code-owned: the declared fields converge at boot (a person's notes are kept). The status, the on-bench flags, the measured costs and the
+# eligibility on a board are NOT fields - cmod.custom.isotope_variants works them out when asked.
+from cmod.custom.isotope_variants_seeds import JOB_SEEDS as _JOB_SEEDS, VARIANT_SEEDS as _VARIANT_SEEDS
+CMOD_SEED_PAIRS.append(('AtomJob', AtomJob, _owned(_JOB_SEEDS)))
+CMOD_SEED_PAIRS.append(('IsotopeVariant', IsotopeVariant, _owned(_VARIANT_SEEDS)))
