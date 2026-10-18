@@ -93,8 +93,11 @@ def cycles_parts(check):
         check('cyc-0: sol-0\'s fastest-cycle model reads measured cycles - the chosen candidate\'s cycle has %d measured parts and %d estimated/counted, each part labelled' % (b['measured'], b['estimated']),
               b['measured'] >= 8 and b['estimated'] >= 1 and all(x['kind'] in ('measured', 'estimated', 'undetermined') and x['basis'] for x in parts)
               and 'MEASURED cycles on the simavr twin' in ' '.join(x['basis'] for x in parts), b)
-        check('cyc-0: a part that adds an ESTIMATED wait to measured cycles is labelled estimated (the send: measured CPU + 9.5 ms from the baud), and a route with no atoms is counted',
-              any('plus 95' in x['basis'] and x['kind'] == 'estimated' for x in parts) and any('counted by structure' in x['basis'] and x['kind'] == 'estimated' for x in parts), [(x['kind'], x['basis'][:80]) for x in parts][:6])
+        # fgm-5b gave the polled sense its atoms, so the chosen plan may hold NO atom-less route any more: the "counted by structure" label is then
+        # checked only when such a part exists (it must be estimated), never assumed
+        counted = [x for x in parts if 'counted by structure' in x['basis']]
+        check('cyc-0: a part that adds an ESTIMATED wait to measured cycles is labelled estimated (the send: measured CPU + 9.5 ms from the baud), and any route with no atoms is counted (estimated)',
+              any('plus 95' in x['basis'] and x['kind'] == 'estimated' for x in parts) and all(x['kind'] == 'estimated' for x in counted), [(x['kind'], x['basis'][:80]) for x in parts][:6])
         check('cyc-0: the candidate\'s total says the mix in words, and the trade-study row carries it ("%s")' % SR.cycle_basis_text(c),
               'parts: %d measured on the twin' % b['measured'] in c['cycle']['total_us']['basis'] and SR.trade_rows([c], 1)[0]['cycle_basis'].startswith('%d measured' % b['measured']), c['cycle']['total_us'])
         with records_off():
