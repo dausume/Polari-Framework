@@ -6,6 +6,7 @@
   * POST /api/firmware/exports/upload: a good upload -> row + download (its own bytes), a wrong sha -> 422 and nothing stored,
     a bad form / missing file -> 400, the JSON+base64 spelling works.
 Run by cmod_selftest.main() (demo_parts)."""
+import atexit
 import hashlib
 import json
 import os
@@ -13,6 +14,13 @@ import shutil
 import tarfile
 import tempfile
 from types import SimpleNamespace
+
+
+def _tmpdir(prefix):
+    """A temp dir removed when the selftest process exits (66 leaked bundle dirs, 4.2 GB, once filled pol-core's disk)."""
+    d = tempfile.mkdtemp(prefix=prefix)
+    atexit.register(shutil.rmtree, d, True)
+    return d
 
 
 def demo_parts(check):
@@ -36,7 +44,7 @@ def _bundle(check):
     if not _make_rung(check):
         return
     from cmod.custom import export_cmake as EX, firmware_cli as CLI
-    tmp = tempfile.mkdtemp(prefix='polari-demo-selftest-')
+    tmp = _tmpdir('polari-demo-selftest-')
     row = EX.export(CLI._solution('uno-light'), target='board', out_root=tmp, form='demo-bundle', api_host='https://node.invalid:8443/x')
     check('demo-bundle: FirmwareExport row records form=demo-bundle and the download door', row['form'] == 'demo-bundle'
           and row['download_url'] == '/api/firmware/exports/%s/download' % row['name'], row['form'])
@@ -89,7 +97,7 @@ def _no_jdk(check):
     real = DEMO.shutil.which
     DEMO.shutil.which = lambda tool, *a, **k: None if tool in ('java', 'mvn') else real(tool, *a, **k)
     try:
-        tmp = tempfile.mkdtemp(prefix='polari-demo-nojdk-')
+        tmp = _tmpdir('polari-demo-nojdk-')
         row = EX.export(CLI._solution('uno-light'), target='board', out_root=tmp, form='demo-bundle')
     finally:
         DEMO.shutil.which = real
@@ -137,7 +145,7 @@ def _multipart(fields, filename, data):
 def _door(check):
     if not _make_rung(check):
         return
-    os.environ['POLARI_EXP_HOME'] = tempfile.mkdtemp(prefix='polari-demo-door-')
+    os.environ['POLARI_EXP_HOME'] = _tmpdir('polari-demo-door-')
     c, tables = _client(check)
     r = c.simulate_post('/api/firmware/solutions/uno-light/export', json={'form': 'demo-bundle', 'target': 'board'},
                         headers={'Host': 'node.invalid:8443'})
@@ -154,7 +162,7 @@ def _door(check):
 
 
 def _upload(check):
-    os.environ['POLARI_EXP_HOME'] = tempfile.mkdtemp(prefix='polari-upload-')
+    os.environ['POLARI_EXP_HOME'] = _tmpdir('polari-upload-')
     c, tables = _client(check)
     data = b'!<arch>\ndebian-binary   fake deb bytes\n' * 50
     sha = _sha(data)
