@@ -42,9 +42,11 @@ LIGHT_PAGES = [
                                           'installer for this demo; shell-core-deb is the shared program the Hardware App runs on, '
                                           'which it needs. Click download_url to fetch a row\'s file. tar_sha256 is the file\'s '
                                           'fingerprint, to compare after downloading; parity says whether the two ways of building '
-                                          'the firmware gave the same bytes; created_at is when the file was made.',
+                                          'the firmware gave the same bytes; created_at is when the file was made. Only the newest file of each kind is '
+                                          'listed here (an older build stays on the server, but it is not offered beside today\'s).',
                               columns='form,download_url,tar_sha256,parity,created_at',
                               column_formats='download_url:link',
-                              filter_field='solution', filter_value='uno-light')], min_height=220),
+                              filter_field='solution', filter_value='uno-light',
+                              data_path='/api/firmware/exports?solution=uno-light&latest_per_form=1')], min_height=220),
           ]),
 ]

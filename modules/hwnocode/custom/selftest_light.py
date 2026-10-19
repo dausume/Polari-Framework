@@ -125,6 +125,15 @@ def _page(check):
     check('the Downloads table: FirmwareExport rows of solution uno-light, columns form,download_url,tar_sha256,parity,created_at, download_url a link',
           dl['columns'] == 'form,download_url,tar_sha256,parity,created_at' and dl['columnFormats'] == 'download_url:link'
           and dl.get('filterField') == 'solution' and dl.get('filterValue') == 'uno-light', dl)
+    from cmod.custom.export_rows import narrow
+    old_rows = [{'name': 'uno-light@2026-10-12T09-00-00', 'solution': 'uno-light', 'form': 'demo-bundle', 'created_at': '2026-10-12T09:00:00'},
+                {'name': 'uno-light@2026-10-19T09-00-00', 'solution': 'uno-light', 'form': 'demo-bundle', 'created_at': '2026-10-19T09:00:00'},
+                {'name': 'uno-light@2026-10-12T09-30-00', 'solution': 'uno-light', 'form': 'install-bundle', 'created_at': '2026-10-12T09:30:00'},
+                {'name': 'other@2026-10-19T09-00-00', 'solution': 'other', 'form': 'demo-bundle', 'created_at': '2026-10-19T09:00:00'}]
+    check('the Downloads table reads the exports door with solution + latest_per_form (the newest file of each form, not the 2026-10-12 beside today\'s)',
+          'latest_per_form=1' in dl.get('dataPath', '') and 'solution=uno-light' in dl['dataPath']
+          and [r['name'] for r in narrow(old_rows, 'uno-light', True)] == ['uno-light@2026-10-19T09-00-00', 'uno-light@2026-10-12T09-30-00']
+          and len(narrow(old_rows, 'uno-light', False)) == 3 and len(narrow(old_rows, '', True)) == 3, dl.get('dataPath'))
     from cmod.objects.cmod.FirmwareExport import FirmwareExport
     check('…every Downloads column is a real field of FirmwareExport', set(dl['columns'].split(',')) <= set(inspect.signature(FirmwareExport.__init__).parameters))
     dtext = items[1]['description']
