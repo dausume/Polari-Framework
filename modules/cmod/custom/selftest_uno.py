@@ -47,8 +47,8 @@ def uno_parts(check):
         p = AN.parse_project('uno')
         state['p'] = p
         a = p['atoms']
-        check('the UNO template parses over its 12 configurations (10 seeded variants + 2 coverage) into 71 atoms (fgm-5a: + the 8 atoms of the two rendered button files; fgm-5b: + the 5 of the two rendered sense files), no preprocessor problem',
-              len(p['configs']) == 12 and len(a) == 71 and not p['problems'], (len(a), p['problems'][:3]))
+        check('the UNO template parses over its 13 configurations (11 seeded variants + 2 coverage; smp-1: + uno-light-unsensed) into 71 atoms (fgm-5a: + the 8 atoms of the two rendered button files; fgm-5b: + the 5 of the two rendered sense files), no preprocessor problem',
+              len(p['configs']) == 13 and len(a) == 71 and not p['problems'], (len(a), p['problems'][:3]))
         check('every hal.c function is an atom (22 incl. the 4 ISRs and the knob-gated ones: hal_uart_errors, hal_presses, hal_wdt_boot, '
               'hal_sense_init/hal_sense_read, hal_take_toggle_pending)',
               HAL_ATOMS <= set(a), sorted(HAL_ATOMS - set(a)))
@@ -65,7 +65,7 @@ def uno_parts(check):
         rx = a['hal.USART_RX_vect']
         check('ISR(USART_RX_vect) (both #if branches, unioned) reads UCSR0A + UDR0 (USART0), writes rx_head / rx_ring and the error counters',
               rx['isr'] == 'USART_RX_vect' and {'UCSR0A', 'UDR0'} <= set(rx['registers']) and rx['globals']['rx_head']['w']
-              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 10)   # fgm-5b: + uno-light-sense-poll, uno-light-sense-pcint; ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1); ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog
+              and rx['globals']['g_uart_fe']['w'] and len(rx['configs']) == 11)   # fgm-5b: + uno-light-sense-poll, uno-light-sense-pcint; ucd-0e2: + uno-button-clock (FEATURE_COMMANDS 1); ucd-light: + uno-light; fgm-5a: + uno-light-pcint, uno-light-analog
         check('hal_rx_pop: the 1-byte ring indices the RX ISR writes need no atomic block (one lds each) → isr_safe yes; b → out',
               a['hal.hal_rx_pop']['isr_safe'] == 'yes' and a['hal.hal_rx_pop']['ports'][0]['direction'] == 'out')
         check('pure atoms are exactly the two that compute: sim_rig.sensor_value (the TMP36 formula) and scenario_rig.crc8',
@@ -140,8 +140,8 @@ def uno_parts(check):
         check('stack frames from GCC\'s .su for 63 atoms; the one without is hal_wdt_boot — a naked function, stated in the cost row',
               nostack == ['hal.hal_wdt_boot'] and 'naked' in next(a for a in atoms if a['name'] == 'hal.hal_wdt_boot')['cost']['why'], nostack)
         mk = [c.get('make_alone') or {} for c in m['configurations']]
-        check('make ALONE built every configuration (12/12, the .hex sha recorded) — no Polari in that loop',
-              len(mk) == 12 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
+        check('make ALONE built every configuration (13/13, the .hex sha recorded) — no Polari in that loop',
+              len(mk) == 13 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
         check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (4188f6ae…, unchanged by the annotations)',
               sim['make_alone']['hex_sha256'].startswith('4188f6ae7d65bfc7'), sim['make_alone']['hex_sha256'][:16])

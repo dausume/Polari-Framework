@@ -13,7 +13,7 @@ ROUTE_VARIANTS = {'poll': 'uno-light-sense-poll', 'pcint': 'uno-light-sense-pcin
 ROUTE_ROWS = {'poll': 'sense-led-line:gpio-poll', 'pcint': 'sense-led-line:pin-change-interrupt'}
 ROUTE_SCENARIOS = {'sense-led-line:gpio-poll': 'sense-poll-line-acceptance', 'sense-led-line:pin-change-interrupt': 'sense-pcint-line-acceptance'}
 #: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's HAL_SENSE_ROUTE guard moved none of them; scl (led_follow_state) moved the light and button-clock hexes ON PURPOSE (same wire, same pins)
-GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light': '1e75dab5ee7eb758', 'uno-sim-rig': '4188f6ae7d65bfc7', 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
+GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light-unsensed': '1e75dab5ee7eb758', 'uno-sim-rig': '4188f6ae7d65bfc7', 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
 
 
 def _engine():
@@ -129,10 +129,10 @@ def _refusals(check):
           refused('uno-light-sense-pcint', sense_pin=6)[:120])
     check('a route other than int1 / poll / pcint is refused; a sense route without the sense feature is refused',
           'int1' in refused('uno-light-sense-poll', sense_route='adc')
-          and 'without the sense feature' in refused('uno-light', sense_route='poll'), refused('uno-light', sense_route='poll')[:120])
-    check('a sense route on an app not written for it (the light) is refused, naming the apps that are', 'without the sense feature' in refused('uno-light', sense_route='pcint') or 'not written for it' in refused('uno-light', sense_route='pcint'))
+          and 'without the sense feature' in refused('uno-light-unsensed', sense_route='poll'), refused('uno-light-unsensed', sense_route='poll')[:120])
+    check('a sense route on an app not written for it (light_v2) is refused', 'without the sense feature' in refused('uno-light-v2', sense_route='pcint') or 'not written for it' in refused('uno-light-v2', sense_route='pcint'))
     check('the INT1 variant is unchanged: uno-button-clock still refuses any sense pin but D3', 'hardware-fixed to D3' in refused('uno-button-clock', sense_pin=8))
-    cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light', 'uno-button-clock', 'uno-sim-rig', 'uno-light-pcint')}
+    cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light-unsensed', 'uno-button-clock', 'uno-sim-rig', 'uno-light-pcint')}
     check('the existing variants\' board_config.h carry no sense-route line at all (their bytes cannot have moved)', all('HAL_SENSE_ROUTE' not in t for t in cfg.values()))
     check('SR.check agrees with resolve (RouteRefused is the same refusal)', _raises(SR, 'pcint', {'sense_pin': 0}) and _raises(SR, 'poll', {'sense_pin': 1}))
 
@@ -177,7 +177,7 @@ def _compiles(check):
     check('the two sense hexes differ from uno-button-clock and from each other', len({builds[n]['artifact_sha256'] for n in ('uno-button-clock', 'uno-light-sense-poll', 'uno-light-sense-pcint')}) == 3)
     man = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'board', 'custom', 'firmware', 'uno', 'polari-firmware.json')))
     got = {c['name']: c['make_alone']['hex_sha256'] for c in man['configurations'] if c['name'] in GATE or c['name'] in ROUTE_VARIANTS.values()}
-    check('the identical-hex gate holds in the committed manifest: uno-sim-rig, uno-light, uno-button-clock, uno-light-pcint, uno-light-analog keep their hexes; the two sense variants are configurations of it',
+    check('the identical-hex gate holds in the committed manifest: uno-sim-rig, uno-light-unsensed (the old uno-light), uno-button-clock, uno-light-pcint, uno-light-analog keep their hexes; the two sense variants are configurations of it',
           all(got.get(n, '').startswith(h) for n, h in GATE.items()) and {'uno-light-sense-poll', 'uno-light-sense-pcint'} <= set(got), got)
 
 

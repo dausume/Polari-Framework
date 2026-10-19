@@ -30,7 +30,7 @@ def cycles_parts(check):
         _p, _m, ts = CI.find_atom('uno:apps/light.telemetry_send')
         cy = ts['cost'].get('cycles') or {}
         check('cyc-0: an atom\'s cost gains `cycles` - kind measured, the worst count, the run reference (record + hex sha256), by variant (telemetry_send: %s cycles)' % cy.get('value'),
-              cy.get('kind') == 'measured' and cy['value'] > 100000 and 'cycle record uno-light' in cy['ref'] and 'uno-light' in cy['by_variant'] and cy['by_variant']['uno-light']['cpu_max'] < 20000, cy)
+              cy.get('kind') == 'measured' and cy['value'] > 100000 and 'cycle record uno-light' in cy['ref'] and 'uno-light-unsensed' in cy['by_variant'] and cy['by_variant']['uno-light-unsensed']['cpu_max'] < 20000, cy)
         _p, _m, isr = CI.find_atom('uno:hal.INT0_vect')
         check('cyc-0: an interrupt atom carries its measured cycles per event too (INT0_vect)', (isr['cost'].get('cycles') or {}).get('kind') == 'measured' and isr['cost']['cycles']['unit'] == 'cycles', isr['cost'].get('cycles'))
         with records_off():

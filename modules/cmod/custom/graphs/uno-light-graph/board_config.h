@@ -3,7 +3,7 @@
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
-#define RIG_NAME     "uno-light-unsensed"
+#define RIG_NAME     "uno-light"
 #define DEVICE_ID    3u
 #define USART_U2X    1
 #define TELEMETRY_HZ 10u

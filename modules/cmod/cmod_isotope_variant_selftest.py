@@ -107,10 +107,11 @@ def isotope_variant_parts(check):
               all(IV.status(vs[n])['status'] == 'compiles' for n in ('sense-led-line:ext-interrupt', 'report-state:uart-tx', 'receive-command:uart-rx-interrupt')))
         decl = [n for n, v in vs.items() if not json.loads(v['implemented_by_json']).get('atoms')]
         check('every route with no atom is `declared`, with the reason in words (never optimistic)',
-              all(IV.status(vs[n])['status'] == 'declared' and IV.status(vs[n])['why'] for n in decl) and len(decl) == 11, len(decl))   # fgm-5b: -2 more (the polled and the pin-change sense of the LED line have templates now); fgm-5a: -2 (the PCINT and analog-threshold buttons have templates now)
+              all(IV.status(vs[n])['status'] == 'declared' and IV.status(vs[n])['why'] for n in decl) and len(decl) == 10, len(decl))   # fgm-5b: -2 more (the polled and the pin-change sense of the LED line have templates now); fgm-5a: -2 (the PCINT and analog-threshold buttons have templates now)
         ts = IV.status(vs['drive-led:transistor-switch'])
-        check('the transistor route shares the plain output atoms\' C but is not wired anywhere: declared, and its estimated size is that C\'s measured 16 B, said so',
-              ts['status'] == 'declared' and 'drive-led:gpio-out' in ts['why'] and IV.costs(vs['drive-led:transistor-switch'])['flash_bytes']['value'] == IV.costs(vs['drive-led:gpio-out'])['flash_bytes']['value'] == 16)
+        check('the transistor route shares the plain output atoms\' C (smp-1: sample S4 builds it as uno-light-transistor): it compiles, it says it shares drive-led:gpio-out\'s C, and its size is that C\'s measured 16 B (the twin cannot show the transistor: that is wiring)',
+              ts['status'] == 'compiles' and json.loads(vs['drive-led:transistor-switch']['implemented_by_json'])['shares_c_with'] == 'drive-led:gpio-out'
+              and IV.costs(vs['drive-led:transistor-switch'])['flash_bytes']['value'] == IV.costs(vs['drive-led:gpio-out'])['flash_bytes']['value'] == 16)
         broken = dict(vs['drive-led:gpio-out'], implemented_by_json=json.dumps({'atoms': ['uno:hal.hal_led_init', 'uno:hal.no_such_atom'], 'config': 'uno-light'}))
         check('an implemented_by that names a missing atom drops to declared and NAMES it (a renamed atom shows up)',
               IV.status(broken)['status'] == 'declared' and 'no_such_atom' in IV.status(broken)['why'])
@@ -133,8 +134,8 @@ def isotope_variant_parts(check):
                     bad.append((v['name'], k, e))
         check('every cost field of every variant is measured / estimated / undetermined, carries its basis, and a value only when it is not undetermined', not bad, bad[:3])
         meas = {v['name'] for v in vs if any(IV.costs(v)[k]['kind'] == 'measured' for k in ('flash_bytes', 'ram_bytes'))}
-        check('a size is `measured` only on the routes that have atoms in a build (the 11 implemented ones; fgm-5a: + PCINT and analog-threshold buttons; fgm-5b: + the polled and PCINT sense) - estimates never pose as measurements',
-              meas == {n for n, v in _by(vs).items() if json.loads(v['implemented_by_json']).get('atoms')} and len(meas) == 11, sorted(meas))
+        check('a size is `measured` only on the routes that have atoms in a build (the 12 implemented ones, smp-1: + the transistor route that shares the plain output C; fgm-5a: + PCINT and analog-threshold buttons; fgm-5b: + the polled and PCINT sense) - estimates never pose as measurements',
+              meas == {n for n, v in _by(vs).items() if json.loads(v['implemented_by_json']).get('atoms')} and len(meas) == 12, sorted(meas))
         unb = [v['name'] for v in vs if not json.loads(v['implemented_by_json']).get('atoms') and IV.costs(v)['flash_bytes']['kind'] == 'undetermined']
         check('the routes with no build have flash undetermined (or a labelled lower bound / borrowed number), never a bare guess', len(unb) >= 9 and all(
             IV.costs(v)['flash_bytes']['kind'] in ('undetermined', 'estimated') and ('LOWER BOUND' in IV.costs(v)['flash_bytes']['basis'] or 'same C' in IV.costs(v)['flash_bytes']['basis'] or IV.costs(v)['flash_bytes']['kind'] == 'undetermined')

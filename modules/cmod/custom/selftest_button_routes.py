@@ -133,8 +133,8 @@ def _refusals(check):
     check('adc refuses channel 6 and a press threshold above the release one', 'A0..A5' in refused('uno-light-analog', button_adc_channel=6)
           and 'hysteresis' in refused('uno-light-analog', adc_press_below_mv=4000, adc_release_above_mv=3000))
     check('a route other than int0 / pcint / adc is refused', 'int0' in refused('uno-light-pcint', button_route='spi'))
-    check('a button route on an app not written for it (button-clock) is refused, naming the apps that are',
-          'not written for it' in refused('uno-button-clock', button_route='pcint'), refused('uno-button-clock', button_route='pcint')[:120])
+    check('a button route on an app not written for it (light_v2) is refused, naming the apps that are (the light and button-clock, since smp-1)',
+          'not written for it' in refused('uno-light-v2', button_route='pcint'), refused('uno-light-v2', button_route='pcint')[:120])
     check('the INT0 variants are unchanged: uno-light still refuses any button pin but D2', 'hardware-fixed to D2' in refused('uno-light', button_pin=4))
     cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light', 'uno-button-clock', 'uno-sim-rig')}
     check('the existing variants\' board_config.h carry no route line at all (their bytes cannot have moved)', all('HAL_BUTTON_ROUTE' not in t for t in cfg.values()))
@@ -155,7 +155,7 @@ def _compiles(check):
         return
     from board.custom import build as B, gen
     builds = {}
-    for name in ('uno-light', 'uno-light-pcint', 'uno-light-analog'):
+    for name in ('uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog'):
         work = tempfile.mkdtemp(prefix='fgm5a-')
         try:
             gen.gen('uno', None, work, variant=name)
@@ -178,10 +178,10 @@ def _compiles(check):
         check('%s records its isotope template + macros by sha256 in the repro block, and the rendered file as a project input' % name,
               'isotope template (jinja2)' in labels and 'isotope template macros (jinja2)' in labels
               and any(i['path'].endswith('hal_button_%s.c' % ('pcint' if name.endswith('pcint') else 'adc')) for i in repro['inputs']))
-    check('the existing uno-light still builds to its committed hex 1e75dab5... (scl moved it from 94b9b77f on purpose: led_follow_state; the route guard changed no byte of it)',
-          builds['uno-light']['artifact_sha256'].startswith('1e75dab5ee7eb758'), builds['uno-light']['artifact_sha256'])
-    check('uno-light-pcint and uno-light-analog hexes differ from uno-light and from each other',
-          len({builds[n]['artifact_sha256'] for n in ('uno-light', 'uno-light-pcint', 'uno-light-analog')}) == 3)
+    check('the light without its sense line (uno-light-unsensed = the old uno-light) still builds to its committed hex 1e75dab5... (scl moved it from 94b9b77f on purpose: led_follow_state; the route guards changed no byte of it)',
+          builds['uno-light-unsensed']['artifact_sha256'].startswith('1e75dab5ee7eb758'), builds['uno-light-unsensed']['artifact_sha256'])
+    check('uno-light-pcint and uno-light-analog hexes differ from uno-light-unsensed and from each other',
+          len({builds[n]['artifact_sha256'] for n in ('uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog')}) == 3)
 
 
 def _catalogue(check):

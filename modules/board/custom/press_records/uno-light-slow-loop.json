@@ -1,43 +1,43 @@
 {
- "best_ms": 13.215,
+ "best_ms": 11.167,
  "clock_hz": 16000000,
  "inputs": {
-  "hex_sha256": "0ed08ad9b089bbc8f29cce3ca12ac8ded3fc682abb792f73b60f13b521b1c820",
-  "source_sha": "086d0cc0bae08bf41e0350132ea52b325427e3883c30c35a6d1f15f1c5bf1376"
+  "hex_sha256": "391027e05e889c8d24cef50058272ee2586834e94acf2d299090c66dfde07b7a",
+  "source_sha": "f22cf0f7a80fcb7afb7af23b75c038f9028ff6dc43657748930a0c1602fa249e"
  },
  "mcu": "atmega328p",
- "record_sha256": "b3c8bc0942203d81733f1d78f541b57a83883964b06cffb4dfee077815dbfeba",
- "recorded_at": "2026-10-19T08:19:41",
+ "record_sha256": "83234c6007f70cb83f2fb112fd2d5cc5b00cf29c9924eb75bfab69258b9b2520",
+ "recorded_at": "2026-10-19T10:25:34",
  "resolution": "one core cycle",
  "rule": "the number is the WORST of the 5 presses; a press at another time in the pass can give a smaller or (up to one pass) a larger value, so it is a measured value, not a bound",
  "runs": [
   {
-   "latency_ms": 163.215,
-   "led_cycle": 4211443,
+   "latency_ms": 161.167,
+   "led_cycle": 4178678,
    "press_cycle": 1600000,
    "press_ms": 100
   },
   {
-   "latency_ms": 113.215,
-   "led_cycle": 4211443,
+   "latency_ms": 111.167,
+   "led_cycle": 4178678,
    "press_cycle": 2400000,
    "press_ms": 150
   },
   {
-   "latency_ms": 63.215,
-   "led_cycle": 4211443,
+   "latency_ms": 61.167,
+   "led_cycle": 4178678,
    "press_cycle": 3200000,
    "press_ms": 200
   },
   {
-   "latency_ms": 13.215,
-   "led_cycle": 4211443,
+   "latency_ms": 11.167,
+   "led_cycle": 4178678,
    "press_cycle": 4000000,
    "press_ms": 250
   },
   {
-   "latency_ms": 226.215,
-   "led_cycle": 8419447,
+   "latency_ms": 221.167,
+   "led_cycle": 8338678,
    "press_cycle": 4800000,
    "press_ms": 300
   }
@@ -58,5 +58,5 @@
  },
  "variant": "uno-light-slow-loop",
  "what": "press-to-light latency: one debounced press on the config's own button pin, then the cycle of the first rise of the light pin D6 (the twin's wire-edge event; led_follow_state is the only writer)",
- "worst_ms": 226.215
+ "worst_ms": 221.167
 }

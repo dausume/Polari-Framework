@@ -161,6 +161,29 @@
    }
   },
   {
+   "name": "uno-light-unsensed",
+   "kind": "board-variant",
+   "app": "light",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/light.c"
+   ],
+   "generated": [
+    "lightstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "efe8560a0350fadab29a717c17e84aa6d42e3f13f06a488be40e1d54e0998e33",
+   "elf_sha256": {
+    "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
+    "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5"
+   }
+  },
+  {
    "name": "uno-light",
    "kind": "board-variant",
    "app": "light",
@@ -182,29 +205,6 @@
    "make_alone": {
     "ok": true,
     "hex_sha256": "e74a741114d2369c53f4e4ee623218d5dc7a93b1899b646654cfc952528ed1eb"
-   }
-  },
-  {
-   "name": "uno-light-unsensed",
-   "kind": "board-variant",
-   "app": "light",
-   "flags": [],
-   "sources": [
-    "hal.c",
-    "apps/light.c"
-   ],
-   "generated": [
-    "lightstate_packets.h",
-    "board_config.h"
-   ],
-   "source_sha": "0469cfeff3109f4dc11822f86f70314dd46e0d813c0598209ca8f54489e3b433",
-   "elf_sha256": {
-    "shipped": "64cc65dcf098e12dfe60faf34cb19b5e48a69084d56952297e45308fc9f4de4e",
-    "noinline": "a0e14294dd22918b36b5b4e9084afa1ad588f966a493c6713fe286673a01f88a"
-   },
-   "make_alone": {
-    "ok": true,
-    "hex_sha256": "1050f4f7bd75a5fb119f792a3e898f1ed5826349fc0d2bd416dafee0c4365507"
    }
   },
   {
@@ -2180,8 +2180,8 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2193,7 +2193,7 @@
     "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), role(\"SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "apply_command",
     "text_bytes": 0,
     "in_shipped_build": false,
@@ -2260,8 +2260,8 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2273,7 +2273,7 @@
     "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this start's session number from EEPROM; it differs after every reset\"))"
    },
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "boot_session_mint",
     "text_bytes": 0,
     "in_shipped_build": false,
@@ -2328,8 +2328,8 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2343,7 +2343,7 @@
     "raw": "POLARI_NODE(led_follow_state, uses(LED_PIN), role(\"each pass: when state.led_on differs from the value last written to the pin, drive the pin to it\"))"
    },
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "led_follow_state",
     "text_bytes": 0,
     "in_shipped_build": false,
@@ -2391,8 +2391,8 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2404,7 +2404,7 @@
     "raw": "POLARI_NODE(led_toggle, role(\"on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "led_toggle",
     "text_bytes": 0,
     "in_shipped_build": false,
@@ -2480,7 +2480,6 @@
     "hal_tick_init",
     "hal_led_init",
     "hal_button_init",
-    "hal_sense_init",
     "memset",
     "strcpy",
     "boot_session_mint",
@@ -2491,8 +2490,9 @@
     "hal_millis",
     "led_toggle",
     "led_follow_state",
-    "hal_sense_read",
-    "telemetry_send"
+    "telemetry_send",
+    "hal_sense_init",
+    "hal_sense_read"
    ],
    "pure": false,
    "pure_why": "touches g_sensed, rx, state",
@@ -2500,23 +2500,23 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": null,
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "main",
-    "text_bytes": 2088,
+    "text_bytes": 2044,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 250,
-    "stack_bytes": 116,
+    "text_bytes_noinline": 196,
+    "stack_bytes": 111,
     "stack_kind": "static",
     "stack_from": "shipped",
-    "stack_bytes_noinline": 11,
+    "stack_bytes_noinline": 3,
     "text_bytes_range": [
      2044,
      2088
@@ -2577,8 +2577,8 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2590,7 +2590,7 @@
     "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
    },
    "cost": {
-    "measured_in": "uno-light",
+    "measured_in": "uno-light-unsensed",
     "symbol": "telemetry_send",
     "text_bytes": 0,
     "in_shipped_build": false,
@@ -3729,8 +3729,8 @@
    "atomic_block": false,
    "configs": [
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -3879,8 +3879,8 @@
     "uno-adc-sweep",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -3994,8 +3994,8 @@
     "uno-sim-rig",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4234,8 +4234,8 @@
    "atomic_block": false,
    "configs": [
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -4324,8 +4324,8 @@
     "uno-sim-rig",
     "uno-blink-only",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4398,8 +4398,8 @@
     "uno-sim-rig",
     "uno-blink-only",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4470,8 +4470,8 @@
     "uno-adc-sweep",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4551,8 +4551,8 @@
    "atomic_block": true,
    "configs": [
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -4813,8 +4813,8 @@
     "uno-sim-rig",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5083,8 +5083,8 @@
    "atomic_block": true,
    "configs": [
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -5163,8 +5163,8 @@
     "uno-adc-sweep",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5337,8 +5337,8 @@
     "uno-adc-sweep",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5426,8 +5426,8 @@
     "uno-adc-sweep",
     "uno-echo",
     "uno-button-clock",
-    "uno-light",
     "uno-light-unsensed",
+    "uno-light",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -6574,5 +6574,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T09:10:17"
+ "conformed_at": "2026-10-19T10:27:28"
 }

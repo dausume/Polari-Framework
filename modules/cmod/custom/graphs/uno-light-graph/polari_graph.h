@@ -16,7 +16,7 @@
  *   hal.c                    25f36ae0386b7dd0  copied verbatim from board/custom/firmware/uno/hal.c
  *   hal.h                    abca35c705c63772  copied verbatim from board/custom/firmware/uno/hal.h
  *   light_defs.h             e6c88cf5352299a9  copied verbatim from board/custom/firmware/uno/apps/light_defs.h
- *   board_config.h           c4fc953ffae1cc0f  board gen: the uno-light-unsensed knobs
+ *   board_config.h           25f12831dc160f56  board gen: the uno-light-unsensed knobs
  *   lightstate_packets.h     3f9c534136f3a339  c_twin target=avr, contract v1 e05aeb148924b730 (pinned board/custom/contracts/LightState.v1.json)
  *   pin_config.h             a4d509be7ca3e107  GENERATED (cmod.custom.pin_config_gen) from uno-light's pin claims
  *   pin_config.c             ----------------  GENERATED (cmod.custom.pin_config_gen) from uno-light's pin claims

@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "7cd1c0024bb353f7e1bea090cfc85b2bbf73015cc22fd4f25b6d930e67bc085b",
-    "noinline": "825e6100fe1c998448c1877dbcd18e2ddc5b822eeeeeb543883ab6f767e56892"
+    "shipped": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
+    "noinline": "32f58f1f51d7a4fdab5e1f9242ac9a8e07634dc0a1cc553ea49c92e47234881a"
    }
   }
  ],
@@ -120,7 +120,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "69fe4f409f731cf50da76c4eca4a2568ab8a560fbc8936d64efd7b11ff40198e"
+     "sha256": "a17417e1402f6098d40b20746a9c2675baf68fd55fc1e95adddfb98526632d3b"
     }
    ],
    "atoms": [
@@ -138,7 +138,7 @@
    "files": [
     {
      "path": "board_config.h",
-     "sha256": "c4fc953ffae1cc0f65113394451f6499642d4c24b81a71d5ccde6844fd8445b3"
+     "sha256": "25f12831dc160f56c5b26d03beded65bb0441ae3d791e6f12ddcaecde05f1969"
     }
    ],
    "atoms": []
@@ -1668,5 +1668,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T09:15:24"
+ "conformed_at": "2026-10-19T10:05:53"
 }
