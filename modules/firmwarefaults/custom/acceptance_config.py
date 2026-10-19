@@ -24,6 +24,11 @@ def refusal(sc, variant, manager=None):
         return why
     if sc['name'] not in ACC.BOOT_PROOFS and sc['capability'] not in ACC.LIGHT_WHICH:
         return 'no per-config runner is written for scenario %r' % sc['name']
+    if ACC.LIGHT_WHICH.get(sc['capability']) == 'button':
+        from board.custom import variants as V
+        route = V.resolve(V.find(variant))['knobs'].get('button_route')
+        if route:      # the press runners drive D2 (INT0); a button on D4 (pin change) or A0 (analog) has its own route Scenario (light-pcint-/light-analog-button-acceptance)
+            return 'config %s reads its button by the %s route, which the D2 press runner does not drive: no per-config runner for it' % (variant, route)
     return ''
 
 
