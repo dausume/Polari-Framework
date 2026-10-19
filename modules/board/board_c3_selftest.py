@@ -56,10 +56,11 @@ def variants(check):
     from board.custom import variants_c3 as V
     from board.board_basis import FirmwareVariant
     vs = V.SEED_C3_VARIANTS
-    check('six C3 variants, all on board esp32-c3, each constructs a FirmwareVariant row',
-          len(vs) == 6 and all(v['board_definition'] == 'esp32-c3' and FirmwareVariant(**v).name == v['name'] for v in vs))
+    check('seven C3 variants (the six scenario rigs + smp S5\'s esp32c3-light), all on board esp32-c3, each constructs a FirmwareVariant row',
+          len(vs) == 7 and all(v['board_definition'] == 'esp32-c3' and FirmwareVariant(**v).name == v['name'] for v in vs))
     rs = {v['name']: V.resolve(v) for v in vs}
-    check('every C3 variant resolves (app, SimRigState, knobs, flags)', all(r['classes'] == ['SimRigState'] for r in rs.values()))
+    check('every C3 variant resolves (app, its classes, knobs, flags): SimRigState for the six rigs, ButtonClockState + ButtonClockEvent for the light',
+          all(r['classes'] == (['ButtonClockState', 'ButtonClockEvent'] if r['app'] == 'light' else ['SimRigState']) for r in rs.values()))
     flags = {n: dict(r['flags']) for n, r in rs.items()}
     check('each scenario pair differs in exactly ONE build flag (the technique)',
           flags['c3-prio-inversion'] == {'SC_PI_MUTEX': 0} and flags['c3-prio-inversion-mutex'] == {'SC_PI_MUTEX': 1}

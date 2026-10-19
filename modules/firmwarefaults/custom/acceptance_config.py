@@ -10,9 +10,16 @@ own name, its own steps, its own negative controls) on V's build and stores the 
                                                             V's app is `light` -> board.custom.light_twin.prove(which, mode, V)
                                                             V's app is `button_clock` -> board.custom.light_variant_twin.prove(which, V, mode)   (ButtonClockState stand-ins, named there)
 
+smp S5: a config of the ESP32-C3 (board.custom.variants_c3.LIGHT_NAME) is proven on the C3 TWIN by board.custom.light_c3_twin (boot / button / polari; the pins are a RAM shim and no C3 is on the bench - its result says so).
+
 Refused (route 'refused', so the run is stored `inapplicable` and proves nothing) when V is not a built config of the Mission or the Scenario is not a Purpose's own (`fsc_link.proof_config_refusal`),
 or when no runner exists for the Scenario. The server's Purpose door applies the same refusal to a pushed run.
 """
+
+
+def is_c3(variant):
+    from board.custom import variants_c3 as V3
+    return variant == V3.LIGHT_NAME
 
 
 def refusal(sc, variant, manager=None):
@@ -24,6 +31,8 @@ def refusal(sc, variant, manager=None):
         return why
     if sc['name'] not in ACC.BOOT_PROOFS and sc['capability'] not in ACC.LIGHT_WHICH:
         return 'no per-config runner is written for scenario %r' % sc['name']
+    if is_c3(variant):
+        return ''
     if ACC.LIGHT_WHICH.get(sc['capability']) == 'button':
         from board.custom import variants as V
         route = V.resolve(V.find(variant))['knobs'].get('button_route')
@@ -36,6 +45,9 @@ def prove(sc, variant, run_mode):
     """-> the {'ok', 'route', 'why', ...} result of the SAME check the Scenario runs on its own variant, on `variant`'s build."""
     from board.custom import variants as V
     from firmwarefaults.custom import acceptance as ACC
+    if is_c3(variant):
+        from board.custom import light_c3_twin as L3
+        return L3.prove('boot' if sc['name'] in ACC.BOOT_PROOFS else ACC.LIGHT_WHICH[sc['capability']], run_mode, variant)
     if sc['name'] in ACC.BOOT_PROOFS:
         from board.custom import light_boot_twin as LB
         return LB.prove(run_mode, variant)

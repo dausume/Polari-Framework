@@ -159,6 +159,24 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
     shutil.copy(app_src, os.path.join(project, 'main', 'app.c'))
     text, prov = header('SimRigState', api, manager)
     open(os.path.join(project, 'main', 'simrigstate_packets.h'), 'w').write(text)
+    # smp S5: an app that speaks other classes (the light: ButtonClockState + ButtonClockEvent) gets their headers too (msg_type = position + 1, as the UNO), its extra files, and its components
+    # on the main component's REQUIRES; SimRigState stays (the common layer, polari_c3.c, includes it). Apps that speak only SimRigState are untouched, byte for byte.
+    extra_cls = []
+    for i, cls in enumerate(c for c in V.APP_CLASSES[r['app']] if c != 'SimRigState'):
+        t2, p2 = header(cls, api, manager, msg_type=V.APP_CLASSES[r['app']].index(cls) + 1)
+        fn = '%s_packets.h' % cls.lower()
+        open(os.path.join(project, 'main', fn), 'w').write(t2)
+        extra_cls.append(dict(p2, **{'class': cls, 'header': 'main/' + fn, 'header_sha256': gen.sha256(t2), 'target': TARGET, 'msg_type': V.APP_CLASSES[r['app']].index(cls) + 1,
+                                     'tag_order': p2.pop('tag_order', None) or gen._order_from_header(t2, cls), 'wire': 2, 'bridge': ''}))
+    extra_files = []
+    for f in V.APP_EXTRA_FILES.get(r['app'], ()):
+        shutil.copy(os.path.join(TEMPLATE, 'apps', f), os.path.join(project, 'main', f))
+        extra_files.append(f)
+    if V.APP_REQUIRES.get(r['app']):
+        cm = os.path.join(project, 'main', 'CMakeLists.txt')
+        txt = open(cm).read()
+        assert 'REQUIRES esp_driver_uart esp_partition esp_timer freertos' in txt, 'the template main/CMakeLists.txt moved: update gen_c3'
+        open(cm, 'w').write(txt.replace('REQUIRES esp_driver_uart esp_partition esp_timer freertos', 'REQUIRES esp_driver_uart esp_partition esp_timer freertos ' + ' '.join(V.APP_REQUIRES[r['app']])))
     open(os.path.join(project, 'main', 'board_config.h'), 'w').write(V.render_config(r))
     viol = rule2_violations(project)
     if viol:
@@ -168,10 +186,12 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
     cls_row = dict(prov, **{'class': 'SimRigState', 'header': 'main/simrigstate_packets.h', 'header_sha256': gen.sha256(text), 'target': TARGET,
                             'msg_type': 1, 'tag_order': order, 'wire': 2, 'bridge': ''})
     tfiles = [('template ' + f, '%s/%s' % (TEMPLATE_REL, f), os.path.join(TEMPLATE, f)) for f in TEMPLATE_FILES] + \
-        [('template app %s (main/app.c)' % r['app'], '%s/apps/%s.c' % (TEMPLATE_REL, r['app']), app_src)]
+        [('template app %s (main/app.c)' % r['app'], '%s/apps/%s.c' % (TEMPLATE_REL, r['app']), app_src)] + \
+        [('template app file %s' % f, '%s/apps/%s' % (TEMPLATE_REL, f), os.path.join(TEMPLATE, 'apps', f)) for f in extra_files]
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': BOARD, 'state': 'generated', 'variant': r['name'],
-           'classes_json': json.dumps([cls_row]), 'template': TEMPLATE_REL, 'source_sha': ssha,
-           'header_sha256': compat.combined_sha([cls_row]), 'tag_order_json': json.dumps({'SimRigState': order}),
+           'classes_json': json.dumps([cls_row] + extra_cls), 'template': TEMPLATE_REL, 'source_sha': ssha,
+           'header_sha256': compat.combined_sha([cls_row] + extra_cls),
+           'tag_order_json': json.dumps(dict({'SimRigState': order}, **{c['class']: c['tag_order'] for c in extra_cls})),
            'contract_hash_v2': cls_row.get('hash_v2', ''), 'bridge_name': '', 'instance_index': 0,
            'artifact_sha256': '', 'engines_json': '{}', 'size_text': 0, 'size_data': 0, 'size_bss': 0, 'built_at': '', 'flashed_to': '',
            'flash_log': '', 'generated_at': datetime.datetime.now().isoformat(timespec='seconds'), 'hex_path': '',
