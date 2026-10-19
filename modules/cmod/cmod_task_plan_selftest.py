@@ -68,8 +68,8 @@ def task_plan_parts(check):
               and trig['relay-state']['period_ms'] == 100.0 and 'TELEMETRY_HZ' in trig['relay-state']['period_basis'] and _t(p, 'relay-state')['period_ms'] == 100.0, (dl, trig['relay-state']['period_basis'][:80]))
         steps = {t['task']: [s['instance'] for s in t['steps']] for t in p['tasks']}
         check('fgm-3: steps are the graph\'s atoms in graph order - init: the five init atoms; the button task is fed by INT0_vect; the command task by USART_RX_vect; the report task by the tick (TIMER2_COMPA_vect)',
-              steps['init'] == ['usart_init', 'tick_init', 'led_init', 'button_init', 'boot_session_mint'] and steps['handle-button-press'][0] == 'INT0_vect' and steps['handle-button-press'][-1] == 'led_toggle'
-              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and steps['relay-state'][-1] == 'telemetry_send' and steps['sense'] == ['hal_sense_poll.hal_sense_read'], steps)
+              steps['init'] == ['usart_init', 'tick_init', 'led_init', 'button_init', 'boot_session_mint'] and steps['handle-button-press'][0] == 'INT0_vect' and steps['handle-button-press'][-1] == 'led_follow_state'
+              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led', 'led_follow_state'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and steps['relay-state'][-1] == 'telemetry_send' and steps['sense'] == ['hal_sense_poll.hal_sense_read'], steps)
         counts = p['agreement_counts']
         check('fgm-3 / fgm-5b: the AGREEMENT CHECK passes for every task - all five agree, none disagree, none is unchecked: the sense task\'s chosen route (gpio-poll) now has atoms (hal_sense_poll, fgm-5b), so its context (loop) is compared with the lane they derive - never "agrees" by default',
               counts == {'agrees': 5, 'disagrees': 0, 'unchecked': 0} and all('derived lanes say' in t['agreement_why'] for t in p['tasks'] if t['agreement'] == 'agrees'), counts)
@@ -159,8 +159,8 @@ def task_plan_parts(check):
         by['ensure-button-controls-light']['importance'] = 'desired'
         p = TP.derive_task_plan(LIGHT, SYSTEM, solve_run=solved(), spec=spec)
         order = [t['task'] for t in sorted((t for t in p['tasks'] if t['priority']), key=lambda t: t['priority'])]
-        check('fgm-3: DEADLINE-MONOTONIC (D-sys-3): a 50 ms command task is priority 1, the sense task (which serves that 50 ms Purpose) inherits its deadline and is 2 (they tie on deadline and importance, and the tie is marked); of the two equal 100 ms deadlines the "safety" report task beats the "desired" button task; order %s' % order,
-              order == ['receive-command', 'sense', 'relay-state', 'handle-button-press'] and 'TIE with sense' in _t(p, 'receive-command')['priority_basis'] and 'TIE' not in _t(p, 'relay-state')['priority_basis'] and 'TIE' not in _t(p, 'handle-button-press')['priority_basis'], order)
+        check('fgm-3: DEADLINE-MONOTONIC (D-sys-3): a 50 ms command task is priority 2 and the sense task (which serves that 50 ms Purpose AND, since scl, the safety observe Purpose) inherits the 50 ms deadline and, being more important on equal deadline, is 1 (no tie); of the two equal 100 ms deadlines the "safety" report task beats the "desired" button task; order %s' % order,
+              order == ['sense', 'receive-command', 'relay-state', 'handle-button-press'] and 'TIE' not in _t(p, 'receive-command')['priority_basis'] and 'importance safety' in _t(p, 'sense')['priority_basis'] and 'TIE' not in _t(p, 'relay-state')['priority_basis'] and 'TIE' not in _t(p, 'handle-button-press')['priority_basis'], order)
         by2 = copy.deepcopy(spec)
         for q in by2['purposes']:
             q['importance'] = 'required'
@@ -199,7 +199,7 @@ def task_plan_parts(check):
               and not mgr.objectTables.get('DerivedOverride'), (why, why2, why3, why4))
         o, w = TE.edit(plan['name'], 'relay-state', 'priority', '1', 'the report must never wait behind a button press', 'sub-test', mgr)
         _register(mgr, 'DerivedOverride', o)
-        o2, w2 = TE.edit(plan['name'], 'handle-button-press', 'steps_order', 'toggle_pending,led,led_toggle,clock,INT0_vect', 'check the toggle before the clock is read', 'sub-test', mgr)
+        o2, w2 = TE.edit(plan['name'], 'handle-button-press', 'steps_order', 'toggle_pending,led,led_toggle,clock,led_follow_state,INT0_vect', 'check the toggle before the clock is read', 'sub-test', mgr)
         _register(mgr, 'DerivedOverride', o2)
         o3, w3 = TE.edit(plan['name'], 'receive-command', 'deadline_ms', '60', 'a longer command path was measured', 'sub-test', mgr)
         _register(mgr, 'DerivedOverride', o3)
@@ -212,7 +212,7 @@ def task_plan_parts(check):
         b = _t(again, 'handle-button-press')
         d = _t(again, 'receive-command')
         check('fgm-3: the step order and the deadline are editable too - the steps follow the edit (INT0_vect now last) with the derived order kept beside it; the deadline shows 60 ms with the derived 100 ms beside',
-              b['steps_order'].endswith('INT0_vect') and b['derived_steps_order'].startswith('INT0_vect') and [s['n'] for s in b['steps']] == [1, 2, 3, 4, 5] and d['deadline_ms'] == 60.0 and d['derived_deadline_ms'] == 100.0, (b['steps_order'], d['deadline_ms']))
+              b['steps_order'].endswith('INT0_vect') and b['derived_steps_order'].startswith('INT0_vect') and [s['n'] for s in b['steps']] == [1, 2, 3, 4, 5, 6] and d['deadline_ms'] == 60.0 and d['derived_deadline_ms'] == 100.0, (b['steps_order'], d['deadline_ms']))
         cache['edit'] = (mgr, run, plan)
         # re-derive and RE-RECORD: the Task rows keep only derived values, the edits are untouched
         STORE.store_plan(TP.derive_task_plan(LIGHT, SYSTEM, solve_run=run.name, manager=mgr, apply_edits=False), mgr, 'sub-test')

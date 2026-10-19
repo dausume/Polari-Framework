@@ -160,10 +160,10 @@ def firmware_parts(check):
         for r in rows:
             if r['lives_on'] != 'unbound':
                 by_pin.setdefault(r['lives_on'], []).append(r)
-        check('D2/D3/D6/D13 all bound, no conflicts (led/led_toggle/apply_command cooperate on D6; button_init/button '
+        check('D2/D3/D6/D13 all bound, no conflicts (led_init/led/led_follow_state cooperate on D6 - scl: the mutators no longer touch the pin; button_init/button '
               'on D2; sense_init/sense/sense_isr on D3 — the generalized init-owner exemption, ucd-0e2b)',
               all(x['status'] == 'bound' for p in ('arduino-uno-r3:D2', 'arduino-uno-r3:D3', 'arduino-uno-r3:D6', 'arduino-uno-r3:D13')
-                  for x in by_pin.get(p, [])) and len(by_pin.get('arduino-uno-r3:D6', [])) == 4,
+                  for x in by_pin.get(p, [])) and len(by_pin.get('arduino-uno-r3:D6', [])) == 3,
               {p: [(x['task'], x['status']) for x in xs] for p, xs in by_pin.items()})
         check('tick_init (Timer2 CTC setup) is a whole-PERIPHERAL requirement, unbound-but-bound (0b2d\'s own fix, '
               'reused unchanged for this graph)',
@@ -184,7 +184,7 @@ def firmware_parts(check):
 
         from cmod.custom import binding as BND
         b = BND.derive(sol, manager=None)
-        check('the default HardwareBinding (uno-button-clock@arduino-uno-r3) is valid, 17/17 requirements met',
-              b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 17, b)
+        check('the default HardwareBinding (uno-button-clock@arduino-uno-r3) is valid, 16/16 requirements met (scl: 17 before the mutators lost their LED_PIN claims)',
+              b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 16, b)
 
     return (schedule_derivation, assignments_and_validate, target_compat_and_valid_targets, cross_domain_validator, button_clock_solution)

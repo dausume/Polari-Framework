@@ -168,39 +168,43 @@
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
-  "hex_sha256": "6e8d95d2a20980b97db82cbfdf8f649f96ff7d9984a5f9c7ba007970ebe74819",
-  "size_text": 3100,
+  "hex_sha256": "9b4a91b855713c56d3faca91b775b3a7a35ed164c6def43fa38d3f09cf8a7eac",
+  "size_text": 3122,
   "size_data": 10,
-  "size_bss": 503,
-  "flash_bytes": 3110,
+  "size_bss": 504,
+  "flash_bytes": 3132,
   "cost_estimate_bytes": 3086,
-  "cost_measured_attributable_bytes": 2532,
+  "cost_measured_attributable_bytes": 2554,
   "cost_measured_breakdown": {
    "atoms (shipped symbols)": 196,
    "ISR vectors": 306,
-   "main (glue + inlined atoms + inlined library)": 2030
+   "main (glue + inlined atoms + inlined library)": 2052
   },
   "runtime_bytes": 568,
-  "cost_why": "estimated 3086 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2532 B attributable (atoms (shipped symbols) 196, ISR vectors 306, main (glue + inlined atoms + inlined library) 2030) + 568 B C runtime (vectors, crt, libgcc) = .text 3100 B",
+  "cost_why": "estimated 3086 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2554 B attributable (atoms (shipped symbols) 196, ISR vectors 306, main (glue + inlined atoms + inlined library) 2052) + 568 B C runtime (vectors, crt, libgcc) = .text 3122 B",
   "estimate_minus_attributable": {
-   "bytes": 554,
+   "bytes": 532,
    "atoms_inlined_or_smaller_shipped": {
-    "apps/light.apply_command": 178,
+    "apps/light.apply_command": 174,
     "apps/light.boot_session_mint": 74,
-    "apps/light.led_toggle": 108,
+    "apps/light.led_toggle": 104,
     "apps/light.telemetry_send": 128,
     "hal.hal_button_init": 22,
     "hal.hal_led_init": 2,
     "hal.hal_millis": 30,
     "hal.hal_take_toggle_pending": 16
    },
-   "explained_bytes": 558
+   "explained_bytes": 550
   },
   "files_sha256": "77524de08ac2ba237712df7802ad91b3fd35f033298a9141b7897b201a4857cc",
-  "hand_edited": [],
+  "hand_edited": [
+   "Makefile",
+   "polari_graph.c",
+   "polari_graph.h"
+  ],
   "stale": [],
-  "measured_elf_sha256": "ac4dc4089ec8b8d6949158af215aa438b587c084bbcbd0e89147be282afe2631",
-  "built_at": "2026-10-18T06:43:08",
+  "measured_elf_sha256": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
+  "built_at": "2026-10-18T23:07:06",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -330,16 +334,17 @@
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-light-graph/polari-firmware.json",
-  "manifest_sha256": "9b210ac1c2f3e17b7f22787f6002e701f37e74ec753490d22a9a9e9e0cadece1",
-  "atoms": 19,
+  "manifest_sha256": "e0588d1fc38a00209a5c8cb241c94d204870bde13c1fd4d15ef1d930def7fc28",
+  "atoms": 20,
   "glue_atoms": [
    "polari_graph.apply_command",
    "polari_graph.boot_session_mint",
+   "polari_graph.led_follow_state",
    "polari_graph.led_toggle",
    "polari_graph.main",
    "polari_graph.telemetry_send"
   ],
   "not_isr_safe": 0,
-  "written": true
+  "written": false
  }
 }

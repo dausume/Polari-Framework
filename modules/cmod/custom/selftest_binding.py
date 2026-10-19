@@ -246,9 +246,9 @@ def _button_clock_binding(check):
     b = BND.derive(BC_SOLUTION, manager=None)
     check('the default binding exists, named uno-button-clock@arduino-uno-r3, is_default, provenance derived',
           b is not None and b['name'] == BC_DEFAULT_NAME and b['is_default'] is True and b['provenance'] == 'derived', b)
-    check('status valid, requirements_met == requirements_total == 17 (every required row met — D2/D3\'s interrupt-in '
+    check('status valid, requirements_met == requirements_total == 16 (every required row met — D2/D3\'s interrupt-in '
           'claims resolve through PURE_CONFIG_SEED\'s authored edge/pull, never left incomplete)',
-          b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 17 and b['why'] == '', b)
+          b['status'] == 'valid' and b['requirements_met'] == b['requirements_total'] == 16 and b['why'] == '', b)
     claims_refs = json.loads(b['claims_refs_json'])
     check('claims_refs names PinClaim:…:D2/D3/D6/D13 and the PeripheralClaim(s) for EXINT/GPIO PORTD/USART0',
           all(('PinClaim:%s:%s' % (BC_SOLUTION, p)) in claims_refs for p in ('D2', 'D3', 'D6', 'D13')), claims_refs)

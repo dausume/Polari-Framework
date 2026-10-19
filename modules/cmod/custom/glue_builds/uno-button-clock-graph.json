@@ -234,29 +234,30 @@
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
-  "hex_sha256": "d26ddf2e622d2ee5dcf95c5ceb36e65f2251abcfeccd7f27c75b07683119aeb7",
-  "size_text": 13772,
+  "hex_sha256": "cdce17e5daf62f84b711075ef5773fa330ad16c718cab3958006d507643039f3",
+  "size_text": 13734,
   "size_data": 18,
-  "size_bss": 1206,
-  "flash_bytes": 13790,
+  "size_bss": 1207,
+  "flash_bytes": 13752,
   "cost_estimate_bytes": 13032,
-  "cost_measured_attributable_bytes": 12818,
+  "cost_measured_attributable_bytes": 12780,
   "cost_measured_breakdown": {
-   "atoms (shipped symbols)": 3984,
+   "atoms (shipped symbols)": 3972,
    "ISR vectors": 416,
-   "main (glue + inlined atoms + inlined library)": 8418
+   "main (glue + inlined atoms + inlined library)": 8392
   },
   "runtime_bytes": 954,
-  "cost_why": "estimated 13032 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 12818 B attributable (atoms (shipped symbols) 3984, ISR vectors 416, main (glue + inlined atoms + inlined library) 8418) + 954 B C runtime (vectors, crt, libgcc) = .text 13772 B",
+  "cost_why": "estimated 13032 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 12780 B attributable (atoms (shipped symbols) 3972, ISR vectors 416, main (glue + inlined atoms + inlined library) 8392) + 954 B C runtime (vectors, crt, libgcc) = .text 13734 B",
   "estimate_minus_attributable": {
-   "bytes": 214,
+   "bytes": 252,
    "atoms_inlined_or_smaller_shipped": {
-    "apps/button_clock.apply_command": 942,
+    "apps/button_clock.apply_command": 918,
     "apps/button_clock.boot_session_mint": 74,
     "apps/button_clock.clock_set": 564,
     "apps/button_clock.events_drain": 462,
     "apps/button_clock.l_led_init": 4,
-    "apps/button_clock.led_toggle": 256,
+    "apps/button_clock.l_led_set": 12,
+    "apps/button_clock.led_toggle": 242,
     "apps/button_clock.queue_pop": 60,
     "apps/button_clock.sense_isr": 384,
     "apps/button_clock.telemetry_send": -2672,
@@ -268,13 +269,17 @@
     "hal.hal_sense_read": 28,
     "hal.hal_take_toggle_pending": 16
    },
-   "explained_bytes": 212
+   "explained_bytes": 186
   },
   "files_sha256": "d047a584d019844a25150ef604d5225d6eea397c28362673dd87908c48a4616e",
-  "hand_edited": [],
+  "hand_edited": [
+   "Makefile",
+   "polari_graph.c",
+   "polari_graph.h"
+  ],
   "stale": [],
-  "measured_elf_sha256": "733173b060c19db50c6ef86f77b9ce77d35f01dab0f26ed390215ac52b224d30",
-  "built_at": "2026-10-18T06:42:21",
+  "measured_elf_sha256": "8283eb1af14470b0a7f6344bdfa8e0f8955d3e09c4a9e966008b2346b8a42941",
+  "built_at": "2026-10-18T23:06:51",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -456,8 +461,8 @@
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-button-clock-graph/polari-firmware.json",
-  "manifest_sha256": "5a4c9e11a05a0e7c235ef7c7c9be33fd8764bfbc49e913c3aa2e8d97d5ee8615",
-  "atoms": 30,
+  "manifest_sha256": "9a4dbc7ee05867555922dc86ca909e92e6b78ff2d8afaf290e1e4aa2490df68b",
+  "atoms": 31,
   "glue_atoms": [
    "polari_graph.apply_command",
    "polari_graph.boot_session_mint",
@@ -467,6 +472,7 @@
    "polari_graph.events_queue",
    "polari_graph.l_led_init",
    "polari_graph.l_led_set",
+   "polari_graph.led_follow_state",
    "polari_graph.led_toggle",
    "polari_graph.main",
    "polari_graph.queue_pop",
@@ -474,6 +480,6 @@
    "polari_graph.telemetry_send"
   ],
   "not_isr_safe": 0,
-  "written": true
+  "written": false
  }
 }

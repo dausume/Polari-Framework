@@ -67,7 +67,7 @@ SEED_CAPABILITIES = [
          # this slice), replacing the 0e2a stopgap `_project_atom_exists` ref ('uno-button-clock:<atom>', validated
          # directly against the app's POLARI_NODE annotations because no graph existed yet) — same six tasks, the
          # resolver now takes the ordinary `_c_device_task_exists` graph branch like temp-sensor-to-os's own refs.
-         c_device=['%s:clock_tick' % BC_GRAPH, '%s:clock_set' % BC_GRAPH, '%s:led_toggle' % BC_GRAPH,
+         c_device=['%s:clock_tick' % BC_GRAPH, '%s:clock_set' % BC_GRAPH, '%s:led_toggle' % BC_GRAPH, '%s:led_follow_state' % BC_GRAPH,
                    '%s:sense_isr' % BC_GRAPH, '%s:events_queue' % BC_GRAPH, '%s:telemetry_send' % BC_GRAPH],
          # java-bridge / python-backend / typescript-browser: PLANNED — ucd-0e1 built the wire contract + the
          # HardwareBridgeDefinition dict (grpcbridge.mapping_basis.SEED_BUTTON_CLOCK_BRIDGE, not a live row) and

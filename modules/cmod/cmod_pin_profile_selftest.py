@@ -63,9 +63,9 @@ def pin_profile_parts(check):
               sense is not None and sense['origin'] == 'bench' and sense['signal']['direction'] == 'inputs' and sense['task'].startswith('undetermined')
               and sense['drive']['need'] == 'high-impedance' and sense['timing']['edge']['value'] == 'any'
               and 'not of this Purpose' in sense['evidence']['kind'], sense and sense['evidence'])
-        check('pp-0: the control Purpose has the transport rx (reserved), the LED and the sense line; the observe Purpose only the transport tx (reserved)',
+        check('pp-0: the control Purpose has the transport rx (reserved), the LED and the sense line; the observe Purpose the transport tx (reserved) plus, since scl, the LED and the sense line (the sensed level is the board\'s truth about the light)',
               {(p['role'], p['kind']) for p in control['profiles']} == {('the transport', 'uart-rx'), ('the LED', 'digital-out'), ('the sense line', 'interrupt-in')}
-              and {(p['role'], p['kind']) for p in observe['profiles']} == {('the transport', 'uart-tx')}
+              and {(p['role'], p['kind']) for p in observe['profiles']} == {('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the sense line', 'interrupt-in')}
               and all(p['reserved'] for p in observe['profiles'] if p['role'] == 'the transport'),
               [(p['role'], p['kind']) for p in control['profiles'] + observe['profiles']])
         check('pp-0: initialization has the transport rx + tx (init), the LED (init, no sense line: nothing drives the line at run time), and the button with debounce undetermined (no criterion, named)',
@@ -112,8 +112,8 @@ def pin_profile_parts(check):
               set(got) == {('the transport', 'uart-rx'), ('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the button', 'interrupt-in'), ('the sense line', 'interrupt-in')}
               and res['pins_needed'] == 5 and got[('the transport', 'uart-rx')]['reserved'] and got[('the transport', 'uart-tx')]['reserved'], sorted(got))
         led = got[('the LED', 'digital-out')]
-        check('pp-0: the LED drive three Purposes need counts ONCE, listing all three; the transport rx lists the two that use it',
-              sum(1 for p in res['profiles'] if p['role'] == 'the LED') == 1 and led['purposes'] == [INIT, BUTTON, CONTROL]
+        check('pp-0: the LED drive four Purposes need (scl: the observe Purpose too) counts ONCE, listing all four; the transport rx lists the two that use it',
+              sum(1 for p in res['profiles'] if p['role'] == 'the LED') == 1 and led['purposes'] == [INIT, BUTTON, OBSERVE, CONTROL]
               and got[('the transport', 'uart-rx')]['purposes'] == [INIT, CONTROL], (led['purposes'], got[('the transport', 'uart-rx')]['purposes']))
         check('pp-0: the reserved transport profiles carry the lifecycle rows that reserve D0/D1 (bootloader + init + runtime) and the host-participant evidence; default importance is required',
               {c['phase'] for c in got[('the transport', 'uart-rx')]['lifecycle']} >= {'bootloader', 'init', 'runtime'}
@@ -230,7 +230,7 @@ def pin_profile_parts(check):
               led.get('purposes') == [BUTTON, CONTROL] and led.get('importance') == 'required' and r.json['basis'] == 'HardwareMission demo-mission', r.text[:200])
         r = c.simulate_get('/api/missions/anything/pin-profiles?purposes=%s,%s' % (INIT, OBSERVE))
         check('pp-0: ?purposes=a,b names the Purposes when no Mission row exists (works before mis-0 merges); an unnamed Mission without it is a 404',
-              r.status_code == 200 and r.json['basis'] == 'an explicit list of Purposes' and r.json['pins_needed'] == 4 and c.simulate_get('/api/missions/anything/pin-profiles').status_code == 404,
+              r.status_code == 200 and r.json['basis'] == 'an explicit list of Purposes' and r.json['pins_needed'] == 5 and c.simulate_get('/api/missions/anything/pin-profiles').status_code == 404,
               (r.status_code, r.json.get('pins_needed')))
         t = c.simulate_get('/api/pin-profiles').json
         tm = c.simulate_get('/api/pin-profiles?view=mission&purposes=%s' % ','.join(LIGHT)).json

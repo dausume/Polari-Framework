@@ -38,8 +38,8 @@ def _light_atoms(check):
     m = json.load(open(P.manifest_path(P.resolve('uno'))))
     names = {a['name'] for a in m['atoms']}
     own = sorted(n for n in names if n.startswith('apps/light.') and n != 'apps/light.main')
-    check('light.c parses into its atoms: boot_session_mint, led_toggle, apply_command, telemetry_send (+ main)',
-          own == ['apps/light.apply_command', 'apps/light.boot_session_mint', 'apps/light.led_toggle', 'apps/light.telemetry_send']
+    check('light.c parses into its atoms: boot_session_mint, led_toggle, apply_command, led_follow_state (scl), telemetry_send (+ main)',
+          own == ['apps/light.apply_command', 'apps/light.boot_session_mint', 'apps/light.led_follow_state', 'apps/light.led_toggle', 'apps/light.telemetry_send']
           and 'apps/light.main' in names, own)
     rows = _light_nodes()
     atoms = [n for n in rows['nodes'] if n['kind'] == 'c-atom']
