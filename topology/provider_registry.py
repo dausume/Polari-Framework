@@ -54,7 +54,8 @@ PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600,
                   'prf-board-engines': 9830,
                   'prf-formal-engines': 9840,   # sc-2b: CBMC + cppcheck (firmwarefaults.formal)
                   'prf-esp-engines': 9850,   # sc-3: ESP-IDF v5.5.5 + esptool + the QEMU esp32c3 twin (board.esp-engines)
-                  'prf-pcb-engines': 9860}   # pcb-0: kicad-cli (ERC/DRC/exports — pcb.engines)
+                  'prf-pcb-engines': 9860,   # pcb-0: kicad-cli (ERC/DRC/exports — pcb.engines)
+                  'prf-bridge-engines': 9870}   # sim-2: the hosted bridge worker (java + mvn — grpcbridge.engines)
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.

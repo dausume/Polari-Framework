@@ -913,6 +913,9 @@ FEATURE_IMPORT_BLOCKS = (
             'HardwareInterfaceBinding', 'EnumMapping', 'WireContract',
             'SEED_ENUM_MAPPINGS', 'SEED_HARDWARE_BINDINGS',
         )),
+        ('grpcbridge.hosted_basis', (
+            'HostedBridge',   # sim-2: a generated bridge hosted beside a twin session (observed, never seeded)
+        )),
     )),
     ('hwfpga', (
         ('hwfpga.fpga_basis', (

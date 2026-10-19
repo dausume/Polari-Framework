@@ -339,6 +339,9 @@ public final class SerialCdcPort implements DevicePort {
     private final String device;
     private final int baud;
     private final Opener opener;
+    /** log-event prefix: "serial" for a CDC device, "tcp" when the
+     *  TcpDevicePort drives this lifecycle over a socket. */
+    private final String kind;
     private PushbackInputStream in;
     private OutputStream out;
     private long framesSinceOpen;
@@ -350,9 +353,15 @@ public final class SerialCdcPort implements DevicePort {
     }
 
     SerialCdcPort(String device, int baud, Opener opener) throws Exception {
+        this(device, baud, opener, "serial");
+    }
+
+    SerialCdcPort(String device, int baud, Opener opener, String kind)
+            throws Exception {
         this.device = device;
         this.baud = baud;
         this.opener = opener != null ? opener : new RealOpener();
+        this.kind = kind;
         open();
     }
 
@@ -366,7 +375,7 @@ public final class SerialCdcPort implements DevicePort {
         this.out = opener.openOutput(device, openAttempts);
         framesSinceOpen = 0;
         openAttempts++;
-        System.out.println("{\"t\":\"serial-open\",\"device\":\""
+        System.out.println("{\"t\":\"" + kind + "-open\",\"device\":\""
                 + device + "\",\"attempt\":" + openAttempts + "}");
         requestSnapshots();
     }
@@ -392,7 +401,7 @@ public final class SerialCdcPort implements DevicePort {
                 framesSinceOpen++;
                 return p;
             } catch (IOException lost) {  // EOFException IS an IOException
-                System.out.println("{\"t\":\"serial-lost\",\"device\":\""
+                System.out.println("{\"t\":\"" + kind + "-lost\",\"device\":\""
                         + device + "\",\"after_frames\":" + framesSinceOpen
                         + "}");
                 closeQuiet();
@@ -448,7 +457,7 @@ public final class SerialCdcPort implements DevicePort {
 
     @Override
     public String describe() {
-        return "serial " + device;
+        return kind + " " + device;
     }
 
     @Override
@@ -478,6 +487,124 @@ public final class SerialCdcPort implements DevicePort {
         public OutputStream openOutput(String device, int attempt)
                 throws Exception {
             return new FileOutputStream(device);
+        }
+    }
+}
+'''
+
+TCP_PORT_JAVA = r'''package org.polari.bridge;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
+/**
+ * brg-0: a simulated device reached over TCP - the raw USART port of
+ * a twin SESSION (polari-avr-twin --tcp, hosted by the engines
+ * worker). `source=twin-tcp` with `twin.host` and `twin.port` in
+ * bridge.properties; the SAME frames and codecs as the serial port,
+ * because the connection lifecycle IS SerialCdcPort's: the twin
+ * closing the connection (EOF, an IOException) is logged
+ * (tcp-lost), reopened with backoff (0.5s, 1, 2, 4, capped at 8s,
+ * forever) and every (re)attach requests a SNAPSHOT from each class
+ * that declares one. Only the opener differs - a socket instead of
+ * stty + a device file.
+ *
+ * The first connect is retried too (a bridge started beside a
+ * session may beat the twin's listener by a moment) for up to
+ * `twin.connect_timeout_s`; after that the constructor throws, like
+ * a serial device that is not there.
+ */
+public final class TcpDevicePort implements DevicePort {
+    private final String host;
+    private final int port;
+    private final SerialCdcPort inner;
+
+    public TcpDevicePort(String host, int port, int connectTimeoutS)
+            throws Exception {
+        this.host = host;
+        this.port = port;
+        long deadline = System.nanoTime()
+                + connectTimeoutS * 1_000_000_000L;
+        long backoffMs = 250;
+        SerialCdcPort opened;
+        while (true) {
+            try {
+                opened = new SerialCdcPort(host + ":" + port, 0,
+                        new TcpOpener(host, port), "tcp");
+                break;
+            } catch (Exception failed) {
+                if (System.nanoTime() + backoffMs * 1_000_000L > deadline) {
+                    throw new IOException("cannot reach the twin at "
+                            + host + ":" + port + " within "
+                            + connectTimeoutS + "s: " + failed, failed);
+                }
+                Thread.sleep(backoffMs);
+                backoffMs = Math.min(backoffMs * 2, 2000);
+            }
+        }
+        this.inner = opened;
+    }
+
+    @Override
+    public PolariPacket next() throws Exception {
+        return inner.next();
+    }
+
+    @Override
+    public void send(PolariPacket packet) throws Exception {
+        inner.send(packet);
+    }
+
+    @Override
+    public long reconnects() {
+        return inner.reconnects();
+    }
+
+    @Override
+    public String describe() {
+        return "twin-tcp " + host + ":" + port;
+    }
+
+    @Override
+    public void close() throws Exception {
+        inner.close();
+    }
+
+    /** One socket per attempt: openInput connects, openOutput hands
+     *  back the same socket's output stream. */
+    private static final class TcpOpener implements SerialCdcPort.Opener {
+        private final String host;
+        private final int port;
+        private Socket current;
+
+        TcpOpener(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+
+        @Override
+        public InputStream[] openInput(String device, int baud,
+                                       int attempt) throws Exception {
+            Socket s = new Socket();
+            try {
+                s.setTcpNoDelay(true);
+                s.setKeepAlive(true);
+                s.connect(new InetSocketAddress(host, port), 3000);
+            } catch (IOException e) {
+                s.close();
+                throw e;
+            }
+            current = s;
+            return new InputStream[]{s.getInputStream()};
+        }
+
+        @Override
+        public OutputStream openOutput(String device, int attempt)
+                throws Exception {
+            return current.getOutputStream();
         }
     }
 }
@@ -593,6 +720,7 @@ public final class LifecycleSelfTest {
         failures += testGap();
         failures += testReboot();
         failures += testSnapshotOnAttach();
+        failures += testTcpPort();
         if (failures > 0) {
             System.out.println("LIFECYCLE FAILED: " + failures);
             System.exit(1);
@@ -735,6 +863,81 @@ public final class LifecycleSelfTest {
         return t.observe(p.msgType, p.sequence, boot);
     }
 
+    /** (e) brg-0: TcpDevicePort over a real loopback socket - two frames,
+     *  the server hangs up, the port reconnects (tcp-lost / tcp-open)
+     *  and the third frame arrives with no gap; a closed port is
+     *  refused within the connect timeout. */
+    private static int testTcpPort() {
+        int msgType = firstMsgType();
+        if (msgType < 0) {
+            System.out.println("SKIP: lifecycle tcp port - no exposed class");
+            return 0;
+        }
+        try (java.net.ServerSocket server = new java.net.ServerSocket(0, 2,
+                java.net.InetAddress.getByName("127.0.0.1"))) {
+            final byte[] f50 = new PolariPacket(msgType, 7, 50,
+                    CodecRegistry.sampleFrame(msgType, 50)).encode();
+            final byte[] f51 = new PolariPacket(msgType, 7, 51,
+                    CodecRegistry.sampleFrame(msgType, 51)).encode();
+            final byte[] f52 = new PolariPacket(msgType, 7, 52,
+                    CodecRegistry.sampleFrame(msgType, 52)).encode();
+            Thread t = new Thread(() -> {
+                try {
+                    try (java.net.Socket c = server.accept()) {
+                        c.getOutputStream().write(concat(f50, f51));
+                        c.getOutputStream().flush();
+                    }
+                    try (java.net.Socket c = server.accept()) {
+                        c.getOutputStream().write(f52);
+                        c.getOutputStream().flush();
+                        c.getInputStream().read(new byte[256]);
+                    }
+                } catch (Exception ignore) {
+                    // the client side asserts
+                }
+            });
+            t.setDaemon(true);
+            t.start();
+            PolariPacket a, b, c3;
+            long reconnects;
+            String described;
+            try (TcpDevicePort port = new TcpDevicePort("127.0.0.1",
+                    server.getLocalPort(), 5)) {
+                a = port.next();
+                b = port.next();
+                c3 = port.next();
+                reconnects = port.reconnects();
+                described = port.describe();
+            }
+            boolean frames = a != null && b != null && c3 != null
+                    && a.sequence == 50 && b.sequence == 51
+                    && c3.sequence == 52;
+            boolean ok = frames && reconnects == 1
+                    && described.startsWith("twin-tcp ");
+            int closedPort;
+            try (java.net.ServerSocket s0 = new java.net.ServerSocket(0)) {
+                closedPort = s0.getLocalPort();
+            }
+            long t0 = System.nanoTime();
+            boolean refused = false;
+            try {
+                new TcpDevicePort("127.0.0.1", closedPort, 1).close();
+            } catch (java.io.IOException expected) {
+                refused = true;
+            }
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            ok = ok && refused && ms < 4000;
+            System.out.println((ok ? "PASS" : "FAIL")
+                    + ": lifecycle tcp port frames=" + frames
+                    + " reconnects=" + reconnects
+                    + " closed-port refused=" + refused + " in " + ms + "ms");
+            return ok ? 0 : 1;
+        } catch (Exception e) {
+            System.out.println("FAIL: lifecycle tcp port threw " + e);
+            return 1;
+        }
+    }
+
     /** (d) the first bytes written to the port after open ARE the
      *  snapshot command — for whichever class of this bridge declares
      *  `snapshot` (none: nothing written, SKIP honestly). */
@@ -821,9 +1024,12 @@ public final class BridgeConfig {
     /** grpc-j4: this bridge's name + its hardware-interface bindings. */
     public final String bridgeName;
     public final List<BridgeBinding> bindings = new ArrayList<>();
-    public final String source;        // simulated | serial
+    public final String source;        // simulated | serial | twin-tcp
     public final String serialDevice;
     public final int baud;
+    public final String twinHost;      // brg-0: source=twin-tcp
+    public final int twinPort;
+    public final int twinConnectTimeoutS;
     public final int simRateHz;        // 0 = as fast as possible
     public final long maxFrames;       // 0 = run forever
     public final int deviceId;
@@ -836,6 +1042,11 @@ public final class BridgeConfig {
                 p.getProperty("serial.device", "/dev/ttyACM0");
         this.baud = Integer.parseInt(
                 p.getProperty("serial.baud", "115200"));
+        this.twinHost = p.getProperty("twin.host", "127.0.0.1");
+        this.twinPort = Integer.parseInt(
+                p.getProperty("twin.port", "9831"));
+        this.twinConnectTimeoutS = Integer.parseInt(
+                p.getProperty("twin.connect_timeout_s", "30"));
         this.simRateHz = Integer.parseInt(
                 p.getProperty("sim.rate_hz", "10"));
         this.maxFrames = Long.parseLong(
@@ -922,9 +1133,16 @@ public final class BridgeMain {
 
         // grpc-j4: bindings → one port per bound interface, routed by
         // (class, instance index); none → the single legacy port.
-        DevicePort port = !"serial".equals(cfg.source)
+        // brg-0: source=twin-tcp reaches a twin SESSION's raw USART
+        // port (twin.host / twin.port) with the serial port's own
+        // frames and lifecycle.
+        boolean twin = "twin-tcp".equals(cfg.source);
+        DevicePort port = twin && cfg.bindings.isEmpty()
+                ? new TcpDevicePort(cfg.twinHost, cfg.twinPort,
+                        cfg.twinConnectTimeoutS)
+                : !twin && !"serial".equals(cfg.source)
                 ? new SimulatedDevice(cfg.deviceId, cfg.simRateHz)
-                : cfg.bindings.isEmpty()
+                : !twin && cfg.bindings.isEmpty()
                 ? new SerialCdcPort(cfg.serialDevice, cfg.baud)
                 : new BindingRouter(cfg);
 

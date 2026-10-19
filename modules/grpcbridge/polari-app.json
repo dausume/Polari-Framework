@@ -40,6 +40,7 @@
       "objects/contract/GrpcExposure",
       "objects/contract/ProtoContractVersion",
       "objects/hwsim/SimRigState",
+      "objects/hosted/HostedBridge",
       "objects/hwsim/_shared",
       "objects/java_bridge/HardwareBridgeDefinition",
       "objects/mapping/EnumMapping",
@@ -48,26 +49,36 @@
     ],
     "basis": [
       "contract_basis",
+      "hosted_basis",
       "hwsim_basis",
       "java_bridge_basis",
       "mapping_basis"
     ],
     "api": [
       "contract_api",
-      "java_bridge_api"
+      "java_bridge_api",
+      "hosted_bridges_api"
     ],
     "selftests": [
       "c_twin_selftest",
       "c_twin_wire_selftest",
       "contracts_selftest",
+      "grpcbridge_hosted_selftest",
       "javabridge_selftest",
       "serving_selftest"
     ],
     "custom": [
+      "custom/bridge_engines",
       "custom/c_twin",
       "custom/c_twin_v2",
       "custom/descriptor_build",
       "custom/grpc_server",
+      "custom/hosted_bridges",
+      "custom/hosted_checks",
+      "custom/hosted_cli",
+      "custom/hosted_fakes",
+      "custom/hosted_proof",
+      "custom/hosted_worker",
       "custom/java_bridge",
       "custom/java_bridge_codegen",
       "custom/java_bridge_templates",
@@ -87,7 +98,9 @@
     "HardwareInterfaceBinding",
     "ProtoContractVersion",
     "SimRigState",
-    "WireContract"
+    "WireContract",
+    "HostedBridge",
+    "HostedBridgesAPI"
   ],
   "imports": [
     [
@@ -119,6 +132,12 @@
         "SEED_ENUM_MAPPINGS",
         "SEED_HARDWARE_BINDINGS"
       ]
+    ],
+    [
+      "grpcbridge.hosted_basis",
+      [
+        "HostedBridge"
+      ]
     ]
   ],
   "endpoints": "polariApiServer.module_endpoints:construct_grpcbridge_endpoints",
@@ -129,6 +148,7 @@
   "selftests": [
     "c_twin_selftest",
     "contracts_selftest",
+    "grpcbridge_hosted_selftest",
     "javabridge_selftest",
     "serving_selftest"
   ],
