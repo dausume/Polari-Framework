@@ -11,10 +11,9 @@ The Mission row carries `sample_solutions`: a list of entries {id, config, kind 
   - an entry whose config is not built yet (the ESP32-C3 sample S5 until its build lands) is shown as "not built yet" - never as a failure.
 `scope=all` is the old behaviour (every non-failed solution, every plan, every failure), `scope=plans` the plans nobody built, `scope=finished` every finished config (the sample or not).
 
-THE S5 HOOK (the ESP32-C3 build, another agent's slice smp-2): the entry already exists in cmod.custom.mission_seeds.SAMPLE_SOLUTIONS with config `c3-light-freertos` and `twin_only`. To join the sample the build only
-has to (1) make `cmod.custom.fsc_link.configs()` return a config of that name (a FirmwareVariant row, or an addition to configs() that reads board.custom.variants_c3), with `board_definition` set to the C3 board and
-`features_json` / `knobs_json` that `config_routes` can read, and (2) have the four Purposes' runs stored with variant = that name (`acceptance.run(..., variant=)` / `pol firmware prove`). Until then it reads `not built yet`.
-If the build uses another config name, change the `config` of the S5 entry (the Mission row converges at boot); nothing else here names it.
+S5 (the ESP32-C3, config `esp32c3-light`, twin only): fsc_link.configs() includes the C3 seed; the config is another board than the UNO solver's candidates, so it is linked to none of them and its state is read
+by fsc_link.config_state off its own ScenarioRuns (`finished` = the four Purposes proven on it: `pol firmware prove esp32c3-light`, which needs the esp engines image). It is shown in the sample table with that state;
+it is not scored among the UNO solutions (no C3 plan exists in the solver). If its config is missing the entry reads `not built yet`, never a failure.
 
 A sample FAILURE may state a SAFETY DEADLINE of its own (`safety_deadline`: {purpose, key, safety_critical: true}). That is the D-fsc-1 rule ("a deadline flagged safety-critical that is missed is a failure")
 applied to ONE sample entry, WITHOUT touching the real Mission or its Purposes: the deadline's VALUE is read from the Purpose's own criterion (ensure-button-controls-light: max_latency_ms 100 ms), the safety flag is
@@ -160,7 +159,11 @@ def sample_rows(built, sample):
                 row.update(state='not a failure now', outcome='%s no longer fails a Purpose or a safety-critical deadline' % cfg)
         else:
             r = recs.get(cfg)
-            if r is None:
+            cs = (built.get('config_states') or {}).get(cfg)
+            if r is None and cs is not None:
+                row.update(state='finished' if cs['state'] == 'finished' else 'built, not finished',
+                           outcome=cs['why'] + ' (it is another board than the UNO solver\'s candidates, so it is proven here but not scored among them)')
+            elif r is None:
                 why = next((u['why'] for u in built.get('unmatched_configs') or [] if u['config'] == cfg), 'it is not matched to a plan of this Mission')
                 row.update(state='built, not scored', outcome=why)
             elif r['state'] == 'finished':

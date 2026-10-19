@@ -122,7 +122,11 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
                         'values': hw, 'purpose_values': pv, 'also_on': c['also_on'], 'label': (link['config'] if link and st['state'] == 'finished' else c['routes_text']), 'short_label': LB.short_label(c, jobs_vary, tier_vary),
                         'unflagged_deadline_misses': F.unflagged_violations(c)})
     SM.tag(sample, records, [])
-    out = {'mission': mission, 'sample': sample, 'sample_notes': sample_notes, 'known_configs': known, 'records': records, 'failures': failures, 'suggestions': F.suggestions(ctx['purposes']), 'unmatched_configs': unmatched, 'ctx': ctx,
+    linked_cfgs = {(r.get('link') or {}).get('config') for r in records}
+    # a sample success of ANOTHER board (S5, the ESP32-C3) is linked to none of the UNO solver's candidates: its state is read off its own ScenarioRuns (fsc_link.config_state)
+    config_states = {e['config']: L.config_state(e['config'], ctx, manager) for e in sample if e['kind'] == 'success' and e['config'] in known and e['config'] not in linked_cfgs
+                     and not e.get('safety_deadline')}
+    out = {'mission': mission, 'sample': sample, 'sample_notes': sample_notes, 'known_configs': known, 'config_states': config_states, 'records': records, 'failures': failures, 'suggestions': F.suggestions(ctx['purposes']), 'unmatched_configs': unmatched, 'ctx': ctx,
            'counts': {'candidates': len(ranked), 'distinct_plans': len(reps), 'failed': len(failures), 'finished': sum(1 for r in records if r['state'] == 'finished'),
                       'plan': sum(1 for r in records if r['state'] == 'plan')}, 'solve_sha256': res['result_sha256'], 'proof': proof[0], 'cache_key': key}
     if len(_CACHE) > 4:

@@ -137,9 +137,13 @@ def main():
     served['fsc-breakdown'] = bd['rows'][0]
     check('breakdown door: `rows` mirrors `terms` (so a table can read it)', bd['rows'] == bd['terms'] and len(bd['rows']) > 0)
     allrows = get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows']
-    plan = next((r for r in allrows if r['state'] == 'plan' and not r['built_as']), None)
+    plan, pk = None, {}
+    for cand in [r for r in allrows if r['state'] == 'plan' and not r['built_as']][:40]:     # the first plan whose routes are all sized (a route with no size reads `stand-in`, a different honest word)
+        pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=%s' % (MISSION, cand['solution'], 'fsc-room-to-grow')).json['rows']}
+        if pk.get('Flash left') != 'stand-in':
+            plan = cand
+            break
     if plan:
-        pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=%s' % (MISSION, plan['solution'], 'fsc-room-to-grow')).json['rows']}
         check('fsc-3b: a PLAN\'s flash / RAM / blocks left read "estimated" (route-sum sizes, never "measured"); pins left stay measured (counted from its assignment)',
               [pk.get('Flash left'), pk.get('RAM left'), pk.get('Chip blocks left'), pk.get('Pins left')] == ['estimated', 'estimated', 'estimated', 'measured'], pk)
     from cmod.custom import fsc_values as V
@@ -254,9 +258,9 @@ def main():
             if gone:
                 miss2[i['id']] = gone
     check('smp-0 PAGE: every column of the sample table, the sample-scope ranking, the top table, the failures and the plans tab is a field of the row its door serves', not miss2 and len(served2) == 8, miss2)
-    check('smp-0 PAGE: the sample ranking is 4 rows (S1..S4), the failures table gets F1 and F2 only, the sample table 7 rows (S5 "not built yet"), and the plans tab ranks only plans (state plan)',
+    check('smp-0 PAGE: the sample ranking is 4 rows (S1..S4), the failures table gets F1 and F2 only, the sample table 7 rows (S5 built but not finished), and the plans tab ranks only plans (state plan)',
           [r['sample'] for r in sorted(srows, key=lambda r: r['sample'])] == ['S1', 'S2', 'S3', 'S4'] and sorted(r['sample'] for r in sfail) == ['F1', 'F2'] and len(sam['rows']) == 7
-          and [r['state'] for r in sam['rows']][4] == 'not built yet' and plans['scope'] == 'plans' and all(r['state'] in ('plan', 'failed') for r in plans['rows']) and len(plans['rows']) > 100 and pbp['state'] == 'plan', (len(srows), len(plans['rows'])))
+          and [r['state'] for r in sam['rows']][4] == 'built, not finished' and plans['scope'] == 'plans' and all(r['state'] in ('plan', 'failed') for r in plans['rows']) and len(plans['rows']) > 100 and pbp['state'] == 'plan', (len(srows), len(plans['rows'])))
 
     print('-- graph, nav, manifest')
     from cmod.cmod_fsc_page import FSC_GRAPHS

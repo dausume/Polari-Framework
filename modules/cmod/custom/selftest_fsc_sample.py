@@ -157,36 +157,35 @@ def sample_parts(check):
     def not_built():
         code, d = get('/api/firmware-scores/sample')
         rows = {r['id']: r for r in d['rows']}
-        check('smp-0 SAMPLE DOOR: GET /api/firmware-scores/sample lists the seven entries in order with their state: S1..S4 finished, S5 NOT BUILT YET, F1 and F2 failed: %s' % {k: v['state'] for k, v in rows.items()},
+        check('smp-0 SAMPLE DOOR: GET /api/firmware-scores/sample lists the seven entries in order with their state: S1..S4 finished, S5 (esp32c3-light, no runs yet) built but not finished, F1 and F2 failed: %s' % {k: v['state'] for k, v in rows.items()},
               code == 200 and [r['id'] for r in d['rows']] == ['S1', 'S2', 'S3', 'S4', 'S5', 'F1', 'F2'] and [rows[i]['state'] for i in ('S1', 'S2', 'S3', 'S4')] == ['finished'] * 4
-              and rows['S5']['state'] == 'not built yet' and rows['F1']['state'] == 'failed' and rows['F2']['state'] == 'failed', {k: v['state'] for k, v in rows.items()})
-        check('smp-0 SAMPLE DOOR: S5 is said to be "not built yet" in plain words and is never a failure (not in the failures, not scored), and the door says the history exists',
-              'not a failure' in rows['S5']['outcome'] and rows['S5']['twin_only'] and 'c3-light-freertos' in rows['S5']['outcome'] and d['history'] and d['states'].get('not built yet') == 1, rows['S5'])
+              and rows['S5']['state'] == 'built, not finished' and rows['F1']['state'] == 'failed' and rows['F2']['state'] == 'failed', {k: v['state'] for k, v in rows.items()})
+        check('smp-0 SAMPLE DOOR: S5 says in plain words which Purposes are not proven on it yet, is twin-only, is never a failure, and the door says the history exists',
+              'not every Purpose is proven' in rows['S5']['outcome'] and rows['S5']['twin_only'] and rows['S5']['config'] == 'esp32c3-light' and d['history'], rows['S5'])
         _c, sc = get('/api/firmware-scores', profile='fsc-fastest')
-        check('smp-0 SAMPLE DOOR: S5 is not in the scores door at all - neither ranked nor failed', not any('c3-light-freertos' in json.dumps(r) for r in sc['rows']))
+        check('smp-0 SAMPLE DOOR: S5 is not in the scores door at all - neither ranked nor failed (the UNO solver has no C3 candidate)', not any('esp32c3-light' in json.dumps(r) for r in sc['rows']))
         # a Mission with NO sample falls back to the whole set, and the sample door has no entries
         from cmod.custom import fsc_sample as SM
         check('smp-0 SAMPLE DOOR: a Mission with no sample has the `all` scope as its default (not an empty page)', SM.default_scope([]) == 'all')
-        # the S5 hook: when a config of that name appears, the entry follows it (no code change)
+        # without the C3 config the entry reads "not built yet" (never a failure); with the four Purposes proven on it, `finished`
         from cmod.custom import fsc_link as L
+        from cmod.custom import fsc_run as R
         orig = L.configs
-
-        def with_c3(manager=None):
-            rows_ = dict(orig(manager))
-            rows_['c3-light-freertos'] = dict(rows_['uno-light-sense-poll'], name='c3-light-freertos')
-            return rows_
-        L.configs = with_c3
+        L.configs = lambda manager=None: {k: v for k, v in orig(manager).items() if k != 'esp32c3-light'}
         try:
-            from cmod.custom import fsc_run as R
             R._CACHE.clear()
             _c, d2 = get('/api/firmware-scores/sample')
             s5 = next(r for r in d2['rows'] if r['id'] == 'S5')
         finally:
             L.configs = orig
-            from cmod.custom import fsc_run as R
             R._CACHE.clear()
-        check('smp-0 SAMPLE DOOR: the S5 HOOK - once a config named c3-light-freertos exists the entry reads it (here a stand-in: it is built but not proven, so `built, not finished`, still not a failure): %s' % s5['state'],
-              s5['state'] in ('built, not finished', 'built, not scored', 'finished'), s5)
+        check('smp-0 SAMPLE DOOR: with no config named esp32c3-light the entry reads "not built yet" and says it is not a failure: %s' % s5['state'], s5['state'] == 'not built yet' and 'not a failure' in s5['outcome'], s5)
+        stub_runs(world(), ['esp32c3-light'])
+        R._CACHE.clear()
+        _c, d3 = get('/api/firmware-scores/sample')
+        s5b = next(r for r in d3['rows'] if r['id'] == 'S5')
+        check('smp-0 SAMPLE DOOR: with the four Purposes\' runs stored for esp32c3-light the entry reads `finished` (proven on the C3 twin; not scored among the UNO solutions): %s' % s5b['state'],
+              s5b['state'] == 'finished' and 'every Purpose is proven' in s5b['outcome'], s5b)
 
     # ------------------------------------------------------------------ F2
     def safety_failure():
