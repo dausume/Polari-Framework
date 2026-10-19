@@ -175,10 +175,10 @@ class HardwareBridgeAPI(treeObject):
                     ('notes', 'notes', str)):
                 if key in payload:
                     if key == 'source' and payload[key] not in (
-                            'simulated', 'serial'):
+                            'simulated', 'serial', 'twin-tcp'):
                         return self._refuse(
                             response,
-                            'source must be simulated | serial')
+                            'source must be simulated | serial | twin-tcp')
                     setattr(bridge, attr, cast(payload[key]))
                     changed[key] = payload[key]
             try:

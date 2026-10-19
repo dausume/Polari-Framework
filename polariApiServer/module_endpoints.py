@@ -358,6 +358,11 @@ def construct_grpcbridge_endpoints(polServer):
     from grpcbridge.java_bridge_api import HardwareBridgeAPI
     hardwareBridgeEndpoint = HardwareBridgeAPI(
         polServer=polServer, manager=manager)
+    # sim-2: the generated bridge hosted beside a twin session
+    # (/api/grpc/hosted-bridges, /api/grpc/hosted-engines).
+    from grpcbridge.hosted_bridges_api import HostedBridgesAPI
+    hostedBridgesEndpoint = HostedBridgesAPI(
+        polServer=polServer, manager=manager)
 
 
 def construct_hwfpga_endpoints(polServer):
