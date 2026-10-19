@@ -109,23 +109,26 @@ def fsc_parts(check):
         from cmod.custom import fsc_link as L
         b = built()
         linked = {r['link']['config']: r for r in b['records'] if r['link']}
-        check('fsc-0 LINK: the six built configs that carry a route for EVERY job of the Mission (the three of fgm-5b and the sample S2, S3, S4 of smp-1) resolve to the candidate whose routes they implement: %s' % sorted(linked),
-              sorted(linked) == ['uno-button-clock', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-sense-pcint', 'uno-light-sense-poll', 'uno-light-transistor'], sorted(linked))
-        want = {'uno-button-clock': {'read-button': 'ext-interrupt', 'sense-led-line': 'ext-interrupt', 'drive-led': 'gpio-out'}, 'uno-light-sense-poll': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll', 'drive-led': 'gpio-out'},
+        check('fsc-0 LINK: the six built configs that carry a route for EVERY job of the Mission (uno-light with its sense line, uno-button-clock, uno-light-sense-pcint and the sample S2, S3, S4 of smp-1; uno-light-sense-poll has the same routes as uno-light and is its duplicate) resolve to the candidate whose routes they implement: %s' % sorted(linked),
+              sorted(linked) == ['uno-button-clock', 'uno-light', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-sense-pcint', 'uno-light-transistor'], sorted(linked))
+        want = {'uno-button-clock': {'read-button': 'ext-interrupt', 'sense-led-line': 'ext-interrupt', 'drive-led': 'gpio-out'},
                 'uno-light-sense-pcint': {'read-button': 'ext-interrupt', 'sense-led-line': 'pin-change-interrupt', 'drive-led': 'gpio-out'},
+                'uno-light': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll', 'drive-led': 'gpio-out'},
                 'uno-light-all-pcint': {'read-button': 'pin-change-interrupt', 'sense-led-line': 'pin-change-interrupt', 'drive-led': 'gpio-out'},
                 'uno-light-pwm-analog': {'read-button': 'analog-threshold', 'sense-led-line': 'gpio-poll', 'drive-led': 'pwm'},
                 'uno-light-transistor': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll', 'drive-led': 'transistor-switch'}}
         check('fsc-0 LINK: the linked candidate\'s routes are exactly the config\'s DERIVED routes (derived from the variant features and knobs - button_route, sense_route, led_route - not typed in)',
               all(r['candidate']['routes'].get(j) == rt for cfg, r in linked.items() for j, rt in want[cfg].items()))
         check('fsc-0 LINK: uno-button-clock is a FirmwareSolution row; the two fgm-5b configs are FirmwareVariants (no FirmwareSolution row exists for them) and the link says which',
-              linked['uno-button-clock']['link']['kind'] == 'FirmwareSolution' and linked['uno-light-sense-poll']['link']['kind'] == 'FirmwareVariant')
+              linked['uno-button-clock']['link']['kind'] == 'FirmwareSolution' and linked['uno-light-sense-pcint']['link']['kind'] == 'FirmwareVariant' and linked['uno-light']['link']['kind'] == 'FirmwareSolution')
         un = {u['config']: u['why'] for u in b['unmatched_configs']}
         check('fsc-0 LINK (fsc-0b): configs built for ANOTHER job (uno-sim-rig, -pair, -blink-only, -adc-sweep, -echo: no route for a job that triggers a Purpose) are NOT candidates of this Mission and say why; the light configs are not in that list',
-              set(un) == {'uno-sim-rig', 'uno-pair', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} and all(w.startswith('not a candidate for this Mission: it was built for another job') for w in un.values()) and 'read-button' in un['uno-sim-rig'], sorted(un))
+              {'uno-sim-rig', 'uno-pair', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} <= set(un) and set(un) - {'uno-sim-rig', 'uno-pair', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} == {'uno-light-sense-poll'}
+              and all(w.startswith('not a candidate for this Mission: it was built for another job') for c, w in un.items() if c != 'uno-light-sense-poll') and 'read-button' in un['uno-sim-rig']
+              and un['uno-light-sense-poll'] == 'resolves to the same candidate as uno-light', sorted(un))
         cf = {f['config']: f for f in b['failures'] if f['kind'] == 'purpose-unfulfilled'}
-        check('fsc-0b FAILURES: uno-light, -pcint, -analog and -v2 (built for this Mission, no route for sense-led-line) are FAILURES: the Purposes that job serves (derived from the Mission, not typed), the reason in plain words, no rank, no score',
-              set(cf) == {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} and all(f['state'] == 'failed' and f['rank'] is None and f['purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state'
+        check('fsc-0b FAILURES: uno-light-unsensed, uno-light-pcint, -analog and -v2 (built for this Mission, no route for sense-led-line) are FAILURES: the Purposes that job serves (derived from the Mission, not typed), the reason in plain words, no rank, no score',
+              set(cf) == {'uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} and all(f['state'] == 'failed' and f['rank'] is None and f['purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state'
                                                                                                     and 'sense-led-line' in f['reason'] and 'does not fulfil' in f['reason'] and f['solution'] == f['config'] for f in cf.values()), sorted(cf))
         check('fsc-0b FAILURES: a failing config never appears among the records (so it is never scored or compared) and is counted in counts.failed (%d)' % b['counts']['failed'],
               not ({r['link']['config'] for r in b['records'] if r['link']} & set(cf)) and b['counts']['failed'] == len(b['failures']) and len(cf) == 4)
@@ -145,7 +148,7 @@ def fsc_parts(check):
         from cmod.custom import capabilities as CAP
         from cmod.custom import fsc_run as R
         runs = mgr.objectTables.setdefault('ScenarioRun', {})
-        three = ['uno-button-clock', 'uno-light-sense-pcint', 'uno-light-sense-poll']
+        three = ['uno-button-clock', 'uno-light-sense-pcint', 'uno-light']
 
         def put(config, purposes=None, outcome='passed'):
             for i, p in enumerate(mb['ctx']['purposes']):
@@ -159,27 +162,27 @@ def fsc_parts(check):
             return built_, {r['link']['config'] for r in built_['records'] if r['state'] == 'finished'}, {r['link']['config']: r for r in built_['records'] if r['link']}
         check('fsc-0b PROOF: all four Purposes of the Mission now have an acceptance scenario (initialization-acceptance), so nothing is `unprovable`',
               all(CAP.find(p['purpose']).get('acceptance_scenario') for p in mb['ctx']['purposes']) and CAP.find('initialization')['acceptance_scenario'] == 'initialization-acceptance')
-        put('uno-light')
+        put('uno-light-unsensed')
         b1, fin, by = finished()
-        check('fsc-0b PROOF (the honest reading): every Purpose proven on uno-light proves NOTHING for the three linked configs - their firmware was not the one run - so none is finished and the reason says so',
+        check('fsc-0b PROOF (the honest reading): every Purpose proven on another config (uno-light-unsensed) proves NOTHING for the three linked configs - their firmware was not the one run - so none is finished and the reason says so',
               not fin and b1['counts']['finished'] == 0 and all("no ScenarioRun of config %s's own firmware" % c in by[c]['state_why'] for c in three), by['uno-button-clock']['state_why'][:300])
         for c in three:
             put(c)
         b2, fin, by = finished()
         check('fsc-0 FINISHED: built AND every Purpose proven by runs of THAT config\'s own firmware -> finished: %s; every other candidate stays plan (%d)' % (sorted(fin), b2['counts']['plan']),
               fin == set(three) and b2['counts']['finished'] == 3 and b2['counts']['plan'] == b2['counts']['distinct_plans'] - 3, b2['counts'])
-        del runs[('uno-light-sense-poll', 'initialization')]
+        del runs[('uno-light', 'initialization')]
         _b3, fin, by = finished()
         check('fsc-0b PROOF: take away ONE Purpose\'s run for ONE config and only that config drops back to plan (naming the Purpose); the other two stay finished',
-              fin == {'uno-button-clock', 'uno-light-sense-pcint'} and 'initialization' in by['uno-light-sense-poll']['state_why'] and by['uno-light-sense-poll']['state'] == 'plan', by['uno-light-sense-poll']['state_why'][:200])
-        put('uno-light-sense-poll', {'initialization'}, outcome='failed')
+              fin == {'uno-button-clock', 'uno-light-sense-pcint'} and 'initialization' in by['uno-light']['state_why'] and by['uno-light']['state'] == 'plan', by['uno-light']['state_why'][:200])
+        put('uno-light', {'initialization'}, outcome='failed')
         _b4, fin, _by = finished()
-        check('fsc-0 FINISHED: a LATER FAILED run takes the proof away again (a stale pass is never carried forward)', 'uno-light-sense-poll' not in fin and len(fin) == 2)
+        check('fsc-0 FINISHED: a LATER FAILED run takes the proof away again (a stale pass is never carried forward)', 'uno-light' not in fin and len(fin) == 2)
         orig_find = CAP.find
         CAP.find = lambda name, rows=None: dict(orig_find(name, rows), acceptance_scenario='') if name == 'initialization' else orig_find(name, rows)
         try:
             R._CACHE.clear()
-            put('uno-light-sense-poll', {'initialization'})
+            put('uno-light', {'initialization'})
             strict, fin_s, by_s = finished()
             lenient, fin_l, _ = finished(unprovable='ignore')
         finally:
@@ -434,7 +437,7 @@ def fsc_parts(check):
         cfail_all = [r for r in g.json['rows'] if r['state'] == 'failed' and r.get('failed_purpose')]
         cfail = [r for r in cfail_all if r['solution'] != 'uno-light-slow-loop']      # smp-1: the sample failure F2 is a safety-deadline row of its own (tested in selftest_fsc_sample)
         check('fsc-0b DOOR scores: GET /api/firmware-scores?mission=uno-light-mission lists the four built light configs as FAILED rows (name, Purpose failed, why, no score) and never ranks them: %s' % sorted(r['solution'] for r in cfail),
-              sorted(r['solution'] for r in cfail) == ['uno-light', 'uno-light-analog', 'uno-light-pcint', 'uno-light-v2'] and all(r['score'] is None and r['rank'] is None and 'sense-led-line' in r['reason']
+              sorted(r['solution'] for r in cfail) == ['uno-light-analog', 'uno-light-pcint', 'uno-light-unsensed', 'uno-light-v2'] and all(r['score'] is None and r['rank'] is None and 'sense-led-line' in r['reason']
                                                                                                                               and r['failed_purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state' for r in cfail)
               and {f['config'] for f in g.json['failures'] if f['kind'] == 'purpose-unfulfilled'} == {r['solution'] for r in cfail}, [r['solution'] for r in cfail_all])
         t = c.simulate_get('/api/firmware-scores/top', params=q)
@@ -447,8 +450,8 @@ def fsc_parts(check):
         tr = bd.json['terms'][0] if bd.status_code == 200 else {}
         check('fsc-2 DOOR breakdown: term rows {term, value, kind, normalized, weight, points, basis} for one solution and profile, with its score, rank, raw weighted value and the compared set named',
               bd.status_code == 200 and bd.json['score'] == 100.0 and bd.json['rank'] == 1 and bd.json['set'] and {'term', 'value', 'kind', 'normalized', 'weight', 'points', 'basis'} <= set(tr), bd.text[:200])
-        bf = c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution='uno-light-sense-poll', profile='fsc-balanced'))
-        check('fsc-2 DOOR breakdown: a built config name finds its solution (uno-light-sense-poll) and the breakdown names the offers used', bf.status_code == 200 and bf.json['label'] and any('offer' in r['basis'] for r in bf.json['terms'] if r['term'] == 'bom-cost'), bf.text[:200])
+        bf = c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution='uno-light', profile='fsc-balanced'))
+        check('fsc-2 DOOR breakdown: a built config name finds its solution (uno-light) and the breakdown names the offers used', bf.status_code == 200 and bf.json['label'] and any('offer' in r['basis'] for r in bf.json['terms'] if r['term'] == 'bom-cost'), bf.text[:200])
         bad = [c.simulate_get('/api/firmware-scores', params={'profile': 'nope'}).status_code, c.simulate_get('/api/firmware-scores', params={'nope': '1'}).status_code,
                c.simulate_get('/api/firmware-scores', params={'mission': 'nope'}).status_code, c.simulate_get('/api/firmware-scores', params={'scope': 'nope'}).status_code,
                c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution='nope', profile='fsc-fastest')).status_code, c.simulate_get('/api/firmware-scores/breakdown', params=q).status_code]

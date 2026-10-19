@@ -234,7 +234,7 @@ def run_light_v2(check):
     try:
         row2, b2 = _build('uno-light-v2')
         row2b, b2b = _build('uno-light-v2')
-        row1, b1 = _build('uno-light')
+        row1, b1 = _build('uno-light-unsensed')
     except Exception as e:   # noqa: BLE001 -- no toolchain here
         check('SKIP fgm-6a build (no avr toolchain here): %s' % e, True)
         return

@@ -24,8 +24,8 @@ def run_cycles(check):
     try:
         w1, w2 = tempfile.mkdtemp(prefix='cyc0-st-'), tempfile.mkdtemp(prefix='cyc0-st-')
         works += [w1, w2]
-        a = CM.measure('uno-light', work=w1, only=PROBE)
-        b = CM.measure('uno-light', work=w2, only=PROBE)
+        a = CM.measure('uno-light-unsensed', work=w1, only=PROBE)
+        b = CM.measure('uno-light-unsensed', work=w2, only=PROBE)
         ca, cb = CM.counts(a), CM.counts(b)
         check('cyc-0: two runs of the same hex + stimulus give the SAME cycle counts (%d numbers: n / min / max of the probed atoms, every interrupt, every loop gap)' % len(ca),
               ca == cb and len(ca) >= 8 and a['inputs']['shipped_hex_sha256'] == b['inputs']['shipped_hex_sha256'] and a['inputs']['noinline_hex_sha256'] == b['inputs']['noinline_hex_sha256'], (ca, cb))
@@ -50,12 +50,12 @@ def run_cycles(check):
         check('cyc-0: the interrupts are measured from the shipped hex: INT0 (the button), the 1 ms tick and the receive interrupt all have n > 0 and a max under 200 cycles',
               all(a['isrs'].get(v, {}).get('n', 0) > 0 and a['isrs'][v]['max'] < 200 for v in ('INT0_vect', 'TIMER2_COMPA_vect', 'USART_RX_vect')), a['isrs'])
         # a negative control: an atom the stimulus never reached is NOT measured
-        rec = CR.load('uno-light')
+        rec = CR.load('uno-light-unsensed')
         check('cyc-0: an atom the stimulus never calls (hal_presses - nothing in the light calls it) is recorded n = 0 with a note, and the lookup returns None - never a zero cycle count',
-              rec and rec['functions']['hal.hal_presses']['n'] == 0 and 'never called' in rec['functions']['hal.hal_presses'].get('note', '') and CR.cycles_of('hal.hal_presses', 'uno-light') is None, rec and rec['functions'].get('hal.hal_presses'))
+              rec and rec['functions']['hal.hal_presses']['n'] == 0 and 'never called' in rec['functions']['hal.hal_presses'].get('note', '') and CR.cycles_of('hal.hal_presses', 'uno-light-unsensed') is None, rec and rec['functions'].get('hal.hal_presses'))
         # the committed records are the records of this source
         stale = []
-        for v in ('uno-light',):
+        for v in ('uno-light-unsensed',):
             if rec is None or rec['inputs']['shipped_hex_sha256'] != a['inputs']['shipped_hex_sha256'] or rec['inputs']['noinline_hex_sha256'] != a['inputs']['noinline_hex_sha256']:
                 stale.append(v)
         check('cyc-0: the committed uno-light record is the record of THIS source (its shipped and -fno-inline hex sha256 equal a fresh build\'s); a stale record would fail here', not stale, stale)

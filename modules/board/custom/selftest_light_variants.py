@@ -10,8 +10,8 @@ import glob
 import os
 import tempfile
 
-SENSE = ('uno-light-sense-poll', 'uno-light-sense-pcint',
-         'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor')     # smp-1: the sample configs S2..S4 beside the two fsc-6 ones (S1 = sense-poll)
+SENSE = ('uno-light', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor',     # smp-1: the sample S1..S4 - the LIGHT app (LightState) with the sense line
+         'uno-light-sense-poll', 'uno-light-sense-pcint')                                              # ... and the two button-clock configs of fsc-6 (kept as history)
 SCENARIOS = ('initialization-acceptance', 'light-from-button-acceptance', 'light-from-polari-acceptance', 'ensure-polari-observes-hardware-state-acceptance')
 
 

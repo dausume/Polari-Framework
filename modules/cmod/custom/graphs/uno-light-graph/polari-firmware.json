@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
-    "noinline": "32f58f1f51d7a4fdab5e1f9242ac9a8e07634dc0a1cc553ea49c92e47234881a"
+    "shipped": "7cd1c0024bb353f7e1bea090cfc85b2bbf73015cc22fd4f25b6d930e67bc085b",
+    "noinline": "825e6100fe1c998448c1877dbcd18e2ddc5b822eeeeeb543883ab6f767e56892"
    }
   }
  ],
@@ -70,11 +70,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
+     "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
     },
     {
      "path": "hal.h",
-     "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
     }
    ],
    "atoms": [
@@ -116,11 +116,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "e87af1ceb97a3b461ffdadeee362f2b4750ad35130e88d531094e5944b5dc171"
+     "sha256": "c5b2f488e839715efbe0b525ed80494f825903057074d83ce8f49e040da85142"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "fe8e42f490e8e87c8d8f1071c582b834c3d8592091eb51a2789f23e4cfa81543"
+     "sha256": "69fe4f409f731cf50da76c4eca4a2568ab8a560fbc8936d64efd7b11ff40198e"
     }
    ],
    "atoms": [
@@ -138,7 +138,7 @@
    "files": [
     {
      "path": "board_config.h",
-     "sha256": "d6f7a025800d78f0c1834999f7b57c9cd40374a16b1e1da8414f0f8c67a80d79"
+     "sha256": "c4fc953ffae1cc0f65113394451f6499642d4c24b81a71d5ccde6844fd8445b3"
     }
    ],
    "atoms": []
@@ -480,7 +480,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 277,
+   "line": 297,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -525,7 +525,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 275,
+    "line": 295,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -555,7 +555,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 268,
+   "line": 283,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -1668,5 +1668,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T22:15:29"
+ "conformed_at": "2026-10-19T09:15:24"
 }

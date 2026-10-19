@@ -12,7 +12,7 @@ from types import SimpleNamespace
 UNO, LIGHT = 'arduino-uno-r3', 'uno-light-mission'
 from cmod.custom.selftest_purpose import _manager  # noqa: E402
 
-SENSE = ('uno-light-sense-poll', 'uno-light-sense-pcint')
+SENSE = ('uno-light', 'uno-light-sense-pcint')      # the two built configs these checks make finished (uno-light-sense-poll has the routes of uno-light: a duplicate)
 
 
 def prove_parts(check):
@@ -93,17 +93,17 @@ def prove_parts(check):
         from cmod.custom import fsc_run as R
         from cmod.custom.selftest_purpose import _manager
         mgr = _manager()
-        stub_runs(mgr, ['uno-light'])
+        stub_runs(mgr, ['uno-light-unsensed'])
         b0 = R.build(LIGHT, mgr, [UNO])
         by0 = {r['link']['config']: r for r in b0['records'] if r['link']}
-        check('fsc-6 FINISHED: all four Purposes proven on uno-light proves NOTHING for the sense variants (no finished config; the reason names the config\'s own firmware)',
+        check('fsc-6 FINISHED: all four Purposes proven on another config (uno-light-unsensed) proves NOTHING for the sense variants (no finished config; the reason names the config\'s own firmware)',
               b0['counts']['finished'] == 0 and all("no ScenarioRun of config %s's own firmware" % c in by0[c]['state_why'] for c in SENSE), b0['counts'])
         stub_runs(mgr, list(SENSE))
         b = R.build(LIGHT, mgr, [UNO])
         fin = {r['link']['config'] for r in b['records'] if r['state'] == 'finished'}
         by = {r['link']['config']: r for r in b['records'] if r['link']}
         check('fsc-6 FINISHED: with the four Purposes\' runs on each sense variant\'s own build, fsc_link reports exactly those two finished: %s (uno-button-clock stays plan)' % sorted(fin),
-              fin == set(SENSE) and b['counts']['finished'] == 2 and by['uno-button-clock']['state'] == 'plan', by['uno-light-sense-poll']['state_why'][:240])
+              fin == set(SENSE) and b['counts']['finished'] == 2 and by['uno-button-clock']['state'] == 'plan', by['uno-light']['state_why'][:240])
         import falcon
         from falcon import testing
         from cmod.cmod_fsc_api import FscAPI

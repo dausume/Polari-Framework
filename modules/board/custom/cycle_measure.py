@@ -49,7 +49,7 @@ SCHEMA = 'cycle-measurement/1'
 MCU = 'atmega328p'
 CLOCK_HZ = 16000000
 #: variants the shipped records cover (the four of the plan + the v2 light + the sim rig: its ADC read and PWM apply)
-VARIANTS = ('uno-light', 'uno-button-clock', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-sim-rig')
+VARIANTS = ('uno-light-unsensed', 'uno-button-clock', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-sim-rig')
 JUMP_CYCLES = {'rjmp': 2, 'jmp': 3}
 _TARGET = re.compile(r'0x([0-9a-f]+)')
 _BASE = re.compile(r'(\.(constprop|isra|part|cold|lto_priv)(\.\d+)?)+$')

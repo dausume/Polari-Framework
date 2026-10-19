@@ -4,28 +4,28 @@
  "generator": "cmod.custom.glue 1",
  "generated_project": "cmod/custom/graphs/uno-sim-rig-graph",
  "files": {
-  "hal.c": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8",
-  "hal.h": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0",
+  "hal.c": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2",
+  "hal.h": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55",
   "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
   "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b",
   "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
   "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
   "polari_graph.c": "bcebaac9c4f2a7dd78d1aa32c82a2b40e30afbd6600ac6ded765feb2bede4434",
-  "polari_graph.h": "169c61a13ba7e37323800ef48f6ce46a9b5c0e4e03061ea96badf2d57a20e9cd",
+  "polari_graph.h": "c6af74ee69c288a23c0ddeae37aefee2f2daaea7539b7dd70fb0ee8b1f2de5b4",
   "Makefile": "f372920382254cf53ca7ee91cb4439c620268a57c52456595b0fee7ef8fd1695"
  },
- "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
- "rendered_at": "2026-10-18T06:40:35",
+ "files_sha256": "b54ba57a82aaede7ce18fdfcba4b36d9d1df33b5043404776a2d9e926e2c7f49",
+ "rendered_at": "2026-10-19T09:00:13",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
    "file": "hal.c",
-   "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
+   "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
   },
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.h",
    "file": "hal.h",
-   "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+   "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
   },
   {
    "label": "board gen: the uno-sim-rig knobs",
@@ -45,7 +45,7 @@
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "d6747049ff00783d54d1e51b69cdd46ae5f8f402c80be2fea4489252abd2755c"
+   "sha256": "1c080fec5d75c90519776ea8a4081fb9d150744e4339d3ad25f301d9847bfdb7"
   }
  ],
  "cost_estimate": {
@@ -184,11 +184,11 @@
    },
    "explained_bytes": 274
   },
-  "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
+  "files_sha256": "b54ba57a82aaede7ce18fdfcba4b36d9d1df33b5043404776a2d9e926e2c7f49",
   "hand_edited": [],
   "stale": [],
   "measured_elf_sha256": "c729b6f258e00583835deee8e7ad86ea816422d16954aed2694450bf5de8daae",
-  "built_at": "2026-10-18T06:41:34",
+  "built_at": "2026-10-19T09:11:39",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -200,139 +200,10 @@
   },
   "template_generator": "jinja2 3.1.6"
  },
- "proof": {
-  "equivalent": true,
-  "frames_compared": 40,
-  "frames_hand": 40,
-  "frames_glue": 40,
-  "fields_compared": [
-   "seq",
-   "device_id",
-   "msg_type",
-   "uptime_ms",
-   "temp_c",
-   "led_on",
-   "pwm_duty",
-   "status",
-   "name"
-  ],
-  "differences": [],
-  "n_differences": 0,
-  "raw_uart_identical": true,
-  "uart_sha256": {
-   "hand": "cf6acb08bdab2ed4f08af06094a1c9185e68023d26275e0ae23a62e81bca2c6a",
-   "glue": "cf6acb08bdab2ed4f08af06094a1c9185e68023d26275e0ae23a62e81bca2c6a"
-  },
-  "reference": {
-   "variant": "uno-sim-rig",
-   "built_by": "board gen + board build (the shipped pipeline)",
-   "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06",
-   "size_text": 4302,
-   "size_data": 8,
-   "size_bss": 483
-  },
-  "glue": {
-   "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5",
-   "size_text": 4308,
-   "size_data": 8,
-   "size_bss": 483,
-   "built_by": "make alone (local-image prf-board-engines:trixie)"
-  },
-  "hex_identical": false,
-  "cycles": {
-   "total_hand": 64000374,
-   "total_glue": 64000382,
-   "frame_tx_cycle_delta_min": 0,
-   "frame_tx_cycle_delta_max": 576460752303423488,
-   "first_frame_cycle_hand": 21257,
-   "first_frame_cycle_glue": 21265
-  },
-  "stimulus": {
-   "seconds": 4,
-   "seed": 1,
-   "adc0_ramp_mv": "700,800,2000",
-   "commands": [
-    "led_on=True, pwm_duty=42 @ cycle 24000000 (1.500 s)",
-    "pwm_duty=250 @ cycle 36000000 (2.250 s)",
-    "led_on=False @ cycle 48000000 (3.000 s)"
-   ],
-   "command_frames_sha256": [
-    "c9d2a69f3d69b2c3748cdd333db6bc0ac2ea214784825a9d73347f7b292ac8ad",
-    "ce99e8a4312a8195e1a5a6cd10e41078131ceacfb33b3acd12a37e3d36c06674",
-    "bd9d2dffd4377920778fefd5c88890e8903bb96fa03d978eda2f1a1d1e150b8e"
-   ],
-   "argv": [
-    "polari-avr-twin",
-    "--hex",
-    "firmware.hex",
-    "--mcu",
-    "atmega328p",
-    "--freq",
-    "16000000",
-    "--free",
-    "--seconds",
-    "4",
-    "--status-ms",
-    "0",
-    "--adc0-ramp",
-    "700,800,2000",
-    "--uart-out",
-    "uart.bin",
-    "--uart-tx-log",
-    "tx.bin",
-    "--seed",
-    "1",
-    "--inject",
-    "cmd0.bin@24000000",
-    "--inject",
-    "cmd1.bin@36000000",
-    "--inject",
-    "cmd2.bin@48000000"
-   ]
-  },
-  "first_commanded_frame": 16,
-  "samples": [
-   {
-    "seq": 0,
-    "uptime_ms": 0,
-    "temp_c": 19.82421875,
-    "led_on": false,
-    "pwm_duty": 0,
-    "status": "boot",
-    "name": "uno-rig"
-   },
-   {
-    "seq": 16,
-    "uptime_ms": 1600,
-    "temp_c": 23.73046875,
-    "led_on": true,
-    "pwm_duty": 42,
-    "status": "commanded",
-    "name": "uno-rig"
-   },
-   {
-    "seq": 39,
-    "uptime_ms": 3900,
-    "temp_c": 20.80078125,
-    "led_on": false,
-    "pwm_duty": 100,
-    "status": "commanded",
-    "name": "uno-rig"
-   }
-  ],
-  "twin": {
-   "how": "local-image",
-   "where": "prf-board-engines:trixie",
-   "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
-  },
-  "proven_at": "2026-10-18T07:52:33",
-  "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
-  "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
-  "hand_edited": []
- },
+ "proof": null,
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-sim-rig-graph/polari-firmware.json",
-  "manifest_sha256": "566385e8b190a9bde72ac11f7f2c4f13ff0de70b8d7f4edeabc85ccc8b5d9fd3",
+  "manifest_sha256": "f37f32edd985ade1ff448aece6218202ec22e98ebdf68a76f7cb96db7aec0412",
   "atoms": 17,
   "glue_atoms": [
    "polari_graph.apply_command",
@@ -340,6 +211,6 @@
    "polari_graph.sensor_value"
   ],
   "not_isr_safe": 0,
-  "written": true
+  "written": false
  }
 }

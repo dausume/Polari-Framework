@@ -94,7 +94,9 @@ def _twin(variant, app, hex_bytes, frames, at_cycles, seconds):
     for i, c in enumerate(at_cycles[:len(frames)]):
         inj += ['--inject', 'f%d.bin@%d' % (i, c)]
     if app == 'light':
-        argv = VT._argv(seconds, inj + VT._watch_portd())
+        from board.custom import light_button as LB
+        a = LB.default_adc(variant)
+        argv = VT._argv(seconds, LB.wire_args(variant) + inj + VT._watch_portd(), adc=a) if a else VT._argv(seconds, LB.wire_args(variant) + inj + VT._watch_portd())
     else:
         from board.custom import light_variant_twin as LVT
         argv = LVT._argv(variant, seconds, inj + VT._watch_portd())
@@ -152,7 +154,7 @@ def _board_half(variant, app, hex_bytes):
     """The old frame-level check (hand-built SET_LED frames) - the board half only."""
     if app == 'light':
         from board.custom import light_twin as LT
-        r, fr, bad = LT.run_commands(hex_bytes)
+        r, fr, bad = LT.run_commands(hex_bytes, variant)
         ok, w = LT.judge_commands(fr)
     else:
         from board.custom import light_variant_twin as LVT

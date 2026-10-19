@@ -14,8 +14,8 @@ import json
 from types import SimpleNamespace
 
 UNO, LIGHT = 'arduino-uno-r3', 'uno-light-mission'
-SUCCESS = ('uno-light-sense-poll', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor')
-OTHER_FINISHED = ('uno-light-sense-pcint',)     # a built, finished config that is NOT in the sample: history
+SUCCESS = ('uno-light', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor')
+OTHER_FINISHED = ('uno-light-sense-poll', 'uno-light-sense-pcint')     # the button-clock configs: built, finished, NOT in the sample - history
 
 
 def stub_runs(mgr, configs, outcome='passed'):
@@ -89,7 +89,7 @@ def sample_parts(check):
     def routes():
         from board.custom import variants as V
         from cmod.custom import fsc_link as L
-        want = {'uno-light-sense-poll': {'read-button': ['ext-interrupt'], 'drive-led': ['gpio-out'], 'sense-led-line': ['gpio-poll']},
+        want = {'uno-light': {'read-button': ['ext-interrupt'], 'drive-led': ['gpio-out'], 'sense-led-line': ['gpio-poll']},
                 'uno-light-all-pcint': {'read-button': ['pin-change-interrupt'], 'drive-led': ['gpio-out'], 'sense-led-line': ['pin-change-interrupt']},
                 'uno-light-pwm-analog': {'read-button': ['analog-threshold'], 'drive-led': ['pwm'], 'sense-led-line': ['gpio-poll']},
                 'uno-light-transistor': {'read-button': ['ext-interrupt'], 'drive-led': ['transistor-switch'], 'sense-led-line': ['gpio-poll']},
@@ -98,14 +98,14 @@ def sample_parts(check):
         check('smp-1 ROUTES: each sample config\'s routes are DERIVED from its own knobs (button_route, sense_route, led_route): %s' % {n: {j: r[0] for j, r in g.items()} for n, g in got.items()}, got == want)
         cfgs = [V.resolve(V.find(n)) for n in want]
         cfg = {r['name']: V.render_config(r) for r in cfgs}
-        plain = V.render_config(V.resolve(V.find('uno-light')))
+        plain = V.render_config(V.resolve(V.find('uno-light-unsensed')))
         check('smp-1 CONFIG: LED_ROUTE_PWM appears only in the PWM config (S3) and LOOP_DELAY_MS only in the slow-loop failure (F2) - every other build\'s board_config.h is unchanged by the new knobs',
               [n for n, t in cfg.items() if 'LED_ROUTE_PWM' in t] == ['uno-light-pwm-analog'] and [n for n, t in cfg.items() if 'LOOP_DELAY_MS' in t] == ['uno-light-slow-loop']
               and 'LED_ROUTE_PWM' not in plain and 'LOOP_DELAY_MS' not in plain)
         bad = []
         for label, extra in (('led_route unknown', {'led_route': 'laser'}), ('pwm on a pin that is not Timer0\'s', {'led_route': 'pwm', 'led_pin': 7}), ('loop delay too long', {'loop_delay_ms': 5000}),
                              ('loop delay on the light app', {'loop_delay_ms': 100})):
-            base = V.find('uno-light' if label.startswith('loop delay on') else 'uno-light-sense-poll')
+            base = V.find('uno-light-v2' if label.startswith('loop delay on') else 'uno-light')
             try:
                 V.resolve(base, extra)
                 bad.append(label)
@@ -124,13 +124,13 @@ def sample_parts(check):
         check('smp-0 SCOPE: scores are COMPETITIVE over the four: the best reads 100 and the worst 0, rank 1..4 in order, labels wear the sample id (S1 ...)',
               [r['rank'] for r in rows] == [1, 2, 3, 4] and rows[0]['score'] == 100.0 and rows[-1]['score'] == 0.0 and all(a['score'] >= b['score'] for a, b in zip(rows, rows[1:]))
               and all(r['label'][:2] == r['sample'] for r in rows), [(r['rank'], r['score'], r['label'][:30]) for r in rows])
-        check('smp-0 SCOPE: the failures listed are ONLY the sample\'s F rows - F1 (uno-light) and F2 (uno-light-slow-loop) - and the door\'s failures[] agrees',
-              sorted(r['sample'] for r in fails) == ['F1', 'F2'] and sorted(r['solution'] for r in fails) == ['uno-light', 'uno-light-slow-loop']
-              and sorted(f['config'] for f in d['failures']) == ['uno-light', 'uno-light-slow-loop'], [(r['sample'], r['solution']) for r in fails])
+        check('smp-0 SCOPE: the failures listed are ONLY the sample\'s F rows - F1 (uno-light-unsensed) and F2 (uno-light-slow-loop) - and the door\'s failures[] agrees',
+              sorted(r['sample'] for r in fails) == ['F1', 'F2'] and sorted(r['solution'] for r in fails) == ['uno-light-slow-loop', 'uno-light-unsensed']
+              and sorted(f['config'] for f in d['failures']) == ['uno-light-slow-loop', 'uno-light-unsensed'], [(r['sample'], r['solution']) for r in fails])
         hist = {h['config']: h for h in d['history']}
-        check('smp-0 SCOPE: the other built configs of the Mission are kept as HISTORY, named in history[] and NOT listed as failures: uno-light-pcint, -analog, -v2 (they fail a Purpose), uno-light-sense-pcint (finished), uno-button-clock (plan)',
-              {'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-light-sense-pcint', 'uno-button-clock'} <= set(hist) and not ({'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} & {r['solution'] for r in fails})
-              and 'kept as history' in hist['uno-light-pcint']['words'] and all(h['config'] not in SUCCESS + ('uno-light', 'uno-light-slow-loop') for h in d['history']), sorted(hist))
+        check('smp-0 SCOPE: the other built configs of the Mission are kept as HISTORY, named in history[] and NOT listed as failures: uno-light-pcint, -analog, -v2 (they fail a Purpose), the button-clock configs uno-light-sense-poll / -pcint (finished) and uno-button-clock (plan)',
+              {'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-light-sense-pcint', 'uno-light-sense-poll', 'uno-button-clock'} <= set(hist) and not ({'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} & {r['solution'] for r in fails})
+              and 'kept as history' in hist['uno-light-pcint']['words'] and all(h['config'] not in SUCCESS + ('uno-light-unsensed', 'uno-light-slow-loop') for h in d['history']), sorted(hist))
         check('smp-0 SCOPE: the set words name the sample and its members', 'curated sample' in d['set'] and 'S1' in d['set'] and 'S4' in d['set'], d['set'])
         code, t = get('/api/firmware-scores/top')
         check('smp-0 SCOPE: the top tab reads the sample too - every profile\'s top is a sample id at 100 and failed_count is 2 (F1, F2)',
@@ -150,7 +150,7 @@ def sample_parts(check):
         check('smp-0 SCOPE: scope=plans is only the plans nobody finished (%d, all state plan, ranked 100 to 0), the old name `plan` still works, and nothing finished is in it' % len(pr),
               p['scope'] == 'plans' and pr and all(r['state'] == 'plan' for r in pr) and pr[0]['score'] == 100.0 and pr[-1]['score'] == 0.0 and p2['scope'] == 'plans' and p2['count'] == p['count'], (p['scope'], len(pr)))
         fin = sorted(r['long_label'] for r in f['rows'] if r['state'] == 'finished')
-        check('smp-0 SCOPE: scope=finished is every finished config, the sample or not: %s' % fin, sorted(fin) == sorted(SUCCESS + OTHER_FINISHED), fin)
+        check('smp-0 SCOPE: scope=finished is every finished config, the sample or not: %s' % fin, sorted(fin) == sorted(SUCCESS + ('uno-light-sense-pcint',)), fin)
         bad = client().simulate_get('/api/firmware-scores', params={'mission': LIGHT, 'scope': 'nope'})
         check('smp-0 SCOPE: an unknown scope is 422 and names the known ones (sample, all, plans, finished)', bad.status_code == 422 and all(w in bad.json['error'] for w in ('sample', 'all', 'plans', 'finished')), bad.text[:200])
 
@@ -200,9 +200,9 @@ def sample_parts(check):
               % (rec['worst_ms'], len(rec['runs'])),
               f2['kind'] == 'safety-deadline' and f2['purpose'] == 'ensure-button-controls-light' and ('misses the safety-critical deadline: %s ms against 100 ms' % ('%.1f' % rec['worst_ms']).rstrip('0').rstrip('.')) in f2['reason']
               and f2['state'] == 'failed' and f2['rank'] is None and f2['measured_ms'] == rec['worst_ms'] and f2['deadline_ms'] == 100.0, f2['reason'][:200])
-        check('smp-1 F2: the committed record is a real measurement: the slow loop is OVER the deadline (%s ms > 100 ms) and the fast sense-poll build, measured the same way, is far UNDER it (%s ms); each record names its hex sha256 and is sealed'
-              % (rec['worst_ms'], PL.load('uno-light-sense-poll')['worst_ms']),
-              rec['worst_ms'] > 100 and PL.load('uno-light-sense-poll')['worst_ms'] < 5 and len(rec['inputs']['hex_sha256']) == 64 and len(rec['record_sha256']) == 64 and len(rec['runs']) == PL.PHASES
+        check('smp-1 F2: the committed record is a real measurement: the slow loop is OVER the deadline (%s ms > 100 ms) and the fast uno-light build (S1), measured the same way, is far UNDER it (%s ms); each record names its hex sha256 and is sealed'
+              % (rec['worst_ms'], PL.load('uno-light')['worst_ms']),
+              rec['worst_ms'] > 100 and PL.load('uno-light')['worst_ms'] < 5 and len(rec['inputs']['hex_sha256']) == 64 and len(rec['record_sha256']) == 64 and len(rec['runs']) == PL.PHASES
               and all(r['latency_ms'] is not None for r in rec['runs']) and rec['schema'] == 'press-latency/1', rec['runs'])
         # the REAL Purpose is untouched: the deadline is 100 ms and NOT flagged; the safety flag lives on the sample entry only
         real = MD.capability('ensure-button-controls-light', None)
@@ -242,7 +242,7 @@ def sample_parts(check):
         _c, a = get('/api/firmware-scores', profile='fsc-fastest', scope='all')
         k = {f['config']: f['kind'] for f in a['failures'] if f.get('config')}
         check('smp-0 SCOPE: in scope=all F1 keeps its fsc-0b reason (no sense line) and the four unfulfilled configs are still failures there: %s' % sorted(k),
-              set(k) == {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-light-slow-loop'} and k['uno-light'] == 'purpose-unfulfilled' and k['uno-light-slow-loop'] == 'safety-deadline')
+              set(k) == {'uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2', 'uno-light-slow-loop'} and k['uno-light-unsensed'] == 'purpose-unfulfilled' and k['uno-light-slow-loop'] == 'safety-deadline')
 
     def cli():
         from cmod.custom import fsc_cli as CLI

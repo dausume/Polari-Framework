@@ -46,6 +46,14 @@ def default_adc(variant):
     return '--adc0-mv %d' % ADC_RELEASED_MV if plan(variant)['route'] == 'adc' else None
 
 
+def wire_args(variant):
+    """The jumper of a config that carries the SENSE line: from the light pin (PD6) to the config's own sense pin (D3 polled, D8 on a pin-change interrupt) - the wire the bench needs - or [] for a config with none."""
+    from board.custom import variant_twin as VT
+    from board.custom import variants as V
+    r = V.resolve(V.find(variant))
+    return ['--wire', 'PD6:%s' % VT.sense_soc_pin(variant)] if r['features']['sense'] else []
+
+
 def press_pinat(pl, n, start_cycle, hold, gap, pin=None):
     """--pin-at args for n presses on `pin` (default the button's own pin) -> (args, the cycle after the last press)."""
     pin = pin or pl['pin']

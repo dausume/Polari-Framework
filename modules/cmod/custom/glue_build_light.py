@@ -51,7 +51,7 @@ def prove(ref, mk):
     return {'equivalent': not diffs, 'frames_compared': min(len(fa), len(fb)), 'frames_hand': len(fa), 'frames_glue': len(fb),
             'fields_compared': ['seq'] + list(FIELDS), 'differences': diffs[:20], 'n_differences': len(diffs),
             'raw_uart_identical': rr['uart'] == rg['uart'], 'uart_sha256': {'hand': sha(rr['uart']), 'glue': sha(rg['uart'])},
-            'reference': {'variant': 'uno-light', 'built_by': 'board gen + board build (the shipped pipeline)',
+            'reference': {'variant': 'uno-light-unsensed', 'built_by': 'board gen + board build (the shipped pipeline)',
                           'hex_sha256': ref['hex_sha256'], 'size_text': ref['size_text'], 'size_data': ref['size_data'], 'size_bss': ref['size_bss']},
             'glue': {'hex_sha256': mk['hex_sha256'], 'size_text': mk['sizes'].get('.text', 0), 'size_data': mk['sizes'].get('.data', 0),
                      'size_bss': mk['sizes'].get('.bss', 0), 'built_by': 'make alone (%s %s)' % (mk['how'], mk['where'])},

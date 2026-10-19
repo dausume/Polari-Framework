@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "d43306442996a5a08ccaee57916879b73bed299402ca6b4bdc8202e0a5a7bba2",
+   "source_sha": "b75fc4fa9c949b20f9c1d0729463d326f97bf0ebcb3df3963caefbd37cfcbebf",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "18da528389ad61b95927594027651c29b3d82262418b66de37f1106a1e55e486",
+   "source_sha": "6ca5b7e816cf6313fb4bb61e85ff992d88360658ab8aae5fc106712403f76781",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "4745211ba201f7d5219b7482d243ca79c92ed46c6aaed95861d8f2cd728e6b9e",
+   "source_sha": "9c0183f31b863efcdb09be801a9fa0b5ceedb7ee0ecfd68e463ced2cef0db558",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c3bed7e7bd1a7cc321bd6dc517ba5a3d85c1188a285c2ab563a951617186c4dc",
+   "source_sha": "22e68800b46826dddebe6d40f550066c69ca07a03e6dcd543a59cafbd912706a",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "e44c079ae83a2f8cf7674981300391ab6c61129463b1dcec78c44ae8d9a9692b",
+   "source_sha": "c2395a06bd6cebfaa873fbfdc390acd629cb60076f6a3097efb999b931fa94de",
    "elf_sha256": {
     "shipped": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
     "noinline": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08"
@@ -167,20 +167,44 @@
    "flags": [],
    "sources": [
     "hal.c",
+    "hal_sense_poll.c",
     "apps/light.c"
    ],
    "generated": [
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "088ee1f4706d5a789919fb86af0cabcc86b5cd27e08012e056b79618e18958e6",
+   "source_sha": "78b10cb7b18f28205955ff0518dc25a460426ed3b431c089c2a25b4516f2f8f4",
    "elf_sha256": {
-    "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
-    "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
+    "shipped": "31f37d7bf87e0742fcfbf797534d84305f4eb178455c77311e453c51153da61f",
+    "noinline": "e354bcf5de2db332f4a9db0e5e740eaf1eb9261ef0626efdd04726ac2fba4bce"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5"
+    "hex_sha256": "e74a741114d2369c53f4e4ee623218d5dc7a93b1899b646654cfc952528ed1eb"
+   }
+  },
+  {
+   "name": "uno-light-unsensed",
+   "kind": "board-variant",
+   "app": "light",
+   "flags": [],
+   "sources": [
+    "hal.c",
+    "apps/light.c"
+   ],
+   "generated": [
+    "lightstate_packets.h",
+    "board_config.h"
+   ],
+   "source_sha": "0469cfeff3109f4dc11822f86f70314dd46e0d813c0598209ca8f54489e3b433",
+   "elf_sha256": {
+    "shipped": "64cc65dcf098e12dfe60faf34cb19b5e48a69084d56952297e45308fc9f4de4e",
+    "noinline": "a0e14294dd22918b36b5b4e9084afa1ad588f966a493c6713fe286673a01f88a"
+   },
+   "make_alone": {
+    "ok": true,
+    "hex_sha256": "1050f4f7bd75a5fb119f792a3e898f1ed5826349fc0d2bd416dafee0c4365507"
    }
   },
   {
@@ -197,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "693101c41cc3fddaa0873ff0ebfaa1323fd255a744038d7897e72064116a55aa",
+   "source_sha": "a139bda4e08ac7d36ec9b1d53dcdc8d2f1bc72dd832c51e678d56a14b1e625f3",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -221,7 +245,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "09e97de336a94a732aef990f62adb73db6b33ff877da9dfc4e806788c3b4d117",
+   "source_sha": "8490b8897dc542a7f7abc50e6ee07c77c6c77851cb2768638d1fed12406c6f14",
    "elf_sha256": {
     "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
     "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
@@ -246,7 +270,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "5727acaa6813275edddd30bb8fc7e2c2884470f4977d36f85f3b7adac7f645d7",
+   "source_sha": "ae22f7d3802982a2148d8ec6803ff43cd7837f8ef7b3ee6d8d7ade8ec885bc41",
    "elf_sha256": {
     "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
     "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
@@ -271,7 +295,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "717a6ff5ed0ea64182643c4dd4b4d27dfc61e4afdb582d1c20fe314642d63060",
+   "source_sha": "a0caf13a6d8c1dbd09a4a3ddb60376d9f912498336d67a2833b4efff62765018",
    "elf_sha256": {
     "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
     "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
@@ -302,7 +326,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c01f84729c1b815fa0f86adcdb45696d0e4feb0578679d80b9b07c9675486b51",
+   "source_sha": "896afc4dab874c32bc96ab6f70220bd71575d403c2250c797517367905829d81",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -329,7 +353,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "6ffd3f73a45706f224364f3d549f2d79137104f03c3fa5c63bf16cd4e7aebec5",
+   "source_sha": "a7c3bbfff231d16d6b24ef98fd1f6f785f55ac90af4d3003a8c95532f4880ae1",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -347,11 +371,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
+     "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
     },
     {
      "path": "hal.h",
-     "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
     }
    ],
    "atoms": [
@@ -520,7 +544,7 @@
    "files": [
     {
      "path": "apps/light.c",
-     "sha256": "134c27154e803b18b5dbc056f12a9ca4dc460f135da8ca0b21ec81c47bc03807"
+     "sha256": "545304a5d6e773919b20ed38987c9a30a9ce6ff6f61e8311d1cb807e5d13d4da"
     }
    ],
    "atoms": [
@@ -2120,7 +2144,7 @@
    "name": "apps/light.apply_command",
    "function": "apply_command",
    "module": "apps/light.c",
-   "line": 55,
+   "line": 59,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -2157,12 +2181,13 @@
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
-    "line": 53,
+    "line": 57,
     "role": "SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)",
     "uses": [],
     "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), role(\"SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)\"))"
@@ -2191,7 +2216,7 @@
    "name": "apps/light.boot_session_mint",
    "function": "boot_session_mint",
    "module": "apps/light.c",
-   "line": 27,
+   "line": 31,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t boot_session_mint(void)",
@@ -2236,12 +2261,13 @@
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
-    "line": 25,
+    "line": 29,
     "role": "mint this start's session number from EEPROM; it differs after every reset",
     "uses": [],
     "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this start's session number from EEPROM; it differs after every reset\"))"
@@ -2270,7 +2296,7 @@
    "name": "apps/light.led_follow_state",
    "function": "led_follow_state",
    "module": "apps/light.c",
-   "line": 75,
+   "line": 79,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_follow_state(void)",
@@ -2303,12 +2329,13 @@
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
-    "line": 74,
+    "line": 78,
     "role": "each pass: when state.led_on differs from the value last written to the pin, drive the pin to it",
     "uses": [
      "LED_PIN"
@@ -2339,7 +2366,7 @@
    "name": "apps/light.led_toggle",
    "function": "led_toggle",
    "module": "apps/light.c",
-   "line": 41,
+   "line": 45,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_toggle(void)",
@@ -2365,12 +2392,13 @@
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
-    "line": 40,
+    "line": 44,
     "role": "on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)",
     "uses": [],
     "raw": "POLARI_NODE(led_toggle, role(\"on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)\"))"
@@ -2399,7 +2427,7 @@
    "name": "apps/light.main",
    "function": "main",
    "module": "apps/light.c",
-   "line": 91,
+   "line": 101,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -2418,6 +2446,13 @@
     }
    ],
    "resources": [
+    {
+     "kind": "global",
+     "name": "g_sensed",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
     {
      "kind": "global",
      "name": "rx",
@@ -2445,6 +2480,7 @@
     "hal_tick_init",
     "hal_led_init",
     "hal_button_init",
+    "hal_sense_init",
     "memset",
     "strcpy",
     "boot_session_mint",
@@ -2455,15 +2491,17 @@
     "hal_millis",
     "led_toggle",
     "led_follow_state",
+    "hal_sense_read",
     "telemetry_send"
    ],
    "pure": false,
-   "pure_why": "touches rx, state",
+   "pure_why": "touches g_sensed, rx, state",
    "isr_safe": "yes",
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
@@ -2471,17 +2509,17 @@
    "cost": {
     "measured_in": "uno-light",
     "symbol": "main",
-    "text_bytes": 2044,
+    "text_bytes": 2088,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 196,
-    "stack_bytes": 111,
+    "text_bytes_noinline": 250,
+    "stack_bytes": 116,
     "stack_kind": "static",
     "stack_from": "shipped",
-    "stack_bytes_noinline": 3,
+    "stack_bytes_noinline": 11,
     "text_bytes_range": [
      2044,
-     2044
+     2088
     ]
    },
    "title": "",
@@ -2491,7 +2529,7 @@
    "name": "apps/light.telemetry_send",
    "function": "telemetry_send",
    "module": "apps/light.c",
-   "line": 84,
+   "line": 94,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -2540,12 +2578,13 @@
    "atomic_block": false,
    "configs": [
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog"
    ],
    "annotation": {
     "form": "macro",
-    "line": 83,
+    "line": 93,
     "role": "one LightState frame: the light, how often it changed, who changed it last",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
@@ -3691,6 +3730,7 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -3840,6 +3880,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -3954,6 +3995,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -3985,7 +4027,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 328,
+   "line": 358,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -4042,7 +4084,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 336,
+   "line": 366,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -4105,7 +4147,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 334,
+    "line": 364,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -4193,6 +4235,7 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -4230,7 +4273,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 277,
+   "line": 297,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -4282,6 +4325,7 @@
     "uno-blink-only",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4291,7 +4335,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 275,
+    "line": 295,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -4321,7 +4365,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 268,
+   "line": 283,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -4355,6 +4399,7 @@
     "uno-blink-only",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4426,6 +4471,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -4506,6 +4552,7 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -4543,7 +4590,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 317,
+   "line": 347,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -4598,7 +4645,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 315,
+    "line": 345,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -4628,7 +4675,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 297,
+   "line": 327,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -4767,6 +4814,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5036,6 +5084,7 @@
    "configs": [
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-sense-poll",
     "uno-light-sense-pcint",
     "cmod-cover-commit",
@@ -5115,6 +5164,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5288,6 +5338,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -5376,6 +5427,7 @@
     "uno-echo",
     "uno-button-clock",
     "uno-light",
+    "uno-light-unsensed",
     "uno-light-pcint",
     "uno-light-analog",
     "uno-light-sense-poll",
@@ -6376,11 +6428,12 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
+    "uno-light",
     "uno-light-sense-poll"
    ],
    "annotation": null,
    "cost": {
-    "measured_in": "uno-light-sense-poll",
+    "measured_in": "uno-light",
     "symbol": "hal_sense_init",
     "text_bytes": 14,
     "in_shipped_build": true,
@@ -6486,11 +6539,12 @@
    "isr_safe_why": "",
    "atomic_block": false,
    "configs": [
+    "uno-light",
     "uno-light-sense-poll"
    ],
    "annotation": null,
    "cost": {
-    "measured_in": "uno-light-sense-poll",
+    "measured_in": "uno-light",
     "symbol": "hal_sense_read",
     "text_bytes": 176,
     "in_shipped_build": true,
@@ -6520,5 +6574,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T22:15:00"
+ "conformed_at": "2026-10-19T09:10:17"
 }

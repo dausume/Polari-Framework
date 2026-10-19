@@ -1,0 +1,62 @@
+{
+ "best_ms": 0.015,
+ "clock_hz": 16000000,
+ "inputs": {
+  "hex_sha256": "3c27681b7bdc35e614896937741ec002302bb64449f3be2be9102e4017abadd8",
+  "source_sha": "373022f6e4224db544bfcf6181e2a2e040d358abf47f9e492a8ca6adc14b8914"
+ },
+ "mcu": "atmega328p",
+ "record_sha256": "a38a90fc24c11c3af962bed53f8633e5aed58be09fb031fa78d2876f5187dcdf",
+ "recorded_at": "2026-10-19T08:19:49",
+ "resolution": "one core cycle",
+ "rule": "the number is the WORST of the 5 presses; a press at another time in the pass can give a smaller or (up to one pass) a larger value, so it is a measured value, not a bound",
+ "runs": [
+  {
+   "latency_ms": 0.022,
+   "led_cycle": 1600359,
+   "press_cycle": 1600000,
+   "press_ms": 100
+  },
+  {
+   "latency_ms": 0.022,
+   "led_cycle": 2400350,
+   "press_cycle": 2400000,
+   "press_ms": 150
+  },
+  {
+   "latency_ms": 0.015,
+   "led_cycle": 3200244,
+   "press_cycle": 3200000,
+   "press_ms": 200
+  },
+  {
+   "latency_ms": 0.015,
+   "led_cycle": 4000235,
+   "press_cycle": 4000000,
+   "press_ms": 250
+  },
+  {
+   "latency_ms": 0.021,
+   "led_cycle": 4800328,
+   "press_cycle": 4800000,
+   "press_ms": 300
+  }
+ ],
+ "schema": "press-latency/1",
+ "stimulus": {
+  "first_press_ms": 100,
+  "phases": 5,
+  "step_ms": 50,
+  "tail_ms": 600
+ },
+ "tools": {
+  "avr-gcc": "avr-gcc (GCC) 14.2.0",
+  "image": {
+   "id": "sha256:1c4832c827616e2d76131db9772a884266e7f38e4a78dd20bba4d6334b3ffa90",
+   "name": "prf-board-engines:trixie"
+  }
+ },
+ "variant": "uno-light",
+ "what": "press-to-light latency: one debounced press on the config's own button pin, then the cycle of the first rise of the light pin D6 (the twin's wire-edge event; led_follow_state is the only writer)",
+ "worst_ms": 0.022
+}

@@ -1,43 +1,43 @@
 {
- "best_ms": 33.691,
+ "best_ms": 13.215,
  "clock_hz": 16000000,
  "inputs": {
-  "hex_sha256": "0c05e441b8f50d5bcfa1cf26db5eaf39eb86d4a16a1aafc1d2d17db0e1b8a781",
-  "source_sha": "8fe05fc71c884443720e2f58075ae5ab549ec885c002a9e2636d2709a79786ac"
+  "hex_sha256": "0ed08ad9b089bbc8f29cce3ca12ac8ded3fc682abb792f73b60f13b521b1c820",
+  "source_sha": "086d0cc0bae08bf41e0350132ea52b325427e3883c30c35a6d1f15f1c5bf1376"
  },
  "mcu": "atmega328p",
- "record_sha256": "d09f08d81cef5a8f507ab30fc99d6672d988b8b063c4b61f3a55c9cbdd950816",
- "recorded_at": "2026-10-19T07:41:36",
- "resolution": "one core cycle (D13 is written a few cycles after D6)",
+ "record_sha256": "b3c8bc0942203d81733f1d78f541b57a83883964b06cffb4dfee077815dbfeba",
+ "recorded_at": "2026-10-19T08:19:41",
+ "resolution": "one core cycle",
  "rule": "the number is the WORST of the 5 presses; a press at another time in the pass can give a smaller or (up to one pass) a larger value, so it is a measured value, not a bound",
  "runs": [
   {
-   "latency_ms": 183.691,
-   "led_cycle": 4539054,
+   "latency_ms": 163.215,
+   "led_cycle": 4211443,
    "press_cycle": 1600000,
    "press_ms": 100
   },
   {
-   "latency_ms": 133.691,
-   "led_cycle": 4539054,
+   "latency_ms": 113.215,
+   "led_cycle": 4211443,
    "press_cycle": 2400000,
    "press_ms": 150
   },
   {
-   "latency_ms": 83.691,
-   "led_cycle": 4539054,
+   "latency_ms": 63.215,
+   "led_cycle": 4211443,
    "press_cycle": 3200000,
    "press_ms": 200
   },
   {
-   "latency_ms": 33.691,
-   "led_cycle": 4539054,
+   "latency_ms": 13.215,
+   "led_cycle": 4211443,
    "press_cycle": 4000000,
    "press_ms": 250
   },
   {
-   "latency_ms": 266.691,
-   "led_cycle": 9067060,
+   "latency_ms": 226.215,
+   "led_cycle": 8419447,
    "press_cycle": 4800000,
    "press_ms": 300
   }
@@ -57,6 +57,6 @@
   }
  },
  "variant": "uno-light-slow-loop",
- "what": "press-to-light latency: one debounced press on the config's own button pin, then the cycle of the first L LED (D13) change to high, which led_follow_state writes right after D6",
- "worst_ms": 266.691
+ "what": "press-to-light latency: one debounced press on the config's own button pin, then the cycle of the first rise of the light pin D6 (the twin's wire-edge event; led_follow_state is the only writer)",
+ "worst_ms": 226.215
 }

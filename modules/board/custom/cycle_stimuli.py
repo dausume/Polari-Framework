@@ -60,9 +60,9 @@ def stimulus(variant):
     """-> {name, argv, files, seconds, describe, drives, pin}; raises KeyError for a variant with no stimulus defined."""
     from board.custom import light_twin as LT
     files, extra, cmds = {}, [], 0
-    if variant in ('uno-light', 'uno-light-pcint', 'uno-light-analog'):
+    if variant in ('uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog'):
         extra, files, cmds = _light_commands(LT._spec, _v1_frame)
-    if variant == 'uno-light':
+    if variant == 'uno-light-unsensed':
         pin = 'PD2'
         pa, end = _press_args(pin)
         adc = '--adc0-mv 750'

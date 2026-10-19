@@ -8,6 +8,7 @@ source=command, and the acceptance runner turns both into passed ScenarioRuns.
     (called by board.board_selftest.main as run_light(check))
 """
 import re
+import shutil
 import tempfile
 
 
@@ -35,20 +36,31 @@ def run_light(check):
           and 'LIGHTSTATE_SOURCE_COMMAND = 1' in text and 'LIGHTSTATE_STATUS_ACTIVE = 2' in text and 'LIGHTSTATE_F_LED_ON' in text)
     v = V.find('uno-light')
     r = V.resolve(v)
-    check('ucd-light: variant uno-light resolves — app light, one class (LightState), LED + commands + button, no sense pin, no PWM, no ADC',
-          r['app'] == 'light' and r['classes'] == ['LightState'] and r['features']['button'] and r['features']['led'] and r['features']['commands']
-          and not (r['features']['sense'] or r['features']['pwm'] or r['features']['adc']), r['features'])
+    check('ucd-light: variant uno-light resolves — app light, one class (LightState), LED + commands + button + the SENSE line (smp-1: polled on D3, jumper from D6), no PWM, no ADC',
+          r['app'] == 'light' and r['classes'] == ['LightState'] and r['features']['button'] and r['features']['led'] and r['features']['commands'] and r['features']['sense']
+          and not (r['features']['pwm'] or r['features']['adc']) and r['knobs']['sense_route'] == 'poll' and r['knobs']['sense_pin'] == 3, r['features'])
+    vu = V.find('uno-light-unsensed')
+    ru = V.resolve(vu)
+    check('smp-1: the light as it was is kept as uno-light-unsensed (sample failure F1) - the same app and class, NO sense line',
+          ru['app'] == 'light' and ru['classes'] == ['LightState'] and not ru['features']['sense'])
     try:
-        V.resolve(dict(v, features_json='{"led": true, "commands": true, "button": true, "sense": true}'))
+        V.resolve(dict(V.find('uno-light-v2'), features_json='{"led": true, "commands": true, "button": true, "sense": true}'))
         refused = False
     except V.VariantRefused:
         refused = True
-    check('ucd-light: the light app refuses a sense pin (no INT1 in the light test) — named, not ignored', refused)
+    check('ucd-light: an app that has no sense code (light_v2) still refuses a sense pin — named, not ignored', refused)
     work = tempfile.mkdtemp(prefix='ucd-light-gen-')
     row = gen.gen('uno', work=work, variant='uno-light', variant_rows=[v])
     cfg = open(row['project_dir'] + '/board_config.h').read()
-    check('ucd-light: board_config.h for uno-light turns on INT0 (the button on D2, debounced) and not INT1',
-          '#define HAL_INT0     1' in cfg and 'HAL_INT1' not in cfg and '#define BUTTON_PIN   2' in cfg and '#define LED_PIN      6' in cfg)
+    check('ucd-light: board_config.h for uno-light turns on INT0 (the button on D2, debounced) and the polled sense line on D3 (HAL_SENSE_ROUTE 1)',
+          '#define HAL_INT0     1' in cfg and '#define HAL_INT1     1' in cfg and '#define HAL_SENSE_ROUTE 1' in cfg and '#define SENSE_PIN    3' in cfg and '#define BUTTON_PIN   2' in cfg and '#define LED_PIN      6' in cfg)
+    shutil.rmtree(work, ignore_errors=True)
+    work = tempfile.mkdtemp(prefix='ucd-light-gen-')
+    rowu = gen.gen('uno', work=work, variant='uno-light-unsensed', variant_rows=[vu])
+    cfgu = open(rowu['project_dir'] + '/board_config.h').read()
+    check('ucd-light: board_config.h for uno-light-unsensed turns on INT0 and NOT INT1 (as the light test was before the sense line)',
+          '#define HAL_INT0     1' in cfgu and 'HAL_INT1' not in cfgu and '#define BUTTON_PIN   2' in cfgu)
+    shutil.rmtree(work, ignore_errors=True)
 
     from board.custom import light_twin as LT
     ready, why = LT.engine_ready()

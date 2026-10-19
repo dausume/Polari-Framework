@@ -48,7 +48,7 @@ def run_variant_twin(check):
         for name in VT.CHECKS[variant]:
             check('fgm-5a/5b %s: check %r reported its outcome in words' % (variant, name), ('%s: ' % name) in r['why'] and '[FAILED]' not in r['why'], r['why'][:300])
     # the checks must be able to FAIL: the same stimulus against firmware that does not have the behaviour
-    _, int0_hex = _hex('uno-light')
+    _, int0_hex = _hex('uno-light-unsensed')
     ok, words, _n = VT.check_presses(int0_hex)
     check('fgm-5a: the D4 press check FAILS on uno-light (the INT0 button on D2 ignores D4): %s' % words[:140], not ok)
     _, pc_hex = _hex('uno-light-pcint')

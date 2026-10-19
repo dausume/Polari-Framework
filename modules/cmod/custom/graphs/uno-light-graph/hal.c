@@ -265,10 +265,30 @@ void hal_wdt_boot(void)
 #define LED_BIT  ((LED_PIN) - 8)
 #endif
 
+#if LED_ROUTE_PWM
+/* smp-1 (drive-led:pwm): the LED pin is Timer0's compare output (D6 = OC0A, D5 = OC0B), PHASE-CORRECT PWM (TOP 255, ~490 Hz at clk/64). "On" connects the output at
+ * OCR = 255 (100 % duty: the pin stays HIGH, no edges for a sense line to count); "off" disconnects it and drives the pin low. The PORT bit
+ * is kept equal to the level the pin has, so everything that reads the LED line as a port bit still reads the truth. */
+#if LED_PIN == 6
+#define LED_OCR  OCR0A
+#define LED_COM  COM0A1
+#elif LED_PIN == 5
+#define LED_OCR  OCR0B
+#define LED_COM  COM0B1
+#else
+#error "LED_ROUTE_PWM needs LED_PIN 5 or 6 (Timer0's outputs); D3/D11 belong to Timer2, the 1 ms tick"
+#endif
+#endif
+
 void hal_led_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
     LED_DDR |= _BV(LED_BIT);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+#endif
+#if LED_ROUTE_PWM
+    TCCR0A = _BV(WGM00);                               /* phase-correct PWM (TOP = 255), output disconnected */
+    TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
+    LED_OCR = 255u;
 #endif
 }
 
@@ -276,7 +296,17 @@ POLARI_NODE(hal_led, in(on, "bool", "0 = off, anything else = on"), uses(LED_PIN
             role("set the LED on LED_PIN"))
 void hal_led(uint8_t on)
 {
+#if LED_ROUTE_PWM
+    if (on) {
+        LED_PORT |= _BV(LED_BIT);
+        TCCR0A |= _BV(LED_COM);
+    } else {
+        TCCR0A &= (uint8_t)~_BV(LED_COM);
+        LED_PORT &= (uint8_t)~_BV(LED_BIT);
+    }
+#else
     if (on) LED_PORT |= _BV(LED_BIT); else LED_PORT &= (uint8_t)~_BV(LED_BIT);
+#endif
 }
 #endif
 

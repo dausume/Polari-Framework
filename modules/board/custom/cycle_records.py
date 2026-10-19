@@ -15,7 +15,8 @@ import json
 import os
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cycle_records')
-GRAPH_VARIANT = {'uno-light-graph': 'uno-light', 'uno-button-clock-graph': 'uno-button-clock'}
+GRAPH_VARIANT = {'uno-light-graph': 'uno-light-unsensed',     # smp-1: the graph is the light app WITHOUT the sense line = the variant uno-light-unsensed (uno-light itself now carries the sense line)
+                  'uno-button-clock-graph': 'uno-button-clock'}
 _CACHE = {}
 
 

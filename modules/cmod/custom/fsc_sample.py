@@ -11,6 +11,11 @@ The Mission row carries `sample_solutions`: a list of entries {id, config, kind 
   - an entry whose config is not built yet (the ESP32-C3 sample S5 until its build lands) is shown as "not built yet" - never as a failure.
 `scope=all` is the old behaviour (every non-failed solution, every plan, every failure), `scope=plans` the plans nobody built, `scope=finished` every finished config (the sample or not).
 
+THE S5 HOOK (the ESP32-C3 build, another agent's slice smp-2): the entry already exists in cmod.custom.mission_seeds.SAMPLE_SOLUTIONS with config `c3-light-freertos` and `twin_only`. To join the sample the build only
+has to (1) make `cmod.custom.fsc_link.configs()` return a config of that name (a FirmwareVariant row, or an addition to configs() that reads board.custom.variants_c3), with `board_definition` set to the C3 board and
+`features_json` / `knobs_json` that `config_routes` can read, and (2) have the four Purposes' runs stored with variant = that name (`acceptance.run(..., variant=)` / `pol firmware prove`). Until then it reads `not built yet`.
+If the build uses another config name, change the `config` of the S5 entry (the Mission row converges at boot); nothing else here names it.
+
 A sample FAILURE may state a SAFETY DEADLINE of its own (`safety_deadline`: {purpose, key, safety_critical: true}). That is the D-fsc-1 rule ("a deadline flagged safety-critical that is missed is a failure")
 applied to ONE sample entry, WITHOUT touching the real Mission or its Purposes: the deadline's VALUE is read from the Purpose's own criterion (ensure-button-controls-light: max_latency_ms 100 ms), the safety flag is
 the entry's, and the time is MEASURED on the twin (board.custom.press_latency, a committed record). The failure row says "misses the safety-critical deadline: X ms against Y ms".
@@ -128,6 +133,9 @@ def history(built, scope):
     for f in built['failures']:
         if not f.get('sample') and f.get('config'):
             out.append({'config': f['config'], 'state': 'failed (history)', 'words': 'built but not in the sample: kept as history, not listed as a failure here (scope=all lists it). %s' % f['reason']})
+    for u in built.get('unmatched_configs') or []:       # a built config with the routes of a linked one (uno-light-sense-poll = uno-light's routes) is a duplicate: history, said so
+        if u['why'].startswith('resolves to the same candidate'):
+            out.append({'config': u['config'], 'state': 'duplicate (history)', 'words': 'built, not in the sample: it %s, so it is not scored separately (scope=all lists the other)' % u['why']})
     return sorted(out, key=lambda x: x['config'])
 
 

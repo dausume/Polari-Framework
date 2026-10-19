@@ -23,32 +23,32 @@
   "apps/light.led_follow_state": {
    "entry": "0x760",
    "function": "led_follow_state",
-   "max": 65,
+   "max": 131,
    "min": 11,
-   "n": 117243,
+   "n": 114811,
    "symbol": "led_follow_state"
   },
   "apps/light.led_toggle": {
    "entry": "0x6f8",
    "function": "led_toggle",
-   "max": 168,
+   "max": 231,
    "min": 48,
-   "n": 117243,
+   "n": 114811,
    "symbol": "led_toggle"
   },
   "apps/light.telemetry_send": {
    "blocks_on_uart": true,
-   "cpu_basis": "called once per frame sent (13 calls, 13 frames), so each call waited at least (55 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
-   "cpu_cycles_max": 13921,
-   "cpu_cycles_min": 13647,
+   "cpu_basis": "called once per frame sent (13 calls, 13 frames), so each call waited at least (64 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
+   "cpu_cycles_max": 16397,
+   "cpu_cycles_min": 16077,
    "entry": "0xbb8",
    "function": "telemetry_send",
-   "max": 175921,
-   "min": 175647,
+   "max": 205397,
+   "min": 205077,
    "n": 13,
    "symbol": "telemetry_send",
    "twin_caveat": "includes the twin's USART wait (its byte time is longer than the chip's, see the record's uart block); cpu_cycles_* is the call without that wait",
-   "uart_wait_removed_cycles": 162000
+   "uart_wait_removed_cycles": 189000
   },
   "hal.hal_button_init": {
    "entry": "0x2a2",
@@ -77,9 +77,9 @@
   "hal.hal_millis": {
    "entry": "0x1c2",
    "function": "hal_millis",
-   "max": 174,
+   "max": 156,
    "min": 54,
-   "n": 117244,
+   "n": 114812,
    "symbol": "hal_millis"
   },
   "hal.hal_presses": {
@@ -94,17 +94,17 @@
   "hal.hal_rx_pop": {
    "entry": "0xf0",
    "function": "hal_rx_pop",
-   "max": 82,
+   "max": 134,
    "min": 14,
-   "n": 117352,
+   "n": 114920,
    "symbol": "hal_rx_pop"
   },
   "hal.hal_take_toggle_pending": {
    "entry": "0x2de",
    "function": "hal_take_toggle_pending",
-   "max": 157,
+   "max": 91,
    "min": 37,
-   "n": 117243,
+   "n": 114811,
    "symbol": "hal_take_toggle_pending"
   },
   "hal.hal_tick_init": {
@@ -125,17 +125,17 @@
   },
   "hal.hal_usart_send": {
    "blocks_on_uart": true,
-   "cpu_basis": "called once per frame sent (13 calls, 13 frames), so each call waited at least (55 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
-   "cpu_cycles_max": 135,
-   "cpu_cycles_min": 69,
+   "cpu_basis": "called once per frame sent (13 calls, 13 frames), so each call waited at least (64 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
+   "cpu_cycles_max": 138,
+   "cpu_cycles_min": 78,
    "entry": "0x142",
    "function": "hal_usart_send",
-   "max": 162135,
-   "min": 162069,
+   "max": 189138,
+   "min": 189078,
    "n": 13,
    "symbol": "hal_usart_send",
    "twin_caveat": "includes the twin's USART wait (its byte time is longer than the chip's, see the record's uart block); cpu_cycles_* is the call without that wait",
-   "uart_wait_removed_cycles": 162000
+   "uart_wait_removed_cycles": 189000
   }
  },
  "inputs": {
@@ -150,32 +150,32 @@
    "-ffunction-sections",
    "-fdata-sections"
   ],
-  "flash_bytes": 3118,
+  "flash_bytes": 3128,
   "ldflags": [
    "-Wl,--gc-sections"
   ],
-  "noinline_elf_sha256": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0",
+  "noinline_elf_sha256": "a0e14294dd22918b36b5b4e9084afa1ad588f966a493c6713fe286673a01f88a",
   "noinline_extra": [
    "-fno-inline",
    "-Wno-error",
    "-Wl,--no-gc-sections"
   ],
-  "noinline_hex_sha256": "0300140ed201bfe2512f897003748b3be57a63f487129205213a452a5b27cf01",
-  "ram_bytes": 514,
-  "shipped_elf_sha256": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
-  "shipped_hex_sha256": "1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5",
+  "noinline_hex_sha256": "13433b797d98d67b3a677fb0d2cab2a0d69ad002570190efda7329a9c0e97258",
+  "ram_bytes": 524,
+  "shipped_elf_sha256": "64cc65dcf098e12dfe60faf34cb19b5e48a69084d56952297e45308fc9f4de4e",
+  "shipped_hex_sha256": "1050f4f7bd75a5fb119f792a3e898f1ed5826349fc0d2bd416dafee0c4365507",
   "sources": [
    {
     "path": "board_config.h",
-    "sha256": "d6f7a025800d78f0c1834999f7b57c9cd40374a16b1e1da8414f0f8c67a80d79"
+    "sha256": "c4fc953ffae1cc0f65113394451f6499642d4c24b81a71d5ccde6844fd8445b3"
    },
    {
     "path": "hal.c",
-    "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
+    "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
    },
    {
     "path": "hal.h",
-    "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+    "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
    },
    {
     "path": "light_defs.h",
@@ -187,14 +187,14 @@
    },
    {
     "path": "main.c",
-    "sha256": "134c27154e803b18b5dbc056f12a9ca4dc460f135da8ca0b21ec81c47bc03807"
+    "sha256": "545304a5d6e773919b20ed38987c9a30a9ce6ff6f61e8311d1cb807e5d13d4da"
    }
   ]
  },
  "isrs": {
   "INT0_vect": {
    "basis": "shipped hex, RUNNING raised -> lowered at reti",
-   "latency_max": 12,
+   "latency_max": 11,
    "max": 116,
    "mean": 112.4,
    "min": 98,
@@ -212,7 +212,7 @@
   },
   "USART_RX_vect": {
    "basis": "shipped hex, RUNNING raised -> lowered at reti",
-   "latency_max": 8,
+   "latency_max": 10,
    "max": 48,
    "mean": 48.0,
    "min": 48,
@@ -228,23 +228,23 @@
     "max_cycles": 290,
     "measure": "poll point -> rjmp at 0x49e, + the jump's own 2 cycles",
     "min_cycles": 89,
-    "n": 206973,
+    "n": 202688,
     "op": "rjmp"
    },
    {
     "back_jump": "0x65a",
-    "chip_timed_basis": "once per frame sent (13 of 13); minus (55 B - 1) x (3000 twin - 1360 chip cycles per byte) = 88560",
-    "chip_timed_max_cycles": 86976,
-    "max_cycles": 175536,
+    "chip_timed_basis": "once per frame sent (13 of 13); minus (64 B - 1) x (3000 twin - 1360 chip cycles per byte) = 103320",
+    "chip_timed_max_cycles": 101676,
+    "max_cycles": 204996,
     "measure": "poll point -> rjmp at 0x65a, + the jump's own 2 cycles",
-    "min_cycles": 175247,
+    "min_cycles": 204622,
     "n": 13,
     "op": "rjmp",
     "sends_report": true
    },
    {
     "back_jump": "0x698",
-    "max_cycles": 129,
+    "max_cycles": 75,
     "measure": "poll point -> rjmp at 0x698, + the jump's own 2 cycles",
     "min_cycles": 75,
     "n": 6,
@@ -252,7 +252,7 @@
    },
    {
     "back_jump": "0x6aa",
-    "max_cycles": 138,
+    "max_cycles": 84,
     "measure": "poll point -> rjmp at 0x6aa, + the jump's own 2 cycles",
     "min_cycles": 84,
     "n": 60,
@@ -268,15 +268,15 @@
    },
    {
     "back_jump": "0xa88",
-    "max_cycles": 3750,
+    "max_cycles": 3804,
     "measure": "poll point -> rjmp at 0xa88, + the jump's own 2 cycles",
-    "min_cycles": 3750,
+    "min_cycles": 3804,
     "n": 2,
     "op": "rjmp"
    },
    {
     "back_jump": "0xade",
-    "max_cycles": 3810,
+    "max_cycles": 3864,
     "measure": "poll point -> rjmp at 0xade, + the jump's own 2 cycles",
     "min_cycles": 3810,
     "n": 4,
@@ -284,12 +284,12 @@
    }
   ],
   "poll_point": "0x3ee",
-  "worst_gap_chip_timed_cycles": 86976,
-  "worst_gap_cycles": 175536
+  "worst_gap_chip_timed_cycles": 101676,
+  "worst_gap_cycles": 204996
  },
  "mcu": "atmega328p",
- "record_sha256": "79af442ce189708655b26fe8fc053328adcb1134c0068e80243c2347951c2000",
- "recorded_at": "2026-10-18T22:17:36",
+ "record_sha256": "0df208a4e8d6d6acb1a0bca259868680e9e729ba933524406b396e9c44da36b8",
+ "recorded_at": "2026-10-19T09:11:19",
  "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
  "schema": "cycle-measurement/1",
  "stimulus": {
@@ -354,14 +354,14 @@
    "c2.bin": "1128371975f7fcd1b28464a7ac6674eae9b10bd0bad0ec4e39383a70840e88f0",
    "c3.bin": "c0c78ceebcd82cc7f96af229e227084a4ad6a0eea809fac1192ea1002883e57f"
   },
-  "frame_bytes_max": 55,
-  "frame_bytes_min": 55,
+  "frame_bytes_max": 64,
+  "frame_bytes_min": 64,
   "frames_sent": 13,
-  "name": "uno-light/cyc0-v1",
+  "name": "uno-light-unsensed/cyc0-v1",
   "seconds": 1.3,
   "seed": 1,
-  "sim_cycles": 20801248,
-  "uart_tx_bytes": 715
+  "sim_cycles": 20800908,
+  "uart_tx_bytes": 832
  },
  "tools": {
   "avr-gcc": "avr-gcc (GCC) 14.2.0",
@@ -374,7 +374,7 @@
  },
  "twin_runs": 36,
  "uart": {
-  "bytes_logged": 715,
+  "bytes_logged": 832,
   "chip_cycles_per_byte": 1360,
   "chip_formula": "10 bit times x (8 if U2X else 16) x (UBRR+1) cycles (ATmega328P USART baud equations; the divisor is read from the build's own hal.c / board_config.h)",
   "note": "the twin spaces bytes 3000 cycles apart, the chip 1360: the twin's send wait is 2.21x the chip's",
@@ -382,7 +382,7 @@
   "u2x": 1,
   "ubrr": 16
  },
- "variant": "uno-light",
+ "variant": "uno-light-unsensed",
  "what": {
   "functions": "cycles per call, entry -> ret, in the -fno-inline build (atom as a node; includes everything it calls and any interrupt that landed inside); the caller's CALL (4 cycles) is not counted",
   "isrs": "cycles per interrupt, vector taken -> reti, in the shipped hex",

@@ -72,7 +72,7 @@ def run_presses(hex_bytes, n=N_PRESSES, variant=VARIANT, pin=None):
     from board.custom import light_button as LB
     from firmwarefaults.custom import harness
     pinat, end = LB.press_pinat(LB.plan(variant), n, START_CYCLE, PRESS_HOLD_CYCLES, PRESS_GAP_CYCLES, pin)
-    r = harness.run(_argv((end + RUN_TAIL) / 16000000.0, pinat, LB.default_adc(variant)), hex_bytes, timeout=120)
+    r = harness.run(_argv((end + RUN_TAIL) / 16000000.0, pinat + LB.wire_args(variant), LB.default_adc(variant)), hex_bytes, timeout=120)
     frames, bad = decode(r['uart'])
     return r, frames, bad
 
@@ -81,16 +81,17 @@ def run_ramp(hex_bytes, variant, adc=None):
     """The button read as a voltage on A0 (uno-light-analog): the twin's ramp, or A0 held at `adc` (a negative control)."""
     from board.custom import light_button as LB
     from firmwarefaults.custom import harness
-    r = harness.run(_argv(LB.RAMP_SECONDS, [], adc or '--adc0-ramp %d,%d,%d' % LB.RAMP), hex_bytes, timeout=120)
+    r = harness.run(_argv(LB.RAMP_SECONDS, LB.wire_args(variant), adc or '--adc0-ramp %d,%d,%d' % LB.RAMP), hex_bytes, timeout=120)
     frames, bad = decode(r['uart'])
     return r, frames, bad
 
 
-def run_commands(hex_bytes):
+def run_commands(hex_bytes, variant=VARIANT):
+    from board.custom import light_button as LB
     from firmwarefaults.custom import harness
     _, spec = _spec()
     files = {'on.bin': cmd_frame(spec, 1, led_on=True), 'off.bin': cmd_frame(spec, 2, led_on=False)}
-    argv = _argv((CMD_OFF_CYCLE + 4 * RUN_TAIL) / 16000000.0, ['--inject', 'on.bin@%d' % CMD_ON_CYCLE, '--inject', 'off.bin@%d' % CMD_OFF_CYCLE])
+    argv = _argv((CMD_OFF_CYCLE + 4 * RUN_TAIL) / 16000000.0, LB.wire_args(variant) + ['--inject', 'on.bin@%d' % CMD_ON_CYCLE, '--inject', 'off.bin@%d' % CMD_OFF_CYCLE], LB.default_adc(variant))
     r = harness.run_files(argv, hex_bytes, files, timeout=120)
     frames, bad = decode(r['uart'])
     return r, frames, bad
@@ -162,11 +163,10 @@ def _prove_in(work, which, variant=VARIANT):
             o, w = judge_presses(fr)
             ok, seen = ok and o and r['ok'] and bad == 0, seen + len(fr)
             parts.append('button (%s): %s' % (pl['words'], w))
-            if variant != VARIANT:     # uno-light's own two runs keep their shape; a config with another button route also gets the negative controls the sense configs have
-                r0, f0, _b = run_presses(hex_bytes, n=0, variant=variant)
-                r1, f1, _b = run_presses(hex_bytes, variant=variant, pin=pl['wrong_pin'])
-                ctl += [('no press at all', judge_presses(f0)[0] and r0['ok']),
-                        ('the same presses on a pin that is not the button (%s)' % pl['wrong_pin'], judge_presses(f1)[0] and r1['ok'])]
+            r0, f0, _b = run_presses(hex_bytes, n=0, variant=variant)
+            r1, f1, _b = run_presses(hex_bytes, variant=variant, pin=pl['wrong_pin'])
+            ctl += [('no press at all', judge_presses(f0)[0] and r0['ok']),
+                    ('the same presses on a pin that is not the button (%s)' % pl['wrong_pin'], judge_presses(f1)[0] and r1['ok'])]
     if which in ('both', 'polari'):
         # scl-2: the from-Polari proof STARTS FROM THE STRUCT (light-toggle on a test manager -> a derived frame -> the twin); the old hand-frame check runs inside it as the board half
         from board.custom import light_struct as LS

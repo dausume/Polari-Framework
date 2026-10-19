@@ -9,7 +9,11 @@
  * start, kept in EEPROM), led_toggle (a button press flips state.led_on), apply_command (SET_LED sets state.led_on),
  * led_follow_state (the struct drives the pin: the only caller of hal_led),
  * telemetry_send (one LightState frame). The rest come from the shared hal: usart init, led init, button init, rx pop.
- * No clock, no second sensing pin, no event queue, no ADC.
+ * No clock, no event queue, no ADC.
+ *
+ * THE SENSE LINE (smp-1, the board_config.h `sense` feature; without it every byte of this file's code is as it was): a jumper from the LED pin (D6)
+ * to a sense pin lets the board read the level the LED line REALLY has. The wire contract is unchanged (LightState v1): the struct's `led_on` is still the COMMAND (the mutators
+ * alter it, led_follow_state drives D6 from it), and the REPORT's `led_on` is the SENSED level - the board says what the LED line is, not what it was told. Nothing else changes.
  */
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
@@ -80,6 +84,12 @@ static void led_follow_state(void)
     hal_led(pin);
 }
 
+#if HAL_INT1
+/* the sensed level of the LED line (a file-scope variable, written once per pass in main()). The sense route counts the line's rises and falls; the line starts low, so after any whole number of
+ * edges it is HIGH exactly when it has risen once more than it has fallen. Sampled every pass so a polled route never misses a change. */
+static uint8_t g_sensed;
+#endif
+
 POLARI_NODE(telemetry_send, role("one LightState frame: the light, how often it changed, who changed it last"))
 static void telemetry_send(void)
 {
@@ -97,6 +107,9 @@ int main(void)
     hal_tick_init();
     hal_led_init();
     hal_button_init();
+#if HAL_INT1
+    hal_sense_init();
+#endif
     memset(&state, 0, sizeof state);
     memset(&rx, 0, sizeof rx);
 #if SEND_NAME
@@ -114,9 +127,29 @@ int main(void)
         now = hal_millis();
         led_toggle();
         led_follow_state();
+#if HAL_INT1
+        {   uint16_t rises, falls;
+            uint32_t last_ms;
+            hal_sense_read(&rises, &falls, &last_ms);
+            g_sensed = (uint8_t)((uint16_t)(rises - falls) & 1u);
+        }
+#endif
+#if LOOP_DELAY_MS
+        /* smp-1 (sample failure F2): a deliberately slow pass. The press is only acted on here, once per pass, so it is acted on up to LOOP_DELAY_MS late. */
+        { uint32_t t0 = hal_millis(); while ((uint32_t)(hal_millis() - t0) < (uint32_t)LOOP_DELAY_MS) { } }
+#endif
 
         if ((int32_t)(now - next_ms) < 0) continue;
         next_ms += TELEMETRY_MS;
+#if HAL_INT1
+        {   /* the report carries the SENSED level in led_on; the struct's own led_on (the command) is put back at once */
+            uint8_t commanded = state.led_on;
+            state.led_on = g_sensed;
+            telemetry_send();
+            state.led_on = commanded;
+        }
+#else
         telemetry_send();
+#endif
     }
 }

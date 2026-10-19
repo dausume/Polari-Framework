@@ -1,9 +1,9 @@
-/* board_config.h — rendered by `pol board gen` (board.custom.gen) for variant uno-light (app light); the knobs are
+/* board_config.h — rendered by `pol board gen` (board.custom.gen) for variant uno-light-unsensed (app light); the knobs are
  * also in the FirmwareBuild row's repro block. */
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
-#define RIG_NAME     "uno-light"
+#define RIG_NAME     "uno-light-unsensed"
 #define DEVICE_ID    3u
 #define USART_U2X    1
 #define TELEMETRY_HZ 10u

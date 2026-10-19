@@ -182,8 +182,8 @@ SEED_GRAPH_EDGES += BC_SEED_GRAPH_EDGES
 #:            caller of the led) -> the 10 Hz telemetry tick -> telemetry_send
 #:   called   usart_send / led / toggle_pending: each copied in because a loop atom's own body calls it
 LIGHT_SEED_GRAPHS = [{
-    'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light', 'class_name': 'LightState',
-    'replaces': 'uno:apps/light.c (variant uno-light)', 'generated_project': 'cmod/custom/graphs/uno-light-graph',
+    'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light-unsensed', 'class_name': 'LightState',
+    'replaces': 'uno:apps/light.c (variant uno-light-unsensed)', 'generated_project': 'cmod/custom/graphs/uno-light-graph',
     'title': 'The light test as a graph over the UNO atoms',
     'purpose': 'A light on D6 that a Polari screen and the board\'s pushbutton on D2 both switch, with the change reported back '
                'up in one struct (LightState): the simplest proof that data and signals travel in both directions.',

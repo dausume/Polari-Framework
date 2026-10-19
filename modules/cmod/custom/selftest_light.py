@@ -3,6 +3,7 @@ uno-light-graph / the Firmware Solution `uno-light` / the Hardware Binding `uno-
 every task they name, no task of any seeded graph is without a Purpose (and exactly ONE Purpose is titled "Un-used components on
 board"), the committed glue record shows the generated glue equivalent to light.c on the twin. Run by cmod_selftest.main()."""
 import json
+import re
 
 GRAPH = 'uno-light-graph'
 PRINCIPAL = ('usart_init', 'led_init', 'button_init', 'rx_pop', 'apply', 'led_toggle', 'telemetry_send')
@@ -51,8 +52,10 @@ def _light_atoms(check):
     check('no clock, no SET_TIME, no sense pin, no event queue, no ADC anywhere in the graph (its atoms, by name)',
           not any(w in n['atom'] for n in atoms for w in ('clock_set', 'clock_tick', 'sense', 'events_', 'adc', 'queue')), [n['atom'] for n in atoms])
     src = open(os.path.join(P.UNO_ROOT, 'apps', 'light.c')).read()
-    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT / INT1 in the source',
-          'SET_LED' in src and 'SET_TIME' not in src and 'SNAPSHOT' not in src and 'INT1' not in src and 'hal_sense' not in src)
+    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT in the source; its sense code (smp-1) exists only inside `#if HAL_INT1` blocks, so the graph\'s sense-less app (variant uno-light-unsensed) compiles none of it',
+          'SET_LED' in src and 'SET_TIME' not in src and 'SNAPSHOT' not in src
+          and all(m.start() > 0 for m in re.finditer('hal_sense', src))
+          and len(re.findall(r'hal_sense', re.sub(r'#if HAL_INT1.*?#endif', '', src, flags=re.S))) == 0)
 
 
 def _graph_solution_binding(check):

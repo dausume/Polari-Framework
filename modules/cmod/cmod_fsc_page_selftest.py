@@ -137,7 +137,7 @@ def main():
     served['fsc-breakdown'] = bd['rows'][0]
     check('breakdown door: `rows` mirrors `terms` (so a table can read it)', bd['rows'] == bd['terms'] and len(bd['rows']) > 0)
     allrows = get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows']
-    plan = next((r for r in allrows if r['state'] == 'plan'), None)
+    plan = next((r for r in allrows if r['state'] == 'plan' and not r['built_as']), None)
     if plan:
         pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=%s' % (MISSION, plan['solution'], 'fsc-room-to-grow')).json['rows']}
         check('fsc-3b: a PLAN\'s flash / RAM / blocks left read "estimated" (route-sum sizes, never "measured"); pins left stay measured (counted from its assignment)',
