@@ -9,7 +9,7 @@ GET    /api/board/twins/{name}                one session (+ the twin's latest s
 DELETE /api/board/twins/{name}                stop it
 POST   /api/board/twins/{name}/inject         {"set":"PD2","level":0|1} | {"adc":0,"mv":750} | {"reset":1} | {"watch":[..]} | {"run":false} | {"status":1}
 GET    /api/board/twins/{name}/events         SSE: the twin's control stream (pin edges) - `?replay=N` first sends the last N, `?limit=N` / `?seconds=S` end the stream
-Every refusal is {ok: false, error: <plain words>} with the status the words call for (400 bad input, 404 unknown, 409 ended, 503 no worker lists sessions).
+Every refusal is {ok: false, error: <plain words>} with the status the words call for (400 bad input, 404 unknown, 409 ended, 424 no worker lists sessions or the worker is unreachable; 424 because the proxy masks a 503 as "Backend unavailable").
 """
 import json
 import time

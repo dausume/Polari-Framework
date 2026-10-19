@@ -85,7 +85,7 @@ def offline(check):
                 why, st = '', 0
             except TS.SessionRefused as e:
                 why, st = str(e), e.status
-        check('sim-1: start against a worker that lists no sessions refuses in words (HTTP 503) and writes no row', st == 503 and 'does not list sessions' in why and not TS._rows(mgr))
+        check('sim-1: start against a worker that lists no sessions refuses in words (HTTP 424, never a 503 the proxy masks) and writes no row', st == 424 and 'does not list sessions' in why and not TS._rows(mgr))
 
         with _env(BOARD_ENGINES_URL=new.url):
             _backend(check, mgr, new, TS, HUB)
