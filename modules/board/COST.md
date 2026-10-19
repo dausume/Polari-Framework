@@ -121,4 +121,4 @@ The technique pairs' deltas are in `modules/firmwarefaults/COST.md` (sc-3).
 | firmware size, shim / chip HAL | app.bin **179 120 B / 181 680 B** of the 1 048 576 B factory partition; DRAM 90 408 / 321 296 B (shim) | `idf.py size --format json2` |
 | reproducibility | the SAME merged-image sha256 on a forced rebuild (`a1f86bb9…`) | `CONFIG_APP_REPRODUCIBLE_BUILD=y` |
 | one twin boot (3 presses, 1.15 s virtual) | **0.6–0.9 s wall, 45 MB peak RSS** (QEMU, the whole process); about 1 800 UART0 bytes | `run.json` of `polari-c3-run` |
-
+| `pol firmware prove esp32c3-light` (all four Purposes, 14 twin boots incl. controls, one shared build) | **2 min 17 s wall**, 46 MB peak RSS of the driver (QEMU 45 MB per boot, one at a time) on isle-core, idle machine | `/usr/bin/time -v` around `cmod.custom.fsc_prove_cli` |

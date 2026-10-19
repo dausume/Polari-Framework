@@ -17,6 +17,7 @@ The judges are the ones the UNO sense configs use (board.custom.light_variant_tw
 Negative controls, real twin runs through the SAME judges (each must be rejected): no press; presses on a pin that is not the button; presses with the sense jumper off (the sense check);
 no command sent; plus the boot judge's four controls and the derived-frame controls of the struct proof.
 """
+import atexit
 import shutil
 import tempfile
 
@@ -26,6 +27,18 @@ from board.custom import light_variant_twin as LVT
 VARIANT = R.VARIANT
 HOW = 'board.custom.light_c3_twin (QEMU esp32c3 via the esp engines c3-run: UART0 frames decoded by the Python reference codec; pin writes read off the trace; the LED/sense/button pins are a RAM shim)'
 LEVEL = ('ON THE C3 TWIN (Espressif QEMU esp32c3 running the real ESP-IDF FreeRTOS build; its GPIO is a register stub, so the pins are a RAM shim) - NOT a chip: no C3 board is on the bench. ')
+
+
+_BUILT = {}
+
+
+def built(variant=VARIANT):
+    """The built config, once per process (the four Purposes of `pol firmware prove` share one ~35 s build); its work dir goes at exit."""
+    if variant not in _BUILT:
+        work = tempfile.mkdtemp(prefix='smp-c3-')
+        atexit.register(shutil.rmtree, work, True)
+        _BUILT[variant] = R.build(work, variant)
+    return _BUILT[variant]
 
 
 def judge_led_line(res, n=R.N_PRESSES):
@@ -109,20 +122,16 @@ def prove(which='both', mode='digital-twin', variant=VARIANT, row=None):
     ready, why = R.engine_ready()
     if not ready:
         return {'ok': False, 'route': 'refused', 'why': 'no C3 twin here: %s' % why}
-    work = tempfile.mkdtemp(prefix='smp-c3-')
-    try:
-        row = row or R.build(work, variant)
-        if row.get('state') != 'built':
-            return {'ok': False, 'route': 'digital-twin', 'why': '%s did not build: %s' % (variant, row.get('notes'))}
-        ok, parts, seen, ctl = True, [], 0, []
-        for name, fn in (('button', prove_button), ('polari', prove_polari), ('boot', prove_boot)):
-            if which == name or (which == 'both' and name != 'boot'):
-                o, w, n, c = fn(row)
-                ok, seen, ctl = ok and o, seen + n, ctl + c
-                parts.append(w)
-        ctl_ok = all(not passed for _l, passed in ctl)
-        return {'ok': ok and ctl_ok, 'route': 'digital-twin', 'frames_compared': seen, 'sha256': row.get('artifact_sha256', ''),
-                'why': '%s%s; negative controls all rejected by the same judge: %s%s' % (LEVEL, '; '.join(parts), ctl_ok, '' if ctl_ok else ' [' + '; '.join(l for l, p in ctl if p) + ' WRONGLY PASSED]'),
-                'controls': [{'control': l, 'judged_ok': p} for l, p in ctl], 'how': HOW}
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    row = row or built(variant)
+    if row.get('state') != 'built':
+        return {'ok': False, 'route': 'digital-twin', 'why': '%s did not build: %s' % (variant, row.get('notes'))}
+    ok, parts, seen, ctl = True, [], 0, []
+    for name, fn in (('button', prove_button), ('polari', prove_polari), ('boot', prove_boot)):
+        if which == name or (which == 'both' and name != 'boot'):
+            o, w, n, c = fn(row)
+            ok, seen, ctl = ok and o, seen + n, ctl + c
+            parts.append(w)
+    ctl_ok = all(not passed for _l, passed in ctl)
+    return {'ok': ok and ctl_ok, 'route': 'digital-twin', 'frames_compared': seen, 'sha256': row.get('artifact_sha256', ''),
+            'why': '%s%s; negative controls all rejected by the same judge: %s%s' % (LEVEL, '; '.join(parts), ctl_ok, '' if ctl_ok else ' [' + '; '.join(l for l, p in ctl if p) + ' WRONGLY PASSED]'),
+            'controls': [{'control': l, 'judged_ok': p} for l, p in ctl], 'how': HOW}
