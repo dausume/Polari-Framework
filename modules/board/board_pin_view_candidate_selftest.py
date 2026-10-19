@@ -56,10 +56,14 @@ def run_pin_view_candidate(check):
     # a different candidate: pick one whose pins differ from the chosen plan's
     summ = json.loads(row.candidates_json)
     chosen_pins = {k: v for k, v in next(s for s in summ if s['id'] == row.chosen)['pins'].items()}
-    other = next((s for s in summ if s['pins'] and s['pins'] != chosen_pins and s['placement'] == 'placed' and s['hardware'].startswith(BOARD)), None)
-    r2 = PV.build(BOARD, {'stage': 'candidate', 'run': row.name, 'candidate': other['id'] if other else ''}, mgr) if other else None
-    pads2 = {p['canonical']: p for p in r2['pins'] if p['level'] == 'die' and p['canonical']} if r2 else {}
-    m2 = {k for k, p in pads2.items() if p['stage'] == 'proposed'}
+    r2, pads2, m2, other = None, {}, set(), None
+    for s_ in [s for s in summ if s['pins'] and s['pins'] != chosen_pins and s['placement'] == 'placed' and s['hardware'].startswith(BOARD)][:30]:     # the first other plan whose marks differ (some plans differ only in a route, not a pin)
+        r2 = PV.build(BOARD, {'stage': 'candidate', 'run': row.name, 'candidate': s_['id']}, mgr)
+        pads2 = {p['canonical']: p for p in r2['pins'] if p['level'] == 'die' and p['canonical']}
+        m2 = {k for k, p in pads2.items() if p['stage'] == 'proposed'}
+        other = s_
+        if m2 != marked:
+            break
     check('CANDIDATE: another candidate (by id) changes the marks and names why it ranks below the chosen plan; a rank number (candidate=2) works too',
           r2 is not None and not r2['candidate']['chosen'] and m2 != marked and 'ranks #' in ' | '.join(r2['candidate']['what_lost'])
           and PV.build(BOARD, {'stage': 'candidate', 'candidate': '2'}, mgr)['candidate']['rank'] == 2, (sorted(m2), sorted(marked)))

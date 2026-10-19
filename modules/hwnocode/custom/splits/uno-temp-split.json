@@ -1,8 +1,8 @@
 {
  "solution": "uno-temp-split",
  "compiler": "hwnocode.custom.split 1",
- "split_sha256": "d9e964c7e607c755d96a4678cfe63a3222c7fe344ef3e35b456cfe8a9ee599a4",
- "rendered_at": "2026-10-18T12:46:37",
+ "split_sha256": "3195a681c05bed4e4a103a38abc1bdfc04552aecdc5b83034b061b0e307b6fc9",
+ "rendered_at": "2026-10-19T13:02:53",
  "placement_summary": "twin 18, bridge 2, backend 3, browser 1",
  "runtime": {
   "value": "bare-c",
@@ -210,18 +210,18 @@
   "files": {
    "Makefile": "f372920382254cf53ca7ee91cb4439c620268a57c52456595b0fee7ef8fd1695",
    "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
-   "hal.c": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8",
-   "hal.h": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0",
+   "hal.c": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2",
+   "hal.h": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55",
    "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
    "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
    "polari_graph.c": "bcebaac9c4f2a7dd78d1aa32c82a2b40e30afbd6600ac6ded765feb2bede4434",
-   "polari_graph.h": "169c61a13ba7e37323800ef48f6ce46a9b5c0e4e03061ea96badf2d57a20e9cd",
+   "polari_graph.h": "c6af74ee69c288a23c0ddeae37aefee2f2daaea7539b7dd70fb0ee8b1f2de5b4",
    "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
   },
-  "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
+  "files_sha256": "b54ba57a82aaede7ce18fdfcba4b36d9d1df33b5043404776a2d9e926e2c7f49",
   "equal_to_cmod_record": true,
   "cmod_record": {
-   "files_sha256": "0b241e28c3521df5e3a174553202a6acd207610133bade6c7d623f9ba7a7ba9f",
+   "files_sha256": "b54ba57a82aaede7ce18fdfcba4b36d9d1df33b5043404776a2d9e926e2c7f49",
    "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
    "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5"
   }
