@@ -125,7 +125,8 @@ def cmd_run(a):
         from cmod.custom import capabilities as CAP
         mode = 'hardware' if getattr(a, 'hardware', False) else 'digital-twin'
         sink = LocalSink()
-        out = ACC.run(a.scenario, mode=mode, sink=sink, variant=getattr(a, 'variant', '') or None)    # fsc-6: --variant V = the SAME scenario on config V's own build
+        extra = {'variant': a.variant} if getattr(a, 'variant', '') else {}     # fsc-6: --variant V = the SAME scenario on config V's own build
+        out = ACC.run(a.scenario, mode=mode, sink=sink, **extra)
         # fix (coordinator 2026-10-06): PERSIST FIRST — `ACC.run` already upserted the ScenarioRun into `sink`
         # (in-memory for LocalSink); flush it to disk and derive the capability's status BEFORE any printing, so a
         # print_run() crash on an acceptance-shaped row (it has none of the fault-runner's own fields) can never
