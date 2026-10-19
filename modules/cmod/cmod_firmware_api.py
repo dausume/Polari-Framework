@@ -507,7 +507,10 @@ class FirmwareAPI(treeObject):
         table = (self.manager.objectTables or {}).get('FirmwareExport', {}) if self.manager is not None else {}
         rows = [{k: getattr(r, k, '') for k in ('name', 'solution', 'graph', 'board', 'form', 'target', 'tar_sha256', 'makefile_sha256',
                                                'cmake_sha256', 'parity', 'download_url', 'created_at', 'status', 'why')} for r in table.values()]
-        rows.sort(key=lambda r: r['created_at'], reverse=True)
+        from cmod.custom import export_rows
+        # ?solution=<name> narrows to one firmware solution; ?latest_per_form=1 keeps the newest export of each form
+        rows = export_rows.narrow(rows, solution=request.get_param('solution') or '',
+                                  latest_per_form=request.get_param_as_bool('latest_per_form') or False)
         response.media = {'ok': True, 'rows': rows}
 
     def on_get_download(self, request, response, name):

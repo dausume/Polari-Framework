@@ -150,6 +150,20 @@ def flow(check, tmp, fake_runner, size_text, fake_bin, old_path):
           doc['targets'][0]['name'] == I.TWIN and len(doc['variants']) == 17 and rec['name'] in names and blink['name'] in names
           and names[rec['name']]['flash_bytes'] == 3244 and names[rec['name']]['flash_max'] == 32256 and names[rec['name']]['compat'] == 'compatible'
           and names[rec['name']]['installable'] is True and doc['host'] == I.this_host())
+    gv = doc['variants']
+    first_scn = next((i for i, v in enumerate(gv) if v['group'] == 'scenario'), len(gv))
+    check('installer document (canvas fixes): the Mission sample leads (uno-light first, then its light siblings), the everyday variants next, '
+          'every "SCENARIO ONLY" build last in its own group; the host is named by the topology instance name or "this server", the raw id kept',
+          gv[0]['name'] == 'uno-light' and all(v['group'] == 'sample' for v in gv if v['name'].startswith('uno-light'))
+          and all(v['group'] == 'scenario' for v in gv[first_scn:]) and all(v['title'].startswith('SCENARIO ONLY') for v in gv[first_scn:])
+          and [v['group'] for v in gv] == sorted((v['group'] for v in gv), key=lambda g: ('sample', 'more', 'scenario').index(g))
+          and doc['host_label'] and doc['host'] == I.this_host())
+    mixed = I.group_variants([{'name': 'uno-ack-wait', 'title': 'SCENARIO ONLY — x'}, {'name': 'uno-echo', 'title': 'Echo'},
+                              {'name': 'uno-light-analog', 'title': 'L'}, {'name': 'uno-light', 'title': 'L0'}])
+    check('variant groups: sample (uno-light first) -> more -> scenario; sample_first=False keeps the seeded order',
+          [v['name'] for v in mixed] == ['uno-light', 'uno-light-analog', 'uno-echo', 'uno-ack-wait']
+          and [v['group'] for v in I.group_variants([{'name': 'uno-ack-wait', 'title': 'SCENARIO ONLY — x'}, {'name': 'uno-light'}], False)]
+          == ['scenario', 'sample'])
     p = I.plan(m, I.TWIN, rec['name'], work)
     argv = json.loads(p['argv_json'])
     check('installer plan (twin): an InstallPlan row — the exact argv (polari-avr-twin --hex <the stored .hex>), engine avr-twin, compat compatible, '

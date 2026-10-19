@@ -47,6 +47,38 @@ def this_host():
     return os.uname().nodename
 
 
+def host_label():
+    """What a person is told the machine is called: the topology's instance name (POLARI_INSTANCE_NAME, the
+    name this node has in the Topology), else plainly 'this server'. The raw host id (a container id inside
+    Docker) is kept as `host` for the run-on-this-host check and shown only as a tooltip."""
+    name = (os.environ.get('POLARI_INSTANCE_NAME') or '').strip()
+    return name or 'this server'
+
+
+# Variant groups for the page (plain words): the Mission's sample first (the light configs, uno-light on
+# top), the other everyday variants next, the fault-scenario builds last (their titles say SCENARIO ONLY).
+GROUP_SAMPLE, GROUP_MORE, GROUP_SCENARIO = 'sample', 'more', 'scenario'
+_GROUP_ORDER = {GROUP_SAMPLE: 0, GROUP_MORE: 1, GROUP_SCENARIO: 2}
+SAMPLE_FIRST = 'uno-light'
+
+
+def variant_group(name, title=''):
+    if str(title or '').startswith('SCENARIO ONLY'):
+        return GROUP_SCENARIO
+    if str(name or '').startswith('uno-light'):
+        return GROUP_SAMPLE
+    return GROUP_MORE
+
+
+def group_variants(vlist, sample_first=True):
+    """Tag every variant with its `group` and (sample_first) order sample -> more -> scenario, `uno-light` leading
+    the sample; inside a group the seeded order is kept (stable sort)."""
+    out = [dict(v, group=variant_group(v.get('name'), v.get('title'))) for v in vlist]
+    if sample_first:
+        out.sort(key=lambda v: (_GROUP_ORDER[v['group']], 0 if v['name'] == SAMPLE_FIRST else 1))
+    return out
+
+
 def _now():
     return datetime.datetime.now().isoformat(timespec='seconds')
 
@@ -363,13 +395,13 @@ def document(manager, work=None, scan=None):
                            engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items())))
     vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
     vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
-    vlist = [_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows]
+    vlist = group_variants([_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows])
     ts = twin.status(UNO, work or work_dir())
     recs = sorted(_rows(manager, 'InstallRecord'), key=lambda r: getattr(r, 'started_at', ''), reverse=True)
     plans = sorted(_rows(manager, 'InstallPlan'), key=lambda r: getattr(r, 'planned_at', ''), reverse=True)
     targets = [{'name': TWIN, 'kind': 'twin', 'label': 'the simavr twin of the UNO (this host)', 'port': TWIN_LINK}] + \
         [{'name': i['name'], 'kind': 'board', 'label': 'UNO at %s' % (i.get('by_id_path') or i.get('port')), 'port': i.get('by_id_path') or i.get('port')} for i in boards]
-    return {'ok': True, 'host': this_host(), 'board': UNO, 'limits': {'flash_b': flash_max, 'ram_b': ram_max, 'cited': cite},
+    return {'ok': True, 'host': this_host(), 'host_label': host_label(), 'board': UNO, 'limits': {'flash_b': flash_max, 'ram_b': ram_max, 'cited': cite},
             'targets': targets, 'boards': boards, 'adapters': adapters, 'unadmitted': det.get('unadmitted', []),
             'scan_note': det.get('error') or ('%d board(s), %d adapter(s), %d unadmitted on %s' % (len(boards), len(adapters), len(det.get('unadmitted', [])), this_host())),
             'variants': vlist, 'builds': builds,
