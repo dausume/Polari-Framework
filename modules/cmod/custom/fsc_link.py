@@ -71,9 +71,11 @@ def config_pins(variant):
 
 def configs(manager=None):
     from board.custom import variants as V
+    from board.custom import variants_c3 as V3
     rows = {v['name']: v for v in V.SEED_FIRMWARE_VARIANTS}
+    rows.update({v['name']: v for v in V3.SEED_C3_VARIANTS if v['name'] == V3.LIGHT_NAME})    # smp S5: the one C3 config built for this Mission (the other C3 variants are scenario rigs)
     for r in ((getattr(manager, 'objectTables', None) or {}).get('FirmwareVariant') or {}).values():
-        rows[getattr(r, 'name', '')] = {k: getattr(r, k, '') for k in ('name', 'features_json', 'knobs_json', 'title')}
+        rows[getattr(r, 'name', '')] = {k: getattr(r, k, '') for k in ('name', 'features_json', 'knobs_json', 'title', 'board_definition')}
     return rows
 
 
@@ -137,6 +139,8 @@ def resolve(jobs, candidates, manager=None, ctx=None, skip=()):
             if not built_for:
                 unmatched.append({'config': name, 'why': 'not a candidate for this Mission: %s' % words})
             continue     # built for this Mission but short of a job: a FAILURE (`misses`), not "unmatched"
+        if (var.get('board_definition') or 'arduino-uno-r3') != 'arduino-uno-r3':     # smp S5: the solver's candidates place UNO pins; a config of another board must not take one from a UNO config
+            continue     # not listed as `unmatched` either: it IS built for this Mission; `config_state` reads its proof
         hits = [c for c in candidates if all(c['routes'].get(j) in routes[j] for j in jobs)]
         if not hits:
             unmatched.append({'config': name, 'why': 'no solve candidate uses its routes (%s)' % ', '.join('%s via %s' % (j, '/'.join(routes[j])) for j in jobs)})
@@ -242,6 +246,18 @@ def state_of(c, link, ctx, proof, manager=None):
         unp = '; '.join('%s (%s: %s)' % (p, s, w) for p, (s, w) in sorted(statuses.items()) if s not in ('proven-on-twin', 'proven-on-hardware'))
         return {'state': 'plan', 'why': 'config %s is built (%s) but not every Purpose is proven: %s' % (link['config'], bwhy, unp)}
     return {'state': 'finished', 'why': 'config %s is built (%s) and every Purpose is proven (%s)' % (link['config'], bwhy, '; '.join('%s %s' % (p, s) for p, (s, _w) in sorted(statuses.items())))}
+
+
+def config_state(config, mission_ctx, manager=None):
+    """smp S5: -> {'state': finished|plan, 'why', 'purposes': {purpose: (status, why)}} for ONE config read straight off its own ScenarioRuns, with no solve candidate in between. A config of
+    another board (esp32c3-light) is linked to none of the UNO solver's candidates (`resolve`), so a page that lists it reads its state here. `finished` = every Purpose proven on it."""
+    statuses, ok, _mean = purposes_proof(mission_ctx, manager, config=config)
+    if manager is None:
+        return {'state': 'plan', 'why': 'no live server is attached, so no ScenarioRun can be read', 'purposes': statuses}
+    if not ok:
+        unp = '; '.join('%s (%s)' % (p, s) for p, (s, _w) in sorted(statuses.items()) if s not in ('proven-on-twin', 'proven-on-hardware'))
+        return {'state': 'plan', 'why': 'config %s: not every Purpose is proven: %s' % (config, unp), 'purposes': statuses}
+    return {'state': 'finished', 'why': 'config %s: every Purpose is proven (%s)' % (config, '; '.join('%s %s' % (p, s) for p, (s, _w) in sorted(statuses.items()))), 'purposes': statuses}
 
 
 def proof_config_refusal(config, scenario, manager=None, mission=None):

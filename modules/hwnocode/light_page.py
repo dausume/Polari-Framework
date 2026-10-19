@@ -13,8 +13,9 @@ ROUTE = 'uno-core-demo'
 LIGHT_PAGES = [
     _page(ROUTE, ROUTE,
           'The light test: one light on the board, switched two ways, with the board always telling this screen what the light is '
-          'doing. To switch the light from this screen, run the solution light-toggle (it turns the light on if it is off, and '
-          'off if it is on) or change led_on on the row below; the board follows within a moment. To switch it from the board, '
+          'doing. To switch the light from this screen, press "Turn the light on / off" on the light\'s row: it runs the solution '
+          'light-toggle, which changes led_on on the row (the struct) - that change is what is sent to the board, and the board '
+          'follows within a moment. To switch it from the board, '
           'press the pushbutton: the light flips, toggles goes up by one and source reads button. When source reads command, '
           'the last change came from this screen. If both directions work, data and signals are travelling both ways between '
           'Polari and the board.',
@@ -27,7 +28,12 @@ LIGHT_PAGES = [
                                           'a number the board picks each time it starts (a new number means the board restarted), '
                                           'and status reads idle until the light first changes, then active.',
                               columns='name,led_on,toggles,source,seq,boot_session,status',
-                              column_formats='name:ref:LightState')], min_height=200),
+                              column_formats='name:ref:LightState',
+                              # his ruling 2026-10-18: the Polari-side button ALTERS THE STRUCT; the change is what reaches the board.
+                              # `{led_on}` alone keeps its boolean type (class-rows-action.fillBody).
+                              row_action={'label': 'Turn the light on / off', 'method': 'POST', 'path': '/executeSolutionStepped',
+                                          'body_template': {'solutionName': 'light-toggle',
+                                                            'inputParams': {'object': '{name}', 'led_on': '{led_on}'}}})], min_height=200),
               _row(1, [_table('light-downloads', 0, 12, 'Downloads: the firmware and the app', 'FirmwareExport',
                               description='Everything you need to put the demo on a real board, one row per file. The form column says '
                                           'which file it is: install-bundle is the firmware to flash (the program and the notes for '
