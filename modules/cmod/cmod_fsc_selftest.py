@@ -122,7 +122,7 @@ def fsc_parts(check):
               set(un) == {'uno-sim-rig', 'uno-pair', 'uno-blink-only', 'uno-adc-sweep', 'uno-echo'} and all(w.startswith('not a candidate for this Mission: it was built for another job') for w in un.values()) and 'read-button' in un['uno-sim-rig'], sorted(un))
         cf = {f['config']: f for f in b['failures'] if f['kind'] == 'purpose-unfulfilled'}
         check('fsc-0b FAILURES: uno-light, -pcint, -analog and -v2 (built for this Mission, no route for sense-led-line) are FAILURES: the Purposes that job serves (derived from the Mission, not typed), the reason in plain words, no rank, no score',
-              set(cf) == {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} and all(f['state'] == 'failed' and f['rank'] is None and f['purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light'
+              set(cf) == {'uno-light', 'uno-light-pcint', 'uno-light-analog', 'uno-light-v2'} and all(f['state'] == 'failed' and f['rank'] is None and f['purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state'
                                                                                                     and 'sense-led-line' in f['reason'] and 'does not fulfil' in f['reason'] and f['solution'] == f['config'] for f in cf.values()), sorted(cf))
         check('fsc-0b FAILURES: a failing config never appears among the records (so it is never scored or compared) and is counted in counts.failed (%d)' % b['counts']['failed'],
               not ({r['link']['config'] for r in b['records'] if r['link']} & set(cf)) and b['counts']['failed'] == len(b['failures']) and len(cf) == 4)
@@ -431,7 +431,7 @@ def fsc_parts(check):
         cfail = [r for r in g.json['rows'] if r['state'] == 'failed' and r.get('failed_purpose')]
         check('fsc-0b DOOR scores: GET /api/firmware-scores?mission=uno-light-mission lists the four built light configs as FAILED rows (name, Purpose failed, why, no score) and never ranks them: %s' % sorted(r['solution'] for r in cfail),
               sorted(r['solution'] for r in cfail) == ['uno-light', 'uno-light-analog', 'uno-light-pcint', 'uno-light-v2'] and all(r['score'] is None and r['rank'] is None and 'sense-led-line' in r['reason']
-                                                                                                                              and r['failed_purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light' for r in cfail)
+                                                                                                                              and r['failed_purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state' for r in cfail)
               and {f['config'] for f in g.json['failures'] if f['kind'] == 'purpose-unfulfilled'} == {r['solution'] for r in cfail}, [r['solution'] for r in cfail])
         t = c.simulate_get('/api/firmware-scores/top', params=q)
         trow = t.json['rows'][0]

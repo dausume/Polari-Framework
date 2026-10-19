@@ -14,7 +14,7 @@ build, which speaks LightState (led_on, toggles, source). The sense variants are
 
 Both runs also go through NEGATIVE controls on the same judges, from real twin runs: the presses judge must reject a run with no press and a run whose presses land on a pin that is not the
 button; the commands judge must reject a run with no command. `prove()` returns the {'ok', 'route', 'why', 'frames_compared', 'how', 'controls'} shape light_twin.prove returns.
-The boot Purpose needs no restatement: board.custom.light_boot_twin reads boot_session, which both classes carry (it takes the variant).
+scl-2: the from-Polari check starts from the struct (board.custom.light_struct). The boot Purpose needs no restatement: board.custom.light_boot_twin reads boot_session, which both classes carry (it takes the variant).
 """
 import shutil
 import tempfile
@@ -130,12 +130,12 @@ def _prove_in(work, which, variant):
         r1, s1, e1, _b = run_presses(variant, hex_bytes, pin='PD4')
         ctl += [('no press at all', judge_presses(s0, e0)[0] and r0['ok']), ('the same presses on a pin that is not the button (D4)', judge_presses(s1, e1)[0] and r1['ok'])]
     if which in ('both', 'polari'):
-        r, st, ev, bad = run_commands(variant, hex_bytes)
-        o, w = judge_commands(st)
-        ok, seen = ok and o and r['ok'] and bad == 0, seen + len(st)
+        # scl-2: the from-Polari proof STARTS FROM THE STRUCT (the same-shaped toggle on ButtonClockState.set_led -> a derived frame -> the twin); the hand-frame check runs inside it as the board half
+        from board.custom import light_struct as LS
+        o, w, n, sctl = LS.prove_polari(variant, 'button_clock', hex_bytes)
+        ok, seen = ok and o, seen + n
         parts.append('polari: ' + w)
-        rn, sn, _e, _b = run_commands(variant, hex_bytes, send=False)
-        ctl.append(('no command sent', judge_commands(sn)[0] and rn['ok']))
+        ctl += sctl
     ctl_ok = all(not passed for _l, passed in ctl)
     return {'ok': ok and ctl_ok, 'route': 'digital-twin', 'frames_compared': seen,
             'why': '%s on %s; negative controls all rejected by the same judge: %s%s' % ('; '.join(parts), variant, ctl_ok, '' if ctl_ok else ' [' + '; '.join(l for l, p in ctl if p) + ' WRONGLY PASSED]'),

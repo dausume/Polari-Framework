@@ -45,7 +45,7 @@ PURPOSE_SEEDS = [
          goal='a press on the board\'s button turns the light on or off, and Polari learns of the change',
          purpose='Up: the pushbutton on D2 (debounced) flips the light on D6, the board counts the change, says source=button in its '
                  'next report, and the bridge writes that onto the LightState row so a screen can show it.',
-         tasks_by_runtime_json=_t(['button_init', 'toggle_pending', 'led_toggle', 'led', 'clock', 'state'], java_bridge=['uno-light:relay-in']),
+         tasks_by_runtime_json=_t(['button_init', 'toggle_pending', 'led_toggle', 'led_follow_state', 'led', 'clock', 'state'], java_bridge=['uno-light:relay-in']),
          acceptance_scenario='light-from-button-acceptance', depends_on='initialization',
          criteria_json=json.dumps({'trigger': {'kind': 'button', 'what': 'a press on the button on D2'},
                                    'outcome': {'what': 'LightState.led_on flips and D6 follows'},
@@ -60,7 +60,7 @@ PURPOSE_SEEDS = [
          goal='whatever the board does to the light, Polari sees it within one report and the report says who changed it',
          purpose='The board sends a state report ten times a second; the bridge writes each onto the LightState row, so a screen or '
                  'a Purpose can always read the light as the board last reported it.',
-         tasks_by_runtime_json=_t(['state', 'clock', 'telemetry', 'telemetry_send', 'usart_send'], java_bridge=['uno-light:relay-in']),
+         tasks_by_runtime_json=_t(['state', 'clock', 'led_follow_state', 'led', 'telemetry', 'telemetry_send', 'usart_send'], java_bridge=['uno-light:relay-in']),
          acceptance_scenario='ensure-polari-observes-hardware-state-acceptance', depends_on='initialization',
          criteria_json=json.dumps({'trigger': {'kind': 'period', 'what': 'every report period (10 reports a second)'},
                                    'outcome': {'what': 'the LightState row on Polari matches what the board last reported'},
@@ -74,12 +74,13 @@ PURPOSE_SEEDS = [
                'the toggle count equals the presses, source is button): the frames Polari reads are the evidence.'),
     dict(_BASE, name='ensure-polari-can-control-light', title='Polari can control the light', exposes_fields=_LIGHT_FIELDS,
          goal='Polari turns the board\'s light on and off on command, and the board reports that the light changed',
-         purpose='Down: a person presses the light button on a Polari screen, led_on on the LightState row changes, the command rides '
-                 'the serial link to the board, the board switches the light on D6 and says source=command in its next report.',
-         tasks_by_runtime_json=_t(['rx_pop', 'rx', 'apply', 'led', 'state'], java_bridge=['uno-light:relay-out'], python_backend=['light-toggle:flip']),
+         purpose='Down: a person presses the light button on a Polari screen, which alters led_on on the LightState row (the struct). The struct is what '
+                 'controls the light: the change rides the serial link as a SET_LED frame, the board sets its own struct, and its led_follow_state task drives D6 '
+                 'to match; the next report says source=command.',
+         tasks_by_runtime_json=_t(['rx_pop', 'rx', 'apply', 'led_follow_state', 'led', 'state'], java_bridge=['uno-light:relay-out'], python_backend=['light-toggle:flip']),
          acceptance_scenario='light-from-polari-acceptance', depends_on='initialization',
-         criteria_json=json.dumps({'trigger': {'kind': 'command', 'what': 'a command from Polari: SET_LED, carrying a command_id'},
-                                   'outcome': {'what': 'LightState.led_on equals the command and D6 follows'},
+         criteria_json=json.dumps({'trigger': {'kind': 'command', 'what': 'LightState.led_on altered on Polari (the struct); the SET_LED frame, carrying a command_id, is how the change travels'},
+                                   'outcome': {'what': 'the board\'s struct takes the new led_on, D6 follows it, and the next report carries led_on with source=command'},
                                    'criteria': [{'key': 'max_latency_ms', 'value': 100, 'unit': 'ms'},
                                                 {'key': 'delivery', 'value': 'latest-value, confirmed by command_id'}]}),
          observes_json=json.dumps([{'item': 'LightState.led_on', 'kind': 'field', 'delivery': 'latest'},

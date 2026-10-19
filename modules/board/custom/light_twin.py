@@ -137,10 +137,13 @@ def _prove_in(work, which, variant=VARIANT):
         o, w = judge_presses(fr)
         ok, seen = ok and o and r['ok'] and bad == 0, seen + len(fr)
         parts.append('button: ' + w)
+    ctl = []
     if which in ('both', 'polari'):
-        r, fr, bad = run_commands(hex_bytes)
-        o, w = judge_commands(fr)
-        ok, seen = ok and o and r['ok'] and bad == 0, seen + len(fr)
+        # scl-2: the from-Polari proof STARTS FROM THE STRUCT (light-toggle on a test manager -> a derived frame -> the twin); the old hand-frame check runs inside it as the board half
+        from board.custom import light_struct as LS
+        o, w, n, ctl = LS.prove_polari(variant, 'light', hex_bytes)
+        ok, seen = ok and o and all(not p for _l, p in ctl), seen + n
         parts.append('polari: ' + w)
     return {'ok': ok, 'route': 'digital-twin', 'why': '; '.join(parts), 'frames_compared': seen,
-            'how': 'board.custom.light_twin (firmwarefaults.custom.harness, --pin-at / --inject, the Python wire reference decoder)'}
+            'controls': [{'control': l, 'judged_ok': p} for l, p in ctl],
+            'how': 'board.custom.light_twin (firmwarefaults.custom.harness, --pin-at / --inject, the Python wire reference decoder); the from-Polari half via board.custom.light_struct'}

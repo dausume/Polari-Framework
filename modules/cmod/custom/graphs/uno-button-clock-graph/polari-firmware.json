@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "733173b060c19db50c6ef86f77b9ce77d35f01dab0f26ed390215ac52b224d30",
-    "noinline": "a2b6410e618a9c90029561bbeb0d9f219d8776194595d2167371ed135b1e6979"
+    "shipped": "8283eb1af14470b0a7f6344bdfa8e0f8955d3e09c4a9e966008b2346b8a42941",
+    "noinline": "bed926da7cf22d6ca2053f9770a56565679101d22c44be1dcde9dc33301c5c1f"
    }
   }
  ],
@@ -119,11 +119,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "a11f971acaca00cbee422bc2d85a890d310e810e9b5cbb5dea2a4b0ac4fcefe7"
+     "sha256": "68c6d03e80ebe1f8ea304fe895ed59f729645007ccc935c5330d6705aef54b5d"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "911f00b76248b3638266909c185cc7be7b793c40607b33b9feafc0d8c458a722"
+     "sha256": "6333cf234fba9d075af663639f7dde98fc9a7e816d0298a4a0d4257e119e08d9"
     }
    ],
    "atoms": [
@@ -135,6 +135,7 @@
     "polari_graph.events_queue",
     "polari_graph.l_led_init",
     "polari_graph.l_led_set",
+    "polari_graph.led_follow_state",
     "polari_graph.led_toggle",
     "polari_graph.main",
     "polari_graph.queue_pop",
@@ -1517,7 +1518,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 205,
+   "line": 214,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1549,13 +1550,6 @@
      "access": "rw",
      "peripheral": "",
      "detail": "ButtonClockState_t, 213 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
@@ -1563,8 +1557,6 @@
     "ButtonClockState_decode_rx",
     "clock_set",
     "events_queue",
-    "hal_led",
-    "l_led_set",
     "clock_tick",
     "telemetry_send"
    ],
@@ -1578,12 +1570,10 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 203,
-    "role": "SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), uses(LED_PIN), role(\"SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now\"))"
+    "line": 212,
+    "role": "SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now",
+    "uses": [],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), role(\"SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now\"))"
    },
    "cost": {
     "measured_in": "default",
@@ -1591,7 +1581,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 942,
+    "text_bytes_noinline": 918,
     "stack_bytes": 274,
     "stack_kind": "dynamic,bounded",
     "stack_from": "noinline",
@@ -1913,7 +1903,7 @@
    "name": "polari_graph.events_drain",
    "function": "events_drain",
    "module": "polari_graph.c",
-   "line": 164,
+   "line": 162,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_drain(void)",
@@ -2206,18 +2196,87 @@
    "cost": {
     "measured_in": "default",
     "symbol": "l_led_set",
-    "text_bytes": 12,
-    "in_shipped_build": true,
-    "inlined": false,
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
     "text_bytes_noinline": 12,
     "stack_bytes": 2,
     "stack_kind": "static",
-    "stack_from": "shipped",
+    "stack_from": "noinline",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     12,
-     12
-    ]
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.led_follow_state",
+   "function": "led_follow_state",
+   "module": "polari_graph.c",
+   "line": 202,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_follow_state(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_led",
+    "l_led_set"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 201,
+    "role": "each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(led_follow_state, uses(LED_PIN), role(\"each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "led_follow_state",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 38,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
    },
    "title": "",
    "notes": ""
@@ -2251,21 +2310,12 @@
      "access": "rw",
      "peripheral": "",
      "detail": "ButtonClockState_t, 213 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
     "hal_take_toggle_pending",
     "hal_presses",
     "events_queue",
-    "hal_led",
-    "l_led_set",
     "clock_tick"
    ],
    "pure": false,
@@ -2279,11 +2329,9 @@
    "annotation": {
     "form": "macro",
     "line": 119,
-    "role": "on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(led_toggle, uses(LED_PIN), role(\"on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events\"))"
+    "role": "on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(led_toggle, role(\"on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "default",
@@ -2291,11 +2339,11 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 256,
-    "stack_bytes": 24,
+    "text_bytes_noinline": 242,
+    "stack_bytes": 25,
     "stack_kind": "static",
     "stack_from": "noinline",
-    "stack_bytes_noinline": 24,
+    "stack_bytes_noinline": 25,
     "text_bytes_range": [
      0,
      0
@@ -2309,7 +2357,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 239,
+   "line": 246,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -2367,6 +2415,7 @@
     "apply_command",
     "hal_millis",
     "led_toggle",
+    "led_follow_state",
     "sense_isr",
     "telemetry_send"
    ],
@@ -2382,17 +2431,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "main",
-    "text_bytes": 8418,
+    "text_bytes": 8392,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 216,
-    "stack_bytes": 293,
+    "text_bytes_noinline": 220,
+    "stack_bytes": 292,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     8418,
-     8418
+     8392,
+     8392
     ]
    },
    "title": "",
@@ -2487,7 +2536,7 @@
    "name": "polari_graph.sense_isr",
    "function": "sense_isr",
    "module": "polari_graph.c",
-   "line": 140,
+   "line": 138,
    "kind": "function",
    "isr_vector": "",
    "signature": "void sense_isr(void)",
@@ -2525,7 +2574,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 139,
+    "line": 137,
     "role": "drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges",
     "uses": [
      "SENSE_PIN"
@@ -2556,7 +2605,7 @@
    "name": "polari_graph.telemetry_send",
    "function": "telemetry_send",
    "module": "polari_graph.c",
-   "line": 187,
+   "line": 185,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(uint32_t now_ms)",
@@ -2621,7 +2670,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 185,
+    "line": 183,
     "role": "one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames\"))"
@@ -2647,8 +2696,8 @@
   }
  ],
  "counts": {
-  "atoms": 30,
-  "annotated": 17,
+  "atoms": 31,
+  "annotated": 18,
   "isr": 4,
   "pure": 0,
   "ports": 28,
@@ -2660,5 +2709,5 @@
   "hal.hal_pwm_apply"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T06:42:25"
+ "conformed_at": "2026-10-18T22:16:07"
 }

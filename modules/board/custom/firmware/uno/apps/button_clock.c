@@ -165,7 +165,7 @@ static int queue_pop(qevent_t *out)
 /* ---- led.toggle: the main-loop half of "the button" (hal.c's HAL_INT0 ISR only counts + marks toggle-pending). One
  * debounced press = exactly one `press` event, one LED flip, one `led_on`/`led_off` event — the invariant the proof
  * checks (sense_rises + sense_falls == button_presses when D6 is wired to D3; led_on == sense_rises > sense_falls). */
-POLARI_NODE(led_toggle, uses(LED_PIN), role("on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events"))
+POLARI_NODE(led_toggle, role("on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)"))
 static void led_toggle(uint32_t now_ms)
 {
 #if HAL_INT0
@@ -174,8 +174,6 @@ static void led_toggle(uint32_t now_ms)
     state.button_presses = (int64_t)hal_presses();
     events_queue(BUTTONCLOCKEVENT_KIND_PRESS, now_ms);
     state.led_on = state.led_on ? 0u : 1u;
-    hal_led(state.led_on);
-    l_led_set(state.led_on);
     clock_tick(now_ms, &es, &ms);
     state.led_changed_at = es;
     events_queue(state.led_on ? BUTTONCLOCKEVENT_KIND_LED_ON : BUTTONCLOCKEVENT_KIND_LED_OFF, now_ms);
@@ -253,8 +251,20 @@ static void telemetry_send(uint32_t now_ms)
     events_drain();
 }
 
-POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket ButtonClockState command"), uses(LED_PIN),
-            role("SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now"))
+/* THE STRUCT CONTROLS THE LIGHT (slice scl): the mutators (led_toggle, apply_command) only alter state.led_on; this atom, called every
+ * main-loop pass, is the only thing that drives D6 and the L LED (D13): when the struct's led_on differs from the value last written, it writes both. */
+POLARI_NODE(led_follow_state, uses(LED_PIN), role("each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it"))
+static void led_follow_state(void)
+{
+    static uint8_t pin = 0u;               /* the init functions leave both pins low */
+    if (state.led_on == pin) return;
+    pin = state.led_on ? 1u : 0u;
+    hal_led(pin);
+    l_led_set(pin);
+}
+
+POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket ButtonClockState command"),
+            role("SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now"))
 static void apply_command(const polari_rx_t *r)
 {
     ButtonClockState_t cmd;
@@ -272,8 +282,6 @@ static void apply_command(const polari_rx_t *r)
     if (m & BUTTONCLOCKSTATE_F_SET_LED) {
         int64_t es, ms;
         state.led_on = cmd.set_led ? 1u : 0u;
-        hal_led(state.led_on);
-        l_led_set(state.led_on);
         clock_tick(now_ms, &es, &ms);
         state.led_changed_at = es;
         events_queue(state.led_on ? BUTTONCLOCKEVENT_KIND_LED_ON : BUTTONCLOCKEVENT_KIND_LED_OFF, now_ms);
@@ -321,6 +329,7 @@ int main(void)
 
         now = hal_millis();
         led_toggle(now);
+        led_follow_state();
         sense_isr();
 
         if ((int32_t)(now - next_ms) < 0) continue;

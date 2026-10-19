@@ -16,13 +16,15 @@ from types import SimpleNamespace
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 #: recorded at fgm-6a (the baseline the identical-hex discipline compares against; v2's is a NEW baseline, v1's must never move)
-V2_HEX_SHA = 'e288db76eafc4b2925664dc33160616e940c483e0be98c9c95e019147057c26d'
-V2_SIZES = (3906, 14, 638)            # text, data, bss
+#: scl (2026-10-18, his ruling: the struct controls the light) MOVED both on purpose: the mutators no longer drive D6, led_follow_state does. Same wire, same pins; re-proven on the twin.
+#: before scl: v1 94b9b77f9f8c.. (3090, 10, 503), v2 e288db76eafc.. (3906, 14, 638)
+V2_HEX_SHA = 'ddef34f6abcbd544c79cafcedbad43fa3f899a6f8d759e5b8665c55c61e7397f'
+V2_SIZES = (3926, 14, 639)            # text, data, bss
 V2_CONTRACT_HASH = '7168b2d02d82157e'
 V2_HASH_V2 = '5976dfed2e718479'
 V1_CONTRACT_HASH = 'e05aeb148924b730'
-V1_HEX_SHA = '94b9b77f9f8c9b19f537dbb202aff0dfc3e0e29c93933201577f8857a4dc45d7'
-V1_SIZES = (3090, 10, 503)
+V1_HEX_SHA = '1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5'
+V1_SIZES = (3108, 10, 504)
 V1_HEADER_SHA = '3f9c534136f3a339f527bd88258fc1a56859c136afce7cd7c61f391b75b40fab'
 V1_CONTRACT_FILE_SHA = '984c0bd28da73676477a6b1a2e875e6de60f3d10debfebfd77651be3fb5db3ab'
 

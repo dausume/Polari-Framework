@@ -117,13 +117,14 @@ def light_contract():
 
 
 # ------------------------------------------------------------------ light-toggle: the screen's button
-def toggle_definition(name=TOGGLE_SOLUTION):
+def toggle_definition(name=TOGGLE_SOLUTION, object_class=LIGHT_OBJECT_CLASS, command_field='led_on'):
     """Flip the light: entry marker -> ConditionalChain on the light's current state -> the opposite value -> ONE
     StateChangeCommit of led_on onto the LightState row. `object` = the row (default uno-light, the instance a run is
-    started on), `led_on` = its state now (a run on the row supplies it; absent reads as off, so the light turns on)."""
+    started on), `led_on` = its state now (a run on the row supplies it; absent reads as off, so the light turns on).
+    scl: `object_class` / `command_field` default to LightState / led_on (the definition is unchanged); board.custom.light_struct builds the same-shaped solution for ButtonClockState / set_led."""
     n = GB.node
-    entry = n('toggle-requested', 'BackendStateChange', {'displayName': 'Toggle the light', 'modelName': LIGHT_OBJECT_CLASS,
-                                                         'fieldName': 'led_on', 'changeType': 'update',
+    entry = n('toggle-requested', 'BackendStateChange', {'displayName': 'Toggle the light', 'modelName': object_class,
+                                                         'fieldName': command_field, 'changeType': 'update',
                                                          'description': 'entry marker: a person asked for the light to change'},
               outs=[['light-is-on?']])
     is_on = GB.cond('light-is-on?', [GB.link(GB.var_src('led_on'), 'isTrue', GB.lit_src(True), display_name='the light is on now')],
@@ -132,9 +133,9 @@ def toggle_definition(name=TOGGLE_SOLUTION):
                                                'assignmentConfig': {'valueSource': GB.lit_src(False)}}, outs=[['flip']])
     on = n('turn-on', 'VariableAssignment', {'variableName': 'new_led_on', 'value': '',
                                              'assignmentConfig': {'valueSource': GB.lit_src(True)}}, outs=[['flip']])
-    flip = n('flip', 'StateChangeCommit', {'changeType': 'update', 'targetClassName': LIGHT_OBJECT_CLASS,
+    flip = n('flip', 'StateChangeCommit', {'changeType': 'update', 'targetClassName': object_class,
                                            'instanceRef': GB.var_src('object'),
-                                           'fields': {'led_on': GB.var_src('new_led_on')}}, outs=[[]])
+                                           'fields': {command_field: GB.var_src('new_led_on')}}, outs=[[]])
     d = GB.solution(name, entry, is_on, off, on, flip)
     purposes = {'toggle-requested': 'A person asked for the light to change (this button).',
                 'light-is-on?': 'Looks at whether the light is on right now.',

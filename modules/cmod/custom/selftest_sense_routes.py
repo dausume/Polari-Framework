@@ -12,8 +12,8 @@ from types import SimpleNamespace
 ROUTE_VARIANTS = {'poll': 'uno-light-sense-poll', 'pcint': 'uno-light-sense-pcint'}
 ROUTE_ROWS = {'poll': 'sense-led-line:gpio-poll', 'pcint': 'sense-led-line:pin-change-interrupt'}
 ROUTE_SCENARIOS = {'sense-led-line:gpio-poll': 'sense-poll-line-acceptance', 'sense-led-line:pin-change-interrupt': 'sense-pcint-line-acceptance'}
-#: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's HAL_SENSE_ROUTE guard moved none of them
-GATE = {'uno-button-clock': '4cbe660a00049cf7', 'uno-light': '94b9b77f9f8c9b19', 'uno-sim-rig': '4188f6ae7d65bfc7', 'uno-light-pcint': '4298c765324b0bab', 'uno-light-analog': 'bc0935f9b21e1bd4'}
+#: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's HAL_SENSE_ROUTE guard moved none of them; scl (led_follow_state) moved the light and button-clock hexes ON PURPOSE (same wire, same pins)
+GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light': '1e75dab5ee7eb758', 'uno-sim-rig': '4188f6ae7d65bfc7', 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
 
 
 def _engine():

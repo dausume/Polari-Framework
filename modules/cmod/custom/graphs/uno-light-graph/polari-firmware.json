@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "ac4dc4089ec8b8d6949158af215aa438b587c084bbcbd0e89147be282afe2631",
-    "noinline": "ba9ec49a8b18469b40a1ae07d7d80fea6c0a65c12a487064785261929afd90e2"
+    "shipped": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
+    "noinline": "32f58f1f51d7a4fdab5e1f9242ac9a8e07634dc0a1cc553ea49c92e47234881a"
    }
   }
  ],
@@ -116,16 +116,17 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "bcdd1f285a3de2ed3d4b367750e9204eefa9480bae634fb88f69b718ccca4922"
+     "sha256": "e87af1ceb97a3b461ffdadeee362f2b4750ad35130e88d531094e5944b5dc171"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "261b2adb62fb859c84f42250eb7106bbc4a9be3112c8566f9df9a27a5a3961c9"
+     "sha256": "fe8e42f490e8e87c8d8f1071c582b834c3d8592091eb51a2789f23e4cfa81543"
     }
    ],
    "atoms": [
     "polari_graph.apply_command",
     "polari_graph.boot_session_mint",
+    "polari_graph.led_follow_state",
     "polari_graph.led_toggle",
     "polari_graph.main",
     "polari_graph.telemetry_send"
@@ -1211,7 +1212,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 52,
+   "line": 51,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1236,18 +1237,10 @@
      "access": "rw",
      "peripheral": "",
      "detail": "LightState_t, 91 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
-    "LightState_decode_rx",
-    "hal_led"
+    "LightState_decode_rx"
    ],
    "pure": false,
    "pure_why": "touches state",
@@ -1259,12 +1252,10 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 50,
-    "role": "SET_LED: put the light where the host says; a real change counts and says source = command",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), uses(LED_PIN), role(\"SET_LED: put the light where the host says; a real change counts and says source = command\"))"
+    "line": 49,
+    "role": "SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), role(\"SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "default",
@@ -1272,7 +1263,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 178,
+    "text_bytes_noinline": 174,
     "stack_bytes": 96,
     "stack_kind": "static",
     "stack_from": "noinline",
@@ -1364,6 +1355,73 @@
    "notes": ""
   },
   {
+   "name": "polari_graph.led_follow_state",
+   "function": "led_follow_state",
+   "module": "polari_graph.c",
+   "line": 69,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_follow_state(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "LightState_t, 91 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_led"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 68,
+    "role": "each pass: when state.led_on differs from the value last written to the pin, drive the pin to it",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(led_follow_state, uses(LED_PIN), role(\"each pass: when state.led_on differs from the value last written to the pin, drive the pin to it\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "led_follow_state",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 30,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
    "name": "polari_graph.led_toggle",
    "function": "led_toggle",
    "module": "polari_graph.c",
@@ -1381,18 +1439,10 @@
      "access": "rw",
      "peripheral": "",
      "detail": "LightState_t, 91 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
-    "hal_take_toggle_pending",
-    "hal_led"
+    "hal_take_toggle_pending"
    ],
    "pure": false,
    "pure_why": "touches state",
@@ -1405,11 +1455,9 @@
    "annotation": {
     "form": "macro",
     "line": 36,
-    "role": "on a debounced button press: flip the light, count the change, source = button",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(led_toggle, uses(LED_PIN), role(\"on a debounced button press: flip the light, count the change, source = button\"))"
+    "role": "on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(led_toggle, role(\"on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "default",
@@ -1417,7 +1465,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 108,
+    "text_bytes_noinline": 104,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "noinline",
@@ -1435,7 +1483,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 78,
+   "line": 86,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1491,6 +1539,7 @@
     "apply_command",
     "hal_millis",
     "led_toggle",
+    "led_follow_state",
     "telemetry_send"
    ],
    "pure": false,
@@ -1505,17 +1554,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "main",
-    "text_bytes": 2030,
+    "text_bytes": 2052,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 196,
-    "stack_bytes": 112,
+    "text_bytes_noinline": 200,
+    "stack_bytes": 111,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     2030,
-     2030
+     2052,
+     2052
     ]
    },
    "title": "",
@@ -1525,7 +1574,7 @@
    "name": "polari_graph.telemetry_send",
    "function": "telemetry_send",
    "module": "polari_graph.c",
-   "line": 71,
+   "line": 79,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -1577,7 +1626,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 70,
+    "line": 78,
     "role": "one LightState frame: the light, how often it changed, who changed it last",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
@@ -1604,8 +1653,8 @@
   }
  ],
  "counts": {
-  "atoms": 19,
-  "annotated": 10,
+  "atoms": 20,
+  "annotated": 11,
   "isr": 3,
   "pure": 0,
   "ports": 11,
@@ -1619,5 +1668,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T06:43:12"
+ "conformed_at": "2026-10-18T22:15:29"
 }

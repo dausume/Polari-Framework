@@ -49,11 +49,19 @@ static void led_toggle(void)
 #if HAL_INT0
     if (!hal_take_toggle_pending()) return;
     state.led_on = state.led_on ? 0u : 1u;
-    hal_led(state.led_on);
     state.toggles++;
     state.source = LIGHTSTATEV2_SOURCE_BUTTON;
     state.status = LIGHTSTATEV2_STATUS_ACTIVE;
 #endif
+}
+
+/* THE STRUCT CONTROLS THE LIGHT (slice scl): the mutators only alter state.led_on; this, called every pass, is the only thing that drives D6 */
+static void led_follow_state(void)
+{
+    static uint8_t pin = 0u;
+    if (state.led_on == pin) return;
+    pin = state.led_on ? 1u : 0u;
+    hal_led(pin);
 }
 
 static void telemetry_send(void)
@@ -84,7 +92,6 @@ static void apply_command(const polari_rx_t *r)
             want = cmd.led_on ? 1u : 0u;
             if (want != state.led_on) {
                 state.led_on = want;
-                hal_led(want);
                 state.toggles++;
                 state.source = LIGHTSTATEV2_SOURCE_COMMAND;
                 state.status = LIGHTSTATEV2_STATUS_ACTIVE;
@@ -120,6 +127,7 @@ int main(void)
 
         now = hal_millis();
         led_toggle();
+        led_follow_state();
 
         if ((int32_t)(now - next_ms) < 0) continue;
         next_ms += TELEMETRY_MS;

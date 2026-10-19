@@ -2,7 +2,7 @@
  "clock_hz": 16000000,
  "functions": {
   "apps/button_clock.apply_command": {
-   "entry": "0x247a",
+   "entry": "0x2492",
    "function": "apply_command",
    "max": 0,
    "min": 0,
@@ -38,7 +38,7 @@
   },
   "apps/button_clock.events_drain": {
    "blocks_on_uart": true,
-   "entry": "0x20c4",
+   "entry": "0x20dc",
    "function": "events_drain",
    "max": 735348,
    "min": 114,
@@ -70,12 +70,20 @@
    "n": 5,
    "symbol": "l_led_set"
   },
+  "apps/button_clock.led_follow_state": {
+   "entry": "0x17b4",
+   "function": "led_follow_state",
+   "max": 108,
+   "min": 11,
+   "n": 26966,
+   "symbol": "led_follow_state"
+  },
   "apps/button_clock.led_toggle": {
    "entry": "0x16c2",
    "function": "led_toggle",
-   "max": 955,
-   "min": 91,
-   "n": 28376,
+   "max": 857,
+   "min": 95,
+   "n": 26966,
    "symbol": "led_toggle"
   },
   "apps/button_clock.queue_pop": {
@@ -87,16 +95,16 @@
    "symbol": "queue_pop"
   },
   "apps/button_clock.sense_isr": {
-   "entry": "0x17c2",
+   "entry": "0x17da",
    "function": "sense_isr",
    "max": 711,
    "min": 170,
-   "n": 28376,
+   "n": 26965,
    "symbol": "sense_isr"
   },
   "apps/button_clock.telemetry_send": {
    "blocks_on_uart": true,
-   "entry": "0x229a",
+   "entry": "0x22b2",
    "function": "telemetry_send",
    "max": 1256108,
    "min": 520819,
@@ -133,7 +141,7 @@
    "function": "hal_millis",
    "max": 108,
    "min": 54,
-   "n": 28377,
+   "n": 26966,
    "symbol": "hal_millis"
   },
   "hal.hal_presses": {
@@ -149,7 +157,7 @@
    "function": "hal_rx_pop",
    "max": 68,
    "min": 14,
-   "n": 28377,
+   "n": 26966,
    "symbol": "hal_rx_pop"
   },
   "hal.hal_sense_init": {
@@ -165,7 +173,7 @@
    "function": "hal_sense_read",
    "max": 138,
    "min": 84,
-   "n": 28376,
+   "n": 26965,
    "symbol": "hal_sense_read"
   },
   "hal.hal_take_toggle_pending": {
@@ -173,7 +181,7 @@
    "function": "hal_take_toggle_pending",
    "max": 91,
    "min": 37,
-   "n": 28376,
+   "n": 26966,
    "symbol": "hal_take_toggle_pending"
   },
   "hal.hal_tick_init": {
@@ -215,20 +223,20 @@
    "-ffunction-sections",
    "-fdata-sections"
   ],
-  "flash_bytes": 13800,
+  "flash_bytes": 13762,
   "ldflags": [
    "-Wl,--gc-sections"
   ],
-  "noinline_elf_sha256": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860",
+  "noinline_elf_sha256": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08",
   "noinline_extra": [
    "-fno-inline",
    "-Wno-error",
    "-Wl,--no-gc-sections"
   ],
-  "noinline_hex_sha256": "d7d2571025d9f8173d28b37d4301fdda036e92d04d25eaa00bbbfb393b63cee9",
-  "ram_bytes": 1224,
-  "shipped_elf_sha256": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
-  "shipped_hex_sha256": "4cbe660a00049cf7aaad5037c3c4eaeed6133d359bd5f5e03fc1b7b67e0b9c0a",
+  "noinline_hex_sha256": "85afb9a0b4e663140651123ae05941c7886b40a6fa58d8a03b00f90174a0a7a8",
+  "ram_bytes": 1225,
+  "shipped_elf_sha256": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
+  "shipped_hex_sha256": "0525a11f21b2c1f24e03a0c45adf3ae62cf7f668f74636777466f40ee419201c",
   "sources": [
    {
     "path": "board_config.h",
@@ -248,7 +256,7 @@
    },
    {
     "path": "hal.c",
-    "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
+    "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
    },
    {
     "path": "hal.h",
@@ -256,7 +264,7 @@
    },
    {
     "path": "main.c",
-    "sha256": "5931a7efa0004dd5864d4bca1314b70ca1e86cd9facf95f2defbe6b7d058b0e3"
+    "sha256": "10d1b9e72b4852910a1e864b3a873757476369ba2eb0868adae0e9bd6970966a"
    }
   ]
  },
@@ -293,29 +301,29 @@
   "conditional_back_jumps_not_separable": [],
   "gaps": [
    {
-    "back_jump": "0x1608",
-    "max_cycles": 1652,
-    "measure": "poll point -> rjmp at 0x1608, + the jump's own 2 cycles",
-    "min_cycles": 185,
-    "n": 55694,
+    "back_jump": "0x1612",
+    "max_cycles": 1653,
+    "measure": "poll point -> rjmp at 0x1612, + the jump's own 2 cycles",
+    "min_cycles": 192,
+    "n": 53667,
     "op": "rjmp"
    },
    {
-    "back_jump": "0x162a",
-    "max_cycles": 1255302,
-    "measure": "poll point -> rjmp at 0x162a, + the jump's own 2 cycles",
-    "min_cycles": 520956,
+    "back_jump": "0x1634",
+    "max_cycles": 1255310,
+    "measure": "poll point -> rjmp at 0x1634, + the jump's own 2 cycles",
+    "min_cycles": 520963,
     "n": 13,
     "op": "rjmp"
    }
   ],
-  "poll_point": "0x1352",
-  "worst_gap_chip_timed_cycles": 1255302,
-  "worst_gap_cycles": 1255302
+  "poll_point": "0x1346",
+  "worst_gap_chip_timed_cycles": 1255310,
+  "worst_gap_cycles": 1255310
  },
  "mcu": "atmega328p",
- "record_sha256": "dccfbdab021197930fb11edc7c3dadc317d48eecf6b68d6404d39789571cf775",
- "recorded_at": "2026-10-18T07:27:48",
+ "record_sha256": "cd020c69bc14fdf64be8f44b54030748899ac5702af7cb82381adbd64c50151c",
+ "recorded_at": "2026-10-18T22:28:10",
  "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
  "schema": "cycle-measurement/1",
  "stimulus": {
@@ -372,7 +380,7 @@
   "name": "uno-button-clock/cyc0-v1",
   "seconds": 1.3,
   "seed": 1,
-  "sim_cycles": 20800467,
+  "sim_cycles": 20801226,
   "uart_tx_bytes": 3220
  },
  "tools": {
@@ -384,7 +392,7 @@
   },
   "simavr": "libsimavr2 / simavr 1.6+dfsg-3 (Debian trixie), via polari-avr-twin in the image above (prf-board-engines/Dockerfile)"
  },
- "twin_runs": 61,
+ "twin_runs": 62,
  "uart": {
   "bytes_logged": 3220,
   "chip_cycles_per_byte": 1360,

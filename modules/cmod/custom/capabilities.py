@@ -101,7 +101,7 @@ LIGHT_SEED_CAPABILITIES = [
      'required_targets': '',
      'exposes_fields': 'led_on,toggles,source',
      'tasks_by_runtime_json': _tasks(
-         c_device=_graph_tasks(LIGHT_GRAPH, 'usart_init', 'led_init', 'rx_pop', 'rx', 'state', 'apply', 'led', 'usart_send',
+         c_device=_graph_tasks(LIGHT_GRAPH, 'usart_init', 'led_init', 'rx_pop', 'rx', 'state', 'apply', 'led_follow_state', 'led', 'usart_send',
                                'boot_session_mint', 'tick_init', 'clock', 'telemetry', 'telemetry_send'),
          java_bridge=['uno-light:relay-out'], python_backend=['light-toggle:flip']),
      'acceptance_scenario': 'light-from-polari-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
@@ -116,7 +116,7 @@ LIGHT_SEED_CAPABILITIES = [
      'exposes_fields': 'led_on,toggles,source',
      'tasks_by_runtime_json': _tasks(
          c_device=_graph_tasks(LIGHT_GRAPH, 'usart_init', 'led_init', 'tick_init', 'button_init', 'toggle_pending', 'led_toggle',
-                               'led', 'clock', 'state', 'telemetry', 'telemetry_send', 'usart_send', 'boot_session_mint'),
+                               'led_follow_state', 'led', 'clock', 'state', 'telemetry', 'telemetry_send', 'usart_send', 'boot_session_mint'),
          java_bridge=['uno-light:relay-in'], python_backend=[]),
      'acceptance_scenario': 'light-from-button-acceptance', 'instance_count': 1, 'status': 'planned', 'last_proof': '',
      'lifecycle': 'retired',

@@ -178,8 +178,8 @@ def _compiles(check):
         check('%s records its isotope template + macros by sha256 in the repro block, and the rendered file as a project input' % name,
               'isotope template (jinja2)' in labels and 'isotope template macros (jinja2)' in labels
               and any(i['path'].endswith('hal_button_%s.c' % ('pcint' if name.endswith('pcint') else 'adc')) for i in repro['inputs']))
-    check('the existing uno-light still builds to its committed hex 94b9b77f... (hal.c\'s route guard changed no byte of it)',
-          builds['uno-light']['artifact_sha256'].startswith('94b9b77f9f8c9b19'), builds['uno-light']['artifact_sha256'])
+    check('the existing uno-light still builds to its committed hex 1e75dab5... (scl moved it from 94b9b77f on purpose: led_follow_state; the route guard changed no byte of it)',
+          builds['uno-light']['artifact_sha256'].startswith('1e75dab5ee7eb758'), builds['uno-light']['artifact_sha256'])
     check('uno-light-pcint and uno-light-analog hexes differ from uno-light and from each other',
           len({builds[n]['artifact_sha256'] for n in ('uno-light', 'uno-light-pcint', 'uno-light-analog')}) == 3)
 

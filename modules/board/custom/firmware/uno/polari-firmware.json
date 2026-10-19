@@ -150,14 +150,14 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "26e0453ef0f3a1e4468987c1b7cfd1e1c65285bfadda14d162fe722f90419362",
+   "source_sha": "e44c079ae83a2f8cf7674981300391ab6c61129463b1dcec78c44ae8d9a9692b",
    "elf_sha256": {
-    "shipped": "3655b394aa891670ef4811493ef51fee1eeb4e176e255d5c45f8d0c1efd33f6b",
-    "noinline": "b988495b9893230f8da20859d7e90f7a2477c8d42e9807e4c39b63c70ec4c860"
+    "shipped": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
+    "noinline": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "4cbe660a00049cf7aaad5037c3c4eaeed6133d359bd5f5e03fc1b7b67e0b9c0a"
+    "hex_sha256": "0525a11f21b2c1f24e03a0c45adf3ae62cf7f668f74636777466f40ee419201c"
    }
   },
   {
@@ -173,14 +173,14 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "85d6ac4374c8e976eaaad444edf593e6031e09cc9a562f34b51153f9ff514fb6",
+   "source_sha": "088ee1f4706d5a789919fb86af0cabcc86b5cd27e08012e056b79618e18958e6",
    "elf_sha256": {
-    "shipped": "98debcdb58f1d5f8b86e6781374da6cbba885c479ac044452c4387d2647aa3c8",
-    "noinline": "a7e402f7a883b2e402a573c2f50969c2ae7531ef58ecffdff80f6381a58822c2"
+    "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
+    "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "94b9b77f9f8c9b19f537dbb202aff0dfc3e0e29c93933201577f8857a4dc45d7"
+    "hex_sha256": "1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5"
    }
   },
   {
@@ -197,14 +197,14 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "025e923d9b6977cc31ac3630591df5047b1c553a719b61f3af653ac330d54137",
+   "source_sha": "693101c41cc3fddaa0873ff0ebfaa1323fd255a744038d7897e72064116a55aa",
    "elf_sha256": {
-    "shipped": "02fba6a8f98b4ca0111190dc54f2a22c3448e6347a250a6001d3f01baa99057e",
-    "noinline": "e8dfa587a47641b5b53a61e5165fff661b38e5cce441f655c0851f13987d1fbe"
+    "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
+    "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "4298c765324b0babc1f02e2652a069085072717626ad13199975001edb4da1b0"
+    "hex_sha256": "e23a590496655b15b64f9dac2dffc64eadcb51b8ced0ae608ec4fe41f09bd121"
    }
   },
   {
@@ -221,14 +221,14 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f24a7a686d36d7348f17a5bd9eda967c434ae528bd28e4cc1e15e2c817c1ba60",
+   "source_sha": "09e97de336a94a732aef990f62adb73db6b33ff877da9dfc4e806788c3b4d117",
    "elf_sha256": {
-    "shipped": "b573f50f51ed89c1d0975f38943c5ffe443f0cbfbe67ef625a34da1867f92ce9",
-    "noinline": "65edee5f4cf0e29b434c9d4430f9bfb57b7c1c644de526d7a899d5df3a84d511"
+    "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
+    "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "bc0935f9b21e1bd4572b668e497e1c9f70d54388d40754d3dd548f658bde964e"
+    "hex_sha256": "3f8fbd0b742b03f93516a42f9812bcd92ce7dcba01525aa78a66eef0667fdf6d"
    }
   },
   {
@@ -246,14 +246,14 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "078427a3addb48b1419e9008b20497ab9c9cc103706b21c78a0c699ab5646612",
+   "source_sha": "5727acaa6813275edddd30bb8fc7e2c2884470f4977d36f85f3b7adac7f645d7",
    "elf_sha256": {
-    "shipped": "7282e04c8454649a4f246a88e846c3a80f1ba31c6d3c668ea40d1cbadb3022cf",
-    "noinline": "e9e9f5332081e22abd25cac9d508c7b8f9cf8e8f83401ebc739112c6fc0ab85b"
+    "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
+    "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "38c47b6d16fb118a080604d25937a66eb52ed7ce6781f8e1d4f55c5006ad1e71"
+    "hex_sha256": "e65868d0917c1187544f6884ad63196bfbb0c7b970e1b33cd55b106dae56618b"
    }
   },
   {
@@ -271,14 +271,14 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c50e5258edd2714f44af2c0225bf52682e0064ad642a891dfe72e6183161114f",
+   "source_sha": "717a6ff5ed0ea64182643c4dd4b4d27dfc61e4afdb582d1c20fe314642d63060",
    "elf_sha256": {
-    "shipped": "a514478c17900cf7577f78bc5b02d94b3d3e7a8a363a5b22c2150c3b87315f51",
-    "noinline": "196bc3aa88da9dc8c7595e702ebf1c236d1c8347059b0f9997ad906272debebe"
+    "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
+    "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "5958f052fdde47105d08f7c35c99dfa4b7435d6c8ed8f7d60f0ece0109840993"
+    "hex_sha256": "7559763c2cd12f1f861b9fba0cd82d98b32705f06d18b13f29fc5504fe449476"
    }
   },
   {
@@ -494,7 +494,7 @@
    "files": [
     {
      "path": "apps/button_clock.c",
-     "sha256": "5931a7efa0004dd5864d4bca1314b70ca1e86cd9facf95f2defbe6b7d058b0e3"
+     "sha256": "10d1b9e72b4852910a1e864b3a873757476369ba2eb0868adae0e9bd6970966a"
     }
    ],
    "atoms": [
@@ -506,6 +506,7 @@
     "apps/button_clock.events_queue",
     "apps/button_clock.l_led_init",
     "apps/button_clock.l_led_set",
+    "apps/button_clock.led_follow_state",
     "apps/button_clock.led_toggle",
     "apps/button_clock.main",
     "apps/button_clock.queue_pop",
@@ -519,12 +520,13 @@
    "files": [
     {
      "path": "apps/light.c",
-     "sha256": "3bd18bb98ba24ba3ad5cce6559a10ee9d20ab525b2d95d69ccb5d7ad55b21b0f"
+     "sha256": "134c27154e803b18b5dbc056f12a9ca4dc460f135da8ca0b21ec81c47bc03807"
     }
    ],
    "atoms": [
     "apps/light.apply_command",
     "apps/light.boot_session_mint",
+    "apps/light.led_follow_state",
     "apps/light.led_toggle",
     "apps/light.main",
     "apps/light.telemetry_send"
@@ -722,7 +724,7 @@
    "name": "apps/button_clock.apply_command",
    "function": "apply_command",
    "module": "apps/button_clock.c",
-   "line": 258,
+   "line": 268,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -754,13 +756,6 @@
      "access": "rw",
      "peripheral": "",
      "detail": "ButtonClockState_t, 213 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
@@ -768,8 +763,6 @@
     "ButtonClockState_decode_rx",
     "clock_set",
     "events_queue",
-    "hal_led",
-    "l_led_set",
     "clock_tick",
     "telemetry_send"
    ],
@@ -785,12 +778,10 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 256,
-    "role": "SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), uses(LED_PIN), role(\"SET_TIME -> clock_set; SET_LED -> the LED, like blink-on-command; SNAPSHOT -> a frame + queue replay now\"))"
+    "line": 266,
+    "role": "SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now",
+    "uses": [],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), role(\"SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now\"))"
    },
    "cost": {
     "measured_in": "uno-button-clock",
@@ -798,7 +789,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 942,
+    "text_bytes_noinline": 918,
     "stack_bytes": 274,
     "stack_kind": "dynamic,bounded",
     "stack_from": "noinline",
@@ -1126,7 +1117,7 @@
    "name": "apps/button_clock.events_drain",
    "function": "events_drain",
    "module": "apps/button_clock.c",
-   "line": 215,
+   "line": 213,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_drain(void)",
@@ -1423,18 +1414,89 @@
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "l_led_set",
-    "text_bytes": 12,
-    "in_shipped_build": true,
-    "inlined": false,
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
     "text_bytes_noinline": 12,
     "stack_bytes": 2,
     "stack_kind": "static",
-    "stack_from": "shipped",
+    "stack_from": "noinline",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     12,
-     12
-    ]
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/button_clock.led_follow_state",
+   "function": "led_follow_state",
+   "module": "apps/button_clock.c",
+   "line": 257,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_follow_state(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t, 213 B"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "LED_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_led",
+    "l_led_set"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-button-clock",
+    "uno-light-sense-poll",
+    "uno-light-sense-pcint"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 256,
+    "role": "each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it",
+    "uses": [
+     "LED_PIN"
+    ],
+    "raw": "POLARI_NODE(led_follow_state, uses(LED_PIN), role(\"each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it\"))"
+   },
+   "cost": {
+    "measured_in": "uno-button-clock",
+    "symbol": "led_follow_state",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 38,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
    },
    "title": "",
    "notes": ""
@@ -1468,21 +1530,12 @@
      "access": "rw",
      "peripheral": "",
      "detail": "ButtonClockState_t, 213 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
     "hal_take_toggle_pending",
     "hal_presses",
     "events_queue",
-    "hal_led",
-    "l_led_set",
     "clock_tick"
    ],
    "pure": false,
@@ -1498,11 +1551,9 @@
    "annotation": {
     "form": "macro",
     "line": 168,
-    "role": "on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(led_toggle, uses(LED_PIN), role(\"on the button atom's toggle-pending flag: flip D6 + D13, stamp led_changed_at, emit events\"))"
+    "role": "on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(led_toggle, role(\"on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "uno-button-clock",
@@ -1510,11 +1561,11 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 256,
-    "stack_bytes": 24,
+    "text_bytes_noinline": 242,
+    "stack_bytes": 25,
     "stack_kind": "static",
     "stack_from": "noinline",
-    "stack_bytes_noinline": 24,
+    "stack_bytes_noinline": 25,
     "text_bytes_range": [
      0,
      0
@@ -1528,7 +1579,7 @@
    "name": "apps/button_clock.main",
    "function": "main",
    "module": "apps/button_clock.c",
-   "line": 292,
+   "line": 300,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1592,6 +1643,7 @@
     "apply_command",
     "hal_millis",
     "led_toggle",
+    "led_follow_state",
     "sense_isr",
     "telemetry_send"
    ],
@@ -1609,17 +1661,17 @@
    "cost": {
     "measured_in": "uno-button-clock",
     "symbol": "main",
-    "text_bytes": 8420,
+    "text_bytes": 8394,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 220,
-    "stack_bytes": 294,
+    "text_bytes_noinline": 224,
+    "stack_bytes": 293,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     8420,
-     8420
+     8394,
+     8394
     ]
    },
    "title": "",
@@ -1716,7 +1768,7 @@
    "name": "apps/button_clock.sense_isr",
    "function": "sense_isr",
    "module": "apps/button_clock.c",
-   "line": 190,
+   "line": 188,
    "kind": "function",
    "isr_vector": "",
    "signature": "void sense_isr(void)",
@@ -1756,7 +1808,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 189,
+    "line": 187,
     "role": "drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges",
     "uses": [
      "SENSE_PIN"
@@ -1787,7 +1839,7 @@
    "name": "apps/button_clock.telemetry_send",
    "function": "telemetry_send",
    "module": "apps/button_clock.c",
-   "line": 241,
+   "line": 239,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(uint32_t now_ms)",
@@ -1854,7 +1906,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 239,
+    "line": 237,
     "role": "one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames\"))"
@@ -2093,18 +2145,10 @@
      "access": "rw",
      "peripheral": "",
      "detail": "LightState_t, 91 B"
-    },
-    {
-     "kind": "declared",
-     "name": "LED_PIN",
-     "access": "",
-     "peripheral": "LED_PIN",
-     "detail": "POLARI_NODE uses()"
     }
    ],
    "calls": [
-    "LightState_decode_rx",
-    "hal_led"
+    "LightState_decode_rx"
    ],
    "pure": false,
    "pure_why": "touches state",
@@ -2119,11 +2163,9 @@
    "annotation": {
     "form": "macro",
     "line": 53,
-    "role": "SET_LED: put the light where the host says; a real change counts and says source = command",
-    "uses": [
-     "LED_PIN"
-    ],
-    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), uses(LED_PIN), role(\"SET_LED: put the light where the host says; a real change counts and says source = command\"))"
+    "role": "SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), role(\"SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "uno-light",
@@ -2131,7 +2173,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 178,
+    "text_bytes_noinline": 174,
     "stack_bytes": 96,
     "stack_kind": "static",
     "stack_from": "noinline",
@@ -2149,7 +2191,7 @@
    "name": "apps/light.boot_session_mint",
    "function": "boot_session_mint",
    "module": "apps/light.c",
-   "line": 26,
+   "line": 27,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t boot_session_mint(void)",
@@ -2199,7 +2241,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 24,
+    "line": 25,
     "role": "mint this start's session number from EEPROM; it differs after every reset",
     "uses": [],
     "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this start's session number from EEPROM; it differs after every reset\"))"
@@ -2225,13 +2267,13 @@
    "notes": ""
   },
   {
-   "name": "apps/light.led_toggle",
-   "function": "led_toggle",
+   "name": "apps/light.led_follow_state",
+   "function": "led_follow_state",
    "module": "apps/light.c",
-   "line": 40,
+   "line": 75,
    "kind": "function",
    "isr_vector": "",
-   "signature": "void led_toggle(void)",
+   "signature": "void led_follow_state(void)",
    "static": true,
    "signature_varies": false,
    "ports": [],
@@ -2239,7 +2281,7 @@
     {
      "kind": "global",
      "name": "state",
-     "access": "rw",
+     "access": "r",
      "peripheral": "",
      "detail": "LightState_t, 91 B"
     },
@@ -2252,7 +2294,6 @@
     }
    ],
    "calls": [
-    "hal_take_toggle_pending",
     "hal_led"
    ],
    "pure": false,
@@ -2267,12 +2308,72 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 39,
-    "role": "on a debounced button press: flip the light, count the change, source = button",
+    "line": 74,
+    "role": "each pass: when state.led_on differs from the value last written to the pin, drive the pin to it",
     "uses": [
      "LED_PIN"
     ],
-    "raw": "POLARI_NODE(led_toggle, uses(LED_PIN), role(\"on a debounced button press: flip the light, count the change, source = button\"))"
+    "raw": "POLARI_NODE(led_follow_state, uses(LED_PIN), role(\"each pass: when state.led_on differs from the value last written to the pin, drive the pin to it\"))"
+   },
+   "cost": {
+    "measured_in": "uno-light",
+    "symbol": "led_follow_state",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 30,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.led_toggle",
+   "function": "led_toggle",
+   "module": "apps/light.c",
+   "line": 41,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_toggle(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "LightState_t, 91 B"
+    }
+   ],
+   "calls": [
+    "hal_take_toggle_pending"
+   ],
+   "pure": false,
+   "pure_why": "touches state",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light",
+    "uno-light-pcint",
+    "uno-light-analog"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 40,
+    "role": "on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)",
+    "uses": [],
+    "raw": "POLARI_NODE(led_toggle, role(\"on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)\"))"
    },
    "cost": {
     "measured_in": "uno-light",
@@ -2280,7 +2381,7 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 108,
+    "text_bytes_noinline": 104,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "noinline",
@@ -2298,7 +2399,7 @@
    "name": "apps/light.main",
    "function": "main",
    "module": "apps/light.c",
-   "line": 80,
+   "line": 91,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -2353,6 +2454,7 @@
     "apply_command",
     "hal_millis",
     "led_toggle",
+    "led_follow_state",
     "telemetry_send"
    ],
    "pure": false,
@@ -2369,17 +2471,17 @@
    "cost": {
     "measured_in": "uno-light",
     "symbol": "main",
-    "text_bytes": 2026,
+    "text_bytes": 2044,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 192,
-    "stack_bytes": 112,
+    "text_bytes_noinline": 196,
+    "stack_bytes": 111,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     2026,
-     2026
+     2044,
+     2044
     ]
    },
    "title": "",
@@ -2389,7 +2491,7 @@
    "name": "apps/light.telemetry_send",
    "function": "telemetry_send",
    "module": "apps/light.c",
-   "line": 73,
+   "line": 84,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -2443,7 +2545,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 72,
+    "line": 83,
     "role": "one LightState frame: the light, how often it changed, who changed it last",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
@@ -6408,8 +6510,8 @@
   }
  ],
  "counts": {
-  "atoms": 69,
-  "annotated": 29,
+  "atoms": 71,
+  "annotated": 31,
   "isr": 6,
   "pure": 2,
   "ports": 67,
@@ -6418,5 +6520,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-18T06:40:14"
+ "conformed_at": "2026-10-18T22:15:00"
 }

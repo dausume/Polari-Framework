@@ -139,9 +139,11 @@ BC_SEED_GRAPH_NODES = [
     _n('sense', 'c-atom', 22, 'uno:hal.hal_sense_read', 'called', graph=BC_GRAPH),
     _n('clock', 'c-atom', 23, 'uno:hal.hal_millis', 'loop', graph=BC_GRAPH),
     _n('led_toggle', 'c-atom', 24, 'uno:apps/button_clock.led_toggle', 'loop', graph=BC_GRAPH),
-    _n('sense_isr', 'c-atom', 25, 'uno:apps/button_clock.sense_isr', 'loop', graph=BC_GRAPH),
-    _n('telemetry', 'tick', 26, params='period_ms=TELEMETRY_MS', graph=BC_GRAPH),
-    _n('telemetry_send', 'c-atom', 27, 'uno:apps/button_clock.telemetry_send', 'loop', graph=BC_GRAPH),
+    _n('led_follow_state', 'c-atom', 25, 'uno:apps/button_clock.led_follow_state', 'loop', graph=BC_GRAPH,
+       notes='scl: the struct controls the light - the only caller of hal_led and l_led_set'),
+    _n('sense_isr', 'c-atom', 26, 'uno:apps/button_clock.sense_isr', 'loop', graph=BC_GRAPH),
+    _n('telemetry', 'tick', 27, params='period_ms=TELEMETRY_MS', graph=BC_GRAPH),
+    _n('telemetry_send', 'c-atom', 28, 'uno:apps/button_clock.telemetry_send', 'loop', graph=BC_GRAPH),
 ]
 
 BC_SEED_GRAPH_EDGES = [
@@ -150,8 +152,8 @@ BC_SEED_GRAPH_EDGES = [
     _e(3, 'calls', 'apply', '', 'clock_set', notes='apply_command: SET_TIME -> clock_set', graph=BC_GRAPH),
     _e(4, 'calls', 'led_toggle', '', 'clock_tick', graph=BC_GRAPH),
     _e(5, 'calls', 'led_toggle', '', 'events_queue', graph=BC_GRAPH),
-    _e(6, 'calls', 'led_toggle', '', 'led', 'on', graph=BC_GRAPH),
-    _e(7, 'calls', 'led_toggle', '', 'l_led', 'on', graph=BC_GRAPH),
+    _e(6, 'calls', 'led_follow_state', '', 'led', 'on', graph=BC_GRAPH),
+    _e(7, 'calls', 'led_follow_state', '', 'l_led', 'on', graph=BC_GRAPH),
     _e(8, 'calls', 'led_toggle', '', 'button', 'return', graph=BC_GRAPH),
     _e(9, 'calls', 'led_toggle', '', 'toggle_pending', 'return', graph=BC_GRAPH),
     _e(10, 'calls', 'sense_isr', '', 'sense', graph=BC_GRAPH),
@@ -175,8 +177,9 @@ SEED_GRAPH_EDGES += BC_SEED_GRAPH_EDGES
 #: uno-light) as nodes over the atoms — the button-clock graph with the clock, the sense pin, the event queue and the second
 #: class taken away:
 #:   init     usart_init -> tick_init -> led_init -> button_init, boot_session_mint (its return wired into state.boot_session)
-#:   on-rx    rx_pop -> the parser -> apply_command (SET_LED) on a complete frame; apply calls the led
-#:   loop     clock every pass -> led_toggle() (a debounced press flips the light) -> the 10 Hz telemetry tick -> telemetry_send
+#:   on-rx    rx_pop -> the parser -> apply_command (SET_LED sets state.led_on) on a complete frame
+#:   loop     clock every pass -> led_toggle() (a debounced press flips state.led_on) -> led_follow_state() (scl: the struct drives D6, the only
+#:            caller of the led) -> the 10 Hz telemetry tick -> telemetry_send
 #:   called   usart_send / led / toggle_pending: each copied in because a loop atom's own body calls it
 LIGHT_SEED_GRAPHS = [{
     'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light', 'class_name': 'LightState',
@@ -204,15 +207,16 @@ LIGHT_SEED_GRAPH_NODES = [
     _n('toggle_pending', 'c-atom', 14, 'uno:hal.hal_take_toggle_pending', 'called', graph=LIGHT_GRAPH),
     _n('clock', 'c-atom', 15, 'uno:hal.hal_millis', 'loop', graph=LIGHT_GRAPH),
     _n('led_toggle', 'c-atom', 16, 'uno:apps/light.led_toggle', 'loop', graph=LIGHT_GRAPH),
-    _n('telemetry', 'tick', 17, params='period_ms=TELEMETRY_MS', graph=LIGHT_GRAPH),
-    _n('telemetry_send', 'c-atom', 18, 'uno:apps/light.telemetry_send', 'loop', graph=LIGHT_GRAPH),
+    _n('led_follow_state', 'c-atom', 17, 'uno:apps/light.led_follow_state', 'loop', graph=LIGHT_GRAPH,
+       notes='scl: the struct controls the light - the only caller of hal_led; the mutators (apply, led_toggle) only alter state.led_on'),
+    _n('telemetry', 'tick', 18, params='period_ms=TELEMETRY_MS', graph=LIGHT_GRAPH),
+    _n('telemetry_send', 'c-atom', 19, 'uno:apps/light.telemetry_send', 'loop', graph=LIGHT_GRAPH),
 ]
 
 LIGHT_SEED_GRAPH_EDGES = [
     _e(1, 'on-rx', 'rx_pop', 'b', 'rx', 'byte', graph=LIGHT_GRAPH),
     _e(2, 'on-command', 'rx', 'frame', 'apply', 'r', graph=LIGHT_GRAPH),
-    _e(3, 'calls', 'apply', '', 'led', 'on', notes='apply_command: SET_LED puts the light where the host says', graph=LIGHT_GRAPH),
-    _e(4, 'calls', 'led_toggle', '', 'led', 'on', graph=LIGHT_GRAPH),
+    _e(3, 'calls', 'led_follow_state', '', 'led', 'on', notes='scl: the struct drives the pin - apply_command and led_toggle only alter state.led_on', graph=LIGHT_GRAPH),
     _e(5, 'calls', 'led_toggle', '', 'toggle_pending', 'return', graph=LIGHT_GRAPH),
     _e(6, 'calls', 'telemetry_send', '', 'usart_send', 'b', graph=LIGHT_GRAPH),
     _e(7, 'data', 'clock', 'return', 'telemetry', 'now', graph=LIGHT_GRAPH),

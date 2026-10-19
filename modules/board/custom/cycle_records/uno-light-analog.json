@@ -3,9 +3,9 @@
  "functions": {
   "apps/light.apply_command": {
    "blocks_on_uart": true,
-   "entry": "0x792",
+   "entry": "0x7ac",
    "function": "apply_command",
-   "max": 310,
+   "max": 351,
    "min": 238,
    "n": 6,
    "symbol": "apply_command.constprop.0",
@@ -20,12 +20,20 @@
    "symbol": "boot_session_mint",
    "twin_caveat": "EEPROM writes complete at once in simavr; the chip waits per byte for EEPE (init only, not in the loop) - not applied here"
   },
+  "apps/light.led_follow_state": {
+   "entry": "0x768",
+   "function": "led_follow_state",
+   "max": 65,
+   "min": 11,
+   "n": 27521,
+   "symbol": "led_follow_state"
+  },
   "apps/light.led_toggle": {
    "entry": "0x700",
    "function": "led_toggle",
-   "max": 1908,
+   "max": 1895,
    "min": 1718,
-   "n": 27742,
+   "n": 27521,
    "symbol": "led_toggle"
   },
   "apps/light.telemetry_send": {
@@ -33,7 +41,7 @@
    "cpu_basis": "called once per frame sent (36 calls, 36 frames), so each call waited at least (62 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
    "cpu_cycles_max": 15919,
    "cpu_cycles_min": 15549,
-   "entry": "0xbaa",
+   "entry": "0xbc0",
    "function": "telemetry_send",
    "max": 198919,
    "min": 198549,
@@ -63,7 +71,7 @@
    "function": "hal_millis",
    "max": 108,
    "min": 54,
-   "n": 27746,
+   "n": 27525,
    "symbol": "hal_millis"
   },
   "hal.hal_rx_pop": {
@@ -71,7 +79,7 @@
    "function": "hal_rx_pop",
    "max": 82,
    "min": 14,
-   "n": 27851,
+   "n": 27630,
    "symbol": "hal_rx_pop"
   },
   "hal.hal_tick_init": {
@@ -93,11 +101,11 @@
   "hal.hal_usart_send": {
    "blocks_on_uart": true,
    "cpu_basis": "called once per frame sent (36 calls, 36 frames), so each call waited at least (62 B - 1) x 3000 cycles on the twin's UART; that wait is taken out",
-   "cpu_cycles_max": 150,
+   "cpu_cycles_max": 134,
    "cpu_cycles_min": 76,
    "entry": "0x142",
    "function": "hal_usart_send",
-   "max": 183150,
+   "max": 183134,
    "min": 183076,
    "n": 36,
    "symbol": "hal_usart_send",
@@ -109,7 +117,7 @@
    "function": "button_counts",
    "max": 3220,
    "min": 1682,
-   "n": 27743,
+   "n": 27522,
    "symbol": "button_counts"
   },
   "hal_button_adc.hal_button_init": {
@@ -134,7 +142,7 @@
    "function": "hal_take_toggle_pending",
    "max": 1821,
    "min": 1707,
-   "n": 27742,
+   "n": 27521,
    "symbol": "hal_take_toggle_pending"
   }
  },
@@ -150,20 +158,20 @@
    "-ffunction-sections",
    "-fdata-sections"
   ],
-  "flash_bytes": 3124,
+  "flash_bytes": 3142,
   "ldflags": [
    "-Wl,--gc-sections"
   ],
-  "noinline_elf_sha256": "65edee5f4cf0e29b434c9d4430f9bfb57b7c1c644de526d7a899d5df3a84d511",
+  "noinline_elf_sha256": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938",
   "noinline_extra": [
    "-fno-inline",
    "-Wno-error",
    "-Wl,--no-gc-sections"
   ],
-  "noinline_hex_sha256": "27a2c290f42b51d2ed65147e7484b8ee8bd06deb8167649c2abbe46f44aafd52",
-  "ram_bytes": 521,
-  "shipped_elf_sha256": "b573f50f51ed89c1d0975f38943c5ffe443f0cbfbe67ef625a34da1867f92ce9",
-  "shipped_hex_sha256": "bc0935f9b21e1bd4572b668e497e1c9f70d54388d40754d3dd548f658bde964e",
+  "noinline_hex_sha256": "f6785afe69ee02893ee9578dd7e9227f1a6db772f80bfbc8c905172ec0f3a23e",
+  "ram_bytes": 522,
+  "shipped_elf_sha256": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
+  "shipped_hex_sha256": "3f8fbd0b742b03f93516a42f9812bcd92ce7dcba01525aa78a66eef0667fdf6d",
   "sources": [
    {
     "path": "board_config.h",
@@ -171,7 +179,7 @@
    },
    {
     "path": "hal.c",
-    "sha256": "87df745b54d8cb784945976eab094dc3d85a8e069f73af0bbad6d05f67486884"
+    "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
    },
    {
     "path": "hal.h",
@@ -191,7 +199,7 @@
    },
    {
     "path": "main.c",
-    "sha256": "3bd18bb98ba24ba3ad5cce6559a10ee9d20ab525b2d95d69ccb5d7ad55b21b0f"
+    "sha256": "134c27154e803b18b5dbc056f12a9ca4dc460f135da8ca0b21ec81c47bc03807"
    }
   ]
  },
@@ -219,75 +227,75 @@
   "conditional_back_jumps_not_separable": [],
   "gaps": [
    {
-    "back_jump": "0x49a",
-    "max_cycles": 1929,
-    "measure": "poll point -> rjmp at 0x49a, + the jump's own 2 cycles",
-    "min_cycles": 1780,
-    "n": 28260,
+    "back_jump": "0x4ae",
+    "max_cycles": 1941,
+    "measure": "poll point -> rjmp at 0x4ae, + the jump's own 2 cycles",
+    "min_cycles": 1787,
+    "n": 28148,
     "op": "rjmp"
    },
    {
-    "back_jump": "0x658",
+    "back_jump": "0x66a",
     "chip_timed_basis": "once per frame sent (36 of 36); minus (62 B - 1) x (3000 twin - 1360 chip cycles per byte) = 100040",
-    "chip_timed_max_cycles": 100138,
-    "max_cycles": 200178,
-    "measure": "poll point -> rjmp at 0x658, + the jump's own 2 cycles",
-    "min_cycles": 199842,
+    "chip_timed_max_cycles": 100144,
+    "max_cycles": 200184,
+    "measure": "poll point -> rjmp at 0x66a, + the jump's own 2 cycles",
+    "min_cycles": 199848,
     "n": 36,
     "op": "rjmp",
     "sends_report": true
    },
    {
-    "back_jump": "0x696",
+    "back_jump": "0x6a8",
     "max_cycles": 75,
-    "measure": "poll point -> rjmp at 0x696, + the jump's own 2 cycles",
+    "measure": "poll point -> rjmp at 0x6a8, + the jump's own 2 cycles",
     "min_cycles": 75,
     "n": 6,
     "op": "rjmp"
    },
    {
-    "back_jump": "0x6a8",
+    "back_jump": "0x6ba",
     "max_cycles": 84,
-    "measure": "poll point -> rjmp at 0x6a8, + the jump's own 2 cycles",
+    "measure": "poll point -> rjmp at 0x6ba, + the jump's own 2 cycles",
     "min_cycles": 84,
     "n": 60,
     "op": "rjmp"
    },
    {
-    "back_jump": "0x6dc",
+    "back_jump": "0x6ee",
     "chip_timed_basis": "once per frame sent (36 of 36); minus (62 B - 1) x (3000 twin - 1360 chip cycles per byte) = 100040",
     "chip_timed_max_cycles": -99929,
     "max_cycles": 111,
-    "measure": "poll point -> rjmp at 0x6dc, + the jump's own 2 cycles",
+    "measure": "poll point -> rjmp at 0x6ee, + the jump's own 2 cycles",
     "min_cycles": 111,
     "n": 36,
     "op": "rjmp",
     "sends_report": true
    },
    {
-    "back_jump": "0xa80",
-    "max_cycles": 3747,
-    "measure": "poll point -> rjmp at 0xa80, + the jump's own 2 cycles",
-    "min_cycles": 3747,
+    "back_jump": "0xa98",
+    "max_cycles": 3750,
+    "measure": "poll point -> rjmp at 0xa98, + the jump's own 2 cycles",
+    "min_cycles": 3750,
     "n": 2,
     "op": "rjmp"
    },
    {
-    "back_jump": "0xadc",
-    "max_cycles": 3874,
-    "measure": "poll point -> rjmp at 0xadc, + the jump's own 2 cycles",
-    "min_cycles": 3820,
+    "back_jump": "0xaee",
+    "max_cycles": 3864,
+    "measure": "poll point -> rjmp at 0xaee, + the jump's own 2 cycles",
+    "min_cycles": 3810,
     "n": 4,
     "op": "rjmp"
    }
   ],
-  "poll_point": "0x402",
-  "worst_gap_chip_timed_cycles": 100138,
-  "worst_gap_cycles": 200178
+  "poll_point": "0x3fe",
+  "worst_gap_chip_timed_cycles": 100144,
+  "worst_gap_cycles": 200184
  },
  "mcu": "atmega328p",
- "record_sha256": "ad9423e8f7e9ad06afb5d302241a8961873b3f758861ab7ce5a19225f80c7bd1",
- "recorded_at": "2026-10-18T07:25:34",
+ "record_sha256": "b7b30b8f796e3d6bee3d6b90f8ed6e5671bf5f5f06296c0ed826834d121e2ebd",
+ "recorded_at": "2026-10-18T22:22:19",
  "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
  "schema": "cycle-measurement/1",
  "stimulus": {
@@ -338,7 +346,7 @@
   "name": "uno-light-analog/cyc0-v1",
   "seconds": 3.6,
   "seed": 1,
-  "sim_cycles": 57600054,
+  "sim_cycles": 57600594,
   "uart_tx_bytes": 2232
  },
  "tools": {
@@ -350,7 +358,7 @@
   },
   "simavr": "libsimavr2 / simavr 1.6+dfsg-3 (Debian trixie), via polari-avr-twin in the image above (prf-board-engines/Dockerfile)"
  },
- "twin_runs": 36,
+ "twin_runs": 37,
  "uart": {
   "bytes_logged": 2232,
   "chip_cycles_per_byte": 1360,

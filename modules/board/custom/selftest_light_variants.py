@@ -37,7 +37,34 @@ def run_variants(check):
         check('fsc-6 TWIN: all four Purposes\' own scenarios pass on %s\'s own build, each stored with variant = %s: %s' % (cfg, cfg, {n.split('-acceptance')[0]: r['outcome'] for n, r in runs.items()}),
               all(r['outcome'] == 'passed' and r['variant'] == cfg and r['scenario'] == n and r['frames_seen'] > 0 for n, r in runs.items()), {n: r['verdict_words'][:160] for n, r in runs.items() if r['outcome'] != 'passed'})
         obs = {n: __import__('json').loads(r['observed_json']).get('controls', []) for n, r in runs.items()}
-        check('fsc-6 TWIN: …every negative control through the same judges was rejected (boot 4, button 2, command 1, observe 2)',
-              {n: len(c) for n, c in obs.items()} == {SCENARIOS[0]: 4, SCENARIOS[1]: 2, SCENARIOS[2]: 1, SCENARIOS[3]: 2} and not any(x['judged_ok'] for c in obs.values() for x in c), obs)
+        check('fsc-6 TWIN: …every negative control through the same judges was rejected (boot 4, button 2, command 3 (the struct write unchanged, a telemetry-only write, a quiet run), observe 2)',
+              {n: len(c) for n, c in obs.items()} == {SCENARIOS[0]: 4, SCENARIOS[1]: 2, SCENARIOS[2]: 3, SCENARIOS[3]: 2} and not any(x['judged_ok'] for c in obs.values() for x in c), obs)
     after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc6-*'))) | set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc0b-*')))
     check('fsc-6 TWIN: the twin runners leave no temp directory behind', after <= before, sorted(after - before))
+
+
+def run_scl(check):
+    """scl: the struct controls the light - the source shape (no twin needed), then the struct-driven from-Polari proof on uno-light's own build."""
+    import re
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'firmware', 'uno', 'apps')
+    for app in ('light.c', 'light_v2.c', 'button_clock.c'):
+        src = open(os.path.join(here, app)).read()
+        m = re.search(r'static void led_follow_state\(void\)\n\{.*?\n\}\n', src, re.S)
+        rest = src.replace(m.group(0), '') if m else src
+        # the only other mentions allowed: hal_led_init / l_led_init (not calls of the pin writer) and the l_led_set DEFINITION
+        calls = [c for c in re.findall(r'\b(hal_led|l_led_set)\s*\(([^)]*)\)', rest) if not (c[0] == 'l_led_set' and c[1].startswith('uint8_t'))]
+        check('scl-1 BOARD: %s - led_follow_state exists, runs every pass, and is the ONLY caller of the pin writer (the mutators only alter state.led_on): %d other call(s)' % (app, len(calls)),
+              m is not None and not calls and 'led_follow_state();' in src, calls)
+    from board.custom import light_twin as LT
+    ready, why = LT.engine_ready()
+    if not ready:
+        check('SKIP scl-2 (the struct-driven proof on the twin): no simavr twin here - %s' % why, True)
+        return
+    from firmwarefaults.custom import acceptance as ACC
+    from firmwarefaults.custom import sink as S
+    run = ACC.run('light-from-polari-acceptance', 'digital-twin', sink=S.LocalSink())
+    obs = __import__('json').loads(run['observed_json'])
+    check('scl-2 PROOF: ensure-polari-can-control-light on uno-light starts FROM THE STRUCT (light-toggle on a test manager -> a DERIVED frame -> D6 follows -> source=command): %s' % run['outcome'],
+          run['outcome'] == 'passed' and 'DERIVED from those committed changes' in run['verdict_words'] and 'D6 high' in run['verdict_words'], run['verdict_words'][:300])
+    check('scl-2 PROOF: negative controls - an unchanged-value write and a telemetry-only write derive NO frame, and a twin run with nothing written stays quiet (%d controls, none passed)' % len(obs.get('controls', [])),
+          len(obs.get('controls', [])) == 3 and not any(c['judged_ok'] for c in obs['controls']), obs.get('controls'))
