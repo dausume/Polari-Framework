@@ -369,6 +369,14 @@ def main():
           rep['chosen'] == 'cu2o'
           and rep['selectionPolicy'] == 'demonstrated')
 
+    # lay-0/lay-1 hook: the board family, the hole grammar, the wire colour schemes and S1's netlist gate run inside this selftest too
+    from electrodevice import layout_selftest as lay
+    print('\nlay-0/lay-1 (electrodevice.layout_selftest):')
+    before = len(lay._results)
+    lay.run_checks()
+    for ok in lay._results[before:]:
+        _results.append(('layout', ok))
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1

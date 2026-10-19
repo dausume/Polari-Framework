@@ -922,6 +922,8 @@ class polariServer(treeObject):
             CircuitDefinition, CircuitNetDefinition,
             CircuitComponentDefinition,
             BreadboardDefinition, ComponentPlacement, BoardJumper,
+            # lay-0/lay-1: board models, boards on the bench, wire colour schemes, a person's layout edits
+            BoardModel, BenchBoard, WireColorScheme, LayoutEdit,
             PinBindingDefinition, NoCodeTestCase, NoCodeTestPack,
             GovSource, SourceRetrieval, RetrievalConfirmation,
             NonProfitSource, CompanySource, PoliticalGroupSource,
@@ -2853,6 +2855,12 @@ class polariServer(treeObject):
             ('ComponentPlacement', ComponentPlacement,
              SEED_PLACEMENTS),
             ('BoardJumper', BoardJumper, SEED_JUMPERS),
+            # lay-0: models before the boards on the bench (a board names its model); schemes are seeded rows (copy before editing);
+            # a person's layout edits are runtime data.
+            ('BoardModel', BoardModel, SEED_BOARD_MODELS),
+            ('BenchBoard', BenchBoard, SEED_BENCH_BOARDS_ALL),
+            ('WireColorScheme', WireColorScheme, SEED_WIRE_COLOR_SCHEMES),
+            ('LayoutEdit', LayoutEdit, []),
             # ncg-6: bindings after the designs/placements they
             # reference; packs before their cases.
             ('PinBindingDefinition', PinBindingDefinition,

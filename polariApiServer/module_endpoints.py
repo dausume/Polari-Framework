@@ -393,6 +393,10 @@ def construct_electrodevice_endpoints(polServer):
     from electrodevice.device_api import ElectroDeviceAPI
     electroDeviceEndpoint = ElectroDeviceAPI(
         polServer=polServer, manager=manager)
+    # lay-0/lay-1: the board family + the layout of a built config
+    # (/api/layout/...): placements, wires, the netlist gate, steps.
+    from electrodevice.layout_api import LayoutAPI
+    layoutEndpoint = LayoutAPI(polServer=polServer, manager=manager)
 
 
 def construct_collab_endpoints(polServer):

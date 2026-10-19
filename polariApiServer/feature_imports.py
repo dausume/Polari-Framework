@@ -155,6 +155,11 @@ FEATURE_IMPORT_BLOCKS = (
             'BoardJumper', 'BreadboardDefinition', 'ComponentPlacement',
             'SEED_BREADBOARDS', 'SEED_JUMPERS', 'SEED_PLACEMENTS',
         )),
+        # lay-0/lay-1: the board family (models, boards on the bench), wire colour schemes, a person's layout edits
+        ('electrodevice.layout_basis', (
+            'BoardModel', 'BenchBoard', 'WireColorScheme', 'LayoutEdit',
+            'SEED_BOARD_MODELS', 'SEED_BENCH_BOARDS_ALL', 'SEED_WIRE_COLOR_SCHEMES',
+        )),
     )),
     ('scoring', (
         ('scoring.dmv_col_seed', (
