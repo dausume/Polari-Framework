@@ -48,6 +48,12 @@
 #ifndef HAL_INT1
 #define HAL_INT1 0                 /* ucd-0e2: 1 = a sense pin on D3 (INT1), ANY edge — counts rises/falls, stamps the last one */
 #endif
+#ifndef LED_ROUTE_PWM
+#define LED_ROUTE_PWM 0            /* smp-1: 1 = the LED pin is driven by Timer0's PWM output (drive-led:pwm), held at 100 % for on; 0 = a plain output pin */
+#endif
+#ifndef LOOP_DELAY_MS
+#define LOOP_DELAY_MS 0            /* smp-1 (sample failure F2 only): N > 0 = the main loop waits N ms every pass, so a press is acted on up to N ms late */
+#endif
 #ifndef HAL_WDT
 #define HAL_WDT 0                  /* 1: the watchdog on (reset mode), kicked once per main-loop pass */
 #endif

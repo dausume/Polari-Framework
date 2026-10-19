@@ -1,0 +1,62 @@
+{
+ "best_ms": 0.058,
+ "clock_hz": 16000000,
+ "inputs": {
+  "hex_sha256": "e65868d0917c1187544f6884ad63196bfbb0c7b970e1b33cd55b106dae56618b",
+  "source_sha": "fe014895eb3d7c45da49c1230d0e1c5c103e4483e23145b2d53e0a6b538a666c"
+ },
+ "mcu": "atmega328p",
+ "record_sha256": "5985f7916ba42ff037df68ebbab2496f1e7307dbb175aefc516f0e12c23a1490",
+ "recorded_at": "2026-10-19T07:41:44",
+ "resolution": "one core cycle (D13 is written a few cycles after D6)",
+ "rule": "the number is the WORST of the 5 presses; a press at another time in the pass can give a smaller or (up to one pass) a larger value, so it is a measured value, not a bound",
+ "runs": [
+  {
+   "latency_ms": 0.062,
+   "led_cycle": 1600985,
+   "press_cycle": 1600000,
+   "press_ms": 100
+  },
+  {
+   "latency_ms": 0.058,
+   "led_cycle": 2400931,
+   "press_cycle": 2400000,
+   "press_ms": 150
+  },
+  {
+   "latency_ms": 0.067,
+   "led_cycle": 3201079,
+   "press_cycle": 3200000,
+   "press_ms": 200
+  },
+  {
+   "latency_ms": 0.061,
+   "led_cycle": 4000975,
+   "press_cycle": 4000000,
+   "press_ms": 250
+  },
+  {
+   "latency_ms": 0.07,
+   "led_cycle": 4801123,
+   "press_cycle": 4800000,
+   "press_ms": 300
+  }
+ ],
+ "schema": "press-latency/1",
+ "stimulus": {
+  "first_press_ms": 100,
+  "phases": 5,
+  "step_ms": 50,
+  "tail_ms": 600
+ },
+ "tools": {
+  "avr-gcc": "avr-gcc (GCC) 14.2.0",
+  "image": {
+   "id": "sha256:1c4832c827616e2d76131db9772a884266e7f38e4a78dd20bba4d6334b3ffa90",
+   "name": "prf-board-engines:trixie"
+  }
+ },
+ "variant": "uno-light-sense-poll",
+ "what": "press-to-light latency: one debounced press on the config's own button pin, then the cycle of the first L LED (D13) change to high, which led_follow_state writes right after D6",
+ "worst_ms": 0.07
+}

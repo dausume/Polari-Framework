@@ -55,10 +55,12 @@ def set_led_frame(seq, on):
     return packet_ref.frame(1, 0, seq, wire_ref.encode(spec_s, {'set_led': bool(on)}, present=['set_led']), version=spec_s['wire_version'])
 
 
-def _argv(variant, seconds, extra, wired=True):
+def _argv(variant, seconds, extra, wired=True, adc=None):
+    from board.custom import light_button as LB
     from board.custom import variant_twin as VT
     wire = ['--wire', 'PD6:%s' % VT.sense_soc_pin(variant)] if wired else []
-    return VT._argv(seconds, wire + extra)
+    a = adc or LB.default_adc(variant)
+    return VT._argv(seconds, wire + extra, adc=a) if a else VT._argv(seconds, wire + extra)
 
 
 def judge_presses(states, events, n=N_PRESSES):
@@ -83,12 +85,21 @@ def judge_commands(states):
                 % (len(on), on[-1].get('status') if on else None, on[-1].get('button_presses') if on else None, last.get('led_on'), last.get('status'), last.get('button_presses')))
 
 
-def run_presses(variant, hex_bytes, n=N_PRESSES, pin='PD2'):
+def run_presses(variant, hex_bytes, n=N_PRESSES, pin=None):
+    """n debounced presses on the config's OWN button pin (smp-1: board.custom.light_button), or on `pin` (a negative control)."""
+    from board.custom import light_button as LB
     from firmwarefaults.custom import harness
-    pinat, end = LT.press_pinat(n)
-    if pin != 'PD2':
-        pinat = [a.replace('pin=PD2', 'pin=%s' % pin) for a in pinat]
+    pinat, end = LB.press_pinat(LB.plan(variant), n, LT.START_CYCLE, LT.PRESS_HOLD_CYCLES, LT.PRESS_GAP_CYCLES, pin)
     r = harness.run(_argv(variant, (end + LT.RUN_TAIL) / float(CPS), pinat), hex_bytes, timeout=120)
+    return (r,) + decode(r['uart'])
+
+
+def run_ramp(variant, hex_bytes, adc=None):
+    """The button read as a voltage: A0 driven by the twin's ramp (adc=None) or held at `adc` (a negative control) for the ramp's length."""
+    from board.custom import light_button as LB
+    from firmwarefaults.custom import harness
+    arg = adc or '--adc0-ramp %d,%d,%d' % LB.RAMP
+    r = harness.run(_argv(variant, LB.RAMP_SECONDS, [], adc=arg), hex_bytes, timeout=120)
     return (r,) + decode(r['uart'])
 
 
@@ -122,13 +133,27 @@ def _prove_in(work, which, variant):
     hex_bytes = open(row['hex_path'], 'rb').read()
     ok, parts, seen, ctl = True, [], 0, []
     if which in ('both', 'button'):
-        r, st, ev, bad = run_presses(variant, hex_bytes)
-        o, w = judge_presses(st, ev)
-        ok, seen = ok and o and r['ok'] and bad == 0, seen + len(st)
-        parts.append('button: ' + w)
-        r0, s0, e0, _b = run_presses(variant, hex_bytes, n=0)
-        r1, s1, e1, _b = run_presses(variant, hex_bytes, pin='PD4')
-        ctl += [('no press at all', judge_presses(s0, e0)[0] and r0['ok']), ('the same presses on a pin that is not the button (D4)', judge_presses(s1, e1)[0] and r1['ok'])]
+        from board.custom import light_button as LB
+        pl = LB.plan(variant)
+        if pl['route'] == 'adc':
+            want = LB.ramp_presses(pl)
+            r, st, ev, bad = run_ramp(variant, hex_bytes)
+            o, w = judge_presses(st, ev, want)
+            ok, seen = ok and want >= 2 and o and r['ok'] and bad == 0, seen + len(st)
+            parts.append('button (%s; the model says %d presses): %s' % (pl['words'], want, w))
+            r0, s0, e0, _b = run_ramp(variant, hex_bytes, '--adc0-mv %d' % LB.ADC_RELEASED_MV)
+            r1, s1, e1, _b = run_ramp(variant, hex_bytes, '--adc0-mv %d' % LB.ADC_CLOSED_MV)
+            ctl += [('A0 held at the released level (never pressed)', judge_presses(s0, e0, want)[0] and r0['ok']),
+                    ('a switch already closed at boot (A0 held at %d mV)' % LB.ADC_CLOSED_MV, judge_presses(s1, e1, want)[0] and r1['ok'])]
+        else:
+            r, st, ev, bad = run_presses(variant, hex_bytes)
+            o, w = judge_presses(st, ev)
+            ok, seen = ok and o and r['ok'] and bad == 0, seen + len(st)
+            parts.append('button (%s): %s' % (pl['words'], w))
+            r0, s0, e0, _b = run_presses(variant, hex_bytes, n=0)
+            r1, s1, e1, _b = run_presses(variant, hex_bytes, pin=pl['wrong_pin'])
+            ctl += [('no press at all', judge_presses(s0, e0)[0] and r0['ok']),
+                    ('the same presses on a pin that is not the button (%s)' % pl['wrong_pin'], judge_presses(s1, e1)[0] and r1['ok'])]
     if which in ('both', 'polari'):
         # scl-2: the from-Polari proof STARTS FROM THE STRUCT (the same-shaped toggle on ButtonClockState.set_led -> a derived frame -> the twin); the hand-frame check runs inside it as the board half
         from board.custom import light_struct as LS

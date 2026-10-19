@@ -82,6 +82,8 @@ def run_light(check):
     from board.custom.selftest_light_variants import run_scl, run_variants      # fsc-6 / scl: the struct-driven proof, then the same Purposes on the two LED-sense variants' own builds
     run_scl(check)
     run_variants(check)
+    from board.custom.selftest_light_samples import run_samples      # smp-1: the sample configs beyond the Purposes (the PWM output, the same C under the transistor, F2's measured time)
+    run_samples(check)
 
 
 if __name__ == '__main__':

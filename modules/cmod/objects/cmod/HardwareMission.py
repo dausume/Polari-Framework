@@ -30,7 +30,7 @@ class HardwareMission(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', goal: str = '', purposes_json: str = '[]', participants_json: str = '[]',
                  settings_json: str = '{"objective": "minimum-resources"}', constraints_json: str = '{}', lifecycle: str = 'enabled',
-                 notes: str = '', manager=None):
+                 notes: str = '', sample_solutions: str = '[]', manager=None):
         self.name = name
         self.title = title
         self.goal = goal                            # ONE sentence, a person's words
@@ -40,3 +40,4 @@ class HardwareMission(treeObject):
         self.constraints_json = constraints_json    # {stage: S1-breadboard..S5-blcnc-soc (optional), allowed_boards: [board names] (optional)}
         self.lifecycle = lifecycle                  # draft | enabled | suspended | retired - STORED, a person's/seed's word
         self.notes = notes
+        self.sample_solutions = sample_solutions    # smp-0: the CURATED sample [{id S1.., config, kind success|failure, device, components, why, [safety_deadline], [twin_only]}] the firmware scores page shows by default

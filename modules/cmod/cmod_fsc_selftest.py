@@ -109,12 +109,15 @@ def fsc_parts(check):
         from cmod.custom import fsc_link as L
         b = built()
         linked = {r['link']['config']: r for r in b['records'] if r['link']}
-        check('fsc-0 LINK: the three built configs that carry a route for EVERY job of the Mission resolve to the candidate whose routes they implement: %s' % sorted(linked),
-              sorted(linked) == ['uno-button-clock', 'uno-light-sense-pcint', 'uno-light-sense-poll'], sorted(linked))
-        want = {'uno-button-clock': {'read-button': 'ext-interrupt', 'sense-led-line': 'ext-interrupt'}, 'uno-light-sense-poll': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll'},
-                'uno-light-sense-pcint': {'read-button': 'ext-interrupt', 'sense-led-line': 'pin-change-interrupt'}}
-        check('fsc-0 LINK: the linked candidate\'s routes are exactly the config\'s DERIVED routes (derived from the variant features and knobs, not typed in)',
-              all(r['candidate']['routes'].get(j) == rt for cfg, r in linked.items() for j, rt in want[cfg].items()) and all(r['candidate']['routes']['drive-led'] == 'gpio-out' for r in linked.values()))
+        check('fsc-0 LINK: the six built configs that carry a route for EVERY job of the Mission (the three of fgm-5b and the sample S2, S3, S4 of smp-1) resolve to the candidate whose routes they implement: %s' % sorted(linked),
+              sorted(linked) == ['uno-button-clock', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-sense-pcint', 'uno-light-sense-poll', 'uno-light-transistor'], sorted(linked))
+        want = {'uno-button-clock': {'read-button': 'ext-interrupt', 'sense-led-line': 'ext-interrupt', 'drive-led': 'gpio-out'}, 'uno-light-sense-poll': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll', 'drive-led': 'gpio-out'},
+                'uno-light-sense-pcint': {'read-button': 'ext-interrupt', 'sense-led-line': 'pin-change-interrupt', 'drive-led': 'gpio-out'},
+                'uno-light-all-pcint': {'read-button': 'pin-change-interrupt', 'sense-led-line': 'pin-change-interrupt', 'drive-led': 'gpio-out'},
+                'uno-light-pwm-analog': {'read-button': 'analog-threshold', 'sense-led-line': 'gpio-poll', 'drive-led': 'pwm'},
+                'uno-light-transistor': {'read-button': 'ext-interrupt', 'sense-led-line': 'gpio-poll', 'drive-led': 'transistor-switch'}}
+        check('fsc-0 LINK: the linked candidate\'s routes are exactly the config\'s DERIVED routes (derived from the variant features and knobs - button_route, sense_route, led_route - not typed in)',
+              all(r['candidate']['routes'].get(j) == rt for cfg, r in linked.items() for j, rt in want[cfg].items()))
         check('fsc-0 LINK: uno-button-clock is a FirmwareSolution row; the two fgm-5b configs are FirmwareVariants (no FirmwareSolution row exists for them) and the link says which',
               linked['uno-button-clock']['link']['kind'] == 'FirmwareSolution' and linked['uno-light-sense-poll']['link']['kind'] == 'FirmwareVariant')
         un = {u['config']: u['why'] for u in b['unmatched_configs']}
@@ -419,7 +422,7 @@ def fsc_parts(check):
                 clash = repr(ex)
             check('fsc-2 DOORS: the firmware-score doors ADD on ONE real falcon.App beside the solve and Mission doors (%s first)' % ('mine' if first else 'theirs'), clash is None, clash)
         c = testing.TestClient(app)
-        q = {'mission': LIGHT, 'board': UNO}
+        q = {'mission': LIGHT, 'board': UNO, 'scope': 'all'}      # smp-0: the default scope is now the curated sample (tested in selftest_fsc_sample); these fsc-2 checks are about the whole set
         g = c.simulate_get('/api/firmware-scores', params=dict(q, profile='fsc-fastest'))
         rows = [r for r in g.json['rows'] if r['state'] != 'failed']
         check('fsc-2 DOOR scores: rows sorted TOP -> BOTTOM by the profile, with rank, finished|plan, score, and the deciding terms (the 2-3 largest weighted contributions); the top row scores 100',
@@ -428,15 +431,16 @@ def fsc_parts(check):
         allp = c.simulate_get('/api/firmware-scores', params=q)
         check('fsc-2 DOOR scores: with no profile asked every profile is scored (%d) and each row carries its score and rank per profile' % len(allp.json['profiles']),
               allp.status_code == 200 and len(allp.json['profiles']) == 10 and all(len(r['scores']) == 10 for r in allp.json['rows'] if r['state'] != 'failed'))
-        cfail = [r for r in g.json['rows'] if r['state'] == 'failed' and r.get('failed_purpose')]
+        cfail_all = [r for r in g.json['rows'] if r['state'] == 'failed' and r.get('failed_purpose')]
+        cfail = [r for r in cfail_all if r['solution'] != 'uno-light-slow-loop']      # smp-1: the sample failure F2 is a safety-deadline row of its own (tested in selftest_fsc_sample)
         check('fsc-0b DOOR scores: GET /api/firmware-scores?mission=uno-light-mission lists the four built light configs as FAILED rows (name, Purpose failed, why, no score) and never ranks them: %s' % sorted(r['solution'] for r in cfail),
               sorted(r['solution'] for r in cfail) == ['uno-light', 'uno-light-analog', 'uno-light-pcint', 'uno-light-v2'] and all(r['score'] is None and r['rank'] is None and 'sense-led-line' in r['reason']
                                                                                                                               and r['failed_purpose'] == 'ensure-button-controls-light, ensure-polari-can-control-light, ensure-polari-observes-hardware-state' for r in cfail)
-              and {f['config'] for f in g.json['failures'] if f['kind'] == 'purpose-unfulfilled'} == {r['solution'] for r in cfail}, [r['solution'] for r in cfail])
+              and {f['config'] for f in g.json['failures'] if f['kind'] == 'purpose-unfulfilled'} == {r['solution'] for r in cfail}, [r['solution'] for r in cfail_all])
         t = c.simulate_get('/api/firmware-scores/top', params=q)
         trow = t.json['rows'][0]
         check('fsc-2 DOOR top (the main tab): one row per profile {profile, profile_title, top_solution, score 100, runner_up, runner_up_score, compared_set, failed_count}',
-              t.status_code == 200 and t.json['count'] == 10 and all(r['score'] == 100.0 and r['runner_up'] and r['compared_set'] and r['failed_count'] == 4 and r['profile_title'] for r in t.json['rows'])
+              t.status_code == 200 and t.json['count'] == 10 and all(r['score'] == 100.0 and r['runner_up'] and r['compared_set'] and r['failed_count'] == 5 and r['profile_title'] for r in t.json['rows'])
               and {'profile', 'profile_title', 'top_solution', 'score', 'runner_up', 'runner_up_score', 'compared_set', 'failed_count'} <= set(trow), trow)
         top1 = rows[0]
         bd = c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution=top1['solution'], profile='fsc-fastest'))
@@ -482,11 +486,11 @@ def fsc_parts(check):
             with contextlib.redirect_stdout(buf):
                 rc = CLI.main(list(argv))
             return rc, buf.getvalue()
-        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--profile', 'fsc-fastest', '--limit', '3')
+        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--scope', 'all', '--profile', 'fsc-fastest', '--limit', '3')
         check('fsc-2 CLI: `scores --profile fsc-fastest --limit 3` prints the compared set, the top three with state and score, and the deciding terms', rc == 0 and 'Firmware scores' in out and '#1' in out and '100.0' in out and 'mission-cycle' in out.lower() or 'Mission cycle' in out, out[:300])
-        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--top')
+        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--scope', 'all', '--top')
         check('fsc-2 CLI: `scores --top` prints the top scorer of each profile', rc == 0 and 'Top scorer of each profile' in out and 'Fastest' in out and 'Cheapest' in out, out[:200])
-        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--profile', 'fsc-fastest', '--json')
+        rc, out = run('scores', '--mission', LIGHT, '--board', UNO, '--scope', 'all', '--profile', 'fsc-fastest', '--json')
         j = json.loads(out)
         check('fsc-2 CLI: --json is valid JSON with rows and the set', rc == 0 and j['ok'] and j['rows'] and j['set'])
         rc, out = run('profile', 'show', 'fsc-battery')
@@ -529,7 +533,7 @@ def fsc_parts(check):
                     app = falcon.App()
                     FscAPI(polServer=SimpleNamespace(falconServer=app, manager=None, idList=[]), manager=None)
                     c = testing.TestClient(app)
-                    q = {'mission': LIGHT, 'board': UNO}
+                    q = {'mission': LIGHT, 'board': UNO, 'scope': 'all'}
                     g = c.simulate_get('/api/firmware-scores', params=dict(q, profile='fsc-fastest'))
                     bd = c.simulate_get('/api/firmware-scores/breakdown', params=dict(q, solution=res[flag]['failures'][0]['solution'], profile='fsc-fastest'))
                     tp = c.simulate_get('/api/firmware-scores/top', params=q)
@@ -540,11 +544,11 @@ def fsc_parts(check):
                 R._CTX.clear()
         unf, fl = res[False], res[True]
         check('fsc-0 FAIL RULE end to end: with the deadline tightened but NOT flagged, nothing fails - the polled plans are scored by closeness (deadline-fit below 100) and the miss is listed',
-              [f for f in unf['failures'] if f['kind'] != 'purpose-unfulfilled'] == [] and any(r['unflagged_deadline_misses'] for r in unf['records'])
+              [f for f in unf['failures'] if (f['kind'] != 'purpose-unfulfilled' and not f.get('sample'))] == [] and any(r['unflagged_deadline_misses'] for r in unf['records'])
               and min(r['values']['deadline-fit']['value'] for r in unf['records']) < 100.0 and max(r['values']['deadline-fit']['value'] for r in unf['records']) == 100.0, unf['counts'])
-        check('fsc-0 FAIL RULE end to end: the SAME deadline flagged safety_critical -> the plans that miss it FAIL (%d), each naming the Purpose and the reason; the survivors (%d) all meet it' % (len([f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled']), len(fl['records'])),
-              [f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled'] and all(f['purpose'] == 'ensure-button-controls-light' and 'safety-critical' in f['reason'] for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled')
-              and all(r['values']['deadline-fit']['value'] == 100.0 for r in fl['records']) and len([f for f in fl['failures'] if f['kind'] != 'purpose-unfulfilled']) + len(fl['records']) == unf['counts']['distinct_plans'], fl['counts'])
+        check('fsc-0 FAIL RULE end to end: the SAME deadline flagged safety_critical -> the plans that miss it FAIL (%d), each naming the Purpose and the reason; the survivors (%d) all meet it' % (len([f for f in fl['failures'] if (f['kind'] != 'purpose-unfulfilled' and not f.get('sample'))]), len(fl['records'])),
+              [f for f in fl['failures'] if (f['kind'] != 'purpose-unfulfilled' and not f.get('sample'))] and all(f['purpose'] == 'ensure-button-controls-light' and 'safety-critical' in f['reason'] for f in fl['failures'] if (f['kind'] != 'purpose-unfulfilled' and not f.get('sample')))
+              and all(r['values']['deadline-fit']['value'] == 100.0 for r in fl['records']) and len([f for f in fl['failures'] if (f['kind'] != 'purpose-unfulfilled' and not f.get('sample'))]) + len(fl['records']) == unf['counts']['distinct_plans'], fl['counts'])
         rows = [r for r in g.json['rows'] if r['state'] != 'failed']
         failed = [r for r in g.json['rows'] if r['state'] == 'failed']
         check('fsc-2 FAILURES (door): failed solutions are listed after the ranked ones with state `failed`, the Purpose and the reason, NO score and NO rank, and never enter the compared set (%d ranked, %d failed)' % (len(rows), len(failed)),
@@ -556,16 +560,17 @@ def fsc_parts(check):
         m = json.load(open(os.path.join(os.path.dirname(__file__), 'polari-app.json')))
         f = m['files']
         want = {'api': ['cmod_fsc_api'], 'selftests': ['cmod_fsc_selftest'],
-                'custom': ['custom/fsc_%s' % n for n in ('context', 'doors', 'failure', 'labels', 'link', 'prices', 'profiles', 'run', 'score', 'store', 'terms', 'values', 'cli')]}
+                'custom': ['custom/fsc_%s' % n for n in ('context', 'doors', 'failure', 'labels', 'link', 'prices', 'profiles', 'run', 'score', 'store', 'terms', 'values', 'cli', 'sample')]}
         got = {k: [n for n in names if n not in f.get(k, [])] for k, names in want.items()}
-        check('fsc MANIFEST: polari-app.json lists every new file (api, selftest, twelve custom modules), requires the scoring module, and the class FscAPI', not any(got.values()) and 'FscAPI' in m['classes'] and 'scoring' in m['requires']['modules'], got)
+        check('fsc MANIFEST: polari-app.json lists every new file (api, selftest, thirteen custom modules), requires the scoring module, and the class FscAPI', not any(got.values()) and 'FscAPI' in m['classes'] and 'scoring' in m['requires']['modules'], got)
         check('...each listed file exists on disk', all(os.path.isfile(os.path.join(os.path.dirname(__file__), n + '.py')) for n in sum(want.values(), [])))
         from cmod.cmod_endpoints import construct_cmod_endpoints
         check('fsc: construct_cmod_endpoints builds FscAPI (api.fsc)', 'FscAPI' in open(os.path.join(os.path.dirname(__file__), 'cmod_endpoints.py')).read() and construct_cmod_endpoints is not None)
 
     from cmod.custom.selftest_fsc_prove import prove_parts      # fsc-6: the per-config proof mechanism (the twin stubbed)
+    from cmod.custom.selftest_fsc_sample import sample_parts    # smp-0/1: the curated sample, its scope, S5's hook and F2's measured safety failure
     return (terms_seeded, safety_flag_and_failures, link_and_finished, value_writer, splits, prices, rows_written, stock_engine_agrees, reproduction, profiles_seeded,
-            scoring_is_competitive, cheapest_falls_back, doors, cli, manifest, failure_end_to_end, *prove_parts(check))
+            scoring_is_competitive, cheapest_falls_back, doors, cli, manifest, failure_end_to_end, *prove_parts(check), *sample_parts(check))
 
 
 def b_ranked(b, objective):
@@ -587,7 +592,7 @@ def main():
         else:
             failures.append(label)
         print('  [%s] %s%s' % ('ok' if cond else 'FAIL', label, '' if cond else '  <- %s' % (str(detail)[:300],)))
-    print('cmod fsc selftest (fsc-0/1/2)')
+    print('cmod fsc selftest (fsc-0/1/2, fsc-6, smp-0/1)')
     for part in fsc_parts(check):
         print('-- %s' % part.__name__)
         part()

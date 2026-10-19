@@ -15,6 +15,11 @@ receive-command and report-state, adc -> read-temperature) - never typed in. Thr
   - it lacks a trigger job (uno-sim-rig has no button, uno-echo no light): it was built for another job, is not a candidate for this Mission, and is listed as such (`resolve`'s `unmatched`).
 Where a FirmwareSolution ROW of the same name exists (uno-light, uno-button-clock, uno-sim-rig) the link names it; the others are FirmwareVariants and are linked as such.
 
+THE SAMPLE (smp-0, FIRMWARE_SCORE_PROFILES_PLAN.md section 13): which of the built configs are SHOWN is a property of the Mission (its `sample_solutions`, cmod.custom.fsc_sample), not of this link. Every built config is still
+linked, proven and judged here exactly as before; the default scope of the scores doors lists only the sample's. The other built configs (uno-light-pcint, -analog, -v2, uno-light-sense-pcint, uno-button-clock ...) are
+KEPT AS HISTORY: still finished / plan / failure in scope=all, and named in the doors' `history[]` in the sample scope, but not listed as failures there. A sample failure that has a safety-critical deadline of its own
+(F2, uno-light-slow-loop) is passed to `resolve` / `misses` in `skip`: it has its own failure row (a measured time against the Purpose's deadline) and is never matched to a plan.
+
 PROOF OF A CONFIG (the honest reading): a Purpose is proven for a config ONLY by a passed ScenarioRun of THAT config's own firmware - a run whose `variant` is the config and whose Scenario
 proves that Purpose (`purposes_proof(..., config=)`). A run on another config proves nothing for this one, because the compiled firmware differs (the sense routes, the button routes and the wire
 class are different code). A Scenario that proves the ISOTOPE of a route (sense-poll-line-acceptance, light-pcint-button-acceptance, ...) restates a catalogue route, not a Purpose of a Mission, so
@@ -38,7 +43,8 @@ def config_routes(variant):
     f, k = _j(variant.get('features_json'), {}), _j(variant.get('knobs_json'), {})
     out = {}
     if f.get('led'):
-        out.setdefault('drive-led', []).append('gpio-out')
+        # smp-1: a config says HOW its LED is driven with the `led_route` knob (absent = a plain output pin): pwm = Timer0's PWM output, transistor = the pin drives a transistor's base
+        out.setdefault('drive-led', []).append({'pwm': 'pwm', 'transistor': 'transistor-switch'}.get(k.get('led_route'), 'gpio-out'))
     if f.get('pwm'):
         out.setdefault('drive-led', []).append('pwm')
     if f.get('button'):
@@ -94,11 +100,13 @@ def attempt_of(routes, ctx):
     return True, 'it carries a route for every trigger job of this Mission (%s)' % ', '.join(need)
 
 
-def misses(jobs, ctx, manager=None):
+def misses(jobs, ctx, manager=None, skip=()):
     """-> failure rows [{kind 'purpose-unfulfilled', purpose, reason, id, solution (the config), routes, hardware, rank None, state 'failed', config}] for every config that was BUILT FOR this
     Mission (attempt_of) but carries no route for some job of it. The Purposes named are the ones that job serves in this Mission (ctx job_purposes), never typed in."""
     out = []
     for name, var in sorted(configs(manager).items()):
+        if name in skip:      # smp-0: a sample failure with its own failure row (a safety deadline) is judged there
+            continue
         routes = config_routes(var)
         lacking = [j for j in jobs if j not in routes]
         if not lacking or not attempt_of(routes, ctx)[0]:
@@ -113,13 +121,15 @@ def misses(jobs, ctx, manager=None):
     return out
 
 
-def resolve(jobs, candidates, manager=None, ctx=None):
+def resolve(jobs, candidates, manager=None, ctx=None, skip=()):
     """-> (links, unmatched). links = {candidate id: {config, solution, kind, pins_agree, pins_note}} (one config -> the best-ranked candidate whose routes it implements, pins agreeing
     first); unmatched = [{config, why}] for every config that is not a candidate of this Mission (built for another job, or no solve candidate uses its routes). A config built FOR
     this Mission that lacks a job is not listed here: `misses` makes it a failure."""
     fs = firmware_solution_names(manager)
     links, unmatched = {}, []
     for name, var in sorted(configs(manager).items()):
+        if name in skip:      # smp-0: a sample failure with its own failure row is never matched to a plan
+            continue
         routes = config_routes(var)
         lacking = [j for j in jobs if j not in routes]
         if lacking:

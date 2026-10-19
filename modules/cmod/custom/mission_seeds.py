@@ -10,6 +10,33 @@ import json
 
 LIGHT_MISSION = 'uno-light-mission'
 
+#: smp-0 (FIRMWARE_SCORE_PROFILES_PLAN.md section 13): the curated sample of the light Mission - five successes (four UNO, one ESP32-C3) and two failures, each a real firmware config. S5's config is
+#: named here before it exists on purpose: until it is built the scores page says "not built yet" (never a failure). F2's safety deadline is THIS entry's own flag on the Purpose's real deadline.
+SAMPLE_SOLUTIONS = [
+    {'id': 'S1', 'config': 'uno-light-sense-poll', 'kind': 'success', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'button on the external interrupt INT0 (D2) · LED on a plain output pin (D6) · sense line polled in the main loop (D3)',
+     'why': 'the baseline: the simplest route for every job. The struct decides the light (led_follow_state is the only pin writer) and the sense line is Polari\'s independent witness of it.'},
+    {'id': 'S2', 'config': 'uno-light-all-pcint', 'kind': 'success', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'button on a pin-change interrupt (D4) · sense line on a pin-change interrupt (D8) · LED on a plain output pin (D6)',
+     'why': 'both inputs on pin-change interrupts, so neither external-interrupt pin is used and the two inputs sit in different pin-change banks.'},
+    {'id': 'S3', 'config': 'uno-light-pwm-analog', 'kind': 'success', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'button read as a voltage on A0 (analog threshold) · LED on Timer0\'s PWM output (D6) · sense line polled (D3)',
+     'why': 'a button with no digital pin at all, and an LED driven by a timer output (held at 100 % duty for on, disconnected for off) - both still decided by the struct.'},
+    {'id': 'S4', 'config': 'uno-light-transistor', 'kind': 'success', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'LED switched through one of the kit\'s transistors (D6 drives its base) · button on INT0 (D2) · sense line polled (D3)',
+     'why': 'a driver stage for a load a pin could not drive. The twin runs the same C as S1 and cannot show the transistor switching: that is wiring, documented in the config.'},
+    {'id': 'S5', 'config': 'c3-light-freertos', 'kind': 'success', 'device': 'ESP32-C3 (FreeRTOS)', 'twin_only': True,
+     'components': 'the same Mission as FreeRTOS tasks on the ESP32-C3 (twin only: no C3 on the bench)',
+     'why': 'the same light, struct-controlled, on a second kind of device and a second kind of runtime.'},
+    {'id': 'F1', 'config': 'uno-light', 'kind': 'failure', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'button on INT0 (D2) · LED on a plain output pin (D6) · NO sense line',
+     'why': 'a build that works but gives Polari no independent witness of the light, which the Mission\'s observe Purpose needs.'},
+    {'id': 'F2', 'config': 'uno-light-slow-loop', 'kind': 'failure', 'device': 'Arduino UNO (ATmega328P)',
+     'components': 'button on INT0 (D2) · LED on a plain output pin (D6) · sense line polled (D3) · every main-loop pass held for 250 ms',
+     'safety_deadline': {'purpose': 'ensure-button-controls-light', 'key': 'max_latency_ms', 'safety_critical': True},
+     'why': 'a deliberately slow loop against a button deadline flagged safety-critical for this sample (the real Purpose is not changed): shows the safety-critical failure rule.'},
+]
+
 MISSION_SEEDS = [{
     'name': LIGHT_MISSION,
     'title': 'Prove Polari and one board can control and observe one light in both directions',
@@ -29,4 +56,5 @@ MISSION_SEEDS = [{
     'constraints_json': json.dumps({'stage': 'S1-breadboard'}),
     'lifecycle': 'enabled',
     'notes': 'mis-0 seed: the light test as a Mission above its Purposes.',
+    'sample_solutions': json.dumps(SAMPLE_SOLUTIONS),
 }]

@@ -3,6 +3,10 @@
 
 fsc-2 doors (plain functions over a FscAPI; `cmod_fsc_api` registers the routes). Plain-words fields only - the frontend reads them with configured tables. Advised, never blocking.
 
+       SCOPE (smp-0, his ruling 2026-10-19: a CURATED sample, not hundreds of rows): `sample` (the DEFAULT for a Mission that carries `sample_solutions`; `all` for one that does not) = the sample's finished successes compete,
+       and the failures listed are only the sample's failure entries (the other built configs are kept as history: `history[]` says which, and they are not listed as failures); `all` = every non-failed solution, every plan
+       and every failure (the behaviour before smp-0); `plans` = only the plans nobody built (the solver's search); `finished` = every finished config, sample or not. (`both` = all and `plan` = plans still work.)
+GET  /api/firmware-scores/sample?mission=      the curated sample as a table: {id S1.., kind, device, config, components, why, state finished|built, not finished|not built yet|failed|..., outcome}, plus history[]
 GET  /api/firmware-scores?mission=&profile=&scope=&board=&normalization=&limit=
        (fsc-3: `label` is the SHORT label, `long_label` the route string; `limit=N` keeps only the N best SCORED rows - the page's bar chart; failed rows are left out when it is set;
        every row also carries `short_label`, e.g. `button ext-int · sense poll · LED out · UNO`)
@@ -23,12 +27,14 @@ import falcon
 
 from cmod.custom import fsc_profiles as P
 from cmod.custom import fsc_run as R
+from cmod.custom import fsc_sample as SM
 from cmod.custom import fsc_store as ST
 from cmod.custom import fsc_terms as T
 
 DEFAULT_MISSION = 'uno-light-mission'
 # `rev` is a page cache-buster (the page appends rev=r<n> after an edit so its tables refetch); it changes nothing here
 GET_KEYS = {'scores': ('mission', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'limit', 'rev'), 'top': ('mission', 'scope', 'board', 'normalization', 'unprovable', 'rev'),
+            'sample': ('mission', 'board', 'unprovable', 'rev'),
             'breakdown': ('mission', 'solution', 'profile', 'scope', 'board', 'normalization', 'unprovable', 'rev')}
 NAME_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,62}$')
 
@@ -52,8 +58,8 @@ def _params(request, response, which):
     if bad:
         _fail(response, falcon.HTTP_422, 'unknown parameter(s) %s (known: %s)' % (', '.join(bad), ', '.join(GET_KEYS[which])))
         return None
-    if p.get('scope', 'both') not in R.SCOPES:
-        _fail(response, falcon.HTTP_422, 'no scope %r (one of %s)' % (p.get('scope'), ', '.join(R.SCOPES)))
+    if p.get('scope') and p['scope'] not in R.SCOPES:
+        _fail(response, falcon.HTTP_422, 'no scope %r (one of %s)' % (p.get('scope'), ', '.join(SM.SCOPES)))
         return None
     if p.get('normalization') and p['normalization'] not in T.NORMALIZATIONS:
         _fail(response, falcon.HTTP_422, 'no normalization %r (one of %s)' % (p['normalization'], ', '.join(T.NORMALIZATIONS)))
@@ -109,7 +115,8 @@ def get_scores(api, request, response):
     built = _built(api, response, p)
     if built is None:
         return
-    out = R.scores(built, profs, p.get('scope', 'both'), p.get('normalization') or None)
+    scope = R.scope_of(built, p.get('scope'))
+    out = R.scores(built, profs, scope, p.get('normalization') or None)
     first = profs[0]['name']
     single = len(profs) == 1
     recs = {r['id']: r for r in built['records']}
@@ -121,19 +128,21 @@ def get_scores(api, request, response):
     for i in (res0['order'][:int(limit)] if limit else res0['order']):
         row = next(r for r in out['rows'] if r['id'] == i)
         s = res0['scores'][i]
-        flat = {'rank': s['rank'], 'solution': row['solution'], 'label': row['short_label'], 'short_label': row['short_label'], 'long_label': row['label'], 'state': row['state'], 'state_why': row['state_why'], 'score': s['score'], 'raw': s['raw'],
+        tag = ('%s · ' % row['sample']) if row.get('sample') else ''      # smp-0: a sample solution wears its place in the sample (S1..)
+        flat = {'rank': s['rank'], 'solution': row['solution'], 'label': tag + row['short_label'], 'short_label': tag + row['short_label'], 'sample': row.get('sample', ''), 'long_label': row['label'], 'state': row['state'], 'state_why': row['state_why'], 'score': s['score'], 'raw': s['raw'],
                 'confidence': s['confidence'], 'routes': row['routes'], 'hardware': row['hardware'], 'built_as': _built_as(recs[i]),
                 'also_on': ', '.join(row['also_on']), 'scores': row['scores']}
         if single:
             flat['deciding_terms'] = deciding(s)
         rows.append(flat)
-    for f in ([] if limit else built['failures']):
-        rows.append({'rank': None, 'solution': f['solution'], 'label': f['short_label'], 'short_label': f['short_label'], 'long_label': f['routes'], 'state': 'failed', 'state_why': f['reason'], 'score': None, 'failed_purpose': f['purpose'], 'reason': f['reason'],
+    failures = SM.in_scope_failures(built, scope)
+    for f in ([] if limit else failures):
+        rows.append({'rank': None, 'solution': f['solution'], 'label': ('%s · ' % f['sample'] if f.get('sample') else '') + f['short_label'], 'short_label': f['short_label'], 'sample': f.get('sample', ''), 'long_label': f['routes'], 'state': 'failed', 'state_why': f['reason'], 'score': None, 'failed_purpose': f['purpose'], 'reason': f['reason'],
                      'routes': f['routes'], 'hardware': f['hardware'], 'scores': {}})
-    response.media = {'ok': True, 'mission': built['mission'], 'scope': p.get('scope', 'both'), 'set': out['set_words'], 'profile': first if single else '',
+    response.media = {'ok': True, 'mission': built['mission'], 'scope': scope, 'set': out['set_words'], 'profile': first if single else '',
                       'profiles': [{'name': x['name'], 'title': x['display_name'], 'mode': out['profiles'][x['name']]['mode'], 'notes': out['profiles'][x['name']]['notes']} for x in profs],
-                      'counts': built['counts'], 'count': len(rows), 'rows': rows, 'failures': [dict(f) for f in built['failures']], 'suggestions': built['suggestions'],
-                      'unmatched_configs': built['unmatched_configs'],
+                      'counts': built['counts'], 'count': len(rows), 'rows': rows, 'failures': [dict(f) for f in failures], 'suggestions': built['suggestions'],
+                      'unmatched_configs': built['unmatched_configs'], 'history': SM.history(built, scope),
                       'note': 'Scores are competitive: per term the best compared solution gets 100 and the worst 0; then each profile column is normalized again (top 100, bottom 0). Failed solutions get no score.'}
 
 
@@ -145,7 +154,9 @@ def get_top(api, request, response):
     built = _built(api, response, p)
     if built is None:
         return
-    out = R.scores(built, profs, p.get('scope', 'both'), p.get('normalization') or None)
+    scope = R.scope_of(built, p.get('scope'))
+    out = R.scores(built, profs, scope, p.get('normalization') or None)
+    nfail = len(SM.in_scope_failures(built, scope))
     byid = {r['id']: r for r in out['rows']}
     rows = []
     for x in profs:
@@ -155,11 +166,27 @@ def get_top(api, request, response):
             continue
         a = byid[o[0]]
         b = byid[o[1]] if len(o) > 1 else None
-        rows.append({'profile': x['name'], 'profile_title': x['display_name'], 'top_solution': a['short_label'], 'top_routes': a['label'], 'top_state': a['state'], 'top_solution_name': a['solution'],
-                     'score': res['scores'][o[0]]['score'], 'runner_up': b['short_label'] if b else '', 'runner_up_routes': b['label'] if b else '', 'runner_up_state': b['state'] if b else '',
-                     'runner_up_score': res['scores'][o[1]]['score'] if b else None, 'compared_set': out['set_words'], 'failed_count': len(built['failures']),
+        rows.append({'profile': x['name'], 'profile_title': x['display_name'], 'top_solution': ('%s · ' % a['sample'] if a.get('sample') else '') + a['short_label'], 'top_routes': a['label'], 'top_state': a['state'], 'top_solution_name': a['solution'],
+                     'score': res['scores'][o[0]]['score'], 'runner_up': (('%s · ' % b['sample'] if b.get('sample') else '') + b['short_label']) if b else '', 'runner_up_routes': b['label'] if b else '', 'runner_up_state': b['state'] if b else '',
+                     'runner_up_score': res['scores'][o[1]]['score'] if b else None, 'compared_set': out['set_words'], 'failed_count': nfail,
                      'deciding_terms': deciding(res['scores'][o[0]])})
-    response.media = {'ok': True, 'mission': built['mission'], 'scope': p.get('scope', 'both'), 'count': len(rows), 'rows': rows}
+    response.media = {'ok': True, 'mission': built['mission'], 'scope': scope, 'count': len(rows), 'rows': rows}
+
+
+def get_sample(api, request, response):
+    p = _params(request, response, 'sample')
+    if p is None:
+        return
+    built = _built(api, response, p)
+    if built is None:
+        return
+    rows = SM.sample_rows(built, built['sample'])
+    states = {}
+    for r in rows:
+        states[r['state']] = states.get(r['state'], 0) + 1
+    response.media = {'ok': True, 'mission': built['mission'], 'count': len(rows), 'rows': rows, 'history': SM.history(built, 'sample'), 'states': states,
+                      'note': 'The curated sample of this Mission (its sample_solutions): the finished successes compete on the scores page, the failure entries are the only failures it lists. A config that is built but not in the '
+                              'sample is kept as history (scope=all shows it). An entry whose config is not built yet is shown as such, never as a failure.'}
 
 
 def _find(built, key):
@@ -191,7 +218,7 @@ def get_breakdown(api, request, response):
         response.media = {'ok': True, 'mission': built['mission'], 'solution': hit['solution'], 'state': 'failed', 'profile': profs[0]['name'], 'score': None, 'rank': None,
                           'failed_purpose': hit['purpose'], 'reason': hit['reason'], 'terms': [], 'note': 'A failed solution never gets a score.'}
         return
-    out = R.scores(built, profs[:1], p.get('scope', 'both'), p.get('normalization') or None)
+    out = R.scores(built, profs[:1], R.scope_of(built, p.get('scope')), p.get('normalization') or None)
     res = out['profiles'][profs[0]['name']]
     if hit['id'] not in res['scores']:
         return _fail(response, falcon.HTTP_404, 'solution %r is not in the compared set (%s)' % (p['solution'], out['set_words']))

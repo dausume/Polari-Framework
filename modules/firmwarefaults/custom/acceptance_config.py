@@ -8,6 +8,7 @@ own name, its own steps, its own negative controls) on V's build and stores the 
   boot (initialization-acceptance)                          board.custom.light_boot_twin.prove(mode, V)      - boot_session is on both wire classes
   button / observe / command (light-from-button-, ensure-polari-observes-hardware-state-, light-from-polari-acceptance)
                                                             V's app is `light` -> board.custom.light_twin.prove(which, mode, V)
+                                                            (smp-1: the press is made on THE CONFIG'S OWN button - INT0 on D2, a pin-change pin, or a voltage on A0 - read from its knobs by board.custom.light_button)
                                                             V's app is `button_clock` -> board.custom.light_variant_twin.prove(which, V, mode)   (ButtonClockState stand-ins, named there)
 
 Refused (route 'refused', so the run is stored `inapplicable` and proves nothing) when V is not a built config of the Mission or the Scenario is not a Purpose's own (`fsc_link.proof_config_refusal`),
@@ -24,12 +25,7 @@ def refusal(sc, variant, manager=None):
         return why
     if sc['name'] not in ACC.BOOT_PROOFS and sc['capability'] not in ACC.LIGHT_WHICH:
         return 'no per-config runner is written for scenario %r' % sc['name']
-    if ACC.LIGHT_WHICH.get(sc['capability']) == 'button':
-        from board.custom import variants as V
-        route = V.resolve(V.find(variant))['knobs'].get('button_route')
-        if route:      # the press runners drive D2 (INT0); a button on D4 (pin change) or A0 (analog) has its own route Scenario (light-pcint-/light-analog-button-acceptance)
-            return 'config %s reads its button by the %s route, which the D2 press runner does not drive: no per-config runner for it' % (variant, route)
-    return ''
+    return ''     # smp-1: a button on a pin-change pin or read as a voltage on A0 is pressed the way ITS OWN route needs (board.custom.light_button) - no longer refused
 
 
 def prove(sc, variant, run_mode):

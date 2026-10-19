@@ -236,7 +236,10 @@ VARIANT_SEEDS = [
         'latency': _est('one register write after the decision, plus the transistor\'s switching time', '', 'structure of the route'),
         'flash_bytes': _est(16, 'bytes', 'the same C as drive-led:gpio-out (hal_led_init 4 B + hal_led 12 B, measured in uno-sim-rig); only the wiring differs'),
         'ram_bytes': _est(0, 'bytes', 'the same C as drive-led:gpio-out (no file-scope global touched)')},
-       implemented=_shares('drive-led:gpio-out', 'the C is the plain output atoms; no firmware or circuit wires a transistor yet'),
+       implemented={'atoms': ['uno:hal.hal_led_init', 'uno:hal.hal_led'], 'config': 'uno-light', 'proof_purposes': [],
+                    'shares_c_with': 'drive-led:gpio-out',
+                    'shares_note': 'smp-1: the C is the plain output atoms, built as config uno-light-transistor (sample S4). Only the wiring differs; the twin runs the same code and does not simulate the transistor switching, '
+                                   'so this route counts as built (compiles), and what the twin proves is the pin the transistor\'s base is driven from'},
        cites=[{'label': 'board.custom.kit_parts (transistor, MOSFET)', 'ref': 'Arduino Starter Kit book, Parts in your kit'}]),
     # ------------------------------------------------------------------ read the temperature (4)
     _v('read-temperature', 'analog-sensor', 'Analog sensor on an ADC pin (TMP36)',

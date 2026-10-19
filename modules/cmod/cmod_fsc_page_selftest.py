@@ -58,10 +58,10 @@ def main():
     check('/display/firmware-scores is registered in SEED_CMOD_PAGE_DISPLAYS as a page', pg is not None and pg['isPage'] is True)
     d = json.loads(pg['definition'])
     keys = [x['key'] for x in d['tabs']]
-    check('static tabs: Top scorers, Failures, Profile editor; generated profile tabs go in after the first (insert_at 1)',
-          keys == ['top', 'failures', 'profile-editor'] and d['tabs_from']['insert_at'] == 1 and d['tabs_from']['key_field'] == 'name' and d['tabs_from']['data_path'] == '/api/firmware-score-profiles')
+    check('static tabs: Top scorers, Possible plans (not built), Failures, Profile editor - the plans tab BEFORE Failures; generated profile tabs go in after the first (insert_at 1)',
+          keys == ['top', 'plans', 'failures', 'profile-editor'] and [x['title'] for x in d['tabs']][1] == 'Possible plans (not built)' and d['tabs_from']['insert_at'] == 1 and d['tabs_from']['key_field'] == 'name' and d['tabs_from']['data_path'] == '/api/firmware-score-profiles')
     tpl = d['tabs_from']['rows_template']
-    all_tables = _tables(d['tabs'][0]['rows']) + _tables(d['tabs'][1]['rows']) + _tables(d['tabs'][2]['rows']) + _tables(tpl)
+    all_tables = _tables(d['tabs'][0]['rows']) + _tables(d['tabs'][1]['rows']) + _tables(d['tabs'][2]['rows']) + _tables(d['tabs'][3]['rows']) + _tables(tpl)
     names = {i['componentProps']['componentName'] for i in all_tables}
     check('only configured tables and the configured graph panel: class-rows-table + named-graph-panel (no JSON panel, no custom component)', names == {'class-rows-table', 'named-graph-panel'}, names)
     check('every table and graph carries a plain-words description that says what a row (or bar) is',
@@ -85,7 +85,22 @@ def main():
           ids['fsc-bars']['graphName'] == 'firmware-score-top' and '&profile={key}&limit=12' in ids['fsc-bars']['dataPath'])
     check('every {token} in the template is {key}, {scope:solution} or {scope:rev} (nothing else is left unresolved)',
           all(x in ('key', 'scope:solution', 'scope:rev') for x in re.findall(r'\{([a-z]+(?::[a-z]+)?)\}', json.dumps(tpl))))
-    ed = {i['id']: i['componentProps']['inputs'] for i in _tables(d['tabs'][2]['rows'])}
+    pl = {i['id']: i['componentProps']['inputs'] for i in _tables(d['tabs'][1]['rows'])}
+    sm = {i['id']: i for i in _tables(d['tabs'][0]['rows'])}
+    check('smp-0 PAGE: the Top scorers tab also holds the SAMPLE SET table (one row per curated example) over GET /api/firmware-scores/sample, with plain-words columns and a description that says what a row is',
+          'fsc-sample' in sm and sm['fsc-sample']['componentProps']['inputs']['dataPath'] == '/api/firmware-scores/sample?mission=%s' % MISSION
+          and sm['fsc-sample']['componentProps']['inputs']['columns'] == 'id,device,config,components,state,outcome' and 'One row = one example' in sm['fsc-sample']['description'])
+    check('smp-0 PAGE: the profile tabs read the DEFAULT scope (the sample) - their data paths carry no scope - and say so in the description',
+          'scope=' not in ids['fsc-ranked']['dataPath'] and 'scope=' not in ids['fsc-bars']['dataPath'] and 'SAMPLE' in [i for i in _tables(tpl) if i['id'] == 'fsc-ranked'][0]['description'])
+    check('smp-0 PAGE: the "Possible plans (not built)" tab: step 1 picks a profile (scope `plansprofile`); step 2 ranks the plans under it with scope=plans, side by side with the breakdown of the picked plan (scope=plans too); it is described as the solver\'s search',
+          pl['fsc-plans-profiles']['selectScope'] == 'plansprofile' and pl['fsc-plans-profiles']['dataPath'].startswith('/api/firmware-score-profiles')
+          and '{scope:plansprofile}' in pl['fsc-plans-ranked']['dataPath'] and 'scope=plans' in pl['fsc-plans-ranked']['dataPath'] and pl['fsc-plans-ranked']['selectScope'] == 'plansolution'
+          and 'scope=plans' in pl['fsc-plans-breakdown']['dataPath'] and '{scope:plansolution}' in pl['fsc-plans-breakdown']['dataPath'] and '{scope:plansprofile}' in pl['fsc-plans-breakdown']['dataPath']
+          and pl['fsc-plans-ranked']['emptyText'] and "SOLVER'S SEARCH" in [i for i in _tables(d['tabs'][1]['rows']) if i['id'] == 'fsc-plans-profiles'][0]['description']
+          and [r['cssClass'] for r in d['tabs'][1]['rows']][1:] == ['side-by-side'])
+    check('smp-0 PAGE: the Failures tab reads the default scope (the sample\'s F rows) and says built configs outside the sample are history',
+          'scope=' not in [i for i in _tables(d['tabs'][2]['rows'])][0]['componentProps']['inputs']['dataPath'] and 'history' in [i for i in _tables(d['tabs'][2]['rows'])][0]['description'])
+    ed = {i['id']: i['componentProps']['inputs'] for i in _tables(d['tabs'][3]['rows'])}
     check('editor tab: step 1 picks a profile (scope `profile`) with a Copy-to-edit action shown for seeded rows; step 2 edits `weight` through POST /api/firmware-score-profiles for the picked profile; step 3 re-ranks',
           ed['fsc-profiles']['selectScope'] == 'profile' and ed['fsc-profiles']['rowAction']['show_when_field'] == 'seeded' and ed['fsc-profiles']['rowAction']['body_template']['copy_of'] == '{name}'
           and ed['fsc-terms']['editFields'] == 'weight' and ed['fsc-terms']['editEnabledField'] == 'editable' and ed['fsc-terms']['editAction']['path'] == '/api/firmware-score-profiles'
@@ -114,17 +129,17 @@ def main():
     prof = get('/api/firmware-score-profiles').json
     first = prof['rows'][0]['name']
     check('profiles door: plain-words weights_text and edit_words on every row (the editor table\'s columns)', all(r['weights_text'] and r['edit_words'] for r in prof['rows']))
-    served = {'fsc-top': get('/api/firmware-scores/top?mission=%s' % MISSION).json['rows'][0],
-              'fsc-ranked': get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0],
+    served = {'fsc-top': get('/api/firmware-scores/top?scope=all&mission=%s' % MISSION).json['rows'][0],
+              'fsc-ranked': get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows'][0],
               'fsc-profiles': prof['rows'][0]}
     sol = served['fsc-top']['top_solution_name']
-    bd = get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, sol, first)).json
+    bd = get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=%s' % (MISSION, sol, first)).json
     served['fsc-breakdown'] = bd['rows'][0]
     check('breakdown door: `rows` mirrors `terms` (so a table can read it)', bd['rows'] == bd['terms'] and len(bd['rows']) > 0)
-    allrows = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']
+    allrows = get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows']
     plan = next((r for r in allrows if r['state'] == 'plan'), None)
     if plan:
-        pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, plan['solution'], 'fsc-room-to-grow')).json['rows']}
+        pk = {x['label']: x['kind'] for x in get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=%s' % (MISSION, plan['solution'], 'fsc-room-to-grow')).json['rows']}
         check('fsc-3b: a PLAN\'s flash / RAM / blocks left read "estimated" (route-sum sizes, never "measured"); pins left stay measured (counted from its assignment)',
               [pk.get('Flash left'), pk.get('RAM left'), pk.get('Chip blocks left'), pk.get('Pins left')] == ['estimated', 'estimated', 'estimated', 'measured'], pk)
     from cmod.custom import fsc_values as V
@@ -135,16 +150,16 @@ def main():
     V.honest_kinds(pl, 'plan')
     check('fsc-3b: honest_kinds on a plan: measured sizes -> estimated (with the reason), a cited one untouched, pins stay measured and say they are counted from the plan\'s assignment',
           pl['flash-free']['kind'] == 'estimated' and 'PLAN' in pl['flash-free']['basis'] and pl['ram-free']['kind'] == 'cited' and pl['pins-free']['kind'] == 'measured' and 'pin assignment' in pl['pins-free']['basis'])
-    lim = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json
+    lim = get('/api/firmware-scores?scope=all&mission=%s&profile=%s&limit=12' % (MISSION, first)).json
     ranked = [r for r in lim['rows'] if r['state'] != 'failed']
     check('scores door: limit=12 keeps the 12 best ranked rows, the best first with score 100', len(ranked) == 12 and ranked[0]['rank'] == 1 and ranked[0]['score'] == 100.0)
-    check('scores door: `rev` (the page cache-buster) is accepted and changes nothing', get('/api/firmware-scores?mission=%s&profile=%s&limit=12&rev=r5' % (MISSION, first)).json['rows'] == lim['rows'])
+    check('scores door: `rev` (the page cache-buster) is accepted and changes nothing', get('/api/firmware-scores?scope=all&mission=%s&profile=%s&limit=12&rev=r5' % (MISSION, first)).json['rows'] == lim['rows'])
 
     print('-- short labels')
     r0 = lim['rows'][0]
     check('every row has a short label (`label`, also `short_label`): the varying jobs then the board, short, with the long route string kept in `long_label`',
           all(r['label'] == r['short_label'] and 0 < len(r['label']) < 80 and ':' not in r['label'] and '\u00b7' in r['label'] and ':' in r['long_label'] for r in lim['rows']), r0)
-    labels = [r['short_label'] for r in get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']]
+    labels = [r['short_label'] for r in get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows']]
     check('...and the short labels tell the 380 plans apart well enough to read (%d distinct of %d; the same plan on two boards differs by the board word)' % (len(set(labels)), len(labels)), len(set(labels)) >= len(labels) * 0.9, (len(set(labels)), len(labels)))
     check('top door: top_solution / runner_up are short labels, the route strings are top_routes / runner_up_routes',
           ':' not in served['fsc-top']['top_solution'] and ':' in served['fsc-top']['top_routes'] and ':' not in served['fsc-top']['runner_up'] and ':' in served['fsc-top']['runner_up_routes'])
@@ -155,8 +170,8 @@ def main():
     real = D._built
     D._built = lambda api, response, p: fake
     try:
-        with_fail = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows']
-        chart = get('/api/firmware-scores?mission=%s&profile=%s&limit=12' % (MISSION, first)).json['rows']
+        with_fail = get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows']
+        chart = get('/api/firmware-scores?scope=all&mission=%s&profile=%s&limit=12' % (MISSION, first)).json['rows']
     finally:
         D._built = real
     check('chart call (limit set): failed rows are LEFT OUT (the plain call still lists them last)', with_fail[-1]['state'] == 'failed' and all(r['state'] != 'failed' for r in chart) and len(chart) == 12)
@@ -187,25 +202,25 @@ def main():
     S.score_profile = lambda *a, **k: (calls.append(1), orig(*a, **k))[1]
     try:
         R.clear_scores()
-        url = '/api/firmware-scores?mission=%s&profile=my-%s' % (MISSION, first)
+        url = '/api/firmware-scores?scope=all&mission=%s&profile=my-%s' % (MISSION, first)
         r1 = get(url).json
         n1 = len(calls)
         get(url)
         get(url + '&limit=5')
-        get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=my-%s' % (MISSION, r1['rows'][0]['solution'], first))
+        get('/api/firmware-scores/breakdown?scope=all&mission=%s&solution=%s&profile=my-%s' % (MISSION, r1['rows'][0]['solution'], first))
         check('cache: the second scores call, a limit call and a breakdown reuse the first result - the compared set is scored once (%d score_profile call)' % n1, n1 == 1 and len(calls) == 1, (n1, len(calls)))
-        other = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution']
+        other = get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution']
         e = post({'name': 'my-' + first, 'weights': {'mission-cycle': 0.0, 'wires': 1.0, 'flash-free': 1.0}})
         r2 = get(url).json
         check('EDIT: a weight edit POST (200) is served as a fresh ranking at once - the cache key carries the weights, so nothing stale (top solution %s -> %s)' % (r1['rows'][0]['solution'][-10:], r2['rows'][0]['solution'][-10:]),
               e.status_code == 200 and [r['solution'] for r in r2['rows'][:15]] != [r['solution'] for r in r1['rows'][:15]] and len(calls) == 3, (e.status_code, len(calls)))
-        check('...and the seeded profile\'s cached result was not disturbed', get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution'] == other and len(calls) == 3, (other[-8:], len(calls)))
+        check('...and the seeded profile\'s cached result was not disturbed', get('/api/firmware-scores?scope=all&mission=%s&profile=%s' % (MISSION, first)).json['rows'][0]['solution'] == other and len(calls) == 3, (other[-8:], len(calls)))
         t2 = {r['term']: r['weight'] for r in get('/api/firmware-score-profiles/my-%s/terms' % first).json['rows'] if not r['purpose']}
         check('...and the terms door shows the edited weights (wires 1, mission-cycle 0)', t2['wires'] == 1.0 and t2['mission-cycle'] == 0)
     finally:
         S.score_profile = orig
-    check('scores door: a bad limit is refused with words (422)', get('/api/firmware-scores?mission=%s&profile=%s&limit=zero' % (MISSION, first)).status_code == 422)
-    allrows = get('/api/firmware-scores?mission=%s' % MISSION).json['rows']
+    check('scores door: a bad limit is refused with words (422)', get('/api/firmware-scores?scope=all&mission=%s&profile=%s&limit=zero' % (MISSION, first)).status_code == 422)
+    allrows = get('/api/firmware-scores?scope=all&mission=%s' % MISSION).json['rows']
     # the default Mission has no failure: the failed-row keys are fixed by the door (label, failed_purpose, reason, hardware)
     served['fsc-failures'] = next((r for r in allrows if r['state'] == 'failed'), {'label': 1, 'failed_purpose': 1, 'reason': 1, 'hardware': 1})
     served['fsc-terms'] = get('/api/firmware-score-profiles/%s/terms' % first).json['rows'][0]
@@ -217,6 +232,31 @@ def main():
             if gone:
                 miss[i['id']] = gone
     check('every column a table asks for is a field of the row its door serves', not miss, miss)
+
+    print('-- the sample-scope tables, in a world where the sample is finished')
+    from cmod.custom.selftest_fsc_sample import SUCCESS, stub_runs
+    stub_runs(mgr, list(SUCCESS))
+    R._CACHE.clear()
+    sdef = get('/api/firmware-scores?mission=%s&profile=%s' % (MISSION, first)).json
+    srows = [r for r in sdef['rows'] if r['state'] != 'failed']
+    sfail = [r for r in sdef['rows'] if r['state'] == 'failed']
+    sam = get('/api/firmware-scores/sample?mission=%s' % MISSION).json
+    topd = get('/api/firmware-scores/top?mission=%s' % MISSION).json
+    pbd = get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s' % (MISSION, srows[0]['solution'], first)).json
+    plans = get('/api/firmware-scores?mission=%s&profile=%s&scope=plans' % (MISSION, first)).json
+    pbp = get('/api/firmware-scores/breakdown?mission=%s&solution=%s&profile=%s&scope=plans' % (MISSION, plans['rows'][0]['solution'], first)).json
+    served2 = {'fsc-top': topd['rows'][0], 'fsc-ranked': srows[0], 'fsc-breakdown': pbd['rows'][0], 'fsc-failures': sfail[0], 'fsc-sample': sam['rows'][0], 'fsc-plans-profiles': prof['rows'][0],
+               'fsc-plans-ranked': plans['rows'][0], 'fsc-plans-breakdown': pbp['rows'][0]}
+    miss2 = {}
+    for i in all_tables:
+        if i['id'] in served2 and i['componentProps']['componentName'] == 'class-rows-table':
+            gone = [x for x in i['componentProps']['inputs']['columns'].split(',') if x not in served2[i['id']]]
+            if gone:
+                miss2[i['id']] = gone
+    check('smp-0 PAGE: every column of the sample table, the sample-scope ranking, the top table, the failures and the plans tab is a field of the row its door serves', not miss2 and len(served2) == 8, miss2)
+    check('smp-0 PAGE: the sample ranking is 4 rows (S1..S4), the failures table gets F1 and F2 only, the sample table 7 rows (S5 "not built yet"), and the plans tab ranks only plans (state plan)',
+          [r['sample'] for r in sorted(srows, key=lambda r: r['sample'])] == ['S1', 'S2', 'S3', 'S4'] and sorted(r['sample'] for r in sfail) == ['F1', 'F2'] and len(sam['rows']) == 7
+          and [r['state'] for r in sam['rows']][4] == 'not built yet' and plans['scope'] == 'plans' and all(r['state'] in ('plan', 'failed') for r in plans['rows']) and len(plans['rows']) > 100 and pbp['state'] == 'plan', (len(srows), len(plans['rows'])))
 
     print('-- graph, nav, manifest')
     from cmod.cmod_fsc_page import FSC_GRAPHS

@@ -42,6 +42,8 @@ APP_NEEDS = {'sim_rig': {'commands'}, 'blink': {'led'}, 'echo': {'commands'}, 'a
 #: sc-1: the generated header's RX parser (grpcbridge.custom.c_twin_v2.RX_PARSERS). A knob only a variant that sets it
 #: carries (absent = 'resync', so every existing build's repro block is unchanged)
 RX_PARSERS = ('resync', 'keep-tail')
+#: smp-1: how the LED is driven (absent = 'gpio', a plain output pin). `transistor` is the SAME C as gpio - the pin drives a transistor's base, which is wiring - and says so in the config's routes
+LED_ROUTES = ('gpio', 'pwm', 'transistor')
 FEATURES = ('led', 'pwm', 'adc', 'commands', 'button', 'sense')
 DEFAULT_VARIANT = 'uno-sim-rig'
 DEFAULT_KNOBS = {'rig_name': 'uno-rig', 'device_id': 3, 'usart_u2x': 1, 'telemetry_hz': 10, 'temp_formula': 'tmp36', 'blink_ms': 0,
@@ -71,7 +73,7 @@ DEFAULT_KNOBS.update(ROW_PIN_KNOBS)
 PIN_KNOBS = ('led_pin', 'pwm_pin', 'adc_channel')
 #: fgm-5a: the button ROUTE knob (absent = 'int0', hal.c's hand-written INT0 button, so every existing variant is unchanged) and the apps
 #: whose button code is written against hal.h's three button functions only (light.c) - the others also use INT0-only facts
-ROUTE_APPS = ('light',)
+ROUTE_APPS = ('light', 'button_clock')   # smp-1: button_clock too - it calls hal.h's three button functions and nothing else of the button (checked in its source)
 ROUTE_KNOB_DEFAULTS = {'button_route': 'int0'}
 #: fgm-5b: the sense ROUTE knob (absent = 'int1', hal.c's hand-written INT1 sense on D3) and the apps whose sense code is written against hal.h's two sense functions only (button_clock)
 SENSE_ROUTE_APPS = ('button_clock',)
@@ -86,6 +88,8 @@ RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED',
             'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN',
             # fgm-5a: the button route (hal_button_*.c rendered from catoms/read-button/)
             'HAL_BUTTON_ROUTE',
+            # smp-1: the LED route (Timer0 PWM output) and the sample failure's slow main loop
+            'LED_ROUTE_PWM', 'LOOP_DELAY_MS',
             # fgm-5b: the sense route (hal_sense_*.c rendered from catoms/sense-led-line/)
             'HAL_SENSE_ROUTE'}
 
@@ -168,6 +172,49 @@ SEED_FIRMWARE_VARIANTS = [
        {'rig_name': 'uno-light-sense-pcint', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'sense_pin': 8, 'sense_route': 'pcint', 'debounce_ms': 30, 'event_queue_len': 16},
        'with D6 wired to D8, sense_rises + sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); with the old D6->D3 wire (or none) the sense counters stay 0.', {},
        notes='the sense route is the template sense-led-line/isotopes/pin-change-interrupt (rendered to hal_sense_pcint.c)'),
+    # ---- smp-1: the sample solutions S2..S4 and the sample failure F2 (FIRMWARE_SCORE_PROFILES_PLAN.md section 13). All are the button-clock app (ButtonClockState) with the sense line, so the LED state
+    # ---- goes the same way as in S1 (uno-light-sense-poll): the mutators only alter the struct, led_follow_state is the only pin writer.
+    _v('uno-light-all-pcint', 'The light with the button AND the sense line on pin-change interrupts (sample S2)',
+       'smp-1 (sample S2): the button-clock behaviour with BOTH inputs on pin-change interrupts and no external-interrupt pin used: the button on D4 (PD4, PCINT20, bank PCMSK2) read by the pin-change-interrupt isotope of '
+       'read-button, the LED-line witness on D8 (PB0, PCINT0, bank PCMSK0) read by the pin-change-interrupt isotope of sense-led-line, the LED on D6. Two different PCINT banks, so the two vectors do not share a bank. '
+       'INT0 and INT1 are left free. Opt-in.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-all-pcint', 'telemetry_hz': 10, 'led_pin': 6, 'button_route': 'pcint', 'button_pin': 4, 'sense_pin': 8, 'sense_route': 'pcint', 'debounce_ms': 30, 'event_queue_len': 16},
+       'a press on D4 flips the light on D6, bumps button_presses; with the jumper D6->D8, sense_rises + sense_falls tracks button_presses 1:1 and led_on == (sense_rises > sense_falls); a press on D2 does nothing '
+       '(INT0 is not armed here); with no jumper the sense counters stay 0.', {},
+       notes='wiring: pushbutton between D4 and GND (the internal pull-up holds D4 high); jumper D6 -> D8; LED + 220 ohm from D6 to GND. Routes: read-button:pin-change-interrupt, sense-led-line:pin-change-interrupt, drive-led:gpio-out'),
+    _v('uno-light-pwm-analog', 'The light with the button read as a voltage on A0 and the LED on the timer PWM output (sample S3)',
+       'smp-1 (sample S3): the button-clock behaviour with the button read as a voltage on A0 by the analog-threshold isotope of read-button (a 10 kohm resistor holds A0 at 5 V, the switch pulls it to ground; below 1500 mV = '
+       'pressed, above 3500 mV = released) and the LED driven by Timer0\'s PWM output on D6 (OC0A). The struct decides on/off: led_follow_state is the only writer, and the pin driver connects the PWM output at 100 % duty for on '
+       '(the pin stays high: a sense line counts one edge per change, not the PWM edges) and disconnects it for off. The sense line is polled on D3. Opt-in.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-pwm-analog', 'telemetry_hz': 10, 'led_pin': 6, 'led_route': 'pwm', 'button_route': 'adc', 'button_adc_channel': 0, 'adc_press_below_mv': 1500, 'adc_release_above_mv': 3500,
+        'adc_pullup_ohms': 10000, 'button_pin': 2, 'sense_pin': 3, 'sense_route': 'poll', 'debounce_ms': 30, 'event_queue_len': 16},
+       'pulling A0 below 1500 mV (a press) flips the light on D6, bumps button_presses; the light pin is Timer0\'s output (OCR0A 255, output connected) while on and disconnected and low while off; with the jumper D6->D3 '
+       'sense_rises + sense_falls tracks button_presses 1:1.', {},
+       notes='wiring: 10 kohm from A0 to 5 V, pushbutton from A0 to GND; LED + 220 ohm from D6 to GND; jumper D6 -> D3. Routes: read-button:analog-threshold, drive-led:pwm, sense-led-line:gpio-poll. '
+             'Only on/off is driven (the wire struct has no brightness field): a duty below 100 % would put PWM edges on the sense line.'),
+    _v('uno-light-transistor', 'The light switched through the kit\'s transistor, with the sense line (sample S4)',
+       'smp-1 (sample S4): the button-clock behaviour with the LED driven THROUGH A TRANSISTOR (drive-led:transistor-switch): D6 drives the base of one of the kit\'s transistors through a base resistor and the transistor '
+       'switches the LED from 5 V. The firmware is the plain output pin of S1 (the same C, the same led_follow_state); only the wiring differs, so the twin runs the same code and cannot show the transistor switching. '
+       'The button is INT0 on D2, the sense line is polled on D3. Opt-in.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-transistor', 'telemetry_hz': 10, 'led_pin': 6, 'led_route': 'transistor', 'button_pin': 2, 'sense_pin': 3, 'sense_route': 'poll', 'debounce_ms': 30, 'event_queue_len': 16},
+       'a press on D2 flips D6 (the transistor base drive) and bumps button_presses; with the jumper D6->D3 every change is one counted edge. The twin sees the pin, not the transistor: whether the LED lights is the '
+       'wiring\'s part, not the firmware\'s.', {},
+       notes='wiring (a bipolar transistor of the kit; its part number and pin order are not printed on the cited page, so read them off the part): D6 -> base resistor -> base; emitter -> GND; LED + 220 ohm from 5 V to the collector; '
+             'jumper D6 -> D3 senses the drive pin (the command), not the LED current. The kit has 5 transistors and 2 MOSFETs (board.custom.kit_parts). Routes: drive-led:transistor-switch, read-button:ext-interrupt, sense-led-line:gpio-poll'),
+    _v('uno-light-slow-loop', 'The sense-poll light with a deliberately slow main loop (sample failure F2)',
+       'smp-1 (sample failure F2): uno-light-sense-poll with every main-loop pass held for 250 ms. The button\'s interrupt only marks the press; the main loop is what acts on it, so a press is acted on up to one slow '
+       'pass late. It is a firmware that works but is too slow for a deadline: the sample Mission uno-light-mission-safety-demo flags the button deadline safety-critical, and this build misses it. Do not flash it for real use. Opt-in.',
+       'button_clock', ['ButtonClockState', 'ButtonClockEvent'],
+       {'led': True, 'pwm': False, 'adc': False, 'commands': True, 'button': True, 'sense': True},
+       {'rig_name': 'uno-light-slow-loop', 'telemetry_hz': 10, 'led_pin': 6, 'button_pin': 2, 'sense_pin': 3, 'sense_route': 'poll', 'loop_delay_ms': 250, 'debounce_ms': 30, 'event_queue_len': 16},
+       'a press is acted on, on average, half a slow pass late and at most one pass (250 ms) late: the light follows the press, but later than the 100 ms the button Purpose states.', {},
+       notes='the delay is the LOOP_DELAY_MS build define (board.custom.variants, knob loop_delay_ms); same wiring as uno-light-sense-poll'),
     _v('uno-light', 'The light test: a light on D6 that the screen and the board\'s pushbutton both switch',
        'The simplest two-way test of a Polari Hardware App. D6 carries the light; a person can switch it from a Polari '
        'screen (the SET_LED command down), and the pushbutton on D2 (debounced) switches the same light and the board '
@@ -321,6 +368,26 @@ def resolve(variant, overrides=None, base=None):
                 why.append('button_pin and led_pin are the same pin (D%d)' % k['led_pin'])
             if route == 'adc' and feats['led'] and k['led_pin'] == 14 + int(k.get('button_adc_channel', 0)):
                 why.append('led_pin and the button\'s ADC pin are the same pin')
+    lroute = str(k.get('led_route', 'gpio'))
+    if lroute not in LED_ROUTES:
+        why.append('led_route %r: %s' % (lroute, ' | '.join(LED_ROUTES)))
+    elif lroute == 'pwm':
+        if not feats['led'] or feats['pwm']:
+            why.append('led_route pwm drives the LED itself (led on, and not the separate pwm feature)')
+        elif k['led_pin'] not in (5, 6):
+            why.append('led_route pwm: led_pin D%d is not a Timer0 output (D5 or D6)' % k['led_pin'])
+    if lroute != 'gpio' and not feats['led']:
+        why.append('led_route %s without the led feature' % lroute)
+    if 'loop_delay_ms' in k:
+        try:
+            k['loop_delay_ms'] = int(k['loop_delay_ms'])
+        except (TypeError, ValueError):
+            why.append('loop_delay_ms %r is not a number' % (k['loop_delay_ms'],))
+        else:
+            if not 0 <= k['loop_delay_ms'] <= 2000:
+                why.append('loop_delay_ms %d: 0..2000' % k['loop_delay_ms'])
+            elif k['loop_delay_ms'] and app != 'button_clock':
+                why.append('loop_delay_ms: only the button_clock app has the slow-pass code (the sample failure F2)')
     if feats['button'] and route == 'int0' and k['button_pin'] != 2:
         why.append('button_pin D%d: the button is hardware-fixed to D2 (INT0) — no other pin\'s EICRA/EIMSK bits are wired for it' % k['button_pin'])
     sroute = str(k.get('sense_route', 'int1'))
@@ -417,6 +484,10 @@ def render_config(r, indexed=False):
                            '#define HAL_SENSE_ROUTE %d          /* fgm-5b: %s (catoms/sense-led-line) */' % (SR.ROUTES[sroute][0], SR.ROUTES[sroute][1]),
                            '#define SENSE_PIN    %d' % k['sense_pin']]
         lines.append('#define EVENT_QUEUE_LEN %du' % k['event_queue_len'])
+    if str(k.get('led_route', 'gpio')) == 'pwm':
+        lines.append('#define LED_ROUTE_PWM 1             /* smp-1: the LED pin is Timer0\'s PWM output, held at 100 % duty for on (drive-led:pwm) */')
+    if int(k.get('loop_delay_ms', 0)):
+        lines.append('#define LOOP_DELAY_MS %du            /* smp-1: a deliberately slow main loop (sample failure F2) */' % int(k['loop_delay_ms']))
     if indexed:
         lines.append('#define INSTANCE_INDEX %du   /* brd-wire: this board\'s index among bridge %s\'s bound instances */' % (k['instance_index'], k['bridge']))
     lines += ['#define %s %d   /* variant build flag */' % (n, v) for n, v in r['flags']]

@@ -199,7 +199,7 @@ def fingerprint(row, profiles, variants, hardware, tables, limits, objective, ti
         except Exception:  # noqa: BLE001 - a board with no pin rows: hash what it has
             boards_sha[b] = sha([x for x in tables['BoardDefinition'] if x['name'] == b])
     prof = [{k: p.get(k) for k in ('id', 'role', 'kind', 'importance', 'reserved', 'purposes', 'drive', 'lifecycle_phases')} for p in profiles]
-    return {'mission_row': sha(row), 'profiles': sha(prof), 'variants': sha(variants), 'overlap_table': sha(profile_overlap.table()),
+    return {'mission_row': sha({k: v for k, v in row.items() if k != 'sample_solutions'}), 'profiles': sha(prof), 'variants': sha(variants), 'overlap_table': sha(profile_overlap.table()),
             'ladder_rules': rules, 'boards': boards_sha, 'kit': sha([r['name'] for r in E.context(boards[0], tables)['kit']] if boards else []),
             'tiers': sha(tiers_state), 'limits': sha(limits), 'objective': objective,
             'tool_versions': {'solver': SOLVER_VERSION, 'python': platform.python_version()}}

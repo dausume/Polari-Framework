@@ -216,6 +216,8 @@
    "custom/fsc_terms",
    "custom/fsc_values",
    "custom/fsc_cli",
+   "custom/fsc_sample",
+   "custom/selftest_fsc_sample",
    "custom/solve",
    "custom/solve_assign",
    "custom/solve_cost",

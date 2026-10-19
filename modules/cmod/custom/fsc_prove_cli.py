@@ -6,6 +6,8 @@ THAT config's own firmware (cmod.custom.fsc_link). This verb does the whole job 
 (firmwarefaults.custom.acceptance.run(..., variant=config): the twin, here, through the board engines seam), stores the run under $POLARI_FAULTS_HOME, and with --api pushes it to that server's
 Purpose door (POST /api/capabilities/<purpose>/runs, body.variant = the config), then asks the server's score door whether the config now reads `finished`.
 
+  Configs (smp-1): any built config of the Mission - the sample's S1 uno-light-sense-poll, S2 uno-light-all-pcint, S3 uno-light-pwm-analog, S4 uno-light-transistor, and uno-light-sense-pcint. Each Purpose's
+  press / command is made the way THE CONFIG'S OWN button and light need (INT0, a pin-change pin, a voltage on A0).
   --dry-run   print what would run and where it would be pushed; run nothing, write nothing, push nothing
   --json      print one JSON document (config, mission, steps, outcome per Purpose, pushes, finished) instead of the lines
   Exit code 0 = every Purpose passed (and, with --api, every push was accepted); 1 = a run failed; 3 = refused (no such config / not a built config of the Mission).

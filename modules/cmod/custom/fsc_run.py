@@ -11,6 +11,7 @@ finished | plan, and given its term values (cmod.custom.fsc_values). `scores()` 
 from cmod.custom import fsc_failure as F
 from cmod.custom import fsc_labels as LB
 from cmod.custom import fsc_link as L
+from cmod.custom import fsc_sample as SM
 from cmod.custom import fsc_values as V
 from cmod.custom import fsc_profiles as P
 from cmod.custom import solve_inputs as SI
@@ -58,6 +59,7 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
     from cmod.custom import fsc_prices as PR
     res = SD.compute(mission, boards, None, None, {}, manager)
     ck = SI.sha([res['inputs']['mission_row'], res['inputs']['profiles'], importance_weights])
+    sample = SM.entries(SI.mission_row(mission, manager))     # smp-0: the curated sample is a property of the Mission row but NOT a solve input (the solve sha leaves it out)
     if ck not in _CTX:       # the Mission read costs seconds with a live manager (pin-profile roll-up): remembered by the solve's own input hashes
         if len(_CTX) > 4:
             _CTX.pop(next(iter(_CTX)))
@@ -65,7 +67,8 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
     ctx = _CTX[ck]
     proof = L.purposes_proof(ctx, manager, unprovable)
     po = PR.load()
-    key = SI.sha([res['result_sha256'], boards, importance_weights, {p: s for p, (s, _w) in proof[0].items()}, _runs_sig(manager), manager is not None, unprovable, po['path'], len(po['offers']), po['present']])
+    key = SI.sha([res['result_sha256'], boards, importance_weights, {p: s for p, (s, _w) in proof[0].items()}, _runs_sig(manager), manager is not None, unprovable, po['path'], len(po['offers']), po['present'],
+                  sample, _press_sig(sample)])
     if key in _CACHE:
         return _CACHE[key]
     ranked = res['_ranked']
@@ -87,10 +90,15 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
             failures.append(dict(f, id=c['id'], solution=solution_name(mission, c), routes=c['routes_text'], hardware=c['hardware']['board'], rank=c['rank'], state='failed', short_label=LB.short_label(c, jobs_vary, tier_vary)))
         else:
             ok.append(c)
-    links, unmatched = L.resolve(list(res['jobs']), ok, manager, ctx)
-    failures += L.misses(list(res['jobs']), ctx, manager)     # fsc-0b: a config built for this Mission that misses a job's Purposes is a FAILURE
+    skip = SM.skipped_configs(sample)
+    links, unmatched = L.resolve(list(res['jobs']), ok, manager, ctx, skip)
+    failures += L.misses(list(res['jobs']), ctx, manager, skip)     # fsc-0b: a config built for this Mission that misses a job's Purposes is a FAILURE
+    known = set(L.configs(manager))
+    safety, sample_notes = SM.safety_failures(sample, ctx, known, {n: ', '.join('%s via %s' % (j, '/'.join(r)) for j, r in sorted(L.config_routes(v).items())) for n, v in L.configs(manager).items()})
+    failures += safety      # smp-0: a sample failure with its own safety-critical deadline, MEASURED on the twin (board.custom.press_latency)
     for f in failures:
         f.setdefault('short_label', '%s (built firmware)' % f.get('config') if f.get('config') else f.get('solution', ''))   # a built config has no candidate to label from
+    SM.tag(sample, [], failures)
     cproofs = {}
     runs_on = {}
     for c in ok:
@@ -110,9 +118,11 @@ def build(mission, manager=None, boards=None, importance_weights=None, unprovabl
         rts = [d['route-time'] for d in pv.values() if 'route-time' in d]
         hw['route-time'] = V.T.q(V.T.weakest([x['kind'] for x in rts]), round(sum(x['value'] for x in rts), 3), 'route work counted once: the sum of the Purposes\' attributed shares (a shared route is split by importance weight, so it is not counted twice)')
         records.append({'id': c['id'], 'name': solution_name(mission, c), 'rank': c['rank'], 'candidate': c, 'facts': f, 'state': st['state'], 'state_why': st['why'], 'link': link,
+                        'config_proof': {p: st for p, (st, _w2) in cp[0].items()} if link else {},
                         'values': hw, 'purpose_values': pv, 'also_on': c['also_on'], 'label': (link['config'] if link and st['state'] == 'finished' else c['routes_text']), 'short_label': LB.short_label(c, jobs_vary, tier_vary),
                         'unflagged_deadline_misses': F.unflagged_violations(c)})
-    out = {'mission': mission, 'records': records, 'failures': failures, 'suggestions': F.suggestions(ctx['purposes']), 'unmatched_configs': unmatched, 'ctx': ctx,
+    SM.tag(sample, records, [])
+    out = {'mission': mission, 'sample': sample, 'sample_notes': sample_notes, 'known_configs': known, 'records': records, 'failures': failures, 'suggestions': F.suggestions(ctx['purposes']), 'unmatched_configs': unmatched, 'ctx': ctx,
            'counts': {'candidates': len(ranked), 'distinct_plans': len(reps), 'failed': len(failures), 'finished': sum(1 for r in records if r['state'] == 'finished'),
                       'plan': sum(1 for r in records if r['state'] == 'plan')}, 'solve_sha256': res['result_sha256'], 'proof': proof[0], 'cache_key': key}
     if len(_CACHE) > 4:
@@ -126,12 +136,31 @@ def V_ctx(mission, manager, importance_weights):
     return C.mission_context(mission, manager, importance_weights)
 
 
-SCOPES = ('both', 'finished', 'plan')
+SCOPES = SM.SCOPES + tuple(SM.ALIASES)     # sample (default) | all | plans | finished  (+ the pre-smp names both = all, plan = plans)
 
 
-def compared(built, scope='both'):
-    recs = [r for r in built['records'] if scope == 'both' or r['state'] == scope]
-    words = {'both': 'every non-failed solution (finished and plan)', 'finished': 'finished solutions only', 'plan': 'plans only (not yet built)'}[scope]
+def _press_sig(sample):
+    """The committed press-to-light records a sample failure reads (so a new measurement re-derives the failure rows)."""
+    from board.custom import press_latency as PL
+    return [(e['config'], (PL.load(e['config']) or {}).get('record_sha256', '')) for e in sample if e.get('safety_deadline')]
+
+
+def scope_of(built, scope=None):
+    """The scope in force: the one asked (the old names mapped), else `sample` for a Mission that carries a sample and `all` for one that does not."""
+    return SM.norm_scope(scope) if scope else SM.default_scope(built.get('sample'))
+
+
+def compared(built, scope=None):
+    scope = scope_of(built, scope)
+    if scope == 'sample':
+        recs = [r for r in built['records'] if r['state'] == 'finished' and r.get('sample')]
+    elif scope == 'all':
+        recs = list(built['records'])
+    else:
+        recs = [r for r in built['records'] if r['state'] == {'plans': 'plan', 'finished': 'finished'}[scope]]
+    ids = ', '.join(r['sample'] for r in sorted(recs, key=lambda r: r['sample'])) if scope == 'sample' else ''
+    words = {'sample': 'the curated sample: its finished successes (%s)' % (ids or 'none finished yet'), 'all': 'every non-failed solution (finished and plan)', 'finished': 'finished solutions only (the sample or not)',
+             'plans': 'plans only (not yet built)'}[scope]
     return recs, '%s: %d solution(s); failures never enter the set' % (words, len(recs))
 
 
@@ -146,12 +175,13 @@ def clear_scores(name=None):
         del _SCORES[k]
 
 
-def scores(built, profiles, scope='both', mode=None):
+def scores(built, profiles, scope=None, mode=None):
     """-> {profiles {name: score_profile result}, set_words, rows [{id, solution, label, short_label, state, state_why, link, scores {profile: {score, rank, raw, confidence}}}]}.
 
     fsc-3: CACHED per profile by (the build's own input key - Mission row sha, solve sha, ScenarioRun statuses, offers file - the scope, the mode, the profile's sha INCLUDING its
     weights), so a row click or a tab change never recomputes the compared set; a profile edit changes that profile's sha and clear_scores() frees the old results."""
     from cmod.custom import fsc_score as S
+    scope = scope_of(built, scope)
     recs, words = compared(built, scope)
     results = {}
     for p in profiles:
@@ -167,7 +197,7 @@ def scores(built, profiles, scope='both', mode=None):
     fin = [r['id'] for r in recs if r['state'] == 'finished']
     rows = []
     for r in recs:
-        row = {'id': r['id'], 'solution': r['name'], 'label': r['label'], 'short_label': r['short_label'], 'state': r['state'], 'state_why': r['state_why'], 'routes': r['candidate']['routes_text'], 'hardware': r['candidate']['hardware']['board'],
+        row = {'id': r['id'], 'solution': r['name'], 'label': r['label'], 'short_label': r['short_label'], 'sample': r.get('sample', ''), 'state': r['state'], 'state_why': r['state_why'], 'routes': r['candidate']['routes_text'], 'hardware': r['candidate']['hardware']['board'],
                'also_on': r['also_on'], 'link': r['link'], 'scores': {}}
         for pn, res in results.items():
             s = res['scores'][r['id']]

@@ -331,6 +331,10 @@ int main(void)
         led_toggle(now);
         led_follow_state();
         sense_isr();
+#if LOOP_DELAY_MS
+        /* smp-1 (sample failure F2): a deliberately slow pass. The press is only acted on here, once per pass, so it is acted on up to LOOP_DELAY_MS late. */
+        { uint32_t t0 = hal_millis(); while ((uint32_t)(hal_millis() - t0) < (uint32_t)LOOP_DELAY_MS) { } }
+#endif
 
         if ((int32_t)(now - next_ms) < 0) continue;
         next_ms += TELEMETRY_MS;

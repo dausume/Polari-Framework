@@ -5,7 +5,9 @@ fsc-2: `pol firmware scores | profile | score-values` (polari-cli/scripts/firmwa
 needs ScenarioRuns, so with no server every built solution is shown as `plan` and says why); with `--api URL` (or $POLARI_API) it asks that server's doors instead and so reads the live
 profiles, ScenarioRuns and rows. Both paths go through the SAME doors (cmod.custom.fsc_doors) - nothing is computed twice.
 
-    python3 -m cmod.custom.fsc_cli scores [--profile P[,Q]] [--mission M] [--scope both|finished|plan] [--board B] [--normalization competitive|sol-0-compatible] [--top] [--limit N] [--json] [--api URL]
+    python3 -m cmod.custom.fsc_cli scores [--profile P[,Q]] [--mission M] [--scope sample|all|plans|finished] [--board B] [--normalization competitive|sol-0-compatible] [--top] [--limit N] [--json] [--api URL]
+      scope (smp-0): sample = the DEFAULT - the Mission's curated sample (its finished successes compete; only its failure entries are listed); all = every solution and plan (the old default); plans = the plans nobody built;
+      finished = every finished config. Built configs outside the sample are kept as history and named after the rows.
     python3 -m cmod.custom.fsc_cli profile show [<name>] [--json] [--api URL]
     python3 -m cmod.custom.fsc_cli profile create <name> [--copy-of P] [--weight term=w ...] [--purpose-weight purpose:term=w ...] [--hardware B] [--api URL]
     python3 -m cmod.custom.fsc_cli profile weight <name> term=w [...] [--purpose-weight purpose:term=w ...] [--api URL]
@@ -97,14 +99,18 @@ def cmd_scores(a):
         if a.limit and shown >= a.limit:
             break
         shown += 1
-        print('  #%-3s %-8s %7s  %s%s' % (r['rank'], r['state'], r['score'], r['long_label'][:78], ('\n         ' + r['deciding_terms']) if r.get('deciding_terms') else ''))
+        print('  #%-3s %-8s %7s  %s%s' % (r['rank'], r['state'], r['score'], (('%s · ' % r['sample']) if r.get('sample') else '') + r['long_label'][:78], ('\n         ' + r['deciding_terms']) if r.get('deciding_terms') else ''))
+    if d.get('scope') == 'sample' and not shown:
+        print('  (no sample solution is finished here: a finished one needs its four Purposes\' runs - ask a server with --api URL, or list everything with --scope all)')
     fails = [r for r in d['rows'] if r['state'] == 'failed']
     for r in fails[:10]:
-        print('  FAILED  %s - %s' % (r['long_label'][:70], r['reason'][:160]))
+        print('  FAILED  %s - %s' % ((r['label'] if r.get('sample') else r['long_label'])[:70], r['reason'][:160]))
     for s in d['suggestions']:
         print('  suggestion: ' + s['message'])
     for u in d['unmatched_configs'][:10]:
         print('  not a candidate for this Mission: %s - %s' % (u['config'], u['why'][:150]))
+    for h in d.get('history', [])[:10]:
+        print('  history: %s (%s) - %s' % (h['config'], h['state'], h['words'][:150]))
     return 0
 
 

@@ -1,8 +1,8 @@
 """
-fsc-6 selftest part (called by board.board_light_selftest.run_light): the four Purposes of uno-light-mission on the two LED-sense variants' OWN builds, on the simavr twin.
+fsc-6 selftest part (called by board.board_light_selftest.run_light): the four Purposes of uno-light-mission on the LED-sense variants' OWN builds (the two of fsc-6 and the sample configs of smp-1), on the simavr twin.
 
   - the pure judges (board.custom.light_variant_twin) accept the right frames and reject wrong ones
-  - on the twin, each Purpose's own acceptance scenario run for uno-light-sense-poll and uno-light-sense-pcint (ACC.run(..., variant=)) -> outcome passed, stored with variant = that config,
+  - on the twin, each Purpose's own acceptance scenario run for each of SENSE (ACC.run(..., variant=); the button is pressed the way ITS OWN route needs: INT0, pin change, or a voltage on A0) -> outcome passed, stored with variant = that config,
     every negative control rejected, and no temp directory left behind
 SKIPS honestly with no twin.
 """
@@ -10,7 +10,8 @@ import glob
 import os
 import tempfile
 
-SENSE = ('uno-light-sense-poll', 'uno-light-sense-pcint')
+SENSE = ('uno-light-sense-poll', 'uno-light-sense-pcint',
+         'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor')     # smp-1: the sample configs S2..S4 beside the two fsc-6 ones (S1 = sense-poll)
 SCENARIOS = ('initialization-acceptance', 'light-from-button-acceptance', 'light-from-polari-acceptance', 'ensure-polari-observes-hardware-state-acceptance')
 
 
