@@ -14,6 +14,7 @@ profiles, ScenarioRuns and rows. Both paths go through the SAME doors (cmod.cust
 import argparse
 import json
 import os
+import ssl
 import sys
 import urllib.error
 import urllib.request
@@ -34,12 +35,17 @@ def _local(method, path, params=None, body=None):
     return r.status_code, r.json
 
 
+_CTX = ssl.create_default_context()
+_CTX.check_hostname = False
+_CTX.verify_mode = ssl.CERT_NONE   # the home stacks' nip.io certs are self-signed (dev posture), as hwnocode.custom.demo_prepare
+
+
 def _remote(api, method, path, params=None, body=None):
     from urllib.parse import urlencode
     url = api.rstrip('/') + path + (('?' + urlencode(params)) if params else '')
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None, method=method, headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=300) as r:
+        with urllib.request.urlopen(req, timeout=300, context=_CTX) as r:
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         try:
