@@ -1337,6 +1337,8 @@ class polariServer(treeObject):
             HardwareSystem, SystemLink, SignalPath,
             # pv-4: real-world configuration changes of a board (a flash, a wire, a shield, a binding choice, a reset)
             ConfigurationEvent,
+            # sim-1: twin sessions (a running simulated board; observed, never seeded)
+            TwinSession,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

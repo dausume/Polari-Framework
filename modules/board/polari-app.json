@@ -126,6 +126,7 @@
    "objects/board/SocDefinition",
    "objects/board/SocPin",
    "objects/board/TargetCompatibilityRule",
+   "objects/board/TwinSession",
    "objects/board/UnoAnalogState",
    "objects/board/UsbInterfaceDefinition"
   ],
@@ -140,7 +141,8 @@
    "config_events_api",
    "register_profile_api",
    "profile_overlap_api",
-   "maintenance_api"
+   "maintenance_api",
+   "board_twins_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -185,6 +187,7 @@
    "board_pinlevel_selftest",
    "board_selftest",
    "board_target_compat_selftest",
+   "board_twin_session_selftest",
    "board_uno_selftest"
   ],
   "custom": [
@@ -302,7 +305,13 @@
    "custom/target_compat",
    "custom/twin",
    "custom/twin_c3",
+   "custom/twin_ctl_hub",
    "custom/twin_pty",
+   "custom/twin_session_fakes",
+   "custom/twin_session_worker",
+   "custom/twin_sessions",
+   "custom/twin_sessions_cli",
+   "custom/twin_token",
    "custom/uno_evidence",
    "custom/uno_facts",
    "custom/usb_interfaces",
@@ -378,6 +387,8 @@
   "SocDefinition",
   "SocPin",
   "TargetCompatibilityRule",
+  "TwinSession",
+  "BoardTwinsAPI",
   "UnoAnalogState",
   "UsbInterfaceDefinition",
   "MaintenanceAPI"
@@ -443,6 +454,7 @@
     "SystemLink",
     "SignalPath",
     "ConfigurationEvent",
+    "TwinSession",
     "BOARD_CLASSES"
    ]
   ],
