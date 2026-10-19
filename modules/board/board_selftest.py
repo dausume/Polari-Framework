@@ -392,6 +392,8 @@ def main():
     run_light(check)
     from board.board_variant_twin_selftest import run_variant_twin   # fgm-5a: the isotope variants (PCINT button, analog button, PWM LED) proven on the twin
     run_variant_twin(check)
+    from board.board_light_c3_selftest import run_light_c3   # smp S5: the light Mission on the ESP32-C3 under FreeRTOS, proven on the C3 twin (pins a RAM shim; no C3 on the bench)
+    run_light_c3(check)
     from board.board_cycle_selftest import run_cycles   # cyc-0: measured cycle counts on the simavr twin
     run_cycles(check)
     from board.board_light_v2_selftest import run_light_v2   # fgm-6a: command confirmation on the wire (LightStateV2, uno-light-v2)

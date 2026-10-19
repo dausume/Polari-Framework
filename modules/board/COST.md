@@ -111,3 +111,14 @@ The technique pairs' deltas are in `modules/firmwarefaults/COST.md` (sc-3).
 | UNO builds (16 variants + 1 refused + the flip) | ~4 s total on `BOARD_ENGINES_URL=http://<isle-core>:9830` (isle-core) | tests/board_object_probe.py |
 | C3 build (c3-sim-rig) | 33.4 s wall, 148.8 CPU-s, 193.5 MB peak RSS on `ESP_ENGINES_URL=http://<isle-core>:9850` (isle-core) | the worker's /run rusage (build step) |
 | pol-core during the probe | `free -m` used 7 778 → 7 842 MB (no local engine, no twin) | the probe prints it |
+
+## smp S5 — the light Mission on the ESP32-C3 twin (2026-10-19, isle-core, `dev-smp-c3`)
+
+| what | measured | how |
+|---|---|---|
+| engine image `prf-esp-engines:noble` after the `--rx-plan` / `--boots` change to `polari_c3_run.py` | **1 813 604 051 B** (was 1 813 008 516 B on pol-core: the same layers, rebuilt) — no new image; **14 min 18 s** for the uncached rebuild on isle-core (network-bound; the old tag kept as `noble-pre-smp` until cleaned) | `docker image inspect`; `time docker build` |
+| one from-scratch `idf.py build` of esp32c3-light | **33–40 s wall, 149–151 CPU-s, 193 MB peak RSS** (3 builds; shim and chip HAL alike) | wait4 inside `polari-idf-build` |
+| firmware size, shim / chip HAL | app.bin **179 120 B / 181 680 B** of the 1 048 576 B factory partition; DRAM 90 408 / 321 296 B (shim) | `idf.py size --format json2` |
+| reproducibility | the SAME merged-image sha256 on a forced rebuild (`a1f86bb9…`) | `CONFIG_APP_REPRODUCIBLE_BUILD=y` |
+| one twin boot (3 presses, 1.15 s virtual) | **0.6–0.9 s wall, 45 MB peak RSS** (QEMU, the whole process); about 1 800 UART0 bytes | `run.json` of `polari-c3-run` |
+| `pol firmware prove esp32c3-light` (all four Purposes, 14 twin boots incl. controls, one shared build) | **2 min 17 s wall**, 46 MB peak RSS of the driver (QEMU 45 MB per boot, one at a time) on isle-core, idle machine | `/usr/bin/time -v` around `cmod.custom.fsc_prove_cli` |
