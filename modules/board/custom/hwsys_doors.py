@@ -41,7 +41,8 @@ def system_one(manager, name):
     s = _find(res, name)
     if s is None:
         return 404, {'ok': False, 'error': 'no hardware system %r (GET /api/hardware-systems lists them)' % name}
-    return 200, {'ok': True, 'source': src, 'system': _summary(res, s), 'participants': json.loads(s['participants_json']),
+    from board.custom import twin_sessions as TS   # sim-1: the running twin sessions are participants too (`twin:<board>#<n>`)
+    return 200, {'ok': True, 'source': src, 'system': _summary(res, s), 'participants': json.loads(s['participants_json']) + TS.participants(manager),
                  'links': [l for l in res['SystemLink'] if l['system'] == name]}
 
 

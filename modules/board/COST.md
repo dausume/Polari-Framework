@@ -122,3 +122,23 @@ The technique pairs' deltas are in `modules/firmwarefaults/COST.md` (sc-3).
 | reproducibility | the SAME merged-image sha256 on a forced rebuild (`a1f86bb9…`) | `CONFIG_APP_REPRODUCIBLE_BUILD=y` |
 | one twin boot (3 presses, 1.15 s virtual) | **0.6–0.9 s wall, 45 MB peak RSS** (QEMU, the whole process); about 1 800 UART0 bytes | `run.json` of `polari-c3-run` |
 | `pol firmware prove esp32c3-light` (all four Purposes, 14 twin boots incl. controls, one shared build) | **2 min 17 s wall**, 46 MB peak RSS of the driver (QEMU 45 MB per boot, one at a time) on isle-core, idle machine | `/usr/bin/time -v` around `cmod.custom.fsc_prove_cli` |
+
+## sim-0 - twin SESSIONS on the engines worker (2026-10-19, isle-core, `dev-sim-0`)
+
+Measured on isle-core (6 cpus, 7.7 GB) against a throwaway container of the new image (`docker run -p 9871:9830` + the session ports, `--memory 512m`, the
+same cap the swarm service has), `uno-light` (8 797 B hex) in realtime mode, driven by `board.custom.twin_sessions` from pol-core over the LAN.
+
+| what | measured | how |
+|---|---|---|
+| image `prf-board-engines:trixie` after sim-0 | **602 718 305 B** (was 602 695 553 B: **+22 752 B** - the control channel in the twin binary, `board_sessions.py`, the 9832-9863 EXPOSE); previous image kept as `trixie-pre-sim` | `docker image inspect` |
+| uncached rebuild on isle-core | **5 min 24 s** (apt + the pyvcd wheel by hash, network-bound) | `time docker build -t prf-board-engines:trixie-sim0 .` |
+| start-up of a session | **0.06-0.11 s** from `POST /sessions` to the twin's `{"t":"ready"}` line (3 runs: 0.062 / 0.08 / 0.11 s) | the selftest and `sim0_cost` timers |
+| firmware build for a session (`gen` + `build` through the worker's `/run`) | **0.3-0.4 s** wall for `uno-light` | `twin_sessions.build_hex` timer |
+| RSS of one session | **2 776 kB** resident (peak 2 776 kB); 2 792 kB with the control channel and the serial port attached; **2 797 kB each** with four running | `/proc/<pid>/status` VmRSS/VmHWM inside the container |
+| CPU of one session | **0.445 CPU-s per realtime second** with nothing attached; **0.439** with a control client and the serial port attached (11 166 serial bytes in 20 s); **0.371 each** with four running (1.482 together) | `/proc/<pid>/stat` utime+stime over 20 s |
+| the container with four sessions | **30.75 MiB** of the 512 MiB cap (the gunicorn worker, 33.8 MB resident idle, is part of it); 150 % of one core | `docker stats --no-stream` |
+| ports | 29 usable (9832-9863 minus 9840/9850/9860, the other hw-engines workers' published ports) = 14 sessions by ports; the worker caps at **8** (`SESSIONS_MAX`) = about 3 of isle-core's 6 cores at the rate above | `board_sessions.py` |
+
+**Finding:** the twin's own status line reports `peak_rss_kb` 34 384 for the same process whose `/proc` peak is 2 776 kB: `getrusage(RUSAGE_SELF).ru_maxrss` of a
+child forked from the 34 MB gunicorn worker starts at the PARENT's size (Linux keeps the high-water mark across `exec`). Read a session's memory from `/proc`,
+not from that field (the older `cost.json` twin figure of 11.2 MB was measured the same way, from a smaller parent).
