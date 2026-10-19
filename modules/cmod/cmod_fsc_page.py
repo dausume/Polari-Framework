@@ -37,7 +37,7 @@ FSC_GRAPHS = [{
     'description': 'The twelve best solutions for one firmware score profile, as bars (score 0-100, rank 1 is the best). Only scored solutions are drawn (never a failed one). The twelve are the top of the ranked table beside it.',
     'definition': json.dumps({'graphConfig': {
         'renderStyle': 'barX', 'xDimension': 'short_label', 'yDimensions': ['score'], 'seriesColors': [],
-        'options': {'width': 900, 'height': 360, 'marginTop': 20, 'marginRight': 30, 'marginBottom': 40, 'marginLeft': 300, 'showLegend': False, 'showGrid': True,
+        'options': {'width': 1000, 'height': 360, 'marginTop': 20, 'marginRight': 30, 'marginBottom': 40, 'marginLeft': 420, 'showLegend': False, 'showGrid': True, 'categoryOrder': 'data',
                     'xLabel': 'score (best = 100)', 'yLabel': 'solution (best first)'},
         'aggregation': {'enabled': False, 'strategy': 'average'}}})}]
 
