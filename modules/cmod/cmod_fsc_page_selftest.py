@@ -71,7 +71,7 @@ def main():
     top = _tables(d['tabs'][0]['rows'])[0]['componentProps']['inputs']
     check('the top table reads /api/firmware-scores/top and a row opens the tab named by the row\'s `profile`',
           top['dataPath'] == '/api/firmware-scores/top?mission=%s' % MISSION and top['rowLinkTabField'] == 'profile')
-    ids = {i['id']: i['componentProps']['inputs'] for i in tpl[0]['items'] + tpl[1]['items'] + tpl[2]['items']}
+    ids = {i['id']: i['componentProps']['inputs'] for r in tpl for i in r['items']}
     check('profile tab: ranking sets the `solution` scope and shows it selected; the breakdown reads {scope:solution} + {key}',
           ids['fsc-ranked']['selectScope'] == 'solution' and ids['fsc-ranked']['selectedValue'] == '{scope:solution}' and ids['fsc-ranked']['selectField'] == 'solution'
           and '{scope:solution}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-breakdown']['dataPath'] and '{key}' in ids['fsc-ranked']['dataPath'] and ids['fsc-breakdown']['emptyText'])
