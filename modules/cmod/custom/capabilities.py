@@ -346,7 +346,11 @@ def derive_status(cap, manager=None):
         return 'planned', '', 'no acceptance_scenario set', ''
     if manager is None:
         return cap.get('status', 'planned'), cap.get('last_proof', ''), 'no live manager — status read back unchanged', ''
-    runs = sorted((r for r in (manager.objectTables or {}).get('ScenarioRun', {}).values() if getattr(r, 'scenario', '') == scen),
+    from firmwarefaults.custom import acceptance as ACC
+    base = (ACC.find(scen) or {}).get('before_variant', '')
+    # fsc-6: a run of this Scenario on ANOTHER built config (variant != the Scenario's own) proves that config, never the Purpose's own build: it stays out of the Purpose's status
+    runs = sorted((r for r in (manager.objectTables or {}).get('ScenarioRun', {}).values()
+                   if getattr(r, 'scenario', '') == scen and (not base or getattr(r, 'variant', '') in ('', base))),
                   key=lambda r: getattr(r, 'ran_at', ''))
     evidential = [r for r in runs if getattr(r, 'outcome', '') != 'undetermined']
     if not evidential:

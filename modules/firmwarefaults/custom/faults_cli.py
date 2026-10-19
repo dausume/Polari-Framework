@@ -125,7 +125,7 @@ def cmd_run(a):
         from cmod.custom import capabilities as CAP
         mode = 'hardware' if getattr(a, 'hardware', False) else 'digital-twin'
         sink = LocalSink()
-        out = ACC.run(a.scenario, mode=mode, sink=sink)
+        out = ACC.run(a.scenario, mode=mode, sink=sink, variant=getattr(a, 'variant', '') or None)    # fsc-6: --variant V = the SAME scenario on config V's own build
         # fix (coordinator 2026-10-06): PERSIST FIRST — `ACC.run` already upserted the ScenarioRun into `sink`
         # (in-memory for LocalSink); flush it to disk and derive the capability's status BEFORE any printing, so a
         # print_run() crash on an acceptance-shaped row (it has none of the fault-runner's own fields) can never
@@ -322,6 +322,7 @@ def main(argv):
     r.add_argument('--seconds', type=float)
     r.add_argument('--seed', type=int)
     r.add_argument('--hardware', action='store_true', help='acceptance scenarios only (hw priorities P1)')
+    r.add_argument('--variant', default='', help="acceptance scenarios only (fsc-6): run a Purpose's own scenario on THIS built config's firmware; the run is stored with variant = the config")
     r.add_argument('--api', default='')
     ls = sub.add_parser('list')
     ls.add_argument('--api', default='')

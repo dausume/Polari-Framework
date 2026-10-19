@@ -209,6 +209,15 @@ class CapabilityAPI(treeObject):
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'error': 'run has no name'}
             return
+        from firmwarefaults.custom import acceptance as ACC
+        own = (ACC.find(scen) or {}).get('before_variant', '')
+        if body.get('variant') and body['variant'] != own:      # fsc-6: a run proved on another config of the Mission - stored for THAT config, only if it is a built config of the Mission
+            from cmod.custom import fsc_link
+            why = fsc_link.proof_config_refusal(body['variant'], scen, self.manager)
+            if why:
+                response.status = falcon.HTTP_422
+                response.media = {'ok': False, 'error': 'run for config %r refused: %s' % (body['variant'], why)}
+                return
         run_row = dict(body)
         run_row['scenario'] = scen
         run_row.setdefault('side', 'acceptance')

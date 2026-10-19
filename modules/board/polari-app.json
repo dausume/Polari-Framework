@@ -251,6 +251,8 @@
    "custom/light_confirm",
    "custom/light_twin",
    "custom/light_boot_twin",
+   "custom/light_variant_twin",
+   "custom/selftest_light_variants",
    "custom/light_v2_twin",
    "custom/packages_atmega328p",
    "custom/packet_ref",

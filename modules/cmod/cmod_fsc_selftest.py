@@ -563,8 +563,9 @@ def fsc_parts(check):
         from cmod.cmod_endpoints import construct_cmod_endpoints
         check('fsc: construct_cmod_endpoints builds FscAPI (api.fsc)', 'FscAPI' in open(os.path.join(os.path.dirname(__file__), 'cmod_endpoints.py')).read() and construct_cmod_endpoints is not None)
 
+    from cmod.custom.selftest_fsc_prove import prove_parts      # fsc-6: the per-config proof mechanism (the twin stubbed)
     return (terms_seeded, safety_flag_and_failures, link_and_finished, value_writer, splits, prices, rows_written, stock_engine_agrees, reproduction, profiles_seeded,
-            scoring_is_competitive, cheapest_falls_back, doors, cli, manifest, failure_end_to_end)
+            scoring_is_competitive, cheapest_falls_back, doors, cli, manifest, failure_end_to_end, *prove_parts(check))
 
 
 def b_ranked(b, objective):

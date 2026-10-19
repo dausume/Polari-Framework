@@ -79,6 +79,8 @@ def run_light(check):
         run = ACC.run(name, 'digital-twin', sink=S.LocalSink())
         check('ucd-light: acceptance Scenario %s -> a ScenarioRun outcome passed (measured on the simavr twin)' % name,
               run['outcome'] == 'passed' and run['frames_seen'] > 0, (run['outcome'], run['verdict_words']))
+    from board.custom.selftest_light_variants import run_variants      # fsc-6: the same Purposes on the two LED-sense variants' own builds
+    run_variants(check)
 
 
 if __name__ == '__main__':

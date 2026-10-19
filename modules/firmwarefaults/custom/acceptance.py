@@ -300,11 +300,13 @@ def steps_of(scenario):
     return sorted([s for s in ACCEPTANCE_STEPS if s['scenario'] == scenario], key=lambda s: s['position'])
 
 
-def run(scenario_name, mode='digital-twin', manager=None, sink=None):
+def run(scenario_name, mode='digital-twin', manager=None, sink=None, variant=None):
     """Run one acceptance Scenario: resolve its `capability`, run the backing FirmwareSolution (the SAME door the
     firmware panel's Run button calls, cmod.custom.firmware.run) and turn the result into a ScenarioRun row. Never a
     second proof engine — reuses glue_build.prove (twin) / the installer's detected route (hardware), same posture as
-    cmod_firmware_api.on_post_run. Returns the ScenarioRun dict (+'result': the raw FW.run() payload)."""
+    cmod_firmware_api.on_post_run. Returns the ScenarioRun dict (+'result': the raw FW.run() payload).
+    fsc-6: `variant` = another built config of the Mission: the SAME Scenario runs on that config's own build and the run is stored with variant = that config
+    (firmwarefaults.custom.acceptance_config) - how a Purpose gets proven for a config (cmod.custom.fsc_link)."""
     from firmwarefaults.custom import sink as S
     sc = find(scenario_name)
     if sc is None:
@@ -314,7 +316,12 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     if cap is None:
         raise KeyError('acceptance scenario %r names capability %r, which does not exist' % (scenario_name, sc['capability']))
     run_mode = 'hardware' if mode == 'hardware' else 'digital-twin'
-    if sc['name'] in V2_PROOFS:
+    own = variant if variant and variant != sc['before_variant'] else ''   # fsc-6: the SAME Scenario run on another built config of the Mission (acceptance_config)
+    if own:
+        from firmwarefaults.custom import acceptance_config as AC
+        why = AC.refusal(sc, own, manager)
+        result = {'ok': False, 'route': 'refused', 'why': why} if why else AC.prove(sc, own, run_mode)
+    elif sc['name'] in V2_PROOFS:
         from board.custom import light_v2_twin as L2
         result = L2.prove(V2_PROOFS[sc['name']], run_mode)
     elif sc['name'] in BOOT_PROOFS:
@@ -350,13 +357,13 @@ def run(scenario_name, mode='digital-twin', manager=None, sink=None):
     else:
         outcome = 'undetermined'  # the engine could not be reached (e.g. no docker permission here) — never 'failed':
         # the proof never actually ran, so nothing was observed to fail
-    run_name = '%s@%s@%s' % (scenario_name, mode, ran_at)
-    row = {'name': run_name, 'scenario': scenario_name, 'side': 'acceptance', 'variant': sc['before_variant'],
+    run_name = ('%s@%s@%s@%s' % (scenario_name, own, mode, ran_at)) if own else '%s@%s@%s' % (scenario_name, mode, ran_at)
+    row = {'name': run_name, 'scenario': scenario_name, 'side': 'acceptance', 'variant': own or sc['before_variant'],
            'build_name': '', 'technique_applied': '', 'outcome': outcome, 'verdict_words': result.get('why', ''),
            'observed_json': J({k: v for k, v in result.items() if k != 'ok'}),
            'simulator_version': sc['simulator'] if run_mode == 'digital-twin' else 'hardware',
            'frames_seen': int(result.get('frames_compared') or 0), 'claim': '',
-           'repro_json': J({'mode': run_mode, 'scenario': scenario_name, 'capability': sc['capability']}),
+           'repro_json': J(dict({'mode': run_mode, 'scenario': scenario_name, 'capability': sc['capability']}, **({'variant': own} if own else {}))),
            'ran_at': ran_at, 'notes': 'acceptance run (hw priorities P1) — %s' % (result.get('how') or '')}
     sk = sink or S.LocalSink()
     sk.upsert('ScenarioRun', row)

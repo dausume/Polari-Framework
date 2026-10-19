@@ -206,6 +206,8 @@
    "custom/fsc_failure",
    "custom/fsc_labels",
    "custom/fsc_link",
+   "custom/fsc_prove_cli",
+   "custom/selftest_fsc_prove",
    "custom/fsc_prices",
    "custom/fsc_profiles",
    "custom/fsc_run",

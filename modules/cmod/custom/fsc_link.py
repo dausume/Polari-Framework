@@ -232,3 +232,26 @@ def state_of(c, link, ctx, proof, manager=None):
         unp = '; '.join('%s (%s: %s)' % (p, s, w) for p, (s, w) in sorted(statuses.items()) if s not in ('proven-on-twin', 'proven-on-hardware'))
         return {'state': 'plan', 'why': 'config %s is built (%s) but not every Purpose is proven: %s' % (link['config'], bwhy, unp)}
     return {'state': 'finished', 'why': 'config %s is built (%s) and every Purpose is proven (%s)' % (link['config'], bwhy, '; '.join('%s %s' % (p, s) for p, (s, _w) in sorted(statuses.items())))}
+
+
+def proof_config_refusal(config, scenario, manager=None, mission=None):
+    """fsc-6: '' when a run of `scenario` may be RUN AND STORED FOR `config`, else the reason. The scenario must be the own acceptance_scenario of a Purpose of the Mission, and the config must be a
+    BUILT CONFIG of that Mission (`attempt_of`: it carries a route for the trigger job of every Purpose). A run for any other config is refused - it would prove nothing the Mission asked for."""
+    from cmod.custom import approach_profile_input as AI
+    from cmod.custom import capabilities as CAP
+    from cmod.custom import fsc_doors
+    mission = mission or fsc_doors.DEFAULT_MISSION
+    var = configs(manager).get(config)
+    if var is None:
+        return 'no firmware config named %r (the built configs are the board.custom.variants FirmwareVariants)' % config
+    row = AI.find_mission(mission, manager)
+    if row is None:
+        return 'no Mission %r' % mission
+    purposes = AI.purposes_of(row, manager)
+    owners = [p['purpose'] for p in purposes if (CAP.find(p['purpose']) or {}).get('acceptance_scenario') == scenario]
+    if not owners:
+        return 'scenario %r is not the own acceptance scenario of any Purpose of Mission %s, so a per-config run of it proves nothing for the Mission' % (scenario, mission)
+    built_for, words = attempt_of(config_routes(var), {'purposes': purposes})
+    if not built_for:
+        return 'config %s is not a built config of Mission %s: %s' % (config, mission, words)
+    return ''

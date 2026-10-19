@@ -61,9 +61,9 @@ def _argv(seconds, extra):
             '--status-ms', '0', '--uart-out', 'uart.bin'] + extra
 
 
-def build(work):
+def build(work, variant=VARIANT):
     from board.custom import gen, build as B
-    gen.gen('uno', None, work, variant=VARIANT)
+    gen.gen('uno', None, work, variant=variant)
     return B.build('uno', work)
 
 
@@ -113,7 +113,7 @@ def engine_ready():
     return where['how'] in ('local-binary', be.LOCAL_IMAGE), where['why']
 
 
-def prove(which='both', mode='digital-twin'):
+def prove(which='both', mode='digital-twin', variant=VARIANT):
     if mode == 'hardware':
         return {'ok': False, 'route': 'refused', 'why': 'the light test --hardware is not wired yet (the UNO is not attached)'}
     ready, why = engine_ready()
@@ -121,15 +121,15 @@ def prove(which='both', mode='digital-twin'):
         return {'ok': False, 'route': 'refused', 'why': 'no simavr twin here: %s' % why}
     work = tempfile.mkdtemp(prefix='ucd-light-')
     try:
-        return _prove_in(work, which)
+        return _prove_in(work, which, variant)
     finally:
         shutil.rmtree(work, ignore_errors=True)   # fsc-0b: the temp dir used to leak on every run (pol-core's disk is tight)
 
 
-def _prove_in(work, which):
-    row = build(work)
+def _prove_in(work, which, variant=VARIANT):
+    row = build(work, variant)
     if row.get('state') != 'built':
-        return {'ok': False, 'route': 'digital-twin', 'why': 'uno-light did not build: %s' % row.get('notes')}
+        return {'ok': False, 'route': 'digital-twin', 'why': '%s did not build: %s' % (variant, row.get('notes'))}
     hex_bytes = open(row['hex_path'], 'rb').read()
     ok, parts, seen = True, [], 0
     if which in ('both', 'button'):

@@ -158,6 +158,7 @@
    "custom/outcome_sc3",
    "custom/payloads",
    "custom/route_proof",
+   "custom/acceptance_config",
    "custom/runner",
    "custom/runner_sc1",
    "custom/runner_sc3",
