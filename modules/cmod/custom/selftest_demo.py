@@ -24,7 +24,7 @@ def _tmpdir(prefix):
 
 
 def demo_parts(check):
-    return (lambda: _bundle(check), lambda: _no_jdk(check), lambda: _door(check), lambda: _upload(check))
+    return (lambda: _bundle(check), lambda: _no_jdk(check), lambda: _door(check), lambda: _upload(check), lambda: _no_engine(check))
 
 
 def _make_rung(check):
@@ -204,3 +204,23 @@ def _upload(check):
     check('upload: the JSON+base64 spelling works, and a path in the filename is reduced to a plain name inside the exports root',
           r5.status_code == 200 and row5 is not None and os.path.basename(row5.tar_path) == 'evil_name.deb'
           and os.path.realpath(row5.tar_path).startswith(os.path.realpath(os.environ['POLARI_EXP_HOME'])), r5.text[:200])
+
+
+def _no_engine(check):
+    """2026-10-19: a compiled export form on a server with no reachable compiler engine answered a bare 500; it is a named 422."""
+    from cmod.custom import export_cmake as EX
+    from board.custom.engine_run import EngineRefused
+    os.environ['POLARI_EXP_HOME'] = _tmpdir('polari-noengine-')
+    c, _tables = _client(check)
+    real = EX.export
+
+    def refuse(*a, **k):
+        raise EngineRefused('avr-gcc resolves to refused () and that worker does not list make')
+    EX.export = refuse
+    try:
+        r = c.simulate_post('/api/firmware/solutions/uno-light/export', json={'form': 'install-bundle', 'target': 'board'})
+    finally:
+        EX.export = real
+    check('export door: no reachable compiler engine -> 422 that names the engine and points at source-dir (never a bare 500)',
+          r.status_code == 422 and not r.json.get('ok') and 'no compiler engine is reachable' in r.json.get('refused', '')
+          and 'source-dir' in r.json.get('refused', ''), (r.status_code, r.text[:300]))

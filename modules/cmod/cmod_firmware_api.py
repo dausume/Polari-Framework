@@ -476,6 +476,15 @@ class FirmwareAPI(treeObject):
             response.status = falcon.HTTP_422
             response.media = {'ok': False, 'refused': str(e), 'solution': name}
             return
+        except Exception as e:  # noqa: BLE001 — 2026-10-19: a compiled form with no reachable compiler was a bare 500
+            from board.custom.engine_run import EngineRefused
+            if not isinstance(e, EngineRefused):
+                raise
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'solution': name, 'form': body.get('form', 'source-dir'),
+                              'refused': 'this form compiles the firmware and no compiler engine is reachable from this server: %s. The source-dir form '
+                                         'needs no compiler here (it carries the build files); or start the board engines (pol board engines).' % e}
+            return
         self._record_export(row)
         response.media = {'ok': row['status'] != 'refused', 'solution': name, 'export': row}
 
