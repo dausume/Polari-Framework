@@ -94,8 +94,8 @@ def _purposes(check):
           'uno-light:relay-out' in json.loads(CAP.find('light-from-polari')['tasks_by_runtime_json'])['java-bridge']
           and 'uno-light:relay-in' in json.loads(CAP.find('light-from-button')['tasks_by_runtime_json'])['java-bridge'])
     summ = CAP.purpose_summary(GRAPH)
-    check('purpose_summary over uno-light-graph: exactly the three tested Purposes decide the proof (planned until a run is recorded); the retired pair never does',
-          summ['purposes_total'] == 3 and summ['proof_status'] == 'planned', summ['proof_why'])
+    check('purpose_summary over uno-light-graph: exactly the four Purposes decide the proof now that initialization has a Scenario (fsc-0b; planned until a run is recorded); the retired pair never does',
+          summ['purposes_total'] == 4 and summ['proof_status'] == 'planned', summ['proof_why'])
     sim = CAP.purpose_summary('uno-sim-rig-graph')
     check('the plumbing/un-used Purposes of the sample graphs are LISTED but never decide the proof (sim-rig: 2 deciding of 5 listed)',
           sim['purposes_total'] == 2 and len(sim['purposes']) == 5, (sim['purposes_total'], len(sim['purposes'])))

@@ -164,6 +164,7 @@
    "custom/scenarios",
    "custom/scenarios_sc1",
    "custom/scenarios_sc3",
+   "custom/selftest_boot",
    "custom/selftest_routeproof",
    "custom/selftest_sc1",
    "custom/selftest_sc2",

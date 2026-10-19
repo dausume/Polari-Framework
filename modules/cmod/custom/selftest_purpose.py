@@ -260,11 +260,11 @@ def purpose_parts(check):
                 'ensure-polari-observes-hardware-state-acceptance': 'ensure-polari-observes-hardware-state'}
         check('the acceptance Scenarios are re-pointed (polari -> can-control, button -> button-controls) and the observes Purpose has its own',
               all(ACC.find(s)['capability'] == p and CAP.find(p)['acceptance_scenario'] == s for s, p in want.items()), want)
-        check('initialization has NO acceptance Scenario (no existing step kind can check boot_session): planned, tracking only',
-              CAP.find('initialization')['acceptance_scenario'] == '')
+        check('initialization has its own acceptance Scenario (fsc-0b: initialization-acceptance, board.custom.light_boot_twin checks boot_session) and it points back at the Purpose',
+              CAP.find('initialization')['acceptance_scenario'] == 'initialization-acceptance' and ACC.find('initialization-acceptance')['capability'] == 'initialization')
         summ = CAP.purpose_summary('uno-light-graph')
-        check('purpose_summary: the three tested Purposes decide (planned until a run exists); the retired pair and initialization are listed, never decide',
-              summ['purposes_total'] == 3 and summ['proof_status'] == 'planned'
+        check('purpose_summary: the four Purposes decide now that initialization has a Scenario (planned until a run exists); the retired pair are listed, never decide',
+              summ['purposes_total'] == 4 and summ['proof_status'] == 'planned'
               and {p['name'] for p in summ['purposes'] if p['retired']} == set(OLD), summ['proof_why'])
         st = {n: CAP.derive_status(CAP.find(n), None)[0] for n in NEW}
         check('derived status of the new Purposes with no recorded run: planned (nothing is faked proven)', set(st.values()) == {'planned'}, st)
