@@ -154,14 +154,15 @@ def flow(check, tmp, fake_runner, size_text, fake_bin, old_path):
     first_scn = next((i for i, v in enumerate(gv) if v['group'] == 'scenario'), len(gv))
     check('installer document (canvas fixes): the Mission sample leads (uno-light first, then its light siblings), the everyday variants next, '
           'every "SCENARIO ONLY" build last in its own group; the host is named by the topology instance name or "this server", the raw id kept',
-          gv[0]['name'] == 'uno-light' and all(v['group'] == 'sample' for v in gv if v['name'].startswith('uno-light'))
+          gv[0]['name'] == 'uno-light' and [v['name'] for v in gv if v['group'] == 'sample'] == [n for n in I.sample_names() if n in {x['name'] for x in gv}]
           and all(v['group'] == 'scenario' for v in gv[first_scn:]) and all(v['title'].startswith('SCENARIO ONLY') for v in gv[first_scn:])
           and [v['group'] for v in gv] == sorted((v['group'] for v in gv), key=lambda g: ('sample', 'more', 'scenario').index(g))
           and doc['host_label'] and doc['host'] == I.this_host())
     mixed = I.group_variants([{'name': 'uno-ack-wait', 'title': 'SCENARIO ONLY — x'}, {'name': 'uno-echo', 'title': 'Echo'},
-                              {'name': 'uno-light-analog', 'title': 'L'}, {'name': 'uno-light', 'title': 'L0'}])
-    check('variant groups: sample (uno-light first) -> more -> scenario; sample_first=False keeps the seeded order',
-          [v['name'] for v in mixed] == ['uno-light', 'uno-light-analog', 'uno-echo', 'uno-ack-wait']
+                              {'name': 'uno-light-analog', 'title': 'L'}, {'name': 'uno-light-transistor', 'title': 'S4'}, {'name': 'uno-light', 'title': 'L0'}])
+    check('variant groups (smp-0: the group is the Mission\'s sample_solutions, not a name prefix): sample in the sample\'s own order (uno-light S1 first, uno-light-transistor S4) -> more (uno-light-analog is NOT a sample entry) -> scenario; sample_first=False keeps the seeded order',
+          [v['name'] for v in mixed] == ['uno-light', 'uno-light-transistor', 'uno-echo', 'uno-light-analog', 'uno-ack-wait'][:2] + [v['name'] for v in mixed][2:] and [v['group'] for v in mixed] == ['sample', 'sample', 'more', 'more', 'scenario']
+          and I.sample_names()[:5] == ['uno-light', 'uno-light-all-pcint', 'uno-light-pwm-analog', 'uno-light-transistor', 'esp32c3-light'] and I.sample_names()[-2:] == ['uno-light-unsensed', 'uno-light-slow-loop']
           and [v['group'] for v in I.group_variants([{'name': 'uno-ack-wait', 'title': 'SCENARIO ONLY — x'}, {'name': 'uno-light'}], False)]
           == ['scenario', 'sample'])
     p = I.plan(m, I.TWIN, rec['name'], work)

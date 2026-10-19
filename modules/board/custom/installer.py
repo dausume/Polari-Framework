@@ -55,27 +55,38 @@ def host_label():
     return name or 'this server'
 
 
-# Variant groups for the page (plain words): the Mission's sample first (the light configs, uno-light on
-# top), the other everyday variants next, the fault-scenario builds last (their titles say SCENARIO ONLY).
+# Variant groups for the page (plain words): the Mission's SAMPLE first (smp-0: the configs named by the Mission's `sample_solutions`, in their order S1..S5, F1, F2 - read from the Mission row, not from a
+# name prefix), the other everyday variants next, the fault-scenario builds last (their titles say SCENARIO ONLY).
 GROUP_SAMPLE, GROUP_MORE, GROUP_SCENARIO = 'sample', 'more', 'scenario'
 _GROUP_ORDER = {GROUP_SAMPLE: 0, GROUP_MORE: 1, GROUP_SCENARIO: 2}
-SAMPLE_FIRST = 'uno-light'
+SAMPLE_MISSION = 'uno-light-mission'
 
 
-def variant_group(name, title=''):
+def sample_names(manager=None):
+    """The configs of the light Mission's sample, in order: the live HardwareMission row's `sample_solutions` when a server holds it, else the seed. [] when the Mission has none."""
+    try:
+        from cmod.custom import approach_profile_input as AI
+        from cmod.custom import fsc_sample as SM
+        return [e['config'] for e in SM.entries(AI.find_mission(SAMPLE_MISSION, manager))]
+    except Exception:   # noqa: BLE001 - the cmod module may not be admitted: no sample then, everything is `more`
+        return []
+
+
+def variant_group(name, title='', sample=()):
     if str(title or '').startswith('SCENARIO ONLY'):
         return GROUP_SCENARIO
-    if str(name or '').startswith('uno-light'):
+    if name in sample:
         return GROUP_SAMPLE
     return GROUP_MORE
 
 
-def group_variants(vlist, sample_first=True):
-    """Tag every variant with its `group` and (sample_first) order sample -> more -> scenario, `uno-light` leading
-    the sample; inside a group the seeded order is kept (stable sort)."""
-    out = [dict(v, group=variant_group(v.get('name'), v.get('title'))) for v in vlist]
+def group_variants(vlist, sample_first=True, sample=None):
+    """Tag every variant with its `group` (sample = named by the Mission's sample_solutions) and (sample_first) order sample (in the sample's own order) -> more -> scenario; inside a group the seeded order is kept
+    (stable sort). `sample` = the ordered config names (default: the seeded Mission's)."""
+    sample = list(sample_names() if sample is None else sample)
+    out = [dict(v, group=variant_group(v.get('name'), v.get('title'), sample)) for v in vlist]
     if sample_first:
-        out.sort(key=lambda v: (_GROUP_ORDER[v['group']], 0 if v['name'] == SAMPLE_FIRST else 1))
+        out.sort(key=lambda v: (_GROUP_ORDER[v['group']], sample.index(v['name']) if v['name'] in sample else 0))
     return out
 
 
@@ -395,7 +406,7 @@ def document(manager, work=None, scan=None):
                            engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items())))
     vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
     vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
-    vlist = group_variants([_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows])
+    vlist = group_variants([_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows], True, sample_names(manager))
     ts = twin.status(UNO, work or work_dir())
     recs = sorted(_rows(manager, 'InstallRecord'), key=lambda r: getattr(r, 'started_at', ''), reverse=True)
     plans = sorted(_rows(manager, 'InstallPlan'), key=lambda r: getattr(r, 'planned_at', ''), reverse=True)
