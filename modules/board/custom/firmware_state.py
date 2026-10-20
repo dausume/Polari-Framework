@@ -50,20 +50,32 @@ class StateRefused(RuntimeError):
 
 
 # ------------------------------------------------------------------ the config's rendered project
-def _config(config):
+def _config(config, manager=None):
+    """(the uno template spec, the configuration record of `config`) — any UNO FirmwareVariant (seeded or a live row), not only the template's own list
+    (the sample configs S2..S4 are variants the manifest does not enumerate; they render the same way)."""
     from cmod.custom import projects as P
+    from board.custom import variants as V
     spec = P.resolve('uno')
     cfg = next((c for c in P.configurations(spec) if c['name'] == config), None)
     if cfg is None:
-        from board.custom import variants as V
+        rows = ((getattr(manager, 'objectTables', None) or {}).get('FirmwareVariant') or {}).values() if manager is not None else []
+        live = next(({k: getattr(r, k, '') for k in ('name', 'title', 'app', 'board_definition', 'features_json', 'knobs_json', 'classes_json', 'build_flags_json', 'notes')}
+                     for r in rows if getattr(r, 'name', '') == config), None)
+        v = live or V.find(config)
+        if v is not None and (v.get('board_definition') or UNO_BOARD) == UNO_BOARD:
+            cfg = {'name': config, 'kind': 'board-variant', 'variant': dict(v), 'app': v.get('app', ''), 'flags': []}
+    if cfg is None:
         names = [v['name'] for v in V.SEED_FIRMWARE_VARIANTS]
-        raise StateRefused('no firmware config named %r — the UNO configs are %s' % (config, ', '.join(names)))
+        raise StateRefused('no UNO firmware config named %r — the configs are %s' % (config, ', '.join(names)))
     return spec, cfg
 
 
-def _render(config, work):
+UNO_BOARD = 'arduino-uno-r3'
+
+
+def _render(config, work, manager=None):
     from cmod.custom import projects as P
-    spec, cfg = _config(config)
+    spec, cfg = _config(config, manager)
     r = P.render(spec, cfg, work)
     return spec, cfg, r
 
@@ -447,7 +459,7 @@ def derive(config, manager=None, work=None, cache=True):
 def _derive(config, manager, work):
     from board.custom import gen
     from grpcbridge.custom import wire_contract as WC
-    spec, cfg, r = _render(config, work)
+    spec, cfg, r = _render(config, work, manager)
     d = r['dir']
     walks, problems = [], []
     for src in r['sources']:
@@ -694,7 +706,7 @@ def live(manager, config, session=''):
     """The wire fields with their live values: the wire class's row this config reports into (its rig name), the twin session's status line (cycle, adc), the hosted
     bridge that feeds the row. Nothing is simulated here: a value is shown only when a row holds it."""
     doc = derive(config, manager)
-    rig = json.loads(_config(config)[1]['variant'].get('knobs_json') or '{}').get('rig_name', config)
+    rig = json.loads(_config(config, manager)[1]['variant'].get('knobs_json') or '{}').get('rig_name', config)
     out = []
     for cls in doc['classes']:
         table = ((getattr(manager, 'objectTables', None) or {}).get(cls) or {}) if manager is not None else {}
