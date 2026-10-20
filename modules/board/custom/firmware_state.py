@@ -61,7 +61,10 @@ def _config(config, manager=None):
         rows = ((getattr(manager, 'objectTables', None) or {}).get('FirmwareVariant') or {}).values() if manager is not None else []
         live = next(({k: getattr(r, k, '') for k in ('name', 'title', 'app', 'board_definition', 'features_json', 'knobs_json', 'classes_json', 'build_flags_json', 'notes')}
                      for r in rows if getattr(r, 'name', '') == config), None)
-        v = live or V.find(config)
+        try:
+            v = live or V.find(config)
+        except V.VariantRefused:
+            v = None
         if v is not None and (v.get('board_definition') or UNO_BOARD) == UNO_BOARD:
             cfg = {'name': config, 'kind': 'board-variant', 'variant': dict(v), 'app': v.get('app', ''), 'flags': []}
     if cfg is None:
