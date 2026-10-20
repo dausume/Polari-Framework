@@ -20,7 +20,7 @@ class InstallRecord(treeObject):
                  firmware_sha: str = '', elapsed_s: float = 0.0, log_tail: str = '', started_at: str = '',
                  finished_at: str = '', bridge_name: str = '', bridge_state: str = '', row_class: str = '',
                  row_name: str = '', first_frames_json: str = '[]', frames_per_s: float = 0.0, notes: str = '',
-                 manager=None):
+                 install_mode: str = '', override_reason: str = '', manager=None):
         self.name = name  # 'install-<build>-<n>'
         self.plan = plan
         self.build = build
@@ -38,6 +38,8 @@ class InstallRecord(treeObject):
         self.bridge_name = bridge_name
         self.bridge_state = bridge_state  # '' | attaching | attached | refused: <why>
         self.row_class = row_class  # the class whose row the board updates
+        self.install_mode = install_mode  # ins-0: sim | real
+        self.override_reason = override_reason  # ins-1: the recorded reason when a real install ran past the sim gate
         self.row_name = row_name
         self.first_frames_json = first_frames_json  # [{seq, uptime_ms, …}] as the bridge logged them
         self.frames_per_s = frames_per_s

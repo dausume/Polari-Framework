@@ -220,17 +220,33 @@ def _twin_argv(hex_path, stim):
     return ['polari-avr-twin'] + args, wrapper, where
 
 
-def plan(manager, instance, build_name, work=None, scan=None):
+def plan(manager, instance, build_name, work=None, scan=None, install_anyway=False, reason=''):
+    """ins-0/1: the plan carries `install_mode` (sim = the twin, real = a board) and, for a real install of a gated config, the confirmed-sim gate's
+    verdict (board.custom.sim_gate). A real install the gate does not offer is REFUSED in words that say what is missing and offer the sim install —
+    unless `install_anyway` is true WITH a `reason`, which is recorded on the plan (`override_reason`, notes INSTALLED ANYWAY), never silently."""
     from board.board_basis import InstallPlan
+    from board.custom import sim_gate as G
     b = find_build(manager, build_name, work)
     t = target(instance, scan, manager)
     c = compat.check(b, manager)
     variant = b.get('variant', '')
     n = len([p for p in _rows(manager, 'InstallPlan') if getattr(p, 'build', '') == b['name']]) + 1
+    mode = 'sim' if t['kind'] == 'twin' else 'real'
     base = {'name': 'plan-%s-%d' % (b['name'], n), 'build': b['name'], 'variant': variant, 'instance': t['name'], 'target_kind': t['kind'],
             'host': t['host'] or this_host(), 'port': t['port'], 'adapter': t['adapter'], 'compat': c['verdict'], 'compat_why': c['plain'],
-            'artifact_sha256': b.get('artifact_sha256', ''), 'planned_at': _now()}
+            'artifact_sha256': b.get('artifact_sha256', ''), 'planned_at': _now(), 'install_mode': mode, 'gate': 'not-gated', 'gate_words': '', 'override_reason': ''}
     why = []
+    gate = None
+    if mode == 'real':
+        gate = G.verdict(manager, variant, b.get('artifact_sha256', ''))
+        base['gate'], base['gate_words'] = ('offered' if gate['offered'] else 'not-offered') if gate['gated'] else 'not-gated', gate['words']
+        if gate['gated'] and not gate['offered']:
+            if install_anyway and str(reason or '').strip():
+                base['gate'], base['override_reason'] = 'overridden', str(reason).strip()[:300]
+            elif install_anyway:
+                why.append('REFUSED: "install anyway" needs the reason, in words — it is recorded on the plan and the record. The gate says: %s' % gate['words'])
+            else:
+                why.append('REFUSED (sim not confirmed): %s. %s' % (gate['words'], gate['offer']))
     if b.get('state') not in ('built', 'flashed') or not b.get('hex_path'):
         why.append('build %s is %r, not built — nothing to install' % (b['name'], b.get('state')))
     elif not os.path.isfile(b['hex_path']):
@@ -263,12 +279,14 @@ def plan(manager, instance, build_name, work=None, scan=None):
     base.update(argv_json=json.dumps(argv), argv_text=' '.join(argv), wrapper_text=' '.join(wrapper), engine_how=where['how'],
                 engine_where=where.get('where') or where.get('why', ''), state='refused' if why else 'planned',
                 notes='; '.join(why) if why else 'DRY-RUN: nothing was opened. Install needs this plan AND confirm.')
+    if base['override_reason']:
+        base['notes'] = 'INSTALLED ANYWAY past the sim gate (%s) — reason given: %s · %s' % (gate['words'], base['override_reason'], base['notes'])
     # his rulings 2026-10-09: the plan carries the firmware's proof summary and ADVISES (never blocks) a real-board install
     advice = _proof_advice(manager, variant, t.get('kind'), t.get('definition') or '')
     if advice:
         base['notes'] = base['notes'] + ' · ' + advice
     row = upsert(manager, InstallPlan, base)
-    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row, advice=advice)
+    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row, advice=advice, gate_detail=gate)
 
 
 def _proof_advice(manager, variant, target_kind, board):
@@ -316,11 +334,20 @@ def run(manager, plan_name, confirm=False, work=None, scan=None, flash_run=None)
         p.state, p.notes = 'refused', 'at run time: %s' % c['plain']
         _save(manager, p)
         raise InstallRefused('REFUSED (%s): %s' % (c['verdict'], c['plain']), verdict=c['verdict'])
+    if p.target_kind == 'board' and not getattr(p, 'override_reason', ''):
+        # ins-1: the gate is read again NOW — a confirmation voided since the plan (a new hex) refuses the run
+        from board.custom import sim_gate as G
+        g = G.verdict(manager, b.get('variant', ''), b.get('artifact_sha256', ''))
+        if g['gated'] and not g['offered']:
+            p.state, p.notes, p.gate, p.gate_words = 'refused', 'at run time: %s' % g['words'], 'not-offered', g['words']
+            _save(manager, p)
+            raise InstallRefused('REFUSED (sim not confirmed): %s. %s' % (g['words'], g['offer']), gate=g)
     t0, started = time.time(), _now()
     n = len([r for r in _rows(manager, 'InstallRecord') if getattr(r, 'build', '') == b['name']]) + 1
     rec = {'name': 'install-%s-%d' % (b['name'], n), 'plan': p.name, 'build': b['name'], 'variant': b.get('variant', ''), 'instance': p.instance,
            'target_kind': p.target_kind, 'started_at': started, 'row_class': (json.loads(b.get('classes_json') or '[]') or [{}])[0].get('class', ''),
-           'row_name': (json.loads(b.get('repro_json') or '{}').get('knobs') or {}).get('rig_name', '')}
+           'row_name': (json.loads(b.get('repro_json') or '{}').get('knobs') or {}).get('rig_name', ''),
+           'install_mode': getattr(p, 'install_mode', '') or ('sim' if p.target_kind == 'twin' else 'real'), 'override_reason': getattr(p, 'override_reason', '')}
     try:
         if p.target_kind == 'twin':
             rec.update(_run_twin(manager, b, work))
@@ -385,8 +412,15 @@ def _run_board(manager, p, b, work, scan, flash_run):
 _BUILD_KEYS = ('name', 'variant', 'state', 'size_text', 'size_data', 'size_bss', 'artifact_sha256', 'header_sha256', 'built_at', 'flashed_to')
 
 
+MODES = [{'name': 'sim', 'title': 'Sim install', 'target_kind': 'twin', 'words': 'the simulated board (the twin): the very same .hex a real UNO is flashed with, '
+                                                                             'run in simavr. Install here first, run the four Purposes, watch it, then tick what you saw.'},
+         {'name': 'real', 'title': 'Real install', 'target_kind': 'board', 'words': 'a detected board on this host, over USB. Offered for a config only after its sim '
+                                                                               'install ran the four Purposes on the twin AND a person ticked the confirmation.'}]
+
+
 def document(manager, work=None, scan=None):
     from board.custom import build as B, twin
+    from board.custom import sim_gate as G
     flash_max, ram_max, cite = B.limits(UNO)
     det = detected(scan, manager)
     boards = [i for i in det['instances'] if i.get('definition') == UNO and i.get('state') == 'board present']
@@ -399,11 +433,14 @@ def document(manager, work=None, scan=None):
         engines = json.loads(b.get('engines_json') or '{}') if isinstance(b.get('engines_json'), str) else (b.get('engines_json') or {})
         flash_b = int(b.get('size_text') or 0) + int(b.get('size_data') or 0)
         ram_b = int(b.get('size_data') or 0) + int(b.get('size_bss') or 0)
+        g = G.verdict(manager, b.get('variant', ''), b.get('artifact_sha256', ''))   # ins-1: the Real side's words for this exact program
         builds.append(dict(_fields(b, _BUILD_KEYS), flash_bytes=flash_b, flash_max=flash_max, ram_bytes=ram_b, ram_max=ram_max,
                            flash_pct=round(100.0 * flash_b / flash_max, 1), ram_pct=round(100.0 * ram_b / ram_max, 1),
                            compat=c['verdict'], compat_why=c['plain'], installable=c['verdict'] == 'compatible' and b.get('state') in ('built', 'flashed')
                            and bool(b.get('hex_path')) and os.path.isfile(b.get('hex_path') or ''),
-                           engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items())))
+                           engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items()),
+                           gate={k: g[k] for k in ('gated', 'offered', 'words', 'missing', 'offer', 'anyway')},
+                           gate_purposes=g['purposes'], gate_confirmation=g['confirmation']))
     vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
     vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
     vlist = group_variants([_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows], True, sample_names(manager))
@@ -414,11 +451,15 @@ def document(manager, work=None, scan=None):
         [{'name': i['name'], 'kind': 'board', 'label': 'UNO at %s' % (i.get('by_id_path') or i.get('port')), 'port': i.get('by_id_path') or i.get('port')} for i in boards]
     return {'ok': True, 'host': this_host(), 'host_label': host_label(), 'board': UNO, 'limits': {'flash_b': flash_max, 'ram_b': ram_max, 'cited': cite},
             'targets': targets, 'boards': boards, 'adapters': adapters, 'unadmitted': det.get('unadmitted', []),
+            # ins-0: the two install modes; the page opens on real when a board is plugged in, else on sim
+            'modes': MODES, 'default_mode': 'real' if boards else 'sim', 'attest': G.ATTEST,
+            'confirmations': G.confirmations(manager)[:20],
+            'prove_command': G.prove_command('<config>'),
             'scan_note': det.get('error') or ('%d board(s), %d adapter(s), %d unadmitted on %s' % (len(boards), len(adapters), len(det.get('unadmitted', [])), this_host())),
             'variants': vlist, 'builds': builds,
             'twin': {k: ts.get(k) for k in ('state', 'build', 'variant', 'hex_sha256', 'link', 'adc0', 'adc_mv', 'started_at')},
             'plans': [_fields(p, ('name', 'build', 'variant', 'instance', 'target_kind', 'argv_text', 'wrapper_text', 'engine', 'engine_how',
-                                  'compat', 'compat_why', 'will_stamp', 'state', 'planned_at', 'notes')) for p in plans[:10]],
+                                  'compat', 'compat_why', 'will_stamp', 'state', 'planned_at', 'notes', 'install_mode', 'gate', 'gate_words', 'override_reason')) for p in plans[:10]],
             'records': [_fields(r, ('name', 'plan', 'build', 'variant', 'instance', 'target_kind', 'verdict', 'verify', 'verified_bytes', 'firmware_sha',
-                                    'elapsed_s', 'bridge_name', 'bridge_state', 'row_class', 'row_name', 'frames_per_s', 'started_at')) for r in recs[:10]],
+                                    'elapsed_s', 'bridge_name', 'bridge_state', 'row_class', 'row_name', 'frames_per_s', 'started_at', 'install_mode', 'override_reason')) for r in recs[:10]],
             'last': _fields(recs[0], ('name', 'verdict', 'verify', 'variant', 'bridge_state', 'row_class', 'row_name')) if recs else None}

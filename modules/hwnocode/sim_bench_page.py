@@ -15,6 +15,7 @@ mode, bound to a TwinSession, with every table configured (no raw JSON, no new c
 Page scope: `session` (a click on a session row, or the session just started), `rev` (bumped by row actions and by the picture after every action and every pin edge, so the tables
 beside it fetch again). On a tabbed page a scope change is applied IN PLACE, so the picture keeps its zoom and its live stream.
 """
+from board.custom.sim_gate import ATTEST   # ins-1: the tick's words, one place
 from hwnocode.light_page import light_state_table
 from polariApiServer.module_pages_seed import _layout_view, _page, _row, _tab, _table
 
@@ -84,6 +85,16 @@ def _bench_rows():
                                'by itself. See the Evidence tab.',
                    columns='name,config,hex_sha256',
                    row_action={'label': 'Record this session as evidence', 'method': 'POST', 'path': '/api/board/twins/{name}/record', 'body_template': {}})], css_class='side-by-side', min_height=240),
+        # ins-1: the installer's confirmed-sim tick, from the bench — the same SimInstallConfirmation row the installer page writes
+        _row(6, [_table('sim-confirm', 0, 12, 'Confirm the sim install - "%s"' % ATTEST, '', data_path='/api/board/twins?name={scope:session}&rev=r{scope:rev}',
+                        empty_text='Pick a session above; once you have watched it do what the firmware says, confirm it here.',
+                        description='What this is for: the step between a sim install and a real install (the installer page, /display/firmware-installer, offers the real board '
+                                    'only after it). One row = the picked session. Pressing the button records YOUR tick for this config at exactly this program (hex_sha256): who, when, '
+                                    'and the four Purposes as they stand. A new build of the config voids it. It is your own record; the installer still needs the four Purposes '
+                                    'passed on the twin before it offers the real board.',
+                        columns='name,config,hex_sha256',
+                        row_action={'label': ATTEST + ' - confirm', 'method': 'POST', 'path': '/api/board/installer/sim-confirmations',
+                                    'body_template': {'config': '{config}', 'hex_sha256': '{hex_sha256}', 'session': '{name}', 'source': 'sim-bench'}})], min_height=160),
     ]
 
 

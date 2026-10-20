@@ -13,6 +13,7 @@ GET    /api/board/twins/evidence              sim-3: the ScenarioRun rows made f
 GET    /api/board/twins/light-state           sim-3: the LightState rows as table rows (what the board reports back; the App UI beside the sim bench reads this)
 GET    /api/board/twins/{name}/interactions   sim-3: what a person did on the bench (BenchInteraction rows, in order)
 POST   /api/board/twins/{name}/record         sim-3: save the session's interactions as a ScenarioRun of kind attested ({outcome?: passed|failed|undetermined, observed?}); never a proof by itself
+                                              ins-1: + {confirm_sim: true} also ticks the installer's SimInstallConfirmation for the session's config at its LOCKED hex (source sim-bench)
 POST   /api/board/twins/{name}/inject         {"set":"PD2","level":0|1} | {"adc":0,"mv":750} | {"reset":1} | {"watch":[..]} | {"run":false} | {"status":1}; optional part/what/kind
                                               say which part on the picture was used (kept on the BenchInteraction row, not sent to the twin)
 GET    /api/board/twins/{name}/events         SSE: the twin's control stream (pin edges) - `?replay=N` first sends the last N, `?limit=N` / `?seconds=S` end the stream
@@ -155,6 +156,13 @@ class BoardTwinsAPI(treeObject):
             return
         out = self._run(response, lambda m: BI.evidence(m, row, self._who(request), str(body.get('outcome') or ''), str(body.get('observed') or '')))
         if out is not None:
+            if body.get('confirm_sim') is True:   # ins-1: the same tick the installer takes, from the bench
+                from board.custom import sim_gate as G
+                from board.custom.installer import InstallRefused
+                try:
+                    out['confirmation'] = G.confirm(self.manager, row.config, row.hex_sha256, self._who(request), 'sim-bench', row.name, str(body.get('words') or ''))
+                except InstallRefused as e:
+                    out['confirmation'] = {'ok': False, 'error': str(e)}
             response.media = out
 
     def on_post_inject(self, request, response, name):

@@ -19,7 +19,8 @@ class InstallPlan(treeObject):
                  host: str = '', port: str = '', programmer: str = '', engine: str = '', engine_how: str = '',
                  engine_where: str = '', adapter: str = '', argv_json: str = '[]', argv_text: str = '',
                  wrapper_text: str = '', compat: str = '', compat_why: str = '', will_stamp: str = '',
-                 artifact_sha256: str = '', state: str = 'planned', planned_at: str = '', notes: str = '', manager=None):
+                 artifact_sha256: str = '', state: str = 'planned', planned_at: str = '', notes: str = '', install_mode: str = '',
+                 gate: str = '', gate_words: str = '', override_reason: str = '', manager=None):
         self.name = name  # 'plan-<build>-<n>'
         self.build = build
         self.variant = variant
@@ -42,3 +43,7 @@ class InstallPlan(treeObject):
         self.state = state  # planned | refused | ran
         self.planned_at = planned_at
         self.notes = notes
+        self.install_mode = install_mode  # ins-0: sim (the twin) | real (a detected board)
+        self.gate = gate  # ins-1: offered | not-offered | not-gated | overridden — the confirmed-sim gate's verdict at planning
+        self.gate_words = gate_words  # the verdict in words (what is missing, or what was confirmed by whom)
+        self.override_reason = override_reason  # 'install anyway': the person's reason, recorded; '' when the gate was satisfied

@@ -322,6 +322,8 @@ INSTALLER_PAGES = [
     _page('firmware-installer', 'firmware-installer',
           'Firmware Installer — build and install DIFFERENT Polari firmware variants on the one UNO (or its simavr twin) '
           'and see each one\'s effect: detect → the builds that fit → DRY-RUN → confirm → install → the rows arriving. '
+          'Two modes, chosen at the top: SIM INSTALL (the twin) and REAL INSTALL (a detected board). A real install of a config is offered only '
+          'after its sim install ran the four Purposes on the twin AND a person ticked that the simulated board does what the firmware says. '
           'Defaults to arduino-uno-r3 — today\'s only board with a twin, a firmware template AND real installs (see '
           '/display/boards for the full usable/tracked split). Variants come from here; /display/c-atoms is where a '
           'variant\'s C gets read as atoms, /display/hardware-solutions is the no-code path over the same board.',
@@ -358,18 +360,27 @@ INSTALLER_PAGES = [
                                           'never composed live. One row = one InstallPlan. Columns: argv_text (verbatim), engine/engine_how '
                                           '(the tool and how it reaches the device), compat (the wire-contract check\'s verdict), will_stamp '
                                           '(what success will write back to the instance), state (planned | confirmed | ran).',
-                              columns='name,variant,instance,target_kind,argv_text,engine,engine_how,compat,will_stamp,state,planned_at')]),
-              _row(5, [_table('fi-records', 0, 12, 'Installs — verdict, what was read back, the firmware now on the device, the bridge, frames/s', 'InstallRecord',
+                              columns='name,variant,instance,target_kind,install_mode,argv_text,engine,engine_how,compat,gate,will_stamp,state,override_reason,planned_at')]),
+              # ins-1: the confirmed-sim gate's rows — who ticked what for which program, and whether a new build voided it
+              _row(5, [_table('fi-sim-confirmations', 0, 12, 'Sim-install confirmations — the tick between a Sim install and a Real install', 'SimInstallConfirmation',
+                              description='What this is for: the record that a PERSON watched the simulated board run an exact program and ticked "I checked the simulated '
+                                          'board does what the firmware says". One row = one tick. Columns: config, hex_sha256 (the exact program; a new build voids the '
+                                          'row), who/confirmed_at, purposes_passed/purposes_total (the four Purposes as they stood), source (installer | sim-bench | cli), '
+                                          'session (the twin session looked at), state (valid | voided), voided_why. The Real install side of the panel above is offered only '
+                                          'with a valid row for the build\'s own hex AND every Purpose passed on the twin; "install anyway" is recorded on the plan.',
+                              columns='name,config,hex_sha256,who,confirmed_at,purposes_passed,purposes_total,source,session,state,voided_why',
+                              data_path='/api/board/installer/sim-confirmations')]),
+              _row(6, [_table('fi-records', 0, 12, 'Installs — verdict, what was read back, the firmware now on the device, the bridge, frames/s', 'InstallRecord',
                               description='What this is for: what actually happened when a plan ran. One row = one InstallRecord. Columns: '
                                           'verdict/verify (pass/fail and what was read back to confirm it), firmware_sha (now on the device), '
                                           'bridge_state/frames_per_s (the live link once flashed), elapsed_s.',
-                              columns='name,variant,instance,target_kind,verdict,verify,firmware_sha,elapsed_s,bridge_state,row_class,row_name,frames_per_s,started_at')]),
+                              columns='name,variant,instance,target_kind,install_mode,verdict,verify,firmware_sha,elapsed_s,bridge_state,row_class,row_name,frames_per_s,override_reason,started_at')]),
               # fs-1 item 4 FALLBACK (DEMONSTRABLES_PLAN.md §9): wiring the live validate->build->run(mode) door into
               # firmware-installer-panel (above) was judged to exceed fs-1b's time box — this described table + a
               # documented command column is what shipped instead. /display/firmware-solutions is the live panel
               # (the three-part canvas with the pin-map drag); this row is a pointer FROM the installer TO it, plus
               # the exact command a person runs themselves (never composed/run by this page).
-              _row(6, [_table('fi-firmware-solutions', 0, 12, 'Firmware Solutions — validate -> build -> run(mode), '
+              _row(7, [_table('fi-firmware-solutions', 0, 12, 'Firmware Solutions — validate -> build -> run(mode), '
                               'by hand (DRY-RUN default: digital-twin, never hardware unless named)', 'FirmwareSolution',
                               description='What this is for: every Firmware Solution (/display/firmware-solutions '
                                           'has the live canvas), with the command that runs it. One row = one FirmwareSolution. '
@@ -387,4 +398,5 @@ from board.pin_view_page import PIN_VIEW_PAGES   # noqa: E402  pv-0: + the pin v
 from board.register_profile_page import REGISTER_PROFILE_PAGES   # noqa: E402  rp-0: /display/register-profile + /display/memory-map
 from board.profile_overlap_page import PROFILE_OVERLAP_PAGES   # noqa: E402  pp-1: /display/profile-overlap
 from board.layout_page import LAYOUT_PAGES   # noqa: E402  lay-2: /display/layout
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES + LAYOUT_PAGES   # pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map
+from board.firmware_state_page import FIRMWARE_STATE_PAGES   # noqa: E402  fst-1: /display/firmware-state?config=
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES + LAYOUT_PAGES + FIRMWARE_STATE_PAGES   # fst-1: + /display/firmware-state; pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map

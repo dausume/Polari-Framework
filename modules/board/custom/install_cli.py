@@ -3,11 +3,20 @@
 
 CLI parity with the installer page (brd-fi): the same doors, the same rows, the same refusals.
 
-  pol board install uno [--variant V] [--twin] [--dry-run | --yes] [--api URL]
+  pol board install uno --sim|--real [--variant V] [--dry-run | --yes] [--anyway REASON] [--api URL]
         plan + run + attach in one: picks (or builds) the variant's newest compatible build, prints the plan's argv
         VERBATIM (the DRY-RUN — the default), and only with --yes runs it, attaches the bridge and prints the first
-        frames. Target: the UNO detected on the server's host, or --twin (the simavr twin). Exit 3 = refused
-        (stale-header / unknown-class firmware, no board, the wrong host); exit 1 = the install itself failed.
+        frames. ins-0: --sim = the twin (--twin is the old spelling), --real = the UNO detected on the server's host.
+        ins-1: a --real install of a Mission config is offered only past THE CONFIRMED-SIM GATE (the four Purposes
+        passed on the twin + a person's tick for this hex); otherwise the words say what is missing and offer the
+        sim install (exit 3). --anyway "reason" records the reason on the plan and installs regardless. A --sim
+        install with --yes also runs the four Purposes on the twin (or prints the exact command when this server
+        cannot run the twin itself) and then says how to tick the confirmation. Exit 3 = refused (stale-header /
+        unknown-class firmware, no board, the wrong host, the gate); exit 1 = the install itself failed.
+  pol board gate <config> [--api URL]      the Real side's verdict for a config: offered | not offered + what is missing
+  pol board confirm-sim <config> [--hex SHA | --build B] [--words W] [--api URL]
+        the person's tick: "I checked the simulated board does what the firmware says" for the config's newest build
+        (or the named hex / build) — a SimInstallConfirmation row (who = the signed-in user of the request)
   pol board variants [--api URL]      the variants (offline: the seeded four) — what each tests, what to watch
   pol board result [RECORD] [--api URL]   an install's result (default: the newest record)
 
@@ -80,7 +89,58 @@ def result(api, record=''):
     return 0
 
 
-def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180):
+def _print_gate(g, indent='          '):
+    print('%sgate     %s' % (indent, g.get('words', '')))
+    for p in g.get('purposes') or []:
+        print('%s         %-40s %-20s %s' % (indent, p['purpose'], p['status'], p.get('run') or '-'))
+    if g.get('offer'):
+        print('%s         %s' % (indent, g['offer']))
+    if g.get('anyway'):
+        print('%s         %s (--anyway "reason")' % (indent, g['anyway']))
+
+
+def gate(api, config):
+    g = _call(api, 'GET', '/api/board/installer/gate?config=%s' % config)
+    if not g.get('ok'):
+        return _refused(g)
+    print('[%s] %s' % (' OK ' if g['offered'] else 'WAIT', config))
+    _print_gate(g, '       ')
+    return 0 if g['offered'] else REFUSED
+
+
+def confirm_sim(api, config, hex_sha='', build='', words=''):
+    body = {'config': config, 'source': 'cli'}
+    if hex_sha:
+        body['hex_sha256'] = hex_sha
+    if build:
+        body['build'] = build
+    if words:
+        body['words'] = words
+    r = _call(api, 'POST', '/api/board/installer/sim-confirmations', body)
+    if not r.get('ok'):
+        return _refused(r)
+    c = r['confirmation']
+    print('[ OK ] %s: %s ticked "%s" for %s (%s…) at %s — %d/%d Purposes passed on the twin' % (c['name'], c['who_words'], c['words'], config, c['hex_sha256'][:16],
+                                                                                         c['confirmed_at'], c['purposes_passed'], c['purposes_total']))
+    for v in c.get('voided') or []:
+        print('       voided   %s (%s…)' % (v['name'], v['hex_sha256'][:16]))
+    _print_gate(r['verdict'], '       ')
+    return 0
+
+
+def _sim_purposes(api, variant):
+    """After a sim install: run the four Purposes on the twin through the server, or print the exact command when it cannot."""
+    r = _call(api, 'POST', '/api/board/installer/sim-install', {'config': variant}, timeout=1800)
+    if not r.get('ok'):
+        print('[WAIT] Purposes: %s' % r.get('error'))
+        if r.get('retry'):
+            print('       run      %s' % r['retry'])
+        return
+    for p in r.get('runs') or []:
+        print('[%s] %-40s %s' % ({'passed': 'PASS', 'failed': 'FAIL'}.get(p.get('outcome'), ' ?? '), p['purpose'], (p.get('words') or '')[:120]))
+
+
+def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180, anyway=''):
     doc = _call(api, 'GET', '/api/board/installer')
     if not doc.get('ok'):
         return _refused(doc)
@@ -89,8 +149,9 @@ def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180):
     elif doc.get('boards'):
         target = doc['boards'][0]['name']
     else:
-        print('[REFUSED] no UNO is detected on %s (%s) — plug it in, or add --twin to install into the simavr twin' % (doc['host'], doc.get('scan_note')))
+        print('[REFUSED] no UNO is detected on %s (%s) — plug it in, or add --sim to install into the simavr twin' % (doc['host'], doc.get('scan_note')))
         return REFUSED
+    print('[MODE] %s install — %s' % ('SIM' if twin else 'REAL', next((m['words'] for m in doc.get('modes') or [] if m['name'] == ('sim' if twin else 'real')), target)))
     fit = [b for b in doc['builds'] if b.get('variant') == variant and b.get('installable')]
     if fit:
         build = fit[0]['name']
@@ -104,13 +165,23 @@ def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180):
             return 1
         build = b['build']
         print('[ .. ] build    %s (new; flash %s B, RAM %s B)' % (build, b.get('flash_bytes'), b.get('ram_bytes')))
-    p = _call(api, 'POST', '/api/board/installer/plan', {'instance': target, 'build': build})
+    if not twin:   # ins-1: the gate, read before the plan so the words come first
+        g = _call(api, 'GET', '/api/board/installer/gate?config=%s&build=%s' % (variant, build))
+        if g.get('ok'):
+            _print_gate(g, '       ')
+    body = {'instance': target, 'build': build}
+    if anyway:
+        body.update(install_anyway=True, reason=anyway)
+    p = _call(api, 'POST', '/api/board/installer/plan', body)
     if not p.get('ok'):
         return _refused(p)
     print('[DRY-RUN] %s' % p['argv_text'])
     if p.get('wrapper_text'):
         print('          runs as: %s' % p['wrapper_text'])
-    print('          engine %s (%s)   compat %s   target %s on %s' % (p['engine'], p['engine_how'], p['compat'], p['target_kind'], p['host']))
+    print('          engine %s (%s)   compat %s   target %s on %s   mode %s   gate %s' % (p['engine'], p['engine_how'], p['compat'], p['target_kind'], p['host'],
+                                                                                          p.get('install_mode'), p.get('gate')))
+    if p.get('override_reason'):
+        print('          INSTALL ANYWAY recorded: %s' % p['override_reason'])
     print('          will stamp: %s' % p['will_stamp'])
     if not yes:
         print('          nothing was run — add --yes to install (plan %s)' % p['plan'])
@@ -121,6 +192,9 @@ def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180):
     print('[%s] %s  %s — %s (%.1f s)' % (' OK ' if r['verdict'] == 'installed' else 'FAIL', r['name'], r['verdict'], r['verify'], r.get('elapsed_s') or 0))
     if r['verdict'] != 'installed':
         return 1
+    if twin:
+        _sim_purposes(api, variant)
+        print('          when you have watched it: pol board confirm-sim %s --api %s   (or tick it on the installer page / the sim bench)' % (variant, api))
     a = _call(api, 'POST', '/api/board/installer/attach', {'record': r['name']})
     if not a.get('ok'):
         print('[REFUSED] attach: %s' % a.get('error'))
@@ -144,12 +218,18 @@ def main(argv):
     import argparse
     import os
     ap = argparse.ArgumentParser(prog='pol board')
-    ap.add_argument('verb', choices=('install', 'variants', 'result'))
+    ap.add_argument('verb', choices=('install', 'variants', 'result', 'gate', 'confirm-sim'))
     ap.add_argument('rest', nargs='*')
     ap.add_argument('--variant', default='uno-sim-rig')
     ap.add_argument('--twin', action='store_true')
+    ap.add_argument('--sim', action='store_true')
+    ap.add_argument('--real', action='store_true')
     ap.add_argument('--yes', action='store_true')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--anyway', default='')
+    ap.add_argument('--hex', default='')
+    ap.add_argument('--build', default='')
+    ap.add_argument('--words', default='')
     ap.add_argument('--api', default=os.environ.get('POLARI_API', ''))
     a = ap.parse_args(argv)
     if a.verb == 'variants':
@@ -159,10 +239,21 @@ def main(argv):
         return REFUSED
     if a.verb == 'result':
         return result(a.api, a.rest[0] if a.rest else '')
+    if a.verb in ('gate', 'confirm-sim'):
+        if not a.rest:
+            print('[REFUSED] name the config: pol board %s <config>' % a.verb)
+            return REFUSED
+        return gate(a.api, a.rest[0]) if a.verb == 'gate' else confirm_sim(a.api, a.rest[0], a.hex, a.build, a.words)
     if a.rest and a.rest[0] not in ('uno', 'arduino-uno-r3'):
         print('[REFUSED] only the UNO has firmware variants so far (plan §8a)')
         return REFUSED
-    return install(a.api, a.variant, a.twin, a.yes and not a.dry_run)
+    if a.sim and a.real:
+        print('[REFUSED] pick one mode: --sim (the twin) or --real (a detected board)')
+        return REFUSED
+    if not (a.sim or a.real or a.twin):
+        print('[REFUSED] say which install: --sim (the twin; validate and confirm there first) or --real (a detected board)')
+        return REFUSED
+    return install(a.api, a.variant, a.twin or a.sim, a.yes and not a.dry_run, anyway=a.anyway)
 
 
 if __name__ == '__main__':
