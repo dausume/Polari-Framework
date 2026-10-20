@@ -1195,6 +1195,8 @@ class polariServer(treeObject):
             # Material-derived devices + SPICE cards + circuit runs.
             ElectronicDeviceDefinition, SpiceModelCard,
             CircuitRunResult, SemiconductorProfile,
+            # cst-0: the circuit states of a firmware config and the transitions between them (derived on read, never seeded)
+            CircuitState, CircuitStateTransition,
             DeviceValidationReport, PhotoAbsorberDefinition,
             SolarStackDefinition, SolarLayerDefinition,
             # cnt-s1: the aligned-CNT FET decomposed device (D2b) +

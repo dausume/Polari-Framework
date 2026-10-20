@@ -40,6 +40,8 @@
       "objects/circuit/CircuitComponentDefinition",
       "objects/circuit/CircuitDefinition",
       "objects/circuit/CircuitNetDefinition",
+      "objects/circuit/CircuitState",
+      "objects/circuit/CircuitStateTransition",
       "objects/circuit/_shared",
       "objects/device/CircuitRunResult",
       "objects/device/ElectronicDeviceDefinition",
@@ -73,6 +75,7 @@
     ],
     "api": [
       "circuit_api",
+      "circuit_states_api",
       "device_api",
       "layout_api"
     ],
@@ -83,12 +86,18 @@
     "selftests": [
       "breadboard_selftest",
       "circuit_rows_selftest",
+      "circuit_states_selftest",
       "electrodevice_selftest",
       "layout_selftest",
       "level_bridge_selftest"
     ],
     "custom": [
       "custom/board_family",
+      "custom/cst_cli",
+      "custom/cst_modes",
+      "custom/cst_netlist",
+      "custom/cst_sources",
+      "custom/cst_verdict",
       "custom/device_derive",
       "custom/layout_cli",
       "custom/layout_colors",
@@ -119,6 +128,9 @@
     "CircuitNetDefinition",
     "CircuitRowsAPI",
     "CircuitRunResult",
+    "CircuitState",
+    "CircuitStateTransition",
+    "CircuitStatesAPI",
     "ComponentPlacement",
     "DeviceValidationReport",
     "ElectroDeviceAPI",
@@ -142,7 +154,9 @@
         "CircuitNetDefinition",
         "SEED_CIRCUIT_COMPONENTS",
         "SEED_CIRCUIT_NETS",
-        "SEED_CIRCUITS"
+        "SEED_CIRCUITS",
+        "CircuitState",
+        "CircuitStateTransition"
       ]
     ],
     [
@@ -217,6 +231,7 @@
   "selftests": [
     "breadboard_selftest",
     "circuit_rows_selftest",
+    "circuit_states_selftest",
     "electrodevice_selftest",
     "layout_selftest",
     "level_bridge_selftest"
