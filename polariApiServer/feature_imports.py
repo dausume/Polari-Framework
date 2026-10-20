@@ -150,6 +150,7 @@ FEATURE_IMPORT_BLOCKS = (
             'CircuitComponentDefinition', 'CircuitDefinition',
             'CircuitNetDefinition', 'SEED_CIRCUIT_COMPONENTS',
             'SEED_CIRCUIT_NETS', 'SEED_CIRCUITS',
+            'CircuitState', 'CircuitStateTransition',   # cst-0: the circuit states of a config + the moves between them (derived, never seeded)
         )),
         ('electrodevice.breadboard_basis', (
             'BoardJumper', 'BreadboardDefinition', 'ComponentPlacement',

@@ -28,3 +28,5 @@ from electrodevice.objects.circuit._shared import COMPONENT_KINDS, SEED_CIRCUITS
 from electrodevice.objects.circuit.CircuitDefinition import CircuitDefinition  # noqa: F401
 from electrodevice.objects.circuit.CircuitNetDefinition import CircuitNetDefinition  # noqa: F401
 from electrodevice.objects.circuit.CircuitComponentDefinition import CircuitComponentDefinition  # noqa: F401
+from electrodevice.objects.circuit.CircuitState import CircuitState  # noqa: F401   # cst-0: one electronic state of a bench circuit under a config (derived)
+from electrodevice.objects.circuit.CircuitStateTransition import CircuitStateTransition  # noqa: F401   # cst-0: what moves the circuit between states

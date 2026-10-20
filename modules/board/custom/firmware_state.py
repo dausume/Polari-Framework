@@ -291,7 +291,9 @@ def _raw_bodies(path):
     """{function name: its body text} by brace matching from each definition line (a structural parse already found the names; this is for word matches)."""
     text = open(path).read()
     out = {}
-    for m in re.finditer(r'^(?:static\s+)?(?:inline\s+)?[\w\s\*]+?\b(\w+)\s*\([^;{]*\)\s*\{', text, re.M):
+    # the parameter list carries no parens, quotes or newlines of its own - so a POLARI_NODE(... role("...")) annotation right above a function never
+    # swallows the function's header (cst-0 found hal_button_init missing for exactly that reason)
+    for m in re.finditer(r'^(?:static\s+)?(?:inline\s+)?[\w\s\*]+?\b(\w+)\s*\([^;{}()"\n]*\)\s*\{', text, re.M):
         name, i, depth = m.group(1), m.end() - 1, 0
         for j in range(i, len(text)):
             if text[j] == '{':

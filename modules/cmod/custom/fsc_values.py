@@ -22,6 +22,18 @@ def kind_of(k):
     return 'stand-in' if k == 'undetermined' else k
 
 
+def active_current(config, manager=None):
+    """cst-1: the Battery profile's `active-current` basis when one exists - the ground return of the config's `led-on` circuit state from its stored SPICE .op
+    (electrodevice.custom.cst_verdict.active_current_ma), as q('measured', mA, basis); None when no run is stored (the term then stays without a value, as before).
+    The MCU core current is not in it (no cited figure yet): the basis says so."""
+    try:
+        from electrodevice.custom import cst_verdict as CV
+    except Exception:   # noqa: BLE001 - the electrodevice module may not be admitted
+        return None
+    ma, basis = CV.active_current_ma(config, manager)
+    return q('measured', ma, basis) if ma is not None else None
+
+
 def facts(c, ctx, manager=None):
     """What the candidate is made of, once: {classes {part class: {jobs, on_bench, why}}, board_part, atoms {job: n|None}, variants {job: row}}."""
     from cmod.custom import isotope_variants as IV
