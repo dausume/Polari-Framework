@@ -14,6 +14,7 @@
     "extends": "",
     "catalogKinds": [],
     "agentTier": "member",
+    "realization": "",
     "category": "polari",
     "subcategories": [
       "materials-devices"
@@ -46,6 +47,11 @@
       "objects/device/_shared",
       "objects/device_validator/DeviceValidationReport",
       "objects/device_validator/_shared",
+      "objects/layout/BenchBoard",
+      "objects/layout/BoardModel",
+      "objects/layout/LayoutEdit",
+      "objects/layout/WireColorScheme",
+      "objects/layout/_shared",
       "objects/level_bridge/PinBindingDefinition",
       "objects/level_bridge/_shared",
       "objects/photo/PhotoAbsorberDefinition",
@@ -60,13 +66,15 @@
       "circuit_basis",
       "device_basis",
       "device_validator_basis",
+      "layout_basis",
       "level_bridge_basis",
       "photo_basis",
       "semiconductor_basis"
     ],
     "api": [
       "circuit_api",
-      "device_api"
+      "device_api",
+      "layout_api"
     ],
     "seed": [
       "breadboard_netlist_seed",
@@ -76,17 +84,33 @@
       "breadboard_selftest",
       "circuit_rows_selftest",
       "electrodevice_selftest",
+      "layout_selftest",
       "level_bridge_selftest"
     ],
     "custom": [
+      "custom/board_family",
       "custom/device_derive",
+      "custom/layout_cli",
+      "custom/layout_colors",
+      "custom/layout_compile",
+      "custom/layout_core",
+      "custom/layout_edits",
+      "custom/layout_gate",
+      "custom/layout_place",
+      "custom/layout_rows",
+      "custom/layout_rules",
+      "custom/layout_sources",
+      "custom/layout_steps",
+      "custom/layout_words",
       "custom/photo_derive",
       "custom/spice_run",
       "custom/switching"
     ]
   },
   "classes": [
+    "BenchBoard",
     "BoardJumper",
+    "BoardModel",
     "BreadboardAPI",
     "BreadboardDefinition",
     "CircuitComponentDefinition",
@@ -98,12 +122,15 @@
     "DeviceValidationReport",
     "ElectroDeviceAPI",
     "ElectronicDeviceDefinition",
+    "LayoutAPI",
+    "LayoutEdit",
     "PhotoAbsorberDefinition",
     "PinBindingDefinition",
     "SemiconductorProfile",
     "SolarLayerDefinition",
     "SolarStackDefinition",
-    "SpiceModelCard"
+    "SpiceModelCard",
+    "WireColorScheme"
   ],
   "imports": [
     [
@@ -126,6 +153,18 @@
         "SEED_BREADBOARDS",
         "SEED_JUMPERS",
         "SEED_PLACEMENTS"
+      ]
+    ],
+    [
+      "electrodevice.layout_basis",
+      [
+        "BoardModel",
+        "BenchBoard",
+        "WireColorScheme",
+        "LayoutEdit",
+        "SEED_BOARD_MODELS",
+        "SEED_BENCH_BOARDS_ALL",
+        "SEED_WIRE_COLOR_SCHEMES"
       ]
     ],
     [
@@ -178,6 +217,7 @@
     "breadboard_selftest",
     "circuit_rows_selftest",
     "electrodevice_selftest",
+    "layout_selftest",
     "level_bridge_selftest"
   ],
   "security": {

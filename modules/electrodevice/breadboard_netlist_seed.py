@@ -21,11 +21,13 @@ analysis type is a plain error, mirroring circuit_netlist.
 
 import json
 
+from electrodevice.custom import board_family as BF
 from electrodevice.circuit_netlist_seed import (_device_card,
                                            _element_line, _PREFIX,
                                            run_netlist)
 
-_RAILS = ('vplus', 'gnd')
+#: lay-1: a placement of this kind has tie points but no SPICE element (the netlist gate only needs which strips its pins sit on)
+PART_KIND = 'part'
 
 
 def _rows(manager, class_name):
@@ -34,29 +36,59 @@ def _rows(manager, class_name):
 
 
 def tie_net(board, tie):
-    """One tie point -> its net name. 'gnd' is global ground."""
+    """One tie point -> its net name. 'gnd' is global ground; so is a development board's GND header pin.
+    lay-0: a hole 'r<N><a-j>' is the net of its strip side (a-e left, f-j right: the same net as the older 'r<N>L' / 'r<N>R'), a rail hole
+    'rail:<top|bottom>:<+|->:<N>' is the net of that whole rail, and a devboard's header label (D6, +5V, GND) is the net of that pin."""
     board_row = board if isinstance(board, str) else board.name
     ident = board_row.replace('-', '_')
-    if tie == 'gnd':
-        return '0'
-    if tie == 'vplus':
-        return f'{ident}_vplus'
-    if (len(tie) >= 3 and tie[0] == 'r' and tie[-1] in 'LR'
-            and tie[1:-1].isdigit()):
-        return f'{ident}_r{int(tie[1:-1])}{tie[-1].lower()}'
-    raise ValueError(
-        f"tie point {tie!r} on board '{board_row}' is not "
-        f"'r<N>L'/'r<N>R'/'vplus'/'gnd'")
+    if getattr(board, 'kind', 'breadboard') == 'devboard':
+        label = BF.header_label(tie)
+        return '0' if label == 'GND' else f"{ident}_{label.lstrip('+').lower()}"
+    parsed = BF.parse_tie(tie)
+    if parsed is None:
+        raise ValueError(
+            f"tie point {tie!r} on board '{board_row}' is not a hole "
+            f"'r<N><a-j>', a strip 'r<N>L'/'r<N>R', a rail "
+            f"'rail:<top|bottom>:<+|->:<N>' or 'vplus'/'gnd'")
+    if parsed[0] == 'power':
+        return '0' if tie == 'gnd' else f'{ident}_vplus'
+    if parsed[0] == 'rail':
+        return f"{ident}_rail_{parsed[1]}_{'p' if parsed[2] == '+' else 'n'}"
+    side = parsed[2] if parsed[0] == 'strip' else BF.side_of(parsed[2])
+    return f'{ident}_r{parsed[1]}{side.lower()}'
 
 
 def _validate_tie(board_row, tie, owner):
     """`owner` names the row at fault ("placement 'x'" /
     "jumper 'y'" / "external pin 'z'")."""
-    if tie in _RAILS:
+    if getattr(board_row, 'kind', 'breadboard') == 'devboard':
+        pins = board_row.pins
+        if not pins:
+            raise ValueError(
+                f"{owner}: board '{board_row.name}' is a development "
+                f"board whose header pins are unknown here (the board "
+                f"module is not loaded, or it has no BoardPin rows for "
+                f"'{board_row.board_definition}')")
+        if BF.header_label(tie) not in pins:
+            raise ValueError(
+                f"{owner}: {tie!r} is not a header pin of board "
+                f"'{board_row.name}' ({board_row.board_definition}); "
+                f"pins: {', '.join(sorted(pins))}")
         return
-    row_num = int(tie[1:-1]) if tie[1:-1].isdigit() else -1
+    parsed = BF.parse_tie(tie)
+    if parsed is None:
+        tie_net(board_row, tie)    # raises the grammar error naming the accepted spellings
+    if parsed[0] == 'power':
+        return
+    if parsed[0] == 'rail':
+        holes = int(getattr(board_row, 'rail_holes', 0) or 25)
+        if not 1 <= parsed[3] <= holes:
+            raise ValueError(
+                f"{owner}: tie {tie!r} is outside "
+                f"board '{board_row.name}' (rail holes 1..{holes})")
+        return
     rows = int(getattr(board_row, 'rows', 30))
-    if not 1 <= row_num <= rows:
+    if not 1 <= parsed[1] <= rows:
         raise ValueError(
             f"{owner}: tie {tie!r} is outside "
             f"board '{board_row.name}' (rows 1..{rows})")
@@ -87,13 +119,21 @@ class _Unions:
 
 
 def _board_map(manager, board_names):
-    boards = {getattr(b, 'name', ''): b
-              for b in _rows(manager, 'BreadboardDefinition')}
-    missing = [n for n in board_names if n not in boards]
+    """name -> resolved Board (electrodevice.custom.board_family): a
+    BenchBoard's model geometry, or the older BreadboardDefinition row."""
+    boards = {n: BF.resolve(manager, n) for n in board_names}
+    missing = [n for n, b in boards.items() if b is None]
     if missing:
         raise ValueError(f'unknown breadboard(s): {missing} — known: '
-                         f'{sorted(boards)}')
-    return {n: boards[n] for n in board_names}
+                         f'{BF.known_boards(manager)}')
+    reserved = [n for n, b in boards.items() if b.reserved]
+    if reserved:
+        raise ValueError(
+            f"board(s) {reserved} are of a RESERVED kind "
+            f"({', '.join(boards[n].kind for n in reserved)}): no "
+            f"geometry is built for it yet, so nothing can be placed "
+            f"on it")
+    return boards
 
 
 def _jumper_unions(manager, boards):
@@ -146,8 +186,8 @@ def _board_elements(manager, boards, unions, port_by_net=None):
                          f'{sorted(boards)}')
     for placement in placements:
         kind = getattr(placement, 'kind', '')
-        if kind not in _PREFIX:
-            kinds = ', '.join(sorted(_PREFIX))
+        if kind not in _PREFIX and kind != PART_KIND:
+            kinds = ', '.join(sorted(_PREFIX) + [PART_KIND])
             raise ValueError(
                 f"placement '{placement.name}': unknown kind "
                 f"'{kind}' (kinds: {kinds})")
@@ -163,6 +203,8 @@ def _board_elements(manager, boards, unions, port_by_net=None):
             net = unions.resolve(tie_net(board_row, tie))
             pins.append(port_by_net.get(net, net))
         net_by_placement[placement.name] = pins
+        if kind == PART_KIND:    # a part with no SPICE element: connectivity only
+            continue
         sub = None
         if kind == 'device':
             card, sub = _device_card(manager, placement.device_name)
@@ -263,6 +305,32 @@ def render_board_subckt(manager, board_name, external_pins):
             + f'.subckt {sub_ident} {ports}\n'
             + body + nl
             + f'.ends {sub_ident}\n')
+
+
+def layout_nets(manager, board_names, ties=()):
+    """lay-1 (THE NETLIST GATE's compile): the connectivity of a populated
+    layout through the SAME tie grammar, union-find and placement walk as
+    the SPICE render, but needing no source and no run. `ties` is a list
+    of (board, tie) points to read the net of (a device board's header
+    pin, a hole). -> {'netByPlacement': {placement: [net per tie]},
+    'netByTie': {(board, tie): net}, 'suggestions': [...]}. A plain
+    ValueError names the row at fault."""
+    boards = _board_map(manager, board_names)
+    unions, suggestions = _jumper_unions(manager, boards)
+    try:
+        _cards, _lines, net_by_placement, _led = _board_elements(
+            manager, boards, unions)
+    except ValueError as exc:
+        if not str(exc).startswith('no ComponentPlacement rows'):
+            raise
+        net_by_placement = {}
+    net_by_tie = {}
+    for board, tie in ties:
+        _validate_tie(boards[board], tie, f'tie {tie!r}')
+        net_by_tie[(board, tie)] = unions.resolve(
+            tie_net(boards[board], tie))
+    return {'netByPlacement': net_by_placement, 'netByTie': net_by_tie,
+            'suggestions': suggestions}
 
 
 def compile_breadboard(domain_rows):

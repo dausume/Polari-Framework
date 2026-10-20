@@ -14,6 +14,9 @@ external pins — the circuit-world mirror of SolutionInvocation
 Tie-point grammar (tiepoints_json entries):
   'r<N>L' / 'r<N>R'  row N, left/right of the trench
   'vplus' / 'gnd'    the power rails ('gnd' is SPICE ground 0)
+  lay-0 adds the HOLE: 'r<N><a-j>' (a-e = the left strip, f-j = the right strip: the same nets as r<N>L / r<N>R) and
+  'rail:<top|bottom>:<+|->:<N>' (one net per rail); a development board's header pin (D6, GND, +5V) is a tie of that board.
+  Boards are objects now (electrodevice.layout_basis: BoardModel + BenchBoard); a BreadboardDefinition row converges onto a BenchBoard by name.
 
 MCU and FPGA pins need no special kind at this level: a driven pin
 IS a voltage source placement ('vsource'); ncg-6 binds those sources

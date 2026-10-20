@@ -108,7 +108,7 @@ def build_hex(config):
 def _worker():
     where = be.resolve_sessions()
     if where['how'] != be.REMOTE:
-        raise SessionRefused(where['why'], 503)
+        raise SessionRefused(where['why'], 424)   # 424, not 503: the proxy masks a 503 as "Backend unavailable" and the words are lost
     return where['where']
 
 
@@ -141,7 +141,7 @@ def start(manager, config, ttl_s=DEFAULT_TTL_S, owner='', watch=None, free=False
     try:
         w = W.start(worker, hex_bytes, BOARD, MCU, ttl_s, token, owner=owner, free=free)
     except W.WorkerRefused as e:
-        raise SessionRefused(str(e), 503 if e.status in (0, 503) else (e.status or 502))
+        raise SessionRefused(str(e), 424 if e.status in (0, 503) else (e.status or 502))
     host = urlparse(worker).hostname or ''
     idx = _next_index(manager, BOARD)
     watch = list(watch or DEFAULT_WATCH)
@@ -199,7 +199,7 @@ def stop(manager, name):
             W.stop(row.worker_url, row.worker_session)
         except W.WorkerRefused as e:
             if e.status != 404:
-                raise SessionRefused(str(e), 503)
+                raise SessionRefused(str(e), 424)
         _end(manager, row, 'stopped by %s' % (row.owner or 'a person'))
     return view(row)
 

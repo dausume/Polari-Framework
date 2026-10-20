@@ -922,6 +922,8 @@ class polariServer(treeObject):
             CircuitDefinition, CircuitNetDefinition,
             CircuitComponentDefinition,
             BreadboardDefinition, ComponentPlacement, BoardJumper,
+            # lay-0/lay-1: board models, boards on the bench, wire colour schemes, a person's layout edits
+            BoardModel, BenchBoard, WireColorScheme, LayoutEdit,
             PinBindingDefinition, NoCodeTestCase, NoCodeTestPack,
             GovSource, SourceRetrieval, RetrievalConfirmation,
             NonProfitSource, CompanySource, PoliticalGroupSource,
@@ -1183,6 +1185,8 @@ class polariServer(treeObject):
             # grpc-j4: the computer<->firmware mapping (bindings,
             # enum tables, wire contracts).
             HardwareInterfaceBinding, EnumMapping, WireContract,
+            # sim-2: a generated bridge hosted beside a twin session.
+            HostedBridge,
             # L3 MD + L2 mesoscale model definitions (msci-26).
             MDModelDefinition, MesoModelDefinition,
             # FPGA register maps as data + FPGA twin (hwsim-3).
@@ -2507,6 +2511,8 @@ class polariServer(treeObject):
             # hwsim-1: the Renode rig twin exists from boot so its
             # schema can stabilize before the first telemetry frame.
             ('SimRigState', SimRigState, SEED_SIM_RIGS),
+            # sim-2: hosted bridges are observed (started, never seeded).
+            ('HostedBridge', HostedBridge, []),
             # grpc-j4: enum tables + the uno-pair bindings (two UNO
             # twins on one bridge -> a 1-bit instance index).
             ('EnumMapping', EnumMapping, SEED_ENUM_MAPPINGS),
@@ -2849,6 +2855,12 @@ class polariServer(treeObject):
             ('ComponentPlacement', ComponentPlacement,
              SEED_PLACEMENTS),
             ('BoardJumper', BoardJumper, SEED_JUMPERS),
+            # lay-0: models before the boards on the bench (a board names its model); schemes are seeded rows (copy before editing);
+            # a person's layout edits are runtime data.
+            ('BoardModel', BoardModel, SEED_BOARD_MODELS),
+            ('BenchBoard', BenchBoard, SEED_BENCH_BOARDS_ALL),
+            ('WireColorScheme', WireColorScheme, SEED_WIRE_COLOR_SCHEMES),
+            ('LayoutEdit', LayoutEdit, []),
             # ncg-6: bindings after the designs/placements they
             # reference; packs before their cases.
             ('PinBindingDefinition', PinBindingDefinition,

@@ -358,6 +358,11 @@ def construct_grpcbridge_endpoints(polServer):
     from grpcbridge.java_bridge_api import HardwareBridgeAPI
     hardwareBridgeEndpoint = HardwareBridgeAPI(
         polServer=polServer, manager=manager)
+    # sim-2: the generated bridge hosted beside a twin session
+    # (/api/grpc/hosted-bridges, /api/grpc/hosted-engines).
+    from grpcbridge.hosted_bridges_api import HostedBridgesAPI
+    hostedBridgesEndpoint = HostedBridgesAPI(
+        polServer=polServer, manager=manager)
 
 
 def construct_hwfpga_endpoints(polServer):
@@ -388,6 +393,10 @@ def construct_electrodevice_endpoints(polServer):
     from electrodevice.device_api import ElectroDeviceAPI
     electroDeviceEndpoint = ElectroDeviceAPI(
         polServer=polServer, manager=manager)
+    # lay-0/lay-1: the board family + the layout of a built config
+    # (/api/layout/...): placements, wires, the netlist gate, steps.
+    from electrodevice.layout_api import LayoutAPI
+    layoutEndpoint = LayoutAPI(polServer=polServer, manager=manager)
 
 
 def construct_collab_endpoints(polServer):

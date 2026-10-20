@@ -194,6 +194,7 @@ def generate_project(manager, bridge, row_factory=None):
     files[f'{JAVA_DIR}/SimulatedDevice.java'] = \
         jt.SIMULATED_DEVICE_JAVA
     files[f'{JAVA_DIR}/SerialCdcPort.java'] = jt.SERIAL_PORT_JAVA
+    files[f'{JAVA_DIR}/TcpDevicePort.java'] = jt.TCP_PORT_JAVA   # brg-0: source=twin-tcp
     files[f'{JAVA_DIR}/BridgeConfig.java'] = jt.BRIDGE_CONFIG_JAVA
     files[f'{JAVA_DIR}/BridgeMain.java'] = jt.BRIDGE_MAIN_JAVA
     files[f'{JAVA_DIR}/LoopbackSelfTest.java'] = \
@@ -231,6 +232,10 @@ def generate_project(manager, bridge, row_factory=None):
         f'serial.device='
         f'{getattr(bridge, "serial_device", "/dev/ttyACM0")}',
         f'serial.baud={getattr(bridge, "baud", 115200)}',
+        # brg-0: source=twin-tcp reaches a twin session's raw USART tcp port (the defaults are the standalone twin's)
+        f'twin.host={getattr(bridge, "twin_host", "127.0.0.1")}',
+        f'twin.port={getattr(bridge, "twin_port", 9831)}',
+        'twin.connect_timeout_s=30',
         f'sim.rate_hz={getattr(bridge, "sim_rate_hz", 10)}',
         'max_frames=0',
         f'device.id={getattr(bridge, "device_id", 1)}',

@@ -552,7 +552,7 @@ def _lifecycle_checks(mgr, javac, java):
               'fields (no SKIP, no FAIL)',
               comp.returncode == 0 and run is not None
               and run.returncode == 0
-              and run.stdout.count('PASS: lifecycle') == 4
+              and run.stdout.count('PASS: lifecycle') == 5   # brg-0: + the tcp port
               and 'SKIP' not in run.stdout and 'FAIL' not in run.stdout,
               comp.stderr[:800] + (run.stdout[-800:] if run else ''))
 
@@ -588,6 +588,7 @@ def main():
                 f'{jb.JAVA_DIR}/DevicePort.java',
                 f'{jb.JAVA_DIR}/SimulatedDevice.java',
                 f'{jb.JAVA_DIR}/SerialCdcPort.java',
+                f'{jb.JAVA_DIR}/TcpDevicePort.java',   # brg-0
                 f'{jb.JAVA_DIR}/BridgeMain.java',
                 f'{jb.JAVA_DIR}/CodecRegistry.java',
                 f'{jb.JAVA_DIR}/codec/WidgetCodec.java',
@@ -697,7 +698,7 @@ def main():
                       'carry neither field skips reboot/snapshot '
                       'honestly, still proves reconnect + gap',
                       lifecycle.returncode == 0
-                      and lifecycle.stdout.count('PASS: lifecycle') == 2
+                      and lifecycle.stdout.count('PASS: lifecycle') == 3   # brg-0: + the tcp port
                       and lifecycle.stdout.count('SKIP: lifecycle') == 2,
                       lifecycle.stdout[-600:] + lifecycle.stderr[-200:])
 

@@ -73,23 +73,36 @@ import java.util.concurrent.LinkedBlockingQueue;
  * by-id path), a reader thread per port, frames tagged with the port
  * they arrived on; a command for (class, index k) goes to binding k's
  * port only. The rest of the app is unchanged (one seam).
+ *
+ * brg-0: with source=twin-tcp there is ONE device, a twin session's USART
+ * port (the twin accepts one client), so every binding shares ONE
+ * TcpDevicePort; frames carry no sourcePort (the port check is skipped)
+ * and a command for any binding goes down that one connection.
  */
 public final class BindingRouter implements DevicePort {
     private static final Object END = new Object();
     private static final Object CORRUPT = new Object();
     private final BridgeConfig cfg;
-    private final Map<String, SerialCdcPort> ports = new LinkedHashMap<>();
+    private static final String TWIN = "twin-tcp";
+    private final boolean twin;
+    private final Map<String, DevicePort> ports = new LinkedHashMap<>();
     private final BlockingQueue<Object> queue = new LinkedBlockingQueue<>();
     private int live;
 
     public BindingRouter(BridgeConfig cfg) throws Exception {
         this.cfg = cfg;
-        for (BridgeBinding b : cfg.bindings) {
-            if (!ports.containsKey(b.port)) {
-                ports.put(b.port, new SerialCdcPort(b.port, cfg.baud));
+        this.twin = TWIN.equals(cfg.source);
+        if (twin) {
+            ports.put(TWIN, new TcpDevicePort(cfg.twinHost, cfg.twinPort,
+                    cfg.twinConnectTimeoutS));
+        } else {
+            for (BridgeBinding b : cfg.bindings) {
+                if (!ports.containsKey(b.port)) {
+                    ports.put(b.port, new SerialCdcPort(b.port, cfg.baud));
+                }
             }
         }
-        for (Map.Entry<String, SerialCdcPort> e : ports.entrySet()) {
+        for (Map.Entry<String, DevicePort> e : ports.entrySet()) {
             live++;
             Thread t = new Thread(() -> pump(e.getKey(), e.getValue()),
                     "port " + e.getKey());
@@ -98,7 +111,7 @@ public final class BindingRouter implements DevicePort {
         }
     }
 
-    private void pump(String path, SerialCdcPort port) {
+    private void pump(String path, DevicePort port) {
         try {
             while (true) {
                 PolariPacket p = port.next();
@@ -106,7 +119,7 @@ public final class BindingRouter implements DevicePort {
                     queue.put(CORRUPT);
                     continue;
                 }
-                p.sourcePort = path;
+                p.sourcePort = twin ? null : path;
                 queue.put(p);
             }
         } catch (Exception ended) {
@@ -142,25 +155,28 @@ public final class BindingRouter implements DevicePort {
             throw new IllegalStateException("no binding for " + objectClass
                     + " index " + index + " on this bridge");
         }
-        ports.get(b.port).send(packet);
+        ports.get(twin ? TWIN : b.port).send(packet);
     }
 
     @Override
     public String describe() {
-        return "bindings " + cfg.bindings.size() + " on ports "
-                + ports.keySet();
+        return twin
+                ? "bindings " + cfg.bindings.size() + " on twin-tcp "
+                        + cfg.twinHost + ":" + cfg.twinPort
+                : "bindings " + cfg.bindings.size() + " on ports "
+                        + ports.keySet();
     }
 
     @Override
     public long reconnects() {
         long total = 0;
-        for (SerialCdcPort p : ports.values()) total += p.reconnects();
+        for (DevicePort p : ports.values()) total += p.reconnects();
         return total;
     }
 
     @Override
     public void close() throws Exception {
-        for (SerialCdcPort p : ports.values()) p.close();
+        for (DevicePort p : ports.values()) p.close();
     }
 }
 '''
