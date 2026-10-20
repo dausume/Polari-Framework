@@ -37,7 +37,7 @@ def run_attach(check):
           'wire_contract.spec(instances=1))', set(specs) == {'ButtonClockState', 'ButtonClockEvent'})
 
     # (a) WITH the wire: the invariant holds
-    state = T.up('uno', work, tcp=9870, link='/tmp/polari-board-attach-selftest-uart', adc0_mv=750, realtime=True,
+    state = T.up('uno', work, tcp=9931, link='/tmp/polari-board-attach-selftest-uart', adc0_mv=750, realtime=True,
                  pin_at=pinat, wires=wires)
     frames, total, bad = A._decode_stream(state['link'], SECONDS, specs)
     T.down('uno', work)
@@ -51,7 +51,7 @@ def run_attach(check):
 
     # (f) NEGATIVE: the same presses, no wire
     row2 = A._build_variant('uno-button-clock', work)
-    state2 = T.up('uno', work, tcp=9871, link='/tmp/polari-board-attach-selftest-nowire-uart', adc0_mv=750, realtime=True,
+    state2 = T.up('uno', work, tcp=9932, link='/tmp/polari-board-attach-selftest-nowire-uart', adc0_mv=750, realtime=True,
                   pin_at=pinat, wires=[])
     frames2, total2, bad2 = A._decode_stream(state2['link'], SECONDS, specs)
     T.down('uno', work)
