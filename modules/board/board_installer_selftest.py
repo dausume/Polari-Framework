@@ -253,6 +253,116 @@ def flow(check, tmp, fake_runner, size_text, fake_bin, old_path):
           hasattr(BB.InstallPlan(name='x'), 'argv_text') and hasattr(BB.InstallRecord(name='x'), 'verify'))
 
 
+def gate(check, tmp, fake_runner, size_text, fake_bin, old_path):
+    """ins-0/1: the Sim | Real modes and THE CONFIRMED-SIM GATE — refused in words (what is missing + the offer), offered after the four Purposes
+    passed on the twin AND a person's tick for this hex, voided by a new hex (also re-read at run time), "install anyway" only with a reason, recorded."""
+    import datetime
+    from board.custom import installer as I
+    from board.custom import sim_gate as G
+    from board.board_basis import SimInstallConfirmation, BOARD_CLASSES
+    from firmwarefaults.custom.sink import ManagerSink
+    m = _M('FirmwareVariant', 'FirmwareBuild', 'InstallPlan', 'InstallRecord', 'BoardInstance', 'GrpcExposure', 'ProtoContractVersion', 'ScenarioRun', 'SimInstallConfirmation')
+    work = os.path.join(tmp, 'gate')
+    rec = I.build_variant(m, 'uno-light', work, run=fake_runner(size_text(3220, 24, 739)))
+    sha = rec['artifact_sha256']
+    byid = '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_Y-if00'
+    scan = {'host': I.this_host(), 'observed_at': 'now',
+            'usb': [{'bus': '001', 'dev': '011', 'vendor_id': '2341', 'product_id': '0043', 'description': 'Uno R3', 'path': '001-2', 'usb_class': 'Communications'}],
+            'serial': [{'by_id_path': byid, 'device': '/dev/ttyACM1', 'vendor_id': '2341', 'product_id': '0043', 'serial': 'Y', 'bus': '001', 'dev': '011'}]}
+    inst = '%s:arduino-uno-r3@001-2' % I.this_host()
+    check('ins-1 rows: SimInstallConfirmation is a BOARD_CLASSES member with the tick\'s fields (config, hex_sha256, who, confirmed_at, runs_json, state, voided_why)',
+          SimInstallConfirmation in BOARD_CLASSES and {'config', 'hex_sha256', 'who', 'confirmed_at', 'runs_json', 'state', 'voided_why', 'source', 'session'}
+          <= set(vars(SimInstallConfirmation(name='x'))))
+    g0 = G.verdict(m, 'uno-light', sha)
+    check('ins-1 GATE (uno-light, nothing yet): gated, NOT offered; the words name every unproven Purpose (0 of 4) and that nobody ticked for this hex; the offer is the sim install',
+          g0['gated'] and not g0['offered'] and '0 of 4 passed' in g0['words'] and 'nobody has ticked' in g0['words'] and sha[:16] in g0['words'] and 'Do the sim install first' in g0['offer']
+          and len(g0['purposes']) == 4 and all(p['status'] == 'planned' for p in g0['purposes']), g0['words'])
+    check('ins-1 GATE (uno-echo): a bench variant the Mission\'s Purposes do not apply to is NOT gated, and the words say why', not G.verdict(m, 'uno-echo', 'x')['gated']
+          and 'not gated' in G.verdict(m, 'uno-echo', 'x')['words'])
+    doc = I.document(m, work, scan={'host': I.this_host(), 'usb': [], 'serial': []})
+    b = next(x for x in doc['builds'] if x['name'] == rec['name'])
+    check('ins-0 document: the two modes (sim = twin, real = board) with words, default_mode sim with no board seen, the attest words, and the gate per build',
+          [x['name'] for x in doc['modes']] == ['sim', 'real'] and doc['default_mode'] == 'sim' and doc['attest'] == G.ATTEST and b['gate']['gated'] and not b['gate']['offered']
+          and len(b['gate_purposes']) == 4 and b['gate_confirmation'] is None)
+    check('ins-0 document: with a board detected, default_mode is real', I.document(m, work, scan=scan)['default_mode'] == 'real')
+    sp = I.plan(m, I.TWIN, rec['name'], work)
+    check('ins-0 plan (twin): install_mode sim, gate not-gated (the twin is where validation happens), planned', not sp['refused'] and sp['install_mode'] == 'sim' and sp['gate'] == 'not-gated')
+    rp = I.plan(m, inst, rec['name'], work, scan=scan)
+    check('ins-1 REFUSAL: a REAL plan of uno-light with no Purposes run and no tick is refused IN WORDS — what is missing + the sim-install offer; the row says install_mode real, gate not-offered',
+          rp['refused'] and 'REFUSED (sim not confirmed)' in rp['why'] and 'nobody has ticked' in rp['why'] and 'Do the sim install first' in rp['why']
+          and rp['install_mode'] == 'real' and rp['gate'] == 'not-offered' and I._by_name(m, 'InstallPlan', rp['name']).state == 'refused', rp['why'])
+    # the four Purposes pass on the twin (stored the way acceptance.run(variant=config) stores them: variant = the config, outcome passed, mode digital-twin)
+    sink = ManagerSink(m)
+    for i, p in enumerate(G.purpose_runs(m, 'uno-light')):
+        sink.upsert('ScenarioRun', {'name': 'sr-%s-%d' % (p['scenario'], i), 'scenario': p['scenario'], 'side': 'after', 'variant': 'uno-light', 'outcome': 'passed',
+                                    'verdict_words': 'passed on the twin', 'repro_json': json.dumps({'mode': 'digital-twin'}), 'ran_at': datetime.datetime.now().isoformat(timespec='seconds'),
+                                    'firmware_sha256': sha})
+    g1 = G.verdict(m, 'uno-light', sha)
+    check('ins-1 GATE after the four Purposes passed on the twin: every Purpose proven-on-twin, still NOT offered — the one thing missing is the person\'s tick',
+          not g1['offered'] and all(p['status'] == 'proven-on-twin' for p in g1['purposes']) and len(g1['missing']) == 1 and 'nobody has ticked' in g1['missing'][0], g1['missing'])
+    try:
+        G.confirm(m, 'uno-light', '', 'dustin')
+        check('a tick without a hex refuses', False)
+    except I.InstallRefused as e:
+        check('ins-1 TICK refuses without the hex (a tick names the exact program), 400', 'hex sha256' in str(e) and e.status.startswith('400'))
+    c = G.confirm(m, 'uno-light', sha, 'dustin', 'installer', build=rec['name'])
+    g2 = G.verdict(m, 'uno-light', sha)
+    check('ins-1 TICK: the SimInstallConfirmation row (config, hex, who, when, the four run names, 4/4 passed, source installer) → the Real install is OFFERED, the words name who and when',
+          c['who'] == 'dustin' and c['hex_sha256'] == sha and c['purposes_passed'] == 4 and c['purposes_total'] == 4 and len(json.loads(c['runs_json'])) == 4 and c['state'] == 'valid'
+          and g2['offered'] and 'dustin ticked' in g2['words'] and g2['confirmation']['name'] == c['name'], g2['words'])
+    rp2 = I.plan(m, inst, rec['name'], work, scan=scan)
+    check('ins-1 OFFER: the REAL plan is now planned (gate offered, the words on the row), the avrdude argv as before',
+          not rp2['refused'] and rp2['gate'] == 'offered' and 'dustin ticked' in rp2['gate_words'] and rp2['argv_text'].startswith('avrdude'), rp2['why'])
+    # a new hex voids the tick — read again at RUN time, so a plan made before the new build refuses
+    voided = G.void_stale(m, 'uno-light', 'f' * 64)
+    g3 = G.verdict(m, 'uno-light', sha)
+    check('ins-1 VOIDING: a new hex voids the tick (state voided, voided_why names both programs); the gate is NOT offered again and says nobody ticked for this one',
+          len(voided) == 1 and voided[0]['state'] == 'voided' and 'ffffffffffffffff' in voided[0]['voided_why'] and sha[:16] in voided[0]['voided_why'] and not g3['offered'], g3['words'])
+    os.environ['PATH'] = fake_bin + os.pathsep + old_path
+    os.environ['FAKE_AVRDUDE_LOG'] = os.path.join(tmp, 'avrdude-gate.args')
+    try:
+        try:
+            I.run(m, rp2['name'], True, work, scan=scan)
+            check('a run after the tick was voided refuses', False)
+        except I.InstallRefused as e:
+            check('ins-1 RUN re-reads the gate: the plan made while offered is REFUSED at run time once the tick is voided; the plan row says refused + why',
+                  'sim not confirmed' in str(e) and I._by_name(m, 'InstallPlan', rp2['name']).state == 'refused' and 'at run time' in I._by_name(m, 'InstallPlan', rp2['name']).notes)
+        ap = I.plan(m, inst, rec['name'], work, scan=scan, install_anyway=True)
+        check('ins-1 INSTALL ANYWAY without a reason is refused: the words ask for the reason', ap['refused'] and 'needs the reason' in ap['why'], ap['why'])
+        ap = I.plan(m, inst, rec['name'], work, scan=scan, install_anyway=True, reason='bench check only: the LED wiring is being tested, not the firmware')
+        check('ins-1 INSTALL ANYWAY with a reason: planned, gate overridden, the reason on the row, the notes say INSTALLED ANYWAY and quote what the gate said',
+              not ap['refused'] and ap['gate'] == 'overridden' and ap['override_reason'].startswith('bench check only') and 'INSTALLED ANYWAY' in ap['notes'] and 'nobody has ticked' in ap['notes'])
+        r = I.run(m, ap['name'], True, work, scan=scan)
+        check('ins-1 the overridden install runs (fake avrdude) and the InstallRecord carries install_mode real + the override reason',
+              r['verdict'] == 'installed' and r['install_mode'] == 'real' and r['override_reason'].startswith('bench check only')
+              and I._by_name(m, 'InstallRecord', r['name']).override_reason.startswith('bench check only'), r.get('verify'))
+        c2 = G.confirm(m, 'uno-light', sha, '', 'sim-bench', session='uno-light-abc123')
+        g4 = G.verdict(m, 'uno-light', sha)
+        check('ins-1 TICK from the sim bench (no sign-in): source sim-bench, the session kept, who = "no sign-in on the request"; offered again; the installer document lists the confirmations',
+              c2['source'] == 'sim-bench' and c2['session'] == 'uno-light-abc123' and c2['who_words'] == 'no sign-in on the request' and g4['offered']
+              and len(I.document(m, work, scan=scan)['confirmations']) == 2)
+        ok = I.run(m, I.plan(m, inst, rec['name'], work, scan=scan)['name'], True, work, scan=scan)
+        check('ins-1 the offered REAL install runs with no override: install_mode real, override_reason empty', ok['verdict'] == 'installed' and ok['install_mode'] == 'real' and not ok['override_reason'])
+    finally:
+        os.environ['PATH'] = old_path
+        os.environ.pop('FAKE_AVRDUDE_LOG', None)
+    try:
+        G.sim_install(m, 'uno-echo')
+        check('sim_install of an ungated variant refuses', False)
+    except I.InstallRefused as e:
+        check('ins-0 sim_install refuses a variant with no Purposes (uno-echo), in words', 'no Purposes to run' in str(e))
+    from board.custom import light_twin as LT
+    if not LT.engine_ready()[0]:
+        try:
+            G.sim_install(m, 'uno-light')
+            check('sim_install with no local twin refuses', False)
+        except I.InstallRefused as e:
+            check('ins-0 sim_install with no local twin REFUSES with the exact `pol firmware prove` command to run elsewhere (the proof-push rule)',
+                  'pol firmware prove uno-light --api' in str(e) and e.extra.get('retry'), str(e))
+    else:
+        check('SKIP ins-0 sim_install refusal check: this host has a local twin (the live run is board_light_selftest\'s)', True)
+
+
 def page(check):
     from board.board_page import INSTALLER_PAGES as P
     from board.board_page import SEED_BOARD_PAGE_DISPLAYS as ALL
@@ -266,7 +376,9 @@ def page(check):
     check('the installer page tables cover variants, builds, devices, programmer kinds, plans, records, firmware solutions '
           '(fs-1 item 4 fallback: a described table + documented `pol firmware run` command, no live door wired in)',
           tables == {'FirmwareVariant', 'FirmwareBuild', 'BoardInstance', 'ProgrammerKind', 'InstallPlan', 'InstallRecord',
-                     'FirmwareSolution'}, tables)
+                     'FirmwareSolution', 'SimInstallConfirmation'}, tables)   # ins-1: + the confirmations
+    check('ins-0 the installer page says the two modes and the gate in its description', 'SIM INSTALL' in P[0]['description'] and 'REAL INSTALL' in P[0]['description']
+          and 'ticked' in P[0]['description'])
 
 
 def run_installer(check):
@@ -289,6 +401,7 @@ def run_installer(check):
         I.TWIN_TCP, I.TWIN_LINK = 19841, os.path.join(tmp, 'uart')
         try:
             flow(check, tmp, _fake_runner, size_text, fake, old_path)
+            gate(check, tmp, _fake_runner, size_text, fake, old_path)   # ins-0/1
         finally:
             I.TWIN_TCP, I.TWIN_LINK = saved
         page(check)
