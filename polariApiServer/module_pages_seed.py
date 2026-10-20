@@ -178,6 +178,26 @@ def _firmware_panel(item_id, index, segments, title, solutions_path, description
     }
 
 
+def _layout_view(item_id, index, segments, title, description='', mode='build', data_path='/api/layout/{config}', steps_path='/api/layout/steps',
+                 config='uno-light', board='{scope:board}', scheme='{scope:scheme}', session=''):
+    """lay-2: the N-board layout renderer (`hardware-layout-view`) - the second sanctioned d3 component (D-ptv-1). `data_path` is the layout door (`{config}` is filled by the
+    component from the page's `?config=`, else `config`), `steps_path` the steps door (build mode), `mode` build|bench; `board`, `scheme` and `session` are page-scope
+    placeholders (`{scope:..}`) the page re-substitutes in place. The component announces the page scopes `config`, `board`, `scheme`, `component` and `net` so the tables beside it can follow (and it follows `component` when another view sets it)."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'description': description,
+        'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'hardware-layout-view',
+            'inputs': {'dataPath': data_path, 'stepsPath': steps_path, 'mode': mode, 'config': config, 'board': board, 'scheme': scheme, 'session': session,
+                       'component': '{scope:component}', 'net': '{scope:net}'},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320, css_class=''):
     """`css_class='side-by-side'` (fsc-3b): the row's panels sit in ONE line on a wide page and stack, one under the other, when the page body is narrow."""
     return {

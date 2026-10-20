@@ -21,6 +21,7 @@ from electrodevice.custom import layout_colors as LCOL
 from electrodevice.custom import layout_edits as LE
 from electrodevice.custom import layout_gate as LG
 from electrodevice.custom import layout_place as LP
+from electrodevice.custom import layout_scene as LSC
 from electrodevice.custom import layout_sources as S
 from electrodevice.custom import layout_steps as LS
 from electrodevice.custom.layout_words import LayoutRefused
@@ -85,11 +86,12 @@ def layout_place(config, board_instance=None, manager=None, scheme=None, header_
         verdict['words'] = 'REFUSED: ' + ' | '.join(f['words'] for f in occ) + ('' if verdict['ok'] or not verdict['words'].startswith('REFUSED: ') else ' | ' + verdict['words'][len('REFUSED: '):])
     pin_where = lambda label: S.pin_where(manager, label)   # noqa: E731
     steps = LS.build_steps(design, laid, board, pin_where, header_board)
+    scene = LSC.scene(geo, hgeo, design, laid['placements'], getattr(geo.instance, 'label', ''), getattr(hgeo.instance, 'label', ''))   # lay-2: what the renderer draws
     core = {'placements': laid['placements'], 'wires': laid['wires']}
     return {'ok': True, 'config': config, 'board': _board_summary(geo, getattr(geo.instance, 'label', '')), 'header_board': header_board, 'scheme': sch['name'],
             'placements': laid['placements'], 'wires': laid['wires'], 'strips': laid['strips'], 'rows_used': laid['rows_used'], 'nets': design['nets'], 'assignment': design['assignment'],
             'notes': design['notes'] + design['drift'], 'edits': {'applied': [e['name'] for e in applied], 'problems': problems, 'count': len(edits)}, 'verdict': verdict,
-            'sha': _sha(core), 'steps_sha': LS.steps_sha(steps), 'steps_count': len(steps), 'circuit': design['circuit'], '_steps': steps, '_design': design, '_derived': derived}
+            'scene': scene, 'sha': _sha(core), 'steps_sha': LS.steps_sha(steps), 'steps_count': len(steps), 'circuit': design['circuit'], '_steps': steps, '_design': design, '_derived': derived}
 
 
 def public(result):
@@ -97,8 +99,22 @@ def public(result):
     return {k: v for k, v in result.items() if not k.startswith('_')}
 
 
+def verdict_rows(result):
+    """The gate's verdict as ROWS for a configured table: the whole verdict first, then one row per design net (equal or wrong, in words) and one per electrical rule."""
+    v = result['verdict']
+    bad = {m['net']: m['words'] for m in v.get('mismatches', [])}
+    rows = [{'check': 'The netlist gate', 'subject': result['config'], 'status': 'ok' if v['ok'] else 'refused', 'words': v['words']}]
+    for net, terms in sorted(v.get('design_nets', {}).items()):
+        rows.append({'check': 'Net %s' % net, 'subject': net, 'status': 'wrong' if net in bad else 'equal',
+                     'words': bad.get(net) or 'the layout joins exactly %s' % ', '.join(terms)})
+    for f in v.get('findings', []):
+        rows.append({'check': 'Rule %s' % f.get('rule', ''), 'subject': f.get('subject', ''), 'status': f.get('status', ''), 'words': f.get('words', '')})
+    return rows
+
+
 def steps_of(config, board_instance=None, manager=None, scheme=None):
     """The build steps of a layout: {'config','board','verdict','steps','sha','walkthrough'}."""
     r = layout_place(config, board_instance, manager, scheme)
     return {'ok': True, 'config': config, 'board': r['board']['name'], 'verdict': {'ok': r['verdict']['ok'], 'words': r['verdict']['words']}, 'steps': r['_steps'], 'sha': r['steps_sha'],
-            'walkthrough': LS.walkthrough_lines(r['_steps'])}
+            'walkthrough': LS.walkthrough_lines(r['_steps']),
+            'rows': [{'step': st['index'] + 1, 'kind': st['kind'], 'title': st['title'], 'text': st['text']} for st in r['_steps']]}   # lay-2: the same steps as table rows

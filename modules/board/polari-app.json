@@ -126,6 +126,7 @@
    "objects/board/SocDefinition",
    "objects/board/SocPin",
    "objects/board/TargetCompatibilityRule",
+   "objects/board/BenchInteraction",
    "objects/board/TwinSession",
    "objects/board/UnoAnalogState",
    "objects/board/UsbInterfaceDefinition"
@@ -153,11 +154,13 @@
   "page": [
    "board_page",
    "pin_view_page",
+   "layout_page",
    "register_profile_page",
    "profile_overlap_page"
   ],
   "selftests": [
    "board_attach_selftest",
+   "board_bench_selftest",
    "board_button_clock_selftest",
    "board_button_clock_twin_selftest",
    "board_c3_pins_selftest",
@@ -201,6 +204,7 @@
    "custom/board_object_seed",
    "custom/board_pin_nets",
    "custom/board_uno",
+   "custom/bench_interactions",
    "custom/build",
    "custom/build_c3",
    "custom/button_clock_acceptance",
@@ -387,6 +391,7 @@
   "SocDefinition",
   "SocPin",
   "TargetCompatibilityRule",
+  "BenchInteraction",
   "TwinSession",
   "BoardTwinsAPI",
   "UnoAnalogState",
@@ -455,6 +460,7 @@
     "SignalPath",
     "ConfigurationEvent",
     "TwinSession",
+    "BenchInteraction",
     "BOARD_CLASSES"
    ]
   ],
