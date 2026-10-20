@@ -229,3 +229,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS += [
 # ucd-light: /display/uno-core-demo is now the light test (hwnocode.light_page); the button-clock page above moved to its own route
 from hwnocode.light_page import LIGHT_PAGES   # noqa: E402
 SEED_HWNOCODE_PAGE_DISPLAYS += LIGHT_PAGES
+
+# sim-3: /display/sim-bench - the layout renderer bound to a twin session, the App UI (the light rows) beside it
+from hwnocode.sim_bench_page import SIM_BENCH_PAGES   # noqa: E402
+SEED_HWNOCODE_PAGE_DISPLAYS += SIM_BENCH_PAGES

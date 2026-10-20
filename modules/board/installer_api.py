@@ -74,7 +74,8 @@ class BoardInstallerAPI(treeObject):
         from board.custom.installer import _rows
         rows = _rows(self.manager, 'FirmwareVariant') or V.SEED_FIRMWARE_VARIANTS
         keys = ('name', 'title', 'purpose', 'app', 'classes_json', 'features_json', 'knobs_json', 'what_to_watch', 'origin')
-        response.media = {'ok': True, 'variants': [{k: (r.get(k) if isinstance(r, dict) else getattr(r, k, '')) for k in keys} for r in rows]}
+        vs = [{k: (r.get(k) if isinstance(r, dict) else getattr(r, k, '')) for k in keys} for r in rows]
+        response.media = {'ok': True, 'variants': vs, 'rows': vs}   # lay-2/sim-3: `rows` too, for a configured table
 
     def on_post_build(self, request, response):
         from board.custom.installer import build_variant, InstallRefused

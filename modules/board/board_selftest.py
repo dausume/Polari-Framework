@@ -33,8 +33,8 @@ def rows_and_classes():
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
-          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board)',
-          len(BOARD_CLASSES) == 58)   # fgm-6a: + LightStateV2, LightCommand
+          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench)',
+          len(BOARD_CLASSES) == 59)   # fgm-6a: + LightStateV2, LightCommand
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
