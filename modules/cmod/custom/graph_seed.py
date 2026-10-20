@@ -182,23 +182,25 @@ SEED_GRAPH_EDGES += BC_SEED_GRAPH_EDGES
 #:            caller of the led) -> the 10 Hz telemetry tick -> telemetry_send
 #:   called   usart_send / led / toggle_pending: each copied in because a loop atom's own body calls it
 LIGHT_SEED_GRAPHS = [{
-    'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light-unsensed', 'class_name': 'LightState',
-    'replaces': 'uno:apps/light.c (variant uno-light-unsensed)', 'generated_project': 'cmod/custom/graphs/uno-light-graph',
+    'name': LIGHT_GRAPH, 'project': 'uno', 'board': 'arduino-uno-r3', 'base_configuration': 'uno-light', 'class_name': 'LightState',
+    'replaces': 'uno:apps/light.c (variant uno-light)', 'generated_project': 'cmod/custom/graphs/uno-light-graph',
     'title': 'The light test as a graph over the UNO atoms',
     'purpose': 'A light on D6 that a Polari screen and the board\'s pushbutton on D2 both switch, with the change reported back '
                'up in one struct (LightState): the simplest proof that data and signals travel in both directions.',
-    'notes': 'One wire class, one command (SET_LED), no clock, no sense pin, no event queue.'}]
+    'notes': 'One wire class, one command (SET_LED), no clock, no event queue. smp-2: the sense line (D6 jumpered to D3, polled) is in the graph - the reported led_on is the SENSED level.'}]
 
 LIGHT_SEED_GRAPH_NODES = [
     _n('usart_init', 'c-atom', 1, 'uno:hal.hal_usart_init', 'init', graph=LIGHT_GRAPH),
     _n('tick_init', 'c-atom', 2, 'uno:hal.hal_tick_init', 'init', graph=LIGHT_GRAPH),
     _n('led_init', 'c-atom', 3, 'uno:hal.hal_led_init', 'init', graph=LIGHT_GRAPH),
     _n('button_init', 'c-atom', 4, 'uno:hal.hal_button_init', 'init', graph=LIGHT_GRAPH),
-    _n('boot_session_mint', 'c-atom', 5, 'uno:apps/light.boot_session_mint', 'init', graph=LIGHT_GRAPH,
+    _n('sense_init', 'c-atom', 5, 'uno:hal.hal_sense_init', 'init', graph=LIGHT_GRAPH,
+       notes='smp-2: the sense line (the jumper D6 -> D3), polled by the sense_poll route'),
+    _n('boot_session_mint', 'c-atom', 6, 'uno:apps/light.boot_session_mint', 'init', graph=LIGHT_GRAPH,
        notes='its return is wired into state.boot_session by a field edge, scoped init (after the class memset)'),
-    _n('state', 'class', 6, params='class=LightState; name=RIG_NAME; status=IDLE', graph=LIGHT_GRAPH,
+    _n('state', 'class', 7, params='class=LightState; name=RIG_NAME; status=IDLE', graph=LIGHT_GRAPH,
        notes='the class instance the frames carry; every atom below writes it by this name'),
-    _n('rx', 'parser', 7, params='class=LightState', graph=LIGHT_GRAPH,
+    _n('rx', 'parser', 8, params='class=LightState', graph=LIGHT_GRAPH,
        notes='the generated header\'s receiver (polari_rx_t + polari_rx_feed)'),
     _n('rx_pop', 'c-atom', 10, 'uno:hal.hal_rx_pop', 'loop', graph=LIGHT_GRAPH),
     _n('apply', 'c-atom', 11, 'uno:apps/light.apply_command', 'loop', graph=LIGHT_GRAPH),
@@ -209,6 +211,9 @@ LIGHT_SEED_GRAPH_NODES = [
     _n('led_toggle', 'c-atom', 16, 'uno:apps/light.led_toggle', 'loop', graph=LIGHT_GRAPH),
     _n('led_follow_state', 'c-atom', 17, 'uno:apps/light.led_follow_state', 'loop', graph=LIGHT_GRAPH,
        notes='scl: the struct controls the light - the only caller of hal_led; the mutators (apply, led_toggle) only alter state.led_on'),
+    _n('sense', 'c-atom', 20, 'uno:hal.hal_sense_read', 'called', graph=LIGHT_GRAPH),
+    _n('sense_poll', 'c-atom', 21, 'uno:apps/light.sense_poll', 'loop', graph=LIGHT_GRAPH,
+       notes='smp-2: each pass, reads the sense line; the report\'s led_on is the level it has (telemetry_send)'),
     _n('telemetry', 'tick', 18, params='period_ms=TELEMETRY_MS', graph=LIGHT_GRAPH),
     _n('telemetry_send', 'c-atom', 19, 'uno:apps/light.telemetry_send', 'loop', graph=LIGHT_GRAPH),
 ]
@@ -223,6 +228,7 @@ LIGHT_SEED_GRAPH_EDGES = [
     _e(8, 'tick', 'telemetry', '', 'telemetry_send', graph=LIGHT_GRAPH),
     _e(9, 'field', 'boot_session_mint', 'return', 'state', 'boot_session',
        notes='init-scope: after the class memset, before sei() (cmod.custom.glue\'s own fixed order)', graph=LIGHT_GRAPH),
+    _e(10, 'calls', 'sense_poll', '', 'sense', notes='smp-2: the polled read of the sense line', graph=LIGHT_GRAPH),
 ]
 
 SEED_GRAPHS += LIGHT_SEED_GRAPHS
