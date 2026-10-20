@@ -16,6 +16,8 @@
  * RegisterField rows (board.custom.hardware_chain), never a bare bit number written below. */
 #define PIN_CONFIG_D2_DDR                DDRD     /* the DDRD register pin claim uno-light:D2 touches */
 #define PIN_CONFIG_D2_BIT                2        /* DDRD.DDD2's low bit (from the SocPin/RegisterField rows, never a bare number) */
+#define PIN_CONFIG_D3_DDR                DDRD     /* the DDRD register pin claim uno-light:D3 touches */
+#define PIN_CONFIG_D3_BIT                3        /* DDRD.DDD3's low bit (from the SocPin/RegisterField rows, never a bare number) */
 #define PIN_CONFIG_D6_DDR                DDRD     /* the DDRD register pin claim uno-light:D6 touches */
 #define PIN_CONFIG_D6_BIT                6        /* DDRD.DDD6's low bit (from the SocPin/RegisterField rows, never a bare number) */
 #define PIN_CONFIG_D2_PORT               PORTD    /* the PORTD register pin claim uno-light:D2 touches */

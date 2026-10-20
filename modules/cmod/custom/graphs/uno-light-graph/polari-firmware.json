@@ -52,14 +52,15 @@
    "flags": [],
    "sources": [
     "hal.c",
+    "hal_sense_poll.c",
     "pin_config.c",
     "polari_graph.c"
    ],
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
-    "noinline": "32f58f1f51d7a4fdab5e1f9242ac9a8e07634dc0a1cc553ea49c92e47234881a"
+    "shipped": "5d342ddbfba4b23d47eb4fa437b1fc3bb14ea02605bd47dbbd0c48473f7926d5",
+    "noinline": "77191d35eba6fac17ec65d265744d07c69f27b78f26cc6eb93dc16c3e7cf7b99"
    }
   }
  ],
@@ -94,16 +95,30 @@
    ]
   },
   {
+   "name": "hal_sense_poll",
+   "role": "source",
+   "files": [
+    {
+     "path": "hal_sense_poll.c",
+     "sha256": "1c0e03eea6e62c81ee222d88acf01e2960ad55dd1b4de5947ec7de8f4d9f73c9"
+    }
+   ],
+   "atoms": [
+    "hal_sense_poll.hal_sense_init",
+    "hal_sense_poll.hal_sense_read"
+   ]
+  },
+  {
    "name": "pin_config",
    "role": "source",
    "files": [
     {
      "path": "pin_config.c",
-     "sha256": "a147b18f79a73e96e8dd60fa0339a083b90f651bb911f92804db59a907090aef"
+     "sha256": "6d2b8bb4c0609d2acf56b39d8ff3f14df0b106aea16ad9e4a5fd3341fe163c3f"
     },
     {
      "path": "pin_config.h",
-     "sha256": "a4d509be7ca3e107f78bd932e2ae93c8aa45df520ee8ea1a7f7274323afcf0f8"
+     "sha256": "952bb39fd01389d9eff084fd2bd4f74350230a74a456d384457389aae3a55ec6"
     }
    ],
    "atoms": [
@@ -116,11 +131,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "c5b2f488e839715efbe0b525ed80494f825903057074d83ce8f49e040da85142"
+     "sha256": "d5d6594c234b202f9f892abc90a998ec511d274cf2842ae77a72ad76251d3c18"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "a17417e1402f6098d40b20746a9c2675baf68fd55fc1e95adddfb98526632d3b"
+     "sha256": "7d3c67838d223a14e6dd93c192d83fc588ea7182b84ee098aad5e0621beafe58"
     }
    ],
    "atoms": [
@@ -129,6 +144,7 @@
     "polari_graph.led_follow_state",
     "polari_graph.led_toggle",
     "polari_graph.main",
+    "polari_graph.sense_poll",
     "polari_graph.telemetry_send"
    ]
   },
@@ -138,7 +154,7 @@
    "files": [
     {
      "path": "board_config.h",
-     "sha256": "25f12831dc160f56c5b26d03beded65bb0441ae3d791e6f12ddcaecde05f1969"
+     "sha256": "2a83dd03b98d3baf08fb1693a8d83ecbbde6cd48989479a5e3030a650fad830d"
     }
    ],
    "atoms": []
@@ -149,7 +165,7 @@
    "files": [
     {
      "path": "light_defs.h",
-     "sha256": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5"
+     "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
     }
    ],
    "atoms": []
@@ -1132,6 +1148,179 @@
    "notes": ""
   },
   {
+   "name": "hal_sense_poll.hal_sense_init",
+   "function": "hal_sense_init",
+   "module": "hal_sense_poll.c",
+   "line": 29,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_init(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "DDRD",
+     "access": "rw",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches g_sense_level",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_sense_init",
+    "text_bytes": 14,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 14,
+    "stack_bytes": 2,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 2,
+    "text_bytes_range": [
+     14,
+     14
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "hal_sense_poll.hal_sense_read",
+   "function": "hal_sense_read",
+   "module": "hal_sense_poll.c",
+   "line": 38,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "rises",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "falls",
+     "direction": "out",
+     "ctype": "uint16_t *",
+     "width_bytes": 2,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    },
+    {
+     "name": "last_ms",
+     "direction": "out",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: only written through"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "PIND",
+     "access": "r",
+     "peripheral": "GPIO PORTD",
+     "detail": ""
+    },
+    {
+     "kind": "global",
+     "name": "g_last_edge_ms",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint32_t, 4 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_falls",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_level",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "global",
+     "name": "g_sense_rises",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint16_t, 2 B"
+    }
+   ],
+   "calls": [
+    "hal_millis"
+   ],
+   "pure": false,
+   "pure_why": "touches g_last_edge_ms, g_sense_falls, g_sense_level, g_sense_rises",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": null,
+   "cost": {
+    "measured_in": "default",
+    "symbol": "hal_sense_read",
+    "text_bytes": 176,
+    "in_shipped_build": true,
+    "inlined": false,
+    "text_bytes_noinline": 176,
+    "stack_bytes": 9,
+    "stack_kind": "static",
+    "stack_from": "shipped",
+    "stack_bytes_noinline": 9,
+    "text_bytes_range": [
+     176,
+     176
+    ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
    "name": "pin_config.pin_config_init",
    "function": "pin_config_init",
    "module": "pin_config.c",
@@ -1483,7 +1672,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 86,
+   "line": 106,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1530,6 +1719,7 @@
     "hal_tick_init",
     "hal_led_init",
     "hal_button_init",
+    "hal_sense_init",
     "boot_session_mint",
     "memset",
     "strcpy",
@@ -1540,7 +1730,8 @@
     "hal_millis",
     "led_toggle",
     "led_follow_state",
-    "telemetry_send"
+    "telemetry_send",
+    "sense_poll"
    ],
    "pure": false,
    "pure_why": "touches rx, state",
@@ -1554,18 +1745,85 @@
    "cost": {
     "measured_in": "default",
     "symbol": "main",
-    "text_bytes": 2052,
+    "text_bytes": 2110,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 200,
-    "stack_bytes": 111,
+    "text_bytes_noinline": 208,
+    "stack_bytes": 114,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
-     2052,
-     2052
+     2110,
+     2110
     ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "polari_graph.sense_poll",
+   "function": "sense_poll",
+   "module": "polari_graph.c",
+   "line": 80,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void sense_poll(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_sensed",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_sense_read"
+   ],
+   "pure": false,
+   "pure_why": "touches g_sensed",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "default"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 79,
+    "role": "each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(sense_poll, uses(SENSE_PIN), role(\"each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report\"))"
+   },
+   "cost": {
+    "measured_in": "default",
+    "symbol": "sense_poll",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 70,
+    "stack_bytes": 12,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 12,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
    },
    "title": "",
    "notes": ""
@@ -1574,7 +1832,7 @@
    "name": "polari_graph.telemetry_send",
    "function": "telemetry_send",
    "module": "polari_graph.c",
-   "line": 79,
+   "line": 91,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -1582,6 +1840,13 @@
    "signature_varies": false,
    "ports": [],
    "resources": [
+    {
+     "kind": "global",
+     "name": "g_sensed",
+     "access": "r",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
     {
      "kind": "global",
      "name": "g_seq",
@@ -1617,7 +1882,7 @@
     "LightState_encode"
    ],
    "pure": false,
-   "pure_why": "touches g_seq, payload, state, wire",
+   "pure_why": "touches g_sensed, g_seq, payload, state, wire",
    "isr_safe": "yes",
    "isr_safe_why": "",
    "atomic_block": false,
@@ -1626,10 +1891,10 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 78,
-    "role": "one LightState frame: the light, how often it changed, who changed it last",
+    "line": 90,
+    "role": "one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)",
     "uses": [],
-    "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
+    "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)\"))"
    },
    "cost": {
     "measured_in": "default",
@@ -1637,11 +1902,11 @@
     "text_bytes": 0,
     "in_shipped_build": false,
     "inlined": true,
-    "text_bytes_noinline": 128,
-    "stack_bytes": 8,
+    "text_bytes_noinline": 154,
+    "stack_bytes": 11,
     "stack_kind": "static",
     "stack_from": "noinline",
-    "stack_bytes_noinline": 8,
+    "stack_bytes_noinline": 11,
     "text_bytes_range": [
      0,
      0
@@ -1653,11 +1918,11 @@
   }
  ],
  "counts": {
-  "atoms": 20,
-  "annotated": 11,
+  "atoms": 23,
+  "annotated": 12,
   "isr": 3,
   "pure": 0,
-  "ports": 11,
+  "ports": 14,
   "not_isr_safe": 0
  },
  "problems": [],
@@ -1668,5 +1933,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T10:05:53"
+ "conformed_at": "2026-10-20T10:07:22"
 }

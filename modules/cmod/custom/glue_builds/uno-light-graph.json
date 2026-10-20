@@ -1,22 +1,23 @@
 {
  "graph": "uno-light-graph",
- "graph_sha256": "433a5765c97fd9cd3ea8d44344f755ffd562368ae8e2dd06f440faec6076e387",
+ "graph_sha256": "5182177d60fb7ad3bb7a201c01c329014468f2e6ab364f9c55717af9ac06ab11",
  "generator": "cmod.custom.glue 1",
  "generated_project": "cmod/custom/graphs/uno-light-graph",
  "files": {
-  "light_defs.h": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5",
+  "light_defs.h": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81",
   "hal.c": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2",
   "hal.h": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55",
-  "board_config.h": "25f12831dc160f56c5b26d03beded65bb0441ae3d791e6f12ddcaecde05f1969",
+  "board_config.h": "2a83dd03b98d3baf08fb1693a8d83ecbbde6cd48989479a5e3030a650fad830d",
   "lightstate_packets.h": "3f9c534136f3a339f527bd88258fc1a56859c136afce7cd7c61f391b75b40fab",
-  "pin_config.h": "a4d509be7ca3e107f78bd932e2ae93c8aa45df520ee8ea1a7f7274323afcf0f8",
-  "pin_config.c": "a147b18f79a73e96e8dd60fa0339a083b90f651bb911f92804db59a907090aef",
-  "polari_graph.c": "c5b2f488e839715efbe0b525ed80494f825903057074d83ce8f49e040da85142",
-  "polari_graph.h": "a17417e1402f6098d40b20746a9c2675baf68fd55fc1e95adddfb98526632d3b",
-  "Makefile": "6f39dd44d1074a4010c5c1253f7634b95f76718faabb2e876055d8575efe1747"
+  "hal_sense_poll.c": "1c0e03eea6e62c81ee222d88acf01e2960ad55dd1b4de5947ec7de8f4d9f73c9",
+  "pin_config.h": "952bb39fd01389d9eff084fd2bd4f74350230a74a456d384457389aae3a55ec6",
+  "pin_config.c": "6d2b8bb4c0609d2acf56b39d8ff3f14df0b106aea16ad9e4a5fd3341fe163c3f",
+  "polari_graph.c": "d5d6594c234b202f9f892abc90a998ec511d274cf2842ae77a72ad76251d3c18",
+  "polari_graph.h": "7d3c67838d223a14e6dd93c192d83fc588ea7182b84ee098aad5e0621beafe58",
+  "Makefile": "473277acd407aa3195c09617f639f6b631a9535aa4f0ef6b7ae49ae64b2cae57"
  },
- "files_sha256": "cdb337a53f7ad04ee31e827c34228bae30d21f1341cb9dbd609bf09f8b9d4406",
- "rendered_at": "2026-10-19T10:05:40",
+ "files_sha256": "ddde01d313ff3b1bc6a9819cfe69be9ee113bf28e924c5b86c4478e734800762",
+ "rendered_at": "2026-10-20T10:06:15",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
@@ -31,12 +32,12 @@
   {
    "label": "copied verbatim from board/custom/firmware/uno/apps/light_defs.h",
    "file": "light_defs.h",
-   "sha256": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5"
+   "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
   },
   {
-   "label": "board gen: the uno-light-unsensed knobs",
+   "label": "board gen: the uno-light knobs",
    "file": "board_config.h",
-   "sha256": "25f12831dc160f56c5b26d03beded65bb0441ae3d791e6f12ddcaecde05f1969"
+   "sha256": "2a83dd03b98d3baf08fb1693a8d83ecbbde6cd48989479a5e3030a650fad830d"
   },
   {
    "label": "c_twin target=avr, contract v1 e05aeb148924b730 (pinned board/custom/contracts/LightState.v1.json)",
@@ -44,19 +45,24 @@
    "sha256": "3f9c534136f3a339f527bd88258fc1a56859c136afce7cd7c61f391b75b40fab"
   },
   {
+   "label": "board gen: the uno-light knobs' route file (rendered from its catom template)",
+   "file": "hal_sense_poll.c",
+   "sha256": "1c0e03eea6e62c81ee222d88acf01e2960ad55dd1b4de5947ec7de8f4d9f73c9"
+  },
+  {
    "label": "GENERATED (cmod.custom.pin_config_gen) from uno-light's pin claims",
    "file": "pin_config.h",
-   "sha256": "a4d509be7ca3e107f78bd932e2ae93c8aa45df520ee8ea1a7f7274323afcf0f8"
+   "sha256": "952bb39fd01389d9eff084fd2bd4f74350230a74a456d384457389aae3a55ec6"
   },
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "e913e430a740069219e356d68ca9ac8a34e6727c233de01fb05be6048fb227b4"
+   "sha256": "683235aaa51ba05979b1234d9d2a3dae540a94a7ce775eb9b1b3c79305495705"
   }
  ],
  "cost_estimate": {
-  "total_bytes": 3170,
-  "why": "atoms as nodes 776 B + ISRs 306 B + glue/library reference 2088 B (apps/light.main shipped) = 3170 B — an upper bound for the attributable code (inlined atoms counted twice); the C runtime (vectors, crt, libgcc float) is not in it",
+  "total_bytes": 3386,
+  "why": "atoms as nodes 1036 B + ISRs 306 B + glue/library reference 2044 B (apps/light.main shipped) = 3386 B — an upper bound for the attributable code (inlined atoms counted twice); the C runtime (vectors, crt, libgcc float) is not in it",
   "parts": [
    {
     "atom": "apps/light.apply_command",
@@ -76,6 +82,11 @@
    {
     "atom": "apps/light.led_toggle",
     "bytes": 104,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "apps/light.sense_poll",
+    "bytes": 70,
     "as": "atom as a node"
    },
    {
@@ -129,6 +140,16 @@
     "as": "atom as a node"
    },
    {
+    "atom": "hal_sense_poll.hal_sense_init",
+    "bytes": 14,
+    "as": "atom as a node"
+   },
+   {
+    "atom": "hal_sense_poll.hal_sense_read",
+    "bytes": 176,
+    "as": "atom as a node"
+   },
+   {
     "atom": "hal.INT0_vect",
     "bytes": 170,
     "as": "ISR it shares a global with"
@@ -145,19 +166,19 @@
    },
    {
     "atom": "apps/light.main",
-    "bytes": 2088,
+    "bytes": 2044,
     "as": "glue + library reference: the replaced main() as shipped"
    }
   ]
  },
  "glue_contains": [
   "main() and its loop (the scheduler)",
-  "init: hal_usart_init → hal_tick_init → hal_led_init → hal_button_init → boot_session_mint, then sei()",
+  "init: hal_usart_init → hal_tick_init → hal_led_init → hal_button_init → hal_sense_init → boot_session_mint, then sei()",
   "the class instance `state` (LightState_t): zeroed, name = RIG_NAME, status = IDLE",
   "the parser `rx` (polari_rx_t) fed by the on-rx drain, msg_type gate → on-command atoms",
   "tick `telemetry`: every TELEMETRY_MS ms on the uint32_t clock, wrap-safe ((int32_t)(now - next) >= 0)",
   "1 field write(s) into the class instance",
-  "the app atoms copied verbatim: apps/light.boot_session_mint, apps/light.led_toggle, apps/light.apply_command, apps/light.led_follow_state, apps/light.telemetry_send"
+  "the app atoms copied verbatim: apps/light.boot_session_mint, apps/light.led_toggle, apps/light.apply_command, apps/light.led_follow_state, apps/light.sense_poll, apps/light.telemetry_send"
  ],
  "advice": [],
  "templates": {
@@ -173,40 +194,41 @@
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
-  "hex_sha256": "9b4a91b855713c56d3faca91b775b3a7a35ed164c6def43fa38d3f09cf8a7eac",
-  "size_text": 3122,
+  "hex_sha256": "cf5d6e287f23184710aad354abaa1ed6f7e7077501c2b373a4e05715ee868e9d",
+  "size_text": 3370,
   "size_data": 10,
-  "size_bss": 504,
-  "flash_bytes": 3132,
-  "cost_estimate_bytes": 3170,
-  "cost_measured_attributable_bytes": 2554,
+  "size_bss": 514,
+  "flash_bytes": 3380,
+  "cost_estimate_bytes": 3386,
+  "cost_measured_attributable_bytes": 2802,
   "cost_measured_breakdown": {
-   "atoms (shipped symbols)": 196,
+   "atoms (shipped symbols)": 386,
    "ISR vectors": 306,
-   "main (glue + inlined atoms + inlined library)": 2052
+   "main (glue + inlined atoms + inlined library)": 2110
   },
   "runtime_bytes": 568,
-  "cost_why": "estimated 3170 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2554 B attributable (atoms (shipped symbols) 196, ISR vectors 306, main (glue + inlined atoms + inlined library) 2052) + 568 B C runtime (vectors, crt, libgcc) = .text 3122 B",
+  "cost_why": "estimated 3386 B before the build (atoms as nodes + ISRs + the replaced main as shipped); measured after: 2802 B attributable (atoms (shipped symbols) 386, ISR vectors 306, main (glue + inlined atoms + inlined library) 2110) + 568 B C runtime (vectors, crt, libgcc) = .text 3370 B",
   "estimate_minus_attributable": {
-   "bytes": 616,
+   "bytes": 584,
    "atoms_inlined_or_smaller_shipped": {
     "apps/light.apply_command": 174,
     "apps/light.boot_session_mint": 74,
     "apps/light.led_follow_state": 30,
     "apps/light.led_toggle": 104,
+    "apps/light.sense_poll": 70,
     "apps/light.telemetry_send": 128,
     "hal.hal_button_init": 22,
     "hal.hal_led_init": 2,
     "hal.hal_millis": 30,
     "hal.hal_take_toggle_pending": 16
    },
-   "explained_bytes": 580
+   "explained_bytes": 650
   },
-  "files_sha256": "cdb337a53f7ad04ee31e827c34228bae30d21f1341cb9dbd609bf09f8b9d4406",
+  "files_sha256": "ddde01d313ff3b1bc6a9819cfe69be9ee113bf28e924c5b86c4478e734800762",
   "hand_edited": [],
   "stale": [],
-  "measured_elf_sha256": "898ae20a38b949ee824ae2b1116bef86d85f27876d1d380f826e6bd964f3d032",
-  "built_at": "2026-10-19T10:29:03",
+  "measured_elf_sha256": "5d342ddbfba4b23d47eb4fa437b1fc3bb14ea02605bd47dbbd0c48473f7926d5",
+  "built_at": "2026-10-20T10:06:50",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -240,24 +262,24 @@
    "glue": "4a3307ce73421753e74c4b93edd99c483689ab631463e57f4ad0032d5c5894af"
   },
   "reference": {
-   "variant": "uno-light-unsensed",
+   "variant": "uno-light",
    "built_by": "board gen + board build (the shipped pipeline)",
-   "hex_sha256": "1e75dab5ee7eb758f7c0a00fe869a243843c1c0f059db38ce2d53be12b7ac8d5",
-   "size_text": 3108,
+   "hex_sha256": "87f92761ac565af46bca059a33fea43eecb7ed948f3c7fbb989f80de813143ec",
+   "size_text": 3346,
    "size_data": 10,
-   "size_bss": 504
+   "size_bss": 514
   },
   "glue": {
-   "hex_sha256": "9b4a91b855713c56d3faca91b775b3a7a35ed164c6def43fa38d3f09cf8a7eac",
-   "size_text": 3122,
+   "hex_sha256": "cf5d6e287f23184710aad354abaa1ed6f7e7077501c2b373a4e05715ee868e9d",
+   "size_text": 3370,
    "size_data": 10,
-   "size_bss": 504,
+   "size_bss": 514,
    "built_by": "make alone (local-image prf-board-engines:trixie)"
   },
   "hex_identical": false,
   "cycles": {
-   "total_hand": 16000464,
-   "total_glue": 16000543,
+   "total_hand": 16001391,
+   "total_glue": 16000766,
    "frame_tx_cycle_delta_min": null,
    "frame_tx_cycle_delta_max": null,
    "first_frame_cycle_hand": null,
@@ -270,7 +292,8 @@
    "commands": [
     "2 press(es) on D2",
     "SET_LED led_on=1",
-    "SET_LED led_on=0"
+    "SET_LED led_on=0",
+    "the jumper PD6:PD3"
    ],
    "argv": [
     "polari-avr-twin",
@@ -297,6 +320,8 @@
     "cycle=4000000,pin=PD2,level=0",
     "--pin-at",
     "cycle=4080000,pin=PD2,level=1",
+    "--wire",
+    "PD6:PD3",
     "--inject",
     "on.bin@8000000",
     "--inject",
@@ -329,24 +354,25 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-10-19T10:29:14",
-  "graph_sha256": "433a5765c97fd9cd3ea8d44344f755ffd562368ae8e2dd06f440faec6076e387",
-  "files_sha256": "cdb337a53f7ad04ee31e827c34228bae30d21f1341cb9dbd609bf09f8b9d4406",
+  "proven_at": "2026-10-20T10:08:16",
+  "graph_sha256": "5182177d60fb7ad3bb7a201c01c329014468f2e6ab364f9c55717af9ac06ab11",
+  "files_sha256": "ddde01d313ff3b1bc6a9819cfe69be9ee113bf28e924c5b86c4478e734800762",
   "hand_edited": []
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-light-graph/polari-firmware.json",
-  "manifest_sha256": "21c18620e3c62c742fab50dcc692c0190b8471ea526ae7edf3652296db83f4f6",
-  "atoms": 20,
+  "manifest_sha256": "f9e2c628a1a05c413d018b6fcda355442410e170356751ad08f7ae744dacccc8",
+  "atoms": 23,
   "glue_atoms": [
    "polari_graph.apply_command",
    "polari_graph.boot_session_mint",
    "polari_graph.led_follow_state",
    "polari_graph.led_toggle",
    "polari_graph.main",
+   "polari_graph.sense_poll",
    "polari_graph.telemetry_send"
   ],
   "not_isr_safe": 0,
-  "written": false
+  "written": true
  }
 }

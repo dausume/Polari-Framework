@@ -16,11 +16,12 @@
 
 void pin_config_init(void)
 {
-    /* uno-light:DDRD:init = 01000000 (write_mask 0x44)
+    /* uno-light:DDRD:init = 01000000 (write_mask 0x4C)
      *   DDD2     = 0     — the pin is configured as an input pin · claim uno-light:D2 · task button_init · rule ddr-from-interrupt-in
+     *   DDD3     = 0     — the pin is configured as an input pin · claim uno-light:D3 · task sense_init · rule ddr-from-interrupt-in
      *   DDD6     = 1     — the pin is configured as an output pin · claim uno-light:D6 · task led_init · rule ddr-from-digital-out
      */
-    PIN_CONFIG_D2_DDR = (uint8_t)((PIN_CONFIG_D2_DDR & (uint8_t)~(((uint8_t)0x01 << PIN_CONFIG_D2_BIT) | ((uint8_t)0x01 << PIN_CONFIG_D6_BIT))) | (((uint8_t)0x00 << PIN_CONFIG_D2_BIT) | ((uint8_t)0x01 << PIN_CONFIG_D6_BIT)));   /* bits outside write_mask 0x44 keep the chip's
+    PIN_CONFIG_D2_DDR = (uint8_t)((PIN_CONFIG_D2_DDR & (uint8_t)~(((uint8_t)0x01 << PIN_CONFIG_D2_BIT) | ((uint8_t)0x01 << PIN_CONFIG_D3_BIT) | ((uint8_t)0x01 << PIN_CONFIG_D6_BIT))) | (((uint8_t)0x00 << PIN_CONFIG_D2_BIT) | ((uint8_t)0x00 << PIN_CONFIG_D3_BIT) | ((uint8_t)0x01 << PIN_CONFIG_D6_BIT)));   /* bits outside write_mask 0x4C keep the chip's
                                     reset value */
 
     /* uno-light:PORTD:init = 00000100 (write_mask 0x04)
