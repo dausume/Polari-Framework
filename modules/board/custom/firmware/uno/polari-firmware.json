@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "efe8560a0350fadab29a717c17e84aa6d42e3f13f06a488be40e1d54e0998e33",
+   "source_sha": "f1183d01ab8a5e71bd6dc7c70c5819d48987557375357a4de7bf2a9be08b03a7",
    "elf_sha256": {
     "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
     "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
@@ -197,14 +197,14 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "78b10cb7b18f28205955ff0518dc25a460426ed3b431c089c2a25b4516f2f8f4",
+   "source_sha": "c4c85389bd74c7c9413cc3501366fc03d0c1c29fe219c6d65c10e3618c4bbae3",
    "elf_sha256": {
-    "shipped": "31f37d7bf87e0742fcfbf797534d84305f4eb178455c77311e453c51153da61f",
-    "noinline": "e354bcf5de2db332f4a9db0e5e740eaf1eb9261ef0626efdd04726ac2fba4bce"
+    "shipped": "57210995276cc7267155d84d72056a95afc9608c4f6702a18e4322247840f466",
+    "noinline": "c34cef762717cbca3ce5d4b4b0a17d161b823ae415c985ce911a0d1a8a1f2aef"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "e74a741114d2369c53f4e4ee623218d5dc7a93b1899b646654cfc952528ed1eb"
+    "hex_sha256": "87f92761ac565af46bca059a33fea43eecb7ed948f3c7fbb989f80de813143ec"
    }
   },
   {
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a139bda4e08ac7d36ec9b1d53dcdc8d2f1bc72dd832c51e678d56a14b1e625f3",
+   "source_sha": "7bd9f54a5712d057d5cf57013b0d4d969637e7092c8a4629b827471daffdcc05",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -245,7 +245,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "8490b8897dc542a7f7abc50e6ee07c77c6c77851cb2768638d1fed12406c6f14",
+   "source_sha": "a67fb22581c08da123f33422fc3561122b149e82f0876178adf63516cc9e087c",
    "elf_sha256": {
     "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
     "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
@@ -431,7 +431,7 @@
    "files": [
     {
      "path": "apps/light_defs.h",
-     "sha256": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5"
+     "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
     }
    ],
    "atoms": []
@@ -544,7 +544,7 @@
    "files": [
     {
      "path": "apps/light.c",
-     "sha256": "545304a5d6e773919b20ed38987c9a30a9ce6ff6f61e8311d1cb807e5d13d4da"
+     "sha256": "952da7280fd01988cd98838e537207722bde4bf81a473a618ef6570ffcc3ede6"
     }
    ],
    "atoms": [
@@ -553,6 +553,7 @@
     "apps/light.led_follow_state",
     "apps/light.led_toggle",
     "apps/light.main",
+    "apps/light.sense_poll",
     "apps/light.telemetry_send"
    ]
   }
@@ -2427,7 +2428,7 @@
    "name": "apps/light.main",
    "function": "main",
    "module": "apps/light.c",
-   "line": 101,
+   "line": 116,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -2446,13 +2447,6 @@
     }
    ],
    "resources": [
-    {
-     "kind": "global",
-     "name": "g_sensed",
-     "access": "rw",
-     "peripheral": "",
-     "detail": "uint8_t, 1 B"
-    },
     {
      "kind": "global",
      "name": "rx",
@@ -2492,10 +2486,10 @@
     "led_follow_state",
     "telemetry_send",
     "hal_sense_init",
-    "hal_sense_read"
+    "sense_poll"
    ],
    "pure": false,
-   "pure_why": "touches g_sensed, rx, state",
+   "pure_why": "touches rx, state",
    "isr_safe": "yes",
    "isr_safe_why": "",
    "atomic_block": false,
@@ -2519,8 +2513,75 @@
     "stack_bytes_noinline": 3,
     "text_bytes_range": [
      2044,
-     2088
+     2092
     ]
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.sense_poll",
+   "function": "sense_poll",
+   "module": "apps/light.c",
+   "line": 91,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void sense_poll(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_sensed",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "SENSE_PIN",
+     "detail": "POLARI_NODE uses()"
+    }
+   ],
+   "calls": [
+    "hal_sense_read"
+   ],
+   "pure": false,
+   "pure_why": "touches g_sensed",
+   "isr_safe": "yes",
+   "isr_safe_why": "",
+   "atomic_block": false,
+   "configs": [
+    "uno-light"
+   ],
+   "annotation": {
+    "form": "macro",
+    "line": 90,
+    "role": "each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report",
+    "uses": [
+     "SENSE_PIN"
+    ],
+    "raw": "POLARI_NODE(sense_poll, uses(SENSE_PIN), role(\"each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report\"))"
+   },
+   "cost": {
+    "measured_in": "uno-light",
+    "symbol": "sense_poll",
+    "text_bytes": 0,
+    "in_shipped_build": false,
+    "inlined": true,
+    "text_bytes_noinline": 70,
+    "stack_bytes": 12,
+    "stack_kind": "static",
+    "stack_from": "noinline",
+    "stack_bytes_noinline": 12,
+    "text_bytes_range": [
+     0,
+     0
+    ],
+    "why": "inlined into its caller in the shipped build (no symbol); text_bytes_noinline is its cost as a node"
    },
    "title": "",
    "notes": ""
@@ -2529,7 +2590,7 @@
    "name": "apps/light.telemetry_send",
    "function": "telemetry_send",
    "module": "apps/light.c",
-   "line": 94,
+   "line": 101,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -2537,6 +2598,13 @@
    "signature_varies": false,
    "ports": [],
    "resources": [
+    {
+     "kind": "global",
+     "name": "g_sensed",
+     "access": "r",
+     "peripheral": "",
+     "detail": "uint8_t, 1 B"
+    },
     {
      "kind": "global",
      "name": "g_seq",
@@ -2572,7 +2640,7 @@
     "LightState_encode"
    ],
    "pure": false,
-   "pure_why": "touches g_seq, payload, state, wire",
+   "pure_why": "touches g_sensed, g_seq, payload, state, wire",
    "isr_safe": "yes",
    "isr_safe_why": "",
    "atomic_block": false,
@@ -2584,10 +2652,10 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 93,
-    "role": "one LightState frame: the light, how often it changed, who changed it last",
+    "line": 100,
+    "role": "one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)",
     "uses": [],
-    "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last\"))"
+    "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)\"))"
    },
    "cost": {
     "measured_in": "uno-light-unsensed",
@@ -6564,8 +6632,8 @@
   }
  ],
  "counts": {
-  "atoms": 71,
-  "annotated": 31,
+  "atoms": 72,
+  "annotated": 32,
   "isr": 6,
   "pure": 2,
   "ports": 67,
@@ -6574,5 +6642,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T10:27:28"
+ "conformed_at": "2026-10-20T04:43:59"
 }
