@@ -386,4 +386,5 @@ INSTALLER_PAGES = [
 from board.pin_view_page import PIN_VIEW_PAGES   # noqa: E402  pv-0: + the pin view's three data pages
 from board.register_profile_page import REGISTER_PROFILE_PAGES   # noqa: E402  rp-0: /display/register-profile + /display/memory-map
 from board.profile_overlap_page import PROFILE_OVERLAP_PAGES   # noqa: E402  pp-1: /display/profile-overlap
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES   # pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map
+from board.layout_page import LAYOUT_PAGES   # noqa: E402  lay-2: /display/layout
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES + LAYOUT_PAGES   # pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map

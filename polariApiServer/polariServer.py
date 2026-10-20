@@ -1343,6 +1343,8 @@ class polariServer(treeObject):
             ConfigurationEvent,
             # sim-1: twin sessions (a running simulated board; observed, never seeded)
             TwinSession,
+            # sim-3: what a person did on the sim bench (observed, never seeded)
+            BenchInteraction,
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

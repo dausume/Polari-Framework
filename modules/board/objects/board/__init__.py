@@ -67,3 +67,4 @@ from board.objects.board.SystemLink import SystemLink  # noqa: F401
 from board.objects.board.SignalPath import SignalPath  # noqa: F401
 from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F401
 from board.objects.board.TwinSession import TwinSession  # noqa: F401
+from board.objects.board.BenchInteraction import BenchInteraction  # noqa: F401   # sim-3

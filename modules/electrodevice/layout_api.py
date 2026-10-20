@@ -5,7 +5,10 @@ lay-0/lay-1 doors (thin falcon handlers over electrodevice.custom.layout_core; t
 
 GET  /api/layout/boards                         the board family: models (breadboard half 400 ties / full 830 ties, the UNO, protoboard + pcb reserved) and the boards on the bench
 GET  /api/layout/{config}?board=&header=&scheme=  the layout of a built config on a bench board: placements, wires, nets, THE GATE'S VERDICT (words first)
-GET  /api/layout/{config}/steps?board=          the build steps (derived, never typed): step k's `draw` is steps 0..k
+GET  /api/layout/{config}/steps?board=          the build steps (derived, never typed): step k's `draw` is steps 0..k; `rows` = the same steps as table rows
+GET  /api/layout/steps?config=&board=          the same steps by query (a configured table whose config is a page scope); /api/layout/verdict?config= likewise
+GET  /api/layout/models                         lay-2: the board models as table rows
+GET  /api/layout/{config}/verdict?board=        lay-2: the gate's verdict as table rows (the whole verdict, one row per design net, one per electrical rule)
 POST /api/layout/{config}/edit                  {board?, subject: part:<ref>|wire:<name>, field: holes|colour, value, who?, note?, clear?, dry_run?} keep a person's edit BESIDE the derived value; re-gated
 GET  /api/layout/wire-colors                    the wire colour schemes (seeded = copy before editing) and the colour names
 POST /api/layout/wire-colors                    {copy_of, name, colors?} copy a scheme (optionally with colours set) | {name, set: {key: colour}} set colours on YOUR scheme
@@ -31,6 +34,10 @@ class LayoutAPI(treeObject):
             add('/api/layout/wire-colors', self, suffix='colors')
             add('/api/layout/{config}', self, suffix='layout')
             add('/api/layout/{config}/steps', self, suffix='steps')
+            add('/api/layout/{config}/verdict', self, suffix='verdict')
+            add('/api/layout/steps', self, suffix='steps_q')
+            add('/api/layout/verdict', self, suffix='verdict_q')
+            add('/api/layout/models', self, suffix='models')
             add('/api/layout/{config}/edit', self, suffix='edit')
 
     # ------------------------------------------------------------ helpers
@@ -55,7 +62,8 @@ class LayoutAPI(treeObject):
     # ------------------------------------------------------------ doors
     def on_get_boards(self, request, response):
         from electrodevice.custom import layout_core as C
-        response.media = dict(C.boards_listing(self.manager), ok=True)
+        out = C.boards_listing(self.manager)
+        response.media = dict(out, ok=True, rows=out['boards'])   # `rows` = the boards on the bench, for a configured table
 
     def on_get_layout(self, request, response, config):
         from electrodevice.custom import layout_core as C
@@ -71,6 +79,37 @@ class LayoutAPI(treeObject):
             response.media = C.steps_of(config, request.get_param('board'), self.manager, request.get_param('scheme'))
         except LayoutRefused as e:
             self._fail(response, e)
+
+    def _config_q(self, request, response):
+        config = request.get_param('config') or ''
+        if not config:
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False, 'error': 'name the config: ?config=uno-light'}
+        return config
+
+    def on_get_steps_q(self, request, response):
+        config = self._config_q(request, response)
+        if config:
+            self.on_get_steps(request, response, config)
+
+    def on_get_verdict_q(self, request, response):
+        config = self._config_q(request, response)
+        if config:
+            self.on_get_verdict(request, response, config)
+
+    def on_get_models(self, request, response):
+        from electrodevice.custom import layout_core as C
+        rows = C.boards_listing(self.manager)['models']
+        response.media = {'ok': True, 'rows': rows, 'count': len(rows)}
+
+    def on_get_verdict(self, request, response, config):
+        from electrodevice.custom import layout_core as C
+        try:
+            r = C.layout_place(config, request.get_param('board'), self.manager, request.get_param('scheme'), request.get_param('header'))
+        except LayoutRefused as e:
+            return self._fail(response, e)
+        rows = C.verdict_rows(r)
+        response.media = {'ok': True, 'config': config, 'board': r['board']['name'], 'rows': rows, 'count': len(rows)}
 
     def on_post_edit(self, request, response, config):
         from electrodevice.custom import layout_core as C

@@ -75,9 +75,11 @@ def view(row):
     """The row as the doors show it - no token anywhere."""
     now = time.time()
     last = json.loads(row.last_status_json or '{}')
-    return {'name': row.name, 'config': row.config, 'board': row.board, 'participant': row.participant, 'instance_index': row.instance_index, 'state': row.state,
+    return {'name': row.name, 'config': row.config, 'board': row.board, 'participant': row.participant, 'instance_index': row.instance_index, 'state': row.state, 'running_now': row.state == 'running',
             'firmware': {'sha256': row.hex_sha256, 'bytes': row.hex_bytes, 'locked': bool(row.firmware_locked), 'config': row.config},
             'worker': row.worker_url, 'worker_session': row.worker_session, 'host': row.host, 'tcp_port': row.tcp_port, 'ctl_port': row.ctl_port,
+            'hex_sha256': row.hex_sha256, 'firmware_locked': bool(row.firmware_locked), 'locked_text': 'locked: no edit or reflash while the session runs' if row.firmware_locked else 'unlocked',
+            'ports': 'serial report %s, control %s' % (row.tcp_port, row.ctl_port),
             'owner': row.owner, 'started_at': row.started_at, 'expires_at': row.expires_at, 'ttl_s': row.ttl_s,
             'remaining_s': 0 if row.state != 'running' else max(0.0, round(row.expires_at - now, 1)),
             'ended_at': row.ended_at, 'end_reason': row.end_reason, 'watch': json.loads(row.watch_json or '[]'), 'status': last,
@@ -179,11 +181,11 @@ def _refresh(manager, row):
         _end(manager, row, 'TTL reached (%ds)' % row.ttl_s)
 
 
-def listing(manager):
+def listing(manager, name=''):
     for r in _rows(manager):
         _refresh(manager, r)
     rows = sorted(_rows(manager), key=lambda r: r.started_at)
-    return [view(r) for r in rows]
+    return [view(r) for r in rows if not name or r.name == name]
 
 
 def one(manager, name):
@@ -242,16 +244,23 @@ def _command(body):
     raise SessionRefused('nothing to do in %s (use set, adc, reset, watch, run or status)' % json.dumps(body), 400)
 
 
-def inject(manager, name, body):
+#: keys of an inject body that describe WHO/WHAT on the picture, not the twin: they are kept on the BenchInteraction row and never sent to the twin
+META_KEYS = ('part', 'what', 'kind')
+
+
+def inject(manager, name, body, who=''):
     row = _find(manager, name)
-    cmd = _command(body)
+    meta = {k: body[k] for k in META_KEYS if isinstance(body, dict) and k in body}
+    cmd = _command({k: v for k, v in body.items() if k not in META_KEYS} if isinstance(body, dict) else body)
     reply = _hub(manager, row).request(cmd)
     if 'watch' in cmd and reply.get('t') == 'ack':
         row.watch_json = json.dumps(cmd['watch'])
         _save(manager, row)
     if reply.get('t') == 'status':
         row.last_status_json = json.dumps(reply)
-    return {'ok': reply.get('t') != 'refused', 'sent': cmd, 'reply': reply, 'session': name}
+    from board.custom import bench_interactions as BI
+    rec = BI.record(manager, row, cmd, reply, who, meta)   # sim-3: every action is a BenchInteraction row (set-up commands are not)
+    return {'ok': reply.get('t') != 'refused', 'sent': cmd, 'reply': reply, 'session': name, 'interaction': rec}
 
 
 def events(manager, name, replay=0):

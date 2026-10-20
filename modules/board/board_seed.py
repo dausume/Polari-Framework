@@ -17,7 +17,7 @@ from board.board_basis import (PackageDefinition, PackageContact, UsbInterfaceDe
 from board.board_basis import EnclosureKind, HardwareEnclosure, EnclosureContact   # hsp-0: enclosures + exposure maps
 from board.board_basis import HardwareSystem, SystemLink, SignalPath   # hsp-1: Hardware System, links, signal paths
 from board.board_basis import ConfigurationEvent   # pv-4
-from board.board_basis import TwinSession   # sim-1
+from board.board_basis import TwinSession, BenchInteraction   # sim-1; sim-3
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -120,6 +120,7 @@ from board.custom import hardware_system as _HWS   # noqa: E402
 _HW_SYSTEM = _HWS.seed_rows()
 BOARD_SEED_PAIRS += [(c, cls, _register_owned(_HW_SYSTEM[c])) for c, cls in (('HardwareSystem', HardwareSystem), ('SystemLink', SystemLink), ('SignalPath', SignalPath))]
 BOARD_SEED_PAIRS += [('ConfigurationEvent', ConfigurationEvent, [])]   # pv-4: observed (a person's or a bridge's report of a real-world change), never seeded
+BOARD_SEED_PAIRS += [('BenchInteraction', BenchInteraction, [])]   # sim-3: observed, never seeded
 BOARD_SEED_PAIRS += [('TwinSession', TwinSession, [])]   # sim-1: observed (a session is started, never seeded)
 try:   # pv-0: the pin view's math-defined shapes (board.custom.pv_shapes) are MathShapeDefinition rows of the mathshapes module — code-owned, derived from the rows above; skipped when mathshapes is absent
     from mathshapes.shape_basis import MathShapeDefinition as _MSD

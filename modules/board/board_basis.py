@@ -75,6 +75,7 @@ from board.objects.board.SystemLink import SystemLink  # noqa: F401
 from board.objects.board.SignalPath import SignalPath  # noqa: F401
 from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F401
 from board.objects.board.TwinSession import TwinSession  # noqa: F401   # sim-1: a running simulated board with a live control port
+from board.objects.board.BenchInteraction import BenchInteraction  # noqa: F401   # sim-3: one thing a person did on the sim bench
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -95,4 +96,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  EnclosureKind, HardwareEnclosure, EnclosureContact,   # hsp-0: enclosure kinds (tentative), enclosures, exposure maps
                  HardwareSystem, SystemLink, SignalPath,   # hsp-1: Hardware System, links, signal paths
                  ConfigurationEvent,   # pv-4: real-world configuration changes (observed, never seeded)
-                 TwinSession]   # sim-1: twin sessions (observed, never seeded)
+                 TwinSession,   # sim-1: twin sessions (observed, never seeded)
+                 BenchInteraction]   # sim-3: what a person did on the sim bench (observed, never seeded)

@@ -75,7 +75,8 @@
   ],
   "page": [
    "hwnocode_page",
-   "light_page"
+   "light_page",
+   "sim_bench_page"
   ],
   "selftests": [
    "hwnocode_selftest"
