@@ -19,6 +19,7 @@ from board.board_basis import HardwareSystem, SystemLink, SignalPath   # hsp-1: 
 from board.board_basis import ConfigurationEvent   # pv-4
 from board.board_basis import TwinSession, BenchInteraction   # sim-1; sim-3
 from board.board_basis import SimInstallConfirmation   # ins-1
+from board.board_basis import FirmwareStateObject, FirmwareStateField   # fst-0
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -73,6 +74,8 @@ BOARD_SEED_PAIRS = [
     ('InstallPlan', InstallPlan, []),
     ('InstallRecord', InstallRecord, []),
     ('SimInstallConfirmation', SimInstallConfirmation, []),   # ins-1: a person's tick (observed, never seeded)
+    ('FirmwareStateObject', FirmwareStateObject, []),   # fst-0: derived on read (board.custom.firmware_state), never seeded
+    ('FirmwareStateField', FirmwareStateField, []),
     ('UnoAnalogState', UnoAnalogState, []),
     # ucd-0e1: the two new wire classes are observed, never seeded — the device fills them (ButtonClockState) or the
     # bridge appends them (ButtonClockEvent), exactly like UnoAnalogState above

@@ -227,14 +227,20 @@ def _tabs_from(data_path, key_field, title_field, rows_template, insert_at=None)
     return out
 
 
-def _page(name, route, description, source_class, rows, title='', tabs=None, tabs_from=None):
+def _page(name, route, description, source_class, rows, title='', tabs=None, tabs_from=None, scope_query=None):
     """`title` (optional) is the readable page title the header shows; it rides in the definition JSON (`title`). Without it the header
     humanizes `name` ("pin-view" -> "Pin view").
 
     fsc-3 TABS (optional; a page without them renders exactly as before): `tabs` = list of `_tab(...)` (static tabs, in order) and
     `tabs_from` = one `_tabs_from(...)` (generated tabs, spliced in at its `insert_at`). `rows` still render above the tab strip and are
-    shared by every tab. The open tab is kept in the URL (`?tab=<key>`) so a shared link opens it; no `?tab=` opens the first tab."""
+    shared by every tab. The open tab is kept in the URL (`?tab=<key>`) so a shared link opens it; no `?tab=` opens the first tab.
+
+    fst-1 `scope_query` (optional): page-scope keys seeded from the URL's query string — `scope_query=['config', 'session']` makes
+    `/display/firmware-state?config=uno-light` fill `{scope:config}` before the first render (and again when the query changes), so a plain
+    configured-tables page can be bound by a link, with no component announcing the scope."""
     definition = {'rows': rows}
+    if scope_query:
+        definition['scope_from_query'] = list(scope_query)
     if title:
         definition['title'] = title
     if tabs:

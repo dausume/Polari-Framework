@@ -34,7 +34,7 @@ def rows_and_classes():
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
           'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench)',
-          len(BOARD_CLASSES) == 60)   # fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation
+          len(BOARD_CLASSES) == 62)   # fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -416,6 +416,8 @@ def main():
     run_register_profile(check)
     from board.board_profile_overlap_selftest import run_profile_overlap   # pp-1: the cited profile-overlap table, its door, page, nav, manifest, CLI
     run_profile_overlap(check)
+    from board.board_firmware_state_selftest import run_firmware_state   # fst-0..2: a firmware's state objects, derived never typed
+    run_firmware_state(check)
     from board.board_twin_session_selftest import run_twin_session   # sim-1: twin sessions - the backend half against a fake worker + fake control port (the live half is its own module)
     run_twin_session(check, live=False)
     print('\n%d/%d checks passed' % (passed, total))
