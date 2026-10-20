@@ -25,6 +25,7 @@ The graph's sha256 = the canonical rows (volatile fields out), so a render names
 import hashlib
 import heapq
 import json
+import os
 import re
 
 IDENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -103,6 +104,18 @@ def _isr_writers(atoms, base):
     return out
 
 
+ROUTE_MODULES = ('hal_sense_', 'hal_button_')   # board gen's route-rendered files (board.custom.sense_routes / button_routes), one per picked route
+
+
+def _route_alternative(atoms, a, base):
+    """(key, atom) of the same FUNCTION provided by a route-rendered module compiled in `base`, else None."""
+    for k, b in sorted(atoms.items()):
+        if b is not a and b['function'] == a['function'] and b['kind'] == a['kind'] and base in b['configs'] \
+                and os.path.basename(b['module']).startswith(ROUTE_MODULES):
+            return k, b
+    return None
+
+
 def _closure_calls(atoms, key, seen=None):
     """Every atom function reachable from one atom through its derived calls (by function name)."""
     by_fn = {a['function']: k for k, a in atoms.items() if a['kind'] != 'isr'}
@@ -148,7 +161,16 @@ def resolve(rows, ctx):
                 raise GraphRefused('%s: %s is %s — the glue owns main(), and an ISR comes with the globals it shares, never as a node'
                                    % (where, key, 'an ISR' if a['kind'] == 'isr' else 'the entry point'))
             if base not in a['configs']:
-                raise GraphRefused('%s: %s is not compiled in the base configuration %s (only in %s)' % (where, key, base, ', '.join(a['configs'])))
+                # smp-2: a ROUTE-RENDERED module (board gen writes hal_sense_<route>.c / hal_button_<route>.c beside hal.c from a catom template; the
+                # hal.c block for that function is then off) provides the same function in the base configuration — the node names the function by its
+                # hal.c key, the compiled-in atom is the route file's. The glue only calls these by name (never copies their bodies), so the route atom
+                # stands in: same signature, its own `configs`.
+                alt = _route_alternative(atoms, a, base)
+                if alt is None:
+                    raise GraphRefused('%s: %s is not compiled in the base configuration %s (only in %s)' % (where, key, base, ', '.join(a['configs'])))
+                node['route_of'] = key
+                key, a = alt
+                node['row'] = dict(n, atom='%s:%s' % (g['project'], key))
             if n.get('stage') not in STAGES:
                 raise GraphRefused('%s: stage %r (init | loop | called)' % (where, n.get('stage')))
             node.update(atom=a, key=key, stage=n['stage'],

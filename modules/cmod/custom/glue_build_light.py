@@ -4,7 +4,7 @@
 The twin-equivalence proof of `uno-light-graph` (slice ucd-light): the GENERATED glue is built by `make` alone and compared
 frame by frame against the hand-written light.c (variant uno-light) on the simavr twin, under ONE stimulus that exercises both
 directions — N debounced presses on D2 (the button up) and then SET_LED 1 / SET_LED 0 injected over the serial link (the
-command down). Registered in glue_build.STIMULI; same shape as the button-clock graph's proof (glue_build._prove_button_clock).
+command down) — with the config's sense jumper on the twin (smp-2: PD6 -> PD3, so the reported led_on is the level the line really has). Registered in glue_build.STIMULI; same shape as the button-clock graph's proof (glue_build._prove_button_clock).
 """
 import datetime
 
@@ -15,15 +15,20 @@ def _now():
     return datetime.datetime.now().isoformat(timespec='seconds')
 
 
-def stimulus():
-    """-> (argv, files, seconds): 2 presses, then SET_LED 1, then SET_LED 0 (spaced past the debounce and the frame period)."""
+BASE = 'uno-light'   # smp-2: the graph's base configuration carries the sense line (D6 jumpered to D3, polled); the twin gets that jumper too
+
+
+def stimulus(base=BASE):
+    """-> (argv, files, seconds): 2 presses, then SET_LED 1, then SET_LED 0 (spaced past the debounce and the frame period). smp-2: + the config's own sense
+    jumper (board.custom.light_button.wire_args: PD6 -> the sense pin), so the reported led_on is the SENSED level on both builds - without it both would report 0."""
+    from board.custom import light_button as LB
     from board.custom import light_twin as LT
     pinat, end = LT.press_pinat(2)
     on_c, off_c = end + 1600000, end + 6400000
     _, spec = LT._spec()
     files = {'on.bin': LT.cmd_frame(spec, 1, led_on=True), 'off.bin': LT.cmd_frame(spec, 2, led_on=False)}
     seconds = (off_c + 3200000) / 16000000.0
-    argv = LT._argv(seconds, pinat + ['--inject', 'on.bin@%d' % on_c, '--inject', 'off.bin@%d' % off_c])
+    argv = LT._argv(seconds, pinat + LB.wire_args(base) + ['--inject', 'on.bin@%d' % on_c, '--inject', 'off.bin@%d' % off_c])
     argv[argv.index('--uart-out') + 2:argv.index('--uart-out') + 2] = ['--uart-tx-log', 'tx.bin']
     return argv, files, seconds
 
@@ -51,7 +56,7 @@ def prove(ref, mk):
     return {'equivalent': not diffs, 'frames_compared': min(len(fa), len(fb)), 'frames_hand': len(fa), 'frames_glue': len(fb),
             'fields_compared': ['seq'] + list(FIELDS), 'differences': diffs[:20], 'n_differences': len(diffs),
             'raw_uart_identical': rr['uart'] == rg['uart'], 'uart_sha256': {'hand': sha(rr['uart']), 'glue': sha(rg['uart'])},
-            'reference': {'variant': 'uno-light-unsensed', 'built_by': 'board gen + board build (the shipped pipeline)',
+            'reference': {'variant': ref.get('variant', BASE), 'built_by': 'board gen + board build (the shipped pipeline)',
                           'hex_sha256': ref['hex_sha256'], 'size_text': ref['size_text'], 'size_data': ref['size_data'], 'size_bss': ref['size_bss']},
             'glue': {'hex_sha256': mk['hex_sha256'], 'size_text': mk['sizes'].get('.text', 0), 'size_data': mk['sizes'].get('.data', 0),
                      'size_bss': mk['sizes'].get('.bss', 0), 'built_by': 'make alone (%s %s)' % (mk['how'], mk['where'])},
@@ -60,7 +65,8 @@ def prove(ref, mk):
                        'frame_tx_cycle_delta_min': None, 'frame_tx_cycle_delta_max': None,
                        'first_frame_cycle_hand': None, 'first_frame_cycle_glue': None},
             'stimulus': {'seconds': round(seconds, 3), 'seed': '-', 'adc0_ramp_mv': '-',
-                         'commands': ['2 press(es) on D2', 'SET_LED led_on=1', 'SET_LED led_on=0'], 'argv': ['polari-avr-twin'] + argv},
+                         'commands': ['2 press(es) on D2', 'SET_LED led_on=1', 'SET_LED led_on=0'] + (['the jumper %s' % argv[argv.index('--wire') + 1]] if '--wire' in argv else []),
+                         'argv': ['polari-avr-twin'] + argv},
             'first_commanded_frame': next((i for i, f in enumerate(fb) if f.get('source') == 'command'), None),
             'samples': [dict(seq=f.get('seq'), **{k: f.get(k) for k in FIELDS}) for f in (fb[:1] + fb[-1:])],
             'twin': {'how': rg.get('how'), 'where': rg.get('where'), 'simulator': 'polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)'},

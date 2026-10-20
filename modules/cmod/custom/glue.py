@@ -242,6 +242,8 @@ def render_files(rows, ctx=None, manager=None):
     whole, copies = {}, []
     for k in model['atoms_used'] + model['isrs']:
         a = ctx['atoms'][k]
+        if a['module'] not in ctx['modules'] and a['module'] in ctx.get('route_files', {}):
+            continue   # smp-2: a route-rendered module (hal_sense_poll.c) is carried whole from the base configuration's render (route_files), never copied from the template root
         name, role, files = ctx['modules'][a['module']]
         if role in ('hal', 'source', 'header'):
             for f in files:

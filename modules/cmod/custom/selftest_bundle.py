@@ -28,6 +28,13 @@ def _run_install_bundle(check):
     # `make` — a test node without a board-engines worker (econ-core, 2026-10-11) — export() raised
     # EngineRefused out of the selftest and aborted every later section. Skip BY NAME instead, the way the
     # host-toolchain sections do; the rung itself is proven where a worker exists.
+    # smp-2: the bundle's INSTALL.md wiring is DERIVED from the config's layout steps (no engine needed for the words themselves)
+    wiring = EX._wiring_lines('uno-light')
+    check('install-bundle (smp-2): the wiring lines of uno-light come from its layout steps and name the sense jumper (D3) and the light (D6) wires, the LED and the button',
+          any('D3' in ln for ln in wiring) and any('D6' in ln for ln in wiring) and any('LED1' in ln for ln in wiring) and any('SW1' in ln for ln in wiring) and len(wiring) >= 8,
+          wiring[:3])
+    check('install-bundle (smp-2): a config with no layout gets one honest sentence, never a crash', len(EX._wiring_lines('no-such-config')) == 1
+          and 'No breadboard layout' in EX._wiring_lines('no-such-config')[0])
     where = CE.resolve('make')
     if where['how'] == 'refused':
         print('  [SKIP] install-bundle needs the make rung — %s' % where['why'])
@@ -61,6 +68,8 @@ def _run_install_bundle(check):
     check('install-bundle: INSTALL.md carries the advice line verbatim', manifest['proof']['advice'] in install_md,
           manifest['proof'].get('advice', ''))
     check('install-bundle: INSTALL.md names the sha gate (compare the sha first)', 'sha' in install_md.lower() and 'first' in install_md.lower())
+    check('install-bundle (smp-2): INSTALL.md opens with the bench wiring section and the manifest carries the same lines', '## 0. Wire the bench' in install_md
+          and isinstance(manifest.get('wiring'), list) and all(ln in install_md for ln in manifest['wiring'][:3]), manifest.get('wiring', [])[:1])
 
 
 def _run_solution(check):
