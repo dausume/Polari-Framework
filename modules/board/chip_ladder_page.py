@@ -86,6 +86,6 @@ CHIP_LADDER_PAGES = [
                                  'Milk-V Duo, CH32V003, the K1 hosts). Capability beyond the sample comes from peripherals and from more chips per board, never from a longer list.'),
                 _tab('convenience', 'Convenience and cross-reference boards', _section_rows('convenience', 'chp-conv', 'Convenience boards'),
                      description='The boards kept because they are accessible and already on the bench: the AVR Arduinos simavr twins today, the SAMD21 Arduino Zero and Feather M0 '
-                                 'Express, the Xtensa ESP32 eval board, the bare iCE40UP5K. None of these is RISC-V; the ESP32 here is the ORIGINAL Xtensa chip.'),
+                                 'Express, the Xtensa ESP32-S3 e-paper board, the bare iCE40UP5K. None of these is RISC-V; the ESP32 here is an ESP32-S3 (Xtensa LX7, derived from its header silk).'),
                 _emulators_tab()]),
 ]

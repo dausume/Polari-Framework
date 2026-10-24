@@ -22,8 +22,8 @@ def run_chip_ladder(check):
     check('chp-0 SAMPLE: the RISC-V section fills exactly eight slots, two per level (his "2 risc-v chips per level"), and the exceptions sit beside them',
           slots == sorted('%s %d' % (lv, i) for lv in ('bare-c', 'freertos', 'zephyr', 'ubuntu') for i in (1, 2)) and len([r for r in riscv if r['slot'] == 'exception']) >= 3,
           slots)
-    check('chp-0 APART: no convenience board is RISC-V and every convenience family is one of AVR / ARM Cortex-M0+ / Xtensa LX6 / FPGA (his "separated out cleanly")',
-          all(r['family'] != 'RISC-V' for r in conv) and {r['family'] for r in conv} <= {'AVR', 'ARM Cortex-M0+', 'Xtensa LX6', 'FPGA'}
+    check('chp-0 APART: no convenience board is RISC-V and every convenience family is one of AVR / ARM Cortex-M0+ / Xtensa LX7 / FPGA (his "separated out cleanly"; the Elecrow board is an S3 by its silk, 2026-10-24)',
+          all(r['family'] != 'RISC-V' for r in conv) and {r['family'] for r in conv} <= {'AVR', 'ARM Cortex-M0+', 'Xtensa LX7', 'FPGA'}
           and all(r['family'] == 'RISC-V' for r in riscv), sorted({r['family'] for r in conv}))
     bad = []
     for r in rows:

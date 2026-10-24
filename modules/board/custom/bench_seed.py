@@ -59,7 +59,8 @@ SEED_BENCHES = [{
         {'board': 'arduino-uno-r3', 'label': 'UNO #1', 'added': '2026-10-24', 'note': 'the Starter Kit\'s UNO R3 (box)'},
         {'board': 'arduino-zero', 'label': 'Zero #1', 'added': '2026-10-24', 'note': 'box'},
         {'board': 'adafruit-feather-m0-express', 'label': 'Feather M0 #1', 'added': '2026-10-24', 'note': 'order, with headers and two LiPo cells'},
-        {'board': 'elecrow-esp32-eval', 'label': 'ESP32 eval #1', 'added': '2026-10-24', 'note': 'order label; module unverified'},
+        {'board': 'elecrow-esp32-eval', 'label': 'ESP32-S3 e-paper #1', 'added': '2026-10-24',
+         'note': 'order label; ESP32-S3 derived from the GPIO header silk (IO20 + IO38 together exist only on the S3); exact module pending esptool'},
     ]),
     'breadboards_json': json.dumps([
         {'model': 'bud-bb-32650-w', 'count': 2, 'note': 'order label'},
