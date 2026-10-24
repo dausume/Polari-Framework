@@ -13,9 +13,11 @@ def run_bench_setup(check):
     B._MEM.clear()
     # ---- the models
     ms = {m['name']: m for m in S.SEED_BREADBOARD_MODELS}
-    check('bench-0 MODELS: five breadboard models; half-400 and full-830 and mini-170 have DERIVED geometry from pv_shapes; the BUD and the kit\'s are UNVERIFIED with no dimensions',
+    check('bench-0 MODELS: five breadboard models; half-400 and full-830 and mini-170 have DERIVED geometry from pv_shapes; the kit\'s is UNVERIFIED with no dimensions; the BUD carries its CITED 47.0 x 36.1 mm outline (170 tie points) but is not drawable yet (derived outline disagrees)',
           len(ms) == 5 and all(ms[k]['geometry_known'] and ms[k]['width_mm'] > 0 and 'derived' in ms[k]['basis'] for k in ('half-400', 'full-830', 'mini-170'))
-          and all(not ms[k]['geometry_known'] and ms[k]['width_mm'] == -1.0 for k in ('bud-bb-32650-w', 'starter-kit-breadboard')),
+          and not ms['starter-kit-breadboard']['geometry_known'] and ms['starter-kit-breadboard']['width_mm'] == -1.0
+          and ms['bud-bb-32650-w']['tie_points'] == 170 and ms['bud-bb-32650-w']['kind'] == 'mini' and not ms['bud-bb-32650-w']['geometry_known']
+          and (ms['bud-bb-32650-w']['width_mm'], ms['bud-bb-32650-w']['height_mm']) == (47.0, 36.1) and 'cited' in ms['bud-bb-32650-w']['basis'],
           {k: (m['geometry_known'], round(m['width_mm'], 1)) for k, m in ms.items()})
     check('bench-0 MODELS: the full board is wider than the half, the half than the mini (the geometry follows the row counts)',
           ms['full-830']['width_mm'] > ms['half-400']['width_mm'] > ms['mini-170']['width_mm'], (ms['full-830']['width_mm'], ms['half-400']['width_mm'], ms['mini-170']['width_mm']))
