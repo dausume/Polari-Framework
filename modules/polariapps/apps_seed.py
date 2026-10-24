@@ -677,6 +677,9 @@ SEED_POLARI_APPS = [
                   _it('Fault scenarios and proofs', 'page',
                       route='/display/firmware-faults',
                       requires_module='firmwarefaults')),
+             _tgrp('Chips and levels',   # chp-0: the RISC-V sample apart from the convenience boards
+                  _it('Chips and levels: the RISC-V sample, the Arduinos, and which twins exist', 'page',
+                      route='/display/chip-ladder', requires_module='board')),
              _tgrp('The board',
                   _it('Boards, pins and kit parts', 'page',
                       route='/display/boards', requires_module='board'),
