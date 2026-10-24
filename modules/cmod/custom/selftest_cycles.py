@@ -103,8 +103,11 @@ def cycles_parts(check):
         with records_off():
             r0 = S.solve(LIGHT, boards=[UNO], tiers=['bare-c'], objective='fastest-cycle')
         c0 = r0['chosen_candidate']
-        check('cyc-0: with the records off sol-0 is as it was (0 measured parts, the ~9.7 ms estimate); with them the same plan costs %.2f ms - %.2f ms of measured CPU work the upper bounds had left out'
-              % (c['cycle_us'] / 1000.0, (c['cycle_us'] - c0['cycle_us']) / 1000.0),
-              c0['cycle']['bases']['measured'] == 0 and 9000 < c0['cycle_us'] < 10200 and c['cycle_us'] > c0['cycle_us'] and c['routes'] == c0['routes'], (c0['cycle_us'], c['cycle_us']))
+        same = next((x for x in r['_ranked'] if x['routes'] == c0['routes'] and x['hardware']['package'] == c0['hardware']['package']), None)   # the records-off plan, priced with the records on
+        check('cyc-0: with the records off sol-0 is as it was (0 measured parts, the ~9.8 ms estimate, the INT1 sense); with them that SAME plan costs %.2f ms - %.2f ms of measured CPU work the upper bounds had left out - and the chosen plan may change '
+              '(smp-2: the measured polled sense beats the measured interrupt service by a hair, so the chosen route is %s at %.2f ms)'
+              % ((same or c)['cycle_us'] / 1000.0, ((same or c)['cycle_us'] - c0['cycle_us']) / 1000.0, c['routes'].get('sense-led-line'), c['cycle_us'] / 1000.0),
+              c0['cycle']['bases']['measured'] == 0 and 9000 < c0['cycle_us'] < 10200 and same is not None and same['cycle_us'] > c0['cycle_us'] and same['cycle']['bases']['measured'] > 0
+              and c['cycle_us'] <= same['cycle_us'] and c['cycle']['bases']['measured'] > 0, (c0['cycle_us'], same and same['cycle_us'], c['cycle_us'], c['routes'] == c0['routes']))
 
     return (atom_cost, rt0, iso0, sol0)

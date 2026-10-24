@@ -95,9 +95,9 @@ def approach_profile_parts(check):
         text = ' '.join(rec['reasons'] + rec['caveats'])
         check('rt-0: the reasons name the blocking send (9.5 ms), the 100 ms deadline, the 59 ms margin, that the atom code is MEASURED on the twin, and what is left out (INT0/INT1 rates)',
               '9.5 ms' in text and '100 ms' in text and 'margin is 59' in text and 'INT0' in text and 'MEASURED' in text and 'cannot bound' not in text, text)
-        check('rt-0: concurrency from the schedule lanes and pp-0: 6 interrupt vectors (fgm-5a/5b: the ISR atoms of the project, hal_button_pcint.PCINT2_vect and hal_sense_pcint.PCINT0_vect among them), 6 loop tasks (scl: + led_follow_state), only USART0/EEPROM as drivers; 5 pin needs (pp-0), 2 of them interrupt inputs',
-              d['concurrency'][0]['interrupt_vectors']['value'] == 6 and d['concurrency'][0]['loop_tasks']['value'] == 6 and d['concurrency'][0]['drivers'] == ['EEPROM', 'USART0']
-              and d['pin_profiles']['profiles']['value'] == 5 and d['pin_profiles']['interrupt_inputs']['value'] == 2, (d['concurrency'][0], d['pin_profiles']))
+        check('rt-0: concurrency from the schedule lanes and pp-0: 6 interrupt vectors (fgm-5a/5b: the ISR atoms of the project, hal_button_pcint.PCINT2_vect and hal_sense_pcint.PCINT0_vect among them), 7 loop tasks (scl: + led_follow_state; smp-2: + sense_poll), only USART0/EEPROM as drivers; 6 pin needs (pp-0; smp-2: the sense line twice), 2 of them interrupt inputs',
+              d['concurrency'][0]['interrupt_vectors']['value'] == 6 and d['concurrency'][0]['loop_tasks']['value'] == 7 and d['concurrency'][0]['drivers'] == ['EEPROM', 'USART0']
+              and d['pin_profiles']['profiles']['value'] == 6 and d['pin_profiles']['interrupt_inputs']['value'] == 2, (d['concurrency'][0], d['pin_profiles']))
         check('rt-0: data rate - the 10 Hz report is at most 1100 B/s, under 10 percent of the 11520 B/s line (estimated / cited)',
               d['data_rate'] and d['data_rate'][0]['bytes_per_s']['value'] == 1100.0 and d['data_rate'][0]['share_of_line']['value'] < 10 and d['data_rate'][0]['line_capacity']['kind'] == 'cited', d['data_rate'])
 
@@ -121,10 +121,10 @@ def approach_profile_parts(check):
         r = lt()
         t = r['tiers']
         mem = {m['what']: m for m in t['bare-c']['memory']}
-        check('rt-0: UNO bare C is AVAILABLE: the recorded build (3132 B flash, 514 B static RAM, MEASURED; scl moved them from 3110 / 513) fits the cited limits (32256 B after Optiboot, 2048 B)',
-              t['bare-c']['state'] == 'available' and mem['flash']['application']['value'] == 3132 and mem['flash']['application']['kind'] == 'measured'
-              and mem['static RAM']['application']['value'] == 514 and mem['flash']['limit']['value'] == 32256 and mem['flash']['limit']['kind'] == 'cited'
-              and mem['static RAM']['free_after_application']['value'] == 2048 - 514, t['bare-c']['memory'])
+        check('rt-0: UNO bare C is AVAILABLE: the recorded build (3380 B flash, 524 B static RAM, MEASURED; smp-2 moved them from 3132 / 514 with the sense line, scl from 3110 / 513) fits the cited limits (32256 B after Optiboot, 2048 B)',
+              t['bare-c']['state'] == 'available' and mem['flash']['application']['value'] == 3380 and mem['flash']['application']['kind'] == 'measured'
+              and mem['static RAM']['application']['value'] == 524 and mem['flash']['limit']['value'] == 32256 and mem['flash']['limit']['kind'] == 'cited'
+              and mem['static RAM']['free_after_application']['value'] == 2048 - 524, t['bare-c']['memory'])
         fr = t['freertos']
         check('rt-0: UNO FreeRTOS is BLOCKED, never available: the board\'s own refusal (2 KB SRAM) is the reason, and the kernel RAM is UNDETERMINED (no AVR FreeRTOS build, none cited) - not guessed',
               fr['state'] == 'blocked' and '2 KB SRAM' in fr['why'] and fr['kernel']['sram']['kind'] == 'undetermined' and fr['kernel']['sram']['value'] is None
@@ -202,8 +202,8 @@ def approach_profile_parts(check):
               order == ['b', 'c', 'a'] and not r2['priorities']['ties'], order)
         t3 = [('x', None, 100, ['px', 'py'], [], []), ('y', None, 100, ['py'], [], [])]
         r3 = AP.approach_profile('synthetic', board=UNO, spec=_synth(t3, [('px', 'required', 'button', 40, ['x']), ('py', 'required', 'button', 40, ['y'])]))
-        check('rt-0: the light Mission\'s six loop tasks (scl: + led_follow_state) all tie (100 ms, required) and the preview says the order is only the schedule order',
-              len(lt()['priorities']['ties']) == 6 and 'schedule order' in lt()['priorities']['tie_note'] and r3['priorities']['ties'] == ['x', 'y'], lt()['priorities']['tie_note'])
+        check('rt-0: the light Mission\'s seven loop tasks (scl: + led_follow_state; smp-2: + sense_poll) all tie (100 ms, required) and the preview says the order is only the schedule order',
+              len(lt()['priorities']['ties']) == 7 and 'schedule order' in lt()['priorities']['tie_note'] and r3['priorities']['ties'] == ['x', 'y'], lt()['priorities']['tie_note'])
         # a small system that a loop serves: bare C, not provisional
         small = _synth([('poll', 100, 300, ['ps'], [], [])], [('ps', 'required', 'button', 100, ['poll'])])
         rs = AP.approach_profile('synthetic', board=UNO, spec=small)
@@ -249,7 +249,7 @@ def approach_profile_parts(check):
         r = c.simulate_get('/api/missions/%s/approach' % LIGHT, params={'board': C3, 'tier': 'zephyr'})
         check('rt-0: ?board=esp32-c3&tier=zephyr: tiers for the C3 and what choosing Zephyr costs',
               r.status_code == 200 and r.json['board'] == C3 and r.json['tiers']['freertos']['state'] == 'available' and r.json['chosen']['tier'] == 'zephyr', r.text[:120])
-        for v, n in (('demand', None), ('tiers', 3), ('priorities', 6)):
+        for v, n in (('demand', None), ('tiers', 3), ('priorities', 7)):   # smp-2: + sense_poll
             rv = c.simulate_get('/api/missions/%s/approach' % LIGHT, params={'view': v})
             check('rt-0: ?view=%s answers flat plain-words rows for the page table' % v,
                   rv.status_code == 200 and rv.json['view'] == v and rv.json['count'] == len(rv.json['rows']) > 0 and (n is None or rv.json['count'] == n), rv.text[:100])

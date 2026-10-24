@@ -67,15 +67,16 @@ def task_plan_parts(check):
               set(dl.values()) == {100.0} and all(t['deadline_basis'].startswith('criterion') for t in p['tasks']) and trig['handle-button-press']['debounce_ms'] == 30.0
               and trig['relay-state']['period_ms'] == 100.0 and 'TELEMETRY_HZ' in trig['relay-state']['period_basis'] and _t(p, 'relay-state')['period_ms'] == 100.0, (dl, trig['relay-state']['period_basis'][:80]))
         steps = {t['task']: [s['instance'] for s in t['steps']] for t in p['tasks']}
-        check('fgm-3: steps are the graph\'s atoms in graph order - init: the five init atoms; the button task is fed by INT0_vect; the command task by USART_RX_vect; the report task by the tick (TIMER2_COMPA_vect)',
+        check('fgm-3: steps are the graph\'s atoms in graph order - init: the five init atoms; the button task is fed by INT0_vect; the command task by USART_RX_vect; the report task by the tick (TIMER2_COMPA_vect) and, since smp-2, it ends with the polled sense (sense -> sense_poll, the graph\'s own sense nodes)',
               steps['init'] == ['usart_init', 'tick_init', 'led_init', 'button_init', 'boot_session_mint'] and steps['handle-button-press'][0] == 'INT0_vect' and steps['handle-button-press'][-1] == 'led_follow_state'
-              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led', 'led_follow_state'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and steps['relay-state'][-1] == 'telemetry_send' and steps['sense'] == ['hal_sense_poll.hal_sense_read'], steps)
+              and steps['receive-command'] == ['USART_RX_vect', 'rx_pop', 'apply', 'led', 'led_follow_state'] and steps['relay-state'][0] == 'TIMER2_COMPA_vect' and 'telemetry_send' in steps['relay-state']
+              and steps['relay-state'][-2:] == ['sense', 'sense_poll'] and steps['sense'] == ['hal_sense_poll.hal_sense_read'], steps)
         counts = p['agreement_counts']
         check('fgm-3 / fgm-5b: the AGREEMENT CHECK passes for every task - all five agree, none disagree, none is unchecked: the sense task\'s chosen route (gpio-poll) now has atoms (hal_sense_poll, fgm-5b), so its context (loop) is compared with the lane they derive - never "agrees" by default',
               counts == {'agrees': 5, 'disagrees': 0, 'unchecked': 0} and all('derived lanes say' in t['agreement_why'] for t in p['tasks'] if t['agreement'] == 'agrees'), counts)
         sn = _t(p, 'sense')
-        check('fgm-5b: the polled sense task\'s step is the route\'s read atom, whose lane (loop) is read from the shipped atom it replaces (called by sense_isr in uno-button-clock-graph); its init atom belongs to the init task; it has a scheduler priority (it is a loop task)',
-              [x['instance'] for x in sn['steps']] == ['hal_sense_poll.hal_sense_read'] and sn['steps'][0]['lane'] == 'loop' and 'sense_isr' in sn['steps'][0]['role'] and sn['context'] == 'loop' and sn['agreement'] == 'agrees'
+        check('fgm-5b: the polled sense task\'s step is the route\'s read atom, whose lane (loop) is read from uno-light-graph\'s own sense nodes since smp-2 (called by sense_poll, which runs in the loop lane); its init atom belongs to the init task; it has a scheduler priority (it is a loop task)',
+              [x['instance'] for x in sn['steps']] == ['hal_sense_poll.hal_sense_read'] and sn['steps'][0]['lane'] == 'loop' and 'sense_poll' in sn['steps'][0]['role'] and sn['context'] == 'loop' and sn['agreement'] == 'agrees'
               and 'hal_sense_poll.hal_sense_init belongs to the init task' in next(t for t in p['triggers'] if t['task'] == 'sense')['notes'] and sn['priority'] > 0 and 'derived lanes say loop' in sn['agreement_why'], (sn['steps'], sn['agreement_why']))
         pr = {t['task']: t['priority'] for t in p['tasks']}
         check('fgm-3: priorities - init runs once (0); the four 100 ms / required tasks TIE on deadline and importance, so they are ordered by the Mission\'s Purpose order and every one says TIE (never a silent order): %s' % pr,
@@ -104,10 +105,10 @@ def task_plan_parts(check):
         p = TP.derive_task_plan(LIGHT, SYSTEM, solve_run=r, candidate=demo['id'])
         s = _t(p, 'sense')
         trig = next(t for t in p['triggers'] if t['task'] == 'sense')
-        check('fgm-3: the demo candidate (button INT0, sense INT1 on D3) gives a sense task fed by INT1_vect: its steps are the route\'s atoms with lanes read from the graph that schedules them (uno-button-clock-graph), the init atom is left to the init task, '
+        check('fgm-3: the demo candidate (button INT0, sense INT1 on D3) gives a sense task fed by INT1_vect: its steps are the route\'s atoms with lanes read from the graph that schedules them (uno-light-graph, its own sense nodes since smp-2), the init atom is left to the init task, '
               'the context is isr (derived from the lanes), the agreement check says agrees, and it has no scheduler priority (0)',
               [x['instance'] for x in s['steps']] == ['hal.hal_sense_read', 'hal.INT1_vect'] and s['context'] == 'isr' and s['agreement'] == 'agrees' and s['priority'] == 0 and trig['source'].startswith('D3') and trig['how'] == 'interrupt'
-              and 'hal.hal_sense_init belongs to the init task' in trig['notes'] and 'uno-button-clock-graph' in s['steps'][0]['role'], (s['steps'], s['context'], s['agreement']))
+              and 'hal.hal_sense_init belongs to the init task' in trig['notes'] and 'uno-light-graph' in s['steps'][0]['role'], (s['steps'], s['context'], s['agreement']))
         b = _t(p, 'handle-button-press')
         check('fgm-3: the button task\'s trigger is the interrupt route here (D2 / INT0) and no note contradicts the graph; on the polled candidate the note names the difference (the graph implements INT0, the chosen route is gpio-poll, status declared)',
               next(t for t in p['triggers'] if t['task'] == 'handle-button-press')['how'] == 'interrupt' and 'INT0_vect' in cache['plan']['triggers'][1]['notes'] and 'declared' in cache['plan']['triggers'][1]['notes'] and b['priority'] == 1, cache['plan']['triggers'][1]['notes'])

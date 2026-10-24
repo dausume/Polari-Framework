@@ -14,8 +14,8 @@ def colocation_parts(check):
         from cmod.custom import mission_colocation as MC
         r = MC.mission_colocation(MISSION)
         roles = {p['role']: p for p in r['profiles']}   # the two transport profiles share a role name
-        check('pp-1: the light Mission co-location reads pp-0\'s 5 profiles (transport rx + tx reserved, the LED, the button, the sense line)',
-              len(r['profiles']) == 5 and {'the LED', 'the button', 'the sense line'} <= set(roles) and sum(p['reserved'] for p in r['profiles']) == 2, str(list(roles)))
+        check('pp-1: the light Mission co-location reads pp-0\'s 6 profiles (transport rx + tx reserved, the LED, the button, the sense line twice - interrupt-in and, since smp-2, digital-in)',
+              len(r['profiles']) == 6 and {'the LED', 'the button', 'the sense line'} <= set(roles) and sum(p['reserved'] for p in r['profiles']) == 2, str(list(roles)))
 
         def row(a, b, scope, src='pair_rows'):
             return next((x for x in r[src] if {x['pair']} & {'%s + %s' % (a, b), '%s + %s' % (b, a)} and x['scope'] == scope), None)
@@ -34,8 +34,8 @@ def colocation_parts(check):
               ('the LED', 'the button', 'pin') in apart and ('the LED', 'the button', 'net') in apart and ('the transport', 'the LED', 'pin') in apart
               and ('the transport', 'the transport', 'pin') in apart and ('the transport', 'the transport', 'net') in apart, str(sorted(apart)[:12]))
         trans = [g for g in r['groups'] if g['reserved']]
-        check('pp-1 LIGHT DEMO: the transport pair is reserved - each on its own pin, never grouped; the minimum is 4 pins for 5 profiles (the LED and the sense line share one pin, with the self-interrupt condition carried)',
-              len(trans) == 2 and all(not g['shared'] for g in trans) and r['pins_without_sharing'] == 5 and r['min_pins'] == 4
+        check('pp-1 LIGHT DEMO: the transport pair is reserved - each on its own pin, never grouped; the minimum is 4 pins for 6 profiles (the LED and both reads of the sense line share one pin, with the self-interrupt condition carried)',
+              len(trans) == 2 and all(not g['shared'] for g in trans) and r['pins_without_sharing'] == 6 and r['min_pins'] == 4
               and any(g['shared'] and 'the LED' in ' '.join(g['profiles']) and 'the sense line' in ' '.join(g['profiles']) and g['conditions'] for g in r['groups'])
               and 'PD0' not in next(g for g in r['groups'] if g['shared'])['pin_options'].split(', '), str(r['groups']))
         check('pp-1: every row of the report is plain words with a citation (no raw JSON), and the unresolved tasks are admitted in the notes',
@@ -84,8 +84,9 @@ def colocation_parts(check):
                 nom = c.simulate_get('/api/missions/zzz/colocation')
                 viewbad = c.simulate_get('/api/missions/%s/colocation?view=zzz' % MISSION)
                 byp = c.simulate_get('/api/missions/anything/colocation?purposes=ensure-button-controls-light')
-                ok = (co.status_code == 200 and co.json['min_pins'] == 4 and co.json['count'] == len(co.json['pair_rows']) == 30 and grp['count'] == 4 and apart['count'] > 5
-                      and pp0.status_code == 200 and pp0.json['pins_needed'] == 5 and mis0 == [200, 200, 200] and tbl.status_code == 200 and tbl.json['count'] == 153
+                n_prof = len(pp0.json.get('profiles', [])) if pp0.status_code == 200 else 0   # smp-2: 6 profiles -> 15 pairs x 3 scopes
+                ok = (co.status_code == 200 and co.json['min_pins'] == 4 and co.json['count'] == len(co.json['pair_rows']) == 3 * n_prof * (n_prof - 1) // 2 and grp['count'] == 4 and apart['count'] > 5
+                      and pp0.status_code == 200 and pp0.json['pins_needed'] == 6 and mis0 == [200, 200, 200] and tbl.status_code == 200 and tbl.json['count'] == 153
                       and nom.status_code == 404 and 'zzz' in nom.json['error'] and viewbad.status_code == 400 and byp.status_code == 200)
                 why = str((co.status_code, grp.get('count'), pp0.status_code, mis0, tbl.status_code, nom.status_code, byp.status_code))
             except Exception as ex:   # a route clash raises UnacceptableRouteError at add time
