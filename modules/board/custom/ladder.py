@@ -277,14 +277,25 @@ def _rung7(tables, board, bp, label, ctx, cache):
                               context={k: ctx[k] for k in ('transport', 'acknowledged', 'icsp') if k in ctx})
     canon = bp['canonical'] if bp else label
     mine = [f for f in cache[key] if re.search(r'(?<![A-Za-z0-9])%s(?![A-Za-z0-9])' % re.escape(canon), f['subject'] + ' ' + f['detail'])]
+    if ctx.get('config'):   # cst-1: the stored .op currents of this config's circuit states that name the pin (electrodevice.custom.cst_verdict)
+        try:
+            from electrodevice.custom import cst_verdict as CV
+            mine += CV.rung7_findings(ctx['config'], canon, manager=tables.get('_manager'), tables=tables)
+        except Exception as e:   # noqa: BLE001 — the rung stays what the electrical rules said; the words name the miss
+            mine.append({'rule': 'spice-pin-current', 'status': 'undetermined', 'subject': canon, 'detail': 'the SPICE currents of %s could not be read: %s' % (ctx['config'], e), 'cite': ''})
     bad = [f for f in mine if f['status'] == 'refuse']
     warn = [f for f in mine if f['status'] == 'warn']
     und = [f for f in mine if f['status'] == 'undetermined']
     pick = bad or warn or und
     if not mine:
         return _r(7, 'ok', 'no electrical finding of circuit %s names %s (%d findings checked)' % (ctx['circuit'], canon, len(cache[key])), 'board.custom.electrical_check.check')
+    spice = sorted((f for f in mine if f['rule'] == 'spice-pin-current' and f not in (pick or [])),
+                   key=lambda f: -float((re.search(r'([\d.]+) mA', f['detail']) or [None, '0'])[1]))   # the heaviest state first
+    detail = '; '.join('%s [%s] %s' % (f['rule'], f['status'], f['detail']) for f in (pick or mine))[:400]
+    if spice:   # cst-1: the measured .op currents ride beside the rule verdict (a model's forward voltage is not a cited one, so they never lift an undetermined)
+        detail += ' · SPICE: ' + '; '.join(f['detail'] for f in spice[:2])[:300]
     return _r(7, 'blocked' if bad else 'conditional' if warn else 'undetermined' if und else 'ok',
-              '; '.join('%s [%s] %s' % (f['rule'], f['status'], f['detail']) for f in (pick or mine))[:400], '; '.join(sorted({f['cite'] for f in (pick or mine) if f.get('cite')}))[:200])
+              detail, '; '.join(sorted({f['cite'] for f in (pick or mine) if f.get('cite')}))[:200])
 
 
 def _rung8(tables, board, bp, sp, label, fn, ctx):

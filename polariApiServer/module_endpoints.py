@@ -397,6 +397,9 @@ def construct_electrodevice_endpoints(polServer):
     # (/api/layout/...): placements, wires, the netlist gate, steps.
     from electrodevice.layout_api import LayoutAPI
     layoutEndpoint = LayoutAPI(polServer=polServer, manager=manager)
+    # cst-0/1: the circuit states of a config (/api/circuit-states/...): states, transitions, the .op per state, findings
+    from electrodevice.circuit_states_api import CircuitStatesAPI
+    circuitStatesEndpoint = CircuitStatesAPI(polServer=polServer, manager=manager)
 
 
 def construct_collab_endpoints(polServer):
