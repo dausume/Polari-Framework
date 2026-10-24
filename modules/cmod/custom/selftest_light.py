@@ -39,8 +39,8 @@ def _light_atoms(check):
     m = json.load(open(P.manifest_path(P.resolve('uno'))))
     names = {a['name'] for a in m['atoms']}
     own = sorted(n for n in names if n.startswith('apps/light.') and n != 'apps/light.main')
-    check('light.c parses into its atoms: boot_session_mint, led_toggle, apply_command, led_follow_state (scl), telemetry_send (+ main)',
-          own == ['apps/light.apply_command', 'apps/light.boot_session_mint', 'apps/light.led_follow_state', 'apps/light.led_toggle', 'apps/light.telemetry_send']
+    check('light.c parses into its atoms: boot_session_mint, led_toggle, apply_command, led_follow_state (scl), sense_poll (smp-2), telemetry_send (+ main)',
+          own == ['apps/light.apply_command', 'apps/light.boot_session_mint', 'apps/light.led_follow_state', 'apps/light.led_toggle', 'apps/light.sense_poll', 'apps/light.telemetry_send']
           and 'apps/light.main' in names, own)
     rows = _light_nodes()
     atoms = [n for n in rows['nodes'] if n['kind'] == 'c-atom']
@@ -49,10 +49,13 @@ def _light_atoms(check):
     inst = {n['instance'] for n in atoms}
     check('the seven atoms of the light test are all in the graph: usart init, led init, button init, rx pop, apply, led toggle, telemetry send',
           set(PRINCIPAL) <= inst, sorted(set(PRINCIPAL) - inst))
-    check('no clock, no SET_TIME, no sense pin, no event queue, no ADC anywhere in the graph (its atoms, by name)',
-          not any(w in n['atom'] for n in atoms for w in ('clock_set', 'clock_tick', 'sense', 'events_', 'adc', 'queue')), [n['atom'] for n in atoms])
+    check('no clock, no SET_TIME, no event queue, no ADC anywhere in the graph (its atoms, by name)',
+          not any(w in n['atom'] for n in atoms for w in ('clock_set', 'clock_tick', 'events_', 'adc', 'queue')), [n['atom'] for n in atoms])
+    check('smp-2: the SENSE LINE is in the graph - sense_init (hal_sense_init) at init, sense_poll (the app atom) in the loop calling sense (hal_sense_read); the base configuration is uno-light (S1, the jumper D6 -> D3)',
+          {'sense_init', 'sense', 'sense_poll'} <= inst and rows['graph']['base_configuration'] == 'uno-light'
+          and any(e['kind'] == 'calls' and e['from_node'] == 'sense_poll' and e['to_node'] == 'sense' for e in rows['edges']), (sorted(inst), rows['graph']['base_configuration']))
     src = open(os.path.join(P.UNO_ROOT, 'apps', 'light.c')).read()
-    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT in the source; its sense code (smp-1) exists only inside `#if HAL_INT1` blocks, so the graph\'s sense-less app (variant uno-light-unsensed) compiles none of it',
+    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT in the source; its sense code (smp-1/2) exists only inside `#if HAL_INT1` blocks, so the sense-less variant uno-light-unsensed (F1) compiles none of it',
           'SET_LED' in src and 'SET_TIME' not in src and 'SNAPSHOT' not in src
           and all(m.start() > 0 for m in re.finditer('hal_sense', src))
           and len(re.findall(r'hal_sense', re.sub(r'#if HAL_INT1.*?#endif', '', src, flags=re.S))) == 0)
@@ -72,10 +75,10 @@ def _graph_solution_binding(check):
     check('FirmwareSolution uno-light validates (board arduino-uno-r3 resolves)', ok and fs['validation'] == 'ok', why)
     b = next(x for x in S.BINDING_ROWS if x['name'] == 'uno-light@arduino-uno-r3')
     claims = json.loads(b['claims_refs_json'])
-    want = {'PinClaim:uno-light:D0', 'PinClaim:uno-light:D1', 'PinClaim:uno-light:D2', 'PinClaim:uno-light:D6'}
-    check('HardwareBinding uno-light@arduino-uno-r3 is valid and claims D2 (INT0 button), D6 (the light), D0/D1 (the serial link)',
-          b['status'] == 'valid' and want <= set(claims) and not any(c.endswith(':D3') or c.endswith(':D13') for c in claims), (b['status'], b['why'], claims))
-    check('D2 carries INT0 in the register map (EICRA/EIMSK settings) and no INT1', any('EIMSK.INT0' in r for r in json.loads(b['settings_refs_json']))
+    want = {'PinClaim:uno-light:D0', 'PinClaim:uno-light:D1', 'PinClaim:uno-light:D2', 'PinClaim:uno-light:D3', 'PinClaim:uno-light:D6'}
+    check('HardwareBinding uno-light@arduino-uno-r3 is valid and claims D2 (INT0 button), D6 (the light), D3 (smp-2: the sense line, a plain polled input), D0/D1 (the serial link); not D13',
+          b['status'] == 'valid' and want <= set(claims) and not any(c.endswith(':D13') for c in claims), (b['status'], b['why'], claims))
+    check('D2 carries INT0 in the register map (EICRA/EIMSK settings) and no INT1 (the sense line is polled, never an interrupt)', any('EIMSK.INT0' in r for r in json.loads(b['settings_refs_json']))
           and not any('INT1' in r for r in json.loads(b['settings_refs_json'])))
 
 

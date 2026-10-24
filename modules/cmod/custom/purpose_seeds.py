@@ -60,7 +60,9 @@ PURPOSE_SEEDS = [
          goal='whatever the board does to the light, Polari sees it within one report and the report says who changed it',
          purpose='The board sends a state report ten times a second; the bridge writes each onto the LightState row, so a screen or '
                  'a Purpose can always read the light as the board last reported it.',
-         tasks_by_runtime_json=_t(['state', 'clock', 'led_follow_state', 'led', 'telemetry', 'telemetry_send', 'usart_send'], java_bridge=['uno-light:relay-in']),
+         tasks_by_runtime_json=_t(['state', 'clock', 'led_follow_state', 'led', 'telemetry', 'telemetry_send', 'usart_send',
+                                   'sense_init', 'sense', 'sense_poll'],   # smp-2: the report's led_on is the SENSED level (D6 jumpered to D3, polled)
+                                  java_bridge=['uno-light:relay-in']),
          acceptance_scenario='ensure-polari-observes-hardware-state-acceptance', depends_on='initialization',
          criteria_json=json.dumps({'trigger': {'kind': 'period', 'what': 'every report period (10 reports a second)'},
                                    'outcome': {'what': 'the LightState row on Polari matches what the board last reported'},

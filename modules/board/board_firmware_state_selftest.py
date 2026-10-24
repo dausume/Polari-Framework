@@ -76,9 +76,9 @@ def run_firmware_state(check):
           and rxf['msg_type']['readers'] == 'main' and rxf['have']['writers'] == 'polari_rx_feed (via main hands it over)'
           and {f['about'] for f in finds if f['kind'] == 'field'} == {'struct:rx.device_id', 'struct:rx.sequence'}, (rx, finds))
     statics = {o['name']: o for o in objs if o['kind'] == 'static'}
-    check('fst-0 the statics: the app\'s g_sensed (main), the defs header\'s g_seq (telemetry_send), payload + wire (handed to the encoder and the USART), the hal\'s ring (rx_ring written by the RX ISR, '
+    check('fst-0 the statics: the app\'s g_sensed (written by sense_poll since smp-2, read by telemetry_send), the defs header\'s g_seq (telemetry_send), payload + wire (handed to the encoder and the USART), the hal\'s ring (rx_ring written by the RX ISR, '
           'read by hal_rx_pop), the sense route\'s counters (hal_sense_poll.c) — each with where it is declared and its group',
-          statics['static:g_sensed']['writers'] == 'main' and statics['static:g_seq']['writers'] == 'telemetry_send' and 'light_defs.h (defs header)' == statics['static:g_seq']['declared_in']
+          statics['static:g_sensed']['writers'] == 'sense_poll' and statics['static:g_sensed']['readers'] == 'telemetry_send' and statics['static:g_seq']['writers'] == 'telemetry_send' and 'light_defs.h (defs header)' == statics['static:g_seq']['declared_in']
           and statics['static:rx_ring']['writers'] == '__polari_isr_USART_RX_vect' and statics['static:rx_ring']['readers'] == 'hal_rx_pop' and 'hal.c (hal)' == statics['static:rx_ring']['declared_in']
           and 'static:g_sense_rises' in statics and 'hal_sense_poll.c' in statics['static:g_sense_rises']['declared_in']
           and 'LightState_encode (via telemetry_send hands it over)' in statics['static:payload']['writers'], {k: (v['writers'], v['readers']) for k, v in statics.items()})

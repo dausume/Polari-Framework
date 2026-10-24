@@ -27,6 +27,10 @@ static uint8_t payload[LIGHTSTATE_PAYLOAD_MAX];
 static uint8_t wire[POLARI_HEADER_LEN + LIGHTSTATE_PAYLOAD_MAX + 4u];
 static uint32_t g_seq;   /* wire frame sequence */
 
+#if HAL_INT1
+static uint8_t g_sensed;   /* smp-2: the level the sense line has now (written once per pass by sense_poll, read by telemetry_send) */
+#endif
+
 /* what telemetry carries: every field (led_on doubles as the command field, so it is simply included) */
 #define TELEMETRY_MASK ((LightState_mask_t)(LIGHTSTATE_F_ALL & (SEND_NAME ? ~(LightState_mask_t)0 : ~LIGHTSTATE_F_NAME)))
 

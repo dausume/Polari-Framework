@@ -351,11 +351,26 @@ def _install_bundle_hex(d, makefile_sha, solution):
     return hexb, hex_sha
 
 
-def _install_readme(solution, board, hex_sha, argv_text, proof):
+def _wiring_lines(solution):
+    """smp-2: the bench wiring of the config, DERIVED from its layout's build steps (the same words `pol board layout <config> --steps` prints: parts, wires,
+    the sense JUMPER D6 -> D3), or one honest sentence when no layout exists for it."""
+    try:
+        from electrodevice.custom import layout_core as LC
+        lines = LC.steps_of(solution).get('walkthrough') or []
+        return lines if lines else ['No breadboard layout is derived for %s: wire it from its variant notes (pol board variants).' % solution]
+    except Exception as e:   # noqa: BLE001 — the bundle still ships; the words say why the wiring is missing
+        return ['No breadboard layout could be derived for %s (%s): wire it from its variant notes (pol board variants).' % (solution, str(e)[:160])]
+
+
+def _install_readme(solution, board, hex_sha, argv_text, proof, wiring=None):
     return '''# %(sol)s — install bundle
 
 Everything a person needs to FLASH `%(sol)s` onto a real **%(board)s** — nothing else. No sources are in this bundle
 (the board-agnostic C + build files are the `solution` / `source-dir` export forms).
+
+## 0. Wire the bench first (derived from the config's layout — `pol board layout %(sol)s --steps` says the same)
+
+%(wiring)s
 
 ## 1. Compare the sha first (the gate)
 
@@ -381,7 +396,8 @@ flash, comparing every byte — the write is verified by avrdude itself, never a
 
 **%(advice)s** — %(why)s
 ''' % {'sol': solution, 'board': board.get('name', ''), 'sha': hex_sha, 'programmer': board.get('programmer') or '?',
-       'baud': BAUD, 'argv': argv_text, 'advice': proof.get('advice', ''), 'why': proof.get('proof_why', '')}
+       'baud': BAUD, 'argv': argv_text, 'advice': proof.get('advice', ''), 'why': proof.get('proof_why', ''),
+       'wiring': '\n'.join('- %s' % ln for ln in (wiring if wiring is not None else _wiring_lines(solution)))}
 
 
 def install_files(solution, board, makefile_sha, proof, d):
@@ -391,13 +407,14 @@ def install_files(solution, board, makefile_sha, proof, d):
     hexb, hex_sha = _install_bundle_hex(d, makefile_sha, solution)
     argv = FL.argv_for(board['name'], '<port>', 'firmware.hex')
     argv_text = ' '.join(argv)
+    wiring = _wiring_lines(solution)
     manifest = {'schema': 'polari-install/1', 'solution': solution, 'board': board['name'], 'form': 'install-bundle',
                'generated_at': _stamp(), 'mcu': MCU, 'baud': BAUD, 'usb_ids': board.get('usb_ids'),
                'programmer': board.get('programmer'), 'hex_sha256': hex_sha, 'argv': argv, 'argv_text': argv_text,
-               'proof': proof,
+               'proof': proof, 'wiring': wiring,   # smp-2: the bench wiring (the jumper D6 -> D3 among it), derived from the layout steps
                'gate': 'compare hex_sha256 against firmware.hex\'s own sha256 before flashing — never flash a file that differs'}
     out = {'firmware.hex': hexb, 'polari-install.json': (json.dumps(manifest, indent=1, ensure_ascii=False) + '\n').encode(),
-          'INSTALL.md': _install_readme(solution, board, hex_sha, argv_text, proof).encode()}
+          'INSTALL.md': _install_readme(solution, board, hex_sha, argv_text, proof, wiring).encode()}
     return out, hex_sha
 
 

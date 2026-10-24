@@ -103,6 +103,10 @@ def context(g):
         # atoms assemble a SECOND class's frames themselves (never through glue nodes, e.g. events_drain) still
         # needs that class's own generated header on disk to compile. Carried here, always rendered (never gated
         # on an atom "using" it — nothing in `model` names a header file, only a class_name).
+        # smp-2: a route the base configuration's knobs pick (sense_route / button_route) is RENDERED by board gen into ONE extra .c file next to hal.c (hal_sense_poll.c, hal_button_pcint.c ...);
+        # the graph's project carries it (its hal.c block for that function is switched off by HAL_SENSE_ROUTE / HAL_BUTTON_ROUTE in board_config.h)
+        route_files = {fn: open(os.path.join(d, fn)).read() for fn in sorted(os.listdir(d))
+                       if fn.startswith(('hal_sense_', 'hal_button_')) and fn.endswith('.c')}
         other_headers = {'%s_packets.h' % c['class'].lower(): open(os.path.join(d, '%s_packets.h' % c['class'].lower())).read()
                           for c in classes if c['class'] != g['class_name'] and os.path.isfile(os.path.join(d, '%s_packets.h' % c['class'].lower()))}
     finally:
@@ -112,7 +116,7 @@ def context(g):
     headers = [open(os.path.join(spec['root'], f)).read() for f in sorted(mods) if f.endswith('.h') and mods[f][1] != 'config']
     return {'spec': spec, 'manifest': m, 'manifest_sha256': sha(open(mpath, 'rb').read()), 'atoms': atoms, 'modules': mods,
             'base': cfg, 'board_config_h': bc, 'class_header': ch, 'class_header_name': hdr, 'module_headers': headers,
-            'other_class_headers': other_headers, 'class_provenance': next((c for c in classes if c['class'] == g['class_name']), {})}
+            'other_class_headers': other_headers, 'route_files': route_files, 'class_provenance': next((c for c in classes if c['class'] == g['class_name']), {})}
 
 
 # ------------------------------------------------------------------ copying an app atom out of its file, verbatim
@@ -238,6 +242,8 @@ def render_files(rows, ctx=None, manager=None):
     whole, copies = {}, []
     for k in model['atoms_used'] + model['isrs']:
         a = ctx['atoms'][k]
+        if a['module'] not in ctx['modules'] and a['module'] in ctx.get('route_files', {}):
+            continue   # smp-2: a route-rendered module (hal_sense_poll.c) is carried whole from the base configuration's render (route_files), never copied from the template root
         name, role, files = ctx['modules'][a['module']]
         if role in ('hal', 'source', 'header'):
             for f in files:
@@ -257,6 +263,8 @@ def render_files(rows, ctx=None, manager=None):
     files[ctx['class_header_name']] = ctx['class_header'].encode()
     for hfn, text in ctx.get('other_class_headers', {}).items():
         files[hfn] = text.encode()
+    for rfn, text in ctx.get('route_files', {}).items():
+        files[rfn] = text.encode()
     # ucd-0b: a graph with a FirmwareSolution over it gains the GENERATED pin_config.h/.c (claims -> bits, in the
     # fixed init order) — ridden along below like any other file (SRCS/HDRS/#include derive from `files`, never a
     # second list to keep in sync).
@@ -275,6 +283,7 @@ def render_files(rows, ctx=None, manager=None):
     prov += [('board_config.h', sha(files['board_config.h']), 'board gen: the %s knobs' % rows['graph']['base_configuration']),
              (ctx['class_header_name'], sha(files[ctx['class_header_name']]),
               'c_twin target=avr, contract v%s %s (%s %s)' % (cp.get('contract_version', '?'), cp.get('contract_hash', ''), cp.get('source', ''), cp.get('path', '')))]
+    prov += [(rfn, sha(files[rfn]), 'board gen: the %s knobs\' route file (rendered from its catom template)' % rows['graph']['base_configuration']) for rfn in sorted(ctx.get('route_files', {}))]
     prov += [(hfn, sha(files[hfn]), 'c_twin target=avr: a second wire class %s\'s own atoms assemble (never a glue class/frame node)' % hfn)
              for hfn in sorted(ctx.get('other_class_headers', {}))]
     if pin_config:

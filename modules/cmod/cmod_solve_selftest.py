@@ -82,12 +82,23 @@ def solve_parts(check):
               pd.get('the button') == ('D2', 'INT0') and pd.get('the LED') == ('D6', 'GPIO') and pd.get('the sense line') == ('D3', 'INT1')
               and ('sense led line: ext-interrupt instead of' in next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] if demo['rank'] > 1
                    else next(x for x in r['score_card'] if x['rank'] == demo['rank'])['deciding_difference'] == 'the chosen plan'), (pd, demo['rank']))
-        # fgm-5b: the polled sense route has atoms now, so its loop step is no longer free (hal_sense_read is counted into the cycle: +348 us) - under fastest-cycle the INT1 sense wins, the demo plan can be rank 1
-        pr = next((x for x in r['_ranked'] if x['routes'].get('sense-led-line') == 'gpio-poll' and x['routes'].get('read-button') == 'ext-interrupt' and x['routes'].get('drive-led') == 'gpio-out'
-                   and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
-        check('sol-0 / fgm-5b: the polled sense line is priced by its own atoms now - under fastest-cycle it costs loop time (cycle + ... us) against the INT1 sense and ranks below it, and the score card says so',
-              pr is not None and pr['rank'] > demo['rank'] and 'sense led line: gpio-poll instead of ext-interrupt' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference']
-              and 'cycle +' in next(x for x in r['score_card'] if x['rank'] == pr['rank'])['deciding_difference'], pr and pr['rank'])
+        # fgm-5b: the polled sense route has atoms now, so its loop step is no longer free (hal_sense_read is counted into the cycle). cyc-0 / smp-2: with the uno-light cycle record BOTH sense routes are MEASURED
+        # on the twin and the polled read costs LESS loop time than the INT1 service (0.4 us), so gpio-poll ranks above ext-interrupt; with the records off the poll carries its estimated bound (+522 us) and ranks below.
+        from cmod.custom.selftest_cycles import records_off
+        polled = lambda rr: next((x for x in rr['_ranked'] if x['routes'].get('sense-led-line') == 'gpio-poll' and x['routes'].get('read-button') == 'ext-interrupt' and x['routes'].get('drive-led') == 'gpio-out'   # noqa: E731
+                                  and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
+        diff = lambda rr, x: next(s for s in rr['score_card'] if s['rank'] == x['rank'])['deciding_difference']   # noqa: E731
+        pr = polled(r)
+        with records_off():
+            r_off = S.solve(LIGHT, boards=['arduino-uno-r3'], objective='fastest-cycle', limits={'prefer': 'bench-wiring', 'max_candidates': 400})
+        pr_off, demo_off = polled(r_off), next((x for x in r_off['_ranked'] if x['routes'].get('read-button') == 'ext-interrupt' and x['routes'].get('sense-led-line') == 'ext-interrupt' and x['routes'].get('drive-led') == 'gpio-out'
+                                                and x['hardware']['package'] == 'atmega328p-28-spdip'), None)
+        check('sol-0 / fgm-5b / cyc-0: the polled sense line is priced by its own atoms - with the records OFF it costs estimated loop time (cycle + ... us) against the INT1 sense and ranks below it; with the uno-light record ON both are MEASURED '
+              'and the polled read beats the interrupt service by a hair (%.1f us), so it ranks above and the score card says "ext-interrupt instead of gpio-poll ... cycle +"'
+              % ((demo['cycle_us'] - pr['cycle_us']) if pr else 0),
+              pr is not None and pr_off is not None and demo_off is not None and pr_off['rank'] > demo_off['rank'] and 'sense led line: gpio-poll instead of ext-interrupt' in diff(r_off, pr_off) and 'cycle +' in diff(r_off, pr_off)
+              and pr['rank'] < demo['rank'] and pr['cycle_us'] < demo['cycle_us'] and pr['cycle']['bases']['measured'] > 0 and demo['cycle']['bases']['measured'] > 0
+              and 'sense led line: ext-interrupt instead of gpio-poll' in diff(r, demo) and 'cycle +' in diff(r, demo), (pr and pr['rank'], demo['rank'], pr_off and pr_off['rank'], demo_off and demo_off['rank']))
         d = run('base', boards=[UNO])
         cd = d['chosen_candidate']
         pdft = _pins(cd)

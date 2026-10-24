@@ -130,6 +130,8 @@ PURE_CONFIG_SEED = {
     'uno-light@arduino-uno-r3': {
         'uno-light:button_init': {'mode': 'alt', 'pull': 'up', 'edge': 'falling'},
         'uno-light:led_init': {'mode': 'out', 'initial': 'low'},
+        # smp-2: the sense line - D3 read as a plain input (polled every pass; no INT1, no pull: the jumper from D6 drives it)
+        'uno-light:sense_init': {'mode': 'in', 'pull': 'none'},
     },
 }
 

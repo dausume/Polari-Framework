@@ -63,9 +63,9 @@ def pin_profile_parts(check):
               sense is not None and sense['origin'] == 'bench' and sense['signal']['direction'] == 'inputs' and sense['task'].startswith('undetermined')
               and sense['drive']['need'] == 'high-impedance' and sense['timing']['edge']['value'] == 'any'
               and 'not of this Purpose' in sense['evidence']['kind'], sense and sense['evidence'])
-        check('pp-0: the control Purpose has the transport rx (reserved), the LED and the sense line; the observe Purpose the transport tx (reserved) plus, since scl, the LED and the sense line (the sensed level is the board\'s truth about the light)',
+        check('pp-0: the control Purpose has the transport rx (reserved), the LED and the sense line; the observe Purpose the transport tx (reserved) plus, since scl, the LED and the sense line twice (interrupt-in from the INT1 atoms and, since smp-2, digital-in from the polled sense_poll in the loop; the sensed level is the board\'s truth about the light)',
               {(p['role'], p['kind']) for p in control['profiles']} == {('the transport', 'uart-rx'), ('the LED', 'digital-out'), ('the sense line', 'interrupt-in')}
-              and {(p['role'], p['kind']) for p in observe['profiles']} == {('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the sense line', 'interrupt-in')}
+              and {(p['role'], p['kind']) for p in observe['profiles']} == {('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the sense line', 'interrupt-in'), ('the sense line', 'digital-in')}
               and all(p['reserved'] for p in observe['profiles'] if p['role'] == 'the transport'),
               [(p['role'], p['kind']) for p in control['profiles'] + observe['profiles']])
         check('pp-0: initialization has the transport rx + tx (init), the LED (init, no sense line: nothing drives the line at run time), and the button with debounce undetermined (no criterion, named)',
@@ -108,9 +108,9 @@ def pin_profile_parts(check):
     def rollup():
         res = PM.mission_profiles('light', purposes=LIGHT)
         got = {(p['role'], p['kind']): p for p in res['profiles']}
-        check('pp-0: the Mission roll-up of the light Purposes is exactly: transport uart-rx + uart-tx (reserved), the LED digital-out, the button interrupt-in, the sense line interrupt-in',
-              set(got) == {('the transport', 'uart-rx'), ('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the button', 'interrupt-in'), ('the sense line', 'interrupt-in')}
-              and res['pins_needed'] == 5 and got[('the transport', 'uart-rx')]['reserved'] and got[('the transport', 'uart-tx')]['reserved'], sorted(got))
+        check('pp-0: the Mission roll-up of the light Purposes is exactly: transport uart-rx + uart-tx (reserved), the LED digital-out, the button interrupt-in, the sense line interrupt-in AND digital-in (smp-2: one line, two reads - the INT1 service and the polled sense_poll; they share the pin, see pp-1)',
+              set(got) == {('the transport', 'uart-rx'), ('the transport', 'uart-tx'), ('the LED', 'digital-out'), ('the button', 'interrupt-in'), ('the sense line', 'interrupt-in'), ('the sense line', 'digital-in')}
+              and res['pins_needed'] == 6 and got[('the transport', 'uart-rx')]['reserved'] and got[('the transport', 'uart-tx')]['reserved'], sorted(got))
         led = got[('the LED', 'digital-out')]
         check('pp-0: the LED drive four Purposes need (scl: the observe Purpose too) counts ONCE, listing all four; the transport rx lists the two that use it',
               sum(1 for p in res['profiles'] if p['role'] == 'the LED') == 1 and led['purposes'] == [INIT, BUTTON, OBSERVE, CONTROL]
@@ -131,8 +131,8 @@ def pin_profile_parts(check):
               m2['basis'] == 'HardwareMission demo-mission' and gi[('the LED', 'digital-out')] == 'safety' and gi[('the transport', 'uart-rx')] == 'required', gi)
         real = PM.mission_profiles('uno-light-mission', manager=_manager())
         pure = PM.mission_profiles('uno-light-mission')
-        check('pp-0: the real seeded HardwareMission uno-light-mission (live row and pure seed) rolls up to the 5 light profiles, importance per Purpose from purposes_json',
-              real['basis'] == 'HardwareMission uno-light-mission' and real['pins_needed'] == pure['pins_needed'] == 5 and len(real['purposes']) == 4
+        check('pp-0: the real seeded HardwareMission uno-light-mission (live row and pure seed) rolls up to the 6 light profiles (smp-2: the sense line twice), importance per Purpose from purposes_json',
+              real['basis'] == 'HardwareMission uno-light-mission' and real['pins_needed'] == pure['pins_needed'] == 6 and len(real['purposes']) == 4
               and all(p['importance'] == 'required' for p in real['profiles']), (real['pins_needed'], pure['pins_needed']))
         try:
             PM.mission_profiles('none-here', manager=mgr)
@@ -216,7 +216,7 @@ def pin_profile_parts(check):
             cc = testing.TestClient(app)
             rm = cc.simulate_get('/api/missions/uno-light-mission/pin-profiles')
             check('pp-0: with the REAL mis-0 MissionAPI on one falcon.App (%s first): /api/missions/{name}/solution, /resolution, the /api/missions list and my /pin-profiles all answer' % ('mine' if first else 'its'),
-                  rm.status_code == 200 and rm.json['pins_needed'] == 5 and cc.simulate_get('/api/missions/uno-light-mission/solution').status_code == 200
+                  rm.status_code == 200 and rm.json['pins_needed'] == 6 and cc.simulate_get('/api/missions/uno-light-mission/solution').status_code == 200
                   and cc.simulate_get('/api/missions/uno-light-mission/resolution').status_code == 200 and cc.simulate_get('/api/missions').status_code == 200,
                   (rm.status_code, rm.text[:100]))
         r = c.simulate_get('/api/capabilities/%s/pin-profiles' % BUTTON)
@@ -230,13 +230,13 @@ def pin_profile_parts(check):
               led.get('purposes') == [BUTTON, CONTROL] and led.get('importance') == 'required' and r.json['basis'] == 'HardwareMission demo-mission', r.text[:200])
         r = c.simulate_get('/api/missions/anything/pin-profiles?purposes=%s,%s' % (INIT, OBSERVE))
         check('pp-0: ?purposes=a,b names the Purposes when no Mission row exists (works before mis-0 merges); an unnamed Mission without it is a 404',
-              r.status_code == 200 and r.json['basis'] == 'an explicit list of Purposes' and r.json['pins_needed'] == 5 and c.simulate_get('/api/missions/anything/pin-profiles').status_code == 404,
+              r.status_code == 200 and r.json['basis'] == 'an explicit list of Purposes' and r.json['pins_needed'] == 6 and c.simulate_get('/api/missions/anything/pin-profiles').status_code == 404,
               (r.status_code, r.json.get('pins_needed')))
         t = c.simulate_get('/api/pin-profiles').json
         tm = c.simulate_get('/api/pin-profiles?view=mission&purposes=%s' % ','.join(LIGHT)).json
         tu = c.simulate_get('/api/pin-profiles?view=unresolved').json
-        check('pp-0: the page doors answer {ok, rows} in plain words: every light Purpose, the 5-profile Mission, and the unresolved tasks',
-              t['ok'] and {r_['purpose'] for r_ in t['rows']} >= set(LIGHT) and tm['count'] == 5 and tu['count'] > 0 and all({'purpose', 'task', 'why'} <= set(x) for x in tu['rows'])
+        check('pp-0: the page doors answer {ok, rows} in plain words: every light Purpose, the 6-profile Mission, and the unresolved tasks',
+              t['ok'] and {r_['purpose'] for r_ in t['rows']} >= set(LIGHT) and tm['count'] == 6 and tu['count'] > 0 and all({'purpose', 'task', 'why'} <= set(x) for x in tu['rows'])
               and all(not str(v).startswith(('{', '[')) for r_ in t['rows'] for v in r_.values()), (t.get('count'), tm.get('count'), tu.get('count')))
 
     def page():

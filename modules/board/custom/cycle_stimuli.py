@@ -60,9 +60,16 @@ def stimulus(variant):
     """-> {name, argv, files, seconds, describe, drives, pin}; raises KeyError for a variant with no stimulus defined."""
     from board.custom import light_twin as LT
     files, extra, cmds = {}, [], 0
-    if variant in ('uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog'):
+    if variant in ('uno-light', 'uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog'):
         extra, files, cmds = _light_commands(LT._spec, _v1_frame)
-    if variant == 'uno-light-unsensed':
+    if variant == 'uno-light':
+        # smp-2: S1 - the unsensed stimulus + the sense JUMPER D6 -> D3 (the polled sense route runs every pass; the report carries the sensed level)
+        pin = 'PD2'
+        pa, end = _press_args(pin)
+        pa += ['--wire', 'PD6:PD3']
+        adc = '--adc0-mv 750'
+        seconds = 1.3
+    elif variant == 'uno-light-unsensed':
         pin = 'PD2'
         pa, end = _press_args(pin)
         adc = '--adc0-mv 750'
@@ -119,6 +126,8 @@ def stimulus(variant):
         drives.append('%d SET_LED commands (4 single - the last changes nothing - and 2 in one burst)' % cmds)
     if variant == 'uno-button-clock':
         drives.append('D6 wired to D3 so the sense interrupt runs; no commands (the clock-set path is not exercised)')
+    if variant == 'uno-light':
+        drives.append('D6 wired to D3 (the sense jumper): the polled sense route runs every pass and the report carries the sensed level')
     return {'name': variant + '/cyc0-v1', 'argv': _base(seconds, adc) + pa + extra, 'files': files, 'seconds': seconds, 'pin': pin,
             'drives': [d for d in drives if d], 'commands': cmds,
             'describe': 'deterministic, cycle-scheduled, --free; ' + '; '.join(d for d in drives if d)}
