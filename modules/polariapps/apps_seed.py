@@ -677,6 +677,12 @@ SEED_POLARI_APPS = [
                   _it('Fault scenarios and proofs', 'page',
                       route='/display/firmware-faults',
                       requires_module='firmwarefaults')),
+             _tgrp('Bench',   # bench-0: the boards and breadboards on the table, two selection panels
+                  _it('The bench: boards and breadboards on the table, how each can be tested', 'page',
+                      route='/display/bench', requires_module='board')),
+             _tgrp('Chips and levels',   # chp-0: the RISC-V sample apart from the convenience boards
+                  _it('Chips and levels: the RISC-V sample, the Arduinos, and which twins exist', 'page',
+                      route='/display/chip-ladder', requires_module='board')),
              _tgrp('The board',
                   _it('Boards, pins and kit parts', 'page',
                       route='/display/boards', requires_module='board'),

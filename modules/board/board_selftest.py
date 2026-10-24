@@ -34,7 +34,7 @@ def rows_and_classes():
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
           'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench)',
-          len(BOARD_CLASSES) == 62)   # fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation
+          len(BOARD_CLASSES) == 65)   # fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -364,6 +364,10 @@ def main():
     run_mapping(check)
     from board.board_c3_selftest import run_c3   # sc-3: the ESP32-C3 template, its gen/build/flash/twin, the twin's cost
     run_c3(check)
+    from board.board_chip_ladder_selftest import run_chip_ladder   # chp-0: the chips-and-levels ladder
+    run_chip_ladder(check)
+    from board.board_bench_setup_selftest import run_bench_setup   # bench-0: the bench and its selection lists
+    run_bench_setup(check)
     from board.board_c3_pins_selftest import run_c3_pins   # c3pf: the ESP32-C3's pin functions as cited rows, the ladder / eligibility / sol-0 on the second board
     run_c3_pins(check)
     from board.board_c3_derive_selftest import run_c3_derive   # c3-derive: the 2 640 GPIO-matrix PinFunctions derived on read, equivalence pinned to what was stored
