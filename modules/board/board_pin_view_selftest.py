@@ -136,16 +136,17 @@ def run_pin_view(check):
     ta = PV.build(BOARD, {'system': SYSTEM, 'binding': BINDING, 'stage': 'tasks-assigned'})
     prop = {p['canonical'] for p in ta['pins'] if p['stage'] == 'proposed' and p['canonical']}
     d2, d6l = _line(ta, 'D2'), _line(ta, 'D6')
-    check('STAGE tasks-assigned (binding %s): D2 and D6 (and D0 / D1) are PROPOSED at every level (die pad, leg, header pin), with the claiming task and its Purpose as consumers; D3 stays unassigned-or-available; the response says it reads today\'s graph-node claims' % BINDING,
-          prop == {'D0', 'D1', 'D2', 'D6'} and all(ta['pins'][[p['id'] for p in ta['pins']].index(i)]['stage'] == 'proposed' for i in d2 | d6l) and len(d2) == 3 and len(d6l) == 3
+    d3 = _line(ta, 'D3')
+    check('STAGE tasks-assigned (binding %s): D2, D3 and D6 (and D0 / D1) are PROPOSED at every level (die pad, leg, header pin), with the claiming task and its Purpose as consumers; D3 is claimed by sense_init for the observe Purpose (smp-2: the sense line is in uno-light-graph); the response says it reads today\'s graph-node claims' % BINDING,
+          prop == {'D0', 'D1', 'D2', 'D3', 'D6'} and all(ta['pins'][[p['id'] for p in ta['pins']].index(i)]['stage'] == 'proposed' for i in d2 | d6l | d3) and len(d2) == 3 and len(d6l) == 3 and len(d3) == 3
           and any(c['kind'] == 'task' and c['who'] == 'button_init' for p in ta['pins'] if p['canonical'] == 'D2' for c in p['consumers']) and any(c['kind'] == 'purpose' for p in ta['pins'] if p['canonical'] == 'D6' for c in p['consumers'])
-          and all(p['stage'] in ('available', 'unassigned') for p in ta['pins'] if p['canonical'] == 'D3') and 'graph-node claims' in ta['stage']['notes'][0] and ta['stage']['claims'] == 4, str(sorted(prop)))
+          and all(any(c['kind'] == 'task' and c['who'] == 'sense_init' for c in p['consumers']) for p in ta['pins'] if p['canonical'] == 'D3') and 'graph-node claims' in ta['stage']['notes'][0] and ta['stage']['claims'] == 5, str(sorted(prop)))
     ai = PV.build(BOARD, {'system': SYSTEM, 'binding': BINDING, 'stage': 'after-init'})
     init_names = {c['who'] for p in ai['pins'] for c in p['consumers'] if c['kind'] == 'task'}
     fc = PV.build(BOARD, {'system': SYSTEM, 'binding': BINDING, 'stage': 'firmware-committed'})
     check('STAGE after-init / firmware-committed: after-init keeps only the claims of the Initialization Purpose\'s tasks (separable today: the Purpose names its tasks) and is a subset of tasks-assigned; firmware-committed marks as COMMITTED exactly the claims the binding\'s generated RegisterFieldSetting / SignalRoute rows cite (%d of %d), the rest stay proposed' % (fc['stage']['committed_claims'], fc['stage']['claims']),
           ai['stage']['claims'] > 0 and init_names <= {'usart_init', 'button_init', 'led_init', 'tick_init', 'boot_session_mint'} and {p['id'] for p in nproposed(ai)} <= {p['id'] for p in nproposed(ta)} and not ai['stage']['undetermined']
-          and fc['stage']['committed_claims'] == 4 and {p['canonical'] for p in fc['pins'] if p['stage'] == 'committed' and p['canonical']} == {'D0', 'D1', 'D2', 'D6'} and not nproposed(PV.build(BOARD, {'stage': 'base'})), str(init_names))
+          and fc['stage']['committed_claims'] == 5 and {p['canonical'] for p in fc['pins'] if p['stage'] == 'committed' and p['canonical']} == {'D0', 'D1', 'D2', 'D3', 'D6'} and not nproposed(PV.build(BOARD, {'stage': 'base'})), str(init_names))
     nob = PV.build(BOARD, {'stage': 'tasks-assigned'})
     check('STAGE honesty: a stage that needs a binding asked without one says so (`undetermined` with the reason) and shows the base pins — never an invented assignment; a mission is echoed as undetermined (Task definitions on a Mission arrive with fgm-3)',
           nob['stage']['undetermined'] and not nproposed(nob) and PV.build(BOARD, {'mission': 'm1'})['mission']['status'] == 'undetermined', str(nob['stage']['undetermined']))

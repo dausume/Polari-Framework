@@ -171,9 +171,12 @@ def run_hardware_system(check):
 
     # ---- led-line-to-d3 and the removed jumper
     h3 = _hops(paths['led-line-to-d3'])
-    check('L7: led-line-to-d3 walks D6 net -> jumper -> D3 -> INT1 (ladder) -> firmware sense counter -> state; the sense counter is `not-yet` (the uno-light graph has no sense node; the D3 isotope is fgm-5) and so is the state field',
-          [h['kind'] for h in h3][:3] == ['net', 'net', 'link'] and h3[7]['ref'] == 'PinFunction:atmega328p:PD3:INT1' and h3[8]['verdict'] == 'not-yet' and 'fgm-5' in h3[8]['detail'] and h3[9]['verdict'] == 'not-yet'
-          and 'sense' in h3[9]['detail'])
+    check('L7: led-line-to-d3 walks D6 net -> jumper -> D3 -> INT1 (ladder) -> firmware sense counter -> state',
+          [h['kind'] for h in h3][:3] == ['net', 'net', 'link'] and h3[7]['ref'] == 'PinFunction:atmega328p:PD3:INT1')
+    check('L7: smp-2: the uno-light graph now has the sense node `apps/light.sense_poll` polling D3, so the sense-counter hop is `unchecked` (the sense nodes exist, no proof is read for them) and no longer `not-yet`',
+          h3[8]['kind'] == 'firmware' and h3[8]['verdict'] == 'unchecked' and 'sense_poll' in h3[8]['detail'] and 'no proof is read' in h3[8]['detail'])
+    check('L7: smp-2: the state hop stays `not-yet` — LightState v1 carries no sense counter (the sense line is polled in firmware but not yet on the wire contract)',
+          h3[9]['kind'] == 'contract' and h3[9]['verdict'] == 'not-yet' and 'sense' in h3[9]['detail'] and paths['led-line-to-d3']['verdict'] == 'unchecked')
     t2 = copy.deepcopy(t)
     gone = BPN._name('D3', 'LED_CONTROL')
     t2['BoardPinNet'] = [n for n in t2['BoardPinNet'] if n['name'] != gone]
