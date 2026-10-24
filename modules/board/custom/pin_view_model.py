@@ -369,22 +369,26 @@ class Model:
                 continue
             xs, ys = [xy[0] for _, xy in legs], [xy[1] for _, xy in legs]
             cx, cy = x0 + (min(xs) + max(xs)) / 2, y0 + (min(ys) + max(ys)) / 2
-            w, h = max(xs) - min(xs) + pitch, max(ys) - min(ys) + pitch
+            w, h = max(xs) - min(xs) + 0.8 * pitch, max(ys) - min(ys) + 0.8 * pitch   # the body spans the legs; parts in adjacent holes keep a 0.2-pitch gap between their boxes
+            # labels go OUTWARD by column half: a leg above the trench (a-e) is labelled above the part, one below it (f-j) below - the strips are 1 pitch apart, so left/right
+            # labels would run into the neighbouring part; the title stacks beyond the labels on the side the legs are (below when the part straddles the trench)
             pins = {}
             for leg, (hx, hy) in legs:
                 lx, ly = round(x0 + hx - cx, 4), round(y0 + hy - cy, 4)
-                side = 'left' if lx < -1e-6 else ('right' if lx > 1e-6 else 'center')
+                col = (leg.get('hole') or '')[-1:]
+                side = 'top' if col in 'abcde' else 'bottom'
                 pins.setdefault(leg.get('net', ''), {'x': lx, 'y': ly, 'side': side})   # two legs on one net (the pushbutton's pairs): the first hole stands for the net
             ext = {'x0': -w / 2, 'y0': -h / 2, 'x1': w / 2, 'y1': h / 2}
             for net, p in pins.items():
                 tw = S.text_w(S.short(net, S.LABEL['max_pin']))
-                if p['side'] == 'left':
-                    ext['x0'] = min(ext['x0'], p['x'] - gap - tw)
+                ext['x0'], ext['x1'] = min(ext['x0'], p['x'] - tw / 2), max(ext['x1'], p['x'] + tw / 2)
+                if p['side'] == 'top':
+                    ext['y0'] = min(ext['y0'], p['y'] - gap - f)
                 else:
-                    ext['x1'] = max(ext['x1'], (p['x'] if p['side'] == 'right' else w / 2) + gap + tw)
-                ext['y0'], ext['y1'] = min(ext['y0'], p['y'] - f / 2), max(ext['y1'], p['y'] + f / 2)
-            title_y = ext['y1'] + gap
-            ext['y1'] = title_y + f
+                    ext['y1'] = max(ext['y1'], p['y'] + gap + f)
+            above = all(p['side'] == 'top' for p in pins.values())
+            title_y = (ext['y0'] - gap - f) if above else (ext['y1'] + gap)
+            ext['y0'], ext['y1'] = min(ext['y0'], title_y), max(ext['y1'], title_y + f)
             ext['x0'], ext['x1'] = min(ext['x0'], -S.text_w(pl.get('row', '')) / 2), max(ext['x1'], S.text_w(pl.get('row', '')) / 2)
             out[pl.get('row', '')] = {'name': pl.get('name', ''), 'x': round(cx, 4), 'y': round(cy, 4), 'w': round(w, 4), 'h': round(h, 4), 'pins': pins, 'title_pos': {'x': 0.0, 'y': round(title_y, 4)},
                                       'extent': {k: round(v, 4) for k, v in ext.items()}, 'holes': [leg.get('hole', '') for leg, _ in legs]}

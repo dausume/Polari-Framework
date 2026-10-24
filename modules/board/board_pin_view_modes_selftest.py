@@ -167,15 +167,35 @@ def run_pin_view_modes(check):
     parts = [s for s in base['surfaces'] if s['kind'] in ('board-part', 'bench-part')]
     bw, bh = S.BOARD_BBOX
     boxes = []   # (owner, kind, absolute rect)
+    pins_by = {}
+    for pin in base['pins']:
+        pins_by.setdefault(pin['surface'], []).append(pin)
+    # pv-6: the boxes are where the PAYLOAD puts them (the browser's own rule: a left pin's label ends gap before the pin, a right pin's starts gap after it, a lone centre pin's starts
+    # at the box edge; the title sits at title_pos) - a bench part placed on the breadboard has its pins in its holes, not where its shape row's generator would put them
+    f, gap = S.LABEL['font'], S.LABEL['gap']
     for s in parts:
-        p = base['shapes'][s['shape']]['parameters']
-        geo = S.part_geometry(p)
-        for b in geo['boxes']:
-            boxes.append((s['id'], b['kind'], b['text'], _abs(b, s['x'], s['y'])))
-        hw, hh = float(p['box'][0]) / 2, float(p['box'][1]) / 2
+        hw, hh = float(s['w']) / 2, float(s['h']) / 2
+        for pin in pins_by.get(s['id'], []):
+            t = pin.get('short_label') or pin['label']
+            w = S.text_w(t)
+            y0, y1 = pin['y'] - f / 2, pin['y'] + f / 2
+            if pin['side'] == 'left':
+                x0, x1 = pin['x'] - gap - w, pin['x'] - gap
+            elif pin['side'] == 'right':
+                x0, x1 = pin['x'] + gap, pin['x'] + gap + w
+            elif pin['side'] in ('top', 'bottom'):   # pv-6: a breadboard part's labels go outward by column half, centred on the pin
+                x0, x1 = pin['x'] - w / 2, pin['x'] + w / 2
+                y0, y1 = (pin['y'] - gap - f, pin['y'] - gap) if pin['side'] == 'top' else (pin['y'] + gap, pin['y'] + gap + f)
+            else:
+                x0, x1 = hw + gap, hw + gap + w
+            boxes.append((s['id'], 'pin', t, _abs({'x0': x0, 'x1': x1, 'y0': y0, 'y1': y1}, s['x'], s['y'])))
+        tp = s.get('title_pos') or {'x': 0.0, 'y': hh + gap}
+        tt = s.get('short_title') or s['title']
+        tw = S.text_w(tt)
+        boxes.append((s['id'], 'title', tt, _abs({'x0': tp['x'] - tw / 2, 'x1': tp['x'] + tw / 2, 'y0': tp['y'], 'y1': tp['y'] + f}, s['x'], s['y'])))
         boxes.append((s['id'], 'body', '', {'x0': s['x'] - hw, 'x1': s['x'] + hw, 'y0': s['y'] - hh, 'y1': s['y'] + hh}))
     clash = [(a[0], a[2] or a[1], b[0], b[2] or b[1]) for i, a in enumerate(boxes) for b in boxes[i + 1:] if _overlap(a[3], b[3]) and not (a[0] == b[0] and 'body' in (a[1], b[1]))]
-    check('LAYOUT labels: every part title and pin label is a box estimated from len(text) x font (%.1f mm) x char width (%.2f em); across all %d parts (%d label and body boxes) NO two boxes overlap - not CSTCE16M0V53-R0 and ICSP1, not the PB6 / PB7 lines, not Y1 and its neighbours'
+    check('LAYOUT labels: every part title and pin label is a box estimated from len(text) x font (%.1f mm) x char width (%.2f em) where the payload puts it (pv-6: bench parts in their breadboard holes); across all %d parts (%d label and body boxes) NO two boxes overlap - not CSTCE16M0V53-R0 and ICSP1, not the PB6 / PB7 lines, not Y1 and its neighbours, not R1\'s label and LED1\'s title on the breadboard'
           % (S.LABEL['font'], S.LABEL['char_w'], len(parts), len(boxes)), not clash and len(parts) == 17, str(clash[:3]))
     sample = [b for b in boxes if b[0].endswith(':Y1')]
     inside = all(b[3]['x0'] >= 0 and b[3]['y0'] >= 0 and b[3]['x1'] <= bw and b[3]['y1'] <= bh for s in parts if s['kind'] == 'board-part' for b in boxes if b[0] == s['id'])
