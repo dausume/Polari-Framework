@@ -56,6 +56,23 @@ def _context(tables, manager, board, system, binding):
     return ctx
 
 
+def bench_layout(binding, board, manager=None):
+    """pv-6: the layout the bench parts are drawn on -> (the public layout payload or None, why not). The binding's config when the view has one (`<config>@<board>`), else the Layout page's
+    default for the board; a placer refusal (a config with no breadboard parts, an unknown config) leaves the parts in the packed bench column and says why."""
+    config = binding.partition('@')[0] if binding else M.BENCH_LAYOUT_DEFAULT.get(board, '')
+    if not config:
+        return None, 'no layout: the view has no binding and no default layout is known for %s' % board
+    try:
+        from electrodevice.custom import layout_core as C
+        from electrodevice.custom.layout_words import LayoutRefused
+    except ImportError as e:   # the electrodevice module is not loaded on this node: the bench column stays
+        return None, 'no layout: the electrodevice layout engine is not available here (%s)' % e
+    try:
+        return C.public(C.layout_place(config, None, manager)), ''
+    except LayoutRefused as e:
+        return None, 'no layout for %s: %s' % (config, e)
+
+
 def build(board, params=None, manager=None, tables=None):
     """-> the composed payload (a dict with ok True). Raises Refused (status 400 / 404) on a bad parameter or board."""
     params = {k: (v or '') for k, v in (params or {}).items()}
@@ -74,7 +91,9 @@ def build(board, params=None, manager=None, tables=None):
         raise Refused(str(e))
     requested_stage, stage = stage, PH.effective_stage(phase, stage)
     ctx = _context(tables, manager, board, params.get('system', ''), params.get('binding', ''))
-    model = M.build(tables, board)
+    lay, lay_why = bench_layout(ctx.binding, board, manager)
+    model = M.build(tables, board, bench_layout=lay)
+    model.bench['why'] = lay_why
     info = ST.apply_stage(model, tables, ctx, 'base' if stage == CAND_STAGE else stage, ctx.binding, board)
     candidate = None
     if stage == CAND_STAGE:   # pv-5: the base picture, then the chosen run's candidate marks its pins proposed
@@ -108,7 +127,7 @@ def build(board, params=None, manager=None, tables=None):
         p['surface_title'] = surf_title.get(p['surface'], '')
     return {'ok': True, 'board': board, 'source': 'live' if live else 'seed (the live server has no enclosure rows yet)', 'system': ctx.system_name, 'binding': ctx.binding, 'phase': phase, 'blank': blank, 'phase_info': phase_info,
             'mission': {'name': mission, 'status': 'undetermined' if mission else 'none', 'why': 'Task definitions on a Mission arrive with fgm-3; `tasks-assigned` reads the binding\'s graph-node claims today' if mission else ''},
-            'stage': info, 'candidate': candidate, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
+            'stage': info, 'candidate': candidate, 'protocol': proto, 'vocabulary': dict(F.vocabulary(), drive=MD.vocabulary()), 'bench': model.bench, 'layout': dict(S.LABEL, note='drawing knobs (mm): part titles and pin labels are drawn in model units at this font size'), 'surfaces': model.surfaces, 'pins': list(model.pins.values()), 'connections': model.connections, 'unresolved': model.unresolved,
             'shapes': shapes, 'counts': {'surfaces': len(model.surfaces), 'pins': len(model.pins), 'connections': len(model.connections), 'unresolved': len(model.unresolved),
                                          'by_level': {lv: sum(1 for p in model.pins.values() if p['level'] == lv) for lv in M.LEVELS},
                                          'by_kind': {k: sum(1 for c in model.connections if c['kind'] == k) for k in sorted({c['kind'] for c in model.connections})}},

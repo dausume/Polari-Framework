@@ -94,9 +94,50 @@ def run_pin_view(check):
     kinds = {s['kind'] for s in base['surfaces']}
     lv = base['counts']['by_level']
     check('MODEL: surfaces are the board, two enclosures (packages), two SoCs (dies), the board parts and the bench parts, each with its shape row; pins exist at every level (die %d, package %d, board %d, part %d, bench %d); every pin sits in a surface' % tuple(lv[k] for k in ('die', 'package', 'board', 'part', 'bench')),
-          kinds == {'board', 'enclosure', 'soc', 'board-part', 'bench-part'} and all(s['shape'] in base['shapes'] for s in base['surfaces']) and all(lv[k] > 0 for k in lv) and lv['board'] == 38 and lv['package'] == 28 + 33
+          kinds == {'board', 'enclosure', 'soc', 'board-part', 'bench-part', 'bench-board'} and all(s['shape'] in base['shapes'] for s in base['surfaces']) and all(lv[k] > 0 for k in lv) and lv['board'] == 38 and lv['package'] == 28 + 33
           and all(p['surface'] in {s['id'] for s in base['surfaces']} for p in base['pins']) and {s['parent'] for s in base['surfaces'] if s['kind'] == 'soc'} == {'package:%s:U1' % BOARD, 'package:%s:U2' % BOARD}
           and all(s['parent'] == 'board:%s' % BOARD for s in base['surfaces'] if s['kind'] == 'enclosure'), str(lv))
+    # ---- pv-6: the bench parts sit on the breadboard the layout engine places them on (his 2026-10-23: "the breadboard visualization does not show up and the button and other pieces appear to be in the middle of nowhere")
+    from board.custom import pin_view_model as PVM
+    from board import layout_page as LPG
+    bb = [s for s in base['surfaces'] if s['kind'] == 'bench-board']
+    bench = base['bench']
+    lay = PV.bench_layout('', BOARD)[0]
+    bshape = base['shapes'].get(bb[0]['shape'], {}).get('parameters', {}) if bb else {}
+    check('pv-6 BENCH BOARD: without a binding the pin view lays the bench out from the Layout page\'s default config (%s == board.layout_page.DEFAULT_CONFIG); ONE breadboard surface (kind bench-board, level bench) whose shape row '
+          '(generator breadboard, pitch cited) carries the layout\'s rows / rail holes and is in the payload\'s shapes; the payload\'s `bench` block names the config, the board and the placed parts' % bench['config'],
+          lay is not None and bench['config'] == PVM.BENCH_LAYOUT_DEFAULT[BOARD] == LPG.DEFAULT_CONFIG and len(bb) == 1 and bb[0]['level'] == 'bench' and bshape.get('generator') == 'breadboard'
+          and bshape.get('rows') == lay['board']['rows'] == bench['board']['rows'] and bshape.get('rail_holes') == lay['board']['rail_holes'] and 'pitch' in bshape.get('cited', {}) and bench['why'] == ''
+          and bench['board']['surface'] == bb[0]['id'], str(bench))
+    geo = S.breadboard_geometry(lay['board']['rows'], lay['board']['rail_holes'])
+    bx0, by0 = bb[0]['x'] - bb[0]['w'] / 2, bb[0]['y'] - bb[0]['h'] / 2
+    parts = {s['ref'].partition(':')[2]: s for s in base['surfaces'] if s['kind'] == 'bench-part'}
+    inside = all(bx0 <= s['x'] <= bx0 + bb[0]['w'] and by0 <= s['y'] <= by0 + bb[0]['h'] for s in parts.values())
+    in_holes, seen = True, 0
+    for pl in lay['placements']:
+        s = parts[pl['row']]
+        for leg in pl['legs']:
+            pin = next((p for p in base['pins'] if p['surface'] == s['id'] and p['label'] == leg['net']), None)
+            if pin is None:
+                continue   # a leg on an internal net (LED_ANODE) is not a pin of the pin view
+            first = next(x for x in pl['legs'] if x['net'] == leg['net'])   # the first hole of a net stands for it
+            hx, hy = S.hole_xy(geo, first['hole'])
+            in_holes = in_holes and abs(s['x'] + pin['x'] - (bx0 + hx)) < 1e-3 and abs(s['y'] + pin['y'] - (by0 + hy)) < 1e-3
+            seen += 1
+    check('pv-6 BENCH PARTS: every bench part the layout places (%d: %s) sits INSIDE the breadboard with its frame at the centre of its legs and each of its pins (%d checked) in the hole the layout gives that leg; the surface names the holes' % (
+          len(lay['placements']), ', '.join(p['row'] for p in lay['placements']), seen),
+          inside and in_holes and seen >= 4 and set(parts) == {p['row'] for p in lay['placements']} and all('holes' in s['notes'] for s in parts.values()) and {p['part'] for p in bench['placed']} == set(parts)
+          and bb[0]['x'] - bb[0]['w'] / 2 >= 66.04 + 2.54, str([(k, s['x'], s['y']) for k, s in parts.items()]))
+    hole_geo = S.breadboard_geometry(30, 25)
+    check('pv-6 GEOMETRY: the hole grammar of the layout view resolves (r1a = the first strip\'s top hole at the margin, r30j = the last, rail:top:+:1 and rail:bottom:-:25) and anything else (a header label) is None; the half board is 32 x 20.4 pitches',
+          S.hole_xy(hole_geo, 'r1a') == (1.5 * 2.54, (1.5 + 1 + 2.2) * 2.54) and abs(S.hole_xy(hole_geo, 'r30j')[0] - (1.5 + 29) * 2.54) < 1e-9 and S.hole_xy(hole_geo, 'rail:top:+:1')[1] == 1.5 * 2.54
+          and S.hole_xy(hole_geo, 'rail:bottom:-:25')[0] > S.hole_xy(hole_geo, 'rail:bottom:-:1')[0] and S.hole_xy(hole_geo, 'D6') is None and S.hole_xy(hole_geo, 'GND') is None
+          and abs(hole_geo['w'] - 32 * 2.54) < 1e-9 and abs(hole_geo['h'] - 20.4 * 2.54) < 1e-9, str((hole_geo['w'], hole_geo['h'])))
+    plain = PVM.build(t, BOARD)
+    col = all(S.BENCH_REGION['x0'] <= s['x'] <= S.BENCH_REGION['x1'] for s in plain.surfaces if s['kind'] == 'bench-part')
+    refused = PV.bench_layout('no-such-config@%s' % BOARD, BOARD)
+    check('pv-6 FALLBACK: the model built without a layout has no breadboard surface and packs the bench parts into the bench column as before; a binding whose config the placer refuses yields no layout and says why in words (never a 500)',
+          not any(s['kind'] == 'bench-board' for s in plain.surfaces) and col and refused[0] is None and refused[1].startswith('no layout for no-such-config'), refused[1])
     pos_ok = all(abs(pins['PackageContact:atmega328p-28-spdip:%d' % n]['x'] - next(q for q in ls['pins'] if q['number'] == n)['x']) < 1e-3 for n in (1, 12, 15, 28))
     check('MODEL: a package leg\'s position IS the generator\'s (surface-local mm), the die pads ring the die in the order of the legs they bond to, and the header pins come from the board shape\'s header rows at the cited 2.54 mm pitch (the top headers numbered right-to-left: D0 at the right edge)',
           pos_ok and abs(abs(pins['ConnectorPin:%s:DIGITAL_L:2' % BOARD]['x'] - pins['ConnectorPin:%s:DIGITAL_L:1' % BOARD]['x']) - 2.54) < 1e-3 and pins['ConnectorPin:%s:DIGITAL_L:1' % BOARD]['x'] > pins['ConnectorPin:%s:DIGITAL_H:1' % BOARD]['x'] and all(S.on_perimeter(p, {'w': 3.0, 'h': 3.0}) for p in base['pins'] if p['surface'].startswith('die:%s:U1' % BOARD)), '')

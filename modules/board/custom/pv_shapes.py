@@ -18,6 +18,7 @@ ConnectorPin / EnclosureContact rows; only the drawing dimensions live here.
 """
 import json
 import math
+import re
 import sys
 
 from board.custom import exposure_view as V
@@ -331,6 +332,55 @@ def package_short_title(ref, package_type):
 def short(text, limit):
     """The abbreviated drawing text (limit characters, the last one an ellipsis); the full name stays the hover text."""
     return text if len(text) <= limit else text[:limit - 1] + '\u2026'
+
+
+# ---------------------------------------------------------------------------------------------------------------- the breadboard on the bench (pv-6)
+#: the breadboard's outline margin, in pitches; the rail-to-strip gap (2.2) and the trench (3, between e and f) below are the SAME schematic proportions the layout view draws
+#: (polari-platform-angular .../layout-view/layout-geometry.ts: breadboardRows / stripX / railX / breadboardW) so the two pictures agree hole for hole
+BB_PAD = 1.5
+BB_COLS = 'abcdefghij'
+_TIE_HOLE = re.compile(r'^r(\d+)([a-j])$')
+_TIE_RAIL = re.compile(r'^rail:(top|bottom):([+-]):(\d+)$')
+
+
+def breadboard_geometry(rows, rail_holes, pitch=2.54):
+    """-> the breadboard's drawing geometry in mm, origin = its top-left corner, y down: {'w', 'h', 'col_y': {a..j}, 'rail_y': {'top+', 'top-', 'bottom-', 'bottom+'}, 'strip_x'(n), 'rail_x'(n),
+    'rows', 'rail_holes', 'pitch'}. One pitch = 0.1 in = 2.54 mm (the tie-point spacing of every solderless breadboard and of the UNO's headers); the margins are drawing knobs (see BB_PAD)."""
+    P, pad = float(pitch), BB_PAD * float(pitch)
+    rail_y = {'top+': pad, 'top-': pad + P}
+    a = pad + P + 2.2 * P
+    col_y = {c: a + i * P for i, c in enumerate(BB_COLS[:5])}
+    f = col_y['e'] + 3 * P
+    col_y.update({c: f + i * P for i, c in enumerate(BB_COLS[5:])})
+    rail_y['bottom-'] = col_y['j'] + 2.2 * P
+    rail_y['bottom+'] = rail_y['bottom-'] + P
+    w, h = 2 * pad + (rows - 1) * P, rail_y['bottom+'] + pad
+    total = (rail_holes - 1) * P + ((rail_holes - 1) // 5) * 0.5 * P   # rail holes: groups of five with a half-pitch gap, centred on the strips
+    x0 = (w - total) / 2
+    return {'w': w, 'h': h, 'col_y': col_y, 'rail_y': rail_y, 'rows': int(rows), 'rail_holes': int(rail_holes), 'pitch': P,
+            'strip_x': lambda n: pad + (n - 1) * P, 'rail_x': lambda n: x0 + (n - 1) * P + ((n - 1) // 5) * 0.5 * P}
+
+
+def hole_xy(geo, tie):
+    """The (x, y) of a tie point in the breadboard frame (top-left origin) by the layout view's hole grammar: r<N><a-j> and rail:<top|bottom>:<+|->:<N>; None for anything else (a header label)."""
+    m = _TIE_HOLE.match(tie or '')
+    if m:
+        return geo['strip_x'](int(m.group(1))), geo['col_y'][m.group(2)]
+    m = _TIE_RAIL.match(tie or '')
+    if m:
+        return geo['rail_x'](int(m.group(3))), geo['rail_y'][m.group(1) + m.group(2)]
+    return None
+
+
+def bench_board_row(model, rows, rail_holes, pitch=2.54):
+    """The shape row of the breadboard a layout placed the bench parts on: a rectangle in mm plus the generator parameters the browser draws the holes from (rows, rail_holes, pitch)."""
+    geo = breadboard_geometry(rows, rail_holes, pitch)
+    g = {'generator': 'breadboard', 'model': model, 'rows': int(rows), 'rail_holes': int(rail_holes), 'holes_per_side': 5, 'pitch': float(pitch), 'bbox': [geo['w'], geo['h']],
+         'origin': 'the surface centre; the holes count from the top-left corner (strip 1, column a)',
+         'cited': {'pitch': _c(float(pitch), 'breadboard tie-point spacing', '0.1 in = 2.54 mm: the standard pitch of solderless breadboards and of the UNO header sockets (Connector.footprint P2.54mm)')},
+         'knobs': ['the outline margin (%.1f pitches), the rail-to-strip gap (2.2 pitches) and the trench (3 pitches between e and f) are SCHEMATIC proportions shared with the layout view, not measured' % BB_PAD]}
+    return _row(shape_name('bench-board', model), '%s on the bench (holes at the cited pitch, proportions as the layout view draws them)' % model, g, _rect(geo['w'], geo['h']),
+                'pv-6: breadboard generator; pitch cited; margins are the layout view\'s drawing knobs')
 
 
 def part_geometry(p):
