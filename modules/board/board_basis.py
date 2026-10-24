@@ -33,6 +33,8 @@ from board.objects.board.TargetCompatibilityRule import TargetCompatibilityRule 
 # fs-2d: the kit parts register (his ask: "these are all the parts in our kit ... reference for how we make our sample firmwares")
 from board.objects.board.KitPart import KitPart  # noqa: F401
 from board.objects.board.ChipLadderEntry import ChipLadderEntry  # noqa: F401   # chp-0: the chips-and-levels ladder
+from board.objects.board.Bench import Bench  # noqa: F401   # bench-0: the boards and breadboards on one bench
+from board.objects.board.BreadboardModel import BreadboardModel  # noqa: F401   # bench-0: the breadboards one can add
 # ucd-0a: THE HARDWARE CHAIN (UNO_CORE_DEMO_PLAN.md §5f/§5g), materialized + cited: Board → Pin → SoC Pin → PinFunction →
 # PeripheralSignal → Peripheral → Register → RegisterField, both ways; SignalRoute / RegisterSetting / RegisterFieldSetting filled by
 # ucd-0b (the claims), BoardPinNet by ucd-0c (the circuit)
@@ -89,6 +91,7 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  TargetCompatibilityRule,   # fs-2a: task-kind <-> pin-role compatibility, cited
                  KitPart,   # fs-2d: the kit parts register (cited to the kit's own book)
                  ChipLadderEntry,   # chp-0: the chips-and-levels ladder (RISC-V sample apart from the convenience boards)
+                 Bench, BreadboardModel,   # bench-0: the bench and its selection lists
                  Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
                  BoardPinNet,   # ucd-0a: the hardware chain (nine)
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)

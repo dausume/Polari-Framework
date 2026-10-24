@@ -40,6 +40,42 @@ EMULATORS = (
     ('none', 'none known', '', 'none', 'none', 'SAMD21 (Arduino Zero, Feather M0 Express), RP2350, CH32V003: hardware-proven through the bench gate until a platform exists'),
 )
 
+#: how each emulator kind simulates, and what drives its inputs (his rule: hardware-only is said loudly, never left blank)
+METHOD = {'simavr': 'instruction-level emulation of the real flashed image (AVR core + peripherals)',
+          'esp-emulator': 'instruction-level emulation of the real flashed image (Espressif\'s Rust emulator)',
+          'qemu-espressif-fork': 'QEMU machine running the real merged flash image (Espressif fork)',
+          'qemu-upstream': 'QEMU board machine running the real image (upstream QEMU)',
+          'renode': 'Renode platform (.repl) running the real ELF',
+          'rtl-simulation': 'cycle-exact RTL simulation of the soft core (Verilator / Icarus)',
+          'none': 'none'}
+INPUTS = {'simavr': 'the twin worker\'s pin callbacks (board.custom.twin_sessions): presses, levels, analog ramps',
+          'esp-emulator': 'none yet: UART injection only - a GPIO bridge is its open feature request #5 (the c3twin contribution)',
+          'qemu-espressif-fork': 'none: the GPIO block is a stub, so the PIN_SHIM build scripts its presses in RAM',
+          'qemu-upstream': 'per machine, unverified (QMP where the machine wires pin lines)',
+          'renode': 'Renode GPIO connectors per platform (unverified for these platforms)',
+          'rtl-simulation': 'the testbench\'s signals',
+          'none': 'a person at the bench'}
+
+
+def testing_of(em):
+    """{group, word, software, how, inputs_driven_by} from one emulator entry. group: simulated | simulated-stub | planned | hardware-only.
+    The word is what a person reads: HARDWARE ONLY in capitals when no emulator exists; STUB / UNVERIFIED / NO pins in capitals when the
+    firmware runs but the pins cannot carry a proof."""
+    em = em or {}
+    kind, status, pins, name = em.get('kind', 'none'), em.get('status', 'none'), em.get('pins', 'none'), em.get('name', '') or 'none'
+    base = {'software': name if kind != 'none' else 'none', 'how': METHOD.get(kind, 'unverified'), 'inputs_driven_by': INPUTS.get(kind, 'unverified')}
+    if kind == 'none' or status == 'none':
+        return dict(base, group='hardware-only', word='HARDWARE ONLY - no emulator known: every proof is on the real board')
+    if status == 'planned':
+        return dict(base, group='planned', word='HARDWARE ONLY until %s lands (planned twin)' % (em.get('module') or 'its twin module'))
+    if pins == 'real':
+        return dict(base, group='simulated', word='simulated: pins real (%s)' % name)
+    if pins == 'stub':
+        return dict(base, group='simulated-stub', word='simulated: pins STUB (%s) - the firmware runs, pin-level claims need the real board' % name)
+    if pins == 'none':
+        return dict(base, group='simulated-stub', word='simulated: NO pins modelled (%s) - the firmware runs, every pin claim is hardware-tested' % name)
+    return dict(base, group='simulated-stub', word='simulated: pins UNVERIFIED (%s) - until checked, treat pin-level claims as hardware-tested' % name)
+
 
 def _j(text, default):
     try:
@@ -102,6 +138,8 @@ def flatten(entry, tables):
            'emulator': em.get('name', ''), 'emulator_kind': em.get('kind', ''), 'emulator_pins': em.get('pins', ''),
            'emulator_status': em.get('status', ''), 'emulator_licence': em.get('licence', ''), 'emulator_basis': em.get('basis', ''),
            'in_polari': holdings(entry, tables), 'notes': entry.get('notes', ''), 'source': entry.get('source', '')}
+    t = testing_of(em)
+    row.update(testing_group=t['group'], testing=t['word'], software=t['software'], how=t['how'], inputs_driven_by=t['inputs_driven_by'])
     for key in ('bare_c', 'freertos', 'zephyr', 'ubuntu'):
         v = lv.get(key) or {}
         row[key] = v.get('status', 'unverified')
@@ -127,7 +165,7 @@ def emulator_rows(manager=None):
     for kind, name, licence, pins, status, missing in EMULATORS:
         covered = [e['name'] for e in ents if (_j(e.get('emulator_json'), {}).get('kind') == kind)]
         out.append({'kind': kind, 'emulator': name, 'licence': licence, 'pins': pins, 'status': status, 'chips_covered': ', '.join(covered) or '-',
-                    'what_is_missing': missing})
+                    'method': METHOD.get(kind, 'unverified'), 'inputs_driven_by': INPUTS.get(kind, 'unverified'), 'what_is_missing': missing})
     return out
 
 
@@ -138,6 +176,8 @@ def door(manager, params, which):
     if which == 'emulators':
         return 200, {'ok': True, 'rows': emulator_rows(manager)}
     section = (params.get('section') or '').strip()
+    if section == 'all':
+        section = ''
     if section and section not in ('riscv', 'convenience'):
         return 400, {'ok': False, 'error': 'section must be riscv or convenience (got %r)' % section}
     return 200, {'ok': True, 'section': section or 'all', 'rows': rows(manager, section)}

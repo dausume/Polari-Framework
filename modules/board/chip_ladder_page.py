@@ -14,7 +14,8 @@ where that word comes from; `in_polari` is derived from the board tables on ever
 from polariApiServer.module_pages_seed import _page, _row, _table, _tab
 
 DOOR = '/api/board/chip-ladder'
-_LEVEL_COLS = 'slot,title,family,core,bare_c,freertos,zephyr,ubuntu,emulator,emulator_pins,on_hand,in_polari'
+_LEVEL_COLS = 'slot,title,family,core,bare_c,freertos,zephyr,ubuntu,testing,on_hand,in_polari'
+_TEST_COLS = 'slot,title,chip,testing,software,how,inputs_driven_by,on_hand'
 _BASIS_COLS = 'title,bare_c,bare_c_basis,freertos,freertos_basis,zephyr,zephyr_basis,ubuntu,ubuntu_basis'
 _EMU_COLS = 'title,emulator,emulator_kind,emulator_status,emulator_pins,emulator_licence,emulator_basis'
 _BOARD_COLS = 'title,chip,vendor,boards,on_hand,notes,source'
@@ -35,7 +36,16 @@ def _section_rows(section, prefix, word):
         _row(1, [_table(prefix + '-basis', 0, 12, '%s - where every level claim comes from' % word, '',
                         description='The same chips; beside every level word, its basis: a document URL, a Polari module, or the word unverified. Nothing here is guessed.',
                         columns=_BASIS_COLS, data_path=q)], min_height=320),
-        _row(2, [_table(prefix + '-emulators', 0, 6, '%s - the emulator each chip has' % word, '',
+        _row(2, [_table(prefix + '-sim-real', 0, 4, '%s - SIMULATED with real pins' % word, '',
+                        description='Chips whose twin drives and reads real pins: a proof on the twin is a proof of the pins too. software = the emulator; how = what it emulates; inputs_driven_by = what presses the button.',
+                        columns=_TEST_COLS, data_path=q, filter_field='testing_group', filter_value='simulated', empty_text='None in this section.'),
+                 _table(prefix + '-sim-stub', 1, 4, '%s - SIMULATED, pins are a stub, unverified or missing' % word, '',
+                        description='Chips whose twin runs the real firmware but cannot carry a pin-level proof: the word says STUB, UNVERIFIED or NO pins. Pin-level claims on these are hardware-tested until the twin grows pins.',
+                        columns=_TEST_COLS, data_path=q, filter_field='testing_group', filter_value='simulated-stub', empty_text='None in this section.'),
+                 _table(prefix + '-hw-only', 2, 4, '%s - HARDWARE ONLY' % word, '',
+                        description='Chips with NO emulator known: every proof is on the real board, through the bench gate. Outlined here on purpose (his rule 2026-10-24: hardware-only testing is said clearly).',
+                        columns=_TEST_COLS, data_path=q, filter_field='testing_group', filter_value='hardware-only', empty_text='None in this section - every chip here can be simulated.')], min_height=300),
+        _row(3, [_table(prefix + '-emulators', 0, 6, '%s - the emulator each chip has' % word, '',
                         description='Which emulator already exists for the chip, its kind and licence, its status (exists / exists with stub pins / planned / none) and the basis.',
                         columns=_EMU_COLS, data_path=q),
                  _table(prefix + '-boards', 1, 6, '%s - the boards and what is on the bench' % word, '',
@@ -49,7 +59,15 @@ def _emulators_tab():
         _row(0, [_table('chp-emulators', 0, 12, 'Every emulator the ladder names', '',
                         description='One row per emulator: its kind, licence, which chips it covers here, whether its pins are real or a stub, and what is missing before everything can '
                                     'be simulated (his rule: "we will need to be able to simulate them all if possible"). "none known" lists the chips that are hardware-proven only.',
-                        columns='emulator,kind,licence,pins,status,chips_covered,what_is_missing', data_path=DOOR + '/emulators')], min_height=360),
+                        columns='emulator,method,licence,pins,status,chips_covered,inputs_driven_by,what_is_missing', data_path=DOOR + '/emulators')], min_height=360),
+        _row(1, [_table('chp-hw-only-all', 0, 6, 'HARDWARE ONLY - every chip on this page with no emulator', '',
+                        description='Both sections together: the chips that can only be tested on the real board today, and why. These need either a new emulator platform or the bench.',
+                        columns='section,title,chip,family,testing,on_hand', data_path=DOOR + '?section=all', filter_field='testing_group', filter_value='hardware-only',
+                        empty_text='Every chip on this page can be simulated.'),
+                 _table('chp-stub-all', 1, 6, 'SIMULATED without a pin-level proof - firmware runs, pins do not', '',
+                        description='Both sections together: the chips whose twin runs the firmware but whose pins are a stub, unverified or not modelled. The Emulators table above says what each is missing.',
+                        columns='section,title,chip,testing,software,inputs_driven_by', data_path=DOOR + '?section=all', filter_field='testing_group', filter_value='simulated-stub',
+                        empty_text='Every simulated chip has real pins.')], min_height=300),
     ], description='The twins that exist today, what they cover, and the gap to simulating every board on the page.')
 
 
