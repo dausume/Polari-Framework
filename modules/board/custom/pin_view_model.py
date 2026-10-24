@@ -32,9 +32,15 @@ def _short(ref):
     return ref.partition(':')[2] if ':' in ref else ref
 
 
+#: pv-6: the layout the bench parts are drawn on when the view has no binding — the SAME default the Layout page opens with (board.layout_page.DEFAULT_CONFIG; the selftest keeps them equal)
+BENCH_LAYOUT_DEFAULT = {'arduino-uno-r3': 'uno-light'}
+
+
 class Model:
-    def __init__(self, tables, board):
+    def __init__(self, tables, board, bench_layout=None):
         self.t, self.board = tables, board
+        self.bench_layout = bench_layout   # pv-6: the public layout payload (electrodevice.custom.layout_core.layout_place) the bench parts sit on, or None (then they pack into the bench column)
+        self.bench = {'config': (bench_layout or {}).get('config', ''), 'board': None, 'placed': [], 'unplaced': [], 'why': ''}
         self.surfaces, self.pins, self.connections, self.unresolved = [], {}, [], []
         self.shapes = {r['name']: r for r in S.shape_rows(tables, board)}
         self.pos = {}   # surface id -> {'x','y','rot','parent'}
@@ -287,16 +293,25 @@ class Model:
             return
         net_row = {n['name']: n for n in self.t.get('CircuitNetDefinition', [])}
         bp_header = {b['name']: 'ConnectorPin:%s:%s' % (self.board, b['connector_pin']) for b in self.t['BoardPin'] if b['board'] == self.board and b.get('connector_pin')}
+        on_board = self._bench_board()   # pv-6: {component row name: its placement on the breadboard} (empty without a layout)
         for circuit, c, label in S.bench_components(self.t, self.board):
             sid = 'bench:%s:%s' % (circuit, c['name'])
             shp = self.shapes[S.shape_name('part', 'bench-%s' % c['name'])]
             geo = S.part_geometry(S.params(shp))
+            placed = on_board.get(c['name'])
             if not any(s['id'] == sid for s in self.surfaces):
                 bx = S.params(shp)['box']
-                pl = self.place.get('bench-%s' % c['name'], {'x': 0.0, 'y': 0.0})
-                self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s)' % (c['name'], c['kind'], circuit), shape=shp['name'], w=bx[0], h=bx[1], ref='CircuitComponentDefinition:%s' % c['name'],
-                                 x=pl['x'], y=pl['y'], short_title=geo['short_title'], title_pos=geo['title'], extent=geo['extent'])
+                if placed:
+                    self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s) — %s on the breadboard' % (c['name'], c['kind'], circuit, placed['name']), shape=shp['name'],
+                                     w=placed['w'], h=placed['h'], ref='CircuitComponentDefinition:%s' % c['name'], x=placed['x'], y=placed['y'], short_title=geo['short_title'], title_pos=placed['title_pos'],
+                                     extent=placed['extent'], notes='legs in holes %s' % ', '.join(placed['holes']))
+                else:
+                    pl = self.place.get('bench-%s' % c['name'], {'x': 0.0, 'y': 0.0})
+                    self.add_surface(id=sid, kind='bench-part', level='bench', title='%s (%s on %s)' % (c['name'], c['kind'], circuit), shape=shp['name'], w=bx[0], h=bx[1], ref='CircuitComponentDefinition:%s' % c['name'],
+                                     x=pl['x'], y=pl['y'], short_title=geo['short_title'], title_pos=geo['title'], extent=geo['extent'])
             pos = {p['name']: p for p in S.layout(shp)['pins']}[label]
+            if placed and label in placed['pins']:   # the pin sits in the hole its leg occupies (the part's frame = the centre of its legs)
+                pos = placed['pins'][label]
             self.add_pin(id='CircuitPin:%s:%s:%s' % (circuit, c['name'], label), level='bench', surface=sid, label=label, short_label=geo['pins'][label], x=round(pos['x'], 4), y=round(pos['y'], 4), side=pos['side'], kind=c['kind'],
                          drive_role='undetermined', ref='CircuitComponentDefinition:%s' % c['name'])
         by_net = {}
@@ -325,6 +340,60 @@ class Model:
             for i, a in enumerate(hh):   # two header pins on one bench net: the jumper wire between them
                 for b in hh[i + 1:]:
                     self.connect('to-bench', a, b, via='jumper', source='BoardPinNet:%s' % rows[0]['name'])
+
+    def _bench_board(self):
+        """pv-6: the breadboard of the bench layout as a surface beside the board (where the packed bench column used to start), and every bench part's place on it: its frame at the centre of
+        its legs' holes, its box spanning them, its pins IN those holes (by the leg's net). -> {component row name: {x, y, w, h, pins: {label: {x, y, side}}, title_pos, extent, holes, name}}.
+        Nothing here is drawn by hand: the holes come from the layout engine's placements (electrodevice.custom.layout_place), the hole positions from the layout view's own geometry."""
+        lay = self.bench_layout
+        if not lay or not lay.get('ok') or not lay.get('board'):
+            return {}
+        b = lay['board']
+        pitch = next((float(x.get('pitch_mm') or 2.54) for x in (lay.get('scene') or {}).get('boards', []) if x.get('role') == 'bench'), 2.54)
+        geo = S.breadboard_geometry(b['rows'], b['rail_holes'], pitch)
+        row = S.bench_board_row(b['model'], b['rows'], b['rail_holes'], pitch)
+        self.shapes[row['name']] = row
+        x0, y0 = S.BENCH_REGION['x0'], S.BENCH_REGION['y0']
+        sid = 'bench-board:%s' % b['name']
+        self.add_surface(id=sid, kind='bench-board', level='bench', title='%s (%s, %d strips): the layout of %s' % (b.get('label') or b['model'], b['model'], b['rows'], lay['config']), shape=row['name'],
+                         w=geo['w'], h=geo['h'], x=x0 + geo['w'] / 2, y=y0 + geo['h'] / 2, ref='BenchBoard:%s' % b['name'],
+                         notes='the breadboard the layout page places this build on; parts sit in the holes the layout gives their legs; wires are the layout page\'s (here a bench wire is drawn pin to pin)')
+        self.bench.update({'board': {'name': b['name'], 'model': b['model'], 'rows': b['rows'], 'rail_holes': b['rail_holes'], 'label': b.get('label', ''), 'surface': sid}, 'config': lay['config']})
+        f, gap = S.LABEL['font'], S.LABEL['gap']
+        out = {}
+        for pl in lay.get('placements', []):
+            legs = [(leg, S.hole_xy(geo, leg.get('hole', ''))) for leg in pl.get('legs', [])]
+            legs = [(leg, xy) for leg, xy in legs if xy]
+            if not legs:
+                self.bench['unplaced'].append({'part': pl.get('row') or pl.get('name'), 'why': 'no leg of %s names a breadboard hole' % pl.get('name')})
+                continue
+            xs, ys = [xy[0] for _, xy in legs], [xy[1] for _, xy in legs]
+            cx, cy = x0 + (min(xs) + max(xs)) / 2, y0 + (min(ys) + max(ys)) / 2
+            w, h = max(xs) - min(xs) + 0.8 * pitch, max(ys) - min(ys) + 0.8 * pitch   # the body spans the legs; parts in adjacent holes keep a 0.2-pitch gap between their boxes
+            # labels go OUTWARD by column half: a leg above the trench (a-e) is labelled above the part, one below it (f-j) below - the strips are 1 pitch apart, so left/right
+            # labels would run into the neighbouring part; the title stacks beyond the labels on the side the legs are (below when the part straddles the trench)
+            pins = {}
+            for leg, (hx, hy) in legs:
+                lx, ly = round(x0 + hx - cx, 4), round(y0 + hy - cy, 4)
+                col = (leg.get('hole') or '')[-1:]
+                side = 'top' if col in 'abcde' else 'bottom'
+                pins.setdefault(leg.get('net', ''), {'x': lx, 'y': ly, 'side': side})   # two legs on one net (the pushbutton's pairs): the first hole stands for the net
+            ext = {'x0': -w / 2, 'y0': -h / 2, 'x1': w / 2, 'y1': h / 2}
+            for net, p in pins.items():
+                tw = S.text_w(S.short(net, S.LABEL['max_pin']))
+                ext['x0'], ext['x1'] = min(ext['x0'], p['x'] - tw / 2), max(ext['x1'], p['x'] + tw / 2)
+                if p['side'] == 'top':
+                    ext['y0'] = min(ext['y0'], p['y'] - gap - f)
+                else:
+                    ext['y1'] = max(ext['y1'], p['y'] + gap + f)
+            above = all(p['side'] == 'top' for p in pins.values())
+            title_y = (ext['y0'] - gap - f) if above else (ext['y1'] + gap)
+            ext['y0'], ext['y1'] = min(ext['y0'], title_y), max(ext['y1'], title_y + f)
+            ext['x0'], ext['x1'] = min(ext['x0'], -S.text_w(pl.get('row', '')) / 2), max(ext['x1'], S.text_w(pl.get('row', '')) / 2)
+            out[pl.get('row', '')] = {'name': pl.get('name', ''), 'x': round(cx, 4), 'y': round(cy, 4), 'w': round(w, 4), 'h': round(h, 4), 'pins': pins, 'title_pos': {'x': 0.0, 'y': round(title_y, 4)},
+                                      'extent': {k: round(v, 4) for k, v in ext.items()}, 'holes': [leg.get('hole', '') for leg, _ in legs]}
+            self.bench['placed'].append({'part': pl.get('row', ''), 'name': pl.get('name', ''), 'holes': [leg.get('hole', '') for leg, _ in legs]})
+        return out
 
     def _canonicals(self):
         """The board's own pin names (D0 .. A5) on the die pad, the leg and the header pins of the line: BoardPin rows name the SoC pin of the board's MCU; headers follow the crossings."""
@@ -355,5 +424,5 @@ class Model:
                 s['x'], s['y'], s['rot'] = pl['x'], pl['y'], pl['rot']
 
 
-def build(tables, board='arduino-uno-r3'):
-    return Model(tables, board).build()
+def build(tables, board='arduino-uno-r3', bench_layout=None):
+    return Model(tables, board, bench_layout).build()
