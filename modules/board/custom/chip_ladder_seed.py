@@ -186,11 +186,13 @@ CONVENIENCE = [
                            'no QEMU machine; Renode ships sam4s_xplained (SAM4S), not a SAMD21 platform - checked 2026-10-24. Smallest path: a Renode SAMD21 platform (Renode has the Cortex-M0+ core)'),
      'notes': 'A third ISA family on the bench; hardware-proven until a platform exists.', 'source': _S},
     {'name': 'esp32-xtensa', 'section': 'convenience', 'slot': 'Xtensa LX7', 'title': 'ESP32-S3 (Xtensa LX7) - the Elecrow e-paper display board',
-     'chip': 'ESP32-S3 (DERIVED 2026-10-24 from the board\'s own GPIO header silk: IO8 IO13 IO14 IO9 IO16 IO15 IO18 IO17 IO20 IO19 IO38 IO21 + 4x3V3/4xGND - only the S3 has both GPIO20 and GPIO38 '
-             '(S3 datasheet GPIO range 0-21, 26-48; the original ESP32 has no GPIO20 pin, the C3 stops at GPIO21); the exact module (WROOM-1 flash/PSRAM) is pending `esptool chip_id` / `flash_id`)',
+     'chip': 'ESP32-S3 (QFN56) revision v0.2 - READ 2026-10-24 over USB with esptool v5.6.0 `chip-id` / `flash-id` (CH340 bridge, ttyUSB0): features Wi-Fi, BT 5 (LE), dual core + LP core, 240 MHz, '
+             'embedded PSRAM 8 MB (AP_3v3); crystal 40 MHz; flash manufacturer 0xc8 device 0x4017 = 8 MB, quad (4 data lines), 3.3 V by eFuse. 8 MB flash + 8 MB PSRAM is the WROOM-1 "N8R8" '
+             'pairing by Espressif\'s module naming (N8 = 8 MB flash, R8 = 8 MB PSRAM) - the module brand itself is under the case, unread. First derived from the GPIO header silk '
+             '(IO8 IO13 IO14 IO9 IO16 IO15 IO18 IO17 IO20 IO19 IO38 IO21 + 4x3V3/4xGND - only the S3 has both GPIO20 and GPIO38), then confirmed by the chip',
      'vendor': 'Espressif (chip) / Elecrow (board)', 'family': 'Xtensa LX7', 'core': 'dual Xtensa LX7 240 MHz, Wi-Fi + BLE - NOT RISC-V', 'soc_key': '',
      'boards_json': json.dumps([_b('elecrow-esp32-eval', 'Elecrow "EVAL BOARD FOR ESP32" DIE01237S001 (DigiKey 5131-DIE01237S001-ND) - in hand it is an enclosed e-paper HMI display (CrowPanel form: UART0, RESET/BOOT, 2x10 GPIO header, battery connector, MENU/EXIT/arrow keys)', True,
-                                   'on the bench 2026-10-24 (order label; his photos of the case + header silk); module pending esptool; panel size unread')]),
+                                   'on the bench 2026-10-24 (order label; his photos of the case + header silk); chip + flash + PSRAM read by esptool over its CH340 USB-serial (so: no native USB on the connector - UART0 bridge); panel size unread')]),
      'levels_json': _lv({'status': 'yes', 'basis': 'ESP-IDF bootloader loads any ELF; plain-C HAL possible'}, {'status': 'yes', 'basis': 'ESP-IDF is FreeRTOS'},
                         {'status': 'unverified', 'basis': 'Zephyr upstream esp32s3_devkitc / esp32s3_devkitm if the module is a WROOM-1 - pending esptool'}, _NA_MCU),
      'emulator_json': _emu('Espressif QEMU fork esp32s3 machine; esp-emulator (S3)', 'qemu-espressif-fork', 'stub', 'GPL-2.0', 'exists (pins stub)',

@@ -60,7 +60,7 @@ SEED_BENCHES = [{
         {'board': 'arduino-zero', 'label': 'Zero #1', 'added': '2026-10-24', 'note': 'box'},
         {'board': 'adafruit-feather-m0-express', 'label': 'Feather M0 #1', 'added': '2026-10-24', 'note': 'order, with headers and two LiPo cells'},
         {'board': 'elecrow-esp32-eval', 'label': 'ESP32-S3 e-paper #1', 'added': '2026-10-24',
-         'note': 'order label; ESP32-S3 derived from the GPIO header silk (IO20 + IO38 together exist only on the S3); exact module pending esptool'},
+         'note': 'order label; ESP32-S3 rev v0.2, 8 MB quad flash + 8 MB embedded PSRAM (N8R8 pairing), 40 MHz crystal - read by esptool over its CH340 bridge 2026-10-24; first derived from the header silk (IO20 + IO38)'},
     ]),
     'breadboards_json': json.dumps([
         {'model': 'bud-bb-32650-w', 'count': 2, 'note': 'order label'},
