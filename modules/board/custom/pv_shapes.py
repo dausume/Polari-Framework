@@ -347,14 +347,16 @@ def breadboard_geometry(rows, rail_holes, pitch=2.54):
     """-> the breadboard's drawing geometry in mm, origin = its top-left corner, y down: {'w', 'h', 'col_y': {a..j}, 'rail_y': {'top+', 'top-', 'bottom-', 'bottom+'}, 'strip_x'(n), 'rail_x'(n),
     'rows', 'rail_holes', 'pitch'}. One pitch = 0.1 in = 2.54 mm (the tie-point spacing of every solderless breadboard and of the UNO's headers); the margins are drawing knobs (see BB_PAD)."""
     P, pad = float(pitch), BB_PAD * float(pitch)
-    rail_y = {'top+': pad, 'top-': pad + P}
-    a = pad + P + 2.2 * P
+    has_rails = int(rail_holes) > 0   # a rail-less board (mini, rail_holes 0) has no rail bands: the tie-point block starts at the margin
+    rail_y = {'top+': pad, 'top-': pad + P} if has_rails else {}
+    a = pad + P + 2.2 * P if has_rails else pad
     col_y = {c: a + i * P for i, c in enumerate(BB_COLS[:5])}
     f = col_y['e'] + 3 * P
     col_y.update({c: f + i * P for i, c in enumerate(BB_COLS[5:])})
-    rail_y['bottom-'] = col_y['j'] + 2.2 * P
-    rail_y['bottom+'] = rail_y['bottom-'] + P
-    w, h = 2 * pad + (rows - 1) * P, rail_y['bottom+'] + pad
+    if has_rails:
+        rail_y['bottom-'] = col_y['j'] + 2.2 * P
+        rail_y['bottom+'] = rail_y['bottom-'] + P
+    w, h = 2 * pad + (rows - 1) * P, (rail_y['bottom+'] if has_rails else col_y['j']) + pad
     total = (rail_holes - 1) * P + ((rail_holes - 1) // 5) * 0.5 * P   # rail holes: groups of five with a half-pitch gap, centred on the strips
     x0 = (w - total) / 2
     return {'w': w, 'h': h, 'col_y': col_y, 'rail_y': rail_y, 'rows': int(rows), 'rail_holes': int(rail_holes), 'pitch': P,
@@ -368,7 +370,8 @@ def hole_xy(geo, tie):
         return geo['strip_x'](int(m.group(1))), geo['col_y'][m.group(2)]
     m = _TIE_RAIL.match(tie or '')
     if m:
-        return geo['rail_x'](int(m.group(3))), geo['rail_y'][m.group(1) + m.group(2)]
+        ry = geo['rail_y'].get(m.group(1) + m.group(2))
+        return None if ry is None else (geo['rail_x'](int(m.group(3))), ry)
     return None
 
 

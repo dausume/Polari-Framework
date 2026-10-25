@@ -43,10 +43,10 @@ SEED_BREADBOARD_MODELS = [
                  'BUD publishes no PDF datasheet for this family): "Double-strip", "170 tie-points", "External Size L x W x D: 1.85" x 1.42" x 0.33"" (= 47.0 x 36.1 x 8.4 mm). '
                  'DigiKey 377-BB-32650-W-ND attributes: Number of Terminal Strips 1, Number of 5-Tie Point Terminals 34, Number of Tie Points (Total) 170, 1.85" L x 1.42" W (47.0mm x 36.1mm). '
                  'Derived: 34 five-point terminals = 17 columns x (a-e, f-j) = 170, so rows 17, no power rails (rail_holes 0, rails 0); neither source mentions rails. '
-                 'The hole layout is NOT drawable yet: pv_shapes.breadboard_geometry(17, 0) draws 48.26 x 51.82 mm (it always reserves rail bands + trench) against the stated 47.0 x 36.1 mm.',
+                 'The hole layout is NOT drawable yet: pv_shapes.breadboard_geometry(17, 0) (no rail bands for a rail-less board) generates 48.26 x 35.56 mm vs the stated 47.0 x 36.1 mm - the height is within 0.6 mm but the width is 1.26 mm off (outline margin unknown), over the 1.0 mm tolerance.',
            notes='two on the bench 2026-10-24. The seed first said 70 tie points from the DigiKey title "BREADBRD DBL STRIP 70TIE-PTS WHT"; BUD and the DigiKey attribute table both say 170 (the title drops the 1). '
                  '"Double-strip" is BUD\'s word; no source states the row or column count, so rows 17 is derived from 34 terminals x 5 holes. '
-                 'Width 48.26 vs 47.0 mm is within 1.3 mm, height 51.82 vs 36.1 mm is not (no rails on this board): geometry_known stays False until the generator can omit the rail bands.'),
+                 'Generated 48.26 x 35.56 vs stated 47.0 x 36.1 mm (generator omits rail bands when rail_holes is 0): height is within 0.6 mm, width 1.26 mm off - margins unknown, so geometry_known stays False.'),
     _model('starter-kit-breadboard', 'The Arduino Starter Kit\'s breadboard', 'Arduino', '', 'unverified', -1, -1, -1, -1,
            notes='the kit book lists "Breadboard" without a tie count (KitPart arduino-starter-kit:breadboard); count the rows on the real one before drawing it.'),
 ]
