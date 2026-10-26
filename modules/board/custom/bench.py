@@ -14,6 +14,10 @@ capitals, never left blank (his rule 2026-10-24).
     POST /api/board/benches/{bench}/boards               {board, label?, note?}        -> 201 + the bench's boards
     POST /api/board/benches/{bench}/breadboards          {model, count?, note?}        -> 201 + the bench's breadboards
     POST /api/board/benches/{bench}/remove               {kind: board|breadboard, key}  -> 200 + the rows left
+    POST /api/board/benches                              {name, title?, notes?}        -> 201 an empty bench (409 on a duplicate name)
+    POST /api/board/benches/{bench}/attempt              {mission}                     -> cmod solve() over the bench's boards (404 + mission names for an unknown one)
+bench-options/breadboards rows add rail_power + fit_json {board: breadboard_fit}; bench-options/boards rows add arch, riscv, radios, radios_json, levels,
+footprint_json and take the knobs arch= (riscv|not-riscv|<family>) radio= (wifi|ble|802.15.4|thread|lora|none) level= (bare_c|freertos|zephyr; status yes only).
 An unknown bench, board or model is 404; a bad body 400.
 """
 import json
@@ -96,7 +100,8 @@ def ladder_boards(manager=None):
                         'section': 'RISC-V' if e.get('section') == 'riscv' else 'convenience', 'slot': e.get('slot', ''),
                         'testing_group': t['group'], 'testing': t['word'], 'software': t['software'], 'how': t['how'],
                         'inputs_driven_by': t['inputs_driven_by'], 'on_hand': 'yes' if b.get('on_hand') else 'no',
-                        'price_usd': b.get('price_usd', ''), 'note': b.get('note', '')}
+                        'price_usd': b.get('price_usd', ''), 'note': b.get('note', ''),
+                        'footprint_json': b.get('footprint_json') or {}, 'radios_json': b.get('radios_json') or [], 'levels_chip': _j(e.get('levels_json'), {})}
     return out
 
 
@@ -137,24 +142,100 @@ def bench_rows(manager=None):
     return out
 
 
-def board_options(manager=None, bench_name=''):
+ARCH_KNOBS = ('riscv', 'not-riscv')
+RADIO_KNOBS = ('wifi', 'ble', '802.15.4', 'thread', 'lora', 'none')
+LEVEL_KNOBS = ('bare_c', 'freertos', 'zephyr')
+_RADIO_WORD = {'wifi': 'Wi-Fi', 'ble': 'BLE', '802.15.4': '802.15.4', 'thread': 'Thread', 'lora': 'LoRa', 'none': 'no radio', 'unverified': 'radio unverified'}
+_RT_OF = {'bare_c': 'bare-c', 'freertos': 'freertos', 'zephyr': 'zephyr'}
+
+
+def _runtime_profiles(manager):
+    """{(board, runtime): row dict} from live RuntimeProfile rows, else the board object's seed tables."""
+    rows = _live_rows(manager, 'RuntimeProfile')
+    if rows:
+        return {(r.board, r.runtime): {'supported': r.supported, 'refusal': r.refusal} for r in rows}
+    try:
+        from board.custom import board_object as BO
+        return {(p.get('board'), p.get('runtime')): p for p in BO.seed_tables().get('RuntimeProfile', [])}
+    except Exception:  # noqa: BLE001 - no board object: the chip's levels alone speak
+        return {}
+
+
+def board_levels(info, profiles):
+    """{bare_c|freertos|zephyr: {status, basis}}: the chip's levels_json, overridden by the board's RuntimeProfile when one exists (the stronger, board-specific basis)."""
+    out = {}
+    for lv in LEVEL_KNOBS:
+        c = (info.get('levels_chip') or {}).get(lv) or {'status': 'unverified', 'basis': 'no ladder claim'}
+        st, basis = c.get('status', 'unverified'), 'chip ladder: ' + str(c.get('basis', ''))
+        alts = ['esp-idf'] if lv == 'freertos' else []
+        for rt in [_RT_OF[lv]] + alts:
+            p = profiles.get((info['board'], rt))
+            if p:
+                st = 'yes' if p.get('supported') else 'no'
+                basis = 'RuntimeProfile %s:%s%s' % (info['board'], rt, '' if p.get('supported') else ' refuses: ' + str(p.get('refusal', ''))[:120])
+                break
+        out[lv] = {'status': st, 'basis': basis}
+    return out
+
+
+def _radios_text(rs):
+    parts, mods, certs = [], [], []
+    for r in rs:
+        parts.append(_RADIO_WORD.get(r.get('kind'), r.get('kind', '?')))
+        mods.append(str(r.get('module') or ''))
+        pc = r.get('precertified') or {}
+        certs.append('FCC %s / IC %s / CE %s' % (pc.get('fcc_id') or '-', pc.get('ic') or '-', 'unverified' if pc.get('ce') is None else ('yes' if pc['ce'] else 'no')))
+    if not rs:
+        return 'unverified'
+    if all(r.get('kind') == 'none' for r in rs):
+        return 'no radio'
+    m = next((x for x in mods if x), 'unverified')
+    c = certs[0]
+    unv = all('unverified' in c or 'FCC - ' in c for c in certs[:1])
+    return '%s (module %s, %s)' % (' + '.join(parts), m.split(' (')[0] if m != 'unverified' else 'unverified', 'uncertified/unverified' if unv else c)
+
+
+def board_options(manager=None, bench_name='', arch='', radio='', level=''):
     b = bench(bench_name, manager) if bench_name else None
     on = {}
     for e in _j((b or {}).get('boards_json'), []):
         on[e.get('board', '')] = on.get(e.get('board', ''), 0) + 1
+    profiles = _runtime_profiles(manager)
     rows = []
     for key, info in sorted(ladder_boards(manager).items(), key=lambda kv: (kv[1]['section'] != 'RISC-V', kv[1]['testing_group'] != 'simulated', kv[0])):
-        rows.append(dict(info, on_bench=on.get(key, 0), can_add=True, bench=bench_name))
+        lv = board_levels(info, profiles)
+        rs = info['radios_json']
+        if arch and not ((arch == 'riscv' and info['family'] == 'RISC-V') or (arch == 'not-riscv' and info['family'] != 'RISC-V') or arch == info['family']):
+            continue
+        if radio and radio not in [r.get('kind') for r in rs]:
+            continue
+        if level and lv[level]['status'] != 'yes':
+            continue
+        words = ' \u00b7 '.join('%s %s' % (l.replace('_', '-'), lv[l]['status']) for l in LEVEL_KNOBS)
+        src = ', '.join(sorted({'RuntimeProfile' if v['basis'].startswith('RuntimeProfile') else 'chip ladder' for v in lv.values()}))
+        rows.append(dict({k: v for k, v in info.items() if k != 'levels_chip'}, on_bench=on.get(key, 0), can_add=True, bench=bench_name, arch=info['family'],
+                         riscv=info['family'] == 'RISC-V', radios=_radios_text(rs), levels='%s (basis: %s)' % (words, src), levels_json=lv))
     return rows
 
 
+def rail_power_text(m):
+    v, a = m.get('rail_voltage_max_v', -1), m.get('rail_current_max_a', -1)
+    if v == -1 and a == -1:
+        return 'unverified'
+    return '%s V / %s A (%s)' % ('?' if v == -1 else '%g' % v, '?' if a == -1 else '%g' % a, m.get('power_basis', ''))
+
+
 def breadboard_options(manager=None, bench_name=''):
+    from board.custom.bench_fit import breadboard_fit
     b = bench(bench_name, manager) if bench_name else None
     on = {e.get('model', ''): int(e.get('count') or 1) for e in _j((b or {}).get('breadboards_json'), [])}
+    lb = ladder_boards(manager)
+    keys = [e.get('board', '') for e in _j((b or {}).get('boards_json'), [])]
     rows = []
     for m in models(manager):
+        fit = {k: breadboard_fit((lb.get(k) or {}).get('footprint_json'), m) for k in dict.fromkeys(keys) if k}
         rows.append(dict(m, geometry='known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('geometry_known') else 'UNVERIFIED - cannot be drawn or placed on yet',
-                         on_bench=on.get(m['name'], 0), can_add=True, bench=bench_name))
+                         on_bench=on.get(m['name'], 0), can_add=True, bench=bench_name, rail_power=rail_power_text(m), fit_json=fit))
     return rows
 
 
@@ -236,7 +317,13 @@ def get_door(manager, params, which, bench_name=''):
     if which == 'benches':
         return 200, {'ok': True, 'rows': bench_rows(manager)}
     if which == 'options-boards':
-        return 200, {'ok': True, 'rows': board_options(manager, (params.get('bench') or SEED.HOME_BENCH).strip())}
+        knobs = {'arch': (params.get('arch') or '').strip(), 'radio': (params.get('radio') or '').strip(), 'level': (params.get('level') or '').strip()}
+        for k, allowed in (('arch', ARCH_KNOBS), ('radio', RADIO_KNOBS), ('level', LEVEL_KNOBS)):
+            v = knobs[k]
+            fams = sorted({r['family'] for r in ladder_boards(manager).values()}) if k == 'arch' else []
+            if v and v not in allowed and v not in fams:
+                return 400, {'ok': False, 'error': 'unknown %s %r' % (k, v), 'allowed': list(allowed) + fams}
+        return 200, {'ok': True, 'rows': board_options(manager, (params.get('bench') or SEED.HOME_BENCH).strip(), **knobs)}
     if which == 'options-breadboards':
         return 200, {'ok': True, 'rows': breadboard_options(manager, (params.get('bench') or SEED.HOME_BENCH).strip())}
     b = bench(bench_name, manager)
@@ -249,6 +336,62 @@ def get_door(manager, params, which, bench_name=''):
     return 404, {'ok': False, 'error': 'unknown door'}
 
 
+def create_bench(manager, body):
+    name = str((body or {}).get('name', '')).strip()
+    if not name:
+        return 400, {'ok': False, 'error': 'name is required'}
+    if bench(name, manager) is not None:
+        return 409, {'ok': False, 'error': 'a bench named %r already exists' % name}
+    b = {'name': name, 'title': str(body.get('title') or name), 'boards_json': '[]', 'breadboards_json': '[]', 'notes': str(body.get('notes') or ''), 'source': 'wb-0 create door'}
+    _save(manager, b)
+    return 201, {'ok': True, 'bench': name, 'rows': bench_rows(manager)}
+
+
+def mission_names(manager=None):
+    from cmod.custom import mission_seeds as MS
+    names = [m['name'] for m in MS.MISSION_SEEDS]
+    names += [getattr(r, 'name', '') for r in _live_rows(manager, 'HardwareMission')]
+    return sorted({n for n in names if n})
+
+
+def attempt(manager, bench_name, body):
+    """Wrap cmod solve() over the bench's boards the engine models. The engine honours none of allowed_boards / max_dev_boards / max_breadboards / on_hand_only
+    (normalise_limits raises on an unknown key), so only `boards` and max_candidates are passed; boards without a SoC row are named in `not_modelled`."""
+    b = bench(bench_name, manager)
+    if b is None:
+        return 404, {'ok': False, 'error': 'no bench named %r' % bench_name}
+    mission = str((body or {}).get('mission', '')).strip()
+    names = mission_names(manager)
+    if mission not in names:
+        return 404, {'ok': False, 'error': 'no mission named %r' % mission, 'known': names}
+    from cmod.custom import isotope_variants_eligibility as E
+    from cmod.custom import solve as SOLVE
+    from cmod.custom import solve_record as SR
+    keys = list(dict.fromkeys(e.get('board', '') for e in _j(b.get('boards_json'), []) if e.get('board')))
+    known = set(E.boards())
+    use = [k for k in keys if k in known]
+    gone = [k for k in keys if k not in known]
+    if not use:
+        return 200, {'ok': True, 'verdict': 'none', 'mission': mission, 'bench': bench_name, 'candidates': [], 'gap': [], 'pruned': [], 'run': {}, 'boards_used': [],
+                     'not_modelled': gone, 'why': 'no board on this bench has a SoC row the attempt engine models'}
+    res = SOLVE.solve(mission, boards=use, limits={'max_candidates': 10}, manager=manager)
+    w = res['chosen_candidate']
+    if w and w['complete'] and w['meets_criteria'] and w.get('buildable_on_bench', True):
+        verdict = 'meets'
+    elif res['candidates']:
+        verdict = 'closest'
+    else:
+        verdict = 'none'
+    cand = [{k: c.get(k) for k in ('id', 'rank', 'routes_text', 'tier', 'complete', 'meets_criteria', 'lost', 'buildable_on_bench', 'parts_missing', 'pins_used')} | {'board': c['hardware']['board']}
+            for c in res['candidates']]
+    run = {'result_sha256': res['result_sha256'], 'inputs_sha256': SR.SI.sha(res['inputs'])}
+    if manager is not None:
+        row = SR.store(manager, res, who='bench attempt')
+        run['name'] = row.name
+    return 200, {'ok': True, 'verdict': verdict, 'mission': mission, 'bench': bench_name, 'boards_used': use, 'not_modelled': gone, 'candidates': cand,
+                 'gap': list(w['lost']) if (w and verdict != 'meets') else [], 'pruned': res['pruned_rows'], 'run': run}
+
+
 def post_door(manager, bench_name, which, body):
     if not isinstance(body, dict):
         return 400, {'ok': False, 'error': 'the body must be a JSON object'}
@@ -258,4 +401,8 @@ def post_door(manager, bench_name, which, body):
         return add_breadboard(manager, bench_name, body)
     if which == 'remove':
         return remove(manager, bench_name, body)
+    if which == 'create':
+        return create_bench(manager, body)
+    if which == 'attempt':
+        return attempt(manager, bench_name, body)
     return 404, {'ok': False, 'error': 'unknown door'}

@@ -11,7 +11,7 @@ import falcon
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-_STATUS = {200: falcon.HTTP_200, 201: falcon.HTTP_201, 400: falcon.HTTP_400, 404: falcon.HTTP_404}
+_STATUS = {200: falcon.HTTP_200, 201: falcon.HTTP_201, 400: falcon.HTTP_400, 404: falcon.HTTP_404, 409: falcon.HTTP_409}
 
 
 class BenchAPI(treeObject):
@@ -24,6 +24,7 @@ class BenchAPI(treeObject):
             add('/api/board/benches', self, suffix='benches')
             add('/api/board/benches/{bench}/boards', self, suffix='boards')
             add('/api/board/benches/{bench}/breadboards', self, suffix='breadboards')
+            add('/api/board/benches/{bench}/attempt', self, suffix='attempt')
             add('/api/board/benches/{bench}/remove', self, suffix='remove')
             add('/api/board/bench-options/boards', self, suffix='options_boards')
             add('/api/board/bench-options/breadboards', self, suffix='options_breadboards')
@@ -42,6 +43,14 @@ class BenchAPI(treeObject):
             return
         status, payload = B.post_door(self.manager, bench, which, body)
         response.status, response.media = _STATUS[status], payload
+
+    def on_post_benches(self, request, response):
+        """wb-0: create an empty bench {name, title?, notes?}."""
+        self._post(request, response, 'create', '')
+
+    def on_post_attempt(self, request, response, bench):
+        """wb-0: attempt a mission on this bench {mission}."""
+        self._post(request, response, 'attempt', bench)
 
     def on_get_benches(self, request, response):
         """bench-0: one row per bench with its counts and its hardware-only boards named."""

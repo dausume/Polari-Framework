@@ -9,6 +9,9 @@ NOT converged (a person's additions stay).
 import json
 
 
+_UNV_POWER = 'unverified (vendor publishes no rail rating)'
+
+
 def _geo(rows, rail_holes):
     try:
         from board.custom import pv_shapes as PV
@@ -18,7 +21,7 @@ def _geo(rows, rail_holes):
         return -1.0, -1.0, False, 'undetermined: pv_shapes.breadboard_geometry unavailable'
 
 
-def _model(name, title, vendor, part_number, kind, tie_points, rows, rail_holes, rails, notes='', basis='', stated=None):
+def _model(name, title, vendor, part_number, kind, tie_points, rows, rail_holes, rails, notes='', basis='', stated=None, rail_v=-1.0, rail_a=-1.0, power_basis=None):
     """`stated` = (w_mm, h_mm) cited from a vendor page: recorded as the outline, but geometry_known stays False (the hole layout is not drawable
     from a stated outline alone; `basis` says why) - used when the derived outline disagrees with the stated one."""
     if stated:
@@ -28,7 +31,9 @@ def _model(name, title, vendor, part_number, kind, tie_points, rows, rail_holes,
     else:
         w, h, known, b = -1.0, -1.0, False, basis or 'unverified: only the vendor label is known; the datasheet is needed for the geometry'
     return {'name': name, 'title': title, 'vendor': vendor, 'part_number': part_number, 'kind': kind, 'tie_points': tie_points, 'rows': rows,
-            'rail_holes': rail_holes, 'rails': rails, 'width_mm': w, 'height_mm': h, 'geometry_known': known, 'basis': basis or b, 'notes': notes}
+            'rail_holes': rail_holes, 'rails': rails, 'width_mm': w, 'height_mm': h, 'geometry_known': known, 'basis': basis or b, 'notes': notes,
+            'rail_voltage_max_v': float(rail_v), 'rail_current_max_a': float(rail_a),
+            'power_basis': power_basis if power_basis is not None else ('n/a: this model has no power rails (rails 0)' if rails == 0 else _UNV_POWER)}
 
 
 SEED_BREADBOARD_MODELS = [
@@ -39,6 +44,7 @@ SEED_BREADBOARD_MODELS = [
     _model('mini-170', 'Mini breadboard, 170 tie points, no rails', 'generic', '', 'mini', 170, 17, 0, 0, notes='17 rows x 10; no power rails'),
     _model('bud-bb-32650-w', 'BUD Industries BB-32650-W - double-strip solderless breadboard, 170 tie-points, white', 'BUD Industries', 'BB-32650-W',
            'mini', 170, 17, 0, 0, stated=(47.0, 36.1),
+           power_basis='n/a: no power rails; BUD product page (fetched 2026-10-25) states no voltage/current rating',
            basis='cited: BUD Industries product page "Breadboard Kits-White BB-32650-W" (https://www.budind.com/product/general-use-boxes/breadboard-series/breadboard-kits-3/, printed 2021-09-27; '
                  'BUD publishes no PDF datasheet for this family): "Double-strip", "170 tie-points", "External Size L x W x D: 1.85" x 1.42" x 0.33"" (= 47.0 x 36.1 x 8.4 mm). '
                  'DigiKey 377-BB-32650-W-ND attributes: Number of Terminal Strips 1, Number of 5-Tie Point Terminals 34, Number of Tie Points (Total) 170, 1.85" L x 1.42" W (47.0mm x 36.1mm). '

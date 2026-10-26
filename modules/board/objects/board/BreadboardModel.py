@@ -22,7 +22,8 @@ class BreadboardModel(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', vendor: str = '', part_number: str = '', kind: str = 'unverified', tie_points: int = -1,
                  rows: int = -1, rail_holes: int = -1, rails: int = -1, width_mm: float = -1.0, height_mm: float = -1.0, geometry_known: bool = False,
-                 basis: str = '', notes: str = '', manager=None):
+                 basis: str = '', notes: str = '', rail_voltage_max_v: float = -1.0, rail_current_max_a: float = -1.0,
+                 power_basis: str = '', manager=None):
         self.name = name                    # kebab-case, e.g. 'half-400', 'bud-bb-32650-w'
         self.title = title
         self.vendor = vendor
@@ -37,3 +38,6 @@ class BreadboardModel(treeObject):
         self.geometry_known = geometry_known
         self.basis = basis                  # where the numbers come from
         self.notes = notes
+        self.rail_voltage_max_v = rail_voltage_max_v  # vendor-RATED maximum rail voltage (V); -1 = not determined (never a typical value)
+        self.rail_current_max_a = rail_current_max_a  # vendor-RATED maximum rail current (A); -1 = not determined
+        self.power_basis = power_basis      # the document that states the rating, or 'unverified (...)'

@@ -103,6 +103,71 @@ def run_bench_setup(check):
           all(w in json.dumps(cd['tabs'][i]) for i in (0, 1) for w in ('testing_group', 'hardware-only', 'simulated-stub'))
           and 'HARDWARE ONLY' in json.dumps(cd['tabs'][2]), '')
 
+def run_wb0(check):
+    """wb-0: rail power fields, footprints + radios on the ladder, breadboard_fit, the facet knobs, the create and attempt doors."""
+    from board.custom import bench as B
+    from board.custom import bench_seed as S
+    from board.custom.bench_fit import breadboard_fit as F
+    B._MEM.clear()
+    ms = {m['name']: m for m in S.SEED_BREADBOARD_MODELS}
+    check('wb-0 POWER: every model carries rail_voltage_max_v / rail_current_max_a (-1 = not determined, never a typical number) and a power_basis; none is cited so all are -1',
+          all(m['rail_voltage_max_v'] == -1 and m['rail_current_max_a'] == -1 and m['power_basis'] for m in ms.values())
+          and 'unverified' in ms['half-400']['power_basis'] and 'no power rails' in ms['mini-170']['power_basis'], {k: m['power_basis'][:40] for k, m in ms.items()})
+    st, body = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-breadboards')
+    bud = next(r for r in body['rows'] if r['name'] == 'bud-bb-32650-w')
+    check('wb-0 OPTIONS breadboards: rail_power is a plain string ("unverified" here) and fit_json has one verdict per board on the bench (UNO beside)',
+          st == 200 and isinstance(bud['rail_power'], str) and bud['rail_power'] == 'unverified' and set(bud['fit_json']) == {'arduino-uno-r3', 'arduino-zero', 'adafruit-feather-m0-express', 'elecrow-esp32-eval'}
+          and bud['fit_json']['arduino-uno-r3']['verdict'] == 'beside' and bud['fit_json']['adafruit-feather-m0-express']['verdict'] == 'unverified', bud['fit_json'])
+    st, none_bench = B.get_door(None, {'bench': 'no-such'}, 'options-breadboards')
+    check('wb-0 OPTIONS breadboards: a bench with no boards gives empty fit_json', all(r['fit_json'] == {} for r in none_bench['rows']), '')
+    # ---- fit cases
+    half, mini = {'rows': 30}, {'rows': 17, 'rail_holes': 0}
+    fp7 = {'rows': 2, 'row_spacing_pitches': 7, 'pins_per_row': 16, 'straddles': True}
+    uno = B.ladder_boards(None)['arduino-uno-r3']['footprint_json']
+    r = [F(uno, half), F(fp7, half), F(dict(fp7, pins_per_row=20), mini), F(dict(fp7, row_spacing_pitches=13), half), F(dict(fp7, row_spacing_pitches=-1), half), F(fp7, {'rows': -1}), F(dict(fp7, row_spacing_pitches=11), half)]
+    check('wb-0 FIT: UNO beside; S=7 16 pins on 30 rows straddles with 3 free holes; 20 pins per row on a 17-row mini too-long (16 pins would fit 17 rows by the rule pins <= rows); S=13 too-wide; -1 unverified; S=11 straddles with 1 free',
+          [x['verdict'] for x in r] == ['beside', 'straddles', 'too-long', 'too-wide', 'unverified', 'unverified', 'straddles'] and r[1]['free_holes_per_side'] == 3 and r[6]['free_holes_per_side'] == 1, r)
+    # ---- facts on the ladder
+    lb = B.ladder_boards(None)
+    check('wb-0 LADDER facts: every board has footprint_json {rows, row_spacing_pitches, pins_per_row, pitch_in, straddles, basis} and radios_json with a basis; UNO/Zero shield headers straddles False; the Elecrow is wifi + ble with unverified module and IDs; no FCC id invented',
+          all(set(b['footprint_json']) >= {'rows', 'row_spacing_pitches', 'pins_per_row', 'pitch_in', 'straddles', 'basis'} and b['radios_json'] and all(x['basis'] for x in b['radios_json']) for b in lb.values())
+          and lb['arduino-uno-r3']['footprint_json']['straddles'] is False and lb['arduino-zero']['footprint_json']['straddles'] is False
+          and {x['kind'] for x in lb['elecrow-esp32-eval']['radios_json']} == {'wifi', 'ble'} and all(x['module'] == 'unverified' and x['precertified']['fcc_id'] == 'unverified' for x in lb['elecrow-esp32-eval']['radios_json'])
+          and all(x['precertified']['fcc_id'] in ('', 'unverified') for b in lb.values() for x in b['radios_json']), '')
+    # ---- the boards door + facets
+    def opts(**kw):
+        return B.get_door(None, dict({'bench': S.HOME_BENCH}, **kw), 'options-boards')
+    st, body = opts()
+    rows = {r['board']: r for r in body['rows']}
+    u = rows['arduino-uno-r3']
+    check('wb-0 OPTIONS boards: rows carry arch, riscv, radios (plain string), radios_json, levels (string naming its basis), levels_json, footprint_json',
+          st == 200 and u['arch'] == 'AVR' and u['riscv'] is False and rows['esp32-c3-devkitm-1']['riscv'] is True and u['radios'] == 'no radio'
+          and rows['elecrow-esp32-eval']['radios'] == 'Wi-Fi + BLE (module unverified, uncertified/unverified)' and 'bare-c yes' in u['levels'] and 'zephyr no' in u['levels'] and 'freertos no' in u['levels'] and 'RuntimeProfile' in u['levels'] and 'freertos unverified' in rows['arduino-mega-2560']['levels']
+          and 'basis:' in u['levels'] and isinstance(u['levels_json'], dict) and u['footprint_json'], (u['radios'], u['levels'], rows['elecrow-esp32-eval']['radios']))
+    ra, rn = opts(arch='riscv')[1]['rows'], opts(arch='not-riscv')[1]['rows']
+    rf = opts(arch='AVR')[1]['rows']
+    check('wb-0 FACET arch: riscv and not-riscv partition the list; a family name filters', ra and rn and len(ra) + len(rn) == len(rows) and all(r['riscv'] for r in ra) and not any(r['riscv'] for r in rn) and {r['arch'] for r in rf} == {'AVR'}, (len(ra), len(rn)))
+    rw, rno = opts(radio='wifi')[1]['rows'], opts(radio='none')[1]['rows']
+    check('wb-0 FACET radio: wifi lists the ESP boards, none lists the UNO and not the Elecrow', 'elecrow-esp32-eval' in {r['board'] for r in rw} and 'arduino-uno-r3' in {r['board'] for r in rno} and 'elecrow-esp32-eval' not in {r['board'] for r in rno}, '')
+    rl = opts(level='zephyr')[1]['rows']
+    check('wb-0 FACET level: zephyr (status yes only) excludes the UNO and keeps a SAMD21 board', rl and all(r['levels_json']['zephyr']['status'] == 'yes' for r in rl) and 'arduino-uno-r3' not in {r['board'] for r in rl} and 'arduino-zero' in {r['board'] for r in rl}, [r['board'] for r in rl])
+    bad = [opts(arch='z80'), opts(radio='x'), opts(level='ubuntu')]
+    check('wb-0 FACET knobs: unknown values are 400 with the allowed list', all(st == 400 and b['allowed'] for st, b in bad), bad)
+    # ---- create door
+    st, b1 = B.post_door(None, '', 'create', {'name': 'wb-test', 'title': 'WB test', 'notes': 'n'})
+    st2, b2 = B.post_door(None, '', 'create', {'name': 'wb-test'})
+    st3, _ = B.post_door(None, '', 'create', {'title': 'x'})
+    check('wb-0 CREATE: 201 makes an empty bench, a duplicate is 409, no name 400', st == 201 and any(r['name'] == 'wb-test' and r['boards'] == 0 for r in b1['rows']) and st2 == 409 and st3 == 400, (st, st2, st3))
+    # ---- attempt door
+    st, miss = B.post_door(None, S.HOME_BENCH, 'attempt', {'mission': 'nope'})
+    check('wb-0 ATTEMPT: a missing mission is 404 with the mission names', st == 404 and 'uno-light-mission' in miss['known'], miss.get('error'))
+    st, empty = B.post_door(None, 'wb-test', 'attempt', {'mission': 'uno-light-mission'})
+    check('wb-0 ATTEMPT: an empty bench answers verdict none', st == 200 and empty['verdict'] == 'none' and empty['candidates'] == [], empty)
+    st, att = B.post_door(None, S.HOME_BENCH, 'attempt', {'mission': 'uno-light-mission'})
+    check('wb-0 ATTEMPT: the home bench (UNO modelled; Zero, Feather, Elecrow named as not modelled) MEETS the light mission via gpio-poll sensing; candidates listed, run fingerprint present',
+          st == 200 and att['verdict'] == 'meets' and att['boards_used'] == ['arduino-uno-r3'] and set(att['not_modelled']) == {'arduino-zero', 'adafruit-feather-m0-express', 'elecrow-esp32-eval'}
+          and att['candidates'] and 'sense-led-line:gpio-poll' in att['candidates'][0]['routes_text'] and att['gap'] == [] and att['pruned'] and att['run']['result_sha256'], {k: att[k] for k in ('verdict', 'boards_used', 'not_modelled')})
+
 
 def main():
     fails = []
@@ -112,6 +177,7 @@ def main():
         if not cond:
             fails.append(label)
     run_bench_setup(check)
+    run_wb0(check)
     print('bench setup selftest: %d failure(s)' % len(fails))
     return 1 if fails else 0
 

@@ -33,10 +33,43 @@ def _emu(name, kind, pins, licence, status, basis, module=''):
     return json.dumps({'name': name, 'kind': kind, 'pins': pins, 'licence': licence, 'status': status, 'module': module, 'basis': basis})
 
 
+_UNV_FP = {'rows': -1, 'row_spacing_pitches': -1, 'pins_per_row': -1, 'pitch_in': 0.1, 'straddles': None,
+           'basis': 'unverified: no vendor mechanical drawing read for this board'}
+_UNV_RADIO = [{'kind': 'unverified', 'module': 'unverified', 'precertified': {'fcc_id': 'unverified', 'ic': 'unverified', 'ce': None},
+               'basis': 'unverified: radio fit and module certification page not read for this board'}]
+
+
+def _no_radio(why):
+    return [{'kind': 'none', 'module': '', 'precertified': {'fcc_id': '', 'ic': '', 'ce': None}, 'basis': why}]
+
+
+_NO_RADIO_CHIP = _no_radio('no radio on the chip (it has none); board assumed radio-less from the vendor product name - vendor page not read')
+_SHIELD = {'rows': 2, 'row_spacing_pitches': -1, 'pins_per_row': -1, 'pitch_in': 0.1, 'straddles': False,
+           'basis': 'shield headers - not breadboardable; sits beside the breadboard'}
+_C3_RADIO = [{'kind': 'wifi', 'module': 'ESP32-C3-MINI-1 (per the wb plan; Espressif module page not read)',
+              'precertified': {'fcc_id': 'unverified', 'ic': 'unverified', 'ce': None}, 'basis': 'unverified: certification IDs not read from Espressif'},
+             {'kind': 'ble', 'module': 'ESP32-C3-MINI-1 (per the wb plan; Espressif module page not read)',
+              'precertified': {'fcc_id': 'unverified', 'ic': 'unverified', 'ce': None}, 'basis': 'unverified: certification IDs not read from Espressif'}]
+_S3_RADIO = [{'kind': k, 'module': 'unverified', 'precertified': {'fcc_id': 'unverified', 'ic': 'unverified', 'ce': None},
+              'basis': 'chip features Wi-Fi + BT 5 (LE) read by esptool 2026-10-24; module brand under the case, unread'} for k in ('wifi', 'ble')]
+_FACTS = {
+    'arduino-uno-r3': (_SHIELD, _NO_RADIO_CHIP),
+    'arduino-zero': (dict(_SHIELD, basis='same UNO form factor (repo note: Arduino Zero = UNO form factor); shield headers - not breadboardable; sits beside the breadboard'), _NO_RADIO_CHIP),
+    'arduino-mega-2560': (None, _NO_RADIO_CHIP),
+    'attiny85-dip': (None, _NO_RADIO_CHIP),
+    'adafruit-feather-m0-express': (dict(_UNV_FP, rows=2, basis='unverified: Adafruit Feather mechanical drawing not read (Adafruit learn pages fetched 2026-10-25 do not state row spacing)'), _NO_RADIO_CHIP),
+    'elecrow-esp32-eval': (None, _S3_RADIO),
+    'esp32-c3-devkitm-1': (None, _C3_RADIO),
+}
+
+
 def _b(board, title, on_hand=False, note='', price_usd=None):
     d = {'board': board, 'title': title, 'on_hand': bool(on_hand), 'note': note}
     if price_usd is not None:
         d['price_usd'] = price_usd
+    fp, rd = _FACTS.get(board, (None, None))
+    d['footprint_json'] = dict(fp or _UNV_FP)
+    d['radios_json'] = [dict(r) for r in (rd or _UNV_RADIO)]
     return d
 
 
