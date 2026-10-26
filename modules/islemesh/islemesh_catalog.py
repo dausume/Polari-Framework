@@ -135,6 +135,18 @@ SEED_CATALOG = [
         'provides_engine': 'pcb', 'category': 'engine',
         'source': 'official',
     },
+    {   # osc-5 (OSCILLOSCOPE_PLAN.md §3f): the oscilloscope emulator worker — an emulated DHO804 another node reaches by address + port like a real one
+        'name': 'scope-engines',
+        'title': 'Scope engines (oscilloscope emulator)',
+        'description': 'The oscilloscope EMULATOR worker: the DHO804 emulator of the instruments module behind one JSON control API (:9880) and five raw SCPI '
+                       'sockets (:5555-:5559, one per emulated instrument), so an isle node reaches an emulated scope exactly as it would a real one; the '
+                       'instruments module resolves it once deployed (SCOPE_ENGINES_URL, else this binding, else in-process).',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.scope-engines.yml',
+        'service': 'scope-engines', 'port': 9880,
+        'provides_engine': 'scope', 'category': 'engine',
+        'source': 'official',
+    },
     {
         'name': 'bridge-engines',
         'title': 'Bridge engines (hosted firmware bridge)',

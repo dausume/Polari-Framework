@@ -415,7 +415,8 @@ def main():
           'formal-engines': ('docker-compose.formal-engines.yml', 'formal-engines', 9840, 'formal'),
           'esp-engines': ('docker-compose.esp-engines.yml', 'esp-engines', 9850, 'esp'),
           'pcb-engines': ('docker-compose.pcb-engines.yml', 'pcb-engines', 9860, 'pcb'),
-          'bridge-engines': ('docker-compose.hw-engines.yml', 'bridge-engines', 9870, 'bridge')}
+          'bridge-engines': ('docker-compose.hw-engines.yml', 'bridge-engines', 9870, 'bridge'),
+          'scope-engines': ('docker-compose.scope-engines.yml', 'scope-engines', 9880, 'scope')}    # osc-5
     for hname, (ref, svc, port, eng) in hw.items():
         e = by_name.get(hname, {})
         step = (install_plan(e)['steps'] or [''])[0] if e else ''

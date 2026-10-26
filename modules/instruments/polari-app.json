@@ -47,7 +47,8 @@
   ],
   "selftests": [
    "instruments_capture_selftest",
-   "instruments_selftest"
+   "instruments_selftest",
+   "instruments_worker_selftest"
   ],
   "custom": [
    "custom/captures",
@@ -56,6 +57,7 @@
    "custom/device_feed",
    "custom/emulator",
    "custom/lineage",
+   "custom/scope_engines",
    "custom/scpi",
    "custom/sources"
   ]
@@ -77,7 +79,8 @@
  "initialData": false,
  "selftests": [
   "instruments_capture_selftest",
-  "instruments_selftest"
+  "instruments_selftest",
+  "instruments_worker_selftest"
  ],
  "security": {
   "profile": "web-app",

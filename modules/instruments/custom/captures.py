@@ -109,15 +109,42 @@ def add_endpoint(manager, body):
     return 201, {'ok': True, 'endpoint': name, 'rows': endpoints(manager)}
 
 
+_REMOTE = {}    # endpoint name -> (worker url, emulator id on the worker)   osc-5
+_DESC = {}      # endpoint name -> the last source / feed words for a remote emulator (its source_ref)
+
+
+def _on_worker(name):
+    return _REMOTE.get(name)
+
+
 def start_emulator(manager, body):
     from instruments.custom.emulator import Emulator, PROFILES
+    from instruments.custom import scope_engines as SE
+    from urllib.parse import urlparse
     body = body or {}
     profile = str(body.get('profile') or 'dho804')
     if profile not in PROFILES:
         return 400, {'ok': False, 'error': 'no emulator profile %r' % profile, 'known': sorted(PROFILES)}
-    name = str(body.get('name') or 'emu-%s-%d' % (profile, len(_EMUS) + 1)).strip()
+    name = str(body.get('name') or 'emu-%s-%d' % (profile, len(_EMUS) + len(_REMOTE) + 1)).strip()
     if endpoint(manager, name) is not None:
         return 409, {'ok': False, 'error': 'an endpoint named %r already exists' % name}
+    where = SE.resolve(str(body.get('where') or 'auto'))
+    if where['how'] == 'refused':
+        return 502, {'ok': False, 'error': where['why'], 'where': where}
+    if where['how'] == 'worker':
+        # osc-5: the emulator runs on the scope-engines worker; its SCPI port is reached at the worker's host like a real instrument
+        try:
+            r = SE.post(where['url'], '/emulators', {'profile': profile, 'name': name, 'strict_idn': bool(body.get('strict_idn')),
+                                                      'refuse_wav_data': bool(body.get('refuse_wav_data')), 'sources': body.get('sources') or {}})
+        except SE.WorkerRefused as e:
+            return 502, {'ok': False, 'error': 'the scope worker refused: %s' % e, 'where': where}
+        host = urlparse(where['url']).hostname or ''
+        _REMOTE[name] = (where['url'], r['id'])
+        _DESC[name] = 'sources ' + ', '.join('ch%s %s' % (k, v) for k, v in sorted((r.get('sources') or {}).items()))
+        row = {'name': name, 'instrument': 'rigol-%s' % profile, 'transport': 'scpi-raw', 'address': host, 'port': int(r['port']), 'resource': '',
+               'status': 'unchecked', 'last_idn': '', 'checked_at': '', 'note': 'emulator on the scope-engines worker %s (id %s, session %s; %s)' % (where['url'], r['id'], r.get('session', ''), where['why'])}
+        _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, row)
+        return 201, {'ok': True, 'endpoint': name, 'port': int(r['port']), 'session': r.get('session', ''), 'where': 'worker', 'url': where['url'], 'rows': endpoints(manager)}
     try:
         emu = Emulator(profile=profile, strict_idn=bool(body.get('strict_idn')), refuse_wav_data=bool(body.get('refuse_wav_data')))
         for ch, spec in (body.get('sources') or {}).items():
@@ -130,15 +157,27 @@ def start_emulator(manager, body):
     row = {'name': name, 'instrument': 'rigol-%s' % profile, 'transport': 'scpi-raw', 'address': '127.0.0.1', 'port': emu.port, 'resource': '',
            'status': 'unchecked', 'last_idn': '', 'checked_at': '', 'note': 'emulator in the backend process (profile %s, session %s)' % (profile, emu.state.session)}
     _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, row)
-    return 201, {'ok': True, 'endpoint': name, 'port': emu.port, 'session': emu.state.session, 'rows': endpoints(manager)}
+    return 201, {'ok': True, 'endpoint': name, 'port': emu.port, 'session': emu.state.session, 'where': 'local', 'rows': endpoints(manager)}
 
 
 def stop_emulator(manager, name):
-    with _lock:
-        emu = _EMUS.pop(name, None)
-    if emu is None:
-        return 404, {'ok': False, 'error': 'no running emulator named %r in this process' % name}
-    emu.stop()
+    from instruments.custom import scope_engines as SE
+    remote = _on_worker(name)
+    if remote:
+        url, eid = remote
+        try:
+            SE.delete(url, '/emulators/%s' % eid)
+        except SE.WorkerRefused as e:
+            return 502, {'ok': False, 'error': 'the scope worker refused the stop: %s' % e}
+        _REMOTE.pop(name, None)
+        _DESC.pop(name, None)
+        emu = None
+    else:
+        with _lock:
+            emu = _EMUS.pop(name, None)
+        if emu is None:
+            return 404, {'ok': False, 'error': 'no running emulator named %r (in this process or on a worker)' % name}
+        emu.stop()
     e = endpoint(manager, name)
     if e:
         _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, dict(e, status='stopped', checked_at=_now()))
@@ -146,9 +185,21 @@ def stop_emulator(manager, name):
 
 
 def set_source(manager, name, body):
+    from instruments.custom import scope_engines as SE
+    remote = _on_worker(name)
+    if remote:
+        try:
+            ch = int((body or {}).get('channel', 0))
+            r = SE.post(remote[0], '/emulators/%s/source' % remote[1], {'channel': ch, 'source': (body or {}).get('source')})
+        except (TypeError, ValueError) as e:
+            return 400, {'ok': False, 'error': str(e)}
+        except SE.WorkerRefused as e:
+            return 400, {'ok': False, 'error': str(e)}
+        _DESC[name] = 'ch%d %s' % (ch, r.get('source', ''))
+        return 200, {'ok': True, 'endpoint': name, 'channel': ch, 'source': r.get('source', ''), 'where': 'worker'}
     emu = _EMUS.get(name)
     if emu is None:
-        return 404, {'ok': False, 'error': 'no running emulator named %r in this process' % name}
+        return 404, {'ok': False, 'error': 'no running emulator named %r (in this process or on a worker)' % name}
     try:
         ch = int((body or {}).get('channel', 0))
         emu.set_source(ch, body.get('source'))
@@ -161,9 +212,11 @@ def feed_device(manager, name, body):
     """osc-4: {stimulus: <variant>, channels: {'1': 'PD2', '2': 'adc0'}} or {events: [...], cps: 16000000, seconds: S, channels: {'1': 'PD6'}} ->
     the named lines become the emulator's channel sources (instruments.custom.device_feed)."""
     from instruments.custom import device_feed as DF
+    from instruments.custom import scope_engines as SE
     emu = _EMUS.get(name)
-    if emu is None:
-        return 404, {'ok': False, 'error': 'no running emulator named %r in this process' % name}
+    remote = _on_worker(name)
+    if emu is None and not remote:
+        return 404, {'ok': False, 'error': 'no running emulator named %r (in this process or on a worker)' % name}
     body = body or {}
     mapping = body.get('channels') or {}
     if not isinstance(mapping, dict) or not mapping:
@@ -181,12 +234,20 @@ def feed_device(manager, name, body):
         unknown = [v for v in mapping.values() if v not in lines]
         if unknown:
             return 404, {'ok': False, 'error': 'no such line(s) in the feed: %s' % ', '.join(map(str, unknown)), 'known': sorted(lines)}
-        desc = DF.feed(emu, {ch: lines[v] for ch, v in mapping.items()}, seconds, depth=body.get('depth'))
+        if remote:
+            # osc-5: the worker carries no board module, so the lines are resolved HERE and the specs posted
+            r = SE.post(remote[0], '/emulators/%s/feed' % remote[1], {'channels': {str(ch): lines[v] for ch, v in mapping.items()}, 'seconds': seconds, 'depth': body.get('depth')})
+            desc = {int(k): v for k, v in (r.get('channels') or {}).items()}
+            _DESC[name] = 'feed from ' + ref
+        else:
+            desc = DF.feed(emu, {ch: lines[v] for ch, v in mapping.items()}, seconds, depth=body.get('depth'))
+            emu.feed_ref = ref
     except KeyError as e:
         return 404, {'ok': False, 'error': 'no stimulus for variant %s' % e}
     except (TypeError, ValueError) as e:
         return 400, {'ok': False, 'error': str(e)}
-    emu.feed_ref = ref
+    except SE.WorkerRefused as e:
+        return 502, {'ok': False, 'error': 'the scope worker refused the feed: %s' % e}
     return 200, {'ok': True, 'endpoint': name, 'seconds': seconds, 'channels': {str(k): '%s <- %s' % (v, mapping[str(k)] if str(k) in mapping else mapping[k]) for k, v in desc.items()},
                  'lines': sorted(lines), 'source_ref': ref}
 
@@ -246,6 +307,8 @@ def capture(manager, name, body):
         if emu is not None:
             source_ref = 'emulator %s session %s acquisition %d: %s%s' % (emu.state.profile, emu.state.session, emu.state.acquisitions, SRC.describe(emu.state.sources[r['channel']]),
                                                                           (' - from ' + emu.feed_ref) if getattr(emu, 'feed_ref', '') else '')
+        elif _on_worker(name):
+            source_ref = 'emulator on worker %s id %s: %s' % (_on_worker(name)[0], _on_worker(name)[1], _DESC.get(name, ''))
         row = {'name': '%s-ch%d' % (acq, r['channel']), 'endpoint': name, 'instrument': e.get('instrument', ''), 'channel': r['channel'], 'acquired_at': now,
                'acquisition': acq, 'points': r['points'], 'format': r['format'], 'lineage': r['lineage'],
                'x_increment': r['x_increment'], 'x_origin': r['x_origin'], 'x_reference': r['x_reference'],
@@ -253,7 +316,7 @@ def capture(manager, name, body):
                'sample_rate_sps': r['sample_rate_sps'], 'memory_depth_pts': r['memory_depth_pts'], 'trigger_json': json.dumps(r['trigger']),
                'settings_json': json.dumps(r['settings']), 'raw_sha256': r['raw_sha256'], 'raw_bytes': r['raw_bytes'], 'raw_path': '',
                'raw_b64': base64.b64encode(payload).decode() if len(payload) <= INLINE_LIMIT else '', 'preamble_text': r['preamble_text'],
-               'source': 'emulated' if emu is not None else 'real', 'source_ref': source_ref, 'note': ''}
+               'source': 'emulated' if (emu is not None or _on_worker(name)) else 'real', 'source_ref': source_ref, 'note': ''}
         _upsert(manager, 'WaveformCapture', _C_FIELDS, row)
         rows.append(summary(row))
     _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, dict(e, status='answered', checked_at=now))

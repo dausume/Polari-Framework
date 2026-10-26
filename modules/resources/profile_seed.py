@@ -197,6 +197,15 @@ SEED_MODULE_RESOURCE_PROFILES = [
         'notes': 'prf-formal-engines:trixie (408.8 MB; the board engines\' digest-pinned trixie base + cbmc 6.6.0 (BSD-4-clause style: run, never linked) + '
                  'cppcheck 2.17.1 (GPL-3.0) + python3-falcon/gunicorn). Worker :9840. Serves firmwarefaults.formal.',
     },
+    {   # osc-5 (2026-10-26): MEASURED on pol-core — modules/instruments/COST.md, prf-scope-engines/cost.json
+        'name': 'prf-scope-engines-resource-profile', 'subject_name': 'prf-scope-engines', 'subject_kind': 'engine', 'character': 'compute',
+        'min_ram_mb': 64.0, 'min_disk_mb': 178.0, 'min_threads': 1, 'thread_ceiling': 1, 'cpu_benefit': 'none', 'ram_benefit': 'linear',
+        'scales_note': 'one emulated DHO804: 41 MB idle, 55 MB after a 4-channel x 250k-point capture (0.38 s wall over SCPI, 2 MB); memory grows ~8 MB per '
+                       'million samples held (4 x 1M: 88 MB peak in-process, 1.0 s); the profile maximum (4 x 5 Mpts) would hold ~160 MB',
+        'image_mb': 177.8, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (osc-5, measured 2026-10-26)',
+        'notes': 'prf-scope-engines:trixie (177.8 MB; the digest-pinned trixie base + python3 3.13.5, python3-numpy, python3-falcon, gunicorn; the instruments '
+                 'module\'s emulator vendored by build.sh). Control API :9880, SCPI :5555-:5559 (one emulated instrument per port). Serves instruments (engine scope).',
+    },
     {   # sc-3 (2026-10-02): MEASURED on pol-core — modules/board/COST.md (the ESP32-C3 section), prf-esp-engines/cost.json
         'name': 'prf-esp-engines-resource-profile', 'subject_name': 'prf-esp-engines', 'subject_kind': 'engine', 'character': 'compute',
         'min_ram_mb': 256.0, 'min_disk_mb': 1813.0, 'min_threads': 1, 'thread_ceiling': 4, 'cpu_benefit': 'sublinear', 'ram_benefit': 'none',

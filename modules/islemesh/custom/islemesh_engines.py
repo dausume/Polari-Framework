@@ -122,6 +122,8 @@ _BINDERS = {
     'formal': ('topology', _bind_engine_row('formal')),
     'pcb': ('topology', _bind_engine_row('pcb')),
     'bridge': ('topology', _bind_engine_row('bridge')),
+    # osc-5: the oscilloscope emulator worker (instruments.custom.scope_engines reads the row)
+    'scope': ('topology', _bind_engine_row('scope')),
     # ai-3: the consumer is the managed reasoning config itself.
     'reasoning': ('reasoning_config', _bind_reasoning),
 }
