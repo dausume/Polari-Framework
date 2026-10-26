@@ -71,9 +71,9 @@ def cards():
           d['bandwidth'] == '70 MHz' and d['sample_rate'] == '1.25 GSa/s with 1 ch / 625 MSa/s with 2 ch / 312.5 MSa/s with 4 ch'
           and d['memory_depth'].startswith('25 Mpts with 1 ch') and d['resolution'] == '12 bits' and d['channels_text'] == '4'
           and 'scpi-raw:5555' in d['transports'] and d['emulator'] == 'yes (dho804)' and d['price'] == 'USD 454', d)
-    check('osc-0 TEXT: the DHO802 says "2 + EXT"; a lineage row says unverified for every number and "not yet" for the emulator',
+    check('osc-0 TEXT: the DHO802 says "2 + EXT"; a lineage row says unverified for every number and "dialect proof only (...)" for the emulator (osc-5 part 2: no model claimed)',
           rows['rigol-dho802']['channels_text'] == '2 + EXT' and rows['keysight-lineage']['bandwidth'] == 'unverified'
-          and rows['keysight-lineage']['sample_rate'] == 'unverified' and rows['keysight-lineage']['emulator'] == 'not yet'
+          and rows['keysight-lineage']['sample_rate'] == 'unverified' and rows['keysight-lineage']['emulator'] == 'dialect proof only (keysight-dialect)'
           and rows['keysight-lineage']['transports'].count('(unverified)') == 3)
     check('osc-0 TEXT: the sensitivity range reads "500 uV/div to 10 V/div"', d['sensitivity'] == '500 uV/div to 10 V/div', d['sensitivity'])
 

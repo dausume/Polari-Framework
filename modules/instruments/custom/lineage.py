@@ -57,14 +57,40 @@ def from_tek_fields(t):
             'lineage': 'tektronix', 'preamble_text': ';'.join('%s %s' % (k, t[k]) for k in need + (('BYT_Nr',) if 'BYT_Nr' in t else ()))}
 
 
+def parse_tek_preamble(text):
+    """WFMOutpre? as scopehal parses it (22 ';' fields with WFID, 21 without): -> the canonical dict via from_tek_fields."""
+    parts = [p.strip() for p in str(text).strip().split(';')]
+    if len(parts) == 22:
+        names = ('BYT_Nr', 'BIT_Nr', 'ENCdg', 'BN_Fmt', 'BYT_Or', 'WFId', 'NR_Pt', 'PT_Fmt', 'PT_Or', 'XUNit', 'XINcr', 'XZEro', 'PT_Off', 'YUNit',
+                 'YMUlt', 'YOFf', 'YZEro', 'DOMain', 'WFMTYPe', 'CENTERFREQuency', 'SPAN')
+        parts = parts[:4] + parts[5:]       # scopehal's order has asc_format at 5; drop it to line up with the names
+    elif len(parts) == 21:
+        names = ('BYT_Nr', 'BIT_Nr', 'ENCdg', 'BN_Fmt', 'BYT_Or', 'NR_Pt', 'PT_Fmt', 'PT_Or', 'XUNit', 'XINcr', 'XZEro', 'PT_Off', 'YUNit',
+                 'YMUlt', 'YOFf', 'YZEro', 'DOMain', 'WFMTYPe', 'CENTERFREQuency', 'SPAN')
+        parts = parts[:4] + parts[5:]
+    else:
+        raise ValueError('a Tektronix WFMOutpre? reply has 21 or 22 fields, got %d: %r' % (len(parts), text[:120]))
+    t = dict(zip(names, parts))
+    out = from_tek_fields(t)
+    out['preamble_text'] = str(text).strip()
+    out['byte_order'] = t.get('BYT_Or', 'LSB')
+    return out
+
+
 def samples(payload, fmt='WORD'):
-    if fmt == 'WORD':
+    if fmt in ('WORD', 'WORD_MSBF'):
         if len(payload) % 2:
             raise ValueError('a WORD payload has an even byte count, got %d' % len(payload))
-        return np.frombuffer(payload, dtype='<u2').astype(np.int64)
+        return np.frombuffer(payload, dtype='>u2' if fmt == 'WORD_MSBF' else '<u2').astype(np.int64)
     if fmt == 'BYTE':
         return np.frombuffer(payload, dtype=np.uint8).astype(np.int64)
-    raise ValueError('samples() reads BYTE or WORD payloads, not %r' % fmt)
+    if fmt == 'INT8':                      # Tektronix DAT:WID 1, signed
+        return np.frombuffer(payload, dtype=np.int8).astype(np.int64)
+    if fmt in ('INT16', 'INT16_MSB'):      # Tektronix DAT:WID 2, signed (SRI little-endian; RIB big-endian)
+        if len(payload) % 2:
+            raise ValueError('an INT16 payload has an even byte count, got %d' % len(payload))
+        return np.frombuffer(payload, dtype='>i2' if fmt == 'INT16_MSB' else '<i2').astype(np.int64)
+    raise ValueError('samples() reads BYTE, WORD, INT8 or INT16 payloads, not %r' % fmt)
 
 
 def volts(raw, f):

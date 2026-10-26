@@ -141,7 +141,7 @@ def start_emulator(manager, body):
         host = urlparse(where['url']).hostname or ''
         _REMOTE[name] = (where['url'], r['id'])
         _DESC[name] = 'sources ' + ', '.join('ch%s %s' % (k, v) for k, v in sorted((r.get('sources') or {}).items()))
-        row = {'name': name, 'instrument': 'rigol-%s' % profile, 'transport': 'scpi-raw', 'address': host, 'port': int(r['port']), 'resource': '',
+        row = {'name': name, 'instrument': PROFILES[profile]['instrument'], 'transport': 'scpi-raw', 'address': host, 'port': int(r['port']), 'resource': '',
                'status': 'unchecked', 'last_idn': '', 'checked_at': '', 'note': 'emulator on the scope-engines worker %s (id %s, session %s; %s)' % (where['url'], r['id'], r.get('session', ''), where['why'])}
         _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, row)
         return 201, {'ok': True, 'endpoint': name, 'port': int(r['port']), 'session': r.get('session', ''), 'where': 'worker', 'url': where['url'], 'rows': endpoints(manager)}
@@ -154,7 +154,7 @@ def start_emulator(manager, body):
     emu.start()
     with _lock:
         _EMUS[name] = emu
-    row = {'name': name, 'instrument': 'rigol-%s' % profile, 'transport': 'scpi-raw', 'address': '127.0.0.1', 'port': emu.port, 'resource': '',
+    row = {'name': name, 'instrument': PROFILES[profile]['instrument'], 'transport': 'scpi-raw', 'address': '127.0.0.1', 'port': emu.port, 'resource': '',
            'status': 'unchecked', 'last_idn': '', 'checked_at': '', 'note': 'emulator in the backend process (profile %s, session %s)' % (profile, emu.state.session)}
     _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, row)
     return 201, {'ok': True, 'endpoint': name, 'port': emu.port, 'session': emu.state.session, 'where': 'local', 'rows': endpoints(manager)}
@@ -252,8 +252,16 @@ def feed_device(manager, name, body):
                  'lines': sorted(lines), 'source_ref': ref}
 
 
-def _client(e):
-    return CL.ScopeClient(e.get('address') or '127.0.0.1', e.get('port') or 0, transport=e.get('transport') or 'scpi-raw', resource=e.get('resource') or '')
+def _dialect(manager, e):
+    """The command dialect the endpoint's instrument MODEL speaks (its Instrument row's lineage; agilent when unknown)."""
+    from instruments.custom import catalog as C
+    m = next((m for m in C.models(manager) if m['name'] == e.get('instrument', '')), None)
+    return 'tektronix' if (m or {}).get('lineage') == 'tektronix' else 'agilent'
+
+
+def _client(e, manager=None):
+    return CL.ScopeClient(e.get('address') or '127.0.0.1', e.get('port') or 0, transport=e.get('transport') or 'scpi-raw', resource=e.get('resource') or '',
+                          dialect=_dialect(manager, e))
 
 
 def idn(manager, name):
@@ -261,7 +269,7 @@ def idn(manager, name):
     if e is None:
         return 404, {'ok': False, 'error': 'no endpoint named %r' % name}
     try:
-        with _client(e) as sc:
+        with _client(e, manager) as sc:
             words = sc.idn()
         status = 'answered'
     except CL.ScopeRefusal as ex:
@@ -292,7 +300,7 @@ def capture(manager, name, body):
     acq = 'acq-%s-%s' % (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S'), hashlib.sha256(('%s%d' % (name, len(captures(manager)))).encode()).hexdigest()[:6])
     emu = _EMUS.get(name)
     try:
-        with _client(e) as sc:
+        with _client(e, manager) as sc:
             reads = sc.capture(channels, fmt=fmt, max_points=max_points)
     except CL.ScopeRefusal as ex:
         _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, dict(e, status='refused', last_idn=str(ex), checked_at=_now()))

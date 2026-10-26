@@ -60,15 +60,21 @@ SEED_INSTRUMENTS = [
      'lineage': 'agilent', 'idn_format': 'KEYSIGHT TECHNOLOGIES,<model>,<serial>,<firmware> (unverified: no Keysight document read)',
      'transports_json': json.dumps([{'name': 'scpi-raw', 'port': -1, 'basis': 'unverified'}, {'name': 'vxi-11', 'port': -1, 'basis': 'unverified'},
                                     {'name': 'hislip', 'port': -1, 'basis': 'unverified'}]),
-     'citation': 'the :WAVeform:PREamble? ten-field lineage Rigol adopted (scopehal AgilentOscilloscope + RigolOscilloscope drivers, BSD-3); '
-                 'model facts owed: read an InfiniiVision programmer\'s guide + datasheet before any number is written',
-     'note': 'second vendor profile for the emulator (D-osc-5 recommended order)'},
+     'citation': 'the :WAVeform:PREamble? ten-field lineage Rigol adopted (scopehal AgilentOscilloscope.cpp, BSD-3, read 2026-10-26: WAV:SOUR / WAV:FORM WORD / '
+                 'WAV:BYT LSBF / WAV:STR ON / WAV:PRE? / WAV:DATA?; CHANn:DISP / RANGE / OFFS / INP / BWL / PROB; ACQUIRE:SRATE? / POINTS?; SING; ADER?; TRIG:EDGE:SOUR?, '
+                 'TRIG:LEV? CHANn); model facts owed: read an InfiniiVision programmer\'s guide + datasheet before any number is written',
+     'emulator_profile': 'keysight-dialect',
+     'note': 'second vendor profile for the emulator (D-osc-5 recommended order): a DIALECT PROOF profile exists (emulated stays False: no model is claimed)'},
     {'name': 'tektronix-lineage', 'vendor': 'Tektronix', 'model': '(lineage)', 'kind': 'vendor-lineage', 'family': 'TBS / MSO',
      'lineage': 'tektronix', 'idn_format': 'TEKTRONIX,<model>,<serial>,<firmware> (unverified: no Tektronix document read)',
      'transports_json': json.dumps([{'name': 'scpi-raw', 'port': -1, 'basis': 'unverified'}, {'name': 'vxi-11', 'port': -1, 'basis': 'unverified'}]),
-     'citation': 'WFMOutpre? / CURVe? lineage (scopehal TektronixOscilloscope driver, BSD-3); model facts owed: read a Tektronix programmer '
-                 'manual + datasheet before any number is written',
-     'note': 'third vendor profile for the emulator; its preamble is the second adapter (osc-1)'},
+     'citation': 'WFMOutpre? / CURVe? lineage (scopehal TektronixOscilloscope.cpp, BSD-3, read 2026-10-26, the MSO5/6 path: DAT:SOU / DAT:WID 1 / DAT:ENC SRI / '
+                 'DAT:START / DAT:STOP / WFMO? (22 fields: byte_num;bit_num;encoding;bin_format;asc_format;byte_order;wfid;nr_pt;pt_fmt;pt_order;xunit;xincrement;xzero;'
+                 'pt_off;yunit;ymult;yoff;yzero;domain;wfmtype;centerfreq;span) / CURV?; CHn:SCA / OFFS / COUP / BAN / PRO:GAIN?; DISP:WAVEV:CHn:STATE; HOR:MODE:SAMPLER / '
+                 'RECO; TRIG:A:TYP / EDGE:SOU / LEV:CHn / EDGE:SLO; ACQ:STATE / STOPA; V = (raw - yoff) x ymult (scopehal: gain = ymult, offset = -yoff)); model facts owed: '
+                 'read a Tektronix programmer manual + datasheet before any number is written',
+     'emulator_profile': 'tek-dialect',
+     'note': 'third vendor profile for the emulator; its preamble is the second adapter (osc-1); a DIALECT PROOF profile exists (emulated stays False: no model is claimed)'},
 ]
 
 def _pairs():

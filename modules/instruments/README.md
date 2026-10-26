@@ -16,8 +16,8 @@ Bench instruments as rows: oscilloscope models with cited specs (channels, bandw
 - **endpoints** — `instruments_endpoints.py`
 - **seed** — `instruments_seed.py`
 - **page** — `instruments_page.py`
-- **custom** — `custom/captures.py`, `custom/catalog.py`, `custom/client.py`, `custom/device_feed.py`, `custom/emulator.py`, `custom/lineage.py`, `custom/scope_engines.py`, `custom/scpi.py`, `custom/sources.py`
-- **selftests** — `instruments_capture_selftest.py`, `instruments_selftest.py`, `instruments_worker_selftest.py`
+- **custom** — `custom/captures.py`, `custom/catalog.py`, `custom/client.py`, `custom/device_feed.py`, `custom/emulator.py`, `custom/emulator_tek.py`, `custom/lineage.py`, `custom/scope_engines.py`, `custom/scpi.py`, `custom/sources.py`
+- **selftests** — `instruments_capture_selftest.py`, `instruments_dialects_selftest.py`, `instruments_selftest.py`, `instruments_worker_selftest.py`
 
 `polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 

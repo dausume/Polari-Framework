@@ -40,11 +40,25 @@ from instruments.custom import lineage as L
 from instruments.custom import sources as SRC
 
 PROFILES = {
-    'dho804': {'vendor': 'RIGOL TECHNOLOGIES', 'model': 'DHO804', 'channels': 4, 'bits': 12,
+    'dho804': {'vendor': 'RIGOL TECHNOLOGIES', 'model': 'DHO804', 'instrument': 'rigol-dho804', 'dialect': 'agilent', 'channels': 4, 'bits': 12,
                'max_srate': {1: 1.25e9, 2: 625e6, 3: 312.5e6, 4: 312.5e6}, 'max_depth': {1: 25e6, 2: 10e6, 3: 5e6, 4: 5e6},
                'page_points': 250000, 'default_depth': 10000, 'divisions_h': 10, 'divisions_v': 8, 'pretrigger_div': -5,
                'scale_min': 500e-6, 'scale_max': 10.0, 'tb_min': 5e-9, 'tb_max': 500.0, 'bw_limits': ('OFF', '20M'),
                'basis': 'DHO800 Data Sheet DSA36106-1110 pp.6-9; command set scopehal RigolOscilloscope.cpp (BSD-3)'},
+    # osc-5 part 2: DIALECT PROOFS for the two biggest makers - their COMMAND SETS are cited (scopehal's Agilent / Tektronix drivers, BSD-3), their
+    # limits below are placeholders because no Keysight or Tektronix datasheet has been read: a dialect proof, not a model (the Instrument rows keep -1).
+    'keysight-dialect': {'vendor': 'KEYSIGHT TECHNOLOGIES', 'model': 'DIALECT', 'instrument': 'keysight-lineage', 'dialect': 'agilent', 'channels': 4, 'bits': 16,
+                         'max_srate': {1: 1e9, 2: 1e9, 3: 1e9, 4: 1e9}, 'max_depth': {1: 1e6, 2: 1e6, 3: 1e6, 4: 1e6},
+                         'page_points': 250000, 'default_depth': 10000, 'divisions_h': 10, 'divisions_v': 8, 'pretrigger_div': -5,
+                         'scale_min': 1e-3, 'scale_max': 10.0, 'tb_min': 1e-9, 'tb_max': 100.0, 'bw_limits': ('OFF', '20M'),
+                         'basis': 'DIALECT PROOF ONLY: commands from scopehal AgilentOscilloscope.cpp (Infiniium path: WAV:FORM WORD, WAV:BYT LSBF, WAV:STR ON, '
+                                  'CHANn:RANGE/INP, ACQUIRE:SRATE?/POINTS?, SING, ADER?); limits are placeholders - no Keysight datasheet read'},
+    'tek-dialect': {'vendor': 'TEKTRONIX', 'model': 'DIALECT', 'instrument': 'tektronix-lineage', 'dialect': 'tektronix', 'channels': 4, 'bits': 8,
+                    'max_srate': {1: 1e9, 2: 1e9, 3: 1e9, 4: 1e9}, 'max_depth': {1: 1e6, 2: 1e6, 3: 1e6, 4: 1e6},
+                    'page_points': 250000, 'default_depth': 10000, 'divisions_h': 10, 'divisions_v': 10, 'pretrigger_div': -5,
+                    'scale_min': 1e-3, 'scale_max': 10.0, 'tb_min': 1e-9, 'tb_max': 100.0, 'bw_limits': ('FUL', '20E6'),
+                    'basis': 'DIALECT PROOF ONLY: commands from scopehal TektronixOscilloscope.cpp (MSO5/6 path: DAT:SOU/WID/ENC SRI/START/STOP, WFMO?, CURV?, '
+                             'CH:SCA/OFFS/COUP/BAN, HOR:MODE:SAMPLER/RECO, TRIG:A:EDGE, ACQ:STATE); limits are placeholders - no Tektronix datasheet read'},
 }
 REFUSAL_UNSUPPORTED = 'The instruction is not supported!'
 EMU_VERSION = 'osc-2'
@@ -62,9 +76,12 @@ class ScopeState:
         self.tb_offset = 0.0
         self.mdepth = p['default_depth']      # 'AUTO' on a real scope; the emulator keeps a number
         self.acq_type = 'NORM'
-        self.trigger = {'mode': 'EDGE', 'source': 'CHAN1', 'level': 0.0, 'slope': 'POS'}
+        tek = p.get('dialect') == 'tektronix'
+        self.trigger = {'mode': 'EDGE', 'source': 'CH1' if tek else 'CHAN1', 'level': 0.0, 'slope': 'RIS' if tek else 'POS'}
         self.run = 'RUN'
-        self.wav = {'source': 'CHAN1', 'mode': 'NORM', 'format': 'WORD', 'start': 1, 'stop': p['default_depth']}
+        self.wav = {'source': 'CHAN1' if p.get('dialect', 'agilent') == 'agilent' else 'CH1', 'mode': 'NORM', 'format': 'WORD', 'start': 1, 'stop': p['default_depth'],
+                    'width': 1, 'encoding': 'SRI', 'byte_order': 'LSBF', 'streaming': 'OFF'}
+        self.acq_stop_after = 'RUNST'
         self.sources = {n: SRC.default_source(n) for n in self.channels}
         self.errors = []
         self.acquired = {}      # channel -> raw int array of the last acquisition
@@ -99,11 +116,16 @@ class ScopeState:
         self.acquisitions += 1
         self.acquired, self.acq_fields = {}, {}
         n = int(self.mdepth)
+        tek = self.p.get('dialect') == 'tektronix'
         for ch in self.enabled():
             f = self.fields(ch)
             t = L.times(n, f)
             v = SRC.evaluate(self.sources[ch], t, self.acquisitions)
-            raw = np.clip(L.to_raw(v, f), 0, (1 << self.p['bits']) - 1)
+            if tek:
+                from instruments.custom.emulator_tek import acquire_raw
+                raw, f = acquire_raw(self, ch, v)
+            else:
+                raw = np.clip(L.to_raw(v, f), 0, (1 << self.p['bits']) - 1)
             self.acquired[ch], self.acq_fields[ch] = raw, f
 
     def invalidate(self):
@@ -186,7 +208,10 @@ class Emulator:
         s = self.state
         if self.strict_idn:
             return scpi.idn(s.p['vendor'], s.p['model'], '%sEMU%s' % (s.p['model'][:4], s.session.upper()), 'EMU-' + EMU_VERSION)
-        return scpi.idn('POLARI', s.p['model'] + '-EMU', s.session, EMU_VERSION)
+        return scpi.idn('POLARI', ('%s-EMU' % s.p['model']) if s.p['model'] != 'DIALECT' else ('%s-DIALECT-EMU' % s.p['vendor'].split()[0]), s.session, EMU_VERSION)
+
+    def reset(self):
+        self.state = ScopeState(self.state.profile)
 
     # ---------------------------------------------------------------- the command tree
     def handle(self, unit):
@@ -198,6 +223,9 @@ class Emulator:
             return None
         with self.lock:
             try:
+                if self.state.p.get('dialect') == 'tektronix':
+                    from instruments.custom.emulator_tek import dispatch
+                    return dispatch(self, cmd)
                 return self._dispatch(cmd)
             except _Unsupported:
                 self.state.errors.append('-113,"Undefined header"')
@@ -218,6 +246,38 @@ class Emulator:
             return '1' if q else None
         if M(parts, ('*CLS',)):
             s.errors.clear()
+            return None
+        # Keysight Infiniium aliases (scopehal AgilentOscilloscope.cpp): accepted by every agilent-dialect profile
+        if M(parts, ('ADER',)) and q:
+            return '1'                                  # acquisition done
+        if M(parts, ('ACQuire', 'POINts', 'ANALog')):
+            if q:
+                return '%d' % int(s.mdepth)
+            s.mdepth = int(min(int(_num(args[0])), s.depth_cap()))
+            s.wav['start'], s.wav['stop'] = 1, s.mdepth
+            s.invalidate()
+            return None
+        if M(parts, ('ACQuire', 'POINts')) and q:
+            return '%d' % int(s.mdepth)
+        if M(parts, ('ACQuire', 'POINts', 'AUTO')) or M(parts, ('ACQuire', 'SRATe', 'AUTO')):
+            return 'OFF' if q else None
+        if M(parts, ('WAVeform', 'BYTeorder')):
+            if q:
+                return s.wav['byte_order']
+            s.wav['byte_order'] = {'LSBF': 'LSBF', 'LSBFIRST': 'LSBF', 'MSBF': 'MSBF', 'MSBFIRST': 'MSBF'}[args[0].upper()]
+            return None
+        if M(parts, ('WAVeform', 'STReaming')):
+            if q:
+                return s.wav['streaming']
+            s.wav['streaming'] = 'ON' if args[0].upper() in ('1', 'ON') else 'OFF'
+            return None
+        if M(parts, ('TRIGger', 'SOURce')) or M(parts, ('TRIGger', 'SLOPe')):
+            return self._dispatch(scpi.parse_message((':TRIG:EDGE:%s%s %s' % (parts[1], '?' if q else '', ' '.join(args))).strip())[0])
+        if M(parts, ('TRIGger', 'LEVel')) and q:
+            return '%.6e' % s.trigger['level']
+        if M(parts, ('TRIGger', 'FORCe')):
+            s.acquire()
+            s.run = 'STOP'
             return None
         if M(parts, ('SYSTem', 'ERRor')) and q:
             return s.errors.pop(0) if s.errors else '0,"No error"'
@@ -282,6 +342,17 @@ class Emulator:
                 if q:
                     return c['vernier']
                 c['vernier'] = 'ON' if args[0].upper() in ('1', 'ON') else 'OFF'
+                return None
+            if scpi.long_or_short_match(sub, 'RANGe'):          # Keysight: full-screen range = divisions_v x scale
+                if q:
+                    return '%.6e' % (c['scale'] * s.p['divisions_v'])
+                c['scale'] = min(max(_num(args[0]) / s.p['divisions_v'], s.p['scale_min']), s.p['scale_max'])
+                s.invalidate()
+                return None
+            if scpi.long_or_short_match(sub, 'INPut'):          # Keysight: DC | AC | DC50 (coupling + impedance in one word)
+                if q:
+                    return c['coupling']
+                c['coupling'] = {'DC': 'DC', 'AC': 'AC', 'DC50': 'DC50'}[args[0].upper()]
                 return None
             raise _Unsupported()
         # timebase
@@ -417,7 +488,7 @@ class Emulator:
         a, b = s.window()
         raw = s.acquired[ch][a - 1:b]
         if s.wav['format'] == 'WORD':
-            payload = raw.astype('<u2').tobytes()
+            payload = raw.astype('>u2' if s.wav['byte_order'] == 'MSBF' else '<u2').tobytes()
         elif s.wav['format'] == 'BYTE':
             payload = (raw >> (s.p['bits'] - 8)).astype(np.uint8).tobytes()
         else:

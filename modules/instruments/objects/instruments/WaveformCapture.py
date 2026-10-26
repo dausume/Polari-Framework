@@ -5,7 +5,7 @@ WaveformCapture — one class per file (design §7).
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
-FORMATS = ('BYTE', 'WORD', 'ASCII')
+FORMATS = ('BYTE', 'WORD', 'WORD_MSBF', 'ASCII', 'INT8', 'INT16', 'INT16_MSB')    # unsigned Agilent-lineage forms; signed Tektronix forms (DAT:WID 1 | 2)
 SOURCES = ('real', 'emulated', 'replay')
 
 

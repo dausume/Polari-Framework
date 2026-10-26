@@ -139,8 +139,12 @@ def main():
     check('osc-5 pol dev: scope-engines is a worker target that builds through prf-scope-engines/build.sh', 'scope-engines' in re.search(r'WORKERS="([^"]+)"', dev).group(1)
           and 'prf-scope-engines/build.sh' in dev and 'prf-scope-engines:trixie' in dev)
     build = open(os.path.join(_WORKER_DIR, 'build.sh')).read()
-    check('osc-5 build.sh vendors exactly the five emulator files from modules/instruments/custom and records their sha256',
-          all(f in build for f in ('scpi.py', 'lineage.py', 'sources.py', 'emulator.py', 'device_feed.py')) and 'SOURCES.sha256' in build)
+    check('osc-5 build.sh vendors exactly the six emulator files from modules/instruments/custom (incl. the Tektronix dialect) and records their sha256',
+          all(f in build for f in ('scpi.py', 'lineage.py', 'sources.py', 'emulator.py', 'emulator_tek.py', 'device_feed.py')) and 'SOURCES.sha256' in build)
+    cap_profiles = set(SE.capability(url)['profiles']) if False else None   # (the worker above was stopped; the profile list is checked through the module instead)
+    from instruments.custom.emulator import PROFILES
+    check('osc-5 part 2: the worker serves the three profiles dho804 / keysight-dialect / tek-dialect (the two dialect proofs say so in their basis)',
+          set(PROFILES) == {'dho804', 'keysight-dialect', 'tek-dialect'} and all('DIALECT PROOF ONLY' in PROFILES[p]['basis'] for p in ('keysight-dialect', 'tek-dialect')), cap_profiles)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

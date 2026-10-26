@@ -33,8 +33,9 @@ class ScopeRefusal(Exception):
 
 
 class ScopeClient:
-    def __init__(self, address='127.0.0.1', port=DEFAULT_PORT, timeout=5.0, transport='scpi-raw', resource=''):
+    def __init__(self, address='127.0.0.1', port=DEFAULT_PORT, timeout=5.0, transport='scpi-raw', resource='', dialect='agilent'):
         self.address, self.port, self.timeout, self.transport, self.resource = address, int(port or DEFAULT_PORT), timeout, transport, resource
+        self.dialect = dialect if dialect in ('agilent', 'tektronix') else 'agilent'    # which command tree + preamble lineage this instrument speaks
         self._sock = self._visa = None
 
     # ---------------------------------------------------------------- lifecycle
@@ -173,6 +174,8 @@ class ScopeClient:
     def capture(self, channels=(1, 2, 3, 4), fmt='WORD', mode='RAW', max_points=None):
         """ONE fresh acquisition with the asked channels on: each is switched on (as scopehal's EnableChannel does), then :SINGle and *OPC? -
         in NORMal trigger mode with no signal a real scope would wait, and the socket timeout then surfaces as the refusal (a knob later)."""
+        if self.dialect == 'tektronix':
+            return self.capture_tek(channels, width=2 if fmt in ('INT16', 'INT16_MSB') else 1, max_points=max_points)   # DAT:WID 1 unless 16-bit asked (scopehal's default)
         for n in channels:
             self.write(':CHAN%d:DISP ON' % n)
         self.write(':SINGle')
@@ -183,5 +186,58 @@ class ScopeClient:
             r = self.read_channel(n, fmt=fmt, mode=mode, max_points=max_points)
             r.update(info)
             r['settings'] = self.channel_settings(n)
+            out.append(r)
+        return out
+
+    # ---------------------------------------------------------------- the Tektronix dialect (scopehal TektronixOscilloscope.cpp, MSO5/6 path)
+    def channel_settings_tek(self, n):
+        c = 'CH%d' % n
+        gain = float(self.query('%s:PRO:GAIN?' % c) or 1.0)
+        return {'scale_v_div': float(self.query('%s:SCA?' % c)), 'offset_v': float(self.query('%s:OFFS?' % c)), 'coupling': self.query('%s:COUP?' % c),
+                'bw_limit': self.query('%s:BAN?' % c), 'probe': (1.0 / gain) if gain else 1.0, 'enabled': self.query('DISP:WAVEV:%s:STATE?' % c) in ('1', 'ON')}
+
+    def acquisition_info_tek(self):
+        src = self.query('TRIG:A:EDGE:SOU?')
+        return {'sample_rate_sps': float(self.query('HOR:MODE:SAMPLER?')), 'memory_depth_pts': float(self.query('HOR:MODE:RECO?')),
+                'trigger': {'mode': self.query('TRIG:A:TYP?'), 'source': src, 'level': float(self.query('TRIG:A:LEV:%s?' % src)), 'slope': self.query('TRIG:A:EDGE:SLO?')}}
+
+    def read_channel_tek(self, n, width=1, page=PAGE_POINTS, max_points=None):
+        """DAT:SOU, DAT:WID, DAT:ENC SRI (signed little-endian), WFMO? (the preamble), then DAT:START/STOP + CURV? per page."""
+        self.write('HEAD 0')
+        self.write('DAT:SOU CH%d' % n)
+        self.write('DAT:WID %d' % width)
+        self.write('DAT:ENC SRI')
+        pre = L.parse_tek_preamble(self.query('WFMO?'))
+        total = int(float(self.query('HOR:MODE:RECO?')))
+        if max_points:
+            total = min(total, int(max_points))
+        fmt = 'INT16' if width == 2 else 'INT8'
+        chunks, got = [], 0
+        while got < total:
+            end = min(got + page, total)
+            self.write('DAT:START %d' % (got + 1))
+            self.write('DAT:STOP %d' % end)
+            payload = self.query_block('CURV?')
+            if not payload:
+                break
+            chunks.append(payload)
+            got += len(payload) // width
+        payload = b''.join(chunks)
+        pre.update({'points': len(payload) // width, 'format': fmt, 'channel': n, 'payload': payload,
+                    'raw_sha256': hashlib.sha256(payload).hexdigest(), 'raw_bytes': len(payload)})
+        return pre
+
+    def capture_tek(self, channels=(1, 2, 3, 4), width=1, max_points=None):
+        for n in channels:
+            self.write('DISP:WAVEV:CH%d:STATE ON' % n)
+        self.write('ACQ:STOPA SEQ')
+        self.write('ACQ:STATE ON')
+        self.query('*OPC?')
+        info = self.acquisition_info_tek()
+        out = []
+        for n in channels:
+            r = self.read_channel_tek(n, width=width, max_points=max_points)
+            r.update(info)
+            r['settings'] = self.channel_settings_tek(n)
             out.append(r)
         return out

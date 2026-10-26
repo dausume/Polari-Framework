@@ -97,7 +97,8 @@ def model_rows(manager=None):
                          sensitivity=('%s to %s' % (_si(m.get('sensitivity_min_v_div', -1), 'V/div'), _si(m.get('sensitivity_max_v_div', -1), 'V/div'))
                                       if float(m.get('sensitivity_min_v_div', -1) or -1) > 0 else 'unverified'),
                          transports=_transports(m.get('transports_json')),
-                         emulator=('yes (%s)' % m.get('emulator_profile') if m.get('emulated') else 'not yet'),
+                         emulator=('yes (%s)' % m.get('emulator_profile') if m.get('emulated')
+                                   else ('dialect proof only (%s)' % m['emulator_profile'] if m.get('emulator_profile') else 'not yet')),
                          price=('USD %g' % m['price_usd']) if float(m.get('price_usd', -1) or -1) > 0 else 'unverified'))
     return rows
 

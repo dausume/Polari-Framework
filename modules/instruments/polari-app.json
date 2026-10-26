@@ -47,6 +47,7 @@
   ],
   "selftests": [
    "instruments_capture_selftest",
+   "instruments_dialects_selftest",
    "instruments_selftest",
    "instruments_worker_selftest"
   ],
@@ -56,6 +57,7 @@
    "custom/client",
    "custom/device_feed",
    "custom/emulator",
+   "custom/emulator_tek",
    "custom/lineage",
    "custom/scope_engines",
    "custom/scpi",
@@ -79,6 +81,7 @@
  "initialData": false,
  "selftests": [
   "instruments_capture_selftest",
+  "instruments_dialects_selftest",
   "instruments_selftest",
   "instruments_worker_selftest"
  ],
