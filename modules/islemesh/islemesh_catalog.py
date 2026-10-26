@@ -93,6 +93,58 @@ SEED_CATALOG = [
         'provides_engine': 'cad', 'category': 'engine',
         'source': 'official',
     },
+    # ti-3a: the hardware engine workers (slice of TEST_ISLE_PLAN) — deploying one binds its
+    # consumer through the EngineProviderBinding row, key = provides_engine.
+    {
+        'name': 'board-engines',
+        'title': 'Board engines (AVR twins)',
+        'description': 'The board worker: avr-gcc/avr-libc, avrdude and the simavr twin harness (polari-avr-twin) behind one JSON API, plus per-session twin ports 9832-9863; the board module resolves it once deployed.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.board-engines.yml',
+        'service': 'board-engines', 'port': 9830,
+        'provides_engine': 'board', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'formal-engines',
+        'title': 'Formal engines (CBMC)',
+        'description': 'The firmware formal and static worker: CBMC bounded model checking and cppcheck (plus Frama-C/Mthread per its compose header) behind one JSON API; firmware faults resolve it once deployed.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.formal-engines.yml',
+        'service': 'formal-engines', 'port': 9840,
+        'provides_engine': 'formal', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'esp-engines',
+        'title': 'ESP engines (ESP-IDF + QEMU ESP32-C3)',
+        'description': 'The QEMU-based ESP32-C3 worker: ESP-IDF build, esptool and Espressif\'s QEMU fork (-machine esp32c3) behind the board engines\' JSON API; the board module resolves it once deployed.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.esp-engines.yml',
+        'service': 'esp-engines', 'port': 9850,
+        'provides_engine': 'esp', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'pcb-engines',
+        'title': 'PCB engines (KiCad)',
+        'description': 'The PCB worker: KiCad 9 headless kicad-cli (ERC, DRC, netlist/BOM/Gerber/drill/STEP exports) behind one JSON API; the pcb module resolves it once deployed.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.pcb-engines.yml',
+        'service': 'pcb-engines', 'port': 9860,
+        'provides_engine': 'pcb', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'bridge-engines',
+        'title': 'Bridge engines (hosted firmware bridge)',
+        'description': 'The hosted firmware bridge worker (a detached JVM per hosted bridge); the grpcbridge module resolves it once deployed.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.hw-engines.yml',
+        'service': 'bridge-engines', 'port': 9870,
+        'provides_engine': 'bridge', 'category': 'engine',
+        'source': 'official',
+    },
 ]
 
 

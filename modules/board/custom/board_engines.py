@@ -11,7 +11,8 @@ Resolution, per engine, honest at every rung:
   2. knob unset, binary local     → the binary on the PATH (or ~/.local/bin)
   3. the worker IMAGE local       → `docker run` of BOARD_ENGINES_IMAGE (default prf-board-engines:trixie,
                                     polari-rf-node/prf-board-engines/) on this device's docker (brd-1)
-  4. nothing local                → the topology's provider for module `board.engines` (LIVE candidates only)
+  4. nothing local                → the family's EngineProviderBinding row (an isle app deployed with
+                                    `--engine board|esp`, ti-3a), else the topology's provider for module `board.engines` (LIVE candidates only)
   5. nothing                      → refusal naming the knob, the image, and the provider module
 FLASHING adds a placement constraint (plan §2): it must run on the host holding the USB port — a remote worker is
 refused for a flash, whatever the ladder says (a local binary or the local image with the port mapped are fine).
@@ -74,10 +75,10 @@ IMAGE_ENGINES = ('avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr
 #: sc-3: the families — each engine resolves on ITS family's knob, image and provider
 ESP_IMAGE_ENGINES = ('idf-build', 'c3-run', 'qemu-esp32c3', 'esptool', 'riscv32-esp-elf-nm')
 FAMILIES = {
-    'avr': {'knob': KNOB, 'image_knob': IMAGE_KNOB, 'default_image': DEFAULT_IMAGE, 'provider': PROVIDER_MODULE,
+    'avr': {'knob': KNOB, 'image_knob': IMAGE_KNOB, 'default_image': DEFAULT_IMAGE, 'provider': PROVIDER_MODULE, 'binding': 'board',
             'image_engines': IMAGE_ENGINES, 'compose': 'docker-compose.board-engines.yml'},
     'esp': {'knob': 'ESP_ENGINES_URL', 'image_knob': 'ESP_ENGINES_IMAGE', 'default_image': 'prf-esp-engines:noble',
-            'provider': 'board.esp-engines', 'image_engines': ESP_IMAGE_ENGINES, 'compose': 'docker-compose.esp-engines.yml'},
+            'provider': 'board.esp-engines', 'binding': 'esp', 'image_engines': ESP_IMAGE_ENGINES, 'compose': 'docker-compose.esp-engines.yml'},
 }
 
 
@@ -124,7 +125,22 @@ def local_image(fam='avr'):
     return iid
 
 
+def binding_url_for(fam='avr'):
+    """ti-3a: the EngineProviderBinding row for this family ('board' = avr, 'esp') — the row form of the knob, written by
+    `isle app deploy --engine <key>`. Reuses topology.engine_metering.binding_url (what msci/cad use); '' when unbound."""
+    try:
+        from topology.engine_metering import binding_url
+        return binding_url(FAMILIES[fam]['binding'])
+    except Exception:
+        return ''
+
+
 def topology_url(fam='avr'):
+    """The rung after the local ones: the family's isle-app binding row (ti-3a), else the topology provider. The knob stays
+    the absolute first rule in resolve() — this is never reached when a knob is set."""
+    bound = binding_url_for(fam)
+    if bound:
+        return bound
     try:
         from topology.provider_registry import resolve_provider
         resolved = resolve_provider(FAMILIES[fam]['provider'])

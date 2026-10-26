@@ -25,6 +25,14 @@ def knob_url():
 
 
 def topology_url():
+    # ti-3a: the isle-app binding row (`isle app deploy --engine bridge`) precedes the topology provider; the knob still wins in resolve()
+    try:
+        from topology.engine_metering import binding_url
+        bound = binding_url('bridge')
+        if bound:
+            return bound
+    except Exception:
+        pass
     try:
         from topology.provider_registry import resolve_provider
         resolved = resolve_provider(PROVIDER_MODULE)

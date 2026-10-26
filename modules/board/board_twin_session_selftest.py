@@ -78,6 +78,23 @@ def offline(check):
         with _env(BOARD_ENGINES_URL=None):
             r = be.resolve_sessions()
         check('sim-0: with no knob and no topology provider the refusal says what to set', r['how'] == 'refused' and 'no worker lists twin sessions' in r['why'])
+        # ti-3a: an isle-app deploy (`--engine board`) writes an EngineProviderBinding row; it is the row form of the knob
+        from topology import provider_registry as PR
+        prev_mgr = getattr(PR, 'MANAGER', None)
+        PR.MANAGER = types.SimpleNamespace(objectTables={'EngineProviderBinding': {'1': types.SimpleNamespace(name='board', url=new.url + '/')}})
+        try:
+            with _env(BOARD_ENGINES_URL=None):
+                r = be.resolve_sessions()
+                bound = be.topology_url('avr')
+            check('ti-3a: with no knob, a binding row for family board resolves to its URL (trailing slash stripped) and the sessions door uses it',
+                  bound == new.url and r['how'] == 'remote' and r['where'] == new.url, (bound, r))
+            with _env(BOARD_ENGINES_URL='http://127.0.0.1:9'):
+                r = be.resolve_sessions()
+            check('ti-3a: a set knob still wins over a binding row (unreachable knob = refusal, never the bound worker)',
+                  r['how'] == 'refused' and 'unreachable' in r['why'] and r['where'] == 'http://127.0.0.1:9', r)
+            check('ti-3a: the esp family reads its own row (esp), not the board row', be.topology_url('esp') != new.url)
+        finally:
+            PR.MANAGER = prev_mgr
         mgr = _mgr()
         with _env(BOARD_ENGINES_URL=old.url):
             try:

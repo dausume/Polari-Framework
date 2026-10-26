@@ -116,6 +116,12 @@ _BINDERS = {
     # names the row class, not a module that must be present.
     'msci': ('topology', _bind_engine_row('msci')),
     'cad': ('topology', _bind_engine_row('cad')),
+    # ti-3a: the hardware engine workers (board = the avr family)
+    'board': ('topology', _bind_engine_row('board')),
+    'esp': ('topology', _bind_engine_row('esp')),
+    'formal': ('topology', _bind_engine_row('formal')),
+    'pcb': ('topology', _bind_engine_row('pcb')),
+    'bridge': ('topology', _bind_engine_row('bridge')),
     # ai-3: the consumer is the managed reasoning config itself.
     'reasoning': ('reasoning_config', _bind_reasoning),
 }

@@ -110,6 +110,14 @@ def image_engines():
 
 
 def topology_url():
+    # ti-3a: the isle-app binding row (`isle app deploy --engine formal`) precedes the topology provider; the knob still wins in resolve()
+    try:
+        from topology.engine_metering import binding_url
+        bound = binding_url('formal')
+        if bound:
+            return bound
+    except Exception:
+        pass
     try:
         from topology.provider_registry import resolve_provider
         r = resolve_provider(PROVIDER_MODULE)

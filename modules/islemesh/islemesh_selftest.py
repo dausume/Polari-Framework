@@ -410,6 +410,25 @@ def main():
     check('engine app plan: image ref + --engine business-ops',
           '--image odoo:16' in odoo['steps'][0]
           and '--engine business-ops' in odoo['steps'][0])
+    # ti-3a: the hardware engine workers are isle apps
+    hw = {'board-engines': ('docker-compose.board-engines.yml', 'board-engines', 9830, 'board'),
+          'formal-engines': ('docker-compose.formal-engines.yml', 'formal-engines', 9840, 'formal'),
+          'esp-engines': ('docker-compose.esp-engines.yml', 'esp-engines', 9850, 'esp'),
+          'pcb-engines': ('docker-compose.pcb-engines.yml', 'pcb-engines', 9860, 'pcb'),
+          'bridge-engines': ('docker-compose.hw-engines.yml', 'bridge-engines', 9870, 'bridge')}
+    for hname, (ref, svc, port, eng) in hw.items():
+        e = by_name.get(hname, {})
+        step = (install_plan(e)['steps'] or [''])[0] if e else ''
+        check('ti-3a: %s tile = mesh-app / engine / %s, plan = isle app deploy --compose %s --service %s --port %d --engine %s'
+              % (hname, eng, ref, svc, port, eng),
+              e.get('kind') == 'mesh-app' and e.get('category') == 'engine' and e.get('source') == 'official'
+              and e.get('provides_engine') == eng
+              and step.startswith('isle app deploy %s ' % hname) and '--compose %s' % ref in step
+              and '--service %s' % svc in step and '--port %d' % port in step and step.rstrip().endswith('--engine %s' % eng), step)
+    check('ti-3a: esp tile says it is the QEMU-based worker', 'QEMU' in by_name['esp-engines']['description'])
+    from islemesh.custom.islemesh_engines import _BINDERS
+    check('ti-3a: every hardware tile engine key has a binder (the binding row is the wiring)',
+          all(v[3] in _BINDERS for v in hw.values()))
     papp = install_plan(by_name['polari'])
     check('polari-app plan is ONE shell-launcher step that installs',
           papp['ok'] and any('shell launcher' in s
