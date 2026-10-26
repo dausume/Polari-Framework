@@ -203,6 +203,13 @@ def run_wb2(check):
           and all(x['done_when']['scope_key'] == '{scope:bench}' for x in steps[:3]), steps)
     items = [it for t in d['tabs'] for r in t['rows'] for it in r['items']]
     kinds = [it['componentProps']['componentName'] for it in items]
+    form = next((it for it in items if it['componentProps']['componentName'] == 'door-form'), None)
+    fi = form['componentProps']['inputs'] if form else {}
+    check('wb-3 CREATE: step 1 carries a door-form (name required; title, notes) that POSTs /api/board/benches and sets scope bench from the response field `bench` (what create_bench returns); the benches table reloads on rev',
+          form is not None and [f['name'] for f in fi.get('fields', [])] == ['name', 'title', 'notes'] and fi['fields'][0].get('required') is True
+          and fi['action']['path'] == '/api/board/benches' and fi['action']['then_scope'] == {'key': 'bench', 'from': 'bench'}
+          and 'bench' in B.post_door(None, '', 'create', {'name': 'wb3-shape-check'})[1]
+          and 'rev=r{scope:rev}' in json.dumps(d['tabs'][0]), fi)
     check('wb-2 PAGE: picker-buttons for Breadboards, Boards, Missions; the boards popup has the three facets arch / radio / level; Add has show_when_field can_add; the attempt action sets scope attempt from verdict',
           kinds.count('picker-button') == 3
           and [f['query_param'] for f in next(i for i in items if i['id'] == 'wb-pick-boards')['componentProps']['inputs']['popup']['facets']] == ['arch', 'radio', 'level']

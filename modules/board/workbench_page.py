@@ -12,8 +12,8 @@ Pure page data built from the three generic wb-1 kinds (`steps`, `picker-button`
                three tables (summary / candidates / gap + pruned) from the per-process attempts doors
 
 Page-mechanism limits met (and what was done instead):
-  * No page uses a form item against a plain POST door (a `form` item runs a linked no-code SOLUTION), so there is NO create form: a bench is created by `POST /api/board/benches`
-    {name, title?, notes?} (wb-0 door) and the step 1 table lists the benches to pick from. A create form arrives with wb-3.
+  * A `form` item runs a linked no-code SOLUTION, not a plain POST door - so wb-3 added the generic `door-form` kind (typed inputs -> one RowActionConfig through the shared
+    action runner): step 1 carries one that POSTs `/api/board/benches` {name, title, notes} and sets scope `bench` from the response's `bench`, beside the benches table.
   * A table's row-select sets exactly ONE scope key (`select_scope`), so scope `bench` is all a selection can set. Steps 2 and 3 therefore cannot read `breadboard_count` /
     `board_count` scopes (the bench rows do carry both fields); they are derived with done_when on `{scope:bench}` (set) - "a bench is chosen so the step is open to do" - and the real
     counts arrive in wb-3 when a bench-detail scope exists.
@@ -51,14 +51,25 @@ def _steps_row():
                                description='Four steps: name the bench, put breadboards on it, put dev / eval boards on it, attempt a Mission. Click a step to open it; steps are not locked.')], min_height=90)
 
 
+def _create_form():
+    """wb-3: the create-bench form (generic `door-form`): name required, title + notes optional; success sets scope `bench` to the new name and reloads the table."""
+    return {'fields': [{'name': 'name', 'label': 'Bench name (a short key, e.g. lab-bench)', 'required': True},
+                       {'name': 'title', 'label': 'Title'},
+                       {'name': 'notes', 'label': 'Notes', 'type': 'textarea'}],
+            'action': {'label': 'Create', 'method': 'POST', 'path': _BENCHES, 'body_template': {'name': '{name}', 'title': '{title}', 'notes': '{notes}'},
+                       'then_scope': {'key': 'bench', 'from': 'bench'}},
+            'submit_label': 'Create the bench', 'success_text': 'Created - it is now the bench of the next steps.'}
+
+
 def _name_tab():
     return _tab('name', 'Name the bench', [
-        _row(0, [_table('wb-benches', 0, 12, 'Benches - click one to work on it', '',
-                        description='One row per bench: its boards and breadboards. Click a row to make it THE bench of the next steps (click again to clear). A new bench is created with '
-                                    'POST /api/board/benches {name, title, notes} - this page has no create form yet (a form item runs a no-code solution, not a plain door).',
-                        columns='name,title,boards,breadboards,hardware_only_boards,notes', data_path=_BENCHES,
+        _row(0, [_component('wb-create-bench', 0, 4, 'New bench', 'door-form', _create_form(),
+                            description='Name a new, empty bench; it becomes the bench of the next steps. A duplicate name is refused by the door.'),
+                 _table('wb-benches', 1, 8, 'Benches - click one to work on it', '',
+                        description='One row per bench: its boards and breadboards. Click a row to make it THE bench of the next steps (click again to clear).',
+                        columns='name,title,boards,breadboards,hardware_only_boards,notes', data_path=_BENCHES + '?' + _REV,
                         select_field='name', select_scope='bench', selected_value='{scope:bench}')], min_height=260)],
-        description='Pick the bench you are working on.')
+        description='Create a bench or pick an existing one.')
 
 
 def _breadboard_cards():
