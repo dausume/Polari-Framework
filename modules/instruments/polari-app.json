@@ -1,0 +1,104 @@
+{
+ "schema": "polari-app/1",
+ "id": "instruments",
+ "package": "instruments",
+ "title": "Instruments",
+ "description": "Bench instruments as rows: oscilloscope models with cited specs (channels, bandwidth, sample rate, depth, bits, LXI/SCPI transports), reachable endpoints typed at runtime, channel settings, and the CANONICAL WaveformCapture record (the IEEE 488.2 block kept verbatim plus the vendor preamble fields) that both the Agilent and Tektronix command lineages map onto. A DHO804 emulator (an SCPI server) feeds 4-channel captures from synthesised, replayed or device-derived signals so the same client, record and chart are proven before a real instrument is on the bench.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "realization": ""
+ },
+ "requires": {
+  "modules": [
+   "board"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/instruments/Instrument",
+   "objects/instruments/InstrumentEndpoint",
+   "objects/instruments/ScopeChannel",
+   "objects/instruments/WaveformCapture"
+  ],
+  "basis": [
+   "instruments_basis"
+  ],
+  "api": [
+   "instruments_api"
+  ],
+  "endpoints": [
+   "instruments_endpoints"
+  ],
+  "seed": [
+   "instruments_seed"
+  ],
+  "page": [
+   "instruments_page"
+  ],
+  "selftests": [
+   "instruments_capture_selftest",
+   "instruments_selftest"
+  ],
+  "custom": [
+   "custom/captures",
+   "custom/catalog",
+   "custom/client",
+   "custom/device_feed",
+   "custom/emulator",
+   "custom/lineage",
+   "custom/scpi",
+   "custom/sources"
+  ]
+ },
+ "classes": [
+  "Instrument",
+  "InstrumentEndpoint",
+  "InstrumentsAPI",
+  "ScopeChannel",
+  "WaveformCapture"
+ ],
+ "imports": [],
+ "endpoints": "instruments.instruments_endpoints:construct_instruments_endpoints",
+ "seedPairs": "instruments.instruments_seed:INSTRUMENTS_SEED_PAIRS",
+ "pages": [
+  "instruments.instruments_page:SEED_INSTRUMENTS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "instruments_capture_selftest",
+  "instruments_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

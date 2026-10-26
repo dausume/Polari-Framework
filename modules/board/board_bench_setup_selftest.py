@@ -193,14 +193,15 @@ def run_wb2(check):
     page = W[0]
     d = json.loads(page['definition'])
     keys = [t['key'] for t in d['tabs']]
-    check('wb-2 PAGE: /display/workbench exists in the board seeds with 4 tabs name / breadboards / boards / mission',
-          page['pageRoute'] == 'workbench' and page in ALL and keys == ['name', 'breadboards', 'boards', 'mission'], keys)
+    check('wb-2 PAGE: /display/workbench exists in the board seeds with 5 tabs name / breadboards / boards / instruments (osc-0) / mission',
+          page['pageRoute'] == 'workbench' and page in ALL and keys == ['name', 'breadboards', 'boards', 'instruments', 'mission'], keys)
     st = d['rows'][0]['items'][0]['componentProps']
     steps = st['inputs']['steps']
-    check('wb-2 STEPS: a steps strip of 4 steps whose targets are the tab keys; steps 1-3 done on bench set, step 4 on attempt set',
-          st['componentName'] == 'steps' and [x['target'] for x in steps] == keys and [x['label'] for x in steps] == ['Name the bench', 'Breadboards', 'Dev / eval boards', 'Mission']
-          and all(x['done_when']['op'] == 'set' for x in steps) and steps[3]['done_when']['scope_key'] == '{scope:attempt}'
-          and all(x['done_when']['scope_key'] == '{scope:bench}' for x in steps[:3]), steps)
+    check('wb-2 STEPS: a steps strip of 5 steps whose targets are the tab keys; steps 1-4 done on bench set, step 5 on attempt set',
+          st['componentName'] == 'steps' and [x['target'] for x in steps] == keys
+          and [x['label'] for x in steps] == ['Name the bench', 'Breadboards', 'Dev / eval boards', 'Instruments', 'Mission']
+          and all(x['done_when']['op'] == 'set' for x in steps) and steps[4]['done_when']['scope_key'] == '{scope:attempt}'
+          and all(x['done_when']['scope_key'] == '{scope:bench}' for x in steps[:4]), steps)
     items = [it for t in d['tabs'] for r in t['rows'] for it in r['items']]
     kinds = [it['componentProps']['componentName'] for it in items]
     form = next((it for it in items if it['componentProps']['componentName'] == 'door-form'), None)
@@ -210,8 +211,8 @@ def run_wb2(check):
           and fi['action']['path'] == '/api/board/benches' and fi['action']['then_scope'] == {'key': 'bench', 'from': 'bench'}
           and 'bench' in B.post_door(None, '', 'create', {'name': 'wb3-shape-check'})[1]
           and 'rev=r{scope:rev}' in json.dumps(d['tabs'][0]), fi)
-    check('wb-2 PAGE: picker-buttons for Breadboards, Boards, Missions; the boards popup has the three facets arch / radio / level; Add has show_when_field can_add; the attempt action sets scope attempt from verdict',
-          kinds.count('picker-button') == 3
+    check('wb-2 PAGE: picker-buttons for Breadboards, Boards, Instruments, Missions; the boards popup has the three facets arch / radio / level; Add has show_when_field can_add; the attempt action sets scope attempt from verdict',
+          kinds.count('picker-button') == 4
           and [f['query_param'] for f in next(i for i in items if i['id'] == 'wb-pick-boards')['componentProps']['inputs']['popup']['facets']] == ['arch', 'radio', 'level']
           and next(i for i in items if i['id'] == 'wb-pick-boards')['componentProps']['inputs']['popup']['action']['show_when_field'] == 'can_add'
           and next(i for i in items if i['id'] == 'wb-pick-missions')['componentProps']['inputs']['popup']['action']['then_scope'] == {'key': 'attempt', 'from': 'verdict'}, kinds)
@@ -220,13 +221,14 @@ def run_wb2(check):
     _walk(d, paths)
     api = open(__file__.replace('board_bench_setup_selftest.py', 'bench_api.py')).read()
     mapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'cmod/cmod_mission_api.py')).read()
-    routes = re.findall(r"add\('([^']+)'", api) + re.findall(r"add\('([^']+)'", mapi)
+    iapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'instruments/instruments_api.py')).read()   # osc-0: the instruments tab's doors
+    routes = re.findall(r"add\('([^']+)'", api) + re.findall(r"add\('([^']+)'", mapi) + re.findall(r"add\('([^']+)'", iapi)
 
     def hits(path):
         p = re.sub(r'\{scope:[^}]*\}', 'X', path.split('?')[0])
         return any(re.fullmatch(re.sub(r'\{[^}]+\}', '[^/]+', r), p) for r in routes)
     bad = [p for p in paths if not hits(p)]
-    check('wb-2 PATHS: every dataPath / action path in the page (%d) matches a route in bench_api.py or cmod_mission_api.py' % len(paths), paths and not bad, bad)
+    check('wb-2 PATHS: every dataPath / action path in the page (%d) matches a route in bench_api.py, cmod_mission_api.py or instruments_api.py' % len(paths), paths and not bad, bad)
     # new columns
     st, bb = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-breadboards')
     half = next(r for r in bb['rows'] if r['name'] == 'half-400')

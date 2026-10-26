@@ -47,7 +47,11 @@ def _live_rows(manager, cls):
 def bench_dict(row):
     if isinstance(row, dict):
         return dict(row)
-    return {k: getattr(row, k, '') for k in ('name', 'title', 'boards_json', 'breadboards_json', 'notes', 'source')}
+    return {k: getattr(row, k, '[]' if k == 'instruments_json' else '') for k in _FIELDS}
+
+
+#: the Bench row's fields; instruments_json (osc-0) is owned by instruments.custom.catalog - this module only carries it
+_FIELDS = ('name', 'title', 'boards_json', 'breadboards_json', 'notes', 'source', 'instruments_json')
 
 
 def benches(manager=None):
@@ -74,10 +78,10 @@ def _save(manager, b):
     row = next((r for r in _live_rows(manager, 'Bench') if getattr(r, 'name', '') == b['name']), None)
     if row is None:
         from board.objects.board.Bench import Bench
-        row = Bench(manager=manager, **{k: b.get(k, '') for k in ('name', 'title', 'boards_json', 'breadboards_json', 'notes', 'source')})
+        row = Bench(manager=manager, **{k: b.get(k, '[]' if k == 'instruments_json' else '') for k in _FIELDS})
     else:
-        for k in ('title', 'boards_json', 'breadboards_json', 'notes'):
-            setattr(row, k, b.get(k, ''))
+        for k in ('title', 'boards_json', 'breadboards_json', 'notes', 'instruments_json'):
+            setattr(row, k, b.get(k, '[]' if k == 'instruments_json' else ''))
     try:
         manager.db.saveInstanceInDB(row)
     except Exception:  # noqa: BLE001 - an in-memory manager has no db
@@ -142,7 +146,9 @@ def bench_rows(manager=None):
     for b in benches(manager):
         br = board_rows(b, manager)
         nbb = sum(int(e.get('count') or 1) for e in _j(b.get('breadboards_json'), []))
+        nin = sum(int(e.get('count') or 1) for e in _j(b.get('instruments_json'), []))
         out.append({'name': b['name'], 'title': b['title'], 'boards': len(br), 'breadboards': nbb, 'board_count': len(br), 'breadboard_count': nbb,
+                    'instruments': nin, 'instrument_count': nin,
                     'simulated_real_pins': len([r for r in br if r['testing_group'] == 'simulated']),
                     'simulated_stub_pins': len([r for r in br if r['testing_group'] == 'simulated-stub']),
                     'hardware_only': len([r for r in br if r['testing_group'] == 'hardware-only']),
@@ -374,7 +380,8 @@ def create_bench(manager, body):
         return 400, {'ok': False, 'error': 'name is required'}
     if bench(name, manager) is not None:
         return 409, {'ok': False, 'error': 'a bench named %r already exists' % name}
-    b = {'name': name, 'title': str(body.get('title') or name), 'boards_json': '[]', 'breadboards_json': '[]', 'notes': str(body.get('notes') or ''), 'source': 'wb-0 create door'}
+    b = {'name': name, 'title': str(body.get('title') or name), 'boards_json': '[]', 'breadboards_json': '[]', 'instruments_json': '[]',
+         'notes': str(body.get('notes') or ''), 'source': 'wb-0 create door'}
     _save(manager, b)
     return 201, {'ok': True, 'bench': name, 'rows': bench_rows(manager)}
 

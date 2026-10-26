@@ -29,11 +29,13 @@ _BOARDS = '/api/board/benches/%s/boards' % _B
 _BBS = '/api/board/benches/%s/breadboards' % _B
 _ATTEMPT = '/api/board/benches/%s/attempt' % _B
 _ATT = '/api/board/benches/%s/attempts' % _B
+_INSTR = '/api/instruments/bench/%s' % _B          # osc-0: the instruments module's doors (it owns Bench.instruments_json)
 _PICK = 'Pick a bench in step 1 first.'
 
 _STEPS = [('Name the bench', 'name', {'scope_key': '{scope:bench}', 'op': 'set'}),
           ('Breadboards', 'breadboards', {'scope_key': '{scope:bench}', 'op': 'set'}),
           ('Dev / eval boards', 'boards', {'scope_key': '{scope:bench}', 'op': 'set'}),
+          ('Instruments', 'instruments', {'scope_key': '{scope:bench}', 'op': 'set'}),
           ('Mission', 'mission', {'scope_key': '{scope:attempt}', 'op': 'set'})]
 
 _FAMILIES = [('RISC-V', 'riscv'), ('Not RISC-V', 'not-riscv'), ('AVR', 'AVR'), ('ARM Cortex-M0+', 'ARM Cortex-M0+'), ('Xtensa LX7', 'Xtensa LX7'), ('FPGA', 'FPGA')]
@@ -117,6 +119,30 @@ def _boards_tab():
         description='Choose the dev and eval boards on the bench.')
 
 
+def _instrument_cards():
+    """osc-0 (OSCILLOSCOPE_PLAN.md §2): the instrument models as cards - the same rows /display/instruments shows, plus on_bench / can_add."""
+    return {'dataPath': '/api/instruments/bench-options?bench=%s&%s' % (_B, _REV), 'title_field': 'title', 'subtitle_field': 'family', 'group_by': 'vendor',
+            'badge_fields': ['kind', 'lineage', 'resolution'],
+            'fields': {'Channels': 'channels_text', 'Bandwidth': 'bandwidth', 'Sample rate': 'sample_rate', 'Memory depth': 'memory_depth',
+                       'Transports': 'transports', 'Emulator': 'emulator', 'Price': 'price', 'On the bench': 'on_bench'},
+            'action': {'label': 'Add', 'method': 'POST', 'path': _INSTR + '/add', 'body_template': {'model': '{name}', 'count': 1}, 'show_when_field': 'can_add'},
+            'empty_text': 'No instrument models on this instance.'}
+
+
+def _instruments_tab():
+    return _tab('instruments', 'Instruments', [
+        _row(0, [_component('wb-pick-instruments', 0, 12, '', 'picker-button',
+                            {'label': 'Instruments', 'title': 'Pick instruments for the bench', 'popup': _instrument_cards()},
+                            description='Opens the instrument cards: oscilloscopes by vendor with channels, bandwidth, sample rate and memory depth per channel count, '
+                                        'how they are reached on the network, and whether Polari can emulate one. A vendor lineage row has no Add until a model of it is read in.')],
+             min_height=90),
+        _row(1, [_table('wb-bench-instruments', 0, 12, 'Instruments on this bench', '',
+                        description='One row per instrument model on the chosen bench with how many of it, its channels and bandwidth, and whether the emulator can stand in. Remove takes one off.',
+                        columns='title,count,channels,bandwidth,emulator,note', data_path=_INSTR + '?' + _REV, empty_text=_PICK,
+                        row_action={'label': 'Remove', 'method': 'POST', 'path': _INSTR + '/remove', 'body_template': {'model': '{model}'}})], min_height=220)],
+        description='Choose the instruments on the bench - an oscilloscope first.')
+
+
 def _mission_cards():
     return {'dataPath': '/api/missions', 'title_field': 'title', 'subtitle_field': 'name', 'badge_fields': ['lifecycle', 'objective', 'stage'],
             'fields': {'Goal': 'goal', 'Purposes': 'purposes_text', 'Resolution today': 'resolution'},
@@ -144,8 +170,9 @@ def _mission_tab():
 
 WORKBENCH_PAGES = [
     _page('workbench', 'workbench',
-          'The workbench walkthrough: name a bench, add breadboards and dev / eval boards from card pickers, then attempt a Mission on it. Doors: /api/board/benches, '
-          '/api/board/bench-options/breadboards|boards, /api/board/benches/{bench}/boards|breadboards|remove|attempt|attempts, /api/missions.',
+          'The workbench walkthrough: name a bench, add breadboards, dev / eval boards and instruments from card pickers, then attempt a Mission on it. Doors: /api/board/benches, '
+          '/api/board/bench-options/breadboards|boards, /api/board/benches/{bench}/boards|breadboards|remove|attempt|attempts, /api/instruments/bench-options, '
+          '/api/instruments/bench/{bench}|add|remove, /api/missions.',
           'Bench', [_steps_row()], title='The workbench',
-          tabs=[_name_tab(), _breadboards_tab(), _boards_tab(), _mission_tab()]),
+          tabs=[_name_tab(), _breadboards_tab(), _boards_tab(), _instruments_tab(), _mission_tab()]),
 ]

@@ -22,10 +22,11 @@ class Bench(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', boards_json: str = '[]', breadboards_json: str = '[]', notes: str = '', source: str = '',
-                 manager=None):
+                 instruments_json: str = '[]', manager=None):
         self.name = name                        # kebab-case, e.g. 'home-bench'
         self.title = title
         self.boards_json = boards_json          # [{board, title, label, chip, family, section, testing, added, note}] - board = the ladder's board key
         self.breadboards_json = breadboards_json  # [{model, title, count, note}] - model = a BreadboardModel name
         self.notes = notes
         self.source = source
+        self.instruments_json = instruments_json  # osc-0: [{model, count, note}] - model = an instruments.Instrument name; read and written ONLY by instruments.custom.catalog
