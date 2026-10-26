@@ -78,7 +78,8 @@ def get_resolution(api, request, response, name):
 
 
 def missions_table(api, request, response):
-    """Every Mission as a table row: the stored fields and the DERIVED resolution, plus the drawing link."""
+    """Every Mission as a table row: the stored fields and the DERIVED resolution, plus the drawing link. `purposes` is the COUNT; wb-2 adds `purposes_text`
+    ('purpose (importance), ...' as one plain string) so a card can show them."""
     from cmod.custom import mission_derived as MD
     from cmod.custom import mission_nocode as MN
     from cmod.custom import mission_seeds as MS
@@ -92,6 +93,6 @@ def missions_table(api, request, response):
         con = MD._j(m.get('constraints_json'), {})
         rows.append({'name': m['name'], 'title': m.get('title', ''), 'goal': m.get('goal', ''), 'lifecycle': m.get('lifecycle') or 'enabled',
                      'objective': MN.settings_of(m)['objective'], 'stage': con.get('stage', ''),
-                     'purposes': len(MD._j(m.get('purposes_json'), [])), 'resolution': '%s: %s' % (res['state'], res['why']),
+                     'purposes': len(MD._j(m.get('purposes_json'), [])), 'purposes_text': ', '.join('%s (%s)' % (x.get('purpose', '?'), x.get('importance', '?')) for x in MD._j(m.get('purposes_json'), [])) or 'none', 'resolution': '%s: %s' % (res['state'], res['why']),
                      'drawing': '/display/hardware-solutions?solution=%s' % MN.solution_name(m['name'])})
     response.media = {'ok': True, 'rows': rows}

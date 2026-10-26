@@ -401,4 +401,5 @@ from board.layout_page import LAYOUT_PAGES   # noqa: E402  lay-2: /display/layou
 from board.firmware_state_page import FIRMWARE_STATE_PAGES   # noqa: E402  fst-1: /display/firmware-state?config=
 from board.chip_ladder_page import CHIP_LADDER_PAGES   # noqa: E402  chp-0: /display/chip-ladder
 from board.bench_page import BENCH_PAGES   # noqa: E402  bench-0: /display/bench
-SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES + LAYOUT_PAGES + FIRMWARE_STATE_PAGES + CHIP_LADDER_PAGES + BENCH_PAGES   # fst-1: + /display/firmware-state; pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map
+from board.workbench_page import WORKBENCH_PAGES   # noqa: E402  wb-2: /display/workbench
+SEED_BOARD_PAGE_DISPLAYS = _BOARDS_PAGES + _CHAIN_PAGES + INSTALLER_PAGES + REGISTER_PROFILE_PAGES + PROFILE_OVERLAP_PAGES + PIN_VIEW_PAGES + LAYOUT_PAGES + FIRMWARE_STATE_PAGES + CHIP_LADDER_PAGES + BENCH_PAGES + WORKBENCH_PAGES   # fst-1: + /display/firmware-state; pv-0: + the pin view data pages; ucd-0a: + /display/hardware-chain; rp-0: + register profile, memory map

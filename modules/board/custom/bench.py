@@ -16,8 +16,14 @@ capitals, never left blank (his rule 2026-10-24).
     POST /api/board/benches/{bench}/remove               {kind: board|breadboard, key}  -> 200 + the rows left
     POST /api/board/benches                              {name, title?, notes?}        -> 201 an empty bench (409 on a duplicate name)
     POST /api/board/benches/{bench}/attempt              {mission}                     -> cmod solve() over the bench's boards (404 + mission names for an unknown one)
+    GET  /api/board/benches/{bench}/attempts             {ok, rows}  wb-2: the LAST attempt on that bench as ONE summary row (verdict, mission, boards_used, not_modelled, run sha)
+    GET  /api/board/benches/{bench}/attempts/candidates  {ok, rows}  the last attempt's candidates, every column a plain string
+    GET  /api/board/benches/{bench}/attempts/pruned      {ok, rows}  the last attempt's gap (unmet purposes) then its pruned branches with reasons
+wb-2: the last attempt per bench lives in the module-level dict `_LAST` - PER PROCESS, NOT PERSISTED (a restart or a second worker forgets it; wb-3 / mis-1 persist
+MissionRun rows). Bench rows add board_count + breadboard_count; breadboard options add `outline` (width x height mm) and `fits` (one line over the boards on the bench);
+board options add `footprint` (a plain sentence from footprint_json).
 bench-options/breadboards rows add rail_power + fit_json {board: breadboard_fit}; bench-options/boards rows add arch, riscv, radios, radios_json, levels,
-footprint_json and take the knobs arch= (riscv|not-riscv|<family>) radio= (wifi|ble|802.15.4|thread|lora|none) level= (bare_c|freertos|zephyr; status yes only).
+footprint_json and take the knobs arch= (riscv|not-riscv|<family>) radio= (wifi|ble|802.15.4|thread|lora|none|unverified) level= (bare_c|freertos|zephyr; status yes only).
 An unknown bench, board or model is 404; a bad body 400.
 """
 import json
@@ -26,6 +32,7 @@ from board.custom import bench_seed as SEED
 from board.custom import chip_ladder as CL
 
 _MEM = {}   # the in-memory benches when no manager is given (selftests)
+_LAST = {}  # wb-2: bench name -> the last attempt result; per process, not persisted
 
 
 def _j(text, default):
@@ -134,7 +141,8 @@ def bench_rows(manager=None):
     out = []
     for b in benches(manager):
         br = board_rows(b, manager)
-        out.append({'name': b['name'], 'title': b['title'], 'boards': len(br), 'breadboards': sum(int(e.get('count') or 1) for e in _j(b.get('breadboards_json'), [])),
+        nbb = sum(int(e.get('count') or 1) for e in _j(b.get('breadboards_json'), []))
+        out.append({'name': b['name'], 'title': b['title'], 'boards': len(br), 'breadboards': nbb, 'board_count': len(br), 'breadboard_count': nbb,
                     'simulated_real_pins': len([r for r in br if r['testing_group'] == 'simulated']),
                     'simulated_stub_pins': len([r for r in br if r['testing_group'] == 'simulated-stub']),
                     'hardware_only': len([r for r in br if r['testing_group'] == 'hardware-only']),
@@ -143,7 +151,7 @@ def bench_rows(manager=None):
 
 
 ARCH_KNOBS = ('riscv', 'not-riscv')
-RADIO_KNOBS = ('wifi', 'ble', '802.15.4', 'thread', 'lora', 'none')
+RADIO_KNOBS = ('wifi', 'ble', '802.15.4', 'thread', 'lora', 'none', 'unverified')
 LEVEL_KNOBS = ('bare_c', 'freertos', 'zephyr')
 _RADIO_WORD = {'wifi': 'Wi-Fi', 'ble': 'BLE', '802.15.4': '802.15.4', 'thread': 'Thread', 'lora': 'LoRa', 'none': 'no radio', 'unverified': 'radio unverified'}
 _RT_OF = {'bare_c': 'bare-c', 'freertos': 'freertos', 'zephyr': 'zephyr'}
@@ -195,6 +203,17 @@ def _radios_text(rs):
     return '%s (module %s, %s)' % (' + '.join(parts), m.split(' (')[0] if m != 'unverified' else 'unverified', 'uncertified/unverified' if unv else c)
 
 
+def footprint_text(fp):
+    """A footprint_json as one plain sentence: '2 rows, 7 pitches apart, 16 pins/row - straddles', or 'unverified' when the numbers are -1."""
+    fp = fp or {}
+    rows, s, n = fp.get('rows', -1), fp.get('row_spacing_pitches', -1), fp.get('pins_per_row', -1)
+    if fp.get('straddles') is False:
+        return '%s, %s - beside the breadboard (not on a continuous 0.1 in grid)' % ('rows unverified' if rows in (-1, None) else '%s rows' % rows, 'pins/row unverified' if n in (-1, None) else '%s pins/row' % n)
+    if -1 in (rows, s, n) or None in (rows, s, n):
+        return 'unverified'
+    return '%s rows, %s pitches apart, %s pins/row - straddles' % (rows, s, n)
+
+
 def board_options(manager=None, bench_name='', arch='', radio='', level=''):
     b = bench(bench_name, manager) if bench_name else None
     on = {}
@@ -214,7 +233,7 @@ def board_options(manager=None, bench_name='', arch='', radio='', level=''):
         words = ' \u00b7 '.join('%s %s' % (l.replace('_', '-'), lv[l]['status']) for l in LEVEL_KNOBS)
         src = ', '.join(sorted({'RuntimeProfile' if v['basis'].startswith('RuntimeProfile') else 'chip ladder' for v in lv.values()}))
         rows.append(dict({k: v for k, v in info.items() if k != 'levels_chip'}, on_bench=on.get(key, 0), can_add=True, bench=bench_name, arch=info['family'],
-                         riscv=info['family'] == 'RISC-V', radios=_radios_text(rs), levels='%s (basis: %s)' % (words, src), levels_json=lv))
+                         riscv=info['family'] == 'RISC-V', radios=_radios_text(rs), footprint=footprint_text(info['footprint_json']), levels='%s (basis: %s)' % (words, src), levels_json=lv))
     return rows
 
 
@@ -223,6 +242,13 @@ def rail_power_text(m):
     if v == -1 and a == -1:
         return 'unverified'
     return '%s V / %s A (%s)' % ('?' if v == -1 else '%g' % v, '?' if a == -1 else '%g' % a, m.get('power_basis', ''))
+
+
+def _fit_words(f):
+    v = f.get('verdict')
+    if v == 'straddles':
+        return 'straddles, %s free holes/side' % f.get('free_holes_per_side')
+    return {'beside': 'beside', 'too-wide': 'too wide', 'too-long': 'too long (not enough rows)'}.get(v, 'unverified')
 
 
 def breadboard_options(manager=None, bench_name=''):
@@ -234,7 +260,9 @@ def breadboard_options(manager=None, bench_name=''):
     rows = []
     for m in models(manager):
         fit = {k: breadboard_fit((lb.get(k) or {}).get('footprint_json'), m) for k in dict.fromkeys(keys) if k}
-        rows.append(dict(m, geometry='known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('geometry_known') else 'UNVERIFIED - cannot be drawn or placed on yet',
+        fits = ' \u00b7 '.join('%s: %s' % (lb[k]['title'] if k in lb else k, _fit_words(v)) for k, v in fit.items()) or 'no boards on the bench yet'
+        outline = '%g x %g mm' % (m['width_mm'], m['height_mm']) if m.get('width_mm', -1) > 0 and m.get('height_mm', -1) > 0 else 'unverified'
+        rows.append(dict(m, outline=outline, fits=fits, geometry='known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('geometry_known') else 'UNVERIFIED - cannot be drawn or placed on yet',
                          on_bench=on.get(m['name'], 0), can_add=True, bench=bench_name, rail_power=rail_power_text(m), fit_json=fit))
     return rows
 
@@ -324,6 +352,10 @@ def get_door(manager, params, which, bench_name=''):
             if v and v not in allowed and v not in fams:
                 return 400, {'ok': False, 'error': 'unknown %s %r' % (k, v), 'allowed': list(allowed) + fams}
         return 200, {'ok': True, 'rows': board_options(manager, (params.get('bench') or SEED.HOME_BENCH).strip(), **knobs)}
+    if which in ('attempts', 'attempts-candidates', 'attempts-pruned'):
+        if bench(bench_name, manager) is None:
+            return 404, {'ok': False, 'error': 'no bench named %r' % bench_name, 'known': [x['name'] for x in benches(manager)]}
+        return 200, {'ok': True, 'bench': bench_name, 'rows': attempt_rows(bench_name, which)}
     if which == 'options-breadboards':
         return 200, {'ok': True, 'rows': breadboard_options(manager, (params.get('bench') or SEED.HOME_BENCH).strip())}
     b = bench(bench_name, manager)
@@ -372,8 +404,10 @@ def attempt(manager, bench_name, body):
     use = [k for k in keys if k in known]
     gone = [k for k in keys if k not in known]
     if not use:
-        return 200, {'ok': True, 'verdict': 'none', 'mission': mission, 'bench': bench_name, 'candidates': [], 'gap': [], 'pruned': [], 'run': {}, 'boards_used': [],
-                     'not_modelled': gone, 'why': 'no board on this bench has a SoC row the attempt engine models'}
+        out = {'ok': True, 'verdict': 'none', 'mission': mission, 'bench': bench_name, 'candidates': [], 'gap': [], 'pruned': [], 'run': {}, 'boards_used': [],
+               'not_modelled': gone, 'why': 'no board on this bench has a SoC row the attempt engine models'}
+        _LAST[bench_name] = out
+        return 200, out
     res = SOLVE.solve(mission, boards=use, limits={'max_candidates': 10}, manager=manager)
     w = res['chosen_candidate']
     if w and w['complete'] and w['meets_criteria'] and w.get('buildable_on_bench', True):
@@ -388,8 +422,32 @@ def attempt(manager, bench_name, body):
     if manager is not None:
         row = SR.store(manager, res, who='bench attempt')
         run['name'] = row.name
-    return 200, {'ok': True, 'verdict': verdict, 'mission': mission, 'bench': bench_name, 'boards_used': use, 'not_modelled': gone, 'candidates': cand,
-                 'gap': list(w['lost']) if (w and verdict != 'meets') else [], 'pruned': res['pruned_rows'], 'run': run}
+    out = {'ok': True, 'verdict': verdict, 'mission': mission, 'bench': bench_name, 'boards_used': use, 'not_modelled': gone, 'candidates': cand,
+           'gap': list(w['lost']) if (w and verdict != 'meets') else [], 'pruned': res['pruned_rows'], 'run': run}
+    _LAST[bench_name] = out
+    return 200, out
+
+
+def _s(v):
+    return ', '.join(str(x) for x in v) if isinstance(v, (list, tuple)) else ('' if v is None else str(v))
+
+
+def attempt_rows(bench_name, which):
+    """wb-2: the last stored attempt on `bench_name` as scalar-only rows (no stored attempt -> [])."""
+    a = _LAST.get(bench_name)
+    if not a:
+        return []
+    if which == 'attempts':
+        return [{'bench': bench_name, 'verdict': a['verdict'], 'mission': a['mission'], 'boards_used': _s(a['boards_used']) or 'none', 'not_modelled': _s(a['not_modelled']) or 'none',
+                 'candidates': len(a['candidates']), 'run_sha': (a.get('run') or {}).get('result_sha256', ''), 'why': a.get('why', '')}]
+    if which == 'attempts-candidates':
+        return [{'rank': c.get('rank'), 'board': c.get('board', ''), 'tier': _s(c.get('tier')), 'complete': 'yes' if c.get('complete') else 'no',
+                 'meets_criteria': 'yes' if c.get('meets_criteria') else 'no', 'buildable_on_bench': 'yes' if c.get('buildable_on_bench') else 'no',
+                 'routes': _s(c.get('routes_text')), 'pins_used': _s(c.get('pins_used')), 'unmet': _s(c.get('lost')) or 'none', 'parts_missing': _s(c.get('parts_missing')) or 'none'}
+                for c in a['candidates']]
+    rows = [{'what': 'gap', 'count': 1, 'where': a['mission'], 'reason': _s(g)} for g in a['gap']]
+    rows += [{'what': 'pruned: %s' % p.get('kind', ''), 'count': p.get('count', 1), 'where': _s(p.get('where')), 'reason': _s(p.get('reason'))} for p in a['pruned']]
+    return rows
 
 
 def post_door(manager, bench_name, which, body):

@@ -169,6 +169,108 @@ def run_wb0(check):
           and att['candidates'] and 'sense-led-line:gpio-poll' in att['candidates'][0]['routes_text'] and att['gap'] == [] and att['pruned'] and att['run']['result_sha256'], {k: att[k] for k in ('verdict', 'boards_used', 'not_modelled')})
 
 
+def _walk(node, out):
+    """Every dict/list node under `node`, collecting the strings under dataPath / path keys."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k in ('dataPath', 'data_path', 'path') and isinstance(v, str) and v.startswith('/api/'):
+                out.append(v)
+            _walk(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            _walk(v, out)
+
+
+def run_wb2(check):
+    """wb-2: /display/workbench, its door paths, the new plain-string columns, the attempts doors."""
+    import re
+    from board.custom import bench as B
+    from board.custom import bench_seed as S
+    from board.workbench_page import WORKBENCH_PAGES as W
+    from board.board_page import SEED_BOARD_PAGE_DISPLAYS as ALL
+    B._MEM.clear()
+    B._LAST.clear()
+    page = W[0]
+    d = json.loads(page['definition'])
+    keys = [t['key'] for t in d['tabs']]
+    check('wb-2 PAGE: /display/workbench exists in the board seeds with 4 tabs name / breadboards / boards / mission',
+          page['pageRoute'] == 'workbench' and page in ALL and keys == ['name', 'breadboards', 'boards', 'mission'], keys)
+    st = d['rows'][0]['items'][0]['componentProps']
+    steps = st['inputs']['steps']
+    check('wb-2 STEPS: a steps strip of 4 steps whose targets are the tab keys; steps 1-3 done on bench set, step 4 on attempt set',
+          st['componentName'] == 'steps' and [x['target'] for x in steps] == keys and [x['label'] for x in steps] == ['Name the bench', 'Breadboards', 'Dev / eval boards', 'Mission']
+          and all(x['done_when']['op'] == 'set' for x in steps) and steps[3]['done_when']['scope_key'] == '{scope:attempt}'
+          and all(x['done_when']['scope_key'] == '{scope:bench}' for x in steps[:3]), steps)
+    items = [it for t in d['tabs'] for r in t['rows'] for it in r['items']]
+    kinds = [it['componentProps']['componentName'] for it in items]
+    check('wb-2 PAGE: picker-buttons for Breadboards, Boards, Missions; the boards popup has the three facets arch / radio / level; Add has show_when_field can_add; the attempt action sets scope attempt from verdict',
+          kinds.count('picker-button') == 3
+          and [f['query_param'] for f in next(i for i in items if i['id'] == 'wb-pick-boards')['componentProps']['inputs']['popup']['facets']] == ['arch', 'radio', 'level']
+          and next(i for i in items if i['id'] == 'wb-pick-boards')['componentProps']['inputs']['popup']['action']['show_when_field'] == 'can_add'
+          and next(i for i in items if i['id'] == 'wb-pick-missions')['componentProps']['inputs']['popup']['action']['then_scope'] == {'key': 'attempt', 'from': 'verdict'}, kinds)
+    # every door path the page uses is a registered route
+    paths = []
+    _walk(d, paths)
+    api = open(__file__.replace('board_bench_setup_selftest.py', 'bench_api.py')).read()
+    mapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'cmod/cmod_mission_api.py')).read()
+    routes = re.findall(r"add\('([^']+)'", api) + re.findall(r"add\('([^']+)'", mapi)
+
+    def hits(path):
+        p = re.sub(r'\{scope:[^}]*\}', 'X', path.split('?')[0])
+        return any(re.fullmatch(re.sub(r'\{[^}]+\}', '[^/]+', r), p) for r in routes)
+    bad = [p for p in paths if not hits(p)]
+    check('wb-2 PATHS: every dataPath / action path in the page (%d) matches a route in bench_api.py or cmod_mission_api.py' % len(paths), paths and not bad, bad)
+    # new columns
+    st, bb = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-breadboards')
+    half = next(r for r in bb['rows'] if r['name'] == 'half-400')
+    kit = next(r for r in bb['rows'] if r['name'] == 'starter-kit-breadboard')
+    check('wb-2 COLUMNS breadboards: outline + fits are plain strings; half-400 fits says "Arduino Uno R3: beside" style per board, the kit outline is unverified; no bench -> "no boards on the bench yet"',
+          isinstance(half['outline'], str) and ' x ' in half['outline'] and kit['outline'] == 'unverified' and isinstance(half['fits'], str) and ': beside' in half['fits'] and ' \u00b7 ' in half['fits']
+          and all(r['fits'] == 'no boards on the bench yet' for r in B.get_door(None, {'bench': 'none-here'}, 'options-breadboards')[1]['rows']), (half['outline'], half['fits']))
+    st, bo = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-boards')
+    fp = {r['board']: r['footprint'] for r in bo['rows']}
+    check('wb-2 COLUMNS boards: footprint is a plain string; UNO says beside the breadboard; a board with no numbers says unverified; the radio knob accepts unverified',
+          all(isinstance(v, str) and v for v in fp.values()) and 'beside the breadboard' in fp['arduino-uno-r3'] and fp['elecrow-esp32-eval'] == 'unverified' and fp['esp32-c3-devkitm-1'] == 'unverified'
+          and B.get_door(None, {'radio': 'unverified'}, 'options-boards')[0] == 200
+          and all('unverified' in r['radios'] for r in B.get_door(None, {'radio': 'unverified'}, 'options-boards')[1]['rows']), list(fp.items())[:3])
+    st, bn = B.get_door(None, {}, 'benches')
+    row = bn['rows'][0]
+    check('wb-2 COUNTS: bench rows carry board_count and breadboard_count equal to boards / breadboards', row['board_count'] == row['boards'] and row['breadboard_count'] == row['breadboards'] and isinstance(row['board_count'], int), row)
+    from cmod.custom import mission_doors as D
+
+    class _R:
+        media = None
+
+    class _A:
+        manager = None
+
+        def _rows(self, c):
+            return []
+    r = _R()
+    D.missions_table(_A(), None, r)
+    m0 = r.media['rows'][0]
+    check('wb-2 COLUMNS missions: purposes_text is a plain string naming each purpose with its importance; purposes stays the count', isinstance(m0['purposes_text'], str) and 'initialization (required)' in m0['purposes_text'] and isinstance(m0['purposes'], int), m0['purposes_text'])
+    # attempts doors
+    st, none_yet = B.get_door(None, {}, 'attempts', S.HOME_BENCH)
+    check('wb-2 ATTEMPTS: before any attempt the three doors answer empty rows; an unknown bench is 404',
+          st == 200 and none_yet['rows'] == [] and B.get_door(None, {}, 'attempts-candidates', S.HOME_BENCH)[1]['rows'] == [] and B.get_door(None, {}, 'attempts-pruned', S.HOME_BENCH)[1]['rows'] == []
+          and B.get_door(None, {}, 'attempts', 'no-such')[0] == 404, none_yet)
+    st, att = B.post_door(None, S.HOME_BENCH, 'attempt', {'mission': 'uno-light-mission'})
+    st, summ = B.get_door(None, {}, 'attempts', S.HOME_BENCH)
+    st, cand = B.get_door(None, {}, 'attempts-candidates', S.HOME_BENCH)
+    st, prun = B.get_door(None, {}, 'attempts-pruned', S.HOME_BENCH)
+    s0 = summ['rows'][0]
+    scalar = all(isinstance(v, (str, int, float)) for rows in (summ['rows'], cand['rows'], prun['rows']) for r in rows for v in r.values())
+    check('wb-2 ATTEMPTS: after an attempt on home-bench the summary row has verdict meets / mission / boards_used / not_modelled / the run sha; candidates and pruned rows are listed; every cell is a scalar (no raw JSON)',
+          len(summ['rows']) == 1 and s0['verdict'] == 'meets' and s0['mission'] == 'uno-light-mission' and s0['boards_used'] == 'arduino-uno-r3' and 'elecrow-esp32-eval' in s0['not_modelled']
+          and s0['run_sha'] == att['run']['result_sha256'] and cand['rows'] and cand['rows'][0]['board'] == 'arduino-uno-r3' and cand['rows'][0]['meets_criteria'] == 'yes'
+          and prun['rows'] and all(r['reason'] for r in prun['rows']) and scalar, s0)
+    B.post_door(None, 'wb-test', 'create', {'name': 'wb-test'})
+    B.post_door(None, 'wb-test', 'attempt', {'mission': 'uno-light-mission'})
+    check('wb-2 ATTEMPTS: an empty bench stores verdict none (its own row, home-bench untouched)',
+          B.get_door(None, {}, 'attempts', 'wb-test')[1]['rows'][0]['verdict'] == 'none' and B.get_door(None, {}, 'attempts', S.HOME_BENCH)[1]['rows'][0]['verdict'] == 'meets', '')
+
+
 def main():
     fails = []
 
@@ -178,6 +280,7 @@ def main():
             fails.append(label)
     run_bench_setup(check)
     run_wb0(check)
+    run_wb2(check)
     print('bench setup selftest: %d failure(s)' % len(fails))
     return 1 if fails else 0
 

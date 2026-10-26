@@ -26,6 +26,9 @@ class BenchAPI(treeObject):
             add('/api/board/benches/{bench}/breadboards', self, suffix='breadboards')
             add('/api/board/benches/{bench}/attempt', self, suffix='attempt')
             add('/api/board/benches/{bench}/remove', self, suffix='remove')
+            add('/api/board/benches/{bench}/attempts', self, suffix='attempts')
+            add('/api/board/benches/{bench}/attempts/candidates', self, suffix='attempts_candidates')
+            add('/api/board/benches/{bench}/attempts/pruned', self, suffix='attempts_pruned')
             add('/api/board/bench-options/boards', self, suffix='options_boards')
             add('/api/board/bench-options/breadboards', self, suffix='options_breadboards')
 
@@ -83,3 +86,15 @@ class BenchAPI(treeObject):
     def on_get_options_breadboards(self, request, response):
         """bench-0: the breadboard selection list."""
         self._get(request, response, 'options-breadboards')
+
+    def on_get_attempts(self, request, response, bench):
+        """wb-2: the last attempt on this bench, one summary row (per process, not persisted)."""
+        self._get(request, response, 'attempts', bench)
+
+    def on_get_attempts_candidates(self, request, response, bench):
+        """wb-2: the last attempt's candidates."""
+        self._get(request, response, 'attempts-candidates', bench)
+
+    def on_get_attempts_pruned(self, request, response, bench):
+        """wb-2: the last attempt's gap and pruned branches with reasons."""
+        self._get(request, response, 'attempts-pruned', bench)

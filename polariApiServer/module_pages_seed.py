@@ -111,6 +111,14 @@ def _api(item_id, index, segments, title, path):
     }
 
 
+def _component(item_id, index, segments, title, component_name, inputs, description=''):
+    """wb-2: ANY registered generic component as a display item - `{type:'component', componentProps:{componentName, inputs}}`. The wb-1 kinds `cards`,
+    `picker-button` and `steps` use it (their `inputs` shapes are documented in class-rows-cards.ts); `{scope:key}` inside `inputs` (nested too) is filled by the
+    page. `description` - see `_table`."""
+    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None, 'title': title, 'description': description,
+            'visible': True, 'collapsed': False, 'cssClass': '', 'componentProps': {'componentName': component_name, 'inputs': inputs}, 'item': None, 'nestedRows': []}
+
+
 def _sapi(item_id, index, segments, title, path, pick='', hide='',
           description=''):
     """A GET payload through the generic STRUCTURED reading (chips /
