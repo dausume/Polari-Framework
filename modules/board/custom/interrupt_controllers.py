@@ -58,11 +58,13 @@ CONTROLLERS = [
          notes='Named here so an ESP32-P4 / CLIC chip has a row; every field beyond the CSR names is unverified until the spec is read.'),
     _row('riscv-hazard3', 'RISC-V: Hazard3 (RP2350) - standard mie/mip plus its own interrupt-priority extension', 'riscv',
          global_enable='mstatus.MIE', per_source_enable='mie + the Xh3irq per-IRQ enables', pending='mip + the Xh3irq pending array',
-         vector_mode='mtvec (direct / vectored)', cause='mcause', priority_levels=-1, nesting='unverified', entry_latency_cycles=-1, exit_instruction='mret',
+         vector_mode='mtvec (direct / vectored)', cause='mcause', priority_levels=16, priority_0_meaning='the Pico SDK keeps Arm\'s inverted order on Hazard3: 0 = highest, 255 = lowest, top 4 bits significant',
+         nesting='unverified', entry_latency_cycles=-1, exit_instruction='mret',
          timer_source='machine timer (mtime / mtimecmp)', external_source='Xh3irq (Hazard3\'s external interrupt controller extension)',
          idle_instruction='wfi', cycle_counter='mcycle (Zicsr present)', max_sources=-1, spec_openness='open',
          citation='%s: RV32I or RV32E; optional M, A, C, Zicsr, Zilsd, Zba, Zbb, Zbc, Zbs, Zbkb, Zbkx, Zcb, Zclsd, Zcmp; Machine + User + Debug modes; '
-                  'wfi; PMP up to 16 regions; the RP2350 configuration = 4.15 CoreMark/MHz' % _HZ3,
+                  'wfi; PMP up to 16 regions; the RP2350 configuration = 4.15 CoreMark/MHz. Priority levels: Pico SDK docs irq_set_priority (read 2026-10-27): "Only the top 4 bits '
+                  'are significant on ARM Cortex-M33 or Hazard3 (RISC-V) on RP2350" = 16 levels, 0 the highest' % _HZ3,
          to_read='RP2350 datasheet, the Hazard3 chapter (Xh3irq: IRQ count, priority levels, preemption, entry latency) - NOT read today',
          notes='The Readme names no licence; the ladder row cites Apache-2.0 (memory riscv-cores-reference).'),
     _row('riscv-esp32c3-matrix', 'RISC-V: ESP32-C3 interrupt matrix (Espressif core)', 'riscv',
@@ -75,9 +77,13 @@ CONTROLLERS = [
          global_enable='SREG I bit (sei / cli) = mstatus.MIE', per_source_enable='each peripheral\'s enable bit (e.g. UCSR0B.RXCIE0) = mie',
          pending='each peripheral\'s flag bit (e.g. UCSR0A.RXC0) = mip', vector_mode='fixed vector table at program address 0x0000 (vectored only) = mtvec vectored',
          cause='implied by the vector taken = mcause', priority_levels=-1, priority_0_meaning='priority is the vector order: the lower address wins',
-         nesting='software', entry_latency_cycles=-1, exit_instruction='reti', timer_source='TIMER0/1/2 compare / overflow vectors', external_source='INT0 / INT1 / PCINT',
+         nesting='software', entry_latency_cycles=4, exit_instruction='reti (4 clock cycles: PC popped, SP += 2, I bit set)', timer_source='TIMER0/1/2 compare / overflow vectors',
+         external_source='INT0 / INT1 / PCINT',
          idle_instruction='sleep', cycle_counter='none on the chip (the simavr twin\'s own counter: board.custom.cycle_measure)', max_sources=-1, spec_openness='closed',
-         citation='', to_read='ATmega328P datasheet DS40002061B, "Reset and Interrupt Handling" + "Interrupt Response Time" (minimum entry cycles, reti cycles, vector count) - NOT read today',
+         citation='ATmega48PB/88PB/168PB datasheet (Microchip online docs, read 2026-10-27) section 12.7.1 "Interrupt Response Time": "four clock cycles minimum" (the PC is '
+                  'pushed, then the vector executes; the vector\'s jump takes three more cycles; an instruction in progress finishes first; +4 cycles from sleep); reti = four '
+                  'clock cycles. The SAME AVR CPU core section as the ATmega328P\'s; the 328P\'s own page (DS40002061B) was not read today',
+         to_read='ATmega328P datasheet DS40002061B "Reset and Interrupt Handling" (to confirm the 328P page word for word; the vector count)',
          notes='The I bit is cleared on entry and a handler may set it again (software nesting). Closed core, public datasheet, open tooling (avr-gcc, avr-libc, avrdude, simavr).'),
     _row('arm-nvic', 'Arm Cortex-M NVIC', 'arm-m',
          global_enable='PRIMASK (cpsie i / cpsid i) = mstatus.MIE; BASEPRI masks below a level', per_source_enable='NVIC_ISER / ICER = mie', pending='NVIC_ISPR / ICPR = mip',

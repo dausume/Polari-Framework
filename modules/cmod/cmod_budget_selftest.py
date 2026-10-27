@@ -54,8 +54,10 @@ def facts():
     check('ipb-0 FACTS: the PLIC row carries what was READ (ratified spec: priority 0 = never, no nesting, 1023 sources) with its citation',
           plic['nesting'] == 'none' and plic['max_sources'] == 1023 and 'never interrupt' in plic['priority_0_meaning'] and 'riscv-plic-spec' in plic['citation'])
     avr = IC.controller('avr-vectors')
-    check('ipb-0 FACTS: the AVR adaptation row answers the RISC-V questions in its own names (SREG I = MIE, reti, sleep) and keeps its unread numbers -1 with to_read',
-          'mstatus.MIE' in avr['global_enable'] and avr['exit_instruction'] == 'reti' and avr['entry_latency_cycles'] == -1 and 'DS40002061B' in avr['to_read'])
+    check('ipb-0 FACTS: the AVR adaptation row answers the RISC-V questions in its own names (SREG I = MIE, reti, sleep); entry latency 4 cycles CITED to the AVR core '
+          'section read (the PB datasheet; the 328P page named in to_read); Hazard3 16 priority levels cited to the Pico SDK',
+          'mstatus.MIE' in avr['global_enable'] and avr['exit_instruction'].startswith('reti') and avr['entry_latency_cycles'] == 4 and 'four clock cycles minimum' in avr['citation']
+          and 'DS40002061B' in avr['to_read'] and IC.controller('riscv-hazard3')['priority_levels'] == 16 and 'top 4 bits' in IC.controller('riscv-hazard3')['citation'])
     uno, s3, pico, qemu = IC.facts_for_board('arduino-uno-r3'), IC.facts_for_board('elecrow-esp32-eval'), IC.hart_facts('rp2350'), IC.hart_facts('qemu-virt-rv32')
     check('ipb-0 FACTS: harts per processor - UNO 1 (16 MHz cited to the cycle record), S3 2, RP2350 2 Hazard3, QEMU virt configurable (-1) and fully open',
           uno['harts'] == 1 and uno['clock_hz'] == 16000000 and 'cycle record' in uno['clock_citation'] and s3['harts'] == 2 and pico['harts'] == 2
