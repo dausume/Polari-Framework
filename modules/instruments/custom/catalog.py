@@ -206,6 +206,9 @@ def get_door(manager, params, which, bench_name=''):
     if which == 'testability':          # osc-6: GET with the needs as query params
         from instruments.custom import testability as T
         return T.door(manager, bench_name, dict(params))
+    if which == 'units':                # osc-8: the bench's instruments as UNITS with probes + endpoint status
+        from instruments.custom import placement as P
+        return P.units_door(manager, bench_name)
     return 404, {'ok': False, 'error': 'unknown door'}
 
 
@@ -219,6 +222,9 @@ def post_door(manager, bench_name, which, body):
     if which == 'testability':          # osc-6: POST with the needs as the body
         from instruments.custom import testability as T
         return T.door(manager, bench_name, body)
+    if which in ('probe', 'simulate', 'stop'):   # osc-8: a unit's channel on a bench line; every probed unit emulated + fed from a stimulus; stop them
+        from instruments.custom import placement as P
+        return {'probe': P.probe, 'simulate': P.simulate, 'stop': lambda m, b, _body: P.stop_all(m, b)}[which](manager, bench_name, body)
     return 404, {'ok': False, 'error': 'unknown door'}
 
 

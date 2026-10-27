@@ -48,6 +48,7 @@
   "selftests": [
    "instruments_capture_selftest",
    "instruments_dialects_selftest",
+   "instruments_placement_selftest",
    "instruments_selftest",
    "instruments_worker_selftest"
   ],
@@ -59,6 +60,7 @@
    "custom/emulator",
    "custom/emulator_tek",
    "custom/lineage",
+   "custom/placement",
    "custom/scope_engines",
    "custom/scpi",
    "custom/sources",

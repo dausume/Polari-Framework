@@ -23,6 +23,12 @@ osc-6 (signal kinds + testability):
     GET  /api/instruments/signal-kinds                the analog / digital / differential taxonomy (board.custom.signal_kinds) as rows
     GET|POST /api/instruments/bench/{bench}/testability   needs {analog, digital, differential, bandwidth_hz, sample_rate_sps, bits, repetitive, same_instant} as query or body
                                                       -> 200 {ok, rows (one per need: verdict ok | caveat | no + why), verdict, cost, units, options}
+osc-8 (instruments.custom.placement - units with probes, used in simulation):
+    GET  /api/instruments/bench/{bench}/units         one row per UNIT (<bench>-<model>-<n>): probes, endpoint status, the emulator profile (model | stand-in)
+    POST /api/instruments/bench/{bench}/probe         {model, unit, channel, line} -> 201 a ScopeChannel row (line '' clears it); refuses a channel the model lacks
+    POST /api/instruments/bench/{bench}/simulate      {stimulus | events (+cps, seconds), units?} -> 200 one row per unit: emulator (re)started on its profile and
+                                                      fed from the probes (a bad line refused naming the known ones); alignment exact by construction (said)
+    POST /api/instruments/bench/{bench}/stop          -> 200 stops the bench's running unit emulators
 """
 import json
 
@@ -55,6 +61,10 @@ class InstrumentsAPI(treeObject):
             add('/api/instruments/captures/{acq}/chart', self, suffix='chart')
             add('/api/instruments/signal-kinds', self, suffix='signal_kinds')
             add('/api/instruments/bench/{bench}/testability', self, suffix='testability')
+            add('/api/instruments/bench/{bench}/units', self, suffix='units')
+            add('/api/instruments/bench/{bench}/probe', self, suffix='probe')
+            add('/api/instruments/bench/{bench}/simulate', self, suffix='simulate')
+            add('/api/instruments/bench/{bench}/stop', self, suffix='bench_stop')
 
     def _get(self, request, response, which, bench=''):
         from instruments.custom import catalog as C
@@ -96,6 +106,19 @@ class InstrumentsAPI(treeObject):
 
     def on_post_testability(self, request, response, bench):
         self._post(request, response, 'testability', bench)
+
+    # ---------------------------------------------------------------- osc-8
+    def on_get_units(self, request, response, bench):
+        self._get(request, response, 'units', bench)
+
+    def on_post_probe(self, request, response, bench):
+        self._post(request, response, 'probe', bench)
+
+    def on_post_simulate(self, request, response, bench):
+        self._post(request, response, 'simulate', bench)
+
+    def on_post_bench_stop(self, request, response, bench):
+        self._post(request, response, 'stop', bench)
 
     # ---------------------------------------------------------------- osc-3
     def _body(self, request, response):

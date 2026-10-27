@@ -69,7 +69,9 @@ def _signals_tab():
                         description='Channels only - never bandwidth, bits or rate. The price is the Instrument row\'s (cited, or unverified); openness and data access say how open the unit '
                                     'is and how Polari would get its samples. GET %s?view=options (the same door; the options list rides on every answer).' % _TEST,
                         columns='title,adds_analog,adds_digital,bandwidth_hz,bits,price_usd,openness,data_access,helps', data_path=_TEST + '?analog=1')], min_height=240)],
-        description='Signal kinds (analog / digital / differential) and whether the bench\'s instruments, together, can measure a test\'s needs.')
+        description='Signal kinds (analog / digital / differential) and whether the bench\'s instruments, together, can measure a test\'s needs. To place each unit\'s probes '
+                    'on bench lines and use the units in simulation, open the Workbench\'s Instruments step (/display/workbench, step 4: units table + probe / simulate forms); '
+                    'the emulated units then appear here as endpoints to capture and chart.')
 
 
 def _models_tab():

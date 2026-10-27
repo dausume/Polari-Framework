@@ -129,6 +129,26 @@ def _instrument_cards():
             'empty_text': 'No instrument models on this instance.'}
 
 
+def _probe_form():
+    """osc-8: one channel of one UNIT onto a bench LINE (a board pin / net the pin view knows)."""
+    return {'fields': [{'name': 'model', 'label': 'Model on the bench (an Instrument name, e.g. jyetech-dso138)', 'required': True},
+                       {'name': 'unit', 'label': 'Unit number (1..count; blank = 1)'},
+                       {'name': 'channel', 'label': 'Channel (1..the model\'s analog channels)', 'required': True},
+                       {'name': 'line', 'label': 'Bench line the probe is on (PD2, adc0, PD6 ...; blank = take the probe off)'}],
+            'action': {'label': 'Probe', 'method': 'POST', 'path': _INSTR + '/probe',
+                       'body_template': {'model': '{model}', 'unit': '{unit}', 'channel': '{channel}', 'line': '{line}'}},
+            'submit_label': 'Put the probe on the line', 'success_text': 'Probed - the units table shows it; a channel the model does not have is refused by name.'}
+
+
+def _simulate_form():
+    """osc-8: every probed unit emulated on its profile and fed from a stimulus - alignment exact by construction (said on every row)."""
+    return {'fields': [{'name': 'stimulus', 'label': 'Stimulus (a cycle_stimuli variant, e.g. uno-light)', 'required': True},
+                       {'name': 'units', 'label': 'Units (comma list of unit names; blank = every probed unit)'}],
+            'action': {'label': 'Simulate', 'method': 'POST', 'path': _INSTR + '/simulate', 'body_template': {'stimulus': '{stimulus}', 'units': '{units}'}},
+            'submit_label': 'Simulate the bench\'s instruments', 'success_text': 'Started - each probed unit is an emulated endpoint fed from the stimulus; '
+                                                                                  'capture and chart them on /display/instruments (Capture / Chart tabs).'}
+
+
 def _instruments_tab():
     return _tab('instruments', 'Instruments', [
         _row(0, [_component('wb-pick-instruments', 0, 12, '', 'picker-button',
@@ -139,8 +159,22 @@ def _instruments_tab():
         _row(1, [_table('wb-bench-instruments', 0, 12, 'Instruments on this bench', '',
                         description='One row per instrument model on the chosen bench with how many of it, its channels and bandwidth, and whether the emulator can stand in. Remove takes one off.',
                         columns='title,count,channels,bandwidth,emulator,note', data_path=_INSTR + '?' + _REV, empty_text=_PICK,
-                        row_action={'label': 'Remove', 'method': 'POST', 'path': _INSTR + '/remove', 'body_template': {'model': '{model}'}})], min_height=220)],
-        description='Choose the instruments on the bench - an oscilloscope first.')
+                        row_action={'label': 'Remove', 'method': 'POST', 'path': _INSTR + '/remove', 'body_template': {'model': '{model}'}})], min_height=220),
+        # osc-8: the same entries as UNITS - each with its probes, its endpoint and the emulator profile that stands in for it
+        _row(2, [_table('wb-bench-units', 0, 12, 'Units on this bench - each one its own instrument', '',
+                        description='A count of 2 is two UNITS (<bench>-<model>-<n>), each with its own probes and its own emulated endpoint. "stand-in (capability only)" '
+                                    'means the emulator has the model\'s cited limits (channels, bits, sample rate, depth) but speaks Polari\'s SCPI dialect, not the '
+                                    'instrument\'s own protocol - honest until the model\'s adapter exists (osc-7). GET %s/units.' % _INSTR,
+                        columns='unit,title,channels,probes,endpoint_status,port,profile,profile_kind', data_path=_INSTR + '/units?' + _REV, empty_text=_PICK,
+                        select_field='unit', select_scope='unit', selected_value='{scope:unit}')], min_height=220),
+        _row(3, [_component('wb-probe', 0, 6, 'Put a probe on a bench line', 'door-form', _probe_form(),
+                            description='Which line a unit\'s channel is on. The signal kind (analog / digital) follows the pin view\'s vocabulary: a port bit is a level, an ADC line '
+                                        'a voltage. The feed refuses a line the stimulus does not drive and names the ones it does.'),
+                 _component('wb-simulate', 1, 6, 'Use the instruments in simulation', 'door-form', _simulate_form(),
+                            description='Starts one emulator per probed unit on its profile and feeds every probe from the stimulus. In simulation every unit shares the stimulus '
+                                        'clock, so the units are aligned exactly BY CONSTRUCTION; on real units channels add up only with a shared trigger (testability).')],
+             min_height=320)],
+        description='Choose the instruments on the bench - an oscilloscope first - then place each unit\'s probes and use them in simulation.')
 
 
 def _mission_cards():
@@ -172,7 +206,7 @@ WORKBENCH_PAGES = [
     _page('workbench', 'workbench',
           'The workbench walkthrough: name a bench, add breadboards, dev / eval boards and instruments from card pickers, then attempt a Mission on it. Doors: /api/board/benches, '
           '/api/board/bench-options/breadboards|boards, /api/board/benches/{bench}/boards|breadboards|remove|attempt|attempts, /api/instruments/bench-options, '
-          '/api/instruments/bench/{bench}|add|remove, /api/missions.',
+          '/api/instruments/bench/{bench}|add|remove|units|probe|simulate, /api/missions.',
           'Bench', [_steps_row()], title='The workbench',
           tabs=[_name_tab(), _breadboards_tab(), _boards_tab(), _instruments_tab(), _mission_tab()]),
 ]

@@ -27,7 +27,7 @@ from instruments.custom import lineage as L
 from instruments.custom import sources as SRC
 
 INLINE_LIMIT = 2 * 1024 * 1024      # bytes of payload kept inline on a dev instance (1 Mpt of WORD data)
-_MEM = {'InstrumentEndpoint': {}, 'WaveformCapture': {}}
+_MEM = {'InstrumentEndpoint': {}, 'WaveformCapture': {}, 'ScopeChannel': {}}     # ScopeChannel: osc-8's probes (instruments.custom.placement)
 _EMUS = {}      # endpoint name -> Emulator (this process)
 _lock = threading.Lock()
 _E_FIELDS = ('name', 'instrument', 'transport', 'address', 'port', 'resource', 'status', 'last_idn', 'checked_at', 'note')
@@ -52,8 +52,8 @@ def _upsert(manager, cls, fields, row):
     if manager is None:
         _MEM[cls][row['name']] = dict(row)
         return row
-    from instruments.instruments_basis import InstrumentEndpoint, WaveformCapture
-    klass = {'InstrumentEndpoint': InstrumentEndpoint, 'WaveformCapture': WaveformCapture}[cls]
+    from instruments.instruments_basis import InstrumentEndpoint, WaveformCapture, ScopeChannel
+    klass = {'InstrumentEndpoint': InstrumentEndpoint, 'WaveformCapture': WaveformCapture, 'ScopeChannel': ScopeChannel}[cls]
     table = (manager.objectTables or {}).setdefault(cls, {})
     hit = next((r for r in table.values() if getattr(r, 'name', '') == row['name']), None)
     if hit is None:
@@ -127,7 +127,9 @@ def start_emulator(manager, body):
         return 400, {'ok': False, 'error': 'no emulator profile %r' % profile, 'known': sorted(PROFILES)}
     name = str(body.get('name') or 'emu-%s-%d' % (profile, len(_EMUS) + len(_REMOTE) + 1)).strip()
     if endpoint(manager, name) is not None:
-        return 409, {'ok': False, 'error': 'an endpoint named %r already exists' % name}
+        # osc-8: `restart` REUSES a stopped unit's endpoint row (same name, new port / session) so a bench simulated twice has no duplicate endpoints
+        if not (body.get('restart') and name not in _EMUS and _on_worker(name) is None):
+            return 409, {'ok': False, 'error': 'an endpoint named %r already exists' % name}
     where = SE.resolve(str(body.get('where') or 'auto'))
     if where['how'] == 'refused':
         return 502, {'ok': False, 'error': where['why'], 'where': where}
@@ -290,7 +292,12 @@ def capture(manager, name, body):
         wanted = body.get('channels')
         if not wanted and str(body.get('channels_text') or '').strip():      # the page's door-form sends the typed comma list
             wanted = [c for c in str(body['channels_text']).split(',') if c.strip()]
-        channels = [int(c) for c in (wanted or [1, 2, 3, 4])]
+        if not wanted:      # osc-8: blank = every channel the endpoint's MODEL has (a one-channel DSO138 stand-in is asked for channel 1 only)
+            from instruments.custom import catalog as C
+            m = next((m for m in C.models(manager) if m['name'] == e.get('instrument', '')), None)
+            nch = int((m or {}).get('channels') or -1)
+            wanted = list(range(1, (nch if 0 < nch <= 4 else 4) + 1))
+        channels = [int(c) for c in wanted]
         max_points = int(body['max_points']) if body.get('max_points') not in (None, '') else None
     except (TypeError, ValueError):
         return 400, {'ok': False, 'error': 'channels must be whole numbers and max_points a whole number'}
