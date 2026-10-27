@@ -155,22 +155,23 @@ def signals_and_testability():
           'software GPLv3 said and the hardware licence unverified said, price = the 2019 campaign with availability unverified, not emulated',
           sf['channels'] == 2 and sf['resolution_bits'] == 10 and sf['bandwidth_hz'] == 100e6 and json.loads(sf['sample_rate_by_channels_json']) == {'1': 500e6, '2': 250e6}
           and sf['ets_sample_rate_sps'] == 2e9 and sf['memory_depth_pts'] == 128e6 and sf['digital_channels'] == 12 and sf['digital_max_rate_sps'] == 250e6 and sf['lineage'] == 'none'
-          and json.loads(sf['transports_json'])[0]['name'] == 'usb3' and 'GPLv3' in sf['openness'] and 'unverified' in sf['openness'] and sf['price_usd'] == 899 and 'unverified' in sf['price_basis']
+          and json.loads(sf['transports_json'])[0]['name'] == 'usb3' and 'GPLv3' in sf['openness'] and 'CERN OHL' in sf['openness'] and sf['openness'].startswith('OPEN - ADMITTED')
+          and 'not read' in sf['openness'] and sf['price_usd'] == 899 and 'unverified' in sf['price_basis']
           and sf['emulated'] is False and Instrument(**sf).lineage == 'none')
     check('osc-6 DSO138: 1 channel, 200 kHz, 1 MSa/s, 12 bits, 1024 points, 1 MOhm / 20 pF, 10 mV..5 V/div, 10 us..500 s/div (the manual\'s table quoted in the citation), serial-text '
           'transport said third-party, openness PARTLY with the closed library named and no licence found, price -1 with the 2015 report only in its basis, the MCU read off the schematic',
           dso['channels'] == 1 and dso['bandwidth_hz'] == 200e3 and dso['sample_rate_sps'] == 1e6 and dso['resolution_bits'] == 12 and dso['memory_depth_pts'] == 1024
           and dso['input_impedance_ohm'] == 1e6 and dso['input_capacitance_pf'] == 20 and dso['sensitivity_min_v_div'] == 10e-3 and dso['sensitivity_max_v_div'] == 5
           and dso['timebase_min_s_div'] == 10e-6 and dso['timebase_max_s_div'] == 500 and '"Max realtime sample rate 1MSa/s"' in dso['citation'] and 'STM32F103Cx' in dso['citation']
-          and json.loads(dso['transports_json'])[0]['name'] == 'serial-text' and 'third-party' in json.loads(dso['transports_json'])[0]['basis'] and dso['openness'].startswith('PARTLY')
-          and 'libdso138.a' in dso['openness'] and dso['price_usd'] == -1 and '2015' in dso['price_basis'] and dso['emulated'] is False)
+          and json.loads(dso['transports_json'])[0]['name'] == 'serial-text' and 'third-party' in json.loads(dso['transports_json'])[0]['basis'] and dso['openness'].startswith('OPEN - ADMITTED')
+          and 'commercial product' in dso['openness'] and 'libdso138.a' in dso['openness'] and dso['price_usd'] == -1 and '2015' in dso['price_basis'] and dso['emulated'] is False)
     rows = {r['name']: r for r in C.model_rows(None)}
     check('osc-6 TEXT: the signals words derive from the numbers (ScopeFun analog x2 + digital x12 at 250 MSa/s + A - B + ETS; the DSO138 one channel, digital on the spare channel, no '
           'differential; the DHO804 analog x4, A - B); openness and data access are on the card',
           rows['scopefun']['signals'] == 'analog x2; digital x12 (logic inputs at 250 MSa/s); differential: by A - B of two analog channels; ETS 2 GSa/s for repetitive signals'
           and rows['jyetech-dso138']['signals'] == 'analog x1; digital: on a spare analog channel (no logic inputs); differential: no (one channel, no native input)'
           and rows['rigol-dho804']['signals'] == 'analog x4; digital: on a spare analog channel (no logic inputs); differential: by A - B of two analog channels'
-          and rows['scopefun']['openness_text'].startswith('software GPLv3') and 'serial text dump' in rows['jyetech-dso138']['data_access_text'], rows['scopefun']['signals'])
+          and rows['scopefun']['openness_text'].startswith('OPEN - ADMITTED') and 'serial text dump' in rows['jyetech-dso138']['data_access_text'], rows['scopefun']['signals'])
     check('osc-6 KINDS: the axis rides on the pin view\'s family vocabulary (every family mapped: usb -> differential, analog -> analog, the rest digital, power / ground not signals); '
           'ADC0 / INT1 / USB_D+ / VCC classify; SystemLink and task kinds map onto the same words',
           {r['kind'] for r in C.signal_kind_rows()} == set(SK.SIGNAL_KINDS) and SK.kind_of('ADC0')[0] == 'analog' and SK.kind_of('INT1')[0] == 'digital'

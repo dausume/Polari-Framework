@@ -76,8 +76,8 @@ SCOPEFUN = {
                 '(125 MHz max toggle), interface voltage 1.25-3.3 V, inputs accept up to 5 V, Xilinx Artix-7 XC7A35T, 512 MB DDR3, Cypress FX3; %s' % (_SF_SITE, _SF_CS, _SF_GL),
     'emulated': False, 'emulator_profile': '',
     'digital_channels': 12, 'digital_max_rate_sps': 250e6, 'differential_inputs': 0, 'ets_sample_rate_sps': 2.0e9,
-    'openness': 'software GPLv3 (COPYING.TXT read); hardware + FPGA firmware: "completely open source" (campaign page) but NO licence name found on the site, the campaign page or the '
-                'GitLab group - unverified until a hardware repository\'s licence file is read',
+    'openness': 'OPEN - ADMITTED (his ruling 2026-10-27: "GPLv3 is sufficient, the hardware is under the CERN OHL"): software GPLv3 (COPYING.TXT read); hardware CERN OHL by his statement '
+                '(the variant S / W / P and the hardware repository\'s licence file not read: to_read)',
     'data_access': 'its own USB 3.0 protocol through the GPLv3 host software (no SCPI): Polari would read its saved captures or wrap the software - a later adapter (osc-7); not built',
     'note': 'OPEN SOURCE pick 1 (his ask): 2 analog + 12 digital channels on an Artix-7, PC-hosted. Price is the 2019 campaign\'s; availability today unverified.'}
 
@@ -103,11 +103,13 @@ DSO138 = {
                 'filter differs between the JYE board (C8 120 pF: -3 dB at 11 MHz) and a clone (100 nF: 13.3 kHz) - so the EFFECTIVE bandwidth depends on the board' % (_DSO_MAN, _DSO_PAGE, _DSO_TOM),
     'emulated': False, 'emulator_profile': '',
     'digital_channels': 0, 'digital_max_rate_sps': -1.0, 'differential_inputs': 0, 'ets_sample_rate_sps': -1.0,
-    'openness': 'PARTLY open: the product page offers "Source Code: Basic version" and the LCD-board schematic (the main schematic is in the manual); the third-party page says most '
-                'functionality sits in a precompiled closed library (libdso138.a); NO licence named on the product page or in the source zip\'s listing - unverified. The alternative '
-                'firmware DLO-138 (github ardyesp/DLO-138, Arduino build, 2 analog + 2 digital channels, serial output) shows NO licence file either (read 2026-10-27)',
+    'openness': 'OPEN - ADMITTED (his ruling 2026-10-27: "gives sufficient permissions to be both open source and allows resale"): the JYE Tech source readme (seen through the gitee '
+                'mirror HEYAHONG/DSO138, 2026-10-27) says "free software ... NO WARRANTY ... use, modify, and redistribute it for personal, non-profit, or commercial product UNDER YOUR '
+                'OWN RESPONSIBILITY ... Redistributions of source codes must retain the above copyright notice" - no SPDX licence name; the product page offers "Source Code: Basic '
+                'version" + the LCD-board schematic (the main schematic is in the manual); a third-party page says most functionality sits in a precompiled library (libdso138.a). '
+                'The alternative firmware DLO-138 (github ardyesp/DLO-138, Arduino build, 2 analog + 2 digital channels, serial output) shows NO licence file (read 2026-10-27)',
     'data_access': 'serial text dump of the 1024-point record on HOLD (115200 8N1, one-way; third-party description) - a serial adapter into the canonical capture is osc-7; not built',
-    'note': 'OPEN SOURCE pick 2 (his ask): the cheapest real instrument that could stand on the bench; 1 channel, 200 kHz, 1 MSa/s, 12 bits. Its openness is PARTIAL and said so.'}
+    'note': 'OPEN SOURCE pick 2 (his ask): the cheapest real instrument that could stand on the bench; 1 channel, 200 kHz, 1 MSa/s, 12 bits. Admitted by his ruling; the readme\'s own words are the terms.'}
 
 
 SEED_INSTRUMENTS = [
