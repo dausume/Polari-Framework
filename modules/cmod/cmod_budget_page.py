@@ -13,8 +13,9 @@ _F = '/api/hart-facts'
 
 _POLL_COLS = 'hart,atom_short,task,trigger,wanted_response_ms,poll_divider,cycles_min,cycles_max,cost_per_scan_cycles,calls_measured,basis'
 _INT_COLS = 'hart,vector,task,source,how,expected_rate_hz,rate_basis,priority_level,nests,length_min,length_max,length_mean,latency_max,utilisation,defers_to,basis'
-_DER_COLS = 'hart,label,polls_per_scan,scan_cycles,measured_worst_gap_cycles,scan_ms,scan_deadline_ms,scan_deadline_basis,scan_utilisation,isr_utilisation,headroom,worst_latency_cycles,unknown_poll_costs'
-_HART_COLS = 'hart,label,board,soc,isa,controller,nesting,clock_hz,schedule_model,polls,interrupts,threads,headroom,openness,notes'
+_DER_COLS = ('hart,label,polls_per_scan,scan_cycles,measured_worst_gap_cycles,scan_ms,scan_deadline_ms,scan_deadline_basis,scan_utilisation,isr_utilisation,headroom,'
+             'poll_cycle_cycles,poll_cycle_ms,poll_cycle_verdict,poll_cycle_why,poll_cycle_inflated_cycles,poll_cycle_missing,worst_latency_cycles,unknown_poll_costs')
+_HART_COLS = 'hart,label,board,soc,isa,controller,nesting,clock_hz,schedule_model,polls,interrupts,threads,headroom,poll_cycle_ms,poll_cycle_verdict,lockstep,mirror_of,parallelism,openness,notes'
 _SUG_COLS = 'hart,kind,severity,suggestion,evidence'
 
 _INTRO = ('What a scan is: one pass of all the polls (the main loop on bare C; a thread\'s own loop on an RTOS). Interrupts do not wait for gaps between polls - '
@@ -40,8 +41,10 @@ def _two_columns(prefix, base, who):
                         description='One row = one hart. scan_cycles = the bound (each poll\'s max / divider, once per atom, + the quiet pass); measured_worst_gap_cycles = what the twin '
                                     'actually saw between two visits of the poll point (the evidence beside the bound); scan_ms at the clock; scan_deadline_ms (knob; default = the '
                                     'shortest wanted response / 2, said in its basis); scan_utilisation = scan_ms / deadline; isr_utilisation = the sum of the interrupt rows\' utilisation; '
-                                    'headroom = 1 - both (negative = the scan cannot meet its deadline); worst_latency_cycles stays -1 until the entry latency is cited and a masked window '
-                                    'is measured. GET %s?view=derived.' % base,
+                                    'headroom = 1 - both (negative = the scan cannot meet its deadline); poll_cycle_cycles / _ms = the hart\'s standard PollCycle: the WORST CASE of every poll '
+                                    'once at its max (dividers ignored) + every interrupt once at its max length + entry latency + the quiet pass - with its verdict (one PollCycle must fit '
+                                    'twice in the shortest wanted response), poll_cycle_missing naming what keeps it -1, and the rate-aware bound polls / (1 - isr_utilisation); '
+                                    'worst_latency_cycles stays -1 until the entry latency is cited and a masked window is measured. GET %s?view=derived.' % base,
                         columns=_DER_COLS, data_path=base + '?view=derived')], min_height=240),
         _row(2, [_table(prefix + '-checks', 0, 6, 'The 2x check per poll', 'HardwareMission',
                         description='A polled input must be scanned at least twice as fast as it must be answered: ok | miss | unknown, with why. GET %s?view=checks.' % base,
@@ -96,6 +99,17 @@ def _facts_tab():
                                     'take instructions (an LP core is not counted until its ISA row is read; "configurable" for the virtual machine); openness = ISA / core RTL / '
                                     'silicon / tooling, each open, closed or unverified (D-ipb-5). GET %s?view=harts.' % _F,
                         columns='processor,title,isa,harts_text,harts_note,controller,clock_text,clock_citation,openness,boards,notes', data_path=_F + '?view=harts')],
+             min_height=360),
+        _row(2, [_table('bg-parallelism-kinds', 0, 6, 'Kinds of parallelism inside a chip (the RISC-V book\'s sections) and what each does to the budget', 'HardwareMission',
+                        description='One row = one kind, cited to its section of Patterson & Hennessy, Computer Organization and Design RISC-V Edition (2nd ed.; the table of contents '
+                                    'read, the bodies named in to_read). budget_effect says the honest thing: instruction- and data-level kinds change an atom\'s CYCLES (measured counts '
+                                    'already include them); a hardware thread IS a hart (its own column pair); multicore = one pair per core, assignable separately unless LOCKSTEP '
+                                    '(then mirrors); two chips = the links rows. GET %s?view=parallelism-kinds.' % _F,
+                        columns='name,level,title,book_section,budget_effect,example,citation,to_read', data_path=_F + '?view=parallelism-kinds'),
+                 _table('bg-parallelism', 6, 6, 'Parallelism facts per processor: pipeline, issue width, hardware threads, vector, lockstep', 'HardwareMission',
+                        description='Every number cited or -1; lockstep = yes | no | n/a (one core) | configurable | unverified (the datasheet to read is named). A chip whose harts run in '
+                                    'lockstep gets ONE assignable stream and mirror rows. GET %s?view=parallelism.' % _F,
+                        columns='processor,pipeline_stages,issue_width,hw_threads_per_core,vector,lockstep,summary,citation,to_read', data_path=_F + '?view=parallelism')],
              min_height=360)],
         description='The fact rows the budget stands on. RISC-V is the basis (his ruling 2026-10-27); other ISAs are adaptation rows shown as exceptions.')
 
@@ -103,8 +117,9 @@ def _facts_tab():
 BUDGET_PAGES = [
     _page('budget', 'budget',
           'Polling + interrupt budget - two columns per program counter (hart). ' + _INTRO + ' Use it two ways: the Bench tab analyses the real boards on a bench '
-          '(a board with a Mission gets that Mission\'s plan; the others show their facts with empty columns); the Plan tab budgets a Mission\'s Task Plan. Knobs '
-          '(scan_deadline_ms, poll_divider, expected_rate_hz, hart_of, harts) go to POST .../budget/knobs and hold per process. The doors: GET /api/benches/<bench>/budget, '
-          'GET /api/missions/<name>/budget, GET /api/hart-facts.',
+          '(a board with a Mission gets that Mission\'s plan; the others show their facts with empty columns); the Plan tab budgets a Mission\'s Task Plan. The hart\'s standard '
+          'PollCycle is the worst case of every poll and every interrupt once (ipb-6). Each hart of a chip is assignable on its own (hart_of, isr_hart_of) unless the chip runs its '
+          'cores in lockstep - then one stream and mirrors. Knobs (scan_deadline_ms, poll_divider, expected_rate_hz, hart_of, isr_hart_of, harts, lockstep) go to POST .../budget/knobs '
+          'and hold per process. The doors: GET /api/benches/<bench>/budget, GET /api/missions/<name>/budget, GET /api/hart-facts.',
           'HardwareMission', [], title='Budget', tabs=[_bench_tab(), _plan_tab(), _facts_tab()]),
 ]

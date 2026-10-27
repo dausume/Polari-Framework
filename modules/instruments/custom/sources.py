@@ -13,6 +13,7 @@ an emulated capture is reproducible from its stored spec (`WaveformCapture.sourc
     noise   {kind, rms_v, offset_v, seed}                                           deterministic per (seed, acquisition number)
     pulses  {kind, edges: [[t_s, level_v], ...], initial_v}                         a step trace: level after each edge (osc-4's device feed)
     replay  {kind, t_s: [...], v: [...]}                                            interpolated onto the emulator's axis (a stored capture)
+    digital {kind, bits: [0/1, ...], bit_period_s, hi_v, lo_v}                      osc-6: a logic-level pattern (a UART frame, a clock) at two levels, repeating
   default_source(channel) -> a 1 kHz sine of 1 V amplitude on channel 1, square on 2, ramp on 3, dc 0.5 V on 4 (so four channels differ on sight)
   validate(spec) -> the spec with defaults filled (raises ValueError naming the field)
   evaluate(spec, t, acquisition_no) -> volts (numpy array, same length as t)
@@ -31,6 +32,7 @@ _DEFAULTS = {
     'noise': {'rms_v': 0.1, 'offset_v': 0.0, 'seed': 1},
     'pulses': {'edges': [], 'initial_v': 0.0},
     'replay': {'t_s': [], 'v': []},
+    'digital': {'bits': [], 'bit_period_s': 1e-3, 'hi_v': 3.3, 'lo_v': 0.0},   # a digital SIGNAL is still volts on the wire: two levels, a bit time
 }
 
 
@@ -52,12 +54,16 @@ def validate(spec):
             raise ValueError('source %s has no field %r (fields: %s)' % (spec['kind'], k, ', '.join(out)))
         if k in ('edges', 't_s', 'v'):
             out[k] = [list(map(float, e)) for e in v] if k == 'edges' else [float(x) for x in v]
+        elif k == 'bits':
+            out[k] = [1 if int(x) else 0 for x in v]
         else:
             out[k] = float(v)
     if spec['kind'] == 'square' and not 0 < out['duty'] < 1:
         raise ValueError('duty must be between 0 and 1')
     if spec['kind'] == 'replay' and len(out['t_s']) != len(out['v']):
         raise ValueError('replay t_s and v must be the same length')
+    if spec['kind'] == 'digital' and (not out['bits'] or out['bit_period_s'] <= 0):
+        raise ValueError('digital needs at least one bit and a positive bit_period_s')
     out['kind'] = spec['kind']
     return out
 
@@ -91,6 +97,9 @@ def evaluate(spec, t, acquisition_no=1):
         if not s['t_s']:
             return np.zeros_like(t)
         return np.interp(t, np.asarray(s['t_s']), np.asarray(s['v']), left=s['v'][0], right=s['v'][-1])
+    if k == 'digital':
+        idx = (np.floor(t / s['bit_period_s']).astype(np.int64)) % len(s['bits'])
+        return np.where(np.asarray(s['bits'])[idx] == 1, s['hi_v'], s['lo_v'])
     raise ValueError(k)
 
 
@@ -107,6 +116,8 @@ def describe(spec):
         return 'noise %g V rms, seed %d' % (s['rms_v'], int(s['seed']))
     if k == 'pulses':
         return 'pulses: %d edges from %g V' % (len(s['edges']), s['initial_v'])
+    if k == 'digital':
+        return 'digital: %d bits at %g s each, %g / %g V' % (len(s['bits']), s['bit_period_s'], s['hi_v'], s['lo_v'])
     return 'replay of %d points' % len(s['t_s'])
 
 

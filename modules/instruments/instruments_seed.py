@@ -47,10 +47,72 @@ def _dho(name, model, channels, ext, bw_mhz, rise_ns, price=-1.0, price_basis=''
         'citation': '%s pp.6-9 (bandwidth, channels, rise time, sample rate and depth per channel count, capture rate, 12 bits, input, '
                     'sensitivity, timebase, triggers); %s' % (_DS, _CMD),
         'emulated': emulated, 'emulator_profile': 'dho804' if emulated else '',
+        'digital_channels': 0, 'differential_inputs': 0, 'openness': 'hardware closed / firmware closed / software closed (a commercial instrument; the command set is cited to scopehal)',
+        'data_access': 'SCPI over LAN (raw socket 5555 / VXI-11) or USBTMC: the 488.2 block + preamble (osc-1..3)',
         'note': 'the first model of the osc arc (his pick: 4 channels for 4-channel debugging)' if name == 'rigol-dho804' else ''}
 
 
+# osc-6 (his ask 2026-10-27): two OPEN SOURCE oscilloscopes, "because open source options should be our priority, we want people to be able to test
+# without expensive options if possible". Every number names its page; the licence is stated only where a licence file / page was READ.
+_SF_SITE = 'scopefun.com home page (read 2026-10-27)'
+_SF_CS = 'Crowd Supply campaign page "ScopeFun: Open Source Instrumentation" (read 2026-10-27; funded 2019-08-09)'
+_SF_GL = 'gitlab.com/scopefun/scopefun-software project page (read 2026-10-27: licence "GNU GPLv3", COPYING.TXT)'
+SCOPEFUN = {
+    'name': 'scopefun', 'vendor': 'ScopeFun', 'model': 'ScopeFun', 'kind': 'oscilloscope', 'family': 'open source instrumentation platform',
+    'channels': 2, 'ext_trigger': False, 'bandwidth_hz': 100e6, 'rise_time_ns': -1.0,
+    'sample_rate_sps': 500e6, 'sample_rate_by_channels_json': json.dumps({'1': 500e6, '2': 250e6}),
+    'memory_depth_pts': 128e6, 'memory_depth_by_channels_json': json.dumps({'1': 128e6, '2': 128e6}),
+    'resolution_bits': 10, 'capture_rate_wfms': -1.0, 'capture_rate_basis': '',
+    'input_impedance_ohm': -1.0, 'input_capacitance_pf': -1.0, 'max_input_v_rms': -1.0,
+    'sensitivity_min_v_div': 10e-3, 'sensitivity_max_v_div': 2.0, 'timebase_min_s_div': -1.0, 'timebase_max_s_div': -1.0,
+    'bw_limits': 'unverified', 'trigger_types': 'unverified (the campaign page lists none by name)',
+    'transports_json': json.dumps([{'name': 'usb3', 'port': 0, 'basis': 'USB 3.0 through a Cypress FX3 (%s); the host protocol is the GPLv3 software\'s own, not SCPI' % _SF_CS}]),
+    'lineage': 'none', 'idn_format': 'none (no SCPI; the software identifies the board over USB - unverified)', 'lxi': 'none (USB only)',
+    'display': 'none: the host software draws (PC)', 'size_mm': 'unverified',
+    'price_usd': 899.0, 'price_basis': 'Crowd Supply campaign price USD 899 (2019); SparkFun lists it "retired" and Crowd Supply\'s enclosure "no longer available" (2026-10-27) - current availability unverified',
+    'citation': '%s: "2 analog oscilloscope channels (10-bit)", "500 Msps Real-Time Sampling rate (single channel) / 250 Msps (dual channel)", "2.0 GSps Equivalent-Time Sampling rate (ETS)", '
+                '"128 Mega samples memory buffer (per channel)", "12 digital channels (logic analyzer / digital pattern generator)", "2 analog generators (200 Msps, 12-bit)", "USB 3.0 interface"; '
+                '%s: 100 MHz analog bandwidth (-3 dB), 10 mV to 2 V per division (1x probe), inputs "protected against over-voltages up to +/- 50 V", logic analyzer 12 channels at 250 MSPS '
+                '(125 MHz max toggle), interface voltage 1.25-3.3 V, inputs accept up to 5 V, Xilinx Artix-7 XC7A35T, 512 MB DDR3, Cypress FX3; %s' % (_SF_SITE, _SF_CS, _SF_GL),
+    'emulated': False, 'emulator_profile': '',
+    'digital_channels': 12, 'digital_max_rate_sps': 250e6, 'differential_inputs': 0, 'ets_sample_rate_sps': 2.0e9,
+    'openness': 'software GPLv3 (COPYING.TXT read); hardware + FPGA firmware: "completely open source" (campaign page) but NO licence name found on the site, the campaign page or the '
+                'GitLab group - unverified until a hardware repository\'s licence file is read',
+    'data_access': 'its own USB 3.0 protocol through the GPLv3 host software (no SCPI): Polari would read its saved captures or wrap the software - a later adapter (osc-7); not built',
+    'note': 'OPEN SOURCE pick 1 (his ask): 2 analog + 12 digital channels on an Artix-7, PC-hosted. Price is the 2019 campaign\'s; availability today unverified.'}
+
+_DSO_MAN = 'JYE Tech DSO138 Users Manual (13803K/04K), the Specifications table and the schematic page (PDF read 2026-10-27: the MCU symbol reads STM32F103Cx)'
+_DSO_PAGE = 'jyetech.com DSO138 product page (read 2026-10-27)'
+_DSO_TOM = 'tomeko.net/projects/dso138 (a third-party page, read 2026-10-27)'
+DSO138 = {
+    'name': 'jyetech-dso138', 'vendor': 'JYE Tech', 'model': 'DSO138', 'kind': 'oscilloscope', 'family': 'DSO138 (DIY kit)',
+    'channels': 1, 'ext_trigger': False, 'bandwidth_hz': 200e3, 'rise_time_ns': -1.0,
+    'sample_rate_sps': 1e6, 'sample_rate_by_channels_json': json.dumps({'1': 1e6}),
+    'memory_depth_pts': 1024, 'memory_depth_by_channels_json': json.dumps({'1': 1024}),
+    'resolution_bits': 12, 'capture_rate_wfms': -1.0, 'capture_rate_basis': '',
+    'input_impedance_ohm': 1e6, 'input_capacitance_pf': 20, 'max_input_v_rms': -1.0,
+    'sensitivity_min_v_div': 10e-3, 'sensitivity_max_v_div': 5.0, 'timebase_min_s_div': 10e-6, 'timebase_max_s_div': 500.0,
+    'bw_limits': 'none stated', 'trigger_types': 'Auto, Normal, Single (edge; trigger position fixed at 50 %) - the manual\'s table',
+    'transports_json': json.dumps([{'name': 'serial-text', 'port': 0, 'basis': 'UART TX at 115200 8N1: on HOLD the firmware sends the record as text (%s - third-party, '
+                                                                                'not in the manual read; the exact format unverified)' % _DSO_TOM}]),
+    'lineage': 'none', 'idn_format': 'none (no SCPI)', 'lxi': 'none', 'display': '2.4 in colour TFT 320 x 240 (product page)', 'size_mm': '117 x 76 x 15 (manual\'s table)',
+    'price_usd': -1.0, 'price_basis': 'reported as a USD 23 kit by cnx-software (2015-04-06); the current price is unverified (the product page says the model is old and points to the DSO138mini)',
+    'citation': '%s: "Max realtime sample rate 1MSa/s", "Analog bandwidth 0 -- 200KHz", "Sensitivity range 10mV/div - 5V/div", "Max input voltage 50Vpk (1X probe)", '
+                '"Input impedance 1M ohm/20pF", "Resolution 12 bits", "Record length 1024 points", "Timebase range 500s/Div -- 10us/Div", "Trigger modes Auto, Normal, and Single", '
+                '"Trigger position range 50%%", "Power supply 9V DC (8 - 12V)", "Current consumption ~120mA", "Dimension 117 x 76 x 15mm", "Weight 70 gram"; %s; %s: the anti-aliasing '
+                'filter differs between the JYE board (C8 120 pF: -3 dB at 11 MHz) and a clone (100 nF: 13.3 kHz) - so the EFFECTIVE bandwidth depends on the board' % (_DSO_MAN, _DSO_PAGE, _DSO_TOM),
+    'emulated': False, 'emulator_profile': '',
+    'digital_channels': 0, 'digital_max_rate_sps': -1.0, 'differential_inputs': 0, 'ets_sample_rate_sps': -1.0,
+    'openness': 'PARTLY open: the product page offers "Source Code: Basic version" and the LCD-board schematic (the main schematic is in the manual); the third-party page says most '
+                'functionality sits in a precompiled closed library (libdso138.a); NO licence named on the product page or in the source zip\'s listing - unverified. The alternative '
+                'firmware DLO-138 (github ardyesp/DLO-138, Arduino build, 2 analog + 2 digital channels, serial output) shows NO licence file either (read 2026-10-27)',
+    'data_access': 'serial text dump of the 1024-point record on HOLD (115200 8N1, one-way; third-party description) - a serial adapter into the canonical capture is osc-7; not built',
+    'note': 'OPEN SOURCE pick 2 (his ask): the cheapest real instrument that could stand on the bench; 1 channel, 200 kHz, 1 MSa/s, 12 bits. Its openness is PARTIAL and said so.'}
+
+
 SEED_INSTRUMENTS = [
+    SCOPEFUN,
+    DSO138,
     _dho('rigol-dho804', 'DHO804', 4, False, 70, 5, price=454.0, price_basis='Jameco listing USD 454 / TestEquity USD 459, seen 2026-10-26', emulated=True),
     _dho('rigol-dho802', 'DHO802', 2, True, 70, 5),
     _dho('rigol-dho812', 'DHO812', 2, True, 100, 3.5),

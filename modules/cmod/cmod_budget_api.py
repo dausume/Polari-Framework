@@ -87,11 +87,16 @@ class BudgetAPI(treeObject):
         response.media = {'ok': True, 'bench': bench, 'knobs': BG.set_knobs('bench', bench, _body(request)), 'basis': 'per process, not persisted'}
 
     def on_get_facts(self, request, response):
+        from board.custom import parallelism as PX
         view = request.get_param('view') or 'harts'
         if view == 'controllers':
             rows = IC.controller_rows()
         elif view == 'harts':
             rows = IC.hart_rows()
+        elif view == 'parallelism':          # ipb-6: per-processor pipeline / issue / hw threads / vector / lockstep facts
+            rows = PX.hart_rows()
+        elif view == 'parallelism-kinds':    # ipb-6: the kinds, cited to the RISC-V book's sections
+            rows = PX.kind_rows()
         else:
-            return _fail(response, falcon.HTTP_422, 'view must be controllers or harts')
-        response.media = {'ok': True, 'view': view, 'count': len(rows), 'rows': rows, 'uncited': IC.uncited_numbers()}
+            return _fail(response, falcon.HTTP_422, 'view must be controllers, harts, parallelism or parallelism-kinds')
+        response.media = {'ok': True, 'view': view, 'count': len(rows), 'rows': rows, 'uncited': IC.uncited_numbers() + PX.uncited_numbers()}

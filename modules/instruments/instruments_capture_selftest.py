@@ -250,8 +250,8 @@ def page():
     keys = [t['key'] for t in d['tabs']]
     items = [it for t in d['tabs'] for r in t['rows'] for it in r['items']]
     kinds = [it.get('componentProps', {}).get('componentName') for it in items]
-    check('osc-3 PAGE: /display/instruments has tabs models / endpoints / capture / chart; three door-forms; the chart is ONE named-graph-panel over the seeded GraphDefinition',
-          keys == ['models', 'endpoints', 'capture', 'chart'] and kinds.count('door-form') == 3 and kinds.count('named-graph-panel') == 1
+    check('osc-3 PAGE: /display/instruments has tabs models / signals (osc-6) / endpoints / capture / chart; four door-forms; the chart is ONE named-graph-panel over the seeded GraphDefinition',
+          keys == ['models', 'signals', 'endpoints', 'capture', 'chart'] and kinds.count('door-form') == 4 and kinds.count('named-graph-panel') == 1
           and next(i for i in items if i['id'] == 'instrument-chart')['componentProps']['inputs']['graphName'] == GRAPH and G[0]['name'] == GRAPH
           and json.loads(G[0]['definition'])['graphConfig']['yDimensions'] == ['ch1', 'ch2', 'ch3', 'ch4'], kinds)
     check('osc-3 SEED: the GraphDefinition pair is seeded code-owned beside the Instrument rows', [p[0] for p in INSTRUMENTS_SEED_PAIRS] == ['Instrument', 'GraphDefinition'])

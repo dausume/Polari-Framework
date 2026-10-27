@@ -27,8 +27,11 @@ def token(family):
 
 
 def family_rows():
-    """One row per family: name, token, text token, fallback hex, whether the hex is a drawing knob."""
-    return [{'family': f, 'token': token(f), 'text_token': token(f) + '-text', 'fallback_hex': FALLBACK_HEX[f], 'hex_is_drawing_knob': f in _KNOB_HEX} for f in FAMILIES]
+    """One row per family: name, token, text token, fallback hex, whether the hex is a drawing knob, and (osc-6) the family's signal KIND -
+    analog | digital | differential | undetermined (board.custom.signal_kinds: the one axis on this one vocabulary)."""
+    from board.custom import signal_kinds as SK
+    return [{'family': f, 'token': token(f), 'text_token': token(f) + '-text', 'fallback_hex': FALLBACK_HEX[f], 'hex_is_drawing_knob': f in _KNOB_HEX,
+             'signal_kind': SK.kind_of_family(f)} for f in FAMILIES]
 
 
 #: protocol SETS -> their child signals (his words: SPI -> SCK, MOSI, MISO, SS; I2C -> SDA, SCL; UART -> RX, TX; USB -> D+, D-); the child signal's function names per chip family of names
@@ -98,4 +101,7 @@ def function_matches(protocol, function):
 
 def vocabulary():
     """The whole vocabulary as one payload (the door serves it beside the view)."""
-    return {'families': family_rows(), 'sets': {k: list(v) for k, v in SETS.items()}, 'note': 'colour = family (token name + fallback hex; the colours are theme tokens); a set expands to its child signals'}
+    from board.custom import signal_kinds as SK
+    return {'families': family_rows(), 'sets': {k: list(v) for k, v in SETS.items()}, 'signal_kinds': SK.kind_rows(),
+            'note': 'colour = family (token name + fallback hex; the colours are theme tokens); a set expands to its child signals; each family carries its signal kind '
+                    '(analog / digital / differential) and so does every per-pin signal row'}

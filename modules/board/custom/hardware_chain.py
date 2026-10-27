@@ -127,22 +127,26 @@ def peripherals():
 
 
 def signals():
-    """One PeripheralSignal row per alternate-function name (the port tables) + one GPIO signal per port bit."""
+    """One PeripheralSignal row per alternate-function name (the port tables) + one GPIO signal per port bit. `signal_kind` (analog / digital /
+    differential) is derived from the name family by board.custom.signal_kinds (osc-6 / his ask 2026-10-27), never typed."""
+    from board.custom import signal_kinds as SK
     out = []
     for fn, (pid, sig) in sorted(_function_table().items()):
+        kind, why = SK.kind_of_signal(sig, pid)
         out.append({'name': '%s:%s:%s' % (SOC, pid, sig), 'soc': SOC, 'peripheral': '%s:%s' % (SOC, pid), 'signal': sig,
                     'channel': _channel(sig), 'direction': _direction(sig),
                     'description': '%s signal %s of %s' % (PERIPHERAL_META.get(pid, ('', pid, '', ''))[1], sig, pid),
                     'pin_functions_refs_json': '[]', 'fact': '', 'origin': 'derived:soc_atmega328p.FUNCTION_PERIPHERAL (Tables 14-3/14-6/14-9); direction %s' % _DIRECTION_WHY,
                     'undetermined': 'direction depends on the mode (not fixed by the pin table)' if _direction(sig) == 'undetermined' else '',
-                    'notes': ''})
+                    'notes': '', 'signal_kind': kind, 'signal_kind_why': why})
     for pin in sorted(PINS):
         port, bit = pin[1], pin[2]
         pid = 'GPIO PORT%s' % port
+        kind, why = SK.kind_of_signal(pin, pid)
         out.append({'name': '%s:%s:%s' % (SOC, pid, pin), 'soc': SOC, 'peripheral': '%s:%s' % (SOC, pid), 'signal': pin, 'channel': bit,
                     'direction': 'inout', 'description': 'general digital I/O bit %s of port %s (DD%s%s / PORT%s%s / PIN%s%s)' % (bit, port, port, bit, port, bit, port, bit),
                     'pin_functions_refs_json': '[]', 'fact': '%s:pin.%s' % (SOC, pin), 'origin': 'derived:§14.2 Ports as General Digital I/O (every port pin), p.85',
-                    'undetermined': '', 'notes': ''})
+                    'undetermined': '', 'notes': '', 'signal_kind': kind, 'signal_kind_why': why})
     return out
 
 

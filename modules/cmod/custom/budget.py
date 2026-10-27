@@ -22,12 +22,22 @@ the shortest wanted response / 2, said); isr_utilisation = Σ length_mean x expe
 The 2x check per poll: scan_ms <= wanted_response_ms / 2 -> ok | miss | unknown.
 
 KNOBS (per process, in `_KNOBS`, NOT persisted - a restart forgets them; ipb-3 may move them to DerivedOverride rows): scan_deadline_ms, harts (for a
-configurable machine), poll_divider {atom: n}, expected_rate_hz {vector: hz}, hart_of {task: hart index}.
+configurable machine), poll_divider {atom: n}, expected_rate_hz {vector: hz}, hart_of {task: hart index}, isr_hart_of {vector: hart index} (ipb-6: an
+interrupt routed to a different hart than its task - the interrupt-matrix case), lockstep (ipb-6: true forces every hart of a chip to MIRROR hart 0).
+
+ipb-6 (§2c, his ask 2026-10-27): the WORST-CASE POLL CYCLE = "hit the hart with every possible interrupt and poll and complete all of them": every poll
+once at its max cycles (dividers ignored), every interrupt once at its max length + the controller's entry latency, plus the loop's quiet pass. That number
+is the hart's standard **PollCycle** (derived.poll_cycle_cycles / _ms); a part that is -1 makes the whole -1 and NAMES what is missing (poll_cycle_missing).
+Beside it the rate-aware bound poll_cycle_inflated_cycles = (polls + overhead) / (1 - isr_utilisation): what the cycle stretches to when interrupts fire at
+their expected rates instead of once. Per hart the check "one PollCycle fits the shortest wanted response / 2".
+Harts of one chip are assignable separately (hart_of / isr_hart_of) unless the chip's parallelism facts say LOCKSTEP (board.custom.parallelism) or the
+knob says so: then hart 0 holds the stream and the others are mirrors (mirror_of) with the same columns, not assignable.
 """
 import json
 
 from board.custom import cycle_records as CR
 from board.custom import interrupt_controllers as IC
+from board.custom import parallelism as PX
 
 _KNOBS = {}   # (kind, name) -> knobs dict; per process
 
@@ -44,7 +54,9 @@ def set_knobs(kind, name, body):
     for key in ('scan_deadline_ms', 'harts'):
         if key in body:
             k[key] = float(body[key]) if key == 'scan_deadline_ms' else int(body[key])
-    for key in ('poll_divider', 'expected_rate_hz', 'hart_of'):
+    if 'lockstep' in body:
+        k['lockstep'] = str(body['lockstep']).lower() in ('1', 'true', 'yes', 'on')
+    for key in ('poll_divider', 'expected_rate_hz', 'hart_of', 'isr_hart_of'):
         if isinstance(body.get(key), dict):
             k.setdefault(key, {}).update(body[key])
     return k
@@ -80,11 +92,23 @@ def _facts(proc):
 def _new_hart(proc, facts, h, tier, knobs):
     c = IC.controller(facts['controller']) or {}
     model = TIER_MODEL.get(tier, 'superloop')
+    px = PX.facts_for(facts['processor'])
     return {'hart': '%s#%d' % (proc['name'], h), 'hart_index': h, 'processor': proc['name'], 'board': proc.get('board', ''), 'soc': facts['processor'], 'title': facts['title'],
             'isa': facts['isa'], 'controller': facts['controller'], 'controller_title': c.get('title', ''), 'nesting': c.get('nesting', 'unverified'),
             'entry_latency_cycles': c.get('entry_latency_cycles', -1), 'clock_hz': facts['clock_hz'], 'clock_citation': facts['clock_citation'],
-            'openness': IC.openness_words(facts), 'tier': tier, 'schedule_model': model, 'polls': [], 'interrupts': [], 'threads': [], 'init': [],
+            'openness': IC.openness_words(facts), 'tier': tier, 'schedule_model': model, 'parallelism': PX.words(px), 'lockstep': px['lockstep'], 'mirror_of': '',
+            'polls': [], 'interrupts': [], 'threads': [], 'init': [],
             'derived': {}, 'checks': [], 'notes': [], 'knobs': {'scan_deadline_ms': knobs.get('scan_deadline_ms', -1.0)}}
+
+
+def _mirror(hb, src):
+    """ipb-6 lockstep: `hb` executes the same instruction stream as `src` - its columns are a copy, its derived block the same, and it says so."""
+    hb['mirror_of'] = src['hart']
+    hb['polls'] = [dict(p, hart=hb['hart'], basis='mirror of %s (lockstep): %s' % (src['hart'], p['basis'])) for p in src['polls']]
+    hb['interrupts'] = [dict(i, hart=hb['hart'], basis='mirror of %s (lockstep): %s' % (src['hart'], i['basis'])) for i in src['interrupts']]
+    hb['threads'] = [dict(t, hart=hb['hart']) for t in src['threads']]
+    hb['init'] = [dict(x, hart=hb['hart']) for x in src['init']]
+    hb['notes'].append('LOCKSTEP: this hart runs the same instruction stream as %s and compares results; nothing is assignable to it separately (hart_of / isr_hart_of ignored)' % src['hart'])
 
 
 def hart_budgets_from_plan(plan, variant='', knobs=None):
@@ -99,26 +123,32 @@ def hart_budgets_from_plan(plan, variant='', knobs=None):
         facts = _facts(proc)
         n = facts['harts'] if facts['harts'] > 0 else int(knobs.get('harts', 2))
         harts = [_new_hart(proc, facts, h, tier, knobs) for h in range(n)]
+        lockstep = bool(knobs.get('lockstep')) or PX.is_lockstep(PX.facts_for(facts['processor']))
         if facts['harts'] <= 0:
             for hb in harts:
                 hb['notes'].append('hart count is a knob (%d): %s' % (n, facts.get('harts_note', '')))
         for hb in harts:
             hb['notes'].append(rec_basis)
+            if lockstep:
+                hb['lockstep'] = 'yes (knob)' if knobs.get('lockstep') else hb['lockstep']
             if rec and rec.get('clock_hz') and hb['clock_hz'] > 0 and rec['clock_hz'] != hb['clock_hz']:
                 hb['notes'].append('the cycle record\'s clock (%s) differs from the hart fact (%s): the record wins for ms' % (rec['clock_hz'], hb['clock_hz']))
         for t in plan.get('tasks', []):
             if t.get('processor') != proc['name']:
                 continue
-            h = int((knobs.get('hart_of') or {}).get(t['task'], 0))
+            h = 0 if lockstep else int((knobs.get('hart_of') or {}).get(t['task'], 0))
             hb = harts[min(h, n - 1)]
-            _place_task(hb, t, rec, seconds, knobs)
+            _place_task(hb, t, rec, seconds, knobs, harts if not lockstep else None)
+        if lockstep:
+            for hb in harts[1:]:
+                _mirror(hb, harts[0])
         for hb in harts:
             _derive(hb, rec)
         out.extend(harts)
     return out
 
 
-def _place_task(hb, t, rec, seconds, knobs):
+def _place_task(hb, t, rec, seconds, knobs, harts=None):
     trig = t.get('trigger') if isinstance(t.get('trigger'), dict) else {'kind': t.get('trigger', ''), 'how': '', 'what': '', 'route': ''}
     deadline = float(t.get('deadline_ms', -1) or -1)
     if t.get('context') == 'task':
@@ -142,6 +172,12 @@ def _place_task(hb, t, rec, seconds, knobs):
                                 'basis': ('measured: %s' % ('function entry -> ret in the -fno-inline build' if fn else '')) if fn else 'not in the cycle record (inlined, or no record)'})
         elif lane == 'isr':
             vec = _vector(atom)
+            target = hb
+            routed = (knobs.get('isr_hart_of') or {}).get(vec)
+            if routed is not None and harts:
+                target = harts[min(int(routed), len(harts) - 1)]
+                if target is not hb:
+                    target['notes'].append('%s routed to this hart by isr_hart_of (knob) while its task %s runs on %s: the deferred work crosses harts' % (vec, t['task'], hb['hart']))
             ir = ((rec or {}).get('isrs') or {}).get(vec) or {}
             rate = -1.0
             basis = 'rate: unknown'
@@ -152,13 +188,13 @@ def _place_task(hb, t, rec, seconds, knobs):
             elif rate < 0 and ir.get('n', -1) > 0 and seconds > 0:
                 rate, basis = ir['n'] / seconds, 'rate: %d takes over the record\'s %.3g s stimulus (what the twin saw, not a spec)' % (ir['n'], seconds)
             mean = ir.get('mean', -1)
-            util = (mean * rate / hb['clock_hz']) if mean >= 0 and rate >= 0 and hb['clock_hz'] > 0 else -1
-            hb['interrupts'].append({'hart': hb['hart'], 'task': t['task'], 'atom': atom, 'vector': vec, 'source': trig.get('what', '') or trig.get('route', ''),
-                                     'how': trig.get('how', ''), 'expected_rate_hz': rate, 'rate_basis': basis, 'priority_level': ir.get('vector', -1),
-                                     'nests': hb['nesting'], 'length_min': ir.get('min', -1), 'length_max': ir.get('max', -1), 'length_mean': mean,
-                                     'latency_max': ir.get('latency_max', -1), 'takes_measured': ir.get('n', -1), 'utilisation': util,
-                                     'defers_to': t['task'] if hb['schedule_model'] == 'preemptive-rtos' else '',
-                                     'basis': ir.get('basis', 'not in the cycle record')})
+            util = (mean * rate / target['clock_hz']) if mean >= 0 and rate >= 0 and target['clock_hz'] > 0 else -1
+            target['interrupts'].append({'hart': target['hart'], 'task': t['task'], 'atom': atom, 'vector': vec, 'source': trig.get('what', '') or trig.get('route', ''),
+                                         'how': trig.get('how', ''), 'expected_rate_hz': rate, 'rate_basis': basis, 'priority_level': ir.get('vector', -1),
+                                         'nests': target['nesting'], 'length_min': ir.get('min', -1), 'length_max': ir.get('max', -1), 'length_mean': mean,
+                                         'latency_max': ir.get('latency_max', -1), 'takes_measured': ir.get('n', -1), 'utilisation': util,
+                                         'defers_to': t['task'] if hb['schedule_model'] == 'preemptive-rtos' else '',
+                                         'basis': ir.get('basis', 'not in the cycle record')})
         elif lane == 'init':
             hb['init'].append({'hart': hb['hart'], 'task': t['task'], 'atom': atom})
         elif lane == 'called':
@@ -187,7 +223,34 @@ def _derive(hb, rec):
     isr_util = sum(util_known) if ints else 0.0
     headroom = (1.0 - scan_util - isr_util) if scan_util >= 0 else -1.0
     worst_gap = ((rec or {}).get('loop') or {}).get('worst_gap_cycles', -1)
+    # ipb-6: the WORST-CASE POLL CYCLE - every poll once at max (dividers ignored), every interrupt once at max length + entry latency, + the quiet pass
+    missing = ['poll %s cycles_max' % p['atom_short'] for p in polls if p['cycles_max'] < 0]
+    missing += ['interrupt %s length_max' % i['vector'] for i in ints if i['length_max'] < 0]
+    if ints and hb['entry_latency_cycles'] < 0:
+        missing.append('entry latency of %s' % (hb['controller'] or 'the controller'))
+    if polls and overhead < 0:
+        missing.append('the loop\'s quiet-pass overhead (no poll-point gaps in the record)')
+    entry = max(hb['entry_latency_cycles'], 0)
+    pc_polls = sum(p['cycles_max'] for p in polls if p['cycles_max'] >= 0) + max(overhead, 0)
+    pc_ints = sum(i['length_max'] + entry for i in ints if i['length_max'] >= 0)
+    poll_cycle = (pc_polls + pc_ints) if not missing and (polls or ints) else -1
+    poll_cycle_ms = (poll_cycle / clock * 1000.0) if poll_cycle >= 0 and clock and clock > 0 else -1.0
+    inflated = (pc_polls / (1.0 - isr_util)) if poll_cycle >= 0 and len(util_known) == len(ints) and isr_util < 1.0 else -1
+    wanted_all = [p['wanted_response_ms'] for p in polls if p['wanted_response_ms'] > 0]
+    if poll_cycle_ms < 0 or not wanted_all:
+        pc_verdict, pc_why = 'unknown', ('missing: %s' % '; '.join(missing)) if missing else ('no wanted response on any poll' if not wanted_all else 'no clock')
+    elif poll_cycle_ms <= min(wanted_all) / 2.0:
+        pc_verdict, pc_why = 'ok', 'one PollCycle %.4g ms <= the shortest wanted response %.4g ms / 2' % (poll_cycle_ms, min(wanted_all))
+    else:
+        pc_verdict, pc_why = 'miss', 'one PollCycle %.4g ms > the shortest wanted response %.4g ms / 2: even the worst case must fit twice' % (poll_cycle_ms, min(wanted_all))
     hb['derived'] = {'polls_per_scan': round(sum(1.0 / p['poll_divider'] for p in polls), 3), 'loop_overhead_cycles': overhead,
+                     'poll_cycle_cycles': poll_cycle, 'poll_cycle_ms': poll_cycle_ms, 'poll_cycle_missing': '; '.join(missing),
+                     'poll_cycle_basis': 'the hart\'s standard PollCycle = every poll once at cycles_max (dividers ignored: %d polls) + every interrupt once at length_max + entry latency %s '
+                                         '(%d interrupts) + the quiet pass; -1 names what is missing' % (len(polls), hb['entry_latency_cycles'] if hb['entry_latency_cycles'] >= 0 else '-1', len(ints)),
+                     'poll_cycle_inflated_cycles': inflated,
+                     'poll_cycle_inflated_basis': 'polls / (1 - isr_utilisation): the cycle when interrupts fire at their expected rates instead of once' if inflated >= 0 else
+                                                  'needs every interrupt\'s rate and the PollCycle known',
+                     'poll_cycle_verdict': pc_verdict, 'poll_cycle_why': pc_why,
                      'scan_cycles': scan_cycles, 'scan_basis': 'bound: each poll\'s max cycles / divider, summed once per atom, + the quiet pass',
                      'measured_worst_gap_cycles': worst_gap, 'measured_worst_gap_ms': (worst_gap / clock * 1000.0) if worst_gap >= 0 and clock and clock > 0 else -1.0,
                      'scan_ms': scan_ms, 'unknown_poll_costs': ', '.join(unknown), 'scan_deadline_ms': deadline, 'scan_deadline_basis': deadline_basis,
@@ -310,8 +373,10 @@ def _f(x):
 
 
 def hart_rows(sb):
-    return [{k: _f(v) for k, v in dict({kk: hb[kk] for kk in ('hart', 'board', 'soc', 'title', 'isa', 'controller', 'nesting', 'clock_hz', 'openness', 'tier', 'schedule_model')},
+    return [{k: _f(v) for k, v in dict({kk: hb[kk] for kk in ('hart', 'board', 'soc', 'title', 'isa', 'controller', 'nesting', 'clock_hz', 'openness', 'tier', 'schedule_model',
+                                                              'parallelism', 'lockstep', 'mirror_of')},
                                         polls=len(hb['polls']), interrupts=len(hb['interrupts']), threads=len(hb['threads']), headroom=hb['derived'].get('headroom', -1),
+                                        poll_cycle_ms=hb['derived'].get('poll_cycle_ms', -1), poll_cycle_verdict=hb['derived'].get('poll_cycle_verdict', ''),
                                         label=hb.get('label', ''), notes='; '.join(hb['notes'])).items()} for hb in sb['harts']]
 
 

@@ -349,7 +349,9 @@
             "custom/bench_seed",
             "custom/chip_ladder",
             "custom/chip_ladder_seed",
-            "custom/interrupt_controllers"
+            "custom/interrupt_controllers",
+            "custom/parallelism",
+            "custom/signal_kinds"
         ]
     },
     "classes": [

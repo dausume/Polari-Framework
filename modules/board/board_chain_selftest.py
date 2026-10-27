@@ -122,6 +122,12 @@ def run_chain(check):
     pf = [f for f in F if f['signal'] == sig['name']]
     sp = next(s for s in tables['SocPin'] if s['name'] == pf[0]['soc_pin'])
     bp = [b for b in uno_pins if 'SocPin:%s' % sp['name'] in json.loads(b['links_refs_json'])]
+    kinds = {s['signal']: (s['signal_kind'], s['signal_kind_why']) for s in S}
+    check('chain (osc-6): every PeripheralSignal row carries a signal_kind - the pin view\'s family rule first (ADC0 analog, INT1 / RXD digital, USB_D+ differential), the peripheral when no '
+          'rule names the signal (a port bit PB5 -> digital, with the why saying so); none undetermined',
+          all(s.get('signal_kind') in ('analog', 'digital', 'differential') for s in S) and kinds['ADC0'][0] == 'analog' and kinds['INT1'][0] == 'digital'
+          and kinds['RXD'][0] == 'digital' and kinds['PB5'][0] == 'digital' and 'no name rule' in kinds['PB5'][1] and kinds.get('USB_D+', ('differential',))[0] == 'differential'
+          and 'family' in kinds['ADC0'][1], {k: v[0] for k, v in kinds.items() if v[0] not in ('digital', 'analog')})
     check('chain: reverse — EICRA.ISC1 → EICRA → EXINT → signal INT1 → PinFunction PD3:INT1 → SocPin PD3 → BoardPin D3',
           per['peripheral'] == 'EXINT' and sig['signal'] == 'INT1' and [f['name'] for f in pf] == ['atmega328p:PD3:INT1'] and sp['pin'] == 'PD3'
           and [b['canonical'] for b in bp] == ['D3'])

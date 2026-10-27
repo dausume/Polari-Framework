@@ -24,7 +24,7 @@ class PeripheralSignal(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', soc: str = '', peripheral: str = '', signal: str = '', channel: str = '',
                  direction: str = '', description: str = '', pin_functions_refs_json: str = '[]', fact: str = '',
-                 origin: str = '', undetermined: str = '', notes: str = '', manager=None):
+                 origin: str = '', undetermined: str = '', notes: str = '', signal_kind: str = 'undetermined', signal_kind_why: str = '', manager=None):
         self.name = name                    # '<soc>:<peripheral>:<signal>' (atmega328p:TIMER2:OC2B)
         self.soc = soc
         self.peripheral = peripheral        # the Peripheral row name ('<soc>:<peripheral>')
@@ -37,3 +37,5 @@ class PeripheralSignal(treeObject):
         self.origin = origin
         self.undetermined = undetermined
         self.notes = notes
+        self.signal_kind = signal_kind          # analog | digital | differential | undetermined (board.custom.signal_kinds; derived from the name family)
+        self.signal_kind_why = signal_kind_why  # the family that decided it

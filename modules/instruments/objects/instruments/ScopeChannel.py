@@ -6,6 +6,8 @@ ScopeChannel — one class per file (design §7).
 from objectTreeDecorators import treeObject, treeObjectInit
 
 COUPLINGS = ('DC', 'AC', 'GND')
+#: osc-6: what the channel is READING - board.custom.signal_kinds (analog = volts; digital = levels by threshold_v; differential = this channel minus pair_channel)
+SIGNAL_KINDS = ('analog', 'digital', 'differential')
 
 
 class ScopeChannel(treeObject):
@@ -23,7 +25,7 @@ class ScopeChannel(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', endpoint: str = '', channel: int = 1, enabled: bool = True, scale_v_div: float = 1.0,
                  offset_v: float = 0.0, coupling: str = 'DC', bw_limit: str = 'OFF', probe: float = 1.0, label: str = '',
-                 probing: str = '', basis: str = 'typed', manager=None):
+                 probing: str = '', basis: str = 'typed', signal_kind: str = 'analog', threshold_v: float = -1.0, pair_channel: int = 0, manager=None):
         self.name = name            # '<endpoint>-ch<n>'
         self.endpoint = endpoint    # an InstrumentEndpoint name
         self.channel = channel      # 1..channels
@@ -36,3 +38,6 @@ class ScopeChannel(treeObject):
         self.label = label
         self.probing = probing      # what the probe is on: 'uno-light:D6', a net name, ''
         self.basis = basis          # typed | read-back
+        self.signal_kind = signal_kind      # SIGNAL_KINDS: how the capture is READ (osc-6) - the probe still sees volts
+        self.threshold_v = threshold_v      # digital: the 0/1 threshold (-1 = not set; a 3.3 V or 5 V logic family's midpoint is the usual choice, typed)
+        self.pair_channel = pair_channel    # differential: the channel subtracted (this - pair); 0 = none

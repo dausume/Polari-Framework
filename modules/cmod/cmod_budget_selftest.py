@@ -96,6 +96,12 @@ def plan_budget():
           and d['scan_deadline_ms'] == 50.0 and 'shortest wanted' in d['scan_deadline_basis'] and 0 < d['headroom'] < 1 and d['worst_latency_cycles'] == -1 and 'masked window' in d['worst_latency_basis'], d)
     checks = {c['atom']: c['verdict'] for c in hb['checks']}
     check('ipb-1 PLAN: the 2x check runs per poll and names the polled sense (ok at 50 ms)', checks.get('apps/light.sense_poll') == 'ok' and len(hb['checks']) == len(hb['polls']), checks)
+    check('ipb-6 POLL CYCLE: the UNO\'s standard PollCycle = every poll once at cycles_max (dividers ignored) + every interrupt once at length_max + the cited 4-cycle entry + the quiet pass; '
+          'in ms at 16 MHz; verdict ok against the shortest wanted response (100 ms) / 2; nothing missing; the rate-inflated bound beside it; the hart row says lockstep n/a (one core)',
+          d['poll_cycle_cycles'] == sum(p['cycles_max'] for p in hb['polls']) + sum(i['length_max'] + 4 for i in hb['interrupts']) + d['loop_overhead_cycles']
+          and abs(d['poll_cycle_ms'] - d['poll_cycle_cycles'] / 16000.0) < 1e-9 and d['poll_cycle_verdict'] == 'ok' and '100 ms / 2' in d['poll_cycle_why'] and d['poll_cycle_missing'] == ''
+          and d['poll_cycle_inflated_cycles'] > 0 and 'entry latency 4' in d['poll_cycle_basis'] and hb['lockstep'] == 'n/a (one core)' and hb['mirror_of'] == ''
+          and 'pipeline' in hb['parallelism'] and BG.hart_rows(sb)[0]['poll_cycle_verdict'] == 'ok', {k: d[k] for k in d if k.startswith('poll_cycle')})
     check('ipb-1 PLAN: the command path is a LINK row - host -> uart -> USART_RX_vect -> receive-command (baud / frame / transit -1, said)',
           len(sb['links']) == 1 and sb['links'][0]['transport'] == 'uart' and sb['links'][0]['receiving_interrupt'] == 'USART_RX_vect' and sb['links'][0]['baud'] == -1, sb['links'])
     kinds = [s['kind'] for s in SG.suggestions(sb)]
@@ -113,9 +119,16 @@ def plan_budget():
     check('ipb-1 KNOBS: poll_divider 4 quarters the sense cost per scan; expected_rate_hz 2000 on USART_RX sets its utilisation = 48 x 2000 / 16e6',
           s2['cost_per_scan_cycles'] == 250 / 4 and u2['rate_basis'] == 'rate: knob' and abs(u2['utilisation'] - 48.0 * 2000 / 16e6) < 1e-12)
     none = BG.system_budget(plan, '')
-    check('ipb-1 HONEST: with no cycle record every measured number is -1 and the scan is unknown (checks say unknown, costs named as unknown)',
+    check('ipb-1 HONEST: with no cycle record every measured number is -1 and the scan is unknown (checks say unknown, costs named as unknown); the PollCycle is -1 and NAMES what is missing, '
+          'and the suggestions say so (poll-cycle info)',
           all(p['cycles_max'] == -1 for p in none['harts'][0]['polls']) and none['harts'][0]['derived']['scan_ms'] == -1
-          and all(c['verdict'] == 'unknown' for c in none['harts'][0]['checks']) and none['harts'][0]['derived']['unknown_poll_costs'])
+          and all(c['verdict'] == 'unknown' for c in none['harts'][0]['checks']) and none['harts'][0]['derived']['unknown_poll_costs']
+          and none['harts'][0]['derived']['poll_cycle_cycles'] == -1 and 'cycles_max' in none['harts'][0]['derived']['poll_cycle_missing']
+          and 'poll-cycle' in [s['kind'] for s in SG.suggestions(none)])
+    tight = BG.system_budget(plan, 'uno-light', {'scan_deadline_ms': 0.001})
+    pcs = [s for s in SG.suggestions(tight) if s['kind'] == 'poll-cycle']
+    check('ipb-6 INVARIANT: the PollCycle is the hart\'s own worst case - the scan_deadline_ms knob does not move it (a 1 us scan deadline: headroom < 0 but the PollCycle verdict stays ok and no '
+          'poll-cycle suggestion appears)', pcs == [] and tight['harts'][0]['derived']['poll_cycle_verdict'] == 'ok' and tight['harts'][0]['derived']['poll_cycle_cycles'] == d['poll_cycle_cycles'])
 
 
 def _two_chip_plan():
@@ -143,6 +156,26 @@ def test_cases():
           sb['columns'] == 4 and h0['hart'].endswith('#0') and h1['hart'].endswith('#1') and h0['controller'] == 'riscv-hazard3' and h0['clock_hz'] == 150000000
           and {i['vector'] for i in h1['interrupts']} == {'TIMER2_COMPA_vect'} and 'apps/light.sense_poll' in {p['atom_short'] for p in h1['polls']}
           and all(p['cycles_max'] == -1 for h in sb['harts'] for p in h['polls']) and h0['derived']['scan_ms'] == -1, ([i['vector'] for i in h1['interrupts']], h0['controller']))
+    # ipb-6: harts assignable separately - an interrupt routed to another hart than its task; LOCKSTEP = one stream + mirrors (his question)
+    routed = BG.system_budget(pico, '', {'isr_hart_of': {'INT0_vect': 1}})
+    r0, r1 = routed['harts']
+    check('ipb-6 ROUTE: isr_hart_of puts INT0_vect in hart 1\'s interrupt column while its task stays on hart 0 (polls there), with a note on hart 1 saying the deferred work crosses harts',
+          [i['vector'] for i in r1['interrupts']] == ['INT0_vect'] and 'INT0_vect' not in [i['vector'] for i in r0['interrupts']] and r1['polls'] == []
+          and any('isr_hart_of' in n for n in r1['notes']), ([i['vector'] for i in r0['interrupts']], r1['notes'][-1:]))
+    lock = BG.system_budget(pico, '', {'lockstep': True, 'hart_of': {'sense': 1}, 'isr_hart_of': {'INT0_vect': 1}})
+    l0, l1 = lock['harts']
+    check('ipb-6 LOCKSTEP (knob; the RP2350 fact is unverified): hart_of / isr_hart_of are ignored, hart 0 holds every row, hart 1 is a MIRROR with the same columns, its rows say so, '
+          'lockstep reads "yes (knob)", and the suggestions carry the lockstep info row',
+          l1['mirror_of'] == l0['hart'] and len(l1['polls']) == len(l0['polls']) and [i['vector'] for i in l1['interrupts']] == [i['vector'] for i in l0['interrupts']]
+          and all(p['basis'].startswith('mirror of') for p in l1['polls']) and l0['lockstep'] == 'yes (knob)' and any('LOCKSTEP' in n for n in l1['notes'])
+          and 'lockstep' in [s['kind'] for s in __import__('cmod.custom.budget_suggest', fromlist=['x']).suggestions(lock)], (l1['mirror_of'], l0['lockstep']))
+    from board.custom import parallelism as PX
+    check('ipb-6 FACTS: parallelism rows - ten kinds each citing its section of the RISC-V book (TOC read, body in to_read); per-processor facts cited or -1 (uncited list empty); '
+          'Hazard3 = 3 stages cited to its readme, vector none; single-core chips say lockstep n/a; the RP2350 says unverified and names the datasheet',
+          len(PX.PARALLELISM_KINDS) == 10 and all('§' in r['book_section'] and r['citation'] and r['to_read'] for r in PX.PARALLELISM_KINDS) and PX.uncited_numbers() == []
+          and PX.facts_for('rp2350')['pipeline_stages'] == 3 and 'Hazard3' in PX.facts_for('rp2350')['citation'] and PX.facts_for('rp2350')['lockstep'] == 'unverified'
+          and 'RP2350 Datasheet' in PX.facts_for('rp2350')['to_read'] and PX.facts_for('atmega328p')['lockstep'] == 'n/a (one core)' and PX.facts_for('nope')['to_read'].startswith('no parallelism row')
+          and {r['level'] for r in PX.PARALLELISM_KINDS} <= set(PX.LEVELS))
     # TC-A1: the fully open virtual machine, hart count by knob
     virt = json.loads(json.dumps(pico))
     virt['processors'] = [{'name': 'qemu-virt-rv32:hart', 'board': 'qemu-virt-rv32', 'role': 'chip (mcu)', 'soc': 'qemu-virt-rv32'}]

@@ -77,8 +77,11 @@ def peripherals():
 
 
 def _sig(pid, signal, channel, direction, words, fact, origin, notes='', und=''):
+    from board.custom import signal_kinds as SK
+    kind, why = SK.kind_of_signal(signal, pid)
     return {'name': '%s:%s:%s' % (SOC, pid, signal), 'soc': SOC, 'peripheral': '%s:%s' % (SOC, pid), 'signal': signal, 'channel': channel, 'direction': direction,
-            'description': words, 'pin_functions_refs_json': '[]', 'fact': fact, 'origin': origin, 'undetermined': und, 'notes': notes}
+            'description': words, 'pin_functions_refs_json': '[]', 'fact': fact, 'origin': origin, 'undetermined': und, 'notes': notes,
+            'signal_kind': kind, 'signal_kind_why': why}
 
 
 def signals(soc_pin_rows):

@@ -5,8 +5,8 @@ Instrument — one class per file (design §7).
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: the SCPI command lineages a capture's preamble is read with (OSCILLOSCOPE_PLAN.md §0)
-LINEAGES = ('agilent', 'tektronix', 'unverified')
+#: the SCPI command lineages a capture's preamble is read with (OSCILLOSCOPE_PLAN.md §0); 'none' = no SCPI at all (osc-6: ScopeFun's USB protocol, the DSO138's serial dump)
+LINEAGES = ('agilent', 'tektronix', 'none', 'unverified')
 #: instrument kinds this module knows how to read; others are rows with facts only
 KINDS = ('oscilloscope', 'vendor-lineage')
 
@@ -42,7 +42,9 @@ class Instrument(treeObject):
                  timebase_min_s_div: float = -1.0, timebase_max_s_div: float = -1.0, bw_limits: str = '',
                  trigger_types: str = '', transports_json: str = '[]', lineage: str = 'unverified', idn_format: str = '',
                  lxi: str = 'unverified', display: str = '', size_mm: str = '', price_usd: float = -1.0, price_basis: str = '',
-                 citation: str = '', emulated: bool = False, emulator_profile: str = '', note: str = '', manager=None):
+                 citation: str = '', emulated: bool = False, emulator_profile: str = '', note: str = '',
+                 digital_channels: int = -1, digital_max_rate_sps: float = -1.0, differential_inputs: int = -1, ets_sample_rate_sps: float = -1.0,
+                 openness: str = 'unverified', data_access: str = 'unverified', manager=None):
         self.name = name                        # kebab-case key, e.g. 'rigol-dho804'
         self.vendor = vendor
         self.model = model
@@ -80,3 +82,10 @@ class Instrument(treeObject):
         self.emulated = emulated                # this module's emulator has a profile for it (osc-2)
         self.emulator_profile = emulator_profile
         self.note = note
+        # osc-6 (signal kinds + testability): what KINDS of signal the instrument takes, how open it is, how the host gets samples
+        self.digital_channels = digital_channels            # logic inputs (-1 unverified; 0 = none)
+        self.digital_max_rate_sps = digital_max_rate_sps    # the logic inputs' sample rate
+        self.differential_inputs = differential_inputs      # native differential inputs (-1 unverified; 0 = none: two analog channels + A - B instead)
+        self.ets_sample_rate_sps = ets_sample_rate_sps      # equivalent-time sampling rate, repetitive signals only (-1 = not stated)
+        self.openness = openness                            # 'hardware <licence> / firmware <licence> / software <licence>' as READ, 'unverified' per part otherwise
+        self.data_access = data_access                      # how Polari would get samples: 'scpi over LAN/USB', 'own USB protocol (software GPLv3)', 'serial text dump on HOLD', ...

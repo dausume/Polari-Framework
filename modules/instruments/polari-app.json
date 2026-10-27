@@ -61,7 +61,8 @@
    "custom/lineage",
    "custom/scope_engines",
    "custom/scpi",
-   "custom/sources"
+   "custom/sources",
+   "custom/testability"
   ]
  },
  "classes": [

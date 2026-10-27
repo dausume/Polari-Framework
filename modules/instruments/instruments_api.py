@@ -19,6 +19,10 @@ osc-3 (instruments.custom.captures):
     POST /api/instruments/endpoints/{name}/capture    {channels?, max_points?, fmt?} -> 201 {acquisition, rows: per-channel summary}
     GET  /api/instruments/captures                    every capture's summary (sha, points, span, v min/max/mean)
     GET  /api/instruments/captures/{acq}/chart?max=   long-form {t_s, ch1..ch4} rows for named-graph-panel (stride-decimated to <= max, default 4000)
+osc-6 (signal kinds + testability):
+    GET  /api/instruments/signal-kinds                the analog / digital / differential taxonomy (board.custom.signal_kinds) as rows
+    GET|POST /api/instruments/bench/{bench}/testability   needs {analog, digital, differential, bandwidth_hz, sample_rate_sps, bits, repetitive, same_instant} as query or body
+                                                      -> 200 {ok, rows (one per need: verdict ok | caveat | no + why), verdict, cost, units, options}
 """
 import json
 
@@ -49,6 +53,8 @@ class InstrumentsAPI(treeObject):
             add('/api/instruments/emulators/{name}/feed', self, suffix='emulator_feed')
             add('/api/instruments/captures', self, suffix='captures')
             add('/api/instruments/captures/{acq}/chart', self, suffix='chart')
+            add('/api/instruments/signal-kinds', self, suffix='signal_kinds')
+            add('/api/instruments/bench/{bench}/testability', self, suffix='testability')
 
     def _get(self, request, response, which, bench=''):
         from instruments.custom import catalog as C
@@ -79,6 +85,17 @@ class InstrumentsAPI(treeObject):
 
     def on_post_remove(self, request, response, bench):
         self._post(request, response, 'remove', bench)
+
+    # ---------------------------------------------------------------- osc-6
+    def on_get_signal_kinds(self, request, response):
+        from instruments.custom import catalog as C
+        response.status, response.media = falcon.HTTP_200, {'ok': True, 'rows': C.signal_kind_rows()}
+
+    def on_get_testability(self, request, response, bench):
+        self._get(request, response, 'testability', bench)
+
+    def on_post_testability(self, request, response, bench):
+        self._post(request, response, 'testability', bench)
 
     # ---------------------------------------------------------------- osc-3
     def _body(self, request, response):

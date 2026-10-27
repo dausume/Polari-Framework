@@ -24,9 +24,52 @@ GRAPH = 'instruments-capture'
 
 def model_cards():
     return {'dataPath': _MODELS, 'title_field': 'title', 'subtitle_field': 'family', 'group_by': 'vendor', 'badge_fields': ['kind', 'lineage', 'resolution'],
-            'fields': {'Channels': 'channels_text', 'Bandwidth': 'bandwidth', 'Sample rate': 'sample_rate', 'Memory depth': 'memory_depth',
-                       'Capture rate': 'capture_rate', 'Sensitivity': 'sensitivity', 'Transports': 'transports', 'Emulator': 'emulator', 'Price': 'price'},
+            'fields': {'Channels': 'channels_text', 'Signals': 'signals', 'Bandwidth': 'bandwidth', 'Sample rate': 'sample_rate', 'Memory depth': 'memory_depth',
+                       'Capture rate': 'capture_rate', 'Sensitivity': 'sensitivity', 'Transports': 'transports', 'Emulator': 'emulator', 'Openness': 'openness_text',
+                       'Data access': 'data_access_text', 'Price': 'price'},
             'empty_text': 'No instrument models on this instance.'}
+
+
+_SK = '/api/instruments/signal-kinds'
+_TEST = '/api/instruments/bench/home-bench/testability'
+
+
+def _testability_form():
+    return {'fields': [{'name': 'analog', 'label': 'Analog signals to see at once (count; blank = none)'},
+                       {'name': 'digital', 'label': 'Digital signals (count)'},
+                       {'name': 'differential', 'label': 'Differential signals (count)'},
+                       {'name': 'bandwidth_hz', 'label': 'Bandwidth needed (Hz, e.g. 20e6)'},
+                       {'name': 'sample_rate_sps', 'label': 'Sample rate needed (Sa/s)'},
+                       {'name': 'bits', 'label': 'Vertical resolution needed (bits)'},
+                       {'name': 'repetitive', 'label': 'The signal repeats (true/false: lets equivalent-time sampling count)'},
+                       {'name': 'same_instant', 'label': 'All channels in one shot (true/false; blank = true)'}],
+            'action': {'label': 'Check', 'method': 'POST', 'path': _TEST,
+                       'body_template': {'analog': '{analog}', 'digital': '{digital}', 'differential': '{differential}', 'bandwidth_hz': '{bandwidth_hz}',
+                                         'sample_rate_sps': '{sample_rate_sps}', 'bits': '{bits}', 'repetitive': '{repetitive}', 'same_instant': '{same_instant}'}},
+            'submit_label': 'Can this bench measure it?', 'success_text': 'Checked - the verdict rows are in the table (ok | caveat | no, each with why).'}
+
+
+def _signals_tab():
+    return _tab('signals', 'Signals + testability', [
+        _row(0, [_table('signal-kinds', 0, 12, 'The three kinds of signal and what reads each', 'Instrument',
+                        description='analog = the value of a voltage (needs an analog channel); digital = a level by threshold (a logic input, or a spare analog channel which also shows '
+                                    'the edges); differential = A - B of a pair (a differential input, or two analog channels and the math). A board signal\'s kind is derived from its '
+                                    'name family (board.custom.signal_kinds); a scope channel says which kind it is READING. GET %s.' % _SK,
+                        columns='kind,carries,read_as,needs,also_reads_it,examples,families', data_path=_SK)], min_height=220),
+        _row(1, [_component('testability-form', 0, 4, 'Can the bench measure it? (home-bench)', 'door-form', _testability_form(),
+                            description='His question: do several cheap scopes stand in for one expensive one? The rules: CHANNELS add up across units (they must share a trigger; alignment '
+                                        '= one sample of the slowest unit + trigger jitter, -1 until measured); BANDWIDTH, BITS and per-channel SAMPLE RATE never add up (the analog front '
+                                        'end and the ADC are each unit\'s own; interleaving two units is not claimed); NOISE averages by sqrt(N); a REPETITIVE signal lets a unit with '
+                                        'equivalent-time sampling reach its ETS rate.'),
+                 _table('testability-rows', 1, 8, 'The verdict per need', 'Instrument',
+                        description='One row per need you typed: value, what the bench offers, ok | caveat | no, and the rule that decided it. POST %s.' % _TEST,
+                        columns='need,value,offered,verdict,why', data_path=_TEST + '?analog=4&bandwidth_hz=20e6',
+                        empty_text='Type the needs on the left; this table shows the verdict rows for the last check.')], min_height=360),
+        _row(2, [_table('testability-options', 0, 12, 'What one more unit of each model would add (cheapest first)', 'Instrument',
+                        description='Channels only - never bandwidth, bits or rate. The price is the Instrument row\'s (cited, or unverified); openness and data access say how open the unit '
+                                    'is and how Polari would get its samples. GET %s?view=options (the same door; the options list rides on every answer).' % _TEST,
+                        columns='title,adds_analog,adds_digital,bandwidth_hz,bits,price_usd,openness,data_access,helps', data_path=_TEST + '?analog=1')], min_height=240)],
+        description='Signal kinds (analog / digital / differential) and whether the bench\'s instruments, together, can measure a test\'s needs.')
 
 
 def _models_tab():
@@ -128,5 +171,5 @@ SEED_INSTRUMENTS_PAGE_DISPLAYS = [
           'Bench instruments: oscilloscope models with cited specifications (the RIGOL DHO800 family first), the two biggest makers as lineage rows until one of their '
           'models has its datasheet read, reachable endpoints (typed addresses or the emulator started here), captures kept verbatim, and the four-channel chart. '
           'Doors: /api/instruments, /api/instruments/endpoints|emulators|captures. The workbench (/display/workbench, step 4) picks from the model cards.',
-          'Instrument', [], title='Instruments', tabs=[_models_tab(), _endpoints_tab(), _capture_tab(), _chart_tab()]),
+          'Instrument', [], title='Instruments', tabs=[_models_tab(), _signals_tab(), _endpoints_tab(), _capture_tab(), _chart_tab()]),
 ]

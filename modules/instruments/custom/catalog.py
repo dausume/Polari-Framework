@@ -22,7 +22,8 @@ _FIELDS = ('name', 'vendor', 'model', 'kind', 'family', 'channels', 'ext_trigger
            'sample_rate_by_channels_json', 'memory_depth_pts', 'memory_depth_by_channels_json', 'resolution_bits', 'capture_rate_wfms',
            'capture_rate_basis', 'input_impedance_ohm', 'input_capacitance_pf', 'max_input_v_rms', 'sensitivity_min_v_div',
            'sensitivity_max_v_div', 'timebase_min_s_div', 'timebase_max_s_div', 'bw_limits', 'trigger_types', 'transports_json', 'lineage',
-           'idn_format', 'lxi', 'display', 'size_mm', 'price_usd', 'price_basis', 'citation', 'emulated', 'emulator_profile', 'note')
+           'idn_format', 'lxi', 'display', 'size_mm', 'price_usd', 'price_basis', 'citation', 'emulated', 'emulator_profile', 'note',
+           'digital_channels', 'digital_max_rate_sps', 'differential_inputs', 'ets_sample_rate_sps', 'openness', 'data_access')
 
 
 def _j(text, default):
@@ -82,11 +83,36 @@ def _transports(text):
     return ', '.join(out) or 'unverified'
 
 
+def _signals_text(m):
+    """osc-6: which signal KINDS the instrument takes - 'analog x4; digital: on a spare analog channel; differential: by A - B of two channels'."""
+    ch, dg, df = m.get('channels', -1), m.get('digital_channels', -1), m.get('differential_inputs', -1)
+    parts = ['analog x%d' % ch if isinstance(ch, int) and ch >= 0 else 'analog: unverified']
+    if isinstance(dg, int) and dg > 0:
+        parts.append('digital x%d (logic inputs%s)' % (dg, (' at %s' % _si(m.get('digital_max_rate_sps', -1), 'Sa/s')) if float(m.get('digital_max_rate_sps', -1) or -1) > 0 else ''))
+    elif dg == 0:
+        parts.append('digital: on a spare analog channel (no logic inputs)')
+    else:
+        parts.append('digital: unverified')
+    if isinstance(df, int) and df > 0:
+        parts.append('differential x%d (native)' % df)
+    elif df == 0:
+        parts.append('differential: by A - B of two analog channels' if isinstance(ch, int) and ch >= 2 else 'differential: no (one channel, no native input)')
+    else:
+        parts.append('differential: unverified')
+    ets = float(m.get('ets_sample_rate_sps', -1) or -1)
+    if ets > 0:
+        parts.append('ETS %s for repetitive signals' % _si(ets, 'Sa/s'))
+    return '; '.join(parts)
+
+
 def model_rows(manager=None):
     rows = []
     for m in models(manager):
         ch = m.get('channels', -1)
         rows.append(dict(m,
+                         signals=_signals_text(m),
+                         openness_text=m.get('openness') or 'unverified',
+                         data_access_text=m.get('data_access') or 'unverified',
                          title='%s %s' % (m.get('vendor', ''), m.get('model', '')),
                          channels_text=('unverified' if not isinstance(ch, int) or ch < 0 else ('%d + EXT' % ch if m.get('ext_trigger') else str(ch))),
                          bandwidth=_si(m.get('bandwidth_hz', -1), 'Hz'),
@@ -177,6 +203,9 @@ def get_door(manager, params, which, bench_name=''):
         return 404, {'ok': False, 'error': 'no bench named %r' % bench_name, 'known': [x['name'] for x in BENCH.benches(manager)]}
     if which == 'bench':
         return 200, {'ok': True, 'bench': bench_name, 'rows': instrument_rows(b, manager)}
+    if which == 'testability':          # osc-6: GET with the needs as query params
+        from instruments.custom import testability as T
+        return T.door(manager, bench_name, dict(params))
     return 404, {'ok': False, 'error': 'unknown door'}
 
 
@@ -187,7 +216,15 @@ def post_door(manager, bench_name, which, body):
         return add_instrument(manager, bench_name, body)
     if which == 'remove':
         return remove_instrument(manager, bench_name, body)
+    if which == 'testability':          # osc-6: POST with the needs as the body
+        from instruments.custom import testability as T
+        return T.door(manager, bench_name, body)
     return 404, {'ok': False, 'error': 'unknown door'}
+
+
+def signal_kind_rows():
+    from board.custom import signal_kinds as SK
+    return SK.kind_rows()
 
 
 def SEED_HOME():

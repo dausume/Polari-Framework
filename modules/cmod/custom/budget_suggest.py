@@ -25,6 +25,13 @@ def suggestions(sb):
                             'to an interrupt' % (costliest['atom_short'] if costliest else '?', costliest['cost_per_scan_cycles'] if costliest else '?'),
                             'derived.headroom = %.3g (scan_utilisation %.3g + isr_utilisation %.3g); scan_ms %.4g vs scan_deadline_ms %.4g (%s)'
                             % (d['headroom'], d['scan_utilisation'], d['isr_utilisation'], d['scan_ms'], d['scan_deadline_ms'], d['scan_deadline_basis']), 'blocker'))
+        if d.get('poll_cycle_verdict') == 'miss':
+            out.append(_sug(hb, 'poll-cycle', 'the worst case (every poll and every interrupt once) does not fit twice in the shortest wanted response: raise that deadline, '
+                            'shorten the longest poll / handler, or move work off this hart', 'derived.poll_cycle_ms %.4g (%s); %s' % (d['poll_cycle_ms'], d['poll_cycle_basis'], d['poll_cycle_why']), 'warning'))
+        elif d.get('poll_cycle_missing') and (polls or ints):
+            out.append(_sug(hb, 'poll-cycle', 'the PollCycle is -1: measure or cite ' + d['poll_cycle_missing'], 'derived.poll_cycle_missing', 'info'))
+        if hb.get('mirror_of'):
+            out.append(_sug(hb, 'lockstep', 'a mirror of %s (lockstep): assign nothing to it separately; its columns are the stream\'s' % hb['mirror_of'], 'hart.mirror_of; the parallelism facts row', 'info'))
         for c in hb['checks']:
             if c['verdict'] == 'miss':
                 p = next((p for p in polls if p['atom_short'] == c['atom']), {})

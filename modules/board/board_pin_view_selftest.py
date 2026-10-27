@@ -76,6 +76,11 @@ def run_pin_view(check):
     # ---- the vocabulary
     soc_fns = {f for s in t['SocPin'] if s['soc'] in ('atmega328p', 'atmega16u2') for f in json.loads(s['functions_json'])}
     unmapped = sorted(f for f in soc_fns | {'GPIO'} if not F.families_of_function(f))
+    from board.custom import signal_kinds as SK
+    check('KINDS (osc-6): every family carries its signal kind on the SAME vocabulary (analog -> analog, usb -> differential, power / ground undetermined, the rest digital); the vocabulary payload '
+          'lists the four kinds; every per-pin signal row of the UNO carries a kind that equals its family\'s',
+          {r['family']: r['signal_kind'] for r in F.family_rows()} == SK.KIND_OF_FAMILY and {r['family']: r['signal_kind'] for r in F.family_rows()}['usb'] == 'differential'
+          and {r['family']: r['signal_kind'] for r in F.family_rows()}['analog'] == 'analog' and [r['kind'] for r in F.vocabulary()['signal_kinds']] == ['analog', 'digital', 'differential', 'undetermined'])
     check('FAMILIES: every one of the twelve families has a token name (--pin-<family>), a text pair and a fallback hex (the six ROLE_COLORS reused, the four others labelled drawing knobs); every function of both chips maps to a family; spi / i2c / uart / usb expand to their child signals',
           len(F.FAMILIES) == 12 and all(r['token'] == '--pin-' + r['family'] and r['text_token'] == r['token'] + '-text' and re.match(r'#[0-9a-f]{6}', r['fallback_hex']) for r in F.family_rows())
           and sum(1 for r in F.family_rows() if r['hex_is_drawing_knob']) == 4 and not unmapped and F.set_children('spi') == ['SCK', 'MOSI', 'MISO', 'SS'] and F.set_children('i2c') == ['SDA', 'SCL']

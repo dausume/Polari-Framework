@@ -18,6 +18,7 @@ import json
 
 from board.custom import exposure_view as V
 from board.custom import pv_families as F
+from board.custom import signal_kinds as SK
 from board.custom import pv_shapes as S
 from board.custom import soc_functions as SF
 
@@ -65,7 +66,7 @@ class Model:
             srows = [self._sig[fr['signal']]] if fr and fr.get('signal') in self._sig else []
             for fam in (F.families_of_function(fn) or ['']):
                 if fam:
-                    out.append({'function': fn, 'family': fam, 'signal': srows[0]['name'] if srows else '', 'direction': F.direction_of(fn, srows)})
+                    out.append({'function': fn, 'family': fam, 'kind': SK.kind_of_family(fam), 'signal': srows[0]['name'] if srows else '', 'direction': F.direction_of(fn, srows)})
         return out
 
     def add_pin(self, **kw):
@@ -203,7 +204,7 @@ class Model:
                     self.unresolved.append({'source': 'EnclosureContact:%s' % x['name'], 'reason': '%s: %s' % (x['via'], x['notes'] or x['label']), 'a': ref, 'b': ''})
 
     def _named(self, fns):
-        return [{'function': f, 'family': fam, 'signal': '', 'direction': F.direction_of(f, [])} for f in fns for fam in (F.families_of_function(f) or [])]
+        return [{'function': f, 'family': fam, 'kind': SK.kind_of_family(fam), 'signal': '', 'direction': F.direction_of(f, [])} for f in fns for fam in (F.families_of_function(f) or [])]
 
     @staticmethod
     def drive_role(kind):
