@@ -38,10 +38,20 @@ def suggestions(sb):
                 out.append(_sug(hb, 'move-to-isr', 'move %s to an interrupt (the %s trigger) or raise the other polls\' dividers so the scan reaches it in time' % (c['atom'], p.get('trigger', '')),
                                 'checks[%s]: %s; polls[%s].cycles_max %s, poll_divider %s' % (c['atom'], c['why'], c['atom'], p.get('cycles_max'), p.get('poll_divider')), 'warning'))
         if ints and d.get('worst_latency_cycles', -1) < 0:
-            need = ['measure the longest masked window (cli..sei / MIE cleared)']
+            need = []
+            if d.get('masked_window_max_cycles', -1) < 0:
+                need.append('measure the longest masked window (cli..sei / MIE cleared: the twin\'s --masked-windows run)')
             if hb['entry_latency_cycles'] < 0:
                 need.append('cite %s\'s entry latency' % (hb['controller'] or 'the controller'))
+            if not need:
+                need.append('measure a handler length')
             out.append(_sug(hb, 'masked-window', ' and '.join(need) + ', so worst_latency_cycles can be a number', d.get('worst_latency_basis', ''), 'advice'))
+        elif ints and d.get('worst_latency_cycles', -1) >= 0:
+            # ipb-7: the window is MEASURED - a critical section longer than the longest handler is what bounds the latency, so it is the thing to shorten
+            longest = max((i['length_max'] for i in ints if i['length_max'] >= 0), default=-1)
+            if d.get('masked_window_max_cycles', 0) > longest >= 0:
+                out.append(_sug(hb, 'masked-window', 'shorten the critical section in %s: the longest masked window (%d cycles) exceeds the longest handler (%d) and bounds worst_latency_cycles'
+                                % (d.get('masked_window_where', '?'), d['masked_window_max_cycles'], longest), 'derived.masked_window_max_cycles vs max(interrupts[].length_max); %s' % d['worst_latency_basis'], 'advice'))
         if hb['schedule_model'] == 'preemptive-rtos':
             for i in ints:
                 if not i['defers_to']:

@@ -53,6 +53,7 @@ typedef struct {
 extern volatile polari_tel_t g_tel;
 extern volatile int g_tel_stop;   /* the window is over: the telemetry task sends no more frames (UART0 stays byte-reproducible) */
 void polari_window_end(void);      /* stop telemetry + recording; the decision lines follow */
+void polari_cycle_line(const char *where);   /* ipb-4: "@CYC <where> cycles=<esp_cpu_get_cycle_count> t_us=<esp_timer>" on the trace UART */
 
 /* a command decoded from UART0 (only present fields are set) */
 typedef struct {

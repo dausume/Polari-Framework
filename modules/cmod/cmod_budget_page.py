@@ -11,10 +11,11 @@ _B = '/api/benches/home-bench/budget'
 _M = '/api/missions/uno-light-mission/budget'
 _F = '/api/hart-facts'
 
-_POLL_COLS = 'hart,atom_short,task,trigger,wanted_response_ms,poll_divider,cycles_min,cycles_max,cost_per_scan_cycles,calls_measured,basis'
+_POLL_COLS = 'hart,atom_short,task,trigger,wanted_response_ms,poll_divider,cycles_min,cycles_max,cost_per_scan_cycles,calls_measured,masked_window_cycles,basis'
 _INT_COLS = 'hart,vector,task,source,how,expected_rate_hz,rate_basis,priority_level,nests,length_min,length_max,length_mean,latency_max,utilisation,defers_to,basis'
 _DER_COLS = ('hart,label,polls_per_scan,scan_cycles,measured_worst_gap_cycles,scan_ms,scan_deadline_ms,scan_deadline_basis,scan_utilisation,isr_utilisation,headroom,'
-             'poll_cycle_cycles,poll_cycle_ms,poll_cycle_verdict,poll_cycle_why,poll_cycle_inflated_cycles,poll_cycle_missing,worst_latency_cycles,unknown_poll_costs')
+             'poll_cycle_cycles,poll_cycle_ms,poll_cycle_verdict,poll_cycle_why,poll_cycle_inflated_cycles,poll_cycle_missing,masked_window_max_cycles,masked_window_where,'
+             'worst_latency_cycles,worst_latency_us,unknown_poll_costs')
 _HART_COLS = 'hart,label,board,soc,isa,controller,nesting,clock_hz,schedule_model,polls,interrupts,threads,headroom,poll_cycle_ms,poll_cycle_verdict,lockstep,mirror_of,parallelism,openness,notes'
 _SUG_COLS = 'hart,kind,severity,suggestion,evidence'
 
@@ -44,7 +45,9 @@ def _two_columns(prefix, base, who):
                                     'headroom = 1 - both (negative = the scan cannot meet its deadline); poll_cycle_cycles / _ms = the hart\'s standard PollCycle: the WORST CASE of every poll '
                                     'once at its max (dividers ignored) + every interrupt once at its max length + entry latency + the quiet pass - with its verdict (one PollCycle must fit '
                                     'twice in the shortest wanted response), poll_cycle_missing naming what keeps it -1, and the rate-aware bound polls / (1 - isr_utilisation); '
-                                    'worst_latency_cycles stays -1 until the entry latency is cited and a masked window is measured. GET %s?view=derived.' % base,
+                                    'masked_window_max_cycles = the longest stretch of main-line code the twin ran with interrupts masked (cli..sei / an ATOMIC_BLOCK; ipb-7, measured, '
+                                    'with where); worst_latency_cycles = the cited entry latency + that window + the longest handler when handlers do not nest (-1 names what is '
+                                    'missing). GET %s?view=derived.' % base,
                         columns=_DER_COLS, data_path=base + '?view=derived')], min_height=240),
         _row(2, [_table(prefix + '-checks', 0, 6, 'The 2x check per poll', 'HardwareMission',
                         description='A polled input must be scanned at least twice as fast as it must be answered: ok | miss | unknown, with why. GET %s?view=checks.' % base,

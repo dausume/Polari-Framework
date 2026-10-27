@@ -217,6 +217,7 @@ static void window_task(void *arg)
 {
     (void)arg;
     vTaskDelay(pdMS_TO_TICKS(g_params.window_ms));
+    polari_cycle_line("end");   /* ipb-4: the cycle counter beside the clock at the window's end */
     polari_line("@END presses=%lld led_on=%d", (long long)state.button_presses, state.led_on);
     vTaskSuspend(NULL);
 }

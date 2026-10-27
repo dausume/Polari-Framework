@@ -315,9 +315,37 @@
   "worst_gap_chip_timed_cycles": 87087,
   "worst_gap_cycles": 175647
  },
+ "masked": {
+  "armed": 1,
+  "basis": "shipped hex, --masked-windows: cycles with SREG.I cleared in main-line code outside ISRs, from the cli (pc = its byte address) to the instruction that set I again (an ATOMIC_BLOCK's SREG restore counts); armed by the first sei (the reset -> sei stretch is initialisation, not a critical section); 185147 windows measured, the longest named",
+  "max": 9,
+  "max_function": "hal_millis",
+  "max_pc": "0x1bc",
+  "mean": 7.0,
+  "min": 5,
+  "n": 185147,
+  "open_at_exit": 0,
+  "sites": [
+   {
+    "function": "hal_millis",
+    "max": 9,
+    "min": 9,
+    "n": 92577,
+    "pc": "0x1bc"
+   },
+   {
+    "function": "hal_take_toggle_pending",
+    "max": 5,
+    "min": 5,
+    "n": 92570,
+    "pc": "0x296"
+   }
+  ],
+  "sites_overflow": 0
+ },
  "mcu": "atmega328p",
- "record_sha256": "376afff355d301eda69f44c2081d53bb9b12609a3947b3978a418f95c8aa9b70",
- "recorded_at": "2026-10-20T10:15:49",
+ "record_sha256": "e4905e95712602bab4695017d1719aa0667d571b55384c8d4bd17eed94bc1509",
+ "recorded_at": "2026-10-27T15:38:04",
  "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
  "schema": "cycle-measurement/1",
  "stimulus": {
@@ -398,7 +426,7 @@
   "avr-gcc": "avr-gcc (GCC) 14.2.0",
   "binutils": "avr-nm / avr-objdump 2.43 (binutils-avr, same image)",
   "image": {
-   "id": "sha256:3e9d6fb882e2ca9f112a8711c0944c4ce43c9eeca9b46e5b9a68e9588e045fdb",
+   "id": "sha256:3da4463b6a67dae4821328a9fcbd8fffd7b1fc288df380cc2e23b0f8e7578e16",
    "name": "prf-board-engines:trixie"
   },
   "simavr": "libsimavr2 / simavr 1.6+dfsg-3 (Debian trixie), via polari-avr-twin in the image above (prf-board-engines/Dockerfile)"
@@ -418,6 +446,7 @@
   "functions": "cycles per call, entry -> ret, in the -fno-inline build (atom as a node; includes everything it calls and any interrupt that landed inside); the caller's CALL (4 cycles) is not counted",
   "isrs": "cycles per interrupt, vector taken -> reti, in the shipped hex",
   "loop": "cycles between two visits of the loop's poll point, by the way the loop came back, in the shipped hex",
+  "masked": "ipb-7: cycles with SREG.I cleared in main-line code outside ISRs (cli -> the instruction that set I again), per opening pc with its enclosing function, in the shipped hex",
   "mean": "a function's mean is not offered by the twin (n / min / max only); an interrupt's is"
  }
 }

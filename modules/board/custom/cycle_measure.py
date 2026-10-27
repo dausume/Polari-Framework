@@ -53,6 +53,7 @@ VARIANTS = ('uno-light-unsensed', 'uno-button-clock', 'uno-light-pcint', 'uno-li
 JUMP_CYCLES = {'rjmp': 2, 'jmp': 3}
 _TARGET = re.compile(r'0x([0-9a-f]+)')
 _BASE = re.compile(r'(\.(constprop|isra|part|cold|lto_priv)(\.\d+)?)+$')
+_NOT_FN = re.compile(r'^__(stack|heap|data|bss|eeprom|text|trampolines|ctors|dtors|DATA|TEXT|RAM|FLASH|EEPROM)')
 
 
 class CycleRefused(RuntimeError):
@@ -349,10 +350,17 @@ def _measure(variant, work, only, progress):
             best['note'] = 'the stimulus never called it (or only from inside an interrupt)'
         fns[atom] = best
         say('%s: n=%d min=%d max=%d' % (atom, best['n'], best['min'], best['max']))
-    # -- the interrupts (shipped hex, one run)
-    r = twin(sh['hex'], stim, ['--isr-latency', '--uart-tx-log', 'tx.bin'])
+    # -- the interrupts (shipped hex, one run) + ipb-7 the masked windows on the same run (an older twin image without the flag: one run without it, said)
+    try:
+        r = twin(sh['hex'], stim, ['--isr-latency', '--uart-tx-log', 'tx.bin', '--masked-windows'])
+        masked_note = ''
+    except CycleRefused as e:
+        r = twin(sh['hex'], stim, ['--isr-latency', '--uart-tx-log', 'tx.bin'])
+        masked_note = 'this twin image has no --masked-windows (rebuild prf-board-engines): %s' % str(e)[-160:]
+        runs += 1
     runs += 1
     fin = r['final']
+    masked = _masked(fin.get('masked_windows') or {}, sym_sh, masked_note)
     vec_names = {int(n): name for name, n in vectors().items() if n is not None}
     isrs = {}
     for v, d in (fin.get('isr_cycles') or {}).items():
@@ -390,13 +398,43 @@ def _measure(variant, work, only, progress):
                 'seed': 1, 'describe': stim['describe'], 'drives': stim['drives'], 'sim_cycles': fin.get('cycles'),
                 'uart_tx_bytes': len(r['uart']), 'frames_sent': len(frames), 'frame_bytes_max': max(frames) if frames else None, 'frame_bytes_min': min(frames) if frames else None}
     rec = {'schema': SCHEMA, 'variant': variant, 'mcu': MCU, 'clock_hz': CLOCK_HZ, 'inputs': inputs, 'stimulus': stimulus,
-           'tools': _tool_versions(be.local_image()), 'functions': fns, 'isrs': isrs, 'loop': loop, 'uart': uart, 'twin_runs': runs,
+           'tools': _tool_versions(be.local_image()), 'functions': fns, 'isrs': isrs, 'loop': loop, 'uart': uart, 'masked': masked, 'twin_runs': runs,
            'what': {'functions': 'cycles per call, entry -> ret, in the -fno-inline build (atom as a node; includes everything it calls and any interrupt that landed inside); the caller\'s CALL (4 cycles) is not counted',
                     'isrs': 'cycles per interrupt, vector taken -> reti, in the shipped hex',
                     'loop': 'cycles between two visits of the loop\'s poll point, by the way the loop came back, in the shipped hex',
+                    'masked': 'ipb-7: cycles with SREG.I cleared in main-line code outside ISRs (cli -> the instruction that set I again), per opening pc with its enclosing function, in the shipped hex',
                     'mean': 'a function\'s mean is not offered by the twin (n / min / max only); an interrupt\'s is'},
            'rule': 'measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)'}
     return seal(rec)
+
+
+def _masked(mw, sym, note=''):
+    """ipb-7: the twin's masked windows -> {n, min, max, mean, max_pc, max_function, sites[{pc, function, n, min, max}], basis}; each opening pc (the cli's byte
+    address) is given its ENCLOSING function = the largest text symbol at or below it. No data (an old image) -> n -1 and the note says so."""
+    # linker-script symbols sit in the text listing without being functions (__stack = RAMEND 0x8ff, weak): never an enclosing function
+    flat = sorted((addr, name) for clones in sym.values() for addr, name in clones if not _NOT_FN.match(name))
+
+    def fn_of(pc):
+        hit = ''
+        for addr, name in flat:
+            if addr <= pc:
+                hit = name
+            else:
+                break
+        return _BASE.sub('', hit)
+
+    if not mw:
+        return {'n': -1, 'min': -1, 'max': -1, 'mean': -1, 'max_pc': '', 'max_function': '', 'sites': [], 'armed': 0, 'open_at_exit': 0,
+                'basis': note or 'the twin answered no masked_windows block'}
+    n = int(mw.get('n', 0))
+    sites = sorted(({'pc': '0x%x' % int(s['pc']), 'function': fn_of(int(s['pc'])), 'n': int(s['n']), 'min': int(s['min']), 'max': int(s['max'])} for s in mw.get('sites', [])),
+                   key=lambda s: (-s['max'], s['pc']))
+    return {'n': n, 'min': int(mw.get('min', 0)) if n else -1, 'max': int(mw.get('max', 0)) if n else 0, 'mean': float(mw.get('mean', 0)) if n else -1,
+            'max_pc': ('0x%x' % int(mw.get('max_pc', 0))) if n else '', 'max_function': fn_of(int(mw.get('max_pc', 0))) if n else '',
+            'armed': int(mw.get('armed', 0)), 'open_at_exit': int(mw.get('open_at_exit', 0)), 'sites_overflow': int(mw.get('sites_overflow', 0)), 'sites': sites,
+            'basis': 'shipped hex, --masked-windows: cycles with SREG.I cleared in main-line code outside ISRs, from the cli (pc = its byte address) to the instruction that set I '
+                     'again (an ATOMIC_BLOCK\'s SREG restore counts); armed by the first sei (the reset -> sei stretch is initialisation, not a critical section); '
+                     + ('%d windows measured, the longest named' % n if n else 'max 0 = measured, none seen (the stimulus ran no critical section)')}
 
 
 def seal(rec):
@@ -416,6 +454,8 @@ def counts(rec):
         out['isr ' + k] = (f['n'], f['min'], f['max'])
     for g in rec['loop']['gaps']:
         out['loop ' + g['back_jump']] = (g['n'], g['min_cycles'], g['max_cycles'])
+    for s in (rec.get('masked') or {}).get('sites', []):      # ipb-7: the masked windows are deterministic too
+        out['masked ' + s['pc']] = (s['n'], s['min'], s['max'])
     return out
 
 
@@ -447,6 +487,14 @@ def table(rec):
     if lp['worst_gap_cycles']:
         lines.append('  longest gap on the twin %d cycles = %.2f ms; at the chip\'s byte time %.2f ms' % (lp['worst_gap_cycles'], us(lp['worst_gap_cycles']) / 1000.0,
                                                                                              us(lp.get('worst_gap_chip_timed_cycles') or lp['worst_gap_cycles']) / 1000.0))
+    mk = rec.get('masked') or {}
+    if mk.get('n', -1) >= 0:
+        lines += ['', 'masked windows (shipped; SREG.I cleared in main-line code, outside ISRs): n=%d, longest %d cycles = %.2f us at %s in %s' % (
+            mk['n'], mk['max'], us(mk['max']), mk.get('max_pc') or '-', mk.get('max_function') or '-')]
+        for s in mk.get('sites', [])[:12]:
+            lines.append('  cli at %s in %-28s n=%-5d min %5d  max %5d cycles' % (s['pc'], s['function'], s['n'], s['min'], s['max']))
+    elif mk:
+        lines += ['', 'masked windows: not measured - ' + mk.get('basis', '')]
     s = rec['stimulus']
     lines.append('frames sent: %s, largest %s B, smallest %s B' % (s['frames_sent'], s['frame_bytes_max'], s['frame_bytes_min']))
     return '\n'.join(lines)

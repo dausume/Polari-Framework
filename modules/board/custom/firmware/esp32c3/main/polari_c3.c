@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "driver/uart.h"
+#include "esp_cpu.h"
 #include "esp_partition.h"
 #include "esp_timer.h"
 
@@ -97,6 +98,7 @@ void polari_c3_init(const int32_t defaults[8], uint32_t window_ms, uint32_t roun
                 (unsigned long)g_params.window_ms, (unsigned long)g_params.rounds, (long)g_params.a[0], (long)g_params.a[1],
                 (long)g_params.a[2], (long)g_params.a[3], (long)g_params.a[4], (long)g_params.a[5], (long)g_params.a[6],
                 (long)g_params.a[7]);
+    polari_cycle_line("boot");
 }
 
 /* ------------------------------------------------------------------ UART0: the frames */
@@ -128,9 +130,17 @@ static void telemetry_task(void *arg)
     }
 }
 
+/* ipb-4: the core's CYCLE COUNTER beside the microsecond clock, at boot and at the window's end - on the real chip esp_cpu_get_cycle_count() is the
+ * RISC-V performance counter (mpccr); on the QEMU twin its basis is whatever QEMU models (icount) - the host compares the two lines and SAYS which. */
+void polari_cycle_line(const char *where)
+{
+    polari_line("@CYC %s cycles=%lu t_us=%lu", where, (unsigned long)esp_cpu_get_cycle_count(), (unsigned long)esp_timer_get_time());
+}
+
 void polari_window_end(void)
 {
     g_tel_stop = 1;
+    polari_cycle_line("end");
     polari_trace_stop();
     vTaskDelay(pdMS_TO_TICKS(2));   /* a frame already being written finishes before the decision lines */
 }

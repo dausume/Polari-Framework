@@ -91,9 +91,23 @@ def plan_budget():
           and 'twin' in usart['rate_basis'] and timer['expected_rate_hz'] == 10.0 and 'period' in timer['rate_basis'])
     d = hb['derived']
     check('ipb-1 PLAN: derived - polls_per_scan = the poll count (dividers 1), scan_cycles a bound beside the twin\'s measured worst gap, scan_ms at 16 MHz, deadline defaulted '
-          'to the shortest wanted / 2 (50 ms) and SAID, headroom in (0, 1), worst latency -1 with its basis',
-          d['polls_per_scan'] == len(hb['polls']) and d['scan_cycles'] > 0 and d['measured_worst_gap_cycles'] == 175647 and abs(d['scan_ms'] - d['scan_cycles'] / 16000.0) < 1e-9
-          and d['scan_deadline_ms'] == 50.0 and 'shortest wanted' in d['scan_deadline_basis'] and 0 < d['headroom'] < 1 and d['worst_latency_cycles'] == -1 and 'masked window' in d['worst_latency_basis'], d)
+          'to the shortest wanted / 2 (50 ms) and SAID, headroom in (0, 1)',
+          d['polls_per_scan'] == len(hb['polls']) and d['scan_cycles'] > 0 and d['measured_worst_gap_cycles'] > 0 and abs(d['scan_ms'] - d['scan_cycles'] / 16000.0) < 1e-9
+          and d['scan_deadline_ms'] == 50.0 and 'shortest wanted' in d['scan_deadline_basis'] and 0 < d['headroom'] < 1, d)
+    from board.custom import cycle_records as CR
+    rec = CR.load('uno-light')
+    mk = rec.get('masked') or {}
+    longest = max(i['length_max'] for i in hb['interrupts'])
+    check('ipb-7 MASKED WINDOW: the uno-light record carries the twin\'s masked windows (SREG.I cleared in main-line code): the longest is hal_millis\'s ATOMIC_BLOCK (9 cycles) and '
+          'hal_take_toggle_pending\'s is 5; the record\'s sites name pc + enclosing function',
+          mk.get('n', -1) > 0 and mk['max'] == 9 and mk['max_function'] == 'hal_millis' and {(s['function'], s['max']) for s in mk['sites']} == {('hal_millis', 9), ('hal_take_toggle_pending', 5)}, mk)
+    check('ipb-7 WORST LATENCY is a NUMBER on the UNO: the cited 4-cycle entry + the 9-cycle masked window + the longest handler (software nesting: a running handler blocks the next); '
+          'in us at 16 MHz; the basis names all three',
+          d['masked_window_max_cycles'] == 9 and 'hal_millis' in d['masked_window_where'] and d['worst_latency_cycles'] == 4 + 9 + longest and longest > 0
+          and abs(d['worst_latency_us'] - d['worst_latency_cycles'] / 16.0) < 1e-9 and 'entry latency 4' in d['worst_latency_basis'] and 'longest handler %d' % longest in d['worst_latency_basis'], d)
+    per_poll = {p['atom_short']: p['masked_window_cycles'] for p in hb['polls']}
+    check('ipb-7 per poll: the masked window is attributed to the poll whose task calls into it (0 = measured, none inside; never -1 with a record)',
+          all(v >= 0 for v in per_poll.values()) and max(per_poll.values()) == 9 and all('measured' in p['masked_window_basis'] for p in hb['polls']), per_poll)
     checks = {c['atom']: c['verdict'] for c in hb['checks']}
     check('ipb-1 PLAN: the 2x check runs per poll and names the polled sense (ok at 50 ms)', checks.get('apps/light.sense_poll') == 'ok' and len(hb['checks']) == len(hb['polls']), checks)
     check('ipb-6 POLL CYCLE: the UNO\'s standard PollCycle = every poll once at cycles_max (dividers ignored) + every interrupt once at length_max + the cited 4-cycle entry + the quiet pass; '
@@ -105,8 +119,11 @@ def plan_budget():
     check('ipb-1 PLAN: the command path is a LINK row - host -> uart -> USART_RX_vect -> receive-command (baud / frame / transit -1, said)',
           len(sb['links']) == 1 and sb['links'][0]['transport'] == 'uart' and sb['links'][0]['receiving_interrupt'] == 'USART_RX_vect' and sb['links'][0]['baud'] == -1, sb['links'])
     kinds = [s['kind'] for s in SG.suggestions(sb)]
-    check('ipb-3 SUGGEST: a healthy UNO budget gets only masked-window (advice: measure the masked window; the AVR entry latency is already cited), naming its evidence',
-          kinds == ['masked-window'] and all(s['evidence'] for s in SG.suggestions(sb)) and 'cite' not in SG.suggestions(sb)[0]['suggestion'], kinds)
+    check('ipb-3/ipb-7 SUGGEST: a healthy UNO budget gets NO suggestion now that the masked window is measured and the entry latency cited (a 9-cycle window is far below the longest handler)',
+          kinds == [], kinds)
+    nomask = BG.system_budget(plan, 'uno-light-v2', {}) if CR.load('uno-light-v2') and (CR.load('uno-light-v2').get('masked') or {}).get('n', -1) < 0 else None
+    if nomask is not None:
+        check('ipb-7 SUGGEST: a record WITHOUT a masked block still gets the measure-it advice', 'masked-window' in [s['kind'] for s in SG.suggestions(nomask)])
     forced = BG.system_budget(plan, 'uno-light', {'scan_deadline_ms': 0.001})
     fs = SG.suggestions(forced)
     costliest = max(forced['harts'][0]['polls'], key=lambda p: p['cost_per_scan_cycles'])['atom_short']

@@ -164,6 +164,7 @@ static void task_mon(void *arg)
                 (unsigned long)s_backoffs[1], deadlock, (long)g_params.a[0], (long)g_params.a[1], (long)g_params.a[2],
                 g_params_source == 1 ? "flash" : g_params_source == 2 ? "host" : "defaults");
     polari_trace_dump();
+    polari_cycle_line("end");   /* ipb-4 */
     polari_line("@END t_us=%lu", (unsigned long)polari_now_us());
     for (;;) vTaskDelay(portMAX_DELAY);
 }

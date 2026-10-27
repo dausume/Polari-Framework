@@ -179,11 +179,11 @@
    },
    {
     "path": "hal.c",
-    "sha256": "a4c74f2c2091895c1c285ac1fec1ed641a8c8e7e8331757f3da39b510a0be9d8"
+    "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
    },
    {
     "path": "hal.h",
-    "sha256": "58cfacfb3cad8403cc88c5a8f0f62034384c88d52642898767e31cd0bdb40ae0"
+    "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
    },
    {
     "path": "hal_button_adc.c",
@@ -191,7 +191,7 @@
    },
    {
     "path": "light_defs.h",
-    "sha256": "e6c88cf5352299a9d13235bef2d3d32f631fb6413d921f3eb64c7489208740a5"
+    "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
    },
    {
     "path": "lightstate_packets.h",
@@ -199,7 +199,7 @@
    },
    {
     "path": "main.c",
-    "sha256": "134c27154e803b18b5dbc056f12a9ca4dc460f135da8ca0b21ec81c47bc03807"
+    "sha256": "952da7280fd01988cd98838e537207722bde4bf81a473a618ef6570ffcc3ede6"
    }
   ]
  },
@@ -293,9 +293,30 @@
   "worst_gap_chip_timed_cycles": 100144,
   "worst_gap_cycles": 200184
  },
+ "masked": {
+  "armed": 1,
+  "basis": "shipped hex, --masked-windows: cycles with SREG.I cleared in main-line code outside ISRs, from the cli (pc = its byte address) to the instruction that set I again (an ATOMIC_BLOCK's SREG restore counts); armed by the first sei (the reset -> sei stretch is initialisation, not a critical section); 28188 windows measured, the longest named",
+  "max": 9,
+  "max_function": "hal_millis",
+  "max_pc": "0x1bc",
+  "mean": 9.0,
+  "min": 9,
+  "n": 28188,
+  "open_at_exit": 0,
+  "sites": [
+   {
+    "function": "hal_millis",
+    "max": 9,
+    "min": 9,
+    "n": 28188,
+    "pc": "0x1bc"
+   }
+  ],
+  "sites_overflow": 0
+ },
  "mcu": "atmega328p",
- "record_sha256": "b7b30b8f796e3d6bee3d6b90f8ed6e5671bf5f5f06296c0ed826834d121e2ebd",
- "recorded_at": "2026-10-18T22:22:19",
+ "record_sha256": "354abba934fe37639217783f8b9a33f402bf6b72dca4d59c95051cd8ea4fcd32",
+ "recorded_at": "2026-10-27T15:43:27",
  "rule": "measured = a recorded twin run with its inputs by sha256, the stimulus and the tool versions (reproducible-initial-conditions, 2026-09-26)",
  "schema": "cycle-measurement/1",
  "stimulus": {
@@ -353,7 +374,7 @@
   "avr-gcc": "avr-gcc (GCC) 14.2.0",
   "binutils": "avr-nm / avr-objdump 2.43 (binutils-avr, same image)",
   "image": {
-   "id": "sha256:1c4832c827616e2d76131db9772a884266e7f38e4a78dd20bba4d6334b3ffa90",
+   "id": "sha256:3da4463b6a67dae4821328a9fcbd8fffd7b1fc288df380cc2e23b0f8e7578e16",
    "name": "prf-board-engines:trixie"
   },
   "simavr": "libsimavr2 / simavr 1.6+dfsg-3 (Debian trixie), via polari-avr-twin in the image above (prf-board-engines/Dockerfile)"
@@ -373,6 +394,7 @@
   "functions": "cycles per call, entry -> ret, in the -fno-inline build (atom as a node; includes everything it calls and any interrupt that landed inside); the caller's CALL (4 cycles) is not counted",
   "isrs": "cycles per interrupt, vector taken -> reti, in the shipped hex",
   "loop": "cycles between two visits of the loop's poll point, by the way the loop came back, in the shipped hex",
+  "masked": "ipb-7: cycles with SREG.I cleared in main-line code outside ISRs (cli -> the instruction that set I again), per opening pc with its enclosing function, in the shipped hex",
   "mean": "a function's mean is not offered by the twin (n / min / max only); an interrupt's is"
  }
 }

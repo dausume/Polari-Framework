@@ -18,7 +18,9 @@ C with a slot table - a knob, none today) | preemptive-rtos (FreeRTOS / Zephyr: 
 Derived per hart (§3): scan_cycles = Σ cost_per_scan (cycles_max / poll_divider, unknown costs counted 0 and NAMED) + the loop's quiet-pass overhead
 (the smallest measured poll-point gap); scan_ms at the hart's clock; polls_per_scan; scan_utilisation = scan_ms / scan_deadline_ms (knob; default =
 the shortest wanted response / 2, said); isr_utilisation = Σ length_mean x expected_rate / clock over the rows where both are known; headroom =
-1 - both; worst_latency_cycles stays -1 until the controller's entry latency is cited AND a masked window is measured (neither exists today: said).
+1 - both; worst_latency_cycles (ipb-7) = the controller's cited entry latency + the longest MASKED WINDOW the twin measured in main-line code (cycle record `masked`,
+the --masked-windows run: cli -> the instruction that set I again, outside ISRs) + the longest handler when handlers do not nest; -1 names what is missing. Per poll,
+masked_window_cycles = the longest window inside the task's loop + called atoms (the callee's ATOMIC_BLOCK is the poll's to pay).
 The 2x check per poll: scan_ms <= wanted_response_ms / 2 -> ok | miss | unknown.
 
 KNOBS (per process, in `_KNOBS`, NOT persisted - a restart forgets them; ipb-3 may move them to DerivedOverride rows): scan_deadline_ms, harts (for a
@@ -148,9 +150,24 @@ def hart_budgets_from_plan(plan, variant='', knobs=None):
     return out
 
 
+def _masked_for(rec, atoms):
+    """ipb-7: (cycles, basis) - the longest masked window the twin measured INSIDE these atoms' functions (a task's loop + called steps: the window sits in the
+    callee - hal_millis's ATOMIC_BLOCK - and the poll pays it); 0 = measured, none inside; -1 = no masked block in the record (an older record or image)."""
+    mk = (rec or {}).get('masked') or {}
+    if mk.get('n', -1) < 0:
+        return -1, 'not measured: no masked-windows block in the cycle record (%s)' % (mk.get('basis') or 'no record')
+    fns = {(((rec or {}).get('functions') or {}).get(_short(a)) or {}).get('function') or _short(a).rsplit('.', 1)[-1] for a in atoms}
+    hits = [s for s in mk.get('sites', []) if s.get('function') in fns]
+    if not hits:
+        return 0, 'measured: no cli inside %s (the record\'s masked windows sit elsewhere)' % ', '.join(sorted(fns))
+    top = max(hits, key=lambda s: s['max'])
+    return top['max'], 'measured: cli at %s in %s, %d cycles max over %d windows (shipped hex, --masked-windows)' % (top['pc'], top['function'], top['max'], top['n'])
+
+
 def _place_task(hb, t, rec, seconds, knobs, harts=None):
     trig = t.get('trigger') if isinstance(t.get('trigger'), dict) else {'kind': t.get('trigger', ''), 'how': '', 'what': '', 'route': ''}
     deadline = float(t.get('deadline_ms', -1) or -1)
+    masked, masked_basis = _masked_for(rec, [s.get('atom', '') for s in t.get('steps', []) if s.get('lane') in ('loop', 'called')])
     if t.get('context') == 'task':
         hb['threads'].append({'hart': hb['hart'], 'task': t['task'], 'period_ms': float(t.get('period_ms', -1) or -1), 'priority': t.get('priority', -1),
                               'deadline_ms': deadline, 'exec_cycles': -1, 'basis': 'a thread sub-row of its hart (no PC of its own); execution cycles not measured on an RTOS yet'})
@@ -162,13 +179,15 @@ def _place_task(hb, t, rec, seconds, knobs, harts=None):
             if dup is not None:   # the loop runs an atom ONCE per pass however many tasks it serves
                 dup['task'] = '%s, %s' % (dup['task'], t['task'])
                 dup['wanted_response_ms'] = min(x for x in (dup['wanted_response_ms'], deadline) if x > 0) if (dup['wanted_response_ms'] > 0 or deadline > 0) else -1.0
+                if masked > dup['masked_window_cycles']:
+                    dup['masked_window_cycles'], dup['masked_window_basis'] = masked, masked_basis
                 continue
             fn = ((rec or {}).get('functions') or {}).get(_short(atom)) or {}
             div = int((knobs.get('poll_divider') or {}).get(atom, (knobs.get('poll_divider') or {}).get(_short(atom), 1)))
             cmax = fn.get('max', -1)
             hb['polls'].append({'hart': hb['hart'], 'task': t['task'], 'atom': atom, 'atom_short': _short(atom), 'trigger': trig.get('kind', ''), 'wanted_response_ms': deadline,
                                 'poll_divider': div, 'cycles_min': fn.get('min', -1), 'cycles_max': cmax, 'calls_measured': fn.get('n', -1),
-                                'cost_per_scan_cycles': (cmax / div) if cmax >= 0 and div > 0 else -1, 'masked_window_cycles': -1,
+                                'cost_per_scan_cycles': (cmax / div) if cmax >= 0 and div > 0 else -1, 'masked_window_cycles': masked, 'masked_window_basis': masked_basis,
                                 'basis': ('measured: %s' % ('function entry -> ret in the -fno-inline build' if fn else '')) if fn else 'not in the cycle record (inlined, or no record)'})
         elif lane == 'isr':
             vec = _vector(atom)
@@ -243,6 +262,28 @@ def _derive(hb, rec):
         pc_verdict, pc_why = 'ok', 'one PollCycle %.4g ms <= the shortest wanted response %.4g ms / 2' % (poll_cycle_ms, min(wanted_all))
     else:
         pc_verdict, pc_why = 'miss', 'one PollCycle %.4g ms > the shortest wanted response %.4g ms / 2: even the worst case must fit twice' % (poll_cycle_ms, min(wanted_all))
+    # ipb-7: the WORST LATENCY an interrupt can see = the controller's entry latency + the longest masked window in main-line code (measured by the twin) + the
+    # longest handler when handlers do not nest (AVR: I cleared on entry, 'software' nesting = only if a handler sets it again - the UNO's do not); hardware nesting adds nothing
+    mk = (rec or {}).get('masked') or {}
+    masked_max = mk.get('max', -1) if mk.get('n', -1) >= 0 else -1
+    masked_where = ('%s at %s' % (mk.get('max_function') or '?', mk.get('max_pc') or '?')) if masked_max > 0 else ('none measured' if masked_max == 0 else 'not measured')
+    longest_isr = max((i['length_max'] for i in ints if i['length_max'] >= 0), default=-1)
+    blocking = (longest_isr if hb['nesting'] != 'hardware' and ints else 0)
+    lat_missing = []
+    if hb['entry_latency_cycles'] < 0:
+        lat_missing.append('the entry latency of %s' % (hb['controller'] or 'the controller'))
+    if masked_max < 0:
+        lat_missing.append('a measured masked window (cli..sei / MIE cleared)')
+    if ints and longest_isr < 0:
+        lat_missing.append('a measured handler length')
+    if lat_missing:
+        worst_latency, worst_basis = -1, 'unverified: needs ' + ' and '.join(lat_missing)
+    else:
+        worst_latency = hb['entry_latency_cycles'] + masked_max + blocking
+        worst_basis = ('entry latency %d (cited) + the longest masked window %d (%s) + the longest handler %d (%s nesting: a running handler blocks the next)' % (
+            hb['entry_latency_cycles'], masked_max, masked_where, blocking, hb['nesting']) if blocking else
+            'entry latency %d (cited) + the longest masked window %d (%s)%s' % (hb['entry_latency_cycles'], masked_max, masked_where,
+                                                                               '; hardware nesting: a higher priority preempts, no handler term' if ints else '; no interrupt rows'))
     hb['derived'] = {'polls_per_scan': round(sum(1.0 / p['poll_divider'] for p in polls), 3), 'loop_overhead_cycles': overhead,
                      'poll_cycle_cycles': poll_cycle, 'poll_cycle_ms': poll_cycle_ms, 'poll_cycle_missing': '; '.join(missing),
                      'poll_cycle_basis': 'the hart\'s standard PollCycle = every poll once at cycles_max (dividers ignored: %d polls) + every interrupt once at length_max + entry latency %s '
@@ -255,10 +296,9 @@ def _derive(hb, rec):
                      'measured_worst_gap_cycles': worst_gap, 'measured_worst_gap_ms': (worst_gap / clock * 1000.0) if worst_gap >= 0 and clock and clock > 0 else -1.0,
                      'scan_ms': scan_ms, 'unknown_poll_costs': ', '.join(unknown), 'scan_deadline_ms': deadline, 'scan_deadline_basis': deadline_basis,
                      'scan_utilisation': scan_util, 'isr_utilisation': isr_util, 'isr_rows_without_rate': len(ints) - len(util_known), 'headroom': headroom,
-                     'worst_latency_cycles': -1,
-                     'worst_latency_basis': ('unverified: no masked window is measured yet (entry latency %d cycles is cited for %s)' % (hb['entry_latency_cycles'], hb['controller'])
-                                             if hb['entry_latency_cycles'] >= 0 else
-                                             'unverified: the controller\'s entry latency is -1 (%s) and no masked window is measured yet' % (hb['controller'] or 'no controller row')),
+                     'masked_window_max_cycles': masked_max, 'masked_window_where': masked_where,
+                     'worst_latency_cycles': worst_latency, 'worst_latency_us': (worst_latency / clock * 1e6) if worst_latency >= 0 and clock and clock > 0 else -1.0,
+                     'worst_latency_basis': worst_basis,
                      'columns': 2, 'clock_hz': clock}
     for p in polls:
         if scan_ms < 0 or p['wanted_response_ms'] <= 0:
