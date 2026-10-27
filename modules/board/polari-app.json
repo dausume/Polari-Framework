@@ -168,7 +168,8 @@
             "chip_ladder_page",
             "bench_page",
             "profile_overlap_page",
-            "register_profile_page"
+            "register_profile_page",
+            "workbench_page"
         ],
         "selftests": [
             "board_attach_selftest",
@@ -342,7 +343,13 @@
             "custom/views/bare_c",
             "custom/views/esp_idf",
             "custom/views/kicad",
-            "custom/views/zephyr"
+            "custom/views/zephyr",
+            "custom/bench",
+            "custom/bench_fit",
+            "custom/bench_seed",
+            "custom/chip_ladder",
+            "custom/chip_ladder_seed",
+            "custom/interrupt_controllers"
         ]
     },
     "classes": [
@@ -420,7 +427,9 @@
         "TargetCompatibilityRule",
         "TwinSession",
         "UnoAnalogState",
-        "UsbInterfaceDefinition"
+        "UsbInterfaceDefinition",
+        "BenchAPI",
+        "ChipLadderAPI"
     ],
     "imports": [
         [
@@ -450,9 +459,6 @@
                 "BoardView",
                 "TargetCompatibilityRule",
                 "KitPart",
-                "ChipLadderEntry",
-                "Bench",
-                "BreadboardModel",
                 "Peripheral",
                 "PeripheralSignal",
                 "PinFunction",

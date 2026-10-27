@@ -347,5 +347,8 @@ SEED_CMOD_PAGE_DISPLAYS += SOLVE_PAGES
 from cmod.cmod_task_plan_page import TASK_PLAN_PAGES   # noqa: E402  fgm-3: /display/task-plan
 SEED_CMOD_PAGE_DISPLAYS += TASK_PLAN_PAGES
 
+from cmod.cmod_budget_page import BUDGET_PAGES   # noqa: E402  ipb-2: /display/budget
+SEED_CMOD_PAGE_DISPLAYS += BUDGET_PAGES
+
 from cmod.cmod_fsc_page import FSC_PAGES   # noqa: E402  fsc-3: /display/firmware-scores (tabbed)
 SEED_CMOD_PAGE_DISPLAYS += FSC_PAGES

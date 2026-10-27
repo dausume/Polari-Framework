@@ -124,7 +124,8 @@
    "cmod_template_api",
    "cmod_firmware_api",
    "cmod_pin_profile_api",
-   "cmod_colocation_api"
+   "cmod_colocation_api",
+   "cmod_budget_api"
   ],
   "endpoints": [
    "cmod_endpoints"
@@ -139,7 +140,8 @@
    "cmod_approach_profile_page",
    "cmod_solve_page",
    "cmod_task_plan_page",
-   "cmod_fsc_page"
+   "cmod_fsc_page",
+   "cmod_budget_page"
   ],
   "selftests": [
    "cmod_pin_profile_selftest",
@@ -150,7 +152,8 @@
    "cmod_solve_selftest",
    "cmod_fsc_selftest",
    "cmod_task_plan_selftest",
-   "cmod_fsc_page_selftest"
+   "cmod_fsc_page_selftest",
+   "cmod_budget_selftest"
   ],
   "custom": [
    "custom/analyse",
@@ -270,7 +273,9 @@
    "custom/generator/context",
    "custom/generator/env",
    "custom/generator/filters",
-   "custom/generator/pin_context"
+   "custom/generator/pin_context",
+   "custom/budget",
+   "custom/budget_suggest"
   ]
  },
  "classes": [
@@ -331,7 +336,8 @@
   "PurposeTriggerState",
   "RegisterAssignment",
   "ScheduleSlot",
-  "TargetDefinition"
+  "TargetDefinition",
+  "BudgetAPI"
  ],
  "imports": [
   [

@@ -16,6 +16,7 @@ from cmod.cmod_colocation_api import ColocationAPI   # pp-1
 from cmod.cmod_task_plan_api import TaskPlanAPI   # fgm-3
 from cmod.cmod_template_api import TemplateAPI   # ed-0
 from cmod.cmod_fsc_api import FscAPI   # fsc-2
+from cmod.cmod_budget_api import BudgetAPI   # ipb-1
 
 
 def construct_cmod_endpoints(polServer):
@@ -30,5 +31,6 @@ def construct_cmod_endpoints(polServer):
     api.colocation = ColocationAPI(polServer=polServer, manager=polServer.manager)   # pp-1: /api/missions/{name}/colocation
     api.task_plan = TaskPlanAPI(polServer=polServer, manager=polServer.manager)   # fgm-3: /api/missions/{name}/task-plan, /api/task-plans/{plan}/also-runs-on
     api.templates = TemplateAPI(polServer=polServer, manager=polServer.manager)   # ed-0: /api/cmod/templates[/{tid:path}]
+    api.budget = BudgetAPI(polServer=polServer, manager=polServer.manager)   # ipb-1: /api/missions/{name}/budget, /api/benches/{bench}/budget, /api/hart-facts
     api.fsc = FscAPI(polServer=polServer, manager=polServer.manager)   # fsc-2: /api/firmware-scores[/top|/breakdown|/values], /api/firmware-score-profiles
     return api
