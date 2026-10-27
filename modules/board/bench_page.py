@@ -63,6 +63,35 @@ def _add_breadboard_tab():
     ], description='The breadboard selection panel.')
 
 
+_BUDGET = '/api/benches/home-bench/budget'
+
+
+def _budget_tab():
+    """ipb-2: the polling + interrupt budget of the REAL boards on the bench — two columns per hart (program counter); the full page is /display/budget."""
+    return _tab('budget', 'Budget: polls + interrupts per hart', [
+        _row(0, [_table('bench-budget-harts', 0, 12, 'One row per hart (program counter) on the bench: two columns each', 'HardwareMission',
+                        description='Each board\'s program counters: a board with a Mission gets that Mission\'s plan as its budget (polls / interrupts counted, headroom), '
+                                    'any other board shows its cited facts with empty columns. schedule_model = superloop (bare C) | cyclic-executive | preemptive-rtos. '
+                                    'The whole budget with its knobs is /display/budget. GET %s?view=harts.' % _BUDGET,
+                        columns='hart,label,soc,isa,controller,clock_hz,schedule_model,polls,interrupts,threads,headroom,openness,notes', data_path=_BUDGET + '?view=harts')],
+             min_height=260),
+        _row(1, [_table('bench-budget-polls', 0, 6, 'POLLS (left column)', 'HardwareMission',
+                        description='The atoms the loop runs each pass, with their measured cycles and the tightest response they serve. GET %s?view=polls.' % _BUDGET,
+                        columns='hart,atom_short,task,wanted_response_ms,poll_divider,cycles_max,cost_per_scan_cycles,basis', data_path=_BUDGET + '?view=polls',
+                        empty_text='No polls: no firmware is assigned to a board on this bench.'),
+                 _table('bench-budget-ints', 6, 6, 'INTERRUPTS (right column)', 'HardwareMission',
+                        description='The interrupt handlers, their measured length / latency and expected rate. The column exists even when empty: every hart can take interrupts. '
+                                    'GET %s?view=interrupts.' % _BUDGET,
+                        columns='hart,vector,task,expected_rate_hz,length_mean,latency_max,utilisation,nests,basis', data_path=_BUDGET + '?view=interrupts',
+                        empty_text='No interrupts enabled by the firmware on this bench.')], min_height=300),
+        _row(2, [_table('bench-budget-derived', 0, 12, 'Scan, deadline, utilisation, headroom per hart', 'HardwareMission',
+                        description='scan_cycles (the bound) beside the twin\'s measured worst gap, the scan deadline (knob; default = the shortest wanted response / 2), '
+                                    'utilisation and headroom. GET %s?view=derived.' % _BUDGET,
+                        columns='hart,polls_per_scan,scan_cycles,measured_worst_gap_cycles,scan_ms,scan_deadline_ms,scan_deadline_basis,scan_utilisation,isr_utilisation,headroom',
+                        data_path=_BUDGET + '?view=derived')], min_height=200)],
+        description='ANALYSING what is on the bench: two columns (polls, interrupts) per program counter, RISC-V names canonical. Nothing stored; knobs on /display/budget.')
+
+
 BENCH_PAGES = [
     _page('bench', 'bench',
           'The bench - the dev and eval boards and the breadboards on the table, added from two selection lists. Every board says how it can be tested: simulated with real pins, '
@@ -75,5 +104,5 @@ BENCH_PAGES = [
                    min_height=200),
           ],
           title='The bench',
-          tabs=[_on_bench_tab(), _add_board_tab(), _add_breadboard_tab()]),
+          tabs=[_on_bench_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
 ]

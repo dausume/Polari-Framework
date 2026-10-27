@@ -95,8 +95,8 @@ def run_bench_setup(check):
     from board.bench_page import BENCH_PAGES as P
     from board.chip_ladder_page import CHIP_LADDER_PAGES as CP
     d = json.loads(P[0]['definition'])
-    check('bench-0 PAGE: /display/bench has the benches table above three tabs - On the bench, Add a board, Add a breadboard - with Add to bench and Remove row actions',
-          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'add-board', 'add-breadboard']
+    check('bench-0 PAGE: /display/bench has the benches table above four tabs - On the bench, Add a board, Add a breadboard, Budget (ipb-2) - with Add to bench and Remove row actions',
+          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'add-board', 'add-breadboard', 'budget']
           and all('"label": "Add to bench"' in json.dumps(d['tabs'][i]) for i in (1, 2)) and '"label": "Remove"' in json.dumps(d['tabs'][0]), [t['key'] for t in d['tabs']])
     cd = json.loads(CP[0]['definition'])
     check('chp-1 PAGE: each ladder section has the three testing tables - simulated with real pins, pins stub, HARDWARE ONLY - and the Emulators tab has the hardware-only table',
@@ -221,8 +221,9 @@ def run_wb2(check):
     _walk(d, paths)
     api = open(__file__.replace('board_bench_setup_selftest.py', 'bench_api.py')).read()
     mapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'cmod/cmod_mission_api.py')).read()
+    bapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'cmod/cmod_budget_api.py')).read()   # ipb-2: the bench's Budget tab
     iapi = open(__file__.replace('board/board_bench_setup_selftest.py', 'instruments/instruments_api.py')).read()   # osc-0: the instruments tab's doors
-    routes = re.findall(r"add\('([^']+)'", api) + re.findall(r"add\('([^']+)'", mapi) + re.findall(r"add\('([^']+)'", iapi)
+    routes = re.findall(r"add\('([^']+)'", api) + re.findall(r"add\('([^']+)'", mapi) + re.findall(r"add\('([^']+)'", iapi) + re.findall(r"add\('([^']+)'", bapi)
 
     def hits(path):
         p = re.sub(r'\{scope:[^}]*\}', 'X', path.split('?')[0])
