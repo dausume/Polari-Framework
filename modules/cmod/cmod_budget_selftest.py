@@ -99,8 +99,8 @@ def plan_budget():
     check('ipb-1 PLAN: the command path is a LINK row - host -> uart -> USART_RX_vect -> receive-command (baud / frame / transit -1, said)',
           len(sb['links']) == 1 and sb['links'][0]['transport'] == 'uart' and sb['links'][0]['receiving_interrupt'] == 'USART_RX_vect' and sb['links'][0]['baud'] == -1, sb['links'])
     kinds = [s['kind'] for s in SG.suggestions(sb)]
-    check('ipb-3 SUGGEST: a healthy UNO budget gets only masked-window (advice) + unknowns (info), each naming its evidence',
-          kinds == ['masked-window', 'unknowns'] and all(s['evidence'] for s in SG.suggestions(sb)), kinds)
+    check('ipb-3 SUGGEST: a healthy UNO budget gets only masked-window (advice: measure the masked window; the AVR entry latency is already cited), naming its evidence',
+          kinds == ['masked-window'] and all(s['evidence'] for s in SG.suggestions(sb)) and 'cite' not in SG.suggestions(sb)[0]['suggestion'], kinds)
     forced = BG.system_budget(plan, 'uno-light', {'scan_deadline_ms': 0.001})
     fs = SG.suggestions(forced)
     costliest = max(forced['harts'][0]['polls'], key=lambda p: p['cost_per_scan_cycles'])['atom_short']

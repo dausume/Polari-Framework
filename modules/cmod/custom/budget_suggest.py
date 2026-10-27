@@ -31,8 +31,10 @@ def suggestions(sb):
                 out.append(_sug(hb, 'move-to-isr', 'move %s to an interrupt (the %s trigger) or raise the other polls\' dividers so the scan reaches it in time' % (c['atom'], p.get('trigger', '')),
                                 'checks[%s]: %s; polls[%s].cycles_max %s, poll_divider %s' % (c['atom'], c['why'], c['atom'], p.get('cycles_max'), p.get('poll_divider')), 'warning'))
         if ints and d.get('worst_latency_cycles', -1) < 0:
-            out.append(_sug(hb, 'masked-window', 'measure the longest masked window (cli..sei / MIE cleared) and cite %s\'s entry latency, so worst_latency_cycles can be a number'
-                            % (hb['controller'] or 'the controller'), d.get('worst_latency_basis', ''), 'advice'))
+            need = ['measure the longest masked window (cli..sei / MIE cleared)']
+            if hb['entry_latency_cycles'] < 0:
+                need.append('cite %s\'s entry latency' % (hb['controller'] or 'the controller'))
+            out.append(_sug(hb, 'masked-window', ' and '.join(need) + ', so worst_latency_cycles can be a number', d.get('worst_latency_basis', ''), 'advice'))
         if hb['schedule_model'] == 'preemptive-rtos':
             for i in ints:
                 if not i['defers_to']:

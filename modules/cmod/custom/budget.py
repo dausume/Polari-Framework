@@ -192,7 +192,10 @@ def _derive(hb, rec):
                      'measured_worst_gap_cycles': worst_gap, 'measured_worst_gap_ms': (worst_gap / clock * 1000.0) if worst_gap >= 0 and clock and clock > 0 else -1.0,
                      'scan_ms': scan_ms, 'unknown_poll_costs': ', '.join(unknown), 'scan_deadline_ms': deadline, 'scan_deadline_basis': deadline_basis,
                      'scan_utilisation': scan_util, 'isr_utilisation': isr_util, 'isr_rows_without_rate': len(ints) - len(util_known), 'headroom': headroom,
-                     'worst_latency_cycles': -1, 'worst_latency_basis': 'unverified: the controller\'s entry latency is -1 (%s) and no masked window is measured yet' % (hb['controller'] or 'no controller row'),
+                     'worst_latency_cycles': -1,
+                     'worst_latency_basis': ('unverified: no masked window is measured yet (entry latency %d cycles is cited for %s)' % (hb['entry_latency_cycles'], hb['controller'])
+                                             if hb['entry_latency_cycles'] >= 0 else
+                                             'unverified: the controller\'s entry latency is -1 (%s) and no masked window is measured yet' % (hb['controller'] or 'no controller row')),
                      'columns': 2, 'clock_hz': clock}
     for p in polls:
         if scan_ms < 0 or p['wanted_response_ms'] <= 0:
