@@ -141,14 +141,14 @@ def registers_tab():
     d = json.loads(BENCH_VIEWS_PAGES[0]['definition'])
     tab = next(t for t in d['tabs'] if t['key'] == 'registers')
     paths = [it['componentProps']['inputs'].get('dataPath') for r in tab['rows'] for it in r['items'] if it['componentProps']['inputs'].get('dataPath')]
-    scope = {'soc': 'atmega328p', 'category': 'mcu-pin/interrupt', 'register': 'EICRA', 'field': 'atmega328p:DDRD.DDD2', 'pin': 'PD2', 'rev': '0'}
+    scope = {'soc': 'atmega328p', 'category': 'mcu-pin/interrupt', 'register': 'EICRA', 'field': 'atmega328p:DDRD.DDD2', 'pin': 'atmega328p:PD2', 'rev': '0'}
     api = RegisterViewAPI(polServer=None, manager=None)
     import re
     from urllib.parse import parse_qsl
     routes = [('/api/board/socs', 'on_get_socs', ()), (r'/api/board/socs/([^/]+)/register-categories', 'on_get_categories', 1),
               (r'/api/board/socs/([^/]+)/registers/([^/?]+)', 'on_get_register', 2), (r'/api/board/socs/([^/]+)/registers', 'on_get_registers', 1),
               (r'/api/board/socs/([^/]+)/fields/([^/]+)/pins', 'on_get_field_pins', 2), (r'/api/board/socs/([^/]+)/pins/([^/]+)/uses', 'on_get_pin_uses', 2),
-              (r'/api/board/socs/([^/]+)/pins', 'on_get_pins', 1)]
+              (r'/api/board/socs/([^/]+)/pins', 'on_get_pins', 1), (r'/api/board/pins/([^/]+)/uses', 'on_get_ref_uses', 1)]
     got = {}
     for raw in paths:
         url = re.sub(r'\{scope:([a-z]+)\}', lambda m: scope[m.group(1)], raw)
@@ -168,6 +168,28 @@ def registers_tab():
           and any(it['componentProps']['inputs'].get('className') == 'RegisterAccessKind' for r in tab['rows'] for it in r['items']), got)
 
 
+def structs_to_pin():
+    """The views join up: a pin row of a field's signal path carries '<soc>:<pin>' and opens the Registers tab; the ref door answers it."""
+    from cmod.custom import bench_structs as BS
+    from board.register_view_api import RegisterViewAPI
+    from cmod.bench_views_page import BENCH_VIEWS_PAGES
+    pins = [s for s in BS.path(BENCH, INST, 'led_on') if s['kind'] == 'pin']
+    others = [s for s in BS.path(BENCH, INST, 'led_on') if s['kind'] != 'pin']
+    api = RegisterViewAPI(polServer=None, manager=None)
+    resp = types.SimpleNamespace(status='200 OK', media=None)
+    api.on_get_ref_uses(types.SimpleNamespace(get_param=lambda k: None), resp, pins[0]['pin_ref'])
+    bad = types.SimpleNamespace(status='200 OK', media=None)
+    api.on_get_ref_uses(types.SimpleNamespace(get_param=lambda k: None), bad, 'PD2')
+    d = json.loads(BENCH_VIEWS_PAGES[0]['definition'])
+    path_tbl = next(it for t in d['tabs'] for r in t['rows'] for it in r['items'] if it['id'] == 'bv-struct-path')['componentProps']['inputs']
+    check('STRUCTS -> PIN: a pin row of led_on\'s signal path carries atmega328p:PD2 + tab=registers (other rows carry neither, so a click on them does nothing); '
+          'the path table selects pin_ref into scope pin and opens the tab; GET /api/board/pins/atmega328p:PD2/uses answers (PD2 = BUTTON_PIN); a bare pin is 422',
+          [p['pin_ref'] for p in pins] == ['atmega328p:PD2', 'atmega328p:PD0', 'atmega328p:PD6'] and all(p['tab'] == 'registers' for p in pins)
+          and all(not o['pin_ref'] and not o['tab'] for o in others) and path_tbl['selectField'] == 'pin_ref' and path_tbl['rowLinkTabField'] == 'tab'
+          and resp.media['soc_pin'] == 'PD2' and any(r['name'] == 'BUTTON_PIN' for r in resp.media['rows']) and bad.status.startswith('422'),
+          ([p['pin_ref'] for p in pins], bad.status))
+
+
 def registered():
     from moduleService.manifests import conform
     for mod in ('cmod', 'grpcbridge', 'uno_core_demo'):
@@ -181,6 +203,7 @@ def main():
     doors()
     page()
     registers_tab()
+    structs_to_pin()
     registered()
     print('\n%d/%d passed' % (passed, total))
     return 0 if passed == total else 1

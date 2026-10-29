@@ -95,8 +95,18 @@ def fields(bench, instance, **rows):
     return out
 
 
-def _step(route, n, kind, what, status, why, direction=''):
-    return {'route': route, 'step': n, 'kind': kind, 'what': what, 'direction': direction, 'status': status, 'why': why}
+#: the SoC of a firmware variant's board (a pin step's `pin_ref` = '<soc>:<pin>', the Registers view's pin reference)
+SOC_OF = {'uno-light': 'atmega328p', 'esp32c3-light': 'esp32c3'}
+
+
+def _step(route, n, kind, what, status, why, direction='', pin_ref=''):
+    return {'route': route, 'step': n, 'kind': kind, 'what': what, 'direction': direction, 'status': status, 'why': why,
+            'pin_ref': pin_ref, 'tab': 'registers' if pin_ref else ''}
+
+
+def _ref(inst, pin):
+    soc = SOC_OF.get(inst['variant'], '')
+    return '%s:%s' % (soc, pin) if soc and pin else ''
 
 
 def path(bench, instance, field, **rows):
@@ -119,7 +129,7 @@ def path(bench, instance, field, **rows):
             n = 2
         for p in [p for p in (a['pins'] or '').split(',') if p]:
             n += 1
-            out.append(_step(route, n, 'pin', '%s (%s)' % (p, a['event'] or 'signal'), a['status'], 'the signal that starts the change', 'in'))
+            out.append(_step(route, n, 'pin', '%s (%s)' % (p, a['event'] or 'signal'), a['status'], 'the signal that starts the change', 'in', _ref(inst, p)))
         if a['bridge'] and a['bridge'] == inst['bridge']:
             for r in [r for r in mine if r['kind'] == 'receives-from-bridge' and r['bridge'] == inst['bridge']]:
                 n += 1
@@ -141,7 +151,7 @@ def path(bench, instance, field, **rows):
         out.append(_step(route, 1, 'field', '%s[%d].%s' % (inst['struct'], inst['index'], field), a['status'], 'read by the catom'))
         out.append(_step(route, 2, 'catom', '%s [%s lane]' % (CA._short(a['atom']), a['lane']), a['status'], a['status_why']))
         for i, p in enumerate([p for p in (a['pins'] or '').split(',') if p]):
-            out.append(_step(route, 3 + i, 'pin', p, a['status'], a['notes'] or 'the field drives this pin', 'out'))
+            out.append(_step(route, 3 + i, 'pin', p, a['status'], a['notes'] or 'the field drives this pin', 'out', _ref(inst, p)))
     if not out:
         out.append(_step(0, 0, 'gap', '%s[%d].%s' % (inst['struct'], inst['index'], field), 'gap', 'no catom asserts a change or a read of this field'))
     return out
