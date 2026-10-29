@@ -52,6 +52,12 @@ MISSION_CATEGORY = 'mission'
 MISSION_KINDS = {'MissionGoalState', 'MissionSettingsState', 'MissionPurposeState', 'MissionParticipantState', 'MissionConstraintState',
                  'MissionResolutionState', 'mission-goal', 'mission-settings', 'mission-purpose', 'mission-participant',
                  'mission-constraint', 'mission-resolution'}
+#: hsp-3c: category 'hal' (a variant's Catom variables drawn in no-code, cmod.custom.hal_nocode) - declarative: one state per HAL variable; choosing a
+#: value writes it through catom_variables.propose (the pin functions, the lifecycle, one pin one role, the variant's own rules)
+HAL_CATEGORY = 'hal'
+HAL_KINDS = {'HalVariableState', 'hal-variable'}
+#: the declarative categories: category -> (kinds, the word a refusal uses)
+DECLARATIVE = {PURPOSE_CATEGORY: (PURPOSE_KINDS, 'Purpose'), MISSION_CATEGORY: (MISSION_KINDS, 'Mission'), HAL_CATEGORY: (HAL_KINDS, 'HAL')}
 #: runtime kinds of the other categories - named so a refusal reads as a rule
 RUNTIME_KINDS = FIRMWARE_RUN_KINDS | BRIDGE_KINDS | RELAY_KINDS | API_CALL_KINDS | SUB_SOLUTION_KINDS | FRONTEND_EMIT_KINDS | {'NativeAppStep'}
 
@@ -65,24 +71,16 @@ def validate(definition, category='cross-domain'):
     equation-evaluating kind may ever appear, full stop). `category='hardware-app'` (ucd-app) holds the same posture for the
     Hardware App: native-shell steps (javafx-native) and bridge states (java-bridge) only; compute refused by name."""
     allowed, label = ALLOWED_KINDS, 'Cross-Domain'
-    if category == PURPOSE_CATEGORY:
+    if category in DECLARATIVE:
+        kinds, label = DECLARATIVE[category]
         for s in (definition or {}).get('stateInstances', []):
             kind = s.get('stateClass', '')
             if kind in COMPUTE_KINDS or kind in RUNTIME_KINDS:
-                return False, ('refused: state %r is %s, a %s kind - a Purpose drawing is a declaration, never executed; it holds '
-                               'Purpose states only' % (s.get('stateName', ''), kind, 'compute' if kind in COMPUTE_KINDS else 'runtime'))
-            if kind not in PURPOSE_KINDS:
-                return False, 'refused: state %r is %s, not one of the Purpose kinds (%s)' % (s.get('stateName', ''), kind, ', '.join(sorted(k for k in PURPOSE_KINDS if k[0] == 'P')))
-        return True, 'ok: every state is a Purpose kind (declarative, never executed)'
-    if category == MISSION_CATEGORY:
-        for s in (definition or {}).get('stateInstances', []):
-            kind = s.get('stateClass', '')
-            if kind in COMPUTE_KINDS or kind in RUNTIME_KINDS:
-                return False, ('refused: state %r is %s, a %s kind - a Mission drawing is a declaration, never executed; it holds '
-                               'Mission states only' % (s.get('stateName', ''), kind, 'compute' if kind in COMPUTE_KINDS else 'runtime'))
-            if kind not in MISSION_KINDS:
-                return False, 'refused: state %r is %s, not one of the Mission kinds (%s)' % (s.get('stateName', ''), kind, ', '.join(sorted(k for k in MISSION_KINDS if k[0] == 'M')))
-        return True, 'ok: every state is a Mission kind (declarative, never executed)'
+                return False, ('refused: state %r is %s, a %s kind - a %s drawing is a declaration, never executed; it holds '
+                               '%s states only' % (s.get('stateName', ''), kind, 'compute' if kind in COMPUTE_KINDS else 'runtime', label, label))
+            if kind not in kinds:
+                return False, 'refused: state %r is %s, not one of the %s kinds (%s)' % (s.get('stateName', ''), kind, label, ', '.join(sorted(k for k in kinds if k[0].isupper())))
+        return True, 'ok: every state is a %s kind (declarative, never executed)' % label
     if category == HARDWARE_APP_CATEGORY:
         allowed, label = HARDWARE_APP_KINDS, 'Hardware App'
     for s in (definition or {}).get('stateInstances', []):

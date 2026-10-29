@@ -177,7 +177,8 @@ def uno_parts(check):
               counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 72, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 66,
                          'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 47, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 76, 'RegisterAssignment': 47,
-                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22, 'ScoreTerm': 24, 'ScoreConcept': 10, 'GraphDefinition': 1}, counts)   # fsc-0/2: + the 24 Firmware Score Terms and 10 seeded profiles (the scoring module's own classes)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
+                         'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22, 'ScoreTerm': 24, 'ScoreConcept': 10, 'GraphDefinition': 1,
+                         'StructObjectMap': 1, 'CatomAssertion': 7, 'CatomVariable': 11}, counts)   # hsp-3a: + the struct map + 7 catom assertions; hsp-3d: + 11 catom variables   # fsc-0/2: + the 24 Firmware Score Terms and 10 seeded profiles (the scoring module's own classes)   # ucd-0e2b: + the button_clock_defs header module, + uno-button-clock-graph (27 nodes, 18 edges), + the second FirmwareSolution/binding and their derived rows; ucd-iso-0: + CIsotope; mis-0: + HardwareMission (uno-light-mission)
         page = SEED_CMOD_PAGE_DISPLAYS[0]
         items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
         comp_names = {it['componentProps']['componentName'] for it in items}

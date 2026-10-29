@@ -52,5 +52,18 @@ check('rm-0: the booted Register row atmega328p:DDRD carries domains_json mcu-pi
       and 'control' in getattr(reg, 'roles_json', ''), getattr(reg, 'domains_json', None))
 r = client.simulate_get('/api/board/arduino-uno-r3/pins/D0/stages', params={'claim': 'gpio-out'})
 check('rm-1: GET /api/board/arduino-uno-r3/pins/D0/stages?claim=gpio-out -> two boot-critical conflicts', r.status_code == 200 and len(r.json['boot_critical']) == 2, r.text[:300])
+check('hsp-3c: class HalVariableState is typed after boot', 'HalVariableState' in typed)
+sols = {getattr(o, 'name', ''): o for o in (tables.get('SolutionDefinition') or {}).values()}
+check('hsp-3c: the hal-uno-light + hal-esp32c3-light drawings are seeded SolutionDefinitions of category hal',
+      all(getattr(sols.get(nm), 'category', '') == 'hal' for nm in ('hal-uno-light', 'hal-esp32c3-light')), sorted(nm for nm in sols if nm.startswith('hal')))
+r = client.simulate_get('/api/cmod/catom-variables/uno-light/solution')
+check('hsp-3c: GET /api/cmod/catom-variables/uno-light/solution -> 6 HAL cards', r.status_code == 200 and len(r.json['definition']['stateInstances']) == 6, r.text[:300])
+r = client.simulate_post('/api/cmod/catom-variables/uno-light/set', json={'variable': 'LED_PIN', 'value': 'D2'})
+check('hsp-3c: POST .../uno-light/set {LED_PIN: D2} -> 422 (BUTTON_PIN holds PD2), nothing written', r.status_code == 422 and r.json['written'] == [], r.text[:300])
+r = client.simulate_post('/api/cmod/catom-variables/uno-light/set', json={'variable': 'LED_PIN', 'value': 'D7'})
+fv = next((o for o in (tables.get('FirmwareVariant') or {}).values() if getattr(o, 'name', '') == 'uno-light'), None)
+h = client.simulate_get('/api/cmod/catom-variables/uno-light', params={'view': 'header'})
+check('hsp-3c: POST .../uno-light/set {LED_PIN: D7} writes the booted FirmwareVariant knob led_pin 7; the header then says LED_PIN 7',
+      r.status_code == 200 and fv is not None and '"led_pin": 7' in fv.knobs_json and '#define LED_PIN        7' in h.json['text'], (r.text[:300], getattr(fv, 'knobs_json', None)))
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

@@ -136,6 +136,11 @@ def solution_definitions():
     from cmod.custom import mission_nocode as MN
     from cmod.custom.mission_seeds import MISSION_SEEDS
     out.extend(MN.render(m, derive=False) for m in MISSION_SEEDS)
+    # hsp-3c: one declarative `hal-<variant>` solution per variant that has Catom variables, RENDERED FROM the rows by cmod.custom.hal_nocode;
+    # GET /api/cmod/catom-variables/{variant}/solution serves it live, PUT writes a chosen value back through catom_variables.propose
+    from cmod.custom import hal_nocode as HN
+    from cmod.custom.catom_variables import SEED_VARIABLES
+    out.extend(HN.render(v) for v in dict.fromkeys(r['variant'] for r in SEED_VARIABLES))
     return out
 
 
