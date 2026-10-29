@@ -891,7 +891,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, EventDefinition, CalendarDefinition, CalendarEvent, EventTrigger, TriggerFiring, AnalysisDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, FoodMaterial, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, EventDefinition, CalendarDefinition, CalendarEvent, EventTrigger, TriggerFiring, AnalysisDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, ThresholdReactionWindow, BenchmarkCase, PrecursorSource, ResearchTool, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, FoodMaterial, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -1330,6 +1330,11 @@ class polariServer(treeObject):
             TargetCompatibilityRule,
             # fs-2d: the kit parts register (was missing here — the manifests guard named it; ucd-0a closes the gap)
             KitPart,
+            # chp-0 + bench-0: the chips-and-levels ladder, the bench and its breadboard models - seeded by BOARD_SEED_PAIRS since chp-0 / bench-0 but never
+            # registered here, so every seed was skipped and a person's bench had no table (the manifests guard named them; fixed 2026-10-29)
+            ChipLadderEntry, Bench, BreadboardModel,
+            # osc-0..8: the instruments module (models, endpoints, channels, captures) - threaded 2026-10-29 (was manifest-admission only)
+            Instrument, InstrumentEndpoint, ScopeChannel, WaveformCapture,
             # ucd-0a: THE HARDWARE CHAIN — Peripheral / PeripheralSignal / PinFunction / SignalRoute / Register / RegisterField (+ the
             # settings rows ucd-0b fills and the circuit link ucd-0c fills), navigable both ways
             Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, RegisterAccessKind, BoardPinNet,
@@ -2488,7 +2493,7 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or []) + (SEED_CMOD_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_INSTRUMENTS_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or []) + (SEED_CMOD_PAGE_DISPLAYS or [])
              # pcb-0: /display/board-schematic, board-layout, board-bom, board-fab
              + (SEED_PCB_PAGE_DISPLAYS or [])
              # hn-0: /display/hardware-solutions
@@ -3415,7 +3420,7 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(INSTRUMENTS_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) \
           + list(HWNOCODE_SEED_PAIRS or []) \
           + list(UNO_CORE_DEMO_SEED_PAIRS or []) \
           + list(PCB_SEED_PAIRS or []) \
@@ -4227,7 +4232,8 @@ class polariServer(treeObject):
              + (SEED_CNT_DEVICE_GRAPHS or [])
              + (SEED_CNT_FV_GRAPHS or [])
              + (SEED_SI_REFINEMENT_GRAPHS or [])
-             + (SEED_SI_LADDER_GRAPHS or [])),
+             + (SEED_SI_LADDER_GRAPHS or [])
+             + (SEED_INSTRUMENTS_GRAPHS or [])),   # osc-3: the capture chart
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

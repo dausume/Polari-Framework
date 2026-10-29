@@ -74,7 +74,30 @@
   "ScopeChannel",
   "WaveformCapture"
  ],
- "imports": [],
+ "imports": [
+  [
+   "instruments.instruments_basis",
+   [
+    "Instrument",
+    "InstrumentEndpoint",
+    "ScopeChannel",
+    "WaveformCapture"
+   ]
+  ],
+  [
+   "instruments.instruments_seed",
+   [
+    "INSTRUMENTS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "instruments.instruments_page",
+   [
+    "SEED_INSTRUMENTS_PAGE_DISPLAYS",
+    "SEED_INSTRUMENTS_GRAPHS"
+   ]
+  ]
+ ],
  "endpoints": "instruments.instruments_endpoints:construct_instruments_endpoints",
  "seedPairs": "instruments.instruments_seed:INSTRUMENTS_SEED_PAIRS",
  "pages": [
@@ -85,6 +108,7 @@
  "selftests": [
   "instruments_capture_selftest",
   "instruments_dialects_selftest",
+  "instruments_placement_selftest",
   "instruments_selftest",
   "instruments_worker_selftest"
  ],

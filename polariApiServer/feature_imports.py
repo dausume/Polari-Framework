@@ -890,6 +890,13 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_TECH_TREE_DEFINITIONS',
         )),
     )),
+    # osc-0..8 (OSCILLOSCOPE_PLAN): instrument models, endpoints, channels, captures - scaffolded as a manifest-admitted project and never threaded
+    # here, so a normal boot never brought it up (the workbench's Instruments step had no doors); threaded like every built-in module 2026-10-29
+    ('instruments', (
+        ('instruments.instruments_basis', ('Instrument', 'InstrumentEndpoint', 'ScopeChannel', 'WaveformCapture')),
+        ('instruments.instruments_seed', ('INSTRUMENTS_SEED_PAIRS',)),
+        ('instruments.instruments_page', ('SEED_INSTRUMENTS_PAGE_DISPLAYS', 'SEED_INSTRUMENTS_GRAPHS')),
+    )),
     ('testing', (
         ('testing.capability_basis', (
             'CapabilityCheck', 'CheckRun',
@@ -1319,6 +1326,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
                                'UnoAnalogState', 'SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin',
                                'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
+                               'ChipLadderEntry', 'Bench', 'BreadboardModel',   # chp-0 + bench-0 (were never named here: their seeds silently skipped - fixed 2026-10-29)
                                'Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',
                                'RegisterFieldSetting', 'RegisterAccessKind', 'BoardPinNet', 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion',
                                'ButtonClockState', 'ButtonClockEvent', 'LightState', 'LightStateV2', 'LightCommand', 'Datasheet',
