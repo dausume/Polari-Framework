@@ -213,6 +213,99 @@ def test_cases():
           and c3['interrupts'][0]['length_mean'] == -1 and uno['interrupts'] and link is not None and link['from'] == 'another hart' and 'UART0_IRQ' in link['chain'], (len(tb['harts']), tb['links']))
 
 
+def _on(plan, name, board, soc, strip_isr=False):
+    out = json.loads(json.dumps(plan))
+    out['processors'] = [{'name': name, 'board': board, 'role': 'chip U1 (mcu)', 'soc': soc}]
+    for t in out['tasks']:
+        t['processor'] = name
+        if strip_isr:
+            t['steps'] = [x for x in t['steps'] if x['lane'] != 'isr']
+    return out
+
+
+def affinity():
+    """ipb-8 (§2d): multicore_model facts, the freertos-smp tier, task affinity + reason words, `any` booked on every smp hart with the best split, refused on a
+    single-core chip, `mirror` under lockstep, the knob door's vocabulary."""
+    from board.custom import parallelism as PX
+    from cmod.custom import budget as BG
+    from cmod.custom import budget_suggest as SG
+    f = PX.facts_for
+    check('ipb-8 FACTS: multicore_model - UNO single, C3 single, S3 smp + amp ULP beside it, RP2350 smp, QEMU virt smp; every smp/amp claim carries its citation; values from the enum',
+          f('atmega328p')['multicore_model'] == 'single' and f('esp32c3')['multicore_model'] == 'single' and f('esp32-xtensa')['multicore_model'] == 'smp'
+          and 'ULP' in f('esp32-xtensa')['amp_with'] and f('rp2350')['multicore_model'] == 'smp' and f('qemu-virt-rv32')['multicore_model'] == 'smp'
+          and all(r['multicore_citation'] for r in PX.HART_PARALLELISM if r['multicore_model'] in ('smp', 'amp'))
+          and {r['multicore_model'] for r in PX.HART_PARALLELISM} <= set(PX.MULTICORE_MODELS) and f('nope')['multicore_model'] == 'unverified')
+    tiers = PX.tier_rows()
+    check('ipb-8 TIERS: the ladder bare-c -> freertos -> freertos-smp -> zephyr; freertos-smp = MIT (IDF variant Apache-2.0) with tskNO_AFFINITY cited; it schedules preemptively',
+          [t['tier'] for t in tiers] == ['bare-c', 'freertos', 'freertos-smp', 'zephyr'] and 'MIT' in tiers[2]['license'] and 'Apache-2.0' in tiers[2]['license']
+          and 'tskNO_AFFINITY' in tiers[2]['citation'] and BG.TIER_MODEL['freertos-smp'] == 'preemptive-rtos')
+    plan = light_plan()
+    s3 = BG.system_budget(_on(plan, 'elecrow-esp32-eval:esp32-xtensa', 'elecrow-esp32-eval', 'esp32-xtensa'), 'uno-light', {'affinity': {'sense': 'any'}})
+    h0, h1 = s3['harts']
+    sense = [p for h in (h0, h1) for p in h['polls'] if p['affinity_task'] == 'sense']
+    check('ipb-8 ANY on the S3 (smp): the null-affinity task sense is booked on BOTH harts (affinity any), the others pinned to hart 0 by-default; hart rows say smp; no refusal',
+          len(sense) == 2 and {p['hart'] for p in sense} == {h0['hart'], h1['hart']} and all(p['affinity'] == 'any' for p in sense)
+          and all(p['affinity'] == h0['hart'] and p['affinity_reason'] == 'by-default' for p in h0['polls'] if p['affinity_task'] != 'sense')
+          and h0['multicore_model'] == 'smp' and not [c for c in h0['checks'] if c['verdict'] == 'refused'], [(p['hart'], p['affinity']) for p in sense])
+    check('ipb-8 BEST SPLIT unknown when a hart\'s PollCycle is -1 (the S3 hart 0: no Xtensa entry latency) - said, not invented',
+          h0['derived']['poll_cycle_best_split_cycles'] == -1 and h1['derived']['poll_cycle_best_split_cycles'] == -1 and 'is -1' in h1['derived']['poll_cycle_best_split_basis'],
+          h1['derived']['poll_cycle_best_split_basis'])
+    virt = _on(plan, 'qemu-virt-rv32:hart', 'qemu-virt-rv32', 'qemu-virt-rv32', strip_isr=True)
+    v = BG.system_budget(virt, 'uno-light', {'harts': 2, 'affinity': {'sense': 'any'}})
+    v0, v1 = v['harts']
+    cost = next(p['cycles_max'] for p in v1['polls'] if p['affinity_task'] == 'sense')
+    d0, d1 = v0['derived'], v1['derived']
+    check('ipb-8 BEST SPLIT (QEMU virt, 2 harts, loop lanes only, the uno-light record): every hart\'s PollCycle carries sense (worst case); the best split gives sense to the '
+          'least-loaded hart: that hart = its PollCycle, the other = its PollCycle minus sense\'s cycles; the split is named',
+          d0['poll_cycle_cycles'] > 0 and d1['poll_cycle_cycles'] > 0 and cost > 0 and d1['poll_cycle_best_split_cycles'] == d1['poll_cycle_cycles']
+          and d0['poll_cycle_best_split_cycles'] == d0['poll_cycle_cycles'] - cost and v0['any_split'] == {'sense': v1['hart']} and 'sense -> ' in d0['poll_cycle_best_split_basis'],
+          (d0['poll_cycle_cycles'], d0['poll_cycle_best_split_cycles'], d1['poll_cycle_cycles'], d1['poll_cycle_best_split_cycles'], cost))
+    tight = json.loads(json.dumps(virt))
+    for t in tight['tasks']:
+        t['deadline_ms'] = 0.001
+    vt = BG.system_budget(tight, 'uno-light', {'harts': 2, 'affinity': {'sense': 'any'}})
+    pins = [x for x in SG.suggestions(vt) if x['kind'] == 'affinity']
+    check('ipb-8 SUGGESTION: when the PollCycle misses on a hart a null-affinity task may land on, "pin sense to <the best-split hart> for isolation" names its evidence',
+          any(x['hart'] == vt['harts'][0]['hart'] and 'pin sense to %s for isolation' % vt['harts'][1]['hart'] in x['suggestion'] for x in pins),
+          [x['suggestion'][:80] for x in pins])
+    uno = BG.system_budget(plan, 'uno-light', {'affinity': {'sense': 'any'}})
+    u0 = uno['harts'][0]
+    ref = [c for c in u0['checks'] if c['verdict'] == 'refused']
+    check('ipb-8 REFUSED on the UNO (single): any refuses BY NAME (task, chip, model), the task stays on hart 0, and an affinity warning asks to pin it',
+          len(uno['harts']) == 1 and len(ref) == 1 and ref[0]['task'] == 'sense' and 'atmega328p is single, not smp' in ref[0]['why']
+          and any(p['affinity_task'] == 'sense' and p['affinity'] == u0['hart'] for p in u0['polls'])
+          and any(x['kind'] == 'affinity' and x['severity'] == 'warning' and 'pin sense' in x['suggestion'] for x in SG.suggestions(uno)), ref)
+    pico = _on(plan, 'rpi-pico2:U1', 'rpi-pico2', 'rp2350')
+    lock = BG.system_budget(pico, '', {'lockstep': True, 'affinity': {'sense': 'any'}})
+    l0, l1 = lock['harts']
+    check('ipb-8 MIRROR: under lockstep the mirror hart\'s rows report affinity mirror (reason "lockstep: mirror of <hart 0>"); hart 0 holds the stream; the any knob is ignored and said',
+          l1['polls'] and all(p['affinity'] == 'mirror' and p['affinity_reason'] == 'lockstep: mirror of %s' % l0['hart'] for p in l1['polls'] + l1['interrupts'])
+          and all(p['affinity'] == l0['hart'] for p in l0['polls']) and any('ignored' in p['affinity_basis'] for p in l0['polls'] if p['affinity_task'] == 'sense'))
+    owned = BG.system_budget(pico, '', {'hart_of': {'relay-state': 1}})
+    rs = next(i for i in owned['harts'][1]['interrupts'] if i['task'] == 'relay-state')
+    check('ipb-8 REASON derived: relay-state pinned to hart 1 by hart_of, its TIMER2 interrupt lands there -> owns-interrupt TIMER2_COMPA_vect',
+          rs['affinity'] == owned['harts'][1]['hart'] and rs['affinity_reason'] == 'owns-interrupt TIMER2_COMPA_vect', (rs['affinity'], rs['affinity_reason']))
+    BG._KNOBS.pop(('mission', 'ipb8-probe'), None)
+    k = BG.set_knobs('mission', 'ipb8-probe', {'affinity': {'sense': 'any', 'relay-state': 'rpi-pico2:U1#1'}, 'affinity_reason': {'relay-state': 'polls-peripheral usart0', 'sense': 'latency'}})
+    rt = BG.system_budget(pico, '', BG.knobs_for('mission', 'ipb8-probe'))
+    r1 = next(i for i in rt['harts'][1]['interrupts'] if i['task'] == 'relay-state')
+    errs = []
+    for body in ({'affinity': {'sense': 'anywhere'}}, {'affinity': {'sense': 'mirror'}}, {'affinity_reason': {'sense': 'because'}}, {'affinity_reason': {'sense': 'owns-interrupt'}},
+                 {'affinity_reason': {'sense': 'latency now'}}):
+        try:
+            BG.set_knobs('mission', 'ipb8-probe', body)
+            errs.append('')
+        except ValueError as e:
+            errs.append(str(e))
+    check('ipb-8 KNOB DOOR: affinity + reason words round-trip (knobs_for returns them; the rows carry them: relay-state on hart 1 "polls-peripheral usart0", sense any "latency"); '
+          'a word outside the vocabulary, a set mirror, a bare owns-interrupt and an argument on latency are refused with words',
+          k['affinity'] == {'sense': 'any', 'relay-state': 'rpi-pico2:U1#1'} and BG.knobs_for('mission', 'ipb8-probe')['affinity_reason']['relay-state'] == 'polls-peripheral usart0'
+          and r1['affinity'] == rt['harts'][1]['hart'] and r1['affinity_reason'] == 'polls-peripheral usart0'
+          and all(p['affinity'] == 'any' and p['affinity_reason'] == 'latency' for h in rt['harts'] for p in h['polls'] if p['affinity_task'] == 'sense')
+          and all(errs) and 'one of owns-interrupt' in errs[2] and 'lockstep' in errs[1] and 'names its vector' in errs[3] and 'no argument' in errs[4], errs)
+    BG._KNOBS.pop(('mission', 'ipb8-probe'), None)
+
+
 def bench():
     from cmod.custom import budget as BG
     bb = BG.bench_budget('home-bench', None, None, plan_for=lambda m, s: light_plan())
@@ -254,6 +347,7 @@ def main():
     facts()
     plan_budget()
     test_cases()
+    affinity()
     bench()
     page_and_manifest()
     print('\n%d/%d passed' % (passed, total))

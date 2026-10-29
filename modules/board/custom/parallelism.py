@@ -21,6 +21,12 @@ What the budget does with each kind (the honest part, §2c):
   - message passing (clusters; two chips on a board): the budget's links[] rows and the deadline chain (TC-B1/B2).
 Every number is cited or -1; every yes/no is 'unverified' until its document is read (rule derive-or-cite-chip-data).
 
+ipb-8 (§2d, his ask 2026-10-28 "Symmetric Multi-Core and Asymmetric Multi-Core Chips"): each processor row carries `multicore_model` —
+single (one hart) · smp (identical harts, shared memory, ONE kernel schedules across them: a null-affinity task may land on any) · amp (harts
+with different ISAs or separate kernels/images: AMP harts never share a task set) · lockstep (§2c) · configurable · unverified — with
+`multicore_citation` and `amp_with` (a co-processor beside the SMP pair, e.g. the S3's ULP). SCHEDULER_TIERS = the ladder bare-c -> freertos ->
+freertos-smp -> zephyr as cited rows (D-ipb-11 recommended: freertos-smp its own row; the IDF variant cited on it).
+
     python3 -m board.custom.parallelism            # prints the rows
 """
 import json
@@ -30,6 +36,7 @@ _CAQA = 'Hennessy & Patterson, Computer Architecture: A Quantitative Approach, �
 
 LEVELS = ('instruction', 'data', 'thread', 'core', 'request')
 LOCKSTEP = ('yes', 'no', 'n/a (one core)', 'configurable', 'unverified')
+MULTICORE_MODELS = ('single', 'smp', 'amp', 'lockstep', 'configurable', 'unverified')
 
 
 def _kind(name, title, level, section, changes, example, to_read=''):
@@ -71,20 +78,30 @@ PARALLELISM_KINDS = [
 ]
 
 
-def _facts(processor, pipeline_stages=-1, issue_width=-1, hw_threads_per_core=-1, vector='unverified', lockstep='unverified', citation='', to_read=''):
+def _facts(processor, pipeline_stages=-1, issue_width=-1, hw_threads_per_core=-1, vector='unverified', lockstep='unverified', citation='', to_read='',
+           multicore_model='', multicore_citation='', amp_with=''):
+    # a single-core chip is `single` by its own lockstep fact (one core); a multi-core chip stays `unverified` until a document says how its harts are run
+    model = multicore_model or ('single' if lockstep == 'n/a (one core)' else 'unverified')
     return {'processor': processor, 'pipeline_stages': pipeline_stages, 'issue_width': issue_width, 'hw_threads_per_core': hw_threads_per_core,
-            'vector': vector, 'lockstep': lockstep, 'citation': citation, 'to_read': to_read}
+            'vector': vector, 'lockstep': lockstep, 'citation': citation, 'to_read': to_read, 'multicore_model': model,
+            'multicore_citation': multicore_citation or ('one core (the lockstep fact): nothing to share' if model == 'single' else ''), 'amp_with': amp_with}
 
 
 _HZ3 = 'Hazard3 Readme (github Wren6991/Hazard3, read 2026-10-27): "Hazard3 is a 3-stage RISC-V processor"; extensions listed M, A, C, Zicsr, Zilsd, Zba, Zbb, Zbc, Zbs, Zbkb, Zbkx, Zcb, Zclsd, Zcmp (no V); the readme describes a single core and says nothing of issue width or lockstep'
 _ONE = 'n/a (one core)'
+_IDF_SMP = ('ESP-IDF Programming Guide, API reference "FreeRTOS (IDF)" (Espressif, Apache-2.0; searched 2026-10-28, INTERRUPT_POLL_BUDGET_PLAN §2d): the dual-core '
+            'SMP kernel schedules both cores from one ready list; xTaskCreatePinnedToCore pins, tskNO_AFFINITY lets a task run on either core')
+_FREERTOS_SMP = ('FreeRTOS SMP kernel (FreeRTOS project, MIT; searched 2026-10-28, INTERRUPT_POLL_BUDGET_PLAN §2d): merged to main after the 2021 SMP branch, '
+                 'first ports XMOS xcore + RP2040; configUSE_CORE_AFFINITY, vTaskCoreAffinitySet(mask), tskNO_AFFINITY = any core; Pigweed (Apache-2.0) only mirrors it')
 
 #: per processor (the chips-and-levels ladder keys + the QEMU virt machine). Single-core chips: lockstep n/a; multi-core: unverified until the datasheet is read.
 HART_PARALLELISM = [
     _facts('qemu-virt-rv32', vector='configurable (QEMU -cpu options; unverified: the virt page read today does not list them)', lockstep='no',
-           citation='virtual machine: pipeline / issue are not modelled (icount counts instructions, not cycles) - said on every number', to_read='QEMU docs: RISC-V CPU options (V extension flag)'),
+           citation='virtual machine: pipeline / issue are not modelled (icount counts instructions, not cycles) - said on every number', to_read='QEMU docs: RISC-V CPU options (V extension flag)',
+           multicore_model='smp', multicore_citation='QEMU "virt" machine: -smp N identical harts over one shared memory map (the hart count is the knob, ipb-6)'),
     _facts('rp2350', pipeline_stages=3, vector='none (the readme\'s extension list has no V)', lockstep='unverified', citation=_HZ3,
-           to_read='RP2350 Datasheet (Raspberry Pi): whether the two cores can run in lockstep; Hazard3 issue width'),
+           to_read='RP2350 Datasheet (Raspberry Pi): whether the two cores can run in lockstep; Hazard3 issue width; whether mixed Arm + Hazard3 operation (amp) is supported',
+           multicore_model='smp', multicore_citation=_FREERTOS_SMP + '; the RP2350 boots both cores as Arm OR both as Hazard3 (architecture select) - mixed operation unverified'),
     _facts('esp32c3', lockstep=_ONE, to_read='ESP32-C3 Technical Reference Manual, "CPU" chapter (pipeline depth); ESP32-C3 datasheet (no vector unit claimed - unverified)'),
     _facts('esp32c6', lockstep=_ONE, to_read='ESP32-C6 Technical Reference Manual, "CPU" chapter'),
     _facts('esp32p4', lockstep='unverified', to_read='ESP32-P4 Technical Reference Manual: CPU pipeline, the PIE / vector unit, any lockstep mode'),
@@ -97,7 +114,8 @@ HART_PARALLELISM = [
     _facts('atmega2560', vector='none', lockstep=_ONE, to_read='ATmega2560 datasheet, "AVR CPU Core"'),
     _facts('attiny85', vector='none', lockstep=_ONE, to_read='ATtiny85 datasheet, "AVR CPU Core"'),
     _facts('samd21g18a', lockstep=_ONE, to_read='Arm Cortex-M0+ Technical Reference Manual (pipeline depth); SAMD21 datasheet'),
-    _facts('esp32-xtensa', lockstep='unverified', to_read='ESP32-S3 Technical Reference Manual: CPU (Xtensa LX7 pipeline), PIE (SIMD) chapter; any lockstep mode'),
+    _facts('esp32-xtensa', lockstep='unverified', to_read='ESP32-S3 Technical Reference Manual: CPU (Xtensa LX7 pipeline), PIE (SIMD) chapter; any lockstep mode; the ULP chapter',
+           multicore_model='smp', multicore_citation=_IDF_SMP, amp_with='ULP RISC-V co-processor (its own image and PC: amp beside the SMP pair; not a budget hart until D-ipb-6)'),
 ]
 
 _BY_PROC = {f['processor']: f for f in HART_PARALLELISM}
@@ -109,14 +127,38 @@ def facts_for(processor):
 
 
 def words(f):
-    """One line for a hart row: 'pipeline 3 stages, issue -1, 1 hw thread/core, vector none, lockstep unverified'."""
-    return 'pipeline %s, issue width %s, hw threads/core %s, vector %s, lockstep %s' % (
+    """One line for a hart row: 'pipeline 3 stages, issue -1, 1 hw thread/core, vector none, lockstep unverified, multicore smp'."""
+    return 'pipeline %s, issue width %s, hw threads/core %s, vector %s, lockstep %s, multicore %s%s' % (
         ('%d stages' % f['pipeline_stages']) if f['pipeline_stages'] > 0 else '-1', f['issue_width'] if f['issue_width'] > 0 else '-1',
-        f['hw_threads_per_core'] if f['hw_threads_per_core'] > 0 else '-1', f['vector'], f['lockstep'])
+        f['hw_threads_per_core'] if f['hw_threads_per_core'] > 0 else '-1', f['vector'], f['lockstep'], f['multicore_model'], (' + amp ' + f['amp_with'].split(' (')[0]) if f['amp_with'] else '')
 
 
 def is_lockstep(f):
     return f['lockstep'] == 'yes'
+
+
+def is_smp(f):
+    """ipb-8: may a null-affinity (`any`) task land on any hart of this chip? Only when one kernel schedules identical harts."""
+    return f['multicore_model'] == 'smp'
+
+
+def _tier(tier, title, kernel, license_, affinity_api, citation, to_read=''):
+    return {'tier': tier, 'title': title, 'kernel': kernel, 'license': license_, 'affinity_api': affinity_api, 'citation': citation, 'to_read': to_read}
+
+
+#: ipb-8 (§2d; D-ipb-11 recommended): the scheduler ladder as rows. `affinity_api` = how a task is pinned or left free on that tier.
+SCHEDULER_TIERS = [
+    _tier('bare-c', 'bare C: a superloop + interrupts', 'none', 'n/a', 'none: one stream per hart, placed by the build (hart_of)', 'no scheduler: the main loop IS the schedule'),
+    _tier('freertos', 'FreeRTOS (single core)', 'FreeRTOS kernel', 'MIT', 'none: one core', 'FreeRTOS kernel (MIT) - the single-core build'),
+    _tier('freertos-smp', 'FreeRTOS-SMP: one kernel over identical cores', 'FreeRTOS SMP kernel (+ the ESP-IDF variant on the S3)', 'MIT (IDF variant Apache-2.0)',
+          'vTaskCoreAffinitySet(mask) / tskNO_AFFINITY (IDF: xTaskCreatePinnedToCore)', _FREERTOS_SMP + '; ' + _IDF_SMP),
+    _tier('zephyr', 'Zephyr RTOS', 'Zephyr kernel (SMP when CONFIG_SMP)', 'Apache-2.0', 'k_thread_cpu_mask_* (cited when its row is read)', 'Zephyr Project (Apache-2.0)',
+          to_read='Zephyr docs: "Symmetric Multiprocessing" (CONFIG_SMP, k_thread_cpu_mask_enable / _disable)'),
+]
+
+
+def tier_rows():
+    return [dict(r) for r in SCHEDULER_TIERS]
 
 
 def kind_rows():

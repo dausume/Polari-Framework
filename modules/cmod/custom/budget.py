@@ -34,8 +34,18 @@ Beside it the rate-aware bound poll_cycle_inflated_cycles = (polls + overhead) /
 their expected rates instead of once. Per hart the check "one PollCycle fits the shortest wanted response / 2".
 Harts of one chip are assignable separately (hart_of / isr_hart_of) unless the chip's parallelism facts say LOCKSTEP (board.custom.parallelism) or the
 knob says so: then hart 0 holds the stream and the others are mirrors (mirror_of) with the same columns, not assignable.
+
+ipb-8 (§2d, his ask 2026-10-28 "affinity for hart-name ... null-affinity tasks ... may go to any of the chips"): every task row carries `affinity`
+(the hart it is pinned to, by its hart name | `any` = null affinity, the scheduler places it | `mirror` on a lockstep mirror) and `affinity_reason`, a WORD
+from AFFINITY_REASONS (D-ipb-10 recommended five): owns-interrupt <vector> · polls-peripheral <name> · latency · isolation · by-default (nobody chose).
+Sources, first wins: the knobs `affinity {task: any | hart index | '<processor>#n'}` + `affinity_reason {task: word}` -> the task row's own fields -> `hart_of`
+-> hart 0 by-default; with no reason word, a pinned task whose interrupt `isr_hart_of` routes to the same hart reads owns-interrupt <vector>. `any` is legal
+only on an `smp` chip (parallelism.multicore_model): there it is BOOKED ON EVERY HART (each hart's PollCycle carries it: the worst case) and the best split
+(each null-affinity task given to the least-loaded hart, greedy by cost) is the optimistic column `poll_cycle_best_split_cycles`; on any other chip it is
+REFUSED by name (a check row, placed on hart 0). Tier `freertos-smp` (parallelism.SCHEDULER_TIERS) schedules preemptively like freertos.
 """
 import json
+import re
 
 from board.custom import cycle_records as CR
 from board.custom import interrupt_controllers as IC
@@ -44,7 +54,10 @@ from board.custom import parallelism as PX
 _KNOBS = {}   # (kind, name) -> knobs dict; per process
 
 SCHEDULE_MODELS = ('superloop', 'cyclic-executive', 'preemptive-rtos')
-TIER_MODEL = {'bare-c': 'superloop', 'freertos': 'preemptive-rtos', 'zephyr': 'preemptive-rtos'}
+TIER_MODEL = {'bare-c': 'superloop', 'freertos': 'preemptive-rtos', 'freertos-smp': 'preemptive-rtos', 'zephyr': 'preemptive-rtos'}
+AFFINITY_REASONS = ('owns-interrupt', 'polls-peripheral', 'latency', 'isolation', 'by-default')
+_REASON_ARG = ('owns-interrupt', 'polls-peripheral')   # these two name their evidence: the vector / the peripheral
+_HART_WORD = re.compile(r'^(?:.*#|hart)?(\d+)$')
 
 
 def knobs_for(kind, name):
@@ -58,10 +71,40 @@ def set_knobs(kind, name, body):
             k[key] = float(body[key]) if key == 'scan_deadline_ms' else int(body[key])
     if 'lockstep' in body:
         k['lockstep'] = str(body['lockstep']).lower() in ('1', 'true', 'yes', 'on')
-    for key in ('poll_divider', 'expected_rate_hz', 'hart_of', 'isr_hart_of'):
+    for task, v in (body.get('affinity') or {}).items() if isinstance(body.get('affinity'), dict) else ():
+        bad = affinity_problem(v)
+        if bad:
+            raise ValueError('affinity[%s]: %s' % (task, bad))
+    for task, v in (body.get('affinity_reason') or {}).items() if isinstance(body.get('affinity_reason'), dict) else ():
+        bad = reason_problem(v)
+        if bad:
+            raise ValueError('affinity_reason[%s]: %s' % (task, bad))
+    for key in ('poll_divider', 'expected_rate_hz', 'hart_of', 'isr_hart_of', 'affinity', 'affinity_reason'):
         if isinstance(body.get(key), dict):
             k.setdefault(key, {}).update(body[key])
     return k
+
+
+def affinity_problem(v):
+    """ipb-8: '' when `v` is a settable affinity (any | a hart index | '<processor>#n' | 'hart<n>'), else why not."""
+    v = str(v).strip()
+    if v == 'any' or _HART_WORD.match(v):
+        return ''
+    if v == 'mirror':
+        return 'mirror is not set: it is what a lockstep chip makes of its other harts (knob lockstep)'
+    return 'affinity is any, a hart index, or a hart name ending #<n> (got %r)' % v
+
+
+def reason_problem(v):
+    """ipb-8: '' when `v` is a reason word from AFFINITY_REASONS (owns-interrupt / polls-peripheral name their evidence), else why not."""
+    parts = str(v).split()
+    if not parts or parts[0] not in AFFINITY_REASONS:
+        return 'the reason is one of %s (got %r)' % (', '.join(AFFINITY_REASONS), v)
+    if parts[0] in _REASON_ARG and len(parts) != 2:
+        return '%s names its %s: "%s <%s>"' % (parts[0], 'vector' if parts[0] == 'owns-interrupt' else 'peripheral', parts[0], 'vector' if parts[0] == 'owns-interrupt' else 'name')
+    if parts[0] not in _REASON_ARG and len(parts) != 1:
+        return '%s takes no argument' % parts[0]
+    return ''
 
 
 def _short(atom):
@@ -99,6 +142,7 @@ def _new_hart(proc, facts, h, tier, knobs):
             'isa': facts['isa'], 'controller': facts['controller'], 'controller_title': c.get('title', ''), 'nesting': c.get('nesting', 'unverified'),
             'entry_latency_cycles': c.get('entry_latency_cycles', -1), 'clock_hz': facts['clock_hz'], 'clock_citation': facts['clock_citation'],
             'openness': IC.openness_words(facts), 'tier': tier, 'schedule_model': model, 'parallelism': PX.words(px), 'lockstep': px['lockstep'], 'mirror_of': '',
+            'multicore_model': px['multicore_model'], 'amp_with': px['amp_with'],
             'polls': [], 'interrupts': [], 'threads': [], 'init': [],
             'derived': {}, 'checks': [], 'notes': [], 'knobs': {'scan_deadline_ms': knobs.get('scan_deadline_ms', -1.0)}}
 
@@ -106,9 +150,10 @@ def _new_hart(proc, facts, h, tier, knobs):
 def _mirror(hb, src):
     """ipb-6 lockstep: `hb` executes the same instruction stream as `src` - its columns are a copy, its derived block the same, and it says so."""
     hb['mirror_of'] = src['hart']
-    hb['polls'] = [dict(p, hart=hb['hart'], basis='mirror of %s (lockstep): %s' % (src['hart'], p['basis'])) for p in src['polls']]
-    hb['interrupts'] = [dict(i, hart=hb['hart'], basis='mirror of %s (lockstep): %s' % (src['hart'], i['basis'])) for i in src['interrupts']]
-    hb['threads'] = [dict(t, hart=hb['hart']) for t in src['threads']]
+    why = 'lockstep: mirror of %s' % src['hart']
+    hb['polls'] = [dict(p, hart=hb['hart'], affinity='mirror', affinity_reason=why, basis='mirror of %s (lockstep): %s' % (src['hart'], p['basis'])) for p in src['polls']]
+    hb['interrupts'] = [dict(i, hart=hb['hart'], affinity='mirror', affinity_reason=why, basis='mirror of %s (lockstep): %s' % (src['hart'], i['basis'])) for i in src['interrupts']]
+    hb['threads'] = [dict(t, hart=hb['hart'], affinity='mirror', affinity_reason=why) for t in src['threads']]
     hb['init'] = [dict(x, hart=hb['hart']) for x in src['init']]
     hb['notes'].append('LOCKSTEP: this hart runs the same instruction stream as %s and compares results; nothing is assignable to it separately (hart_of / isr_hart_of ignored)' % src['hart'])
 
@@ -135,19 +180,88 @@ def hart_budgets_from_plan(plan, variant='', knobs=None):
                 hb['lockstep'] = 'yes (knob)' if knobs.get('lockstep') else hb['lockstep']
             if rec and rec.get('clock_hz') and hb['clock_hz'] > 0 and rec['clock_hz'] != hb['clock_hz']:
                 hb['notes'].append('the cycle record\'s clock (%s) differs from the hart fact (%s): the record wins for ms' % (rec['clock_hz'], hb['clock_hz']))
+        px = PX.facts_for(facts['processor'])
         for t in plan.get('tasks', []):
             if t.get('processor') != proc['name']:
                 continue
-            h = 0 if lockstep else int((knobs.get('hart_of') or {}).get(t['task'], 0))
-            hb = harts[min(h, n - 1)]
-            _place_task(hb, t, rec, seconds, knobs, harts if not lockstep else None)
+            aff = _affinity(t, knobs, harts, px, lockstep)
+            if aff['refusal']:
+                harts[0]['checks'].append({'hart': harts[0]['hart'], 'atom': '', 'task': t['task'], 'check': 'null affinity needs an smp chip', 'verdict': 'refused', 'why': aff['refusal']})
+            for hb in ([harts[i] for i in range(n)] if aff['affinity'] == 'any' else [harts[min(aff['hart'], n - 1)]]):
+                _place_task(hb, t, rec, seconds, knobs, harts if not lockstep else None, aff)
         if lockstep:
             for hb in harts[1:]:
                 _mirror(hb, harts[0])
         for hb in harts:
             _derive(hb, rec)
+        _best_split(harts)
         out.extend(harts)
     return out
+
+
+def _affinity(t, knobs, harts, px, lockstep):
+    """ipb-8: {affinity, hart, reason, basis, refusal} for one task on one chip - see the module docstring for the order of sources."""
+    task, n = t['task'], len(harts)
+    want = (knobs.get('affinity') or {}).get(task, t.get('affinity'))
+    src = 'knob affinity' if task in (knobs.get('affinity') or {}) else ('the task row' if t.get('affinity') not in (None, '') else '')
+    reason = (knobs.get('affinity_reason') or {}).get(task) or t.get('affinity_reason') or ''
+    if lockstep:
+        return {'affinity': harts[0]['hart'], 'hart': 0, 'reason': reason or 'by-default', 'refusal': '',
+                'basis': 'lockstep: one assignable stream on %s%s' % (harts[0]['hart'], ' (%s %r ignored)' % (src, want) if src else '')}
+    if want in (None, '') and task in (knobs.get('hart_of') or {}):
+        want, src = (knobs.get('hart_of') or {})[task], 'knob hart_of'
+    if str(want).strip() == 'any':
+        if PX.is_smp(px):
+            return {'affinity': 'any', 'hart': -1, 'reason': reason, 'refusal': '',
+                    'basis': 'null affinity (%s): %s is %s - booked on every hart (worst case); the best split is the optimistic column' % (src, px['processor'], px['multicore_model'])}
+        refusal = ('task %s asks for any hart (null affinity), but %s is %s, not smp: only one kernel over identical harts may place it freely - placed on %s; '
+                   'pin it (affinity <hart>) or use an smp chip' % (task, px['processor'], px['multicore_model'], harts[0]['hart']))
+        return {'affinity': harts[0]['hart'], 'hart': 0, 'reason': reason or 'by-default', 'refusal': refusal, 'basis': 'refused: ' + refusal}
+    m = _HART_WORD.match(str(want).strip()) if want not in (None, '') else None
+    if m is None:
+        return {'affinity': harts[0]['hart'], 'hart': 0, 'reason': reason or 'by-default', 'refusal': '', 'basis': 'nobody chose: hart 0'}
+    h = min(int(m.group(1)), n - 1)
+    if not reason:
+        vecs = [_vector(s.get('atom', '')) for s in t.get('steps', []) if s.get('lane') == 'isr']
+        owned = [v for v in vecs if str((knobs.get('isr_hart_of') or {}).get(v, h)) == str(h)] if vecs else []
+        reason = ('owns-interrupt %s' % owned[0]) if owned else ''
+    return {'affinity': harts[h]['hart'], 'hart': h, 'reason': reason, 'refusal': '',
+            'basis': 'pinned by %s%s' % (src, '' if reason else '; no reason word given (set affinity_reason)')}
+
+
+def _best_split(harts):
+    """ipb-8: the optimistic column - the hart's PollCycle when each null-affinity task lands on ONE hart (greedy: costliest first, to the least-loaded hart)
+    instead of being booked on all of them. -1 when the PollCycle is -1 or a null-affinity row's cost is unknown; equal to the PollCycle when nothing is `any`."""
+    def cost(hb, task):
+        rows = [p['cycles_max'] for p in hb['polls'] if p.get('affinity_task') == task] + \
+               [i['length_max'] + max(hb['entry_latency_cycles'], 0) if i['length_max'] >= 0 else -1 for i in hb['interrupts'] if i.get('affinity_task') == task]
+        return -1 if any(r < 0 for r in rows) else sum(rows)
+    anys = sorted({r['affinity_task'] for hb in harts for r in hb['polls'] + hb['interrupts'] if r.get('affinity') == 'any'})
+    if not anys:
+        for hb in harts:
+            hb['derived']['poll_cycle_best_split_cycles'] = hb['derived']['poll_cycle_cycles']
+            hb['derived']['poll_cycle_best_split_basis'] = 'no null-affinity task: the same as the PollCycle'
+            hb['derived']['any_tasks'] = ''
+        return
+    per = {a: [cost(hb, a) for hb in harts] for a in anys}
+    costs = {a: (-1 if any(c < 0 for c in per[a]) else max(per[a])) for a in anys}
+    base = [hb['derived']['poll_cycle_cycles'] - sum(max(cost(hb, a), 0) for a in anys) if hb['derived']['poll_cycle_cycles'] >= 0 else -1 for hb in harts]
+    unknown = [a for a in anys if costs[a] < 0]
+    load, split = list(base), {}
+    ok = not unknown and all(b >= 0 for b in base)   # the split needs every hart's pinned load: one unknown hart = no split anywhere
+    if ok:
+        for a in sorted(anys, key=lambda x: -costs[x]):
+            i = min(range(len(harts)), key=lambda j: load[j])
+            load[i] += costs[a]
+            split[a] = harts[i]['hart']
+    blocked = [hb['hart'] for i, hb in enumerate(harts) if base[i] < 0]
+    for i, hb in enumerate(harts):
+        hb['any_split'] = dict(split)
+        hb['derived']['poll_cycle_best_split_cycles'] = load[i] if ok else -1
+        hb['derived']['poll_cycle_best_split_basis'] = (
+            'best split: null-affinity task(s) %s each on ONE hart (greedy, costliest first): %s' % (', '.join(anys), ', '.join('%s -> %s' % kv for kv in sorted(split.items()))) if ok else
+            'unknown: %s' % ('the cost of %s' % ', '.join(unknown) if unknown else 'the PollCycle of %s is -1' % ', '.join(blocked)))
+        hb['derived']['any_tasks'] = ', '.join(anys)
 
 
 def _masked_for(rec, atoms):
@@ -164,13 +278,16 @@ def _masked_for(rec, atoms):
     return top['max'], 'measured: cli at %s in %s, %d cycles max over %d windows (shipped hex, --masked-windows)' % (top['pc'], top['function'], top['max'], top['n'])
 
 
-def _place_task(hb, t, rec, seconds, knobs, harts=None):
+def _place_task(hb, t, rec, seconds, knobs, harts=None, aff=None):
+    aff = aff or {'affinity': hb['hart'], 'reason': 'by-default', 'basis': 'nobody chose'}
+    tag = {'affinity': aff['affinity'], 'affinity_reason': aff['reason'], 'affinity_basis': aff['basis'], 'affinity_task': t['task']}
     trig = t.get('trigger') if isinstance(t.get('trigger'), dict) else {'kind': t.get('trigger', ''), 'how': '', 'what': '', 'route': ''}
     deadline = float(t.get('deadline_ms', -1) or -1)
     masked, masked_basis = _masked_for(rec, [s.get('atom', '') for s in t.get('steps', []) if s.get('lane') in ('loop', 'called')])
     if t.get('context') == 'task':
         hb['threads'].append({'hart': hb['hart'], 'task': t['task'], 'period_ms': float(t.get('period_ms', -1) or -1), 'priority': t.get('priority', -1),
-                              'deadline_ms': deadline, 'exec_cycles': -1, 'basis': 'a thread sub-row of its hart (no PC of its own); execution cycles not measured on an RTOS yet'})
+                              'deadline_ms': deadline, 'exec_cycles': -1, 'basis': 'a thread sub-row of its hart (no PC of its own); execution cycles not measured on an RTOS yet',
+                              'affinity': aff['affinity'], 'affinity_reason': aff['reason']})
     folded = 0
     for s in t.get('steps', []):
         lane, atom = s.get('lane', ''), s.get('atom', '')
@@ -188,13 +305,15 @@ def _place_task(hb, t, rec, seconds, knobs, harts=None):
             hb['polls'].append({'hart': hb['hart'], 'task': t['task'], 'atom': atom, 'atom_short': _short(atom), 'trigger': trig.get('kind', ''), 'wanted_response_ms': deadline,
                                 'poll_divider': div, 'cycles_min': fn.get('min', -1), 'cycles_max': cmax, 'calls_measured': fn.get('n', -1),
                                 'cost_per_scan_cycles': (cmax / div) if cmax >= 0 and div > 0 else -1, 'masked_window_cycles': masked, 'masked_window_basis': masked_basis,
-                                'basis': ('measured: %s' % ('function entry -> ret in the -fno-inline build' if fn else '')) if fn else 'not in the cycle record (inlined, or no record)'})
+                                'basis': ('measured: %s' % ('function entry -> ret in the -fno-inline build' if fn else '')) if fn else 'not in the cycle record (inlined, or no record)', **tag})
         elif lane == 'isr':
             vec = _vector(atom)
             target = hb
             routed = (knobs.get('isr_hart_of') or {}).get(vec)
             if routed is not None and harts:
                 target = harts[min(int(routed), len(harts) - 1)]
+                if any(i['vector'] == vec and i['task'] == t['task'] for i in target['interrupts']):
+                    continue   # a null-affinity task booked on every hart: its routed interrupt lands once
                 if target is not hb:
                     target['notes'].append('%s routed to this hart by isr_hart_of (knob) while its task %s runs on %s: the deferred work crosses harts' % (vec, t['task'], hb['hart']))
             ir = ((rec or {}).get('isrs') or {}).get(vec) or {}
@@ -213,7 +332,7 @@ def _place_task(hb, t, rec, seconds, knobs, harts=None):
                                          'nests': target['nesting'], 'length_min': ir.get('min', -1), 'length_max': ir.get('max', -1), 'length_mean': mean,
                                          'latency_max': ir.get('latency_max', -1), 'takes_measured': ir.get('n', -1), 'utilisation': util,
                                          'defers_to': t['task'] if hb['schedule_model'] == 'preemptive-rtos' else '',
-                                         'basis': ir.get('basis', 'not in the cycle record')})
+                                         'basis': ir.get('basis', 'not in the cycle record'), **tag})
         elif lane == 'init':
             hb['init'].append({'hart': hb['hart'], 'task': t['task'], 'atom': atom})
         elif lane == 'called':
@@ -414,7 +533,7 @@ def _f(x):
 
 def hart_rows(sb):
     return [{k: _f(v) for k, v in dict({kk: hb[kk] for kk in ('hart', 'board', 'soc', 'title', 'isa', 'controller', 'nesting', 'clock_hz', 'openness', 'tier', 'schedule_model',
-                                                              'parallelism', 'lockstep', 'mirror_of')},
+                                                              'parallelism', 'lockstep', 'mirror_of', 'multicore_model', 'amp_with')},
                                         polls=len(hb['polls']), interrupts=len(hb['interrupts']), threads=len(hb['threads']), headroom=hb['derived'].get('headroom', -1),
                                         poll_cycle_ms=hb['derived'].get('poll_cycle_ms', -1), poll_cycle_verdict=hb['derived'].get('poll_cycle_verdict', ''),
                                         label=hb.get('label', ''), notes='; '.join(hb['notes'])).items()} for hb in sb['harts']]

@@ -11,12 +11,12 @@ _B = '/api/benches/home-bench/budget'
 _M = '/api/missions/uno-light-mission/budget'
 _F = '/api/hart-facts'
 
-_POLL_COLS = 'hart,atom_short,task,trigger,wanted_response_ms,poll_divider,cycles_min,cycles_max,cost_per_scan_cycles,calls_measured,masked_window_cycles,basis'
-_INT_COLS = 'hart,vector,task,source,how,expected_rate_hz,rate_basis,priority_level,nests,length_min,length_max,length_mean,latency_max,utilisation,defers_to,basis'
+_POLL_COLS = 'hart,atom_short,task,affinity,affinity_reason,trigger,wanted_response_ms,poll_divider,cycles_min,cycles_max,cost_per_scan_cycles,calls_measured,masked_window_cycles,basis'
+_INT_COLS = 'hart,vector,task,affinity,affinity_reason,source,how,expected_rate_hz,rate_basis,priority_level,nests,length_min,length_max,length_mean,latency_max,utilisation,defers_to,basis'
 _DER_COLS = ('hart,label,polls_per_scan,scan_cycles,measured_worst_gap_cycles,scan_ms,scan_deadline_ms,scan_deadline_basis,scan_utilisation,isr_utilisation,headroom,'
-             'poll_cycle_cycles,poll_cycle_ms,poll_cycle_verdict,poll_cycle_why,poll_cycle_inflated_cycles,poll_cycle_missing,masked_window_max_cycles,masked_window_where,'
+             'poll_cycle_cycles,poll_cycle_ms,poll_cycle_verdict,poll_cycle_why,poll_cycle_inflated_cycles,poll_cycle_best_split_cycles,any_tasks,poll_cycle_missing,masked_window_max_cycles,masked_window_where,'
              'worst_latency_cycles,worst_latency_us,unknown_poll_costs')
-_HART_COLS = 'hart,label,board,soc,isa,controller,nesting,clock_hz,schedule_model,polls,interrupts,threads,headroom,poll_cycle_ms,poll_cycle_verdict,lockstep,mirror_of,parallelism,openness,notes'
+_HART_COLS = 'hart,label,board,soc,isa,controller,nesting,clock_hz,multicore_model,tier,schedule_model,polls,interrupts,threads,headroom,poll_cycle_ms,poll_cycle_verdict,lockstep,mirror_of,parallelism,openness,notes'
 _SUG_COLS = 'hart,kind,severity,suggestion,evidence'
 
 _INTRO = ('What a scan is: one pass of all the polls (the main loop on bare C; a thread\'s own loop on an RTOS). Interrupts do not wait for gaps between polls - '
@@ -63,7 +63,7 @@ def _two_columns(prefix, base, who):
                  _table(prefix + '-threads', 6, 6, 'Thread sub-rows (RTOS harts only)', 'HardwareMission',
                         description='A thread has no PC of its own: it is a sub-row of the hart it time-shares. Columns: hart, task, period_ms, priority, deadline_ms, exec_cycles, basis. '
                                     'Empty on bare C. GET %s?view=threads.' % base,
-                        columns='hart,task,period_ms,priority,deadline_ms,exec_cycles,basis', data_path=base + '?view=threads', empty_text='No threads: a bare-C hart (superloop).')],
+                        columns='hart,task,affinity,affinity_reason,period_ms,priority,deadline_ms,exec_cycles,basis', data_path=base + '?view=threads', empty_text='No threads: a bare-C hart (superloop).')],
              min_height=220)]
 
 
@@ -112,8 +112,13 @@ def _facts_tab():
                  _table('bg-parallelism', 6, 6, 'Parallelism facts per processor: pipeline, issue width, hardware threads, vector, lockstep', 'HardwareMission',
                         description='Every number cited or -1; lockstep = yes | no | n/a (one core) | configurable | unverified (the datasheet to read is named). A chip whose harts run in '
                                     'lockstep gets ONE assignable stream and mirror rows. GET %s?view=parallelism.' % _F,
-                        columns='processor,pipeline_stages,issue_width,hw_threads_per_core,vector,lockstep,summary,citation,to_read', data_path=_F + '?view=parallelism')],
-             min_height=360)],
+                        columns='processor,multicore_model,amp_with,multicore_citation,pipeline_stages,issue_width,hw_threads_per_core,vector,lockstep,summary,citation,to_read', data_path=_F + '?view=parallelism')],
+             min_height=360),
+        _row(3, [_table('bg-tiers', 0, 12, 'Scheduler tiers: bare C -> FreeRTOS -> FreeRTOS-SMP -> Zephyr, and how each pins a task', 'HardwareMission',
+                        description='ipb-8: the level between FreeRTOS and Zephyr is FreeRTOS-SMP - the FreeRTOS project\'s own SMP kernel (MIT), with the ESP-IDF variant on the S3. '
+                                    'multicore_model above decides placement: on an smp chip a task may be `any` (null affinity: booked on every hart, the best split beside it); '
+                                    'amp harts never share a task set; single-core chips refuse `any` by name. GET %s?view=tiers.' % _F,
+                        columns='tier,title,kernel,license,affinity_api,citation,to_read', data_path=_F + '?view=tiers')], min_height=220)],
         description='The fact rows the budget stands on. RISC-V is the basis (his ruling 2026-10-27); other ISAs are adaptation rows shown as exceptions.')
 
 
@@ -122,7 +127,7 @@ BUDGET_PAGES = [
           'Polling + interrupt budget - two columns per program counter (hart). ' + _INTRO + ' Use it two ways: the Bench tab analyses the real boards on a bench '
           '(a board with a Mission gets that Mission\'s plan; the others show their facts with empty columns); the Plan tab budgets a Mission\'s Task Plan. The hart\'s standard '
           'PollCycle is the worst case of every poll and every interrupt once (ipb-6). Each hart of a chip is assignable on its own (hart_of, isr_hart_of) unless the chip runs its '
-          'cores in lockstep - then one stream and mirrors. Knobs (scan_deadline_ms, poll_divider, expected_rate_hz, hart_of, isr_hart_of, harts, lockstep) go to POST .../budget/knobs '
+          'cores in lockstep - then one stream and mirrors. Every task carries an affinity (its hart, `any` on an smp chip, `mirror` under lockstep) and a reason word (owns-interrupt <vector>, polls-peripheral <name>, latency, isolation, by-default). Knobs (scan_deadline_ms, poll_divider, expected_rate_hz, hart_of, isr_hart_of, harts, lockstep, affinity, affinity_reason) go to POST .../budget/knobs '
           'and hold per process. The doors: GET /api/benches/<bench>/budget, GET /api/missions/<name>/budget, GET /api/hart-facts.',
           'HardwareMission', [], title='Budget', tabs=[_bench_tab(), _plan_tab(), _facts_tab()]),
 ]

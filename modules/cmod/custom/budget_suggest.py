@@ -8,6 +8,8 @@ derived rows it came from (rule `knobs-and-suggestions`); nothing is changed by 
   masked-window the longest masked window exceeds the shortest interrupt's latency budget (not measurable yet: a single row says so)
   defer         an RTOS hart's interrupt has no thread to defer to
   unknowns      numbers the budget could not get (the honest row: what to measure / cite next)
+  affinity      ipb-8: a null-affinity task refused on a non-smp chip (pin it); a null-affinity task that breaks the PollCycle of a hart it may land on
+                -> "pin <task> to <hart> for isolation", the hart its best split gives it
 """
 
 
@@ -30,6 +32,15 @@ def suggestions(sb):
                             'shorten the longest poll / handler, or move work off this hart', 'derived.poll_cycle_ms %.4g (%s); %s' % (d['poll_cycle_ms'], d['poll_cycle_basis'], d['poll_cycle_why']), 'warning'))
         elif d.get('poll_cycle_missing') and (polls or ints):
             out.append(_sug(hb, 'poll-cycle', 'the PollCycle is -1: measure or cite ' + d['poll_cycle_missing'], 'derived.poll_cycle_missing', 'info'))
+        for c in hb['checks']:
+            if c['verdict'] == 'refused':
+                out.append(_sug(hb, 'affinity', 'pin %s to a hart (affinity <hart>, with a reason word) - %s' % (c['task'], c['why']), 'checks[%s]: %s' % (c['task'], c['check']), 'warning'))
+        if d.get('poll_cycle_verdict') == 'miss' and d.get('any_tasks'):
+            for task in d['any_tasks'].split(', '):
+                to = (hb.get('any_split') or {}).get(task)
+                if to and to != hb['hart']:
+                    out.append(_sug(hb, 'affinity', 'pin %s to %s for isolation: as a null-affinity task it may land here, and here it breaks the PollCycle' % (task, to),
+                                    'derived.poll_cycle_verdict miss with null-affinity task(s) %s booked; %s' % (d['any_tasks'], d.get('poll_cycle_best_split_basis', '')), 'warning'))
         if hb.get('mirror_of'):
             out.append(_sug(hb, 'lockstep', 'a mirror of %s (lockstep): assign nothing to it separately; its columns are the stream\'s' % hb['mirror_of'], 'hart.mirror_of; the parallelism facts row', 'info'))
         for c in hb['checks']:

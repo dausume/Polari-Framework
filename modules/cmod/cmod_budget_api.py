@@ -75,7 +75,10 @@ class BudgetAPI(treeObject):
         _view(response, sb, request.get_param('view') or '')
 
     def on_post_mission_knobs(self, request, response, name):
-        response.media = {'ok': True, 'mission': name, 'knobs': BG.set_knobs('mission', name, _body(request)), 'basis': 'per process, not persisted'}
+        try:   # ipb-8: an affinity / reason word outside the vocabulary is refused with words
+            response.media = {'ok': True, 'mission': name, 'knobs': BG.set_knobs('mission', name, _body(request)), 'basis': 'per process, not persisted'}
+        except ValueError as e:
+            return _fail(response, falcon.HTTP_422, str(e))
 
     def on_get_bench(self, request, response, bench):
         sb = BG.bench_budget(bench, self.manager, BG.knobs_for('bench', bench))
@@ -84,7 +87,10 @@ class BudgetAPI(treeObject):
         _view(response, sb, request.get_param('view') or '')
 
     def on_post_bench_knobs(self, request, response, bench):
-        response.media = {'ok': True, 'bench': bench, 'knobs': BG.set_knobs('bench', bench, _body(request)), 'basis': 'per process, not persisted'}
+        try:
+            response.media = {'ok': True, 'bench': bench, 'knobs': BG.set_knobs('bench', bench, _body(request)), 'basis': 'per process, not persisted'}
+        except ValueError as e:
+            return _fail(response, falcon.HTTP_422, str(e))
 
     def on_get_facts(self, request, response):
         from board.custom import parallelism as PX
@@ -97,6 +103,8 @@ class BudgetAPI(treeObject):
             rows = PX.hart_rows()
         elif view == 'parallelism-kinds':    # ipb-6: the kinds, cited to the RISC-V book's sections
             rows = PX.kind_rows()
+        elif view == 'tiers':                # ipb-8: the scheduler ladder bare-c -> freertos -> freertos-smp -> zephyr, cited
+            rows = PX.tier_rows()
         else:
-            return _fail(response, falcon.HTTP_422, 'view must be controllers, harts, parallelism or parallelism-kinds')
+            return _fail(response, falcon.HTTP_422, 'view must be controllers, harts, parallelism, parallelism-kinds or tiers')
         response.media = {'ok': True, 'view': view, 'count': len(rows), 'rows': rows, 'uncited': IC.uncited_numbers() + PX.uncited_numbers()}
