@@ -41,8 +41,8 @@ def run_c3_pins(check):
     check('c3pf SIGNALS: spot checks against the table - signal 6 = U0RXD_in / U0TXD_out, 45-50 = ledc_ls_sig_out0..5, 53/54 = I2CEXT0 SCL/SDA, 63 = FSPICLK',
           T.SIGNALS[6][1:5] == ('U0RXD_in', '0', 'yes', 'U0TXD_out') and [T.SIGNALS[i][4] for i in range(45, 51)] == ['ledc_ls_sig_out%d' % i for i in range(6)]
           and T.SIGNALS[53][1] == 'I2CEXT0_SCL_in' and T.SIGNALS[54][1] == 'I2CEXT0_SDA_in' and T.SIGNALS[63][1] == 'FSPICLK_in', T.SIGNALS[6])
-    check('c3pf ROWS: %d Peripheral, %d PeripheralSignal (120 matrix + JTAG 4 + ADC/USB/XTAL 10 + per pad GPIO and GPIO_INT 44), %d PinFunction' % (len(per), len(sig), len(pf)),
-          len(per) == 22 and len(sig) == 120 + 4 + 10 + 44 and len(pf) == 22 * (2 + 120) + sum(len(v) for v in fixed_expected.values()), (len(per), len(sig), len(pf)))
+    check('c3pf ROWS (rm-2b: + 4 register-only blocks SYSTIMER / SYSTEM / RTC_CNTL / INTMTX): %d Peripheral, %d PeripheralSignal (120 matrix + JTAG 4 + ADC/USB/XTAL 10 + per pad GPIO and GPIO_INT 44), %d PinFunction' % (len(per), len(sig), len(pf)),
+          len(per) == 26 and len(sig) == 120 + 4 + 10 + 44 and len(pf) == 22 * (2 + 120) + sum(len(v) for v in fixed_expected.values()), (len(per), len(sig), len(pf)))
 
     # ---- every SocPin has GPIO + its cited functions, and every matrix signal
     matrix_names = {r[1] for r in named_in} | {r[4] for r in named_out}

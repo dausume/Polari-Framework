@@ -46,20 +46,26 @@ def run_chain(check):
         check('chain: every seed row constructs its class (no stray field)', False, str(e))
 
     # 2. derived or cited, stable identities, provenance
-    P, S, F, G, X = (tables[c] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField'))
-    check('chain: counts — %d peripherals, %d signals, %d pin functions, %d registers, %d fields' % (len(P), len(S), len(F), len(G), len(X)),
+    P, S, F, G_all, X_all = (tables[c] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField'))
+    # rm-2b: the C3's drawing-set registers sit beside the UNO's (board_registers_c3_selftest checks them); the UNO checks below read the 328P rows
+    G, X = [g for g in G_all if g['soc'] == 'atmega328p'], [x for x in X_all if x['soc'] == 'atmega328p']
+    check('chain: counts — %d peripherals, %d signals, %d pin functions, %d registers (%d UNO + %d C3), %d fields (%d UNO + %d C3)'
+          % (len(P), len(S), len(F), len(G_all), len(G), len(G_all) - len(G), len(X_all), len(X), len(X_all) - len(X)),
           len(P) >= 15 and len(S) >= 80
           and len([f for f in F if f['soc'] == 'atmega328p']) == 23 + sum(len(json.loads(s['functions_json'])) for s in tables['SocPin'] if s['soc'] == 'atmega328p')   # c3pf: + the ESP32-C3's own rows (board_c3_pins_selftest)
-          and len(G) == len(__import__('board.custom.registers', fromlist=['load']).load('atmega328p')['registers']) and len(X) == len(RF.FIELDS))
+          and len(G) == len(__import__('board.custom.registers', fromlist=['load']).load('atmega328p')['registers']) and len(X) == len(RF.FIELDS)
+          and (len(G_all) - len(G), len(X_all) - len(X)) == (91, 761))
     check('chain: every row has a name, an origin and a soc; names are unique per class',
           all(r['name'] and r['origin'] and r['soc'] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField') for r in tables[c])
           and all(len({r['name'] for r in tables[c]}) == len(tables[c]) for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')))
     check('chain: no row NAME looks like a Class:name reference (the object page would misread it)',
           not [r['name'] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField') for r in tables[c] if re.match(r'^[A-Z][A-Za-z0-9]*:', r['name'])])
-    check('chain: every RegisterField cites the datasheet (document, section/page, url) and has a typed access + values',
-          all(x['document'] and x['page_table'] and x['url'] and x['access'] in RF.ACCESS_KINDS and json.loads(x['values_json']) for x in X))
+    check('chain: every RegisterField - both chips - cites its document (datasheet / TRM, section/page, url) and has a typed access + values',
+          all(x['document'] and x['page_table'] and x['url'] and x['access'] in RF.ACCESS_KINDS and json.loads(x['values_json']) for x in X_all))
     check('chain: every Register carries the snapshot sha in origin; cited ones carry title + page + reset; the rest say fields are not captured',
           all('sha256' in g['origin'] for g in G) and all((g['description'] and g['page_table'] and g['reset_value']) if json.loads(g['fields_refs_json']) else g['undetermined'] for g in G))
+    check('chain (rm-2b): every C3 Register cites the TRM section + page and the module base it is addressed from; the snapshot sha above is the UNO\'s register source',
+          all('ESP32-C3 TRM' in g['origin'] and 'Table 3.3-3' in g['origin'] and g['page_table'] and g['description'] for g in G_all if g['soc'] == 'esp32c3'))
     check('chain: an io-space register carries its data-space address (io + 0x20 — EIMSK 0x1D → 0x3D as the datasheet prints)',
           next(g for g in G if g['register'] == 'EIMSK')['addr_mem'] == '0x3D' and next(g for g in G if g['register'] == 'EICRA')['addr_mem'] == '')
     check('chain: w1c flags are typed (EIFR.INTF1, TIFR2.TOV2), strobes too (TCCR2B.FOC2A), PINx toggles (PIND.PIND3)',
@@ -151,7 +157,13 @@ def run_address_space(check, HC, tables):
     M = tables['RegisterAddressMapping']
     RB = {r['name']: r for r in tables['RegisterBlock']}
     MR = {r['name']: r for r in tables['MemoryRegion']}
-    G = {r['name']: r for r in tables['Register']}
+    # rm-2b: the address space as rows is the UNO's (its io / data spaces, §8.5); the C3's drawing-set registers carry their ABSOLUTE TRM address (module base,
+    # Table 3.3-3 + offset) and no AddressSpace / RegisterAddressMapping / RegisterBlock rows yet - checked as such below, the UNO checks read the 328P rows
+    c3_regs = [r for r in tables['Register'] if r['soc'] == 'esp32c3']
+    check('address-space (rm-2b): the C3 registers carry an absolute TRM address (0x6000_0000-0x600C_FFFF, the module bases of Table 3.3-3), no block and no mapping rows yet - said',
+          c3_regs and all(0x60000000 <= int(r['addr'], 16) <= 0x600CFFFF and r['block'] == '' and 'Table 3.3-3' in r['origin'] for r in c3_regs)
+          and not [m for m in M if m['register'].startswith('esp32c3:')])
+    G = {r['name']: r for r in tables['Register'] if r['soc'] == 'atmega328p'}
 
     check('address-space: exactly 2 AddressSpace rows (io, data), both cited §8.5 "I/O Memory", p.30',
           set(AS) == {'atmega328p:io', 'atmega328p:data'}

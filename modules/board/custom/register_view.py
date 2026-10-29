@@ -36,12 +36,18 @@ def _rows(tables, cls, fallback):
 
 def _registers(tables):
     from board.custom import hardware_chain as H
-    return _rows(tables, 'Register', H.registers)
+    from board.custom import hardware_chain_c3 as H3
+    return _rows(tables, 'Register', lambda: H.registers() + H3.registers())   # rm-2b: both chips' seeds when no server rows
 
 
 def _fields(tables):
     from board.custom import hardware_chain as H
-    return _rows(tables, 'RegisterField', H.register_fields)
+    from board.custom import hardware_chain_c3 as H3
+    return _rows(tables, 'RegisterField', lambda: H.register_fields() + H3.register_fields())
+
+
+#: which chip a cmod C project's atoms run on (the project prefix of CFunctionAtom.name) - an atom of another chip's firmware never "uses" this chip's pin
+ATOM_PROJECT_SOC = {'uno': 'atmega328p'}
 
 
 def _known(soc):
@@ -182,8 +188,10 @@ def _pin_table(soc):
         board = {s: c for c, (s, _n) in list(D_PINS.items()) + list(A_PINS.items())}
         return {p: (board.get(p, ''), list(fns)) for p, (_n, fns) in PINS.items()}
     if soc == 'esp32c3':
-        from board.custom.esp32c3_tables import PRIORITY
-        return {'GPIO%d' % n: ('GPIO%d' % n, [f for f, _p in fixed]) for n, (_pkg, _name, fixed, _i) in PRIORITY.items()}
+        import json
+        from board.custom import board_c3
+        # the pad's own functions (its SocPin row: the IO MUX functions + analog, datasheet Table 2-4) - matrix-routed signals reach any pad (said per row)
+        return {r['pin']: (r['pin'], [f for f in json.loads(r['functions_json']) if f != r['pin']]) for r in board_c3.soc_pins()}
     return {}
 
 
@@ -202,7 +210,8 @@ def pins(soc, tables=None):
     _known(soc)
     fields = _fields(tables)
     out = []
-    for p, (board, fns) in sorted(_pin_table(soc).items()):
+    import re as _re
+    for p, (board, fns) in sorted(_pin_table(soc).items(), key=lambda kv: [int(t) if t.isdigit() else t for t in _re.split(r'(\d+)', kv[0])]):
         n = sum(1 for f in fields if f.get('soc') == soc and (f.get('affects_pin', '').split(':')[-1] == p or f.get('affects_signal', '').split(':')[-1] in fns))
         out.append({'ref': '%s:%s' % (soc, p), 'soc_pin': p, 'board_pin': board, 'functions': ', '.join(fns), 'register_fields': n})
     return out
@@ -228,7 +237,9 @@ def pin_uses(soc, pin, tables=None, cmod_rows=None):
             continue
         direct = f.get('affects_pin', '').split(':')[-1] == p
         sig = f.get('affects_signal', '').split(':')[-1]
-        if not direct and sig not in fns:
+        # rm-2b: a GPIO-matrix signal (U0RXD_in / U0TXD_out) reaches the pad whose IO MUX function it is (U0RXD on GPIO20)
+        base = sig.rsplit('_', 1)[0] if sig.endswith(('_in', '_out')) else sig
+        if not direct and sig not in fns and base not in fns:
             continue
         r = regs.get(f['register'], {})
         k = RA.kind(f['access']) or {}
@@ -236,7 +247,8 @@ def pin_uses(soc, pin, tables=None, cmod_rows=None):
         reg_names.add(f['register'])
         out.append({'kind': 'register field', 'name': f['name'].split(':', 1)[1], 'category': _categories_of(r),
                     'detail': '%s (bits %s, %s: %s)' % (f['description'], _bits(f), f['access'], k.get('title', '')),
-                    'how': 'names the pin' if direct else 'through %s, a function %s offers' % (sig, p), 'used_by': '', 'status': '', 'cite': f['page_table']})
+                    'how': 'names the pin' if direct else ('through %s, a function %s offers' % (sig, p) if sig in fns else
+                                                           'through %s, the matrix signal of %s - %s\'s IO MUX function' % (sig, base, p)), 'used_by': '', 'status': '', 'cite': f['page_table']})
     try:
         from cmod.custom import claims as C
         from cmod.custom import catom_assertions as CA
@@ -273,6 +285,8 @@ def pin_uses(soc, pin, tables=None, cmod_rows=None):
     short = {r.split(':', 1)[1] for r in reg_names}
     atoms = []
     for a in [a for n, _c, rs in CMOD_SEED_PAIRS if n == 'CFunctionAtom' for a in rs]:
+        if ATOM_PROJECT_SOC.get(a['name'].split(':', 1)[0]) != soc:
+            continue   # another chip's firmware (the C3's firmware is not parsed into atoms yet: said in the note below)
         touched = short & {x.strip() for x in (a.get('registers') or '').split(',')}
         key = a['name'].split(':', 1)[-1]
         declared = sorted(h for h in hal_here if 'declared %s' % h in (a.get('resources_summary') or ''))
@@ -286,4 +300,7 @@ def pin_uses(soc, pin, tables=None, cmod_rows=None):
                                         'how': ('USES THIS PIN: ' + why) if why else 'shares the register: which bit it writes is not parsed (the cmod parse names registers, '
                                                                                      'not bits) and no uses() annotation or assertion ties it to this pin', 'used_by': a.get('module', ''), 'status': 'certain' if why else 'register only',
                                         'cite': 'the cmod parse of the atom'}))
+    if soc not in ATOM_PROJECT_SOC.values():
+        atoms.append((2, {'kind': 'note', 'name': '', 'category': '', 'detail': 'no C firmware of the %s is parsed into atoms yet (cmod parses the UNO project): no C atom rows' % soc,
+                          'how': '', 'used_by': '', 'status': '', 'cite': ''}))
     return out + [r for _o, r in sorted(atoms, key=lambda x: (x[0], x[1]['name']))]

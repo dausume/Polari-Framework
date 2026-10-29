@@ -89,10 +89,30 @@ RULES = {'atmega328p': [
     _r('ADC|ADCW|ADCL|ADCH', ['mcu-peripheral/adc'], [D], [], '%s ch.24 ADC, p.246 (the conversion result, read-only): %s' % (DS, _CH), 'chapter'),
     _r('DIDR0', ['mcu-peripheral/adc', 'mcu-pin/electrical'], [C], [C], '%s ch.24 ADC, p.246 (digital input disable on the ADC pins): %s' % (DS, _CH), 'chapter'),
     _r('SPMCSR', ['mcu-system/self-programming'], [C, S], [C], '%s the Boot Loader Support (Read-While-Write Self-Programming) chapter - what Optiboot writes flash with (not re-read)' % DS, 'chapter'),
+],
+    # rm-2b: the ESP32-C3 drawing set (board.custom.registers_esp32c3) - every rule cites the TRM register section it was read from (v1.4, sha256 90ef8256...)
+    'esp32c3': [
+    _r('GPIO_ENABLE_REG|GPIO_ENABLE_W1T[SC]_REG', ['mcu-pin/direction'], [C], [C], '%s Register 5.5-5.7 pp.180-181 (output enable per pad; W1TS / W1TC set / clear it)' % 'ESP32-C3 TRM v1.4'),
+    _r('GPIO_OUT_REG|GPIO_OUT_W1T[SC]_REG', ['mcu-pin/io-data'], [D], [D], 'ESP32-C3 TRM v1.4 Register 5.2-5.4 pp.179-180 (the output value per pad)'),
+    _r('GPIO_IN_REG', ['mcu-pin/io-data'], [S], [], 'ESP32-C3 TRM v1.4 Register 5.9 p.182 (the input level per pad, read-only)'),
+    _r('GPIO_STATUS_REG|GPIO_STATUS_W1TC_REG', ['mcu-pin/interrupt'], [S], [C], 'ESP32-C3 TRM v1.4 Register 5.10 / 5.12 pp.182-183 (interrupt status per pad; W1TC clears it)'),
+    _r('GPIO_PIN\\d+_REG', ['mcu-pin/interrupt', 'mcu-pin/electrical'], [C], [C], 'ESP32-C3 TRM v1.4 Register 5.14 p.184 (INT_TYPE / INT_ENA, PAD_DRIVER open drain, input sync)'),
+    _r('IO_MUX_GPIO\\d+_REG', ['mcu-pin/electrical', 'soc-interconnect/matrix'], [C], [C], 'ESP32-C3 TRM v1.4 Register 5.21 pp.187-188 (function select, drive, IE, pulls); Table 5.12-1 p.174'),
+    _r('GPIO_FUNC\\d+_(IN|OUT)_SEL_CFG_REG', ['soc-interconnect/matrix'], [C], [C], 'ESP32-C3 TRM v1.4 Register 5.16 / 5.17 pp.185-186 (the GPIO matrix routing)'),
+    _r('GPIO_STRAP_REG', ['mcu-system/reset'], [S], [], 'ESP32-C3 TRM v1.4 Register 5.8 pp.181-182 (GPIO2 / GPIO8 / GPIO9 latched at reset)'),
+    _r('RTC_CNTL_RESET_STATE_REG', ['mcu-system/reset'], [S, C], [C], 'ESP32-C3 TRM v1.4 Register 9.12 p.239 (the CPU reset cause, Table 6.1-1 p.193)'),
+    _r('INTERRUPT_CORE0_\\w+_MAP_REG', ['mcu-system/interrupt-vectors', 'soc-interconnect/matrix'], [C], [C], 'ESP32-C3 TRM v1.4 Chapter 8, field p.214 (source -> CPU interrupt)'),
+    _r('SYSTIMER_\\w+_REG', ['mcu-peripheral/timer'], [D, S, C], [C], 'ESP32-C3 TRM v1.4 Register 10.1-10.6 pp.277-279 (the 52-bit system timer: config, latch, value)'),
+    _r('SYSTEM_PERIP_CLK_EN0_REG', ['mcu-system/clock'], [C], [C], 'ESP32-C3 TRM v1.4 Register 16.3 p.435; Table 16.3-2 p.430'),
+    _r('SYSTEM_PERIP_RST_EN0_REG', ['mcu-system/reset'], [C], [C], 'ESP32-C3 TRM v1.4 Register 16.5 pp.437-438; Table 16.3-2 p.430'),
+    _r('UART0_FIFO_REG', ['mcu-peripheral/uart'], [D], [D], 'ESP32-C3 TRM v1.4 Register 26.1 p.571 (the FIFO data path)'),
+    _r('UART0_STATUS_REG', ['mcu-peripheral/uart'], [S], [], 'ESP32-C3 TRM v1.4 Register 26.19 pp.585-586 (FIFO counts + line levels)'),
+    _r('UART0_\\w+_REG', ['mcu-peripheral/uart'], [C], [C], 'ESP32-C3 TRM v1.4 Register 26.7 / 26.9 / 26.10 pp.579-582 (baud divisor, frame format, FIFO thresholds)'),
 ]}
 
 #: field access (board.custom.register_fields_atmega328p) -> roles; 'rw' keeps the register's roles
-ACCESS_ROLES = {'rw-toggle': ([S], [C]), 'w1c': ([S], [C]), 'w0c': ([S], [C]), 'w-strobe': ([], [C]), 'r': ([S], [])}   # w0c: rm-2a (MCUSR's reset flags)
+ACCESS_ROLES = {'rw-toggle': ([S], [C]), 'w1c': ([S], [C]), 'w0c': ([S], [C]), 'w-strobe': ([], [C]), 'r': ([S], []),   # w0c: rm-2a (MCUSR's reset flags)
+                'w1-set': ([], [C]), 'w1-clear': ([], [C]), 'fifo': ([D], [D])}   # rm-2b: the C3's W1TS / W1TC registers and its UART FIFO
 
 
 def classify(soc, register):

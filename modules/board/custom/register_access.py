@@ -41,6 +41,21 @@ ACCESS_KINDS = [
     _k('rw-toggle', 'write one to toggle another bit', 'returns the pin\'s logic level', 'writing 1 TOGGLES the matching bit of ANOTHER register (PORTxn); 0 has no effect',
        '(no exact UVM policy: like W1T, but the toggled bit is in PORTx)', '(no exact SVD value: oneToToggle names a toggle of the bit itself)',
        'PIND.PIND3 (toggles PORTD3, §14.2.2)', 'a read-modify-write (PIND |= bit) toggles every PORTD bit whose pin reads high; write only the one bit'),
+    # rm-2b: the ESP32-C3's set / clear registers and its UART FIFO (examples from board.custom.registers_esp32c3, the TRM v1.4 cited there)
+    _k('w1-set', 'write one to set another register\'s bit', 'not a stored value (the TRM marks these WT: write 1 to trigger)',
+       'writing 1 SETS the matching bit of ANOTHER register (GPIO_OUT_W1TS_REG -> GPIO_OUT_REG); 0 has no effect',
+       '(no exact UVM policy: like W1S, but the bit set is in the shadowed register)', 'write-only (the set lands in the shadowed register; no exact SVD value)',
+       'C3 GPIO_OUT_W1TS_REG.OUT_W1TS_3 (sets GPIO3\'s output bit; TRM Register 5.3)',
+       'none - this is the SAFE way to change one bit: no read-modify-write of GPIO_OUT_REG, so another task\'s bits are never written back stale'),
+    _k('w1-clear', 'write one to clear another register\'s bit', 'not a stored value (the TRM marks these WT: write 1 to trigger)',
+       'writing 1 CLEARS the matching bit of ANOTHER register (GPIO_OUT_W1TC_REG -> GPIO_OUT_REG, GPIO_STATUS_W1TC_REG -> the interrupt status); 0 has no effect',
+       '(no exact UVM policy: like W1C, but the bit cleared is in the shadowed register)', 'write-only (the clear lands in the shadowed register; no exact SVD value)',
+       'C3 GPIO_STATUS_W1TC_REG.STATUS_W1TC_3 (clears GPIO3\'s pending interrupt; TRM Register 5.12)',
+       'clearing an interrupt by writing GPIO_STATUS_REG itself would read-modify-write every pad\'s pending bit; write the W1TC register with only the one bit'),
+    _k('fifo', 'a FIFO data port', 'each read POPS the next byte of a receive FIFO - reading is not side-effect free',
+       'each write PUSHES a byte into the transmit FIFO (where the hardware takes writes)', '(no exact UVM policy: a FIFO port is modelled as a memory-like access)',
+       'read-write, readAction = modify (a read changes the FIFO state)', 'UNO UDR0 (a two-level receive FIFO); C3 UART0_FIFO_REG.RXFIFO_RD_BYTE (TRM Register 26.1)',
+       'never read it "to look" (a debugger watch, a bit test, a read-modify-write like SBI / CBI on UDR0): the byte it pops is gone'),
 ]
 WORDS = tuple(k['name'] for k in ACCESS_KINDS)
 

@@ -23,9 +23,11 @@ def model():
     from board.custom import register_view as RV
     s = {r['soc']: r for r in RV.socs()}
     c3 = RV.categories('esp32c3')
-    check('BOTH CHIPS ANSWER: the 328P has 96 registers / 148 fields ingested; the C3 has none yet and answers every register category at count 0, said "not ingested yet"',
-          (s['atmega328p']['registers'], s['atmega328p']['fields']) == (96, 148) and s['esp32c3']['registers'] == 0
-          and c3 and all(r['count'] == 0 and 'not ingested yet' in r['state'] for r in c3), s)
+    check('BOTH CHIPS ANSWER: the 328P has 96 registers / 148 fields, the C3 (rm-2b) its drawing set of 91 registers / 761 fields; the C3 register categories carry '
+          'counts (pins, matrix, UART, timer, clock, reset, interrupt vectors) and a category none of its registers lands in stays future scope',
+          (s['atmega328p']['registers'], s['atmega328p']['fields']) == (96, 148) and (s['esp32c3']['registers'], s['esp32c3']['fields']) == (91, 761)
+          and {r['path'] for r in c3 if r['count']} >= {'mcu-pin/interrupt', 'soc-interconnect/matrix', 'mcu-peripheral/uart', 'mcu-peripheral/timer', 'mcu-system/clock'}
+          and all(r['state'] == 'future scope' for r in c3 if not r['count']), s)
     t = {r['path']: r for r in RV.categories('atmega328p')}
     uart = {r['register']: r for r in RV.registers('atmega328p', 'mcu-peripheral/uart')}
     check('REGISTER CATEGORY -> REGISTERS: mcu-peripheral/uart holds the USART0 registers; UCSR0A = "USART Control and Status Register 0 A" at 0xc0 (mem), read status + control, '

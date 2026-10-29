@@ -76,8 +76,8 @@ pages = {getattr(o, 'pageRoute', '') for o in (tables.get('DisplayDefinition') o
 check('hsp-3b: the /display/bench-views page is a seeded DisplayDefinition', 'bench-views' in pages, sorted(p for p in pages if 'bench' in p))
 acc = {getattr(o, 'name', ''): o for o in (tables.get('RegisterAccessKind') or {}).values()}
 pf = next((o for o in (tables.get('RegisterField') or {}).values() if getattr(o, 'name', '') == 'atmega328p:MCUSR.PORF'), None)
-check('rm-2a: the six RegisterAccessKind rows are seeded (w0c = UVM W0C) and the booted RegisterField MCUSR.PORF is w0c',
-      set(acc) == {'rw', 'r', 'w1c', 'w0c', 'w-strobe', 'rw-toggle'} and acc['w0c'].uvm_policy == 'W0C' and pf is not None and pf.access == 'w0c', sorted(acc))
+check('rm-2a + rm-2b: the nine RegisterAccessKind rows are seeded (w0c = UVM W0C; + w1-set / w1-clear / fifo) and the booted RegisterField MCUSR.PORF is w0c',
+      set(acc) == {'rw', 'r', 'w1c', 'w0c', 'w-strobe', 'rw-toggle', 'w1-set', 'w1-clear', 'fifo'} and acc['w0c'].uvm_policy == 'W0C' and pf is not None and pf.access == 'w0c', sorted(acc))
 r = client.simulate_get('/RegisterAccessKind')
 check('rm-2a: CRUDE GET /RegisterAccessKind answers 200', r.status_code == 200, r.status_code)
 r = client.simulate_get('/api/board/socs')
@@ -89,5 +89,9 @@ check('rm-3: /api/board/socs, /register-categories, /registers/MCUSR answer on t
 r = client.simulate_get('/api/board/socs/atmega328p/pins/D2/uses')
 check('rm-3: /api/board/socs/atmega328p/pins/D2/uses -> register fields with categories, the firmware settings, the assertion, BUTTON_PIN, certain atoms',
       r.status_code == 200 and {'register field', 'firmware setting', 'Catom assertion', 'HAL variable', 'C atom'} <= {x['kind'] for x in r.json['rows']}, r.text[:300])
+r = client.simulate_get('/api/board/pins/esp32c3:GPIO20/uses')
+c3r = [o for o in (tables.get('Register') or {}).values() if getattr(o, 'soc', '') == 'esp32c3']
+check('rm-2b: the booted server holds the C3 drawing set (91 Register rows) and GET /api/board/pins/esp32c3:GPIO20/uses reaches GPIO_FUNC6_IN_SEL (U0RXD_in)',
+      len(c3r) == 91 and r.status_code == 200 and any('GPIO_FUNC6_IN_SEL' in x['name'] for x in r.json['rows']), (len(c3r), r.status_code))
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)
