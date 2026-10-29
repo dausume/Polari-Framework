@@ -119,7 +119,8 @@ def views_and_roundtrips(check, uno, c3):
     from board.custom.views.zephyr import carried
     keep = [p for p in r2['pins'] if not carried(p)]
     old = {p['canonical']: p for p in r2['pins']}
-    rebuilt = keep + [dict(old.get(p['canonical'], {}), **{f: p[f] for f in V.CARRIES['zephyr'] + ('canonical', 'number')}) for p in d['pins']]
+    rebuilt = keep + [dict(old.get(p['canonical'], {}), **dict({f: p[f] for f in V.CARRIES['zephyr'] + ('canonical', 'number')},
+                           electrical_json=I.merge_electrical(old.get(p['canonical'], {}).get('electrical_json'), p['electrical_json']))) for p in d['pins']]   # c3-wiring: the chip's typical drive stays Polari's annotation
     r2['pins'] = rebuilt
     again = V.render(r2, 'zephyr')
     check('the C3 Zephyr ROUND TRIP: the overlay rendered from the ingested rows re-ingests to the SAME rows, and re-renders to the SAME sha (%s)'

@@ -165,7 +165,9 @@ def uno_parts(check):
         from cmod.cmod_api import CModAPI
         counts = {n: len(r) for n, _c, r in CMOD_SEED_PAIRS}
         m = json.load(open(os.path.join(UNO, 'polari-firmware.json')))
-        check('seeds = the committed manifest projected: 1 project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 72 atoms (fgm-5a: + 8 rendered-button atoms; fgm-5b: + 5 rendered-sense atoms; smp-2: + light.sense_poll), %d ports; '
+        c3 = json.load(open(os.path.join(MODULES, 'board', 'custom', 'firmware', 'esp32c3', 'polari-firmware.json')))   # the C3 project's own manifest (cmod.custom.c3_atoms)
+        c3_ports = sum(len(a['ports']) for a in c3['atoms'])
+        check('seeds = the committed manifests projected (c3-atoms: + project c3 - 4 modules, 41 atoms, %d ports - beside the UNO\'s): 1 uno project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 72 atoms (fgm-5a: + 8 rendered-button atoms; fgm-5b: + 5 rendered-sense atoms; smp-2: + light.sense_poll), %d ports; '
               'cmod-1: 3 graphs (uno-sim-rig-graph, uno-button-clock-graph — ucd-0e2b\'s own, uno-light-graph — ucd-light\'s), 66 nodes, 42 edges (smp-2: + the 3 sense nodes and the sense edge of uno-light-graph), 3 glue builds (all '
               'rendered/built/proven — EQUIVALENT); demo-4: TargetDefinition/CapabilityDefinition/CapabilityInstance derived over both graphs; hw '
               'priorities P1: +2 CapabilityDefinition (temp-sensor-to-os, blink-on-command) +3 CapabilityInstance; ucd-0e2b: button-clock-to-os '
@@ -173,8 +175,8 @@ def uno_parts(check):
               'derived ScheduleSlot/RegisterAssignment rows (D2/D3/D6/D13\'s config_json authored, provenance canvas); ucd-0b: PinClaim/'
               'PeripheralClaim observed (empty by design — materialized by the firmware API on a GET, never seeded); '
               'ucd-0b2b: one default HardwareBinding derived per solution (3 now); ucd-light: 8 more CapabilityDefinition (the two light Purposes + six plumbing Purposes of the sample graphs); fgm-1: 4 more (initialization + the three that replace the light pair); ucd-iso-0: CIsotope observed too '
-              '(empty by design — materialized on a GET, never seeded)' % m['counts']['ports'],
-              counts == {'CProject': 1, 'CModule': 11, 'CFunctionAtom': 72, 'CPort': m['counts']['ports'], 'CGraph': 3, 'CGraphNode': 66,
+              '(empty by design — materialized on a GET, never seeded)' % (c3_ports, m['counts']['ports']),
+              counts == {'CProject': 2, 'CModule': 11 + len(c3['modules']), 'CFunctionAtom': 72 + len(c3['atoms']), 'CPort': m['counts']['ports'] + c3_ports, 'CGraph': 3, 'CGraphNode': 66,
                          'CGraphEdge': 42, 'CGlueBuild': 3, 'TargetDefinition': 47, 'CapabilityDefinition': 16, 'CapabilityInstance': 5,
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 76, 'RegisterAssignment': 47,
                          'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22, 'ScoreTerm': 24, 'ScoreConcept': 10, 'GraphDefinition': 1,
@@ -215,7 +217,9 @@ def uno_parts(check):
         CModAPI(polServer=SimpleNamespace(falconServer=app, manager=mgr, idList=[]), manager=mgr)
         c = testing.TestClient(app)
         r = c.simulate_get('/api/cmod')
-        check('GET /api/cmod → the uno project with 72 atoms, the parser named', r.status_code == 200 and r.json['projects'][0]['atoms'] == 72
+        uno = next((p for p in (r.json or {}).get('projects', []) if p['name'] == 'uno'), {}) if r.status_code == 200 else {}
+        check('GET /api/cmod → the uno project with 72 atoms (c3-atoms: the c3 project listed beside it), the parser named', r.status_code == 200 and uno.get('atoms') == 72
+              and any(p['name'] == 'c3' for p in r.json['projects'])
               and r.json['parser']['engine'] == 'pycparser', r.text[:200])
         r = c.simulate_get('/api/cmod/atoms/hal_millis')
         check('GET /api/cmod/atoms/hal_millis → uno:hal.hal_millis with its one port', r.status_code == 200 and r.json['atom']['name'] == 'uno:hal.hal_millis'

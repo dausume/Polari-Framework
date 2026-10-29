@@ -32,6 +32,10 @@ def _owned(rows, keep=_HAND):
 
 
 SEED_ROWS = template_rows()
+# 2026-10-29: + the ESP32-C3 firmware's atoms (cmod.custom.c3_atoms: their own parse path into the same manifest schema and the same rows; project 'c3')
+from cmod.custom import c3_atoms as _C3  # noqa: E402
+for _k, _v in _C3.rows().items():
+    SEED_ROWS[_k] = SEED_ROWS[_k] + _v
 GRAPH_ROWS = graph_rows()
 TARGET_ROWS = T.derive(_DEFAULT_GRAPH) + T.derive(_BC_GRAPH) + T.derive(_LIGHT_GRAPH)
 

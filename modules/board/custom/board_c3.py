@@ -145,7 +145,7 @@ def board_pins():
         row['facts_json'] = json.dumps(sorted(set(json.loads(row['facts_json'] or '[]')) | {'%s:pin.%s' % (SOC, c)}))
         if row.get('function') != 'usb' and row.get('electrical_json', '{}') == '{}':
             # the chip's TYPICAL source current at drive strength 3 (datasheet Table 5-4 p.55) - the electrical check names it as typical, not a maximum
-            row['electrical_json'] = json.dumps({'max_ma': 40, 'fact': '%s:io.ioh_drive3' % SOC, 'kind': 'typical IOH at PAD_DRIVER 3 (not an absolute maximum)'})
+            row['electrical_json'] = json.dumps({'max_ma': 40, 'fact': '%s:io.ioh_drive3' % SOC, 'kind': 'typical IOH at PAD_DRIVER 3 (not an absolute maximum)'}, sort_keys=True)
     return [rows[c] for c in sorted(rows, key=lambda c: int(c[4:]))]
 
 

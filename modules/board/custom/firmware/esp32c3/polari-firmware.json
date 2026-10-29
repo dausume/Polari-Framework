@@ -1,0 +1,3180 @@
+{
+ "schema": "polari-firmware/1",
+ "project": "c3",
+ "kind": "idf",
+ "title": "ESP32-C3 firmware (board module, ESP-IDF + FreeRTOS)",
+ "description": "",
+ "notes": "parsed by cmod.custom.c3_atoms (the chip HAL: pin_shim=0); registers through the ESP-IDF drivers, cited; cost not measured",
+ "root": "board/custom/firmware/esp32c3",
+ "board": "esp32-c3",
+ "mcu": "esp32c3",
+ "parser": {
+  "engine": "pycparser + cmod.custom.c3_fake_headers",
+  "version": "2.21",
+  "fake_headers_sha256": "4178bf9a5b8dc3aaf97d07a1453ec42ac299841da9d16a78f9cca3a6faa1d381",
+  "abi": "riscv32 ilp32"
+ },
+ "build": {
+  "cc": "riscv32-esp-elf-gcc (ESP-IDF, prf-esp-engines)",
+  "cc_version": "",
+  "cflags": []
+ },
+ "configurations": [
+  {
+   "name": "esp32c3-light",
+   "flags": [
+    "PIN_SHIM=0"
+   ]
+  }
+ ],
+ "modules": [
+  {
+   "name": "apps/light",
+   "role": "app",
+   "files": [
+    {
+     "path": "apps/light.c",
+     "sha256": "1b296d071852c24010dd8807262f0141949fda9d9c01c4b6a3984c55040571cd"
+    }
+   ],
+   "atoms": [
+    "apps/light.apply_command",
+    "apps/light.boot_session_mint",
+    "apps/light.button_task",
+    "apps/light.events_queue",
+    "apps/light.led_follow_task",
+    "apps/light.led_toggle",
+    "apps/light.now_ms",
+    "apps/light.polari_app_main",
+    "apps/light.rx_task",
+    "apps/light.send_events",
+    "apps/light.sense_task",
+    "apps/light.telemetry_task",
+    "apps/light.window_task"
+   ]
+  },
+  {
+   "name": "apps/light_hal",
+   "role": "hal",
+   "files": [
+    {
+     "path": "apps/light_hal.h",
+     "sha256": "65316c8e3845c02fff8003aaf4a5c635a97fe0363d22d4f483715e31668fa6fe"
+    }
+   ],
+   "atoms": [
+    "apps/light_hal.button_isr",
+    "apps/light_hal.hal_button_arm",
+    "apps/light_hal.hal_led_write",
+    "apps/light_hal.hal_pins_init",
+    "apps/light_hal.hal_sense_read"
+   ]
+  },
+  {
+   "name": "main/polari_c3",
+   "role": "runtime",
+   "files": [
+    {
+     "path": "main/polari_c3.c",
+     "sha256": "5fb1de7ae9b4317cb53233eb48533a6da170f8b834b9126c8eba8f7543cb0c73"
+    },
+    {
+     "path": "main/polari_c3.h",
+     "sha256": "0feceb071b7eb89f185a02ff8f4d003a3670a73bae6867e19b273fe193da142d"
+    }
+   ],
+   "atoms": [
+    "main/polari_c3.app_main",
+    "main/polari_c3.polari_app_command",
+    "main/polari_c3.polari_c3_init",
+    "main/polari_c3.polari_cycle_line",
+    "main/polari_c3.polari_line",
+    "main/polari_c3.polari_now_us",
+    "main/polari_c3.polari_rx_start",
+    "main/polari_c3.polari_telemetry_start",
+    "main/polari_c3.polari_window_end",
+    "main/polari_c3.polari_work_us",
+    "main/polari_c3.rx_task",
+    "main/polari_c3.telemetry_task",
+    "main/polari_c3.uart_up"
+   ]
+  },
+  {
+   "name": "main/polari_trace",
+   "role": "runtime",
+   "files": [
+    {
+     "path": "main/polari_trace.c",
+     "sha256": "9d28e0d24b24fde8751714adee7b2eab39b9c29f01e3693444ca648e418a6f8a"
+    },
+    {
+     "path": "main/polari_trace.h",
+     "sha256": "d3e7e385765cd59d0126cdc938959eb4239b473cdd73fbaecabd50938786742e"
+    }
+   ],
+   "atoms": [
+    "main/polari_trace.lock_id",
+    "main/polari_trace.polari_mark",
+    "main/polari_trace.polari_trace_dump",
+    "main/polari_trace.polari_trace_hook",
+    "main/polari_trace.polari_trace_lock",
+    "main/polari_trace.polari_trace_start",
+    "main/polari_trace.polari_trace_stop",
+    "main/polari_trace.polari_trace_task",
+    "main/polari_trace.put",
+    "main/polari_trace.task_id"
+   ]
+  }
+ ],
+ "atoms": [
+  {
+   "name": "apps/light.apply_command",
+   "function": "apply_command",
+   "module": "apps/light.c",
+   "line": 105,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void apply_command(const polari_rx_t * r)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "r",
+     "direction": "in",
+     "ctype": "const polari_rx_t *",
+     "width_bytes": 4,
+     "polari_type": "ref:polari_rx_t",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "state_lock",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "memset",
+    "ButtonClockState_decode_rx",
+    "xSemaphoreTake",
+    "events_queue",
+    "xSemaphoreGive"
+   ],
+   "pure": false,
+   "pure_why": "touches state, state_lock, xSemaphoreTake, xSemaphoreGive",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.boot_session_mint",
+   "function": "boot_session_mint",
+   "module": "apps/light.c",
+   "line": 64,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t boot_session_mint(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "nvs_flash_init",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_flash_erase",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_open",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_get_u32",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_set_u32",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_commit",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "nvs_close",
+     "access": "call",
+     "peripheral": "NVS flash",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "nvs_flash_init",
+    "nvs_flash_erase",
+    "nvs_open",
+    "nvs_get_u32",
+    "nvs_set_u32",
+    "nvs_commit",
+    "nvs_close"
+   ],
+   "pure": false,
+   "pure_why": "touches nvs_flash_init, nvs_flash_erase, nvs_open, nvs_get_u32, nvs_set_u32, nvs_commit",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.button_task",
+   "function": "button_task",
+   "module": "apps/light.c",
+   "line": 135,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void button_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "ulTaskNotifyTake",
+     "access": "call",
+     "peripheral": "FreeRTOS task notification",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "ulTaskNotifyTake",
+    "now_ms",
+    "led_toggle"
+   ],
+   "pure": false,
+   "pure_why": "touches ulTaskNotifyTake",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.events_queue",
+   "function": "events_queue",
+   "module": "apps/light.c",
+   "line": 83,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void events_queue(uint8_t kind)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "kind",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "evq",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "QueueHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "library",
+     "name": "xQueueSend",
+     "access": "call",
+     "peripheral": "FreeRTOS queue",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xQueueReceive",
+     "access": "call",
+     "peripheral": "FreeRTOS queue",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "now_ms",
+    "xQueueSend",
+    "xQueueReceive"
+   ],
+   "pure": false,
+   "pure_why": "touches evq, state, xQueueSend, xQueueReceive",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.led_follow_task",
+   "function": "led_follow_task",
+   "module": "apps/light.c",
+   "line": 121,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_follow_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelay",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "hal_led_write",
+    "vTaskDelay"
+   ],
+   "pure": false,
+   "pure_why": "touches state, vTaskDelay",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.led_toggle",
+   "function": "led_toggle",
+   "module": "apps/light.c",
+   "line": 94,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void led_toggle(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "state_lock",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "xSemaphoreTake",
+    "events_queue",
+    "xSemaphoreGive"
+   ],
+   "pure": false,
+   "pure_why": "touches state, state_lock, xSemaphoreTake, xSemaphoreGive",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.now_ms",
+   "function": "now_ms",
+   "module": "apps/light.c",
+   "line": 59,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t now_ms(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "esp_timer_get_time"
+   ],
+   "pure": false,
+   "pure_why": "touches SYSTIMER_UNIT0_OP_REG, SYSTIMER_UNIT0_VALUE_HI_REG, SYSTIMER_UNIT0_VALUE_LO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.polari_app_main",
+   "function": "polari_app_main",
+   "module": "apps/light.c",
+   "line": 225,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_app_main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "DEFAULTS",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "const int32_t[8]"
+    },
+    {
+     "kind": "global",
+     "name": "evq",
+     "access": "w",
+     "peripheral": "",
+     "detail": "QueueHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "g_params",
+     "access": "r",
+     "peripheral": "",
+     "detail": "polari_params_t"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "state_lock",
+     "access": "w",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreCreateMutex",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xQueueCreate",
+     "access": "call",
+     "peripheral": "FreeRTOS queue",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xTaskCreate",
+     "access": "call",
+     "peripheral": "FreeRTOS task",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "polari_c3_init",
+    "memset",
+    "strncpy",
+    "boot_session_mint",
+    "xSemaphoreCreateMutex",
+    "xQueueCreate",
+    "hal_pins_init",
+    "xTaskCreate",
+    "hal_button_arm",
+    "polari_line",
+    "now_ms"
+   ],
+   "pure": false,
+   "pure_why": "touches DEFAULTS, evq, g_params, state, state_lock, xSemaphoreCreateMutex",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.rx_task",
+   "function": "rx_task",
+   "module": "apps/light.c",
+   "line": 203,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void rx_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "UART0_FIFO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through uart_read_bytes() port FRAME_UART: components/esp_driver_uart/src/uart.c:1665 uart_read_bytes reads the driver's RX ring, filled by its ISR: components/esp_driver_uart/src/uart.c:1281 uart_hal_read_rxfifo -> components/hal/esp32c3/include/hal/uart_ll.h:349-352 uart_ll_read_rxfifo: hw->ahb_fifo (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "memset",
+    "uart_read_bytes",
+    "polari_rx_feed",
+    "apply_command"
+   ],
+   "pure": false,
+   "pure_why": "touches UART0_FIFO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.send_events",
+   "function": "send_events",
+   "module": "apps/light.c",
+   "line": 168,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void send_events(uint32_t * seq_e)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "seq_e",
+     "direction": "in",
+     "ctype": "uint32_t *",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "evq",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "QueueHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[218]"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[234]"
+    },
+    {
+     "kind": "library",
+     "name": "xQueueReceive",
+     "access": "call",
+     "peripheral": "FreeRTOS queue",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_FIFO_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_write_bytes() port FRAME_UART: components/esp_driver_uart/src/uart.c:1629-1634 uart_write_bytes -> uart_tx_all -> components/esp_driver_uart/src/uart.c:1142 uart_hal_write_txfifo -> components/hal/esp32c3/include/hal/uart_ll.h:365-371 uart_ll_write_txfifo: hw->ahb_fifo (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "xQueueReceive",
+    "memset",
+    "uart_write_bytes",
+    "ButtonClockEvent_frame",
+    "ButtonClockEvent_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches evq, payload, state, wire, xQueueReceive, UART0_FIFO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.sense_task",
+   "function": "sense_task",
+   "module": "apps/light.c",
+   "line": 151,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void sense_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "state_lock",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelay",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "hal_sense_read",
+    "xSemaphoreTake",
+    "events_queue",
+    "xSemaphoreGive",
+    "vTaskDelay"
+   ],
+   "pure": false,
+   "pure_why": "touches state, state_lock, xSemaphoreTake, xSemaphoreGive, vTaskDelay",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.telemetry_task",
+   "function": "telemetry_task",
+   "module": "apps/light.c",
+   "line": 183,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void telemetry_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[218]"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "global",
+     "name": "state_lock",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[234]"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_FIFO_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_write_bytes() port FRAME_UART: components/esp_driver_uart/src/uart.c:1629-1634 uart_write_bytes -> uart_tx_all -> components/esp_driver_uart/src/uart.c:1142 uart_hal_write_txfifo -> components/hal/esp32c3/include/hal/uart_ll.h:365-371 uart_ll_write_txfifo: hw->ahb_fifo (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelayUntil",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "xTaskGetTickCount",
+    "xSemaphoreTake",
+    "now_ms",
+    "xSemaphoreGive",
+    "uart_write_bytes",
+    "ButtonClockState_frame",
+    "ButtonClockState_encode",
+    "polari_line",
+    "send_events",
+    "vTaskDelayUntil"
+   ],
+   "pure": false,
+   "pure_why": "touches payload, state, state_lock, wire, xSemaphoreTake, xSemaphoreGive",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light.window_task",
+   "function": "window_task",
+   "module": "apps/light.c",
+   "line": 216,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void window_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_params",
+     "access": "r",
+     "peripheral": "",
+     "detail": "polari_params_t"
+    },
+    {
+     "kind": "global",
+     "name": "state",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ButtonClockState_t"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelay",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "vTaskDelay",
+    "polari_cycle_line",
+    "polari_line",
+    "vTaskSuspend"
+   ],
+   "pure": false,
+   "pure_why": "touches g_params, state, vTaskDelay",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light_hal.button_isr",
+   "function": "button_isr",
+   "module": "apps/light_hal.h",
+   "line": 72,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void button_isr(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_button_target",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "TaskHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskNotifyGiveFromISR",
+     "access": "call",
+     "peripheral": "FreeRTOS task notification (ISR)",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "vTaskNotifyGiveFromISR",
+    "__polari_yield_from_isr"
+   ],
+   "pure": false,
+   "pure_why": "touches s_button_target, vTaskNotifyGiveFromISR",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light_hal.hal_button_arm",
+   "function": "hal_button_arm",
+   "module": "apps/light_hal.h",
+   "line": 91,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_button_arm(TaskHandle_t task)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "task",
+     "direction": "in",
+     "ctype": "TaskHandle_t",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_button_target",
+     "access": "w",
+     "peripheral": "",
+     "detail": "TaskHandle_t"
+    },
+    {
+     "kind": "declared",
+     "name": "BUTTON_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names BUTTON_GPIO (= 3, the HAL value BUTTON_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "register",
+     "name": "INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_install_isr_service() : components/esp_driver_gpio/src/gpio.c:532-543 gpio_install_isr_service -> gpio_isr_register -> components/esp_driver_gpio/src/gpio.c:612 esp_intr_alloc (the GPIO interrupt source, mapped to a CPU interrupt by the interrupt matrix) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_PIN3_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_isr_handler_add() pin 3: components/esp_driver_gpio/src/gpio.c:559-569 gpio_isr_handler_add -> gpio_intr_enable_on_core -> components/hal/esp32c3/include/hal/gpio_ll.h:162 gpio_ll_intr_enable_on_core: pin[n].int_ena (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "__polari_error_check",
+    "gpio_install_isr_service",
+    "gpio_isr_handler_add"
+   ],
+   "pure": false,
+   "pure_why": "touches s_button_target, INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG, GPIO_PIN3_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light_hal.hal_led_write",
+   "function": "hal_led_write",
+   "module": "apps/light_hal.h",
+   "line": 98,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_led_write(int level)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "level",
+     "direction": "in",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_led_level",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile int"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names LED_GPIO (= 0, the HAL value LED_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_OUT_W1TS_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_set_level() pin 0: components/esp_driver_gpio/src/gpio.c:245-248 gpio_set_level -> components/hal/include/hal/gpio_hal.h:225 gpio_hal_set_level -> components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_OUT_W1TC_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_set_level() pin 0: components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1tc (level 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "gpio_set_level"
+   ],
+   "pure": false,
+   "pure_why": "touches s_led_level, GPIO_OUT_W1TS_REG, GPIO_OUT_W1TC_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light_hal.hal_pins_init",
+   "function": "hal_pins_init",
+   "module": "apps/light_hal.h",
+   "line": 80,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void hal_pins_init(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "declared",
+     "name": "BUTTON_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names BUTTON_GPIO (= 3, the HAL value BUTTON_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "declared",
+     "name": "LED_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names LED_GPIO (= 0, the HAL value LED_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names SENSE_GPIO (= 1, the HAL value SENSE_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "register",
+     "name": "IO_MUX_GPIO0_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_ENABLE_W1TS_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:222-227 gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:245 gpio_ll_output_enable: hw->enable_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_FUNC0_OUT_SEL_CFG_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:225 gpio_hal_matrix_out_default (no peripheral output routed: simple GPIO, 128) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "IO_MUX_GPIO1_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 1: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "IO_MUX_GPIO3_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 3: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_PIN3_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_config() pin 3: components/esp_driver_gpio/src/gpio.c:414 gpio_set_intr_type -> components/hal/esp32c3/include/hal/gpio_ll.h:99 gpio_ll_set_intr_type: hw->pin[n].int_type; gpio_intr_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:162 int_ena (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_OUT_W1TS_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_set_level() pin 0: components/esp_driver_gpio/src/gpio.c:245-248 gpio_set_level -> components/hal/include/hal/gpio_hal.h:225 gpio_hal_set_level -> components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_OUT_W1TC_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_set_level() pin 0: components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1tc (level 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "__polari_error_check",
+    "gpio_config",
+    "gpio_set_level"
+   ],
+   "pure": false,
+   "pure_why": "touches IO_MUX_GPIO0_REG, GPIO_ENABLE_W1TS_REG, GPIO_FUNC0_OUT_SEL_CFG_REG, IO_MUX_GPIO1_REG, IO_MUX_GPIO3_REG, GPIO_PIN3_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "apps/light_hal.hal_sense_read",
+   "function": "hal_sense_read",
+   "module": "apps/light_hal.h",
+   "line": 104,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int hal_sense_read(void)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "declared",
+     "name": "SENSE_PIN",
+     "access": "",
+     "peripheral": "",
+     "detail": "the raw body names SENSE_GPIO (= 1, the HAL value SENSE_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_IN_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through gpio_get_level() pin 1: components/esp_driver_gpio/src/gpio.c:252-254 gpio_get_level -> components/hal/include/hal/gpio_hal.h:239 gpio_hal_get_level -> components/hal/esp32c3/include/hal/gpio_ll.h:332 gpio_ll_get_level: hw->in.data (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "gpio_get_level"
+   ],
+   "pure": false,
+   "pure_why": "touches GPIO_IN_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.app_main",
+   "function": "app_main",
+   "module": "main/polari_c3.c",
+   "line": 199,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void app_main(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [],
+   "calls": [
+    "polari_app_main"
+   ],
+   "pure": false,
+   "pure_why": "calls polari_app_main",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_app_command",
+   "function": "polari_app_command",
+   "module": "main/polari_c3.c",
+   "line": 158,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_app_command(const polari_cmd_t * c)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "c",
+     "direction": "in",
+     "ctype": "const polari_cmd_t *",
+     "width_bytes": 4,
+     "polari_type": "ref:polari_cmd_t",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_params",
+     "access": "w",
+     "peripheral": "",
+     "detail": "polari_params_t"
+    },
+    {
+     "kind": "global",
+     "name": "g_params_source",
+     "access": "w",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "g_steer_slot",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "g_tel",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile polari_tel_t"
+    }
+   ],
+   "calls": [
+    "polari_line"
+   ],
+   "pure": false,
+   "pure_why": "touches g_params, g_params_source, g_steer_slot, g_tel",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_c3_init",
+   "function": "polari_c3_init",
+   "module": "main/polari_c3.c",
+   "line": 77,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_c3_init(const int32_t[8] defaults, uint32_t window_ms, uint32_t rounds)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "defaults",
+     "direction": "in",
+     "ctype": "const int32_t[8]",
+     "width_bytes": 32,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "window_ms",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "rounds",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_params",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_params_t"
+    },
+    {
+     "kind": "global",
+     "name": "g_params_source",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "s_line_lock",
+     "access": "w",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreCreateMutex",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "esp_partition_find_first",
+     "access": "call",
+     "peripheral": "flash partition",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "esp_partition_read",
+     "access": "call",
+     "peripheral": "flash partition",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "uart_up",
+    "xSemaphoreCreateMutex",
+    "memset",
+    "memcpy",
+    "esp_partition_find_first",
+    "esp_partition_read",
+    "polari_line",
+    "polari_cycle_line"
+   ],
+   "pure": false,
+   "pure_why": "touches g_params, g_params_source, s_line_lock, xSemaphoreCreateMutex, esp_partition_find_first, esp_partition_read",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_cycle_line",
+   "function": "polari_cycle_line",
+   "module": "main/polari_c3.c",
+   "line": 135,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_cycle_line(const char * where)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "where",
+     "direction": "in",
+     "ctype": "const char *",
+     "width_bytes": 4,
+     "polari_type": "string",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "esp_cpu_get_cycle_count",
+     "access": "call",
+     "peripheral": "CPU cycle counter (mcycle)",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "polari_line",
+    "esp_cpu_get_cycle_count",
+    "esp_timer_get_time"
+   ],
+   "pure": false,
+   "pure_why": "touches esp_cpu_get_cycle_count, SYSTIMER_UNIT0_OP_REG, SYSTIMER_UNIT0_VALUE_HI_REG, SYSTIMER_UNIT0_VALUE_LO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_line",
+   "function": "polari_line",
+   "module": "main/polari_c3.c",
+   "line": 49,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_line(const char * fmt)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "fmt",
+     "direction": "in",
+     "ctype": "const char *",
+     "width_bytes": 4,
+     "polari_type": "string",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_line_lock",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "note",
+     "name": "(UART1 - its registers are not ingested)",
+     "access": "",
+     "peripheral": "",
+     "detail": "through uart_write_bytes() port TRACE_UART: rm-2b ingested UART0 only (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "vsnprintf",
+    "xSemaphoreTake",
+    "uart_write_bytes",
+    "xSemaphoreGive"
+   ],
+   "pure": false,
+   "pure_why": "touches s_line_lock, xSemaphoreTake, xSemaphoreGive",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_now_us",
+   "function": "polari_now_us",
+   "module": "main/polari_c3.c",
+   "line": 33,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint32_t polari_now_us(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "esp_timer_get_time"
+   ],
+   "pure": false,
+   "pure_why": "touches SYSTIMER_UNIT0_OP_REG, SYSTIMER_UNIT0_VALUE_HI_REG, SYSTIMER_UNIT0_VALUE_LO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_rx_start",
+   "function": "polari_rx_start",
+   "module": "main/polari_c3.c",
+   "line": 192,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_rx_start(UBaseType_t prio)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "prio",
+     "direction": "in",
+     "ctype": "UBaseType_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "library",
+     "name": "xTaskCreate",
+     "access": "call",
+     "peripheral": "FreeRTOS task",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "xTaskCreate",
+    "polari_trace_task"
+   ],
+   "pure": false,
+   "pure_why": "touches xTaskCreate",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_telemetry_start",
+   "function": "polari_telemetry_start",
+   "module": "main/polari_c3.c",
+   "line": 148,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_telemetry_start(SemaphoreHandle_t gate, UBaseType_t prio)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "gate",
+     "direction": "in",
+     "ctype": "SemaphoreHandle_t",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "prio",
+     "direction": "in",
+     "ctype": "UBaseType_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_gate",
+     "access": "w",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t"
+    },
+    {
+     "kind": "library",
+     "name": "xTaskCreate",
+     "access": "call",
+     "peripheral": "FreeRTOS task",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "memset",
+    "strncpy",
+    "xTaskCreate",
+    "polari_trace_task"
+   ],
+   "pure": false,
+   "pure_why": "touches s_gate, s_state, xTaskCreate",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_window_end",
+   "function": "polari_window_end",
+   "module": "main/polari_c3.c",
+   "line": 140,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_window_end(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_tel_stop",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile int"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelay",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    }
+   ],
+   "calls": [
+    "polari_cycle_line",
+    "polari_trace_stop",
+    "vTaskDelay"
+   ],
+   "pure": false,
+   "pure_why": "touches g_tel_stop, vTaskDelay",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.polari_work_us",
+   "function": "polari_work_us",
+   "module": "main/polari_c3.c",
+   "line": 38,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_work_us(uint32_t us)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "us",
+     "direction": "in",
+     "ctype": "uint32_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "esp_timer_get_time"
+   ],
+   "pure": false,
+   "pure_why": "touches SYSTIMER_UNIT0_OP_REG, SYSTIMER_UNIT0_VALUE_HI_REG, SYSTIMER_UNIT0_VALUE_LO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.rx_task",
+   "function": "rx_task",
+   "module": "main/polari_c3.c",
+   "line": 170,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void rx_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_rx",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "polari_rx_t"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_FIFO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through uart_read_bytes() port FRAME_UART: components/esp_driver_uart/src/uart.c:1665 uart_read_bytes reads the driver's RX ring, filled by its ISR: components/esp_driver_uart/src/uart.c:1281 uart_hal_read_rxfifo -> components/hal/esp32c3/include/hal/uart_ll.h:349-352 uart_ll_read_rxfifo: hw->ahb_fifo (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "memset",
+    "uart_read_bytes",
+    "polari_rx_feed",
+    "SimRigState_decode_rx",
+    "polari_app_command"
+   ],
+   "pure": false,
+   "pure_why": "touches s_rx, UART0_FIFO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.telemetry_task",
+   "function": "telemetry_task",
+   "module": "main/polari_c3.c",
+   "line": 113,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void telemetry_task(void * arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "g_tel",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile polari_tel_t"
+    },
+    {
+     "kind": "global",
+     "name": "g_tel_stop",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile int"
+    },
+    {
+     "kind": "global",
+     "name": "s_gate",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SemaphoreHandle_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_payload",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[93]"
+    },
+    {
+     "kind": "global",
+     "name": "s_state",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "SimRigState_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_wire",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t[109]"
+    },
+    {
+     "kind": "library",
+     "name": "vTaskDelayUntil",
+     "access": "call",
+     "peripheral": "FreeRTOS scheduler",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreTake",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "library",
+     "name": "xSemaphoreGive",
+     "access": "call",
+     "peripheral": "FreeRTOS semaphore",
+     "detail": "ESP-IDF / FreeRTOS"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_FIFO_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_write_bytes() port FRAME_UART: components/esp_driver_uart/src/uart.c:1629-1634 uart_write_bytes -> uart_tx_all -> components/esp_driver_uart/src/uart.c:1142 uart_hal_write_txfifo -> components/hal/esp32c3/include/hal/uart_ll.h:365-371 uart_ll_write_txfifo: hw->ahb_fifo (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "xTaskGetTickCount",
+    "vTaskDelayUntil",
+    "vTaskSuspend",
+    "xSemaphoreTake",
+    "esp_timer_get_time",
+    "xSemaphoreGive",
+    "uart_write_bytes",
+    "SimRigState_frame",
+    "SimRigState_encode"
+   ],
+   "pure": false,
+   "pure_why": "touches g_tel, g_tel_stop, s_gate, s_payload, s_state, s_wire",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_c3.uart_up",
+   "function": "uart_up",
+   "module": "main/polari_c3.c",
+   "line": 65,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void uart_up(uart_port_t port, int rx_buf, int tx_buf, int tx_gpio)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "port",
+     "direction": "in",
+     "ctype": "uart_port_t",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "rx_buf",
+     "direction": "in",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "tx_buf",
+     "direction": "in",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "tx_gpio",
+     "direction": "in",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "register",
+     "name": "INTERRUPT_CORE0_UART_INTR_MAP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_driver_install() port FRAME_UART via a caller passing FRAME_UART, 1024, 0: components/esp_driver_uart/src/uart.c:1935-1995 uart_driver_install -> esp_intr_alloc_intrstatus (the UART source) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTEM_PERIP_CLK_EN0_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_driver_install() port FRAME_UART via a caller passing FRAME_UART, 1024, 0: components/esp_driver_uart/src/uart.c:1991 uart_module_enable -> components/hal/esp32c3/include/hal/uart_ll.h:88-92 SYSTEM.perip_clk_en0.reg_uart_clk_en (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "note",
+     "name": "(UART1 - its registers are not ingested)",
+     "access": "",
+     "peripheral": "",
+     "detail": "through uart_driver_install() port TRACE_UART via a caller passing TRACE_UART, 256, 8192: rm-2b ingested UART0 only (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_CLKDIV_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_param_config() port FRAME_UART via a caller passing FRAME_UART: components/esp_driver_uart/src/uart.c:994-1035 uart_param_config -> uart_hal_set_baudrate (components/hal/esp32c3/include/hal/uart_ll.h:223 uart_ll_set_baudrate) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "UART0_CONF0_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_param_config() port FRAME_UART via a caller passing FRAME_UART: components/esp_driver_uart/src/uart.c:1046-1048 uart_hal_set_parity / set_data_bit_num / set_stop_bits (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTEM_PERIP_RST_EN0_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through uart_param_config() port FRAME_UART via a caller passing FRAME_UART: components/esp_driver_uart/src/uart.c:213 uart_module_enable -> components/hal/esp32c3/include/hal/uart_ll.h:109-114 uart_ll_reset_register: SYSTEM.perip_rst_en0.reg_uart_rst (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "__polari_error_check",
+    "uart_driver_install",
+    "uart_param_config",
+    "uart_set_pin"
+   ],
+   "pure": false,
+   "pure_why": "touches INTERRUPT_CORE0_UART_INTR_MAP_REG, SYSTEM_PERIP_CLK_EN0_REG, UART0_CLKDIV_REG, UART0_CONF0_REG, SYSTEM_PERIP_RST_EN0_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.lock_id",
+   "function": "lock_id",
+   "module": "main/polari_trace.c",
+   "line": 62,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "int lock_id(void * h)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "h",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "int",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_locks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "struct [6]"
+    },
+    {
+     "kind": "global",
+     "name": "s_nlocks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches s_locks, s_nlocks",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_mark",
+   "function": "polari_mark",
+   "module": "main/polari_trace.c",
+   "line": 98,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_mark(uint8_t code, uint8_t obj)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "code",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "obj",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_mux",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "portMUX_TYPE"
+    },
+    {
+     "kind": "global",
+     "name": "s_on",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile int"
+    }
+   ],
+   "calls": [
+    "__polari_enter_critical",
+    "put",
+    "task_id",
+    "xTaskGetCurrentTaskHandle",
+    "__polari_exit_critical"
+   ],
+   "pure": false,
+   "pure_why": "touches s_mux, s_on",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_dump",
+   "function": "polari_trace_dump",
+   "module": "main/polari_trace.c",
+   "line": 119,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_dump(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_dropped",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_locks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "struct [6]"
+    },
+    {
+     "kind": "global",
+     "name": "s_n",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_nlocks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "s_ntasks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "s_on",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile int"
+    },
+    {
+     "kind": "global",
+     "name": "s_ring",
+     "access": "r",
+     "peripheral": "",
+     "detail": "ev_t[4096]"
+    },
+    {
+     "kind": "global",
+     "name": "s_tasks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "struct [12]"
+    }
+   ],
+   "calls": [
+    "polari_line",
+    "uxTaskPriorityGet"
+   ],
+   "pure": false,
+   "pure_why": "touches s_dropped, s_locks, s_n, s_nlocks, s_ntasks, s_on",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_hook",
+   "function": "polari_trace_hook",
+   "module": "main/polari_trace.c",
+   "line": 81,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_hook(unsigned kind, void * obj, unsigned arg)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "kind",
+     "direction": "in",
+     "ctype": "unsigned",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "obj",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "unsigned",
+     "width_bytes": 4,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_last_task",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "uint8_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_on",
+     "access": "r",
+     "peripheral": "",
+     "detail": "volatile int"
+    }
+   ],
+   "calls": [
+    "task_id",
+    "xTaskGetCurrentTaskHandle",
+    "put",
+    "lock_id"
+   ],
+   "pure": false,
+   "pure_why": "touches s_last_task, s_on",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_lock",
+   "function": "polari_trace_lock",
+   "module": "main/polari_trace.c",
+   "line": 45,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_lock(void * h, uint8_t id, const char * name, const char * kind)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "h",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "id",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "name",
+     "direction": "in",
+     "ctype": "const char *",
+     "width_bytes": 4,
+     "polari_type": "string",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "kind",
+     "direction": "in",
+     "ctype": "const char *",
+     "width_bytes": 4,
+     "polari_type": "string",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_locks",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "struct [6]"
+    },
+    {
+     "kind": "global",
+     "name": "s_nlocks",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "int"
+    }
+   ],
+   "calls": [
+    "strncpy"
+   ],
+   "pure": false,
+   "pure_why": "touches s_locks, s_nlocks",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_start",
+   "function": "polari_trace_start",
+   "module": "main/polari_trace.c",
+   "line": 106,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_start(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_dropped",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_last_task",
+     "access": "w",
+     "peripheral": "",
+     "detail": "uint8_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_n",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_on",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile int"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches s_dropped, s_last_task, s_n, s_on",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_stop",
+   "function": "polari_trace_stop",
+   "module": "main/polari_trace.c",
+   "line": 114,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_stop(void)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_on",
+     "access": "w",
+     "peripheral": "",
+     "detail": "volatile int"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches s_on",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.polari_trace_task",
+   "function": "polari_trace_task",
+   "module": "main/polari_trace.c",
+   "line": 36,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void polari_trace_task(TaskHandle_t h, uint8_t id, const char * name)",
+   "static": false,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "h",
+     "direction": "in",
+     "ctype": "TaskHandle_t",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "id",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "name",
+     "direction": "in",
+     "ctype": "const char *",
+     "width_bytes": 4,
+     "polari_type": "string",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_ntasks",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "s_tasks",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "struct [12]"
+    }
+   ],
+   "calls": [
+    "strncpy"
+   ],
+   "pure": false,
+   "pure_why": "touches s_ntasks, s_tasks",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.put",
+   "function": "put",
+   "module": "main/polari_trace.c",
+   "line": 69,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "void put(uint8_t kind, uint8_t task, uint8_t obj, uint8_t arg)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "kind",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "task",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "obj",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "arg",
+     "direction": "in",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_dropped",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_n",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "volatile uint32_t"
+    },
+    {
+     "kind": "global",
+     "name": "s_ring",
+     "access": "w",
+     "peripheral": "",
+     "detail": "ev_t[4096]"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_OP_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/esp_timer/src/esp_timer_impl_systimer.c:68-75 esp_timer_get_time = esp_timer_impl_get_time -> systimer_hal_get_counter_value(SYSTIMER_COUNTER_ESPTIMER = 0, esp_private/systimer.h:30) -> components/hal/esp32c3/include/hal/systimer_ll.h:88-90 systimer_ll_counter_snapshot: unit_op[0].timer_unit_update (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_HI_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h:109 systimer_ll_get_counter_value_high (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    },
+    {
+     "kind": "register",
+     "name": "SYSTIMER_UNIT0_VALUE_LO_REG",
+     "access": "r",
+     "peripheral": "",
+     "detail": "through esp_timer_get_time() : components/hal/esp32c3/include/hal/systimer_ll.h systimer_ll_get_counter_value_low (unit 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+    }
+   ],
+   "calls": [
+    "esp_timer_get_time"
+   ],
+   "pure": false,
+   "pure_why": "touches s_dropped, s_n, s_ring, SYSTIMER_UNIT0_OP_REG, SYSTIMER_UNIT0_VALUE_HI_REG, SYSTIMER_UNIT0_VALUE_LO_REG",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  },
+  {
+   "name": "main/polari_trace.task_id",
+   "function": "task_id",
+   "module": "main/polari_trace.c",
+   "line": 55,
+   "kind": "function",
+   "isr_vector": "",
+   "signature": "uint8_t task_id(void * h)",
+   "static": true,
+   "signature_varies": false,
+   "ports": [
+    {
+     "name": "h",
+     "direction": "in",
+     "ctype": "void *",
+     "width_bytes": 4,
+     "polari_type": "bytes",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: parameter"
+    },
+    {
+     "name": "return",
+     "direction": "out",
+     "ctype": "uint8_t",
+     "width_bytes": 1,
+     "polari_type": "int64",
+     "unit": "",
+     "meaning": "",
+     "source": "derived: return value"
+    }
+   ],
+   "resources": [
+    {
+     "kind": "global",
+     "name": "s_ntasks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "int"
+    },
+    {
+     "kind": "global",
+     "name": "s_tasks",
+     "access": "r",
+     "peripheral": "",
+     "detail": "struct [12]"
+    }
+   ],
+   "calls": [],
+   "pure": false,
+   "pure_why": "touches s_ntasks, s_tasks",
+   "isr_safe": "undetermined",
+   "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
+   "atomic_block": false,
+   "configs": [
+    "esp32c3-light"
+   ],
+   "annotation": null,
+   "cost": {
+    "why": "not measured: cmod measures avr-gcc builds; no riscv32-esp-elf size / stack pass for the C3 yet"
+   },
+   "title": "",
+   "notes": ""
+  }
+ ],
+ "counts": {
+  "atoms": 41,
+  "annotated": 0,
+  "isr": 0,
+  "pure": 0,
+  "not_isr_safe": 0
+ },
+ "problems": [],
+ "annotated_not_compiled": [],
+ "derived_by": "cmod.custom.c3_atoms generate - never edit by hand",
+ "conformed_at": ""
+}

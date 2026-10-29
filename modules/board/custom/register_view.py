@@ -47,7 +47,7 @@ def _fields(tables):
 
 
 #: which chip a cmod C project's atoms run on (the project prefix of CFunctionAtom.name) - an atom of another chip's firmware never "uses" this chip's pin
-ATOM_PROJECT_SOC = {'uno': 'atmega328p'}
+ATOM_PROJECT_SOC = {'uno': 'atmega328p', 'c3': 'esp32c3'}   # c3: cmod.custom.c3_atoms (2026-10-29)
 
 
 def _known(soc):
@@ -124,13 +124,16 @@ def _settings(soc, reg_name):
     return out
 
 
-def _atoms(reg):
+def _atoms(reg, soc=''):
     try:
         from cmod.cmod_seed import CMOD_SEED_PAIRS
     except Exception as e:  # noqa: BLE001
         return [{'atom': '', 'module': '', 'registers': '', 'note': 'cmod is not on this instance (%s)' % e}]
-    atoms = [a for n, _c, rs in CMOD_SEED_PAIRS if n == 'CFunctionAtom' for a in rs]
-    return [{'atom': a['name'], 'module': a.get('module', ''), 'registers': a.get('registers', ''), 'note': 'the cmod parse of the atom\'s body names it'}
+    atoms = [a for n, _c, rs in CMOD_SEED_PAIRS if n == 'CFunctionAtom' for a in rs
+             if not soc or ATOM_PROJECT_SOC.get(a['name'].split(':', 1)[0]) == soc]   # an atom of the register's own chip's firmware
+    return [{'atom': a['name'], 'module': a.get('module', ''), 'registers': a.get('registers', ''),
+             'note': ('through its ESP-IDF driver calls, each cited to the IDF source (cmod.custom.c3_atoms)' if a['name'].startswith('c3:')
+                      else 'the cmod parse of the atom\'s body names it')}
             for a in atoms if reg in [x.strip() for x in (a.get('registers') or '').split(',')]]
 
 
@@ -154,7 +157,7 @@ def detail(soc, name, view='fields', tables=None):
     if view == 'settings':
         return _settings(soc, reg_name)
     if view == 'atoms':
-        return _atoms(reg_name.split(':', 1)[1])
+        return _atoms(reg_name.split(':', 1)[1], soc)
     raise KeyError('view must be one of %s' % ', '.join(DETAIL_VIEWS))
 
 
@@ -293,7 +296,13 @@ def pin_uses(soc, pin, tables=None, cmod_rows=None):
         if not touched and not declared:
             continue
         if declared and key not in sure:
-            sure[key] = 'its POLARI_NODE annotation declares uses(%s), and %s is %s' % (', '.join(declared), ', '.join(declared), p)
+            if a['name'].startswith('c3:'):
+                from cmod.custom.c3_atoms import PIN_MACROS
+                macro = {v: k for k, v in PIN_MACROS.items()}
+                sure[key] = 'its body names %s (the HAL value %s), which is %s - read from the source text (cmod.custom.c3_atoms)' % (
+                    ', '.join(macro.get(h, h) for h in declared), ', '.join(declared), p)
+            else:
+                sure[key] = 'its POLARI_NODE annotation declares uses(%s), and %s is %s' % (', '.join(declared), ', '.join(declared), p)
         cats = sorted({c.strip() for t in touched for c in _categories_of(regs.get('%s:%s' % (soc, t), {})).split(',') if c.strip()})
         why = sure.get(key)
         atoms.append((0 if why else 1, {'kind': 'C atom', 'name': a['name'], 'category': ', '.join(cats), 'detail': ('its body touches %s' % ', '.join(sorted(touched))) if touched else 'touches none of these registers itself (it goes through the HAL)',
