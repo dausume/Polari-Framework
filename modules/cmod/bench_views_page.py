@@ -9,7 +9,10 @@ tables (no raw JSON; no new component). The bench picker sits above the tabs and
             opens the Structs tab at that instance)
   HAL       the bridge's firmware (click one) -> its HAL values (click one) -> the pins that value may use, each with "Use this pin" (THE slot-choice write,
             POST /api/cmod/catom-variables/{variant}/set: checked, then written to the firmware recipe's knob); a door-form for a typed value (F_CPU)
-Linkable: /display/bench-views?bench=home-bench&instance=...&bridge=...&variant=uno-light (scope_query).
+  Registers rm-4: pick a chip, then EITHER start from a register category (category -> register -> its fields with every access word spelled out, the firmware's
+            settings of it, the C atoms touching it -> a field's pin and its lifecycle stages) OR start from a pin (pin -> its register fields with their register
+            categories, the firmware's settings, the Catom assertions, the HAL variable, the C atoms that use it); the access words' own table at the foot
+Linkable: /display/bench-views?bench=home-bench&instance=...&bridge=...&variant=uno-light&soc=atmega328p&pin=PD2 (scope_query).
 """
 from polariApiServer.module_pages_seed import _page, _row, _table, _tab, _component
 
@@ -103,10 +106,72 @@ def _hal_tab():
                     'while it starts up, the other values and the recipe\'s rules.')
 
 
+_SOC = '/api/board/socs/{scope:soc}'
+
+
+def _registers_tab():
+    return _tab('registers', 'Registers', [
+        _row(0, [_table('bv-reg-chips', 0, 12, 'Chips - click one', '',
+                        description='One row per chip the view knows: its board and how many registers and bit fields are typed in from its datasheet. The ESP32-C3 has none yet.',
+                        columns='soc,board,registers,fields,state', data_path='/api/board/socs?' + _REV, select_field='soc', select_scope='soc', selected_value='{scope:soc}')],
+             min_height=150),
+        # ---- start from a register category
+        _row(1, [_table('bv-reg-categories', 0, 5, 'Start from a register category - click one', '',
+                        description='The chip\'s registers sorted by what they are for: a domain (mcu-pin, mcu-peripheral, mcu-system, mcu-internal ...) and a category inside it '
+                                    '(direction, uart, reset ...). count = registers in it; a category no register lands in is future scope.',
+                        columns='path,count,registers,state', data_path=_SOC + '/register-categories?soc={scope:soc}&' + _REV, empty_text='Pick a chip above.',
+                        select_field='path', select_scope='category', selected_value='{scope:category}'),
+                 _table('bv-reg-registers', 1, 7, 'Its registers - click one', '',
+                        description='One row per register in the chosen register category: what it is, its address, its reset value, the categories it sits in, what reading and '
+                                    'writing it do (status / control / data), how many bit fields are typed in and the datasheet section.',
+                        columns='register,title,address,reset_value,read_roles,write_roles,fields,fields_note,cite',
+                        data_path=_SOC + '/registers?category={scope:category}&' + _REV, empty_text='Pick a register category.',
+                        select_field='register', select_scope='register', selected_value='{scope:register}')], min_height=280),
+        _row(2, [_table('bv-reg-fields', 0, 12, 'Its bit fields - click one that drives a pin', '',
+                        description='One row per bit field, highest bit first: its bits, its access word and what that means (what a read returns, what a write does), the reset '
+                                    'value, every value and its meaning in the datasheet\'s words, the pin or signal it acts on, and the section it was read from.',
+                        columns='field,bits,access,access_means,on_read,on_write,reset_value,values,pin,signal,cite,notes',
+                        data_path=_SOC + '/registers/{scope:register}?view=fields&register={scope:register}&' + _REV, empty_text='Pick a register.',
+                        select_field='name', select_scope='field', selected_value='{scope:field}')], min_height=280),
+        _row(3, [_table('bv-reg-settings', 0, 7, 'What the firmware sets it to', '',
+                        description='One row per bit the firmware solution sets in this register: the phase (init ...), the value, what that value means, the task that owns it and the '
+                                    'pin claim behind it. Only the pin-driven settings are derived today; the USART / timer set-up stays in the HAL (said by cmod).',
+                        columns='solution,phase,field,value,meaning,task,pin_claim,register_value,status',
+                        data_path=_SOC + '/registers/{scope:register}?view=settings&register={scope:register}&' + _REV, empty_text='Pick a register.'),
+                 _table('bv-reg-atoms', 1, 5, 'The code that touches it', '',
+                        description='One row per C atom (a function of the firmware) whose body reads or writes this register, from the cmod parse.',
+                        columns='atom,module,registers', data_path=_SOC + '/registers/{scope:register}?view=atoms&register={scope:register}&' + _REV,
+                        empty_text='Pick a register.')], min_height=240),
+        _row(4, [_table('bv-reg-field-pin', 0, 12, 'The pin that field drives, stage by stage', '',
+                        description='The board pin the chosen field acts on and what happens to it at each stage: RESET, BOOTLOADER, INITIALIZATION, ACTIVE - who owns it, the '
+                                    'function, and the verdict with its reasons. A field that drives no pin shows nothing.',
+                        columns='field,board_pin,soc_pin,stage,owner,function,verdict,boot_critical,reasons',
+                        data_path=_SOC + '/fields/{scope:field}/pins?field={scope:field}&' + _REV, empty_text='Pick a bit field that drives a pin.')], min_height=220),
+        # ---- start from a pin (his ask: "go both ways")
+        _row(5, [_table('bv-reg-pins', 0, 12, 'Or start from a pin - click one', '',
+                        description='One row per pin of the chip: its board name (D2), its functions (INT0, PCINT18 ...) and how many register fields reach it.',
+                        columns='board_pin,soc_pin,functions,register_fields', data_path=_SOC + '/pins?soc={scope:soc}&' + _REV, empty_text='Pick a chip above.',
+                        select_field='soc_pin', select_scope='pin', selected_value='{scope:pin}')], min_height=260),
+        _row(6, [_table('bv-reg-pin-uses', 0, 12, 'Everything that uses that pin', '',
+                        description='One row per use of the chosen pin. register field = a bit field that names the pin or a function it offers, with its register category; '
+                                    'firmware setting = the value the firmware solution gives that field and the task that owns it; Catom assertion = a catom that says it acts on '
+                                    'the pin; HAL variable = the named value that IS this pin; C atom = a function of the firmware - "certain" when its uses() annotation or an '
+                                    'assertion ties it to this pin, "register only" when it only touches the same register.',
+                        columns='kind,name,category,detail,how,used_by,status', data_path=_SOC + '/pins/{scope:pin}/uses?pin={scope:pin}&' + _REV,
+                        empty_text='Pick a pin above.')], min_height=360),
+        _row(7, [_table('bv-reg-access', 0, 12, 'What the access words mean', 'RegisterAccessKind',
+                        description='One row per access word a bit field can have: what a read returns, what a write does, the names the same behaviour has in the IEEE 1800.2 '
+                                    '(UVM) and CMSIS-SVD register standards, an example field and the mistake it guards against.',
+                        columns='name,title,read_effect,write_effect,uvm_policy,svd_access,example,caution')], min_height=260)],
+        description='The chip\'s registers, both ways in: from a register category down to bits and pins, or from a pin out to every register, firmware setting and catom '
+                    'that uses it.')
+
+
 BENCH_VIEWS_PAGES = [
     _page('bench-views', 'bench-views',
           'The bench\'s Structs, Polari Hardware Bridges and HAL: struct instances and the signal paths that change their fields (Catom assertions), the bridges and where '
           'their signal goes in each mode, and the firmware\'s named values with the pins each may use. Doors: /api/board/benches, /api/cmod/bench-structs/{bench}, '
-          '/api/grpc/bench-bridges/{bench}[/mode], /api/cmod/catom-variables/{variant}[/set].',
-          'Bench', [_bench_row()], title='Bench views', tabs=[_structs_tab(), _bridges_tab(), _hal_tab()], scope_query=['bench', 'instance', 'bridge', 'variant']),
+          '/api/grpc/bench-bridges/{bench}[/mode], /api/cmod/catom-variables/{variant}[/set], /api/board/socs[/{soc}/register-categories|registers|pins].',
+          'Bench', [_bench_row()], title='Bench views', tabs=[_structs_tab(), _bridges_tab(), _hal_tab(), _registers_tab()],
+          scope_query=['bench', 'instance', 'bridge', 'variant', 'soc', 'pin']),
 ]

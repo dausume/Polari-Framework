@@ -119,15 +119,53 @@ def page():
     tabs = {t['key']: t for t in d['tabs']}
     items = [it for t in d['tabs'] for r in t['rows'] for it in r['items']] + [it for r in d['rows'] for it in r['items']]
     blob = json.dumps(d)
-    check('PAGE /display/bench-views: the bench picker above three tabs (structs, bridges, hal), linkable by ?bench=&instance=&bridge=&variant=; registered in cmod\'s pages',
-          list(tabs) == ['structs', 'bridges', 'hal'] and d['scope_from_query'] == ['bench', 'instance', 'bridge', 'variant'] and pg in SEED_CMOD_PAGE_DISPLAYS
+    check('PAGE /display/bench-views: the bench picker above four tabs (structs, bridges, hal, registers), linkable by ?bench=&instance=&bridge=&variant=&soc=&pin=; '
+          'registered in cmod\'s pages',
+          list(tabs) == ['structs', 'bridges', 'hal', 'registers'] and d['scope_from_query'] == ['bench', 'instance', 'bridge', 'variant', 'soc', 'pin']
+          and pg in SEED_CMOD_PAGE_DISPLAYS
           and pg['pageRoute'] == 'bench-views', list(tabs))
     check('PAGE wiring: the clicks chain bench -> instance -> field (Structs), bench -> bridge (Bridges, with "Switch mode" and the jump into Structs), bench -> variant '
           '-> variable -> "Use this pin" (HAL, THE slot write); every table has a description', all(k in blob for k in ('selectScope": "instance', 'selectScope": "field',
                                                                                                                  'selectScope": "bridge', 'selectScope": "variant',
                                                                                                                  'selectScope": "variable', 'rowLinkTabField": "tab',
-                                                                                                                 'Switch mode', 'Use this pin', '/set'))
+                                                                                                                 'Switch mode', 'Use this pin', '/set',
+                                                                                                                 'selectScope": "category', 'selectScope": "register',
+                                                                                                                 'selectScope": "pin', '/register-categories', '/uses'))
           and all(it.get('description') for it in items), [it.get('id') for it in items if not it.get('description')])
+
+
+def registers_tab():
+    """rm-4: every door the Registers tab names answers on the board doors (the {scope:..} placeholders filled the way a click fills them)."""
+    from board.register_view_api import RegisterViewAPI
+    from cmod.bench_views_page import BENCH_VIEWS_PAGES
+    d = json.loads(BENCH_VIEWS_PAGES[0]['definition'])
+    tab = next(t for t in d['tabs'] if t['key'] == 'registers')
+    paths = [it['componentProps']['inputs'].get('dataPath') for r in tab['rows'] for it in r['items'] if it['componentProps']['inputs'].get('dataPath')]
+    scope = {'soc': 'atmega328p', 'category': 'mcu-pin/interrupt', 'register': 'EICRA', 'field': 'atmega328p:DDRD.DDD2', 'pin': 'PD2', 'rev': '0'}
+    api = RegisterViewAPI(polServer=None, manager=None)
+    import re
+    from urllib.parse import parse_qsl
+    routes = [('/api/board/socs', 'on_get_socs', ()), (r'/api/board/socs/([^/]+)/register-categories', 'on_get_categories', 1),
+              (r'/api/board/socs/([^/]+)/registers/([^/?]+)', 'on_get_register', 2), (r'/api/board/socs/([^/]+)/registers', 'on_get_registers', 1),
+              (r'/api/board/socs/([^/]+)/fields/([^/]+)/pins', 'on_get_field_pins', 2), (r'/api/board/socs/([^/]+)/pins/([^/]+)/uses', 'on_get_pin_uses', 2),
+              (r'/api/board/socs/([^/]+)/pins', 'on_get_pins', 1)]
+    got = {}
+    for raw in paths:
+        url = re.sub(r'\{scope:([a-z]+)\}', lambda m: scope[m.group(1)], raw)
+        path, _, q = url.partition('?')
+        params = dict(parse_qsl(q))
+        for pat, meth, _n in routes:
+            m = re.fullmatch(pat, path)
+            if m:
+                resp = types.SimpleNamespace(status='200 OK', media=None)
+                getattr(api, meth)(types.SimpleNamespace(get_param=lambda k, p=params: p.get(k)), resp, *m.groups())
+                got[path] = (resp.status, (resp.media or {}).get('count'))
+                break
+        else:
+            got[path] = ('no route', None)
+    check('rm-4 REGISTERS TAB: every door it names answers on a click\'s values (EICRA in mcu-pin/interrupt, DDRD.DDD2, pin PD2) - 200 with rows, no unrouted path; the '
+          'access words are their own table (RegisterAccessKind)', all(st == '200 OK' and (n or 0) > 0 for st, n in got.values()) and len(got) == 7 and len(paths) == 9
+          and any(it['componentProps']['inputs'].get('className') == 'RegisterAccessKind' for r in tab['rows'] for it in r['items']), got)
 
 
 def registered():
@@ -142,6 +180,7 @@ def main():
     bridges()
     doors()
     page()
+    registers_tab()
     registered()
     print('\n%d/%d passed' % (passed, total))
     return 0 if passed == total else 1
