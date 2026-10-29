@@ -165,7 +165,7 @@ SEED_MODULE_RESOURCE_PROFILES = [
         'min_ram_mb': 1500.0, 'min_disk_mb': 200.0, 'min_threads': 1, 'thread_ceiling': 4, 'cpu_benefit': 'sublinear', 'ram_benefit': 'sublinear',
         'scales_note': 'the place-and-route flow (OpenROAD): global placement and routing use threads; RAM grows with the design — the 96-cell adder is tiny',
         'image_mb': 4690.0, 'deps_mb': 0.0, 'fidelity': 'declared', 'provenance_id': 'profile_seed (rc-1, eng-1)',
-        'notes': 'prf-orfs-engines:staging = openroad/orfs:26Q3-651-gbc334a4aa (4.64 GB, used as published, pinned by digest) + the eda-engines service (~50 MB). Worker :9801 (eng-1). Serves computelod.pnr (lod-3e / lod-3f); the adder flow measured 527 MB peak / 68 CPU-s.',
+        'notes': 'prf-orfs-engines:staging = openroad/orfs:26Q3-651-gbc334a4aa@sha256:69df744e… (4.64 GB, used as published; the digest pinned in Dockerfile.orfs 2026-10-29, layers checked against the local image) + the eda-engines service (~50 MB). Worker :9801 (eng-1). Serves computelod.pnr (lod-3e / lod-3f); the adder flow measured 527 MB peak / 68 CPU-s.',
     },
     {
         'name': 'prf-proof-engines-resource-profile', 'subject_name': 'prf-proof-engines', 'subject_kind': 'engine', 'character': 'compute',
