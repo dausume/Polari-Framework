@@ -55,8 +55,10 @@ def run_circuit_states(check):
           and init.get('D6', {}).get('mode') == 'output' and init['D6']['initial'] == 'low' and 'LED_DDR' in init['D6']['source']
           and init.get('D3', {}).get('mode') == 'input' and init['D3']['pull'] == 'none' and 'hal_sense_poll.c' in init['D3']['source'], init)
     w = SRC.pin_writer('uno-light')
-    check('cst-0 SOURCE: the pin writer from the parsed atoms — LightState.led_on, written by apply_command + led_toggle, read by led_follow_state which drives D6',
-          w and w['pin'] == 'D6' and w['field'] == 'led_on' and w['writers'] == ['apply_command', 'led_toggle'] and w['reader'] == 'led_follow_state', w)
+    check('cst-0 SOURCE: the pin writer from the parsed atoms — LightState.led_on, written by apply_command + led_toggle (and transiently by telemetry_send since the sense '
+          'line: it puts the sensed level in for the frame and restores the command, light.c), read by led_follow_state which drives D6; the writer list is split outside '
+          'its parenthesised notes (no "via" pseudo-writer)',
+          w and w['pin'] == 'D6' and w['field'] == 'led_on' and w['writers'] == ['apply_command', 'led_toggle', 'telemetry_send'] and w['reader'] == 'led_follow_state', w)
     pr = SRC.press_record('uno-light')
     check('cst-0 SOURCE: the committed press record of uno-light (press -> D6 rise) carries best/worst ms and its sha', pr and pr['worst_ms'] > pr['best_ms'] > 0 and len(pr['sha256']) == 64, pr)
     circuit, why = SRC.circuit_for('uno-light', t)

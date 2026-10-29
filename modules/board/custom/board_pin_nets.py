@@ -69,3 +69,22 @@ SEED_BOARD_PIN_NETS = [
                 "pins', p.11).",
     },
 ]
+
+
+# 2026-10-29: the ESP32-C3 light DESIGN (electrodevice circuit c3-light) - the wiring esp32c3-light's knobs assume; NO C3 board is on the bench, so these rows
+# are provenance 'design' (the electrical check reads them like the bench's and says so), never a measured bench
+C3_BOARD, C3_CIRCUIT = 'esp32-c3', 'c3-light'
+
+
+def _c3(pin, net, net_row, role, notes):
+    return {'name': '%s:%s@%s:%s' % (C3_BOARD, pin or 'GND', C3_CIRCUIT, net), 'board': C3_BOARD, 'board_pin': ('%s:%s' % (C3_BOARD, pin)) if pin else '',
+            'circuit': C3_CIRCUIT, 'circuit_net': net_row, 'role': role, 'provenance': 'design', 'notes': notes}
+
+
+SEED_BOARD_PIN_NETS += [
+    _c3('GPIO0', 'LED_CONTROL', 'c3l-net-led-control', 'output', 'LED_PIN = GPIO0 (variants_c3.LIGHT_KNOBS led_pin 0): drives the LED line through R1 - a DESIGN row (no C3 board on the bench)'),
+    _c3('GPIO1', 'LED_CONTROL', 'c3l-net-led-control', 'input', 'SENSE_PIN = GPIO1 (sense_pin 1): the jumper GPIO0->GPIO1 ("jumper GPIO0 to GPIO1", variants_c3) - reads the line, never a second driver'),
+    _c3('GPIO3', 'BUTTON_INPUT', 'c3l-net-button-input', 'input', 'BUTTON_PIN = GPIO3 (button_pin 3): the pushbutton to GND; internal pull-up'),
+    _c3('', 'GND', 'c3l-net-gnd', 'ground', "GND is the board's ground connector, never a BoardPin row (board_pin '' by design)"),
+]
+

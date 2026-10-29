@@ -58,11 +58,16 @@ def _circuit_seeds(check):
 
 # ---------------------------------------------------------------- part 2: BoardPinNet both ways
 def _board_pin_net_rows(check):
-    from board.custom.board_pin_nets import SEED_BOARD_PIN_NETS
+    from board.custom.board_pin_nets import SEED_BOARD_PIN_NETS as ALL_ROWS
     from board.custom import board_object as BO
-    r = BO.rows_for(BOARD)
-    board_pins = {p['name'] for p in r['pins']}
-    check('four BoardPinNet rows: D6 output, D3 input, D2 input, GND ground', len(SEED_BOARD_PIN_NETS) == 4, SEED_BOARD_PIN_NETS)
+    SEED_BOARD_PIN_NETS = [row for row in ALL_ROWS if row['board'] == BOARD]   # the UNO bench's own rows; the C3's DESIGN rows are checked below
+    pins_of = {}
+
+    def board_pins(board):
+        if board not in pins_of:
+            pins_of[board] = {p['name'] for p in BO.rows_for(board)['pins']}
+        return pins_of[board]
+    check('four UNO BoardPinNet rows: D6 output, D3 input, D2 input, GND ground', len(SEED_BOARD_PIN_NETS) == 4, SEED_BOARD_PIN_NETS)
     by_role = {row['role']: row for row in SEED_BOARD_PIN_NETS if row['role'] in ('output', 'ground')}
     check('D6 is the one output (LED_CONTROL)', by_role['output']['board_pin'] == '%s:D6' % BOARD, by_role.get('output'))
     inputs = sorted(row['board_pin'] for row in SEED_BOARD_PIN_NETS if row['role'] == 'input')
@@ -70,10 +75,15 @@ def _board_pin_net_rows(check):
           inputs == ['%s:D2' % BOARD, '%s:D3' % BOARD], inputs)
     check("GND's row carries board_pin='' (a power/reference connector label, never a BoardPin row) with notes naming it",
           by_role['ground']['board_pin'] == '' and 'connector' in by_role['ground']['notes'].lower(), by_role.get('ground'))
+    c3 = [row for row in ALL_ROWS if row['board'] == 'esp32-c3']
+    check('c3-wiring: four esp32-c3 rows on the c3-light DESIGN (GPIO0 output, GPIO1 + GPIO3 input, GND), every one provenance design - no C3 board on the bench',
+          sorted((row['board_pin'], row['role']) for row in c3) == [('', 'ground'), ('esp32-c3:GPIO0', 'output'), ('esp32-c3:GPIO1', 'input'), ('esp32-c3:GPIO3', 'input')]
+          and all(row['provenance'] == 'design' and row['circuit'] == 'c3-light' for row in c3), c3)
 
-    # forward: every non-GND row's board_pin resolves to a real BoardPin
-    bad_fwd = [row['name'] for row in SEED_BOARD_PIN_NETS if row['board_pin'] and row['board_pin'] not in board_pins]
-    check('forward: every BoardPinNet.board_pin (where set) resolves to a real BoardPin row', not bad_fwd, bad_fwd)
+    # forward: every non-GND row's board_pin resolves to a real BoardPin of ITS board
+    bad_fwd = [row['name'] for row in ALL_ROWS if row['board_pin'] and row['board_pin'] not in board_pins(row['board'])]
+    check('forward: every BoardPinNet.board_pin (where set) resolves to a real BoardPin row of its own board', not bad_fwd, bad_fwd)
+    SEED_BOARD_PIN_NETS = ALL_ROWS   # the net checks below hold for every board's rows
 
     # forward: every row's circuit_net resolves to a real CircuitNetDefinition row
     from electrodevice.objects.circuit._shared import SEED_CIRCUIT_NETS

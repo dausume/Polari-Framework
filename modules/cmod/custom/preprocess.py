@@ -175,12 +175,13 @@ def _preprocessor_class():
     return _PP
 
 
-def preprocess(path, include_dirs=(), defines=()):
-    """→ (text with #line markers, problems). include_dirs: the project's own dirs (searched for "x.h" and <x.h>)."""
+def preprocess(path, include_dirs=(), defines=(), fake_dirs=None):
+    """→ (text with #line markers, problems). include_dirs: the project's own dirs (searched for "x.h" and <x.h>). `fake_dirs` replaces the AVR fake
+    headers (the C3: cmod.custom.c3_atoms' ESP-IDF / FreeRTOS / RV32 libc stand-ins); None = the AVR ones, unchanged."""
     from pycparser.ply import lex, cpp
     pp = _preprocessor_class()(lex.lex(module=cpp))
     pp.problems = []
-    for d in [fake_dir()] + [os.path.abspath(x) for x in include_dirs]:
+    for d in (list(fake_dirs) if fake_dirs is not None else [fake_dir()]) + [os.path.abspath(x) for x in include_dirs]:
         pp.add_path(d)
     for d in EXTENSION_DEFINES + tuple(defines):
         pp.define(d)

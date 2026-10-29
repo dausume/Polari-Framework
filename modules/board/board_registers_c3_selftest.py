@@ -97,10 +97,11 @@ def views():
     from board.custom import pin_stages as P
     u3 = RV.pin_uses('esp32c3', 'GPIO3')
     u20 = RV.pin_uses('esp32c3', 'GPIO20')
-    check('rm-2b BOTH WAYS for the C3: pin GPIO3 -> its GPIO_PIN3 / IO_MUX_GPIO3 fields with their categories + the BUTTON_PIN HAL value; NO UNO atom (the C3 firmware is not '
-          'parsed into atoms yet: said); GPIO20 reaches GPIO_FUNC6_IN_SEL (U0RXD_in) as the matrix signal of its IO MUX function U0RXD',
+    check('rm-2b BOTH WAYS for the C3: pin GPIO3 -> its GPIO_PIN3 / IO_MUX_GPIO3 fields with their categories + the BUTTON_PIN HAL value + the C3\'s OWN atoms (hal_button_arm '
+          'certain - cmod.custom.c3_atoms), never a UNO atom; GPIO20 reaches GPIO_FUNC6_IN_SEL (U0RXD_in) as the matrix signal of its IO MUX function U0RXD',
           any(r['name'] == 'GPIO_PIN3_REG.INT_TYPE' and 'mcu-pin/interrupt' in r['category'] for r in u3) and any(r['kind'] == 'HAL variable' and r['name'] == 'BUTTON_PIN' for r in u3)
-          and not any(r['kind'] == 'C atom' for r in u3) and any(r['kind'] == 'note' and 'parsed into atoms yet' in r['detail'] for r in u3)
+          and any(r['kind'] == 'C atom' and r['name'] == 'c3:apps/light_hal.hal_button_arm' and r['status'] == 'certain' for r in u3)
+          and not any(r['name'].startswith('uno:') for r in u3)
           and any(r['name'] == 'GPIO_FUNC6_IN_SEL_CFG_REG.IN_SEL' and 'IO MUX function' in r['how'] for r in u20), [r['name'] for r in u20][:6])
     s9 = P.assess('esp32-c3', 'GPIO9')['stages'][0]
     s21 = P.assess('esp32-c3', 'GPIO21')['stages'][0]

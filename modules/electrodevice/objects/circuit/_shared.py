@@ -45,6 +45,16 @@ SEED_CIRCUITS = [
         'analyses_json': '[{"type": "op"}]',
         'probes_json': '[]',
     },
+    # 2026-10-29: the ESP32-C3 light DESIGN - the wiring the esp32c3-light variant's knobs assume (board.custom.variants_c3.LIGHT_KNOBS: LED GPIO0, button GPIO3,
+    # sense GPIO1, "jumper GPIO0 to GPIO1"); the same kit parts as uno-button-clock. NO C3 BOARD IS ON THE BENCH: a design, never a measured bench.
+    {
+        'name': 'c3-light',
+        'description': "The ESP32-C3 light DESIGN (no C3 board is on the bench - the variant runs on the QEMU twin only): LED on GPIO0 through a 220 ohm resistor "
+                       "to GND, pushbutton GPIO3 to GND (internal pull-up), jumper GPIO0->GPIO1 so the chip senses the LED line it drives - the wiring "
+                       "esp32c3-light's knobs assume, with the same kit parts as uno-button-clock.",
+        'analyses_json': '[{"type": "op"}]',
+        'probes_json': '[]',
+    },
 ]
 SEED_CIRCUIT_NETS = [
     {'name': 'led-net-pin0', 'circuit_name': 'led-branch-row',
@@ -74,6 +84,15 @@ SEED_CIRCUIT_NETS = [
      'description': "ground -- ties to the board's GND connector pins (POWER header pins 6/7, DIGITAL_H pin 7; "
                     "board.custom.power_pins), never a BoardPin row itself.",
      'board_pins_refs_json': '[]'},
+    # c3-light (the design; board_pins_refs_json hand-written, the same posture as uno-button-clock's)
+    {'name': 'c3l-net-led-control', 'circuit_name': 'c3-light', 'net': 'LED_CONTROL',
+     'description': 'GPIO0 drives this net (through R1); GPIO1 only senses it (the jumper) - never a second driver.',
+     'board_pins_refs_json': '["BoardPin:esp32-c3:GPIO0", "BoardPin:esp32-c3:GPIO1"]'},
+    {'name': 'c3l-net-led-anode', 'circuit_name': 'c3-light', 'net': 'LED_ANODE', 'description': 'R1 -> LED1 anode junction.', 'board_pins_refs_json': '[]'},
+    {'name': 'c3l-net-gnd', 'circuit_name': 'c3-light', 'net': 'GND', 'is_ground': True, 'description': "ground - the board's GND (the DevKitM header).", 'board_pins_refs_json': '[]'},
+    {'name': 'c3l-net-button-input', 'circuit_name': 'c3-light', 'net': 'BUTTON_INPUT',
+     'description': 'GPIO3 reads this net; its internal pull-up (the light firmware configures it) holds it high when SW1 is open.',
+     'board_pins_refs_json': '["BoardPin:esp32-c3:GPIO3"]'},
     {'name': 'ubc-net-button-input', 'circuit_name': 'uno-button-clock', 'net': 'BUTTON_INPUT',
      'description': "D2 reads this net; the internal pull-up (PinClaim pull 'up', not yet authored on any task -- "
                     "electrical_check's pull rule names that) holds it high when SW1 is open.",
@@ -130,4 +149,11 @@ SEED_CIRCUIT_COMPONENTS = [
                     "internal pull-up (a PinClaim pull 'up', ucd-0e2's firmware scope -- not yet authored on any "
                     "task) holds BUTTON_INPUT high when open; this circuit carries NO external pull resistor on "
                     "this net (electrical_check's pull rule names that honestly until the claim exists)."},
+    # c3-light (the design): the same kit parts as uno-button-clock, the same honest gaps (the LED's forward voltage is assumed, not cited)
+    {'name': 'c3l-r1', 'circuit_name': 'c3-light', 'kind': 'resistor', 'params_json': '{"ohms": 220}', 'pins_json': '["LED_CONTROL", "LED_ANODE"]',
+     'description': "the same 220 ohm series resistor as uno-button-clock's ubc-r1 (the kit's common practice for this LED - not printed on the cited kit page)"},
+    {'name': 'c3l-led1', 'circuit_name': 'c3-light', 'kind': 'led', 'params_json': '{"v_forward": 2.0, "v_forward_basis": "assumed"}', 'pins_json': '["LED_ANODE", "GND"]',
+     'description': "the kit's indicator LED (KitPart arduino-starter-kit:led); v_forward ASSUMED 2.0 V, NOT a fact (the same note as ubc-led1)"},
+    {'name': 'c3l-sw1', 'circuit_name': 'c3-light', 'kind': 'switch', 'params_json': '{"state": "open"}', 'pins_json': '["BUTTON_INPUT", "GND"]',
+     'description': "the kit's momentary pushbutton (KitPart arduino-starter-kit:pushbutton), BUTTON_INPUT to GND; GPIO3's internal pull-up holds it high when open"},
 ]

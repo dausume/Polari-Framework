@@ -15,6 +15,12 @@ AVR_WIDTHS = {'char': 1, 'short': 2, 'int': 2, 'long': 4, 'long long': 8, 'float
               'void': 0}
 POINTER_BYTES = 2
 _FLOAT = ('float', 'double', 'long double')
+#: the ABI a translation unit is described under: avr-gcc's (the default - every UNO caller unchanged) or RV32's (the ESP32-C3, ilp32: int / long / pointers 4,
+#: double 8, long double 16 - the RISC-V psABI's ilp32 type sizes). `packed`: AVR structs are the sum of their members (1-byte alignment); an RV32 struct is padded,
+#: and this module does NOT compute padding - its width is 0 (not computed), never a wrong sum
+AVR_ABI = {'widths': AVR_WIDTHS, 'pointer': POINTER_BYTES, 'enum': 2, 'packed': True, 'name': 'avr-gcc'}
+RV32_ABI = {'widths': {'char': 1, 'short': 2, 'int': 4, 'long': 4, 'long long': 8, 'float': 4, 'double': 8, 'long double': 16, '_Bool': 1, 'void': 0},
+            'pointer': 4, 'enum': 4, 'packed': False, 'name': 'riscv32 ilp32'}
 
 
 def const_int(e):
@@ -52,7 +58,8 @@ def _base_name(names):
 class TypeTable(object):
     """The typedefs and structs of one translation unit (file scope)."""
 
-    def __init__(self, ast):
+    def __init__(self, ast, abi=None):
+        self.abi = abi or AVR_ABI
         self.typedefs, self.structs = {}, {}
         for ext in ast.ext:
             if isinstance(ext, c_ast.Typedef):
@@ -77,7 +84,7 @@ class TypeTable(object):
             return d
         if isinstance(t, c_ast.PtrDecl):
             tgt = self.describe(t.type, depth + 1)
-            return {'c': tgt['c'] + ' *', 'kind': 'pointer', 'width': POINTER_BYTES, 'target': tgt, 'volatile': 'volatile' in quals,
+            return {'c': tgt['c'] + ' *', 'kind': 'pointer', 'width': self.abi['pointer'], 'target': tgt, 'volatile': 'volatile' in quals,
                     'const': 'const' in quals}
         if isinstance(t, c_ast.ArrayDecl):
             tgt = self.describe(t.type, depth + 1)
@@ -85,7 +92,7 @@ class TypeTable(object):
             return {'c': tgt['c'] + '[%s]' % (n or ''), 'kind': 'array', 'width': tgt.get('width', 0) * n, 'target': tgt, 'length': n,
                     'volatile': tgt.get('volatile', False), 'const': tgt.get('const', False)}
         if isinstance(t, c_ast.FuncDecl):
-            return {'c': 'function', 'kind': 'function', 'width': POINTER_BYTES}
+            return {'c': 'function', 'kind': 'function', 'width': self.abi['pointer']}
         return {'c': '?', 'kind': 'unknown', 'width': 0}
 
     def _inner(self, t, depth):
@@ -97,12 +104,13 @@ class TypeTable(object):
                 d['c'] = names[0]
                 return d
             base = _base_name(names)
-            kind = 'void' if base == 'void' else 'bool' if base == '_Bool' else 'float' if base in _FLOAT else 'int' if base in AVR_WIDTHS else 'unknown'
-            return {'c': ' '.join(names), 'kind': kind, 'width': AVR_WIDTHS.get(base, 0), 'signed': 'unsigned' not in names and kind == 'int'}
+            W = self.abi['widths']
+            kind = 'void' if base == 'void' else 'bool' if base == '_Bool' else 'float' if base in _FLOAT else 'int' if base in W else 'unknown'
+            return {'c': ' '.join(names), 'kind': kind, 'width': W.get(base, 0), 'signed': 'unsigned' not in names and kind == 'int'}
         if isinstance(t, (c_ast.Struct, c_ast.Union)):
             s = self.structs.get(t.name, t)
             width = 0   # the AVR aligns everything to 1 byte: a struct is the sum of its members, no padding
-            for decl in (getattr(s, 'decls', None) or []):
+            for decl in (getattr(s, 'decls', None) or []) if self.abi['packed'] else []:   # a padded ABI: padding is not computed here - width 0
                 w = self.describe(decl.type, depth + 1).get('width', 0)
                 if not w:
                     width = 0
@@ -111,7 +119,7 @@ class TypeTable(object):
             return {'c': '%s %s' % ('struct' if isinstance(t, c_ast.Struct) else 'union', t.name or ''), 'kind': 'struct', 'width': width,
                     'name': t.name or ''}
         if isinstance(t, c_ast.Enum):
-            return {'c': 'enum %s' % (t.name or ''), 'kind': 'int', 'width': 2, 'signed': True}
+            return {'c': 'enum %s' % (t.name or ''), 'kind': 'int', 'width': self.abi['enum'], 'signed': True}
         return {'c': '?', 'kind': 'unknown', 'width': 0}
 
 

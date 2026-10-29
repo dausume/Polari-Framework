@@ -41,12 +41,30 @@ def detect_kind(files):
     raise V.ViewRefused('cannot tell the view kind of %s — pass --as kicad|zephyr|esp-idf|bare-c' % names)
 
 
-def _norm(field, v):
+def _dt_keys():
+    """The electrical_json keys a devicetree carries (pinctrl props + gpio flags + a key's code / label); the rest of a pin's electrical_json (the
+    chip's typical drive current an electrical check reads: max_ma / fact / kind) is Polari's own annotation, never in a Zephyr view, so never a conflict."""
+    from board.custom.ingest_zephyr import ELECTRICAL, GPIO_FLAGS
+    return {k for k, _v in list(ELECTRICAL.values()) + list(GPIO_FLAGS.values())} | {'code', 'label'}
+
+
+def merge_electrical(row_json, view_json):
+    """A Zephyr view's electrical_json taken over a row's: the devicetree keys from the view, Polari's own annotation (max_ma / fact / kind) kept."""
+    keep = _dt_keys()
+    row, view = json.loads(row_json or '{}'), json.loads(view_json or '{}')
+    return json.dumps(dict({k: v for k, v in row.items() if k not in keep}, **{k: v for k, v in view.items() if k in keep}), sort_keys=True)
+
+
+def _norm(field, v, kind=''):
     if field == 'electrical_json':
         try:
-            return json.dumps(json.loads(v or '{}'), sort_keys=True)
+            d = json.loads(v or '{}')
         except ValueError:
             return str(v)
+        if kind == 'zephyr':
+            keep = _dt_keys()
+            d = {k: x for k, x in d.items() if k in keep}
+        return json.dumps(d, sort_keys=True)
     return '' if v is None else str(v)
 
 
@@ -79,7 +97,7 @@ def compare(r, kind, view):
             out.append((c, 'presence', 'absent from the rows', 'in the view (%s)' % seen[c].get('net', '')))
         else:
             for f in V.CARRIES[kind]:
-                a, b = _norm(f, rows[c].get(f)), _norm(f, seen[c].get(f))
+                a, b = _norm(f, rows[c].get(f), kind), _norm(f, seen[c].get(f), kind)
                 if a != b:
                     out.append((c, f, a, b))
     if kind == 'zephyr' and 'console_uart' in view.get('profile', {}):

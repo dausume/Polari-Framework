@@ -82,11 +82,12 @@ def electrical():
     fight = HE.role_check({'variable': 'PWM_PIN', 'role': 'pwm.out', 'board': 'arduino-uno-r3'}, 'D3', 'D3')
     c3 = CV.variables('esp32c3-light')[2]
     check('ELECTRICAL (hsp-3d\'s owed rule) against the bench wiring: LED_PIN at D6 is LED_CONTROL\'s output (quoting electrical_check\'s findings); LED_PIN -> D7 is '
-          'a WARNING (the wire would not move); a second output on LED_CONTROL (anything driving D3 while D6 does) is REFUSED (two outputs fight); the C3 has no wiring '
-          'rows = undetermined, never a pass', 'D6 is on LED_CONTROL as its output' in vs['LED_PIN']['status_why'] and 'single_output ok' in vs['LED_PIN']['status_why']
+          'a WARNING (the wire would not move); a second output on LED_CONTROL (anything driving D3 while D6 does) is REFUSED (two outputs fight); the C3 is judged '
+          'against its light DESIGN (c3-light: GPIO0 the LED net\'s output, at its own cited 3.3 V) and says the rows are a design, not a measured bench', 'D6 is on LED_CONTROL as its output' in vs['LED_PIN']['status_why'] and 'single_output ok' in vs['LED_PIN']['status_why']
           and moved['verdict'] == 'warning' and any('the wire would not' in w for w in moved['why'])
           and fight['effect'] == 'refused' and 'two outputs fight' in fight['lines'][0] and 'D6' in fight['lines'][0]
-          and 'electrical check undetermined' in c3['status_why'] and c3['status'] == 'accepted', (moved['verdict'], fight['effect']))
+          and 'GPIO0 is on LED_CONTROL as its output' in c3['status_why'] and '3.3 V' in c3['status_why'] and 'a DESIGN' in c3['status_why'] and c3['status'] == 'accepted',
+          (moved['verdict'], fight['effect']))
 
 
 def build(cv, fv):
