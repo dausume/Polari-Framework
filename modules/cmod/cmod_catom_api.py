@@ -11,7 +11,8 @@ GET /api/cmod/catom-assertions/{variant}[?view=assertions|bindings|gaps|draft|ma
 GET /api/cmod/catom-variables/{variant}[?view=variables|assertions|pins|header|slots&variable=V]       hsp-3d: the generalized HAL
         variables = each with value + scope + verdict (accepted | warning | refused) and why; assertions = the defines-role assertions they make; pins = what the
         pin view draws (pin, role, variable, verdict); header = {text} the HAL lines the firmware is generated with; slots = the pins a role slot offers (needs
-        `variable`). 404 no variables for the variant; 422 unknown view / variable.
+        `variable`; `rows` = the same slot as table rows narrowed by the variant's rules, in the variable's own form, for the bench views' HAL tab). 404 no
+        variables for the variant; 422 unknown view / variable.
 POST /api/cmod/catom-variables/{variant}/check  body {variable, value}  -> {verdict, why[], pin, function}: the same check a value passes before it counts;
         NOTHING is written.
 POST /api/cmod/catom-variables/{variant}/set    body {variable, value} (or {edits: {variable: value, ...}})   hsp-3c: THE slot-choice write. Checked by
@@ -129,7 +130,10 @@ class CatomVariableAPI(treeObject):
             var = next((v for v in vs if v['variable'] == request.get_param('variable')), None)
             if var is None:
                 return self._fail(response, falcon.HTTP_422, 'slots needs variable= one of %s' % ', '.join(v['variable'] for v in vs))
-            response.media = dict(CV.slots(var, vs), ok=True, variant=variant, view=view)
+            from cmod.custom import hal_nocode as HN
+            # hsp-3b: `rows` = the slot as a table (the pins as the variable writes them, narrowed to the ones the variant's own rules keep); `options` unchanged
+            rows_ = [dict(o, variable=var['variable']) for o in HN.slot_options(variant, var, vs, vrows)]
+            response.media = dict(CV.slots(var, vs), ok=True, variant=variant, view=view, count=len(rows_), rows=rows_)
             return
         else:
             return self._fail(response, falcon.HTTP_422, 'view must be variables, assertions, pins, header or slots')

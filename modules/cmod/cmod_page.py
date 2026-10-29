@@ -352,3 +352,6 @@ SEED_CMOD_PAGE_DISPLAYS += BUDGET_PAGES
 
 from cmod.cmod_fsc_page import FSC_PAGES   # noqa: E402  fsc-3: /display/firmware-scores (tabbed)
 SEED_CMOD_PAGE_DISPLAYS += FSC_PAGES
+
+from cmod.bench_views_page import BENCH_VIEWS_PAGES   # noqa: E402  hsp-3b: /display/bench-views (Structs / Bridges / HAL tabs)
+SEED_CMOD_PAGE_DISPLAYS += BENCH_VIEWS_PAGES

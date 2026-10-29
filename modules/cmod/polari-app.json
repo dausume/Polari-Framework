@@ -119,6 +119,7 @@
   "api": [
    "cmod_api",
    "cmod_approach_profile_api",
+   "cmod_bench_structs_api",
    "cmod_budget_api",
    "cmod_capability_api",
    "cmod_catom_api",
@@ -139,6 +140,7 @@
    "cmod_seed"
   ],
   "page": [
+   "bench_views_page",
    "cmod_approach_profile_page",
    "cmod_budget_page",
    "cmod_fsc_page",
@@ -150,6 +152,7 @@
   ],
   "selftests": [
    "cmod_approach_profile_selftest",
+   "cmod_bench_views_selftest",
    "cmod_budget_selftest",
    "cmod_catom_assertions_selftest",
    "cmod_catom_hal_nocode_selftest",
@@ -172,6 +175,7 @@
    "custom/approach_profile_input",
    "custom/approach_profile_tiers",
    "custom/atoms",
+   "custom/bench_structs",
    "custom/binding",
    "custom/budget",
    "custom/budget_suggest",
@@ -292,6 +296,7 @@
  "classes": [
   "ApproachProfileAPI",
   "AtomJob",
+  "BenchStructsAPI",
   "BudgetAPI",
   "CFunctionAtom",
   "CGlueBuild",
@@ -438,6 +443,7 @@
  "initialData": false,
  "selftests": [
   "cmod_approach_profile_selftest",
+  "cmod_bench_views_selftest",
   "cmod_budget_selftest",
   "cmod_catom_assertions_selftest",
   "cmod_catom_hal_nocode_selftest",
