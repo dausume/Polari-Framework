@@ -8,6 +8,7 @@ seeds and the rules of BridgePath + PolariBridgeInstance.
   check_bridge(row, paths)     -> (status, why) - bound | gap; a bridge without a polari_node REFUSES (gap, named); a url that is not the node's isle name is a gap
   hops(path)                   -> the hop rows of a path, a level nobody cited = -1 with what to read
   bench_bridges(bench, rows)   -> {bridges[], paths[], hops[]} for the bench's two views (plain rows; no raw JSON on screens)
+  bridge_hops(bridge, paths)   -> hsp-3c: ONE bridge's hops as its mode says (serial: the cable path; simulated: chip pins -> twin -> the board-engines worker)
 
 Levels are cited or -1 (derive-or-cite-chip-data): the UNO's chip and converter hops take the board's own cited +5V logic level (board.custom.electrical_check,
 one board = one logic level); the Elecrow S3's are -1 until its documents are read. The host port is -1 until hwmap scans the device holding the cable.
@@ -110,6 +111,43 @@ def hops(path):
 
 def _get(o, k, d=''):
     return o.get(k, d) if isinstance(o, dict) else getattr(o, k, d)
+
+
+# ------------------------------------------------------------------------------------------------ hsp-3c (the bridge half): the mode picks the last hops
+#: in simulated mode the board is its twin: the chip pins stay (the twin's simulated USART0), the cable and the host port leave the path, and the far end is
+#: the board engine worker on the isle (ELECTRONICS_APP_PLAN ea-0: a `kind: worker` engine resolved through the catalog to `https://<tile>.isle`)
+TWIN_WORKER = {'name': 'board', 'kind': 'worker', 'tile': 'board-engines'}
+TWIN_HOP_KINDS = ('chip-pins', 'twin', 'userspace')
+
+
+def twin_hops(bridge, path, bindings=None):
+    """The hop rows of a simulated bridge: chip pins (kept) -> the twin's pty -> the board-engines worker (its isle url, bound or not, said)."""
+    from islemesh.islemesh_catalog import resolve_worker_engines
+    w = resolve_worker_engines([dict(TWIN_WORKER)], bindings=bindings)[0]
+    chip = next((h for h in hops(path) if h['kind'] == 'chip-pins'), None)
+    out = [dict(chip, n=1, what='(simulated) ' + chip['what'], signal_level_v=-1.0, basis='the twin\'s simulated pins: no electrical level (the real board\'s is on the serial path)')] if chip else []
+    out.append(_hop(len(out) + 1, 'twin', 'the simavr twin of %s: its USART0 on a pty' % (_get(bridge, 'bridge_definition') or 'the board'),
+                    'HardwareBridgeDefinition:%s' % _get(bridge, 'bridge_definition'), -1.0, 'a simulated line has no electrical level'))
+    out.append(_hop(len(out) + 1, 'userspace', 'the board engine worker %s at %s' % (w['tile'], w['url'] or '(no url)'), 'EngineProviderBinding:%s' % w['name'], -1.0,
+                    ('bound to %s' % w['bound_url']) if w.get('bound') else (w['refusal'] or 'resolved in the catalog; no EngineProviderBinding row binds it yet - '
+                                                                                            'deploy: %s' % w['deploy'])))
+    return out
+
+
+def bridge_hops(bridge, path_rows=None, bindings=None):
+    """The hop rows of ONE bridge as its mode says: serial = its BridgePath's hops (cable, host port, the bridge daemon); simulated = twin_hops."""
+    path_rows = SEED_BRIDGE_PATHS if path_rows is None else path_rows
+    path = next(({k: _get(p, k) for k in ('name', 'board', 'hops_json')} for p in path_rows if _get(p, 'name') == _get(bridge, 'path')), None)
+    if path is None:
+        return []
+    rows = twin_hops(bridge, path, bindings) if (_get(bridge, 'mode') or 'serial') == 'simulated' else hops(path)
+    return [dict(h, bridge=_get(bridge, 'name'), mode=_get(bridge, 'mode') or 'serial', path=path['name'], board=path['board'],
+                 signal_level=('%g V' % h['signal_level_v']) if h['signal_level_v'] >= 0 else '-1') for h in rows]
+
+
+def other_mode(mode):
+    """The click toggle (click-toggle rule): serial <-> simulated."""
+    return 'simulated' if (mode or 'serial') == 'serial' else 'serial'
 
 
 def bench_bridges(bench, bridge_rows=None, path_rows=None):

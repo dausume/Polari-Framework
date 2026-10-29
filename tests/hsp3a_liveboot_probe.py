@@ -65,5 +65,14 @@ fv = next((o for o in (tables.get('FirmwareVariant') or {}).values() if getattr(
 h = client.simulate_get('/api/cmod/catom-variables/uno-light', params={'view': 'header'})
 check('hsp-3c: POST .../uno-light/set {LED_PIN: D7} writes the booted FirmwareVariant knob led_pin 7; the header then says LED_PIN 7',
       r.status_code == 200 and fv is not None and '"led_pin": 7' in fv.knobs_json and '#define LED_PIN        7' in h.json['text'], (r.text[:300], getattr(fv, 'knobs_json', None)))
+r = client.simulate_get('/api/cmod/bench-structs/home-bench', params={'view': 'path', 'instance': 'uno-1-bridge/LightState_t[0]', 'field': 'led_on'})
+check('hsp-3b: GET /api/cmod/bench-structs/home-bench?view=path (led_on) -> the routes from the booted rows, ending at the LightState object',
+      r.status_code == 200 and r.json['count'] >= 15 and any(s['kind'] == 'object' for s in r.json['rows']), r.text[:300])
+r = client.simulate_post('/api/grpc/bench-bridges/home-bench/mode', json={'bridge': 'uno-1-bridge'})
+r2 = client.simulate_post('/api/grpc/bench-bridges/home-bench/mode', json={'bridge': 'uno-1-bridge'})
+check('hsp-3c: POST /api/grpc/bench-bridges/home-bench/mode toggles the booted bridge serial -> simulated (twin worker hops) -> serial',
+      r.status_code == 200 and r.json['mode'] == 'simulated' and 'board-engines' in r.json['hops'][-1]['what'] and r2.json['mode'] == 'serial', r.text[:300])
+pages = {getattr(o, 'pageRoute', '') for o in (tables.get('DisplayDefinition') or {}).values()}
+check('hsp-3b: the /display/bench-views page is a seeded DisplayDefinition', 'bench-views' in pages, sorted(p for p in pages if 'bench' in p))
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

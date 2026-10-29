@@ -78,8 +78,28 @@ def _firmware_part(spec, manager, checked_at):
     return _row('firmware', 'FirmwareSolution', name, True, status, why, checked_at)
 
 
+def bridge_location(bridge_name, manager=None):
+    """hsp-3c: WHERE the demo's bridge is - read from the PolariBridgeInstance whose bridge_definition is the bridge (never a knob): its mode, the Polari node it
+    is bound to and the hop chain that mode gives (serial: the cable path; simulated: the twin -> the board-engines worker). '' words when there is none."""
+    try:
+        from grpcbridge.custom import bridge_paths as BP
+    except Exception:  # noqa: BLE001
+        return 'where: unknown (grpcbridge not present)'
+    if manager is not None:
+        bridges, paths = _rows(manager, [], 'PolariBridgeInstance'), _rows(manager, [], 'BridgePath') or None
+    else:
+        bridges, paths = BP.SEED_POLARI_BRIDGES, None
+    b = next((x for x in bridges if _g(x, 'bridge_definition') == bridge_name), None)
+    if b is None:
+        return 'where: no PolariBridgeInstance carries %r - the bridge has no location on any bench' % bridge_name
+    status, why = BP.check_bridge({k: _g(b, k) for k in ('name', 'polari_node', 'polari_node_url', 'mode', 'path', 'hardware_id')})
+    hops = BP.bridge_hops(b, paths)
+    return 'where: %s (mode %s, %s) - %s: %s' % (_g(b, 'name'), _g(b, 'mode') or 'serial', status, why, ' -> '.join('%s %s' % (h['kind'], h['what']) for h in hops) or 'no hops')
+
+
 def _bridge_part(spec, manager, checked_at):
     bridge_name = spec.get('name', '')
+    where = bridge_location(bridge_name, manager)
     rows = _rows(manager, [], 'HardwareBridgeDefinition')   # never seeded by any module (D-ucd-2 §3: an explicit knob act)
     row = next((r for r in rows if _g(r, 'bridge_name') == bridge_name or _g(r, 'name') == '%s-hw-bridge' % bridge_name), None)
     try:
@@ -93,14 +113,14 @@ def _bridge_part(spec, manager, checked_at):
                'code-owned data for a test, never seeded — generation is an explicit knob act)' % bridge_name)
         if cap is not None:
             why += '; its BridgingCapability (%s) is %r, not yet relevant with no bridge row' % (_g(cap, 'app'), _g(cap, 'status'))
-        return _row('bridge', 'HardwareBridgeDefinition', bridge_name, False, 'missing', why, checked_at)
+        return _row('bridge', 'HardwareBridgeDefinition', bridge_name, False, 'missing', why + '; ' + where, checked_at)
     if cap is None:
         return _row('bridge', 'HardwareBridgeDefinition', bridge_name, True, 'never-run',
-                    'the bridge row exists; no BridgingCapability row names an app for it yet', checked_at)
+                    'the bridge row exists; no BridgingCapability row names an app for it yet; ' + where, checked_at)
     status = _g(cap, 'status', 'never-run')
     why = ('BridgingCapability %r (app=%r): proven_by=%r, proven_at=%r — the bridge\'s OWN status, per '
           'UNO_CORE_DEMO_PLAN.md §3/§5c' % (_g(cap, 'name'), _g(cap, 'app'), _g(cap, 'proven_by'), _g(cap, 'proven_at')))
-    return _row('bridge', 'HardwareBridgeDefinition', bridge_name, True, status, why, checked_at)
+    return _row('bridge', 'HardwareBridgeDefinition', bridge_name, True, status, why + '; ' + where, checked_at)
 
 
 def _polari_app_part(spec, manager, checked_at):

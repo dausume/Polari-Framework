@@ -58,7 +58,7 @@ def main():
 
     def get(bench, view=''):
         resp = types.SimpleNamespace(status='200 OK', media=None)
-        api.on_get(types.SimpleNamespace(get_param=lambda k: view or None), resp, bench)
+        api.on_get(types.SimpleNamespace(get_param=lambda k: (view or None) if k == 'view' else None), resp, bench)
         return resp
     full, hv, bad = get('home-bench'), get('home-bench', 'hops'), get('home-bench', 'raw')
     check('DOOR: GET /api/grpc/bench-bridges/home-bench = bridges + paths + hops; ?view=hops = 10 rows; unknown view 422',
