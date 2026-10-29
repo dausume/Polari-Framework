@@ -41,6 +41,24 @@ def engine_ready():
     return where['how'] in ('local-binary', be.LOCAL_IMAGE), where['why']
 
 
+_FEATURES = {}
+REBUILD = 'docker compose -p esp-engines -f docker-compose.esp-engines.yml build   (from polari-rf-node/; prf-esp-engines/README.md)'
+
+
+def engine_stale():
+    """'' when the c3-run engine has the options the host-driven runs need (smp S5: --rx-plan, --boots), else why - an image built before smp S5 refuses them as
+    `unknown option`, and every command / reboot run would come back with 0 frames (seen 2026-10-29: a 3-week-old prf-esp-engines:noble). Asked once per process:
+    run with no arguments, the engine prints its usage text."""
+    if 'why' not in _FEATURES:
+        from board.custom import engine_run
+        r = engine_run.run('c3-run', [], {}, timeout=60)
+        usage = (r.get('stdout') or '') + (r.get('stderr') or '')
+        missing = [o for o in ('--rx-plan', '--boots') if o not in usage]
+        _FEATURES['why'] = ('the c3-run engine (%s) does not offer %s: its image predates smp S5 - rebuild it: %s' % (r.get('how', '?'), ', '.join(missing), REBUILD)
+                            if missing and usage else '')
+    return _FEATURES['why']
+
+
 def build(work, variant=VARIANT, **knobs):
     from board.custom import build_c3, gen_c3
     gen_c3.gen_c3(variant, work, **knobs)

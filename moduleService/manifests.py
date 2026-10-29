@@ -507,6 +507,12 @@ def _tables():
 
 # -------------------------------------------- defClassList drift guard
 
+#: classes that must NEVER be in defClassList, each with why (the guard skips them, by name): a standalone probe makes its own table in its own manager
+DEFCLASS_EXEMPT = {
+    'testing': {'Acct1ParityProbe': 'the dialect-parity probe (testing.parity_probe_basis): it creates its own table in a separate DB manager, saves and reads one '
+                                    'row, then drops the table - registering it would leave a permanent probe table on every server'},
+}
+
 def defclasslist_gaps(tables=None):
     """rtfix A (the hwnocode.Runtime gotcha, 2026-10-04): every treeObject
     class declared under a module's objects/ must be registered in
@@ -584,8 +590,9 @@ def defclasslist_gaps(tables=None):
         if classes_syms.get(p, set()) & spread:
             continue   # wholesale *(X_CLASSES or []) spread — trusted
         amap = alias_map.get(p, {})
+        exempt = DEFCLASS_EXEMPT.get(p, {})
         missing = sorted(c for c in obj_classes
-                         if c not in direct and amap.get(c, c) not in direct)
+                         if c not in direct and amap.get(c, c) not in direct and c not in exempt)
         if missing:
             gaps[p] = missing
     return gaps

@@ -185,9 +185,10 @@ def c3_template(check, rendered):
         shutil.rmtree(tmp, ignore_errors=True)
     tpl_h = open(os.path.join(gen_c3.TEMPLATE, 'main', 'polari_c3.h')).read()
     check('sc-3\'s template RECONCILED: main/board_pins.h is GENERATED from the rows (= the esp-idf view) and replaces the hand-written '
-          '`#define POLARI_TRACE_TX_GPIO 4`; polari_c3.h keeps sc-3\'s line layout (92 lines, the include on line 23 — the image stays byte-identical)',
+          '`#define POLARI_TRACE_TX_GPIO 4`; polari_c3.h keeps its line layout (93 lines: sc-3\'s 92 + ipb-4\'s polari_cycle_line declaration on line 56, after the '
+          'include; the board_pins include stays on line 23)',
           pins_h == rendered[('c3', 'esp-idf')]['files']['board_pins.h'] and '#define POLARI_TRACE_TX_GPIO   4' in pins_h
-          and tpl_h.count('\n') == 92 and tpl_h.splitlines()[22].startswith('#include "board_pins.h"') and not re.search(r'^#define POLARI_TRACE_TX_GPIO', tpl_h, re.M))
+          and tpl_h.count('\n') == 93 and 'void polari_cycle_line(const char *where);' in tpl_h.splitlines()[55] and tpl_h.splitlines()[22].startswith('#include "board_pins.h"') and not re.search(r'^#define POLARI_TRACE_TX_GPIO', tpl_h, re.M))
     check('…sdkconfig.defaults\' four board-owned lines (target, 4 MB flash, console none, FreeRTOS 1000 Hz) come from the rows IN PLACE — the rows '
           'agreed with the template (nothing changed, nothing added), so the file is the template\'s byte for byte',
           sdk == open(os.path.join(gen_c3.TEMPLATE, 'sdkconfig.defaults')).read() and bo_prov['sdkconfig_changed'] == [] == bo_prov['sdkconfig_added']

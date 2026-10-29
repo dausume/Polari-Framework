@@ -122,6 +122,9 @@ def prove(which='both', mode='digital-twin', variant=VARIANT, row=None):
     ready, why = R.engine_ready()
     if not ready:
         return {'ok': False, 'route': 'refused', 'why': 'no C3 twin here: %s' % why}
+    stale = R.engine_stale() if which in ('polari', 'boot', 'both') else ''
+    if stale:
+        return {'ok': False, 'route': 'refused', 'why': stale}
     row = row or built(variant)
     if row.get('state') != 'built':
         return {'ok': False, 'route': 'digital-twin', 'why': '%s did not build: %s' % (variant, row.get('notes'))}

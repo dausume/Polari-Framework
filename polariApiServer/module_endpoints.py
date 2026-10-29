@@ -540,6 +540,11 @@ def construct_security_endpoints(polServer):
     return build(polServer)
 
 
+def construct_instruments_endpoints(polServer):
+    from instruments.instruments_endpoints import construct_instruments_endpoints as build
+    return build(polServer)
+
+
 def construct_tensormath_endpoints(polServer):
     from tensormath.tensormath_endpoints import construct_tensormath_endpoints as build
     return build(polServer)
@@ -656,6 +661,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'islemesh': construct_islemesh_endpoints,
     'techtree': construct_techtree_endpoints,
     'grpcbridge': construct_grpcbridge_endpoints,
+    'instruments': construct_instruments_endpoints,   # osc-0..8 (threaded 2026-10-29)
     'hwfpga': construct_hwfpga_endpoints,
     'hwdigital': construct_hwdigital_endpoints,
     'electrodevice': construct_electrodevice_endpoints,
