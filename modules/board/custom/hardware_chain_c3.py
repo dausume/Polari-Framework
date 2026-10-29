@@ -17,7 +17,10 @@ c3pf (FIRMWARE_GENERATION_MODULE_PLAN.md section 11): THE ESP32-C3's HARDWARE CH
 sends ONE output signal to a pad (GPIO_FUNCn_OUT_SEL is a single field, TRM §5.5.2 p.164) - so F0, F2, GPIO and every matrix OUTPUT signal of a pad share the
 group `esp32c3:GPIOn:pad-output`. Matrix INPUT signals are not grouped: "one input pin can be connected to multiple peripheral input signals" (TRM §5.4.3 note 1,
 p.163). The Table 2-7 priority (P1..P4) and the reason a pad is P3/P4 are in each matrix row's notes. Nothing else is guessed: where a source is silent the row says
-`undetermined`. The register map of the C3 is NOT ingested (Peripheral.registers_refs_json stays empty, said per row).
+`undetermined`.
+
+rm-2b (2026-10-29): Register / RegisterField rows for the C3 DRAWING SET (board.custom.registers_esp32c3: 91 registers, 761 fields, TRM v1.4 cited, every bit position
+and address checked against ESP-IDF v5.5.5's headers) - the peripherals that own them carry `registers_refs_json`; the rest of the map is documented, not ingested.
 """
 import json
 
@@ -69,10 +72,60 @@ def facts():
 # ---------------------------------------------------------------- the rows
 def peripherals():
     out = []
+    from board.custom import registers_esp32c3 as RC
+    regs_of = {}
+    for r in RC.REGISTERS:
+        regs_of.setdefault(RC.PERIPHERAL_OF[r['block']], []).append(_ref('Register', '%s:%s' % (SOC, r['register'])))
     for pid, (kind, title, (doc, where), words, _iface) in M.PERIPHERALS.items():
+        refs = sorted(regs_of.get(pid, []))
         out.append({'name': '%s:%s' % (SOC, pid), 'soc': SOC, 'peripheral': pid, 'title': title, 'kind': kind, 'chapter': '%s: %s' % (EV.SHORT[doc], where),
-                    'description': words, 'registers_refs_json': '[]', 'signals_refs_json': '[]', 'pin_functions_refs_json': '[]', 'fact': '%s:peripheral.%s' % (SOC, pid),
-                    'origin': 'cited:%s %s' % (EV.SHORT[doc], where), 'undetermined': _NO_REG, 'notes': ''})
+                    'description': words, 'registers_refs_json': json.dumps(refs), 'signals_refs_json': '[]', 'pin_functions_refs_json': '[]', 'fact': '%s:peripheral.%s' % (SOC, pid),
+                    'origin': 'cited:%s %s' % (EV.SHORT[doc], where),
+                    'undetermined': '' if refs else 'no register of this block is in the rm-2b drawing set (documented in the TRM, not ingested)', 'notes': ''})
+    return out
+
+
+# ---------------------------------------------------------------- rm-2b: the registers of the drawing set
+def _trm_cite(where):
+    return {'document': EV.TRM_DOC, 'page_table': where, 'url': EV.TRM_URL}
+
+
+def registers():
+    from board.custom import registers_esp32c3 as RC
+    from board.custom import register_taxonomy as TX
+    fields_by = {}
+    for f in RC.FIELDS:
+        fields_by.setdefault(f['register'], []).append(_ref('RegisterField', '%s:%s.%s' % (SOC, f['register'], f['field'])))
+    out = []
+    for r in RC.REGISTERS:
+        tax = TX.classify(SOC, r['register'])
+        row = {'name': '%s:%s' % (SOC, r['register']), 'soc': SOC, 'register': r['register'], 'peripheral': '%s:%s' % (SOC, RC.PERIPHERAL_OF[r['block']]), 'block': '',
+               'addr': RC.address(r).lower(), 'addr_mem': '', 'space': 'mem', 'width_bytes': 4, 'reset_value': r['reset'], 'description': r['title'],
+               'fields_refs_json': json.dumps(fields_by.get(r['register'], [])), 'mappings_refs_json': '[]',
+               'origin': 'cited:%s %s; address = the %s base (%s) + offset 0x%04X' % (EV.SHORT['trm'], r['where'], r['block'], RC.BASE_CITE, r['offset']),
+               'undetermined': r['undetermined'], 'notes': 'bit positions + address checked against ESP-IDF v5.5.5 components/soc/esp32c3/register/soc/*.h (2026-10-29)',
+               'domains_json': json.dumps(tax['domains']), 'roles_json': json.dumps(tax['roles'], sort_keys=True), 'taxonomy_cite': tax['cite']}
+        row.update(_trm_cite(r['where']))
+        out.append(row)
+    return out
+
+
+def register_fields():
+    from board.custom import registers_esp32c3 as RC
+    from board.custom import register_taxonomy as TX
+    out = []
+    for f in RC.FIELDS:
+        sig = f['affects_signal']
+        sig_ref = ''
+        if sig.endswith('_INT') and sig.startswith('GPIO'):
+            sig_ref = '%s:GPIO_INT:%s' % (SOC, sig)
+        elif sig:
+            sig_ref = '%s:%s:%s' % (SOC, M.peripheral_of_signal(sig), sig)
+        out.append({'name': '%s:%s.%s' % (SOC, f['register'], f['field']), 'soc': SOC, 'register': '%s:%s' % (SOC, f['register']), 'field': f['field'],
+                    'bit_hi': f['bit_hi'], 'bit_lo': f['bit_lo'], 'width': f['width'], 'access': f['access'], 'reset_value': f['reset_value'], 'description': f['description'],
+                    'values_json': json.dumps(f['values']), 'affects_signal': sig_ref, 'affects_pin': ('%s:%s' % (SOC, f['affects_pin'])) if f['affects_pin'] else '',
+                    'origin': 'cited', 'undetermined': '', 'notes': f['notes'], **_trm_cite(f['page_table']),
+                    'roles_json': json.dumps(TX.field_roles(SOC, f['register'], f), sort_keys=True)})
     return out
 
 
@@ -276,4 +329,4 @@ def build(soc_pin_rows, board_pin_rows):
     sig = signals(soc_pin_rows)
     pf = fixed_pin_functions(soc_pin_rows, sig)   # c3-derive: the matrix rows are derived on read (soc_functions.pin_functions), not stored
     link(per, sig, pf, soc_pin_rows, board_pin_rows)
-    return {'Peripheral': per, 'PeripheralSignal': sig, 'PinFunction': pf}
+    return {'Peripheral': per, 'PeripheralSignal': sig, 'PinFunction': pf, 'Register': registers(), 'RegisterField': register_fields()}   # rm-2b: + the drawing-set registers

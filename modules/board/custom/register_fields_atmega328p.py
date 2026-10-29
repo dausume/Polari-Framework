@@ -216,7 +216,7 @@ FIELDS = [
     _f('WDTCSR', 'WDE', 3, 3, 'rw', 'X', 'Watchdog System Reset Enable', _WDT_MODE, '§11.9.2 WDTCSR, Table 11-1, p.64',
        notes='overridden by MCUSR.WDRF: always set while WDRF is set (initial value X)'),
     _f('WDTCSR', 'WDP2_0', 2, 0, 'rw', '0', 'Watchdog Timer Prescaler 2, 1, 0 - with WDP3 the 4-bit prescale', _WDP, '§11.9.2 WDTCSR, Table 11-2, p.64'),
-    _f('UDR0', 'UDR0', 7, 0, 'rw', '0', 'USART I/O Data: RXB (receive buffer) on read, TXB (transmit buffer) on write', {'read': 'the Receive Data Buffer (a two-level FIFO)',
+    _f('UDR0', 'UDR0', 7, 0, 'fifo', '0', 'USART I/O Data: RXB (receive buffer) on read, TXB (transmit buffer) on write', {'read': 'the Receive Data Buffer (a two-level FIFO)',
        'write': 'the Transmit Data Buffer - ignored unless UCSR0A.UDRE0 is set'}, '§20.11.1 UDRn, p.200',
        notes='do not use read-modify-write (SBI / CBI) on it: any access moves the receive FIFO'),
     _f('UCSR0A', 'RXC0', 7, 7, 'r', '0', 'USART Receive Complete', {'1': 'unread data in the receive buffer', '0': 'the receive buffer is empty (flushed when the receiver is '

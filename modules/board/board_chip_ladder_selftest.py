@@ -59,8 +59,9 @@ def run_chip_ladder(check):
           and all(k in body['rows'][0] for k in LEVELS + tuple(k + '_basis' for k in LEVELS) + ('emulator', 'emulator_pins', 'emulator_status', 'in_polari', 'on_hand')),
           sorted(body['rows'][0].keys()) if body.get('rows') else body)
     c3 = next(r for r in body['rows'] if r['name'] == 'esp32c3')
-    check('chp-0 DERIVED: the C3 row\'s in_polari is worked out from the board tables (SoC row yes, thousands of pin functions, zero registers - the G1 gap said in numbers)',
-          c3['in_polari'].startswith('SoC row yes') and 'registers 0' in c3['in_polari'] and 'pin functions' in c3['in_polari'], c3['in_polari'])
+    check('chp-0 DERIVED: the C3 row\'s in_polari is worked out from the board tables (SoC row yes, thousands of pin functions; rm-2b: its 91 drawing-set registers, still 0 '
+          'memory regions - the G1 gap said in numbers, now partly closed)',
+          c3['in_polari'].startswith('SoC row yes') and 'registers 91' in c3['in_polari'] and 'memory regions 0' in c3['in_polari'] and 'pin functions' in c3['in_polari'], c3['in_polari'])
     st2, body2 = CL.door(None, {'section': 'convenience'}, 'chips')
     uno = next(r for r in body2['rows'] if r['name'] == 'atmega328p')
     check('chp-0 DERIVED: the UNO row holds its SoC and board rows (the board tables know arduino-uno-r3 and atmega328p)',

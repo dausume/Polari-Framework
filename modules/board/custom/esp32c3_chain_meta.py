@@ -33,6 +33,11 @@ PERIPHERALS = {
     'CLK_OUT': ('clock', 'Clock outputs', ('trm', 'Table 5.11-1 signals 123-125, p.173'), 'Three clock outputs.', ''),
     'GPIO_LOOPBACK': ('gpio-loopback', 'GPIO-to-GPIO loopback', ('trm', '§5.5.1 Note (signals 97-100), p.164'), 'Four signals wired input to output inside the matrix, so one pad\'s input can be sent straight to another pad.', ''),
     'XTAL32K': ('clock', '32 kHz crystal pads', ('ds', 'Table 2-5 Analog Signals Routed to Analog Functions, p.21'), 'The 32 kHz external clock pads (XTAL_32K_P on GPIO0, XTAL_32K_N on GPIO1).', ''),
+    # rm-2b: the blocks the C3 drawing-set registers belong to that carry no pad signal (registers_esp32c3; TRM v1.4 chapter starts from its contents)
+    'SYSTIMER': ('timer', 'System timer (52-bit, the IDF tick)', ('trm', 'Chapter 10 System Timer (SYSTIMER), p.270'), 'The 52-bit system timer FreeRTOS and esp_timer count on: UNIT0 is the count software latches and reads.', ''),
+    'SYSTEM': ('system', 'System registers (clock gating + peripheral resets)', ('trm', 'Chapter 16 System Registers (SYSREG), p.427; Table 16.3-2 p.430'), 'Per-peripheral clock-enable and reset bits: a peripheral needs its clock on and its reset released before use.', ''),
+    'RTC_CNTL': ('system', 'Low-power management (RTC control: reset state)', ('trm', 'Chapter 9 Low-power Management, p.219'), 'The RTC control block; here only its CPU reset-state register (the reset cause).', ''),
+    'INTMTX': ('interrupt', 'Interrupt matrix', ('trm', 'Chapter 8 Interrupt Matrix (INTERRUPT), p.202'), 'Maps each peripheral interrupt source to one of the CPU interrupts (one map register per source).', ''),
 }
 
 #: signal-name prefix -> peripheral id; the first prefix that matches wins (FSPI before SPI: 'FSPIQ_in' starts with 'F')

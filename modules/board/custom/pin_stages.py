@@ -54,8 +54,23 @@ def _tables(board):
         return constraints(), fields, 'atmega328p', canon
     if board == 'esp32-c3':
         from board.custom.lifecycle_c3 import constraints
-        return constraints(), {}, 'esp32c3', {'GPIO%d' % n: 'GPIO%d' % n for n in range(22)}
+        return constraints(), C3_RESET, 'esp32c3', {'GPIO%d' % n: 'GPIO%d' % n for n in range(22)}
     return None, {}, '', {}
+
+
+class _C3Reset(dict):
+    """rm-2b: the C3's pad state after reset - Table 5.12-1 p.174 (the per-pad Reset code, legend p.175), as board.custom.registers_esp32c3 carries it."""
+    def get(self, pin, default=None):
+        from board.custom import registers_esp32c3 as RC
+        if not pin.startswith('GPIO'):
+            return default
+        n = int(pin[4:])
+        drv, code = RC.IOMUX_RESET[n]
+        ie, wpu, wpd, oe = RC.RESET_CODE[code]
+        return {'c3': True, 'code': code, 'ie': ie, 'wpu': wpu, 'wpd': wpd, 'oe': oe, 'drv': drv, 'note': RC.RESET_NOTE.get(code, '')}
+
+
+C3_RESET = _C3Reset()
 
 
 def _cond_holds(cond, ctx):
@@ -108,11 +123,20 @@ def assess(board, pin, claim='', grouping='lifecycle-4', context=None):
             reasons.append('no cited lifecycle table for %s / no pin %s on it: no evidence, never valid' % (board, pin))
         if 'reset' in phases or 'power-up' in phases:
             fs = fields.get(soc_pin, [])
-            regf = ['%s.%s = %s' % (f['register'], f['field'], f['reset_value']) for f in fs]
+            if isinstance(fs, dict) and fs.get('c3'):   # rm-2b: the C3's cited pad reset (Table 5.12-1)
+                bits = ['IO_MUX_%s_REG.FUN_IE = %d' % (soc_pin, fs['ie']), 'FUN_WPU = %d' % fs['wpu'], 'FUN_WPD = %d' % fs['wpd'], 'FUN_DRV = %d' % fs['drv']]
+                regf = bits
+                function = 'GPIO' if not fs['oe'] else 'IO MUX function 0'
+                direction = ('output' if fs['oe'] else 'input' if fs['ie'] else 'input disabled') + (', pull-up' if fs['wpu'] else ', pull-down' if fs['wpd'] else ', no pull')
+                owner = 'hardware'
+                reasons.append('reset (Table 5.12-1 p.174, Reset code %s, legend p.175): %s%s' % (fs['code'], direction, ('; ' + fs['note']) if fs['note'] else ''))
+                fs = []
+            else:
+                regf = ['%s.%s = %s' % (f['register'], f['field'], f['reset_value']) for f in fs]
             if fs and all(f['reset_value'] == '0' for f in fs):
                 function, direction, owner = 'GPIO', 'input, tri-state', 'hardware'
                 reasons.append('reset values: %s (%s) -> input, no pull-up' % (', '.join(regf), fs[0]['page_table']))
-            elif rows is not None and not pin_rows:
+            elif rows is not None and not pin_rows and not regf:
                 verdicts.append('unknown')
                 reasons.append('no cited reset-value fields for %s (%s): its state at reset is not on record' % (pin, soc_pin or 'no SoC pin'))
         for r in applied:

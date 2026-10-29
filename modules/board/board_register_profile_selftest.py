@@ -27,6 +27,8 @@ def run_register_profile(check):
     from board.custom import register_profile as RP
     with contextlib.redirect_stdout(io.StringIO()):
         t = BO.seed_tables()
+    # rm-2b: the seed now holds the C3's drawing-set registers too; this profile is the ATmega328P's, so its counts read the 328P rows
+    t = dict(t, Register=[r for r in t['Register'] if r['soc'] == SOC], RegisterField=[f for f in t['RegisterField'] if f['soc'] == SOC])
     prof = RP.profile(t, SOC)
     R = _by(prof)
     PIN, PER, MEM, CPU = RP.PIN, RP.PER, RP.MEM, RP.CPU
