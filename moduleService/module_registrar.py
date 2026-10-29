@@ -148,6 +148,12 @@ def expected_from_manifest(module, manifest, module_dir):
         expected['pages'] = {'refs': list(manifest['pages'])}
     if manifest.get('selftests'):
         expected['selftest'] = {'files': list(manifest['selftests'])}
+    # ea-0: worker engines live on the isle — expected BOUND (an EngineProviderBinding row), never structural
+    workers = [{'name': e['name'], 'tile': e.get('tile', '')}
+               for e in ((manifest.get('requires') or {}).get('engines') or [])
+               if isinstance(e, dict) and e.get('kind') == 'worker' and e.get('name')]
+    if workers:
+        expected['workers'] = {'engines': workers}
     return expected
 
 
@@ -430,6 +436,17 @@ class ModuleRegistrar:
             confirmed['pages'] = {'count': have, 'of': want}
             if gone:
                 missing['pages'] = gone
+
+        workers = (expected.get('workers') or {}).get('engines') or []
+        if workers:
+            # ea-0: a worker counts once its binding row carries a URL (the islemesh binder writes it on deploy);
+            # unbound = named in `missing`, but the module stays online — the worker is the isle's, not this process's
+            bound = {getattr(o, 'name', '') for o in (tables.get('EngineProviderBinding', {}) or {}).values()
+                     if getattr(o, 'url', '')}
+            gone = ['%s (tile %s)' % (w['name'], w['tile']) for w in workers if w['name'] not in bound]
+            confirmed['workers'] = {'count': len(workers) - len(gone), 'of': len(workers)}
+            if gone:
+                missing['workers'] = gone
 
         structural_missing = [p for p in STRUCTURAL if p in missing]
         state = 'online' if not structural_missing else 'degraded'

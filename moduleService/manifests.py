@@ -51,6 +51,14 @@ APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-exte
 #: kind_title (the one place a kind/realization pair is titled): "Hardware App (KVM)" / "Hardware Bridge App".
 REALIZATIONS = ('kvm', 'bridge')
 
+#: ea-0 (ELECTRONICS_APP_PLAN.md §1): `requires.engines[].kind` — `system` (a distro binary, probed on the host),
+#: `python` (a pip distribution, probed), or `worker` (a mesh-app TILE in the isle catalog whose `provides_engine` is
+#: the engine's name: the engine runs on the isle, reached at https://<tile>.isle through the EngineProviderBinding
+#: row the islemesh binder writes on deploy). A worker MUST name its `tile`; `placement` is an optional hint the
+#: targets door honours — with the USB boards, on any member, or on the core only.
+ENGINE_KINDS = ('system', 'python', 'worker')
+WORKER_PLACEMENTS = ('with-usb-boards', 'any-member', 'core-only')
+
 #: ucd-2 (UNO_CORE_DEMO_PLAN.md §3): the OPTIONAL `parts` block a hardware-app's manifest may carry, naming the
 #: no-code parts it composes (by class + name) so a readiness page — or any reader — can resolve them without
 #: guessing. `polari_app` is the one entry with no single `class`: a Polari app component is a SolutionDefinition
@@ -81,6 +89,38 @@ FLOW_DIRECTIONS = ('push', 'pull', 'both')
 #: one declaration may name at most this many classes — the same ceiling `OutboundPolicy` keeps for the same
 #: reason (a declaration is a statement about a capability, not a dump of the data model)
 FLOW_CLASSES_MAX = 50
+
+
+def engine_findings(engines):
+    """ea-0: static rules for `requires.engines` — every entry names itself and a kind from ENGINE_KINDS; a worker
+    names its catalog tile (+ an optional placement from WORKER_PLACEMENTS). Whether the tile EXISTS in the catalog
+    is conform()'s question (it needs the islemesh module), not this one."""
+    if engines is None:
+        return []
+    if not isinstance(engines, list):
+        return ['requires.engines must be a list']
+    out = []
+    for i, e in enumerate(engines):
+        if not isinstance(e, dict) or not isinstance(e.get('name'), str) or not e['name']:
+            out.append('requires.engines[%d] needs a name' % i)
+            continue
+        kind = e.get('kind')
+        if kind not in ENGINE_KINDS:
+            out.append('requires.engines[%s].kind must be one of %s (got %r)' % (e['name'], ENGINE_KINDS, kind))
+        elif kind == 'worker':
+            if not isinstance(e.get('tile'), str) or not e['tile']:
+                out.append('requires.engines[%s] is a worker: name the catalog tile that provides it (tile)' % e['name'])
+            if 'placement' in e and e['placement'] not in WORKER_PLACEMENTS:
+                out.append('requires.engines[%s].placement must be one of %s' % (e['name'], WORKER_PLACEMENTS))
+        elif 'tile' in e or 'placement' in e:
+            out.append('requires.engines[%s]: tile/placement belong to a worker engine, not kind %s' % (e['name'], kind))
+    return out
+
+
+def worker_engines(manifest):
+    """ea-0: the manifest's worker engines, in declared order ([] when none)."""
+    return [e for e in ((manifest or {}).get('requires') or {}).get('engines') or []
+            if isinstance(e, dict) and e.get('kind') == 'worker']
 
 
 def flow_findings(flows):
@@ -763,6 +803,10 @@ def _preserve_hand_set(pkg, manifest):
         # the security stanza does.
         if old.get('parts') is not None:
             manifest['parts'] = old['parts']
+        # ea-0: worker engines are hand-set (ENGINE_MAP probes host binaries; a tile on the isle is a design choice)
+        fresh = {e.get('name') for e in manifest['requires'].get('engines') or []}
+        manifest['requires']['engines'] = list(manifest['requires'].get('engines') or []) + [
+            e for e in worker_engines(old) if e.get('name') not in fresh]
     return manifest
 
 
@@ -810,6 +854,7 @@ def validate(manifest):
     problems.extend(flow_findings(app.get('flows')))
     problems.extend(owned_findings(app.get('owned')))
     problems.extend(parts_findings(manifest.get('parts')))
+    problems.extend(engine_findings((manifest.get('requires') or {}).get('engines')))
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:
@@ -858,6 +903,16 @@ def conform(pkg, tables=None, registry=None):
     if fresh and sorted(fresh['requires']['modules']) != sorted(m.get('requires', {}).get('modules', [])):
         findings.append('requires.modules drift vs registry/FEATURE_REQUIRES')
     findings.extend(security_findings(m.get('security')))
+    if worker_engines(m):
+        # ea-0: every worker engine must resolve to a catalog tile that provides it (islemesh owns the catalog;
+        # absent islemesh = the check cannot run, said so rather than passed)
+        try:
+            from islemesh.islemesh_catalog import resolve_worker_engines
+            for r in resolve_worker_engines(worker_engines(m)):
+                if not r['ok']:
+                    findings.append('worker engine %s: %s' % (r['name'], r['refusal']))
+        except ImportError as exc:
+            findings.append('worker engines unchecked: islemesh catalog not importable (%s)' % exc)
     if not m.get('selftests'):
         findings.append('no <topic>_selftest.py (the standard requires one)')
     for sub in stray_subdirs(d):

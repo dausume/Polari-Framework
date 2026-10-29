@@ -500,3 +500,37 @@ def install_plan(entry):
         ], 'note': 'installs the %s polari module' % mod}
     return {'ok': False, 'steps': [],
             'note': 'unknown catalog kind %r' % kind}
+
+
+def resolve_worker_engines(engines, catalog=None, bindings=None):
+    """ea-0 (ELECTRONICS_APP_PLAN.md §1): a manifest's `kind: worker` engines → the catalog tiles that provide them.
+    Per engine: the tile row must exist, be a mesh-app, and `provides_engine` the engine's name (the binder's key, so
+    deploying the tile writes the EngineProviderBinding row that wires the consumer). `bindings` = {engine: url} from
+    live EngineProviderBinding rows when the caller has them (None = not asked; the result says `bound: None`).
+    Returns one dict per engine in declared order: {name, tile, placement, ok, refusal, url, port, deploy, binding,
+    bound, bound_url}. No side effects."""
+    by_name = {e['name']: e for e in (catalog if catalog is not None else SEED_CATALOG)}
+    out = []
+    for e in engines or []:
+        name, tile = e.get('name', ''), e.get('tile', '')
+        row = by_name.get(tile)
+        refusal = ''
+        if row is None:
+            refusal = 'tile %r is not in the isle catalog' % tile
+        elif row.get('kind') != 'mesh-app':
+            refusal = 'tile %r is a %s, not a mesh-app worker' % (tile, row.get('kind'))
+        elif row.get('provides_engine') != name:
+            refusal = 'tile %r provides engine %r, not %r' % (tile, row.get('provides_engine') or '(none)', name)
+        ok = not refusal
+        bound_url = (bindings or {}).get(name, '') if bindings is not None else None
+        out.append({
+            'name': name, 'tile': tile, 'placement': e.get('placement', 'any-member'),
+            'ok': ok, 'refusal': refusal,
+            'url': 'https://%s.isle' % tile if ok else '',
+            'port': row.get('port') if ok else None,
+            'deploy': ((install_plan(row)['steps'] or [''])[0]) if ok else '',
+            'binding': {'class': 'EngineProviderBinding', 'name': name} if ok else None,
+            'bound': (bool(bound_url) if bindings is not None else None),
+            'bound_url': bound_url or '',
+        })
+    return out
