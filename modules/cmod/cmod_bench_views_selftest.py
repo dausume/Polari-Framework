@@ -24,15 +24,17 @@ def check(label, cond, extra=''):
 def structs():
     from cmod.custom import bench_structs as BS
     ii = BS.instances(BENCH)
-    check('INSTANCES: home-bench has ONE struct instance - LightState_t[0] on uno-1-bridge, becoming LightState \'uno-light\' through the HardwareInterfaceBinding '
-          'uno-light/LightState/0; 7 fields, 6 asserted, the pins its assertions name', [i['name'] for i in ii] == [INST] and ii[0]['object'] == 'uno-light'
+    c3 = next((i for i in ii if i['bridge'] == 'c3-1-bridge'), {})
+    check('INSTANCES: home-bench has LightState_t[0] on uno-1-bridge, becoming LightState \'uno-light\' through the HardwareInterfaceBinding '
+          'uno-light/LightState/0 (7 fields, 6 asserted, the pins its assertions name), then the C3\'s ButtonClockState_t[0] on c3-1-bridge, unbound (no binding '
+          'carries it) with its GPIO pins', [i['name'] for i in ii] == [INST, 'c3-1-bridge/ButtonClockState_t[0]'] and ii[0]['object'] == 'uno-light'
           and ii[0]['binding'] == 'uno-light/LightState/0' and (ii[0]['fields'], ii[0]['asserted_fields']) == (7, 6) and ii[0]['pins'] == 'PD0,PD1,PD2,PD6'
-          and ii[0]['state'] == 'bound', ii)
+          and ii[0]['state'] == 'bound' and c3.get('state') == 'unbound' and c3.get('pins') == 'GPIO0,GPIO1,GPIO20,GPIO21,GPIO3' and c3.get('fields') == 24, ii)
     two = BS.instances(BENCH, binding_rows=[{'name': 'uno-light/LightState/%d' % k, 'bridge_name': 'uno-light', 'object_class': 'LightState',
                                              'object_name': 'light-%d' % k, 'instance_index': k} for k in (0, 1)])
     none = BS.instances(BENCH, binding_rows=[])
     check('INSTANCES, NOT TYPES: two bindings of one struct = two rows (light[0], light[1], each its own object); no binding = one row said unbound',
-          [i['name'] for i in two] == ['uno-1-bridge/LightState_t[0]', 'uno-1-bridge/LightState_t[1]'] and two[1]['object'] == 'light-1'
+          [i['name'] for i in two if i['bridge'] == 'uno-1-bridge'] == ['uno-1-bridge/LightState_t[0]', 'uno-1-bridge/LightState_t[1]'] and two[1]['object'] == 'light-1'
           and none[0]['state'] == 'unbound' and 'no HardwareInterfaceBinding' in none[0]['why'], [i['name'] for i in two])
     f = {r['field']: r for r in BS.fields(BENCH, INST)}
     check('FIELDS: led_on is changed by led_toggle + apply_command and read by led_follow_state (PD0, PD2, PD6), unverified; name is a GAP; every field names its '
@@ -106,7 +108,7 @@ def doors():
         get({'view': 'instances', 'bridge': 'uno-1-bridge'})
     check('DOOR: GET /api/cmod/bench-structs/home-bench = the instances (each with tab=structs for the Bridges view\'s jump); ?view=fields / ?view=path rows are flat; '
           'a path with no field picked = no rows, said; unknown view 422; unknown instance 404; ?bridge= narrows to the structs crossing it',
-          i.media['count'] == 1 and i.media['rows'][0]['tab'] == 'structs' and f.media['count'] == 7 and p.media['count'] >= 15
+          i.media['count'] == 2 and i.media['rows'][0]['tab'] == 'structs' and f.media['count'] == 7 and p.media['count'] >= 15
           and all(not isinstance(v, (dict, list)) for r in f.media['rows'] + p.media['rows'] for v in r.values()) and none.media['count'] == 0 and 'note' in none.media
           and bad.status.startswith('422') and ghost.status.startswith('404') and crossing.media['count'] == 1, (i.media.get('count'), p.media.get('count'), bad.status))
 

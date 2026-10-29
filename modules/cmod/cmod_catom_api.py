@@ -4,6 +4,7 @@
 hsp-3a doors (HARDWARE_SYSTEM_PINS_PLAN.md §7): Catom assertions and what is derived from them. The rows are the stored CatomAssertion / StructObjectMap rows
 (the seeds when the table is empty); every status is recomputed from the variant's cycle record on read.
 
+GET /api/cmod/catom-assertions[?board=B]       the variants that carry assertions ({variant, board, structs, count}), narrowed to one board
 GET /api/cmod/catom-assertions/{variant}[?view=assertions|bindings|gaps|draft|maps]
         assertions = the rows + status (verified | unverified | false) and why; bindings = one row per (pin, field) an assertion couples (the struct-pin
         bindings, derived); gaps = struct fields no catom asserts + the notebook draft's fields the struct lacks; draft = his draft field -> firmware field;
@@ -37,10 +38,16 @@ class CatomAssertionAPI(treeObject):
         self.manager = manager
         if polServer is not None and getattr(polServer, 'falconServer', None) is not None:
             polServer.falconServer.add_route('/api/cmod/catom-assertions/{variant}', self)
+            polServer.falconServer.add_route('/api/cmod/catom-assertions', self, suffix='list')
 
     def _stored(self):
         table = (getattr(self.manager, 'objectTables', None) or {}).get('CatomAssertion') or {}
         return list(table.values()) or None
+
+    def on_get_list(self, request, response):
+        board = request.get_param('board') or ''
+        out = CA.variants(board, self._stored())
+        response.media = {'ok': True, 'board': board, 'count': len(out), 'rows': out}
 
     def on_get(self, request, response, variant):
         rows = self._stored()
