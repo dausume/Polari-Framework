@@ -214,6 +214,7 @@
    "custom/glue_legacy",
    "custom/graph",
    "custom/graph_seed",
+   "custom/hal_electrical",
    "custom/hal_nocode",
    "custom/isotope_variants",
    "custom/isotope_variants_doors",
