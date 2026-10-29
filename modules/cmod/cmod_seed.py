@@ -209,3 +209,10 @@ try:
     CMOD_SEED_PAIRS.append(('GraphDefinition', _GraphDefinition, _owned(_FSC_GRAPHS, keep=('description',))))
 except ImportError:
     pass
+
+# hsp-3a (HARDWARE_SYSTEM_PINS_PLAN.md §7): the struct -> Polari class map (D-hsp-8), then the catom assertions on uno-light's atoms (declared unverified; the
+# cycle record sets the status on read - cmod.custom.catom_assertions.verify)
+from cmod.cmod_basis import CatomAssertion, StructObjectMap  # noqa: E402
+from cmod.custom.catom_assertions import SEED_ASSERTIONS as _CA_SEEDS, SEED_STRUCT_OBJECT_MAPS as _SOM_SEEDS  # noqa: E402
+CMOD_SEED_PAIRS.append(('StructObjectMap', StructObjectMap, _owned(_SOM_SEEDS)))
+CMOD_SEED_PAIRS.append(('CatomAssertion', CatomAssertion, _owned(_CA_SEEDS, keep=('notes', 'status', 'status_why'))))

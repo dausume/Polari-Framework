@@ -922,6 +922,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('grpcbridge.hosted_basis', (
             'HostedBridge',   # sim-2: a generated bridge hosted beside a twin session (observed, never seeded)
         )),
+        ('grpcbridge.bridges_basis', (
+            'BridgePath', 'PolariBridgeInstance',   # hsp-3a: where a bridge is (hop chain) + the bridge as a row (hardware id + Polari node)
+            'SEED_BRIDGE_PATHS', 'SEED_POLARI_BRIDGES',
+        )),
     )),
     ('hwfpga', (
         ('hwfpga.fpga_basis', (
@@ -1357,7 +1361,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
                             'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance',
                             'FirmwareSolution', 'ScheduleSlot', 'RegisterAssignment', 'FirmwareExport',
-                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CIsotope', 'PurposeObservation', 'PurposeGoalState', 'PurposeDependsState', 'PurposeParticipantState', 'PurposeTriggerState', 'PurposeOutcomeState', 'PurposeCriterionState', 'PurposeObservesState', 'PurposeTasksState', 'PurposeProofState', 'PurposeResolutionState', 'PurposeObservedState', 'HardwareMission', 'MissionGoalState', 'MissionSettingsState', 'MissionPurposeState', 'MissionParticipantState', 'MissionConstraintState', 'MissionResolutionState', 'AtomJob', 'IsotopeVariant', 'SolveRun', 'TaskPlan', 'TaskDefinition', 'TaskTrigger', 'TaskStructBinding', 'PURPOSE_NODE_KIND_CLASSES', 'MISSION_NODE_KIND_CLASSES', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride; ucd-iso-0: + CIsotope
+                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CIsotope', 'PurposeObservation', 'PurposeGoalState', 'PurposeDependsState', 'PurposeParticipantState', 'PurposeTriggerState', 'PurposeOutcomeState', 'PurposeCriterionState', 'PurposeObservesState', 'PurposeTasksState', 'PurposeProofState', 'PurposeResolutionState', 'PurposeObservedState', 'HardwareMission', 'MissionGoalState', 'MissionSettingsState', 'MissionPurposeState', 'MissionParticipantState', 'MissionConstraintState', 'MissionResolutionState', 'AtomJob', 'IsotopeVariant', 'SolveRun', 'TaskPlan', 'TaskDefinition', 'TaskTrigger', 'TaskStructBinding', 'CatomAssertion', 'StructObjectMap', 'PURPOSE_NODE_KIND_CLASSES', 'MISSION_NODE_KIND_CLASSES', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride; ucd-iso-0: + CIsotope
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),

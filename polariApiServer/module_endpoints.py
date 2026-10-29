@@ -363,6 +363,10 @@ def construct_grpcbridge_endpoints(polServer):
     from grpcbridge.hosted_bridges_api import HostedBridgesAPI
     hostedBridgesEndpoint = HostedBridgesAPI(
         polServer=polServer, manager=manager)
+    # hsp-3a: where the bench's bridges are (/api/grpc/bench-bridges/{bench}).
+    from grpcbridge.bridges_api import BenchBridgesAPI
+    benchBridgesEndpoint = BenchBridgesAPI(
+        polServer=polServer, manager=manager)
 
 
 def construct_hwfpga_endpoints(polServer):

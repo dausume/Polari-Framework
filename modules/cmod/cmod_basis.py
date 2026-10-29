@@ -11,7 +11,8 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                PurposeObservation, PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState,
                                HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState,
                                AtomJob, IsotopeVariant, SolveRun,
-                               TaskDefinition, TaskTrigger, TaskStructBinding, TaskPlan)
+                               TaskDefinition, TaskTrigger, TaskStructBinding, TaskPlan,
+                               CatomAssertion, StructObjectMap)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -34,7 +35,9 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 # sol-0: one run of the attempt engine, its inputs fingerprinted
                 SolveRun,
                 # fgm-3: the Task Plan of a Mission on one Hardware System, derived and editable
-                TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding]
+                TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
+                # hsp-3a: what a catom asserts it does to a struct / a bridge (verified by a twin record), and the struct -> Polari class map (D-hsp-8)
+                CatomAssertion, StructObjectMap]
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]

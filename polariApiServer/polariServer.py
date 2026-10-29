@@ -1187,6 +1187,8 @@ class polariServer(treeObject):
             HardwareInterfaceBinding, EnumMapping, WireContract,
             # sim-2: a generated bridge hosted beside a twin session.
             HostedBridge,
+            # hsp-3a: where a bridge is + the bridge as a row (hardware id + its Polari node on the isle).
+            BridgePath, PolariBridgeInstance,
             # L3 MD + L2 mesoscale model definitions (msci-26).
             MDModelDefinition, MesoModelDefinition,
             # FPGA register maps as data + FPGA twin (hwsim-3).
@@ -1391,6 +1393,8 @@ class polariServer(treeObject):
             SolveRun,
             # fgm-3: the Task Plan of a Mission on one Hardware System + its Tasks, triggers and shared-data bindings (derived, editable by DerivedOverride)
             TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
+            # hsp-3a: catom assertions (what an atom does to a struct / a bridge, verified by a twin record) + the struct -> Polari class map (D-hsp-8)
+            CatomAssertion, StructObjectMap,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
@@ -2521,6 +2525,9 @@ class polariServer(treeObject):
             ('SimRigState', SimRigState, SEED_SIM_RIGS),
             # sim-2: hosted bridges are observed (started, never seeded).
             ('HostedBridge', HostedBridge, []),
+            # hsp-3a: the home bench's bridge paths, then the bridges that ride them.
+            ('BridgePath', BridgePath, SEED_BRIDGE_PATHS),
+            ('PolariBridgeInstance', PolariBridgeInstance, SEED_POLARI_BRIDGES),
             # grpc-j4: enum tables + the uno-pair bindings (two UNO
             # twins on one bridge -> a 1-bit instance index).
             ('EnumMapping', EnumMapping, SEED_ENUM_MAPPINGS),

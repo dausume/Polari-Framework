@@ -45,3 +45,5 @@ from cmod.objects.cmod.TaskDefinition import TaskDefinition  # noqa: F401  (fgm-
 from cmod.objects.cmod.TaskTrigger import TaskTrigger  # noqa: F401  (fgm-3)
 from cmod.objects.cmod.TaskStructBinding import TaskStructBinding  # noqa: F401  (fgm-3)
 from cmod.objects.cmod.TaskPlan import TaskPlan  # noqa: F401  (fgm-3)
+from cmod.objects.cmod.CatomAssertion import CatomAssertion  # noqa: F401  (hsp-3a)
+from cmod.objects.cmod.StructObjectMap import StructObjectMap  # noqa: F401  (hsp-3a, D-hsp-8)

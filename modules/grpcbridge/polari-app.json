@@ -1,170 +1,190 @@
 {
-  "schema": "polari-app/1",
-  "id": "grpcbridge",
-  "package": "grpcbridge",
-  "title": "Grpcbridge",
-  "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs; the computer<->firmware mapping (grpc-j4): hardware-interface bindings, enum mappings, wire contracts (hash v2, instance index, presence mask).",
-  "version": "0.1.0",
-  "kind": "official",
-  "wave": 5,
-  "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
-  "app": {
-    "kind": "polari-app",
-    "family": "",
-    "extends": "",
-    "catalogKinds": [],
-    "agentTier": "member",
-    "category": "network",
-    "subcategories": [
-      "bridges"
-    ],
-    "tags": [
-      "grpc",
-      "java"
-    ]
-  },
-  "requires": {
-    "modules": [],
-    "libraries": [],
-    "engines": [
-      {
-        "name": "grpcio",
-        "kind": "python",
-        "probe": "grpc",
-        "note": "gRPC runtime"
-      }
-    ]
-  },
-  "files": {
-    "objects": [
-      "objects/contract/GrpcExposure",
-      "objects/contract/ProtoContractVersion",
-      "objects/hwsim/SimRigState",
-      "objects/hosted/HostedBridge",
-      "objects/hwsim/_shared",
-      "objects/java_bridge/HardwareBridgeDefinition",
-      "objects/mapping/EnumMapping",
-      "objects/mapping/HardwareInterfaceBinding",
-      "objects/mapping/WireContract"
-    ],
-    "basis": [
-      "contract_basis",
-      "hosted_basis",
-      "hwsim_basis",
-      "java_bridge_basis",
-      "mapping_basis"
-    ],
-    "api": [
-      "contract_api",
-      "java_bridge_api",
-      "hosted_bridges_api"
-    ],
-    "selftests": [
-      "c_twin_selftest",
-      "c_twin_wire_selftest",
-      "contracts_selftest",
-      "grpcbridge_hosted_selftest",
-      "javabridge_selftest",
-      "serving_selftest"
-    ],
-    "custom": [
-      "custom/bridge_engines",
-      "custom/c_twin",
-      "custom/c_twin_v2",
-      "custom/descriptor_build",
-      "custom/grpc_server",
-      "custom/hosted_bridges",
-      "custom/hosted_checks",
-      "custom/hosted_cli",
-      "custom/hosted_fakes",
-      "custom/hosted_proof",
-      "custom/hosted_worker",
-      "custom/java_bridge",
-      "custom/java_bridge_codegen",
-      "custom/java_bridge_templates",
-      "custom/java_bridge_wire",
-      "custom/proto_gen",
-      "custom/transport_mux",
-      "custom/wire_contract",
-      "custom/wire_ref"
-    ]
-  },
-  "classes": [
-    "EnumMapping",
-    "GrpcContractsAPI",
-    "GrpcExposure",
-    "HardwareBridgeAPI",
-    "HardwareBridgeDefinition",
-    "HardwareInterfaceBinding",
-    "ProtoContractVersion",
-    "SimRigState",
-    "WireContract",
-    "HostedBridge",
-    "HostedBridgesAPI"
+ "schema": "polari-app/1",
+ "id": "grpcbridge",
+ "package": "grpcbridge",
+ "title": "Grpcbridge",
+ "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs; the computer<->firmware mapping (grpc-j4): hardware-interface bindings, enum mappings, wire contracts (hash v2, instance index, presence mask).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 5,
+ "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "network",
+  "subcategories": [
+   "bridges"
   ],
-  "imports": [
-    [
-      "grpcbridge.contract_basis",
-      [
-        "GrpcExposure",
-        "ProtoContractVersion"
-      ]
-    ],
-    [
-      "grpcbridge.java_bridge_basis",
-      [
-        "HardwareBridgeDefinition"
-      ]
-    ],
-    [
-      "grpcbridge.hwsim_basis",
-      [
-        "SimRigState",
-        "SEED_SIM_RIGS"
-      ]
-    ],
-    [
-      "grpcbridge.mapping_basis",
-      [
-        "HardwareInterfaceBinding",
-        "EnumMapping",
-        "WireContract",
-        "SEED_ENUM_MAPPINGS",
-        "SEED_HARDWARE_BINDINGS"
-      ]
-    ],
-    [
-      "grpcbridge.hosted_basis",
-      [
-        "HostedBridge"
-      ]
-    ]
+  "tags": [
+   "grpc",
+   "java"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "grpcio",
+    "kind": "python",
+    "probe": "grpc",
+    "note": "gRPC runtime"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/bridges/BridgePath",
+   "objects/bridges/PolariBridgeInstance",
+   "objects/contract/GrpcExposure",
+   "objects/contract/ProtoContractVersion",
+   "objects/hosted/HostedBridge",
+   "objects/hwsim/SimRigState",
+   "objects/hwsim/_shared",
+   "objects/java_bridge/HardwareBridgeDefinition",
+   "objects/mapping/EnumMapping",
+   "objects/mapping/HardwareInterfaceBinding",
+   "objects/mapping/WireContract"
   ],
-  "endpoints": "polariApiServer.module_endpoints:construct_grpcbridge_endpoints",
-  "seedPairs": null,
-  "pages": [],
-  "derivedSeeds": false,
-  "initialData": false,
+  "basis": [
+   "bridges_basis",
+   "contract_basis",
+   "hosted_basis",
+   "hwsim_basis",
+   "java_bridge_basis",
+   "mapping_basis"
+  ],
+  "api": [
+   "bridges_api",
+   "contract_api",
+   "hosted_bridges_api",
+   "java_bridge_api"
+  ],
   "selftests": [
-    "c_twin_selftest",
-    "contracts_selftest",
-    "grpcbridge_hosted_selftest",
-    "javabridge_selftest",
-    "serving_selftest"
+   "bridges_selftest",
+   "c_twin_selftest",
+   "c_twin_wire_selftest",
+   "contracts_selftest",
+   "grpcbridge_hosted_selftest",
+   "javabridge_selftest",
+   "serving_selftest"
   ],
-  "security": {
-    "profile": "web-app",
-    "writable": [
-      "/data"
-    ],
-    "network": [
-      "isle"
-    ],
-    "capabilities": [],
-    "devices": [],
-    "ports": []
-  },
-  "featureModule": true,
-  "coreRequired": false,
-  "legacyDynamicModule": false
+  "custom": [
+   "custom/bridge_engines",
+   "custom/bridge_paths",
+   "custom/c_twin",
+   "custom/c_twin_v2",
+   "custom/descriptor_build",
+   "custom/grpc_server",
+   "custom/hosted_bridges",
+   "custom/hosted_checks",
+   "custom/hosted_cli",
+   "custom/hosted_fakes",
+   "custom/hosted_proof",
+   "custom/hosted_worker",
+   "custom/java_bridge",
+   "custom/java_bridge_codegen",
+   "custom/java_bridge_templates",
+   "custom/java_bridge_wire",
+   "custom/proto_gen",
+   "custom/transport_mux",
+   "custom/wire_contract",
+   "custom/wire_ref"
+  ]
+ },
+ "classes": [
+  "BenchBridgesAPI",
+  "BridgePath",
+  "EnumMapping",
+  "GrpcContractsAPI",
+  "GrpcExposure",
+  "HardwareBridgeAPI",
+  "HardwareBridgeDefinition",
+  "HardwareInterfaceBinding",
+  "HostedBridge",
+  "HostedBridgesAPI",
+  "PolariBridgeInstance",
+  "ProtoContractVersion",
+  "SimRigState",
+  "WireContract"
+ ],
+ "imports": [
+  [
+   "grpcbridge.contract_basis",
+   [
+    "GrpcExposure",
+    "ProtoContractVersion"
+   ]
+  ],
+  [
+   "grpcbridge.java_bridge_basis",
+   [
+    "HardwareBridgeDefinition"
+   ]
+  ],
+  [
+   "grpcbridge.hwsim_basis",
+   [
+    "SimRigState",
+    "SEED_SIM_RIGS"
+   ]
+  ],
+  [
+   "grpcbridge.mapping_basis",
+   [
+    "HardwareInterfaceBinding",
+    "EnumMapping",
+    "WireContract",
+    "SEED_ENUM_MAPPINGS",
+    "SEED_HARDWARE_BINDINGS"
+   ]
+  ],
+  [
+   "grpcbridge.hosted_basis",
+   [
+    "HostedBridge"
+   ]
+  ],
+  [
+   "grpcbridge.bridges_basis",
+   [
+    "BridgePath",
+    "PolariBridgeInstance",
+    "SEED_BRIDGE_PATHS",
+    "SEED_POLARI_BRIDGES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_grpcbridge_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "bridges_selftest",
+  "c_twin_selftest",
+  "c_twin_wire_selftest",
+  "contracts_selftest",
+  "grpcbridge_hosted_selftest",
+  "javabridge_selftest",
+  "serving_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
 }
