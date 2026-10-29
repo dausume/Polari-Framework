@@ -13,6 +13,7 @@ class RegisterField(treeObject):
     .register_fields_atmega328p — read from DS40002061B on 2026-10-07, file sha matched). `access` is typed so a
     generator never treats every bit as an ordinary read-modify-write bit: `rw` plain; `r` read-only; `w1c` a flag
     cleared by WRITING A ONE to it (EIFR.INTF1 — a read-modify-write would clear every pending flag at once);
+    `w0c` a flag cleared by WRITING A ZERO (MCUSR.PORF, rm-2a); every word's own row is a `RegisterAccessKind`;
     `w-strobe` writes act, reads give zero (TCCR2B.FOC2A); `rw-toggle` writing one TOGGLES another register's bit
     (PIND.PIND3 toggles PORTD3, §14.2.2). `values_json` maps each value to its meaning in the datasheet's words
     ("01": "Any logical change on INT1 generates an interrupt request"). `affects_signal` names the PeripheralSignal the
@@ -38,7 +39,7 @@ class RegisterField(treeObject):
         self.bit_hi = bit_hi                # the field's highest bit (3 for ISC1 = bits 3:2)
         self.bit_lo = bit_lo                # its lowest bit (2)
         self.width = width                  # bit_hi - bit_lo + 1
-        self.access = access                # rw | r | w1c | w-strobe | rw-toggle
+        self.access = access                # rw | r | w1c | w0c | w-strobe | rw-toggle (a RegisterAccessKind row each)
         self.reset_value = reset_value      # the datasheet's Initial Value for these bits ('0'; 'N/A' for PINx)
         self.description = description      # the datasheet's bit title ("Interrupt Sense Control 1 Bit 1 and Bit 0")
         self.values_json = values_json      # {"00": "…", "01": "…"} — the datasheet's own words per value

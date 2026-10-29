@@ -160,8 +160,13 @@ def classify_row_field(f):
         c, why, rc = FIELD_RULES[key]
         return c, why, '%s, %s' % (DS, rc)
     tags = [t for t in (('affects_pin', f.get('affects_pin')), ('affects_signal', f.get('affects_signal'))) if t[1]]
-    if f.get('access') == 'w1c':
-        return PER, 'a write-one-to-clear status flag: it reports%s, it configures nothing' % (' (the row tags %s)' % ', '.join('%s=%s' % (k, v.rpartition(':')[2]) for k, v in tags) if tags else ''), cite
+    reg = key[0]
+    if reg in REGISTER_RULES and not tags:
+        # rm-2a: a flag inside a register with its own cited verdict (MCUSR's reset flags, WDTCSR.WDIF) belongs to that register's class, not the generic flag rule
+        c, why, rc = REGISTER_RULES[reg]
+        return c, '%s (the register\'s cited verdict; a %s field of it)' % (why, f.get('access')), '%s, %s' % (DS, rc)
+    if f.get('access') in ('w1c', 'w0c'):
+        return PER, 'a write-%s-to-clear status flag:' % ('one' if f['access'] == 'w1c' else 'zero') + ' it reports%s, it configures nothing' % (' (the row tags %s)' % ', '.join('%s=%s' % (k, v.rpartition(':')[2]) for k, v in tags) if tags else ''), cite
     if tags:
         return PIN, 'the field row says %s' % ' and '.join('%s %s' % (k, v.rpartition(':')[2]) for k, v in tags), cite
     return None, '', cite

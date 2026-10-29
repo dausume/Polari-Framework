@@ -36,6 +36,7 @@ from board.objects.board.Register import Register  # noqa: F401
 from board.objects.board.RegisterField import RegisterField  # noqa: F401
 from board.objects.board.RegisterSetting import RegisterSetting  # noqa: F401
 from board.objects.board.RegisterFieldSetting import RegisterFieldSetting  # noqa: F401
+from board.objects.board.RegisterAccessKind import RegisterAccessKind  # noqa: F401  (rm-2a)
 from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401
 # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9)
 from board.objects.board.AddressSpace import AddressSpace  # noqa: F401

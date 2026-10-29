@@ -74,5 +74,11 @@ check('hsp-3c: POST /api/grpc/bench-bridges/home-bench/mode toggles the booted b
       r.status_code == 200 and r.json['mode'] == 'simulated' and 'board-engines' in r.json['hops'][-1]['what'] and r2.json['mode'] == 'serial', r.text[:300])
 pages = {getattr(o, 'pageRoute', '') for o in (tables.get('DisplayDefinition') or {}).values()}
 check('hsp-3b: the /display/bench-views page is a seeded DisplayDefinition', 'bench-views' in pages, sorted(p for p in pages if 'bench' in p))
+acc = {getattr(o, 'name', ''): o for o in (tables.get('RegisterAccessKind') or {}).values()}
+pf = next((o for o in (tables.get('RegisterField') or {}).values() if getattr(o, 'name', '') == 'atmega328p:MCUSR.PORF'), None)
+check('rm-2a: the six RegisterAccessKind rows are seeded (w0c = UVM W0C) and the booted RegisterField MCUSR.PORF is w0c',
+      set(acc) == {'rw', 'r', 'w1c', 'w0c', 'w-strobe', 'rw-toggle'} and acc['w0c'].uvm_policy == 'W0C' and pf is not None and pf.access == 'w0c', sorted(acc))
+r = client.simulate_get('/RegisterAccessKind')
+check('rm-2a: CRUDE GET /RegisterAccessKind answers 200', r.status_code == 200, r.status_code)
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

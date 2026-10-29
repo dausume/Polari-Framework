@@ -36,17 +36,17 @@ def run_register_profile(check):
     check('rp-0: EVERY ATmega328P Register row (%d) gets a class or `mixed`; the four pure counts + mixed add up to all of them' % len(t['Register']),
           len(R) == len(t['Register']) == 96 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in R.values())
           and sum(tot['pure'].values()) + tot['mixed'] == 96, str(tot['pure']))
-    check('rp-0: all 97 RegisterField rows are classified (source RegisterField) and every one of them is a field of a profiled register',
-          tot['fields_from_rows'] == len(t['RegisterField']) == 97 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
+    check('rp-0: all 148 RegisterField rows are classified (source RegisterField) and every one of them is a field of a profiled register',
+          tot['fields_from_rows'] == len(t['RegisterField']) == 148 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
     check('rp-0: DDRB / PORTB / PINB (and the D and C ports) are pin-configuration, pure',
           all(R[x]['class'] == PIN for x in ('DDRB', 'PORTB', 'PINB', 'DDRD', 'PORTD', 'PIND', 'DDRC', 'PORTC', 'PINC')))
     check('rp-0: the external / pin-change interrupt sense and mask registers (EICRA, EIMSK, PCICR, PCMSK0-2) and DIDR0/DIDR1 are pin-configuration; their flag registers (EIFR, PCIFR) are peripheral-operation',
           all(R[x]['class'] == PIN for x in ('EICRA', 'EIMSK', 'PCICR', 'PCMSK0', 'PCMSK1', 'PCMSK2', 'DIDR0', 'DIDR1')) and R['EIFR']['class'] == PER and R['PCIFR']['class'] == PER)
     u = R['UCSR0B']
     uf = _fields(u)
-    check('rp-0: UCSR0B is MIXED - RXEN0 and TXEN0 pin-configuration, the other six fields (RXCIE0, TXCIE0, UDRIE0, UCSZ02, RXB80, TXB80) peripheral-operation',
+    check('rp-0: UCSR0B is MIXED - RXEN0 and TXEN0 pin-configuration, the other six fields (RXCIE0, TXCIE0, UDRIE0, UCSZ02, RXB80, TXB80) peripheral-operation; rm-2a: all eight are RegisterField rows now',
           u['class'] == RP.MIXED and uf['RXEN0'] == uf['TXEN0'] == PIN
-          and {k for k, v in uf.items() if v == PER} == {'RXCIE0', 'TXCIE0', 'UDRIE0', 'UCSZ02', 'RXB80', 'TXB80'} and 'fields not modelled' in u['fields_note'], str(uf))
+          and {k for k, v in uf.items() if v == PER} == {'RXCIE0', 'TXCIE0', 'UDRIE0', 'UCSZ02', 'RXB80', 'TXB80'} and 'not modelled' not in u['fields_note'], str(uf))
     m = R['MCUCR']
     mf = _fields(m)
     check('rp-0: MCUCR is MIXED - PUD (a RegisterField row) pin-configuration, IVSEL / IVCE / BODS / BODSE cpu-system, and the register says its fields are only partly modelled',
@@ -68,7 +68,7 @@ def run_register_profile(check):
           and all(len(r['classes']) == 1 for r in R.values() if not r['mixed']))
     no_rows = [r for r in R.values() if r['fields_note'].startswith('fields not modelled')]
     check('rp-0: a register with no field rows says `fields not modelled` (%d of them) and is still classified' % len(no_rows),
-          len(no_rows) == tot['registers_without_field_rows'] == 77 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
+          len(no_rows) == tot['registers_without_field_rows'] == 66 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
     bad = [(r['register'], 'reason' if not r['reason'] else 'cite') for r in R.values() if not r['reason'] or not r['cite']]
     badf = [(f['register'], f['field']) for f in prof['fields'] if not f['reason'] or 'p.' not in f['cite'] or not f['cite'].strip()]
     check('rp-0: EVERY verdict carries a reason and a citation naming a page - %d registers, %d fields' % (len(R), len(prof['fields'])), not bad and not badf, str((bad[:3], badf[:3])))
@@ -88,9 +88,12 @@ def run_register_profile(check):
           and R['EICRA']['class'] == PIN and R['TIMSK2']['class'] == PER)
     tagged = [f for f in t['RegisterField'] if (f['affects_pin'] or f['affects_signal']) and f['access'] != 'w1c' and (f['register'].partition(':')[2], f['field']) not in RP.FIELD_RULES]
     cls = {(f['register'], f['field']): f['class'] for f in prof['fields'] if f['source'] == 'RegisterField'}
-    check('rp-0: every one of the %d tag-bearing RegisterField rows (affects_pin / affects_signal, not a w1c flag) is pin-configuration, and every w1c flag is peripheral-operation' % len(tagged),
+    check('rp-0: every one of the %d tag-bearing RegisterField rows (affects_pin / affects_signal, not a w1c flag) is pin-configuration, every w1c / w0c flag peripheral-operation - except in a register with its own cited verdict (MCUSR, WDTCSR: cpu-system)' % len(tagged),
           all(cls[(f['register'].partition(':')[2], f['field'])] == PIN for f in tagged)
-          and all(cls[(f['register'].partition(':')[2], f['field'])] == PER for f in t['RegisterField'] if f['access'] == 'w1c'))
+          and all(cls[(f['register'].partition(':')[2], f['field'])] == PER for f in t['RegisterField'] if f['access'] in ('w1c', 'w0c')
+                  and f['register'].partition(':')[2] not in RP.REGISTER_RULES)
+          # rm-2a: a flag of a register with its own cited verdict takes that class (MCUSR's w0c reset flags, WDTCSR.WDIF = cpu-system)
+          and all(cls[(f['register'].partition(':')[2], f['field'])] == CPU for f in t['RegisterField'] if f['register'].partition(':')[2] in ('MCUSR', 'WDTCSR')))
     check('rp-0: the profile is deterministic (twice = identical JSON)', json.dumps(RP.profile(t, SOC), sort_keys=True) == json.dumps(RP.profile(copy.deepcopy(t), SOC), sort_keys=True))
 
     # ---- the rule tables agree with the datasheet's Register Summary snapshot

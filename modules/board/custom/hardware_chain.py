@@ -198,7 +198,7 @@ def registers():
                'width_bytes': int(r.get('width_bytes') or 1), 'reset_value': reset, 'description': title,
                'fields_refs_json': json.dumps(fields_by_reg.get(name, [])), 'mappings_refs_json': '[]',
                'origin': origin + ('; io+0x20 = data-space address (the datasheet prints both, e.g. EIMSK 0x1D (0x3D) p.81)' if space == 'io' else ''),
-               'undetermined': '' if name in fields_by_reg else 'bit fields not captured yet (ucd-0a cites EXINT, ports B/D, Timer2)',
+               'undetermined': '' if name in fields_by_reg else 'bit fields not captured yet (cited so far: EXINT, ports B/D, Timer2 (ucd-0a); USART0, CLKPR, PRR, MCUSR, WDTCSR, SREG (rm-2a))',
                'notes': ''}
         row.update(_cite(where) if where else {'document': '', 'page_table': '', 'url': ''})
         tax = TX.classify(SOC, name)   # rm-0: the cited rule table (unclassified by name when no rule matches)
