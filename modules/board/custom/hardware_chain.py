@@ -32,6 +32,7 @@ import sys
 
 from board.custom import registers as R
 from board.custom import register_fields_atmega328p as RF
+from board.custom import register_taxonomy as TX   # rm-0
 from board.custom.soc_atmega328p import FUNCTION_PERIPHERAL, PINS, SOC
 from board.custom.uno_facts import M328_DOC, M328_REV, M328_URL
 
@@ -200,6 +201,8 @@ def registers():
                'undetermined': '' if name in fields_by_reg else 'bit fields not captured yet (ucd-0a cites EXINT, ports B/D, Timer2)',
                'notes': ''}
         row.update(_cite(where) if where else {'document': '', 'page_table': '', 'url': ''})
+        tax = TX.classify(SOC, name)   # rm-0: the cited rule table (unclassified by name when no rule matches)
+        row.update(domains_json=json.dumps(tax['domains']), roles_json=json.dumps(tax['roles'], sort_keys=True), taxonomy_cite=tax['cite'])
         out.append(row)
     return out
 
@@ -314,7 +317,8 @@ def register_fields():
                     'reset_value': f['reset_value'], 'description': f['description'], 'values_json': json.dumps(f['values']),
                     'affects_signal': ('%s:%s:%s' % (SOC, pid, sig)) if sig and pid else '',
                     'affects_pin': ('%s:%s' % (SOC, f['affects_pin'])) if f['affects_pin'] else '',
-                    'origin': 'cited', 'undetermined': '', 'notes': f['notes'], **_cite(f['page_table'])})
+                    'origin': 'cited', 'undetermined': '', 'notes': f['notes'], **_cite(f['page_table']),
+                    'roles_json': json.dumps(TX.field_roles(SOC, f['register'], f), sort_keys=True)})   # rm-0
     return out
 
 

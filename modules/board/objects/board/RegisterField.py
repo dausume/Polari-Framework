@@ -30,7 +30,7 @@ class RegisterField(treeObject):
     def __init__(self, name: str = '', soc: str = '', register: str = '', field: str = '', bit_hi: int = 0, bit_lo: int = 0,
                  width: int = 1, access: str = 'rw', reset_value: str = '0', description: str = '', values_json: str = '{}',
                  affects_signal: str = '', affects_pin: str = '', document: str = '', page_table: str = '', url: str = '',
-                 origin: str = 'cited', undetermined: str = '', notes: str = '', datasheet: str = '', manager=None):
+                 origin: str = 'cited', undetermined: str = '', notes: str = '', datasheet: str = '', roles_json: str = '{}', manager=None):
         self.name = name                    # '<soc>:<REGISTER>.<FIELD>' (atmega328p:EICRA.ISC1)
         self.soc = soc
         self.register = register            # the Register row name ('<soc>:EICRA')
@@ -51,3 +51,4 @@ class RegisterField(treeObject):
         self.undetermined = undetermined
         self.notes = notes
         self.datasheet = datasheet          # ucd-doc: the Datasheet row this (document, url) resolves to
+        self.roles_json = roles_json        # rm-0: {read: [...], write: [...]} - the register's roles refined by this field's access (register_taxonomy.field_roles)

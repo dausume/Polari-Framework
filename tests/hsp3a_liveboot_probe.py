@@ -1,4 +1,4 @@
-"""In-process live-boot PROBE of hsp-3a (HARDWARE_SYSTEM_PINS_PLAN.md §7): boot the REAL polariServer with grpcbridge + cmod (+ board and what it needs) and
+"""In-process live-boot PROBE of hsp-3a + hsp-3d + rm-0/rm-1 (HARDWARE_SYSTEM_PINS_PLAN.md §7): boot the REAL polariServer with grpcbridge + cmod (+ board and what it needs) and
 check the four new classes are typed, their seeds land (7 catom assertions, 1 struct-object map, 2 bridge paths, 1 bridge), the CRUDE routes answer and the
 two doors serve the stored rows (status recomputed from the uno-light record; the UNO bridge bound to polari-pol).
 Run from a THROWAWAY working directory (the boot writes its sqlite DB into ./data/ of the cwd):
@@ -47,5 +47,10 @@ check('GET /api/cmod/catom-variables/uno-light?view=header carries UART0_TX_PIN 
 r = client.simulate_post('/api/cmod/catom-variables/uno-light/check', json={'variable': 'UART0_TX_PIN', 'value': 'PD2'})
 check('POST /api/cmod/catom-variables/uno-light/check {UART0_TX_PIN: PD2} -> refused naming PD1 (TXD)', r.status_code == 200 and r.json['verdict'] == 'refused'
       and 'PD1 (TXD)' in r.json['why'][0], r.text[:300])
+reg = next((o for o in (tables.get('Register') or {}).values() if getattr(o, 'name', '') == 'atmega328p:DDRD'), None)
+check('rm-0: the booted Register row atmega328p:DDRD carries domains_json mcu-pin/direction + its roles', reg is not None and 'mcu-pin/direction' in getattr(reg, 'domains_json', '')
+      and 'control' in getattr(reg, 'roles_json', ''), getattr(reg, 'domains_json', None))
+r = client.simulate_get('/api/board/arduino-uno-r3/pins/D0/stages', params={'claim': 'gpio-out'})
+check('rm-1: GET /api/board/arduino-uno-r3/pins/D0/stages?claim=gpio-out -> two boot-critical conflicts', r.status_code == 200 and len(r.json['boot_critical']) == 2, r.text[:300])
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

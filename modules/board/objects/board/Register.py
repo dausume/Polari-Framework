@@ -26,7 +26,7 @@ class Register(treeObject):
     def __init__(self, name: str = '', soc: str = '', register: str = '', peripheral: str = '', addr: str = '',
                  addr_mem: str = '', space: str = '', width_bytes: int = 1, reset_value: str = '', description: str = '',
                  fields_refs_json: str = '[]', document: str = '', page_table: str = '', url: str = '', origin: str = '',
-                 undetermined: str = '', notes: str = '', manager=None):
+                 undetermined: str = '', notes: str = '', domains_json: str = '[]', roles_json: str = '{}', taxonomy_cite: str = '', manager=None):
         self.name = name                    # '<soc>:<REGISTER>' (atmega328p:EICRA)
         self.soc = soc
         self.register = register            # EICRA
@@ -44,3 +44,7 @@ class Register(treeObject):
         self.origin = origin                # derived:registers_<mcu>.json sha=… avr-libc=…
         self.undetermined = undetermined    # 'bit fields not captured yet' for registers without RegisterField rows
         self.notes = notes
+        # rm-0 (REGISTER_MAPPING_PLAN §1): DERIVED by board.custom.register_taxonomy's cited rule table, never typed in
+        self.domains_json = domains_json    # ['mcu-pin/direction'] | ['unclassified'] (P§4 tree paths)
+        self.roles_json = roles_json        # {read: [control|status|data], write: [...]}
+        self.taxonomy_cite = taxonomy_cite  # the datasheet place the rule was read from

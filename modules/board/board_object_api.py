@@ -58,6 +58,7 @@ class BoardObjectAPI(treeObject):
             add('/api/board/{board}/pins', self, suffix='pins')
             add('/api/board/{board}/pins/{pin}', self, suffix='pin_one')
             add('/api/board/{board}/chain/{pin}', self, suffix='chain')   # ucd-0a: the hardware chain of one pin, as rows
+            add('/api/board/{board}/pins/{pin}/stages', self, suffix='stages')   # rm-1: the pin's lifecycle stages + verdicts (PinStageAssessment)
             add('/api/board/{board}/exposure', self, suffix='exposure')   # hsp-0: every pin crossing of the board's enclosures
             add('/api/board/{board}/exposure/{pin}', self, suffix='exposure_pin')   # hsp-0: the crossings of one pin + its inward trace
             add('/api/board/{board}/reachability', self, suffix='reachability')   # hsp-0: header / internal / not-bonded per SoC pin; ?pin=&function= adds the ladder
@@ -144,6 +145,24 @@ class BoardObjectAPI(treeObject):
             'facts': json.loads(bp.get('facts_json') or '[]'),
             'registered_tasks': registered, 'unregistered': not registered,
         }
+
+    def on_get_stages(self, request, response, board, pin):
+        """rm-1 (REGISTER_MAPPING_PLAN.md §1): GET /api/board/<board>/pins/<pin>/stages[?claim=gpio-out|gpio-in|uart-tx|uart-rx|int-ext|pwm-out|adc-in]
+        [&grouping=lifecycle-4|boot-safety|firmware|all-7][&<condition>=<value> ...] - the pin x stage matrix (function, direction, owner, restrictions,
+        register fields, verdict valid|warning|conflict|unknown + reasons), boot-critical conflicts listed first in `boot_critical`. Extra params are the
+        context the lifecycle conditions are judged in (transport=usb-serial, icsp=connected ...). Derived, nothing stored. 422 unknown claim / grouping."""
+        from board.custom import pin_stages as PS
+        ctx = {k: v for k, v in (request.params or {}).items() if k not in ('claim', 'grouping', 'view')}
+        try:
+            out = PS.assess(board, pin, request.get_param('claim') or '', request.get_param('grouping') or 'lifecycle-4', ctx)
+        except KeyError as e:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'error': e.args[0] if e.args else str(e)}
+            return
+        if request.get_param('view') == 'stages':
+            response.media = {'ok': True, 'view': 'stages', 'count': len(out['stages']), 'rows': out['boot_critical'] + [r for r in out['stages'] if not r['boot_critical']]}
+            return
+        response.media = out
 
     def on_get_chain(self, request, response, board, pin):
         """ucd-0a (UNO_CORE_DEMO_PLAN.md §5f): GET /api/board/<board>/chain/<pin> — THE HARDWARE CHAIN of one pin as
