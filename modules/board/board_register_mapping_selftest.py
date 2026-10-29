@@ -40,8 +40,8 @@ def taxonomy():
           '(control); UCSR0A uart status (+ U2X0 control); MCUSR reset status, written to clear', got == want, got)
     u = T.classify('atmega328p', 'FOOREG')
     check('rm-0 a register no rule matches is `unclassified` BY NAME (never guessed)', u['domains'] == ['unclassified'] and 'FOOREG' in u['cite'] and u['verification'] == 'none')
-    tree = {t['path']: t for t in T.tree('atmega328p', regs)}
-    check('rm-0 TREE: the SoC / platform branches are deferred (count 0, future scope); mcu-pin/direction holds DDRB/C/D; no unclassified branch',
+    tree = {t['path']: t for t in T.categories('atmega328p', regs)}
+    check('rm-0 REGISTER CATEGORIES: the SoC / platform categories are deferred (count 0, future scope); mcu-pin/direction holds DDRB/C/D; no unclassified branch',
           all(tree[p]['state'] == 'future scope' and tree[p]['count'] == 0 for p in tree if p.split('/')[0] in ('soc-interconnect', 'soc-processor', 'soc-device', 'platform-virtual'))
           and tree['mcu-pin/direction']['registers'] == 'DDRB, DDRC, DDRD' and 'unclassified' not in tree, tree['mcu-pin/direction'])
     rows = {r['register']: r for r in H.registers()}

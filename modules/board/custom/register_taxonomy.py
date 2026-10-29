@@ -9,14 +9,15 @@ A register no rule matches is `unclassified`, by name - never guessed.
 
   classify(soc, register)        -> {domains[], roles{read[], write[]}, rule, cite, verification}
   field_roles(soc, register, f)  -> {read[], write[]} for one RegisterField (its access refines the register's roles)
-  tree(soc, registers)           -> the P§4 tree with counts; the categories no register lands in are DEFERRED (count 0, "future scope")
+  categories(soc, registers)     -> every REGISTER CATEGORY (his word 2026-10-29; Polari keeps "tree" for the object tree) with counts; the categories no
+                                   register lands in are DEFERRED (count 0, "future scope")
 """
 import re
 
 DOMAINS = ('mcu-pin', 'mcu-internal', 'mcu-peripheral', 'mcu-system', 'soc-interconnect', 'soc-processor', 'soc-device', 'platform-virtual')
 ROLES = ('control', 'status', 'data')
-#: the P§4 tree's sub-categories (a category with no register is shown deferred, never hidden)
-TREE = {
+#: the register categories per domain (P§4; a category with no register is shown deferred, never hidden)
+CATEGORIES = {
     'mcu-pin': ('direction', 'io-data', 'electrical', 'interrupt'),
     'mcu-internal': ('status', 'stack', 'general-purpose'),
     'mcu-peripheral': ('uart', 'timer', 'adc', 'comparator', 'spi', 'twi', 'eeprom'),
@@ -114,15 +115,15 @@ def field_roles(soc, register, field):
     return {'read': list(hit[0]), 'write': list(hit[1])}
 
 
-def tree(soc, registers):
-    """[{domain, category, path, count, registers, state}] - every TREE branch; state supported (registers land) | future scope (none: deferred)."""
+def categories(soc, registers):
+    """[{domain, category, path, count, registers, state}] - every register category; state supported (registers land) | future scope (none: deferred)."""
     by_path = {}
     for reg in registers:
         for path in classify(soc, reg)['domains']:
             by_path.setdefault(path, []).append(reg)
     out = []
     for dom in DOMAINS:
-        for cat in TREE[dom]:
+        for cat in CATEGORIES[dom]:
             path = '%s/%s' % (dom, cat)
             regs = sorted(by_path.get(path, []))
             out.append({'domain': dom, 'category': cat, 'path': path, 'count': len(regs), 'registers': ', '.join(regs),

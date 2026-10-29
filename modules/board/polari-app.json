@@ -153,7 +153,8 @@
    "maintenance_api",
    "pin_view_api",
    "profile_overlap_api",
-   "register_profile_api"
+   "register_profile_api",
+   "register_view_api"
   ],
   "endpoints": [
    "board_endpoints"
@@ -205,6 +206,7 @@
    "board_profile_overlap_selftest",
    "board_register_mapping_selftest",
    "board_register_profile_selftest",
+   "board_register_view_selftest",
    "board_selftest",
    "board_target_compat_selftest",
    "board_twin_session_selftest",
@@ -324,6 +326,7 @@
    "custom/register_map",
    "custom/register_profile",
    "custom/register_taxonomy",
+   "custom/register_view",
    "custom/registers",
    "custom/selftest_light_samples",
    "custom/selftest_light_variants",
@@ -426,6 +429,7 @@
   "RegisterFieldSetting",
   "RegisterProfileAPI",
   "RegisterSetting",
+  "RegisterViewAPI",
   "Road",
   "RuntimeProfile",
   "SignalPath",
@@ -562,6 +566,7 @@
   "board_profile_overlap_selftest",
   "board_register_mapping_selftest",
   "board_register_profile_selftest",
+  "board_register_view_selftest",
   "board_selftest",
   "board_target_compat_selftest",
   "board_twin_session_selftest",

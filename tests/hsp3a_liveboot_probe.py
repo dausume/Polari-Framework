@@ -80,5 +80,14 @@ check('rm-2a: the six RegisterAccessKind rows are seeded (w0c = UVM W0C) and the
       set(acc) == {'rw', 'r', 'w1c', 'w0c', 'w-strobe', 'rw-toggle'} and acc['w0c'].uvm_policy == 'W0C' and pf is not None and pf.access == 'w0c', sorted(acc))
 r = client.simulate_get('/RegisterAccessKind')
 check('rm-2a: CRUDE GET /RegisterAccessKind answers 200', r.status_code == 200, r.status_code)
+r = client.simulate_get('/api/board/socs')
+r2 = client.simulate_get('/api/board/socs/atmega328p/register-categories')
+r3 = client.simulate_get('/api/board/socs/atmega328p/registers/MCUSR')
+check('rm-3: /api/board/socs, /register-categories, /registers/MCUSR answer on the real server beside every board route (MCUSR.PORF spelled out: write zero to clear)',
+      r.status_code == 200 and r.json['count'] == 2 and r2.status_code == 200 and r2.json['count'] > 20 and r3.status_code == 200
+      and any(x['field'] == 'PORF' and x['access_means'] == 'write zero to clear' for x in r3.json['rows']), (r.status_code, r2.status_code, r3.status_code))
+r = client.simulate_get('/api/board/socs/atmega328p/pins/D2/uses')
+check('rm-3: /api/board/socs/atmega328p/pins/D2/uses -> register fields with categories, the firmware settings, the assertion, BUTTON_PIN, certain atoms',
+      r.status_code == 200 and {'register field', 'firmware setting', 'Catom assertion', 'HAL variable', 'C atom'} <= {x['kind'] for x in r.json['rows']}, r.text[:300])
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)
