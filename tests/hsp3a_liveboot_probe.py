@@ -24,7 +24,7 @@ manager = boot(FRAMEWORK)
 client = testing.TestClient(manager.polServer.falconServer)
 tables = manager.objectTables
 typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in manager.objectTypingDict.keys()}
-for cls in ('CatomAssertion', 'StructObjectMap', 'BridgePath', 'PolariBridgeInstance'):
+for cls in ('CatomAssertion', 'StructObjectMap', 'BridgePath', 'PolariBridgeInstance', 'CatomVariable'):
     check('class %s is typed after boot' % cls, cls in typed)
 n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
 check('seeds landed: 7 catom assertions, 1 struct-object map, 2 bridge paths, 1 Polari bridge',
@@ -41,5 +41,11 @@ check('GET /api/cmod/catom-assertions/uno-light: the stored rows, telemetry_send
 r = client.simulate_get('/api/grpc/bench-bridges/home-bench', params={'view': 'bridges'})
 check('GET /api/grpc/bench-bridges/home-bench?view=bridges: the UNO bridge bound to https://api.polari-pol.isle',
       r.status_code == 200 and r.json['rows'][0]['status'] == 'bound' and r.json['rows'][0]['polari_node_url'] == 'https://api.polari-pol.isle', r.text[:300])
+check('hsp-3d seeds landed: 11 catom variables (uno-light 6 + esp32c3-light 5)', n('CatomVariable') == 11, n('CatomVariable'))
+r = client.simulate_get('/api/cmod/catom-variables/uno-light', params={'view': 'header'})
+check('GET /api/cmod/catom-variables/uno-light?view=header carries UART0_TX_PIN PD1 from the stored rows', r.status_code == 200 and '#define UART0_TX_PIN   PD1' in r.json['text'], r.text[:300])
+r = client.simulate_post('/api/cmod/catom-variables/uno-light/check', json={'variable': 'UART0_TX_PIN', 'value': 'PD2'})
+check('POST /api/cmod/catom-variables/uno-light/check {UART0_TX_PIN: PD2} -> refused naming PD1 (TXD)', r.status_code == 200 and r.json['verdict'] == 'refused'
+      and 'PD1 (TXD)' in r.json['why'][0], r.text[:300])
 print('\n%d/%d passed' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

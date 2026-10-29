@@ -216,3 +216,7 @@ from cmod.cmod_basis import CatomAssertion, StructObjectMap  # noqa: E402
 from cmod.custom.catom_assertions import SEED_ASSERTIONS as _CA_SEEDS, SEED_STRUCT_OBJECT_MAPS as _SOM_SEEDS  # noqa: E402
 CMOD_SEED_PAIRS.append(('StructObjectMap', StructObjectMap, _owned(_SOM_SEEDS)))
 CMOD_SEED_PAIRS.append(('CatomAssertion', CatomAssertion, _owned(_CA_SEEDS, keep=('notes', 'status', 'status_why'))))
+# hsp-3d: the catom variables of uno-light + esp32c3-light (the HAL macros, cited; status recomputed on read - cmod.custom.catom_variables.check)
+from cmod.cmod_basis import CatomVariable  # noqa: E402
+from cmod.custom.catom_variables import SEED_VARIABLES as _CV_SEEDS  # noqa: E402
+CMOD_SEED_PAIRS.append(('CatomVariable', CatomVariable, _owned(_CV_SEEDS, keep=('notes', 'status', 'status_why', 'bench_value', 'bench_basis'))))

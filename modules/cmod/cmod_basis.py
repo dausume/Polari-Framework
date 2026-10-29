@@ -12,7 +12,7 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                HardwareMission, MissionGoalState, MissionSettingsState, MissionPurposeState, MissionParticipantState, MissionConstraintState, MissionResolutionState,
                                AtomJob, IsotopeVariant, SolveRun,
                                TaskDefinition, TaskTrigger, TaskStructBinding, TaskPlan,
-                               CatomAssertion, StructObjectMap)
+                               CatomAssertion, StructObjectMap, CatomVariable)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -37,7 +37,9 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 # fgm-3: the Task Plan of a Mission on one Hardware System, derived and editable
                 TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
                 # hsp-3a: what a catom asserts it does to a struct / a bridge (verified by a twin record), and the struct -> Polari class map (D-hsp-8)
-                CatomAssertion, StructObjectMap]
+                CatomAssertion, StructObjectMap,
+                # hsp-3d: Catom variables = the generalized HAL (a named value that is also a defines-role assertion, checked before it counts)
+                CatomVariable]
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]

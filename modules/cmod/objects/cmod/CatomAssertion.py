@@ -9,7 +9,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 class CatomAssertion(treeObject):
     """What it is: a claim a C atom makes about what its code DOES to a struct or a bridge (his word, 2026-10-28: "we assert a piece of code changes a struct
     or parts of a struct, or that it sends data to or from bridges"). `kind` is changes-struct (the whole struct) | changes-field (the named `fields`) |
-    reads-field (the atom reads the named fields and drives `pins` from them: the struct controls the hardware) | sends-to-bridge | receives-from-bridge.
+    reads-field (the atom reads the named fields and drives `pins` from them: the struct controls the hardware) | sends-to-bridge | receives-from-bridge |
+    defines-role (hsp-3d: a CatomVariable's value - UART0_TX_PIN = PD1 asserts uart.tx at PD1; derived from the variable, never hand-written).
     `pins` are the pins the atom touches to do it, `lane` where it runs (isr | loop | task | userspace - the Task Plan's lane words + userspace, D-hsp-5),
     `event` what sets it off (edge-rise | edge-fall | level | poll | uart-rx | uart-tx | ui | boot), `updater` HW (the chip) | US (userspace) - the struct's
     lastUpdater - and `stamps` the timestamp it writes (timestampHW | timestampUS | both | none). `object_map` names the StructObjectMap whose field -> attribute pairs

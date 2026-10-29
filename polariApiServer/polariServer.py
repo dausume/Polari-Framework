@@ -1395,6 +1395,8 @@ class polariServer(treeObject):
             TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
             # hsp-3a: catom assertions (what an atom does to a struct / a bridge, verified by a twin record) + the struct -> Polari class map (D-hsp-8)
             CatomAssertion, StructObjectMap,
+            # hsp-3d: Catom variables - the generalized HAL (value per scope chip -> board -> bench, checked against pin functions + lifecycle)
+            CatomVariable,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

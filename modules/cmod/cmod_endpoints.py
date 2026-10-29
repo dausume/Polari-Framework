@@ -17,7 +17,7 @@ from cmod.cmod_task_plan_api import TaskPlanAPI   # fgm-3
 from cmod.cmod_template_api import TemplateAPI   # ed-0
 from cmod.cmod_fsc_api import FscAPI   # fsc-2
 from cmod.cmod_budget_api import BudgetAPI   # ipb-1
-from cmod.cmod_catom_api import CatomAssertionAPI   # hsp-3a
+from cmod.cmod_catom_api import CatomAssertionAPI, CatomVariableAPI   # hsp-3a, hsp-3d
 
 
 def construct_cmod_endpoints(polServer):
@@ -35,4 +35,5 @@ def construct_cmod_endpoints(polServer):
     api.budget = BudgetAPI(polServer=polServer, manager=polServer.manager)   # ipb-1: /api/missions/{name}/budget, /api/benches/{bench}/budget, /api/hart-facts
     api.fsc = FscAPI(polServer=polServer, manager=polServer.manager)   # fsc-2: /api/firmware-scores[/top|/breakdown|/values], /api/firmware-score-profiles
     api.catom_assertions = CatomAssertionAPI(polServer=polServer, manager=polServer.manager)   # hsp-3a: /api/cmod/catom-assertions/{variant}
+    api.catom_variables = CatomVariableAPI(polServer=polServer, manager=polServer.manager)   # hsp-3d: /api/cmod/catom-variables/{variant}[/check]
     return api

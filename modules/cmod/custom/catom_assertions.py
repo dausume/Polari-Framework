@@ -21,7 +21,7 @@ writes. So a bridge assertion is VERIFIED when the record shows the traffic (byt
 """
 import json
 
-KINDS = ('changes-struct', 'changes-field', 'reads-field', 'sends-to-bridge', 'receives-from-bridge')
+KINDS = ('changes-struct', 'changes-field', 'reads-field', 'sends-to-bridge', 'receives-from-bridge', 'defines-role')   # defines-role: hsp-3d, derived from a CatomVariable
 LANES = ('isr', 'loop', 'task', 'userspace', 'init')     # D-hsp-5 (recommended): the Task Plan's lane words + userspace
 EVENTS = ('edge-rise', 'edge-fall', 'level', 'poll', 'uart-rx', 'uart-tx', 'ui', 'boot')
 STATUSES = ('verified', 'unverified', 'false')
