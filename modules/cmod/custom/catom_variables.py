@@ -22,7 +22,9 @@ The rules, in order (a refusal stops nothing - every reason is reported):
      D1 fights the 16U2); conditional / preserve = a warning
      - a row with a condition is judged in the board's context (pin_stages.DEFAULT_CONTEXT): one that does not hold is listed as not applied
   4. no other variable of the variant claims the pin for a different role
-A number role (clock.hz) needs a positive number. The electrical check needs a bench net and is not run here (said on every row).
+A number role (clock.hz) needs a positive number.
+  5. hsp-3d's owed rule: the electrical check against the bench wiring (cmod.custom.hal_electrical) - a second output on a net = refused; the wrong direction or a
+     firmware move the wire does not follow = a warning; no wiring rows for the board = undetermined, said
 """
 import fnmatch
 import re
@@ -39,7 +41,6 @@ C3_ROLE_FUNCTIONS = {'uart.tx': ('U0TXD', True), 'uart.rx': ('U0RXD', True), 'in
 #: words by which a lifecycle reason names the role's OWN peripheral (then a reservation is that peripheral's, and the role is its rightful user: a warning)
 ROLE_KEYWORDS = {'uart.tx': ('TXD', 'USART0', 'UART0', 'serial'), 'uart.rx': ('RXD', 'USART0', 'UART0', 'serial'), 'int.ext': ('INT0', 'INT1', 'interrupt'),
                  'adc.in': ('ADC',), 'pwm.out': ('PWM', 'OC0', 'OC1', 'OC2')}
-_ELECTRICAL = 'electrical check: not run for a role assignment (it needs the bench net the pin drives)'
 
 _TX = 'ATmega328P DS40002061B Table 14-9 Port D Pins Alternate Functions p.97 (soc_atmega328p.PINS)'
 _C3_UART = 'ESP32-C3 datasheet §4.2.1.1 UART Controller p.46: IO MUX pins GPIO20 (U0RXD) / GPIO21 (U0TXD); Table 2-7 p.24 (esp32c3_tables.PRIORITY)'
@@ -198,7 +199,17 @@ def check(var, value, others=(), context=None):
         if ov and resolve_pin(soc, ov) == pin and _get(o, 'role') != role:
             refusals.append(len(why))
             why.append('%s already claims %s as %s: one pin, one role' % (_get(o, 'variable'), pin, _get(o, 'role')))
-    why.append(_ELECTRICAL)
+    # hsp-3d's owed electrical rule (cmod.custom.hal_electrical): the pin against the bench wiring (BoardPinNet rows) + electrical_check's findings for its net
+    from cmod.custom import hal_electrical as HE
+    board_pin = board_form(soc, pin, 'arduino-number') if soc == 'atmega328p' else pin
+    was = resolve_pin(soc, _get(var, '_was') or '') if _get(var, '_was') else ''
+    e = HE.role_check(var, board_pin, (board_form(soc, was, 'arduino-number') if soc == 'atmega328p' else was) if was else board_pin, others)
+    for line in e['lines']:
+        if e['effect'] == 'refused':
+            refusals.append(len(why))
+        elif e['effect'] == 'warning':
+            warned = True
+        why.append(line)
     return {'verdict': 'refused' if refusals else 'warning' if warned else 'accepted', 'why': why, 'pin': pin, 'function': fn,
             'refusals': [why[i] for i in refusals]}
 
@@ -309,8 +320,9 @@ def slots(var, others=(), soc_pins=None):
     if _get(var, 'role') in NUMBER_ROLES:
         return {'variable': _get(var, 'variable'), 'role': _get(var, 'role'), 'options': [], 'refused': 0, 'note': 'a number, not a pin'}
     opts, refused = [], 0
+    probe = dict(var, _was=_get(var, 'value')) if isinstance(var, dict) else var   # hal_electrical: a slot off the current wire says so
     for p in soc_pins or pins_of(_get(var, 'soc')):
-        r = check(var, p, others)
+        r = check(probe, p, others)
         if r['verdict'] == 'refused':
             refused += 1
             continue
@@ -343,6 +355,7 @@ def propose(variant, edits, rows=None, variant_rows=None):
         if val == v['value']:
             results.append({'variable': n, 'value': val, 'pin': v['pin'], 'verdict': 'unchanged', 'why': ['%s is already %s (%s scope)' % (n, val, v['scope'])]})
             continue
+        v['_was'] = v['value']   # the pin it is on now (hal_electrical: does the wire move with it?)
         v['bench_value'], v['value'], v['scope'] = val, val, 'bench'
         changed[n] = val
     for n, val in changed.items():

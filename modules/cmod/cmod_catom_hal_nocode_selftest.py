@@ -34,8 +34,9 @@ def _fresh_rows():
 def write_path():
     from cmod.custom import catom_variables as CV
     p = CV.propose('uno-light', {'LED_PIN': 'D7'})
-    check('WRITE: LED_PIN = D7 passes the HAL check and the variant\'s rules; the write is the FirmwareVariant knob led_pin = 7 (the one place the build reads)',
-          p['ok'] and p['results'][0]['verdict'] == 'accepted' and p['writes'] == [{'target': 'FirmwareVariant', 'name': 'uno-light', 'knob': 'led_pin', 'value': 7,
+    check('WRITE: LED_PIN = D7 passes the HAL check (a WARNING since hsp-3d\'s electrical rule: nothing is wired to D7) and the variant\'s rules; the write is the '
+          'FirmwareVariant knob led_pin = 7 (the one place the build reads)',
+          p['ok'] and p['results'][0]['verdict'] == 'warning' and p['writes'] == [{'target': 'FirmwareVariant', 'name': 'uno-light', 'knob': 'led_pin', 'value': 7,
                                                                                       'variable': 'LED_PIN'}] and p['variant_rule'].startswith('ok'), p)
     p = CV.propose('uno-light', {'LED_PIN': 'D2'})
     check('THE HAL CATCHES WHAT THE VARIANT MISSES: LED_PIN = D2 - the variant\'s rules accept led_pin 2, the HAL refuses it (BUTTON_PIN holds PD2: one pin, one role)',
@@ -73,6 +74,21 @@ def conditions():
           (r['verdict'], ic['verdict']))
 
 
+def electrical():
+    from cmod.custom import catom_variables as CV
+    from cmod.custom import hal_electrical as HE
+    vs = {v['variable']: v for v in CV.variables('uno-light')}
+    moved = CV.propose('uno-light', {'LED_PIN': 'D7'})['results'][0]
+    fight = HE.role_check({'variable': 'PWM_PIN', 'role': 'pwm.out', 'board': 'arduino-uno-r3'}, 'D3', 'D3')
+    c3 = CV.variables('esp32c3-light')[2]
+    check('ELECTRICAL (hsp-3d\'s owed rule) against the bench wiring: LED_PIN at D6 is LED_CONTROL\'s output (quoting electrical_check\'s findings); LED_PIN -> D7 is '
+          'a WARNING (the wire would not move); a second output on LED_CONTROL (anything driving D3 while D6 does) is REFUSED (two outputs fight); the C3 has no wiring '
+          'rows = undetermined, never a pass', 'D6 is on LED_CONTROL as its output' in vs['LED_PIN']['status_why'] and 'single_output ok' in vs['LED_PIN']['status_why']
+          and moved['verdict'] == 'warning' and any('the wire would not' in w for w in moved['why'])
+          and fight['effect'] == 'refused' and 'two outputs fight' in fight['lines'][0] and 'D6' in fight['lines'][0]
+          and 'electrical check undetermined' in c3['status_why'] and c3['status'] == 'accepted', (moved['verdict'], fight['effect']))
+
+
 def build(cv, fv):
     from board.custom import gen
     from board.custom import gen_c3
@@ -101,8 +117,9 @@ def drawing():
     f = {s['boundObjectFieldValues']['variable']: s['boundObjectFieldValues'] for s in d['stateInstances']}
     check('DRAWING: hal-uno-light = 6 cards, every one a HalVariableState; the category validator passes it', len(d['stateInstances']) == 6
           and {s['stateClass'] for s in d['stateInstances']} == {'HalVariableState'} and HN.validate(d)[0], HN.validate(d))
-    check('SLOTS ON THE CARD: LED_PIN offers D4..D10 accepted then D11/D12/D13 as warnings, never D0-D3 (the serial line, the button, the sense pin); BUTTON_PIN offers '
-          'D2 only (the variant fixes the button to INT0); F_CPU is typed in', f['LED_PIN']['options'] == 'D4, D5, D6, D7, D8, D9, D10, D11 (warning), D12 (warning), D13 (warning)'
+    check('SLOTS ON THE CARD: LED_PIN offers D6 first - the one pin the LED is WIRED to - then D4..D13 as warnings (off the wire; D11-13 also the ICSP net / L LED), '
+          'never D0-D3 (the serial line, the button, the sense pin); BUTTON_PIN offers D2 only (the variant fixes the button to INT0); F_CPU is typed in',
+          f['LED_PIN']['options'] == 'D6, D4 (warning), D5 (warning), D7 (warning), D8 (warning), D9 (warning), D10 (warning), D11 (warning), D12 (warning), D13 (warning)'
           and f['BUTTON_PIN']['options'] == 'D2' and f['F_CPU']['options'] == 'a number, typed in', (f['LED_PIN']['options'], f['BUTTON_PIN']['options']))
 
     def edit(var, **kv):
@@ -176,6 +193,7 @@ def registered():
 def main():
     cv, fv = write_path()
     conditions()
+    electrical()
     build(cv, fv)
     drawing()
     doors()
