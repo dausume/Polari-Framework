@@ -143,6 +143,7 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
         r = V.resolve(v, knobs)
     except V.VariantRefused as e:
         raise gen.GenRefused(str(e))
+    hal = gen.hal_check(r['name'], r['knobs'], manager)
     work = work or default_work()
     project = os.path.join(work, 'project')
     shutil.rmtree(project, ignore_errors=True)
@@ -200,7 +201,8 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
                                     'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], build_flags=['%s=%d' % f for f in r['flags']]),
                                     'board_object': {'board': BOARD, 'board_sha': bsha, 'board_pins_h_sha256': gen.sha256(pins_h),
                                                      'sdkconfig_board_lines': sorted(sdk_board.values()), 'sdkconfig_changed': sdk_changed,
-                                                     'sdkconfig_added': sdk_added}}),
+                                                     'sdkconfig_added': sdk_added},
+                                    **({'catom_hal': hal} if hal else {})}),
            'notes': 'generated (variant %s, ESP-IDF project); `pol board build c3` compiles it' % r['name'], 'project_dir': project, 'work_dir': work}
     gen.write_record(work, row)
     return row

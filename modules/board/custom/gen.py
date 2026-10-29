@@ -195,6 +195,17 @@ def _check_pins(r, knobs, rows):
         raise GenRefused('; '.join(why))
 
 
+def hal_check(variant, knobs, manager=None):
+    """hsp-3c: the variant's Catom variables (the HAL) judged with the knobs this build uses - a refused one stops the build, naming why; the values
+    ride the repro block. None when the variant has no catom variables."""
+    from cmod.custom import catom_variables as CV
+    rows = list(((getattr(manager, 'objectTables', None) or {}).get('CatomVariable') or {}).values()) or None
+    hal = CV.build_check(variant, knobs, rows)
+    if hal and hal['refused']:
+        raise GenRefused('the HAL refuses this build (catom variables of %s): %s' % (variant, '; '.join(hal['refused'])))
+    return hal
+
+
 def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None, variant_rows=None, board_tables=None, **knobs):
     board = board_name(board)
     v = pick_variant(list(classes or []), variant, variant_rows)
@@ -207,6 +218,7 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     own = set(V._j(v.get('knobs_json'), {})) | {a for a, b in knobs.items() if b is not None}
     pin_prov = {k: ({'from': 'BoardPin', 'pin': pin_src.get(k, '')} if k not in own else {'from': 'variant knob', 'value': r['knobs'][k]})
                 for k in V.PIN_KNOBS}
+    hal = hal_check(r['name'], {k: r['knobs'][k] for k in own if k in r['knobs']}, manager)
     if classes and list(classes) != r['classes']:
         raise GenRefused('variant %s speaks %s, not %s' % (r['name'], ', '.join(r['classes']), ', '.join(classes)))
     work = work or default_work(board)
@@ -292,7 +304,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
                                     'knobs': dict(r['knobs'], variant=r['name'], app=r['app'], features=r['features'],
                                                   build_flags=['%s=%d' % f for f in r['flags']]),
                                     # brd-bo: where board_config.h's pin constants came from, and the board object's sha at gen time
-                                    'board_object': {'board': board, 'board_sha': bsha, 'pins': pin_prov}}),
+                                    'board_object': {'board': board, 'board_sha': bsha, 'pins': pin_prov},
+                                    # hsp-3c: the HAL values this build was judged with (catom_variables.build_check), when the variant has them
+                                    **({'catom_hal': hal} if hal else {})}),
            'notes': 'generated (variant %s); `pol board build uno` compiles it' % r['name'], 'project_dir': project, 'work_dir': work}
     write_record(work, row)
     return row

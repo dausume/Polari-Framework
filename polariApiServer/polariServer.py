@@ -1397,6 +1397,8 @@ class polariServer(treeObject):
             CatomAssertion, StructObjectMap,
             # hsp-3d: Catom variables - the generalized HAL (value per scope chip -> board -> bench, checked against pin functions + lifecycle)
             CatomVariable,
+            # hsp-3c: the HAL drawn in no-code - one card per Catom variable; a chosen value is written through catom_variables.propose
+            HalVariableState,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,

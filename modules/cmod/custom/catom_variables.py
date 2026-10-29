@@ -10,6 +10,8 @@ make - the `defines-role` Catom assertions, the pin -> role rows the views draw,
   slots(var, others)          -> the pins a role slot may offer, accepted first, then warnings (refusals left out, counted)
   role_assertions(variant)    -> CatomAssertion-shaped dicts, kind defines-role (role x pin), derived
   render_header(variant)      -> '#define UART0_TX_PIN PD1 ...' lines (the value the firmware is generated with)
+  propose(variant, edits)     -> hsp-3c: the ONE write path (a slot choice): checked against the proposed set + the variant's own rules -> writes[]
+  apply_writes(writes, ...)   -> the rows touched; a knob-backed variable (KNOB_OF) lives in its FirmwareVariant knob, the rest in bench_value
 
 The rules, in order (a refusal stops nothing - every reason is reported):
   1. the value is a pin of the SoC (UNO names D6 / A0 / 6 resolve to the SoC pin through board_uno.D_PINS / A_PINS; the C3's GPIO<n> / <n>)
@@ -18,6 +20,7 @@ The rules, in order (a refusal stops nothing - every reason is reported):
   3. the pin's lifecycle rows (lifecycle_uno / lifecycle_c3, cited): prohibited = refused; reserved BY THE ROLE'S OWN PERIPHERAL (the reason names the role's
      function or ROLE_KEYWORDS: USART0 / the serial transport on D0/D1) = a warning naming it (Optiboot); reserved by anything else = refused (a GPIO claim on
      D1 fights the 16U2); conditional / preserve = a warning
+     - a row with a condition is judged in the board's context (pin_stages.DEFAULT_CONTEXT): one that does not hold is listed as not applied
   4. no other variable of the variant claims the pin for a different role
 A number role (clock.hz) needs a positive number. The electrical check needs a bench net and is not run here (said on every row).
 """
@@ -144,10 +147,15 @@ def effective(var):
     return '', 'none', 'no value at any scope'
 
 
-def check(var, value, others=()):
-    """THE enforcement path. -> {verdict, why[], pin, function}. `others` = the variant's other variables (for the one-pin-one-role rule)."""
+def check(var, value, others=(), context=None):
+    """THE enforcement path. -> {verdict, why[], pin, function, refusals[]}. `others` = the variant's other variables (for the one-pin-one-role rule);
+    `context` = the conditions a lifecycle row is judged in (hsp-3c: the board's bench path, board.custom.pin_stages.DEFAULT_CONTEXT, plus any given) -
+    a row whose condition does not hold (D13 ICSP SCK when icsp=connected, with no programmer on the header) is listed as not applied."""
+    from board.custom.pin_stages import DEFAULT_CONTEXT, _cond_holds
+    ctx = dict(DEFAULT_CONTEXT.get(_get(var, 'board'), {}), **(context or {}))
     role, soc, name = _get(var, 'role'), _get(var, 'soc'), _get(var, 'variable')
-    why, refused, warned = [], False, False
+    why, warned = [], False
+    refusals = []
     if role not in ROLES:
         return {'verdict': 'refused', 'why': ['role %r is not a HAL role (%s)' % (role, ', '.join(ROLES))], 'pin': '', 'function': ''}
     if role in NUMBER_ROLES:
@@ -162,8 +170,8 @@ def check(var, value, others=()):
         return {'verdict': 'refused', 'why': ['%r is not a pin of the %s' % (value, soc)], 'pin': '', 'function': ''}
     fn, note = _offers(soc, pin, role)
     if not fn:
-        refused = True
         fns = [f for f in pins_of(soc)[pin] if f != 'GPIO']
+        refusals.append(len(why))
         why.append('%s = %s refused: %s offers %s, not %s; %s is offered by %s' % (
             name, pin, pin, ', '.join(fns) or 'GPIO only', role, role, ', '.join('%s (%s)' % (p, _offers(soc, p, role)[0]) for p in offering_pins(soc, role)) or 'no pin'))
     else:
@@ -174,8 +182,11 @@ def check(var, value, others=()):
             continue
         same = bool(fn) and fn != 'GPIO' and (fn.split(':')[-1] in c['reason'] or any(w in c['reason'] for w in words))
         cond = (' (when %s)' % c['condition']) if c['condition'] else ''
+        if not _cond_holds(c['condition'], ctx):
+            why.append('not applied (condition %s does not hold here): %s %s in %s' % (c['condition'], c['pin'], c['policy'], c['phase'].upper()))
+            continue
         if c['policy'] == 'prohibited' or (c['policy'] == 'reserved' and not same):
-            refused = True
+            refusals.append(len(why))
             why.append('%s is %s in %s%s: %s [%s]' % (c['pin'], c['policy'], c['phase'].upper(), cond, c['reason'], c['page_table']))
         else:
             warned = True
@@ -185,10 +196,11 @@ def check(var, value, others=()):
             continue
         ov, _s, _b = effective(o)
         if ov and resolve_pin(soc, ov) == pin and _get(o, 'role') != role:
-            refused = True
+            refusals.append(len(why))
             why.append('%s already claims %s as %s: one pin, one role' % (_get(o, 'variable'), pin, _get(o, 'role')))
     why.append(_ELECTRICAL)
-    return {'verdict': 'refused' if refused else 'warning' if warned else 'accepted', 'why': why, 'pin': pin, 'function': fn}
+    return {'verdict': 'refused' if refusals else 'warning' if warned else 'accepted', 'why': why, 'pin': pin, 'function': fn,
+            'refusals': [why[i] for i in refusals]}
 
 
 def _rows(variant, rows):
@@ -196,13 +208,100 @@ def _rows(variant, rows):
     return [{k: _get(r, k) for k in SEED_VARIABLES[0]} for r in src if _get(r, 'variant') == variant]
 
 
-def variables(variant, rows=None):
-    vs = _rows(variant, rows)
+# ------------------------------------------------------------------------------------------------ hsp-3c: the bench scope IS the variant knob
+#: a HAL variable whose bench value the firmware build reads from a FirmwareVariant knob: the knob is the ONE place it lives (the variable reads it,
+#: a slot choice writes it, `pol board gen` renders it into board_config.h) - never a second copy that could drift
+KNOB_OF = {'LED_PIN': 'led_pin', 'BUTTON_PIN': 'button_pin', 'SENSE_PIN': 'sense_pin'}
+
+
+def _variants_mod(soc):
+    if soc == 'atmega328p':
+        from board.custom import variants as V
+    elif soc == 'esp32c3':
+        from board.custom import variants_c3 as V
+    else:
+        return None
+    return V
+
+
+def variant_knobs(variant, soc, variant_rows=None):
+    """{knob: value} the variant itself sets (knobs_json; the C3 light app's LIGHT_KNOBS under them); {} when there is no such variant."""
+    V = _variants_mod(soc)
+    if V is None:
+        return {}
+    try:
+        d = V.find(variant, variant_rows)
+    except V.VariantRefused:
+        return {}
+    k = dict(V._j(d.get('knobs_json'), {}))
+    if soc == 'esp32c3' and d.get('app') == 'light':
+        k = dict(V.LIGHT_KNOBS, **k)
+    return k
+
+
+def board_form(soc, pin, c_form=''):
+    """The value as the variable is written: the UNO's arduino-number variables keep D<n> / A<n>; every other form the SoC pin."""
+    if soc == 'atmega328p' and c_form == 'arduino-number':
+        from board.custom.board_uno import D_PINS, A_PINS
+        return next((c for c, (s, _n) in list(D_PINS.items()) + list(A_PINS.items()) if s == pin), pin)
+    return pin
+
+
+def knob_number(soc, pin):
+    """The integer the variant knob holds for a pin: the Arduino number on the UNO (A0 = 14), the GPIO number on the C3."""
+    if soc == 'atmega328p':
+        name = board_form(soc, pin, 'arduino-number')
+        return int(name[1:]) + (14 if name.startswith('A') else 0)
+    return int(pin.replace('GPIO', ''))
+
+
+def _knob_value(soc, n):
+    if soc == 'atmega328p':
+        n = int(n)
+        return 'D%d' % n if n < 14 else 'A%d' % (n - 14)
+    return 'GPIO%d' % int(n)
+
+
+def _overlay(vs, variant, variant_rows):
+    """Lay the variant's own knobs over the bench scope of the knob-backed variables."""
+    soc = vs[0]['soc'] if vs else ''
+    k = variant_knobs(variant, soc, variant_rows)
+    for v in vs:
+        knob = KNOB_OF.get(v['variable'])
+        if knob and knob in k:
+            v['bench_value'] = _knob_value(soc, k[knob])
+            v['bench_basis'] = 'FirmwareVariant %s knobs %s %s (the bench wiring; a slot choice writes it there)' % (variant, knob, k[knob])
+    return vs
+
+
+def _judge(vs):
     for v in vs:
         v['value'], v['scope'], v['value_basis'] = effective(v)
         r = check(v, v['value'], vs)
         v['status'], v['status_why'], v['pin'], v['function'] = r['verdict'], '; '.join(r['why']), r['pin'], r['function']
+        v['refusals'] = r.get('refusals') or ([r['why'][0]] if r['verdict'] == 'refused' else [])
     return vs
+
+
+def variables(variant, rows=None, variant_rows=None):
+    return _judge(_overlay(_rows(variant, rows), variant, variant_rows))
+
+
+def build_check(variant, knobs, rows=None):
+    """hsp-3c, what `pol board gen` asks: the variant's HAL with the knobs the build ACTUALLY uses (`knobs` = the ones the variant or the command set,
+    resolved) laid over the bench scope. -> None when the variant has no catom variables, else {refused: ['VAR = value: reason'], values: {VAR: value},
+    verdicts: {VAR: verdict}} - a refused one stops the build."""
+    vs = _rows(variant, rows)
+    if not vs:
+        return None
+    soc = vs[0]['soc']
+    for v in vs:
+        knob = KNOB_OF.get(v['variable'])
+        if knob and knob in knobs:
+            v['bench_value'], v['bench_basis'] = _knob_value(soc, knobs[knob]), 'the build\'s knob %s = %s' % (knob, knobs[knob])
+    vs = _judge(vs)
+    return {'refused': ['%s = %s: %s' % (v['variable'], v['value'], ' | '.join(v['refusals'])) for v in vs if v['status'] == 'refused'],
+            'values': {v['variable']: v['value'] for v in vs}, 'verdicts': {v['variable']: v['status'] for v in vs}}
 
 
 def slots(var, others=(), soc_pins=None):
@@ -220,10 +319,96 @@ def slots(var, others=(), soc_pins=None):
     return {'variable': _get(var, 'variable'), 'role': _get(var, 'role'), 'options': opts, 'refused': refused}
 
 
-def role_assertions(variant, rows=None):
+def propose(variant, edits, rows=None, variant_rows=None):
+    """hsp-3c, THE write path (the no-code slot choice, PUT the drawing, POST /set): `edits` = {variable: value}. Every edit is checked against the
+    PROPOSED set (so two pins can swap in one write), then the variant's own rules (variants.resolve with the knobs overridden) - both must pass.
+    -> {ok, results[{variable, value, pin, verdict, why}], variant_rule, writes[]}; nothing is written here - the door applies `writes`:
+       {target: FirmwareVariant, name, knob, value} for a knob-backed variable, {target: CatomVariable, name, field: bench_value, value, basis} otherwise.
+    An unchanged value is skipped (said); one refusal refuses the whole write."""
+    vs = variables(variant, rows, variant_rows)
+    by = {v['variable']: v for v in vs}
+    unknown = [n for n in edits if n not in by]
+    if unknown:
+        return {'ok': False, 'results': [], 'variant_rule': '', 'writes': [],
+                'error': 'no catom variable %s on %s (it has %s)' % (', '.join(unknown), variant, ', '.join(by))}
+    proposed, changed, results = [dict(v) for v in vs], {}, []
+    pby = {v['variable']: v for v in proposed}
+    for n, raw in edits.items():
+        v = pby[n]
+        if v['role'] in NUMBER_ROLES:
+            val = str(raw).strip()
+        else:
+            pin = resolve_pin(v['soc'], raw)
+            val = board_form(v['soc'], pin, v['c_form']) if pin else str(raw).strip()
+        if val == v['value']:
+            results.append({'variable': n, 'value': val, 'pin': v['pin'], 'verdict': 'unchanged', 'why': ['%s is already %s (%s scope)' % (n, val, v['scope'])]})
+            continue
+        v['bench_value'], v['value'], v['scope'] = val, val, 'bench'
+        changed[n] = val
+    for n, val in changed.items():
+        r = check(pby[n], val, proposed)
+        results.append({'variable': n, 'value': val, 'pin': r['pin'], 'verdict': r['verdict'], 'why': r['why'], 'refusals': r.get('refusals') or r['why'][:1]})
+    ok = all(r['verdict'] != 'refused' for r in results)
+    soc = vs[0]['soc'] if vs else ''
+    overrides = {KNOB_OF[n]: knob_number(soc, resolve_pin(soc, val)) for n, val in changed.items() if n in KNOB_OF and resolve_pin(soc, val)}
+    rule = 'no knob-backed variable changed: the variant rules were not asked'
+    V = _variants_mod(soc)
+    if overrides and V is not None:
+        try:
+            V.resolve(V.find(variant, variant_rows), overrides)
+            rule = 'ok: variant %s accepts %s' % (variant, ', '.join('%s=%s' % kv for kv in sorted(overrides.items())))
+        except V.VariantRefused as e:
+            ok, rule = False, 'refused by the variant\'s own rule: %s' % e
+    writes = []
+    if ok:
+        for n, val in changed.items():
+            if KNOB_OF.get(n) in overrides:
+                writes.append({'target': 'FirmwareVariant', 'name': variant, 'knob': KNOB_OF[n], 'value': overrides[KNOB_OF[n]], 'variable': n})
+            else:
+                verdict = next(r['verdict'] for r in results if r['variable'] == n)
+                writes.append({'target': 'CatomVariable', 'name': by[n]['name'], 'field': 'bench_value', 'value': val, 'variable': n,
+                               'basis': 'no-code slot choice (%s); checked by catom_variables.check' % verdict})
+    return {'ok': ok, 'results': results, 'variant_rule': rule, 'writes': writes}
+
+
+def apply_writes(writes, cv_rows, variant_rows):
+    """Apply propose()'s writes to row objects or dicts in place -> (rows touched (the door saves them), written[], not_written[]). A row missing
+    from the given rows (a seed with no stored row) is reported, never invented."""
+    import json
+    touched, written, missing = [], [], []
+    for w in writes:
+        if w['target'] == 'FirmwareVariant':
+            row = next((r for r in variant_rows or [] if _get(r, 'name') == w['name']), None)
+            if row is None:
+                missing.append('FirmwareVariant %s (no stored row: knob %s not written)' % (w['name'], w['knob']))
+                continue
+            k = dict(json.loads(_get(row, 'knobs_json') or '{}'), **{w['knob']: w['value']})
+            _set(row, 'knobs_json', json.dumps(k, sort_keys=True))
+            written.append('FirmwareVariant %s knob %s = %s' % (w['name'], w['knob'], w['value']))
+        else:
+            row = next((r for r in cv_rows or [] if _get(r, 'name') == w['name']), None)
+            if row is None:
+                missing.append('CatomVariable %s (no stored row)' % w['name'])
+                continue
+            _set(row, 'bench_value', w['value'])
+            _set(row, 'bench_basis', w['basis'])
+            written.append('CatomVariable %s bench_value = %s' % (w['name'], w['value']))
+        if not any(row is t for t in touched):
+            touched.append(row)
+    return touched, written, missing
+
+
+def _set(o, k, v):
+    if isinstance(o, dict):
+        o[k] = v
+    else:
+        setattr(o, k, v)
+
+
+def role_assertions(variant, rows=None, variant_rows=None):
     """Each pin variable's value, as the Catom assertion it makes: kind defines-role, the role x the pin, by the catoms that read it."""
     out = []
-    for v in variables(variant, rows):
+    for v in variables(variant, rows, variant_rows):
         if v['type'] != 'pin' or not v['pin']:
             continue
         for atom in [a for a in (v['used_by'] or '').split(',') if a] or ['(no catom named)']:
@@ -233,10 +418,10 @@ def role_assertions(variant, rows=None):
     return out
 
 
-def pin_roles(variant, rows=None):
+def pin_roles(variant, rows=None, variant_rows=None):
     """What the pin view draws at each pin: role, variable, verdict - from the same rows the rules read."""
     return [{'pin': v['pin'], 'role': v['role'], 'variable': v['variable'], 'value': v['value'], 'scope': v['scope'], 'verdict': v['status']}
-            for v in variables(variant, rows) if v['type'] == 'pin' and v['pin']]
+            for v in variables(variant, rows, variant_rows) if v['type'] == 'pin' and v['pin']]
 
 
 def _c_value(v):
@@ -251,10 +436,10 @@ def _c_value(v):
     return v['pin'] or val
 
 
-def render_header(variant, rows=None):
+def render_header(variant, rows=None, variant_rows=None):
     """The HAL lines the firmware is generated with: one #define per variable that is not refused (a refused one is a comment saying why)."""
     lines = ['/* GENERATED from the catom variables of %s (cmod.custom.catom_variables, hsp-3d) - each value checked against the pin functions + lifecycle */' % variant]
-    for v in variables(variant, rows):
+    for v in variables(variant, rows, variant_rows):
         if v['status'] == 'refused':
             lines.append('/* %s REFUSED: %s */' % (v['variable'], v['status_why'].split('; ')[0]))
             continue

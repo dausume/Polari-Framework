@@ -13,7 +13,14 @@ GET /api/cmod/catom-variables/{variant}[?view=variables|assertions|pins|header|s
         pin view draws (pin, role, variable, verdict); header = {text} the HAL lines the firmware is generated with; slots = the pins a role slot offers (needs
         `variable`). 404 no variables for the variant; 422 unknown view / variable.
 POST /api/cmod/catom-variables/{variant}/check  body {variable, value}  -> {verdict, why[], pin, function}: the same check a value passes before it counts;
-        NOTHING is written (choosing a slot writes the bench value in hsp-3c).
+        NOTHING is written.
+POST /api/cmod/catom-variables/{variant}/set    body {variable, value} (or {edits: {variable: value, ...}})   hsp-3c: THE slot-choice write. Checked by
+        catom_variables.propose (pin functions, lifecycle, one pin one role against the proposed set, then the variant's own rules); a knob-backed variable
+        (LED_PIN / BUTTON_PIN / SENSE_PIN) is written to its FirmwareVariant knob - the value `pol board gen` renders - the rest to the variable's bench
+        value. 422 + every reason when refused (nothing written). -> {ok, results[], variant_rule, written[], not_written[]}
+GET  /api/cmod/catom-variables/{variant}/solution   the variant's HAL drawn as a no-code solution (category 'hal'): {ok, solution, definition}
+PUT  /api/cmod/catom-variables/{variant}/solution   body = the drawing; a card's new `value` goes through the same write; 422 naming the state when the
+        drawing holds a non-HAL kind or an edit to a worked-out field, or the write is refused. -> {ok, why, results[], written[], solution, definition}
 """
 import falcon
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -69,29 +76,54 @@ class CatomVariableAPI(treeObject):
         if polServer is not None and getattr(polServer, 'falconServer', None) is not None:
             polServer.falconServer.add_route('/api/cmod/catom-variables/{variant}', self)
             polServer.falconServer.add_route('/api/cmod/catom-variables/{variant}/check', self, suffix='check')
+            polServer.falconServer.add_route('/api/cmod/catom-variables/{variant}/set', self, suffix='set')
+            polServer.falconServer.add_route('/api/cmod/catom-variables/{variant}/solution', self, suffix='solution')
+
+    def _table(self, cls):
+        return list(((getattr(self.manager, 'objectTables', None) or {}).get(cls) or {}).values())
 
     def _stored(self):
-        table = (getattr(self.manager, 'objectTables', None) or {}).get('CatomVariable') or {}
-        return list(table.values()) or None
+        return self._table('CatomVariable') or None
+
+    def _variant_rows(self):
+        return self._table('FirmwareVariant') or None
+
+    def _save(self, row):
+        db = getattr(self.manager, 'db', None) if self.manager is not None else None
+        if db is not None and hasattr(db, 'saveInstanceInDB'):
+            db.saveInstanceInDB(row)
+
+    def _apply(self, variant, proposal):
+        """Apply a passed proposal's writes to the stored rows, save them, keep the stored `hal-<variant>` drawing in step -> (written, not_written)."""
+        touched, written, missing = CV.apply_writes(proposal['writes'], self._stored(), self._variant_rows())
+        for row in touched:
+            self._save(row)
+        if touched:
+            from cmod.custom import hal_nocode as HN
+            live = next((r for r in self._table('SolutionDefinition') if getattr(r, 'name', '') == HN.solution_name(variant)), None)
+            if live is not None:
+                live.definition = HN.render(variant, self._stored(), self._variant_rows())['definition']
+                self._save(live)
+        return written, missing
 
     def _fail(self, response, status, text):
         response.status = status
         response.media = {'ok': False, 'error': text}
 
     def on_get(self, request, response, variant):
-        rows = self._stored()
-        vs = CV.variables(variant, rows)
+        rows, vrows = self._stored(), self._variant_rows()
+        vs = CV.variables(variant, rows, vrows)
         if not vs:
             return self._fail(response, falcon.HTTP_404, 'no catom variables for variant %r' % variant)
         view = request.get_param('view') or 'variables'
         if view == 'variables':
             out = vs
         elif view == 'assertions':
-            out = CV.role_assertions(variant, rows)
+            out = CV.role_assertions(variant, rows, vrows)
         elif view == 'pins':
-            out = CV.pin_roles(variant, rows)
+            out = CV.pin_roles(variant, rows, vrows)
         elif view == 'header':
-            response.media = {'ok': True, 'variant': variant, 'view': view, 'text': CV.render_header(variant, rows)}
+            response.media = {'ok': True, 'variant': variant, 'view': view, 'text': CV.render_header(variant, rows, vrows)}
             return
         elif view == 'slots':
             var = next((v for v in vs if v['variable'] == request.get_param('variable')), None)
@@ -105,8 +137,44 @@ class CatomVariableAPI(treeObject):
 
     def on_post_check(self, request, response, variant):
         body = _json(request)
-        vs = CV.variables(variant, self._stored())
+        vs = CV.variables(variant, self._stored(), self._variant_rows())
         var = next((v for v in vs if v['variable'] == body.get('variable')), None)
         if var is None:
             return self._fail(response, falcon.HTTP_422, 'variable must be one of %s' % ', '.join(v['variable'] for v in vs))
         response.media = dict(CV.check(var, body.get('value', ''), vs), ok=True, variant=variant, variable=var['variable'], written=False)
+
+    def on_post_set(self, request, response, variant):
+        body = _json(request)
+        edits = body.get('edits') if isinstance(body.get('edits'), dict) else ({body['variable']: body.get('value', '')} if body.get('variable') else {})
+        if not edits:
+            return self._fail(response, falcon.HTTP_422, 'body needs {variable, value} or {edits: {variable: value}}')
+        p = CV.propose(variant, edits, self._stored(), self._variant_rows())
+        if p.get('error'):
+            return self._fail(response, falcon.HTTP_422, p['error'])
+        if not p['ok']:
+            response.status = falcon.HTTP_422
+            response.media = dict(p, ok=False, refused=True, written=[])
+            return
+        written, missing = self._apply(variant, p)
+        response.media = dict(p, ok=True, variant=variant, written=written, not_written=missing)
+
+    def on_get_solution(self, request, response, variant):
+        from cmod.custom import hal_nocode as HN
+        rows, vrows = self._stored(), self._variant_rows()
+        if not CV.variables(variant, rows, vrows):
+            return self._fail(response, falcon.HTTP_404, 'no catom variables for variant %r' % variant)
+        response.media = {'ok': True, 'solution': HN.render(variant, rows, vrows), 'definition': HN.render_definition(variant, rows, vrows)}
+
+    def on_put_solution(self, request, response, variant):
+        from cmod.custom import hal_nocode as HN
+        body = _json(request)
+        definition = body.get('definition') if isinstance(body.get('definition'), dict) else body
+        ok, why, p = HN.write_back(definition, variant, self._stored(), self._variant_rows())
+        if not ok:
+            response.status = falcon.HTTP_422
+            response.media = {'ok': False, 'refused': True, 'error': why, 'results': p.get('results', []), 'variant_rule': p.get('variant_rule', '')}
+            return
+        written, missing = self._apply(variant, p)
+        rows, vrows = self._stored(), self._variant_rows()
+        response.media = {'ok': True, 'why': why, 'results': p['results'], 'written': written, 'not_written': missing,
+                          'solution': HN.render(variant, rows, vrows), 'definition': HN.render_definition(variant, rows, vrows)}
