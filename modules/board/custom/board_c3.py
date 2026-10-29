@@ -83,6 +83,12 @@ def facts():
     ng, where = r['soc']['ngpios']
     out.append(_f('gpio.ngpios', ng, 'pins', where, 'the GPIO controller counts 0..25; the QFN32 table bonds GPIO0..21 (22 SocPin rows)', zdoc, zrev, zurl + where.split(':')[0]))
     out.append(_f('usb_serial_jtag.pins', 'GPIO18 USB_D-, GPIO19 USB_D+', '', 'Table 2-6 Analog Functions, p.21; §2.3.3 (USB pins default to the USB Serial/JTAG controller)'))
+    # 2026-10-29 (the C3 light design's electrical check): the chip's own numbers, read from the same datasheet file (sha256 re-verified)
+    out.append(_f('power.vdd', 3.3, 'V', 'Table 5-2 Recommended Operating Conditions, p.54', 'VDDA / VDD3P3 / VDD3P3_RTC / VDD3P3_CPU: min 3.0, typ 3.3, max 3.6 V - the typical value is '
+                  'the logic level the electrical check uses (one chip, one IO supply class)'))
+    out.append(_f('io.ioh_drive3', 40, 'mA', 'Table 5-4 DC Characteristics (3.3 V, 25 °C), p.55', 'IOH high-level source current, TYPICAL (no min / max printed), at VDD = 3.3 V, '
+                  'VOH >= 2.64 V, PAD_DRIVER = 3 - a typical drive figure, NOT an absolute maximum rating'))
+    out.append(_f('io.iol_drive3', 28, 'mA', 'Table 5-4 DC Characteristics (3.3 V, 25 °C), p.55', 'IOL low-level sink current, TYPICAL, at VDD = 3.3 V, VOL = 0.495 V, PAD_DRIVER = 3'))
     for f in r['files']:
         out.append(_f('zephyr.%s' % os.path.basename(f['path']), f['sha256'], 'sha256', f['path'], 'ingested verbatim', zdoc, zrev, zurl + f['path'], board=BOARD))
     return out
@@ -137,6 +143,9 @@ def board_pins():
                        'undetermined': 'the header position is a note, not a ConnectorPin (the headers are not modelled)', 'notes': ''}
     for c, row in rows.items():
         row['facts_json'] = json.dumps(sorted(set(json.loads(row['facts_json'] or '[]')) | {'%s:pin.%s' % (SOC, c)}))
+        if row.get('function') != 'usb' and row.get('electrical_json', '{}') == '{}':
+            # the chip's TYPICAL source current at drive strength 3 (datasheet Table 5-4 p.55) - the electrical check names it as typical, not a maximum
+            row['electrical_json'] = json.dumps({'max_ma': 40, 'fact': '%s:io.ioh_drive3' % SOC, 'kind': 'typical IOH at PAD_DRIVER 3 (not an absolute maximum)'})
     return [rows[c] for c in sorted(rows, key=lambda c: int(c[4:]))]
 
 

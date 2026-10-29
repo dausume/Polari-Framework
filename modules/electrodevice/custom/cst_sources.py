@@ -97,7 +97,8 @@ def pin_writer(config, manager=None):
             m = re.match(r'(\w+) \((\w+)\) via (\w+)', f['controls'])
             if not m:
                 continue
-            writers = [w.split(' ')[0] for w in f['writers'].split(', ') if w and not w.startswith('main')]
+            # split the "fn (how), fn (how)" list OUTSIDE the parentheses: a note like "(zeroed at init, via memset)" holds a comma of its own
+            writers = [w.split(' ')[0] for w in re.split(r',\s*(?![^()]*\))', f['writers']) if w and not w.startswith('main')]
             return {'pin': m.group(1), 'knob': m.group(2), 'reader': m.group(3), 'field': f['field'], 'object': f['object'], 'writers': sorted(set(writers)),
                     'levels': ['low', 'high'], 'direction': f['direction'],
                     'source': 'the parsed atoms (board.custom.firmware_state): %s.%s is written by %s and read by %s, which drives %s (hal_led) to the field\'s value'

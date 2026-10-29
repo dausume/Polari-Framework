@@ -25,15 +25,19 @@ def _net(row):
     return _get(row, 'name').rpartition(':')[2]
 
 
-def seed_findings():
-    """electrical_check's findings over the seeded bench circuit (cached per process)."""
-    if '_f' not in _CACHE:
+#: each board's circuit (the UNO's bench; the C3's light DESIGN - no C3 board on the bench, board_pin_nets says so on every row)
+CIRCUIT_OF = {'arduino-uno-r3': 'uno-button-clock', 'esp32-c3': 'c3-light'}
+
+
+def seed_findings(board='arduino-uno-r3'):
+    """electrical_check's findings over the board's seeded circuit (cached per process and board)."""
+    if board not in _CACHE:
         try:
             from board.custom import electrical_check as E
-            _CACHE['_f'] = E.check('uno-button-clock', 'arduino-uno-r3', E.tables_for(None))
+            _CACHE[board] = E.check(CIRCUIT_OF[board], board, E.tables_for(None)) if board in CIRCUIT_OF else []
         except Exception as e:  # noqa: BLE001 - the check is evidence, never a crash of the HAL check
-            _CACHE['_f'] = [{'rule': 'electrical_check', 'status': 'undetermined', 'subject': '', 'detail': 'electrical_check could not run: %s' % e}]
-    return _CACHE['_f']
+            _CACHE[board] = [{'rule': 'electrical_check', 'status': 'undetermined', 'subject': '', 'detail': 'electrical_check could not run: %s' % e}]
+    return _CACHE[board]
 
 
 _CACHE = {}
@@ -47,7 +51,8 @@ def role_check(var, pin, was_pin='', others=(), net_rows=None, findings=None):
     if net_rows is None:
         from board.custom.board_pin_nets import SEED_BOARD_PIN_NETS
         net_rows = SEED_BOARD_PIN_NETS
-    mine = [r for r in net_rows if _get(r, 'board_pin').partition(':')[0] == board]
+    mine = [r for r in net_rows if _get(r, 'board') == board and _get(r, 'board_pin')]
+    design = any(_get(r, 'provenance') == 'design' for r in mine)
     if not mine:
         return {'effect': '', 'lines': ['electrical check undetermined: %s has no bench wiring rows (BoardPinNet) - nothing to check %s = %s against' % (board, name, pin)]}
     at = lambda p: [r for r in mine if _get(r, 'board_pin') == '%s:%s' % (board, p)]   # noqa: E731
@@ -73,6 +78,8 @@ def role_check(var, pin, was_pin='', others=(), net_rows=None, findings=None):
             lines.append('electrical: the bench wires %s as the %s of %s, but %s is a %s role - check the wiring before using it' % (pin, rrole, net, role, want))
         elif rrole in ('output', 'driver', 'input'):
             lines.append('electrical: %s is on %s as its %s (BoardPinNet %s) - matches %s' % (pin, net, rrole, _get(r, 'name'), role))
-        for f in [f for f in (findings if findings is not None else seed_findings()) if net in f.get('subject', '') or pin in f.get('subject', '').split()]:
+        for f in [f for f in (findings if findings is not None else seed_findings(board)) if net in f.get('subject', '') or pin in f.get('subject', '').split()]:
             lines.append('  %s %s: %s' % (f['rule'], f['status'], f['detail'][:160]))
+    if design:
+        lines.append('electrical: %s\'s wiring rows are a DESIGN (no board of it on the bench) - checked as drawn, not measured' % board)
     return {'effect': effect, 'lines': lines}

@@ -26,6 +26,8 @@ import json
 import re
 
 DEFAULT_VCC = 5.0
+#: a board's chip - the PinGroupBudget rows a design is judged against are its chip's own
+SOC_OF_BOARD = {'arduino-uno-r3': 'atmega328p', 'esp32-c3': 'esp32c3'}
 DEFAULT_TEMP = '85'
 SOC = 'atmega328p'
 
@@ -208,6 +210,11 @@ def rule_abs_max_not_target(tables, design):
 
 
 # ---------------------------------------------------------------- (g) group budgets
+def _budgets(tables, design):
+    soc = design.get('soc')
+    return [b for b in tables.get('PinGroupBudget', []) if not soc or b.get('soc') == soc]
+
+
 def rule_power_budget(tables, design):
     vcc = design.get('vcc', DEFAULT_VCC)
     out, used = [], False
@@ -219,7 +226,7 @@ def rule_power_budget(tables, design):
         i, ceiling, why = load_current(ld, vcc)
         bound = i if i is not None else ceiling
         direction = ld.get('direction', 'source')
-        for b in tables.get('PinGroupBudget', []):
+        for b in _budgets(tables, design):
             if b['direction'] == direction and sp['name'] in json.loads(b['members_json']) and b['limit_class'] == 'recommended' and not b.get('undetermined'):
                 s = sums.setdefault(b['name'], [b, 0.0, []])
                 s[1] += bound if bound is not None else float('inf')
@@ -231,9 +238,13 @@ def rule_power_budget(tables, design):
             out.append(_f('power_budget', 'ok', b['title'], 'sum %s <= the recommended %s (%s)' % (_ma(total), _ma(b['limit_ma']), '; '.join(parts)), cite))
         else:
             out.append(_f('power_budget', 'refuse', b['title'], 'sum %s EXCEEDS the recommended %s (%s)' % ('unbounded' if total == float('inf') else _ma(total), _ma(b['limit_ma']), '; '.join(parts)), cite))
-    sup = next((b for b in tables.get('PinGroupBudget', []) if b['direction'] == 'supply' and b.get('undetermined')), None)
+    sup = next((b for b in _budgets(tables, design) if b['direction'] == 'supply' and b.get('undetermined')), None)
     if sup:
         out.append(_f('power_budget', 'undetermined', sup['title'], sup['undetermined'], _cite(sup)))
+    if design.get('soc') and not _budgets(tables, design):
+        out.append(_f('power_budget', 'undetermined', '(design)', 'no PinGroupBudget rows for %s: its supply / pin-group current limits are not ingested - never '
+                      'judged against another chip\'s' % design['soc'], ''))
+        return out
     if not used and not sup:
         out.append(_f('power_budget', 'ok', '(design)', 'no pin shares a budget group with a declared load'))
     return out
@@ -365,7 +376,13 @@ def check_design(board, design, tables=None, overrides=None):
         from board.custom import board_object as BO
         tables = BO.seed_tables()
     t = _ensure(tables)
-    design = dict(design, board=board)
+    # 2026-10-29: the design is judged on ITS board's chip and cited logic level (the C3 light design: esp32c3 at 3.3 V) - the UNO's stay its own
+    soc = SOC_OF_BOARD.get(board, '')
+    design = dict(design, board=board, soc=soc)
+    if 'vcc' not in design:
+        from board.custom.electrical_check import BOARD_LOGIC_LEVEL_V
+        if board in BOARD_LOGIC_LEVEL_V:
+            design['vcc'] = BOARD_LOGIC_LEVEL_V[board]
     return (rule_voh_under_load(t, design) + rule_power_budget(t, design) + rule_input_threshold(t, design)
             + rule_abs_max_not_target(t, design) + rule_lifecycle(t, design, overrides))
 

@@ -32,13 +32,15 @@ import json
 #: {'net': '+5V', 'volts': 5.0}, itself from the Arduino UNO R3 Full Pinout p.1 power header (board_uno.DOC/REV/URL
 #: — the SAME document board_uno.py cites for pinout.max_current_io below). No board here means no cited number —
 #: 'undetermined', never guessed.
-BOARD_LOGIC_LEVEL_V = {'arduino-uno-r3': 5.0}
+BOARD_LOGIC_LEVEL_V = {'arduino-uno-r3': 5.0, 'esp32-c3': 3.3}   # esp32-c3: the chip's typical VDD (fact esp32c3:power.vdd, datasheet Table 5-2 p.54)
 
 
 def _board_logic_level(board):
     v = BOARD_LOGIC_LEVEL_V.get(board)
     if v is None:
         return None, "the board's own logic level is not cited for %r" % board
+    if board == 'esp32-c3':
+        return v, 'fact esp32c3:power.vdd = %s V typical (ESP32-C3 datasheet v2.4 Table 5-2 Recommended Operating Conditions, p.54; 3.0-3.6 V recommended)' % v
     from board.custom.board_uno import DOC
     return v, "BoardHardware.power_rails_json net '+5V' = %s V (board_uno.py, %s p.1 power header)" % (v, DOC)
 

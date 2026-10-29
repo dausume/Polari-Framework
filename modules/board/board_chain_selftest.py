@@ -30,8 +30,9 @@ def run_chain(check):
           '(claims not materialized at board-seed time)',
           all(seeded.get(c) == [] for c in ('SignalRoute', 'RegisterSetting', 'RegisterFieldSetting')))
     # ucd-0c: BoardPinNet is now POPULATED — the demo bench's four rows (board.custom.board_pin_nets), code-owned
-    check('chain: BoardPinNet is populated (ucd-0c, the demo bench) — 4 rows, every one code-owned (converges)',
-          seeded.get('BoardPinNet') and len(seeded['BoardPinNet']) == 4
+    check('chain: BoardPinNet is populated (ucd-0c, the demo bench) — 4 UNO bench rows + 4 rows of the C3 light DESIGN (provenance design), every one code-owned (converges)',
+          seeded.get('BoardPinNet') and len(seeded['BoardPinNet']) == 8
+          and sum(r.get('provenance') == 'design' for r in seeded['BoardPinNet']) == 4
           and all('_converge' in r for r in seeded['BoardPinNet']))
     try:
         built = [cls(**{k: v for k, v in r.items() if k != '_converge'}) for c, cls, rows in BOARD_SEED_PAIRS if c in HC.CHAIN_CLASSES for r in rows]
