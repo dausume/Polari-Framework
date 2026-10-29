@@ -97,6 +97,47 @@ def stages():
     check('rm-1 an unknown claim is refused with the vocabulary', bad)
 
 
+RM2A = {'SREG': 8, 'CLKPR': 2, 'PRR': 7, 'MCUSR': 4, 'WDTCSR': 6, 'UDR0': 1, 'UCSR0A': 8, 'UCSR0B': 8, 'UCSR0C': 5, 'UBRR0H': 1, 'UBRR0L': 1}
+
+
+def owed_fields():
+    from board.custom import register_fields_atmega328p as RF
+    from board.custom import register_access as RA
+    from board.custom import register_taxonomy as T
+    from board.custom import hardware_chain as H
+    got = {r: sum(f['register'] == r for f in RF.FIELDS) for r in RM2A}
+    mine = [f for f in RF.FIELDS if f['register'] in RM2A]
+    check('rm-2a the UNO\'s owed fields (D-rm-4): USART0 (UDR0, UCSR0A/B/C, UBRR0H/L), CLKPR, PRR, MCUSR, WDTCSR, SREG - %d fields, every one citing its §section + page '
+          'and every register its title / section / reset value' % len(mine), got == RM2A and all('§' in f['page_table'] and 'p.' in f['page_table'] for f in mine)
+          and all(r in RF.REGISTER_CITES for r in RM2A), got)
+
+    def reset_of(reg):
+        v = 0
+        for f in [f for f in RF.FIELDS if f['register'] == reg]:
+            v |= int(f['reset_value']) << f['bit_lo']
+        return '0x%02X' % v
+    check('rm-2a reset values agree: each register\'s printed Initial Value = its fields\' resets put together (UCSR0A 0x20 = UDRE0 set; UCSR0C 0x06 = UCSZ0 11 '
+          '(8-bit); UCSR0B / PRR / SREG / UDR0 0x00)', all(reset_of(r) == RF.REGISTER_CITES[r][2] for r in ('UCSR0A', 'UCSR0B', 'UCSR0C', 'PRR', 'SREG', 'UDR0', 'UBRR0H', 'UBRR0L')),
+          {r: (reset_of(r), RF.REGISTER_CITES[r][2]) for r in ('UCSR0A', 'UCSR0C')})
+    acc = {k['name']: k for k in RA.ACCESS_KINDS}
+    check('rm-2a THE ACCESS VOCABULARY is rows (RegisterAccessKind): every field\'s access word has one, each with read effect, write effect, the UVM and SVD names '
+          '(or "no exact"), an example and a caution; MCUSR\'s flags are w0c = UVM W0C / SVD zeroToClear; TXC0 and WDIF are w1c',
+          not RA.problems(RF.FIELDS) and all(all(k[x] for x in ('read_effect', 'write_effect', 'uvm_policy', 'svd_access', 'example', 'caution')) for k in RA.ACCESS_KINDS)
+          and {f['access'] for f in mine if f['register'] == 'MCUSR'} == {'w0c'} and acc['w0c']['uvm_policy'] == 'W0C' and 'zeroToClear' in acc['w0c']['svd_access']
+          and {f['field']: f['access'] for f in mine}['TXC0'] == 'w1c' and {f['field']: f['access'] for f in mine}['WDIF'] == 'w1c', RA.problems(RF.FIELDS))
+    pins = {f['field']: f['affects_pin'] for f in mine if f['affects_pin']}
+    check('rm-2a the UART pins: RXEN0 overrides PD0 (RXD), TXEN0 overrides PD1 (TXD) - the fields that hand D0/D1 to USART0 (the bootloader\'s link, rm-1)',
+          pins == {'RXEN0': 'PD0', 'TXEN0': 'PD1'}, pins)
+    cites = {r: T.classify('atmega328p', r) for r in ('UCSR0A', 'MCUSR', 'SREG', 'CLKPR', 'PRR', 'WDTCSR', 'UDR0', 'UBRR0L')}
+    check('rm-2a the taxonomy now cites the register sections it read (no longer "chapter start"): UCSR0A §20.11.2, MCUSR §11.9.1, SREG §7.3.1 ...',
+          all('read rm-2a' in c['cite'] and c['verification'] == 'cited' for c in cites.values()) and '§20.11.2' in cites['UCSR0A']['cite'], {r: c['verification'] for r, c in cites.items()})
+    fr = {f['name']: f for f in H.register_fields()}
+    regs = {r['name']: r for r in H.registers()}
+    check('rm-2a the chain carries them: RegisterField MCUSR.PORF (w0c: read status / write control), UCSR0A.U2X0; Register UCSR0A no longer undetermined',
+          fr['atmega328p:MCUSR.PORF']['access'] == 'w0c' and json.loads(fr['atmega328p:MCUSR.PORF']['roles_json']) == {'read': ['status'], 'write': ['control']}
+          and 'atmega328p:UCSR0A.U2X0' in fr and regs['atmega328p:UCSR0A']['undetermined'] == '' and 'rm-2a' in regs['atmega328p:SPCR']['undetermined'])
+
+
 def door():
     from board.board_object_api import BoardObjectAPI
     api = BoardObjectAPI(polServer=None, manager=None)
@@ -117,6 +158,7 @@ def door():
 def main():
     taxonomy()
     stages()
+    owed_fields()
     door()
     print('\n%d/%d passed' % (passed, total))
     return 0 if passed == total else 1

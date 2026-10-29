@@ -46,6 +46,18 @@ REGISTER_CITES = {
     'TCCR2B': ('Timer/Counter Control Register B', '§18.11.2, p.165', '0x00', ''),
     'TIMSK2': ('Timer/Counter2 Interrupt Mask Register', '§18.11.6, p.166', '0x00', ''),
     'TIFR2': ('Timer/Counter2 Interrupt Flag Register', '§18.11.7, p.167', '0x00', '0x37'),
+    # rm-2a: reset values from each register's printed "Initial Value" row (UCSR0A 0 0 1 0 0 0 0 0 = 0x20; UCSR0C 0 0 0 0 0 1 1 0 = 0x06)
+    'SREG': ('AVR Status Register', '§7.3.1, p.20', '0x00', '0x5F'),
+    'CLKPR': ('Clock Prescale Register', '§9.12.2, p.46', 'see bit description (CLKPS from the CKDIV8 fuse)', ''),
+    'PRR': ('Power Reduction Register', '§10.11.3, p.54', '0x00', ''),
+    'MCUSR': ('MCU Status Register', '§11.9.1, p.63', 'see bit description (the flags of the reset source)', '0x54'),
+    'WDTCSR': ('Watchdog Timer Control Register', '§11.9.2, p.63', '0x00 except WDE = X', ''),
+    'UDR0': ('USART I/O Data Register 0', '§20.11.1, p.200', '0x00', ''),
+    'UCSR0A': ('USART Control and Status Register 0 A', '§20.11.2, p.200', '0x20', ''),
+    'UCSR0B': ('USART Control and Status Register 0 B', '§20.11.3, p.201', '0x00', ''),
+    'UCSR0C': ('USART Control and Status Register 0 C', '§20.11.4, p.202', '0x06', ''),
+    'UBRR0H': ('USART Baud Rate Register 0 High', '§20.11.5, p.204', '0x00', ''),
+    'UBRR0L': ('USART Baud Rate Register 0 Low', '§20.11.5, p.204', '0x00', ''),
 }
 
 _ISC = {'00': 'The low level of INT{n} generates an interrupt request.',
@@ -69,6 +81,25 @@ _WGM = {'000': 'mode 0 Normal, TOP 0xFF', '001': 'mode 1 PWM, Phase Correct, TOP
 _CS2 = {'000': 'No clock source (Timer/Counter stopped).', '001': 'clkT2S/(No prescaling)', '010': 'clkT2S/8 (From prescaler)',
         '011': 'clkT2S/32 (From prescaler)', '100': 'clkT2S/64 (From prescaler)', '101': 'clkT2S/128 (From prescaler)',
         '110': 'clkT2S/256 (From prescaler)', '111': 'clkT2S/1024 (From prescaler)'}
+
+# rm-2a value tables (the datasheet's own words)
+_CLKPS = {'%04d' % int(bin(n)[2:]): 'division factor %d' % (1 << n) for n in range(9)}
+_CLKPS.update({'%04d' % int(bin(n)[2:]): 'Reserved' for n in range(9, 16)})
+_WDP = {'000': '2K (2048) cycles, 16 ms typical at 5 V (WDP3=0) / 512K cycles, 4.0 s (WDP3=1)', '001': '4K (4096) cycles, 32 ms (WDP3=0) / 1024K cycles, 8.0 s (WDP3=1)',
+        '010': '8K (8192) cycles, 64 ms (WDP3=0) / reserved (WDP3=1)', '011': '16K (16384) cycles, 0.125 s (WDP3=0) / reserved (WDP3=1)',
+        '100': '32K (32768) cycles, 0.25 s (WDP3=0) / reserved (WDP3=1)', '101': '64K (65536) cycles, 0.5 s (WDP3=0) / reserved (WDP3=1)',
+        '110': '128K (131072) cycles, 1.0 s (WDP3=0) / reserved (WDP3=1)', '111': '256K (262144) cycles, 2.0 s (WDP3=0) / reserved (WDP3=1)'}
+_WDT_MODE = {'WDE=0 WDIE=0': 'Stopped (WDTON unprogrammed): no action on time-out', 'WDE=0 WDIE=1': 'Interrupt Mode: interrupt on time-out',
+             'WDE=1 WDIE=0': 'System Reset Mode: reset on time-out', 'WDE=1 WDIE=1': 'Interrupt and System Reset Mode: interrupt, then System Reset Mode',
+             'WDTON programmed': 'System Reset Mode whatever WDE / WDIE say'}
+
+
+def _PR(module):
+    return {'0': '%s runs' % module, '1': 'shuts down the %s by stopping its clock' % module}
+
+
+def _RF(event, also):
+    return {'1': 'set if %s occurs' % event, '0': 'cleared by writing a logic zero%s' % (' (or by a Power-on Reset)' if also else ' only')}
 
 
 def _f(register, field, hi, lo, access, reset, description, values, where, signal='', pin='', notes=''):
@@ -142,6 +173,93 @@ FIELDS = [
     _f('TIFR2', 'OCF2B', 2, 2, 'w1c', '0', 'Output Compare Flag 2 B', _FLAG_W1C, '§18.11.7 TIFR2, p.167', signal='OC2B'),
     _f('TIFR2', 'OCF2A', 1, 1, 'w1c', '0', 'Output Compare Flag 2 A', _FLAG_W1C, '§18.11.7 TIFR2, p.167', signal='OC2A'),
     _f('TIFR2', 'TOV2', 0, 0, 'w1c', '0', 'Timer/Counter2 Overflow Flag', _FLAG_W1C, '§18.11.7 TIFR2, p.167'),
+    # rm-2a (REGISTER_MAPPING_PLAN D-rm-4): the UNO's owed fields - USART0 (§20.11), CLKPR (§9.12.2), PRR (§10.11.3), MCUSR / WDTCSR (§11.9), SREG (§7.3.1);
+    # read 2026-10-29 from the same file (sha256 b9b9d83c…9320e re-verified), pages from its own footers
+    _f('SREG', 'I', 7, 7, 'rw', '0', 'Global Interrupt Enable', {'0': 'none of the interrupts are enabled, independent of the individual interrupt enable settings',
+       '1': 'interrupts enabled; the individual enables are in their own control registers'}, '§7.3.1 SREG, p.20',
+       notes='cleared by hardware after an interrupt has occurred, set by RETI; SEI / CLI set and clear it (the masked windows of ipb-7)'),
+    _f('SREG', 'T', 6, 6, 'rw', '0', 'Bit Copy Storage', {'any': 'source / destination of the BLD and BST instructions'}, '§7.3.1 SREG, p.20'),
+    _f('SREG', 'H', 5, 5, 'rw', '0', 'Half Carry Flag', {'1': 'a Half Carry in some arithmetic operations (useful in BCD arithmetic)'}, '§7.3.1 SREG, p.20'),
+    _f('SREG', 'S', 4, 4, 'rw', '0', 'Sign Bit, S = N xor V', {'any': 'always an exclusive or between the Negative Flag N and the Two\'s Complement Overflow Flag V'},
+       '§7.3.1 SREG, p.20'),
+    _f('SREG', 'V', 3, 3, 'rw', '0', 'Two\'s Complement Overflow Flag', {'1': 'two\'s complement overflow'}, '§7.3.1 SREG, p.20'),
+    _f('SREG', 'N', 2, 2, 'rw', '0', 'Negative Flag', {'1': 'a negative result in an arithmetic or logic operation'}, '§7.3.1 SREG, p.20'),
+    _f('SREG', 'Z', 1, 1, 'rw', '0', 'Zero Flag', {'1': 'a zero result in an arithmetic or logic operation'}, '§7.3.1 SREG, p.20'),
+    _f('SREG', 'C', 0, 0, 'rw', '0', 'Carry Flag', {'1': 'a carry in an arithmetic or logic operation'}, '§7.3.1 SREG, p.20'),
+    _f('CLKPR', 'CLKPCE', 7, 7, 'rw', '0', 'Clock Prescaler Change Enable', {'1': 'enables a change of the CLKPS bits; only updated when the other bits are '
+       'written to zero at the same time; cleared by hardware four cycles after it is written or when CLKPS is written'}, '§9.12.2 CLKPR, p.46'),
+    _f('CLKPR', 'CLKPS', 3, 0, 'rw', 'fuse', 'Clock Prescaler Select Bits 3 - 0 (division factor, clock source -> system clock)', _CLKPS, '§9.12.2 CLKPR, Table 9-17, p.46-47',
+       notes='reset value from the CKDIV8 fuse: unprogrammed -> 0000, programmed -> 0011 (divide by 8); shipped programmed'),
+    _f('PRR', 'PRTWI', 7, 7, 'rw', '0', 'Power Reduction TWI', _PR('TWI'), '§10.11.3 PRR, p.54'),
+    _f('PRR', 'PRTIM2', 6, 6, 'rw', '0', 'Power Reduction Timer/Counter2', _PR('Timer/Counter2 (synchronous mode, AS2 = 0)'), '§10.11.3 PRR, p.54'),
+    _f('PRR', 'PRTIM0', 5, 5, 'rw', '0', 'Power Reduction Timer/Counter0', _PR('Timer/Counter0'), '§10.11.3 PRR, p.54'),
+    _f('PRR', 'PRTIM1', 3, 3, 'rw', '0', 'Power Reduction Timer/Counter1', _PR('Timer/Counter1'), '§10.11.3 PRR, p.54'),
+    _f('PRR', 'PRSPI', 2, 2, 'rw', '0', 'Power Reduction Serial Peripheral Interface', _PR('SPI'), '§10.11.3 PRR, p.55',
+       notes='with debugWIRE, this bit should not be written to one'),
+    _f('PRR', 'PRUSART0', 1, 1, 'rw', '0', 'Power Reduction USART0', _PR('USART0'), '§10.11.3 PRR, p.55',
+       notes='the USART should be re-initialized when woken'),
+    _f('PRR', 'PRADC', 0, 0, 'rw', '0', 'Power Reduction ADC', _PR('ADC (it must be disabled first)'), '§10.11.3 PRR, p.55'),
+    _f('MCUSR', 'WDRF', 3, 3, 'w0c', 'reset source', 'Watchdog System Reset Flag', _RF('a Watchdog System Reset', 'a Power-on Reset'), '§11.9.1 MCUSR, p.63',
+       notes='forces WDTCSR.WDE set while it is set (§11.9.2): clear WDRF first'),
+    _f('MCUSR', 'BORF', 2, 2, 'w0c', 'reset source', 'Brown-out Reset Flag', _RF('a Brown-out Reset', 'a Power-on Reset'), '§11.9.1 MCUSR, p.63'),
+    _f('MCUSR', 'EXTRF', 1, 1, 'w0c', 'reset source', 'External Reset Flag', _RF('an External Reset', 'a Power-on Reset'), '§11.9.1 MCUSR, p.63',
+       notes='the UNO\'s DTR auto-reset pulls RESET low: an external reset (lifecycle_uno)'),
+    _f('MCUSR', 'PORF', 0, 0, 'w0c', 'reset source', 'Power-on Reset Flag', _RF('a Power-on Reset', ''), '§11.9.1 MCUSR, p.63',
+       notes='read and then reset MCUSR as early as possible in the program to identify the reset source'),
+    _f('WDTCSR', 'WDIF', 7, 7, 'w1c', '0', 'Watchdog Interrupt Flag', {'1': 'a time-out occurred with the Watchdog Timer configured for interrupt; cleared by '
+       'hardware when the vector executes, or by writing a logic one'}, '§11.9.2 WDTCSR, p.63'),
+    _f('WDTCSR', 'WDIE', 6, 6, 'rw', '0', 'Watchdog Interrupt Enable', _WDT_MODE, '§11.9.2 WDTCSR, Table 11-1, p.63-64'),
+    _f('WDTCSR', 'WDP3', 5, 5, 'rw', '0', 'Watchdog Timer Prescaler 3 - with WDP2:0 the 4-bit prescale', {'0': 'WDP 0xxx (see WDP2_0)', '1': 'WDP 1xxx (see WDP2_0)'},
+       '§11.9.2 WDTCSR, Table 11-2, p.64'),
+    _f('WDTCSR', 'WDCE', 4, 4, 'rw', '0', 'Watchdog Change Enable', {'1': 'needed in the timed sequence that clears WDE and / or changes the prescaler; hardware '
+       'clears it after four clock cycles'}, '§11.9.2 WDTCSR, p.64'),
+    _f('WDTCSR', 'WDE', 3, 3, 'rw', 'X', 'Watchdog System Reset Enable', _WDT_MODE, '§11.9.2 WDTCSR, Table 11-1, p.64',
+       notes='overridden by MCUSR.WDRF: always set while WDRF is set (initial value X)'),
+    _f('WDTCSR', 'WDP2_0', 2, 0, 'rw', '0', 'Watchdog Timer Prescaler 2, 1, 0 - with WDP3 the 4-bit prescale', _WDP, '§11.9.2 WDTCSR, Table 11-2, p.64'),
+    _f('UDR0', 'UDR0', 7, 0, 'rw', '0', 'USART I/O Data: RXB (receive buffer) on read, TXB (transmit buffer) on write', {'read': 'the Receive Data Buffer (a two-level FIFO)',
+       'write': 'the Transmit Data Buffer - ignored unless UCSR0A.UDRE0 is set'}, '§20.11.1 UDRn, p.200',
+       notes='do not use read-modify-write (SBI / CBI) on it: any access moves the receive FIFO'),
+    _f('UCSR0A', 'RXC0', 7, 7, 'r', '0', 'USART Receive Complete', {'1': 'unread data in the receive buffer', '0': 'the receive buffer is empty (flushed when the receiver is '
+       'disabled)'}, '§20.11.2 UCSRnA, p.200'),
+    _f('UCSR0A', 'TXC0', 6, 6, 'w1c', '0', 'USART Transmit Complete', {'1': 'the whole frame has shifted out and the transmit buffer is empty; cleared when the '
+       'transmit-complete interrupt executes, or by writing a one'}, '§20.11.2 UCSRnA, p.200'),
+    _f('UCSR0A', 'UDRE0', 5, 5, 'r', '1', 'USART Data Register Empty', {'1': 'the transmit buffer is empty, ready to be written', '0': 'the transmit buffer is full'},
+       '§20.11.2 UCSRnA, p.200', notes='set after a reset: the transmitter is ready'),
+    _f('UCSR0A', 'FE0', 4, 4, 'r', '0', 'Frame Error', {'1': 'the next character in the receive buffer had its first stop bit zero'}, '§20.11.2 UCSRnA, p.201', notes='valid until UDR0 is read; always write it zero'),
+    _f('UCSR0A', 'DOR0', 3, 3, 'r', '0', 'Data OverRun', {'1': 'the receive buffer was full (two characters), one more waited in the shift register and a new start bit '
+       'came'}, '§20.11.2 UCSRnA, p.201', notes='valid until UDR0 is read; always write it zero'),
+    _f('UCSR0A', 'UPE0', 2, 2, 'r', '0', 'USART Parity Error', {'1': 'the next character in the receive buffer had a parity error (parity checking on)'},
+       '§20.11.2 UCSRnA, p.201', notes='valid until UDR0 is read; always write it zero'),
+    _f('UCSR0A', 'U2X0', 1, 1, 'rw', '0', 'Double the USART Transmission Speed', {'0': 'baud divisor 16', '1': 'baud divisor 8: the asynchronous rate doubles'},
+       '§20.11.2 UCSRnA, p.201', notes='asynchronous only; write zero in synchronous mode. The UNO HAL runs 115200 Bd with U2X0 = 1 (UBRR0 16, Table 20-7 p.199)'),
+    _f('UCSR0A', 'MPCM0', 0, 0, 'rw', '0', 'Multi-processor Communication Mode', {'1': 'incoming frames without address information are ignored by the receiver'},
+       '§20.11.2 UCSRnA, p.201'),
+    _f('UCSR0B', 'RXCIE0', 7, 7, 'rw', '0', 'RX Complete Interrupt Enable', _ENABLE, '§20.11.3 UCSRnB, p.201',
+       notes='the USART_RX vector (the HAL\'s ring buffer ISR) runs when this, SREG.I and RXC0 are set'),
+    _f('UCSR0B', 'TXCIE0', 6, 6, 'rw', '0', 'TX Complete Interrupt Enable', _ENABLE, '§20.11.3 UCSRnB, p.201'),
+    _f('UCSR0B', 'UDRIE0', 5, 5, 'rw', '0', 'USART Data Register Empty Interrupt Enable', _ENABLE, '§20.11.3 UCSRnB, p.202'),
+    _f('UCSR0B', 'RXEN0', 4, 4, 'rw', '0', 'Receiver Enable', {'0': 'receiver off (disabling flushes the receive buffer)', '1': 'receiver on: it overrides normal port '
+       'operation of the RxD pin'}, '§20.11.3 UCSRnB, p.202', signal='RXD', pin='PD0'),
+    _f('UCSR0B', 'TXEN0', 3, 3, 'rw', '0', 'Transmitter Enable', {'0': 'transmitter off once pending transmissions complete; it stops overriding the TxD pin',
+       '1': 'transmitter on: it overrides normal port operation of the TxD pin'}, '§20.11.3 UCSRnB, p.202', signal='TXD', pin='PD1'),
+    _f('UCSR0B', 'UCSZ02', 2, 2, 'rw', '0', 'Character Size bit 2 - with UCSR0C.UCSZ01:00 the 3-bit size', {'0': 'sizes 5-8 bit (see UCSR0C.UCSZ0)', '1': '9-bit (with UCSZ01:00 = 11)'},
+       '§20.11.3 UCSRnB, Table 20-11, p.202-203'),
+    _f('UCSR0B', 'RXB80', 1, 1, 'r', '0', 'Receive Data Bit 8', {'any': 'the ninth data bit of a received 9-bit character; read before UDR0'}, '§20.11.3 UCSRnB, p.202'),
+    _f('UCSR0B', 'TXB80', 0, 0, 'rw', '0', 'Transmit Data Bit 8', {'any': 'the ninth data bit of a 9-bit character to send; write before UDR0'}, '§20.11.3 UCSRnB, p.202'),
+    _f('UCSR0C', 'UMSEL0', 7, 6, 'rw', '0', 'USART Mode Select (UMSEL01:00)', {'00': 'Asynchronous USART', '01': 'Synchronous USART', '10': '(Reserved)',
+       '11': 'Master SPI (MSPIM)'}, '§20.11.4 UCSRnC, Table 20-8, p.202'),
+    _f('UCSR0C', 'UPM0', 5, 4, 'rw', '0', 'Parity Mode (UPM01:00)', {'00': 'Disabled', '01': 'Reserved', '10': 'Enabled, Even Parity', '11': 'Enabled, Odd Parity'},
+       '§20.11.4 UCSRnC, Table 20-9, p.203'),
+    _f('UCSR0C', 'USBS0', 3, 3, 'rw', '0', 'Stop Bit Select', {'0': '1-bit', '1': '2-bit (the receiver ignores this setting)'}, '§20.11.4 UCSRnC, Table 20-10, p.203'),
+    _f('UCSR0C', 'UCSZ0', 2, 1, 'rw', '3', 'Character Size (UCSZ01:00) - with UCSR0B.UCSZ02 the 3-bit size', {'00': '5-bit (UCSZ02=0)', '01': '6-bit (UCSZ02=0)',
+       '10': '7-bit (UCSZ02=0)', '11': '8-bit (UCSZ02=0) / 9-bit (UCSZ02=1)'}, '§20.11.4 UCSRnC, Table 20-11, p.203', notes='initial value 11: 8-bit frames'),
+    _f('UCSR0C', 'UCPOL0', 0, 0, 'rw', '0', 'Clock Polarity', {'0': 'TxD changes on the rising XCK edge, RxD sampled on the falling edge', '1': 'TxD changes on the '
+       'falling XCK edge, RxD sampled on the rising edge'}, '§20.11.4 UCSRnC, Table 20-12, p.203-204', notes='synchronous mode only; write zero in asynchronous mode'),
+    _f('UBRR0H', 'UBRR0_11_8', 3, 0, 'rw', '0', 'USART Baud Rate Register bits 11:8 (the four most significant bits)', {'any': 'with UBRR0L the 12-bit baud rate setting'},
+       '§20.11.5 UBRRnL and UBRRnH, p.204', notes='bits 15:12 reserved: write zero when UBRR0H is written'),
+    _f('UBRR0L', 'UBRR0_7_0', 7, 0, 'rw', '0', 'USART Baud Rate Register bits 7:0', {'any': 'with UBRR0H the 12-bit baud rate setting; writing UBRR0L updates the prescaler '
+       'at once'}, '§20.11.5 UBRRnL and UBRRnH, p.204', notes='changing the baud rate corrupts ongoing transmissions'),
 ]
 
-ACCESS_KINDS = ('rw', 'r', 'w1c', 'w-strobe', 'rw-toggle')
+#: rm-2a: the access words are rows of their own (board.custom.register_access.ACCESS_KINDS -> RegisterAccessKind): what a read and a write do, the UVM / SVD names
+from board.custom.register_access import WORDS as ACCESS_KINDS  # noqa: E402

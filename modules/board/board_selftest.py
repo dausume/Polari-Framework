@@ -27,14 +27,14 @@ def rows_and_classes():
     snap = load()
     check('fifty-eight row classes (brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
-          'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; '
+          'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; rm-2a one: RegisterAccessKind; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
           'ucd-0e1 two: ButtonClockState, ButtonClockEvent — the button-clock demo\'s wire contract; '
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
           'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench)',
-          len(BOARD_CLASSES) == 65)   # fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
+          len(BOARD_CLASSES) == 66)   # rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
