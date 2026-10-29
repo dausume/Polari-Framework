@@ -12,7 +12,8 @@ tables (no raw JSON; no new component). The bench picker sits above the tabs and
   Registers rm-4: pick a chip, then EITHER start from a register category (category -> register -> its fields with every access word spelled out, the firmware's
             settings of it, the C atoms touching it -> a field's pin and its lifecycle stages) OR start from a pin (pin -> its register fields with their register
             categories, the firmware's settings, the Catom assertions, the HAL variable, the C atoms that use it); the access words' own table at the foot
-Linkable: /display/bench-views?bench=home-bench&instance=...&bridge=...&variant=uno-light&soc=atmega328p&pin=PD2 (scope_query).
+  A pin row of the Structs view's signal path opens the Registers tab at that pin (the pin reference '<soc>:<pin>' rides in the one click).
+Linkable: /display/bench-views?bench=home-bench&instance=...&bridge=...&variant=uno-light&soc=atmega328p&pin=atmega328p:PD2 (scope_query).
 """
 from polariApiServer.module_pages_seed import _page, _row, _table, _tab, _component
 
@@ -50,9 +51,11 @@ def _structs_tab():
         _row(2, [_table('bv-struct-path', 0, 12, 'The signals that change it', '',
                         description='One row per hop of each route that changes (or reads) the chosen field, in order: the pin and its event, the catom (its lane and who it '
                                     'says changed it: HW the board, US the user through Polari), the field, the catom that sends the struct, the bridge, the Polari object\'s '
-                                    'attribute. A route from the UI starts at the object and comes in through the bridge. status is the assertion\'s own.',
+                                    'attribute. A route from the UI starts at the object and comes in through the bridge. status is the assertion\'s own. Click a PIN row to '
+                                    'open it in the Registers tab: its register fields, the firmware\'s settings and every catom that uses it.',
                         columns='route,step,kind,direction,what,status,why', data_path=_STRUCTS + '?view=path&instance={scope:instance}&field={scope:field}&' + _REV,
-                        empty_text='Pick a field above.')], min_height=300)],
+                        empty_text='Pick a field above.', select_field='pin_ref', select_scope='pin', selected_value='{scope:pin}', row_link_tab_field='tab')],
+             min_height=300)],
         description='Every struct instance on the bench, its fields, and the signal paths that change each field - drawn from the Catom assertions.')
 
 
@@ -151,13 +154,13 @@ def _registers_tab():
         _row(5, [_table('bv-reg-pins', 0, 12, 'Or start from a pin - click one', '',
                         description='One row per pin of the chip: its board name (D2), its functions (INT0, PCINT18 ...) and how many register fields reach it.',
                         columns='board_pin,soc_pin,functions,register_fields', data_path=_SOC + '/pins?soc={scope:soc}&' + _REV, empty_text='Pick a chip above.',
-                        select_field='soc_pin', select_scope='pin', selected_value='{scope:pin}')], min_height=260),
+                        select_field='ref', select_scope='pin', selected_value='{scope:pin}')], min_height=260),
         _row(6, [_table('bv-reg-pin-uses', 0, 12, 'Everything that uses that pin', '',
                         description='One row per use of the chosen pin. register field = a bit field that names the pin or a function it offers, with its register category; '
                                     'firmware setting = the value the firmware solution gives that field and the task that owns it; Catom assertion = a catom that says it acts on '
                                     'the pin; HAL variable = the named value that IS this pin; C atom = a function of the firmware - "certain" when its uses() annotation or an '
                                     'assertion ties it to this pin, "register only" when it only touches the same register.',
-                        columns='kind,name,category,detail,how,used_by,status', data_path=_SOC + '/pins/{scope:pin}/uses?pin={scope:pin}&' + _REV,
+                        columns='kind,name,category,detail,how,used_by,status', data_path='/api/board/pins/{scope:pin}/uses?pin={scope:pin}&' + _REV,
                         empty_text='Pick a pin above.')], min_height=360),
         _row(7, [_table('bv-reg-access', 0, 12, 'What the access words mean', 'RegisterAccessKind',
                         description='One row per access word a bit field can have: what a read returns, what a write does, the names the same behaviour has in the IEEE 1800.2 '

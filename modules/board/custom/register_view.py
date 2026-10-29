@@ -204,7 +204,7 @@ def pins(soc, tables=None):
     out = []
     for p, (board, fns) in sorted(_pin_table(soc).items()):
         n = sum(1 for f in fields if f.get('soc') == soc and (f.get('affects_pin', '').split(':')[-1] == p or f.get('affects_signal', '').split(':')[-1] in fns))
-        out.append({'soc_pin': p, 'board_pin': board, 'functions': ', '.join(fns), 'register_fields': n})
+        out.append({'ref': '%s:%s' % (soc, p), 'soc_pin': p, 'board_pin': board, 'functions': ', '.join(fns), 'register_fields': n})
     return out
 
 

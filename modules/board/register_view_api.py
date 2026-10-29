@@ -16,6 +16,8 @@ GET /api/board/socs/{soc}/pins                           THE OTHER WAY IN: every
 GET /api/board/socs/{soc}/pins/{pin}/uses[?kind=K]       a pin (D2 or PD2) -> its register fields + their register categories, the firmware's settings of them, the
         Catom assertions naming it, the HAL variable at it, the C atoms that use it (certain: a uses() annotation or an assertion) or only share its register;
         `kind` narrows to one kind (register field | firmware setting | Catom assertion | HAL variable | C atom). 404 a pin the chip lacks.
+GET /api/board/pins/{ref}/uses[?kind=K]                  the same, by a chip-qualified pin reference '<soc>:<pin>' (atmega328p:PD2) - what one click in the Structs
+        view's signal path or the pins table carries (a click sets one value, so the chip rides in it)
 An empty name / category (nothing clicked yet) answers no rows with a note; an unknown soc is 422.
 """
 import falcon
@@ -36,6 +38,7 @@ class RegisterViewAPI(treeObject):
             add('/api/board/socs/{soc}/register-categories', self, suffix='categories')
             add('/api/board/socs/{soc}/pins', self, suffix='pins')
             add('/api/board/socs/{soc}/pins/{pin}/uses', self, suffix='pin_uses')
+            add('/api/board/pins/{ref}/uses', self, suffix='ref_uses')
             add('/api/board/socs/{soc}/registers/{name}', self, suffix='register')
             add('/api/board/socs/{soc}/fields/{name}/pins', self, suffix='field_pins')
 
@@ -101,3 +104,9 @@ class RegisterViewAPI(treeObject):
         if rows is None:
             return self._fail(response, falcon.HTTP_404, 'no register field %r on %s' % (name, soc))
         self._ok(response, soc, 'pins', rows, field=name, **({} if rows else {'note': 'this field drives no pin (it configures the peripheral or reports)'}))
+
+    def on_get_ref_uses(self, request, response, ref):
+        soc, _, pin = (ref or '').partition(':')
+        if not pin:
+            return self._fail(response, falcon.HTTP_422, 'a pin reference is <soc>:<pin> (atmega328p:PD2), got %r' % ref)
+        self.on_get_pin_uses(request, response, soc, pin)
