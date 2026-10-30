@@ -85,6 +85,7 @@ def ingest(files, r):
     by_pkg = {s['package_pin']: s['pin'] for s in r['soc_pins']}
     ref_conn = {c['ref']: c['connector'] for c in r['connectors']}
     label = {(c['connector'], int(c['number'])): c['label'] for c in r['connector_pins']}
+    named = {(c['connector'], int(c['number'])): c.get('board_pin', '') for c in r['connector_pins']}   # c3-pv: a silk label (IO0, TX) names its board pin here
     canon = {p['canonical'] for p in r['pins']}
     pins = {}
     for net in sexpr.find(sexpr.find(tree, 'nets')[0], 'net'):
@@ -99,6 +100,9 @@ def ingest(files, r):
         if not soc:
             continue
         cand = sorted(c for c in conn if label.get(c) in canon)   # the connector pin printed with a board pin's name
-        c = label[cand[0]] if cand else soc                        # else (no header label) the SoC pin IS the canonical name
+        via = label
+        if not cand:   # no header printed with a board pin's name (the DevKitM-1's silk): the ConnectorPin's own board_pin
+            cand, via = sorted(c for c in conn if named.get(c) in canon), named
+        c = via[cand[0]] if cand else soc                          # else (no header at all) the SoC pin IS the canonical name
         pins[c] = {'canonical': c, 'soc_pin': soc, 'net': nname, 'connector_pin': '%s:%d' % cand[0] if cand else ''}
     return {'pins': [pins[k] for k in sorted(pins)], 'profile': {}, 'notes': json.dumps({'components': sorted(comps)})}

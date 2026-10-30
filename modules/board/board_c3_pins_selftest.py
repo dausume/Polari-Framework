@@ -93,8 +93,8 @@ def run_c3_pins(check):
           and next(c for c in contacts if c['number'] == 33)['kind'] == 'ground'
           and any(c['board'] == C3 and c['role'] == 'mcu' and c['package'] == 'esp32c3-32-qfn' for c in tables['BoardComponent']), len(contacts))
     enc = [e for e in tables['HardwareEnclosure'] if e['board'] == C3]
-    check('c3pf PACKAGE: the C3 has its chip package enclosure (E1) and the E1 exposure map, but NO board enclosure / E2 crossings (its headers are not modelled) - not guessed',
-          len(enc) == 1 and enc[0]['level'] == 'E1' and not any(c['level'] == 'E2' and C3 in c['enclosure'] for c in tables['EnclosureContact'])
+    check('c3pf PACKAGE: the C3 has its chip package enclosure (E1) and the E1 exposure map; c3-pv: + its board enclosure (E2) and E2 crossings, now that J1 / J3 are modelled',
+          sorted(e['level'] for e in enc) == ['E1', 'E2'] and any(c['level'] == 'E2' and C3 in c['enclosure'] for c in tables['EnclosureContact'])
           and any(c['level'] == 'E1' and C3 in c['enclosure'] for c in tables['EnclosureContact']), [e['name'] for e in enc])
 
     # ---- lifecycle
@@ -116,9 +116,9 @@ def run_c3_pins(check):
         r = L.availability(pin, fn, dict({'board': C3, 'transport': 'usb-serial'}, **ctx), tables)['results'][0]
         return {x['rung']: x for x in r['rungs']}, r
     r1, res1 = rungs('GPIO3', 'ledc_ls_sig_out0')
-    check('c3pf LADDER: PWM (ledc_ls_sig_out0) on GPIO3 - rung 1 ok (the PinFunction row), rung 2 ok (leg 8), rung 6 ok (through the GPIO matrix), rung 8 ok; rung 3 is undetermined (no board crossing modelled) and says so',
+    check('c3pf LADDER: PWM (ledc_ls_sig_out0) on GPIO3 - rung 1 ok (the PinFunction row), rung 2 ok (leg 8), rung 6 ok (through the GPIO matrix), rung 8 ok; c3-pv: rung 3 ok (J1 pin 5, the header map) and rung 4 ok (the schematic puts no part on GPIO3)',
           [r1[i]['verdict'] for i in (1, 2, 6, 8)] == ['ok'] * 4 and 'PinFunction esp32c3:GPIO3:ledc_ls_sig_out0' in r1[1]['detail'] and 'leg 8' in r1[2]['detail'] and 'GPIO matrix' in r1[6]['detail']
-          and r1[3]['verdict'] == 'undetermined' and res1['blocked_at'] == 0, [r1[i]['verdict'] for i in sorted(r1)])
+          and r1[3]['verdict'] == 'ok' and 'esp32-c3:J1:5' in r1[3]['detail'] and r1[4]['verdict'] == 'ok' and res1['blocked_at'] == 0, [r1[i]['verdict'] for i in sorted(r1)])
     r2, _ = rungs('GPIO8', 'ADC1_CH0')
     check('c3pf LADDER: an ADC channel on GPIO8 is refused at rung 1 by name (GPIO8 has no ADC function) - only GPIO0-5 do', r2[1]['verdict'] == 'blocked' and 'no function ADC1_CH0' in r2[1]['detail'], r2[1]['detail'])
     r3, res3 = rungs('GPIO12', 'GPIO', phase='runtime')
@@ -180,10 +180,12 @@ def run_c3_pins(check):
           set(trans.values()) == {('GPIO20', 'U0RXD'), ('GPIO21', 'U0TXD')} and any(x['kind'] == 'pin-refused' and 'transport-wire' in x['reason'] for x in res['pruned']['by_kind']['pin-refused']['first']),
           trans)
     free = {'GPIO0', 'GPIO1', 'GPIO3', 'GPIO10'}
-    check('c3pf SOL-0: the LED and the button take the least specialised pads (P2 pads: no strapping, JTAG, USB or UART0 function); the sense line, third, takes the cheapest left and carries its cautions as listed risks',
-          pins['the LED'][0] in free and pins['the button'][0] in free and any('rung' in x['text'] for x in w['risks']) and any('rung 3 (board-routing) undetermined' in x['text'] for x in w['risks']), pins)
-    check('c3pf SOL-0: what is still open is stated, not hidden - rungs 3 (no header map), 7 and 9 (no circuit / binding) and 10, undetermined costs scored at stand-ins, and the comparator route pruned as ineligible',
-          {3, 7, 9, 10} <= {x.get('rung') for x in w['risks'] if x['kind'] == 'ladder'} and res['pruned']['by_kind']['variant-ineligible']['count'] >= 2
+    check('c3pf SOL-0: the LED and the button take the least specialised pads (P2 pads: no strapping, JTAG, USB or UART0 function); the sense line, third, takes the cheapest left and carries its cautions as listed risks (c3-pv: on GPIO8 the board\'s RGB LED + pull-up share the line - rung 4 conditional, named)',
+          pins['the LED'][0] in free and pins['the button'][0] in free and any('rung' in x['text'] for x in w['risks'])
+          and (pins['the sense line'][0] != 'GPIO8' or any('rung 4 (connected-components) conditional' in x['text'] and 'GPIO8' in x['text'] for x in w['risks'])), pins)
+    check('c3pf SOL-0: what is still open is stated, not hidden - rungs 7 and 9 (no circuit / binding) and 10, undetermined costs scored at stand-ins, and the comparator route '
+          'pruned as ineligible; c3-pv: rung 3 is no longer open (J1 / J3 are modelled)',
+          {7, 9, 10} <= {x.get('rung') for x in w['risks'] if x['kind'] == 'ladder'} and 3 not in {x.get('rung') for x in w['risks'] if x['kind'] == 'ladder'} and res['pruned']['by_kind']['variant-ineligible']['count'] >= 2
           and any('analog-comparator' in x['where'] for x in res['pruned']['by_kind']['variant-ineligible']['first']), [x['text'][:60] for x in w['risks']][:5])
     return res
 

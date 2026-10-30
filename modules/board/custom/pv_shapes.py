@@ -118,10 +118,11 @@ def header(p):
     """A header row (1 x N, or 2 x N/2 for an ICSP): {number: (x, y)} in the board frame; `pitch` is the cited 2.54 mm."""
     n, pitch, rows = int(p['pins']), float(p['pitch']), int(p.get('rows', 1))
     step = pitch * (-1 if p.get('dir', 1) < 0 else 1)   # dir -1: pin numbers run right-to-left (the UNO's top headers: D0 at the right edge)
+    down = p.get('axis') == 'y'   # axis y: the row runs down the board (the DevKitM-1's J1 / J3: pin 1 at the antenna end)
     out = []
     for i in range(n):
         if rows == 1:
-            out.append({'number': i + 1, 'x': p['x'] + i * step, 'y': p['y']})
+            out.append({'number': i + 1, 'x': p['x'] if down else p['x'] + i * step, 'y': p['y'] + i * step if down else p['y']})
         else:
             col, row = i % rows, i // rows   # odd pins in one column, even in the other (the ICSP numbering)
             out.append({'number': i + 1, 'x': p['x'] + col * pitch, 'y': p['y'] + row * pitch})
@@ -223,6 +224,21 @@ HEADERS = {'DIGITAL_L': (63.5, 2.54, 1, -1), 'DIGITAL_H': (41.6, 2.54, 1, -1), '
 #: placed footprints: ref -> (x, y, rotation degrees) in the board frame, centre of the footprint. KNOBS.
 PLACE = {'U1': (38.0, 25.4, 90), 'U2': (13.0, 26.0, 0), 'X2': (5.0, 14.0, 0)}
 
+# ---- the ESP32-C3-DevKitM-1 (2026-10-29): the outline + header rows CITED from Espressif's own dimension drawing (read 2026-10-29: it dimensions four numbers -
+# the 25.40 mm width, the 38.91 mm length, the 22.86 mm J1 <-> J3 pin-centre spacing and the 2.54 mm pitch). Everything else is a KNOB, said per item.
+C3_DIM = ('Espressif ESP32-C3-DevKitM-1 dimensions drawing V1 (DIMENSION_ESP32-C3-DEVKITM-1_V1_20200915AA.pdf, '
+          'sha256 284d7b4060098e252feafac8a412902b7c51d116b5df49111f4489fc84c92d92)')
+C3_BBOX = (25.40, 38.91)
+C3_ROW_SPACING = 22.86
+#: J1 (left) / J3 (right): (x, y of pin 1, rows, dir, axis). Pin 1 (GND) at the antenna end, pin 15 at the USB end (the drawing). The rows are drawn centred on the
+#: board: inset (25.40 - 22.86) / 2 = 1.27 mm and the 15-pin span (35.56 mm) centred on the 38.91 mm length - KNOBS (the drawing dimensions neither).
+_C3_X0 = round((C3_BBOX[0] - C3_ROW_SPACING) / 2, 3)
+_C3_Y0 = round((C3_BBOX[1] - 14 * 2.54) / 2, 3)
+C3_HEADERS = {'J1': (_C3_X0, _C3_Y0, 1, 1, 'y'), 'J3': (round(_C3_X0 + C3_ROW_SPACING, 3), _C3_Y0, 1, 1, 'y')}
+#: U1 = the ESP32-C3 die's QFN32 package, drawn where the MINI-1 module sits (top centre); the module's offset is not dimensioned - a KNOB
+C3_PLACE = {'U1': (12.7, 9.0, 0)}
+C3_PART_REGIONS = [{'x0': 4.0, 'y0': 18.0, 'x1': 21.4, 'y1': 36.0}]
+
 
 def part_names(tables, board):
     """{part ref: [pin names]} for every board part a crossing ends on: SchematicPart outer refs (the schematic's own pin) + via parts of internal-only lines (derived from the EnclosureContact rows)."""
@@ -282,7 +298,28 @@ def part_row(board, ref, pin_names, title=None):
     return _row(shape_name('part', ref.replace(' ', '_')), '%s (board part, drawing knob)' % ref, g, _rect(*box), 'pv-0: part-box generator; pins = the lines the exposure rows end on this part')
 
 
+def c3_board_row(board, tables):
+    conns = {c['connector']: c for c in tables.get('Connector', []) if c['board'] == board}
+    heads = [{'connector': k, 'ref': conns[k].get('ref', k), 'pins': conns[k]['pin_count'], 'pitch': 2.54, 'rows': rows, 'dir': dirn, 'axis': axis, 'x': x, 'y': y,
+              'name': conns[k]['name']} for k, (x, y, rows, dirn, axis) in sorted(C3_HEADERS.items()) if k in conns]
+    w, h = C3_BBOX
+    placements = [{'ref': r, 'x': x, 'y': y, 'rot': rot} for r, (x, y, rot) in sorted(C3_PLACE.items())]
+    g = {'generator': 'board', 'board': board, 'headers': heads, 'holes': [], 'placements': placements, 'bbox': [w, h], 'origin': 'top-left of the outline, y down',
+         'cited': {'bbox': _c([w, h], C3_DIM, 'the board outline: 25.40 mm wide, 38.91 mm long'),
+                   'row_spacing': _c(C3_ROW_SPACING, C3_DIM, 'J1 to J3, pin centre to pin centre: 22.86 mm'),
+                   'header_pitch': _c(2.54, C3_DIM, 'pin to pin along a header: 2.54 mm'),
+                   'pin_one': _c('antenna end', C3_DIM, 'GND (pin 1 of both rows) is drawn at the module / antenna end, pin 15 at the micro-USB end')},
+         'knobs': ['the rows\' inset from the side edges (drawn centred: %.3f mm) and the 15-pin span\'s offset along the length (centred: %.3f mm) - not dimensioned'
+                   % (_C3_X0, _C3_Y0), 'the corner radius (the drawing rounds the corners; no radius given) - drawn square',
+                   'mounting holes: none are drawn on the dimension drawing; none drawn here',
+                   'U1\'s place (the C3 package where the MINI-1 module sits) and every part box - not dimensioned']}
+    return _row(shape_name('board', board), '%s board outline (ESP32-C3-DevKitM-1: cited bbox + row spacing, knob details)' % board, g, [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]],
+                'c3-pv: board generator; bbox, row spacing, pitch and pin 1 cited from the DevKitM-1 dimensions drawing; every placement a drawing knob')
+
+
 def board_row(board, tables):
+    if board == 'esp32-c3':
+        return c3_board_row(board, tables)
     cps = [c for c in tables.get('ConnectorPin', []) if c['board'] == board]
     conns = [c for c in tables.get('Connector', []) if c['board'] == board]
     heads = []
@@ -312,6 +349,14 @@ LABEL = {'font': 1.0, 'char_w': 0.6, 'gap': 0.4, 'max_title': 12, 'max_pin': 10,
 #: where parts are packed (board frame, mm): free bands clear of the headers, U1 (a horizontal 34.7 x 7.2 body at y 21.8-29.0 plus its leg labels), U2 and the USB connector; then the bench column to the right of the board
 PART_REGIONS = [{'x0': 17.0, 'y0': 7.5, 'x1': 59.0, 'y1': 19.0}, {'x0': 2.0, 'y0': 32.0, 'x1': 44.0, 'y1': 44.5}]
 BENCH_REGION = {'x0': 77.0, 'y0': 3.0, 'x1': 120.0, 'y1': 46.0}
+
+
+def bench_region(board='arduino-uno-r3'):
+    """The bench column right of the board (UNO: BENCH_REGION); a narrower board moves it in, keeping the UNO's 11 mm gap and its size (knobs)."""
+    if board != 'esp32-c3':
+        return BENCH_REGION
+    x0 = round(C3_BBOX[0] + BENCH_REGION['x0'] - BOARD_BBOX[0], 3)
+    return {'x0': x0, 'y0': BENCH_REGION['y0'], 'x1': round(x0 + BENCH_REGION['x1'] - BENCH_REGION['x0'], 3), 'y1': BENCH_REGION['y1']}
 #: the margin a chip's own leg labels need around its body (labels are screen-sized at the chip, so this is a knob): U1 / U2 / X2 reserve body +- this
 CHIP_LABEL_MARGIN = 2.6
 
@@ -436,25 +481,28 @@ def pack_parts(items, regions):
     return out
 
 
-def part_placements(rows, parts):
+def part_placements(rows, parts, board='arduino-uno-r3'):
     """Placements (board frame) of every part the board row does not place by hand (all but X2): board parts packed into the free bands, bench parts into the column right of the board."""
     by = {r['name']: r for r in rows}
     ext = lambda ref: part_geometry(params(by[shape_name('part', ref.replace(' ', '_'))]))['extent']   # noqa: E731
-    board_items = [(r, ext(r)) for r in sorted(parts) if r not in PLACE]
+    c3 = board == 'esp32-c3'
+    board_items = [(r, ext(r)) for r in sorted(parts) if r not in (C3_PLACE if c3 else PLACE)]
     bench_items = [(r['name'][len('pv-part-'):], ext(r['name'][len('pv-part-'):])) for r in rows if r['name'].startswith('pv-part-bench-')]
-    out = dict(pack_parts(board_items, PART_REGIONS))
-    out.update(pack_parts(bench_items, [BENCH_REGION]))
+    out = dict(pack_parts(board_items, C3_PART_REGIONS if c3 else PART_REGIONS))
+    out.update(pack_parts(bench_items, [bench_region(board)]))
     return [{'ref': k, 'x': x, 'y': y, 'rot': 0} for k, (x, y) in sorted(out.items())]
 
 
 def shape_rows(tables, board='arduino-uno-r3'):
-    """Every MathShapeDefinition row of the pin view for the UNO: 3 package outlines (SPDIP, TQFP, QFN), 2 dies, the board outline and one box per board part."""
+    """Every MathShapeDefinition row of the pin view of one board: the UNO's 3 package outlines (SPDIP, TQFP, QFN) + the package of any chip on the board (the C3's
+    QFN32), the dies, the board outline (the UNO's or the DevKitM-1's) and one box per board part."""
     rows = []
     contacts = tables.get('PackageContact', [])
-    for pkg in tables.get('PackageDefinition', []):
-        if pkg['name'] in ('atmega328p-28-spdip', 'atmega328p-32-tqfp', 'atmega16u2-32-qfn'):
-            rows.append(package_row(pkg, contacts))
     comps = [c for c in tables.get('BoardComponent', []) if c['board'] == board and c.get('package')]
+    own = {c['package'] for c in comps}
+    for pkg in tables.get('PackageDefinition', []):
+        if pkg['name'] in ('atmega328p-28-spdip', 'atmega328p-32-tqfp', 'atmega16u2-32-qfn') or pkg['name'] in own:
+            rows.append(package_row(pkg, contacts))
     for soc in sorted({c['soc'] for c in comps}):
         rows.append(die_row(soc))
     parts = part_names(tables, board)
@@ -467,7 +515,7 @@ def shape_rows(tables, board='arduino-uno-r3'):
         rows.append(part_row(board, 'bench-%s' % name, sorted(labels), title=name))
     b = board_row(board, tables)
     p = json.loads(b['parameters_json'])
-    p['placements'] += part_placements(rows, parts)
+    p['placements'] += part_placements(rows, parts, board)
     b['parameters_json'] = json.dumps(p, sort_keys=True)
     rows.append(b)
     return rows
