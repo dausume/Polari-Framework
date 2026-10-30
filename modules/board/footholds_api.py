@@ -17,7 +17,7 @@ A refusal (an unknown kind, no such board, a model with no geometry) answers {ok
 from objectTreeDecorators import treeObject, treeObjectInit
 
 KIND_WORDS = {'datasheet': 'a dev board known from its vendor documents (BoardDefinition, BoardPin, ConnectorPin, the cited electrical numbers)',
-              'geometry': 'a breadboard known from its strip and rail counts and the 2.54 mm pitch (BoardModel / BreadboardModel)',
+              'geometry': 'a breadboard known from its strip and rail counts and the 2.54 mm pitch (BoardModel kind breadboard + its BreadboardLayout)',
               'layers': 'a PCB known from its copper - its connector and test pads, stored by the KiCad ingest (PcbBoard)'}
 
 

@@ -38,10 +38,11 @@ def boards_listing(manager=None):
     """The board family as plain rows: {'models': [...], 'boards': [...]}. A model row carries its DERIVED tie count and whether it equals the sold count."""
     models = []
     for name, m in sorted(BF.models(manager).items()):
-        derived = BF.derived_ties(m) if m.kind == 'breadboard' else 0
+        laid = m.kind == 'breadboard' and int(m.rows) > 0 and int(m.rail_holes) >= 0   # an unverified layout (-1) has no derived count
+        derived = BF.derived_ties(m) if laid else 0
         models.append({'name': name, 'kind': m.kind, 'size': m.size, 'status': getattr(m, 'status', 'built'), 'rows': m.rows, 'rail_holes': m.rail_holes, 'pitch_mm': m.pitch_mm,
-                       'nominal_ties': m.nominal_ties, 'derived_ties': derived, 'ties_agree': (derived == m.nominal_ties) if m.kind == 'breadboard' else None,
-                       'board_definition': m.board_definition, 'source': m.source, 'description': m.description,
+                       'nominal_ties': m.tie_points, 'derived_ties': derived, 'ties_agree': (derived == m.tie_points) if laid else None,
+                       'board_definition': m.board_definition, 'source': m.layout_basis or m.notes, 'description': m.description,
                        'note': {'reserved': 'RESERVED: no geometry yet'}.get(getattr(m, 'status', 'built'), '')})
     boards = []
     for name, b in sorted(BF.bench_boards(manager).items()):

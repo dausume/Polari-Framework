@@ -923,7 +923,8 @@ class polariServer(treeObject):
             CircuitComponentDefinition,
             BreadboardDefinition, ComponentPlacement, BoardJumper,
             # lay-0/lay-1: board models, boards on the bench, wire colour schemes, a person's layout edits
-            BoardModel, BenchBoard, WireColorScheme, LayoutEdit,
+            BoardModel, BreadboardLayout, BoardOutline, BoardRating,   # D-bob-3: a model + the rows only some boards have
+            BenchBoard, WireColorScheme, LayoutEdit,
             PinBindingDefinition, NoCodeTestCase, NoCodeTestPack,
             GovSource, SourceRetrieval, RetrievalConfirmation,
             NonProfitSource, CompanySource, PoliticalGroupSource,
@@ -1332,7 +1333,7 @@ class polariServer(treeObject):
             KitPart,
             # chp-0 + bench-0: the chips-and-levels ladder, the bench and its breadboard models - seeded by BOARD_SEED_PAIRS since chp-0 / bench-0 but never
             # registered here, so every seed was skipped and a person's bench had no table (the manifests guard named them; fixed 2026-10-29)
-            ChipLadderEntry, Bench, BreadboardModel,
+            ChipLadderEntry, Bench,
             # osc-0..8: the instruments module (models, endpoints, channels, captures) - threaded 2026-10-29 (was manifest-admission only)
             Instrument, InstrumentEndpoint, ScopeChannel, WaveformCapture,
             # ucd-0a: THE HARDWARE CHAIN — Peripheral / PeripheralSignal / PinFunction / SignalRoute / Register / RegisterField (+ the
@@ -2890,6 +2891,10 @@ class polariServer(treeObject):
             # lay-0: models before the boards on the bench (a board names its model); schemes are seeded rows (copy before editing);
             # a person's layout edits are runtime data.
             ('BoardModel', BoardModel, SEED_BOARD_MODELS),
+            # D-bob-3: the rows that name a model, after it
+            ('BreadboardLayout', BreadboardLayout, SEED_BREADBOARD_LAYOUTS),
+            ('BoardOutline', BoardOutline, SEED_BOARD_OUTLINES),
+            ('BoardRating', BoardRating, SEED_BOARD_RATINGS),
             ('BenchBoard', BenchBoard, SEED_BENCH_BOARDS_ALL),
             ('WireColorScheme', WireColorScheme, SEED_WIRE_COLOR_SCHEMES),
             ('LayoutEdit', LayoutEdit, []),

@@ -10,7 +10,7 @@ The 'board-roads' tech tree (one concept node per device) is seeded only when te
 """
 from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
                                FirmwareVariant, InstallPlan, InstallRecord, UnoAnalogState, SocDefinition, SocPin, BoardHardware, BoardNet,
-                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart, ChipLadderEntry, Bench, BreadboardModel,
+                               Connector, ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView, TargetCompatibilityRule, KitPart, ChipLadderEntry, Bench,
                                Datasheet)   # ucd-doc: datasheets as documents
 from board.board_basis import (PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget,
                                PinLifecycleConstraint)   # fgm-2: the UNO hardware truth
@@ -36,7 +36,7 @@ from board.custom import board_object_seed
 from board.custom import target_compat as TC
 from board.custom import kit_parts as KP
 from board.custom.chip_ladder_seed import SEED_CHIP_LADDER   # chp-0
-from board.custom.bench_seed import SEED_BREADBOARD_MODELS, SEED_BENCHES   # bench-0
+from board.custom.bench_seed import SEED_BENCHES   # bench-0 (its breadboard models moved to electrodevice BoardModel, D-bob-3)
 from board.custom import board_pin_nets as BPN
 from board.custom import register_access as RACC   # rm-2a
 
@@ -106,7 +106,6 @@ BOARD_SEED_PAIRS = [
     # sample_capabilities is re-derived from cmod's seeded Capabilities every time rows() is first called)
     ('KitPart', KitPart, _register_owned(KP.rows())),
     ('ChipLadderEntry', ChipLadderEntry, _register_owned(SEED_CHIP_LADDER)),   # chp-0: code-owned, the two sections never mix
-    ('BreadboardModel', BreadboardModel, _register_owned(SEED_BREADBOARD_MODELS)),   # bench-0: code-owned models
     ('Bench', Bench, _register_owned(SEED_BENCHES, keep=('boards_json', 'breadboards_json', 'notes'))),   # bench-0: a person's additions are never converged away
     # ucd-0a: THE HARDWARE CHAIN — code-owned (derived from the register snapshot + the cited field table + the SoC pin table;
     # re-derive the source, the rows follow); the settings/route/circuit-link rows are observed (filled by ucd-0b/0c), never seeded

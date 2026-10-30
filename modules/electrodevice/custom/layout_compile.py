@@ -40,9 +40,10 @@ def _jumper_rows(laid, board, header_board):
 def compile_nets(manager, design, laid, board, header_board):
     """-> {'groups': [[terminal ids]], 'net_of': {terminal id: compiled net name}, 'suggestions': [..]}. Raises LayoutRefused naming the row at fault (a hole off the board, a pin that is not a header pin)."""
     from electrodevice import breadboard_netlist_seed as bn
+    from electrodevice.custom import board_models as BM
     tabs = getattr(manager, 'objectTables', None) or {}
     mgr = types.SimpleNamespace(objectTables={'BreadboardDefinition': dict(tabs.get('BreadboardDefinition') or {}), 'BenchBoard': dict(tabs.get('BenchBoard') or {}),
-                                              'BoardModel': dict(tabs.get('BoardModel') or {}), 'ComponentPlacement': _placement_rows(laid, board),
+                                              **{c: dict(tabs.get(c) or {}) for c in BM.TABLES}, 'ComponentPlacement': _placement_rows(laid, board),
                                               'BoardJumper': _jumper_rows(laid, board, header_board)}, db=None)
     header_pins = sorted({w['from']['tie'] for w in laid['wires'] if w['from']['board'] == header_board}
                          | {w['to']['tie'] for w in laid['wires'] if w['to']['board'] == header_board}

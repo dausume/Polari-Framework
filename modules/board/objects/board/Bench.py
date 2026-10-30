@@ -13,7 +13,7 @@ class Bench(treeObject):
     entry carries, beside the board, how it can be TESTED - simulated with real pins, simulated with stub pins, or HARDWARE ONLY (his rule:
     "If something can only be hardware tested that needs to be outlined very clearly") - worked out from the chips-and-levels ladder when the
     entry is added and again when it is listed. A seeded bench is converged only in its shape: what a person added is never overwritten.
-    Related concepts: `ChipLadderEntry` (the chips and their emulators), `BreadboardModel` (the breadboards one can add), `KitPart` (the
+    Related concepts: `ChipLadderEntry` (the chips and their emulators), `BoardModel` kind breadboard (the breadboards one can add; electrodevice), `KitPart` (the
     parts in the kit), `BoardInstance` (one physical board the host has seen on USB).
     """
 
@@ -26,7 +26,7 @@ class Bench(treeObject):
         self.name = name                        # kebab-case, e.g. 'home-bench'
         self.title = title
         self.boards_json = boards_json          # [{board, title, label, chip, family, section, testing, added, note}] - board = the ladder's board key
-        self.breadboards_json = breadboards_json  # [{model, title, count, note}] - model = a BreadboardModel name
+        self.breadboards_json = breadboards_json  # [{model, title, count, note}] - model = a BoardModel name (an older BreadboardModel name such as half-400 still resolves)
         self.notes = notes
         self.source = source
         self.instruments_json = instruments_json  # osc-0: [{model, count, note}] - model = an instruments.Instrument name; read and written ONLY by instruments.custom.catalog

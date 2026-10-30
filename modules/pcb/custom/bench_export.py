@@ -18,7 +18,7 @@ The design is the writer's input; the library texts come from the KiCad worker (
 kxc-5b (his addition 2026-10-30: "if there are not direct conversions between KiCAD and polari data, we can attempt to encode that data into standard
 label and description data in KiCAD, for things where it is critical"): each written part carries hidden `Polari.*` properties (as KiCad itself keeps
 `Sim.*`) - Polari.Board (the Board-on-the-Bench id), Polari.Definition (kind/definition), Polari.Connector, Polari.Drive (per pin: direction, logic or
-rail volts, source / sink mA - the bench's drive data) and Polari.Firmware (per pin: which variable uses it and how). The ingest reads them back
+rail volts, source / sink mA - the bench's drive data) and Polari.Firmware (per pin: variant:variable:role, + ':if-flashed' when the board is not recorded as running that firmware). The ingest reads them back
 (SchematicSymbol.polari_json).
 """
 import re
@@ -160,7 +160,8 @@ def _drive(f):
 def polari_fields(bid, board, connector, pairs, firmware):
     """The hidden Polari.* properties of one written part (kxc-5b): identity + per-pin drive + per-pin firmware use - the critical data KiCad has no field for."""
     drive = '; '.join('%s=%s' % (sp, _drive(f)) for sp, f in pairs if f['direction'] != 'undetermined')
-    uses = '; '.join('%s=%s' % (sp, ','.join('%s:%s:%s' % (u['variant'], u['variable'], u['role']) for u in firmware.get((bid, f['chip_pin']), [])))
+    uses = '; '.join('%s=%s' % (sp, ','.join('%s:%s:%s%s' % (u['variant'], u['variable'], u['role'], '' if u.get('running', True) else ':if-flashed')
+                                             for u in firmware.get((bid, f['chip_pin']), [])))
                      for sp, f in pairs if f.get('chip_pin') and firmware.get((bid, f['chip_pin'])))
     out = [('Polari.Board', bid), ('Polari.Definition', board.get('definition', '')), ('Polari.Connector', connector), ('Polari.Drive', drive)]
     return out + ([('Polari.Firmware', uses)] if uses else [])

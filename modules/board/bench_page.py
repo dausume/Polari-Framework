@@ -7,7 +7,7 @@ no new component; "Add to bench" and "Remove" are row actions). Three tabs:
   On the bench      the boards on it (each with its TESTING word: simulated with real pins / simulated, pins STUB / HARDWARE ONLY) and the
                     breadboards on it (each with its geometry state), with Remove
   Add a board       the dev / eval board selection list: every board the chips-and-levels ladder knows, RISC-V first, with testing + on_bench
-  Add a breadboard  the breadboard selection list: every BreadboardModel with its tie points and geometry state
+  Add a breadboard  the breadboard selection list: every breadboard model (BoardModel kind breadboard) with its tie points and geometry state
 
 Fixed to the bench `home-bench` the way /display/pin-view is fixed to the UNO; the doors take any bench name.
 """
@@ -35,7 +35,7 @@ def _on_bench_tab():
         _row(1, [_table('bench-breadboards', 0, 12, 'Breadboards on the bench', '',
                         description='One row per breadboard model on the bench with its count. geometry says whether the layout engine can draw it and place parts on it: known (derived from '
                                     'its rows and holes at the 2.54 mm pitch) or UNVERIFIED (only a label is known; the datasheet is needed). Remove takes one off.',
-                        columns='title,kind,count,tie_points,rows,geometry,basis,note', data_path=_BBS,
+                        columns='title,size,count,tie_points,rows,geometry,basis,note', data_path=_BBS,
                         row_action={'label': 'Remove one', 'method': 'POST', 'path': _REMOVE, 'body_template': {'kind': 'breadboard', 'key': '{model}'}})], min_height=280),
     ], description='What is on the bench right now, and how each board can be tested.')
 
@@ -92,7 +92,7 @@ def _add_breadboard_tab():
         _row(0, [_table('bench-options-breadboards', 0, 12, 'Every breadboard model - pick one to add', '',
                         description='The selection list: one row per breadboard model with its tie points, rows, rail holes and geometry state (known = drawable and placeable; UNVERIFIED = '
                                     'only a vendor label is known). on_bench = how many are on the bench. Press Add to bench to add one more.',
-                        columns='title,vendor,part_number,kind,tie_points,rows,rail_holes,geometry,basis,on_bench', data_path=_OPT_BBS,
+                        columns='title,vendor,part_number,size,tie_points,rows,rail_holes,geometry,layout_basis,on_bench', data_path=_OPT_BBS,
                         row_action={'label': 'Add to bench', 'method': 'POST', 'path': _BBS, 'show_when_field': 'can_add',
                                     'body_template': {'model': '{name}', 'count': 1}})], min_height=360),
     ], description='The breadboard selection panel.')

@@ -126,24 +126,24 @@ def datasheet(tables, board):
 
 
 def geometry(model):
-    """BoardFoothold rows of a breadboard (a BoardModel or BreadboardModel row dict: rows, rail_holes, holes_per_side?, pitch_mm?): the layout view's hole grammar
+    """BoardFoothold rows of a breadboard (one model read whole - electrodevice.custom.board_models.composed: rows, rail_holes, holes_per_side, pitch_mm, drawable, the rating): the layout view's hole grammar
     r<N><a-j> and rail:<top|bottom>:<+|->:<N>. Strip N holes a-e are one node, f-j another (the centre trench); each rail is one node. A tie point is passive: it
-    carries what is driven into it; the board's own limit is its rail rating when one is cited (BreadboardModel.rail_*_max), else undetermined."""
+    carries what is driven into it; the board's own limit is its rail rating when one is cited (BoardRating), else undetermined."""
     name, rows_n, rail_n = model['name'], int(model.get('rows', -1)), int(model.get('rail_holes', -1))
     if rows_n <= 0 or rail_n < 0:
         return []
     side = int(model.get('holes_per_side', 5) or 5)
     geo = S.breadboard_geometry(rows_n, rail_n, float(model.get('pitch_mm', 2.54) or 2.54))
-    drawable = model.get('geometry_known', True) is not False   # BreadboardModel says False when a stated outline disagrees with the generated one
+    drawable = model.get('drawable', True) is not False   # BoardOutline says False when a stated outline disagrees with the generated one
     rv, ra = float(model.get('rail_voltage_max_v', UNKNOWN)), float(model.get('rail_current_max_a', UNKNOWN))
-    limit_why = model.get('power_basis') or 'no rail rating cited for this model'
-    basis = 'derived: %d strips x %d+%d holes, %d-hole rails, 2.54 mm pitch (pv_shapes.breadboard_geometry; %s)' % (rows_n, side, side, rail_n, model.get('source') or model.get('basis') or 'the model row')
+    limit_why = model.get('rating_basis') or 'no rail rating cited for this model'
+    basis = 'derived: %d strips x %d+%d holes, %d-hole rails, 2.54 mm pitch (pv_shapes.breadboard_geometry; %s)' % (rows_n, side, side, rail_n, model.get('layout_basis') or 'the model row')
     out = []
 
     def add(fid, kind, node, x, y, label=''):
         out.append({'name': _name('geometry', name, fid), 'definition_kind': 'geometry', 'definition': name, 'foothold': fid, 'kind': kind, 'label': label,
                     'x_mm': round(x, 4) if drawable else UNKNOWN, 'y_mm': round(y, 4) if drawable else UNKNOWN,
-                    'position_basis': basis if drawable else 'not drawable: %s' % (model.get('basis') or 'the model says geometry_known False'), 'side': 'top', 'node': node, 'net': '', 'rail_volts': UNKNOWN,
+                    'position_basis': basis if drawable else 'not drawable: %s' % (model.get('outline_basis') or 'the outline says drawable False'), 'side': 'top', 'node': node, 'net': '', 'rail_volts': UNKNOWN,
                     'logic_volts': UNKNOWN, 'source_ma': ra * 1000 if ra > 0 else UNKNOWN, 'sink_ma': ra * 1000 if ra > 0 else UNKNOWN,
                     'drive_basis': ('rail contact rating %s V / %s A (%s)' % (rv, ra, limit_why)) if ra > 0 else '', 'families_json': '[]', 'chip_pin': '',
                     'direction': 'passive', 'signal_basis': 'a tie point carries what is driven into it', 'undetermined': '' if ra > 0 else 'contact rating: %s' % limit_why,
@@ -176,9 +176,9 @@ def for_definition(kind, definition, tables=None, manager=None):
     if kind == 'geometry':
         model = _breadboard_model(definition, manager)
         if model is None:
-            return [], 'no breadboard model %r (BoardModel kind breadboard or BreadboardModel)' % definition
+            return [], 'no breadboard model %r (BoardModel kind breadboard; a devboard is a datasheet definition)' % definition
         rows = geometry(model)
-        return rows, '' if rows else 'model %r has no drawable geometry (%s)' % (definition, model.get('basis') or 'rows / rail holes unknown')
+        return rows, '' if rows else 'model %r has no drawable geometry (%s)' % (definition, model.get('layout_basis') or model.get('notes') or 'rows / rail holes unknown')
     stored = [_as_dict(o) for o in _table(manager, 'BoardFoothold') if getattr(o, 'definition_kind', '') == 'layers' and getattr(o, 'definition', '') == definition]
     return sorted(stored, key=lambda r: r['name']), '' if stored else 'no stored footholds for PCB %r - ingest it (pol pcb ingest)' % definition
 
@@ -194,14 +194,8 @@ def _as_dict(o):
 
 
 def _breadboard_model(name, manager=None):
-    """BoardModel kind breadboard (electrodevice) first, then BreadboardModel (board): the live rows when a manager is given, else the code seeds."""
-    for cls in ('BoardModel', 'BreadboardModel'):
-        for o in _table(manager, cls):
-            if getattr(o, 'name', '') == name and getattr(o, 'kind', 'breadboard') != 'devboard':
-                return {k: v for k, v in vars(o).items() if not k.startswith('_')}
-    try:
-        from electrodevice.objects.layout._shared import SEED_BOARD_MODELS
-    except ImportError:
-        SEED_BOARD_MODELS = []
-    from board.custom.bench_seed import SEED_BREADBOARD_MODELS
-    return next((dict(m) for m in list(SEED_BOARD_MODELS) + list(SEED_BREADBOARD_MODELS) if m['name'] == name and m.get('kind') != 'devboard'), None)
+    """One breadboard model read whole (D-bob-3: BoardModel kind breadboard + its BreadboardLayout / BoardOutline / BoardRating; live rows over the seeds);
+    an older board.BreadboardModel name (half-400) resolves to the merged model."""
+    from electrodevice.custom import board_models as BM
+    m = BM.composed(manager).get(BM.canonical(name))
+    return m if m and m['kind'] != 'devboard' else None   # a reserved kind (protoboard, pcb) is found, then refused for having no geometry

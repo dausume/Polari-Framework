@@ -54,9 +54,14 @@ def firmware_uses(boards, variables=None, running=None):
             value = CV.effective(v)[0]
             chip = CV.resolve_pin(v.get('soc', ''), value) if value else ''
             if chip:
-                out.setdefault((bid, chip), []).append({'variant': v['variant'] if bid in running else '%s (if flashed)' % v['variant'], 'variable': v['variable'],
-                                                        'role': v['role'], 'used_by': v.get('used_by', '')})
+                out.setdefault((bid, chip), []).append({'variant': v['variant'], 'variable': v['variable'], 'role': v['role'], 'used_by': v.get('used_by', ''),
+                                                        'running': bid in running})
     return out
+
+
+def use_words(u):
+    """One firmware use in words: 'uno-light BUTTON_PIN int.ext', or 'uno-light (if flashed) ...' when the board is not recorded as running it."""
+    return '%s%s %s %s' % (u['variant'], '' if u.get('running') else ' (if flashed)', u['variable'], u['role'])
 
 
 def _drives(m, fw):
@@ -108,7 +113,7 @@ def pin_rows(boards, wiring, firmware=None, tables=None):
                              % ('%g' % p['source_ma'] if p['source_ma'] > 0 else 'uncited'))
             other_groups = [g for k, g in groups.items() if k != key]
             rows.append({'board': p['board'], 'board_label': labels[p['board']], 'pin': name(group), 'footholds': ', '.join(m['foothold'] for m in group),
-                         'chip_pin': p['chip_pin'], 'firmware': '; '.join(dict.fromkeys('%s %s %s' % (u['variant'], u['variable'], u['role']) for u in uses)),
+                         'chip_pin': p['chip_pin'], 'firmware': '; '.join(dict.fromkeys(use_words(u) for u in uses)),
                          'connections': '; '.join(name(g) for g in other_groups), 'via': ', '.join(vias), 'logic_volts': p['logic_volts'], 'source_ma': p['source_ma'],
                          'rail_volts': p['rail_volts'], 'checks': '; '.join(dict.fromkeys(checks)), 'notes': '; '.join(notes), 'defined': '',
                          'status': 'finding' if checks else 'ok'})
@@ -148,7 +153,7 @@ def _circuits(rows, boards, circuits, fw, tables, running=None):
             if row is None:
                 uses = fw.get((bid, chip), [])
                 row = {'board': bid, 'board_label': b.get('label', bid), 'pin': label, 'footholds': ', '.join(f['foothold'] for f in group), 'chip_pin': chip,
-                       'firmware': '; '.join(dict.fromkeys('%s %s %s' % (u['variant'], u['variable'], u['role']) for u in uses)), 'connections': '', 'via': '',
+                       'firmware': '; '.join(dict.fromkeys(use_words(u) for u in uses)), 'connections': '', 'via': '',
                        'logic_volts': group[0]['logic_volts'], 'source_ma': group[0]['source_ma'], 'rail_volts': group[0]['rail_volts'], 'checks': '', 'notes': '',
                        'status': 'ok'}
                 rows.append(row)

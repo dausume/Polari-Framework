@@ -10,7 +10,7 @@ capitals, never left blank (his rule 2026-10-24).
     GET  /api/board/benches/{bench}/boards               {ok, rows}  the boards on it, each with its testing word, software and how
     GET  /api/board/benches/{bench}/breadboards          {ok, rows}  the breadboards on it, each with its model's geometry state
     GET  /api/board/bench-options/boards?bench=          {ok, rows}  every dev / eval board the ladder knows, with testing + on_bench + can_add
-    GET  /api/board/bench-options/breadboards?bench=     {ok, rows}  every BreadboardModel, with on_bench count
+    GET  /api/board/bench-options/breadboards?bench=     {ok, rows}  every breadboard model (electrodevice BoardModel kind breadboard, read whole), with on_bench count
     POST /api/board/benches/{bench}/boards               {board, label?, note?}        -> 201 + the bench's boards
     POST /api/board/benches/{bench}/breadboards          {model, count?, note?}        -> 201 + the bench's breadboards
     POST /api/board/benches/{bench}/remove               {kind: board|breadboard, key}  -> 200 + the rows left
@@ -89,10 +89,18 @@ def _save(manager, b):
 
 
 def models(manager=None):
-    live = _live_rows(manager, 'BreadboardModel')
-    if live:
-        return [{k: getattr(r, k, '') for k in SEED.SEED_BREADBOARD_MODELS[0].keys()} for r in live]
-    return [dict(m) for m in SEED.SEED_BREADBOARD_MODELS]
+    """The breadboard models, each read whole (D-bob-3: electrodevice BoardModel kind breadboard + its BreadboardLayout / BoardOutline / BoardRating)."""
+    from electrodevice.custom import board_models as BM
+    return [r for _n, r in sorted(BM.composed(manager).items()) if r['kind'] == 'breadboard']
+
+
+def _canonical(name):
+    from electrodevice.custom.board_models import canonical
+    return canonical(name)
+
+
+def _geometry_words(m):
+    return 'known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('drawable') else 'UNVERIFIED - cannot be drawn or placed on yet'
 
 
 # ---------------------------------------------------------------------------------------------------- the ladder's boards
@@ -134,10 +142,10 @@ def breadboard_rows(b, manager=None):
     ms = {m['name']: m for m in models(manager)}
     rows = []
     for e in _j(b.get('breadboards_json'), []):
-        m = ms.get(e.get('model', '')) or {'title': e.get('model', ''), 'kind': 'unverified', 'tie_points': -1, 'rows': -1, 'geometry_known': False, 'basis': 'unknown model'}
-        rows.append({'model': e.get('model', ''), 'title': m['title'], 'kind': m['kind'], 'count': int(e.get('count') or 1), 'tie_points': m['tie_points'],
-                     'rows': m['rows'], 'geometry': 'known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('geometry_known') else 'UNVERIFIED - cannot be drawn or placed on yet',
-                     'basis': m['basis'], 'note': e.get('note', ''), 'bench': b['name']})
+        key = _canonical(e.get('model', ''))
+        m = ms.get(key) or {'title': key, 'size': 'unverified', 'tie_points': -1, 'rows': -1, 'drawable': False, 'layout_basis': 'unknown model'}
+        rows.append({'model': key, 'title': m['title'], 'size': m['size'], 'count': int(e.get('count') or 1), 'tie_points': m['tie_points'],
+                     'rows': m['rows'], 'geometry': _geometry_words(m), 'basis': m['layout_basis'], 'note': e.get('note', ''), 'bench': b['name']})
     return rows
 
 
@@ -247,7 +255,7 @@ def rail_power_text(m):
     v, a = m.get('rail_voltage_max_v', -1), m.get('rail_current_max_a', -1)
     if v == -1 and a == -1:
         return 'unverified'
-    return '%s V / %s A (%s)' % ('?' if v == -1 else '%g' % v, '?' if a == -1 else '%g' % a, m.get('power_basis', ''))
+    return '%s V / %s A (%s)' % ('?' if v == -1 else '%g' % v, '?' if a == -1 else '%g' % a, m.get('rating_basis', ''))
 
 
 def _fit_words(f):
@@ -260,7 +268,7 @@ def _fit_words(f):
 def breadboard_options(manager=None, bench_name=''):
     from board.custom.bench_fit import breadboard_fit
     b = bench(bench_name, manager) if bench_name else None
-    on = {e.get('model', ''): int(e.get('count') or 1) for e in _j((b or {}).get('breadboards_json'), [])}
+    on = {_canonical(e.get('model', '')): int(e.get('count') or 1) for e in _j((b or {}).get('breadboards_json'), [])}
     lb = ladder_boards(manager)
     keys = [e.get('board', '') for e in _j((b or {}).get('boards_json'), [])]
     rows = []
@@ -268,7 +276,7 @@ def breadboard_options(manager=None, bench_name=''):
         fit = {k: breadboard_fit((lb.get(k) or {}).get('footprint_json'), m) for k in dict.fromkeys(keys) if k}
         fits = ' \u00b7 '.join('%s: %s' % (lb[k]['title'] if k in lb else k, _fit_words(v)) for k, v in fit.items()) or 'no boards on the bench yet'
         outline = '%g x %g mm' % (m['width_mm'], m['height_mm']) if m.get('width_mm', -1) > 0 and m.get('height_mm', -1) > 0 else 'unverified'
-        rows.append(dict(m, outline=outline, fits=fits, geometry='known (%.1f x %.1f mm)' % (m['width_mm'], m['height_mm']) if m.get('geometry_known') else 'UNVERIFIED - cannot be drawn or placed on yet',
+        rows.append(dict(m, outline=outline, fits=fits, geometry=_geometry_words(m),
                          on_bench=on.get(m['name'], 0), can_add=True, bench=bench_name, rail_power=rail_power_text(m), fit_json=fit))
     return rows
 
@@ -295,7 +303,7 @@ def add_breadboard(manager, bench_name, body):
     b = bench(bench_name, manager)
     if b is None:
         return 404, {'ok': False, 'error': 'no bench named %r' % bench_name}
-    key = str((body or {}).get('model', '')).strip()
+    key = _canonical(str((body or {}).get('model', '')).strip())
     ms = {m['name'] for m in models(manager)}
     if key not in ms:
         return 404, {'ok': False, 'error': 'no breadboard model named %r' % key, 'known': sorted(ms)}
@@ -307,8 +315,9 @@ def add_breadboard(manager, bench_name, body):
     if count < 1:
         return 400, {'ok': False, 'error': 'count must be 1 or more'}
     entries = _j(b.get('breadboards_json'), [])
-    hit = next((e for e in entries if e.get('model') == key), None)
+    hit = next((e for e in entries if _canonical(e.get('model', '')) == key), None)
     if hit:
+        hit['model'] = key
         hit['count'] = int(hit.get('count') or 1) + count
     else:
         entries.append({'model': key, 'count': count, 'note': str(body.get('note') or '')})
@@ -333,7 +342,7 @@ def remove(manager, bench_name, body):
         return 200, {'ok': True, 'bench': bench_name, 'removed': key, 'rows': board_rows(b, manager)}
     if kind == 'breadboard':
         entries = _j(b.get('breadboards_json'), [])
-        hit = next((e for e in entries if e.get('model') == key), None)
+        hit = next((e for e in entries if _canonical(e.get('model', '')) == _canonical(key)), None)
         if hit is None:
             return 404, {'ok': False, 'error': 'no breadboard %r on bench %s' % (key, bench_name)}
         if int(hit.get('count') or 1) > 1:

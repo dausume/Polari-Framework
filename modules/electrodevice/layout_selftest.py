@@ -38,7 +38,8 @@ def _seeded_manager():
     """A manager holding the seeded layout rows, as the server's seed would."""
     from electrodevice import layout_basis as LB
     m = _manager()
-    for cls, seeds in ((LB.BoardModel, LB.SEED_BOARD_MODELS), (LB.BenchBoard, LB.SEED_BENCH_BOARDS_ALL), (LB.WireColorScheme, LB.SEED_WIRE_COLOR_SCHEMES)):
+    for cls, seeds in ((LB.BoardModel, LB.SEED_BOARD_MODELS), (LB.BreadboardLayout, LB.SEED_BREADBOARD_LAYOUTS), (LB.BoardOutline, LB.SEED_BOARD_OUTLINES),
+                       (LB.BoardRating, LB.SEED_BOARD_RATINGS), (LB.BenchBoard, LB.SEED_BENCH_BOARDS_ALL), (LB.WireColorScheme, LB.SEED_WIRE_COLOR_SCHEMES)):
         for s in seeds:
             cls(manager=m, **s)
     return m
@@ -62,21 +63,33 @@ def _family():
     from electrodevice.objects.breadboard._shared import SEED_BREADBOARDS
     models = BF.models()
     half, full = models['breadboard-half'], models['breadboard-full']
-    check('half model: 30 rows x 10 holes + 4 rails x 25 = 400 ties, derived from the geometry', BF.derived_ties(half) == 400 == half.nominal_ties, BF.derived_ties(half))
-    check('full model: 63 rows x 10 holes + 4 rails x 50 = 830 ties, derived from the geometry', BF.derived_ties(full) == 830 == full.nominal_ties, BF.derived_ties(full))
+    check('half model: 30 rows x 10 holes + 4 rails x 25 = 400 ties, derived from the geometry', BF.derived_ties(half) == 400 == half.tie_points, BF.derived_ties(half))
+    check('full model: 63 rows x 10 holes + 4 rails x 50 = 830 ties, derived from the geometry', BF.derived_ties(full) == 830 == full.tie_points, BF.derived_ties(full))
     check('pitch 2.54 mm on both (0.1 in)', half.pitch_mm == 2.54 == full.pitch_mm)
-    check('only half and full breadboards exist for now (his answer)', sorted(m for m, r in models.items() if r.kind == 'breadboard') == ['breadboard-full', 'breadboard-half'])
+    check('D-bob-3 ONE MODEL CLASS: the bench\'s breadboard selection list (the older board.BreadboardModel) and the layout family are the same rows now - '
+          'half, full, mini, the BUD and the kit\'s; the older names half-400 / full-830 resolve to the merged models',
+          sorted(m for m, r in models.items() if r.kind == 'breadboard') == ['breadboard-full', 'breadboard-half', 'bud-bb-32650-w', 'mini-170', 'starter-kit-breadboard']
+          and LB.MODEL_ALIASES == {'half-400': 'breadboard-half', 'full-830': 'breadboard-full'})
+    import inspect
+    nfields = {c.__name__: len(inspect.signature(c.__init__).parameters) - 2 for c in (LB.BoardModel, LB.BreadboardLayout, LB.BoardOutline, LB.BoardRating)}
+    bud, kit, uno = models['bud-bb-32650-w'], models['starter-kit-breadboard'], models['uno-r3']
+    check('D-bob-3 COMPOSED, NOT ONE WIDE ROW: BoardModel holds identity only (9 fields); the layout, a stated outline and a rating are their own rows naming '
+          'the model (board_model) - a devboard has no strip fields, a model without a stated outline derives it from its layout',
+          nfields == {'BoardModel': 9, 'BreadboardLayout': 10, 'BoardOutline': 6, 'BoardRating': 5} and uno.rows == 0 and uno.board_definition == 'arduino-uno-r3'
+          and half.drawable and half.width_mm > 0 and 'derived' in half.outline_basis
+          and (bud.width_mm, bud.height_mm, bud.drawable) == (47.0, 36.1, False) and 'cited' in bud.outline_basis and 'n/a' in bud.rating_basis
+          and kit.rows == -1 and kit.status == 'unverified' and not kit.drawable and 'unverified' in kit.rating_basis, (nfields, bud.outline_basis[:40]))
     check('protoboard and pcb are RESERVED kinds with no geometry, said so', models['protoboard'].status == 'reserved' == models['pcb'].status
           and models['protoboard'].rows == 0 and 'no geometry' in models['pcb'].description)
     listing = C.boards_listing()
-    check('the boards door lists models with derived ties agreeing', {m['name']: m['ties_agree'] for m in listing['models'] if m['kind'] == 'breadboard'} == {'breadboard-half': True, 'breadboard-full': True})
+    check('the boards door lists models with derived ties agreeing', {m['name']: m['ties_agree'] for m in listing['models'] if m['kind'] == 'breadboard'} == {'breadboard-half': True, 'breadboard-full': True, 'mini-170': True, 'bud-bb-32650-w': True, 'starter-kit-breadboard': None})
     names = {b['name'] for b in LB.SEED_BENCH_BOARDS_ALL}
     check('every older BreadboardDefinition seed has a BenchBoard of the same name (converged, no row lost)', {b['name'] for b in SEED_BREADBOARDS} <= names
           and all(b['migrated_from'] == 'BreadboardDefinition:%s' % b['name'] for b in LB.SEED_BENCH_BOARDS_ALL if b['name'] in {x['name'] for x in SEED_BREADBOARDS}))
     check('the default bench board is the half breadboard (the kit page does not say which)', LB.BENCH_DEFAULT == 'bench-half-1'
           and next(b for b in LB.SEED_BENCH_BOARDS_ALL if b['name'] == 'bench-half-1')['model_name'] == 'breadboard-half')
     m = _seeded_manager()
-    check('the seeded rows build as real objects (BoardModel, BenchBoard, WireColorScheme)', len(m.objectTables['BoardModel']) == 5 and len(m.objectTables['WireColorScheme']) == 1
+    check('the seeded rows build as real objects (BoardModel + its BreadboardLayout / BoardOutline / BoardRating, BenchBoard, WireColorScheme)', len(m.objectTables['BoardModel']) == 8 and len(m.objectTables['BreadboardLayout']) == 5 and len(m.objectTables['WireColorScheme']) == 1
           and len(m.objectTables['BenchBoard']) == len(LB.SEED_BENCH_BOARDS_ALL))
     geo = BF.resolve(m, 'bb-demo-a')
     check('a migrated board resolves to the half geometry', geo is not None and geo.rows == 30 and geo.rail_holes == 25 and geo.kind == 'breadboard', vars(geo) if geo else None)
@@ -323,7 +336,7 @@ def _edits_and_doors():
     resp = lambda: types.SimpleNamespace(media=None, status='200 OK')   # noqa: E731
     r1 = resp()
     api.on_get_boards(Req(), r1)
-    check('door GET /api/layout/boards: models, boards, defaults', r1.media['ok'] and len(r1.media['models']) == 5 and r1.media['default_board'] == 'bench-half-1')
+    check('door GET /api/layout/boards: models, boards, defaults', r1.media['ok'] and len(r1.media['models']) == 8 and r1.media['default_board'] == 'bench-half-1')
     r2 = resp()
     api.on_get_layout(Req(), r2, 'uno-light')
     check('door GET /api/layout/<config>: placements, wires, nets and the verdict (no private keys sent)', r2.media['ok'] and r2.media['verdict']['ok'] and r2.media['placements'] and not any(k.startswith('_') for k in r2.media))

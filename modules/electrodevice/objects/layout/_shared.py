@@ -1,30 +1,8 @@
 """@module electrodevice.objects.layout._shared — what the layout row classes share (constants, seeds, helpers) (lay-0)."""
 
-# ---------------------------------------------------------------- the board family (BoardModel seeds)
-#: Hole pitch of a solderless breadboard: 0.1 in = 2.54 mm, the standard grid of DIP parts and header pins.
-PITCH_MM = 2.54
-BREADBOARD_SOURCE = ('the common industry layout of the 400- and 830-tie-point solderless breadboards: numbered strips of 5+5 holes split by the centre trench, '
-                     'two power-rail pairs (top and bottom) of 25 (half) or 50 (full) holes each; NO datasheet read for this kit (KitPart arduino-starter-kit:breadboard '
-                     'lists the part with its size and quantity undetermined)')
-
-SEED_BOARD_MODELS = [
-    {'name': 'breadboard-half', 'kind': 'breadboard', 'size': 'half', 'rows': 30, 'holes_per_side': 5, 'rail_holes': 25, 'pitch_mm': PITCH_MM,
-     'nominal_ties': 400, 'board_definition': '', 'status': 'built', 'source': BREADBOARD_SOURCE,
-     'description': 'Half-size breadboard: 30 strips x 10 holes = 300 terminal ties + 4 rails x 25 = 100 bus ties = 400 ties.'},
-    {'name': 'breadboard-full', 'kind': 'breadboard', 'size': 'full', 'rows': 63, 'holes_per_side': 5, 'rail_holes': 50, 'pitch_mm': PITCH_MM,
-     'nominal_ties': 830, 'board_definition': '', 'status': 'built', 'source': BREADBOARD_SOURCE,
-     'description': 'Full-size breadboard: 63 strips x 10 holes = 630 terminal ties + 4 rails x 50 = 200 bus ties = 830 ties.'},
-    {'name': 'uno-r3', 'kind': 'devboard', 'size': '', 'rows': 0, 'holes_per_side': 0, 'rail_holes': 0, 'pitch_mm': PITCH_MM,
-     'nominal_ties': 0, 'board_definition': 'arduino-uno-r3', 'status': 'built',
-     'source': 'the header pins are the BoardPin rows of arduino-uno-r3 plus the connector power labels (board.custom.board_uno.CONNECTORS); nothing is stored here',
-     'description': 'The Arduino UNO R3 as a board in a layout: its headers are the places a wire can start.'},
-    {'name': 'protoboard', 'kind': 'protoboard', 'size': '', 'rows': 0, 'holes_per_side': 0, 'rail_holes': 0, 'pitch_mm': PITCH_MM,
-     'nominal_ties': 0, 'board_definition': '', 'status': 'reserved', 'source': 'reserved: no geometry yet (a soldered board, enclosure stage S2)',
-     'description': 'RESERVED. A protoboard model has no geometry yet; layouts on it are refused in words until it is built.'},
-    {'name': 'pcb', 'kind': 'pcb', 'size': '', 'rows': 0, 'holes_per_side': 0, 'rail_holes': 0, 'pitch_mm': PITCH_MM,
-     'nominal_ties': 0, 'board_definition': '', 'status': 'reserved', 'source': 'reserved: no geometry yet (a printed board, from the pcb module)',
-     'description': 'RESERVED. A PCB model has no geometry yet; layouts on it are refused in words until it is built.'},
-]
+# ---------------------------------------------------------------- the board family (D-bob-3: the models and their composed rows live in _board_seeds)
+from electrodevice.objects.layout._board_seeds import (BREADBOARD_SOURCE, MODEL_ALIASES, PITCH_MM, SEED_BOARD_MODELS, SEED_BOARD_OUTLINES,  # noqa: F401,E402
+                                                       SEED_BOARD_RATINGS, SEED_BREADBOARD_LAYOUTS)
 
 # ---------------------------------------------------------------- the boards on the bench (BenchBoard seeds)
 #: The default bench: a half breadboard (his answer 2026-10-19: the kit page does not say which, so the default is half and the size stays undetermined).

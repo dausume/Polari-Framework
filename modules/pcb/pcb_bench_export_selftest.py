@@ -81,7 +81,8 @@ def run_polari_fields(check):
     boards, conns = scenario()
     for bid, defn in (('uno', 'arduino-uno-r3'), ('c3', 'esp32-c3')):
         boards[bid]['definition'] = defn
-    d, _, _ = X.design(boards, conns, 'polari-bench', firmware=BP.firmware_uses(boards))
+    d, _, _ = X.design(boards, conns, 'polari-bench', firmware=BP.firmware_uses(boards, running={'uno': 'uno-light', 'c3': 'esp32c3-light'}))
+    cand, _, _ = X.design(boards, conns, 'polari-bench', firmware=BP.firmware_uses(boards))   # nothing recorded as running: every use a candidate
     libs = {}
     for line in open(os.path.join(REF, 'kicad10_symbols_bench_export.txt')):
         if not line.startswith(';'):
@@ -92,8 +93,10 @@ def run_polari_fields(check):
     back = K.read_project({'x.kicad_sch': open(os.path.join(REF, 'kicad10_resaved_bench_export.kicad_sch')).read()}, 'x')
     theirs = {s['ref']: json.loads(s['polari_json']) for s in back['SchematicSymbol'] if s['polari_json'] != '{}'}
     c3 = next(v for v in ours.values() if v.get('Polari.Board') == 'c3')
-    check('KXC-5b CRITICAL DATA RIDES IN KiCad FIELDS: every written part carries hidden Polari.Board / Definition / Connector / Drive (per pin: direction, '
+    check('KXC-5b CRITICAL DATA RIDES IN KiCad FIELDS: every written part (the boards recorded as running uno-light / esp32c3-light; with nothing recorded a use is tagged :if-flashed) carries hidden Polari.Board / Definition / Connector / Drive (per pin: direction, '
           'volts, source / sink mA) / Firmware (per pin: variable + role) - the C3 part says pin 9 = esp32c3-light LED_PIN gpio.out and pin 2 = a 3.3 V '
           'supply; after KiCad 10 RE-SAVED the file (its own format 20260306) our ingest reads back the SAME fields for all six parts, with no problems',
           len(ours) == 6 and ours == theirs and not back['problems'] and '9=esp32c3-light:LED_PIN:gpio.out' in c3.get('Polari.Firmware', '')
-          and '2=supply 3.3V' in c3.get('Polari.Drive', '') and back['Schematic'][0]['format_version'] == '20260306', (len(ours), len(theirs), back['problems'][:2]))
+          and '2=supply 3.3V' in c3.get('Polari.Drive', '') and back['Schematic'][0]['format_version'] == '20260306'
+          and '9=esp32c3-light:LED_PIN:gpio.out:if-flashed' in dict(next(c for c in cand['components'] if c.get('polari_board') == 'c3')['polari_fields'])['Polari.Firmware'],
+          (len(ours), len(theirs), back['problems'][:2]))

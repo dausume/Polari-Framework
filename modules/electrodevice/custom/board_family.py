@@ -11,7 +11,7 @@ Tie-point grammar (what `breadboard_netlist_seed` understands):
   vplus / gnd                   the board's own supply net / SPICE ground (still valid; a wire from a header GND to a '-' rail joins a rail to ground)
   <label>                       a development board's header pin: a BoardPin canonical name (D6, A0) or a power label (GND, 5V, 3V3, VIN, IOREF, AREF, RESET)
 
-Board resolution: a BenchBoard of that name -> its BoardModel's geometry; otherwise the older BreadboardDefinition row (rows from the row, 25 rail holes per rail up
+Board resolution: a BenchBoard of that name -> its BoardModel read whole (its BreadboardLayout's geometry); otherwise the older BreadboardDefinition row (rows from the row, 25 rail holes per rail up
 to 30 rows, 50 above: the same common layout). Reserved kinds (protoboard, pcb) resolve to a Board with `reserved=True` and refuse to take a layout.
 """
 import re
@@ -38,11 +38,10 @@ def _as(row):
 
 
 def models(manager=None):
-    """{name: BoardModel row}: the seeds, with live rows winning."""
-    from electrodevice.objects.layout._shared import SEED_BOARD_MODELS
-    out = {m['name']: _as(m) for m in SEED_BOARD_MODELS}
-    out.update({getattr(r, 'name', ''): r for r in _rows(manager, 'BoardModel')})
-    return out
+    """{name: one board model read whole}: BoardModel + its BreadboardLayout / BoardOutline / BoardRating (electrodevice.custom.board_models, D-bob-3),
+    the seeds with live rows winning."""
+    from electrodevice.custom import board_models as BM
+    return {n: _as(r) for n, r in BM.composed(manager).items()}
 
 
 def bench_boards(manager=None):
@@ -54,8 +53,8 @@ def bench_boards(manager=None):
 
 
 def derived_ties(model):
-    """The tie-point count the geometry gives: strips x holes x 2 sides + 4 rails x rail holes (400 half, 830 full)."""
-    return int(model.rows) * int(model.holes_per_side) * 2 + len(RAILS) * int(model.rail_holes)
+    """The tie-point count the geometry gives: strips x holes x 2 sides + rails x rail holes (400 half, 830 full, 170 mini)."""
+    return int(model.rows) * int(model.holes_per_side) * 2 + int(getattr(model, 'rails', len(RAILS))) * int(model.rail_holes)
 
 
 def devboard_pins(board_definition):
@@ -91,10 +90,11 @@ def resolve(manager, name):
     if inst is None and name not in legacy:
         inst = bench_boards(manager).get(name)    # the seeds (the bench's own boards) when no live row says otherwise
     if inst is not None:
-        m = models(manager).get(getattr(inst, 'model_name', ''))
+        from electrodevice.custom.board_models import canonical
+        m = models(manager).get(canonical(getattr(inst, 'model_name', '')))
         if m is None:
             return None
-        reserved = getattr(m, 'status', 'built') == 'reserved' or m.kind in ('protoboard', 'pcb')
+        reserved = getattr(m, 'status', 'built') in ('reserved', 'unverified') or m.kind in ('protoboard', 'pcb')   # unverified: its layout is not known yet
         return Board(name, m.kind, m.rows, m.rail_holes, m.holes_per_side, model=m.name, size=getattr(m, 'size', ''), reserved=reserved,
                      board_definition=getattr(m, 'board_definition', ''), status=getattr(m, 'status', 'built'), instance=inst)
     row = legacy.get(name)

@@ -12,13 +12,13 @@ def run_bench_setup(check):
     from board.custom import chip_ladder as CL
     B._MEM.clear()
     # ---- the models
-    ms = {m['name']: m for m in S.SEED_BREADBOARD_MODELS}
-    check('bench-0 MODELS: five breadboard models; half-400 and full-830 and mini-170 have DERIVED geometry from pv_shapes; the kit\'s is UNVERIFIED with no dimensions; the BUD carries its CITED 47.0 x 36.1 mm outline (170 tie points) but is not drawable yet (generated width is 1.26 mm off the stated one)',
-          len(ms) == 5 and all(ms[k]['geometry_known'] and ms[k]['width_mm'] > 0 and 'derived' in ms[k]['basis'] for k in ('half-400', 'full-830', 'mini-170'))
-          and not ms['starter-kit-breadboard']['geometry_known'] and ms['starter-kit-breadboard']['width_mm'] == -1.0
-          and ms['bud-bb-32650-w']['tie_points'] == 170 and ms['bud-bb-32650-w']['kind'] == 'mini' and not ms['bud-bb-32650-w']['geometry_known']
-          and (ms['bud-bb-32650-w']['width_mm'], ms['bud-bb-32650-w']['height_mm']) == (47.0, 36.1) and 'cited' in ms['bud-bb-32650-w']['basis'],
-          {k: (m['geometry_known'], round(m['width_mm'], 1)) for k, m in ms.items()})
+    ms = {m['name']: m for m in B.models(None)}   # D-bob-3: BoardModel kind breadboard, read whole
+    check('bench-0 MODELS: five breadboard models (BoardModel kind breadboard since D-bob-3); half, full and mini-170 have DERIVED geometry from pv_shapes; the kit\'s is UNVERIFIED with no dimensions; the BUD carries its CITED 47.0 x 36.1 mm outline (170 tie points) but is not drawable yet (generated width is 1.26 mm off the stated one)',
+          len(ms) == 5 and all(ms[k]['drawable'] and ms[k]['width_mm'] > 0 and 'derived' in ms[k]['outline_basis'] for k in ('breadboard-half', 'breadboard-full', 'mini-170'))
+          and not ms['starter-kit-breadboard']['drawable'] and ms['starter-kit-breadboard']['width_mm'] == -1.0
+          and ms['bud-bb-32650-w']['tie_points'] == 170 and ms['bud-bb-32650-w']['size'] == 'mini' and not ms['bud-bb-32650-w']['drawable']
+          and (ms['bud-bb-32650-w']['width_mm'], ms['bud-bb-32650-w']['height_mm']) == (47.0, 36.1) and 'cited' in ms['bud-bb-32650-w']['outline_basis'],
+          {k: (m['drawable'], round(m['width_mm'], 1)) for k, m in ms.items()})
     from board.custom import pv_shapes as PV
     g0, g1 = PV.breadboard_geometry(17, 0), PV.breadboard_geometry(30, 25)
     P = 2.54
@@ -26,7 +26,7 @@ def run_bench_setup(check):
           g0['rail_y'] == {} and abs(g0['h'] - 14 * P) < 1e-9 and abs(g0['h'] - (g0['col_y']['j'] - g0['col_y']['a'] + 2 * PV.BB_PAD * P)) < 1e-9
           and set(g1['rail_y']) == {'top+', 'top-', 'bottom-', 'bottom+'} and abs(g1['h'] - 20.4 * P) < 1e-9 and PV.hole_xy(g0, 'rail:top:+:1') is None, (g0['h'], g1['h']))
     check('bench-0 MODELS: the full board is wider than the half, the half than the mini (the geometry follows the row counts)',
-          ms['full-830']['width_mm'] > ms['half-400']['width_mm'] > ms['mini-170']['width_mm'], (ms['full-830']['width_mm'], ms['half-400']['width_mm'], ms['mini-170']['width_mm']))
+          ms['breadboard-full']['width_mm'] > ms['breadboard-half']['width_mm'] > ms['mini-170']['width_mm'], (ms['breadboard-full']['width_mm'], ms['breadboard-half']['width_mm'], ms['mini-170']['width_mm']))
     # ---- the testing words (shared with the ladder)
     lb = B.ladder_boards(None)
     check('bench-0 TESTING: every ladder board has a testing group and a word; the UNO is "simulated: pins real"; the Arduino Zero and the Feather are "HARDWARE ONLY"; the C3 says STUB',
@@ -68,20 +68,20 @@ def run_bench_setup(check):
     check('bench-0 ADD board: an unknown board is 404 and names the known ones', st3 == 404 and 'known' in body3 and 'arduino-uno-r3' in body3['known'], body3.get('error'))
     st4, body4 = B.post_door(None, S.HOME_BENCH, 'breadboards', {'model': 'half-400', 'count': 2})
     st5, body5 = B.post_door(None, S.HOME_BENCH, 'breadboards', {'model': 'half-400'})
-    check('bench-0 ADD breadboard: two half boards then one more make count 3 on one row; count 0 is 400; an unknown model 404',
-          st4 == 201 and st5 == 201 and next(r for r in body5['rows'] if r['model'] == 'half-400')['count'] == 3
+    check('bench-0 ADD breadboard: two half boards then one more make count 3 on one row (asked by the older name half-400, kept as the merged breadboard-half); count 0 is 400; an unknown model 404',
+          st4 == 201 and st5 == 201 and next(r for r in body5['rows'] if r['model'] == 'breadboard-half')['count'] == 3
           and B.post_door(None, S.HOME_BENCH, 'breadboards', {'model': 'half-400', 'count': 0})[0] == 400
           and B.post_door(None, S.HOME_BENCH, 'breadboards', {'model': 'nope'})[0] == 404, body5['rows'])
     st6, body6 = B.post_door(None, S.HOME_BENCH, 'remove', {'kind': 'board', 'key': body2['rows'][-1]['label']})
     st7, body7 = B.post_door(None, S.HOME_BENCH, 'remove', {'kind': 'breadboard', 'key': 'half-400'})
     check('bench-0 REMOVE: removing the second UNO by label leaves five boards; removing one half board leaves count 2; an unknown key is 404; a bad kind 400',
-          st6 == 200 and len(body6['rows']) == 5 and st7 == 200 and next(r for r in body7['rows'] if r['model'] == 'half-400')['count'] == 2
+          st6 == 200 and len(body6['rows']) == 5 and st7 == 200 and next(r for r in body7['rows'] if r['model'] == 'breadboard-half')['count'] == 2
           and B.post_door(None, S.HOME_BENCH, 'remove', {'kind': 'board', 'key': 'ghost'})[0] == 404
           and B.post_door(None, S.HOME_BENCH, 'remove', {'kind': 'thing', 'key': 'x'})[0] == 400, (len(body6['rows']), body7['rows']))
     check('bench-0 DOORS: an unknown bench is 404 on boards, breadboards, add and remove',
           B.get_door(None, {}, 'boards', 'nowhere')[0] == 404 and B.post_door(None, 'nowhere', 'boards', {'board': 'arduino-uno-r3'})[0] == 404
           and B.post_door(None, 'nowhere', 'remove', {'kind': 'board', 'key': 'x'})[0] == 404, '')
-    check('bench-0 PRIVACY: no e-mail, street or invoice number in the seeds', not any(s in json.dumps(S.SEED_BENCHES + S.SEED_BREADBOARD_MODELS) for s in ('@', 'Arrowhead', 'Fairfax', '3689309', '134236176')), '')
+    check('bench-0 PRIVACY: no e-mail, street or invoice number in the seeds', not any(s in json.dumps(S.SEED_BENCHES + B.models(None)) for s in ('@', 'Arrowhead', 'Fairfax', '3689309', '134236176')), '')
     # ---- the ladder's own split
     st, body = CL.door(None, {'section': 'convenience'}, 'chips')
     groups = {r['name']: r['testing_group'] for r in body['rows']}
@@ -112,10 +112,10 @@ def run_wb0(check):
     from board.custom import bench_seed as S
     from board.custom.bench_fit import breadboard_fit as F
     B._MEM.clear()
-    ms = {m['name']: m for m in S.SEED_BREADBOARD_MODELS}
-    check('wb-0 POWER: every model carries rail_voltage_max_v / rail_current_max_a (-1 = not determined, never a typical number) and a power_basis; none is cited so all are -1',
-          all(m['rail_voltage_max_v'] == -1 and m['rail_current_max_a'] == -1 and m['power_basis'] for m in ms.values())
-          and 'unverified' in ms['half-400']['power_basis'] and 'no power rails' in ms['mini-170']['power_basis'], {k: m['power_basis'][:40] for k, m in ms.items()})
+    ms = {m['name']: m for m in B.models(None)}   # D-bob-3: BoardModel kind breadboard, read whole
+    check('wb-0 POWER: every model carries rail_voltage_max_v / rail_current_max_a (-1 = not determined, never a typical number) and a rating_basis (BoardRating, or said when no row); none is cited so all are -1',
+          all(m['rail_voltage_max_v'] == -1 and m['rail_current_max_a'] == -1 and m['rating_basis'] for m in ms.values())
+          and 'unverified' in ms['breadboard-half']['rating_basis'] and 'no power rails' in ms['mini-170']['rating_basis'], {k: m['rating_basis'][:40] for k, m in ms.items()})
     st, body = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-breadboards')
     bud = next(r for r in body['rows'] if r['name'] == 'bud-bb-32650-w')
     check('wb-0 OPTIONS breadboards: rail_power is a plain string ("unverified" here) and fit_json has one verdict per board on the bench (UNO beside)',
@@ -235,7 +235,7 @@ def run_wb2(check):
     check('wb-2 PATHS: every dataPath / action path in the page (%d) matches a route in bench_api.py, cmod_mission_api.py or instruments_api.py' % len(paths), paths and not bad, bad)
     # new columns
     st, bb = B.get_door(None, {'bench': S.HOME_BENCH}, 'options-breadboards')
-    half = next(r for r in bb['rows'] if r['name'] == 'half-400')
+    half = next(r for r in bb['rows'] if r['name'] == 'breadboard-half')
     kit = next(r for r in bb['rows'] if r['name'] == 'starter-kit-breadboard')
     check('wb-2 COLUMNS breadboards: outline + fits are plain strings; half-400 fits says "Arduino Uno R3: beside" style per board, the kit outline is unverified; no bench -> "no boards on the bench yet"',
           isinstance(half['outline'], str) and ' x ' in half['outline'] and kit['outline'] == 'unverified' and isinstance(half['fits'], str) and ': beside' in half['fits'] and ' \u00b7 ' in half['fits']

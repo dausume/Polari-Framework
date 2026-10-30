@@ -13,7 +13,7 @@ class BenchBoard(treeObject):
     the half model), so the breadboard compiler reads the model's geometry when a BenchBoard of that name exists and the old row's `rows` otherwise.
     bob-1 (his ruling 2026-10-30: dev boards, breadboards and PCBs are equally Boards on the Bench): `bench` + (`definition_kind`, `definition`) put any board
     on a Bench - this is how an ingested PCB joins one (board.custom.bench_boards).
-    Related concepts: `BoardModel` (the geometry), `BreadboardDefinition` (the older row), `LayoutEdit` (a person's change to a build on this board),
+    Related concepts: `BoardModel` (the kind of board; its layout, outline and rating are rows naming it), `BreadboardDefinition` (the older row), `LayoutEdit` (a person's change to a build on this board),
     `BoardFoothold` (what the Bench sees of any board).
     """
 

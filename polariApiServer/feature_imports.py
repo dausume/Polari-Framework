@@ -158,8 +158,9 @@ FEATURE_IMPORT_BLOCKS = (
         )),
         # lay-0/lay-1: the board family (models, boards on the bench), wire colour schemes, a person's layout edits
         ('electrodevice.layout_basis', (
-            'BoardModel', 'BenchBoard', 'WireColorScheme', 'LayoutEdit',
-            'SEED_BOARD_MODELS', 'SEED_BENCH_BOARDS_ALL', 'SEED_WIRE_COLOR_SCHEMES',
+            'BoardModel', 'BreadboardLayout', 'BoardOutline', 'BoardRating', 'BenchBoard', 'WireColorScheme', 'LayoutEdit',
+            'SEED_BOARD_MODELS', 'SEED_BREADBOARD_LAYOUTS', 'SEED_BOARD_OUTLINES', 'SEED_BOARD_RATINGS',
+            'SEED_BENCH_BOARDS_ALL', 'SEED_WIRE_COLOR_SCHEMES',
         )),
     )),
     ('scoring', (
@@ -1326,7 +1327,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'DatasheetFact', 'BoardSimCost', 'Road', 'FirmwareVariant', 'InstallPlan', 'InstallRecord',
                                'UnoAnalogState', 'SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connector', 'ConnectorPin',
                                'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
-                               'ChipLadderEntry', 'Bench', 'BreadboardModel',   # chp-0 + bench-0 (were never named here: their seeds silently skipped - fixed 2026-10-29)
+                               'ChipLadderEntry', 'Bench',   # chp-0 + bench-0 (BreadboardModel merged into electrodevice BoardModel, D-bob-3) (were never named here: their seeds silently skipped - fixed 2026-10-29)
                                'Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',
                                'RegisterFieldSetting', 'RegisterAccessKind', 'BoardPinNet', 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion',
                                'ButtonClockState', 'ButtonClockEvent', 'LightState', 'LightStateV2', 'LightCommand', 'Datasheet',
