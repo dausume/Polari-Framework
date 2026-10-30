@@ -68,3 +68,32 @@ def run_bench_export(check):
           c3['symbol'] == 'RF_Module:ESP32-C3-DevKitM-1' and mapping2[('c3', 'J3:2')] == (c3['ref'], '29') and cmp2 == {'same': 11, 'ours_only': [], 'kicad_only': []}
           and 'error/pin_to_pin' not in v['erc'] and v['erc'].get('error/pin_not_driven') == 2 and any('RST' in s for s in v['not_driven'])
           and not S.check_kicad(S.parse(text2), 'kicad_sch'), (cmp2, v['erc']))
+
+
+def run_polari_fields(check):
+    """kxc-5b (his addition 2026-10-30): critical Polari data with no KiCad equivalent rides in hidden Polari.* properties and comes back on ingest.
+    Reference: custom/reference/kicad10_resaved_bench_export.kicad_sch = our export of the scenario RE-SAVED by KiCad 10.0.6 (`kicad-cli sch upgrade`,
+    econ-core 2026-10-30, format 20260306)."""
+    from board.custom import bench_pins as BP
+    from pcb.custom import bench_export as X
+    from pcb.custom import kicad_read as K
+    from pcb.custom import schematic_writer as W
+    boards, conns = scenario()
+    for bid, defn in (('uno', 'arduino-uno-r3'), ('c3', 'esp32-c3')):
+        boards[bid]['definition'] = defn
+    d, _, _ = X.design(boards, conns, 'polari-bench', firmware=BP.firmware_uses(boards))
+    libs = {}
+    for line in open(os.path.join(REF, 'kicad10_symbols_bench_export.txt')):
+        if not line.startswith(';'):
+            lid, _, text = line.rstrip('\n').split('\t')
+            libs[lid] = text
+    text, _ = W.write(d, libs, title='polari bench')
+    ours = {s['ref']: json.loads(s['polari_json']) for s in K.read_project({'x.kicad_sch': text}, 'x')['SchematicSymbol'] if s['polari_json'] != '{}'}
+    back = K.read_project({'x.kicad_sch': open(os.path.join(REF, 'kicad10_resaved_bench_export.kicad_sch')).read()}, 'x')
+    theirs = {s['ref']: json.loads(s['polari_json']) for s in back['SchematicSymbol'] if s['polari_json'] != '{}'}
+    c3 = next(v for v in ours.values() if v.get('Polari.Board') == 'c3')
+    check('KXC-5b CRITICAL DATA RIDES IN KiCad FIELDS: every written part carries hidden Polari.Board / Definition / Connector / Drive (per pin: direction, '
+          'volts, source / sink mA) / Firmware (per pin: variable + role) - the C3 part says pin 9 = esp32c3-light LED_PIN gpio.out and pin 2 = a 3.3 V '
+          'supply; after KiCad 10 RE-SAVED the file (its own format 20260306) our ingest reads back the SAME fields for all six parts, with no problems',
+          len(ours) == 6 and ours == theirs and not back['problems'] and '9=esp32c3-light:LED_PIN:gpio.out' in c3.get('Polari.Firmware', '')
+          and '2=supply 3.3V' in c3.get('Polari.Drive', '') and back['Schematic'][0]['format_version'] == '20260306', (len(ours), len(theirs), back['problems'][:2]))

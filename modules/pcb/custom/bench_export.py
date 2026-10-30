@@ -14,6 +14,12 @@ export reads the Bench level only (footholds + connections, board.custom.bench_n
   compare(mapping, nets, kicad_netlist_rows)  the re-exported KiCad netlist groups the same pins as our bench nets?
 
 The design is the writer's input; the library texts come from the KiCad worker (pcb_engines.library) - a host with no KiCad refuses in words.
+
+kxc-5b (his addition 2026-10-30: "if there are not direct conversions between KiCAD and polari data, we can attempt to encode that data into standard
+label and description data in KiCAD, for things where it is critical"): each written part carries hidden `Polari.*` properties (as KiCad itself keeps
+`Sim.*`) - Polari.Board (the Board-on-the-Bench id), Polari.Definition (kind/definition), Polari.Connector, Polari.Drive (per pin: direction, logic or
+rail volts, source / sink mA - the bench's drive data) and Polari.Firmware (per pin: which variable uses it and how). The ingest reads them back
+(SchematicSymbol.polari_json).
 """
 import re
 
@@ -62,7 +68,7 @@ def whole_parts():
                          'board_c3.kicad_devkit_pin (fact esp32-c3:kicad.symbols)')}
 
 
-def design(boards, connections, title='bench', two_rows=None, use_whole_parts=True):
+def design(boards, connections, title='bench', two_rows=None, use_whole_parts=True, firmware=None):
     """boards = {board id: {'label', 'footholds': [...], 'definition'?}}; two_rows = {(board id, connector)} drawn as 2 x N headers; a board whose
     definition KiCad has as one whole part (whole_parts: the ESP32-C3-DevKitM-1) is written as that part when use_whole_parts."""
     two_rows = two_rows or set()
@@ -90,6 +96,7 @@ def design(boards, connections, title='bench', two_rows=None, use_whole_parts=Tr
         used.add(name)
         names[root] = name
     comps, mapping, report = [], {}, {'boards': [], 'skipped': []}
+    fw = firmware or {}
     jn = 0
     for bid in sorted(boards):
         b = boards[bid]
@@ -107,8 +114,10 @@ def design(boards, connections, title='bench', two_rows=None, use_whole_parts=Tr
                     mapping[(bid, f['foothold'])] = (ref, sp)
                     if len(members[root]) > 1:
                         wired[sp] = names[root]
+            pairs = [(str(pin_of(conn, p)), f) for conn in sorted(groups) for p, f in groups[conn]]
             comps.append({'ref': ref, 'lib_id': lib_id, 'value': b.get('label', bid), 'footprint': fp, 'role': 'module', 'pins': wired,
-                          'polari_board': bid, 'polari_connector': ', '.join(sorted(groups))})
+                          'polari_board': bid, 'polari_connector': ', '.join(sorted(groups)),
+                          'polari_fields': polari_fields(bid, b, ', '.join(sorted(groups)), pairs, fw)})
             report['boards'].append({'board': bid, 'connector': ', '.join(sorted(groups)), 'ref': ref, 'symbol': lib_id, 'pins': sum(len(v) for v in groups.values()),
                                      'pin_map': src})
             continue
@@ -131,13 +140,30 @@ def design(boards, connections, title='bench', two_rows=None, use_whole_parts=Tr
                 if len(members[uf.find((bid, f['node']))]) > 1:   # a lone foothold stays unconnected (the writer lists it)
                     wired[str(p)] = net
             comps.append({'ref': ref, 'lib_id': lib, 'value': '%s %s' % (b.get('label', bid), conn), 'footprint': b.get('footprints', {}).get(conn, ''),
-                          'role': 'header', 'pins': wired, 'polari_board': bid, 'polari_connector': conn})
+                          'role': 'header', 'pins': wired, 'polari_board': bid, 'polari_connector': conn,
+                          'polari_fields': polari_fields(bid, b, conn, [(str(p), f) for p, f in pins], fw)})
             report['boards'].append({'board': bid, 'connector': conn, 'ref': ref, 'symbol': lib, 'pins': n})
     nets = {}
     for c in comps:
         for pin, net in c['pins'].items():
             nets.setdefault(net, []).append((c['ref'], pin))
     return {'board': re.sub(r'\W', '-', title), 'components': comps, 'nets': nets, 'unconnected': []}, mapping, report
+
+
+def _drive(f):
+    v = f['rail_volts'] if f['direction'] == 'supply' else f['logic_volts']
+    bits = [f['direction']] + (['%gV' % v] if v >= 0 else []) + (['src %gmA' % f['source_ma']] if f['source_ma'] > 0 else []) + \
+        (['snk %gmA' % f['sink_ma']] if f['sink_ma'] > 0 else [])
+    return ' '.join(bits)
+
+
+def polari_fields(bid, board, connector, pairs, firmware):
+    """The hidden Polari.* properties of one written part (kxc-5b): identity + per-pin drive + per-pin firmware use - the critical data KiCad has no field for."""
+    drive = '; '.join('%s=%s' % (sp, _drive(f)) for sp, f in pairs if f['direction'] != 'undetermined')
+    uses = '; '.join('%s=%s' % (sp, ','.join('%s:%s:%s' % (u['variant'], u['variable'], u['role']) for u in firmware.get((bid, f['chip_pin']), [])))
+                     for sp, f in pairs if f.get('chip_pin') and firmware.get((bid, f['chip_pin'])))
+    out = [('Polari.Board', bid), ('Polari.Definition', board.get('definition', '')), ('Polari.Connector', connector), ('Polari.Drive', drive)]
+    return out + ([('Polari.Firmware', uses)] if uses else [])
 
 
 def compare(design_, kicad_rows):

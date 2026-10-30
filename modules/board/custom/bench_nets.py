@@ -85,6 +85,8 @@ def nets(boards, connections):
             uf.find(key)
     problems = []
     for c in connections:
+        if c.get('kind') == 'circuit':   # bob-2c: a board-level circuit placed on the bench joins no footholds here - bench_pins reads it
+            continue
         a, b = index.get((c['from_board'], c['from_foothold'])), index.get((c['to_board'], c['to_foothold']))
         if a is None or b is None:
             problems.append('connection %s %s -> %s %s: %s has no such foothold' % (c['from_board'], c['from_foothold'], c['to_board'], c['to_foothold'],
@@ -183,3 +185,28 @@ def mate(manager, bench_name, body):
     if not pins:
         return 422, {'ok': False, 'error': 'Board %r has no header %r' % (board, conn)}
     return add_connections(manager, bench_name, mate_header(board, pins, body.get('breadboard', ''), str(body.get('column', 'a')), int(body.get('first_row', 1))))
+
+
+def add_circuit(manager, bench_name, body):
+    """bob-2c: {board, circuit, on?} - a BOARD-LEVEL circuit (an electrodevice CircuitDefinition bound to the board's pins by BoardPinNet rows) is built
+    on the bench, wired to Board `board` (optionally on breadboard `on`). Its drive behaviour stays at board level (board.custom.electrical_check); the
+    bench pins read its findings."""
+    from board.custom import electrical_check as EC
+    from board.objects.board.BenchConnection import BenchConnection
+    feet, by_id = _boards(bench_name, manager)
+    if feet is None:
+        return 404, {'ok': False, 'error': 'no bench named %r' % bench_name}
+    board, circuit = body.get('board', ''), body.get('circuit', '')
+    if board not in by_id:
+        return 422, {'ok': False, 'error': 'no Board %r on this bench (ids: %s)' % (board, ', '.join(sorted(by_id)))}
+    defn = by_id[board]['definition']
+    tables = EC.tables_for(manager)
+    bound = [r for r in tables.get('BoardPinNet', []) if r.get('circuit') == circuit and str(r.get('board_pin', '')).startswith(defn + ':')]
+    if not bound:
+        return 422, {'ok': False, 'error': 'circuit %r binds no pin of %s (BoardPinNet rows)' % (circuit, defn)}
+    if manager is None:
+        return 503, {'ok': False, 'error': 'no object manager: a circuit on the bench is a stored row'}
+    name = '%s:circuit:%s@%s' % (bench_name, circuit, board)
+    BenchConnection(manager=manager, name=name, bench=bench_name, from_board=board, from_foothold='', to_board=body.get('on', ''), to_foothold='',
+                    kind='circuit', label=circuit, notes='a board-level circuit built on the bench; its drive behaviour is checked at board level')
+    return 201, {'ok': True, 'bench': bench_name, 'added': name}

@@ -143,7 +143,7 @@ def write(d, libs, title=None, comment=''):
             if num is None:
                 raise WriterRefused('%s (%s) has no pin %r — pins %s' % (c['ref'], c['lib_id'], pin, sorted(pins)))
             wired[num] = net
-        extra = [('polari_role', c['role'])] + ([('polari_uno_connector', c['uno_connector'])] if c.get('uno_connector') else [])
+        extra = [('polari_role', c['role'])] + ([('polari_uno_connector', c['uno_connector'])] if c.get('uno_connector') else []) + list(c.get('polari_fields') or [])
         items.append(_symbol(board, sheet_uuid, board, c['lib_id'], c['ref'], c['value'], c['footprint'], (ox, oy), list(pins), extra))
         for num, (px, py_, pname) in sorted(pins.items(), key=lambda kv: (len(kv[0]), kv[0])):
             cx, cy = ox + px, oy - py_

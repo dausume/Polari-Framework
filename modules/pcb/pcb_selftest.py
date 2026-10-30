@@ -249,6 +249,8 @@ def main():
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading
     run_bench_export(check)
+    from pcb.pcb_bench_export_selftest import run_polari_fields   # kxc-5b: Polari.* fields survive a KiCad re-save
+    run_polari_fields(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

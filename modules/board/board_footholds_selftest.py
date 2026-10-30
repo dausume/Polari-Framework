@@ -191,3 +191,25 @@ def run_bench_pins(check):
     v5 = next(r for r in rows2 if r['pin'].startswith('UNO +5V'))
     check('BOB-2b SAFETY: the UNO\'s 5 V wired onto the C3\'s GND strip is a short on the UNO +5V row (its two +5V pins are one row; a supply connected to ground)',
           v5['status'] == 'finding' and 'connected to ground' in v5['checks'], v5['checks'])
+
+
+def run_bench_circuits(check):
+    """bob-2c: a board-level circuit built on the bench gives its pins a DEFINED connection with real drive behaviour (board.custom.electrical_check)."""
+    from board.custom import bench_pins as BP
+    from board.custom import footholds as FH
+    uno, _ = FH.for_definition('datasheet', 'arduino-uno-r3')
+    boards = {'uno': {'label': 'UNO', 'footholds': uno, 'definition': 'arduino-uno-r3'}}
+    circ = [{'kind': 'circuit', 'from_board': 'uno', 'from_foothold': '', 'to_board': '', 'to_foothold': '', 'label': 'uno-button-clock'}]
+    rows, _ = BP.pin_rows(boards, circ)
+    by = {r['pin']: r for r in rows}
+    check('BOB-2c A CIRCUIT DEFINES THE CONNECTION: the uno-button-clock circuit (LED + 220 ohm on D6, sense D3, button D2) built on the bench gives D6, D3 and '
+          'D2 rows with no wire at all; D6\'s note carries the board-level LED current (13.636 mA with the ASSUMED 2 V forward voltage, the Vf-free ceiling '
+          '22.727 mA against the cited 20 mA) and D2\'s the missing pull - the generic "no circuit defines a load" note is gone',
+          sorted(by) == ['UNO D2', 'UNO D3', 'UNO D6'] and '13.636 mA' in by['UNO D6']['notes'] and '22.727 mA' in by['UNO D6']['notes']
+          and 'no pull' in by['UNO D2']['notes'] and 'no board-level circuit' not in by['UNO D6']['notes']
+          and by['UNO D6']['defined'].startswith('circuit uno-button-clock (output'), {k: v['notes'][:60] for k, v in by.items()})
+    fw = {('uno', 'PD6'): [{'variant': 'test', 'variable': 'LED_PIN', 'role': 'gpio.in', 'used_by': ''}]}
+    rows2, _ = BP.pin_rows(boards, circ, firmware=fw)
+    d6 = next(r for r in rows2 if r['pin'] == 'UNO D6')
+    check('BOB-2c CODE vs WIRING: a firmware that READS D6 while the circuit wires D6 as the LED\'s driving output is a role-mismatch finding on the pin',
+          d6['status'] == 'finding' and 'role mismatch' in d6['checks'], d6['checks'])

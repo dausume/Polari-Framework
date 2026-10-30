@@ -56,8 +56,10 @@ def _all_boards_tab():
                                     'says which firmware variable uses the pin and how (gpio.out = it drives it); connections are the other PINS it reaches and via '
                                     'what (a breadboard\'s strips); checks compare the pin\'s own properties - its logic level, its current limit, whether it drives - '
                                     'with what its connections and firmware need: over-voltage (a 5 V driver on a 3.3 V pin), contention (two outputs driving each '
-                                    'other), short (two supplies, or a supply and ground). notes say what could not be judged yet.',
-                        columns='status,pin,firmware,connections,via,logic_volts,source_ma,checks,notes', data_path=door + '/pins?rev=r{scope:rev}', max_height=520)],
+                                    'other), short (two supplies, or a supply and ground). defined names the board-level circuit a pin is part of (an LED with its '
+                                    'resistor...): its real drive behaviour is worked out at board level and its findings land here - the LED current against the '
+                                    'pin\'s limit, a missing pull, a firmware that drives a pin the circuit reads. notes say what could not be judged yet.',
+                        columns='status,pin,firmware,connections,defined,via,logic_volts,source_ma,checks,notes', data_path=door + '/pins?rev=r{scope:rev}', max_height=520)],
              min_height=320),
         _row(2, [_component('bench-netlist', 0, 3, '', 'picker-button',
                             {'label': 'Bench netlist', 'title': 'The bench netlist - every net that crosses boards',

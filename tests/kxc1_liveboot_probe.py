@@ -83,6 +83,12 @@ r = client.simulate_get('/api/board/benches/home-bench/pins')
 v5 = [x for x in (r.json or {}).get('rows', []) if x['pin'].startswith('UNO #1 +5V')]
 check('bob-2b: GET /api/board/benches/home-bench/pins -> the UNO +5V pin row carries the short (wired into the same BUD strip as its GND), read as a pin, not a net',
       r.status_code == 200 and v5 and 'connected to ground' in v5[0]['checks'], r.text[:400])
+r = client.simulate_post('/api/board/benches/home-bench/circuits', json={'board': 'boards_json#1', 'circuit': 'uno-button-clock'})
+check('bob-2c: POST /api/board/benches/home-bench/circuits puts the board-level uno-button-clock circuit on the bench, wired to the UNO (201)', r.status_code == 201, r.text[:200])
+r = client.simulate_get('/api/board/benches/home-bench/pins')
+d6 = [x for x in (r.json or {}).get('rows', []) if x['pin'] == 'UNO #1 D6']
+check('bob-2c: the UNO #1 D6 pin row now carries the circuit as its DEFINED connection and the board-level LED current in its notes',
+      r.status_code == 200 and d6 and d6[0]['defined'].startswith('circuit uno-button-clock') and '22.727 mA' in d6[0]['notes'], r.text[:400])
 r = client.simulate_post('/api/board/benches/home-bench/connections', json={'connections': [{'from_board': 'boards_json#1', 'from_foothold': 'NOPE', 'to_board': bud_id, 'to_foothold': 'r1a'}]})
 check('bob-2: a wire to a foothold that does not exist is refused (422) and nothing is stored', r.status_code == 422 and 'no foothold' in r.json['error'], r.text[:200])
 r = client.simulate_post('/api/pcb/export/bench/home-bench')

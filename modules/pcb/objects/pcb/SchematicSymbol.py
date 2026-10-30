@@ -12,7 +12,8 @@ class SchematicSymbol(treeObject):
     so both are rows). Its identity is the symbol's uuid + the sheet instance path (uuids from the root); the reference is a label.
     Carries everything KiCad stores on it: library id, unit, value, footprint, position / rotation / mirror, the BOM / board / DNP /
     simulation flags, EVERY property (properties_json), and the simulation fields split out (Sim.Device, Sim.Type, Sim.Name,
-    Sim.Params, Sim.Pins, Sim.Library) — the inputs kxc-3 turns into simulation models. Part rows group these into BOM lines.
+    Sim.Params, Sim.Pins, Sim.Library) — the inputs kxc-3 turns into simulation models — and any Polari.* properties (polari_json: what a Polari
+    export encoded where KiCad has no field, kxc-5b). Part rows group these into BOM lines.
     """
 
     @treeObjectInit
@@ -20,7 +21,7 @@ class SchematicSymbol(treeObject):
                  footprint: str = '', uuid: str = '', instance_path: str = '', sheet: str = '', file: str = '', x_mm: float = 0.0,
                  y_mm: float = 0.0, rotation: float = 0.0, mirror: str = '', in_bom: str = 'yes', on_board: str = 'yes', dnp: str = 'no',
                  exclude_from_sim: str = 'no', power: str = 'no', properties_json: str = '{}', sim_device: str = '', sim_type: str = '',
-                 sim_name: str = '', sim_params: str = '', sim_pins: str = '', sim_library: str = '', notes: str = '', manager=None):
+                 sim_name: str = '', sim_params: str = '', sim_pins: str = '', sim_library: str = '', polari_json: str = '{}', notes: str = '', manager=None):
         self.name = name  # board:ref:unit
         self.board = board
         self.ref = ref  # this instance's reference (R1, #PWR03)
@@ -48,4 +49,5 @@ class SchematicSymbol(treeObject):
         self.sim_params = sim_params
         self.sim_pins = sim_pins
         self.sim_library = sim_library
+        self.polari_json = polari_json  # kxc-5b: the hidden Polari.* properties a Polari export wrote (identity, drive, firmware) - read back on ingest
         self.notes = notes
