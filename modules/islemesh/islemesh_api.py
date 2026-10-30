@@ -43,6 +43,8 @@ from islemesh.islemesh_catalog import (
     instances_of, option_install_plan, polari_app_options,
     resolve_app_placement)
 from islemesh.custom.islemesh_coherence import assess_topology
+from islemesh.custom.islemesh_capabilities import (
+    ACTIONS, validate_evidence, evaluate_isle, MAX_AGE_SECONDS)
 from islemesh.custom.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -82,6 +84,9 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/catalog', self, suffix='catalog')
             add('/api/islemesh/catalog/{entry}', self,
                 suffix='catalog_entry')
+            add('/api/islemesh/devices', self, suffix='devices')
+            add('/api/islemesh/gaps', self, suffix='gaps')
+            add('/api/islemesh/catalog/{entry}/targets', self, suffix='catalog_targets')
             add('/api/islemesh/coherence', self, suffix='coherence')
             add('/api/islemesh/appplan/{app}', self,
                 suffix='appplan')
@@ -143,7 +148,8 @@ class IsleMeshAPI(treeObject):
     _DEVICE_RESET = {'isle_name': '', 'agent_mode': '',
                      'agent_present': False, 'hosts_router': False,
                      'router_running': False,
-                     'connectivity_mode': '', 'notes': ''}
+                     'connectivity_mode': '', 'notes': '',
+                     'capability_evidence_json': '{}', 'capability_received_at': ''}
 
     def _upsert_device(self, device_name, is_mock, **fields):
         table = self._table('IsleDevice')
@@ -321,7 +327,18 @@ class IsleMeshAPI(treeObject):
             response.media = {'ok': True,
                               'retired': bool(doomed)}
             return
+        evidence_json = None
+        received_at = None
+        if 'capability_evidence' in payload:
+            try:
+                report = validate_evidence(payload['capability_evidence'])
+                evidence_json = json.dumps(report, allow_nan=False)
+                received_at = _now_iso()
+            except (ValueError, TypeError, OverflowError) as error:
+                return self._refuse(response, 'invalid capability evidence: %s' % error)
         facts = payload.get('facts') or {}
+        if not isinstance(facts, dict):
+            return self._refuse(response, 'facts must be an object')
         mode = facts.get('connectivity_mode')
         if mode and mode not in CONNECTIVITY_MODES:
             return self._refuse(
@@ -357,7 +374,9 @@ class IsleMeshAPI(treeObject):
             exposures_json=exposures_json,
             pools_json=pools_json,
             ports_json=ports_json,
-            notes=facts.get('notes'))
+            notes=facts.get('notes'),
+            capability_evidence_json=evidence_json,
+            capability_received_at=received_at)
         uplinks = payload.get('uplinks') or []
         self._replace_device_rows(_DEVICE_CLASSES, device_name)
         kept = 0
@@ -522,12 +541,89 @@ class IsleMeshAPI(treeObject):
             'port': getattr(row, 'port', 0),
             'domain': getattr(row, 'domain', ''),
             'provides_engine': getattr(row, 'provides_engine', ''),
+            'realization': getattr(row, 'realization', ''),
             'requires_tier': getattr(row, 'requires_tier', ''),  # hw-app-1: hardware kinds need the hardware tier
             'extends': getattr(row, 'extends', ''),
             'category': getattr(row, 'category', ''),
             'source': getattr(row, 'source', ''),
             'published': getattr(row, 'published', True),
         }
+
+    def _capability_devices(self):
+        result = []
+        for row in self._table('IsleDevice').values():
+            try:
+                report = json.loads(getattr(row, 'capability_evidence_json', '{}') or '{}')
+                validate_evidence(report)
+            except (ValueError, TypeError, OverflowError):
+                report = None
+            result.append({
+                'name': getattr(row, 'name', ''),
+                'is_mock': getattr(row, 'is_mock', False),
+                'agent_mode': getattr(row, 'agent_mode', ''),
+                'hosts_router': getattr(row, 'hosts_router', False),
+                'last_seen': getattr(row, 'last_seen', ''),
+                'capability_received_at': getattr(row, 'capability_received_at', ''),
+                'capability_evidence': report,
+            })
+        return result
+
+    def _requirements_for(self, entry, action):
+        # Derived options require an explicit descriptor too. Do not guess app
+        # requirements from a broad kind, installed agent, or current instance.
+        for row in self._table('IsleCatalogEntry').values():
+            if getattr(row, 'name', '') != entry.get('name'):
+                continue
+            if getattr(row, 'is_mock', False):
+                return None
+            try:
+                descriptors = json.loads(getattr(row, 'requirements_json', '{}') or '{}')
+                descriptor = descriptors.get(action)
+                if (not isinstance(descriptor, dict)
+                        or descriptor.get('kind') != entry.get('kind')
+                        or descriptor.get('action') != action
+                        or (entry.get('kind') == 'hardware-app'
+                            and descriptor.get('realization') != entry.get('realization'))):
+                    return None
+                return descriptor
+            except (ValueError, TypeError, AttributeError):
+                return None
+        return None
+
+    def on_get_devices(self, request, response):
+        response.media = {'ok': True, 'schema_version': 1,
+                          'devices': self._capability_devices(),
+                          'max_age_seconds': MAX_AGE_SECONDS,
+                          'mock_network': self._any_mock()}
+
+    def on_get_catalog_targets(self, request, response, entry):
+        action = request.get_param('action') or 'host'
+        if action not in ACTIONS:
+            return self._refuse(response, 'unknown action')
+        self.on_get_catalog_entry(request, response, entry)
+        data = response.media
+        if not data.get('ok'):
+            return
+        info = data['entry']
+        report = evaluate_isle(self._requirements_for(info, action), self._capability_devices())
+        response.media = dict(report, ok=True, entry=entry, kind=info.get('kind'), action=action)
+
+    def on_get_gaps(self, request, response):
+        action = request.get_param('action') or 'host'
+        if action not in ACTIONS:
+            return self._refuse(response, 'unknown action')
+        self.on_get_catalog(request, response)
+        entries = response.media['entries']
+        devices = self._capability_devices()
+        now = datetime.now(timezone.utc)
+        reports = []
+        for entry in entries:
+            report = evaluate_isle(self._requirements_for(entry, action), devices, now)
+            reports.append(dict(report, entry=entry['name'], kind=entry.get('kind')))
+        response.media = {'ok': True, 'schema_version': 1, 'action': action,
+                          'evaluated_at': now.isoformat(), 'entries': reports,
+                          'scope': 'published catalog requirements',
+                          'mock_network': self._any_mock()}
 
     def _instances_of(self, entry_name):
         """Running INSTANCES of one catalog entry across the isle:
