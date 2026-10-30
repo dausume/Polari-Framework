@@ -334,13 +334,13 @@ def pin_roles():
     check('UNO pin-roles: the led role lists D13', bool(led) and 'D13' in led['pins'], led)
 
     rc3 = BO.rows_for('esp32-c3', tables)
-    check('esp32-c3 has BoardPin rows but no header Connector rows (the generality case)',
-          bool(rc3['pins']) and not [c for c in rc3['connectors'] if c.get('kind') == 'header'],
+    check('esp32-c3 has BoardPin rows and its own header Connector rows (c3-pv: the DevKitM-1\'s J1 / J3, not the UNO\'s four)',
+          bool(rc3['pins']) and sorted(c['connector'] for c in rc3['connectors'] if c.get('kind') == 'header') == ['J1', 'J3'],
           len(rc3['pins']))
     svg = PM.render(rc3)
     gpio_names = [p['canonical'] for p in rc3['pins'] if p['canonical'].startswith('GPIO')]
-    check('esp32-c3 pinmap.svg draws (no empty legend-only box) and lists its GPIO pins by name',
-          bool(gpio_names) and all('>%s<' % name in svg for name in gpio_names), gpio_names[:4])
+    check('esp32-c3 pinmap.svg draws its two headers (J1, J3) and names every GPIO pin on them ("GPIOn / net")',
+          bool(gpio_names) and all('>%s / ' % name in svg for name in gpio_names) and '>J1 (J1)<' in svg and '>J3 (J3)<' in svg, gpio_names[:4])
     rows_c3 = PR.rows_for_roles(PM.pins_by_role(rc3))
     check('esp32-c3 pin-roles table is non-empty too (rows + the shared role map, not a UNO-only table)',
           len(rows_c3) > 0, [row['role'] for row in rows_c3])
@@ -414,6 +414,8 @@ def main():
     run_pin_view_phases(check)
     from board.board_pin_view_candidate_selftest import run_pin_view_candidate   # pv-5: the candidate stage (a stored solution search drawn), the Configuration events page + CLI
     run_pin_view_candidate(check)
+    from board.board_pin_view_c3_selftest import run_pin_view_c3   # c3-pv: the pin view draws the ESP32-C3-DevKitM-1 (cited outline + J1/J3, its own E2 map)
+    run_pin_view_c3(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

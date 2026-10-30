@@ -354,7 +354,7 @@ class Model:
         geo = S.breadboard_geometry(b['rows'], b['rail_holes'], pitch)
         row = S.bench_board_row(b['model'], b['rows'], b['rail_holes'], pitch)
         self.shapes[row['name']] = row
-        x0, y0 = S.BENCH_REGION['x0'], S.BENCH_REGION['y0']
+        x0, y0 = S.bench_region(self.board)['x0'], S.bench_region(self.board)['y0']
         sid = 'bench-board:%s' % b['name']
         self.add_surface(id=sid, kind='bench-board', level='bench', title='%s (%s, %d strips): the layout of %s' % (b.get('label') or b['model'], b['model'], b['rows'], lay['config']), shape=row['name'],
                          w=geo['w'], h=geo['h'], x=x0 + geo['w'] / 2, y=y0 + geo['h'] / 2, ref='BenchBoard:%s' % b['name'],

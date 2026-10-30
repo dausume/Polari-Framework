@@ -49,8 +49,10 @@ def run_enclosure(check):
     check('L1: terminology only — no kind carries a digit in its words (no physics number lives in the catalogue)', not [k['name'] for k in kinds if re.search(r'\d', k['description'])])
     # ---- L2 enclosures
     names = {e['name']: e for e in encl}
-    check('L2: five enclosures — U1 SPDIP (E1:dip), U2 QFN (E1:qfn), the TQFP variant (E1:tqfp), the UNO board (E2:board); c3pf: + the ESP32-C3 QFN32 (E1:qfn, no board enclosure: its headers are not modelled)',
-          len(encl) == 5 and names['esp32-c3:U1:package']['kind'] == 'E1:qfn' and names['esp32-c3:U1:package']['parent'] == '' and 'esp32-c3:board' not in names and names[BOARD + ':U1:package']['kind'] == 'E1:dip' and names[BOARD + ':U2:package']['kind'] == 'E1:qfn'
+    check('L2: six enclosures — U1 SPDIP (E1:dip), U2 QFN (E1:qfn), the TQFP variant (E1:tqfp), the UNO board (E2:board); c3pf: + the ESP32-C3 QFN32 (E1:qfn); c3-pv: '
+          '+ the DevKitM-1 board (E2:board, now that J1/J3 are modelled), the QFN32 inside it',
+          len(encl) == 6 and names['esp32-c3:U1:package']['kind'] == 'E1:qfn' and names['esp32-c3:U1:package']['parent'] == 'esp32-c3:board'
+          and names['esp32-c3:board']['kind'] == 'E2:board' and names[BOARD + ':U1:package']['kind'] == 'E1:dip' and names[BOARD + ':U2:package']['kind'] == 'E1:qfn'
           and names[TQFP + ':variant']['kind'] == 'E1:tqfp' and names[BOARD + ':board']['kind'] == 'E2:board' and all(e['kind'] in {k['name'] for k in kinds} for e in encl))
     check('L2: the SPDIP and the QFN sit inside the board; the TQFP has no parent and no board; each E1 names its package and component',
           names[BOARD + ':U1:package']['parent'] == names[BOARD + ':U2:package']['parent'] == BOARD + ':board' and names[TQFP + ':variant']['parent'] == ''

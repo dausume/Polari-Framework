@@ -43,9 +43,35 @@ POLARI = {'GPIO4': {'net': 'UART1_TX', 'function': 'uart', 'peripheral': 'UART1'
                     'origin': 'polari:sc-3 template — main/polari_c3.h POLARI_TRACE_TX_GPIO 4 (UART1 TX = the FreeRTOS trace on silicon)'},
           'GPIO21': {'firmware_symbol': 'POLARI_FRAME_TX_GPIO'}, 'GPIO20': {'firmware_symbol': 'POLARI_FRAME_RX_GPIO'}}
 CITED_USB = {'GPIO18': ('USB_D-', 'USB_D-'), 'GPIO19': ('USB_D+', 'USB_D+')}
-#: c3pf: DevKitM-1 header pins the Zephyr devicetree does not use - the user guide's Header Block (J1/J3): (silk name, header position). The guide breaks out GPIO0-10, 18-21 and
-#: no flash pad ("All available GPIO pins (except for the SPI bus for flash) are broken out"); the header NUMBERS are not ConnectorPin rows (headers are not modelled), so they are notes.
-DEVKIT_PINS = {'GPIO0': ('IO0', 'J1 pin 9'), 'GPIO5': ('IO5', 'J3 pin 10'), 'GPIO8': ('IO8', 'J3 pin 6 (also the RGB LED)')}
+#: c3-pv (2026-10-29): THE DEVKITM-1 HEADERS, from the user guide's Header Block tables (J1, J3; "the numbering is the same as in the ESP32-C3-DevKitM-1 Schematic").
+#: The guide breaks out GPIO0-10, 18-21 and no flash pad ("All available GPIO pins (except for the SPI bus for flash) are broken out"). A label -> its BoardPin
+#: (GPIOn) or its power net; RST = CHIP_PU (the chip enable).
+UG_DOC = 'Espressif ESP32-C3-DevKitM-1 User Guide'
+UG_REV = 'esp-dev-kits latest, read 2026-10-29 (the guide lists no previous versions)'
+UG_URL = 'https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitm-1/user_guide.html'
+HEADERS = {'J1': ['GND', '3V3', '3V3', 'IO2', 'IO3', 'GND', 'RST', 'GND', 'IO0', 'IO1', 'IO10', 'GND', '5V', '5V', 'GND'],
+           'J3': ['GND', 'TX', 'RX', 'GND', 'IO9', 'IO8', 'GND', 'IO7', 'IO6', 'IO5', 'IO4', 'GND', 'IO18', 'IO19', 'GND']}
+HEADER_GPIO = {'TX': 'GPIO21', 'RX': 'GPIO20'}   # the guide's Function column: TX = GPIO21, U0TXD; RX = GPIO20, U0RXD; IOn = GPIOn
+#: the power labels -> (net, class, volts, why). 3V3 / 5V are the guide's own words ("3.3 V power supply", "5 V power supply"); RST is an input, CHIP_PU
+POWER = {'GND': ('GND', 'ground', 0.0, 'Ground'), '3V3': ('3V3', 'power', 3.3, '3.3 V power supply'), '5V': ('5V', 'power', 5.0, '5 V power supply'),
+         'RST': ('CHIP_PU', 'signal', 0.0, 'CHIP_PU (the chip enable; the board\'s Reset button SW2)')}
+#: header GPIOs the Zephyr devicetree does not use: (silk, why) - each gets a BoardPin row so its header pin has a board pin to name
+DEVKIT_PINS = {'GPIO0': ('IO0', ''), 'GPIO5': ('IO5', ''), 'GPIO8': ('IO8', 'also the RGB LED')}
+
+
+def header_gpio(label):
+    return HEADER_GPIO.get(label) or ('GPIO%s' % label[2:] if label.startswith('IO') else '')
+
+
+def header_of():
+    """{GPIOn: 'J1:9'} - the first header pin each GPIO sits on."""
+    out = {}
+    for conn, labels in HEADERS.items():
+        for i, lab in enumerate(labels, 1):
+            g = header_gpio(lab)
+            if g:
+                out.setdefault(g, '%s:%d' % (conn, i))
+    return out
 _CACHE = {}
 
 
@@ -89,6 +115,7 @@ def facts():
     out.append(_f('io.ioh_drive3', 40, 'mA', 'Table 5-4 DC Characteristics (3.3 V, 25 °C), p.55', 'IOH high-level source current, TYPICAL (no min / max printed), at VDD = 3.3 V, '
                   'VOH >= 2.64 V, PAD_DRIVER = 3 - a typical drive figure, NOT an absolute maximum rating'))
     out.append(_f('io.iol_drive3', 28, 'mA', 'Table 5-4 DC Characteristics (3.3 V, 25 °C), p.55', 'IOL low-level sink current, TYPICAL, at VDD = 3.3 V, VOL = 0.495 V, PAD_DRIVER = 3'))
+    out += header_facts()
     for f in r['files']:
         out.append(_f('zephyr.%s' % os.path.basename(f['path']), f['sha256'], 'sha256', f['path'], 'ingested verbatim', zdoc, zrev, zurl + f['path'], board=BOARD))
     return out
@@ -135,12 +162,17 @@ def board_pins():
         rows[c].update(fields)
         if 'origin' not in fields:
             rows[c]['notes'] = (rows[c].get('notes', '') + ' C identifier from the polari layer (sc-3 template)').strip()
-    for c, (silk, where) in DEVKIT_PINS.items():
+    where = header_of()
+    for c, (silk, why) in DEVKIT_PINS.items():
         if c not in rows:
             rows[c] = {'name': '%s:%s' % (BOARD, c), 'board': BOARD, 'canonical': c, 'number': int(c[4:]), 'soc_pin': c, 'net': silk, 'connector_pin': '',
                        'function': 'gpio', 'peripheral': '', 'signal': '', 'firmware_symbol': '', 'alias': '', 'electrical_json': '{}',
-                       'facts_json': json.dumps(['%s:devkit.header' % BOARD]), 'origin': 'cited:ESP32-C3-DevKitM-1 user guide, Header Block (J1/J3): %s = %s' % (silk, where),
-                       'undetermined': 'the header position is a note, not a ConnectorPin (the headers are not modelled)', 'notes': ''}
+                       'facts_json': json.dumps(['%s:devkit.header.%s' % (BOARD, where[c].split(':')[0])]),
+                       'origin': 'cited:ESP32-C3-DevKitM-1 user guide, Header Block (J1/J3): %s = %s pin %s' % (silk, *where[c].split(':')), 'undetermined': '', 'notes': why}
+    for c, row in rows.items():
+        if c in where:
+            row['connector_pin'] = where[c]
+            row['facts_json'] = json.dumps(sorted(set(json.loads(row['facts_json'] or '[]')) | {'%s:devkit.header.%s' % (BOARD, where[c].split(':')[0])}))
     for c, row in rows.items():
         row['facts_json'] = json.dumps(sorted(set(json.loads(row['facts_json'] or '[]')) | {'%s:pin.%s' % (SOC, c)}))
         if row.get('function') != 'usb' and row.get('electrical_json', '{}') == '{}':
@@ -150,8 +182,41 @@ def board_pins():
 
 
 def nets():
-    return [{'name': '%s:%s' % (BOARD, p['net']), 'board': BOARD, 'net': p['net'], 'net_class': 'signal', 'volts': 0.0, 'circuit_net': '',
-             'fact': '', 'notes': 'derived: the pinctrl macro stem (no net names in a devicetree)' if p['signal'] else ''} for p in board_pins()]
+    out = [{'name': '%s:%s' % (BOARD, p['net']), 'board': BOARD, 'net': p['net'], 'net_class': 'signal', 'volts': 0.0, 'circuit_net': '',
+            'fact': '', 'notes': 'derived: the pinctrl macro stem (no net names in a devicetree)' if p['signal'] else ''} for p in board_pins()]
+    for net, cls, volts, why in sorted(set(POWER.values())):
+        out.append({'name': '%s:%s' % (BOARD, net), 'board': BOARD, 'net': net, 'net_class': cls, 'volts': volts, 'circuit_net': '',
+                    'fact': '%s:devkit.header.J1' % BOARD, 'notes': 'the header label\'s function in the user guide: %s' % why})
+    return out
+
+
+def header_facts():
+    return [_f('devkit.header.%s' % conn, ', '.join('%d %s' % (i, lab) for i, lab in enumerate(labels, 1)), '', 'Header Block, table %s (No. / Name / Function)' % conn,
+               'TX = GPIO21 (U0TXD), RX = GPIO20 (U0RXD), IOn = GPIOn, RST = CHIP_PU; GPIO2 / GPIO8 / GPIO9 are marked strapping pins', UG_DOC, UG_REV, UG_URL, board=BOARD)
+            for conn, labels in sorted(HEADERS.items())] + [
+        _f('devkit.dimensions', '25.40 x 38.91; J1-J3 22.86; pitch 2.54', 'mm', 'the dimensions drawing (one page)',
+           'outline width x length, the two header rows\' pin-centre spacing and the pin pitch - the only four numbers the drawing gives', 'Espressif ESP32-C3-DevKitM-1 dimensions drawing',
+           'V1 20200915AA, sha256 284d7b4060098e252feafac8a412902b7c51d116b5df49111f4489fc84c92d92', 'https://dl.espressif.com/dl/schematics/DIMENSION_ESP32-C3-DEVKITM-1_V1_20200915AA.pdf',
+           board=BOARD),
+        _f('devkit.schematic', 'GPIO8 RGB LED (R17) + R20 pull-up; GPIO9 Boot SW1 + Q2; CHIP_PU Reset SW2 + R5/C6 + Q1; U0TXD/U0RXD -> CP2102N (R22/R21); GPIO18/19 USB links NC',
+           '', 'sheet 2 (rendered, read 2026-10-29)', 'the parts on the C3\'s lines besides the headers (board.custom.exposure_e2_c3.PATHS)', 'Espressif ESP32-C3-DevKitM-1 schematic',
+           'V1.0, sha256 d2ac6d649cbea3ce4b2295a261f78823bf61e536f69fe4bee2b6e4142bd86542', 'https://dl.espressif.com/dl/schematics/SCH_ESP32-C3-DEVKITM-1_V1_20200915A.pdf', board=BOARD)]
+
+
+def connectors():
+    """(Connector rows, ConnectorPin rows) of J1 and J3 - the user guide's Header Block, each pin naming its BoardPin (a GPIO) or its power net."""
+    bp = {p['canonical']: p for p in board_pins()}
+    conns, pins = [], []
+    for conn, labels in sorted(HEADERS.items()):
+        conns.append({'name': '%s:%s' % (BOARD, conn), 'board': BOARD, 'connector': conn, 'ref': conn, 'kind': 'header', 'pin_count': len(labels),
+                      'footprint': 'CON15X1_2P54 (the schematic\'s own footprint name)', 'order_note': 'pin 1 = GND at the antenna end, pin 15 at the micro-USB end (the dimensions drawing)',
+                      'fact': '%s:devkit.header.%s' % (BOARD, conn), 'notes': 'J1 = the left row, J3 = the right row, front view'})
+        for i, lab in enumerate(labels, 1):
+            g = header_gpio(lab)
+            net = bp[g]['net'] if g in bp else POWER[lab][0]
+            pins.append({'name': '%s:%s:%d' % (BOARD, conn, i), 'board': BOARD, 'connector': conn, 'number': i, 'label': lab, 'net': net,
+                         'board_pin': g if g in bp else '', 'fact': '%s:devkit.header.%s' % (BOARD, conn), 'notes': ''})
+    return conns, pins
 
 
 def hardware(usb_ids_json):
@@ -161,12 +226,14 @@ def hardware(usb_ids_json):
                 {'ref': 'U1', 'value': 'ESP32-C3', 'lib': '', 'part': '', 'footprint': '', 'role': 'mcu', 'soc': SOC,
                  'undetermined': 'the module footprint (ESP32-C3-MINI-1) is not in KiCad\'s cited libraries here; pin numbers are the chip\'s QFN32 (Table 2-4)'},
                 {'ref': 'SW1', 'value': 'User SW1', 'lib': '', 'part': '', 'footprint': '', 'role': 'button', 'pin': 'GPIO9',
-                 'fact': '%s:zephyr.esp32c3_devkitm.dts' % BOARD}]),
+                 'fact': '%s:zephyr.esp32c3_devkitm.dts' % BOARD}]
+                + [{'ref': c, 'value': c, 'lib': 'Connector', 'part': '', 'footprint': 'CON15X1_2P54', 'role': 'connector', 'connector': c,
+                    'fact': '%s:devkit.header.%s' % (BOARD, c)} for c in sorted(HEADERS)]),
             'power_rails_json': '[]', 'crystal': '40 MHz main crystal: not in the files read (undetermined)',
             'usb_bridge_chip': 'the ESP32-C3 itself (USB Serial/JTAG, GPIO18/19) — but see notes',
             'usb_ids_json': usb_ids_json, 'facts_json': json.dumps(['%s:usb_serial_jtag.pins' % SOC]),
             'source': 'zephyr-ingest:%s %s (%s) + %s' % (TAG, r['identity']['full_name'], ', '.join(f['path'] for f in r['files']), DS_DOC),
-            'undetermined': 'headers / connector pin order (Zephyr\'s dts describes none); the USB-UART bridge chip on UART0; power rails; the crystal',
+            'undetermined': 'the USB-UART bridge chip on UART0 (the DevKitM-1 schematic names a CP2102N; not yet a row); power rails; the crystal',
             'notes': 'upstream esp32c3_devkitm.dts on &usb_serial: "requires resoldering of resistors on the board" — the DevKitM\'s USB connector reaches '
                      'UART0 through a USB-UART bridge by default; the native USB Serial/JTAG the register names needs that rework on THIS devkit'}
 

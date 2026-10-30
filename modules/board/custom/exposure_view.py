@@ -57,8 +57,9 @@ def header_pins(ref, tables):
     if cls == 'ConnectorPin':
         return [rest]
     if cls == 'BoardNet':
-        net = rest.split(':', 1)[1] if ':' in rest else rest
-        return sorted(cp['name'] for cp in tables.get('ConnectorPin', []) if cp.get('net') == net)
+        board, _, net = rest.rpartition(':') if ':' in rest else ('', '', rest)
+        # a rail's header pins on ITS board (2026-10-29: by net name alone, the C3's GND picked up the UNO's GND pins)
+        return sorted(cp['name'] for cp in tables.get('ConnectorPin', []) if cp.get('net') == net and (not board or cp.get('board') == board))
     return [ref]
 
 

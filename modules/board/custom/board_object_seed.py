@@ -43,6 +43,8 @@ def build(boards):
     callers (board_seed.py's module-level seed AND board.custom.board_object.seed_tables()'s on-demand rebuild, the
     same `boards` list passed by reference in each) see the same coverage, computed once, here."""
     conns, cpins = U.connectors()
+    c3c, c3p = C.connectors()   # c3-pv: the DevKitM-1's J1 / J3 (the user guide's Header Block)
+    conns, cpins = conns + c3c, cpins + c3p
     nets, seen = [], set()
     for n in U.nets() + C.nets():
         if n['name'] not in seen:
