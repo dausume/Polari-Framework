@@ -8,7 +8,12 @@ record, and the pin <-> struct-field bindings DERIVED from them.
   verify(a, rec)                -> (status, why)   verified | unverified | false, by the cycle record of the assertion's variant
   assertions(variant, rows)     -> the rows with status recomputed
   struct_pin_bindings(...)      -> one row per (pin, field) an assertion couples: direction, event, lane, updater, stamps, the asserting atom, its status
+  variants(board, rows)         -> the variants that carry assertions, narrowed to a board (VARIANT_BOARD)
   gaps(variant, rows)           -> struct fields no catom asserts a change of + the notebook draft's fields the struct does not have - named, never hidden
+
+C3 (esp32c3-light, 2026-10-29): the same kinds on the C3 light's FreeRTOS tasks (lane `task`), struct ButtonClockState_t, bridge c3-1-bridge (the simulated
+bridge: no C3 board is on the bench, grpcbridge.custom.bridge_paths). The C3 has NO committed cycle record (cycle records are the UNO's simavr measurements), so
+every C3 assertion reads unverified and says so; a decoded C3 twin run (board.custom.light_c3_run) is what would verify the bridge ones.
 
 HIS DRAFT vs THE FIRMWARE (light.c, read 2026-10-29): the struct is LightState_t {name, seq, boot_session, led_on, toggles, source, status}. Draft LedOn = led_on;
 lastUpdater = source (button = HW, command = US); HardSwitch = no field - the INT0 ISR sets the GLOBAL g_toggle_pending and led_toggle (main loop) changes the struct;
@@ -30,10 +35,27 @@ VARIANT = 'uno-light'
 STRUCT = 'LightState_t'
 MAP = 'LightState_t->LightState'
 BRIDGE = 'uno-1-bridge'
-#: LightState_t's fields, in the wire order of the LightState class (board.objects.board.LightState)
-STRUCT_FIELDS = {STRUCT: ('name', 'seq', 'boot_session', 'led_on', 'toggles', 'source', 'status')}
+# 2026-10-29 (his "C3 Catom assertions"): the esp32c3-light atoms (cmod.custom.c3_atoms) - the same struct + wire as uno-light-sense-poll (ButtonClockState)
+C3_VARIANT = 'esp32c3-light'
+C3_STRUCT = 'ButtonClockState_t'
+C3_MAP = 'ButtonClockState_t->ButtonClockState'
+C3_BRIDGE = 'c3-1-bridge'
+#: each struct's fields, in the wire order of its Polari class (board.objects.board.LightState / ButtonClockState)
+STRUCT_FIELDS = {STRUCT: ('name', 'seq', 'boot_session', 'led_on', 'toggles', 'source', 'status'),
+                 C3_STRUCT: ('name', 'seq', 'boot_session', 'uptime_ms', 'epoch_s', 'ms', 'clock_synced', 'sync_generation', 'sync_uncertainty_ms', 'drift_ms',
+                             'button_presses', 'led_on', 'led_changed_at', 'sense_rises', 'sense_falls', 'last_edge_at', 'last_edge_ms', 'dropped_events', 'status',
+                             'set_epoch_s', 'set_ms', 'set_sync_generation', 'set_led', 'snapshot')}
+#: fields a gap row explains instead of only naming (the C3 light uses neither the clock-sync half nor the commands as stored fields)
+GAP_WHY = {C3_STRUCT: dict([(f, 'a clock-sync field: the light app does not use the clock half of ButtonClockState (apps/light.c header)')
+                            for f in ('epoch_s', 'ms', 'clock_synced', 'sync_generation', 'sync_uncertainty_ms', 'drift_ms', 'led_changed_at', 'last_edge_at',
+                                      'last_edge_ms')]
+                           + [(f, 'a COMMAND field (host -> device): apply_command decodes it into a copy and never stores it in the struct')
+                              for f in ('set_epoch_s', 'set_ms', 'set_sync_generation', 'set_led', 'snapshot')])}
+#: the board each asserted variant runs on (the pin view asks which variants carry assertions for the board it draws when no firmware binding is chosen)
+VARIANT_BOARD = {VARIANT: 'arduino-uno-r3', C3_VARIANT: 'esp32-c3'}
 _MUTATED = 'led_on,toggles,source,status'
 _SRC = 'modules/board/custom/firmware/uno/apps/light.c'
+_C3_SRC = 'modules/board/custom/firmware/esp32c3/apps/light.c'
 
 #: his notebook draft's struct (2026-10-28) -> the firmware's field ('' = none: a gap)
 DRAFT_FIELDS = [
@@ -47,10 +69,17 @@ DRAFT_FIELDS = [
 ]
 
 
-def _a(atom, kind, fields='', pins='', lane='loop', event='', updater='', bridge='', basis='', notes=''):
-    return {'name': '%s:%s:%s' % (VARIANT, atom, kind), 'variant': VARIANT, 'atom': atom, 'kind': kind, 'struct': STRUCT, 'fields': fields, 'bridge': bridge,
-            'pins': pins, 'lane': lane, 'event': event, 'updater': updater, 'stamps': 'none', 'object_map': MAP, 'status': 'unverified', 'status_why': '',
+def _a(atom, kind, fields='', pins='', lane='loop', event='', updater='', bridge='', basis='', notes='', variant=VARIANT, struct=STRUCT, object_map=MAP):
+    return {'name': '%s:%s:%s' % (variant, atom, kind), 'variant': variant, 'atom': atom, 'kind': kind, 'struct': struct, 'fields': fields, 'bridge': bridge,
+            'pins': pins, 'lane': lane, 'event': event, 'updater': updater, 'stamps': 'none', 'object_map': object_map, 'status': 'unverified', 'status_why': '',
             'basis': basis or '%s (the atom\'s body + its POLARI_NODE role)' % _SRC, 'notes': notes}
+
+
+def _c3(atom, kind, fields='', pins='', lane='task', event='', updater='', bridge='', basis='', notes=''):
+    """A C3 assertion. The C3 atoms are FreeRTOS tasks (lane `task`); its pins are GPIO numbers (LED GPIO0, sense GPIO1, button GPIO3: variants_c3.LIGHT_KNOBS;
+    UART0 frames TX GPIO21 / RX GPIO20: board_c3 POLARI_FRAME_TX/RX_GPIO)."""
+    return _a(atom, kind, fields, pins, lane, event, updater, bridge, basis or '%s (the atom\'s body; the task it runs in: polari_app_main\'s xTaskCreate)' % _C3_SRC,
+              notes, variant=C3_VARIANT, struct=C3_STRUCT, object_map=C3_MAP)
 
 
 SEED_ASSERTIONS = [
@@ -64,6 +93,25 @@ SEED_ASSERTIONS = [
     _a('hal.USART_RX_vect', 'receives-from-bridge', '', 'PD0', 'isr', 'uart-rx', '', BRIDGE, basis='modules/board/custom/firmware/uno/hal.c (the RX ring buffer ISR)',
        notes='bytes into the ring buffer; hal_rx_pop + polari_rx_feed + apply_command take them in the loop'),
     _a('apps/light.boot_session_mint', 'changes-field', 'boot_session', '', 'init', 'boot', 'HW', notes='main() stores its return in state.boot_session'),
+    # esp32c3-light (apps/light.c + apps/light_hal.h, read 2026-10-29). The button's GPIO interrupt (light_hal.button_isr, falling edge on GPIO3) only notifies
+    # the button task - it writes no field - so the change is asserted on led_toggle, the atom that runs it, as the UNO's INT0_vect -> led_toggle is.
+    _c3('apps/light.led_toggle', 'changes-field', 'button_presses,led_on', 'GPIO3', 'task', 'edge-fall', 'HW',
+        notes='button_isr (GPIO3 falling edge) -> vTaskNotifyGiveFromISR -> button_task (priority 6, 30 ms lockout) -> led_toggle under state_lock'),
+    _c3('apps/light.apply_command', 'changes-field', 'led_on,status', 'GPIO20', 'task', 'uart-rx', 'US', C3_BRIDGE,
+        notes='SET_LED from the host, called by rx_task: led_on = set_led, status = commanded'),
+    _c3('apps/light.led_follow_task', 'reads-field', 'led_on', 'GPIO0', 'task', 'poll',
+        notes='the struct controls the light: the only task that calls hal_led_write (priority 3, every tick)'),
+    _c3('apps/light.sense_task', 'changes-field', 'sense_rises,sense_falls', 'GPIO1', 'task', 'poll', 'HW',
+        notes='polls hal_sense_read each tick (the LED line jumpered back to GPIO1, pull-down); counts each change under state_lock'),
+    _c3('apps/light.events_queue', 'changes-field', 'dropped_events', '', 'task', '', 'HW',
+        notes='a full event queue drops the oldest event and counts it; called with state_lock held by the mutators and sense_task'),
+    _c3('apps/light.telemetry_task', 'sends-to-bridge', '', 'GPIO21', 'task', 'uart-tx', 'HW', C3_BRIDGE,
+        notes='one ButtonClockState frame (STATE_MASK) every 100 ms out of UART0, then the queued ButtonClockEvent frames'),
+    _c3('apps/light.telemetry_task', 'changes-field', 'uptime_ms,seq', '', 'task', 'poll', 'HW', notes='stamps uptime_ms and seq under state_lock before the snapshot'),
+    _c3('apps/light.rx_task', 'receives-from-bridge', '', 'GPIO20', 'task', 'uart-rx', '', C3_BRIDGE,
+        notes='uart_read_bytes on UART0 (the ESP-IDF driver\'s own interrupt fills its ring buffer); polari_rx_feed frames them, apply_command takes SET_LED'),
+    _c3('apps/light.polari_app_main', 'changes-field', 'name,status,boot_session', '', 'init', 'boot', 'HW',
+        notes='before the tasks start: name = RIG_NAME (SEND_NAME 1), status = idle, boot_session = boot_session_mint() (the NVS counter, +1 per start)'),
 ]
 
 SEED_STRUCT_OBJECT_MAPS = [{
@@ -72,6 +120,12 @@ SEED_STRUCT_OBJECT_MAPS = [{
     'wire': 'lightstate_packets.h (GENERATED by c_twin target=avr; the LightState wire contract)',
     'basis': 'board.objects.board.LightState (the Polari class) + the generated packets header: the same seven fields by name',
     'notes': 'D-hsp-8: one definition at the Polari level; bridges reference it by name',
+}, {
+    'name': C3_MAP, 'struct': C3_STRUCT, 'polari_class': 'ButtonClockState',
+    'fields_json': json.dumps([{'field': f, 'attribute': f, 'note': ''} for f in STRUCT_FIELDS[C3_STRUCT]]),
+    'wire': 'buttonclockstate_packets.h (GENERATED by c_twin target=host; the ButtonClockState wire contract v1, wire v2)',
+    'basis': 'board.objects.board.ButtonClockState (the Polari class) + the generated packets header: the same fields by name',
+    'notes': 'the esp32c3-light struct; the same contract as uno-light-sense-poll',
 }]
 
 
@@ -133,6 +187,20 @@ def assertions(variant=VARIANT, rows=None, rec=False):
     return out
 
 
+def variants(board='', rows=None):
+    """[{variant, board, structs, count}] - the variants that carry assertions (`board` narrows to one board), in name order."""
+    src = SEED_ASSERTIONS if rows is None else rows
+    out = {}
+    for r in src:
+        v = _get(r, 'variant')
+        if board and VARIANT_BOARD.get(v, '') != board:
+            continue
+        d = out.setdefault(v, {'variant': v, 'board': VARIANT_BOARD.get(v, ''), 'structs': set(), 'count': 0})
+        d['structs'].add(_get(r, 'struct'))
+        d['count'] += 1
+    return [dict(d, structs=', '.join(sorted(d['structs']))) for _, d in sorted(out.items())]
+
+
 def _fields_of(a):
     return [f.strip() for f in (a['fields'] or '').split(',') if f.strip()] or ['*']
 
@@ -159,7 +227,8 @@ def gaps(variant=VARIANT, rows=None):
         whole = '*' in changed
         for f in STRUCT_FIELDS.get(struct, ()):
             if not whole and f not in changed:
-                out.append({'struct': struct, 'field': f, 'gap': 'no catom asserts a change of %s.%s' % (struct, f)})
+                why = GAP_WHY.get(struct, {}).get(f)
+                out.append({'struct': struct, 'field': f, 'gap': 'no catom asserts a change of %s.%s%s' % (struct, f, ': ' + why if why else '')})
     if variant == VARIANT:
         for draft, field, why in DRAFT_FIELDS:
             if not field:

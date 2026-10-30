@@ -7,6 +7,7 @@ LightState_t onto the LightState class field for field; the door serves the view
 """
 import inspect
 import json
+import os
 import sys
 import types
 
@@ -20,13 +21,52 @@ def check(label, cond, extra=''):
     print('  [%s] %s %s' % ('\033[0;32mPASS\033[0m' if cond else '\033[0;31mFAIL\033[0m', label, extra if not cond else ''))
 
 
+def c3(CA, every):
+    """2026-10-29: the esp32c3-light assertions - on atoms the C3 manifest has, on the pins its knobs and frame macros name, honest about having no record."""
+    from board.custom import board_c3 as B3
+    from board.custom import variants_c3 as V3
+    from board.objects.board.ButtonClockState import ButtonClockState
+    mine = [a for a in every if a['variant'] == CA.C3_VARIANT]
+    man = json.load(open(os.path.join(os.path.dirname(os.path.abspath(V3.__file__)), 'firmware', 'esp32c3', 'polari-firmware.json')))
+    atoms = {a['name'] for a in man['atoms']}
+    check('C3 ATOMS: every esp32c3-light assertion names an atom of the C3 manifest (polari-firmware.json, cmod.custom.c3_atoms), struct ButtonClockState_t, bridge '
+          'c3-1-bridge on the bridge kinds, lane task (FreeRTOS) except main\'s boot stores (init)', len(mine) == 9 and {a['atom'] for a in mine} <= atoms
+          and {a['struct'] for a in mine} == {CA.C3_STRUCT} and all(a['bridge'] == CA.C3_BRIDGE for a in mine if 'bridge' in a['kind'])
+          and {a['lane'] for a in mine if a['atom'] != 'apps/light.polari_app_main'} == {'task'}, sorted({a['atom'] for a in mine} - atoms))
+    k = V3.LIGHT_KNOBS
+    sym = {v.get('firmware_symbol'): p for p, v in B3.POLARI.items()}
+    want = {'GPIO%d' % k['led_pin'], 'GPIO%d' % k['button_pin'], 'GPIO%d' % k['sense_pin'], sym['POLARI_FRAME_TX_GPIO'], sym['POLARI_FRAME_RX_GPIO']}
+    pins = {p for a in mine for p in a['pins'].split(',') if p}
+    check('C3 PINS come from the variant\'s knobs (LED GPIO%d, button GPIO%d, sense GPIO%d) and the board\'s frame UART symbols (%s TX, %s RX) - never typed apart'
+          % (k['led_pin'], k['button_pin'], k['sense_pin'], sym['POLARI_FRAME_TX_GPIO'], sym['POLARI_FRAME_RX_GPIO']), pins == want, (pins, want))
+    rows = CA.assertions(CA.C3_VARIANT)
+    check('C3 NO RECORD (honest): no committed cycle record for esp32c3-light, so every C3 assertion is unverified and says so - none verified, none false',
+          rows and all(a['status'] == 'unverified' and 'no cycle record' in a['status_why'] for a in rows), [(a['atom'], a['status']) for a in rows])
+    b = {(x['pin'], x['field'], x['direction'], x['atom']) for x in CA.struct_pin_bindings(CA.C3_VARIANT)}
+    want_b = {('GPIO3', 'led_on', 'in', 'apps/light.led_toggle'), ('GPIO3', 'button_presses', 'in', 'apps/light.led_toggle'),
+              ('GPIO20', 'led_on', 'in', 'apps/light.apply_command'), ('GPIO0', 'led_on', 'out', 'apps/light.led_follow_task'),
+              ('GPIO1', 'sense_rises', 'in', 'apps/light.sense_task'), ('GPIO21', '*', 'to-bridge', 'apps/light.telemetry_task'),
+              ('GPIO20', '*', 'from-bridge', 'apps/light.rx_task')}
+    check('C3 BINDINGS (derived): button GPIO3 -> button_presses/led_on (task, HW), UART0 RX GPIO20 -> led_on (US over c3-1-bridge), led_on -> LED GPIO0, the sense '
+          'line GPIO1 -> sense_rises/falls, the whole struct -> GPIO21, GPIO20 <- the bridge', want_b <= b, sorted(want_b - b))
+    g = CA.gaps(CA.C3_VARIANT)
+    attrs = [p for p in inspect.signature(ButtonClockState.__init__).parameters if p not in ('self', 'manager')]
+    check('C3 GAPS name every unasserted field WITH its reason: the clock-sync half (the light does not use it) and the command fields (decoded into a copy, never '
+          'stored); no notebook-draft rows (the draft is the UNO\'s)', [x['field'] for x in g] == [f for f in attrs if f in CA.GAP_WHY[CA.C3_STRUCT]]
+          and all(': ' in x['gap'] for x in g) and not any('notebook draft' in x['gap'] for x in g), [x['field'] for x in g])
+    m = [r for r in CA.map_rows() if r['map'] == CA.C3_MAP]
+    check('C3 STRUCT OBJECT MAP: ButtonClockState_t -> ButtonClockState, field for field in the class\'s order (CA.STRUCT_FIELDS equals the class\'s attributes)',
+          [r['field'] for r in m] == list(CA.STRUCT_FIELDS[CA.C3_STRUCT]) == attrs and {a['object_map'] for a in mine} == {CA.C3_MAP}, (attrs, [r['field'] for r in m]))
+
+
 def main():
     from cmod.custom import catom_assertions as CA
     from board.custom import cycle_records as CR
-    seeds = CA.SEED_ASSERTIONS
-    bad = {a['name']: CA.problems(a) for a in seeds if CA.problems(a)}
+    every = CA.SEED_ASSERTIONS
+    seeds = [a for a in every if a['variant'] == CA.VARIANT]
+    bad = {a['name']: CA.problems(a) for a in every if CA.problems(a)}
     check('VOCABULARY: every seeded assertion holds (kind, lane = task-plan lanes + userspace, event, bridge named on bridge kinds, fields on field kinds)', not bad, bad)
-    check('VOCABULARY: names are unique <variant>:<atom>:<kind>', len({a['name'] for a in seeds}) == len(seeds))
+    check('VOCABULARY: names are unique <variant>:<atom>:<kind>', len({a['name'] for a in every}) == len(every))
     rows = CA.assertions()
     by = {(a['atom'], a['kind']): a for a in rows}
     rec = CR.load('uno-light')
@@ -69,10 +109,11 @@ def main():
           and {r['draft_field']: r['firmware_field'] for r in CA.draft_rows()}['lastUpdater'] == 'source', gf)
     from board.objects.board.LightState import LightState
     attrs = [p for p in inspect.signature(LightState.__init__).parameters if p not in ('self', 'manager')]
-    m = CA.map_rows()
+    m = [r for r in CA.map_rows() if r['map'] == CA.MAP]
     check('STRUCT OBJECT MAP (D-hsp-8): LightState_t -> LightState, every struct field onto the Polari class\'s own attribute of the same name, and CA.STRUCT_FIELDS '
           'equals the class\'s fields in order', [r['field'] for r in m] == list(CA.STRUCT_FIELDS['LightState_t']) == attrs and all(r['field'] == r['attribute'] for r in m)
           and {a['object_map'] for a in seeds} == {CA.MAP}, (attrs, [r['field'] for r in m]))
+    c3(CA, every)
     from cmod.cmod_catom_api import CatomAssertionAPI
     api = CatomAssertionAPI(polServer=None, manager=None)
 
@@ -81,6 +122,10 @@ def main():
         api.on_get(types.SimpleNamespace(get_param=lambda k: view or None), resp, variant)
         return resp
     full, gaps_v, nope, badv = get('uno-light'), get('uno-light', 'gaps'), get('no-such-variant'), get('uno-light', 'json')
+    lst = types.SimpleNamespace(status='200 OK', media=None)
+    api.on_get_list(types.SimpleNamespace(get_param=lambda k: 'esp32-c3' if k == 'board' else None), lst)
+    check('LIST DOOR: GET /api/cmod/catom-assertions?board=esp32-c3 = the one variant asserted on that board (what the pin view loads with no binding chosen)',
+          [(r['variant'], r['struct'] if 'struct' in r else r['structs'], r['count']) for r in lst.media['rows']] == [('esp32c3-light', 'ButtonClockState_t', 9)], lst.media)
     check('DOOR: GET /api/cmod/catom-assertions/uno-light = assertions + bindings + gaps; ?view=gaps = rows; unknown variant 404; unknown view 422',
           full.media['ok'] and len(full.media['assertions']) == len(seeds) and full.media['bindings'] and gaps_v.media['count'] == 6
           and nope.status.startswith('404') and badv.status.startswith('422'), (nope.status, badv.status))

@@ -61,8 +61,8 @@ def main():
         api.on_get(types.SimpleNamespace(get_param=lambda k: (view or None) if k == 'view' else None), resp, bench)
         return resp
     full, hv, bad = get('home-bench'), get('home-bench', 'hops'), get('home-bench', 'raw')
-    check('DOOR: GET /api/grpc/bench-bridges/home-bench = bridges + paths + hops; ?view=hops = 10 rows; unknown view 422',
-          full.media['ok'] and len(full.media['bridges']) == 1 and len(full.media['paths']) == 2 and hv.media['count'] == 10 and bad.status.startswith('422'))
+    check('DOOR: GET /api/grpc/bench-bridges/home-bench = bridges + paths + hops (UNO, S3, the C3 design: 2 bridges, 3 paths); ?view=hops = 15 rows; unknown view 422',
+          full.media['ok'] and len(full.media['bridges']) == 2 and len(full.media['paths']) == 3 and hv.media['count'] == 15 and bad.status.startswith('422'))
     json.dumps(full.media)
     from moduleService.manifests import conform
     r = conform('grpcbridge')

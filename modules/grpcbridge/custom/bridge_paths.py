@@ -11,7 +11,7 @@ seeds and the rules of BridgePath + PolariBridgeInstance.
   bridge_hops(bridge, paths)   -> hsp-3c: ONE bridge's hops as its mode says (serial: the cable path; simulated: chip pins -> twin -> the board-engines worker)
 
 Levels are cited or -1 (derive-or-cite-chip-data): the UNO's chip and converter hops take the board's own cited +5V logic level (board.custom.electrical_check,
-one board = one logic level); the Elecrow S3's are -1 until its documents are read. The host port is -1 until hwmap scans the device holding the cable.
+one board = one logic level); the C3 design's chip hop takes its cited 3.3 V (datasheet Table 5-2), its other hops -1; the Elecrow S3's are -1 until its documents are read. The host port is -1 until hwmap scans the device holding the cable.
 """
 import json
 import re
@@ -26,6 +26,8 @@ HOME_BENCH = 'home-bench'
 UNO_PATH = 'home-bench/UNO #1:usb'
 S3_PATH = 'home-bench/ESP32-S3 e-paper #1:usb'
 UNO_BRIDGE = 'uno-1-bridge'
+C3_PATH = 'home-bench/ESP32-C3 light (design):usb'
+C3_BRIDGE = 'c3-1-bridge'
 
 
 def node_url(name):
@@ -37,6 +39,14 @@ def _uno_level():
     try:
         from board.custom.electrical_check import _board_logic_level
         return _board_logic_level('arduino-uno-r3')
+    except Exception as e:  # noqa: BLE001 - board absent: the level is not cited here
+        return None, 'unread: the board module is not importable (%s)' % e
+
+
+def _c3_level():
+    try:
+        from board.custom.electrical_check import _board_logic_level
+        return _board_logic_level('esp32-c3')
     except Exception as e:  # noqa: BLE001 - board absent: the level is not cited here
         return None, 'unread: the board module is not importable (%s)' % e
 
@@ -64,11 +74,22 @@ def _paths():
           _hop(3, 'connector', 'USB-C socket on the Elecrow board', 'elecrow-esp32-eval', -1.0, 'named in the plan; not checked against the board\'s documentation'),
           _hop(4, 'host-port', 'the USB port of the device holding the cable (pol-core)', 'hwmap', -1.0, '-1 until hwmap scans the device'),
           _hop(5, 'userspace', 'esptool / a serial reader (no Polari bridge generated for this board yet)', '', -1.0, 'protocol uart-text')]
+    cv, cwhy = _c3_level()
+    c3 = [_hop(1, 'chip-pins', 'GPIO21 (U0TXD) / GPIO20 (U0RXD) - UART0 of the ESP32-C3', 'esp32-c3:GPIO21,GPIO20', cv if cv is not None else -1.0, cwhy),
+          _hop(2, 'converter', 'the DevKitM-1\'s USB-serial bridge chip', 'esp32-c3', -1.0,
+               'unread: the ESP32-C3-DevKitM-1 schematic (which bridge chip, its level); a design - no C3 board is on the bench'),
+          _hop(3, 'connector', 'USB socket on the ESP32-C3-DevKitM-1', 'esp32-c3', -1.0, 'named from the board\'s product name; not checked against its documentation'),
+          _hop(4, 'host-port', 'the USB port of the device holding the cable', 'hwmap', -1.0, '-1: no C3 board is cabled to any device'),
+          _hop(5, 'userspace', 'a Polari Hardware Bridge reading the board\'s serial port (none generated for esp32c3-light yet)', '', -1.0,
+               'protocol polari-frames (the ButtonClockState wire contract); the bridge runs simulated today: the far end is the QEMU twin (twin_hops)')]
     return [
         {'name': UNO_PATH, 'bench': HOME_BENCH, 'board': 'arduino-uno-r3', 'label': 'UNO #1', 'hops_json': json.dumps(uno), 'protocol': 'polari-frames', 'mode': 'serial',
          'basis': 'his notebook draft 2026-10-28 (P7/P8 UART -> UART-to-USB -> userspace) on the real UNO R3', 'notes': ''},
         {'name': S3_PATH, 'bench': HOME_BENCH, 'board': 'elecrow-esp32-eval', 'label': 'ESP32-S3 e-paper #1', 'hops_json': json.dumps(s3), 'protocol': 'uart-text',
          'mode': 'serial', 'basis': 'the bench note: read by esptool over its CH340 bridge 2026-10-24', 'notes': ''},
+        {'name': C3_PATH, 'bench': HOME_BENCH, 'board': 'esp32-c3', 'label': 'ESP32-C3 light (design)', 'hops_json': json.dumps(c3), 'protocol': 'polari-frames',
+         'mode': 'simulated', 'basis': 'the c3-light design (electrodevice circuit c3-light): the wiring esp32c3-light assumes; no C3 board is on the bench',
+         'notes': 'the serial hops are the design; only the simulated mode runs today'},
     ]
 
 
@@ -79,6 +100,10 @@ SEED_POLARI_BRIDGES = [
      'path': UNO_PATH, 'bench': HOME_BENCH, 'pins': 'PD0,PD1', 'maps': 'LightState_t->LightState', 'bridge_definition': 'uno-light',
      'status': 'gap', 'status_why': '', 'basis': 'ELECTRONICS_DISTRIBUTION_PLAN D4 (ruled): the bridge + boards stay on pol-core; one Polari instance per device (D3): polari-pol',
      'notes': 'the USB serial joins hardware_id once hwmap scans pol-core'},
+    {'name': C3_BRIDGE, 'hardware_id': 'twin: esp32c3-light (QEMU esp32c3)', 'polari_node': 'polari-pol', 'polari_node_url': node_url('polari-pol'), 'mode': 'simulated',
+     'path': C3_PATH, 'bench': HOME_BENCH, 'pins': 'GPIO21,GPIO20', 'maps': 'ButtonClockState_t->ButtonClockState', 'bridge_definition': 'esp32c3-light',
+     'status': 'gap', 'status_why': '', 'basis': 'board.custom.light_c3_run (the C3 twin runner: the real ESP-IDF build in Espressif\'s QEMU, pins a RAM shim)',
+     'notes': 'simulated: no C3 board is on the bench; serial is the design\'s path once a board is cabled'},
 ]
 
 
@@ -118,15 +143,19 @@ def _get(o, k, d=''):
 #: the board engine worker on the isle (ELECTRONICS_APP_PLAN ea-0: a `kind: worker` engine resolved through the catalog to `https://<tile>.isle`)
 TWIN_WORKER = {'name': 'board', 'kind': 'worker', 'tile': 'board-engines'}
 TWIN_HOP_KINDS = ('chip-pins', 'twin', 'userspace')
+#: the twin of a board: what it is (said on the twin hop) + the worker engine that runs it (the C3's is Espressif's QEMU on esp-engines)
+TWINS = {'esp32-c3': ('the QEMU esp32c3 twin of %s: its UART0 on the engine (the PIN_SHIM build: the pins are a RAM shim)',
+                      {'name': 'esp', 'kind': 'worker', 'tile': 'esp-engines'})}
 
 
 def twin_hops(bridge, path, bindings=None):
     """The hop rows of a simulated bridge: chip pins (kept) -> the twin's pty -> the board-engines worker (its isle url, bound or not, said)."""
     from islemesh.islemesh_catalog import resolve_worker_engines
-    w = resolve_worker_engines([dict(TWIN_WORKER)], bindings=bindings)[0]
+    said, worker = TWINS.get(path.get('board'), ('the simavr twin of %s: its USART0 on a pty', TWIN_WORKER))
+    w = resolve_worker_engines([dict(worker)], bindings=bindings)[0]
     chip = next((h for h in hops(path) if h['kind'] == 'chip-pins'), None)
     out = [dict(chip, n=1, what='(simulated) ' + chip['what'], signal_level_v=-1.0, basis='the twin\'s simulated pins: no electrical level (the real board\'s is on the serial path)')] if chip else []
-    out.append(_hop(len(out) + 1, 'twin', 'the simavr twin of %s: its USART0 on a pty' % (_get(bridge, 'bridge_definition') or 'the board'),
+    out.append(_hop(len(out) + 1, 'twin', said % (_get(bridge, 'bridge_definition') or 'the board'),
                     'HardwareBridgeDefinition:%s' % _get(bridge, 'bridge_definition'), -1.0, 'a simulated line has no electrical level'))
     out.append(_hop(len(out) + 1, 'userspace', 'the board engine worker %s at %s' % (w['tile'], w['url'] or '(no url)'), 'EngineProviderBinding:%s' % w['name'], -1.0,
                     ('bound to %s' % w['bound_url']) if w.get('bound') else (w['refusal'] or 'resolved in the catalog; no EngineProviderBinding row binds it yet - '
