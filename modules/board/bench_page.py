@@ -40,6 +40,29 @@ def _on_bench_tab():
     ], description='What is on the bench right now, and how each board can be tested.')
 
 
+def _all_boards_tab():
+    """bob-1/bob-2 (BENCH_BOARDS_PLAN.md): his ruling 2026-10-30 - dev boards, breadboards and PCBs are equally Boards on the Bench."""
+    door = '/api/board/benches/%s' % BENCH
+    return _tab('all-boards', 'Boards on the bench (one list)', [
+        _row(0, [_table('bench-all-boards', 0, 12, 'Every Board on the bench - dev boards, breadboards and PCBs alike', '',
+                        description='One row = one Board on the Bench, whatever it is: a dev board (known from its datasheets), a breadboard (known from its strip and rail '
+                                    'counts) or a PCB (known from its KiCad design). id is what a connection names; footholds = how many places a wire can land on it '
+                                    '(-1 with the reason when its definition gives none); details opens its Board Details page (the definition level: nets, parts, '
+                                    'layers, what the KiCad import understood).',
+                        columns='n,id,board_kind,label,definition_kind,definition,footholds,nodes,details,footholds_note',
+                        column_formats='details:view:/display/board-details?board={board}', data_path=door + '/all-boards?rev=r{scope:rev}', max_height=420)], min_height=300),
+        _row(1, [_table('bench-connections', 0, 6, 'Connections - wires, jumpers, mated pins', 'BenchConnection',
+                        description='One row = one connection between two footholds on any two Boards (POST /api/board/benches/<bench>/connections or /mate). kind: '
+                                    'wire, jumper, or mated (a header pin pushed into a breadboard hole).',
+                        columns='from_board,from_foothold,to_board,to_foothold,kind,colour,label', data_path=door + '/connections?rev=r{scope:rev}', max_height=420),
+                 _table('bench-nets', 6, 6, 'Nets across boards - and what is wrong with them', '',
+                        description='One row = one net that crosses two or more Boards: each board\'s own joins plus the connections. findings are read off the '
+                                    'footholds alone: two supplies at different voltages joined, a supply joined to ground, a pin whose logic level is below what the '
+                                    'net can carry (a 3.3 V pin on a 5 V net). undetermined says what could not be judged.',
+                        columns='net,boards,members,findings,undetermined', data_path=door + '/nets?rev=r{scope:rev}', max_height=420)], min_height=300),
+    ], description='One list of every Board on the bench, the wires between them, and the electrical findings across boards.')
+
+
 def _add_board_tab():
     return _tab('add-board', 'Add a dev or eval board', [
         _row(0, [_table('bench-options-boards', 0, 12, 'Every dev and eval board Polari knows - pick one to add', '',
@@ -96,7 +119,9 @@ BENCH_PAGES = [
     _page('bench', 'bench',
           'The bench - the dev and eval boards and the breadboards on the table, added from two selection lists. Every board says how it can be tested: simulated with real pins, '
           'simulated with stub pins, or HARDWARE ONLY, with the emulator software named. The Mission search reads the bench as what is on hand. The doors: GET /api/board/benches, '
-          '/api/board/benches/{bench}/boards|breadboards, /api/board/bench-options/boards|breadboards; POST .../boards, .../breadboards, .../remove.',
+          '/api/board/benches/{bench}/boards|breadboards, /api/board/bench-options/boards|breadboards; POST .../boards, .../breadboards, .../remove. '
+          'Dev boards, breadboards and PCBs are equally Boards on the Bench: the "Boards on the bench" tab lists them in one list with the wires between them '
+          '(/api/board/benches/{bench}/all-boards|connections|nets) and links each to its Board Details.',
           'Bench', [
               _row(0, [_table('bench-summary', 0, 12, 'The benches', '',
                               description='One row per bench: how many boards and breadboards, how many boards are simulated with real pins, with stub pins, or HARDWARE ONLY - and which.',
@@ -104,5 +129,5 @@ BENCH_PAGES = [
                    min_height=200),
           ],
           title='The bench',
-          tabs=[_on_bench_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
+          tabs=[_on_bench_tab(), _all_boards_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
 ]

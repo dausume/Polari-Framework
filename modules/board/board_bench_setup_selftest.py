@@ -95,9 +95,11 @@ def run_bench_setup(check):
     from board.bench_page import BENCH_PAGES as P
     from board.chip_ladder_page import CHIP_LADDER_PAGES as CP
     d = json.loads(P[0]['definition'])
-    check('bench-0 PAGE: /display/bench has the benches table above four tabs - On the bench, Add a board, Add a breadboard, Budget (ipb-2) - with Add to bench and Remove row actions',
-          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'add-board', 'add-breadboard', 'budget']
-          and all('"label": "Add to bench"' in json.dumps(d['tabs'][i]) for i in (1, 2)) and '"label": "Remove"' in json.dumps(d['tabs'][0]), [t['key'] for t in d['tabs']])
+    check('bench-0 PAGE: /display/bench has the benches table above five tabs - On the bench, Boards on the bench (bob-1/2: one list + connections + nets across '
+          'boards, each board linking to its Board Details), Add a board, Add a breadboard, Budget (ipb-2) - with Add to bench and Remove row actions',
+          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'all-boards', 'add-board', 'add-breadboard', 'budget']
+          and all('"label": "Add to bench"' in json.dumps(d['tabs'][i]) for i in (2, 3)) and '"label": "Remove"' in json.dumps(d['tabs'][0])
+          and 'details:view:/display/board-details?board={board}' in json.dumps(d['tabs'][1]) and '/nets?' in json.dumps(d['tabs'][1]), [t['key'] for t in d['tabs']])
     cd = json.loads(CP[0]['definition'])
     check('chp-1 PAGE: each ladder section has the three testing tables - simulated with real pins, pins stub, HARDWARE ONLY - and the Emulators tab has the hardware-only table',
           all(w in json.dumps(cd['tabs'][i]) for i in (0, 1) for w in ('testing_group', 'hardware-only', 'simulated-stub'))
