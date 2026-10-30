@@ -7,6 +7,8 @@ copied from KiCad's export.
 GET  /api/pcb/{board}/spice-deck   the deck text + its elements, includes, directives, what was skipped and why
 POST /api/pcb/{board}/simulate     build the deck and run it through ngspice's shared library (electrodevice.custom.ngspice_shared) - the result
                                    vectors, or a refusal naming what this host lacks (no libngspice here: econ-core has it, KiCad 10.0.6)
+POST /api/pcb/export/bench/{bench}   kxc-5: the Bench (Boards on the Bench + connections) as a KiCad schematic - {text, design, report}; the
+                                   library symbols come from the KiCad worker (a host with none refuses in words, 503)
 A board with no ingested schematic answers 404 in words.
 """
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -21,6 +23,7 @@ class PcbSimAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/pcb/{board}/spice-deck', self, suffix='deck')
             add('/api/pcb/{board}/simulate', self, suffix='simulate')
+            add('/api/pcb/export/bench/{bench}', self, suffix='export_bench')
 
     def _rows(self, board):
         import inspect
@@ -58,3 +61,23 @@ class PcbSimAPI(treeObject):
         if not res.get('ok'):
             response.status = '503 Service Unavailable' if 'refused' in res else '422 Unprocessable Entity'
         response.media = dict(res, board=board, deck=d['deck'], problems=d['problems'], skipped=d['skipped'])
+
+    def on_post_export_bench(self, request, response, bench):
+        from board.custom import bench_nets as BN
+        from pcb.custom import bench_export as X
+        from pcb.custom import pcb_engines as E
+        from pcb.custom import schematic_writer as W
+        feet, by_id = BN._boards(bench, self.manager)
+        if feet is None:
+            response.status, response.media = '404 Not Found', {'ok': False, 'error': 'no bench named %r' % bench}
+            return
+        boards = {bid: {'label': by_id[bid]['label'], 'footholds': f} for bid, f in feet.items()}
+        d, mapping, rep = X.design(boards, BN.connections_of(bench, self.manager), bench)
+        try:
+            libs = X.fetch_libraries(d)
+        except E.EngineRefused as e:
+            response.status = '503 Service Unavailable'
+            response.media = {'ok': False, 'refused': 'no KiCad libraries on this host: %s' % e, 'design': d, 'report': rep}
+            return
+        text, report = W.write(d, libs, title='%s (Polari bench)' % bench)
+        response.media = {'ok': True, 'bench': bench, 'filename': '%s.kicad_sch' % d['board'], 'text': text, 'report': dict(rep, **report)}

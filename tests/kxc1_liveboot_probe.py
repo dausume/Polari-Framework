@@ -66,6 +66,27 @@ r = client.simulate_get('/api/board/details/layers/complex_hierarchy/layers')
 check('bob-3: .../layers -> the PCB\'s layer stack (copper, mask, silk ...)', r.status_code == 200 and any(x['layer'] == 'F.Cu' for x in r.json['rows']), r.text[:200])
 check('kxc-4: the ingest stored the PCB complete - 165 PcbPad, 49 NetGeometry, 166 PcbZone rows', (st.get('PcbPad'), st.get('NetGeometry'), st.get('PcbZone')) == (165, 49, 166),
       (st.get('PcbPad'), st.get('NetGeometry'), st.get('PcbZone')))
+r = client.simulate_get('/api/board/benches/home-bench/all-boards')
+ids = {x['definition']: x['id'] for x in r.json['rows']}
+pcb_id, bud_id = ids['complex_hierarchy'], ids['bud-bb-32650-w']
+r = client.simulate_post('/api/board/benches/home-bench/connections', json={'connections': [
+    {'from_board': 'boards_json#1', 'from_foothold': 'POWER:5', 'to_board': bud_id, 'to_foothold': 'r1a', 'kind': 'wire', 'colour': 'red'},
+    {'from_board': 'boards_json#1', 'from_foothold': 'POWER:6', 'to_board': bud_id, 'to_foothold': 'r1b', 'kind': 'wire', 'colour': 'black'},
+    {'from_board': 'boards_json#1', 'from_foothold': 'DIGITAL_L:7', 'to_board': pcb_id, 'to_foothold': 'P101:1', 'kind': 'wire'}]})
+check('bob-2: POST /api/board/benches/home-bench/connections stores three wires (UNO 5V and GND into one BUD strip, UNO D6 to the PCB pad P101:1)',
+      r.status_code == 201 and len(r.json['added']) == 3, r.text[:300])
+r = client.simulate_get('/api/board/benches/home-bench/nets')
+kinds = [f['kind'] for n in (r.json or {}).get('nets', []) for f in n['findings']]
+check('bob-2: GET /api/board/benches/home-bench/nets -> the UNO 5 V and GND on one breadboard strip is a supply-to-ground finding; the nets cross dev board, '
+      'breadboard and the KiCad PCB', r.status_code == 200 and 'supply-to-ground' in kinds and any(pcb_id in n['boards'] for n in r.json['nets']), r.text[:400])
+r = client.simulate_post('/api/board/benches/home-bench/connections', json={'connections': [{'from_board': 'boards_json#1', 'from_foothold': 'NOPE', 'to_board': bud_id, 'to_foothold': 'r1a'}]})
+check('bob-2: a wire to a foothold that does not exist is refused (422) and nothing is stored', r.status_code == 422 and 'no foothold' in r.json['error'], r.text[:200])
+r = client.simulate_post('/api/pcb/export/bench/home-bench')
+d = (r.json or {}).get('design') or {}
+check('kxc-5: POST /api/pcb/export/bench/home-bench builds the design from the bench (UNO headers + the PCB connectors as generic KiCad headers, the wires as '
+      'nets) and, with no KiCad libraries on this host, refuses the writing in words (503) - or writes it where KiCad is installed',
+      (r.status_code == 503 and 'no KiCad libraries' in r.json.get('refused', '') and any(c['lib_id'].startswith('Connector_Generic:') for c in d.get('components', [])))
+      or (r.status_code == 200 and r.json['text'].startswith('(kicad_sch')), r.text[:300])
 r = client.simulate_get('/KiCadCoverage')
 check('CRUDE GET /KiCadCoverage answers 200', r.status_code == 200, r.status_code)
 print('\n%d/%d checks passed' % (sum(results), len(results)))

@@ -74,6 +74,7 @@
    "objects/board/AdapterDefinition",
    "objects/board/AddressSpace",
    "objects/board/Bench",
+   "objects/board/BenchConnection",
    "objects/board/BenchInteraction",
    "objects/board/BoardComponent",
    "objects/board/BoardConflict",
@@ -144,6 +145,7 @@
   ],
   "api": [
    "bench_api",
+   "bench_nets_api",
    "board_api",
    "board_object_api",
    "board_twins_api",
@@ -227,6 +229,7 @@
    "custom/bench_boards",
    "custom/bench_fit",
    "custom/bench_interactions",
+   "custom/bench_nets",
    "custom/bench_seed",
    "custom/board_c3",
    "custom/board_cli",
@@ -379,7 +382,9 @@
   "AddressSpace",
   "Bench",
   "BenchAPI",
+  "BenchConnection",
   "BenchInteraction",
+  "BenchNetsAPI",
   "BoardAPI",
   "BoardComponent",
   "BoardConflict",
@@ -528,6 +533,7 @@
     "FirmwareStateObject",
     "FirmwareStateField",
     "BoardFoothold",
+    "BenchConnection",
     "BOARD_CLASSES"
    ]
   ],
