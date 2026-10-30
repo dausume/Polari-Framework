@@ -6,7 +6,9 @@ bob-2 (BENCH_BOARDS_PLAN.md): the doors of CONNECTIONS ACROSS BOARDS on a Bench 
 GET  /api/board/benches/{bench}/connections   the stored BenchConnection rows (wires, jumpers, mated pins)
 POST /api/board/benches/{bench}/connections   {connections: [{from_board, from_foothold, to_board, to_foothold, kind?, colour?, label?}]} - both ends checked, all or none
 POST /api/board/benches/{bench}/mate          {board, connector, breadboard, column, first_row} - a 1 x N header pushed into breadboard holes
-GET  /api/board/benches/{bench}/nets          the nets that cross boards + their findings (two rails joined, a rail to ground, a 3.3 V pin on a 5 V net)
+GET  /api/board/benches/{bench}/pins          bob-2b, THE MAIN BENCH VIEW: one row per pin (pins a board joins inside = one row) - its firmware use, the pins
+                                              it reaches and through what, and whether its inherent drive meets its connections (board.custom.bench_pins)
+GET  /api/board/benches/{bench}/nets          the full bench NETLIST (nets that cross boards + findings) - its own view, a popup, not the main bench
 Board ids are the `id` column of GET /api/board/benches/{bench}/all-boards.
 """
 import json
@@ -26,6 +28,7 @@ class BenchNetsAPI(treeObject):
             add('/api/board/benches/{bench}/connections', self, suffix='connections')
             add('/api/board/benches/{bench}/mate', self, suffix='mate')
             add('/api/board/benches/{bench}/nets', self, suffix='nets')
+            add('/api/board/benches/{bench}/pins', self, suffix='pins')
 
     @staticmethod
     def _body(request, response):
@@ -64,3 +67,12 @@ class BenchNetsAPI(treeObject):
                  'undetermined': '; '.join(n['undetermined'])} for n in nets]
         response.media = {'ok': True, 'bench': bench, 'rows': rows, 'nets': nets, 'problems': problems,
                           'findings': sum(len(n['findings']) for n in nets)}
+
+    def on_get_pins(self, request, response, bench):
+        from board.custom import bench_pins as BP
+        rows, problems = BP.bench_pin_rows(bench, self.manager)
+        if rows is None:
+            response.status, response.media = '404 Not Found', {'ok': False, 'error': problems}
+            return
+        response.media = {'ok': True, 'bench': bench, 'rows': rows, 'count': len(rows), 'findings': sum(1 for r in rows if r['status'] == 'finding'),
+                          'problems': problems}

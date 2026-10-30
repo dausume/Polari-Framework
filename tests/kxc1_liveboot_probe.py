@@ -79,6 +79,10 @@ r = client.simulate_get('/api/board/benches/home-bench/nets')
 kinds = [f['kind'] for n in (r.json or {}).get('nets', []) for f in n['findings']]
 check('bob-2: GET /api/board/benches/home-bench/nets -> the UNO 5 V and GND on one breadboard strip is a supply-to-ground finding; the nets cross dev board, '
       'breadboard and the KiCad PCB', r.status_code == 200 and 'supply-to-ground' in kinds and any(pcb_id in n['boards'] for n in r.json['nets']), r.text[:400])
+r = client.simulate_get('/api/board/benches/home-bench/pins')
+v5 = [x for x in (r.json or {}).get('rows', []) if x['pin'].startswith('UNO #1 +5V')]
+check('bob-2b: GET /api/board/benches/home-bench/pins -> the UNO +5V pin row carries the short (wired into the same BUD strip as its GND), read as a pin, not a net',
+      r.status_code == 200 and v5 and 'connected to ground' in v5[0]['checks'], r.text[:400])
 r = client.simulate_post('/api/board/benches/home-bench/connections', json={'connections': [{'from_board': 'boards_json#1', 'from_foothold': 'NOPE', 'to_board': bud_id, 'to_foothold': 'r1a'}]})
 check('bob-2: a wire to a foothold that does not exist is refused (422) and nothing is stored', r.status_code == 422 and 'no foothold' in r.json['error'], r.text[:200])
 r = client.simulate_post('/api/pcb/export/bench/home-bench')

@@ -161,3 +161,33 @@ def run_board_details_copper(check):
           '(IEC 60028, annealed copper by definition); with no copper thickness in the stackup the resistance is -1 and the basis says why',
           abs(row['dc_ohm_upper_bound'] - 0.01794) < 1e-5 and 'IEC 60028' in row['basis'] and none['dc_ohm_upper_bound'] == -1.0 and 'no copper thickness' in none['basis'],
           (row['dc_ohm_upper_bound'], none['basis']))
+
+
+def run_bench_pins(check):
+    """bob-2b: his correction 2026-10-30 - the Bench is pins + connections + firmware + drive checks, not a netlist."""
+    from board.custom import bench_nets as BN
+    from board.custom import bench_pins as BP
+    from board.custom import footholds as FH
+    uno, c3, bb = (FH.for_definition(*k)[0] for k in (('datasheet', 'arduino-uno-r3'), ('datasheet', 'esp32-c3'), ('geometry', 'breadboard-half')))
+    boards = {'uno': {'label': 'UNO', 'footholds': uno, 'definition': 'arduino-uno-r3'}, 'c3': {'label': 'C3', 'footholds': c3, 'definition': 'esp32-c3'},
+              'bb': {'label': 'half breadboard', 'footholds': bb, 'definition': 'breadboard-half'}}
+    wiring = BN.mate_header('c3', [f['foothold'] for f in c3 if f['foothold'].startswith('J1:')], 'bb', 'a', 1)
+    wiring += [{'from_board': 'uno', 'from_foothold': 'DIGITAL_L:7', 'to_board': 'bb', 'to_foothold': 'r9e'},
+               {'from_board': 'uno', 'from_foothold': 'POWER:6', 'to_board': 'bb', 'to_foothold': 'r1c'}]
+    rows, problems = BP.pin_rows(boards, wiring)
+    by = {r['pin']: r for r in rows}
+    check('BOB-2b THE BENCH IS PINS: the C3 on a breadboard wired to the UNO reads as FOUR rows, not a netlist - UNO D6, C3 IO0, and each board\'s grounds as '
+          'ONE row ("UNO GND (4 pins)" <-> "C3 GND (10 pins)"); no breadboard hole is a row (holes are the board-level wiring, said in via)',
+          not problems and sorted(by) == ['C3 GND (10 pins)', 'C3 IO0', 'UNO D6', 'UNO GND (4 pins)'] and by['UNO D6']['via'] == 'half breadboard'
+          and by['UNO GND (4 pins)']['connections'] == 'C3 GND (10 pins)' and by['UNO GND (4 pins)']['status'] == 'ok', sorted(by))
+    io0, d6 = by['C3 IO0'], by['UNO D6']
+    check('BOB-2b FIRMWARE + DRIVE: both firmwares drive their LED pin (uno-light LED_PIN = D6, esp32c3-light LED_PIN = GPIO0, gpio.out) and the wire joins them -> '
+          'contention on both; the C3 pin also gets over-voltage (the UNO drives 5 V, the C3 pin works at 3.3 V); the load note says no board-level circuit '
+          'defines a load yet (the 20 / 40 mA limits wait for one)',
+          'uno-light LED_PIN gpio.out' in d6['firmware'] and 'esp32c3-light LED_PIN gpio.out' in io0['firmware'] and 'contention' in d6['checks']
+          and 'contention' in io0['checks'] and 'over-voltage' in io0['checks'] and 'over-voltage' not in d6['checks'] and 'no board-level circuit' in d6['notes'],
+          (d6['checks'], io0['checks']))
+    rows2, _ = BP.pin_rows(boards, wiring[:15] + [{'from_board': 'uno', 'from_foothold': 'POWER:5', 'to_board': 'bb', 'to_foothold': 'r1e'}])
+    v5 = next(r for r in rows2 if r['pin'].startswith('UNO +5V'))
+    check('BOB-2b SAFETY: the UNO\'s 5 V wired onto the C3\'s GND strip is a short on the UNO +5V row (its two +5V pins are one row; a supply connected to ground)',
+          v5['status'] == 'finding' and 'connected to ground' in v5['checks'], v5['checks'])
