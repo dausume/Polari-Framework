@@ -94,7 +94,9 @@ def ingest(files, r):
         for node in sexpr.find(net, 'node'):
             ref, pin = sexpr.value(node, 'ref'), sexpr.value(node, 'pin')
             if ref == mcu_ref:
-                soc = sexpr.value(node, 'pinfunction') or by_pkg.get(pin, '')
+                # kxc-0: the package pin NUMBER first — KiCad's own symbols name some pins by their primary function
+                # (MCU_Espressif:ESP32-C3 pin 9 = "MTMS", which is GPIO4), so the pinfunction is only the fallback
+                soc = by_pkg.get(pin, '') or sexpr.value(node, 'pinfunction')
             elif ref in ref_conn:
                 conn.append((ref_conn[ref], int(pin)))
         if not soc:

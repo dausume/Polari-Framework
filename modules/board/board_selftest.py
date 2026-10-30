@@ -416,6 +416,8 @@ def main():
     run_pin_view_candidate(check)
     from board.board_pin_view_c3_selftest import run_pin_view_c3   # c3-pv: the pin view draws the ESP32-C3-DevKitM-1 (cited outline + J1/J3, its own E2 map)
     run_pin_view_c3(check)
+    from board.board_kicad_libs_selftest import run_kicad_libs   # kxc-0: the netlists against KiCad 10's own symbol libraries (econ-core's kicad-cli)
+    run_kicad_libs(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI
