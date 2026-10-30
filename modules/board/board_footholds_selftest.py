@@ -110,8 +110,10 @@ def run_board_details(check):
     tabs = [tb['key'] for tb in d.get('tabs', [])]
     blob = page['definition']
     check('BOB-3 THE PAGE: /display/board-details is bound by ?board=<kind>/<definition> (scope_from_query board), picks from the Boards on the Bench, and has '
-          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage tabs, each reading GET /api/board/details/{kind}/{definition}/{part}',
-          page['pageRoute'] == 'board-details' and d.get('scope_from_query') == ['board'] and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage']
+          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage + (bob-3b, a PCB\'s design) Pads / Copper / Zones / Drawings / Rules tabs, each reading '
+          'GET /api/board/details/{kind}/{definition}/{part}',
+          page['pageRoute'] == 'board-details' and d.get('scope_from_query') == ['board']
+          and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules']
           and '/api/board/benches/home-bench/all-boards' in blob and all(('/api/board/details/{scope:board}/%s' % p) in blob for p in BD.PARTS), tabs)
     s = BD.part('datasheet', 'arduino-uno-r3', 'summary')[0][0]
     lay = BD.part('datasheet', 'esp32-c3', 'layers')[0]
@@ -146,3 +148,16 @@ def run_bench_nets(check):
           'supply-to-ground', 'supply-conflict' in kinds and 'supply-to-ground' in kinds, kinds)
     _, probs = BN.nets(boards, [{'from_board': 'uno', 'from_foothold': 'NOPE:1', 'to_board': 'bb', 'to_foothold': 'r1a'}])
     check('BOB-2 a connection to a foothold that does not exist is a problem in words, never silently dropped', probs and 'no such foothold' in probs[0], probs)
+
+
+def run_board_details_copper(check):
+    import types
+    from board.custom import board_details as BD
+    seg = types.SimpleNamespace(net='N', segments=1, arcs=0, vias=0, length_mm=29.1338, layers_json='["B.Cu"]',
+                                segments_json=json.dumps([[0.0, 0.0, 29.1338, 0.0, 0.8, 'B.Cu']]))
+    row = BD.copper_rows([seg], {'B.Cu': {'thickness': 0.035}})[0]
+    none = BD.copper_rows([seg], {})[0]
+    check('BOB-3b COPPER RESISTANCE from the copper itself: a 29.13 mm x 0.8 mm track in 35 um copper = rho L / (w t) = 0.01794 ohm with rho = 1/58 ohm mm2/m '
+          '(IEC 60028, annealed copper by definition); with no copper thickness in the stackup the resistance is -1 and the basis says why',
+          abs(row['dc_ohm_upper_bound'] - 0.01794) < 1e-5 and 'IEC 60028' in row['basis'] and none['dc_ohm_upper_bound'] == -1.0 and 'no copper thickness' in none['basis'],
+          (row['dc_ohm_upper_bound'], none['basis']))

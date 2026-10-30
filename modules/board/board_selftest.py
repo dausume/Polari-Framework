@@ -424,6 +424,8 @@ def main():
     run_bench_boards(check)
     from board.board_footholds_selftest import run_board_details   # bob-3: the Board Details page + its door
     run_board_details(check)
+    from board.board_footholds_selftest import run_board_details_copper   # bob-3b: a PCB's copper resistance from its own copper
+    run_board_details_copper(check)
     from board.board_footholds_selftest import run_bench_nets   # bob-2: connections across boards, the bench's nets and findings
     run_bench_nets(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
