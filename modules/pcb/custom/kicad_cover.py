@@ -167,5 +167,6 @@ def symbol_rows(instances, board):
                          'properties_json': json.dumps({k: v for k, v in props.items() if k not in SIM_FIELDS}, sort_keys=True),
                          'sim_device': props.get('Sim.Device', ''), 'sim_type': props.get('Sim.Type', ''), 'sim_name': props.get('Sim.Name', ''),
                          'sim_params': props.get('Sim.Params', ''), 'sim_pins': props.get('Sim.Pins', ''), 'sim_library': props.get('Sim.Library', ''),
+                         'polari_json': json.dumps({k: v for k, v in props.items() if k.startswith('Polari.')}, sort_keys=True),
                          'notes': ''})
     return rows, problems

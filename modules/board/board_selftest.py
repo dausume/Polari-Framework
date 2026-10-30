@@ -430,6 +430,8 @@ def main():
     run_bench_nets(check)
     from board.board_footholds_selftest import run_bench_pins   # bob-2b: the bench is pins + connections + firmware + drive checks
     run_bench_pins(check)
+    from board.board_footholds_selftest import run_bench_circuits   # bob-2c: board-level circuits define pin connections with real drive
+    run_bench_circuits(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

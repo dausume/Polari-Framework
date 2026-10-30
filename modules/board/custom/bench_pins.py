@@ -18,8 +18,14 @@ chips and their connections to firmware and the pin driving requirements being m
       status        ok | finding | note
   firmware_uses(boards)  {(board id, chip pin): [use]} from the CatomVariable rows of every firmware variant that targets the board's definition
 
+  circuits     bob-2c: a BOARD-LEVEL circuit built on the bench (a BenchConnection of kind circuit naming an electrodevice CircuitDefinition bound to the
+                board's pins by BoardPinNet) gives its pins a DEFINED connection with real drive behaviour: board.custom.electrical_check works it out (LED
+                current against the pin's cited limit, one output per net, ground, level, pull, VOH under load ...) and each finding that names a pin lands
+                on that pin's row - refuse = a finding, warn / undetermined = a note, ok = said in `defined`
+
 The full bench netlist (board.custom.bench_nets) is its own view - a popup, not the main bench (his follow-up 2026-10-30).
 """
+import re
 from board.custom import bench_nets as BN
 
 PIN_KINDS = ('header-pin', 'connector-pin', 'test-pad', 'pad')
@@ -56,7 +62,7 @@ def _drives(m, fw):
     return None
 
 
-def pin_rows(boards, wiring, firmware=None):
+def pin_rows(boards, wiring, firmware=None, tables=None):
     feet = {bid: b['footholds'] for bid, b in boards.items()}
     fw = firmware if firmware is not None else firmware_uses(boards)
     nets, problems = BN.nets(feet, wiring)
@@ -97,8 +103,62 @@ def pin_rows(boards, wiring, firmware=None):
             rows.append({'board': p['board'], 'board_label': labels[p['board']], 'pin': name(group), 'footholds': ', '.join(m['foothold'] for m in group),
                          'chip_pin': p['chip_pin'], 'firmware': '; '.join(dict.fromkeys('%s %s %s' % (u['variant'], u['variable'], u['role']) for u in uses)),
                          'connections': '; '.join(name(g) for g in other_groups), 'via': ', '.join(vias), 'logic_volts': p['logic_volts'], 'source_ma': p['source_ma'],
-                         'rail_volts': p['rail_volts'], 'checks': '; '.join(dict.fromkeys(checks)), 'notes': '; '.join(notes), 'status': 'finding' if checks else 'ok'})
+                         'rail_volts': p['rail_volts'], 'checks': '; '.join(dict.fromkeys(checks)), 'notes': '; '.join(notes), 'defined': '',
+                         'status': 'finding' if checks else 'ok'})
+    _circuits(rows, boards, [c for c in wiring if c.get('kind') == 'circuit'], fw, tables)
     return sorted(rows, key=lambda r: (r['status'] != 'finding', r['board'], r['pin'])), problems
+
+
+def _mentions(text, pin):
+    return re.search(r'(^|[^A-Za-z0-9])%s([^A-Za-z0-9]|$)' % re.escape(pin), text or '') is not None
+
+
+def _circuits(rows, boards, circuits, fw, tables):
+    """Fold each board-level circuit's electrical findings into the pin rows of the pins it binds (adding a row for a pin nothing else connects)."""
+    if not circuits:
+        return
+    from board.custom import electrical_check as EC
+    tables = tables if tables is not None else EC.tables_for(None)
+    soc_of = {(p['board'], p['canonical']): p['soc_pin'] for p in tables.get('BoardPin', [])}
+    for c in circuits:
+        bid, circuit = c['from_board'], c.get('label', '')
+        b = boards.get(bid)
+        if b is None:
+            continue
+        defn = b.get('definition', '')
+        findings = EC.check(circuit, defn, tables)
+        bound = [r for r in tables.get('BoardPinNet', []) if r.get('circuit') == circuit and str(r.get('board_pin', '')).startswith(defn + ':')]
+        for bp in bound:
+            canon = bp['board_pin'].split(':', 1)[1]
+            chip = soc_of.get((defn, canon), '')
+            group = [f for f in b['footholds'] if f.get('chip_pin') == chip and chip]
+            if not group:
+                continue
+            label = '%s %s' % (b.get('label', bid), group[0]['label'] or group[0]['foothold'])
+            row = next((r for r in rows if r['board'] == bid and (r['pin'] == label or r['pin'].startswith(label + ' ('))), None)
+            if row is None:
+                uses = fw.get((bid, chip), [])
+                row = {'board': bid, 'board_label': b.get('label', bid), 'pin': label, 'footholds': ', '.join(f['foothold'] for f in group), 'chip_pin': chip,
+                       'firmware': '; '.join(dict.fromkeys('%s %s %s' % (u['variant'], u['variable'], u['role']) for u in uses)), 'connections': '', 'via': '',
+                       'logic_volts': group[0]['logic_volts'], 'source_ma': group[0]['source_ma'], 'rail_volts': group[0]['rail_volts'], 'checks': '', 'notes': '',
+                       'status': 'ok'}
+                rows.append(row)
+            mine = [f for f in findings if _mentions(f['subject'], canon) or _mentions(f['detail'], canon)]
+            refuse = ['%s: %s' % (f['rule'], f['detail']) for f in mine if f['status'] == 'refuse']
+            uses = fw.get((bid, chip), [])
+            role = bp.get('role', '')
+            for u in uses:   # the firmware's use against the circuit's role for the pin: code and wiring must agree on who drives
+                if (role == 'output' and u['role'] in READS) or (role == 'input' and u['role'] in DRIVES):
+                    refuse.append('role mismatch: %s %s uses it as %s but circuit %s wires it as an %s' % (u['variant'], u['variable'], u['role'], circuit, role))
+            soft = ['%s (%s): %s' % (f['rule'], f['status'], f['detail']) for f in mine if f['status'] in ('warn', 'undetermined')]
+            fine = sorted({f['rule'] for f in mine if f['status'] == 'ok'})
+            row['defined'] = 'circuit %s (%s on net %s)%s' % (circuit, bp.get('role', ''), bp.get('circuit_net', ''), ('; ok: %s' % ', '.join(fine)) if fine else '')
+            row['connections'] = '; '.join(x for x in (row['connections'], 'circuit %s' % circuit) if x)
+            row['checks'] = '; '.join(x for x in [row['checks']] + refuse if x)
+            # the generic 'no board-level circuit defines a load' note gives way to the circuit's own numbers
+            notes = [n for n in row['notes'].split('; ') if n and not n.startswith('load: no board-level circuit')]
+            row['notes'] = '; '.join(notes + soft)
+            row['status'] = 'finding' if row['checks'] else 'ok'
 
 
 def bench_pin_rows(bench_name, manager):
