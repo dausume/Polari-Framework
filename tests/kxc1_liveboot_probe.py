@@ -38,6 +38,34 @@ check('ingested BoardNet rows carry volts -1 (unknown)', nets and all(getattr(o,
 u = [o for o in (tables.get('SchematicSymbol') or {}).values() if getattr(o, 'ref', '') in ('U201', 'U301')]
 check('the dual op-amp in both sheet instances: U201 + U301, two units each, distinct instance paths',
       len(u) == 4 and len({getattr(o, 'instance_path', '') for o in u}) == 2, [(getattr(o, 'ref', ''), getattr(o, 'unit', '')) for o in u])
+check('bob-0: the ingest stored the PCB\'s footholds (connector pads P101..P302) as BoardFoothold rows of kind layers',
+      st.get('BoardFoothold') == 12 and n('BoardFoothold') == 12, (st.get('BoardFoothold'), n('BoardFoothold')))
+r = client.simulate_get('/api/board/footholds/layers/complex_hierarchy')
+check('bob-0: GET /api/board/footholds/layers/complex_hierarchy serves those stored rows (12, nodes by net)', r.status_code == 200 and r.json['count'] == 12, r.text[:300])
+r = client.simulate_get('/api/board/footholds/datasheet/arduino-uno-r3')
+check('bob-0: GET /api/board/footholds/datasheet/arduino-uno-r3 derives 38 header-pin footholds from the live rows', r.status_code == 200 and r.json['count'] == 38, r.text[:300])
+r = client.simulate_get('/api/board/footholds/geometry/breadboard-half')
+check('bob-0: GET /api/board/footholds/geometry/breadboard-half -> 400 footholds, 64 nodes', r.status_code == 200 and (r.json['count'], r.json['nodes']) == (400, 64), r.text[:300])
+r = client.simulate_get('/api/board/footholds/geometry/pcb')
+check('bob-0: the reserved pcb model is refused in words (404)', r.status_code == 404 and 'no drawable geometry' in r.json['error'], r.text[:300])
+check('kxc-2: the ingest stored the schematic\'s own nets - 52 SchematicNet, 164 NetEndpoint (KiCad\'s own netlist has the same 52 nets / 164 pins)',
+      (st.get('SchematicNet'), st.get('NetEndpoint')) == (52, 164), (st.get('SchematicNet'), st.get('NetEndpoint')))
+for cls in ('SchematicNet', 'NetEndpoint'):
+    check('class %s is typed after boot' % cls, cls in typed)
+r = client.simulate_post('/api/board/benches/home-bench/pcbs', json={'pcb': 'complex_hierarchy', 'label': 'the KiCad demo board'})
+check('bob-1: POST /api/board/benches/home-bench/pcbs puts the ingested PCB on the bench (201)', r.status_code == 201, r.text[:300])
+r = client.simulate_get('/api/board/benches/home-bench/all-boards')
+pcb = [x for x in (r.json or {}).get('rows', []) if x['board_kind'] == 'pcb']
+check('bob-1: GET /api/board/benches/home-bench/all-boards lists it beside the dev boards and breadboards - one pcb row, layers definition, its 12 footholds',
+      r.status_code == 200 and len(pcb) == 1 and pcb[0]['definition_kind'] == 'layers' and pcb[0]['footholds'] == 12 and r.json['kinds'].get('dev-board') == 4, r.text[:400])
+r = client.simulate_post('/api/board/benches/home-bench/pcbs', json={'pcb': 'never-ingested'})
+check('bob-1: a PCB never ingested is refused in words (404)', r.status_code == 404 and 'ingest it first' in r.json['error'], r.text[:200])
+r = client.simulate_get('/api/board/details/layers/complex_hierarchy/nets')
+check('bob-3: GET /api/board/details/layers/complex_hierarchy/nets -> the 52 nets Polari worked out', r.status_code == 200 and r.json['count'] == 52, r.text[:200])
+r = client.simulate_get('/api/board/details/layers/complex_hierarchy/layers')
+check('bob-3: .../layers -> the PCB\'s layer stack (copper, mask, silk ...)', r.status_code == 200 and any(x['layer'] == 'F.Cu' for x in r.json['rows']), r.text[:200])
+check('kxc-4: the ingest stored the PCB complete - 165 PcbPad, 49 NetGeometry, 166 PcbZone rows', (st.get('PcbPad'), st.get('NetGeometry'), st.get('PcbZone')) == (165, 49, 166),
+      (st.get('PcbPad'), st.get('NetGeometry'), st.get('PcbZone')))
 r = client.simulate_get('/KiCadCoverage')
 check('CRUDE GET /KiCadCoverage answers 200', r.status_code == 200, r.status_code)
 print('\n%d/%d checks passed' % (sum(results), len(results)))

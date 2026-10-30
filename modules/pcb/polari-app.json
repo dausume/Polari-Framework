@@ -53,11 +53,19 @@
    "objects/pcb/KiCadArtifact",
    "objects/pcb/KiCadCoverage",
    "objects/pcb/LandPattern",
+   "objects/pcb/NetEndpoint",
+   "objects/pcb/NetGeometry",
    "objects/pcb/Part",
    "objects/pcb/PcbBoard",
+   "objects/pcb/PcbDesignRule",
+   "objects/pcb/PcbLayerGraphics",
+   "objects/pcb/PcbNetClass",
+   "objects/pcb/PcbPad",
+   "objects/pcb/PcbZone",
    "objects/pcb/Placement",
    "objects/pcb/Route",
    "objects/pcb/Schematic",
+   "objects/pcb/SchematicNet",
    "objects/pcb/SchematicSheet",
    "objects/pcb/SchematicSymbol",
    "objects/pcb/Symbol"
@@ -66,7 +74,8 @@
    "pcb_basis"
   ],
   "api": [
-   "pcb_api"
+   "pcb_api",
+   "pcb_sim_api"
   ],
   "endpoints": [
    "pcb_endpoints"
@@ -78,14 +87,21 @@
    "pcb_page"
   ],
   "selftests": [
+   "pcb_kicad_connect_selftest",
    "pcb_kicad_cover_selftest",
+   "pcb_kicad_geometry_selftest",
+   "pcb_kicad_spice_selftest",
    "pcb_selftest"
   ],
   "custom": [
    "custom/fab_rules",
    "custom/ingest",
+   "custom/kicad_connect",
    "custom/kicad_cover",
+   "custom/kicad_footholds",
+   "custom/kicad_geometry",
    "custom/kicad_read",
+   "custom/kicad_spice",
    "custom/pcb_cli",
    "custom/pcb_engines",
    "custom/schematic_writer",
@@ -102,12 +118,21 @@
   "KiCadArtifact",
   "KiCadCoverage",
   "LandPattern",
+  "NetEndpoint",
+  "NetGeometry",
   "Part",
   "PcbAPI",
   "PcbBoard",
+  "PcbDesignRule",
+  "PcbLayerGraphics",
+  "PcbNetClass",
+  "PcbPad",
+  "PcbSimAPI",
+  "PcbZone",
   "Placement",
   "Route",
   "Schematic",
+  "SchematicNet",
   "SchematicSheet",
   "SchematicSymbol",
   "Symbol"
@@ -132,6 +157,14 @@
     "KiCadArtifact as PcbKiCadArtifact",
     "KiCadCoverage as PcbKiCadCoverage",
     "SchematicSymbol as PcbSchematicSymbol",
+    "SchematicNet as PcbSchematicNet",
+    "NetEndpoint as PcbNetEndpoint",
+    "PcbPad",
+    "NetGeometry as PcbNetGeometry",
+    "PcbZone",
+    "PcbNetClass",
+    "PcbDesignRule",
+    "PcbLayerGraphics",
     "PCB_CLASSES"
    ]
   ],

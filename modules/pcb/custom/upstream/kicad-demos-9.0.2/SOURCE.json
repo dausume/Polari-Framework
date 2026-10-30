@@ -219,7 +219,32 @@
    "path": "simulation/rectifier/sym-lib-table",
    "sha256": "a56e695eed1a66d58812950de4d225bd95eb6ca67b2c841677f946cb6d03ba20",
    "bytes": 133
+  },
+  {
+   "path": "simulation/sallen_key/ad8051.lib",
+   "sha256": "603920e25ed866bbec07b4fb784e429b5f96d7d205d7e6499481615a7418198d",
+   "bytes": 2388
+  },
+  {
+   "path": "simulation/sallen_key/sallen_key.kicad_pro",
+   "sha256": "0ac14202caa07c918815bf0368fb69cb37051e86e3e24416889b28b0cb5677c7",
+   "bytes": 9435
+  },
+  {
+   "path": "simulation/sallen_key/sallen_key.kicad_sch",
+   "sha256": "4216ad59f60fd36a62face200c9e795df376162fe5875e1d8c1cbba0e9ab532c",
+   "bytes": 35927
+  },
+  {
+   "path": "simulation/sallen_key/sallen_key_schlib.kicad_sym",
+   "sha256": "a2fb86eef965dc75612f81e5ba2ee1d6d95825b0b5b7c02a40aa693c23b7777e",
+   "bytes": 8841
+  },
+  {
+   "path": "simulation/sallen_key/sym-lib-table",
+   "sha256": "7aeec94090a26c822818c9f8d5d9129d608ce1669c4362ed0420ce8f546ae171",
+   "bytes": 135
   }
  ],
- "added_2026_10_30": "kxc-1 fixtures complex_hierarchy/ (one child sheet, ampli_ht.kicad_sch, used TWICE) and simulation/rectifier/ (Sim.* fields + a diode.mod model library), extracted from https://deb.debian.org/debian/pool/main/k/kicad/kicad-demos_9.0.2+dfsg-1_all.deb (sha256 9042c2d5b2bb7c2e5bfd0a856a2154c419db9cf134131d97786531f80eaec052, downloaded 2026-10-30) \u2014 the same package version and the same copyright stanza (Files: demos/*, License: GPL-2+) as ecc83/. Stored verbatim; never edited here."
+ "added_2026_10_30": "kxc-1 fixtures complex_hierarchy/ (one child sheet, ampli_ht.kicad_sch, used TWICE) and simulation/rectifier/ (Sim.* fields + a diode.mod model library), extracted from https://deb.debian.org/debian/pool/main/k/kicad/kicad-demos_9.0.2+dfsg-1_all.deb (sha256 9042c2d5b2bb7c2e5bfd0a856a2154c419db9cf134131d97786531f80eaec052, downloaded 2026-10-30) \u2014 the same package version and the same copyright stanza (Files: demos/*, License: GPL-2+) as ecc83/. Stored verbatim; never edited here. kxc-3 added simulation/sallen_key/ (.ac analysis, an op-amp subcircuit in ad8051.lib) from the same package."
 }

@@ -33,8 +33,8 @@ def rows_and_classes():
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
-          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench)',
-          len(BOARD_CLASSES) == 66)   # rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
+          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench; bob-0 one: BoardFoothold — the bench contract)',
+          len(BOARD_CLASSES) == 67)   # bob-0: + BoardFoothold; rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -418,6 +418,12 @@ def main():
     run_pin_view_c3(check)
     from board.board_kicad_libs_selftest import run_kicad_libs   # kxc-0: the netlists against KiCad 10's own symbol libraries (econ-core's kicad-cli)
     run_kicad_libs(check)
+    from board.board_footholds_selftest import run_footholds   # bob-0: the bench contract - footholds of dev boards, breadboards and PCBs alike
+    run_footholds(check)
+    from board.board_footholds_selftest import run_bench_boards   # bob-1: one list of Boards on a Bench
+    run_bench_boards(check)
+    from board.board_footholds_selftest import run_board_details   # bob-3: the Board Details page + its door
+    run_board_details(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

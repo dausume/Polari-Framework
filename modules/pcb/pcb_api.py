@@ -96,6 +96,9 @@ class PcbAPI(treeObject):
         if class_name == 'BoardNet':   # brd-bo's class — pcb reuses it rather than a second net model (plan §2b)
             from board.objects.board.BoardNet import BoardNet
             return BoardNet
+        if class_name == 'BoardFoothold':   # bob-0: the board module's bench contract — a PCB's footholds are stored by its ingest
+            from board.objects.board.BoardFoothold import BoardFoothold
+            return BoardFoothold
         return None
 
     def _upsert(self, class_name, rows):

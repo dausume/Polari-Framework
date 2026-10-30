@@ -1,0 +1,11 @@
+# kicad-cli 10.0.6 `sch export netlist --format kicadsexpr` (econ-core, 2026-10-30) of the kicad-demos 9.0.2 fixture: net, ref, pin, pintype. Ground truth for kxc-2 connectivity.
+/rect_out	C1	1	passive
+/rect_out	D1	1	passive
+/rect_out	R2	1	passive
+/signal_in	R1	1	passive
+/signal_in	V1	2	input
+GND	C1	2	passive
+GND	R2	2	passive
+GND	V1	1	input
+Net-(D1-A)	D1	2	passive
+Net-(D1-A)	R1	2	passive

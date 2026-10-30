@@ -24,6 +24,9 @@ import os
 import re
 
 from pcb.custom import kicad_cover as C
+from pcb.custom import kicad_connect as N
+from pcb.custom import kicad_footholds as KF
+from pcb.custom import kicad_geometry as G
 from pcb.custom import sexpr as S
 
 #: kxc-1: an ingested net's voltage is UNKNOWN (KiCad stores none) — never 0.0, which reads as a real 0 V rail
@@ -145,7 +148,9 @@ def read_schematic(files, top, board):
         per_sheet[p['sheet']] = per_sheet.get(p['sheet'], 0) + 1
     sheet_rows = [{'name': '%s:%s' % (board, path), 'schematic': board, 'path': path, 'page': page, 'file': f, 'symbols': per_sheet.get(path, 0), 'notes': ''}
                   for f, path, page in sheets]
-    return sch, sheet_rows, placed, power, lib_syms, problems, tb, symbols
+    nets, net_problems = N.connect(instances, lib_syms, symbols)   # kxc-2: the schematic's own electrical graph
+    problems += net_problems
+    return sch, sheet_rows, placed, power, lib_syms, problems, tb, symbols, nets
 
 
 # ------------------------------------------------------------------ the board
@@ -331,13 +336,21 @@ def read_project(files, board=None, source=None, binaries=None):
     placed, lib_syms = [], {}
     tb_sch, tb_pcb = {}, {}
     if sch_name:
-        sch, sheets, placed, power, lib_syms, probs, tb_sch, sym_rows = read_schematic(files, sch_name, board)
-        out.update(Schematic=[sch], SchematicSheet=sheets, SchematicSymbol=sym_rows)
+        sch, sheets, placed, power, lib_syms, probs, tb_sch, sym_rows, nets = read_schematic(files, sch_name, board)
+        out.update(Schematic=[sch], SchematicSheet=sheets, SchematicSymbol=sym_rows, **N.rows(nets, board))
         out['problems'] += probs
     pl_rows = []
     if pcb_name:
         b, pl_rows, fps, lps, nets, routes, probs, tb_pcb = read_pcb(files, pcb_name, board, fp_table, files.get('%s.kicad_pro' % board) or files.get(_pick(files, '.kicad_pro', board) or '', ''))
         out.update(PcbBoard=[b], Placement=pl_rows, Footprint=fps, LandPattern=lps, BoardNet=nets, Route=routes)
+        ptree = S.parse(files[pcb_name])
+        out['BoardFoothold'] = KF.rows(ptree, board)   # bob-0: the PCB as a Board on the Bench - its connector / test pads
+        # kxc-4: the PCB complete - pads, the copper of each net, zones, net classes, custom rules, the drawing on every layer
+        pro = files.get('%s.kicad_pro' % board) or files.get(_pick(files, '.kicad_pro', board) or '', '')
+        dru = files.get('%s.kicad_dru' % board) or next((t for n, t in files.items() if n.endswith('.kicad_dru') and '/' not in n), '')
+        out.update(PcbPad=G.pads(ptree, board), NetGeometry=G.net_geometry(ptree, board), PcbZone=G.zones(ptree, board),
+                   PcbNetClass=G.net_classes(pro, [n['net'] for n in nets], board), PcbDesignRule=G.design_rules(dru, board),
+                   PcbLayerGraphics=G.layer_graphics(ptree, board))
         out['problems'] += probs
     # title/description/licence FIRST (his browser pass, ecc83-pp naming fix): the PCB's own title block wins when it
     # has one (none seen yet — KiCad only ever writes it into the .kicad_sch), else the schematic's; SOURCE.json fills
@@ -393,6 +406,8 @@ def read_project(files, board=None, source=None, binaries=None):
     out['Part'] = parts
     # kxc-1: every file kept (KiCadArtifact), every element kind accounted for (KiCadCoverage) — nothing dropped silently
     typed = {n for n in (sch_name, pcb_name) if n} | {s['file'] for s in out.get('SchematicSheet', [])} | {n for n in files if n in C.LIB_TABLES}
+    if out.get('BoardFoothold') and out.get('NetEndpoint'):
+        KF.enrich(out['BoardFoothold'], out['NetEndpoint'])   # kxc-2: what sits behind each PCB pad
     out['KiCadArtifact'] = C.artifacts(files, binaries or [], board, typed)
     out['KiCadCoverage'] = C.coverage({n: t for n, t in files.items() if n in typed}, board)
     part_of = {r: p['name'] for p in parts for r in json.loads(p['refs_json'])}

@@ -178,6 +178,31 @@ def _netlist_vs_board(board, rec, files):
             'only_board': sorted(set(pcb_nets) - set(sch_nets)), 'equal': sch_nets == pcb_nets}
 
 
+def ours_vs_kicad(rows, rec, board):
+    """kxc-2: our SchematicNet groups vs kicad-cli's exported netlist (the engine's, never our input). Marks each SchematicNet row same / differs and
+    returns the summary ({} when the engine produced no netlist)."""
+    from pcb.custom import kicad_connect as N
+    from pcb.custom import sexpr as S
+    net = rec.get('blobs', {}).get('assembly/%s.net' % board)
+    if not net or not rows.get('SchematicNet'):
+        return {}
+    by = {}
+    for e in rows.get('NetEndpoint', []):
+        by.setdefault(e['net'], []).append({'ref': e['ref'], 'pin': e['pin']})
+    nets = [{'name': n['net'], 'endpoints': by.get(n['net'], [])} for n in rows['SchematicNet']]
+    kic = N.kicad_netlist_rows(S.parse(net.decode()))
+    cmp = N.compare(nets, kic)
+    theirs = {}
+    for name, ref, pin, _ in kic:
+        theirs.setdefault(name, set()).add((ref, pin))
+    groups = {frozenset(v): k for k, v in theirs.items()}
+    for n in rows['SchematicNet']:
+        g = frozenset((e['ref'], e['pin']) for e in by.get(n['net'], []))
+        k = groups.get(g)
+        n['kicad_check'] = 'same' if k == n['net'] else ('same pins, KiCad names it %s' % k) if k else 'differs: no KiCad net has exactly these pins'
+    return {k: (v if not isinstance(v, list) else len(v)) for k, v in cmp.items()}
+
+
 def write_record(rec, artifacts_dir, record_path):
     """The blobs → the artifact dir (by path); the record (without blobs) → JSON. Returns the record path."""
     for path, data in rec['blobs'].items():
@@ -292,5 +317,6 @@ def ingest(path, board=None, engines=True, out_dir=None, source_date=E.SOURCE_DA
     res['record_path'] = write_record(rec, os.path.join(d, 'artifacts', board), os.path.join(d, 'records', '%s.json' % board))
     res['record'] = rec
     rows['DrcResult'] = rows.get('DrcResult', []) + drc_rows(board, rec)
+    rec['ours_vs_kicad'] = ours_vs_kicad(rows, rec, board)   # kxc-2: Polari's own nets checked against KiCad's export
     rows['FabricationExport'] = export_rows(board, rec, pcb_rows[0].get('sha256', ''))
     return res
