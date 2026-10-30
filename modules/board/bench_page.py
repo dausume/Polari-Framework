@@ -11,7 +11,7 @@ no new component; "Add to bench" and "Remove" are row actions). Three tabs:
 
 Fixed to the bench `home-bench` the way /display/pin-view is fixed to the UNO; the doors take any bench name.
 """
-from polariApiServer.module_pages_seed import _page, _row, _table, _tab
+from polariApiServer.module_pages_seed import _component, _page, _row, _table, _tab
 from board.custom.bench_seed import HOME_BENCH
 
 BENCH = HOME_BENCH
@@ -51,16 +51,26 @@ def _all_boards_tab():
                                     'layers, what the KiCad import understood).',
                         columns='n,id,board_kind,label,definition_kind,definition,footholds,nodes,details,footholds_note',
                         column_formats='details:view:/display/board-details?board={board}', data_path=door + '/all-boards?rev=r{scope:rev}', max_height=420)], min_height=300),
-        _row(1, [_table('bench-connections', 0, 6, 'Connections - wires, jumpers, mated pins', 'BenchConnection',
-                        description='One row = one connection between two footholds on any two Boards (POST /api/board/benches/<bench>/connections or /mate). kind: '
-                                    'wire, jumper, or mated (a header pin pushed into a breadboard hole).',
-                        columns='from_board,from_foothold,to_board,to_foothold,kind,colour,label', data_path=door + '/connections?rev=r{scope:rev}', max_height=420),
-                 _table('bench-nets', 6, 6, 'Nets across boards - and what is wrong with them', '',
-                        description='One row = one net that crosses two or more Boards: each board\'s own joins plus the connections. findings are read off the '
-                                    'footholds alone: two supplies at different voltages joined, a supply joined to ground, a pin whose logic level is below what the '
-                                    'net can carry (a 3.3 V pin on a 5 V net). undetermined says what could not be judged.',
-                        columns='net,boards,members,findings,undetermined', data_path=door + '/nets?rev=r{scope:rev}', max_height=420)], min_height=300),
-    ], description='One list of every Board on the bench, the wires between them, and the electrical findings across boards.')
+        _row(1, [_table('bench-pins', 0, 12, 'Pins and their connections - is every pin\'s drive met?', '',
+                        description='THE BENCH: one row per pin that something is connected to (pins a board joins inside, like its GND pins, are one row). firmware '
+                                    'says which firmware variable uses the pin and how (gpio.out = it drives it); connections are the other PINS it reaches and via '
+                                    'what (a breadboard\'s strips); checks compare the pin\'s own properties - its logic level, its current limit, whether it drives - '
+                                    'with what its connections and firmware need: over-voltage (a 5 V driver on a 3.3 V pin), contention (two outputs driving each '
+                                    'other), short (two supplies, or a supply and ground). notes say what could not be judged yet.',
+                        columns='status,pin,firmware,connections,via,logic_volts,source_ma,checks,notes', data_path=door + '/pins?rev=r{scope:rev}', max_height=520)],
+             min_height=320),
+        _row(2, [_component('bench-netlist', 0, 3, '', 'picker-button',
+                            {'label': 'Bench netlist', 'title': 'The bench netlist - every net that crosses boards',
+                             'popup': {'dataPath': door + '/nets?rev=r{scope:rev}', 'title_field': 'net', 'subtitle_field': 'boards',
+                                       'fields': {'Boards': 'boards', 'Footholds on it': 'members', 'Findings': 'findings', 'Not judged': 'undetermined'},
+                                       'empty_text': 'Nothing on the bench is connected across boards yet.'}},
+                            description='The full netlist of the bench, in its own popup (his rule: the main bench view stays pins and connections).'),
+                 _table('bench-connections', 3, 9, 'Wiring - wires, jumpers, mated pins', 'BenchConnection',
+                        description='One row = one wire, jumper, or mated pin between two footholds on any two Boards - the raw wiring the pins table is worked out '
+                                    'from (POST /api/board/benches/<bench>/connections or /mate).',
+                        columns='from_board,from_foothold,to_board,to_foothold,kind,colour,label', data_path=door + '/connections?rev=r{scope:rev}', max_height=320)],
+             min_height=200),
+    ], description='Every Board on the bench in one list, then its pins: what each is connected to, what firmware does with it, and whether its drive is met.')
 
 
 def _add_board_tab():

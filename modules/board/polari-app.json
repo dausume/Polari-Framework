@@ -230,6 +230,7 @@
    "custom/bench_fit",
    "custom/bench_interactions",
    "custom/bench_nets",
+   "custom/bench_pins",
    "custom/bench_seed",
    "custom/board_c3",
    "custom/board_cli",
