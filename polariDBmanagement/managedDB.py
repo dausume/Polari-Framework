@@ -746,7 +746,7 @@ class managedDatabase(managedFile):
                     'error': 'no writable fields (identifiers only, '
                              'never _-prefixed infrastructure columns)'}
         ph = self.adapter.placeholder
-        setClause = ', '.join(f'`{k}` = {ph}' for k in clean)
+        setClause = ', '.join(f'{self.adapter.quoteIdent(k)} = {ph}' for k in clean)
         commandString = (f'UPDATE {tableName} SET {setClause} '
                          f'WHERE id = {ph} AND _instance_id = {ph};')
         dbConnection = self.adapter.connect()
@@ -869,6 +869,13 @@ class managedDatabase(managedFile):
                 self.tables.append(tableName)
             self._syncTableColumns(dbConnection, tableName, translatedRows)
             dbConnection.commit()
+            # the SQL keyword guard: note every keyword column it protected, and check the names come back out of SQL the same
+            from polariDBmanagement import sql_keyword_guard as KG
+            declared = KG.columns_of(rowList)
+            for col in declared:
+                KG.note(col, tableName, self.adapter.dialect)
+            if any(KG.is_keyword(c, self.adapter.dialect) for c in declared):
+                KG.check_roundtrip(tableName, declared, self.adapter.tableColumns(dbConnection, tableName), self.adapter.dialect)
         except Exception as e:
             print(f'[DB] CREATE TABLE failed for {tableName}: {e}', flush=True)
             print(f'[DB] SQL: {commandString}', flush=True)
@@ -919,7 +926,7 @@ class managedDatabase(managedFile):
             scope = self.instanceScope
             dbConnection = self.adapter.connect()
             cursor = dbConnection.cursor()
-            sql = (f'DELETE FROM {tableName} WHERE {column} = '
+            sql = (f'DELETE FROM {tableName} WHERE {self.adapter.quoteIdent(column)} = '
                    f'{self.adapter.placeholder}')
             params = (value,)
             if scope:

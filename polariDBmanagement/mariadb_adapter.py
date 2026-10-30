@@ -149,7 +149,9 @@ class MariaDBAdapter(DBAdapter):
             return [(row[0], row[1]) for row in cursor.fetchall()]
 
     def quoteIdent(self, name):
-        return f'`{name}`'
+        # the keyword guard: polariDBmanagement.sql_keyword_guard (backticks for MariaDB, an embedded backtick doubled)
+        from polariDBmanagement import sql_keyword_guard as KG
+        return KG.quote(name, 'mariadb')
 
     def translateColumnDefs(self, rowList):
         # Pass 1: find every primary-key column name (inline suffix or

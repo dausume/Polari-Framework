@@ -46,8 +46,9 @@ def test_sqlite_adapter():
         cursor = conn.cursor()
         rows = adapter.translateColumnDefs(
             ['name TEXT PRIMARY KEY', 'count INTEGER', 'ratio REAL'])
-        check('sqlite defs pass through unchanged',
-              rows == ['name TEXT PRIMARY KEY', 'count INTEGER', 'ratio REAL'])
+        check('sqlite defs keep their types; every column name quoted (a keyword field like order / when must not break the CREATE)',
+              rows == ['"name" TEXT PRIMARY KEY', '"count" INTEGER', '"ratio" REAL']
+              and adapter.translateColumnDefs(['order TEXT', 'PRIMARY KEY (a, b)']) == ['"order" TEXT', 'PRIMARY KEY ("a", "b")'])
         cursor.execute('CREATE TABLE demo (' + ', '.join(rows) + ')')
         conn.commit()
         check('listTables sees demo', 'demo' in adapter.listTables(conn))

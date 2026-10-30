@@ -82,5 +82,5 @@ class SqliteAdapter(DBAdapter):
 
     def replaceSQL(self, tableName, columns):
         ph = ', '.join([self.placeholder] * len(columns))
-        cols = ', '.join(columns)
+        cols = ', '.join(self.quoteIdent(c) for c in columns)   # quoted: a field may be an SQL keyword (order, index, when ...)
         return f'INSERT OR REPLACE INTO {tableName} ({cols}) VALUES({ph});'

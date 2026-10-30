@@ -59,17 +59,33 @@ class DBAdapter:
     def translateColumnDefs(self, rowList):
         """Translate sqlite-affinity column definition strings (the
         format makeTypedTableFromAnalysis emits, e.g. 'name TEXT
-        PRIMARY KEY' or 'PRIMARY KEY (a, b)') into this dialect."""
-        return list(rowList)
+        PRIMARY KEY' or 'PRIMARY KEY (a, b)') into this dialect.
+
+        Every column NAME is quoted (2026-10-30): a field named after an SQL keyword (order, index, group, default, when, where ...) made the unquoted
+        CREATE fail and the class was never persisted - 31 classes, found by polariDBmanagement.selftest_column_names."""
+        import re
+        out = []
+        for row in rowList:
+            stripped = row.strip()
+            constraint = re.match(r'(?i)^PRIMARY KEY\s*\(([^)]*)\)', stripped)
+            if constraint:
+                out.append('PRIMARY KEY (%s)' % ', '.join(self.quoteIdent(c.strip().strip('`"')) for c in constraint.group(1).split(',')))
+                continue
+            parts = stripped.split(None, 1)
+            if len(parts) < 2 or parts[0].upper() in ('PRIMARY', 'UNIQUE', 'FOREIGN', 'CHECK', 'CONSTRAINT'):
+                out.append(stripped)
+                continue
+            out.append('%s %s' % (self.quoteIdent(parts[0].strip('`"')), parts[1]))
+        return out
 
     def replaceSQL(self, tableName, columns):
         """Upsert-by-primary-key statement with placeholders."""
         ph = ', '.join([self.placeholder] * len(columns))
-        cols = ', '.join(columns)
+        cols = ', '.join(self.quoteIdent(c) for c in columns)
         return f'REPLACE INTO {tableName} ({cols}) VALUES({ph});'
 
     def addColumnSQL(self, tableName, colName, colType):
-        return f'ALTER TABLE {tableName} ADD COLUMN {colName} {colType}'
+        return f'ALTER TABLE {tableName} ADD COLUMN {self.quoteIdent(colName)} {colType}'
 
     def modifyColumnSQL(self, tableName, colName, newType):
         """Widen an existing column's type (schema-stability OOPS
@@ -79,8 +95,10 @@ class DBAdapter:
         return None
 
     def quoteIdent(self, name):
-        """Dialect identifier quoting (sqlite: "x", mariadb: `x`)."""
-        return f'"{name}"'
+        """Dialect identifier quoting (sqlite: "x", mariadb: `x`) - THE keyword guard: every table / column name that reaches SQL goes through here,
+        so a field may be named order, index, when, where ... The wrapping itself is polariDBmanagement.sql_keyword_guard's (the one place it lives)."""
+        from polariDBmanagement import sql_keyword_guard as KG
+        return KG.quote(name, self.dialect)
 
     def tableExists(self, conn, tableName):
         return tableName in self.listTables(conn)
