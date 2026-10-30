@@ -1359,6 +1359,7 @@ class polariServer(treeObject):
             # fst-0: a firmware's state objects + fields (derived on read, never seeded)
             FirmwareStateObject, FirmwareStateField,
             BoardFoothold,   # bob-0: footholds of a Board on the Bench
+            BenchConnection,   # bob-2: connections between footholds across boards
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

@@ -105,9 +105,17 @@ def write(d, libs, title=None, comment=''):
         report['power_symbols'] += 1
         if net not in flagged:   # one PWR_FLAG per power net, on the first of its pins
             flagged.add(net)
-            fref = '#FLG%02d' % len(flagged)
+            fref = '#FLG%02d' % (report.setdefault('flags', 0) + 1)
+            report['flags'] += 1
             items.append(_symbol(board, sheet_uuid, board, 'power:PWR_FLAG', fref, 'PWR_FLAG', '', (x, y), ['1']))
 
+    # kxc-5: a net a part already DRIVES with a power_out pin (the DevKitM-1's 3V3) needs no PWR_FLAG - a flag there is a power_out vs power_out
+    # conflict in KiCad's ERC
+    for c in d['components']:
+        types = {S.value(p, 'number'): str(p[1]) for p in S.find_all(trees[c['lib_id']], 'pin') if len(p) > 1 and S.find(p, 'number')}
+        for pin, net in c['pins'].items():
+            if types.get(pin) == 'power_out' and net in POWER_LIB:
+                flagged.add(net)
     headers = [c for c in d['components'] if c['role'] == 'header']
     parts = [c for c in d['components'] if c['role'] != 'header']
     placed = []

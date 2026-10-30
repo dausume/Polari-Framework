@@ -38,7 +38,7 @@ def _model(check):
     from board.custom import board_object as BO
     t = BO.seed_tables()
     names = ('PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget', 'PinLifecycleConstraint')
-    check('fgm-2: the seven new classes are BOARD_CLASSES members', {c.__name__ for c in BOARD_CLASSES} >= set(names) and len(BOARD_CLASSES) == 67,   # bob-0: + BoardFoothold
+    check('fgm-2: the seven new classes are BOARD_CLASSES members', {c.__name__ for c in BOARD_CLASSES} >= set(names) and len(BOARD_CLASSES) == 68,   # bob-0: + BoardFoothold; bob-2: + BenchConnection
           len(BOARD_CLASSES))   # rm-2a: + RegisterAccessKind = 66; chp-0 + bench-0: 65   # hsp-0: 48 + EnclosureKind, HardwareEnclosure, EnclosureContact; hsp-1: + HardwareSystem, SystemLink, SignalPath
     seeded = {c: (cls, rows) for c, cls, rows in BOARD_SEED_PAIRS}
     check('fgm-2: every new class is a seed pair, code-owned (rows converge)', all(c in seeded and seeded[c][1] and all('_converge' in r for r in seeded[c][1]) for c in names))

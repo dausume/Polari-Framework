@@ -119,3 +119,30 @@ def run_board_details(check):
     check('BOB-3 THE DOOR: the UNO\'s summary counts its 38 footholds and 7 parts; the C3\'s layers are its enclosure chain (package -> board); a breadboard\'s '
           'layers are empty WITH the reason (no layers at its definition level) - an answer, not an error',
           s['footholds'] == 38 and s['parts'] == 7 and any(r['kind'] == 'E1:qfn' for r in lay) and none[0] == [] and 'no layers' in none[1], (s, none[1]))
+
+
+def run_bench_nets(check):
+    from board.custom import bench_nets as BN
+    from board.custom import footholds as FH
+    uno, c3, bb = (FH.for_definition(*k)[0] for k in (('datasheet', 'arduino-uno-r3'), ('datasheet', 'esp32-c3'), ('geometry', 'breadboard-half')))
+    boards = {'uno': uno, 'c3': c3, 'bb': bb}
+    mated = BN.mate_header('c3', [f['foothold'] for f in c3 if f['foothold'].startswith('J1:')], 'bb', 'a', 1)
+    check('BOB-2 MATING: the C3\'s J1 pushed into breadboard column a from row 1 = 15 mated connections, pin k -> hole r<k>a (J1:9 -> r9a)',
+          len(mated) == 15 and {(c['from_foothold'], c['to_foothold']) for c in mated} >= {('J1:1', 'r1a'), ('J1:9', 'r9a'), ('J1:15', 'r15a')}
+          and all(c['kind'] == 'mated' for c in mated), [(c['from_foothold'], c['to_foothold']) for c in mated][:3])
+    wires = [{'from_board': 'uno', 'from_foothold': 'DIGITAL_L:7', 'to_board': 'bb', 'to_foothold': 'r9e'},   # UNO D6 (5 V logic) -> strip 9 = C3 IO0
+             {'from_board': 'uno', 'from_foothold': 'POWER:6', 'to_board': 'bb', 'to_foothold': 'r1c'}]       # UNO GND -> the C3 GND strip
+    nets, problems = BN.nets(boards, mated + wires)
+    by = {n['net']: n for n in nets}
+    io0 = by.get('IO0 / PWM_LED', {})
+    check('BOB-2 ACROSS BOARDS: a C3 on a breadboard wired to an UNO is ONE graph - the GND strip joins both boards\' grounds, and UNO D6 (5 V logic) wired to '
+          'the strip of C3 IO0 is flagged over-voltage (a 3.3 V pin on a net that carries 5 V), read off the foothold data alone',
+          not problems and set(by['GND']['boards']) == {'bb', 'c3', 'uno'} and not by['GND']['findings']
+          and [f['kind'] for f in io0.get('findings', [])] == ['over-voltage'] and 'c3 J1:9' in io0['findings'][0]['words'], sorted(by))
+    bad, _ = BN.nets(boards, mated + [{'from_board': 'uno', 'from_foothold': 'POWER:5', 'to_board': 'bb', 'to_foothold': 'r2c'},     # UNO +5V -> the C3 3V3 strip
+                                      {'from_board': 'uno', 'from_foothold': 'POWER:4', 'to_board': 'bb', 'to_foothold': 'r1d'}])    # UNO +3V3 -> the GND strip
+    kinds = sorted(f['kind'] for n in bad for f in n['findings'])
+    check('BOB-2 RAIL MISTAKES: the UNO\'s 5 V wired onto the C3\'s 3V3 strip = supply-conflict (two rails joined); the UNO\'s 3V3 onto the GND strip = '
+          'supply-to-ground', 'supply-conflict' in kinds and 'supply-to-ground' in kinds, kinds)
+    _, probs = BN.nets(boards, [{'from_board': 'uno', 'from_foothold': 'NOPE:1', 'to_board': 'bb', 'to_foothold': 'r1a'}])
+    check('BOB-2 a connection to a foothold that does not exist is a problem in words, never silently dropped', probs and 'no such foothold' in probs[0], probs)

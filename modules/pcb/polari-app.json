@@ -87,6 +87,7 @@
    "pcb_page"
   ],
   "selftests": [
+   "pcb_bench_export_selftest",
    "pcb_kicad_connect_selftest",
    "pcb_kicad_cover_selftest",
    "pcb_kicad_geometry_selftest",
@@ -94,6 +95,7 @@
    "pcb_selftest"
   ],
   "custom": [
+   "custom/bench_export",
    "custom/fab_rules",
    "custom/ingest",
    "custom/kicad_connect",
