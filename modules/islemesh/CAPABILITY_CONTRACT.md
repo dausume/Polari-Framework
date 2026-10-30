@@ -109,3 +109,19 @@ actual route methods against in-memory tables. Runtime persistence/schema
 upgrade, production ingest authorization, probe authenticity, capability
 collector delivery and curated descriptor closure still require integration
 proof. Existing installs without new evidence safely remain unknown.
+
+## Dated results
+
+Old, valid observations retain their verdict in `last_reported_status`, including
+failed checks. Their original `observed_at` is retained; `evaluated_at` is only
+the time this report was generated. The UI shows both and requests revalidation
+before installation. No observation is labelled “Not reported yet”; partial
+evidence is “Not fully reported; checks still needed”. Future clocks, malformed
+values and probe errors cannot establish a historical pass. These are evaluations
+of the last stored facts against current requirements, not an audit history.
+
+The read-only CLI collector emits individually dated observations and publishes
+only when explicitly requested, through verified HTTPS. The initial whoami and
+Polari access descriptors check HTTP access only, not authenticated application
+functions. The board-engines hosting descriptor is preliminary and remains
+incomplete until the Electronics owner reviews the full deployment requirements.

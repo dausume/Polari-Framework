@@ -45,6 +45,7 @@ from islemesh.islemesh_catalog import (
 from islemesh.custom.islemesh_coherence import assess_topology
 from islemesh.custom.islemesh_capabilities import (
     ACTIONS, validate_evidence, evaluate_isle, MAX_AGE_SECONDS)
+from islemesh.custom.islemesh_test_requirements import test_requirement
 from islemesh.custom.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -579,6 +580,8 @@ class IsleMeshAPI(treeObject):
             try:
                 descriptors = json.loads(getattr(row, 'requirements_json', '{}') or '{}')
                 descriptor = descriptors.get(action)
+                if descriptor is None:
+                    return test_requirement(entry, action)
                 if (not isinstance(descriptor, dict)
                         or descriptor.get('kind') != entry.get('kind')
                         or descriptor.get('action') != action

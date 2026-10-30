@@ -98,8 +98,8 @@ def check_fact(device, need, now):
             return _reason(dep, 'unknown', 'No observation supplied')
         age = (now - _date(fact['observed_at'])).total_seconds()
         meta = dict(source=fact['source'], observed_at=fact['observed_at'])
-        if age < -30 or age > MAX_AGE_SECONDS:
-            return _reason(dep, 'unknown', 'Observation is stale or clock is ahead', **meta)
+        if age < -30:
+            return _reason(dep, 'unknown', 'Observation clock is ahead; check the device clock', **meta)
         if fact['status'] != 'observed':
             return _reason(dep, 'unknown', 'Observation failed', **meta)
         value = fact['value']
@@ -113,7 +113,11 @@ def check_fact(device, need, now):
             matches = value >= need['value']
         else:
             matches = type(value) is type(need['value']) and value == need['value']
-        return _reason(dep, 'ready' if matches else need.get('failure', 'needs-setup'),
+        state = 'ready' if matches else need.get('failure', 'needs-setup')
+        if age > MAX_AGE_SECONDS:
+            return _reason(dep, 'unknown', 'Last reported result retained; recheck before installation',
+                           last_reported_status=state, value=value, **meta)
+        return _reason(dep, state,
                        'Requirement satisfied' if matches else 'Requirement not satisfied',
                        value=value, **meta)
     except (ValueError, TypeError, OverflowError):
@@ -157,7 +161,8 @@ def evaluate_target(descriptor, target, devices, now=None):
             if device.get('is_mock') is True:
                 continue
             evidence = [check_fact(device, need, now) for need in needs]
-            candidates.append(dict(device=device.get('name', ''), status=_verdict(evidence), checks=evidence))
+            candidates.append(dict(device=device.get('name', ''), status=_verdict(evidence),
+                                   last_reported_status=_verdict([dict(c, status=c.get('last_reported_status', c['status'])) for c in evidence]), checks=evidence))
         ready = [c['device'] for c in candidates if c['status'] == 'ready']
         result['providers'][group] = ready
         if ready:
@@ -177,8 +182,10 @@ def evaluate_target(descriptor, target, devices, now=None):
                 status = 'needs-setup'
             else:
                 status = 'blocked'
-            checks.append(_reason(group, status, 'No single provider satisfies this requirement group', candidates=candidates))
+            checks.append(_reason(group, status, 'No current provider satisfies this requirement group',
+                                  last_reported_status='ready' if any(c['last_reported_status'] == 'ready' for c in candidates) else status, candidates=candidates))
     result['status'] = _verdict(checks)
+    result['last_reported_status'] = _verdict([dict(c, status=c.get('last_reported_status', c['status'])) for c in checks])
     return result
 
 
@@ -200,5 +207,10 @@ def evaluate_isle(descriptor, devices, now=None):
         status = 'resource-limited'
     else:
         status = 'blocked'
+    historical = [t.get('last_reported_status', t['status']) for t in targets]
+    last_reported = 'ready' if 'ready' in historical else status
+    if status == 'unknown' and historical and 'unknown' not in historical:
+        last_reported = _verdict([{'status': state} for state in historical])
     return dict(schema_version=1, evaluated_at=now.isoformat(), status=status,
+                last_reported_status=last_reported,
                 ready_devices=ready, targets=targets, revalidation_required=True)

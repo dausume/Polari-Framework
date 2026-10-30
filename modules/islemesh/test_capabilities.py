@@ -45,6 +45,23 @@ class EvaluatorTests(unittest.TestCase):
         d=device(docker=True);d['last_seen']=NOW.isoformat()
         d['capability_evidence']['facts']['docker']['observed_at']=(NOW-timedelta(minutes=6)).isoformat()
         self.assertEqual(self.evaluate(descriptor(),d)['status'],'unknown')
+        self.assertEqual(self.evaluate(descriptor(),d)['last_reported_status'],'ready')
+    def test_old_failure_retains_reason_and_timestamp(self):
+        d=device(docker=False)
+        stamp=(NOW-timedelta(days=2)).isoformat()
+        d['capability_evidence']['facts']['docker']['observed_at']=stamp
+        result=self.evaluate(descriptor(requirement(failure='policy-restricted')),d)
+        self.assertEqual(result['last_reported_status'],'policy-restricted')
+        self.assertEqual(result['checks'][0]['observed_at'],stamp)
+        self.assertTrue(result['revalidation_required'])
+    def test_old_shared_provider_retains_result_without_current_readiness(self):
+        d=device(docker=True)
+        d['capability_evidence']['facts']['docker']['observed_at']=(NOW-timedelta(days=1)).isoformat()
+        result=self.evaluate(descriptor(requirement(scope='isle')),d)
+        self.assertEqual(result['status'],'unknown')
+        self.assertEqual(result['last_reported_status'],'ready')
+        self.assertEqual(result['providers']['docker'],[])
+
     def test_future_and_naive_dates_unknown(self):
         for value in [(NOW+timedelta(minutes=2)).isoformat(), '2026-10-30T00:00:00']:
             d=device(docker=True);d['capability_evidence']['facts']['docker']['observed_at']=value
@@ -105,6 +122,7 @@ cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMes
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
 ns=dict(json=json,datetime=datetime,timezone=timezone,ACTIONS=cap.ACTIONS,MAX_AGE_SECONDS=cap.MAX_AGE_SECONDS,
         validate_evidence=cap.validate_evidence,evaluate_isle=cap.evaluate_isle,
+        test_requirement=lambda entry,action:None,
         _now_iso=lambda:NOW.isoformat(),CONNECTIVITY_MODES=[],AGENT_MODES=[],_DEVICE_CLASSES=())
 exec(compile(ast.Module(body=[cls],type_ignores=[]),'islemesh_api.py','exec'),ns)
 
@@ -154,5 +172,16 @@ class ApiTests(unittest.TestCase):
         self.api.on_post_ingest_device(self.request,self.response)
         self.assertIsNone(saved['capability_received_at'])
         self.assertIsNone(saved['capability_evidence_json'])
+
+class BuiltinRequirementsTests(unittest.TestCase):
+    def test_bounded_descriptors_validate_and_do_not_guess_other_apps(self):
+        spec=importlib.util.spec_from_file_location('test_requirements', ROOT/'custom/islemesh_test_requirements.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        for name,kind,action in [('whoami','mesh-app','use'),('polari','polari-instance','use'),('board-engines','mesh-app','host')]:
+            value=module.test_requirement({'name':name,'kind':kind},action)
+            cap.validate_requirements(value)
+            if name=='board-engines':self.assertFalse(value['complete'])
+        self.assertIsNone(module.test_requirement({'name':'other','kind':'mesh-app'},'host'))
+        self.assertIsNone(module.test_requirement({'name':'whoami','kind':'hardware-app'},'use'))
 
 if __name__=='__main__':unittest.main()
