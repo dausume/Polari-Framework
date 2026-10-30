@@ -337,6 +337,8 @@ class IsleMeshAPI(treeObject):
                 received_at = _now_iso()
             except (ValueError, TypeError, OverflowError) as error:
                 return self._refuse(response, 'invalid capability evidence: %s' % error)
+        if 'uplinks' in payload and not isinstance(payload['uplinks'], list):
+            return self._refuse(response, 'uplinks must be an array when supplied')
         facts = payload.get('facts') or {}
         if not isinstance(facts, dict):
             return self._refuse(response, 'facts must be an object')
@@ -379,7 +381,10 @@ class IsleMeshAPI(treeObject):
             capability_evidence_json=evidence_json,
             capability_received_at=received_at)
         uplinks = payload.get('uplinks') or []
-        self._replace_device_rows(_DEVICE_CLASSES, device_name)
+        # Capability-only and partial fact reports do not replace topology.
+        # An explicit empty array still authoritatively clears the uplinks.
+        if 'uplinks' in payload:
+            self._replace_device_rows(_DEVICE_CLASSES, device_name)
         kept = 0
         for uplink in uplinks:
             if not isinstance(uplink, dict):

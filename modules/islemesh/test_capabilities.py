@@ -162,6 +162,31 @@ class ApiTests(unittest.TestCase):
         self.api._upsert_device=lambda *a,**kw:self.fail('invalid evidence mutated device')
         self.api.on_post_ingest_device(self.request,self.response)
         self.assertFalse(self.response.media['ok'])
+    def test_capability_only_report_preserves_uplinks(self):
+        self.api._payload=lambda req:({'capability_evidence':device(docker=True)['capability_evidence']},None)
+        self.api._ingest_header=lambda payload,res:('a',False)
+        self.api._upsert_device=lambda *a,**kw:None
+        self.api._replace_device_rows=lambda *a:self.fail('capability report erased topology')
+        self.api._receipt=lambda *a:SimpleNamespace(name='receipt')
+        self.api.on_post_ingest_device(self.request,self.response)
+        self.assertTrue(self.response.media['ok'])
+    def test_explicit_empty_uplinks_clear_topology(self):
+        self.api._payload=lambda req:({'uplinks':[]},None)
+        self.api._ingest_header=lambda payload,res:('a',False)
+        self.api._upsert_device=lambda *a,**kw:None
+        cleared=[]
+        self.api._replace_device_rows=lambda *a:cleared.append(a)
+        self.api._receipt=lambda *a:SimpleNamespace(name='receipt')
+        self.api.on_post_ingest_device(self.request,self.response)
+        self.assertEqual(len(cleared),1)
+    def test_invalid_uplinks_refused_before_device_mutation(self):
+        for value in (None,{},'invalid'):
+            self.api._payload=lambda req:({'uplinks':value},None)
+            self.api._ingest_header=lambda payload,res:('a',False)
+            self.api._upsert_device=lambda *a,**kw:self.fail('invalid topology mutated device')
+            self.api.on_post_ingest_device(self.request,self.response)
+            self.assertFalse(self.response.media['ok'])
+
     def test_legacy_ingest_does_not_refresh_capability_timestamp(self):
         self.api._payload=lambda req:({'facts':{}},None)
         self.api._ingest_header=lambda payload,res:('a',False)
