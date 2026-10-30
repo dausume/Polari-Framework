@@ -12,3 +12,6 @@ from pcb.objects.pcb.DrcResult import DrcResult  # noqa: F401
 from pcb.objects.pcb.FabricationExport import FabricationExport  # noqa: F401
 from pcb.objects.pcb.FabRuleSet import FabRuleSet  # noqa: F401
 from pcb.objects.pcb.FabRule import FabRule  # noqa: F401
+from pcb.objects.pcb.KiCadArtifact import KiCadArtifact  # noqa: F401
+from pcb.objects.pcb.KiCadCoverage import KiCadCoverage  # noqa: F401
+from pcb.objects.pcb.SchematicSymbol import SchematicSymbol  # noqa: F401

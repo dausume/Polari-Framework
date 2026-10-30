@@ -50,6 +50,8 @@
    "objects/pcb/FabRuleSet",
    "objects/pcb/FabricationExport",
    "objects/pcb/Footprint",
+   "objects/pcb/KiCadArtifact",
+   "objects/pcb/KiCadCoverage",
    "objects/pcb/LandPattern",
    "objects/pcb/Part",
    "objects/pcb/PcbBoard",
@@ -57,6 +59,7 @@
    "objects/pcb/Route",
    "objects/pcb/Schematic",
    "objects/pcb/SchematicSheet",
+   "objects/pcb/SchematicSymbol",
    "objects/pcb/Symbol"
   ],
   "basis": [
@@ -75,11 +78,13 @@
    "pcb_page"
   ],
   "selftests": [
+   "pcb_kicad_cover_selftest",
    "pcb_selftest"
   ],
   "custom": [
    "custom/fab_rules",
    "custom/ingest",
+   "custom/kicad_cover",
    "custom/kicad_read",
    "custom/pcb_cli",
    "custom/pcb_engines",
@@ -94,6 +99,8 @@
   "FabRuleSet",
   "FabricationExport",
   "Footprint",
+  "KiCadArtifact",
+  "KiCadCoverage",
   "LandPattern",
   "Part",
   "PcbAPI",
@@ -102,6 +109,7 @@
   "Route",
   "Schematic",
   "SchematicSheet",
+  "SchematicSymbol",
   "Symbol"
  ],
  "imports": [
@@ -121,6 +129,9 @@
     "FabricationExport as PcbFabricationExport",
     "FabRuleSet as PcbFabRuleSet",
     "FabRule as PcbFabRule",
+    "KiCadArtifact as PcbKiCadArtifact",
+    "KiCadCoverage as PcbKiCadCoverage",
+    "SchematicSymbol as PcbSchematicSymbol",
     "PCB_CLASSES"
    ]
   ],

@@ -23,8 +23,11 @@ import math
 import os
 import re
 
+from pcb.custom import kicad_cover as C
 from pcb.custom import sexpr as S
 
+#: kxc-1: an ingested net's voltage is UNKNOWN (KiCad stores none) — never 0.0, which reads as a real 0 V rail
+UNKNOWN_VOLTS = -1.0
 POWER_RE = re.compile(r'^(\+|VCC|VDD|VBAT|VIN|HT\b)', re.I)
 
 
@@ -110,37 +113,27 @@ def _lib_symbol_pins(lsym):
 def read_schematic(files, top, board):
     tree = S.parse(files[top])
     problems = ['%s: %s' % (top, w) for w in S.check_kicad(tree, 'kicad_sch')]
-    sheets = [(top, '/', '1')]
-    queue = [(top, tree, '/')]
-    placed, power = [], []
+    # kxc-1: walked by SHEET INSTANCE (a child sheet used twice = two instances, each with its own references), not by file
+    instances, walk_problems = C.sheet_instances(files, top)
+    problems += walk_problems
+    sheets = [(i['file'], i['path'], i['page']) for i in instances]
     counts = {'wires': 0, 'labels': 0, 'junctions': 0, 'no_connects': 0}
     lib_syms = {}
-    seen = set()
-    while queue:
-        fname, t, path = queue.pop(0)
-        if fname in seen:
-            continue
-        seen.add(fname)
+    for inst in instances:
+        t = inst['tree']
         for ls in (S.find(S.find(t, 'lib_symbols')[0], 'symbol') if S.find(t, 'lib_symbols') else []):
             lib_syms.setdefault(str(ls[1]), ls)
         counts['wires'] += len(S.find(t, 'wire'))
         counts['labels'] += sum(len(S.find(t, k)) for k in ('label', 'global_label', 'hierarchical_label'))
         counts['junctions'] += len(S.find(t, 'junction'))
         counts['no_connects'] += len(S.find(t, 'no_connect'))
-        for s in S.find(t, 'symbol'):
-            ref = S.prop(s, 'Reference')
-            rec = {'lib_id': S.value(s, 'lib_id'), 'ref': ref, 'value': S.prop(s, 'Value'), 'footprint': S.prop(s, 'Footprint'),
-                   'in_bom': S.value(s, 'in_bom', 'yes'), 'on_board': S.value(s, 'on_board', 'yes'), 'unit': S.value(s, 'unit', '1'),
-                   'sheet': path, 'datasheet': S.prop(s, 'Datasheet')}
-            (power if ref.startswith('#') else placed).append(rec)
-        for sh in S.find(t, 'sheet'):   # a hierarchical sheet: its file joins the walk
-            sub = S.prop(sh, 'Sheetfile') or S.prop(sh, 'Sheet file')
-            name = S.prop(sh, 'Sheetname') or S.prop(sh, 'Sheet name') or sub
-            if sub in files:
-                sheets.append((sub, path + name + '/', str(len(sheets) + 1)))
-                queue.append((sub, S.parse(files[sub]), path + name + '/'))
-            else:
-                problems.append('sheet %s names %s, which is not among the files' % (name, sub))
+    symbols, sym_problems = C.symbol_rows(instances, board)
+    problems += sym_problems
+    placed, power = [], []
+    for s in symbols:
+        rec = {'lib_id': s['lib_id'], 'ref': s['ref'], 'value': s['value'], 'footprint': s['footprint'], 'in_bom': s['in_bom'],
+               'on_board': s['on_board'], 'unit': str(s['unit']), 'sheet': s['sheet'], 'datasheet': json.loads(s['properties_json']).get('Datasheet', '')}
+        (power if s['power'] == 'yes' else placed).append(rec)
     tb = _title_block(tree)
     sch = {'name': board, 'board': board, 'file': top, 'sha256': sha(files[top]), 'format_version': S.value(tree, 'version'),
            'generator': S.value(tree, 'generator'), 'title': tb.get('title', ''), 'sheets': len(sheets),
@@ -152,7 +145,7 @@ def read_schematic(files, top, board):
         per_sheet[p['sheet']] = per_sheet.get(p['sheet'], 0) + 1
     sheet_rows = [{'name': '%s:%s' % (board, path), 'schematic': board, 'path': path, 'page': page, 'file': f, 'symbols': per_sheet.get(path, 0), 'notes': ''}
                   for f, path, page in sheets]
-    return sch, sheet_rows, placed, power, lib_syms, problems, tb
+    return sch, sheet_rows, placed, power, lib_syms, problems, tb, symbols
 
 
 # ------------------------------------------------------------------ the board
@@ -295,8 +288,9 @@ def read_pcb(files, top, board, fp_table, pro):
                            'length_mm': round(r['length_mm'], 3), 'min_width_mm': min(r['widths']) if r['widths'] else 0.0,
                            'widths_json': json.dumps(sorted(r['widths'])), 'layers_json': json.dumps(sorted(r['layers'])), 'pads': pad_nets.get(name, 0),
                            'notes': 'also a copper zone (pour)' if name in zone_nets else ''})
-        net_rows.append({'name': '%s:%s' % (board, name), 'board': board, 'net': name, 'net_class': _net_class(name), 'volts': 0.0,
-                         'circuit_net': '', 'fact': '', 'notes': 'ingested from %s (KiCad net code %s); class from the name only' % (top, code)})
+        net_rows.append({'name': '%s:%s' % (board, name), 'board': board, 'net': name, 'net_class': _net_class(name), 'volts': UNKNOWN_VOLTS,
+                         'circuit_net': '', 'fact': '', 'notes': 'ingested from %s (KiCad net code %s); class from the name only; volts unknown '
+                                                                 '(-1): a KiCad net carries no voltage' % (top, code)})
     rules = {}
     try:
         p = json.loads(pro) if pro else {}
@@ -323,7 +317,7 @@ def read_pcb(files, top, board, fp_table, pro):
 
 
 # ------------------------------------------------------------------ the whole project
-def read_project(files, board=None, source=None):
+def read_project(files, board=None, source=None, binaries=None):
     """`source` — the ingested project's SOURCE.json dict (ingest.py finds it beside the project under upstream/), used
     ONLY to fill `title`/`description`/`licence`/`licence_source` on the Schematic + PcbBoard rows when the files'
     own title block carries nothing more specific. None/{} when there isn't one (a Polari-rendered board, say)."""
@@ -337,8 +331,8 @@ def read_project(files, board=None, source=None):
     placed, lib_syms = [], {}
     tb_sch, tb_pcb = {}, {}
     if sch_name:
-        sch, sheets, placed, power, lib_syms, probs, tb_sch = read_schematic(files, sch_name, board)
-        out.update(Schematic=[sch], SchematicSheet=sheets)
+        sch, sheets, placed, power, lib_syms, probs, tb_sch, sym_rows = read_schematic(files, sch_name, board)
+        out.update(Schematic=[sch], SchematicSheet=sheets, SchematicSymbol=sym_rows)
         out['problems'] += probs
     pl_rows = []
     if pcb_name:
@@ -397,6 +391,10 @@ def read_project(files, board=None, source=None):
                       'provenance': 'ingested:%s' % (sch_name or pcb_name), 'licence_notes': '',
                       'undetermined': 'manufacturer, MPN and lifecycle: the KiCad project names none', 'notes': '; '.join(notes)})
     out['Part'] = parts
+    # kxc-1: every file kept (KiCadArtifact), every element kind accounted for (KiCadCoverage) — nothing dropped silently
+    typed = {n for n in (sch_name, pcb_name) if n} | {s['file'] for s in out.get('SchematicSheet', [])} | {n for n in files if n in C.LIB_TABLES}
+    out['KiCadArtifact'] = C.artifacts(files, binaries or [], board, typed)
+    out['KiCadCoverage'] = C.coverage({n: t for n, t in files.items() if n in typed}, board)
     part_of = {r: p['name'] for p in parts for r in json.loads(p['refs_json'])}
     for p in pl_rows:
         p['part'] = part_of.get(p['ref'], '')
@@ -405,13 +403,38 @@ def read_project(files, board=None, source=None):
     return out
 
 
-def read_dir(path):
-    """{relative path: text} of a KiCad project directory (design files, lib tables, the project's .pretty footprints)."""
-    out = {}
+def _walk(path):
+    """Every file of a project directory (kxc-1: ALL of them — models, workbook, local settings), skipping hidden directories,
+    KiCad's own backups / caches and Python caches. Bounded to the directory: links pointing outside it are not followed."""
+    real = os.path.realpath(path)
     for root, dirs, fns in os.walk(path):
-        dirs[:] = sorted(d for d in dirs if d.endswith('.pretty') or root == path and not d.startswith('.') and d not in ('3d_shapes', '3dmodels'))
+        dirs[:] = sorted(d for d in dirs if not d.startswith('.') and not d.endswith('-backups') and d != '__pycache__')
         for fn in sorted(fns):
-            if fn.endswith(('.kicad_sch', '.kicad_pcb', '.kicad_pro', '.kicad_sym', '.kicad_mod', '.kicad_dru')) or fn in ('sym-lib-table', 'fp-lib-table'):
-                fp = os.path.join(root, fn)
-                out[os.path.relpath(fp, path)] = open(fp, encoding='utf-8').read()
+            fp = os.path.join(root, fn)
+            if fn.startswith('.') or fn.endswith('.lck') or fn == 'fp-info-cache' or not os.path.realpath(fp).startswith(real + os.sep):
+                continue
+            yield os.path.relpath(fp, path), fp
+
+
+def read_dir(path):
+    """{relative path: text} of a KiCad project directory: every UTF-8 file (design files, lib tables, the project's libraries,
+    SPICE models, the simulator workbook, local settings). Binary files are binaries_in()'s."""
+    out = {}
+    for rel, fp in _walk(path):
+        try:
+            out[rel] = open(fp, encoding='utf-8', newline='').read()
+        except UnicodeDecodeError:
+            pass
+    return out
+
+
+def binaries_in(path):
+    """[{path, sha256, bytes}] of the files read_dir() could not read as text (3D models, images) — listed, never dropped."""
+    out = []
+    for rel, fp in _walk(path):
+        raw = open(fp, 'rb').read()
+        try:
+            raw.decode('utf-8')
+        except UnicodeDecodeError:
+            out.append({'path': rel, 'sha256': sha(raw), 'bytes': len(raw)})
     return out

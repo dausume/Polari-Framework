@@ -8,7 +8,7 @@ FabricationExport) is OBSERVED — written by `pol pcb ingest` or the schematic 
 design someone made, not a fact about the world.
 """
 from pcb.pcb_basis import FabRuleSet, FabRule, Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, \
-    Placement, Route, DrcResult, FabricationExport
+    Placement, Route, DrcResult, FabricationExport, KiCadArtifact, KiCadCoverage, SchematicSymbol
 from pcb.custom import fab_rules as FR
 
 
@@ -32,4 +32,7 @@ PCB_SEED_PAIRS = [
     ('Route', Route, []),
     ('DrcResult', DrcResult, []),
     ('FabricationExport', FabricationExport, []),
+    ('KiCadArtifact', KiCadArtifact, []),   # kxc-1
+    ('KiCadCoverage', KiCadCoverage, []),
+    ('SchematicSymbol', SchematicSymbol, []),
 ]
