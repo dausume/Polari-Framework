@@ -85,7 +85,7 @@ def nets(boards, connections):
             uf.find(key)
     problems = []
     for c in connections:
-        if c.get('kind') == 'circuit':   # bob-2c: a board-level circuit placed on the bench joins no footholds here - bench_pins reads it
+        if c.get('kind') in ('circuit', 'firmware'):   # bob-2c/2d: a circuit built on the bench / the firmware a board runs join no footholds
             continue
         a, b = index.get((c['from_board'], c['from_foothold'])), index.get((c['to_board'], c['to_foothold']))
         if a is None or b is None:
@@ -210,3 +210,26 @@ def add_circuit(manager, bench_name, body):
     BenchConnection(manager=manager, name=name, bench=bench_name, from_board=board, from_foothold='', to_board=body.get('on', ''), to_foothold='',
                     kind='circuit', label=circuit, notes='a board-level circuit built on the bench; its drive behaviour is checked at board level')
     return 201, {'ok': True, 'bench': bench_name, 'added': name}
+
+
+def set_firmware(manager, bench_name, body):
+    """bob-2d: {board, firmware} - the firmware a Board on the Bench RUNS (a FirmwareSolution / variant name, e.g. uno-light). The bench then reads
+    only that firmware's pin use, and the board-level checks read its real pin claims (a pull-up set in code). One per board: a new one replaces it."""
+    from board.objects.board.BenchConnection import BenchConnection
+    feet, by_id = _boards(bench_name, manager)
+    if feet is None:
+        return 404, {'ok': False, 'error': 'no bench named %r' % bench_name}
+    board, fw = body.get('board', ''), str(body.get('firmware', '')).strip()
+    if board not in by_id:
+        return 422, {'ok': False, 'error': 'no Board %r on this bench (ids: %s)' % (board, ', '.join(sorted(by_id)))}
+    if manager is None:
+        return 503, {'ok': False, 'error': 'no object manager: the firmware a board runs is a stored row'}
+    name = '%s:firmware@%s' % (bench_name, board)
+    table = (manager.objectTables or {}).get('BenchConnection') or {}
+    old = next((o for o in table.values() if getattr(o, 'name', '') == name), None)
+    if old is not None:
+        old.label = fw
+    else:
+        BenchConnection(manager=manager, name=name, bench=bench_name, from_board=board, from_foothold='', to_board='', to_foothold='', kind='firmware',
+                        label=fw, notes='the firmware this board runs (its pin use and pin claims)')
+    return 201, {'ok': True, 'bench': bench_name, 'board': board, 'firmware': fw}

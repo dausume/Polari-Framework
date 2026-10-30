@@ -6,6 +6,7 @@ bob-2 (BENCH_BOARDS_PLAN.md): the doors of CONNECTIONS ACROSS BOARDS on a Bench 
 GET  /api/board/benches/{bench}/connections   the stored BenchConnection rows (wires, jumpers, mated pins)
 POST /api/board/benches/{bench}/connections   {connections: [{from_board, from_foothold, to_board, to_foothold, kind?, colour?, label?}]} - both ends checked, all or none
 POST /api/board/benches/{bench}/mate          {board, connector, breadboard, column, first_row} - a 1 x N header pushed into breadboard holes
+POST /api/board/benches/{bench}/firmware      bob-2d: {board, firmware} - the firmware a board RUNS (its pin use; its pin claims for the board-level checks)
 POST /api/board/benches/{bench}/circuits      bob-2c: {board, circuit, on?} - a BOARD-LEVEL circuit (CircuitDefinition bound to the board's pins) built on the
                                               bench; its electrical findings land on those pins' rows
 GET  /api/board/benches/{bench}/pins          bob-2b, THE MAIN BENCH VIEW: one row per pin (pins a board joins inside = one row) - its firmware use, the pins
@@ -32,6 +33,7 @@ class BenchNetsAPI(treeObject):
             add('/api/board/benches/{bench}/nets', self, suffix='nets')
             add('/api/board/benches/{bench}/pins', self, suffix='pins')
             add('/api/board/benches/{bench}/circuits', self, suffix='circuits')
+            add('/api/board/benches/{bench}/firmware', self, suffix='firmware')
 
     @staticmethod
     def _body(request, response):
@@ -85,4 +87,11 @@ class BenchNetsAPI(treeObject):
         body = self._body(request, response)
         if body is not None:
             status, payload = BN.add_circuit(self.manager, bench, body)
+            response.status, response.media = _STATUS[status], payload
+
+    def on_post_firmware(self, request, response, bench):
+        from board.custom import bench_nets as BN
+        body = self._body(request, response)
+        if body is not None:
+            status, payload = BN.set_firmware(self.manager, bench, body)
             response.status, response.media = _STATUS[status], payload

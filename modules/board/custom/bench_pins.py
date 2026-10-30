@@ -37,8 +37,11 @@ def is_pin(f):
     return f['kind'] in PIN_KINDS
 
 
-def firmware_uses(boards, variables=None):
-    """boards = {id: {'definition', ...}} → {(board id, chip pin): [{'variant', 'variable', 'role', 'used_by'}]}."""
+def firmware_uses(boards, variables=None, running=None):
+    """boards = {id: {'definition', ...}} → {(board id, chip pin): [{'variant', 'variable', 'role', 'used_by', 'running'}]}. `running` = {board id: the
+    firmware it runs} (bob-2d): such a board shows only that firmware's variables; a board with none shows every variant for its definition, each
+    marked 'if flashed'."""
+    running = running or {}
     from cmod.custom import catom_variables as CV
     variables = variables if variables is not None else CV.SEED_VARIABLES
     out = {}
@@ -46,10 +49,13 @@ def firmware_uses(boards, variables=None):
         for v in variables:
             if v.get('board') != b.get('definition') or v.get('role') not in DRIVES + READS:
                 continue
+            if bid in running and v['variant'] != running[bid]:
+                continue
             value = CV.effective(v)[0]
             chip = CV.resolve_pin(v.get('soc', ''), value) if value else ''
             if chip:
-                out.setdefault((bid, chip), []).append({'variant': v['variant'], 'variable': v['variable'], 'role': v['role'], 'used_by': v.get('used_by', '')})
+                out.setdefault((bid, chip), []).append({'variant': v['variant'] if bid in running else '%s (if flashed)' % v['variant'], 'variable': v['variable'],
+                                                        'role': v['role'], 'used_by': v.get('used_by', '')})
     return out
 
 
@@ -64,7 +70,8 @@ def _drives(m, fw):
 
 def pin_rows(boards, wiring, firmware=None, tables=None):
     feet = {bid: b['footholds'] for bid, b in boards.items()}
-    fw = firmware if firmware is not None else firmware_uses(boards)
+    running = {c['from_board']: c.get('label', '') for c in wiring if c.get('kind') == 'firmware' and c.get('label')}
+    fw = firmware if firmware is not None else firmware_uses(boards, running=running)
     nets, problems = BN.nets(feet, wiring)
     rows = []
     labels = {bid: b.get('label', bid) for bid, b in boards.items()}
@@ -105,7 +112,7 @@ def pin_rows(boards, wiring, firmware=None, tables=None):
                          'connections': '; '.join(name(g) for g in other_groups), 'via': ', '.join(vias), 'logic_volts': p['logic_volts'], 'source_ma': p['source_ma'],
                          'rail_volts': p['rail_volts'], 'checks': '; '.join(dict.fromkeys(checks)), 'notes': '; '.join(notes), 'defined': '',
                          'status': 'finding' if checks else 'ok'})
-    _circuits(rows, boards, [c for c in wiring if c.get('kind') == 'circuit'], fw, tables)
+    _circuits(rows, boards, [c for c in wiring if c.get('kind') == 'circuit'], fw, tables, running)
     return sorted(rows, key=lambda r: (r['status'] != 'finding', r['board'], r['pin'])), problems
 
 
@@ -113,7 +120,7 @@ def _mentions(text, pin):
     return re.search(r'(^|[^A-Za-z0-9])%s([^A-Za-z0-9]|$)' % re.escape(pin), text or '') is not None
 
 
-def _circuits(rows, boards, circuits, fw, tables):
+def _circuits(rows, boards, circuits, fw, tables, running=None):
     """Fold each board-level circuit's electrical findings into the pin rows of the pins it binds (adding a row for a pin nothing else connects)."""
     if not circuits:
         return
@@ -126,7 +133,9 @@ def _circuits(rows, boards, circuits, fw, tables):
         if b is None:
             continue
         defn = b.get('definition', '')
-        findings = EC.check(circuit, defn, tables)
+        # bob-2d: with the firmware the board RUNS, the board-level rules read its real pin claims (uno-light's D2 pull-up set in hal_button_init)
+        sol = (running or {}).get(bid, '')
+        findings = EC.check(circuit, '%s@%s' % (sol, defn) if sol else defn, tables)
         bound = [r for r in tables.get('BoardPinNet', []) if r.get('circuit') == circuit and str(r.get('board_pin', '')).startswith(defn + ':')]
         for bp in bound:
             canon = bp['board_pin'].split(':', 1)[1]
