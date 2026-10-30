@@ -52,6 +52,20 @@ UG_URL = 'https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp
 HEADERS = {'J1': ['GND', '3V3', '3V3', 'IO2', 'IO3', 'GND', 'RST', 'GND', 'IO0', 'IO1', 'IO10', 'GND', '5V', '5V', 'GND'],
            'J3': ['GND', 'TX', 'RX', 'GND', 'IO9', 'IO8', 'GND', 'IO7', 'IO6', 'IO5', 'IO4', 'GND', 'IO18', 'IO19', 'GND']}
 HEADER_GPIO = {'TX': 'GPIO21', 'RX': 'GPIO20'}   # the guide's Function column: TX = GPIO21, U0TXD; RX = GPIO20, U0RXD; IOn = GPIOn
+#: kxc-0 (2026-10-30): the names in KiCad 10's own libraries (kicad-symbols 10.0.7 on econ-core, read with kicad-cli 10.0.6). MCU_Espressif:ESP32-C3's
+#: pin numbers = our SocPin package pins (all 15 header GPIOs); RF_Module:ESP32-C3-DevKitM-1 = the whole devkit as one part, its pins 1-15 = J1 in order
+#: and 16-30 = J3 reversed (KiCad pin = 31 - J3 pin) - the part a breadboard circuit uses when it carries the devkit.
+KICAD_LIB_DOC = 'KiCad 10 symbol library (kicad-symbols 10.0.7)'
+KICAD_LIB_REV = 'MCU_Espressif.kicad_sym sha256 2d1d0a92f834237371a21faa57a762afd43e185f183d80c35f71966499a4e27b; RF_Module.kicad_sym sha256 5caaa848e888e9f5491edc765fef0e2eee53c4fe5aa4fe1520c01e4b0f840f2b'
+KICAD_LIB_URL = 'https://gitlab.com/kicad/libraries/kicad-symbols'
+KICAD_CHIP_FOOTPRINT = 'Package_DFN_QFN:QFN-32-1EP_5x5mm_P0.5mm_EP3.7x3.7mm'   # the footprint field on KiCad's ESP32-C3 symbol
+KICAD_HEADER_FOOTPRINT = 'Connector_PinHeader_2.54mm:PinHeader_1x15_P2.54mm_Vertical'
+KICAD_DEVKIT = ('RF_Module', 'ESP32-C3-DevKitM-1', 'RF_Module:ESP32-C3-DevKitM-1')   # (lib, part, footprint)
+
+
+def kicad_devkit_pin(conn, number):
+    """The pin number on KiCad's ESP32-C3-DevKitM-1 symbol for header pin (J1|J3, 1-15)."""
+    return number if conn == 'J1' else 2 * len(HEADERS['J3']) + 1 - number
 #: the power labels -> (net, class, volts, why). 3V3 / 5V are the guide's own words ("3.3 V power supply", "5 V power supply"); RST is an input, CHIP_PU
 POWER = {'GND': ('GND', 'ground', 0.0, 'Ground'), '3V3': ('3V3', 'power', 3.3, '3.3 V power supply'), '5V': ('5V', 'power', 5.0, '5 V power supply'),
          'RST': ('CHIP_PU', 'signal', 0.0, 'CHIP_PU (the chip enable; the board\'s Reset button SW2)')}
@@ -200,7 +214,10 @@ def header_facts():
            board=BOARD),
         _f('devkit.schematic', 'GPIO8 RGB LED (R17) + R20 pull-up; GPIO9 Boot SW1 + Q2; CHIP_PU Reset SW2 + R5/C6 + Q1; U0TXD/U0RXD -> CP2102N (R22/R21); GPIO18/19 USB links NC',
            '', 'sheet 2 (rendered, read 2026-10-29)', 'the parts on the C3\'s lines besides the headers (board.custom.exposure_e2_c3.PATHS)', 'Espressif ESP32-C3-DevKitM-1 schematic',
-           'V1.0, sha256 d2ac6d649cbea3ce4b2295a261f78823bf61e536f69fe4bee2b6e4142bd86542', 'https://dl.espressif.com/dl/schematics/SCH_ESP32-C3-DEVKITM-1_V1_20200915A.pdf', board=BOARD)]
+           'V1.0, sha256 d2ac6d649cbea3ce4b2295a261f78823bf61e536f69fe4bee2b6e4142bd86542', 'https://dl.espressif.com/dl/schematics/SCH_ESP32-C3-DEVKITM-1_V1_20200915A.pdf', board=BOARD),
+        _f('kicad.symbols', 'MCU_Espressif:ESP32-C3 (%s); %s (pins 1-15 = J1, 16-30 = J3 reversed)' % (KICAD_CHIP_FOOTPRINT, KICAD_DEVKIT[2]), '',
+           'the two .kicad_sym files (pin numbers, names, footprint fields)', 'KiCad\'s parts for the chip and for the whole devkit; the chip symbol names some pins by '
+           'their primary function (9 MTMS = GPIO4, 27 U0RXD = GPIO20) - the importer goes by pin number', KICAD_LIB_DOC, KICAD_LIB_REV, KICAD_LIB_URL, board=BOARD)]
 
 
 def connectors():
@@ -209,7 +226,7 @@ def connectors():
     conns, pins = [], []
     for conn, labels in sorted(HEADERS.items()):
         conns.append({'name': '%s:%s' % (BOARD, conn), 'board': BOARD, 'connector': conn, 'ref': conn, 'kind': 'header', 'pin_count': len(labels),
-                      'footprint': 'CON15X1_2P54 (the schematic\'s own footprint name)', 'order_note': 'pin 1 = GND at the antenna end, pin 15 at the micro-USB end (the dimensions drawing)',
+                      'footprint': '%s (the schematic\'s own name: CON15X1_2P54)' % KICAD_HEADER_FOOTPRINT,'order_note': 'pin 1 = GND at the antenna end, pin 15 at the micro-USB end (the dimensions drawing)',
                       'fact': '%s:devkit.header.%s' % (BOARD, conn), 'notes': 'J1 = the left row, J3 = the right row, front view'})
         for i, lab in enumerate(labels, 1):
             g = header_gpio(lab)
@@ -223,11 +240,13 @@ def hardware(usb_ids_json):
     r = ingested()
     return {'name': BOARD, 'board': BOARD,
             'components_json': json.dumps([
-                {'ref': 'U1', 'value': 'ESP32-C3', 'lib': '', 'part': '', 'footprint': '', 'role': 'mcu', 'soc': SOC,
-                 'undetermined': 'the module footprint (ESP32-C3-MINI-1) is not in KiCad\'s cited libraries here; pin numbers are the chip\'s QFN32 (Table 2-4)'},
+                {'ref': 'U1', 'value': 'ESP32-C3', 'lib': 'MCU_Espressif', 'part': 'ESP32-C3', 'footprint': KICAD_CHIP_FOOTPRINT, 'role': 'mcu', 'soc': SOC,
+                 'fact': '%s:kicad.symbols' % BOARD,
+                 'undetermined': 'the ESP32-C3-MINI-1 module between the chip and the headers: KiCad 10\'s RF_Module library has no MINI-1 symbol; '
+                                 'pin numbers are the chip\'s QFN32 (Table 2-4), which KiCad\'s ESP32-C3 symbol shares'},
                 {'ref': 'SW1', 'value': 'User SW1', 'lib': '', 'part': '', 'footprint': '', 'role': 'button', 'pin': 'GPIO9',
                  'fact': '%s:zephyr.esp32c3_devkitm.dts' % BOARD}]
-                + [{'ref': c, 'value': c, 'lib': 'Connector', 'part': '', 'footprint': 'CON15X1_2P54', 'role': 'connector', 'connector': c,
+                + [{'ref': c, 'value': c, 'lib': 'Connector', 'part': '', 'footprint': KICAD_HEADER_FOOTPRINT, 'role': 'connector', 'connector': c,
                     'fact': '%s:devkit.header.%s' % (BOARD, c)} for c in sorted(HEADERS)]),
             'power_rails_json': '[]', 'crystal': '40 MHz main crystal: not in the files read (undetermined)',
             'usb_bridge_chip': 'the ESP32-C3 itself (USB Serial/JTAG, GPIO18/19) — but see notes',
