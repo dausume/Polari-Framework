@@ -174,6 +174,7 @@ def run_bench_pins(check):
     wiring = BN.mate_header('c3', [f['foothold'] for f in c3 if f['foothold'].startswith('J1:')], 'bb', 'a', 1)
     wiring += [{'from_board': 'uno', 'from_foothold': 'DIGITAL_L:7', 'to_board': 'bb', 'to_foothold': 'r9e'},
                {'from_board': 'uno', 'from_foothold': 'POWER:6', 'to_board': 'bb', 'to_foothold': 'r1c'}]
+    wiring += [{'kind': 'firmware', 'from_board': 'uno', 'label': 'uno-light'}, {'kind': 'firmware', 'from_board': 'c3', 'label': 'esp32c3-light'}]
     rows, problems = BP.pin_rows(boards, wiring)
     by = {r['pin']: r for r in rows}
     check('BOB-2b THE BENCH IS PINS: the C3 on a breadboard wired to the UNO reads as FOUR rows, not a netlist - UNO D6, C3 IO0, and each board\'s grounds as '
@@ -213,3 +214,19 @@ def run_bench_circuits(check):
     d6 = next(r for r in rows2 if r['pin'] == 'UNO D6')
     check('BOB-2c CODE vs WIRING: a firmware that READS D6 while the circuit wires D6 as the LED\'s driving output is a role-mismatch finding on the pin',
           d6['status'] == 'finding' and 'role mismatch' in d6['checks'], d6['checks'])
+
+
+def run_bench_firmware(check):
+    """bob-2d: the firmware a board RUNS - its pin use only, and its real pin claims for the board-level checks."""
+    from board.custom import bench_pins as BP
+    from board.custom import footholds as FH
+    uno, _ = FH.for_definition('datasheet', 'arduino-uno-r3')
+    boards = {'uno': {'label': 'UNO', 'footholds': uno, 'definition': 'arduino-uno-r3'}}
+    circ = {'kind': 'circuit', 'from_board': 'uno', 'from_foothold': '', 'to_board': '', 'to_foothold': '', 'label': 'uno-button-clock'}
+    d2_unknown = next(r for r in BP.pin_rows(boards, [circ])[0] if r['pin'] == 'UNO D2')
+    d2_light = next(r for r in BP.pin_rows(boards, [circ, {'kind': 'firmware', 'from_board': 'uno', 'label': 'uno-light'}])[0] if r['pin'] == 'UNO D2')
+    check('BOB-2d THE FIRMWARE A BOARD RUNS: with none recorded, D2 says "uno-light (if flashed)" and the board-level check warns D2 has no pull; with '
+          'uno-light recorded as running, D2 reads its pin use plainly and the pull check passes - the check now reads uno-light\'s own PinClaim (the '
+          'internal pull-up hal_button_init sets: PORTD |= _BV(PD2))',
+          'if flashed' in d2_unknown['firmware'] and 'no pull' in d2_unknown['notes'] and d2_light['firmware'] == 'uno-light BUTTON_PIN int.ext'
+          and 'no pull' not in d2_light['notes'], (d2_unknown['notes'][:80], d2_light['notes'][:80]))
