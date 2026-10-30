@@ -273,7 +273,7 @@ def ingest(path, board=None, engines=True, out_dir=None, source_date=E.SOURCE_DA
     """The whole ingest: rows (always) + the engine record (engines=True; a refusal is returned, never raised) + files written
     under out_dir (default POLARI_PCB_HOME/<board>/). → {'rows', 'record', 'refused', 'record_path'}"""
     files = K.read_dir(path) if os.path.isdir(path) else {os.path.basename(path): open(path).read()}
-    rows = K.read_project(files, board, source=read_source(path))
+    rows = K.read_project(files, board, source=read_source(path), binaries=K.binaries_in(path) if os.path.isdir(path) else [])
     board = rows['board']
     pcb_rows = rows.get('PcbBoard') or [{}]
     rows['FabRuleSet'], rows['FabRule'] = FR.rule_set_rows(), FR.rule_rows()

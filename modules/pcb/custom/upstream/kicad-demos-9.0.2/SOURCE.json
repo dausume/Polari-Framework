@@ -31,6 +31,91 @@
  },
  "files": [
   {
+   "path": "complex_hierarchy/ampli_ht.kicad_sch",
+   "sha256": "ef6f503f39f79a94ad6550268565d7418dde96b296f5f2971c97383603da18a3",
+   "bytes": 97798
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.kicad_pcb",
+   "sha256": "d5f4162d4c766448832723d139f9e0fcb88a17c82340f10f6f6dc6c2042f0d69",
+   "bytes": 883812
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.kicad_pro",
+   "sha256": "55438416ca7fd46b5bad22da2693e9c43240060977d06daabcba084aa17e2804",
+   "bytes": 16908
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.kicad_sch",
+   "sha256": "4344cf98eac9e48262bc6092add7c0dffe27b560627d0658e5129250e7226e9e",
+   "bytes": 58053
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.kicad_sym",
+   "sha256": "39ae1574cda9ab144ab6e6fc8db48ba518a6d6c2fdc4b8cbdb0d6816aea1c91b",
+   "bytes": 31087
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/Altech_AK300_1x02_P5.00mm_45-Degree.kicad_mod",
+   "sha256": "ad699abe749c42684e8a45a5c07527b74b3b8dd702940a6f48c43bc25df69d4c",
+   "bytes": 5414
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/CP_Axial_L10.0mm_D4.5mm_P15.00mm_Horizontal.kicad_mod",
+   "sha256": "85d5482650ecb76f5367bce0e039338ffe8a683f3a6dcfc3af2a22399a3ecc65",
+   "bytes": 7628
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/CP_Axial_L11.0mm_D6.0mm_P18.00mm_Horizontal.kicad_mod",
+   "sha256": "76a1e1bfd36c1dfbd24db82ae14bc8ac9688918d88be6bd2abf636af134512dd",
+   "bytes": 7539
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/C_Disc_D5.0mm_W2.5mm_P5.00mm.kicad_mod",
+   "sha256": "8470e1280101425fecbc76612432ed9adfbc570e9c5be48f2b27560952020c62",
+   "bytes": 4648
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/DIP-8_W7.62mm_LongPads.kicad_mod",
+   "sha256": "db7d323a4d137b17a5b1355b9dcc13fd712caa70bc8ecddc18cab4c9dabd9c6d",
+   "bytes": 7157
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/D_DO-35_SOD27_P7.62mm_Horizontal.kicad_mod",
+   "sha256": "a36f18c7484177cadff8626f3c19f52c7b81eddc1c2c8db7098d062b281cec26",
+   "bytes": 6265
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/D_DO-41_SOD81_P12.70mm_Horizontal.kicad_mod",
+   "sha256": "761f1d9976988de6de7da76167d6cc33464fdb1ffbd29aac0dca12c7151bae34",
+   "bytes": 6317
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/Potentiometer_Bourns_3266W_Vertical.kicad_mod",
+   "sha256": "01e6c2d009a76985b46495aaa7a0746e858f7381d01d1168a87519ff12692990",
+   "bytes": 5571
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal.kicad_mod",
+   "sha256": "280aa291709eecd34106c3a69169331922695374a3186c0949aac2f16b10b806",
+   "bytes": 5048
+  },
+  {
+   "path": "complex_hierarchy/complex_hierarchy.pretty/TO-92_HandSolder.kicad_mod",
+   "sha256": "46bba204fab663ea16febd7686759ff16c38dd1e9bd79a4b28c60d6a020c0915",
+   "bytes": 4569
+  },
+  {
+   "path": "complex_hierarchy/fp-lib-table",
+   "sha256": "033abebfd8e676afd8500b8ab27ead67e6fe599fd14e7898584d7fe43f3fe0fa",
+   "bytes": 145
+  },
+  {
+   "path": "complex_hierarchy/sym-lib-table",
+   "sha256": "44339f22283830e5511f9586104abeb0bee776be07d5512e485dbc2d96a6eefa",
+   "bytes": 149
+  },
+  {
    "path": "ecc83/ecc83-pp.kicad_pcb",
    "sha256": "0ab45f4f8c90ac877e3313a1888d875107f2be3fc2b2f40cfb7927873b35260c",
    "bytes": 158878
@@ -109,6 +194,32 @@
    "path": "ecc83/sym-lib-table",
    "sha256": "d816bcba37ad6b2f6738c99adc52f796011405d8ce75ff397b736c0493e609e2",
    "bytes": 131
+  },
+  {
+   "path": "simulation/rectifier/diode.mod",
+   "sha256": "b160f44c4bb90e7528633ce691d6ea94e94210bc9afc33335cb40961815911ce",
+   "bytes": 37
+  },
+  {
+   "path": "simulation/rectifier/rectifier.kicad_pro",
+   "sha256": "040b987bbb9fdded0a1b18dabd18f99e42e3b2b91c447335fbe9ccfcb2082951",
+   "bytes": 6409
+  },
+  {
+   "path": "simulation/rectifier/rectifier.kicad_sch",
+   "sha256": "cbc7317fa6b22aa1731a6fdb36b29de2868df844b58b75183e107b93fab0d03a",
+   "bytes": 20264
+  },
+  {
+   "path": "simulation/rectifier/rectifier_schlib.kicad_sym",
+   "sha256": "533b1afddd8881249e250c0143dabbc3b6279e136a8aa1eeeffa893a6bfad26b",
+   "bytes": 6696
+  },
+  {
+   "path": "simulation/rectifier/sym-lib-table",
+   "sha256": "a56e695eed1a66d58812950de4d225bd95eb6ca67b2c841677f946cb6d03ba20",
+   "bytes": 133
   }
- ]
+ ],
+ "added_2026_10_30": "kxc-1 fixtures complex_hierarchy/ (one child sheet, ampli_ht.kicad_sch, used TWICE) and simulation/rectifier/ (Sim.* fields + a diode.mod model library), extracted from https://deb.debian.org/debian/pool/main/k/kicad/kicad-demos_9.0.2+dfsg-1_all.deb (sha256 9042c2d5b2bb7c2e5bfd0a856a2154c419db9cf134131d97786531f80eaec052, downloaded 2026-10-30) \u2014 the same package version and the same copyright stanza (Files: demos/*, License: GPL-2+) as ecc83/. Stored verbatim; never edited here."
 }

@@ -24,8 +24,9 @@ def check(label, cond, extra=''):
 def classes():
     from pcb.pcb_basis import PCB_CLASSES
     from pcb.pcb_seed import PCB_SEED_PAIRS
-    check('thirteen row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
-          'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule)', len(PCB_CLASSES) == 13)
+    check('sixteen row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
+          'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol)',
+          len(PCB_CLASSES) == 16)
     check('only the fab rules are code-owned seed rows; every design class seeds empty (observed, not asserted)',
           {n for n, _, rows in PCB_SEED_PAIRS if rows} == {'FabRuleSet', 'FabRule'}
           and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in ('FabRuleSet', 'FabRule')))
@@ -238,6 +239,8 @@ def main():
     engines_refusal()
     schematic_writer_offline()
     page()
+    from pcb.pcb_kicad_cover_selftest import run_kicad_cover   # kxc-1: every KiCad file kept, every element accounted for, sheets by instance
+    run_kicad_cover(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
