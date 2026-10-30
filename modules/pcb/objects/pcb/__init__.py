@@ -23,3 +23,5 @@ from pcb.objects.pcb.PcbZone import PcbZone  # noqa: F401
 from pcb.objects.pcb.PcbNetClass import PcbNetClass  # noqa: F401
 from pcb.objects.pcb.PcbDesignRule import PcbDesignRule  # noqa: F401
 from pcb.objects.pcb.PcbLayerGraphics import PcbLayerGraphics  # noqa: F401
+from pcb.objects.pcb.SpiceRun import SpiceRun  # noqa: F401
+from pcb.objects.pcb.SpiceVector import SpiceVector  # noqa: F401

@@ -3,7 +3,7 @@
 
 THE BOARD OBJECT's seed rows (brd-bo, PCB_FROM_SCRATCH_PLAN §2b) — the UNO typed from Arduino's pinout + the ATmega328P datasheet
 (board.custom.board_uno, board.custom.soc_atmega328p), the ESP32-C3 INGESTED from Zephyr's upstream board dir + the C3 datasheet
-(board.custom.board_c3). The Identity layer is the existing BoardDefinition row; IDENTITY is what brd-bo adds to it.
+(board.custom.board_c3), and the boards declared as cited specs (board.custom.board_spec, bob-5: the Arduino Zero). The Identity layer is the existing BoardDefinition row; IDENTITY is what brd-bo adds to it.
 """
 import json
 
@@ -51,6 +51,10 @@ def build(boards):
             seen.add(n['name'])
             nets.append(n)
     out = _layers(boards, conns, cpins, nets)
+    # bob-5: the boards declared as cited specs (board.custom.board_spec: the Arduino Zero, ...) - the same layer classes, appended
+    from board.custom import board_spec as BS
+    for k, rows in BS.layers().items():
+        out[k] = out[k] + rows
     P2.link_soc_pins(out['SocPin'], out['PackageContact'])   # hsp-0: the 16U2's SocPins gain their package-contact refs
     PK.link_soc_pins(out['SocPin'], out['PackageContact'])   # fgm-2: SocPin gains its pad class + the package contacts it appears on (in place)
     PC3.link_soc_pins(out['SocPin'], out['PackageContact'])  # c3pf: the C3's SocPins gain their QFN32 legs

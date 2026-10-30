@@ -1357,7 +1357,7 @@ FEATURE_IMPORT_BLOCKS = (
                            'FabRuleSet as PcbFabRuleSet', 'FabRule as PcbFabRule', 'KiCadArtifact as PcbKiCadArtifact',
                            'KiCadCoverage as PcbKiCadCoverage', 'SchematicSymbol as PcbSchematicSymbol',
                            'SchematicNet as PcbSchematicNet', 'NetEndpoint as PcbNetEndpoint',
-                           'PcbPad', 'NetGeometry as PcbNetGeometry', 'PcbZone', 'PcbNetClass', 'PcbDesignRule', 'PcbLayerGraphics', 'PCB_CLASSES')),
+                           'PcbPad', 'NetGeometry as PcbNetGeometry', 'PcbZone', 'PcbNetClass', 'PcbDesignRule', 'PcbLayerGraphics', 'SpiceRun', 'SpiceVector', 'PCB_CLASSES')),
         ('pcb.pcb_seed', ('PCB_SEED_PAIRS',)),
         ('pcb.pcb_page', ('SEED_PCB_PAGE_DISPLAYS',)),
     )),

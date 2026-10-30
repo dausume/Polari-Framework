@@ -9,6 +9,8 @@ PCB>), seeded from the URL or picked in the first table (the Boards on a Bench).
 (board.custom.board_details). The design-simulation parts (copper layers, circuits in the layers, thermal, silkscreen, footprints) grow on this page as
 kxc-4 brings the PCB geometry.
 """
+import json
+
 from polariApiServer.module_pages_seed import _page, _row, _tab, _table
 
 ROUTE = 'board-details'
@@ -37,8 +39,46 @@ def _one(key, title, which, cols, what, empty):
                             description='What this is for: %s' % what, columns=cols, max_height=720)], min_height=360)]
 
 
+#: kxc-3b: the run chart - long form (x, y, series): one line per result vector, labelled with its own name and unit
+RUN_GRAPH = 'pcb-spice-run'
+
+
+def _run_graph_config():
+    return {'renderStyle': 'lineY', 'xDimension': 'x', 'yDimensions': ['y'], 'seriesDimension': 'series', 'seriesColors': [],
+            'options': {'width': 900, 'height': 360, 'marginTop': 20, 'marginRight': 30, 'marginBottom': 40, 'marginLeft': 70, 'showLegend': True, 'showGrid': True,
+                        'xLabel': 'the run\'s scale: time (s) for a transient, frequency (Hz) for an AC sweep', 'yLabel': 'V, A for a #branch current; |V| for AC'},
+            'aggregation': {'enabled': False, 'strategy': 'average'}}
+
+
+SEED_BOARD_DETAILS_GRAPHS = [{
+    'name': RUN_GRAPH, 'source_class': 'SpiceVector',
+    'description': ('One simulation run of a PCB\'s schematic: every result vector against the run\'s scale, values exactly as ngspice returned them (thinned by '
+                    'a plain stride for the screen - every drawn point is a solver point). Data: GET /api/pcb/runs/{run}/chart.'),
+    'definition': json.dumps({'graphConfig': _run_graph_config()})}]
+
+
+def _simulation_tab():
+    return _tab('simulation', 'Simulation', [
+        _row(0, [_table('bd-runs', 0, 12, 'Simulation runs of {scope:board} - click one to chart it', '', data_path='%s/runs' % DOOR,
+                        select_field='name', select_scope='run', selected_value='{scope:run}', empty_text='No runs kept for this board (only a PCB from KiCad has a '
+                        'deck; run it on a host with ngspice - econ-core - or post a worker\'s result).',
+                        description='What this is for: every time this PCB\'s schematic was simulated. The deck is built from Polari\'s own rows (its sha256 says which); '
+                                    'analysis is what ngspice ran (transient, AC sweep); status says whether it ran or why not; source / host: this host, a worker, or a '
+                                    'recorded reference.', columns='ran_at,analysis,points,vectors,status,source,host,engine,deck_sha256', max_height=260)], min_height=200),
+        _row(1, [_table('bd-run-vectors', 0, 12, 'Vectors of the selected run', '', data_path='/api/pcb/runs/{scope:run}/vectors', empty_text='Pick a run above.',
+                        description='What this is for: what the run measured - each node voltage, branch current and the scale, with its unit (derived from the name the '
+                                    'way ngspice names them), point count and range.', columns='vector,role,unit,complex_values,points,min_value,max_value', max_height=220)],
+             min_height=160),
+        _row(2, [{'id': 'bd-run-chart', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The selected run',
+                  'description': 'Every result vector of the selected run against its scale - one line per vector, labelled with its name and unit.',
+                  'visible': True, 'collapsed': False, 'cssClass': '',
+                  'componentProps': {'componentName': 'named-graph-panel', 'inputs': {'graphName': RUN_GRAPH, 'dataPath': '/api/pcb/runs/{scope:run}/chart?max=2000'}},
+                  'item': None, 'nestedRows': []}], min_height=420)],
+        'For a PCB from KiCad: the simulation runs kept, their vectors and the chart of one run.')
+
+
 BOARD_DETAILS_PAGES = [
-    _page(ROUTE, ROUTE, _TEXT, 'BoardFoothold', [_picker()], title='Board details', scope_query=['board'],
+    _page(ROUTE, ROUTE, _TEXT, 'BoardFoothold', [_picker()], title='Board details', scope_query=['board', 'run'],
           tabs=[_tab('summary', 'Summary', _one('summary', 'What defines', 'summary', 'board,defined_by,footholds,nodes,nets,parts,layers,coverage_rows,footholds_note',
                                                 'how this board is known and how much each tab holds for it.', 'Pick a board above.'),
                      'How the board is defined and what each tab holds.'),
@@ -86,5 +126,6 @@ BOARD_DETAILS_PAGES = [
                                                          'what,netclass,clearance,track_width,via_diameter,via_drill,diff_pair_width,diff_pair_gap,net_count,rule,condition,layer,constraints_json',
                                                          'the project\'s net classes (clearance, track width, via sizes) with how many nets each holds, and its custom design rules.',
                                                          'Only a KiCad project has these.'),
-                     'Net classes and custom rules.')]),
+                     'Net classes and custom rules.'),
+                _simulation_tab()]),
 ]

@@ -198,6 +198,10 @@ def rows_payload(res, which, flt=None):
 def door(manager, board, params, which=''):
     """(status, payload) for the whole view or one row view."""
     flt = {k: params.get(k, '') for k in FILTERS}
+    if str(board).startswith('bench:'):   # bob-4: a whole Bench drawn - its Boards, their footholds, its connections (board.custom.bench_scene)
+        from board.custom import bench_scene as BSC
+        status, res = BSC.build(board[len('bench:'):], manager)
+        return status, (rows_payload(res, which, flt) if which and status == 200 else res)
     try:
         res = build(board, {k: params.get(k, '') for k in PARAMS}, manager)
     except Refused as e:

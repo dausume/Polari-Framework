@@ -75,6 +75,21 @@ def _all_boards_tab():
     ], description='Every Board on the bench in one list, then its pins: what each is connected to, what firmware does with it, and whether its drive is met.')
 
 
+def _drawing_tab():
+    """bob-4: the bench DRAWN - the one sanctioned drawing component (hardware-pin-view) given board = bench:<bench> (board.custom.bench_scene): every Board
+    on the Bench a surface, every foothold a mark, every connection a line, the bench checks on the pins' drive words."""
+    return _tab('drawing', 'Drawing', [
+        _row(0, [{'id': 'bench-drawing', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The bench, drawn',
+                  'description': 'Every board on the bench with the places a wire can land on it (footholds) and the wires between them. Click a foothold to see its '
+                                 'voltage, current limit and where each number comes from; the Drive mode colours the supplies, grounds and any finding '
+                                 '(over-voltage, two outputs fighting, a short). Positions come from each board\'s own documents; a board whose documents give '
+                                 'none is set out in rows under it and says so.',
+                  'visible': True, 'collapsed': False, 'cssClass': '',
+                  'componentProps': {'componentName': 'hardware-pin-view', 'inputs': {'board': 'bench:%s' % BENCH, 'system': '', 'binding': '', 'stage': 'base'}},
+                  'item': None, 'nestedRows': []}], min_height=640)],
+        description='The bench drawn: boards, footholds and wires.')
+
+
 def _add_board_tab():
     return _tab('add-board', 'Add a dev or eval board', [
         _row(0, [_table('bench-options-boards', 0, 12, 'Every dev and eval board Polari knows - pick one to add', '',
@@ -141,5 +156,5 @@ BENCH_PAGES = [
                    min_height=200),
           ],
           title='The bench',
-          tabs=[_on_bench_tab(), _all_boards_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
+          tabs=[_on_bench_tab(), _all_boards_tab(), _drawing_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
 ]

@@ -1,0 +1,40 @@
+{
+ "what": "Arduino SAMD core files the board module INGESTS: the Arduino Zero variant pin table (Arduino pin number -> SAMD21 port pin, with each pin's peripheral functions). Stored verbatim; never edited here.",
+ "project": "https://github.com/arduino/ArduinoCore-samd",
+ "tag": "1.8.14",
+ "commit": "993398cb7a23a4e0f821a73501ae98053773165b",
+ "released": "2024-01-23",
+ "fetched": "2026-10-30",
+ "licence": "LGPL-2.1-or-later (the header of variant.cpp; the project LICENSE stored beside it)",
+ "gpl3_compatible": "yes (LGPL-2.1-or-later may be used under GPLv3 - project-license-gplv3)",
+ "cited_not_stored": [
+  {
+   "title": "Arduino Zero schematic (ArduinoZeroV4.0, 22/07/2019, 3 sheets)",
+   "url": "https://docs.arduino.cc/resources/schematics/ABX00003-schematics.pdf",
+   "sha256": "b090511095fb288a9193a14a34dc4458154685a0b282e25048aeb00756f4c713",
+   "licence": "CC-BY-SA (the title block)",
+   "read": "2026-10-30, rendered (no text layer)"
+  },
+  {
+   "title": "Arduino Zero tech specs (arduino/docs-content content/hardware/hero/boards/zero/tech-specs.yml)",
+   "url": "https://github.com/arduino/docs-content/blob/dab66ecbd6ad52cd742da6c19c5b6330a7f2caae/content/hardware/hero/boards/zero/tech-specs.yml",
+   "sha256": "506f92676159fd189e16f92c83aef4c0d18ad2dcff93689a95ddd508c505c728",
+   "licence": "CC-BY-SA-4.0",
+   "read": "2026-10-30"
+  }
+ ],
+ "files": [
+  {
+   "path": "LICENSE",
+   "url": "https://raw.githubusercontent.com/arduino/ArduinoCore-samd/1.8.14/LICENSE",
+   "sha256": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331",
+   "bytes": 26526
+  },
+  {
+   "path": "variants/arduino_zero/variant.cpp",
+   "url": "https://raw.githubusercontent.com/arduino/ArduinoCore-samd/1.8.14/variants/arduino_zero/variant.cpp",
+   "sha256": "899edd2a8b4d8dc63f76a696214f0d9d2581c2ea12d1753204c2fd832233dedc",
+   "bytes": 19732
+  }
+ ]
+}

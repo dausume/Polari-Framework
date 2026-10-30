@@ -94,9 +94,10 @@ def run_bench_boards(check):
     bud = next(r for r in rows if r['definition'] == 'bud-bb-32650-w')
     zero = next(r for r in rows if r['definition'] == 'arduino-zero')
     check('BOB-1 ONE LIST: home-bench as Boards on the Bench - every dev board entry (datasheet) and every breadboard (geometry; a count of 2 = two entries) '
-          'in one shape, each with its definition, a foothold summary and its Board Details route; a board with no pin rows says so instead of a number',
+          'in one shape, each with its definition, a foothold summary and its Board Details route; since bob-5 the Zero has its 48 cited footholds; a board '
+          'with no pin rows says why instead of a number',
           len(rows) == want_dev + want_bb and [k for k, _ in kinds].count('dev-board') == want_dev and [k for k, _ in kinds].count('breadboard') == want_bb
-          and uno['footholds'] == 38 and bud['footholds'] == 170 and zero['footholds'] == -1 and 'no BoardPin rows' in zero['footholds_note']
+          and uno['footholds'] == 38 and bud['footholds'] == 170 and zero['footholds'] == 48 and all(r['footholds_note'] for r in rows if r['footholds'] == -1)
           and uno['details'] == '/display/board-details?board=datasheet/arduino-uno-r3' and uno['board'] == 'datasheet/arduino-uno-r3', kinds)
     check('BOB-1 a missing bench is None (the door answers 404)', BB.boards_on_bench('no-such-bench') is None)
 
@@ -110,10 +111,10 @@ def run_board_details(check):
     tabs = [tb['key'] for tb in d.get('tabs', [])]
     blob = page['definition']
     check('BOB-3 THE PAGE: /display/board-details is bound by ?board=<kind>/<definition> (scope_from_query board), picks from the Boards on the Bench, and has '
-          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage + (bob-3b, a PCB\'s design) Pads / Copper / Zones / Drawings / Rules tabs, each reading '
+          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage + (bob-3b, a PCB\'s design) Pads / Copper / Zones / Drawings / Rules tabs + (kxc-3b) Simulation, each reading '
           'GET /api/board/details/{kind}/{definition}/{part}',
-          page['pageRoute'] == 'board-details' and d.get('scope_from_query') == ['board']
-          and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules']
+          page['pageRoute'] == 'board-details' and d.get('scope_from_query') == ['board', 'run']
+          and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'simulation']
           and '/api/board/benches/home-bench/all-boards' in blob and all(('/api/board/details/{scope:board}/%s' % p) in blob for p in BD.PARTS), tabs)
     s = BD.part('datasheet', 'arduino-uno-r3', 'summary')[0][0]
     lay = BD.part('datasheet', 'esp32-c3', 'layers')[0]
@@ -230,3 +231,83 @@ def run_bench_firmware(check):
           'internal pull-up hal_button_init sets: PORTD |= _BV(PD2))',
           'if flashed' in d2_unknown['firmware'] and 'no pull' in d2_unknown['notes'] and d2_light['firmware'] == 'uno-light BUTTON_PIN int.ext'
           and 'no pull' not in d2_light['notes'], (d2_unknown['notes'][:80], d2_light['notes'][:80]))
+
+
+def run_spec_boards(check):
+    """bob-5 (his "go ahead" 2026-10-30): the three home-bench dev boards that had no pins - declared as CITED specs (board.custom.board_spec), each a
+    board object that validates, each with footholds whose every number names its source."""
+    from board.custom import board_object as BO
+    from board.custom import board_spec as BS
+    from board.custom import footholds as FH
+    got = {}
+    for b in ('arduino-zero', 'adafruit-feather-m0-express', 'elecrow-esp32-eval'):
+        rows, why = FH.for_definition('datasheet', b)
+        got[b] = ({r['foothold']: r for r in rows}, why, BO.validate(BO.rows_for(b)))
+    z, f, e = (got[b][0] for b in ('arduino-zero', 'adafruit-feather-m0-express', 'elecrow-esp32-eval'))
+    check('BOB-5 THREE BOARDS NOW HAVE PINS: the Zero 48 footholds (J1 18, J2 14, ICSP 6, CN2 10), the Feather M0 Express 28 (JP1 16, JP3 12), the Elecrow '
+          'CrowPanel 3.7" 20 (U5 2x10); each board object validates (pins named once, nets and connector pins exist)',
+          (len(z), len(f), len(e)) == (48, 28, 20) and all(not got[b][1] and not got[b][2] for b in got), {b: (len(got[b][0]), got[b][1], got[b][2][:2]) for b in got})
+    check('BOB-5 THE ZERO, from variant.cpp (ingested verbatim) + schematic V4.0 + Arduino\'s tech specs: J1 1 = D0 on PA11, J1 14 = D13 on PA17 (its LED '
+          'through a 2N7002), 3.3 V logic and the vendor\'s 7 mA per pin; IOREF and 3V3 are one 3.3 V rail; RESET is one net across J2 / ICSP / CN2; VIN '
+          '(5-18 V) is a range, so undetermined',
+          z['J1:1']['chip_pin'] == 'PA11' and z['J1:14']['chip_pin'] == 'PA17' and z['J1:1']['logic_volts'] == 3.3 and z['J1:1']['source_ma'] == 7.0
+          and z['J2:2']['node'] == z['J2:4']['node'] == 'net:+3V3' and z['J2:2']['rail_volts'] == 3.3
+          and z['J2:3']['node'] == z['ICSP:5']['node'] == z['CN2:10']['node'] == 'net:RESET' and 'PWRIN' in z['J2:8']['undetermined'], (z['J1:1']['chip_pin'], z['J2:8']['undetermined']))
+    check('BOB-5 THE FEATHER, from Adafruit\'s Eagle files + variant + learn guide + the SAM D21 datasheet: JP1 2 = TX on PA10 at the board file\'s pad (41.91, '
+          '1.27) mm; the chip pins carry the datasheet\'s strong-drive maxima - source 7 mA, sink 10 mA - with the default-drive figures said; 3V is the '
+          'AP2112 rail with Adafruit\'s 500 mA peak; EN is an input (the regulator enable)',
+          f['JP1:2']['chip_pin'] == 'PA10' and (f['JP1:2']['x_mm'], f['JP1:2']['y_mm']) == (41.91, 1.27) and 'Eagle' in f['JP1:2']['position_basis']
+          and (f['JP1:2']['source_ma'], f['JP1:2']['sink_ma']) == (7.0, 10.0) and 'DRVSTR=0' in f['JP1:2']['drive_basis']
+          and f['JP1:15']['rail_volts'] == 3.3 and f['JP1:15']['source_ma'] == 500.0 and f['JP3:2']['direction'] == 'in' and 'regulator' in f['JP3:2']['signal_basis'],
+          (f['JP1:2']['drive_basis'][:80], f['JP1:15']['drive_basis'][:80]))
+    check('BOB-5 THE ELECROW, identified as the CrowPanel ESP32 E-Paper 3.7" (SKU DIE01237S in three sources): U5 numbered around the part (1 = IO3, 20 = IO8, '
+          'pin 1 faces 20); the S3\'s TYPICAL 40 mA source (sink not cited); 3V3 = 3.318 V DERIVED from the RY3420 feedback divider; the on-board GPIOs '
+          '(e-paper, keys, microSD) are BoardPins with no header pin',
+          e['U5:1']['chip_pin'] == 'GPIO3' and e['U5:20']['chip_pin'] == 'GPIO8' and e['U5:1']['source_ma'] == 40.0 and e['U5:1']['sink_ma'] == -1.0
+          and e['U5:11']['rail_volts'] == 3.318 and len([p for p in BO.rows_for('elecrow-esp32-eval')['pins'] if not p['connector_pin']]) == 21
+          and BS.logic_level('elecrow-esp32-eval')[0] == 3.3, (e['U5:1']['drive_basis'][:60], e['U5:11']['drive_basis'][:60]))
+
+
+def run_bench_scene(check):
+    """bob-4: the bench DRAWN as the pin view's own payload (GET /api/board/bench:<bench>/pin-view) - no new component."""
+    from board.custom import bench_nets as BN
+    from board.custom import bench_scene as SC
+    from board.custom import pin_view as PV
+    from board.custom import bench_boards as BB
+    st, d = PV.door(None, 'bench:home-bench', {}, '')
+    drawn = [r for r in BB.boards_on_bench('home-bench') if r['footholds'] > 0]   # an earlier selftest may have added a board with no pins: not drawn
+    sizes = {s['ref']: (round(s['w'], 1), round(s['h'], 1), s['pin_count']) for s in d['surfaces']}
+    pins = {p['id']: p for p in d['pins']}
+    check('BOB-4 THE HOME BENCH DRAWN: one board surface per Board on the Bench (UNO, Zero, Feather, Elecrow, two BUD breadboards), a mark per foothold '
+          '(474), left to right without overlap; the BUD (not drawable from its cited outline) is set out by its hole names as a strip x column grid, '
+          '46.6 x 31.4 mm against the stated 47.0 x 36.1; the row view answers too; an unknown bench is 404',
+          st == 200 and len(d['surfaces']) == len(drawn) >= 6 and len(d['pins']) == sum(r['footholds'] for r in drawn) >= 474 and sizes['breadboards_json#1.1'] == (46.6, 31.4, 170)
+          and all(a['x'] + a['w'] < b['x'] for a, b in zip(d['surfaces'], d['surfaces'][1:])) and PV.door(None, 'bench:home-bench', {}, 'pins')[0] == 200
+          and PV.door(None, 'bench:nope', {}, '')[0] == 404 and 'not cited' in pins['foothold:breadboards_json#1.1:r1a']['notes'], sizes)
+    feather = pins['foothold:boards_json#3:JP1:2']
+    jp3 = pins['foothold:boards_json#3:JP3:1']
+    check('BOB-4 POSITIONS + DRIVE WORDS: the Feather\'s marks keep the board file\'s spacing turned to the view\'s y-down frame (JP3 above JP1: 20.32 mm '
+          'apart); a mark\'s drive words are its foothold\'s - D1 sources/sinks 7 / 10 mA (cited), the UNO\'s 5V supplies (rail 5V), GND returns',
+          jp3['y'] < feather['y'] and abs((feather['y'] - jp3['y']) - 20.32) < 1e-6 and feather['limit_basis'] == 'source 7.0 mA / sink 10.0 mA'
+          and pins['foothold:boards_json#1:POWER:5']['drive_status'] == 'supplies' and pins['foothold:boards_json#1:POWER:5']['rail'] == '5V'
+          and pins['foothold:boards_json#1:POWER:6']['drive_status'] == 'returns', (feather['y'], jp3['y'], pins['foothold:boards_json#1:POWER:5']['rail']))
+    from board.custom import footholds as FH
+    uno, c3, bb = (FH.for_definition(*k)[0] for k in (('datasheet', 'arduino-uno-r3'), ('datasheet', 'esp32-c3'), ('geometry', 'breadboard-half')))
+    boards = {'uno': {'label': 'UNO', 'footholds': uno, 'definition': 'arduino-uno-r3'}, 'c3': {'label': 'C3', 'footholds': c3, 'definition': 'esp32-c3'},
+              'bb': {'label': 'half breadboard', 'footholds': bb, 'definition': 'breadboard-half'}}
+    conns = BN.mate_header('c3', [f['foothold'] for f in c3 if f['foothold'].startswith('J1:')], 'bb', 'a', 1)
+    conns += [{'from_board': 'uno', 'from_foothold': 'DIGITAL_L:7', 'to_board': 'bb', 'to_foothold': 'r9e', 'kind': 'wire'},
+              {'from_board': 'uno', 'from_foothold': 'POWER:6', 'to_board': 'bb', 'to_foothold': 'r1c', 'kind': 'wire'}]
+    feet = {bid: b['footholds'] for bid, b in boards.items()}
+    by_id = {bid: {'label': b['label'], 'definition': b.get('definition', bid), 'definition_kind': ''} for bid, b in boards.items()}
+    orig = BN._boards, BN.connections_of
+    BN._boards, BN.connections_of = (lambda bench, m=None: (feet, by_id)), (lambda bench, m=None: conns)
+    try:
+        st2, d2 = SC.build('scenario')
+    finally:
+        BN._boards, BN.connections_of = orig
+    io0 = next(p for p in d2['pins'] if p['ref'].endswith(':J1:9') and p['surface'].endswith(':c3'))
+    check('BOB-4 WIRES + FINDINGS DRAWN: the bob-2 scenario (the C3\'s J1 mated into a breadboard, UNO D6 wired to the C3\'s IO0 strip, the grounds joined) - every '
+          'connection a line between two marks, and the C3 IO0 mark carries the over-voltage finding (limit over; its drive words say the UNO drives 5 V)',
+          st2 == 200 and len(d2['connections']) == len([c for c in conns if c['kind'] not in ('circuit', 'firmware')]) and d2['counts']['findings'] >= 1
+          and io0['limit_class'] == 'over' and 'over-voltage' in io0['drive_why'], (len(d2['connections']), io0['limit_class'], io0['drive_why'][-120:]))

@@ -38,7 +38,9 @@ BOARD_LOGIC_LEVEL_V = {'arduino-uno-r3': 5.0, 'esp32-c3': 3.3}   # esp32-c3: the
 def _board_logic_level(board):
     v = BOARD_LOGIC_LEVEL_V.get(board)
     if v is None:
-        return None, "the board's own logic level is not cited for %r" % board
+        from board.custom import board_spec as BS   # bob-5: a board declared as a cited spec carries its own level
+        sv, why = BS.logic_level(board)
+        return (sv, why) if sv is not None else (None, "the board's own logic level is not cited for %r" % board)
     if board == 'esp32-c3':
         return v, 'fact esp32c3:power.vdd = %s V typical (ESP32-C3 datasheet v2.4 Table 5-2 Recommended Operating Conditions, p.54; 3.0-3.6 V recommended)' % v
     from board.custom.board_uno import DOC

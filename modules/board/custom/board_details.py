@@ -19,12 +19,13 @@ design simulation view). One door shape for every definition kind, one row set p
       zones      layers: copper pours / keep-outs / teardrops with their filled copper area (PcbZone) - the copper a thermal view spreads heat in
       drawings   layers: the drawing on every layer (PcbLayerGraphics) - silkscreen, fab, courtyard, edge, user
       rules      layers: net classes (PcbNetClass) + custom rules (PcbDesignRule)
+      runs       layers: the simulation runs kept for the PCB's schematic (SpiceRun, kxc-3b: pcb.custom.spice_runs), newest first; the chart reads one
 """
 import json
 
 from board.custom import footholds as FH
 
-PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules')
+PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
 COPPER_OHM_M = 1.0 / 58 * 1e-6
 COPPER_CITE = 'IEC 60028 International Annealed Copper Standard: 1/58 ohm mm2/m = 1.7241e-8 ohm m at 20 C'
@@ -35,7 +36,7 @@ def _table(manager, cls):
 
 
 def _attrs(o, keys):
-    return {k: getattr(o, k, '') for k in keys}
+    return {k: (o.get(k, '') if isinstance(o, dict) else getattr(o, k, '')) for k in keys}
 
 
 def _tables(manager):
@@ -97,6 +98,10 @@ def _layers(definition, which, manager):
                            'thermal_bridge_mm')) for o in mine('PcbZone')]
     if which == 'drawings':
         return [_attrs(o, ('layer', 'item', 'count', 'bbox_json')) for o in mine('PcbLayerGraphics')]
+    if which == 'runs':
+        from pcb.custom import spice_runs as SR
+        return [_attrs(r, ('name', 'ran_at', 'analysis', 'plot', 'points', 'vectors', 'status', 'source', 'host', 'engine', 'deck_sha256'))
+                for r in SR.runs(manager, definition)]
     if which == 'rules':
         return [dict({'what': 'net class'}, **_attrs(o, ('netclass', 'clearance', 'track_width', 'via_diameter', 'via_drill', 'diff_pair_width', 'diff_pair_gap', 'net_count',
                                                          'nets_json'))) for o in mine('PcbNetClass')] + \

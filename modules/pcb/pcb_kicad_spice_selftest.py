@@ -54,3 +54,42 @@ def run_kicad_spice(check):
         check('KXC-3 NO SOLVER HERE, SAID: this host has no libngspice, so the run is refused in words (econ-core has it). Recorded there 2026-10-30: our decks '
               'and KiCad\'s gave the same vectors - rectifier max difference 0 over 10008 points, sallen_key 5.6e-15 over 61 frequencies',
               not res['ok'] and 'no ngspice shared library' in res['refused'], res)
+
+
+def run_spice_runs(check):
+    """kxc-3b: a run is KEPT (SpiceRun + one SpiceVector per vector, values verbatim), listed on the Board Details page, and charted in long form."""
+    from board.custom import board_details as BD
+    from board.board_details_page import BOARD_DETAILS_PAGES, SEED_BOARD_DETAILS_GRAPHS, RUN_GRAPH
+    from pcb.custom import spice_runs as SR
+    SR._MEM['SpiceRun'].clear()
+    SR._MEM['SpiceVector'].clear()
+    names = {}
+    for b in ('rectifier', 'sallen_key'):
+        ref = json.load(open(os.path.join(REF, 'kicad10_sim_%s.json' % b)))
+        res = {'ok': True, 'plot': ref['plot'], 'vectors': ref['vectors'], 'library': 'libngspice (KiCad 10.0.6)'}
+        names[b] = SR.store(None, b, open(os.path.join(REF, 'kicad10_spice_%s.cir' % b)).read(), res, 'reference', 'econ-core', '2026-10-30T12:00:00+00:00')
+    vec = {v['vector']: v for v in SR._MEM['SpiceVector'].values() if v['run'] == names['rectifier']}
+    ref = json.load(open(os.path.join(REF, 'kicad10_sim_rectifier.json')))
+    check('KXC-3b A RUN IS KEPT: one SpiceRun (plot tran1, 101 points, source reference, host econ-core) + one SpiceVector per vector with the values VERBATIM; '
+          'units by ngspice\'s naming - time s (the scale), /rect_out V, v1#branch A; the AC run keeps magnitude AND phase',
+          len(vec) == 4 and json.loads(vec['/rect_out']['values_json']) == ref['vectors']['/rect_out']['real'] and vec['time']['role'] == 'scale'
+          and (vec['time']['unit'], vec['/rect_out']['unit'], vec['v1#branch']['unit']) == ('s', 'V', 'A')
+          and SR._MEM['SpiceRun'][names['rectifier']]['points'] == 101
+          and any(v['complex_values'] and json.loads(v['phase_json']) for v in SR._MEM['SpiceVector'].values() if v['run'] == names['sallen_key']), sorted(vec))
+    st, c = SR.chart(None, names['rectifier'], 50)
+    st2, c2 = SR.chart(None, names['sallen_key'], 2000)
+    check('KXC-3b THE CHART: long form (x, y, series) for the named graph pcb-spice-run - each value vector a series labelled with its unit, against the scale; '
+          'max 50 points per series -> stride 3 (101 points); the AC run charts magnitude against frequency (Hz); an unknown run is 404 in words',
+          st == 200 and c['stride'] == 3 and c['x_unit'] == 's' and sorted({r['series'] for r in c['rows']}) == ['/rect_out (V)', '/signal_in (V)', 'v1#branch (A)']
+          and len(c['rows']) == 3 * 34 and st2 == 200 and c2['x_vector'] == 'frequency' and '/lowpass (|V|)' in {r['series'] for r in c2['rows']}
+          and SR.chart(None, 'nope', 10)[0] == 404, (st, c.get('stride'), len(c.get('rows', []))))
+    refused = SR.store(None, 'rectifier', 'deck', {'ok': False, 'refused': 'no ngspice shared library on this host'}, 'local', 'here')
+    runs = BD.part('layers', 'rectifier', 'runs')[0]
+    page = BOARD_DETAILS_PAGES[0]
+    d = json.loads(page['definition'])
+    text = json.dumps(d)
+    check('KXC-3b ON THE BOARD DETAILS PAGE: the runs part lists the PCB\'s runs newest first, a REFUSED attempt kept with its reason (and no vectors); the page has a '
+          'Simulation tab (runs -> scope run -> vectors + the named-graph-panel over GraphDefinition pcb-spice-run, long form: series = the vector)',
+          [r['status'] for r in runs] == ['REFUSED - no ngspice shared library on this host', 'ran'] and SR.chart(None, refused, 10)[0] == 404
+          and '/api/pcb/runs/{scope:run}/chart' in text and RUN_GRAPH in text and d['scope_from_query'] == ['board', 'run']
+          and json.loads(SEED_BOARD_DETAILS_GRAPHS[0]['definition'])['graphConfig']['seriesDimension'] == 'series', [r['status'] for r in runs])

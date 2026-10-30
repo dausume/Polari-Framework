@@ -434,6 +434,9 @@ def main():
     run_bench_circuits(check)
     from board.board_footholds_selftest import run_bench_firmware   # bob-2d: the firmware a board runs (pin use + real pin claims)
     run_bench_firmware(check)
+    from board.board_footholds_selftest import run_spec_boards, run_bench_scene   # bob-5: the Zero, the Feather, the Elecrow; bob-4: the bench drawn
+    run_spec_boards(check)
+    run_bench_scene(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

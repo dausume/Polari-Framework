@@ -9,6 +9,11 @@ POST /api/pcb/{board}/simulate     build the deck and run it through ngspice's s
                                    vectors, or a refusal naming what this host lacks (no libngspice here: econ-core has it, KiCad 10.0.6)
 POST /api/pcb/export/bench/{bench}   kxc-5: the Bench (Boards on the Bench + connections) as a KiCad schematic - {text, design, report}; the
                                    library symbols come from the KiCad worker (a host with none refuses in words, 503)
+kxc-3b: every run is KEPT (pcb.custom.spice_runs: SpiceRun + one SpiceVector per vector) and charted:
+GET  /api/pcb/{board}/runs           {ok, rows}  the board's runs, newest first (a refused run is kept, with its reason)
+POST /api/pcb/{board}/runs           {deck, result, host?, source?: worker|reference}  a run done elsewhere (a worker with libngspice) -> 201 + its name
+GET  /api/pcb/runs/{run}/vectors     {ok, rows}  the run's vectors (name, unit, points, min / max) without their values
+GET  /api/pcb/runs/{run}/chart?max=  {ok, rows: [{x, y, series}]}  long form for the named graph pcb-spice-run, at most `max` points per series
 A board with no ingested schematic answers 404 in words.
 """
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -24,6 +29,9 @@ class PcbSimAPI(treeObject):
             add('/api/pcb/{board}/spice-deck', self, suffix='deck')
             add('/api/pcb/{board}/simulate', self, suffix='simulate')
             add('/api/pcb/export/bench/{bench}', self, suffix='export_bench')
+            add('/api/pcb/{board}/runs', self, suffix='runs')
+            add('/api/pcb/runs/{run}/vectors', self, suffix='run_vectors')
+            add('/api/pcb/runs/{run}/chart', self, suffix='run_chart')
 
     def _rows(self, board):
         import inspect
@@ -58,9 +66,43 @@ class PcbSimAPI(treeObject):
             return
         files = {a['path']: a['content'] for a in rows.get('KiCadArtifact', []) if a['path'] in d['includes']}
         res = NS.run(d['deck'], files)
+        import socket
+        from pcb.custom import spice_runs as SR
+        res = dict(res, run=SR.store(self.manager, board, d['deck'], res, 'local', socket.gethostname()))
         if not res.get('ok'):
             response.status = '503 Service Unavailable' if 'refused' in res else '422 Unprocessable Entity'
         response.media = dict(res, board=board, deck=d['deck'], problems=d['problems'], skipped=d['skipped'])
+
+    def on_get_runs(self, request, response, board):
+        from pcb.custom import spice_runs as SR
+        response.media = {'ok': True, 'board': board, 'rows': SR.runs(self.manager, board)}
+
+    def on_post_runs(self, request, response, board):
+        from pcb.custom import spice_runs as SR
+        body = request.get_media() or {}
+        if not isinstance(body.get('result'), dict) or not isinstance(body.get('deck'), str):
+            response.status, response.media = '400 Bad Request', {'ok': False, 'error': 'body needs {deck: text, result: {ok, plot, vectors}}'}
+            return
+        source = body.get('source', 'worker')
+        if source not in ('worker', 'reference'):
+            response.status, response.media = '400 Bad Request', {'ok': False, 'error': 'source must be worker or reference (a local run is /simulate)'}
+            return
+        name = SR.store(self.manager, board, body['deck'], body['result'], source, str(body.get('host', '')))
+        response.status, response.media = '201 Created', {'ok': True, 'run': name, 'rows': SR.runs(self.manager, board)}
+
+    def on_get_run_vectors(self, request, response, run):
+        from pcb.custom import spice_runs as SR
+        response.media = {'ok': True, 'run': run, 'rows': SR.vectors(self.manager, run)}
+
+    def on_get_run_chart(self, request, response, run):
+        from pcb.custom import spice_runs as SR
+        try:
+            mx = max(10, min(20000, int(request.get_param('max') or 2000)))
+        except ValueError:
+            mx = 2000
+        status, body = SR.chart(self.manager, run, mx)
+        response.status = {200: '200 OK', 404: '404 Not Found', 409: '409 Conflict'}[status]
+        response.media = body
 
     def on_post_export_bench(self, request, response, bench):
         from board.custom import bench_nets as BN

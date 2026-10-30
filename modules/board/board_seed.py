@@ -149,3 +149,9 @@ try:   # the tree rows belong to the techtree module; seeded only when it is pre
                          ('TechNode', TechNode, SEED_BOARD_TECH_NODES)]
 except Exception:   # pragma: no cover — techtree absent: the roads still seed, the concept tree waits
     pass
+try:   # kxc-3b: the Board Details page's run chart is a GraphDefinition row (code-owned, as hwnocode's and instruments' graphs)
+    from polariApiServer.graphDefinition import GraphDefinition as _GD
+    from board.board_details_page import SEED_BOARD_DETAILS_GRAPHS as _BDG
+    BOARD_SEED_PAIRS += [('GraphDefinition', _GD, [dict(r, _converge=[k for k in r if k not in ('name', 'description')]) for r in _BDG])]
+except Exception:   # pragma: no cover — the graph store absent: the chart door still answers
+    pass

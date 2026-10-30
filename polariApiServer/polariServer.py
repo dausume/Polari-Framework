@@ -1370,6 +1370,7 @@ class polariServer(treeObject):
             PcbSchematicNet, PcbNetEndpoint,
             # kxc-4: the PCB complete - pads, copper per net, zones, net classes, custom rules, layer drawings
             PcbPad, PcbNetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics,
+            SpiceRun, SpiceVector,   # kxc-3b
             # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows; sc-1: statistics
             FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle,
             ScenarioStatistic,

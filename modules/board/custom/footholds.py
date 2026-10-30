@@ -74,12 +74,16 @@ def datasheet(tables, board):
     pins = {p['canonical']: p for p in tables.get('BoardPin', []) if p['board'] == board}
     logic, logic_why = EC._board_logic_level(board)
     where = _header_positions(tables, board)
+    from board.custom import board_spec as BS   # bob-5: a spec board's positions come from its own board file, when cited
+    spec_where, spec_basis = BS.positions(board)
+    if spec_where:
+        where = dict(spec_where)
     rows = []
     for cp in sorted((c for c in tables.get('ConnectorPin', []) if c['board'] == board), key=lambda c: (c['connector'], c['number'])):
         fid = '%s:%d' % (cp['connector'], cp['number'])
         x, y = where.get((cp['connector'], cp['number']), (UNKNOWN, UNKNOWN))
         r = {'name': _name('datasheet', board, fid), 'definition_kind': 'datasheet', 'definition': board, 'foothold': fid, 'kind': 'header-pin',
-             'label': cp['label'], 'x_mm': x, 'y_mm': y, 'position_basis': POSITION_KNOB.get(board, 'drawing knob') if (cp['connector'], cp['number']) in where else '',
+             'label': cp['label'], 'x_mm': x, 'y_mm': y, 'position_basis': (spec_basis if spec_where else POSITION_KNOB.get(board, 'drawing knob')) if (cp['connector'], cp['number']) in where else spec_basis,
              'side': 'top', 'node': 'net:%s' % cp['net'] if cp['net'] else 'pin:%s' % fid, 'net': cp['net'], 'rail_volts': UNKNOWN, 'logic_volts': UNKNOWN,
              'source_ma': UNKNOWN, 'sink_ma': UNKNOWN, 'drive_basis': '', 'families_json': '[]', 'chip_pin': '', 'direction': 'undetermined',
              'signal_basis': 'ConnectorPin %s:%s (%s)' % (board, fid, cp.get('fact', '')), 'undetermined': '', 'notes': cp.get('notes', '')}
@@ -93,8 +97,10 @@ def datasheet(tables, board):
                 r.update(logic_volts=float(logic))
             if 'max_ma' in el:
                 typical = 'typical' in el.get('kind', '')
-                r.update(source_ma=float(el['max_ma']), sink_ma=UNKNOWN if typical else float(el['max_ma']))
+                sink = float(el['sink_ma']) if 'sink_ma' in el else UNKNOWN if typical else float(el['max_ma'])
+                r.update(source_ma=float(el['max_ma']), sink_ma=sink)
                 r['drive_basis'] = '%s %s mA (%s)%s; logic %s' % ('typical source' if typical else 'per-pin limit', el['max_ma'], el.get('fact', ''),
+                                                                ('; sink %s mA - %s' % (el['sink_ma'], el.get('kind', ''))) if 'sink_ma' in el else
                                                                 '; sink not cited' if typical else ' (source and sink)', logic_why)
             else:
                 r['drive_basis'] = 'logic %s' % logic_why
@@ -114,8 +120,9 @@ def datasheet(tables, board):
                 r['undetermined'] = 'rail voltage of %s: %s' % (cp['net'], ('a range %s V (%s)' % (v, rr.get('fact', ''))) if v else 'not in the cited power rails')
             if rr.get('max_ma'):
                 r.update(source_ma=float(rr['max_ma']), drive_basis=r['drive_basis'] + '; max %s mA (%s)' % (rr['max_ma'], rr.get('fact', '')))
-        elif cp['label'] in INPUT_LABELS:
-            r.update(direction='in', families_json=json.dumps(['reset-programming'] if cp['label'] != 'AREF' else ['analog']), signal_basis=INPUT_LABELS[cp['label']])
+        elif BS.input_words(board, cp['label']) or cp['label'] in INPUT_LABELS:
+            r.update(direction='in', families_json=json.dumps(['reset-programming'] if cp['label'] != 'AREF' else ['analog']),
+                     signal_basis=BS.input_words(board, cp['label']) or INPUT_LABELS[cp['label']])
             r['undetermined'] = 'thresholds of %s not cited here' % cp['label']
         elif cp['label'] == 'NC':
             r.update(direction='passive', node='pin:%s' % fid, net='', signal_basis='printed NC: not connected (the vendor header table)')
