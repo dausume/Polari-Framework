@@ -23,7 +23,17 @@ from pcb.objects.pcb.FabRule import FabRule  # noqa: F401
 from pcb.objects.pcb.KiCadArtifact import KiCadArtifact  # noqa: F401
 from pcb.objects.pcb.KiCadCoverage import KiCadCoverage  # noqa: F401
 from pcb.objects.pcb.SchematicSymbol import SchematicSymbol  # noqa: F401
+from pcb.objects.pcb.SchematicNet import SchematicNet  # noqa: F401
+from pcb.objects.pcb.NetEndpoint import NetEndpoint  # noqa: F401
+from pcb.objects.pcb.PcbPad import PcbPad  # noqa: F401
+from pcb.objects.pcb.NetGeometry import NetGeometry  # noqa: F401
+from pcb.objects.pcb.PcbZone import PcbZone  # noqa: F401
+from pcb.objects.pcb.PcbNetClass import PcbNetClass  # noqa: F401
+from pcb.objects.pcb.PcbDesignRule import PcbDesignRule  # noqa: F401
+from pcb.objects.pcb.PcbLayerGraphics import PcbLayerGraphics  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 PCB_CLASSES = [Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, Placement, Route, DrcResult,
-              FabricationExport, FabRuleSet, FabRule, KiCadArtifact, KiCadCoverage, SchematicSymbol]   # kxc-1: the last three
+              FabricationExport, FabRuleSet, FabRule, KiCadArtifact, KiCadCoverage, SchematicSymbol,   # kxc-1
+              SchematicNet, NetEndpoint,   # kxc-2: the schematic's own electrical graph
+              PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics]   # kxc-4: the PCB complete

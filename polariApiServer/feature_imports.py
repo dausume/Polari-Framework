@@ -1338,7 +1338,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'BenchInteraction',   # sim-3: a person's actions on the sim bench (observed, never seeded)
                                'TwinSession',   # sim-1: twin sessions - a running simulated board with a live control port (observed, never seeded)
                                'SimInstallConfirmation',   # ins-1: a person's tick that the simulated board does what the firmware says (never seeded)
-                               'FirmwareStateObject', 'FirmwareStateField',   # fst-0: a firmware's state objects + fields, derived on read (never seeded)
+                               'FirmwareStateObject', 'FirmwareStateField', 'BoardFoothold',   # fst-0: a firmware's state objects + fields, derived on read (never seeded)
                                'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart; ucd-0a: + the
                                # hardware chain's nine; ucd-0b2a: + address space as rows (four); ucd-0e1: + the button-clock wire classes (two);
                                # ucd-doc: + Datasheet
@@ -1354,7 +1354,9 @@ FEATURE_IMPORT_BLOCKS = (
                            'Schematic as PcbSchematic', 'SchematicSheet as PcbSchematicSheet', 'PcbBoard', 'Placement as PcbPlacement',
                            'Route as PcbRoute', 'DrcResult as PcbDrcResult', 'FabricationExport as PcbFabricationExport',
                            'FabRuleSet as PcbFabRuleSet', 'FabRule as PcbFabRule', 'KiCadArtifact as PcbKiCadArtifact',
-                           'KiCadCoverage as PcbKiCadCoverage', 'SchematicSymbol as PcbSchematicSymbol', 'PCB_CLASSES')),
+                           'KiCadCoverage as PcbKiCadCoverage', 'SchematicSymbol as PcbSchematicSymbol',
+                           'SchematicNet as PcbSchematicNet', 'NetEndpoint as PcbNetEndpoint',
+                           'PcbPad', 'NetGeometry as PcbNetGeometry', 'PcbZone', 'PcbNetClass', 'PcbDesignRule', 'PcbLayerGraphics', 'PCB_CLASSES')),
         ('pcb.pcb_seed', ('PCB_SEED_PAIRS',)),
         ('pcb.pcb_page', ('SEED_PCB_PAGE_DISPLAYS',)),
     )),

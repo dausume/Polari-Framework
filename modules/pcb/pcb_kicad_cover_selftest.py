@@ -48,11 +48,11 @@ def run_kicad_cover(check):
     every = {(f, str(el[0])) for f in ('complex_hierarchy.kicad_sch', 'ampli_ht.kicad_sch', 'complex_hierarchy.kicad_pcb')
              for el in S.parse(files[f])[1:] if isinstance(el, list) and el}
     check('KXC-1 COVERAGE: every top-level element kind of every schematic and board file has a KiCadCoverage row with its count and handling '
-          '(typed / summarised / counted / preserved); symbols are typed as SchematicSymbol, wires counted until kxc-2, footprints summarised '
-          'until kxc-4 - nothing unaccounted',
+          '(typed / summarised / counted / preserved); symbols are typed as SchematicSymbol, wires as SchematicNet (kxc-2), footprints with every pad '
+          '(kxc-4) - nothing unaccounted',
           set(cov) == every and cov[('ampli_ht.kicad_sch', 'symbol')]['polari_class'] == 'SchematicSymbol'
-          and cov[('ampli_ht.kicad_sch', 'wire')]['handling'] == 'counted' and cov[('ampli_ht.kicad_sch', 'wire')]['next_slice'] == 'kxc-2'
-          and cov[('complex_hierarchy.kicad_pcb', 'footprint')]['handling'] == 'summarised'
+          and cov[('ampli_ht.kicad_sch', 'wire')]['handling'] == 'typed' and cov[('ampli_ht.kicad_sch', 'wire')]['polari_class'] == 'SchematicNet'
+          and cov[('complex_hierarchy.kicad_pcb', 'footprint')]['handling'] == 'typed'
           and all(c['count'] > 0 and c['handling'] in ('typed', 'summarised', 'counted', 'preserved') for c in cov.values()), sorted(every ^ set(cov))[:5])
     check('KXC-1 VOLTS UNKNOWN: ingested BoardNet rows say -1 (unknown) and why - a KiCad net carries no voltage, so 0.0 (a real 0 V rail) '
           'is never invented', r['BoardNet'] and all(n['volts'] == K.UNKNOWN_VOLTS == -1.0 and 'volts unknown' in n['notes'] for n in r['BoardNet']))

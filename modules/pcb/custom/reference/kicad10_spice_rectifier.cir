@@ -1,0 +1,11 @@
+* kicad-cli 10.0.6 `sch export netlist --format spice` (econ-core, 2026-10-30) of the kicad-demos 9.0.2 fixture; .include paths made relative. Reference deck for kxc-3.
+.title KiCad schematic
+.include "diode.mod"
+.tran 1u 10m
+
+R1 /signal_in Net-_D1-A_ 1k
+D1 Net-_D1-A_ /rect_out 1N4148
+V1 GND /signal_in SINE(0 1.5 1k 0 0 0 0)
+C1 /rect_out GND 100n
+R2 /rect_out GND 100k
+.end

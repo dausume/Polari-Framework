@@ -81,6 +81,7 @@ from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F
 from board.objects.board.TwinSession import TwinSession  # noqa: F401   # sim-1: a running simulated board with a live control port
 from board.objects.board.BenchInteraction import BenchInteraction  # noqa: F401   # sim-3: one thing a person did on the sim bench
 from board.objects.board.SimInstallConfirmation import SimInstallConfirmation  # noqa: F401   # ins-1: a person's tick that the sim does what the firmware says
+from board.objects.board.BoardFoothold import BoardFoothold  # noqa: F401   # bob-0: footholds of a Board on the Bench
 from board.objects.board.FirmwareStateObject import FirmwareStateObject  # noqa: F401   # fst-0: a firmware's state objects, derived
 from board.objects.board.FirmwareStateField import FirmwareStateField  # noqa: F401   # fst-0: their fields (readers / writers / direction)
 
@@ -109,4 +110,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  TwinSession,   # sim-1: twin sessions (observed, never seeded)
                  BenchInteraction,   # sim-3: what a person did on the sim bench (observed, never seeded)
                  SimInstallConfirmation,   # ins-1: the confirmed-sim gate's tick (a person's record, never seeded)
-                 FirmwareStateObject, FirmwareStateField]   # fst-0: a firmware's state objects + fields (derived on read, never seeded)
+                 FirmwareStateObject, FirmwareStateField,
+                 BoardFoothold]   # bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)

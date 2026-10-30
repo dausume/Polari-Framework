@@ -1,0 +1,17 @@
+* kicad-cli 10.0.6 `sch export netlist --format spice` (econ-core, 2026-10-30) of the kicad-demos 9.0.2 fixture; .include paths made relative. Reference deck for kxc-3.
+.title KiCad schematic
+.include "ad8051.lib"
+.control
+version
+.endc
+.ac dec 10 1 1Meg
+
+C2 Net-_U1-+_ GND 100n
+XU1 Net-_U1-+_ /lowpass VDD VSS /lowpass AD8051
+R1 Net-_C1-Pad2_ Net-_R1-Pad2_ 1k
+V1 Net-_R1-Pad2_ GND DC ac=1 AC 1  
+R2 Net-_U1-+_ Net-_C1-Pad2_ 1k
+C1 /lowpass Net-_C1-Pad2_ 100n
+V2 VDD GND DC 10 
+V3 GND VSS DC 10 
+.end

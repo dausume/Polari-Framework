@@ -112,6 +112,8 @@
       "custom/layout_sources",
       "custom/layout_steps",
       "custom/layout_words",
+      "custom/ngspice_shared",
+      "custom/ngspice_shared_runner",
       "custom/photo_derive",
       "custom/spice_run",
       "custom/switching"

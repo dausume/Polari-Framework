@@ -24,9 +24,9 @@ def check(label, cond, extra=''):
 def classes():
     from pcb.pcb_basis import PCB_CLASSES
     from pcb.pcb_seed import PCB_SEED_PAIRS
-    check('sixteen row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
-          'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol)',
-          len(PCB_CLASSES) == 16)
+    check('twenty-four row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
+          'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol; kxc-2: SchematicNet, NetEndpoint; '
+          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics)', len(PCB_CLASSES) == 24)
     check('only the fab rules are code-owned seed rows; every design class seeds empty (observed, not asserted)',
           {n for n, _, rows in PCB_SEED_PAIRS if rows} == {'FabRuleSet', 'FabRule'}
           and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in ('FabRuleSet', 'FabRule')))
@@ -241,6 +241,12 @@ def main():
     page()
     from pcb.pcb_kicad_cover_selftest import run_kicad_cover   # kxc-1: every KiCad file kept, every element accounted for, sheets by instance
     run_kicad_cover(check)
+    from pcb.pcb_kicad_connect_selftest import run_kicad_connect   # kxc-2: our nets = KiCad's on the three demos
+    run_kicad_connect(check)
+    from pcb.pcb_kicad_spice_selftest import run_kicad_spice   # kxc-3: the deck from our rows = KiCad's
+    run_kicad_spice(check)
+    from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
+    run_kicad_geometry(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 
