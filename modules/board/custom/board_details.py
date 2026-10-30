@@ -12,12 +12,22 @@ design simulation view). One door shape for every definition kind, one row set p
       parts      datasheet: the BoardHardware components; layers: the placed symbols (SchematicSymbol, kxc-1) with their simulation fields
       layers     datasheet: the enclosure levels (die -> package -> board); layers: the PCB's copper / mask / silk layers + stackup (PcbBoard)
       coverage   layers: what the KiCad ingest understood of each file (KiCadCoverage); other kinds: nothing (said)
+      pads       layers: every pad (PcbPad, kxc-4) - the footprints part of the single-Board design view
+      copper     layers: each net's copper (NetGeometry): segments, vias, length, narrowest track, and its DC resistance from the copper itself -
+                 rho L / (w t) per segment with t = the layer's copper thickness from the board's stackup and rho by definition (IEC 60028); the
+                 net's sum is an UPPER BOUND on any one path (a branching net is not one series track) - the 'circuits in the layers'
+      zones      layers: copper pours / keep-outs / teardrops with their filled copper area (PcbZone) - the copper a thermal view spreads heat in
+      drawings   layers: the drawing on every layer (PcbLayerGraphics) - silkscreen, fab, courtyard, edge, user
+      rules      layers: net classes (PcbNetClass) + custom rules (PcbDesignRule)
 """
 import json
 
 from board.custom import footholds as FH
 
-PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage')
+PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules')
+#: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
+COPPER_OHM_M = 1.0 / 58 * 1e-6
+COPPER_CITE = 'IEC 60028 International Annealed Copper Standard: 1/58 ohm mm2/m = 1.7241e-8 ohm m at 20 C'
 
 
 def _table(manager, cls):
@@ -76,7 +86,49 @@ def _layers(definition, which, manager):
     if which == 'coverage':
         return [_attrs(o, ('file', 'element', 'count', 'handling', 'polari_class', 'next_slice', 'notes')) for o in _table(manager, 'KiCadCoverage')
                 if getattr(o, 'board', '') == definition]
+    mine = lambda cls: [o for o in _table(manager, cls) if getattr(o, 'board', '') == definition]   # noqa: E731
+    if which == 'pads':
+        return [_attrs(o, ('ref', 'number', 'pad_type', 'shape', 'x_mm', 'y_mm', 'angle', 'side', 'size_w_mm', 'size_h_mm', 'drill_mm', 'layers_json', 'net', 'pintype',
+                           'pinfunction')) for o in mine('PcbPad')]
+    if which == 'copper':
+        return copper_rows(mine('NetGeometry'), _stackup(manager, definition))
+    if which == 'zones':
+        return [_attrs(o, ('net', 'kind', 'zone_name', 'layers_json', 'priority', 'outline_area_mm2', 'filled_area_mm2', 'min_thickness_mm', 'thermal_gap_mm',
+                           'thermal_bridge_mm')) for o in mine('PcbZone')]
+    if which == 'drawings':
+        return [_attrs(o, ('layer', 'item', 'count', 'bbox_json')) for o in mine('PcbLayerGraphics')]
+    if which == 'rules':
+        return [dict({'what': 'net class'}, **_attrs(o, ('netclass', 'clearance', 'track_width', 'via_diameter', 'via_drill', 'diff_pair_width', 'diff_pair_gap', 'net_count',
+                                                         'nets_json'))) for o in mine('PcbNetClass')] + \
+               [dict({'what': 'custom rule'}, **_attrs(o, ('rule', 'condition', 'layer', 'constraints_json'))) for o in mine('PcbDesignRule')]
     return None
+
+
+def _stackup(manager, definition):
+    pcb = next((o for o in _table(manager, 'PcbBoard') if getattr(o, 'name', '') == definition), None)
+    return {s['layer']: s for s in json.loads(getattr(pcb, 'stackup_json', '[]') or '[]')} if pcb is not None else {}
+
+
+def copper_rows(geoms, stack):
+    """One row per net: its copper and the DC resistance the copper itself gives (cited rho, the stackup's thickness; unknown thickness -> -1, said)."""
+    out = []
+    for g in geoms:
+        segs = json.loads(getattr(g, 'segments_json', '[]') or '[]')
+        ohm, unknown, widths = 0.0, set(), []
+        for x1, y1, x2, y2, w, layer in segs:
+            t_mm = float((stack.get(layer) or {}).get('thickness') or 0)
+            widths.append(w)
+            if t_mm <= 0 or w <= 0:
+                unknown.add(layer)
+                continue
+            ohm += COPPER_OHM_M * (((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5 / 1000) / ((w / 1000) * (t_mm / 1000))
+        out.append({'net': getattr(g, 'net', ''), 'segments': getattr(g, 'segments', 0), 'arcs': getattr(g, 'arcs', 0), 'vias': getattr(g, 'vias', 0),
+                    'length_mm': getattr(g, 'length_mm', 0.0), 'narrowest_mm': min(widths) if widths else -1.0, 'layers_json': getattr(g, 'layers_json', '[]'),
+                    'dc_ohm_upper_bound': round(ohm, 6) if segs and not unknown else -1.0,
+                    'basis': ('rho %s; copper thickness per layer from the stackup (%s); arcs not counted' % (COPPER_CITE, ', '.join(
+                        '%s %s mm' % (k, (stack.get(k) or {}).get('thickness')) for k in sorted(json.loads(getattr(g, 'layers_json', '[]') or '[]')))))
+                             if segs and not unknown else ('no copper thickness for %s in the stackup' % ', '.join(sorted(unknown)) if unknown else 'no tracks')})
+    return sorted(out, key=lambda r: r['net'])
 
 
 SUMMARY = {'datasheet': 'a dev board known from its vendor documents: the pinout and header tables (ConnectorPin, BoardPin), the chip\'s datasheet '
@@ -96,10 +148,10 @@ def part(kind, definition, which, manager=None):
         return FH.for_definition(kind, definition, manager=manager)
     if which == 'summary':
         rows, why = FH.for_definition(kind, definition, manager=manager)
-        tabs = {p: len(part(kind, definition, p, manager)[0]) for p in ('nets', 'parts', 'layers', 'coverage')}
+        tabs = {p: len(part(kind, definition, p, manager)[0]) for p in ('nets', 'parts', 'layers', 'coverage', 'pads', 'zones')}
         return [{'board': '%s/%s' % (kind, definition), 'defined_by': SUMMARY[kind], 'footholds': len(rows) if rows else -1,
                  'nodes': len({r['node'] for r in rows}) if rows else -1, 'footholds_note': why,
-                 'nets': tabs['nets'], 'parts': tabs['parts'], 'layers': tabs['layers'], 'coverage_rows': tabs['coverage']}], ''
+                 'nets': tabs['nets'], 'parts': tabs['parts'], 'layers': tabs['layers'], 'coverage_rows': tabs['coverage'], 'pads': tabs['pads'], 'zones': tabs['zones']}], ''
     rows = {'datasheet': _datasheet, 'geometry': _geometry, 'layers': _layers}[kind](definition, which, manager)
     if rows is None:
         return [], 'a %s board has no %s at its definition level' % (kind, which)

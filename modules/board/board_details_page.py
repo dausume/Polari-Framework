@@ -17,7 +17,9 @@ DOOR = '/api/board/details/{scope:board}'
 _TEXT = ('Board details - the definition of ONE board: how it is known and everything that definition holds. On the Bench every board - a dev board, a '
          'breadboard, a PCB - is the same kind of thing: places where wires land (footholds) with their voltage, current and signal. This page is the level '
          'below: for a dev board, its documents, nets, parts and its chip-package-board levels; for a breadboard, its strips and rails; for a PCB from KiCad, '
-         'its files, its own nets (worked out by Polari and checked against KiCad), its parts with their simulation settings and its copper layers. Pick a '
+         'its files, its own nets (worked out by Polari and checked against KiCad), its parts with their simulation settings and its copper layers - pads, '
+         'copper per net with its DC resistance, zones, silkscreen and drawings, net classes and rules. Thermal behaviour is not shown yet: it needs each '
+         'part\'s power from the circuit simulation and a heat-spreading model. Pick a '
          'board in the first table, or open the page with ?board=<kind>/<definition>.')
 
 
@@ -60,5 +62,29 @@ BOARD_DETAILS_PAGES = [
                 _tab('coverage', 'KiCad coverage', _one('coverage', 'What the KiCad import understood', 'coverage', 'file,element,count,handling,polari_class,next_slice,notes',
                                                         'for a PCB from KiCad: every kind of element in every file, and whether it became Polari rows (typed), a summary, a '
                                                         'count, or is only kept in the stored file - nothing is dropped silently.', 'Only a PCB imported from KiCad has this.'),
-                     'For a KiCad import: what became rows and what is only kept.')]),
+                     'For a KiCad import: what became rows and what is only kept.'),
+                # bob-3b: the single-Board design view's data (kxc-4) - a PCB's footprints, the circuits in its layers, its copper areas, its drawings, its rules
+                _tab('pads', 'Pads', _one('pads', 'Pads (footprints)', 'pads', 'ref,number,pad_type,shape,x_mm,y_mm,angle,side,size_w_mm,size_h_mm,drill_mm,layers_json,net,pintype,pinfunction',
+                                          'every pad of every footprint on a PCB: type (through-hole, SMD), shape, size, drill, the copper and mask layers it is on, its net and '
+                                          'the pin type, and where it sits on the board.', 'Only a PCB has pads here.'),
+                     'Every pad of every footprint.'),
+                _tab('copper', 'Copper', _one('copper', 'Copper per net (the circuits in the layers)', 'copper',
+                                              'net,segments,arcs,vias,length_mm,narrowest_mm,layers_json,dc_ohm_upper_bound,basis',
+                                              'one row per net: how much track it has, its narrowest track, and the DC resistance of that copper - each segment rho x length / '
+                                              '(width x thickness), the thickness from the board\'s own stackup and rho by definition (IEC 60028 annealed copper). The sum is an '
+                                              'UPPER BOUND on any single path: a net that branches is not one series track.', 'Only a PCB has copper here.'),
+                     'Each net\'s copper and its DC resistance.'),
+                _tab('zones', 'Zones', _one('zones', 'Copper zones', 'zones', 'net,kind,zone_name,layers_json,priority,outline_area_mm2,filled_area_mm2,min_thickness_mm,thermal_gap_mm,thermal_bridge_mm',
+                                            'the copper pours (and keep-outs, teardrops): the outline drawn and the copper area actually filled - where heat can spread.',
+                                            'Only a PCB has zones.'),
+                     'Copper pours, keep-outs and teardrops.'),
+                _tab('drawings', 'Silkscreen + drawings', _one('drawings', 'Drawings per layer', 'drawings', 'layer,item,count,bbox_json',
+                                                               'what is drawn on each layer - silkscreen, fab, courtyard, board edge, user layers - how many items of each kind '
+                                                               'and the area they cover.', 'Only a PCB has layer drawings.'),
+                     'Silkscreen, fab, courtyard and edge drawings.'),
+                _tab('rules', 'Net classes + rules', _one('rules', 'Net classes and design rules', 'rules',
+                                                         'what,netclass,clearance,track_width,via_diameter,via_drill,diff_pair_width,diff_pair_gap,net_count,rule,condition,layer,constraints_json',
+                                                         'the project\'s net classes (clearance, track width, via sizes) with how many nets each holds, and its custom design rules.',
+                                                         'Only a KiCad project has these.'),
+                     'Net classes and custom rules.')]),
 ]

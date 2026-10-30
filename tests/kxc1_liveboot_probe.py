@@ -87,6 +87,10 @@ check('kxc-5: POST /api/pcb/export/bench/home-bench builds the design from the b
       'nets) and, with no KiCad libraries on this host, refuses the writing in words (503) - or writes it where KiCad is installed',
       (r.status_code == 503 and 'no KiCad libraries' in r.json.get('refused', '') and any(c['lib_id'].startswith('Connector_Generic:') for c in d.get('components', [])))
       or (r.status_code == 200 and r.json['text'].startswith('(kicad_sch')), r.text[:300])
+r = client.simulate_get('/api/board/details/layers/complex_hierarchy/copper')
+cu = (r.json or {}).get('rows', [])
+check('bob-3b: GET /api/board/details/layers/complex_hierarchy/copper -> 49 nets, each with its DC resistance from the copper (stackup thickness, IEC 60028 rho)',
+      r.status_code == 200 and len(cu) == 49 and all(x['dc_ohm_upper_bound'] > 0 for x in cu if x['segments']), r.text[:300])
 r = client.simulate_get('/KiCadCoverage')
 check('CRUDE GET /KiCadCoverage answers 200', r.status_code == 200, r.status_code)
 print('\n%d/%d checks passed' % (sum(results), len(results)))
