@@ -13,6 +13,8 @@ kxc-3b: every run is KEPT (pcb.custom.spice_runs: SpiceRun + one SpiceVector per
 GET  /api/pcb/{board}/runs           {ok, rows}  the board's runs, newest first (a refused run is kept, with its reason)
 POST /api/pcb/{board}/runs           {deck, result, host?, source?: worker|reference}  a run done elsewhere (a worker with libngspice) -> 201 + its name
 GET  /api/pcb/runs/{run}/vectors     {ok, rows}  the run's vectors (name, unit, points, min / max) without their values
+GET  /api/pcb/runs/{run}/projection  {ok, rows}  kxc-3c: the run's results on the board's nets - min / max / final (transient) or peak |V| (AC), and
+                                   the PCB footholds on each net
 GET  /api/pcb/runs/{run}/chart?max=  {ok, rows: [{x, y, series}]}  long form for the named graph pcb-spice-run, at most `max` points per series
 A board with no ingested schematic answers 404 in words.
 """
@@ -32,6 +34,7 @@ class PcbSimAPI(treeObject):
             add('/api/pcb/{board}/runs', self, suffix='runs')
             add('/api/pcb/runs/{run}/vectors', self, suffix='run_vectors')
             add('/api/pcb/runs/{run}/chart', self, suffix='run_chart')
+            add('/api/pcb/runs/{run}/projection', self, suffix='run_projection')
 
     def _rows(self, board):
         import inspect
@@ -103,6 +106,13 @@ class PcbSimAPI(treeObject):
         status, body = SR.chart(self.manager, run, mx)
         response.status = {200: '200 OK', 404: '404 Not Found', 409: '409 Conflict'}[status]
         response.media = body
+
+    def on_get_run_projection(self, request, response, run):
+        from pcb.custom import spice_runs as SR
+        rows, why = SR.projection(self.manager, '', run)
+        if why:
+            response.status = '404 Not Found'
+        response.media = {'ok': not why, 'run': run, 'rows': rows, 'error': why}
 
     def on_post_export_bench(self, request, response, bench):
         from board.custom import bench_nets as BN

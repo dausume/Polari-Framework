@@ -20,8 +20,8 @@ _TEXT = ('Board details - the definition of ONE board: how it is known and every
          'breadboard, a PCB - is the same kind of thing: places where wires land (footholds) with their voltage, current and signal. This page is the level '
          'below: for a dev board, its documents, nets, parts and its chip-package-board levels; for a breadboard, its strips and rails; for a PCB from KiCad, '
          'its files, its own nets (worked out by Polari and checked against KiCad), its parts with their simulation settings and its copper layers - pads, '
-         'copper per net with its DC resistance, zones, silkscreen and drawings, net classes and rules. Thermal behaviour is not shown yet: it needs each '
-         'part\'s power from the circuit simulation and a heat-spreading model. Pick a '
+         'copper per net with its DC resistance, zones, silkscreen and drawings, net classes and rules - its simulation runs, and a first-order thermal view: '
+         'each part\'s power in a run and the board\'s mean temperature rise in still air (a stated model, not a hot-spot map). Pick a '
          'board in the first table, or open the page with ?board=<kind>/<definition>.')
 
 
@@ -69,7 +69,13 @@ def _simulation_tab():
                         description='What this is for: what the run measured - each node voltage, branch current and the scale, with its unit (derived from the name the '
                                     'way ngspice names them), point count and range.', columns='vector,role,unit,complex_values,points,min_value,max_value', max_height=220)],
              min_height=160),
-        _row(2, [{'id': 'bd-run-chart', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The selected run',
+        _row(2, [_table('bd-run-projection', 0, 12, 'The selected run on the board\'s nets', '', data_path='/api/pcb/runs/{scope:run}/projection',
+                        empty_text='Pick a run above.',
+                        description='What this is for: what the simulation says each net does - its lowest, highest and last voltage (a transient), or its peak '
+                                    'magnitude and where (an AC sweep), and the footholds on the net, which is how a PCB\'s simulated voltages reach the Bench. '
+                                    'Simulated numbers stay separate from the cited ones; a net the run did not save says so.',
+                        columns='net,unit,min,max,final,at,footholds,basis', max_height=260)], min_height=180),
+        _row(3, [{'id': 'bd-run-chart', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The selected run',
                   'description': 'Every result vector of the selected run against its scale - one line per vector, labelled with its name and unit.',
                   'visible': True, 'collapsed': False, 'cssClass': '',
                   'componentProps': {'componentName': 'named-graph-panel', 'inputs': {'graphName': RUN_GRAPH, 'dataPath': '/api/pcb/runs/{scope:run}/chart?max=2000'}},
@@ -127,5 +133,17 @@ BOARD_DETAILS_PAGES = [
                                                          'the project\'s net classes (clearance, track width, via sizes) with how many nets each holds, and its custom design rules.',
                                                          'Only a KiCad project has these.'),
                      'Net classes and custom rules.'),
-                _simulation_tab()]),
+                _simulation_tab(),
+                _tab('thermal', 'Thermal', [
+                    _row(0, [_table('bd-thermal', 0, 12, 'Thermal estimate of {scope:board}', '', data_path='%s/thermal' % DOOR, empty_text='Only a PCB with a kept run has this.',
+                                    description='What this is for: how warm the board runs on average. From the newest finished transient run: the power the parts '
+                                                'take, what the sources deliver (the difference is the parts whose current the run does not hold), and the mean rise '
+                                                'dT = P / (h x 2A) of a plate losing heat from both faces - h is a knob inside the textbook range for still air (2-25 '
+                                                'W/m2K). Radiation and the mounting are left out: a first-order mean, not a hot-spot map.',
+                                    columns='run,dissipated_w,delivered_w,unaccounted_w,parts_undetermined,area_mm2,h_w_m2k,delta_t_c,basis', max_height=200)], min_height=160),
+                    _row(1, [_table('bd-dissipation', 0, 12, 'Power per part', '', data_path='%s/dissipation' % DOOR, empty_text='Only a PCB with a kept transient run has this.',
+                                    description='What this is for: where the heat comes from. Each part\'s average and peak power in the run - resistors by Ohm\'s law '
+                                                'on their node voltages, sources by what they deliver, ideal capacitors and inductors 0 W on average; a part whose '
+                                                'current the run does not hold says so.', columns='ref,kind,value,nodes,avg_w,peak_w,basis', max_height=400)], min_height=220)],
+                     'First-order thermal: power per part and the mean rise.')]),
 ]

@@ -247,6 +247,10 @@ def main():
     run_kicad_spice(check)
     from pcb.pcb_kicad_spice_selftest import run_spice_runs   # kxc-3b: runs kept + charted
     run_spice_runs(check)
+    from pcb.pcb_kicad_spice_selftest import run_spice_projection   # kxc-3c: a run on the nets
+    run_spice_projection(check)
+    from pcb.pcb_kicad_spice_selftest import run_thermal   # bob-3c: first-order thermal
+    run_thermal(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

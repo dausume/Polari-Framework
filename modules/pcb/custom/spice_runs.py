@@ -10,6 +10,7 @@ exactly as the solver returned them. The chart reads them back in long form (x, 
   runs(manager, board)        one row per run, newest first
   vectors(manager, run)       one row per vector, without its values
   chart(manager, run, max_rows=2000) -> (status, {ok, rows: [{x, y, series}], x_vector, x_unit, stride, points})
+  projection(manager, board, run=None, nets=None) -> (rows, why)   kxc-3c: a run's results on the board's nets (and the footholds on them)
 With no manager (selftests) the rows live in this process only.
 """
 import datetime
@@ -98,3 +99,57 @@ def chart(manager, run, max_rows=2000):
         label = '%s (%s%s)' % (r['vector'], '|' if r['complex_values'] else '', r['unit'] + ('|' if r['complex_values'] else ''))
         rows += [{'x': xs[i], 'y': ys[i], 'series': label} for i in range(0, min(len(xs), len(ys)), stride)]
     return 200, {'ok': True, 'run': run, 'rows': rows, 'x_vector': scale['vector'], 'x_unit': scale['unit'], 'stride': stride, 'points': len(xs)}
+
+
+def _latest_ok(manager, board):
+    return next((r for r in runs(manager, board) if r['ok']), None)
+
+
+def projection(manager, board, run=None, nets=None):
+    """kxc-3c: one run's results PROJECTED onto the board's nets - each net's node vector (the deck's node name, pcb.custom.kicad_spice.node_name, as
+    ngspice names it: lower case), summarised. Transient: min / max / final volts. AC: the largest |V| and the frequency it occurs at, and |V| at the
+    lowest frequency. GND is SPICE node 0: 0 V by definition. A net with no vector says why. `run` = a run name, else the newest finished run of the
+    board; `nets` = the net names (else the board's SchematicNet rows). -> (rows, why)"""
+    from pcb.custom import kicad_spice as P
+    if run and not board:
+        board = next((x['board'] for x in _table(manager, 'SpiceRun') if x['name'] == run), '')
+    r = next((x for x in runs(manager, board) if x['name'] == run), None) if run else _latest_ok(manager, board)
+    if r is None:
+        return [], ('no run %r for %s' % (run, board)) if run else 'no finished run kept for %s - simulate it first' % board
+    vs = {v['vector'].lower(): v for v in _table(manager, 'SpiceVector') if v['run'] == r['name']}
+    scale = next((v for v in vs.values() if v['role'] == 'scale'), None)
+    xs = json.loads(scale['values_json']) if scale else []
+    if nets is None:
+        nets = sorted({getattr(n, 'net', '') if not isinstance(n, dict) else n.get('net', '') for n in
+                       ((getattr(manager, 'objectTables', None) or {}).get('SchematicNet') or {}).values()
+                       if (getattr(n, 'board', '') if not isinstance(n, dict) else n.get('board')) == board} - {''})
+        if not nets:   # no schematic nets stored for this board: the run's own nodes, by their vector names
+            nets = sorted(v['vector'] for v in vs.values() if v['role'] == 'value' and not v['vector'].endswith('#branch'))
+    out = []
+    for net in nets:
+        node = P.node_name(net)
+        base = {'net': net, 'node': node, 'run': r['name'], 'analysis': r['analysis'], 'unit': 'V', 'min': -1.0, 'max': -1.0, 'final': -1.0,
+                'at': '', 'basis': ''}
+        if node == 'GND':
+            out.append(dict(base, min=0.0, max=0.0, final=0.0, basis='SPICE ground (node 0): 0 V by definition'))
+            continue
+        v = vs.get(node.lower())
+        if v is None:
+            out.append(dict(base, basis='no vector %r in run %s (the deck did not save this node)' % (node.lower(), r['name'])))
+            continue
+        ys = json.loads(v['values_json'])
+        if v['complex_values']:
+            i = max(range(len(ys)), key=lambda k: ys[k]) if ys else 0
+            out.append(dict(base, unit='|V|', min=min(ys), max=ys[i] if ys else -1.0, final=ys[0] if ys else -1.0,
+                            at='%g Hz' % xs[i] if i < len(xs) else '', basis='AC magnitude of vector %s: max at %s; final = |V| at the lowest frequency'
+                            % (v['vector'], '%g Hz' % xs[i] if i < len(xs) else '?')))
+        else:
+            out.append(dict(base, min=min(ys), max=max(ys), final=ys[-1], at='%s %s' % (xs[-1], scale['unit']) if xs and scale else '',
+                            basis='transient vector %s over %d points (%s): min / max / the last point' % (v['vector'], len(ys), r['plot'])))
+    feet = {}
+    for f in ((getattr(manager, 'objectTables', None) or {}).get('BoardFoothold') or {}).values():
+        if getattr(f, 'definition_kind', '') == 'layers' and getattr(f, 'definition', '') == board and getattr(f, 'net', ''):
+            feet.setdefault(f.net, []).append(f.foothold)
+    for row in out:
+        row['footholds'] = ', '.join(sorted(feet.get(row['net'], [])))
+    return out, ''

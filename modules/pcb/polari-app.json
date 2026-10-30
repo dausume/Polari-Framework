@@ -111,7 +111,8 @@
    "custom/pcb_engines",
    "custom/schematic_writer",
    "custom/sexpr",
-   "custom/uno_shield"
+   "custom/uno_shield",
+   "custom/thermal"
   ]
  },
  "classes": [

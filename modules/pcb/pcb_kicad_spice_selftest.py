@@ -93,3 +93,59 @@ def run_spice_runs(check):
           [r['status'] for r in runs] == ['REFUSED - no ngspice shared library on this host', 'ran'] and SR.chart(None, refused, 10)[0] == 404
           and '/api/pcb/runs/{scope:run}/chart' in text and RUN_GRAPH in text and d['scope_from_query'] == ['board', 'run']
           and json.loads(SEED_BOARD_DETAILS_GRAPHS[0]['definition'])['graphConfig']['seriesDimension'] == 'series', [r['status'] for r in runs])
+
+
+def run_spice_projection(check):
+    """kxc-3c: a run's results projected onto the board's nets (and through them onto a PCB's footholds - the way simulated numbers reach the Bench)."""
+    from pcb.custom import kicad_read as K
+    from pcb.custom import spice_runs as SR
+    SR._MEM['SpiceRun'].clear()
+    SR._MEM['SpiceVector'].clear()
+    got = {}
+    for b in ('rectifier', 'sallen_key'):
+        rows = K.read_project(K.read_dir(os.path.join(SIM, b)), b)
+        ref = json.load(open(os.path.join(REF, 'kicad10_sim_%s.json' % b)))
+        name = SR.store(None, b, 'deck', {'ok': True, 'plot': ref['plot'], 'vectors': ref['vectors']}, 'reference', 'econ-core', '2026-10-30T12:00:00+00:00')
+        got[b] = ({r['net']: r for r in SR.projection(None, b, nets=[n['net'] for n in rows['SchematicNet']])[0]}, name, ref)
+    rect, name, ref = got['rectifier']
+    sk = got['sallen_key'][0]
+    out = ref['vectors']['/rect_out']['real']
+    check('KXC-3c THE RUN ON THE NETS: each net\'s own node vector summarised - the rectifier\'s /rect_out min / max / final from its transient (= the '
+          'vector\'s own numbers), GND 0 V by definition (SPICE node 0), a net the run did not save says so; the AC run gives /lowpass its peak |V| and where; '
+          'the run-scoped call finds the board from the run name',
+          rect['/rect_out']['max'] == max(out) and rect['/rect_out']['final'] == out[-1] and rect['GND']['max'] == 0.0 and 'by definition' in rect['GND']['basis']
+          and 'no vector' in rect['Net-(D1-A)']['basis'] and sk['/lowpass']['unit'] == '|V|' and sk['/lowpass']['at'].endswith('Hz')
+          and SR.projection(None, '', name)[0] and SR.projection(None, 'nope')[1].startswith('no finished run'), {k: (v['min'], v['max']) for k, v in rect.items()})
+
+
+def run_thermal(check):
+    """bob-3c / kxc-3d: the first-order thermal view - per-part power from a kept run, the energy balance, the board's mean rise (a stated model)."""
+    from pcb.custom import kicad_read as K
+    from pcb.custom import spice_runs as SR
+    from pcb.custom import thermal as T
+    SR._MEM['SpiceRun'].clear()
+    SR._MEM['SpiceVector'].clear()
+    rows = K.read_project(K.read_dir(os.path.join(SIM, 'rectifier')), 'rectifier')
+    ref = json.load(open(os.path.join(REF, 'kicad10_sim_rectifier.json')))
+    SR.store(None, 'rectifier', 'deck', {'ok': True, 'plot': ref['plot'], 'vectors': ref['vectors']}, 'reference', 'econ-core', '2026-10-30T12:00:00+00:00')
+    parts, why = T.dissipation(None, 'rectifier', rows=rows)
+    p = {r['ref']: r for r in parts}
+    v = ref['vectors']['/rect_out']['real']
+    peak_r2 = max(x * x / 100e3 for x in v)
+    check('THERMAL POWER PER PART from the run: R2 (100k across /rect_out) by Ohm\'s law - its peak = max(V^2) / R from the vector itself; V1 by what it '
+          'delivers (branch current); C1 0 W on average by definition; D1 and R1 undetermined, each saying why (a diode\'s current / a node the run did not save)',
+          not why and abs(p['R2']['peak_w'] - peak_r2) < 1e-15 and p['V1']['avg_w'] > p['R2']['avg_w'] > 0 and p['C1']['avg_w'] == 0.0
+          and p['D1']['avg_w'] == -1.0 and 'current' in p['D1']['basis'] and p['R1']['avg_w'] == -1.0, {k: (r['avg_w'], r['basis'][:40]) for k, r in p.items()})
+    est, _ = T.estimate(None, 'rectifier', rows=rows)
+    est2, _ = T.estimate(None, 'rectifier', rows=rows, pcb={'width_mm': 50.0, 'height_mm': 40.0})
+    check('THERMAL ESTIMATE: energy conservation - what V1 delivers minus what the counted parts take = the power in the undetermined parts (D1, R1); a '
+          'schematic-only project has no board area, so no rise (said); with a 50 x 40 mm outline dT = P / (h x 2A) at the cited free-air knob h = 10 W/m2K',
+          abs(est['unaccounted_w'] - (est['delivered_w'] - est['dissipated_w'])) < 1e-18 and est['unaccounted_w'] > 0 and est['parts_undetermined'] == 'D1, R1'
+          and est['delta_t_c'] == -1.0 and 'no PCB outline' in est['basis']
+          and abs(est2['delta_t_c'] - est2['dissipated_w'] / (10.0 * 2 * 2000e-6)) < 1e-15 and 'Incropera' in est2['basis'] and 'not a hot-spot map' in est2['basis']
+          and T.spice_number('1Meg') == 1e6 and T.spice_number('2m') == 0.002, (est, est2.get('delta_t_c')))
+    sk = K.read_project(K.read_dir(os.path.join(SIM, 'sallen_key')), 'sallen_key')
+    refa = json.load(open(os.path.join(REF, 'kicad10_sim_sallen_key.json')))
+    SR.store(None, 'sallen_key', 'deck', {'ok': True, 'plot': refa['plot'], 'vectors': refa['vectors']}, 'reference', 'econ-core', '2026-10-30T12:00:00+00:00')
+    check('THERMAL REFUSES an AC sweep in words (small-signal: it carries no power) and a board with no run',
+          'small-signal' in T.dissipation(None, 'sallen_key', rows=sk)[1] and 'no finished run' in T.dissipation(None, 'nope')[1])

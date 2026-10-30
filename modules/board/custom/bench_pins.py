@@ -73,12 +73,28 @@ def _drives(m, fw):
     return None
 
 
-def pin_rows(boards, wiring, firmware=None, tables=None):
+def _simulated(p, manager, cache):
+    """kxc-3c: a PCB foothold's net in the newest finished simulation run of that PCB, in words ('' when there is none)."""
+    if p.get('definition_kind') != 'layers' or not p.get('net'):
+        return ''
+    if p['definition'] not in cache:
+        try:
+            from pcb.custom import spice_runs as SR
+            cache[p['definition']] = {r['net']: r for r in SR.projection(manager, p['definition'])[0]}
+        except Exception:   # noqa: BLE001 - the pcb module absent: no simulation to read
+            cache[p['definition']] = {}
+    r = cache[p['definition']].get(p['net'])
+    if not r or r['max'] == -1.0 and r['min'] == -1.0:
+        return ''
+    return 'simulated (%s): %s %g..%g, final %g (run %s) - not a cited limit' % (r['analysis'], r['unit'], r['min'], r['max'], r['final'], r['run'])
+
+
+def pin_rows(boards, wiring, firmware=None, tables=None, manager=None):
     feet = {bid: b['footholds'] for bid, b in boards.items()}
     running = {c['from_board']: c.get('label', '') for c in wiring if c.get('kind') == 'firmware' and c.get('label')}
     fw = firmware if firmware is not None else firmware_uses(boards, running=running)
     nets, problems = BN.nets(feet, wiring)
-    rows = []
+    rows, simcache = [], {}
     labels = {bid: b.get('label', bid) for bid, b in boards.items()}
     for n in nets:
         pins = [m for m in n['members'] if is_pin(m)]
@@ -111,6 +127,9 @@ def pin_rows(boards, wiring, firmware=None, tables=None):
             if any(u['role'] in DRIVES for u in uses):
                 notes.append('load: no board-level circuit defines what this pin drives - a plain wire draws no current; the %s mA limit is checked once one does'
                              % ('%g' % p['source_ma'] if p['source_ma'] > 0 else 'uncited'))
+            sim = _simulated(p, manager, simcache)
+            if sim:
+                notes.append(sim)
             other_groups = [g for k, g in groups.items() if k != key]
             rows.append({'board': p['board'], 'board_label': labels[p['board']], 'pin': name(group), 'footholds': ', '.join(m['foothold'] for m in group),
                          'chip_pin': p['chip_pin'], 'firmware': '; '.join(dict.fromkeys(use_words(u) for u in uses)),
@@ -181,4 +200,4 @@ def bench_pin_rows(bench_name, manager):
     if feet is None:
         return None, 'no bench named %r' % bench_name
     boards = {bid: {'label': by_id[bid]['label'], 'footholds': f, 'definition': by_id[bid]['definition']} for bid, f in feet.items()}
-    return pin_rows(boards, BN.connections_of(bench_name, manager))
+    return pin_rows(boards, BN.connections_of(bench_name, manager), manager=manager)

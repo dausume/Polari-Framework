@@ -111,10 +111,10 @@ def run_board_details(check):
     tabs = [tb['key'] for tb in d.get('tabs', [])]
     blob = page['definition']
     check('BOB-3 THE PAGE: /display/board-details is bound by ?board=<kind>/<definition> (scope_from_query board), picks from the Boards on the Bench, and has '
-          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage + (bob-3b, a PCB\'s design) Pads / Copper / Zones / Drawings / Rules tabs + (kxc-3b) Simulation, each reading '
+          'Summary / Footholds / Nets / Parts / Layers / KiCad coverage + (bob-3b, a PCB\'s design) Pads / Copper / Zones / Drawings / Rules tabs + (kxc-3b) Simulation + (bob-3c) Thermal, each reading '
           'GET /api/board/details/{kind}/{definition}/{part}',
           page['pageRoute'] == 'board-details' and d.get('scope_from_query') == ['board', 'run']
-          and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'simulation']
+          and tabs == ['summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'simulation', 'thermal']
           and '/api/board/benches/home-bench/all-boards' in blob and all(('/api/board/details/{scope:board}/%s' % p) in blob for p in BD.PARTS), tabs)
     s = BD.part('datasheet', 'arduino-uno-r3', 'summary')[0][0]
     lay = BD.part('datasheet', 'esp32-c3', 'layers')[0]
