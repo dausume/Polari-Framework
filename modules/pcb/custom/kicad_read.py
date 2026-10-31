@@ -27,6 +27,7 @@ from pcb.custom import kicad_cover as C
 from pcb.custom import kicad_connect as N
 from pcb.custom import kicad_footholds as KF
 from pcb.custom import kicad_geometry as G
+from pcb.custom import kicad_outline as KO
 from pcb.custom import sexpr as S
 
 #: kxc-1: an ingested net's voltage is UNKNOWN (KiCad stores none) — never 0.0, which reads as a real 0 V rail
@@ -240,6 +241,7 @@ def read_pcb(files, top, board, fp_table, pro):
     for lay in S.find_all(S.find(tree, 'setup')[0], 'layer') if S.find(tree, 'setup') else []:
         stack.append({'layer': str(lay[1]), 'type': S.value(lay, 'type'), 'thickness': S.num(S.value(lay, 'thickness'), 0.0), 'material': S.value(lay, 'material')})
     bbox, edge_items = _edge_bbox(tree)
+    shape = KO.loops(tree)
     nets = {str(n[1]): str(n[2]) for n in S.find(tree, 'net') if len(n) > 2}
     placements, footprints, landpatterns, pad_nets = [], {}, {}, {}
     for fp in S.find(tree, 'footprint'):
@@ -311,13 +313,16 @@ def read_pcb(files, top, board, fp_table, pro):
                  'generator': S.value(tree, 'generator'), 'copper_layers': len(copper), 'layers_json': json.dumps(layers), 'stackup_json': json.dumps(stack),
                  'thickness_mm': S.num(S.value(gen[0], 'thickness')) if gen else 0.0,
                  'width_mm': round(bbox[2] - bbox[0], 4) if bbox else 0.0, 'height_mm': round(bbox[3] - bbox[1], 4) if bbox else 0.0,
-                 'outline_json': json.dumps({'bbox_mm': [round(v, 4) for v in bbox] if bbox else [], 'edge_items': edge_items, 'layer': 'Edge.Cuts'}),
+                 'outline_json': json.dumps(dict({'bbox_mm': [round(v, 4) for v in bbox] if bbox else [], 'edge_items': edge_items, 'layer': 'Edge.Cuts'},
+                                                 **shape)),  # bob-3e: the shape itself (outer loop + holes)
                  'design_rules_json': json.dumps(rules, sort_keys=True), 'fab_rule_set': '', 'footprints': len(placements),
                  'nets': len(net_rows), 'segments': len(S.find(tree, 'segment')) + len(S.find(tree, 'arc')), 'vias': len(S.find(tree, 'via')),
                  'zones': len(zones), 'licence': '', 'licence_source': '', 'description': '',
                  'provenance': 'ingested:%s sha256 %s' % (top, sha(files[top])), 'notes': ''}
     if not bbox:
         problems.append('no Edge.Cuts outline — the board size is unknown')
+    elif shape['open_ends']:
+        problems.append('the Edge.Cuts outline has %d open chain(s): items whose ends do not meet are left out of the board shape' % shape['open_ends'])
     return board_row, placements, list(footprints.values()), list(landpatterns.values()), net_rows, route_rows, problems, tb
 
 

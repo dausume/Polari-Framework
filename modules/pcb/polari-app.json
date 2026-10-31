@@ -105,6 +105,7 @@
    "custom/kicad_cover",
    "custom/kicad_footholds",
    "custom/kicad_geometry",
+   "custom/kicad_outline",
    "custom/kicad_read",
    "custom/kicad_spice",
    "custom/spice_runs",

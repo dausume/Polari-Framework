@@ -202,6 +202,10 @@ def door(manager, board, params, which=''):
         from board.custom import bench_scene as BSC
         status, res = BSC.build(board[len('bench:'):], manager)
         return status, (rows_payload(res, which, flt) if which and status == 200 else res)
+    if str(board).startswith('pcb:'):   # bob-3f: one PCB drawn - its outline, its pads and where its heat sits (board.custom.pcb_scene)
+        from board.custom import pcb_scene as PSC
+        status, res = PSC.build(board[len('pcb:'):], manager)
+        return status, (rows_payload(res, which, flt) if which and status == 200 else res)
     try:
         res = build(board, {k: params.get(k, '') for k in PARAMS}, manager)
     except Refused as e:

@@ -153,6 +153,14 @@ BOARD_DETAILS_PAGES = [
                                             'balance_error,dofs,basis', max_height=200)], min_height=160),
                     _row(3, [_table('bd-hotspots', 0, 12, 'Hot spots per part', '', data_path='%s/hotspots' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
                                     description='What this is for: which part runs hottest. Each placed part\'s peak and mean rise over its own pads, hottest first.',
-                                    columns='ref,power_w,peak_rise_c,mean_rise_c,x_mm,y_mm,basis', max_height=300)], min_height=180)],
+                                    columns='ref,power_w,peak_rise_c,mean_rise_c,x_mm,y_mm,basis', max_height=300)], min_height=180),
+                    # bob-3f: the board drawn with its temperature-rise field under the pads (the one sanctioned drawing component, board = pcb:<board>)
+                    _row(4, [{'id': 'bd-thermal-map', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The board, warm where it is warm',
+                              'description': 'What this is for: seeing WHERE the heat is. The board in its own outline with every pad; the shading is the temperature rise '
+                                             'from the finite-element solve above - strongest at the hottest point, none at ambient. Click a pad to read the rise '
+                                             'where it sits. A board with no field is drawn plain and its note says why.',
+                              'visible': True, 'collapsed': False, 'cssClass': '',
+                              'componentProps': {'componentName': 'hardware-pin-view', 'inputs': {'board': 'pcb:{scope:board}', 'system': '', 'binding': '', 'stage': 'base'}},
+                              'item': None, 'nestedRows': []}], min_height=560)],
                      'Thermal: power per part, the mean rise and where the heat sits.')]),
 ]
