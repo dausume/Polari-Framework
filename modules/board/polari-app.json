@@ -168,6 +168,7 @@
   "page": [
    "bench_page",
    "board_details_page",
+   "board_temperature_page",
    "board_page",
    "chip_ladder_page",
    "firmware_state_page",
@@ -236,6 +237,7 @@
    "custom/board_c3",
    "custom/board_cli",
    "custom/board_details",
+   "custom/board_temperature",
    "custom/board_elecrow_s3",
    "custom/board_engines",
    "custom/board_feather_m0",

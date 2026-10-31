@@ -6,7 +6,8 @@ libngspice, a worker's result posted back, or a recorded reference) becomes one 
 exactly as the solver returned them. The chart reads them back in long form (x, y, series) for the named graph `pcb-spice-run`, thinned to at most
 `max_rows` points per series (the stride is said).
 
-  store(manager, board, deck, result, source, host, ran_at=None) -> run name (or None + why when the result is not a finished run)
+  store(manager, board, deck, result, source, host, ran_at=None, temperature=None) -> run name
+      temperature (tmp-1 / tmp-2): {temp_c, mode: default|board|parts, part_temps: {ref: C}, sweep} - what the deck set; None = ngspice's 27 C
   runs(manager, board)        one row per run, newest first
   vectors(manager, run)       one row per vector, without its values
   chart(manager, run, max_rows=2000) -> (status, {ok, rows: [{x, y, series}], x_vector, x_unit, stride, points})
@@ -48,8 +49,12 @@ def _save(manager, cls, row):
         pass
 
 
-def store(manager, board, deck, result, source='local', host='', ran_at=None):
+DEFAULT_TEMP_C = 27.0   # ngspice's circuit temperature (and TNOM) when a deck sets none - the ngspice manual, .TEMP / .OPTIONS TEMP
+
+
+def store(manager, board, deck, result, source='local', host='', ran_at=None, temperature=None):
     """Keep one run. A refusal is kept too (ok False, the reason in words, no vectors) so a person sees the attempt."""
+    t = temperature or {}
     ran_at = ran_at or datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
     sha = hashlib.sha256((deck or '').encode()).hexdigest()
     vecs = result.get('vectors') or {}
@@ -59,7 +64,10 @@ def store(manager, board, deck, result, source='local', host='', ran_at=None):
     _save(manager, 'SpiceRun', {'name': name, 'board': board, 'ran_at': ran_at, 'deck_sha256': sha, 'plot': result.get('plot', ''), 'points': points,
                                 'engine': result.get('library', '') or result.get('engine', ''), 'source': source, 'host': host, 'ok': ok,
                                 'refused': '' if ok else (result.get('refused') or '; '.join(result.get('errors') or []) or 'no vectors returned'),
-                                'notes': result.get('note', '')})
+                                'notes': result.get('note', ''),
+                                'temp_c': float(t['temp_c']) if t.get('temp_c') is not None else DEFAULT_TEMP_C,
+                                'temp_mode': t.get('mode') or ('board' if t.get('temp_c') is not None else 'default'),
+                                'part_temps_json': json.dumps(t.get('part_temps') or {}, sort_keys=True), 'sweep': t.get('sweep', '')})
     for vn, v in (vecs.items() if ok else []):
         vals = v.get('real') if 'real' in v else v.get('mag', [])
         _save(manager, 'SpiceVector', {'name': '%s:%s' % (name, vn), 'run': name, 'vector': vn, 'role': 'scale' if vn.lower() in SCALES else 'value',
@@ -74,9 +82,17 @@ def runs(manager, board):
     n = {}
     for v in _table(manager, 'SpiceVector'):
         n[v['run']] = n.get(v['run'], 0) + 1
-    return [dict(r, vectors=n.get(r['name'], 0), status='ran' if r['ok'] else 'REFUSED - %s' % r['refused'],
+    return [dict(r, vectors=n.get(r['name'], 0), status='ran' if r['ok'] else 'REFUSED - %s' % r['refused'], temperature=_temp_words(r),
                  analysis={'tran': 'transient', 'ac': 'AC sweep', 'op': 'operating point', 'dc': 'DC sweep'}.get(r['plot'].rstrip('0123456789'), r['plot']))
             for r in sorted(rows, key=lambda r: r['ran_at'], reverse=True)]
+
+
+def _temp_words(r):
+    mode, t = r.get('temp_mode', 'default'), float(r.get('temp_c', DEFAULT_TEMP_C))
+    if mode == 'default':
+        return '%g C (ngspice\'s default)' % t
+    parts = json.loads(r.get('part_temps_json') or '{}')
+    return '%g C board%s' % (t, ('; ' + ', '.join('%s %g C' % kv for kv in sorted(parts.items()))) if parts else '')
 
 
 def vectors(manager, run):

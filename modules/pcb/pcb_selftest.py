@@ -24,9 +24,9 @@ def check(label, cond, extra=''):
 def classes():
     from pcb.pcb_basis import PCB_CLASSES
     from pcb.pcb_seed import PCB_SEED_PAIRS
-    check('twenty-eight row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
+    check('twenty-nine row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
           'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol; kxc-2: SchematicNet, NetEndpoint; '
-          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector; bob-3g: PartPowerInput, PartThermalModel)', len(PCB_CLASSES) == 28)
+          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector; bob-3g: PartPowerInput, PartThermalModel; tmp-1: PartTemperatureBehaviour)', len(PCB_CLASSES) == 29)
     check('only the fab rules are code-owned seed rows; every design class seeds empty (observed, not asserted)',
           {n for n, _, rows in PCB_SEED_PAIRS if rows} == {'FabRuleSet', 'FabRule'}
           and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in ('FabRuleSet', 'FabRule')))
@@ -262,6 +262,12 @@ def main():
     run_inputs(check)
     run_board_over_time(check)
     run_doors(check)
+    from pcb.pcb_spice_temperature_selftest import run_deck, run_reach_and_inputs, run_sweep, run_parts, run_temperature_doors   # tmp-1 / tmp-2
+    run_deck(check)
+    run_reach_and_inputs(check)
+    run_sweep(check)
+    run_parts(check)
+    run_temperature_doors(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

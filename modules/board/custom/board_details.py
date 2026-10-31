@@ -27,14 +27,17 @@ design simulation view). One door shape for every definition kind, one row set p
       thermal-inputs  bob-3g: ?ref=<part> - every number a person can give that part, one row each (power, on / period, Foster stages, Tj max)
       transient / junctions / transient-chart   bob-3g: the board over time and each black-box part's junction on top of it
                  (pcb.custom.thermal_transient: the plate FEM stepped in time + the datasheet's Foster Zth); ?h= ?t_end= ?ambient= knobs
+      temperature-* / part-*   tmp-1 / tmp-2: the circuit at a temperature (board.custom.board_temperature: the whole board's, a sweep over a
+                 rated range, each part's rated range and coefficients, then each part at its own temperature from the board over time)
       runs       layers: the simulation runs kept for the PCB's schematic (SpiceRun, kxc-3b: pcb.custom.spice_runs), newest first; the chart reads one
 """
 import json
 
+from board.custom import board_temperature as BT
 from board.custom import footholds as FH
 
 PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots',
-         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
+         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart') + BT.PARTS
 #: bob-3g: the parts that read the page's own query (the selected part, the knobs)
 _WITH_PARAMS = ('thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
@@ -197,6 +200,8 @@ def part(kind, definition, which, manager=None, params=None):
         return [], 'no definition kind %r - %s' % (kind, ' | '.join(FH.KINDS))
     if which not in PARTS:
         return [], 'no part %r - %s' % (which, ' | '.join(PARTS))
+    if which in BT.PARTS:
+        return BT.temperature(definition, which, manager, params) if kind == 'layers' else ([], 'only a PCB (a layers board) has %s' % which)
     if which in _WITH_PARAMS:
         return thermal_time(definition, which, manager, params) if kind == 'layers' else ([], 'only a PCB (a layers board) has %s' % which)
     if which == 'footholds':

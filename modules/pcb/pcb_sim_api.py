@@ -11,7 +11,8 @@ POST /api/pcb/export/bench/{bench}   kxc-5: the Bench (Boards on the Bench + con
                                    library symbols come from the KiCad worker (a host with none refuses in words, 503)
 kxc-3b: every run is KEPT (pcb.custom.spice_runs: SpiceRun + one SpiceVector per vector) and charted:
 GET  /api/pcb/{board}/runs           {ok, rows}  the board's runs, newest first (a refused run is kept, with its reason)
-POST /api/pcb/{board}/runs           {deck, result, host?, source?: worker|reference}  a run done elsewhere (a worker with libngspice) -> 201 + its name
+POST /api/pcb/{board}/runs           {deck, result, host?, source?: worker|reference, temperature?: {temp_c, mode, part_temps, sweep}}  a run done
+                                   elsewhere (a worker with libngspice) -> 201 + its name; tmp-1: what temperature the deck set, when it set one
 GET  /api/pcb/runs/{run}/vectors     {ok, rows}  the run's vectors (name, unit, points, min / max) without their values
 GET  /api/pcb/runs/{run}/projection  {ok, rows}  kxc-3c: the run's results on the board's nets - min / max / final (transient) or peak |V| (AC), and
                                    the PCB footholds on each net
@@ -93,7 +94,11 @@ class PcbSimAPI(treeObject):
         if source not in ('worker', 'reference'):
             response.status, response.media = '400 Bad Request', {'ok': False, 'error': 'source must be worker or reference (a local run is /simulate)'}
             return
-        name = SR.store(self.manager, board, body['deck'], body['result'], source, str(body.get('host', '')))
+        temperature = body.get('temperature')
+        if temperature is not None and not (isinstance(temperature, dict) and isinstance(temperature.get('temp_c', 0), (int, float))):
+            response.status, response.media = '400 Bad Request', {'ok': False, 'error': 'temperature must be {temp_c: C, mode?, part_temps?, sweep?}'}
+            return
+        name = SR.store(self.manager, board, body['deck'], body['result'], source, str(body.get('host', '')), temperature=temperature)
         response.status, response.media = '201 Created', {'ok': True, 'run': name, 'rows': SR.runs(self.manager, board)}
 
     def on_get_run_vectors(self, request, response, run):

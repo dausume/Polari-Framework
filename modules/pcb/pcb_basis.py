@@ -35,6 +35,7 @@ from pcb.objects.pcb.SpiceRun import SpiceRun  # noqa: F401
 from pcb.objects.pcb.SpiceVector import SpiceVector  # noqa: F401
 from pcb.objects.pcb.PartPowerInput import PartPowerInput  # noqa: F401
 from pcb.objects.pcb.PartThermalModel import PartThermalModel  # noqa: F401
+from pcb.objects.pcb.PartTemperatureBehaviour import PartTemperatureBehaviour  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 PCB_CLASSES = [Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, Placement, Route, DrcResult,
@@ -42,4 +43,5 @@ PCB_CLASSES = [Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, 
               SchematicNet, NetEndpoint,   # kxc-2: the schematic's own electrical graph
               PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics,   # kxc-4: the PCB complete
               SpiceRun, SpiceVector,   # kxc-3b: simulation runs kept
-              PartPowerInput, PartThermalModel]   # bob-3g: powers a person gives + datasheet thermal models
+              PartPowerInput, PartThermalModel,   # bob-3g: powers a person gives + datasheet thermal models
+              PartTemperatureBehaviour]   # tmp-1: rated temperature ranges + temperature coefficients

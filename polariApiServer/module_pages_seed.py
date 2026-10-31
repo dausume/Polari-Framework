@@ -27,7 +27,7 @@ def _table(item_id, index, segments, title, class_name, columns='',
            max_rows=0, column_formats='', description='',
            filter_field='', filter_value='', data_path='',
            select_field='', select_scope='', selected_value='', empty_text='', row_link_tab_field='',
-           edit_fields='', edit_action=None, edit_enabled_field='', row_action=None, max_height=0):
+           edit_fields='', edit_action=None, edit_enabled_field='', row_action=None, max_height=0, edit_signed_field=''):
     """`column_formats` = csv of `column:format` pairs, handed to
     class-rows-table as `columnFormats`. The one format so far is
     `person` (his rule D18-1): the column holds an opaque Keycloak
@@ -60,7 +60,8 @@ def _table(item_id, index, segments, title, class_name, columns='',
     fsc-3 EDITING (optional, generic): `edit_fields` = csv of NUMERIC columns shown as inputs; on commit the table calls `edit_action`
     = {method, path, body_template, [then_scope]} - `{field}` in the path / body (keys and values) is that field of the row, a value
     that is exactly `"{value}"` becomes the edited number. `edit_enabled_field`: the row field that must be truthy for the row to be
-    editable (otherwise it shows as plain text). `row_action` = {label, method, path, body_template, show_when_field, [then_scope]}:
+    editable (otherwise it shows as plain text). `edit_signed_field` (tmp-1): the row field that, when truthy, lets that row's boxes take a
+    negative number (a temperature, a temperature coefficient); otherwise a box takes 0 or more. `row_action` = {label, method, path, body_template, show_when_field, [then_scope]}:
     a button in the row's last cell (shown when that row field is truthy), same templating. `then_scope` = {key, from} sets page scope
     `key` to the response's field `from` after the call. After every successful call the table sets page scope `rev` (a counter), so
     any table whose data_path carries `rev=r{scope:rev}` fetches again.
@@ -80,7 +81,8 @@ def _table(item_id, index, segments, title, class_name, columns='',
             inputs[k] = v
     if max_height:
         inputs['maxHeight'] = int(max_height)
-    for k, v in (('editFields', edit_fields), ('editAction', edit_action), ('editEnabledField', edit_enabled_field), ('rowAction', row_action)):
+    for k, v in (('editFields', edit_fields), ('editAction', edit_action), ('editEnabledField', edit_enabled_field), ('editSignedField', edit_signed_field),
+                 ('rowAction', row_action)):
         if v:
             inputs[k] = v
     return {

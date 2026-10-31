@@ -27,3 +27,4 @@ from pcb.objects.pcb.SpiceRun import SpiceRun  # noqa: F401
 from pcb.objects.pcb.SpiceVector import SpiceVector  # noqa: F401
 from pcb.objects.pcb.PartPowerInput import PartPowerInput  # noqa: F401
 from pcb.objects.pcb.PartThermalModel import PartThermalModel  # noqa: F401
+from pcb.objects.pcb.PartTemperatureBehaviour import PartTemperatureBehaviour  # noqa: F401

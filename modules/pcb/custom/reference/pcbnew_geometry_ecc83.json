@@ -1,0 +1,21 @@
+{
+"arcs": 0,
+"length_mm": {
+"Net-(P1-PM)": 29.1338,
+"Net-(P2-P1)": 19.1286,
+"Net-(P3-P1)": 26.5563,
+"Net-(P4-P1)": 11.2869,
+"Net-(P4-PM)": 27.8901,
+"Net-(U1A-G)": 68.59,
+"Net-(U1A-K)": 11.8391,
+"Net-(U1B-K)": 16.5737
+},
+"note": "pcbnew (KiCad 10.0.6, econ-core, 2026-10-30): pad / track / via / zone counts, track length per net (mm) and each zone's filled area (mm2). Reference for kxc-4.",
+"pads": 33,
+"segments": 59,
+"vias": 0,
+"zone_filled_mm2": [
+1254.3889
+],
+"zones": 1
+}

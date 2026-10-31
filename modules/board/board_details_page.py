@@ -11,6 +11,7 @@ kxc-4 brings the PCB geometry.
 """
 import json
 
+from board.board_temperature_page import SEED_TEMPERATURE_GRAPHS, part_temperature_tab, temperature_tab
 from polariApiServer.module_pages_seed import _page, _row, _tab, _table
 
 ROUTE = 'board-details'
@@ -21,7 +22,8 @@ _TEXT = ('Board details - the definition of ONE board: how it is known and every
          'below: for a dev board, its documents, nets, parts and its chip-package-board levels; for a breadboard, its strips and rails; for a PCB from KiCad, '
          'its files, its own nets (worked out by Polari and checked against KiCad), its parts with their simulation settings and its copper layers - pads, '
          'copper per net with its DC resistance, zones, silkscreen and drawings, net classes and rules - its simulation runs, and a first-order thermal view: '
-         'each part\'s power in a run and the board\'s mean temperature rise in still air (a stated model, not a hot-spot map). Pick a '
+         'each part\'s power in a run and the board\'s mean temperature rise in still air (a stated model, not a hot-spot map), and the '
+         'circuit at a temperature - the whole board\'s, swept over a rated range, then each part at its own. Pick a '
          'board in the first table, or open the page with ?board=<kind>/<definition>.')
 
 
@@ -70,7 +72,7 @@ SEED_BOARD_DETAILS_GRAPHS = [{
     'description': ('A PCB\'s temperature over time (bob-3g): the board\'s hottest point, the board under each powered part (the plate FEM stepped in time) '
                     'and, for a part with a datasheet thermal model, its junction (the datasheet\'s Foster Zth on top of the board under it). Data: '
                     'GET /api/board/details/layers/{board}/transient-chart.'),
-    'definition': json.dumps({'graphConfig': _transient_graph_config()})}]
+    'definition': json.dumps({'graphConfig': _transient_graph_config()})}] + SEED_TEMPERATURE_GRAPHS
 
 
 def _simulation_tab():
@@ -80,7 +82,8 @@ def _simulation_tab():
                         'deck; run it on a host with ngspice - econ-core - or post a worker\'s result).',
                         description='What this is for: every time this PCB\'s schematic was simulated. The deck is built from Polari\'s own rows (its sha256 says which); '
                                     'analysis is what ngspice ran (transient, AC sweep); status says whether it ran or why not; source / host: this host, a worker, or a '
-                                    'recorded reference.', columns='ran_at,analysis,points,vectors,status,source,host,engine,deck_sha256', max_height=260)], min_height=200),
+                                    'recorded reference; temperature what the board (and any part of its own) was at.',
+                        columns='ran_at,analysis,temperature,points,vectors,status,source,host,engine,deck_sha256', max_height=260)], min_height=200),
         _row(1, [_table('bd-run-vectors', 0, 12, 'Vectors of the selected run', '', data_path='/api/pcb/runs/{scope:run}/vectors', empty_text='Pick a run above.',
                         description='What this is for: what the run measured - each node voltage, branch current and the scale, with its unit (derived from the name the '
                                     'way ngspice names them), point count and range.', columns='vector,role,unit,complex_values,points,min_value,max_value', max_height=220)],
@@ -234,5 +237,7 @@ BOARD_DETAILS_PAGES = [
                               'componentProps': {'componentName': 'hardware-pin-view', 'inputs': {'board': 'pcb:{scope:board}', 'system': '', 'binding': '', 'stage': 'base'}},
                               'item': None, 'nestedRows': []}], min_height=560)],
                      'Thermal: power per part, the mean rise and where the heat sits.'),
-                _thermal_time_tab()]),
+                _thermal_time_tab(),
+                temperature_tab(),
+                part_temperature_tab()]),
 ]

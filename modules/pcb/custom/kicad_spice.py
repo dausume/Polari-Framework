@@ -8,6 +8,14 @@ directives, the model libraries) - never copied from KiCad's export, which is on
   build_deck(rows)   → {'deck', 'elements': {ref: {'kind', 'nodes', 'value'}}, 'includes', 'directives', 'skipped', 'problems'}
   parse_deck(text)   → the same 'elements' shape from any SPICE deck (KiCad's export, ours) - for comparing
 
+tmp-1 / tmp-2 (TEMPERATURE_PLAN): build_deck(rows, temp_c=None, part_temps=None, coefficients=None)
+  temp_c        the whole board's (background) temperature: one `.temp` line - every model's own temperature terms act (ngspice's default is
+                27 C, its TNOM: the temperature model parameters are given at); a `.temp` / `.options temp=` the schematic carries is then left out
+  coefficients  {ref: (tc1 1/K, tc2 1/K2, origin)} - an R, C or L gets tc1= tc2= (a person's figure wins over the symbol's Sim.Params tc1/tc2);
+                without one an ideal R, C or L does not change with temperature at all (ngspice's tc1 = tc2 = 0)
+  part_temps    {ref: C} - the part's OWN temperature as an instance `temp=` where ngspice takes one (INSTANCE_TEMP: probed on libngspice, KiCad
+                10.0.6, econ-core 2026-10-31); elsewhere the part stays at the board's temperature and 'temperature' says why
+
 KiCad's simulation model, as its files carry it (KiCad 7+): Sim.Device (R C L V I D NPN PNP NMOS PMOS SUBCKT SPICE ...; absent = inferred from the
 reference letter), Sim.Type (DC SIN PULSE PWL EXP AM SFFM ... for sources), Sim.Params (key=value pairs, or for SPICE: type= model= lib=), Sim.Pins
 (symbol pin = model pin; the deck lists the nodes in MODEL pin order: 1 2 ..., + -, or a subcircuit's ports as its .subckt line orders them),
@@ -24,6 +32,52 @@ SOURCES = ('V', 'I')
 SOURCE_ARGS = {'SIN': ('SIN', ('dc', 'ampl', 'f', 'td', 'theta', 'phase')), 'PULSE': ('PULSE', ('y1', 'y2', 'td', 'tr', 'tf', 'tw', 'per', 'np')),
                'EXP': ('EXP', ('y1', 'y2', 'td1', 'tau1', 'td2', 'tau2')), 'SFFM': ('SFFM', ('dc', 'ampl', 'fc', 'mdi', 'fs', 'phasec', 'phases')),
                'AM': ('AM', ('vo', 'vmo', 'vma', 'fm', 'fc', 'td', 'phasem', 'phasec'))}
+
+
+#: tmp-2: the instance `temp=` ngspice accepts, by element letter - probed 2026-10-31 on econ-core's libngspice (KiCad 10.0.6): R C L D Q J take it,
+#: a MOSFET only for levels 1 2 3 6 and VDMOS; BSIM (level 8/49, 14/54) refuses the line ("circuit not parsed") and a subcircuit (X) line with
+#: temp= CRASHES the library ("ngspice.dll cannot recover"), so neither is ever written
+INSTANCE_TEMP = ('R', 'C', 'L', 'D', 'Q', 'J')
+MOS_INSTANCE_TEMP_LEVELS = (1, 2, 3, 6)
+TEMP_DIRECTIVE = re.compile(r'^\.(temp\b|options\b.*\btemp\s*=)', re.I)
+
+
+def model_card(lib_text, name):
+    """(type, {param: value}) of `.model <name> <type> (...)` in a library text (continuation lines joined), else (None, {})."""
+    lines, cur = [], ''
+    for line in (lib_text or '').splitlines():
+        if line.startswith('+'):
+            cur += ' ' + line[1:]
+        else:
+            lines.append(cur)
+            cur = line
+    lines.append(cur)
+    for line in lines:
+        parts = line.replace('(', ' ').replace(')', ' ').split()
+        if len(parts) > 2 and parts[0].lower() == '.model' and parts[1].lower() == name.lower():
+            return parts[2].upper(), {k.lower(): v for k, v in re.findall(r'(\w+)\s*=\s*(\S+)', ' '.join(parts[3:]))}
+    return None, {}
+
+
+def instance_temp_refusal(kind, lib_text, model):
+    """'' when ngspice takes an instance temp= on this element, else why not (INSTANCE_TEMP)."""
+    if kind == 'M':
+        mtype, params = model_card(lib_text, model)
+        if mtype == 'VDMOS':
+            return ''
+        if mtype is None:
+            return 'MOSFET model %s not found in its library, so its level (which decides whether ngspice takes temp=) is unknown' % model
+        try:
+            level = int(float(params.get('level', 1)))
+        except ValueError:
+            level = -1
+        return '' if level in MOS_INSTANCE_TEMP_LEVELS else ('MOSFET model %s is level %s: ngspice takes a per-part temp= only for levels 1, 2, 3, 6 '
+                                                              'and VDMOS (BSIM refuses it)' % (model, params.get('level', '?')))
+    if kind in INSTANCE_TEMP:
+        return ''
+    if kind == 'X':
+        return 'a subcircuit takes no per-part temperature in ngspice (temp= on an X line crashes the library): it follows the board\'s'
+    return 'ngspice takes no temperature on a %s element' % kind
 
 
 def node_name(net):
@@ -82,7 +136,9 @@ def _directives(rows):
     return out
 
 
-def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)'):
+def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)', temp_c=None, part_temps=None, coefficients=None):
+    part_temps, coefficients = part_temps or {}, coefficients or {}
+    applied, refused, tcs = {}, {}, {}
     arts = {a['path']: a['content'] for a in rows.get('KiCadArtifact', [])}
     nodes = {}
     for e in rows.get('NetEndpoint', []):
@@ -135,16 +191,38 @@ def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)'):
                 value += ' AC %s' % spice_value(p['ac'])
         elif (device or letter) in PASSIVE:
             kind, value = PASSIVE[device or letter], spice_value(p.get(({'R': 'r', 'C': 'c', 'L': 'l'})[device or letter]) or s['value'])
+            tc = coefficients.get(s['ref'])
+            if tc is None and ('tc1' in p or 'tc2' in p):
+                tc = (p.get('tc1', '0'), p.get('tc2', '0'), 'the symbol\'s Sim.Params')
+            if tc is not None:
+                value += ' tc1=%s tc2=%s' % (tc[0], tc[1])
+                tcs[s['ref']] = tc
         else:
             skipped.append('%s (%s): no simulation model (no Sim.* fields and the reference letter names no primitive)' % (s['ref'], s['lib_id']))
             continue
         name = s['ref'] if s['ref'][:1].upper() == kind[:1] else kind[:1] + s['ref']
-        elements[name] = {'kind': kind[:1], 'nodes': node_list, 'value': value}
+        if s['ref'] in part_temps:
+            why = instance_temp_refusal(kind[:1], lib, value)
+            if why:
+                refused[s['ref']] = why
+            else:
+                value += ' temp=%g' % float(part_temps[s['ref']])
+                applied[s['ref']] = float(part_temps[s['ref']])
+        elements[name] = {'kind': kind[:1], 'nodes': node_list, 'value': value, 'ref': s['ref'], 'model': value.split()[0] if kind[:1] in 'DQMJX' else '',
+                          'library': s['sim_library'] or ''}
     directives = _directives(rows)
-    lines = ['.title %s' % title] + ['.include "%s"' % i for i in includes] + directives + ['']
+    dropped = [d for d in directives if TEMP_DIRECTIVE.match(d)] if temp_c is not None else []
+    directives = [d for d in directives if d not in dropped]
+    head = ['.temp %g' % float(temp_c)] if temp_c is not None else []
+    lines = ['.title %s' % title] + ['.include "%s"' % i for i in includes] + head + directives + ['']
     lines += ['%s %s %s' % (n, ' '.join(e['nodes']), e['value']) for n, e in sorted(elements.items())]
     lines.append('.end')
-    return {'deck': '\n'.join(lines) + '\n', 'elements': elements, 'includes': includes, 'directives': directives, 'skipped': skipped, 'problems': problems}
+    for ref in sorted(set(part_temps) - set(applied) - set(refused)):
+        refused[ref] = 'not in the deck (no simulation model, or excluded)'
+    temperature = {'temp_c': float(temp_c) if temp_c is not None else None, 'part_temps': applied, 'refused': refused, 'coefficients': tcs,
+                   'schematic_temp_dropped': dropped}
+    return {'deck': '\n'.join(lines) + '\n', 'elements': elements, 'includes': includes, 'directives': directives, 'skipped': skipped, 'problems': problems,
+            'temperature': temperature}
 
 
 def parse_deck(text):

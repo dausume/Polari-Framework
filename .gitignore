@@ -42,6 +42,9 @@
 # pcb-0: the ingested ecc83-pp demo's provenance (package/version/licence, per-file sha256) IS source, same reason as board's —
 # without this exemption the blanket *.json ignore silently drops it on every commit (the gap this line fixes)
 !modules/pcb/custom/upstream/**/SOURCE.json
+# kxc-3 / kxc-4 / kxc-5 / tmp-1: the recorded KiCad / libngspice / pcbnew runs the pcb selftests compare against ARE source - without this
+# exemption they never reached git (found 2026-10-31: a fresh checkout's pcb selftest had no references to read)
+!modules/pcb/custom/reference/*.json
 *.pyc
 *.db
 */falcon
