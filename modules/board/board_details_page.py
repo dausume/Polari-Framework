@@ -144,6 +144,15 @@ BOARD_DETAILS_PAGES = [
                     _row(1, [_table('bd-dissipation', 0, 12, 'Power per part', '', data_path='%s/dissipation' % DOOR, empty_text='Only a PCB with a kept transient run has this.',
                                     description='What this is for: where the heat comes from. Each part\'s average and peak power in the run - resistors by Ohm\'s law '
                                                 'on their node voltages, sources by what they deliver, ideal capacitors and inductors 0 W on average; a part whose '
-                                                'current the run does not hold says so.', columns='ref,kind,value,nodes,avg_w,peak_w,basis', max_height=400)], min_height=220)],
-                     'First-order thermal: power per part and the mean rise.')]),
+                                                'current the run does not hold says so.', columns='ref,kind,value,nodes,avg_w,peak_w,basis', max_height=400)], min_height=220),
+                    _row(2, [_table('bd-spreading', 0, 12, 'Where the heat sits', '', data_path='%s/spreading' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
+                                    description='What this is for: the hottest point, not just the average. The board solved as a thin plate by the finite-element '
+                                                'engine: heat enters at each part\'s pads, spreads through the FR-4 and the copper pours, and leaves through both faces. '
+                                                'The mean rise agrees with the estimate above by energy balance; tracks and pads are not counted, so peaks read high.',
+                                    columns='source,max_rise_c,mean_rise_c,lumped_mean_rise_c,placed_w,parts_placed,parts_unplaced,zones,spreading_length_mm,'
+                                            'balance_error,dofs,basis', max_height=200)], min_height=160),
+                    _row(3, [_table('bd-hotspots', 0, 12, 'Hot spots per part', '', data_path='%s/hotspots' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
+                                    description='What this is for: which part runs hottest. Each placed part\'s peak and mean rise over its own pads, hottest first.',
+                                    columns='ref,power_w,peak_rise_c,mean_rise_c,x_mm,y_mm,basis', max_height=300)], min_height=180)],
+                     'Thermal: power per part, the mean rise and where the heat sits.')]),
 ]

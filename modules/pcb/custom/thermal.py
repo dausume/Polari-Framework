@@ -40,13 +40,13 @@ def spice_number(text):
     return v
 
 
-def _rows_of(manager, board):
+def _rows_of(manager, board, classes=('SchematicSymbol', 'NetEndpoint', 'KiCadArtifact', 'PcbBoard')):
     import inspect
     from pcb.pcb_basis import PCB_CLASSES
     tables = (getattr(manager, 'objectTables', None) or {}) if manager is not None else {}
     out = {}
     for cls in PCB_CLASSES:
-        if cls.__name__ in ('SchematicSymbol', 'NetEndpoint', 'KiCadArtifact', 'PcbBoard'):
+        if cls.__name__ in classes:
             keys = [k for k in inspect.signature(cls.__init__).parameters if k not in ('self', 'manager')]
             out[cls.__name__] = [{k: getattr(o, k, None) for k in keys} for o in (tables.get(cls.__name__) or {}).values()
                                  if getattr(o, 'board', getattr(o, 'name', '')) == board or getattr(o, 'name', '') == board]

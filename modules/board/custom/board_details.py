@@ -21,13 +21,15 @@ design simulation view). One door shape for every definition kind, one row set p
       rules      layers: net classes (PcbNetClass) + custom rules (PcbDesignRule)
       thermal    layers: the first-order thermal estimate from the newest finished transient run (pcb.custom.thermal: dT = P / (h x 2A), h a cited knob)
       dissipation layers: each part's average / peak power in that run (Ohm's law on the node voltages; sources from their branch current)
+      spreading  layers: bob-3d, where the heat sits - the board as a thin plate in the FEM engine (pcb.custom.thermal_spread): peak and mean rise
+      hotspots   layers: each placed part's peak / mean rise in that solve, hottest first
       runs       layers: the simulation runs kept for the PCB's schematic (SpiceRun, kxc-3b: pcb.custom.spice_runs), newest first; the chart reads one
 """
 import json
 
 from board.custom import footholds as FH
 
-PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation')
+PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
 COPPER_OHM_M = 1.0 / 58 * 1e-6
 COPPER_CITE = 'IEC 60028 International Annealed Copper Standard: 1/58 ohm mm2/m = 1.7241e-8 ohm m at 20 C'
@@ -106,6 +108,12 @@ def _layers(definition, which, manager):
             return TH.dissipation(manager, definition)[0]
         row, why = TH.estimate(manager, definition)
         return [row] if row else [{'board': definition, 'basis': why, 'dissipated_w': -1.0, 'delta_t_c': -1.0}]
+    if which in ('spreading', 'hotspots'):
+        from pcb.custom import thermal_spread as TS
+        summary, hotspots, _, why = TS.spread(manager, definition)
+        if which == 'hotspots':
+            return hotspots
+        return [summary] if summary else [{'board': definition, 'basis': why, 'max_rise_c': -1.0}]
     if which == 'runs':
         from pcb.custom import spice_runs as SR
         return [_attrs(r, ('name', 'ran_at', 'analysis', 'plot', 'points', 'vectors', 'status', 'source', 'host', 'engine', 'deck_sha256'))

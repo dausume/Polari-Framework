@@ -94,7 +94,8 @@
    "pcb_kicad_cover_selftest",
    "pcb_kicad_geometry_selftest",
    "pcb_kicad_spice_selftest",
-   "pcb_selftest"
+   "pcb_selftest",
+   "pcb_thermal_spread_selftest"
   ],
   "custom": [
    "custom/bench_export",
@@ -112,7 +113,8 @@
    "custom/schematic_writer",
    "custom/sexpr",
    "custom/uno_shield",
-   "custom/thermal"
+   "custom/thermal",
+   "custom/thermal_spread"
   ]
  },
  "classes": [

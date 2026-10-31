@@ -16,6 +16,8 @@ GET  /api/pcb/runs/{run}/vectors     {ok, rows}  the run's vectors (name, unit, 
 GET  /api/pcb/runs/{run}/projection  {ok, rows}  kxc-3c: the run's results on the board's nets - min / max / final (transient) or peak |V| (AC), and
                                    the PCB footholds on each net
 GET  /api/pcb/runs/{run}/chart?max=  {ok, rows: [{x, y, series}]}  long form for the named graph pcb-spice-run, at most `max` points per series
+GET  /api/pcb/{board}/thermal-spread?run=&h=  bob-3d: where the heat sits - the board as a thin plate in the FEM engine (pcb.custom.thermal_spread):
+                                   {ok, summary, hotspots, field: {origin_mm, xs_mm, ys_mm, rise_c}}; h (W/m2K) a knob, default the cited free-air value
 A board with no ingested schematic answers 404 in words.
 """
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -35,6 +37,7 @@ class PcbSimAPI(treeObject):
             add('/api/pcb/runs/{run}/vectors', self, suffix='run_vectors')
             add('/api/pcb/runs/{run}/chart', self, suffix='run_chart')
             add('/api/pcb/runs/{run}/projection', self, suffix='run_projection')
+            add('/api/pcb/{board}/thermal-spread', self, suffix='thermal_spread')
 
     def _rows(self, board):
         import inspect
@@ -113,6 +116,20 @@ class PcbSimAPI(treeObject):
         if why:
             response.status = '404 Not Found'
         response.media = {'ok': not why, 'run': run, 'rows': rows, 'error': why}
+
+    def on_get_thermal_spread(self, request, response, board):
+        from pcb.custom import thermal_spread as TS
+        try:
+            h = float(request.get_param('h') or TS.H_FREE_AIR)
+        except ValueError:
+            h = -1.0
+        if not 0 < h <= 1000:
+            response.status, response.media = '400 Bad Request', {'ok': False, 'error': 'h must be a number of W/(m2 K) in (0, 1000]'}
+            return
+        summary, hotspots, field, why = TS.spread(self.manager, board, request.get_param('run') or None, h=h)
+        if why:
+            response.status = '404 Not Found'
+        response.media = {'ok': not why, 'board': board, 'summary': summary, 'hotspots': hotspots, 'field': field, 'error': why}
 
     def on_post_export_bench(self, request, response, bench):
         from board.custom import bench_nets as BN
