@@ -13,6 +13,9 @@ POST /api/board/benches/{bench}/mount           {child, parent, x_mm, y_mm, rota
                                                  mounted connection per landed pin; refused in words when a pin lands nowhere, two share a hole, or the
                                                  parent joins pins of the child
 GET  /api/board/benches/{bench}/drive-fixes     {ok, rows}  each drive finding of the bench's nets with the catalogue parts whose contract fixes it
+GET  /api/board/benches/{bench}/mount-options?child=   {ok, rows}  drv-2: every clean placement of one Board on the bench's other Boards (the page's
+                                                 "Mount here" rows post them to /mount)
+GET  /api/board/benches/{bench}/part-budgets    {ok, rows}  drv-3: each part's whole-part budget (total_ma) against what its pins carry on the bench
 A part's footholds are GET /api/board/footholds/part/{name} (the footholds door; definition kind part).
 """
 import json
@@ -34,6 +37,8 @@ class BenchPartsAPI(treeObject):
             add('/api/board/benches/{bench}/parts', self, suffix='bench_parts')
             add('/api/board/benches/{bench}/mount', self, suffix='mount')
             add('/api/board/benches/{bench}/drive-fixes', self, suffix='fixes')
+            add('/api/board/benches/{bench}/mount-options', self, suffix='mount_options')
+            add('/api/board/benches/{bench}/part-budgets', self, suffix='budgets')
 
     @staticmethod
     def _body(request, response):
@@ -75,3 +80,18 @@ class BenchPartsAPI(treeObject):
         if nets is None:
             return self._send(response, 404, {'ok': False, 'error': problems})
         self._send(response, 200, {'ok': True, 'bench': bench, 'rows': PB.suggestions(nets, self.manager), 'problems': problems})
+
+    def on_get_mount_options(self, request, response, bench):
+        from board.custom import bench_mount as M
+        child = request.get_param('child') or ''
+        if not child:
+            return self._send(response, 200, {'ok': True, 'rows': [], 'note': 'pick a Board to mount first'})
+        self._send(response, *M.options(self.manager, bench, child))
+
+    def on_get_budgets(self, request, response, bench):
+        from board.custom import bench_nets as BN
+        from board.custom import part_boards as PB
+        nets, problems = BN.bench_nets(bench, self.manager)
+        if nets is None:
+            return self._send(response, 404, {'ok': False, 'error': problems})
+        self._send(response, 200, {'ok': True, 'bench': bench, 'rows': PB.budgets(nets, self.manager)})

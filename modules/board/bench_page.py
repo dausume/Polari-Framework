@@ -132,7 +132,28 @@ def _parts_tab():
                                     'high enough to turn on (under-voltage) - and each catalogue part whose cited contract fixes it, with why. fits = the '
                                     'part\'s input is reached by the driving pin too.',
                         columns='net,finding,problem,part,kind,fits,why,source', max_height=360)], min_height=200),
-    ], description='Drivers and parts: the catalogue and the fixes for this bench\'s drive problems.')
+        _row(2, [_table('bench-mount-child', 0, 4, 'Mount a Board - click the one to place', '', data_path='/api/board/benches/%s/all-boards?rev=r{scope:rev}' % BENCH,
+                        select_field='id', select_scope='mountchild', selected_value='{scope:mountchild}', empty_text='Nothing on the bench yet.',
+                        description='What this is for: putting one Board onto another - a DIP onto a breadboard, a breakout onto a PCB\'s header. Click '
+                                    'the Board to place; the table beside it lists every place it fits.',
+                        columns='id,label,board_kind,footholds', max_height=320),
+                 _table('bench-mount-options', 4, 8, 'Where {scope:mountchild} fits - Mount here', '',
+                        data_path='/api/board/benches/%s/mount-options?child={scope:mountchild}&rev=r{scope:rev}' % BENCH,
+                        empty_text='Click a Board on the left (no rows = it fits cleanly nowhere on this bench).',
+                        row_action={'label': 'Mount here', 'method': 'POST', 'path': '/api/board/benches/%s/mount' % BENCH,
+                                    'body_template': {'child': '{child}', 'parent': '{parent}', 'x_mm': '{x_mm}', 'y_mm': '{y_mm}', 'rotation': '{rotation}'}},
+                        description='What this is for: only the places that work. Each row is a position where every pin lands on a foothold of the '
+                                    'other Board, each in its own hole, and the other Board joins none of them (a DIP must straddle a breadboard\'s '
+                                    'trench, or its opposite pins short). The positions come from both Boards\' own pin geometry (cited or derived); '
+                                    'a 1.7 mm-pitch TO-220-5 fits no breadboard and gets no rows.',
+                        columns='parent_label,where,x_mm,y_mm,rotation', max_height=320)], min_height=220),
+        _row(3, [_table('bench-part-budgets', 0, 12, 'Each part\'s whole-part budget', '', data_path='/api/board/benches/%s/part-budgets?rev=r{scope:rev}' % BENCH,
+                        empty_text='No part with a budget on this bench.',
+                        description='What this is for: a limit no single pin shows. A part can be fine pin by pin and still too hot in total - the '
+                                    'ULN2003A\'s seven channels share a 2.5 A total. need_ma = what the other footholds on its output (or regulated) nets '
+                                    'draw, added up; over = above its cited total.',
+                        columns='board,part,need_ma,total_ma,over,words', max_height=220)], min_height=120),
+    ], description='Drivers and parts: the catalogue, the fixes for this bench\'s drive problems, mounting one Board on another, and part budgets.')
 
 
 _BUDGET = '/api/benches/home-bench/budget'

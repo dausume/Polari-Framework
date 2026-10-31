@@ -10,6 +10,11 @@ derived) foothold geometry, so a pin that lands nowhere, or two pins the parent 
                        'unlanded': [child footholds with no parent foothold within tolerance], 'shared': [parent footholds hit twice],
                        'joined': [(child a, child b, parent node)] - two child pins the parent joins inside (a DIP not straddling a breadboard's
                        trench puts opposite pins on one strip: a short through the parent)}
+  placements(child_feet, parent_feet, rotations=(0, 90, 180, 270), tolerance_mm=0.5, limit=60) -> [{x_mm, y_mm, rotation, first_on, pins}]
+                       drv-2: every position where the child mounts cleanly - all pins land, none share a hole, none joined - found by putting the
+                       child's first pin on each parent foothold at each rotation (a spatial index, so a 16-pin DIP over a 400-hole breadboard is quick)
+  options(manager, bench, child, limit=60) -> (status, body)   the clean placements of one Board on every other Board of the bench (the page's
+                       "Mount here" rows)
   mount(manager, bench, body) -> (status, body)   {child, parent, x_mm, y_mm, rotation?, tolerance_mm?, allow_joined?}: stores one BenchConnection
                        (kind mounted) per landed pin - all pins must land and none may share a hole; joined pins are refused unless allow_joined
                        (a part whose pins are meant to be joined, said by the person)
@@ -78,3 +83,71 @@ def mount(manager, bench_name, body):
               'label': 'mounted at %g, %g mm, %g deg' % (x, y, rot)} for c, p, _ in got['pairs']]
     status, out = BN.add_connections(manager, bench_name, conns)
     return status, dict(out, landings=got['pairs'])
+
+
+def _grid(parent_feet, tol):
+    cell, g = max(tol, 1e-6), {}
+    for p in parent_feet:
+        g.setdefault((round(p['x_mm'] / cell), round(p['y_mm'] / cell)), []).append(p)
+    return cell, g
+
+
+def _near(grid, x, y, tol):
+    cell, g = grid
+    i, j = round(x / cell), round(y / cell)
+    best, miss = None, float('inf')
+    for di in (-1, 0, 1):
+        for dj in (-1, 0, 1):
+            for p in g.get((i + di, j + dj), ()):
+                d = math.hypot(p['x_mm'] - x, p['y_mm'] - y)
+                if d < miss:
+                    best, miss = p, d
+    return (best, miss) if miss <= tol else (None, miss)
+
+
+def placements(child_feet, parent_feet, rotations=(0, 90, 180, 270), tolerance_mm=0.5, limit=60):
+    if not child_feet or not parent_feet:
+        return []
+    grid = _grid(parent_feet, tolerance_mm)
+    first = sorted(child_feet, key=lambda f: (len(str(f['foothold'])), str(f['foothold'])))[0]
+    out, seen = [], set()
+    for rot in rotations:
+        ox, oy = _place(first, 0.0, 0.0, rot)
+        for p in sorted(parent_feet, key=lambda p: (p['y_mm'], p['x_mm'])):
+            x, y = p['x_mm'] - ox, p['y_mm'] - oy
+            key = (round(x, 3), round(y, 3), rot)
+            if key in seen:
+                continue
+            seen.add(key)
+            hit, nodes, ok = set(), {}, True
+            for f in child_feet:
+                q, _ = _near(grid, *_place(f, x, y, rot), tolerance_mm)
+                if q is None or q['foothold'] in hit or q['node'] in nodes:
+                    ok = False
+                    break
+                hit.add(q['foothold'])
+                nodes[q['node']] = f['foothold']
+            if ok:
+                out.append({'x_mm': round(x, 3), 'y_mm': round(y, 3), 'rotation': rot, 'first_on': p['foothold'], 'pins': len(child_feet)})
+                if len(out) >= limit:
+                    return out
+    return out
+
+
+def options(manager, bench_name, child, limit=60):
+    from board.custom import bench_nets as BN
+    feet, by_id = BN._boards(bench_name, manager)
+    if feet is None:
+        return 404, {'ok': False, 'error': 'no bench named %r' % bench_name}
+    if child not in feet:
+        return 422, {'ok': False, 'error': 'no Board %r with footholds on this bench (ids: %s)' % (child, ', '.join(sorted(feet)))}
+    rows = []
+    for parent in sorted(feet):
+        if parent == child:
+            continue
+        for r in placements(feet[child], feet[parent], limit=limit):
+            rows.append(dict(r, child=child, parent=parent, parent_label=by_id[parent]['label'],
+                             where='pin %s on %s, turned %g deg' % (sorted(feet[child], key=lambda f: (len(str(f['foothold'])), str(f['foothold'])))[0]['foothold'],
+                                                                     r['first_on'], r['rotation'])))
+    return 200, {'ok': True, 'bench': bench_name, 'child': child, 'rows': rows,
+                 'note': '' if rows else 'no clean placement: on no other Board do all of %s\'s pins land, each in its own place, without two of them joined' % child}

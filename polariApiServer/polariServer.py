@@ -1363,6 +1363,7 @@ class polariServer(treeObject):
             BenchConnection,   # bob-2: connections between footholds across boards
             PartBoard,   # drv-0: a driver / load / module defined by its pins
             EsdProtectionArea,   # esd-0: a piece flagged to survive ESD
+            ProtectionPart,   # esd-3: a protection part and its ratings
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,

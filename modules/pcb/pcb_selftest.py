@@ -272,6 +272,11 @@ def main():
     run_esd_areas(check)
     run_esd_events(check)
     run_esd_doors(check)
+    from pcb.pcb_esd_protection_selftest import run_protection_parts, run_iec_waveform, run_protected_events, run_protection_doors   # esd-3 / 4 / 5
+    run_protection_parts(check)
+    run_iec_waveform(check)
+    run_protected_events(check)
+    run_protection_doors(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

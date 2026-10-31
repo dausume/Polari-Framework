@@ -17,6 +17,10 @@ class PartBoard(treeObject):
       in       on_volts (the input voltage that turns a channel on), draw_ma (what an input draws when driven), in_max_v (absolute maximum)
       out      out_sink_ma / out_source_ma (what an output can sink / source; 0 is a real value - an open collector sources nothing), out_max_v
       supply   supply_min_v / supply_max_v; total_ma = the part's budget across all channels (e.g. a common emitter's total current)
+      regulated  (drv-2, a converter's output) out_volts at up to out_source_ma - on the Bench a supply at out_volts; for a logic output out_volts is
+               the level it drives high (V_OH)
+    A pin may override its role's numbers (pins_json keys on_volts, draw_ma, max_volts, source_ma, sink_ma, logic_volts - a TLC5916's SDO is not its
+    120 mA sinks; a regulator's input has its own minimum). `needs` = what the part needs around it to work, in words (a buck's inductor and diode).
     Rated temperatures (t_min_c / t_max_c) and the part's own ESD ratings (esd_hbm_v / esd_cdm_v) feed the temperature and ESD views.
     `origin`: cited (a datasheet: document, page_table, url) | custom (a person's definition, said as such).
     Related concepts: `BoardFoothold` (what the Bench sees), `BenchBoard` (a placed one), `BenchConnection` (kind mounted: its pins landed on another
@@ -27,13 +31,14 @@ class PartBoard(treeObject):
 
     KINDS = ('darlington-array', 'level-shifter', 'buffer', 'gate-driver', 'led-driver', 'high-side-switch', 'low-side-switch', 'ldo', 'buck',
              'boost', 'load', 'module')
-    ROLES = ('in', 'out', 'supply', 'ground', 'common', 'nc')
+    ROLES = ('in', 'out', 'supply', 'ground', 'common', 'nc', 'regulated')
 
     @treeObjectInit
     def __init__(self, name: str = '', kind: str = '', part_number: str = '', package: str = '', channels: int = 0, pins_json: str = '[]',
                  on_volts: float = -1.0, draw_ma: float = -1.0, in_max_v: float = -1.0, out_sink_ma: float = -1.0, out_source_ma: float = -1.0,
                  out_max_v: float = -1.0, supply_min_v: float = -1.0, supply_max_v: float = -1.0, total_ma: float = -1.0, t_min_c: float = -300.0,
-                 t_max_c: float = -300.0, esd_hbm_v: float = -1.0, esd_cdm_v: float = -1.0, position_basis: str = '', contract_basis: str = '',
+                 t_max_c: float = -300.0, esd_hbm_v: float = -1.0, esd_cdm_v: float = -1.0, out_volts: float = -1.0, needs: str = '',
+                 position_basis: str = '', contract_basis: str = '',
                  document: str = '', page_table: str = '', url: str = '', origin: str = 'custom', notes: str = '', manager=None):
         self.name = name                    # 'uln2003a-n' - the definition name on the Bench (part/<name>)
         self.kind = kind                    # one of KINDS
@@ -54,6 +59,8 @@ class PartBoard(treeObject):
         self.t_max_c = t_max_c
         self.esd_hbm_v = esd_hbm_v          # its own ESD rating, human body model (-1 = not given)
         self.esd_cdm_v = esd_cdm_v          # charged device model
+        self.out_volts = out_volts          # drv-2: a regulated output's voltage, or a logic output's driven-high level (-1 = not given)
+        self.needs = needs                  # drv-2: what it needs around it to work ('' = nothing)
         self.position_basis = position_basis  # where the pin positions come from (the package drawing)
         self.contract_basis = contract_basis  # where each contract number comes from, in words
         self.document = document

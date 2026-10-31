@@ -25,7 +25,7 @@ def rows_and_classes():
     from board.custom.uno_facts import SEED_UNO_FACTS as F
     from board.custom.register_import import load
     snap = load()
-    check('sixty-nine row classes (drv-0 one: PartBoard; esd-0 one: EsdProtectionArea; brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
+    check('seventy row classes (esd-3 one: ProtectionPart; drv-0 one: PartBoard; esd-0 one: EsdProtectionArea; brd-0 eight + brd-fi four + brd-bo ten: SocDefinition, SocPin, BoardHardware, BoardNet, Connector, '
           'ConnectorPin, BoardPin, RuntimeProfile, BoardConflict, BoardView; fs-2a one: TargetCompatibilityRule; fs-2d one: KitPart; '
           'ucd-0a nine: Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, BoardPinNet; rm-2a one: RegisterAccessKind; '
           'ucd-0b2a four: AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion; '
@@ -34,7 +34,7 @@ def rows_and_classes():
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
           'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench; bob-0 one: BoardFoothold — the bench contract; bob-2 one: BenchConnection)',
-          len(BOARD_CLASSES) == 69)   # drv-0: + PartBoard; esd-0: + EsdProtectionArea; D-bob-3: - BreadboardModel (merged into electrodevice BoardModel); bob-2: + BenchConnection; bob-0: + BoardFoothold; rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
+          len(BOARD_CLASSES) == 70)   # esd-3: + ProtectionPart; drv-0: + PartBoard; esd-0: + EsdProtectionArea; D-bob-3: - BreadboardModel (merged into electrodevice BoardModel); bob-2: + BenchConnection; bob-0: + BoardFoothold; rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -442,6 +442,11 @@ def main():
     run_mounting(check)
     run_drive_checks(check)
     run_part_doors(check)
+    from board.board_part_catalogue_selftest import run_cited_catalogue, run_converters_and_fixes, run_budgets_and_placements, run_catalogue_doors   # drv-2 / drv-3
+    run_cited_catalogue(check)
+    run_converters_and_fixes(check)
+    run_budgets_and_placements(check)
+    run_catalogue_doors(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)
     from board.board_register_profile_selftest import run_register_profile   # rp-0: register field classes, the memory map, firmware use, the doors, pages, CLI

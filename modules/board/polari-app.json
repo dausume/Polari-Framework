@@ -77,6 +77,7 @@
    "objects/board/BenchConnection",
    "objects/board/PartBoard",
    "objects/board/EsdProtectionArea",
+   "objects/board/ProtectionPart",
    "objects/board/BenchInteraction",
    "objects/board/BoardComponent",
    "objects/board/BoardConflict",
@@ -211,6 +212,7 @@
    "board_mapping_selftest",
    "board_object_selftest",
    "board_part_boards_selftest",
+   "board_part_catalogue_selftest",
    "board_pin_view_c3_selftest",
    "board_pin_view_candidate_selftest",
    "board_pin_view_modes_selftest",
@@ -394,6 +396,10 @@
    "custom/part_boards",
    "custom/bench_mount",
    "custom/esd_areas",
+   "custom/esd_footholds",
+   "custom/protection_parts",
+   "custom/part_seed",
+   "custom/part_fixes",
    "custom/board_esd"
   ]
  },
@@ -405,6 +411,7 @@
   "BenchConnection",
   "PartBoard",
   "EsdProtectionArea",
+  "ProtectionPart",
   "BenchInteraction",
   "BenchNetsAPI",
   "BenchPartsAPI",
@@ -558,6 +565,7 @@
     "BenchConnection",
     "PartBoard",
     "EsdProtectionArea",
+    "ProtectionPart",
     "BOARD_CLASSES"
    ]
   ],

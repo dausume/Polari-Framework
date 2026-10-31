@@ -93,8 +93,9 @@ def _event_words(r):
     ev = json.loads(r.get('event_json') or '{}')
     if not ev:
         return ''
-    return ('ESD %s %g V into %s at %g s' % (ev['model'], ev['level_v'], ev['net'], ev['t_event']) if ev.get('role') == 'event' else
-            'no-event baseline for an ESD run (%s into %s)' % (ev['model'], ev['net']))
+    extra = (' (the pin alone)' if ev.get('pin_only') else '') + (' with %s' % ', '.join(ev['protection']) if ev.get('protection') else '')
+    return ('ESD %s %g V into %s at %g s%s' % (ev['model'], ev['level_v'], ev['net'], ev['t_event'], extra) if ev.get('role') == 'event' else
+            'no-event baseline for an ESD run (%s into %s%s)' % (ev['model'], ev['net'], extra))
 
 
 def _temp_words(r):

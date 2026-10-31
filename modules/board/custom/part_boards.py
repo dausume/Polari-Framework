@@ -10,53 +10,24 @@ A PartBoard row (a driver, a load, a module) is the definition kind `part` of a 
   footholds(row)                       BoardFoothold rows of a part: one per pin, direction from its role, drive numbers from its contract
   define(manager, body) -> (status, body)   a custom part (a person's mini board): checked whole, refused in words
   add_part(manager, bench, body) -> (status, body)   a part onto a bench (a BenchBoard of kind part)
-  suggestions(nets, manager)           for each over-voltage / under-voltage / drive-shortfall finding, the catalogue parts whose contract fixes it
+  suggestions(nets, manager) / budgets(nets, manager)   board.custom.part_fixes (re-exported here): the fixes, judged, and whole-part budgets
 
-SEED - ULN2003A in PDIP-16, every number from TI SLRS027T (ULN200x / ULQ200x, December 1976 - revised March 2025):
-  pins (Table 4-1): 1B..7B = 1..7 channel inputs, E = 8 common emitter ("typically tied to ground"), COM = 9 common cathode of the clamp diodes,
-  7C..1C = 10..16 open-collector outputs; positions from the N (R-PDIP-T16) mechanical drawing 4040049/E: pin pitch 0.100 in (2.54 mm), rows
-  0.300 in (7.62 mm) apart (the drawing's 0.300 (7,62) minimum lead spread, the JEDEC MS-001 300-mil row)
-  §5.1 absolute maximum: collector-emitter 50 V; input 30 V; peak collector current 500 mA; total emitter-terminal current -2.5 A; operating
-  free-air -40 .. 70 C (ULN200xA); §5.6 at 25 C: V_I(on) 2.4 V max at I_C 200 mA (V_CE 2 V); input current 1.35 mA max at V_I 3.85 V;
-  §5.2 ESD: HBM +-2000 V (ANSI/ESDA/JEDEC JS-001), CDM +-500 V (JESD22-C101)
 """
 import json
 import math
 
 from board.custom import bench as B
+from board.custom.part_seed import SEED  # noqa: F401 - the cited catalogue lives in its own file
 
 CLS = 'PartBoard'
 _MEM = {CLS: {}}
 UNKNOWN = -1.0
 NO_TEMP = -300.0
-ROLE_DIRECTION = {'in': 'in', 'out': 'out', 'supply': 'supply', 'ground': 'supply', 'common': 'passive', 'nc': 'passive'}
-ULN_DOC = 'TI SLRS027T, ULN200x / ULQ200x High-Voltage, High-Current Darlington Transistor Arrays (rev. March 2025)'
-
-
-def _uln_pins():
-    pins = [{'number': k, 'name': '%dB' % k, 'role': 'in', 'channel': k, 'x_mm': round((k - 1) * 2.54, 3), 'y_mm': 7.62} for k in range(1, 8)]
-    pins.append({'number': 8, 'name': 'E', 'role': 'ground', 'channel': 0, 'x_mm': round(7 * 2.54, 3), 'y_mm': 7.62})
-    pins.append({'number': 9, 'name': 'COM', 'role': 'common', 'channel': 0, 'x_mm': round(7 * 2.54, 3), 'y_mm': 0.0})
-    pins += [{'number': k, 'name': '%dC' % (17 - k), 'role': 'out', 'channel': 17 - k, 'x_mm': round((16 - k) * 2.54, 3), 'y_mm': 0.0} for k in range(10, 17)]
-    return pins
-
-
-SEED = [{
-    'name': 'uln2003a-n', 'kind': 'darlington-array', 'part_number': 'ULN2003AN', 'package': 'PDIP-16 (TI N, R-PDIP-T16)', 'channels': 7,
-    'pins_json': json.dumps(_uln_pins()), 'on_volts': 2.4, 'draw_ma': 1.35, 'in_max_v': 30.0, 'out_sink_ma': 500.0, 'out_source_ma': 0.0,
-    'out_max_v': 50.0, 'supply_min_v': UNKNOWN, 'supply_max_v': UNKNOWN, 'total_ma': 2500.0, 't_min_c': -40.0, 't_max_c': 70.0, 'esd_hbm_v': 2000.0,
-    'esd_cdm_v': 500.0,
-    'position_basis': 'N (R-PDIP-T16) drawing 4040049/E: pitch 0.100 in (2.54 mm), rows 0.300 in (7.62 mm) apart (JEDEC MS-001); top view, pin 1 '
-                      'bottom left, pin 16 opposite it',
-    'contract_basis': ('on_volts = V_I(on) max at I_C 200 mA, V_CE 2 V (§5.6; 2.7 V at 250 mA, 3 V at 300 mA); draw_ma = I_I max at V_I 3.85 V (§5.6); '
-                       'in_max_v = V_I (§5.1); out_sink_ma = peak collector current (§5.1, an absolute maximum - the continuous figure falls with duty '
-                       'cycle and channels on, Figures 5-4 / 5-5); out_source_ma 0 = an open collector sources nothing (Table 4-1); out_max_v = V_CC '
-                       'collector-emitter (§5.1); total_ma = total emitter-terminal current (§5.1)'),
-    'document': ULN_DOC, 'page_table': '§3, Table 4-1, §5.1, §5.2, §5.6; N package drawing', 'url': 'https://www.ti.com/lit/ds/symlink/uln2003a.pdf',
-    'origin': 'cited', 'notes': 'COM goes to the load supply for inductive loads (the clamp diodes); E to ground'}]
-
+ROLE_DIRECTION = {'in': 'in', 'out': 'out', 'supply': 'supply', 'ground': 'supply', 'common': 'passive', 'nc': 'passive', 'regulated': 'supply'}
 _NUMS = ('on_volts', 'draw_ma', 'in_max_v', 'out_sink_ma', 'out_source_ma', 'out_max_v', 'supply_min_v', 'supply_max_v', 'total_ma', 'esd_hbm_v',
-         'esd_cdm_v')
+         'esd_cdm_v', 'out_volts')
+REGULATORS = ('ldo', 'buck', 'boost')
+PIN_OVERRIDES = ('on_volts', 'draw_ma', 'max_volts', 'source_ma', 'sink_ma', 'logic_volts')
 
 
 def _get(o, k, default=None):
@@ -95,9 +66,12 @@ def contract_words(r):
     def n(k, unit):
         v = float(r.get(k, UNKNOWN) if r.get(k) is not None else UNKNOWN)
         return '%g %s' % (v, unit) if v >= 0 else 'not given'
-    return ('in: on from %s, draws %s, max %s; out: sinks %s, sources %s, max %s; total %s'
-            % (n('on_volts', 'V'), n('draw_ma', 'mA'), n('in_max_v', 'V'), n('out_sink_ma', 'mA'), n('out_source_ma', 'mA'), n('out_max_v', 'V'),
-               n('total_ma', 'mA')))
+    if r.get('kind') in REGULATORS:
+        return ('out: %s at up to %s; in: %s .. %s; needs %s'
+                % (n('out_volts', 'V'), n('out_source_ma', 'mA'), n('supply_min_v', 'V'), n('supply_max_v', 'V'), r.get('needs') or 'nothing else'))
+    return ('in: on from %s, draws %s, max %s; out: sinks %s, sources %s, high at %s, max %s; total %s%s'
+            % (n('on_volts', 'V'), n('draw_ma', 'mA'), n('in_max_v', 'V'), n('out_sink_ma', 'mA'), n('out_source_ma', 'mA'), n('out_volts', 'V'),
+               n('out_max_v', 'V'), n('total_ma', 'mA'), ('; needs %s' % r['needs']) if r.get('needs') else ''))
 
 
 def footholds(r):
@@ -115,12 +89,20 @@ def footholds(r):
                      drive_basis='input of channel %s: %s (%s)' % (p.get('channel', '?'), contract_words(r), cite))
         elif role == 'out':
             f.update(source_ma=float(r.get('out_source_ma', UNKNOWN)), sink_ma=float(r.get('out_sink_ma', UNKNOWN)), max_volts=float(r.get('out_max_v', UNKNOWN)),
+                     logic_volts=float(r.get('out_volts', UNKNOWN) if r.get('out_volts') is not None else UNKNOWN),
                      drive_basis='output of channel %s: %s (%s)' % (p.get('channel', '?'), contract_words(r), cite))
+        elif role == 'regulated':
+            f.update(rail_volts=float(r.get('out_volts', UNKNOWN)), source_ma=float(r.get('out_source_ma', UNKNOWN)),
+                     drive_basis='regulated output: %s (%s)' % (contract_words(r), cite))
         elif role == 'ground':
             f.update(rail_volts=0.0, drive_basis='the part\'s ground / common emitter: 0 V by use (%s)' % cite)
         elif role == 'supply':
             f['drive_basis'] = 'supply %s .. %s V (%s)' % (r.get('supply_min_v'), r.get('supply_max_v'), cite)
             f['undetermined'] = 'the supply voltage is whatever the bench applies'
+        over = {k: float(p[k]) for k in PIN_OVERRIDES if k in p}
+        if over:   # drv-2: this pin's own numbers (a TLC5916's SDO; a regulator's input minimum)
+            f.update(over)
+            f['drive_basis'] += '; pin %s\'s own: %s' % (num, ', '.join('%s %g' % kv for kv in sorted(over.items())))
         out.append(f)
     return out
 
@@ -151,8 +133,16 @@ def define(manager, body):
         if num in seen:
             return 400, {'ok': False, 'error': 'pin %s is given twice' % num}
         seen.add(num)
-        clean.append({'number': p['number'], 'name': str(p.get('name', num)), 'role': p['role'], 'channel': p.get('channel', 0), 'x_mm': x, 'y_mm': y})
-    row = {k: body.get(k, '') for k in ('kind', 'part_number', 'package', 'position_basis', 'contract_basis', 'document', 'page_table', 'url', 'notes')}
+        pin = {'number': p['number'], 'name': str(p.get('name', num)), 'role': p['role'], 'channel': p.get('channel', 0), 'x_mm': x, 'y_mm': y}
+        for k in PIN_OVERRIDES:
+            if k in p:
+                try:
+                    pin[k] = float(p[k])
+                except (TypeError, ValueError):
+                    return 400, {'ok': False, 'error': 'pin %s: %s needs a number' % (num, k)}
+        clean.append(pin)
+    row = {k: body.get(k, '') for k in ('kind', 'part_number', 'package', 'position_basis', 'contract_basis', 'document', 'page_table', 'url', 'notes',
+                                        'needs')}
     for k in _NUMS:
         try:
             v = float(body.get(k, UNKNOWN))
@@ -194,43 +184,4 @@ def add_part(manager, bench_name, body):
     return 201, {'ok': True, 'bench': bench_name, 'added': row_name, 'rows': BB.boards_on_bench(bench_name, manager)}
 
 
-def _fixes(finding, members, cat):
-    """Catalogue parts whose cited contract fixes one finding, each with the evidence in words."""
-    out = []
-    kind = finding['kind']
-    if kind == 'drive-shortfall':
-        need, level = finding['need_ma'], finding.get('source_volts', UNKNOWN)
-        for r in cat:
-            sink, src = float(r['out_sink_ma']), float(r['out_source_ma'])
-            if r['kind'] == 'load' or max(sink, src) < need:
-                continue
-            ok_level = level < 0 or 0 <= float(r['on_volts']) <= level
-            out.append({'part': r['name'], 'kind': r['kind'], 'why': ('its outputs %s up to %g mA (need %g mA); its input turns on from %s and draws %s - %s'
-                                                                       % ('sink' if sink >= src else 'source', max(sink, src), need,
-                                                                          ('%g V' % float(r['on_volts'])) if float(r['on_volts']) >= 0 else 'an uncited level',
-                                                                          ('%g mA' % float(r['draw_ma'])) if float(r['draw_ma']) >= 0 else 'an uncited current',
-                                                                          'the driving pin\'s %g V reaches it' % level if ok_level and level >= 0 else
-                                                                          'check the driving level' if ok_level else
-                                                                          'NOT reached by the driving pin\'s %g V' % level)),
-                        'fits': ok_level, 'source': r['document'] or r['origin']})
-    elif kind in ('over-voltage', 'under-voltage'):
-        for r in cat:
-            if r['kind'] in ('level-shifter', 'buffer'):
-                out.append({'part': r['name'], 'kind': r['kind'], 'why': 'a %s puts each side on its own supply: %s' % (r['kind'], contract_words(r)),
-                            'fits': True, 'source': r['document'] or r['origin']})
-        if not out:
-            out.append({'part': '', 'kind': 'level-shifter', 'why': 'no level shifter or buffer in the catalogue yet - define one (POST /api/board/parts) '
-                                                                    'from its datasheet', 'fits': False, 'source': ''})
-    return out
-
-
-def suggestions(nets, manager=None):
-    cat = catalogue(manager)
-    rows = []
-    for n in nets:
-        for f in n['findings']:
-            if f['kind'] not in ('drive-shortfall', 'over-voltage', 'under-voltage'):
-                continue
-            for s in _fixes(f, n['members'], cat) or [{'part': '', 'kind': '', 'why': 'no catalogue part fixes this yet', 'fits': False, 'source': ''}]:
-                rows.append(dict(s, net=n['net'], finding=f['kind'], problem=f['words']))
-    return rows
+from board.custom.part_fixes import budgets, suggestions  # noqa: E402,F401 - re-exported (callers use part_boards.suggestions)

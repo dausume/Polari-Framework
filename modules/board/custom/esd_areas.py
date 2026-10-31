@@ -9,13 +9,15 @@ D-esd-3). The events themselves run in pcb.custom.esd_events (a PCB's deck).
                                                    document?, page_table?} - checked whole, refused in words; flagging the same piece again updates it
   unflag(manager, name) -> (status, body)
   set_quantity(manager, name, quantity, value) -> (status, body)   the page's edit box: level_v, abs_max_v, recover_pct, recover_mv, recover_us
+  toggle_protection(manager, name, part) -> (status, body)   esd-3: put a catalogue protection part on the area, or take it off (click-toggle)
 With no manager (selftests) the rows live in this process only.
 """
 import math
 
 CLS = 'EsdProtectionArea'
 _MEM = {CLS: {}}
-QUANTITIES = {'level_v': (0.0, 30000.0), 'abs_max_v': (-1.0, 1e5), 'recover_pct': (0.0, 100.0), 'recover_mv': (0.0, 1e5), 'recover_us': (0.0, 1e6)}
+QUANTITIES = {'level_v': (0.0, 30000.0), 'abs_max_v': (-1.0, 1e5), 'recover_pct': (0.0, 100.0), 'recover_mv': (0.0, 1e5), 'recover_us': (0.0, 1e6),
+              'pin_cap_pf': (0.01, 1e6), 'hold_ohm': (0.001, 1e12)}
 
 
 def _fields():
@@ -94,6 +96,11 @@ def flag(manager, kind, definition, body):
               'inject_net': str(body.get('inject_net', '')), 'protection_refs': str(body.get('protection_refs', '')),
               'document': str(body.get('document', '')), 'page_table': str(body.get('page_table', '')), 'notes': str(body.get('notes', '')),
               'origin': 'cited' if body.get('document') else 'flagged on the page'}
+    if 'protection_parts' in body:   # flagging again without it keeps the parts already on the area
+        fields['protection_parts'] = str(body.get('protection_parts') or '')
+        bad = _unknown_parts(manager, fields['protection_parts'])
+        if bad:
+            return 400, {'ok': False, 'error': bad}
     for q, (lo, hi) in QUANTITIES.items():
         if q in body:
             try:
@@ -105,11 +112,32 @@ def flag(manager, kind, definition, body):
             fields[q] = v
     name = '%s:%s:%s:%s' % (kind, definition, scope, target)
     if _find(manager, name) is None:   # a new area: the class defaults (D-esd-2's criterion), the model's second-highest level
-        for k, v in (('level_v', float(MODELS[model]['levels'][-2])), ('abs_max_v', -1.0), ('recover_pct', 5.0), ('recover_mv', 50.0),
-                     ('recover_us', 10.0)):
+        for k, v in (('level_v', float(MODELS[model]['levels'][-2])), ('abs_max_v', -1.0), ('protection_parts', ''), ('recover_pct', 5.0), ('recover_mv', 50.0),
+                     ('recover_us', 10.0), ('pin_cap_pf', 10.0), ('hold_ohm', 1e6)):
             fields.setdefault(k, v)
     _save(manager, name, fields)
     return 201, {'ok': True, 'name': name, 'rows': areas(manager, kind, definition)}
+
+
+def _unknown_parts(manager, text):
+    from board.custom import protection_parts as PP
+    known = {r['name'] for r in PP.catalogue(manager)}
+    missing = [x.strip() for x in text.split(',') if x.strip() and x.strip() not in known]
+    return ('no protection part %s in the catalogue (%s)' % (', '.join(repr(m) for m in missing), ', '.join(sorted(known)))) if missing else ''
+
+
+def toggle_protection(manager, name, part):
+    o = _find(manager, name)
+    if o is None:
+        return 404, {'ok': False, 'error': 'no ESD area %r' % name}
+    part = str(part or '').strip()
+    bad = _unknown_parts(manager, part) if part else 'part needs a catalogue protection part'
+    if bad:
+        return 400, {'ok': False, 'error': bad}
+    have = [x.strip() for x in str(_get(o, 'protection_parts', '') or '').split(',') if x.strip()]
+    have = [x for x in have if x != part] if part in have else have + [part]
+    _save(manager, name, {'protection_parts': ','.join(have)})
+    return 200, {'ok': True, 'name': name, 'protection_parts': ','.join(have), 'removed' if part not in have else 'added': part}
 
 
 def unflag(manager, name):
@@ -149,7 +177,10 @@ def set_quantity(manager, name, quantity, value):
 
 UNITS = {'level_v': ('V', 'the test level'), 'abs_max_v': ('V', 'the protected pins\' absolute maximum, from their datasheet (-1 = not given)'),
          'recover_pct': ('%', 'recovered = back within this % of the no-event run ...'), 'recover_mv': ('mV', '... or within this many mV, whichever is larger ...'),
-         'recover_us': ('us', '... by this long after the event')}
+         'recover_us': ('us', '... by this long after the event'),
+         'pin_cap_pf': ('pF', 'a knob for a board with no circuit: the chip pin\'s capacitance (default 10 pF - replace it with the datasheet\'s C_IN)'),
+         'hold_ohm': ('Ohm', 'a knob for a board with no circuit: what holds the pin at its level (an output\'s drive, an input\'s leakage path; '
+                             'default 1 MOhm)')}
 
 
 def toggle(manager, kind, definition, body):

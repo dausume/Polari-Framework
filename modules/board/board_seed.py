@@ -20,7 +20,7 @@ from board.board_basis import ConfigurationEvent   # pv-4
 from board.board_basis import TwinSession, BenchInteraction   # sim-1; sim-3
 from board.board_basis import SimInstallConfirmation   # ins-1
 from board.board_basis import FirmwareStateObject, FirmwareStateField   # fst-0
-from board.board_basis import BoardFoothold, BenchConnection, PartBoard, EsdProtectionArea   # bob-0, bob-2, drv-0, esd-0
+from board.board_basis import BoardFoothold, BenchConnection, PartBoard, EsdProtectionArea, ProtectionPart   # bob-0, bob-2, drv-0, esd-0, esd-3
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -37,6 +37,7 @@ from board.custom import target_compat as TC
 from board.custom import kit_parts as KP
 from board.custom.chip_ladder_seed import SEED_CHIP_LADDER   # chp-0
 from board.custom.part_boards import SEED as SEED_PART_BOARDS   # drv-0: the cited driver catalogue
+from board.custom.protection_parts import SEED as SEED_PROTECTION_PARTS   # esd-3: the cited protection catalogue
 from board.custom.bench_seed import SEED_BENCHES   # bench-0 (its breadboard models moved to electrodevice BoardModel, D-bob-3)
 from board.custom import board_pin_nets as BPN
 from board.custom import register_access as RACC   # rm-2a
@@ -82,6 +83,7 @@ BOARD_SEED_PAIRS = [
     ('BoardFoothold', BoardFoothold, []),
     ('PartBoard', PartBoard, SEED_PART_BOARDS),   # drv-0: the cited catalogue (ULN2003A)
     ('EsdProtectionArea', EsdProtectionArea, []),   # esd-0: flagged by a person, never seeded
+    ('ProtectionPart', ProtectionPart, SEED_PROTECTION_PARTS),   # esd-3: the cited catalogue (SMBJ5.0A, CG0603MLC-05E)
     ('BenchConnection', BenchConnection, []),   # bob-2: a person's wires on a bench (observed, never seeded)   # bob-0: derived on read (board.custom.footholds) or stored by a PCB ingest, never seeded
     ('FirmwareStateObject', FirmwareStateObject, []),   # fst-0: derived on read (board.custom.firmware_state), never seeded
     ('FirmwareStateField', FirmwareStateField, []),

@@ -9,14 +9,21 @@ POST /api/board/esd-areas/{kind}/{definition}          {scope, target, inject_ne
                                                         document?, page_table?}  flag a piece (201; again = update)
 POST /api/board/esd-areas/{kind}/{definition}/toggle   {scope, target}  flag it, or unflag it when flagged (the page's row button)
 POST /api/board/esd-areas/unflag                       {name}
-PUT  /api/board/esd-areas/quantity                     {area, quantity, value}  level_v | abs_max_v | recover_pct | recover_mv | recover_us
-The events run on a PCB's circuit: POST /api/pcb/{board}/esd-run (pcb.pcb_esd_api).
+PUT  /api/board/esd-areas/quantity                     {area, quantity, value}  level_v | abs_max_v | recover_pct | recover_mv | recover_us |
+                                                       pin_cap_pf | hold_ohm
+POST /api/board/esd-areas/protection                   {area, part}  esd-3: put a catalogue protection part on the area, or take it off
+POST /api/board/esd-areas/run                          {area, model?, level_v?}  esd-5: run the area's event - a PCB area on its circuit
+                                                       (pcb.custom.esd_events), any other foothold area on the pin alone (board.custom.esd_footholds)
+GET  /api/board/protection-parts                       {ok, rows}  esd-3: the protection catalogue, each with its derived model or why not
+POST /api/board/protection-parts                       {name, kind, ratings..., document?}  a person's own protection part (201)
+A PCB's events also run through POST /api/pcb/{board}/esd-run (pcb.pcb_esd_api).
 """
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-_STATUS = {200: '200 OK', 201: '201 Created', 400: '400 Bad Request', 404: '404 Not Found'}
+_STATUS = {200: '200 OK', 201: '201 Created', 400: '400 Bad Request', 404: '404 Not Found', 409: '409 Conflict', 422: '422 Unprocessable Entity',
+           503: '503 Service Unavailable'}
 
 
 class EsdAreasAPI(treeObject):
@@ -28,6 +35,9 @@ class EsdAreasAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/board/esd-areas/unflag', self, suffix='unflag')
             add('/api/board/esd-areas/quantity', self, suffix='quantity')
+            add('/api/board/esd-areas/protection', self, suffix='protection')
+            add('/api/board/esd-areas/run', self, suffix='run')
+            add('/api/board/protection-parts', self, suffix='parts')
             add('/api/board/esd-areas/{kind}/{definition}', self, suffix='areas')
             add('/api/board/esd-areas/{kind}/{definition}/toggle', self, suffix='toggle')
 
@@ -69,3 +79,33 @@ class EsdAreasAPI(treeObject):
         body = self._body(request, response)
         if body is not None:
             self._send(response, *EA.set_quantity(self.manager, str(body.get('area', '')), body.get('quantity'), body.get('value')))
+
+    def on_post_protection(self, request, response):
+        from board.custom import esd_areas as EA
+        body = self._body(request, response)
+        if body is not None:
+            self._send(response, *EA.toggle_protection(self.manager, str(body.get('area', '')), body.get('part')))
+
+    def on_post_run(self, request, response):
+        from board.custom import esd_footholds as EF
+        body = self._body(request, response)
+        if body is None:
+            return
+        try:
+            level = float(body['level_v']) if body.get('level_v') not in (None, '') else None
+        except (TypeError, ValueError):
+            return self._send(response, 400, {'ok': False, 'error': 'level_v must be a number'})
+        if level is not None and not 0 <= level <= 30000:
+            return self._send(response, 400, {'ok': False, 'error': 'level_v must be within 0 .. 30000 V'})
+        res = EF.run_any(self.manager, str(body.get('area', '')), body.get('model') or None, level)
+        self._send(response, res.pop('status', 200 if res.get('ok') else 422), res)
+
+    def on_get_parts(self, request, response):
+        from board.custom import protection_parts as PP
+        self._send(response, 200, {'ok': True, 'rows': PP.catalogue(self.manager)})
+
+    def on_post_parts(self, request, response):
+        from board.custom import protection_parts as PP
+        body = self._body(request, response)
+        if body is not None:
+            self._send(response, *PP.define(self.manager, body))

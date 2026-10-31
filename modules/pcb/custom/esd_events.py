@@ -16,24 +16,55 @@ The SAME deck with the capacitor charged to 0 V is the baseline (same topology, 
       against the area's abs max, the recovery time and whether it meets the area's criterion
   chart(manager, run, max_points=600) -> (rows, why)   long form: each protected node with the event and without it, against time
 
-The plain IEC 61000-4-2 network reproduces the standard's main discharge, NOT its sub-nanosecond first current peak (the gun's own waveform) - said in
-every summary until a published waveform-matched network is adopted (esd-4). Checked 2026-10-31 on econ-core's libngspice: the deck's own time
-step resolves the HBM event (the rectifier's anode peak 3.43 V and 1.332 A equal a forced 2 ns step's, 1.332 A = 2000 V / 1500 Ohm).
+The plain IEC 61000-4-2 network reproduces the standard's main discharge, NOT its sub-nanosecond first current peak (the gun's own waveform). Checked
+2026-10-31 on econ-core's libngspice: the deck's own time step resolves the HBM event (the rectifier's anode peak 3.43 V and 1.332 A equal a forced
+2 ns step's, 1.332 A = 2000 V / 1500 Ohm).
+
+esd-4: `iec-contact-waveform` = the standard's OWN equation for the ideal contact discharge current (IEC 61000-4-2:2008 §6.2, the equation under
+Figure 2: two Heidler terms, tau1 1.1 ns, tau2 2 ns, tau3 12 ns, tau4 37 ns, I1 16.6 A, I2 9.3 A at 4 kV, n 1.8), scaled linearly with the level (Table 3
+scales linearly: 7.5 / 15 / 22.5 / 30 A first peak at 2 / 4 / 6 / 8 kV) and injected as an ngspice PWL current source sampled from it (every sample is
+a solver breakpoint, so the sub-nanosecond peak is resolved). It reproduces Table 3 at 4 kV (iec_check). It is the current the standard calibrates
+into its 2 Ohm target: forced into a high-impedance net it overstates the voltage there (a real generator's 150 pF / 330 Ohm would limit it) - said.
+
+esd-3: an area's `protection_parts` (board.custom.protection_parts, each with a derived model) are placed from the injected net to ground for both
+runs, each through its own 0 V meter, and each one's peak current is checked against its cited I_PP.
 """
 import json
 
 MODELS = {
-    'hbm': {'c_f': 100e-12, 'r_ohm': 1500.0, 'levels': [500.0, 1000.0, 2000.0, 4000.0],
+    'hbm': {'kind': 'network', 'c_f': 100e-12, 'r_ohm': 1500.0, 'levels': [500.0, 1000.0, 2000.0, 4000.0],
             'standard': 'human body model, ANSI/ESDA/JEDEC JS-001: 100 pF discharged through 1.5 kOhm (tau 150 ns)', 'caveat': ''},
-    'iec-contact': {'c_f': 150e-12, 'r_ohm': 330.0, 'levels': [2000.0, 4000.0, 6000.0, 8000.0],
+    'iec-contact': {'kind': 'network', 'c_f': 150e-12, 'r_ohm': 330.0, 'levels': [2000.0, 4000.0, 6000.0, 8000.0],
                     'standard': 'IEC 61000-4-2 contact discharge: 150 pF through 330 Ohm, levels 1-4 = 2 / 4 / 6 / 8 kV',
-                    'caveat': 'the plain 150 pF / 330 Ohm network gives the main discharge, not the standard\'s sub-nanosecond first current peak'},
+                    'caveat': 'the plain 150 pF / 330 Ohm network gives the main discharge, not the standard\'s sub-nanosecond first current peak '
+                              '(iec-contact-waveform has it)'},
+    'iec-contact-waveform': {'kind': 'current', 'c_f': 150e-12, 'r_ohm': -1.0, 'levels': [2000.0, 4000.0, 6000.0, 8000.0],
+                             'standard': ('IEC 61000-4-2:2008 §6.2 ideal contact discharge current (the equation under Figure 2, scaled linearly from '
+                                          '4 kV): first peak 3.75 A per kV at 0.8 ns, 2 A per kV at 30 ns, 1 A per kV at 60 ns (Table 3)'),
+                             'caveat': ('the standard\'s calibration current, forced into the net: right for a low-impedance (clamped or capacitive) net, '
+                                        'an overstatement at a high-impedance one, where a real generator\'s 150 pF / 330 Ohm limits the voltage')},
 }
 SW_MODEL = '.model esdsw sw vt=0.5 vh=0 ron=0.01 roff=1e12'
+from pcb.custom.esd_iec import IEC, iec_check, iec_current, iec_samples, _pwl  # noqa: E402,F401 - esd-4's equation, its own file
+
+
+def protection_lines(node, parts):
+    """esd-3: each protection part from the net to ground through its own 0 V meter (vector vprotmK#branch); parts = [(name, model_name, .model line)]."""
+    out = []
+    for k, (name, mname, mline) in enumerate(parts, 1):
+        out += ['* esd-3: protection part %s (board.custom.protection_parts)' % name, 'Vprotm%d %s esd_p%d DC 0' % (k, node, k),
+                'Dprot%d 0 esd_p%d %s' % (k, k, mname)]
+    # Gear integration when a clamp is in: the trapezoidal rule rings step to step at a breakdown knee (seen on econ-core: +-0.2 A around the
+    # 1.33 A HBM current through the SMBJ5.0A, step after step), Gear damps it - an established ngspice method. One step at the edge can still
+    # overstate the clamp's current (1.50 A against the source's 1.33 A) - on the safe side for the I_PP check, and the rows show the source beside it
+    return out + sorted({p[2] for p in parts}) + (['.options method=gear'] if parts else [])
 
 
 def event_lines(node, model, level_v, t_event):
     m = MODELS[model]
+    if m['kind'] == 'current':
+        return (['* esd-4: %s at %g V into %s at %g s (pcb.custom.esd_events)' % (model, level_v, node, t_event)] + _pwl(t_event, level_v)
+                + ['Vesdmeas esd_m %s DC 0' % node])
     return ['* esd-1: %s at %g V into %s at %g s (pcb.custom.esd_events)' % (model, level_v, node, t_event),
             'Vesdchg esd_chg 0 DC %g' % level_v, 'Resdchg esd_chg esd_k 1', 'Sesdchg esd_k esd_c esd_off 0 esdsw', 'Cesd esd_c 0 %g' % m['c_f'],
             'Sesddis esd_c esd_r esd_on 0 esdsw', 'Resd esd_r esd_m %g' % m['r_ohm'], 'Vesdmeas esd_m %s DC 0' % node,
@@ -81,6 +112,21 @@ def _rows(manager, board, rows):
     return rows
 
 
+def protection_of(manager, a):
+    """([(name, model_name, .model line)], why): the area's protection parts, each with its derived model - a part that cannot be modelled is refused."""
+    from board.custom import protection_parts as PP
+    out = []
+    for name in [x.strip() for x in str(a.get('protection_parts') or '').split(',') if x.strip()]:
+        r = PP.part(name, manager)
+        if r is None:
+            return [], 'no protection part %r in the catalogue (%s)' % (name, ', '.join(x['name'] for x in PP.catalogue(manager)))
+        mname, line, _, why = PP.spice_model(r)
+        if why:
+            return [], '%s cannot be simulated: %s' % (name, why)
+        out.append((name, mname, line))
+    return out, ''
+
+
 def run_event(manager, board, area, model=None, level_v=None, t_event=None, runner=None, rows=None):
     import socket
     from electrodevice.custom import ngspice_shared as NS
@@ -112,14 +158,20 @@ def run_event(manager, board, area, model=None, level_v=None, t_event=None, runn
     te = float(t_event) if t_event else tstop / 4.0
     if not 0 < te < tstop:
         return {'ok': False, 'status': 400, 'error': 't_event must be inside the run (0 .. %g s)' % tstop}
+    parts, why = protection_of(manager, a)
+    if why:
+        return {'ok': False, 'status': 422, 'error': why}
     files = {x['path']: x['content'] for x in rows.get('KiCadArtifact') or [] if x['path'] in d['includes']}
     host = socket.gethostname()
     out = {}
     for which, v in (('baseline', 0.0), ('event', level)):
-        deck = d['deck'].replace('\n.end\n', '\n' + '\n'.join(event_lines(node, model, v, te)) + '\n.end\n')
+        extra = event_lines(node, model, v, te) + protection_lines(node, parts)
+        deck = d['deck'].replace('\n.end\n', '\n' + '\n'.join(extra) + '\n.end\n')
         res = (runner or NS.run)(deck, files)
         ev = {'area': area, 'model': model, 'level_v': v, 'net': inject, 'node': node, 't_event': te, 'protected': protected, 'role': which,
               'baseline': out.get('baseline', {}).get('run', '')}
+        if parts:
+            ev['protection'] = [p[0] for p in parts]
         out[which] = dict(res, run=SR.store(manager, board, deck, res, 'local', host, event=ev))
     ok = bool(out['event'].get('ok') and out['baseline'].get('ok'))
     if not ok:
@@ -158,6 +210,8 @@ def results(manager, run):
     from pcb.custom import kicad_spice as P
     protected_nodes = {P.node_name(n).lower() for n in ev['protected']}
     abs_max, pct, mv, us = float(a['abs_max_v']), float(a['recover_pct']), float(a['recover_mv']), float(a['recover_us'])
+    if abs_max < 0 and float(ev.get('foothold_max_v', -1.0)) >= 0:   # esd-5: the foothold's own cited maximum
+        abs_max = float(ev['foothold_max_v'])
     rows = []
     for name in sorted(k for k in e if k != 'time' and '#branch' not in k and not k.startswith('esd_') and k in b):
         y, y0 = np.array(e[name]), np.interp(t, t0, np.array(b[name]))
@@ -183,16 +237,63 @@ def results(manager, run):
                      'run': run})
     rows.sort(key=lambda x: (not x['protected'], x['node']))
     prot = [x for x in rows if x['protected']]
-    summary = {'run': run, 'baseline': ev['baseline'], 'area': ev['area'], 'model': ev['model'], 'level_v': float(ev['level_v']), 'net': ev['net'],
-               't_event_s': te, 'peak_current_a': i_pk, 'expected_current_a': float(ev['level_v']) / m['r_ohm'],
-               'energy_j': 0.5 * m['c_f'] * float(ev['level_v']) ** 2,
-               'verdict': ('BREAKS' if any(x['breaks'].startswith('BREAKS') for x in prot) else
+    parts = protection_rows(manager, ev, e, after, run)
+    level = float(ev['level_v'])
+    summary = {'run': run, 'baseline': ev['baseline'], 'area': ev['area'], 'model': ev['model'], 'level_v': level, 'net': ev['net'],
+               't_event_s': te, 'peak_current_a': i_pk,
+               'expected_current_a': level / m['r_ohm'] if m['kind'] == 'network' else iec_current_peak(level),
+               'energy_j': 0.5 * m['c_f'] * level ** 2, 'protection_parts': ', '.join(p['part'] for p in parts) or 'none',
+               'verdict': ('BREAKS' if any(x['breaks'].startswith('BREAKS') for x in prot) or any(p['breaks'].startswith('BREAKS') for p in parts) else
                            'does not recover in time' if any(x['recovered'].startswith('NO') for x in prot) else
                            'survives, recovers in time' + ('' if abs_max >= 0 else ' (break check undetermined: no absolute maximum)')),
-               'basis': ('%s; injected at %s at %g s through a 0 V meter (peak current against level / R); compared point by point with the same deck '
-                         'and network charged to 0 V (run %s); criterion: %s%s'
-                         % (m['standard'], ev['net'], te, ev['baseline'], _crit(a), ('; ' + m['caveat']) if m['caveat'] else ''))}
+               'basis': ('%s; injected at %s at %g s through a 0 V meter (peak current against %s); compared point by point with the same deck '
+                         'and source at 0 (run %s); criterion: %s%s%s'
+                         % (m['standard'], ev['net'], te, 'level / R' if m['kind'] == 'network' else 'Table 3\'s first peak, 3.75 A per kV',
+                            ev['baseline'], _crit(a), ('; protection parts placed from the net to ground in both runs: %s, each against its cited I_PP'
+                                                       % ', '.join(p['part'] for p in parts)) if parts else '',
+                            ('; ' + m['caveat']) if m['caveat'] else '')
+                         + ('; the pin alone - no chip clamp diodes, no circuit around it (knobs pin_cap_pf / hold_ohm on the area); absolute maximum %s'
+                            % ('the area\'s' if float(a['abs_max_v']) >= 0 else 'the foothold\'s max_volts' if abs_max >= 0 else 'not given')
+                            if ev.get('pin_only') else ''))}
     return summary, rows, ''
+
+
+def iec_current_peak(level_v):
+    """Table 3's first peak: 3.75 A per kV (7.5 / 15 / 22.5 / 30 A at 2 / 4 / 6 / 8 kV)."""
+    return 3.75 * level_v / 1000.0
+
+
+def protection_rows(manager, ev, e, after, run):
+    """esd-3: each protection part's peak current (its 0 V meter) against its cited I_PP."""
+    import numpy as np
+    from board.custom import protection_parts as PP
+    out = []
+    for k, name in enumerate(ev.get('protection') or [], 1):
+        r = PP.part(name, manager) or {}
+        i = np.array(e.get('vprotm%d#branch' % k, [0.0]))
+        pk = float(np.abs(i[after]).max()) if len(i) == len(after) else -1.0
+        ipp = float(r.get('i_pp_a', -1.0))
+        src = np.array(e.get('vesdmeas#branch', [0.0]))
+        out.append({'part': name, 'part_number': r.get('part_number', ''), 'peak_current_a': pk,
+                    'source_peak_a': float(np.abs(src[after]).max()) if len(src) == len(after) else -1.0, 'i_pp_a': ipp, 'pulse': r.get('pulse', ''),
+                    'breaks': ('undetermined - no I_PP given' if ipp <= 0 else
+                               'BREAKS: %.4g A is above its %g A peak pulse current (%s)' % (pk, ipp, r.get('pulse')) if pk > ipp else
+                               'no (%.3g %% of its I_PP)' % (100.0 * pk / ipp)),
+                    'source': r.get('document') or r.get('origin', ''), 'run': run})
+    return out
+
+
+def protection_results(manager, run):
+    """(rows, why): the page's per-protection-part rows for one kept event run."""
+    import numpy as np
+    r, ev = _event(manager, run)
+    if r is None or ev.get('role') != 'event':
+        return [], 'run %r is not a kept ESD event run' % run
+    e = _vectors(manager, run)
+    if 'time' not in e:
+        return [], 'the event run kept no time vector'
+    rows = protection_rows(manager, ev, e, np.array(e['time']) >= float(ev['t_event']), run)
+    return rows, '' if rows else 'no protection parts in this event (add one to the area: protection_parts)'
 
 
 def _crit(a):
