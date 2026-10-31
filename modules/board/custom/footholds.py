@@ -19,7 +19,7 @@ from board.custom import pv_families as F
 from board.custom import pv_shapes as S
 
 UNKNOWN = -1.0
-KINDS = ('datasheet', 'geometry', 'layers')
+KINDS = ('datasheet', 'geometry', 'layers', 'part')   # drv-1: part = a PartBoard (a driver, a load, a module) - board.custom.part_boards
 POSITION_KNOB = {'arduino-uno-r3': 'drawing knob: the header rows\' x offsets are not dimensioned (pv_shapes.HEADERS); the 2.54 mm pitch is cited (UNO datasheet p.12)',
                  'esp32-c3': 'derived: J1-J3 22.86 mm and the 2.54 mm pitch cited (DevKitM-1 dimensions drawing); the rows\' inset and offset are drawing knobs (pv_shapes.C3_HEADERS)'}
 #: header labels that are inputs to the board, not supplies or chip pins (the vendors' header tables)
@@ -186,6 +186,13 @@ def for_definition(kind, definition, tables=None, manager=None):
             return [], 'no breadboard model %r (BoardModel kind breadboard; a devboard is a datasheet definition)' % definition
         rows = geometry(model)
         return rows, '' if rows else 'model %r has no drawable geometry (%s)' % (definition, model.get('layout_basis') or model.get('notes') or 'rows / rail holes unknown')
+    if kind == 'part':
+        from board.custom import part_boards as PB
+        r = PB.part(definition, manager)
+        if r is None:
+            return [], 'no part named %r (PartBoard: the catalogue or a custom definition)' % definition
+        rows = PB.footholds(r)
+        return rows, '' if rows else 'part %r has no pins' % definition
     stored = [_as_dict(o) for o in _table(manager, 'BoardFoothold') if getattr(o, 'definition_kind', '') == 'layers' and getattr(o, 'definition', '') == definition]
     return sorted(stored, key=lambda r: r['name']), '' if stored else 'no stored footholds for PCB %r - ingest it (pol pcb ingest)' % definition
 

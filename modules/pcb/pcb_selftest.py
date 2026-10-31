@@ -268,6 +268,10 @@ def main():
     run_sweep(check)
     run_parts(check)
     run_temperature_doors(check)
+    from pcb.pcb_esd_selftest import run_esd_areas, run_esd_events, run_esd_doors   # esd-0 / esd-1: ESD areas + emulated events
+    run_esd_areas(check)
+    run_esd_events(check)
+    run_esd_doors(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

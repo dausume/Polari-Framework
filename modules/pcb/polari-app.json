@@ -82,7 +82,8 @@
    "pcb_api",
    "pcb_sim_api",
    "pcb_thermal_api",
-   "pcb_temperature_api"
+   "pcb_temperature_api",
+   "pcb_esd_api"
   ],
   "endpoints": [
    "pcb_endpoints"
@@ -95,6 +96,7 @@
   ],
   "selftests": [
    "pcb_bench_export_selftest",
+   "pcb_esd_selftest",
    "pcb_kicad_connect_selftest",
    "pcb_kicad_cover_selftest",
    "pcb_kicad_geometry_selftest",
@@ -126,7 +128,8 @@
    "custom/thermal_inputs",
    "custom/thermal_transient",
    "custom/temperature_inputs",
-   "custom/spice_temperature"
+   "custom/spice_temperature",
+   "custom/esd_events"
   ]
  },
  "classes": [
@@ -162,7 +165,8 @@
   "PartThermalModel",
   "PartTemperatureBehaviour",
   "PcbThermalAPI",
-  "PcbTemperatureAPI"
+  "PcbTemperatureAPI",
+  "PcbEsdAPI"
  ],
  "imports": [
   [

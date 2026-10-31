@@ -14,7 +14,11 @@ with a simulated Breadboard wired to a dev board". The Bench works on footholds 
   check(net)                 the electrical findings on one bench net, from the foothold drive / signal data only:
       supply-conflict   two supplies at different voltages joined (a short between rails)
       supply-to-ground  a supply joined to a ground
-      over-voltage      a chip pin's logic level below a supply or a driving pin's level on the same net (5 V into a 3.3 V pin)
+      over-voltage      a chip pin's logic level below a supply or a driving pin's level on the same net (5 V into a 3.3 V pin); drv-1: or a
+                        foothold's absolute maximum (max_volts) below them
+      under-voltage     drv-1: an input whose on-level (on_volts, a driver's V_I(on)) is above every level that drives the net
+      drive-shortfall   drv-1: what the net's footholds draw (draw_ma) is more than its one driving pin can give - source_ma, or sink_ma for a
+                        pin that sources nothing (an open collector sinking its load); the finding names both numbers
   and a NOTE when only inputs / passive holes share a net (nothing on the bench drives it - a board's own pull is not a foothold fact yet)
   Unknown numbers (-1) never make a finding; they make an 'undetermined' note naming the foothold.
 
@@ -69,10 +73,36 @@ def check(members):
                                                                                                                  src['board'] if src else '?', src['foothold'] if src else '?')})
         if m['direction'] in ('inout', 'in', 'out') and m['logic_volts'] < 0 and m['chip_pin']:
             notes.append('%s %s: logic level undetermined' % (m['board'], m['foothold']))
+        if 0 <= m.get('max_volts', -1.0) < highest:
+            findings.append({'kind': 'over-voltage', 'words': '%s %s takes at most %g V but the net can carry %g V' % (m['board'], m['foothold'], m['max_volts'],
+                                                                                                               highest)})
+    findings += _drive(members, highest)
     if not any(m['direction'] in DRIVING + ('inout',) for m in members) and any(m['direction'] == 'in' for m in members):
         # a NOTE, not a finding: a board may pull the line inside (the DevKitM-1's CHIP_PU has R5) and footholds do not carry pulls yet
         notes.append('nothing on the bench drives this net (only inputs / passive holes); a pull inside a board is not modelled at the foothold level')
     return findings, notes
+
+
+def _drive(members, highest):
+    """drv-1: under-voltage and drive-shortfall, from on_volts / draw_ma against the driving pin's level and limit."""
+    out = []
+    drivers = [m for m in members if m['direction'] in ('out', 'inout')]
+    levels = [m['logic_volts'] for m in drivers if m['logic_volts'] > 0] + [m['rail_volts'] for m in members if m['direction'] == 'supply' and m['rail_volts'] > 0]
+    for m in members:
+        on = m.get('on_volts', -1.0)
+        if m['direction'] == 'in' and on > 0 and levels and max(levels) < on:
+            out.append({'kind': 'under-voltage', 'words': '%s %s turns on from %g V but the net is driven to %g V at most' % (m['board'], m['foothold'], on,
+                                                                                                                       max(levels))})
+    loads = [m for m in members if m.get('draw_ma', -1.0) > 0 and m not in drivers]
+    if len(drivers) == 1 and loads:
+        d = drivers[0]
+        need = sum(m['draw_ma'] for m in loads)
+        cap, how = (d['source_ma'], 'source') if d['source_ma'] > 0 else (d['sink_ma'], 'sink')
+        if cap >= 0 and need > cap:
+            out.append({'kind': 'drive-shortfall', 'need_ma': need, 'can_ma': cap, 'source_volts': d['logic_volts'],
+                        'words': '%s draw %g mA but %s %s can %s %g mA (%s)' % (', '.join('%s %s' % (m['board'], m['foothold']) for m in loads), need,
+                                                                              d['board'], d['foothold'], how, cap, d.get('drive_basis', '')[:120])})
+    return out
 
 
 def nets(boards, connections):

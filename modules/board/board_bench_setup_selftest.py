@@ -95,9 +95,9 @@ def run_bench_setup(check):
     from board.bench_page import BENCH_PAGES as P
     from board.chip_ladder_page import CHIP_LADDER_PAGES as CP
     d = json.loads(P[0]['definition'])
-    check('bench-0 PAGE: /display/bench has the benches table above six tabs - On the bench, Boards on the bench (bob-1/2b: one list with Board Details links, '
-          'then the PINS with their connections and checks; the bench netlist only in its own popup), Drawing (bob-4), Add a board, Add a breadboard, Budget (ipb-2) - with Add to bench and Remove row actions',
-          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'all-boards', 'drawing', 'add-board', 'add-breadboard', 'budget']
+    check('bench-0 PAGE: /display/bench has the benches table above seven tabs - On the bench, Boards on the bench (bob-1/2b: one list with Board Details links, '
+          'then the PINS with their connections and checks; the bench netlist only in its own popup), Drawing (bob-4), Add a board, Add a breadboard, Drivers and parts (drv-1), Budget (ipb-2) - with Add to bench and Remove row actions',
+          P[0]['pageRoute'] == 'bench' and [t['key'] for t in d['tabs']] == ['bench', 'all-boards', 'drawing', 'add-board', 'add-breadboard', 'parts', 'budget']
           and all('"label": "Add to bench"' in json.dumps(d['tabs'][i]) for i in (3, 4)) and '"label": "Remove"' in json.dumps(d['tabs'][0])
           and 'details:view:/display/board-details?board={board}' in json.dumps(d['tabs'][1]) and '/pins?' in json.dumps(d['tabs'][1])
           and '"picker-button"' in json.dumps(d['tabs'][1]) and '/nets?' in json.dumps(d['tabs'][1]), [t['key'] for t in d['tabs']])

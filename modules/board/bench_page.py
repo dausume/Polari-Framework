@@ -113,6 +113,28 @@ def _add_breadboard_tab():
     ], description='The breadboard selection panel.')
 
 
+def _parts_tab():
+    """drv-1: drivers, loads and modules as Boards on the Bench - the catalogue (Add to bench) and the drive fixes for this bench's findings."""
+    return _tab('parts', 'Drivers and parts', [
+        _row(0, [_table('bench-parts', 0, 12, 'Drivers, loads and modules - pick one to add', '', data_path='/api/board/parts',
+                        description='What this is for: fixing drive. A driver sits between a pin that cannot give enough (current, or voltage) and what it '
+                                    'drives. One row per part: kind, its pins, and its contract - what an input needs to turn on and draws, what an output '
+                                    'can sink and source, its budget - each number from its datasheet (source) or said as custom. Press Add to bench: it '
+                                    'becomes a Board with its own footholds; mount it onto a breadboard or PCB by position (POST /api/board/benches/'
+                                    '{bench}/mount) or wire it. Define your own mini board with POST /api/board/parts.',
+                        columns='name,kind,part_number,package,pins,contract,origin,document', max_height=320,
+                        row_action={'label': 'Add to bench', 'method': 'POST', 'path': '/api/board/benches/%s/parts' % BENCH,
+                                    'body_template': {'part': '{name}'}})], min_height=220),
+        _row(1, [_table('bench-drive-fixes', 0, 12, 'Drive problems on this bench and the parts that fix them', '',
+                        data_path='/api/board/benches/%s/drive-fixes' % BENCH, empty_text='No drive problem on this bench.',
+                        description='What this is for: what to put in place. One row per drive finding and candidate part: a net whose loads draw more '
+                                    'than its driving pin can give (drive-shortfall), a pin driven above what it takes (over-voltage), an input not driven '
+                                    'high enough to turn on (under-voltage) - and each catalogue part whose cited contract fixes it, with why. fits = the '
+                                    'part\'s input is reached by the driving pin too.',
+                        columns='net,finding,problem,part,kind,fits,why,source', max_height=360)], min_height=200),
+    ], description='Drivers and parts: the catalogue and the fixes for this bench\'s drive problems.')
+
+
 _BUDGET = '/api/benches/home-bench/budget'
 
 
@@ -156,5 +178,5 @@ BENCH_PAGES = [
                    min_height=200),
           ],
           title='The bench',
-          tabs=[_on_bench_tab(), _all_boards_tab(), _drawing_tab(), _add_board_tab(), _add_breadboard_tab(), _budget_tab()]),
+          tabs=[_on_bench_tab(), _all_boards_tab(), _drawing_tab(), _add_board_tab(), _add_breadboard_tab(), _parts_tab(), _budget_tab()]),
 ]

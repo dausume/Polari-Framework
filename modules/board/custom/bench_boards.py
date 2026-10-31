@@ -13,7 +13,7 @@ them together with the BenchBoard rows that name the bench (how a PCB joins) int
 from board.custom import bench as B
 from board.custom import footholds as FH
 
-KIND_OF = {'datasheet': 'dev-board', 'geometry': 'breadboard', 'layers': 'pcb'}
+KIND_OF = {'datasheet': 'dev-board', 'geometry': 'breadboard', 'layers': 'pcb', 'part': 'part'}   # drv-1: a driver / load / module
 
 
 def _rows(manager, cls):
@@ -53,7 +53,7 @@ def boards_on_bench(bench_name, manager=None):
     for bb in sorted(_rows(manager, 'BenchBoard'), key=lambda o: getattr(o, 'name', '')):
         if getattr(bb, 'bench', '') == bench_name and getattr(bb, 'definition_kind', '') in KIND_OF:
             add(bb.definition_kind, bb.definition, bb.label or bb.definition, 'BenchBoard:%s' % bb.name,
-                'simulated from its design (no hardware attached)' if bb.definition_kind == 'layers' else '', bb.name)
+                {'layers': 'simulated from its design (no hardware attached)', 'part': 'from its datasheet contract'}.get(bb.definition_kind, ''), bb.name)
     return out
 
 

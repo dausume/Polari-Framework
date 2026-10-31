@@ -29,15 +29,17 @@ design simulation view). One door shape for every definition kind, one row set p
                  (pcb.custom.thermal_transient: the plate FEM stepped in time + the datasheet's Foster Zth); ?h= ?t_end= ?ambient= knobs
       temperature-* / part-*   tmp-1 / tmp-2: the circuit at a temperature (board.custom.board_temperature: the whole board's, a sweep over a
                  rated range, each part's rated range and coefficients, then each part at its own temperature from the board over time)
+      esd-*      esd-0 / esd-1: ESD protection areas on any board and, on a PCB, the emulated events (board.custom.board_esd)
       runs       layers: the simulation runs kept for the PCB's schematic (SpiceRun, kxc-3b: pcb.custom.spice_runs), newest first; the chart reads one
 """
 import json
 
+from board.custom import board_esd as BE
 from board.custom import board_temperature as BT
 from board.custom import footholds as FH
 
 PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots',
-         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart') + BT.PARTS
+         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart') + BT.PARTS + BE.PARTS
 #: bob-3g: the parts that read the page's own query (the selected part, the knobs)
 _WITH_PARAMS = ('thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
@@ -167,7 +169,21 @@ SUMMARY = {'datasheet': 'a dev board known from its vendor documents: the pinout
            'geometry': 'a breadboard known from its counts: numbered strips of 5 + 5 holes split by the centre trench, power rails, the 2.54 mm pitch - '
                        'the holes and which are joined are DERIVED, nothing is drawn by hand',
            'layers': 'a PCB known from its design files (a KiCad import): every file kept, every element accounted for (Coverage), the schematic\'s own '
-                     'nets (Polari\'s, checked against KiCad), the placed parts with their simulation fields, the copper / mask / silk layers'}
+                     'nets (Polari\'s, checked against KiCad), the placed parts with their simulation fields, the copper / mask / silk layers',
+           'part': 'a single part or small module - a driver, a load, a breakout - known from its datasheet (or a person\'s definition): its pins with '
+                   'their roles and positions from the package drawing, and its drive contract (what an input needs and draws, what an output can '
+                   'sink and source, its budgets and ratings), every number cited or said as custom'}
+
+
+def _part(definition, which, manager):
+    """drv-1: a PartBoard's pins (its 'parts' part) - every other definition-level part is none."""
+    from board.custom import part_boards as PB
+    r = PB.part(definition, manager)
+    if r is None or which != 'parts':
+        return None if r is not None else []
+    return [{'ref': str(p['number']), 'unit': p.get('channel', 0), 'value': p.get('name', ''), 'role': p['role'], 'lib_id': r['part_number'],
+             'kicad_part': r['package'], 'footprint': r['package'], 'sheet': '', 'sim_device': '', 'sim_type': '', 'sim_params': '', 'sim_library': '',
+             'dnp': '', 'undetermined': r['contract'] if p['role'] in ('in', 'out') else ''} for p in json.loads(r['pins_json'] or '[]')]
 
 
 def _num(params, key, default, lo, hi):
@@ -200,6 +216,8 @@ def part(kind, definition, which, manager=None, params=None):
         return [], 'no definition kind %r - %s' % (kind, ' | '.join(FH.KINDS))
     if which not in PARTS:
         return [], 'no part %r - %s' % (which, ' | '.join(PARTS))
+    if which in BE.PARTS:
+        return BE.esd(kind, definition, which, manager, params)
     if which in BT.PARTS:
         return BT.temperature(definition, which, manager, params) if kind == 'layers' else ([], 'only a PCB (a layers board) has %s' % which)
     if which in _WITH_PARAMS:
@@ -212,7 +230,7 @@ def part(kind, definition, which, manager=None, params=None):
         return [{'board': '%s/%s' % (kind, definition), 'defined_by': SUMMARY[kind], 'footholds': len(rows) if rows else -1,
                  'nodes': len({r['node'] for r in rows}) if rows else -1, 'footholds_note': why,
                  'nets': tabs['nets'], 'parts': tabs['parts'], 'layers': tabs['layers'], 'coverage_rows': tabs['coverage'], 'pads': tabs['pads'], 'zones': tabs['zones']}], ''
-    rows = {'datasheet': _datasheet, 'geometry': _geometry, 'layers': _layers}[kind](definition, which, manager)
+    rows = {'datasheet': _datasheet, 'geometry': _geometry, 'layers': _layers, 'part': _part}[kind](definition, which, manager)
     if rows is None:
         return [], 'a %s board has no %s at its definition level' % (kind, which)
     return rows, '' if rows else 'nothing stored for %s/%s %s' % (kind, definition, which)

@@ -12,7 +12,8 @@ class SpiceRun(treeObject):
     are their own rows (`SpiceVector`, one per vector, naming this run), so a run row stays a summary.
     tmp-1 / tmp-2: the TEMPERATURE it ran at - `temp_c` the whole board's (ngspice's own 27 C when the deck set none: `temp_mode` 'default'),
     'board' when the deck set it (.temp), 'parts' when parts also had their own (`part_temps_json`, instance temp=); `sweep` names the
-    temperature sweep the run belongs to ('' for a single run).
+    temperature sweep the run belongs to ('' for a single run). esd-1: `event_json` - an ESD event run or its no-event baseline (which area, which
+    network at what level, when, into which net).
     A run can come from this host's libngspice, from a worker that has one (econ-core: KiCad 10.0.6's), or be a recorded reference (`source`).
     Related concepts: `SpiceVector` (the results), `KiCadArtifact` (the schematic and model files the deck includes), the single-Board view (its chart).
     """
@@ -24,7 +25,7 @@ class SpiceRun(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', board: str = '', ran_at: str = '', deck_sha256: str = '', plot: str = '', points: int = 0, engine: str = '',
                  source: str = 'local', host: str = '', ok: bool = False, refused: str = '', notes: str = '', temp_c: float = 27.0,
-                 temp_mode: str = 'default', part_temps_json: str = '{}', sweep: str = '', manager=None):
+                 temp_mode: str = 'default', part_temps_json: str = '{}', sweep: str = '', event_json: str = '', manager=None):
         self.name = name                # '<board>:<deck sha[:12]>:<ran_at>'
         self.board = board              # the ingested board (KiCadArtifact / SchematicSymbol board)
         self.ran_at = ran_at            # ISO-8601 UTC
@@ -41,3 +42,4 @@ class SpiceRun(treeObject):
         self.temp_mode = temp_mode      # default | board | parts
         self.part_temps_json = part_temps_json   # {ref: C} the parts given their own temperature (temp_mode 'parts')
         self.sweep = sweep              # the temperature sweep this run is one temperature of ('' = a single run)
+        self.event_json = event_json    # esd-1: {area, model, level_v, net, node, t_event, protected, role: event|baseline, baseline} ('' = no event)

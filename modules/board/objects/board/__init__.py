@@ -64,6 +64,8 @@ from board.objects.board.HardwareEnclosure import HardwareEnclosure  # noqa: F40
 from board.objects.board.EnclosureContact import EnclosureContact  # noqa: F401
 from board.objects.board.BoardFoothold import BoardFoothold  # noqa: F401
 from board.objects.board.BenchConnection import BenchConnection  # noqa: F401
+from board.objects.board.PartBoard import PartBoard  # noqa: F401
+from board.objects.board.EsdProtectionArea import EsdProtectionArea  # noqa: F401
 # hsp-1: Hardware System, links, signal paths (HARDWARE_SYSTEM_PINS_PLAN.md L6/L7)
 from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401
 from board.objects.board.SystemLink import SystemLink  # noqa: F401

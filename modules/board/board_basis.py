@@ -82,6 +82,8 @@ from board.objects.board.BenchInteraction import BenchInteraction  # noqa: F401 
 from board.objects.board.SimInstallConfirmation import SimInstallConfirmation  # noqa: F401   # ins-1: a person's tick that the sim does what the firmware says
 from board.objects.board.BoardFoothold import BoardFoothold  # noqa: F401   # bob-0: footholds of a Board on the Bench
 from board.objects.board.BenchConnection import BenchConnection  # noqa: F401   # bob-2: a wire / jumper / mating between two footholds
+from board.objects.board.PartBoard import PartBoard  # noqa: F401   # drv-0: a driver / load / module defined by its pins
+from board.objects.board.EsdProtectionArea import EsdProtectionArea  # noqa: F401   # esd-0: a piece flagged to survive ESD
 from board.objects.board.FirmwareStateObject import FirmwareStateObject  # noqa: F401   # fst-0: a firmware's state objects, derived
 from board.objects.board.FirmwareStateField import FirmwareStateField  # noqa: F401   # fst-0: their fields (readers / writers / direction)
 
@@ -112,4 +114,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  SimInstallConfirmation,   # ins-1: the confirmed-sim gate's tick (a person's record, never seeded)
                  FirmwareStateObject, FirmwareStateField,
                  BoardFoothold,   # bob-0
-                 BenchConnection]   # bob-2: connections between footholds of any two Boards on a Bench (observed, never seeded); bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)
+                 BenchConnection,
+                 PartBoard, EsdProtectionArea]   # esd-0: ESD protection areas on a definition (flagged by a person); drv-0: a driver / load / module defined by its pins (the cited seed + custom rows); bob-2: connections between footholds of any two Boards on a Bench (observed, never seeded); bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)

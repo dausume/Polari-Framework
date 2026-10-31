@@ -17,6 +17,8 @@ from board.register_view_api import RegisterViewAPI   # rm-3
 from board.profile_overlap_api import ProfileOverlapAPI   # pp-1
 from board.maintenance_api import MaintenanceAPI   # c3-derive: retire stored rows the code now derives
 from board.bench_nets_api import BenchNetsAPI   # bob-2: connections across boards + the bench's nets
+from board.esd_areas_api import EsdAreasAPI   # esd-0: ESD protection areas on a definition
+from board.bench_parts_api import BenchPartsAPI   # drv-1: parts as boards (drivers, loads, modules) + mounting by position
 from board.footholds_api import FootholdsAPI   # bob-0: /api/board/footholds/{kind}/{definition}
 from board.firmware_state_api import FirmwareStateAPI   # fst-1: /api/firmware-state/{config}[/fields|/enums|/findings|/live]
 from board.custom import light_confirm   # noqa: F401  fgm-6a: registers the LightStateV2 frame observer (command confirmation)
@@ -36,6 +38,8 @@ def construct_board_endpoints(polServer):
     api.profile_overlap = ProfileOverlapAPI(polServer=polServer, manager=polServer.manager)   # pp-1: /api/board/socs/{soc}/profile-overlap
     api.maintenance = MaintenanceAPI(polServer=polServer, manager=polServer.manager)   # c3-derive: /api/board/maintenance/retire-derived-rows
     api.bench_nets = BenchNetsAPI(polServer=polServer, manager=polServer.manager)   # bob-2
+    api.bench_parts = BenchPartsAPI(polServer=polServer, manager=polServer.manager)   # drv-1
+    api.esd_areas = EsdAreasAPI(polServer=polServer, manager=polServer.manager)   # esd-0
     api.footholds = FootholdsAPI(polServer=polServer, manager=polServer.manager)   # bob-0: the bench contract
     api.firmware_state = FirmwareStateAPI(polServer=polServer, manager=polServer.manager)   # fst-1: a firmware's state objects, derived
     return api

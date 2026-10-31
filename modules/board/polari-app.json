@@ -75,6 +75,8 @@
    "objects/board/AddressSpace",
    "objects/board/Bench",
    "objects/board/BenchConnection",
+   "objects/board/PartBoard",
+   "objects/board/EsdProtectionArea",
    "objects/board/BenchInteraction",
    "objects/board/BoardComponent",
    "objects/board/BoardConflict",
@@ -145,6 +147,8 @@
   "api": [
    "bench_api",
    "bench_nets_api",
+   "bench_parts_api",
+   "esd_areas_api",
    "board_api",
    "board_object_api",
    "board_twins_api",
@@ -176,7 +180,8 @@
    "pin_view_page",
    "profile_overlap_page",
    "register_profile_page",
-   "workbench_page"
+   "workbench_page",
+   "board_esd_page"
   ],
   "selftests": [
    "board_attach_selftest",
@@ -205,6 +210,7 @@
    "board_light_v2_selftest",
    "board_mapping_selftest",
    "board_object_selftest",
+   "board_part_boards_selftest",
    "board_pin_view_c3_selftest",
    "board_pin_view_candidate_selftest",
    "board_pin_view_modes_selftest",
@@ -384,7 +390,11 @@
    "custom/views/bare_c",
    "custom/views/esp_idf",
    "custom/views/kicad",
-   "custom/views/zephyr"
+   "custom/views/zephyr",
+   "custom/part_boards",
+   "custom/bench_mount",
+   "custom/esd_areas",
+   "custom/board_esd"
   ]
  },
  "classes": [
@@ -393,8 +403,12 @@
   "Bench",
   "BenchAPI",
   "BenchConnection",
+  "PartBoard",
+  "EsdProtectionArea",
   "BenchInteraction",
   "BenchNetsAPI",
+  "BenchPartsAPI",
+  "EsdAreasAPI",
   "BoardAPI",
   "BoardComponent",
   "BoardConflict",
@@ -542,6 +556,8 @@
     "FirmwareStateField",
     "BoardFoothold",
     "BenchConnection",
+    "PartBoard",
+    "EsdProtectionArea",
     "BOARD_CLASSES"
    ]
   ],

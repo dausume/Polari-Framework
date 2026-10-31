@@ -8,6 +8,7 @@ exactly as the solver returned them. The chart reads them back in long form (x, 
 
   store(manager, board, deck, result, source, host, ran_at=None, temperature=None) -> run name
       temperature (tmp-1 / tmp-2): {temp_c, mode: default|board|parts, part_temps: {ref: C}, sweep} - what the deck set; None = ngspice's 27 C
+      event (esd-1): an ESD event run / its baseline (pcb.custom.esd_events) - kept as event_json
   runs(manager, board)        one row per run, newest first
   vectors(manager, run)       one row per vector, without its values
   chart(manager, run, max_rows=2000) -> (status, {ok, rows: [{x, y, series}], x_vector, x_unit, stride, points})
@@ -52,7 +53,7 @@ def _save(manager, cls, row):
 DEFAULT_TEMP_C = 27.0   # ngspice's circuit temperature (and TNOM) when a deck sets none - the ngspice manual, .TEMP / .OPTIONS TEMP
 
 
-def store(manager, board, deck, result, source='local', host='', ran_at=None, temperature=None):
+def store(manager, board, deck, result, source='local', host='', ran_at=None, temperature=None, event=None):
     """Keep one run. A refusal is kept too (ok False, the reason in words, no vectors) so a person sees the attempt."""
     t = temperature or {}
     ran_at = ran_at or datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
@@ -67,7 +68,8 @@ def store(manager, board, deck, result, source='local', host='', ran_at=None, te
                                 'notes': result.get('note', ''),
                                 'temp_c': float(t['temp_c']) if t.get('temp_c') is not None else DEFAULT_TEMP_C,
                                 'temp_mode': t.get('mode') or ('board' if t.get('temp_c') is not None else 'default'),
-                                'part_temps_json': json.dumps(t.get('part_temps') or {}, sort_keys=True), 'sweep': t.get('sweep', '')})
+                                'part_temps_json': json.dumps(t.get('part_temps') or {}, sort_keys=True), 'sweep': t.get('sweep', ''),
+                                'event_json': json.dumps(event, sort_keys=True) if event else ''})
     for vn, v in (vecs.items() if ok else []):
         vals = v.get('real') if 'real' in v else v.get('mag', [])
         _save(manager, 'SpiceVector', {'name': '%s:%s' % (name, vn), 'run': name, 'vector': vn, 'role': 'scale' if vn.lower() in SCALES else 'value',
@@ -82,9 +84,17 @@ def runs(manager, board):
     n = {}
     for v in _table(manager, 'SpiceVector'):
         n[v['run']] = n.get(v['run'], 0) + 1
-    return [dict(r, vectors=n.get(r['name'], 0), status='ran' if r['ok'] else 'REFUSED - %s' % r['refused'], temperature=_temp_words(r),
+    return [dict(r, vectors=n.get(r['name'], 0), status='ran' if r['ok'] else 'REFUSED - %s' % r['refused'], temperature=_temp_words(r), event=_event_words(r),
                  analysis={'tran': 'transient', 'ac': 'AC sweep', 'op': 'operating point', 'dc': 'DC sweep'}.get(r['plot'].rstrip('0123456789'), r['plot']))
             for r in sorted(rows, key=lambda r: r['ran_at'], reverse=True)]
+
+
+def _event_words(r):
+    ev = json.loads(r.get('event_json') or '{}')
+    if not ev:
+        return ''
+    return ('ESD %s %g V into %s at %g s' % (ev['model'], ev['level_v'], ev['net'], ev['t_event']) if ev.get('role') == 'event' else
+            'no-event baseline for an ESD run (%s into %s)' % (ev['model'], ev['net']))
 
 
 def _temp_words(r):

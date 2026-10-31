@@ -16,7 +16,8 @@ class BoardFoothold(treeObject):
     stays at the definition level. Drive: `rail_volts` (a supply foothold's voltage), `logic_volts` (the chip pin's logic level), `source_ma` /
     `sink_ma` (the limit, with `drive_basis` saying whether it is a maximum or a typical value); -1 = undetermined. Signal: `families_json` (the pin
     view's families: gpio, uart, analog ...), `chip_pin` (the SoC pin behind it, '' when none), `direction` (in | out | inout | passive | supply |
-    undetermined). Every number names its source in `drive_basis` / `signal_basis` or is said in `undetermined`.
+    undetermined). drv-1: `draw_ma` what it draws when driven, `on_volts` the level that turns an input on, `max_volts` its absolute maximum
+    (the net checks drive-shortfall / under-voltage / over-voltage read them; -1 = not given). Every number names its source in `drive_basis` / `signal_basis` or is said in `undetermined`.
     Related concepts: `BenchBoard` (a Board on the Bench, which names a definition), `BoardPin` (the chip-facing pin of a datasheet board),
     `EnclosureContact` (the die -> package -> board chain behind a header pin).
     """
@@ -26,7 +27,7 @@ class BoardFoothold(treeObject):
                  x_mm: float = 0.0, y_mm: float = 0.0, position_basis: str = '', side: str = 'top', node: str = '', net: str = '',
                  rail_volts: float = -1.0, logic_volts: float = -1.0, source_ma: float = -1.0, sink_ma: float = -1.0, drive_basis: str = '',
                  families_json: str = '[]', chip_pin: str = '', direction: str = 'undetermined', signal_basis: str = '', undetermined: str = '',
-                 notes: str = '', manager=None):
+                 notes: str = '', draw_ma: float = -1.0, on_volts: float = -1.0, max_volts: float = -1.0, manager=None):
         self.name = name  # '<definition_kind>:<definition>:<foothold>'
         self.definition_kind = definition_kind  # datasheet | geometry | layers
         self.definition = definition  # the BoardDefinition / BoardModel / PcbBoard name
@@ -50,3 +51,6 @@ class BoardFoothold(treeObject):
         self.signal_basis = signal_basis
         self.undetermined = undetermined
         self.notes = notes
+        self.draw_ma = draw_ma  # drv-1: what this foothold DRAWS when driven (an input's current, a load's) - -1 = unknown
+        self.on_volts = on_volts  # drv-1: the voltage that turns this input on (a driver's V_I(on)) - -1 = not given
+        self.max_volts = max_volts  # drv-1: the absolute maximum voltage it takes - -1 = not given

@@ -11,6 +11,7 @@ kxc-4 brings the PCB geometry.
 """
 import json
 
+from board.board_esd_page import SEED_ESD_GRAPHS, esd_tab
 from board.board_temperature_page import SEED_TEMPERATURE_GRAPHS, part_temperature_tab, temperature_tab
 from polariApiServer.module_pages_seed import _page, _row, _tab, _table
 
@@ -72,7 +73,7 @@ SEED_BOARD_DETAILS_GRAPHS = [{
     'description': ('A PCB\'s temperature over time (bob-3g): the board\'s hottest point, the board under each powered part (the plate FEM stepped in time) '
                     'and, for a part with a datasheet thermal model, its junction (the datasheet\'s Foster Zth on top of the board under it). Data: '
                     'GET /api/board/details/layers/{board}/transient-chart.'),
-    'definition': json.dumps({'graphConfig': _transient_graph_config()})}] + SEED_TEMPERATURE_GRAPHS
+    'definition': json.dumps({'graphConfig': _transient_graph_config()})}] + SEED_TEMPERATURE_GRAPHS + SEED_ESD_GRAPHS
 
 
 def _simulation_tab():
@@ -239,5 +240,6 @@ BOARD_DETAILS_PAGES = [
                      'Thermal: power per part, the mean rise and where the heat sits.'),
                 _thermal_time_tab(),
                 temperature_tab(),
-                part_temperature_tab()]),
+                part_temperature_tab(),
+                esd_tab()]),
 ]
