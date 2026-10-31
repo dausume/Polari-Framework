@@ -469,6 +469,8 @@ def install_plan(entry):
                             '(pol modules get vpn)'}
         return vpn_install_plan(entry)
     if kind == 'hardware-app':
+        if entry.get('realization') == 'bridge':
+            return {'ok': False, 'steps': [], 'note': 'Hardware Bridge Apps require a Hardware Shell App and proven device bridging; automatic setup is not yet available. No VM is required.'}
         # hw-app-1: a KVM guest. The isle renders nothing itself — it asks
         # Polari for the domain XML + UCI profile rendered from the rows
         # (/api/hardwareapps/render/<name>) and drives libvirt through

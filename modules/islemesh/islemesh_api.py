@@ -679,10 +679,12 @@ class IsleMeshAPI(treeObject):
         for o in options:
             place = resolve_app_placement(
                 o['name'], o.pop('modules', []), placements)
+            o['installed_somewhere'] = bool(placements) and bool(place['satisfied']) and place['complete']
             o['placement'] = {'complete': place['complete'],
                               'missing': place['missing']}
             o['install_plan'] = option_install_plan(o)
         entries.extend(options)
+        entries.extend(self._bridge_catalog_entries())
         # ai-2 (decision 1): the DEDICATED AI section — every
         # AiToolDefinition projected as a derived category-'ai'
         # entry (hosting + sovereignty on the tile; the readiness
@@ -696,6 +698,30 @@ class IsleMeshAPI(treeObject):
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
                           'entries': entries}
+
+    def _bridge_catalog_entries(self):
+        # Manifest-owned Hardware Bridge Apps remain visible even when their
+        # Polari module is not enabled. Do not confuse them with engine workers.
+        from pathlib import Path
+        entries = []
+        for path in sorted(Path(__file__).resolve().parent.parent.glob('*/polari-app.json')):
+            try:
+                manifest = json.loads(path.read_text())
+            except (OSError, ValueError):
+                continue
+            app = manifest.get('app', {})
+            if app.get('kind') != 'hardware-app' or app.get('realization') != 'bridge':
+                continue
+            entries.append(dict(name=manifest['id'], title=manifest.get('title', manifest['id']),
+                description=manifest.get('description', ''), kind='hardware-app', realization='bridge',
+                source='module manifest', source_ref='polari-module:' + manifest['id'],
+                category='hardware', management_system='isle', requires_tier=app.get('agentTier', 'member'),
+                instances=self._instances_of(manifest['id']),
+                install_plan={'ok': False, 'steps': [], 'note':
+                    'Requires the Polari module ' + manifest['id'] +
+                    ' and a Hardware Shell App with proven USB/serial bridging on this device. '
+                    'Automatic bridge installation is not yet available; this is not a KVM install.'}))
+        return entries
 
     def _polari_placements(self):
         """Deployed polari instances (incl. the core), each with its
@@ -713,6 +739,10 @@ class IsleMeshAPI(treeObject):
                 row = candidate
                 break
         if row is None:
+            bridge = next((e for e in self._bridge_catalog_entries() if e['name'] == entry), None)
+            if bridge:
+                response.media = {'ok': True, 'entry': bridge}
+                return
             # sep-3: derived app options answer here too — same
             # detail shape, plan included.
             options = polari_app_options(
