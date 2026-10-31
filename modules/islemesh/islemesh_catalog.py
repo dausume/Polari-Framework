@@ -500,3 +500,14 @@ def install_plan(entry):
         ], 'note': 'installs the %s polari module' % mod}
     return {'ok': False, 'steps': [],
             'note': 'unknown catalog kind %r' % kind}
+
+# These deployed workers implement Polari runtime services. Their transport
+# remains mesh-app for the existing deploy engine; their management owner is Polari.
+POLARI_RUNTIME_COMPONENTS = frozenset({
+    'board-engines','bridge-engines','cad-engines','esp-engines','formal-engines',
+    'msci-engines','pcb-engines','scope-engines','cnt-engines','dask',
+})
+KVM_CATALOG_APPS = frozenset({'isle-guestnet','isle-relay','voron-printer'})
+
+def management_metadata(name, kind):
+    return {'management_system': 'polari' if kind == 'mesh-app' and name in POLARI_RUNTIME_COMPONENTS else 'isle'}

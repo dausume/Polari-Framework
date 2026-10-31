@@ -537,7 +537,11 @@ class IsleMeshAPI(treeObject):
     # ---- catalog (§20.1/§20.3) --------------------------------------
 
     def _entry_dict(self, row):
+        from .islemesh_catalog import management_metadata, KVM_CATALOG_APPS
+        name = getattr(row, 'name', '')
+        kind = getattr(row, 'kind', '')
         return {
+            **management_metadata(name, kind),
             'name': getattr(row, 'name', ''),
             'title': getattr(row, 'title', ''),
             'description': getattr(row, 'description', ''),
@@ -547,7 +551,7 @@ class IsleMeshAPI(treeObject):
             'port': getattr(row, 'port', 0),
             'domain': getattr(row, 'domain', ''),
             'provides_engine': getattr(row, 'provides_engine', ''),
-            'realization': getattr(row, 'realization', ''),
+            'realization': getattr(row, 'realization', '') or ('kvm' if kind == 'hardware-app' and name in KVM_CATALOG_APPS else ''),
             'requires_tier': getattr(row, 'requires_tier', ''),  # hw-app-1: hardware kinds need the hardware tier
             'extends': getattr(row, 'extends', ''),
             'category': getattr(row, 'category', ''),
@@ -939,8 +943,13 @@ class IsleMeshAPI(treeObject):
                               'is_mock': getattr(row, 'is_mock',
                                                  False)})
             if getattr(row, 'router_running', False):
+                try:
+                    hardware = json.loads(getattr(row, 'capability_evidence_json', '{}') or '{}').get('facts', {}).get('hardware.openwrt.running', {})
+                except (ValueError, AttributeError):
+                    hardware = {}
+                router_label = ('OpenWrt — Hardware App (KVM)' if hardware.get('status') == 'observed' and hardware.get('value') is True else 'OpenWRT router (.isle DNS)')
                 add_node('router:%s' % name, 'router',
-                         'OpenWRT router (.isle DNS)', device=name,
+                         router_label, device=name,
                          is_mock=getattr(row, 'is_mock', False))
                 links.append({'source': 'device:%s' % name,
                               'target': 'router:%s' % name,
