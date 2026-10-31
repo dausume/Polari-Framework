@@ -50,11 +50,27 @@ def _run_graph_config():
             'aggregation': {'enabled': False, 'strategy': 'average'}}
 
 
+#: bob-3g: the board over time - long form (x = time s, y = rise K, series = the hottest point, each part's board under it, each part's junction)
+TRANSIENT_GRAPH = 'pcb-thermal-transient'
+
+
+def _transient_graph_config():
+    return {'renderStyle': 'lineY', 'xDimension': 'x', 'yDimensions': ['y'], 'seriesDimension': 'series', 'seriesColors': [],
+            'options': {'width': 900, 'height': 360, 'marginTop': 20, 'marginRight': 30, 'marginBottom': 40, 'marginLeft': 70, 'showLegend': True, 'showGrid': True,
+                        'xLabel': 'time since the powers were switched on (s)', 'yLabel': 'rise above ambient (K)'},
+            'aggregation': {'enabled': False, 'strategy': 'average'}}
+
+
 SEED_BOARD_DETAILS_GRAPHS = [{
     'name': RUN_GRAPH, 'source_class': 'SpiceVector',
     'description': ('One simulation run of a PCB\'s schematic: every result vector against the run\'s scale, values exactly as ngspice returned them (thinned by '
                     'a plain stride for the screen - every drawn point is a solver point). Data: GET /api/pcb/runs/{run}/chart.'),
-    'definition': json.dumps({'graphConfig': _run_graph_config()})}]
+    'definition': json.dumps({'graphConfig': _run_graph_config()})}, {
+    'name': TRANSIENT_GRAPH, 'source_class': 'PartThermalModel',
+    'description': ('A PCB\'s temperature over time (bob-3g): the board\'s hottest point, the board under each powered part (the plate FEM stepped in time) '
+                    'and, for a part with a datasheet thermal model, its junction (the datasheet\'s Foster Zth on top of the board under it). Data: '
+                    'GET /api/board/details/layers/{board}/transient-chart.'),
+    'definition': json.dumps({'graphConfig': _transient_graph_config()})}]
 
 
 def _simulation_tab():
@@ -81,6 +97,57 @@ def _simulation_tab():
                   'componentProps': {'componentName': 'named-graph-panel', 'inputs': {'graphName': RUN_GRAPH, 'dataPath': '/api/pcb/runs/{scope:run}/chart?max=2000'}},
                   'item': None, 'nestedRows': []}], min_height=420)],
         'For a PCB from KiCad: the simulation runs kept, their vectors and the chart of one run.')
+
+
+_INPUT_DOOR = '/api/pcb/{board}/thermal-inputs/{ref}/{quantity}'
+
+
+def _thermal_time_tab():
+    """bob-3g: what a person gives (power per part, how it is switched, the part's datasheet thermal behaviour) and the board over time."""
+    return _tab('thermal-time', 'Thermal over time', [
+        _row(0, [_table('bd-thermal-parts', 0, 12, 'Parts of {scope:board} - click one to give its power or its datasheet numbers', '',
+                        data_path='%s/thermal-parts?rev=r{scope:rev}' % DOOR, select_field='ref', select_scope='part', selected_value='{scope:part}',
+                        empty_text='Only a PCB with a layout has this.',
+                        description='What this is for: which power each part puts into the board, and where that figure comes from. run_w is the part\'s '
+                                    'average in the newest finished run (-1 = not in a run); given_w the figure a person typed in (-1 = none), which wins; '
+                                    'used_w / used_from what the thermal views use. datasheet_model names the part\'s datasheet thermal behaviour when it '
+                                    'has one, with its junction-to-board Rth and Tj max (-1 = not given). Click a part to edit its numbers below.',
+                        columns='ref,value,run_w,given_w,on_s,period_s,used_w,used_from,datasheet_model,rth_j_board_k_w,tj_max_c', max_height=320)],
+             min_height=220),
+        _row(1, [_table('bd-thermal-inputs', 0, 12, 'Numbers for part {scope:part} - type a value and press Enter', '',
+                        data_path='%s/thermal-inputs?ref={scope:part}&rev=r{scope:rev}' % DOOR, empty_text='Click a part above.',
+                        edit_fields='value', edit_action={'method': 'PUT', 'path': _INPUT_DOOR, 'body_template': {'value': '{value}'}},
+                        row_action={'label': 'Clear', 'method': 'DELETE', 'path': _INPUT_DOOR, 'show_when_field': 'given'},
+                        description='What this is for: telling Polari what a black-box part does. Power: its watts while on, and how it is switched - on '
+                                    'the whole time (on_s 0), one pulse (on_s, period_s 0) or on for on_s every period_s. Datasheet: the transient thermal '
+                                    'impedance from the junction to the board as the datasheet\'s Foster pairs - stage i is R_i (K/W) and tau_i (s), '
+                                    'Zth(t) = sum R_i (1 - e^(-t/tau_i)); a stage with R 0 adds nothing. Tj max and the datasheet\'s junction-to-ambient '
+                                    'Rth (its own test board: shown for comparison, never added). Clear puts a number back to not given. To keep the '
+                                    'document and page it came from, post the model with its citation (POST /api/pcb/<board>/thermal-models/<ref>).',
+                        columns='quantity,value,unit,meaning,given,origin', max_height=520)], min_height=260),
+        _row(2, [_table('bd-transient', 0, 12, 'The board over time', '', data_path='%s/transient?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only a PCB with a layout and a powered part has this.',
+                        description='What this is for: how fast the board warms up and how hot it gets, not just where it settles. The board solved as a '
+                                    'thin plate in time (finite elements, backward Euler) with the heat capacity of its FR-4 and copper; the run lasts long '
+                                    'enough to settle (t_end_s) unless a pulse is longer. peak_rise_c / peak_at_s: the hottest point and when; '
+                                    'steady_max_rise_c: where it would settle with every part on; balance_error: energy in = stored + lost, a check.',
+                        columns='source,t_end_s,peak_rise_c,peak_at_s,final_max_rise_c,steady_max_rise_c,plate_time_constant_s,steps,balance_error,'
+                                'parts_placed,parts_unplaced,basis', max_height=220)], min_height=160),
+        _row(3, [_table('bd-junctions', 0, 12, 'Each powered part over time', '', data_path='%s/junctions?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only a PCB with a layout and a powered part has this.',
+                        description='What this is for: whether a black-box part stays inside its limits. The board under each part (its peak and when) '
+                                    'and, for a part with a datasheet thermal model, its junction: the board under it plus the datasheet\'s Zth driven by '
+                                    'the part\'s own power over time. tj_peak_c is at a 25 C room (a knob); margin_c = Tj max - tj_peak_c; '
+                                    'datasheet_ja_rise_c is the datasheet\'s own steady figure on its test board, for comparison.',
+                        columns='ref,power_w,on_s,period_s,from,board_peak_rise_c,board_peak_at_s,junction_peak_rise_c,junction_peak_at_s,tj_peak_c,'
+                                'tj_max_c,margin_c,datasheet_ja_rise_c,model,basis', max_height=320)], min_height=200),
+        _row(4, [{'id': 'bd-transient-chart', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'Temperature rise over time',
+                  'description': 'The board\'s hottest point, the board under each powered part and each modelled part\'s junction, against time.',
+                  'visible': True, 'collapsed': False, 'cssClass': '',
+                  'componentProps': {'componentName': 'named-graph-panel',
+                                     'inputs': {'graphName': TRANSIENT_GRAPH, 'dataPath': '%s/transient-chart?rev=r{scope:rev}' % DOOR}},
+                  'item': None, 'nestedRows': []}], min_height=420)],
+        'Thermal over time: give a part its power and its datasheet thermal behaviour, and see the board and each junction warm up.')
 
 
 BOARD_DETAILS_PAGES = [
@@ -135,25 +202,29 @@ BOARD_DETAILS_PAGES = [
                      'Net classes and custom rules.'),
                 _simulation_tab(),
                 _tab('thermal', 'Thermal', [
-                    _row(0, [_table('bd-thermal', 0, 12, 'Thermal estimate of {scope:board}', '', data_path='%s/thermal' % DOOR, empty_text='Only a PCB with a kept run has this.',
+                    _row(0, [_table('bd-thermal', 0, 12, 'Thermal estimate of {scope:board}', '', data_path='%s/thermal?rev=r{scope:rev}' % DOOR, empty_text='Only a PCB with a kept run has this.',
                                     description='What this is for: how warm the board runs on average. From the newest finished transient run: the power the parts '
                                                 'take, what the sources deliver (the difference is the parts whose current the run does not hold), and the mean rise '
                                                 'dT = P / (h x 2A) of a plate losing heat from both faces - h is a knob inside the textbook range for still air (2-25 '
                                                 'W/m2K). Radiation and the mounting are left out: a first-order mean, not a hot-spot map.',
                                     columns='run,dissipated_w,delivered_w,unaccounted_w,parts_undetermined,area_mm2,h_w_m2k,delta_t_c,basis', max_height=200)], min_height=160),
-                    _row(1, [_table('bd-dissipation', 0, 12, 'Power per part', '', data_path='%s/dissipation' % DOOR, empty_text='Only a PCB with a kept transient run has this.',
+                    _row(1, [_table('bd-dissipation', 0, 12, 'Power per part', '', data_path='%s/dissipation?rev=r{scope:rev}' % DOOR, empty_text='Only a PCB with a kept transient run has this.',
                                     description='What this is for: where the heat comes from. Each part\'s average and peak power in the run - resistors by Ohm\'s law '
                                                 'on their node voltages, sources by what they deliver, ideal capacitors and inductors 0 W on average; a part whose '
                                                 'current the run does not hold says so.', columns='ref,kind,value,nodes,avg_w,peak_w,basis', max_height=400)], min_height=220),
-                    _row(2, [_table('bd-spreading', 0, 12, 'Where the heat sits', '', data_path='%s/spreading' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
+                    _row(2, [_table('bd-spreading', 0, 12, 'Where the heat sits', '', data_path='%s/spreading?rev=r{scope:rev}' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
                                     description='What this is for: the hottest point, not just the average. The board solved as a thin plate by the finite-element '
                                                 'engine: heat enters at each part\'s pads, spreads through the FR-4 and the copper pours, and leaves through both faces. '
-                                                'The mean rise agrees with the estimate above by energy balance; tracks and pads are not counted, so peaks read high.',
+                                                'The mean rise agrees with the estimate above by energy balance. Tracks and pads count as copper too. A power typed in on the '
+                                                'Thermal over time tab replaces the run\'s figure for that part (a pulsed part counts at its average).',
                                     columns='source,max_rise_c,mean_rise_c,lumped_mean_rise_c,placed_w,parts_placed,parts_unplaced,zones,spreading_length_mm,'
                                             'balance_error,dofs,basis', max_height=200)], min_height=160),
-                    _row(3, [_table('bd-hotspots', 0, 12, 'Hot spots per part', '', data_path='%s/hotspots' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
-                                    description='What this is for: which part runs hottest. Each placed part\'s peak and mean rise over its own pads, hottest first.',
-                                    columns='ref,power_w,peak_rise_c,mean_rise_c,x_mm,y_mm,basis', max_height=300)], min_height=180),
+                    _row(3, [_table('bd-hotspots', 0, 12, 'Hot spots per part', '', data_path='%s/hotspots?rev=r{scope:rev}' % DOOR, empty_text='Only a PCB with a layout and a kept run has this.',
+                                    description='What this is for: which part runs hottest. Each placed part\'s peak and mean rise over its own pads, hottest first. '
+                                                'A part with a datasheet thermal model also shows its junction: the board under it plus power x its '
+                                                'junction-to-board Rth, Tj at a 25 C room (a knob) against the datasheet\'s Tj max, and the datasheet\'s own '
+                                                'junction-to-ambient figure beside it (measured on the datasheet\'s test board, so for comparison only).',
+                                    columns='ref,power_w,peak_rise_c,mean_rise_c,junction_rise_c,tj_c,tj_max_c,datasheet_ja_rise_c,x_mm,y_mm,basis', max_height=300)], min_height=180),
                     # bob-3f: the board drawn with its temperature-rise field under the pads (the one sanctioned drawing component, board = pcb:<board>)
                     _row(4, [{'id': 'bd-thermal-map', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None, 'title': 'The board, warm where it is warm',
                               'description': 'What this is for: seeing WHERE the heat is. The board in its own outline with every pad; the shading is the temperature rise '
@@ -162,5 +233,6 @@ BOARD_DETAILS_PAGES = [
                               'visible': True, 'collapsed': False, 'cssClass': '',
                               'componentProps': {'componentName': 'hardware-pin-view', 'inputs': {'board': 'pcb:{scope:board}', 'system': '', 'binding': '', 'stage': 'base'}},
                               'item': None, 'nestedRows': []}], min_height=560)],
-                     'Thermal: power per part, the mean rise and where the heat sits.')]),
+                     'Thermal: power per part, the mean rise and where the heat sits.'),
+                _thermal_time_tab()]),
 ]

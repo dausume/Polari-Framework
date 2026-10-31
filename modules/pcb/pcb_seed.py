@@ -9,7 +9,8 @@ design someone made, not a fact about the world.
 """
 from pcb.pcb_basis import FabRuleSet, FabRule, Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, \
     Placement, Route, DrcResult, FabricationExport, KiCadArtifact, KiCadCoverage, SchematicSymbol, SchematicNet, NetEndpoint, \
-    PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics, SpiceRun, SpiceVector
+    PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics, SpiceRun, SpiceVector, \
+    PartPowerInput, PartThermalModel
 from pcb.custom import fab_rules as FR
 
 
@@ -45,4 +46,5 @@ PCB_SEED_PAIRS = [
     ('PcbDesignRule', PcbDesignRule, []),
     ('PcbLayerGraphics', PcbLayerGraphics, []),
     ('SpiceRun', SpiceRun, []), ('SpiceVector', SpiceVector, []),   # kxc-3b: runs are observed, never seeded
+    ('PartPowerInput', PartPowerInput, []), ('PartThermalModel', PartThermalModel, []),   # bob-3g: given by a person, never seeded
 ]

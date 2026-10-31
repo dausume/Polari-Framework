@@ -25,3 +25,5 @@ from pcb.objects.pcb.PcbDesignRule import PcbDesignRule  # noqa: F401
 from pcb.objects.pcb.PcbLayerGraphics import PcbLayerGraphics  # noqa: F401
 from pcb.objects.pcb.SpiceRun import SpiceRun  # noqa: F401
 from pcb.objects.pcb.SpiceVector import SpiceVector  # noqa: F401
+from pcb.objects.pcb.PartPowerInput import PartPowerInput  # noqa: F401
+from pcb.objects.pcb.PartThermalModel import PartThermalModel  # noqa: F401

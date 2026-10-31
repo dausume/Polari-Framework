@@ -24,9 +24,9 @@ def check(label, cond, extra=''):
 def classes():
     from pcb.pcb_basis import PCB_CLASSES
     from pcb.pcb_seed import PCB_SEED_PAIRS
-    check('twenty-six row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
+    check('twenty-eight row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
           'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol; kxc-2: SchematicNet, NetEndpoint; '
-          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector)', len(PCB_CLASSES) == 26)
+          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector; bob-3g: PartPowerInput, PartThermalModel)', len(PCB_CLASSES) == 28)
     check('only the fab rules are code-owned seed rows; every design class seeds empty (observed, not asserted)',
           {n for n, _, rows in PCB_SEED_PAIRS if rows} == {'FabRuleSet', 'FabRule'}
           and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in ('FabRuleSet', 'FabRule')))
@@ -256,6 +256,12 @@ def main():
     run_board_spread(check)
     run_outline_and_tracks(check)
     run_pcb_scene(check)
+    from pcb.pcb_thermal_transient_selftest import run_transient_engine, run_foster, run_inputs, run_board_over_time, run_doors   # bob-3g: over time
+    run_transient_engine(check)
+    run_foster(check)
+    run_inputs(check)
+    run_board_over_time(check)
+    run_doors(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

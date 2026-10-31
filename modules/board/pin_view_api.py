@@ -7,6 +7,8 @@ GET /api/board/{board}/pin-view?system=&binding=&mission=&stage=&phase=&protocol
 GET /api/board/{board}/pin-view/pins          flat rows for a configured table (same filters; + level= surface= kind=)
 GET /api/board/{board}/pin-view/connections   flat rows: both ends, kind, via, the Drive / Signal / Use summaries
 GET /api/board/{board}/pin-view/surfaces      flat rows: pin counts by stage
+GET /api/board/pcb:{kind}/{definition}/pin-view   bob-3g: one PCB by its Board Details id ('pcb:layers/ecc83' - the page's board scope holds a slash, which a
+                                              single path field can never carry: the client encodes it, the server decodes it before routing)
 
 stage ∈ base | after-init | tasks-assigned | firmware-committed; protocol ∈ a family (gpio interrupt pwm-timer analog uart spi i2c usb clock reset-programming power ground) — a set
 (spi, i2c, uart, usb) expands to its child signals. A bad parameter is 400, an unknown board or system 404.
@@ -27,6 +29,7 @@ class PinViewAPI(treeObject):
             add('/api/board/{board}/pin-view/pins', self, suffix='pins')
             add('/api/board/{board}/pin-view/connections', self, suffix='connections')
             add('/api/board/{board}/pin-view/surfaces', self, suffix='surfaces')
+            add('/api/board/pcb:{kind}/{definition}/pin-view', self, suffix='pcb_view')
 
     def _serve(self, request, response, board, which):
         from board.custom import pin_view as PV
@@ -37,6 +40,13 @@ class PinViewAPI(treeObject):
     def on_get_view(self, request, response, board):
         """pv-0: the composed pin view."""
         self._serve(request, response, board, '')
+
+    def on_get_pcb_view(self, request, response, kind, definition):
+        """bob-3g: a PCB named by its Board Details id (<definition kind>/<definition>) - only a layers definition is a PCB."""
+        if kind != 'layers':
+            response.status, response.media = falcon.HTTP_404, {'ok': False, 'error': 'a %s board is not a PCB (only a layers definition is)' % kind}
+            return
+        self._serve(request, response, 'pcb:%s' % definition, '')
 
     def on_get_pins(self, request, response, board):
         """pv-0: every pin at every level, one row each."""

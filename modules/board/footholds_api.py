@@ -10,7 +10,8 @@ GET /api/board/benches/{bench}/all-boards       bob-1: ONE list of the Boards on
                                                definition, foothold summary and Board Details route (board.custom.bench_boards)
 POST /api/board/benches/{bench}/pcbs            bob-1: {pcb, label?, note?} put an ingested PCB on the bench
 GET /api/board/details/{kind}/{definition}/{part}  bob-3: one part of the Board Details (summary | footholds | nets | parts | layers | coverage),
-                                               board.custom.board_details - the doors of /display/board-details
+                                               board.custom.board_details - the doors of /display/board-details; query parameters ride along
+                                               (bob-3g: thermal-inputs?ref=<part>, transient?h=&t_end=&ambient=)
 
 A refusal (an unknown kind, no such board, a model with no geometry) answers {ok: false, error: <plain words>} with 404.
 """
@@ -75,6 +76,6 @@ class FootholdsAPI(treeObject):
 
     def on_get_details(self, request, response, kind, definition, part):
         from board.custom import board_details as BD
-        rows, why = BD.part(kind, definition, part, self.manager)
+        rows, why = BD.part(kind, definition, part, self.manager, params=request.params)
         # an empty part is an answer, not an error: the page shows the words (a breadboard has no layers)
         response.media = {'ok': True, 'board': '%s/%s' % (kind, definition), 'part': part, 'rows': rows, 'count': len(rows), 'note': why}

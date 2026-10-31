@@ -23,13 +23,20 @@ design simulation view). One door shape for every definition kind, one row set p
       dissipation layers: each part's average / peak power in that run (Ohm's law on the node voltages; sources from their branch current)
       spreading  layers: bob-3d, where the heat sits - the board as a thin plate in the FEM engine (pcb.custom.thermal_spread): peak and mean rise
       hotspots   layers: each placed part's peak / mean rise in that solve, hottest first
+      thermal-parts   bob-3g: one row per placed part - the run's power, the power a person gave (PartPowerInput), which is used, its datasheet model
+      thermal-inputs  bob-3g: ?ref=<part> - every number a person can give that part, one row each (power, on / period, Foster stages, Tj max)
+      transient / junctions / transient-chart   bob-3g: the board over time and each black-box part's junction on top of it
+                 (pcb.custom.thermal_transient: the plate FEM stepped in time + the datasheet's Foster Zth); ?h= ?t_end= ?ambient= knobs
       runs       layers: the simulation runs kept for the PCB's schematic (SpiceRun, kxc-3b: pcb.custom.spice_runs), newest first; the chart reads one
 """
 import json
 
 from board.custom import footholds as FH
 
-PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots')
+PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots',
+         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
+#: bob-3g: the parts that read the page's own query (the selected part, the knobs)
+_WITH_PARAMS = ('thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
 COPPER_OHM_M = 1.0 / 58 * 1e-6
 COPPER_CITE = 'IEC 60028 International Annealed Copper Standard: 1/58 ohm mm2/m = 1.7241e-8 ohm m at 20 C'
@@ -160,11 +167,38 @@ SUMMARY = {'datasheet': 'a dev board known from its vendor documents: the pinout
                      'nets (Polari\'s, checked against KiCad), the placed parts with their simulation fields, the copper / mask / silk layers'}
 
 
-def part(kind, definition, which, manager=None):
+def _num(params, key, default, lo, hi):
+    try:
+        v = float((params or {}).get(key) or default)
+    except (TypeError, ValueError):
+        return default
+    return v if lo < v <= hi else default
+
+
+def thermal_time(definition, which, manager, params):
+    """bob-3g: the given inputs and the board over time (pcb.custom.thermal_inputs / thermal_transient) - (rows, why)."""
+    from pcb.custom import thermal_inputs as TI
+    if which == 'thermal-parts':
+        return TI.parts(manager, definition), ''
+    if which == 'thermal-inputs':
+        ref = (params or {}).get('ref') or ''
+        return (TI.quantities(manager, definition, ref), '') if ref else ([], 'pick a part (its ref) first')
+    from pcb.custom import thermal_spread as TS
+    from pcb.custom import thermal_transient as TT
+    summary, junctions, chart, why = TT.transient(manager, definition, h=_num(params, 'h', TS.H_FREE_AIR, 0, 1000),
+                                                  t_end=_num(params, 't_end', 0, 0, TT.T_END_MAX) or None, ambient_c=_num(params, 'ambient', TS.AMBIENT_C, -60, 200))
+    if why:
+        return ([{'board': definition, 'basis': why, 'peak_rise_c': -1.0}] if which == 'transient' else []), why
+    return {'transient': [summary], 'junctions': junctions, 'transient-chart': chart}[which], ''
+
+
+def part(kind, definition, which, manager=None, params=None):
     if kind not in FH.KINDS:
         return [], 'no definition kind %r - %s' % (kind, ' | '.join(FH.KINDS))
     if which not in PARTS:
         return [], 'no part %r - %s' % (which, ' | '.join(PARTS))
+    if which in _WITH_PARAMS:
+        return thermal_time(definition, which, manager, params) if kind == 'layers' else ([], 'only a PCB (a layers board) has %s' % which)
     if which == 'footholds':
         return FH.for_definition(kind, definition, manager=manager)
     if which == 'summary':

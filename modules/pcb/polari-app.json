@@ -70,14 +70,17 @@
    "objects/pcb/SchematicNet",
    "objects/pcb/SchematicSheet",
    "objects/pcb/SchematicSymbol",
-   "objects/pcb/Symbol"
+   "objects/pcb/Symbol",
+   "objects/pcb/PartPowerInput",
+   "objects/pcb/PartThermalModel"
   ],
   "basis": [
    "pcb_basis"
   ],
   "api": [
    "pcb_api",
-   "pcb_sim_api"
+   "pcb_sim_api",
+   "pcb_thermal_api"
   ],
   "endpoints": [
    "pcb_endpoints"
@@ -95,7 +98,8 @@
    "pcb_kicad_geometry_selftest",
    "pcb_kicad_spice_selftest",
    "pcb_selftest",
-   "pcb_thermal_spread_selftest"
+   "pcb_thermal_spread_selftest",
+   "pcb_thermal_transient_selftest"
   ],
   "custom": [
    "custom/bench_export",
@@ -115,7 +119,9 @@
    "custom/sexpr",
    "custom/uno_shield",
    "custom/thermal",
-   "custom/thermal_spread"
+   "custom/thermal_spread",
+   "custom/thermal_inputs",
+   "custom/thermal_transient"
   ]
  },
  "classes": [
@@ -146,7 +152,10 @@
   "SchematicNet",
   "SchematicSheet",
   "SchematicSymbol",
-  "Symbol"
+  "Symbol",
+  "PartPowerInput",
+  "PartThermalModel",
+  "PcbThermalAPI"
  ],
  "imports": [
   [
@@ -178,6 +187,8 @@
     "PcbLayerGraphics",
     "SpiceRun",
     "SpiceVector",
+    "PartPowerInput",
+    "PartThermalModel",
     "PCB_CLASSES"
    ]
   ],

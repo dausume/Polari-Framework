@@ -33,10 +33,13 @@ from pcb.objects.pcb.PcbDesignRule import PcbDesignRule  # noqa: F401
 from pcb.objects.pcb.PcbLayerGraphics import PcbLayerGraphics  # noqa: F401
 from pcb.objects.pcb.SpiceRun import SpiceRun  # noqa: F401
 from pcb.objects.pcb.SpiceVector import SpiceVector  # noqa: F401
+from pcb.objects.pcb.PartPowerInput import PartPowerInput  # noqa: F401
+from pcb.objects.pcb.PartThermalModel import PartThermalModel  # noqa: F401
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 PCB_CLASSES = [Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, Placement, Route, DrcResult,
               FabricationExport, FabRuleSet, FabRule, KiCadArtifact, KiCadCoverage, SchematicSymbol,   # kxc-1
               SchematicNet, NetEndpoint,   # kxc-2: the schematic's own electrical graph
               PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics,   # kxc-4: the PCB complete
-              SpiceRun, SpiceVector]   # kxc-3b: simulation runs kept
+              SpiceRun, SpiceVector,   # kxc-3b: simulation runs kept
+              PartPowerInput, PartThermalModel]   # bob-3g: powers a person gives + datasheet thermal models

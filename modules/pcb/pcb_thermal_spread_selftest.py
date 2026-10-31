@@ -44,7 +44,7 @@ def run_board_spread(check):
     bare = dict(rows, PcbZone=[], NetGeometry=[], PcbPad=[p for p in rows['PcbPad'] if p['ref'] in given])   # no pour, no tracks, only the heated parts' pads
     s0, _, _, _ = TS.spread(None, 'ecc83', rows=bare, powers=given)
     check('BOARD SPREAD from the board\'s own rows (ecc83: 52.07 x 46.355 mm, 1.51 mm FR-4, a B.Cu GND pour, 33 pads, 59 track segments): R4 (0.5 W) is the hottest spot, above R1 '
-          '(0.25 W); the mean rise equals the first-order estimate; the board's copper (pour, tracks, pads) pulls the peak DOWN and leaves the mean where it is (energy balance)',
+          '(0.25 W); the mean rise equals the first-order estimate; the board\'s copper (pour, tracks, pads) pulls the peak DOWN and leaves the mean where it is (energy balance)',
           not why and [x['ref'] for x in hot] == ['R4', 'R1'] and s['zones'] == 1 and abs(s['mean_rise_c'] - s['lumped_mean_rise_c']) < 1e-9
           and s0['max_rise_c'] > 2 * s['max_rise_c'] and abs(s0['mean_rise_c'] - s['mean_rise_c']) < 1e-9
           and 'Azar & Graebner' in s['basis'] and 'track pieces along themselves' in s['basis'] and field['xs_mm'][-1] > 52,
