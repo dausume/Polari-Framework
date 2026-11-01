@@ -146,6 +146,26 @@ class ApiTests(unittest.TestCase):
         self.tables['ModuleResourceProfile']['x'].min_ram_mb=-1
         self.assertIsNone(self.api._requirements_for({'name':'x'},'host'))
 
+    def test_graph_preserves_app_kinds_and_polari_runtime_role(self):
+        self.tables['IsleDevice']={'core':SimpleNamespace(name='core',agent_present=True,router_running=True)}
+        self.tables['IsleApp']={
+            'p':SimpleNamespace(name='polari',device_name='core',modes_json='["modules:islemesh"]'),
+            'w':SimpleNamespace(name='whoami',device_name='core'),
+            'b':SimpleNamespace(name='bridge',device_name='core'),
+        }
+        self.tables['IsleCatalogEntry']={
+            'p':SimpleNamespace(name='polari',kind='polari-app'),
+            'w':SimpleNamespace(name='whoami',kind='mesh-app'),
+            'b':SimpleNamespace(name='bridge',kind='hardware-app',realization='bridge'),
+        }
+        self.api.on_get_graph(self.request,self.response)
+        nodes={n['id']:n for n in self.response.media['nodes']}
+        self.assertEqual(nodes['app:polari']['app_kind'],'polari-instance')
+        self.assertEqual(nodes['app:whoami']['app_kind'],'mesh-app')
+        self.assertEqual(nodes['app:bridge']['realization'],'bridge')
+        self.assertEqual(nodes['router:core']['app_kind'],'hardware-app')
+        self.assertEqual(len([n for n in nodes.values() if n['kind']=='device']),1)
+
     def test_graph_distinguishes_reported_interfaces_from_inferred_paths(self):
         self.tables['IsleDevice'] = {
             'core': SimpleNamespace(name='core',agent_present=True,router_running=True,last_seen=NOW.isoformat()),
