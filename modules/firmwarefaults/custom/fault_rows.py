@@ -86,8 +86,11 @@ SEED_FAULT_ROWS = [
        upsets_per_bit_day=0.0),
     _f('ClockSkewFault', 'clock-skew', 'Two clocks disagree (resonator tolerance, temperature): the baud and the timeouts drift apart.',
        'one-clock', 'framing errors at the far end; timeouts firing early or late', [], ['crc-resync', 'timeout-fsm'], unit='ppm',
-       source='the USART divisor error is cited (+2.1 % at UBRR0 16, U2X0 1 — DatasheetFact); resonator ppm unverified',
-       forcing='not yet: one simavr clock cannot skew (sc-3 / Renode)', ppm=0.0),
+       source='the USART divisor error is cited (+2.1 % at UBRR0 16, U2X0 1 — DatasheetFact); the resonator band is cited (Murata '
+              'CSTCE16M0V53-R0, board.custom.timing_drift)',
+       forcing='forced on the UNO twin by board.custom.clock_skew_run (tmp-6: the twin at f(1+e), the 16U2\'s bytes placed in true time, '
+               'every UART byte re-sampled bit by bit at each side\'s rate) - outside the step runner; two clocked MCUs on one bus still need '
+               'Renode', ppm=0.0),
     # ---- space / safety: space pressure is a cause
     _f('StackOverflowFault', 'stack-into-bss', 'The deepest call chain plus an ISR frame grows into .bss.', 'stack-fits',
        'silent corruption of the highest .bss variables', [], ['static-guard'], unit='bytes of headroom',

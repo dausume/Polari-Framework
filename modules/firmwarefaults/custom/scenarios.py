@@ -41,7 +41,8 @@ STEP_KINDS = {
     'rx-noise': (True, '--rx-noise RATE (asynchronous single bytes, exponential gaps from --seed — the statistics tier\'s phase randomiser)'),
     'hold-lock-order': (True, 'sc-3, qemu-esp32c3 ONLY: the recipe\'s tick offsets written into the C3 image\'s `polari` params partition '
                               '(seed 0 = the recipe, seed k = splitmix64 draws) — the UNO has no RTOS and no locks'),
-    'clock-skew': (False, 'one simavr process runs one clock; skew needs two clocked parties (Renode, sc-3)'),
+    'clock-skew': (False, 'not a step yet: board.custom.clock_skew_run forces a skew on the UNO twin outside the step runner (tmp-6: the '
+                          'twin at f(1+e), every UART byte re-sampled at each side\'s rate); two clocked MCUs on one bus still need Renode'),
     # hw priorities P1 (HARDWARE_DEV_PRIORITIES.md §4, D-hw-2): acceptance-kind steps — no fault is forced; these
     # drive NORMAL stimulus and check a CapabilityDefinition's exposed field arrives, reusing the twin's existing
     # ADC-ramp stimulus (`board.custom.twin ... --adc0-ramp`, the same knob tests/hwnocode_probe.py drives) and the

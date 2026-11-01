@@ -78,7 +78,8 @@ SEED_ASSUMPTIONS = [
     _a('isr-latency-bounded', 'Every ISR starts within a bounded number of cycles of its flag — interrupts are never masked for long.',
        'every ISR (the 1 ms tick: TIMER2_COMPA)', notes='the atomic section adds its masked window; --isr-latency measures it'),
     _a('one-clock', 'Both ends of the serial link agree on time within the baud tolerance.', 'USART0 at 115200 Bd (UBRR0 16, U2X0 1: '
-       '+2.1 %, DatasheetFact)', holds='yes', notes='ClockSkewFault; one simavr clock cannot skew (sc-3 / Renode)'),
+       '+2.1 %, DatasheetFact)', holds='yes', notes='ClockSkewFault; forced by board.custom.clock_skew_run (tmp-6): holds for a 328P clock within '
+             '-2.50 .. +2.56 % against the 16U2 (UBRR1 16, U2X1) - the resonator\'s +-1.0 % fits'),
 ]
 
 

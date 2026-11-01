@@ -13,10 +13,11 @@ drawn as a curve the document does not give.
                                                                        the receiver's window (its Max Total Error) and its recommended share
   delay_rows(part, temps)                                              a logic part's maximum propagation delay at each temperature: the
                                                                        narrowest datasheet column containing it
-  timing(kind, definition, which, params) -> (rows, why)               the Board Details parts (timing-clocks, timing-uart, logic-delays)
+  timing(kind, definition, which, params) -> (rows, why)               the Board Details parts (timing-clocks, timing-uart, logic-delays;
+                                                                       timing-run, timing-run-corners from tmp-6)
 
-The firmware simulation (simavr) runs ONE exact clock: these bands are what a ClockSkewFault would force on it (firmwarefaults; not yet - one
-simavr clock cannot skew), so today they are a budget, shown beside the runs, not a run.
+tmp-6 forces these bands into a firmware run (board.custom.clock_skew_run: the twin at the skewed rate, every UART byte re-sampled bit by
+bit at each side's rate); the parts timing-run / timing-run-corners are that run's rows.
 
 Sources (read 2026-11-01):
   ATmega328P   Microchip DS40002061B (2020): Table 20-1 (baud equations), §20.8.3 Tables 20-2 / 20-3 p. 194 (receiver error, D = data + parity
@@ -59,7 +60,7 @@ DELAYS = {
 TEMPS = (-40.0, -20.0, 25.0, 80.0, 85.0, 125.0)
 BAUDS = (9600, 115200)
 UNO = 'arduino-uno-r3'
-PARTS = ('timing-clocks', 'timing-uart', 'logic-delays')
+PARTS = ('timing-clocks', 'timing-uart', 'logic-delays', 'timing-run', 'timing-run-corners')
 
 
 def clock_band(clock, temp_c):
@@ -134,6 +135,9 @@ def _temps(params):
 
 
 def timing(kind, definition, which, params=None):
+    if which in ('timing-run', 'timing-run-corners'):   # tmp-6: the band forced into a firmware run
+        from board.custom import clock_skew_run as CSR
+        return CSR.rows(definition, which)
     temps, why = _temps(params)
     if why:
         return [], why

@@ -185,10 +185,31 @@ def timing_tab():
                         empty_text='No cited clock for this board yet.',
                         description='What this is for: will serial still work hot or cold? Each row is one baud rate and speed mode at one '
                                     'temperature: the divisor\'s own error (the chip\'s baud equations) plus the clock\'s worst case, against the '
-                                    'error the far receiver accepts and its recommended share. The firmware simulator runs one exact clock, so this is a '
-                                    'budget beside the runs.', columns='baud,u2x,ubrr,divisor_error_pct,temp_c,worst_low_pct,worst_high_pct,window_pct,'
-                                                                       'recommended_pct,verdict,basis', max_height=380)], min_height=220),
-        _row(2, [_table('bd-timing-delays', 0, 12, 'Logic delay at each temperature', '', data_path='%s/logic-delays' % DOOR,
+                                    'error the far receiver accepts and its recommended share. This budget takes the far end as exact; on the UNO the far '
+                                    'end (its USB-serial chip) uses the same divisor, which the firmware run below takes into account.',
+                        columns='baud,u2x,ubrr,divisor_error_pct,temp_c,worst_low_pct,worst_high_pct,window_pct,recommended_pct,verdict,basis',
+                        max_height=380)], min_height=220),
+        _row(2, [_table('bd-timing-run', 0, 12, 'Run the firmware at a temperature', '', data_path='%s/timing-run?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only the UNO R3 has a template firmware and a cited clock to run yet.', edit_fields='temp_c',
+                        edit_signed_field='signed', edit_action={'method': 'POST', 'path': '/api/board/timing-run/{board}',
+                                                                 'body_template': {'temp_c': '{value}', 'u2x': '{u2x}'}},
+                        description='What this is for: seeing the firmware itself cope (or not) with a clock that is off. One row per build: u2x 1 '
+                                    'is the shipped one (double-speed serial), u2x 0 the other divisor. Type a temperature in C and press Enter: the '
+                                    'firmware runs on the simulated chip three times - the clock at the low end, the middle and the high end of its '
+                                    'datasheet band at that temperature - and every serial byte between the chip and the USB-serial chip is read '
+                                    'bit by bit at each side\'s own speed. link_band_pct = how far the clock may move before bytes break (from the '
+                                    'receiver\'s sampling); datasheet_band_pct = the same from the datasheet\'s simpler equations.',
+                        columns='u2x,ubrr,temp_c,clock_band_pct,link_band_pct,datasheet_band_pct,verdict,basis', max_height=200)], min_height=160),
+        _row(3, [_table('bd-timing-run-corners', 0, 12, 'Each corner of the newest runs', '', data_path='%s/timing-run-corners?rev=r{scope:rev}' % DOOR,
+                        empty_text='Run the firmware above.',
+                        description='What this is for: what happened at each corner. The command (set the PWM duty to 50) sent from the USB '
+                                    'side: how many of its bytes the chip read right, and whether the firmware then did it. The firmware\'s own '
+                                    'reports: how many bytes and frames the USB side read right. uptime_drift_ppm = the firmware\'s clock against '
+                                    'true time, measured from its reports (a slow clock makes every firmware timeout last longer).',
+                        columns='u2x,temp_c,corner,device_clock_pct,cmd_bytes_intact,cmd_bytes,board_did_command,host_bytes_intact,board_bytes,'
+                                'host_framing_errors,host_frames,host_bad_crc,host_saw_echo,uptime_drift_ppm,expected_drift_ppm,verdict,basis',
+                        max_height=360)], min_height=220),
+        _row(4, [_table('bd-timing-delays', 0, 12, 'Logic delay at each temperature', '', data_path='%s/logic-delays' % DOOR,
                         empty_text='No cited delay for this part yet.',
                         description='What this is for: a logic chip is slower hot. Each row is its datasheet\'s maximum propagation delay in the '
                                     'narrowest temperature column that contains the temperature.',

@@ -457,6 +457,8 @@ def main():
     run_profile_overlap(check)
     from board.board_firmware_state_selftest import run_firmware_state   # fst-0..2: a firmware's state objects, derived never typed
     run_firmware_state(check)
+    from board.board_clock_skew_selftest import run_clock_skew   # tmp-6: the timing band forced into a firmware run (bit-level UART at each side's rate)
+    run_clock_skew(check)
     from board.board_twin_session_selftest import run_twin_session   # sim-1: twin sessions - the backend half against a fake worker + fake control port (the live half is its own module)
     run_twin_session(check, live=False)
     print('\n%d/%d checks passed' % (passed, total))
