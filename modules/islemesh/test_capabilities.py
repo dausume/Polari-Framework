@@ -152,6 +152,7 @@ class ApiTests(unittest.TestCase):
             'p':SimpleNamespace(name='polari',device_name='core',modes_json='["modules:islemesh"]'),
             'w':SimpleNamespace(name='whoami',device_name='core'),
             'b':SimpleNamespace(name='bridge',device_name='core'),
+            'real-bridge':SimpleNamespace(name='uno_core_demo',device_name='core'),
         }
         self.tables['IsleCatalogEntry']={
             'p':SimpleNamespace(name='polari',kind='polari-app'),
@@ -163,6 +164,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(nodes['app:polari']['app_kind'],'polari-instance')
         self.assertEqual(nodes['app:whoami']['app_kind'],'mesh-app')
         self.assertEqual(nodes['app:bridge']['realization'],'bridge')
+        self.assertEqual(nodes['app:uno_core_demo']['realization'],'bridge')
+        self.assertEqual(nodes['app:uno_core_demo']['classification_source'],'Polari app manifest')
         self.assertEqual(nodes['router:core']['app_kind'],'hardware-app')
         self.assertEqual(len([n for n in nodes.values() if n['kind']=='device']),1)
 

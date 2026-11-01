@@ -738,7 +738,7 @@ class IsleMeshAPI(treeObject):
         response.media = {'ok': True, 'count': len(entries),
                           'entries': entries}
 
-    def _bridge_catalog_entries(self):
+    def _bridge_catalog_entries(self, include_instances=True):
         # Manifest-owned Hardware Bridge Apps remain visible even when their
         # Polari module is not enabled. Do not confuse them with engine workers.
         from pathlib import Path
@@ -755,7 +755,7 @@ class IsleMeshAPI(treeObject):
                 description=manifest.get('description', ''), kind='hardware-app', realization='bridge',
                 source='module manifest', source_ref='polari-module:' + manifest['id'],
                 category='hardware', management_system='isle', requires_tier=app.get('agentTier', 'member'),
-                instances=self._instances_of(manifest['id']),
+                instances=self._instances_of(manifest['id']) if include_instances else [],
                 install_plan={'ok': False, 'steps': [], 'note':
                     'Requires the Polari module ' + manifest['id'] +
                     ' and a Hardware Shell App with proven USB/serial bridging on this device. '
@@ -1092,6 +1092,7 @@ class IsleMeshAPI(treeObject):
                     'is_mock': router['is_mock'] or agent['is_mock'],
                 })
 
+        bridge_metadata = {entry['name']: entry for entry in self._bridge_catalog_entries(include_instances=False)}
         for row in self._table('IsleApp').values():
             name = getattr(row, 'name', '')
             device = getattr(row, 'device_name', '')
@@ -1099,6 +1100,11 @@ class IsleMeshAPI(treeObject):
                                if getattr(r, 'name', '') == name), None)
             app_kind = getattr(definition, 'kind', '') or 'unclassified'
             classification = 'catalog' if definition else 'not reported'
+            realization = getattr(definition, 'realization', '')
+            if name in bridge_metadata:
+                app_kind = bridge_metadata[name]['kind']
+                realization = bridge_metadata[name]['realization']
+                classification = 'Polari app manifest'
             try:
                 modes = json.loads(getattr(row, 'modes_json', '[]') or '[]')
             except (ValueError, TypeError):
@@ -1108,7 +1114,7 @@ class IsleMeshAPI(treeObject):
                 classification = 'registry module declaration'
             add_node('app:%s' % name, 'app', name, device=device,
                      app_kind=app_kind,
-                     realization=getattr(definition, 'realization', ''),
+                     realization=realization,
                      classification_source=classification,
                      is_mock=getattr(row, 'is_mock', False),
                      domain=getattr(row, 'domain', ''),
