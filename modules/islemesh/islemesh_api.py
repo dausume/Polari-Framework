@@ -1098,10 +1098,18 @@ class IsleMeshAPI(treeObject):
             definition = next((r for r in self._table('IsleCatalogEntry').values()
                                if getattr(r, 'name', '') == name), None)
             app_kind = getattr(definition, 'kind', '') or 'unclassified'
+            classification = 'catalog' if definition else 'not reported'
+            try:
+                modes = json.loads(getattr(row, 'modes_json', '[]') or '[]')
+            except (ValueError, TypeError):
+                modes = []
+            if isinstance(modes, list) and any(isinstance(m, str) and m.startswith('modules:') for m in modes):
+                app_kind = 'polari-instance'
+                classification = 'registry module declaration'
             add_node('app:%s' % name, 'app', name, device=device,
                      app_kind=app_kind,
                      realization=getattr(definition, 'realization', ''),
-                     classification_source='catalog' if definition else 'not reported',
+                     classification_source=classification,
                      is_mock=getattr(row, 'is_mock', False),
                      domain=getattr(row, 'domain', ''),
                      availability_mode=getattr(
