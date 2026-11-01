@@ -1156,6 +1156,12 @@ class IsleMeshAPI(treeObject):
 
         from topology.device_resources import resource_ledger
         resources = resource_ledger(self.manager)
+        reported_devices = {n['device'] for n in nodes if n['kind'] == 'device' and not n['is_mock']}
+        resources['devices'] = [r for r in resources['devices'] if r['device'] in reported_devices]
+        # Polari may contain planned machines not actually on this Isle.
+        # Its global totals cannot be presented as this Isle's capacity.
+        resources.pop('totals', None)
+        resources['scope'] = 'reported Isle devices'
         for node in nodes:
             if node['kind'] == 'device':
                 node['resources'] = next((r for r in resources['devices'] if r['device'] == node['device']), None)
