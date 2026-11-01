@@ -1,4 +1,4 @@
-"""board_part_catalogue_selftest - drv-2 / drv-3 (AI-Notes/plans/DRIVERS_AND_ESD_PLAN.md; D-drv-2's order: a TTL-input 3.3 -> 5 V buffer, a constant-current
+"""board_part_catalogue_selftest - drv-2 / drv-3 / drv-4 / drv-5 (AI-Notes/plans/DRIVERS_AND_ESD_PLAN.md; D-drv-2's order: a TTL-input 3.3 -> 5 V buffer, a constant-current
 LED driver, an LDO, a buck). The four cited parts (TI SCLS264R SN74AHCT125, SLVS695D TLC5916, SNOS412Q LM1117, SNVS124G LM2596), pin-level numbers,
 converters on the Bench (a regulated output is a supply; a regulator's input has a minimum), the fixes judged against every cited number, whole-part
 budgets, and the clean placements the page's "Mount here" rows offer.
@@ -78,9 +78,9 @@ def run_converters_and_fixes(check):
     over, _ = BN.nets({'uno': uno, 'p': part36}, [{'from_board': 'uno', 'from_foothold': five, 'to_board': 'p', 'to_foothold': '1'}])
     ofix = PB.suggestions(over)
     check('DRV-2 THE FIX IS JUDGED, NOT LISTED: 5 V into a part that takes 3.6 V - the AHCT125 is an UP-shifter (it drives high to 3.8 V, above 3.6 V), so '
-          'it is shown as NOT fitting, and the catalogue says no part fits this level change yet',
+          'it is shown as NOT fitting; since drv-4 the LVC245A (5.5 V inputs on a 3.3 V supply) fits, so no "no part fits" row',
           any(s['part'] == 'sn74ahct125-n' and not s['fits'] and 'does NOT bring the level down' in s['why'] for s in ofix)
-          and any(s['part'] == '' and 'no catalogue part fits' in s['why'] for s in ofix), ofix)
+          and any(s['part'] == 'sn74lvc245a-n' and s['fits'] for s in ofix) and not any(s['part'] == '' for s in ofix), ofix)
     vin, _ = BN.nets({'uno': uno, 'ldo': ldo}, [{'from_board': 'uno', 'from_foothold': v33, 'to_board': 'ldo', 'to_foothold': '3'}])
     starve, _ = BN.nets({'uno': uno, 'm': load300}, [{'from_board': 'uno', 'from_foothold': v33, 'to_board': 'm', 'to_foothold': '1'}])
     sv = [f for n in starve for f in n['findings']]
@@ -92,6 +92,48 @@ def run_converters_and_fixes(check):
           [f['kind'] for n in vin for f in n['findings']] == ['under-voltage'] and [f['kind'] for f in sv] == ['drive-shortfall'] and sv[0]['from_supply']
           and (sv[0]['need_ma'], sv[0]['can_ma']) == (300.0, 50.0) and sfix['lm1117t-3.3']['fits'] and not sfix['lm2596t-5.0']['fits']
           and 'NOT the net' in sfix['lm2596t-5.0']['why'] and not [f for n in fed for f in n['findings']], (sv, sfix, fed))
+    _fresh()
+
+
+def run_down_shift_and_module(check):
+    from board.custom import bench_mount as M
+    from board.custom import bench_nets as BN
+    PB = _fresh()
+    cat = {r['name']: r for r in PB.catalogue()}
+    lvc_feet, mod_feet, bb = _feet(('part', 'sn74lvc245a-n'), ('part', 'lm2596-5.0-module'), ('geometry', 'breadboard-half'))
+    lvc, mod = _by(lvc_feet), _by(mod_feet)
+    check('DRV-4 THE DOWN-SHIFTER (TI SCAS218X SN74LVC245A, PDIP-20): inputs on from 2 V and taking 5.5 V on a 1.65 - 3.6 V supply, 24 mA out, high to '
+          '2.1 V at 24 mA, never above VCC + 0.5 = 3.8 V; A1..A8 are pins 2..9 (in), B1..B8 pins 18..11 (out), DIR 1 / OE 19 control inputs, VCC 20 takes '
+          '6.5 V - every number cited',
+          cat['sn74lvc245a-n']['origin'] == 'cited' and 'SCAS218X' in cat['sn74lvc245a-n']['document']
+          and (cat['sn74lvc245a-n']['on_volts'], cat['sn74lvc245a-n']['in_max_v'], cat['sn74lvc245a-n']['out_volts'], cat['sn74lvc245a-n']['out_max_v'])
+          == (2.0, 5.5, 2.1, 3.8) and (lvc['2']['label'], lvc['2']['direction'], lvc['18']['label'], lvc['18']['direction']) == ('A1', 'in', 'B1', 'out')
+          and lvc['11']['label'] == 'B8' and (lvc['20']['on_volts'], lvc['20']['max_volts']) == (1.65, 6.5) and lvc['19']['draw_ma'] == 0.01,
+          (cat['sn74lvc245a-n']['contract'], lvc['20']))
+    uno, c3 = _feet(('datasheet', 'arduino-uno-r3'), ('datasheet', 'esp32-c3'))
+    io = next(f['foothold'] for f in c3 if f['direction'] == 'inout' and f['logic_volts'] == 3.3)
+    over, _ = BN.nets({'uno': uno, 'c3': c3}, [{'from_board': 'uno', 'from_foothold': 'DIGITAL_L:7', 'to_board': 'c3', 'to_foothold': io}])
+    fix = {s['part']: s for s in PB.suggestions(over)}
+    check('DRV-4 A 5 V PIN INTO A 3.3 V ONE: the UNO\'s DIGITAL_L:7 into the ESP32-C3 is over-voltage (5 V on a 3.3 V pin); the LVC245A fits (takes 5.5 V, '
+          'drives 2.1 V), the AHCT125 does not (it drives 3.8 V)',
+          [f['kind'] for n in over for f in n['findings']] == ['over-voltage'] and fix['sn74lvc245a-n']['fits'] and not fix['sn74ahct125-n']['fits'],
+          fix)
+    PB.define(None, {'name': 'test-5v-500ma', 'kind': 'module', 'out_volts': 5.0, 'out_source_ma': 500.0,
+                     'pins': [{'number': 1, 'name': 'OUT', 'role': 'regulated', 'x_mm': 0, 'y_mm': 0}]})
+    PB.define(None, _load(2000))
+    sup, load = _feet(('part', 'test-5v-500ma'), ('part', 'test-load-2000ma'))
+    starve, _ = BN.nets({'s': sup, 'm': load}, [{'from_board': 's', 'from_foothold': '1', 'to_board': 'm', 'to_foothold': '1'}])
+    sfix = {s['part']: s for s in PB.suggestions(starve)}
+    fed, _ = BN.nets({'b': mod_feet, 'm': load}, [{'from_board': 'b', 'from_foothold': '4', 'to_board': 'm', 'to_foothold': '1'}])
+    spots = M.placements(mod_feet, bb, limit=400)
+    check('DRV-5 THE BUCK AS A BENCH BOARD (SNVS124G §9.2.1\'s own design round the LM2596-5.0: 33 uH, 330 uF, 1N5823, 680 uF): 5 V at 3 A from 7 - 12 V '
+          '(the design\'s own maximum), VOUT a regulated supply; a 500 mA (synthetic) 5 V supply feeding a 2 A load is a shortfall whose fix is the '
+          'module (fits) and not the bare chip (needs its inductor); fed from the module the load is clean; its chosen 2.54 mm header lands on the '
+          'breadboard (Mount here offers spots)',
+          (mod['4']['direction'], mod['4']['rail_volts'], mod['4']['source_ma'], mod['1']['on_volts'], mod['1']['max_volts']) == ('supply', 5.0, 3000.0, 7.0, 12.0)
+          and cat['lm2596-5.0-module']['contract'].startswith('out: 5 V at up to 3000 mA; in: 7 V .. 12 V') and 'CHOSEN' in cat['lm2596-5.0-module']['position_basis']
+          and sfix['lm2596-5.0-module']['fits'] and not sfix['lm2596t-5.0']['fits'] and not [f for n in fed for f in n['findings']] and len(spots) > 0,
+          (sfix, fed, len(spots)))
     _fresh()
 
 

@@ -277,6 +277,11 @@ def main():
     run_iec_waveform(check)
     run_protected_events(check)
     run_protection_doors(check)
+    from pcb.pcb_esd_cdm_selftest import run_bidirectional_and_varistor, run_cdm_loop, run_new_protected_pins, run_cdm_doors   # esd-6 / esd-7
+    run_bidirectional_and_varistor(check)
+    run_cdm_loop(check)
+    run_new_protected_pins(check)
+    run_cdm_doors(check)
     from pcb.pcb_kicad_geometry_selftest import run_kicad_geometry   # kxc-4: the PCB complete = pcbnew's counts, lengths, areas
     run_kicad_geometry(check)
     from pcb.pcb_bench_export_selftest import run_bench_export   # kxc-5: a Bench exported as a KiCad schematic = KiCad's reading

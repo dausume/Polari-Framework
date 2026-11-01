@@ -54,7 +54,7 @@ def esd_tab():
                         description='What this is for: what an event is. Each is the standard\'s own - a capacitor charged to the level, '
                                     'discharged through a resistor, or IEC 61000-4-2\'s own current equation (its sub-nanosecond first peak) - with its '
                                     'levels; the caveat says what each leaves out.',
-                        columns='model,source,capacitance_pf,resistance_ohm,levels,standard,caveat', max_height=260)], min_height=200),
+                        columns='model,source,capacitance_pf,resistance_ohm,inductance_nh,levels,standard,caveat', max_height=260)], min_height=200),
         _row(2, [_table('bd-esd-protection', 0, 12, 'Protection parts - the button puts one on area {scope:esdarea}, or takes it off', '',
                         data_path='%s/esd-protection?area={scope:esdarea}&rev=r{scope:rev}' % DOOR, empty_text='No protection parts known.',
                         row_action={'label': 'On / off the area', 'method': 'POST', 'path': '/api/board/esd-areas/protection',
@@ -70,8 +70,8 @@ def esd_tab():
                                     'kept as refused, with the reason.', columns='ran_at,event,status,points,host', max_height=220)], min_height=160),
         _row(4, [_table('bd-esd-summary', 0, 12, 'The selected event', '', data_path='%s/esd-summary?run={scope:esdrun}' % DOOR,
                         empty_text='Click an event run above.',
-                        description='What this is for: the verdict. peak_current_a beside expected_current_a (level / R for a network, Table 3\'s '
-                                    'first peak for the IEC equation: the source did what the standard says); energy_j = the charge\'s energy; verdict = '
+                        description='What this is for: the verdict. peak_current_a beside expected_current_a (level / R for a network, Eq. 9 of the '
+                                    'loop for CDM, Table 3\'s first peak for the IEC equation: the source did what the standard says); energy_j = the charge\'s energy; verdict = '
                                     'breaks / does not recover in time / survives.',
                         columns='verdict,model,level_v,net,t_event_s,peak_current_a,expected_current_a,energy_j,protection_parts,basis',
                         max_height=160)], min_height=120),
@@ -86,8 +86,10 @@ def esd_tab():
                         data_path='%s/esd-protection-results?run={scope:esdrun}' % DOOR, empty_text='Click an event run above.',
                         description='What this is for: whether the protection survives its own job - each part\'s peak current against its '
                                     'datasheet peak pulse current (I_PP, at its rated pulse). source_peak_a = what the shock itself delivered; the '
-                                    'part\'s figure can read a little above it from the solver\'s first step at the edge (on the safe side).',
-                        columns='part,part_number,peak_current_a,source_peak_a,i_pp_a,pulse,breaks,source', max_height=200)], min_height=120),
+                                    'part\'s figure can read a little above it from the solver\'s first step at the edge (on the safe side). in_model = whether '
+                                    'the peak stayed inside the cited points the model was derived from (a varistor above its i_c: the law understates '
+                                    'the voltage).',
+                        columns='part,part_number,peak_current_a,source_peak_a,i_pp_a,pulse,breaks,in_model,source', max_height=200)], min_height=120),
         _row(7, [{'id': 'bd-esd-chart', 'index': 0, 'type': 'component', 'rowSegmentsUsed': 12, 'gridColumnStart': None,
                   'title': 'Protected nets with and without the event', 'description': 'Each protected net with the event and without it.',
                   'visible': True, 'collapsed': False, 'cssClass': '',

@@ -55,7 +55,7 @@ def run_protection_parts(check):
                                 'i_f_a': 1.0})
     half = PP.define(None, {'name': 'half-tvs', 'kind': 'tvs-uni', 'v_br_max': 6.0})[1]
     check('ESD-3 REFUSED IN WORDS, NOT GUESSED: the UNO\'s CG0603MLC-05E is a snapback polymer (300 V trigger, 30 V clamp by TLP) - catalogued, not '
-          'modelled; a bidirectional TVS and a varistor are refused the same way; a person\'s own TVS is modelled from its numbers (origin custom), one '
+          'modelled; a bidirectional TVS or a varistor without its numbers is refused, naming them (esd-6 models both from their numbers); a person\'s own TVS is modelled from its numbers (origin custom), one '
           'missing numbers says which; a cited name, an unknown kind and a negative rating are refused',
           cg['modelled'] == 'no' and 'snapback' in cg['model_why'] and PP.spice_model({'kind': 'tvs-bi'})[3] and PP.spice_model({'kind': 'varistor'})[3]
           and st == 201 and mine['modelled'] and mine['origin'] == 'custom' and not half['modelled'] and 'i_pp_a' in half['model_why']
@@ -152,8 +152,8 @@ def run_protection_doors(check):
     nolevel = cl.simulate_post('/api/board/esd-areas/run', json={'area': UNO_PIN, 'level_v': 'loud'})
     nothing = cl.simulate_post('/api/board/esd-areas/run', json={'area': 'nope'})
     page = BOARD_DETAILS_PAGES[0]['definition']
-    check('ESD-3/5 THE DOORS AND THE PAGE: the protection catalogue (each with modelled yes / no and why); a person\'s own part (201, a varistor - '
-          'catalogued, not modelled); a part toggled onto an area and off again (click-toggle), the page listing it as on the area; the pin knob '
+    check('ESD-3/5 THE DOORS AND THE PAGE: the protection catalogue (each with modelled yes / no and why); a person\'s own part (201, a varistor with no '
+          'numbers - catalogued, not modelled); a part toggled onto an area and off again (click-toggle), the page listing it as on the area; the pin knob '
           'edited; the shared run door refuses a level that is not a number (400) and an unknown area (404); the ESD tab runs every area through '
           '/api/board/esd-areas/run and has the protection tables',
           cat.status_code == 200 and {r['name'] for r in cat.json['rows']} >= {'smbj5.0a', 'cg0603mlc-05e'} and made.status_code == 201

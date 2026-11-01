@@ -26,10 +26,15 @@ scales linearly: 7.5 / 15 / 22.5 / 30 A first peak at 2 / 4 / 6 / 8 kV) and inje
 a solver breakpoint, so the sub-nanosecond peak is resolved). It reproduces Table 3 at 4 kV (iec_check). It is the current the standard calibrates
 into its 2 Ohm target: forced into a high-impedance net it overstates the voltage there (a real generator's 150 pF / 330 Ohm would limit it) - said.
 
+esd-7: `cdm-small` / `cdm-large` = the charged-device model, the JS-002 verification modules through the Industry Council's series LCR loop (pcb.custom.esd_cdm:
+every number cited from the public White Paper 2 rev. 3.0, the inductance derived; the peak checked on both modules, the slower shape said).
+
 esd-3: an area's `protection_parts` (board.custom.protection_parts, each with a derived model) are placed from the injected net to ground for both
 runs, each through its own 0 V meter, and each one's peak current is checked against its cited I_PP.
 """
 import json
+
+from pcb.custom.esd_cdm import L_LOOP as CDM_L, LEVELS as CDM_LEVELS, MODULES as CDM_MODULES, R_LOOP as CDM_R, cdm_check, cdm_peak  # noqa: F401 - esd-7
 
 MODELS = {
     'hbm': {'kind': 'network', 'c_f': 100e-12, 'r_ohm': 1500.0, 'levels': [500.0, 1000.0, 2000.0, 4000.0],
@@ -43,21 +48,34 @@ MODELS = {
                                           '4 kV): first peak 3.75 A per kV at 0.8 ns, 2 A per kV at 30 ns, 1 A per kV at 60 ns (Table 3)'),
                              'caveat': ('the standard\'s calibration current, forced into the net: right for a low-impedance (clamped or capacitive) net, '
                                         'an overstatement at a high-impedance one, where a real generator\'s 150 pF / 330 Ohm limits the voltage')},
+    'cdm-small': {'kind': 'network', 'c_f': CDM_MODULES['small'], 'r_ohm': CDM_R, 'l_h': CDM_L, 'levels': CDM_LEVELS,
+                  'standard': ('charged-device model, the JS-002 small verification module (6.8 pF) as the Industry Council\'s series LCR loop: 25 Ohm spark '
+                               '+ 1 Ohm detector, %.3g nH derived from JS-002\'s 7.2 A at 500 V (WP2 rev. 3.0, Tables C-II / C-III, Annex D)' % (CDM_L * 1e9)),
+                  'caveat': ('CDM is the part\'s OWN charge leaving through a pin: here the charged module discharges into the net through the same loop; '
+                             'its peak matches JS-002, its rise and width are slower (more charge than JS-002 - on the safe side)')},
+    'cdm-large': {'kind': 'network', 'c_f': CDM_MODULES['large'], 'r_ohm': CDM_R, 'l_h': CDM_L, 'levels': CDM_LEVELS,
+                  'standard': ('charged-device model, the JS-002 large verification module (55 pF) through the same loop (25 + 1 Ohm, %.3g nH); Eq. 9 gives '
+                               '12.8 A at 500 V against JS-002\'s 12.1 A +-15 %% (WP2 rev. 3.0, Table C-III)' % (CDM_L * 1e9)),
+                  'caveat': ('CDM is the part\'s OWN charge leaving through a pin; one loop holds the 55 pF charge for about 2.1 ns where JS-002\'s is under '
+                             '0.9 ns wide - more charge than JS-002 (on the safe side)')},
 }
 SW_MODEL = '.model esdsw sw vt=0.5 vh=0 ron=0.01 roff=1e12'
 from pcb.custom.esd_iec import IEC, iec_check, iec_current, iec_samples, _pwl  # noqa: E402,F401 - esd-4's equation, its own file
 
 
 def protection_lines(node, parts):
-    """esd-3: each protection part from the net to ground through its own 0 V meter (vector vprotmK#branch); parts = [(name, model_name, .model line)]."""
-    out = []
-    for k, (name, mname, mline) in enumerate(parts, 1):
-        out += ['* esd-3: protection part %s (board.custom.protection_parts)' % name, 'Vprotm%d %s esd_p%d DC 0' % (k, node, k),
-                'Dprot%d 0 esd_p%d %s' % (k, k, mname)]
+    """esd-3: each protection part from the net to ground through its own 0 V meter (vector vprotmK#branch); parts = [(name, model_name, .model line, row)]
+    - the elements are the part's own (board.custom.protection_models.elements: one diode, two cathode to cathode, or the varistor law)."""
+    from board.custom import protection_models as PM
+    out, models = [], set()
+    for k, (name, mname, mline, row) in enumerate(parts, 1):
+        lines, mods = PM.elements(row, k, mname)
+        out += ['* esd-3: protection part %s (board.custom.protection_parts)' % name, 'Vprotm%d %s esd_p%d DC 0' % (k, node, k)] + lines
+        models |= {m for m in mods if m}
     # Gear integration when a clamp is in: the trapezoidal rule rings step to step at a breakdown knee (seen on econ-core: +-0.2 A around the
     # 1.33 A HBM current through the SMBJ5.0A, step after step), Gear damps it - an established ngspice method. One step at the edge can still
     # overstate the clamp's current (1.50 A against the source's 1.33 A) - on the safe side for the I_PP check, and the rows show the source beside it
-    return out + sorted({p[2] for p in parts}) + (['.options method=gear'] if parts else [])
+    return out + sorted(models) + (['.options method=gear'] if parts else [])
 
 
 def event_lines(node, model, level_v, t_event):
@@ -65,10 +83,20 @@ def event_lines(node, model, level_v, t_event):
     if m['kind'] == 'current':
         return (['* esd-4: %s at %g V into %s at %g s (pcb.custom.esd_events)' % (model, level_v, node, t_event)] + _pwl(t_event, level_v)
                 + ['Vesdmeas esd_m %s DC 0' % node])
-    return ['* esd-1: %s at %g V into %s at %g s (pcb.custom.esd_events)' % (model, level_v, node, t_event),
-            'Vesdchg esd_chg 0 DC %g' % level_v, 'Resdchg esd_chg esd_k 1', 'Sesdchg esd_k esd_c esd_off 0 esdsw', 'Cesd esd_c 0 %g' % m['c_f'],
-            'Sesddis esd_c esd_r esd_on 0 esdsw', 'Resd esd_r esd_m %g' % m['r_ohm'], 'Vesdmeas esd_m %s DC 0' % node,
-            'Vesdon esd_on 0 PULSE(0 1 %g 1n 1n 1 2)' % t_event, 'Vesdoff esd_off 0 PULSE(1 0 %g 1n 1n 1 2)' % t_event, SW_MODEL]
+    if m.get('l_h'):   # esd-7: the CDM loop - its inductor after the resistor, and switch edges far inside its sub-nanosecond rise
+        path, edge = ['Resd esd_r esd_l %g' % m['r_ohm'], 'Lesd esd_l esd_m %g' % m['l_h']], '1p'
+    else:
+        path, edge = ['Resd esd_r esd_m %g' % m['r_ohm']], '1n'
+    return (['* esd-1: %s at %g V into %s at %g s (pcb.custom.esd_events)' % (model, level_v, node, t_event),
+             'Vesdchg esd_chg 0 DC %g' % level_v, 'Resdchg esd_chg esd_k 1', 'Sesdchg esd_k esd_c esd_off 0 esdsw', 'Cesd esd_c 0 %g' % m['c_f'],
+             'Sesddis esd_c esd_r esd_on 0 esdsw'] + path + ['Vesdmeas esd_m %s DC 0' % node,
+             'Vesdon esd_on 0 PULSE(0 1 %g %s %s 1 2)' % (t_event, edge, edge), 'Vesdoff esd_off 0 PULSE(1 0 %g %s %s 1 2)' % (t_event, edge, edge), SW_MODEL])
+
+
+def short_deck(model, level_v, t_event=1e-9):
+    """esd-7: the model's own network into a dead short (0 V), long enough to see its first peak and width - the source checked alone in ngspice."""
+    return '\n'.join(['* esd-7: %s at %g V into a short (pcb.custom.esd_events.short_deck)' % (model, level_v)]
+                     + event_lines('esd_x', model, level_v, t_event) + ['Vshort esd_x 0 DC 0', '.tran 1p %g' % (t_event + 10e-9), '.end']) + '\n'
 
 
 def _tran(deck):
@@ -123,7 +151,7 @@ def protection_of(manager, a):
         mname, line, _, why = PP.spice_model(r)
         if why:
             return [], '%s cannot be simulated: %s' % (name, why)
-        out.append((name, mname, line))
+        out.append((name, mname, line, r))
     return out, ''
 
 
@@ -241,14 +269,15 @@ def results(manager, run):
     level = float(ev['level_v'])
     summary = {'run': run, 'baseline': ev['baseline'], 'area': ev['area'], 'model': ev['model'], 'level_v': level, 'net': ev['net'],
                't_event_s': te, 'peak_current_a': i_pk,
-               'expected_current_a': level / m['r_ohm'] if m['kind'] == 'network' else iec_current_peak(level),
+               'expected_current_a': expected_peak(ev['model'], level),
                'energy_j': 0.5 * m['c_f'] * level ** 2, 'protection_parts': ', '.join(p['part'] for p in parts) or 'none',
                'verdict': ('BREAKS' if any(x['breaks'].startswith('BREAKS') for x in prot) or any(p['breaks'].startswith('BREAKS') for p in parts) else
                            'does not recover in time' if any(x['recovered'].startswith('NO') for x in prot) else
                            'survives, recovers in time' + ('' if abs_max >= 0 else ' (break check undetermined: no absolute maximum)')),
                'basis': ('%s; injected at %s at %g s through a 0 V meter (peak current against %s); compared point by point with the same deck '
                          'and source at 0 (run %s); criterion: %s%s%s'
-                         % (m['standard'], ev['net'], te, 'level / R' if m['kind'] == 'network' else 'Table 3\'s first peak, 3.75 A per kV',
+                         % (m['standard'], ev['net'], te, 'Eq. 9 of the loop' if m.get('l_h') else 'level / R' if m['kind'] == 'network' else
+                            'Table 3\'s first peak, 3.75 A per kV',
                             ev['baseline'], _crit(a), ('; protection parts placed from the net to ground in both runs: %s, each against its cited I_PP'
                                                        % ', '.join(p['part'] for p in parts)) if parts else '',
                             ('; ' + m['caveat']) if m['caveat'] else '')
@@ -256,6 +285,14 @@ def results(manager, run):
                             % ('the area\'s' if float(a['abs_max_v']) >= 0 else 'the foothold\'s max_volts' if abs_max >= 0 else 'not given')
                             if ev.get('pin_only') else ''))}
     return summary, rows, ''
+
+
+def expected_peak(model, level_v):
+    """The source's own peak into a short: level / R (a resistive network), Eq. 9 of the CDM loop (esd-7), Table 3's first peak (the IEC equation)."""
+    m = MODELS[model]
+    if m.get('l_h'):
+        return cdm_peak(level_v, m['c_f'])
+    return level_v / m['r_ohm'] if m['kind'] == 'network' else iec_current_peak(level_v)
 
 
 def iec_current_peak(level_v):
@@ -279,8 +316,19 @@ def protection_rows(manager, ev, e, after, run):
                     'breaks': ('undetermined - no I_PP given' if ipp <= 0 else
                                'BREAKS: %.4g A is above its %g A peak pulse current (%s)' % (pk, ipp, r.get('pulse')) if pk > ipp else
                                'no (%.3g %% of its I_PP)' % (100.0 * pk / ipp)),
+                    'in_model': _in_model(r, pk),
                     'source': r.get('document') or r.get('origin', ''), 'run': run})
     return out
+
+
+def _in_model(r, pk):
+    """esd-6: whether the peak stayed inside the cited points the part's model is derived from (its clamping current: i_c, else I_PP)."""
+    top = float(r.get('i_c_a', -1.0)) if float(r.get('i_c_a', -1.0) or -1.0) > 0 else float(r.get('i_pp_a', -1.0))
+    if top <= 0 or pk < 0:
+        return 'undetermined'
+    if pk <= top:
+        return 'yes (%.3g A within the cited %g A)' % (pk, top)
+    return ('NO - %.3g A is past the cited %g A%s' % (pk, top, ': the varistor law understates the voltage there' if r.get('kind') == 'varistor' else ''))
 
 
 def protection_results(manager, run):

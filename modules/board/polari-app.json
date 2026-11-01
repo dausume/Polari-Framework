@@ -398,6 +398,7 @@
    "custom/esd_areas",
    "custom/esd_footholds",
    "custom/protection_parts",
+   "custom/protection_models",
    "custom/part_seed",
    "custom/part_fixes",
    "custom/board_esd"

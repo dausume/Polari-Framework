@@ -98,6 +98,7 @@
    "pcb_bench_export_selftest",
    "pcb_esd_selftest",
    "pcb_esd_protection_selftest",
+   "pcb_esd_cdm_selftest",
    "pcb_kicad_connect_selftest",
    "pcb_kicad_cover_selftest",
    "pcb_kicad_geometry_selftest",
@@ -131,7 +132,8 @@
    "custom/temperature_inputs",
    "custom/spice_temperature",
    "custom/esd_events",
-   "custom/esd_iec"
+   "custom/esd_iec",
+   "custom/esd_cdm"
   ]
  },
  "classes": [

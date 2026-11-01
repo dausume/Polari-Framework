@@ -29,7 +29,7 @@ class PcbEsdAPI(treeObject):
 
     def on_get_models(self, request, response):
         from pcb.custom.esd_events import MODELS
-        response.media = {'ok': True, 'rows': [dict(name=k, levels=', '.join('%g V' % v for v in m['levels']),
+        response.media = {'ok': True, 'rows': [dict(name=k, levels=', '.join('%g V' % v for v in m['levels']), l_h=m.get('l_h', 0.0),
                                                     **{x: m[x] for x in ('kind', 'c_f', 'r_ohm', 'standard', 'caveat')}) for k, m in MODELS.items()]}
 
     def on_post_run(self, request, response, board):

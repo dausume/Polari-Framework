@@ -146,9 +146,9 @@ def run_esd_doors(check):
     bad_level = cl.simulate_post('/api/pcb/demo/esd-run', json={'area': 'layers:demo:net:/OUT', 'level_v': 'loud'})
     nores = cl.simulate_get('/api/pcb/runs/nope/esd-results')
     gone = cl.simulate_post('/api/board/esd-areas/unflag', json={'name': 'layers:demo:net:/OUT'})
-    check('ESD THE DOORS: the networks (HBM, IEC contact, and since esd-4 IEC\'s own current equation); flag by the toggle (201) and list it (an area name carrying a slash rides in the body); edit its absolute maximum; '
+    check('ESD THE DOORS: the networks (HBM, IEC contact, since esd-4 IEC\'s own current equation, since esd-7 the CDM loop\'s two JS-002 modules); flag by the toggle (201) and list it (an area name carrying a slash rides in the body); edit its absolute maximum; '
           'run refuses an unknown area (404), a board with no schematic (404) and a level that is not a number (400); results of an unknown run 404; unflag',
-          models.status_code == 200 and len(models.json['rows']) == 3 and tog.status_code == 201 and listed.json['rows'][0]['target'] == '/OUT'
+          models.status_code == 200 and len(models.json['rows']) == 5 and tog.status_code == 201 and listed.json['rows'][0]['target'] == '/OUT'
           and qty.status_code == 200 and unknown.status_code == 404 and noschem.status_code == 404 and 'no ingested schematic' in noschem.json['error']
           and bad_level.status_code == 400 and nores.status_code == 404 and gone.json.get('removed') == 'layers:demo:net:/OUT',
           (tog.json, unknown.json, noschem.json))

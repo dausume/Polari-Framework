@@ -1,19 +1,13 @@
 """
 @module board.custom.protection_parts
 
-esd-3 (AI-Notes/plans/DRIVERS_AND_ESD_PLAN.md): PROTECTION PARTS FROM THEIR DATASHEET NUMBERS - the catalogue (cited SEED + rows people define) and each
+esd-3 / esd-6 (AI-Notes/plans/DRIVERS_AND_ESD_PLAN.md): PROTECTION PARTS FROM THEIR DATASHEET NUMBERS - the catalogue (cited SEED + rows people define) and each
 part's SPICE model, DERIVED from its ratings or refused in words.
 
   catalogue(manager)                     every ProtectionPart, one row each with its ratings in words and whether it can be modelled
   part(name, manager)                    one as a dict, or None
-  spice_model(row) -> (model_name, line, basis, why)   a unidirectional TVS as an ngspice diode:
-        BV  = V_BR max at I_T (the top of the spread - the worst case for the protected net), IBV = I_T, NBV = 1
-        RS  = (V_C - BV - Vt ln(I_PP / IBV)) / I_PP     the clamping pair at its rated pulse lands exactly on V_C at I_PP
-        N   = (V_F - I_F RS) / (Vt ln(I_F / IS))         the forward pair lands exactly on V_F at I_F (IS = 1e-14 A, ngspice's default)
-        Vt  = k T / q at ngspice's TNOM 27 C; no CJO when the datasheet gives the capacitance only as a graph (said - no capacitance means less of the
-              shock is soaked up, so the protected net's peak is, if anything, overstated)
-     refused: tvs-bi (two diodes in anti-series add a forward drop the datasheet's V_BR already includes - needs the vendor's model), varistor (a power
-     law, not a breakdown knee - the vendor's model), polymer (snapback: it triggers at hundreds of volts and then clamps - not a breakdown diode)
+  spice_model(row) -> (model_name, line, basis, why)   board.custom.protection_models (re-exported): tvs-uni, tvs-bi (esd-6) and varistor (esd-6)
+     DERIVED from the ratings on ngspice's own elements (no vendor model file); polymer refused in words
   define(manager, body) -> (status, body)   a person's own part (origin custom, or cited when a document is given)
 
 SEED:
@@ -24,14 +18,19 @@ SEED:
             V_T 300 V typ (both by TLP, Note 1); V_P 300 V typ (IEC 61000-4-2 8 kV contact, Note 2); C_O 0.2 pF typ at 1 MHz; bidirectional; IEC 61000-4-2
             level 4 (+-8 kV contact, +-15 kV air); -55 .. +125 C; "not recommended for new designs" (CGA0603MLC-05E). The UNO R3's Z1 / Z2
             (board.custom.uno_schematic_paths). A snapback polymer: catalogued, not modelled.
+  smbj5.0ca  esd-6: the same Bourns table, the bidirectional column of the SMBJ5.0A's row - the same V_BR 6.40 / 7.00 V at 10 mA, V_C 12.0 V at 326.5 A
+            (8/20 us); V_F is "for unidirectional units only"
+  s05k11    esd-6: TDK (EPCOS) SIOV metal oxide varistors, leaded, StandarD series (March 2018), type S05K11 = B72205S0110K101: V_V 18 V +-10 % at 1 mA;
+            v_c,max 36 V at i_c 1.0 A; C_typ 1750 pF at 1 kHz; maximum ratings (T_A 105 C) V_RMS 11 V, V_DC 14 V, i_max 100 A (8/20 us, once); -40 .. +105 C
 """
 import math
+
+from board.custom.protection_models import IS_A, VT_TNOM, _v, elements, model_name, spice_model, varistor_law  # noqa: F401 - the models, their own file
 
 CLS = 'ProtectionPart'
 _MEM = {CLS: {}}
 UNKNOWN = -1.0
-IS_A = 1e-14                       # ngspice's diode default saturation current
-VT_TNOM = 1.380649e-23 * 300.15 / 1.602176634e-19   # k T / q at ngspice's TNOM 27 C
+SIOV_DOC = 'TDK (EPCOS) SIOV metal oxide varistors, leaded, StandarD series, B722* (March 2018)'
 SMBJ_DOC = 'Bourns SMBJ Transient Voltage Suppressor Diode Series datasheet (REV. 09/20)'
 CG_DOC = 'Bourns CG0603MLC-05E & -12E - ChipGuard ESD Protectors datasheet (REV. A 11/18)'
 
@@ -49,9 +48,24 @@ SEED = [
      'v_trigger_v': 300.0, 'cap_pf': 0.2, 't_min_c': -55.0, 't_max_c': 125.0, 'model_basis': '',
      'document': CG_DOC, 'page_table': 'Electrical Characteristics @ 25 C', 'url': 'https://www.bourns.com/docs/Product-Datasheets/CG0603MLC.pdf',
      'origin': 'cited', 'notes': ('typical values (V_C 30 V, V_T 300 V by TLP; V_P 300 V at IEC 61000-4-2 8 kV contact); bidirectional; not recommended '
-                                  'for new designs (CGA0603MLC-05E); the UNO R3\'s Z1 / Z2')}]
+                                  'for new designs (CGA0603MLC-05E); the UNO R3\'s Z1 / Z2')},
+    {'name': 'smbj5.0ca', 'kind': 'tvs-bi', 'part_number': 'SMBJ5.0CA', 'package': 'SMB (DO-214AA)', 'v_rwm': 5.0, 'v_br_min': 6.40, 'v_br_max': 7.00,
+     'i_t_ma': 10.0, 'v_c_v': 12.0, 'i_pp_a': 326.5, 'pulse': '8/20 us', 'v_f_v': UNKNOWN, 'i_f_a': UNKNOWN, 'v_trigger_v': UNKNOWN, 'cap_pf': UNKNOWN,
+     'i_c_a': UNKNOWN, 't_min_c': -55.0, 't_max_c': 150.0,
+     'model_basis': 'the 8/20 us clamping pair (12.0 V at 326.5 A) and V_BR max at I_T, both the pair\'s; no forward pair (unidirectional units only)',
+     'document': SMBJ_DOC, 'page_table': 'Electrical Characteristics part table, row SMBJ5.0A / SMBJ5.0CA (the bidirectional column)',
+     'url': 'https://www.bourns.com/docs/Product-Datasheets/SMBJ.pdf', 'origin': 'cited',
+     'notes': 'I_R 800 uA at V_RWM 5.0 V; P_PK 600 W (1 ms); "CA = 5 % tolerance bidirectional device" (How to Order); capacitance given only as a graph'},
+    {'name': 's05k11', 'kind': 'varistor', 'part_number': 'SIOV-S05K11 (B72205S0110K101)', 'package': 'leaded disc, 5 mm', 'v_rwm': 14.0,
+     'v_br_min': 16.2, 'v_br_max': 19.8, 'i_t_ma': 1.0, 'v_c_v': 36.0, 'i_pp_a': 100.0, 'pulse': '8/20 us (once)', 'v_f_v': UNKNOWN, 'i_f_a': UNKNOWN,
+     'v_trigger_v': UNKNOWN, 'cap_pf': 1750.0, 'i_c_a': 1.0, 't_min_c': -40.0, 't_max_c': 105.0,
+     'model_basis': 'V_V 18 V +-10 % at 1 mA (V_V max 19.8 V, the top of the spread) and v_c,max 36 V at i_c 1.0 A; C_typ 1750 pF (1 kHz)',
+     'document': SIOV_DOC, 'page_table': 'Maximum ratings (T_A 105 C) and Characteristics (T_A 25 C) tables, V_RMS 11 V block, B72205S0110K101',
+     'url': 'https://www.tdk-electronics.tdk.com/inf/70/db/var/SIOV_Leaded_StandarD.pdf', 'origin': 'cited',
+     'notes': ('v_rwm = V_DC 14 V (maximum rating); i_pp_a = i_max 100 A (8/20 us, 1 time; 50 A nominal discharge, 15 times); W_max 0.3 J (2 ms); '
+               'TDK\'s PSpice models come under TDK\'s own terms - the model here is derived from the two cited points instead')}]
 
-_NUMS = ('v_rwm', 'v_br_min', 'v_br_max', 'i_t_ma', 'v_c_v', 'i_pp_a', 'v_f_v', 'i_f_a', 'v_trigger_v', 'cap_pf')
+_NUMS = ('v_rwm', 'v_br_min', 'v_br_max', 'i_t_ma', 'v_c_v', 'i_pp_a', 'v_f_v', 'i_f_a', 'v_trigger_v', 'cap_pf', 'i_c_a')
 
 
 def _get(o, k, default=None):
@@ -70,51 +84,11 @@ def _live(manager):
     return [{k: _get(o, k) for k in _fields()} for o in ((getattr(manager, 'objectTables', None) or {}).get(CLS) or {}).values()]
 
 
-def model_name(name):
-    return 'esdp_' + ''.join(c if c.isalnum() else '_' for c in name.lower())
-
-
-def spice_model(r):
-    """(model_name, .model line, basis in words, why) - why is the refusal ('' when modelled)."""
-    kind = r.get('kind')
-    if kind == 'polymer':
-        return '', '', '', ('a snapback polymer suppressor (triggers at %s, then clamps at %s) is not a breakdown diode - no derived model; a vendor model '
-                            'is needed' % (_v(r, 'v_trigger_v'), _v(r, 'v_c_v')))
-    if kind == 'varistor':
-        return '', '', '', 'a varistor follows a power law, not a diode\'s breakdown knee - no derived model; a vendor model is needed'
-    if kind == 'tvs-bi':
-        return '', '', '', ('a bidirectional TVS as two diodes in anti-series adds a forward drop that its datasheet V_BR already includes - not derived '
-                            'yet; a vendor model is needed')
-    if kind != 'tvs-uni':
-        return '', '', '', 'unknown kind %r' % kind
-    need = [k for k in ('v_br_max', 'i_t_ma', 'v_c_v', 'i_pp_a', 'v_f_v', 'i_f_a') if float(r.get(k, UNKNOWN)) <= 0]
-    if need:
-        return '', '', '', 'a TVS model needs %s from the datasheet (not given)' % ', '.join(need)
-    bv, ibv, vc, ipp, vf, i_f = (float(r[k]) for k in ('v_br_max', 'i_t_ma', 'v_c_v', 'i_pp_a', 'v_f_v', 'i_f_a'))
-    ibv /= 1000.0
-    rs = (vc - bv - VT_TNOM * math.log(ipp / ibv)) / ipp
-    n = (vf - i_f * rs) / (VT_TNOM * math.log(i_f / IS_A))
-    if rs <= 0 or n <= 0:
-        return '', '', '', 'the ratings give a non-physical model (RS %.4g, N %.4g) - check the numbers' % (rs, n)
-    cj = (' CJO=%gp' % float(r['cap_pf'])) if float(r.get('cap_pf', UNKNOWN)) > 0 else ''
-    name = model_name(r['name'])
-    line = '.model %s D(IS=%g N=%.4f RS=%.6g BV=%g IBV=%g NBV=1%s)' % (name, IS_A, n, rs, bv, ibv, cj)
-    basis = ('BV = V_BR max %g V at I_T %g mA; RS = (V_C %g V - BV - Vt ln(I_PP/I_T)) / I_PP %g A (%s) = %.4g Ohm; N = (V_F %g V - I_F RS) / (Vt ln(I_F/IS)) '
-             'at I_F %g A = %.4g; IS %g A (ngspice default), Vt %.5g V (TNOM 27 C); %s (%s)'
-             % (bv, ibv * 1000, vc, ipp, r.get('pulse') or 'its pulse', rs, vf, i_f, n, IS_A, VT_TNOM,
-                ('CJO %g pF' % float(r['cap_pf'])) if cj else 'no capacitance given as a number - none modelled (the peak is, if anything, overstated)',
-                r.get('document') or r.get('origin')))
-    return name, line, basis, ''
-
-
-def _v(r, k, unit='V'):
-    v = float(r.get(k, UNKNOWN))
-    return '%g %s' % (v, unit) if v >= 0 else 'not given'
-
-
 def ratings_words(r):
-    return ('working %s; breakdown %s .. %s at %s; clamps at %s at %s (%s); forward %s at %s; trigger %s; %s'
-            % (_v(r, 'v_rwm'), _v(r, 'v_br_min'), _v(r, 'v_br_max'), _v(r, 'i_t_ma', 'mA'), _v(r, 'v_c_v'), _v(r, 'i_pp_a', 'A'), r.get('pulse') or '-',
+    at = ('%s; peak pulse %s (%s)' % (_v(r, 'i_c_a', 'A'), _v(r, 'i_pp_a', 'A'), r.get('pulse') or '-') if float(r.get('i_c_a', UNKNOWN)) > 0 else
+          '%s (%s)' % (_v(r, 'i_pp_a', 'A'), r.get('pulse') or '-'))
+    return ('working %s; breakdown %s .. %s at %s; clamps at %s at %s; forward %s at %s; trigger %s; %s'
+            % (_v(r, 'v_rwm'), _v(r, 'v_br_min'), _v(r, 'v_br_max'), _v(r, 'i_t_ma', 'mA'), _v(r, 'v_c_v'), at,
                _v(r, 'v_f_v'), _v(r, 'i_f_a', 'A'), _v(r, 'v_trigger_v'), _v(r, 'cap_pf', 'pF')))
 
 

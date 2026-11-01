@@ -446,6 +446,8 @@ def main():
     run_cited_catalogue(check)
     run_converters_and_fixes(check)
     run_budgets_and_placements(check)
+    from board.board_part_catalogue_selftest import run_down_shift_and_module   # drv-4 / drv-5
+    run_down_shift_and_module(check)
     run_catalogue_doors(check)
     from board.board_attach_selftest import run_attach   # ucd-frames+bundle: `pol board attach`'s own code path, offline
     run_attach(check)

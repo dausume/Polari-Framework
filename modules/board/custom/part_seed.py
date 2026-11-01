@@ -12,6 +12,9 @@ SEED - ULN2003A in PDIP-16, every number from TI SLRS027T (ULN200x / ULQ200x, De
   free-air -40 .. 70 C (ULN200xA); §5.6 at 25 C: V_I(on) 2.4 V max at I_C 200 mA (V_CE 2 V); input current 1.35 mA max at V_I 3.85 V;
   §5.2 ESD: HBM +-2000 V (ANSI/ESDA/JEDEC JS-001), CDM +-500 V (JESD22-C101)
 SN74AHCT125 (TI SCLS264R), TLC5916 (TI SLVS695D), LM1117-3.3 (TI SNOS412Q), LM2596-5.0 (TI SNVS124G): each row's contract_basis names its sections.
+drv-4: SN74LVC245A (TI SCAS218X) - the DOWN-shifter: 5.5 V-tolerant inputs on a 3.3 V supply (DIR wired high: A in, B out).
+drv-5: lm2596-5.0-module - the LM2596-5.0 WITH the datasheet's own fixed-output design (SNVS124G §9.2.1: 5 V, 3 A, up to 12 V in; L1 33 uH, C_OUT
+330 uF, D1 1N5823, C_IN 680 uF) as one Board - the converter a bench uses, where the bare chip has no regulated pin.
 """
 import json
 
@@ -44,6 +47,7 @@ def _dip(names_roles, extra=None):
 AHCT_DOC = 'TI SCLS264R, SNx4AHCT125 Quadruple Bus Buffer Gates With 3-State Outputs (rev. February 2024)'
 TLC_DOC = 'TI SLVS695D, TLC591x 8-Channel Constant-Current LED Sink Drivers (rev. January 2015)'
 LM1117_DOC = 'TI SNOS412Q, LM1117 800-mA, Low-Dropout Linear Regulator (rev. January 2023)'
+LVC245_DOC = 'TI SCAS218X, SN74LVC245A Octal Bus Transceiver With 3-State Outputs (January 1993 - revised January 2015)'
 LM2596_DOC = 'TI SNVS124G, LM2596 SIMPLE SWITCHER Power Converter 150-kHz 3-A Step-Down Voltage Regulator (rev. March 2023)'
 DIP_BASIS = ('N (R-PDIP-T**) drawing 4040049/E: pitch 0.100 in (2.54 mm) basic, rows 0.300 in (7.62 mm) apart (JEDEC MS-001); top view, pin 1 bottom '
              'left, the last pin opposite it')
@@ -125,4 +129,40 @@ SEED = [{
      'document': LM2596_DOC, 'page_table': 'Table 6-1, Figure 6-1, §7.1, §7.2, §7.3, §7.6, §7.9; NDH0005D drawing',
      'url': 'https://www.ti.com/lit/ds/symlink/lm2596.pdf', 'origin': 'cited',
      'notes': ('ON/OFF is active low: on below 0.6 V, off above 2 V (over temperature, §7.9), may be left open (on); the document\'s own tables call the '
-               'packages NDZ / KTW where Figure 6-1 says NDH / KTT')}]
+               'packages NDZ / KTW where Figure 6-1 says NDH / KTT')},
+    {'name': 'sn74lvc245a-n', 'kind': 'buffer', 'part_number': 'SN74LVC245AN', 'package': 'PDIP-20 (TI N)', 'channels': 8,
+     'pins_json': json.dumps(_dip([('DIR', 'in', 0)] + [('A%d' % k, 'in', k) for k in range(1, 9)] + [('GND', 'ground', 0)]
+                                  + [('B%d' % k, 'out', k) for k in range(8, 0, -1)] + [('OE', 'in', 0), ('VCC', 'supply', 0)],
+                                  {1: {'draw_ma': 0.01}, 19: {'draw_ma': 0.01}, 20: {'on_volts': 1.65, 'max_volts': 6.5}})),
+     'on_volts': 2.0, 'draw_ma': 0.02, 'in_max_v': 5.5, 'out_sink_ma': 24.0, 'out_source_ma': 24.0, 'out_max_v': 3.8, 'out_volts': 2.1,
+     'supply_min_v': 1.65, 'supply_max_v': 3.6, 'total_ma': 100.0, 't_min_c': -40.0, 't_max_c': 125.0, 'esd_hbm_v': 2000.0, 'esd_cdm_v': 1000.0,
+     'needs': 'DIR tied high (A to B), OE low and a 3.3 V supply (its numbers are at VCC 3 - 3.6 V)',
+     'position_basis': ('PDIP (N) 20 (the orderable addendum); TI\'s N package as the other DIP rows: pitch 0.100 in (2.54 mm), rows 0.300 in (7.62 mm) '
+                        '(JEDEC MS-001) - the drawing is not in this datasheet\'s text'),
+     'contract_basis': ('on_volts = V_IH min 2 V at VCC 2.7 - 3.6 V (§7.3); draw_ma = I_OZ max +-20 uA at -40 - 125 C for the A / B ports (§7.5: it '
+                        'includes the input leakage); control inputs DIR / OE: I_I +-10 uA (§7.5); in_max_v = V_I 5.5 V (§7.3, recommended; "Inputs Accept '
+                        'Voltages to 5.5 V"; absolute maximum 6.5 V, §7.1); out_sink_ma / out_source_ma = I_OL / I_OH 24 mA at VCC 3 V (§7.3); out_volts = '
+                        'V_OH min 2.1 V at I_OH -24 mA, VCC 3 V, -40 - 125 C (§7.5; V_CC - 0.2 V at -100 uA); out_max_v = V_O VCC + 0.5 V at VCC 3.3 V '
+                        '(§7.1); supply 1.65 - 3.6 V (§7.3); total_ma = continuous current through VCC or GND +-100 mA (§7.1); VCC absolute maximum 6.5 V; '
+                        'ESD HBM 2000 V, CDM 1000 V (§7.2)'),
+     'document': LVC245_DOC, 'page_table': '§6 Pin Functions, §7.1, §7.2, §7.3, §7.5; orderable addendum', 'url': 'https://www.ti.com/lit/ds/symlink/sn74lvc245a.pdf',
+     'origin': 'cited', 'notes': ('a 5 V -> 3.3 V down-shifter: "Supports Mixed-Mode Signal Operation on All Ports (5-V Input/Output Voltage With 3.3-V VCC)" '
+                                  '(§1); DIR high = A to B (Table, §6); TA -40 .. 125 C (§7.3, PDIP N orderable -40 to 125)')},
+    {'name': 'lm2596-5.0-module', 'kind': 'buck', 'part_number': 'LM2596T-5.0 + the SNVS124G §9.2.1 parts (L1 33 uH, C_OUT 330 uF, D1 1N5823, C_IN 680 uF)',
+     'package': 'module (four terminals)', 'channels': 1,
+     'pins_json': json.dumps([{'number': 1, 'name': 'VIN', 'role': 'supply', 'channel': 0, 'x_mm': 0.0, 'y_mm': 0.0, 'on_volts': 7.0, 'max_volts': 12.0},
+                              {'number': 2, 'name': 'GND', 'role': 'ground', 'channel': 0, 'x_mm': 2.54, 'y_mm': 0.0},
+                              {'number': 3, 'name': 'GND', 'role': 'ground', 'channel': 0, 'x_mm': 5.08, 'y_mm': 0.0},
+                              {'number': 4, 'name': 'VOUT', 'role': 'regulated', 'channel': 1, 'x_mm': 7.62, 'y_mm': 0.0}]),
+     'on_volts': UNKNOWN, 'draw_ma': UNKNOWN, 'in_max_v': UNKNOWN, 'out_sink_ma': UNKNOWN, 'out_source_ma': 3000.0, 'out_max_v': UNKNOWN, 'out_volts': 5.0,
+     'supply_min_v': 7.0, 'supply_max_v': 12.0, 'total_ma': 3000.0, 't_min_c': -300.0, 't_max_c': -300.0, 'esd_hbm_v': UNKNOWN, 'esd_cdm_v': UNKNOWN,
+     'needs': '',
+     'position_basis': ('four terminals on one 0.1 in (2.54 mm) row - a CHOSEN layout (a header), not a drawing: the datasheet gives a PCB layout '
+                        '(Figure 9-16), not a module pinout. Define your own module\'s positions as a custom part'),
+     'contract_basis': ('the design example of §9.2.1 (Table 9-2: V_OUT 5 V, V_IN(max) 12 V, I_LOAD(max) 3 A): L1 33 uH (Figure 9-6 at 12 V / 3 A, code '
+                        'L40), C_OUT 330 uF 35 V (Table 9-3, 5 V / 3 A / 15 V row), D1 1N5823 5 A 20 V Schottky (§9.2.1.2.4), C_IN 680 uF 35 V '
+                        '(§9.2.1.2.5); out_volts 5 V (4.75 - 5.25 V, §7.6) at up to 3 A (out_source_ma); supply_min_v 7 V (the input the 5 V output is '
+                        'specified from, §7.6), supply_max_v 12 V (the design\'s own maximum - its parts are picked for it; the chip alone takes 40 V)'),
+     'document': LM2596_DOC, 'page_table': '§7.6, §9.2.1 (Table 9-2, Figure 9-6, Table 9-3, Table 9-4)', 'url': 'https://www.ti.com/lit/ds/symlink/lm2596.pdf',
+     'origin': 'cited', 'notes': ('the converter as a bench uses it - the bare lm2596t-5.0 row needs these parts around it; temperature not given for the '
+                                  'assembly (the chip: TJ -40 .. 125 C)')}]

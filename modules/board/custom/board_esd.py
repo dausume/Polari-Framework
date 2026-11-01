@@ -42,8 +42,8 @@ def esd(kind, definition, which, manager, params):
         return (EA.quantities(manager, area), '') if area else ([], 'pick an area first')
     if which == 'esd-models':
         from pcb.custom.esd_events import MODELS
-        return [{'model': k, 'source': 'network' if m['kind'] == 'network' else 'the standard\'s current equation',
-                 'capacitance_pf': m['c_f'] * 1e12, 'resistance_ohm': m['r_ohm'], 'levels': ', '.join('%g V' % v for v in m['levels']),
+        return [{'model': k, 'source': ('series LCR loop' if m.get('l_h') else 'network') if m['kind'] == 'network' else 'the standard\'s current equation',
+                 'capacitance_pf': m['c_f'] * 1e12, 'resistance_ohm': m['r_ohm'], 'inductance_nh': m.get('l_h', 0.0) * 1e9, 'levels': ', '.join('%g V' % v for v in m['levels']),
                  'standard': m['standard'], 'caveat': m['caveat']} for k, m in MODELS.items()], ''
     if which == 'esd-protection':
         from board.custom import protection_parts as PP
