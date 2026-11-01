@@ -931,7 +931,14 @@ class IsleMeshAPI(treeObject):
                      router_running=getattr(row, 'router_running',
                                             False),
                      connectivity_mode=getattr(
-                         row, 'connectivity_mode', ''))
+                         row, 'connectivity_mode', ''),
+                     reported_at=getattr(row, 'last_seen', ''),
+                     uplinks=[{'interface': getattr(u, 'interface', ''),
+                               'medium': getattr(u, 'kind', ''),
+                               'link_up': getattr(u, 'link_up', False),
+                               'reported_at': getattr(u, 'measured_at', '')}
+                              for u in self._table('IsleUplink').values()
+                              if getattr(u, 'device_name', '') == name])
             if getattr(row, 'agent_present', False):
                 # the nginx proxy is the device's EDGE — every packet
                 # in/out of this device's isle apps passes it. role
@@ -1015,17 +1022,36 @@ class IsleMeshAPI(treeObject):
                 # not detected hardware. A genuine detected switch
                 # (LLDP/bridge) would arrive as detection:'detected'.
                 add_node('segment:isle', 'segment',
-                         'isle L2 segment (switch)',
+                         'Shared Isle segment (inferred)',
                          placement='external',
-                         detection='inferred')
+                         detection='inferred',
+                         evidence='Candidate uplinks reported by devices. No switch, access point or cable path has been discovered.')
                 segment_added = True
             linked_devices.add(device)
             links.append({'source': 'device:%s' % device,
                           'target': 'segment:isle',
                           'kind': 'l2',
-                          'label': getattr(row, 'interface', ''),
+                          'label': '%s · %s' % (kind, getattr(row, 'interface', '')),
+                          'medium': kind, 'detection': 'inferred',
+                          'reported_at': getattr(row, 'measured_at', ''),
+                          'evidence': 'Interface carrier reported; membership of this physical segment is inferred, not verified.',
                           'is_mock': getattr(row, 'is_mock',
                                              False)})
+
+        # Expected DNS relationship, not a packet trace or resolver observation.
+        # Never choose an arbitrary core when multiple routers are reported.
+        routers = [n for n in nodes if n['kind'] == 'router']
+        if len(routers) == 1:
+            router = routers[0]
+            for agent in [n for n in nodes if n['kind'] == 'proxy']:
+                dev = next(n for n in nodes if n['id'] == 'device:' + agent['device'])
+                links.append({
+                    'source': router['id'], 'target': agent['id'],
+                    'kind': 'dns', 'label': '.isle DNS (expected)',
+                    'detection': 'inferred', 'reported_at': dev.get('reported_at', ''),
+                    'evidence': 'Expected OpenWrt DNS relationship from reported router and agent roles. Resolver configuration and packet traversal are not verified.',
+                    'is_mock': router['is_mock'] or agent['is_mock'],
+                })
 
         for row in self._table('IsleApp').values():
             name = getattr(row, 'name', '')

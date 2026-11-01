@@ -116,7 +116,7 @@ class EvaluatorTests(unittest.TestCase):
 
 # Exercise the actual route methods with in-memory tables instead of booting DB,
 # server, plugins or agents. Persistence/migration is a separate integration gate.
-methods={'_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
+methods={'on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
 tree=ast.parse((ROOT/'islemesh_api.py').read_text())
 cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMeshAPI')
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
@@ -134,6 +134,33 @@ class ApiTests(unittest.TestCase):
         self.api._any_mock=lambda:False
         self.api._refuse=lambda response,error,status='400 Bad Request':setattr(response,'media',{'ok':False,'error':error})
         self.request=SimpleNamespace(get_param=lambda name:None)
+    def test_graph_distinguishes_reported_interfaces_from_inferred_paths(self):
+        self.tables['IsleDevice'] = {
+            'core': SimpleNamespace(name='core',agent_present=True,router_running=True,last_seen=NOW.isoformat()),
+            'remote': SimpleNamespace(name='remote',agent_present=True,router_running=False,last_seen=NOW.isoformat()),
+        }
+        self.tables['IsleUplink'] = {
+            'eth': SimpleNamespace(device_name='remote',interface='eth0',kind='ethernet',link_up=True,measured_at=NOW.isoformat()),
+            'wifi': SimpleNamespace(device_name='remote',interface='wlan0',kind='wifi',link_up=True,measured_at=NOW.isoformat()),
+        }
+        self.api.on_get_graph(self.request,self.response)
+        graph=self.response.media
+        segment=next(n for n in graph['nodes'] if n['kind']=='segment')
+        self.assertEqual(segment['detection'],'inferred')
+        self.assertNotIn('(switch)',segment['label'])
+        remote=next(n for n in graph['nodes'] if n['id']=='device:remote')
+        self.assertEqual(len(remote['uplinks']),2)
+        physical=[l for l in graph['links'] if l['kind']=='l2']
+        self.assertEqual(len(physical),1) # unrelated Wi-Fi is not an Isle link
+        self.assertEqual(physical[0]['medium'],'ethernet')
+        self.assertEqual(physical[0]['reported_at'],NOW.isoformat())
+        dns=[l for l in graph['links'] if l['kind']=='dns']
+        self.assertEqual(len(dns),2)
+        self.assertTrue(all(l['source']=='router:core' and l['detection']=='inferred' for l in dns))
+        self.tables['IsleDevice']['remote'].router_running=True
+        self.api.on_get_graph(self.request,self.response)
+        self.assertFalse(any(l['kind']=='dns' for l in self.response.media['links']))
+
     def test_bridge_catalog_uses_manifest_and_never_offers_vm_commands(self):
         self.api._instances_of=lambda name:[]
         entries=self.api._bridge_catalog_entries()
