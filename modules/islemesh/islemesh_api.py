@@ -1168,6 +1168,13 @@ class IsleMeshAPI(treeObject):
         # Its global totals cannot be presented as this Isle's capacity.
         resources.pop('totals', None)
         resources['scope'] = 'reported Isle devices'
+        for device in resources['devices']:
+            for workload in device.get('appWorkloads', []):
+                app_node = next((n for n in nodes if n['id'] == 'app:' + workload['name']
+                                 and n['device'] == device['device']), None)
+                if app_node:
+                    workload['kind'] = app_node.get('app_kind', workload['kind'])
+                    workload['realization'] = app_node.get('realization', '')
         for node in nodes:
             if node['kind'] == 'device':
                 node['resources'] = next((r for r in resources['devices'] if r['device'] == node['device']), None)
