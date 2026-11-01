@@ -19,6 +19,13 @@ POST   /api/pcb/{board}/temperature-behaviours/{ref}       {t_min_c?, t_max_c?, 
 POST   /api/pcb/temperature-behaviours/by-part/{part_key}  the same for every part whose symbol value or lib_id is part_key
 GET    /api/pcb/{board}/part-temperatures?ambient=&mode=   {ok, rows}  tmp-2: each part's own temperature from the board over time
 POST   /api/pcb/{board}/simulate-parts                     {ambient_c?, mode?: final|peak}  tmp-2: the board at ambient + each part at its own
+POST   /api/pcb/{board}/self-heating                       {ambient_c?, tol_c?, max_passes?, relax?}  tmp-3: the loop run -> verdict settled / runaway
+GET    /api/pcb/{board}/self-heating                       the newest loop's result in this process (404 before one)
+GET    /api/pcb/temperature-curves                         {ok, rows}  tmp-5: the cited curve catalogue
+GET    /api/pcb/{board}/temperature-curves?temps=          {ok, rows}  each part's curves at those temperatures (default -40, 25, 85, 125 C)
+POST   /api/pcb/{board}/temperature-curves/{ref}           {from}  give that part a catalogue curve
+DELETE /api/pcb/{board}/temperature-curves/{ref}/{quantity}   take it away again
+POST   /api/pcb/{board}/simulate-curves                    {temp_c, corner?: nominal|low|high}  one run with the curves' values in the deck
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -65,6 +72,12 @@ class PcbTemperatureAPI(treeObject):
             add('/api/pcb/temperature-behaviours/by-part/{part_key}', self, suffix='shared_behaviour')
             add('/api/pcb/{board}/part-temperatures', self, suffix='part_temps')
             add('/api/pcb/{board}/simulate-parts', self, suffix='parts_run')
+            add('/api/pcb/{board}/self-heating', self, suffix='self_heating')
+            add('/api/pcb/temperature-curves', self, suffix='curve_catalogue')
+            add('/api/pcb/{board}/temperature-curves', self, suffix='curves')
+            add('/api/pcb/{board}/temperature-curves/{ref}', self, suffix='curve_bind')
+            add('/api/pcb/{board}/temperature-curves/{ref}/{quantity}', self, suffix='curve_unbind')
+            add('/api/pcb/{board}/simulate-curves', self, suffix='curve_run')
 
     def _send(self, response, status, body):
         response.status, response.media = _STATUS[status], body
@@ -179,3 +192,62 @@ class PcbTemperatureAPI(treeObject):
             return self._send(response, 400, {'ok': False, 'error': why or 'mode must be final or peak'})
         res = ST.run_parts(self.manager, board, t, mode)
         self._send(response, _run_status(res), res)
+
+    def on_post_self_heating(self, request, response, board):
+        from pcb.custom import electrothermal as ET
+        body = request.get_media() or {}
+        t, why = self._ambient(body.get('ambient_c'))
+        if why:
+            return self._send(response, 400, {'ok': False, 'error': why})
+        try:
+            kw = {k: float(body[k]) for k in ('tol_c', 'relax') if body.get(k) not in (None, '')}
+            if body.get('max_passes') not in (None, ''):
+                kw['max_passes'] = int(body['max_passes'])
+        except (TypeError, ValueError):
+            return self._send(response, 400, {'ok': False, 'error': 'tol_c and relax need numbers, max_passes a whole number'})
+        res = ET.settle(self.manager, board, t, **kw)
+        self._send(response, res.get('status') or 200, res)
+
+    def on_get_self_heating(self, request, response, board):
+        from pcb.custom import electrothermal as ET
+        res = ET.last(board)
+        self._send(response, 200 if res else 404, res or {'ok': False, 'error': 'no self-heating loop run for %s in this process - POST one' % board})
+
+    def on_get_curve_catalogue(self, request, response):
+        from board.custom import board_temperature as BT
+        rows, _ = BT.temperature('', 'curve-catalogue', self.manager, {})
+        self._send(response, 200, {'ok': True, 'rows': rows})
+
+    def on_get_curves(self, request, response, board):
+        from pcb.custom import temperature_curves as TC
+        raw = request.get_param('temps') or ''
+        temps = []
+        for x in [x for x in raw.split(',') if x.strip()] or ['-40', '25', '85', '125']:
+            t, why = _temp(x, 'temps')
+            if why:
+                return self._send(response, 400, {'ok': False, 'error': why})
+            temps.append(t)
+        rows = TC.at_temperatures(self.manager, board, temps[:MAX_TEMPS])
+        self._send(response, 200, {'ok': True, 'board': board, 'rows': rows})
+
+    def on_post_curve_bind(self, request, response, board, ref):
+        from pcb.custom import temperature_curves as TC
+        body = request.get_media() or {}
+        if not body.get('from'):
+            return self._send(response, 400, {'ok': False, 'error': 'name the catalogue curve: {"from": "<curve>"}'})
+        status, res = TC.bind(self.manager, board, ref, body['from'])
+        self._send(response, status, res)
+
+    def on_delete_curve_unbind(self, request, response, board, ref, quantity):
+        from pcb.custom import temperature_curves as TC
+        status, res = TC.unbind(self.manager, board, ref, quantity)
+        self._send(response, status, res)
+
+    def on_post_curve_run(self, request, response, board):
+        from pcb.custom import temperature_curves as TC
+        body = request.get_media() or {}
+        t, why = _temp(body.get('temp_c'))
+        if why:
+            return self._send(response, 400, {'ok': False, 'error': why})
+        res = TC.run_at(self.manager, board, t, body.get('corner') or 'nominal')
+        self._send(response, 400 if res.get('status') == 400 else _run_status(res), res)

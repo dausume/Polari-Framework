@@ -1376,6 +1376,7 @@ class polariServer(treeObject):
             SpiceRun, SpiceVector,   # kxc-3b
             PartPowerInput, PartThermalModel,   # bob-3g
             PartTemperatureBehaviour,   # tmp-1
+            PartTemperatureCurve,   # tmp-5
             # sc-0: firmware fault kinds (one class per kind), primitives, assumptions, techniques, scenarios, runs, trace rows; sc-1: statistics
             FirmwareFault, TornReadFault, DoubleGiveFault, LostWakeupFault, PriorityInversionFault, DeadlockFault, LivelockFault, StarvationFault, UartBitErrorFault, DoubleEdgeFault, MetastableInputFault, BrownoutMidWriteFault, BitFlipFault, ClockSkewFault, StackOverflowFault, BufferOverrunFault, MissedDeadlineFault, ConcurrencyPrimitive, Assumption, Technique, Scenario, ScenarioStep, ScenarioRun, ScenarioTraceCycle,
             ScenarioStatistic,

@@ -246,6 +246,7 @@
    "custom/board_cli",
    "custom/board_details",
    "custom/board_temperature",
+   "custom/timing_drift",
    "custom/board_elecrow_s3",
    "custom/board_engines",
    "custom/board_feather_m0",

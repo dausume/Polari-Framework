@@ -116,3 +116,81 @@ def part_temperature_tab():
                                     'neighbours). The circuit can only give a part its own temperature where ngspice allows it - the Temperature tab\'s '
                                     'own_temperature column says which.', columns='ref,power_w,temp_c,rise_c,mode,from,basis', max_height=400)], min_height=220)],
         'Each part at its own temperature: the background plus its rise from the board over time, then the circuit run that way.')
+
+
+def self_heating_tab():
+    """tmp-3: the circuit heats itself - the run's powers set the temperatures, run again, until it settles or runs away."""
+    return _tab('self-heating', 'Self-heating', [
+        _row(0, [_table('bd-selfheat-run', 0, 12, 'Let the circuit heat itself', '', data_path='%s/self-heat-run?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only a PCB from KiCad has a circuit to run.', edit_fields='ambient_c', edit_signed_field='signed',
+                        edit_action={'method': 'POST', 'path': '/api/pcb/{board}/self-heating', 'body_template': {'ambient_c': '{value}'}},
+                        description='What this is for: a part that warms changes how it works, and that can change how much it warms - a resistor '
+                                    'load settles, a transistor held at a fixed voltage can run away. Type the background (room) temperature in C and '
+                                    'press Enter: the circuit runs, each part\'s power heats it (the board under it with a layout, else its datasheet '
+                                    'junction-to-ambient figure), the circuit runs again at those temperatures, and so on. settled = nothing moves any '
+                                    'more; runaway = every pass hotter by more than the last. loop_gain below 1 settles - the same condition the real '
+                                    'part needs to stay stable.', columns='ambient_c,verdict,why,passes,loop_gain,over_tj_max,basis', max_height=180)],
+             min_height=150),
+        _row(1, [_table('bd-selfheat-passes', 0, 12, 'Each pass of the newest loop', '', data_path='%s/self-heating?rev=r{scope:rev}' % DOOR,
+                        empty_text='Run the loop above.',
+                        description='What this is for: watching the loop converge or not. One row per part per pass: the power the run gave it, the '
+                                    'temperature it ran at, the temperature that power heats it to, and the change - shrinking changes settle, growing '
+                                    'ones run away. Every pass is a kept run (the Simulation tab).',
+                        columns='pass,ref,power_w,ran_at_c,temp_c,change_c,basis,run', max_height=420)], min_height=240)],
+        'Self-heating: the circuit\'s own power sets each part\'s temperature, the circuit runs again at it, until it settles or runs away.')
+
+
+def curves_tab():
+    """tmp-5: parts with no SPICE model - their datasheets' numbers against temperature, read at the simulated temperatures."""
+    return _tab('temperature-curves', 'Temperature curves', [
+        _row(0, [_table('bd-curve-catalogue', 0, 6, 'Cited curves - click one', '', data_path='%s/curve-catalogue' % DOOR, select_field='curve',
+                        select_scope='tcurve', selected_value='{scope:tcurve}',
+                        description='What this is for: the numbers datasheets give against temperature for things no SPICE model carries - a '
+                                    'MOSFET\'s on-resistance, an LED\'s forward voltage, a capacitor dielectric\'s drift. points = a table\'s rows '
+                                    '(straight lines between them, nothing past them); linear = one stated value and coefficient; band = a bound '
+                                    '(a class like X7R), read as a low and a high corner. Each row names its document.',
+                        columns='curve,part_key,quantity,unit,kind,range,conditions,source', max_height=320),
+                 _table('bd-curve-parts', 0, 6, 'Give curve {scope:tcurve} to a part', '', data_path='%s/temperature-parts?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only a PCB from KiCad has parts.',
+                        row_action={'label': 'Give it', 'method': 'POST', 'path': '/api/pcb/{board}/temperature-curves/{ref}',
+                                    'body_template': {'from': '{scope:tcurve}'}},
+                        description='What this is for: saying which part the curve belongs to. A part whose value is the curve\'s part number gets '
+                                    'it without asking.', columns='ref,value', max_height=320)], min_height=220),
+        _row(1, [_table('bd-curve-values', 0, 12, 'Each part\'s curves at the simulated temperatures', '',
+                        data_path='%s/temperature-curves?rev=r{scope:rev}' % DOOR, empty_text='Give a part a curve above.',
+                        row_action={'label': 'Take away', 'method': 'DELETE', 'path': '/api/pcb/{board}/temperature-curves/{ref}/{quantity}'},
+                        description='What this is for: what each curve says at the temperatures the circuit runs at (the newest sweep\'s, else -40, '
+                                    '25, 85 and 125 C). inside = no means the document stops short of that temperature - nothing is extrapolated. '
+                                    'in_deck says whether the circuit can use it (a resistor\'s value, a capacitor\'s corner) or only shows it.',
+                        columns='ref,curve,quantity,temp_c,value,low,high,unit,inside,how,in_deck,source', max_height=400)], min_height=240),
+        _row(2, [_table('bd-curve-run', 0, 12, 'Run with the curves in the circuit', '', data_path='%s/curve-run?rev=r{scope:rev}' % DOOR,
+                        empty_text='Only a PCB from KiCad has a circuit.', edit_fields='temp_c', edit_signed_field='signed',
+                        edit_action={'method': 'POST', 'path': '/api/pcb/{board}/simulate-curves', 'body_template': {'temp_c': '{value}', 'corner': '{corner}'}},
+                        description='What this is for: the circuit at a temperature with each curve\'s value put in. Type a temperature in C on a row '
+                                    'and press Enter: nominal, or a band\'s low or high corner. The run is kept on the Simulation tab.',
+                        columns='corner,temp_c,meaning', max_height=180)], min_height=150)],
+        'Temperature curves: datasheet numbers against temperature for parts no SPICE model carries, and the circuit run with them.')
+
+
+def timing_tab():
+    """tmp-4: how far a board's clock and its logic's delays can move with temperature, and what that does to a UART link."""
+    return _tab('timing', 'Timing at temperature', [
+        _row(0, [_table('bd-timing-clocks', 0, 12, 'The clock at each temperature', '', data_path='%s/timing-clocks' % DOOR,
+                        empty_text='No cited clock for this board yet.',
+                        description='What this is for: how far the board\'s clock can be off. Datasheets bound a resonator\'s or an oscillator\'s '
+                                    'error over a temperature range rather than drawing a curve, so each row is that worst case - or unrated, outside '
+                                    'the range the document covers.', columns='clock,f_mhz,temp_c,low_pct,high_pct,inside,basis,source', max_height=320)],
+             min_height=200),
+        _row(1, [_table('bd-timing-uart', 0, 12, 'A UART link against the receiver\'s tolerance', '', data_path='%s/timing-uart' % DOOR,
+                        empty_text='No cited clock for this board yet.',
+                        description='What this is for: will serial still work hot or cold? Each row is one baud rate and speed mode at one '
+                                    'temperature: the divisor\'s own error (the chip\'s baud equations) plus the clock\'s worst case, against the '
+                                    'error the far receiver accepts and its recommended share. The firmware simulator runs one exact clock, so this is a '
+                                    'budget beside the runs.', columns='baud,u2x,ubrr,divisor_error_pct,temp_c,worst_low_pct,worst_high_pct,window_pct,'
+                                                                       'recommended_pct,verdict,basis', max_height=380)], min_height=220),
+        _row(2, [_table('bd-timing-delays', 0, 12, 'Logic delay at each temperature', '', data_path='%s/logic-delays' % DOOR,
+                        empty_text='No cited delay for this part yet.',
+                        description='What this is for: a logic chip is slower hot. Each row is its datasheet\'s maximum propagation delay in the '
+                                    'narrowest temperature column that contains the temperature.',
+                        columns='temp_c,min_ns,max_ns,column,what,basis,source', max_height=260)], min_height=160)],
+        'Timing at temperature: the clock\'s worst case, a UART link against its receiver, and logic delays - each from its datasheet.')

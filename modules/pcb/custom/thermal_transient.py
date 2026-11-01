@@ -12,9 +12,14 @@ models chained, nothing invented:
   the part    its datasheet's Foster network junction -> board (PartThermalModel; materialsScience.engines.thermal_rc), driven by its own power over
               time and referenced to the board's mean temperature under its pads - Tj(t) = T_ambient + board rise under it (t) + Zth part (t)
   powers      pcb.custom.thermal_inputs.power_plan: a power a person gave (always on, one pulse, or a duty cycle) wins over the run's average
+  form        tmp-3: 'cauer' (the default) - the part's Foster pairs become their Cauer ladder (materialsScience.engines.thermal_cauer), solved IN the
+              plate's own system: the power enters the junction, the plate gets the heat only as fast as the part's thermal mass lets it out.
+              'foster' - the bob-3g form kept for comparison: the plate takes the whole power at once and the Foster Zth rides on top. Both end at
+              the same steady junction (sum R); they differ while the part is still warming
 
-  transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, refine=10, ambient_c=AMBIENT_C, probe_all=False)
-      -> (summary, junctions, chart, why)
+  transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, refine=10, ambient_c=AMBIENT_C, probe_all=False, form='cauer',
+            powers=None) -> (summary, junctions, chart, why)
+      powers {ref: W} (tmp-3's loop): these parts at these always-on powers instead of the power plan
       probe_all (tmp-2): every placed part without power joins as a 0 W source, so `junctions` gives the board under EVERY part (the chart keeps
       the powered ones only); each row also carries the end-of-run rises (board_final_rise_c, junction_final_rise_c)
       t_end None -> long enough to settle: the larger of 5 x the plate's own time constant C/(2h), 5 x the slowest datasheet stage, 2 x the longest
@@ -52,17 +57,27 @@ def _thin(n):
     return max(1, -(-n // CHART_POINTS))
 
 
-def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, refine=10, ambient_c=AMBIENT_C, probe_all=False):
+FORMS = ('cauer', 'foster')
+
+
+def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, refine=10, ambient_c=AMBIENT_C, probe_all=False, form='cauer', powers=None):
     from materialsScience.engines.fem_plate_transient import solve_plate_transient_2d
+    from materialsScience.engines.thermal_cauer import foster_to_cauer
     from materialsScience.engines.thermal_rc import junction_trajectory
     from pcb.custom.thermal_inputs import models, power_plan
     rows = rows if rows is not None else _rows_of(manager, board, CLASSES)
     plate, why = plate_inputs(board, rows)
     if why:
         return None, [], [], why
-    plan, source_words, unaccounted, why = power_plan(manager, board, run, rows)
-    if why:
-        return None, [], [], why
+    if form not in FORMS:
+        return None, [], [], 'form must be one of %s, got %r' % (', '.join(FORMS), form)
+    if powers is not None:
+        plan = [{'ref': r, 'avg_w': float(w), 'on_s': 0.0, 'period_s': 0.0, 'from': 'given (the self-heating loop)'} for r, w in sorted(powers.items())]
+        source_words, unaccounted = 'given by the self-heating loop', ''
+    else:
+        plan, source_words, unaccounted, why = power_plan(manager, board, run, rows)
+        if why:
+            return None, [], [], why
     mods = models(manager, board, rows)
     powered = [p for p in plan if p['avg_w'] > 0]
     probes = []
@@ -73,7 +88,17 @@ def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, ref
     if not any(s['power_w'] > 0 for s in sources):
         return None, [], [], 'no part with power has pads on %s - give a part a power on the Thermal over time tab, or keep a run%s' % (board, unaccounted)
     t_end = float(t_end) if t_end else _t_end(plate, h, plan, mods)
-    key = hashlib.sha256(json.dumps([board, h, t_end, refine, ambient_c, plan, mods, probe_all, plate['shape_words'], plate['n_pads'], len(plate['lines']),
+    ladders, ladder_bad = {}, {}
+    if form == 'cauer':
+        for s in sources:
+            m = mods.get(s['name'])
+            if s['power_w'] > 0 and m and m['stages']:
+                lad, bad = foster_to_cauer(m['stages'])
+                if bad:
+                    ladder_bad[s['name']] = bad
+                else:
+                    ladders[s['name']] = lad
+    key = hashlib.sha256(json.dumps([board, h, t_end, refine, ambient_c, plan, mods, probe_all, form, plate['shape_words'], plate['n_pads'], len(plate['lines']),
                                      plate['zones']], sort_keys=True, default=str).encode()).hexdigest()
     if key in _CACHE:
         return _CACHE[key]
@@ -82,7 +107,8 @@ def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, ref
     regions = [dict(r, add_c_sheet=r['add_k_sheet'] * cap) for r in plate['regions']]
     lines = [dict(ln, c_line=ln['k_line'] * cap) for ln in plate['lines']]
     out = solve_plate_transient_2d(plate['w'] * 1e-3, plate['ht'] * 1e-3, K_FR4_INPLANE * plate['diel'] * 1e-3, RHO_FR4 * C_FR4 * plate['diel'] * 1e-3, h,
-                                   t_end, sources=sources, regions=regions, lines=lines, outline=plate['outline'] or None, holes=plate['holes'], refine=refine)
+                                   t_end, sources=sources, regions=regions, lines=lines, outline=plate['outline'] or None, holes=plate['holes'], refine=refine,
+                                   ladders=ladders)
     if not out.get('ok'):
         return None, [], [], 'the transient FEM solve refused: %s' % out.get('error')
 
@@ -97,16 +123,22 @@ def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, ref
             chart += [{'x': times[i], 'y': board_rise[i], 'series': '%s: board under it' % ref} for i in range(0, len(times), stride)]
         row = {'ref': ref, 'power_w': s['power_w'], 'on_s': s['on_s'], 'period_s': s['period_s'], 'from': by_from.get(ref, ''),
                'board_peak_rise_c': s['peakMeanRise'], 'board_peak_at_s': s['peakAt'], 'junction_peak_rise_c': -1.0, 'junction_peak_at_s': -1.0,
-               'tj_peak_c': -1.0, 'tj_max_c': -1.0, 'margin_c': -1.0, 'datasheet_ja_rise_c': -1.0, 'model': '',
+               'tj_peak_c': -1.0, 'tj_max_c': -1.0, 'margin_c': -1.0, 'datasheet_ja_rise_c': -1.0, 'model': '', 'form': '',
                'basis': 'no datasheet thermal model: only the board under it (give its Foster stages on the Thermal over time tab)',
                'board_final_rise_c': board_rise[-1], 'junction_final_rise_c': -1.0}
         if m and m['stages']:
-            z = junction_trajectory(m['stages'], times, out['powers'][ref])
-            tj = [b + zz for b, zz in zip(board_rise, z)]
+            if 'junctionRise' in s:   # the Cauer ladder solved with the plate
+                tj = s['junctionRise']
+                how = 'its datasheet Zth j-%s as the Cauer ladder of its %d Foster stages, solved with the plate (the plate takes its heat as the ladder lets it out)'
+            else:
+                z = junction_trajectory(m['stages'], times, out['powers'][ref])
+                tj = [b + zz for b, zz in zip(board_rise, z)]
+                how = ('the board\'s mean rise under its pads (plate FEM) + its datasheet Zth j-%%s (%%d Foster stages) on top%s'
+                       % ((' - its Cauer ladder refused: %s' % ladder_bad[ref]) if ref in ladder_bad else ''))
             k = max(range(len(tj)), key=tj.__getitem__)
             row.update(junction_peak_rise_c=tj[k], junction_peak_at_s=times[k], tj_peak_c=ambient_c + tj[k], model=m['name'], junction_final_rise_c=tj[-1],
-                       basis=('Tj = ambient %g C (a knob) + the board\'s mean rise under its pads (plate FEM) + its datasheet Zth j-%s (%d Foster stages, '
-                              'Rth %.4g K/W; %s) driven by its own power over time' % (ambient_c, m['reference'], len(m['stages']), m['rth'], m['words'])))
+                       basis=('Tj = ambient %g C (a knob) + %s; Rth %.4g K/W; %s; driven by its own power over time'
+                              % (ambient_c, how % (m['reference'], len(m['stages'])), m['rth'], m['words'])), form='cauer' if 'junctionRise' in s else 'foster')
             if m['tj_max_c']:
                 row.update(tj_max_c=m['tj_max_c'], margin_c=m['tj_max_c'] - row['tj_peak_c'])
             if s['power_w'] > 0:
@@ -121,11 +153,12 @@ def transient(manager, board, run=None, rows=None, h=H_FREE_AIR, t_end=None, ref
                'factorisations': out['factorisations'], 'dt0_s': out['dt0'], 'plate_time_constant_s': out['plateTimeConstant'],
                'peak_rise_c': out['peakRise'], 'peak_at_s': out['peakAt'], 'steady_max_rise_c': out['steadyMaxRise'], 'final_max_rise_c': out['maxRise'][-1],
                'input_j': out['inputJ'], 'balance_error': out['balanceError'], 'parts_placed': len(sources), 'parts_unplaced': ', '.join(unplaced),
-               'dofs': out['dofs'], 'chart_stride': stride,
+               'dofs': out['dofs'], 'chart_stride': stride, 'form': form, 'ladders': len(ladders),
                'basis': ('transient thin-plate FEM (scikit-fem, backward Euler): C dT/dt - div(K grad T) + 2h T = q(t); plate = %s; K = FR-4 %s (%s) + '
-                         'copper (%s); C = FR-4 (%s) + copper (%s) where the copper is; h a knob (%s); powers = %s; each part with a datasheet model adds '
-                         'its Foster Zth on top of the board under it (one way: the board sets its reference)%s%s'
+                         'copper (%s); C = FR-4 (%s) + copper (%s) where the copper is; h a knob (%s); powers = %s; %s%s%s'
                          % (plate['shape_words'], plate['stack_words'], K_FR4_CITE, K_CU_CITE, FR4_CAP_CITE, CU_CAP_CITE, H_CITE, source_words,
+                            ('each part with a datasheet model is its Cauer ladder solved with the plate (tmp-3; %d ladders)' % len(ladders)) if form == 'cauer'
+                            else 'each part with a datasheet model adds its Foster Zth on top of the board under it (one way: the board sets its reference)',
                             ('; no pads, not placed: %s' % ', '.join(unplaced)) if unplaced else '', unaccounted))}
     result = (summary, sorted(junctions, key=lambda r: -max(r['junction_peak_rise_c'], r['board_peak_rise_c'])), chart, '')
     if len(_CACHE) >= 8:

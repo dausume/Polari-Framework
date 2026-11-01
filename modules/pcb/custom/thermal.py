@@ -97,8 +97,21 @@ def dissipation(manager, board, run=None, rows=None):
             out.append(dict(base, avg_w=_trapz_mean(xs, p), peak_w=max(p), basis='delivered -(Vp - Vn) * I (ngspice branch current), over %d stored points' % len(p)))
         elif e['kind'] in ('C', 'L'):
             out.append(dict(base, avg_w=0.0, peak_w=-1.0, basis='an ideal %s stores and returns energy: 0 W on average by definition' % ('capacitor' if e['kind'] == 'C' else 'inductor')))
+        elif e['kind'] in P.POWER_VECTORS and vs.get('@%s[%s]' % (name.lower(), P.POWER_VECTORS[e['kind']])):   # tmp-3: the run kept the device's own vector
+            dv = json.loads(vs['@%s[%s]' % (name.lower(), P.POWER_VECTORS[e['kind']])]['values_json'])
+            if e['kind'] == 'D':
+                va, vk = volts(e['nodes'][0]), volts(e['nodes'][1])
+                if va is None or vk is None:
+                    out.append(dict(base, basis='undetermined: a node voltage of the diode is not in the run'))
+                    continue
+                p = [(a - b) * i for a, b, i in zip(va, vk, dv)]
+                how = '(Va - Vk) x id (ngspice\'s diode current @%s[id]; its @%s[p] reads inf in KiCad 10\'s libngspice)' % (name.lower(), name.lower())
+            else:
+                p, how = dv, 'ngspice\'s own device power @%s[p]' % name.lower()
+            out.append(dict(base, avg_w=_trapz_mean(xs, p), peak_w=max(p), basis='%s, over %d stored points' % (how, len(p))))
         else:
-            out.append(dict(base, basis='undetermined: the run holds node voltages and source branch currents only - a %s\'s current is not in it' % e['kind']))
+            out.append(dict(base, basis='undetermined: the run holds node voltages and source branch currents only - a %s\'s current is not in it%s'
+                                        % (e['kind'], ' (run it with its device vectors kept: the self-heating loop does)' if e['kind'] in P.POWER_VECTORS else '')))
     note = '' if r['points'] > 1000 else ' (the run keeps %d points: averages are over those points only)' % r['points']
     for row in out:
         row['basis'] += note if row['avg_w'] not in (-1.0, 0.0) else ''

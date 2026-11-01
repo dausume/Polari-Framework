@@ -73,7 +73,8 @@
    "objects/pcb/Symbol",
    "objects/pcb/PartPowerInput",
    "objects/pcb/PartThermalModel",
-   "objects/pcb/PartTemperatureBehaviour"
+   "objects/pcb/PartTemperatureBehaviour",
+   "objects/pcb/PartTemperatureCurve"
   ],
   "basis": [
    "pcb_basis"
@@ -99,6 +100,7 @@
    "pcb_esd_selftest",
    "pcb_esd_protection_selftest",
    "pcb_esd_cdm_selftest",
+   "pcb_electrothermal_selftest",
    "pcb_kicad_connect_selftest",
    "pcb_kicad_cover_selftest",
    "pcb_kicad_geometry_selftest",
@@ -133,7 +135,10 @@
    "custom/spice_temperature",
    "custom/esd_events",
    "custom/esd_iec",
-   "custom/esd_cdm"
+   "custom/esd_cdm",
+   "custom/electrothermal",
+   "custom/electrothermal_fixtures",
+   "custom/temperature_curves"
   ]
  },
  "classes": [
@@ -168,6 +173,7 @@
   "PartPowerInput",
   "PartThermalModel",
   "PartTemperatureBehaviour",
+  "PartTemperatureCurve",
   "PcbThermalAPI",
   "PcbTemperatureAPI",
   "PcbEsdAPI"
@@ -205,6 +211,7 @@
     "PartPowerInput",
     "PartThermalModel",
     "PartTemperatureBehaviour",
+    "PartTemperatureCurve",
     "PCB_CLASSES"
    ]
   ],

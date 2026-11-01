@@ -16,9 +16,16 @@ pcb.custom.spice_temperature and pcb.custom.temperature_inputs (board.custom.boa
       temperature-ratings   each part with a rated range against the sweep's temperatures
       part-run              tmp-2: two rows (end of run / each part's peak): run with every part at its own temperature (the page edits ambient_c)
       part-temperatures     tmp-2: each part's own temperature at the newest part-level run's background (25 C before one)
+      self-heat-run         tmp-3: one row - run the loop at a typed background (the page edits ambient_c); the newest loop's verdict beside it
+      self-heating          tmp-3: the newest loop's passes - each part's power, the temperature it ran at, the one it heats to, the change
+      curve-catalogue       tmp-5: the cited curves (click one, then a part, to give that part the curve)
+      temperature-curves    tmp-5: each part's curves at the newest sweep's temperatures (else -40 / 25 / 85 / 125 C), and what the deck does
+      curve-run             tmp-5: three rows (nominal / low / high corner): run at a typed temperature with the curves in the deck
 """
 PARTS = ('temperature-at', 'temperature-grades', 'temperature-reach', 'temperature-sweep', 'temperature-trend', 'temperature-overlay',
-         'temperature-parts', 'temperature-inputs', 'temperature-ratings', 'part-run', 'part-temperatures')
+         'temperature-parts', 'temperature-inputs', 'temperature-ratings', 'part-run', 'part-temperatures', 'self-heat-run', 'self-heating',
+         'curve-catalogue', 'temperature-curves', 'curve-run')
+CURVE_TEMPS = (-40.0, 25.0, 85.0, 125.0)
 
 
 def _latest(manager, board, mode):
@@ -65,4 +72,29 @@ def temperature(definition, which, manager, params):
     if which == 'part-temperatures':
         last = _latest(manager, definition, ('parts',))
         return ST.part_temperatures(manager, definition, float(last['temp_c']) if last else ST.ROOM_C)
+    if which in ('curve-catalogue', 'temperature-curves', 'curve-run'):
+        from pcb.custom import temperature_curves as TC
+        if which == 'curve-catalogue':
+            return [{'curve': TC._get(c, 'name'), 'part_key': TC._get(c, 'part_key'), 'quantity': TC._get(c, 'quantity'), 'unit': TC._get(c, 'unit'),
+                     'kind': TC._get(c, 'kind'), 'range': '%g .. %g C' % (TC._get(c, 't_min_c'), TC._get(c, 't_max_c')),
+                     'conditions': TC._get(c, 'conditions'), 'source': TC._cite(c)} for c in TC.catalogue(manager)], ''
+        if which == 'temperature-curves':
+            rows, _why = ST.compare(manager, definition, params.get('sweep') or None)
+            temps = sorted({r['temp_c'] for r in rows}) or list(CURVE_TEMPS)
+            out = TC.at_temperatures(manager, definition, temps)
+            return out, '' if out else 'no part of %s has a curve - give one from the catalogue' % definition
+        last = _latest(manager, definition, ('board',))
+        return [{'board': definition, 'corner': c, 'temp_c': float(last['temp_c']) if last else ST.ROOM_C, 'signed': True, 'meaning': words}
+                for c, words in (('nominal', 'each curve\'s value at the temperature (a band stays at nominal)'),
+                                 ('low', 'a band\'s low corner (e.g. an X7R capacitor 15 % under nominal)'),
+                                 ('high', 'a band\'s high corner'))], ''
+    if which in ('self-heat-run', 'self-heating'):
+        from pcb.custom import electrothermal as ET
+        last = ET.last(definition)
+        if which == 'self-heating':
+            return (last['rows'], '') if last and last.get('ok') else ([], 'no self-heating loop run yet - run one above')
+        return [{'board': definition, 'ambient_c': last['ambient_c'] if last else ST.ROOM_C, 'signed': True,
+                 'verdict': last['verdict'] if last else 'not run', 'why': last['why'] if last else '', 'passes': last['passes'] if last else 0,
+                 'loop_gain': last['loop_gain'] if last else -1.0, 'over_tj_max': '; '.join(last['over_tj_max']) if last else '',
+                 'basis': last['basis'] if last else 'type the background temperature (C) and press Enter'}], ''
     return [], 'no temperature part %r' % which

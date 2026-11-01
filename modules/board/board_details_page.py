@@ -12,7 +12,7 @@ kxc-4 brings the PCB geometry.
 import json
 
 from board.board_esd_page import SEED_ESD_GRAPHS, esd_tab
-from board.board_temperature_page import SEED_TEMPERATURE_GRAPHS, part_temperature_tab, temperature_tab
+from board.board_temperature_page import SEED_TEMPERATURE_GRAPHS, curves_tab, part_temperature_tab, self_heating_tab, temperature_tab, timing_tab
 from polariApiServer.module_pages_seed import _page, _row, _tab, _table
 
 ROUTE = 'board-details'
@@ -241,5 +241,8 @@ BOARD_DETAILS_PAGES = [
                 _thermal_time_tab(),
                 temperature_tab(),
                 part_temperature_tab(),
+                self_heating_tab(),
+                curves_tab(),
+                timing_tab(),
                 esd_tab()]),
 ]

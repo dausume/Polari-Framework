@@ -2,7 +2,7 @@
 @module pcb.pcb_seed
 
 THE FAB RULES AS ROWS (pcb-0, plan §2 FabProfile/FabRule): DKRed's constraints (pcb.custom.fab_rules, cited from
-https://www.digikey.com/en/resources/dkred) are the only CODE-OWNED seed — the fab does not change per server. Every
+https://www.digikey.com/en/resources/dkred) and the cited temperature-curve catalogue (tmp-5, pcb.custom.temperature_curves) are the CODE-OWNED seeds — the fab does not change per server. Every
 other class (Part, Symbol, Footprint, LandPattern, Schematic/SchematicSheet, PcbBoard, Placement, Route, DrcResult,
 FabricationExport) is OBSERVED — written by `pol pcb ingest` or the schematic writer, never seeded, because a board is a
 design someone made, not a fact about the world.
@@ -10,8 +10,9 @@ design someone made, not a fact about the world.
 from pcb.pcb_basis import FabRuleSet, FabRule, Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, \
     Placement, Route, DrcResult, FabricationExport, KiCadArtifact, KiCadCoverage, SchematicSymbol, SchematicNet, NetEndpoint, \
     PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics, SpiceRun, SpiceVector, \
-    PartPowerInput, PartThermalModel, PartTemperatureBehaviour
+    PartPowerInput, PartThermalModel, PartTemperatureBehaviour, PartTemperatureCurve
 from pcb.custom import fab_rules as FR
+from pcb.custom.temperature_curves import CITED as CITED_CURVES
 
 
 def _register_owned(rows):
@@ -48,4 +49,5 @@ PCB_SEED_PAIRS = [
     ('SpiceRun', SpiceRun, []), ('SpiceVector', SpiceVector, []),   # kxc-3b: runs are observed, never seeded
     ('PartPowerInput', PartPowerInput, []), ('PartThermalModel', PartThermalModel, []),   # bob-3g: given by a person, never seeded
     ('PartTemperatureBehaviour', PartTemperatureBehaviour, []),   # tmp-1: given by a person or a cited document, never seeded
+    ('PartTemperatureCurve', PartTemperatureCurve, _register_owned(CITED_CURVES)),   # tmp-5: the cited catalogue is code-owned; a placed part's own is given
 ]

@@ -14,7 +14,7 @@ SEED:
   smbj5.0a  Bourns SMBJ series datasheet REV. 09/20, Electrical Characteristics table, row SMBJ5.0A: V_RWM 5.0 V; V_BR 6.40 min / 7.00 max at I_T 10 mA;
             I_R 800 uA at V_RWM; V_C 9.2 V at I_PP 65.3 A (10/1000 us); V_C 12.0 V at I_PP 326.5 A (8/20 us); the first table: P_PK 600 W (1 ms),
             V_F 3.5 V max at I_PP 50 A (SMBJ5.0A ~ SMBJ90A, unidirectional), T_J -55 .. +150 C; capacitance only as the "Typical Junction Capacitance" graph
-  cg0603mlc-05e  Bourns CG0603MLC-05E & -12E ChipGuard ESD Protectors REV. A 11/18, Electrical Characteristics: V_W(DC) <= 5 V; V_C 30 V typ and
+  cg0603mlc-05e  Bourns CG0603MLC-05E & -12E ChipGuard ESD Protectors REV. E 07/20 (the same numbers as REV. A 11/18), Electrical Characteristics: V_W(DC) <= 5 V; V_C 30 V typ and
             V_T 300 V typ (both by TLP, Note 1); V_P 300 V typ (IEC 61000-4-2 8 kV contact, Note 2); C_O 0.2 pF typ at 1 MHz; bidirectional; IEC 61000-4-2
             level 4 (+-8 kV contact, +-15 kV air); -55 .. +125 C; "not recommended for new designs" (CGA0603MLC-05E). The UNO R3's Z1 / Z2
             (board.custom.uno_schematic_paths). A snapback polymer: catalogued, not modelled.
@@ -32,7 +32,7 @@ _MEM = {CLS: {}}
 UNKNOWN = -1.0
 SIOV_DOC = 'TDK (EPCOS) SIOV metal oxide varistors, leaded, StandarD series, B722* (March 2018)'
 SMBJ_DOC = 'Bourns SMBJ Transient Voltage Suppressor Diode Series datasheet (REV. 09/20)'
-CG_DOC = 'Bourns CG0603MLC-05E & -12E - ChipGuard ESD Protectors datasheet (REV. A 11/18)'
+CG_DOC = 'Bourns CG0603MLC-05E & -12E - ChipGuard ESD Protectors datasheet (REV. E 07/20; the same numbers as REV. A 11/18)'
 
 SEED = [
     {'name': 'smbj5.0a', 'kind': 'tvs-uni', 'part_number': 'SMBJ5.0A', 'package': 'SMB (DO-214AA)', 'v_rwm': 5.0, 'v_br_min': 6.40, 'v_br_max': 7.00,
@@ -46,9 +46,9 @@ SEED = [
     {'name': 'cg0603mlc-05e', 'kind': 'polymer', 'part_number': 'CG0603MLC-05E', 'package': '0603 (1608 metric)', 'v_rwm': 5.0, 'v_br_min': UNKNOWN,
      'v_br_max': UNKNOWN, 'i_t_ma': UNKNOWN, 'v_c_v': 30.0, 'i_pp_a': UNKNOWN, 'pulse': 'TLP (Note 1)', 'v_f_v': UNKNOWN, 'i_f_a': UNKNOWN,
      'v_trigger_v': 300.0, 'cap_pf': 0.2, 't_min_c': -55.0, 't_max_c': 125.0, 'model_basis': '',
-     'document': CG_DOC, 'page_table': 'Electrical Characteristics @ 25 C', 'url': 'https://www.bourns.com/docs/Product-Datasheets/CG0603MLC.pdf',
+     'document': CG_DOC, 'page_table': 'Electrical Characteristics @ 25 C', 'url': 'https://www.bourns.com/docs/product-datasheets/cg0603mlc-05e_cg0603mlc-12e.pdf',
      'origin': 'cited', 'notes': ('typical values (V_C 30 V, V_T 300 V by TLP; V_P 300 V at IEC 61000-4-2 8 kV contact); bidirectional; not recommended '
-                                  'for new designs (CGA0603MLC-05E); the UNO R3\'s Z1 / Z2')},
+                                  'for new designs (CGA0603MLC-05E - whose REV. G 05/26 datasheet gives the same 30 V by TLP, again with no current); the UNO R3\'s Z1 / Z2')},
     {'name': 'smbj5.0ca', 'kind': 'tvs-bi', 'part_number': 'SMBJ5.0CA', 'package': 'SMB (DO-214AA)', 'v_rwm': 5.0, 'v_br_min': 6.40, 'v_br_max': 7.00,
      'i_t_ma': 10.0, 'v_c_v': 12.0, 'i_pp_a': 326.5, 'pulse': '8/20 us', 'v_f_v': UNKNOWN, 'i_f_a': UNKNOWN, 'v_trigger_v': UNKNOWN, 'cap_pf': UNKNOWN,
      'i_c_a': UNKNOWN, 't_min_c': -55.0, 't_max_c': 150.0,

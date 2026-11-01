@@ -136,8 +136,15 @@ def _directives(rows):
     return out
 
 
-def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)', temp_c=None, part_temps=None, coefficients=None):
-    part_temps, coefficients = part_temps or {}, coefficients or {}
+#: tmp-3: the device vectors a run must keep for each part's own power (probed on econ-core's libngspice, KiCad 10.0.6, 2026-11-01): Q and M report
+#: their power as @x[p]; a diode's @d[p] reads inf there, so its current @d[id] is kept and the power is (Va - Vk) x id (pcb.custom.thermal)
+POWER_VECTORS = {'Q': 'p', 'M': 'p', 'D': 'id'}
+
+
+def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)', temp_c=None, part_temps=None, coefficients=None, save_power=False, values=None):
+    """values (tmp-5): {ref: (value text, words)} - an R / C / L's value at a temperature from its datasheet curve (pcb.custom.temperature_curves)."""
+    part_temps, coefficients, values = part_temps or {}, coefficients or {}, values or {}
+    curved = {}
     applied, refused, tcs = {}, {}, {}
     arts = {a['path']: a['content'] for a in rows.get('KiCadArtifact', [])}
     nodes = {}
@@ -191,6 +198,9 @@ def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)', temp_c
                 value += ' AC %s' % spice_value(p['ac'])
         elif (device or letter) in PASSIVE:
             kind, value = PASSIVE[device or letter], spice_value(p.get(({'R': 'r', 'C': 'c', 'L': 'l'})[device or letter]) or s['value'])
+            if s['ref'] in values:
+                value = values[s['ref']][0]
+                curved[s['ref']] = values[s['ref']][1]
             tc = coefficients.get(s['ref'])
             if tc is None and ('tc1' in p or 'tc2' in p):
                 tc = (p.get('tc1', '0'), p.get('tc2', '0'), 'the symbol\'s Sim.Params')
@@ -214,13 +224,15 @@ def build_deck(rows, title='Polari deck (kxc-3, from the ingested rows)', temp_c
     dropped = [d for d in directives if TEMP_DIRECTIVE.match(d)] if temp_c is not None else []
     directives = [d for d in directives if d not in dropped]
     head = ['.temp %g' % float(temp_c)] if temp_c is not None else []
-    lines = ['.title %s' % title] + ['.include "%s"' % i for i in includes] + head + directives + ['']
+    saves = ['.save all ' + ' '.join('@%s[%s]' % (n.lower(), POWER_VECTORS[e['kind']]) for n, e in sorted(elements.items()) if e['kind'] in POWER_VECTORS)] \
+        if save_power and any(e['kind'] in POWER_VECTORS for e in elements.values()) else []
+    lines = ['.title %s' % title] + ['.include "%s"' % i for i in includes] + head + directives + saves + ['']
     lines += ['%s %s %s' % (n, ' '.join(e['nodes']), e['value']) for n, e in sorted(elements.items())]
     lines.append('.end')
     for ref in sorted(set(part_temps) - set(applied) - set(refused)):
         refused[ref] = 'not in the deck (no simulation model, or excluded)'
     temperature = {'temp_c': float(temp_c) if temp_c is not None else None, 'part_temps': applied, 'refused': refused, 'coefficients': tcs,
-                   'schematic_temp_dropped': dropped}
+                   'schematic_temp_dropped': dropped, 'curves': curved}
     return {'deck': '\n'.join(lines) + '\n', 'elements': elements, 'includes': includes, 'directives': directives, 'skipped': skipped, 'problems': problems,
             'temperature': temperature}
 

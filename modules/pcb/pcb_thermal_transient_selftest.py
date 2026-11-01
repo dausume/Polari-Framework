@@ -120,10 +120,15 @@ def run_board_over_time(check):
     TI.set_quantity(None, 'ecc83', 'R4', 'on_s', 60)
     p, pj, _, _ = TT.transient(None, 'ecc83', rows=rows)
     st2, _, _, _ = TS.spread(None, 'ecc83', rows=rows, refine=10)
-    check('A SINGLE 60 s PULSE: the hottest moment is the end of the pulse (peak at 60 s), the board has nearly cooled by the end of the run, the '
-          'junction peaks above the board under it, and the steady view says a single pulse leaves nothing there (see Thermal over time)',
-          abs(p['peak_at_s'] - 60) < 1e-9 and p['final_max_rise_c'] < 0.05 * p['peak_rise_c'] and pj[0]['junction_peak_rise_c'] > pj[0]['board_peak_rise_c']
-          and 'single pulse' in st2['basis'] and st2['max_rise_c'] == -1.0, (p['peak_at_s'], p['final_max_rise_c'], st2['basis'][-160:]))
+    f, fj, _, _ = TT.transient(None, 'ecc83', rows=rows, form='foster')
+    check('A SINGLE 60 s PULSE (tmp-3: R4 as its Cauer ladder, solved with the plate): the junction is hottest at the end of the pulse (60 s); the '
+          'BOARD peaks LATER - the part\'s own thermal mass still lets heat out after the power stops - where the bob-3g Foster form (kept as '
+          'form=foster) puts the whole power into the board at once and peaks it at 60 s; the board has nearly cooled by the end of the run, and the '
+          'steady view says a single pulse leaves nothing there (see Thermal over time)',
+          abs(pj[0]['junction_peak_at_s'] - 60) < 1e-9 and p['peak_at_s'] > 60 and abs(f['peak_at_s'] - 60) < 1e-9 and p['form'] == 'cauer'
+          and pj[0]['form'] == 'cauer' and fj[0]['form'] == 'foster' and p['final_max_rise_c'] < 0.05 * p['peak_rise_c']
+          and pj[0]['junction_peak_rise_c'] > pj[0]['board_peak_rise_c'] and 'single pulse' in st2['basis'] and st2['max_rise_c'] == -1.0,
+          (p['peak_at_s'], f['peak_at_s'], pj[0].get('junction_peak_at_s'), p['final_max_rise_c'], st2['basis'][-160:]))
     TI.set_quantity(None, 'ecc83', 'R4', 'period_s', 240)
     st3, hot3, _, _ = TS.spread(None, 'ecc83', rows=rows, refine=10)
     check('A DUTY CYCLE in the steady view counts at its average: on 60 s every 240 s -> R4 heats the board with 0.5 x 60/240 = 0.125 W',

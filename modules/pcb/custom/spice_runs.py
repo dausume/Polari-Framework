@@ -25,6 +25,8 @@ _MEM = {'SpiceRun': {}, 'SpiceVector': {}}
 
 def unit_of(name):
     n = name.lower()
+    if n.startswith('@'):   # tmp-3: a device's own vector, @d1[id] / @q1[p]
+        return 'W' if n.endswith('[p]') else 'A' if n[n.rfind('[') + 1:].startswith('i') else ''
     return SCALES.get(n) or ('A' if n.endswith('#branch') else 'V')
 
 
@@ -151,7 +153,7 @@ def projection(manager, board, run=None, nets=None):
                        ((getattr(manager, 'objectTables', None) or {}).get('SchematicNet') or {}).values()
                        if (getattr(n, 'board', '') if not isinstance(n, dict) else n.get('board')) == board} - {''})
         if not nets:   # no schematic nets stored for this board: the run's own nodes, by their vector names
-            nets = sorted(v['vector'] for v in vs.values() if v['role'] == 'value' and not v['vector'].endswith('#branch'))
+            nets = sorted(v['vector'] for v in vs.values() if v['role'] == 'value' and not v['vector'].endswith('#branch') and not v['vector'].startswith('@'))
     out = []
     for net in nets:
         node = P.node_name(net)

@@ -36,10 +36,11 @@ import json
 
 from board.custom import board_esd as BE
 from board.custom import board_temperature as BT
+from board.custom import timing_drift as BTD
 from board.custom import footholds as FH
 
 PARTS = ('summary', 'footholds', 'nets', 'parts', 'layers', 'coverage', 'pads', 'copper', 'zones', 'drawings', 'rules', 'runs', 'thermal', 'dissipation', 'spreading', 'hotspots',
-         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart') + BT.PARTS + BE.PARTS
+         'thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart') + BT.PARTS + BE.PARTS + BTD.PARTS
 #: bob-3g: the parts that read the page's own query (the selected part, the knobs)
 _WITH_PARAMS = ('thermal-parts', 'thermal-inputs', 'transient', 'junctions', 'transient-chart')
 #: bob-3b: annealed copper's resistivity at 20 °C BY DEFINITION - the International Annealed Copper Standard (IEC 60028: 1/58 ohm mm2/m)
@@ -218,6 +219,8 @@ def part(kind, definition, which, manager=None, params=None):
         return [], 'no part %r - %s' % (which, ' | '.join(PARTS))
     if which in BE.PARTS:
         return BE.esd(kind, definition, which, manager, params)
+    if which in BTD.PARTS:   # tmp-4: any board with a cited clock or delay
+        return BTD.timing(kind, definition, which, params)
     if which in BT.PARTS:
         return BT.temperature(definition, which, manager, params) if kind == 'layers' else ([], 'only a PCB (a layers board) has %s' % which)
     if which in _WITH_PARAMS:

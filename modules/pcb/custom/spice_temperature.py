@@ -102,7 +102,7 @@ def _files(rows, includes):
     return {a['path']: a['content'] for a in rows.get('KiCadArtifact') or [] if a['path'] in includes}
 
 
-def run_at(manager, board, temp_c, part_temps=None, sweep='', runner=None, rows=None, extra=None):
+def run_at(manager, board, temp_c, part_temps=None, sweep='', runner=None, rows=None, extra=None, save_power=False, values=None):
     """One run of the board's deck with the board at temp_c (and parts at their own, where ngspice allows), kept as a SpiceRun."""
     import socket
     from electrodevice.custom import ngspice_shared as NS
@@ -112,7 +112,8 @@ def run_at(manager, board, temp_c, part_temps=None, sweep='', runner=None, rows=
     rows = _rows(manager, board, rows)
     if not rows.get('SchematicSymbol'):
         return {'ok': False, 'error': 'no ingested schematic for %r' % board, 'status': 404}
-    d = P.build_deck(rows, temp_c=temp_c, part_temps=part_temps, coefficients=coefficients(manager, board, rows))
+    d = P.build_deck(rows, temp_c=temp_c, part_temps=part_temps, coefficients=coefficients(manager, board, rows), save_power=save_power,
+                     values=values)
     res = (runner or NS.run)(d['deck'], _files(rows, d['includes']))
     t = d['temperature']
     temperature = {'temp_c': temp_c, 'mode': 'parts' if t['part_temps'] else 'board', 'part_temps': t['part_temps'], 'sweep': sweep}
@@ -185,7 +186,8 @@ def overlay(manager, board, sweep=None, max_rows=400):
             continue
         status, c = SR.chart(manager, r['name'], max_rows)
         if status == 200:
-            out += [dict(p, series='%s at %g C' % (p['series'], float(r['temp_c']))) for p in c['rows'] if '#branch' not in p['series']]
+            out += [dict(p, series='%s at %g C' % (p['series'], float(r['temp_c']))) for p in c['rows'] if '#branch' not in p['series']
+                    and not p['series'].startswith('@')]
     return out, ''
 
 

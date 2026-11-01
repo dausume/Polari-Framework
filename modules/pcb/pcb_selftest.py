@@ -24,12 +24,13 @@ def check(label, cond, extra=''):
 def classes():
     from pcb.pcb_basis import PCB_CLASSES
     from pcb.pcb_seed import PCB_SEED_PAIRS
-    check('twenty-nine row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
+    check('thirty row classes (plan §2: Part, Symbol, Footprint, LandPattern, Schematic, SchematicSheet, PcbBoard, '
           'Placement, Route, DrcResult, FabricationExport, FabRuleSet, FabRule; kxc-1: KiCadArtifact, KiCadCoverage, SchematicSymbol; kxc-2: SchematicNet, NetEndpoint; '
-          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector; bob-3g: PartPowerInput, PartThermalModel; tmp-1: PartTemperatureBehaviour)', len(PCB_CLASSES) == 29)
-    check('only the fab rules are code-owned seed rows; every design class seeds empty (observed, not asserted)',
-          {n for n, _, rows in PCB_SEED_PAIRS if rows} == {'FabRuleSet', 'FabRule'}
-          and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in ('FabRuleSet', 'FabRule')))
+          'kxc-4: PcbPad, NetGeometry, PcbZone, PcbNetClass, PcbDesignRule, PcbLayerGraphics; kxc-3b: SpiceRun, SpiceVector; bob-3g: PartPowerInput, PartThermalModel; tmp-1: PartTemperatureBehaviour; tmp-5: PartTemperatureCurve)', len(PCB_CLASSES) == 30)
+    owned = ('FabRuleSet', 'FabRule', 'PartTemperatureCurve')
+    check('only the fab rules and (tmp-5) the cited temperature-curve catalogue are code-owned seed rows; every design class seeds empty (observed, '
+          'not asserted)', {n for n, _, rows in PCB_SEED_PAIRS if rows} == set(owned)
+          and all(not rows for n, _, rows in PCB_SEED_PAIRS if n not in owned))
 
 
 def sexpr_roundtrip():
@@ -268,6 +269,10 @@ def main():
     run_sweep(check)
     run_parts(check)
     run_temperature_doors(check)
+    from pcb.pcb_electrothermal_selftest import run_cauer, run_coupled, run_device_power, run_self_heating, run_curves, run_timing, \
+        run_doors_and_page   # tmp-3 / tmp-4 / tmp-5
+    for f in (run_cauer, run_coupled, run_device_power, run_self_heating, run_curves, run_timing, run_doors_and_page):
+        f(check)
     from pcb.pcb_esd_selftest import run_esd_areas, run_esd_events, run_esd_doors   # esd-0 / esd-1: ESD areas + emulated events
     run_esd_areas(check)
     run_esd_events(check)
