@@ -116,7 +116,7 @@ class EvaluatorTests(unittest.TestCase):
 
 # Exercise the actual route methods with in-memory tables instead of booting DB,
 # server, plugins or agents. Persistence/migration is a separate integration gate.
-methods={'on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
+methods={'_base_requirements_for','on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
 tree=ast.parse((ROOT/'islemesh_api.py').read_text())
 cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMeshAPI')
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
@@ -131,9 +131,21 @@ class ApiTests(unittest.TestCase):
         self.api=ns['IsleMeshAPI']();self.response=SimpleNamespace()
         self.tables={'IsleDevice':{},'IsleCatalogEntry':{}}
         self.api._table=lambda name:self.tables.get(name,{})
+        self.api.manager=SimpleNamespace(objectTables=self.tables)
         self.api._any_mock=lambda:False
         self.api._refuse=lambda response,error,status='400 Bad Request':setattr(response,'media',{'ok':False,'error':error})
         self.request=SimpleNamespace(get_param=lambda name:None)
+    def test_app_profiles_extend_existing_host_requirements(self):
+        self.api._base_requirements_for=lambda entry,action: descriptor()
+        self.tables['ModuleResourceProfile']={'x':SimpleNamespace(subject_kind='isle-app',subject_name='isle-app:x',min_ram_mb=256,min_disk_mb=20,image_mb=100,deps_mb=10,min_threads=1)}
+        result=self.api._requirements_for({'name':'x'},'host')
+        needs={n['dep']:n for n in result['needs']}
+        self.assertEqual(needs['resources.memory_available_mib']['value'],256)
+        self.assertEqual(needs['resources.root_disk_free_mib']['value'],130)
+        self.assertEqual(needs['resources.memory_available_mib']['failure'],'resource-limited')
+        self.tables['ModuleResourceProfile']['x'].min_ram_mb=-1
+        self.assertIsNone(self.api._requirements_for({'name':'x'},'host'))
+
     def test_graph_distinguishes_reported_interfaces_from_inferred_paths(self):
         self.tables['IsleDevice'] = {
             'core': SimpleNamespace(name='core',agent_present=True,router_running=True,last_seen=NOW.isoformat()),

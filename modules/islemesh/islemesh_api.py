@@ -579,6 +579,45 @@ class IsleMeshAPI(treeObject):
         return result
 
     def _requirements_for(self, entry, action):
+        descriptor = self._base_requirements_for(entry, action)
+        if not descriptor or action != 'host':
+            return descriptor
+        # Reuse Polari's resource-profile rows with a distinct subject namespace.
+        profile = next((r for r in self._table('ModuleResourceProfile').values()
+                        if getattr(r, 'subject_kind', '') == 'isle-app'
+                        and getattr(r, 'subject_name', '') == 'isle-app:' + entry.get('name', '')), None)
+        if profile is None:
+            return descriptor
+        import math
+        def amount(key):
+            value = getattr(profile, key, 0)
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                raise ValueError('Invalid app resource profile')
+            return value
+        try:
+            costs = {
+                'resources.memory_available_mib': amount('min_ram_mb'),
+                'resources.root_disk_free_mib': amount('min_disk_mb') + amount('image_mb') + amount('deps_mb'),
+                'resources.logical_cpus': amount('min_threads'),
+            }
+        except ValueError:
+            return None
+        result = dict(descriptor, needs=[dict(n) for n in descriptor.get('needs', [])])
+        for dep, value in costs.items():
+            if not value:
+                continue
+            existing = next((n for n in result['needs'] if n.get('dep') == dep), None)
+            if existing:
+                if existing.get('check') != 'min':
+                    return None
+                existing['value'] = max(existing['value'], value)
+                existing['failure'] = 'resource-limited'
+            else:
+                result['needs'].append(dict(dep=dep, scope='device', check='min',
+                                            value=value, failure='resource-limited'))
+        return result
+
+    def _base_requirements_for(self, entry, action):
         # Derived options require an explicit descriptor too. Do not guess app
         # requirements from a broad kind, installed agent, or current instance.
         for row in self._table('IsleCatalogEntry').values():
@@ -986,7 +1025,7 @@ class IsleMeshAPI(treeObject):
                     hardware = {}
                 router_label = ('OpenWrt — Hardware App (KVM)' if hardware.get('status') == 'observed' and hardware.get('value') is True else 'OpenWRT router (.isle DNS)')
                 add_node('router:%s' % name, 'router',
-                         router_label, device=name,
+                         router_label, device=name, app_kind='hardware-app', realization='kvm',
                          is_mock=getattr(row, 'is_mock', False))
                 links.append({'source': 'device:%s' % name,
                               'target': 'router:%s' % name,
@@ -1056,7 +1095,13 @@ class IsleMeshAPI(treeObject):
         for row in self._table('IsleApp').values():
             name = getattr(row, 'name', '')
             device = getattr(row, 'device_name', '')
+            definition = next((r for r in self._table('IsleCatalogEntry').values()
+                               if getattr(r, 'name', '') == name), None)
+            app_kind = getattr(definition, 'kind', '') or 'unclassified'
             add_node('app:%s' % name, 'app', name, device=device,
+                     app_kind=app_kind,
+                     realization=getattr(definition, 'realization', ''),
+                     classification_source='catalog' if definition else 'not reported',
                      is_mock=getattr(row, 'is_mock', False),
                      domain=getattr(row, 'domain', ''),
                      availability_mode=getattr(
@@ -1101,10 +1146,15 @@ class IsleMeshAPI(treeObject):
                                               ''),
                           'is_mock': is_mock})
 
+        from topology.device_resources import resource_ledger
+        resources = resource_ledger(self.manager)
+        for node in nodes:
+            if node['kind'] == 'device':
+                node['resources'] = next((r for r in resources['devices'] if r['device'] == node['device']), None)
         mock = self._any_mock()
         response.media = {'ok': True, 'mock_network': mock,
                           'banner': (MOCK_BANNER if mock else ''),
-                          'nodes': nodes, 'links': links}
+                          'nodes': nodes, 'links': links, 'resources': resources}
 
     def on_get_matrix(self, request, response):
         """The protocol matrix, pre-grouped for rendering: per
