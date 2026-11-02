@@ -87,6 +87,8 @@ from board.objects.board.EsdProtectionArea import EsdProtectionArea  # noqa: F40
 from board.objects.board.ProtectionPart import ProtectionPart  # noqa: F401   # esd-3: a TVS / varistor / polymer suppressor and its ratings
 from board.objects.board.FirmwareStateObject import FirmwareStateObject  # noqa: F401   # fst-0: a firmware's state objects, derived
 from board.objects.board.FirmwareStateField import FirmwareStateField  # noqa: F401   # fst-0: their fields (readers / writers / direction)
+from board.objects.board.BenchSolution import BenchSolution  # noqa: F401   # cfg-0: everything on a bench bound as a whole (references only)
+from board.objects.board.BenchConditions import BenchConditions  # noqa: F401   # cfg-0: the open-air conditions a Bench Solution runs under
 
 #: every row class of the module, in registration order (the selftest asserts the count)
 BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, AdapterDefinition, DatasheetFact, BoardSimCost, Road,
@@ -116,4 +118,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  FirmwareStateObject, FirmwareStateField,
                  BoardFoothold,   # bob-0
                  BenchConnection,
-                 PartBoard, EsdProtectionArea, ProtectionPart]   # esd-3: protection parts (the cited seed + custom rows); esd-0: ESD protection areas on a definition (flagged by a person); drv-0: a driver / load / module defined by its pins (the cited seed + custom rows); bob-2: connections between footholds of any two Boards on a Bench (observed, never seeded); bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)
+                 PartBoard, EsdProtectionArea, ProtectionPart,   # esd-3: protection parts (the cited seed + custom rows); esd-0: ESD protection areas on a definition (flagged by a person); drv-0: a driver / load / module defined by its pins (the cited seed + custom rows); bob-2: connections between footholds of any two Boards on a Bench (observed, never seeded); bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)
+                 BenchSolution, BenchConditions]   # cfg-0: a Bench Solution (references only) + its conditions (a person's rows, never seeded)

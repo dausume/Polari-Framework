@@ -27,8 +27,8 @@ typed = {(k if isinstance(k, str) else getattr(k, '__name__', str(k))) for k in 
 for cls in ('CatomAssertion', 'StructObjectMap', 'BridgePath', 'PolariBridgeInstance', 'CatomVariable'):
     check('class %s is typed after boot' % cls, cls in typed)
 n = lambda c: len(tables.get(c, {}) or {})  # noqa: E731
-check('seeds landed: 7 catom assertions, 1 struct-object map, 2 bridge paths, 1 Polari bridge',
-      (n('CatomAssertion'), n('StructObjectMap'), n('BridgePath'), n('PolariBridgeInstance')) == (7, 1, 2, 1),
+check('seeds landed: 16 catom assertions, 2 struct-object maps, 3 bridge paths, 2 Polari bridges (UNO + the C3 since 06ec798)',
+      (n('CatomAssertion'), n('StructObjectMap'), n('BridgePath'), n('PolariBridgeInstance')) == (16, 2, 3, 2),
       (n('CatomAssertion'), n('StructObjectMap'), n('BridgePath'), n('PolariBridgeInstance')))
 for cls in ('CatomAssertion', 'PolariBridgeInstance'):
     r = client.simulate_get('/' + cls)

@@ -79,6 +79,8 @@
    "objects/board/EsdProtectionArea",
    "objects/board/ProtectionPart",
    "objects/board/BenchInteraction",
+   "objects/board/BenchSolution",
+   "objects/board/BenchConditions",
    "objects/board/BoardComponent",
    "objects/board/BoardConflict",
    "objects/board/BoardDefinition",
@@ -417,6 +419,8 @@
   "PartBoard",
   "EsdProtectionArea",
   "ProtectionPart",
+  "BenchSolution",
+  "BenchConditions",
   "BenchInteraction",
   "BenchNetsAPI",
   "BenchPartsAPI",
@@ -571,6 +575,8 @@
     "PartBoard",
     "EsdProtectionArea",
     "ProtectionPart",
+    "BenchSolution",
+    "BenchConditions",
     "BOARD_CLASSES"
    ]
   ],

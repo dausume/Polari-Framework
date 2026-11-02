@@ -224,3 +224,7 @@ CMOD_SEED_PAIRS.append(('CatomAssertion', CatomAssertion, _owned(_CA_SEEDS, keep
 from cmod.cmod_basis import CatomVariable  # noqa: E402
 from cmod.custom.catom_variables import SEED_VARIABLES as _CV_SEEDS  # noqa: E402
 CMOD_SEED_PAIRS.append(('CatomVariable', CatomVariable, _owned(_CV_SEEDS, keep=('notes', 'status', 'status_why', 'bench_value', 'bench_basis'))))
+# cfg-0: catom configurations - options are seeded per group from cfg-1 (clock); the rest are a person's or the checks' rows, never seeded
+from cmod.cmod_basis import ConfigOption, CatomConfiguration, ConfigChoice, ConfigVerdict, ConfigCheckResult  # noqa: E402
+CMOD_SEED_PAIRS.extend([('ConfigOption', ConfigOption, []), ('CatomConfiguration', CatomConfiguration, []), ('ConfigChoice', ConfigChoice, []),
+                        ('ConfigVerdict', ConfigVerdict, []), ('ConfigCheckResult', ConfigCheckResult, [])])

@@ -1364,6 +1364,7 @@ class polariServer(treeObject):
             PartBoard,   # drv-0: a driver / load / module defined by its pins
             EsdProtectionArea,   # esd-0: a piece flagged to survive ESD
             ProtectionPart,   # esd-3: a protection part and its ratings
+            BenchSolution, BenchConditions,   # cfg-0: a Bench Solution (references only) + its open-air conditions
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,
@@ -1420,6 +1421,8 @@ class polariServer(treeObject):
             CatomVariable,
             # hsp-3c: the HAL drawn in no-code - one card per Catom variable; a chosen value is written through catom_variables.propose
             HalVariableState,
+            # cfg-0: catom configurations - options, the per-firmware-solution configuration + choices, the per-Bench-Solution verdicts + check results
+            ConfigOption, CatomConfiguration, ConfigChoice, ConfigVerdict, ConfigCheckResult,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
             HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
