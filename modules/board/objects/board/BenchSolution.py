@@ -10,7 +10,7 @@ class BenchSolution(treeObject):
     REFERENCES the Bench (what is on the table), the Hardware Solution, the Firmware Solution, the Thermal Solution (none exist yet: '' until the
     thermal phase) and the BenchConditions it runs under (always open air for now). Every catom configuration's verdict is worked out in one Bench
     Solution, because only here are the peers, the boards and the conditions bound together.
-    Related concepts: `Bench`, `BenchConditions`, hwnocode `HardwareSolution`, cmod `FirmwareSolution`, cmod `ConfigVerdict` (judged here).
+    Related concepts: `Bench`, `BenchConditions`, hwnocode `HardwareSolution`, cmod `FirmwareSolution`, cmod `ConfigOptionGrade` (judged here).
     """
 
     plain_words = ('A bench solution is one finished setup on a bench - these boards, this firmware, these conditions - tied together so the whole '

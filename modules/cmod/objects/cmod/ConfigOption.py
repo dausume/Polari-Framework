@@ -8,13 +8,13 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 class ConfigOption(treeObject):
     """What it is: ONE CANDIDATE for a catom - a template-level row (the System side) that says WHAT it would set, never whether it works (that is a
-    `ConfigVerdict`, worked out per Bench Solution). `level` says how deep the change goes:
+    `ConfigOptionGrade`, worked out per Bench Solution). `level` says how deep the change goes:
       values        a set of values for variables of one `group` (baud 115200 + U2X 1); the code stays. `isotope` names the isotope whose variables
                     these are ('' = variables every isotope of the catom shares).
       isotope       another way of doing the job (`isotope` = the IsotopeVariant to switch to); the code changes.
       part | module-board | board    used by the fix suggester (cfg-5): a part, a third-party board, another board.
     A value a person types that no option holds becomes an option of its own (source 'person'), so every value set has one home.
-    Related concepts: `CatomConfiguration` / `ConfigChoice` (where an option is chosen), `ConfigVerdict` (whether it works), cmod.custom.config_groups.
+    Related concepts: `CatomConfiguration` / `ConfigChoice` (where an option is chosen), `ConfigOptionGrade` (whether it works), cmod.custom.config_groups.
     """
 
     plain_words = ('A configuration option is one candidate setting for a firmware piece - for example "115200 baud with double speed" - '

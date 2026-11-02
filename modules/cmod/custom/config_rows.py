@@ -2,7 +2,7 @@
 @module cmod.custom.config_rows
 
 cfg-0: THE ONE PLACE the configuration engine finds, creates and drops rows (BenchSolution, BenchConditions, ConfigOption, CatomConfiguration,
-ConfigChoice, ConfigVerdict, ConfigCheckResult). Rows are read as plain dicts of their constructor fields, so the rest of the engine never touches a
+ConfigChoice, ConfigOptionGrade, ConfigOptionResult). Rows are read as plain dicts of their constructor fields, so the rest of the engine never touches a
 row object. With no live manager a write raises ConfigRefused; it is never faked.
 """
 import inspect

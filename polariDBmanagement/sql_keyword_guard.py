@@ -133,7 +133,7 @@ _CONSTRAINT = re.compile(r'(?i)^(PRIMARY\s+KEY|UNIQUE|FOREIGN\s+KEY|CHECK)\s*\(|
 def is_table_constraint(row):
     """True for a table constraint ('PRIMARY KEY (a, b)', 'UNIQUE (a)', 'FOREIGN KEY (a) ...', 'CHECK (...)', 'CONSTRAINT name ...'), told apart
     by its SHAPE, never by its first word alone: a column named after one of those words ('check TEXT', 'unique INTEGER') is a column
-    (2026-11-01: cfg-0's ConfigCheckResult.check was mistaken for a CHECK constraint, left unquoted, and its table was never created)."""
+    (2026-11-01: cfg-0's ConfigOptionResult.check was mistaken for a CHECK constraint, left unquoted, and its table was never created)."""
     return bool(_CONSTRAINT.match(row.strip()))
 
 

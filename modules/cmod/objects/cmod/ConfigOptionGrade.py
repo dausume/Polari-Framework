@@ -1,21 +1,21 @@
 """
-@module cmod.objects.cmod.ConfigVerdict
+@module cmod.objects.cmod.ConfigOptionGrade
 
-ConfigVerdict - one class per file (design section 7); cfg-0 (AI-Notes/plans/CATOM_CONFIG_PLAN.md "Three verdicts and the default").
+ConfigOptionGrade - one class per file (design section 7); cfg-0 (AI-Notes/plans/CATOM_CONFIG_PLAN.md "Three verdicts and the default").
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
-class ConfigVerdict(treeObject):
+class ConfigOptionGrade(treeObject):
     """What it is: WHETHER ONE OPTION WORKS IN ONE BENCH SOLUTION - invalid (cannot work; never chosen automatically, refused at build), compromise
     (works but gives something up) or ideal (every check with the full recommended margin) - and its competitive score among the valid options of
     its group (best = 100, worst = 0). Written by the checks (cmod.custom.catom_config.evaluate), never typed. The evidence is one level down: one
-    `ConfigCheckResult` per check. The catom and the configuration are not copied here: the option names the catom, the Bench Solution names
+    `ConfigOptionResult` per check (its children). `verdict` is the grade itself. The catom and the configuration are not copied here: the option names the catom, the Bench Solution names
     the firmware solution.
-    Related concepts: `BenchSolution`, `ConfigOption`, `ConfigCheckResult`, `ConfigChoice`.
+    Related concepts: `BenchSolution`, `ConfigOption`, `ConfigOptionResult`, `ConfigChoice`.
     """
 
-    plain_words = ('A configuration verdict says whether one candidate setting works on one bench - no, yes with a cost, or yes fully - '
+    plain_words = ('An option grade says whether one candidate setting works on one bench - no, yes with a cost, or yes fully - '
                    'and how it scored against the others.')
 
     @treeObjectInit

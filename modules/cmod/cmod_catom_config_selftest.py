@@ -115,7 +115,7 @@ def main():
               'person\'s', 'd30-poll' in names and v['isotope'] == 'poll' and v['isotope_chosen_by'] == 'person', names)
         conf = R.rows(m, 'CatomConfiguration')[0]
         choice = R.rows(m, 'ConfigChoice')[0]
-        verdict = R.rows(m, 'ConfigVerdict')[0]
+        verdict = R.rows(m, 'ConfigOptionGrade')[0]
         check('NO OVERLAP: the configuration holds no values, the choice no group or values, the verdict no catom or configuration (each names the row it '
               'depends on)', not ({'sets_json', 'values', 'group'} & set(conf)) and not ({'group', 'sets_json', 'catom'} & set(choice))
               and not ({'catom', 'configuration', 'firmware_solution'} & set(verdict)), (sorted(conf), sorted(choice), sorted(verdict)))

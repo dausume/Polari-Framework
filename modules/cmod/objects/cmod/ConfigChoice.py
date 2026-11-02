@@ -11,7 +11,7 @@ class ConfigChoice(treeObject):
     chosen automatically (the best valid option) or by a person, with why. The group is the option's own; the values are the option's own. A person's
     choice keeps `why` = what it gives up against the automatic one. Whether a choice has turned invalid on some bench is worked out on read from the
     verdicts, never stored here.
-    Related concepts: `CatomConfiguration` (the parent), `ConfigOption` (the values), `ConfigVerdict` (whether it works, per Bench Solution).
+    Related concepts: `CatomConfiguration` (the parent), `ConfigOption` (the values), `ConfigOptionGrade` (whether it works, per Bench Solution).
     """
 
     plain_words = ('A configuration choice records which candidate setting is used for one group of values, and whether Polari picked it '

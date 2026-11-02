@@ -8,7 +8,7 @@ in config_rows, the checks in config_checks and the grading in config_grade:
   configuration(manager, firmware_solution, catom)   the CatomConfiguration, created on first use (isotope '' = not chosen yet)
   set_isotope(manager, firmware_solution, catom, isotope, who='person')   how the catom does its job (changes the code)
   evaluate(manager, bench_solution, catom)       grade every option of every group the catom has options in, in this Bench Solution; write one
-                                                 ConfigVerdict per option and one ConfigCheckResult per check; set each group's automatic choice
+                                                 ConfigOptionGrade per option and one ConfigOptionResult per check; set each group's automatic choice
                                                  (a person's choice is kept). -> view()
   choose(manager, bench_solution, catom, option, who='person')   a person picks an option (refused when invalid in this Bench Solution, with why);
                                                  option '' hands the group back to the automatic choice
@@ -64,12 +64,12 @@ def _grade(group_options, ctx):
 
 
 def _write(manager, bench_solution, g):
-    vname = '%s|%s' % (bench_solution, g['option']['name'])
-    R.upsert(manager, 'ConfigVerdict', vname, bench_solution=bench_solution, option=g['option']['name'], verdict=g['verdict'], score=g['score'],
+    gname = '%s|%s' % (bench_solution, g['option']['name'])
+    R.upsert(manager, 'ConfigOptionGrade', gname, bench_solution=bench_solution, option=g['option']['name'], verdict=g['verdict'], score=g['score'],
              why=g['why'])
-    R.drop(manager, 'ConfigCheckResult', verdict=vname)
+    R.drop(manager, 'ConfigOptionResult', grade=gname)
     for r in g['results']:
-        R.upsert(manager, 'ConfigCheckResult', '%s#%s' % (vname, r['check']), verdict=vname, check=r['check'], layer=r['layer'], outcome=r['outcome'],
+        R.upsert(manager, 'ConfigOptionResult', '%s#%s' % (gname, r['check']), grade=gname, check=r['check'], layer=r['layer'], outcome=r['outcome'],
                  margin=r['margin'], gives_up=r['gives_up'], why=r['why'], evidence=r['evidence'])
 
 
@@ -95,11 +95,11 @@ def evaluate(manager, bench_solution, catom):
 
 
 def _graded_from_rows(manager, bench_solution, option):
-    vname = '%s|%s' % (bench_solution, option['name'])
-    v = R.get(manager, 'ConfigVerdict', vname)
+    gname = '%s|%s' % (bench_solution, option['name'])
+    v = R.get(manager, 'ConfigOptionGrade', gname)
     if v is None:
         return None
-    results = sorted(R.rows(manager, 'ConfigCheckResult', verdict=vname), key=lambda r: (r['layer'], r['check']))
+    results = sorted(R.rows(manager, 'ConfigOptionResult', grade=gname), key=lambda r: (r['layer'], r['check']))
     return {'option': option, 'results': results, 'verdict': v['verdict'], 'why': v['why'], 'score': v['score']}
 
 
@@ -133,7 +133,7 @@ def _elsewhere(manager, ctx, choice):
     for bs in R.rows(manager, 'BenchSolution', firmware_solution=ctx['firmware_solution']):
         if bs['name'] == ctx['bench_solution']:
             continue
-        v = R.get(manager, 'ConfigVerdict', '%s|%s' % (bs['name'], choice['option']))
+        v = R.get(manager, 'ConfigOptionGrade', '%s|%s' % (bs['name'], choice['option']))
         out.append({'bench_solution': bs['name'], 'verdict': v['verdict'] if v else 'not evaluated', 'why': v['why'] if v else ''})
     return out
 

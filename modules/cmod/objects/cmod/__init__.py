@@ -52,5 +52,5 @@ from cmod.objects.cmod.HalVariableState import HalVariableState  # noqa: F401  (
 from cmod.objects.cmod.ConfigOption import ConfigOption  # noqa: F401  (cfg-0)
 from cmod.objects.cmod.CatomConfiguration import CatomConfiguration  # noqa: F401  (cfg-0)
 from cmod.objects.cmod.ConfigChoice import ConfigChoice  # noqa: F401  (cfg-0)
-from cmod.objects.cmod.ConfigVerdict import ConfigVerdict  # noqa: F401  (cfg-0)
-from cmod.objects.cmod.ConfigCheckResult import ConfigCheckResult  # noqa: F401  (cfg-0)
+from cmod.objects.cmod.ConfigOptionGrade import ConfigOptionGrade  # noqa: F401  (cfg-0)
+from cmod.objects.cmod.ConfigOptionResult import ConfigOptionResult  # noqa: F401  (cfg-0)
