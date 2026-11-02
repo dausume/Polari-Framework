@@ -21,6 +21,12 @@ launcher .deb). One kind → one install-plan builder.
 #: store shows a real catalog from day one (never seeded is_mock).
 SEED_CATALOG = [
     {
+        'name': 'sample', 'title': 'Sample Mesh App',
+        'description': 'Optional Mesh App for testing container hosting and Isle routing. Not required for normal Isle operation.',
+        'kind': 'mesh-app', 'source_ref': 'isle-sample-app-sample:latest',
+        'service': 'sample', 'port': 5000, 'category': 'demo', 'source': 'official',
+    },
+    {
         'name': 'polari', 'title': 'Polari (launcher)',
         'description': 'A DOOR, not a deployment: installs a '
                        'native desktop window onto the isle\'s '
@@ -43,13 +49,7 @@ SEED_CATALOG = [
     },
     {
         'name': 'polari-instance', 'title': 'Polari (new instance)',
-        'description': 'A RUNTIME, not a door: deploys another '
-                       'whole polari (backend + frontend) onto '
-                       'this device as a mesh-app, serving its own '
-                       '<name>.isle domains with the MODULES you '
-                       'choose at deploy. Coarse-grained scaling — '
-                       'component-level (extra backends only) and '
-                       'module-collection apps are the next arc.',
+        'description': 'Deploy Polari frontend and backend instances together or independently. The Isle needs at least one of each; usually one frontend serves multiple backends. Modules run on backends.',
         'kind': 'polari-instance',
         'source_ref': 'prf-backend:staging + prf-frontend:staging',
         'category': 'platform', 'source': 'official',

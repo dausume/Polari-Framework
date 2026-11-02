@@ -11,6 +11,9 @@ ROOT = Path(__file__).parent
 spec = importlib.util.spec_from_file_location('capabilities', ROOT/'custom/islemesh_capabilities.py')
 cap = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cap)
+role_spec = importlib.util.spec_from_file_location('roles', ROOT/'custom/islemesh_roles.py')
+roles = importlib.util.module_from_spec(role_spec)
+role_spec.loader.exec_module(roles)
 NOW = datetime(2026, 10, 30, tzinfo=timezone.utc)
 
 def device(name='a', **facts):
@@ -120,7 +123,7 @@ methods={'_base_requirements_for','on_get_graph','_bridge_catalog_entries','_cap
 tree=ast.parse((ROOT/'islemesh_api.py').read_text())
 cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMeshAPI')
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
-ns=dict(__file__=str(ROOT/'islemesh_api.py'),json=json,datetime=datetime,timezone=timezone,ACTIONS=cap.ACTIONS,MAX_AGE_SECONDS=cap.MAX_AGE_SECONDS,
+ns=dict(component_roles=roles.component_roles,is_agent_health=roles.is_agent_health,polari_inventory=roles.polari_inventory,__file__=str(ROOT/'islemesh_api.py'),json=json,datetime=datetime,timezone=timezone,ACTIONS=cap.ACTIONS,MAX_AGE_SECONDS=cap.MAX_AGE_SECONDS,
         validate_evidence=cap.validate_evidence,evaluate_isle=cap.evaluate_isle,
         test_requirement=lambda entry,action:None,
         _now_iso=lambda:NOW.isoformat(),CONNECTIVITY_MODES=[],AGENT_MODES=[],_DEVICE_CLASSES=())
@@ -168,6 +171,20 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(nodes['app:uno_core_demo']['classification_source'],'Polari app manifest')
         self.assertEqual(nodes['router:core']['app_kind'],'hardware-app')
         self.assertEqual(len([n for n in nodes.values() if n['kind']=='device']),1)
+
+    def test_graph_component_roles_and_agent_diagnostics(self):
+        self.tables['IsleDevice']={'core':SimpleNamespace(name='core',agent_present=True)}
+        self.tables['IsleApp']={n:SimpleNamespace(name=n,device_name='core',domain=d) for n,d in [('polari','polari.isle'),('polari-api','api.polari.isle'),('health','health.local'),('sample','sample.isle')]}
+        self.tables['IsleAppService']={n:SimpleNamespace(app_name=n,device_name='core',container=c) for n,c in [('polari','prf-isle-frontend'),('polari-api','prf-isle-backend'),('sample','isle-sample-app')]}
+        self.api.on_get_graph(self.request,self.response)
+        data=self.response.media;nodes={n['id']:n for n in data['nodes']}
+        self.assertNotIn('app:health',nodes)
+        self.assertEqual(nodes['proxy:core']['diagnostics'][0]['path'],'/health')
+        self.assertEqual(nodes['app:polari']['component_roles'],['frontend'])
+        self.assertEqual(nodes['app:polari-api']['component_roles'],['backend'])
+        self.assertEqual(nodes['app:sample']['app_kind'],'mesh-app')
+        self.assertTrue(data['polari']['minimum_deployment_present'])
+        self.assertNotIn('health',[w['name'] for d in data['resources']['devices'] for w in d['appWorkloads']])
 
     def test_graph_distinguishes_reported_interfaces_from_inferred_paths(self):
         self.tables['IsleDevice'] = {
