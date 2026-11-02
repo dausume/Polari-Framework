@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import uuid
+import copy
 from datetime import datetime, timezone
 
 class Conflict(ValueError): pass
@@ -43,8 +45,21 @@ def validate(plan):
         if type(scale) not in (int,float) or not math.isfinite(scale) or not 1<=scale<=2:raise ValueError('Resource multiplier must be between1 and2')
         if type(row.get('requirementsBased',False)) is not bool:raise ValueError('Invalid requirement basis')
         clean.update(multiplier=scale,requirementsBased=row.get('requirementsBased',False))
+        protected=row.get('protectedRoles',[])
+        if not isinstance(protected,list) or any(r not in ('router','apt','frontend','backend') for r in protected):raise ValueError('Invalid service roles')
+        clean['protectedRoles']=protected
         result.append(clean)
-    return {'title':title.strip(),'items':result,'baselineInitialized':plan.get('baselineInitialized') is True}
+    removed=plan.get('removals',[])
+    if not isinstance(removed,list) or len(removed)>128:raise ValueError('Too many removals')
+    clean_removed=[]
+    for row in removed:
+        if not isinstance(row,dict):raise ValueError('Invalid removal')
+        clean_row={k:row.get(k,'') for k in ('app','device','title')}
+        if any(not isinstance(v,str) or len(v)>160 for v in clean_row.values()):raise ValueError('Invalid removal fields')
+        if not re.fullmatch(r'[a-zA-Z0-9_.-]+',clean_row['app']) or not re.fullmatch(r'[a-zA-Z0-9_.-]+',clean_row['device']):raise ValueError('Removal needs app and device')
+        if any(i['app']==clean_row['app'] and i['device']==clean_row['device'] and i['state']!='deferred' for i in result):continue
+        clean_removed.append(clean_row)
+    return {'title':title.strip(),'items':result,'removals':clean_removed,'baselineInitialized':plan.get('baselineInitialized') is True}
 
 class PlanStore:
     def __init__(self,path=None):
@@ -53,21 +68,66 @@ class PlanStore:
             if not database:raise RuntimeError('Persistent DATABASE_PATH is required for shared planning')
             path=Path(database).parent/'isle-placement-plan.json'
         self.path=Path(path)
-    def read(self):
-        if not self.path.exists():return {'title':'Isle deployment plan','revision':0,'updatedAt':None,'items':[]}
-        return json.loads(self.path.read_text())
-    def save(self,plan):
+    def _document(self):
+        if not self.path.exists():
+            initial={'id':'default','title':'Isle deployment plan','revision':0,'updatedAt':None,'items':[],'removals':[]}
+            return {'schemaVersion':2,'activeId':'default','generation':0,'plans':{'default':[initial]}}
+        doc=json.loads(self.path.read_text())
+        if doc.get('schemaVersion')==2:return doc
+        doc['id']='default';doc.setdefault('removals',[])
+        return {'schemaVersion':2,'activeId':'default','generation':0,'plans':{'default':[doc]}}
+    def read(self,plan_id=None,revision=None):
+        doc=self._document();plan_id=plan_id or doc['activeId']
+        versions=doc['plans'].get(plan_id)
+        if not versions:raise ValueError('Saved plan does not exist')
+        value=versions[-1] if revision is None else next((v for v in versions if v['revision']==revision),None)
+        if value is None:raise ValueError('Saved revision is no longer retained')
+        return dict(value,active=plan_id==doc['activeId'],activeId=doc['activeId'],generation=doc['generation'])
+    def library(self):
+        doc=self._document()
+        return {'activeId':doc['activeId'],'generation':doc['generation'],'plans':[
+            dict(id=k,title=v[-1]['title'],revision=v[-1]['revision'],updatedAt=v[-1]['updatedAt'],active=k==doc['activeId'],
+                 versions=[dict(revision=i['revision'],updatedAt=i['updatedAt']) for i in reversed(v)]) for k,v in doc['plans'].items()]}
+    def _write(self,doc):
+        tmp=None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w',dir=self.path.parent,delete=False) as f:
+                tmp=f.name;json.dump(doc,f,allow_nan=False);f.flush();os.fsync(f.fileno())
+            os.replace(tmp,self.path)
+        finally:
+            if tmp and os.path.exists(tmp):os.unlink(tmp)
+    def save(self,plan,as_new=False):
         clean=validate(plan)
         with self.path.with_suffix('.lock').open('a') as lock:
-            fcntl.flock(lock,fcntl.LOCK_EX)
-            previous=self.read()
-            if previous['revision']!=plan['revision']:raise Conflict('Plan changed on another device. Reload before saving; your draft has not been written.')
-            clean.update(revision=previous['revision']+1,updatedAt=datetime.now(timezone.utc).isoformat())
-            tmp=None
-            try:
-                with tempfile.NamedTemporaryFile(mode='w',dir=self.path.parent,delete=False) as f:
-                    tmp=f.name;json.dump(clean,f,allow_nan=False);f.flush();os.fsync(f.fileno())
-                os.replace(tmp,self.path)
-            finally:
-                if tmp and os.path.exists(tmp):os.unlink(tmp)
-            return clean
+            fcntl.flock(lock,fcntl.LOCK_EX);doc=self._document()
+            from islemesh.custom.islemesh_plan_safety import violations
+            issues=violations(clean,doc['plans'][doc['activeId']][-1])
+            if issues:raise ValueError(' '.join(issues))
+            previous_active=doc['plans'][doc['activeId']][-1]
+            for old in previous_active.get('items',[]):
+                app=old.get('app') or old.get('title','').lower();device=old.get('originDevice') or (old.get('device') if old.get('state')=='existing' else '')
+                if device and re.fullmatch(r'[a-zA-Z0-9_.-]+',app) and not any((i.get('app') or i.get('title','').lower())==app and i.get('device')==device and i.get('state')!='deferred' for i in clean['items']):
+                    removal=dict(app=app,device=device,title=old.get('title',app))
+                    if not any(r['app']==app and r['device']==device for r in clean['removals']):clean['removals'].append(removal)
+            plan_id=plan.get('id') or doc['activeId']
+            if as_new:
+                if len(doc['plans'])>=20:raise ValueError('Plan library is full (20 plans).')
+                plan_id=uuid.uuid4().hex;versions=[]
+            else:
+                versions=doc['plans'].get(plan_id)
+                if not versions:raise ValueError('Saved plan does not exist')
+                if versions[-1]['revision']!=plan['revision']:raise Conflict('Plan changed on another device. Reload before saving; your draft has not been written.')
+            clean.update(id=plan_id,revision=(versions[-1]['revision'] if versions else 0)+1,updatedAt=datetime.now(timezone.utc).isoformat())
+            doc['plans'][plan_id]=(versions+[clean])[-8:];doc['generation']+=1;self._write(doc)
+            return dict(clean,active=plan_id==doc['activeId'],activeId=doc['activeId'],generation=doc['generation'])
+    def activate(self,plan_id,generation,revision):
+        with self.path.with_suffix('.lock').open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX);doc=self._document()
+            if doc['generation']!=generation:raise Conflict('Plan library changed. Reload before switching the active plan.')
+            if plan_id not in doc['plans']:raise ValueError('Saved plan does not exist')
+            if doc['plans'][plan_id][-1]['revision']!=revision:raise Conflict('Only the latest saved revision can be activated. Save an old revision as a new plan first.')
+            from islemesh.custom.islemesh_plan_safety import violations
+            issues=violations(doc['plans'][plan_id][-1],doc['plans'][doc['activeId']][-1])
+            if issues:raise ValueError(' '.join(issues))
+            doc['activeId']=plan_id;doc['generation']+=1;self._write(doc)
+        return self.read()

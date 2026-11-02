@@ -93,15 +93,37 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/appplan/{app}', self,
                 suffix='appplan')
             add('/api/islemesh/placement-plan', self, suffix='placement_plan')
+            add('/api/islemesh/plan-library', self, suffix='plan_library')
+            add('/api/islemesh/removal-check', self, suffix='removal_check')
             add('/api/islemesh/mock', self, suffix='mock')
 
     def on_get_placement_plan(self, request, response):
         from islemesh.custom.islemesh_planning import PlanStore
         try:
-            response.media = {'ok':True, 'plan':PlanStore().read(), 'advisoryOnly':True}
+            response.media = {'ok':True, 'plan':PlanStore().read(request.get_param('id'), request.get_param_as_int('revision')), 'advisoryOnly':True}
         except (OSError, ValueError, RuntimeError):
             response.status = '503 Service Unavailable'
             response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
+
+    def on_get_plan_library(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore
+        try:response.media={'ok':True, **PlanStore().library()}
+        except (OSError,ValueError,RuntimeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Plan library unavailable.'}
+
+    def on_get_removal_check(self, request, response):
+        from islemesh.custom.islemesh_plan_safety import roles, REASONS
+        app=request.get_param('app') or '';device=request.get_param('device') or ''
+        self.on_get_graph(request,response)
+        nodes=[n for n in response.media.get('nodes',[]) if not n.get('is_mock') and n.get('kind')=='app']
+        target=next((n for n in nodes if n.get('device')==device and (n.get('label')==app or n.get('id')=='app:'+app)),None)
+        target_roles=roles({'app':app})
+        if target:
+            target_roles=list(set(target_roles+roles({'app':target.get('label','')})+[r for r in target.get('component_roles',[]) if r in ('frontend','backend')]))
+        issues=[]
+        for role in target_roles:
+            if role=='router' or not any(n is not target and role in (roles({'app':n.get('label','')})+n.get('component_roles',[])) for n in nodes):issues.append(REASONS[role])
+        response.media={'ok':True,'allowed':not issues,'reasons':issues,'app':app,'device':device}
 
     def on_put_placement_plan(self, request, response):
         from islemesh.custom.islemesh_planning import PlanStore, Conflict, validate
@@ -109,7 +131,21 @@ class IsleMeshAPI(treeObject):
             raw = request.bounded_stream.read(262145)
             if len(raw)>262144: raise ValueError('Plan exceeds256KiB')
             payload = json.loads(raw)
+            from islemesh.custom.islemesh_plan_safety import violations
+            store=PlanStore()
+            if payload.get('operation')=='activate':
+                candidate=store.read(payload.get('id'))
+                issues=violations(candidate,store.read())
+                if issues:raise ValueError(' '.join(issues))
+                response.media={'ok':True,'plan':store.activate(payload.get('id'),payload.get('generation'),payload.get('revision')),'advisoryOnly':True};return
             validate(payload)
+            issues=violations(payload,store.read())
+            if issues:raise ValueError(' '.join(issues))
+            self.on_get_graph(request,response)
+            for item in payload.get('items',[]):
+                identity=item.get('app') or item.get('title','')
+                node=next((n for n in response.media.get('nodes',[]) if n.get('kind')=='app' and n.get('label')==identity and n.get('device') in (item.get('device'),item.get('originDevice'))),None)
+                if node:item['protectedRoles']=[r for r in node.get('component_roles',[]) if r in ('frontend','backend')]
             # Recalculate app budgets from current definitions, not client-supplied costs.
             self.on_get_catalog(request, response)
             definitions = {e['name']:e for e in response.media['entries']}
@@ -122,7 +158,7 @@ class IsleMeshAPI(treeObject):
                     req = self._planning_requirements(entry) if entry else {'minimum':dict(ramMiB=None,diskMiB=None,cpus=None)}
                     for key, value in req['minimum'].items():
                         item[key] = round(value * scale, 3) if value is not None else None
-            response.media = {'ok':True,'plan':PlanStore().save(payload),'advisoryOnly':True}
+            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs'),'advisoryOnly':True}
         except Conflict as exc:
             response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
         except (ValueError, TypeError) as exc:
@@ -417,6 +453,12 @@ class IsleMeshAPI(treeObject):
             notes=facts.get('notes'),
             capability_evidence_json=evidence_json,
             capability_received_at=received_at)
+        if evidence_json and not is_mock:
+            try:
+                from islemesh.custom.islemesh_usage import UsageStore
+                UsageStore().ingest(device_name,report.get('facts',{}).get('resources.detail_json',{}))
+            except (OSError,ValueError,TypeError,KeyError):
+                pass  # Resource history must not interrupt device membership reports.
         uplinks = payload.get('uplinks') or []
         # Capability-only and partial fact reports do not replace topology.
         # An explicit empty array still authoritatively clears the uplinks.
@@ -803,11 +845,16 @@ class IsleMeshAPI(treeObject):
         for a in ai_entries:
             a['install_plan'] = ai_tool_install_plan(a)
         entries.extend(ai_entries)
+        try:
+            from islemesh.custom.islemesh_usage import UsageStore
+            history=list(UsageStore().read()['series'].values())
+        except (OSError,ValueError,KeyError):history=[]
         for entry in entries:
+            entry['observedUsage']=[r for r in history if r['app'] in (entry['name'],entry.get('service'))]
             entry['planningRequirements'] = self._planning_requirements(entry)
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
-                          'entries': entries}
+                          'entries': entries, 'usageHistory': history}
 
     def _bridge_catalog_entries(self, include_instances=True):
         # Manifest-owned Hardware Bridge Apps remain visible even when their

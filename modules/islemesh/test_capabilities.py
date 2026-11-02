@@ -119,7 +119,7 @@ class EvaluatorTests(unittest.TestCase):
 
 # Exercise the actual route methods with in-memory tables instead of booting DB,
 # server, plugins or agents. Persistence/migration is a separate integration gate.
-methods={'_planning_requirements','_base_requirements_for','on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
+methods={'on_get_removal_check','_planning_requirements','_base_requirements_for','on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
 tree=ast.parse((ROOT/'islemesh_api.py').read_text())
 cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMeshAPI')
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
@@ -138,6 +138,18 @@ class ApiTests(unittest.TestCase):
         self.api._any_mock=lambda:False
         self.api._refuse=lambda response,error,status='400 Bad Request':setattr(response,'media',{'ok':False,'error':error})
         self.request=SimpleNamespace(get_param=lambda name:None)
+    def test_critical_removal_checks_actual_other_instances(self):
+        nodes=[dict(id='app:custom',label='custom',device='core',kind='app',component_roles=['frontend']),dict(id='app:apt',label='apt',device='core',kind='app')]
+        self.api.on_get_graph=lambda req,res:setattr(res,'media',{'nodes':nodes})
+        self.request.get_param=lambda k:dict(app='custom',device='core').get(k)
+        self.api.on_get_removal_check(self.request,self.response);self.assertFalse(self.response.media['allowed'])
+        nodes.append(dict(id='app:other',label='other',device='remote',kind='app',component_roles=['frontend']))
+        self.api.on_get_removal_check(self.request,self.response);self.assertTrue(self.response.media['allowed'])
+        self.request.get_param=lambda k:dict(app='apt',device='core').get(k)
+        self.api.on_get_removal_check(self.request,self.response);self.assertFalse(self.response.media['allowed'])
+        self.request.get_param=lambda k:dict(app='sample',device='core').get(k)
+        self.api.on_get_removal_check(self.request,self.response);self.assertTrue(self.response.media['allowed'])
+
     def test_app_profiles_extend_existing_host_requirements(self):
         self.api._base_requirements_for=lambda entry,action: descriptor()
         self.tables['ModuleResourceProfile']={'x':SimpleNamespace(subject_kind='isle-app',subject_name='isle-app:x',min_ram_mb=256,min_disk_mb=20,image_mb=100,deps_mb=10,min_threads=1)}
