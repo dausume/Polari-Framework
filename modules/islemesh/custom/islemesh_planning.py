@@ -22,13 +22,13 @@ def validate(plan):
     for row in items:
         if not isinstance(row,dict):raise ValueError('Invalid plan item')
         clean={}
-        for key,limit in [('id',80),('device',80),('title',160),('app',100),('notes',2000),('volume',200)]:
+        for key,limit in [('id',80),('device',80),('title',160),('app',100),('notes',2000),('volume',200),('originDevice',80)]:
             v=row.get(key,'')
             if not isinstance(v,str) or len(v)>limit:raise ValueError('Invalid '+key)
             clean[key]=v.strip()
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',clean['id']) or clean['id'] in seen:raise ValueError('Unique item IDs required')
         seen.add(clean['id'])
-        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*',clean['device']) or not clean['title']:raise ValueError('Device and title are required')
+        if (clean['device'] and not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*',clean['device'])) or not clean['title']:raise ValueError('Device and title are required')
         for key,choices in [('kind',('catalog','polari','task')),('state',('planned','existing','deferred')),('access',('frequent','occasional','archive'))]:
             if row.get(key) not in choices:raise ValueError('Invalid '+key)
             clean[key]=row[key]
@@ -37,8 +37,14 @@ def validate(plan):
             v=row.get(key)
             if v is not None and (type(v) not in (int,float) or not math.isfinite(v) or v<0 or v>1e9):raise ValueError('Costs must be nonnegative numbers or blank')
             clean[key]=v
+        origin = clean['originDevice']
+        if origin and not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*',origin):raise ValueError('Invalid original device')
+        scale = row.get('multiplier',1)
+        if type(scale) not in (int,float) or not math.isfinite(scale) or not 1<=scale<=2:raise ValueError('Resource multiplier must be between1 and2')
+        if type(row.get('requirementsBased',False)) is not bool:raise ValueError('Invalid requirement basis')
+        clean.update(multiplier=scale,requirementsBased=row.get('requirementsBased',False))
         result.append(clean)
-    return {'title':title.strip(),'items':result}
+    return {'title':title.strip(),'items':result,'baselineInitialized':plan.get('baselineInitialized') is True}
 
 class PlanStore:
     def __init__(self,path=None):

@@ -104,11 +104,24 @@ class IsleMeshAPI(treeObject):
             response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
 
     def on_put_placement_plan(self, request, response):
-        from islemesh.custom.islemesh_planning import PlanStore, Conflict
+        from islemesh.custom.islemesh_planning import PlanStore, Conflict, validate
         try:
             raw = request.bounded_stream.read(262145)
             if len(raw)>262144: raise ValueError('Plan exceeds256KiB')
             payload = json.loads(raw)
+            validate(payload)
+            # Recalculate app budgets from current definitions, not client-supplied costs.
+            self.on_get_catalog(request, response)
+            definitions = {e['name']:e for e in response.media['entries']}
+            for item in payload.get('items', []):
+                if item.get('requirementsBased'):
+                    scale = item.get('multiplier', 1)
+                    if type(scale) not in (int, float) or not 1 <= scale <= 2:
+                        raise ValueError('Resource multiplier must be between1 and2')
+                    entry = definitions.get(item.get('app'))
+                    req = self._planning_requirements(entry) if entry else {'minimum':dict(ramMiB=None,diskMiB=None,cpus=None)}
+                    for key, value in req['minimum'].items():
+                        item[key] = round(value * scale, 3) if value is not None else None
             response.media = {'ok':True,'plan':PlanStore().save(payload),'advisoryOnly':True}
         except Conflict as exc:
             response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
@@ -583,6 +596,36 @@ class IsleMeshAPI(treeObject):
             'published': getattr(row, 'published', True),
         }
 
+    def _planning_requirements(self, entry):
+        """Project app-authored requirements; absence is never a zero minimum."""
+        import math
+        minimum = dict(ramMiB=None, diskMiB=None, cpus=None)
+        profile = next((r for r in self._table('ModuleResourceProfile').values()
+                        if (getattr(r, 'subject_kind', '') == 'isle-app' and
+                            getattr(r, 'subject_name', '') == 'isle-app:' + entry.get('name', ''))), None)
+        if profile is None and entry.get('service'):
+            profile = next((r for r in self._table('ModuleResourceProfile').values()
+                            if getattr(r, 'subject_kind', '') == 'engine' and
+                            getattr(r, 'subject_name', '') == entry['service']), None)
+        source = ''
+        def valid(v): return type(v) in (int, float) and math.isfinite(v) and v >= 0
+        if profile is not None:
+            source = 'ModuleResourceProfile:' + getattr(profile, 'name', entry['name'])
+            ram, cpu = getattr(profile, 'min_ram_mb', None), getattr(profile, 'min_threads', None)
+            disk = [getattr(profile, k, 0) for k in ('min_disk_mb', 'image_mb', 'deps_mb')]
+            minimum = dict(ramMiB=ram if valid(ram) else None, cpus=cpu if valid(cpu) else None,
+                           diskMiB=sum(disk) if all(valid(v) for v in disk) else None)
+        descriptor = self._requirements_for(entry, 'host')
+        keys = {'resources.memory_available_mib':'ramMiB', 'resources.root_disk_free_mib':'diskMiB', 'resources.logical_cpus':'cpus'}
+        for need in (descriptor or {}).get('needs', []):
+            key = keys.get(need.get('dep'))
+            if key and need.get('check') == 'min' and valid(need.get('value')):
+                minimum[key] = max(minimum[key] or 0, need['value'])
+                source = source or 'App hosting requirements:' + entry['name']
+        return dict(minimum=minimum, source=source, complete=all(v is not None for v in minimum.values()),
+                    dependencies=(descriptor or {}).get('needs', []),
+                    dependenciesComplete=bool((descriptor or {}).get('complete')))
+
     def _capability_devices(self):
         result = []
         for row in self._table('IsleDevice').values():
@@ -760,6 +803,8 @@ class IsleMeshAPI(treeObject):
         for a in ai_entries:
             a['install_plan'] = ai_tool_install_plan(a)
         entries.extend(ai_entries)
+        for entry in entries:
+            entry['planningRequirements'] = self._planning_requirements(entry)
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
                           'entries': entries}

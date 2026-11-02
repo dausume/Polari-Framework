@@ -24,6 +24,15 @@ class Planning(unittest.TestCase):
         with self.assertRaises(ValueError):validate(p)
         p=self.plan();p['items'][0]['kind']='catalog'
         with self.assertRaises(ValueError):validate(p)
+    def test_unassigned_moves_and_multiplier_bounds(self):
+        p=self.plan();i=p['items'][0];i.update(device='',originDevice='econ-core',multiplier=2,requirementsBased=True)
+        p['baselineInitialized']=True
+        result=validate(p);self.assertEqual(result['items'][0]['originDevice'],'econ-core')
+        self.assertEqual(result['items'][0]['device'],'');self.assertTrue(result['baselineInitialized'])
+        for bad in (0.9,2.01,True,float('nan')):
+            i['multiplier']=bad
+            with self.assertRaises(ValueError):validate(p)
+
     def test_missing_storage_fails(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(OSError):PlanStore(Path(d)/'missing'/'plan.json').save(self.plan())

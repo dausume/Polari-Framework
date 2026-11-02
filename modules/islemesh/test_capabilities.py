@@ -119,7 +119,7 @@ class EvaluatorTests(unittest.TestCase):
 
 # Exercise the actual route methods with in-memory tables instead of booting DB,
 # server, plugins or agents. Persistence/migration is a separate integration gate.
-methods={'_base_requirements_for','on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
+methods={'_planning_requirements','_base_requirements_for','on_get_graph','_bridge_catalog_entries','_capability_devices','_requirements_for','on_get_devices','on_get_catalog_targets','on_get_gaps','on_post_ingest_device'}
 tree=ast.parse((ROOT/'islemesh_api.py').read_text())
 cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='IsleMeshAPI')
 cls.bases=[];cls.decorator_list=[];cls.body=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name in methods]
@@ -148,6 +148,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(needs['resources.memory_available_mib']['failure'],'resource-limited')
         self.tables['ModuleResourceProfile']['x'].min_ram_mb=-1
         self.assertIsNone(self.api._requirements_for({'name':'x'},'host'))
+
+    def test_planning_profile_minima_and_missing_values(self):
+        e={'name':'x','service':'worker'}
+        self.assertFalse(self.api._planning_requirements(e)['complete'])
+        self.tables['ModuleResourceProfile']={'x':SimpleNamespace(name='worker-profile',subject_kind='engine',subject_name='worker',min_ram_mb=100,min_disk_mb=20,image_mb=50,deps_mb=10,min_threads=1)}
+        result=self.api._planning_requirements(e)
+        self.assertEqual(result['minimum'],dict(ramMiB=100,diskMiB=80,cpus=1))
+        self.assertTrue(result['complete'])
+        self.assertEqual(result['source'],'ModuleResourceProfile:worker-profile')
+        self.tables['ModuleResourceProfile']['x'].min_ram_mb=float('nan')
+        self.assertIsNone(self.api._planning_requirements(e)['minimum']['ramMiB'])
+        self.assertFalse(self.api._planning_requirements(e)['complete'])
 
     def test_graph_preserves_app_kinds_and_polari_runtime_role(self):
         self.tables['IsleDevice']={'core':SimpleNamespace(name='core',agent_present=True,router_running=True)}
