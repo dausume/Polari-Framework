@@ -22,6 +22,8 @@ from cmod.cmod_catom_config_api import CatomConfigAPI   # cfg-0
 from cmod.cmod_bench_topology_api import BenchTopologyAPI   # bss-1
 from cmod.cmod_node_run_api import NodeRunAPI   # bss-2
 from cmod.cmod_confirmations_api import ConfirmationsAPI   # bss-3
+from cmod.cmod_bench_canvas_api import BenchCanvasAPI   # bss-5
+from cmod.cmod_coverage_api import CoverageAPI   # bss-6
 from cmod.cmod_bench_structs_api import BenchStructsAPI   # hsp-3b
 
 
@@ -44,6 +46,8 @@ def construct_cmod_endpoints(polServer):
     api.catom_config = CatomConfigAPI(polServer=polServer, manager=polServer.manager)
     api.bench_topology = BenchTopologyAPI(polServer=polServer, manager=polServer.manager)   # bss-1: /api/cmod/bench-topology/{bench_solution}[...]
     api.node_run = NodeRunAPI(polServer=polServer, manager=polServer.manager)   # bss-2: .../nodes/{slug}/run|runs
-    api.confirmations = ConfirmationsAPI(polServer=polServer, manager=polServer.manager)   # bss-3: .../nodes/{slug}/confirmations|confirm|hardware-record, .../checks, .../profiles   # cfg-0: /api/cmod/config-groups, /api/cmod/catom-config/{bench_solution}/{catom}[/evaluate|/choose|/isotope]
+    api.confirmations = ConfirmationsAPI(polServer=polServer, manager=polServer.manager)   # bss-3: .../nodes/{slug}/confirmations|confirm|hardware-record, .../checks, .../profiles
+    api.bench_canvas = BenchCanvasAPI(polServer=polServer, manager=polServer.manager)   # bss-5: .../canvas (the drawing)
+    api.coverage = CoverageAPI(polServer=polServer, manager=polServer.manager)   # bss-6: .../coverage[/untested|nodes|events|runs|assertions|strip-rows]   # cfg-0: /api/cmod/config-groups, /api/cmod/catom-config/{bench_solution}/{catom}[/evaluate|/choose|/isotope]
     api.bench_structs = BenchStructsAPI(polServer=polServer, manager=polServer.manager)   # hsp-3b: /api/cmod/bench-structs/{bench}
     return api

@@ -355,3 +355,6 @@ SEED_CMOD_PAGE_DISPLAYS += FSC_PAGES
 
 from cmod.bench_views_page import BENCH_VIEWS_PAGES   # noqa: E402  hsp-3b: /display/bench-views (Structs / Bridges / HAL tabs)
 SEED_CMOD_PAGE_DISPLAYS += BENCH_VIEWS_PAGES
+
+from cmod.hardware_events_page import HARDWARE_EVENTS_PAGES   # noqa: E402  bss-6: /display/hardware-events (what was tested, first what was not)
+SEED_CMOD_PAGE_DISPLAYS += HARDWARE_EVENTS_PAGES

@@ -56,8 +56,13 @@ MISSION_KINDS = {'MissionGoalState', 'MissionSettingsState', 'MissionPurposeStat
 #: value writes it through catom_variables.propose (the pin functions, the lifecycle, one pin one role, the variant's own rules)
 HAL_CATEGORY = 'hal'
 HAL_KINDS = {'HalVariableState', 'hal-variable'}
+#: bss-5: category 'bench-topology' (a Bench Solution's Hardware Event topology drawn in no-code, cmod.custom.bench_topology_nocode) - the same
+#: declarative posture: struct-node and hardware-event boxes only; a node is tested through its run door, never executed here
+BENCH_TOPOLOGY_CATEGORY = 'bench-topology'
+BENCH_TOPOLOGY_KINDS = {'StructNodeState', 'HardwareEventState', 'struct-node', 'hardware-event'}
 #: the declarative categories: category -> (kinds, the word a refusal uses)
-DECLARATIVE = {PURPOSE_CATEGORY: (PURPOSE_KINDS, 'Purpose'), MISSION_CATEGORY: (MISSION_KINDS, 'Mission'), HAL_CATEGORY: (HAL_KINDS, 'HAL')}
+DECLARATIVE = {PURPOSE_CATEGORY: (PURPOSE_KINDS, 'Purpose'), MISSION_CATEGORY: (MISSION_KINDS, 'Mission'), HAL_CATEGORY: (HAL_KINDS, 'HAL'),
+               BENCH_TOPOLOGY_CATEGORY: (BENCH_TOPOLOGY_KINDS, 'Bench Topology')}
 #: runtime kinds of the other categories - named so a refusal reads as a rule
 RUNTIME_KINDS = FIRMWARE_RUN_KINDS | BRIDGE_KINDS | RELAY_KINDS | API_CALL_KINDS | SUB_SOLUTION_KINDS | FRONTEND_EMIT_KINDS | {'NativeAppStep'}
 

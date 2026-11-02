@@ -70,3 +70,5 @@ from cmod.objects.cmod.StructNodeConfirmation import StructNodeConfirmation  # n
 from cmod.objects.cmod.StructEdgeCheck import StructEdgeCheck  # noqa: F401  (bss-3)
 from cmod.objects.cmod.TestProfile import TestProfile  # noqa: F401  (bss-3)
 from cmod.objects.cmod.TestProfileItem import TestProfileItem  # noqa: F401  (bss-3)
+from cmod.objects.cmod.StructNodeState import StructNodeState  # noqa: F401  (bss-5: canvas node kinds)
+from cmod.objects.cmod.HardwareEventState import HardwareEventState  # noqa: F401  (bss-5: canvas node kinds)

@@ -235,3 +235,5 @@ from cmod.cmod_basis import StructNodeRun, StructNodeRunEdge, StructNodeRunSigna
 CMOD_SEED_PAIRS.extend([('StructNodeRun', StructNodeRun, []), ('StructNodeRunEdge', StructNodeRunEdge, []), ('StructNodeRunSignal', StructNodeRunSignal, [])])
 from cmod.cmod_basis import StructNodeConfirmation, StructEdgeCheck, TestProfile, TestProfileItem  # noqa: E402  bss-3: confirmations (written by runs / people / records), edge checks and test profiles (a person's); none seeded
 CMOD_SEED_PAIRS.extend([('StructNodeConfirmation', StructNodeConfirmation, []), ('StructEdgeCheck', StructEdgeCheck, []), ('TestProfile', TestProfile, []), ('TestProfileItem', TestProfileItem, [])])
+from cmod.cmod_basis import StructNodeState, HardwareEventState  # noqa: E402  bss-5: the canvas node kinds (palette data on the class; no rows)
+CMOD_SEED_PAIRS.extend([('StructNodeState', StructNodeState, []), ('HardwareEventState', HardwareEventState, [])])

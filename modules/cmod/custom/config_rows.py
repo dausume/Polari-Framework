@@ -20,7 +20,13 @@ def _cls(cls_name):
         import board.objects.board as B
         return getattr(B, cls_name)
     import cmod.objects.cmod as C
-    return getattr(C, cls_name)
+    if hasattr(C, cls_name):
+        return getattr(C, cls_name)
+    if cls_name == 'SolutionDefinition':   # bss-5: the drawing row the canvas page lists
+        from polariApiServer.solutionDefinition import SolutionDefinition
+        return SolutionDefinition
+    import board.objects.board as B
+    return getattr(B, cls_name)
 
 
 def _fields(cls):
