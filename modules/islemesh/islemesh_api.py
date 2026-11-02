@@ -92,7 +92,30 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/coherence', self, suffix='coherence')
             add('/api/islemesh/appplan/{app}', self,
                 suffix='appplan')
+            add('/api/islemesh/placement-plan', self, suffix='placement_plan')
             add('/api/islemesh/mock', self, suffix='mock')
+
+    def on_get_placement_plan(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore
+        try:
+            response.media = {'ok':True, 'plan':PlanStore().read(), 'advisoryOnly':True}
+        except (OSError, ValueError, RuntimeError):
+            response.status = '503 Service Unavailable'
+            response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
+
+    def on_put_placement_plan(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore, Conflict
+        try:
+            raw = request.bounded_stream.read(262145)
+            if len(raw)>262144: raise ValueError('Plan exceeds256KiB')
+            payload = json.loads(raw)
+            response.media = {'ok':True,'plan':PlanStore().save(payload),'advisoryOnly':True}
+        except Conflict as exc:
+            response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
+        except (ValueError, TypeError) as exc:
+            response.status='400 Bad Request';response.media={'ok':False,'error':str(exc)}
+        except (OSError, RuntimeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Plan was not saved: persistent storage unavailable.'}
 
     # ---- helpers ----------------------------------------------------
 

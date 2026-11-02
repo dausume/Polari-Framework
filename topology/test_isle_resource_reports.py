@@ -36,4 +36,13 @@ class Reports(unittest.TestCase):
         d=device_inventory(Row(objectTables={'IsleDevice':{'x':Row(name='x')}}))[0]
         self.assertFalse(d['grants']['known'])
         self.assertEqual(d['reportedAvailability'],{})
+    def test_resource_detail_validation(self):
+        m=self.manager();row=m.objectTables['IsleDevice']['d'];facts=json.loads(row.capability_evidence_json)['facts']
+        fact=dict(status='observed',source='test',observed_at=datetime.now(timezone.utc).isoformat(),value=json.dumps({'schemaVersion':1,'cpus':[{'id':0,'online':True,'busyPercent':0}],'allocations':[]}))
+        facts['resources.detail_json']=fact;row.capability_evidence_json=json.dumps({'facts':facts})
+        self.assertTrue(device_inventory(m)[0]['resourceDetail']['fresh'])
+        fact['value']=json.dumps({'schemaVersion':1,'cpus':[{'id':0,'online':True}],'allocations':'bad'})
+        row.capability_evidence_json=json.dumps({'facts':facts})
+        self.assertIsNone(device_inventory(m)[0]['resourceDetail'])
 if __name__=='__main__':unittest.main()
+

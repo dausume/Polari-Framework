@@ -84,11 +84,41 @@ def device_inventory(manager):
     return devices
 
 
+def _valid_resource_detail(value):
+    def number(v): return type(v) in (int,float) and math.isfinite(v) and v >= 0
+    def ids(v): return isinstance(v,list) and len(v)<=65536 and all(type(i) is int and 0<=i<=65535 for i in v)
+    if not isinstance(value,dict) or value.get('schemaVersion')!=1: return False
+    cpus=value.get('cpus')
+    if not isinstance(cpus,list) or len(cpus)>512: return False
+    for cpu in cpus:
+        if not isinstance(cpu,dict) or type(cpu.get('id')) is not int or not 0<=cpu['id']<=65535 or type(cpu.get('online')) is not bool: return False
+        busy=cpu.get('busyPercent')
+        if busy is not None and (not number(busy) or busy>100): return False
+    allocations=value.get('allocations',[])
+    if not isinstance(allocations,list) or len(allocations)>96: return False
+    for a in allocations:
+        if not isinstance(a,dict) or not isinstance(a.get('name'),str) or not ids(a.get('cpus',[])):return False
+        pins=a.get('pins',[])
+        if not isinstance(pins,list) or len(pins)>512 or any(not isinstance(p,dict) or not ids(p.get('cpus',[])) for p in pins):return False
+    storage=value.get('storage',{})
+    if not isinstance(storage,dict):return False
+    for key,limit in [('volumes',128),('drives',64)]:
+        rows=storage.get(key,[])
+        if not isinstance(rows,list) or len(rows)>limit:return False
+        for row in rows:
+            if not isinstance(row,dict) or not isinstance(row.get('name'),str):return False
+            for metric in ['totalMiB','availableMiB','usedMiB','sizeMiB']:
+                if metric in row and not number(row[metric]):return False
+            if key=='volumes' and (not isinstance(row.get('mounts'),list) or any(not isinstance(m,str) for m in row['mounts'])):return False
+    return True
+
+
 def _device_entry(isle_row, machine, machine_name):
     grants = _capacity(machine)
     # Host agent snapshots complement Polari process/container observations.
     # Keep individual timestamps; do not silently convert last-seen into freshness.
     reported = {}
+    detail = None
     try:
         facts = json.loads(getattr(isle_row, 'capability_evidence_json', '{}') or '{}').get('facts', {})
         for source, target in [
@@ -109,6 +139,20 @@ def _device_entry(isle_row, machine, machine_name):
                 fresh = False
             reported[target] = dict(value=value, observedAt=stamp,
                                     source=fact.get('source', ''), fresh=fresh)
+        fact = facts.get('resources.detail_json', {})
+        raw = fact.get('value')
+        if fact.get('status') == 'observed' and isinstance(raw, str) and len(raw) <= 131072:
+            try:
+                value = json.loads(raw, parse_constant=lambda v: (_ for _ in ()).throw(ValueError(v)))
+                if not _valid_resource_detail(value):
+                    raise ValueError('unsupported detail schema')
+                if not isinstance(value.get('cpus'), list) or len(value['cpus']) > 512:
+                    raise ValueError('invalid CPU inventory')
+                stamp = fact.get('observed_at', '')
+                age = (datetime.now(timezone.utc) - datetime.fromisoformat(stamp.replace('Z', '+00:00'))).total_seconds()
+                detail = dict(value=value, observedAt=stamp, source=fact.get('source', ''), fresh=-30 <= age <= 300)
+            except (ValueError, TypeError, AttributeError):
+                pass
         if not grants['known'] and 'ramMb' in reported and 'threads' in reported:
             grants = dict(known=True, fidelity='observed', source='isle-agent',
                           **{key: item['value'] for key, item in reported.items()},
@@ -128,6 +172,7 @@ def _device_entry(isle_row, machine, machine_name):
         if isle_row else False,
         'grants': grants,
         'reportedAvailability': reported,
+        'resourceDetail': detail,
     }
     if isle_row is None:
         entry['note'] = ('polari machine with no agent-reported '
