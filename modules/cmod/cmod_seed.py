@@ -228,3 +228,6 @@ CMOD_SEED_PAIRS.append(('CatomVariable', CatomVariable, _owned(_CV_SEEDS, keep=(
 from cmod.cmod_basis import ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult  # noqa: E402
 CMOD_SEED_PAIRS.extend([('ConfigOption', ConfigOption, []), ('CatomConfiguration', CatomConfiguration, []), ('ConfigChoice', ConfigChoice, []),
                         ('ConfigOptionGrade', ConfigOptionGrade, []), ('ConfigOptionResult', ConfigOptionResult, [])])
+# bss-1: the Hardware Event topology - every row is a person's, an AI's or derived on read (bench_topology / bench_events / isotope_step_rules); none seeded
+from cmod.cmod_basis import IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples  # noqa: E402
+CMOD_SEED_PAIRS.extend([('IsotopeStepRule', IsotopeStepRule, []), ('HardwareEvent', HardwareEvent, []), ('StructNode', StructNode, []), ('StructNodeRequirement', StructNodeRequirement, []), ('StructNodeExecution', StructNodeExecution, []), ('StructNodeCollateral', StructNodeCollateral, []), ('StructEdge', StructEdge, []), ('StructNodePath', StructNodePath, []), ('StructFieldSamples', StructFieldSamples, [])])
