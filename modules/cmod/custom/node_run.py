@@ -12,7 +12,8 @@ are the working buffer and are dropped.
     run(manager, bench_solution, node, path='')  -> the run view {run, edges, signals, working_events}
     runs(manager, node)                          -> the kept StructNodeRun rows of a node
 
-Not yet runnable here (said, refused in words, bss-3): command frames (--inject), reset (--reset-at), environment levels (--adc0-mv), periods.
+A Polari command (bss-7a) is a `--inject` of a frame built from the to-node's exact requirements on wire fields. Not yet runnable here (said, refused in words):
+reset (--reset-at), environment levels (--adc0-mv), periods.
 """
 import datetime
 import hashlib
@@ -88,14 +89,53 @@ def _symbols(elf):
     return disasm.parse_nm(CM._fe('avr-nm', ['-n', 'firmware.elf'], elf)), CM.symbols(elf)
 
 
-def _stimulus(ev, cycle):
+def _wire_spec(polari_class):
+    from board.custom import gen
+    from board.custom.compat import wire_spec
+    fmap = gen.pinned_contract(polari_class)[0]['field_map']
+    return wire_spec(None, polari_class, fmap)
+
+
+def _coerce(ptype, value):
+    if ptype == 'bool':
+        return bool(int(float(value))) if str(value).strip() not in ('true', 'false', 'True', 'False') else str(value).strip().lower() == 'true'
+    if ptype.startswith(('int', 'uint', 'sint')):
+        return int(float(value))
+    if ptype in ('float', 'double'):
+        return float(value)
+    return str(value)
+
+
+def _command_frame(manager, ev, reqs, seq):
+    """bss-7a: the frame a Polari command carries into the to-node: its EXACT requirements on the struct's wire fields, presence-masked to those fields."""
+    from board.custom import packet_ref
+    from grpcbridge.custom import wire_ref
+    exact = [q for q in reqs if q['kind'] == 'exact']
+    if not exact:
+        raise R.ConfigRefused('the command %r needs the to-node to require exact values on wire fields: that is what the frame carries' % ev['name'], status=422)
+    som = R.get(manager, 'StructObjectMap', exact[0]['object_map']) or {}
+    spec = _wire_spec(som.get('polari_class', ''))
+    types_ = {f['name']: f['ptype'] for f in spec['fields']}
+    vals = {q['field']: _coerce(types_[q['field']], q['value']) for q in exact if q['field'] in types_}
+    if not vals:
+        raise R.ConfigRefused('none of the required fields (%s) is a wire field of %s' % (', '.join(q['field'] for q in exact), som.get('polari_class', '?')), status=422)
+    payload = wire_ref.encode(spec, vals, present=list(vals))
+    return packet_ref.frame(1, 0, seq, payload, version=spec['wire_version']), vals
+
+
+def _stimulus(ev, cycle, reqs=(), manager=None, files=None):
+    if ev['kind'] == 'external-signal' and ev['source'] == 'polari':
+        frame, vals = _command_frame(manager, ev, reqs, seq=1 + len(files or {}))
+        name = 'cmd%d.bin' % cycle
+        files[name] = frame
+        return ['--inject', '%s@%d' % (name, cycle)]
     if ev['kind'] == 'actuation' and ev['source'] == 'person' and ev['what'] != 'RESET' and ev['value'] in ('low', 'high'):
         level = 0 if ev['value'] == 'low' else 1
         out = ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle, ev['what'], level)]
         if ev['name'].split(':')[-1].startswith('press-'):   # a press is a pulse: the line goes to its pressed level and back to rest after the hold
             out += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle + PRESS_HOLD_CYCLES, ev['what'], 1 - level)]
         return out
-    raise R.ConfigRefused('Hardware Event %r (%s from %s) cannot be applied to the twin yet: commands, reset, levels and periods come in bss-3'
+    raise R.ConfigRefused('Hardware Event %r (%s from %s) cannot be applied to the twin yet: reset, levels and periods are not wired (a command is)'
                           % (ev['name'], ev['kind'], ev['source']), status=422)
 
 
@@ -184,7 +224,7 @@ def _noinline(variant):
     return _NOINLINE[variant]
 
 
-def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi):
+def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi, files=None):
     from firmwarefaults.custom import harness
     words = []
     for x in sorted(R.rows(manager, 'StructNodeExecution', node=node), key=lambda x: x['order']):
@@ -196,7 +236,7 @@ def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi):
         if not syms:
             words.append('%s: no symbol in either build' % fn)
             continue
-        r = harness.run(argv + ['--fn-cycles', '0x%X:ret' % syms[0][0]], hx, timeout=300)
+        r = harness.run_files(argv + ['--fn-cycles', '0x%X:ret' % syms[0][0]], hx, files or {}, timeout=300)
         fc = (r.get('final') or {}).get('fn_cycles') or {}
         n = int(fc.get('n') or 0)
         words.append('%s: %s (ran n=%d times over the WHOLE run, %s..%s cycles each, in %s; a per-edge count needs cycle-stamped calls: bss-3)'
@@ -247,14 +287,14 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
     hz = _clock(variant)
     edges = [R.get(manager, 'StructEdge', e) for e in p['edges'].split(',')]
     # the plan: a stimulus cycle per trigger edge, spaced by the to-node's guard
-    plan, stimuli, cycle, last_s = [], [], START_CYCLE, 0
+    plan, stimuli, cycle, last_s, files = [], [], START_CYCLE, 0, {}
     for e in edges:
         if e['kind'] in ('flash', 'init'):
             plan.append({'edge': e, 's': 0, 'guard_s': -1.0})
         elif e['kind'] == 'cascade':
             plan.append({'edge': e, 's': last_s, 'guard_s': -1.0})
         else:
-            stimuli += _stimulus(R.get(manager, 'HardwareEvent', e['event']), cycle)
+            stimuli += _stimulus(R.get(manager, 'HardwareEvent', e['event']), cycle, R.rows(manager, 'StructNodeRequirement', node=e['to_node']), manager, files)
             g, worst = _guard_cycles(manager, e['to_node'], hz)
             plan.append({'edge': e, 's': cycle, 'guard_s': g / hz, 'worst_s': worst})
             last_s, cycle = cycle, cycle + g
@@ -301,7 +341,7 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
     unwired = [p for p in prof_pins if p not in wired]
     from firmwarefaults.custom import harness
     argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + wire + watches + stimuli
-    r = harness.run(argv, hexb, timeout=300)
+    r = harness.run_files(argv, hexb, files, timeout=300)   # the command frames travel with the hex
     if not r.get('ok'):
         raise R.ConfigRefused('the twin run did not complete: %s' % ((r.get('stderr') or r.get('stdout') or '')[-300:]), status=409)
     events = _events(r)
@@ -325,7 +365,7 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
             words = 'replayed silently: ' + words
             replayed_done = e['to_node'] == play_from
         if e['to_node'] == node and outcome == 'met':
-            exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], pe['end'])
+            exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], pe['end'], files)
             col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''))
             met_target = met
             failed_checks = _checks(manager, e['name'], lines, (met - pe['s']) / hz, pe['end'])
