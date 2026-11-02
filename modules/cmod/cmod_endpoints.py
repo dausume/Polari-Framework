@@ -20,6 +20,7 @@ from cmod.cmod_budget_api import BudgetAPI   # ipb-1
 from cmod.cmod_catom_api import CatomAssertionAPI, CatomVariableAPI   # hsp-3a, hsp-3d
 from cmod.cmod_catom_config_api import CatomConfigAPI   # cfg-0
 from cmod.cmod_bench_topology_api import BenchTopologyAPI   # bss-1
+from cmod.cmod_node_run_api import NodeRunAPI   # bss-2
 from cmod.cmod_bench_structs_api import BenchStructsAPI   # hsp-3b
 
 
@@ -40,6 +41,7 @@ def construct_cmod_endpoints(polServer):
     api.catom_assertions = CatomAssertionAPI(polServer=polServer, manager=polServer.manager)   # hsp-3a: /api/cmod/catom-assertions/{variant}
     api.catom_variables = CatomVariableAPI(polServer=polServer, manager=polServer.manager)   # hsp-3d/3c: /api/cmod/catom-variables/{variant}[/check|/set|/solution]
     api.catom_config = CatomConfigAPI(polServer=polServer, manager=polServer.manager)
-    api.bench_topology = BenchTopologyAPI(polServer=polServer, manager=polServer.manager)   # bss-1: /api/cmod/bench-topology/{bench_solution}[...]   # cfg-0: /api/cmod/config-groups, /api/cmod/catom-config/{bench_solution}/{catom}[/evaluate|/choose|/isotope]
+    api.bench_topology = BenchTopologyAPI(polServer=polServer, manager=polServer.manager)   # bss-1: /api/cmod/bench-topology/{bench_solution}[...]
+    api.node_run = NodeRunAPI(polServer=polServer, manager=polServer.manager)   # bss-2: .../nodes/{slug}/run|runs   # cfg-0: /api/cmod/config-groups, /api/cmod/catom-config/{bench_solution}/{catom}[/evaluate|/choose|/isotope]
     api.bench_structs = BenchStructsAPI(polServer=polServer, manager=polServer.manager)   # hsp-3b: /api/cmod/bench-structs/{bench}
     return api

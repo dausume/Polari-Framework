@@ -1,0 +1,344 @@
+"""
+@module cmod.custom.node_run
+
+bss-2 (AI-Notes/plans/BENCH_SOLUTION_SIM_PLAN.md section 6b): ONE NODE TEST = ONE DETERMINISTIC TWIN RUN FROM RESET along one path. The Firmware
+Solution's hex goes to polari-avr-twin (the engines seam); the path's trigger edges become `--pin-at` stimuli at cycles spaced by each node's guard; the
+required struct fields are `--watch`ed by address (the struct instance's data symbol + the field offsets firmware_state derives); the twin's
+`watch-change` events (D-bss-12) say the cycle each field changed, so "requirements met at cycle N" is exact. The target node's executions are observed
+with one `--fn-cycles entry:ret` run each (the same deterministic history); a pin collateral is read from the `wire-edge` events when the pin is wired.
+What is kept is the assessment (3c): StructNodeRun + one StructNodeRunEdge per edge + one StructNodeRunSignal per watched field / wired pin; the events
+are the working buffer and are dropped.
+
+    run(manager, bench_solution, node, path='')  -> the run view {run, edges, signals, working_events}
+    runs(manager, node)                          -> the kept StructNodeRun rows of a node
+
+Not yet runnable here (said, refused in words, bss-3): command frames (--inject), reset (--reset-at), environment levels (--adc0-mv), periods.
+"""
+import datetime
+import hashlib
+import json
+import os
+import tempfile
+
+from cmod.custom import bench_events as E
+from cmod.custom import bench_topology as T
+from cmod.custom import catom_config as CF
+from cmod.custom import config_rows as R
+from cmod.custom import isotope_step_rules as S
+
+START_CYCLE = 1600000       # 100 ms in at 16 MHz: past the init at the top of main() (board.custom.light_twin.START_CYCLE)
+TAIL_CYCLES = 1600000       # 100 ms after the last guard
+DEFAULT_GUARD_S = 0.15      # KNOB: the guard's floor (the 150 ms gap light_twin uses between presses); a node whose executions carry no worst_s gets it too
+GUARD_FACTOR = 2.0          # D-bss-2 (recommended): the guard is 2 x the slowest step rule's worst among the node's executions
+MAX_WATCH = 8               # the twin's limit
+PRESS_HOLD_CYCLES = 80000   # KNOB: a press is a 5 ms pulse (the line low, then back to rest) - light_twin.PRESS_HOLD_CYCLES; a line held low for ever
+                            # is not a press (the UNO light toggled twice in the dry run of 2026-11-02 when it was)
+_BUILDS = {}                # variant -> (hex, elf, sha, work): one build per process
+
+
+def _clock(record):
+    from board.custom import cycle_records as CR
+    return float((CR.load(record) or {}).get('clock_hz') or 16000000)
+
+
+def _build(variant):
+    if variant in _BUILDS:
+        return _BUILDS[variant]
+    from board.custom import build as B
+    from board.custom import gen
+    work = tempfile.mkdtemp(prefix='node-run-')
+    gen.gen('uno', None, work, variant=variant)
+    row = B.build('uno', work)
+    if row.get('state') != 'built':
+        raise R.ConfigRefused('%s did not build: %s' % (variant, row.get('notes')), status=409)
+    hexb = open(row['hex_path'], 'rb').read()
+    elf = open(os.path.join(work, 'out', 'firmware.elf'), 'rb').read()
+    _BUILDS[variant] = (hexb, elf, hashlib.sha256(hexb).hexdigest(), work)
+    return _BUILDS[variant]
+
+
+def _layout(config, struct, declared):
+    """(instance name, {field: (offset, width)}) of the wire struct `struct` from the firmware state of `config`: the instance, the widths AND THE ORDER
+    come from the generated packets header as firmware_state parsed it (the generator declares the members sorted by name: boot_session, led_on, name,
+    seq, source, status, toggles - checked against lightstate_packets.h on 2026-11-02; the struct map's draft order is NOT the layout). avr-gcc aligns
+    every type to 1, so offsets are cumulative (8 + 1 + 64 + 8 + 1 + 1 + 8 = 91, the firmware state's own size). `declared` (the map's fields) must all exist."""
+    from board.custom import firmware_state as FS
+    doc = FS.derive(config)
+    objs = [o for o in FS.rows(doc, 'objects') if o.get('kind') == 'wire-struct' and str(o.get('c_type', '')).startswith(struct + ' ')]
+    if not objs:
+        raise R.ConfigRefused('no instance of %s in the firmware state of %s' % (struct, config), status=404)
+    inst, obj = str(objs[0]['c_type']).split()[-1], objs[0]['name']
+    off, layout = 0, {}
+    for f in FS.rows(doc, 'fields'):
+        if f.get('object') == obj:
+            w = int(f.get('size_bytes') or 1)
+            layout[f['field']] = (off, w)
+            off += w
+    missing = [f for f in declared if f not in layout]
+    if missing:
+        raise R.ConfigRefused('the struct map names %s.%s but the firmware state has no such field' % (struct, ', '.join(missing)), status=409)
+    if int(objs[0].get('size_bytes') or off) != off:
+        raise R.ConfigRefused('%s: the fields add up to %d bytes, the firmware state says %s' % (struct, off, objs[0].get('size_bytes')), status=409)
+    return inst, layout
+
+
+def _symbols(elf):
+    from board.custom import cycle_measure as CM
+    from firmwarefaults.custom import disasm
+    return disasm.parse_nm(CM._fe('avr-nm', ['-n', 'firmware.elf'], elf)), CM.symbols(elf)
+
+
+def _stimulus(ev, cycle):
+    if ev['kind'] == 'actuation' and ev['source'] == 'person' and ev['what'] != 'RESET' and ev['value'] in ('low', 'high'):
+        level = 0 if ev['value'] == 'low' else 1
+        out = ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle, ev['what'], level)]
+        if ev['name'].split(':')[-1].startswith('press-'):   # a press is a pulse: the line goes to its pressed level and back to rest after the hold
+            out += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle + PRESS_HOLD_CYCLES, ev['what'], 1 - level)]
+        return out
+    raise R.ConfigRefused('Hardware Event %r (%s from %s) cannot be applied to the twin yet: commands, reset, levels and periods come in bss-3'
+                          % (ev['name'], ev['kind'], ev['source']), status=422)
+
+
+def _guard_cycles(manager, node, hz):
+    worst = [S.rule_for(manager, x['isotope'])['worst_s'] for x in R.rows(manager, 'StructNodeExecution', node=node) if x['isotope']]
+    worst = [w for w in worst if w and w > 0]
+    slowest = max(worst) if worst else -1.0
+    return int(GUARD_FACTOR * max(slowest, DEFAULT_GUARD_S) * hz), slowest   # the floor keeps a fast interrupt node from collapsing the spacing
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _holds(q, value, changed):
+    if q['kind'] == 'written':
+        return changed
+    v, want = _num(value), str(q['value'])
+    if q['kind'] == 'exact':
+        return (v is not None and _num(want) is not None and v == _num(want)) or str(value) == want
+    if q['kind'] == 'range' and v is not None and '..' in want:
+        lo, hi = (_num(x) for x in want.split('..', 1))
+        return lo is not None and hi is not None and lo <= v <= hi
+    if q['kind'] == 'set':
+        return str(value) in [x.strip() for x in want.split(',')] or (v is not None and v in [_num(x) for x in want.split(',')])
+    return False
+
+
+class _Timeline:
+    """One watched field: its changes [(cycle, from, to)] from the twin's watch-change events and its final value."""
+
+    def __init__(self, changes, final):
+        self.changes = sorted(changes)
+        self.final = final if final is not None else (changes and changes[-1][2])
+        self.first = self.changes[0][1] if self.changes else self.final
+
+    def at(self, cycle):
+        v = self.first
+        for c, _f, t in self.changes:
+            if c <= cycle:
+                v = t
+        return v
+
+    def changed_in(self, lo, hi, upto=None):
+        return any(lo <= c < hi and (upto is None or c <= upto) for c, _f, _t in self.changes)
+
+
+def _judge(plan_edge, reqs, lines, hz):
+    """-> (outcome, met_cycle, words) for one edge: the earliest cycle in its window at which every requirement of its to-node holds at once."""
+    lo, hi = plan_edge['s'], plan_edge['end']
+    if not reqs:
+        return 'met', lo, 'no requirements on %s: met as soon as its edge starts' % plan_edge['edge']['to_node']
+    cands = sorted({lo} | {c for q in reqs for c, _f, _t in lines[q['field']].changes if lo <= c < hi})
+    for c in cands:
+        if all(_holds(q, lines[q['field']].at(c), lines[q['field']].changed_in(lo, hi, upto=c)) for q in reqs):
+            return 'met', c, 'met at cycle %d (%.3f ms after the stimulus)' % (c, (c - lo) * 1e3 / hz)
+    bad = [q for q in reqs if lines[q['field']].changed_in(lo, hi) and not _holds(q, lines[q['field']].at(hi - 1), True)]
+    if bad:
+        return 'diverged', -1, '; '.join('%s became %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q['value']) for q in bad)
+    return 'not-reached', -1, '; '.join('%s stayed %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q['value']) for q in reqs)
+
+
+def _events(r):
+    out = []
+    for line in (r.get('stdout') or '').splitlines():
+        if line.startswith('{"t":"'):
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                pass
+    return out
+
+
+_NOINLINE = {}
+
+
+def _noinline(variant):
+    """The -fno-inline build of the same sources (cyc-0's way): the shipped hex inlines the atoms, so they have no entry to count."""
+    if variant not in _NOINLINE:
+        from board.custom import cycle_measure as CM
+        pair = CM.build_pair(variant, tempfile.mkdtemp(prefix='node-run-noinline-'))
+        _NOINLINE[variant] = (pair['noinline']['hex'], CM.symbols(pair['noinline']['elf']))
+    return _NOINLINE[variant]
+
+
+def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi):
+    from firmwarefaults.custom import harness
+    words = []
+    for x in sorted(R.rows(manager, 'StructNodeExecution', node=node), key=lambda x: x['order']):
+        fn = x['atom'].split('.')[-1]
+        syms, hx, where = text_symbols.get(fn) or [], hexb, 'the shipped hex'
+        if not syms:
+            hx, ts = _noinline(variant)
+            syms, where = ts.get(fn) or [], 'the -fno-inline build (the shipped hex inlines it; cyc-0 measures atoms the same way)'
+        if not syms:
+            words.append('%s: no symbol in either build' % fn)
+            continue
+        r = harness.run(argv + ['--fn-cycles', '0x%X:ret' % syms[0][0]], hx, timeout=300)
+        fc = (r.get('final') or {}).get('fn_cycles') or {}
+        n = int(fc.get('n') or 0)
+        words.append('%s: %s (ran n=%d times over the WHOLE run, %s..%s cycles each, in %s; a per-edge count needs cycle-stamped calls: bss-3)'
+                     % (fn, 'observed' if n else 'not observed', n, fc.get('min', '?'), fc.get('max', '?'), where))
+    return ' ; '.join(words)
+
+
+def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len):
+    words = []
+    for c in R.rows(manager, 'StructNodeCollateral', node=node):
+        if c['kind'] == 'pin-level':
+            if c['signal'] not in wired:
+                words.append('pin-level %s: unmeasured (no wire on %s in this config; the VCD pin trace is bss-3)' % (c['signal'], c['signal']))
+                continue
+            edges = [e for e in events if e.get('t') == 'wire-edge' and c['signal'] in (e.get('src'), e.get('dst')) and lo <= int(e.get('cycle', -1)) < hi]
+            if not edges:
+                words.append('pin-level %s: no change in the window%s' % (c['signal'], (' (bound %s: unmet)' % c['bound']) if c['bound'] else ''))
+                continue
+            last = edges[-1]
+            level = 'high' if int(last.get('v', 0)) else 'low'
+            verdict = '' if not c['bound'] else (' (bound %s: met)' % c['bound'] if c['bound'] == level else ' (bound %s: UNMET)' % c['bound'])
+            words.append('pin-level %s: %s at cycle %d, %.3f ms after the stimulus%s' % (c['signal'], level, int(last['cycle']), (int(last['cycle']) - lo) * 1e3 / hz, verdict))
+        elif c['kind'] == 'frame':
+            words.append('frame %s: %d bytes on the UART over the run (per-frame cycles are bss-3)' % (c['signal'], uart_len))
+        elif c['kind'] == 'timing':
+            words.append('timing: %s' % ('%.3f ms' % ((met - lo) * 1e3 / hz) if met >= 0 else 'not reached'))
+        else:
+            words.append('%s %s: not measured by the twin (ngspice / Cauer come in bss-3)' % (c['kind'], c['signal']))
+    return ' ; '.join(words)
+
+
+def run(manager, bench_solution, node, path=''):
+    ctx = CF.context(manager, bench_solution)
+    n = R.get(manager, 'StructNode', node)
+    if n is None:
+        raise R.ConfigRefused('no node %r' % node, status=404)
+    stamp = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+    name = '%s#run%d' % (node, len(R.rows(manager, 'StructNodeRun', node=node)) + 1)
+    blocked = T.blocks(manager, node)
+    if blocked:
+        row = R.upsert(manager, 'StructNodeRun', name, node=node, path=path, outcome='blocked', ran_at=stamp, words='; '.join(blocked), **T.step_of(manager, node))
+        return {'ok': True, 'run': row, 'edges': [], 'signals': [], 'working_events': 0}
+    ps = R.rows(manager, 'StructNodePath', node=node)
+    p = next((x for x in ps if x['name'] == path), None) if path else next((x for x in ps if x['fastest']), None)
+    if p is None:
+        raise R.ConfigRefused('no path %r to %r' % (path or 'fastest', node), status=404)
+    variant = E.variant_of(manager, ctx['firmware_solution'])
+    hz = _clock(variant)
+    edges = [R.get(manager, 'StructEdge', e) for e in p['edges'].split(',')]
+    # the plan: a stimulus cycle per trigger edge, spaced by the to-node's guard
+    plan, stimuli, cycle, last_s = [], [], START_CYCLE, 0
+    for e in edges:
+        if e['kind'] in ('flash', 'init'):
+            plan.append({'edge': e, 's': 0, 'guard_s': -1.0})
+        elif e['kind'] == 'cascade':
+            plan.append({'edge': e, 's': last_s, 'guard_s': -1.0})
+        else:
+            stimuli += _stimulus(R.get(manager, 'HardwareEvent', e['event']), cycle)
+            g, worst = _guard_cycles(manager, e['to_node'], hz)
+            plan.append({'edge': e, 's': cycle, 'guard_s': g / hz, 'worst_s': worst})
+            last_s, cycle = cycle, cycle + g
+    end = cycle + TAIL_CYCLES
+    for i, pe in enumerate(plan):
+        nxt = next((x['s'] for x in plan[i + 1:] if x['s'] > pe['s']), end)
+        pe['end'] = nxt if pe['s'] else (next((x['s'] for x in plan if x['s'] > 0), end))
+    # the watches: every required field along the path
+    reqs = {pe['edge']['to_node']: R.rows(manager, 'StructNodeRequirement', node=pe['edge']['to_node']) for pe in plan}
+    fields = []
+    for qs in reqs.values():
+        for q in qs:
+            if (q['object_map'], q['field']) not in fields:
+                fields.append((q['object_map'], q['field']))
+    if len(fields) > MAX_WATCH:
+        raise R.ConfigRefused('%d required fields along the path; the twin watches at most %d per run (split the path or the node)' % (len(fields), MAX_WATCH))
+    hexb, elf, sha, _work = _build(variant)
+    nm, text_symbols = _symbols(elf)
+    watches = []
+    for om, f in fields:
+        som = R.get(manager, 'StructObjectMap', om) or {}
+        struct = som.get('struct', '')
+        declared = [x.get('field') for x in json.loads(som.get('fields_json') or '[]') if x.get('field')]
+        inst, layout = _layout(ctx['firmware_solution'], struct, declared)
+        if inst not in nm or f not in layout:
+            raise R.ConfigRefused('cannot watch %s.%s: %s' % (struct, f, 'no data symbol %r in the ELF' % inst if inst not in nm else 'no such field in the firmware state'), status=404)
+        off, w = layout[f]
+        watches += ['--watch', '0x%X/%d=%s' % (nm[inst]['addr'] + off, min(w, 4), f)]
+    try:
+        from board.custom import light_button as LB
+        wire = LB.wire_args(variant)
+    except Exception:  # noqa: BLE001 - a config without the sense feature has no wire
+        wire = []
+    wired = {p for a in wire[1::2] for p in a.split(':')}
+    from firmwarefaults.custom import harness
+    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + wire + watches + stimuli
+    r = harness.run(argv, hexb, timeout=300)
+    if not r.get('ok'):
+        raise R.ConfigRefused('the twin run did not complete: %s' % ((r.get('stderr') or r.get('stdout') or '')[-300:]), status=409)
+    events = _events(r)
+    finals = {w.get('name'): w.get('final', w.get('value')) for w in ((r.get('final') or {}).get('watches') or []) if isinstance(w, dict)}   # [{name, addr, w, final}]
+    lines = {f: _Timeline([(int(e['cycle']), e.get('from'), e.get('to')) for e in events if e.get('t') == 'watch-change' and e.get('name') == f], finals.get(f))
+             for _om, f in fields}
+    no_change_events = not any(e.get('t') == 'watch-change' for e in events)
+    # judge edge by edge
+    edge_rows, failed, met_target = [], False, -1
+    for i, pe in enumerate(plan, 1):
+        e = pe['edge']
+        if failed:
+            outcome, met, words = 'skipped', -1, 'an earlier edge failed'
+        elif e['kind'] == 'flash':
+            outcome, met, words = 'met', 0, 'the hex %s... is the twin\'s' % sha[:12]
+        else:
+            outcome, met, words = _judge(pe, reqs[e['to_node']], lines, hz)
+        failed = failed or outcome in ('not-reached', 'diverged')
+        exe = col = ''
+        if e['to_node'] == node and outcome == 'met':
+            exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], pe['end'])
+            col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''))
+            met_target = met
+        edge_rows.append(R.upsert(manager, 'StructNodeRunEdge', '%s:%d' % (name, i), run=name, edge=e['name'], order=i, outcome=outcome, stimulus_cycle=pe['s'], met_cycle=met,
+                                  duration_s=((met - pe['s']) / hz) if met >= 0 else -1.0, executions=exe, collaterals=col, words=words))
+    target = next(pe for pe in plan if pe['edge']['to_node'] == node)
+    last = edge_rows[-1]
+    outcome = last['outcome'] if last['outcome'] in ('met', 'not-reached', 'diverged') else next((x['outcome'] for x in edge_rows if x['outcome'] != 'met'), 'met')
+    outcome = 'reached' if outcome == 'met' else outcome
+    worst = target.get('worst_s', -1.0)
+    dur_by = ('the %s guard: %.3g ms worst among the node\'s executions (measured %.3f ms)' % ('execution', worst * 1e3, (met_target - target['s']) * 1e3 / hz)
+              if met_target >= 0 and worst > 0 else ('measured on the twin: no execution rule carries a worst case' if met_target >= 0 else 'not reached'))
+    words = last['words'] + ('; the twin printed no watch-change events: its image predates D-bss-12 (end state only)' if no_change_events else '')
+    row = R.upsert(manager, 'StructNodeRun', name, node=node, path=p['name'], outcome=outcome, hex_sha256=sha, engine='twin', ran_at=stamp, words=words,
+                   duration_s=((met_target - target['s']) / hz) if met_target >= 0 else -1.0, duration_set_by=dur_by, **T.step_of(manager, node))
+    signals = []
+    for _om, f in fields:
+        tl = lines[f]
+        signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:field:%s' % (name, f), run=name, kind='field', signal=f, first=str(tl.first), last=str(tl.final),
+                                changes=len(tl.changes), first_change_cycle=tl.changes[0][0] if tl.changes else -1, last_change_cycle=tl.changes[-1][0] if tl.changes else -1))
+    for pin in sorted(wired):
+        ev = [e for e in events if e.get('t') == 'wire-edge' and pin in (e.get('src'), e.get('dst'))]
+        if ev:
+            signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:pin:%s' % (name, pin), run=name, kind='pin', signal=pin, first=str(1 - int(ev[0].get('v', 0))),
+                                    last=str(ev[-1].get('v')), changes=len(ev), first_change_cycle=int(ev[0]['cycle']), last_change_cycle=int(ev[-1]['cycle'])))
+    return {'ok': True, 'run': row, 'edges': edge_rows, 'signals': signals, 'working_events': len(events)}
+
+
+def runs(manager, node):
+    return sorted(R.rows(manager, 'StructNodeRun', node=node), key=lambda r: r['name'])

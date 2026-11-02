@@ -63,3 +63,6 @@ from cmod.objects.cmod.StructNodeCollateral import StructNodeCollateral  # noqa:
 from cmod.objects.cmod.StructEdge import StructEdge  # noqa: F401  (bss-1)
 from cmod.objects.cmod.StructNodePath import StructNodePath  # noqa: F401  (bss-1)
 from cmod.objects.cmod.StructFieldSamples import StructFieldSamples  # noqa: F401  (bss-1)
+from cmod.objects.cmod.StructNodeRun import StructNodeRun  # noqa: F401  (bss-2)
+from cmod.objects.cmod.StructNodeRunEdge import StructNodeRunEdge  # noqa: F401  (bss-2)
+from cmod.objects.cmod.StructNodeRunSignal import StructNodeRunSignal  # noqa: F401  (bss-2)

@@ -14,7 +14,8 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                TaskDefinition, TaskTrigger, TaskStructBinding, TaskPlan,
                                CatomAssertion, StructObjectMap, CatomVariable, HalVariableState,
                                ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult,
-                               IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples)
+                               IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples,
+                               StructNodeRun, StructNodeRunEdge, StructNodeRunSignal)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -47,7 +48,8 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 # cfg-0: catom configurations - a candidate (option), how a catom is set up in one firmware solution (isotope + one choice per
                 # variable group), and whether each option works in one Bench Solution (verdict + one result per check)
                 ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult,
-                IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples]   # bss-1: the Hardware Event topology
+                IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples,
+                StructNodeRun, StructNodeRunEdge, StructNodeRunSignal]   # bss-1: the Hardware Event topology; bss-2: its runs
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 PURPOSE_NODE_KIND_CLASSES = [PurposeGoalState, PurposeDependsState, PurposeParticipantState, PurposeTriggerState, PurposeOutcomeState, PurposeCriterionState, PurposeObservesState, PurposeTasksState, PurposeProofState, PurposeResolutionState, PurposeObservedState]
