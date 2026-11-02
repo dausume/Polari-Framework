@@ -94,6 +94,7 @@ class IsleMeshAPI(treeObject):
                 suffix='appplan')
             add('/api/islemesh/placement-plan', self, suffix='placement_plan')
             add('/api/islemesh/plan-library', self, suffix='plan_library')
+            add('/api/islemesh/updates', self, suffix='updates')
             add('/api/islemesh/removal-check', self, suffix='removal_check')
             add('/api/islemesh/mock', self, suffix='mock')
 
@@ -104,6 +105,21 @@ class IsleMeshAPI(treeObject):
         except (OSError, ValueError, RuntimeError):
             response.status = '503 Service Unavailable'
             response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
+
+    def on_get_updates(self, request, response):
+        from pathlib import Path
+        import os
+        try:
+            path=Path(os.environ['DATABASE_PATH']).parent/'isle-release.json'
+            release=json.loads(path.read_text()) if path.exists() else None
+            device=next((d for d in self._capability_devices() if d['name']==request.get_param('device')),None)
+            fact=((device or {}).get('capability_evidence') or {}).get('facts',{}).get('isle.package_versions',{})
+            installed=json.loads(fact.get('value','{}')) if fact.get('status')=='observed' else {}
+            response.media={'ok':True,'release':release,'installed':installed,'reportedAt':fact.get('observed_at'),
+                            'remote':(device or {}).get('agent_mode')=='remote',
+                            'versionsDiffer':bool(release and any(installed.get(p['name'])!=p['version'] for p in release['packages']))}
+        except (OSError,ValueError,KeyError,TypeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Release status unavailable.'}
 
     def on_get_plan_library(self, request, response):
         from islemesh.custom.islemesh_planning import PlanStore
