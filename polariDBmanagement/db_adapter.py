@@ -72,7 +72,8 @@ class DBAdapter:
                 out.append('PRIMARY KEY (%s)' % ', '.join(self.quoteIdent(c.strip().strip('`"')) for c in constraint.group(1).split(',')))
                 continue
             parts = stripped.split(None, 1)
-            if len(parts) < 2 or parts[0].upper() in ('PRIMARY', 'UNIQUE', 'FOREIGN', 'CHECK', 'CONSTRAINT'):
+            from polariDBmanagement.sql_keyword_guard import is_table_constraint
+            if len(parts) < 2 or is_table_constraint(stripped):
                 out.append(stripped)
                 continue
             out.append('%s %s' % (self.quoteIdent(parts[0].strip('`"')), parts[1]))

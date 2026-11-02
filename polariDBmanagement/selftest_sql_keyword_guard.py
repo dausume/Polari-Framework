@@ -115,6 +115,11 @@ def main():
           'the same names and values; the guard noted all three for that table',
           saved and vals.get('order') == '3' and vals.get('when') == '2026-10-30T12:00:00+00:00' and vals.get('index') == '7'
           and {('KwRow', n) for n in ('order', 'when', 'index')} <= {(g['table'], g['name']) for g in KG.guarded()}, (saved, back))
+    shapes = [KG.is_table_constraint(x) for x in ('check TEXT', 'unique INTEGER', 'primary TEXT', 'foreign TEXT', 'CHECK (a > 0)', 'UNIQUE (a)',
+                                                  'PRIMARY KEY (a, b)', 'FOREIGN KEY (a) REFERENCES t(b)', 'CONSTRAINT pk PRIMARY KEY (a)')]
+    check('A COLUMN NAMED LIKE A CONSTRAINT (check / unique / primary / foreign) is a column, told apart by shape: only "CHECK (", "UNIQUE (", '
+          '"PRIMARY KEY (", "FOREIGN KEY (" and "CONSTRAINT name" are table constraints (cfg-0 ConfigCheckResult.check)',
+          shapes == [False] * 4 + [True] * 5 and KG.columns_of(['check TEXT', 'PRIMARY KEY (a)']) == ['check'], shapes)
     print('  (keyword fields the guard protects: %d - %s)' % (len(keyword_fields), ', '.join(sorted(keyword_fields))))
     print('\n%d/%d checks passed' % (sum(_results), len(_results)))
     return 0 if all(_results) else 1

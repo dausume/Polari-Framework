@@ -24,6 +24,7 @@ MariaDB reserved words: "Reserved Words", MariaDB Knowledge Base, https://mariad
 d17787601d47503fbf35885757d5ed2e08b63f60ea40394c5d77455fdeaf9eb0) - every word on the list, version-limited ones included (a superset only means a few
 more notes; the wrapping happens either way).
 """
+import re
 import datetime
 import sqlite3
 import threading
@@ -126,11 +127,21 @@ def broken():
         return list(_BROKEN)
 
 
+_CONSTRAINT = re.compile(r'(?i)^(PRIMARY\s+KEY|UNIQUE|FOREIGN\s+KEY|CHECK)\s*\(|^CONSTRAINT\s')
+
+
+def is_table_constraint(row):
+    """True for a table constraint ('PRIMARY KEY (a, b)', 'UNIQUE (a)', 'FOREIGN KEY (a) ...', 'CHECK (...)', 'CONSTRAINT name ...'), told apart
+    by its SHAPE, never by its first word alone: a column named after one of those words ('check TEXT', 'unique INTEGER') is a column
+    (2026-11-01: cfg-0's ConfigCheckResult.check was mistaken for a CHECK constraint, left unquoted, and its table was never created)."""
+    return bool(_CONSTRAINT.match(row.strip()))
+
+
 def columns_of(defs):
     """The bare names of sqlite-affinity column defs ('order TEXT', 'id TEXT PRIMARY KEY'), table constraints skipped."""
     out = []
     for row in defs:
         parts = row.strip().split(None, 1)
-        if len(parts) == 2 and parts[0].upper() not in ('PRIMARY', 'UNIQUE', 'FOREIGN', 'CHECK', 'CONSTRAINT'):
+        if len(parts) == 2 and not is_table_constraint(row):
             out.append(parts[0].strip('`"'))
     return out
