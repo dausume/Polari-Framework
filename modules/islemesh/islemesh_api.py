@@ -116,7 +116,7 @@ class IsleMeshAPI(treeObject):
             fact=((device or {}).get('capability_evidence') or {}).get('facts',{}).get('isle.package_versions',{})
             installed=json.loads(fact.get('value','{}')) if fact.get('status')=='observed' else {}
             response.media={'ok':True,'release':release,'installed':installed,'reportedAt':fact.get('observed_at'),
-                            'remote':(device or {}).get('agent_mode')=='remote',
+                            'remote':bool(device and (device.get('agent_mode')=='remote' or (not device.get('hosts_router') and ((device.get('capability_evidence') or {}).get('facts',{}).get('agent.running') or {}).get('value') is True))),
                             'versionsDiffer':bool(release and any(installed.get(p['name'])!=p['version'] for p in release['packages']))}
         except (OSError,ValueError,KeyError,TypeError):
             response.status='503 Service Unavailable';response.media={'ok':False,'error':'Release status unavailable.'}
