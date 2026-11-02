@@ -86,6 +86,8 @@ def assess_topology(devices, apps, services=None):
         by_device.setdefault(a.get('device_name', ''), []).append(a)
 
     polari_instances = polari['instances']
+    for provider in polari_instances:
+        provider['subdomains'] = sorted(subs_by_app.get((provider['app'], provider['device']), []))
     polari_devices = {i['device'] for i in polari_instances}
 
     out_devices = []
