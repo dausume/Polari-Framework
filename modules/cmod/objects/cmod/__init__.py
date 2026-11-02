@@ -66,3 +66,7 @@ from cmod.objects.cmod.StructFieldSamples import StructFieldSamples  # noqa: F40
 from cmod.objects.cmod.StructNodeRun import StructNodeRun  # noqa: F401  (bss-2)
 from cmod.objects.cmod.StructNodeRunEdge import StructNodeRunEdge  # noqa: F401  (bss-2)
 from cmod.objects.cmod.StructNodeRunSignal import StructNodeRunSignal  # noqa: F401  (bss-2)
+from cmod.objects.cmod.StructNodeConfirmation import StructNodeConfirmation  # noqa: F401  (bss-3)
+from cmod.objects.cmod.StructEdgeCheck import StructEdgeCheck  # noqa: F401  (bss-3)
+from cmod.objects.cmod.TestProfile import TestProfile  # noqa: F401  (bss-3)
+from cmod.objects.cmod.TestProfileItem import TestProfileItem  # noqa: F401  (bss-3)

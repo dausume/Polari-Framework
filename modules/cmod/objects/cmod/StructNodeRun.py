@@ -20,7 +20,8 @@ class StructNodeRun(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', node: str = '', path: str = '', outcome: str = '', hex_sha256: str = '', engine: str = 'twin', step_s: float = -1.0,
-                 step_set_by: str = '', duration_s: float = -1.0, duration_set_by: str = '', ran_at: str = '', words: str = '', manager=None):
+                 step_set_by: str = '', duration_s: float = -1.0, duration_set_by: str = '', ran_at: str = '', words: str = '', profile: str = '',
+                 play_from: str = '', manager=None):
         self.name = name                        # '<node>#run<n>'
         self.node = node                        # a StructNode name
         self.path = path                        # a StructNodePath name
@@ -33,3 +34,5 @@ class StructNodeRun(treeObject):
         self.duration_set_by = duration_set_by
         self.ran_at = ran_at
         self.words = words
+        self.profile = profile          # the TestProfile it ran with ('' = the node's derived default)
+        self.play_from = play_from      # bss-3 play: the node the person started watching from (edges before it replayed silently)

@@ -228,7 +228,7 @@ def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len):
     return ' ; '.join(words)
 
 
-def run(manager, bench_solution, node, path=''):
+def run(manager, bench_solution, node, path='', profile='', play_from=''):
     ctx = CF.context(manager, bench_solution)
     n = R.get(manager, 'StructNode', node)
     if n is None:
@@ -269,6 +269,15 @@ def run(manager, bench_solution, node, path=''):
         for q in qs:
             if (q['object_map'], q['field']) not in fields:
                 fields.append((q['object_map'], q['field']))
+    prof_pins = []
+    if profile:   # bss-3: a named TestProfile adds fields to watch and pins to report (the derived default is the node's own requirements and collaterals)
+        if R.get(manager, 'TestProfile', profile) is None:
+            raise R.ConfigRefused('no TestProfile %r' % profile, status=404)
+        for it in R.rows(manager, 'TestProfileItem', profile=profile):
+            if it['kind'] == 'field' and (it['object_map'], it['signal']) not in fields:
+                fields.append((it['object_map'], it['signal']))
+            elif it['kind'] == 'pin':
+                prof_pins.append(it['signal'])
     if len(fields) > MAX_WATCH:
         raise R.ConfigRefused('%d required fields along the path; the twin watches at most %d per run (split the path or the node)' % (len(fields), MAX_WATCH))
     hexb, elf, sha, _work = _build(variant)
@@ -289,6 +298,7 @@ def run(manager, bench_solution, node, path=''):
     except Exception:  # noqa: BLE001 - a config without the sense feature has no wire
         wire = []
     wired = {p for a in wire[1::2] for p in a.split(':')}
+    unwired = [p for p in prof_pins if p not in wired]
     from firmwarefaults.custom import harness
     argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + wire + watches + stimuli
     r = harness.run(argv, hexb, timeout=300)
@@ -300,7 +310,7 @@ def run(manager, bench_solution, node, path=''):
              for _om, f in fields}
     no_change_events = not any(e.get('t') == 'watch-change' for e in events)
     # judge edge by edge
-    edge_rows, failed, met_target = [], False, -1
+    edge_rows, failed, met_target, replayed_done, failed_checks = [], False, -1, False, []
     for i, pe in enumerate(plan, 1):
         e = pe['edge']
         if failed:
@@ -311,22 +321,39 @@ def run(manager, bench_solution, node, path=''):
             outcome, met, words = _judge(pe, reqs[e['to_node']], lines, hz)
         failed = failed or outcome in ('not-reached', 'diverged')
         exe = col = ''
+        if play_from and not replayed_done:   # bss-3 play: everything up to the start node is replayed silently
+            words = 'replayed silently: ' + words
+            replayed_done = e['to_node'] == play_from
         if e['to_node'] == node and outcome == 'met':
             exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], pe['end'])
             col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''))
             met_target = met
+            failed_checks = _checks(manager, e['name'], lines, (met - pe['s']) / hz, pe['end'])
+            if failed_checks:
+                words += '; checks failed: ' + '; '.join(failed_checks)
         edge_rows.append(R.upsert(manager, 'StructNodeRunEdge', '%s:%d' % (name, i), run=name, edge=e['name'], order=i, outcome=outcome, stimulus_cycle=pe['s'], met_cycle=met,
                                   duration_s=((met - pe['s']) / hz) if met >= 0 else -1.0, executions=exe, collaterals=col, words=words))
     target = next(pe for pe in plan if pe['edge']['to_node'] == node)
     last = edge_rows[-1]
     outcome = last['outcome'] if last['outcome'] in ('met', 'not-reached', 'diverged') else next((x['outcome'] for x in edge_rows if x['outcome'] != 'met'), 'met')
     outcome = 'reached' if outcome == 'met' else outcome
+    if outcome == 'reached' and failed_checks:
+        outcome = 'checks-failed'
     worst = target.get('worst_s', -1.0)
     dur_by = ('the %s guard: %.3g ms worst among the node\'s executions (measured %.3f ms)' % ('execution', worst * 1e3, (met_target - target['s']) * 1e3 / hz)
               if met_target >= 0 and worst > 0 else ('measured on the twin: no execution rule carries a worst case' if met_target >= 0 else 'not reached'))
     words = last['words'] + ('; the twin printed no watch-change events: its image predates D-bss-12 (end state only)' if no_change_events else '')
     row = R.upsert(manager, 'StructNodeRun', name, node=node, path=p['name'], outcome=outcome, hex_sha256=sha, engine='twin', ran_at=stamp, words=words,
-                   duration_s=((met_target - target['s']) / hz) if met_target >= 0 else -1.0, duration_set_by=dur_by, **T.step_of(manager, node))
+                   duration_s=((met_target - target['s']) / hz) if met_target >= 0 else -1.0, duration_set_by=dur_by, profile=profile, play_from=play_from,
+                   **T.step_of(manager, node))
+    from cmod.custom import confirmations as C
+    if outcome == 'reached':   # bss-3: the twin's confirmation, for this path and this build (other builds' confirmations are voided, never deleted)
+        C.confirm(manager, node, p['name'], 'twin', sha, run=name, words='run %s met the requirements with every check passing' % name)
+    elif outcome == 'diverged':   # D-bss-10: the reached values are proposed as a node off the same parent, for a person to accept, loosen and name
+        _propose(manager, bench_solution, node, target['edge'], lines, name)
+    if unwired:
+        words += '; profile pins not wired in this config: ' + ', '.join(unwired)
+        row = R.upsert(manager, 'StructNodeRun', name, words=words)
     signals = []
     for _om, f in fields:
         tl = lines[f]
@@ -338,6 +365,49 @@ def run(manager, bench_solution, node, path=''):
             signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:pin:%s' % (name, pin), run=name, kind='pin', signal=pin, first=str(1 - int(ev[0].get('v', 0))),
                                     last=str(ev[-1].get('v')), changes=len(ev), first_change_cycle=int(ev[0]['cycle']), last_change_cycle=int(ev[-1]['cycle'])))
     return {'ok': True, 'run': row, 'edges': edge_rows, 'signals': signals, 'working_events': len(events)}
+
+
+def _checks(manager, edge, lines, duration_s, end_cycle):
+    """The failed StructEdgeCheck rows of an edge, in words ([] = all passed)."""
+    out = []
+    for c in R.rows(manager, 'StructEdgeCheck', edge=edge):
+        if c['kind'] == 'timing':
+            if c['bound_s'] >= 0 and duration_s > c['bound_s']:
+                out.append('reached in %.3f ms, bound %.3f ms' % (duration_s * 1e3, c['bound_s'] * 1e3))
+        elif c['field'] in lines:
+            v = _num(lines[c['field']].at(end_cycle - 1))
+            if c['kind'] == 'field-tolerance':
+                centre = _num(c['value'])
+                if v is None or centre is None or abs(v - centre) > float(c['tolerance'] or 0):
+                    out.append('%s ended %s, required %s +/- %g' % (c['field'], v, c['value'], c['tolerance']))
+            elif c['kind'] == 'field-range' and '..' in str(c['value']):
+                lo, hi = (_num(x) for x in str(c['value']).split('..', 1))
+                if v is None or lo is None or hi is None or not lo <= v <= hi:
+                    out.append('%s ended %s, required %s' % (c['field'], v, c['value']))
+        else:
+            out.append('%s: the field %s was not watched (add it to the node\'s requirements or a profile)' % (c['kind'], c['field']))
+    return out
+
+
+def _propose(manager, bs, node, edge, lines, run_name):
+    """D-bss-10: a node with the REACHED values of the diverged node's required fields, off the same parent by the same edge kind and event; once per value set."""
+    reqs = R.rows(manager, 'StructNodeRequirement', node=node)
+    reached = {q['field']: str(lines[q['field']].final) for q in reqs if q['field'] in lines}
+    for n in R.rows(manager, 'StructNode', bench_solution=bs, basis='proposed'):
+        have = {q['field']: q['value'] for q in R.rows(manager, 'StructNodeRequirement', node=n['name'])}
+        if have == reached:
+            return n['name']
+    slug = 'proposed-%d' % (len(R.rows(manager, 'StructNode', bench_solution=bs, basis='proposed')) + 1)
+    pname = '%s:%s' % (bs, slug)
+    R.upsert(manager, 'StructNode', pname, title='', bench_solution=bs, kind='state', basis='proposed', collaterals='none',
+             notes='proposed from run %s: %s diverged here; accept, loosen and name it, or discard it' % (run_name, node))
+    om = {q['field']: q['object_map'] for q in reqs}
+    for f, v in reached.items():
+        R.upsert(manager, 'StructNodeRequirement', '%s:%s' % (pname, f), node=pname, object_map=om.get(f, ''), field=f, kind='exact', value=v)
+    R.upsert(manager, 'StructEdge', '%s->%s via %s' % (edge['from_node'], slug, edge['event'].split(':', 1)[-1]) if edge['kind'] == 'trigger' else '%s->%s' % (edge['from_node'], slug),
+             title=edge['title'], bench_solution=bs, from_node=edge['from_node'], to_node=pname, kind=edge['kind'], event=edge['event'])
+    T.all_paths(manager, bs)
+    return pname
 
 
 def runs(manager, node):

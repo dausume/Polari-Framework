@@ -4,8 +4,8 @@
 bss-2 doors (AI-Notes/plans/BENCH_SOLUTION_SIM_PLAN.md section 6b): test one node of a Bench Solution's topology on the twin. The work is in
 cmod.custom.node_run; these doors only read the request and say a refusal in words.
 
-POST /api/cmod/bench-topology/{bench_solution}/nodes/{slug}/run    body {path?}: one deterministic twin run from reset along the path (the fastest when
-                                                                   none is named) -> {run, edges, signals, working_events}
+POST /api/cmod/bench-topology/{bench_solution}/nodes/{slug}/run    body {path?, profile?, play_from?}: one deterministic twin run from reset along the path (the fastest when
+                                                                   none is named), watching a named TestProfile's items too, the edges up to play_from replayed silently (bss-3) -> {run, edges, signals, working_events}
 GET  /api/cmod/bench-topology/{bench_solution}/nodes/{slug}/runs   the kept runs of the node
 404 = no such Bench Solution / node / path; 409 = no engine or the build failed; 422 = an event the twin cannot apply yet, or too many fields to watch.
 """
@@ -36,7 +36,9 @@ class NodeRunAPI(treeObject):
         except ValueError:
             body = {}
         try:
-            response.media = NR.run(self.manager, bench_solution, '%s:%s' % (bench_solution, slug), str((body or {}).get('path') or ''))
+            b = body or {}
+            response.media = NR.run(self.manager, bench_solution, '%s:%s' % (bench_solution, slug), str(b.get('path') or ''), str(b.get('profile') or ''),
+                                    str(b.get('play_from') or ''))
         except ConfigRefused as e:
             response.status = _STATUS.get(e.status, falcon.HTTP_422)
             response.media = {'ok': False, 'error': e.why}

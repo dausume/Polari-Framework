@@ -20,11 +20,12 @@ class StructNode(treeObject):
                    'one of these - for the bench to count as being there.')
 
     @treeObjectInit
-    def __init__(self, name: str = '', title: str = '', bench_solution: str = '', kind: str = 'state', collaterals: str = 'none', notes: str = '',
-                 manager=None):
+    def __init__(self, name: str = '', title: str = '', bench_solution: str = '', kind: str = 'state', collaterals: str = 'none', basis: str = 'person',
+                 notes: str = '', manager=None):
         self.name = name                      # '<bench_solution>:<slug>'
         self.title = title                    # a person's words ("light on"); '' shows the requirements instead
         self.bench_solution = bench_solution  # a BenchSolution name
         self.kind = kind                      # root | flashed | boot | state
         self.collaterals = collaterals        # none | declared | derived
+        self.basis = basis                    # person | ai | proposed (bss-3, D-bss-10: a divergence's reached values, dashed and unnamed until accepted)
         self.notes = notes

@@ -38,4 +38,8 @@ STEP_KINDS = {
     'knob': 'no derived or cited number yet: a labelled knob',
 }
 STEP_BASES = ('derived', 'cited', 'knob', 'person')
+NODE_BASES = {'person': 'defined by a person', 'ai': 'defined by an AI through the doors', 'proposed': 'proposed from a run that diverged: the reached values; dashed and unnamed until accepted'}
+CHECK_KINDS = {'timing': 'the edge reaches its node within bound_s of its stimulus', 'field-tolerance': 'a field ends within value +/- tolerance', 'field-range': 'a field ends within lo..hi'}
+CONFIRMATION_BY = {'twin': 'a simulated run met the requirements with every check passing', 'hardware': 'a record from a real board met the requirements', 'person': 'attested in words'}
+RUN_OUTCOMES = ('reached', 'checks-failed', 'not-reached', 'diverged', 'blocked')
 SAMPLE_KINDS = {'enumerable': 'every value the field can take is listed', 'samples': 'the field cannot be enumerated; these are the declared test values'}
