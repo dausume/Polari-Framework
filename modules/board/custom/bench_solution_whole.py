@@ -125,6 +125,12 @@ def whole(manager, name):
     return {'ok': True, 'name': name, 'title': getattr(bs, 'title', ''), 'whole': not missing, 'missing': missing, 'legs': legs}
 
 
+def legs(manager, name):
+    """The whole check as rows, one per leg: {leg, ref, ok, why} (the Bench Solutions page's table)."""
+    w = whole(manager, name)
+    return [dict(leg=k, **w['legs'][k]) for k in ('system', 'hardware', 'firmware', 'thermal', 'conditions')]
+
+
 def listing(manager):
     out = []
     for r in _table(manager, 'BenchSolution').values():

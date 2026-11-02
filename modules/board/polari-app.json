@@ -190,6 +190,7 @@
    "profile_overlap_page",
    "register_profile_page",
    "workbench_page",
+   "bench_solutions_page",
    "board_esd_page"
   ],
   "selftests": [
