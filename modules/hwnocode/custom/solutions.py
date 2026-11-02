@@ -38,7 +38,7 @@ ONCE here, at import, same idiom as every other env-var knob in this forest. `_h
 branches on it: digital-twin -> the twin's pty link; hardware -> the detected arduino-uno-r3 BoardInstance's serial port
 (board.custom.installer.detected(), best-effort — a hardware mode with nothing detected refuses to the twin's pty rather
 than leaving the interface unattached, and SAYS SO in `route_report`, read back in the hw-interface node's `why` and in
-the HardwareSolution row). No other branching exists on this knob. (fs-2, not yet built, will move this read into
+the HardwareNoCodeSolution row). No other branching exists on this knob. (fs-2, not yet built, will move this read into
 FirmwareRunState itself per DEMONSTRABLES_PLAN.md §9 — fs-1 keeps the knob read here, unchanged, and only passes the
 resolved `mode` string into the Firmware Run state's fields.)
 """
@@ -89,7 +89,7 @@ def _hardware_route(manager=None):
 
 
 #: read once at import (the env-var-knob idiom) — split_app_definition()'s hw-interface node and seed_rows' BINDINGS/
-#: HardwareSolution rows all read this ONE snapshot so the state and the row it describes never disagree.
+#: HardwareNoCodeSolution rows all read this ONE snapshot so the state and the row it describes never disagree.
 ROUTE = _hardware_route()
 
 #: fs-1's 5 cross-domain canvas states, one plain-words sentence each (his message: "it is not clear what the backend

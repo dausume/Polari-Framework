@@ -44,7 +44,7 @@ def mission_parts(check):
               and MN.OBJECTIVES == B.HardwareMission.OBJECTIVES and MN.STAGES == B.HardwareMission.STAGES
               and MN.PARTICIPANT_KINDS == B.HardwareMission.PARTICIPANT_KINDS and MN.LIFECYCLES == B.HardwareMission.LIFECYCLES)
         from board.custom import hwsys_system as HS
-        check('the stages and participant kinds are the Hardware System\'s own', MN.STAGES == HS.STAGES and MN.PARTICIPANT_KINDS == HS.KINDS)
+        check('the stages and participant kinds are the Hardware Solution\'s own', MN.STAGES == HS.STAGES and MN.PARTICIPANT_KINDS == HS.KINDS)
 
     def one_state_per_purpose():
         from cmod.custom import mission_nocode as MN

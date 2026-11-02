@@ -1,5 +1,5 @@
 """In-process live-boot PROBE of hn-0 (HARDWARE_NOCODE_PLAN.md §7): boot the REAL polariServer with hwnocode (+ cmod, board, grpcbridge
-and what they need) and hit its routes — the guarded imports, defClassList, the seeds (the HardwareSolution, its placements, the two
+and what they need) and hit its routes — the guarded imports, defClassList, the seeds (the HardwareNoCodeSolution, its placements, the two
 SolutionDefinitions, the trigger, the binding, the graph), the page, the node kinds on GET /stateSpaceClasses with their palette, the
 hn-split compiler row, and the /api/hwnocode routes. No engine, no twin (that is tests/hwnocode_probe.py).
 
@@ -34,13 +34,13 @@ def main():
     t = m.objectTables
     n = lambda c: len(t.get(c) or {})  # noqa: E731
     check('booted in %.1f s (%s); hwnocode classes registered: %s' % (boot_s, 'ALL modules' if '--all-modules' in sys.argv else os.environ['POLARI_MODULES'],
-          ', '.join(c for c in ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample',
+          ', '.join(c for c in ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample',
                                 'SimRigTempDerived') if c in m.objectTypingDict)),
-          all(c in m.objectTypingDict for c in ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom',
+          all(c in m.objectTypingDict for c in ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom',
                                                  'SimRigTempSample', 'SimRigTempDerived')))
-    check('seeds: HardwareSolution %d, HardwareNodePlacement %d, the canvas + backend SolutionDefinitions, the trigger, the binding, the graph'
-          % (n('HardwareSolution'), n('HardwareNodePlacement')),
-          n('HardwareSolution') == 1 and n('HardwareNodePlacement') == 27
+    check('seeds: HardwareNoCodeSolution %d, HardwareNodePlacement %d, the canvas + backend SolutionDefinitions, the trigger, the binding, the graph'
+          % (n('HardwareNoCodeSolution'), n('HardwareNodePlacement')),
+          n('HardwareNoCodeSolution') == 1 and n('HardwareNodePlacement') == 27
           and {'uno-temp-split', 'uno-temp-split.backend'} <= {r.name for r in (t.get('SolutionDefinition') or {}).values()}
           and any(r.name == 'uno-temp-split-on-temp' for r in (t.get('EventTrigger') or {}).values())
           and any(r.name == 'uno-temp-split/SimRigState/0' for r in (t.get('HardwareInterfaceBinding') or {}).values())
@@ -89,8 +89,8 @@ def main():
     hwi_binding = next((row for row in (t.get('HardwareInterfaceBinding') or {}).values() if row.name == 'uno-temp-split/SimRigState/0'), None)
     check('the live HardwareInterfaceBinding row is bound to the renamed object `uno-digital-twin`',
           hwi_binding is not None and hwi_binding.object_name == 'uno-digital-twin')
-    hs_row = next(iter((t.get('HardwareSolution') or {}).values()), None)
-    check('the live HardwareSolution row shows the HARDWARE_MODE knob (default digital-twin) and its route report',
+    hs_row = next(iter((t.get('HardwareNoCodeSolution') or {}).values()), None)
+    check('the live HardwareNoCodeSolution row shows the HARDWARE_MODE knob (default digital-twin) and its route report',
           hs_row is not None and hs_row.hardware_mode == 'digital-twin' and 'pty' in hs_row.route_report)
     print('\n%d/%d hwnocode live-boot checks passed' % (sum(results), len(results)))
     return 0 if all(results) else 1

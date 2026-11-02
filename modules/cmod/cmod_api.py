@@ -27,7 +27,7 @@ annotations/resources + the graph's board (never typed in — cmod.custom.target
 GET /api/cmod/graphs/{graph}/targets    the TargetDefinition rows derived for this graph (badges on the canvas + a table)
 GET /api/cmod/capabilities              every CapabilityDefinition row, with its CapabilityInstance rows inline
 GET /api/cmod/capabilities/{cap}        one capability + its instances
-The reverse link (demo-4 "both ways"): GET /api/cmod/graphs/{graph} now also returns `used_by` — every HardwareSolution
+The reverse link (demo-4 "both ways"): GET /api/cmod/graphs/{graph} now also returns `used_by` — every HardwareNoCodeSolution
 row whose `cgraph` names this graph (a derived query over the generic row store, no import of hwnocode needed — the same
 `_rows(cls)` pattern every other generic lookup here uses).
 
@@ -278,7 +278,7 @@ class CModAPI(treeObject):
         if g is None:
             return
         pick = lambda cls, key: [self._d(r) for r in sorted(self._rows(cls), key=key) if r.graph == graph]  # noqa: E731
-        used_by = [self._d(r) for r in sorted(self._rows('HardwareSolution'), key=lambda r: r.name) if getattr(r, 'cgraph', '') == graph]
+        used_by = [self._d(r) for r in sorted(self._rows('HardwareNoCodeSolution'), key=lambda r: r.name) if getattr(r, 'cgraph', '') == graph]
         nodes = pick('CGraphNode', lambda r: (r.order, r.instance))
         for n in nodes:
             n['firmware'] = self._node_firmware(n['instance'])
@@ -288,7 +288,7 @@ class CModAPI(treeObject):
                  'edges': edges, 'glue_builds': pick('CGlueBuild', lambda r: r.name),
                  'targets': pick('TargetDefinition', lambda r: (r.kind, r.port_ref)),
                  'used_by': used_by,
-                 'used_by_how': 'every HardwareSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)',
+                 'used_by_how': 'every HardwareNoCodeSolution row whose cgraph names this graph (hn-split: the board half IS this CGraph)',
                  'purposes': purposes}
         # his ruling 2026-10-10: every task SHOULD have >= 1 Purpose but it is never enforced — advice only.
         named_nodes = {t for p in purposes for t in p['task_names']}

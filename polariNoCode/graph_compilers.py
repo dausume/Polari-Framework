@@ -139,7 +139,7 @@ SEED_GRAPH_COMPILERS = [
         'name': 'hn-split',
         'domain': 'hwnocode',
         'compiler_ref': 'hwnocode.custom.split:compile_solution',
-        'description': 'A HardwareSolution (one canvas: a HardwareSubgraph '
+        'description': 'A HardwareNoCodeSolution (one canvas: a HardwareSubgraph '
                        'referencing a cmod CGraph, a hw-interface, engine '
                        'states, displays) -> the placement rule (every node '
                        'to board | twin | bridge | backend | browser; a '

@@ -2,7 +2,7 @@
 @module hwnocode.hwnocode_api
 
 GET /api/hwnocode                                  the summary: solutions, node kinds on the canvas, the compiler row
-GET /api/hwnocode/solutions                        every HardwareSolution row
+GET /api/hwnocode/solutions                        every HardwareNoCodeSolution row
 GET /api/hwnocode/solutions/{solution}             the row + its HardwareNodePlacement rows
 GET /api/hwnocode/solutions/{solution}/placement   the placement computed NOW from the live rows (refusals named; nothing written)
 GET /api/hwnocode/solutions/{solution}/render      hn-split in memory: the board half's files + shas vs cmod-1's record, the backend
@@ -57,10 +57,10 @@ class HwNoCodeAPI(treeObject):
 
     def _solution(self, name, response):
         import falcon
-        hit = [r for r in self._rows('HardwareSolution') if r.name == name]
+        hit = [r for r in self._rows('HardwareNoCodeSolution') if r.name == name]
         if not hit:
             response.status = falcon.HTTP_404
-            response.media = {'ok': False, 'error': 'no HardwareSolution %r (GET /api/hwnocode/solutions lists them)' % name}
+            response.media = {'ok': False, 'error': 'no HardwareNoCodeSolution %r (GET /api/hwnocode/solutions lists them)' % name}
         return hit[0] if hit else None
 
     def on_get_summary(self, request, response):
@@ -69,7 +69,7 @@ class HwNoCodeAPI(treeObject):
         response.media = {'ok': True,
                           'solutions': [{k: getattr(r, k, '') for k in ('name', 'variant_kind', 'status', 'cgraph', 'interface',
                                                                          'firmware_runtime', 'placement_summary')}
-                                        for r in sorted(self._rows('HardwareSolution'), key=lambda r: r.name)],
+                                        for r in sorted(self._rows('HardwareNoCodeSolution'), key=lambda r: r.name)],
                           'node_kinds': [{'class': c.__name__, 'kind': c.statePalette['nodeKind'], 'placement': c.statePalette['placement'],
                                           'on_palette': bool(getattr(typing.get(c.__name__), 'isStateSpaceObject', False))}
                                          for c in NODE_KIND_CLASSES],
@@ -77,7 +77,7 @@ class HwNoCodeAPI(treeObject):
                           'policy': 'firmware_runtime is the person\'s knob; the suggestion is shown, never applied (D-hn-3)'}
 
     def on_get_solutions(self, request, response):
-        response.media = {'ok': True, 'solutions': [self._d(r) for r in sorted(self._rows('HardwareSolution'), key=lambda r: r.name)]}
+        response.media = {'ok': True, 'solutions': [self._d(r) for r in sorted(self._rows('HardwareNoCodeSolution'), key=lambda r: r.name)]}
 
     def on_get_solution_one(self, request, response, solution):
         s = self._solution(solution, response)

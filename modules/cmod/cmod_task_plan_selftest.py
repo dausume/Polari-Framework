@@ -128,20 +128,20 @@ def task_plan_parts(check):
             check('fgm-5b: on the pin-change sense candidate the sense task is fed by the PCINT vector the rendered template defines (an isr-lane atom of the project), the read atom stays `called`, the context is isr, the agreement check says agrees (priority 0: the hardware orders it)',
                   s['agreement'] == 'agrees' and s['context'] == 'isr' and s['steps'][-1]['instance'].startswith('hal_sense_pcint.PCINT') and s['steps'][-1]['lane'] == 'isr' and s['priority'] == 0
                   and [x['lane'] for x in s['steps']][:-1] == ['called'], (s['steps'], s['agreement_why']))
-        # the link: HardwareSystem.task_plan <- the recorded TaskPlan
+        # the link: HardwareSolution.task_plan <- the recorded TaskPlan
         from board.custom import hardware_system as HWS
         from board.custom import hwsys_doors as D
         mgr = _manager()
         _register(mgr, 'SolveRun', __import__('cmod.custom.solve_record', fromlist=['store']).store(mgr, solved(), 'sub-test'))
         hs = SimpleNamespace(id=1, name=SYSTEM, task_plan='', stage='S1-breadboard')
-        mgr.objectTables['HardwareSystem'] = {1: hs}
+        mgr.objectTables['HardwareSolution'] = {1: hs}
         code, before = D.system_one(mgr, SYSTEM)
-        check('fgm-5b: before any Task Plan is recorded the Hardware System door shows no link (task_plan empty) and the row field is empty', code == 200 and before['system']['task_plan'] == '' and hs.task_plan == '', before['system'].get('task_plan'))
+        check('fgm-5b: before any Task Plan is recorded the Hardware Solution door shows no link (task_plan empty) and the row field is empty', code == 200 and before['system']['task_plan'] == '' and hs.task_plan == '', before['system'].get('task_plan'))
         plan = TP.derive_task_plan(LIGHT, SYSTEM, solve_run=solved(), manager=mgr, apply_edits=False)
         STORE.store_plan(plan, mgr, 'sub-test')
         code, after = D.system_one(mgr, SYSTEM)
         hs2 = SimpleNamespace(id=1, name=SYSTEM)
-        check('fgm-5b: recording the Task Plan (what POST /api/missions/<mission>/task-plan does) links it: the HardwareSystem row field task_plan = %s, and GET /api/hardware-systems/%s shows the same link'
+        check('fgm-5b: recording the Task Plan (what POST /api/missions/<mission>/task-plan does) links it: the HardwareSolution row field task_plan = %s, and GET /api/hardware-systems/%s shows the same link'
               % (plan['name'], SYSTEM), hs.task_plan == plan['name'] == '%s:%s' % (LIGHT, SYSTEM) and after['system']['task_plan'] == plan['name'] and HWS.linked_task_plan(SYSTEM, mgr) == plan['name'], (hs.task_plan, after['system'].get('task_plan')))
         hs.task_plan = ''   # a re-seed of the code-owned row blanks the field: the door still derives the link from the TaskPlan rows
         code, again = D.system_one(mgr, SYSTEM)

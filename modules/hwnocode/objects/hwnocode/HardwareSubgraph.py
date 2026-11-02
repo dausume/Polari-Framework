@@ -12,7 +12,7 @@ class HardwareSubgraph(treeObject):
     rows, cmod's checker, its refusals and its byte-identical proof stay cmod's. On the canvas it expands into the CGraph's
     c-atom nodes (the c-atom overlay); `hn-split` renders it through the `cmod-glue` compiler (artifacts only — a C graph never
     runs in the engine, RULE 2). Placement: board (twin while no BoardInstance is attached).
-    Related concepts: `HardwareSolution`, `CAtom`, `HardwareInterface`, cmod `CGraph`.
+    Related concepts: `HardwareNoCodeSolution`, `CAtom`, `HardwareInterface`, cmod `CGraph`.
     """
 
     plain_words = 'A hardware subgraph is a whole firmware drawing shown as one block inside a bigger solution; open it to see its parts.'

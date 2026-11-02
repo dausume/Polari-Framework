@@ -1,12 +1,12 @@
 """
-@module hwnocode.objects.hwnocode.HardwareSolution
+@module hwnocode.objects.hwnocode.HardwareNoCodeSolution
 
-HardwareSolution — one class per file (design §7).
+HardwareNoCodeSolution — one class per file (design §7).
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
-class HardwareSolution(treeObject):
+class HardwareNoCodeSolution(treeObject):
     """What it is: ONE no-code solution that spans hardware, the bridge, the backend and the browser (HARDWARE_NOCODE_PLAN.md §2c,
     D-hn-1 ruled "subgraph"): `solution` names the SolutionDefinition drawn on the ONE canvas (its states include the node kinds
     `HardwareSubgraph` and `HardwareInterface`), `cgraph` names the cmod `CGraph` that IS the hardware subgraph (cmod's rows,
@@ -15,10 +15,12 @@ class HardwareSolution(treeObject):
     esp-idf | zephyr — the person's pick, never pre-selected by Polari, D-hn-3; hn-0 renders bare-c only and refuses the others
     with the reason). The placement (every node → board | twin | bridge | backend | browser, plan §2b) and the split
     (`hn-split`: the board half through `cmod-glue`, the backend half as its own SolutionDefinition) are DERIVED, never typed in.
+    This class was renamed from HardwareSolution on 2026-11-02: it spans hardware, bridge, backend and browser, so it is a cross-domain solution, and the name
+    HardwareSolution now belongs to the board module's one specific hardware assembly. Older rows converge onto it by name.
     Related concepts: `HardwareNodePlacement`, cmod `CGraph`, grpcbridge `HardwareInterfaceBinding`, `SolutionDefinition`.
     """
 
-    plain_words = ('A hardware solution is one drawing that spans a board, the cable to Polari, the server and a screen; '
+    plain_words = ('A hardware no-code solution is one drawing that spans a board, the cable to Polari, the server and a screen; '
                    'Polari works out where each piece runs.')
 
     @treeObjectInit

@@ -12,7 +12,7 @@ configured displays — not a second system.
 
 | piece | what it is | stands on |
 |---|---|---|
-| `HardwareSolution` | one solution across board, bridge, backend, browser: `solution` (the canvas SolutionDefinition), `cgraph` (D-hn-1: the hardware SUBGRAPH stays cmod's rows), `board_definition` / `board_instance`, `interface` (the split point), `displays`, **`firmware_runtime`** (the person's knob) + derived placement / split / proof / costs | cmod `CGraph`, grpcbridge `HardwareInterfaceBinding`, `SolutionDefinition`, `DisplayDefinition` |
+| `HardwareNoCodeSolution` | one solution across board, bridge, backend, browser: `solution` (the canvas SolutionDefinition), `cgraph` (D-hn-1: the hardware SUBGRAPH stays cmod's rows), `board_definition` / `board_instance`, `interface` (the split point), `displays`, **`firmware_runtime`** (the person's knob) + derived placement / split / proof / costs | cmod `CGraph`, grpcbridge `HardwareInterfaceBinding`, `SolutionDefinition`, `DisplayDefinition` |
 | `HardwareNodePlacement` | where ONE node runs and why (derived, never typed) | the placement rule |
 | node kinds `HardwareSubgraph`, `HardwareInterface`, `CAtom` | the canvas kinds (D-hn-2); each declares a `statePalette` that GET /stateSpaceClasses returns, so the palette learns them as data | `polyTypedObject.getStateSpaceConfig` |
 | `SimRigTempSample`, `SimRigTempDerived` | the split app's backend rows: a ring of samples (temp_c + moving average) and the derived state (average + `over_threshold`) | written by the engine's own nodes |
@@ -89,7 +89,7 @@ cd /tmp/y && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/hwnocode_liveboot_p
 PYTHONPATH=.:modules python3 -m moduleService.manifests conform hwnocode
 ```
 The split record (render + build + proof + costs, both DB modes) is `custom/splits/uno-temp-split.json`; the seed projects it into the
-HardwareSolution row (nothing is rendered or built at boot).
+HardwareNoCodeSolution row (nothing is rendered or built at boot).
 
 Not in hn-0 (plan §7 rows hn-1..5 / owed): the RuntimeSuggestion + HardwareSuggestion ROWS and the cmod `blocking` verdict (hn-1); the
 cmod edge kinds `field-cmd` / `deadband` (they change cmod's renderer — cmod stays unchanged here); `polari_propose_hardware_solution`

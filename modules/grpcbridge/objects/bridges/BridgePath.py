@@ -13,7 +13,7 @@ class BridgePath(treeObject):
     TTA -> 3.3 V" = the converter's signal level is a fact to record) -> connector (USB-B | USB-C | micro-USB; a C -> A adapter is its own hop) ->
     host-port (hwmap's scanned bus / port on the device) -> userspace (the process: the Polari Hardware Bridge, a scope reader). A level nobody has cited is -1
     and its basis says what to read. `protocol` = uart-text | polari-frames | scpi; `mode` = serial (the real port) | simulated (the twin worker's port).
-    Related concepts: PolariBridgeInstance (rides one path), UsbInterfaceDefinition (board), hwmap's port rows, HardwareSystem links (hsp-1).
+    Related concepts: PolariBridgeInstance (rides one path), UsbInterfaceDefinition (board), hwmap's port rows, HardwareSolution links (hsp-1).
     """
 
     plain_words = 'A bridge path is the chain from a board\'s serial pins, through its USB chip and cable, to the program on the computer that listens to it.'

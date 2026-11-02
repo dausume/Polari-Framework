@@ -144,8 +144,8 @@ check('GETs the graph payload the canvas loads for its own seeded input (%s): no
       and len(r.json['edges']) == 15 and len(r.json['targets']) == 16 and isinstance(r.json['used_by'], list), r.text[:300])
 check('the REVERSE link resolves live: used_by names uno-temp-split (hwnocode booted beside cmod)',
       any(h['name'] == 'uno-temp-split' for h in r.json['used_by']), r.json['used_by'])
-hs = [h for h in (tables.get('HardwareSolution', {}) or {}).values() if h.name == 'uno-temp-split']
-check('the FORWARD link: HardwareSolution.cgraph names this same graph', len(hs) == 1 and hs[0].cgraph == canvas_graph,
+hs = [h for h in (tables.get('HardwareNoCodeSolution', {}) or {}).values() if h.name == 'uno-temp-split']
+check('the FORWARD link: HardwareNoCodeSolution.cgraph names this same graph', len(hs) == 1 and hs[0].cgraph == canvas_graph,
       hs[0].cgraph if hs else None)
 r = client.simulate_get('/api/cmod/graphs/%s/targets' % canvas_graph)
 check('GET …/targets → the ADC pin target + the temp_c memory-field target are both present',

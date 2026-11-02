@@ -63,7 +63,7 @@ _BOARDS_PAGES = [
                                           '(the BoardDefinition row), readiness_why (which of the three it has), twin (renode:/simavr:/… or '
                                           'empty), simulated (picked for simulation), usb_route/programmer/adapter_needed (how it is flashed), '
                                           'road_status (the plan, for reference only — it does not change readiness). GET /api/board/boards/'
-                                          'readiness computes this on every load from live BoardDefinition + FirmwareVariant + HardwareSolution '
+                                          'readiness computes this on every load from live BoardDefinition + FirmwareVariant + HardwareNoCodeSolution '
                                           '+ Scenario rows.',
                               columns='name,readiness_why,twin,simulated,device_class,soc,isa,usb_route,programmer,adapter_needed,road_status',
                               data_path='/api/board/boards/readiness', filter_field='readiness', filter_value='usable')]),

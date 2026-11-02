@@ -51,7 +51,7 @@ def resolve_board(fs, manager=None):
         return bv, False, 'board_variable %r names no BoardDefinition in the register — refused (his rule: validated at run time)' % bv
     from board.custom import readiness as RD
     variants = list((manager.objectTables or {}).get('FirmwareVariant', {}).values())
-    sols = list((manager.objectTables or {}).get('HardwareSolution', {}).values())
+    sols = list((manager.objectTables or {}).get('HardwareNoCodeSolution', {}).values())
     scens = list((manager.objectTables or {}).get('Scenario', {}).values())
     readi, why = RD.compute_readiness(hit, variants, sols, scens)
     if readi != 'usable':

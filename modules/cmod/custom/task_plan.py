@@ -1,7 +1,7 @@
 """
 @module cmod.custom.task_plan
 
-fgm-3 (FIRMWARE_GENERATION_MODULE_PLAN.md section 9; SYSTEM_HIERARCHY_TERMINOLOGY.md section 8): THE TASK PLAN of a Hardware Mission on ONE Hardware System, DERIVED by code and editable by hand.
+fgm-3 (FIRMWARE_GENERATION_MODULE_PLAN.md section 9; SYSTEM_HIERARCHY_TERMINOLOGY.md section 8): THE TASK PLAN of a Hardware Mission on ONE Hardware Solution, DERIVED by code and editable by hand.
 
     Mission -> Purposes -> their graph's c-atoms + criteria  ->  Tasks grouped per processor and trigger (boot -> init; a button edge -> handle-button-press; a period -> relay-state;
     a command -> receive-command; an input line the Purposes need but no trigger covers -> sense), each Task's steps in graph order, its deadline / period from the Purpose criteria (or rt-0's labelled
@@ -46,10 +46,10 @@ def _qtext(qv):
     return '%s %s (%s)' % (qv['value'], qv.get('unit', ''), qv['kind']) if isinstance(qv, dict) and isinstance(qv.get('value'), (int, float)) else 'undetermined'
 
 
-# ------------------------------------------------------------------ the inputs: Hardware System, solver candidate
+# ------------------------------------------------------------------ the inputs: Hardware Solution, solver candidate
 def system_row(name, manager=None):
-    """-> dict {name, title, participants[], boards[]} of a Hardware System (a live row, else the code-owned seed). Raises ValueError for an unknown one."""
-    rows = ((getattr(manager, 'objectTables', None) or {}).get('HardwareSystem') or {}).values() if manager is not None else []
+    """-> dict {name, title, participants[], boards[]} of a Hardware Solution (a live row, else the code-owned seed). Raises ValueError for an unknown one."""
+    rows = ((getattr(manager, 'objectTables', None) or {}).get('HardwareSolution') or {}).values() if manager is not None else []
     hit = next((r for r in rows if getattr(r, 'name', '') == name), None)
     if hit is not None:
         d = {k: getattr(hit, k, '') for k in ('name', 'title', 'participants_json', 'boards_json', 'stage')}
@@ -58,12 +58,12 @@ def system_row(name, manager=None):
         from board.custom import hwsys_system as HS
         d = next((r for r in HS.rows(H.default_tables(manager)) if r['name'] == name), None)
         if d is None:
-            raise ValueError('no Hardware System %r (known: %s)' % (name, ', '.join(r['name'] for r in HS.rows(H.default_tables(manager)))))
+            raise ValueError('no Hardware Solution %r (known: %s)' % (name, ', '.join(r['name'] for r in HS.rows(H.default_tables(manager)))))
     return dict(d, participants=_j(d.get('participants_json'), []), boards=_j(d.get('boards_json'), []))
 
 
 def default_system(board, manager=None):
-    """The name of a Hardware System whose board is `board` (the Mission's own board participant), else the first system there is. '' when none."""
+    """The name of a Hardware Solution whose board is `board` (the Mission's own board participant), else the first system there is. '' when none."""
     from board.custom import hardware_system as H
     from board.custom import hwsys_system as HS
     rows = [dict(r) for r in HS.rows(H.default_tables(manager))]

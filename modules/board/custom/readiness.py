@@ -10,7 +10,7 @@ hand-set flag. Three signals, each itself derived:
 
   has_twin      BoardDefinition.twin is set, OR BoardDefinition.simulated is true (a twin kind picked for it).
   has_template  at least one FirmwareVariant.board_definition names this board (something buildable exists).
-  has_run       at least one HardwareSolution.board_definition, OR one Scenario.target_board, names this board
+  has_run       at least one HardwareNoCodeSolution.board_definition, OR one Scenario.target_board, names this board
                 (a no-code solution or a fault scenario actually RUNS it — the ESP32-C3 has no solution yet but
                 has scenarios, so this is true for it too).
 
@@ -25,7 +25,7 @@ changes nothing unless the twin/template/solution exist") — the Road is the PL
 
 def compute_readiness(board, variants, solutions, scenarios):
     """board: one BoardDefinition row. variants/solutions/scenarios: the full CRUDE rows of FirmwareVariant,
-    HardwareSolution, Scenario (any board — this function does its own filtering by name). Returns
+    HardwareNoCodeSolution, Scenario (any board — this function does its own filtering by name). Returns
     (readiness, readiness_why)."""
     name = getattr(board, 'name', '')
     has_twin = bool(getattr(board, 'twin', '') or getattr(board, 'simulated', False))
@@ -57,7 +57,7 @@ def readiness_rows(manager):
     tables = manager.objectTables or {}
     boards = list((tables.get('BoardDefinition') or {}).values())
     variants = list((tables.get('FirmwareVariant') or {}).values())
-    solutions = list((tables.get('HardwareSolution') or {}).values())
+    solutions = list((tables.get('HardwareNoCodeSolution') or {}).values())
     scenarios = list((tables.get('Scenario') or {}).values())
     rows = []
     for b in boards:

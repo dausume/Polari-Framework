@@ -136,7 +136,7 @@ def firmware_parts(check):
             {'stateName': 'commit', 'stateClass': 'StateChangeCommit'},
         ]}
         ok, why = CD.validate(clean)
-        check('CrossDomainSolution validator PASSES a bridging/relay-only graph (Firmware Run + Bridge + Relay up/down)',
+        check('HardwareNoCodeSolution validator PASSES a bridging/relay-only graph (Firmware Run + Bridge + Relay up/down)',
               ok, why)
 
         tainted = copy.deepcopy(clean)

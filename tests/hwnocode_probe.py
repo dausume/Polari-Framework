@@ -171,9 +171,9 @@ def main(argv):
             TIMES.setdefault('by_class', {}).setdefault(type(a[0]).__name__ if a else '?', []).append(time.perf_counter() - t0_)
     ED.EventDispatcher.fire = timed_fire
     manager.db.saveInstanceInDB = timed_save
-    check('a throwaway server booted in %.1f s (HTTP %s, gRPC :%s); hwnocode seeded: HardwareSolution %s, %d placements, the binding, '
+    check('a throwaway server booted in %.1f s (HTTP %s, gRPC :%s); hwnocode seeded: HardwareNoCodeSolution %s, %d placements, the binding, '
           'the trigger, the backend half' % (boot_s, api, grpc_srv.port, SOL, len(t.get('HardwareNodePlacement') or {})),
-          any(x.name == SOL for x in (t.get('HardwareSolution') or {}).values())
+          any(x.name == SOL for x in (t.get('HardwareNoCodeSolution') or {}).values())
           and any(x.name == 'uno-temp-split/SimRigState/0' for x in (t.get('HardwareInterfaceBinding') or {}).values())
           and any(x.name == 'uno-temp-split.backend' for x in (t.get('SolutionDefinition') or {}).values())
           and any(x.name == 'uno-temp-split-on-temp' for x in (t.get('EventTrigger') or {}).values()))

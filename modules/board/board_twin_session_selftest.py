@@ -2,7 +2,7 @@
 
 OFFLINE half (always runs): the TwinSession class and its registration, the derived token, the worker resolution in words, the backend (start / inject /
 events fan-out / stop / reaped-on-the-worker) against a FAKE worker + FAKE twin control port (custom.twin_session_fakes.py), the doors on a real falcon.App
-(including the SSE stream), the CLI's request shapes, and the Hardware System participant.
+(including the SSE stream), the CLI's request shapes, and the Hardware Solution participant.
 
 LIVE half (runs when a worker that lists sessions is reachable: BOARD_ENGINES_URL, else the topology provider; SKIPPED in words otherwise): the REAL twin on the
 REAL worker - start uno-light, press the button (PD2 0 then 1, 60 ms of wall time apart = ~960 000 cycles at 16 MHz, past the 30 ms debounce), see PD6 rise on the
@@ -164,7 +164,7 @@ def _backend(check, mgr, worker, TS, HUB):
     listed = {x['name']: x for x in TS.listing(mgr)}
     check('sim-1: a session the worker no longer has is marked ENDED with the reason in words (never left "running")',
           listed[v2['name']]['state'] == 'ended' and 'reaped at its TTL' in listed[v2['name']]['end_reason'] and listed[name]['state'] == 'running')
-    check('sim-1: the Hardware System lists only RUNNING sessions as participants (twin:arduino-uno-r3#0)',
+    check('sim-1: the Hardware Solution lists only RUNNING sessions as participants (twin:arduino-uno-r3#0)',
           [p['variant'] for p in TS.participants(mgr)] == ['twin:arduino-uno-r3#0'] and TS.participants(mgr)[0]['ref'] == 'TwinSession:%s' % name)
     out = TS.stop(mgr, name)
     check('sim-1: stop -> the worker got DELETE, the row is ended, the connection closed; inject afterwards is refused with 409 in words',

@@ -5,7 +5,7 @@ fgm-3 doors, plain functions over a TaskPlanAPI (`cmod_task_plan_api` registers 
 
 GET  /api/missions/{name}/task-plan[?system=S][&run=R][&candidate=C][&solve=now][&view=tasks|agreement|triggers|shared-data|edits|designed-for]
         The Task Plan DERIVED now (nothing stored): {ok, name, mission, hardware_system, tier, run_basis, processors[], tasks[], triggers[], struct_bindings[], designed_for, also_runs_on[],
-        agreement_counts, priority_rule, source, notes[]}. `system` defaults to the Hardware System that carries the Mission's board; `run` = a stored SolveRun name (default: the latest stored one);
+        agreement_counts, priority_rule, source, notes[]}. `system` defaults to the Hardware Solution that carries the Mission's board; `run` = a stored SolveRun name (default: the latest stored one);
         `solve=now` runs the attempt engine (cached) when no run is stored. With NO run the plan says so and the variants / pins / sense task are undetermined. With `view` the answer is the flat
         plain-words {ok, view, count, rows[]} for the page tables. 404 unknown Mission / system; 422 unknown run / candidate / view.
 POST /api/missions/{name}/task-plan   body {system?, run?, candidate?, solve?: true}

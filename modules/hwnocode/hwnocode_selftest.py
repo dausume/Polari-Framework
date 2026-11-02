@@ -34,7 +34,7 @@ def _state(defn, name):
 
 def placement_on_seed():
     """fs-1 migration: uno-temp-split is now a 5-state Cross-Domain canvas (Firmware Run, Bridge, Relay in, call
-    temp-analysis, Relay out) — no embedded HardwareSubgraph. The HardwareSolution row's `cgraph` field is UNCHANGED
+    temp-analysis, Relay out) — no embedded HardwareSubgraph. The HardwareNoCodeSolution row's `cgraph` field is UNCHANGED
     (it still feeds the firmware_runtime suggestion/knob machinery below, unaffected by the migration), so the 18
     uno-sim-rig-graph CGraph nodes are still expanded into the report's `subgraph` layer (unconditional on cgraph_rows,
     not on a canvas HardwareSubgraph state) — but the CANVAS itself no longer places anything on the device: the
@@ -42,7 +42,7 @@ def placement_on_seed():
     from hwnocode.custom import placement as PL
     from hwnocode.custom import split as SP
     r = SP.place_solution('uno-temp-split')
-    check('uno-temp-split placed: twin 18 (uno-sim-rig-graph\'s CGraph nodes, still expanded from HardwareSolution.cgraph), '
+    check('uno-temp-split placed: twin 18 (uno-sim-rig-graph\'s CGraph nodes, still expanded from HardwareNoCodeSolution.cgraph), '
           'bridge 2 (Firmware Run + the hw-interface), backend 3 (Relay in, call-temp-analysis, Relay out), browser 1 — no refusal',
           r['counts'] == {'twin': 18, 'bridge': 2, 'backend': 3, 'browser': 1} and not r['refusals'], (r['counts'], r['refusals']))
     check('every node carries a placement from the rule\'s set and a why', all(n['placement'] in PL.PLACEMENTS and n['why'] for n in r['nodes']))
@@ -210,7 +210,7 @@ def subgraph_reference():
     run = _state(p['definition'], 'firmware-run')
     rec = GL.load_record('uno-sim-rig-graph')
     check('Firmware Run REFERENCES cmod FirmwareSolution uno-sim-rig (fs-0, unchanged); its graph is still '
-          'uno-sim-rig-graph = HardwareSolution.cgraph; the cmod rows are cmod\'s seeds, unchanged (graph sha = cmod-1\'s record)',
+          'uno-sim-rig-graph = HardwareNoCodeSolution.cgraph; the cmod rows are cmod\'s seeds, unchanged (graph sha = cmod-1\'s record)',
           run['boundObjectFieldValues']['firmware_solution'] == S.FIRMWARE_SOLUTION and hs['cgraph'] == 'uno-sim-rig-graph'
           and GR.graph_sha(seed_graph('uno-sim-rig-graph')) == rec['graph_sha256'])
     r = SP.compile_parts(p)
@@ -225,7 +225,7 @@ def subgraph_reference():
           and r['definition']['compiledBy']['compiler'] == 'hn-split')
     row = next(x for x in SEED_GRAPH_COMPILERS if x['name'] == 'hn-split')
     g = GraphCompilerDefinition(**row)
-    out = compile_with(g, {'HardwareSolution': [hs], 'SolutionDefinition': [{'definition': json.dumps(p['definition'])}],
+    out = compile_with(g, {'HardwareNoCodeSolution': [hs], 'SolutionDefinition': [{'definition': json.dumps(p['definition'])}],
                            'CGraph': [p['cgraph']['graph']], 'CGraphNode': p['cgraph']['nodes'], 'CGraphEdge': p['cgraph']['edges']})
     check('the GraphCompilerDefinition row `hn-split` (domain hwnocode) compiles through compile_with: artifacts = cmod-glue\'s '
           '(unchanged, %d files — read live from cmod-1\'s committed record, not a literal: ucd-0b added pin_config.h/.c), '
@@ -397,13 +397,13 @@ def seeds_page_api():
     from hwnocode.hwnocode_page import SEED_HWNOCODE_PAGE_DISPLAYS, SEED_HWNOCODE_GRAPHS
     from hwnocode.hwnocode_api import HwNoCodeAPI
     counts = {n: len(r) for n, _c, r in HWNOCODE_SEED_PAIRS}
-    check('seeds (fs-1 migration + ucd-1): 2 HardwareSolutions (uno-temp-split + uno-button-clock — the latter\'s own '
+    check('seeds (fs-1 migration + ucd-1): 2 HardwareNoCodeSolutions (uno-temp-split + uno-button-clock — the latter\'s own '
           'Firmware Run is backed by uno-button-clock-graph since 0e2b, so it contributes its own placements; scl: + led_follow_state), 59 placements '
           '(uno-temp-split\'s 24 = 18 twin + 2 bridge + 3 backend + 1 browser, + uno-button-clock\'s), 17 SolutionDefinitions (hsp-3c: + the hal-uno-light and hal-esp32c3-light drawings; mis-0: + the mission-uno-light-mission drawing; fgm-1: + the four purpose-<name> drawings; ucd-light: + uno-light + light-toggle; ucd-app: + uno-light-app; uno-temp-split\'s '
           'canvas + its derived backend half + temp-analysis + uno-button-clock\'s canvas + button-clock-ledger + its '
           'own hand-built backend half + the 0e2b button-clock graph\'s own), 2 AnalysisDefinitions, 2 EventTriggers, 3 HardwareInterfaceBindings (ucd-light: + uno-light/LightState/0), '
           '2 GraphDefinitions, 6 Runtimes (demo-4b)', counts == {
-              'HardwareSolution': 2, 'HardwareNodePlacement': 59, 'SolutionDefinition': 17, 'AnalysisDefinition': 2, 'EventTrigger': 2,
+              'HardwareNoCodeSolution': 2, 'HardwareNodePlacement': 59, 'SolutionDefinition': 17, 'AnalysisDefinition': 2, 'EventTrigger': 2,
               'HardwareInterfaceBinding': 3, 'GraphDefinition': 2, 'Runtime': 6}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
@@ -441,7 +441,7 @@ def seeds_page_api():
     check('the trigger runs the BACKEND half on SimRigState uno-digital-twin updates; its knobs (window, threshold_c, keep) on inputs_json stay '
           'the instance\'s', trig['solution_name'] == 'uno-temp-split.backend' and json.loads(trig['source_json'])['fieldFilter'] == {'name': 'uno-digital-twin'}
           and 'inputs_json' not in trig['_converge'])
-    hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareSolution' for r in rows][0]
+    hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareNoCodeSolution' for r in rows][0]
     check('firmware_runtime is NOT converged by a re-seed (the person\'s knob)', 'firmware_runtime' not in hs['_converge'])
     page = SEED_HWNOCODE_PAGE_DISPLAYS[0]
     items = [it for row in json.loads(page['definition'])['rows'] for it in row['items']]
@@ -498,14 +498,14 @@ def seeds_page_api():
     check('GET /api/hwnocode/interface?binding=… → the binding (row uno-digital-twin, the twin\'s pty), placement bridge', r.status_code == 200
           and r.json['binding']['object_name'] == 'uno-digital-twin' and r.json['placement'] == 'bridge', r.text[:200])
     r = c.simulate_get('/api/hwnocode/solutions/nope')
-    check('an unknown solution → 404 in plain words', r.status_code == 404 and 'no HardwareSolution' in r.json['error'])
+    check('an unknown solution → 404 in plain words', r.status_code == 404 and 'no HardwareNoCodeSolution' in r.json['error'])
 
 
 def connectors_and_hardware_mode():
     """selfix 2026-10-05: (1) every seeded edge of uno-temp-split's canvas resolves BOTH endpoints and carries the
     fields RectangleStateLayer/DiamondStateLayer's renderCachedConnectors actually reads (slot.index, connector.id/
     sourceSlot/sinkSlot) — the AdditionTester-seed convention hn-0's own seed now matches (_wire_connectors); (2) the
-    HARDWARE_MODE knob: default digital-twin, the one route a person can read back on the HardwareSolution row and in
+    HARDWARE_MODE knob: default digital-twin, the one route a person can read back on the HardwareNoCodeSolution row and in
     the hw-interface node's own fields/why."""
     from hwnocode.custom import solutions as S
     from hwnocode.custom import knobs as K
@@ -550,8 +550,8 @@ def connectors_and_hardware_mode():
         else:
             os.environ['HWNOCODE_HARDWARE_MODE'] = old
     from hwnocode.hwnocode_seed import HWNOCODE_SEED_PAIRS
-    hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareSolution' for r in rows][0]
-    check('the HardwareSolution row shows the knob + which route it took (a described row on the page)',
+    hs = [r for n, _c, rows in HWNOCODE_SEED_PAIRS if n == 'HardwareNoCodeSolution' for r in rows][0]
+    check('the HardwareNoCodeSolution row shows the knob + which route it took (a described row on the page)',
           hs['hardware_mode'] == 'digital-twin' and 'twin' in hs['route_report'] and 'pty' in hs['route_report'])
 
 

@@ -13,7 +13,7 @@ render/build/prove buttons and the atoms-only solution adapter are its c-device 
 CGraph derives that runtime) ABOVE described tables of the atoms available to drop, the derived TargetDefinition rows
 (badges on the canvas already;
 the table is the same rows, described), the seeded "temperature sensor solution" CapabilityDefinition + its two
-CapabilityInstance rows, and which HardwareSolutions use this graph (the reverse link — `/display/hardware-solutions`
+CapabilityInstance rows, and which HardwareNoCodeSolutions use this graph (the reverse link — `/display/hardware-solutions`
 carries the forward one). `/display/c-atoms` gets a link to the canvas plus the same "used by" table.
 """
 from polariApiServer.module_pages_seed import _page, _row, _table, _sapi, _firmware_panel
@@ -123,7 +123,7 @@ SEED_CMOD_PAGE_DISPLAYS = [
                              '/display/hardware-solutions\' cgraph column); open it on the canvas at /display/c-canvas',
                              '/api/cmod/graphs/uno-sim-rig-graph', pick='used_by',
                              description='What this is for: the REVERSE link — every Hardware Solution that places this '
-                                         'graph on a board, derived from HardwareSolution.cgraph. Empty is honest (no solution uses it yet), '
+                                         'graph on a board, derived from HardwareNoCodeSolution.cgraph. Empty is honest (no solution uses it yet), '
                                          'not an error.')], min_height=140),
           ]),
     _page('c-canvas', 'c-canvas',

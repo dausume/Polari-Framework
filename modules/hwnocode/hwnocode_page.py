@@ -2,7 +2,7 @@
 @module hwnocode.hwnocode_page
 
 /display/hardware-solutions — CONFIGURED tables + ONE configured graph, no new component, no raw JSON (HARDWARE_NOCODE_PLAN.md §1c,
-§4 h): the HardwareSolutions (subgraph, interface, the runtime knob and why, the placement summary, the split + glue shas, the
+§4 h): the HardwareNoCodeSolutions (subgraph, interface, the runtime knob and why, the placement summary, the split + glue shas, the
 proof), the placement of every node (where it runs and why — refusals named), the derived temperature state (the backend half's
 moving average + threshold flag), and the chart of temp_c and its moving average — a GraphDefinition row rendered by the generic
 `named-graph-panel` (the graphs design; sci-xy-chart is the lower-level data-in component and is not a display component), its
@@ -83,7 +83,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
           'The board half\'s C graph is the same graph shown on C Tasks (/display/c-atoms), and installing it onto real hardware is done from '
           'Install Firmware (/display/firmware-installer). C on the board and the Java/JavaFX bridge are each their OWN runtime (see the Runtimes table below). '
           'From the command line: pol hwnocode place, render, build and suggest.',
-          'HardwareSolution', [
+          'HardwareNoCodeSolution', [
               _row(0, [_canvas_solution('hwnocode-canvas', 0, 12, 'The solution opened on the no-code canvas — all its runtimes as lanes (open any '
                                         'solution with ?solution=<name>; this page starts on %s)' % SOLUTION, CGRAPH, SOLUTION,
                                description="What this is for: THE DEMONSTRABLE, first on the page — this solution's REAL drawing (sim-rig, "
@@ -108,9 +108,9 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                               column_formats='graph:ref:CGraph,acceptance_scenario:ref:Scenario')], min_height=200),
               _row(2, [_table('hwnocode-solutions', 0, 12, 'Hardware solutions — the subgraph (a cmod CGraph), the hw-interface (the split '
                               'point), the firmware_runtime knob (yours to pick; bare-c works today and the rest are refused with the reason), the '
-                              'placement summary, the split and the glue shas, the proof', 'HardwareSolution',
+                              'placement summary, the split and the glue shas, the proof', 'HardwareNoCodeSolution',
                               description='What this is for: ONE no-code solution end to end — a drawing that spans a board, the bridge, the '
-                                          'server and this screen. One row = one HardwareSolution. Columns: cgraph (the cmod CGraph that IS '
+                                          'server and this screen. One row = one HardwareNoCodeSolution. Columns: cgraph (the cmod CGraph that IS '
                                           'the hardware half), interface (the HardwareInterfaceBinding where it crosses device <-> backend), '
                                           'firmware_runtime/runtime_status (the knob — yours to pick; bare-c works today, others refuse with '
                                           'why), hardware_mode/route_report (the configuration knob — HWNOCODE_HARDWARE_MODE env var, '
@@ -122,7 +122,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                               columns='name,title,variant_kind,status,cgraph,interface,board_definition,board_instance,firmware_runtime,'
                                       'runtime_status,hardware_mode,route_report,placement_summary,node_count,refused,split_sha256,'
                                       'glue_files_sha256,glue_hex_sha256,backend_solution,displays,proof,costs',
-                              column_formats='name:ref:HardwareSolution,cgraph:ref:CGraph,interface:ref:HardwareInterfaceBinding')],
+                              column_formats='name:ref:HardwareNoCodeSolution,cgraph:ref:CGraph,interface:ref:HardwareInterfaceBinding')],
                    min_height=160),
               _row(3, [_graph_panel('hwnocode-temp-chart', 0, 12, 'uno-temp-split — temp_c and its moving average (the backend half)',
                                     GRAPH, '/api/hwnocode/solutions/%s/chart' % SOLUTION,
@@ -157,7 +157,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS = [
                                           'it was drawn — e.g. Python on the device — named, not silently moved; for uno-digital-twin, why '
                                           'also carries the HARDWARE_MODE route report).',
                               columns='solution,layer,node,purpose,kind,placement,runtime,language,refused,why',
-                              column_formats='solution:ref:HardwareSolution')], min_height=320),
+                              column_formats='solution:ref:HardwareNoCodeSolution')], min_height=320),
               _row(6, [_table('hwnocode-runtimes', 0, 12, 'Runtimes — the six execution environments a no-code node can be placed into '
                               '(C on the board and the Java/JavaFX bridge are each their own runtime)', 'Runtime',
                               description='What this is for: the CATALOG every node\'s runtime column above names one row of. One row '

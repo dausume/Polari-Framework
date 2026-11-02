@@ -1,7 +1,7 @@
 """
 @module board.custom.hwsys_context
 
-hsp-1: THE CONTEXT a Hardware System's paths are checked in, and the hop builders. Every verdict is CALLED from the code that owns the check — the availability ladder
+hsp-1: THE CONTEXT a Hardware Solution's paths are checked in, and the hop builders. Every verdict is CALLED from the code that owns the check — the availability ladder
 (board.custom.ladder, one run per pin x function, every allowed package while the board's package variant is pending, the WORST verdict per rung), the electrical
 rules (board.custom.electrical_check), the cmod Purpose proof status, the pinned wire contract (board.custom.compat) — never re-implemented. A hop whose input is missing
 says `unchecked`; a ref that does not resolve is an explicit hop naming what is missing.

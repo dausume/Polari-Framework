@@ -20,6 +20,7 @@ from board.bench_nets_api import BenchNetsAPI   # bob-2: connections across boar
 from board.esd_areas_api import EsdAreasAPI   # esd-0: ESD protection areas on a definition
 from board.bench_parts_api import BenchPartsAPI   # drv-1: parts as boards (drivers, loads, modules) + mounting by position
 from board.footholds_api import FootholdsAPI   # bob-0: /api/board/footholds/{kind}/{definition}
+from board.bench_solution_api import BenchSolutionAPI   # bss-0: /api/board/bench-solutions[/{name}]: is it whole?
 from board.firmware_state_api import FirmwareStateAPI   # fst-1: /api/firmware-state/{config}[/fields|/enums|/findings|/live]
 from board.custom import light_confirm   # noqa: F401  fgm-6a: registers the LightStateV2 frame observer (command confirmation)
 
@@ -41,5 +42,6 @@ def construct_board_endpoints(polServer):
     api.bench_parts = BenchPartsAPI(polServer=polServer, manager=polServer.manager)   # drv-1
     api.esd_areas = EsdAreasAPI(polServer=polServer, manager=polServer.manager)   # esd-0
     api.footholds = FootholdsAPI(polServer=polServer, manager=polServer.manager)   # bob-0: the bench contract
+    api.bench_solution = BenchSolutionAPI(polServer=polServer, manager=polServer.manager)   # bss-0
     api.firmware_state = FirmwareStateAPI(polServer=polServer, manager=polServer.manager)   # fst-1: a firmware's state objects, derived
     return api

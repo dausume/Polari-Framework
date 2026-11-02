@@ -3,7 +3,7 @@
 
 fgm-3: the Task Plan's rows and the two records it keeps honestly.
 
-  DESIGNED FOR   the origin context (Hardware System, processors, tier, variants, pins, the solver run's sha256) is written ONCE - at the first record - and never changed: a later derive (another
+  DESIGNED FOR   the origin context (Hardware Solution, processors, tier, variants, pins, the solver run's sha256) is written ONCE - at the first record - and never changed: a later derive (another
                  candidate, another tier) still reports the stored one, and says so.
   ALSO RUNS ON   every other hardware the plan was carried to, each with HOW WE KNOW: resolver-valid (every checkable requirement met by sol-0's assignment; untested) < proven-on-twin < proven-on-hardware,
                  plus what had to change. `check_also_runs_on` resolves the SAME variants on another board from the run's own record and appends a row.
@@ -106,9 +106,9 @@ def store_plan(plan, manager, who=''):
 
 
 def link_system(plan, manager):
-    """fgm-5b: the Hardware System the plan is for carries the plan's name in its `task_plan` field (the row, saved; the door derives the same link from the TaskPlan rows on every read, so a re-seed that blanks
-    the code-owned row loses nothing). A server with no HardwareSystem row for it (the seeds not loaded) is left alone."""
-    row = next((r for r in ((getattr(manager, 'objectTables', None) or {}).get('HardwareSystem') or {}).values() if getattr(r, 'name', '') == plan['hardware_system']), None)
+    """fgm-5b: the Hardware Solution the plan is for carries the plan's name in its `task_plan` field (the row, saved; the door derives the same link from the TaskPlan rows on every read, so a re-seed that blanks
+    the code-owned row loses nothing). A server with no HardwareSolution row for it (the seeds not loaded) is left alone."""
+    row = next((r for r in ((getattr(manager, 'objectTables', None) or {}).get('HardwareSolution') or {}).values() if getattr(r, 'name', '') == plan['hardware_system']), None)
     if row is None:
         return None
     row.task_plan = plan['name']

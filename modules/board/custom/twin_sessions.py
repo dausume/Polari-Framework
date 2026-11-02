@@ -10,7 +10,7 @@ sim-1 (HARDWARE_BENCH_CONVERGENCE_PLAN.md §8): twin SESSIONS as TwinSession row
     stop(manager, name)                      DELETE on the worker, close the connection, mark the row ended
     inject(manager, name, body)              {"set":"PD2","level":0} | {"adc":0,"mv":750} | {"reset":1} | {"watch":[..]} | {"run":false} | {"status":1}
     events(manager, name, replay=0)          a Subscription on the session's control stream (see twin_ctl_hub)
-    participants(manager)                    the running sessions as Hardware System participants (`twin:<board>#<n>`)
+    participants(manager)                    the running sessions as Hardware Solution participants (`twin:<board>#<n>`)
 
 Every refusal is a SessionRefused carrying plain words and an HTTP status the door passes on.
 """
@@ -268,8 +268,8 @@ def events(manager, name, replay=0):
     return _hub(manager, row).subscribe(replay=replay)
 
 
-# ------------------------------------------------------------------ the Hardware System
+# ------------------------------------------------------------------ the Hardware Solution
 def participants(manager):
-    """Running sessions as participants, in the shape HardwareSystem.participants_json uses ({role, kind, ref, variant})."""
+    """Running sessions as participants, in the shape HardwareSolution.participants_json uses ({role, kind, ref, variant})."""
     return [{'role': 'twin session %s' % r.participant, 'kind': 'hardware', 'ref': 'TwinSession:%s' % r.name, 'variant': r.participant}
             for r in sorted(_rows(manager), key=lambda r: (r.board, r.instance_index)) if r.state == 'running']

@@ -1,4 +1,4 @@
-"""board_hardware_system_selftest — hsp-1 (HARDWARE_SYSTEM_PINS_PLAN.md §3 hsp-1): the Hardware System, its seven links, its three derived signal paths, the doors on a REAL falcon.App
+"""board_hardware_system_selftest — hsp-1 (HARDWARE_SYSTEM_PINS_PLAN.md §3 hsp-1): the Hardware Solution, its seven links, its three derived signal paths, the doors on a REAL falcon.App
 and the CLI. Run by board_selftest.run(). Every verdict asserted here is compared with the output of the code that OWNS the check (ladder, electrical rules, contract), never with a copy.
 """
 import contextlib
@@ -36,25 +36,25 @@ def run_hardware_system(check):
     with contextlib.redirect_stdout(io.StringIO()):
         t = HS.default_tables()
     res = HS.build(t, strict=True)
-    s = res['HardwareSystem'][0]
+    s = res['HardwareSolution'][0]
     links = {l['name'].partition(':')[2]: l for l in res['SystemLink']}
     xc = {c['name'] for c in t['EnclosureContact']}
 
     # ---- the classes and the seeds
-    new = (B.HardwareSystem, B.SystemLink, B.SignalPath)
-    check('hsp-1: HardwareSystem / SystemLink / SignalPath are BOARD_CLASSES members, each with plain_words', all(c in B.BOARD_CLASSES and getattr(c, 'plain_words', '') for c in new))
+    new = (B.HardwareSolution, B.SystemLink, B.SignalPath)
+    check('hsp-1: HardwareSolution / SystemLink / SignalPath are BOARD_CLASSES members, each with plain_words', all(c in B.BOARD_CLASSES and getattr(c, 'plain_words', '') for c in new))
     seeded = {c: rows for c, _cls, rows in BOARD_SEED_PAIRS}
     quiet = contextlib.redirect_stdout(io.StringIO())
     quiet.__enter__()
     try:
-        built = {n: [cls(**{k: v for k, v in r.items() if k != '_converge'}) for r in seeded[n]] for n, cls in zip(('HardwareSystem', 'SystemLink', 'SignalPath'), new)}
+        built = {n: [cls(**{k: v for k, v in r.items() if k != '_converge'}) for r in seeded[n]] for n, cls in zip(('HardwareSolution', 'SystemLink', 'SignalPath'), new)}
         built_links = [B.SystemLink(**l) for l in res['SystemLink']]
         built_paths = [B.SignalPath(**p) for p in res['SignalPath']]
     finally:
         quiet.__exit__(None, None, None)
     check('hsp-1: seeded code-owned (every row converges), 1 system + 7 links + 3 paths, every row constructs its class',
-          all(seeded.get(n) and all('_converge' in r for r in seeded[n]) for n in ('HardwareSystem', 'SystemLink', 'SignalPath'))
-          and (len(seeded['HardwareSystem']), len(seeded['SystemLink']), len(seeded['SignalPath'])) == (1, 7, 3)
+          all(seeded.get(n) and all('_converge' in r for r in seeded[n]) for n in ('HardwareSolution', 'SystemLink', 'SignalPath'))
+          and (len(seeded['HardwareSolution']), len(seeded['SystemLink']), len(seeded['SignalPath'])) == (1, 7, 3)
           and all(built[n] for n in built))
     again = HS.build(t, strict=True)
     check('hsp-1: the seed rows are DERIVED and reproducible — two builds from the same rows are byte-identical', json.dumps(res, sort_keys=True) == json.dumps(again, sort_keys=True))

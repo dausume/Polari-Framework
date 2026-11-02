@@ -11,7 +11,7 @@ class SimRigTempDerived(treeObject):
     row, the latest moving average of `temp_c` and the boolean `over_threshold` (average > `threshold_c`), decided by the engine's
     ConditionalChain and persisted by its StateChangeCommit — existing node kinds, no new engine arm. `samples` counts the frames
     seen (the ring cursor of `SimRigTempSample`).
-    Related concepts: `SimRigTempSample`, grpcbridge `SimRigState`, `HardwareSolution` uno-temp-split.
+    Related concepts: `SimRigTempSample`, grpcbridge `SimRigState`, `HardwareNoCodeSolution` uno-temp-split.
     """
 
     plain_words = 'The derived temperature state is the server\'s running view of a board\'s temperature: its smoothed value and whether it is above the limit.'

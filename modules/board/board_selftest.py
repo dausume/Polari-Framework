@@ -33,8 +33,8 @@ def rows_and_classes():
           'ucd-doc one: Datasheet — datasheets as documents; ucd-light one: LightState — the light test\'s one wire struct; '
           'fgm-2 seven: PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget, PinLifecycleConstraint — the UNO hardware truth; '
           'hsp-0 three: EnclosureKind, HardwareEnclosure, EnclosureContact — enclosures and exposure maps; '
-          'hsp-1 three: HardwareSystem, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench; bob-0 one: BoardFoothold — the bench contract; bob-2 one: BenchConnection)',
-          len(BOARD_CLASSES) == 72)   # esd-3: + ProtectionPart; drv-0: + PartBoard; esd-0: + EsdProtectionArea; D-bob-3: - BreadboardModel (merged into electrodevice BoardModel); bob-2: + BenchConnection; bob-0: + BoardFoothold; rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
+          'hsp-1 three: HardwareSolution, SystemLink, SignalPath — the hardware system, its links and derived signal paths; pv-4 one: ConfigurationEvent; fgm-6a two: LightStateV2, LightCommand — the light with command confirmation; sim-1 one: TwinSession — a running simulated board; sim-3 one: BenchInteraction — what a person did on the sim bench; bob-0 one: BoardFoothold — the bench contract; bob-2 one: BenchConnection)',
+          len(BOARD_CLASSES) == 77)   # esd-3: + ProtectionPart; drv-0: + PartBoard; esd-0: + EsdProtectionArea; D-bob-3: - BreadboardModel (merged into electrodevice BoardModel); bob-2: + BenchConnection; bob-0: + BoardFoothold; rm-2a: + RegisterAccessKind; fgm-6a: + LightStateV2, LightCommand; ins-1: + SimInstallConfirmation; chp-0: + ChipLadderEntry; bench-0: + Bench, BreadboardModel
     check('EVERY register §1 device is a BoardDefinition (%d)' % len(snap['devices']), len(B) == len(snap['devices']) == 33)
     check('EVERY register §1a adapter is an AdapterDefinition (%d)' % len(snap['adapters']), len(A) == len(snap['adapters']) == 13)
     reg = '/'.join([os.path.dirname(os.path.abspath(__file__))] + ['..'] * 4 + ['AI-Notes', 'designs', 'HARDWARE_CAPABILITY_REGISTER.md'])
@@ -406,6 +406,8 @@ def main():
     run_enclosure(check)
     from board.board_hardware_system_selftest import run_hardware_system   # hsp-1: the hardware system, its links, the three signal paths, the doors
     run_hardware_system(check)
+    from board.board_solution_rename_selftest import run_solution_rename   # the 2026-11-02 rename: old rows converge onto HardwareNoCodeSolution / HardwareSolution by name
+    run_solution_rename(check)
     from board.board_pin_view_selftest import run_pin_view   # pv-0: math-defined shapes, protocol families, the pin-view doors, stages, the data pages
     run_pin_view(check)
     from board.board_pin_view_modes_selftest import run_pin_view_modes   # pv-2: drive + signal modes, multi-protocol / activated-only filters, drive row filters, label layout

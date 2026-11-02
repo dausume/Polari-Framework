@@ -47,7 +47,7 @@ def _bench_rows():
                    max_height=300),
             _table('sim-sessions', 1, 7, 'Sessions - click one to bind the picture to it', '', data_path='/api/board/twins?rev=r{scope:rev}',
                    select_field='name', select_scope='session', selected_value='{scope:session}',
-                   description='What this is for: the simulated boards that are switched on. One row = one session. name is its name, config the firmware it runs, participant the name the Hardware System '
+                   description='What this is for: the simulated boards that are switched on. One row = one session. name is its name, config the firmware it runs, participant the name the Hardware Solution '
                                'lists it under, state running or ended, remaining_s the seconds left before it stops by itself. Click a running session to bind the picture to it (click again, or '
                                'press Escape, to unbind).',
                    columns=_SESSION_COLS, max_height=300)], css_class='side-by-side', min_height=260),

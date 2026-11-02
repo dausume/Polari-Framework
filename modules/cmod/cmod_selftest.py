@@ -671,8 +671,8 @@ def demo4_targets():
 
     r = c.simulate_get('/api/cmod/graphs/uno-sim-rig-graph')
     used_by = r.json.get('used_by') or []
-    check('the FORWARD link: HardwareSolution.cgraph names this graph (uno-temp-split)',
-          any(getattr(h, 'cgraph', '') == 'uno-sim-rig-graph' for h in tables.get('HardwareSolution', {}).values()))
+    check('the FORWARD link: HardwareNoCodeSolution.cgraph names this graph (uno-temp-split)',
+          any(getattr(h, 'cgraph', '') == 'uno-sim-rig-graph' for h in tables.get('HardwareNoCodeSolution', {}).values()))
     check('the REVERSE link resolves on GET /api/cmod/graphs/{g}: used_by lists uno-temp-split',
           any(h['name'] == 'uno-temp-split' for h in used_by), used_by)
     cov = r.json.get('purpose_coverage') or {}

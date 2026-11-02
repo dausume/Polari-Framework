@@ -1,7 +1,7 @@
 """
 @module board.custom.hwsys_system
 
-hsp-1 (L6): THE HARDWARE SYSTEM ROW(S). Today one: `uno-light-system` at stage S1-breadboard — the UNO with its two chips, the bench circuit `uno-button-clock` (button SW1, LED1,
+hsp-1 (L6): THE HARDWARE SOLUTION ROW(S). Today one: `uno-light-system` at stage S1-breadboard — the UNO with its two chips, the bench circuit `uno-button-clock` (button SW1, LED1,
 R1, the D6 -> D3 jumper), the host's serial/bridge runtime, the firmware, Polari and the person pressing the button. Participants use the SHAPE of a cmod Purpose's participants
 (cmod.custom.purpose_seeds._PARTICIPANTS: role / kind / ref / variant); `kind` is extended with hardware · software · person and `ref` is Class:name. Every ref is DERIVED from a row
 (the circuit's component kinds, the bridge seed, the BoardPinNet wiring); nothing about a part is typed here a second time. Verification and the undetermined text are the

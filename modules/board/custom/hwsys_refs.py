@@ -1,7 +1,7 @@
 """
 @module board.custom.hwsys_refs
 
-hsp-1: does a `Class:name` ref RESOLVE to a row? One place for the whole Hardware System arc (links, paths, selftest). The board tables in hand are searched
+hsp-1: does a `Class:name` ref RESOLVE to a row? One place for the whole Hardware Solution arc (links, paths, selftest). The board tables in hand are searched
 first (so a row removed from `tables` is gone); a class owned by another module (hwnocode Runtime, grpcbridge bridge, cmod FirmwareSolution ...) is read from
 that module's code-owned seeds, imported lazily so board still loads when they are absent; a live `manager` overlays all of it. `Person` has no class yet and
 never resolves (said, not hidden).

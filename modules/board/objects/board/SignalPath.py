@@ -7,12 +7,12 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 
 class SignalPath(treeObject):
-    """What it is: ONE LOGICAL SIGNAL WALKED END TO END across a `HardwareSystem` — button press to the Polari page, the page's toggle to the LED, the LED line to
+    """What it is: ONE LOGICAL SIGNAL WALKED END TO END across a `HardwareSolution` — button press to the Polari page, the page's toggle to the LED, the LED line to
     the sense pin. DERIVED (recomputed on every seed and on every read of the door, never typed): `hops_json` is the ordered list of
     {n, kind (participant | pin | enclosure-crossing | net | link | contract | firmware), ref, what, check, verdict, detail}. Each hop's verdict comes from
     the code that owns that check — the availability ladder's rung, an electrical rule, the pin lifecycle, the contract hash, a twin proof — or says
     `unchecked`; a ref that does not resolve is an explicit blocked / undetermined hop naming what is missing, never a gap. The path verdict is the worst hop.
-    Related concepts: `HardwareSystem`, `SystemLink`, `EnclosureContact`, `PinFunction`, `WireContract`.
+    Related concepts: `HardwareSolution`, `SystemLink`, `EnclosureContact`, `PinFunction`, `WireContract`.
     """
 
     plain_words = ('A signal path follows one signal from where it starts to where it ends, hop by hop — each pin, wall, wire, program and message on '
@@ -24,7 +24,7 @@ class SignalPath(treeObject):
                  summary: str = '', notes: str = '', manager=None):
         self.name = name  # '<system>:<slug>'
         self.title = title
-        self.system = system  # the HardwareSystem row
+        self.system = system  # the HardwareSolution row
         self.direction = direction  # up (device -> Polari) | down (Polari -> device) | loop (device -> device)
         self.origin = origin
         self.destination = destination

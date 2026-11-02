@@ -19,7 +19,7 @@ class Runtime(treeObject):
     JavaFX process — his "Native Bridge Frontend"; not yet placed by any node, reserved). Every no-code node's `runtime`
     (on `HardwareNodePlacement.runtime` and the cmod graph payload) names one of these rows — derived, never typed in:
     hwnocode.custom.runtimes.runtime_for_kind is the ONE place that maps a node's kind/placement to a Runtime name.
-    Related concepts: `HardwareNodePlacement`, `HardwareSolution`, cmod `CGraphNode`, `HardwareInterfaceBinding`.
+    Related concepts: `HardwareNodePlacement`, `HardwareNoCodeSolution`, cmod `CGraphNode`, `HardwareInterfaceBinding`.
     """
 
     plain_words = ('A runtime is one place a piece of a no-code solution can actually run — the device, its twin, the Java '

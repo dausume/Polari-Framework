@@ -1,7 +1,7 @@
 """
 @module board.custom.hwsys_doors
 
-hsp-1 (L9): the bodies of the Hardware System doors, kept out of board_object_api (file size). Each takes the manager and answers (status, payload) over the LIVE rows (the seeds fill what a server lacks, said in
+hsp-1 (L9): the bodies of the Hardware Solution doors, kept out of board_object_api (file size). Each takes the manager and answers (status, payload) over the LIVE rows (the seeds fill what a server lacks, said in
 `source`); everything is computed on every read from the owners of each check — nothing is stored, nothing blocks.
 
 GET /api/hardware-systems                        every system: stage, solution, link count, each path's verdict
@@ -28,12 +28,12 @@ def _summary(res, s):
 
 def systems(manager):
     res, src = _built(manager)
-    rows = [_summary(res, s) for s in res['HardwareSystem']]
+    rows = [_summary(res, s) for s in res['HardwareSolution']]
     return 200, {'ok': True, 'source': src, 'rows': rows, 'count': len(rows)}
 
 
 def _find(res, name):
-    return next((s for s in res['HardwareSystem'] if s['name'] == name), None)
+    return next((s for s in res['HardwareSolution'] if s['name'] == name), None)
 
 
 def system_one(manager, name):

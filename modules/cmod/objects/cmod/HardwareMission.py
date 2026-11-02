@@ -14,7 +14,7 @@ class HardwareMission(treeObject):
     The row is the source of truth for everything a person decides. Whether the Mission can be done with the real bound hardware
     (`resolution`) and each Purpose's own status are DERIVED when asked (`cmod.custom.mission_derived`) and have NO field here, on purpose.
     Related concepts: `CapabilityDefinition` (a Purpose), `cmod.custom.mission_nocode` (the Mission drawn as no-code),
-    `HardwareSystem` (the stage vocabulary).
+    `HardwareSolution` (the stage vocabulary).
     """
 
     plain_words = ('A Hardware Mission is the reason a piece of hardware exists: one goal, the Purposes that serve it and how much each '

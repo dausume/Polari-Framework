@@ -1334,12 +1334,12 @@ FEATURE_IMPORT_BLOCKS = (
                                'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
                                'PinLifecycleConstraint',   # fgm-2: the UNO hardware truth (seven)
                                'EnclosureKind', 'HardwareEnclosure', 'EnclosureContact',   # hsp-0: enclosures + exposure maps (three)
-                               'HardwareSystem', 'SystemLink', 'SignalPath',   # hsp-1: hardware system, links, signal paths (three)
+                               'HardwareSolution', 'SystemLink', 'SignalPath',   # hsp-1: hardware system, links, signal paths (three)
                                'ConfigurationEvent',   # pv-4: real-world configuration changes (observed, never seeded)
                                'BenchInteraction',   # sim-3: a person's actions on the sim bench (observed, never seeded)
                                'TwinSession',   # sim-1: twin sessions - a running simulated board with a live control port (observed, never seeded)
                                'SimInstallConfirmation',   # ins-1: a person's tick that the simulated board does what the firmware says (never seeded)
-                               'FirmwareStateObject', 'FirmwareStateField', 'BoardFoothold', 'BenchConnection', 'PartBoard', 'EsdProtectionArea', 'ProtectionPart', 'BenchSolution', 'BenchConditions',   # fst-0: a firmware's state objects + fields, derived on read (never seeded)
+                               'FirmwareStateObject', 'FirmwareStateField', 'BoardFoothold', 'BenchConnection', 'PartBoard', 'EsdProtectionArea', 'ProtectionPart', 'BenchSolution', 'BenchConditions', 'HardwareSystem', 'ThermalSystem', 'ThermalMitigation', 'ThermalSolution', 'BenchSystem',   # fst-0: a firmware's state objects + fields, derived on read (never seeded)
                                'BOARD_CLASSES')),   # brd-bo: + THE BOARD OBJECT's ten; fs-2a: + TargetCompatibilityRule; fs-2d: + KitPart; ucd-0a: + the
                                # hardware chain's nine; ucd-0b2a: + address space as rows (four); ucd-0e1: + the button-clock wire classes (two);
                                # ucd-doc: + Datasheet
@@ -1377,9 +1377,9 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),
-    # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareSolution across board / bridge / backend / browser; the placement rule; hn-split
+    # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareNoCodeSolution across board / bridge / backend / browser; the placement rule; hn-split
     ('hwnocode', (
-        ('hwnocode.hwnocode_basis', ('HardwareSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'ButtonClockDerived', 'HWNOCODE_CLASSES')),
+        ('hwnocode.hwnocode_basis', ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'ButtonClockDerived', 'HWNOCODE_CLASSES')),
         ('hwnocode.hwnocode_seed', ('HWNOCODE_SEED_PAIRS',)),
         ('hwnocode.hwnocode_page', ('SEED_HWNOCODE_PAGE_DISPLAYS',)),
     )),

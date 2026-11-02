@@ -8,7 +8,7 @@ of polls and interrupts per PC … two PCs, four columns"). A hart = one PC (RIS
                                                    columns (loop -> polls, isr -> interrupts, init -> neither, called -> folded into its caller);
                                                    the numbers come from the cycle record of `variant` (board.custom.cycle_records, cyc-0) - -1 where none
   system_budget(plan, variant, knobs)           -> {harts[], columns (= 2 x harts), links[], tier, schedule_model, basis}
-  bench_budget(bench, manager, knobs)           -> the same for the REAL boards on a Bench: a board with a Mission on a Hardware System gets its plan's
+  bench_budget(bench, manager, knobs)           -> the same for the REAL boards on a Bench: a board with a Mission on a Hardware Solution gets its plan's
                                                    budget; any other board gets its hart facts and EMPTY columns ("no firmware assigned") - so the page
                                                    serves both planning (a Mission) and analysing what is on a bench (his ask).
 

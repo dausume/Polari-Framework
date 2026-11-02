@@ -83,7 +83,7 @@ def _bench_tab():
 def _plan_tab():
     return _tab('plan', 'Plan: the Mission (uno-light)', [
         _row(0, [_table('bgp-harts', 0, 12, 'The harts the Task Plan names', 'HardwareMission',
-                        description='PLANNING: the budget of the Mission\'s Task Plan on its Hardware System (derived now, the plan\'s edits applied; numbers from the Mission\'s cycle '
+                        description='PLANNING: the budget of the Mission\'s Task Plan on its Hardware Solution (derived now, the plan\'s edits applied; numbers from the Mission\'s cycle '
                                     'record). GET %s?view=harts.' % _M, columns=_HART_COLS, data_path=_M + '?view=harts')], min_height=200)] + _two_columns('bgp', _M, 'this plan'),
         description='PLANNING: the Mission\'s plan as a budget. ' + _INTRO)
 

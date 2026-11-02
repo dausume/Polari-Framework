@@ -590,7 +590,7 @@ def construct_cmod_endpoints(polServer):
 
 
 def construct_hwnocode_endpoints(polServer):
-    # hn-0: /api/hwnocode — hardware solutions, placement, the split, the runtime suggestion, the chart data; + the node kinds on the palette
+    # hn-0: /api/hwnocode — cross-domain solutions, placement, the split, the runtime suggestion, the chart data; + the node kinds on the palette
     from hwnocode.hwnocode_endpoints import construct_hwnocode_endpoints as build
     return build(polServer)
 

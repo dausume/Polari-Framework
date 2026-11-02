@@ -44,7 +44,7 @@ we will want our tasks to be linked to their no-code solutions that compose them
 `assignments` row GET /api/firmware/solutions/{name} returns now carries `composed_by` — {graph, node, canvas_route,
 solution, capabilities} (`_composed_by`, below) — the REVERSE link from a task to where it is composed: the CGraph +
 CGraphNode it is (task == the node's own `instance`), the /display/c-canvas route that opens straight at that node,
-any HardwareSolution whose own graph this is, and which Capability names it. The forward half (a c-canvas node
+any HardwareNoCodeSolution whose own graph this is, and which Capability names it. The forward half (a c-canvas node
 knowing its own firmware wiring) is GET /api/cmod/graphs/{graph}'s per-node `firmware` field (cmod_api.CModAPI).
 What "defining tasks in C using no-code" IS today, named plainly (no cmod-2 built this session): a task's C BODY is
 hand-written (cmod.custom.ingest parses it into CFunctionAtom rows — ports, resources, cost); the GLUE around it
@@ -321,12 +321,12 @@ class FirmwareAPI(treeObject):
         REVERSE link from a task row to where it is COMPOSED: the CGraph + the CGraphNode (same `task`/`instance`
         name — RegisterAssignment.task and ScheduleSlot.task are already the CGraphNode's own `instance`, cmod.
         custom.firmware.assignments_for/schedule_for), the canvas route that opens straight at that node, any
-        SolutionDefinition/HardwareSolution whose own graph IS this CGraph (the same `cgraph` field GET /api/cmod/
+        SolutionDefinition/HardwareNoCodeSolution whose own graph IS this CGraph (the same `cgraph` field GET /api/cmod/
         graphs/{graph}'s `used_by` already reads, cmod_api.CModAPI.on_get_graph_one), and which of this solution's
         own Capabilities (self._capabilities) name this task. Never a new graph, never a new canvas — a read over
         rows already produced elsewhere, same posture as every other *_api.py in this arc."""
         graph = getattr(s, 'graph', '')
-        hw = sorted({getattr(r, 'name', '') for r in self._rows('HardwareSolution') if getattr(r, 'cgraph', '') == graph})
+        hw = sorted({getattr(r, 'name', '') for r in self._rows('HardwareNoCodeSolution') if getattr(r, 'cgraph', '') == graph})
         caps = caps if caps is not None else self._capabilities(s)
         cap_names = sorted({c['name'] for c in caps if task in c.get('task_names', [])})
         # D-ucd-12: `purposes` is the same list as `capabilities` (a task may be named by several Purposes) — the

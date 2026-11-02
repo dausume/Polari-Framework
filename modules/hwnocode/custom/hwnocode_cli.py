@@ -3,7 +3,7 @@
 
 `pol hwnocode` — hardware as no-code (HARDWARE_NOCODE_PLAN.md, hn-0):
 
-    solutions                       the HardwareSolutions: subgraph, interface, runtime knob, status
+    solutions                       the HardwareNoCodeSolutions: subgraph, interface, runtime knob, status
     place <solution>                the placement report: every node → board | twin | bridge | backend | browser, and why
                                     (a Python node on the device side is REFUSED, naming it)
     render <solution> [--work W]    hn-split: the board half through cmod-glue into W/project (its files_sha256 must EQUAL cmod-1's

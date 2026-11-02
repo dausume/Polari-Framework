@@ -1,7 +1,7 @@
 """
 @module hwnocode.custom.seed_rows
 
-The code-owned rows of hn-0, as dicts (hwnocode_seed upserts them): the HardwareSolution `uno-temp-split`, its canvas
+The code-owned rows of hn-0, as dicts (hwnocode_seed upserts them): the HardwareNoCodeSolution `uno-temp-split`, its canvas
 SolutionDefinition + the backend half hn-split derives, the AnalysisDefinition + EventTrigger that run the backend half per frame,
 the HardwareInterfaceBinding that IS its hw-interface node (a grpcbridge row: SimRigState `uno-digital-twin` ↔ the UNO twin's pty
 — or the detected board's serial port in hardware mode — on bridge `uno-temp-split`), and one HardwareNodePlacement row per node.
@@ -21,7 +21,7 @@ SOLUTIONS = [{
     'variant_kind': 'h', 'solution': S.SOLUTION, 'backend_solution': '%s.backend' % S.SOLUTION, 'cgraph': S.CGRAPH,
     'board_definition': S.BOARD, 'board_instance': S.ROUTE['board_instance'], 'interface': S.BINDING, 'displays': S.DISPLAY,
     'firmware_runtime': 'bare-c', 'hardware_mode': S.ROUTE['mode'], 'route_report': S.ROUTE['route_report'], 'notes': ''}, {
-    # ucd-1 (UNO_CORE_DEMO_PLAN.md §3): the core demo's OWN HardwareSolution row, so `pol hwnocode solutions` /
+    # ucd-1 (UNO_CORE_DEMO_PLAN.md §3): the core demo's OWN HardwareNoCodeSolution row, so `pol hwnocode solutions` /
     # /display/hardware-solutions list it beside uno-temp-split. Its `cgraph` names the FirmwareSolution's graph
     # ucd-0e2b has not built yet (its Firmware Run state is deliberately 'planned', solutions.py), so placement
     # REFUSES, named — the same honest-refusal path uno-temp-split would take if its own cgraph vanished; this row
@@ -65,7 +65,7 @@ def _placement(hs):
 
 
 def solution_rows():
-    """HardwareSolution + HardwareNodePlacement rows (derived fields filled)."""
+    """HardwareNoCodeSolution + HardwareNodePlacement rows (derived fields filled)."""
     from hwnocode.custom import placement as PL
     from hwnocode.custom import split as SP
     sols, places = [], []
@@ -102,7 +102,7 @@ def solution_definitions():
         rep = _placement(hs)
         if rep['nodes'] and not rep['refusals']:
             half = PL.backend_partition(d, rep, hs['backend_solution'])
-            half['compiledBy'] = {'compiler': 'hn-split', 'sourceRows': ['HardwareSolution:%s' % hs['name']],
+            half['compiledBy'] = {'compiler': 'hn-split', 'sourceRows': ['HardwareNoCodeSolution:%s' % hs['name']],
                                   'notes': 'the backend half (placement rule §2b)'}
             out.append({'name': hs['backend_solution'], 'function_name': hs['backend_solution'].replace('-', '_').replace('.', '_'),
                         'target_runtime': 'python_backend', 'definition': json.dumps(half), 'contract_json': json.dumps(S.contract()),

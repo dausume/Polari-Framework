@@ -1,7 +1,7 @@
 """
 @module cmod.cmod_task_plan_page
 
-fgm-3: /display/task-plan - the Task Plan of the light Mission on its Hardware System as CONFIGURED tables over the derived door (no raw JSON, no new component): the tasks with their triggers, deadlines
+fgm-3: /display/task-plan - the Task Plan of the light Mission on its Hardware Solution as CONFIGURED tables over the derived door (no raw JSON, no new component): the tasks with their triggers, deadlines
 and priorities (derived and edited side by side), the agreement check, the triggers in detail, the shared data an interrupt and the main loop both touch, the hand edits, and Designed for / Also runs on.
 Reads GET /api/missions/<name>/task-plan?view=... (cmod.custom.task_plan_doors). With no stored solve run the page asks the attempt engine now (solve=now, cached) and says so.
 """

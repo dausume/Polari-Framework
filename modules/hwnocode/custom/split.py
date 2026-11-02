@@ -1,7 +1,7 @@
 """
 @module hwnocode.custom.split
 
-`hn-split` — THE COMPILER that partitions a HardwareSolution (HARDWARE_NOCODE_PLAN.md §1d, §4 h; a GraphCompilerDefinition row in
+`hn-split` — THE COMPILER that partitions a HardwareNoCodeSolution (HARDWARE_NOCODE_PLAN.md §1d, §4 h; a GraphCompilerDefinition row in
 polariNoCode.graph_compilers): the placement rule first (refusals stop it, naming the node or the edge), the firmware_runtime knob
 (hn-0: bare-c only), then
 
@@ -11,7 +11,7 @@ polariNoCode.graph_compilers): the placement rule first (refusals stop it, namin
   browser half  the configured DisplayDefinition rows (seeded; nothing compiled)
 
 The split's record (custom/splits/<solution>.json) is what `pol hwnocode render | build` and the probe write, and what the seed
-projects into the HardwareSolution row — nothing is rendered or built at boot.
+projects into the HardwareNoCodeSolution row — nothing is rendered or built at boot.
 """
 import datetime
 import hashlib
@@ -50,15 +50,15 @@ def _row_dict(r):
 
 
 def solution_rows(name, manager=None):
-    """{'solution': HardwareSolution dict, 'definition': the canvas definition dict, 'cgraph': cmod rows, 'board': BoardDefinition
+    """{'solution': HardwareNoCodeSolution dict, 'definition': the canvas definition dict, 'cgraph': cmod rows, 'board': BoardDefinition
     dict} — live rows when a manager holds them, else the code-owned seeds."""
     from hwnocode.custom import seed_rows as SR
     t = (getattr(manager, 'objectTables', None) or {}) if manager is not None else {}
-    hs = next((_row_dict(r) for r in (t.get('HardwareSolution') or {}).values() if r.name == name), None)
+    hs = next((_row_dict(r) for r in (t.get('HardwareNoCodeSolution') or {}).values() if r.name == name), None)
     if hs is None:
         hs = next((dict(r) for r in SR.SOLUTIONS if r['name'] == name), None)
     if hs is None:
-        raise SplitRefused('no HardwareSolution %r (seeded: %s)' % (name, ', '.join(r['name'] for r in SR.SOLUTIONS)))
+        raise SplitRefused('no HardwareNoCodeSolution %r (seeded: %s)' % (name, ', '.join(r['name'] for r in SR.SOLUTIONS)))
     sd = next((r for r in (t.get('SolutionDefinition') or {}).values() if getattr(r, 'name', '') == hs['solution']), None)
     if sd is not None:
         raw = getattr(sd, 'definition', '{}')
@@ -106,7 +106,7 @@ def compile_parts(p):
                            'HardwareSubgraph (add it to the CGraph rows of %s)' % (', '.join(loose), hs['cgraph']))
     if not (runs and not subs):
         # the OLDER shape (a HardwareSubgraph embedded directly on this canvas) still requires exactly one, matching
-        # the solution's own cgraph — unchanged check, for any HardwareSolution that is NOT a fs-1 Cross-Domain canvas.
+        # the solution's own cgraph — unchanged check, for any HardwareNoCodeSolution that is NOT a fs-1 Cross-Domain canvas.
         if len(subs) != 1 or (subs[0].get('boundObjectFieldValues') or {}).get('cgraph') != hs['cgraph']:
             raise SplitRefused('hn-0 renders ONE HardwareSubgraph whose cgraph is the solution\'s (%s); the canvas has %s'
                                % (hs['cgraph'], ', '.join('%s → %s' % (s['stateName'], (s.get('boundObjectFieldValues') or {}).get('cgraph'))
@@ -123,7 +123,7 @@ def compile_parts(p):
     backend_name = hs.get('backend_solution') or '%s.backend' % hs['name']
     backend = PL.backend_partition(p['definition'], rep, backend_name)
     from polariNoCode.graph_compilers import stamp_provenance
-    stamp_provenance(backend, 'hn-split', ['HardwareSolution:%s' % hs['name'], 'SolutionDefinition:%s' % hs['solution'],
+    stamp_provenance(backend, 'hn-split', ['HardwareNoCodeSolution:%s' % hs['name'], 'SolutionDefinition:%s' % hs['solution'],
                                            'CGraph:%s' % hs['cgraph']], notes='the backend half of %s (placement rule §2b)' % hs['name'])
     placed = [[n['layer'], n['node'], n['placement']] for n in rep['nodes']]
     split_sha = sha(json.dumps({'placement': placed, 'backend': backend['stateInstances'], 'glue_files_sha256': files_sha},
@@ -135,14 +135,14 @@ def compile_parts(p):
 
 
 def compile_solution(domain_rows):
-    """The seam (polariNoCode.graph_compilers `hn-split`): {'HardwareSolution': [row], 'SolutionDefinition': [row], 'CGraph': [row],
+    """The seam (polariNoCode.graph_compilers `hn-split`): {'HardwareNoCodeSolution': [row], 'SolutionDefinition': [row], 'CGraph': [row],
     'CGraphNode': [...], 'CGraphEdge': [...], 'BoardDefinition': [row]?} → {definition (the backend half), artifacts (the board half,
     cmod-glue's), provenance}."""
-    hs = (domain_rows.get('HardwareSolution') or [None])[0]
+    hs = (domain_rows.get('HardwareNoCodeSolution') or [None])[0]
     sd = (domain_rows.get('SolutionDefinition') or [None])[0]
     g = (domain_rows.get('CGraph') or [None])[0]
     if not hs or not sd or not g:
-        raise SplitRefused('hn-split needs one HardwareSolution, its SolutionDefinition and its CGraph row')
+        raise SplitRefused('hn-split needs one HardwareNoCodeSolution, its SolutionDefinition and its CGraph row')
     raw = sd.get('definition') if isinstance(sd, dict) else getattr(sd, 'definition', '{}')
     definition = raw if isinstance(raw, dict) else json.loads(raw or '{}')
     board = (domain_rows.get('BoardDefinition') or [None])[0]

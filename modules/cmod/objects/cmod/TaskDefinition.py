@@ -14,7 +14,7 @@ class TaskDefinition(treeObject):
     higher priority; equal deadlines: the more important Purpose wins; still equal: the Mission's Purpose order, marked as a tie); 1 is the highest and 0 means the task runs once at boot before
     any scheduling. `context` is where the task runs: init | isr | loop | task (a thread on an RTOS). `agreement` compares that context with the schedule lane the task's own atoms derive
     (`cmod.custom.firmware.schedule_for`): agrees | disagrees | unchecked, each with its reason - never silently re-labelled.
-    Related concepts: `TaskPlan` (the whole set for one Hardware System), `TaskTrigger`, `TaskStructBinding`, `HardwareMission`, `CapabilityDefinition` (the Purposes), `ScheduleSlot`, `DerivedOverride`.
+    Related concepts: `TaskPlan` (the whole set for one Hardware Solution), `TaskTrigger`, `TaskStructBinding`, `HardwareMission`, `CapabilityDefinition` (the Purposes), `ScheduleSlot`, `DerivedOverride`.
     """
 
     plain_words = ('A task is one job the board does: what starts it, what steps it takes, how soon it must be done, and how urgent it is. '

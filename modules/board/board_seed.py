@@ -15,13 +15,13 @@ from board.board_basis import (BoardDefinition, BoardInstance, FirmwareBuild, Pr
 from board.board_basis import (PackageDefinition, PackageContact, UsbInterfaceDefinition, BoardComponent, ElectricalCharacteristic, PinGroupBudget,
                                PinLifecycleConstraint)   # fgm-2: the UNO hardware truth
 from board.board_basis import EnclosureKind, HardwareEnclosure, EnclosureContact   # hsp-0: enclosures + exposure maps
-from board.board_basis import HardwareSystem, SystemLink, SignalPath   # hsp-1: Hardware System, links, signal paths
+from board.board_basis import HardwareSolution, SystemLink, SignalPath   # hsp-1: Hardware Solution, links, signal paths
 from board.board_basis import ConfigurationEvent   # pv-4
 from board.board_basis import TwinSession, BenchInteraction   # sim-1; sim-3
 from board.board_basis import SimInstallConfirmation   # ins-1
 from board.board_basis import FirmwareStateObject, FirmwareStateField   # fst-0
 from board.board_basis import BoardFoothold, BenchConnection, PartBoard, EsdProtectionArea, ProtectionPart   # bob-0, bob-2, drv-0, esd-0, esd-3
-from board.board_basis import BenchSolution, BenchConditions   # cfg-0
+from board.board_basis import BenchSolution, BenchConditions, HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem   # cfg-0, bss-0
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -88,6 +88,11 @@ BOARD_SEED_PAIRS = [
     ('BenchConnection', BenchConnection, []),   # bob-2: a person's wires on a bench (observed, never seeded)   # bob-0: derived on read (board.custom.footholds) or stored by a PCB ingest, never seeded
     ('BenchSolution', BenchSolution, []),   # cfg-0: a person's rows (the UNO's is seeded in cfg-1)
     ('BenchConditions', BenchConditions, []),
+    ('HardwareSystem', HardwareSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
+    ('ThermalSystem', ThermalSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
+    ('ThermalMitigation', ThermalMitigation, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
+    ('ThermalSolution', ThermalSolution, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
+    ('BenchSystem', BenchSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
     ('FirmwareStateObject', FirmwareStateObject, []),   # fst-0: derived on read (board.custom.firmware_state), never seeded
     ('FirmwareStateField', FirmwareStateField, []),
     ('UnoAnalogState', UnoAnalogState, []),
@@ -137,11 +142,11 @@ BOARD_SEED_PAIRS += [(c, cls, _register_owned(SEED_BOARD_OBJECT[c])) for c, cls 
     ('PinLifecycleConstraint', PinLifecycleConstraint),
     # hsp-0: kinds catalogue (tentative), the enclosures, the exposure maps — derived from the rows above (board.custom.exposure)
     ('EnclosureKind', EnclosureKind), ('HardwareEnclosure', HardwareEnclosure), ('EnclosureContact', EnclosureContact))]
-# hsp-1: the Hardware System, its links and its three signal paths — code-owned and RECOMPUTED on every seed (board.custom.hardware_system.seed_rows: derived from the rows above
+# hsp-1: the Hardware Solution, its links and its three signal paths — code-owned and RECOMPUTED on every seed (board.custom.hardware_system.seed_rows: derived from the rows above
 # and from the owners of each check; a path is never typed)
 from board.custom import hardware_system as _HWS   # noqa: E402
 _HW_SYSTEM = _HWS.seed_rows()
-BOARD_SEED_PAIRS += [(c, cls, _register_owned(_HW_SYSTEM[c])) for c, cls in (('HardwareSystem', HardwareSystem), ('SystemLink', SystemLink), ('SignalPath', SignalPath))]
+BOARD_SEED_PAIRS += [(c, cls, _register_owned(_HW_SYSTEM[c])) for c, cls in (('HardwareSolution', HardwareSolution), ('SystemLink', SystemLink), ('SignalPath', SignalPath))]
 BOARD_SEED_PAIRS += [('ConfigurationEvent', ConfigurationEvent, [])]   # pv-4: observed (a person's or a bridge's report of a real-world change), never seeded
 BOARD_SEED_PAIRS += [('BenchInteraction', BenchInteraction, [])]   # sim-3: observed, never seeded
 BOARD_SEED_PAIRS += [('TwinSession', TwinSession, [])]   # sim-1: observed (a session is started, never seeded)

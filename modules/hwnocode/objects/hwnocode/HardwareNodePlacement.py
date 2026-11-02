@@ -7,16 +7,16 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 
 class HardwareNodePlacement(treeObject):
-    """What it is: WHERE one node of a `HardwareSolution` runs and WHY (HARDWARE_NOCODE_PLAN.md §2b — the placement is DERIVED,
+    """What it is: WHERE one node of a `HardwareNoCodeSolution` runs and WHY (HARDWARE_NOCODE_PLAN.md §2b — the placement is DERIVED,
     never typed in): c-atom / glue kinds → `board` (`twin` while no BoardInstance is attached: the same .hex in simavr); the
     hw-interface → `bridge` (the split point: the generated Java bridge on the host carries the binding's frames both ways);
     engine state classes → `backend` (the Python engine); displays → `browser`. A Python node found on the device side is
     REFUSED with the reason (RULE 2: C, Verilog or SystemVerilog only on a device) — `refused` names it and `why` says how to
     move it across the hw-interface. Rows are written by `pol hwnocode place` / the seed, one per node.
-    Related concepts: `HardwareSolution`, cmod `CGraphNode`, grpcbridge `HardwareInterfaceBinding`.
+    Related concepts: `HardwareNoCodeSolution`, cmod `CGraphNode`, grpcbridge `HardwareInterfaceBinding`.
     """
 
-    plain_words = 'A node placement says where one block of a hardware solution runs — on the board, in the bridge, on the server or on screen — and why.'
+    plain_words = 'A node placement says where one block of a cross-domain solution runs — on the board, in the bridge, on the server or on screen — and why.'
 
     @treeObjectInit
     def __init__(self, name: str = '', solution: str = '', node: str = '', layer: str = '', kind: str = '', placement: str = '',

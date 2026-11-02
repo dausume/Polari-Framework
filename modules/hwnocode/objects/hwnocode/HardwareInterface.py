@@ -12,7 +12,7 @@ class HardwareInterface(treeObject):
     twin's pty, on one bridge). Every edge that crosses board ⇄ backend must pass through one of these; frames come UP through it
     (the row updates) and commands go DOWN through it (a PUT of the row rides the Commands stream to the firmware). Placement:
     bridge (the generated Java bridge on the host). The binding stays grpcbridge's row; this node only refers to it.
-    Related concepts: `HardwareSolution`, `HardwareSubgraph`, grpcbridge `HardwareInterfaceBinding` / `WireContract`.
+    Related concepts: `HardwareNoCodeSolution`, `HardwareSubgraph`, grpcbridge `HardwareInterfaceBinding` / `WireContract`.
     """
 
     plain_words = 'A hardware interface block is where a drawing crosses from the board to the server: one object row tied to one cable or simulated port.'

@@ -29,7 +29,7 @@ LAYER_CLASSES = ('SocDefinition', 'SocPin', 'BoardHardware', 'BoardNet', 'Connec
                  # hsp-0: enclosures + exposure maps
                  'EnclosureKind', 'HardwareEnclosure', 'EnclosureContact',
                  # hsp-1: the hardware system, its links and signal paths
-                 'HardwareSystem', 'SystemLink', 'SignalPath')
+                 'HardwareSolution', 'SystemLink', 'SignalPath')
 ALIASES = {'uno': 'arduino-uno-r3', 'arduino-uno': 'arduino-uno-r3', 'arduino-uno-r3': 'arduino-uno-r3',
            'c3': 'esp32-c3', 'esp32c3': 'esp32-c3', 'esp32-c3': 'esp32-c3'}
 #: the BoardPin fields that ARE the assignment (what views carry and conflicts compare)

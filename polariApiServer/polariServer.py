@@ -1348,7 +1348,7 @@ class polariServer(treeObject):
             # hsp-0: enclosure kinds (tentative catalogue), enclosures, exposure maps (one row per pin crossing)
             EnclosureKind, HardwareEnclosure, EnclosureContact,
             # hsp-1: the hardware system, its links and its derived signal paths
-            HardwareSystem, SystemLink, SignalPath,
+            HardwareSolution, SystemLink, SignalPath,
             # pv-4: real-world configuration changes of a board (a flash, a wire, a shield, a binding choice, a reset)
             ConfigurationEvent,
             # sim-1: twin sessions (a running simulated board; observed, never seeded)
@@ -1365,6 +1365,7 @@ class polariServer(treeObject):
             EsdProtectionArea,   # esd-0: a piece flagged to survive ESD
             ProtectionPart,   # esd-3: a protection part and its ratings
             BenchSolution, BenchConditions,   # cfg-0: a Bench Solution (references only) + its open-air conditions
+            HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem,   # bss-0: Systems (templates) + the Thermal Solution and its mitigations
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
             PcbPart, PcbSymbol, PcbFootprint, PcbLandPattern, PcbSchematic, PcbSchematicSheet, PcbBoard, PcbPlacement, PcbRoute,
             PcbDrcResult, PcbFabricationExport, PcbFabRuleSet, PcbFabRule,
@@ -1413,7 +1414,7 @@ class polariServer(treeObject):
             AtomJob, IsotopeVariant,
             # sol-0: one run of the attempt engine, its inputs fingerprinted
             SolveRun,
-            # fgm-3: the Task Plan of a Mission on one Hardware System + its Tasks, triggers and shared-data bindings (derived, editable by DerivedOverride)
+            # fgm-3: the Task Plan of a Mission on one Hardware Solution + its Tasks, triggers and shared-data bindings (derived, editable by DerivedOverride)
             TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
             # hsp-3a: catom assertions (what an atom does to a struct / a bridge, verified by a twin record) + the struct -> Polari class map (D-hsp-8)
             CatomAssertion, StructObjectMap,
@@ -1425,7 +1426,7 @@ class polariServer(treeObject):
             ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult,
             # hn-0: hardware as no-code — the solution spanning board/bridge/backend/browser, the placement per node, the canvas
             # node kinds (HardwareSubgraph / HardwareInterface / CAtom) and the split app's derived rows
-            HardwareSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
+            HardwareNoCodeSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample, SimRigTempDerived, Runtime,
             # fs-0/fs-2: the Cross-Domain category's one new node kind (Bridge/Relay/API-call/Frontend-emit reuse existing kinds)
             FirmwareRunState,
             # ucd-1: the uno-button-clock demo's own derived ledger row (SimRigTempDerived's sibling)
@@ -3461,6 +3462,14 @@ class polariServer(treeObject):
         if only_classes is not None:
             seed_pairs = [(n, c, s) for n, c, s in seed_pairs
                           if n in only_classes]
+        # 2026-11-02 rename (D-bss-1): old HardwareSolution rows -> HardwareNoCodeSolution, old system rows -> HardwareSolution, by name, before the
+        # seeds below look for those names. Never deletes, idempotent; a failure must not take the seed pass with it.
+        try:
+            if _feature_available('board'):
+                from board.custom import solution_rename_converge as _solution_rename
+                _solution_rename.converge(self.manager)
+        except Exception as e:
+            print(f'[SolutionRename] convergence skipped: {e}', flush=True)
         for _pair in seed_pairs:
             if not isinstance(_pair, (tuple, list)) or len(_pair) != 3:
                 # A malformed pair must not take every later seed with

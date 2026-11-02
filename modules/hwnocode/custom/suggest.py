@@ -135,4 +135,4 @@ def suggest(name, manager=None, parts=None):
     return {'solution': hs['name'], 'suggested': suggested, 'decisive_rule': decisive['rule'], 'rules': rules, 'reasons': reasons,
             'features': f, 'knob': {'firmware_runtime': hs.get('firmware_runtime') or 'bare-c', 'ok': ok, 'why': why},
             'applied': False,
-            'policy': 'SUGGEST ONLY (D-hn-3): nothing was changed — firmware_runtime stays the person\'s pick on the HardwareSolution row'}
+            'policy': 'SUGGEST ONLY (D-hn-3): nothing was changed — firmware_runtime stays the person\'s pick on the HardwareNoCodeSolution row'}

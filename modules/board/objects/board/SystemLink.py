@@ -7,12 +7,12 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 
 class SystemLink(treeObject):
-    """What it is: ONE CONNECTION BETWEEN TWO PARTICIPANTS of a `HardwareSystem` — U1's serial pins to the 16U2's through two 1 kOhm resistors, the 16U2's
+    """What it is: ONE CONNECTION BETWEEN TWO PARTICIPANTS of a `HardwareSolution` — U1's serial pins to the 16U2's through two 1 kOhm resistors, the 16U2's
     USB to the host, the DTR line through C5 to U1's RESET, the bench jumper from D6 to D3, the button, the LED branch, the bridge to the backend. Each
     endpoint is {participant, refs, what}: the pin set as refs (BoardPin / PackageContact / ConnectorPin / circuit net / runtime port). `medium` and
     `signal_kind` say what it is; `protocol` names the contract when one exists (LightState v1); `via_refs_json` lists the `EnclosureContact` rows the link
     rides on — derived from the exposure maps, never retyped. A link whose source rows are gone from the tables is not listed.
-    Related concepts: `HardwareSystem`, `SignalPath`, `EnclosureContact`, `BoardPinNet`, `WireContract`.
+    Related concepts: `HardwareSolution`, `SignalPath`, `EnclosureContact`, `BoardPinNet`, `WireContract`.
     """
 
     plain_words = ('A system link is one connection in a hardware system: what is at each end, what carries it (a trace, a resistor, a wire, USB, a '
@@ -24,7 +24,7 @@ class SystemLink(treeObject):
                  citations_json: str = '[]', notes: str = '', manager=None):
         self.name = name  # '<system>:<slug>'
         self.title = title
-        self.system = system  # the HardwareSystem row
+        self.system = system  # the HardwareSolution row
         self.endpoint_a_json = endpoint_a_json  # {participant, refs: [Class:name], what}
         self.endpoint_b_json = endpoint_b_json
         self.medium = medium  # trace | series-resistor | capacitor | jumper-wire | usb | serial-port | grpc | http

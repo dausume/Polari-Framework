@@ -67,8 +67,8 @@ from board.objects.board.BenchConnection import BenchConnection  # noqa: F401
 from board.objects.board.PartBoard import PartBoard  # noqa: F401
 from board.objects.board.EsdProtectionArea import EsdProtectionArea  # noqa: F401
 from board.objects.board.ProtectionPart import ProtectionPart  # noqa: F401
-# hsp-1: Hardware System, links, signal paths (HARDWARE_SYSTEM_PINS_PLAN.md L6/L7)
-from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401
+# hsp-1: Hardware Solution, links, signal paths (HARDWARE_SYSTEM_PINS_PLAN.md L6/L7)
+from board.objects.board.HardwareSolution import HardwareSolution  # noqa: F401
 from board.objects.board.SystemLink import SystemLink  # noqa: F401
 from board.objects.board.SignalPath import SignalPath  # noqa: F401
 from board.objects.board.ConfigurationEvent import ConfigurationEvent  # noqa: F401
@@ -76,3 +76,8 @@ from board.objects.board.TwinSession import TwinSession  # noqa: F401
 from board.objects.board.BenchInteraction import BenchInteraction  # noqa: F401   # sim-3
 from board.objects.board.BenchSolution import BenchSolution  # noqa: F401   # cfg-0
 from board.objects.board.BenchConditions import BenchConditions  # noqa: F401   # cfg-0
+from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401   # bss-0
+from board.objects.board.ThermalSystem import ThermalSystem  # noqa: F401   # bss-0
+from board.objects.board.ThermalMitigation import ThermalMitigation  # noqa: F401   # bss-0
+from board.objects.board.ThermalSolution import ThermalSolution  # noqa: F401   # bss-0
+from board.objects.board.BenchSystem import BenchSystem  # noqa: F401   # bss-0

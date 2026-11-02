@@ -1,37 +1,24 @@
 """
-@module board.objects.board.HardwareSystem
-
-HardwareSystem — one class per file (design §7); hsp-1 (HARDWARE_SYSTEM_PINS_PLAN.md L6).
+HardwareSystem - one class per file (design section 7); bss-0 (AI-Notes/plans/BENCH_SOLUTION_SIM_PLAN.md section 5, "template"; D-bss-1).
 """
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
 class HardwareSystem(treeObject):
-    """What it is: ONE HARDWARE SYSTEM — the boards, chips, bench circuit and the host runtime (software and the person) that together make one working
-    thing, at one development stage (S1 breadboard · S2 protoboard · S3 pcb · S4 vendor-soc · S5 blcnc-soc). Its `participants_json` uses the same
-    shape as a cmod Purpose's participants ({role, kind, ref, variant}) with the kinds hardware · software · person; `ref` is Class:name. It lists the
-    boards, components and circuits it is made of, the `SystemLink` rows that join two participants (derived, never typed twice) and the Cross-Domain
-    Solution it realises. Its `SignalPath` rows walk a signal end to end across it.
-    Related concepts: `SystemLink`, `SignalPath`, `HardwareEnclosure`, `BoardDefinition`, `CircuitDefinition`, `SolutionDefinition`.
+    """What it is: THE HARDWARE TEMPLATE of a bench concept - which boards MAY be used (a family: the BoardDefinition names that fit) and which bench
+    circuit it carries, with the part choices still open (the exact resistor, the exact LED, which module board). A `HardwareSolution` (renamed from
+    HardwareSystem on 2026-11-02, D-bss-1) is this with every choice made: the specific boards, parts and nets. The user's rule (2026-11-01): a System
+    is the baseline template; a Solution is the finalized specific result.
+    Related concepts: `HardwareSolution` (names this as its `system`), `BoardDefinition`, electrodevice `CircuitDefinition`, `BenchSystem` (composes it).
     """
 
-    plain_words = ('A hardware system is the whole working thing: the board and its chips, the parts on the bench, the computer program that talks to it '
-                   'and the person who uses it — and how far along the build is (breadboard, protoboard, printed board, bought chip, our own chip).')
+    plain_words = ('A hardware system is the template for the physical side of a bench: which kinds of board fit and what circuit goes on it, '
+                   'before the exact parts are picked.')
 
     @treeObjectInit
-    def __init__(self, name: str = '', title: str = '', stage: str = 'S1-breadboard', participants_json: str = '[]', boards_json: str = '[]',
-                 components_json: str = '[]', circuits_json: str = '[]', links_refs_json: str = '[]', task_plan: str = '', solution: str = '',
-                 verification: str = 'unverified', undetermined: str = '', notes: str = '', manager=None):
-        self.name = name  # e.g. 'uno-light-system'
+    def __init__(self, name: str = '', title: str = '', boards: str = '', circuit: str = '', notes: str = '', manager=None):
+        self.name = name
         self.title = title
-        self.stage = stage  # S1-breadboard | S2-protoboard | S3-pcb | S4-vendor-soc | S5-blcnc-soc
-        self.participants_json = participants_json  # [{role, kind: hardware|software|person, ref: Class:name, variant?}]
-        self.boards_json = boards_json  # ["BoardDefinition:..."]
-        self.components_json = components_json  # ["BoardComponent:..." | "CircuitComponentDefinition:..." ...]
-        self.circuits_json = circuits_json  # ["CircuitDefinition:..."]
-        self.links_refs_json = links_refs_json  # DERIVED: ["SystemLink:<name>"]
-        self.task_plan = task_plan  # fgm-5b: the recorded Task Plan of this system ('<mission>:<system>'; '' until one is recorded) - set when the plan is stored, derived again on every door read
-        self.solution = solution  # the Cross-Domain Solution it realises (SolutionDefinition name)
-        self.verification = verification  # verified | partial | unverified | conflicted
-        self.undetermined = undetermined
+        self.boards = boards      # comma-separated BoardDefinition names that fit this template (the family)
+        self.circuit = circuit    # an electrodevice CircuitDefinition name, or '' when the template is a bare board
         self.notes = notes

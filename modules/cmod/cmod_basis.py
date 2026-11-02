@@ -35,7 +35,7 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 AtomJob, IsotopeVariant,
                 # sol-0: one run of the attempt engine, its inputs fingerprinted
                 SolveRun,
-                # fgm-3: the Task Plan of a Mission on one Hardware System, derived and editable
+                # fgm-3: the Task Plan of a Mission on one Hardware Solution, derived and editable
                 TaskPlan, TaskDefinition, TaskTrigger, TaskStructBinding,
                 # hsp-3a: what a catom asserts it does to a struct / a bridge (verified by a twin record), and the struct -> Polari class map (D-hsp-8)
                 CatomAssertion, StructObjectMap,

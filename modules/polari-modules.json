@@ -314,7 +314,7 @@
     "grpcbridge"
    ],
    "tier": "optional",
-   "description": "Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware \u2014 a HardwareSolution ties a backend solution to a cmod CGraph (the hardware subgraph), the board/twin, the hw-interface (the split point) and its displays; the placement rule derives where every node runs and refuses Python on a device (RULE 2); hn-split renders the board half through cmod-glue; the runtime suggestion is shown, never applied."
+   "description": "Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware \u2014 a HardwareNoCodeSolution ties a backend solution to a cmod CGraph (the hardware subgraph), the board/twin, the hw-interface (the split point) and its displays; the placement rule derives where every node runs and refuses Python on a device (RULE 2); hn-split renders the board half through cmod-glue; the runtime suggestion is shown, never applied."
   },
   "instruments": {
    "kind": "official",
