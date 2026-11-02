@@ -41,6 +41,7 @@ class Reports(unittest.TestCase):
         fact=dict(status='observed',source='test',observed_at=datetime.now(timezone.utc).isoformat(),value=json.dumps({'schemaVersion':1,'cpus':[{'id':0,'online':True,'busyPercent':0}],'allocations':[]}))
         facts['resources.detail_json']=fact;row.capability_evidence_json=json.dumps({'facts':facts})
         self.assertTrue(device_inventory(m)[0]['resourceDetail']['fresh'])
+        self.assertTrue(resource_ledger(m)['devices'][0]['resourceDetail']['fresh'])
         fact['value']=json.dumps({'schemaVersion':1,'cpus':[{'id':0,'online':True}],'allocations':'bad'})
         row.capability_evidence_json=json.dumps({'facts':facts})
         self.assertIsNone(device_inventory(m)[0]['resourceDetail'])

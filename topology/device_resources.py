@@ -364,6 +364,7 @@ def resource_ledger(manager):
                  'agentPresent': device['agentPresent'],
                  'grants': grants, 'consumed': consumed,
                  'reportedAvailability': device.get('reportedAvailability', {}),
+                 'resourceDetail': device.get('resourceDetail'),
                  'reservationsEnforced': False,
                  'appWorkloads': []}
         catalog = {getattr(r, 'name', ''): r for r in _rows(manager, 'IsleCatalogEntry')}
