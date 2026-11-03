@@ -55,8 +55,15 @@ def _structs_tab():
                                     'open it in the Registers tab: its register fields, the firmware\'s settings and every catom that uses it.',
                         columns='route,step,kind,direction,what,status,why', data_path=_STRUCTS + '?view=path&instance={scope:instance}&field={scope:field}&' + _REV,
                         empty_text='Pick a field above.', select_field='pin_ref', select_scope='pin', selected_value='{scope:pin}', row_link_tab_field='tab')],
-             min_height=300)],
-        description='Every struct instance on the bench, its fields, and the signal paths that change each field - drawn from the Catom assertions.')
+             min_height=300),
+        # bss-9 (the handoff's owed item 7): the declared samples of the non-enumerable fields and the topology nodes they block
+        _row(3, [_table('bv-struct-samples', 0, 12, 'Declared samples (the test values of a field a run cannot enumerate)', 'StructFieldSamples',
+                        description='One row per field whose values are DECLARED rather than enumerated (an integer, an analog reading): the values it is tested with, the '
+                                    'topology nodes whose exact requirement is one of them, and the nodes BLOCKED because their value is not declared (the Bench Solution '
+                                    'simulation refuses to run those until a person declares the value). Edit the row to declare values.',
+                        columns='object_map,field,kind,values,declared,used_by_nodes,blocking_nodes,basis,words', data_path=_STRUCTS + '?view=samples&' + _REV,
+                        empty_text='No field has declared samples yet; a node on such a field says so in its blocked words.')], min_height=220)],
+        description='Every struct instance on the bench, its fields, and the signal paths that change each field - drawn from the Catom assertions; the declared samples at the foot.')
 
 
 def _bridges_tab():

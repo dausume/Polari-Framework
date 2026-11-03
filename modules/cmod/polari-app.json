@@ -232,6 +232,8 @@
    "custom/bench_topology_spec",
    "custom/isotope_step_rules",
    "custom/node_run",
+   "custom/node_collaterals",
+   "custom/failure_capture",
    "custom/confirmations",
    "custom/bench_topology_nocode",
    "custom/topology_palette",

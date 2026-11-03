@@ -13,7 +13,9 @@
   "nodes": [
     {"slug": "on-by-button", "title": "light on, by the button", "from": "boot", "via": "press",
      "requirements": {"led_on": 1, "source": "button", "toggles": 1, "status": "active"},
-     "executions": [{"atom": "apps/light.led_toggle", "job": "read-button"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},
+     "executions": [{"atom": "apps/light.led_toggle", "job": "read-button"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}],
+     "collaterals": [{"kind": "net-current", "signal": "PD6", "engine": "ngspice", "bound": "0.005..0.020", "source": "declared",
+                      "notes": "R=220 (the kit's 220 ohm series resistor, board.custom.kit_parts); the LED is the generic indicator model (a knob: measure the kit LED's Vf); bound = the UNO pin's 20 mA limit, above 5 mA to be seen lit"}]},
     {"slug": "on-by-command", "title": "light on, by the command", "from": "boot", "via": "command",
      "requirements": {"led_on": 1, "source": "command", "toggles": 1, "status": "active"},
      "executions": [{"atom": "apps/light.apply_command", "job": "receive-command"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},

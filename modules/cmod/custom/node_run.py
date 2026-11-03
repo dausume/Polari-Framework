@@ -35,6 +35,8 @@ TAIL_CYCLES = 1600000       # 100 ms after the last guard
 DEFAULT_GUARD_S = 0.15      # KNOB: the guard's floor (the 150 ms gap light_twin uses between presses); a node whose executions carry no worst_s gets it too
 GUARD_FACTOR = 2.0          # D-bss-2 (recommended): the guard is 2 x the slowest step rule's worst among the node's executions
 MAX_WATCH = 8               # the twin's limit
+EXEC_SLACK_S = 1e-3         # KNOB (bss-9): executions are counted from the stimulus to this long PAST the met cycle - the -fno-inline build they are counted in
+                            # runs a slower loop pass than the shipped hex, so its own met cycle trails the shipped one by under a pass (27 us here)
 PRESS_HOLD_CYCLES = 80000   # KNOB: a press is a 5 ms pulse (the line low, then back to rest) - light_twin.PRESS_HOLD_CYCLES; a line held low for ever
                             # is not a press (the UNO light toggled twice in the dry run of 2026-11-02 when it was)
 _BUILDS = {}                # variant -> (hex, elf, sha, work): one build per process
@@ -272,6 +274,8 @@ def _noinline(variant):
 
 
 def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi, files=None):
+    """bss-9: one `--fn-cycles <entry>:ret@lo:hi` run per execution - the twin counts only the calls that ENTERED inside the edge's window (the whole-run
+    count of bss-2 stays as the fallback on an older image, said)."""
     from firmwarefaults.custom import harness
     words = []
     for x in sorted(R.rows(manager, 'StructNodeExecution', node=node), key=lambda x: x['order']):
@@ -283,36 +287,80 @@ def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi, files=
         if not syms:
             words.append('%s: no symbol in either build' % fn)
             continue
+        r = harness.run_files(argv + ['--fn-cycles', '0x%X:ret@%d:%d' % (syms[0][0], lo, hi)], hx, files or {}, timeout=300)
+        fc = (r.get('final') or {}).get('fn_cycles') or {}
+        if r.get('ok') and fc.get('window_hi'):
+            n = int(fc.get('n') or 0)
+            words.append('%s: %s (ran n=%d time%s between the stimulus and %g ms past the requirement being met, cycles %d..%d, %s..%s cycles each, in %s; a polled atom '
+                         'runs every loop pass, so n counts passes, not actions)'
+                         % (fn, 'observed' if n else 'not observed', n, '' if n == 1 else 's', EXEC_SLACK_S * 1e3, lo, hi, fc.get('min', '?'), fc.get('max', '?'), where))
+            continue
         r = harness.run_files(argv + ['--fn-cycles', '0x%X:ret' % syms[0][0]], hx, files or {}, timeout=300)
         fc = (r.get('final') or {}).get('fn_cycles') or {}
         n = int(fc.get('n') or 0)
-        words.append('%s: %s (ran n=%d times over the WHOLE run, %s..%s cycles each, in %s; a per-edge count needs cycle-stamped calls: bss-3)'
+        words.append('%s: %s (ran n=%d times over the WHOLE run, %s..%s cycles each, in %s; this twin image predates the windowed count: rebuild prf-board-engines)'
                      % (fn, 'observed' if n else 'not observed', n, fc.get('min', '?'), fc.get('max', '?'), where))
     return ' ; '.join(words)
 
 
-def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len):
-    words = []
-    for c in R.rows(manager, 'StructNodeCollateral', node=node):
+def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=None, ports=None, step_s=0.0, isotopes=()):
+    """bss-9: a pin with no jumper is read from what the port DRIVES (node_collaterals.port_watches); net-current runs the LED branch in ngspice at the pin's
+    level; temperature needs the part's PartThermalModel; the words say which engine measured what and name every knob."""
+    from cmod.custom import node_collaterals as NC
+    words, levels, power = [], {}, {}
+    at = hi - 1   # the level a pin SETTLES to in the edge's window (the drive follows the struct a few cycles after the requirement is met)
+    rows = R.rows(manager, 'StructNodeCollateral', node=node)
+    for c in sorted(rows, key=lambda c: {'pin-level': 0, 'frame': 1, 'timing': 1, 'net-current': 2, 'temperature': 3}.get(c['kind'], 4)):   # the pins first: the engines read their levels
         if c['kind'] == 'pin-level':
-            if c['signal'] not in wired:
-                words.append('pin-level %s: unmeasured (no wire on %s in this config; the VCD pin trace is bss-3)' % (c['signal'], c['signal']))
+            if c['signal'] in wired:
+                edges = [e for e in events if e.get('t') == 'wire-edge' and c['signal'] in (e.get('src'), e.get('dst')) and lo <= int(e.get('cycle', -1)) < hi]
+                if not edges:
+                    words.append('pin-level %s: no change in the window%s' % (c['signal'], (' (bound %s: unmet)' % c['bound']) if c['bound'] else ''))
+                    continue
+                last = edges[-1]
+                level = 'high' if int(last.get('v', 0)) else 'low'
+                levels[c['signal']] = level
+                verdict = '' if not c['bound'] else (' (bound %s: met)' % c['bound'] if c['bound'] == level else ' (bound %s: UNMET)' % c['bound'])
+                words.append('pin-level %s: %s at cycle %d, %.3f ms after the stimulus (on the wire)%s' % (c['signal'], level, int(last['cycle']), (int(last['cycle']) - lo) * 1e3 / hz, verdict))
                 continue
-            edges = [e for e in events if e.get('t') == 'wire-edge' and c['signal'] in (e.get('src'), e.get('dst')) and lo <= int(e.get('cycle', -1)) < hi]
-            if not edges:
-                words.append('pin-level %s: no change in the window%s' % (c['signal'], (' (bound %s: unmet)' % c['bound']) if c['bound'] else ''))
+            if any(':pwm' in i for i in isotopes):
+                words.append('pin-level %s: unmeasured (a timer drives it on the pwm route: the port word says nothing; a jumper reads the wire)' % c['signal'])
                 continue
-            last = edges[-1]
-            level = 'high' if int(last.get('v', 0)) else 'low'
+            if c['signal'] not in (ports or {}):
+                words.append('pin-level %s: unmeasured (no wire on %s in this config and its port word was not watched)' % (c['signal'], c['signal']))
+                continue
+            port, ddr, bit = ports[c['signal']]
+            level, why = NC.driven_level(lines or {}, port, ddr, bit, at)
+            if level is None:
+                words.append('pin-level %s: unmeasured (%s)' % (c['signal'], why))
+                continue
+            levels[c['signal']] = level
+            changes = [cyc for cyc, _f, _t in (lines[port].changes if port in lines else []) if lo <= cyc < hi]
             verdict = '' if not c['bound'] else (' (bound %s: met)' % c['bound'] if c['bound'] == level else ' (bound %s: UNMET)' % c['bound'])
-            words.append('pin-level %s: %s at cycle %d, %.3f ms after the stimulus%s' % (c['signal'], level, int(last['cycle']), (int(last['cycle']) - lo) * 1e3 / hz, verdict))
+            words.append('pin-level %s: %s, driven (%s at cycle %d%s; the wire itself not read: no jumper)%s'
+                         % (c['signal'], level, why, at, (', last change at %d' % changes[-1]) if changes else '', verdict))
         elif c['kind'] == 'frame':
             words.append('frame %s: %d bytes on the UART over the run (per-frame cycles are bss-3)' % (c['signal'], uart_len))
         elif c['kind'] == 'timing':
             words.append('timing: %s' % ('%.3f ms' % ((met - lo) * 1e3 / hz) if met >= 0 else 'not reached'))
+        elif c['kind'] == 'net-current':
+            w = NC.net_current(c, levels.get(c['signal']), step_s)
+            words.append(w)
+            m = _num(w.split(': ', 1)[1].split(' mA')[0]) if ': ' in w and ' mA' in w else None
+            if m is not None:
+                power[c['signal']] = m * 1e-3
+        elif c['kind'] == 'temperature':
+            p = next(iter(power.values()), None)
+            words.append(NC.temperature(manager, c, (p * p * _r_of(c)) if p is not None and _r_of(c) else None, max(0.0, (at - lo) / hz)))
         else:
-            words.append('%s %s: not measured by the twin (ngspice / Cauer come in bss-3)' % (c['kind'], c['signal']))
+            words.append('%s %s: not measured (no engine for this kind)' % (c['kind'], c['signal']))
     return ' ; '.join(words)
+
+
+def _r_of(c):
+    import re
+    m = re.search(r'\bR\s*=\s*([0-9.]+)\s*(k?)', c.get('notes') or '')
+    return float(m.group(1)) * (1000.0 if m.group(2) else 1.0) if m else 0.0
 
 
 def run(manager, bench_solution, node, path='', profile='', play_from=''):
@@ -393,8 +441,12 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
         wire = []
     wired = {p for a in wire[1::2] for p in a.split(':')}
     unwired = [p for p in prof_pins if p not in wired]
+    # bss-9: a pin-level collateral with no jumper is read from the port word the firmware drives (PORTx + DDRx watched like a field)
+    from cmod.custom import node_collaterals as NC
+    need = sorted({c['signal'] for c in R.rows(manager, 'StructNodeCollateral', node=node, kind='pin-level') if c['signal'] not in wired} | set(unwired))
+    port_args, ports, port_words = NC.port_watches(variant, need, MAX_WATCH - len(fields)) if need else ([], {}, [])
     from firmwarefaults.custom import harness
-    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + stimuli
+    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + port_args + stimuli
     r = harness.run_files(argv, hexb, files, timeout=300)   # the command frames travel with the hex
     if not r.get('ok'):
         raise R.ConfigRefused('the twin run did not complete: %s' % ((r.get('stderr') or r.get('stdout') or '')[-300:]), status=409)
@@ -402,6 +454,8 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
     finals = {w.get('name'): w.get('final', w.get('value')) for w in ((r.get('final') or {}).get('watches') or []) if isinstance(w, dict)}   # [{name, addr, w, final}]
     lines = {f: _Timeline([(int(e['cycle']), e.get('from'), e.get('to')) for e in events if e.get('t') == 'watch-change' and e.get('name') == f], finals.get(f))
              for _om, f in fields}
+    for reg in {n for names in ports.values() for n in names[:2]}:   # bss-9: the port words, timelines like a field's
+        lines[reg] = _Timeline([(int(e['cycle']), e.get('from'), e.get('to')) for e in events if e.get('t') == 'watch-change' and e.get('name') == reg], finals.get(reg))
     no_change_events = not any(e.get('t') == 'watch-change' for e in events)
     # judge edge by edge
     edge_rows, failed, met_target, replayed_done, failed_checks = [], False, -1, False, []
@@ -419,8 +473,11 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
             words = 'replayed silently: ' + words
             replayed_done = e['to_node'] == play_from
         if e['to_node'] == node and outcome == 'met':
-            exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], pe['end'], files)
-            col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''))
+            exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], min(pe['end'], met + int(EXEC_SLACK_S * hz)) if met > pe['s'] else pe['end'], files)
+            col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''), lines=lines, ports=ports,
+                               step_s=T.step_of(manager, node)['step_s'], isotopes=[x['isotope'] for x in R.rows(manager, 'StructNodeExecution', node=node)])
+            if port_words:
+                col = (col + ' ; ' if col else '') + ' ; '.join(port_words)
             met_target = met
             failed_checks = _checks(manager, e['name'], lines, (met - pe['s']) / hz, pe['end'])
             if failed_checks:
@@ -441,9 +498,16 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
                    duration_s=((met_target - target['s']) / hz) if met_target >= 0 else -1.0, duration_set_by=dur_by, profile=profile, play_from=play_from,
                    **T.step_of(manager, node))
     from cmod.custom import confirmations as C
+    capture = {'rows': []}
     if outcome == 'reached':   # bss-3: the twin's confirmation, for this path and this build (other builds' confirmations are voided, never deleted)
         C.confirm(manager, node, p['name'], 'twin', sha, run=name, words='run %s met the requirements with every check passing' % name)
-    elif outcome == 'diverged':   # D-bss-10: the reached values are proposed as a node off the same parent, for a person to accept, loosen and name
+    else:   # bss-9 (D-bss-6): the trace is kept ONLY on failure, and only the window around it - the osc arc's WaveformCapture rows, one per line
+        from cmod.custom import failure_capture as FC
+        failed_edge = next((pe for pe, er in zip(plan, edge_rows) if er['outcome'] in ('not-reached', 'diverged')), target)
+        capture = FC.keep(manager, name, events, failed_edge['s'], failed_edge['end'], hz, T.step_of(manager, node)['step_s'], '%s: %s' % (outcome, last['words'][:120]))
+        words += '; ' + capture['words']
+        row = R.upsert(manager, 'StructNodeRun', name, words=words)
+    if outcome == 'diverged':   # D-bss-10: the reached values are proposed as a node off the same parent, for a person to accept, loosen and name
         _propose(manager, bench_solution, node, target['edge'], lines, name)
     if unwired:
         words += '; profile pins not wired in this config: ' + ', '.join(unwired)
@@ -453,12 +517,25 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
         tl = lines[f]
         signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:field:%s' % (name, f), run=name, kind='field', signal=f, first=str(tl.first), last=str(tl.final),
                                 changes=len(tl.changes), first_change_cycle=tl.changes[0][0] if tl.changes else -1, last_change_cycle=tl.changes[-1][0] if tl.changes else -1))
+    # the failure capture's rows are one per line in line-name order (failure_capture.keep sorts the lines): matched back to the pin signals here
+    cap_lines = sorted({e['pin'] for e in events if e.get('t') == 'pin-at'} | {p for e in events if e.get('t') == 'wire-edge' for p in (e.get('src'), e.get('dst')) if p})
+    cap_by_line = dict(zip(cap_lines, capture['rows'])) if capture['rows'] else {}
     for pin in sorted(wired):
         ev = [e for e in events if e.get('t') == 'wire-edge' and pin in (e.get('src'), e.get('dst'))]
         if ev:
             signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:pin:%s' % (name, pin), run=name, kind='pin', signal=pin, first=str(1 - int(ev[0].get('v', 0))),
-                                    last=str(ev[-1].get('v')), changes=len(ev), first_change_cycle=int(ev[0]['cycle']), last_change_cycle=int(ev[-1]['cycle'])))
-    return {'ok': True, 'run': row, 'edges': edge_rows, 'signals': signals, 'working_events': len(events)}
+                                    last=str(ev[-1].get('v')), changes=len(ev), first_change_cycle=int(ev[0]['cycle']), last_change_cycle=int(ev[-1]['cycle']),
+                                    capture=cap_by_line.get(pin, '')))
+    for pin, (pname, _ddr, bit) in sorted(ports.items()):   # bss-9: the driven port word of an unwired pin, kept as that pin's signal (its bit, not the word)
+        tl = lines.get(pname)
+        if tl is not None and tl.changes:
+            def _b(v):
+                n_ = _num(v)
+                return str((int(n_) >> bit) & 1) if n_ is not None else str(v)
+            flips = [(c, f, t) for c, f, t in tl.changes if _b(f) != _b(t)]
+            signals.append(R.upsert(manager, 'StructNodeRunSignal', '%s:pin:%s' % (name, pin), run=name, kind='pin', signal=pin, first=_b(tl.first), last=_b(tl.final),
+                                    changes=len(flips), first_change_cycle=flips[0][0] if flips else -1, last_change_cycle=flips[-1][0] if flips else -1))
+    return {'ok': True, 'run': row, 'edges': edge_rows, 'signals': signals, 'working_events': len(events), 'capture': capture.get('acquisition', '')}
 
 
 def _checks(manager, edge, lines, duration_s, end_cycle):

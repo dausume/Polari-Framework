@@ -4,7 +4,8 @@
 hsp-3b door (HARDWARE_SYSTEM_PINS_PLAN.md §7 "The two bench views"): the Structs view's rows, derived on read from the stored rows (PolariBridgeInstance,
 BridgePath, HardwareInterfaceBinding, StructObjectMap, CatomAssertion - the seeds where a table is empty). Model: `cmod.custom.bench_structs`.
 
-GET /api/cmod/bench-structs/{bench}[?view=instances|fields|path&instance=I&field=F&bridge=B]
+GET /api/cmod/bench-structs/{bench}[?view=instances|fields|path|samples&instance=I&field=F&bridge=B]
+        samples (bss-9) = the StructFieldSamples rows: a field's declared test values, the topology nodes they block and the nodes that use them;
         instances = one row per struct instance on the bench (`bridge` narrows it to the structs crossing one bridge - the Bridges view's list);
         fields = the instance's fields with the Polari attribute, the catoms that change / read each, the pins and the verdict (needs `instance`);
         path = the signal paths that change the field, one row per hop (route, step, kind pin | catom | field | bridge | object | gap, status) (needs
@@ -39,7 +40,9 @@ class BenchStructsAPI(treeObject):
             return
         rows = self._rows()
         instance, field = request.get_param('instance') or '', request.get_param('field') or ''
-        if view == 'instances':
+        if view == 'samples':   # bss-9: the declared samples and the nodes they block (bench-independent)
+            out = BS.samples(self.manager)
+        elif view == 'instances':
             # `tab` = the page tab a click on the row opens (the Bridges view's crossing list jumps into Structs at the instance)
             out = [dict(r, tab='structs') for r in BS.instances(bench, bridge=request.get_param('bridge') or '', **rows)]
         elif not instance or (view == 'path' and not field):

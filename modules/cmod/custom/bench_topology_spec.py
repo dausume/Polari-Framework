@@ -124,7 +124,7 @@ def apply(manager, bs, spec=''):
             x = {'atom': x} if isinstance(x, str) else x
             iso = routes.get(x.get('job', ''), '') if x.get('job') else x.get('isotope', '')
             execs.append({'atom': x['atom'], 'isotope': iso})
-        view = T.define(manager, bs, slug, n.get('title', ''), frm, 'trigger', ev, requirements=reqs, executions=execs)
+        view = T.define(manager, bs, slug, n.get('title', ''), frm, 'trigger', ev, requirements=reqs, executions=execs, collaterals=n.get('collaterals') or ())
         for x in view['executions']:
             if x['isotope']:
                 R.upsert(manager, 'StructNodeExecution', x['name'], notes='isotope: from the route knobs of %s (bench_topology_spec.routes_of)' % variant)

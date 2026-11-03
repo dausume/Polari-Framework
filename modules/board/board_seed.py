@@ -86,6 +86,16 @@ SEED_BENCH_SOLUTIONS = [
     {'name': 'uno-light-analog-on-desk', 'title': 'UNO light on the desk: the button as a voltage on A0 (analog threshold)', 'system': 'uno-light-bench', 'bench': 'home-bench',
      'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-analog', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
      'notes': 'the variant build uno-light-analog stands in for a Firmware Solution row (cfg-1): a 10 kohm pull-up on A0, the switch to ground; a press is the level below 1500 mV'},
+    # bss-9: the LED routes and the sense route the variants file ships, each proven by run-all (cmod_light_topology_selftest)
+    {'name': 'uno-light-pwm-on-desk', 'title': 'UNO light on the desk: the LED on the timer PWM, the button as a voltage on A0', 'system': 'uno-light-bench', 'bench': 'home-bench',
+     'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-pwm-analog', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the variant build uno-light-pwm-analog (sample S3) stands in for a Firmware Solution row (cfg-1): drive-led:pwm, read-button:analog-threshold, the sense jumper D6 -> D3'},
+    {'name': 'uno-light-transistor-on-desk', 'title': 'UNO light on the desk: the LED switched through the kit\'s transistor', 'system': 'uno-light-bench', 'bench': 'home-bench',
+     'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-transistor', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the variant build uno-light-transistor (sample S4) stands in for a Firmware Solution row (cfg-1): drive-led:transistor-switch; the jumper D6 -> D3 senses the drive pin, not the LED current'},
+    {'name': 'uno-light-all-pcint-on-desk', 'title': 'UNO light on the desk: the button on D4 and the sense line on D8, both pin-change interrupts', 'system': 'uno-light-bench',
+     'bench': 'home-bench', 'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-all-pcint', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the variant build uno-light-all-pcint (sample S2) stands in for a Firmware Solution row (cfg-1): read-button and sense-led-line both pin-change-interrupt, two PCINT banks'},
 ]
 
 

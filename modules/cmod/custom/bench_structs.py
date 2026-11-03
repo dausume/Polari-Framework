@@ -15,7 +15,29 @@ and Bridges views draw. Everything is DERIVED - no new stored row:
 """
 from cmod.custom import catom_assertions as CA
 
-VIEWS = ('instances', 'fields', 'path')
+VIEWS = ('instances', 'fields', 'path', 'samples')
+
+
+def samples(manager):
+    """bss-9 (the handoff's owed item 7): one row per StructFieldSamples - the declared test values of a non-enumerable field - with the nodes whose exact requirement
+    on that field is blocked by them (bench_topology.blocks) and the nodes that use a declared value. Derived on read; bench-independent (a map is one definition)."""
+    from cmod.custom import bench_topology as T
+    from cmod.custom import config_rows as R
+    if getattr(manager, 'objectTables', None) is None:
+        return []
+    out = []
+    for s in sorted(R.rows(manager, 'StructFieldSamples'), key=lambda s: s['name']):
+        declared = [v.strip() for v in (s.get('values') or '').split(',') if v.strip()]
+        blocked, using = [], []
+        for q in R.rows(manager, 'StructNodeRequirement', object_map=s['object_map'], field=s['field']):
+            if q['kind'] != 'exact':
+                continue
+            (using if str(q['value']) in declared else blocked).append(q['node'])
+        out.append({'name': s['name'], 'object_map': s['object_map'], 'field': s['field'], 'kind': s.get('kind', 'samples'), 'values': s.get('values', ''),
+                    'declared': len(declared), 'used_by_nodes': ', '.join(sorted(using)), 'blocking_nodes': ', '.join(sorted(blocked)), 'basis': s.get('basis', ''),
+                    'notes': s.get('notes', ''), 'words': ('%d declared; %d node%s blocked' % (len(declared), len(blocked), '' if len(blocked) == 1 else 's')) if blocked
+                    else ('%d declared, %d node%s use them' % (len(declared), len(using), '' if len(using) == 1 else 's') if declared else 'no values declared yet')})
+    return out
 _ORDER = {'verified': 0, 'unverified': 1, 'false': 2, 'gap': 3}
 
 

@@ -134,11 +134,55 @@ def main():
     r3 = NR.run(m, 'uno-light-analog-on-desk', 'uno-light-analog-on-desk:on-by-button')
     e3 = r3['edges'][-1]
     check('THE ANALOG ROUTE: press = press-ADC0 (A0 stepped 4800 -> 0 mV at the cycle by the twin\'s new --adc-at, back after the hold), the isotope '
-          'read-button:analog-threshold, "light on, by the button" REACHED; its collateral PD6 honestly unmeasured (no sense wire on this variant)',
+          'read-button:analog-threshold, "light on, by the button" REACHED; its collateral PD6 read from the DRIVEN port word (no sense wire on this variant, said)',
           out3['roles']['press'].endswith(':press-ADC0') and out3['routes']['read-button'] == 'read-button:analog-threshold' and r3['run']['outcome'] == 'reached'
-          and e3['met_cycle'] > e3['stimulus_cycle'] and e3['collaterals'].startswith('pin-level PD6: unmeasured'), (r3['run']['outcome'], r3['run']['words'][:120], e3['collaterals'][:80]))
+          and e3['met_cycle'] > e3['stimulus_cycle'] and e3['collaterals'].startswith('pin-level PD6: high, driven') and 'no jumper' in e3['collaterals'],
+          (r3['run']['outcome'], r3['run']['words'][:120], e3['collaterals'][:80]))
     r4 = NR.run(m, 'uno-light-analog-on-desk', 'uno-light-analog-on-desk:off-by-button')
     check('THE ANALOG ROUTE twice: "off by the button" (press, press) REACHED - two ADC pulses spaced by the guard', r4['run']['outcome'] == 'reached', r4['run']['words'][:160])
+    # ---- bss-9: the owed list - per-edge counts, the driven pin, net-current, the failure capture, the other LED / sense routes, the samples view
+    e1 = next(e for e in NR.runs(m, nodes['on-by-button']['name']) if e['outcome'] == 'reached')
+    ed1 = RT.run_edges(m, e1['name'])[-1]
+    check('PER-EDGE EXECUTION COUNTS (bss-9): led_toggle ran between the press and the requirement being met - counted by the twin\'s windowed --fn-cycles '
+          '(@lo:hi), no longer over the whole run; a polled atom counts passes, said', 'led_toggle: observed (ran n=' in ed1['executions'] and 'between the stimulus and' in ed1['executions']
+          and 'WHOLE run' not in ed1['executions'] and 'counts passes' in ed1['executions'], ed1['executions'][:300])
+    check('NET-CURRENT (bss-9): the declared collateral on "light on" ran the LED branch in ngspice (batch) at the pin\'s level with TMAX = the node\'s step: ~14.7 mA '
+          'through R 220 + the generic LED model, inside the bound 5..20 mA; every knob named (VCC, the LED model)',
+          'net-current PD6: 14.' in ed1['collaterals'] and 'bound 0.005..0.020 A: met' in ed1['collaterals'] and 'knobs: VCC 5 V' in ed1['collaterals'], ed1['collaterals'][:400])
+    ed2 = RT.run_edges(m, r2['run']['name'])[-1]
+    s2 = {s['signal']: s for s in RT.run_signals(m, r2['run']['name']) if s['kind'] == 'pin'}
+    check('THE DRIVEN PIN (bss-9): on the pin-change build (no sense jumper) PD6 is read from the PORTD / DDRD words the firmware drives - high, driven, the '
+          'wire itself said not read; its pin signal is the bit (0 -> 1, one change); the untested list no longer says the collateral is unmeasured',
+          ed2['collaterals'].startswith('pin-level PD6: high, driven (PORTD bit 6') and s2.get('PD6', {}).get('last') == '1' and s2['PD6']['changes'] == 1
+          and not any('on-by-button: collaterals measured' in w for w in COV.untested(m, 'uno-light-pcint-on-desk')), (ed2['collaterals'][:200], s2.get('PD6')))
+    from cmod.custom import bench_topology as T
+    seven = T.define(m, BS, 'seven', 'a value the code never sets', '%s:boot' % BS, 'trigger', ev[BS]['press-PD2']['name'],
+                     requirements=[{'object_map': MAP, 'field': 'led_on', 'kind': 'exact', 'value': 7}], executions=['apps/light.led_toggle'])
+    r7 = NR.run(m, BS, seven['name'])
+    caps = [c for c in R.rows(m, 'WaveformCapture') if c['acquisition'] == r7['capture']]
+    sig7 = {s['signal']: s for s in r7['signals'] if s['kind'] == 'pin'}
+    check('THE FAILURE CAPTURE (bss-9, D-bss-6): a diverged run keeps ONE acquisition of WaveformCapture rows (the osc arc\'s rows, source twin) - the three lines PD2 '
+          '(the press), PD3 and PD6 (the jumper) over the failing edge\'s last 10 %%, 4096 points at a coarsened step, said; the pin signals name their capture row; '
+          'a reached run keeps none', r7['run']['outcome'] == 'diverged' and len(caps) == 3 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
+          and 'failure capture' in r7['run']['words'] and sig7.get('PD6', {}).get('capture', '').startswith('fail-')
+          and not any(c['acquisition'] == e1['name'] for c in R.rows(m, 'WaveformCapture')), (r7['run']['words'][-200:], [(c['name'], c['points']) for c in caps]))
+    more = {}
+    for bs2 in ('uno-light-pwm-on-desk', 'uno-light-transistor-on-desk', 'uno-light-all-pcint-on-desk'):
+        a2 = SP.apply(m, bs2)
+        rr = NR.run(m, bs2, '%s:on-by-button' % bs2)
+        more[bs2] = (a2['routes'].get('drive-led'), a2['routes'].get('sense-led-line'), rr['run']['outcome'], RT.run_edges(m, rr['run']['name'])[-1]['collaterals'][:120])
+    check('THE OTHER ROUTES (bss-9): the PWM LED (drive-led:pwm, the button on A0), the transistor LED (drive-led:transistor-switch) and the all-pin-change build '
+          '(sense-led-line:pin-change-interrupt on D8) each reach "light on, by the button" on the twin; the PWM pin read on the wire (its port word says nothing, said)',
+          more['uno-light-pwm-on-desk'][0] == 'drive-led:pwm' and more['uno-light-transistor-on-desk'][0] == 'drive-led:transistor-switch'
+          and more['uno-light-all-pcint-on-desk'][1] == 'sense-led-line:pin-change-interrupt' and all(v[2] == 'reached' for v in more.values())
+          and 'on the wire' in more['uno-light-pwm-on-desk'][3], more)
+    from cmod.custom import bench_structs as BSX
+    R.upsert(m, 'StructFieldSamples', '%s:toggles' % MAP, object_map=MAP, field='toggles', kind='samples', values='1,2', basis='the light test\'s two presses')
+    sm = BSX.samples(m)
+    check('THE SAMPLES VIEW (bss-9, owed item 7): one row per declared-samples field with the nodes that use a declared value and the nodes BLOCKED (toggles = 0 on '
+          '"rebooted" is not declared) - the Structs page\'s foot table reads it (view=samples)', len(sm) == 1 and sm[0]['declared'] == 2 and 'on-by-button' in sm[0]['used_by_nodes']
+          and 'rebooted' in sm[0]['blocking_nodes'] and sm[0]['words'].endswith('blocked'), sm)
+    R.drop(m, 'StructFieldSamples', field='toggles')
     try:
         SP.apply(m, BS, spec='no-such-spec')
         refused = ''
