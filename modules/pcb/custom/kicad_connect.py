@@ -199,14 +199,20 @@ def _named(e):
     return bool(e['pin_name']) and e['pin_name'] not in ('~', e['pin'])
 
 
+def _pin_text(e):
+    """A pin name as KiCad writes it INSIDE a net name: '/' is the sheet-path separator there, so KiCad escapes it as {slash}
+    (UNO pin "D0/RX" -> unconnected-(A1-D0{slash}RX-Pad15); found on the polari-uno-light fixture, 2026-11-03)."""
+    return e['pin_name'].replace('/', '{slash}')
+
+
 def _driver_name(eps):
     """An unlabelled net's name the way KiCad writes it: Net-(<ref><unit>-<pin name | Pad<n>>), a NAMED pin preferred, ties by reference + unit then
     pin; a lone pin is unconnected-(<ref>-<name>-Pad<n>) or unconnected-(<ref>-Pad<n>)."""
     named = [e for e in eps if _named(e)]
     e = sorted(named or eps, key=lambda e: (e['ref'] + e.get('unit_letter', ''), e['pin']))[0]
     if len(eps) == 1:
-        return 'unconnected-(%s-%sPad%s)' % (e['ref'], (e['pin_name'] + '-') if _named(e) else '', e['pin'])
-    return 'Net-(%s%s-%s)' % (e['ref'], e.get('unit_letter', ''), e['pin_name'] if _named(e) else 'Pad%s' % e['pin'])
+        return 'unconnected-(%s-%sPad%s)' % (e['ref'], (_pin_text(e) + '-') if _named(e) else '', e['pin'])
+    return 'Net-(%s%s-%s)' % (e['ref'], e.get('unit_letter', ''), _pin_text(e) if _named(e) else 'Pad%s' % e['pin'])
 
 
 def rows(nets, board):

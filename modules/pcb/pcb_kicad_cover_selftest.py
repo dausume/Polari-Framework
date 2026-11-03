@@ -1,7 +1,8 @@
 """pcb_kicad_cover_selftest - kxc-1 (AI-Notes/plans/KICAD_INTERCHANGE_PLAN.md): INGEST ENCAPSULATES EVERYTHING (his ruling 2026-10-30:
 Polari is the source of truth; nothing KiCad wrote is dropped silently). Fixtures: KiCad's own demos from Debian's kicad-demos 9.0.2
 (GPL-2+, custom/upstream/kicad-demos-9.0.2/SOURCE.json): complex_hierarchy (one child sheet, ampli_ht.kicad_sch, used TWICE),
-simulation/rectifier (simulation fields + a diode.mod model file), ecc83 (the pcb-0 board).
+simulation/rectifier (simulation fields + a diode.mod model file), ecc83 (the pcb-0 board); and Polari's own uno-light bench + its analog harness
+(custom/upstream/polari-uno-light/SOURCE.json, built on econ-core 2026-10-29 with KiCad 10.0.6).
 Run by pcb_selftest.main().
 """
 import json
@@ -90,3 +91,27 @@ def run_kicad_cover(check):
           '(every placed symbol incl. power symbols) + one artifact per file',
           r['problems'] == [] and len(r['Part']) == 11 and len(r['Placement']) == 15 and len(r['BoardNet']) == 13 and len(r['SchematicSymbol']) == 26
           and len(r['KiCadArtifact']) == len(files), (len(r['Part']), len(r['SchematicSymbol'])))
+
+    uno = os.path.join(HERE, 'custom', 'upstream', 'polari-uno-light')
+    files, r = K.read_dir(os.path.join(uno, 'uno-light')), None
+    r = K.read_project(files, 'uno-light', binaries=K.binaries_in(os.path.join(uno, 'uno-light')))
+    props = {s['ref']: json.loads(s['properties_json']) for s in r['SchematicSymbol'] if not s['ref'].startswith('#')}
+    check('KXC-1 POLARI\'S OWN PROPERTIES SURVIVE: every placed uno-light part keeps the PolariId / PolariVariant it was written with '
+          '(polari:electronics/uno-light/component/<ref>), so an ingested KiCad edit lands back on the same Polari component',
+          sorted(props) == ['A1', 'D1', 'R1', 'SW1'] and all(v.get('PolariId') == 'polari:electronics/uno-light/component/%s' % k
+                                                             and v.get('PolariVariant') == 'uno-light' for k, v in props.items()), props)
+    d = os.path.join(uno, 'uno-light-simulation')
+    files = K.read_dir(d)
+    r = K.read_project(files, 'uno-light-simulation', binaries=K.binaries_in(d))
+    sym = {s['ref']: s for s in r['SchematicSymbol']}
+    arts = {a['path']: a for a in r['KiCadArtifact']}
+    cov = {c['element']: c for c in r['KiCadCoverage']}
+    check('KXC-1 THE HARNESS\'S SIMULATION SURVIVES: V1\'s Sim.* (V PULSE y1=0 y2=5 td=5m ..., pins 1=+ 2=-) and D1\'s (D polari_demo_led from '
+          'illustrative-led.lib, pins 1=K 2=A) split out; the model library, KiCad\'s exported deck and the simulator workbook are kept byte for byte '
+          '(spice-model / sim-workbook); the recorded waveforms are kept, the PNG listed by sha. STILL OPEN (econ 2026-11-03, to kxc-3): the .wbk is '
+          'kept, not typed into rows; the ".tran 10u 80m" sheet text is a directive kxc-3 reads but coverage counts every text as preserved',
+          (sym['V1']['sim_device'], sym['V1']['sim_type'], sym['V1']['sim_pins']) == ('V', 'PULSE', '1=+ 2=-') and 'y2=5' in sym['V1']['sim_params']
+          and (sym['D1']['sim_device'], sym['D1']['sim_name'], sym['D1']['sim_library'], sym['D1']['sim_pins']) == ('D', 'polari_demo_led', 'illustrative-led.lib', '1=K 2=A')
+          and arts['illustrative-led.lib']['kind'] == 'spice-model' and arts['uno-light-simulation.wbk']['kind'] == 'sim-workbook'
+          and all(arts[f]['handling'] == 'kept' and arts[f]['content'] == files[f] for f in ('illustrative-led.lib', 'uno-light.cir', 'uno-light-simulation.wbk', 'waveforms.csv'))
+          and arts['waveforms.png']['handling'] == 'listed' and cov['text']['handling'] == 'preserved', sorted((p, a['kind'], a['handling']) for p, a in arts.items()))

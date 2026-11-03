@@ -149,3 +149,43 @@ def run_thermal(check):
     SR.store(None, 'sallen_key', 'deck', {'ok': True, 'plot': refa['plot'], 'vectors': refa['vectors']}, 'reference', 'econ-core', '2026-10-30T12:00:00+00:00')
     check('THERMAL REFUSES an AC sweep in words (small-signal: it carries no power) and a board with no run',
           'small-signal' in T.dissipation(None, 'sallen_key', rows=sk)[1] and 'no finished run' in T.dissipation(None, 'nope')[1])
+
+
+def run_uno_light_spice(check):
+    """kxc-3 on Polari's own bench: the uno-light LED branch (econ-core 2026-10-29) and its reversed-LED negative control."""
+    from electrodevice.custom import ngspice_shared as NS
+    from pcb.custom import kicad_read as K
+    from pcb.custom import kicad_spice as P
+
+    uno = os.path.join(HERE, 'custom', 'upstream', 'polari-uno-light')
+    got = {}
+    for b in ('uno-light-simulation', 'uno-light-led-reversed'):
+        rows = K.read_project(K.read_dir(os.path.join(uno, b)), b)
+        d = P.build_deck(rows)
+        theirs = P.parse_deck(open(os.path.join(REF, 'kicad10_spice_%s.cir' % b)).read())
+        got[b] = (rows, d, {k: (d['elements'][k]['nodes'], theirs[k]['nodes'], d['elements'][k]['value'].replace(' ', ''), theirs[k]['value'].replace(' ', ''))
+                            for k in theirs if k in d['elements']}, sorted(set(theirs) ^ set(d['elements'])))
+    g, rv = got['uno-light-simulation'], got['uno-light-led-reversed']
+    gnd = lambda ns: ['0' if n == 'GND' else n for n in ns]
+    check('KXC-3 OUR DECK = KiCad\'s ON THE UNO LIGHT: V1 / R1 / D1 with KiCad\'s nodes and values (KiCad writes the SPICE ground symbol as node 0, we write '
+          'GND - ngspice reads both as ground; KiCad pads PULSE( 0 5 ... ) with spaces); D1 anode first from Sim.Pins 1=K 2=A, and the reversed control\'s '
+          '1=A 2=K puts the cathode first; .tran 10u 80m from the sheet text, illustrative-led.lib included',
+          not g[3] and not rv[3] and all(gnd(a) == b and c == e for a, b, c, e in g[2].values()) and all(gnd(a) == b and c == e for a, b, c, e in rv[2].values())
+          and gnd(g[2]['D1'][0]) == ['/LED_ANODE', '0'] and gnd(rv[2]['D1'][0]) == ['0', '/LED_ANODE']
+          and g[1]['directives'] == ['.tran 10u 80m'] and g[1]['includes'] == ['illustrative-led.lib'] and not g[1]['problems'], (g[2], rv[2]))
+    if not NS.capability()['shared_library']:
+        return
+    out = {}
+    for b, (rows, d, _, _) in got.items():
+        res = NS.run(d['deck'], {a['path']: a['content'] for a in rows['KiCadArtifact'] if a['path'] in d['includes']})
+        ref = json.load(open(os.path.join(REF, 'kicad10_sim_%s.json' % b)))
+        same = all(len(res['vectors'][n]['real'][::ref['step']]) == len(v['real'])
+                   and all(abs(a - c) <= 1e-9 + 1e-6 * abs(c) for a, c in zip(res['vectors'][n]['real'][::ref['step']], v['real'])) for n, v in ref['vectors'].items())
+        t = res['vectors']['time']['real']
+        on = min(range(len(t)), key=lambda i: abs(t[i] - 0.015))
+        out[b] = (same, -res['vectors']['v1#branch']['real'][on], (5.0 - res['vectors']['/led_anode']['real'][on]) / 220.0)
+    check('KXC-3 THE LED BRANCH RUNS TO KiCad\'s NUMBERS (this host has libngspice): our decks give the recorded vectors of KiCad\'s own decks; 15 ms into the '
+          'first 5 V pulse the branch carries 12.807 mA = (5 V - anode) / 220 ohm for the ILLUSTRATIVE LED model (a knob, not a part); the reversed '
+          'control carries picoamps - the check a quiet ERC cannot make',
+          out['uno-light-simulation'][0] and out['uno-light-led-reversed'][0] and abs(out['uno-light-simulation'][1] - 0.012807) < 5e-6
+          and abs(out['uno-light-simulation'][1] - out['uno-light-simulation'][2]) < 1e-9 and abs(out['uno-light-led-reversed'][1]) < 1e-9, out)

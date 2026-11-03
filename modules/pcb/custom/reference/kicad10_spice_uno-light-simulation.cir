@@ -1,0 +1,8 @@
+* kicad-cli 10.0.6 `sch export netlist --format spice` (econ-core, 2026-11-03) of the polari-uno-light fixture uno-light-simulation; .include paths made relative. Reference deck for kxc-3.
+.title KiCad schematic
+.include "illustrative-led.lib"
+.tran 10u 80m
+V1 /LED_CONTROL 0 PULSE( 0 5 5m 10u 10u 20m 40m ) 
+R1 /LED_CONTROL /LED_ANODE 220
+D1 /LED_ANODE 0 polari_demo_led
+.end

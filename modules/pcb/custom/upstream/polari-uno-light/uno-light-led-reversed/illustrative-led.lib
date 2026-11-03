@@ -1,0 +1,5 @@
+* polari-uno-light: ILLUSTRATIVE LED MODEL - A KNOB, NOT A CITED PART. No LED MPN has been selected and its forward voltage
+* has not been measured; IS/N/RS were chosen only to give a plausible red-LED branch. Same stance as bss-9 net-current
+* collateral (the generic indicator model, labelled, until the kit LED Vf is measured). Replace with the measured part.
+* Illustrative model only; not a real selected component
+.model polari_demo_led D(IS=1e-20 N=2 RS=2)

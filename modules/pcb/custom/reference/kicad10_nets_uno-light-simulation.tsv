@@ -1,0 +1,7 @@
+# kicad-cli 10.0.6 `sch export netlist --format kicadsexpr` (econ-core, 2026-11-03) of the polari-uno-light fixture uno-light-simulation: net, ref, pin, pintype. Ground truth for kxc-2 connectivity.
+/LED_ANODE	D1	2	passive
+/LED_ANODE	R1	2	passive
+/LED_CONTROL	R1	1	passive
+/LED_CONTROL	V1	1	passive
+0	D1	1	passive
+0	V1	2	passive

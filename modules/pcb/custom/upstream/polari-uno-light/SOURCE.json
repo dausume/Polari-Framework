@@ -1,0 +1,114 @@
+{
+ "what": "Polari's own first native KiCad bench: the uno-light firmware variant (board/custom/variants.py) drawn as a KiCad 10 schematic around a whole Arduino UNO module A1 - D2 -> SW1 -> GND (firmware pull-up, 30 ms debounce), D6 -> R1 220 ohm -> D1 LED -> GND, D6 jumpered to D3 (the polled sense), all three UNO GND contacts; unused module contacts carry deliberate no-connects. uno-light-simulation/ is its separate analog harness (ideal PULSE source in place of the GPIO, SPICE ground, .tran 10u 80m, a saved simulator workbook) so harness-only sources never become physical parts. Two negative controls are sibling projects. A kxc ingest fixture (KICAD_INTERCHANGE_PLAN): everything in it must come out typed or preserved.",
+ "package": "polari-uno-light",
+ "licence": "GPL-3.0 (our own work, project-license-gplv3)",
+ "authored": "econ-core (dausume-DNB20-series), 2026-10-29, by Codex with KiCad 10.0.6 (kicad 10.0.6~ubuntu22.04.1, kicad-symbols / kicad-footprints 10.0.7) and ngspice-43 libngspice (libngspice-kicad 0.1-43); first produced by electronics/kicad/build_uno_light.py (suite, econ working copy) from Polari's schematic_writer + the real firmware sample, then opened, simulated and saved through the KiCad GUI. That script is retired in favour of the kxc-5a export door (POST /api/pcb/export/bench/{bench}); kept in econ ~/collab/kicad-xcmp/from-codex/ as worker-side tooling.",
+ "moved_here": "2026-11-03, econ Claude (dev-kxc-uno-light), at pol-core's direction. Changes from the 2026-10-29 project: the analog harness moved from uno-light/simulation/ to the sibling uno-light-simulation/; uno-light.cir's .include made relative (KiCad wrote an absolute econ path); the illustrative LED .lib gained a header saying it is a knob; KiCad's per-user .kicad_prl files and its .history save repository not kept; derived outputs (ERC JSON, SVG/PDF previews, waveforms.pdf) not kept - their results are below and in custom/reference/.",
+ "firmware_variant": {
+  "name": "uno-light",
+  "source": "board/custom/variants.py: uno-light",
+  "source_sha256": "3d621fe5994ba8792131affbcbbbe413c1dd96cfdf0583d2b49b6beea17eb40f",
+  "board_definition": "arduino-uno-r3"
+ },
+ "polari_design": "polari-design.json (schema 1, revision 0.1): component ids/UUIDs, terminal -> net assignments, D2/PD2, D6/PD6, D3/PD3, the LightState bridge fields (SET_LED down; led_on / toggles / source up), library hashes, readiness and limitations. The placed symbols carry the same PolariId / PolariVariant as properties.",
+ "projects": {
+  "uno-light": "The bench. ERC 0 violations (KiCad 10.0.6, --severity-all). KiCad's netlist = reference/kicad10_nets_uno-light.tsv: 30 nets, 38 endpoints.",
+  "uno-light-simulation": "The analog harness. ERC 0. KiCad's deck = reference/kicad10_spice_uno-light-simulation.cir; libngspice run = reference/kicad10_sim_uno-light-simulation.json (8032 points): 12.807 mA through R1 at 15 ms into a 5 V pulse, anode 2.182 V, for the ILLUSTRATIVE LED model. ngspice.log, waveforms.csv/png are the 2026-10-29 run, kept as recorded.",
+  "uno-light-no-sense": "NEGATIVE CONTROL: the uno-light bench with ONE edit - the label on A1 pin 18 (D3) renamed LED_CONTROL -> SENSE_DISCONNECTED, i.e. the D6 -> D3 jumper missing. Why: the sense line is the only way the board observes the LED drive; losing it must be caught from the graph. KiCad's ERC reports only isolated_pin_label; Polari's contract check reports D3 missing from /LED_CONTROL. 31 nets.",
+  "uno-light-led-reversed": "NEGATIVE CONTROL: the harness with ONE edit - D1's placed-instance Sim.Pins 1=K 2=A -> 1=A 2=K (the LED's model terminals reversed). Why: ERC stays at 0 (the drawing is unchanged), so only the simulation can catch it - the branch carries ~5 pA instead of 12.8 mA. Its .cir is KiCad's export of this project, .include made relative."
+ },
+ "illustrative_led_model": "illustrative-led.lib (polari_demo_led: D IS=1e-20 N=2 RS=2) is a KNOB, not a cited model: no LED MPN is selected and no Vf measured. Same stance as bss-9's net-current collateral (the generic indicator model, labelled, until the kit LED's Vf is measured).",
+ "limits": "Schematic revision 0.1, not a fabrication release; no PCB. LED MPN/ratings, R1 tolerance/power, switch footprint unverified; LED footprint illustrative. D3 senses the drive line, not LED current. No MCU simulation, flash or hardware test was run for this project.",
+ "files": [
+  {
+   "path": "polari-design.json",
+   "sha256": "bd5f37ac69f6a31d0925013a93fcbdc87e43e33ae41e0c4db8325af1fa012b15",
+   "bytes": 8663
+  },
+  {
+   "path": "uno-light/uno-light.kicad_pro",
+   "sha256": "fd4d53905760a1031a59a0fa772e0b34767988ec6e7a8d5cfe4f092e7d5c7752",
+   "bytes": 76
+  },
+  {
+   "path": "uno-light/uno-light.kicad_sch",
+   "sha256": "e193ab0fb9cc65c002e5765733d8df3e5343d7b7808f9077c788f7a5c2015911",
+   "bytes": 41348
+  },
+  {
+   "path": "uno-light-led-reversed/illustrative-led.lib",
+   "sha256": "cc094bcbe12ba86ea335805980c9f449f87ede8e8a92f02e6917592a8e458a86",
+   "bytes": 464
+  },
+  {
+   "path": "uno-light-led-reversed/uno-light-led-reversed.cir",
+   "sha256": "7dacb01a7143ea76c96b5a66fd7a57d5f0c7235bf3666ace3908e3ebd49f7b4f",
+   "bytes": 188
+  },
+  {
+   "path": "uno-light-led-reversed/uno-light-led-reversed.kicad_pro",
+   "sha256": "2d81aab630f2907139cbfb34d6c5e86d8c67654d9af21ac1ae73d284ef52bd8f",
+   "bytes": 9164
+  },
+  {
+   "path": "uno-light-led-reversed/uno-light-led-reversed.kicad_sch",
+   "sha256": "37cb4aabb7156f99c49f7f9bdd3a701eb97fbf2728b8c6b2faec5ca5f166670e",
+   "bytes": 25407
+  },
+  {
+   "path": "uno-light-led-reversed/uno-light-led-reversed.wbk",
+   "sha256": "0327299946cc0f3a0b2505e7fb041f8f1793383e2ab98e291613bb39b9638b36",
+   "bytes": 911
+  },
+  {
+   "path": "uno-light-no-sense/uno-light-no-sense.kicad_pro",
+   "sha256": "b501321f042ffd44c52796c08551051c906f1ae3f940aeb0c015844a869c4498",
+   "bytes": 85
+  },
+  {
+   "path": "uno-light-no-sense/uno-light-no-sense.kicad_sch",
+   "sha256": "925fea0ae601f2d8c6e9e2592ff50851b404814a9ffa6130b83d7b0a5f02b0be",
+   "bytes": 41355
+  },
+  {
+   "path": "uno-light-simulation/illustrative-led.lib",
+   "sha256": "cc094bcbe12ba86ea335805980c9f449f87ede8e8a92f02e6917592a8e458a86",
+   "bytes": 464
+  },
+  {
+   "path": "uno-light-simulation/ngspice.log",
+   "sha256": "7f9ad90b1504bc3353471c7bb59365df88ad3d0804869cedbca9b5ad327bab4d",
+   "bytes": 1216
+  },
+  {
+   "path": "uno-light-simulation/uno-light-simulation.kicad_pro",
+   "sha256": "df29205c417ef3a1c4e652f7e96cc73301af94963d40dbf6969a4f9089f03c94",
+   "bytes": 9160
+  },
+  {
+   "path": "uno-light-simulation/uno-light-simulation.kicad_sch",
+   "sha256": "36a6cfa86e88c0b6627f9d2ae4ca0d1854bca0407e006e9ef1ab584dd02e9e67",
+   "bytes": 25407
+  },
+  {
+   "path": "uno-light-simulation/uno-light-simulation.wbk",
+   "sha256": "0327299946cc0f3a0b2505e7fb041f8f1793383e2ab98e291613bb39b9638b36",
+   "bytes": 911
+  },
+  {
+   "path": "uno-light-simulation/uno-light.cir",
+   "sha256": "3a5c3bc903851d9dcc980aae78be09199fe2994efe2d66505875a9fb00aba55a",
+   "bytes": 188
+  },
+  {
+   "path": "uno-light-simulation/waveforms.csv",
+   "sha256": "9c787c8e36797974b3e2ae9dba6c0a10c53915672f737548e1f7fb3674d80bdf",
+   "bytes": 244267
+  },
+  {
+   "path": "uno-light-simulation/waveforms.png",
+   "sha256": "82ca98c1cfeac19bfebcb63ea2af8c5725d837b6ef16dba14a77ed6da9319e80",
+   "bytes": 73244
+  }
+ ]
+}

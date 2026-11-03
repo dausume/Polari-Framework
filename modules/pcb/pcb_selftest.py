@@ -246,6 +246,8 @@ def main():
     run_kicad_connect(check)
     from pcb.pcb_kicad_spice_selftest import run_kicad_spice   # kxc-3: the deck from our rows = KiCad's
     run_kicad_spice(check)
+    from pcb.pcb_kicad_spice_selftest import run_uno_light_spice   # kxc-3 on Polari's own uno-light bench + its reversed-LED control
+    run_uno_light_spice(check)
     from pcb.pcb_kicad_spice_selftest import run_spice_runs   # kxc-3b: runs kept + charted
     run_spice_runs(check)
     from pcb.pcb_kicad_spice_selftest import run_spice_projection   # kxc-3c: a run on the nets

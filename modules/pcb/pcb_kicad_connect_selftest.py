@@ -1,6 +1,7 @@
 """pcb_kicad_connect_selftest - kxc-2 (AI-Notes/plans/KICAD_INTERCHANGE_PLAN.md): THE SCHEMATIC'S OWN ELECTRICAL GRAPH. Polari works out the nets from the
 .kicad_sch itself (pins, wires, junctions, labels, power symbols, sheet instances - pcb.custom.kicad_connect); KiCad's exported netlist is only the cross-check.
-References: custom/reference/kicad10_nets_*.tsv = `kicad-cli sch export netlist` (KiCad 10.0.6 on econ-core) of the three kicad-demos 9.0.2 fixtures.
+References: custom/reference/kicad10_nets_*.tsv = `kicad-cli sch export netlist` (KiCad 10.0.6 on econ-core) of the three kicad-demos 9.0.2 fixtures and the four
+polari-uno-light projects (custom/upstream/polari-uno-light/SOURCE.json: the uno-light bench, its analog harness and two negative controls).
 Run by pcb_selftest.main().
 """
 import json
@@ -9,6 +10,23 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEMOS = os.path.join(HERE, 'custom', 'upstream', 'kicad-demos-9.0.2')
 FIXTURES = (('ecc83', 'ecc83-pp'), (os.path.join('simulation', 'rectifier'), 'rectifier'), ('complex_hierarchy', 'complex_hierarchy'))
+UNO = os.path.join(HERE, 'custom', 'upstream', 'polari-uno-light')
+UNO_FIXTURES = ('uno-light', 'uno-light-no-sense', 'uno-light-simulation', 'uno-light-led-reversed')
+# The uno-light S1 bench contract (was electronics/kicad/check_uno_light.py on econ, 2026-10-29): D2 = A1 pin 17 input, D6 = pin 21 output, D3 = pin 18 the
+# polled sense jumpered to D6, the three UNO GND contacts 6 / 7 / 29.
+UNO_CONTRACT = {'/BUTTON_INPUT': {('A1', '17'), ('SW1', '1')}, '/LED_CONTROL': {('A1', '18'), ('A1', '21'), ('R1', '1')},
+                '/LED_ANODE': {('R1', '2'), ('D1', '2')}, 'GND': {('A1', '6'), ('A1', '7'), ('A1', '29'), ('D1', '1'), ('SW1', '2')}}
+
+
+def uno_contract(rows):
+    """The contract's breaches on an ingested uno-light: a contract net whose pins differ, or a contract pin found on some other net."""
+    got = {}
+    for e in rows['NetEndpoint']:
+        if not e['ref'].startswith('#'):
+            got.setdefault(e['net'], set()).add((e['ref'], e['pin']))
+    bad = [(n, sorted(want - got.get(n, set())), sorted(got.get(n, set()) - want)) for n, want in UNO_CONTRACT.items() if got.get(n, set()) != want]
+    pins = set().union(*UNO_CONTRACT.values())
+    return bad + [(n, 'stray', sorted(v & pins)) for n, v in got.items() if n not in UNO_CONTRACT and v & pins]
 
 
 def _ref(board):
@@ -50,3 +68,22 @@ def run_kicad_connect(check):
     s = I.ours_vs_kicad(r, fake, 'rectifier')
     check('KXC-2 THE INGEST CROSS-CHECK: with the engine\'s netlist in the record, every SchematicNet row is marked "same" and the record says 4 of 4',
           s.get('same_groups') == 4 and s.get('ours_only') == 0 and all(n['kicad_check'] == 'same' for n in r['SchematicNet']), (s, [n['kicad_check'] for n in r['SchematicNet']]))
+
+    uno = {}
+    for b in UNO_FIXTURES:
+        rows = K.read_project(K.read_dir(os.path.join(UNO, b)), b)
+        by = {}
+        for e in rows['NetEndpoint']:
+            by.setdefault(e['net'], []).append({'ref': e['ref'], 'pin': e['pin']})
+        c = N.compare([{'name': n['net'], 'endpoints': by.get(n['net'], [])} for n in rows['SchematicNet']], _ref(b))
+        uno[b] = (rows, (c['same_groups'], c['names_equal'], len(c['ours_only']), len(c['kicad_only'])))
+    summary = {b: v[1] for b, v in uno.items()}
+    check('KXC-2 POLARI\'S OWN BENCH = KiCad\'s NETLIST: the uno-light projects (a whole-module UNO A1 with deliberate no-connects, its analog harness, '
+          'two negative controls) group exactly KiCad\'s pins under KiCad\'s names - including the lone UNO pins named with a "/" (D0/RX), which KiCad '
+          'writes unconnected-(A1-D0{slash}RX-Pad15)', summary == {'uno-light': (30, 30, 0, 0), 'uno-light-no-sense': (31, 31, 0, 0),
+                                                                    'uno-light-simulation': (3, 3, 0, 0), 'uno-light-led-reversed': (3, 3, 0, 0)}, summary)
+    good, cut = uno_contract(uno['uno-light'][0]), uno_contract(uno['uno-light-no-sense'][0])
+    check('KXC-2 THE BENCH CONTRACT FROM OUR OWN GRAPH: uno-light keeps D2 -> SW1 -> GND, D6 -> R1 -> D1 -> GND with D3 jumpered to D6 and all three UNO '
+          'grounds; the no-sense control (A1 D3 relabelled, ERC still quiet but for the lone label) is caught - D3 missing from /LED_CONTROL and stray on '
+          '/SENSE_DISCONNECTED', good == [] and ('/LED_CONTROL', [('A1', '18')], []) in cut and ('/SENSE_DISCONNECTED', 'stray', [('A1', '18')]) in cut,
+          (good, cut))

@@ -1,0 +1,1325 @@
+(kicad_sch
+  (version 20250114)
+  (generator "polari_pcb")
+  (generator_version "uno-light-1")
+  (uuid "c91efdcb-df51-5b8d-85ba-993e341298f9")
+  (paper "A4")
+  (title_block (title "Polari UNO light — editable bench schematic") (rev "0.1") (company "Polari"))
+  (lib_symbols
+    (symbol "Device:LED"
+      (pin_numbers (hide yes))
+      (pin_names (offset 1.016) (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "D"
+        (at 0 2.54 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Value" "LED"
+        (at 0 -2.54 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Light emitting diode"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Sim.Pins" "1=K 2=A"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "LED diode"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_fp_filters" "LED* LED_SMD:* LED_THT:*"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "LED_0_1"
+        (polyline
+          (pts (xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524))
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524))
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy -1.27 0) (xy 1.27 0))
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy -1.27 -1.27) (xy -1.27 1.27))
+          (stroke (width 0.254) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27))
+          (stroke (width 0.254) (type default))
+          (fill (type none))))
+      (symbol "LED_1_1"
+        (pin passive line
+          (at -3.81 0 0)
+          (length 2.54)
+          (name "K"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin passive line
+          (at 3.81 0 180)
+          (length 2.54)
+          (name "A"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "Device:R"
+      (pin_numbers (hide yes))
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "R"
+        (at 2.032 0 90)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Value" "R"
+        (at 0 0 90)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at -1.778 0 90)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Resistor"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "R res resistor"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_fp_filters" "R_*"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "R_0_1"
+        (rectangle
+          (start -1.016 -2.54)
+          (end 1.016 2.54)
+          (stroke (width 0.254) (type default))
+          (fill (type none))))
+      (symbol "R_1_1"
+        (pin passive line
+          (at 0 3.81 270)
+          (length 1.27)
+          (name ""
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin passive line
+          (at 0 -3.81 90)
+          (length 1.27)
+          (name ""
+            (effects
+              (font (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "MCU_Module:Arduino_UNO_R3"
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "A"
+        (at -10.16 23.495 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))
+          (justify left bottom)))
+      (property "Value" "Arduino_UNO_R3"
+        (at 5.08 -26.67 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))
+          (justify left top)))
+      (property "Footprint" "Module:Arduino_UNO_R3"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27) (italic yes))))
+      (property "Datasheet" "https://www.arduino.cc/en/Main/arduinoBoardUno"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Arduino UNO Microcontroller Module, release 3"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "Arduino UNO R3 Microcontroller Module Atmel AVR USB"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_fp_filters" "Arduino*UNO*R3*"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "Arduino_UNO_R3_0_1"
+        (rectangle
+          (start -10.16 22.86)
+          (end 10.16 -25.4)
+          (stroke (width 0.254) (type default))
+          (fill (type background))))
+      (symbol "Arduino_UNO_R3_1_1"
+        (pin no_connect line
+          (at -10.16 -20.32 0)
+          (length 2.54)
+          (hide yes)
+          (name "NC"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin output line
+          (at 12.7 10.16 180)
+          (length 2.54)
+          (name "IOREF"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin input line
+          (at 12.7 15.24 180)
+          (length 2.54)
+          (name "~{RESET}"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "3"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_out line
+          (at 2.54 25.4 270)
+          (length 2.54)
+          (name "3V3"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "4"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_out line
+          (at 5.08 25.4 270)
+          (length 2.54)
+          (name "+5V"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "5"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_in line
+          (at 0 -27.94 90)
+          (length 2.54)
+          (name "GND"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "6"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_in line
+          (at 2.54 -27.94 90)
+          (length 2.54)
+          (name "GND"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "7"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_in line
+          (at -2.54 25.4 270)
+          (length 2.54)
+          (name "VIN"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "8"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 0 180)
+          (length 2.54)
+          (name "A0"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "9"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -2.54 180)
+          (length 2.54)
+          (name "A1"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "10"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -5.08 180)
+          (length 2.54)
+          (name "A2"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "11"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -7.62 180)
+          (length 2.54)
+          (name "A3"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "12"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -10.16 180)
+          (length 2.54)
+          (name "SDA/A4"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "13"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -12.7 180)
+          (length 2.54)
+          (name "SCL/A5"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "14"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 15.24 0)
+          (length 2.54)
+          (name "D0/RX"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "15"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 12.7 0)
+          (length 2.54)
+          (name "D1/TX"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "16"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 10.16 0)
+          (length 2.54)
+          (name "D2"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "17"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 7.62 0)
+          (length 2.54)
+          (name "D3"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "18"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 5.08 0)
+          (length 2.54)
+          (name "D4"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "19"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 2.54 0)
+          (length 2.54)
+          (name "D5"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "20"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 0 0)
+          (length 2.54)
+          (name "D6"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "21"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -2.54 0)
+          (length 2.54)
+          (name "D7"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "22"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -5.08 0)
+          (length 2.54)
+          (name "D8"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "23"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -7.62 0)
+          (length 2.54)
+          (name "D9"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "24"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -10.16 0)
+          (length 2.54)
+          (name "D10"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "25"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -12.7 0)
+          (length 2.54)
+          (name "D11"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "26"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -15.24 0)
+          (length 2.54)
+          (name "D12"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "27"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at -12.7 -17.78 0)
+          (length 2.54)
+          (name "D13"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "28"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin power_in line
+          (at -2.54 -27.94 90)
+          (length 2.54)
+          (name "GND"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "29"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin input line
+          (at 12.7 5.08 180)
+          (length 2.54)
+          (name "AREF"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "30"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -17.78 180)
+          (length 2.54)
+          (name "SDA/A4"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "31"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin bidirectional line
+          (at 12.7 -20.32 180)
+          (length 2.54)
+          (name "SCL/A5"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "32"
+            (effects
+              (font (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "Switch:SW_Push"
+      (pin_numbers (hide yes))
+      (pin_names (offset 1.016) (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "SW"
+        (at 1.27 2.54 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))
+          (justify left)))
+      (property "Value" "SW_Push"
+        (at 0 -1.524 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 5.08 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 5.08 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Push button switch, generic, two pins"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "switch normally-open pushbutton push-button"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "SW_Push_0_1"
+        (circle
+          (center -2.032 0)
+          (radius 0.508)
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy 0 1.27) (xy 0 3.048))
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (circle
+          (center 2.032 0)
+          (radius 0.508)
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (polyline
+          (pts (xy 2.54 1.27) (xy -2.54 1.27))
+          (stroke (width 0) (type default))
+          (fill (type none)))
+        (pin passive line
+          (at -5.08 0 0)
+          (length 2.54)
+          (name "1"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27)))))
+        (pin passive line
+          (at 5.08 0 180)
+          (length 2.54)
+          (name "2"
+            (effects
+              (font (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "power:GND"
+      (power global)
+      (pin_numbers (hide yes))
+      (pin_names (offset 0) (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "#PWR"
+        (at 0 -6.35 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Value" "GND"
+        (at 0 -3.81 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "global power"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "GND_0_1"
+        (polyline
+          (pts (xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27))
+          (stroke (width 0) (type default))
+          (fill (type none))))
+      (symbol "GND_1_1"
+        (pin power_in line
+          (at 0 0 270)
+          (length 0)
+          (name ""
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "power:PWR_FLAG"
+      (power global)
+      (pin_numbers (hide yes))
+      (pin_names (offset 0) (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "#FLG"
+        (at 0 1.905 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Value" "PWR_FLAG"
+        (at 0 3.81 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "Description" "Special symbol for telling ERC where power comes from"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (property "ki_keywords" "flag power"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font (size 1.27 1.27))))
+      (symbol "PWR_FLAG_0_0"
+        (pin power_out line
+          (at 0 0 90)
+          (length 0)
+          (name ""
+            (effects
+              (font (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font (size 1.27 1.27))))))
+      (symbol "PWR_FLAG_0_1"
+        (polyline
+          (pts (xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27))
+          (stroke (width 0) (type default))
+          (fill (type none))))
+      (embedded_fonts no)))
+  (symbol
+    (lib_id "MCU_Module:Arduino_UNO_R3")
+    (at 111.76 81.28 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "32de27de-6ce1-5bd6-84b7-2132a30b6b52")
+    (property "Reference" "A1"
+      (at 111.76 53.34 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Value" "Arduino UNO R3 (USB powered)"
+      (at 111.76 50.8 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" "Module:Arduino_UNO_R3"
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariId" "polari:electronics/uno-light/component/A1"
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariVariant" "uno-light"
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "polari_role" "board"
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "DesignNote" "Unused module contacts are intentionally NC for this sample; USB power is external."
+      (at 111.76 81.28 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "4f3d4f3c-85c0-58ba-8c8c-49208a4dff73"))
+    (pin "2" (uuid "7949745e-f93d-5491-acf0-4cf08ccd0b93"))
+    (pin "3" (uuid "1f3ae0af-986b-5ee7-af80-f477002e7fd6"))
+    (pin "4" (uuid "68006b14-2056-5a25-90a8-2b1a983c9f68"))
+    (pin "5" (uuid "6bf7eaea-935d-57ba-a393-f78b60c9779a"))
+    (pin "6" (uuid "b905895f-1e55-55df-a120-7ec0dcc88f1f"))
+    (pin "7" (uuid "257e5781-930f-5c6c-896f-7bc5e049a35a"))
+    (pin "8" (uuid "3a285a02-0c8e-5bb9-8391-edcca8dd63fd"))
+    (pin "9" (uuid "35d331d8-e09c-5cbb-b0fa-b3c0e53caeda"))
+    (pin "10" (uuid "17360a6f-5a5d-5698-a532-15d806dfc13a"))
+    (pin "11" (uuid "f75ba79c-1ea3-5a40-8b03-850c394bfa89"))
+    (pin "12" (uuid "67a80356-0c82-51b4-a326-11905491ae88"))
+    (pin "13" (uuid "a69e236d-de4e-5fc3-92cb-052326b5e73f"))
+    (pin "14" (uuid "c57879a2-23c1-5d19-a499-73b9051ece95"))
+    (pin "15" (uuid "ff53601b-0e39-5f66-a941-6474e2c27efd"))
+    (pin "16" (uuid "65ca1a8e-aa7d-5206-80c1-da51f6726e49"))
+    (pin "17" (uuid "2dbeb932-1216-523f-95bd-918bb0446df6"))
+    (pin "18" (uuid "2d64e362-ead6-5e57-8108-8e7deae62905"))
+    (pin "19" (uuid "b5500cbb-20f0-5fb0-b25a-425fe6009a35"))
+    (pin "20" (uuid "0414c3b1-5111-5f6f-88fd-29b8f0febe2b"))
+    (pin "21" (uuid "ad286214-7458-5319-9d95-ad3f1d3c1696"))
+    (pin "22" (uuid "9f4e189e-aa61-5b8b-8b96-d8e857770b4b"))
+    (pin "23" (uuid "6ef96867-c718-5438-95d6-835189ec8518"))
+    (pin "24" (uuid "23c881ad-4a52-5989-a150-88801d96da3c"))
+    (pin "25" (uuid "838873a7-fb1a-522b-9fb9-77299249212f"))
+    (pin "26" (uuid "4ad8a769-cf33-5350-9da3-c7de5e1b63ab"))
+    (pin "27" (uuid "c75ff683-f027-5bfe-97c8-34e45a015600"))
+    (pin "28" (uuid "054b6026-5d0d-5b4e-bb0a-1d4d4f9c1aa6"))
+    (pin "29" (uuid "9b67bcb1-91a3-5a9b-92d1-e10aa7610964"))
+    (pin "30" (uuid "2c10e7c4-0f1c-56d2-a81d-d7aed709bbbf"))
+    (pin "31" (uuid "209062b6-2808-516c-b147-5a4fd9ca5aee"))
+    (pin "32" (uuid "672bce4c-ed18-5c1d-bd5d-9cf792775447"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "A1") (unit 1)))))
+  (no_connect (at 101.6 101.6) (uuid "990768c7-3f1b-538f-a231-8527cdcb4332"))
+  (no_connect (at 124.46 71.12) (uuid "6bf3cd6c-0b38-5346-80c6-aca1c75906fc"))
+  (no_connect (at 124.46 66.04) (uuid "35ce9664-9568-5c0f-b0db-e89b1886a5e4"))
+  (no_connect (at 114.3 55.88) (uuid "03e9b6d3-88ed-58fc-b6e6-ef1cbefddbc3"))
+  (no_connect (at 116.84 55.88) (uuid "0ff15c12-85ce-59b9-8e53-71e5f2dbfeb1"))
+  (no_connect (at 109.22 55.88) (uuid "a19f9b81-aa27-5093-8f34-0a79ecc01430"))
+  (no_connect (at 124.46 81.28) (uuid "0437871b-75ae-5ed8-807e-bb479fe1e5b4"))
+  (no_connect (at 124.46 83.82) (uuid "ac7bf14c-bbab-56af-bc5d-80c51db42f6f"))
+  (no_connect (at 124.46 86.36) (uuid "18cc29a1-1350-5ab2-b37f-7920faeff1a0"))
+  (no_connect (at 124.46 88.9) (uuid "7182b6eb-912e-5816-b2fa-9777a68b49b5"))
+  (no_connect (at 124.46 91.44) (uuid "87214b39-0acd-5a2a-b43e-fe275e1b66cd"))
+  (no_connect (at 124.46 93.98) (uuid "068ad564-c331-5bcc-8a46-38f26258d669"))
+  (no_connect (at 99.06 66.04) (uuid "58128c54-743a-5e98-864a-3a2478e4bad6"))
+  (no_connect (at 99.06 68.58) (uuid "09238804-7e13-5126-a9af-25b9b49a3799"))
+  (no_connect (at 99.06 76.2) (uuid "d36c9ad8-adc7-5307-9142-c437b5edc2a3"))
+  (no_connect (at 99.06 78.74) (uuid "76dd909a-1401-5512-bc3e-a11f00474d72"))
+  (no_connect (at 99.06 83.82) (uuid "fb441f91-f111-5a18-8d7a-3c93d42bbeda"))
+  (no_connect (at 99.06 86.36) (uuid "5bdcffb0-b685-5e9c-ad5c-63f1b37448ea"))
+  (no_connect (at 99.06 88.9) (uuid "22e128d1-c045-55b4-818c-fa0f3438be8d"))
+  (no_connect (at 99.06 91.44) (uuid "2aa9eca5-1c47-5f2d-b3bd-1da39e8bc32a"))
+  (no_connect (at 99.06 93.98) (uuid "4e966cae-09c7-5cef-8316-55394e20cdb7"))
+  (no_connect (at 99.06 96.52) (uuid "b11dda52-a8af-57c1-a1be-0880a0171d88"))
+  (no_connect (at 99.06 99.06) (uuid "421c82c8-89e0-5f12-aec5-2497b25b175a"))
+  (no_connect (at 124.46 76.2) (uuid "620c3877-9e32-59ea-a480-0d539e57810a"))
+  (no_connect (at 124.46 99.06) (uuid "f8b2c4f4-09c5-5df7-91b0-96e6fbdc6753"))
+  (no_connect (at 124.46 101.6) (uuid "9ee07332-04cf-5175-8039-b416429f1dbc"))
+  (symbol
+    (lib_id "Device:R")
+    (at 175.26 72.39 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "9df61ba9-e89e-5022-a454-62c7ad38ca6b")
+    (property "Reference" "R1"
+      (at 182.88 69.85 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Value" "220"
+      (at 182.88 74.93 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariId" "polari:electronics/uno-light/component/R1"
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariVariant" "uno-light"
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "polari_role" "current-limiter"
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "DesignNote" "Sample value; actual tolerance, power rating and manufacturer not selected."
+      (at 175.26 72.39 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "176c15c6-2350-58c6-b2b2-c40b071022e7"))
+    (pin "2" (uuid "21745666-7e16-529d-9684-5163c99ccf37"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "R1") (unit 1)))))
+  (symbol
+    (lib_id "Device:LED")
+    (at 175.26 96.52 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "1286cec9-0ffd-5dbd-a3b5-240d3268b906")
+    (property "Reference" "D1"
+      (at 182.88 93.97999999999999 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Value" "LED (part TBD)"
+      (at 182.88 99.06 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" "LED_THT:LED_D5.0mm"
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariId" "polari:electronics/uno-light/component/D1"
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariVariant" "uno-light"
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "polari_role" "indicator"
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "DesignNote" "Illustrative 5mm footprint; verify actual LED package, polarity and ratings before assembly."
+      (at 175.26 96.52 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "c3363c61-bce4-514e-8a34-d67b1eadd2b7"))
+    (pin "2" (uuid "0e61968a-fe2b-5fcb-9a45-bcfe3c66bcd7"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "D1") (unit 1)))))
+  (symbol
+    (lib_id "Switch:SW_Push")
+    (at 66.04 124.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "69c72f3e-6c3f-5790-a37c-a7ecf057694d")
+    (property "Reference" "SW1"
+      (at 73.66000000000001 121.91999999999999 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Value" "Momentary pushbutton"
+      (at 73.66000000000001 127.0 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" ""
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariId" "polari:electronics/uno-light/component/SW1"
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "PolariVariant" "uno-light"
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "polari_role" "button"
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "DesignNote" "No footprint selected: real switch contact arrangement remains to be verified."
+      (at 66.04 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "f2a1015b-9518-591a-9793-b02c39a7c430"))
+    (pin "2" (uuid "19de058e-fbcc-5765-8c24-c641f83095a6"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "SW1") (unit 1)))))
+  (wire
+    (pts (xy 99.06 71.12) (xy 81.28 71.12))
+    (stroke (width 0) (type default))
+    (uuid "246bc691-0c52-59af-8410-9ccf9c681181"))
+  (label "BUTTON_INPUT"
+    (at 81.28 71.12 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "94708aee-32b2-55c1-93f6-be8ba99a1db5"))
+  (wire
+    (pts (xy 99.06 73.66) (xy 81.28 73.66))
+    (stroke (width 0) (type default))
+    (uuid "90261a8c-4bc0-5145-b6b0-e5163d011c4e"))
+  (label "LED_CONTROL"
+    (at 81.28 73.66 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "d23bc761-3730-52e3-bb11-c0dc7956befb"))
+  (wire
+    (pts (xy 99.06 81.28) (xy 81.28 81.28))
+    (stroke (width 0) (type default))
+    (uuid "fd8a9df9-1339-542a-86b8-b6de8c8e09df"))
+  (label "LED_CONTROL"
+    (at 81.28 81.28 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "ae56ce21-ee53-5221-98ff-224ec3b9b588"))
+  (wire
+    (pts (xy 111.76 109.22) (xy 111.76 116.84))
+    (stroke (width 0) (type default))
+    (uuid "d4fa6b94-fd0d-5046-ac3f-5fcda51abce7"))
+  (wire
+    (pts (xy 114.3 109.22) (xy 114.3 116.84))
+    (stroke (width 0) (type default))
+    (uuid "169fe60b-7377-51b1-a630-38c4bc655c3a"))
+  (wire
+    (pts (xy 109.22 109.22) (xy 109.22 116.84))
+    (stroke (width 0) (type default))
+    (uuid "7e97af2c-775a-563f-ba71-14de86a21544"))
+  (wire
+    (pts (xy 109.22 116.84) (xy 111.76 116.84))
+    (stroke (width 0) (type default))
+    (uuid "b054ed38-d51c-578c-b73f-d948eb6a5d58"))
+  (wire
+    (pts (xy 111.76 116.84) (xy 114.3 116.84))
+    (stroke (width 0) (type default))
+    (uuid "edbd5675-f7a7-5ed9-8679-2a9289a4f878"))
+  (wire
+    (pts (xy 111.76 116.84) (xy 111.76 121.92))
+    (stroke (width 0) (type default))
+    (uuid "93d51f1a-c02e-575a-8d3f-4ed7549433eb"))
+  (junction (at 111.76 116.84) (diameter 0) (color 0 0 0 0) (uuid "e9a1da7a-089e-50f7-8d06-128812b658b4"))
+  (symbol
+    (lib_id "power:GND")
+    (at 111.76 121.92 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7ce350a8-ec87-5ee0-af3f-da05263c14d3")
+    (property "Reference" "#PWR06"
+      (at 114.3 119.38 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Value" "GND"
+      (at 114.3 124.46 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" ""
+      (at 111.76 121.92 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 111.76 121.92 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "af4438c2-5582-5a2a-aec5-207f8f2e9634"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "#PWR06") (unit 1)))))
+  (wire
+    (pts (xy 175.26 60.96) (xy 175.26 68.58))
+    (stroke (width 0) (type default))
+    (uuid "a84ba2b5-fc81-5713-82c6-26834c7f3705"))
+  (label "LED_CONTROL"
+    (at 175.26 60.96 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "82f4d230-b18e-5785-af77-d3afa908e54e"))
+  (wire
+    (pts (xy 175.26 76.2) (xy 175.26 83.82))
+    (stroke (width 0) (type default))
+    (uuid "7bb62620-4d5b-5f85-89ac-b8421b86cdf7"))
+  (wire
+    (pts (xy 175.26 83.82) (xy 190.5 83.82))
+    (stroke (width 0) (type default))
+    (uuid "05189c3e-3fa1-5d66-9ee7-47a29aea6707"))
+  (wire
+    (pts (xy 190.5 83.82) (xy 190.5 96.52))
+    (stroke (width 0) (type default))
+    (uuid "e74f0e92-8daf-5640-98a6-358c30ca08c1"))
+  (wire
+    (pts (xy 190.5 96.52) (xy 179.07 96.52))
+    (stroke (width 0) (type default))
+    (uuid "96dfa6b2-9ebf-5771-add9-12d1484b5141"))
+  (label "LED_ANODE"
+    (at 190.5 83.82 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "3acdaad0-b4a2-5bae-b13c-a576711cdad7"))
+  (wire
+    (pts (xy 171.45 96.52) (xy 162.56 96.52))
+    (stroke (width 0) (type default))
+    (uuid "979049b3-1088-5da7-8f2b-6a91dc9b450a"))
+  (wire
+    (pts (xy 162.56 96.52) (xy 162.56 106.68))
+    (stroke (width 0) (type default))
+    (uuid "f65c0821-08d6-5c4f-8e0e-af6b381a6dd6"))
+  (symbol
+    (lib_id "power:GND")
+    (at 162.56 106.68 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "eb4e040b-4557-5b9c-bea3-875901ce3ecd")
+    (property "Reference" "#PWR01"
+      (at 165.1 104.14 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Value" "GND"
+      (at 165.1 109.22 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" ""
+      (at 162.56 106.68 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 162.56 106.68 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "50ce70f5-bb8c-5486-8b5f-d532102c5f28"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "#PWR01") (unit 1)))))
+  (wire
+    (pts (xy 60.96 124.46) (xy 48.26 124.46))
+    (stroke (width 0) (type default))
+    (uuid "587c270c-f95c-502d-bac9-5bf84e87fd78"))
+  (label "BUTTON_INPUT"
+    (at 48.26 124.46 0)
+    (fields_autoplaced yes)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "19a3a4ba-3f57-550d-a1be-4789dde62119"))
+  (wire
+    (pts (xy 71.12 124.46) (xy 78.74 124.46))
+    (stroke (width 0) (type default))
+    (uuid "a24b5bea-5471-5327-9c27-0008295aaff3"))
+  (wire
+    (pts (xy 78.74 124.46) (xy 78.74 132.08))
+    (stroke (width 0) (type default))
+    (uuid "96b3f2b4-d167-52b6-b8da-2150b420f998"))
+  (symbol
+    (lib_id "power:GND")
+    (at 78.74 132.08 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "699e7a50-e6c4-560b-ba3c-1649be0b9dc4")
+    (property "Reference" "#PWR02"
+      (at 81.28 129.54 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Value" "GND"
+      (at 81.28 134.62 0)
+      (effects
+        (font (size 1.27 1.27))))
+    (property "Footprint" ""
+      (at 78.74 132.08 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 78.74 132.08 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "861efced-fdf9-5abb-94e7-e3d190ee929f"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "#PWR02") (unit 1)))))
+  (wire
+    (pts (xy 78.74 124.46) (xy 91.44 124.46))
+    (stroke (width 0) (type default))
+    (uuid "21193e9f-2d5e-5f93-b598-f2d4c101db61"))
+  (junction (at 78.74 124.46) (diameter 0) (color 0 0 0 0) (uuid "0c3b6874-dbe5-51eb-a762-4169f13d16c8"))
+  (symbol
+    (lib_id "power:PWR_FLAG")
+    (at 91.44 124.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a9ea993d-2e83-52cb-9912-b942e0c37b69")
+    (property "Reference" "#FLG01"
+      (at 93.98 121.92 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Value" "PWR_FLAG"
+      (at 93.98 127 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Footprint" ""
+      (at 91.44 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" ""
+      (at 91.44 124.46 0)
+      (effects
+        (font (size 1.27 1.27))
+        (hide yes)))
+    (pin "1" (uuid "ea6583e2-304e-5aca-afb4-831702ae1fb7"))
+    (instances
+      (project "uno-light"
+        (path "/c91efdcb-df51-5b8d-85ba-993e341298f9" (reference "#FLG01") (unit 1)))))
+  (text "POLARI / UNO LIGHT — S1"
+    (at 35.56 25.4 0)
+    (effects
+      (font (size 2.54 2.54))
+      (justify left bottom))
+    (uuid "98f516a6-ce12-525d-97ea-79678cd1fe9e"))
+  (text "USB-powered UNO module + external button, LED and sense jumper"
+    (at 35.56 33.02 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "c6b551ea-bf8c-5841-9fce-5f3fb307826a"))
+  (text "D2 / INT0: active-low button; firmware enables internal pull-up"
+    (at 35.56 147.32 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "3802a5dc-0861-570e-b4c8-cb01b25caad0"))
+  (text "D6: LED output. Jumper D6 to D3: all LED_CONTROL labels are one net."
+    (at 35.56 154.94 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "dbca8f01-8a74-5432-bb60-cbeafb3351ae"))
+  (text "D3 polls the drive-line voltage; this does NOT measure LED current or illumination."
+    (at 35.56 162.56 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "720d3c59-a176-55ba-ab47-94d0f89f74f2"))
+  (text "LightState: SET_LED command down; sensed led_on, toggles and source up."
+    (at 35.56 170.18 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "db3de44b-a39f-5678-9b9c-efc8a4be8137"))
+  (text "Bench schematic only. Part ratings / switch footprint / fabrication not approved."
+    (at 35.56 177.8 0)
+    (effects
+      (font (size 1.27 1.27))
+      (justify left bottom))
+    (uuid "63a31ad4-0783-5755-97b2-73fa008cd088"))
+  (sheet_instances
+    (path "/" (page "1")))
+  (embedded_fonts no))

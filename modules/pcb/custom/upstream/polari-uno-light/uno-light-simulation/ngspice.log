@@ -1,0 +1,28 @@
+stdout ******
+stdout ** ngspice-43 shared library
+stdout ** Creation Date: Sun Sep 29 19:06:09 UTC 2024
+stdout ******
+stdout ******
+stdout ** ngspice-43 : Circuit level simulation program
+stdout ** Compiled with KLU Direct Linear Solver
+stdout ** The U. C. Berkeley CAD Group
+stdout ** Copyright 1985-1994, Regents of the University of California.
+stdout ** Copyright 2001-2024, The ngspice team.
+stdout ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
+stdout ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+stdout ** Creation Date: Sun Sep 29 19:06:09 UTC 2024
+stdout ******
+Source Deck
+stdout Note: No compatibility mode selected!
+stdout Circuit: KiCad schematic
+stdout Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+stderr Using SPARSE 1.3 as Direct Linear Solver
+stdout Initial Transient Solution
+stdout --------------------------
+stdout Node                                   Voltage
+stdout ----                                   -------
+stdout /led_control                                 0
+stdout /led_anode                         1.79977e-35
+stdout v1#branch                          8.18077e-38
+--ready--
+stdout No. of Data Rows : 8032

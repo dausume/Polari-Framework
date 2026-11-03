@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "design": "uno-light",
+  "revision": "0.1",
+  "board_definition": "arduino-uno-r3",
+  "firmware_variant": {
+    "name": "uno-light",
+    "board_definition": "arduino-uno-r3",
+    "title": "The light test: a light on D6 that the screen and the board's pushbutton both switch, with a sense line that reports what the LED really is",
+    "purpose": "The simplest two-way test of a Polari Hardware App, and the core demo. D6 carries the light; a person can switch it from a Polari screen (the SET_LED command down), and the pushbutton on D2 (debounced) switches the same light and the board reports the change up. One struct, LightState, carries the light's state both ways and is what CONTROLS the light (led_follow_state is the only pin writer). smp-1: a jumper from the light pin D6 to D3 lets the board read the LED line itself (polled in the main loop): the report's led_on is the SENSED level, not the commanded one. The wire contract is unchanged (LightState v1). No clock, no event queue.",
+    "app": "light",
+    "classes_json": "[\"LightState\"]",
+    "features_json": "{\"led\": true, \"pwm\": false, \"adc\": false, \"commands\": true, \"button\": true, \"sense\": true}",
+    "knobs_json": "{\"rig_name\": \"uno-light\", \"telemetry_hz\": 10, \"led_pin\": 6, \"button_pin\": 2, \"sense_pin\": 3, \"sense_route\": \"poll\", \"debounce_ms\": 30}",
+    "build_flags_json": "[]",
+    "what_to_watch": "pressing the button on D2 flips the light on D6, bumps toggles and reports source=button; setting led_on from the screen (SET_LED) switches the light and reports source=command; toggles counts every change. With the jumper D6->D3 the reported led_on follows the light pin; with NO jumper the board still drives D6 but reports led_on false (it reports what it senses).",
+    "twin_stimulus_json": "{}",
+    "origin": "seeded",
+    "notes": "wiring: LED + 220 ohm from D6 to GND; pushbutton between D2 and GND (the internal pull-up holds D2 high); JUMPER D6 -> D3 (the sense line; D3 is polled). Without the jumper Polari cannot observe the light (the unsensed build is uno-light-unsensed, sample failure F1). Routes: drive-led:gpio-out, read-button:ext-interrupt, sense-led-line:gpio-poll"
+  },
+  "engine": {
+    "resolved": {
+      "how": "local-binary",
+      "where": "/usr/bin/kicad-cli",
+      "why": "on this device"
+    },
+    "version": "10.0.6"
+  },
+  "source": "board/custom/variants.py: uno-light",
+  "source_sha256": "3d621fe5994ba8792131affbcbbbe413c1dd96cfdf0583d2b49b6beea17eb40f",
+  "libraries": [
+    {
+      "lib": "MCU_Module",
+      "name": "Arduino_UNO_R3",
+      "lib_file": "/usr/share/kicad/symbols/MCU_Module.kicad_sym",
+      "lib_sha256": "2c1d0497e8d1e29c0bd79334752da98c06526fd5b9cb44fde5d0df03862a1db3"
+    },
+    {
+      "lib": "Device",
+      "name": "R",
+      "lib_file": "/usr/share/kicad/symbols/Device.kicad_sym",
+      "lib_sha256": "d8cd2847723eef0397104b8647872c80147795358312230604a502750f87023d"
+    },
+    {
+      "lib": "Device",
+      "name": "LED",
+      "lib_file": "/usr/share/kicad/symbols/Device.kicad_sym",
+      "lib_sha256": "d8cd2847723eef0397104b8647872c80147795358312230604a502750f87023d"
+    },
+    {
+      "lib": "Switch",
+      "name": "SW_Push",
+      "lib_file": "/usr/share/kicad/symbols/Switch.kicad_sym",
+      "lib_sha256": "aa97588ceed2c3f1be89c98ec16b3e8ee491e4354e0416c12706fc868df68bc9"
+    },
+    {
+      "lib": "power",
+      "name": "GND",
+      "lib_file": "/usr/share/kicad/symbols/power.kicad_sym",
+      "lib_sha256": "dfd086b4029e347d7a0041744b684ba8dda351ba8d8f7838cc0cbaeb06c87b54"
+    },
+    {
+      "lib": "power",
+      "name": "PWR_FLAG",
+      "lib_file": "/usr/share/kicad/symbols/power.kicad_sym",
+      "lib_sha256": "dfd086b4029e347d7a0041744b684ba8dda351ba8d8f7838cc0cbaeb06c87b54"
+    }
+  ],
+  "components": [
+    {
+      "id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "symbol": "MCU_Module:Arduino_UNO_R3",
+      "footprint": "Module:Arduino_UNO_R3",
+      "uuid": "32de27de-6ce1-5bd6-84b7-2132a30b6b52",
+      "role": "board",
+      "pins": {
+        "17": "BUTTON_INPUT",
+        "18": "LED_CONTROL",
+        "21": "LED_CONTROL",
+        "6": "GND",
+        "7": "GND",
+        "29": "GND"
+      },
+      "note": "Unused module contacts are intentionally NC for this sample; USB power is external."
+    },
+    {
+      "id": "polari:electronics/uno-light/component/R1",
+      "ref": "R1",
+      "symbol": "Device:R",
+      "footprint": "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal",
+      "uuid": "9df61ba9-e89e-5022-a454-62c7ad38ca6b",
+      "role": "current-limiter",
+      "pins": {
+        "1": "LED_CONTROL",
+        "2": "LED_ANODE"
+      },
+      "note": "Sample value; actual tolerance, power rating and manufacturer not selected."
+    },
+    {
+      "id": "polari:electronics/uno-light/component/D1",
+      "ref": "D1",
+      "symbol": "Device:LED",
+      "footprint": "LED_THT:LED_D5.0mm",
+      "uuid": "1286cec9-0ffd-5dbd-a3b5-240d3268b906",
+      "role": "indicator",
+      "pins": {
+        "1": "GND",
+        "2": "LED_ANODE"
+      },
+      "note": "Illustrative 5mm footprint; verify actual LED package, polarity and ratings before assembly."
+    },
+    {
+      "id": "polari:electronics/uno-light/component/SW1",
+      "ref": "SW1",
+      "symbol": "Switch:SW_Push",
+      "footprint": "",
+      "uuid": "69c72f3e-6c3f-5790-a37c-a7ecf057694d",
+      "role": "button",
+      "pins": {
+        "1": "BUTTON_INPUT",
+        "2": "GND"
+      },
+      "note": "No footprint selected: real switch contact arrangement remains to be verified."
+    }
+  ],
+  "connections": [
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "6",
+      "pin_name": "GND",
+      "net": "GND"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "7",
+      "pin_name": "GND",
+      "net": "GND"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "17",
+      "pin_name": "D2",
+      "net": "BUTTON_INPUT"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "18",
+      "pin_name": "D3",
+      "net": "LED_CONTROL"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "21",
+      "pin_name": "D6",
+      "net": "LED_CONTROL"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/A1",
+      "ref": "A1",
+      "pin": "29",
+      "pin_name": "GND",
+      "net": "GND"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/R1",
+      "ref": "R1",
+      "pin": "1",
+      "pin_name": "",
+      "net": "LED_CONTROL"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/R1",
+      "ref": "R1",
+      "pin": "2",
+      "pin_name": "",
+      "net": "LED_ANODE"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/D1",
+      "ref": "D1",
+      "pin": "1",
+      "pin_name": "K",
+      "net": "GND"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/D1",
+      "ref": "D1",
+      "pin": "2",
+      "pin_name": "A",
+      "net": "LED_ANODE"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/SW1",
+      "ref": "SW1",
+      "pin": "1",
+      "pin_name": "1",
+      "net": "BUTTON_INPUT"
+    },
+    {
+      "component_id": "polari:electronics/uno-light/component/SW1",
+      "ref": "SW1",
+      "pin": "2",
+      "pin_name": "2",
+      "net": "GND"
+    }
+  ],
+  "signal_bindings": [
+    {
+      "canonical": "D2",
+      "soc_pin": "PD2",
+      "net": "BUTTON_INPUT",
+      "module_pin": "17",
+      "direction": "input",
+      "pull": "internal-up",
+      "route": "INT0",
+      "debounce_ms": 30
+    },
+    {
+      "canonical": "D6",
+      "soc_pin": "PD6",
+      "net": "LED_CONTROL",
+      "module_pin": "21",
+      "direction": "output",
+      "task": "led_follow_state"
+    },
+    {
+      "canonical": "D3",
+      "soc_pin": "PD3",
+      "net": "LED_CONTROL",
+      "module_pin": "18",
+      "direction": "input",
+      "route": "poll",
+      "reported_field": "LightState.led_on",
+      "meaning": "sampled drive-line level; not LED current"
+    }
+  ],
+  "readiness": {
+    "schematic": "generated",
+    "fabrication": "not-ready",
+    "physical_test": "not-performed"
+  },
+  "limitations": [
+    "No actual LED MPN/ratings selected",
+    "No switch footprint selected",
+    "UNO module internals not reproduced",
+    "No SPICE or firmware run performed by this generator"
+  ]
+}
