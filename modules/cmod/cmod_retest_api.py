@@ -11,6 +11,8 @@ POST /api/cmod/bench-topology/{bench_solution}/run-all              bss-8: every
                                                                     reached, the coverage's untested list (empty = the only green)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/signals   the run's StructNodeRunSignal rows (the structs on arrival)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/edges     the run's StructNodeRunEdge rows
+GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/captures  bss-10: the capture rows the run kept (on failure / pinned), one per line, with the acquisition the
+                                                                    osc chart door (/api/instruments/captures/{acq}/chart) draws
 404 = no such Bench Solution / run.
 """
 import json
@@ -36,6 +38,7 @@ class RetestAPI(treeObject):
             add('/api/cmod/bench-topology/{bench_solution}/run-all', self, suffix='run_all')   # bss-8
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/signals', self, suffix='signals')
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/edges', self, suffix='edges')
+            add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/captures', self, suffix='captures')   # bss-10
 
     def _do(self, response, fn, *args):
         try:
@@ -63,6 +66,10 @@ class RetestAPI(treeObject):
             response.media = {'ok': False, 'error': 'no Bench Solution %r' % bench_solution}
             return
         self._do(response, RT.run_all, bench_solution)
+
+    def on_get_captures(self, request, response, bench_solution, run):
+        """bss-10: the WaveformCapture rows a run kept (on failure, or pinned), one per line; the osc chart door draws an acquisition."""
+        self._do(response, RT.run_captures, run)
 
     def on_get_signals(self, request, response, bench_solution, run):
         self._do(response, RT.run_signals, run)

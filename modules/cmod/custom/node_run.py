@@ -363,7 +363,7 @@ def _r_of(c):
     return float(m.group(1)) * (1000.0 if m.group(2) else 1.0) if m else 0.0
 
 
-def run(manager, bench_solution, node, path='', profile='', play_from=''):
+def run(manager, bench_solution, node, path='', profile='', play_from='', pin=False):
     ctx = CF.context(manager, bench_solution)
     n = R.get(manager, 'StructNode', node)
     if n is None:
@@ -499,14 +499,19 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
                    **T.step_of(manager, node))
     from cmod.custom import confirmations as C
     capture = {'rows': []}
+    from cmod.custom import failure_capture as FC
     if outcome == 'reached':   # bss-3: the twin's confirmation, for this path and this build (other builds' confirmations are voided, never deleted)
         C.confirm(manager, node, p['name'], 'twin', sha, run=name, words='run %s met the requirements with every check passing' % name)
     else:   # bss-9 (D-bss-6): the trace is kept ONLY on failure, and only the window around it - the osc arc's WaveformCapture rows, one per line
-        from cmod.custom import failure_capture as FC
         failed_edge = next((pe for pe, er in zip(plan, edge_rows) if er['outcome'] in ('not-reached', 'diverged')), target)
         capture = FC.keep(manager, name, events, failed_edge['s'], failed_edge['end'], hz, T.step_of(manager, node)['step_s'], '%s: %s' % (outcome, last['words'][:120]))
         words += '; ' + capture['words']
         row = R.upsert(manager, 'StructNodeRun', name, words=words)
+    if pin:   # bss-10 (D-bss-6): a person pinned the play - the target edge's WHOLE window is kept, whatever the outcome
+        pinned = FC.keep(manager, name, events, target['s'], target['end'], hz, T.step_of(manager, node)['step_s'], 'pinned (%s)' % outcome, fraction=1.0, prefix='pin')
+        words += '; ' + pinned['words']
+        row = R.upsert(manager, 'StructNodeRun', name, words=words)
+        capture = capture if capture['rows'] else pinned
     if outcome == 'diverged':   # D-bss-10: the reached values are proposed as a node off the same parent, for a person to accept, loosen and name
         _propose(manager, bench_solution, node, target['edge'], lines, name)
     if unwired:

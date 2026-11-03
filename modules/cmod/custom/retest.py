@@ -110,6 +110,13 @@ def run_signals(manager, run):
     return sorted(R.rows(manager, 'StructNodeRunSignal', run=run), key=lambda s: (s['kind'], s['signal']))
 
 
+def run_captures(manager, run):
+    if R.get(manager, 'StructNodeRun', run) is None:
+        raise R.ConfigRefused('no run %r' % run, status=404)
+    from cmod.custom import failure_capture as FC
+    return FC.of_run(manager, run)
+
+
 def run_edges(manager, run):
     if R.get(manager, 'StructNodeRun', run) is None:
         raise R.ConfigRefused('no run %r' % run, status=404)

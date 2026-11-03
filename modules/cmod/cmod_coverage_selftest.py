@@ -108,9 +108,11 @@ def main():
                 walk(i)
     walk(pdef)
     tabs = [t['key'] for t in pdef.get('tabs', [])]
-    check('THE PAGE: /display/hardware-events with the picker and six tabs (overview first); every table reads a door this module or the board module serves',
+    check('THE PAGE: /display/hardware-events with the picker and six tabs (overview first); every table reads a door this module or the board module serves; the one '
+          'chart (bss-10) reads the instruments arc\'s capture chart door',
           page.get('pageRoute') == 'hardware-events' and tabs == ['overview', 'nodes', 'events', 'runs', 'assertions', 'profiles']
-          and all(p.startswith('/api/cmod/bench-topology/') or p.startswith('/api/board/bench-solutions') for p in paths) and any('/coverage/untested' in p for p in paths), (tabs, sorted(paths)))
+          and all(p.startswith('/api/cmod/bench-topology/') or p.startswith('/api/board/bench-solutions') or p.startswith('/api/instruments/captures/') for p in paths)
+          and any('/coverage/untested' in p for p in paths) and any('/runs/{scope:run}/captures' in p for p in paths), (tabs, sorted(paths)))
     api = CoverageAPI(polServer=None, manager=m)
 
     def call(method, *args):

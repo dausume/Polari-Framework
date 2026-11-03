@@ -15,7 +15,7 @@ scope the tables below read.
 Linkable: /display/hardware-events?bench_solution=uno-light-on-desk&node=... (scope_query). Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/...],
 /api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles.
 """
-from polariApiServer.module_pages_seed import _page, _row, _table, _tab
+from polariApiServer.module_pages_seed import _component, _page, _row, _table, _tab
 
 _BS = '{scope:bench_solution}'
 _REV = 'rev=r{scope:rev}'
@@ -80,8 +80,19 @@ def _runs_tab():
                         description='One row per node run across the topology: the node, the path, the outcome, the duration of the last edge and what set it, the step and '
                                     'what asked for it, the build it ran on, the profile it watched with.',
                         columns='name,node,outcome,duration_s,duration_set_by,step_s,step_set_by,hex_sha256,profile,play_from,ran_at,words', data_path=_T + '/coverage/runs?' + _REV,
-                        empty_text=_PICK)], min_height=320)],
-        description='The kept assessments of every run; the traces themselves were the working buffer and are gone.')
+                        empty_text=_PICK, select_field='name', select_scope='run', selected_value='{scope:run}')], min_height=320),
+        # bss-10: the traces a run DID keep - on failure (the window around it) or pinned - and the osc arc's chart of the chosen acquisition
+        _row(1, [_table('he-run-captures', 0, 12, 'The traces this run kept - click one acquisition', '',
+                        description='One row per line of a capture the chosen run kept: on failure, the window around the failing edge (D-bss-6); pinned, the whole edge. '
+                                    'The same rows a scope capture writes (instruments), source twin. Click a row to draw its acquisition below.',
+                        columns='acquisition,kept,channel,line,points,sample_rate,span_s,v_min,v_max,source_ref', data_path=_T + '/runs/{scope:run}/captures?' + _REV,
+                        select_field='acquisition', select_scope='acquisition', selected_value='{scope:acquisition}',
+                        empty_text='Pick a run above; a reached run keeps no trace (the assessment is kept, the trace was the working buffer).')], min_height=220),
+        _row(2, [_component('he-run-chart', 0, 12, 'The chosen acquisition - the lines over time', 'named-graph-panel',
+                            {'graphName': 'instruments-capture', 'dataPath': '/api/instruments/captures/{scope:acquisition}/chart?max=4000&' + _REV},
+                            description='Volts over seconds for every line of the chosen acquisition, recomputed from the stored block and preamble by the instruments arc\'s '
+                                        'own chart (instruments-capture); every drawn point is a real sample.')], min_height=420)],
+        description='The kept assessments of every run; a trace is kept only around a failure or when pinned, and drawn here.')
 
 
 def _assertions_tab():
@@ -108,5 +119,5 @@ HARDWARE_EVENTS_PAGES = [
           'the firmware\'s claims exercised, the test profiles. Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/untested|nodes|events|runs|assertions|strip-rows], '
           '/api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles, /api/cmod/bench-topology/{bs}/canvas.',
           'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab()],
-          scope_query=['bench_solution', 'node', 'node_slug']),
+          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition']),
 ]
