@@ -226,7 +226,18 @@ from cmod.custom.catom_variables import SEED_VARIABLES as _CV_SEEDS  # noqa: E40
 CMOD_SEED_PAIRS.append(('CatomVariable', CatomVariable, _owned(_CV_SEEDS, keep=('notes', 'status', 'status_why', 'bench_value', 'bench_basis'))))
 # cfg-0: catom configurations - options are seeded per group from cfg-1 (clock); the rest are a person's or the checks' rows, never seeded
 from cmod.cmod_basis import ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult  # noqa: E402
-CMOD_SEED_PAIRS.extend([('ConfigOption', ConfigOption, []), ('CatomConfiguration', CatomConfiguration, []), ('ConfigChoice', ConfigChoice, []),
+# cfg-1: the serial link's two divisor options on the report-state catom (the UNO's USART0 at 115200; DS40002061B Table 20-7, f_osc 16 MHz) - what a
+# firmware's usart_u2x knob can be set to; graded per Bench Solution by cmod.custom.clock_checks (the shipped one comes out compromise, the other invalid
+# against the 16U2). More options (lower bauds, two stop bits, other clocks) are cfg-3's.
+SEED_CLOCK_OPTIONS = [
+    {'name': 'report-state:clock:u2x1-ubrr16', 'catom': 'report-state', 'group': 'clock', 'level': 'values', 'title': 'matched divisor: U2X0 = 1, UBRR0 = 16 (+2.1 %) - the shipped build',
+     'sets_json': json.dumps({'usart_u2x': 1, 'baud': 115200}), 'isotope': '', 'source': 'DS40002061B Table 20-7 (16 MHz, 115.2k, U2X 1: UBRR 16, +2.1 %); board_config.h USART_U2X 1',
+     'notes': 'what Optiboot and the 16U2 side use: works because both ends share the same divisor error'},
+    {'name': 'report-state:clock:u2x0-ubrr8', 'catom': 'report-state', 'group': 'clock', 'level': 'values', 'title': 'normal mode: U2X0 = 0, UBRR0 = 8 (-3.5 %)',
+     'sets_json': json.dumps({'usart_u2x': 0, 'baud': 115200}), 'isotope': '', 'source': 'DS40002061B Table 20-7 (16 MHz, 115.2k, U2X 0: UBRR 8, -3.5 %)',
+     'notes': 'the wider 16-sample window, the worse divisor: tmp-6 measured the 16U2\'s bytes 5.9 % fast for this receiver'},
+]
+CMOD_SEED_PAIRS.extend([('ConfigOption', ConfigOption, _owned(SEED_CLOCK_OPTIONS, keep=('notes',))), ('CatomConfiguration', CatomConfiguration, []), ('ConfigChoice', ConfigChoice, []),
                         ('ConfigOptionGrade', ConfigOptionGrade, []), ('ConfigOptionResult', ConfigOptionResult, [])])
 # bss-1: the Hardware Event topology - every row is a person's, an AI's or derived on read (bench_topology / bench_events / isotope_step_rules); none seeded
 from cmod.cmod_basis import IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples  # noqa: E402

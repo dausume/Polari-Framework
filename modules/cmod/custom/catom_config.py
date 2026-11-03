@@ -74,9 +74,12 @@ def _write(manager, bench_solution, g):
 
 
 def evaluate(manager, bench_solution, catom):
+    from cmod.custom import clock_checks as CK   # cfg-1: registers the clock group's checks on import; its context (board, clock, peer, ambient) rides in ctx
     ctx = context(manager, bench_solution)
     conf = configuration(manager, ctx['firmware_solution'], catom)
     ctx['configuration'] = conf
+    ctx['manager'] = manager
+    ctx['clock_context'] = CK.context(manager, bench_solution)
     for group, opts in sorted(options(manager, catom, conf['isotope']).items()):
         graded = _grade(opts, ctx)
         for g in graded:

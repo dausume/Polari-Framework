@@ -166,6 +166,12 @@ def main():
           'a reached run keeps none', r7['run']['outcome'] == 'diverged' and len(caps) == 3 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
           and 'failure capture' in r7['run']['words'] and sig7.get('PD6', {}).get('capture', '').startswith('fail-')
           and not any(c['acquisition'] == e1['name'] for c in R.rows(m, 'WaveformCapture')), (r7['run']['words'][-200:], [(c['name'], c['points']) for c in caps]))
+    rp = NR.run(m, BS, nodes['on-by-button']['name'], pin=True)
+    pins_ = RT.run_captures(m, rp['run']['name'])
+    check('A PINNED CAPTURE (bss-10, D-bss-6): pin = true on a REACHED run keeps the target edge\'s WHOLE window (3 lines, acquisition pin-...), the run\'s words say pinned; '
+          'the captures door lists the rows with kept = pinned and the line each is', rp['run']['outcome'] == 'reached' and rp['capture'].startswith('pin-')
+          and 'pinned capture' in rp['run']['words'] and len(pins_) == 3 and all(c['kept'] == 'pinned' for c in pins_) and sorted(c['line'] for c in pins_) == ['PD2', 'PD3', 'PD6']
+          and all(c['acquisition'] == rp['capture'] for c in pins_), (rp['capture'], rp['run']['words'][-160:], pins_[:1]))
     more = {}
     for bs2 in ('uno-light-pwm-on-desk', 'uno-light-transistor-on-desk', 'uno-light-all-pcint-on-desk'):
         a2 = SP.apply(m, bs2)
@@ -201,9 +207,22 @@ def main():
     s = call(api, 'on_get_specs')
     a = call(api, 'on_post_apply_spec', 'uno-light-pcint-on-desk', body={})
     bad = call(rapi, 'on_post_run_all', 'nope')
-    check('DOORS: GET topology-specs lists the spec; POST apply-spec re-applies idempotently (6 nodes, the same paths); POST run-all on an unknown Bench Solution -> 404',
+    cp = call(rapi, 'on_get_captures', BS, r7['run']['name'])
+    cbad = call(rapi, 'on_get_captures', BS, 'nope#run9')
+    check('DOORS: GET topology-specs lists the spec; POST apply-spec re-applies idempotently (6 nodes, the same paths); POST run-all on an unknown Bench Solution -> 404; '
+          'GET runs/{run}/captures lists the diverged run\'s 3 failure lines (kept = on failure) and 404s an unknown run',
           s.media['rows'][0]['name'] == 'uno-light-bench' and a.media['ok'] and len(a.media['nodes']) == 6 and sum(len(n['paths']) for n in a.media['nodes']) == 8
-          and bad.status.startswith('404'), (s.media, a.media.get('words'), bad.status))
+          and bad.status.startswith('404') and len(cp.media['rows']) == 3 and all(r['kept'] == 'on failure' for r in cp.media['rows']) and cbad.status.startswith('404'),
+          (s.media, a.media.get('words'), bad.status, cp.media, cbad.status))
+    from cmod.hardware_events_page import HARDWARE_EVENTS_PAGES
+    d = json.loads(HARDWARE_EVENTS_PAGES[0]['definition'])
+    tabs = {t['key']: t for t in d['tabs']}
+    ids = {i['id']: i for r in tabs['runs']['rows'] for i in r['items']}
+    check('THE PAGE (bss-10): the Hardware Events page\'s Runs tab selects a run, lists the traces it kept (the captures door) and draws the chosen acquisition with the '
+          'instruments arc\'s own graph (instruments-capture, the osc chart door); run and acquisition are page scopes',
+          {'he-runs', 'he-run-captures', 'he-run-chart'} <= set(ids) and ids['he-run-chart']['componentProps']['inputs']['graphName'] == 'instruments-capture'
+          and '/runs/{scope:run}/captures' in json.dumps(ids['he-run-captures']['componentProps']) and {'run', 'acquisition'} <= set(d['scope_from_query']),
+          (sorted(ids), d.get('scope_from_query')))
     from moduleService.manifests import conform
     rr = conform('cmod')
     check('MANIFEST: pol modules conform cmod is clean with the new file and selftest listed', rr['ok'], rr.get('findings'))

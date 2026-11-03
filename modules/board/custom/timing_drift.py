@@ -63,8 +63,19 @@ UNO = 'arduino-uno-r3'
 PARTS = ('timing-clocks', 'timing-uart', 'logic-delays', 'timing-run', 'timing-run-corners')
 
 
-def clock_band(clock, temp_c):
-    c = CLOCKS[clock]
+def clock_source(clock, manager=None):
+    """cfg-1: the clock's bounds - a server's ClockSource row when it has one (a person's own rows count), else the CLOCKS table (their seed)."""
+    if manager is not None and getattr(manager, 'objectTables', None) is not None:
+        for r in (manager.objectTables.get('ClockSource') or {}).values():
+            if getattr(r, 'name', '') == clock:
+                return {k: getattr(r, k) for k in ('f_hz', 'initial_pct', 'temp_pct', 't_min_c', 't_max_c', 'aging_pct', 'what', 'source')}
+    if clock not in CLOCKS:
+        raise KeyError('no clock source %r (the rows: ClockSource; the seed: timing_drift.CLOCKS %s)' % (clock, sorted(CLOCKS)))
+    return CLOCKS[clock]
+
+
+def clock_band(clock, temp_c, manager=None):
+    c = clock_source(clock, manager)
     if not c['t_min_c'] <= temp_c <= c['t_max_c']:
         return {'inside': False, 'low_pct': 0.0, 'high_pct': 0.0,
                 'words': 'unrated: the datasheet bounds it only over %g .. %g C' % (c['t_min_c'], c['t_max_c'])}

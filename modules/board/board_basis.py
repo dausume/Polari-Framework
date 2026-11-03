@@ -91,6 +91,8 @@ from board.objects.board.BenchSolution import BenchSolution  # noqa: F401   # cf
 from board.objects.board.BenchConditions import BenchConditions  # noqa: F401   # cfg-0: the open-air conditions a Bench Solution runs under
 from board.objects.board.HardwareSystem import HardwareSystem  # noqa: F401   # bss-0: Systems (templates) and Solutions (bound)
 from board.objects.board.ThermalSystem import ThermalSystem  # noqa: F401   # bss-0: Systems (templates) and Solutions (bound)
+from board.objects.board.ClockSource import ClockSource  # noqa: F401   # cfg-1: a clock source's cited bounds
+from board.objects.board.ClockPeer import ClockPeer  # noqa: F401   # cfg-1: the far end of a serial link
 from board.objects.board.ThermalMitigation import ThermalMitigation  # noqa: F401   # bss-0: Systems (templates) and Solutions (bound)
 from board.objects.board.ThermalSolution import ThermalSolution  # noqa: F401   # bss-0: Systems (templates) and Solutions (bound)
 from board.objects.board.BenchSystem import BenchSystem  # noqa: F401   # bss-0: Systems (templates) and Solutions (bound)
@@ -125,4 +127,5 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  BenchConnection,
                  PartBoard, EsdProtectionArea, ProtectionPart,   # esd-3: protection parts (the cited seed + custom rows); esd-0: ESD protection areas on a definition (flagged by a person); drv-0: a driver / load / module defined by its pins (the cited seed + custom rows); bob-2: connections between footholds of any two Boards on a Bench (observed, never seeded); bob-0: footholds (derived on read for datasheet / geometry boards; stored by a PCB ingest)   # fst-0: a firmware's state objects + fields (derived on read, never seeded)
                  BenchSolution, BenchConditions,
-                 HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem]   # bss-0: the templates (Hardware / Thermal / Bench System), the Thermal Solution and its mitigations   # cfg-0: a Bench Solution (references only) + its conditions (a person's rows, never seeded)
+                 HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem,
+                 ClockSource, ClockPeer]   # cfg-1: the clock group's cited rows   # bss-0: the templates (Hardware / Thermal / Bench System), the Thermal Solution and its mitigations   # cfg-0: a Bench Solution (references only) + its conditions (a person's rows, never seeded)

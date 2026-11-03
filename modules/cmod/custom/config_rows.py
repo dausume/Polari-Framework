@@ -26,7 +26,11 @@ def _cls(cls_name):
         from polariApiServer.solutionDefinition import SolutionDefinition
         return SolutionDefinition
     import board.objects.board as B
-    return getattr(B, cls_name)
+    import types
+    found = getattr(B, cls_name)
+    if isinstance(found, types.ModuleType):   # cfg-1: a board class its package does not re-export resolves to its module - take the class from it
+        found = getattr(found, cls_name)
+    return found
 
 
 def _fields(cls):

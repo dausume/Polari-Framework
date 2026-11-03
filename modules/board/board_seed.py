@@ -22,6 +22,7 @@ from board.board_basis import SimInstallConfirmation   # ins-1
 from board.board_basis import FirmwareStateObject, FirmwareStateField   # fst-0
 from board.board_basis import BoardFoothold, BenchConnection, PartBoard, EsdProtectionArea, ProtectionPart   # bob-0, bob-2, drv-0, esd-0, esd-3
 from board.board_basis import BenchSolution, BenchConditions, HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem   # cfg-0, bss-0
+from board.board_basis import ClockSource, ClockPeer   # cfg-1
 from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   # ucd-0e1: the wire contract's two new classes
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
@@ -76,6 +77,22 @@ SEED_THERMAL_SYSTEMS = [{'name': 'open-air-desk', 'title': 'open air on a desk',
 SEED_THERMAL_SOLUTIONS = [{'name': 'uno-light-bare', 'title': 'open air, nothing added', 'system': 'open-air-desk', 'mitigations': '', 'notes': 'the light test needs no mitigation'}]
 SEED_BENCH_SYSTEMS = [{'name': 'uno-light-bench', 'title': 'UNO light bench', 'hardware_system': 'uno-class-led', 'firmware_system': 'uno-light-graph', 'thermal_system': 'open-air-desk',
                        'notes': 'the topology spec cmod custom/topologies/uno-light-bench.json applies to every Bench Solution of this System: the same states, every route'}]
+# cfg-1 (CATOM_CONFIG_PLAN.md "The clock group in detail"): the clock sources, as board.custom.timing_drift cites them, as rows (timing_drift reads the rows
+# when a server has them; CLOCKS stays the seed), and the far ends of the UNO's serial link
+from board.custom.timing_drift import CLOCKS as _CLOCKS   # noqa: E402
+_CLOCK_KIND = {'cstce16m0v53-r0': ('resonator', 'arduino-uno-r3'), 'atmega328p-rc-user': ('rc', ''), 'atmega328p-rc-factory': ('rc', '')}
+SEED_CLOCK_SOURCES = [dict(name=n, kind=_CLOCK_KIND.get(n, ('crystal', ''))[0], boards=_CLOCK_KIND.get(n, ('', ''))[1], f_hz=c['f_hz'], initial_pct=c['initial_pct'],
+                           temp_pct=c['temp_pct'], t_min_c=c['t_min_c'], t_max_c=c['t_max_c'], aging_pct=c['aging_pct'], what=c['what'], source=c['source'], notes='')
+                      for n, c in sorted(_CLOCKS.items())]
+SEED_CLOCK_PEERS = [
+    {'name': 'uno-16u2-usbserial', 'title': 'the UNO R3\'s ATmega16U2 running arduino-usbserial', 'kind': 'usb-serial-chip', 'boards': 'arduino-uno-r3', 'clock': '',
+     'f_hz': 16e6, 'divisor_rule': 'arduino-usbserial', 'error_pct': 0.0,
+     'undetermined': 'its 16 MHz crystal\'s tolerance (Y1 with C9 / C11 22 pF and R1 1M, board.custom.uno_schematic_paths; no part number on the schematic): 0 % until read',
+     'source': 'Arduino-usbserial.c USART1 setup (U2X1 = 1, UBRR1 = SERIAL_2X_UBBRVAL(baud); 57600 in normal mode) - board.custom.clock_skew_run.peer_divisor; the UNO R3 schematic',
+     'notes': 'the peer of USART0 on every UNO R3 variant: the host sees what this chip latches'},
+    {'name': 'exact', 'title': 'an ideal peer (no clock error, the same divisor)', 'kind': 'exact', 'boards': '', 'clock': '', 'f_hz': 0.0, 'divisor_rule': 'exact', 'error_pct': 0.0,
+     'undetermined': '', 'source': 'a knob: the far end taken as perfect, to see the chip\'s own share of the error alone', 'notes': ''},
+]
 SEED_BENCH_SOLUTIONS = [
     {'name': 'uno-light-on-desk', 'title': 'UNO light on the desk: the button on D2 (external interrupt)', 'system': 'uno-light-bench', 'bench': 'home-bench',
      'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
@@ -131,6 +148,8 @@ BOARD_SEED_PAIRS = [
     ('ThermalMitigation', ThermalMitigation, []),   # bss-0: a person's rows
     ('ThermalSolution', ThermalSolution, _register_owned(SEED_THERMAL_SOLUTIONS, keep=('title', 'notes'))),
     ('BenchSystem', BenchSystem, _register_owned(SEED_BENCH_SYSTEMS, keep=('title', 'notes'))),
+    ('ClockSource', ClockSource, _register_owned(SEED_CLOCK_SOURCES, keep=('notes',))),   # cfg-1: cited; a person's own rows stay
+    ('ClockPeer', ClockPeer, _register_owned(SEED_CLOCK_PEERS, keep=('error_pct', 'notes'))),   # cfg-1: a person may set an adapter's measured error
     ('FirmwareStateObject', FirmwareStateObject, []),   # fst-0: derived on read (board.custom.firmware_state), never seeded
     ('FirmwareStateField', FirmwareStateField, []),
     ('UnoAnalogState', UnoAnalogState, []),

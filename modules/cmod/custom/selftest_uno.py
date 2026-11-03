@@ -181,7 +181,7 @@ def uno_parts(check):
                          'FirmwareExport': 0, 'FirmwareSolution': 3, 'ScheduleSlot': 76, 'RegisterAssignment': 47,
                          'PinClaim': 0, 'PeripheralClaim': 0, 'HardwareBinding': 3, 'CIsotope': 0, 'HardwareMission': 1, 'AtomJob': 6, 'IsotopeVariant': 22, 'ScoreTerm': 24, 'ScoreConcept': 10, 'GraphDefinition': 1,
                          'StructObjectMap': 2, 'CatomAssertion': 16, 'CatomVariable': 11,
-                         'ConfigOption': 0, 'CatomConfiguration': 0, 'ConfigChoice': 0, 'ConfigOptionGrade': 0, 'ConfigOptionResult': 0,
+                         'ConfigOption': 2, 'CatomConfiguration': 0, 'ConfigChoice': 0, 'ConfigOptionGrade': 0, 'ConfigOptionResult': 0,
                          'IsotopeStepRule': 0, 'HardwareEvent': 0, 'StructNode': 0, 'StructNodeRequirement': 0, 'StructNodeExecution': 0, 'StructNodeCollateral': 0, 'StructEdge': 0, 'StructNodePath': 0, 'StructFieldSamples': 0,
                          'StructNodeRun': 0, 'StructNodeRunEdge': 0, 'StructNodeRunSignal': 0,
                          'StructNodeConfirmation': 0, 'StructEdgeCheck': 0, 'TestProfile': 0, 'TestProfileItem': 0,
