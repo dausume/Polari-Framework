@@ -1,0 +1,33 @@
+{
+  "schema": "bench-topology-spec/1",
+  "bench_system": "uno-light-bench",
+  "title": "the light: every way to switch it",
+  "object_map": "LightState_t->LightState",
+  "notes": "bss-8. The same states for every Bench Solution of the UNO light bench, whatever route its firmware variant reads the button by (external interrupt on D2, pin-change interrupt on D4, a voltage on A0) or drives the LED by (a GPIO, the timer PWM, the kit's transistor). Roles resolve per Bench Solution to the Hardware Events its own firmware offers; executions resolve their isotope from the variant's route knobs. Requirements: a number is exact; an enum label is exact; 'written' means changed on the edge; 'a..b' a range; 'a|b' a set.",
+  "roles": {
+    "press": "the person presses the board's pushbutton (the firmware's asserted edge or level on the button's pin)",
+    "command": "a SET_LED command from a Polari screen arrives through the bridge",
+    "reset": "the person presses reset: back through init",
+    "period": "the telemetry period elapses: one LightState frame leaves"
+  },
+  "nodes": [
+    {"slug": "on-by-button", "title": "light on, by the button", "from": "boot", "via": "press",
+     "requirements": {"led_on": 1, "source": "button", "toggles": 1, "status": "active"},
+     "executions": [{"atom": "apps/light.led_toggle", "job": "read-button"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},
+    {"slug": "on-by-command", "title": "light on, by the command", "from": "boot", "via": "command",
+     "requirements": {"led_on": 1, "source": "command", "toggles": 1, "status": "active"},
+     "executions": [{"atom": "apps/light.apply_command", "job": "receive-command"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},
+    {"slug": "off-by-button", "title": "light off again, by the button", "from": "on-by-button", "via": "press", "also_from": [["on-by-command", "press"]],
+     "requirements": {"led_on": 0, "source": "button", "toggles": 2},
+     "executions": [{"atom": "apps/light.led_toggle", "job": "read-button"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},
+    {"slug": "off-by-command", "title": "light off again, by the command", "from": "on-by-button", "via": "command", "also_from": [["on-by-command", "command"]],
+     "requirements": {"led_on": 0, "source": "command", "toggles": 2},
+     "executions": [{"atom": "apps/light.apply_command", "job": "receive-command"}, {"atom": "apps/light.led_follow_state", "job": "drive-led"}]},
+    {"slug": "reported", "title": "the light reported up (the sensed level in the frame)", "from": "on-by-button", "via": "period",
+     "requirements": {"seq": "written", "led_on": 1},
+     "executions": [{"atom": "apps/light.telemetry_send", "job": "report-state"}]},
+    {"slug": "rebooted", "title": "reset with the light on: back at boot, the struct re-initialised", "from": "on-by-button", "via": "reset",
+     "requirements": {"boot_session": "written", "led_on": 0, "toggles": 0},
+     "executions": [{"atom": "apps/light.boot_session_mint"}]}
+  ]
+}

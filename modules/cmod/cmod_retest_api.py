@@ -7,6 +7,8 @@ one run's kept rows. The work is in cmod.custom.retest; these doors only route.
 POST /api/cmod/bench-topology/{bench_solution}/retest               body {catom?}: sync the executions' isotopes from the Firmware Solution's configurations, run the
                                                                     nodes affected by the catom first, then every other state node, each from the root; -> the ordered
                                                                     outcomes, confirmations voided, isotopes synced, the words
+POST /api/cmod/bench-topology/{bench_solution}/run-all              bss-8: every state node by every path from the root, fastest first; -> the runs, how many
+                                                                    reached, the coverage's untested list (empty = the only green)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/signals   the run's StructNodeRunSignal rows (the structs on arrival)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/edges     the run's StructNodeRunEdge rows
 404 = no such Bench Solution / run.
@@ -31,6 +33,7 @@ class RetestAPI(treeObject):
         if polServer is not None and getattr(polServer, 'falconServer', None) is not None:
             add = polServer.falconServer.add_route
             add('/api/cmod/bench-topology/{bench_solution}/retest', self, suffix='retest')
+            add('/api/cmod/bench-topology/{bench_solution}/run-all', self, suffix='run_all')   # bss-8
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/signals', self, suffix='signals')
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/edges', self, suffix='edges')
 
@@ -52,6 +55,14 @@ class RetestAPI(treeObject):
             response.media = {'ok': False, 'error': 'no Bench Solution %r' % bench_solution}
             return
         self._do(response, RT.retest, bench_solution, str((body or {}).get('catom') or ''))
+
+    def on_post_run_all(self, request, response, bench_solution):
+        """bss-8: every state node by every path, then the untested list."""
+        if R.get(self.manager, 'BenchSolution', bench_solution) is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'no Bench Solution %r' % bench_solution}
+            return
+        self._do(response, RT.run_all, bench_solution)
 
     def on_get_signals(self, request, response, bench_solution, run):
         self._do(response, RT.run_signals, run)

@@ -51,9 +51,11 @@ def main():
     T.connect(m, BS, boot['name'], light['name'], 'trigger', '%s:command-uno-1-bridge' % BS)
     T.define(m, BS, 'light-off-again', '', light['name'], 'trigger', press, requirements=[{'object_map': MAP, 'field': 'led_on', 'kind': 'exact', 'value': 0}], executions=['apps/light.led_toggle'])
     u0 = COV.untested(m, BS)
-    check('BEFORE ANY RUN the untested list says it all: both state nodes never tested, boot never tested, the unused events (release, reset, the period), every assertion unexercised',
+    check('BEFORE ANY RUN the untested list says it all: both state nodes never tested, boot never tested, the unused events (reset, the period), every assertion unexercised; '
+          'the release is INERT (the firmware asserts nothing on it: no edge can end on it, bss-8), listed apart and not untested',
           any(w == '%s: never tested' % light['name'] for w in u0) and any(w == '%s: never tested' % boot['name'] for w in u0)
-          and any(w.startswith('event release-PD2') for w in u0) and any(w.startswith('event reset') for w in u0) and sum(w.startswith('assertion ') for w in u0) == 7, u0)
+          and not any(w.startswith('event release-PD2') for w in u0) and any(w.startswith('event reset') for w in u0) and sum(w.startswith('assertion ') for w in u0) == 7
+          and [e['event'].split(':', 1)[1] for e in COV.inert_events(m, BS)] == ['release-PD2'], u0)
     # a run as node_run writes it: light-on reached along the press path, led_on changed, PD6 read, frames left; a twin confirmation
     fp = light['fastest_path']['name']
     run = R.upsert(m, 'StructNodeRun', '%s#run1' % light['name'], node=light['name'], path=fp, outcome='reached', hex_sha256='b' * 64, engine='twin', step_s=62.5e-9,
@@ -65,9 +67,10 @@ def main():
     R.upsert(m, 'StructNodeConfirmation', '%s#conf1' % light['name'], node=light['name'], path=fp, by='twin', run=run['name'], hex_sha256='b' * 64, state='confirmed')
     R.upsert(m, 'StructNodeConfirmation', '%s#conf0' % light['name'], node=light['name'], path='old', by='twin', hex_sha256='a' * 64, state='voided', voided_why='the build changed')
     s = COV.strip(m, BS)
-    check('THE STRIP after one reached run: light-on confirmed by twin, three others never tested (flashed, boot, light-off-again); 1 of 6 paths tested; led_on covered, 6 fields never changed; '
-          'assertions exercised = led_toggle / apply_command (led_on) + led_follow_state (PD6 read) + telemetry_send sends (frames) = 4 of 7',
-          s['nodes_by_state']['confirmed-twin'] == 1 and s['nodes_by_state']['never-tested'] == 3 and s['paths_tested'] == 1 and s['paths'] == 6
+    check('THE STRIP after one reached run: light-on confirmed by twin, flashed and boot CROSSED by that run (confirmed-twin, bss-8), light-off-again never tested; 3 of 6 paths '
+          'tested (the chain nodes\' own paths crossed); led_on covered, 6 fields never changed; assertions exercised = led_toggle / apply_command (led_on) + led_follow_state '
+          '(PD6 read) + telemetry_send sends (frames) = 4 of 7',
+          s['nodes_by_state']['confirmed-twin'] == 3 and s['nodes_by_state']['never-tested'] == 1 and s['paths_tested'] == 3 and s['paths'] == 6
           and s['fields_covered'] == ['led_on'] and len(s['fields_never_changed']) == 6 and (s['assertions_exercised'], s['assertions']) == (4, 7),
           {k: s[k] for k in ('nodes_by_state', 'paths_tested', 'paths', 'fields_covered', 'assertions_exercised', 'assertions')})
     u1 = COV.untested(m, BS)

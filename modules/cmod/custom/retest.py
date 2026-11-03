@@ -80,6 +80,30 @@ def retest(manager, bs, catom=''):
                      % (len(runs), '' if len(runs) == 1 else 's', len(first), catom or 'nothing named', voided, '' if voided == 1 else 's', len(synced), '' if len(synced) == 1 else 's')}
 
 
+def run_all(manager, bs):
+    """bss-8: EVERY state node by EVERY path, fastest first (the whole topology tested from the root), then the coverage's untested list - the only green is
+    an empty one. -> {runs, reached, of, untested, words}."""
+    from cmod.custom import node_run as NR
+    from cmod.custom import topology_coverage as COV
+    synced = sync_isotopes(manager, bs)
+    names = sorted([n['name'] for n in R.rows(manager, 'StructNode', bench_solution=bs) if n['kind'] == 'state' and n.get('basis') != 'proposed'],
+                   key=lambda name: (next((p['length'] for p in R.rows(manager, 'StructNodePath', node=name) if p['fastest']), 99), name))
+    runs = []
+    for name in names:
+        for p in sorted(R.rows(manager, 'StructNodePath', node=name), key=lambda p: (not p['fastest'], p['length'], p['name'])):
+            try:
+                out = NR.run(manager, bs, name, path=p['name'])
+                runs.append({'node': name, 'path': p['name'], 'length': p['length'], 'outcome': out['run']['outcome'], 'run': out['run']['name'],
+                             'duration_s': out['run']['duration_s'], 'words': out['run']['words'][:200]})
+            except R.ConfigRefused as e:
+                runs.append({'node': name, 'path': p['name'], 'length': p['length'], 'outcome': 'refused', 'run': '', 'duration_s': -1.0, 'words': e.why})
+    reached = sum(1 for r in runs if r['outcome'] == 'reached')
+    untested = COV.untested(manager, bs)
+    return {'ok': True, 'bench_solution': bs, 'runs': runs, 'reached': reached, 'of': len(runs), 'isotopes_synced': synced, 'untested': untested,
+            'words': '%d of %d path run%s reached their node (%d node%s); %s' % (reached, len(runs), '' if len(runs) == 1 else 's', len(names), '' if len(names) == 1 else 's',
+                                                                                 'nothing untested' if not untested else '%d untested item%s' % (len(untested), '' if len(untested) == 1 else 's'))}
+
+
 def run_signals(manager, run):
     if R.get(manager, 'StructNodeRun', run) is None:
         raise R.ConfigRefused('no run %r' % run, status=404)

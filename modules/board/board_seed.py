@@ -63,6 +63,32 @@ def _register_owned(rows, keep=()):
     return [dict(r, _converge=[k for k in r if k != 'name' and k not in keep]) for r in rows]
 
 
+# bss-8 (BENCH_SOLUTION_SIM_PLAN.md section 7): the UNO light bench as rows. The Systems are templates (choices open); the Bench Solutions bind one firmware
+# variant each - the button route differs (D2 external interrupt / D4 pin-change interrupt / a voltage on A0), the states are the same (the topology spec).
+# The Firmware Solution of the two route variants is the VARIANT NAME standing in for a FirmwareSolution row (cfg-1 makes the configuration drive the build).
+SEED_BENCH_CONDITIONS = [{'name': 'room', 'title': 'a room, open air', 'air': 'open', 'ambient_min_c': 18.0, 'ambient_max_c': 30.0, 'supply_v': 5.0, 'aging_years': 0.0,
+                          'notes': 'the desk: open air, USB 5 V, new parts'}]
+SEED_HARDWARE_SYSTEMS = [{'name': 'uno-class-led', 'title': 'an UNO-class board, one LED, one pushbutton', 'boards': 'arduino-uno-r3',
+                          'circuit': 'LED + series resistor from one digital pin to GND; a pushbutton to GND on an input with the pull-up; optionally the LED line jumpered back to a sense pin',
+                          'notes': 'the family of the light test: the pin numbers, the button route and the LED route are the Solution\'s choices'}]
+SEED_THERMAL_SYSTEMS = [{'name': 'open-air-desk', 'title': 'open air on a desk', 'air': 'open', 'mitigations_allowed': 'none,sink,fan', 'ambient_min_c': 15.0, 'ambient_max_c': 35.0,
+                         'notes': 'a clip-on sink and a breadboard fan are allowed; nothing is required'}]
+SEED_THERMAL_SOLUTIONS = [{'name': 'uno-light-bare', 'title': 'open air, nothing added', 'system': 'open-air-desk', 'mitigations': '', 'notes': 'the light test needs no mitigation'}]
+SEED_BENCH_SYSTEMS = [{'name': 'uno-light-bench', 'title': 'UNO light bench', 'hardware_system': 'uno-class-led', 'firmware_system': 'uno-light-graph', 'thermal_system': 'open-air-desk',
+                       'notes': 'the topology spec cmod custom/topologies/uno-light-bench.json applies to every Bench Solution of this System: the same states, every route'}]
+SEED_BENCH_SOLUTIONS = [
+    {'name': 'uno-light-on-desk', 'title': 'UNO light on the desk: the button on D2 (external interrupt)', 'system': 'uno-light-bench', 'bench': 'home-bench',
+     'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the sample bench: the Firmware Solution uno-light (its graph builds the unsensed light; the variant uno-light carries the sense jumper D6 -> D3)'},
+    {'name': 'uno-light-pcint-on-desk', 'title': 'UNO light on the desk: the button on D4 (pin-change interrupt)', 'system': 'uno-light-bench', 'bench': 'home-bench',
+     'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-pcint', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the variant build uno-light-pcint stands in for a Firmware Solution row (cfg-1): the same light, the button read by the pin-change-interrupt isotope on D4'},
+    {'name': 'uno-light-analog-on-desk', 'title': 'UNO light on the desk: the button as a voltage on A0 (analog threshold)', 'system': 'uno-light-bench', 'bench': 'home-bench',
+     'hardware_solution': 'uno-light-system', 'firmware_solution': 'uno-light-analog', 'thermal_solution': 'uno-light-bare', 'conditions': 'room',
+     'notes': 'the variant build uno-light-analog stands in for a Firmware Solution row (cfg-1): a 10 kohm pull-up on A0, the switch to ground; a press is the level below 1500 mV'},
+]
+
+
 BOARD_SEED_PAIRS = [
     ('BoardDefinition', BoardDefinition, _register_owned(SEED_BOARD_DEFINITIONS, keep=('road_status',))),
     ('AdapterDefinition', AdapterDefinition, _register_owned(SEED_ADAPTER_DEFINITIONS)),
@@ -86,13 +112,15 @@ BOARD_SEED_PAIRS = [
     ('EsdProtectionArea', EsdProtectionArea, []),   # esd-0: flagged by a person, never seeded
     ('ProtectionPart', ProtectionPart, SEED_PROTECTION_PARTS),   # esd-3: the cited catalogue (SMBJ5.0A, CG0603MLC-05E)
     ('BenchConnection', BenchConnection, []),   # bob-2: a person's wires on a bench (observed, never seeded)   # bob-0: derived on read (board.custom.footholds) or stored by a PCB ingest, never seeded
-    ('BenchSolution', BenchSolution, []),   # cfg-0: a person's rows (the UNO's is seeded in cfg-1)
-    ('BenchConditions', BenchConditions, []),
-    ('HardwareSystem', HardwareSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
-    ('ThermalSystem', ThermalSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
-    ('ThermalMitigation', ThermalMitigation, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
-    ('ThermalSolution', ThermalSolution, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
-    ('BenchSystem', BenchSystem, []),   # bss-0: a person's rows (the UNO light bench is seeded in bss-1)
+    # bss-8: the UNO light bench AS DATA - the System rows (templates) and one sample Bench Solution per button route the variants file ships, so the
+    # topology spec (cmod custom/topologies/uno-light-bench.json) applies to each on a fresh instance. A person's title / notes are kept.
+    ('BenchSolution', BenchSolution, _register_owned(SEED_BENCH_SOLUTIONS, keep=('title', 'notes'))),
+    ('BenchConditions', BenchConditions, _register_owned(SEED_BENCH_CONDITIONS, keep=('title', 'notes'))),
+    ('HardwareSystem', HardwareSystem, _register_owned(SEED_HARDWARE_SYSTEMS, keep=('title', 'notes'))),
+    ('ThermalSystem', ThermalSystem, _register_owned(SEED_THERMAL_SYSTEMS, keep=('title', 'notes'))),
+    ('ThermalMitigation', ThermalMitigation, []),   # bss-0: a person's rows
+    ('ThermalSolution', ThermalSolution, _register_owned(SEED_THERMAL_SOLUTIONS, keep=('title', 'notes'))),
+    ('BenchSystem', BenchSystem, _register_owned(SEED_BENCH_SYSTEMS, keep=('title', 'notes'))),
     ('FirmwareStateObject', FirmwareStateObject, []),   # fst-0: derived on read (board.custom.firmware_state), never seeded
     ('FirmwareStateField', FirmwareStateField, []),
     ('UnoAnalogState', UnoAnalogState, []),

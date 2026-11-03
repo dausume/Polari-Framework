@@ -12,8 +12,11 @@ are the working buffer and are dropped.
     run(manager, bench_solution, node, path='')  -> the run view {run, edges, signals, working_events}
     runs(manager, node)                          -> the kept StructNodeRun rows of a node
 
-A Polari command (bss-7a) is a `--inject` of a frame built from the to-node's exact requirements on wire fields. Not yet runnable here (said, refused in words):
-reset (--reset-at), environment levels (--adc0-mv), periods.
+A Polari command (bss-7a) is a `--inject` of a frame built from the to-node's exact requirements on the wire fields the command event names (bss-8: the
+receiving atom's own presence tests). bss-8 adds the other stimuli: reset = `--reset-at cycle=N` (the twin keeps counting cycles across it; the watches see
+the re-init); an analog level (an analog-threshold button, a sensor) = `--adc-at cycle=N,ch=C,mv=M` (new in the twin, prf-board-engines/twin_forcing.c) with
+a press pulsed back to the release level after the hold; a period = no stimulus at all, the window is twice the period (the event's value, from the
+telemetry_hz knob). A requirement may name an enum LABEL (`source = button`): it is translated to the wire value through the pinned contract's enum list.
 """
 import datetime
 import hashlib
@@ -106,13 +109,44 @@ def _coerce(ptype, value):
     return str(value)
 
 
+def _enums(manager, object_map):
+    """{field: the contract's enum spec} of the struct's enum fields, from the pinned contract (the wire byte: 0 = unknown, labels[i] = i + 1)."""
+    som = R.get(manager, 'StructObjectMap', object_map) or {}
+    try:
+        return {f['name']: f['enum'] for f in _wire_spec(som.get('polari_class', ''))['fields'] if f.get('enum')}
+    except Exception:  # noqa: BLE001 - no contract for the class: no labels
+        return {}
+
+
+def _labelled(manager, q):
+    """bss-8: a requirement whose value is an enum LABEL ('button') judged by its WIRE byte (2: grpcbridge.custom.wire_contract.enum_to_wire, the same encoder the
+    bridge uses); `label` keeps the person's word for the messages."""
+    q = dict(q, label=str(q['value']))
+    if q['kind'] not in ('exact', 'set') or _num(q['value']) is not None:
+        return q
+    spec = _enums(manager, q['object_map']).get(q['field'])
+    if not spec:
+        return q
+    from grpcbridge.custom.wire_contract import enum_to_wire
+    vals = []
+    for word in str(q['value']).split(','):
+        word = word.strip()
+        vals.append(str(enum_to_wire(spec, word)) if word in spec.get('labels', []) else word)
+    q['value'] = ','.join(vals)
+    return q
+
+
 def _command_frame(manager, ev, reqs, seq):
-    """bss-7a: the frame a Polari command carries into the to-node: its EXACT requirements on the struct's wire fields, presence-masked to those fields."""
+    """bss-7a: the frame a Polari command carries into the to-node: its EXACT requirements on the struct's wire fields, presence-masked to those fields.
+    bss-8: only the fields the command event names (`value`: the receiving atom's presence tests) when it names any - the stamps (toggles, source) are the
+    firmware's own, never carried."""
     from board.custom import packet_ref
     from grpcbridge.custom import wire_ref
-    exact = [q for q in reqs if q['kind'] == 'exact']
+    carry = [f.strip() for f in (ev.get('value') or '').split(',') if f.strip()]
+    exact = [_labelled(manager, q) for q in reqs if q['kind'] == 'exact' and (not carry or q['field'] in carry)]
     if not exact:
-        raise R.ConfigRefused('the command %r needs the to-node to require exact values on wire fields: that is what the frame carries' % ev['name'], status=422)
+        raise R.ConfigRefused('the command %r needs the to-node to require exact values on wire fields%s: that is what the frame carries'
+                              % (ev['name'], ' (it carries %s)' % ', '.join(carry) if carry else ''), status=422)
     som = R.get(manager, 'StructObjectMap', exact[0]['object_map']) or {}
     spec = _wire_spec(som.get('polari_class', ''))
     types_ = {f['name']: f['ptype'] for f in spec['fields']}
@@ -124,19 +158,32 @@ def _command_frame(manager, ev, reqs, seq):
 
 
 def _stimulus(ev, cycle, reqs=(), manager=None, files=None):
+    slug = ev['name'].split(':')[-1]
     if ev['kind'] == 'external-signal' and ev['source'] == 'polari':
         frame, vals = _command_frame(manager, ev, reqs, seq=1 + len(files or {}))
         name = 'cmd%d.bin' % cycle
         files[name] = frame
         return ['--inject', '%s@%d' % (name, cycle)]
-    if ev['kind'] == 'actuation' and ev['source'] == 'person' and ev['what'] != 'RESET' and ev['value'] in ('low', 'high'):
+    if ev['what'] == 'RESET':   # bss-8: the reset line pulled at the cycle; the twin keeps counting cycles across the reset
+        return ['--reset-at', 'cycle=%d' % cycle]
+    if ev['source'] == 'time':   # bss-8: a period elapses by itself; the edge's window (the guard) is where the change must land
+        return []
+    if ev['kind'] == 'actuation' and ev['what'].startswith('ADC') and _num(ev['value']) is not None:   # bss-8: an analog level stepped at the cycle
+        ch, mv = int(ev['what'][3:]), int(float(ev['value']))
+        out = ['--adc-at', 'cycle=%d,ch=%d,mv=%d' % (cycle, ch, mv)]
+        if slug.startswith('press-'):   # a press is a pulse: the level back to the release event's rest after the hold
+            rest = R.get(manager, 'HardwareEvent', ev['name'].replace(':press-', ':release-')) if manager is not None else None
+            if rest and _num(rest.get('value')) is not None:
+                out += ['--adc-at', 'cycle=%d,ch=%d,mv=%d' % (cycle + PRESS_HOLD_CYCLES, ch, int(float(rest['value'])))]
+        return out
+    if ev['kind'] == 'actuation' and ev['source'] == 'person' and ev['value'] in ('low', 'high'):
         level = 0 if ev['value'] == 'low' else 1
         out = ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle, ev['what'], level)]
-        if ev['name'].split(':')[-1].startswith('press-'):   # a press is a pulse: the line goes to its pressed level and back to rest after the hold
+        if slug.startswith('press-'):   # a press is a pulse: the line goes to its pressed level and back to rest after the hold
             out += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle + PRESS_HOLD_CYCLES, ev['what'], 1 - level)]
         return out
-    raise R.ConfigRefused('Hardware Event %r (%s from %s) cannot be applied to the twin yet: reset, levels and periods are not wired (a command is)'
-                          % (ev['name'], ev['kind'], ev['source']), status=422)
+    raise R.ConfigRefused('Hardware Event %r (%s from %s, %s = %r) cannot be applied to the twin: a pin level, an ADC level, a command, a reset and a period can'
+                          % (ev['name'], ev['kind'], ev['source'], ev['what'], ev['value']), status=422)
 
 
 def _guard_cycles(manager, node, hz):
@@ -197,8 +244,8 @@ def _judge(plan_edge, reqs, lines, hz):
             return 'met', c, 'met at cycle %d (%.3f ms after the stimulus)' % (c, (c - lo) * 1e3 / hz)
     bad = [q for q in reqs if lines[q['field']].changed_in(lo, hi) and not _holds(q, lines[q['field']].at(hi - 1), True)]
     if bad:
-        return 'diverged', -1, '; '.join('%s became %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q['value']) for q in bad)
-    return 'not-reached', -1, '; '.join('%s stayed %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q['value']) for q in reqs)
+        return 'diverged', -1, '; '.join('%s became %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q.get('label', q['value'])) for q in bad)
+    return 'not-reached', -1, '; '.join('%s stayed %s, required %s %s' % (q['field'], lines[q['field']].at(hi - 1), q['kind'], q.get('label', q['value'])) for q in reqs)
 
 
 def _events(r):
@@ -294,16 +341,21 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
         elif e['kind'] == 'cascade':
             plan.append({'edge': e, 's': last_s, 'guard_s': -1.0})
         else:
-            stimuli += _stimulus(R.get(manager, 'HardwareEvent', e['event']), cycle, R.rows(manager, 'StructNodeRequirement', node=e['to_node']), manager, files)
+            ev = R.get(manager, 'HardwareEvent', e['event'])
+            if ev is None:
+                raise R.ConfigRefused('edge %r names the Hardware Event %r, which no longer exists' % (e['name'], e['event']), status=404)
+            stimuli += _stimulus(ev, cycle, R.rows(manager, 'StructNodeRequirement', node=e['to_node']), manager, files)
             g, worst = _guard_cycles(manager, e['to_node'], hz)
+            if ev['source'] == 'time' and _num(ev['value']):   # bss-8: a period's window is at least GUARD_FACTOR periods
+                g = max(g, int(GUARD_FACTOR * float(ev['value']) * hz))
             plan.append({'edge': e, 's': cycle, 'guard_s': g / hz, 'worst_s': worst})
             last_s, cycle = cycle, cycle + g
     end = cycle + TAIL_CYCLES
     for i, pe in enumerate(plan):
         nxt = next((x['s'] for x in plan[i + 1:] if x['s'] > pe['s']), end)
         pe['end'] = nxt if pe['s'] else (next((x['s'] for x in plan if x['s'] > 0), end))
-    # the watches: every required field along the path
-    reqs = {pe['edge']['to_node']: R.rows(manager, 'StructNodeRequirement', node=pe['edge']['to_node']) for pe in plan}
+    # the watches: every required field along the path (an enum label judged by its wire value, bss-8)
+    reqs = {pe['edge']['to_node']: [_labelled(manager, q) for q in R.rows(manager, 'StructNodeRequirement', node=pe['edge']['to_node'])] for pe in plan}
     fields = []
     for qs in reqs.values():
         for q in qs:
@@ -332,15 +384,17 @@ def run(manager, bench_solution, node, path='', profile='', play_from=''):
             raise R.ConfigRefused('cannot watch %s.%s: %s' % (struct, f, 'no data symbol %r in the ELF' % inst if inst not in nm else 'no such field in the firmware state'), status=404)
         off, w = layout[f]
         watches += ['--watch', '0x%X/%d=%s' % (nm[inst]['addr'] + off, min(w, 4), f)]
+    rest = []
     try:
         from board.custom import light_button as LB
         wire = LB.wire_args(variant)
+        rest = (LB.default_adc(variant) or '').split()   # bss-8: an analog-threshold button rests at the pull-up's level, else the twin's default
     except Exception:  # noqa: BLE001 - a config without the sense feature has no wire
         wire = []
     wired = {p for a in wire[1::2] for p in a.split(':')}
     unwired = [p for p in prof_pins if p not in wired]
     from firmwarefaults.custom import harness
-    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + wire + watches + stimuli
+    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + stimuli
     r = harness.run_files(argv, hexb, files, timeout=300)   # the command frames travel with the hex
     if not r.get('ok'):
         raise R.ConfigRefused('the twin run did not complete: %s' % ((r.get('stderr') or r.get('stdout') or '')[-300:]), status=409)

@@ -52,6 +52,11 @@ def nodes(manager, bs):
         runs = _runs(manager, n['name'])
         paths = R.rows(manager, 'StructNodePath', node=n['name'])
         tested_paths = {r['path'] for r in runs if r['outcome'] in ('reached', 'checks-failed')}
+        if n['kind'] in ('flashed', 'boot'):   # bss-8: a chain node is tested by the runs that crossed it
+            from cmod.custom.bench_topology_nocode import crossings
+            crossed = crossings(manager, n)
+            runs = [R.get(manager, 'StructNodeRun', r) for r in crossed]
+            tested_paths = {p['name'] for p in paths} if crossed else set()
         confs = R.rows(manager, 'StructNodeConfirmation', node=n['name'])
         live = [c for c in confs if c['state'] == 'confirmed']
         cols = R.rows(manager, 'StructNodeCollateral', node=n['name'])
@@ -75,15 +80,25 @@ def assertions(manager, bs):
     changed = _changed_fields(manager, met)
     frames = any('frame' in e['collaterals'] and 'bytes on the UART' in e['collaterals'] and not e['collaterals'].split('bytes on the UART')[0].rstrip().endswith(' 0')
                  for r in met for e in R.rows(manager, 'StructNodeRunEdge', run=r['name']))
+    commanded = False
+    for r in met:
+        for e in R.rows(manager, 'StructNodeRunEdge', run=r['name'], outcome='met'):
+            ed = R.get(manager, 'StructEdge', e['edge'])
+            ev = R.get(manager, 'HardwareEvent', ed['event']) if ed and ed.get('event') else None
+            if ev and ev['source'] == 'polari':
+                commanded = True
     out = []
     for a in E._assertions(manager, variant):
         if a['kind'] == 'changes-field':
             fields = {f.strip() for f in a.get('fields', '').split(',') if f.strip()}
             hit = sorted(fields & changed)
             out.append({'assertion': a['name'], 'atom': a['atom'], 'kind': a['kind'], 'exercised': bool(hit), 'how': ('fields %s changed in a run that met its node' % ', '.join(hit)) if hit else 'no run that met its node changed %s' % ', '.join(sorted(fields))})
-        elif a['kind'] in ('sends-to-bridge', 'receives-from-bridge'):
-            out.append({'assertion': a['name'], 'atom': a['atom'], 'kind': a['kind'], 'exercised': frames and a['kind'] == 'sends-to-bridge',
-                        'how': 'frames left on the UART in a run that met its node' if frames and a['kind'] == 'sends-to-bridge' else 'no run observed a frame %s' % ('arriving (command edges are bss-4)' if a['kind'] == 'receives-from-bridge' else 'leaving')})
+        elif a['kind'] == 'sends-to-bridge':
+            out.append({'assertion': a['name'], 'atom': a['atom'], 'kind': a['kind'], 'exercised': frames,
+                        'how': 'frames left on the UART in a run that met its node' if frames else 'no run observed a frame leaving'})
+        elif a['kind'] == 'receives-from-bridge':   # bss-8: exercised when a run met a node through a command edge (the frame arrived and was applied)
+            out.append({'assertion': a['name'], 'atom': a['atom'], 'kind': a['kind'], 'exercised': commanded,
+                        'how': 'a command frame arrived and its node was met' if commanded else 'no run met a node through a command edge'})
         elif a['kind'] == 'reads-field':
             pins = [p.strip() for p in a.get('pins', '').split(',') if p.strip()]
             seen = any(any('pin-level %s: high' % p in e['collaterals'] or 'pin-level %s: low' % p in e['collaterals'] for p in pins) for r in met for e in R.rows(manager, 'StructNodeRunEdge', run=r['name']))
@@ -126,7 +141,7 @@ def strip(manager, bs):
     return {'ok': True, 'bench_solution': bs, 'nodes_by_state': by_state, 'nodes': len(ns), 'events': sorted(ev_rows.values(), key=lambda d: d['kind_source']),
             'fields_covered': sorted(changed & all_fields), 'fields_never_changed': sorted(all_fields - changed), 'samples_declared': declared, 'samples_used': used_count,
             'paths_tested': sum(n['paths_tested'] for n in ns), 'paths': sum(n['paths'] for n in ns),
-            'assertions_exercised': sum(1 for a in asr if a['exercised']), 'assertions': len(asr), 'untested': untested(manager, bs)}
+            'assertions_exercised': sum(1 for a in asr if a['exercised']), 'assertions': len(asr), 'untested': untested(manager, bs), 'inert_events': inert_events(manager, bs)}
 
 
 def untested(manager, bs):
@@ -149,9 +164,23 @@ def untested(manager, bs):
             words.append('%s: its latest run is on another build than its confirmation' % n['node'])
     used = {e['event'] for e in R.rows(manager, 'StructEdge', bench_solution=bs) if e['event']}
     for ev in R.rows(manager, 'HardwareEvent', bench_solution=bs):
-        if ev['name'] not in used:
+        if ev['name'] not in used and not inert(manager, bs, ev):
             words.append('event %s (%s): no edge uses it' % (ev['name'].split(':', 1)[-1], ev['title']))
     for a in assertions(manager, bs):
         if not a['exercised']:
             words.append('assertion %s: %s' % (a['assertion'].split(':', 1)[-1], a['how']))
     return words
+
+
+def inert(manager, bs, ev):
+    """bss-8: an event the firmware's own claims predict NO struct change for (a release: 'the firmware asserts nothing on it') cannot end an edge - the
+    rule (section 2) - so it is not untested; it is listed apart (inert_events) so nobody looks for the missing edge."""
+    try:
+        return not E.predicted(manager, bs, ev['name'])
+    except R.ConfigRefused:
+        return False
+
+
+def inert_events(manager, bs):
+    return [{'event': ev['name'], 'title': ev['title'], 'why': 'the firmware asserts no struct change on it: no edge can end on it (the rule); offered so a person sees it'}
+            for ev in sorted(R.rows(manager, 'HardwareEvent', bench_solution=bs), key=lambda e: e['name']) if inert(manager, bs, ev)]

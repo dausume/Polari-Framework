@@ -36,6 +36,12 @@ def drawing_route(bs):
     return '/display/hardware-solutions?solution=%s' % solution_name(bs)
 
 
+def crossings(manager, node):
+    """bss-8: the runs (names) whose edge INTO this node was met - how a chain node (flashed / boot) is tested, since no run targets it."""
+    into = {e['name'] for e in R.rows(manager, 'StructEdge', bench_solution=node['bench_solution'], to_node=node['name'])}
+    return sorted({re_['run'] for re_ in R.rows(manager, 'StructNodeRunEdge', outcome='met') if re_['edge'] in into})
+
+
 def _confirmation(manager, node):
     from cmod.custom import confirmations as C
     confs = C.of(manager, node['name'])
@@ -44,6 +50,9 @@ def _confirmation(manager, node):
         return 'root', 'the hardware as delivered, plugged in'
     if node.get('basis') == 'proposed':
         return 'proposed', 'proposed from a run that diverged; accept, loosen and name it'
+    if node['kind'] in ('flashed', 'boot'):   # bss-8: a chain node is met by every run that crossed it on the way to its node (it is never a run's target)
+        n = len(crossings(manager, node))
+        return ('confirmed-twin', 'met on %d run%s through it' % (n, '' if n == 1 else 's')) if n else ('never-tested', 'no run has crossed it yet')
     if live:
         by = 'hardware' if any(c['by'] == 'hardware' for c in live) else 'twin' if any(c['by'] == 'twin' for c in live) else 'person'
         return 'confirmed-%s' % by, 'confirmed by %s (%d confirmation%s, %d voided)' % (by, len(live), '' if len(live) == 1 else 's', len(confs) - len(live))

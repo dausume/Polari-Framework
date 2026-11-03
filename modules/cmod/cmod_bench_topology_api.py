@@ -12,6 +12,9 @@ POST /api/cmod/bench-topology/{bench_solution}/nodes                       body 
 POST /api/cmod/bench-topology/{bench_solution}/edges                       body {from_node, to_node, kind, event}: another path into an existing node -> the node view
 GET  /api/cmod/bench-topology/{bench_solution}/events/{event}/predicted    the chain the assertions predict for one event; [] = nothing asserted
 POST /api/cmod/bench-topology/{bench_solution}/step-rules                  body {variants: [...]}: derive the IsotopeStepRule rows -> the rows
+GET  /api/cmod/topology-specs                                              bss-8: the shipped topology specs (custom/topologies/*.json, one per Bench System)
+POST /api/cmod/bench-topology/{bench_solution}/apply-spec                  bss-8: body {spec?}: apply the Bench System's spec (roles -> this Solution's events,
+                                                                           jobs -> this variant's isotopes) -> {roles, routes, nodes, skipped, words}
 404 = no such Bench Solution / node / event; 409 = no live server; 422 = a node without requirements.
 """
 import json
@@ -49,6 +52,16 @@ class BenchTopologyAPI(treeObject):
             add('/api/cmod/bench-topology/{bench_solution}/edges', self, suffix='edges')
             add('/api/cmod/bench-topology/{bench_solution}/events/{event}/predicted', self, suffix='predicted')
             add('/api/cmod/bench-topology/{bench_solution}/step-rules', self, suffix='step_rules')
+            add('/api/cmod/topology-specs', self, suffix='specs')                                       # bss-8
+            add('/api/cmod/bench-topology/{bench_solution}/apply-spec', self, suffix='apply_spec')    # bss-8
+
+    def on_get_specs(self, request, response):
+        from cmod.custom import bench_topology_spec as SP
+        response.media = {'ok': True, 'rows': SP.specs()}
+
+    def on_post_apply_spec(self, request, response, bench_solution):
+        from cmod.custom import bench_topology_spec as SP
+        self._do(response, SP.apply, bench_solution, str(_json(request).get('spec') or ''))
 
     def _do(self, response, fn, *args, **kw):
         try:

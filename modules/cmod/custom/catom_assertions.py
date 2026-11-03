@@ -177,6 +177,47 @@ def _record(variant):
         return None
 
 
+LIGHT_APP = 'light'   # bss-8: board.custom.variants' app word for every build of apps/light.c (uno-light, -unsensed, -pcint, -analog, -all-pcint, -pwm-analog, -transistor, ...)
+
+
+def for_variant(variant, rows=None):
+    """bss-8: the assertions of ANY variant. Its own rows when it has some; else, for a variant of the same APP as uno-light (the same atoms in apps/light.c,
+    other route knobs), uno-light's rows RE-PINNED from the variant's own knobs (board.custom.variants + light_button.plan): the button atom's pin is the
+    variant's button pin (PD4 on a pin-change route), or the ADC channel with event `level` on the analog-threshold route (a press is the level below
+    the knob adc_press_below_mv); the LED atom's pin is the variant's led_pin. Every other row (UART, boot) is the same code on the same pins. A variant of
+    another app, or one the variants file does not know, has no assertions here: [] (said by the caller)."""
+    own = _rows(variant, rows)
+    if own or variant == VARIANT:
+        return own
+    try:
+        from board.custom import button_routes as BR
+        from board.custom import light_button as LB
+        from board.custom import variants as V
+        r = V.resolve(V.find(variant))
+        if r.get('app') != LIGHT_APP:
+            return []
+        plan, k = LB.plan(variant), r['knobs']
+        led = BR._pin(int(k.get('led_pin', 6)))[1]['pin']
+    except Exception:  # noqa: BLE001 - board absent or an unknown variant: no rows, honestly
+        return []
+    out = []
+    for a in _rows(VARIANT, rows):
+        a = dict(a, variant=variant, name='%s:%s:%s' % (variant, a['atom'], a['kind']),
+                 basis='%s; re-pinned from the knobs of %s (board.custom.variants)' % (a['basis'], variant))
+        if a['atom'].endswith('.led_toggle'):
+            if plan['route'] == 'adc':
+                ch = int(k.get('button_adc_channel', 0))
+                a.update(pins='ADC%d' % ch, event='level',
+                         notes='%s; on %s the button is a voltage on A%d (analog-threshold): a press is the level below %d mV, a release the level above %d mV'
+                               % (a['notes'], variant, ch, plan['press_below_mv'], plan['release_above_mv']))
+            else:
+                a.update(pins=plan['pin'], notes='%s; on %s the button is %s' % (a['notes'], variant, plan['words']))
+        elif a['atom'].endswith('.led_follow_state'):
+            a['pins'] = led
+        out.append(a)
+    return out
+
+
 def assertions(variant=VARIANT, rows=None, rec=False):
     """The variant's assertions with status + status_why recomputed from its cycle record (`rec` False = load it; None = none)."""
     rec = _record(variant) if rec is False else rec
