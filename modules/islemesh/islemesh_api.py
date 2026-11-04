@@ -43,6 +43,10 @@ from islemesh.islemesh_catalog import (
     instances_of, option_install_plan, polari_app_options,
     resolve_app_placement)
 from islemesh.custom.islemesh_coherence import assess_topology
+from islemesh.custom.islemesh_roles import component_roles, is_agent_health, polari_inventory
+from islemesh.custom.islemesh_capabilities import (
+    ACTIONS, validate_evidence, evaluate_isle, MAX_AGE_SECONDS)
+from islemesh.custom.islemesh_test_requirements import test_requirement
 from islemesh.custom.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -82,10 +86,101 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/catalog', self, suffix='catalog')
             add('/api/islemesh/catalog/{entry}', self,
                 suffix='catalog_entry')
+            add('/api/islemesh/devices', self, suffix='devices')
+            add('/api/islemesh/gaps', self, suffix='gaps')
+            add('/api/islemesh/catalog/{entry}/targets', self, suffix='catalog_targets')
             add('/api/islemesh/coherence', self, suffix='coherence')
             add('/api/islemesh/appplan/{app}', self,
                 suffix='appplan')
+            add('/api/islemesh/placement-plan', self, suffix='placement_plan')
+            add('/api/islemesh/plan-library', self, suffix='plan_library')
+            add('/api/islemesh/updates', self, suffix='updates')
+            add('/api/islemesh/removal-check', self, suffix='removal_check')
             add('/api/islemesh/mock', self, suffix='mock')
+
+    def on_get_placement_plan(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore
+        try:
+            response.media = {'ok':True, 'plan':PlanStore().read(request.get_param('id'), request.get_param_as_int('revision')), 'advisoryOnly':True}
+        except (OSError, ValueError, RuntimeError):
+            response.status = '503 Service Unavailable'
+            response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
+
+    def on_get_updates(self, request, response):
+        from pathlib import Path
+        import os
+        try:
+            path=Path(os.environ['DATABASE_PATH']).parent/'isle-release.json'
+            release=json.loads(path.read_text()) if path.exists() else None
+            device=next((d for d in self._capability_devices() if d['name']==request.get_param('device')),None)
+            fact=((device or {}).get('capability_evidence') or {}).get('facts',{}).get('isle.package_versions',{})
+            installed=json.loads(fact.get('value','{}')) if fact.get('status')=='observed' else {}
+            response.media={'ok':True,'release':release,'installed':installed,'reportedAt':fact.get('observed_at'),
+                            'remote':bool(device and (device.get('agent_mode')=='remote' or (not device.get('hosts_router') and ((device.get('capability_evidence') or {}).get('facts',{}).get('agent.running') or {}).get('value') is True))),
+                            'versionsDiffer':bool(release and any(installed.get(p['name'])!=p['version'] for p in release['packages']))}
+        except (OSError,ValueError,KeyError,TypeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Release status unavailable.'}
+
+    def on_get_plan_library(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore
+        try:response.media={'ok':True, **PlanStore().library()}
+        except (OSError,ValueError,RuntimeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Plan library unavailable.'}
+
+    def on_get_removal_check(self, request, response):
+        from islemesh.custom.islemesh_plan_safety import roles, REASONS
+        app=request.get_param('app') or '';device=request.get_param('device') or ''
+        self.on_get_graph(request,response)
+        nodes=[n for n in response.media.get('nodes',[]) if not n.get('is_mock') and n.get('kind')=='app']
+        target=next((n for n in nodes if n.get('device')==device and (n.get('label')==app or n.get('id')=='app:'+app)),None)
+        target_roles=roles({'app':app})
+        if target:
+            target_roles=list(set(target_roles+roles({'app':target.get('label','')})+[r for r in target.get('component_roles',[]) if r in ('frontend','backend')]))
+        issues=[]
+        for role in target_roles:
+            if role=='router' or not any(n is not target and role in (roles({'app':n.get('label','')})+n.get('component_roles',[])) for n in nodes):issues.append(REASONS[role])
+        response.media={'ok':True,'allowed':not issues,'reasons':issues,'app':app,'device':device}
+
+    def on_put_placement_plan(self, request, response):
+        from islemesh.custom.islemesh_planning import PlanStore, Conflict, validate
+        try:
+            raw = request.bounded_stream.read(262145)
+            if len(raw)>262144: raise ValueError('Plan exceeds256KiB')
+            payload = json.loads(raw)
+            from islemesh.custom.islemesh_plan_safety import violations
+            store=PlanStore()
+            if payload.get('operation')=='activate':
+                candidate=store.read(payload.get('id'))
+                issues=violations(candidate,store.read())
+                if issues:raise ValueError(' '.join(issues))
+                response.media={'ok':True,'plan':store.activate(payload.get('id'),payload.get('generation'),payload.get('revision')),'advisoryOnly':True};return
+            validate(payload)
+            issues=violations(payload,store.read())
+            if issues:raise ValueError(' '.join(issues))
+            self.on_get_graph(request,response)
+            for item in payload.get('items',[]):
+                identity=item.get('app') or item.get('title','')
+                node=next((n for n in response.media.get('nodes',[]) if n.get('kind')=='app' and n.get('label')==identity and n.get('device') in (item.get('device'),item.get('originDevice'))),None)
+                if node:item['protectedRoles']=[r for r in node.get('component_roles',[]) if r in ('frontend','backend')]
+            # Recalculate app budgets from current definitions, not client-supplied costs.
+            self.on_get_catalog(request, response)
+            definitions = {e['name']:e for e in response.media['entries']}
+            for item in payload.get('items', []):
+                if item.get('requirementsBased'):
+                    scale = item.get('multiplier', 1)
+                    if type(scale) not in (int, float) or not 1 <= scale <= 2:
+                        raise ValueError('Resource multiplier must be between1 and2')
+                    entry = definitions.get(item.get('app'))
+                    req = self._planning_requirements(entry) if entry else {'minimum':dict(ramMiB=None,diskMiB=None,cpus=None)}
+                    for key, value in req['minimum'].items():
+                        item[key] = round(value * scale, 3) if value is not None else None
+            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs'),'advisoryOnly':True}
+        except Conflict as exc:
+            response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
+        except (ValueError, TypeError) as exc:
+            response.status='400 Bad Request';response.media={'ok':False,'error':str(exc)}
+        except (OSError, RuntimeError):
+            response.status='503 Service Unavailable';response.media={'ok':False,'error':'Plan was not saved: persistent storage unavailable.'}
 
     # ---- helpers ----------------------------------------------------
 
@@ -143,7 +238,8 @@ class IsleMeshAPI(treeObject):
     _DEVICE_RESET = {'isle_name': '', 'agent_mode': '',
                      'agent_present': False, 'hosts_router': False,
                      'router_running': False,
-                     'connectivity_mode': '', 'notes': ''}
+                     'connectivity_mode': '', 'notes': '',
+                     'capability_evidence_json': '{}', 'capability_received_at': ''}
 
     def _upsert_device(self, device_name, is_mock, **fields):
         table = self._table('IsleDevice')
@@ -321,7 +417,20 @@ class IsleMeshAPI(treeObject):
             response.media = {'ok': True,
                               'retired': bool(doomed)}
             return
+        evidence_json = None
+        received_at = None
+        if 'capability_evidence' in payload:
+            try:
+                report = validate_evidence(payload['capability_evidence'])
+                evidence_json = json.dumps(report, allow_nan=False)
+                received_at = _now_iso()
+            except (ValueError, TypeError, OverflowError) as error:
+                return self._refuse(response, 'invalid capability evidence: %s' % error)
+        if 'uplinks' in payload and not isinstance(payload['uplinks'], list):
+            return self._refuse(response, 'uplinks must be an array when supplied')
         facts = payload.get('facts') or {}
+        if not isinstance(facts, dict):
+            return self._refuse(response, 'facts must be an object')
         mode = facts.get('connectivity_mode')
         if mode and mode not in CONNECTIVITY_MODES:
             return self._refuse(
@@ -357,9 +466,20 @@ class IsleMeshAPI(treeObject):
             exposures_json=exposures_json,
             pools_json=pools_json,
             ports_json=ports_json,
-            notes=facts.get('notes'))
+            notes=facts.get('notes'),
+            capability_evidence_json=evidence_json,
+            capability_received_at=received_at)
+        if evidence_json and not is_mock:
+            try:
+                from islemesh.custom.islemesh_usage import UsageStore
+                UsageStore().ingest(device_name,report.get('facts',{}).get('resources.detail_json',{}))
+            except (OSError,ValueError,TypeError,KeyError):
+                pass  # Resource history must not interrupt device membership reports.
         uplinks = payload.get('uplinks') or []
-        self._replace_device_rows(_DEVICE_CLASSES, device_name)
+        # Capability-only and partial fact reports do not replace topology.
+        # An explicit empty array still authoritatively clears the uplinks.
+        if 'uplinks' in payload:
+            self._replace_device_rows(_DEVICE_CLASSES, device_name)
         kept = 0
         for uplink in uplinks:
             if not isinstance(uplink, dict):
@@ -512,7 +632,11 @@ class IsleMeshAPI(treeObject):
     # ---- catalog (§20.1/§20.3) --------------------------------------
 
     def _entry_dict(self, row):
+        from .islemesh_catalog import management_metadata, KVM_CATALOG_APPS
+        name = getattr(row, 'name', '')
+        kind = getattr(row, 'kind', '')
         return {
+            **management_metadata(name, kind),
             'name': getattr(row, 'name', ''),
             'title': getattr(row, 'title', ''),
             'description': getattr(row, 'description', ''),
@@ -522,12 +646,160 @@ class IsleMeshAPI(treeObject):
             'port': getattr(row, 'port', 0),
             'domain': getattr(row, 'domain', ''),
             'provides_engine': getattr(row, 'provides_engine', ''),
+            'realization': getattr(row, 'realization', '') or ('kvm' if kind == 'hardware-app' and name in KVM_CATALOG_APPS else ''),
             'requires_tier': getattr(row, 'requires_tier', ''),  # hw-app-1: hardware kinds need the hardware tier
             'extends': getattr(row, 'extends', ''),
             'category': getattr(row, 'category', ''),
             'source': getattr(row, 'source', ''),
             'published': getattr(row, 'published', True),
         }
+
+    def _planning_requirements(self, entry):
+        """Project app-authored requirements; absence is never a zero minimum."""
+        import math
+        minimum = dict(ramMiB=None, diskMiB=None, cpus=None)
+        profile = next((r for r in self._table('ModuleResourceProfile').values()
+                        if (getattr(r, 'subject_kind', '') == 'isle-app' and
+                            getattr(r, 'subject_name', '') == 'isle-app:' + entry.get('name', ''))), None)
+        if profile is None and entry.get('service'):
+            profile = next((r for r in self._table('ModuleResourceProfile').values()
+                            if getattr(r, 'subject_kind', '') == 'engine' and
+                            getattr(r, 'subject_name', '') == entry['service']), None)
+        source = ''
+        def valid(v): return type(v) in (int, float) and math.isfinite(v) and v >= 0
+        if profile is not None:
+            source = 'ModuleResourceProfile:' + getattr(profile, 'name', entry['name'])
+            ram, cpu = getattr(profile, 'min_ram_mb', None), getattr(profile, 'min_threads', None)
+            disk = [getattr(profile, k, 0) for k in ('min_disk_mb', 'image_mb', 'deps_mb')]
+            minimum = dict(ramMiB=ram if valid(ram) else None, cpus=cpu if valid(cpu) else None,
+                           diskMiB=sum(disk) if all(valid(v) for v in disk) else None)
+        descriptor = self._requirements_for(entry, 'host')
+        keys = {'resources.memory_available_mib':'ramMiB', 'resources.root_disk_free_mib':'diskMiB', 'resources.logical_cpus':'cpus'}
+        for need in (descriptor or {}).get('needs', []):
+            key = keys.get(need.get('dep'))
+            if key and need.get('check') == 'min' and valid(need.get('value')):
+                minimum[key] = max(minimum[key] or 0, need['value'])
+                source = source or 'App hosting requirements:' + entry['name']
+        return dict(minimum=minimum, source=source, complete=all(v is not None for v in minimum.values()),
+                    dependencies=(descriptor or {}).get('needs', []),
+                    dependenciesComplete=bool((descriptor or {}).get('complete')))
+
+    def _capability_devices(self):
+        result = []
+        for row in self._table('IsleDevice').values():
+            try:
+                report = json.loads(getattr(row, 'capability_evidence_json', '{}') or '{}')
+                validate_evidence(report)
+            except (ValueError, TypeError, OverflowError):
+                report = None
+            result.append({
+                'name': getattr(row, 'name', ''),
+                'is_mock': getattr(row, 'is_mock', False),
+                'agent_mode': getattr(row, 'agent_mode', ''),
+                'hosts_router': getattr(row, 'hosts_router', False),
+                'last_seen': getattr(row, 'last_seen', ''),
+                'capability_received_at': getattr(row, 'capability_received_at', ''),
+                'capability_evidence': report,
+            })
+        return result
+
+    def _requirements_for(self, entry, action):
+        descriptor = self._base_requirements_for(entry, action)
+        if not descriptor or action != 'host':
+            return descriptor
+        # Reuse Polari's resource-profile rows with a distinct subject namespace.
+        profile = next((r for r in self._table('ModuleResourceProfile').values()
+                        if getattr(r, 'subject_kind', '') == 'isle-app'
+                        and getattr(r, 'subject_name', '') == 'isle-app:' + entry.get('name', '')), None)
+        if profile is None:
+            return descriptor
+        import math
+        def amount(key):
+            value = getattr(profile, key, 0)
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                raise ValueError('Invalid app resource profile')
+            return value
+        try:
+            costs = {
+                'resources.memory_available_mib': amount('min_ram_mb'),
+                'resources.root_disk_free_mib': amount('min_disk_mb') + amount('image_mb') + amount('deps_mb'),
+                'resources.logical_cpus': amount('min_threads'),
+            }
+        except ValueError:
+            return None
+        result = dict(descriptor, needs=[dict(n) for n in descriptor.get('needs', [])])
+        for dep, value in costs.items():
+            if not value:
+                continue
+            existing = next((n for n in result['needs'] if n.get('dep') == dep), None)
+            if existing:
+                if existing.get('check') != 'min':
+                    return None
+                existing['value'] = max(existing['value'], value)
+                existing['failure'] = 'resource-limited'
+            else:
+                result['needs'].append(dict(dep=dep, scope='device', check='min',
+                                            value=value, failure='resource-limited'))
+        return result
+
+    def _base_requirements_for(self, entry, action):
+        # Derived options require an explicit descriptor too. Do not guess app
+        # requirements from a broad kind, installed agent, or current instance.
+        for row in self._table('IsleCatalogEntry').values():
+            if getattr(row, 'name', '') != entry.get('name'):
+                continue
+            if getattr(row, 'is_mock', False):
+                return None
+            try:
+                descriptors = json.loads(getattr(row, 'requirements_json', '{}') or '{}')
+                descriptor = descriptors.get(action)
+                if descriptor is None:
+                    return test_requirement(entry, action)
+                if (not isinstance(descriptor, dict)
+                        or descriptor.get('kind') != entry.get('kind')
+                        or descriptor.get('action') != action
+                        or (entry.get('kind') == 'hardware-app'
+                            and descriptor.get('realization') != entry.get('realization'))):
+                    return None
+                return descriptor
+            except (ValueError, TypeError, AttributeError):
+                return None
+        return None
+
+    def on_get_devices(self, request, response):
+        response.media = {'ok': True, 'schema_version': 1,
+                          'devices': self._capability_devices(),
+                          'max_age_seconds': MAX_AGE_SECONDS,
+                          'mock_network': self._any_mock()}
+
+    def on_get_catalog_targets(self, request, response, entry):
+        action = request.get_param('action') or 'host'
+        if action not in ACTIONS:
+            return self._refuse(response, 'unknown action')
+        self.on_get_catalog_entry(request, response, entry)
+        data = response.media
+        if not data.get('ok'):
+            return
+        info = data['entry']
+        report = evaluate_isle(self._requirements_for(info, action), self._capability_devices())
+        response.media = dict(report, ok=True, entry=entry, kind=info.get('kind'), action=action)
+
+    def on_get_gaps(self, request, response):
+        action = request.get_param('action') or 'host'
+        if action not in ACTIONS:
+            return self._refuse(response, 'unknown action')
+        self.on_get_catalog(request, response)
+        entries = response.media['entries']
+        devices = self._capability_devices()
+        now = datetime.now(timezone.utc)
+        reports = []
+        for entry in entries:
+            report = evaluate_isle(self._requirements_for(entry, action), devices, now)
+            reports.append(dict(report, entry=entry['name'], kind=entry.get('kind')))
+        response.media = {'ok': True, 'schema_version': 1, 'action': action,
+                          'evaluated_at': now.isoformat(), 'entries': reports,
+                          'scope': 'published catalog requirements',
+                          'mock_network': self._any_mock()}
 
     def _instances_of(self, entry_name):
         """Running INSTANCES of one catalog entry across the isle:
@@ -545,6 +817,8 @@ class IsleMeshAPI(treeObject):
                          'domain': getattr(r, 'domain', ''),
                          'modes': modes,
                          'is_mock': getattr(r, 'is_mock', False)})
+        if entry_name == 'polari':
+            return [dict(p, app=p['deployment']) for p in polari_inventory(rows, list(self._table('IsleAppService').values()))['instances'] if p['component_role'] == 'backend']
         return instances_of(rows, entry_name)
 
     def on_get_catalog(self, request, response):
@@ -571,10 +845,12 @@ class IsleMeshAPI(treeObject):
         for o in options:
             place = resolve_app_placement(
                 o['name'], o.pop('modules', []), placements)
+            o['installed_somewhere'] = bool(placements) and bool(place['satisfied']) and place['complete']
             o['placement'] = {'complete': place['complete'],
                               'missing': place['missing']}
             o['install_plan'] = option_install_plan(o)
         entries.extend(options)
+        entries.extend(self._bridge_catalog_entries())
         # ai-2 (decision 1): the DEDICATED AI section — every
         # AiToolDefinition projected as a derived category-'ai'
         # entry (hosting + sovereignty on the tile; the readiness
@@ -585,9 +861,40 @@ class IsleMeshAPI(treeObject):
         for a in ai_entries:
             a['install_plan'] = ai_tool_install_plan(a)
         entries.extend(ai_entries)
+        try:
+            from islemesh.custom.islemesh_usage import UsageStore
+            history=list(UsageStore().read()['series'].values())
+        except (OSError,ValueError,KeyError):history=[]
+        for entry in entries:
+            entry['observedUsage']=[r for r in history if r['app'] in (entry['name'],entry.get('service'))]
+            entry['planningRequirements'] = self._planning_requirements(entry)
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
-                          'entries': entries}
+                          'entries': entries, 'usageHistory': history}
+
+    def _bridge_catalog_entries(self, include_instances=True):
+        # Manifest-owned Hardware Bridge Apps remain visible even when their
+        # Polari module is not enabled. Do not confuse them with engine workers.
+        from pathlib import Path
+        entries = []
+        for path in sorted(Path(__file__).resolve().parent.parent.glob('*/polari-app.json')):
+            try:
+                manifest = json.loads(path.read_text())
+            except (OSError, ValueError):
+                continue
+            app = manifest.get('app', {})
+            if app.get('kind') != 'hardware-app' or app.get('realization') != 'bridge':
+                continue
+            entries.append(dict(name=manifest['id'], title=manifest.get('title', manifest['id']),
+                description=manifest.get('description', ''), kind='hardware-app', realization='bridge',
+                source='module manifest', source_ref='polari-module:' + manifest['id'],
+                category='hardware', management_system='isle', requires_tier=app.get('agentTier', 'member'),
+                instances=self._instances_of(manifest['id']) if include_instances else [],
+                install_plan={'ok': False, 'steps': [], 'note':
+                    'Requires the Polari module ' + manifest['id'] +
+                    ' and a Hardware Shell App with proven USB/serial bridging on this device. '
+                    'Automatic bridge installation is not yet available; this is not a KVM install.'}))
+        return entries
 
     def _polari_placements(self):
         """Deployed polari instances (incl. the core), each with its
@@ -605,6 +912,10 @@ class IsleMeshAPI(treeObject):
                 row = candidate
                 break
         if row is None:
+            bridge = next((e for e in self._bridge_catalog_entries() if e['name'] == entry), None)
+            if bridge:
+                response.media = {'ok': True, 'entry': bridge}
+                return
             # sep-3: derived app options answer here too — same
             # detail shape, plan included.
             options = polari_app_options(
@@ -708,9 +1019,11 @@ class IsleMeshAPI(treeObject):
         apps = [{'name': getattr(a, 'name', ''),
                  'device_name': getattr(a, 'device_name', ''),
                  'domain': getattr(a, 'domain', ''),
+                 'modes_json': getattr(a, 'modes_json', '[]'),
                  'is_mock': getattr(a, 'is_mock', False)}
                 for a in self._table('IsleApp').values()]
-        services = [{'app_name': getattr(s, 'app_name', ''),
+        services = [{'container': getattr(s, 'container', ''),
+                     'app_name': getattr(s, 'app_name', ''),
                      'subdomain': getattr(s, 'subdomain', ''),
                      'device_name': getattr(s, 'device_name', ''),
                      'is_mock': getattr(s, 'is_mock', False)}
@@ -743,7 +1056,7 @@ class IsleMeshAPI(treeObject):
             'mock_network': mock,
             'banner': (MOCK_BANNER if mock else ''),
             'counts': {
-                class_name: len(self._table(class_name))
+                class_name: (sum(not is_agent_health(a, list(self._table('IsleAppService').values())) for a in self._table(class_name).values()) if class_name == 'IsleApp' else len(self._table(class_name)))
                 for class_name in (
                     'IsleDevice', 'IsleUplink', 'IsleApp',
                     'IsleAppService', 'MeshAppRealization',
@@ -793,7 +1106,14 @@ class IsleMeshAPI(treeObject):
                      router_running=getattr(row, 'router_running',
                                             False),
                      connectivity_mode=getattr(
-                         row, 'connectivity_mode', ''))
+                         row, 'connectivity_mode', ''),
+                     reported_at=getattr(row, 'last_seen', ''),
+                     uplinks=[{'interface': getattr(u, 'interface', ''),
+                               'medium': getattr(u, 'kind', ''),
+                               'link_up': getattr(u, 'link_up', False),
+                               'reported_at': getattr(u, 'measured_at', '')}
+                              for u in self._table('IsleUplink').values()
+                              if getattr(u, 'device_name', '') == name])
             if getattr(row, 'agent_present', False):
                 # the nginx proxy is the device's EDGE — every packet
                 # in/out of this device's isle apps passes it. role
@@ -835,8 +1155,13 @@ class IsleMeshAPI(treeObject):
                               'is_mock': getattr(row, 'is_mock',
                                                  False)})
             if getattr(row, 'router_running', False):
+                try:
+                    hardware = json.loads(getattr(row, 'capability_evidence_json', '{}') or '{}').get('facts', {}).get('hardware.openwrt.running', {})
+                except (ValueError, AttributeError):
+                    hardware = {}
+                router_label = ('OpenWrt — Hardware App (KVM)' if hardware.get('status') == 'observed' and hardware.get('value') is True else 'OpenWRT router (.isle DNS)')
                 add_node('router:%s' % name, 'router',
-                         'OpenWRT router (.isle DNS)', device=name,
+                         router_label, device=name, app_kind='hardware-app', realization='kvm',
                          is_mock=getattr(row, 'is_mock', False))
                 links.append({'source': 'device:%s' % name,
                               'target': 'router:%s' % name,
@@ -872,22 +1197,73 @@ class IsleMeshAPI(treeObject):
                 # not detected hardware. A genuine detected switch
                 # (LLDP/bridge) would arrive as detection:'detected'.
                 add_node('segment:isle', 'segment',
-                         'isle L2 segment (switch)',
+                         'Shared Isle segment (inferred)',
                          placement='external',
-                         detection='inferred')
+                         detection='inferred',
+                         evidence='Candidate uplinks reported by devices. No switch, access point or cable path has been discovered.')
                 segment_added = True
             linked_devices.add(device)
             links.append({'source': 'device:%s' % device,
                           'target': 'segment:isle',
                           'kind': 'l2',
-                          'label': getattr(row, 'interface', ''),
+                          'label': '%s · %s' % (kind, getattr(row, 'interface', '')),
+                          'medium': kind, 'detection': 'inferred',
+                          'reported_at': getattr(row, 'measured_at', ''),
+                          'evidence': 'Interface carrier reported; membership of this physical segment is inferred, not verified.',
                           'is_mock': getattr(row, 'is_mock',
                                              False)})
 
+        # Expected DNS relationship, not a packet trace or resolver observation.
+        # Never choose an arbitrary core when multiple routers are reported.
+        routers = [n for n in nodes if n['kind'] == 'router']
+        if len(routers) == 1:
+            router = routers[0]
+            for agent in [n for n in nodes if n['kind'] == 'proxy']:
+                dev = next(n for n in nodes if n['id'] == 'device:' + agent['device'])
+                links.append({
+                    'source': router['id'], 'target': agent['id'],
+                    'kind': 'dns', 'label': '.isle DNS (expected)',
+                    'detection': 'inferred', 'reported_at': dev.get('reported_at', ''),
+                    'evidence': 'Expected OpenWrt DNS relationship from reported router and agent roles. Resolver configuration and packet traversal are not verified.',
+                    'is_mock': router['is_mock'] or agent['is_mock'],
+                })
+
+        reported_services = list(self._table('IsleAppService').values())
+        diagnostics = set()
+        bridge_metadata = {entry['name']: entry for entry in self._bridge_catalog_entries(include_instances=False)}
         for row in self._table('IsleApp').values():
             name = getattr(row, 'name', '')
             device = getattr(row, 'device_name', '')
+            if is_agent_health(row, reported_services):
+                diagnostics.add((device, name))
+                proxy = next((n for n in nodes if n['id'] == 'proxy:' + device), None)
+                if proxy is not None:
+                    proxy.setdefault('diagnostics', []).append({'name': 'Agent health check', 'path': '/health', 'domain': getattr(row, 'domain', ''), 'purpose': 'Validates the nginx agent; not a separately installed app', 'status': 'Not probed by this topology report'})
+                continue
+            roles = component_roles(row, reported_services)
+            definition = next((r for r in self._table('IsleCatalogEntry').values()
+                               if getattr(r, 'name', '') == name), None)
+            app_kind = getattr(definition, 'kind', '') or 'unclassified'
+            classification = 'catalog' if definition else 'not reported'
+            realization = getattr(definition, 'realization', '')
+            if name == 'sample' and any(getattr(svc, 'app_name', '') == name and getattr(svc, 'device_name', '') == device and getattr(svc, 'container', '') == 'isle-sample-app' for svc in reported_services):
+                app_kind = 'mesh-app'
+                classification = 'built-in sample Mesh App service'
+            if name in bridge_metadata:
+                app_kind = bridge_metadata[name]['kind']
+                realization = bridge_metadata[name]['realization']
+                classification = 'Polari app manifest'
+            try:
+                modes = json.loads(getattr(row, 'modes_json', '[]') or '[]')
+            except (ValueError, TypeError):
+                modes = []
+            if roles or (isinstance(modes, list) and any(isinstance(m, str) and m.startswith('modules:') for m in modes)):
+                app_kind = 'polari-instance'
+                classification = 'registry role or service container' if roles else 'legacy module declaration; component role not reported'
             add_node('app:%s' % name, 'app', name, device=device,
+                     app_kind=app_kind, component_roles=roles,
+                     realization=realization,
+                     classification_source=classification,
                      is_mock=getattr(row, 'is_mock', False),
                      domain=getattr(row, 'domain', ''),
                      availability_mode=getattr(
@@ -913,6 +1289,8 @@ class IsleMeshAPI(treeObject):
                 # missed it
                 add_node(proxy_id, 'proxy', 'nginx (isle-agent)',
                          device=device, is_mock=is_mock)
+            if (device, app) in diagnostics:
+                continue
             app_id = 'app:%s' % (app or server)
             if app_id not in seen:
                 add_node(app_id, 'app', app or server,
@@ -932,10 +1310,31 @@ class IsleMeshAPI(treeObject):
                                               ''),
                           'is_mock': is_mock})
 
+        from topology.device_resources import resource_ledger
+        resources = resource_ledger(self.manager)
+        reported_devices = {n['device'] for n in nodes if n['kind'] == 'device' and not n['is_mock']}
+        resources['devices'] = [r for r in resources['devices'] if r['device'] in reported_devices]
+        # Polari may contain planned machines not actually on this Isle.
+        # Its global totals cannot be presented as this Isle's capacity.
+        resources.pop('totals', None)
+        resources['scope'] = 'reported Isle devices'
+        for device in resources['devices']:
+            device['appWorkloads'] = [w for w in device.get('appWorkloads', []) if (device['device'], w['name']) not in diagnostics]
+            for workload in device.get('appWorkloads', []):
+                app_node = next((n for n in nodes if n['id'] == 'app:' + workload['name']
+                                 and n['device'] == device['device']), None)
+                if app_node:
+                    workload['kind'] = app_node.get('app_kind', workload['kind'])
+                    workload['realization'] = app_node.get('realization', '')
+                    workload['component_roles'] = app_node.get('component_roles', [])
+        for node in nodes:
+            if node['kind'] == 'device':
+                node['resources'] = next((r for r in resources['devices'] if r['device'] == node['device']), None)
         mock = self._any_mock()
         response.media = {'ok': True, 'mock_network': mock,
                           'banner': (MOCK_BANNER if mock else ''),
-                          'nodes': nodes, 'links': links}
+                          'nodes': nodes, 'links': links, 'resources': resources,
+                          'polari': polari_inventory(list(self._table('IsleApp').values()), reported_services, list(self._table('IsleDevice').values()))}
 
     def on_get_matrix(self, request, response):
         """The protocol matrix, pre-grouped for rendering: per
