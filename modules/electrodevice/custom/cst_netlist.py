@@ -36,10 +36,28 @@ def _node(name):
     return name.replace('-', '_').replace(':', '_')
 
 
-def deck(state, cat, pullup_ohms=PULLUP_OHMS[0]):
-    """-> (netlist text, probes) for one state over the catalogue's circuit rows."""
+def _led_model(name, dv):
+    """msv-1: the renderer's LED model with its forward voltage moved by dv at any current (Is scaled by exp(-dv / (N Vt)); Vt at ngspice's 27 C)."""
+    import math
+    import re
+    f = dict((k, float(v)) for k, v in re.findall(r'(\w+)=([-+0-9.eE]+)', LED_MODEL))
+    vt = 1.380649e-23 * 300.15 / 1.602176634e-19
+    return '.model polari_led_%s D(Is=%.6g N=%g Rs=%g)' % (_node(name), f['Is'] * math.exp(-dv / (f['N'] * vt)), f['N'], f['Rs'])
+
+
+def deck(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
+    """-> (netlist text, probes) for one state over the catalogue's circuit rows.
+
+    msv-1 `vary` (None = the nominal deck, unchanged): {'vcc': V, 'r_scale': {resistor: factor}, 'r_out_high': ohm, 'r_out_low': ohm (a driven pin's
+    output resistance), 'led_dv': {led: V (its forward voltage moved)}, 'meter_v': (net, ohm) (a voltmeter's input to GND), 'meter_i': (part, ohm) (an
+    ammeter's burden in series with the part)} - the tolerance corners and the meter's loading (cmod.custom.measure_bands)."""
+    v = vary or {}
+    vcc = float(v.get('vcc', VCC))
     lines = ['* cst-1: .op of circuit %s in state %s (config %s) — built from the CircuitComponentDefinition / CircuitNetDefinition / BoardPinNet rows; edit the rows, not this file'
              % (cat['circuit'], state['name'], state['config']), LED_MODEL]
+    if v:
+        lines.append('* msv-1 varied: %s' % ', '.join('%s=%s' % (k, v[k]) for k in sorted(v)))
+        lines += [_led_model(n, dv) for n, dv in sorted((v.get('led_dv') or {}).items())]
     probes = []
     need_gnd = False
     nets_driven = set()
@@ -55,11 +73,19 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0]):
                 nets_driven |= set(nets)
         elif kind in ('led', 'diode'):
             a, k = nets[0], nets[1] if len(nets) > 1 else '0'
+            mi = v.get('meter_i')
+            if mi and mi[0] == name:   # msv-1: the ammeter's burden in series, before the probe ammeter
+                lines.append('Rmeter_%s %s n_%s_m %g ; the meter\'s burden in series with %s' % (_node(name), a, _node(name), mi[1], name))
+                a = 'n_%s_m' % _node(name)
             lines.append('%s %s n_%s_k DC 0 ; ammeter in series with %s' % (_ref('Vam_', name), a, _node(name), name))
-            lines.append('%s n_%s_k %s %s' % (_ref('D', name), _node(name), k, params.get('model', 'polari_led')))
+            model = 'polari_led_%s' % _node(name) if name in (v.get('led_dv') or {}) else params.get('model', 'polari_led')
+            lines.append('%s n_%s_k %s %s' % (_ref('D', name), _node(name), k, model))
             probes.append('i(%s)' % _ref('Vam_', name).lower())
         elif kind == 'resistor':
-            lines.append('%s %s %s' % (_ref('R', name), ' '.join(nets), params.get('ohms', '?')))
+            ohms = params.get('ohms', '?')
+            if name in (v.get('r_scale') or {}) and ohms != '?':
+                ohms = '%g' % (float(ohms) * v['r_scale'][name])
+            lines.append('%s %s %s' % (_ref('R', name), ' '.join(nets), ohms))
         elif kind == 'vsource':
             lines.append('%s %s DC %s' % (_ref('V', name), ' '.join(nets), params.get('dc', VCC)))
             nets_driven |= set(nets)
@@ -69,12 +95,16 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0]):
         mode = state['modes'].get(pin, d['at_init'])
         net = d['net']
         if mode in ('driven-high', 'driven-low'):
-            lines.append('%s n_%s 0 DC %s ; %s %s (ideal source: the worst-case bound)' % (_ref('V', pin), pin, VCC if mode == 'driven-high' else 0, pin, mode))
+            rout = v.get('r_out_high' if mode == 'driven-high' else 'r_out_low', 0)
+            src = 'n_%s_src' % pin if rout else 'n_%s' % pin
+            lines.append('%s %s 0 DC %s ; %s %s (ideal source: the worst-case bound)' % (_ref('V', pin), src, vcc if mode == 'driven-high' else 0, pin, mode))
+            if rout:
+                lines.append('Rout_%s %s n_%s %g ; %s output resistance (msv-1 corner)' % (pin, src, pin, rout, pin))
             lines.append('%s n_%s %s DC 0 ; ammeter: the current %s sources (+) or sinks (-)' % (_ref('Vam_', pin), pin, net, pin))
             probes.append('i(%s)' % _ref('Vam_', pin).lower())
             nets_driven.add(net)
         elif mode == 'input-pullup':
-            lines.append('%s n_%s_vcc 0 DC %s ; %s pull-up supply' % (_ref('Vpu_', pin), pin, VCC, pin))
+            lines.append('%s n_%s_vcc 0 DC %s ; %s pull-up supply' % (_ref('Vpu_', pin), pin, vcc, pin))
             lines.append('%s n_%s_vcc n_%s %s ; %s internal pull-up RPU (%s ohm end of 20k..50k)' % (_ref('Rpu_', pin), pin, pin, pullup_ohms, pin, pullup_ohms))
             lines.append('%s n_%s %s DC 0 ; ammeter: the pull-up current through %s' % (_ref('Vam_', pin), pin, net, pin))
             probes.append('i(%s)' % _ref('Vam_', pin).lower())
@@ -89,6 +119,9 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0]):
     for n in cat['nets'].values():
         if n['net'] != 'GND':
             probes.append('v(%s)' % n['net'])
+    mv = v.get('meter_v')
+    if mv:   # msv-1: the voltmeter's input resistance from the probed net to GND
+        lines.append('Rmeter_v %s 0 %g ; the meter\'s input resistance' % (mv[0], mv[1]))
     # a net nothing drives would leave the matrix singular: tie every undriven, non-ground net to 0 through a huge resistor and say so (the structural rule flags it)
     for n in cat['nets'].values():
         if n['net'] not in nets_driven and n['net'] != 'GND' and not _reaches_driven(n['net'], cat, state, nets_driven):
@@ -129,9 +162,9 @@ def floating_nets(state, cat):
     return out
 
 
-def run(state, cat, pullup_ohms=PULLUP_OHMS[0]):
+def run(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
     """One .op run -> {'ok', 'measurements', 'netlist', 'pullup_ohms', 'error'?}. No engine -> ok False with the capability words."""
-    text, probes = deck(state, cat, pullup_ohms)
+    text, probes = deck(state, cat, pullup_ohms, vary)
     cap = capability()
     if not cap['available']:
         return {'ok': False, 'netlist': text, 'probes': probes, 'pullup_ohms': pullup_ohms, 'measurements': {}, 'error': 'ngspice not available on this node', 'capability': cap}

@@ -16,7 +16,7 @@ class MeasurementPoint(treeObject):
     plain_words = ('One reading a person should take with a meter while the device is in a given situation, and what the simulation says it should read.')
 
     @treeObjectInit
-    def __init__(self, name: str = '', node: str = '', quantity: str = 'V dc', plus_at: str = '', minus_at: str = 'GND', where: str = '', nominal: float = 0.0, si_unit: str = 'V', source: str = '', basis: str = '', run: str = '', hex_sha256: str = '', state: str = '', origin: str = 'derived', order: int = 0, manager=None):
+    def __init__(self, name: str = '', node: str = '', quantity: str = 'V dc', plus_at: str = '', minus_at: str = 'GND', where: str = '', nominal: float = 0.0, si_unit: str = 'V', source: str = '', basis: str = '', run: str = '', hex_sha256: str = '', state: str = '', origin: str = 'derived', order: int = 0, band_lo: float = 0.0, band_hi: float = 0.0, band_basis: str = '', manager=None):
         self.name = name    # '<node>-mp-<slug>'
         self.node = node    # a StructNode name
         self.quantity = quantity    # V dc | I dc
@@ -32,3 +32,6 @@ class MeasurementPoint(treeObject):
         self.state = state    # the circuit state name (led-on ...)
         self.origin = origin    # derived | person
         self.order = order
+        self.band_lo = band_lo    # msv-1: the lowest a correct build may read (the tolerance corners), SI
+        self.band_hi = band_hi    # msv-1: the highest
+        self.band_basis = band_basis    # msv-1: the corners' words; '' = no band yet

@@ -153,15 +153,15 @@ def _measured_tab():
                         description='One row per measurement point of the node chosen on the Nodes tab, derived from the circuit state its latest reached run left '
                                     '(the ngspice .op over the bench circuit rows): the quantity, where the probes go, the predicted value and its basis. '
                                     'Click one to fill its name into the form.',
-                        columns='name,quantity,where,nominal,si_unit,state,source,basis,origin', data_path=pts,
+                        columns='name,quantity,where,nominal,band_lo,band_hi,si_unit,state,source,basis,band_basis,origin', data_path=pts,
                         select_field='name', select_scope='point', selected_value='{scope:point}', empty_text='Pick a node on the Nodes tab (it needs a reached run).')], min_height=240),
         _row(2, [_component('he-reading-form', 0, 4, 'Enter a reading (manual)', 'door-form', form,
                             description='Type what the meter shows. The reading is kept as typed and judged against the prediction and the instrument\'s cited accuracy.'),
                  _table('he-readings', 4, 8, 'Readings of the chosen unit, judged', '',
-                        description='Every reading of the unit, newest first: in-band (matches the simulation within the instrument), unexplained (needs a person\'s look), '
+                        description='Every reading of the unit, newest first: in-band (matches the simulation within the instrument), in-tolerance (off the nominal but inside what the parts allow: tol_lo..tol_hi), unexplained (needs a person\'s look), '
                                     'unjudged (the instrument\'s accuracy is not cited yet), over-range; stale = read on another build than the prediction. current = '
                                     'the newest reading of its point.',
-                        columns='point,entered,verdict,nominal,delta,band,current,stale,instrument,via,who,at,words', data_path=_T + '/units/{scope:unit}/readings?' + _REV,
+                        columns='point,entered,verdict,expected,delta,band,tol_lo,tol_hi,loading,current,stale,instrument,via,who,at,words', data_path=_T + '/units/{scope:unit}/readings?' + _REV,
                         empty_text='Pick a built unit above.')], min_height=300)],
         description='Real readings off a built unit against the simulation at a node: manual entry first (msv-0).')
 

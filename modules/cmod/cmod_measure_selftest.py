@@ -61,8 +61,10 @@ def main():
     check('POINTS DERIVED from the run\'s circuit state led-on: the three nets, the LED current, the 5 V rail - each with where the probes go',
           set(pts) == {'v-led-control', 'v-led-anode', 'v-button-input', 'i-ubc-led1', 'v-5v-rail'}, sorted(pts))
     led = pts.get('i-ubc-led1', {})
-    check('the LED current predicted = the bss-12 figure (14.715 mA, the ideal-source worst-case bound - the basis says so)',
-          abs(led.get('nominal', 0) - 0.0147152) < 2e-6 and 'worst-case bound' in led.get('basis', '') and 'series' in led.get('where', ''), led)
+    check('the LED current predicted = the bss-12 figure (14.715 mA, the nominal: ideal sources, nominal parts - the basis says so); msv-1: its tolerance band '
+          'from the worst-case corners sits around it (8.5..16.6 mA over 32 runs)',
+          abs(led.get('nominal', 0) - 0.0147152) < 2e-6 and 'nominal' in led.get('basis', '') and 'series' in led.get('where', '')
+          and 0.0080 < led['band_lo'] < 0.0090 and 0.0160 < led['band_hi'] < 0.0170 and '32 ngspice runs' in led['band_basis'], led)
     check('the LED net is probed at D6 or D3 (the board pins on it); the R1/LED junction has no pin and says so',
           'D6' in pts['v-led-control']['where'] and 'no board pin' in pts['v-led-anode']['where'] and abs(pts['v-led-anode']['nominal'] - 1.762652) < 1e-5,
           (pts['v-led-control']['where'], pts['v-led-anode']['where']))
@@ -93,16 +95,20 @@ def main():
     check('IN BAND: 4.995 V on the rail vs 4.9926 V, band +/-(0.5 % + 2 counts of 1 mV) = 27 mV', r1['verdict'] == 'in-band' and abs(r1['band'] - (0.005 * 4.995 + 0.002)) < 1e-9
           and r1['entered'] == '4.995 V' and r1['via'] == 'manual', r1['words'])
     r2 = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.2', 'unit': 'mA', 'instrument': 'fixture-dmm', 'range_max': '200 mA'})
-    check('UNEXPLAINED: 14.2 mA vs 14.715 mA is outside the 200 mA range\'s +/-0.442 mA (no tolerance band yet - msv-1 - so a person looks)',
-          r2['verdict'] == 'unexplained' and abs(r2['value'] - 0.0142) < 1e-12 and 'msv-1' in r2['words'], r2['words'])
+    check('msv-1 IN TOLERANCE: 14.2 mA is outside the 200 mA range\'s +/-0.442 mA of 14.715 mA, but inside the tolerance band - conditioned on this unit\'s '
+          'own 4.995 V rail reading (9.3..15.5 mA)',
+          r2['verdict'] == 'in-tolerance' and abs(r2['value'] - 0.0142) < 1e-12 and 'as this unit reads it' in r2['tol_words'] and 0.009 < r2['tol_lo'] < 0.0096, r2['words'])
     r3 = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.7 mA', 'instrument': 'fixture-dmm', 'range_max': '200 mA'})
     check('IN BAND: 14.7 mA (a later reading of the same point - kept beside the first, never edited)', r3['verdict'] == 'in-band' and r3['name'].endswith('#r2'), r3['words'])
-    r4 = MR.add_reading(m, unit, {'point': pts['v-led-control']['name'], 'value': '4.6 V'})
-    check('UNJUDGED: no instrument said - the delta stands (-0.4 V), the band is unmeasured', r4['verdict'] == 'unjudged' and abs(r4['delta'] + 0.4) < 1e-9
-          and 'unmeasured' in r4['words'], r4['words'])
+    r4 = MR.add_reading(m, unit, {'point': pts['v-led-control']['name'], 'value': '3.9 V'})
+    check('UNJUDGED: no instrument said, and outside the tolerance band - the delta stands (-1.1 V), the band is unmeasured', r4['verdict'] == 'unjudged'
+          and abs(r4['delta'] + 1.1) < 1e-9 and 'unmeasured' in r4['words'], r4['words'])
+    r4b = MR.add_reading(m, unit, {'point': pts['v-led-control']['name'], 'value': '4.6 V'})
+    check('...4.6 V with no instrument is inside the tolerance band: IN TOLERANCE, saying the meter\'s accuracy is not counted',
+          r4b['verdict'] == 'in-tolerance' and 'not counted' in r4b['words'], r4b['words'])
     r5 = MR.add_reading(m, unit, {'point': led['name'], 'value': '250 mA', 'instrument': 'fixture-dmm', 'range_max': '200 mA'})
     check('OVER RANGE: 250 mA on the 200 mA range', r5['verdict'] == 'over-range', r5['words'])
-    r6 = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.7 mA', 'instrument': 'fixture-dmm', 'range_max': '20 mA'})
+    r6 = MR.add_reading(m, unit, {'point': led['name'], 'value': '2 mA', 'instrument': 'fixture-dmm', 'range_max': '20 mA'})
     r6b = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.7 mA', 'instrument': 'fixture-dmm'})
     check('no range said = the SMALLEST range that holds the value (here the 20 mA one, whose line is unread)', 'range 0.02' in r6b['words'], r6b['words'])
     check('an UNREAD accuracy line (-1) is unjudged, said', r6['verdict'] == 'unjudged' and 'unread' in r6['words'], r6['words'])
@@ -116,7 +122,7 @@ def main():
             check('refused: %s (%s)' % (why, e.status), True)
     rows = MR.readings(m, unit)
     cur = [r for r in rows if r['point'] == led['name'] and r['current']]
-    check('readings newest first, judged on read; one current per point', len(rows) == 7 and len(cur) == 1 and cur[0]['name'] == r6b['name'], [(r['name'], r['current']) for r in rows])
+    check('readings newest first, judged on read; one current per point', len(rows) == 8 and len(cur) == 1 and cur[0]['name'] == r6b['name'], [(r['name'], r['current']) for r in rows])
     MR.add_unit(m, BS, {'name': unit, 'hex_sha256': 'b' * 64})
     r7 = MR.add_reading(m, unit, {'point': rail['name'], 'value': '4.99 V', 'instrument': 'fixture-dmm'})
     check('STALE: a reading on another build than the prediction says so', r7['stale'] and 'STALE' in r7['words'], r7['words'])
@@ -128,7 +134,9 @@ def main():
     check('TP4000ZC example (the sigrok + cheap meter): 14.6 mA picks the 40 mA range, band 1.5 % + 5 x 10 uA = 0.269 mA, so -0.115 mA is IN BAND',
           'on the 0.04 range' in k['words'] and abs(k['band'] - (0.015 * 0.0146 + 5e-5)) < 1e-12 and k['verdict'] == 'in-band', k['words'])
     f = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.2 mA', 'instrument': 'tekpower-tp4000zc'})
-    check('TP4000ZC example: 14.2 mA (-0.515 mA) is outside its 0.263 mA band - unexplained', f['verdict'] == 'unexplained', f['words'])
+    check('TP4000ZC example: 14.2 mA (-0.515 mA) is outside its 0.263 mA instrument band but IN TOLERANCE (msv-1)', f['verdict'] == 'in-tolerance', f['words'])
+    f2 = MR.add_reading(m, unit, {'point': led['name'], 'value': '5.0 mA', 'instrument': 'tekpower-tp4000zc'})
+    check('TP4000ZC example: 5.0 mA is below every corner - UNEXPLAINED', f2['verdict'] == 'unexplained', f2['words'])
 
     # the doors
     import falcon

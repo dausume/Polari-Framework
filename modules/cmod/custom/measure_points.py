@@ -15,8 +15,8 @@ One point per:
   I dc  in series with a part (each part the deck puts an ammeter on: the LED branch) - the words say where to break the circuit
   V dc  the 5 V rail to GND (VCC minus the node's ground-return current over R_supply - both knobs, said; a reading of it measures R_supply)
 
-The deck is the WORST-CASE bound (ideal pin sources: a real pin's output resistance lowers a driven net and its current). Until msv-1's tolerance band,
-the nominal is that bound and the basis says so.
+The nominal is the deck's ideal case (ideal pin sources, nominal parts). msv-1: each point also carries its TOLERANCE BAND (band_lo..band_hi), the
+worst-case corners of the parts (cmod.custom.measure_bands): what any correct build may read.
 """
 import json
 import re
@@ -86,8 +86,8 @@ def derive(manager, node):
         raise R.ConfigRefused('the .op of %s did not run: %s' % (state_name, op.get('error', '')), status=409)
     meas = op['measurements']
     src = 'ngspice .op of circuit %s in state %s (run %s)' % (cat['circuit'], state_name, run['name'].split('#')[-1])
-    basis = ('the worst-case bound: the pins as ideal sources, the pull-up at its %d ohm end (a real pin\'s output resistance lowers a driven net and its '
-             'current); no tolerance band yet (msv-1)' % N.PULLUP_OHMS[0])
+    basis = ('the nominal: the pins as ideal sources, the parts at their nominal values, the pull-up at its %d ohm end; the tolerance band is beside it '
+             '(band_lo..band_hi, msv-1)' % N.PULLUP_OHMS[0])
     want = []
     nets = {nr['net'].lower(): nr for nr in cat['nets'].values() if nr['net'] != 'GND'}
     for key, val in meas.items():
@@ -109,15 +109,25 @@ def derive(manager, node):
     if gnd is not None:
         rail = NE.VCC_V - gnd * 1e-3 * NE.R_SUPPLY_OHMS
         want.append(('v-5v-rail', 'V dc', '5V', 'GND', 'red probe on the 5V header pin, black on a GND header pin (this reading measures R_supply)', rail, 'V'))
+    from cmod.custom import measure_bands as MB
+    cor = MB.corners(cat, state)
     names = set()
     for order, (slug, q, plus, minus, where, nominal, unit) in enumerate(want):
+        probe = ('v(%s)' % plus.lower()) if q == 'V dc' else ('i(%s)' % ('vam_' + plus.replace('-', '_').replace(':', '_')).lower())
+        if slug == 'v-5v-rail':   # the rail: the VCC window less the node's droop (the droop is the R_supply knob's, said in the basis)
+            droop = NE.VCC_V - nominal
+            lo, hi = MB.VCC_WINDOW_V[0] - droop, MB.VCC_WINDOW_V[1] - droop
+            bw = 'the rail window %g..%g V (KNOB, a USB host port, not read here) less this node\'s %.2g V droop' % (MB.VCC_WINDOW_V + (droop,))
+        else:
+            lo, hi = cor['bands'].get(probe, (nominal, nominal))
+            bw = '%s (%d ngspice runs)' % (cor['basis'], cor['runs'])
         name = '%s-mp-%s' % (node, slug)
         names.add(name)
         b = basis if slug != 'v-5v-rail' else ('VCC %g V minus %.3f mA x R_supply %g ohm - both knobs (node_electrical), R_supply undetermined: this point measures it'
                                                 % (NE.VCC_V, gnd, NE.R_SUPPLY_OHMS))
         R.upsert(manager, 'MeasurementPoint', name, node=node, quantity=q, plus_at=plus, minus_at=minus, where=where, nominal=nominal, si_unit=unit,
                  source=src if slug != 'v-5v-rail' else 'node_electrical supply (%s)' % src, basis=b, run=run['name'], hex_sha256=run.get('hex_sha256') or '',
-                 state=state_name, origin='derived', order=order)
+                 state=state_name, origin='derived', order=order, band_lo=float(lo), band_hi=float(hi), band_basis=bw)
     for p in R.rows(manager, 'MeasurementPoint', node=node, origin='derived'):
         if p['name'] not in names:
             R.upsert(manager, 'MeasurementPoint', p['name'], origin='stale', basis='no longer derived: the circuit state %s does not give it (kept: readings name it)' % state_name)

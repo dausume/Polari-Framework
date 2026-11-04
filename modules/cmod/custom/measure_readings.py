@@ -11,9 +11,12 @@ edited; a later one of the same point supersedes it); whether it matches the sim
   readings(manager, unit)              every reading of the unit, judged, newest first; `current` = the newest of its point
   judge(manager, reading)              -> {nominal, delta, delta_pct, band, band_words, verdict, words}
 
-Verdicts (msv-0: the instrument band only; msv-1 adds the tolerance band, msv-2 the rulings):
-  in-band       |reading - nominal| <= the instrument's cited accuracy at the range used (pct of reading + counts x resolution)
-  unexplained   outside it - a person's look is needed (no tolerance band or ruling exists yet to explain it)
+Verdicts (msv-0: the instrument band; msv-1: the tolerance band and the meter's loading; msv-2 adds the rulings):
+  in-band       |reading - expected| <= the instrument's cited accuracy at the range used (pct of reading + counts x resolution); expected = the nominal
+                plus the meter's own loading (its cited input resistance / burden in the deck)
+  in-tolerance  off the nominal but inside the point's tolerance band (the parts' worst-case corners, cmod.custom.measure_bands), widened by the
+                instrument band; conditioned on the unit's own rail reading when it has one
+  unexplained   outside both - a person's look is needed
   unjudged      the instrument has no cited InstrumentAccuracy row for this function / range (D-msv-2: the user's instruments are read first) - the delta
                 is still given
   over-range    the value is beyond the range said
@@ -124,32 +127,92 @@ def band(manager, instrument, function, value, range_max=-1.0):
         instrument, function, float(row['range_max']), float(row['pct_reading']), int(row['counts']), float(row['resolution']), row.get('cite') or 'uncited'), row
 
 
+_LOAD = {}
+
+
+def _circuit_state(manager, p):
+    from cmod.custom import measure_points as MP
+    from cmod.custom import node_electrical as NE
+    node = R.get(manager, 'StructNode', p.get('node', ''))
+    if node is None or not p.get('state'):
+        return None, None
+    c = NE.circuit(MP._variant(manager, node))
+    if 'cat' not in c:
+        return None, None
+    return c['cat'], next((s for s in c['states'] if s['name'] == p['state']), None)
+
+
+def tolerance(manager, p, unit, acc):
+    """msv-1: (lo, hi, shift, words) - the point's tolerance band, conditioned on the unit's own rail reading when it has one (not for the rail point
+    itself), and the meter's loading shift. (None, None, 0, words) when the point has no band."""
+    from cmod.custom import measure_bands as MB
+    if not p.get('band_basis'):
+        return None, None, 0.0, 'no tolerance band (derive the point again: msv-1)'
+    lo, hi, words = float(p['band_lo']), float(p['band_hi']), p['band_basis']
+    cat, state = (None, None)
+    rail_name = '%s-mp-v-5v-rail' % p['node']
+    if unit and p['name'] != rail_name:
+        rail = [r for r in R.rows(manager, 'MeasurementReading', unit=unit) if r['point'] == rail_name]
+        if rail:
+            cat, state = _circuit_state(manager, p)
+            if state is not None:
+                r = max(rail, key=lambda x: (x['at'], len(x['name']), x['name']))
+                b, _bw, _row = band(manager, r.get('instrument') or '', 'V dc', float(r['value']), r.get('range_max'))
+                v = float(r['value'])
+                cor = MB.corners(cat, state, vcc=(v - (b or 0.0), v + (b or 0.0)))
+                probe = ('v(%s)' % p['plus_at'].lower()) if p['quantity'] == 'V dc' else ('i(vam_%s)' % p['plus_at'].replace('-', '_').replace(':', '_').lower())
+                if probe in cor['bands']:
+                    lo, hi = cor['bands'][probe]
+                    words = 'the rail as this unit reads it (%s): %s' % (r['entered'], cor['basis'])
+    shift, lw = 0.0, 'no meter line: no loading'
+    if acc is not None:
+        key = (p['name'], acc['name'])
+        if key not in _LOAD:
+            if cat is None:
+                cat, state = _circuit_state(manager, p)
+            _LOAD[key] = MB.loading(cat, state, p, acc) if state is not None else (0.0, 'no circuit state: no loading applied')
+        shift, lw = _LOAD[key]
+    return lo, hi, shift, '%s; %s' % (words, lw)
+
+
 def judge(manager, reading):
     p = R.get(manager, 'MeasurementPoint', reading['point']) or {}
     nominal = float(p.get('nominal') or 0.0)
     unit = p.get('si_unit') or 'V'
     v = float(reading['value'])
-    delta = v - nominal
-    pct = (100.0 * delta / nominal) if nominal else None
     b, bw, row = band(manager, reading.get('instrument') or '', p.get('quantity') or 'V dc', v, reading.get('range_max'))
+    lo, hi, shift, tw = tolerance(manager, p, reading.get('unit', ''), row) if p else (None, None, 0.0, '')
+    expect = nominal + shift
+    delta = v - expect
+    pct = (100.0 * delta / expect) if expect else None
     if row is not None and abs(v) > float(row['range_max']):
         verdict = 'over-range'
+    elif b is not None and abs(delta) <= b:
+        verdict = 'in-band'
+    elif lo is not None and lo + shift - (b or 0.0) <= v <= hi + shift + (b or 0.0):
+        verdict = 'in-tolerance'
     elif b is None:
         verdict = 'unjudged'
     else:
-        verdict = 'in-band' if abs(delta) <= b else 'unexplained'
+        verdict = 'unexplained'
     stale = bool(reading.get('hex_sha256') and p.get('hex_sha256') and reading['hex_sha256'] != p['hex_sha256'])
-    words = '%s read %s, predicted %s: %s%s; %s' % (
-        p.get('quantity', ''), fmt(v, unit), fmt(nominal, unit), ('%+.4g %s' % (delta, unit)) if abs(delta) >= 1 else fmt(delta, unit),
+    words = '%s read %s, predicted %s%s: %s%s; %s' % (
+        p.get('quantity', ''), fmt(v, unit), fmt(expect, unit), ' (the meter\'s loading included)' if shift else '',
+        ('%+.4g %s' % (delta, unit)) if abs(delta) >= 1 else fmt(delta, unit),
         (' (%+.1f %%)' % pct) if pct is not None else '', bw if b is None else 'instrument band +/-%s (%s)' % (fmt(b, unit), bw))
+    if lo is not None:
+        words += '; tolerance band %s..%s' % (fmt(lo + shift, unit), fmt(hi + shift, unit))
     words += {'in-band': ' - IN BAND: it matches the simulation within the instrument',
-              'unexplained': ' - UNEXPLAINED: outside the instrument band; no tolerance band (msv-1) or ruling (msv-2) explains it yet - a person\'s look is needed',
+              'in-tolerance': ' - IN TOLERANCE: off the nominal, but inside what the parts\' tolerances allow a correct build' +
+                              (' (the meter\'s own accuracy is not cited, so not counted)' if b is None else ''),
+              'unexplained': ' - UNEXPLAINED: outside the instrument band and the tolerance band - a person\'s look is needed (msv-2 rules it)',
               'unjudged': ' - UNJUDGED: the delta stands, but without a cited accuracy it is neither a match nor a miss',
               'over-range': ' - OVER RANGE: the value is beyond the range said'}[verdict]
     if stale:
         words += '; STALE: read on build %s.., the prediction is for %s..' % (reading['hex_sha256'][:12], p['hex_sha256'][:12])
-    return {'nominal': nominal, 'delta': delta, 'delta_pct': pct, 'band': b, 'band_words': bw, 'verdict': verdict, 'stale': stale, 'words': words,
-            'quantity': p.get('quantity', ''), 'node': p.get('node', ''), 'where': p.get('where', '')}
+    return {'nominal': nominal, 'expected': expect, 'loading': shift, 'delta': delta, 'delta_pct': pct, 'band': b, 'band_words': bw,
+            'tol_lo': None if lo is None else lo + shift, 'tol_hi': None if hi is None else hi + shift, 'tol_words': tw,
+            'verdict': verdict, 'stale': stale, 'words': words, 'quantity': p.get('quantity', ''), 'node': p.get('node', ''), 'where': p.get('where', '')}
 
 
 def readings(manager, unit):
