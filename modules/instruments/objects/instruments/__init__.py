@@ -7,3 +7,4 @@ from instruments.objects.instruments.Instrument import Instrument, LINEAGES, KIN
 from instruments.objects.instruments.InstrumentEndpoint import InstrumentEndpoint, TRANSPORTS  # noqa: F401
 from instruments.objects.instruments.ScopeChannel import ScopeChannel, COUPLINGS  # noqa: F401
 from instruments.objects.instruments.WaveformCapture import WaveformCapture, FORMATS, SOURCES  # noqa: F401
+from instruments.objects.instruments.InstrumentAccuracy import InstrumentAccuracy  # noqa: F401  (msv-0)

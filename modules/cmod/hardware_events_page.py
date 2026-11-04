@@ -12,6 +12,7 @@ scope the tables below read.
   Runs        every run across the topology, newest first: outcome, duration and what set it, step and what set it, the build
   Assertions  the firmware's own claims (Catom assertions): exercised by a run that met its node, or not, and how
   Profiles    the manual test profiles and their items
+  Measured    msv-0: built units, a node's measurement points (derived), manual readings judged against the prediction
 Linkable: /display/hardware-events?bench_solution=uno-light-on-desk&node=... (scope_query). Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/...],
 /api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles.
 """
@@ -120,11 +121,56 @@ def _profiles_tab():
         description='What a test watches, named and reusable.')
 
 
+def _measured_tab():
+    """msv-0 (MEASURED_VS_SIMULATED_PLAN.md): real readings off a built unit against the simulation's prediction at a node - manual entry first."""
+    pts = '/api/cmod/bench-topology/%s/nodes/{scope:node_slug}/measurement-points?%s' % (_BS, _REV)
+    form = {'fields': [{'name': 'point', 'label': 'Measurement point (click one above - its name)', 'required': True},
+                       {'name': 'value', 'label': 'Value read, with its unit (e.g. 4.97 V, 14.2 mA)', 'required': True},
+                       {'name': 'instrument', 'label': 'Instrument (an Instrument row: its cited accuracy gives the band)'},
+                       {'name': 'range_max', 'label': 'Range used (optional, e.g. 20 V)'},
+                       {'name': 'who', 'label': 'Who read it'},
+                       {'name': 'note', 'label': 'Note', 'type': 'textarea'}],
+            'action': {'label': 'Keep the reading', 'method': 'POST', 'path': _T + '/units/{scope:unit}/readings',
+                       'body_template': {'point': '{point}', 'value': '{value}', 'instrument': '{instrument}', 'range_max': '{range_max}', 'who': '{who}',
+                                         'note': '{note}', 'via': 'manual'}},
+            'submit_label': 'Keep the reading', 'success_text': 'Kept - judged against the prediction in the table below.'}
+    unit_form = {'fields': [{'name': 'name', 'label': 'Unit name (blank = <bench solution>-unit-<n>)'},
+                            {'name': 'build_method', 'label': 'Built as: breadboard | perfboard | wire-wrap | pcb | other'},
+                            {'name': 'hex_sha256', 'label': 'Build flashed on it (hex sha256)'},
+                            {'name': 'built_by', 'label': 'Built by'}],
+                 'action': {'label': 'Add', 'method': 'POST', 'path': _T + '/units',
+                            'body_template': {'name': '{name}', 'build_method': '{build_method}', 'hex_sha256': '{hex_sha256}', 'built_by': '{built_by}'},
+                            'then_scope': {'key': 'unit', 'from': 'name'}},
+                 'submit_label': 'Add the built unit', 'success_text': 'Added - it is now the unit below.'}
+    return _tab('measured', 'Measured', [
+        _row(0, [_component('he-unit-form', 0, 4, 'A built unit', 'door-form', unit_form,
+                            description='One physical copy of this Bench Solution that someone built (breadboard, perfboard, wire wrap, PCB) and the build flashed on it.'),
+                 _table('he-units', 4, 8, 'Built units - click one', '',
+                        description='One row per built unit of the Bench Solution. Click one to enter and read its measurements below.',
+                        columns='name,build_method,hex_sha256,built_by,at,notes', data_path=_T + '/units?' + _REV, empty_text=_PICK,
+                        select_field='name', select_scope='unit', selected_value='{scope:unit}')], min_height=220),
+        _row(1, [_table('he-points', 0, 12, 'What to measure at the chosen node, and what the simulation says', '',
+                        description='One row per measurement point of the node chosen on the Nodes tab, derived from the circuit state its latest reached run left '
+                                    '(the ngspice .op over the bench circuit rows): the quantity, where the probes go, the predicted value and its basis. '
+                                    'Click one to fill its name into the form.',
+                        columns='name,quantity,where,nominal,si_unit,state,source,basis,origin', data_path=pts,
+                        select_field='name', select_scope='point', selected_value='{scope:point}', empty_text='Pick a node on the Nodes tab (it needs a reached run).')], min_height=240),
+        _row(2, [_component('he-reading-form', 0, 4, 'Enter a reading (manual)', 'door-form', form,
+                            description='Type what the meter shows. The reading is kept as typed and judged against the prediction and the instrument\'s cited accuracy.'),
+                 _table('he-readings', 4, 8, 'Readings of the chosen unit, judged', '',
+                        description='Every reading of the unit, newest first: in-band (matches the simulation within the instrument), unexplained (needs a person\'s look), '
+                                    'unjudged (the instrument\'s accuracy is not cited yet), over-range; stale = read on another build than the prediction. current = '
+                                    'the newest reading of its point.',
+                        columns='point,entered,verdict,nominal,delta,band,current,stale,instrument,via,who,at,words', data_path=_T + '/units/{scope:unit}/readings?' + _REV,
+                        empty_text='Pick a built unit above.')], min_height=300)],
+        description='Real readings off a built unit against the simulation at a node: manual entry first (msv-0).')
+
+
 HARDWARE_EVENTS_PAGES = [
     _page('hardware-events', 'hardware-events',
           'A Bench Solution\'s Hardware Event topology: what was tested and what was not (first), the nodes and their confirmations, the events offered, every run, '
           'the firmware\'s claims exercised, the test profiles. Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/untested|nodes|events|runs|assertions|strip-rows], '
           '/api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles, /api/cmod/bench-topology/{bs}/canvas.',
-          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab()],
-          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition']),
+          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab(), _measured_tab()],
+          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition', 'unit', 'point']),
 ]
