@@ -66,13 +66,15 @@ def _node_fields(manager, node):
     reqs = R.rows(manager, 'StructNodeRequirement', node=node['name'])
     words = '; '.join('%s %s %s' % (q['field'], {'exact': '=', 'range': 'in', 'set': 'in', 'written': 'written'}[q['kind']], q['value']) if q['kind'] != 'written' else '%s written' % q['field']
                       for q in reqs) or (node.get('notes') or '')
+    if node.get('expect') == 'hold' and words:   # bss-11: a fault edge's node says what must STAY
+        words = 'must hold: ' + words
     state, cwords = _confirmation(manager, node)
     st = T.step_of(manager, node['name'])
     runs = R.rows(manager, 'StructNodeRun', node=node['name'])
     latest = sorted(runs, key=lambda r: r['name'])[-1]['name'] if runs else ''
     return state, {'title': node.get('title') or '', 'requirements': words, 'confirmation': cwords,
                    'step': ('%s by %s' % (T._s(st['step_s']), st['step_set_by'].split(' (')[0]) if st['step_s'] > 0 else st['step_set_by']),
-                   'kind': node['kind'], 'basis': node.get('basis', 'person'), 'runs': str(len(runs)),
+                   'kind': node['kind'], 'expect': node.get('expect', 'reach'), 'basis': node.get('basis', 'person'), 'runs': str(len(runs)),
                    'bench_here': '%s?bench_solution=%s&node=%s%s' % (BENCH_ROUTE, node['bench_solution'], node['name'], ('&run=%s' % latest) if latest else '')}
 
 

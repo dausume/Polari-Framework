@@ -24,6 +24,15 @@ from cmod.custom import config_rows as R
 
 EDGE_EVENTS = ('edge-fall', 'edge-rise')
 ADC_PRESSED_MV = 0   # the switch pulls the ADC pin to ground (board.custom.variants: 'pushbutton from A0 to GND')
+#: bss-11 FAULT STIMULI, offered beside every button's press: what a real switch does that the clean press does not. The numbers are node_run's knobs
+#: (BOUNCE_EDGES / BOUNCE_SPAN_S / LONG_PRESS_S / IDLE_S); the words here say what each is for.
+FAULT_PRESSES = (
+    ('bounce', 'press %s with contact bounce', 'the switch rings: an edge train on the way down and again on the way up after the hold (Ganssle, A Guide to Debouncing: '
+                                              '1.6 ms average, 6.2 ms worst of 18 switches); the firmware must count ONE press'),
+    ('long-press', 'hold %s, then release with bounce', 'the button held well past the debounce lockout, then released with bounce: the release\'s falling edges arrive '
+                                                       'after the lockout, so a falling-edge counter with a lockout from the LAST PRESS counts a second press'),
+    ('held', 'hold %s and never release', 'the line stays at its pressed level for the whole window: one press, no repeat'),
+)
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))   # polari-framework/
 
 
@@ -110,6 +119,9 @@ def _derived(bs, assertions, variables, variant=''):
                            origin=a['name'], notes='the asserted %s on %s' % (a['event'], pin)))
             ev.append(dict(name='%s:release-%s' % (bs, pin), title='release %s' % line, kind='actuation', source='person', what=pin, value='high' if a['event'] == 'edge-fall' else 'low',
                            origin=a['name'], notes='the line back to rest; the firmware asserts nothing on it'))
+            for slug, title, notes in FAULT_PRESSES:   # bss-11: the fault stimuli on the same pin, the same pressed level
+                ev.append(dict(name='%s:%s-%s' % (bs, slug, pin), title=title % line, kind='actuation', source='person', what=pin, value='low' if a['event'] == 'edge-fall' else 'high',
+                               origin=a['name'], notes=notes))
         elif a['kind'] == 'changes-field' and a.get('event') == 'level' and a.get('pins', '').startswith('ADC'):   # bss-8: an analog-threshold button
             pin = a['pins'].split(',')[0].strip()
             if pin in seen:
@@ -120,6 +132,9 @@ def _derived(bs, assertions, variables, variant=''):
                            origin=a['name'], notes='the asserted level on %s: the switch pulls the pin to %d mV (below the press threshold)' % (pin, pressed)))
             ev.append(dict(name='%s:release-%s' % (bs, pin), title='release the button on %s (the level rises)' % pin, kind='actuation', source='person', what=pin, value=str(released),
                            origin=a['name'], notes='the pin back at the pull-up\'s %d mV; the firmware asserts nothing on it' % released))
+            for slug, title, notes in FAULT_PRESSES:   # bss-11: the same faults as LEVEL trains between the pressed and the released millivolts
+                ev.append(dict(name='%s:%s-%s' % (bs, slug, pin), title=title % ('the button on %s' % pin), kind='actuation', source='person', what=pin, value=str(pressed),
+                               origin=a['name'], notes=notes + ' (as a level train between %d and %d mV)' % (pressed, released)))
         elif a['kind'] == 'receives-from-bridge' and a.get('bridge'):
             fields = []
             for t in takes:
@@ -135,6 +150,8 @@ def _derived(bs, assertions, variables, variant=''):
                            notes=a['notes'] + ('; the period is %g s from the knob telemetry_hz = %g' % (1.0 / hz, hz) if hz > 0 else '; the period is not known here (no telemetry_hz knob)')))
     ev.append(dict(name='%s:reset' % bs, title='reset', kind='actuation', source='person', what='RESET', value='low', origin='the board (every board has a reset)',
                    notes='back through init: the boot node'))
+    ev.append(dict(name='%s:idle' % bs, title='time passes, nothing is done', kind='actuation', source='time', what='IDLE', value='', origin='the bench (bss-11)',
+                   notes='no stimulus at all for the node\'s window: a HOLD node on this edge says the structs must stay as they are (no timer, no stray edge changes them)'))
     for v in variables:
         if v.get('role') == 'adc.in':
             ev.append(dict(name='%s:level-%s' % (bs, v['variable']), title='the level at %s changes' % v['variable'], kind='actuation', source='environment', what=v['variable'],
@@ -176,9 +193,11 @@ def predicted(manager, bench_solution, event):
         chain += [_step('cascade', a) for a in first]
     elif ev['source'] == 'time':
         first = [a for a in A if a['atom'] == ev['what'] and a['kind'] == 'changes-field']
-    elif ev['what'].startswith('ADC'):   # bss-8: an analog level: a press matches the asserted level, a release asserts nothing
+    elif ev['what'] == 'IDLE':   # bss-11: nothing is predicted - a hold node on it is the only sensible edge
+        first = []
+    elif ev['what'].startswith('ADC'):   # bss-8: an analog level: a press (or a bouncing / long / held one, bss-11) matches the asserted level, a release asserts nothing
         slug = ev['name'].split(':')[-1]
-        first = [a for a in A if a['kind'] == 'changes-field' and ev['what'] in a.get('pins', '').split(',') and a.get('event') == 'level' and slug.startswith('press-')]
+        first = [a for a in A if a['kind'] == 'changes-field' and ev['what'] in a.get('pins', '').split(',') and a.get('event') == 'level' and not slug.startswith('release-')]
     else:
         edge = {'low': 'edge-fall', 'high': 'edge-rise'}.get(ev.get('value', ''))   # a press matches the asserted fall, a release only an asserted rise
         first = [a for a in A if a['kind'] == 'changes-field' and ev['what'] and ev['what'] in a.get('pins', '').split(',') and (edge is None or a.get('event') == edge)]

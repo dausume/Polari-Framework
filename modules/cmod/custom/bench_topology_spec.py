@@ -7,6 +7,10 @@ Solution, each role resolves to the Hardware Event that Solution's own firmware 
 press-ADC0 on uno-light-analog), and each execution's isotope resolves from the variant's own route knobs (button_route int0 -> read-button:ext-interrupt).
 The SAME states, every route; nothing drawn twice. The nodes go in through the same doors the canvas writes (bench_topology.define / connect).
 
+bss-11: a node may say `"expect": "hold"` - a FAULT EDGE: its requirements must be met AND KEPT to the end of the window (a bouncing press toggles once; a
+long press released with bounce toggles once; a held button never repeats; a release changes nothing; idle time changes nothing). The fault roles bounce /
+long-press / held / idle resolve like the others (bench_events offers them beside every button's press).
+
     specs()                        the shipped specs: [{name, bench_system, title, nodes}]
     load(name)                     one spec, or a refusal in words
     routes_of(variant)             {job: 'job:route'} from the variant's knobs (derived; '' for a job the variant does not use)
@@ -26,7 +30,8 @@ DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'topologies')
 BUTTON_ROUTES = {'int0': 'ext-interrupt', 'pcint': 'pin-change-interrupt', 'adc': 'analog-threshold'}
 LED_ROUTES = {'gpio': 'gpio-out', 'pwm': 'pwm', 'transistor': 'transistor-switch'}
 SENSE_ROUTES = {'int1': 'ext-interrupt', 'poll': 'gpio-poll', 'pcint': 'pin-change-interrupt'}
-ROLE_PREFIX = {'press': 'press-', 'release': 'release-', 'command': 'command-', 'period': 'period-', 'level': 'level-', 'reset': 'reset'}
+ROLE_PREFIX = {'press': 'press-', 'release': 'release-', 'command': 'command-', 'period': 'period-', 'level': 'level-', 'reset': 'reset',
+               'bounce': 'bounce-', 'long-press': 'long-press-', 'held': 'held-', 'idle': 'idle'}   # bss-11: the fault roles (bench_events.FAULT_PRESSES + idle)
 
 
 def specs():
@@ -73,7 +78,7 @@ def resolve(manager, bs):
     events = E.offered(manager, bs)
     out, words = {}, []
     for role, prefix in ROLE_PREFIX.items():
-        hits = [e['name'] for e in events if (e['name'].split(':', 1)[1] == prefix if prefix == 'reset' else e['name'].split(':', 1)[1].startswith(prefix))]
+        hits = [e['name'] for e in events if (e['name'].split(':', 1)[1] == prefix if prefix in ('reset', 'idle') else e['name'].split(':', 1)[1].startswith(prefix))]
         if len(hits) == 1:
             out[role] = hits[0]
         elif len(hits) > 1:
@@ -124,7 +129,8 @@ def apply(manager, bs, spec=''):
             x = {'atom': x} if isinstance(x, str) else x
             iso = routes.get(x.get('job', ''), '') if x.get('job') else x.get('isotope', '')
             execs.append({'atom': x['atom'], 'isotope': iso})
-        view = T.define(manager, bs, slug, n.get('title', ''), frm, 'trigger', ev, requirements=reqs, executions=execs, collaterals=n.get('collaterals') or ())
+        view = T.define(manager, bs, slug, n.get('title', ''), frm, 'trigger', ev, requirements=reqs, executions=execs, collaterals=n.get('collaterals') or (),
+                        expect=n.get('expect', 'reach'))
         for x in view['executions']:
             if x['isotope']:
                 R.upsert(manager, 'StructNodeExecution', x['name'], notes='isotope: from the route knobs of %s (bench_topology_spec.routes_of)' % variant)

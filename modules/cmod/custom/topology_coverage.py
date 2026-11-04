@@ -66,7 +66,7 @@ def nodes(manager, bs):
                 for c in cols:
                     if '%s %s:' % (c['kind'], c['signal']) in e['collaterals'] and 'unmeasured' not in e['collaterals'].split('%s %s:' % (c['kind'], c['signal']))[1].split(';')[0]:
                         measured.add(c['name'])
-        out.append({'node': n['name'], 'title': n['title'], 'kind': n['kind'], 'basis': n.get('basis', 'person'), 'state': _state(manager, n), 'runs': len(runs),
+        out.append({'node': n['name'], 'title': n['title'], 'kind': n['kind'], 'expect': n.get('expect', 'reach'), 'basis': n.get('basis', 'person'), 'state': _state(manager, n), 'runs': len(runs),
                     'last_outcome': runs[-1]['outcome'] if runs else '', 'paths_tested': len(tested_paths), 'paths': len(paths), 'confirmed_by': ', '.join(sorted({c['by'] for c in live})),
                     'voided': len(confs) - len(live), 'blocked': '; '.join(T.blocks(manager, n['name'])), 'collaterals_measured': '%d / %d' % (len(measured), len(cols)),
                     'stale': any(r['hex_sha256'] and c['hex_sha256'] and r['hex_sha256'] != c['hex_sha256'] for r in runs[-1:] for c in live)})
@@ -174,7 +174,10 @@ def untested(manager, bs):
 
 def inert(manager, bs, ev):
     """bss-8: an event the firmware's own claims predict NO struct change for (a release: 'the firmware asserts nothing on it') cannot end an edge - the
-    rule (section 2) - so it is not untested; it is listed apart (inert_events) so nobody looks for the missing edge."""
+    rule (section 2) - so it is not untested; it is listed apart (inert_events) so nobody looks for the missing edge. bss-11: an event an edge USES is
+    not inert, whatever is predicted - a hold node on a release or on idle time is that edge (its requirements say nothing changes)."""
+    if any(e['event'] == ev['name'] for e in R.rows(manager, 'StructEdge', bench_solution=bs)):
+        return False
     try:
         return not E.predicted(manager, bs, ev['name'])
     except R.ConfigRefused:

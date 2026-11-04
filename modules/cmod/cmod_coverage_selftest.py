@@ -52,10 +52,12 @@ def main():
     T.define(m, BS, 'light-off-again', '', light['name'], 'trigger', press, requirements=[{'object_map': MAP, 'field': 'led_on', 'kind': 'exact', 'value': 0}], executions=['apps/light.led_toggle'])
     u0 = COV.untested(m, BS)
     check('BEFORE ANY RUN the untested list says it all: both state nodes never tested, boot never tested, the unused events (reset, the period), every assertion unexercised; '
-          'the release is INERT (the firmware asserts nothing on it: no edge can end on it, bss-8), listed apart and not untested',
+          'the release and idle time are INERT (the firmware asserts nothing on them: no reach edge can end on them, bss-8), listed apart and not untested; the fault '
+          'stimuli (bounce / long-press / held, bss-11) predict a press, so unused they ARE untested',
           any(w == '%s: never tested' % light['name'] for w in u0) and any(w == '%s: never tested' % boot['name'] for w in u0)
           and not any(w.startswith('event release-PD2') for w in u0) and any(w.startswith('event reset') for w in u0) and sum(w.startswith('assertion ') for w in u0) == 7
-          and [e['event'].split(':', 1)[1] for e in COV.inert_events(m, BS)] == ['release-PD2'], u0)
+          and any(w.startswith('event long-press-PD2') for w in u0)
+          and [e['event'].split(':', 1)[1] for e in COV.inert_events(m, BS)] == ['idle', 'release-PD2'], u0)
     # a run as node_run writes it: light-on reached along the press path, led_on changed, PD6 read, frames left; a twin confirmation
     fp = light['fastest_path']['name']
     run = R.upsert(m, 'StructNodeRun', '%s#run1' % light['name'], node=light['name'], path=fp, outcome='reached', hex_sha256='b' * 64, engine='twin', step_s=62.5e-9,

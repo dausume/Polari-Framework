@@ -17,6 +17,11 @@ receiving atom's own presence tests). bss-8 adds the other stimuli: reset = `--r
 the re-init); an analog level (an analog-threshold button, a sensor) = `--adc-at cycle=N,ch=C,mv=M` (new in the twin, prf-board-engines/twin_forcing.c) with
 a press pulsed back to the release level after the hold; a period = no stimulus at all, the window is twice the period (the event's value, from the
 telemetry_hz knob). A requirement may name an enum LABEL (`source = button`): it is translated to the wire value through the pinned contract's enum list.
+
+bss-11 FAULT EDGES: a `bounce-` press is an edge TRAIN on the way down and again on the way up (`_train`: BOUNCE_EDGES over BOUNCE_SPAN_S, quadratic
+spacing); a `long-press-` holds LONG_PRESS_S before its bouncing release (its window is stretched to cover the release); a `held-` press never releases;
+`idle` is no stimulus for IDLE_S. A node with `expect = hold` is judged met only if its requirements are met AND KEPT to the end of the window: a second
+toggle after a bouncing release is `diverged`, said with the field and its cycle - that is the fault the edge exists to find.
 """
 import datetime
 import hashlib
@@ -39,7 +44,38 @@ EXEC_SLACK_S = 1e-3         # KNOB (bss-9): executions are counted from the stim
                             # runs a slower loop pass than the shipped hex, so its own met cycle trails the shipped one by under a pass (27 us here)
 PRESS_HOLD_CYCLES = 80000   # KNOB: a press is a 5 ms pulse (the line low, then back to rest) - light_twin.PRESS_HOLD_CYCLES; a line held low for ever
                             # is not a press (the UNO light toggled twice in the dry run of 2026-11-02 when it was)
+BOUNCE_EDGES = 6            # KNOB (bss-11): the extra edges of a contact-bounce train (kept even, so the line settles at the level it was going to)
+BOUNCE_SPAN_S = 2.5e-3      # KNOB (bss-11): the train's length - Ganssle, A Guide to Debouncing (2008): 1.557 ms average, 6.2 ms worst, over 18 switches
+LONG_PRESS_S = 0.5          # KNOB (bss-11): a long press - well past every route's debounce lockout (variants: debounce_ms 30), so the release's bounce lands outside it
+IDLE_S = 0.3                # KNOB (bss-11): the idle edge's window - longer than the 0.1 s telemetry period, so a report passes inside it and must change nothing required
 _BUILDS = {}                # variant -> (hex, elf, sha, work): one build per process
+
+
+def _press_kind(slug):
+    """bss-11: press | bounce | long-press | held for a button event's slug ('' for anything else)."""
+    for k in ('bounce-', 'long-press-', 'held-', 'press-'):
+        if slug.startswith(k):
+            return k[:-1]
+    return ''
+
+
+def _train(cycle, to, back, hz):
+    """bss-11: a bouncing contact going to `to`: [(cycle, value)] - the first edge at `cycle`, then BOUNCE_EDGES more alternating with `back`, spaced
+    quadratically (the ringing slows as it dies), the last one settling at `to` BOUNCE_SPAN_S after the first."""
+    k = BOUNCE_EDGES + (BOUNCE_EDGES % 2)
+    span = int(BOUNCE_SPAN_S * hz)
+    return [(cycle, to)] + [(cycle + span * j * (j + 1) // (k * (k + 1)), to if j % 2 == 0 else back) for j in range(1, k + 1)]
+
+
+def _press_points(kind, cycle, pressed, rest, hz):
+    """bss-11: the (cycle, value) points of one button stimulus of `kind` (node_run.PRESS_HOLD_CYCLES / LONG_PRESS_S / the bounce knobs); `rest` None = the
+    release level is not known, so the line is left at its pressed level."""
+    if kind == 'held' or rest is None:
+        return [(cycle, pressed)]
+    if kind == 'press':
+        return [(cycle, pressed), (cycle + PRESS_HOLD_CYCLES, rest)]
+    hold = int(LONG_PRESS_S * hz) if kind == 'long-press' else PRESS_HOLD_CYCLES
+    return _train(cycle, pressed, rest, hz) + _train(cycle + hold, rest, pressed, hz)
 
 
 def _clock(record):
@@ -159,8 +195,9 @@ def _command_frame(manager, ev, reqs, seq):
     return packet_ref.frame(1, 0, seq, payload, version=spec['wire_version']), vals
 
 
-def _stimulus(ev, cycle, reqs=(), manager=None, files=None):
+def _stimulus(ev, cycle, reqs=(), manager=None, files=None, hz=16000000.0):
     slug = ev['name'].split(':')[-1]
+    kind = _press_kind(slug)
     if ev['kind'] == 'external-signal' and ev['source'] == 'polari':
         frame, vals = _command_frame(manager, ev, reqs, seq=1 + len(files or {}))
         name = 'cmd%d.bin' % cycle
@@ -168,24 +205,32 @@ def _stimulus(ev, cycle, reqs=(), manager=None, files=None):
         return ['--inject', '%s@%d' % (name, cycle)]
     if ev['what'] == 'RESET':   # bss-8: the reset line pulled at the cycle; the twin keeps counting cycles across the reset
         return ['--reset-at', 'cycle=%d' % cycle]
-    if ev['source'] == 'time':   # bss-8: a period elapses by itself; the edge's window (the guard) is where the change must land
+    if ev['source'] == 'time':   # bss-8: a period elapses by itself; the edge's window (the guard) is where the change must land; bss-11: idle the same
         return []
     if ev['kind'] == 'actuation' and ev['what'].startswith('ADC') and _num(ev['value']) is not None:   # bss-8: an analog level stepped at the cycle
         ch, mv = int(ev['what'][3:]), int(float(ev['value']))
-        out = ['--adc-at', 'cycle=%d,ch=%d,mv=%d' % (cycle, ch, mv)]
-        if slug.startswith('press-'):   # a press is a pulse: the level back to the release event's rest after the hold
-            rest = R.get(manager, 'HardwareEvent', ev['name'].replace(':press-', ':release-')) if manager is not None else None
-            if rest and _num(rest.get('value')) is not None:
-                out += ['--adc-at', 'cycle=%d,ch=%d,mv=%d' % (cycle + PRESS_HOLD_CYCLES, ch, int(float(rest['value'])))]
-        return out
+        rest = None
+        if kind:   # a press is a pulse: the level back to the release event's rest after the hold (bss-11: a bouncing / long / held one by _press_points)
+            rel = R.get(manager, 'HardwareEvent', ev['name'].replace(':%s-' % kind, ':release-')) if manager is not None else None
+            rest = int(float(rel['value'])) if rel and _num(rel.get('value')) is not None else None
+        pts = _press_points(kind, cycle, mv, rest, hz) if kind else [(cycle, mv)]
+        return [a for c, v in pts for a in ('--adc-at', 'cycle=%d,ch=%d,mv=%d' % (c, ch, v))]
     if ev['kind'] == 'actuation' and ev['source'] == 'person' and ev['value'] in ('low', 'high'):
         level = 0 if ev['value'] == 'low' else 1
-        out = ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle, ev['what'], level)]
-        if slug.startswith('press-'):   # a press is a pulse: the line goes to its pressed level and back to rest after the hold
-            out += ['--pin-at', 'cycle=%d,pin=%s,level=%d' % (cycle + PRESS_HOLD_CYCLES, ev['what'], 1 - level)]
-        return out
+        pts = _press_points(kind, cycle, level, 1 - level, hz) if kind else [(cycle, level)]   # a press is a pulse: the pressed level, then back to rest after the hold
+        return [a for c, v in pts for a in ('--pin-at', 'cycle=%d,pin=%s,level=%d' % (c, ev['what'], v))]
     raise R.ConfigRefused('Hardware Event %r (%s from %s, %s = %r) cannot be applied to the twin: a pin level, an ADC level, a command, a reset and a period can'
                           % (ev['name'], ev['kind'], ev['source'], ev['what'], ev['value']), status=422)
+
+
+def _window_extra(ev, hz):
+    """bss-11: cycles a fault stimulus adds to its edge's window: a long press must be RELEASED (and its bounce over) inside the window; idle time is IDLE_S."""
+    kind = _press_kind(ev['name'].split(':')[-1]) if ev['kind'] == 'actuation' else ''
+    if kind == 'long-press':
+        return int((LONG_PRESS_S + BOUNCE_SPAN_S) * hz)
+    if ev['what'] == 'IDLE':
+        return int(IDLE_S * hz)
+    return 0
 
 
 def _guard_cycles(manager, node, hz):
@@ -235,14 +280,21 @@ class _Timeline:
         return any(lo <= c < hi and (upto is None or c <= upto) for c, _f, _t in self.changes)
 
 
-def _judge(plan_edge, reqs, lines, hz):
-    """-> (outcome, met_cycle, words) for one edge: the earliest cycle in its window at which every requirement of its to-node holds at once."""
+def _judge(plan_edge, reqs, lines, hz, expect='reach'):
+    """-> (outcome, met_cycle, words) for one edge: the earliest cycle in its window at which every requirement of its to-node holds at once. bss-11:
+    a `hold` node must then KEEP them to the end of the window - a later change of a required field is a divergence, said with its cycle."""
     lo, hi = plan_edge['s'], plan_edge['end']
     if not reqs:
         return 'met', lo, 'no requirements on %s: met as soon as its edge starts' % plan_edge['edge']['to_node']
     cands = sorted({lo} | {c for q in reqs for c, _f, _t in lines[q['field']].changes if lo <= c < hi})
     for c in cands:
         if all(_holds(q, lines[q['field']].at(c), lines[q['field']].changed_in(lo, hi, upto=c)) for q in reqs):
+            if expect == 'hold':
+                later = sorted((c2, q['field'], t) for q in reqs for c2, _f, t in lines[q['field']].changes if c < c2 < hi)
+                if later:
+                    return 'diverged', -1, ('met at cycle %d, then %s: a hold node keeps its requirements to the end of the window (cycle %d), so this is the fault the edge tests for'
+                                           % (c, '; '.join('%s became %s at cycle %d (%.3f ms after the stimulus)' % (f, t, c2, (c2 - lo) * 1e3 / hz) for c2, f, t in later), hi))
+                return 'met', c, 'met at cycle %d (%.3f ms after the stimulus) and held to the end of the window (cycle %d)' % (c, (c - lo) * 1e3 / hz, hi)
             return 'met', c, 'met at cycle %d (%.3f ms after the stimulus)' % (c, (c - lo) * 1e3 / hz)
     bad = [q for q in reqs if lines[q['field']].changed_in(lo, hi) and not _holds(q, lines[q['field']].at(hi - 1), True)]
     if bad:
@@ -392,10 +444,11 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
             ev = R.get(manager, 'HardwareEvent', e['event'])
             if ev is None:
                 raise R.ConfigRefused('edge %r names the Hardware Event %r, which no longer exists' % (e['name'], e['event']), status=404)
-            stimuli += _stimulus(ev, cycle, R.rows(manager, 'StructNodeRequirement', node=e['to_node']), manager, files)
+            stimuli += _stimulus(ev, cycle, R.rows(manager, 'StructNodeRequirement', node=e['to_node']), manager, files, hz)
             g, worst = _guard_cycles(manager, e['to_node'], hz)
             if ev['source'] == 'time' and _num(ev['value']):   # bss-8: a period's window is at least GUARD_FACTOR periods
                 g = max(g, int(GUARD_FACTOR * float(ev['value']) * hz))
+            g += _window_extra(ev, hz)   # bss-11: a long press is released inside its window; idle time is IDLE_S
             plan.append({'edge': e, 's': cycle, 'guard_s': g / hz, 'worst_s': worst})
             last_s, cycle = cycle, cycle + g
     end = cycle + TAIL_CYCLES
@@ -466,7 +519,7 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
         elif e['kind'] == 'flash':
             outcome, met, words = 'met', 0, 'the hex %s... is the twin\'s' % sha[:12]
         else:
-            outcome, met, words = _judge(pe, reqs[e['to_node']], lines, hz)
+            outcome, met, words = _judge(pe, reqs[e['to_node']], lines, hz, (R.get(manager, 'StructNode', e['to_node']) or {}).get('expect', 'reach'))
         failed = failed or outcome in ('not-reached', 'diverged')
         exe = col = ''
         if play_from and not replayed_done:   # bss-3 play: everything up to the start node is replayed silently

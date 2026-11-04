@@ -51,7 +51,7 @@ def _nodes_tab():
                         description='One row per node of the topology (a named situation: what certain struct fields must be). state = confirmed by hardware / twin / person, '
                                     'checks-failed, diverged, not-reached, blocked, voided, never-tested, proposed, root. paths = tested / all (a node is tested along a path from '
                                     'the root). stale = its latest run is on another build than its confirmation.',
-                        columns='node,title,kind,basis,state,runs,last_outcome,paths_tested,paths,confirmed_by,voided,blocked,collaterals_measured,stale',
+                        columns='node,title,kind,expect,basis,state,runs,last_outcome,paths_tested,paths,confirmed_by,voided,blocked,collaterals_measured,stale',
                         data_path=_T + '/coverage/nodes?' + _REV, empty_text=_PICK, select_field='node', select_scope='node', selected_value='{scope:node}')], min_height=280),
         _row(1, [_table('he-node-runs', 0, 6, 'Its runs', '',
                         description='Every run of the chosen node, in order: outcome, how long the last edge took and what set it, the step and what asked for it, the build.',
