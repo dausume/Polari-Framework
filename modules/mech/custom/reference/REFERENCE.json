@@ -1,0 +1,35 @@
+{
+  "fixture": "mfx-0 slider probe (300x20x20 rail, 50x20x20 slide, Assembly Slider joint, LengthMin 0 / LengthMax 250)",
+  "engine": "FreeCAD 1.1.4 (Revision 20260928, git 4fd3bf320) Assembly Simulation / Motion, headless freecadcmd (extracted AppImage)",
+  "worker": "econ",
+  "date": "2026-11-03",
+  "script": "modules/mech/custom/freecad_motion.py (tidied from ~/collab/mech-parts/freecad_motion_probe.py)",
+  "motion": {"joint": "Slider", "MotionType": "Linear", "Formula": "100*time", "aTimeStart": 0.0, "bTimeEnd": 1.5, "cTimeStepOutput": 0.1, "jFramesPerSecond": 10, "fGlobalErrorTolerance": 1e-06},
+  "files": {
+    "mfx0_motion_econ.csv": {
+      "sha256": "586e7594c95f1f4b2b302aef42259eb864c7132756d5bf4d6389b25b163c8fba",
+      "frames": 17,
+      "columns": "frame,t_s,x,y,z,global_x,joint_distance",
+      "signal": "z (the probe's joint slid the part along world z; x stayed 0; joint_distance is NOT updated by updateForFrame and reads 0.0 mm throughout)",
+      "t_s_column_caveat": "t_s in this file was written as frame / jFramesPerSecond by the probe. That is WRONG for frame 0 and off by one frame for the rest — use frame_time below, never the column."
+    }
+  },
+  "frame_time": {
+    "rule": "frame 0 = the pre-motion placement (the part exactly where the assembly solve left it, z0 = 20 in the probe); frame f >= 1 is sim time t = (f - 1) * cTimeStepOutput. numberOfFrames = (bTimeEnd - aTimeStart) / cTimeStepOutput + 1 motion frames + 1 pre-motion frame (0-1.5 s at 0.1 -> 16 + 1 = 17; at 0.05 -> 31 + 1 = 32; 0-3.0 s at 0.1 -> 31 + 1 = 32).",
+    "ramp_explained": "There is NO start-up ramp and no solver-internal first step. The apparent ramp in the plan (z = 20, 40 at 't = 0.5', 90 at 't = 1.0', then 10 mm/frame) is exactly z(f) = 100 * (f - 1) * 0.1 read against the mislabelled t_s column: z = 40 is frame 5 = t 0.4 s, z = 90 is frame 10 = t 0.9 s. The jump 20 -> 0 between frame 0 and frame 1 is the part moving from its solved placement (z0 = 20) to the formula's value at t = 0 (0). Frame times are uniform.",
+    "evidence_2026-11-03": [
+      "formula '100*time+30': frames 1.. = 30, 40, 50 ... (frame 1 is t = 0 -> 30, so the offset is the formula, not a ramp)",
+      "formula '50' (constant): frame 0 = 20 (placement), frames 1..11 all = 50",
+      "z0 = 0 placement: frame 0 = 0, frame 1 = 0, frame 2 = 10 ... (no jump when the placement already equals the formula at t = 0)",
+      "cTimeStepOutput 0.05: 32 frames, 5 mm per frame; jFramesPerSecond 20: still 17 frames (fps is playback only, it does not sample)",
+      "bTimeEnd 3.0: z reaches 300 at frame 31 -> the Motion solver does NOT honour LengthMax 250 (Enable flags set). The joint limit is Polari's hard stop, not FreeCAD's, in the kinematic run."
+    ]
+  },
+  "formula_language": {
+    "works": ["100*time", "100*time+30", "50", "+ - * / ^ ( ) sin cos tan sqrt abs exp pi (parsed identically by mech.custom.motion_engine.parse_formula)"],
+    "refused": ["min()", "max()"],
+    "refused_symptom": "0 frames, rc 0, no error"
+  },
+  "what_freecad_motion_cannot_express": ["mass", "friction", "force / torque drives", "detents", "joint limits during a Motion run (see evidence)", "stress / deflection — that is materialsScience's fem_engine, never FreeCAD's FEM (D-mxc-7)"],
+  "polari_comparison": "mech.custom.motion_runs.compare_to_freecad maps frame f >= 1 to t = (f-1)*step and compares MechMotionSimState.q at the same t; frame 0 is reported separately as the pre-motion placement, never asserted."
+}

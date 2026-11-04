@@ -38,6 +38,7 @@ FEATURE_MODULES = frozenset({
     'iso', 'cicd', 'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
+    'mech',
     'hardwareapps', 'hwmap', 'isle_guestnet', 'isle_relay', 'kirimoto', 'printcam', 'printing_suite', 'suiteapps', 'voron',
     'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
@@ -91,6 +92,8 @@ FEATURE_REQUIRES = {
     # generator is gr-3), but the registry entry names the coupling
     # so a drop refuses honestly once gr-3 lands.
     'gears': ('mathshapes',),
+    # mxc-1 (MECH_FREECAD_INTERCHANGE_PLAN): joints over composition's interfaces, shapes via mathshapes
+    'mech': ('composition', 'mathshapes'),
     # mesh-1: the fit engine reads OrganModel rows.
     'meshassets': ('plant_morphology',),
     'mathshapes': ('aquaponics', 'plant_morphology'),

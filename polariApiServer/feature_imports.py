@@ -527,9 +527,16 @@ FEATURE_IMPORT_BLOCKS = (
     ('mathshapes', (
         ('mathshapes.shape_basis', (
             'MathShapeDefinition',
+            # ms-anchor: the anchored offset tool's rows
+            'ShapeAnchor', 'AnchoredOffset',
         )),
         ('mathshapes.shape_seed', (
             'SEED_MATH_SHAPES',
+        )),
+        ('mathshapes.shape_anchor_seed', (
+            'SEED_SHAPE_ANCHORS', 'SEED_ANCHORED_OFFSETS',
+            # the engine as rows: analyses + one solution each
+            'SEED_SHAPE_ANCHOR_ANALYSES', 'SEED_SHAPE_ANCHOR_SOLUTIONS',
         )),
         ('mathshapes.tower_basis', (
             'AquaponicTowerDefinition',
@@ -716,6 +723,41 @@ FEATURE_IMPORT_BLOCKS = (
         ('gears.gear_seed', (
             'SEED_GEAR_MESHES', 'SEED_GEAR_TRAINS', 'SEED_GEAR_TYPES',
             'SEED_GEARS', 'SEED_SHAFT_NODES',
+        )),
+    )),
+    ('mech', (
+        ('mech.mech_catalog_basis', (
+            'DimensionSource', 'MechFeature', 'MechPartFamily',
+            'MechPartVariant',
+        )),
+        ('mech.mech_catalog_seed', (
+            'SEED_DIMENSION_SOURCES', 'SEED_FEATURES', 'SEED_PART_FAMILIES',
+            'SEED_PART_VARIANTS',
+        )),
+        ('mech.mech_material_basis', (
+            'MechMaterialOption', 'MechMaterialPreference',
+        )),
+        ('mech.mech_material_seed', (
+            'SEED_MECH_MATERIAL_OPTIONS', 'SEED_MECH_MATERIAL_PREFERENCES',
+        )),
+        ('mech.mech_assembly_basis', (
+            'MechAssembly', 'MechConflict', 'MechContact', 'MechJoint',
+            'MechPartInstance',
+        )),
+        ('mech.mech_assembly_seed', (
+            'SEED_MECH_ASSEMBLIES', 'SEED_MECH_CONTACTS', 'SEED_MECH_JOINTS',
+            'SEED_MECH_PART_INSTANCES',
+        )),
+        ('mech.mech_motion_basis', (
+            'MechLoadCase', 'MechMotionCase', 'MechMotionRun',
+            'MechMotionSimState', 'MechMotionVector',
+        )),
+        ('mech.mech_motion_seed', (
+            'SEED_MECH_LOAD_CASES', 'SEED_MECH_MOTION_CASES',
+            'SEED_MECH_MOTION_CONTACTS', 'SEED_MECH_SIM_DEFINITIONS',
+        )),
+        ('mech.mech_analysis_seed', (
+            'SEED_MECH_ANALYSES', 'SEED_MECH_SOLUTIONS',
         )),
     )),
     ('climate', (

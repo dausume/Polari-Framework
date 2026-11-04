@@ -83,3 +83,8 @@ freetype/*.tar.gz
 *.apk
 *.tar.gz
 *.tgz
+
+# mech (mxc-1/4): fetched-upstream provenance, the materials registry and the FreeCAD reference record are data, not build output
+!modules/mech/custom/upstream/**/SOURCE.json
+!modules/mech/custom/registry/*.json
+!modules/mech/custom/reference/*.json

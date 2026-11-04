@@ -1,0 +1,224 @@
+{
+ "schema": "polari-app/1",
+ "id": "mech",
+ "package": "mech",
+ "title": "Mech",
+ "description": "Standard mechanical parts as data (MECH_FREECAD_INTERCHANGE_PLAN.md): ISO/NopSCADlib/Gridfinity catalogue with size variants + features and a compatibility lookup; materials as MechMaterialOption rows (mirrors magnetics, registered in composition's property lookup) with the legacy/harmful comparison; assemblies as thin rows over composition's nodes/interfaces with a DOF count + fit checks; one 1-DOF motion engine (linear + rotary) over core simulations/; FreeCAD 1.1.x as the geometry/assembly/kinematics relay only (FEM stays materialsScience, D-mxc-7).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-mech.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "category": "polari",
+  "subcategories": [
+   "making-mechanics"
+  ],
+  "tags": [
+   "mechanical",
+   "parts",
+   "assembly",
+   "gridfinity",
+   "freecad"
+  ],
+  "roles": [
+   "operators"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "composition",
+   "mathshapes"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/catalog/DimensionSource",
+   "objects/catalog/MechFeature",
+   "objects/catalog/MechPartFamily",
+   "objects/catalog/MechPartVariant",
+   "objects/catalog/_shared",
+   "objects/material/MechMaterialOption",
+   "objects/material/MechMaterialPreference",
+   "objects/material/_shared",
+   "objects/assembly/MechAssembly",
+   "objects/assembly/MechPartInstance",
+   "objects/assembly/MechJoint",
+   "objects/assembly/MechContact",
+   "objects/assembly/MechConflict",
+   "objects/assembly/_shared",
+   "objects/motion/MechLoadCase",
+   "objects/motion/MechMotionCase",
+   "objects/motion/MechMotionRun",
+   "objects/motion/MechMotionSimState",
+   "objects/motion/MechMotionVector",
+   "objects/motion/_shared"
+  ],
+  "basis": [
+   "mech_catalog_basis",
+   "mech_material_basis",
+   "mech_assembly_basis",
+   "mech_motion_basis"
+  ],
+  "api": [],
+  "seed": [
+   "mech_catalog_seed",
+   "mech_material_seed",
+   "mech_assembly_seed",
+   "mech_motion_seed",
+   "mech_analysis_seed"
+  ],
+  "selftests": [
+   "mech_catalog_selftest",
+   "mech_material_selftest",
+   "mech_assembly_selftest",
+   "mech_motion_selftest",
+   "mech_analysis_selftest"
+  ],
+  "custom": [
+   "custom/catalog_import",
+   "custom/compatibility",
+   "custom/material_registry",
+   "custom/registry/material_properties",
+   "custom/joint_interface",
+   "custom/dof_solver",
+   "custom/fit_checks",
+   "custom/motion_engine",
+   "custom/motion_runs",
+   "custom/freecad_motion",
+   "custom/analyses",
+   "custom/registry/build_registry",
+   "custom/registry/build_seed"
+  ]
+ },
+ "classes": [
+  "DimensionSource",
+  "MechAssembly",
+  "MechConflict",
+  "MechContact",
+  "MechFeature",
+  "MechJoint",
+  "MechLoadCase",
+  "MechMaterialOption",
+  "MechMaterialPreference",
+  "MechMotionCase",
+  "MechMotionRun",
+  "MechMotionSimState",
+  "MechMotionVector",
+  "MechPartFamily",
+  "MechPartInstance",
+  "MechPartVariant"
+ ],
+ "imports": [
+  [
+   "mech.mech_catalog_basis",
+   [
+    "DimensionSource",
+    "MechFeature",
+    "MechPartFamily",
+    "MechPartVariant"
+   ]
+  ],
+  [
+   "mech.mech_catalog_seed",
+   [
+    "SEED_DIMENSION_SOURCES",
+    "SEED_FEATURES",
+    "SEED_PART_FAMILIES",
+    "SEED_PART_VARIANTS"
+   ]
+  ],
+  [
+   "mech.mech_material_basis",
+   [
+    "MechMaterialOption",
+    "MechMaterialPreference"
+   ]
+  ],
+  [
+   "mech.mech_material_seed",
+   [
+    "SEED_MECH_MATERIAL_OPTIONS",
+    "SEED_MECH_MATERIAL_PREFERENCES"
+   ]
+  ],
+  [
+   "mech.mech_assembly_basis",
+   [
+    "MechAssembly",
+    "MechConflict",
+    "MechContact",
+    "MechJoint",
+    "MechPartInstance"
+   ]
+  ],
+  [
+   "mech.mech_assembly_seed",
+   [
+    "SEED_MECH_ASSEMBLIES",
+    "SEED_MECH_CONTACTS",
+    "SEED_MECH_JOINTS",
+    "SEED_MECH_PART_INSTANCES"
+   ]
+  ],
+  [
+   "mech.mech_motion_basis",
+   [
+    "MechLoadCase",
+    "MechMotionCase",
+    "MechMotionRun",
+    "MechMotionSimState",
+    "MechMotionVector"
+   ]
+  ],
+  [
+   "mech.mech_motion_seed",
+   [
+    "SEED_MECH_LOAD_CASES",
+    "SEED_MECH_MOTION_CASES",
+    "SEED_MECH_MOTION_CONTACTS",
+    "SEED_MECH_SIM_DEFINITIONS"
+   ]
+  ],
+  [
+   "mech.mech_analysis_seed",
+   [
+    "SEED_MECH_ANALYSES",
+    "SEED_MECH_SOLUTIONS"
+   ]
+  ]
+ ],
+ "endpoints": null,
+ "seedPairs": "mech.mech_motion_seed:MECH_SEED_PAIRS",
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "mech_catalog_selftest",
+  "mech_material_selftest",
+  "mech_assembly_selftest",
+  "mech_motion_selftest",
+  "mech_analysis_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

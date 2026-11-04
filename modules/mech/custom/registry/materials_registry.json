@@ -1,0 +1,1212 @@
+{
+ "meta": {
+  "compiled": "2026-11-03",
+  "by": "econ-core (Claude) for Dustin Etts",
+  "status_vocabulary": {
+   "polari_preferred": "default for new Polari designs",
+   "polari_acceptable": "usable with the named caveat",
+   "legacy_harmful": "comparison / existing parts only; not for new designs"
+  },
+  "rule": "preferred = no IARC 1/2A/2B monomer or process chemical isolated and handled in bulk to make it, plus a workable end of life",
+  "iarc_groups": {
+   "1": "carcinogenic",
+   "2A": "probably",
+   "2B": "possibly",
+   "3": "not classifiable",
+   "none": "not evaluated / not applicable",
+   "check": "to confirm"
+  },
+  "caution": "compiled from knowledge, not yet checked row by row against the IARC monographs; review rows with confidence=check first"
+ },
+ "materials": [
+  {
+   "id": "tpu_mdi",
+   "name": "Thermoplastic polyurethane (MDI-based)",
+   "cls": "elastomer",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "MDI (methylene diphenyl diisocyanate)",
+     "iarc": "3",
+     "note": "respiratory sensitiser in manufacture"
+    },
+    {
+     "name": "polyester or polyether polyol",
+     "iarc": "none",
+     "note": "bio-based polyols available (castor oil, bio-succinic acid)"
+    },
+    {
+     "name": "1,4-butanediol",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "thermoplastic: can be remelted / regranulated",
+   "bio_option": true,
+   "caveats": [
+    "isocyanate sensitisation during manufacture (not at use)",
+    "polyester grades hydrolyse in hot water"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "tpc_et",
+   "name": "Copolyester elastomer (TPC-ET)",
+   "cls": "elastomer",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "terephthalic acid",
+     "iarc": "none",
+     "note": ""
+    },
+    {
+     "name": "1,4-butanediol",
+     "iarc": "none",
+     "note": ""
+    },
+    {
+     "name": "polyether glycol (PTMEG)",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "thermoplastic: remeltable",
+   "bio_option": true,
+   "caveats": [
+    "cost"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "epdm_peroxide",
+   "name": "EPDM, peroxide-cured",
+   "cls": "elastomer",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "ethylene",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "propylene",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "5-ethylidene-2-norbornene (ENB)",
+     "iarc": "none",
+     "note": "a few %"
+    }
+   ],
+   "end_of_life": "thermoset: grind to crumb / energy recovery",
+   "bio_option": true,
+   "caveats": [
+    "poor oil/fuel resistance",
+    "sulfur-cured grades: use nitrosamine-safe accelerators only"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "cm",
+   "name": "Chlorinated polyethylene (CM)",
+   "cls": "elastomer",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "polyethylene (from ethylene)",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "chlorine (post-polymerisation)",
+     "iarc": "none",
+     "note": "toxic gas, not a carcinogen"
+    }
+   ],
+   "end_of_life": "contains chlorine: HCl on combustion, needs scrubbed incineration",
+   "bio_option": false,
+   "caveats": [
+    "chlorinated at end of life"
+   ],
+   "note": "closest property match to neoprene with no chlorinated monomer",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "natural_rubber",
+   "name": "Natural rubber (FSC hevea) / guayule",
+   "cls": "elastomer",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "plant-biosynthesised polyisoprene",
+     "iarc": "none",
+     "note": "no free isoprene is isolated"
+    }
+   ],
+   "end_of_life": "thermoset: crumb; biodegrades slowly",
+   "bio_option": true,
+   "caveats": [
+    "poor ozone + oil resistance",
+    "latex protein allergy (guayule avoids it)",
+    "avoid 6PPD antiozonant (6PPD-quinone is lethal to coho salmon)"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "silicone_vmq",
+   "name": "Silicone rubber (VMQ)",
+   "cls": "elastomer",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "silicon metal",
+     "iarc": "none",
+     "note": ""
+    },
+    {
+     "name": "methyl chloride",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "D4/D5 cyclic siloxanes (intermediates)",
+     "iarc": "none",
+     "note": "EU-restricted as PBT/vPvB in wash-off products"
+    }
+   ],
+   "end_of_life": "thermoset: limited recycling (depolymerisation emerging)",
+   "bio_option": false,
+   "caveats": [
+    "poor tear/abrasion",
+    "cyclic siloxane persistence"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "aem",
+   "name": "Ethylene-acrylic elastomer (AEM)",
+   "cls": "elastomer",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "ethylene",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "methyl acrylate",
+     "iarc": "check",
+     "note": "confirm current IARC class"
+    }
+   ],
+   "end_of_life": "thermoset",
+   "bio_option": false,
+   "caveats": [
+    "confirm methyl acrylate classification"
+   ],
+   "confidence": "check",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "check"
+  },
+  {
+   "id": "neoprene_cr",
+   "name": "Polychloroprene (neoprene, CR)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "chloroprene",
+     "iarc": "2B",
+     "note": "US EPA IRIS: likely human carcinogen"
+    },
+    {
+     "name": "1,3-butadiene (petroleum route)",
+     "iarc": "1",
+     "note": ""
+    },
+    {
+     "name": "acetylene via calcium carbide (\"limestone\" route)",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "thermoset, ~40% chlorine: HCl / dioxin risk on burning; landfill",
+   "bio_option": false,
+   "caveats": [
+    "ETU (ethylene thiourea) accelerator is a reproductive toxicant"
+   ],
+   "replaced_by": [
+    "tpu_mdi",
+    "tpc_et",
+    "cm",
+    "epdm_peroxide"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "sbr",
+   "name": "Styrene-butadiene rubber (SBR)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "1,3-butadiene",
+     "iarc": "1",
+     "note": ""
+    },
+    {
+     "name": "styrene",
+     "iarc": "2A",
+     "note": ""
+    }
+   ],
+   "end_of_life": "thermoset: crumb",
+   "replaced_by": [
+    "natural_rubber",
+    "epdm_peroxide"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "nbr_hnbr",
+   "name": "Nitrile rubber (NBR / HNBR)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "1,3-butadiene",
+     "iarc": "1",
+     "note": ""
+    },
+    {
+     "name": "acrylonitrile",
+     "iarc": "1",
+     "note": "IARC upgraded to Group 1 in 2024"
+    }
+   ],
+   "end_of_life": "thermoset",
+   "replaced_by": [
+    "aem",
+    "tpu_mdi"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "acm",
+   "name": "Polyacrylate rubber (ACM)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "ethyl acrylate",
+     "iarc": "2B",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "aem"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "2B"
+  },
+  {
+   "id": "sebs_sbs",
+   "name": "Styrenic block copolymers (SBS / SEBS)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "styrene",
+     "iarc": "2A",
+     "note": ""
+    },
+    {
+     "name": "1,3-butadiene",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "tpc_et",
+    "tpu_mdi"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "tpu_tdi",
+   "name": "Polyurethane (TDI-based)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "TDI (toluene diisocyanate)",
+     "iarc": "2B",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "tpu_mdi"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "2B"
+  },
+  {
+   "id": "fkm",
+   "name": "Fluoroelastomer (FKM)",
+   "cls": "elastomer",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "vinylidene fluoride / HFP / TFE",
+     "iarc": "none",
+     "note": "PFAS chemistry; fluorosurfactant processing aids historically PFOA (IARC 1)"
+    }
+   ],
+   "end_of_life": "persistent",
+   "replaced_by": [
+    "aem",
+    "silicone_vmq"
+   ],
+   "note": "keep only where nothing else survives the chemical",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "pla",
+   "name": "PLA",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "lactic acid / lactide (fermented sugar)",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "industrial compost / remelt",
+   "bio_option": true,
+   "caveats": [
+    "softens ~55-60 C",
+    "creep under load"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "petg",
+   "name": "PETG",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "terephthalic acid",
+     "iarc": "none",
+     "note": ""
+    },
+    {
+     "name": "ethylene glycol",
+     "iarc": "none",
+     "note": ""
+    },
+    {
+     "name": "CHDM",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable",
+   "bio_option": true,
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "pp",
+   "name": "Polypropylene",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "propylene",
+     "iarc": "3",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable (recycling code 5)",
+   "bio_option": true,
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "uhmwpe",
+   "name": "UHMW polyethylene",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "ethylene",
+     "iarc": "3",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable with difficulty / reuse",
+   "bio_option": true,
+   "note": "low-friction sliders, wheels, wear strips",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "pa66",
+   "name": "Nylon PA66",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "adipic acid",
+     "iarc": "none",
+     "note": "production emits N2O unless abated"
+    },
+    {
+     "name": "hexamethylenediamine",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable",
+   "bio_option": true,
+   "caveats": [
+    "absorbs moisture; dimensions shift"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "pa6",
+   "name": "Nylon PA6",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "caprolactam",
+     "iarc": "3",
+     "note": "was the only Group 4 agent until 2019"
+    }
+   ],
+   "end_of_life": "remeltable; chemically recyclable to caprolactam",
+   "bio_option": false,
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "pa11",
+   "name": "Nylon PA11",
+   "cls": "plastic",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "11-aminoundecanoic acid (castor oil)",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable",
+   "bio_option": true,
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "peek",
+   "name": "PEEK",
+   "cls": "plastic",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "hydroquinone",
+     "iarc": "3",
+     "note": ""
+    },
+    {
+     "name": "4,4'-difluorobenzophenone",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable",
+   "caveats": [
+    "cost; high-temperature processing"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "3"
+  },
+  {
+   "id": "pom",
+   "name": "Acetal (POM, \"Delrin\")",
+   "cls": "plastic",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "formaldehyde / trioxane",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable; releases formaldehyde when overheated",
+   "replaced_by": [
+    "uhmwpe",
+    "pa66",
+    "pa11"
+   ],
+   "note": "V-wheels, lead-screw nuts, gears, bushings",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "abs",
+   "name": "ABS",
+   "cls": "plastic",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "acrylonitrile",
+     "iarc": "1",
+     "note": ""
+    },
+    {
+     "name": "1,3-butadiene",
+     "iarc": "1",
+     "note": ""
+    },
+    {
+     "name": "styrene",
+     "iarc": "2A",
+     "note": ""
+    }
+   ],
+   "end_of_life": "remeltable",
+   "caveats": [
+    "styrene emissions when printing"
+   ],
+   "replaced_by": [
+    "petg",
+    "pp",
+    "pa66"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "pc_bpa",
+   "name": "Polycarbonate (BPA)",
+   "cls": "plastic",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "bisphenol A",
+     "iarc": "none",
+     "note": "endocrine disruptor; EU SVHC"
+    },
+    {
+     "name": "phosgene",
+     "iarc": "none",
+     "note": "acutely toxic gas (non-phosgene melt route exists)"
+    }
+   ],
+   "replaced_by": [
+    "petg",
+    "pa66"
+   ],
+   "note": "\"Xtreme\" V-wheels, guards",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "pvc",
+   "name": "PVC",
+   "cls": "plastic",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "vinyl chloride",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "end_of_life": "HCl/dioxin on burning; phthalate plasticisers in flexible grades",
+   "replaced_by": [
+    "pp",
+    "tpu_mdi"
+   ],
+   "note": "cable insulation, tubing",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "ptfe",
+   "name": "PTFE",
+   "cls": "plastic",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "tetrafluoroethylene",
+     "iarc": "2A",
+     "note": ""
+    },
+    {
+     "name": "PFOA processing aid (historical)",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "end_of_life": "persistent (PFAS)",
+   "replaced_by": [
+    "uhmwpe",
+    "peek"
+   ],
+   "note": "bowden tubes, low-friction pads",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "birch_plywood",
+   "name": "Birch plywood (B/BB, exterior PF glue)",
+   "cls": "wood",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "birch veneer",
+     "iarc": "none",
+     "note": "wood DUST is IARC 1 as inhaled dust when machined: an occupational control, not in the part"
+    },
+    {
+     "name": "phenol-formaldehyde adhesive (exterior) / urea-formaldehyde (interior)",
+     "iarc": "1",
+     "note": "formaldehyde is IARC 1 in manufacture; cured panel emission limited by E1 / CARB2; NAF (soy, PVAc) glues exist"
+    }
+   ],
+   "end_of_life": "reuse / energy recovery; PF glue is not compostable",
+   "bio_option": true,
+   "caveats": [
+    "specify E1/CARB2 or NAF glue",
+    "moisture movement across the grain",
+    "machining dust needs extraction"
+   ],
+   "note": "drawer bottoms, cassette frames, the legacy wooden runner",
+   "confidence": "check",
+   "source": "mech-mxc-1",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "mdf",
+   "name": "MDF (medium-density fibreboard)",
+   "cls": "wood",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "wood fibre",
+     "iarc": "none",
+     "note": "wood dust IARC 1 when machined (occupational)"
+    },
+    {
+     "name": "urea-formaldehyde binder (~10 % by mass)",
+     "iarc": "1",
+     "note": "formaldehyde IARC 1 in manufacture and as panel emission; NAF-MDF (pMDI binder) exists"
+    }
+   ],
+   "end_of_life": "landfill / energy recovery; not recyclable as fibre",
+   "bio_option": true,
+   "caveats": [
+    "high formaldehyde emission unless NAF grade",
+    "swells when wet",
+    "low screw-holding on edges"
+   ],
+   "note": "flat panels, jigs; weaker than plywood for a loaded bottom",
+   "confidence": "check",
+   "source": "mech-mxc-1",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "al_6063",
+   "name": "Aluminium 6063-T5/T6 (extrusion)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "bauxite -> alumina -> Hall-Heroult smelting",
+     "iarc": "none",
+     "note": "energy-heavy; recycled Al ~5% of the energy"
+    }
+   ],
+   "end_of_life": "infinitely recyclable",
+   "caveats": [
+    "prefer high recycled content"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "al_6061",
+   "name": "Aluminium 6061-T6 (plate, pulleys, couplings)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "aluminium + Mg, Si",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recyclable",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "al_diecast",
+   "name": "Die-cast aluminium (ADC12 / A380)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "secondary (recycled) aluminium",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recyclable",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "steel_carbon",
+   "name": "Carbon / alloy steel (classes 4.8-12.9, C45, 52100)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "iron ore / scrap",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recyclable (EAF scrap route)",
+   "caveats": [
+    "needs a corrosion finish"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "stainless_a2_a4",
+   "name": "Stainless steel A2 (304) / A4 (316)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "iron, chromium (metallic Cr(III) chemistry), nickel",
+     "iarc": "none",
+     "note": "metallic nickel 2B as dust; no hazard in the part"
+    }
+   ],
+   "end_of_life": "recyclable",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "brass_lead_free",
+   "name": "Lead-free brass (CuZn21Si3P / C69300, or CW510L low-lead)",
+   "cls": "metal",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "copper, zinc, silicon",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recyclable",
+   "note": "heat-set inserts, standoffs",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "brass_leaded",
+   "name": "Leaded free-machining brass (CuZn39Pb3 / C36000)",
+   "cls": "metal",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "lead (2-3.5%)",
+     "iarc": "2A",
+     "note": "inorganic lead compounds 2A; metallic lead 2B; neurotoxic"
+    }
+   ],
+   "end_of_life": "recyclable but lead carries over",
+   "replaced_by": [
+    "brass_lead_free"
+   ],
+   "note": "the usual heat-set insert alloy today; RoHS currently exempts it",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "2A"
+  },
+  {
+   "id": "zinc_alloy",
+   "name": "Zinc die-cast (Zamak)",
+   "cls": "metal",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "zinc, aluminium, small Cu/Mg",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recyclable",
+   "caveats": [
+    "creeps under sustained load"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "ndfeb",
+   "name": "NdFeB magnet",
+   "cls": "metal",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "neodymium / rare earths",
+     "iarc": "none",
+     "note": "mining + separation has heavy environmental cost"
+    }
+   ],
+   "end_of_life": "recyclable in principle, rarely in practice",
+   "caveats": [
+    "design for removal and reuse"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "glass_fibre_cord",
+   "name": "Continuous glass fibre (belt cords)",
+   "cls": "fibre",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "silica sand, limestone, etc.",
+     "iarc": "none",
+     "note": "continuous filament glass: IARC 3"
+    }
+   ],
+   "end_of_life": "not recoverable from belt",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "aramid_cord",
+   "name": "Aramid fibre (belt cords)",
+   "cls": "fibre",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "p-phenylenediamine",
+     "iarc": "none",
+     "note": "skin sensitiser"
+    },
+    {
+     "name": "terephthaloyl chloride",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "steel_cord",
+   "name": "Steel cord",
+   "cls": "fibre",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "steel",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "end_of_life": "recoverable from shredded belts",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "zinc_trivalent",
+   "name": "Zinc plating, trivalent (Cr III) passivation",
+   "cls": "coating",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "zinc, Cr(III) passivate",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "black_oxide",
+   "name": "Black oxide + oil",
+   "cls": "coating",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "alkaline nitrate/nitrite salt bath",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "caveats": [
+    "mild corrosion protection only"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "anodise",
+   "name": "Anodising (sulfuric acid, clear or dyed)",
+   "cls": "coating",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "sulfuric acid",
+     "iarc": "none",
+     "note": "strong-inorganic-acid MISTS are IARC 1: an occupational control, not in the part"
+    }
+   ],
+   "caveats": [
+    "seal without nickel acetate where possible"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "nitriding",
+   "name": "Nitriding / nitrocarburising",
+   "cls": "coating",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "ammonia / nitrogen atmosphere",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "note": "hard wear surface instead of hard chrome",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "nickel_plating",
+   "name": "Electroless / electro nickel",
+   "cls": "coating",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "nickel salts",
+     "iarc": "1",
+     "note": "nickel compounds IARC 1 in the bath; plated metal is 2B and a contact allergen"
+    }
+   ],
+   "caveats": [
+    "bath control; skin-contact parts avoid it"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "zinc_hexavalent",
+   "name": "Zinc plating, hexavalent chromate (yellow) passivation",
+   "cls": "coating",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "hexavalent chromium",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "zinc_trivalent"
+   ],
+   "note": "banned in EU vehicles/electronics (ELV, RoHS)",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "hard_chrome",
+   "name": "Hard chrome plating (from Cr VI bath)",
+   "cls": "coating",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "chromic acid (hexavalent chromium)",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "nitriding",
+    "stainless_a2_a4"
+   ],
+   "note": "\"chrome-plated\" linear shafts",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "cadmium_plating",
+   "name": "Cadmium plating",
+   "cls": "coating",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "cadmium",
+     "iarc": "1",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "zinc_trivalent"
+   ],
+   "note": "old aerospace/military fasteners",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "1"
+  },
+  {
+   "id": "accel_nitrosamine",
+   "name": "Nitrosamine-forming accelerators (TMTD, ZDMC...)",
+   "cls": "additive",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "forms N-nitrosodimethylamine",
+     "iarc": "2A",
+     "note": ""
+    }
+   ],
+   "replaced_by": [
+    "accel_nitrosamine_safe"
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "2A"
+  },
+  {
+   "id": "accel_nitrosamine_safe",
+   "name": "Nitrosamine-safe accelerators (ZBEC, TBzTD) / peroxide cure",
+   "cls": "additive",
+   "status": "polari_preferred",
+   "feedstocks": [
+    {
+     "name": "dibenzylamine-based",
+     "iarc": "none",
+     "note": ""
+    }
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "ppd6",
+   "name": "6PPD antiozonant",
+   "cls": "additive",
+   "status": "legacy_harmful",
+   "feedstocks": [
+    {
+     "name": "6PPD -> 6PPD-quinone",
+     "iarc": "none",
+     "note": "acutely lethal to coho salmon"
+    }
+   ],
+   "replaced_by": [
+    "epdm_peroxide"
+   ],
+   "note": "avoid by choosing ozone-resistant polymers rather than protecting ozone-weak ones",
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "none"
+  },
+  {
+   "id": "carbon_black",
+   "name": "Carbon black filler",
+   "cls": "additive",
+   "status": "polari_acceptable",
+   "feedstocks": [
+    {
+     "name": "carbon black",
+     "iarc": "2B",
+     "note": "as inhalable dust during compounding; bound in rubber"
+    }
+   ],
+   "confidence": "good",
+   "source": "collab-mech-parts",
+   "worst_feedstock_iarc": "2B"
+  }
+ ]
+}

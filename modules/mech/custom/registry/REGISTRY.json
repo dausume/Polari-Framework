@@ -1,0 +1,26 @@
+{
+ "what": "mech material registry: materials with IARC-classed feedstocks + status, and per-part-family material preferences",
+ "authored": "econ-core (Claude) for Dustin Etts, 2026-11-03",
+ "from_": "the materials work carried in MECH_FREECAD_INTERCHANGE_PLAN.md section 7 (collab/mech-parts/data/build_materials.py)",
+ "basis": "IARC monograph group per feedstock row as the data states it; status by the rule in meta.rule; basis of each judgement is iarc (monograph class), regulation (EU/US rule) or assessment (engineering judgement)",
+ "not_yet_checked": "iarc rows not yet checked against the monographs; AEM methyl acrylate marked check; the two wood rows (mech-mxc-1 additions) marked check",
+ "counts": {
+  "materials": 53,
+  "by_source": {
+   "collab-mech-parts": 51,
+   "mech-mxc-1": 2
+  },
+  "by_status": {
+   "polari_preferred": 24,
+   "polari_acceptable": 11,
+   "legacy_harmful": 18
+  },
+  "part_roles": 35
+ },
+ "files": [
+  "materials_registry.json",
+  "part_material_roles.json"
+ ],
+ "generator": "build_registry.py (this directory)",
+ "seed": "mech/mech_material_seed.py is generated from these files by build_seed.py; edit here, not there"
+}

@@ -1,0 +1,1 @@
+"""@module mech — standard mechanical parts, features, assemblies, loads and motion (MECH_FREECAD_INTERCHANGE_PLAN.md). FreeCAD is the geometry/assembly/kinematics relay engine; FEM stays materialsScience (D-mxc-7)."""

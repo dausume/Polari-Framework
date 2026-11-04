@@ -1,0 +1,26 @@
+{
+ "what": "gridfinity-rebuilt-openscad src/core/standard.scad: the Gridfinity constants (42 mm grid, 7 mm height unit, 41.5 mm base top with the 0.5 mm gap, the base profile 0.8/1.8/2.15 and stacking lip 0.7/1.8/1.9 polylines, magnet hole 6.5 x 2 mm, screw hole 3 mm, hole 8 mm from the side / 4.8 mm from the bottom edge, wall 0.95, divider 1.2, lip fillet 0.6). Stored verbatim; never executed. Read by catalog_import.py as `NAME = value;` constants. The Gridfinity spec page (gridfinity.xyz/specification) names no licence (D-mxc-1): the geometry is taken from this MIT source and the spec is cited, per the recommended path.",
+ "project": "https://github.com/kennetek/gridfinity-rebuilt-openscad",
+ "url": "https://github.com/kennetek/gridfinity-rebuilt-openscad/blob/910e22d8607fd7f5f51ad5e5cbc5287a76810bfd/src/core/standard.scad",
+ "commit": "910e22d8607fd7f5f51ad5e5cbc5287a76810bfd",
+ "commit_date": "2025-08-31T23:31:41Z",
+ "branch": "main",
+ "licence": "MIT",
+ "licence_source": "The repository's LICENSE file (copied verbatim beside this file): 'MIT License  Copyright (c) 2023 Kenneth Hodson'.",
+ "gpl3_compatible": "yes (MIT is permissive; keep the copyright notice with what we ship)",
+ "upstream_path": "src/core/standard.scad and LICENSE",
+ "fetched": "2026-11-03",
+ "fetched_from": "econ-core (this shell), via the GitHub REST API (commit lookup) and raw.githubusercontent.com pinned to the commit sha below; no clone, no code from these files was ever executed here. Parsed only by modules/mech/custom/catalog_import.py run with python3 -I.",
+ "files": [
+  {
+   "path": "LICENSE",
+   "sha256": "799eab97e99096cf4b731f3f7679c5f95e2fc085bd95d7b8b8949c2d40da5080",
+   "bytes": 2208
+  },
+  {
+   "path": "src/core/standard.scad",
+   "sha256": "6beb251db2a0f88be0c38e2fc48cb135cb45a3dbbb4ad4283ac758367954c786",
+   "bytes": 8328
+  }
+ ]
+}

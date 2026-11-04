@@ -26,6 +26,14 @@ One treeObject (auto-CRUDE + persisted — object-coherence):
                  [names]} — a pot-with-holes = frustum DIFFERENCE
                  hole-cylinders.
 
+ms-anchor (§8.5 of MECH_FREECAD_INTERCHANGE_PLAN) adds the ANCHORED
+OFFSET tool's two rows — ShapeAnchor (a point + frame picked on a
+shape by a ray, with the four-way reference toggle) and
+AnchoredOffset (an offset solid written as an equation in that
+frame: planar patch / conform / custom such as a thread) — engine in
+custom/shape_anchor.py, reached as AnalysisDefinition rows + no-code
+solutions (custom/shape_anchor_analyses.py), no custom API.
+
 The 4x4 quadric matrix is intended to round-trip as a MatrixDefinition
 so a shape flows through the no-code matrix-equation editor
 (object-coherence; see [[matrix-equation-operation-node]]).
@@ -42,5 +50,11 @@ so a shape flows through the no-code matrix-equation editor
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from mathshapes.objects.shape._shared import CSG_OPS, PRIMITIVE_KINDS, SHAPE_FAMILIES  # noqa: F401
+from mathshapes.objects.shape._shared import (  # noqa: F401
+    ANCHOR_BASES, CSG_OPS, OFFSET_MODES, OFFSET_OPS, PRIMITIVE_KINDS,
+    REFERENCE_MODES, SHAPE_FAMILIES,
+)
 from mathshapes.objects.shape.MathShapeDefinition import MathShapeDefinition  # noqa: F401
+# ms-anchor: the anchored-offset tool's rows (§8.5).
+from mathshapes.objects.shape.ShapeAnchor import ShapeAnchor  # noqa: F401
+from mathshapes.objects.shape.AnchoredOffset import AnchoredOffset  # noqa: F401
