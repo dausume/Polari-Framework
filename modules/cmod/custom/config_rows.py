@@ -25,6 +25,9 @@ def _cls(cls_name):
     if cls_name == 'InstrumentAccuracy':   # msv-0: a meter's cited accuracy (instruments owns the class; a reading's band reads it)
         from instruments.objects.instruments.InstrumentAccuracy import InstrumentAccuracy
         return InstrumentAccuracy
+    if cls_name == 'InstrumentEndpoint':   # msv-3: a sigrok meter's endpoint (instruments owns the class)
+        from instruments.objects.instruments.InstrumentEndpoint import InstrumentEndpoint
+        return InstrumentEndpoint
     if cls_name == 'SolutionDefinition':   # bss-5: the drawing row the canvas page lists
         from polariApiServer.solutionDefinition import SolutionDefinition
         return SolutionDefinition

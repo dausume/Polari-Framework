@@ -63,6 +63,7 @@
    "custom/lineage",
    "custom/placement",
    "custom/scope_engines",
+   "custom/sigrok_reader",
    "custom/scpi",
    "custom/sources",
    "custom/testability"

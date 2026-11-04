@@ -208,6 +208,7 @@
    "cmod_measure_selftest",
    "cmod_procedure_selftest",
    "cmod_bands_selftest",
+   "cmod_sigrok_selftest",
    "cmod_command_edge_selftest",
    "cmod_catom_hal_nocode_selftest",
    "cmod_catom_variables_selftest",

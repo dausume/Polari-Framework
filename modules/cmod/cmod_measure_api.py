@@ -22,6 +22,8 @@ POST .../sessions/{session}/steps/{step}             answer a step: a measure st
 POST .../sessions/{session}/resume                   resume: the stimulus steps back to the next step's node are asked again
 GET  .../sessions/{session}/print                    the sheet for paper (HTML print view)
 GET  .../sessions/{session}/summary                  how many steps per verdict
+POST .../sessions/{session}/steps/{step}/take        msv-3 touch and confirm: {endpoint} (a sigrok endpoint on this node) or {instrument, lines}
+                                                     (sigrok '-O analog' lines from a Bridge) -> the steady reading, or no-data / not-steady / wrong-mode
 404 = no such node / unit / point / instrument / procedure / step / session; 409 = a node with no reached run (run it first), a unit of another
 Bench Solution; 422 = a value that is not a number in the point's unit, an answer a step does not take.
 """
@@ -77,6 +79,7 @@ class MeasureAPI(treeObject):
             add(b + '/sessions/{session}/resume', self, suffix='resume')
             add(b + '/sessions/{session}/print', self, suffix='print')
             add(b + '/sessions/{session}/summary', self, suffix='summary')
+            add(b + '/sessions/{session}/steps/{step}/take', self, suffix='take')
 
     def _do(self, response, fn, *args):
         try:
@@ -170,3 +173,7 @@ class MeasureAPI(treeObject):
 
     def on_get_summary(self, request, response, bench_solution, session):
         self._do(response, lambda m, s: TS.sheet(m, self._session_of(bench_solution, s))['summary_rows'], session)
+
+    def on_post_take(self, request, response, bench_solution, session, step):
+        body = _json(request)
+        self._do(response, lambda m, s: TS.take(m, self._session_of(bench_solution, s), step, body), session)

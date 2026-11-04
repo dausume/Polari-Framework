@@ -184,6 +184,9 @@ def _sheet_tab():
            'action': {'label': 'Answer', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}',
                       'body_template': {'value': '{value}', 'instrument': '{instrument}', 'outcome': '{outcome}', 'note': '{note}'}},
            'submit_label': 'Answer the chosen step', 'success_text': 'Kept - its verdict is on the sheet.'}
+    take = {'fields': [{'name': 'endpoint', 'label': 'Meter endpoint (a sigrok InstrumentEndpoint on this node, e.g. the TP4000ZC on its serial port)'}],
+            'action': {'label': 'Take', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}/take', 'body_template': {'endpoint': '{endpoint}'}},
+            'submit_label': 'Touch and confirm: take the chosen measure step from the meter', 'success_text': 'Taken - the meter\'s steady value is judged on the sheet.'}
     resume = {'fields': [], 'action': {'label': 'Resume', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/resume', 'body_template': {}},
               'submit_label': 'Resume the session (re-asks the presses that put the board back in its state)', 'success_text': 'Resumed.'}
     return _tab('sheet', 'Test sheet', [
@@ -207,9 +210,11 @@ def _sheet_tab():
                         columns='order,kind,words,expect,answer,verdict,ask_again,judged', data_path=_T + '/sessions/{scope:session}?' + _REV,
                         empty_text='Start or pick a session above.', select_field='step', select_scope='step', selected_value='{scope:step}')], min_height=420,
              css_class='side-by-side'),
-        _row(3, [_component('he-answer-form', 0, 6, 'Answer the chosen step', 'door-form', ans,
+        _row(3, [_component('he-answer-form', 0, 4, 'Answer the chosen step', 'door-form', ans,
                             description='A measure step takes the value read; every other step takes its outcome.'),
-                 _component('he-resume-form', 6, 3, 'Stopped and came back?', 'door-form', resume, description='Resume: the board may have lost its state.'),
+                 _component('he-take-form', 4, 3, 'Touch and confirm (a meter on sigrok)', 'door-form', take,
+                            description='Probe the point, then take: the meter\'s steady value is the reading. No data = the probe, cable or port; not steady = hold the probes still.'),
+                 _component('he-resume-form', 7, 2, 'Stopped and came back?', 'door-form', resume, description='Resume: the board may have lost its state.'),
                  _table('he-summary', 9, 3, 'Summary', '', columns='verdict,steps', data_path=_T + '/sessions/{scope:session}/summary?' + _REV,
                         empty_text='')], min_height=220)],
         description='The generated step-by-step test of a built unit: the left pane shows where to test, the sheet on the right is judged as you fill it (msv-0b).')

@@ -254,7 +254,8 @@ def page():
           keys == ['models', 'signals', 'endpoints', 'capture', 'chart'] and kinds.count('door-form') == 4 and kinds.count('named-graph-panel') == 1
           and next(i for i in items if i['id'] == 'instrument-chart')['componentProps']['inputs']['graphName'] == GRAPH and G[0]['name'] == GRAPH
           and json.loads(G[0]['definition'])['graphConfig']['yDimensions'] == ['ch1', 'ch2', 'ch3', 'ch4'], kinds)
-    check('osc-3 SEED: the GraphDefinition pair is seeded code-owned beside the Instrument rows', [p[0] for p in INSTRUMENTS_SEED_PAIRS] == ['Instrument', 'GraphDefinition'])
+    check('osc-3 SEED: the GraphDefinition pair is seeded code-owned beside the Instrument rows (msv-0: and the example meter\'s InstrumentAccuracy rows)',
+          [p[0] for p in INSTRUMENTS_SEED_PAIRS] == ['Instrument', 'InstrumentAccuracy', 'GraphDefinition'])
     paths = []
 
     def walk(node):

@@ -6,7 +6,7 @@ InstrumentEndpoint — one class per file (design §7).
 from objectTreeDecorators import treeObject, treeObjectInit
 
 #: how an endpoint is reached (OSCILLOSCOPE_PLAN.md §2): raw SCPI socket (stdlib), the PyVISA resource kinds, or the emulator
-TRANSPORTS = ('scpi-raw', 'vxi-11', 'hislip', 'usbtmc', 'emulator')
+TRANSPORTS = ('scpi-raw', 'vxi-11', 'hislip', 'usbtmc', 'emulator', 'sigrok')   # msv-3: sigrok = a meter read through sigrok-cli (resource '<driver>[:conn=<port>]')
 
 
 class InstrumentEndpoint(treeObject):

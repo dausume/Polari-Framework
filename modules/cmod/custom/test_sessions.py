@@ -18,7 +18,12 @@ Step verdicts:
   over-range      measure again on a larger range
   done / skipped  a setup or stimulus step
   pending         not answered; ask-again = a stimulus done before the last resume, so the board may not be in the node's state any more
-Touch-and-confirm (mode touch) needs a live device path (msv-3). Until it exists every step falls back to the sheet, and the sheet says so.
+  take(manager, session, step, body)         msv-3 TOUCH AND CONFIRM on a measure step: body {endpoint} (a sigrok InstrumentEndpoint on this node) or
+                                             {instrument, lines} (sigrok '-O analog' lines a Bridge read on the person's machine). The steady value becomes
+                                             the reading (via usb-serial), and the lines' sha256 is its evidence. No line = NO DATA (the probe, the cable or
+                                             the port - not the circuit); lines that never settle = NOT STEADY; the wrong unit or AC = WRONG MODE.
+Touch and confirm covers measure steps. Continuity, look, setup and stimulus steps stay on the sheet, and the sheet says so (D-msv-6: a device's
+data decides a touch step, and a person's yes never substitutes for it).
 """
 import datetime
 
@@ -27,7 +32,8 @@ from cmod.custom import measure_readings as MR
 from cmod.custom import test_procedures as TP
 
 OUTCOMES = {'setup': ('done', 'skipped'), 'stimulus': ('done', 'skipped'), 'continuity': ('beep', 'no-beep', 'skipped'), 'observe': ('yes', 'no', 'skipped')}
-_MEASURE = {'in-band': 'pass', 'unexplained': 'unexplained', 'unjudged': 'unjudged', 'over-range': 'over-range'}
+_MEASURE = {'in-band': 'pass', 'in-tolerance': 'pass', 'unexplained': 'unexplained', 'unjudged': 'unjudged', 'over-range': 'over-range'}
+_DEVICE = ('no-data', 'not-steady', 'wrong-mode')   # msv-3: a take that kept no reading
 
 
 def _now():
@@ -112,6 +118,8 @@ def _verdict(st, mark, reading):
     if st['kind'] == 'measure':
         if reading is not None and (mark is None or reading['at'] >= mark['at']):
             return _MEASURE[reading['verdict']]
+        if mark is not None and mark['outcome'] in _DEVICE:
+            return mark['outcome']
         return 'skipped' if mark is not None else 'pending'
     if mark is None:
         return 'pending'
@@ -138,7 +146,8 @@ def sheet(manager, session):
         rows.append({'order': int(st['order']), 'step': st['name'], 'kind': st['kind'], 'node': st['node'], 'words': st['words'], 'expect': st['expect'],
                      'mode': st['mode'], 'answer': (answered or {}).get('entered') or (answered or {}).get('outcome') or '', 'verdict': v,
                      'judged': reading['words'] if (reading is not None and st['kind'] == 'measure') else '', 'at': (answered or {}).get('at', ''),
-                     'ask_again': False, 'how': 'the sheet' if s['mode'] == 'guided' else 'the sheet (touch and confirm needs a live device path: msv-3, not built)',
+                     'ask_again': False, 'how': 'the sheet' if s['mode'] == 'guided' else ('touch: take it from the meter' if st['kind'] == 'measure'
+                                                                                            else 'the sheet (a meter confirms measure steps only)'),
                      'note': (answered or {}).get('note', '')})
     nxt = next((r for r in rows if r['verdict'] == 'pending'), None)
     if nxt is not None and s.get('resumed_at') and nxt['kind'] in ('measure', 'observe'):
@@ -157,3 +166,59 @@ def sheet(manager, session):
         summary[r['verdict']] = summary.get(r['verdict'], 0) + 1
     return {'session': session, 'unit': s['unit'], 'procedure': s['procedure'], 'mode': s['mode'], 'state': s['state'], 'rows': rows,
             'summary': summary, 'summary_rows': [{'verdict': k, 'steps': v} for k, v in sorted(summary.items())], 'next': nxt}
+
+
+def take(manager, session, step, body):
+    """msv-3 touch and confirm: the meter's own data answers a measure step."""
+    from instruments.custom import sigrok_reader as SG
+    s = _session(manager, session)
+    st = _step_of(manager, s, step)
+    if st['kind'] != 'measure':
+        raise R.ConfigRefused('only a measure step is confirmed by a meter; a %s step is answered on the sheet' % st['kind'])
+    p = R.get(manager, 'MeasurementPoint', st['point'])
+    if p is None:
+        raise R.ConfigRefused('the step\'s point %r is gone (derive the node\'s points again)' % st['point'], status=409)
+    if body.get('endpoint'):
+        ep = R.get(manager, 'InstrumentEndpoint', str(body['endpoint']))
+        if ep is None or ep.get('transport') != 'sigrok':
+            raise R.ConfigRefused('no sigrok endpoint %r (POST /api/instruments/endpoints with transport sigrok)' % body['endpoint'], status=404)
+        inst, source = ep['instrument'], 'sigrok %s on this node' % ep['resource']
+        try:
+            got = SG.read(ep['resource'])
+        except SG.SigrokRefused as e:
+            raise R.ConfigRefused(e.why, status=e.status)
+        verbatim = got['raw']
+        lines, why_none = got['raw'].splitlines(), ('sigrok-cli timed out after %ds' % SG.TAKE_TIMEOUT_S if got['timed_out'] else got.get('stderr') or 'no output')
+    else:
+        inst = str(body.get('instrument') or '')
+        try:
+            SG.driver_for(inst)
+        except SG.SigrokRefused as e:
+            raise R.ConfigRefused(e.why, status=e.status)
+        lines = [str(x) for x in (body.get('lines') or [])]
+        source, why_none = 'sigrok lines sent by a Bridge', 'the Bridge sent no line'
+        verbatim = '\n'.join(lines)
+    samples = [x for x in map(SG.parse_line, lines) if x]
+    ev = SG.evidence(verbatim)   # the sha256 of what sigrok printed, verbatim
+    who = str(body.get('who') or s['who'])
+    if not samples:
+        return dict(_mark(manager, s, st, 'no-data', who, {'note': 'NO DATA CAME THROUGH (%s): check the probe, the cable and the port - not the circuit' % why_none}),
+                    verdict='no-data')
+    want = p['si_unit']
+    right = [x for x in samples if x['unit'] == want and 'AC' not in x['flags']]
+    if not right:
+        seen = sorted({'%s%s' % (x['unit'], ' AC' if 'AC' in x['flags'] else '') for x in samples})
+        return dict(_mark(manager, s, st, 'wrong-mode', who, {'note': 'WRONG MODE: the meter reads %s; this step needs %s (%s)' % (', '.join(seen), p['quantity'], source)}),
+                    verdict='wrong-mode')
+    _b, _w, row = MR.band(manager, inst, p['quantity'], right[-1]['value'])
+    res = float(row['resolution']) if row else 0.0
+    value, win = SG.steady(right, res)
+    if value is None:
+        return dict(_mark(manager, s, st, 'not-steady', who, {'note': 'NOT STEADY: %s (%s)' % (win, source)}), verdict='not-steady')
+    out = MR.add_reading(manager, s['unit'], {'point': p['name'], 'value': '%.9g %s' % (value, want), 'via': 'usb-serial', 'instrument': inst, 'who': who,
+                                              'session': s['name'], 'step': st['name'], 'evidence_sha256': ev,
+                                              'note': '%s: %s' % (source, ' | '.join(x['raw'] for x in win))})
+    view = sheet(manager, session)
+    if view['next'] is None and s['state'] != 'done':
+        R.upsert(manager, 'TestSession', session, state='done')
+    return dict(out, verdict=next(r['verdict'] for r in view['rows'] if r['step'] == st['name']))

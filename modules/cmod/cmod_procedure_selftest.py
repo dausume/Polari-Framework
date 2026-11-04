@@ -209,7 +209,7 @@ def main():
     pdef = json.loads(HARDWARE_EVENTS_PAGES[0]['definition'])
     tab = next(t for t in pdef['tabs'] if t['key'] == 'sheet')
     ids = [it['id'] for row in tab['rows'] for it in row['items']]
-    ok = ids == ['he-proc-form', 'he-procs', 'he-session-form', 'he-sessions', 'he-step-picture', 'he-sheet', 'he-answer-form', 'he-resume-form', 'he-summary'] \
+    ok = ids == ['he-proc-form', 'he-procs', 'he-session-form', 'he-sessions', 'he-step-picture', 'he-sheet', 'he-answer-form', 'he-take-form', 'he-resume-form', 'he-summary'] \
         and tab['rows'][2]['cssClass'] == 'side-by-side' and tab['rows'][2]['items'][0]['componentProps']['componentName'] == 'api-svg-panel' \
         and [t['key'] for t in pdef['tabs']][-1] == 'sheet'
     check('the Hardware Events page has the Test sheet tab: generate, sessions, LEFT the picture (api-svg-panel) beside the sheet, answer, resume, summary', ok)
