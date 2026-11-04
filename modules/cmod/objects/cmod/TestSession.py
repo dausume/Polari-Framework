@@ -16,7 +16,7 @@ class TestSession(treeObject):
     plain_words = ('One sitting (or several) of someone testing one built device step by step.')
 
     @treeObjectInit
-    def __init__(self, name: str = '', unit: str = '', procedure: str = '', mode: str = 'guided', who: str = '', state: str = 'open', at: str = '', resumed_at: str = '', notes: str = '', manager=None):
+    def __init__(self, name: str = '', unit: str = '', procedure: str = '', mode: str = 'guided', who: str = '', state: str = 'open', at: str = '', resumed_at: str = '', notes: str = '', prime_window_s: float = -1.0, manager=None):
         self.name = name    # '<unit>-<procedure>-t<n>'
         self.unit = unit    # a BuiltUnit name
         self.procedure = procedure    # a TestProcedure name
@@ -26,3 +26,4 @@ class TestSession(treeObject):
         self.at = at
         self.resumed_at = resumed_at    # the last resume (the stimulus steps before it are asked again)
         self.notes = notes
+        self.prime_window_s = prime_window_s    # msv-3: how long a primed step waits for the meter; -1 = the knob (test_primes.PRIME_WINDOW_S)

@@ -23,6 +23,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 import types
 
 passed = total = 0
@@ -38,6 +39,10 @@ case "$FAKE_SIGROK_MODE" in
   jumpy) printf 'P1: 14.10 mA DC AUTO\nP1: 14.90 mA DC AUTO\nP1: 13.70 mA DC AUTO\nP1: 15.20 mA DC AUTO\n';;
   ohm) printf 'P1: 0.0215 kΩ AUTO\nP1: 0.0215 kΩ AUTO\nP1: 0.0215 kΩ AUTO\n';;
   demo) printf 'A0: -10.0000 V DC\nA0: -10.0000 V DC\nA0: -10.0000 V DC\n';;
+  zero) printf 'P1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\n';;
+  later) n=$(cat "$FAKE_SIGROK_COUNT" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$FAKE_SIGROK_COUNT"
+         if [ $n -le 2 ]; then printf 'P1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\nP1: 0.00 mA DC AUTO\n'; sleep 0.3
+         else printf 'P1: 14.58 mA DC AUTO\nP1: 14.61 mA DC AUTO\nP1: 14.61 mA DC AUTO\nP1: 14.61 mA DC AUTO\n'; fi;;
   *) printf 'P1: 14.50 mA DC AUTO\nP1: 14.62 mA DC AUTO\nP1: 14.62 mA DC AUTO\nP1: 14.62 mA DC AUTO\n';;
 esac
 '''
@@ -158,6 +163,79 @@ def main():
     d2 = c.simulate_post('/api/cmod/bench-topology/%s/sessions/%s/steps/%s/take' % (BS, s['name'], led), body=json.dumps({'endpoint': 'nope'}))
     check('the door: POST .../sessions/{s}/steps/{step}/take -> the judged reading; an unknown endpoint 404', d.status_code == 200 and d.json['verdict'] == 'pass'
           and d2.status_code == 404, (d.status_code, d.json))
+    # PRIMING (the user: two hands - prime the step, then probe; it waits a configurable window and confirms once the data comes)
+    from cmod.custom import test_primes as TPR
+
+    def wait(name, secs=12):
+        t0 = time.time()
+        while time.time() - t0 < secs and R.get(m, 'TestStepPrime', name)['state'] == 'armed':
+            time.sleep(0.1)
+        return R.get(m, 'TestStepPrime', name)
+
+    s2 = TS.start(m, unit, {'procedure': proc['name'], 'mode': 'touch', 'prime_window_s': '8'})
+    os.environ['FAKE_SIGROK_MODE'] = 'later'
+    os.environ['FAKE_SIGROK_COUNT'] = os.path.join(tmp, 'count')
+    pr = TPR.prime(m, s2['name'], led, {'endpoint': 'bench-meter'})
+    armed = next(x for x in TS.sheet(m, s2['name'])['rows'] if x['step'] == led)
+    check('PRIME: the step is armed with the SESSION\'s window (8 s), it says to probe now; the sheet shows it armed; a second prime in the session is refused (409)',
+          pr['state'] == 'armed' and pr['window_s'] == 8.0 and 'probe' in pr['note'] and armed['verdict'] == 'armed'
+          and _refused(lambda: TPR.prime(m, s2['name'], led, {'endpoint': 'bench-meter'})) == 409, (pr, armed['verdict']))
+    done = wait(pr['name'])
+    rd = R.get(m, 'MeasurementReading', done['reading']) if done['reading'] else {}
+    check('...the OPEN PROBE\'s steady 0 mA is not a confirmation (it kept waiting); once the probes touch, the meter settles at 14.61 mA: CONFIRMED by itself - the reading '
+          'via usb-serial, judged, the step passes', done['state'] == 'confirmed' and abs(float(rd.get('value', 0)) - 0.01461) < 1e-12 and rd.get('via') == 'usb-serial'
+          and int(open(os.environ['FAKE_SIGROK_COUNT']).read()) >= 3 and next(x for x in TS.sheet(m, s2['name'])['rows'] if x['step'] == led)['verdict'] == 'pass', (done, rd))
+    os.environ['FAKE_SIGROK_MODE'] = 'zero'
+    pz = TPR.prime(m, s2['name'], led, {'endpoint': 'bench-meter', 'window_s': 1.5})
+    dz = wait(pz['name'])
+    rz = R.get(m, 'MeasurementReading', dz['reading']) if dz['reading'] else {}
+    check('THE WINDOW ENDS on a steady 0 mA (an open joint reads like that): KEPT-LAST - the value is kept and judged UNEXPLAINED, never dropped; the prime\'s own '
+          'window (1.5 s) over the session\'s', dz['state'] == 'kept-last' and dz['window_s'] == 1.5 and rz.get('value') == 0.0
+          and next(x for x in TS.sheet(m, s2['name'])['rows'] if x['step'] == led)['verdict'] == 'unexplained', (dz, rz.get('value')))
+    os.environ['FAKE_SIGROK_MODE'] = 'none'
+    pn = TPR.prime(m, s2['name'], led, {'endpoint': 'bench-meter', 'window_s': 1.0})
+    dn = wait(pn['name'])
+    check('NOTHING CAME THROUGH in the window: NO DATA (the probe, the cable, the port), no reading kept, the sheet says no-data',
+          dn['state'] == 'no-data' and not dn['reading'] and 'not the circuit' in dn['note']
+          and next(x for x in TS.sheet(m, s2['name'])['rows'] if x['step'] == led)['verdict'] == 'no-data', dn)
+    pb = TPR.prime(m, s2['name'], led, {'instrument': 'tekpower-tp4000zc', 'window_s': 5})
+    TPR.feed(m, pb['name'], ['P1: 0.00 mA DC', 'P1: 0.00 mA DC', 'P1: 0.00 mA DC'])
+    mid = R.get(m, 'TestStepPrime', pb['name'])['state']
+    fb = TPR.feed(m, pb['name'], ['P1: 14.60 mA DC', 'P1: 14.60 mA DC', 'P1: 14.60 mA DC'])
+    check('THE BRIDGE primes the same way: its lines are fed in; the open probe\'s 0 keeps it armed, the settled 14.60 mA confirms it', mid == 'armed' and fb['state'] == 'confirmed', fb)
+    pc = TPR.prime(m, s2['name'], led, {'instrument': 'tekpower-tp4000zc', 'window_s': 0.2})
+    time.sleep(0.4)
+    gone = next(x for x in TPR.primes(m, s2['name']) if x['name'] == pc['name'])
+    TS.sheet(m, s2['name'])
+    check('a Bridge prime past its window with no lines is finished when the sheet is read: no-data', R.get(m, 'TestStepPrime', pc['name'])['state'] == 'no-data', gone)
+    # chain: a confirmation primes the next measure step with the same meter
+    s3 = TS.start(m, unit, {'procedure': proc['name'], 'mode': 'touch'})
+    measures = [x['name'] for x in rows if x['kind'] == 'measure' and x['node'] == NODE]
+    for x in rows:
+        if x['order'] < next(r['order'] for r in rows if r['name'] == measures[0]):
+            TS.answer(m, s3['name'], x['name'], {'outcome': 'beep' if x['expect'].startswith('BEEP') else 'no-beep'} if x['kind'] == 'continuity'
+                      else {'outcome': 'done'} if x['kind'] in ('setup', 'stimulus') else {'outcome': 'skipped'})
+    first = next(x for x in TS.sheet(m, s3['name'])['rows'] if x['verdict'] == 'pending')
+    TS.answer(m, s3['name'], first['step'], {'outcome': 'skipped'})
+    TS.answer(m, s3['name'], measures[1], {'outcome': 'skipped'})
+    TS.answer(m, s3['name'], measures[2], {'outcome': 'skipped'})
+    pch = TPR.prime(m, s3['name'], led, {'instrument': 'tekpower-tp4000zc', 'window_s': 5, 'chain': 'true'})
+    TPR.feed(m, pch['name'], ['P1: 14.60 mA DC'] * 3)
+    nxt = [x for x in TPR.primes(m, s3['name']) if x['state'] == 'armed']
+    check('CHAIN: the confirmation primes the NEXT pending measure step with the same meter and window (hands stay on the probes)',
+          len(nxt) == 1 and nxt[0]['step'] == measures[4] and nxt[0]['chain'] and nxt[0]['window_s'] == 5.0,
+          [(x['step'], x['state']) for x in TPR.primes(m, s3['name'])])
+    TPR.cancel(m, nxt[0]['name'])
+    check('cancel stops the wait; a non-measure step is not primed (422); the window is bounded (0 < s <= 600); "false" typed in the form is not true',
+          R.get(m, 'TestStepPrime', nxt[0]['name'])['state'] == 'cancelled' and _refused(lambda: TPR.prime(m, s3['name'], cont, {'instrument': 'tekpower-tp4000zc'})) == 422
+          and _refused(lambda: TPR.prime(m, s3['name'], led, {'instrument': 'tekpower-tp4000zc', 'window_s': 0})) == 422
+          and not TPR.prime(m, s3['name'], led, {'instrument': 'tekpower-tp4000zc', 'chain': 'false'})['chain'])
+    pd = c.simulate_post('/api/cmod/bench-topology/%s/sessions/%s/primes/%s/cancel' % (BS, s3['name'], [x for x in TPR.primes(m, s3['name']) if x['state'] == 'armed'][0]['name']), body='{}')
+    pp = c.simulate_post('/api/cmod/bench-topology/%s/sessions/%s/steps/%s/prime' % (BS, s3['name'], led), body=json.dumps({'instrument': 'tekpower-tp4000zc', 'window_s': 5}))
+    pl = c.simulate_post('/api/cmod/bench-topology/%s/sessions/%s/primes/%s/lines' % (BS, s3['name'], pp.json.get('name', 'x')), body=json.dumps({'lines': ['P1: 14.6 mA DC'] * 3}))
+    pg = c.simulate_get('/api/cmod/bench-topology/%s/sessions/%s/primes' % (BS, s3['name']))
+    check('the doors: cancel, prime, the Bridge\'s lines (confirmed), the list', pd.status_code == 200 and pp.status_code == 200 and pl.json.get('state') == 'confirmed'
+          and pg.status_code == 200 and len(pg.json['rows']) >= 4, (pd.status_code, pp.json, pl.json))
     if real:
         os.environ['SIGROK_CLI'] = real
         rr = SG.read('demo:samplerate=1000', samples=3)

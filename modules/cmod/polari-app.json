@@ -106,6 +106,7 @@
    "objects/cmod/TestProcedureStep",
    "objects/cmod/TestSession",
    "objects/cmod/TestStepMark",
+   "objects/cmod/TestStepPrime",
    "objects/cmod/DerivedOverride",
    "objects/cmod/FirmwareExport",
    "objects/cmod/FirmwareSolution",
@@ -257,6 +258,7 @@
    "custom/measure_bands",
    "custom/test_procedures",
    "custom/test_sessions",
+   "custom/test_primes",
    "custom/procedure_svg",
    "custom/confirmations",
    "custom/bench_topology_nocode",
@@ -483,7 +485,8 @@
   "TestProcedure",
   "TestProcedureStep",
   "TestSession",
-  "TestStepMark"
+  "TestStepMark",
+  "TestStepPrime"
  ],
  "imports": [
   [
@@ -568,6 +571,7 @@
     "TestProcedureStep",
     "TestSession",
     "TestStepMark",
+    "TestStepPrime",
     "HalVariableState",
     "PURPOSE_NODE_KIND_CLASSES",
     "MISSION_NODE_KIND_CLASSES",

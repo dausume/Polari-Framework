@@ -18,7 +18,8 @@ Step verdicts:
   over-range      measure again on a larger range
   done / skipped  a setup or stimulus step
   pending         not answered; ask-again = a stimulus done before the last resume, so the board may not be in the node's state any more
-  take(manager, session, step, body)         msv-3 TOUCH AND CONFIRM on a measure step: body {endpoint} (a sigrok InstrumentEndpoint on this node) or
+  (the hands-free way is to PRIME a step: cmod.custom.test_primes - it waits for the meter and confirms by itself)
+  take(manager, session, step, body)         msv-3 one immediate take on a measure step: body {endpoint} (a sigrok InstrumentEndpoint on this node) or
                                              {instrument, lines} (sigrok '-O analog' lines a Bridge read on the person's machine). The steady value becomes
                                              the reading (via usb-serial), and the lines' sha256 is its evidence. No line = NO DATA (the probe, the cable or
                                              the port - not the circuit); lines that never settle = NOT STEADY; the wrong unit or AC = WRONG MODE.
@@ -63,8 +64,12 @@ def start(manager, unit, body):
     note = ''
     if p['hex_sha256'] and u['hex_sha256'] and p['hex_sha256'] != u['hex_sha256']:
         note = 'the unit carries build %s.., the procedure is for %s..: its readings will be stale' % (u['hex_sha256'][:12], p['hex_sha256'][:12])
+    w = body.get('prime_window_s')
+    w = float(w) if w not in (None, '') else -1.0
+    if w != -1.0 and not 0 < w <= 600:
+        raise R.ConfigRefused('prime_window_s is 0 < seconds <= 600 (how long a primed step waits for the meter), not %r' % w)
     return R.upsert(manager, 'TestSession', '%s-%s-t%d' % (unit, p['name'], n), unit=unit, procedure=p['name'], mode=mode, who=str(body.get('who') or ''),
-                    state='open', at=_now(), notes=note)
+                    state='open', at=_now(), notes=note, prime_window_s=w)
 
 
 def sessions(manager, unit):
@@ -134,7 +139,10 @@ def _verdict(st, mark, reading):
 
 
 def sheet(manager, session):
+    from cmod.custom import test_primes as TPR
     s = _session(manager, session)
+    TPR.settle(manager, session)
+    prs = R.rows(manager, 'TestStepPrime', session=session)
     marks = R.rows(manager, 'TestStepMark', session=session)
     reads = [dict(r, **MR.judge(manager, r)) for r in R.rows(manager, 'MeasurementReading', session=session)]
     rows = []
@@ -142,13 +150,20 @@ def sheet(manager, session):
         mark = _latest([m for m in marks if m['step'] == st['name']])
         reading = _latest([r for r in reads if r['step'] == st['name']])
         v = _verdict(st, mark, reading)
+        pr = max((x for x in prs if x['step'] == st['name']), key=lambda x: x['armed_at'], default=None)
+        if pr is not None and pr['state'] == 'armed':
+            v = 'armed'   # primed: waiting for the meter
+        elif pr is not None and pr['state'] in _DEVICE and not (reading is not None and reading['at'] > pr['armed_at']) \
+                and not (mark is not None and mark['at'] > pr['armed_at']):
+            v = pr['state']
         answered = reading if (st['kind'] == 'measure' and reading is not None and v not in ('pending', 'skipped')) else mark
         rows.append({'order': int(st['order']), 'step': st['name'], 'kind': st['kind'], 'node': st['node'], 'words': st['words'], 'expect': st['expect'],
                      'mode': st['mode'], 'answer': (answered or {}).get('entered') or (answered or {}).get('outcome') or '', 'verdict': v,
                      'judged': reading['words'] if (reading is not None and st['kind'] == 'measure') else '', 'at': (answered or {}).get('at', ''),
-                     'ask_again': False, 'how': 'the sheet' if s['mode'] == 'guided' else ('touch: take it from the meter' if st['kind'] == 'measure'
+                     'ask_again': False, 'how': 'the sheet' if s['mode'] == 'guided' else ('touch: prime it, then probe - the meter confirms it' if st['kind'] == 'measure'
                                                                                             else 'the sheet (a meter confirms measure steps only)'),
-                     'note': (answered or {}).get('note', '')})
+                     'note': (answered or {}).get('note', '') or ((pr or {}).get('note', '') if pr is not None else ''),
+                     'primed': (pr or {}).get('state', '')})
     nxt = next((r for r in rows if r['verdict'] == 'pending'), None)
     if nxt is not None and s.get('resumed_at') and nxt['kind'] in ('measure', 'observe'):
         # put the board back in the node's state: the stimulus steps since the last RESET before the next step, done before the resume

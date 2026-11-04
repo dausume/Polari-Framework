@@ -79,3 +79,4 @@ from cmod.objects.cmod.TestProcedure import TestProcedure  # noqa: F401  (msv-0b
 from cmod.objects.cmod.TestProcedureStep import TestProcedureStep  # noqa: F401  (msv-0b)
 from cmod.objects.cmod.TestSession import TestSession  # noqa: F401  (msv-0b)
 from cmod.objects.cmod.TestStepMark import TestStepMark  # noqa: F401  (msv-0b)
+from cmod.objects.cmod.TestStepPrime import TestStepPrime  # noqa: F401  (msv-3)

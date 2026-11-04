@@ -24,6 +24,10 @@ GET  .../sessions/{session}/print                    the sheet for paper (HTML p
 GET  .../sessions/{session}/summary                  how many steps per verdict
 POST .../sessions/{session}/steps/{step}/take        msv-3 touch and confirm: {endpoint} (a sigrok endpoint on this node) or {instrument, lines}
                                                      (sigrok '-O analog' lines from a Bridge) -> the steady reading, or no-data / not-steady / wrong-mode
+POST .../sessions/{session}/steps/{step}/prime       PRIME a measure step (hands free): {endpoint | instrument, window_s?, chain?} -> it waits for the meter
+GET  .../sessions/{session}/primes                   the session's primed steps and how each ended
+POST .../sessions/{session}/primes/{prime}/lines     a Bridge's sigrok lines for a primed step {lines}
+POST .../sessions/{session}/primes/{prime}/cancel    stop waiting
 404 = no such node / unit / point / instrument / procedure / step / session; 409 = a node with no reached run (run it first), a unit of another
 Bench Solution; 422 = a value that is not a number in the point's unit, an answer a step does not take.
 """
@@ -36,6 +40,7 @@ from cmod.custom import config_rows as R
 from cmod.custom import measure_points as MP
 from cmod.custom import measure_readings as MR
 from cmod.custom import procedure_svg as SVG
+from cmod.custom import test_primes as TPR
 from cmod.custom import test_procedures as TP
 from cmod.custom import test_sessions as TS
 from cmod.custom.config_rows import ConfigRefused
@@ -80,6 +85,10 @@ class MeasureAPI(treeObject):
             add(b + '/sessions/{session}/print', self, suffix='print')
             add(b + '/sessions/{session}/summary', self, suffix='summary')
             add(b + '/sessions/{session}/steps/{step}/take', self, suffix='take')
+            add(b + '/sessions/{session}/steps/{step}/prime', self, suffix='prime')
+            add(b + '/sessions/{session}/primes', self, suffix='primes')
+            add(b + '/sessions/{session}/primes/{prime}/lines', self, suffix='prime_lines')
+            add(b + '/sessions/{session}/primes/{prime}/cancel', self, suffix='prime_cancel')
 
     def _do(self, response, fn, *args):
         try:
@@ -177,3 +186,24 @@ class MeasureAPI(treeObject):
     def on_post_take(self, request, response, bench_solution, session, step):
         body = _json(request)
         self._do(response, lambda m, s: TS.take(m, self._session_of(bench_solution, s), step, body), session)
+
+    def _prime_of(self, bs, session, prime):
+        self._session_of(bs, session)
+        p = R.get(self.manager, 'TestStepPrime', prime)
+        if p is None or p['session'] != session:
+            raise ConfigRefused('no primed step %r in session %s' % (prime, session), status=404)
+        return prime
+
+    def on_post_prime(self, request, response, bench_solution, session, step):
+        body = _json(request)
+        self._do(response, lambda m, s: TPR.prime(m, self._session_of(bench_solution, s), step, body), session)
+
+    def on_get_primes(self, request, response, bench_solution, session):
+        self._do(response, lambda m, s: (TS.sheet(m, self._session_of(bench_solution, s)), TPR.primes(m, s))[1], session)
+
+    def on_post_prime_lines(self, request, response, bench_solution, session, prime):
+        body = _json(request)
+        self._do(response, lambda m, p: TPR.feed(m, self._prime_of(bench_solution, session, p), body.get('lines') or []), prime)
+
+    def on_post_prime_cancel(self, request, response, bench_solution, session, prime):
+        self._do(response, lambda m, p: TPR.cancel(m, self._prime_of(bench_solution, session, p)), prime)

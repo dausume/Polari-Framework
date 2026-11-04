@@ -184,9 +184,13 @@ def _sheet_tab():
            'action': {'label': 'Answer', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}',
                       'body_template': {'value': '{value}', 'instrument': '{instrument}', 'outcome': '{outcome}', 'note': '{note}'}},
            'submit_label': 'Answer the chosen step', 'success_text': 'Kept - its verdict is on the sheet.'}
-    take = {'fields': [{'name': 'endpoint', 'label': 'Meter endpoint (a sigrok InstrumentEndpoint on this node, e.g. the TP4000ZC on its serial port)'}],
-            'action': {'label': 'Take', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}/take', 'body_template': {'endpoint': '{endpoint}'}},
-            'submit_label': 'Touch and confirm: take the chosen measure step from the meter', 'success_text': 'Taken - the meter\'s steady value is judged on the sheet.'}
+    prime = {'fields': [{'name': 'endpoint', 'label': 'Meter endpoint (a sigrok InstrumentEndpoint, e.g. the TP4000ZC on its serial port)'},
+                        {'name': 'window_s', 'label': 'Wait up to (seconds; blank = the session\'s, else 30)'},
+                        {'name': 'chain', 'label': 'Then prime the next measure step too? (true / blank)'}],
+             'action': {'label': 'Prime', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}/prime',
+                        'body_template': {'endpoint': '{endpoint}', 'window_s': '{window_s}', 'chain': '{chain}'}},
+             'submit_label': 'Prime the chosen measure step, then probe', 'success_text': 'Primed - probe the point (and press the button if the step says so); '
+                                                                                      'it confirms by itself once the meter settles.'}
     resume = {'fields': [], 'action': {'label': 'Resume', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/resume', 'body_template': {}},
               'submit_label': 'Resume the session (re-asks the presses that put the board back in its state)', 'success_text': 'Resumed.'}
     return _tab('sheet', 'Test sheet', [
@@ -212,11 +216,17 @@ def _sheet_tab():
              css_class='side-by-side'),
         _row(3, [_component('he-answer-form', 0, 4, 'Answer the chosen step', 'door-form', ans,
                             description='A measure step takes the value read; every other step takes its outcome.'),
-                 _component('he-take-form', 4, 3, 'Touch and confirm (a meter on sigrok)', 'door-form', take,
-                            description='Probe the point, then take: the meter\'s steady value is the reading. No data = the probe, cable or port; not steady = hold the probes still.'),
+                 _component('he-prime-form', 4, 3, 'Touch and confirm: prime, then probe (hands free)', 'door-form', prime,
+                            description='Prime first, then put both hands on the work: the step waits for the meter and confirms once its value settles where a correct build reads. '
+                                        'At the end of the window the last steady value is kept (a fault reads steady too); nothing at all = no data (the probe, cable or port).'),
                  _component('he-resume-form', 7, 2, 'Stopped and came back?', 'door-form', resume, description='Resume: the board may have lost its state.'),
                  _table('he-summary', 9, 3, 'Summary', '', columns='verdict,steps', data_path=_T + '/sessions/{scope:session}/summary?' + _REV,
-                        empty_text='')], min_height=220)],
+                        empty_text='')], min_height=220),
+        _row(4, [_table('he-primes', 0, 12, 'Primed steps - waiting for the meter, and how each ended', '',
+                        description='armed = waiting; confirmed = the meter settled where a correct build reads; kept-last = the window ended, the last steady value kept; '
+                                    'not-steady / wrong-mode / no-data = no reading kept, said why.',
+                        columns='step,state,window_s,armed_at,ends_at,lines_seen,reading,chain,note', data_path=_T + '/sessions/{scope:session}/primes?' + _REV,
+                        empty_text='Nothing primed in this session.')], min_height=180)],
         description='The generated step-by-step test of a built unit: the left pane shows where to test, the sheet on the right is judged as you fill it (msv-0b).')
 
 
