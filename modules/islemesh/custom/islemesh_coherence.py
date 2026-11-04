@@ -16,21 +16,18 @@ device; manipulation rides the same store/deploy machinery.
   - islemesh.islemesh_selftest (function-level)
 """
 
-from islemesh.islemesh_catalog import instances_of
+from islemesh.custom.islemesh_roles import component_roles, is_agent_health, polari_inventory
 from islemesh.custom.islemesh_netledger import assess_resources
 
-#: Polari's COMPONENT scaling shape (Dustin): one frontend, one sql,
-#: one cache per instance-group — but backends are the replicable
-#: part. Whole-stack duplication (polari-2) is the coarse form;
-#: component-level scaling is the real one (needs the shared-db
-#: profile + upstream LB — the recorded next arc).
+#: Frontend and backend providers scale independently across devices. The
+#: minimum deployment requires one of each; registration alone is not health.
 POLARI_COMPONENTS = {
-    'frontend': 'singleton',
+    'frontend': 'independently deployable; one or more per Isle',
     'sql': 'singleton',
     'cache': 'singleton',
     'blob': 'singleton',
     'auth': 'singleton',
-    'backend': 'replicable',
+    'backend': 'independently deployable; one or more per Isle',
 }
 
 
@@ -48,7 +45,8 @@ def assess_topology(devices, apps, services=None):
     Assessments SUGGEST (knobs-and-suggestions) — nothing here acts.
     """
     real_devices = [d for d in devices if not d.get('is_mock')]
-    real_apps = [a for a in apps if not a.get('is_mock')]
+    real_apps = [a for a in apps if not a.get('is_mock') and not is_agent_health(a, services or [])]
+    polari = polari_inventory(real_apps, services or [], real_devices)
     subs_by_app = {}
     for s in (services or []):
         if s.get('is_mock'):
@@ -73,7 +71,7 @@ def assess_topology(devices, apps, services=None):
         dom = a.get('domain', '')
         dev = a.get('device_name', '')
         parts = dom.split('.', 1)
-        if len(parts) == 2 and (dev, parts[1]) in owner_by_domain \
+        if not component_roles(a, services or []) and len(parts) == 2 and (dev, parts[1]) in owner_by_domain \
                 and parts[1] != dom:
             parent = owner_by_domain[(dev, parts[1])]
             subs_by_app.setdefault(
@@ -87,15 +85,9 @@ def assess_topology(devices, apps, services=None):
     for a in real_apps:
         by_device.setdefault(a.get('device_name', ''), []).append(a)
 
-    polari_instances = instances_of(real_apps, 'polari')
-    for i in polari_instances:
-        # THE CORE polari is self-evident from the isle side: the
-        # instance serving polari.isle — the isle's own polari, the
-        # ingest/self-feed target (we are combining the two systems).
-        i['role'] = ('core' if i.get('domain') == 'polari.isle'
-                     else 'additional')
-        i['subdomains'] = sorted(subs_by_app.get(
-            (i['app'], i['device']), []))
+    polari_instances = polari['instances']
+    for provider in polari_instances:
+        provider['subdomains'] = sorted(subs_by_app.get((provider['app'], provider['device']), []))
     polari_devices = {i['device'] for i in polari_instances}
 
     out_devices = []
@@ -146,11 +138,10 @@ def assess_topology(devices, apps, services=None):
     candidates = sorted(
         d['name'] for d in out_devices
         if d['agent_present'] and d['name'] not in polari_devices)
-    if not polari_instances:
+    if not polari['minimum_deployment_present']:
         assessments.append({
             'level': 'warn', 'code': 'no-polari',
-            'message': 'no polari instance runs on the isle — the '
-                       'store/topology pages have no backend'})
+            'message': polari['message']})
     if candidates:
         assessments.append({
             'level': 'info', 'code': 'polari-scale-candidates',
@@ -161,7 +152,7 @@ def assess_topology(devices, apps, services=None):
     # network resource conflicts (pools/ports) — the scale guard
     assessments.extend(assess_resources(real_devices))
 
-    core = [i for i in polari_instances if i['role'] == 'core']
+    core = [i for i in polari_instances if i['domain'] in ('polari.isle', 'api.polari.isle')]
     if polari_instances and not core:
         assessments.append({
             'level': 'warn', 'code': 'no-core-polari',
@@ -172,6 +163,7 @@ def assess_topology(devices, apps, services=None):
     return {
         'devices': out_devices,
         'polari': {
+            **polari,
             'instances': polari_instances,
             'core': (core[0] if core else None),
             'devices': sorted(polari_devices),
