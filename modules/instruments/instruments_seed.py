@@ -141,8 +141,42 @@ SEED_INSTRUMENTS = [
      'note': 'third vendor profile for the emulator; its preamble is the second adapter (osc-1); a DIALECT PROOF profile exists (emulated stays False: no model is claimed)'},
 ]
 
+# msv-0 / D-msv-2 (the user 2026-11-04: "I do not own any currently, just look into affordable commercial options as examples which are ideally American,
+# and if open source options exist do one of those as well"): EXAMPLE meters' cited accuracy lines, so a reading can be judged before a meter is bought.
+# A % of range term is written as counts x resolution (the band arithmetic is identical). No number is typed from memory.
+_EDU = ('Keysight EDU34450A data sheet, DC voltage + DC current accuracy tables (1 year, 23 C +/- 5 C, +/-(% of reading + % of range)), as transcribed '
+        'on the Valuetronics product page read 2026-11-04 (USD 1003) - check against Keysight\'s own PDF before a calibration claim')
+_F87 = ('Fluke 87V specification sheet, "Basic accuracy" column (read 2026-11-04): DC V 0.05 %, DC current 0.2 %; the ranges and resolutions from the same '
+        'table; the per-range digits term is NOT on the sheet - owed from the 87V user manual, so the line stays unread (-1)')
+
+
+def _acc(inst, fn, rng, pct, counts, res, cite, input_ohms=-1.0, burden=-1.0, notes=''):
+    return {'name': '%s-acc-%s-%g' % (inst, fn.replace(' ', '').lower(), rng), 'instrument': inst, 'function': fn, 'range_max': rng,
+            'pct_reading': pct, 'counts': counts, 'resolution': res, 'input_ohms': input_ohms, 'burden_v_per_a': burden, 'cite': cite, 'notes': notes}
+
+
+SEED_ACCURACY = [
+    # Keysight EDU34450A (5.5 digit bench DMM; USB + LAN, SCPI-1994.0 / IEEE-488.2 - the usb-scpi path of msv-3)
+    _acc('keysight-edu34450a', 'V dc', 0.1, 0.018, 8, 1e-6, _EDU, 10e6, notes='0.008 % of range = 8 x 1 uV; >10 GOhm input selectable'),
+    _acc('keysight-edu34450a', 'V dc', 1.0, 0.015, 5, 1e-5, _EDU, 10e6, notes='0.005 % of range = 5 x 10 uV; >10 GOhm input selectable'),
+    _acc('keysight-edu34450a', 'V dc', 10.0, 0.025, 5, 1e-4, _EDU, 10e6, notes='0.005 % of range = 5 x 100 uV'),
+    _acc('keysight-edu34450a', 'V dc', 100.0, 0.025, 5, 1e-3, _EDU, 10e6, notes='0.005 % of range = 5 x 1 mV'),
+    _acc('keysight-edu34450a', 'V dc', 1000.0, 0.027, 5, 1e-2, _EDU, 10e6, notes='0.005 % of range = 5 x 10 mV'),
+    _acc('keysight-edu34450a', 'I dc', 0.01, 0.10, 15, 1e-7, _EDU, burden=1.0, notes='0.015 % of range = 15 x 0.1 uA; 1 Ohm shunt, burden < 0.02 V'),
+    _acc('keysight-edu34450a', 'I dc', 0.1, 0.10, 7, 1e-6, _EDU, burden=1.0, notes='0.007 % of range = 7 x 1 uA; 1 Ohm shunt, burden < 0.2 V'),
+    _acc('keysight-edu34450a', 'I dc', 1.0, 0.30, 15, 1e-5, _EDU, burden=0.1, notes='0.015 % of range = 15 x 10 uA; 0.1 Ohm shunt, burden < 0.3 V'),
+    _acc('keysight-edu34450a', 'I dc', 3.0, 0.30, 21, 1e-5, _EDU, burden=0.1, notes='0.007 % of range = 21 x 10 uA (the display resolves 100 uA); 0.1 Ohm shunt, burden < 0.9 V'),
+    # Fluke 87V (handheld; no USB the IR189USB adapter is listed for - manual entry)
+] + [_acc('fluke-87v', 'V dc', r, -1.0, 0, res, _F87, notes='basic accuracy 0.05 % (best range); digits owed') for r, res in
+     ((0.6, 1e-4), (6.0, 1e-3), (60.0, 1e-2), (600.0, 1e-1), (1000.0, 1.0))
+] + [_acc('fluke-87v', 'I dc', r, -1.0, 0, res, _F87, notes='basic accuracy 0.2 % (best range); digits owed') for r, res in
+     ((600e-6, 1e-7), (6000e-6, 1e-6), (0.06, 1e-5), (0.6, 1e-4), (6.0, 1e-3), (10.0, 1e-2))]
+
+
 def _pairs():
     pairs = [('Instrument', Instrument, SEED_INSTRUMENTS)]
+    from instruments.objects.instruments.InstrumentAccuracy import InstrumentAccuracy
+    pairs.append(('InstrumentAccuracy', InstrumentAccuracy, SEED_ACCURACY))
     try:
         from polariApiServer.graphDefinition import GraphDefinition
         from instruments.instruments_page import SEED_INSTRUMENTS_GRAPHS

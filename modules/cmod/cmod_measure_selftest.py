@@ -120,6 +120,15 @@ def main():
     MR.add_unit(m, BS, {'name': unit, 'hex_sha256': 'b' * 64})
     r7 = MR.add_reading(m, unit, {'point': rail['name'], 'value': '4.99 V', 'instrument': 'fixture-dmm'})
     check('STALE: a reading on another build than the prediction says so', r7['stale'] and 'STALE' in r7['words'], r7['words'])
+    # the seeded EXAMPLE meters (D-msv-2: the user owns none yet)
+    from instruments.instruments_seed import SEED_ACCURACY
+    for a in SEED_ACCURACY:
+        R.upsert(m, 'InstrumentAccuracy', a['name'], **{k: v for k, v in a.items() if k != 'name'})
+    k = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.2 mA', 'instrument': 'keysight-edu34450a'})
+    check('EDU34450A example: 14.2 mA picks the 100 mA range (10 mA is too small), band 0.10 % + 7 x 1 uA = 21.2 uA - tight, so -0.5 mA is unexplained',
+          'on the 0.1 range' in k['words'] and abs(k['band'] - 21.2e-6) < 1e-12 and k['verdict'] == 'unexplained', k['words'])
+    f = MR.add_reading(m, unit, {'point': led['name'], 'value': '14.2 mA', 'instrument': 'fluke-87v'})
+    check('Fluke 87V example: the 60 mA line names the range but its digits are owed - unjudged, said', f['verdict'] == 'unjudged' and 'unread' in f['words'], f['words'])
 
     # the doors
     import falcon
