@@ -30,7 +30,7 @@ VIAS = ('manual', 'usb-scpi', 'usb-serial', 'lan-scpi')
 
 
 def _now():
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='microseconds')   # msv-0b: the same precision as a TestStepMark, so a reading and a mark compare in order
 
 
 def fmt(v, unit):

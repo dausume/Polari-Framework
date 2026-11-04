@@ -166,11 +166,60 @@ def _measured_tab():
         description='Real readings off a built unit against the simulation at a node: manual entry first (msv-0).')
 
 
+def _sheet_tab():
+    """msv-0b (MEASURED_VS_SIMULATED_PLAN.md section 5b): the GENERATED step-by-step test - LEFT where to test (drawn), RIGHT the sheet, judged as it is filled."""
+    gen = {'fields': [{'name': 'hex_sha256', 'label': 'Build it is for (hex sha256; blank = the build its runs used)'}],
+           'action': {'label': 'Generate', 'method': 'POST', 'path': _T + '/procedures', 'body_template': {'hex_sha256': '{hex_sha256}'},
+                      'then_scope': {'key': 'procedure', 'from': 'name'}},
+           'submit_label': 'Generate the procedure', 'success_text': 'Generated from the topology and the measurement points (unchanged = the one already frozen).'}
+    start = {'fields': [{'name': 'mode', 'label': 'guided (the sheet) | touch (a device confirms; needs msv-3 - falls back to the sheet)'},
+                        {'name': 'who', 'label': 'Who is testing'}],
+             'action': {'label': 'Start', 'method': 'POST', 'path': _T + '/units/{scope:unit}/sessions',
+                        'body_template': {'procedure': '{scope:procedure}', 'mode': '{mode}', 'who': '{who}'}, 'then_scope': {'key': 'session', 'from': 'name'}},
+             'submit_label': 'Start a session on the chosen unit', 'success_text': 'Started - the sheet is below.'}
+    ans = {'fields': [{'name': 'value', 'label': 'A measure step: the value read, with its unit (e.g. 4.97 V, 14.6 mA)'},
+                      {'name': 'instrument', 'label': 'Instrument (e.g. tekpower-tp4000zc)'},
+                      {'name': 'outcome', 'label': 'Any other step: done | skipped (setup, stimulus); beep | no-beep (continuity); yes | no (look)'},
+                      {'name': 'note', 'label': 'Note', 'type': 'textarea'}],
+           'action': {'label': 'Answer', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/steps/{scope:step}',
+                      'body_template': {'value': '{value}', 'instrument': '{instrument}', 'outcome': '{outcome}', 'note': '{note}'}},
+           'submit_label': 'Answer the chosen step', 'success_text': 'Kept - its verdict is on the sheet.'}
+    resume = {'fields': [], 'action': {'label': 'Resume', 'method': 'POST', 'path': _T + '/sessions/{scope:session}/resume', 'body_template': {}},
+              'submit_label': 'Resume the session (re-asks the presses that put the board back in its state)', 'success_text': 'Resumed.'}
+    return _tab('sheet', 'Test sheet', [
+        _row(0, [_component('he-proc-form', 0, 4, 'Generate the step-by-step test', 'door-form', gen,
+                            description='Worked out from the topology (the fastest path to every node), the bench circuit and the measurement points - never typed. '
+                                        'Power-off continuity checks first, then power on, then every node.'),
+                 _table('he-procs', 4, 8, 'Procedures - click one', '', description='One frozen procedure per build. owed = what could not be generated yet.',
+                        columns='name,hex_sha256,steps,owed,at', data_path=_T + '/procedures?' + _REV, empty_text='None yet: generate one.',
+                        select_field='name', select_scope='procedure', selected_value='{scope:procedure}')], min_height=200),
+        _row(1, [_component('he-session-form', 0, 4, 'Start a test session', 'door-form', start,
+                            description='Pick the built unit on the Measured tab and a procedure above, then start.'),
+                 _table('he-sessions', 4, 8, 'Sessions of the chosen unit - click one', '', columns='name,procedure,mode,who,state,at,resumed_at,notes',
+                        data_path=_T + '/units/{scope:unit}/sessions?' + _REV, empty_text='Pick a built unit on the Measured tab.',
+                        select_field='name', select_scope='session', selected_value='{scope:session}')], min_height=200),
+        _row(2, [_component('he-step-picture', 0, 6, 'Where to test', 'api-svg-panel',
+                            {'dataPath': _T + '/procedures/{scope:procedure}/steps/{scope:step}/picture?' + _REV, 'markersPath': ''},
+                            description='The board\'s headers and the bench circuit: the red probe ringed red, the black ringed black, the part to press or look at lit.'),
+                 _table('he-sheet', 6, 6, 'The sheet - click a step', '',
+                        description='One row per step, judged as it is filled: pass, fail, unexplained (a reading outside the band), unjudged, over-range, done, '
+                                    'skipped, pending; ask again = a press to repeat after a resume. The paper version: .../sessions/{session}/print.',
+                        columns='order,kind,words,expect,answer,verdict,ask_again,judged', data_path=_T + '/sessions/{scope:session}?' + _REV,
+                        empty_text='Start or pick a session above.', select_field='step', select_scope='step', selected_value='{scope:step}')], min_height=420,
+             css_class='side-by-side'),
+        _row(3, [_component('he-answer-form', 0, 6, 'Answer the chosen step', 'door-form', ans,
+                            description='A measure step takes the value read; every other step takes its outcome.'),
+                 _component('he-resume-form', 6, 3, 'Stopped and came back?', 'door-form', resume, description='Resume: the board may have lost its state.'),
+                 _table('he-summary', 9, 3, 'Summary', '', columns='verdict,steps', data_path=_T + '/sessions/{scope:session}/summary?' + _REV,
+                        empty_text='')], min_height=220)],
+        description='The generated step-by-step test of a built unit: the left pane shows where to test, the sheet on the right is judged as you fill it (msv-0b).')
+
+
 HARDWARE_EVENTS_PAGES = [
     _page('hardware-events', 'hardware-events',
           'A Bench Solution\'s Hardware Event topology: what was tested and what was not (first), the nodes and their confirmations, the events offered, every run, '
           'the firmware\'s claims exercised, the test profiles. Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/untested|nodes|events|runs|assertions|strip-rows], '
           '/api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles, /api/cmod/bench-topology/{bs}/canvas.',
-          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab(), _measured_tab()],
-          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition', 'unit', 'point']),
+          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab(), _measured_tab(), _sheet_tab()],
+          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition', 'unit', 'point', 'procedure', 'session', 'step']),
 ]

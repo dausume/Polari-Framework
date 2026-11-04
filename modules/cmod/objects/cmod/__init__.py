@@ -75,3 +75,7 @@ from cmod.objects.cmod.HardwareEventState import HardwareEventState  # noqa: F40
 from cmod.objects.cmod.BuiltUnit import BuiltUnit  # noqa: F401  (msv-0)
 from cmod.objects.cmod.MeasurementPoint import MeasurementPoint  # noqa: F401  (msv-0)
 from cmod.objects.cmod.MeasurementReading import MeasurementReading  # noqa: F401  (msv-0)
+from cmod.objects.cmod.TestProcedure import TestProcedure  # noqa: F401  (msv-0b)
+from cmod.objects.cmod.TestProcedureStep import TestProcedureStep  # noqa: F401  (msv-0b)
+from cmod.objects.cmod.TestSession import TestSession  # noqa: F401  (msv-0b)
+from cmod.objects.cmod.TestStepMark import TestStepMark  # noqa: F401  (msv-0b)

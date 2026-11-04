@@ -18,7 +18,8 @@ from cmod.objects.cmod import (CProject, CModule, CFunctionAtom, CPort, CGraph, 
                                StructNodeRun, StructNodeRunEdge, StructNodeRunSignal,
                                StructNodeConfirmation, StructEdgeCheck, TestProfile, TestProfileItem,
                                StructNodeState, HardwareEventState,
-                               BuiltUnit, MeasurementPoint, MeasurementReading)
+                               BuiltUnit, MeasurementPoint, MeasurementReading,
+                               TestProcedure, TestProcedureStep, TestSession, TestStepMark)
 
 #: every row class of the module, in registration order (cmod-0: the atoms; cmod-1: graphs over them + the generated glue;
 #: demo-4: target/capability definitions derived over a graph's nodes/ports; fs-0: a FirmwareSolution over a graph + a
@@ -55,7 +56,7 @@ CMOD_CLASSES = [CProject, CModule, CFunctionAtom, CPort, CGraph, CGraphNode, CGr
                 StructNodeRun, StructNodeRunEdge, StructNodeRunSignal,
                 StructNodeConfirmation, StructEdgeCheck, TestProfile, TestProfileItem,
                 StructNodeState, HardwareEventState,
-                BuiltUnit, MeasurementPoint, MeasurementReading]   # bss-1: the Hardware Event topology; bss-2: its runs; bss-3: confirmations, checks, profiles; bss-5: the canvas node kinds
+                BuiltUnit, MeasurementPoint, MeasurementReading, TestProcedure, TestProcedureStep, TestSession, TestStepMark]   # bss-1: the Hardware Event topology; bss-2: its runs; bss-3: confirmations, checks, profiles; bss-5: the canvas node kinds
 
 #: the eleven Purpose node kinds (the canvas palette learns them as data via /stateSpaceClasses)
 #: bss-5: the Bench Topology drawing's two node kinds (struct-node, hardware-event; cmod.custom.bench_topology_nocode)
