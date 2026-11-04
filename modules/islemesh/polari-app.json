@@ -20,6 +20,7 @@
       "polari-instance"
     ],
     "agentTier": "core",
+    "realization": "",
     "category": "polari",
     "subcategories": [
       "platform-operations",
@@ -67,15 +68,25 @@
       "islemesh_catalog"
     ],
     "selftests": [
+      "islemesh_capabilities_selftest",
+      "islemesh_component_roles_selftest",
+      "islemesh_plan_library_usage_selftest",
+      "islemesh_planning_selftest",
       "islemesh_selftest"
     ],
     "custom": [
+      "custom/islemesh_capabilities",
       "custom/islemesh_coherence",
       "custom/islemesh_constants",
       "custom/islemesh_engines",
       "custom/islemesh_mock",
       "custom/islemesh_netledger",
-      "custom/islemesh_parse"
+      "custom/islemesh_parse",
+      "custom/islemesh_plan_safety",
+      "custom/islemesh_planning",
+      "custom/islemesh_roles",
+      "custom/islemesh_test_requirements",
+      "custom/islemesh_usage"
     ]
   },
   "classes": [
@@ -126,6 +137,10 @@
   "derivedSeeds": false,
   "initialData": false,
   "selftests": [
+    "islemesh_capabilities_selftest",
+    "islemesh_component_roles_selftest",
+    "islemesh_plan_library_usage_selftest",
+    "islemesh_planning_selftest",
     "islemesh_selftest"
   ],
   "security": {
