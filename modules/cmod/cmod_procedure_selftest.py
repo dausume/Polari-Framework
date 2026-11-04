@@ -211,7 +211,7 @@ def main():
     ids = [it['id'] for row in tab['rows'] for it in row['items']]
     ok = ids == ['he-proc-form', 'he-procs', 'he-session-form', 'he-sessions', 'he-step-picture', 'he-sheet', 'he-answer-form', 'he-prime-form', 'he-resume-form', 'he-summary', 'he-primes'] \
         and tab['rows'][2]['cssClass'] == 'side-by-side' and tab['rows'][2]['items'][0]['componentProps']['componentName'] == 'api-svg-panel' \
-        and [t['key'] for t in pdef['tabs']][-1] == 'sheet'
+        and [t['key'] for t in pdef['tabs']][-2:] == ['sheet', 'rulings']
     check('the Hardware Events page has the Test sheet tab: generate, sessions, LEFT the picture (api-svg-panel) beside the sheet, answer, resume, summary', ok)
 
 

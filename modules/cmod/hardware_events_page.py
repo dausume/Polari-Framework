@@ -13,9 +13,12 @@ scope the tables below read.
   Assertions  the firmware's own claims (Catom assertions): exercised by a run that met its node, or not, and how
   Profiles    the manual test profiles and their items
   Measured    msv-0: built units, a node's measurement points (derived), manual readings judged against the prediction
+  Test sheet  msv-0b: the generated step-by-step test (where to test on the left, the sheet on the right), priming
+  Rulings     msv-2: what waits for a person, the fault ranking, rulings and rework (cmod.custom.rulings_tab)
 Linkable: /display/hardware-events?bench_solution=uno-light-on-desk&node=... (scope_query). Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/...],
 /api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles.
 """
+from cmod.custom.rulings_tab import rulings_tab
 from polariApiServer.module_pages_seed import _component, _page, _row, _table, _tab
 
 _BS = '{scope:bench_solution}'
@@ -160,9 +163,9 @@ def _measured_tab():
                  _table('he-readings', 4, 8, 'Readings of the chosen unit, judged', '',
                         description='Every reading of the unit, newest first: in-band (matches the simulation within the instrument), in-tolerance (off the nominal but inside what the parts allow: tol_lo..tol_hi), unexplained (needs a person\'s look), '
                                     'unjudged (the instrument\'s accuracy is not cited yet), over-range; stale = read on another build than the prediction. current = '
-                                    'the newest reading of its point.',
-                        columns='point,entered,verdict,expected,delta,band,tol_lo,tol_hi,loading,current,stale,instrument,via,who,at,words', data_path=_T + '/units/{scope:unit}/readings?' + _REV,
-                        empty_text='Pick a built unit above.')], min_height=300)],
+                                    'the newest reading of its point. standing (msv-2) = counts, accepted, needs-ruling, mistake-open / closed, re-measure; click one to rule on it (the Rulings tab).',
+                        columns='point,entered,verdict,standing,counts,expected,delta,band,tol_lo,tol_hi,loading,current,stale,instrument,via,who,at,words', data_path=_T + '/units/{scope:unit}/readings?' + _REV,
+                        empty_text='Pick a built unit above.', select_field='name', select_scope='reading', selected_value='{scope:reading}')], min_height=300)],
         description='Real readings off a built unit against the simulation at a node: manual entry first (msv-0).')
 
 
@@ -235,6 +238,6 @@ HARDWARE_EVENTS_PAGES = [
           'A Bench Solution\'s Hardware Event topology: what was tested and what was not (first), the nodes and their confirmations, the events offered, every run, '
           'the firmware\'s claims exercised, the test profiles. Doors: /api/board/bench-solutions, /api/cmod/bench-topology/{bs}/coverage[/untested|nodes|events|runs|assertions|strip-rows], '
           '/api/cmod/bench-topology/{bs}/nodes/{slug}/runs|confirmations, /api/cmod/bench-topology/{bs}/profiles, /api/cmod/bench-topology/{bs}/canvas.',
-          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab(), _measured_tab(), _sheet_tab()],
-          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition', 'unit', 'point', 'procedure', 'session', 'step']),
+          'BenchSolution', [_picker_row()], title='Hardware events', tabs=[_overview_tab(), _nodes_tab(), _events_tab(), _runs_tab(), _assertions_tab(), _profiles_tab(), _measured_tab(), _sheet_tab(), rulings_tab()],
+          scope_query=['bench_solution', 'node', 'node_slug', 'run', 'acquisition', 'unit', 'point', 'procedure', 'session', 'step', 'reading', 'ruling']),
 ]

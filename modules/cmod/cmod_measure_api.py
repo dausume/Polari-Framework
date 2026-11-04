@@ -28,6 +28,12 @@ POST .../sessions/{session}/steps/{step}/prime       PRIME a measure step (hands
 GET  .../sessions/{session}/primes                   the session's primed steps and how each ended
 POST .../sessions/{session}/primes/{prime}/lines     a Bridge's sigrok lines for a primed step {lines}
 POST .../sessions/{session}/primes/{prime}/cancel    stop waiting
+msv-2 (the rulings and the fault ranking):
+GET  .../units/{unit}/rulings              the unit's VarianceRulings with their state;  POST {reading, ruling, words, who, cause?, scope?, evidence_sha256?}
+POST .../units/{unit}/rulings/rework       {ruling, words, who}: what was done to fix a mistake (it does not close it - an in-band re-read does)
+GET  .../units/{unit}/ruling-queue         the readings waiting for a person (rows), the open mistakes and the fault ranking
+GET  .../units/{unit}/fault-ranking        which build fault best explains the unit's readings (rows), and the point to measure next
+GET  .../units/{unit}/fault-ranking/summary   the same in words, as rows (what ranks first, what to measure next, what was left out)
 404 = no such node / unit / point / instrument / procedure / step / session; 409 = a node with no reached run (run it first), a unit of another
 Bench Solution; 422 = a value that is not a number in the point's unit, an answer a step does not take.
 """
@@ -37,12 +43,14 @@ import falcon
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from cmod.custom import config_rows as R
+from cmod.custom import fault_signatures as FS
 from cmod.custom import measure_points as MP
 from cmod.custom import measure_readings as MR
 from cmod.custom import procedure_svg as SVG
 from cmod.custom import test_primes as TPR
 from cmod.custom import test_procedures as TP
 from cmod.custom import test_sessions as TS
+from cmod.custom import variance_rulings as VR
 from cmod.custom.config_rows import ConfigRefused
 
 _STATUS = {404: falcon.HTTP_404, 409: falcon.HTTP_409, 422: falcon.HTTP_422}
@@ -89,6 +97,11 @@ class MeasureAPI(treeObject):
             add(b + '/sessions/{session}/primes', self, suffix='primes')
             add(b + '/sessions/{session}/primes/{prime}/lines', self, suffix='prime_lines')
             add(b + '/sessions/{session}/primes/{prime}/cancel', self, suffix='prime_cancel')
+            add(b + '/units/{unit}/rulings', self, suffix='rulings')
+            add(b + '/units/{unit}/rulings/rework', self, suffix='rework')
+            add(b + '/units/{unit}/ruling-queue', self, suffix='queue')
+            add(b + '/units/{unit}/fault-ranking', self, suffix='ranking')
+            add(b + '/units/{unit}/fault-ranking/summary', self, suffix='ranking_summary')
 
     def _do(self, response, fn, *args):
         try:
@@ -207,3 +220,28 @@ class MeasureAPI(treeObject):
 
     def on_post_prime_cancel(self, request, response, bench_solution, session, prime):
         self._do(response, lambda m, p: TPR.cancel(m, self._prime_of(bench_solution, session, p)), prime)
+
+    # msv-2: the rulings and the fault ranking
+    def on_get_rulings(self, request, response, bench_solution, unit):
+        self._do(response, lambda m, u: VR.rulings(m, _unit_of(m, bench_solution, u)), unit)
+
+    def on_post_rulings(self, request, response, bench_solution, unit):
+        body = _json(request)
+        self._do(response, lambda m, u: VR.rule(m, _unit_of(m, bench_solution, u), body), unit)
+
+    def on_post_rework(self, request, response, bench_solution, unit):
+        body = _json(request)
+        self._do(response, lambda m, u: VR.rework(m, _unit_of(m, bench_solution, u), body), unit)
+
+    def on_get_queue(self, request, response, bench_solution, unit):
+        self._do(response, lambda m, u: (lambda q: dict(q, rows=q['waiting']))(VR.queue(m, _unit_of(m, bench_solution, u))), unit)
+
+    def on_get_ranking(self, request, response, bench_solution, unit):
+        self._do(response, lambda m, u: (lambda g: dict(g, rows=g['ranked']))(FS.rank(m, _unit_of(m, bench_solution, u))), unit)
+
+    def on_get_ranking_summary(self, request, response, bench_solution, unit):
+        def go(m, u):
+            g = FS.rank(m, _unit_of(m, bench_solution, u))
+            return [{'words': g['words']}] + ([{'words': 'next: ' + g['next']['words']}] if g['next'] else []) + \
+                [{'words': 'left out: ' + w} for w in g['skipped']] + [{'words': 'basis: ' + g['basis']}]
+        self._do(response, go, unit)

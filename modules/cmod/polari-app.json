@@ -107,6 +107,8 @@
    "objects/cmod/TestSession",
    "objects/cmod/TestStepMark",
    "objects/cmod/TestStepPrime",
+   "objects/cmod/VarianceRuling",
+   "objects/cmod/VarianceRulingRework",
    "objects/cmod/DerivedOverride",
    "objects/cmod/FirmwareExport",
    "objects/cmod/FirmwareSolution",
@@ -210,6 +212,7 @@
    "cmod_procedure_selftest",
    "cmod_bands_selftest",
    "cmod_sigrok_selftest",
+   "cmod_rulings_selftest",
    "cmod_command_edge_selftest",
    "cmod_catom_hal_nocode_selftest",
    "cmod_catom_variables_selftest",
@@ -259,6 +262,9 @@
    "custom/test_procedures",
    "custom/test_sessions",
    "custom/test_primes",
+   "custom/fault_signatures",
+   "custom/variance_rulings",
+   "custom/rulings_tab",
    "custom/procedure_svg",
    "custom/confirmations",
    "custom/bench_topology_nocode",
@@ -486,7 +492,9 @@
   "TestProcedureStep",
   "TestSession",
   "TestStepMark",
-  "TestStepPrime"
+  "TestStepPrime",
+  "VarianceRuling",
+  "VarianceRulingRework"
  ],
  "imports": [
   [
@@ -572,6 +580,8 @@
     "TestSession",
     "TestStepMark",
     "TestStepPrime",
+    "VarianceRuling",
+    "VarianceRulingRework",
     "HalVariableState",
     "PURPOSE_NODE_KIND_CLASSES",
     "MISSION_NODE_KIND_CLASSES",

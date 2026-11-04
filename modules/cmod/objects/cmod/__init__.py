@@ -80,3 +80,5 @@ from cmod.objects.cmod.TestProcedureStep import TestProcedureStep  # noqa: F401 
 from cmod.objects.cmod.TestSession import TestSession  # noqa: F401  (msv-0b)
 from cmod.objects.cmod.TestStepMark import TestStepMark  # noqa: F401  (msv-0b)
 from cmod.objects.cmod.TestStepPrime import TestStepPrime  # noqa: F401  (msv-3)
+from cmod.objects.cmod.VarianceRuling import VarianceRuling  # noqa: F401  (msv-2)
+from cmod.objects.cmod.VarianceRulingRework import VarianceRulingRework  # noqa: F401  (msv-2)

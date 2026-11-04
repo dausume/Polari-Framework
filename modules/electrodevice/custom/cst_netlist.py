@@ -25,6 +25,8 @@ from electrodevice.custom.spice_run import LED_MODEL, capability
 
 VCC = 5.0
 PULLUP_OHMS = (20000, 50000)   # ATmega328P RPU 20..50 kΩ (DS40002061B Table 30-1, p.323)
+OPEN_OHMS = 1e9                # msv-2 KNOB: an open joint (the plan's 1 GΩ; the same order as SWITCH_OPEN_OHMS)
+BRIDGE_OHMS = 0.1              # msv-2 KNOB: a solder bridge / a stray strand (the plan's 0.1 Ω)
 
 
 def _ref(prefix, name):
@@ -50,7 +52,11 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
 
     msv-1 `vary` (None = the nominal deck, unchanged): {'vcc': V, 'r_scale': {resistor: factor}, 'r_out_high': ohm, 'r_out_low': ohm (a driven pin's
     output resistance), 'led_dv': {led: V (its forward voltage moved)}, 'meter_v': (net, ohm) (a voltmeter's input to GND), 'meter_i': (part, ohm) (an
-    ammeter's burden in series with the part)} - the tolerance corners and the meter's loading (cmod.custom.measure_bands)."""
+    ammeter's burden in series with the part)} - the tolerance corners and the meter's loading (cmod.custom.measure_bands).
+
+    msv-2 build faults (cmod.custom.fault_signatures), also in `vary`: 'open_leg': (part, leg index) (that leg's joint OPEN_OHMS to its net),
+    'open_pin': pin (the header joint OPEN_OHMS), 'bridges': [(net, net)] (BRIDGE_OHMS between them), 'reverse': part (a polarised part turned round).
+    A wrong value is r_scale."""
     v = vary or {}
     vcc = float(v.get('vcc', VCC))
     lines = ['* cst-1: .op of circuit %s in state %s (config %s) — built from the CircuitComponentDefinition / CircuitNetDefinition / BoardPinNet rows; edit the rows, not this file'
@@ -62,7 +68,14 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
     need_gnd = False
     nets_driven = set()
     for name, comp in cat['components'].items():
-        kind, nets = comp['kind'], comp['nets']
+        kind, nets = comp['kind'], list(comp['nets'])
+        ol = v.get('open_leg')
+        if ol and ol[0] == name and ol[1] < len(nets):   # msv-2: that leg's joint is open
+            lines.append('Ropen_%s n_%s_open %s %g ; FAULT: %s\'s %s leg open' % (_node(name), _node(name), nets[ol[1]], OPEN_OHMS, name, nets[ol[1]]))
+            nets[ol[1]] = 'n_%s_open' % _node(name)
+        if v.get('reverse') == name and kind in ('led', 'diode') and len(nets) > 1:
+            lines.append('* FAULT: %s turned round' % name)
+            nets = [nets[1], nets[0]]
         row = next((c for c in _components(cat) if c['name'] == name), None)
         params = json.loads((row or {}).get('params_json') or '{}')
         if kind == 'switch':
@@ -94,6 +107,9 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
     for pin, d in cat['pins'].items():
         mode = state['modes'].get(pin, d['at_init'])
         net = d['net']
+        if v.get('open_pin') == pin:   # msv-2: the header joint is open
+            lines.append('Ropen_%s n_%s_open %s %g ; FAULT: %s\'s joint to %s open' % (pin, pin, net, OPEN_OHMS, pin, net))
+            net = 'n_%s_open' % pin
         if mode in ('driven-high', 'driven-low'):
             rout = v.get('r_out_high' if mode == 'driven-high' else 'r_out_low', 0)
             src = 'n_%s_src' % pin if rout else 'n_%s' % pin
@@ -119,6 +135,10 @@ def deck(state, cat, pullup_ohms=PULLUP_OHMS[0], vary=None):
     for n in cat['nets'].values():
         if n['net'] != 'GND':
             probes.append('v(%s)' % n['net'])
+    for i, (a, b) in enumerate(v.get('bridges') or ()):
+        lines.append('Rbridge_%d %s %s %g ; FAULT: %s bridged to %s' % (i, a, b, BRIDGE_OHMS, a, b))
+        if a in nets_driven or b in nets_driven or a == 'GND' or b == 'GND':
+            nets_driven |= {a, b}
     mv = v.get('meter_v')
     if mv:   # msv-1: the voltmeter's input resistance from the probed net to GND
         lines.append('Rmeter_v %s 0 %g ; the meter\'s input resistance' % (mv[0], mv[1]))

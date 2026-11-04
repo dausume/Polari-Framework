@@ -16,12 +16,13 @@ class BuiltUnit(treeObject):
     plain_words = ('One real copy of a bench design that someone built by hand, and which firmware build is on it; its measurements are kept separately and point at it.')
 
     @treeObjectInit
-    def __init__(self, name: str = '', bench_solution: str = '', hex_sha256: str = '', layout: str = '', build_method: str = 'breadboard', built_by: str = '', notes: str = '', at: str = '', manager=None):
+    def __init__(self, name: str = '', bench_solution: str = '', hex_sha256: str = '', layout: str = '', build_method: str = 'breadboard', built_by: str = '', part_lot: str = '', notes: str = '', at: str = '', manager=None):
         self.name = name    # '<bench solution>-unit-<n>' (generic; never a real serial or a person's name in tracked seeds)
         self.bench_solution = bench_solution    # a BenchSolution name
         self.hex_sha256 = hex_sha256    # the build flashed on it (a reading on another build is said to be stale)
         self.layout = layout    # the layout / breadboard plan it was built from, when one exists
         self.build_method = build_method    # breadboard | perfboard | wire-wrap | pcb | other
         self.built_by = built_by    # who built it
+        self.part_lot = part_lot    # msv-2: the part lot its parts came from (a kit's batch) - an accepted variance may be scoped to a lot (D-msv-3)
         self.notes = notes
         self.at = at

@@ -4,14 +4,14 @@
 msv-0 (AI-Notes/plans/MEASURED_VS_SIMULATED_PLAN.md sections 2-4): BUILT UNITS, REAL READINGS, AND THEIR JUDGEMENT. A reading is kept as entered (never
 edited; a later one of the same point supersedes it); whether it matches the simulation is DERIVED on read:
 
-  add_unit(manager, bs, body)          body {name?, hex_sha256?, build_method?, built_by?, layout?, notes?} -> the BuiltUnit ('<bs>-unit-<n>' when unnamed)
+  add_unit(manager, bs, body)          body {name?, hex_sha256?, build_method?, built_by?, part_lot?, layout?, notes?} -> the BuiltUnit ('<bs>-unit-<n>' when unnamed)
   units(manager, bs)                   the Bench Solution's units
   add_reading(manager, unit, body)     body {point, value, unit?: V|mV|uV|A|mA|uA, via?: manual, instrument?, range_max?, who?, note?, evidence_sha256?}
                                        -> the reading + its judgement; the quantity's unit must match the point's (V vs A)
   readings(manager, unit)              every reading of the unit, judged, newest first; `current` = the newest of its point
   judge(manager, reading)              -> {nominal, delta, delta_pct, band, band_words, verdict, words}
 
-Verdicts (msv-0: the instrument band; msv-1: the tolerance band and the meter's loading; msv-2 adds the rulings):
+Verdicts (msv-0: the instrument band; msv-1: the tolerance band and the meter's loading; msv-2 adds the rulings - cmod.custom.variance_rulings, a reading's standing beside its verdict):
   in-band       |reading - expected| <= the instrument's cited accuracy at the range used (pct of reading + counts x resolution); expected = the nominal
                 plus the meter's own loading (its cited input resistance / burden in the deck)
   in-tolerance  off the nominal but inside the point's tolerance band (the parts' worst-case corners, cmod.custom.measure_bands), widened by the
@@ -55,7 +55,8 @@ def add_unit(manager, bs, body):
     if old is not None and old['bench_solution'] != bs:
         raise R.ConfigRefused('unit %s belongs to %s' % (name, old['bench_solution']), status=409)
     return R.upsert(manager, 'BuiltUnit', name, bench_solution=bs, hex_sha256=str(body.get('hex_sha256') or (old or {}).get('hex_sha256') or ''),
-                    layout=str(body.get('layout') or ''), build_method=method, built_by=str(body.get('built_by') or ''), notes=str(body.get('notes') or ''),
+                    layout=str(body.get('layout') or ''), build_method=method, built_by=str(body.get('built_by') or ''),
+                    part_lot=str(body.get('part_lot') or (old or {}).get('part_lot') or ''), notes=str(body.get('notes') or ''),
                     at=(old or {}).get('at') or _now())
 
 
@@ -215,7 +216,8 @@ def judge(manager, reading):
             'verdict': verdict, 'stale': stale, 'words': words, 'quantity': p.get('quantity', ''), 'node': p.get('node', ''), 'where': p.get('where', '')}
 
 
-def readings(manager, unit):
+def readings(manager, unit, standing=True):
+    """msv-2: each reading also carries its standing (cmod.custom.variance_rulings): counts | accepted | needs-ruling | mistake-open | ..."""
     if R.get(manager, 'BuiltUnit', unit) is None:
         raise R.ConfigRefused('no built unit %r' % unit, status=404)
     rows = sorted(R.rows(manager, 'MeasurementReading', unit=unit), key=lambda r: (r['at'], len(r['name']), r['name']), reverse=True)
@@ -223,4 +225,8 @@ def readings(manager, unit):
     for r in rows:
         out.append(dict(r, current=r['point'] not in seen, **judge(manager, r)))
         seen.add(r['point'])
+    if standing:
+        from cmod.custom import variance_rulings as VR
+        for r in out:
+            r.update(VR.standing(manager, r, r))
     return out
