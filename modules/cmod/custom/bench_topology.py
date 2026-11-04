@@ -78,10 +78,12 @@ def define(manager, bs, slug, title, from_node, edge_kind='trigger', event='', r
                 derived += [dict(kind='pin-level', signal=p.strip(), engine='twin', bound='', source='derived', notes='from %s' % a['name']) for p in a.get('pins', '').split(',') if p.strip()]
             if a['kind'] == 'sends-to-bridge' and a.get('bridge'):
                 derived.append(dict(kind='frame', signal=a['bridge'], engine='twin', bound='', source='derived', notes='from %s' % a['name']))
+    derived.append(dict(kind='electrical', signal='circuit', engine='ngspice-op', bound='', source='derived',   # bss-12: EVERY node gets the circuit judged
+                        notes='the bench circuit in the state this node leaves it, judged against the chip\'s cited limits (cmod.custom.node_electrical over electrodevice cst)'))
     rows = list(collaterals) + [d for d in derived if not any(c.get('kind') == d['kind'] and c.get('signal') == d['signal'] for c in collaterals)]
     for c in rows:
         R.upsert(manager, 'StructNodeCollateral', '%s:%s:%s' % (node, c['kind'], c['signal']), node=node, **{k: v for k, v in c.items() if k != 'name'})
-    R.upsert(manager, 'StructNode', node, collaterals=('declared' if collaterals else 'derived') if rows else 'none')
+    R.upsert(manager, 'StructNode', node, collaterals='declared' if collaterals else 'derived')
     _edge(manager, bs, from_node, node, edge_kind, event=event if edge_kind == 'trigger' else '',
           title=(R.get(manager, 'HardwareEvent', event) or {}).get('title', '') if edge_kind == 'trigger' else edge_kind)
     all_paths(manager, bs)

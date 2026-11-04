@@ -141,7 +141,7 @@ def main():
     check('THE UNTESTED LIST names exactly the finding\'s consequences: the long-press node\'s collateral unmeasured (it diverged) and the proposed node not yet accepted; '
           'nothing else - every other node confirmed by every path, every event used (the release and idle now USED by hold edges, so no longer inert), every assertion '
           'exercised, the chain nodes crossed',
-          ra['untested'] == ['%s:on-by-long-press: collaterals measured 0 / 1' % BS, '%s:proposed-1: proposed from a divergence, not yet accepted or discarded' % BS], ra['untested'])
+          ra['untested'] == ['%s:on-by-long-press: collaterals measured 0 / 2' % BS, '%s:proposed-1: proposed from a divergence, not yet accepted or discarded' % BS], ra['untested'])
     strip = COV.strip(m, BS)
     check('THE STRIP: 10 state nodes + flashed + boot confirmed by the twin, 1 diverged, 1 proposed, none never-tested; 14 of 16 paths (13 state paths + the two chain '
           'nodes\' own + the proposed node\'s; the diverged one and the proposal untested); nothing inert any more (the release and idle are used); 7 of 7 assertions '
@@ -195,8 +195,23 @@ def main():
     check('NET-CURRENT (bss-9): the declared collateral on "light on" ran the LED branch in ngspice (batch) at the pin\'s level with TMAX = the node\'s step: ~14.7 mA '
           'through R 220 + the generic LED model, inside the bound 5..20 mA; every knob named (VCC, the LED model)',
           'net-current PD6: 14.' in ed1['collaterals'] and 'bound 0.005..0.020 A: met' in ed1['collaterals'] and 'knobs: VCC 5 V' in ed1['collaterals'], ed1['collaterals'][:400])
+    held_run = next(r for r in ra['runs'] if r['node'].endswith(':on-while-held'))
+    edh = RT.run_edges(m, held_run['run'])[-1]
+    edr = RT.run_edges(m, next(r for r in ra['runs'] if r['node'].endswith(':rebooted'))['run'])[-1]
+    check('THE ELECTRICAL CHECK AT EVERY NODE (bss-12): the bench circuit (uno-button-clock, matched to the config by its pins) in the state the node leaves it, its .op '
+          'by ngspice judged against the chip\'s cited limits - "light on": state led-on, D6 14.715 mA under the 20 mA recommended, ok; "held": state led-on-button-held, '
+          'the pull-up\'s 0.250 mA through D2 at the 20 k end, ok; "rebooted": idle-led-off, 0 mA; the worst-case bound said; a derived `electrical circuit` collateral on every node',
+          'electrical circuit: ok - circuit uno-button-clock in state led-on (' in ed1['collaterals'] and 'D6 carries 14.715 mA in state led-on' in ed1['collaterals']
+          and 'the worst-case bound' in ed1['collaterals'] and 'state led-on-button-held' in edh['collaterals'] and 'D2 carries 0.250 mA' in edh['collaterals']
+          and 'electrical circuit: ok - circuit uno-button-clock in state idle-led-off' in edr['collaterals'] and 'D6 carries 0.000 mA' in edr['collaterals']
+          and any(c['kind'] == 'electrical' for c in nodes['reported']['collateral_rows']),
+          ([w for w in ed1['collaterals'].split(' ; ') if w.startswith('electrical')], [w for w in edh['collaterals'].split(' ; ') if w.startswith('electrical')][:1]))
     ed2 = RT.run_edges(m, r2['run']['name'])[-1]
     s2 = {s['signal']: s for s in RT.run_signals(m, r2['run']['name']) if s['kind'] == 'pin'}
+    check('THE ELECTRICAL CHECK SAYS WHAT IT RAN (bss-12): on the pin-change build the only seeded bench circuit has its switch on D2, which that build leaves high-Z, so '
+          'the verdict is WARN with the floating input named - the circuit for the D4 button is not seeded, said by the words, not hidden',
+          'electrical circuit: warn - circuit uno-button-clock' in ed2['collaterals'] and 'D2 read a floating line' in ed2['collaterals'] and 'D2 high-z' in ed2['collaterals'],
+          [w for w in ed2['collaterals'].split(' ; ') if w.startswith('electrical')])
     check('THE DRIVEN PIN (bss-9): on the pin-change build (no sense jumper) PD6 is read from the PORTD / DDRD words the firmware drives - high, driven, the '
           'wire itself said not read; its pin signal is the bit (0 -> 1, one change); the untested list no longer says the collateral is unmeasured',
           ed2['collaterals'].startswith('pin-level PD6: high, driven (PORTD bit 6') and s2.get('PD6', {}).get('last') == '1' and s2['PD6']['changes'] == 1

@@ -355,14 +355,32 @@ def _executions(manager, node, variant, text_symbols, argv, hexb, lo, hi, files=
     return ' ; '.join(words)
 
 
-def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=None, ports=None, step_s=0.0, isotopes=()):
-    """bss-9: a pin with no jumper is read from what the port DRIVES (node_collaterals.port_watches); net-current runs the LED branch in ngspice at the pin's
-    level; temperature needs the part's PartThermalModel; the words say which engine measured what and name every knob."""
+def _settled_levels(events, wired, ports, lines, at):
+    """bss-12: every known pin's level at cycle `at` - a wired pin from the last wire-edge up to it, an unwired output from its driven port word."""
     from cmod.custom import node_collaterals as NC
+    out = {}
+    for pin in wired:
+        ev = [e for e in events if e.get('t') == 'wire-edge' and pin in (e.get('src'), e.get('dst')) and int(e.get('cycle', -1)) <= at]
+        if ev:
+            out[pin] = 'high' if int(ev[-1].get('v', 0)) else 'low'
+    for pin, (port, ddr, bit) in (ports or {}).items():
+        level, _why = NC.driven_level(lines or {}, port, ddr, bit, at)
+        if level and pin not in out:
+            out[pin] = level
+    return out
+
+
+def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=None, ports=None, step_s=0.0, isotopes=(), variant='', held=False):
+    """bss-9: a pin with no jumper is read from what the port DRIVES (node_collaterals.port_watches); net-current runs the LED branch in ngspice at the pin's
+    level; temperature needs the part's PartThermalModel; the words say which engine measured what and name every knob. bss-12: `electrical` runs the
+    bench circuit's .op in the state the node leaves it (node_electrical) - REFUSED in its words makes the run checks-failed."""
+    from cmod.custom import node_collaterals as NC
+    from cmod.custom import node_electrical as NE
     words, levels, power = [], {}, {}
     at = hi - 1   # the level a pin SETTLES to in the edge's window (the drive follows the struct a few cycles after the requirement is met)
+    settled = _settled_levels(events, wired, ports, lines, at)
     rows = R.rows(manager, 'StructNodeCollateral', node=node)
-    for c in sorted(rows, key=lambda c: {'pin-level': 0, 'frame': 1, 'timing': 1, 'net-current': 2, 'temperature': 3}.get(c['kind'], 4)):   # the pins first: the engines read their levels
+    for c in sorted(rows, key=lambda c: {'pin-level': 0, 'frame': 1, 'timing': 1, 'electrical': 2, 'net-current': 2, 'temperature': 3}.get(c['kind'], 4)):   # the pins first: the engines read their levels
         if c['kind'] == 'pin-level':
             if c['signal'] in wired:
                 edges = [e for e in events if e.get('t') == 'wire-edge' and c['signal'] in (e.get('src'), e.get('dst')) and lo <= int(e.get('cycle', -1)) < hi]
@@ -391,6 +409,8 @@ def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=
             verdict = '' if not c['bound'] else (' (bound %s: met)' % c['bound'] if c['bound'] == level else ' (bound %s: UNMET)' % c['bound'])
             words.append('pin-level %s: %s, driven (%s at cycle %d%s; the wire itself not read: no jumper)%s'
                          % (c['signal'], level, why, at, (', last change at %d' % changes[-1]) if changes else '', verdict))
+        elif c['kind'] == 'electrical':
+            words.append(NE.check(variant, settled, held=held)['words'])
         elif c['kind'] == 'frame':
             words.append('frame %s: %d bytes on the UART over the run (per-frame cycles are bss-3)' % (c['signal'], uart_len))
         elif c['kind'] == 'timing':
@@ -496,7 +516,8 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
     unwired = [p for p in prof_pins if p not in wired]
     # bss-9: a pin-level collateral with no jumper is read from the port word the firmware drives (PORTx + DDRx watched like a field)
     from cmod.custom import node_collaterals as NC
-    need = sorted({c['signal'] for c in R.rows(manager, 'StructNodeCollateral', node=node, kind='pin-level') if c['signal'] not in wired} | set(unwired))
+    from cmod.custom import node_electrical as NE
+    need = sorted(({c['signal'] for c in R.rows(manager, 'StructNodeCollateral', node=node, kind='pin-level')} | set(unwired) | set(NE.driver_pins(variant))) - wired)   # bss-12: the circuit's driver pins at EVERY node
     port_args, ports, port_words = NC.port_watches(variant, need, MAX_WATCH - len(fields)) if need else ([], {}, [])
     from firmwarefaults.custom import harness
     argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + port_args + stimuli
@@ -527,12 +548,16 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
             replayed_done = e['to_node'] == play_from
         if e['to_node'] == node and outcome == 'met':
             exe = _executions(manager, node, variant, text_symbols, argv, hexb, pe['s'], min(pe['end'], met + int(EXEC_SLACK_S * hz)) if met > pe['s'] else pe['end'], files)
+            ev_t = R.get(manager, 'HardwareEvent', e['event']) if e.get('event') else None
             col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''), lines=lines, ports=ports,
-                               step_s=T.step_of(manager, node)['step_s'], isotopes=[x['isotope'] for x in R.rows(manager, 'StructNodeExecution', node=node)])
+                               step_s=T.step_of(manager, node)['step_s'], isotopes=[x['isotope'] for x in R.rows(manager, 'StructNodeExecution', node=node)],
+                               variant=variant, held=bool(ev_t) and _press_kind(ev_t['name'].split(':')[-1]) == 'held')
             if port_words:
                 col = (col + ' ; ' if col else '') + ' ; '.join(port_words)
             met_target = met
             failed_checks = _checks(manager, e['name'], lines, (met - pe['s']) / hz, pe['end'])
+            if 'electrical circuit: REFUSED' in col:   # bss-12: a pin or the supply past the chip's absolute maximum at this node
+                failed_checks.append('electrical: ' + col.split('electrical circuit: REFUSED - ', 1)[1].split(';')[1].strip()[:200])
             if failed_checks:
                 words += '; checks failed: ' + '; '.join(failed_checks)
         edge_rows.append(R.upsert(manager, 'StructNodeRunEdge', '%s:%d' % (name, i), run=name, edge=e['name'], order=i, outcome=outcome, stimulus_cycle=pe['s'], met_cycle=met,
