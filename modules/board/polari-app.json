@@ -35,7 +35,39 @@
    "hwmap"
   ],
   "libraries": [],
-  "engines": []
+  "engines": [
+   {
+    "name": "avr-gcc",
+    "kind": "system",
+    "probe": "avr-gcc",
+    "note": "C compiler for the UNO (gcc-avr + avr-libc; RULE 2: plain C, no Arduino core) — the prf-board-engines image or a local binary (brd-1)"
+   },
+   {
+    "name": "avrdude",
+    "kind": "system",
+    "probe": "avrdude",
+    "note": "flasher to the UNO's Optiboot over USB-CDC (DRY-RUN by default; runs only on the host holding the port — local binary or the local image with the port mapped) — brd-1"
+   },
+   {
+    "name": "simavr",
+    "kind": "system",
+    "probe": "simavr",
+    "note": "the AVR twin (simavr:atmega328p) — run as polari-avr-twin from the prf-board-engines image (libsimavr + USART0↔TCP + ADC0 stimulus) — brd-1"
+   },
+   {
+    "name": "esp-idf",
+    "kind": "system",
+    "probe": "polari-idf-build",
+    "note": "sc-3: the ESP32-C3 toolchain — ESP-IDF v5.5.5 (Apache-2.0, FreeRTOS inside) + riscv32-esp-elf-gcc 14.2.0 + esptool, from the prf-esp-engines image (or a local polari-idf-build / ESP_ENGINES_URL worker)"
+   },
+   {
+    "name": "qemu-esp32c3",
+    "kind": "system",
+    "probe": "qemu-system-riscv32",
+    "note": "sc-3: the C3 twin — Espressif QEMU fork esp_develop_9.2.2_20260417 (GPL-2.0-only, -machine esp32c3), run as polari-c3-run from the prf-esp-engines image"
+   }
+  ],
+  "engines_note": "resolved per engine through board.custom.board_engines (BOARD_ENGINES_URL → local binary → the local image BOARD_ENGINES_IMAGE (prf-board-engines:trixie, polari-rf-node/prf-board-engines) → topology provider board.engines → refusal naming the knob + image); flashing refuses a remote worker; sc-3: the esp family resolves the same way on ESP_ENGINES_URL → local binary → ESP_ENGINES_IMAGE (prf-esp-engines:noble, polari-rf-node/prf-esp-engines) → topology provider board.esp-engines → refusal"
  },
  "files": {
   "objects": [
