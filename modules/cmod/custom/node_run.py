@@ -602,11 +602,13 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
         C.confirm(manager, node, p['name'], 'twin', sha, run=name, words='run %s met the requirements with every check passing' % name)
     else:   # bss-9 (D-bss-6): the trace is kept ONLY on failure, and only the window around it - the osc arc's WaveformCapture rows, one per line
         failed_edge = next((pe for pe, er in zip(plan, edge_rows) if er['outcome'] in ('not-reached', 'diverged')), target)
-        capture = FC.keep(manager, name, events, failed_edge['s'], failed_edge['end'], hz, T.step_of(manager, node)['step_s'], '%s: %s' % (outcome, last['words'][:120]))
+        capture = FC.keep(manager, name, events, failed_edge['s'], failed_edge['end'], hz, T.step_of(manager, node)['step_s'], '%s: %s' % (outcome, last['words'][:120]),
+                          fields={f: lines[f] for _om, f in fields})
         words += '; ' + capture['words']
         row = R.upsert(manager, 'StructNodeRun', name, words=words)
     if pin:   # bss-10 (D-bss-6): a person pinned the play - the target edge's WHOLE window is kept, whatever the outcome
-        pinned = FC.keep(manager, name, events, target['s'], target['end'], hz, T.step_of(manager, node)['step_s'], 'pinned (%s)' % outcome, fraction=1.0, prefix='pin')
+        pinned = FC.keep(manager, name, events, target['s'], target['end'], hz, T.step_of(manager, node)['step_s'], 'pinned (%s)' % outcome, fraction=1.0, prefix='pin',
+                         fields={f: lines[f] for _om, f in fields})
         words += '; ' + pinned['words']
         row = R.upsert(manager, 'StructNodeRun', name, words=words)
         capture = capture if capture['rows'] else pinned

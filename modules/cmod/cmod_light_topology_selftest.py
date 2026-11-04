@@ -31,6 +31,15 @@ def check(label, cond, extra=''):
     print('  [%s] %s %s' % ('\033[0;32mPASS\033[0m' if cond else '\033[0;31mFAIL\033[0m', label, extra if not cond else ''))
 
 
+def _refused(fn):
+    from cmod.custom import config_rows as R
+    try:
+        fn()
+        return 0
+    except R.ConfigRefused as x:
+        return x.status
+
+
 def _manager():
     return types.SimpleNamespace(objectTables={}, idList=[], db=None, noteTreeMutation=lambda *a, **k: None)
 
@@ -230,16 +239,33 @@ def main():
     caps = [c for c in R.rows(m, 'WaveformCapture') if c['acquisition'] == r7['capture']]
     sig7 = {s['signal']: s for s in r7['signals'] if s['kind'] == 'pin'}
     check('THE FAILURE CAPTURE (bss-9, D-bss-6): a diverged run keeps ONE acquisition of WaveformCapture rows (the osc arc\'s rows, source twin) - the three lines PD2 '
-          '(the press), PD3 and PD6 (the jumper) over the failing edge\'s last 10 %%, 4096 points at a coarsened step, said; the pin signals name their capture row; '
-          'a reached run keeps none', r7['run']['outcome'] == 'diverged' and len(caps) == 3 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
+          '(the press), PD3 and PD6 (the jumper) over the failing edge\'s last 10 %%, 4096 points at a coarsened step, said, plus (bss-14) the watched fields along the path '
+          '(boot_session from the boot node, led_on) as rows whose samples are their values; the pin signals name their capture row; a reached run keeps none',
+          r7['run']['outcome'] == 'diverged' and len(caps) == 5 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
+          and sum(json.loads(c['settings_json']).get('kind') == 'field' for c in caps) == 2 and '+ 2 fields (boot_session, led_on)' in r7['run']['words']
           and 'failure capture' in r7['run']['words'] and sig7.get('PD6', {}).get('capture', '').startswith('fail-')
           and not any(c['acquisition'] == e1['name'] for c in R.rows(m, 'WaveformCapture')), (r7['run']['words'][-200:], [(c['name'], c['points']) for c in caps]))
     rp = NR.run(m, BS, nodes['on-by-button']['name'], pin=True)
     pins_ = RT.run_captures(m, rp['run']['name'])
-    check('A PINNED CAPTURE (bss-10, D-bss-6): pin = true on a REACHED run keeps the target edge\'s WHOLE window (3 lines, acquisition pin-...), the run\'s words say pinned; '
-          'the captures door lists the rows with kept = pinned and the line each is', rp['run']['outcome'] == 'reached' and rp['capture'].startswith('pin-')
-          and 'pinned capture' in rp['run']['words'] and len(pins_) == 3 and all(c['kept'] == 'pinned' for c in pins_) and sorted(c['line'] for c in pins_) == ['PD2', 'PD3', 'PD6']
-          and all(c['acquisition'] == rp['capture'] for c in pins_), (rp['capture'], rp['run']['words'][-160:], pins_[:1]))
+    check('A PINNED CAPTURE (bss-10, D-bss-6): pin = true on a REACHED run keeps the target edge\'s WHOLE window (3 lines + the 5 fields watched along the path, acquisition pin-...), '
+          'the run\'s words say pinned; the captures door lists the rows with kept = pinned, the line / field each is and its kind',
+          rp['run']['outcome'] == 'reached' and rp['capture'].startswith('pin-') and 'pinned capture' in rp['run']['words'] and len(pins_) == 8
+          and all(c['kept'] == 'pinned' for c in pins_) and sorted(c['line'] for c in pins_ if c['kind'] == 'pin') == ['PD2', 'PD3', 'PD6']
+          and sorted(c['line'] for c in pins_ if c['kind'] == 'field') == ['boot_session', 'led_on', 'source', 'status', 'toggles'] and all(c['acquisition'] == rp['capture'] for c in pins_),
+          (rp['capture'], rp['run']['words'][-160:], [(c['line'], c['kind']) for c in pins_]))
+    from cmod.custom import run_diff as RD
+    from cmod.custom import vcd_export as VE
+    vcd, vacq = VE.render(m, rp['run']['name'])
+    vlines = vcd.splitlines()
+    dd = RD.diff(m, rp['run']['name'])
+    check('THE VCD (bss-14): the pinned run\'s capture rendered on read as a VCD - 3 wires (the pins) + 5 32-bit vectors (the fields), a 1 ns timescale, the run and the '
+          'window in the header, value changes only; led_on goes 0 -> 1 inside it',
+          vacq == rp['capture'] and '$timescale 1 ns $end' in vcd and sum(l.startswith('$var wire 1 ') for l in vlines) == 3 and sum(l.startswith('$var reg 32 ') for l in vlines) == 5
+          and any(l.startswith('b1 ') for l in vlines) and rp['run']['name'] in vlines[1] and sum(l.startswith('#') for l in vlines) >= 2, (vacq, vlines[:12], sum(l.startswith('#') for l in vlines)))
+    check('THE RUN DIFF (bss-14): the pinned run against the previous run of "light on" (the same build, the same path) - the compared values all equal except the ones '
+          'that cannot be (none here): 0 differ; a first run says there is nothing to compare with; an unknown run refuses 404',
+          dd['other'] and dd['changed'] == 0 and dd['rows'] and 'differ' in dd['words'] and RD.diff(m, sorted(r['name'] for r in NR.runs(m, nodes['on-by-button']['name']))[0])['other'] == ''
+          and _refused(lambda: RD.diff(m, 'nope#run9')) == 404, (dd['words'], [r for r in dd['rows'] if r['changed']][:5]))
     more = {}
     for bs2 in ('uno-light-pwm-on-desk', 'uno-light-transistor-on-desk', 'uno-light-all-pcint-on-desk'):
         a2 = SP.apply(m, bs2)
@@ -268,7 +294,7 @@ def main():
     api, rapi = BenchTopologyAPI(polServer=None, manager=m), RetestAPI(polServer=None, manager=m)
 
     def call(a, method, *args, body=None):
-        resp = types.SimpleNamespace(status='200 OK', media=None)
+        resp = types.SimpleNamespace(status='200 OK', media=None, content_type='application/json', text='', downloadable_as='')
         req = types.SimpleNamespace(get_param=lambda k: None, bounded_stream=types.SimpleNamespace(read=lambda: json.dumps(body or {}).encode()))
         getattr(a, method)(req, resp, *args)
         return resp
@@ -277,10 +303,17 @@ def main():
     bad = call(rapi, 'on_post_run_all', 'nope')
     cp = call(rapi, 'on_get_captures', BS, r7['run']['name'])
     cbad = call(rapi, 'on_get_captures', BS, 'nope#run9')
+    vr = call(rapi, 'on_get_vcd', BS, rp['run']['name'])
+    vbad = call(rapi, 'on_get_vcd', BS, e1['name'])
+    dr = call(rapi, 'on_get_diff', BS, rp['run']['name'])
+    check('DOORS (bss-14): GET runs/{run}/vcd answers text/plain named <acquisition>.vcd for a run with a capture and 404s a reached, unpinned run in words; GET '
+          'runs/{run}/diff answers the rows against the previous run',
+          vr.content_type == 'text/plain' and vr.downloadable_as.endswith('.vcd') and '$enddefinitions' in vr.text and vbad.status.startswith('404') and 'keeps none' in vbad.media['error']
+          and dr.media['ok'] and dr.media['changed'] == 0 and len(dr.media['rows']) > 10, (getattr(vr, 'downloadable_as', ''), vbad.media, dr.media.get('words')))
     check('DOORS: GET topology-specs lists the spec; POST apply-spec re-applies idempotently (11 nodes, the same 13 paths); POST run-all on an unknown Bench Solution -> 404; '
-          'GET runs/{run}/captures lists the diverged run\'s 3 failure lines (kept = on failure) and 404s an unknown run',
+          'GET runs/{run}/captures lists the diverged run\'s 3 failure lines + 2 fields (kept = on failure) and 404s an unknown run',
           s.media['rows'][0]['name'] == 'uno-light-bench' and a.media['ok'] and len(a.media['nodes']) == 11 and sum(len(n['paths']) for n in a.media['nodes']) == 13
-          and bad.status.startswith('404') and len(cp.media['rows']) == 3 and all(r['kept'] == 'on failure' for r in cp.media['rows']) and cbad.status.startswith('404'),
+          and bad.status.startswith('404') and len(cp.media['rows']) == 5 and all(r['kept'] == 'on failure' for r in cp.media['rows']) and cbad.status.startswith('404'),
           (s.media, a.media.get('words'), bad.status, cp.media, cbad.status))
     from cmod.hardware_events_page import HARDWARE_EVENTS_PAGES
     d = json.loads(HARDWARE_EVENTS_PAGES[0]['definition'])

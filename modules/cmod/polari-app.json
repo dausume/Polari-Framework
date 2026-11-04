@@ -238,6 +238,8 @@
    "custom/node_collaterals",
    "custom/failure_capture",
    "custom/node_electrical",
+   "custom/run_diff",
+   "custom/vcd_export",
    "custom/confirmations",
    "custom/bench_topology_nocode",
    "custom/topology_palette",

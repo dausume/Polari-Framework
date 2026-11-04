@@ -91,8 +91,15 @@ def _runs_tab():
         _row(2, [_component('he-run-chart', 0, 12, 'The chosen acquisition - the lines over time', 'named-graph-panel',
                             {'graphName': 'instruments-capture', 'dataPath': '/api/instruments/captures/{scope:acquisition}/chart?max=4000&' + _REV},
                             description='Volts over seconds for every line of the chosen acquisition, recomputed from the stored block and preamble by the instruments arc\'s '
-                                        'own chart (instruments-capture); every drawn point is a real sample.')], min_height=420)],
-        description='The kept assessments of every run; a trace is kept only around a failure or when pinned, and drawn here.')
+                                        'own chart (instruments-capture); every drawn point is a real sample.')], min_height=420),
+        # bss-14: what changed since the previous run of the same node (a rebuild, a configuration change) - derived on read, nothing stored
+        _row(3, [_table('he-run-diff', 0, 12, 'What changed against the previous run of this node', '',
+                        description='One row per compared value of the chosen run against the previous run of the same node (its outcome, build, each edge\'s outcome '
+                                    'and met cycle, each collateral and execution count, each signal\'s first / last / changes): a and b side by side, the delta '
+                                    'where one exists. The VCD of a kept capture is at .../runs/{run}/vcd.',
+                        columns='what,a,b,delta,changed', data_path=_T + '/runs/{scope:run}/diff?' + _REV,
+                        empty_text='Pick a run above; the first run of a node has nothing to compare with.')], min_height=260)],
+        description='The kept assessments of every run; a trace is kept only around a failure or when pinned, and drawn here; a run diffed against its predecessor.')
 
 
 def _assertions_tab():
