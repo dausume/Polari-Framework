@@ -141,7 +141,7 @@ def main():
     check('THE UNTESTED LIST names exactly the finding\'s consequences: the long-press node\'s collateral unmeasured (it diverged) and the proposed node not yet accepted; '
           'nothing else - every other node confirmed by every path, every event used (the release and idle now USED by hold edges, so no longer inert), every assertion '
           'exercised, the chain nodes crossed',
-          ra['untested'] == ['%s:on-by-long-press: collaterals measured 0 / 2' % BS, '%s:proposed-1: proposed from a divergence, not yet accepted or discarded' % BS], ra['untested'])
+          ra['untested'] == ['%s:on-by-long-press: collaterals measured 0 / 3' % BS, '%s:proposed-1: proposed from a divergence, not yet accepted or discarded' % BS], ra['untested'])
     strip = COV.strip(m, BS)
     check('THE STRIP: 10 state nodes + flashed + boot confirmed by the twin, 1 diverged, 1 proposed, none never-tested; 14 of 16 paths (13 state paths + the two chain '
           'nodes\' own + the proposed node\'s; the diverged one and the proposal untested); nothing inert any more (the release and idle are used); 7 of 7 assertions '
@@ -206,6 +206,13 @@ def main():
           and 'electrical circuit: ok - circuit uno-button-clock in state idle-led-off' in edr['collaterals'] and 'D6 carries 0.000 mA' in edr['collaterals']
           and any(c['kind'] == 'electrical' for c in nodes['reported']['collateral_rows']),
           ([w for w in ed1['collaterals'].split(' ; ') if w.startswith('electrical')], [w for w in edh['collaterals'].split(' ; ') if w.startswith('electrical')][:1]))
+    check('MEMORY AT EVERY NODE (bss-13): static .data + .bss 524 B measured by avr-size at the build, the stack\'s high water on the twin to this node (--sp-watch per '
+          'instruction and the --stack-fill paint read back), the headroom between them against the cited SRAM 2048 B - ok; and the SUPPLY under the node\'s ground-return '
+          'current against the brown-out detector (VCC, R_supply and the BOD level as labelled knobs): 4.993 V, above the 2.9 V maximum',
+          'memory sram: ok - static .data + .bss 524 B' in ed1['collaterals'] and 'stack high water' in ed1['collaterals'] and 'headroom' in ed1['collaterals']
+          and 'of SRAM 2048 B' in ed1['collaterals'] and 'supply ok: the rail at 4.993 V under 14.715 mA' in ed1['collaterals'] and 'brown-out' in ed1['collaterals']
+          and any(c['kind'] == 'memory' for c in nodes['reported']['collateral_rows']),
+          [w for w in ed1['collaterals'].split(' ; ') if w.startswith('memory')])
     ed2 = RT.run_edges(m, r2['run']['name'])[-1]
     s2 = {s['signal']: s for s in RT.run_signals(m, r2['run']['name']) if s['kind'] == 'pin'}
     check('THE ELECTRICAL CHECK SAYS WHAT IT RAN (bss-12): on the pin-change build the only seeded bench circuit has its switch on D2, which that build leaves high-Z, so '

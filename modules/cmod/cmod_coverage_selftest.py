@@ -64,7 +64,7 @@ def main():
                    step_set_by='drive-led:gpio-out (cycle: 0.0625 us, cited)', duration_s=2e-5, duration_set_by='measured', ran_at='2026-11-02T13:00:00+00:00', words='met')
     for i, e in enumerate(light['fastest_path']['edges'].split(','), 1):
         R.upsert(m, 'StructNodeRunEdge', '%s:%d' % (run['name'], i), run=run['name'], edge=e, order=i, outcome='met', met_cycle=10 * i,
-                 collaterals='pin-level PD6: high at cycle 1600317, 0.020 ms after the stimulus ; electrical circuit: ok - circuit uno-button-clock in state led-on (D6 high); D6 carries 14.715 mA ; frame uno-1-bridge: 120 bytes on the UART over the run' if i == 3 else '')
+                 collaterals='pin-level PD6: high at cycle 1600317, 0.020 ms after the stimulus ; electrical circuit: ok - circuit uno-button-clock in state led-on (D6 high); D6 carries 14.715 mA ; memory sram: ok - static .data + .bss 524 B, stack high water 137 B ; frame uno-1-bridge: 120 bytes on the UART over the run' if i == 3 else '')
     R.upsert(m, 'StructNodeRunSignal', '%s:field:led_on' % run['name'], run=run['name'], kind='field', signal='led_on', first='0', last='1', changes=1)
     R.upsert(m, 'StructNodeConfirmation', '%s#conf1' % light['name'], node=light['name'], path=fp, by='twin', run=run['name'], hex_sha256='b' * 64, state='confirmed')
     R.upsert(m, 'StructNodeConfirmation', '%s#conf0' % light['name'], node=light['name'], path='old', by='twin', hex_sha256='a' * 64, state='voided', voided_why='the build changed')
@@ -83,7 +83,7 @@ def main():
     ns = {n['node']: n for n in COV.nodes(m, BS)}
     check('PER NODE: light-on state confirmed-twin, 1 run, paths 1 / 2, confirmed by twin, 1 voided, collaterals 1 / 1 measured; light-off-again never-tested with 0 runs',
           ns[light['name']]['state'] == 'confirmed-twin' and ns[light['name']]['runs'] == 1 and (ns[light['name']]['paths_tested'], ns[light['name']]['paths']) == (1, 2)
-          and ns[light['name']]['confirmed_by'] == 'twin' and ns[light['name']]['voided'] == 1 and ns[light['name']]['collaterals_measured'] == '2 / 2'
+          and ns[light['name']]['confirmed_by'] == 'twin' and ns[light['name']]['voided'] == 1 and ns[light['name']]['collaterals_measured'] == '3 / 3'
           and ns['%s:light-off-again' % BS]['state'] == 'never-tested', ns[light['name']])
     ev = {e['name'].split(':', 1)[1]: e for e in events(m, BS)}
     check('EVENTS: the press is used by an edge and was run; the command is used but never run; the release is neither',

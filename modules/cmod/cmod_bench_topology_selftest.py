@@ -68,7 +68,7 @@ def main():
                  executions=[{'atom': 'apps/light.led_toggle', 'isotope': 'read-button:gpio-poll'}, {'atom': 'apps/light.led_follow_state', 'isotope': 'drive-led:gpio-out'}])
     check('A DEFINED NODE: requirement led_on = 1, two executions in order, the collateral DERIVED from led_follow_state\'s reads-field: pin-level PD6 on the twin',
           [(q['field'], q['kind'], q['value']) for q in n['requirements']] == [('led_on', 'exact', '1')] and [x['order'] for x in n['executions']] == [1, 2]
-          and [(c['kind'], c['signal'], c['source']) for c in n['collateral_rows']] == [('pin-level', 'PD6', 'derived'), ('electrical', 'circuit', 'derived')] and n['collaterals'] == 'derived', n['collateral_rows'])
+          and [(c['kind'], c['signal'], c['source']) for c in n['collateral_rows']] == [('pin-level', 'PD6', 'derived'), ('electrical', 'circuit', 'derived'), ('memory', 'sram', 'derived')] and n['collaterals'] == 'derived', n['collateral_rows'])
     fp = n['fastest_path']
     check('THE FASTEST PATH from the root: 3 edges (flash, init, the press), flagged fastest', fp and fp['length'] == 3 and fp['fastest']
           and fp['edges'].split(',')[-1].endswith('boot->light-on via press-PD2'), fp)

@@ -19,6 +19,11 @@ from cmod.custom import config_rows as R  # noqa: F401 - the manager-less rows h
 
 _CACHE = {}
 SIGNAL = 'circuit'
+VCC_V = 5.0              # KNOB: the UNO's 5 V rail from the USB (node_collaterals.VCC_V is the same knob for the LED branch)
+R_SUPPLY_OHMS = 0.5      # KNOB, undetermined: the rail's source resistance seen by the board (the USB cable + the UNO's 500 mA resettable fuse F1); measure it
+BOD_LEVEL_V = 2.7        # KNOB: the UNO ships BODLEVEL = 2.7 V typical (boards.txt uno.bootloader.extended_fuses = 0xFD; the BODLEVEL fuse coding table, DS40002061B
+                         # section 31 "System and Reset Characteristics": 2.5 min / 2.7 typ / 2.9 max) - a cited fact row is owed, so this stays a labelled knob
+BOD_LEVEL_MAX_V = 2.9    # the same table's maximum: the margin is judged against the worst case
 
 
 def _tables():
@@ -87,10 +92,30 @@ def check(variant, levels, held=False, lifecycle='running'):
     run = N.run(state, cat, N.PULLUP_OHMS[0]) if lifecycle == 'running' else None
     j = V.judge(state, run, cat, c['lim'])
     verdict = {'refuse': 'REFUSED', 'ok': 'ok', 'warn': 'warn'}.get(j['verdict'], j['verdict'])
+    supply = _supply(j['currents'].get('i(gnd-return)'))
+    if supply['verdict'] == 'REFUSED':
+        verdict = 'REFUSED'
+        j = dict(j, words=(j['words'] + '; ' if j['words'] else '') + supply['words'])
     cur = ', '.join('%s %.3f mA' % (k[2:-1], v) for k, v in sorted(j['currents'].items()) if k.startswith('i('))
     lim = c['lim']
     words = ('electrical %s: %s - circuit %s in state %s (%s); %s; %s; .op by ngspice batch, the pins as ideal sources and the pull-up at %d ohm (the worst-case bound, '
              'said); limits I_PIN %s mA recommended / %s mA absolute, VCC-GND %s mA (%s)'
              % (SIGNAL, verdict, cat['circuit'], name, state['words'][:120], j['words'][:300] or 'no finding', ('currents ' + cur) if cur else 'no currents (not simulated)',
                 N.PULLUP_OHMS[0], lim.get('pin_recommended_ma'), lim.get('pin_abs_max_ma'), lim.get('supply_abs_max_ma'), (lim.get('cite') or {}).get('pin_abs_max', 'cited rows')))
-    return {'verdict': verdict, 'state': name, 'currents': j['currents'], 'findings': j['findings'], 'words': words}
+    words += '; ' + supply['words']
+    return {'verdict': verdict, 'state': name, 'currents': j['currents'], 'findings': j['findings'] + [supply], 'words': words}
+
+
+def _supply(gnd_return_ma):
+    """bss-13 brown-out: the rail under this node's load against the brown-out detector - VCC - I x R_supply vs the BOD level's maximum; every number a knob, said."""
+    if gnd_return_ma is None:
+        return {'rule': 'brown-out', 'status': 'undetermined', 'verdict': 'undetermined', 'words': 'supply: undetermined (no ground-return current: the state was not simulated)'}
+    droop = gnd_return_ma * 1e-3 * R_SUPPLY_OHMS
+    vcc = VCC_V - droop
+    margin = vcc - BOD_LEVEL_MAX_V
+    verdict = 'REFUSED' if margin <= 0 else 'ok'
+    return {'rule': 'brown-out', 'status': 'refuse' if verdict == 'REFUSED' else 'ok', 'verdict': verdict,
+            'words': 'supply %s: the rail at %.3f V under %.3f mA (VCC %g V knob minus %.1f mV over R_supply %g ohm, a knob undetermined: measure it), %.2f V above the brown-out '
+                     'detector\'s %g V maximum (BODLEVEL %g V typ, a knob: the fuse fact row is owed)%s'
+                     % (verdict, vcc, gnd_return_ma, VCC_V, droop * 1e3, R_SUPPLY_OHMS, margin, BOD_LEVEL_MAX_V, BOD_LEVEL_V,
+                        '' if verdict == 'ok' else '; the chip would reset: a brown-out at this node')}

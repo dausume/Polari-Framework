@@ -49,6 +49,15 @@ BOUNCE_SPAN_S = 2.5e-3      # KNOB (bss-11): the train's length - Ganssle, A Gui
 LONG_PRESS_S = 0.5          # KNOB (bss-11): a long press - well past every route's debounce lockout (variants: debounce_ms 30), so the release's bounce lands outside it
 IDLE_S = 0.3                # KNOB (bss-11): the idle edge's window - longer than the 0.1 s telemetry period, so a report passes inside it and must change nothing required
 _BUILDS = {}                # variant -> (hex, elf, sha, work): one build per process
+_SIZES = {}                 # variant -> avr-size -A of its ELF (bss-13)
+
+
+def _sizes(variant, elf):
+    if variant not in _SIZES:
+        from board.custom import cycle_measure as CM
+        from board.custom.build import parse_size_A
+        _SIZES[variant] = parse_size_A(CM._fe('avr-size', ['-A', 'firmware.elf'], elf))
+    return _SIZES[variant]
 
 
 def _press_kind(slug):
@@ -370,7 +379,7 @@ def _settled_levels(events, wired, ports, lines, at):
     return out
 
 
-def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=None, ports=None, step_s=0.0, isotopes=(), variant='', held=False):
+def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=None, ports=None, step_s=0.0, isotopes=(), variant='', held=False, final=None):
     """bss-9: a pin with no jumper is read from what the port DRIVES (node_collaterals.port_watches); net-current runs the LED branch in ngspice at the pin's
     level; temperature needs the part's PartThermalModel; the words say which engine measured what and name every knob. bss-12: `electrical` runs the
     bench circuit's .op in the state the node leaves it (node_electrical) - REFUSED in its words makes the run checks-failed."""
@@ -411,6 +420,13 @@ def _collaterals(manager, node, events, wired, lo, hi, met, hz, uart_len, lines=
                          % (c['signal'], level, why, at, (', last change at %d' % changes[-1]) if changes else '', verdict))
         elif c['kind'] == 'electrical':
             words.append(NE.check(variant, settled, held=held)['words'])
+        elif c['kind'] == 'memory':   # bss-13
+            try:
+                from board.custom.build import limits as BL
+                _flash, ram_max, cite = BL('arduino-uno-r3')
+            except Exception:  # noqa: BLE001 - board absent
+                ram_max, cite = 0, 'no SRAM fact'
+            words.append(NC.memory(_SIZES.get(variant, {}), final or {}, ram_max, cite))
         elif c['kind'] == 'frame':
             words.append('frame %s: %d bytes on the UART over the run (per-frame cycles are bss-3)' % (c['signal'], uart_len))
         elif c['kind'] == 'timing':
@@ -520,7 +536,9 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
     need = sorted(({c['signal'] for c in R.rows(manager, 'StructNodeCollateral', node=node, kind='pin-level')} | set(unwired) | set(NE.driver_pins(variant))) - wired)   # bss-12: the circuit's driver pins at EVERY node
     port_args, ports, port_words = NC.port_watches(variant, need, MAX_WATCH - len(fields)) if need else ([], {}, [])
     from firmwarefaults.custom import harness
-    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + port_args + stimuli
+    _sizes(variant, elf)
+    stack_args = ['--sp-watch'] + (['--stack-fill', '0x%X' % nm['__bss_end']['addr']] if '__bss_end' in nm else [])   # bss-13: the stack's high water to this node
+    argv = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '%d' % hz, '--free', '--seconds', '%g' % (end / hz), '--status-ms', '0', '--uart-out', 'uart.bin'] + rest + wire + watches + port_args + stack_args + stimuli
     r = harness.run_files(argv, hexb, files, timeout=300)   # the command frames travel with the hex
     if not r.get('ok'):
         raise R.ConfigRefused('the twin run did not complete: %s' % ((r.get('stderr') or r.get('stdout') or '')[-300:]), status=409)
@@ -551,13 +569,15 @@ def run(manager, bench_solution, node, path='', profile='', play_from='', pin=Fa
             ev_t = R.get(manager, 'HardwareEvent', e['event']) if e.get('event') else None
             col = _collaterals(manager, node, events, wired, pe['s'], pe['end'], met, hz, len(r.get('uart') or b''), lines=lines, ports=ports,
                                step_s=T.step_of(manager, node)['step_s'], isotopes=[x['isotope'] for x in R.rows(manager, 'StructNodeExecution', node=node)],
-                               variant=variant, held=bool(ev_t) and _press_kind(ev_t['name'].split(':')[-1]) == 'held')
+                               variant=variant, held=bool(ev_t) and _press_kind(ev_t['name'].split(':')[-1]) == 'held', final=r.get('final') or {})
             if port_words:
                 col = (col + ' ; ' if col else '') + ' ; '.join(port_words)
             met_target = met
             failed_checks = _checks(manager, e['name'], lines, (met - pe['s']) / hz, pe['end'])
             if 'electrical circuit: REFUSED' in col:   # bss-12: a pin or the supply past the chip's absolute maximum at this node
                 failed_checks.append('electrical: ' + col.split('electrical circuit: REFUSED - ', 1)[1].split(';')[1].strip()[:200])
+            if 'memory sram: REFUSED' in col:   # bss-13: the stack reached the statics on the way to this node
+                failed_checks.append('memory: ' + col.split('memory sram: REFUSED - ', 1)[1].split(';')[0].strip()[:200])
             if failed_checks:
                 words += '; checks failed: ' + '; '.join(failed_checks)
         edge_rows.append(R.upsert(manager, 'StructNodeRunEdge', '%s:%d' % (name, i), run=name, edge=e['name'], order=i, outcome=outcome, stimulus_cycle=pe['s'], met_cycle=met,

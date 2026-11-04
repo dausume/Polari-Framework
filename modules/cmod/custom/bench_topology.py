@@ -80,6 +80,8 @@ def define(manager, bs, slug, title, from_node, edge_kind='trigger', event='', r
                 derived.append(dict(kind='frame', signal=a['bridge'], engine='twin', bound='', source='derived', notes='from %s' % a['name']))
     derived.append(dict(kind='electrical', signal='circuit', engine='ngspice-op', bound='', source='derived',   # bss-12: EVERY node gets the circuit judged
                         notes='the bench circuit in the state this node leaves it, judged against the chip\'s cited limits (cmod.custom.node_electrical over electrodevice cst)'))
+    derived.append(dict(kind='memory', signal='sram', engine='twin+avr-size', bound='', source='derived',   # bss-13: the stack against the statics at EVERY node
+                        notes='static .data + .bss at the build, the stack high water on the twin to this node, the headroom against the cited SRAM (cmod.custom.node_collaterals.memory)'))
     rows = list(collaterals) + [d for d in derived if not any(c.get('kind') == d['kind'] and c.get('signal') == d['signal'] for c in collaterals)]
     for c in rows:
         R.upsert(manager, 'StructNodeCollateral', '%s:%s:%s' % (node, c['kind'], c['signal']), node=node, **{k: v for k, v in c.items() if k != 'name'})

@@ -15,6 +15,10 @@ bss-9 (AI-Notes/plans/BENCH_SOLUTION_SIM_PLAN.md sections 2b, 6b): THE COLLATERA
   temperature(manager, c, power_w, dt_s)     a temperature collateral: the part's rise over the edge's duration from its PartThermalModel (pcb) Foster
                                              network - rise = sum R_i (1 - exp(-t / tau_i)) x P (the Cauer / Foster forms agree for one pulse); the
                                              refusal names the missing row
+  memory(sizes, final, ram_max, cite)        bss-13: the SRAM at the node - static .data + .bss (avr-size -A, measured at the build), the stack's high
+                                             water from the twin (`--sp-watch`: the lowest SP per instruction; `--stack-fill`: the paint from .bss end
+                                             to RAMEND read back), the headroom between them against the cited SRAM; REFUSED when the stack reached
+                                             the statics, warn under STACK_MARGIN_B
 """
 import math
 import os
@@ -25,6 +29,7 @@ import tempfile
 from cmod.custom import config_rows as R
 
 VCC_V = 5.0            # KNOB: the UNO's logic rail (the USB 5 V; the pin's output resistance is not modelled, said)
+STACK_MARGIN_B = 128   # KNOB (bss-13): headroom under this between the stack's high water and the end of .bss is a warning (an ISR nest or a deeper call eats it)
 TRAN_STEPS = 20        # KNOB: the transient runs this many node steps so a DC level settles
 _REG_IO_OFFSET = 0x20  # avr: an I/O-space address + 0x20 is its data-memory address (the 328P's datasheet, "I/O Memory")
 
@@ -154,3 +159,20 @@ def temperature(manager, c, power_w, dt_s):
     rise = sum(float(r_) * (1 - math.exp(-dt_s / float(tau))) * power_w for r_, tau in foster if float(tau) > 0)
     return 'temperature %s: +%.4f K over the edge\'s %.3g ms at %.3g mW (Foster %s, %s%s)' % (c['signal'], rise, dt_s * 1e3, power_w * 1e3, rows[0]['name'],
                                                                                           rows[0].get('origin', ''), _bound_verdict(c.get('bound'), rise).replace(' A:', ' K:'))
+
+
+def memory(sizes, final, ram_max, cite):
+    """sizes: avr-size -A of the build's ELF; final: the twin's summary (min_sp / stack_high_water_sp / stack_fill); ram_max + cite: the board's SRAM fact."""
+    static = int(sizes.get('.data', 0)) + int(sizes.get('.bss', 0))
+    hw = final.get('stack_high_water_sp')
+    fill = final.get('stack_fill') or {}
+    if hw is None and not fill:
+        return 'memory sram: unmeasured - the twin printed no stack summary (its image predates --sp-watch / --stack-fill, or the run did not finish)'
+    touched = fill.get('high_water')
+    stack = max(int(hw or 0), int(touched or 0))
+    head = int(fill['headroom']) if 'headroom' in fill else (ram_max - static - stack)
+    verdict = 'REFUSED' if head <= 0 else ('warn' if head < STACK_MARGIN_B else 'ok')
+    return ('memory sram: %s - static .data + .bss %d B (avr-size -A at the build), stack high water %d B (the twin: lowest SP per instruction%s), headroom %d B '
+            'between the stack and the end of .bss, of SRAM %d B (%s); knob STACK_MARGIN_B %d B%s'
+            % (verdict, static, stack, (', paint from 0x%X read back: lowest touched 0x%X' % (int(fill['from']), int(fill['lowest_touched']))) if fill else '', head,
+               ram_max, cite, STACK_MARGIN_B, '' if verdict == 'ok' else ('; the stack reached the statics: the firmware corrupts its own data' if verdict == 'REFUSED' else '; thin')))
