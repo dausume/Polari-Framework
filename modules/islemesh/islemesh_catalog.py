@@ -21,6 +21,12 @@ launcher .deb). One kind → one install-plan builder.
 #: store shows a real catalog from day one (never seeded is_mock).
 SEED_CATALOG = [
     {
+        'name': 'sample', 'title': 'Sample Mesh App',
+        'description': 'Optional Mesh App for testing container hosting and Isle routing. Not required for normal Isle operation.',
+        'kind': 'mesh-app', 'source_ref': 'isle-sample-app-sample:latest',
+        'service': 'sample', 'port': 5000, 'category': 'demo', 'source': 'official',
+    },
+    {
         'name': 'polari', 'title': 'Polari (launcher)',
         'description': 'A DOOR, not a deployment: installs a '
                        'native desktop window onto the isle\'s '
@@ -43,13 +49,7 @@ SEED_CATALOG = [
     },
     {
         'name': 'polari-instance', 'title': 'Polari (new instance)',
-        'description': 'A RUNTIME, not a door: deploys another '
-                       'whole polari (backend + frontend) onto '
-                       'this device as a mesh-app, serving its own '
-                       '<name>.isle domains with the MODULES you '
-                       'choose at deploy. Coarse-grained scaling — '
-                       'component-level (extra backends only) and '
-                       'module-collection apps are the next arc.',
+        'description': 'Deploy Polari frontend and backend instances together or independently. The Isle needs at least one of each; usually one frontend serves multiple backends. Modules run on backends.',
         'kind': 'polari-instance',
         'source_ref': 'prf-backend:staging + prf-frontend:staging',
         'category': 'platform', 'source': 'official',
@@ -469,6 +469,8 @@ def install_plan(entry):
                             '(pol modules get vpn)'}
         return vpn_install_plan(entry)
     if kind == 'hardware-app':
+        if entry.get('realization') == 'bridge':
+            return {'ok': False, 'steps': [], 'note': 'Hardware Bridge Apps require a Hardware Shell App and proven device bridging; automatic setup is not yet available. No VM is required.'}
         # hw-app-1: a KVM guest. The isle renders nothing itself — it asks
         # Polari for the domain XML + UCI profile rendered from the rows
         # (/api/hardwareapps/render/<name>) and drives libvirt through
@@ -534,3 +536,14 @@ def resolve_worker_engines(engines, catalog=None, bindings=None):
             'bound_url': bound_url or '',
         })
     return out
+
+# These deployed workers implement Polari runtime services. Their transport
+# remains mesh-app for the existing deploy engine; their management owner is Polari.
+POLARI_RUNTIME_COMPONENTS = frozenset({
+    'board-engines','bridge-engines','cad-engines','esp-engines','formal-engines',
+    'msci-engines','pcb-engines','scope-engines','cnt-engines','dask',
+})
+KVM_CATALOG_APPS = frozenset({'isle-guestnet','isle-relay','voron-printer'})
+
+def management_metadata(name, kind):
+    return {'management_system': 'polari' if kind == 'mesh-app' and name in POLARI_RUNTIME_COMPONENTS else 'isle'}

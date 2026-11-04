@@ -47,6 +47,8 @@ class IsleDevice(treeObject):
         # assessments read these.
         pools_json: str = '[]',
         ports_json: str = '[]',
+        capability_evidence_json: str = '{}',
+        capability_received_at: str = '',
         manager=None,
     ):
         self.name = name
@@ -64,3 +66,5 @@ class IsleDevice(treeObject):
         self.exposures_json = exposures_json
         self.pools_json = pools_json
         self.ports_json = ports_json
+        self.capability_evidence_json = capability_evidence_json
+        self.capability_received_at = capability_received_at

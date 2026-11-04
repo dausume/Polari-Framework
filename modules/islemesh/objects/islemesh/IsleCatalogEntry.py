@@ -63,6 +63,9 @@ class IsleCatalogEntry(treeObject):
         vcpus: int = 0,
         passthrough_json: str = '[]',
         extends: str = '',
+        # Action -> versioned complete requirement descriptor. No inferred readiness.
+        requirements_json: str = '{}',
+        realization: str = '',
         manager=None,
     ):
         self.name = name
@@ -88,3 +91,5 @@ class IsleCatalogEntry(treeObject):
         self.vcpus = vcpus
         self.passthrough_json = passthrough_json
         self.extends = extends
+        self.requirements_json = requirements_json
+        self.realization = realization
