@@ -1364,6 +1364,7 @@ class polariServer(treeObject):
             PartBoard,   # drv-0: a driver / load / module defined by its pins
             EsdProtectionArea,   # esd-0: a piece flagged to survive ESD
             ProtectionPart,   # esd-3: a protection part and its ratings
+            ClockSource, ClockPeer,   # cfg-1: clock sources and serial peers must be registered for runtime rows
             BenchSolution, BenchConditions,   # cfg-0: a Bench Solution (references only) + its open-air conditions
             HardwareSystem, ThermalSystem, ThermalMitigation, ThermalSolution, BenchSystem,   # bss-0: Systems (templates) + the Thermal Solution and its mitigations
             # pcb-0: KiCad as the relay engine — parts/symbols/footprints/schematics/boards, DKRed's fab rules, checks, exports
