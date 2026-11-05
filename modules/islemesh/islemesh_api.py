@@ -115,9 +115,10 @@ class IsleMeshAPI(treeObject):
             device=next((d for d in self._capability_devices() if d['name']==request.get_param('device')),None)
             fact=((device or {}).get('capability_evidence') or {}).get('facts',{}).get('isle.package_versions',{})
             installed=json.loads(fact.get('value','{}')) if fact.get('status')=='observed' else {}
-            response.media={'ok':True,'release':release,'installed':installed,'reportedAt':fact.get('observed_at'),
+            selected=([v for k,v in release.get('bundles',{}).items() if installed.get(k)] or release['packages']) if release else []
+            response.media={'ok':True,'release':release,'installed':installed,'selectedPackages':selected,'reportedAt':fact.get('observed_at'),
                             'remote':bool(device and (device.get('agent_mode')=='remote' or (not device.get('hosts_router') and ((device.get('capability_evidence') or {}).get('facts',{}).get('agent.running') or {}).get('value') is True))),
-                            'versionsDiffer':bool(release and any(installed.get(p['name'])!=p['version'] for p in ([v for k,v in release.get('bundles',{}).items() if installed.get(k)] or release['packages'])))}
+                            'versionsDiffer':bool(release and any(installed.get(p['name'])!=p['version'] for p in selected))}
         except (OSError,ValueError,KeyError,TypeError):
             response.status='503 Service Unavailable';response.media={'ok':False,'error':'Release status unavailable.'}
 
