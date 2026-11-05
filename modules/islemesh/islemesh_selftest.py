@@ -402,14 +402,19 @@ def main():
     check('seed catalog is never mock',
           all(not e.get('is_mock') for e in SEED_CATALOG))
     by_name = {e['name']: e for e in SEED_CATALOG}
-    mesh = install_plan(by_name['whoami'])
-    check('mesh-app plan calls isle app deploy',
-          mesh['ok'] and 'isle app deploy whoami' in mesh['steps'][0]
-          and '--image traefik/whoami' in mesh['steps'][0])
-    odoo = install_plan(by_name['odoo'])
-    check('engine app plan: image ref + --engine business-ops',
-          '--image odoo:16' in odoo['steps'][0]
-          and '--engine business-ops' in odoo['steps'][0])
+    import os, tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+    with tempfile.TemporaryDirectory() as directory:
+        with patch.dict(os.environ, {'DATABASE_PATH':str(Path(directory)/'db.sqlite')}):
+            unpublished=install_plan(by_name['whoami'])
+            check('unpublished source refs are not installable',not unpublished['ok'] and not unpublished['steps'])
+            release={'url':'https://apt.isle/catalog/fixture/v1/manifest.json','sha256':'a'*64,'size':1024}
+            Path(directory,'isle-catalog-releases.json').write_text(json.dumps({n:release for n,e in by_name.items() if e['kind']=='mesh-app'}))
+            published={n:install_plan(e) for n,e in by_name.items() if e['kind']=='mesh-app'}
+    mesh=published['whoami'];odoo=published['odoo']
+    check('unrelated mesh apps share verified artifact protocol',mesh['ok'] and odoo['ok'] and mesh['protocol']==odoo['protocol']==1)
+    check('old clients fail protocol guard instead of claiming empty install',mesh['steps']==['isle store require-protocol 1'])
     # ti-3a: the hardware engine workers are isle apps
     hw = {'board-engines': ('docker-compose.board-engines.yml', 'board-engines', 9830, 'board'),
           'formal-engines': ('docker-compose.formal-engines.yml', 'formal-engines', 9840, 'formal'),
@@ -419,13 +424,10 @@ def main():
           'scope-engines': ('docker-compose.scope-engines.yml', 'scope-engines', 9880, 'scope')}    # osc-5
     for hname, (ref, svc, port, eng) in hw.items():
         e = by_name.get(hname, {})
-        step = (install_plan(e)['steps'] or [''])[0] if e else ''
-        check('ti-3a: %s tile = mesh-app / engine / %s, plan = isle app deploy --compose %s --service %s --port %d --engine %s'
-              % (hname, eng, ref, svc, port, eng),
-              e.get('kind') == 'mesh-app' and e.get('category') == 'engine' and e.get('source') == 'official'
-              and e.get('provides_engine') == eng
-              and step.startswith('isle app deploy %s ' % hname) and '--compose %s' % ref in step
-              and '--service %s' % svc in step and '--port %d' % port in step and step.rstrip().endswith('--engine %s' % eng), step)
+        plan=published.get(hname,{})
+        check('ti-3a: %s retains hardware engine identity and uses a published release' % hname,
+              e.get('kind')=='mesh-app' and e.get('category')=='engine' and e.get('source')=='official'
+              and e.get('provides_engine')==eng and plan.get('ok') and plan.get('release')==release)
     check('ti-3a: esp tile says it is the QEMU-based worker', 'QEMU' in by_name['esp-engines']['description'])
     from islemesh.custom.islemesh_engines import _BINDERS
     check('ti-3a: every hardware tile engine key has a binder (the binding row is the wiring)',
