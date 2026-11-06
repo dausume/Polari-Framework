@@ -14,7 +14,7 @@ _results = []
 
 def check(label, cond, extra=''):
     _results.append(bool(cond))
-    print('%s: %s%s' % ('PASS' if cond else 'FAIL', label, (' - %s' % extra) if extra and not cond else ''))
+    print('%s: %s%s' % ('PASS' if cond else 'FAIL', label, (' - %r' % (extra,)) if extra and not cond else ''))
 
 
 def _manager():
@@ -177,9 +177,63 @@ def main():
     try:
         nb = S.after_boot(m, 'selftest')
     finally:
-        del IE.sync_from_registry
+        if saved is None:
+            del IE.sync_from_registry
+        else:
+            IE.sync_from_registry = saved
     check('a registry outage never stops the boot (said in words, links still described)',
           nb['registry']['ok'] is False and 'core unreachable' in nb['registry']['words'] and nb['links'].get('ok'), nb.get('registry'))
+
+    # -- PRODUCTION DEFAULTS (the 2026-11-06 lesson: a live core boot hit NameError in a path every test had injected around).
+    # Nothing injected but the HTTP boundary itself: polariApiServer.outbound.http_request.
+    import contextlib
+    import io
+    import json as _json
+    from polariApiServer import outbound
+    served, calls = {}, []
+
+    @contextlib.contextmanager
+    def fake_http(kind, name, method, url, **kw):
+        calls.append(url)
+        if url not in served:
+            raise OSError('connection refused: %s' % url)
+        yield io.BytesIO(_json.dumps(served[url]).encode())
+    real_http = outbound.http_request
+    outbound.http_request = fake_http
+    try:
+        served['https://electronics.isle/assets/runtime-config.json'] = {'backend': {'https': {'url': 'api.polari-pol.isle'}}}
+        ok_ev = S.frontend_evidence('https://electronics.isle', 'polari-pol')
+        check('production frontend_evidence (no fetch injected) reads through the outbound seam and verifies', ok_ev[0]
+              and 'https://electronics.isle/assets/runtime-config.json' in calls, ok_ev)
+        down = S.frontend_evidence('https://gone.isle', 'polari-pol')
+        check('production frontend_evidence: an unreachable frontend is UNVERIFIED in words, never raised', not down[0]
+              and 'unreadable' in down[1], down)
+        pm = _manager()
+        pm.polServer = types.SimpleNamespace(defClassList=[], endpointConstructed={'board', 'islemesh'}, bootRegistry=None)
+        pm.objectTyping = [types.SimpleNamespace(className='EngineProviderBinding')]
+        # the storage boundary, as managedDB answers: save -> None (False only on refusal), delete -> a row count
+        pm.db = types.SimpleNamespace(saveInstanceInDB=lambda row: None, deleteRowsWhere=lambda *a: 1)
+        os.environ.pop('ISLE_CORE_API', None)
+        nb = S.after_boot(pm, 'selftest')
+        check('production after_boot, ISLE_CORE_API unset: the REAL consumer says no registry, the boot goes on',
+              nb['registry'].get('ok') and 'ISLE_CORE_API unset' in nb['registry'].get('words', '') and nb['links'].get('ok'),
+              nb.get('registry'))
+        os.environ['ISLE_CORE_API'] = 'https://api.polari.isle'
+        served['https://api.polari.isle/api/islemesh/engines'] = {'ok': True, 'engines': [
+            {'name': 'board-engines@board', 'app': 'board-engines', 'provides': 'board', 'url': 'https://board-engines.isle',
+             'is_mock': False}]}
+        nb = S.after_boot(pm, 'selftest')
+        check('production after_boot, registry set: the REAL pull binds board and the same boot draws its edge',
+              nb['registry'].get('ok') and any(e['kind'] == 'board' for e in nb['links'].get('engines', [])),
+              (nb.get('registry'), nb.get('links', {}).get('words')))
+        del served['https://api.polari.isle/api/islemesh/engines']
+        nb = S.after_boot(pm, 'selftest')
+        check('production after_boot, registry unreachable: said in words, nothing retired, the boot goes on',
+              nb['registry'].get('ok') is False and 'unreachable' in nb['registry'].get('words', '')
+              and any(e['kind'] == 'board' for e in nb['links'].get('engines', [])), nb.get('registry'))
+    finally:
+        outbound.http_request = real_http
+        os.environ.pop('ISLE_CORE_API', None)
 
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
