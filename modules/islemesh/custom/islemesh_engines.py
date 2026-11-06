@@ -276,7 +276,7 @@ def _default_save(manager):
     _save swallows, which is fine for a door that answers the request either way, but a sync
     that claims a bind or a retirement must know whether the DB took it)."""
     def save(row):
-        manager.db.saveInstanceInDB(row)
+        return manager.db.saveInstanceInDB(row)
     return save
 
 
@@ -286,7 +286,10 @@ def _default_delete(manager):
         row_id = getattr(row, 'id', None)
         if db is None or not hasattr(db, 'deleteRowsWhere') or not row_id:
             return False
-        db.deleteRowsWhere(type(row).__name__, 'id', row_id)
+        result = db.deleteRowsWhere(type(row).__name__, 'id', row_id)
+        if result is False or (isinstance(result, int) and result < 0):
+            return False
+        return True
     return delete
 
 
@@ -381,6 +384,9 @@ def sync_from_registry(manager, source='boot', save=None, delete=None, fetch=Non
             if save(row):
                 out['retired'].append(name)
             else:
+                # The binding deletion succeeded but its durable receipt did not.
+                # Do not mark this as an already-completed retirement on retry.
+                row.notes = REGISTRY_MARK + 'retirement pending persistence; retry the sync'
                 out['failed'].append({'engine': name, 'note': 'binding removed but the IsleEngine row '
                                       'could not be saved as retired: %s (retry the sync)' % save.failures[-1]})
     if out['failed']:
