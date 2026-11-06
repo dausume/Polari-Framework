@@ -70,6 +70,7 @@
     "selftests": [
       "islemesh_capabilities_selftest",
       "islemesh_component_roles_selftest",
+      "islemesh_consumer_persistence_selftest",
       "islemesh_plan_library_usage_selftest",
       "islemesh_planning_selftest",
       "islemesh_selftest"
@@ -139,6 +140,7 @@
   "selftests": [
     "islemesh_capabilities_selftest",
     "islemesh_component_roles_selftest",
+    "islemesh_consumer_persistence_selftest",
     "islemesh_plan_library_usage_selftest",
     "islemesh_planning_selftest",
     "islemesh_selftest"
