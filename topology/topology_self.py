@@ -171,13 +171,40 @@ def _upsert(manager, cls_name, module, cls, name, created, **fields):
     return row
 
 
-def describe_links(manager, live_modules, source='boot'):
+def frontend_evidence(origin, me, fetch=None, timeout=5):
+    """Codex's review of tpl-1: a CORS origin only AUTHORIZES a frontend; it proves nothing about one existing or using this
+    backend. Evidence joins when the frontend's own runtime config names this backend (api.<me>.isle). Knob
+    POLARI_TOPOLOGY_VERIFY=off skips the read. -> (verified: bool, words). Never raises; TLS verified (the outbound seam)."""
+    if (os.environ.get('POLARI_TOPOLOGY_VERIFY') or '').strip().lower() == 'off':
+        return False, 'configured by CORS_ORIGINS; not checked (POLARI_TOPOLOGY_VERIFY=off)'
+    url = origin.rstrip('/') + '/assets/runtime-config.json'
+    try:
+        if fetch is not None:
+            cfg = fetch(url)
+        else:
+            import json
+            from polariApiServer import outbound
+            with outbound.http_request('peer', 'frontend-runtime-config', 'GET', url, means='rest', timeout=timeout,
+                                       lib='urllib') as resp:
+                cfg = json.loads(resp.read().decode('utf-8'))
+    except Exception as exc:  # noqa: BLE001 - an absent or unreachable frontend is a finding in words, never a crash
+        return False, 'configured by CORS_ORIGINS; UNVERIFIED: %s unreadable (%s: %s)' % (url, type(exc).__name__, exc)
+    backend = ((cfg or {}).get('backend') or {}) if isinstance(cfg, dict) else {}
+    hosts = {str((backend.get(k) or {}).get('url') or '') for k in ('https', 'http', 'ws')} - {''}
+    want = 'api.%s.isle' % me
+    if want in hosts:
+        return True, 'VERIFIED: %s names %s' % (url, want)
+    return False, 'configured by CORS_ORIGINS; UNVERIFIED: %s names %s, not %s' % (url, ', '.join(sorted(hosts)) or 'no backend', want)
+
+
+def describe_links(manager, live_modules, source='boot', fetch=None):
     """tpl-1: the backend's links as topology rows, idempotent.
     - every EngineProviderBinding: the worker it points at (InstanceDefinition kind worker, api_base_url = the bound url), the
       capability there (ModuleAssignment '<kind>.engines@<worker>') and, when the consuming module is live here, the
       dependency edge '<module>@<me>-><kind>.engines' resolved to that worker with the binding as evidence;
     - every other https://<name>.isle CORS origin: that frontend (InstanceDefinition kind prf, service prf-frontend) and its
-      prf-runtime-config ServiceConnection to this backend;
+      prf-runtime-config ServiceConnection to this backend, each marked VERIFIED only when the frontend's own runtime config
+      names this backend (frontend_evidence), else configured/UNVERIFIED with the reason;
     - a row this pass wrote whose binding or origin is gone: the assignment disabled, the edge unresolved, with the reason.
     -> {ok, engines, frontends, created, retired, words}"""
     import json
@@ -218,15 +245,16 @@ def describe_links(manager, live_modules, source='boot'):
         if not (host.endswith('.isle') and host.count('.') == 1) or host[:-len('.isle')] == me:
             continue
         fe = host[:-len('.isle')]
+        verified, evidence = frontend_evidence(origin.strip(), me, fetch)
         _upsert(manager, 'InstanceDefinition', 'topology.topology_basis', 'InstanceDefinition', fe, created, kind='prf',
                 service_kinds_json='["prf-frontend"]', public_base_url=origin.strip(), api_base_url='', topology_name=topo_name,
-                notes='frontend allowed by CORS_ORIGINS on %s %s' % (me, _TAG))
+                notes='frontend allowed by CORS_ORIGINS on %s; %s %s' % (me, evidence, _TAG))
         _upsert(manager, 'ServiceConnection', 'topology.topology_links', 'ServiceConnection',
                 'prf-frontend->prf-backend:prf-runtime-config@%s->%s' % (fe, me), created, interconnect_key='prf-runtime-config',
                 from_kind='prf-frontend', to_kind='prf-backend', from_instance_name=fe, to_instance_name=me,
                 artifact='%s/assets/runtime-config.json' % origin.strip(), topology_name=topo_name,
-                notes='%s serves the frontend that calls %s %s' % (origin.strip(), me, _TAG))
-        frontends.append(fe)
+                notes='%s -> %s: %s %s' % (origin.strip(), me, evidence, _TAG))
+        frontends.append({'name': fe, 'origin': origin.strip(), 'verified': verified, 'words': evidence})
     retired = []
     for r in _rows(manager, 'ModuleAssignment'):
         if _TAG in (getattr(r, 'notes', '') or '') and r.name not in live_assignments and getattr(r, 'state', '') != 'disabled':
@@ -242,7 +270,8 @@ def describe_links(manager, live_modules, source='boot'):
             'words': '%s: %d engine link%s (%s), %d frontend%s (%s)%s%s'
                      % (me, len(engines), '' if len(engines) == 1 else 's',
                         ', '.join('%s -> %s' % (e['kind'], e['worker']) for e in engines) or 'none',
-                        len(frontends), '' if len(frontends) == 1 else 's', ', '.join(frontends) or 'none',
+                        len(frontends), '' if len(frontends) == 1 else 's',
+                        ', '.join('%s %s' % (f['name'], 'verified' if f['verified'] else 'unverified') for f in frontends) or 'none',
                         '; no edge for ' + ', '.join(no_edge) if no_edge else '',
                         '; retired ' + ', '.join(retired) if retired else '')}
 
