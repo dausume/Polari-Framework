@@ -37,7 +37,7 @@ from islemesh.islemesh_basis import (
     IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
     MeshAppRealization,
 )
-from islemesh.custom.islemesh_engines import bind_engine, record_engine, sync_from_registry
+from islemesh.custom.islemesh_engines import bind_engine, record_engine, sync_from_registry, _TrackedSave, _default_save
 from islemesh.islemesh_catalog import (
     ai_tool_install_plan, ai_tool_options, install_plan,
     instances_of, option_install_plan, polari_app_options,
@@ -587,11 +587,21 @@ class IsleMeshAPI(treeObject):
             return self._refuse(
                 response, "engine ingest requires 'app', "
                 "'provides', and 'url'")
+        # persistence failures are SEEN here (review 2026-11-06): the row is still placed in memory,
+        # but the answer says it was not persisted, so the caller retries instead of trusting it
+        save = _TrackedSave(_default_save(self.manager), 'save')
         bound, bound_to, note = bind_engine(
-            self.manager, app_name, provides, url, self._save)
+            self.manager, app_name, provides, url, save)
         key = '%s@%s' % (app_name, provides)
-        record_engine(self.manager, self._save, app_name, provides, url,
+        record_engine(self.manager, save, app_name, provides, url,
                       device_name, bound, bound_to, note, is_mock=is_mock)
+        if save.failures:
+            response.status = '500 Internal Server Error'
+            response.media = {'ok': False, 'engine': key, 'bound': bound, 'bound_to': bound_to,
+                              'note': note, 'mock_network': is_mock, 'persisted': False,
+                              'error': 'recorded in memory but not persisted: ' + '; '.join(save.failures)
+                                       + ' (retry the ingest)'}
+            return
         if bound:
             # fix 11 / tpl-1: the topology draws a binding the moment it exists (never fails the ingest)
             try:
@@ -611,10 +621,11 @@ class IsleMeshAPI(treeObject):
         """fix 11: pull the isle core's engine registry NOW (the same pull the boot does) and
         bind what it lists; retire what it no longer lists. 502 when the registry could not
         be read (nothing changed); words in every case."""
-        result = sync_from_registry(self.manager, 'refresh', save=self._save,
-                                    delete=self._delete, notify=True)
+        result = sync_from_registry(self.manager, 'refresh', notify=True)
         if not result.get('ok'):
-            response.status = '502 Bad Gateway'
+            # 502: the isle registry could not be read (nothing changed); 500: it was read but a bind /
+            # record / retirement could not be persisted (listed in `failed`; retry). Both are words.
+            response.status = '500 Internal Server Error' if result.get('failed') else '502 Bad Gateway'
         response.media = result
 
     def on_get_engines(self, request, response):
