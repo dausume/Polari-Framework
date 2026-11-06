@@ -109,8 +109,9 @@ def describe_self(manager, live_modules, source='boot'):
 
 
 def after_boot(manager, source='boot'):
-    """The end-of-boot hook (lazy boot and the monolithic seed pass): describe this backend, then let a module that ships
-    boot-time data finish it (cmod: the Bench topology specs, manual fix 13). Best-effort: each part reports in words and a
+    """The end-of-boot hook (lazy boot and the monolithic seed pass): describe this backend, pull the isle's engine registry
+    when a consumer exists (islemesh.custom.islemesh_engines.sync_from_registry, fix 11), describe its links, then let a
+    module that ships boot-time data finish it (cmod: the Bench topology specs, manual fix 13). Best-effort: each part reports in words and a
     failure never stops the boot. -> {self, benches}"""
     out = {}
     try:
@@ -118,6 +119,17 @@ def after_boot(manager, source='boot'):
         out['self'] = describe_self(manager, live_module_set(manager.polServer), source)
     except Exception as exc:  # noqa: BLE001 - a standalone/host-tool manager may have no topology classes
         out['self'] = {'ok': False, 'words': 'self-description skipped: %s: %s' % (type(exc).__name__, exc)}
+    # fix 11 (econ Claude owns the consumer): pull the isle's engine registry and bind its entries BEFORE the links are
+    # described, so a fresh backend's topology shows the engines on its first boot. Absent function = nothing to pull.
+    try:
+        from islemesh.custom.islemesh_engines import sync_from_registry
+    except ImportError:
+        out['registry'] = {'ok': True, 'words': 'no engine registry consumer on this instance'}
+    else:
+        try:
+            out['registry'] = sync_from_registry(manager, source)
+        except Exception as exc:  # noqa: BLE001 - a registry outage must never stop the boot
+            out['registry'] = {'ok': False, 'words': 'engine registry pull failed: %s: %s' % (type(exc).__name__, exc)}
     try:
         from topology.placement_truth import live_module_set
         out['links'] = describe_links(manager, live_module_set(manager.polServer), source)

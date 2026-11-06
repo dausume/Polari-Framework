@@ -1978,7 +1978,7 @@ class polariServer(treeObject):
             try:
                 from topology.topology_self import after_boot
                 _described = after_boot(self.manager, 'boot')
-                print(f"[Topology] {_described['self'].get('words', '')}; links: {_described.get('links', {}).get('words', '')}", flush=True)
+                print(f"[Topology] {_described['self'].get('words', '')}; registry: {_described.get('registry', {}).get('words', '')}; links: {_described.get('links', {}).get('words', '')}", flush=True)
             except Exception as e:
                 print(f'[Topology] self-description skipped: {e}', flush=True)
 
