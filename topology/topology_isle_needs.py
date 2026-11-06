@@ -12,6 +12,11 @@ observations only (no network probe per GET), never a bare "available":
     configured         ISLE_CORE_API is set; nothing has been observed for this feature yet ("not yet evaluated")
     last-reported      an observation exists; `observedAt` is its newest timestamp and `ageSeconds` its age
     stale              the newest observation is older than POLARI_ISLE_EVIDENCE_MAX_AGE_S (knob; default 86400 s)
+    clock-skew         every timestamped observation lies in the FUTURE by more than POLARI_ISLE_CLOCK_SKEW_S (knob; default
+                       300 s): an impossible report is never fresh; its raw timestamp stays as evidence (Codex's review)
+
+A report up to the tolerance ahead of this clock is treated as age 0 (ordinary skew between devices); beyond it, that
+observation is excluded from freshness and flagged. Each evidence item carries its own observedAt and ageSeconds.
 
 A configured origin never claims trusted HTTPS, routable engines or a runnable placement; `last-reported` means "the isle
 said so at <time>", not "verified working now". The fallback is shown for every state except a fresh `last-reported`.
@@ -19,9 +24,10 @@ said so at <time>", not "verified working now". The fallback is shown for every 
 Placement changes are ONE shared operation (the isle CLI); its authorization depends on where it runs (sudo over SSH, or
 pkexec from the Isle App bridge). This backend only names the supported command; it never claims it is executable here.
 
-    isle_presence(manager) -> {configured, reported: {devices, lastSeen}, words}
-    isle_needs(manager, now=None) -> {ok, evaluatedAt, maxAgeS, isle, features: [{key, title, layer, requiresIsle, state,
-                                       observedAt, ageSeconds, evidence: [{source, observedAt, words}], words, fallback}]}
+    isle_presence(manager, now) -> {configured, reported: {devices, lastSeen}, words}
+    isle_needs(manager, now=None) -> {ok, evaluatedAt, maxAgeS, clockSkewS, isle, features: [{key, title, layer, requiresIsle,
+                                       state, observedAt, ageSeconds, evidence: [{source, observedAt, ageSeconds, clockSkew?,
+                                       words}], words, fallback}]}
 """
 import os
 from datetime import datetime, timezone
@@ -37,7 +43,9 @@ POLARI_FEATURES = (
     ('drift', 'Drift and reallocation suggestions'),
     ('testing', 'Testing over the topology'),
 )
-STATES = ('not-configured', 'configured', 'last-reported', 'stale')
+STATES = ('not-configured', 'configured', 'last-reported', 'stale', 'clock-skew')
+SKEW_KNOB = 'POLARI_ISLE_CLOCK_SKEW_S'
+DEFAULT_SKEW_S = 300
 MAX_AGE_KNOB = 'POLARI_ISLE_EVIDENCE_MAX_AGE_S'
 DEFAULT_MAX_AGE_S = 86400
 
@@ -57,6 +65,13 @@ def _ts(value):
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _skew():
+    try:
+        return max(0, int(os.environ.get(SKEW_KNOB) or DEFAULT_SKEW_S))
+    except ValueError:
+        return DEFAULT_SKEW_S
+
+
 def _max_age():
     try:
         return max(1, int(os.environ.get(MAX_AGE_KNOB) or DEFAULT_MAX_AGE_S))
@@ -64,40 +79,65 @@ def _max_age():
         return DEFAULT_MAX_AGE_S
 
 
-def isle_presence(manager):
+def isle_presence(manager, now=None):
+    now = now or datetime.now(timezone.utc)
     origin = (os.environ.get('ISLE_CORE_API') or '').strip()
     devices = [r for r in _rows(manager, 'IsleDevice') if getattr(r, 'name', '') and not getattr(r, 'is_mock', False)]
-    seen = [s for s in (_ts(getattr(d, 'last_seen', '')) for d in devices) if s]
+    stamps = [s for s in (_ts(getattr(d, 'last_seen', '')) for d in devices) if s]
+    limit = now.timestamp() + _skew()
+    seen = [s for s in stamps if s.timestamp() <= limit]        # an impossible future report is never the newest
+    future = len(stamps) - len(seen)
     last = max(seen).isoformat() if seen else ''
     parts = ['configured: ISLE_CORE_API = %s' % origin] if origin else []
     if devices:
-        parts.append('reported: %d device%s (%s), newest report %s' % (
-            len(devices), '' if len(devices) == 1 else 's', ', '.join(sorted(d.name for d in devices)), last or 'with no timestamp'))
+        parts.append('reported: %d device%s (%s), newest report %s%s' % (
+            len(devices), '' if len(devices) == 1 else 's', ', '.join(sorted(d.name for d in devices)), last or 'with no usable timestamp',
+            '; %d dated in the future (clock skew)' % future if future else ''))
     return {'configured': origin, 'reported': {'devices': sorted(d.name for d in devices), 'lastSeen': last},
             'words': '; '.join(parts) if parts else 'no isle: ISLE_CORE_API is unset and no isle has reported devices here'}
 
 
-def _feature(key, title, origin, evidence, now, max_age, words_none, words_configured, fallback):
-    stamps = [_ts(e['observedAt']) for e in evidence if _ts(e['observedAt'])]
-    newest = max(stamps) if stamps else None
-    if newest is not None:
-        age = int((now - newest).total_seconds())
+def _feature(key, title, origin, evidence, now, max_age, words_none, words_configured, fallback, skew=DEFAULT_SKEW_S):
+    usable, future = [], []
+    for e in evidence:
+        t = _ts(e['observedAt'])
+        if t is None:
+            e['ageSeconds'] = None
+            continue
+        age = int((now - t).total_seconds())
+        e['ageSeconds'] = age
+        if age < -skew:
+            e['clockSkew'] = True
+            future.append(e)
+        else:
+            usable.append((t, max(age, 0)))
+    if usable:
+        newest, age = max(usable)
         state = 'stale' if age > max_age else 'last-reported'
-        words = '; '.join(e['words'] for e in evidence)
+        words = '; '.join(e['words'] for e in evidence if not e.get('clockSkew'))
         if state == 'stale':
             words = 'STALE (%d s old, over %s=%d): %s' % (age, MAX_AGE_KNOB, max_age, words)
+        if future:
+            words += '; ignored %d report%s dated in the future' % (len(future), '' if len(future) == 1 else 's')
+        observed = newest.isoformat()
+    elif future:
+        ahead = min(-e['ageSeconds'] for e in future)
+        state, age, observed = 'clock-skew', None, ''
+        words = ('CLOCK SKEW: the only report%s %s dated %d s in the future (over %s=%d); not treated as fresh: %s'
+                 % ('' if len(future) == 1 else 's', 'is' if len(future) == 1 else 'are', ahead, SKEW_KNOB, skew,
+                    '; '.join('%s at %s' % (e['words'], e['observedAt']) for e in future)))
     else:
-        age, state = None, ('configured' if origin else 'not-configured')
+        age, observed, state = None, '', ('configured' if origin else 'not-configured')
         words = words_configured if origin else words_none
     return {'key': key, 'title': title, 'layer': 'isle', 'requiresIsle': True, 'state': state,
-            'observedAt': newest.isoformat() if newest else '', 'ageSeconds': age, 'evidence': evidence, 'words': words,
+            'observedAt': observed, 'ageSeconds': age, 'evidence': evidence, 'words': words,
             'fallback': '' if state == 'last-reported' else fallback}
 
 
 def isle_needs(manager, now=None):
     now = now or datetime.now(timezone.utc)
-    max_age = _max_age()
-    isle = isle_presence(manager)
+    max_age, skew = _max_age(), _skew()
+    isle = isle_presence(manager, now)
     origin = isle['configured']
     devices = [r for r in _rows(manager, 'IsleDevice') if getattr(r, 'name', '') and not getattr(r, 'is_mock', False)]
     dev_ev = [{'source': 'IsleDevice:%s' % d.name, 'observedAt': getattr(d, 'last_seen', '') or '',
@@ -122,29 +162,29 @@ def isle_needs(manager, now=None):
     features += [
         _feature('discovery', 'Finding other devices and their Polari instances', origin, dev_ev, now, max_age,
                  'needs an isle: devices are discovered by the isle agents', 'configured; no device has reported here yet',
-                 'list peers by hand (tpl-2), or `pol topology report` over ssh'),
+                 'list peers by hand (tpl-2), or `pol topology report` over ssh', skew=skew),
         _feature('engine-auto-routing', 'Routing to an engine on another device with no URL knob', origin,
                  [e for e in eng_ev if e['observedAt']] or [], now, max_age,
                  'needs an isle: the engine registry lives on the isle core',
                  'configured; no engine bound from the isle registry yet (see `pol engines list`)' if not eng_ev
                  else 'configured; engines bound from the registry carry no timestamp yet',
-                 'set the engine URL knob (e.g. BOARD_ENGINES_URL)'),
+                 'set the engine URL knob (e.g. BOARD_ENGINES_URL)', skew=skew),
         # No TLS observation is recorded by this backend: configuration never claims trust.
         _feature('trusted-names', 'Trusted HTTPS names (<name>.isle) for cross-device calls', origin, [], now, max_age,
                  'needs an isle: the .isle names and their CA are the isle\'s', not_evaluated + '; configured is not trusted',
-                 'your own TLS, or plain dev URLs'),
+                 'your own TLS, or plain dev URLs', skew=skew),
         _feature('device-resources', 'Device resources observed by the isle agents', origin, res_ev, now, max_age,
                  'needs an isle: the agents observe device resources',
                  'configured; devices reported but no resources observed yet' if devices else not_evaluated,
-                 '`pol topology observe` over ssh, or "capacity unknown"'),
+                 '`pol topology observe` over ssh, or "capacity unknown"', skew=skew),
         # One shared operation; this backend names it and never claims it can run it.
         _feature('run-placement', 'Running a placement change (moving a module or instance)', origin, [], now, max_age,
                  'needs an isle: the shared isle operation places instances on devices',
                  'supported operation: `isle polari module move <m> --from A --to B` / `isle polari instance deploy` (the shared '
                  'CLI; authorized by sudo over SSH, or pkexec from the Isle App); not evaluated as executable from here',
-                 'the suggestions plus `pol allocate` by hand'),
+                 'the suggestions plus `pol allocate` by hand', skew=skew),
         _feature('network-view', 'The Isle Topology tab (devices, addresses, routes)', origin, dev_ev, now, max_age,
                  'needs an isle: there is no network layer to show', 'configured; no device has reported here yet',
-                 'hidden; the Polari topology still works'),
+                 'hidden; the Polari topology still works', skew=skew),
     ]
-    return {'ok': True, 'evaluatedAt': now.isoformat(), 'maxAgeS': max_age, 'isle': isle, 'features': features}
+    return {'ok': True, 'evaluatedAt': now.isoformat(), 'maxAgeS': max_age, 'clockSkewS': skew, 'isle': isle, 'features': features}
