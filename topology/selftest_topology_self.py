@@ -235,6 +235,30 @@ def main():
         outbound.http_request = real_http
         os.environ.pop('ISLE_CORE_API', None)
 
+    # -- tpl-4: "Needs an isle" states
+    from topology.topology_isle_needs import isle_needs
+    os.environ.pop('ISLE_CORE_API', None)
+    nm = _manager()
+    none = isle_needs(nm)
+    feats = {f['key']: f for f in none['features']}
+    check('no isle: said so in words, never assumed', none['isle']['present'] is False and 'no isle' in none['isle']['words'])
+    check('no isle: every Polari-only feature still available', all(f['available'] for f in none['features'] if not f['requiresIsle'])
+          and len([f for f in none['features'] if not f['requiresIsle']]) == 8)
+    check('no isle: every isle feature says "needs an isle" and names its fallback', all(
+        not f['available'] and f['words'].startswith('needs an isle') and f['fallback'] for f in none['features'] if f['requiresIsle']),
+        [f for f in none['features'] if f['requiresIsle']])
+    os.environ['ISLE_CORE_API'] = 'https://api.polari.isle'
+    cfg = {f['key']: f for f in isle_needs(nm)['features']}
+    check('configured, no devices yet: engine routing available, discovery honestly not yet',
+          cfg['engine-auto-routing']['available'] and not cfg['discovery']['available']
+          and 'no device has reported' in cfg['discovery']['words'], cfg['discovery'])
+    from islemesh.islemesh_basis import IsleDevice
+    IsleDevice(name='member-b', manager=nm)
+    rep = isle_needs(nm)
+    check('a device reported: discovery available and named', {f['key']: f for f in rep['features']}['discovery']['available']
+          and 'member-b' in rep['isle']['words'], rep['isle'])
+    os.environ.pop('ISLE_CORE_API', None)
+
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
     from topology.selftest_topology import _mgr
