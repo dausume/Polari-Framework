@@ -235,29 +235,58 @@ def main():
         outbound.http_request = real_http
         os.environ.pop('ISLE_CORE_API', None)
 
-    # -- tpl-4: "Needs an isle" states
+    # -- tpl-4: "Needs an isle" states from timestamped evidence (Codex's review: configuration is not readiness)
+    from datetime import datetime, timedelta, timezone
     from topology.topology_isle_needs import isle_needs
+    from islemesh.islemesh_basis import IsleDevice, IsleEngine
+    now = datetime(2026, 11, 6, 18, 0, tzinfo=timezone.utc)
+    isle_feats = lambda r: {f['key']: f for f in r['features'] if f['requiresIsle']}
     os.environ.pop('ISLE_CORE_API', None)
     nm = _manager()
-    none = isle_needs(nm)
-    feats = {f['key']: f for f in none['features']}
-    check('no isle: said so in words, never assumed', none['isle']['present'] is False and 'no isle' in none['isle']['words'])
-    check('no isle: every Polari-only feature still available', all(f['available'] for f in none['features'] if not f['requiresIsle'])
-          and len([f for f in none['features'] if not f['requiresIsle']]) == 8)
-    check('no isle: every isle feature says "needs an isle" and names its fallback', all(
-        not f['available'] and f['words'].startswith('needs an isle') and f['fallback'] for f in none['features'] if f['requiresIsle']),
-        [f for f in none['features'] if f['requiresIsle']])
-    os.environ['ISLE_CORE_API'] = 'https://api.polari.isle'
-    cfg = {f['key']: f for f in isle_needs(nm)['features']}
-    check('configured, no devices yet: engine routing available, discovery honestly not yet',
-          cfg['engine-auto-routing']['available'] and not cfg['discovery']['available']
-          and 'no device has reported' in cfg['discovery']['words'], cfg['discovery'])
-    from islemesh.islemesh_basis import IsleDevice
-    IsleDevice(name='member-b', manager=nm)
-    rep = isle_needs(nm)
-    check('a device reported: discovery available and named', {f['key']: f for f in rep['features']}['discovery']['available']
-          and 'member-b' in rep['isle']['words'], rep['isle'])
+    none = isle_needs(nm, now)
+    check('no isle: said so in words', not none['isle']['configured'] and 'no isle' in none['isle']['words'])
+    check('no isle: the 8 Polari-only features are "supported"', [f['state'] for f in none['features'] if not f['requiresIsle']] == ['supported'] * 8)
+    check('no isle: every isle feature is not-configured, says "needs an isle" and names its fallback', all(
+        f['state'] == 'not-configured' and f['words'].startswith('needs an isle') and f['fallback'] for f in isle_feats(none).values()))
+    check('no response field claims availability (no "available" key at all)', all('available' not in f for f in none['features']))
+    os.environ['ISLE_CORE_API'] = 'https://unreachable.invalid'
+    cfg = isle_feats(isle_needs(nm, now))
+    check('NEGATIVE configured-only (unreachable origin, no rows): every isle feature "configured", none last-reported, every fallback shown',
+          all(f['state'] == 'configured' and f['fallback'] and not f['observedAt'] for f in cfg.values()), cfg)
+    check('NEGATIVE configured-only: trusted HTTPS is explicitly not claimed', 'configured is not trusted' in cfg['trusted-names']['words'])
+    check('NEGATIVE configured-only: placement names the shared operation and both authorizations, never "executable"',
+          'isle polari' in cfg['run-placement']['words'] and 'sudo over SSH' in cfg['run-placement']['words']
+          and 'pkexec' in cfg['run-placement']['words'] and 'not evaluated as executable' in cfg['run-placement']['words'])
+    hm = _manager()
+    IsleDevice(name='member-old', last_seen=(now - timedelta(days=30)).isoformat(), manager=hm)
+    IsleDevice(name='member-nostamp', manager=hm)
+    hist = isle_feats(isle_needs(hm, now))
+    check('NEGATIVE historical device-only: a 30-day-old report is "stale" with its age, fallback still shown',
+          hist['discovery']['state'] == 'stale' and hist['discovery']['ageSeconds'] == 30 * 86400 and hist['discovery']['fallback'], hist['discovery'])
+    check('NEGATIVE devices without resource observations: device resources not reported', hist['device-resources']['state'] == 'configured'
+          and 'no resources observed' in hist['device-resources']['words'], hist['device-resources'])
+    check('NEGATIVE devices never imply trust or placement', hist['trusted-names']['state'] == 'configured' and hist['run-placement']['state'] == 'configured')
+    fm = _manager()
+    IsleDevice(name='member-b', last_seen=(now - timedelta(minutes=5)).isoformat(), manager=fm)
+    EngineProviderBinding(name='board', url='https://board-engines.isle', bound_from='board-engines',
+                          bound_at=(now - timedelta(minutes=2)).isoformat(), manager=fm)
+    IsleEngine(name='board-engines@board', app_name='board-engines', provides='board', url='https://board-engines.isle', bound=True,
+               notes='[isle registry] wired', manager=fm)
+    fresh = isle_feats(isle_needs(fm, now))
+    check('fresh reports: discovery + network view last-reported with observedAt and age, no fallback',
+          all(fresh[k]['state'] == 'last-reported' and fresh[k]['ageSeconds'] == 300 and not fresh[k]['fallback'] for k in ('discovery', 'network-view')), fresh['discovery'])
+    check('fresh registry binding: engine routing last-reported at its bound_at', fresh['engine-auto-routing']['state'] == 'last-reported'
+          and fresh['engine-auto-routing']['ageSeconds'] == 120, fresh['engine-auto-routing'])
+    check('even with fresh reports, trust and placement stay "configured" (no observation of them exists)',
+          fresh['trusted-names']['state'] == 'configured' and fresh['run-placement']['state'] == 'configured')
+    os.environ['POLARI_ISLE_EVIDENCE_MAX_AGE_S'] = '60'
+    tight = isle_feats(isle_needs(fm, now))
+    check('the max-age knob: a 5-minute report is stale under POLARI_ISLE_EVIDENCE_MAX_AGE_S=60', tight['discovery']['state'] == 'stale'
+          and 'STALE' in tight['discovery']['words'])
+    os.environ.pop('POLARI_ISLE_EVIDENCE_MAX_AGE_S')
     os.environ.pop('ISLE_CORE_API', None)
+    noorigin = isle_feats(isle_needs(fm, now))
+    check('reports without a configured origin still count as reported (the isle posted here)', noorigin['discovery']['state'] == 'last-reported')
 
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
