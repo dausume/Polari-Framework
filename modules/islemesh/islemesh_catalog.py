@@ -415,28 +415,29 @@ def install_plan(entry):
     name = entry.get('name', '')
     ref = entry.get('source_ref', '')
     if kind == 'mesh-app':
-        # arbitrary compose/image → the deploy pipeline
-        args = ['isle app deploy %s' % name]
-        # a compose REF is a file path (.yml/.yaml) or a URL;
-        # anything else is an IMAGE (the CLI synthesizes a one-
-        # service compose). 'odoo:16' and 'traefik/whoami:latest'
-        # are both images; 'stack.yml' / 'https://…' are compose.
-        if ref.endswith(('.yml', '.yaml')) or '://' in ref:
-            args.append('--compose %s' % ref)
-        else:
-            args.append('--image %s' % ref)
-        if entry.get('service'):
-            args.append('--service %s' % entry['service'])
-        if entry.get('port'):
-            args.append('--port %d' % entry['port'])
-        if entry.get('domain'):
-            args.append('--domain %s' % entry['domain'])
-        if entry.get('provides_engine'):
-            args.append('--engine %s' % entry['provides_engine'])
-        return {'ok': True, 'steps': [' '.join(args)],
-                'note': 'deploys %s as an .isle app%s' % (
-                    name, ' (+ engine %s)' % entry['provides_engine']
-                    if entry.get('provides_engine') else '')}
+        # A source checkout reference is provenance, not an installable release.
+        # Publication writes only verified immutable manifest descriptors here.
+        import json, os, re
+        from pathlib import Path
+        from urllib.parse import urlsplit
+        try:
+            db = os.environ.get('DATABASE_PATH')
+            if not db:
+                raise ValueError('No release publication directory')
+            index = Path(db).parent / 'isle-catalog-releases.json'
+            release = json.loads(index.read_text())[name]
+            url = urlsplit(release['url'])
+            if (url.scheme != 'https' or not (url.hostname or '').endswith('.isle')
+                    or url.username or url.password or url.fragment
+                    or not re.fullmatch('[a-f0-9]{64}', release['sha256'])
+                    or type(release['size']) is not int or not 0 < release['size'] <= 2*1024*1024):
+                raise ValueError('Invalid published descriptor')
+        except (OSError, ValueError, KeyError, TypeError):
+            return {'ok': False, 'steps': [], 'note':
+                    'A verified versioned release has not been published for this app.'}
+        return {'ok': True, 'protocol': 1, 'release': release,
+                'steps': ['isle store require-protocol 1'],
+                'note': 'The shared store operation resolves and verifies this release, then deploys it locally.'}
     if kind == 'polari-app':
         # ONE command: build + install a native launcher sharing the
         # one polari-shell-core runtime (feels native, §32). The
