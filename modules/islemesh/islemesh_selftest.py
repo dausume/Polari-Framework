@@ -723,6 +723,87 @@ def main():
     check('mock banner is loud and self-describing',
           'MOCK NETWORK' in MOCK_BANNER)
 
+    # ---- fix 11 (econ Claude, 2026-11-06): the registry CONSUMER ------------
+    # sync_from_registry pulls the isle core's /api/islemesh/engines and binds through the
+    # same binder as ingest/engine. Nothing here touches the network: fetch is a stub.
+    from islemesh.custom.islemesh_engines import (
+        sync_from_registry, record_engine, REGISTRY_MARK, REGISTRY_KNOB)
+
+    def live_mgr():
+        m = type('M', (), {'objectTables': {}, 'idList': [], 'objectTyping': [
+            type('T', (), {'className': 'EngineProviderBinding'})()]})()
+        return m
+
+    def table_save(m):  # stands in for the DB: rows land in objectTables by class + name
+        def save(row):
+            m.objectTables.setdefault(type(row).__name__, {})[getattr(row, 'name', '')] = row
+        return save
+
+    r0 = sync_from_registry(live_mgr(), 'boot', env={})
+    check('fix 11: knob unset -> ok, words say so, nothing pulled',
+          r0['ok'] and 'ISLE_CORE_API unset' in r0['words'] and r0['seen'] == 0, r0['words'])
+    check('fix 11: the knob is the agreed name', REGISTRY_KNOB == 'ISLE_CORE_API')
+
+    m1 = live_mgr()
+    r1 = sync_from_registry(m1, 'boot', save=table_save(m1), env={'ISLE_CORE_API': 'https://api.polari.isle/'},
+                            fetch=lambda origin: (None, 'registry unreachable at %s: URLError: boom' % origin))
+    check('fix 11: an outage is ok=False with words, nothing bound, boot not stopped',
+          r1['ok'] is False and 'unreachable' in r1['words'] and not m1.objectTables.get('EngineProviderBinding'),
+          r1['words'])
+    check('fix 11: origin is normalised without the trailing slash', r1['origin'] == 'https://api.polari.isle')
+
+    registry = [
+        {'name': 'board-engines@board', 'app': 'board-engines', 'provides': 'board',
+         'url': 'https://board-engines.isle', 'bound': True, 'bound_to': '', 'note': '', 'is_mock': False},
+        {'name': 'fake@scope', 'app': 'fake', 'provides': 'scope', 'url': 'https://fake.isle',
+         'is_mock': True},
+        {'name': 'half@cad', 'app': 'half', 'provides': 'cad', 'url': ''},
+    ]
+    m2 = live_mgr(); save2 = table_save(m2)
+    r2 = sync_from_registry(m2, 'boot', save=save2, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda origin: (registry, ''))
+    binding = (m2.objectTables.get('EngineProviderBinding') or {}).get('board')
+    engine = (m2.objectTables.get('IsleEngine') or {}).get('board-engines@board')
+    check('fix 11: a real registry entry binds through the SAME binder as ingest/engine',
+          r2['ok'] and len(r2['bound']) == 1 and r2['bound'][0]['bound_to'] == 'EngineProviderBinding:board'
+          and binding is not None and getattr(binding, 'url', '') == 'https://board-engines.isle', r2['words'])
+    check('fix 11: ... and records the IsleEngine row, marked as registry-sourced',
+          engine is not None and getattr(engine, 'bound', False) and getattr(engine, 'url', '') == 'https://board-engines.isle'
+          and getattr(engine, 'notes', '').startswith(REGISTRY_MARK))
+    check('fix 11: a missing device field (installed core80 backend) stays unknown, never a guessed host',
+          getattr(engine, 'device_name', '') == 'unknown' and r2['bound'][0]['device'] == 'unknown')
+    check('fix 11: a mock entry is skipped, never bound, never recorded',
+          r2['skipped_mock'] == ['fake@scope'] and 'fake@scope' not in (m2.objectTables.get('IsleEngine') or {})
+          and 'scope' not in (m2.objectTables.get('EngineProviderBinding') or {}))
+    check('fix 11: an entry lacking a url is reported unbound in words, not bound',
+          any(u['engine'] == 'half@cad' and 'lacks' in u['note'] for u in r2['unbound'])
+          and 'cad' not in (m2.objectTables.get('EngineProviderBinding') or {}))
+    check('fix 11: words summarise the pull',
+          r2['words'].startswith('3 listed, 1 bound, 1 unbound, 1 mock skipped, 0 retired'), r2['words'])
+    # a direct ingest (no registry mark) must never be retired by a pull that does not list it
+    record_engine(m2, save2, 'hand', 'msci', 'http://msci.isle:9500', 'pol-core', True,
+                  'EngineProviderBinding:msci', 'wired by ingest')
+    m2.objectTables['EngineProviderBinding']['msci'] = type('B', (), {'name': 'msci', 'url': 'http://msci.isle:9500'})()
+    r3 = sync_from_registry(m2, 'refresh', save=save2, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda origin: ([], ''))
+    engine = m2.objectTables['IsleEngine']['board-engines@board']
+    check('fix 11: an entry the registry no longer lists is retired: row unbound, binding dropped',
+          r3['retired'] == ['board-engines@board'] and not getattr(engine, 'bound', True)
+          and 'retired:' in getattr(engine, 'notes', '')
+          and 'board' not in m2.objectTables['EngineProviderBinding'], r3['words'])
+    check('fix 11: a row from a direct ingest is NOT retired by the registry pull',
+          'msci' in m2.objectTables['EngineProviderBinding']
+          and getattr(m2.objectTables['IsleEngine']['hand@msci'], 'bound', False))
+    r4 = sync_from_registry(m2, 'refresh', save=save2, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda origin: ([], ''))
+    check('fix 11: a second empty pull retires nothing again (idempotent)', r4['retired'] == [])
+    # a binding someone set by hand to ANOTHER url is never clobbered by a retirement
+    from islemesh.custom.islemesh_engines import retire_binding
+    m2.objectTables['EngineProviderBinding']['board'] = type('B', (), {'name': 'board', 'url': 'https://elsewhere.isle'})()
+    check('fix 11: retire_binding leaves a binding that points elsewhere alone',
+          retire_binding(m2, 'board', 'https://board-engines.isle') is False
+          and 'board' in m2.objectTables['EngineProviderBinding'])
+
     failed = sum(1 for _, ok in _results if not ok)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
     raise SystemExit(1 if failed else 0)
