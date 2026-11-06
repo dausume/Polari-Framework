@@ -7,6 +7,7 @@ tpl-0 (AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md): a backend DESCRIBES ITSELF in th
 'local'; now it knows its own name and writes its own rows at boot, idempotently:
 
     TopologyDefinition   the active one if any, else one named after this instance (status applied, active)
+    PolariNodeMachine    the device it runs on, when known (created if absent; resources stay unobserved until reported)
     InstanceDefinition   this instance (created if absent; an existing row is left as its owner wrote it)
     ModuleAssignment     one per module ACTUALLY live here (placement_truth.sync_assignment_row, the dyn-2b authority path)
 
@@ -20,6 +21,7 @@ Knobs (labelled; every value derived or said in words):
 
     instance_name() / machine_name() / seed_mode()
     describe_self(manager, live_modules, source) -> {ok, instance, topology, machine, assignments, created, words}
+    describe_links(manager, live_modules, source) -> tpl-1: engine bindings + frontend origins as rows {engines, frontends, created, retired, words}
 """
 import os
 from urllib.parse import urlsplit
@@ -81,6 +83,12 @@ def describe_self(manager, live_modules, source='boot'):
                                   status='applied', is_active=True, notes='self-described at %s (tpl-0)' % source, manager=manager)
         _save(manager, topo)
         created.append('TopologyDefinition:%s' % topo.name)
+    if machine and not any(getattr(r, 'name', '') == machine for r in _rows(manager, 'PolariNodeMachine')):
+        from topology.topology_basis import PolariNodeMachine
+        _save(manager, PolariNodeMachine(name=machine, source='self-described', notes='the device %s runs on, self-described at %s '
+                                         '(tpl-0); its resources come from an observation, never guessed' % (me, source),
+                                         manager=manager))
+        created.append('PolariNodeMachine:%s' % machine)
     inst = next((i for i in _rows(manager, 'InstanceDefinition') if getattr(i, 'name', '') == me), None)
     if inst is None:
         from topology.topology_basis import InstanceDefinition
@@ -110,6 +118,11 @@ def after_boot(manager, source='boot'):
     except Exception as exc:  # noqa: BLE001 - a standalone/host-tool manager may have no topology classes
         out['self'] = {'ok': False, 'words': 'self-description skipped: %s: %s' % (type(exc).__name__, exc)}
     try:
+        from topology.placement_truth import live_module_set
+        out['links'] = describe_links(manager, live_module_set(manager.polServer), source)
+    except Exception as exc:  # noqa: BLE001
+        out['links'] = {'ok': False, 'words': 'links skipped: %s: %s' % (type(exc).__name__, exc)}
+    try:
         from cmod.custom.bench_topology_spec import apply_shipped
         out['benches'] = apply_shipped(manager)
     except ImportError:
@@ -117,3 +130,105 @@ def after_boot(manager, source='boot'):
     except Exception as exc:  # noqa: BLE001
         out['benches'] = [{'applied': False, 'words': 'bench specs skipped: %s: %s' % (type(exc).__name__, exc)}]
     return out
+
+
+# tpl-1: which module CONSUMES an engine kind, derived from the readers of the binding row (cited): board -> board.custom.
+# board_engines.binding_url_for (avr + esp families), scope -> instruments.custom.scope_engines.binding_url, cad ->
+# mathshapes.cad_remote, msci -> materialsScience's remote ladder (islemesh_engines._BINDERS note). A kind with no verified
+# reader gets its worker and capability rows but no dependency edge, said in the result.
+ENGINE_CONSUMERS = {'board': 'board', 'esp': 'board', 'scope': 'instruments', 'cad': 'mathshapes', 'msci': 'materialsScience'}
+_TAG = '(tpl-1)'
+
+
+def _worker_name(kind, url):
+    host = urlsplit(url or '').hostname or ''
+    return host[:-len('.isle')] if host.endswith('.isle') and host.count('.') == 1 else (host or '%s-engines' % kind)
+
+
+def _upsert(manager, cls_name, module, cls, name, created, **fields):
+    row = next((r for r in _rows(manager, cls_name) if getattr(r, 'name', '') == name), None)
+    if row is None:
+        mod = __import__(module, fromlist=[cls])
+        row = getattr(mod, cls)(name=name, manager=manager, **fields)
+        created.append('%s:%s' % (cls_name, name))
+    elif _TAG in (getattr(row, 'notes', '') or ''):
+        for k, v in fields.items():          # only rows this pass wrote follow it; a row a person wrote is left as it is
+            setattr(row, k, v)
+    _save(manager, row)
+    return row
+
+
+def describe_links(manager, live_modules, source='boot'):
+    """tpl-1: the backend's links as topology rows, idempotent.
+    - every EngineProviderBinding: the worker it points at (InstanceDefinition kind worker, api_base_url = the bound url), the
+      capability there (ModuleAssignment '<kind>.engines@<worker>') and, when the consuming module is live here, the
+      dependency edge '<module>@<me>-><kind>.engines' resolved to that worker with the binding as evidence;
+    - every other https://<name>.isle CORS origin: that frontend (InstanceDefinition kind prf, service prf-frontend) and its
+      prf-runtime-config ServiceConnection to this backend;
+    - a row this pass wrote whose binding or origin is gone: the assignment disabled, the edge unresolved, with the reason.
+    -> {ok, engines, frontends, created, retired, words}"""
+    import json
+    me = instance_name()
+    topo = next((t for t in _rows(manager, 'TopologyDefinition') if getattr(t, 'is_active', False)), None)
+    topo_name = getattr(topo, 'name', '') if topo else ''
+    created, engines, frontends, no_edge = [], [], [], []
+    live_edges, live_assignments = set(), set()
+    for b in _rows(manager, 'EngineProviderBinding'):
+        kind, url = getattr(b, 'name', ''), getattr(b, 'url', '')
+        if not kind or not url:
+            continue
+        worker = _worker_name(kind, url)
+        _upsert(manager, 'InstanceDefinition', 'topology.topology_basis', 'InstanceDefinition', worker, created, kind='worker',
+                service_kinds_json='["prf-engine-worker"]', api_base_url=url, topology_name=topo_name,
+                notes='engine worker bound by EngineProviderBinding:%s %s' % (kind, _TAG))
+        cap = '%s.engines' % kind
+        a_name = '%s@%s' % (cap, worker)
+        _upsert(manager, 'ModuleAssignment', 'topology.topology_modules', 'ModuleAssignment', a_name, created, module_name=cap,
+                instance_name=worker, state='enabled', topology_name=topo_name,
+                notes='the %s engines at %s (EngineProviderBinding:%s) %s' % (kind, url, kind, _TAG))
+        live_assignments.add(a_name)
+        consumer = ENGINE_CONSUMERS.get(kind)
+        if consumer and consumer in live_modules:
+            e_name = '%s@%s->%s' % (consumer, me, cap)
+            _upsert(manager, 'ModuleDependencyEdge', 'topology.topology_modules', 'ModuleDependencyEdge', e_name, created,
+                    module_name=consumer, consumer_instance_name=me, depends_on_module=cap, provider_instance_name=worker,
+                    status='resolved', is_primary=True, topology_name=topo_name,
+                    evidence_json=json.dumps([{'source': 'EngineProviderBinding:%s' % kind, 'url': url,
+                                               'boundFrom': getattr(b, 'bound_from', ''), 'boundAt': getattr(b, 'bound_at', '')}]),
+                    notes='%s on %s resolves %s through its binding row %s' % (consumer, me, cap, _TAG))
+            live_edges.add(e_name)
+        else:
+            no_edge.append('%s (%s)' % (kind, 'no verified consumer module' if not consumer else '%s not live here' % consumer))
+        engines.append({'kind': kind, 'worker': worker, 'url': url, 'consumer': consumer if consumer in live_modules else ''})
+    for origin in (os.environ.get('CORS_ORIGINS') or '').split(','):
+        host = urlsplit(origin.strip()).hostname or ''
+        if not (host.endswith('.isle') and host.count('.') == 1) or host[:-len('.isle')] == me:
+            continue
+        fe = host[:-len('.isle')]
+        _upsert(manager, 'InstanceDefinition', 'topology.topology_basis', 'InstanceDefinition', fe, created, kind='prf',
+                service_kinds_json='["prf-frontend"]', public_base_url=origin.strip(), api_base_url='', topology_name=topo_name,
+                notes='frontend allowed by CORS_ORIGINS on %s %s' % (me, _TAG))
+        _upsert(manager, 'ServiceConnection', 'topology.topology_links', 'ServiceConnection',
+                'prf-frontend->prf-backend:prf-runtime-config@%s->%s' % (fe, me), created, interconnect_key='prf-runtime-config',
+                from_kind='prf-frontend', to_kind='prf-backend', from_instance_name=fe, to_instance_name=me,
+                artifact='%s/assets/runtime-config.json' % origin.strip(), topology_name=topo_name,
+                notes='%s serves the frontend that calls %s %s' % (origin.strip(), me, _TAG))
+        frontends.append(fe)
+    retired = []
+    for r in _rows(manager, 'ModuleAssignment'):
+        if _TAG in (getattr(r, 'notes', '') or '') and r.name not in live_assignments and getattr(r, 'state', '') != 'disabled':
+            r.state, r.notes = 'disabled', 'its binding row is gone (%s) %s' % (source, _TAG)
+            _save(manager, r)
+            retired.append('ModuleAssignment:%s' % r.name)
+    for r in _rows(manager, 'ModuleDependencyEdge'):
+        if _TAG in (getattr(r, 'notes', '') or '') and r.name not in live_edges and getattr(r, 'status', '') != 'unresolved':
+            r.status, r.provider_instance_name, r.notes = 'unresolved', '', 'its binding row is gone (%s) %s' % (source, _TAG)
+            _save(manager, r)
+            retired.append('ModuleDependencyEdge:%s' % r.name)
+    return {'ok': True, 'engines': engines, 'frontends': frontends, 'created': created, 'retired': retired,
+            'words': '%s: %d engine link%s (%s), %d frontend%s (%s)%s%s'
+                     % (me, len(engines), '' if len(engines) == 1 else 's',
+                        ', '.join('%s -> %s' % (e['kind'], e['worker']) for e in engines) or 'none',
+                        len(frontends), '' if len(frontends) == 1 else 's', ', '.join(frontends) or 'none',
+                        '; no edge for ' + ', '.join(no_edge) if no_edge else '',
+                        '; retired ' + ', '.join(retired) if retired else '')}

@@ -156,4 +156,7 @@ KNOWN_SERVICE_KINDS = (
     'pol-livekit',
     'pol-reticulum',
     'odoo', 'odoo-postgres',
+    # tpl-1: an engine worker an EngineProviderBinding row points at (an isle engine app such as board-engines); the
+    # instance is described from the binding, not from the registry.
+    'prf-engine-worker',
 )

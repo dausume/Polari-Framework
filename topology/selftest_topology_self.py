@@ -72,13 +72,52 @@ def main():
           and inst.kind == 'prf' and inst.env_tier == 'dev' and inst.machine_name == 'member-a', vars(inst) if inst else None)
     check('fresh: one enabled ModuleAssignment per live module, nothing else',
           _names(m, 'ModuleAssignment') == ['board@polari-pol', 'cmod@polari-pol', 'islemesh@polari-pol'], _names(m, 'ModuleAssignment'))
-    check('fresh: no July rows (no machines, no other instances)', _names(m, 'InstanceDefinition') == ['polari-pol']
-          and not m.objectTables.get('PolariNodeMachine'))
+    check('fresh: no July rows (only its own instance, only its own device)', _names(m, 'InstanceDefinition') == ['polari-pol']
+          and _names(m, 'PolariNodeMachine') == ['member-a'], (_names(m, 'InstanceDefinition'), _names(m, 'PolariNodeMachine')))
     second = S.describe_self(m, live, 'selftest')
     check('second boot: idempotent (nothing created, no duplicates)', second['created'] == []
-          and len(m.objectTables['ModuleAssignment']) == 3 and len(m.objectTables['TopologyDefinition']) == 1, second)
+          and len(m.objectTables['ModuleAssignment']) == 3 and len(m.objectTables['TopologyDefinition']) == 1
+          and len(m.objectTables['PolariNodeMachine']) == 1, second)
     S.describe_self(m, live | {'pcb'}, 'selftest')
     check('a module admitted later lands as its own row', 'pcb@polari-pol' in _names(m, 'ModuleAssignment'))
+
+    # -- tpl-1: engine bindings + frontend origins as rows
+    from topology.topology_modules import EngineProviderBinding
+    from topology.topology_analysis import resolve_edges, validate_topology
+    EngineProviderBinding(name='board', url='https://board-engines.isle', bound_from='board-engines', manager=m)
+    EngineProviderBinding(name='pcb', url='https://pcb-engines.isle', bound_from='pcb-engines', manager=m)
+    links = S.describe_links(m, live, 'selftest')
+    ins = {r.name: r for r in m.objectTables['InstanceDefinition'].values()}
+    check('a binding names its worker (kind worker, the bound url)', 'board-engines' in ins and ins['board-engines'].kind == 'worker'
+          and ins['board-engines'].api_base_url == 'https://board-engines.isle', links)
+    check('the capability sits on the worker', 'board.engines@board-engines' in _names(m, 'ModuleAssignment'))
+    edges = {r.name: r for r in m.objectTables.get('ModuleDependencyEdge', {}).values()}
+    e = edges.get('board@polari-pol->board.engines')
+    check('the live consumer depends on it, resolved to the worker with the binding as evidence', e is not None
+          and e.provider_instance_name == 'board-engines' and e.status == 'resolved' and 'EngineProviderBinding:board' in e.evidence_json, edges)
+    check('a kind with no verified consumer gets worker + capability rows but no edge, said in words',
+          'pcb.engines@pcb-engines' in _names(m, 'ModuleAssignment') and not any('pcb.engines' in n for n in edges)
+          and 'no edge for pcb' in links['words'], links['words'])
+    check('the other .isle origin is a frontend with its runtime-config connection to this backend',
+          ins.get('electronics') is not None and ins['electronics'].public_base_url == 'https://electronics.isle'
+          and 'prf-frontend->prf-backend:prf-runtime-config@electronics->polari-pol' in _names(m, 'ServiceConnection'))
+    check("the backend's own origin is not a separate frontend", 'polari-pol' not in links['frontends'])
+    topo_name = 'polari-pol'
+    resolve_edges(m, topo_name)
+    check('resolve_edges keeps the worker as the provider', edges['board@polari-pol->board.engines'].provider_instance_name == 'board-engines')
+    report = validate_topology(m, topo_name)
+    bad = [f for f in report.get('findings', []) if f.get('severity') == 'error']
+    check('the described topology validates with no errors', report.get('valid') and not bad, bad or report)
+    again = S.describe_links(m, live, 'selftest')
+    check('second pass: idempotent', again['created'] == [] and again['retired'] == [], again)
+    ins['electronics'].notes = 'a person renamed this'
+    ins['electronics'].public_base_url = 'https://kept.isle'
+    S.describe_links(m, live, 'selftest')
+    check('a row a person edited is left as it is', ins['electronics'].public_base_url == 'https://kept.isle')
+    del m.objectTables['EngineProviderBinding'][next(k for k, r in m.objectTables['EngineProviderBinding'].items() if r.name == 'board')]
+    gone = S.describe_links(m, live, 'selftest')
+    check('binding removed: the capability disabled, the edge unresolved, both said', 'ModuleAssignment:board.engines@board-engines' in gone['retired']
+          and edges['board@polari-pol->board.engines'].status == 'unresolved', gone)
 
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
