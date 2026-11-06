@@ -63,6 +63,8 @@ class TopologyAPI(treeObject):
         if polServer is not None:
             add = polServer.falconServer.add_route
             add('/api/topology/summary', self, suffix='summary')
+            # tpl-4: which features need an isle, whether this backend has one, and each fallback
+            add('/api/topology/isle-needs', self, suffix='isle_needs')
             add('/api/topology/graph', self, suffix='graph')
             add('/api/topology/module-graph', self,
                 suffix='module_graph')
@@ -160,6 +162,10 @@ class TopologyAPI(treeObject):
         if not report.get('ok'):
             response.status = '409 Conflict'
         response.media = report
+
+    def on_get_isle_needs(self, request, response):
+        from topology.topology_isle_needs import isle_needs
+        response.media = isle_needs(self.manager)
 
     def on_get_summary(self, request, response):
         active = active_topology_name(self.manager)
