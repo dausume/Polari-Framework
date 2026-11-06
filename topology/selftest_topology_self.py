@@ -34,6 +34,13 @@ def _names(m, cls):
     return sorted(getattr(r, 'name', '') for r in m.objectTables.get(cls, {}).values())
 
 
+_cfg = {'backend': 'api.polari-pol.isle'}
+
+
+def _cfg_fetch(url):
+    return {'backend': {'https': {'protocol': 'https', 'url': _cfg['backend'], 'port': '443'}}}
+
+
 def main():
     from topology import topology_self as S
 
@@ -86,7 +93,7 @@ def main():
     from topology.topology_analysis import resolve_edges, validate_topology
     EngineProviderBinding(name='board', url='https://board-engines.isle', bound_from='board-engines', manager=m)
     EngineProviderBinding(name='pcb', url='https://pcb-engines.isle', bound_from='pcb-engines', manager=m)
-    links = S.describe_links(m, live, 'selftest')
+    links = S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)
     ins = {r.name: r for r in m.objectTables['InstanceDefinition'].values()}
     check('a binding names its worker (kind worker, the bound url)', 'board-engines' in ins and ins['board-engines'].kind == 'worker'
           and ins['board-engines'].api_base_url == 'https://board-engines.isle', links)
@@ -101,27 +108,45 @@ def main():
     check('the other .isle origin is a frontend with its runtime-config connection to this backend',
           ins.get('electronics') is not None and ins['electronics'].public_base_url == 'https://electronics.isle'
           and 'prf-frontend->prf-backend:prf-runtime-config@electronics->polari-pol' in _names(m, 'ServiceConnection'))
-    check("the backend's own origin is not a separate frontend", 'polari-pol' not in links['frontends'])
+    fes = {f['name']: f for f in links['frontends']}
+    check("the backend's own origin is not a separate frontend", 'polari-pol' not in fes)
+    check('a frontend whose runtime config names this backend is VERIFIED', fes['electronics']['verified']
+          and 'VERIFIED' in ins['electronics'].notes, fes)
+    _cfg['backend'] = 'api.someone-else.isle'
+    other = S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)['frontends'][0]
+    check('one naming another backend stays configured/UNVERIFIED, with the host it names', not other['verified']
+          and 'api.someone-else.isle' in other['words'], other)
+    def _down(url):
+        raise OSError('connection refused')
+    absent = S.describe_links(m, live, 'selftest', fetch=_down)['frontends'][0]
+    check('an absent frontend is UNVERIFIED in words (CORS only authorizes)', not absent['verified']
+          and 'unreadable' in absent['words'], absent)
+    _cfg['backend'] = 'api.polari-pol.isle'
+    os.environ['POLARI_TOPOLOGY_VERIFY'] = 'off'
+    off = S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)['frontends'][0]
+    os.environ.pop('POLARI_TOPOLOGY_VERIFY')
+    check('POLARI_TOPOLOGY_VERIFY=off: not checked, said so', not off['verified'] and 'not checked' in off['words'], off)
+    S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)
     topo_name = 'polari-pol'
     resolve_edges(m, topo_name)
     check('resolve_edges keeps the worker as the provider', edges['board@polari-pol->board.engines'].provider_instance_name == 'board-engines')
     report = validate_topology(m, topo_name)
     bad = [f for f in report.get('findings', []) if f.get('severity') == 'error']
     check('the described topology validates with no errors', report.get('valid') and not bad, bad or report)
-    again = S.describe_links(m, live, 'selftest')
+    again = S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)
     check('second pass: idempotent', again['created'] == [] and again['retired'] == [], again)
     ins['electronics'].notes = 'a person renamed this'
     ins['electronics'].public_base_url = 'https://kept.isle'
-    S.describe_links(m, live, 'selftest')
+    S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)
     check('a row a person edited is left as it is', ins['electronics'].public_base_url == 'https://kept.isle')
     del m.objectTables['EngineProviderBinding'][next(k for k, r in m.objectTables['EngineProviderBinding'].items() if r.name == 'board')]
-    gone = S.describe_links(m, live, 'selftest')
+    gone = S.describe_links(m, live, 'selftest', fetch=_cfg_fetch)
     check('binding removed: the capability disabled, the edge unresolved, both said', 'ModuleAssignment:board.engines@board-engines' in gone['retired']
           and edges['board@polari-pol->board.engines'].status == 'unresolved', gone)
 
     m.polServer = types.SimpleNamespace(defClassList=[], endpointConstructed=set(live), bootRegistry=None)
     hook = S.on_binding_changed(m, 'selftest')
-    check('on_binding_changed refreshes the links from the live modules', hook.get('ok') and 'electronics' in hook['frontends'], hook)
+    check('on_binding_changed refreshes the links from the live modules', hook.get('ok') and any(f['name'] == 'electronics' for f in hook['frontends']), hook)
     check('on_binding_changed never raises (a manager with no server)', S.on_binding_changed(_manager()).get('ok') is False)
 
     # -- fix 11 hook point: after_boot pulls the registry (when a consumer exists) BEFORE describing the links
