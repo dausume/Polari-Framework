@@ -851,6 +851,64 @@ def main():
     check('review 2c: a bind whose rows cannot be persisted is reported in failed (ok False), not in bound',
           r7['ok'] is False and r7['bound'] == [] and any('disk full' in f['note'] for f in r7['failed']), r7['words'])
 
+    # ---- live blocker 2026-11-06 (Codex core boot log: NameError os): the PRODUCTION DEFAULTS must run ----
+    # Every earlier case injected env= and fetch=, so registry_origin()'s os.environ path and fetch_registry()'s
+    # json decode never executed. These cases mock ONLY the HTTP boundary (polariApiServer.outbound.http_request).
+    import os as _os
+    from islemesh.custom.islemesh_engines import registry_origin, fetch_registry
+    from polariApiServer import outbound as _outbound
+    _saved_env = _os.environ.get('ISLE_CORE_API'); _saved_http = _outbound.http_request
+    try:
+        _os.environ.pop('ISLE_CORE_API', None)
+        check('defaults: registry_origin() reads the real environment (unset -> empty)', registry_origin() == '')
+        _os.environ['ISLE_CORE_API'] = 'https://api.polari.isle/'
+        check('defaults: registry_origin() reads the real environment (set -> origin, no trailing slash)',
+              registry_origin() == 'https://api.polari.isle')
+
+        class _Resp:
+            def __init__(self, body): self._b = body
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return self._b
+        calls = []
+        def fake_http(kind, name, method, url, **kw):
+            calls.append((kind, method, url, kw.get('lib'), kw.get('timeout')))
+            return _Resp(b'{"ok": true, "engines": [{"name": "board-engines@board", "app": "board-engines", "provides": "board", "url": "https://board-engines.isle", "bound": false, "is_mock": false}]}')
+        _outbound.http_request = fake_http
+        entries, words = fetch_registry('https://api.polari.isle')
+        check('defaults: fetch_registry decodes a real JSON body through the outbound seam',
+              words == '' and isinstance(entries, list) and entries[0]['app'] == 'board-engines', words)
+        check('defaults: ... via GET <origin>/api/islemesh/engines with lib=urllib and a timeout',
+              calls and calls[0][0] == 'peer' and calls[0][1] == 'GET' and calls[0][2] == 'https://api.polari.isle/api/islemesh/engines'
+              and calls[0][3] == 'urllib' and calls[0][4], str(calls))
+        _outbound.http_request = lambda *a, **k: _Resp(b'not json')
+        entries, words = fetch_registry('https://api.polari.isle')
+        check('defaults: a non-JSON body is words, not a crash', entries is None and 'unreachable' in words, words)
+        _outbound.http_request = lambda *a, **k: _Resp(b'{"ok": false}')
+        entries, words = fetch_registry('https://api.polari.isle')
+        check('defaults: a body without ok/engines is words', entries is None and 'without ok/engines' in words, words)
+        def boom(*a, **k): raise OSError('[Errno 111] Connection refused')
+        _outbound.http_request = boom
+        entries, words = fetch_registry('https://api.polari.isle')
+        check('defaults: a transport error is words naming the url', entries is None and 'Connection refused' in words and '/api/islemesh/engines' in words, words)
+        # the whole default path, as after_boot calls it: sync_from_registry(manager, source) and nothing else
+        _outbound.http_request = fake_http
+        m9 = live_mgr()
+        m9.db = type('DB', (), {'saveInstanceInDB': staticmethod(lambda row: None),
+                                'deleteRowsWhere': staticmethod(lambda *a: 0)})()
+        r9 = sync_from_registry(m9, 'boot')
+        check('defaults: sync_from_registry(manager, source) with NO injection pulls, binds and persists through the real defaults',
+              r9['ok'] and r9['origin'] == 'https://api.polari.isle' and len(r9['bound']) == 1
+              and r9['bound'][0]['engine'] == 'board-engines@board', r9['words'])
+        _outbound.http_request = boom
+        r9b = sync_from_registry(m9, 'boot')
+        check('defaults: ... and an outage through the real defaults is ok False with words, nothing raised',
+              r9b['ok'] is False and 'Connection refused' in r9b['words'], r9b['words'])
+    finally:
+        _outbound.http_request = _saved_http
+        if _saved_env is None: _os.environ.pop('ISLE_CORE_API', None)
+        else: _os.environ['ISLE_CORE_API'] = _saved_env
+
     failed = sum(1 for _, ok in _results if not ok)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
     raise SystemExit(1 if failed else 0)

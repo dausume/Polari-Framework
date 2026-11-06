@@ -31,6 +31,9 @@ words in the result, retryable, and never a claim of compile/simulation readines
   - topology.topology_self (after_boot -> sync_from_registry)
   - islemesh.islemesh_selftest
 """
+import json
+import os
+
 
 
 def _bind_odoo(manager, app_name, url, save):
