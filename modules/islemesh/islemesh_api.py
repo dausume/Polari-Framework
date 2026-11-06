@@ -37,7 +37,7 @@ from islemesh.islemesh_basis import (
     IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
     MeshAppRealization,
 )
-from islemesh.custom.islemesh_engines import bind_engine
+from islemesh.custom.islemesh_engines import bind_engine, record_engine, sync_from_registry
 from islemesh.islemesh_catalog import (
     ai_tool_install_plan, ai_tool_options, install_plan,
     instances_of, option_install_plan, polari_app_options,
@@ -83,6 +83,7 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/ingest/engine', self,
                 suffix='ingest_engine')
             add('/api/islemesh/engines', self, suffix='engines')
+            add('/api/islemesh/engines/sync', self, suffix='engines_sync')
             add('/api/islemesh/catalog', self, suffix='catalog')
             add('/api/islemesh/catalog/{entry}', self,
                 suffix='catalog_entry')
@@ -589,23 +590,15 @@ class IsleMeshAPI(treeObject):
         bound, bound_to, note = bind_engine(
             self.manager, app_name, provides, url, self._save)
         key = '%s@%s' % (app_name, provides)
-        table = self._table('IsleEngine')
-        row = None
-        for candidate in table.values():
-            if getattr(candidate, 'name', '') == key:
-                row = candidate
-                break
-        if row is None:
-            row = IsleEngine(name=key, manager=self.manager)
-        row.app_name = app_name
-        row.device_name = device_name
-        row.provides = provides
-        row.url = url
-        row.bound = bound
-        row.bound_to = bound_to
-        row.is_mock = is_mock
-        row.notes = note
-        self._save(row)
+        record_engine(self.manager, self._save, app_name, provides, url,
+                      device_name, bound, bound_to, note, is_mock=is_mock)
+        if bound:
+            # fix 11 / tpl-1: the topology draws a binding the moment it exists (never fails the ingest)
+            try:
+                from topology.topology_self import on_binding_changed
+                on_binding_changed(self.manager, source='engine bound (ingest)')
+            except Exception:  # noqa: BLE001 - topology absent or unhappy: the bind still stands
+                pass
         self._receipt(device_name, 'engine',
                       json.dumps(payload, sort_keys=True).encode(),
                       {'IsleEngine': 1, 'bound': int(bound)},
@@ -613,6 +606,16 @@ class IsleMeshAPI(treeObject):
         response.media = {'ok': True, 'engine': key, 'bound': bound,
                           'bound_to': bound_to, 'note': note,
                           'mock_network': is_mock}
+
+    def on_post_engines_sync(self, request, response):
+        """fix 11: pull the isle core's engine registry NOW (the same pull the boot does) and
+        bind what it lists; retire what it no longer lists. 502 when the registry could not
+        be read (nothing changed); words in every case."""
+        result = sync_from_registry(self.manager, 'refresh', save=self._save,
+                                    delete=self._delete, notify=True)
+        if not result.get('ok'):
+            response.status = '502 Bad Gateway'
+        response.media = result
 
     def on_get_engines(self, request, response):
         rows = []
