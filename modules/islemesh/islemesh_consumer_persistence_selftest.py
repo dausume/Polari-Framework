@@ -1,4 +1,13 @@
-"""Production DB return conventions and repeat-sync recovery, isolated in memory."""
+"""
+@module islemesh.islemesh_consumer_persistence_selftest
+
+Production DB return conventions and repeat-sync recovery for the fix-11 registry consumer, isolated in
+memory (Codex follow-up 0006, 2026-11-06): managedDB.saveInstanceInDB returns False on a refused save;
+deleteRowsWhere returns -1 when unavailable, 0 when already absent; a retirement whose durable receipt
+failed is retried by the next sync and then becomes a no-op.
+
+  PYTHONPATH=.:modules python3 -m islemesh.islemesh_consumer_persistence_selftest
+"""
 import unittest
 from types import SimpleNamespace
 from islemesh.custom.islemesh_engines import sync_from_registry, _default_save, _default_delete, _TrackedSave
