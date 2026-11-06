@@ -184,6 +184,7 @@ from topology.topology_seed import (
     SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
     SEED_TOPOLOGY_DEFINITIONS,
 )
+from topology.topology_self import seed_mode as _topology_seed_mode
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
@@ -1973,6 +1974,13 @@ class polariServer(treeObject):
                     print(f'[ModuleProjects] auto-fetch: {result}', flush=True)
             except Exception as e:
                 print(f'[ModuleProjects] auto-fetch skipped: {e}', flush=True)
+            # tpl-0: the monolithic boot describes itself too (the lazy boot does it at its end).
+            try:
+                from topology.topology_self import after_boot
+                _described = after_boot(self.manager, 'boot')
+                print(f"[Topology] {_described['self'].get('words', '')}", flush=True)
+            except Exception as e:
+                print(f'[Topology] self-description skipped: {e}', flush=True)
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -3404,6 +3412,12 @@ class polariServer(treeObject):
             # instances; instances before assignments/edges/
             # connections that reference them. Observations are
             # NEVER seeded — observed state is reported.
+            # tpl-0: the 2026-07-09 dev snapshot only when
+            # topology_self.seed_mode() == 'example' (knob
+            # POLARI_TOPOLOGY_SEED; default: only on the instance
+            # the snapshot describes). Other backends describe
+            # themselves at boot (topology_self.describe_self).
+        ] + ([
             ('PolariNodeMachine', PolariNodeMachine,
              SEED_NODE_MACHINES),
             ('OrchestrationTarget', OrchestrationTarget,
@@ -3418,6 +3432,7 @@ class polariServer(treeObject):
              SEED_MODULE_DEPENDENCY_EDGES),
             ('ServiceConnection', ServiceConnection,
              SEED_SERVICE_CONNECTIONS),
+        ] if _topology_seed_mode() == 'example' else []) + [
             # Resource profiles (res-2): declared floors/scalability
             # for known subjects; res-3 measurement overrides.
             ('ModuleResourceProfile', ModuleResourceProfile,

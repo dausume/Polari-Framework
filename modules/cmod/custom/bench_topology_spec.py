@@ -16,6 +16,7 @@ long-press / held / idle resolve like the others (bench_events offers them besid
     routes_of(variant)             {job: 'job:route'} from the variant's knobs (derived; '' for a job the variant does not use)
     resolve(manager, bs)           {role: HardwareEvent name} for a Bench Solution (a role the firmware does not offer is absent, said in words)
     apply(manager, bs, spec='')    define every node and edge of the spec on the Bench Solution (idempotent) -> {spec, roles, routes, nodes, skipped, words}
+    apply_shipped(manager)         tpl-0: at boot, every Bench Solution whose System ships a spec and lacks it gets it (fix 13)
 """
 import json
 import os
@@ -151,3 +152,25 @@ def apply(manager, bs, spec=''):
                         ', '.join('%s = %s' % (k, v.split(':', 1)[1]) for k, v in sorted(roles.items())),
                         ('; skipped: ' + '; '.join('%s (%s)' % (s['node'], s['why']) for s in skipped)) if skipped else '',
                         ('; ' + '; '.join(words)) if words else '')}
+
+
+def apply_shipped(manager):
+    """tpl-0 / manual fix 13: on a FRESH backend every Bench Solution whose Bench System ships a spec gets it, at boot, with no
+    hand POST. A Bench Solution that already holds the spec's first node is left exactly as it is (its owner may have edited it;
+    re-applying stays a deliberate POST apply-spec). -> [{bench_solution, spec, applied, words}]"""
+    shipped = {s['name'] for s in specs()}
+    out = []
+    for row in R.rows(manager, 'BenchSolution'):
+        bs, name = row.get('name', ''), row.get('system', '')
+        if name not in shipped:
+            continue
+        first = (load(name).get('nodes') or [{}])[0].get('slug', '')
+        if first and R.get(manager, 'StructNode', '%s:%s' % (bs, first)) is not None:
+            out.append({'bench_solution': bs, 'spec': name, 'applied': False, 'words': 'already holds %s; left as it is' % name})
+            continue
+        try:
+            done = apply(manager, bs, name)
+            out.append({'bench_solution': bs, 'spec': name, 'applied': True, 'words': done['words']})
+        except R.ConfigRefused as e:
+            out.append({'bench_solution': bs, 'spec': name, 'applied': False, 'words': 'refused: %s' % e.why})
+    return out

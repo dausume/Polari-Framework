@@ -612,6 +612,14 @@ class AdmissionWorker:
         except Exception as exc:
             print(f'[LazyBoot] placement observation failed '
                   f'(non-fatal): {exc}', flush=True)
+        # tpl-0: this backend describes itself; fresh benches get their shipped specs.
+        try:
+            from topology.topology_self import after_boot
+            _described = after_boot(manager, 'lazy boot')
+            print(f"[Topology] {_described['self'].get('words', '')}; benches: "
+                  f"{[b.get('words', '') for b in _described['benches'] if b.get('applied')]}", flush=True)
+        except Exception as exc:
+            print(f'[LazyBoot] self-description failed (non-fatal): {exc}', flush=True)
         try:
             from polariPeers.module_fetcher import (
                 auto_fetch_configured,
