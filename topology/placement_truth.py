@@ -39,8 +39,9 @@ from polariApiServer.lazy_boot import top_module
 
 
 def _instance_name():
-    return (os.environ.get('POLARI_INSTANCE_NAME')
-            or os.environ.get('POLARI_INSTANCE_ID') or 'local')
+    # tpl-0: one derivation of "who am I" (knob, else the isle origin, else 'local')
+    from topology.topology_self import instance_name
+    return instance_name()
 
 
 def live_module_set(polServer):
