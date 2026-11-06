@@ -800,6 +800,19 @@
    ],
    "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing.",
    "tier": "optional"
+  },
+  "mech": {
+   "kind": "official",
+   "downloaded": true,
+   "path": "modules/mech",
+   "repo": "https://github.com/dausume/polari-module-mech.git",
+   "requires": [
+    "composition",
+    "mathshapes"
+   ],
+   "wave": 4,
+   "description": "Standard mechanical parts as data (MECH_FREECAD_INTERCHANGE_PLAN.md): the ISO/NopSCADlib/Gridfinity catalogue with size variants + features (threads, slots, grid cells) and a compatibility lookup; materials as MechMaterialOption rows (mirrors magnetics, registered in composition's property lookup) with the legacy/harmful comparison; assemblies as thin rows over composition's nodes/interfaces with a DOF count + fit checks; one 1-DOF motion engine (linear + rotary) over core simulations/; FreeCAD 1.1.x as the geometry/assembly/kinematics relay only (FEM stays materialsScience). First consumer: Gridfinity desks + drawers; then the clock movement (mxc-7) and the printer axes (mxc-8).",
+   "tier": "optional"
   }
  }
 }

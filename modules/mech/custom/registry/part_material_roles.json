@@ -1,0 +1,850 @@
+{
+ "meta": {
+  "compiled": "2026-11-03",
+  "by": "econ-core (Claude) for Dustin Etts",
+  "status_vocabulary": {
+   "polari_preferred": "default for new Polari designs",
+   "polari_acceptable": "usable with the named caveat",
+   "legacy_harmful": "comparison / existing parts only; not for new designs"
+  },
+  "rule": "preferred = no IARC 1/2A/2B monomer or process chemical isolated and handled in bulk to make it, plus a workable end of life",
+  "iarc_groups": {
+   "1": "carcinogenic",
+   "2A": "probably",
+   "2B": "possibly",
+   "3": "not classifiable",
+   "none": "not evaluated / not applicable",
+   "check": "to confirm"
+  },
+  "caution": "compiled from knowledge, not yet checked row by row against the IARC monographs; review rows with confidence=check first"
+ },
+ "part_material_roles": [
+  {
+   "category": "frame_profile",
+   "part": "T-slot / V-slot extrusion",
+   "polari_default": [
+    "al_6063"
+   ],
+   "polari_alternatives": [
+    "al_6061"
+   ],
+   "legacy_harmful": [],
+   "default_ids": [
+    "al_6063"
+   ],
+   "alternative_ids": [
+    "al_6061"
+   ],
+   "legacy_ids": [],
+   "notes": "finish: anodise (clear or black); prefer recycled content"
+  },
+  {
+   "category": "frame_joint",
+   "part": "cast corner / cube bracket",
+   "polari_default": [
+    "al_diecast"
+   ],
+   "polari_alternatives": [
+    "zinc_alloy"
+   ],
+   "legacy_harmful": [],
+   "default_ids": [
+    "al_diecast"
+   ],
+   "alternative_ids": [
+    "zinc_alloy"
+   ],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "frame_joint",
+   "part": "flat joining plate",
+   "polari_default": [
+    "steel_carbon+zinc_trivalent",
+    "al_6061"
+   ],
+   "polari_alternatives": [
+    "stainless_a2_a4"
+   ],
+   "legacy_harmful": [
+    "zinc_hexavalent"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "zinc_trivalent",
+    "al_6061"
+   ],
+   "alternative_ids": [
+    "stainless_a2_a4"
+   ],
+   "legacy_ids": [
+    "zinc_hexavalent"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "frame_joint",
+   "part": "end cap",
+   "polari_default": [
+    "pp"
+   ],
+   "polari_alternatives": [
+    "pa66",
+    "petg"
+   ],
+   "legacy_harmful": [
+    "abs"
+   ],
+   "default_ids": [
+    "pp"
+   ],
+   "alternative_ids": [
+    "pa66",
+    "petg"
+   ],
+   "legacy_ids": [
+    "abs"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "slot_fastener",
+   "part": "T-nut (sliding / drop-in / roll-in)",
+   "polari_default": [
+    "steel_carbon+zinc_trivalent"
+   ],
+   "polari_alternatives": [
+    "stainless_a2_a4",
+    "petg"
+   ],
+   "legacy_harmful": [
+    "zinc_hexavalent",
+    "cadmium_plating"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "zinc_trivalent"
+   ],
+   "alternative_ids": [
+    "stainless_a2_a4",
+    "petg"
+   ],
+   "legacy_ids": [
+    "zinc_hexavalent",
+    "cadmium_plating"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "screw",
+   "part": "socket cap / button / countersunk / set",
+   "polari_default": [
+    "steel_carbon+black_oxide",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [
+    "steel_carbon+zinc_trivalent",
+    "pa66"
+   ],
+   "legacy_harmful": [
+    "zinc_hexavalent",
+    "cadmium_plating"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "black_oxide",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [
+    "steel_carbon",
+    "zinc_trivalent",
+    "pa66"
+   ],
+   "legacy_ids": [
+    "zinc_hexavalent",
+    "cadmium_plating"
+   ],
+   "notes": "class 8.8-12.9 per ISO 898-1, A2/A4-70 per ISO 3506-1"
+  },
+  {
+   "category": "nut",
+   "part": "hex / flange / thin",
+   "polari_default": [
+    "steel_carbon+zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [
+    "pa66",
+    "brass_lead_free"
+   ],
+   "legacy_harmful": [
+    "zinc_hexavalent",
+    "brass_leaded"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [
+    "pa66",
+    "brass_lead_free"
+   ],
+   "legacy_ids": [
+    "zinc_hexavalent",
+    "brass_leaded"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "nut",
+   "part": "nyloc",
+   "polari_default": [
+    "steel_carbon+pa66",
+    "stainless_a2_a4+pa66"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [],
+   "default_ids": [
+    "steel_carbon",
+    "pa66",
+    "stainless_a2_a4",
+    "pa66"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [],
+   "notes": "insert is PA66"
+  },
+  {
+   "category": "washer",
+   "part": "flat / large / spring",
+   "polari_default": [
+    "steel_carbon+zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [
+    "pa66"
+   ],
+   "legacy_harmful": [
+    "zinc_hexavalent"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [
+    "pa66"
+   ],
+   "legacy_ids": [
+    "zinc_hexavalent"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "insert",
+   "part": "heat-set insert",
+   "polari_default": [
+    "brass_lead_free"
+   ],
+   "polari_alternatives": [
+    "stainless_a2_a4"
+   ],
+   "legacy_harmful": [
+    "brass_leaded"
+   ],
+   "default_ids": [
+    "brass_lead_free"
+   ],
+   "alternative_ids": [
+    "stainless_a2_a4"
+   ],
+   "legacy_ids": [
+    "brass_leaded"
+   ],
+   "notes": "today most heat-set inserts are leaded brass"
+  },
+  {
+   "category": "standoff",
+   "part": "hex standoff / pillar",
+   "polari_default": [
+    "brass_lead_free",
+    "al_6061",
+    "pa66"
+   ],
+   "polari_alternatives": [
+    "stainless_a2_a4",
+    "nickel_plating"
+   ],
+   "legacy_harmful": [
+    "brass_leaded"
+   ],
+   "default_ids": [
+    "brass_lead_free",
+    "al_6061",
+    "pa66"
+   ],
+   "alternative_ids": [
+    "stainless_a2_a4",
+    "nickel_plating"
+   ],
+   "legacy_ids": [
+    "brass_leaded"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "rod_pin",
+   "part": "threaded rod",
+   "polari_default": [
+    "steel_carbon+zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [
+    "zinc_hexavalent"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "zinc_trivalent",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [
+    "zinc_hexavalent"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "rod_pin",
+   "part": "dowel / spring pin",
+   "polari_default": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [],
+   "default_ids": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "retaining_ring",
+   "part": "circlip / E-clip",
+   "polari_default": [
+    "steel_carbon+black_oxide",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [
+    "cadmium_plating"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "black_oxide",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [
+    "cadmium_plating"
+   ],
+   "notes": "spring steel"
+  },
+  {
+   "category": "bearing",
+   "part": "deep-groove ball bearing",
+   "polari_default": [
+    "steel_carbon (52100) + steel_carbon shield (ZZ)"
+   ],
+   "polari_alternatives": [
+    "stainless_a2_a4 (440C)",
+    "steel_carbon + aem seal"
+   ],
+   "legacy_harmful": [
+    "nbr_hnbr (2RS seal)"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "steel_carbon"
+   ],
+   "alternative_ids": [
+    "stainless_a2_a4",
+    "steel_carbon",
+    "aem"
+   ],
+   "legacy_ids": [
+    "nbr_hnbr"
+   ],
+   "notes": "standard 2RS seals are NBR. EPDM is NOT suitable: it swells in mineral-oil bearing grease. ZZ shields avoid an elastomer entirely"
+  },
+  {
+   "category": "linear",
+   "part": "linear bushing LMxUU",
+   "polari_default": [
+    "steel_carbon + pa66 retainer"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [
+    "pom (retainer)"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "pa66"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [
+    "pom"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "linear",
+   "part": "profile rail + carriage",
+   "polari_default": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [
+    "nbr_hnbr (end seals)"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [
+    "nbr_hnbr"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "linear",
+   "part": "smooth shaft",
+   "polari_default": [
+    "steel_carbon+nitriding",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [
+    "hard_chrome"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "nitriding",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [
+    "hard_chrome"
+   ],
+   "notes": "most cheap shafts are hard-chrome plated"
+  },
+  {
+   "category": "linear",
+   "part": "V-slot wheel",
+   "polari_default": [
+    "uhmwpe",
+    "pa66"
+   ],
+   "polari_alternatives": [
+    "tpc_et"
+   ],
+   "legacy_harmful": [
+    "pom",
+    "pc_bpa"
+   ],
+   "default_ids": [
+    "uhmwpe",
+    "pa66"
+   ],
+   "alternative_ids": [
+    "tpc_et"
+   ],
+   "legacy_ids": [
+    "pom",
+    "pc_bpa"
+   ],
+   "notes": "standard wheels are POM (\"Delrin\") or PC (\"Xtreme\")"
+  },
+  {
+   "category": "linear",
+   "part": "low-friction slider / pad",
+   "polari_default": [
+    "uhmwpe"
+   ],
+   "polari_alternatives": [
+    "pa11",
+    "peek"
+   ],
+   "legacy_harmful": [
+    "ptfe",
+    "pom"
+   ],
+   "default_ids": [
+    "uhmwpe"
+   ],
+   "alternative_ids": [
+    "pa11",
+    "peek"
+   ],
+   "legacy_ids": [
+    "ptfe",
+    "pom"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "timing belt body",
+   "polari_default": [
+    "tpu_mdi"
+   ],
+   "polari_alternatives": [
+    "tpc_et",
+    "epdm_peroxide"
+   ],
+   "legacy_harmful": [
+    "neoprene_cr"
+   ],
+   "default_ids": [
+    "tpu_mdi"
+   ],
+   "alternative_ids": [
+    "tpc_et",
+    "epdm_peroxide"
+   ],
+   "legacy_ids": [
+    "neoprene_cr"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "timing belt cords",
+   "polari_default": [
+    "steel_cord",
+    "glass_fibre_cord"
+   ],
+   "polari_alternatives": [
+    "aramid_cord"
+   ],
+   "legacy_harmful": [],
+   "default_ids": [
+    "steel_cord",
+    "glass_fibre_cord"
+   ],
+   "alternative_ids": [
+    "aramid_cord"
+   ],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "timing pulley / idler",
+   "polari_default": [
+    "al_6061"
+   ],
+   "polari_alternatives": [
+    "pa66",
+    "petg"
+   ],
+   "legacy_harmful": [
+    "pom"
+   ],
+   "default_ids": [
+    "al_6061"
+   ],
+   "alternative_ids": [
+    "pa66",
+    "petg"
+   ],
+   "legacy_ids": [
+    "pom"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "lead screw",
+   "polari_default": [
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [],
+   "default_ids": [
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "lead screw nut",
+   "polari_default": [
+    "brass_lead_free",
+    "pa66"
+   ],
+   "polari_alternatives": [
+    "pa11"
+   ],
+   "legacy_harmful": [
+    "pom",
+    "brass_leaded"
+   ],
+   "default_ids": [
+    "brass_lead_free",
+    "pa66"
+   ],
+   "alternative_ids": [
+    "pa11"
+   ],
+   "legacy_ids": [
+    "pom",
+    "brass_leaded"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "shaft coupling",
+   "polari_default": [
+    "al_6061"
+   ],
+   "polari_alternatives": [
+    "steel_carbon"
+   ],
+   "legacy_harmful": [],
+   "default_ids": [
+    "al_6061"
+   ],
+   "alternative_ids": [
+    "steel_carbon"
+   ],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "coupling spider (jaw)",
+   "polari_default": [
+    "tpu_mdi"
+   ],
+   "polari_alternatives": [
+    "tpc_et"
+   ],
+   "legacy_harmful": [
+    "nbr_hnbr"
+   ],
+   "default_ids": [
+    "tpu_mdi"
+   ],
+   "alternative_ids": [
+    "tpc_et"
+   ],
+   "legacy_ids": [
+    "nbr_hnbr"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "transmission",
+   "part": "spur gear",
+   "polari_default": [
+    "steel_carbon",
+    "pa66"
+   ],
+   "polari_alternatives": [
+    "brass_lead_free",
+    "pla",
+    "petg"
+   ],
+   "legacy_harmful": [
+    "pom",
+    "brass_leaded"
+   ],
+   "default_ids": [
+    "steel_carbon",
+    "pa66"
+   ],
+   "alternative_ids": [
+    "brass_lead_free",
+    "pla",
+    "petg"
+   ],
+   "legacy_ids": [
+    "pom",
+    "brass_leaded"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "misc",
+   "part": "spring",
+   "polari_default": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [],
+   "default_ids": [
+    "steel_carbon",
+    "stainless_a2_a4"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [],
+   "notes": "music wire / 302"
+  },
+  {
+   "category": "misc",
+   "part": "magnet",
+   "polari_default": [
+    "ndfeb"
+   ],
+   "polari_alternatives": [],
+   "legacy_harmful": [],
+   "default_ids": [
+    "ndfeb"
+   ],
+   "alternative_ids": [],
+   "legacy_ids": [],
+   "notes": "design for removal"
+  },
+  {
+   "category": "misc",
+   "part": "cable chain / zip tie",
+   "polari_default": [
+    "pa66"
+   ],
+   "polari_alternatives": [
+    "pp"
+   ],
+   "legacy_harmful": [],
+   "default_ids": [
+    "pa66"
+   ],
+   "alternative_ids": [
+    "pp"
+   ],
+   "legacy_ids": [],
+   "notes": ""
+  },
+  {
+   "category": "misc",
+   "part": "cable insulation / tubing",
+   "polari_default": [
+    "tpu_mdi",
+    "pp"
+   ],
+   "polari_alternatives": [
+    "silicone_vmq"
+   ],
+   "legacy_harmful": [
+    "pvc",
+    "ptfe"
+   ],
+   "default_ids": [
+    "tpu_mdi",
+    "pp"
+   ],
+   "alternative_ids": [
+    "silicone_vmq"
+   ],
+   "legacy_ids": [
+    "pvc",
+    "ptfe"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "misc",
+   "part": "levelling-foot pad, damper",
+   "polari_default": [
+    "natural_rubber",
+    "epdm_peroxide"
+   ],
+   "polari_alternatives": [
+    "tpu_mdi"
+   ],
+   "legacy_harmful": [
+    "sbr",
+    "neoprene_cr"
+   ],
+   "default_ids": [
+    "natural_rubber",
+    "epdm_peroxide"
+   ],
+   "alternative_ids": [
+    "tpu_mdi"
+   ],
+   "legacy_ids": [
+    "sbr",
+    "neoprene_cr"
+   ],
+   "notes": ""
+  },
+  {
+   "category": "misc",
+   "part": "gasket / seal",
+   "polari_default": [
+    "epdm_peroxide"
+   ],
+   "polari_alternatives": [
+    "silicone_vmq",
+    "aem"
+   ],
+   "legacy_harmful": [
+    "neoprene_cr",
+    "nbr_hnbr",
+    "fkm"
+   ],
+   "default_ids": [
+    "epdm_peroxide"
+   ],
+   "alternative_ids": [
+    "silicone_vmq",
+    "aem"
+   ],
+   "legacy_ids": [
+    "neoprene_cr",
+    "nbr_hnbr",
+    "fkm"
+   ],
+   "notes": "oil-exposed: aem"
+  },
+  {
+   "category": "printed_part",
+   "part": "printed bracket / mount",
+   "polari_default": [
+    "petg",
+    "pla"
+   ],
+   "polari_alternatives": [
+    "pa66",
+    "pp"
+   ],
+   "legacy_harmful": [
+    "abs"
+   ],
+   "default_ids": [
+    "petg",
+    "pla"
+   ],
+   "alternative_ids": [
+    "pa66",
+    "pp"
+   ],
+   "legacy_ids": [
+    "abs"
+   ],
+   "notes": ""
+  }
+ ]
+}

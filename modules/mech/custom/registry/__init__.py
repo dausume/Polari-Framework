@@ -1,0 +1,1 @@
+"""@module mech.custom.registry — the Polari critical-materials registry data (materials_registry.json, part_material_roles.json, REGISTRY.json), its generator build_registry.py, the textbook property priors (material_properties.py) and the seed freezer build_seed.py."""

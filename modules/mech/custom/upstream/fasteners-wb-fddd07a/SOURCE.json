@@ -1,0 +1,86 @@
+{
+ "what": "FreeCAD Fasteners Workbench dimension tables (FsData/*def.csv) for ISO 4762, ISO 7380-1/-2, ISO 10642, ISO 4026/4027/4029, ISO 4032, ISO 4035, ISO 7089, ISO 7093-1 and DIN 508, each def CSV carrying its own 'length' (standard nominal lengths with tolerances) and 'range' (per-size min/max length) sections, plus iso888length.csv (the ISO 888 nominal-length series), iso262def.csv (ISO 262 coarse/fine pitches), standard_diameters.csv (per-standard min/max diameter) and DiaList.csv (inch size to mm). Stored verbatim; never edited here. Read by catalog_import.py into DimensionSource + MechPartFamily rows (mxc-1).",
+ "project": "https://github.com/shaise/FreeCAD_FastenersWB",
+ "url": "https://github.com/shaise/FreeCAD_FastenersWB/tree/fddd07af422b7d3a69098b32333711c5eeae184c/FsData",
+ "commit": "fddd07af422b7d3a69098b32333711c5eeae184c",
+ "commit_date": "2026-09-10T18:16:00Z",
+ "branch": "master",
+ "licence": "GPL-2.0-only",
+ "licence_source": "The repository's LICENSE file (copied verbatim beside this file): GNU GENERAL PUBLIC LICENSE Version 2, June 1991. No '-or-later' statement found in the LICENSE file; the GitHub licence detector reports GPL-2.0. Dimension values themselves transcribe public ISO/DIN standard tables (facts); the CSV arrangement is the workbench's.",
+ "gpl3_compatible": "NOT as code: GPL-2.0-only cannot be relinked into a GPL-3.0 program. We do not import or run any workbench code; we read the CSV tables as DATA at seed-generation time and store the resulting numbers (standard-defined dimensions) in our own rows, citing this source and sha. Flag for the licence gate (AI-Notes/evaluations) if the tables themselves are ever redistributed as part of a release artifact.",
+ "upstream_path": "FsData/ (the per-standard CSV tables) and LICENSE",
+ "fetched": "2026-11-03",
+ "fetched_from": "econ-core (this shell), via the GitHub REST API (commit lookup) and raw.githubusercontent.com pinned to the commit sha below; no clone, no code from these files was ever executed here. Parsed only by modules/mech/custom/catalog_import.py run with python3 -I.",
+ "files": [
+  {
+   "path": "FsData/DiaList.csv",
+   "sha256": "8a817cca6bd5f57a24dff4aeac0aba7ba6685231059b906f5c7952460bf64d43",
+   "bytes": 491
+  },
+  {
+   "path": "FsData/din508def.csv",
+   "sha256": "8a8f1824c5351e78ba4e4407d2e417828f1a39c24ed0a20953284d94f2d34f10",
+   "bytes": 4655
+  },
+  {
+   "path": "FsData/iso10642def.csv",
+   "sha256": "0ba049a03049d0be61f34504586861b7347c922c5dc56d4cfcba4a5973adcc06",
+   "bytes": 1437
+  },
+  {
+   "path": "FsData/iso262def.csv",
+   "sha256": "9f3d49d49714d6eba4404de62cddfd1aaab58701889c5e9c05376fa6b9e1664f",
+   "bytes": 575
+  },
+  {
+   "path": "FsData/iso4026def.csv",
+   "sha256": "31e96a8f91f4fda164056d9c657b8880056d9ac94d5e151fc43011f05f81a107",
+   "bytes": 1308
+  },
+  {
+   "path": "FsData/iso4032def.csv",
+   "sha256": "f932277db18b95ad519689f5b61114b4160209dcc1e59a2f20048c15b9c9de71",
+   "bytes": 1312
+  },
+  {
+   "path": "FsData/iso4035def.csv",
+   "sha256": "5da0b145ecba41968f8157fd9dd0323eb8176a3285431719a34fb11bbce79556",
+   "bytes": 1308
+  },
+  {
+   "path": "FsData/iso4762def.csv",
+   "sha256": "b7620e4ac90cac13bc713236cfff37aced0dd7cabd674f8a3474a76f9e2a27da",
+   "bytes": 2583
+  },
+  {
+   "path": "FsData/iso7089def.csv",
+   "sha256": "ec31876ef1992b778c98df84570966f36d82719f75c36e658ff8bf75b8845e5b",
+   "bytes": 498
+  },
+  {
+   "path": "FsData/iso7093def.csv",
+   "sha256": "0da537ae078dd47365d960b1006fff4d22bb45d9e132e581ed41c9a8b3c75971",
+   "bytes": 486
+  },
+  {
+   "path": "FsData/iso7380def.csv",
+   "sha256": "74fe0a67ba1a049c20e4e0bb4b0fcf20563a477c9fdad147368ddcde75782f48",
+   "bytes": 1697
+  },
+  {
+   "path": "FsData/iso888length.csv",
+   "sha256": "8f97af15364f8e1da35d7c0e455901ff7c48a55742a6eed2ea84de4f7dd12341",
+   "bytes": 1170
+  },
+  {
+   "path": "FsData/standard_diameters.csv",
+   "sha256": "7bb26984188c76767c47fac6351fd9cc69bc56941137ac3d8b1758a000c8d017",
+   "bytes": 1212
+  },
+  {
+   "path": "LICENSE",
+   "sha256": "c03cea027b4b40e4402fabd08557736727ec3d5bc54ad64ab6472de432198cad",
+   "bytes": 18047
+  }
+ ]
+}

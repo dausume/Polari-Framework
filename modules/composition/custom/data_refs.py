@@ -15,7 +15,7 @@ import json
 
 #: Where property-bearing material rows live today. Extendable as
 #: data — a new property-bearing class is one entry, not an import.
-MATERIAL_PROPERTY_CLASSES = ('MagneticMaterialOption',)
+MATERIAL_PROPERTY_CLASSES = ('MagneticMaterialOption', 'MechMaterialOption')
 
 
 def rows(manager, class_name):

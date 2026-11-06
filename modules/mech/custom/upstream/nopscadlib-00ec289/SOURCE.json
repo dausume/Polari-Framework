@@ -1,0 +1,66 @@
+{
+ "what": "NopSCADlib OpenSCAD 'vitamins' dimension tuples: extrusions.scad (MakerBeam, E1515..E4080 T-slot profiles), extrusion_brackets.scad (inner corner, corner, 3D cube brackets), ball_bearings.scad (608, 62x, 6200, MR/F series), linear_bearings.scad (LM3UU..LM16UU + long/open), rails.scad (MGN5..15, HGH15/20, SSR15 + carriages), belts.scad (GT2/GT3/T2.5/T5 by width), pulleys.scad (GT2 16T/20T/80T pulleys + idlers), nuts.scad (hex nuts, sliding T-nuts M3..M8, hammer nuts M3/M4, DIN 562 thin square nuts), leadnuts.scad (LSN8x2, LSN8x8, SFU1610 lead nuts; the TR8 screw dims are taken from these). Stored verbatim; never executed. Read by catalog_import.py with a regex over the `NAME = [ ... ];` tuple lines. NOTE: NopSCADlib has no rods.scad / leadscrews.scad tuple list (rod.scad is a parametric module with no table), so the 'rod' and 'leadscrew-tr8' families are hand-entered in catalog_import.py citing the catalogue plan and the lead-nut tuples.",
+ "project": "https://github.com/nophead/NopSCADlib",
+ "url": "https://github.com/nophead/NopSCADlib/tree/00ec2898c0a2cdebd446f0175671b633d5ae7d5f/vitamins",
+ "commit": "00ec2898c0a2cdebd446f0175671b633d5ae7d5f",
+ "commit_date": "2026-09-24T18:18:53Z",
+ "branch": "master",
+ "licence": "GPL-3.0-or-later",
+ "licence_source": "Every .scad file header: 'NopSCADlib is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.' + the repository COPYING file (GPL v3 full text, copied verbatim beside this file).",
+ "gpl3_compatible": "yes (GPL-3.0-or-later; same licence as the suite)",
+ "upstream_path": "vitamins/*.scad (the ten tuple files listed) and COPYING",
+ "fetched": "2026-11-03",
+ "fetched_from": "econ-core (this shell), via the GitHub REST API (commit lookup) and raw.githubusercontent.com pinned to the commit sha below; no clone, no code from these files was ever executed here. Parsed only by modules/mech/custom/catalog_import.py run with python3 -I.",
+ "files": [
+  {
+   "path": "COPYING",
+   "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+   "bytes": 35149
+  },
+  {
+   "path": "vitamins/ball_bearings.scad",
+   "sha256": "d1dc02b1a1de6e3398f0520b188989531480a6f4e7b427e7127a06b0225f998f",
+   "bytes": 2396
+  },
+  {
+   "path": "vitamins/belts.scad",
+   "sha256": "7cd4e70a782908730c3b5cc916bc76acd2db526bdad9c73cfdb7b5c62d9b4c31",
+   "bytes": 1520
+  },
+  {
+   "path": "vitamins/extrusion_brackets.scad",
+   "sha256": "e5daef7b980af730a10f81ca361b706e45066213b8358a10b9ba37c1fda2be1b",
+   "bytes": 2221
+  },
+  {
+   "path": "vitamins/extrusions.scad",
+   "sha256": "63cad768d99c770215e83b3c2b71b01a9c2e4e5109afed1c9ae7fea0eb06ecd1",
+   "bytes": 2302
+  },
+  {
+   "path": "vitamins/leadnuts.scad",
+   "sha256": "ff58c90248890959134b4a6919a99833765ae17a7545a51cfe8918fc637d72b1",
+   "bytes": 2495
+  },
+  {
+   "path": "vitamins/linear_bearings.scad",
+   "sha256": "6033f5ab4f397c38d39d5fb3085637e9bbaddeb75587a0ff40a6098c2f308df1",
+   "bytes": 2023
+  },
+  {
+   "path": "vitamins/nuts.scad",
+   "sha256": "86487a7a91e0efd2ab5a348d2e4f272fddff8738a3f4814d6281266ff6cdee71",
+   "bytes": 5061
+  },
+  {
+   "path": "vitamins/pulleys.scad",
+   "sha256": "d1344f2b5869e61217981b3ea4fbfe6914f5156268c8a834aaa6fd6c9b075bef",
+   "bytes": 4510
+  },
+  {
+   "path": "vitamins/rails.scad",
+   "sha256": "f7ace6c63b392ebe92d83e4373b6d636e5878289f2570883430374bb4c097688",
+   "bytes": 3150
+  }
+ ]
+}
