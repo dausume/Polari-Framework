@@ -61,11 +61,18 @@ def _bind_engine_row(engine):
                 EngineProviderBinding)
         except ImportError:
             return None
+        # A live server whose binding table is still EMPTY has no
+        # objectTables key for it yet; the class is REGISTERED
+        # (objectTyping), and the first engine on a fresh instance
+        # must bind, never refuse. Without either, refuse honestly.
         tables = getattr(manager, 'objectTables', None) or {}
-        if 'EngineProviderBinding' not in tables:
+        registered = 'EngineProviderBinding' in tables or any(
+            getattr(t, 'className', '') == 'EngineProviderBinding'
+            for t in (getattr(manager, 'objectTyping', None) or []))
+        if not registered:
             return None
         existing = None
-        for row in tables['EngineProviderBinding'].values():
+        for row in (tables.get('EngineProviderBinding') or {}).values():
             if getattr(row, 'name', '') == engine:
                 existing = row
                 break

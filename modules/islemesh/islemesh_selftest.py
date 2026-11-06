@@ -318,6 +318,18 @@ def main():
           'names the consumer',
           not bound and to == 'topology' and 'not present' in note,
           f'{bound} {to!r} {note!r}')
+    # pol-core 2026-11-06: a FRESH live server has the class registered
+    # (objectTyping) but no objectTables key until its first row - the
+    # first engine must bind there, not wait forever.
+    fresh = type('M', (), {'objectTables': {}, 'idList': [], 'objectTyping': [
+        type('T', (), {'className': 'EngineProviderBinding'})()]})()
+    first = {}
+    bound, to, note = bind_engine(fresh, 'board-engines', 'board', 'https://board-engines.isle',
+                                  lambda row: first.__setitem__(getattr(row, 'name', ''), row))
+    check('first engine on a fresh server (class registered, table empty) binds its row',
+          bound and to == 'EngineProviderBinding:board'
+          and getattr(first.get('board'), 'url', '') == 'https://board-engines.isle',
+          f'{bound} {to!r} {note!r}')
 
     # ---- ai-3: the reasoning binder ----------------------------------
     # NEVER exercise the real set_active here — in-container this
