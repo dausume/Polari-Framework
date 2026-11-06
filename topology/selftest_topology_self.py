@@ -119,6 +119,11 @@ def main():
     check('binding removed: the capability disabled, the edge unresolved, both said', 'ModuleAssignment:board.engines@board-engines' in gone['retired']
           and edges['board@polari-pol->board.engines'].status == 'unresolved', gone)
 
+    m.polServer = types.SimpleNamespace(defClassList=[], endpointConstructed=set(live), bootRegistry=None)
+    hook = S.on_binding_changed(m, 'selftest')
+    check('on_binding_changed refreshes the links from the live modules', hook.get('ok') and 'electronics' in hook['frontends'], hook)
+    check('on_binding_changed never raises (a manager with no server)', S.on_binding_changed(_manager()).get('ok') is False)
+
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
     from topology.selftest_topology import _mgr

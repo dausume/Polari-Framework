@@ -22,6 +22,7 @@ Knobs (labelled; every value derived or said in words):
     instance_name() / machine_name() / seed_mode()
     describe_self(manager, live_modules, source) -> {ok, instance, topology, machine, assignments, created, words}
     describe_links(manager, live_modules, source) -> tpl-1: engine bindings + frontend origins as rows {engines, frontends, created, retired, words}
+    on_binding_changed(manager, source)           the single entry point for a binding saved/removed (never raises)
 """
 import os
 from urllib.parse import urlsplit
@@ -232,3 +233,14 @@ def describe_links(manager, live_modules, source='boot'):
                         len(frontends), '' if len(frontends) == 1 else 's', ', '.join(frontends) or 'none',
                         '; no edge for ' + ', '.join(no_edge) if no_edge else '',
                         '; retired ' + ', '.join(retired) if retired else '')}
+
+
+def on_binding_changed(manager, source='engine bound'):
+    """The one entry point for whatever saves or removes an EngineProviderBinding row (islemesh ingest, the fix-11 consumer):
+    refresh the engine links in the topology now instead of at the next boot. Never raises; -> describe_links' result, or
+    {ok: False, words} when the topology side is unavailable here."""
+    try:
+        from topology.placement_truth import live_module_set
+        return describe_links(manager, live_module_set(manager.polServer), source)
+    except Exception as exc:  # noqa: BLE001 - a bind must never fail because the topology refresh did
+        return {'ok': False, 'words': 'topology refresh skipped: %s: %s' % (type(exc).__name__, exc)}
