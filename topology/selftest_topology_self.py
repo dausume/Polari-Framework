@@ -124,6 +124,38 @@ def main():
     check('on_binding_changed refreshes the links from the live modules', hook.get('ok') and 'electronics' in hook['frontends'], hook)
     check('on_binding_changed never raises (a manager with no server)', S.on_binding_changed(_manager()).get('ok') is False)
 
+    # -- fix 11 hook point: after_boot pulls the registry (when a consumer exists) BEFORE describing the links
+    import islemesh.custom.islemesh_engines as IE
+    had = hasattr(IE, 'sync_from_registry')
+    nb = S.after_boot(m, 'selftest')
+    check('no registry consumer yet: after_boot says so and still describes the links', had or ('no engine registry consumer'
+          in nb['registry']['words'] and nb['links'].get('ok')), nb.get('registry'))
+    order = []
+    def fake_sync(manager, source):
+        order.append('registry')
+        EngineProviderBinding(name='board', url='https://board-engines.isle', bound_from='board-engines', manager=manager)
+        return {'ok': True, 'words': 'bound board'}
+    saved = getattr(IE, 'sync_from_registry', None)
+    IE.sync_from_registry = fake_sync
+    try:
+        nb = S.after_boot(m, 'selftest')
+    finally:
+        if saved is None:
+            del IE.sync_from_registry
+        else:
+            IE.sync_from_registry = saved
+    check('with a consumer: the registry is pulled first, so its engine is in the same boot\'s links',
+          order == ['registry'] and any(e['kind'] == 'board' for e in nb['links']['engines']), nb.get('links'))
+    def broken_sync(manager, source):
+        raise RuntimeError('core unreachable')
+    IE.sync_from_registry = broken_sync
+    try:
+        nb = S.after_boot(m, 'selftest')
+    finally:
+        del IE.sync_from_registry
+    check('a registry outage never stops the boot (said in words, links still described)',
+          nb['registry']['ok'] is False and 'core unreachable' in nb['registry']['words'] and nb['links'].get('ok'), nb.get('registry'))
+
     # -- on the compose suite the example topology stays the one it joins
     _env(POLARI_INSTANCE_NAME='prf-a')
     from topology.selftest_topology import _mgr

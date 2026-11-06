@@ -616,7 +616,7 @@ class AdmissionWorker:
         try:
             from topology.topology_self import after_boot
             _described = after_boot(manager, 'lazy boot')
-            print(f"[Topology] {_described['self'].get('words', '')}; links: {_described.get('links', {}).get('words', '')}; benches: "
+            print(f"[Topology] {_described['self'].get('words', '')}; registry: {_described.get('registry', {}).get('words', '')}; links: {_described.get('links', {}).get('words', '')}; benches: "
                   f"{[b.get('words', '') for b in _described['benches'] if b.get('applied')]}", flush=True)
         except Exception as exc:
             print(f'[LazyBoot] self-description failed (non-fatal): {exc}', flush=True)
