@@ -224,33 +224,59 @@ def record_engine(manager, save, app_name, provides, url, device_name,
     return row
 
 
+class _TrackedSave:
+    """Wrap a save/delete callable so persistence failures are SEEN (recorded) instead of swallowed:
+    a callable that raises, or returns False, counts as a failure for the row it was given."""
+
+    def __init__(self, fn, what):
+        self.fn, self.what, self.failures = fn, what, []
+
+    def __call__(self, row):
+        try:
+            result = self.fn(row)
+        except Exception as exc:  # noqa: BLE001 - the words are the point
+            self.failures.append('%s %s: %s: %s' % (self.what, getattr(row, 'name', '?'),
+                                                    type(exc).__name__, exc))
+            return False
+        if result is False:
+            self.failures.append('%s %s: refused' % (self.what, getattr(row, 'name', '?')))
+            return False
+        return True
+
+
 def retire_binding(manager, kind, url, delete=None):
-    """Drop the EngineProviderBinding for `kind` ONLY when it still points at `url` (a
-    binding someone set by hand to another url is never clobbered). Returns True if removed."""
+    """Drop the EngineProviderBinding for `kind` ONLY when it still points at `url` (a binding
+    someone set by hand to another url is never clobbered). The durable deletion runs FIRST;
+    the in-memory references go only after it succeeded, so a failed delete leaves the binding
+    exactly as it was (it would otherwise resurrect on restart while we claimed it gone).
+    Returns 'retired', 'absent', or 'failed: <words>'."""
     table = (getattr(manager, 'objectTables', None) or {}).get('EngineProviderBinding') or {}
-    # a row sits in the table under its id AND (via save) under its name: drop every reference
     hits = [(key, row) for key, row in table.items()
             if getattr(row, 'name', '') == kind and getattr(row, 'url', '') == url]
     if not hits:
-        return False
-    seen = set()
-    for key, row in hits:
-        table.pop(key, None)
-        if delete is not None and id(row) not in seen:
+        return 'absent'
+    if delete is not None:
+        seen = set()
+        for _key, row in hits:
+            if id(row) in seen:
+                continue
             seen.add(id(row))
             try:
-                delete(row)
-            except Exception:  # noqa: BLE001 - reported by the caller's words, never raised
-                pass
-    return True
+                if delete(row) is False:
+                    return 'failed: delete of EngineProviderBinding %s refused' % kind
+            except Exception as exc:  # noqa: BLE001 - reported, never raised, never hidden
+                return 'failed: delete of EngineProviderBinding %s: %s: %s' % (kind, type(exc).__name__, exc)
+    for key, _row in hits:
+        table.pop(key, None)
+    return 'retired'
 
 
 def _default_save(manager):
+    """Persist one row; raises on failure so the caller's tracker can SEE it (the API's own
+    _save swallows, which is fine for a door that answers the request either way, but a sync
+    that claims a bind or a retirement must know whether the DB took it)."""
     def save(row):
-        try:
-            manager.db.saveInstanceInDB(row)
-        except Exception:  # noqa: BLE001 - same discipline as IsleMeshAPI._save
-            pass
+        manager.db.saveInstanceInDB(row)
     return save
 
 
@@ -258,28 +284,53 @@ def _default_delete(manager):
     def delete(row):
         db = getattr(manager, 'db', None)
         row_id = getattr(row, 'id', None)
-        if db is not None and hasattr(db, 'deleteRowsWhere') and row_id:
-            db.deleteRowsWhere(type(row).__name__, 'id', row_id)
+        if db is None or not hasattr(db, 'deleteRowsWhere') or not row_id:
+            return False
+        db.deleteRowsWhere(type(row).__name__, 'id', row_id)
     return delete
+
+
+def _entry_identity(entry):
+    """(key, app, provides, url, problem) for one registry entry; problem is '' when the entry is
+    well-formed. A malformed entry makes the whole snapshot NON-authoritative for retirement."""
+    if not isinstance(entry, dict):
+        return '', '', '', '', 'entry is not an object'
+    app = str(entry.get('app') or '').strip()
+    provides = str(entry.get('provides') or '').strip()
+    url = str(entry.get('url') or '').strip()
+    if not app or not provides:
+        return '', app, provides, url, 'entry lacks app/provides'
+    key = '%s@%s' % (app, provides)
+    if not url:
+        return key, app, provides, url, 'entry lacks url'
+    if not (url.startswith('https://') or url.startswith('http://')):
+        return key, app, provides, url, 'url is not http(s)'
+    return key, app, provides, url, ''
 
 
 def sync_from_registry(manager, source='boot', save=None, delete=None, fetch=None,
                        env=None, notify=False):
     """Pull the isle core's engine registry and bind what it lists (fix 11, consumer half).
 
-    Returns {ok, source, origin, seen, bound[], unbound[], skipped_mock[], retired[], words}
-    and never raises on transport or data problems. ok=False only when the registry could not
-    be read (nothing changed then). `notify=True` (runtime paths) calls
-    topology.topology_self.on_binding_changed afterwards; the boot path leaves that to
-    after_boot, which describes links right after this returns."""
+    Returns {ok, source, origin, seen, bound[], unbound[], skipped_mock[], retired[], uncertain[],
+    failed[], authoritative, words} and never raises on transport, data or persistence problems.
+    - ok=False when the registry could not be read (nothing changed) OR when a bind / record /
+      retirement could not be PERSISTED (listed in `failed`, retryable: call again).
+    - Retirement happens only from an AUTHORITATIVE snapshot: every entry well-formed. A malformed
+      or incomplete entry (missing url, bad url, not an object) makes `authoritative` False: it is
+      reported in `uncertain`, nothing is retired, every existing binding is preserved.
+    - A retirement is claimed only after the durable delete succeeded.
+    `notify=True` (runtime paths) calls topology.topology_self.on_binding_changed afterwards; the
+    boot path leaves that to after_boot, which describes links right after this returns."""
     out = {'ok': True, 'source': source, 'origin': '', 'seen': 0, 'bound': [], 'unbound': [],
-           'skipped_mock': [], 'retired': [], 'words': ''}
+           'skipped_mock': [], 'retired': [], 'uncertain': [], 'failed': [],
+           'authoritative': False, 'words': ''}
     origin = registry_origin(env)
     if not origin:
         out['words'] = 'no isle registry configured (%s unset)' % REGISTRY_KNOB
         return out
     out['origin'] = origin
-    save = save or _default_save(manager)
+    save = _TrackedSave(save or _default_save(manager), 'save')
     delete = delete or _default_delete(manager)
     entries, words = (fetch or fetch_registry)(origin)
     if entries is None:
@@ -289,44 +340,55 @@ def sync_from_registry(manager, source='boot', save=None, delete=None, fetch=Non
     out['seen'] = len(entries)
     listed = set()
     for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        app = str(entry.get('app') or '').strip()
-        provides = str(entry.get('provides') or '').strip()
-        url = str(entry.get('url') or '').strip()
-        key = '%s@%s' % (app, provides)
-        if not (app and provides and url):
-            out['unbound'].append({'engine': str(entry.get('name') or key),
-                                   'note': 'registry entry lacks app/provides/url; not bound'})
+        key, app, provides, url, problem = _entry_identity(entry)
+        if problem:
+            out['uncertain'].append({'engine': key or str((entry or {}).get('name') if isinstance(entry, dict) else entry)[:80],
+                                     'note': problem + '; existing binding (if any) preserved'})
             continue
         if entry.get('is_mock'):
             out['skipped_mock'].append(key)   # mock entries never enter real placement
             continue
         listed.add(key)
         device = str(entry.get('device') or '').strip() or 'unknown'  # core80's installed backend omits it
+        before = len(save.failures)
         bound, bound_to, note = bind_engine(manager, app, provides, url, save)
         record_engine(manager, save, app, provides, url, device, bound, bound_to,
                       REGISTRY_MARK + note)
-        if bound:
+        if len(save.failures) > before:
+            out['failed'].append({'engine': key, 'note': 'not persisted: ' + '; '.join(save.failures[before:])
+                                  + ' (in memory only; retry the sync)'})
+        elif bound:
             out['bound'].append({'engine': key, 'bound_to': bound_to, 'url': url, 'device': device})
         else:
             out['unbound'].append({'engine': key, 'note': note, 'device': device})
-    # retire what THIS pull once recorded and the registry no longer lists (never a direct ingest)
-    for row in _engine_rows(manager):
-        notes = getattr(row, 'notes', '') or ''
-        if not notes.startswith(REGISTRY_MARK) or getattr(row, 'name', '') in listed:
-            continue
-        if not getattr(row, 'bound', False) and 'retired:' in notes:
-            continue   # already retired on an earlier pull
-        retire_binding(manager, getattr(row, 'provides', ''), getattr(row, 'url', ''), delete)
-        row.bound = False
-        row.bound_to = ''
-        row.notes = REGISTRY_MARK + 'retired: no longer listed by the isle registry'
-        save(row)
-        out['retired'].append(getattr(row, 'name', ''))
-    out['words'] = '%d listed, %d bound, %d unbound, %d mock skipped, %d retired (%s)' % (
+    out['authoritative'] = not out['uncertain']
+    if out['authoritative']:
+        # retire what THIS pull once recorded and the registry no longer lists (never a direct ingest)
+        for row in _engine_rows(manager):
+            notes = getattr(row, 'notes', '') or ''
+            name = getattr(row, 'name', '')
+            if not notes.startswith(REGISTRY_MARK) or name in listed:
+                continue
+            if not getattr(row, 'bound', False) and 'retired:' in notes:
+                continue   # already retired on an earlier pull
+            result = retire_binding(manager, getattr(row, 'provides', ''), getattr(row, 'url', ''), delete)
+            if result.startswith('failed'):
+                out['failed'].append({'engine': name, 'note': result + ' (binding kept; retry the sync)'})
+                continue
+            row.bound = False
+            row.bound_to = ''
+            row.notes = REGISTRY_MARK + 'retired: no longer listed by the isle registry'
+            if save(row):
+                out['retired'].append(name)
+            else:
+                out['failed'].append({'engine': name, 'note': 'binding removed but the IsleEngine row '
+                                      'could not be saved as retired: %s (retry the sync)' % save.failures[-1]})
+    if out['failed']:
+        out['ok'] = False
+    out['words'] = '%d listed, %d bound, %d unbound, %d mock skipped, %d retired, %d uncertain, %d failed (%s)%s' % (
         out['seen'], len(out['bound']), len(out['unbound']), len(out['skipped_mock']),
-        len(out['retired']), origin)
+        len(out['retired']), len(out['uncertain']), len(out['failed']), origin,
+        '' if out['authoritative'] else '; snapshot not authoritative: nothing retired')
     if notify and (out['bound'] or out['retired']):
         try:
             from topology.topology_self import on_binding_changed
