@@ -775,17 +775,18 @@ def main():
     check('fix 11: a mock entry is skipped, never bound, never recorded',
           r2['skipped_mock'] == ['fake@scope'] and 'fake@scope' not in (m2.objectTables.get('IsleEngine') or {})
           and 'scope' not in (m2.objectTables.get('EngineProviderBinding') or {}))
-    check('fix 11: an entry lacking a url is reported unbound in words, not bound',
-          any(u['engine'] == 'half@cad' and 'lacks' in u['note'] for u in r2['unbound'])
+    check('fix 11: an entry lacking a url is reported UNCERTAIN (binding preserved), never bound',
+          any(u['engine'] == 'half@cad' and 'lacks url' in u['note'] for u in r2['uncertain'])
           and 'cad' not in (m2.objectTables.get('EngineProviderBinding') or {}))
-    check('fix 11: words summarise the pull',
-          r2['words'].startswith('3 listed, 1 bound, 1 unbound, 1 mock skipped, 0 retired'), r2['words'])
+    check('fix 11: words summarise the pull, and an incomplete entry makes the snapshot non-authoritative',
+          r2['words'].startswith('3 listed, 1 bound, 0 unbound, 1 mock skipped, 0 retired, 1 uncertain, 0 failed')
+          and r2['authoritative'] is False and 'not authoritative' in r2['words'], r2['words'])
     # a direct ingest (no registry mark) must never be retired by a pull that does not list it
     record_engine(m2, save2, 'hand', 'msci', 'http://msci.isle:9500', 'pol-core', True,
                   'EngineProviderBinding:msci', 'wired by ingest')
     m2.objectTables['EngineProviderBinding']['msci'] = type('B', (), {'name': 'msci', 'url': 'http://msci.isle:9500'})()
-    r3 = sync_from_registry(m2, 'refresh', save=save2, env={'ISLE_CORE_API': 'https://api.polari.isle'},
-                            fetch=lambda origin: ([], ''))
+    r3 = sync_from_registry(m2, 'refresh', save=save2, delete=lambda row: None,
+                            env={'ISLE_CORE_API': 'https://api.polari.isle'}, fetch=lambda origin: ([], ''))
     engine = m2.objectTables['IsleEngine']['board-engines@board']
     check('fix 11: an entry the registry no longer lists is retired: row unbound, binding dropped',
           r3['retired'] == ['board-engines@board'] and not getattr(engine, 'bound', True)
@@ -794,15 +795,61 @@ def main():
     check('fix 11: a row from a direct ingest is NOT retired by the registry pull',
           'msci' in m2.objectTables['EngineProviderBinding']
           and getattr(m2.objectTables['IsleEngine']['hand@msci'], 'bound', False))
-    r4 = sync_from_registry(m2, 'refresh', save=save2, env={'ISLE_CORE_API': 'https://api.polari.isle'},
-                            fetch=lambda origin: ([], ''))
+    r4 = sync_from_registry(m2, 'refresh', save=save2, delete=lambda row: None,
+                            env={'ISLE_CORE_API': 'https://api.polari.isle'}, fetch=lambda origin: ([], ''))
     check('fix 11: a second empty pull retires nothing again (idempotent)', r4['retired'] == [])
     # a binding someone set by hand to ANOTHER url is never clobbered by a retirement
     from islemesh.custom.islemesh_engines import retire_binding
     m2.objectTables['EngineProviderBinding']['board'] = type('B', (), {'name': 'board', 'url': 'https://elsewhere.isle'})()
     check('fix 11: retire_binding leaves a binding that points elsewhere alone',
-          retire_binding(m2, 'board', 'https://board-engines.isle') is False
+          retire_binding(m2, 'board', 'https://board-engines.isle') == 'absent'
           and 'board' in m2.objectTables['EngineProviderBinding'])
+
+    # ---- Codex review controls 2026-11-06 (BUILD-OWNER-REVIEW): the two reproduced defects ----
+    def seeded():
+        m = live_mgr(); sv = table_save(m)
+        sync_from_registry(m, 'boot', save=sv, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                           fetch=lambda o: ([{'app': 'worker', 'provides': 'board', 'url': 'https://worker.isle'}], ''))
+        return m, sv
+    m5, sv5 = seeded()
+    r5 = sync_from_registry(m5, 'refresh', save=sv5, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda o: ([{'app': 'worker', 'provides': 'board', 'url': ''}], ''))
+    check('review 1: a known engine returned WITHOUT a url is uncertain, NOT retired; its binding stays',
+          r5['ok'] and r5['retired'] == [] and r5['authoritative'] is False
+          and any(u['engine'] == 'worker@board' for u in r5['uncertain'])
+          and 'board' in m5.objectTables['EngineProviderBinding']
+          and getattr(m5.objectTables['IsleEngine']['worker@board'], 'bound', False), r5['words'])
+    m5b, sv5b = seeded()
+    r5b = sync_from_registry(m5b, 'refresh', save=sv5b, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                             fetch=lambda o: (['not-an-object', {'app': 'other', 'provides': 'cad', 'url': 'https://c.isle'}], ''))
+    check('review 1b: a non-object entry anywhere makes the snapshot non-authoritative: nothing retired',
+          r5b['retired'] == [] and 'board' in m5b.objectTables['EngineProviderBinding']
+          and any('not an object' in u['note'] for u in r5b['uncertain']), r5b['words'])
+    m5c, sv5c = seeded()
+    r5c = sync_from_registry(m5c, 'refresh', save=sv5c, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                             fetch=lambda o: ([{'app': 'worker', 'provides': 'board', 'url': 'ftp://worker.isle'}], ''))
+    check('review 1c: a malformed url is uncertain too; the https binding is kept',
+          r5c['retired'] == [] and getattr(m5c.objectTables['EngineProviderBinding']['board'], 'url', '') == 'https://worker.isle')
+    m6, sv6 = seeded()
+    def fail_delete(row): raise RuntimeError('database write failed')
+    r6 = sync_from_registry(m6, 'refresh', save=sv6, delete=fail_delete, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda o: ([], ''))
+    check('review 2: a failed durable delete is NOT a retirement: ok False, failed names it, binding kept, row still bound',
+          r6['ok'] is False and r6['retired'] == [] and any(f['engine'] == 'worker@board' and 'database write failed' in f['note'] for f in r6['failed'])
+          and 'board' in m6.objectTables['EngineProviderBinding']
+          and getattr(m6.objectTables['IsleEngine']['worker@board'], 'bound', False), r6['words'])
+    m6b, sv6b = seeded()
+    ok_delete = lambda row: None
+    r6b = sync_from_registry(m6b, 'refresh', save=sv6b, delete=ok_delete, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                             fetch=lambda o: ([], ''))
+    check('review 2b: with a working delete the authoritative empty list retires it (durable first, then memory)',
+          r6b['ok'] and r6b['retired'] == ['worker@board'] and 'board' not in m6b.objectTables['EngineProviderBinding'])
+    m7 = live_mgr()
+    def failing_save(row): raise RuntimeError('disk full')
+    r7 = sync_from_registry(m7, 'boot', save=failing_save, env={'ISLE_CORE_API': 'https://api.polari.isle'},
+                            fetch=lambda o: ([{'app': 'worker', 'provides': 'board', 'url': 'https://worker.isle'}], ''))
+    check('review 2c: a bind whose rows cannot be persisted is reported in failed (ok False), not in bound',
+          r7['ok'] is False and r7['bound'] == [] and any('disk full' in f['note'] for f in r7['failed']), r7['words'])
 
     failed = sum(1 for _, ok in _results if not ok)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
