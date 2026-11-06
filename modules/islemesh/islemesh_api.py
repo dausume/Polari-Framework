@@ -620,6 +620,7 @@ class IsleMeshAPI(treeObject):
             rows.append({
                 'name': getattr(row, 'name', ''),
                 'app': getattr(row, 'app_name', ''),
+                'device': getattr(row, 'device_name', ''),
                 'provides': getattr(row, 'provides', ''),
                 'url': getattr(row, 'url', ''),
                 'bound': getattr(row, 'bound', False),
