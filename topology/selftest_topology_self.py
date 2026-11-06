@@ -284,6 +284,36 @@ def main():
     check('the max-age knob: a 5-minute report is stale under POLARI_ISLE_EVIDENCE_MAX_AGE_S=60', tight['discovery']['state'] == 'stale'
           and 'STALE' in tight['discovery']['words'])
     os.environ.pop('POLARI_ISLE_EVIDENCE_MAX_AGE_S')
+    # Codex's edge: an impossible FUTURE report is never fresh; small skew is tolerated; the raw timestamp stays as evidence
+    sm = _manager()
+    IsleDevice(name='member-future', last_seen='2099-01-01T00:00:00Z', manager=sm)
+    fut = isle_needs(sm, now)
+    d = isle_feats(fut)['discovery']
+    check('NEGATIVE future report (2099 evaluated 2026-11-06): state clock-skew, not last-reported; no age; fallback shown',
+          d['state'] == 'clock-skew' and d['ageSeconds'] is None and not d['observedAt'] and d['fallback'], d)
+    check('the future report keeps its raw timestamp as evidence, flagged, with its (negative) age',
+          d['evidence'][0]['observedAt'] == '2099-01-01T00:00:00Z' and d['evidence'][0].get('clockSkew')
+          and d['evidence'][0]['ageSeconds'] < 0 and 'CLOCK SKEW' in d['words'], d['evidence'])
+    check('the isle summary never names a future report as the newest', fut['isle']['reported']['lastSeen'] == ''
+          and 'dated in the future' in fut['isle']['words'], fut['isle'])
+    km = _manager()
+    IsleDevice(name='member-ahead', last_seen=(now + timedelta(seconds=90)).isoformat(), manager=km)
+    ahead = isle_feats(isle_needs(km, now))['discovery']
+    check('a report 90 s ahead (within the 300 s tolerance) is ordinary skew: last-reported, age 0, never negative',
+          ahead['state'] == 'last-reported' and ahead['ageSeconds'] == 0, ahead)
+    IsleDevice(name='member-future', last_seen='2099-01-01T00:00:00Z', manager=km)
+    mixed = isle_feats(isle_needs(km, now))['discovery']
+    check('mixed: the usable report decides; the future one is ignored and said', mixed['state'] == 'last-reported'
+          and 'ignored 1 report dated in the future' in mixed['words'], mixed)
+    os.environ['POLARI_ISLE_CLOCK_SKEW_S'] = '30'
+    sk = _manager()
+    IsleDevice(name='member-ahead', last_seen=(now + timedelta(seconds=90)).isoformat(), manager=sk)
+    sk_d = isle_feats(isle_needs(sk, now))['discovery']
+    os.environ.pop('POLARI_ISLE_CLOCK_SKEW_S')
+    check('the tolerance knob: 90 s ahead is clock-skew under POLARI_ISLE_CLOCK_SKEW_S=30', sk_d['state'] == 'clock-skew', sk_d)
+    check('every evidence item carries its own observedAt and ageSeconds', all('ageSeconds' in e and 'observedAt' in e
+          for f in isle_needs(fm, now)['features'] for e in f['evidence']))
+
     os.environ.pop('ISLE_CORE_API', None)
     noorigin = isle_feats(isle_needs(fm, now))
     check('reports without a configured origin still count as reported (the isle posted here)', noorigin['discovery']['state'] == 'last-reported')
