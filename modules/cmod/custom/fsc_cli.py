@@ -20,6 +20,7 @@ import ssl
 import sys
 import urllib.error
 import urllib.request
+from polariApiServer import tls_policy
 
 
 def _local(method, path, params=None, body=None):
@@ -37,9 +38,7 @@ def _local(method, path, params=None, body=None):
     return r.status_code, r.json
 
 
-_CTX = ssl.create_default_context()
-_CTX.check_hostname = False
-_CTX.verify_mode = ssl.CERT_NONE   # the home stacks' nip.io certs are self-signed (dev posture), as hwnocode.custom.demo_prepare
+# TLS: polariApiServer.tls_policy (verified by default; a self-signed home stack sets POL_TLS_CA=<pem> or POL_TLS_INSECURE=1 explicitly)
 
 
 def _remote(api, method, path, params=None, body=None):
@@ -47,7 +46,7 @@ def _remote(api, method, path, params=None, body=None):
     url = api.rstrip('/') + path + (('?' + urlencode(params)) if params else '')
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None, method=method, headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=300, context=_CTX) as r:
+        with urllib.request.urlopen(req, timeout=300, context=tls_policy.context(req.full_url)) as r:
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         try:

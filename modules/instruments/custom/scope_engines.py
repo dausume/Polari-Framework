@@ -19,6 +19,7 @@ import os
 import ssl
 import urllib.error
 import urllib.request
+from polariApiServer import tls_policy
 
 KNOB = 'SCOPE_ENGINES_URL'
 ENGINE = 'scope'
@@ -45,7 +46,7 @@ def binding_url():
 def _request(method, url, body=None, timeout=TIMEOUT_S):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'} if data else {}, method=method)
-    ctx = ssl._create_unverified_context()
+    ctx = tls_policy.context(url)
     try:
         from polariApiServer import outbound
     except ImportError:

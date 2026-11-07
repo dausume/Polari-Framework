@@ -28,7 +28,7 @@ def _call(api, method, path, body=None, timeout=120):
                                  headers={'Content-Type': 'application/json'} if body is not None else {}, method=method)
     from polariApiServer import outbound
     try:
-        with outbound.http_request('self', 'grpcbridge', method, req, means='rest', timeout=timeout, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'grpcbridge', method, req, means='rest', timeout=timeout, lib='urllib') as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         try:

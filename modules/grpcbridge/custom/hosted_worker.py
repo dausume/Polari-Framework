@@ -22,7 +22,7 @@ def _call(method, url, body=None, timeout=30):
     from polariApiServer import outbound
     base = url.split('/bridges', 1)[0]
     try:
-        with outbound.http_request('engine', 'grpcbridge', method, req, means='bridge', timeout=timeout, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('engine', 'grpcbridge', method, req, means='bridge', timeout=timeout, lib='urllib') as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         try:

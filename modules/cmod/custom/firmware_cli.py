@@ -21,6 +21,7 @@ specific HardwareBinding — the default binding when omitted, unchanged).
 import json
 import os
 import sys
+from polariApiServer import tls_policy
 
 
 def _solution(name):
@@ -180,7 +181,7 @@ def _server_statuses():
     if not api:
         return None
     try:
-        ctx = ssl._create_unverified_context()
+        ctx = tls_policy.context(api)
         with urllib.request.urlopen(urllib.request.Request(api + '/api/capabilities'), timeout=15, context=ctx) as r:
             d = json.load(r)
         rows = d if isinstance(d, list) else (d.get('rows') or d.get('capabilities') or [])

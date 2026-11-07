@@ -31,6 +31,7 @@ import time
 import urllib.request
 
 from testing.check_catalog import DEFAULT_LIVE_BASE_URL, FRAMEWORK_ROOT
+from polariApiServer import tls_policy
 
 DEFAULT_TIMEOUT_S = int(
     os.environ.get('POLARI_CHECK_TIMEOUT') or 900)
@@ -176,9 +177,7 @@ def _run_unittest(entry, timeout):
 
 
 def _live_server_reachable(base_url, timeout_s=5):
-    context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+    context = tls_policy.context(base_url)   # verified by default; POL_TLS_CA / POL_TLS_INSECURE say otherwise explicitly
     try:
         urllib.request.urlopen(base_url + '/api/shapes',
                                timeout=timeout_s, context=context)

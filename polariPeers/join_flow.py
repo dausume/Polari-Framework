@@ -29,6 +29,7 @@ from typing import Any, Dict, Optional
 from polariApiServer import outbound
 from polariPeers.peers_api import (
     PEER_HTTP_TIMEOUT_S, _http_get_json, instance_identity)
+from polariApiServer import tls_policy
 
 _EPHEMERAL_FP = ''  # stable within the process when the file is unwritable
 
@@ -62,6 +63,8 @@ def _dev_tls_context(url: str, manager=None):
     a SecurityEvent (control 'certificate') so the notice bar warns; production verifies as always (returns None)."""
     if not url.lower().startswith('https://'):
         return None
+    if tls_policy.mode() != 'verified':
+        return tls_policy.context(url)          # POL_TLS_CA wins; POL_TLS_INSECURE is already explicit and announced
     try:
         from security.custom.security_observe import decide
         proceed, _ = decide(manager, 'certificate', f'https to {url.split("//", 1)[1].split("/", 1)[0]}', url, denied=True,
@@ -71,8 +74,7 @@ def _dev_tls_context(url: str, manager=None):
         proceed = False
     if not proceed:
         return None
-    import ssl
-    return ssl._create_unverified_context()
+    return tls_policy.unverified_context('join flow, dev posture (SecurityEvent certificate recorded)', url)
 
 
 def _http_post_json(url: str, body: Dict[str, Any], manager=None,

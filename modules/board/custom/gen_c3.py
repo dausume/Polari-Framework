@@ -59,7 +59,7 @@ def header(cls='SimRigState', api='', manager=None, msg_type=1):
     if api:
         url = '%s/api/grpc/exposures/%s/c-header?msg_type=%d&target=%s&wire=2' % (api.rstrip('/'), cls, msg_type, TARGET)
         from polariApiServer import outbound
-        with outbound.http_request('self', 'board', 'GET', url, means='rest', timeout=30, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'board', 'GET', url, means='rest', timeout=30, lib='urllib') as r:
             text = r.read().decode()
         if '%s_MSG_TYPE' % cls.upper() not in text:
             raise gen.GenRefused('the server returned no header for %s (exposure enabled?)' % cls)

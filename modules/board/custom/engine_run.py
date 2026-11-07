@@ -21,6 +21,7 @@ import urllib.request
 import ssl
 
 from board.custom import board_engines as be
+from polariApiServer import tls_policy
 
 
 class EngineRefused(RuntimeError):
@@ -76,7 +77,7 @@ def _remote(url, engine, args, files, timeout):
     body = json.dumps({'engine': engine, 'args': list(args), 'timeout': timeout,
                        'files_b64': {os.path.basename(k): base64.b64encode(v).decode() for k, v in files.items()}}).encode()
     req = urllib.request.Request('%s/run' % url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
-    ctx = ssl._create_unverified_context()
+    ctx = tls_policy.context(url)
     t0 = time.perf_counter()
     from polariApiServer import outbound
     with outbound.http_request('engine', 'board', 'POST', req, means='run', timeout=timeout + 30, lib='urllib', context=ctx) as r:
