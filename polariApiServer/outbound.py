@@ -266,8 +266,16 @@ class wrap:
 
 # ---- the HTTP helpers (same library, same timeout, same return type) ----
 
-def _apply_tls_policy(system_kind, system_name, url, lib, kw, method='GET'):
-    """Fill or correct the TLS argument in `kw` per tls_policy (see http_request)."""
+def _apply_tls_policy(system_kind, system_name, url, lib, kw, method='GET', data=None):
+    """Fill or correct the TLS argument in `kw` per tls_policy (see http_request).
+
+    The contract (Isle review 2026-11-07): nothing unverified leaves this process silently. An absent argument
+    takes the policy's choice; a context/verify the policy built is honoured; the INSPECTION context is refused
+    for every HTTP send; a CALLER-supplied unverified argument (no certificate verification, hostname check off, requests' verify False) is
+    accepted only under POL_TLS_INSECURE=1 and then announced through the policy, otherwise it is refused in words
+    (urllib: a rebuilt context could silently drop a client certificate the caller loaded, so the seam does not
+    rebuild it; requests: verify= carries no client-certificate state, `cert=` is a separate argument that is
+    kept, so a verify of False is replaced by the policy's verify and said)."""
     from polariApiServer import tls_policy
     where = f'{system_kind}/{system_name}'
     target = getattr(url, 'full_url', url) if not isinstance(url, str) else url
@@ -277,39 +285,40 @@ def _apply_tls_policy(system_kind, system_name, url, lib, kw, method='GET'):
             policy = tls_policy.context(target)
             if policy is not None:
                 kw['context'] = policy
-        elif tls_policy.is_unverified(ctx):
-            kind = tls_policy.built_here(ctx)
-            if kind == tls_policy.INSPECTION:
-                # reading a certificate only: never a body, never credentials, never a method that changes anything
-                method = (url.get_method() if not isinstance(url, str) else (method or 'GET')).upper()
-                hdrs = {k.lower() for k in (getattr(url, 'headers', None) or {})}
-                if method not in ('GET', 'HEAD') or kw.get('data') is not None or getattr(url, 'data', None) \
-                        or hdrs & {'authorization', 'cookie', 'x-api-key'}:
-                    raise ValueError(f'outbound {where}: the inspection TLS context may only read a certificate '
-                                     f'(bare GET/HEAD, no body, no credentials); this request is refused')
-            elif kind in (tls_policy.POLICY, tls_policy.EXPLICIT):
-                pass            # decided and announced by tls_policy itself (the bypass knob, or a named explicit choice)
-            elif tls_policy.mode() != 'insecure':
-                tls_policy._say(f'[WARN] outbound {where}: an explicitly unverified TLS context not built by '
-                                f'tls_policy was replaced by the policy (verified by default; POL_TLS_CA=<pem> to '
-                                f'trust a file, POL_TLS_INSECURE=1 to bypass)')
-                kw['context'] = tls_policy.context(target)
-                if kw['context'] is None:
-                    del kw['context']
+            return
+        kind = tls_policy.built_here(ctx)
+        if kind == tls_policy.INSPECTION:
+            raise ValueError(f'outbound {where}: the inspection TLS context reads a certificate on a raw socket and '
+                             f'is never valid for an HTTP send (method {method}, body {"yes" if data is not None or getattr(url, "data", None) else "no"}); refused')
+        if kind in (tls_policy.POLICY, tls_policy.EXPLICIT):
+            return              # built and announced by tls_policy itself (the bypass knob, or a named explicit choice)
+        if not tls_policy.is_unverified(ctx):
+            return              # a caller's own VERIFYING context (its CA, its client certificate): kept as is
+        if tls_policy.mode() == 'insecure':
+            tls_policy.announce_insecure(target, f'outbound {where}: caller-supplied unverified context')
+            return
+        raise ValueError(f'outbound {where}: a caller-supplied TLS context that does not verify the peer '
+                         f'(no certificate verification, or the hostname check off) is refused under the verified default; pass no context '
+                         f'(the policy decides), set POL_TLS_CA=<pem> to trust a file, or POL_TLS_INSECURE=1 to bypass '
+                         f'explicitly. Not rebuilt: a rebuilt context could silently drop a client certificate')
     elif lib == 'requests':
-        verify = kw.get('verify', True)
         if 'verify' not in kw:
             policy = tls_policy.requests_verify(target)
             if policy is not True:
                 kw['verify'] = policy
-        elif verify is False and tls_policy.mode() != 'insecure':
-            tls_policy._say(f'[WARN] outbound {where}: verification disabled by the caller was replaced by the policy (verified by default; '
-                            f'POL_TLS_CA=<pem> to trust a file, POL_TLS_INSECURE=1 to bypass)')
-            policy = tls_policy.requests_verify(target)
-            if policy is True:
-                del kw['verify']
-            else:
-                kw['verify'] = policy
+            return
+        if kw['verify'] is not False:
+            return              # True or a CA path: the caller's own verifying choice
+        if tls_policy.mode() == 'insecure':
+            kw['verify'] = tls_policy.requests_verify(target)       # False, announced by the policy
+            return
+        tls_policy._say(f'[WARN] outbound {where}: verification disabled by the caller was replaced by the policy '
+                        f'(verified by default; POL_TLS_CA=<pem> to trust a file, POL_TLS_INSECURE=1 to bypass)')
+        policy = tls_policy.requests_verify(target)
+        if policy is True:
+            del kw['verify']
+        else:
+            kw['verify'] = policy
 
 
 def http_request(system_kind, system_name, method, url, *, means='rest',
@@ -335,7 +344,7 @@ def http_request(system_kind, system_name, method, url, *, means='rest',
     site, so no call site can bypass verification silently."""
     hdrs = dict(headers or {})
     hdrs.update(trace_headers(system_kind))
-    _apply_tls_policy(system_kind, system_name, url, lib, kw, method)
+    _apply_tls_policy(system_kind, system_name, url, lib, kw, method, data)
 
     if lib == 'requests':
         import requests as _requests

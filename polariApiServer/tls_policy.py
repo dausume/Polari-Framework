@@ -71,12 +71,16 @@ def _insecure(kind):
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    ctx._polari_tls = kind          # the mark the seam checks (outbound._apply_tls_policy)
+    ctx._polari_tls = kind          # the mark the seam checks (outbound._apply_tls_policy); see built_here()
     return ctx
 
 
 def built_here(ctx):
-    """'policy' | 'explicit' | 'inspection' when `ctx` was built by this module, else None."""
+    """'policy' | 'explicit' | 'inspection' when `ctx` was built by this module, else None.
+
+    The mark is a plain attribute on the context. It tells the seam which of its OWN announced contexts it is
+    looking at; it is NOT a security boundary - any code in this process could set it. The boundary is the
+    process: the policy governs what this backend sends, it does not defend the backend against its own code."""
     return getattr(ctx, '_polari_tls', None)
 
 
@@ -109,8 +113,18 @@ def requests_verify(url=''):
 
 
 def is_unverified(ctx):
-    """True when `ctx` is an ssl context that does not verify the peer."""
-    return isinstance(ctx, ssl.SSLContext) and ctx.verify_mode == ssl.CERT_NONE
+    """True when `ctx` is an ssl context that does not fully verify the peer: no certificate verification, OR
+    certificate verification with the hostname check off (trusting a CA without checking the name is not
+    verification either)."""
+    return isinstance(ctx, ssl.SSLContext) and (ctx.verify_mode == ssl.CERT_NONE or not ctx.check_hostname)
+
+
+def announce_insecure(url, reason):
+    """Say, through the same once-per-process / once-per-distinct-message channel, that an UNVERIFIED call is
+    about to be made under the bypass with a CALLER-supplied argument (the seam normalizes every accepted insecure
+    path through here, so nothing unverified is ever silent)."""
+    _announce_once()
+    _say('[WARN] TLS verification OFF (POL_TLS_INSECURE=1; %s): %s' % (reason, url or 'urllib'))
 
 
 def unverified_context(reason, url=''):
@@ -126,6 +140,7 @@ def unverified_context(reason, url=''):
 
 def inspection_context():
     """For READING a peer's certificate (expiry, issuer) as any client would see it, including a self-signed or
-    expired one: no verification by design, and no data is ever sent on that socket. The outbound seam refuses it
-    for anything but a bare GET/HEAD with no body and no credentials, so it can never become a general bypass."""
+    expired one: no verification by design, on a RAW TLS socket that never speaks HTTP (security_notices.probe_host
+    wraps a socket and reads the peer certificate). The outbound seam REFUSES this context for EVERY HTTP send -
+    a GET is data too and may carry credentials - so it can never become a general bypass."""
     return _insecure(INSPECTION)
