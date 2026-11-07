@@ -286,8 +286,9 @@ def gate(R, tmp):
         else:
             sys.modules.pop('security.custom.security_claims', None)
     words = R.operator_gate(_Req('172.18.0.5'))[2]
-    check('gate: the refusal names the standard paths', 'pol topology example-rows retire --digest' in words
-          and 'without --api' in words and 'Isle App' in words and 'Nothing was written' in words)
+    check('gate: the refusal names the standard paths and never presents the Isle App run as existing',
+          'pol topology example-rows retire --digest' in words and 'without --api' in words and 'Nothing was written' in words
+          and 'planned, not built yet' in words)
 
     # the HTTP handlers themselves, called directly (no CLI, no UI)
     from topology.topology_api import TopologyAPI
@@ -317,6 +318,10 @@ def gate(R, tmp):
     check('plan carries the planned action the Isle App collects (summary, execute door, operator command, undo)',
           pa and pa['kind'] == 'polari.topology.retire-example' and 'retire 48' in pa['summary']
           and pa['execute']['path'] == '/api/topology/example-rows/retire' and pa['operatorCommand'].endswith(pa['digest']))
+    check('planned action: stable identity = kind + backend + device + digest', pa['id'] ==
+          'polari.topology.retire-example:polari@isle-core:' + pa['digest'] and pa['device'] == 'isle-core')
+    check('planned action: status planned, and says the Isle App run is not built yet', pa['status'] == 'planned'
+          and 'not built yet' in pa['appRun'])
 
 
 def main():

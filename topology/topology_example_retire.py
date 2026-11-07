@@ -34,7 +34,7 @@ Never a wipe, never a hand delete: only rows the snapshot itself wrote and nobod
         re-activates the old topology only if the one apply activated is still the active one. Durable first, as above.
     operator_gate(request) -> (allowed, how, words)
         Fail closed. The execute doors (retire, restore) run only for the HOST OPERATOR (a loopback call with no forwarding
-        header: `docker exec` into the backend, which the isle reaches through sudo or pkexec, and which `pol` uses when run
+        header: `docker exec` into the backend, which the isle can reach through sudo or pkexec, and which `pol` uses when run
         on the backend's own device) or a Polari administrator identity (security.custom.security_claims.is_admin, when the
         security module and Keycloak are present). Plans and backup lists stay readable. Limit, stated: a backend run with
         host networking would also accept local users on that host.
@@ -175,15 +175,23 @@ def plan(manager):
     out = {'ok': True, 'instance': me, 'retire': retire_l, 'keep': keep_l, 'rehome': rehome, 'planDigest': digest,
            'words': words, 'plannedAction': None}
     if retire_l or rehome:
-        out['plannedAction'] = planned_action(me, digest, len(retire_l), len(keep_l), len(rehome))
+        from topology.topology_self import machine_name
+        out['plannedAction'] = planned_action(me, machine_name(), digest, len(retire_l), len(keep_l), len(rehome))
     return out
 
 
-def planned_action(me, digest, n_retire, n_keep, n_move):
+def planned_action(me, device, digest, n_retire, n_keep, n_move):
     """The user's 2026-11-07 ruling: what cannot be applied from here is a PLANNED action, run in bulk by the Isle App after
     one permission + password prompt, with a one-line summary per action in its notification. This is the shape it
-    collects; executing it is the host operator's (operator_gate), never this backend's on its own."""
-    return {'kind': 'polari.topology.retire-example', 'backend': me, 'digest': digest,
+    collects; executing it is the host operator's (operator_gate), never this backend's on its own.
+    Codex's admission review: identity = kind + backend + device + digest (drift after review fails or replans); execute /
+    operatorCommand are DATA for the client, which maps the allowlisted kind to its own door; the Isle App's bulk run is
+    NOT built yet, so nothing here claims it exists (appRun)."""
+    kind = 'polari.topology.retire-example'
+    return {'kind': kind, 'id': '%s:%s@%s:%s' % (kind, me, device or 'unknown-device', digest), 'backend': me,
+            'device': device or '', 'digest': digest, 'status': 'planned',
+            'appRun': 'not built yet: the Isle App bulk run of planned actions is planned (Isle side); today run '
+                      'operatorCommand on the device',
             'summary': 'retire %d unchanged July example row%s on %s (keep %d, move %d onto topology %s); backup first, '
                        'restorable' % (n_retire, '' if n_retire == 1 else 's', me, n_keep, n_move, me),
             'execute': {'method': 'POST', 'path': '/api/topology/example-rows/retire', 'body': {'planDigest': digest}},
@@ -491,6 +499,6 @@ def operator_gate(request):
     return False, '', ('refused: this door changes rows, and runs only for the host operator or a Polari administrator '
                        '(caller %s%s). Read the plan with GET /api/topology/example-rows (open), then run it ON the '
                        'backend\'s device: `pol topology example-rows retire --digest <d>` without --api (docker exec), '
-                       '`ssh <device> pol topology example-rows ...`, or the Isle App\'s planned-actions run (one sudo/pkexec '
-                       'for the batch). Nothing was written, backed up or deleted.'
+                       'or `ssh <device> pol topology example-rows ...` (an Isle App bulk run of '
+                       'planned actions is planned, not built yet). Nothing was written, backed up or deleted.'
                        % (addr or 'unknown', ', forwarded by a proxy' if forwarded else ''))
