@@ -65,6 +65,11 @@ class TopologyAPI(treeObject):
             add('/api/topology/summary', self, suffix='summary')
             # tpl-4: which features need an isle, whether this backend has one, and each fallback
             add('/api/topology/isle-needs', self, suffix='isle_needs')
+            # tpl-6: the example snapshot's rows — plan (GET), apply bound to the plan, backups, restore
+            add('/api/topology/example-rows', self, suffix='example_rows')
+            add('/api/topology/example-rows/retire', self, suffix='example_rows_retire')
+            add('/api/topology/example-rows/backups', self, suffix='example_rows_backups')
+            add('/api/topology/example-rows/restore', self, suffix='example_rows_restore')
             add('/api/topology/graph', self, suffix='graph')
             add('/api/topology/module-graph', self,
                 suffix='module_graph')
@@ -166,6 +171,39 @@ class TopologyAPI(treeObject):
     def on_get_isle_needs(self, request, response):
         from topology.topology_isle_needs import isle_needs
         response.media = isle_needs(self.manager)
+
+    # ---- tpl-6: retire the 2026-07-09 example rows (plan / apply bound to the plan / backups / restore) ----
+
+    def on_get_example_rows(self, request, response):
+        """The dry-run plan (never changes anything) plus every row's provenance."""
+        from topology import topology_example_retire as R
+        p = R.plan(self.manager)
+        p['provenance'] = R.provenance(self.manager)
+        response.media = p
+
+    def on_post_example_rows_retire(self, request, response):
+        from topology import topology_example_retire as R
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        receipt = R.apply(self.manager, str((payload or {}).get('planDigest') or ''))
+        if not receipt.get('ok'):
+            response.status = '409 Conflict'
+        response.media = receipt
+
+    def on_get_example_rows_backups(self, request, response):
+        from topology import topology_example_retire as R
+        response.media = R.list_backups()
+
+    def on_post_example_rows_restore(self, request, response):
+        from topology import topology_example_retire as R
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = R.restore(self.manager, str((payload or {}).get('backup') or ''))
+        if not result.get('ok'):
+            response.status = '409 Conflict'
+        response.media = result
 
     def on_get_summary(self, request, response):
         active = active_topology_name(self.manager)

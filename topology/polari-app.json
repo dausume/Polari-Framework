@@ -44,6 +44,7 @@
   ],
   "selftests": [
    "selftest_engines",
+   "selftest_example_retire",
    "selftest_module_graph",
    "selftest_move_operations",
    "selftest_testing",
@@ -62,6 +63,7 @@
    "test_isle_resource_reports",
    "topology_analysis",
    "topology_constants",
+   "topology_example_retire",
    "topology_io",
    "topology_isle_needs",
    "topology_links",
@@ -98,6 +100,7 @@
  "initialData": false,
  "selftests": [
   "selftest_engines",
+  "selftest_example_retire",
   "selftest_module_graph",
   "selftest_move_operations",
   "selftest_testing",
