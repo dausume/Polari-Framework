@@ -15,6 +15,8 @@
 # threaded core tables; carries the hand-tuned security stanza) — a fresh
 # clone without it cannot admit the module or run `pol project`.
 !modules/*/polari-app.json
+# …and the core packages at the framework root that carry one (topology: the owed tpl manifest)
+!topology/polari-app.json
 # hwmap's selftest needs the mapping rules exercised against a REAL captured
 # snapshot, not only synthetic ones — tracked SANITISED (hostname/MAC/by-id
 # serials replaced; vendor:product ids, bus topology, IOMMU groups and driver

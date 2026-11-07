@@ -1,0 +1,129 @@
+{
+ "schema": "polari-app/1",
+ "id": "topology",
+ "package": "topology",
+ "title": "Topology",
+ "description": "The Polari topology layer: which instances run which modules on which machines, their dependency edges, engine bindings and service connections. Describes itself at boot (tpl-0/1) and works with or without an isle; GET /api/topology/isle-needs says which features need one (tpl-4). AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "core",
+  "realization": "",
+  "category": "polari",
+  "subcategories": [
+   "platform-operations"
+  ],
+  "tags": [
+   "topology",
+   "placement",
+   "engines"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "basis": [
+   "topology_basis"
+  ],
+  "api": [
+   "engines_api",
+   "topology_api",
+   "topology_testing_api"
+  ],
+  "seed": [
+   "topology_seed"
+  ],
+  "selftests": [
+   "selftest_engines",
+   "selftest_module_graph",
+   "selftest_move_operations",
+   "selftest_testing",
+   "selftest_topology",
+   "selftest_topology_self"
+  ],
+  "other": [
+   "baseline_profile",
+   "device_resources",
+   "engine_metering",
+   "module_move_live",
+   "move_operations",
+   "object_ownership",
+   "placement_truth",
+   "provider_registry",
+   "test_isle_resource_reports",
+   "topology_analysis",
+   "topology_constants",
+   "topology_io",
+   "topology_isle_needs",
+   "topology_links",
+   "topology_module_graph",
+   "topology_modules",
+   "topology_self",
+   "topology_state",
+   "topology_testing"
+  ]
+ },
+ "classes": [
+  "EngineProviderBinding",
+  "EngineUsageWindow",
+  "EnginesAPI",
+  "InstanceDefinition",
+  "IntegrationPing",
+  "ModuleAssignment",
+  "ModuleDependencyEdge",
+  "MoveOperation",
+  "OrchestrationTarget",
+  "PolariNodeMachine",
+  "ServiceConnection",
+  "TopologyAPI",
+  "TopologyDefinition",
+  "TopologyObservation",
+  "TopologyTestRun",
+  "TopologyTestingAPI"
+ ],
+ "imports": [],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "selftest_engines",
+  "selftest_module_graph",
+  "selftest_move_operations",
+  "selftest_testing",
+  "selftest_topology",
+  "selftest_topology_self"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": false,
+ "coreRequired": true,
+ "legacyDynamicModule": false
+}
