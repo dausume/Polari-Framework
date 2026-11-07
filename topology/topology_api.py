@@ -70,6 +70,8 @@ class TopologyAPI(treeObject):
             add('/api/topology/self', self, suffix='self_description')
             add('/api/topology/peers', self, suffix='peers')
             add('/api/topology/peers/pull', self, suffix='peers_pull')
+            add('/api/topology/self/digest', self, suffix='self_digest')
+            add('/api/topology/peers/nudge', self, suffix='peers_nudge')
             add('/api/topology/example-rows', self, suffix='example_rows')
             add('/api/topology/example-rows/retire', self, suffix='example_rows_retire')
             add('/api/topology/example-rows/backups', self, suffix='example_rows_backups')
@@ -185,6 +187,22 @@ class TopologyAPI(treeObject):
     def on_get_peers(self, request, response):
         from topology.topology_peering import peers_report
         response.media = peers_report(self.manager)
+
+    def on_get_self_digest(self, request, response):
+        from topology.topology_peering import self_digest
+        response.media = self_digest(self.manager)
+
+    def on_post_peers_nudge(self, request, response):
+        """A peer says it changed. The body names only the sender; it can trigger a pull of a peer this backend ALREADY
+        names, at most once per NUDGE_MIN_S, and nothing else, so it stays open like the reads."""
+        from topology.topology_peering import nudge
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = nudge(self.manager, (payload or {}).get('from'))
+        if not result.get('ok') and result.get('pulled') is None:
+            response.status = '404 Not Found'
+        response.media = result
 
     def on_post_peers_pull(self, request, response):
         """Pull every configured/agreed peer now (what the timer does). It takes no input: it can only refresh copies

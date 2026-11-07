@@ -114,6 +114,10 @@ def provenance(manager):
             entry = snap[cls].get(name)
             if '(tpl-2 peer:' in notes or str(getattr(row, 'source', '') or '').startswith('peer:'):
                 kind, words = 'peer', 'a copy of a peer\'s own row (tpl-2), refreshed from that peer'
+                peer, _, at = notes.split('(tpl-2 peer:', 1)[1].split(')', 1)[0].partition(' ') if '(tpl-2 peer:' in notes \
+                    else (str(getattr(row, 'source', ''))[len('peer:'):], '', '')
+                out.setdefault(cls, {})[name] = {'kind': kind, 'words': words, 'peer': peer, 'at': at}
+                continue
             elif '(tpl-0)' in notes or getattr(row, 'source', '') == 'self-described':
                 kind, words = 'self', 'written by this backend describing itself (tpl-0)'
             elif LINK_TAG in notes:

@@ -64,11 +64,14 @@ def main():
     A, sa = _backend(AS_A, {'cmod', 'islemesh'}, [('board', 'https://board-engines.isle')])
     B, sb = _backend(AS_B, {'board', 'cmod'}, [('board', 'https://board-engines.isle')])
     peers = {'polari': (A, AS_A), 'polari-pol': (B, AS_B)}
+    calls = []
 
     def fetch_from(caller_env):
         def fetch(name, url):
             target = next(v for k, v in peers.items() if '/api.%s.isle/' % k in url + '/' or url.startswith('https://api.%s.isle' % k))
-            desc = _as(target[1], P.self_description, target[0])
+            fn = P.self_digest if url.endswith('/self/digest') else P.self_description
+            calls.append(url)
+            desc = _as(target[1], fn, target[0])
             _env(**caller_env)                       # back to the caller's identity after the "remote" call
             return json.loads(json.dumps(desc))      # the wire
         return fetch
@@ -124,6 +127,18 @@ def main():
     check('pull: the shared engine worker A already has is KEPT (a conflict with the same values), not overwritten',
           shared and 'same values' in shared[0]['why'] and '(tpl-2' not in T._find(A, 'InstanceDefinition', 'board-engines').notes)
     check('pull: memory == database on A', D._coherent(A, sa))
+
+    # -- the graph labels every row with where it came from (the page marks peer copies and the July example)
+    from topology.topology_analysis import graph_payload
+    g = _as(AS_A, graph_payload, A, 'polari')
+    gi = {r['name']: r['provenance'] for r in g['instances']}
+    check('graph: a peer copy is labelled peer, with the peer and when it was pulled', gi['polari-pol']['kind'] == 'peer'
+          and gi['polari-pol']['peer'] == 'polari-pol' and gi['polari-pol']['at'].startswith('20'), gi.get('polari-pol'))
+    check('graph: this backend\'s own instance is labelled self', gi['polari']['kind'] == 'self')
+    check('graph: assignments and machines carry labels too', all('provenance' in r for r in g['assignments'] + g['machines']))
+    E = T._manager(); T._seed(E)
+    ge = _as(dict(AS_A), graph_payload, E, 'staging-a')
+    check('graph: the July snapshot rows are labelled example', {r['provenance']['kind'] for r in ge['instances']} == {'example'})
 
     # -- no echo: B pulls A; A's description excludes its copies of B, even a B row that names A
     from topology.topology_links import ServiceConnection
@@ -221,6 +236,63 @@ def main():
     S.describe_links(C, {'cmod'}, 'selftest', fetch=lambda u: {})
     w = T._find(C, 'InstanceDefinition', 'board-engines')
     check('takeover: C binds the same engine; its tpl-1 pass makes the worker row its own', '(tpl-1)' in w.notes and '(tpl-2' not in w.notes)
+
+    # -- the change signal: digest, cheap checks, nudges, the loop step, the wake hook
+    _env(**AS_A)
+    sa.rules.clear()
+    P.pull_peers(A, fetch=fetch_from(AS_A))
+    d1, d2 = _as(AS_B, P.self_digest, B), _as(AS_B, P.self_digest, B)
+    check('digest: stable while nothing changes, and equals the description\'s', d1['digest'] == d2['digest']
+          == _as(AS_B, P.self_description, B)['digest'] and d1['kind'] == 'polari-topology-self-digest')
+    _env(**AS_A)
+    del calls[:]
+    c = P.check_peers(A, fetch=fetch_from(AS_A))
+    check('check: nothing changed -> only the digest was fetched, no pull', not c['changed'] and c['pulled'] is None
+          and calls and all(u.endswith('/self/digest') for u in calls), calls)
+    _env(**AS_B)
+    sb.saveInstanceInDB(T._find(B, 'InstanceDefinition', 'polari-pol'))
+    sync_assignment_row(B, 'scope', 'enabled', 'selftest')
+    check('digest: changes when B changes', _as(AS_B, P.self_digest, B)['digest'] != d1['digest'])
+    _env(**AS_A)
+    del calls[:]
+    c = P.check_peers(A, fetch=fetch_from(AS_A))
+    check('check: B changed -> B pulled, the new module is here', c['changed'] == ['https://api.polari-pol.isle'] and c['pulled']['ok']
+          and T._find(A, 'ModuleAssignment', 'scope@polari-pol') is not None and any(u.endswith('/api/topology/self') for u in calls))
+    c = P.check_peers(A, fetch=lambda n, u: {'title': '404 Not Found'})
+    check('check: an older backend without the digest door is said, nothing pulled', 'no digest door' in c['words'] and not c['changed'])
+
+    from datetime import datetime, timedelta, timezone
+    r = P.nudge(A, 'stranger', fetch=fetch_from(AS_A))
+    check('nudge: from a backend this one does not name -> nothing pulled', not r['ok'] and r['pulled'] is None)
+    later = datetime.now(timezone.utc) + timedelta(seconds=10)
+    r = P.nudge(A, 'polari-pol', fetch=fetch_from(AS_A), now=later)
+    check('nudge: from a named peer -> pulled now', r['ok'] and r['pulled'] and r['pulled']['peers'])
+    r = P.nudge(A, 'polari-pol', fetch=fetch_from(AS_A), now=datetime.now(timezone.utc))
+    check('nudge: again within NUDGE_MIN_S -> not pulled twice', r['ok'] and r['pulled'] is None and 'less than' in r['words'])
+
+    sent = []
+    out = P.notify_peers(A, send=lambda n, u, b: sent.append((u, b)))
+    check('notify: each named peer gets POST .../peers/nudge {"from": this instance}', sent ==
+          [('https://api.polari-pol.isle/api/topology/peers/nudge', {'from': 'polari'})] and out == ['polari-pol nudged'])
+
+    state, sent = {'own': None, 'full': None}, []
+    send = lambda n, u, b: sent.append(u)
+    t1 = P.tick(A, state, fetch=fetch_from(AS_A), send=send, now=1000.0)
+    check('tick 1: a full pull, own digest recorded, nobody notified', 'pull' in t1 and 'notified' not in t1 and state['own'])
+    t2 = P.tick(A, state, fetch=fetch_from(AS_A), send=send, now=1015.0)
+    check('tick 2: a cheap check, nothing changed', 'check' in t2 and not t2['check']['changed'] and not sent)
+    _env(**AS_A)
+    P._WAKE.clear()
+    sync_assignment_row(A, 'instruments', 'enabled', 'selftest')
+    check('wake: a module going live here wakes the loop at once', P._WAKE.is_set())
+    t3 = P.tick(A, state, fetch=fetch_from(AS_A), send=send, now=1016.0)
+    check('tick 3: own change -> peers nudged', t3.get('notified') == ['polari-pol nudged'] and sent)
+    t4 = P.tick(A, state, fetch=fetch_from(AS_A), send=send, now=1000.0 + 300)
+    check('tick at PULL_S: a full pull again (recovers anything a check missed)', 'pull' in t4)
+    _env(**dict(AS_A, POLARI_TOPOLOGY_PEER_CHECK_S='0'))
+    t5 = P.tick(A, state, fetch=fetch_from(AS_A), send=send, now=1000.0 + 301)
+    check('CHECK_S=0: no cheap checks between full pulls', 'check' not in t5 and 'pull' not in t5)
+    _env(**AS_A)
 
     # -- the default transport is the outbound seam, kind peer, no TLS override
     import polariApiServer.outbound as OB

@@ -567,6 +567,26 @@ def resolve_edges(manager, topology_name):
 
 
 def graph_payload(manager, topology_name):
+    """The graph, each row labelled with where it came from (tpl-2/tpl-6 provenance: self / link / peer (+ peer, at) /
+    example / example-edited / other), so the page can mark peer copies and the 2026-07-09 example rows."""
+    out = _graph_payload(manager, topology_name)
+    if not out.get('ok'):
+        return out
+    try:
+        from topology.topology_example_retire import provenance
+        prov = provenance(manager)
+    except Exception as exc:  # noqa: BLE001 - labels are a courtesy; the graph never fails for them
+        out['provenanceError'] = '%s: %s' % (type(exc).__name__, exc)
+        return out
+    for key, cls in (('machines', 'PolariNodeMachine'), ('instances', 'InstanceDefinition'), ('assignments', 'ModuleAssignment'),
+                     ('edges', 'ModuleDependencyEdge'), ('connections', 'ServiceConnection')):
+        for row in out.get(key) or []:
+            if isinstance(row, dict):
+                row['provenance'] = (prov.get(cls) or {}).get(row.get('name', ''), {'kind': 'other', 'words': ''})
+    return out
+
+
+def _graph_payload(manager, topology_name):
     """Everything the Topology tab renders, JSON fields decoded."""
     defs = [r for r in _rows(manager, 'TopologyDefinition')
             if getattr(r, 'name', '') == topology_name]

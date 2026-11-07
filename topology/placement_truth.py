@@ -103,6 +103,11 @@ def sync_assignment_row(manager, module, state, source):
             found.notes = f'{source} (dyn-2b row sync)'
         if manager.db is not None:
             manager.db.saveInstanceInDB(found)
+        try:
+            from topology.topology_peering import local_changed
+            local_changed()                  # tpl-2: a module went live / away here; peers hear now
+        except Exception:  # noqa: BLE001
+            pass
         return {'synced': True, 'row': found.name, 'state': state}
     except Exception as exc:
         return {'synced': False, 'reason': f'{type(exc).__name__}: '

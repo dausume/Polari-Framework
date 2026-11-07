@@ -23,9 +23,19 @@ WITHOUT an isle. Each backend publishes its own rows; each pulls its peers' and 
         Copies carry '(tpl-2 peer:<name> <time>)' in notes; provenance() reads that as 'peer'. Durable first: the
         topology_example_retire helpers (a refused save is reported, memory follows the database).
     peers_report(manager) -> the sources plus each peer's last pull (in memory since this backend started) and age.
-    start_peer_puller(manager) -> a daemon thread pulling every POLARI_TOPOLOGY_PEER_PULL_S (default 300 s; 0 = off).
 
-Knobs (labelled): POLARI_TOPOLOGY_PEERS, POLARI_TOPOLOGY_PEERS_FILE, POLARI_TOPOLOGY_PEER_PULL_S,
+  THE CHANGE SIGNAL (instead of a STOMP subscription per peer: works one-way, through proxies, with no long-lived socket):
+    self_digest(manager) -> {kind 'polari-topology-self-digest', instance, digest}: a fingerprint of self_description's rows.
+    check_peers(manager)  -> GET each peer's /api/topology/self/digest; pull ONLY the peers whose digest changed.
+    notify_peers(manager) -> POST {"from": <this instance>} to each named peer's /api/topology/peers/nudge.
+    nudge(manager, sender) -> a peer says it changed: pull it now, if it is a peer this backend already names (by name, or
+                             the instance its URL last answered as), at most once per NUDGE_MIN_S. Anything else: nothing.
+    local_changed()       -> wake the loop now (module admitted / put away, a binding changed), so own changes go out at once.
+    tick(manager, state)  -> one loop step: own digest changed -> notify; full pull every PULL_S; else check every CHECK_S.
+    start_peer_puller(manager) -> the daemon thread running tick.
+
+Knobs (labelled): POLARI_TOPOLOGY_PEERS, POLARI_TOPOLOGY_PEERS_FILE, POLARI_TOPOLOGY_PEER_PULL_S (full pull, default 300 s;
+0 = peering timer OFF), POLARI_TOPOLOGY_PEER_CHECK_S (digest check + own-change detection, default 15 s; 0 = full pulls only),
 POLARI_ISLE_EVIDENCE_MAX_AGE_S (a last good pull older than this reads 'stale', the tpl-4 rule).
 """
 import json
@@ -41,7 +51,10 @@ KIND = 'polari-topology-self'
 PEER_TAG = '(tpl-2 peer:'
 CLASSES = ('PolariNodeMachine', 'InstanceDefinition', 'ModuleAssignment', 'ModuleDependencyEdge', 'ServiceConnection')
 PEERS_KNOB, FILE_KNOB, PULL_KNOB = 'POLARI_TOPOLOGY_PEERS', 'POLARI_TOPOLOGY_PEERS_FILE', 'POLARI_TOPOLOGY_PEER_PULL_S'
-DEFAULT_PULL_S = 300
+CHECK_KNOB = 'POLARI_TOPOLOGY_PEER_CHECK_S'
+DEFAULT_PULL_S, DEFAULT_CHECK_S, NUDGE_MIN_S = 300, 15, 2
+DIGEST_KIND = 'polari-topology-self-digest'
+_WAKE = threading.Event()
 _LAST = {}                      # url -> the last pull result (since this process started)
 _PULLER = {'thread': None}
 
@@ -87,7 +100,18 @@ def self_description(manager):
             if mine:
                 out[cls].append({f: _val(r, f) for f in _fields(cls)})
         out[cls].sort(key=lambda d: d.get('name', ''))
-    return {'ok': True, 'kind': KIND, 'instance': me, 'machine': machine, 'describedAt': _now().isoformat(), 'rows': out}
+    return {'ok': True, 'kind': KIND, 'instance': me, 'machine': machine, 'describedAt': _now().isoformat(), 'rows': out,
+            'digest': _digest(me, machine, out)}
+
+
+def _digest(me, machine, rows):
+    import hashlib
+    return hashlib.sha256(json.dumps([me, machine, rows], sort_keys=True).encode('utf-8')).hexdigest()
+
+
+def self_digest(manager):
+    d = self_description(manager)
+    return {'ok': True, 'kind': DIGEST_KIND, 'instance': d['instance'], 'digest': d['digest']}
 
 
 def _name_from_url(url):
@@ -221,12 +245,14 @@ def _merge_one(manager, peer, desc, stamp):
     return res
 
 
-def pull_peers(manager, fetch=None):
+def pull_peers(manager, fetch=None, only=None):
     from topology.topology_self import instance_name
     me = instance_name()
     fetch = fetch or _default_fetch
     peers, problems = [], []
     for peer in peer_sources(manager):
+        if only is not None and peer.get('url') not in only:
+            continue
         if peer.get('error'):
             problems.append(peer['error'])
             continue
@@ -247,6 +273,7 @@ def pull_peers(manager, fetch=None):
                 out['instance'] = desc.get('instance')
                 if out['ok']:
                     out['pulledAt'] = stamp
+                    out['digest'] = desc.get('digest', '')
                 out['words'] = ('%s (%s): %d created, %d updated, %d retired, %d conflict%s%s'
                                 % (desc.get('instance'), peer['url'], len(res['created']), len(res['updated']),
                                    len(res['retired']), len(res['conflicts']), '' if len(res['conflicts']) == 1 else 's',
@@ -261,6 +288,103 @@ def pull_peers(manager, fetch=None):
     return {'ok': ok, 'peers': peers, 'problems': problems,
             'words': '%d peer%s pulled: %s' % (len(peers), '' if len(peers) == 1 else 's',
                                                 '; '.join(p['words'] for p in peers) or 'none configured or agreed')}
+
+
+def check_peers(manager, fetch=None):
+    """The cheap change check: pull only the peers whose published digest differs from the one last pulled."""
+    fetch = fetch or _default_fetch
+    changed, words = [], []
+    for peer in peer_sources(manager):
+        if peer.get('error'):
+            continue
+        last = _LAST.get(peer['url']) or {}
+        try:
+            d = fetch(peer['name'], peer['url'] + '/api/topology/self/digest')
+        except Exception as exc:  # noqa: BLE001 - a missed check is caught by the next full pull
+            words.append('%s: digest unreachable (%s)' % (peer['name'], type(exc).__name__))
+            continue
+        if not isinstance(d, dict) or d.get('kind') != DIGEST_KIND:
+            words.append('%s: no digest door (an older backend); full pulls only' % peer['name'])
+            continue
+        if d.get('digest') != last.get('digest'):
+            changed.append(peer['url'])
+    pulled = pull_peers(manager, fetch=fetch, only=set(changed)) if changed else None
+    return {'ok': pulled is None or pulled['ok'], 'changed': changed, 'pulled': pulled,
+            'words': '; '.join(words + ['%d changed' % len(changed)])}
+
+
+def _default_send(name, url, body, timeout=5):
+    import urllib.request
+    from polariApiServer import outbound
+    req = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), method='POST',
+                                 headers={'Content-Type': 'application/json'})
+    with outbound.http_request('peer', name or 'polari-peer', 'POST', req, means='rest', timeout=timeout, lib='urllib') as resp:
+        return json.loads(resp.read().decode('utf-8') or '{}')
+
+
+def notify_peers(manager, send=None):
+    """Tell each named peer this backend changed (they pull it at once). Best effort, never raises."""
+    from topology.topology_self import instance_name
+    send = send or _default_send
+    out = []
+    for peer in peer_sources(manager):
+        if peer.get('error'):
+            continue
+        try:
+            send(peer['name'], peer['url'] + '/api/topology/peers/nudge', {'from': instance_name()})
+            out.append('%s nudged' % peer['name'])
+        except Exception as exc:  # noqa: BLE001
+            out.append('%s not nudged (%s)' % (peer['name'], type(exc).__name__))
+    return out
+
+
+def nudge(manager, sender, fetch=None, now=None):
+    sender = str(sender or '').strip()
+    now = now or _now()
+    known = [p for p in peer_sources(manager) if not p.get('error') and sender and
+             (p['name'] == sender or (_LAST.get(p['url']) or {}).get('instance') == sender)]
+    if not known:
+        return {'ok': False, 'pulled': None, 'words': '%r is not a peer this backend names; nothing pulled' % sender}
+    from topology.topology_isle_needs import _ts
+    due = []
+    for p in known:
+        last = _ts((_LAST.get(p['url']) or {}).get('attemptedAt'))
+        if last is None or (now - last).total_seconds() >= NUDGE_MIN_S:
+            due.append(p['url'])
+    if not due:
+        return {'ok': True, 'pulled': None, 'words': 'pulled %s less than %d s ago; nothing more to do' % (sender, NUDGE_MIN_S)}
+    pulled = pull_peers(manager, fetch=fetch, only=set(due))
+    return {'ok': pulled['ok'], 'pulled': pulled, 'words': 'nudged by %s: %s' % (sender, pulled['words'])}
+
+
+def local_changed():
+    """This backend's own rows may have changed: wake the loop so its peers hear now (never raises)."""
+    _WAKE.set()
+
+
+def _check_interval():
+    try:
+        return max(0, int(os.environ.get(CHECK_KNOB) or DEFAULT_CHECK_S))
+    except ValueError:
+        return DEFAULT_CHECK_S
+
+
+def tick(manager, state, fetch=None, send=None, now=None):
+    """One loop step. state = {'own': last own digest or None, 'full': monotonic time of the last full pull or None}."""
+    now = time.monotonic() if now is None else now
+    done = {}
+    own = self_digest(manager)['digest']
+    if state.get('own') is not None and own != state['own']:
+        done['notified'] = notify_peers(manager, send=send)
+    state['own'] = own
+    if not peer_sources(manager):
+        return done
+    if state.get('full') is None or now - state['full'] >= _interval():
+        done['pull'] = pull_peers(manager, fetch=fetch)
+        state['full'] = now
+    elif _check_interval():
+        done['check'] = check_peers(manager, fetch=fetch)
+    return done
 
 
 def peers_report(manager, now=None):
@@ -279,7 +403,7 @@ def peers_report(manager, now=None):
         out.append(dict(peer, state=state, lastAttemptAt=last.get('attemptedAt', ''), pulledAt=last.get('pulledAt', ''),
                         ageSeconds=age, copies=copies, words=peer.get('error') or last.get('words')
                         or 'not pulled since this backend started'))
-    return {'ok': True, 'maxAgeS': max_age, 'pullEveryS': _interval(), 'peers': out,
+    return {'ok': True, 'maxAgeS': max_age, 'pullEveryS': _interval(), 'checkEveryS': _check_interval(), 'peers': out,
             'words': '%d peer%s (%s)' % (len(out), '' if len(out) == 1 else 's',
                                         ', '.join('%s %s' % (p['name'], p['state']) for p in out) or
                                         'none: set %s / %s, or agree a peer' % (PEERS_KNOB, FILE_KNOB))}
@@ -302,14 +426,17 @@ def start_peer_puller(manager, first_delay_s=5):
 
     def run():
         time.sleep(first_delay_s)
+        state = {'own': None, 'full': None}
         while True:
             try:
-                if peer_sources(manager):
-                    pull_peers(manager)
+                tick(manager, state)
             except Exception as exc:  # noqa: BLE001 - the puller never dies of one bad cycle
-                print('[Topology] peer pull failed: %s: %s' % (type(exc).__name__, exc), flush=True)
-            time.sleep(every)
+                print('[Topology] peer tick failed: %s: %s' % (type(exc).__name__, exc), flush=True)
+            _WAKE.wait(timeout=_check_interval() or every)
+            _WAKE.clear()
     t = threading.Thread(target=run, daemon=True, name='topology-peer-pull')
     t.start()
     _PULLER['thread'] = t
-    return 'peer pulls every %d s (%s)' % (every, PULL_KNOB)
+    return 'peer pulls every %d s (%s), change checks every %s (%s)' % (every, PULL_KNOB,
+                                                                     '%d s' % _check_interval() if _check_interval() else 'never',
+                                                                     CHECK_KNOB)

@@ -288,6 +288,11 @@ def on_binding_changed(manager, source='engine bound'):
     refresh the engine links in the topology now instead of at the next boot. Never raises; -> describe_links' result, or
     {ok: False, words} when the topology side is unavailable here."""
     try:
+        from topology.topology_peering import local_changed
+        local_changed()                      # tpl-2: this backend's peers hear about the change now
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from topology.placement_truth import live_module_set
         return describe_links(manager, live_module_set(manager.polServer), source)
     except Exception as exc:  # noqa: BLE001 - a bind must never fail because the topology refresh did
