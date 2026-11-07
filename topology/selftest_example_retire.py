@@ -180,9 +180,9 @@ def main():
         rs = R.restore(m, b['file'])
         check('restore: ok', rs['ok'], rs.get('words'))
         check('restore: every retired row is back', all(_find(m, c, n) is not None for c, n in retire))
-        check('restore: the self rows are back on staging-a, which is active again',
+        check('restore: the self rows are back on staging-a, which is active again, and the topology apply made is gone',
               _find(m, 'InstanceDefinition', 'polari').topology_name == 'staging-a' and _find(m, 'TopologyDefinition', 'staging-a').is_active
-              and not _find(m, 'TopologyDefinition', 'polari').is_active)
+              and _find(m, 'TopologyDefinition', 'polari') is None)   # the own topology apply made is removed (exact inverse)
         check('restore: the restored rows hold the snapshot values', R.provenance(m)['InstanceDefinition']['prf-a']['kind'] == 'example')
         check('restore: a second restore creates nothing (idempotent by name)', R.restore(m, b['file'])['created'] == [])
 
