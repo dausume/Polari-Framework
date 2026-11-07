@@ -201,7 +201,7 @@ def _capacity(machine):
         return {'known': False, 'fidelity': 'unknown',
                 'threads': None, 'ramMb': None, 'diskMb': None,
                 'why': 'machine row carries no observation yet — '
-                       'pol topology observe / refresh-resources'}
+                       'POST /api/topology/nodes/<machine>/refresh-resources'}
     return {
         'known': True,
         'fidelity': 'observed' if source.startswith('observed')

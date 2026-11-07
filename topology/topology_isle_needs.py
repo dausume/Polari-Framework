@@ -176,7 +176,7 @@ def isle_needs(manager, now=None):
         _feature('device-resources', 'Device resources observed by the isle agents', origin, res_ev, now, max_age,
                  'needs an isle: the agents observe device resources',
                  'configured; devices reported but no resources observed yet' if devices else not_evaluated,
-                 '`pol topology observe` over ssh, or "capacity unknown"', skew=skew),
+                 'POST /api/topology/nodes/<machine>/refresh-resources, or "capacity unknown"', skew=skew),
         # One shared operation; this backend names it and never claims it can run it.
         _feature('run-placement', 'Running a placement change (moving a module or instance)', origin, [], now, max_age,
                  'needs an isle: the shared isle operation places instances on devices',
