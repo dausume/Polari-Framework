@@ -45,6 +45,7 @@
   "selftests": [
    "selftest_engines",
    "selftest_example_retire",
+   "selftest_example_retire_durable",
    "selftest_module_graph",
    "selftest_move_operations",
    "selftest_testing",
@@ -101,6 +102,7 @@
  "selftests": [
   "selftest_engines",
   "selftest_example_retire",
+  "selftest_example_retire_durable",
   "selftest_module_graph",
   "selftest_move_operations",
   "selftest_testing",

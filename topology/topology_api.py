@@ -181,8 +181,19 @@ class TopologyAPI(treeObject):
         p['provenance'] = R.provenance(self.manager)
         response.media = p
 
+    def _operator_only(self, request, response):
+        """tpl-6 execute doors: fail closed unless the host operator or a Polari administrator (operator_gate). True = refused."""
+        from topology import topology_example_retire as R
+        allowed, _how, words = R.operator_gate(request)
+        if not allowed:
+            response.status = '403 Forbidden'
+            response.media = {'ok': False, 'denied': True, 'words': words}
+        return not allowed
+
     def on_post_example_rows_retire(self, request, response):
         from topology import topology_example_retire as R
+        if self._operator_only(request, response):
+            return
         payload, err = self._payload(request)
         if err:
             return self._refuse(response, err)
@@ -197,6 +208,8 @@ class TopologyAPI(treeObject):
 
     def on_post_example_rows_restore(self, request, response):
         from topology import topology_example_retire as R
+        if self._operator_only(request, response):
+            return
         payload, err = self._payload(request)
         if err:
             return self._refuse(response, err)
