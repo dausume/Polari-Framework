@@ -109,6 +109,9 @@ def test_modes(tmp):
         check('inspection_context: unverified, marked inspection', tls_policy.is_unverified(i) and tls_policy.built_here(i) == tls_policy.INSPECTION)
         raw = ssl.create_default_context(); raw.check_hostname = False; raw.verify_mode = ssl.CERT_NONE
         check('a context built elsewhere is not marked', tls_policy.built_here(raw) is None)
+        hn = ssl.create_default_context(); hn.check_hostname = False
+        check('is_unverified: CERT_REQUIRED with the hostname check off counts as unverified', tls_policy.is_unverified(hn))
+        check('is_unverified: a default context is verified', not tls_policy.is_unverified(ssl.create_default_context()))
 
 
 def test_seam(tmp):
@@ -134,41 +137,60 @@ def test_seam(tmp):
                 outbound.http_request('self', 'board', 'GET', 'https://api/x', timeout=3, lib='urllib')
                 c = seen.get('context')
                 check('seam cacert: a verifying context trusting the file', c is not None and c.verify_mode == ssl.CERT_REQUIRED and len(c.get_ca_certs()) == 1)
+        def refused(label, **call):
+            seen.clear()
+            try:
+                outbound.http_request(**call); raised = None
+            except ValueError as exc:
+                raised = exc
+            check(f'seam: {label} is REFUSED in words', raised is not None, 'no ValueError')
+            check(f'seam: … and urlopen never ran ({label})', 'target' not in seen, repr(seen))
+            return raised
+        def foreign(cert_none=True, hostname=False):
+            c = ssl.create_default_context()
+            c.check_hostname = hostname
+            if cert_none:
+                c.verify_mode = ssl.CERT_NONE
+            return c
+        # caller-supplied unverified contexts under the verified default: refused, never silently rebuilt
         with env() as err:
-            raw = ssl.create_default_context(); raw.check_hostname = False; raw.verify_mode = ssl.CERT_NONE
-            outbound.http_request('self', 'board', 'GET', 'https://api/x', timeout=3, lib='urllib', context=raw)
-            check('seam: an unverified context NOT built by the policy is replaced (verified default)', 'context' not in seen, repr(seen))
-            check('seam: … and said, naming the site', 'outbound self/board' in err.getvalue() and 'replaced by the policy' in err.getvalue(), err.getvalue())
+            r = refused('a caller CERT_NONE context under the verified default', system_kind='self', system_name='board', method='GET',
+                        url='https://api/x', timeout=3, lib='urllib', context=foreign())
+            check('seam: … the refusal names the fix', r is not None and 'POL_TLS_INSECURE=1' in str(r) and 'client certificate' in str(r), repr(r))
+            refused('a caller context with CERT_REQUIRED but the hostname check OFF (Isle finding 3)', system_kind='self', system_name='board',
+                    method='GET', url='https://api/x', timeout=3, lib='urllib', context=foreign(cert_none=False, hostname=False))
+            ok_ctx = ssl.create_default_context()
+            outbound.http_request('self', 'board', 'GET', 'https://api/x', timeout=3, lib='urllib', context=ok_ctx)
+            check('seam: a caller VERIFYING context is kept as is', seen.get('context') is ok_ctx)
+        if ca:
+            with env(POL_TLS_CA=ca) as err:
+                refused('a caller hostname-off context under POL_TLS_CA', system_kind='self', system_name='board', method='GET',
+                        url='https://api/x', timeout=3, lib='urllib', context=foreign(cert_none=False, hostname=False))
+        # under the bypass: kept, but ANNOUNCED through the policy (Isle finding 2)
         with env(POL_TLS_INSECURE='1') as err:
-            raw = ssl.create_default_context(); raw.check_hostname = False; raw.verify_mode = ssl.CERT_NONE
+            raw = foreign()
             outbound.http_request('self', 'board', 'GET', 'https://api/x', timeout=3, lib='urllib', context=raw)
-            check('seam under the bypass: a caller context is left alone', seen.get('context') is raw)
+            check('seam under the bypass: a caller CERT_NONE context is kept', seen.get('context') is raw)
+            out = err.getvalue()
+            check('seam under the bypass: … and announced (run notice + url)', 'OFF for this process' in out and 'caller-supplied unverified context): https://api/x' in out, out)
+            hn = foreign(cert_none=False, hostname=False)
+            outbound.http_request('self', 'board', 'GET', 'https://api/y', timeout=3, lib='urllib', context=hn)
+            check('seam under the bypass: a hostname-off context is kept and announced', seen.get('context') is hn and 'https://api/y' in err.getvalue(), err.getvalue())
+        # the policy's own contexts are honoured; the inspection one is refused for EVERY send (Isle finding 1)
         with env() as err:
             u = tls_policy.unverified_context('join flow, dev posture', 'https://peer')
             outbound.http_request('peer', 'kitchen', 'POST', 'https://peer/join', data=b'{}', timeout=3, lib='urllib', context=u)
             check('seam: an EXPLICIT policy-built context is honoured (dev join keeps working)', seen.get('context') is u)
-            i = tls_policy.inspection_context()
-            outbound.http_request('other', 'cert', 'GET', 'https://host/', timeout=3, lib='urllib', context=i)
-            check('seam: the inspection context is honoured for a bare GET', seen.get('context') is i)
-            for label, kwargs in (('POST', dict(method='POST')), ('a body', dict(data=b'x')),
-                                  ('an Authorization header', dict(headers={'Authorization': 'Bearer t'})),
-                                  ('a Cookie header', dict(headers={'Cookie': 'a=b'}))):
-                seen.clear()
-                req = ur.Request('https://host/', data=kwargs.get('data'), headers=kwargs.get('headers', {}), method=kwargs.get('method', 'GET'))
-                try:
-                    outbound.http_request('other', 'cert', req.get_method(), req, timeout=3, lib='urllib', context=tls_policy.inspection_context())
-                    raised = None
-                except ValueError as exc:
-                    raised = exc
-                check(f'seam: the inspection context is REFUSED with {label}', raised is not None and 'inspection' in str(raised), repr(raised))
-                check(f'seam: … and urlopen never ran ({label})', 'target' not in seen, repr(seen))
-            seen.clear()
-            try:
-                outbound.http_request('other', 'cert', 'POST', 'https://host/', timeout=3, lib='urllib', context=tls_policy.inspection_context())
-                raised = None
-            except ValueError as exc:
-                raised = exc
-            check('seam: the inspection context is REFUSED for a plain-string POST', raised is not None and 'target' not in seen)
+            refused('the inspection context on a bare GET', system_kind='other', system_name='cert', method='GET', url='https://host/',
+                    timeout=3, lib='urllib', context=tls_policy.inspection_context())
+            refused('the inspection context on a GET with headers= and data= NAMED parameters (Isle repro)', system_kind='other',
+                    system_name='cert', method='GET', url='https://host/', headers={'Authorization': 'test-only'}, data=b'x',
+                    timeout=3, lib='urllib', context=tls_policy.inspection_context())
+            req = ur.Request('https://host/', method='HEAD')
+            refused('the inspection context on a pre-built HEAD Request', system_kind='other', system_name='cert', method='HEAD', url=req,
+                    timeout=3, lib='urllib', context=tls_policy.inspection_context())
+            refused('the inspection context on a POST', system_kind='other', system_name='cert', method='POST', url='https://host/',
+                    timeout=3, lib='urllib', context=tls_policy.inspection_context())
     finally:
         ur.urlopen = real
     try:
@@ -191,6 +213,15 @@ def test_seam(tmp):
         with env(POL_TLS_INSECURE='1') as err:
             outbound.http_request('keycloak', 'Polari', 'GET', 'https://kc/', timeout=3, lib='requests')
             check('requests insecure: verify False', rseen.get('verify') is False, repr(rseen))
+        with env(POL_TLS_INSECURE='1') as err:
+            outbound.http_request('keycloak', 'Polari', 'GET', 'https://kc/', timeout=3, lib='requests', verify=False)
+            check('requests under the bypass: a caller verify=False is normalized through the policy and ANNOUNCED (Isle finding 2)',
+                  rseen.get('verify') is False and 'OFF for this process' in err.getvalue() and 'https://kc/' in err.getvalue(), err.getvalue())
+            outbound.http_request('keycloak', 'Polari', 'GET', 'https://kc/', timeout=3, lib='requests', verify=False, cert=('c.pem', 'k.pem'))
+            check('requests: the caller cert= (client certificate) is kept', rseen.get('cert') == ('c.pem', 'k.pem'), repr(rseen))
+        with env() as err:
+            outbound.http_request('keycloak', 'Polari', 'GET', 'https://kc/', timeout=3, lib='requests', verify='/some/ca.pem')
+            check('requests: a caller CA path is the caller\'s verifying choice, kept', rseen.get('verify') == '/some/ca.pem', repr(rseen))
         if ca:
             with env(POL_TLS_CA=ca) as err:
                 outbound.http_request('keycloak', 'Polari', 'GET', 'https://kc/', timeout=3, lib='requests')
