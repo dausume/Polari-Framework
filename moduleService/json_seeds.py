@@ -47,6 +47,7 @@ import importlib
 import inspect
 import json
 import os
+from polariApiServer import tls_policy
 
 SCHEMA = 'module-initial-data/1'
 DATA_DIR = 'initialData'
@@ -230,8 +231,8 @@ def fetch(source_api, module_id, timeout=120):
     """Pull another instance's initial-data payloads for a module."""
     import ssl
     import urllib.request
-    ctx = ssl._create_unverified_context()
     url = f'{source_api.rstrip("/")}/modules/{module_id}/initial-data'
+    ctx = tls_policy.context(url)   # verified by default; POL_TLS_CA / POL_TLS_INSECURE say otherwise explicitly
     with urllib.request.urlopen(url, context=ctx, timeout=timeout) as r:
         body = json.loads(r.read().decode())
     if body.get('schema') != SCHEMA:

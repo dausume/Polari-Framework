@@ -29,8 +29,7 @@ def _http(method, url, body=None):
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None, method=method,
                                  headers={'Content-Type': 'application/json'})
     try:
-        with outbound.http_request('self', 'cmod', method, req, means='rest', timeout=900, lib='urllib',
-                                   context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'cmod', method, req, means='rest', timeout=900, lib='urllib') as r:
             return json.load(r)
     except Exception as e:  # noqa: BLE001 — an HTTP error body is still JSON when the server refused
         try:

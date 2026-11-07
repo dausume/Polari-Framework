@@ -23,7 +23,7 @@ def _call(method, url, body=None, timeout=20):
     req = urllib.request.Request(url, data=data, method=method, headers={'Content-Type': 'application/json'} if data else {})
     from polariApiServer import outbound
     try:
-        with outbound.http_request('engine', 'board', method, req, means='session', timeout=timeout, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('engine', 'board', method, req, means='session', timeout=timeout, lib='urllib') as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         try:

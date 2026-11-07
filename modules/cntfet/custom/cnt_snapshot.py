@@ -37,6 +37,7 @@ import os
 from moduleService.json_seeds import (
     constructor_fields, data_dir, read_file, seed_pairs, to_seed, write_file,
 )
+from polariApiServer import tls_policy
 
 #: class → (package that owns its initialData file, defining module)
 SNAPSHOT_CLASSES = [
@@ -96,8 +97,8 @@ DEDUPE = {'CellCharacterizationRun': _run_key}
 def _fetch_rows(api_base, class_name):
     import ssl
     import urllib.request
-    ctx = ssl._create_unverified_context()
     url = f'{api_base.rstrip("/")}/{class_name}'
+    ctx = tls_policy.context(url)
     try:
         with urllib.request.urlopen(url, context=ctx, timeout=120) as r:
             body = json.loads(r.read().decode())

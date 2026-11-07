@@ -121,7 +121,7 @@ def push(api, row, instance=None):
         body['instance'] = {k: instance.get(k, '') for k in ('name', 'firmware_sha', 'last_flash_at')}
     req = urllib.request.Request('%s/api/board/builds' % api.rstrip('/'), data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'}, method='POST')
     from polariApiServer import outbound
-    with outbound.http_request('self', 'board', 'POST', req, means='rest', timeout=30, lib='urllib', context=ssl._create_unverified_context()) as r:
+    with outbound.http_request('self', 'board', 'POST', req, means='rest', timeout=30, lib='urllib') as r:
         return json.load(r)
 
 

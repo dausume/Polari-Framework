@@ -266,6 +266,52 @@ class wrap:
 
 # ---- the HTTP helpers (same library, same timeout, same return type) ----
 
+def _apply_tls_policy(system_kind, system_name, url, lib, kw, method='GET'):
+    """Fill or correct the TLS argument in `kw` per tls_policy (see http_request)."""
+    from polariApiServer import tls_policy
+    where = f'{system_kind}/{system_name}'
+    target = getattr(url, 'full_url', url) if not isinstance(url, str) else url
+    if lib == 'urllib':
+        ctx = kw.get('context')
+        if ctx is None:
+            policy = tls_policy.context(target)
+            if policy is not None:
+                kw['context'] = policy
+        elif tls_policy.is_unverified(ctx):
+            kind = tls_policy.built_here(ctx)
+            if kind == tls_policy.INSPECTION:
+                # reading a certificate only: never a body, never credentials, never a method that changes anything
+                method = (url.get_method() if not isinstance(url, str) else (method or 'GET')).upper()
+                hdrs = {k.lower() for k in (getattr(url, 'headers', None) or {})}
+                if method not in ('GET', 'HEAD') or kw.get('data') is not None or getattr(url, 'data', None) \
+                        or hdrs & {'authorization', 'cookie', 'x-api-key'}:
+                    raise ValueError(f'outbound {where}: the inspection TLS context may only read a certificate '
+                                     f'(bare GET/HEAD, no body, no credentials); this request is refused')
+            elif kind in (tls_policy.POLICY, tls_policy.EXPLICIT):
+                pass            # decided and announced by tls_policy itself (the bypass knob, or a named explicit choice)
+            elif tls_policy.mode() != 'insecure':
+                tls_policy._say(f'[WARN] outbound {where}: an explicitly unverified TLS context not built by '
+                                f'tls_policy was replaced by the policy (verified by default; POL_TLS_CA=<pem> to '
+                                f'trust a file, POL_TLS_INSECURE=1 to bypass)')
+                kw['context'] = tls_policy.context(target)
+                if kw['context'] is None:
+                    del kw['context']
+    elif lib == 'requests':
+        verify = kw.get('verify', True)
+        if 'verify' not in kw:
+            policy = tls_policy.requests_verify(target)
+            if policy is not True:
+                kw['verify'] = policy
+        elif verify is False and tls_policy.mode() != 'insecure':
+            tls_policy._say(f'[WARN] outbound {where}: verification disabled by the caller was replaced by the policy (verified by default; '
+                            f'POL_TLS_CA=<pem> to trust a file, POL_TLS_INSECURE=1 to bypass)')
+            policy = tls_policy.requests_verify(target)
+            if policy is True:
+                del kw['verify']
+            else:
+                kw['verify'] = policy
+
+
 def http_request(system_kind, system_name, method, url, *, means='rest',
                  payload_classes=(), headers=None, data=None, timeout=None,
                  lib='requests', manager=None, **kw):
@@ -280,10 +326,16 @@ def http_request(system_kind, system_name, method, url, *, means='rest',
     `url` may be a pre-built `urllib.request.Request` (several sites build one
     to set a body and a content type); the trace header is then ADDED to it
     rather than a second request being built, so nothing about the site's own
-    headers changes. `**kw` passes through untouched (`context=` for a dev TLS
-    context, `data=`/`json=` for requests)."""
+    headers changes. `**kw` passes through untouched (`data=`/`json=` for
+    requests) except for TLS, which is the policy's (polariApiServer.tls_policy,
+    2026-11-07): an absent `context=` (urllib) / `verify=` (requests) becomes the
+    policy's choice - verified by default, POL_TLS_CA, or the announced
+    POL_TLS_INSECURE - and an explicitly UNVERIFIED one is replaced by the
+    policy's unless the policy itself is insecure, with a [WARN] naming the
+    site, so no call site can bypass verification silently."""
     hdrs = dict(headers or {})
     hdrs.update(trace_headers(system_kind))
+    _apply_tls_policy(system_kind, system_name, url, lib, kw, method)
 
     if lib == 'requests':
         import requests as _requests

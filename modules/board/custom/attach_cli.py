@@ -137,8 +137,7 @@ def _http(api, method, path, data=None, headers=None, timeout=30):
     from polariApiServer import outbound
     req = urllib.request.Request(api.rstrip('/') + path, data=data, headers=headers or {}, method=method)
     try:
-        with outbound.http_request('self', 'board', method, req, means='rest', timeout=timeout, lib='urllib',
-                                   context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'board', method, req, means='rest', timeout=timeout, lib='urllib') as r:
             raw = r.read()
             if not raw:   # polariCRUDE's on_put answers 200 with an EMPTY body on success — not an error
                 return {'ok': True}
