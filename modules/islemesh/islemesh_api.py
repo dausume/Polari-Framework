@@ -26,6 +26,7 @@ Thin Falcon shell — parsing lives in islemesh_parse.
 """
 
 import contextlib
+import os
 import hashlib
 import ipaddress
 import re
@@ -83,7 +84,7 @@ def _serialized(handler):
 #: stm-2b (docs/STORAGE-MIGRATION-CONTRACT.md 2.6, 5, 6): what the storage doors accept.
 _STORAGE_KINDS = ('isle.storage.migrate', 'isle.storage.sync', 'isle.storage.cutover', 'isle.storage.rollback',
                   'isle.storage.witness', 'isle.storage.accept', 'isle.storage.reconcile-address',
-                  'isle.storage.authorize', 'isle.storage.mark-migrated')
+                  'isle.storage.authorize', 'isle.storage.mark-migrated', 'isle.storage.recover')
 _PLACEMENT_STATES = ('authorized', 'migrated', 'cutover', 'hosting', 'recovery-needed')
 _ACTION_ID = re.compile(r'isle\.storage\.[a-z][a-z-]{0,30}:([a-z0-9][a-z0-9-]{0,63})@([A-Za-z0-9_.-]{1,100}):([a-f0-9]{64})\Z')
 _DEVICE_TOKEN = re.compile(r'[A-Za-z0-9_.-]{1,100}\Z')
@@ -216,10 +217,14 @@ class IsleMeshAPI(treeObject):
         try:
             from islemesh.custom.islemesh_planning import PlanStore
             from islemesh.custom.islemesh_storage_plan import source_removal_allowed
+            import os
+            if not os.environ.get('DATABASE_PATH'):raise NotImplementedError  # no persistent plan store configured: no storage plan can exist
             previous=PlanStore().read()
             remaining=dict(previous,items=[i for i in previous.get('items',[]) if not ((i.get('app') or i.get('title','').lower())==app and i.get('device')==device)])
             issues+=source_removal_allowed(previous,remaining,self)
-        except (OSError,ValueError,RuntimeError):pass
+        except NotImplementedError:pass
+        except (OSError,ValueError,RuntimeError) as error:
+            issues.append('storage removal check unavailable: %s'%(str(error) or type(error).__name__))
         response.media={'ok':True,'allowed':not issues,'reasons':issues,'app':app,'device':device}
 
     def on_put_placement_plan(self, request, response):
@@ -689,16 +694,86 @@ class IsleMeshAPI(treeObject):
             pending = json.loads(getattr(row, 'pending_json', 'null') or 'null')
         except ValueError:
             pending = None
+        try:
+            addresses = json.loads(getattr(row, 'addresses_json', 'null') or 'null')
+        except ValueError:
+            addresses = None
         plan = None
         if getattr(row, 'planId', ''):
             plan = {'id': row.planId, 'revision': row.planRevision, 'digest': row.planDigest}
         return {'dataset': row.dataset, 'domain': row.domain, 'device': row.device, 'state': row.state,
                 'generation': row.generation, 'plan': plan, 'pending': pending,
-                'sourceDevice': row.source_device, 'updatedAt': row.updated_at, 'postedBy': row.posted_by}
+                'sourceDevice': row.source_device, 'addresses': addresses,
+                'updatedAt': row.updated_at, 'postedBy': row.posted_by}
+
+    _VIEW_MAX_AGE = 600  # seconds; the core rewrites the file every 120 s
+
+    def _storage_view_file(self):
+        """The core writes the view into the data directory (docker exec, atomic rename, only after the lock
+        commit), like isle-catalog-releases.json.  Shape {schemaVersion: 1, writtenAt, writtenBy, datasets:
+        {dataset: entry}}.  Returns None when the file is ABSENT; a dataset -> view dict when valid; raises
+        ValueError when present but torn, malformed or older than 600 s (fail closed, never merged with rows)."""
+        from pathlib import Path
+        from datetime import datetime, timezone
+        db = os.environ.get('DATABASE_PATH')
+        if not db:
+            return None
+        path = Path(db).parent / 'isle-storage-placement-view.json'
+        try:
+            text = path.read_text()
+        except FileNotFoundError:
+            return None
+        except OSError as error:
+            raise ValueError('placement view unreadable') from error
+        try:
+            document = json.loads(text)
+            if not isinstance(document, dict) or document.get('schemaVersion') != 1 \
+                    or isinstance(document.get('schemaVersion'), bool):
+                raise ValueError('schema')
+            written = document.get('writtenAt')
+            if not isinstance(written, str):
+                raise ValueError('writtenAt')
+            stamp = datetime.fromisoformat(written.replace('Z', '+00:00'))
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=timezone.utc)
+            if abs((datetime.now(timezone.utc) - stamp).total_seconds()) > self._VIEW_MAX_AGE:
+                raise ValueError('stale')
+            by, datasets = document.get('writtenBy'), document.get('datasets')
+            if not isinstance(by, str) or not by or not isinstance(datasets, dict) \
+                    or len(datasets) > _MAX_VIEW_ENTRIES:
+                raise ValueError('shape')
+            out = {}
+            for key, raw in datasets.items():
+                if not isinstance(raw, dict) or raw.get('dataset', key) != key:
+                    raise ValueError('entry')
+                entry = self._view_entry(dict(raw, dataset=key))
+                plan = ({'id': entry['planId'], 'revision': entry['planRevision'], 'digest': entry['planDigest']}
+                        if entry['planId'] else None)
+                out[key] = {
+                    'dataset': key, 'domain': entry['domain'], 'device': entry['device'],
+                    'state': entry['state'], 'generation': entry['generation'], 'plan': plan,
+                    'pending': json.loads(entry['pending_json']), 'sourceDevice': entry['source_device'],
+                    'addresses': json.loads(entry['addresses_json']), 'updatedAt': written,
+                    'postedBy': 'file:%s' % by[:100]}
+            return out
+        except (ValueError, TypeError, OverflowError) as error:
+            raise ValueError('placement view unavailable') from error
+
+    def _storage_views_source(self):
+        """(source, views): ('file', ...) when the core-written file is valid, ('door', rows) when it is
+        absent, ('unavailable', {}) when present but torn, malformed or stale.  Never merged."""
+        try:
+            from_file = self._storage_view_file()
+        except ValueError:
+            return 'unavailable', {}
+        if from_file is not None:
+            return 'file', from_file
+        return 'door', {r.dataset: self._view_dict(r) for r in list(self._table('IsleStoragePlacementView').values())}
 
     def _storage_views(self):
-        """dataset -> placement view dict (lock-free read for the planned actions)."""
-        return {r.dataset: self._view_dict(r) for r in list(self._table('IsleStoragePlacementView').values())}
+        """dataset -> placement view dict (lock-free read).  The GET door and the planned actions / status
+        derivation read through the same source selection; an unavailable view is empty (fails closed)."""
+        return self._storage_views_source()[1]
 
     def _storage_receipt_documents(self):
         out = []
@@ -746,13 +821,19 @@ class IsleMeshAPI(treeObject):
             source = ''
         if not isinstance(source, str) or (source and not _DEVICE_TOKEN.match(source)):
             raise ValueError('view entry sourceDevice is not a device name')
+        addresses = raw.get('addresses')
+        if addresses is not None:
+            if not (isinstance(addresses, dict) and set(addresses) <= {'source', 'target'}
+                    and all(v is None or (isinstance(v, str) and len(v) <= 64) for v in addresses.values())):
+                raise ValueError('view entry addresses must be {source, target} strings or null')
         pending_json = _canonical(pending)
         if len(pending_json) > 4096:
             raise ValueError('view entry pending is too large')
         return {'dataset': dataset, 'domain': domain, 'device': device, 'state': raw['state'],
                 'generation': raw['generation'], 'planId': (plan or {}).get('id', ''),
                 'planRevision': (plan or {}).get('revision', 0), 'planDigest': (plan or {}).get('digest', ''),
-                'pending_json': pending_json, 'source_device': source}
+                'pending_json': pending_json, 'source_device': source,
+                'addresses_json': _canonical(addresses)}
 
     @_serialized
     def on_post_storage_placement(self, request, response):
@@ -800,10 +881,15 @@ class IsleMeshAPI(treeObject):
 
     def on_get_storage_placement(self, request, response):
         """The read-only hint. ?dataset= and/or ?domain= select the single entry (404 when none)."""
-        views = sorted(self._storage_views().values(), key=lambda v: v['dataset'])
+        source, found_views = self._storage_views_source()
+        if source == 'unavailable':
+            response.status = '503 Service Unavailable'
+            response.media = {'ok': False, 'error': 'placement view unavailable'}
+            return
+        views = sorted(found_views.values(), key=lambda v: v['dataset'])
         dataset, domain = request.get_param('dataset'), request.get_param('domain')
         if dataset is None and domain is None:
-            response.media = {'ok': True, 'view': views}
+            response.media = {'ok': True, 'source': source, 'view': views}
             return
         found = next((v for v in views if (dataset is None or v['dataset'] == dataset)
                       and (domain is None or v['domain'] == domain)), None)
@@ -811,7 +897,7 @@ class IsleMeshAPI(treeObject):
             response.status = '404 Not Found'
             response.media = {'ok': False, 'error': 'no placement view for that dataset or domain'}
             return
-        response.media = {'ok': True, 'view': found}
+        response.media = {'ok': True, 'source': source, 'view': found}
 
     def _validate_receipt(self, body):
         """Shape-check a section 2.6 receipt; returns (action_id_match, plan) or raises ValueError."""

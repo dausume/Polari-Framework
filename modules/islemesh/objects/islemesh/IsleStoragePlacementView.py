@@ -30,6 +30,8 @@ class IsleStoragePlacementView(treeObject):
         # The entry pending intent as JSON (null when none).
         pending_json: str = 'null',
         source_device: str = '',
+        # {source, target} addresses as JSON (null when unknown).
+        addresses_json: str = 'null',
         # When the view was accepted (ISO).
         updated_at: str = '',
         # core device name : bearer fingerprint prefix (never the token).
@@ -48,5 +50,6 @@ class IsleStoragePlacementView(treeObject):
         self.planDigest = planDigest
         self.pending_json = pending_json
         self.source_device = source_device
+        self.addresses_json = addresses_json
         self.updated_at = updated_at
         self.posted_by = posted_by

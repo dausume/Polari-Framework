@@ -1,9 +1,9 @@
 {
-  "expectedDigest": "318003eb07e6b7d7426742a45c57114762574a126118d29dd4206c370b5b57cd",
+  "expectedDigest": "7fa3e25e000d69e0ccc25887a0e31af14f430ca8dc331c67c408e4e38c5f335a",
   "hostingRelease": {
     "manifestSha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
     "name": "isle-content-host",
-    "version": "2026.11.09"
+    "version": "2026.11.1"
   },
   "item": {
     "app": "isle-content-host",

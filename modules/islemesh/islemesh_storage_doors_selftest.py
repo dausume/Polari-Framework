@@ -189,6 +189,55 @@ def main():
           and a['cutover']['status'] == 'blocked', str(a['migrate']))
     check('execute stays null for every action', all(x['execute'] is None for x in a.values()))
 
+    # ---- 3b. file-backed view (written by the core via docker exec) beats the rows; never merged ----
+    from datetime import datetime, timedelta, timezone
+    view_file = Path(tmp) / 'isle-storage-placement-view.json'
+    def stamp(seconds_ago=0):
+        return (datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)).isoformat()
+    def write_view(**over):
+        doc = {'schemaVersion': 1, 'writtenAt': stamp(), 'writtenBy': 'isle-core', 'datasets': {
+            dataset: view(state='cutover', generation=3, addresses=addresses, sourceDevice='isle-core')}}
+        doc.update(over)
+        view_file.write_text(json.dumps(doc))
+    addresses = {'source': '10.10.0.5', 'target': '10.10.0.9'}
+    s = call(api, 'on_get_storage_placement', dataset=dataset)
+    check('no file: GET serves the rows with source door', s.media['source'] == 'door'
+          and s.media['view']['addresses'] is None and s.media['view']['state'] == 'authorized')
+    write_view()
+    s = call(api, 'on_get_storage_placement', dataset=dataset)
+    check('file: GET serves the file entry with source file, sourceDevice and addresses',
+          s.media['source'] == 'file' and s.media['view']['state'] == 'cutover' and s.media['view']['generation'] == 3
+          and s.media['view']['sourceDevice'] == 'isle-core' and s.media['view']['addresses'] == addresses
+          and s.media['view']['plan']['digest'] == digest, str(s.media))
+    check('file: unfiltered list is the file only (rows not merged)',
+          [v['dataset'] for v in call(api, 'on_get_storage_placement').media['view']] == [dataset])
+    check('file: planned actions read the file view (cutover state)', actions()['migrate']['placementState'] == 'cutover')
+    write_view(writtenAt=stamp(601))
+    s = call(api, 'on_get_storage_placement', dataset=dataset)
+    check('stale file (601 s) answers 503, not the rows', s.status.startswith('503')
+          and s.media == {'ok': False, 'error': 'placement view unavailable'}, str(s.media))
+    write_view(writtenAt=stamp(300))
+    check('a 300 s old file is still served', call(api, 'on_get_storage_placement', dataset=dataset).media['source'] == 'file')
+    view_file.write_text('{"schemaVersion": 1, "writtenAt"')
+    s = call(api, 'on_get_storage_placement', dataset=dataset)
+    check('torn JSON answers 503, not the rows', s.status.startswith('503') and s.media['ok'] is False)
+    check('unavailable view: planned actions see no view (fail closed)', actions()['migrate']['status'] != 'planned')
+    for label, over in (('wrong schemaVersion', {'schemaVersion': 2}), ('unparseable writtenAt', {'writtenAt': 'yesterday'}),
+                        ('no writtenBy', {'writtenBy': ''}), ('datasets a list', {'datasets': []}),
+                        ('bad entry state', {'datasets': {dataset: view(state='bogus')}}),
+                        ('key/dataset mismatch', {'datasets': {dataset: view(dataset='other-set')}})):
+        write_view(**over)
+        check('invalid file (%s) answers 503' % label, call(api, 'on_get_storage_placement').status.startswith('503'))
+    view_file.unlink()
+    check('file removed: rows with source door', call(api, 'on_get_storage_placement', dataset=dataset).media['source'] == 'door')
+    s = call(api, 'on_post_storage_placement', {'device': 'isle-core', 'entries': [view(addresses=addresses)]})
+    check('POST accepts and stores addresses', s.media.get('ok') is True and
+          call(api, 'on_get_storage_placement', dataset=dataset).media['view']['addresses'] == addresses)
+    check('POST refuses malformed addresses', call(api, 'on_post_storage_placement',
+          {'device': 'isle-core', 'entries': [view(addresses={'target': 5})]}).status.startswith('400'))
+    for verb in ('recover', 'accept', 'authorize', 'mark-migrated', 'reconcile-address', 'witness', 'rollback'):
+        check('receipt kind isle.storage.%s is a known kind' % verb, 'isle.storage.%s' % verb in __import__('islemesh.islemesh_api', fromlist=['x'])._STORAGE_KINDS)
+
     # ---- 4. receipt door ----
     s = call(api, 'on_post_storage_receipt', receipt())
     check('receipt accepted and stored unverified', s.status == '200 OK' and s.media['ok'] and s.media['verified'] is False

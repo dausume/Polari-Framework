@@ -157,6 +157,19 @@ def main():
     media = get('other', 'isle-core')
     check('GET for a non-source app is unaffected', media['allowed'] is True and media['reasons'] == [], str(media))
 
+    from islemesh.custom import islemesh_storage_plan as _sp
+    original = _sp.source_removal_allowed
+    for exc in (OSError('plan store unreadable'), ValueError('bad view'), RuntimeError('boom')):
+        def raising(*a, _e=exc, **k):
+            raise _e
+        _sp.source_removal_allowed = raising
+        try:
+            media = get('other', 'isle-core')
+        finally:
+            _sp.source_removal_allowed = original
+        check('GET fails closed when the storage check raises %s' % type(exc).__name__, media['allowed'] is False
+              and media['reasons'] == ['storage removal check unavailable: %s' % exc], str(media))
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} passed')
     return 0 if passed == len(_results) else 1
