@@ -25,7 +25,9 @@ Thin Falcon shell — parsing lives in islemesh_parse.
   - islemesh.islemesh_selftest (function-level)
 """
 
+import contextlib
 import hashlib
+import threading
 import json
 
 from datetime import datetime, timezone
@@ -56,6 +58,28 @@ from islemesh.custom.islemesh_parse import parse_fragments, parse_registry
 _REGISTRY_CLASSES = ('IsleApp', 'IsleAppService')
 _FRAGMENT_CLASSES = ('IsleProtocolPermit',)
 _DEVICE_CLASSES = ('IsleUplink',)
+
+#: ONE writer at a time for the islemesh tables (core 84 live evidence, 2026-11-08: two
+#: ingests for the same device overlapped on the threaded WSGI server; both computed the
+#: same doomed keys from a snapshot of the table, the second `table.pop(key)` raised
+#: KeyError and the whole registry replacement answered 500 half-applied). Every
+#: mutating door takes this lock for its WHOLE replace+insert+dedup+receipt sequence, so a
+#: snapshot taken under it stays true until the pops are done. Reentrant because the mock
+#: seeder re-posts through the ingest handlers. Readers stay lock-free (they tolerate a
+#: changing dict by iterating copies).
+_MUTATION_LOCK = threading.RLock()
+_TRACKING = threading.local()
+
+
+def _serialized(handler):
+    """Run a mutating Falcon responder under the module mutation lock."""
+    def wrapper(self, request, response, *args, **kwargs):
+        with _MUTATION_LOCK:
+            return handler(self, request, response, *args, **kwargs)
+    wrapper.__name__ = handler.__name__
+    wrapper.__doc__ = handler.__doc__
+    wrapper.__wrapped__ = handler
+    return wrapper
 
 
 def _now_iso():
@@ -197,26 +221,85 @@ class IsleMeshAPI(treeObject):
         return (getattr(self.manager, 'objectTables', None)
                 or {}).get(class_name, {})
 
-    def _save(self, row):
+    # Persistence truth (handoff 2026-11-09, item B): a save that raises or returns False and a
+    # delete that raises or reports the database unavailable are RECORDED on the tracker of the
+    # mutating door running on this thread (_persistence()), so the door answers 500/persisted:false
+    # instead of a green receipt for rows that will vanish (or return) on restart. Outside a tracked
+    # door the words still go to the log, as before. Thread-local, so it needs no instance state
+    # (treeObject attribute handling is not relied on) and nests: an inner door's failures (the mock
+    # seeder re-posts through the ingest doors) are handed to the outer one on exit.
+    @contextlib.contextmanager
+    def _persistence(self):
+        previous = getattr(_TRACKING, 'failures', None)
+        failures = []
+        _TRACKING.failures = failures
         try:
-            self.manager.db.saveInstanceInDB(row)
-        except Exception:
-            pass
+            yield failures
+        finally:
+            _TRACKING.failures = previous
+            if previous is not None:
+                previous.extend(failures)
+
+    def _record_failure(self, words):
+        print('[islemesh] ' + words, flush=True)
+        failures = getattr(_TRACKING, 'failures', None)
+        if failures is not None:
+            failures.append(words)
+
+    def _save(self, row):
+        """Persist a row; True when the DB accepted it, False (recorded) otherwise."""
+        db = getattr(self.manager, 'db', None)
+        if db is None or not hasattr(db, 'saveInstanceInDB'):
+            self._record_failure('%s %s not persisted: no database'
+                                 % (type(row).__name__, getattr(row, 'name', '?')))
+            return False
+        try:
+            result = db.saveInstanceInDB(row)
+        except Exception as e:  # noqa: BLE001 - the words are the point
+            self._record_failure('%s %s not persisted: %s: %s'
+                                 % (type(row).__name__, getattr(row, 'name', '?'),
+                                    type(e).__name__, e))
+            return False
+        if result is False:
+            self._record_failure('%s %s not persisted: database refused the save'
+                                 % (type(row).__name__, getattr(row, 'name', '?')))
+            return False
+        return True
 
     def _delete(self, row):
         """Tree removal is the caller's pop; this scrubs the DB row
         (the CRUDE-DELETE discipline: deleteRowsWhere by id, failure
-        reported not raised — the row would return on restart)."""
+        recorded not raised — the row would return on restart).
+        True when scrubbed or nothing to scrub, False when recorded."""
         db = getattr(self.manager, 'db', None)
         row_id = getattr(row, 'id', None)
         if db is None or not hasattr(db, 'deleteRowsWhere') \
                 or not row_id:
-            return
+            return True
         try:
-            db.deleteRowsWhere(type(row).__name__, 'id', row_id)
-        except Exception as e:
-            print('[islemesh] %s id=%s not scrubbed from DB (%s)'
-                  % (type(row).__name__, row_id, e), flush=True)
+            result = db.deleteRowsWhere(type(row).__name__, 'id', row_id)
+        except Exception as e:  # noqa: BLE001 - the words are the point
+            self._record_failure('%s id=%s not scrubbed from DB (%s)'
+                                 % (type(row).__name__, row_id, e))
+            return False
+        if result is False or (isinstance(result, int) and result < 0):
+            self._record_failure('%s id=%s not scrubbed from DB (database unavailable)'
+                                 % (type(row).__name__, row_id))
+            return False
+        return True
+
+    def _pop_and_delete(self, table, key):
+        """Remove key from the live table if it is STILL there and scrub its row. A key that
+        vanished since the snapshot was taken is not an error: someone already removed it."""
+        row = table.pop(key, None)
+        if row is not None:
+            self._delete(row)
+
+    def _not_persisted(self, response, failures, **fields):
+        response.status = '500 Internal Server Error'
+        response.media = dict(fields, ok=False, persisted=False,
+                              error='accepted in memory but not persisted: '
+                                    + '; '.join(failures) + ' (retry the ingest)')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -232,7 +315,7 @@ class IsleMeshAPI(treeObject):
                       if getattr(row, 'device_name', '')
                       == device_name]
             for key in doomed:
-                self._delete(table.pop(key))
+                self._pop_and_delete(table, key)
 
     #: Fields reset when a device flips mock<->real — a real ingest
     #: must never inherit mock-era facts it didn't supply (and vice
@@ -291,6 +374,7 @@ class IsleMeshAPI(treeObject):
 
     # ---- ingest -----------------------------------------------------
 
+    @_serialized
     def on_post_ingest_registry(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -305,6 +389,13 @@ class IsleMeshAPI(treeObject):
                 "registry.json object)")
         parsed = parse_registry(registry, device_name,
                                 is_mock=is_mock)
+        with self._persistence() as failures:
+            self._ingest_registry_rows(parsed, registry, device_name, is_mock, response)
+        if failures:
+            self._not_persisted(response, failures, counts=response.media.get('counts'),
+                                mock_network=is_mock)
+
+    def _ingest_registry_rows(self, parsed, registry, device_name, is_mock, response):
         self._replace_device_rows(_REGISTRY_CLASSES, device_name)
         for app in parsed['apps']:
             row = IsleApp(manager=self.manager, **{
@@ -329,7 +420,7 @@ class IsleMeshAPI(treeObject):
             else:
                 seen_pairs.add(pair)
         for key in doomed_apps:
-            self._delete(app_table.pop(key))
+            self._pop_and_delete(app_table, key)
         # Referential sweep: a service must belong to a live app AND
         # carry its device (deviceless rows are pre-schema orphans or
         # restart-flush resurrections — every legit row has one). A
@@ -351,7 +442,7 @@ class IsleMeshAPI(treeObject):
             else:
                 seen_names.add(svc_name)
         for key in orphans:
-            self._delete(svc_table.pop(key))
+            self._pop_and_delete(svc_table, key)
         # A readable registry proves the agent is CONFIGURED, not
         # that its container runs — agent_present stays the device
         # ingest's fact; this notes the registry only.
@@ -366,6 +457,7 @@ class IsleMeshAPI(treeObject):
                           'receipt': receipt.name,
                           'mock_network': is_mock}
 
+    @_serialized
     def on_post_ingest_fragments(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -380,20 +472,24 @@ class IsleMeshAPI(treeObject):
                 "({'<app>.conf': '<nginx text>', ...})")
         permits = parse_fragments(fragments, device_name,
                                   is_mock=is_mock)
-        self._replace_device_rows(_FRAGMENT_CLASSES, device_name)
-        for permit in permits:
-            self._save(IsleProtocolPermit(manager=self.manager,
-                                          **permit))
-        self._upsert_device(device_name, is_mock)
-        counts = {'IsleProtocolPermit': len(permits)}
-        receipt = self._receipt(
-            device_name, 'fragments',
-            json.dumps(fragments, sort_keys=True).encode(), counts,
-            is_mock)
+        with self._persistence() as failures:
+            self._replace_device_rows(_FRAGMENT_CLASSES, device_name)
+            for permit in permits:
+                self._save(IsleProtocolPermit(manager=self.manager,
+                                              **permit))
+            self._upsert_device(device_name, is_mock)
+            counts = {'IsleProtocolPermit': len(permits)}
+            receipt = self._receipt(
+                device_name, 'fragments',
+                json.dumps(fragments, sort_keys=True).encode(), counts,
+                is_mock)
         response.media = {'ok': True, 'counts': counts,
                           'receipt': receipt.name,
                           'mock_network': is_mock}
+        if failures:
+            self._not_persisted(response, failures, counts=counts, mock_network=is_mock)
 
+    @_serialized
     def on_post_ingest_device(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -406,18 +502,21 @@ class IsleMeshAPI(treeObject):
             # wrong name): drop its row + everything attributed to
             # it. Receipts stay — they are history.
             table = self._table('IsleDevice')
-            doomed = [key for key, row in list(table.items())
-                      if getattr(row, 'name', '') == device_name]
-            for key in doomed:
-                self._delete(table.pop(key))
-            self._replace_device_rows(
-                _REGISTRY_CLASSES + _FRAGMENT_CLASSES
-                + _DEVICE_CLASSES, device_name)
-            self._receipt(device_name, 'device', b'retire',
-                          {'retired': len(doomed)}, is_mock,
-                          notes='device retired')
+            with self._persistence() as failures:
+                doomed = [key for key, row in list(table.items())
+                          if getattr(row, 'name', '') == device_name]
+                for key in doomed:
+                    self._pop_and_delete(table, key)
+                self._replace_device_rows(
+                    _REGISTRY_CLASSES + _FRAGMENT_CLASSES
+                    + _DEVICE_CLASSES, device_name)
+                self._receipt(device_name, 'device', b'retire',
+                              {'retired': len(doomed)}, is_mock,
+                              notes='device retired')
             response.media = {'ok': True,
                               'retired': bool(doomed)}
+            if failures:
+                self._not_persisted(response, failures, retired=bool(doomed))
             return
         evidence_json = None
         received_at = None
@@ -455,6 +554,17 @@ class IsleMeshAPI(treeObject):
                       if isinstance(pools, list) else None)
         ports_json = (json.dumps(ports)
                       if isinstance(ports, list) else None)
+        with self._persistence() as failures:
+            self._ingest_device_rows(payload, device_name, is_mock, facts, mode, agent_mode,
+                                     exposures_json, pools_json, ports_json, evidence_json,
+                                     received_at, report if evidence_json else None, response)
+        if failures:
+            self._not_persisted(response, failures, counts=response.media.get('counts'),
+                                mock_network=is_mock)
+
+    def _ingest_device_rows(self, payload, device_name, is_mock, facts, mode, agent_mode,
+                            exposures_json, pools_json, ports_json, evidence_json,
+                            received_at, report, response):
         self._upsert_device(
             device_name, is_mock,
             isle_name=facts.get('isle_name'),
@@ -526,6 +636,7 @@ class IsleMeshAPI(treeObject):
                     return self._data
             self.bounded_stream = _Stream(body)
 
+    @_serialized
     def on_post_mock(self, request, response):
         """Seed the built-in MOCK isle network (Dustin 2026-08-07):
         every payload declares mock_network=true, so the summary
@@ -569,6 +680,7 @@ class IsleMeshAPI(treeObject):
 
     # ---- engines (§20.4) --------------------------------------------
 
+    @_serialized
     def on_post_ingest_engine(self, request, response):
         """An isle app declares it provides a polari engine. Record
         the IsleEngine row AND bind it into the consuming module's
@@ -617,6 +729,7 @@ class IsleMeshAPI(treeObject):
                           'bound_to': bound_to, 'note': note,
                           'mock_network': is_mock}
 
+    @_serialized
     def on_post_engines_sync(self, request, response):
         """fix 11: pull the isle core's engine registry NOW (the same pull the boot does) and
         bind what it lists; retire what it no longer lists. 502 when the registry could not

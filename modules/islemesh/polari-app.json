@@ -71,6 +71,7 @@
       "islemesh_capabilities_selftest",
       "islemesh_component_roles_selftest",
       "islemesh_consumer_persistence_selftest",
+      "islemesh_ingest_concurrency_selftest",
       "islemesh_plan_library_usage_selftest",
       "islemesh_planning_selftest",
       "islemesh_selftest"
@@ -143,7 +144,8 @@
     "islemesh_consumer_persistence_selftest",
     "islemesh_plan_library_usage_selftest",
     "islemesh_planning_selftest",
-    "islemesh_selftest"
+    "islemesh_selftest",
+    "islemesh.islemesh_ingest_concurrency_selftest"
   ],
   "security": {
     "profile": "web-app",
