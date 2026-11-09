@@ -49,6 +49,9 @@ class IsleDevice(treeObject):
         ports_json: str = '[]',
         capability_evidence_json: str = '{}',
         capability_received_at: str = '',
+        # The agent's own isle-facing IPv4 address from the device self-report ('' = not reported).
+        # A connection hint only (stm-2b, contract §11 Q3): the TLS name verified is the domain.
+        agent_address: str = '',
         manager=None,
     ):
         self.name = name
@@ -68,3 +71,4 @@ class IsleDevice(treeObject):
         self.ports_json = ports_json
         self.capability_evidence_json = capability_evidence_json
         self.capability_received_at = capability_received_at
+        self.agent_address = agent_address

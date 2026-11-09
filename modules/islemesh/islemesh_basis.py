@@ -37,3 +37,6 @@ from islemesh.objects.islemesh.IsleProtocolPermit import IsleProtocolPermit  # n
 from islemesh.objects.islemesh.IsleCatalogEntry import IsleCatalogEntry  # noqa: F401
 from islemesh.objects.islemesh.IsleEngine import IsleEngine  # noqa: F401
 from islemesh.objects.islemesh.IsleIngestReceipt import IsleIngestReceipt  # noqa: F401
+from islemesh.objects.islemesh.IsleStoragePlacementView import IsleStoragePlacementView  # noqa: F401
+from islemesh.objects.islemesh.IsleStorageReceipt import IsleStorageReceipt  # noqa: F401
+from islemesh.objects.islemesh.IsleStorageWitness import IsleStorageWitness  # noqa: F401

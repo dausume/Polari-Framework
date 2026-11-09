@@ -208,16 +208,16 @@ class StoragePlan(unittest.TestCase):
         self.assertEqual(acts[1]['dependsOn'], [acts[0]['id']])
         self.assertEqual(acts[2]['dependsOn'], [acts[1]['id']])
         self.assertEqual(acts[0]['dependsOn'], [])
+        # stm-2b: with nothing recorded, authorize (no dependsOn) is planned; the rest wait on it.
+        self.assertEqual([a['status'] for a in acts], ['planned', 'blocked', 'blocked'])
+        self.assertEqual([a['operatorCommand'] is None for a in acts], [False, True, True])
         for a in acts:
-            self.assertEqual(a['status'], 'blocked')
             self.assertIsNone(a['execute'])
-            self.assertIsNone(a['operatorCommand'])
             self.assertIsNone(a['undo'])
             self.assertEqual(a['chain'], [])
             self.assertEqual(a['digest'], d)
             self.assertEqual((a['planId'], a['revision'], a['itemId'], a['dataset']),
                              (PID, 2, 'apt-repo-to-pol-core', 'apt-public-repo'))
-            self.assertIn('not executable', a['statusWords'])
             self.assertIsNone(a['placementState'])
         self.assertFalse(any('retire' in a['kind'] for a in acts))
 

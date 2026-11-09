@@ -1,5 +1,5 @@
-"""Passive storage-migration plan support (stm-2): validation, digest, display-only planned actions.
-Pure stdlib functions. Nothing here executes, stores receipts or opens a door.
+"""Storage-migration plan support (stm-2/2b): validation, digest, display-only planned actions.
+Pure stdlib functions. Nothing here executes, stores or decides: status is derived from rows the doors stored.
 Mirrors isle-cli/scripts/storage_contract.py (same whitelist, payload keys, canonical JSON).
 See docs/STORAGE-MIGRATION-CONTRACT.md section 1.
 """
@@ -184,19 +184,41 @@ def suppresses_removal(items, app, device):
     return False
 
 
-def _action(verb, device, block, plan_id, revision, item, digest, depends, placement_state):
+def _argv_text(argv):
+    return 'sudo isle ' + ' '.join(argv)
+
+
+def migrate_qualifies(receipt, action_id, digest):
+    """True when a stored receipt (the parsed section 2.6 document) proves a finished migrate for this
+    action: ok, contentVerified, stagedDeploy, readinessVerified and the digest of the stored plan."""
+    return (isinstance(receipt, dict) and receipt.get('kind') == 'isle.storage.migrate'
+            and receipt.get('actionId') == action_id and (receipt.get('plan') or {}).get('digest') == digest
+            and all(receipt.get(key) is True for key in ('ok', 'contentVerified', 'stagedDeploy', 'readinessVerified')))
+
+
+def _action(verb, device, block, plan_id, revision, item, digest, depends, view):
+    state = (view or {}).get('state')
     return {'kind': 'isle.storage.' + verb,
             'id': 'isle.storage.%s:%s@%s:%s' % (verb, block['dataset'], device, digest),
             'device': device, 'dataset': block['dataset'], 'planId': plan_id, 'revision': revision,
             'itemId': item['id'], 'digest': digest, 'dependsOn': depends,
             'status': 'blocked', 'statusWords': NOT_EXECUTABLE, 'execute': None,
-            'operatorCommand': None, 'undo': None, 'placementState': placement_state, 'chain': []}
+            'operatorCommand': None, 'undo': None, 'placementState': state, 'chain': []}
 
 
-def planned_actions(plan, core_device, placement_view=None):
+def _set(action, status, words, command=None):
+    action['status'], action['statusWords'], action['operatorCommand'] = status, words, command
+
+
+def planned_actions(plan, core_device, placement_view=None, receipts=None):
     """Return display-only actions (authorize, migrate, cutover) for each executable-shaped storage item.
-    Every action is blocked and carries no command. Items that cannot be digested are skipped."""
+    placement_view maps dataset -> view dict (state, generation, planDigest or plan.digest); receipts is a list
+    of parsed section 2.6 receipts as stored (unverified). Status is derived from those only (never from the plan
+    revision): planned when every dependsOn is satisfied and nothing is recorded, blocked otherwise, succeeded when
+    the stored evidence shows it done. `execute` is always null; operatorCommand is the section 2.1 argv text for a
+    planned action only. Items that cannot be digested are skipped."""
     out = []
+    views, receipts = placement_view or {}, receipts or []
     for item in plan.get('items', []):
         if not is_storage_item(item) or item.get('state') != 'planned':
             continue
@@ -207,10 +229,40 @@ def planned_actions(plan, core_device, placement_view=None):
             digest = storage_digest(plan.get('id'), plan.get('revision'), item)
         except ValueError:
             continue
-        state = ((placement_view or {}).get(block['dataset']) or {}).get('state') if placement_view else None
-        auth = _action('authorize', core_device, block, plan['id'], plan['revision'], item, digest, [], state)
-        mig = _action('migrate', block['target']['device'], block, plan['id'], plan['revision'], item, digest, [auth['id']], state)
-        cut = _action('cutover', core_device, block, plan['id'], plan['revision'], item, digest, [mig['id']], state)
+        view = views.get(block['dataset']) if isinstance(views.get(block['dataset']), dict) else None
+        view_digest = None if view is None else (view.get('planDigest') or (view.get('plan') or {}).get('digest'))
+        view_matches = view is not None and view_digest == digest
+        state = (view or {}).get('state')
+        auth = _action('authorize', core_device, block, plan['id'], plan['revision'], item, digest, [], view)
+        mig = _action('migrate', block['target']['device'], block, plan['id'], plan['revision'], item, digest, [auth['id']], view)
+        cut = _action('cutover', core_device, block, plan['id'], plan['revision'], item, digest, [mig['id']], view)
+        authorized = view_matches
+        if authorized:
+            _set(auth, 'succeeded', 'placement view shows %s for this plan digest' % state)
+        else:
+            _set(auth, 'planned', 'waiting for the core to authorize this plan digest' if view is None
+                 else 'the placement view is for a different plan digest; authorize this revision',
+                 _argv_text(['storage', 'authorize', '--dataset', block['dataset'], '--plan', plan['id'],
+                             '--revision', str(plan['revision']), '--item', item['id'], '--digest', digest]))
+        done = next((r for r in receipts if migrate_qualifies(r, mig['id'], digest)), None)
+        if done is not None:
+            _set(mig, 'succeeded', 'receipt stored (poster not verified by the backend)')
+        elif authorized:
+            _set(mig, 'planned', 'authorized; ready to run on the target',
+                 _argv_text(['storage', 'migrate', '--dataset', block['dataset'], '--plan', plan['id'],
+                             '--revision', str(plan['revision']), '--item', item['id'], '--digest', digest]))
+        else:
+            _set(mig, 'blocked', 'blocked until the authorize action is satisfied')
+        generation = (view or {}).get('generation')
+        if view_matches and state in ('cutover', 'hosting'):
+            _set(cut, 'succeeded', 'placement view shows %s' % state)
+        elif done is not None and view_matches and state == 'migrated':
+            command = None
+            if type(generation) is int and generation >= 1:
+                command = _argv_text(['storage', 'cutover', '--dataset', block['dataset'], '--generation', str(generation)])
+            _set(cut, 'planned', 'migrated; ready for the core to cut over', command)
+        else:
+            _set(cut, 'blocked', 'blocked until the migrate receipt is stored and the placement is migrated')
         out.extend([auth, mig, cut])
     return out
 
@@ -218,6 +270,17 @@ def planned_actions(plan, core_device, placement_view=None):
 def _core_device(owner):
     devices = owner._capability_devices()
     return next((d.get('name', '') for d in devices if d.get('agent_mode') == 'core'), '')
+
+
+def _views(owner):
+    """dataset -> placement view dict from the owner's stored rows (empty when it has none)."""
+    reader = getattr(owner, '_storage_views', None)
+    return reader() if callable(reader) else {}
+
+
+def _receipts(owner):
+    reader = getattr(owner, '_storage_receipt_documents', None)
+    return reader() if callable(reader) else []
 
 
 def attach_planned_actions(media, owner):
@@ -232,7 +295,7 @@ def attach_planned_actions(media, owner):
             media['plannedActions'] = []
             media['plannedActionsError'] = 'The core device is not known, so no planned actions are shown.'
             return
-        media['plannedActions'] = planned_actions(plan, core)
+        media['plannedActions'] = planned_actions(plan, core, _views(owner), _receipts(owner))
     except Exception:
         media['plannedActions'] = []
         media['plannedActionsError'] = 'Planned actions are unavailable.'

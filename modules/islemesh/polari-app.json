@@ -52,6 +52,9 @@
       "objects/islemesh/IsleEngine",
       "objects/islemesh/IsleIngestReceipt",
       "objects/islemesh/IsleProtocolPermit",
+      "objects/islemesh/IsleStoragePlacementView",
+      "objects/islemesh/IsleStorageReceipt",
+      "objects/islemesh/IsleStorageWitness",
       "objects/islemesh/IsleUplink",
       "objects/islemesh/MeshAppRealization"
     ],
@@ -75,6 +78,7 @@
       "islemesh_plan_library_usage_selftest",
       "islemesh_planning_selftest",
       "islemesh_selftest",
+      "islemesh_storage_doors_selftest",
       "islemesh_storage_plan_selftest"
     ],
     "custom": [
@@ -102,6 +106,9 @@
     "IsleIngestReceipt",
     "IsleMeshAPI",
     "IsleProtocolPermit",
+    "IsleStoragePlacementView",
+    "IsleStorageReceipt",
+    "IsleStorageWitness",
     "IsleUplink",
     "MeshAppRealization"
   ],
@@ -116,6 +123,9 @@
         "IsleEngine",
         "IsleIngestReceipt",
         "IsleProtocolPermit",
+        "IsleStoragePlacementView",
+        "IsleStorageReceipt",
+        "IsleStorageWitness",
         "IsleUplink",
         "MeshAppRealization"
       ]
@@ -148,6 +158,7 @@
     "islemesh_plan_library_usage_selftest",
     "islemesh_planning_selftest",
     "islemesh_selftest",
+    "islemesh_storage_doors_selftest",
     "islemesh_storage_plan_selftest"
   ],
   "security": {
