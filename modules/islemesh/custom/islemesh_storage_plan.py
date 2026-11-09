@@ -17,6 +17,11 @@ ITEM_STATES = ('planned', 'existing', 'deferred')
 HEADROOM_PERCENT = 5
 NOT_EXECUTABLE = 'not executable: storage migration executor not released'
 VERBS = ('authorize', 'migrate', 'cutover')
+# Phase A: the source host is the origin that publication, sync and rollback need, so a storage
+# source is never removable. Phase B (a replacement origin exists) flips this to False; the receipt,
+# hosting and last-provider checks then decide alone.
+PHASE_A_SOURCE_RETAINED = True
+PHASE_A_REASON = 'Phase A: the source still serves publication and sync; source removal returns in Phase B'
 
 
 def is_storage_item(item):
@@ -182,6 +187,61 @@ def suppresses_removal(items, app, device):
         if app == item.get('app') or app in listed:
             return True
     return False
+
+
+def _present(plan, app, device):
+    return any((i.get('app') or i.get('title', '').lower()) == app and i.get('device') == device
+               and i.get('state') != 'deferred' for i in plan.get('items', []))
+
+
+def source_removal_allowed(previous_plan, new_plan, rows=None):
+    """Return reasons (empty = allowed) why dropping a storage source from new_plan is refused.
+    previous_plan is the stored ACTIVE plan (with id and revision); rows is any object offering
+    _storage_views() and _storage_receipt_documents() (None means no evidence). Decided from
+    stored receipts and the placement view alone; protectedRoles is never read."""
+    previous_plan, new_plan = previous_plan or {}, new_plan or {}
+    previous_items = previous_plan.get('items', [])
+    storage = [i for i in previous_items if is_storage_item(i)]
+    storage += [i for i in new_plan.get('items', []) if is_storage_item(i) and i not in storage
+                and not any(is_storage_item(p) and p.get('id') == i.get('id') for p in storage)]
+    if not storage:
+        return []
+    views, receipts = _views(rows), _receipts(rows)
+    reasons = []
+    for old in previous_items:
+        if is_storage_item(old) or old.get('state') != 'existing' or not old.get('device'):
+            continue
+        app, device = old.get('app') or old.get('title', '').lower(), old['device']
+        if _present(new_plan, app, device):
+            continue
+        for item in storage:
+            if not suppresses_removal([item], app, device):
+                continue
+            label = '%s on %s' % (app, device)
+            try:
+                block = validate_storage_item(item)
+                digest = storage_digest(previous_plan.get('id'), previous_plan.get('revision'), item) \
+                    if any(p is item for p in previous_items) else None
+            except ValueError:
+                block, digest = None, None
+            if digest is None:
+                reasons.append('%s is the source of a storage move with no stored plan revision to check receipts against' % label)
+            else:
+                action_id = 'isle.storage.migrate:%s@%s:%s' % (block['dataset'], block['target']['device'], digest)
+                if not any(migrate_qualifies(r, action_id, digest) for r in receipts):
+                    reasons.append('%s is the source of storage %s: no verified migrate receipt is stored for this plan digest'
+                                   % (label, block['dataset']))
+                view = views.get(block['dataset']) if isinstance(views.get(block['dataset']), dict) else None
+                view_digest = None if view is None else (view.get('planDigest') or (view.get('plan') or {}).get('digest'))
+                if view is None or view.get('state') != 'hosting' or view_digest != digest:
+                    reasons.append('%s: the placement of storage %s is not hosting for this plan digest' % (label, block['dataset']))
+            if PHASE_A_SOURCE_RETAINED:
+                reasons.append(PHASE_A_REASON)
+            if not any((j.get('app') or j.get('title', '').lower()) == app and j.get('device') != device
+                       and j.get('device') and j.get('state') != 'deferred' and not is_storage_item(j)
+                       for j in new_plan.get('items', [])):
+                reasons.append('%s is the last provider of %s; keep one other provider' % (label, app))
+    return list(dict.fromkeys(reasons))
 
 
 def _argv_text(argv):

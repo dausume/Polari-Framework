@@ -11,7 +11,7 @@ import tempfile
 import uuid
 import copy
 from datetime import datetime, timezone
-from islemesh.custom.islemesh_storage_plan import suppresses_removal
+from islemesh.custom.islemesh_storage_plan import suppresses_removal, source_removal_allowed
 
 class Conflict(ValueError): pass
 
@@ -101,7 +101,7 @@ class PlanStore:
             os.replace(tmp,self.path)
         finally:
             if tmp and os.path.exists(tmp):os.unlink(tmp)
-    def save(self,plan,as_new=False):
+    def save(self,plan,as_new=False,rows=None):
         clean=validate(plan)
         with self.path.with_suffix('.lock').open('a') as lock:
             fcntl.flock(lock,fcntl.LOCK_EX);doc=self._document()
@@ -109,6 +109,8 @@ class PlanStore:
             issues=violations(clean,doc['plans'][doc['activeId']][-1])
             if issues:raise ValueError(' '.join(issues))
             previous_active=doc['plans'][doc['activeId']][-1]
+            refused=source_removal_allowed(previous_active,clean,rows)
+            if refused:raise ValueError('removal refused: '+'; '.join(refused))
             for old in previous_active.get('items',[]):
                 if old.get('kind')=='storage':continue
                 app=old.get('app') or old.get('title','').lower();device=old.get('originDevice') or (old.get('device') if old.get('state')=='existing' else '')

@@ -79,7 +79,8 @@
       "islemesh_planning_selftest",
       "islemesh_selftest",
       "islemesh_storage_doors_selftest",
-      "islemesh_storage_plan_selftest"
+      "islemesh_storage_plan_selftest",
+      "islemesh_storage_removal_selftest"
     ],
     "custom": [
       "custom/islemesh_capabilities",
@@ -159,7 +160,8 @@
     "islemesh_planning_selftest",
     "islemesh_selftest",
     "islemesh_storage_doors_selftest",
-    "islemesh_storage_plan_selftest"
+    "islemesh_storage_plan_selftest",
+    "islemesh_storage_removal_selftest"
   ],
   "security": {
     "profile": "web-app",

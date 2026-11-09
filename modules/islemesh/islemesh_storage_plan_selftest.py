@@ -260,23 +260,21 @@ class StoragePlan(unittest.TestCase):
         return [mk('aptrepo', 'aptrepo', 'isle-core'), mk('other', 'other', 'isle-core'), mk('keep', 'keep', 'isle-core')]
 
     def test_removal_suppression(self):
+        # stm-2c: a dropped storage source is no longer auto-removed, it is refused (receipt-gated, Phase A).
         keep = self.base_items()[2]
         with tempfile.TemporaryDirectory() as d:
             store = PlanStore(Path(d) / 'p.json')
             it = item()
             it['storage']['source']['apps'] = ['aptrepo']
-            out = self.save_two(store, [it, keep])
-            names = sorted(r['app'] for r in out['removals'])
-            self.assertEqual(names, ['other'])  # apt suppressed via source.apps; other still removed
+            with self.assertRaisesRegex(ValueError, 'removal refused: .*aptrepo on isle-core'):
+                self.save_two(store, [it, keep])
         with tempfile.TemporaryDirectory() as d:
             store = PlanStore(Path(d) / 'p.json')
             old = self.base_items()
             old.append(dict(id='host', device='isle-core', title='h', app='isle-content-host', kind='polari', state='existing', access='frequent'))
             first = store.save({'revision': 0, 'title': 'T', 'items': old})
-            out = store.save({'revision': first['revision'], 'id': first['id'], 'title': 'T', 'items': [item(), old[2]]})
-            names = sorted(r['app'] for r in out['removals'])
-            self.assertEqual(names, ['aptrepo', 'other'])  # same-app path suppressed host only
-            self.assertNotIn('isle-content-host', names)
+            with self.assertRaisesRegex(ValueError, 'removal refused: .*isle-content-host on isle-core'):
+                store.save({'revision': first['revision'], 'id': first['id'], 'title': 'T', 'items': [item(), old[2]]})
 
     def test_no_suppression_cases(self):
         keep = self.base_items()[2]

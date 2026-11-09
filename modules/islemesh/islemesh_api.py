@@ -213,6 +213,13 @@ class IsleMeshAPI(treeObject):
         issues=[]
         for role in target_roles:
             if role=='router' or not any(n is not target and role in (roles({'app':n.get('label','')})+n.get('component_roles',[])) for n in nodes):issues.append(REASONS[role])
+        try:
+            from islemesh.custom.islemesh_planning import PlanStore
+            from islemesh.custom.islemesh_storage_plan import source_removal_allowed
+            previous=PlanStore().read()
+            remaining=dict(previous,items=[i for i in previous.get('items',[]) if not ((i.get('app') or i.get('title','').lower())==app and i.get('device')==device)])
+            issues+=source_removal_allowed(previous,remaining,self)
+        except (OSError,ValueError,RuntimeError):pass
         response.media={'ok':True,'allowed':not issues,'reasons':issues,'app':app,'device':device}
 
     def on_put_placement_plan(self, request, response):
@@ -248,7 +255,7 @@ class IsleMeshAPI(treeObject):
                     req = self._planning_requirements(entry) if entry else {'minimum':dict(ramMiB=None,diskMiB=None,cpus=None)}
                     for key, value in req['minimum'].items():
                         item[key] = round(value * scale, 3) if value is not None else None
-            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs'),'advisoryOnly':True}
+            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs',rows=self),'advisoryOnly':True}
         except Conflict as exc:
             response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
         except (ValueError, TypeError) as exc:
