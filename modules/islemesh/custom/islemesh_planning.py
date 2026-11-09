@@ -11,6 +11,7 @@ import tempfile
 import uuid
 import copy
 from datetime import datetime, timezone
+from islemesh.custom.islemesh_storage_plan import suppresses_removal
 
 class Conflict(ValueError): pass
 
@@ -31,10 +32,14 @@ def validate(plan):
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',clean['id']) or clean['id'] in seen:raise ValueError('Unique item IDs required')
         seen.add(clean['id'])
         if (clean['device'] and not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*',clean['device'])) or not clean['title']:raise ValueError('Device and title are required')
-        for key,choices in [('kind',('catalog','polari','task')),('state',('planned','existing','deferred')),('access',('frequent','occasional','archive'))]:
+        for key,choices in [('kind',('catalog','polari','task','storage')),('state',('planned','existing','deferred')),('access',('frequent','occasional','archive'))]:
             if row.get(key) not in choices:raise ValueError('Invalid '+key)
             clean[key]=row[key]
         if clean['kind']=='catalog' and not re.fullmatch(r'[a-zA-Z0-9_.-]+',clean['app']):raise ValueError('Catalog app name is required')
+        if clean['kind']=='storage':
+            from islemesh.custom.islemesh_storage_plan import validate_storage_item,validate_hosting_release
+            candidate=dict(clean,storage=row.get('storage'),hostingRelease=row.get('hostingRelease'))
+            clean['storage']=validate_storage_item(candidate);clean['hostingRelease']=validate_hosting_release(candidate['hostingRelease'])
         for key in ('ramMiB','diskMiB','cpus'):
             v=row.get(key)
             if v is not None and (type(v) not in (int,float) or not math.isfinite(v) or v<0 or v>1e9):raise ValueError('Costs must be nonnegative numbers or blank')
@@ -105,8 +110,10 @@ class PlanStore:
             if issues:raise ValueError(' '.join(issues))
             previous_active=doc['plans'][doc['activeId']][-1]
             for old in previous_active.get('items',[]):
+                if old.get('kind')=='storage':continue
                 app=old.get('app') or old.get('title','').lower();device=old.get('originDevice') or (old.get('device') if old.get('state')=='existing' else '')
                 if device and re.fullmatch(r'[a-zA-Z0-9_.-]+',app) and not any((i.get('app') or i.get('title','').lower())==app and i.get('device')==device and i.get('state')!='deferred' for i in clean['items']):
+                    if suppresses_removal(clean['items'],app,device):continue
                     removal=dict(app=app,device=device,title=old.get('title',app))
                     if not any(r['app']==app and r['device']==device for r in clean['removals']):clean['removals'].append(removal)
             plan_id=plan.get('id') or doc['activeId']

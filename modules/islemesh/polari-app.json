@@ -74,7 +74,8 @@
       "islemesh_ingest_concurrency_selftest",
       "islemesh_plan_library_usage_selftest",
       "islemesh_planning_selftest",
-      "islemesh_selftest"
+      "islemesh_selftest",
+      "islemesh_storage_plan_selftest"
     ],
     "custom": [
       "custom/islemesh_capabilities",
@@ -87,6 +88,7 @@
       "custom/islemesh_plan_safety",
       "custom/islemesh_planning",
       "custom/islemesh_roles",
+      "custom/islemesh_storage_plan",
       "custom/islemesh_test_requirements",
       "custom/islemesh_usage"
     ]
@@ -145,7 +147,8 @@
     "islemesh_ingest_concurrency_selftest",
     "islemesh_plan_library_usage_selftest",
     "islemesh_planning_selftest",
-    "islemesh_selftest"
+    "islemesh_selftest",
+    "islemesh_storage_plan_selftest"
   ],
   "security": {
     "profile": "web-app",
