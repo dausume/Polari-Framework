@@ -80,8 +80,9 @@ def _source(raw):
     if content is not None:
         out['contentSha256'] = content
     apps = raw.get('apps', [])
-    if not isinstance(apps, list) or len(apps) > 8 or any(not isinstance(a, str) or not APP_NAME.match(a) for a in apps):
-        raise ValueError('storage.source.apps must be a list of at most 8 names matching [a-z0-9][a-z0-9-]{0,63}.')
+    if not isinstance(apps, list) or len(apps) > 8 or len(set(apps)) != len(apps) \
+            or any(not isinstance(a, str) or not APP_NAME.match(a) for a in apps):
+        raise ValueError('storage.source.apps must be a list of at most 8 distinct names matching [a-z0-9][a-z0-9-]{0,63}.')
     if apps:
         out['apps'] = list(apps)
     return out
