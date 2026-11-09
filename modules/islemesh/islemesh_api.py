@@ -39,7 +39,8 @@ from islemesh.islemesh_basis import (
     IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
     MeshAppRealization,
 )
-from islemesh.custom.islemesh_engines import bind_engine, record_engine, sync_from_registry, _TrackedSave, _default_save
+from islemesh.custom.islemesh_engines import (MUTATION_LOCK as _MUTATION_LOCK, bind_engine, record_engine,
+                                               sync_from_registry, _TrackedSave, _default_save)
 from islemesh.islemesh_catalog import (
     ai_tool_install_plan, ai_tool_options, install_plan,
     instances_of, option_install_plan, polari_app_options,
@@ -59,15 +60,10 @@ _REGISTRY_CLASSES = ('IsleApp', 'IsleAppService')
 _FRAGMENT_CLASSES = ('IsleProtocolPermit',)
 _DEVICE_CLASSES = ('IsleUplink',)
 
-#: ONE writer at a time for the islemesh tables (core 84 live evidence, 2026-11-08: two
-#: ingests for the same device overlapped on the threaded WSGI server; both computed the
-#: same doomed keys from a snapshot of the table, the second `table.pop(key)` raised
-#: KeyError and the whole registry replacement answered 500 half-applied). Every
-#: mutating door takes this lock for its WHOLE replace+insert+dedup+receipt sequence, so a
-#: snapshot taken under it stays true until the pops are done. Reentrant because the mock
-#: seeder re-posts through the ingest handlers. Readers stay lock-free (they tolerate a
-#: changing dict by iterating copies).
-_MUTATION_LOCK = threading.RLock()
+#: The islemesh mutation lock lives in custom/islemesh_engines (every mutator imports it); every
+#: mutating door here takes it for its WHOLE replace+insert+dedup+receipt sequence (_serialized).
+#: Readers stay lock-free. engines_sync is not wrapped: sync_from_registry fetches the registry
+#: OUTSIDE the lock and takes it for its apply phase itself (a slow core must not stall ingests).
 _TRACKING = threading.local()
 
 
@@ -729,7 +725,6 @@ class IsleMeshAPI(treeObject):
                           'bound_to': bound_to, 'note': note,
                           'mock_network': is_mock}
 
-    @_serialized
     def on_post_engines_sync(self, request, response):
         """fix 11: pull the isle core's engine registry NOW (the same pull the boot does) and
         bind what it lists; retire what it no longer lists. 502 when the registry could not

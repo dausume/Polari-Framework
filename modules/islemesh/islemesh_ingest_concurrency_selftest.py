@@ -11,12 +11,15 @@ server, no network, no files. Run from polari-framework/:
   PYTHONPATH=.:modules python3 -m islemesh.islemesh_ingest_concurrency_selftest
 """
 import json
+import os
+import tempfile
 import threading
 import time
 from types import SimpleNamespace
 
 from islemesh import islemesh_api
 from islemesh.islemesh_api import IsleMeshAPI, _MUTATION_LOCK
+from islemesh.custom import islemesh_engines
 
 _results = []
 
@@ -185,14 +188,81 @@ def main():
     check('retire answers ok on a healthy DB', sink.media.get('ok') and sink.media.get('retired') is True)
     check('retire removed the device rows', not rows(manager, 'IsleApp') and not rows(manager, 'IsleDevice'))
 
-    # ---- 5. the lock is a module RLock shared by all mutating doors; readers do not take it ----
-    check('mutation lock is reentrant (mock re-posts through the doors)', type(_MUTATION_LOCK).__name__ == 'RLock' or 'RLock' in repr(_MUTATION_LOCK))
+    # ---- 5. one module RLock, owned by islemesh_engines, wrapped around the right doors ----
+    check('mutation lock is reentrant (mock re-posts through the doors)', 'RLock' in repr(_MUTATION_LOCK))
+    check('the API doors and the registry consumer share ONE lock object', _MUTATION_LOCK is islemesh_engines.MUTATION_LOCK)
     for name in ('on_post_ingest_registry', 'on_post_ingest_fragments', 'on_post_ingest_device',
-                 'on_post_mock', 'on_post_ingest_engine', 'on_post_engines_sync'):
+                 'on_post_mock', 'on_post_ingest_engine'):
         check('%s is serialized' % name, hasattr(getattr(IsleMeshAPI, name), '__wrapped__'))
+    check('on_post_engines_sync is NOT wrapped (its fetch must run outside the lock; sync locks its apply)',
+          not hasattr(IsleMeshAPI.on_post_engines_sync, '__wrapped__'))
     for name in ('on_get_devices', 'on_get_engines', 'on_get_summary'):
         check('%s stays lock-free' % name, not hasattr(getattr(IsleMeshAPI, name, None), '__wrapped__'))
     check('tracker is cleared after a door returns', getattr(islemesh_api._TRACKING, 'failures', None) is None)
+
+    # ---- 6. sync_from_registry (every caller, incl. boot after_boot): fetch OUTSIDE the lock, apply UNDER it ----
+    def held_by_someone_else():
+        """True when another thread holds the lock (probe from a fresh thread; RLock is per-thread)."""
+        result = {}
+        def probe():
+            got = _MUTATION_LOCK.acquire(blocking=False)
+            result['free'] = got
+            if got:
+                _MUTATION_LOCK.release()
+        t = threading.Thread(target=probe); t.start(); t.join(2)
+        return not result.get('free', False)
+    seen = {}
+    def fetch(origin):
+        seen['fetch_locked'] = held_by_someone_else()
+        return [{'name': 'w@board', 'app': 'w', 'provides': 'board', 'url': 'https://w.isle', 'device': 'econ-core'}], ''
+    def save(row):
+        seen.setdefault('save_locked', held_by_someone_else())
+        return True
+    m = SimpleNamespace(objectTables={}, idList=[], objectTyping=[SimpleNamespace(className='EngineProviderBinding')], db=None)
+    result = islemesh_engines.sync_from_registry(m, save=save, delete=lambda row: True, fetch=fetch,
+                                                 env={'ISLE_CORE_API': 'https://api.polari.isle'})
+    check('sync: registry fetch runs with the lock FREE (a slow core never stalls ingests)', seen.get('fetch_locked') is False)
+    check('sync: apply phase (binds/records) runs with the lock HELD', seen.get('save_locked') is True)
+    check('sync: result ok and bound', result['ok'] and result['bound'], result.get('words'))
+    check('sync: lock released afterwards', not held_by_someone_else())
+
+    # ---- 7. the REAL managedDatabase on a temporary sqlite: healthy tables save True / delete >= 0; a missing table is False ----
+    from polariDBmanagement.managedDB import managedDatabase
+    with tempfile.TemporaryDirectory() as tmp:
+        db = managedDatabase(name='islemesh-concurrency-selftest')
+        db.Path = tmp
+        db.createFile()
+        conn = db.adapter.connect()
+        cur = conn.cursor()
+        classes = {'IsleApp': islemesh_api.IsleApp, 'IsleAppService': islemesh_api.IsleAppService,
+                   'IsleDevice': islemesh_api.IsleDevice, 'IsleUplink': islemesh_api.IsleUplink,
+                   'IsleProtocolPermit': islemesh_api.IsleProtocolPermit, 'IsleIngestReceipt': islemesh_api.IsleIngestReceipt,
+                   'IsleEngine': islemesh_api.IsleEngine, 'MeshAppRealization': islemesh_api.MeshAppRealization}
+        fake_manager = SimpleNamespace(objectTables={}, db=None, idList=[], objectTyping=[])
+        for cls_name, cls in classes.items():
+            sample = cls(manager=fake_manager)
+            cols = [k for k, v in sample.__dict__.items()
+                    if not k.startswith('_') and isinstance(v, (str, int, float, bool, bytes, type(None), list, dict))
+                    and k not in ('manager', 'polServer')]
+            if 'id' not in cols:
+                cols.insert(0, 'id')
+            cur.execute('CREATE TABLE %s (%s)' % (cls_name, ', '.join(
+                ('"%s" TEXT PRIMARY KEY' % c) if c == 'id' else '"%s" TEXT' % c for c in cols)))
+        conn.commit(); conn.close()
+        db.tables = list(classes)          # what jumpstart/ensureDefinitionTables would have registered
+        api, manager = api_for(db)
+        for cls_name, cls in classes.items():
+            row = cls(manager=manager, name='probe-' + cls_name.lower()) if cls_name != 'IsleUplink' else cls(manager=manager, name='probe@eth0', device_name='probe')
+            check('real sqlite: saveInstanceInDB(%s) is True on a healthy table' % cls_name, api._save(row) is True)
+            check('real sqlite: deleteRowsWhere(%s) is >= 0 on a healthy table' % cls_name,
+                  (db.deleteRowsWhere(cls_name, 'id', getattr(row, 'id', '')) or 0) >= 0)
+        sink = post(api, 'registry', {'device': 'real-db', 'registry': registry(['r1'])})
+        check('real sqlite: a full registry ingest answers 200 ok with no persisted:false', sink.status == '200 OK' and sink.media['ok'] and 'persisted' not in sink.media, json.dumps(sink.media)[:200])
+        sink = post(api, 'device', {'device': 'real-db', 'uplinks': [{'interface': 'eth0', 'kind': 'ethernet', 'link_up': True}]})
+        check('real sqlite: a device ingest answers 200 ok', sink.status == '200 OK' and sink.media['ok'])
+        db.tables = [t for t in db.tables if t != 'IsleAppService']   # a lazy-boot ordering gap: table not registered yet
+        sink = post(api, 'registry', {'device': 'real-db', 'registry': registry(['r2'])})
+        check('real sqlite: an unregistered table is reported as not persisted (500), by design', sink.status.startswith('500') and 'IsleAppService' in sink.media.get('error', ''))
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} passed')
