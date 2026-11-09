@@ -133,6 +133,9 @@ ns=dict(component_roles=roles.component_roles,is_agent_health=roles.is_agent_hea
         # this harness execs the selected methods alone, so the decorator is the identity here (locking is covered
         # by islemesh_ingest_concurrency_selftest, not by these route-shape tests)
         _serialized=lambda handler:handler,contextlib=contextlib,_TRACKING=threading.local(),
+        # stm-2b: the device door records the agent's own address from the report; the flow is tested in
+        # islemesh_storage_doors_selftest, so here the helper is a stub
+        _agent_address=lambda payload,facts:None,
         IsleUplink=lambda **kw:SimpleNamespace(**kw))
 exec(compile(ast.Module(body=[cls],type_ignores=[]),'islemesh_api.py','exec'),ns)
 
