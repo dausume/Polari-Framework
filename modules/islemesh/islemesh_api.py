@@ -121,9 +121,10 @@ class IsleMeshAPI(treeObject):
 
     def on_get_placement_plan(self, request, response):
         from islemesh.custom.islemesh_planning import PlanStore
+        from islemesh.custom.islemesh_storage_plan import attach_planned_actions
         try:
             response.media = {'ok':True, 'plan':PlanStore().read(request.get_param('id'), request.get_param_as_int('revision')), 'advisoryOnly':True}
-            __import__('islemesh.custom.islemesh_storage_plan',fromlist=['x']).attach_planned_actions(response.media, self)
+            attach_planned_actions(response.media, self)
         except (OSError, ValueError, RuntimeError):
             response.status = '503 Service Unavailable'
             response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
