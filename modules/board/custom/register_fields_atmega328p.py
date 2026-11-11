@@ -2,7 +2,7 @@
 @module board.custom.register_fields_atmega328p
 
 THE CITED BIT FIELDS of the ATmega328P registers the UNO firmware configures (ucd-0a, UNO_CORE_DEMO_PLAN.md §5f/§5g):
-the external-interrupt unit (EICRA/EIMSK/EIFR, the pin-change bank PCICR/PCIFR/PCMSK0-2), the I/O ports B and D
+the external-interrupt unit (EICRA/EIMSK/EIFR, the pin-change bank PCICR/PCIFR/PCMSK0-2), the I/O ports B, C and D
 (PORTx/DDRx/PINx, MCUCR.PUD) and Timer/Counter2 (TCCR2A/TCCR2B/TIMSK2/TIFR2 — hal_millis's tick). READ on 2026-10-07
 from the SAME datasheet file every other board fact cites (Microchip DS40002061B, sha256 b9b9d83c…9320e re-verified),
 `pdftotext -layout`, the page numbers below are the PDF's own "DS40002061B-page N" footers:
@@ -11,6 +11,8 @@ from the SAME datasheet file every other board fact cites (Microchip DS40002061B
   EIMSK, EIFR                        §13.2.2-3 p.81      PORTD / DDRD / PIND          §14.4.8-10 p.101
   PCICR, PCIFR                       §13.2.4-5 p.82      configuring / toggling a pin §14.2.1-2 p.85
   PCMSK2 / PCMSK1 / PCMSK0           §13.2.6-8 p.83      MCUCR.PUD                    §14.4.1 p.100
+  PORTC / DDRC (p.100) / PINC (p.101) §14.4.5-7 — read 2026-11-11 from the same file (sha256 re-verified): bit 7 is
+                                      reserved (R, 0), bits 6..0 R/W; PC6 is RESET unless RSTDISBL (Table 14-6 p.94)
   TCCR2A (COM2A Table 18-2 p.162, COM2B Table 18-5 p.163, WGM Table 18-8 p.164)   §18.11.1 p.162
   TCCR2B (CS2 Table 18-9 p.165-166)  §18.11.2 p.165      TIMSK2 §18.11.6 p.166 · TIFR2 §18.11.7 p.167
 
@@ -39,6 +41,9 @@ REGISTER_CITES = {
     'PORTB': ('The Port B Data Register', '§14.4.2, p.100', '0x00', '0x25'),
     'DDRB': ('The Port B Data Direction Register', '§14.4.3, p.100', '0x00', '0x24'),
     'PINB': ('The Port B Input Pins Address', '§14.4.4, p.100', 'N/A', '0x23'),
+    'PORTC': ('The Port C Data Register', '§14.4.5, p.100', '0x00', '0x28'),
+    'DDRC': ('The Port C Data Direction Register', '§14.4.6, p.100', '0x00', '0x27'),
+    'PINC': ('The Port C Input Pins Address', '§14.4.7, p.101', 'N/A', '0x26'),
     'PORTD': ('The Port D Data Register', '§14.4.8, p.101', '0x00', '0x2B'),
     'DDRD': ('The Port D Data Direction Register', '§14.4.9, p.101', '0x00', '0x2A'),
     'PIND': ('The Port D Input Pins Address', '§14.4.10, p.101', 'N/A', '0x29'),
@@ -108,16 +113,18 @@ def _f(register, field, hi, lo, access, reset, description, values, where, signa
             'affects_signal': signal, 'affects_pin': pin, 'notes': notes}
 
 
-def _port_bits(port, port_reg, dd_reg, pin_reg, where):
+def _port_bits(port, port_reg, dd_reg, pin_reg, where, bits=8, pin_notes=None):
+    """bits = how many bits the register row prints as R/W (Port C: 7 — bit 7 is reserved, R, 0). pin_notes: pin -> a note."""
     out = []
-    for n in range(8):
+    for n in range(bits):
         pin = 'P%s%d' % (port, n)
+        extra = (pin_notes or {}).get(pin, '')
         out.append(_f(port_reg, '%s%d' % (port_reg, n), n, n, 'rw', '0', 'Port %s data bit %d (PORT%s%d)' % (port, n, port, n), _PORT,
-                      where[0], pin=pin))
+                      where[0], pin=pin, notes=extra))
         out.append(_f(dd_reg, 'DD%s%d' % (port, n), n, n, 'rw', '0', 'Port %s data direction bit %d (DD%s%d)' % (port, n, port, n), _DD,
-                      where[1], pin=pin))
+                      where[1], pin=pin, notes=extra))
         out.append(_f(pin_reg, '%s%d' % (pin_reg, n), n, n, 'rw-toggle', 'N/A', 'Port %s input pin %d (PIN%s%d)' % (port, n, port, n), _PIN,
-                      where[2], pin=pin, notes='writing a logic one toggles PORT%s%d (§14.2.2 p.85)' % (port, n)))
+                      where[2], pin=pin, notes='; '.join(x for x in ('writing a logic one toggles PORT%s%d (§14.2.2 p.85)' % (port, n), extra) if x)))
     return out
 
 
@@ -154,6 +161,8 @@ FIELDS = [
     _f('MCUCR', 'PUD', 4, 4, 'rw', '0', 'Pull-up Disable', {'0': 'pull-ups as PORTxn/DDxn select', '1': 'the pull-ups in the I/O ports are disabled '
        'even if the DDxn and PORTxn Registers are configured to enable them'}, '§14.4.1 MCUCR, p.100; §14.1 p.84'),
 ] + _port_bits('B', 'PORTB', 'DDRB', 'PINB', ('§14.4.2 PORTB, p.100; §14.2.1 p.85', '§14.4.3 DDRB, p.100; §14.2.1 p.85', '§14.4.4 PINB, p.100; §14.2.2 p.85')) \
+  + _port_bits('C', 'PORTC', 'DDRC', 'PINC', ('§14.4.5 PORTC, p.100; §14.2.1 p.85', '§14.4.6 DDRC, p.100; §14.2.1 p.85', '§14.4.7 PINC, p.101; §14.2.2 p.85'),
+               bits=7, pin_notes={'PC6': 'PC6 is the RESET pin unless the RSTDISBL fuse is programmed (Table 14-6, p.94)'}) \
   + _port_bits('D', 'PORTD', 'DDRD', 'PIND', ('§14.4.8 PORTD, p.101; §14.2.1 p.85', '§14.4.9 DDRD, p.101; §14.2.1 p.85', '§14.4.10 PIND, p.101; §14.2.2 p.85')) + [
     # Timer/Counter2 — §18.11
     _f('TCCR2A', 'COM2A', 7, 6, 'rw', '0', 'Compare Match Output A Mode (COM2A1:0)', _COM_A, '§18.11.1 TCCR2A, Table 18-2, p.162', signal='OC2A'),

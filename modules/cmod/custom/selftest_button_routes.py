@@ -95,9 +95,17 @@ def _rendering(check):
           (other[9]['mask_reg'], other[9]['mask_bit'], other[9]['vector']) == ('PCMSK0', 'PCINT1', 'PCINT0_vect')
           and (other[14]['mask_reg'], other[14]['mask_bit'], other[14]['enable_bit'], other[14]['vector']) == ('PCMSK1', 'PCINT8', 'PCIE1', 'PCINT1_vect')
           and other[13]['mask_bit'] == 'PCINT5', other)
-    t9 = BR.render('pcint', dict(_knobs('uno-light-pcint'), button_pin=9))['text']
-    check('a different pin renders a different file, still deterministic', t9 != BR.render('pcint', _knobs('uno-light-pcint'))['text']
-          and t9 == BR.render('pcint', dict(_knobs('uno-light-pcint'), button_pin=9))['text'] and 'ISR(PCINT0_vect)' in t9)
+    r9 = BR.render('pcint', dict(_knobs('uno-light-pcint'), button_pin=9))
+    t9 = r9['text']
+    check('a different pin renders a different file, still deterministic; hal-2: its vector comes from the generated HAL (D9 = PB1 -> PCINT0_vect)',
+          t9 != BR.render('pcint', _knobs('uno-light-pcint'))['text']
+          and t9 == BR.render('pcint', dict(_knobs('uno-light-pcint'), button_pin=9))['text'] and 'ISR(HAL_INT_PIN_CHANGE_VECTOR_PB1)' in t9
+          and '#define HAL_INT_PIN_CHANGE_VECTOR_PB1 PCINT0_vect' in r9['hal_header']['text'])
+    ra0 = BR.render('pcint', dict(_knobs('uno-light-pcint'), button_pin=14))
+    hd0 = ra0['hal_header']['text']
+    check('hal-2: a Port C button (A0 = PC0) renders on the generated HAL now that §14.4.5-7 are cited: PCINT1_vect, DDRC/PORTC/PINC, PCMSK1',
+          'ISR(HAL_INT_PIN_CHANGE_VECTOR_PC0)' in ra0['text'] and '#define HAL_INT_PIN_CHANGE_VECTOR_PC0 PCINT1_vect' in hd0
+          and 'DDRC &= (uint8_t)~_BV(0)' in hd0 and 'PORTC |= _BV(0)' in hd0 and '(PINC & _BV(0))' in hd0 and 'PCMSK1 |= _BV(0)' in hd0, hd0[:400])
     pl = BR.render('adc', _knobs('uno-light-analog'))['plan']
     check('adc on A0: counts = mV x 1024 / 5000 (cited ADC = Vin * 1024 / Vref): 1500 mV -> 307, 3500 mV -> 716; DIDR0.ADC0D; PC0',
           (pl['press_below_counts'], pl['release_above_counts'], pl['didr_bit'], pl['soc_pin']) == (307, 716, 'ADC0D', 'PC0')

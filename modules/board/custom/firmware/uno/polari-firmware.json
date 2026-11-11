@@ -197,7 +197,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c4c85389bd74c7c9413cc3501366fc03d0c1c29fe219c6d65c10e3618c4bbae3",
+   "source_sha": "9ae8f5bdd482421bd722e1cdbed8f710144bc95d0fe915e41e3b6e123a321d02",
    "elf_sha256": {
     "shipped": "57210995276cc7267155d84d72056a95afc9608c4f6702a18e4322247840f466",
     "noinline": "c34cef762717cbca3ce5d4b4b0a17d161b823ae415c985ce911a0d1a8a1f2aef"
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "7bd9f54a5712d057d5cf57013b0d4d969637e7092c8a4629b827471daffdcc05",
+   "source_sha": "36c803ab233caf362b4f42d4678872f8c3f77bc5dfe711ec382f8407409a013c",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -270,7 +270,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "ae22f7d3802982a2148d8ec6803ff43cd7837f8ef7b3ee6d8d7ade8ec885bc41",
+   "source_sha": "7819ef92c3ffb492008b0962ccd095cfbbb82ad80ba7e2854bce2d95e6864260",
    "elf_sha256": {
     "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
     "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
@@ -295,7 +295,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a0caf13a6d8c1dbd09a4a3ddb60376d9f912498336d67a2833b4efff62765018",
+   "source_sha": "8f25e127bc1ab6b7431dc86f23d158595b7e454610ed42e8c79543c6e354d33f",
    "elf_sha256": {
     "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
     "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
@@ -5890,7 +5890,7 @@
    "name": "hal_button_pcint.PCINT2_vect",
    "function": "__polari_isr_PCINT2_vect",
    "module": "hal_button_pcint.c",
-   "line": 38,
+   "line": 39,
    "kind": "isr",
    "isr_vector": "PCINT2_vect",
    "signature": "ISR(PCINT2_vect)",
@@ -5983,7 +5983,7 @@
    "name": "hal_button_pcint.hal_button_init",
    "function": "hal_button_init",
    "module": "hal_button_pcint.c",
-   "line": 57,
+   "line": 59,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_init(void)",
@@ -6195,7 +6195,7 @@
    "name": "hal_sense_pcint.PCINT0_vect",
    "function": "__polari_isr_PCINT0_vect",
    "module": "hal_sense_pcint.c",
-   "line": 35,
+   "line": 36,
    "kind": "isr",
    "isr_vector": "PCINT0_vect",
    "signature": "ISR(PCINT0_vect)",
@@ -6281,7 +6281,7 @@
    "name": "hal_sense_pcint.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal_sense_pcint.c",
-   "line": 48,
+   "line": 49,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -6365,7 +6365,7 @@
    "name": "hal_sense_pcint.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal_sense_pcint.c",
-   "line": 57,
+   "line": 56,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -6459,7 +6459,7 @@
    "name": "hal_sense_poll.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal_sense_poll.c",
-   "line": 29,
+   "line": 30,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -6523,7 +6523,7 @@
    "name": "hal_sense_poll.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal_sense_poll.c",
-   "line": 38,
+   "line": 39,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -6642,5 +6642,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-20T04:43:59"
+ "conformed_at": "2026-11-11T12:05:24"
 }

@@ -16,5 +16,15 @@
   ]
  },
  "minimum_level": "bare-c",
- "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default).",
+ "requires": {
+  "button_pin": [
+   "gpio.input",
+   "gpio.pull_up",
+   "gpio.read",
+   "int.pin_change_enable",
+   "int.pin_change_vector"
+  ]
+ },
+ "requires_note": "hal-2 (AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): the HAL operations this isotope calls on the button pin. The isotope fits a board when every one resolves on its chip (hal.custom.project.resolve); the generated project includes only these units (polari_hal_<soc>.h). It is written against the macros, never the registers."
 }

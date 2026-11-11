@@ -13,6 +13,7 @@
 #include "hal.h"
 #include "light_defs.h"
 #include "pin_config.h"
+#include "polari_hal_atmega328p.h"
 #include "lightstate_packets.h"   /* GENERATED (c_twin target=avr) */
 #include "polari_graph.h"
 

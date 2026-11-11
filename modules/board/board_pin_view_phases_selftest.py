@@ -94,11 +94,11 @@ def run_pin_view_phases(check):
           and bc['phase_info']['blank_facts']['bootloader']['present'] == 'no')
     bf = bl['phase_info']['blank_facts']
     check('BLANK board as delivered: the bootloader is present, cited from the boards.txt / Optiboot DatasheetFacts (file, size 512, protocol, 115200); whether a factory demo sketch is present is `undetermined` (no row cites it); '
-          'the port registers\' reset values come from the Register rows',
+          'the port registers\' reset values come from the Register rows (Port C too, cited 2026-11-11: DDRC 0x00, §14.4.6)',
           bf['baseline'] == 'board' and bf['bootloader']['present'] == 'yes' and {c['fact'].partition(':')[2] for c in bf['bootloader']['cites']} >= {'bootloader.file', 'optiboot_size', 'upload.protocol', 'upload.speed'}
           and all(c['where'] and c['document'] for c in bf['bootloader']['cites']) and bf['factory_sketch']['status'] == 'undetermined'
           and {r['register']: r['reset_value'] for r in bf['registers']}['atmega328p:DDRB'] == reg['atmega328p:DDRB']['reset_value']
-          and {r['register']: r['reset_value'] for r in bf['registers']}['atmega328p:DDRC'] == 'undetermined')
+          and {r['register']: r['reset_value'] for r in bf['registers']}['atmega328p:DDRC'] == reg['atmega328p:DDRC']['reset_value'] == '0x00')
 
     # ---- init + runtime + refusals
     ini = PV.build(BOARD, dict(P, phase='init'))

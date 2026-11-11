@@ -1419,6 +1419,12 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
     )),
+    # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - HalOperation / HalAccessMechanism seeded; the rest derived per SoC pin
+    ('hal', (
+        ('hal.hal_basis', ('HalOperation', 'HalAccessMechanism', 'HalBinding', 'HalCodeUnit', 'HalGenerationStep', 'HalCrossCheck', 'HAL_CLASSES')),
+        ('hal.hal_seed', ('HAL_SEED_PAIRS',)),
+        ('hal.hal_page', ('SEED_HAL_PAGE_DISPLAYS',)),
+    )),
     # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareNoCodeSolution across board / bridge / backend / browser; the placement rule; hn-split
     ('hwnocode', (
         ('hwnocode.hwnocode_basis', ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'ButtonClockDerived', 'HWNOCODE_CLASSES')),

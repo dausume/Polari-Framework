@@ -83,10 +83,10 @@ def stages():
     d5 = P.assess('arduino-uno-r3', 'D5')['stages']
     a0 = {s['stage']: s for s in P.assess('arduino-uno-r3', 'A0')['stages']}
     zero = P.assess('arduino-zero', 'D0')['stages']
-    check('rm-1 NO EVIDENCE = UNKNOWN: D5 is valid only because the cited table gives it no constraint ("free"); A0\'s RESET is unknown (no cited Port C reset fields); '
+    check('rm-1 NO EVIDENCE = UNKNOWN: D5 is valid only because the cited table gives it no constraint ("free"); A0\'s RESET is now valid from the cited Port C reset values (DDRC/PORTC = 0, §14.4.5-6, read 2026-11-11); '
           'a board with no lifecycle table is unknown in every stage - never valid',
-          all(s['verdict'] == 'valid' for s in d5) and 'free: the cited lifecycle table' in d5[3]['reasons'] and a0['RESET']['verdict'] == 'unknown'
-          and 'no cited reset-value fields' in a0['RESET']['reasons'] and all(s['verdict'] == 'unknown' for s in zero), (a0['RESET']['verdict'], [s['verdict'] for s in zero]))
+          all(s['verdict'] == 'valid' for s in d5) and 'free: the cited lifecycle table' in d5[3]['reasons'] and a0['RESET']['verdict'] == 'valid'
+          and 'DDRC.DDC0 = 0' in a0['RESET']['reasons'] and 'input, no pull-up' in a0['RESET']['reasons'] and all(s['verdict'] == 'unknown' for s in zero), (a0['RESET']['verdict'], [s['verdict'] for s in zero]))
     c3 = {s['stage']: s for s in P.assess('esp32-c3', 'GPIO9')['stages']}
     check('rm-1 C3 GPIO9: RESET = warning (a strapping pin, latched at reset), from lifecycle_c3', c3['RESET']['verdict'] == 'warning' and 'strapping' in c3['RESET']['reasons'])
     try:

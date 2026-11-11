@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "hal.h"
+#include "{{ hal_header|c_comment }}"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
 #if !HAL_INT1 || HAL_SENSE_ROUTE != {{ route_code|c_int }}
 #error "hal_sense_poll.c is the sense route {{ route_code|c_int }} (polled): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE {{ route_code|c_int }}"
@@ -18,8 +19,8 @@ static uint8_t g_sense_level;               /* the level seen at the last look: 
  * line already has at boot is the starting level and not an edge. */
 void hal_sense_init(void)
 {
-    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});
-    g_sense_level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+    {{ hal_ops.input|c_ident }}();
+    g_sense_level = {{ hal_ops.read|c_ident }}();
 }
 
 /* Called once per main-loop pass: read the pin and, if it differs from the last look, count ONE edge and stamp it. A line that changes twice
@@ -27,7 +28,7 @@ void hal_sense_init(void)
  * only right when the line changes slowly (a person-driven toggle) compared with the loop. */
 void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
 {
-    uint8_t level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+    uint8_t level = {{ hal_ops.read|c_ident }}();
 
     if (level != g_sense_level) {
         g_sense_level = level;

@@ -38,8 +38,8 @@ def run_register_profile(check):
     check('rp-0: EVERY ATmega328P Register row (%d) gets a class or `mixed`; the four pure counts + mixed add up to all of them' % len(t['Register']),
           len(R) == len(t['Register']) == 96 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in R.values())
           and sum(tot['pure'].values()) + tot['mixed'] == 96, str(tot['pure']))
-    check('rp-0: all 148 RegisterField rows are classified (source RegisterField) and every one of them is a field of a profiled register',
-          tot['fields_from_rows'] == len(t['RegisterField']) == 148 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
+    check('rp-0: all 169 RegisterField rows (148 + 21 Port C, 2026-11-11) are classified (source RegisterField) and every one of them is a field of a profiled register',
+          tot['fields_from_rows'] == len(t['RegisterField']) == 169 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
     check('rp-0: DDRB / PORTB / PINB (and the D and C ports) are pin-configuration, pure',
           all(R[x]['class'] == PIN for x in ('DDRB', 'PORTB', 'PINB', 'DDRD', 'PORTD', 'PIND', 'DDRC', 'PORTC', 'PINC')))
     check('rp-0: the external / pin-change interrupt sense and mask registers (EICRA, EIMSK, PCICR, PCMSK0-2) and DIDR0/DIDR1 are pin-configuration; their flag registers (EIFR, PCIFR) are peripheral-operation',
@@ -70,7 +70,7 @@ def run_register_profile(check):
           and all(len(r['classes']) == 1 for r in R.values() if not r['mixed']))
     no_rows = [r for r in R.values() if r['fields_note'].startswith('fields not modelled')]
     check('rp-0: a register with no field rows says `fields not modelled` (%d of them) and is still classified' % len(no_rows),
-          len(no_rows) == tot['registers_without_field_rows'] == 66 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
+          len(no_rows) == tot['registers_without_field_rows'] == 63 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
     bad = [(r['register'], 'reason' if not r['reason'] else 'cite') for r in R.values() if not r['reason'] or not r['cite']]
     badf = [(f['register'], f['field']) for f in prof['fields'] if not f['reason'] or 'p.' not in f['cite'] or not f['cite'].strip()]
     check('rp-0: EVERY verdict carries a reason and a citation naming a page - %d registers, %d fields' % (len(R), len(prof['fields'])), not bad and not badf, str((bad[:3], badf[:3])))

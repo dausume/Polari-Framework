@@ -84,9 +84,17 @@ def render(route, knobs):
     p = plan(route, knobs)
     tpl = template_path(route)
     ctx = dict(p, file=fname, route_code=code, banner={'generator': GENERATOR, 'template': 'catoms/' + tpl, 'isotope': iso, 'knobs': _knob_text(knobs), 'cites': p['cites']})
+    from hal.custom import project as HP   # hal-2: the HAL units the isotope requires (lazy: board's data feeds the HAL)
+    try:
+        hal_hdr = HP.isotope_header(isotope_dir(route), 'atmega328p', {'sense_pin': p['soc_pin']})
+    except HP.HalRefused as e:
+        raise RouteRefused('the HAL cannot give this isotope what it requires on %s: %s' % (p['soc_pin'], e))
+    if hal_hdr:
+        ctx.update(hal_header=hal_hdr['file'], hal_ops={op.split('.', 1)[1]: name for (_v, op), name in hal_hdr['macros'].items()})
     text = E.render(tpl, ctx, templates_dir=CATOMS).decode()
     return {'file': fname, 'text': text, 'template': 'board/custom/firmware/uno/catoms/' + tpl, 'generator': GENERATOR,
-            'template_sha256': E.template_sha(tpl, CATOMS), 'common_sha256': E.template_sha('%s/_common.j2' % CATOM, CATOMS), 'cites': p['cites'], 'plan': p}
+            'template_sha256': E.template_sha(tpl, CATOMS), 'common_sha256': E.template_sha('%s/_common.j2' % CATOM, CATOMS), 'cites': p['cites'], 'plan': p,
+            'hal_header': hal_hdr}
 
 
 def sha256(data):

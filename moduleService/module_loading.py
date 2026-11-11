@@ -53,6 +53,8 @@ FEATURE_MODULES = frozenset({
     'firmwarefaults',
     # cmod-0 (C_MODULARIZATION_PLAN): C functions of a normal C project as atoms with ports, resources and cost
     'cmod',
+    # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - operations, access mechanisms, per-SoC bindings + generation trace
+    'hal',
     # hn-0 (HARDWARE_NOCODE_PLAN): hardware as no-code — a solution spanning board, bridge, backend and browser
     'hwnocode',
     # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine for schematics/boards — rows, ingest, ERC/DRC/exports
@@ -77,6 +79,7 @@ FEATURE_REQUIRES = {
     'bizops': ('supplychain',),
     # hn-0: the split imports cmod's glue + graph rows, board's seeds/gen and grpcbridge's binding class (seed)
     'hwnocode': ('board', 'cmod', 'grpcbridge'),
+    'hal': ('board',),   # hal-0: reads board's cited SoC / pin / register tables
     # pcb-0: uno_shield.py imports board.custom.board_object (brd-bo's rows_for/board_sha) at top level
     'pcb': ('board',),
     # co2-A: climate reuses the aquaponics steady-state gas

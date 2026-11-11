@@ -83,6 +83,12 @@ def _copy_tree(tmp):
         with open(dst, 'wb') as fh:
             fh.write(rt.encode())
         out[r['id']] = dst
+    # hal-2: a render also reads each isotope's isotope.json (its `requires` of the HAL) - data, copied as is
+    import glob
+    for src in glob.glob(os.path.join(C.ROOTS[1], 'uno', 'catoms', '*', 'isotopes', '*', 'isotope.json')):
+        dst = os.path.join(tmp, 'board', 'custom', 'firmware', os.path.relpath(src, C.ROOTS[1]))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy(src, dst)
     return out
 
 
