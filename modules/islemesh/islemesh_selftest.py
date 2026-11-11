@@ -414,6 +414,9 @@ def main():
     check('seed catalog is never mock',
           all(not e.get('is_mock') for e in SEED_CATALOG))
     by_name = {e['name']: e for e in SEED_CATALOG}
+    ch = by_name.get('isle-content-host') or {}
+    check('defect 2 (release 86): isle-content-host has a catalog entry (mesh-app, service content:80) for its published release to attach to',
+          ch.get('kind') == 'mesh-app' and ch.get('service') == 'content' and ch.get('port') == 80 and ch.get('source') == 'official')
     import os, tempfile
     from pathlib import Path
     from unittest.mock import patch
