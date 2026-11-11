@@ -93,8 +93,6 @@ SEED_CATALOG = [
         'provides_engine': 'cad', 'category': 'engine',
         'source': 'official',
     },
-    # ti-3a: the hardware engine workers (slice of TEST_ISLE_PLAN) — deploying one binds its
-    # consumer through the EngineProviderBinding row, key = provides_engine.
     {
         # storage migration (STORAGE-MIGRATION-CONTRACT.md, Isle-Mesh): the app that SERVES a migrated dataset read-only. Its versioned
         # release (isle-cli/releases/isle-content-host: release.json + docker-compose.yml + nginx.conf) is published by `isle store publish`
@@ -107,9 +105,11 @@ SEED_CATALOG = [
         'kind': 'mesh-app',
         'source_ref': 'isle-cli/releases/isle-content-host (versioned release: release.json, docker-compose.yml, nginx.conf)',
         'service': 'content', 'port': 80,
-        'category': 'platform',
+        'category': 'infrastructure',   # = release.json (isle-content-host 2026.11.1); the store groups by it
         'source': 'official',
     },
+    # ti-3a: the hardware engine workers (slice of TEST_ISLE_PLAN) — deploying one binds its
+    # consumer through the EngineProviderBinding row, key = provides_engine.
     {
         'name': 'board-engines',
         'title': 'Board engines (AVR twins)',
