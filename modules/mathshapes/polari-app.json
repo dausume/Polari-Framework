@@ -38,7 +38,9 @@
  "files": {
   "objects": [
    "objects/cad/ImportedCadObject",
+   "objects/shape/AnchoredOffset",
    "objects/shape/MathShapeDefinition",
+   "objects/shape/ShapeAnchor",
    "objects/shape/_shared",
    "objects/tower/AquaponicTowerDefinition"
   ],
@@ -53,6 +55,7 @@
    "tower_api"
   ],
   "seed": [
+   "shape_anchor_seed",
    "shape_seed",
    "tower_seed"
   ],
@@ -64,6 +67,7 @@
    "shape2_selftest",
    "shape3_selftest",
    "shape4_selftest",
+   "shape_anchor_selftest",
    "shape_equations_selftest",
    "shapes_selftest",
    "soil_selftest",
@@ -77,6 +81,8 @@
    "custom/pot_scene",
    "custom/shape2d_bridge",
    "custom/shape_analysis",
+   "custom/shape_anchor",
+   "custom/shape_anchor_analyses",
    "custom/shape_equations",
    "custom/shape_geometry",
    "custom/shape_modify",
@@ -87,24 +93,37 @@
   ]
  },
  "classes": [
+  "AnchoredOffset",
   "AquaponicTowerAPI",
   "AquaponicTowerDefinition",
   "CadImportAPI",
   "ImportedCadObject",
   "MathShapeDefinition",
-  "MathShapesAPI"
+  "MathShapesAPI",
+  "ShapeAnchor"
  ],
  "imports": [
   [
    "mathshapes.shape_basis",
    [
-    "MathShapeDefinition"
+    "MathShapeDefinition",
+    "ShapeAnchor",
+    "AnchoredOffset"
    ]
   ],
   [
    "mathshapes.shape_seed",
    [
     "SEED_MATH_SHAPES"
+   ]
+  ],
+  [
+   "mathshapes.shape_anchor_seed",
+   [
+    "SEED_SHAPE_ANCHORS",
+    "SEED_ANCHORED_OFFSETS",
+    "SEED_SHAPE_ANCHOR_ANALYSES",
+    "SEED_SHAPE_ANCHOR_SOLUTIONS"
    ]
   ],
   [
@@ -127,7 +146,7 @@
   ]
  ],
  "endpoints": "polariApiServer.module_endpoints:construct_mathshapes_endpoints",
- "seedPairs": null,
+ "seedPairs": "mathshapes.shape_anchor_seed:MATHSHAPES_SEED_PAIRS",
  "pages": [],
  "derivedSeeds": false,
  "initialData": false,
@@ -136,6 +155,7 @@
   "shape2_selftest",
   "shape3_selftest",
   "shape4_selftest",
+  "shape_anchor_selftest",
   "shape_equations_selftest",
   "shapes_selftest",
   "soil_selftest",

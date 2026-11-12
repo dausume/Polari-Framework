@@ -12,6 +12,7 @@ Never a wipe, never a hand delete: only rows the snapshot itself wrote and nobod
                                  the ones other code legitimately recomputes, DERIVED below)
               'example-edited'  same name as a snapshot row but a person (or a pass) changed a snapshot field: KEPT
               'self' / 'link'    written by this backend describing itself (tpl-0) / its bindings and frontends (tpl-1)
+              'peer'             a copy of a peer's own row (tpl-2): KEPT here, the peer is its authority
               'other'            anything else (imported, typed by a person, the isle): KEPT
     plan(manager) -> {ok, instance, retire: [{class, name}], keep: [{class, name, why}], rehome: [{class, name, from, to}],
                       planDigest, words}
@@ -111,7 +112,13 @@ def provenance(manager):
         for row in _rows(manager, cls):
             name, notes = getattr(row, 'name', ''), getattr(row, 'notes', '') or ''
             entry = snap[cls].get(name)
-            if '(tpl-0)' in notes or getattr(row, 'source', '') == 'self-described':
+            if '(tpl-2 peer:' in notes or str(getattr(row, 'source', '') or '').startswith('peer:'):
+                kind, words = 'peer', 'a copy of a peer\'s own row (tpl-2), refreshed from that peer'
+                peer, _, at = notes.split('(tpl-2 peer:', 1)[1].split(')', 1)[0].partition(' ') if '(tpl-2 peer:' in notes \
+                    else (str(getattr(row, 'source', ''))[len('peer:'):], '', '')
+                out.setdefault(cls, {})[name] = {'kind': kind, 'words': words, 'peer': peer, 'at': at}
+                continue
+            elif '(tpl-0)' in notes or getattr(row, 'source', '') == 'self-described':
                 kind, words = 'self', 'written by this backend describing itself (tpl-0)'
             elif LINK_TAG in notes:
                 kind, words = 'link', 'written from a binding or frontend origin (tpl-1)'

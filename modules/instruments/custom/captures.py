@@ -91,10 +91,23 @@ def add_endpoint(manager, body):
     if endpoint(manager, name) is not None:
         return 409, {'ok': False, 'error': 'an endpoint named %r already exists' % name}
     inst = str(body.get('instrument', '')).strip()
+    transport = str(body.get('transport') or 'scpi-raw')
+    if transport == 'sigrok':   # msv-3: a meter read by sigrok - its model is a sigrok driver, its resource '<driver>[:conn=<port>]' typed here
+        from instruments.custom import sigrok_reader as SG
+        try:
+            drv = SG.driver_for(inst)
+            SG.argv_for(str(body.get('resource') or ''), 1)
+        except SG.SigrokRefused as e:
+            return e.status, {'ok': False, 'error': e.why}
+        if not str(body.get('resource') or '').split(':')[0] == drv:
+            return 400, {'ok': False, 'error': 'the resource must start with %s\'s sigrok driver %r (e.g. %s:conn=<its serial port>)' % (inst, drv, drv)}
+        row = {'name': name, 'instrument': inst, 'transport': transport, 'address': '', 'port': 0, 'resource': str(body['resource']), 'status': 'unchecked',
+               'last_idn': '', 'checked_at': '', 'note': str(body.get('note') or '')}
+        _upsert(manager, 'InstrumentEndpoint', _E_FIELDS, row)
+        return 201, {'ok': True, 'endpoint': name, 'rows': endpoints(manager)}
     known = {m['name'] for m in C.models(manager) if m.get('kind') == 'oscilloscope'}
     if inst not in known:
         return 404, {'ok': False, 'error': 'no oscilloscope model named %r' % inst, 'known': sorted(known)}
-    transport = str(body.get('transport') or 'scpi-raw')
     if transport not in TRANSPORTS:
         return 400, {'ok': False, 'error': 'transport must be one of %s' % ', '.join(TRANSPORTS)}
     try:

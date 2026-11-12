@@ -162,7 +162,7 @@ def isle_needs(manager, now=None):
     features += [
         _feature('discovery', 'Finding other devices and their Polari instances', origin, dev_ev, now, max_age,
                  'needs an isle: devices are discovered by the isle agents', 'configured; no device has reported here yet',
-                 'list peers by hand (tpl-2), or `pol topology report` over ssh', skew=skew),
+                 'configured or agreed Polari peers (tpl-2: POLARI_TOPOLOGY_PEERS / POLARI_TOPOLOGY_PEERS_FILE or the peer agreement; `pol topology peers`)', skew=skew),
         _feature('engine-auto-routing', 'Routing to an engine on another device with no URL knob', origin,
                  [e for e in eng_ev if e['observedAt']] or [], now, max_age,
                  'needs an isle: the engine registry lives on the isle core',

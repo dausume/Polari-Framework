@@ -93,11 +93,14 @@ def _rendering(check):
     check('pcint on D8: PB0 -> PCMSK0.PCINT0, PCICR.PCIE0, PCIFR.PCIF0, vector PCINT0_vect (read off the SocPin + cited RegisterField rows)',
           (p['soc_pin'], p['mask_reg'], p['mask_bit'], p['enable_bit'], p['flag_bit'], p['vector']) == ('PB0', 'PCMSK0', 'PCINT0', 'PCIE0', 'PCIF0', 'PCINT0_vect'), p)
     other = {n: SR.pcint_plan(n) for n in (4, 14)}
-    check('pcint on other pins: D4 -> PCMSK2.PCINT20/PCIE2/PCINT2_vect, A0 (14) -> PCMSK1.PCINT8/PCIE1/PCINT1_vect (port C: said uncited, never a made-up page)',
+    check('pcint on other pins: D4 -> PCMSK2.PCINT20/PCIE2/PCINT2_vect, A0 (14) -> PCMSK1.PCINT8/PCIE1/PCINT1_vect (port C cited: §14.4.5-7, read 2026-11-11)',
           (other[4]['mask_reg'], other[4]['mask_bit'], other[4]['vector']) == ('PCMSK2', 'PCINT20', 'PCINT2_vect') and (other[14]['mask_reg'], other[14]['mask_bit'], other[14]['vector']) == ('PCMSK1', 'PCINT8', 'PCINT1_vect')
-          and any('no cited RegisterField row' in c for c in other[14]['cites']), other)
-    t4 = SR.render('pcint', dict(_knobs('uno-light-sense-pcint'), sense_pin=4))['text']
-    check('a different pin renders a different file, still deterministic', t4 != SR.render('pcint', _knobs('uno-light-sense-pcint'))['text'] and 'ISR(PCINT2_vect)' in t4
+          and any('§14.4.6 DDRC, p.100' in c for c in other[14]['cites']) and not any('no cited RegisterField row' in c for c in other[14]['cites']), other)
+    r4 = SR.render('pcint', dict(_knobs('uno-light-sense-pcint'), sense_pin=4))
+    t4 = r4['text']
+    check('a different pin renders a different file, still deterministic; hal-2: its vector comes from the generated HAL (D4 = PD4 -> PCINT2_vect)',
+          t4 != SR.render('pcint', _knobs('uno-light-sense-pcint'))['text'] and 'ISR(HAL_INT_PIN_CHANGE_VECTOR_PD4)' in t4
+          and '#define HAL_INT_PIN_CHANGE_VECTOR_PD4 PCINT2_vect' in r4['hal_header']['text']
           and t4 == SR.render('pcint', dict(_knobs('uno-light-sense-pcint'), sense_pin=4))['text'])
     check('the generator environment is the strict one: a template asked for a key the context lacks fails by name', _strict_fails(SR))
 

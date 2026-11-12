@@ -48,17 +48,19 @@ def root_chain(manager, bs):
     return {'root': root, 'flashed': flashed, 'boot': boot}
 
 
-def define(manager, bs, slug, title, from_node, edge_kind='trigger', event='', requirements=(), executions=(), collaterals=()):
+def define(manager, bs, slug, title, from_node, edge_kind='trigger', event='', requirements=(), executions=(), collaterals=(), expect='reach'):
     if R.get(manager, 'StructNode', from_node) is None:
         raise R.ConfigRefused('no node %r to start from' % from_node, status=404)
     if edge_kind == 'trigger' and R.get(manager, 'HardwareEvent', event) is None:
         raise R.ConfigRefused('no Hardware Event %r' % event, status=404)
     if not requirements:
         raise R.ConfigRefused('a node needs at least one requirement on a struct field')
+    if expect not in ('reach', 'hold'):
+        raise R.ConfigRefused('expect %r: reach (met at the first cycle the requirements hold) or hold (met and KEPT to the end of the window: a fault edge)' % expect)
     node = _slug(bs, slug)
     ctx = CF.context(manager, bs)
     A = {a['name']: a for a in E._assertions(manager, E.variant_of(manager, ctx['firmware_solution']))}
-    R.upsert(manager, 'StructNode', node, title=title, bench_solution=bs, kind='state', collaterals='none')
+    R.upsert(manager, 'StructNode', node, title=title, bench_solution=bs, kind='state', collaterals='none', expect=expect)
     for cls in ('StructNodeRequirement', 'StructNodeExecution', 'StructNodeCollateral'):
         R.drop(manager, cls, node=node)
     for q in requirements:
@@ -76,10 +78,14 @@ def define(manager, bs, slug, title, from_node, edge_kind='trigger', event='', r
                 derived += [dict(kind='pin-level', signal=p.strip(), engine='twin', bound='', source='derived', notes='from %s' % a['name']) for p in a.get('pins', '').split(',') if p.strip()]
             if a['kind'] == 'sends-to-bridge' and a.get('bridge'):
                 derived.append(dict(kind='frame', signal=a['bridge'], engine='twin', bound='', source='derived', notes='from %s' % a['name']))
+    derived.append(dict(kind='electrical', signal='circuit', engine='ngspice-op', bound='', source='derived',   # bss-12: EVERY node gets the circuit judged
+                        notes='the bench circuit in the state this node leaves it, judged against the chip\'s cited limits (cmod.custom.node_electrical over electrodevice cst)'))
+    derived.append(dict(kind='memory', signal='sram', engine='twin+avr-size', bound='', source='derived',   # bss-13: the stack against the statics at EVERY node
+                        notes='static .data + .bss at the build, the stack high water on the twin to this node, the headroom against the cited SRAM (cmod.custom.node_collaterals.memory)'))
     rows = list(collaterals) + [d for d in derived if not any(c.get('kind') == d['kind'] and c.get('signal') == d['signal'] for c in collaterals)]
     for c in rows:
         R.upsert(manager, 'StructNodeCollateral', '%s:%s:%s' % (node, c['kind'], c['signal']), node=node, **{k: v for k, v in c.items() if k != 'name'})
-    R.upsert(manager, 'StructNode', node, collaterals=('declared' if collaterals else 'derived') if rows else 'none')
+    R.upsert(manager, 'StructNode', node, collaterals='declared' if collaterals else 'derived')
     _edge(manager, bs, from_node, node, edge_kind, event=event if edge_kind == 'trigger' else '',
           title=(R.get(manager, 'HardwareEvent', event) or {}).get('title', '') if edge_kind == 'trigger' else edge_kind)
     all_paths(manager, bs)

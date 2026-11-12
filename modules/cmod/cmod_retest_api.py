@@ -11,6 +11,8 @@ POST /api/cmod/bench-topology/{bench_solution}/run-all              bss-8: every
                                                                     reached, the coverage's untested list (empty = the only green)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/signals   the run's StructNodeRunSignal rows (the structs on arrival)
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/edges     the run's StructNodeRunEdge rows
+GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/vcd       bss-14: the kept capture (pins as wires, fields as vectors) as a VCD file, rendered on read
+GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/diff      bss-14: what changed against ?other= (default: the previous run of the same node), in rows
 GET  /api/cmod/bench-topology/{bench_solution}/runs/{run}/captures  bss-10: the capture rows the run kept (on failure / pinned), one per line, with the acquisition the
                                                                     osc chart door (/api/instruments/captures/{acq}/chart) draws
 404 = no such Bench Solution / run.
@@ -39,6 +41,8 @@ class RetestAPI(treeObject):
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/signals', self, suffix='signals')
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/edges', self, suffix='edges')
             add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/captures', self, suffix='captures')   # bss-10
+            add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/vcd', self, suffix='vcd')             # bss-14
+            add('/api/cmod/bench-topology/{bench_solution}/runs/{run}/diff', self, suffix='diff')           # bss-14
 
     def _do(self, response, fn, *args):
         try:
@@ -73,6 +77,24 @@ class RetestAPI(treeObject):
 
     def on_get_signals(self, request, response, bench_solution, run):
         self._do(response, RT.run_signals, run)
+
+    def on_get_vcd(self, request, response, bench_solution, run):
+        """bss-14: the run's kept capture as a VCD (text/plain; ?acquisition= picks one when both a pinned and a failure capture exist)."""
+        from cmod.custom import vcd_export as VE
+        try:
+            text, acq = VE.render(self.manager, run, str(request.get_param('acquisition') or ''))
+        except ConfigRefused as e:
+            response.status = _STATUS.get(e.status, falcon.HTTP_422)
+            response.media = {'ok': False, 'error': e.why}
+            return
+        response.content_type = 'text/plain'
+        response.downloadable_as = '%s.vcd' % acq
+        response.text = text
+
+    def on_get_diff(self, request, response, bench_solution, run):
+        """bss-14: what changed against another run of the same node (?other=; default the previous run)."""
+        from cmod.custom import run_diff as RD
+        self._do(response, RD.diff, run, str(request.get_param('other') or ''))
 
     def on_get_edges(self, request, response, bench_solution, run):
         self._do(response, RT.run_edges, run)

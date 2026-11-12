@@ -5,7 +5,12 @@ A0): the roles resolve to each Solution's own events, the executions' isotopes t
 the real twin, so the coverage's untested list is empty - the only green. The new stimuli (reset, the period, an ADC level), the enum labels, the command
 frame that carries only the command's field, the chain nodes counted as crossed, the doors, the manifest.
 
-Needs the avr engines (the prf-board-engines:trixie image WITH --adc-at, rebuilt 2026-11-02).
+bss-11 FAULT EDGES: the fault stimuli offered beside every press (a bouncing press, a long press released with bounce, a held button, a release, idle time) and
+the HOLD nodes on them (requirements met AND kept to the end of the window). THE FINDING: on all three button routes a long press released with bounce
+toggles the light TWICE - the 30 ms lockout counts from the last accepted press, so the release's falling edges land outside it - said as a divergence with
+the cycle, and proposed as a node (led_on 0, toggles 2) for a person to name; the bouncing press, the held button, the release and idle time all hold.
+
+Needs the avr engines (the prf-board-engines:trixie image WITH --adc-at and 256 --pin-at entries, rebuilt 2026-11-03).
 
     PYTHONPATH=.:modules python3 -m cmod.cmod_light_topology_selftest      # from polari-framework/
 """
@@ -24,6 +29,15 @@ def check(label, cond, extra=''):
     total += 1
     passed += bool(cond)
     print('  [%s] %s %s' % ('\033[0;32mPASS\033[0m' if cond else '\033[0;31mFAIL\033[0m', label, extra if not cond else ''))
+
+
+def _refused(fn):
+    from cmod.custom import config_rows as R
+    try:
+        fn()
+        return 0
+    except R.ConfigRefused as x:
+        return x.status
 
 
 def _manager():
@@ -73,19 +87,37 @@ def main():
           E.command_fields('apps/light.apply_command', CA.SEED_ASSERTIONS[1]['basis']) == ['led_on'])
     ev = {bs: {e['name'].split(':', 1)[1]: e for e in E.offered(m, bs)} for bs, _v in BENCHES}
     check('OFFERED EVENTS per Bench Solution: the press is press-PD2 / press-PD4 / press-ADC0 (0 mV, the release 4800 mV); the command carries led_on; the period is '
-          '0.1 s from telemetry_hz; reset everywhere',
+          '0.1 s from telemetry_hz; reset everywhere; bss-11: the fault stimuli bounce- / long-press- / held- beside every press (the same pin, the same pressed level) '
+          'and idle (time, no stimulus) everywhere',
           'press-PD2' in ev[BS] and 'press-PD4' in ev['uno-light-pcint-on-desk'] and ev['uno-light-analog-on-desk']['press-ADC0']['value'] == '0'
           and ev['uno-light-analog-on-desk']['release-ADC0']['value'] == '4800' and all(d['command-uno-1-bridge']['value'] == 'led_on' for d in ev.values())
-          and all(d['period-telemetry_send']['value'] == '0.1' for d in ev.values()) and all('reset' in d for d in ev.values()),
+          and all(d['period-telemetry_send']['value'] == '0.1' for d in ev.values()) and all('reset' in d and 'idle' in d for d in ev.values())
+          and {'bounce-PD2', 'long-press-PD2', 'held-PD2'} <= set(ev[BS]) and ev[BS]['long-press-PD2']['value'] == 'low'
+          and ev['uno-light-analog-on-desk']['bounce-ADC0']['value'] == '0' and 'held-PD4' in ev['uno-light-pcint-on-desk'],
           {bs: sorted(d) for bs, d in ev.items()})
+    st = {k: NR._stimulus(ev[BS]['%s-PD2' % k], 1600000, manager=m) for k in ('press', 'bounce', 'long-press', 'held')}
+    pts = [(int(a.split(',')[0].split('=')[1]), int(a.split('level=')[1])) for a in st['bounce'][1::2]]
+    sta = NR._stimulus(ev['uno-light-analog-on-desk']['bounce-ADC0'], 1600000, manager=m)
+    check('THE FAULT STIMULI (bss-11): a press = 2 pin-at entries; a bounce = 14 (an edge train of 6 extra edges down, quadratically spaced, settling low 2.5 ms in; '
+          'the hold; the same train up from 5 ms, settling high at 7.5 ms); a long press = 14 with the release train from 500 ms; held = 1 entry, never released; '
+          'on the analog route the same as an adc-at level train 0 / 4800 mV',
+          len(st['press']) == 4 and len(st['bounce']) == 28 and pts[0] == (1600000, 0) and pts[6] == (1640000, 0) and pts[7] == (1680000, 1) and pts[13] == (1720000, 1)
+          and pts[1][1] == 1 and pts[2][0] - pts[1][0] < pts[6][0] - pts[5][0] and len(st['long-press']) == 28 and st['long-press'][-1].startswith('cycle=%d,' % (1600000 + 8000000 + 40000))
+          and st['held'] == ['--pin-at', 'cycle=1600000,pin=PD2,level=0'] and len(sta) == 28 and sta[0] == '--adc-at' and sta[1].endswith('mv=0') and sta[3].endswith('mv=4800'),
+          (st, sta[:4]))
     sp = SP.specs()
-    check('THE SPEC is shipped data, one per Bench System: uno-light-bench, 6 nodes, roles press / command / reset / period',
-          [s['name'] for s in sp] == ['uno-light-bench'] and sp[0]['nodes'] == 6 and sp[0]['roles'] == ['command', 'period', 'press', 'reset'], sp)
+    check('THE SPEC is shipped data, one per Bench System: uno-light-bench, 11 nodes (6 reach + 5 hold, bss-11), roles press / command / reset / period + the fault roles '
+          'bounce / long-press / held / release / idle',
+          [s['name'] for s in sp] == ['uno-light-bench'] and sp[0]['nodes'] == 11
+          and sp[0]['roles'] == ['bounce', 'command', 'held', 'idle', 'long-press', 'period', 'press', 'release', 'reset'], sp)
     out = SP.apply(m, BS)
     nodes = {n['name'].split(':')[-1]: n for n in out['nodes']}
-    check('APPLIED to uno-light-on-desk: the roles resolved to its events (press = press-PD2), 6 nodes, 8 paths; the isotopes from the route knobs '
-          '(read-button:ext-interrupt, drive-led:gpio-out, receive-command:uart-rx-interrupt, report-state:uart-tx); the enum label kept as the person\'s word',
-          out['roles']['press'].endswith(':press-PD2') and len(out['nodes']) == 6 and sum(len(n['paths']) for n in out['nodes']) == 8
+    check('APPLIED to uno-light-on-desk: the roles resolved to its events (press = press-PD2, long-press = long-press-PD2, idle = idle), 11 nodes, 13 paths; the '
+          'isotopes from the route knobs (read-button:ext-interrupt, drive-led:gpio-out, receive-command:uart-rx-interrupt, report-state:uart-tx); the enum label kept '
+          'as the person\'s word; the hold nodes carry expect = hold',
+          out['roles']['press'].endswith(':press-PD2') and out['roles']['long-press'].endswith(':long-press-PD2') and out['roles']['idle'].endswith(':idle')
+          and len(out['nodes']) == 11 and sum(len(n['paths']) for n in out['nodes']) == 13
+          and nodes['on-by-long-press']['expect'] == 'hold' and nodes['released']['expect'] == 'hold' and nodes['on-by-button']['expect'] == 'reach'
           and [x['isotope'] for x in nodes['on-by-button']['executions']] == ['read-button:ext-interrupt', 'drive-led:gpio-out']
           and [x['isotope'] for x in nodes['on-by-command']['executions']] == ['receive-command:uart-rx-interrupt', 'drive-led:gpio-out']
           and nodes['reported']['executions'][0]['isotope'] == 'report-state:uart-tx'
@@ -103,16 +135,28 @@ def main():
     by = {}
     for r in ra['runs']:
         by.setdefault(r['node'].split(':')[-1], []).append(r['outcome'])
-    check('PROOF: EVERY NODE BY EVERY PATH reached on the twin from the root - 8 of 8 (%.0f s)' % secs, ra['reached'] == 8 and ra['of'] == 8
-          and all(set(v) == {'reached'} for v in by.values()), ra['runs'])
-    check('THE UNTESTED LIST IS EMPTY - the only green: every node confirmed by every path, every collateral measured, every event used or inert, every assertion '
-          'of the firmware exercised (the command frame arriving included), the chain nodes crossed', ra['untested'] == [], ra['untested'])
+    check('PROOF: EVERY NODE BY EVERY PATH run on the twin from the root - 12 of 13 reached (%.0f s): every reach node, and the hold nodes "one bouncing press", '
+          '"held", "released", "idle" KEPT their requirements to the end of their windows; ONE diverged' % secs, ra['reached'] == 12 and ra['of'] == 13
+          and all(set(v) == {'reached'} for k, v in by.items() if k != 'on-by-long-press') and by['on-by-long-press'] == ['diverged'], ra['runs'])
+    lp = next(r for r in ra['runs'] if r['node'].endswith(':on-by-long-press'))
+    lpe = RT.run_edges(m, lp['run'])[-1]
+    prop = [n for n in R.rows(m, 'StructNode', bench_solution=BS, basis='proposed')]
+    preq = {q['field']: q['value'] for q in R.rows(m, 'StructNodeRequirement', node=prop[0]['name'])} if prop else {}
+    check('THE FINDING (bss-11): a LONG PRESS RELEASED WITH BOUNCE toggles the light TWICE on the D2 external-interrupt route - met at the press, then led_on back to 0 '
+          'and toggles 2 about 500 ms later (the release\'s falling edges land outside the 30 ms lockout, which counts from the last accepted press); said as a '
+          'divergence with the cycles, the fault the edge exists to find; the reached values proposed as a node (led_on 0, toggles 2, source button) for a person to name',
+          lp['outcome'] == 'diverged' and 'then led_on became 0 at cycle' in lpe['words'] and 'toggles became 2 at cycle' in lpe['words'] and '(500.' in lpe['words']
+          and 'a hold node keeps its requirements' in lpe['words'] and len(prop) == 1 and preq == {'led_on': '0', 'source': '2', 'toggles': '2'}, (lpe['words'][:300], preq))
+    check('THE UNTESTED LIST names exactly the finding\'s consequences: the long-press node\'s collateral unmeasured (it diverged) and the proposed node not yet accepted; '
+          'nothing else - every other node confirmed by every path, every event used (the release and idle now USED by hold edges, so no longer inert), every assertion '
+          'exercised, the chain nodes crossed',
+          ra['untested'] == ['%s:on-by-long-press: collaterals measured 0 / 3' % BS, '%s:proposed-1: proposed from a divergence, not yet accepted or discarded' % BS], ra['untested'])
     strip = COV.strip(m, BS)
-    check('THE STRIP: 6 state nodes + flashed + boot confirmed by the twin, none never-tested; 10 of 10 paths (the 8 state paths + the two chain nodes\' own, crossed); the '
-          'release is listed INERT (the firmware asserts nothing on it), not untested; 7 of 7 assertions exercised; fields led_on, toggles, source, status, seq, boot_session '
-          'covered (every field a node requires and a run changed)',
-          strip['nodes_by_state']['confirmed-twin'] == 8 and strip['nodes_by_state']['never-tested'] == 0 and strip['paths_tested'] == strip['paths'] == 10
-          and [e['event'].split(':', 1)[1] for e in strip['inert_events']] == ['release-PD2']
+    check('THE STRIP: 10 state nodes + flashed + boot confirmed by the twin, 1 diverged, 1 proposed, none never-tested; 14 of 16 paths (13 state paths + the two chain '
+          'nodes\' own + the proposed node\'s; the diverged one and the proposal untested); nothing inert any more (the release and idle are used); 7 of 7 assertions '
+          'exercised; fields led_on, toggles, source, status, seq, boot_session covered (every field a node requires and a run changed)',
+          strip['nodes_by_state']['confirmed-twin'] == 12 and strip['nodes_by_state']['never-tested'] == 0 and strip['nodes_by_state']['diverged'] == 1
+          and strip['nodes_by_state']['proposed'] == 1 and strip['paths_tested'] == 14 and strip['paths'] == 16 and strip['inert_events'] == []
           and strip['assertions_exercised'] == strip['assertions'] == 7 and {'led_on', 'toggles', 'source', 'status', 'seq', 'boot_session'} <= set(strip['fields_covered']),
           {k: strip[k] for k in ('nodes_by_state', 'paths_tested', 'paths', 'inert_events', 'assertions_exercised', 'assertions', 'fields_covered')})
     runs = {r['node'].split(':')[-1]: r for r in ra['runs'] if r['length'] == min(x['length'] for x in ra['runs'] if x['node'] == r['node'])}
@@ -140,6 +184,17 @@ def main():
           (r3['run']['outcome'], r3['run']['words'][:120], e3['collaterals'][:80]))
     r4 = NR.run(m, 'uno-light-analog-on-desk', 'uno-light-analog-on-desk:off-by-button')
     check('THE ANALOG ROUTE twice: "off by the button" (press, press) REACHED - two ADC pulses spaced by the guard', r4['run']['outcome'] == 'reached', r4['run']['words'][:160])
+    faults = {}
+    for bs2 in ('uno-light-pcint-on-desk', 'uno-light-analog-on-desk'):
+        for slug in ('on-by-bouncy-press', 'on-by-long-press'):
+            rr = NR.run(m, bs2, '%s:%s' % (bs2, slug))
+            faults[(bs2, slug)] = (rr['run']['outcome'], RT.run_edges(m, rr['run']['name'])[-1]['words'])
+    check('THE FINDING ON EVERY ROUTE (bss-11): the pin-change route (D4) and the analog route (A0, a level train) each toggle ONCE on a bouncing press (held to the end '
+          'of the window) and TWICE on a long press released with bounce (diverged, toggles 2 about 500 ms in) - the same lockout-from-the-last-press in all three '
+          'read-button isotopes; the fix is a debounce option (the catom-config arc), not a topology change',
+          all(v[0] == 'reached' and 'held to the end' in v[1] for k, v in faults.items() if k[1] == 'on-by-bouncy-press')
+          and all(v[0] == 'diverged' and 'toggles became 2 at cycle' in v[1] and '(500.' in v[1] for k, v in faults.items() if k[1] == 'on-by-long-press'),
+          {k: (v[0], v[1][:120]) for k, v in faults.items()})
     # ---- bss-9: the owed list - per-edge counts, the driven pin, net-current, the failure capture, the other LED / sense routes, the samples view
     e1 = next(e for e in NR.runs(m, nodes['on-by-button']['name']) if e['outcome'] == 'reached')
     ed1 = RT.run_edges(m, e1['name'])[-1]
@@ -149,8 +204,30 @@ def main():
     check('NET-CURRENT (bss-9): the declared collateral on "light on" ran the LED branch in ngspice (batch) at the pin\'s level with TMAX = the node\'s step: ~14.7 mA '
           'through R 220 + the generic LED model, inside the bound 5..20 mA; every knob named (VCC, the LED model)',
           'net-current PD6: 14.' in ed1['collaterals'] and 'bound 0.005..0.020 A: met' in ed1['collaterals'] and 'knobs: VCC 5 V' in ed1['collaterals'], ed1['collaterals'][:400])
+    held_run = next(r for r in ra['runs'] if r['node'].endswith(':on-while-held'))
+    edh = RT.run_edges(m, held_run['run'])[-1]
+    edr = RT.run_edges(m, next(r for r in ra['runs'] if r['node'].endswith(':rebooted'))['run'])[-1]
+    check('THE ELECTRICAL CHECK AT EVERY NODE (bss-12): the bench circuit (uno-button-clock, matched to the config by its pins) in the state the node leaves it, its .op '
+          'by ngspice judged against the chip\'s cited limits - "light on": state led-on, D6 14.715 mA under the 20 mA recommended, ok; "held": state led-on-button-held, '
+          'the pull-up\'s 0.250 mA through D2 at the 20 k end, ok; "rebooted": idle-led-off, 0 mA; the worst-case bound said; a derived `electrical circuit` collateral on every node',
+          'electrical circuit: ok - circuit uno-button-clock in state led-on (' in ed1['collaterals'] and 'D6 carries 14.715 mA in state led-on' in ed1['collaterals']
+          and 'the worst-case bound' in ed1['collaterals'] and 'state led-on-button-held' in edh['collaterals'] and 'D2 carries 0.250 mA' in edh['collaterals']
+          and 'electrical circuit: ok - circuit uno-button-clock in state idle-led-off' in edr['collaterals'] and 'D6 carries 0.000 mA' in edr['collaterals']
+          and any(c['kind'] == 'electrical' for c in nodes['reported']['collateral_rows']),
+          ([w for w in ed1['collaterals'].split(' ; ') if w.startswith('electrical')], [w for w in edh['collaterals'].split(' ; ') if w.startswith('electrical')][:1]))
+    check('MEMORY AT EVERY NODE (bss-13): static .data + .bss 524 B measured by avr-size at the build, the stack\'s high water on the twin to this node (--sp-watch per '
+          'instruction and the --stack-fill paint read back), the headroom between them against the cited SRAM 2048 B - ok; and the SUPPLY under the node\'s ground-return '
+          'current against the brown-out detector (VCC, R_supply and the BOD level as labelled knobs): 4.993 V, above the 2.9 V maximum',
+          'memory sram: ok - static .data + .bss 524 B' in ed1['collaterals'] and 'stack high water' in ed1['collaterals'] and 'headroom' in ed1['collaterals']
+          and 'of SRAM 2048 B' in ed1['collaterals'] and 'supply ok: the rail at 4.993 V under 14.715 mA' in ed1['collaterals'] and 'brown-out' in ed1['collaterals']
+          and any(c['kind'] == 'memory' for c in nodes['reported']['collateral_rows']),
+          [w for w in ed1['collaterals'].split(' ; ') if w.startswith('memory')])
     ed2 = RT.run_edges(m, r2['run']['name'])[-1]
     s2 = {s['signal']: s for s in RT.run_signals(m, r2['run']['name']) if s['kind'] == 'pin'}
+    check('THE ELECTRICAL CHECK SAYS WHAT IT RAN (bss-12): on the pin-change build the only seeded bench circuit has its switch on D2, which that build leaves high-Z, so '
+          'the verdict is WARN with the floating input named - the circuit for the D4 button is not seeded, said by the words, not hidden',
+          'electrical circuit: warn - circuit uno-button-clock' in ed2['collaterals'] and 'D2 read a floating line' in ed2['collaterals'] and 'D2 high-z' in ed2['collaterals'],
+          [w for w in ed2['collaterals'].split(' ; ') if w.startswith('electrical')])
     check('THE DRIVEN PIN (bss-9): on the pin-change build (no sense jumper) PD6 is read from the PORTD / DDRD words the firmware drives - high, driven, the '
           'wire itself said not read; its pin signal is the bit (0 -> 1, one change); the untested list no longer says the collateral is unmeasured',
           ed2['collaterals'].startswith('pin-level PD6: high, driven (PORTD bit 6') and s2.get('PD6', {}).get('last') == '1' and s2['PD6']['changes'] == 1
@@ -162,16 +239,33 @@ def main():
     caps = [c for c in R.rows(m, 'WaveformCapture') if c['acquisition'] == r7['capture']]
     sig7 = {s['signal']: s for s in r7['signals'] if s['kind'] == 'pin'}
     check('THE FAILURE CAPTURE (bss-9, D-bss-6): a diverged run keeps ONE acquisition of WaveformCapture rows (the osc arc\'s rows, source twin) - the three lines PD2 '
-          '(the press), PD3 and PD6 (the jumper) over the failing edge\'s last 10 %%, 4096 points at a coarsened step, said; the pin signals name their capture row; '
-          'a reached run keeps none', r7['run']['outcome'] == 'diverged' and len(caps) == 3 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
+          '(the press), PD3 and PD6 (the jumper) over the failing edge\'s last 10 %%, 4096 points at a coarsened step, said, plus (bss-14) the watched fields along the path '
+          '(boot_session from the boot node, led_on) as rows whose samples are their values; the pin signals name their capture row; a reached run keeps none',
+          r7['run']['outcome'] == 'diverged' and len(caps) == 5 and all(c['source'] == 'twin' and c['points'] == 4096 for c in caps)
+          and sum(json.loads(c['settings_json']).get('kind') == 'field' for c in caps) == 2 and '+ 2 fields (boot_session, led_on)' in r7['run']['words']
           and 'failure capture' in r7['run']['words'] and sig7.get('PD6', {}).get('capture', '').startswith('fail-')
           and not any(c['acquisition'] == e1['name'] for c in R.rows(m, 'WaveformCapture')), (r7['run']['words'][-200:], [(c['name'], c['points']) for c in caps]))
     rp = NR.run(m, BS, nodes['on-by-button']['name'], pin=True)
     pins_ = RT.run_captures(m, rp['run']['name'])
-    check('A PINNED CAPTURE (bss-10, D-bss-6): pin = true on a REACHED run keeps the target edge\'s WHOLE window (3 lines, acquisition pin-...), the run\'s words say pinned; '
-          'the captures door lists the rows with kept = pinned and the line each is', rp['run']['outcome'] == 'reached' and rp['capture'].startswith('pin-')
-          and 'pinned capture' in rp['run']['words'] and len(pins_) == 3 and all(c['kept'] == 'pinned' for c in pins_) and sorted(c['line'] for c in pins_) == ['PD2', 'PD3', 'PD6']
-          and all(c['acquisition'] == rp['capture'] for c in pins_), (rp['capture'], rp['run']['words'][-160:], pins_[:1]))
+    check('A PINNED CAPTURE (bss-10, D-bss-6): pin = true on a REACHED run keeps the target edge\'s WHOLE window (3 lines + the 5 fields watched along the path, acquisition pin-...), '
+          'the run\'s words say pinned; the captures door lists the rows with kept = pinned, the line / field each is and its kind',
+          rp['run']['outcome'] == 'reached' and rp['capture'].startswith('pin-') and 'pinned capture' in rp['run']['words'] and len(pins_) == 8
+          and all(c['kept'] == 'pinned' for c in pins_) and sorted(c['line'] for c in pins_ if c['kind'] == 'pin') == ['PD2', 'PD3', 'PD6']
+          and sorted(c['line'] for c in pins_ if c['kind'] == 'field') == ['boot_session', 'led_on', 'source', 'status', 'toggles'] and all(c['acquisition'] == rp['capture'] for c in pins_),
+          (rp['capture'], rp['run']['words'][-160:], [(c['line'], c['kind']) for c in pins_]))
+    from cmod.custom import run_diff as RD
+    from cmod.custom import vcd_export as VE
+    vcd, vacq = VE.render(m, rp['run']['name'])
+    vlines = vcd.splitlines()
+    dd = RD.diff(m, rp['run']['name'])
+    check('THE VCD (bss-14): the pinned run\'s capture rendered on read as a VCD - 3 wires (the pins) + 5 32-bit vectors (the fields), a 1 ns timescale, the run and the '
+          'window in the header, value changes only; led_on goes 0 -> 1 inside it',
+          vacq == rp['capture'] and '$timescale 1 ns $end' in vcd and sum(l.startswith('$var wire 1 ') for l in vlines) == 3 and sum(l.startswith('$var reg 32 ') for l in vlines) == 5
+          and any(l.startswith('b1 ') for l in vlines) and rp['run']['name'] in vlines[1] and sum(l.startswith('#') for l in vlines) >= 2, (vacq, vlines[:12], sum(l.startswith('#') for l in vlines)))
+    check('THE RUN DIFF (bss-14): the pinned run against the previous run of "light on" (the same build, the same path) - the compared values all equal except the ones '
+          'that cannot be (none here): 0 differ; a first run says there is nothing to compare with; an unknown run refuses 404',
+          dd['other'] and dd['changed'] == 0 and dd['rows'] and 'differ' in dd['words'] and RD.diff(m, sorted(r['name'] for r in NR.runs(m, nodes['on-by-button']['name']))[0])['other'] == ''
+          and _refused(lambda: RD.diff(m, 'nope#run9')) == 404, (dd['words'], [r for r in dd['rows'] if r['changed']][:5]))
     more = {}
     for bs2 in ('uno-light-pwm-on-desk', 'uno-light-transistor-on-desk', 'uno-light-all-pcint-on-desk'):
         a2 = SP.apply(m, bs2)
@@ -200,7 +294,7 @@ def main():
     api, rapi = BenchTopologyAPI(polServer=None, manager=m), RetestAPI(polServer=None, manager=m)
 
     def call(a, method, *args, body=None):
-        resp = types.SimpleNamespace(status='200 OK', media=None)
+        resp = types.SimpleNamespace(status='200 OK', media=None, content_type='application/json', text='', downloadable_as='')
         req = types.SimpleNamespace(get_param=lambda k: None, bounded_stream=types.SimpleNamespace(read=lambda: json.dumps(body or {}).encode()))
         getattr(a, method)(req, resp, *args)
         return resp
@@ -209,10 +303,17 @@ def main():
     bad = call(rapi, 'on_post_run_all', 'nope')
     cp = call(rapi, 'on_get_captures', BS, r7['run']['name'])
     cbad = call(rapi, 'on_get_captures', BS, 'nope#run9')
-    check('DOORS: GET topology-specs lists the spec; POST apply-spec re-applies idempotently (6 nodes, the same paths); POST run-all on an unknown Bench Solution -> 404; '
-          'GET runs/{run}/captures lists the diverged run\'s 3 failure lines (kept = on failure) and 404s an unknown run',
-          s.media['rows'][0]['name'] == 'uno-light-bench' and a.media['ok'] and len(a.media['nodes']) == 6 and sum(len(n['paths']) for n in a.media['nodes']) == 8
-          and bad.status.startswith('404') and len(cp.media['rows']) == 3 and all(r['kept'] == 'on failure' for r in cp.media['rows']) and cbad.status.startswith('404'),
+    vr = call(rapi, 'on_get_vcd', BS, rp['run']['name'])
+    vbad = call(rapi, 'on_get_vcd', BS, e1['name'])
+    dr = call(rapi, 'on_get_diff', BS, rp['run']['name'])
+    check('DOORS (bss-14): GET runs/{run}/vcd answers text/plain named <acquisition>.vcd for a run with a capture and 404s a reached, unpinned run in words; GET '
+          'runs/{run}/diff answers the rows against the previous run',
+          vr.content_type == 'text/plain' and vr.downloadable_as.endswith('.vcd') and '$enddefinitions' in vr.text and vbad.status.startswith('404') and 'keeps none' in vbad.media['error']
+          and dr.media['ok'] and dr.media['changed'] == 0 and len(dr.media['rows']) > 10, (getattr(vr, 'downloadable_as', ''), vbad.media, dr.media.get('words')))
+    check('DOORS: GET topology-specs lists the spec; POST apply-spec re-applies idempotently (11 nodes, the same 13 paths); POST run-all on an unknown Bench Solution -> 404; '
+          'GET runs/{run}/captures lists the diverged run\'s 3 failure lines + 2 fields (kept = on failure) and 404s an unknown run',
+          s.media['rows'][0]['name'] == 'uno-light-bench' and a.media['ok'] and len(a.media['nodes']) == 11 and sum(len(n['paths']) for n in a.media['nodes']) == 13
+          and bad.status.startswith('404') and len(cp.media['rows']) == 5 and all(r['kept'] == 'on failure' for r in cp.media['rows']) and cbad.status.startswith('404'),
           (s.media, a.media.get('words'), bad.status, cp.media, cbad.status))
     from cmod.hardware_events_page import HARDWARE_EVENTS_PAGES
     d = json.loads(HARDWARE_EVENTS_PAGES[0]['definition'])

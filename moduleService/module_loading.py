@@ -38,6 +38,7 @@ FEATURE_MODULES = frozenset({
     'iso', 'cicd', 'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
+    'mech',
     'hardwareapps', 'hwmap', 'isle_guestnet', 'isle_relay', 'kirimoto', 'printcam', 'printing_suite', 'suiteapps', 'voron',
     'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
@@ -52,6 +53,8 @@ FEATURE_MODULES = frozenset({
     'firmwarefaults',
     # cmod-0 (C_MODULARIZATION_PLAN): C functions of a normal C project as atoms with ports, resources and cost
     'cmod',
+    # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - operations, access mechanisms, per-SoC bindings + generation trace
+    'hal',
     # hn-0 (HARDWARE_NOCODE_PLAN): hardware as no-code — a solution spanning board, bridge, backend and browser
     'hwnocode',
     # pcb-0 (PCB_FROM_SCRATCH_PLAN): KiCad as the relay engine for schematics/boards — rows, ingest, ERC/DRC/exports
@@ -76,6 +79,7 @@ FEATURE_REQUIRES = {
     'bizops': ('supplychain',),
     # hn-0: the split imports cmod's glue + graph rows, board's seeds/gen and grpcbridge's binding class (seed)
     'hwnocode': ('board', 'cmod', 'grpcbridge'),
+    'hal': ('board',),   # hal-0: reads board's cited SoC / pin / register tables
     # pcb-0: uno_shield.py imports board.custom.board_object (brd-bo's rows_for/board_sha) at top level
     'pcb': ('board',),
     # co2-A: climate reuses the aquaponics steady-state gas
@@ -91,6 +95,8 @@ FEATURE_REQUIRES = {
     # generator is gr-3), but the registry entry names the coupling
     # so a drop refuses honestly once gr-3 lands.
     'gears': ('mathshapes',),
+    # mxc-1 (MECH_FREECAD_INTERCHANGE_PLAN): joints over composition's interfaces, shapes via mathshapes
+    'mech': ('composition', 'mathshapes'),
     # mesh-1: the fit engine reads OrganModel rows.
     'meshassets': ('plant_morphology',),
     'mathshapes': ('aquaponics', 'plant_morphology'),

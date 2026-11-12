@@ -522,6 +522,11 @@ def construct_kirimoto_endpoints(polServer):
     kirimotoEndpoint = KirimotoAPI(polServer=polServer, manager=manager)
 
 
+def construct_hal_endpoints(polServer):
+    from hal.hal_endpoints import construct_hal_endpoints as _c
+    _c(polServer)
+
+
 def construct_terms_endpoints(polServer):
     manager = polServer.manager
     from terms.terms_api import TermsAPI
@@ -617,6 +622,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'pcb': construct_pcb_endpoints,
     'firmwarefaults': construct_firmwarefaults_endpoints,
     'cmod': construct_cmod_endpoints,
+    'hal': construct_hal_endpoints,
     'hwnocode': construct_hwnocode_endpoints,
     'uno_core_demo': construct_uno_core_demo_endpoints,
     'cicd': construct_cicd_endpoints,

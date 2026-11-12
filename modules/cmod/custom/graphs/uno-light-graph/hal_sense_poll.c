@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include "hal.h"
+#include "polari_hal_atmega328p.h"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
 #if !HAL_INT1 || HAL_SENSE_ROUTE != 1
 #error "hal_sense_poll.c is the sense route 1 (polled): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE 1"
@@ -28,8 +29,8 @@ static uint8_t g_sense_level;               /* the level seen at the last look: 
  * line already has at boot is the starting level and not an edge. */
 void hal_sense_init(void)
 {
-    DDRD &= (uint8_t)~_BV(PD3);
-    g_sense_level = (PIND & _BV(PD3)) != 0u;
+    HAL_GPIO_INPUT_PD3();
+    g_sense_level = HAL_GPIO_READ_PD3();
 }
 
 /* Called once per main-loop pass: read the pin and, if it differs from the last look, count ONE edge and stamp it. A line that changes twice
@@ -37,7 +38,7 @@ void hal_sense_init(void)
  * only right when the line changes slowly (a person-driven toggle) compared with the loop. */
 void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
 {
-    uint8_t level = (PIND & _BV(PD3)) != 0u;
+    uint8_t level = HAL_GPIO_READ_PD3();
 
     if (level != g_sense_level) {
         g_sense_level = level;

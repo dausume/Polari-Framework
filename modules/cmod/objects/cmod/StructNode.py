@@ -12,7 +12,9 @@ class StructNode(treeObject):
     are its `StructNodeRequirement` rows; the code expected to bring the structs there its `StructNodeExecution` rows; its measurable effects outside
     the structs its `StructNodeCollateral` rows (`collaterals` says none / declared / derived). Fields the node does not name are don't-care. `kind`
     root / flashed / boot are the fixed first chain (plugged in -> flash -> flashed -> init -> boot); every other node is `state`. The full Struct State
-    a run has on arrival is the run's, not this row's.
+    a run has on arrival is the run's, not this row's. `expect` (bss-11) says how the requirements are judged: `reach` = met at the first cycle they all
+    hold (the rule: an edge ends on a struct change); `hold` = met at that cycle AND kept to the end of the edge's window - a FAULT EDGE (a bouncing or
+    long-held button, a release, idle time) whose node says what must NOT happen: a second toggle after it is a divergence, said with its cycle.
     Related concepts: `StructEdge` (what reaches it), `StructNodePath` (how, from the root), board `BenchSolution`.
     """
 
@@ -21,8 +23,9 @@ class StructNode(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', bench_solution: str = '', kind: str = 'state', collaterals: str = 'none', basis: str = 'person',
-                 notes: str = '', manager=None):
+                 notes: str = '', expect: str = 'reach', manager=None):
         self.name = name                      # '<bench_solution>:<slug>'
+        self.expect = expect                  # reach | hold (bss-11: hold = the requirements must stay met to the end of the edge's window)
         self.title = title                    # a person's words ("light on"); '' shows the requirements instead
         self.bench_solution = bench_solution  # a BenchSolution name
         self.kind = kind                      # root | flashed | boot | state

@@ -527,9 +527,16 @@ FEATURE_IMPORT_BLOCKS = (
     ('mathshapes', (
         ('mathshapes.shape_basis', (
             'MathShapeDefinition',
+            # ms-anchor: the anchored offset tool's rows
+            'ShapeAnchor', 'AnchoredOffset',
         )),
         ('mathshapes.shape_seed', (
             'SEED_MATH_SHAPES',
+        )),
+        ('mathshapes.shape_anchor_seed', (
+            'SEED_SHAPE_ANCHORS', 'SEED_ANCHORED_OFFSETS',
+            # the engine as rows: analyses + one solution each
+            'SEED_SHAPE_ANCHOR_ANALYSES', 'SEED_SHAPE_ANCHOR_SOLUTIONS',
         )),
         ('mathshapes.tower_basis', (
             'AquaponicTowerDefinition',
@@ -718,6 +725,41 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_GEARS', 'SEED_SHAFT_NODES',
         )),
     )),
+    ('mech', (
+        ('mech.mech_catalog_basis', (
+            'DimensionSource', 'MechFeature', 'MechPartFamily',
+            'MechPartVariant',
+        )),
+        ('mech.mech_catalog_seed', (
+            'SEED_DIMENSION_SOURCES', 'SEED_FEATURES', 'SEED_PART_FAMILIES',
+            'SEED_PART_VARIANTS',
+        )),
+        ('mech.mech_material_basis', (
+            'MechMaterialOption', 'MechMaterialPreference',
+        )),
+        ('mech.mech_material_seed', (
+            'SEED_MECH_MATERIAL_OPTIONS', 'SEED_MECH_MATERIAL_PREFERENCES',
+        )),
+        ('mech.mech_assembly_basis', (
+            'MechAssembly', 'MechConflict', 'MechContact', 'MechJoint',
+            'MechPartInstance',
+        )),
+        ('mech.mech_assembly_seed', (
+            'SEED_MECH_ASSEMBLIES', 'SEED_MECH_CONTACTS', 'SEED_MECH_JOINTS',
+            'SEED_MECH_PART_INSTANCES',
+        )),
+        ('mech.mech_motion_basis', (
+            'MechLoadCase', 'MechMotionCase', 'MechMotionRun',
+            'MechMotionSimState', 'MechMotionVector',
+        )),
+        ('mech.mech_motion_seed', (
+            'SEED_MECH_LOAD_CASES', 'SEED_MECH_MOTION_CASES',
+            'SEED_MECH_MOTION_CONTACTS', 'SEED_MECH_SIM_DEFINITIONS',
+        )),
+        ('mech.mech_analysis_seed', (
+            'SEED_MECH_ANALYSES', 'SEED_MECH_SOLUTIONS',
+        )),
+    )),
     ('climate', (
         ('climate.climate_basis', (
             'AtmosphericObservation', 'AtmosphericSeriesDefinition',
@@ -895,7 +937,7 @@ FEATURE_IMPORT_BLOCKS = (
     # osc-0..8 (OSCILLOSCOPE_PLAN): instrument models, endpoints, channels, captures - scaffolded as a manifest-admitted project and never threaded
     # here, so a normal boot never brought it up (the workbench's Instruments step had no doors); threaded like every built-in module 2026-10-29
     ('instruments', (
-        ('instruments.instruments_basis', ('Instrument', 'InstrumentEndpoint', 'ScopeChannel', 'WaveformCapture')),
+        ('instruments.instruments_basis', ('Instrument', 'InstrumentEndpoint', 'ScopeChannel', 'WaveformCapture', 'InstrumentAccuracy')),
         ('instruments.instruments_seed', ('INSTRUMENTS_SEED_PAIRS',)),
         ('instruments.instruments_page', ('SEED_INSTRUMENTS_PAGE_DISPLAYS', 'SEED_INSTRUMENTS_GRAPHS')),
     )),
@@ -1374,9 +1416,15 @@ FEATURE_IMPORT_BLOCKS = (
         ('cmod.cmod_basis', ('CProject', 'CModule', 'CFunctionAtom', 'CPort', 'CGraph', 'CGraphNode', 'CGraphEdge', 'CGlueBuild',
                             'TargetDefinition', 'CapabilityDefinition', 'CapabilityInstance',
                             'FirmwareSolution', 'ScheduleSlot', 'RegisterAssignment', 'FirmwareExport',
-                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CIsotope', 'PurposeObservation', 'PurposeGoalState', 'PurposeDependsState', 'PurposeParticipantState', 'PurposeTriggerState', 'PurposeOutcomeState', 'PurposeCriterionState', 'PurposeObservesState', 'PurposeTasksState', 'PurposeProofState', 'PurposeResolutionState', 'PurposeObservedState', 'HardwareMission', 'MissionGoalState', 'MissionSettingsState', 'MissionPurposeState', 'MissionParticipantState', 'MissionConstraintState', 'MissionResolutionState', 'AtomJob', 'IsotopeVariant', 'SolveRun', 'TaskPlan', 'TaskDefinition', 'TaskTrigger', 'TaskStructBinding', 'CatomAssertion', 'StructObjectMap', 'CatomVariable', 'ConfigOption', 'CatomConfiguration', 'ConfigChoice', 'ConfigOptionGrade', 'ConfigOptionResult', 'IsotopeStepRule', 'HardwareEvent', 'StructNode', 'StructNodeRequirement', 'StructNodeExecution', 'StructNodeCollateral', 'StructEdge', 'StructNodePath', 'StructFieldSamples', 'StructNodeRun', 'StructNodeRunEdge', 'StructNodeRunSignal', 'StructNodeConfirmation', 'StructEdgeCheck', 'TestProfile', 'TestProfileItem', 'StructNodeState', 'HardwareEventState', 'HalVariableState', 'PURPOSE_NODE_KIND_CLASSES', 'MISSION_NODE_KIND_CLASSES', 'HAL_NODE_KIND_CLASSES', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride; ucd-iso-0: + CIsotope
+                            'PinClaim', 'PeripheralClaim', 'HardwareBinding', 'DerivedOverride', 'CIsotope', 'PurposeObservation', 'PurposeGoalState', 'PurposeDependsState', 'PurposeParticipantState', 'PurposeTriggerState', 'PurposeOutcomeState', 'PurposeCriterionState', 'PurposeObservesState', 'PurposeTasksState', 'PurposeProofState', 'PurposeResolutionState', 'PurposeObservedState', 'HardwareMission', 'MissionGoalState', 'MissionSettingsState', 'MissionPurposeState', 'MissionParticipantState', 'MissionConstraintState', 'MissionResolutionState', 'AtomJob', 'IsotopeVariant', 'SolveRun', 'TaskPlan', 'TaskDefinition', 'TaskTrigger', 'TaskStructBinding', 'CatomAssertion', 'StructObjectMap', 'CatomVariable', 'ConfigOption', 'CatomConfiguration', 'ConfigChoice', 'ConfigOptionGrade', 'ConfigOptionResult', 'IsotopeStepRule', 'HardwareEvent', 'StructNode', 'StructNodeRequirement', 'StructNodeExecution', 'StructNodeCollateral', 'StructEdge', 'StructNodePath', 'StructFieldSamples', 'StructNodeRun', 'StructNodeRunEdge', 'StructNodeRunSignal', 'StructNodeConfirmation', 'StructEdgeCheck', 'TestProfile', 'TestProfileItem', 'StructNodeState', 'HardwareEventState', 'BuiltUnit', 'MeasurementPoint', 'MeasurementReading', 'TestProcedure', 'TestProcedureStep', 'TestSession', 'TestStepMark', 'TestStepPrime', 'VarianceRuling', 'VarianceRulingRework', 'HalVariableState', 'PURPOSE_NODE_KIND_CLASSES', 'MISSION_NODE_KIND_CLASSES', 'HAL_NODE_KIND_CLASSES', 'CMOD_CLASSES')),   # ucd-0f: + FirmwareExport; ucd-0b: + PinClaim/PeripheralClaim; ucd-0b2b: + HardwareBinding; ucd-attest: + DerivedOverride; ucd-iso-0: + CIsotope; msv-0: + BuiltUnit/MeasurementPoint/MeasurementReading; msv-0b: + TestProcedure/TestProcedureStep/TestSession/TestStepMark
         ('cmod.cmod_seed', ('CMOD_SEED_PAIRS',)),
         ('cmod.cmod_page', ('SEED_CMOD_PAGE_DISPLAYS',)),
+    )),
+    # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - HalOperation / HalAccessMechanism seeded; the rest derived per SoC pin
+    ('hal', (
+        ('hal.hal_basis', ('HalOperation', 'HalAccessMechanism', 'HalBinding', 'HalCodeUnit', 'HalGenerationStep', 'HalCrossCheck', 'HAL_CLASSES')),
+        ('hal.hal_seed', ('HAL_SEED_PAIRS',)),
+        ('hal.hal_page', ('SEED_HAL_PAGE_DISPLAYS',)),
     )),
     # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareNoCodeSolution across board / bridge / backend / browser; the placement rule; hn-split
     ('hwnocode', (

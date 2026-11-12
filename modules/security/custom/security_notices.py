@@ -14,6 +14,7 @@ import os
 import socket
 import ssl
 import time
+from polariApiServer import tls_policy
 
 WARN_DAYS = 14
 
@@ -37,9 +38,7 @@ def public_hosts():
 def probe_host(host, port=443, timeout=4.0):
     """Days left on the certificate the host serves, as a client sees it (no verification: we want the
     expiry even of a self-signed or expired cert). None when unreachable."""
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    ctx = tls_policy.inspection_context()   # reads the certificate as served, sends nothing (tls_policy says so)
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
             with ctx.wrap_socket(sock, server_hostname=host) as s:

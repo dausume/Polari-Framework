@@ -78,7 +78,8 @@ def catalogue(config, tables, manager=None):
             components[c['name']] = {'kind': kind, 'modes': ['passive'], 'at_init': 'passive', 'who': 'passive', 'nets': pins_on,
                                      'source': 'CircuitComponentDefinition %s (%s): no mode of its own' % (c['name'], kind)}
     return {'config': config, 'circuit': circuit, 'why': why, 'components': components, 'pins': pins, 'driver': writer, 'init': init,
-            'nets': {n['name']: n for n in nets}, 'pin_nets': pin_nets, 'press': SRC.press_record(config)}
+            'nets': {n['name']: n for n in nets}, 'pin_nets': pin_nets, 'press': SRC.press_record(config),
+            '_components': comps}   # bss-12: the raw CircuitComponentDefinition rows - cst_netlist.deck reads a resistor's ohms from them (it rendered '?' without this)
 
 
 def _name(lifecycle, held, led_on):

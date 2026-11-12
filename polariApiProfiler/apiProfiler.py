@@ -36,6 +36,7 @@ import socket
 import os
 from datetime import datetime
 from urllib.parse import urlparse
+from polariApiServer import tls_policy
 
 # Try to import requests for better HTTP handling
 try:
@@ -364,11 +365,10 @@ class APIProfiler(treeObject):
                 method=method.upper()
             )
 
-            # Create SSL context
-            ssl_context = ssl.create_default_context()
-            if not verify_ssl:
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
+            # TLS: polariApiServer.tls_policy - verified by default (POL_TLS_CA honoured); verify_ssl=False is an explicit
+            # per-request choice, built by the one helper and announced
+            ssl_context = (tls_policy.context(url) if verify_ssl
+                           else tls_policy.unverified_context('apiProfiler verify_ssl=False', url))
 
             # Make request
             with urllib.request.urlopen(request, timeout=timeout, context=ssl_context) as response:

@@ -67,6 +67,18 @@ PATTERNS = re.compile(
 #: not fit yet. Each line is a commitment: it gets migrated or it gets a
 #: standing reason, and the guard fails the day one is added without either.
 KNOWN_STRAGGLERS = {
+    # --- host-side CLIs / scripts that run OUTSIDE a backend process (pol-core, 2026-11-07): there is no manager
+    #     to record into and no cause; their TLS is the shared policy helper (polariApiServer.tls_policy)
+    'modules/cmod/custom/firmware_cli.py':
+        "host-side CLI calling a backend's /api/capabilities over POLARI_API from outside the process: no manager, no cause to record; TLS via the shared policy helper",
+    'modules/cmod/custom/fsc_cli.py':
+        "host-side CLI driving a backend's doors over its URL from outside the process: no manager, no cause; TLS via the shared policy helper",
+    'modules/hwnocode/custom/demo_prepare.py':
+        "host-side demo setup script against a backend's API from outside the process: no manager, no cause; TLS via the shared policy helper",
+    'modules/grpcbridge/custom/hosted_proof.py':
+        'proof harness dialling a live hosted bridge on purpose (like the dyn proofs)',
+    'modules/instruments/custom/scope_engines.py':
+        "fallback only when polariApiServer.outbound is not importable (a worker image without it); the normal path already calls outbound.http_request('engine', 'instruments', ...)",
     # --- in-tree proof / test harnesses (they dial a LIVE server on '
     #     purpose; wrapping them would record the harness, not the product)
     'moduleService/dyn_proofs/collab_proof.py': 'dyn proof harness',

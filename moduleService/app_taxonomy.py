@@ -58,6 +58,7 @@ DEFAULTS = {
     'firmwarefaults': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'concurrency', 'faults', 'simulation']),
     # cmod-0: C modularization — atoms of a normal C project (C_MODULARIZATION_PLAN)
     'cmod': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'c', 'atoms', 'no-code']),
+    'hal': ('polari', ['materials-devices', 'chip-simulation'], ['hal', 'firmware', 'registers', 'c', 'codegen']),
     # hn-0: hardware as no-code (HARDWARE_NOCODE_PLAN)
     'hwnocode': ('polari', ['materials-devices', 'chip-simulation'], ['firmware', 'no-code', 'hardware', 'placement']),
     # pcb-0: PCB from scratch — KiCad as the relay engine, rows as the design (PCB_FROM_SCRATCH_PLAN)

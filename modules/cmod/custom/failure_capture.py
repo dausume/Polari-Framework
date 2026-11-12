@@ -13,6 +13,8 @@ the node's step where that fits MAX_POINTS, else coarser and said. Nothing is ke
     of_run(manager, run_name)      the capture summaries a run kept (failure or pinned), for the doors and the page
 
 bss-10: a PINNED capture - `pin=True` on the run door keeps the target edge's WHOLE window whatever the outcome (prefix 'pin'); the play door's pin.
+bss-14: the WATCHED STRUCT FIELDS ride along (`fields`: {name: timeline with .at(cycle)}) as one row each, kind 'field' in settings_json, the sample = the
+field's integer value (y_increment 1, origin 0: the chart draws the value itself); the VCD door (vcd_export) renders pins as wires and fields as vectors.
 """
 import base64
 import datetime
@@ -44,19 +46,21 @@ def acquisition(run_name, prefix='fail'):
 def of_run(manager, run_name):
     from instruments.custom import captures as CAP
     ids = {acquisition(run_name, 'fail'), acquisition(run_name, 'pin')}
-    return [dict(CAP.summary(r), kept='pinned' if r['acquisition'].startswith('pin-') else 'on failure', line=json.loads(r.get('settings_json') or '{}').get('line', ''))
+    return [dict(CAP.summary(r), kept='pinned' if r['acquisition'].startswith('pin-') else 'on failure', line=json.loads(r.get('settings_json') or '{}').get('line', ''),
+                 kind=json.loads(r.get('settings_json') or '{}').get('kind', 'pin'))
             for r in sorted(CAP.captures(manager), key=lambda r: (r['acquisition'], r['channel'])) if r['acquisition'] in ids]
 
 
-def keep(manager, run_name, events, lo, hi, hz, step_s, why, fraction=FAILURE_WINDOW, prefix='fail'):
+def keep(manager, run_name, events, lo, hi, hz, step_s, why, fraction=FAILURE_WINDOW, prefix='fail', fields=None):
     import numpy as np
     from instruments.custom import captures as CAP
     from instruments.custom import device_feed as DF
     from instruments.custom import lineage as L
     from instruments.custom import sources as SRC
     lines = DF.sources_from_events(_pin_events(events), hz, logic_v=LOGIC_V)
-    if not lines:
-        return {'acquisition': '', 'rows': [], 'words': 'no capture: the twin reported no pin event on this run (no stimulus pin, no jumper)'}
+    fields = {k: v for k, v in (fields or {}).items() if _num(v.at(hi - 1)) is not None}   # bss-14: a numeric field rides along; a string one cannot be a sample
+    if not lines and not fields:
+        return {'acquisition': '', 'rows': [], 'words': 'no capture: the twin reported no pin event on this run (no stimulus pin, no jumper) and no numeric field was watched'}
     t_end = hi / float(hz)
     t0 = max(lo / float(hz), t_end - fraction * (hi - lo) / float(hz))
     dt = step_s if step_s and step_s > 0 else 1.0 / hz
@@ -83,5 +87,26 @@ def keep(manager, run_name, events, lo, hi, hz, step_s, why, fraction=FAILURE_WI
                'note': 'kept on failure only (D-bss-6)' if prefix == 'fail' else 'pinned by a person while playing (D-bss-6)'}
         CAP._upsert(manager, 'WaveformCapture', CAP._C_FIELDS, row)
         names.append(row['name'])
-    return {'acquisition': acq, 'rows': names, 'words': '%s capture %s: %d line%s (%s) over %s at %.3g us per point%s'
-            % ('failure' if prefix == 'fail' else 'pinned', acq, len(names), '' if len(names) == 1 else 's', ', '.join(sorted(lines)), span, dt * 1e6, coarse)}
+    ff = dict(_F, x_increment=dt, x_origin=t0, y_increment=1.0, y_origin=0.0)   # bss-14: a field's sample IS its value
+    for ch, (field, tl) in enumerate(sorted(fields.items()), len(names) + 1):
+        vals = np.array([max(0.0, min(65535.0, float(_num(tl.at(int(round(x * hz)))) or 0.0))) for x in t])
+        raw = L.to_raw(vals, ff).astype('<u2').tobytes()
+        row = {'name': '%s-ch%d' % (acq, ch), 'endpoint': 'twin', 'instrument': 'polari-avr-twin', 'channel': ch, 'acquired_at': now, 'acquisition': acq, 'points': n,
+               'format': 'WORD', 'lineage': 'agilent', 'x_increment': dt, 'x_origin': t0, 'x_reference': 0.0, 'y_increment': 1.0, 'y_origin': 0.0,
+               'y_reference': 0.0, 'sample_rate_sps': 1.0 / dt, 'memory_depth_pts': float(n), 'trigger_json': json.dumps({'edge_cycles': [lo, hi], 'window_s': [t0, t_end]}),
+               'settings_json': json.dumps({'line': field, 'kind': 'field', 'window_fraction': fraction, 'unit': 'the field\'s value (clipped to 16 bits)'}),
+               'raw_sha256': hashlib.sha256(raw).hexdigest(), 'raw_bytes': len(raw), 'raw_path': '', 'raw_b64': base64.b64encode(raw).decode(), 'preamble_text': '',
+               'source': 'twin', 'source_ref': 'run %s: %s; field %s over %s (cycles %d..%d)' % (run_name, why, field, span, lo, hi),
+               'note': ('kept on failure only (D-bss-6)' if prefix == 'fail' else 'pinned by a person while playing (D-bss-6)') + '; a struct field, not a line (bss-14)'}
+        CAP._upsert(manager, 'WaveformCapture', CAP._C_FIELDS, row)
+        names.append(row['name'])
+    return {'acquisition': acq, 'rows': names, 'words': '%s capture %s: %d line%s (%s)%s over %s at %.3g us per point%s'
+            % ('failure' if prefix == 'fail' else 'pinned', acq, len(lines), '' if len(lines) == 1 else 's', ', '.join(sorted(lines)) or 'none',
+               (' + %d field%s (%s)' % (len(fields), '' if len(fields) == 1 else 's', ', '.join(sorted(fields)))) if fields else '', span, dt * 1e6, coarse)}
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None

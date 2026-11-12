@@ -141,8 +141,36 @@ SEED_INSTRUMENTS = [
      'note': 'third vendor profile for the emulator; its preamble is the second adapter (osc-1); a DIALECT PROOF profile exists (emulated stays False: no model is claimed)'},
 ]
 
+# msv-0 / D-msv-2. The user said on 2026-11-04: "I do not own any currently, just look into affordable commercial options as examples which are
+# ideally American, and if open source options exist do one of those as well". They then added: "the open scopes we have already are fine, and anything
+# with sigrok then, readings coming in automatically is one critical case and another is doing so manually/cheaply".
+# So the example meter is ONE cheap meter that covers both cases. It is read by sigrok (GPLv3, libsigrok serial-dmm), and it can also be read by eye.
+# A % of range term would be written as counts x resolution. No number below is typed from memory.
+#
+# TekPower TP4000ZC (a rebadged Digitek DT4000ZC; Kaito Electronics, USA; about USD 43). 4000 counts, CAT II 600 V. The data comes out of an
+# optically isolated RS232 port on a 3.5 mm jack, through an RS232 or USB cable. Sources: the sigrok wiki "TekPower TP4000ZC", read 2026-11-04
+# (supported, serial-dmm; chip probably FS9721_LP3).
+_TP = ('accuracy: DC V +/-(0.5 % + 5) on 400 mV-400 V - testmeterpro.com review table, read 2026-11-04, agreeing with the seller listing\'s "DCV: 0-4-40-400V +/-0.5%"; '
+       'DC mA: the review gives +/-(1.5 % + 5) on 40-400 mA and the seller listing gives +/-1.2 % - the two CONFLICT, so the wider is kept; '
+       'the ranges and resolutions come from 4000 counts and the quoted range ends. Owed: the TP4000ZC user manual\'s own table, which the sources here were not')
+
+
+def _acc(inst, fn, rng, pct, counts, res, cite, input_ohms=-1.0, burden=-1.0, notes=''):
+    return {'name': '%s-acc-%s-%g' % (inst, fn.replace(' ', '').lower(), rng), 'instrument': inst, 'function': fn, 'range_max': rng,
+            'pct_reading': pct, 'counts': counts, 'resolution': res, 'input_ohms': input_ohms, 'burden_v_per_a': burden, 'cite': cite, 'notes': notes}
+
+
+SEED_ACCURACY = [
+    _acc('tekpower-tp4000zc', 'V dc', rng, 0.5, 5, res, _TP, notes='input impedance unread') for rng, res in ((0.4, 1e-4), (4.0, 1e-3), (40.0, 1e-2), (400.0, 1e-1))
+] + [
+    _acc('tekpower-tp4000zc', 'I dc', rng, 1.5, 5, res, _TP, notes='the wider of two conflicting figures (1.5 % review vs 1.2 % seller); burden unread')
+    for rng, res in ((0.04, 1e-5), (0.4, 1e-4))]
+
+
 def _pairs():
     pairs = [('Instrument', Instrument, SEED_INSTRUMENTS)]
+    from instruments.objects.instruments.InstrumentAccuracy import InstrumentAccuracy
+    pairs.append(('InstrumentAccuracy', InstrumentAccuracy, SEED_ACCURACY))
     try:
         from polariApiServer.graphDefinition import GraphDefinition
         from instruments.instruments_page import SEED_INSTRUMENTS_GRAPHS

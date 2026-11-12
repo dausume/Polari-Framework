@@ -100,7 +100,7 @@
    "files": [
     {
      "path": "hal_sense_poll.c",
-     "sha256": "1c0e03eea6e62c81ee222d88acf01e2960ad55dd1b4de5947ec7de8f4d9f73c9"
+     "sha256": "5b1c56b0730c4dadcf3a41f3766e9a3530d08c5a8345bf6dfbdf551859132d33"
     }
    ],
    "atoms": [
@@ -131,11 +131,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "d5d6594c234b202f9f892abc90a998ec511d274cf2842ae77a72ad76251d3c18"
+     "sha256": "b4dee45d77f80c34c6749d053ba14b90de6128849a822c62a1d23bd84c5df0d5"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "7d3c67838d223a14e6dd93c192d83fc588ea7182b84ee098aad5e0621beafe58"
+     "sha256": "89061657a660fe3f31695a2bd95ca8e8a0b2202c934674e1dd977d1755dd867e"
     }
    ],
    "atoms": [
@@ -177,6 +177,17 @@
     {
      "path": "lightstate_packets.h",
      "sha256": "3f9c534136f3a339f527bd88258fc1a56859c136afce7cd7c61f391b75b40fab"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "polari_hal_atmega328p",
+   "role": "header",
+   "files": [
+    {
+     "path": "polari_hal_atmega328p.h",
+     "sha256": "57c199b886769fd10fd2d799392935a06cde17bd9d1173f14bf23e0de0446f40"
     }
    ],
    "atoms": []
@@ -1151,7 +1162,7 @@
    "name": "hal_sense_poll.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal_sense_poll.c",
-   "line": 29,
+   "line": 30,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -1214,7 +1225,7 @@
    "name": "hal_sense_poll.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal_sense_poll.c",
-   "line": 38,
+   "line": 39,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -1401,7 +1412,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 51,
+   "line": 52,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1441,7 +1452,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 49,
+    "line": 50,
     "role": "SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)",
     "uses": [],
     "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket LightState command\"), role(\"SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)\"))"
@@ -1470,7 +1481,7 @@
    "name": "polari_graph.boot_session_mint",
    "function": "boot_session_mint",
    "module": "polari_graph.c",
-   "line": 26,
+   "line": 27,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t boot_session_mint(void)",
@@ -1518,7 +1529,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 24,
+    "line": 25,
     "role": "mint this start's session number from EEPROM; it differs after every reset",
     "uses": [],
     "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this start's session number from EEPROM; it differs after every reset\"))"
@@ -1547,7 +1558,7 @@
    "name": "polari_graph.led_follow_state",
    "function": "led_follow_state",
    "module": "polari_graph.c",
-   "line": 69,
+   "line": 70,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_follow_state(void)",
@@ -1583,7 +1594,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 68,
+    "line": 69,
     "role": "each pass: when state.led_on differs from the value last written to the pin, drive the pin to it",
     "uses": [
      "LED_PIN"
@@ -1614,7 +1625,7 @@
    "name": "polari_graph.led_toggle",
    "function": "led_toggle",
    "module": "polari_graph.c",
-   "line": 37,
+   "line": 38,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_toggle(void)",
@@ -1643,7 +1654,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 36,
+    "line": 37,
     "role": "on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)",
     "uses": [],
     "raw": "POLARI_NODE(led_toggle, role(\"on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)\"))"
@@ -1672,7 +1683,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 106,
+   "line": 107,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1765,7 +1776,7 @@
    "name": "polari_graph.sense_poll",
    "function": "sense_poll",
    "module": "polari_graph.c",
-   "line": 80,
+   "line": 81,
    "kind": "function",
    "isr_vector": "",
    "signature": "void sense_poll(void)",
@@ -1801,7 +1812,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 79,
+    "line": 80,
     "role": "each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report",
     "uses": [
      "SENSE_PIN"
@@ -1832,7 +1843,7 @@
    "name": "polari_graph.telemetry_send",
    "function": "telemetry_send",
    "module": "polari_graph.c",
-   "line": 91,
+   "line": 92,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(void)",
@@ -1891,7 +1902,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 90,
+    "line": 91,
     "role": "one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, role(\"one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)\"))"
@@ -1933,5 +1944,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-20T10:07:22"
+ "conformed_at": "2026-11-11T13:06:18"
 }

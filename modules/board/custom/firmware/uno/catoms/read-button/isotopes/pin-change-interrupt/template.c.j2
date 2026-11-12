@@ -6,6 +6,7 @@
 #include <util/atomic.h>
 
 #include "hal.h"
+#include "{{ hal_header|c_comment }}"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
 #if !HAL_INT0 || HAL_BUTTON_ROUTE != {{ route_code|c_int }}
 #error "hal_button_pcint.c is the button route {{ route_code|c_int }} (pin-change interrupt): board_config.h must set HAL_INT0 1 and HAL_BUTTON_ROUTE {{ route_code|c_int }}"
@@ -19,10 +20,10 @@ static volatile uint8_t g_released;         /* the level seen at the last real c
 /* {{ vector|c_comment }}: ONE vector serves the whole bank ({{ mask_reg|c_comment }} picks the pins), so the ISR first checks that
  * THIS pin ({{ pin_name|c_comment }} = {{ soc_pin|c_comment }}) is the one that moved: it fires on both edges, and only the falling edge
  * (the switch pulling the pin to ground) is a press. */
-ISR({{ vector|c_ident }})
+ISR({{ hal_ops.pin_change_vector|c_ident }})
 {
     uint32_t now;
-    uint8_t level = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
+    uint8_t level = {{ hal_ops.read|c_ident }}();
 
     if (level == g_released) return;        /* another pin of the bank moved */
     g_released = level;
@@ -32,17 +33,16 @@ ISR({{ vector|c_ident }})
     g_toggle_pending = 1u;                  /* the ISR only counts + marks; the main loop does the work */
 }
 
-/* {{ pin_name|c_comment }} input + pull-up, then (in the order pin_config_gen uses: mask, then clear any pending flag, then enable the bank):
- * {{ mask_reg|c_comment }}.{{ mask_bit|c_comment }}, {{ flag_reg|c_comment }}.{{ flag_bit|c_comment }} (write one to clear), {{ enable_reg|c_comment }}.{{ enable_bit|c_comment }}. Read-modify-write on the mask and enable:
- * other pins of the bank may already be armed. */
+/* {{ pin_name|c_comment }} input + pull-up, then the pin-change enable (the HAL writes it in the datasheet order: mask
+ * {{ mask_reg|c_comment }}.{{ mask_bit|c_comment }}, clear the bank flag {{ flag_reg|c_comment }}.{{ flag_bit|c_comment }} (write one to clear), enable {{ enable_reg|c_comment }}.{{ enable_bit|c_comment }}).
+ * The _INIT form: this runs before sei(), so the read-modify-writes need no guard (other pins of the bank may already be armed:
+ * the mask and enable are read-modify-written, never overwritten). */
 void hal_button_init(void)
 {
-    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});
-    {{ port_reg|c_ident }} |= _BV({{ pin_bit|c_ident }});                 /* pull-up: the button pulls the pin to ground */
-    g_released = ({{ pin_reg|c_ident }} & _BV({{ pin_bit|c_ident }})) != 0u;
-    {{ mask_reg|c_ident }} |= _BV({{ mask_bit|c_ident }});
-    {{ flag_reg|c_ident }} = _BV({{ flag_bit|c_ident }});                  /* w1c: clears only this bank's flag */
-    {{ enable_reg|c_ident }} |= _BV({{ enable_bit|c_ident }});
+    {{ hal_ops.input|c_ident }}();
+    {{ hal_ops.pull_up|c_ident }}();                 /* pull-up: the button pulls the pin to ground */
+    g_released = {{ hal_ops.read|c_ident }}();
+    {{ hal_ops.pin_change_enable|c_ident }}_INIT();
 }
 
 uint16_t hal_presses(void)

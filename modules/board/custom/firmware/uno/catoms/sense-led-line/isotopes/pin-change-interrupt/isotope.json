@@ -16,5 +16,14 @@
   ]
  },
  "minimum_level": "bare-c",
- "notes": "fgm-5b."
+ "notes": "fgm-5b.",
+ "requires": {
+  "sense_pin": [
+   "gpio.input",
+   "gpio.read",
+   "int.pin_change_enable",
+   "int.pin_change_vector"
+  ]
+ },
+ "requires_note": "hal-2 (AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): the HAL operations this isotope calls on the sense pin; written against the macros, never the registers."
 }

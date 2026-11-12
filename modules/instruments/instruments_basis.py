@@ -10,4 +10,6 @@ from instruments.objects.instruments.InstrumentEndpoint import InstrumentEndpoin
 from instruments.objects.instruments.ScopeChannel import ScopeChannel, COUPLINGS  # noqa: F401
 from instruments.objects.instruments.WaveformCapture import WaveformCapture, FORMATS, SOURCES  # noqa: F401
 
-INSTRUMENTS_CLASSES = [Instrument, InstrumentEndpoint, ScopeChannel, WaveformCapture]
+from instruments.objects.instruments.InstrumentAccuracy import InstrumentAccuracy  # noqa: F401  (msv-0: a meter's cited accuracy per function and range)
+
+INSTRUMENTS_CLASSES = [Instrument, InstrumentEndpoint, ScopeChannel, WaveformCapture, InstrumentAccuracy]

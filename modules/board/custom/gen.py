@@ -99,7 +99,7 @@ def header(cls, api='', msg_type=1, manager=None, bridge='', rx_parser='resync')
     if api:
         url = '%s/api/grpc/exposures/%s/c-header?msg_type=%d&target=avr&wire=2&bridge=%s' % (api.rstrip('/'), cls, int(msg_type), bridge)
         from polariApiServer import outbound
-        with outbound.http_request('self', 'board', 'GET', url, means='rest', timeout=30, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'board', 'GET', url, means='rest', timeout=30, lib='urllib') as r:
             text = r.read().decode()
         m = re.search(r'contract v(\d+)\s+hash (\w*)', text)
         if '%s_MSG_TYPE' % cls.upper() not in text or 'target avr' not in text:
@@ -255,6 +255,12 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
         except SR.RouteRefused as e:
             raise GenRefused(str(e))
         open(os.path.join(project, rendered_sense['file']), 'w').write(rendered_sense['text'])
+    # hal-2: ONE generated HAL header for every isotope of the project (the union of what each requires: polari_hal_<soc>.h)
+    hal_hdr = None
+    if (rendered or {}).get('hal_header') or (rendered_sense or {}).get('hal_header'):
+        from hal.custom import project as HP
+        hal_hdr = HP.merged_header('atmega328p', [(rendered or {}).get('hal_header'), (rendered_sense or {}).get('hal_header')])
+        open(os.path.join(project, hal_hdr['file']), 'w').write(hal_hdr['text'])
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
@@ -291,6 +297,9 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     if rendered_sense:
         tinputs += [{'label': 'isotope template (jinja2)', 'path': rendered_sense['template'], 'sha256': rendered_sense['template_sha256']},
                     {'label': 'isotope template macros (jinja2)', 'path': 'board/custom/firmware/uno/catoms/sense-led-line/_common.j2', 'sha256': rendered_sense['common_sha256']}]
+    if hal_hdr:
+        tinputs.append({'label': 'generated HAL (%d units)' % len(hal_hdr['keys']), 'path': 'hal.custom.project -> ' + hal_hdr['file'],
+                        'sha256': hal_hdr['sha256'], 'units': hal_hdr['keys']})
     row = {'name': '%s-%s' % (r['name'], ssha[:12]), 'board_definition': board, 'state': 'generated', 'variant': r['name'],
            'classes_json': json.dumps(class_rows), 'template': 'board/custom/firmware/uno', 'source_sha': ssha,
            'header_sha256': compat.combined_sha(class_rows), 'tag_order_json': json.dumps(orders),

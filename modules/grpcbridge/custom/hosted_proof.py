@@ -15,12 +15,13 @@ import tempfile
 import time
 import types
 import urllib.request
+from polariApiServer import tls_policy
 
 
 def _http(method, url, body=None, timeout=20):
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None, method=method,
                                  headers={'Content-Type': 'application/json'} if body is not None else {})
-    with urllib.request.urlopen(req, timeout=timeout, context=ssl._create_unverified_context()) as r:
+    with urllib.request.urlopen(req, timeout=timeout, context=tls_policy.context(url)) as r:
         raw = r.read()
         return r.status, (json.loads(raw) if raw.strip().startswith((b'{', b'[')) else raw.decode('utf-8', 'replace'))
 

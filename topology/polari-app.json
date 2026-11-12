@@ -48,6 +48,7 @@
    "selftest_example_retire_durable",
    "selftest_module_graph",
    "selftest_move_operations",
+   "selftest_peering",
    "selftest_testing",
    "selftest_topology",
    "selftest_topology_self"
@@ -70,6 +71,7 @@
    "topology_links",
    "topology_module_graph",
    "topology_modules",
+   "topology_peering",
    "topology_self",
    "topology_state",
    "topology_testing"
@@ -105,6 +107,7 @@
   "selftest_example_retire_durable",
   "selftest_module_graph",
   "selftest_move_operations",
+  "selftest_peering",
   "selftest_testing",
   "selftest_topology",
   "selftest_topology_self"

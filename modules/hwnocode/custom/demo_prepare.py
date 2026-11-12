@@ -20,17 +20,16 @@ import urllib.error
 import urllib.request
 
 from grpcbridge.mapping_basis import SEED_LIGHT_BRIDGE
+from polariApiServer import tls_policy
 
-_CTX = ssl.create_default_context()
-_CTX.check_hostname = False
-_CTX.verify_mode = ssl.CERT_NONE   # the home stack's nip.io certs are self-signed (dev posture)
+# TLS: polariApiServer.tls_policy (verified by default; a self-signed home stack sets POL_TLS_CA=<pem> or POL_TLS_INSECURE=1 explicitly)
 
 
 def _call(api, method, path, body=None, timeout=120):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(api.rstrip('/') + path, data=data, method=method, headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=tls_policy.context(req.full_url)) as r:
             return r.status, json.loads(r.read() or b'{}')
     except urllib.error.HTTPError as e:
         try:

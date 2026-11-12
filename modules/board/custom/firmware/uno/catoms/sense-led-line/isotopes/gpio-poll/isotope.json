@@ -15,5 +15,12 @@
   ]
  },
  "minimum_level": "bare-c",
- "notes": "fgm-5b. A blink shorter than one main-loop pass is missed; the twin proof drives person-speed toggles (150 ms apart)."
+ "notes": "fgm-5b. A blink shorter than one main-loop pass is missed; the twin proof drives person-speed toggles (150 ms apart).",
+ "requires": {
+  "sense_pin": [
+   "gpio.input",
+   "gpio.read"
+  ]
+ },
+ "requires_note": "hal-2 (AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): the HAL operations this isotope calls on the sense pin; written against the macros, never the registers."
 }

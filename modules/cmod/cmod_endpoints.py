@@ -25,6 +25,7 @@ from cmod.cmod_confirmations_api import ConfirmationsAPI   # bss-3
 from cmod.cmod_bench_canvas_api import BenchCanvasAPI   # bss-5
 from cmod.cmod_coverage_api import CoverageAPI   # bss-6
 from cmod.cmod_retest_api import RetestAPI   # bss-4
+from cmod.cmod_measure_api import MeasureAPI   # msv-0
 from cmod.cmod_bench_structs_api import BenchStructsAPI   # hsp-3b
 
 
@@ -51,5 +52,6 @@ def construct_cmod_endpoints(polServer):
     api.bench_canvas = BenchCanvasAPI(polServer=polServer, manager=polServer.manager)   # bss-5: .../canvas (the drawing)
     api.coverage = CoverageAPI(polServer=polServer, manager=polServer.manager)   # bss-6: .../coverage[/untested|nodes|events|runs|assertions|strip-rows]
     api.retest = RetestAPI(polServer=polServer, manager=polServer.manager)   # bss-4: .../retest, .../runs/{run}/signals|edges   # cfg-0: /api/cmod/config-groups, /api/cmod/catom-config/{bench_solution}/{catom}[/evaluate|/choose|/isotope]
+    api.measure = MeasureAPI(polServer=polServer, manager=polServer.manager)   # msv-0: .../nodes/{slug}/measurement-points, .../units[/{unit}/readings]
     api.bench_structs = BenchStructsAPI(polServer=polServer, manager=polServer.manager)   # hsp-3b: /api/cmod/bench-structs/{bench}
     return api

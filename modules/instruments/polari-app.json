@@ -28,7 +28,8 @@
    "objects/instruments/Instrument",
    "objects/instruments/InstrumentEndpoint",
    "objects/instruments/ScopeChannel",
-   "objects/instruments/WaveformCapture"
+   "objects/instruments/WaveformCapture",
+   "objects/instruments/InstrumentAccuracy"
   ],
   "basis": [
    "instruments_basis"
@@ -62,6 +63,7 @@
    "custom/lineage",
    "custom/placement",
    "custom/scope_engines",
+   "custom/sigrok_reader",
    "custom/scpi",
    "custom/sources",
    "custom/testability"
@@ -72,7 +74,8 @@
   "InstrumentEndpoint",
   "InstrumentsAPI",
   "ScopeChannel",
-  "WaveformCapture"
+  "WaveformCapture",
+  "InstrumentAccuracy"
  ],
  "imports": [
   [
@@ -81,7 +84,8 @@
     "Instrument",
     "InstrumentEndpoint",
     "ScopeChannel",
-    "WaveformCapture"
+    "WaveformCapture",
+    "InstrumentAccuracy"
    ]
   ],
   [

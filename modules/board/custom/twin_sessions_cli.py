@@ -27,7 +27,7 @@ def _call(api, method, path, body=None, timeout=120):
                                  headers={'Content-Type': 'application/json'} if body is not None else {}, method=method)
     from polariApiServer import outbound
     try:
-        with outbound.http_request('self', 'board', method, req, means='rest', timeout=timeout, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'board', method, req, means='rest', timeout=timeout, lib='urllib') as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         try:
@@ -77,7 +77,7 @@ def _events(api, name, seconds, limit, replay, as_json):
     req = urllib.request.Request('%s/api/board/twins/%s/events%s' % (api.rstrip('/'), name, '?' + q if q else ''), headers={'Accept': 'text/event-stream'})
     from polariApiServer import outbound
     try:
-        with outbound.http_request('self', 'board', 'GET', req, means='rest', timeout=(seconds or 3600) + 30, lib='urllib', context=ssl._create_unverified_context()) as r:
+        with outbound.http_request('self', 'board', 'GET', req, means='rest', timeout=(seconds or 3600) + 30, lib='urllib') as r:
             for raw in r:
                 text = raw.decode('utf-8', 'replace').strip()
                 if not text.startswith('data:'):

@@ -231,7 +231,7 @@ def _remote(url, engine, args, files, timeout):
     req = urllib.request.Request('%s/run' % url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
     t0 = time.perf_counter()
     from polariApiServer import outbound
-    with outbound.http_request('engine', 'formal', 'POST', req, means='run', timeout=timeout + 60, lib='urllib', context=ssl._create_unverified_context()) as r:
+    with outbound.http_request('engine', 'formal', 'POST', req, means='run', timeout=timeout + 60, lib='urllib') as r:
         d = json.load(r)
     for k in ('stdout', 'stderr'):
         if '%s_chars' % k in d and len(d.get(k) or '') != int(d['%s_chars' % k]):

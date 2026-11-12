@@ -131,6 +131,11 @@ def after_boot(manager, source='boot'):
         except Exception as exc:  # noqa: BLE001 - a registry outage must never stop the boot
             out['registry'] = {'ok': False, 'words': 'engine registry pull failed: %s: %s' % (type(exc).__name__, exc)}
     try:
+        from topology.topology_peering import start_peer_puller
+        out['peers'] = {'ok': True, 'words': start_peer_puller(manager)}
+    except Exception as exc:  # noqa: BLE001 - peering never stops the boot
+        out['peers'] = {'ok': False, 'words': 'peer puller not started: %s: %s' % (type(exc).__name__, exc)}
+    try:
         from topology.placement_truth import live_module_set
         out['links'] = describe_links(manager, live_module_set(manager.polServer), source)
     except Exception as exc:  # noqa: BLE001
@@ -164,8 +169,10 @@ def _upsert(manager, cls_name, module, cls, name, created, **fields):
         mod = __import__(module, fromlist=[cls])
         row = getattr(mod, cls)(name=name, manager=manager, **fields)
         created.append('%s:%s' % (cls_name, name))
-    elif _TAG in (getattr(row, 'notes', '') or ''):
-        for k, v in fields.items():          # only rows this pass wrote follow it; a row a person wrote is left as it is
+    elif _TAG in (getattr(row, 'notes', '') or '') or '(tpl-2 peer:' in (getattr(row, 'notes', '') or ''):
+        # only rows this pass wrote follow it (a row a person wrote is left as it is); a PEER'S COPY of the same row (tpl-2:
+        # two backends bound to one isle engine worker) becomes this backend's own, because local truth outranks a copy
+        for k, v in fields.items():
             setattr(row, k, v)
     _save(manager, row)
     return row
@@ -280,6 +287,11 @@ def on_binding_changed(manager, source='engine bound'):
     """The one entry point for whatever saves or removes an EngineProviderBinding row (islemesh ingest, the fix-11 consumer):
     refresh the engine links in the topology now instead of at the next boot. Never raises; -> describe_links' result, or
     {ok: False, words} when the topology side is unavailable here."""
+    try:
+        from topology.topology_peering import local_changed
+        local_changed()                      # tpl-2: this backend's peers hear about the change now
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from topology.placement_truth import live_module_set
         return describe_links(manager, live_module_set(manager.polServer), source)

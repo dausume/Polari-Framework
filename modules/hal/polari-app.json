@@ -1,0 +1,141 @@
+{
+ "schema": "polari-app/1",
+ "id": "hal",
+ "package": "hal",
+ "title": "HAL",
+ "description": "The generalized hardware abstraction layer: chip-independent HAL operations, their bindings to each SoC's registers, the access mechanisms that decide how code is generated, and the step-by-step trace of every generated line",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member",
+  "realization": "",
+  "category": "polari",
+  "subcategories": [
+   "materials-devices",
+   "chip-simulation"
+  ],
+  "tags": [
+   "hal",
+   "firmware",
+   "registers",
+   "c",
+   "codegen"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "board"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/hal/HalAccessMechanism",
+   "objects/hal/HalBinding",
+   "objects/hal/HalCodeUnit",
+   "objects/hal/HalCrossCheck",
+   "objects/hal/HalGenerationStep",
+   "objects/hal/HalOperation"
+  ],
+  "basis": [
+   "hal_basis"
+  ],
+  "api": [
+   "hal_api"
+  ],
+  "endpoints": [
+   "hal_endpoints"
+  ],
+  "seed": [
+   "hal_seed"
+  ],
+  "page": [
+   "hal_page"
+  ],
+  "selftests": [
+   "hal_selftest"
+  ],
+  "custom": [
+   "custom/crosscheck",
+   "custom/generate",
+   "custom/mechanisms",
+   "custom/operations",
+   "custom/render",
+   "custom/soc_rules"
+  ]
+ },
+ "classes": [
+  "HalAPI",
+  "HalAccessMechanism",
+  "HalBinding",
+  "HalCodeUnit",
+  "HalCrossCheck",
+  "HalGenerationStep",
+  "HalOperation"
+ ],
+ "imports": [
+  [
+   "hal.hal_basis",
+   [
+    "HalOperation",
+    "HalAccessMechanism",
+    "HalBinding",
+    "HalCodeUnit",
+    "HalGenerationStep",
+    "HalCrossCheck",
+    "HAL_CLASSES"
+   ]
+  ],
+  [
+   "hal.hal_seed",
+   [
+    "HAL_SEED_PAIRS"
+   ]
+  ],
+  [
+   "hal.hal_page",
+   [
+    "SEED_HAL_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "hal.hal_endpoints:construct_hal_endpoints",
+ "seedPairs": "hal.hal_seed:HAL_SEED_PAIRS",
+ "pages": [
+  "hal.hal_page:SEED_HAL_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "hal_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": [],
+  "devVariant": [
+   "authz",
+   "content",
+   "trust-channel",
+   "certificate",
+   "peer-admission"
+  ]
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

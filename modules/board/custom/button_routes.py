@@ -165,10 +165,25 @@ def render(route, knobs):
     tpl = template_path(route)
     ctx = dict(p, file=fname, route_code=code, banner={'generator': GENERATOR, 'template': 'catoms/' + tpl,
                                                        'isotope': iso, 'knobs': _knob_text(knobs, route), 'cites': p['cites']})
+    hal_hdr = _hal_header(route, p)
+    if hal_hdr:
+        m = hal_hdr['macros']
+        ctx.update(hal_header=hal_hdr['file'], hal_ops={op.split('.', 1)[1]: name for (_v, op), name in m.items()})   # gpio.read -> hal.read
     text = E.render(tpl, ctx, templates_dir=CATOMS).decode()
     return {'file': fname, 'text': text, 'template': 'board/custom/firmware/uno/catoms/' + tpl, 'generator': GENERATOR,
             'template_sha256': E.template_sha(tpl, CATOMS), 'common_sha256': E.template_sha('read-button/_common.j2', CATOMS),
-            'cites': p['cites'], 'plan': p}
+            'cites': p['cites'], 'plan': p, 'hal_header': hal_hdr}
+
+
+def _hal_header(route, p):
+    """hal-2: the HAL units the isotope REQUIRES (isotope.json `requires`), generated for the chosen pin by the hal module -> the
+    header dict (file, text, sha256, macros) or None for an isotope that declares none. Imported lazily: board's own data feeds the
+    HAL, the HAL feeds this one render (the cmod generator env is imported the same way above)."""
+    from hal.custom import project as HP
+    try:
+        return HP.isotope_header(isotope_dir(route), 'atmega328p', {'button_pin': p['soc_pin']})
+    except HP.HalRefused as e:
+        raise RouteRefused('the HAL cannot give this isotope what it requires on %s: %s' % (p['soc_pin'], e))
 
 
 def sha256(data):

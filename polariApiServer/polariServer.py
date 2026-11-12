@@ -1425,6 +1425,8 @@ class polariServer(treeObject):
             CatomVariable,
             # hsp-3c: the HAL drawn in no-code - one card per Catom variable; a chosen value is written through catom_variables.propose
             HalVariableState,
+            # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - the vocabulary + access mechanisms (seeded), bindings / code units / generation steps / cross-checks (derived)
+            HalOperation, HalAccessMechanism, HalBinding, HalCodeUnit, HalGenerationStep, HalCrossCheck,
             # cfg-0: catom configurations - options, the per-firmware-solution configuration + choices, the per-Bench-Solution verdicts + check results
             ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult,
             IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples,   # bss-1: the Hardware Event topology
@@ -2527,7 +2529,7 @@ class polariServer(treeObject):
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
              + (SEED_SECURITY_PAGE_DISPLAYS or []) + (SEED_ISO_PAGE_DISPLAYS or [])
-             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_INSTRUMENTS_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or []) + (SEED_CMOD_PAGE_DISPLAYS or [])
+             + (SEED_TENSORMATH_PAGE_DISPLAYS or []) + (SEED_TENSORTREE_PAGE_DISPLAYS or []) + (SEED_COMPUTELOD_PAGE_DISPLAYS or []) + (SEED_MATHPROOFS_PAGE_DISPLAYS or []) + (SEED_BOARD_PAGE_DISPLAYS or []) + (SEED_INSTRUMENTS_PAGE_DISPLAYS or []) + (SEED_FIRMWAREFAULTS_PAGE_DISPLAYS or []) + (SEED_CMOD_PAGE_DISPLAYS or []) + (SEED_HAL_PAGE_DISPLAYS or [])
              # pcb-0: /display/board-schematic, board-layout, board-bom, board-fab
              + (SEED_PCB_PAGE_DISPLAYS or [])
              # hn-0: /display/hardware-solutions
@@ -3465,7 +3467,7 @@ class polariServer(treeObject):
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) + list(ISO_SEED_PAIRS or []) \
           + list(CICD_SEED_PAIRS or []) \
-          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(INSTRUMENTS_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) \
+          + list(TENSORMATH_SEED_PAIRS or []) + list(TENSORTREE_SEED_PAIRS or []) + list(COMPUTELOD_SEED_PAIRS or []) + list(MATHPROOFS_SEED_PAIRS or []) + list(BOARD_SEED_PAIRS or []) + list(INSTRUMENTS_SEED_PAIRS or []) + list(FIRMWAREFAULTS_SEED_PAIRS or []) + list(CMOD_SEED_PAIRS or []) + list(HAL_SEED_PAIRS or []) \
           + list(HWNOCODE_SEED_PAIRS or []) \
           + list(UNO_CORE_DEMO_SEED_PAIRS or []) \
           + list(PCB_SEED_PAIRS or []) \
