@@ -28,7 +28,7 @@ def check(label, cond, extra=''):
 def _env(**kw):
     for k in ('POLARI_INSTANCE_NAME', 'POLARI_INSTANCE_ID', 'CORS_ORIGINS', 'POLARI_MACHINE_NAME', 'ISLE_HOSTNAME',
               'POLARI_TOPOLOGY_SEED', 'POLARI_TOPOLOGY_PEERS', 'POLARI_TOPOLOGY_PEERS_FILE', 'POLARI_TOPOLOGY_PEER_PULL_S',
-              'POLARI_TOPOLOGY_VERIFY'):
+              'POLARI_TOPOLOGY_VERIFY', 'POLARI_TOPOLOGY_PEERS_STORE'):
         os.environ.pop(k, None)
     os.environ.update(kw)
 
@@ -315,6 +315,45 @@ def main():
     check('transport: outbound.http_request kind peer, GET, the peer\'s /api/topology/self', seen.get('kind') == 'peer'
           and seen.get('method') == 'GET' and seen.get('url', '').endswith('/api/topology/self'))
     check('transport: no TLS context of its own (the shared policy decides; verified by default)', 'context' not in seen.get('kw', {}))
+
+    # -- rel-87: operator-added peers (kept on the data volume) + the docker-exec ops client
+    with tempfile.TemporaryDirectory() as sd:
+        store_env = dict(AS_A, POLARI_INSTANCE_NAME='polari', POLARI_TOPOLOGY_PEERS_STORE=os.path.join(sd, 'peers.json'))
+        r = _as(store_env, P.add_peer, 'polari-pol', 'https://api.polari-pol.isle/')
+        check('operator: add_peer saves polari-pol in the store file', r['ok'] and os.path.exists(os.path.join(sd, 'peers.json'))
+              and P.operator_peers()[0]['url'] == 'https://api.polari-pol.isle', r)
+        src = {e['url']: e for e in _as(store_env, P.peer_sources, A)}
+        check('operator: peer_sources lists it with source "operator" (beside the agreed row saved above, one entry by URL)', 'operator' in src.get('https://api.polari-pol.isle', {}).get('sources', []), src)
+        check('operator: re-adding the same peer replaces it (one entry)', _as(store_env, P.add_peer, 'polari-pol', 'https://api.polari-pol.isle')['ok']
+              and len(P.operator_peers()) == 1)
+        check('operator: this backend itself is refused', not _as(store_env, P.add_peer, 'polari', 'https://api.polari.isle')['ok'])
+        check('operator: a non-URL is refused', not _as(store_env, P.add_peer, 'x', 'api.x.isle')['ok'])
+        check('operator: remove_peer drops it; an unknown name is said', _as(store_env, P.remove_peer, 'polari-pol')['ok']
+              and P.operator_peers() == [] and not _as(store_env, P.remove_peer, 'nobody')['ok'])
+    from topology import topology_ops as OPS
+    sent = {}
+
+    class _OpsResp:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps({'ok': True, 'words': 'peer polari-pol saved'}).encode()
+
+    def opener(req, timeout=None):
+        sent.update(url=req.full_url, method=req.get_method(), body=json.loads(req.data.decode()) if req.data else None)
+        return _OpsResp()
+    import io
+    buf = io.StringIO()
+    rc = OPS.main(['peers-add', 'polari-pol', 'https://api.polari-pol.isle'], opener=opener, out=buf)
+    check('ops: peers-add POSTs {name,url} to the loopback /api/topology/peers/add and exits 0', rc == 0
+          and sent == {'url': 'http://127.0.0.1:3000/api/topology/peers/add', 'method': 'POST',
+                       'body': {'name': 'polari-pol', 'url': 'https://api.polari-pol.isle'}}, sent)
+    OPS.main(['retire', '--digest', 'abc'], opener=opener, out=io.StringIO())
+    check('ops: retire binds the plan digest', sent['url'].endswith('/example-rows/retire') and sent['body'] == {'planDigest': 'abc'})
+
+    def down(req, timeout=None):
+        raise OSError('connection refused')
+    check('ops: an unreachable backend exits 2 in words', OPS.main(['peers'], opener=down, out=io.StringIO()) == 2)
 
     # -- the timer
     _env(POLARI_TOPOLOGY_PEER_PULL_S='0')

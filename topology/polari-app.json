@@ -72,6 +72,7 @@
    "topology_module_graph",
    "topology_modules",
    "topology_peering",
+   "topology_ops",
    "topology_self",
    "topology_state",
    "topology_testing"
