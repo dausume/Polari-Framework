@@ -40,6 +40,19 @@ def _resolve_macro(name, defines):
     return None
 
 
+def _hal_macros(d):
+    """{NAME: body} for the function-like macros of the rendered generated HAL headers (polari_hal_<soc>.h): `do { X } while (0)` -> X."""
+    out = {}
+    for h in sorted(f for f in os.listdir(d) if f.startswith('polari_hal_') and f.endswith('.h')):
+        for ln in open(os.path.join(d, h), encoding='utf-8', errors='replace'):
+            mm = re.match(r'\s*#define\s+(HAL_\w+)\(\)\s+(.*)$', ln)
+            if mm:
+                body = mm.group(2).strip()
+                dw = re.fullmatch(r'do\s*\{(.*)\}\s*while\s*\(0\)', body)
+                out[mm.group(1)] = (dw.group(1) if dw else body).strip()
+    return out
+
+
 def hal_init_modes(config):
     """{board pin: {'mode': 'output'|'input', 'pull': 'up'|'none', 'initial': 'low'|'', 'init': fn, 'source': 'file:line words'}} from the rendered config's hal sources."""
     from board.custom import firmware_state as FS
@@ -50,6 +63,7 @@ def hal_init_modes(config):
         r = P.render(spec, cfg, work)
         d = r['dir']
         defines = FS._defines(os.path.join(d, 'board_config.h'))
+        hal_macros = _hal_macros(d)
         out = {}
         for src in sorted(f for f in os.listdir(d) if f.endswith('.c')):
             # only the functions the preprocessor leaves in THIS config's build count (hal_button_init sits under #if HAL_INT0): the parsed TU names them
@@ -60,7 +74,11 @@ def hal_init_modes(config):
                     continue
                 for ln in body.splitlines():
                     code = ln.split('/*')[0]
-                    m = re.search(r'(DDR|PORT)([BCD])\s*(\|=|&=)\s*(?:\(uint8_t\))?\s*~?\s*_BV\(P([BCD])(\d)\)', code)
+                    shown = code
+                    # hal-0: the generated HAL writes the register through a function-like macro (HAL_GPIO_INPUT_PD3() -> DDRD &= (uint8_t)~_BV(3)):
+                    # expand it from the rendered polari_hal_<soc>.h so the same register regex reads it, and name the macro in the source words
+                    code = re.sub(r'\b(HAL_\w+)\(\)', lambda mm: hal_macros.get(mm.group(1), mm.group(0)), code)
+                    m = re.search(r'(DDR|PORT)([BCD])\s*(\|=|&=)\s*(?:\(uint8_t\))?\s*~?\s*_BV\((?:P([BCD]))?(\d)\)', code)
                     macro = re.search(r'(LED_DDR|LED_PORT)\s*(\|=|&=)\s*~?\s*_BV\(LED_BIT\)', code)
                     if macro:
                         pb = _resolve_macro('LED_BIT', defines)
@@ -68,12 +86,12 @@ def hal_init_modes(config):
                             continue
                         reg, port, op, bit = ('DDR' if macro.group(1) == 'LED_DDR' else 'PORT'), pb[0], macro.group(2), pb[1]
                     elif m:
-                        reg, port, op, bit = m.group(1), m.group(4), m.group(3), int(m.group(5))
+                        reg, port, op, bit = m.group(1), (m.group(4) or m.group(2)), m.group(3), int(m.group(5))
                     else:
                         continue
                     pin = _pin(port, bit)
                     e = out.setdefault(pin, {'mode': '', 'pull': 'none', 'initial': '', 'init': fn, 'source': ''})
-                    where = '%s %s(): %s' % (src, fn, code.strip())
+                    where = '%s %s(): %s' % (src, fn, shown.strip() if shown == code else '%s = %s' % (shown.strip(), code.strip()))
                     if reg == 'DDR':
                         e['mode'] = 'output' if op == '|=' else 'input'
                         e['initial'] = 'low' if op == '|=' else ''   # a fresh output pin: PORT bit 0 after reset, so low until written
