@@ -373,8 +373,11 @@ def render(name, manager=None, write=True, force=False, out_dir=None, rows=None)
             os.remove(os.path.join(d, f))
     files_sha = sha(''.join('%s %s\n' % (f, fresh[f]) for f in sorted(fresh)))
     tprov = template_provenance(files)
+    # hal-3b: a manifest-only change (the atoms re-conformed: new costs, same files) must refresh the record too, or its cost estimate and the
+    # manifest sha it names go stale while the project on disk is unchanged
+    man_rec = next((i.get('sha256') for i in (rec or {}).get('inputs') or [] if i.get('label') == 'atoms manifest'), None)
     if write and out_dir is None and ((rec or {}).get('files_sha256') != files_sha or (rec or {}).get('graph_sha256') != model['sha']
-                                      or any((rec or {}).get(k) != v for k, v in tprov.items())):
+                                      or any((rec or {}).get(k) != v for k, v in tprov.items()) or man_rec != ctx['manifest_sha256']):
         keep = rec if rec and rec.get('files_sha256') == files_sha else None
         rec = {'graph': name, 'graph_sha256': model['sha'], 'generator': GENERATOR, 'generated_project': g['generated_project'],
                'files': fresh, 'files_sha256': files_sha, 'rendered_at': datetime.datetime.now().isoformat(timespec='seconds'),

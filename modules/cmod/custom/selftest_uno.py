@@ -143,8 +143,8 @@ def uno_parts(check):
         check('make ALONE built every configuration (13/13, the .hex sha recorded) — no Polari in that loop',
               len(mk) == 13 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
-        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (4188f6ae…, unchanged by the annotations)',
-              sim['make_alone']['hex_sha256'].startswith('4188f6ae7d65bfc7'), sim['make_alone']['hex_sha256'][:16])
+        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (57461b96…, unchanged by the annotations; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before)',
+              sim['make_alone']['hex_sha256'].startswith('57461b96fc508227'), sim['make_alone']['hex_sha256'][:16])
         check('the build block reads the flags FROM the Makefile and states the measurement (shipped / noinline)',
               m['build']['from'] == 'the project Makefile' and '-Werror' in m['build']['cflags'] and 'noinline' in m['build']['measure'])
 

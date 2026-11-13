@@ -13,7 +13,8 @@ ROUTE_VARIANTS = {'poll': 'uno-light-sense-poll', 'pcint': 'uno-light-sense-pcin
 ROUTE_ROWS = {'poll': 'sense-led-line:gpio-poll', 'pcint': 'sense-led-line:pin-change-interrupt'}
 ROUTE_SCENARIOS = {'sense-led-line:gpio-poll': 'sense-poll-line-acceptance', 'sense-led-line:pin-change-interrupt': 'sense-pcint-line-acceptance'}
 #: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's HAL_SENSE_ROUTE guard moved none of them; scl (led_follow_state) moved the light and button-clock hexes ON PURPOSE (same wire, same pins)
-GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light-unsensed': '1e75dab5ee7eb758', 'uno-sim-rig': '4188f6ae7d65bfc7', 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
+GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light-unsensed': '1e75dab5ee7eb758', 'uno-sim-rig': '57461b96fc508227'   # hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before
+       , 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
 
 
 def _engine():

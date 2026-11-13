@@ -1,8 +1,8 @@
 {
  "solution": "uno-temp-split",
  "compiler": "hwnocode.custom.split 1",
- "split_sha256": "1cde1d7be2c1f65fc70f0a0f3304cb02e2f6e0db0cb137805a072496bde391d5",
- "rendered_at": "2026-11-13T02:29:58",
+ "split_sha256": "9cd67da9f56034b874e796e2ce1daa1f1023928a672aacc8e0b74ce940b7e068",
+ "rendered_at": "2026-11-13T02:35:26",
  "placement_summary": "twin 18, bridge 2, backend 3, browser 1",
  "runtime": {
   "value": "bare-c",
@@ -210,21 +210,21 @@
   "files": {
    "Makefile": "4d67c5e1edfff6c59448d78e418e953bbfcbe7d07b974be3fa3c09be0b320ec5",
    "board_config.h": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b",
-   "hal.c": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f",
+   "hal.c": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27",
    "hal.h": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55",
    "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
    "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
    "polari_graph.c": "c7ef89d18e8dc37aecd9692f787cf80c8f66f347256cf000ea3932e9218b08d7",
-   "polari_graph.h": "c37167459ceb868ef8e8f9cc726408e5ec230dbe0dc82ae48301a5ad40116a67",
-   "polari_hal_atmega328p.h": "7f0eaa074dd1710d50e9e0449ebd81be7e006f2c0d4aa8e2e31bf9ad686d5dc4",
+   "polari_graph.h": "4ac6268db2ed70c7e7194b44f92f76b44d78723cca82704b3aaf5c473444144c",
+   "polari_hal_atmega328p.h": "b66f13845c72e5164328bb7b7739102815d937d2f6b4b6846d6707bfa2771167",
    "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
   },
-  "files_sha256": "f5b7ed1eb7bb498f89559bee58653449b0e0c06248df576a92cd14b9f1d76cce",
+  "files_sha256": "b2b6fb38bb5434245e6b733279b5ee5f87a7da4a1b8f4371d5a24025f9f214d9",
   "equal_to_cmod_record": true,
   "cmod_record": {
-   "files_sha256": "f5b7ed1eb7bb498f89559bee58653449b0e0c06248df576a92cd14b9f1d76cce",
+   "files_sha256": "b2b6fb38bb5434245e6b733279b5ee5f87a7da4a1b8f4371d5a24025f9f214d9",
    "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
-   "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5"
+   "hex_sha256": "6dfbfe22945ecd60de1cfdff0dfbdd4f5077b9212c57c1b5ab5f4e172a17fa5c"
   }
  },
  "backend_half": {
@@ -239,16 +239,16 @@
  "build": {
   "ok": true,
   "built_by": "make alone (local-image prf-board-engines:trixie)",
-  "hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5",
-  "ref_hex_sha256": "1bb5c09e0fa28414624ecb9d95065c0d55a14a44354c9e5d9b8d510fc72b4df5",
+  "hex_sha256": "6dfbfe22945ecd60de1cfdff0dfbdd4f5077b9212c57c1b5ab5f4e172a17fa5c",
+  "ref_hex_sha256": "6dfbfe22945ecd60de1cfdff0dfbdd4f5077b9212c57c1b5ab5f4e172a17fa5c",
   "byte_identical_to_cmod1": true,
-  "size_text": 4308,
+  "size_text": 4328,
   "size_data": 8,
   "size_bss": 483,
-  "flash_bytes": 4316,
+  "flash_bytes": 4336,
   "ram_bytes": 491,
-  "wall_s": 0.66,
-  "built_at": "2026-11-13T02:30:17"
+  "wall_s": 0.59,
+  "built_at": "2026-11-13T02:35:44"
  },
  "proof": null,
  "costs": null,

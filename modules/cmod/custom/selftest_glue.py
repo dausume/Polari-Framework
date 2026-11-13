@@ -177,8 +177,8 @@ def graph_parts(check):
               len(p['stimulus']['commands']) == 3 and len(p['stimulus']['command_frames_sha256']) == 3
               and any(s['status'] == 'commanded' and s['led_on'] and s['pwm_duty'] == 42 for s in p['samples'])
               and p['samples'][-1]['pwm_duty'] == 100)
-        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (4188f6ae…), sizes recorded for both',
-              p['reference']['hex_sha256'].startswith('4188f6ae7d65bfc7') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
+        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (57461b96…; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before), sizes recorded for both',
+              p['reference']['hex_sha256'].startswith('57461b96fc508227') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
         check('…the record still matches the committed render (proof.files_sha256 = files_sha256): nothing proven is stale',
               p.get('files_sha256') == rec['files_sha256'] and b.get('files_sha256') == rec['files_sha256'])
         conf = rec.get('conformed') or {}

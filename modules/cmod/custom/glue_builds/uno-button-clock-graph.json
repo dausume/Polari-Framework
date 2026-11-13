@@ -18,7 +18,7 @@
   "Makefile": "96ac9a6b5c7d39f7a7fa002367f9b7e981cc43bf910eeb9defe0bd19f2b6f0db"
  },
  "files_sha256": "d86e1a1ab4be1eb4f360c9baa4809f937b69bcbac6b26e4944cc0a55e1b57a96",
- "rendered_at": "2026-11-13T01:53:43",
+ "rendered_at": "2026-11-13T03:05:38",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/apps/button_clock_defs.h",
@@ -63,7 +63,7 @@
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "bdc3f31937d38bdcedd14a9d2c46b478cecaac0d9a3e2ebc651edee97c1e375c"
+   "sha256": "c7631f9a0d2394057df0d4fb4531e76aa861186fa278c7555d66d2a2e540c244"
   }
  ],
  "cost_estimate": {
