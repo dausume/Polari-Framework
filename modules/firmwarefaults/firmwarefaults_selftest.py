@@ -280,12 +280,12 @@ def variants_and_firmware():
     vs = {v['name']: v for v in scenario_variants()}
     r = V.resolve(vs['uno-sim-rig-torn'])
     cfg = V.render_config(r)
-    check('variant uno-sim-rig-torn = the whole rig + build flag HAL_MILLIS_ATOMIC=0, rendered into board_config.h by board\'s own variant code',
-          r['app'] == 'sim_rig' and r['flags'] == [('HAL_MILLIS_ATOMIC', 0)] and '#define HAL_MILLIS_ATOMIC 0' in cfg)
+    check('variant uno-sim-rig-torn = the whole rig + build flag CFG_MILLIS_ATOMIC=0, rendered into board_config.h by board\'s own variant code',
+          r['app'] == 'sim_rig' and r['flags'] == [('CFG_MILLIS_ATOMIC', 0)] and '#define CFG_MILLIS_ATOMIC 0' in cfg)
     check('variant uno-sim-rig-ring512 = build flag RX_RING=512 (the build hal.c refuses)', V.resolve(vs['uno-sim-rig-ring512'])['flags'] == [('RX_RING', 512)])
     hal = open(os.path.join(HERE, '..', 'board', 'custom', 'firmware', 'uno', 'hal.c')).read()
-    check('hal.c: HAL_MILLIS_ATOMIC defaults to 1 (the shipped build is unchanged) and the bare read exists only under #else',
-          '#ifndef HAL_MILLIS_ATOMIC\n#define HAL_MILLIS_ATOMIC 1' in hal and '#if HAL_MILLIS_ATOMIC\n    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_ms; }\n#else\n    v = g_ms;' in hal)
+    check('hal.c: CFG_MILLIS_ATOMIC defaults to 1 (the shipped build is unchanged) and the bare read exists only under #else',
+          '#ifndef CFG_MILLIS_ATOMIC\n#define CFG_MILLIS_ATOMIC 1' in hal and '#if CFG_MILLIS_ATOMIC\n    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_ms; }\n#else\n    v = g_ms;' in hal)
     check('hal.c: _Static_assert(RX_RING <= 256 …) guards the uint8_t ring indices (scenario 1b = a refused build)',
           '_Static_assert(RX_RING >= 2u && RX_RING <= 256u' in hal and '#ifndef RX_RING' in hal)
 

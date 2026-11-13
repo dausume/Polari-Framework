@@ -305,7 +305,7 @@ def main():
         _V.resolve(dict(_bc, knobs_json=_jj.dumps(_k)), {}, base=_pins); _refused = ''
     except _V.VariantRefused as e:
         _refused = str(e)
-    check('the build-flag INT0 path (uno-button-count, HAL_INT0=1) gets its BUTTON role on D2; button_pin 7 on that path is REFUSED in words '
+    check('the build-flag INT0 path (uno-button-count, CFG_INT0=1) gets its BUTTON role on D2; button_pin 7 on that path is REFUSED in words '
           '(hal.c\'s INT0 block is hardware-fixed to D2: the header must never put the button on another pin while the ISR listens on D2)',
           'BUTTON:PD2' in _roles and 'hardware-fixed to D2' in _refused, (_roles, _refused[-120:]))
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-echo')
@@ -400,6 +400,44 @@ def main():
     zu = G.unit('toychip', 'gpio.output', 'PA0')['unit']
     check('an UNKNOWN soc is refused in words (no implicit else: a third chip never gets another chip\'s fields, addresses or pads)',
           zu['status'] == 'refused' and 'no HAL provider' in zu['why'], zu['why'])
+    saved = (SR.RULES['atmega328p'].get('doc'), SR.DOCS.get('atmega328p'))
+    SR.RULES['atmega328p'].pop('doc', None); SR.DOCS.pop('atmega328p', None)
+    try:
+        SR.doc('atmega328p'); nodoc = ''
+    except SR.SocUnknown as e:
+        nodoc = str(e)
+    finally:
+        if saved[0]:
+            SR.RULES['atmega328p']['doc'] = saved[0]
+        if saved[1]:
+            SR.DOCS['atmega328p'] = saved[1]
+    check('a chip with no cited facts source is refused in words, never "Facts from: ." (econ\'s 1d4b4a30 review)',
+          'no facts source' in nodoc and SR.doc('atmega328p'), nodoc)
+
+    print('-- the HAL_ namespace (hal-3b slice 2b: config flags are CFG_, the renderer refuses collisions)')
+    kp = 'atmega328p:gpio.set_high:PD6'
+    clash = ''
+    try:
+        RD.header('atmega328p', [kp], [{'name': 'HAL_LED_SET_HIGH', 'key': kp}], reserved={'HAL_LED_SET_HIGH': 'a build flag of variant x'})
+    except RD.HalNameRefused as e:
+        clash = str(e)
+    outside = ''
+    try:
+        RD.header('atmega328p', [kp], [{'name': 'CFG_LED_ON', 'key': kp}])
+    except RD.HalNameRefused as e:
+        outside = str(e)
+    check('a role equal to a reserved name is refused in words, and a role outside HAL_ is refused',
+          'collides with a build flag of variant x' in clash and 'outside the generated namespace' in outside, (clash, outside))
+    try:
+        _V.resolve(dict(_bc, name='x', build_flags_json='["HAL_INT0=1"]'), {}, base=_pins); hflag = ''
+    except _V.VariantRefused as e:
+        hflag = str(e)
+    check('a HAL_ build flag is refused (HAL_ = generated macros only; config flags are CFG_)', 'name a config flag CFG_' in hflag, hflag)
+    from board.custom import gen as _GEN
+    rr = _V.resolve(_bc, {}, base=_pins)
+    resv = _GEN.reserved_names(rr)
+    check('the build\'s reserved names hold its knobs, its flags (CFG_INT0) and its board_config.h defines, and none is HAL_',
+          'CFG_INT0' in resv and 'LED_PIN' in resv and not any(n.startswith('HAL_') for n in resv), sorted(resv)[:12])
 
     print('-- isotope fit (hal-2)')
     from hal.custom import isotopes as ISO

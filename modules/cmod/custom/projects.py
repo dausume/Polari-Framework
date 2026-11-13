@@ -9,7 +9,7 @@ WHAT A C PROJECT IS to cmod (C_MODULARIZATION_PLAN.md §2, D-cmod-3: both kinds 
   plain      any directory a person wrote by hand: *.c / *.h and a Makefile that builds it — "people make hardware C
              normally". Its one configuration is the directory as it is.
 
-A CONFIGURATION is one buildable rendering. An atom compiled only under some knobs (hal_presses under HAL_INT0) is found
+A CONFIGURATION is one buildable rendering. An atom compiled only under some knobs (hal_presses under CFG_INT0) is found
 in the configuration that turns the knob on; the atom records which configurations compile it. The UNO's list is the four
 single-instance seeded variants + two COVERAGE configurations that turn every sc-1 knob on (written below with their
 flags — the scenario_rig app, which only the firmware-fault scenarios use), so every function of the template is seen.
@@ -27,9 +27,9 @@ _SC = {'app': 'scenario_rig', 'board_definition': 'arduino-uno-r3', 'classes_jso
        'features_json': '{"led": true, "commands": true}', 'knobs_json': '{"rig_name": "uno-cmod"}', 'twin_stimulus_json': '{}'}
 COVERAGE = [
     dict(_SC, name='cmod-cover-commit', title='coverage: every sc-1 knob on, EEPROM write-then-commit, ack with timeout',
-         build_flags_json='["HAL_UART_ERRCOUNT=1", "HAL_INT0=1", "HAL_INT0_DEBOUNCE_MS=20", "HAL_WDT=1", "SC_EEPROM_RECORD=2", "SC_ACK_WAIT=1", "SC_ACK_TIMEOUT_MS=200"]'),
+         build_flags_json='["CFG_UART_ERRCOUNT=1", "CFG_INT0=1", "CFG_INT0_DEBOUNCE_MS=20", "CFG_WDT=1", "SC_EEPROM_RECORD=2", "SC_ACK_WAIT=1", "SC_ACK_TIMEOUT_MS=200"]'),
     dict(_SC, name='cmod-cover-record', title='coverage: EEPROM record in place, ack without timeout, INT0 without debounce',
-         build_flags_json='["HAL_INT0=1", "SC_EEPROM_RECORD=1", "SC_ACK_WAIT=1"]'),
+         build_flags_json='["CFG_INT0=1", "SC_EEPROM_RECORD=1", "SC_ACK_WAIT=1"]'),
 ]
 TEMPLATES = {
     'uno': {'root': UNO_ROOT, 'root_rel': 'board/custom/firmware/uno', 'board': 'arduino-uno-r3', 'mcu': 'atmega328p',

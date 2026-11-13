@@ -160,6 +160,9 @@ def uno_byte_identity(check):
                 continue
             row = gen.gen('uno', None, os.path.join(tmp, key.replace('#', '_')), variant=name, variant_rows=rows, **kn)
             text = open(os.path.join(row['project_dir'], 'board_config.h')).read()
+            # hal-3b 2b: the config flags moved HAL_ -> CFG_ in one deliberate migration (plan §4b); undo exactly that rename and the
+            # rest must still be dev-hn-0's bytes
+            text = re.sub(r'\bCFG_(INT0_DEBOUNCE_MS|WDT_PERIOD|INT0|INT1|WDT|UART_ERRCOUNT|MILLIS_ATOMIC|BUTTON_ROUTE|SENSE_ROUTE)\b', r'HAL_\1', text)
             same += hashlib.sha256(text.encode()).hexdigest() == base[key]['board_config_sha256']
             keys.append(key)
             if name == 'uno-sim-rig' and not kn:

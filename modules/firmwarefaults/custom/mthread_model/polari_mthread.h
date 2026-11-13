@@ -1,7 +1,7 @@
 /* polari_mthread.h — the BRIDGE from the UNO's critical-section idiom to Frama-C/Mthread's thread + mutex convention (sc-2c,
  * FIRMWARE_SCENARIO_PLAN.md §5 tier 2; D-sc-6 ruled 2026-10-02; AI-Notes/evaluations/FRAMA_C_EVALUATION.md §2c, §6). Included by
  * mt_stubs/avr/interrupt.h + mt_stubs/util/atomic.h (which hal.c includes) and by the harnesses. The firmware is NOT edited:
- * the harness #includes the variant's own hal.c, preprocessed with -DPOLARI_MTHREAD, so HAL_MILLIS_ATOMIC (from the variant's
+ * the harness #includes the variant's own hal.c, preprocessed with -DPOLARI_MTHREAD, so CFG_MILLIS_ATOMIC (from the variant's
  * board_config.h) decides which hal_millis Mthread sees — no hand copy.
  *
  * The builtins are Frama-C 33.0's own (share/frama-c/share/mt/mthread.h, LGPL-2.1, CEA), #included below: a thread made by

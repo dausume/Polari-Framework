@@ -12,7 +12,7 @@ from types import SimpleNamespace
 ROUTE_VARIANTS = {'poll': 'uno-light-sense-poll', 'pcint': 'uno-light-sense-pcint'}
 ROUTE_ROWS = {'poll': 'sense-led-line:gpio-poll', 'pcint': 'sense-led-line:pin-change-interrupt'}
 ROUTE_SCENARIOS = {'sense-led-line:gpio-poll': 'sense-poll-line-acceptance', 'sense-led-line:pin-change-interrupt': 'sense-pcint-line-acceptance'}
-#: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's HAL_SENSE_ROUTE guard moved none of them; scl (led_follow_state) moved the light and button-clock hexes ON PURPOSE (same wire, same pins)
+#: the hexes the identical-hex gate holds (the committed make-alone hex sha256 prefixes of the manifest) - hal.c's CFG_SENSE_ROUTE guard moved none of them; scl (led_follow_state) moved the light and button-clock hexes ON PURPOSE (same wire, same pins)
 GATE = {'uno-button-clock': '0525a11f21b2c1f2', 'uno-light-unsensed': '1e75dab5ee7eb758', 'uno-sim-rig': '57461b96fc508227'   # hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before
        , 'uno-light-pcint': 'e23a590496655b15', 'uno-light-analog': '3f8fbd0b742b03f9'}
 
@@ -137,7 +137,7 @@ def _refusals(check):
     check('a sense route on an app not written for it (light_v2) is refused', 'without the sense feature' in refused('uno-light-v2', sense_route='pcint') or 'not written for it' in refused('uno-light-v2', sense_route='pcint'))
     check('the INT1 variant is unchanged: uno-button-clock still refuses any sense pin but D3', 'hardware-fixed to D3' in refused('uno-button-clock', sense_pin=8))
     cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light-unsensed', 'uno-button-clock', 'uno-sim-rig', 'uno-light-pcint')}
-    check('the existing variants\' board_config.h carry no sense-route line at all (their bytes cannot have moved)', all('HAL_SENSE_ROUTE' not in t for t in cfg.values()))
+    check('the existing variants\' board_config.h carry no sense-route line at all (their bytes cannot have moved)', all('CFG_SENSE_ROUTE' not in t for t in cfg.values()))
     check('SR.check agrees with resolve (RouteRefused is the same refusal)', _raises(SR, 'pcint', {'sense_pin': 0}) and _raises(SR, 'poll', {'sense_pin': 1}))
 
 

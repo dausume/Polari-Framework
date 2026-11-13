@@ -241,8 +241,20 @@ def render_routes(r):
     sources = (['hal.c'] if base_hdr else []) + [x['route'] for x in parts]
     aliases = [{'name': 'HAL_%s_%s' % (b['role'], _role_suffix(op, b['role'])), 'key': (base_hdr['macros_keys'][(b['variable'], op)]),
                 'form': 'init' if op in b.get('init', ()) else 'call'} for b in base for op in b['ops']]
-    hal_hdr = HP.merged_header('atmega328p', headers, sources, aliases=aliases, always=True)
+    hal_hdr = HP.merged_header('atmega328p', headers, sources, aliases=aliases, always=True, reserved=reserved_names(r))
     return rendered, rendered_sense, hal_hdr
+
+
+def reserved_names(r):
+    """hal-3b 2b (plan §4b): every name this build already gives a meaning -> why. The HAL renderer refuses a generated macro equal
+    to one: the RESERVED knobs, this variant's build flags, and each #define of its board_config.h."""
+    from board.custom import variants as V
+    out = {n: 'a RESERVED knob (board.custom.variants.RESERVED)' for n in V.RESERVED}
+    for n, _ in r['flags']:
+        out[n] = 'a build flag of variant %s' % r['name']
+    for n in re.findall(r'^#define\s+(\w+)', V.render_config(r), re.M):
+        out.setdefault(n, 'a board_config.h #define')
+    return out
 
 
 # hal-3a: digital pin n of the UNO -> the ATmega328P pin (D0-D7 = PD0-7, D8-D13 = PB0-5, D14-D19 = A0-A5 = PC0-5; Figure 1-1 p.12)
@@ -262,12 +274,12 @@ def _role_suffix(op, role=''):
 
 def base_roles(r):
     """hal-3a: what the shared uno/hal.c asks of the HAL for this resolved variant, per role -> [{role, variable, pin, ops, init}].
-    The same conditions board_config.h turns hal.c's blocks on with: FEATURE_LED, HAL_INT0 without a button route (the INT0 button),
-    HAL_INT1 without a sense route (the INT1 sense), FEATURE_PWM on a Timer0 / Timer1 output (its direction only). `init` = the
+    The same conditions board_config.h turns hal.c's blocks on with: FEATURE_LED, CFG_INT0 without a button route (the INT0 button),
+    CFG_INT1 without a sense route (the INT1 sense), FEATURE_PWM on a Timer0 / Timer1 output (its direction only). `init` = the
     operations hal.c calls from init code, which gets the unguarded _INIT form (interrupts are still off there)."""
     f, k = r['features'], r['knobs']
-    flags = {n: v for n, v in (r.get('flags') or [])}   # a build flag can turn hal.c's INT0 block on too (uno-button-count: HAL_INT0=1);
-    # HAL_INT1 is a RESERVED knob name (variants.RESERVED), so no flag reaches the INT1 branch below — kept so the two blocks read alike
+    flags = {n: v for n, v in (r.get('flags') or [])}   # a build flag can turn hal.c's INT0 block on too (uno-button-count: CFG_INT0=1);
+    # CFG_INT1 is a RESERVED knob name (variants.RESERVED), so no flag reaches the INT1 branch below — kept so the two blocks read alike
     out = []
     if f.get('led'):
         led_ops = ['gpio.output', 'gpio.set_high', 'gpio.set_low']
@@ -276,10 +288,10 @@ def base_roles(r):
             led_ops += ['pwm.init_phase', 'pwm.set_duty', 'pwm.connect', 'pwm.disconnect']
             led_init = ('pwm.init_phase',)
         out.append({'role': 'LED', 'variable': 'led_pin', 'pin': uno_soc_pin(k['led_pin']), 'ops': led_ops, 'init': led_init})
-    if (f.get('button') or int(flags.get('HAL_INT0') or 0)) and str(k.get('button_route') or 'int0') == 'int0':
+    if (f.get('button') or int(flags.get('CFG_INT0') or 0)) and str(k.get('button_route') or 'int0') == 'int0':
         out.append({'role': 'BUTTON', 'variable': 'button_pin', 'pin': uno_soc_pin(k['button_pin']),
                     'ops': ['gpio.input', 'gpio.pull_up', 'int.edge_enable_falling', 'int.edge_vector'], 'init': ('int.edge_enable_falling',)})
-    if (f.get('sense') or int(flags.get('HAL_INT1') or 0)) and str(k.get('sense_route') or 'int1') == 'int1':
+    if (f.get('sense') or int(flags.get('CFG_INT1') or 0)) and str(k.get('sense_route') or 'int1') == 'int1':
         out.append({'role': 'SENSE', 'variable': 'sense_pin', 'pin': uno_soc_pin(k['sense_pin']),
                     'ops': ['gpio.input', 'gpio.read', 'int.edge_enable', 'int.edge_vector'], 'init': ('int.edge_enable',)})
     if f.get('pwm') and int(k['pwm_pin']) in (5, 6, 9, 10):

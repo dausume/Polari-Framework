@@ -6,7 +6,7 @@ the four-load g_ms read does) and 1b (RX_RING > 256 — now a refused build), th
 catalogue (which kinds the harness can force today, and why the rest cannot yet), and the two SCENARIO VARIANTS of the
 UNO template they build (FirmwareVariant rows, board's class; seeded here because they exist only for scenarios):
 
-  uno-sim-rig-torn     the whole rig with HAL_MILLIS_ATOMIC 0 — the BEFORE build of scenario 1 (D-sc-7: a variant knob,
+  uno-sim-rig-torn     the whole rig with CFG_MILLIS_ATOMIC 0 — the BEFORE build of scenario 1 (D-sc-7: a variant knob,
                        never a patched binary; it is a real FirmwareBuild with its own sha)
   uno-sim-rig-ring512  the whole rig with RX_RING 512 — refused by hal.c's _Static_assert (scenario 1b's static guard)
 
@@ -161,12 +161,12 @@ def scenario_variants():
 def _sc0_variants():
     return [
         _variant('uno-sim-rig-torn', 'SCENARIO ONLY — the whole rig with the bare (torn) millis read',
-                 'sc-0 scenario torn-millis-read, the BEFORE build: HAL_MILLIS_ATOMIC 0 reads the 4-byte tick g_ms without masking '
+                 'sc-0 scenario torn-millis-read, the BEFORE build: CFG_MILLIS_ATOMIC 0 reads the 4-byte tick g_ms without masking '
                  'interrupts, so a tick between the loads tears it. It exists to show the fault on the twin — never install it on a '
-                 'board you rely on.', ['HAL_MILLIS_ATOMIC=0'],
+                 'board you rely on.', ['CFG_MILLIS_ATOMIC=0'],
                  'uptime_ms jumps 256 ms ahead and falls back (…200, 511, 400…) when the tick lands inside hal_millis — rarely by itself, '
                  'every time when `pol faults run torn-millis-read --before` forces it.',
-                 'firmwarefaults (sc-0): a scenario variant — the knob is HAL_MILLIS_ATOMIC (hal.c), default 1'),
+                 'firmwarefaults (sc-0): a scenario variant — the knob is CFG_MILLIS_ATOMIC (hal.c), default 1'),
         _variant('uno-sim-rig-ring512', 'SCENARIO ONLY — RX_RING 512 (refused by the static guard)',
                  'sc-0 scenario rx-ring-over-256: a 512-slot RX ring cannot be indexed by hal.c\'s uint8_t indices; hal.c\'s '
                  '_Static_assert refuses the build, which is the point.', ['RX_RING=512'],

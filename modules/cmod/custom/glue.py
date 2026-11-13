@@ -104,7 +104,7 @@ def context(g):
         # needs that class's own generated header on disk to compile. Carried here, always rendered (never gated
         # on an atom "using" it — nothing in `model` names a header file, only a class_name).
         # smp-2: a route the base configuration's knobs pick (sense_route / button_route) is RENDERED by board gen into ONE extra .c file next to hal.c (hal_sense_poll.c, hal_button_pcint.c ...);
-        # the graph's project carries it (its hal.c block for that function is switched off by HAL_SENSE_ROUTE / HAL_BUTTON_ROUTE in board_config.h)
+        # the graph's project carries it (its hal.c block for that function is switched off by CFG_SENSE_ROUTE / CFG_BUTTON_ROUTE in board_config.h)
         # hal-2: the generated HAL header those route files include (polari_hal_<soc>.h) travels with them
         route_files = {fn: open(os.path.join(d, fn)).read() for fn in sorted(os.listdir(d))
                        if (fn.startswith(('hal_sense_', 'hal_button_')) and fn.endswith('.c')) or (fn.startswith('polari_hal_') and fn.endswith('.h'))}

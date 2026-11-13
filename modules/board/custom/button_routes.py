@@ -28,7 +28,7 @@ CATOM = 'read-button'
 GENERATOR = 'board.custom.button_routes'
 BOARD = 'arduino-uno-r3'
 
-#: knob value of `button_route` -> (HAL_BUTTON_ROUTE code, isotope dir, rendered file, catalogue variant)
+#: knob value of `button_route` -> (CFG_BUTTON_ROUTE code, isotope dir, rendered file, catalogue variant)
 ROUTES = {'pcint': (1, 'pin-change-interrupt', 'hal_button_pcint.c', 'read-button:pin-change-interrupt'),
           'adc': (2, 'analog-threshold', 'hal_button_adc.c', 'read-button:analog-threshold')}
 ROUTE_NAMES = ('int0',) + tuple(ROUTES)

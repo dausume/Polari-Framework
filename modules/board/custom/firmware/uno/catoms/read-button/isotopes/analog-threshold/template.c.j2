@@ -6,8 +6,8 @@
 
 #include "hal.h"
 
-#if !HAL_INT0 || HAL_BUTTON_ROUTE != {{ route_code|c_int }}
-#error "hal_button_adc.c is the button route {{ route_code|c_int }} (analog threshold): board_config.h must set HAL_INT0 1 and HAL_BUTTON_ROUTE {{ route_code|c_int }}"
+#if !CFG_INT0 || CFG_BUTTON_ROUTE != {{ route_code|c_int }}
+#error "hal_button_adc.c is the button route {{ route_code|c_int }} (analog threshold): board_config.h must set CFG_INT0 1 and CFG_BUTTON_ROUTE {{ route_code|c_int }}"
 #endif
 
 /* The button pulls {{ pin_name|c_comment }} ({{ soc_pin|c_comment }}, ADC{{ channel|c_int }}) to ground; a {{ pullup_ohms|c_int }} ohm resistor to 5 V holds it high. One blocking conversion per

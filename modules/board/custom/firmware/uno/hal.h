@@ -36,17 +36,17 @@
 #endif
 
 /* sc-1 scenario knobs (FIRMWARE_SCENARIO_PLAN.md §3a/§4) — every shipped variant leaves them 0, so its .hex is unchanged */
-#ifndef HAL_UART_ERRCOUNT
-#define HAL_UART_ERRCOUNT 0        /* 1: count FE0 / DOR0 / ring-full drops in the RX ISR */
+#ifndef CFG_UART_ERRCOUNT
+#define CFG_UART_ERRCOUNT 0        /* 1: count FE0 / DOR0 / ring-full drops in the RX ISR */
 #endif
-#ifndef HAL_INT0
-#define HAL_INT0 0                 /* 1: a button on D2 (INT0) counts presses */
+#ifndef CFG_INT0
+#define CFG_INT0 0                 /* 1: a button on D2 (INT0) counts presses */
 #endif
-#ifndef HAL_INT0_DEBOUNCE_MS
-#define HAL_INT0_DEBOUNCE_MS 0     /* 0: every edge counts; N: edges within N ms of the last counted one are ignored */
+#ifndef CFG_INT0_DEBOUNCE_MS
+#define CFG_INT0_DEBOUNCE_MS 0     /* 0: every edge counts; N: edges within N ms of the last counted one are ignored */
 #endif
-#ifndef HAL_INT1
-#define HAL_INT1 0                 /* ucd-0e2: 1 = a sense pin on D3 (INT1), ANY edge — counts rises/falls, stamps the last one */
+#ifndef CFG_INT1
+#define CFG_INT1 0                 /* ucd-0e2: 1 = a sense pin on D3 (INT1), ANY edge — counts rises/falls, stamps the last one */
 #endif
 #ifndef LED_ROUTE_PWM
 #define LED_ROUTE_PWM 0            /* smp-1: 1 = the LED pin is driven by Timer0's PWM output (drive-led:pwm), held at 100 % for on; 0 = a plain output pin */
@@ -54,11 +54,11 @@
 #ifndef LOOP_DELAY_MS
 #define LOOP_DELAY_MS 0            /* smp-1 (sample failure F2 only): N > 0 = the main loop waits N ms every pass, so a press is acted on up to N ms late */
 #endif
-#ifndef HAL_WDT
-#define HAL_WDT 0                  /* 1: the watchdog on (reset mode), kicked once per main-loop pass */
+#ifndef CFG_WDT
+#define CFG_WDT 0                  /* 1: the watchdog on (reset mode), kicked once per main-loop pass */
 #endif
-#ifndef HAL_WDT_PERIOD
-#define HAL_WDT_PERIOD 4           /* WDTO_250MS (avr/wdt.h: 0 = 15 ms … 9 = 8 s) */
+#ifndef CFG_WDT_PERIOD
+#define CFG_WDT_PERIOD 4           /* WDTO_250MS (avr/wdt.h: 0 = 15 ms … 9 = 8 s) */
 #endif
 
 #define TELEMETRY_MS (1000u / TELEMETRY_HZ)
@@ -72,21 +72,21 @@ void hal_usart_send(const uint8_t *b, size_t n);
 void hal_tick_init(void);
 uint32_t hal_millis(void);
 
-#if FEATURE_COMMANDS && HAL_UART_ERRCOUNT
+#if FEATURE_COMMANDS && CFG_UART_ERRCOUNT
 uint16_t hal_uart_errors(uint8_t which);   /* 0 = framing errors (FE0), 1 = data overruns (DOR0), 2 = ring-full drops */
 #endif
-#if HAL_INT0
+#if CFG_INT0
 void hal_button_init(void);
 uint16_t hal_presses(void);
 uint8_t hal_take_toggle_pending(void);   /* ucd-0e2: 1 once per edge the ISR saw (counts AND marks); cleared by the read */
 #endif
-#if HAL_INT1
+#if CFG_INT1
 void hal_sense_init(void);
 void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms);   /* atomic snapshot of all three */
 #endif
-#if HAL_WDT
+#if CFG_WDT
 #include <avr/wdt.h>
-#define hal_wdt_init() wdt_enable(HAL_WDT_PERIOD)
+#define hal_wdt_init() wdt_enable(CFG_WDT_PERIOD)
 #define hal_wdt_kick() wdt_reset()
 #endif
 

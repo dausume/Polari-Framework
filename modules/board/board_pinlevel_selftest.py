@@ -76,7 +76,7 @@ def pin_parts(check):
 
     # ---- (a)/(b)/(c): uno-button-count, pin-level presses, three builds of the SAME argv base
     b = runner.prepare_build('uno-button-count', home=tempfile.mkdtemp(prefix='ucd-0d-button-'))
-    check('uno-button-count (HAL_INT0=1, no debounce) builds', b['row']['state'] == 'built', b['row'].get('notes'))
+    check('uno-button-count (CFG_INT0=1, no debounce) builds', b['row']['state'] == 'built', b['row'].get('notes'))
     addr = b['nm']['g_presses']['addr']
     base = ['--hex', 'firmware.hex', '--mcu', 'atmega328p', '--freq', '16000000', '--free', '--seconds', '0.5', '--status-ms', '0',
             '--adc0-mv', '750', '--watch', '0x%x/2=g_presses' % addr]

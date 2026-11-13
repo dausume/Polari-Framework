@@ -5,20 +5,20 @@
  "generated_project": "cmod/custom/graphs/uno-button-clock-graph",
  "files": {
   "button_clock_defs.h": "346438094259cb5644f97ff5abe47f04966c7311c5c8fd6c019c00d4f6fdb807",
-  "hal.c": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27",
-  "hal.h": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55",
-  "board_config.h": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008",
+  "hal.c": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088",
+  "hal.h": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff",
+  "board_config.h": "ff9d83fcd2ef93ed25aba2adfc6cc13d265b864ad1a1cf3603cbabcfcfab040e",
   "buttonclockstate_packets.h": "1c9d335a5ae6d1a090e96f8f53280d46e4085671ab8484b14a5290c107bb4210",
   "buttonclockevent_packets.h": "d7c29234aef022c6b998cdd1cecf0574a8a02ad84731c354b4744b14060edc48",
   "polari_hal_atmega328p.h": "7b34ffdaa87ea440a485745b16cf94dd86399197396ec53aeef114811f2c8674",
   "pin_config.h": "292371ecfb9839516240932b1fba969728ed6ae198c7ed02f480ddca79f4bee7",
   "pin_config.c": "cb293e7c85492b48d20b036b2b90e675a3e3b984ea90a41f9371d2798985fb7f",
-  "polari_graph.c": "b81d093e3831c82a2e5cd7af980b1eddb8252d9dc1b2e80f6ad61ad12a990230",
-  "polari_graph.h": "3a5d7b6ea72c84f775d642535448daa23477f7a7fa9d8602c0aecccb1bfd5f09",
+  "polari_graph.c": "497097c3fde143d28b743c6ed2a4e61bff9da97db07603f71fef765d33f7997a",
+  "polari_graph.h": "44c41138101eb098437177f69ae178cbb641c66268e081e0466f0e97ac51129d",
   "Makefile": "96ac9a6b5c7d39f7a7fa002367f9b7e981cc43bf910eeb9defe0bd19f2b6f0db"
  },
- "files_sha256": "6831402594302fea4b0d7eb0e07df08ec11f2fcfd7403ad038d0f86218df9faf",
- "rendered_at": "2026-11-13T05:14:36",
+ "files_sha256": "3aaa267163deb4a772ca5b49fad4c79301fd80e417d8165b8f73112d8b243dcb",
+ "rendered_at": "2026-11-13T07:49:38",
  "inputs": [
   {
    "label": "copied verbatim from board/custom/firmware/uno/apps/button_clock_defs.h",
@@ -28,17 +28,17 @@
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.c",
    "file": "hal.c",
-   "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
+   "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
   },
   {
    "label": "copied verbatim from board/custom/firmware/uno/hal.h",
    "file": "hal.h",
-   "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
+   "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
   },
   {
    "label": "board gen: the uno-button-clock knobs",
    "file": "board_config.h",
-   "sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008"
+   "sha256": "ff9d83fcd2ef93ed25aba2adfc6cc13d265b864ad1a1cf3603cbabcfcfab040e"
   },
   {
    "label": "c_twin target=avr, contract v1 9d32ede2fa51ab74 (pinned board/custom/contracts/ButtonClockState.v1.json)",
@@ -63,7 +63,7 @@
   {
    "label": "atoms manifest",
    "file": "board/custom/firmware/uno/polari-firmware.json",
-   "sha256": "1d5fdf6ca48651b20ed6a0a67a68c93be47a072f485ce9d86216b573f687f83c"
+   "sha256": "a742500070b3e8bd018f871b62628d3ac0e89621599c19f78fbab75b54cd6755"
   }
  ],
  "cost_estimate": {
@@ -283,11 +283,11 @@
    },
    "explained_bytes": 224
   },
-  "files_sha256": "6831402594302fea4b0d7eb0e07df08ec11f2fcfd7403ad038d0f86218df9faf",
+  "files_sha256": "3aaa267163deb4a772ca5b49fad4c79301fd80e417d8165b8f73112d8b243dcb",
   "hand_edited": [],
   "stale": [],
   "measured_elf_sha256": "8283eb1af14470b0a7f6344bdfa8e0f8955d3e09c4a9e966008b2346b8a42941",
-  "built_at": "2026-11-13T05:14:56",
+  "built_at": "2026-11-13T07:49:55",
   "templates": {
    "avr/Makefile.j2": "ddcd9298d9af81ae83d983e3eeb6e0d9be9d15c559db6d0d780b0ad9d2408918",
    "avr/_lib.j2": "8cdbe9d1865f8ff49f58cf76e439be5d8675f3c673a3b8492a68c5562a89895d",
@@ -462,14 +462,14 @@
    "where": "prf-board-engines:trixie",
    "simulator": "polari-avr-twin (libsimavr 1.6, prf-board-engines:trixie)"
   },
-  "proven_at": "2026-11-13T05:15:14",
+  "proven_at": "2026-11-13T07:50:04",
   "graph_sha256": "25ab812f3b9baf61926a9090f4fa57259bd2c78784149e8698c7400809086f20",
-  "files_sha256": "6831402594302fea4b0d7eb0e07df08ec11f2fcfd7403ad038d0f86218df9faf",
+  "files_sha256": "3aaa267163deb4a772ca5b49fad4c79301fd80e417d8165b8f73112d8b243dcb",
   "hand_edited": []
  },
  "conformed": {
   "manifest": "cmod/custom/graphs/uno-button-clock-graph/polari-firmware.json",
-  "manifest_sha256": "8bec2998b49485e6243ad61d318b595965eed2f05c99c2dcb9e4c50ab7ee05e1",
+  "manifest_sha256": "62a1575e667409b640e8e229b3edd080aefe6edcc2630ce72cd8ab23750dd348",
   "atoms": 31,
   "glue_atoms": [
    "polari_graph.apply_command",

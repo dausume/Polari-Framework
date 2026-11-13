@@ -7,8 +7,8 @@ prf-formal-engines: goto-cc → goto-instrument → cbmc, driven by polari-cbmc-
 the variant's OWN generated hal.c, unedited, against stubs/ (registers as bytes, SREG.I as a variable, ATOMIC_BLOCK as
 save-clear-restore); the interrupt is CBMC nondeterminism.
 
-    hal-millis-not-torn@uno-sim-rig       HAL_MILLIS_ATOMIC 1 → expected decided (bounded)
-    hal-millis-not-torn@uno-sim-rig-torn  HAL_MILLIS_ATOMIC 0 → expected refuted, with the C trace (the bytes, the ticks)
+    hal-millis-not-torn@uno-sim-rig       CFG_MILLIS_ATOMIC 1 → expected decided (bounded)
+    hal-millis-not-torn@uno-sim-rig-torn  CFG_MILLIS_ATOMIC 0 → expected refuted, with the C trace (the bytes, the ticks)
     rx-ring-index-bound@uno-sim-rig       the RX ring's indices / fill / order under an RX ISR between any two statements
     rx-ring-index-bound@uno-sim-rig-ring512   RX_RING 512 → hal.c's _Static_assert refuses it → inapplicable
 
@@ -65,9 +65,9 @@ def _fc(name, title, variant, base, expected, notes=''):
 
 
 FORMAL_CHECKS = [
-    _fc('hal-millis-not-torn@uno-sim-rig', 'hal_millis cannot tear — the shipped build (HAL_MILLIS_ATOMIC 1)', 'uno-sim-rig', _HAL_MILLIS,
+    _fc('hal-millis-not-torn@uno-sim-rig', 'hal_millis cannot tear — the shipped build (CFG_MILLIS_ATOMIC 1)', 'uno-sim-rig', _HAL_MILLIS,
         'decided', 'the AFTER build of scenario 1: ATOMIC_BLOCK masks the tick across the four loads'),
-    _fc('hal-millis-not-torn@uno-sim-rig-torn', 'hal_millis CAN tear — the bare read (HAL_MILLIS_ATOMIC 0)', 'uno-sim-rig-torn', _HAL_MILLIS,
+    _fc('hal-millis-not-torn@uno-sim-rig-torn', 'hal_millis CAN tear — the bare read (CFG_MILLIS_ATOMIC 0)', 'uno-sim-rig-torn', _HAL_MILLIS,
         'refuted', 'the BEFORE build of scenario 1: CBMC must find the interleaving the twin forced at hal_millis+0x4'),
     _fc('rx-ring-index-bound@uno-sim-rig', 'the RX ring\'s indices stay in range — the shipped ring (RX_RING 64, uint8_t indices)',
         'uno-sim-rig', _RX_RING, 'decided', 'scenario 1b\'s safe side: one-byte indices under a masked increment'),

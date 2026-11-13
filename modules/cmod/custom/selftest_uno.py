@@ -78,11 +78,11 @@ def uno_parts(check):
         from cmod.custom import analyse as AN
         w = tempfile.mkdtemp(prefix='cmod-torn-')
         v = {'name': 'cmod-torn', 'app': 'sim_rig', 'board_definition': 'arduino-uno-r3', 'classes_json': '["SimRigState"]',
-             'features_json': '{"led": true, "pwm": true, "adc": true, "commands": true}', 'knobs_json': '{}', 'build_flags_json': '["HAL_MILLIS_ATOMIC=0"]'}
+             'features_json': '{"led": true, "pwm": true, "adc": true, "commands": true}', 'knobs_json': '{}', 'build_flags_json': '["CFG_MILLIS_ATOMIC=0"]'}
         row = gen.gen('uno', work=w, variant='cmod-torn', variant_rows=[v])
         p = AN.parse_project(row['project_dir'])
         a = p['atoms']
-        check('the TORN build (HAL_MILLIS_ATOMIC=0, scenario 1\'s BEFORE) parsed as a plain project: hal_millis → isr_safe no — "g_ms (4 B, '
+        check('the TORN build (CFG_MILLIS_ATOMIC=0, scenario 1\'s BEFORE) parsed as a plain project: hal_millis → isr_safe no — "g_ms (4 B, '
               'written by ISR …) … tears it" — the scanner sees the fault firmwarefaults forces on the twin',
               a['hal.hal_millis']['isr_safe'] == 'no' and 'g_ms (4 B' in a['hal.hal_millis']['isr_safe_why'], a['hal.hal_millis']['isr_safe_why'])
         check('…and main, which calls it, inherits the verdict (calls hal_millis)', a['main.main']['isr_safe'] == 'no'

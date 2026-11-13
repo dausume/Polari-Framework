@@ -52,14 +52,14 @@ def run_light(check):
     work = tempfile.mkdtemp(prefix='ucd-light-gen-')
     row = gen.gen('uno', work=work, variant='uno-light', variant_rows=[v])
     cfg = open(row['project_dir'] + '/board_config.h').read()
-    check('ucd-light: board_config.h for uno-light turns on INT0 (the button on D2, debounced) and the polled sense line on D3 (HAL_SENSE_ROUTE 1)',
-          '#define HAL_INT0     1' in cfg and '#define HAL_INT1     1' in cfg and '#define HAL_SENSE_ROUTE 1' in cfg and '#define SENSE_PIN    3' in cfg and '#define BUTTON_PIN   2' in cfg and '#define LED_PIN      6' in cfg)
+    check('ucd-light: board_config.h for uno-light turns on INT0 (the button on D2, debounced) and the polled sense line on D3 (CFG_SENSE_ROUTE 1)',
+          '#define CFG_INT0     1' in cfg and '#define CFG_INT1     1' in cfg and '#define CFG_SENSE_ROUTE 1' in cfg and '#define SENSE_PIN    3' in cfg and '#define BUTTON_PIN   2' in cfg and '#define LED_PIN      6' in cfg)
     shutil.rmtree(work, ignore_errors=True)
     work = tempfile.mkdtemp(prefix='ucd-light-gen-')
     rowu = gen.gen('uno', work=work, variant='uno-light-unsensed', variant_rows=[vu])
     cfgu = open(rowu['project_dir'] + '/board_config.h').read()
     check('ucd-light: board_config.h for uno-light-unsensed turns on INT0 and NOT INT1 (as the light test was before the sense line)',
-          '#define HAL_INT0     1' in cfgu and 'HAL_INT1' not in cfgu and '#define BUTTON_PIN   2' in cfgu)
+          '#define CFG_INT0     1' in cfgu and 'CFG_INT1' not in cfgu and '#define BUTTON_PIN   2' in cfgu)
     shutil.rmtree(work, ignore_errors=True)
 
     from board.custom import light_twin as LT

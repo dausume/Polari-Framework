@@ -105,7 +105,7 @@ def graph_parts(check):
         refused('free C in a binding (channel=ADC_CHANNEL+1)', lambda r: _node(r, 'adc').update(bindings='channel=ADC_CHANNEL+1'), 'never carries free C')
         refused('an unknown atom', lambda r: _node(r, 'adc').update(atom='uno:hal.hal_adc_reed'), 'no atom')
         refused('an ISR as a node', lambda r: _node(r, 'clock').update(atom='uno:hal.TIMER2_COMPA_vect'), 'ISR')
-        refused('an atom not compiled in the base configuration (hal_presses: HAL_INT0 only)',
+        refused('an atom not compiled in the base configuration (hal_presses: CFG_INT0 only)',
                 lambda r: _node(r, 'clock').update(atom='uno:hal.hal_presses'), 'not compiled in the base configuration')
         refused('a calls edge the C does not have (apply_command never calls hal_adc_read)',
                 lambda r: (_node(r, 'pwm').update(atom='uno:hal.hal_adc_read'), r['edges'][3].update(to_port='channel')), 'does not call')

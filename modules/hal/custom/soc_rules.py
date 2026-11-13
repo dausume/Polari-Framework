@@ -311,7 +311,10 @@ def socs():
 def doc(soc):
     """The chip's facts source, for headers and pages: RULES[soc]['doc'] (the built-ins' from DOCS), refused for an unknown chip."""
     provider(soc)
-    return RULES[soc].get('doc') or DOCS.get(soc) or ''
+    d = RULES[soc].get('doc') or DOCS.get(soc)
+    if not d:   # econ's 1d4b4a30 review: never print "Facts from: ." - a chip with no cited source is refused, like an unknown one
+        raise SocUnknown('soc %r names no facts source (RULES[soc][\'doc\']): register it with its datasheet / RDL / SVD cited' % soc)
+    return d
 
 
 def chip_facts(soc):

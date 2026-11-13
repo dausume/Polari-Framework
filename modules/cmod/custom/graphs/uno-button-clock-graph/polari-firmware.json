@@ -70,11 +70,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
+     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
     },
     {
      "path": "hal.h",
-     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
+     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
     }
    ],
    "atoms": [
@@ -119,11 +119,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "b81d093e3831c82a2e5cd7af980b1eddb8252d9dc1b2e80f6ad61ad12a990230"
+     "sha256": "497097c3fde143d28b743c6ed2a4e61bff9da97db07603f71fef765d33f7997a"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "3a5d7b6ea72c84f775d642535448daa23477f7a7fa9d8602c0aecccb1bfd5f09"
+     "sha256": "44c41138101eb098437177f69ae178cbb641c66268e081e0466f0e97ac51129d"
     }
    ],
    "atoms": [
@@ -149,7 +149,7 @@
    "files": [
     {
      "path": "board_config.h",
-     "sha256": "d5b563cfde8d862b1d7773afc55c1effa0999f8e475680a69ba3a2f3e2464008"
+     "sha256": "ff9d83fcd2ef93ed25aba2adfc6cc13d265b864ad1a1cf3603cbabcfcfab040e"
     }
    ],
    "atoms": []
@@ -2716,5 +2716,5 @@
   "hal.hal_pwm_apply"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T05:15:02"
+ "conformed_at": "2026-11-13T07:49:58"
 }

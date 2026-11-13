@@ -55,10 +55,10 @@ def _light_atoms(check):
           {'sense_init', 'sense', 'sense_poll'} <= inst and rows['graph']['base_configuration'] == 'uno-light'
           and any(e['kind'] == 'calls' and e['from_node'] == 'sense_poll' and e['to_node'] == 'sense' for e in rows['edges']), (sorted(inst), rows['graph']['base_configuration']))
     src = open(os.path.join(P.UNO_ROOT, 'apps', 'light.c')).read()
-    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT in the source; its sense code (smp-1/2) exists only inside `#if HAL_INT1` blocks, so the sense-less variant uno-light-unsensed (F1) compiles none of it',
+    check('light.c has ONE command (SET_LED): no SET_TIME / SNAPSHOT in the source; its sense code (smp-1/2) exists only inside `#if CFG_INT1` blocks, so the sense-less variant uno-light-unsensed (F1) compiles none of it',
           'SET_LED' in src and 'SET_TIME' not in src and 'SNAPSHOT' not in src
           and all(m.start() > 0 for m in re.finditer('hal_sense', src))
-          and len(re.findall(r'hal_sense', re.sub(r'#if HAL_INT1.*?#endif', '', src, flags=re.S))) == 0)
+          and len(re.findall(r'hal_sense', re.sub(r'#if CFG_INT1.*?#endif', '', src, flags=re.S))) == 0)
 
 
 def _graph_solution_binding(check):

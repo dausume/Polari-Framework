@@ -10,7 +10,7 @@ catalogue row it implements is `sense-led-line:<route>` (`cmod.custom.isotope_va
 | `pin-change-interrupt` | `hal_sense_pcint.c` | `isotopes/pin-change-interrupt/template.c.j2` - a PCINT ISR counts and stamps | uno-light-sense-pcint (sense on D8, wired from D6) |
 
 Each rendered file supplies the two functions `hal.h` declares for a sense pin (`hal_sense_init`, `hal_sense_read`) and switches hal.c's INT1 block off with
-`HAL_SENSE_ROUTE` (board_config.h), so the app (button_clock.c) is unchanged and the existing variants' bytes are unchanged (the identical-hex gate).
+`CFG_SENSE_ROUTE` (board_config.h), so the app (button_clock.c) is unchanged and the existing variants' bytes are unchanged (the identical-hex gate).
 
 - `catom.json` - the contract and the HAL variables (families: drive / register / protocol / signal / execution, plan 5b).
 - `isotopes/<iso>/isotope.json` - what it claims, which variant row and FirmwareVariant it belongs to.

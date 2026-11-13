@@ -70,11 +70,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
+     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
     },
     {
      "path": "hal.h",
-     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
+     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
     }
    ],
    "atoms": [
@@ -116,11 +116,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "c7ef89d18e8dc37aecd9692f787cf80c8f66f347256cf000ea3932e9218b08d7"
+     "sha256": "0eea835db10fafb892a56bd44c46f61a1930dd2742d8e3504e0a98ad68352e0c"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "e8e29dbd93b771e65980a7597096fbd4034ddd8b31cc6ca5670a8bdd5b61099f"
+     "sha256": "51cf71357cbb6abbd3544bb6a0b27444e6e7e175bc197e9335ac4e27bb8afe5f"
     }
    ],
    "atoms": [
@@ -1454,5 +1454,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T05:12:47"
+ "conformed_at": "2026-11-13T08:41:27"
 }

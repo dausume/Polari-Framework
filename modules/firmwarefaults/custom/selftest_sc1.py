@@ -129,9 +129,9 @@ def sc1_parts(check):
         from board.custom import variants as V
         vs = {v['name']: v for v in SC.scenario_variants()}
         want = {'uno-ack-wait': [('SC_ACK_WAIT', 1)], 'uno-ack-wait-timeout': [('SC_ACK_WAIT', 1), ('SC_ACK_TIMEOUT_MS', 50)],
-                'uno-button-count': [('HAL_INT0', 1)], 'uno-button-debounce': [('HAL_INT0', 1), ('HAL_INT0_DEBOUNCE_MS', 20)],
-                'uno-echo-uartstat': [('HAL_UART_ERRCOUNT', 1)], 'uno-echo-keeptail': [('HAL_UART_ERRCOUNT', 1)],
-                'uno-eeprom-record': [('SC_EEPROM_RECORD', 1)], 'uno-eeprom-commit': [('SC_EEPROM_RECORD', 2)], 'uno-sim-rig-wdt': [('HAL_WDT', 1)]}
+                'uno-button-count': [('CFG_INT0', 1)], 'uno-button-debounce': [('CFG_INT0', 1), ('CFG_INT0_DEBOUNCE_MS', 20)],
+                'uno-echo-uartstat': [('CFG_UART_ERRCOUNT', 1)], 'uno-echo-keeptail': [('CFG_UART_ERRCOUNT', 1)],
+                'uno-eeprom-record': [('SC_EEPROM_RECORD', 1)], 'uno-eeprom-commit': [('SC_EEPROM_RECORD', 2)], 'uno-sim-rig-wdt': [('CFG_WDT', 1)]}
         got = {n: V.resolve(vs[n])['flags'] for n in want}
         check('the nine sc-1 variants resolve through board\'s own validation with exactly their scenario flags', got == want, got)
         check('…the request/ack, button and EEPROM ones use the scenario_rig app; S4\'s pair is the echo app, AFTER with rx_parser keep-tail; '
@@ -155,14 +155,14 @@ def sc1_parts(check):
         fw = os.path.join(HERE, '..', 'board', 'custom', 'firmware', 'uno')
         hal, halh = open(os.path.join(fw, 'hal.c')).read(), open(os.path.join(fw, 'hal.h')).read()
         rig, scn = open(os.path.join(fw, 'apps', 'sim_rig.c')).read(), open(os.path.join(fw, 'apps', 'scenario_rig.c')).read()
-        check('hal.h: every sc-1 knob defaults to 0 (HAL_UART_ERRCOUNT, HAL_INT0, HAL_INT0_DEBOUNCE_MS, HAL_WDT) — a shipped build compiles none of it',
-              all('#define %s 0' % k in halh for k in ('HAL_UART_ERRCOUNT', 'HAL_INT0', 'HAL_INT0_DEBOUNCE_MS', 'HAL_WDT')))
-        check('hal.c: the RX ISR reads UCSR0A BEFORE UDR0 under HAL_UART_ERRCOUNT (FE0/DOR0 are valid only before the read) and keeps the '
-              'shipped ISR verbatim under #else; .init3 clears MCUSR + the WDT under HAL_WDT',
+        check('hal.h: every sc-1 knob defaults to 0 (CFG_UART_ERRCOUNT, CFG_INT0, CFG_INT0_DEBOUNCE_MS, CFG_WDT) — a shipped build compiles none of it',
+              all('#define %s 0' % k in halh for k in ('CFG_UART_ERRCOUNT', 'CFG_INT0', 'CFG_INT0_DEBOUNCE_MS', 'CFG_WDT')))
+        check('hal.c: the RX ISR reads UCSR0A BEFORE UDR0 under CFG_UART_ERRCOUNT (FE0/DOR0 are valid only before the read) and keeps the '
+              'shipped ISR verbatim under #else; .init3 clears MCUSR + the WDT under CFG_WDT',
               'uint8_t st = UCSR0A;\n    uint8_t b = UDR0' in hal and '#else\nISR(USART_RX_vect)\n{\n    uint8_t b = UDR0, next' in hal
               and 'section(".init3")' in hal and 'MCUSR = 0u;\n    wdt_disable();' in hal)
-        check('sim_rig.c: the watchdog init + kick exist only under #if HAL_WDT (uno-sim-rig stays byte-identical)',
-              rig.count('#if HAL_WDT') == 2 and 'hal_wdt_kick();' in rig)
+        check('sim_rig.c: the watchdog init + kick exist only under #if CFG_WDT (uno-sim-rig stays byte-identical)',
+              rig.count('#if CFG_WDT') == 2 and 'hal_wdt_kick();' in rig)
         check('scenario_rig.c: BEFORE/AFTER differ in exactly the technique — the blocking ack wait vs ack_step(); the in-place record vs the '
               'two-slot crc-last write; the observables are volatile (the twin reads them by symbol)',
               'while (!g_ack_seen) drain_rx();' in scn and 'static void ack_step(uint32_t now)' in scn and 'crc LAST = commit' in scn

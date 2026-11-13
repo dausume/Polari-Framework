@@ -145,7 +145,7 @@ def _refusals(check):
           'not written for it' in refused('uno-light-v2', button_route='pcint'), refused('uno-light-v2', button_route='pcint')[:120])
     check('the INT0 variants are unchanged: uno-light still refuses any button pin but D2', 'hardware-fixed to D2' in refused('uno-light', button_pin=4))
     cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light', 'uno-button-clock', 'uno-sim-rig')}
-    check('the existing variants\' board_config.h carry no route line at all (their bytes cannot have moved)', all('HAL_BUTTON_ROUTE' not in t for t in cfg.values()))
+    check('the existing variants\' board_config.h carry no route line at all (their bytes cannot have moved)', all('CFG_BUTTON_ROUTE' not in t for t in cfg.values()))
     check('BR.check agrees with resolve (RouteRefused is the same refusal)', _raises(BR, 'pcint', {'button_pin': 0}))
 
 

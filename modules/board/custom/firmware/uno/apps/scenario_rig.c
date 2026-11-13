@@ -15,7 +15,7 @@
  *   SC_EEPROM_RECORD 2   AFTER (Technique write-then-commit): two slots {value[4], seq, crc8}; the new value goes into
  *                        the slot NOT in use, the crc (over value + seq) is written LAST; at boot the valid slot with
  *                        the newer seq wins — a torn write leaves the old record readable
- *   HAL_INT0 1           scenario 3: presses on D2 counted by hal.c (HAL_INT0_DEBOUNCE_MS picks BEFORE / AFTER)
+ *   CFG_INT0 1           scenario 3: presses on D2 counted by hal.c (CFG_INT0_DEBOUNCE_MS picks BEFORE / AFTER)
  *
  * What the scenario reads is in named statics (g_ack_state, g_rec_boot, …) — the twin's --watch finds them by symbol in
  * this build's own ELF. PLAIN C on avr-libc (RULE 2). Copied into the project as main.c by `pol board gen`.
@@ -211,7 +211,7 @@ int main(void)
 #if FEATURE_LED
     hal_led_init();
 #endif
-#if HAL_INT0
+#if CFG_INT0
     hal_button_init();
 #endif
     memset(&state, 0, sizeof state);
@@ -221,13 +221,13 @@ int main(void)
 #if SC_EEPROM_RECORD
     record_boot();
 #endif
-#if HAL_WDT
+#if CFG_WDT
     hal_wdt_init();
 #endif
     sei();
 
     for (;;) {
-#if HAL_WDT
+#if CFG_WDT
         hal_wdt_kick();
 #endif
         drain_rx();

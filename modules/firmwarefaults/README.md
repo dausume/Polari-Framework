@@ -13,7 +13,7 @@ BrownoutMidWrite, BitFlip, ClockSkew), `objects/space_safety/` (StackOverflow, B
 `Assumption`, `Technique` (seeded cost + MEASURED cost), `Scenario`, `ScenarioStep`, `ScenarioRun`, `ScenarioTraceCycle` (the cycles
 around the fault, so the page shows them in a configured table). Seeds: one row per kind (a rate is cited, measured, an estimate,
 or `unverified`), the UNO's primitives, 12 assumptions, 10 techniques, scenario 1 + 1b and their steps, and two scenario
-FirmwareVariants (`uno-sim-rig-torn` = `HAL_MILLIS_ATOMIC=0`; `uno-sim-rig-ring512` = `RX_RING=512`, refused by hal.c's
+FirmwareVariants (`uno-sim-rig-torn` = `CFG_MILLIS_ATOMIC=0`; `uno-sim-rig-ring512` = `RX_RING=512`, refused by hal.c's
 `_Static_assert`).
 
 **Scenario 1 (`torn-millis-read`)** — the ring buffer cannot tear (uint8_t indices, one `lds` each); the 4-byte tick read can.
@@ -32,10 +32,10 @@ half-run.
 | scenario | BEFORE → AFTER | forcing (twin flags) | decided by | technique |
 |---|---|---|---|---|
 | `lost-ack-hang` (S2) | `uno-ack-wait` → `uno-ack-wait-timeout` (app `scenario_rig`, `SC_ACK_WAIT` / `SC_ACK_TIMEOUT_MS`) | a scripted host answers each request (`--respond`), the 1st ack dropped (`--drop-frame rx:1`) | telemetry gap > 250 ms (hang) vs a retry + no gap | `timeout-fsm` |
-| `button-bounce-double-count` (S3) | `uno-button-count` → `uno-button-debounce` (`HAL_INT0`, `HAL_INT0_DEBOUNCE_MS 20`) | INT0 raised at 500 ms, +300 cycles (the ring), +50 ms (a real press) | `g_presses` 3 vs 2 for 2 presses | `debounce-synchroniser` |
-| `uart-residual-frame-loss` (S4) | `uno-echo-uartstat` → `uno-echo-keeptail` (`HAL_UART_ERRCOUNT`; header knob `rx_parser keep-tail`) | the documented residual: a false start reaching 10 B into frame B, then A, B (`--inject`) | commands applied vs an ideal offline parse of the delivered bytes | `rescan-keep-tail` |
+| `button-bounce-double-count` (S3) | `uno-button-count` → `uno-button-debounce` (`CFG_INT0`, `CFG_INT0_DEBOUNCE_MS 20`) | INT0 raised at 500 ms, +300 cycles (the ring), +50 ms (a real press) | `g_presses` 3 vs 2 for 2 presses | `debounce-synchroniser` |
+| `uart-residual-frame-loss` (S4) | `uno-echo-uartstat` → `uno-echo-keeptail` (`CFG_UART_ERRCOUNT`; header knob `rx_parser keep-tail`) | the documented residual: a false start reaching 10 B into frame B, then A, B (`--inject`) | commands applied vs an ideal offline parse of the delivered bytes | `rescan-keep-tail` |
 | `brownout-mid-eeprom-write` (S5) | `uno-eeprom-record` → `uno-eeprom-commit` (`SC_EEPROM_RECORD 1/2`) | old record preloaded (`--eeprom-set`), a command writes the new one, `--reset-at` the 3rd `eeprom_write_byte` (simavr has NO brown-out model: a reset approximates the droop) | the record read at boot: a mix vs the old value | `write-then-commit` |
-| `runaway-hang-watchdog` (§4) | `uno-sim-rig` → `uno-sim-rig-wdt` (`HAL_WDT 1`, WDTO_250MS, `.init3` clears MCUSR + the WDT) | `--jump-at` `_exit` (cli; rjmp .) at 500 ms | no frame after the hang vs a WDRF reset + frames again | `watchdog` |
+| `runaway-hang-watchdog` (§4) | `uno-sim-rig` → `uno-sim-rig-wdt` (`CFG_WDT 1`, WDTO_250MS, `.init3` clears MCUSR + the WDT) | `--jump-at` `_exit` (cli; rjmp .) at 500 ms | no frame after the hang vs a WDRF reset + frames again | `watchdog` |
 | `priority-inversion-mutex`, `two-lock-deadlock` (S6/S7) | — | **not-yet-forcible**: no RTOS on the UNO; the recipe is written (`hold-lock-order`) for sc-3 (FreeRTOS on the ESP32-C3 — his "STM32-C3" unconfirmed — or Zephyr on the SAMD21) | refused with that reason, nothing built | `priority-inheritance`, `lock-ordering` |
 
 Every sc-1 run records plan §4 space/safety too: stack high-water (SP watch + paint + static), worst ISR latency, each ISR's length,

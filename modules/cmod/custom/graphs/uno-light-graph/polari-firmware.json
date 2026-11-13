@@ -71,11 +71,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
+     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
     },
     {
      "path": "hal.h",
-     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
+     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
     }
    ],
    "atoms": [
@@ -100,7 +100,7 @@
    "files": [
     {
      "path": "hal_sense_poll.c",
-     "sha256": "5b1c56b0730c4dadcf3a41f3766e9a3530d08c5a8345bf6dfbdf551859132d33"
+     "sha256": "bdee342ec4a0ad1c692230aae8398f111f419f3040cb33dd8a86479856ed02f9"
     }
    ],
    "atoms": [
@@ -131,11 +131,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "b4dee45d77f80c34c6749d053ba14b90de6128849a822c62a1d23bd84c5df0d5"
+     "sha256": "2a330de6d50ccadd16ef4539e7cbcf3e4cf28f585d144da7d20dfb7fe976ba3f"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "ad8f8da86dfb1f70fe47eab2a1495b0ac1d0c06657495ae8b3ad7bc899d1e299"
+     "sha256": "d127464d87c50e4c89363a058be3734ebe2fdd71f56c2ef496217248fbc71727"
     }
    ],
    "atoms": [
@@ -154,7 +154,7 @@
    "files": [
     {
      "path": "board_config.h",
-     "sha256": "2a83dd03b98d3baf08fb1693a8d83ecbbde6cd48989479a5e3030a650fad830d"
+     "sha256": "d9fbe67a7e1da719deaeb8f664255a37b1d8f8ea3d9976470f30198b455ef580"
     }
    ],
    "atoms": []
@@ -165,7 +165,7 @@
    "files": [
     {
      "path": "light_defs.h",
-     "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
+     "sha256": "bd15eb3fd5d37d5928cd9ae3d8f88e81512addc46fe10f155f89978eeb154920"
     }
    ],
    "atoms": []
@@ -1944,5 +1944,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T05:13:54"
+ "conformed_at": "2026-11-13T07:49:03"
 }

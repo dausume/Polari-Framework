@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "0e19501c2e5380a5f6640b570eac559f17f438b1550201c4af38f47b2c35c653",
+   "source_sha": "eb9d262683a7d82f627b21a505622f9b9eae102633ed516e0457f617d0dcce18",
    "elf_sha256": {
     "shipped": "93612b166d5894c5aac6f1d37ee080c1879ae21035dc522ceaf4a95e445bc876",
     "noinline": "b2c80e83aea30d3d2dcd034cabd504f2e459b2d03b0823b81086e3be3e08396e"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "b7ffc530638c730ebb3dd1ec460727eb49f65ee90684741a4a111d1432a84495",
+   "source_sha": "1ad5674f6e5f39420e46bd33b96fe5047f4201217634f0cbbdc5bc9ac29444e7",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "1d80497a3fcb5f4a06093f569c29a07537b82216ca06627a72271b11e4de4f0b",
+   "source_sha": "c292a0daf1525fd0ddc6198dbb4c98fd3c73c19ab857ec1646bfd827b56fccb8",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "4bc97428529767e030f6fdee942b4c8a1f08a7ed6958b4713a8d483d00cf5698",
+   "source_sha": "dc4bdae52de8f7f6befafce13dc184de4d9e336ac017367b44f372a1b6b400c1",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "70a88ee68310c265fc785a0a0bff6b2e910cc3d89a4e6bec3dc3a3e68e79c118",
+   "source_sha": "127a100bcf20692a8deff15c93a74be91fca3ed575baa938bb6ee40c8129fa9f",
    "elf_sha256": {
     "shipped": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
     "noinline": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08"
@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "6b45025d55387d557890591f2753f3f4757f1e022f9e3a0b5943126ec892a6a8",
+   "source_sha": "aa2741f24e8e54fbfd9e3835083c79310c4af0688fa9a8f12a5dcb29c9b54afe",
    "elf_sha256": {
     "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
     "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
@@ -197,7 +197,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "8aa846fb3c3a798703d17f984c0a7cae345c2e4c0887c6345c618876a4ae17a1",
+   "source_sha": "ae81f4abf6f1796223c627d6666b1f8903698246fb7dbe8d865e12cdd98a2da9",
    "elf_sha256": {
     "shipped": "57210995276cc7267155d84d72056a95afc9608c4f6702a18e4322247840f466",
     "noinline": "c34cef762717cbca3ce5d4b4b0a17d161b823ae415c985ce911a0d1a8a1f2aef"
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "bafff81d91eecc4f5ebab5caf793b77fca7bd031a6daf85c67582f2018de7a8e",
+   "source_sha": "0ba2915ffe1398459040edde583e7b11b02a48638d0e7cc61481810158ef6070",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -245,7 +245,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "5dbcfef5c4d8ea83cae6cbd8d1ffc458712f68e9afef13d00633ac263c9d1fd8",
+   "source_sha": "79adb753bacfd5f7d45cdf65e10ae7f7ed4aa61a0949e4c3571730b57fb3e212",
    "elf_sha256": {
     "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
     "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
@@ -270,7 +270,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "9930b6d9b135ce83d9ba62578c403ffaa9937fa42dfd4c4642c6f01a0cd8ed59",
+   "source_sha": "045a149ac3af77262f57947f2d6283ed71d79bcd9c81691a69e08b07aefd033d",
    "elf_sha256": {
     "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
     "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
@@ -295,7 +295,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "3f71bc391f2423380c15eab677e92c7c3b3ee378c84f3be1567aa21f8eafea1c",
+   "source_sha": "6f1143a6f09ceb986577138a6893d37fb92f26f07ab2bd3d8e24e8f37d38de50",
    "elf_sha256": {
     "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
     "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
@@ -310,10 +310,10 @@
    "kind": "coverage",
    "app": "scenario_rig",
    "flags": [
-    "HAL_UART_ERRCOUNT=1",
-    "HAL_INT0=1",
-    "HAL_INT0_DEBOUNCE_MS=20",
-    "HAL_WDT=1",
+    "CFG_UART_ERRCOUNT=1",
+    "CFG_INT0=1",
+    "CFG_INT0_DEBOUNCE_MS=20",
+    "CFG_WDT=1",
     "SC_EEPROM_RECORD=2",
     "SC_ACK_WAIT=1",
     "SC_ACK_TIMEOUT_MS=200"
@@ -326,7 +326,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "d2e9a43516f3cc68fa3ee2e2aadf05a98c30eebb174e99ef059fdce7502505e8",
+   "source_sha": "b01972fb8899bc73ee35137479b45781a7dc5df3b021eca1ca2647fbd1b33a77",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -341,7 +341,7 @@
    "kind": "coverage",
    "app": "scenario_rig",
    "flags": [
-    "HAL_INT0=1",
+    "CFG_INT0=1",
     "SC_EEPROM_RECORD=1",
     "SC_ACK_WAIT=1"
    ],
@@ -353,7 +353,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "1d8f1f39893fa102e4dfcdd366354e8a746bc4d482a5bfd61ed9008583b61231",
+   "source_sha": "5febe8235204b32b05ba2ab4240057506e69e72cb1027cf802afc22fa6f0c931",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -371,11 +371,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
+     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
     },
     {
      "path": "hal.h",
-     "sha256": "abca35c705c63772a89cd33deadc8afe2f42043d66c9194e06bea75995057e55"
+     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
     }
    ],
    "atoms": [
@@ -431,7 +431,7 @@
    "files": [
     {
      "path": "apps/light_defs.h",
-     "sha256": "47df8bb679c378ca2695571f47b52da2b1f1fd8a8a1c2a40b926b19674765d81"
+     "sha256": "bd15eb3fd5d37d5928cd9ae3d8f88e81512addc46fe10f155f89978eeb154920"
     }
    ],
    "atoms": []
@@ -442,7 +442,7 @@
    "files": [
     {
      "path": "apps/sim_rig.c",
-     "sha256": "3c38b4bb48aad452842ae43e9669ca0dbeeae52080c233667ebac99bc815ba0b"
+     "sha256": "5aaea62098ce1ec71f82ec182f3775e07afe00e46c1a79848361f633c2945ee5"
     }
    ],
    "atoms": [
@@ -497,7 +497,7 @@
    "files": [
     {
      "path": "apps/scenario_rig.c",
-     "sha256": "0d46fff9b890543ee26d34d9b9483a019020344ac973c7d59951fd4258250d2a"
+     "sha256": "5fae14946278be8c80a600e9660c67f4042ed329ec718ab52a45c9fc4350800f"
     }
    ],
    "atoms": [
@@ -518,7 +518,7 @@
    "files": [
     {
      "path": "apps/button_clock.c",
-     "sha256": "10d1b9e72b4852910a1e864b3a873757476369ba2eb0868adae0e9bd6970966a"
+     "sha256": "b305a4345899f57bc36bac47fdc05be79bc7e4ae4fd4abbdb73d69e786e0d556"
     }
    ],
    "atoms": [
@@ -544,7 +544,7 @@
    "files": [
     {
      "path": "apps/light.c",
-     "sha256": "952da7280fd01988cd98838e537207722bde4bf81a473a618ef6570ffcc3ede6"
+     "sha256": "a67ecda933fab5f8e5330bf387ee2dd8c993b173a678b6af57cf9c2e5aa4916a"
     }
    ],
    "atoms": [
@@ -6642,5 +6642,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T05:12:07"
+ "conformed_at": "2026-11-13T07:47:33"
 }

@@ -9,7 +9,7 @@ written down as recipes that are NOT forcible on the UNO (no RTOS), so sc-3 only
   button-bounce-double-count  S3  uno-button-count (every INT0 edge counts) → uno-button-debounce (20 ms debounce)
   uart-residual-frame-loss    S4  uno-echo-uartstat (the shipped resync parser) → uno-echo-keeptail (rx_parser keep-tail)
   brownout-mid-eeprom-write   S5  uno-eeprom-record (in place)              → uno-eeprom-commit (two slots, crc written last)
-  runaway-hang-watchdog       §4  uno-sim-rig (no watchdog)                 → uno-sim-rig-wdt (HAL_WDT 1, kicked per pass)
+  runaway-hang-watchdog       §4  uno-sim-rig (no watchdog)                 → uno-sim-rig-wdt (CFG_WDT 1, kicked per pass)
   priority-inversion-mutex    S6  not-yet-forcible: needs an RTOS
   two-lock-deadlock           S7  not-yet-forcible: needs an RTOS
 
@@ -72,7 +72,7 @@ SC1_SCENARIOS = [
        'into frame B) right before two real commands A and B. The shipped parser rejects the false candidate at its CRC, rescues A '
        'from the bytes it holds — and drops the 10 bytes of B that followed A in the same span, so B is lost. AFTER (rx_parser '
        'keep-tail) keeps those bytes and re-reads them: both commands apply. The echo app counts applied commands (`echoes`); '
-       'HAL_UART_ERRCOUNT counts FE0 / DOR0 / ring drops in the RX ISR on both sides.',
+       'CFG_UART_ERRCOUNT counts FE0 / DOR0 / ring drops in the RX ISR on both sides.',
        'uno-echo-uartstat', 'uno-echo-keeptail', 'UartBitErrorFault', 'uart-bit-error', 'rejected-span-one-frame', 'rescan-keep-tail',
        'BEFORE: 1 of the 2 commands applied while an ideal parser (board.custom.packet_ref.StreamParser over the same bytes) finds 2 → '
        'refuted. AFTER: 2 of 2 → witnessed. The statistics tier runs --uart-ber over 500 commands x 20 seeds per BER.',
@@ -89,7 +89,7 @@ SC1_SCENARIOS = [
              'the new value is read at boot); sc-0 had it as assumed'),
     _s('runaway-hang-watchdog', 'Plan §4 — a runaway into a dead loop: frozen forever, or reset by the watchdog',
        'At 500 ms the harness sets the PC to _exit (avr-libc: cli, then a self-loop) — a corrupted return address in miniature. '
-       'BEFORE (uno-sim-rig, no watchdog) never sends another frame. AFTER (uno-sim-rig-wdt: HAL_WDT 1, WDTO_250MS, kicked once per '
+       'BEFORE (uno-sim-rig, no watchdog) never sends another frame. AFTER (uno-sim-rig-wdt: CFG_WDT 1, WDTO_250MS, kicked once per '
        'main-loop pass, MCUSR + the WDT cleared in .init3) is reset by the watchdog ~256 ms later (WDRF set) and telemetry resumes.',
        'uno-sim-rig', 'uno-sim-rig-wdt', 'LivelockFault', 'runaway-hang', 'main-loop-returns', 'watchdog',
        'BEFORE: no frame after the runaway → refuted. AFTER: one watchdog reset (WDRF), frames again → witnessed.',
@@ -179,17 +179,17 @@ def sc1_variants():
                  '"fault"; telemetry never stops.', ['SC_ACK_WAIT=1', 'SC_ACK_TIMEOUT_MS=50'],
                  'a second request ~50 ms after a lost ack; telemetry continuous', tag, **sc),
         _variant('uno-button-count', 'uno-sim-rig', 'SCENARIO ONLY — a button on D2 (INT0), every edge counted (scenario 3 BEFORE)',
-                 'INT0 on a falling edge counts presses into g_presses — a ringing contact counts twice.', ['HAL_INT0=1'],
+                 'INT0 on a falling edge counts presses into g_presses — a ringing contact counts twice.', ['CFG_INT0=1'],
                  'g_presses counts every edge', tag, **sc),
         _variant('uno-button-debounce', 'uno-sim-rig', 'SCENARIO ONLY — the D2 button with a 20 ms debounce (scenario 3 AFTER)',
                  'Edges within 20 ms of the last counted one are ignored (timer-qualified debounce in the ISR).',
-                 ['HAL_INT0=1', 'HAL_INT0_DEBOUNCE_MS=20'], 'g_presses counts presses, not edges', tag, **sc),
+                 ['CFG_INT0=1', 'CFG_INT0_DEBOUNCE_MS=20'], 'g_presses counts presses, not edges', tag, **sc),
         _variant('uno-echo-uartstat', 'uno-echo', 'SCENARIO ONLY — the echo app + the USART error counters (scenario 4 BEFORE)',
-                 'The shipped resync parser; the RX ISR also counts FE0, DOR0 and ring-full drops (HAL_UART_ERRCOUNT 1).',
-                 ['HAL_UART_ERRCOUNT=1'], 'echoes = commands applied; g_uart_fe / g_uart_dor / g_rx_dropped', tag),
+                 'The shipped resync parser; the RX ISR also counts FE0, DOR0 and ring-full drops (CFG_UART_ERRCOUNT 1).',
+                 ['CFG_UART_ERRCOUNT=1'], 'echoes = commands applied; g_uart_fe / g_uart_dor / g_rx_dropped', tag),
         _variant('uno-echo-keeptail', 'uno-echo', 'SCENARIO ONLY — the echo app with the keep-tail RX parser (scenario 4 AFTER)',
                  'The generated header rendered with rx_parser keep-tail (c_twin_v2): bytes after a rescued frame are re-read, not dropped.',
-                 ['HAL_UART_ERRCOUNT=1'], 'echoes = commands applied (no residual loss)', tag, knobs={'rx_parser': 'keep-tail'}),
+                 ['CFG_UART_ERRCOUNT=1'], 'echoes = commands applied (no residual loss)', tag, knobs={'rx_parser': 'keep-tail'}),
         _variant('uno-eeprom-record', 'uno-sim-rig', 'SCENARIO ONLY — a 4-byte EEPROM record written in place (scenario 5 BEFORE)',
                  'A command\'s pwm_duty is written as a 4-byte record at EEPROM 0, byte by byte; boot reads it back unchecked.',
                  ['SC_EEPROM_RECORD=1'], 'g_rec_boot = the record read at boot', tag, **sc),
@@ -197,6 +197,6 @@ def sc1_variants():
                  'The new value goes into the slot not in use; the crc over value + seq is written last; boot takes the valid slot with the '
                  'newer seq.', ['SC_EEPROM_RECORD=2'], 'g_rec_boot is the old or the new record, never a mix', tag, **sc),
         _variant('uno-sim-rig-wdt', 'uno-sim-rig', 'SCENARIO ONLY — the whole rig with the watchdog on (plan §4)',
-                 'HAL_WDT 1: WDTO_250MS, kicked once per main-loop pass; MCUSR and the WDT cleared in .init3 so a watchdog reset does not '
-                 'loop.', ['HAL_WDT=1'], 'a hang ends in a watchdog reset ~256 ms later and telemetry resumes', tag),
+                 'CFG_WDT 1: WDTO_250MS, kicked once per main-loop pass; MCUSR and the WDT cleared in .init3 so a watchdog reset does not '
+                 'loop.', ['CFG_WDT=1'], 'a hang ends in a watchdog reset ~256 ms later and telemetry resumes', tag),
     ]

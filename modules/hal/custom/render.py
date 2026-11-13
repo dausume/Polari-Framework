@@ -66,7 +66,30 @@ def _guard_prelude(soc):
     return [ln.format(guard_why=c.get('guard_why', '')) for ln in c.get('prelude') or []]
 
 
-def header(soc, keys, aliases=None):
+class HalNameRefused(ValueError):
+    """A generated macro name would collide with a name the build already gives a meaning (plan §4b, econ's review)."""
+
+
+# hal-3b 2b: HAL_ is the generated-macro namespace and nothing else. Config/build flags moved to CFG_ (one migration); the
+# variant resolvers refuse a HAL_ flag, and header() refuses a generated name outside HAL_ or equal to a reserved name.
+NAMESPACE = 'HAL_'
+
+
+def _check_names(names, reserved):
+    """names: [(macro name, what it is)]; reserved: {name: why it is taken}. Raises HalNameRefused naming every collision."""
+    why = []
+    for n, what in names:
+        if not n.startswith(NAMESPACE):
+            why.append('%s %s is outside the generated namespace %s' % (what, n, NAMESPACE))
+        elif n in (reserved or {}):
+            why.append('%s %s collides with %s' % (what, n, reserved[n]))
+    if why:
+        raise HalNameRefused('the HAL header refuses these names: %s' % '; '.join(why))
+
+
+def header(soc, keys, aliases=None, reserved=None):
+    """`reserved` = {name: why} for names the build already uses (knobs, build flags, board_config.h defines): a generated
+    unit or role macro equal to one is refused in words, never emitted to shadow or be shadowed by it."""
     name = 'polari_hal_%s.h' % soc
     guard = 'POLARI_HAL_%s_H' % soc.upper()
     units, refused = [], []
@@ -117,6 +140,10 @@ def header(soc, keys, aliases=None):
     # (HAL_GPIO_SET_HIGH_PD6). The template code calls the role; which pin, which register, is the header's business only.
     have = {r['unit']['key']: r['unit'] for r in units}
     roles = [a for a in (aliases or []) if a['key'] in have]
+    emitted = [(u['macro'], 'unit macro') for u in have.values()]
+    emitted += [(u['macro'] + '_INIT', 'unit macro') for u in have.values() if u.get('c_text_init')]
+    emitted += [(a['name'], 'role') for a in roles]
+    _check_names(emitted, reserved)
     if roles:
         put('')
         put('/* roles: what the firmware calls -> the unit above that does it on this build\'s pin */')

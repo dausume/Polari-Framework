@@ -126,7 +126,7 @@ def decide_telemetry(frames, end_ms, gap_limit_ms, dropped, ack_state=None, requ
 def decide_presses(presses, expected):
     """Scenario 3: the press counter vs the presses that really happened."""
     if presses is None:
-        return _r('inapplicable', 'no press counter in this build (HAL_INT0 off)')
+        return _r('inapplicable', 'no press counter in this build (CFG_INT0 off)')
     if presses > expected:
         return _r('failed', 'g_presses = %d for %d press(es): the ringing edge was counted as a press (%d extra)' % (presses, expected, presses - expected),
                   '%d counted / %d pressed' % (presses, expected))

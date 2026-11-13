@@ -33,7 +33,7 @@ _Static_assert(RX_RING >= 2u && RX_RING <= 256u && (RX_RING & (RX_RING - 1u)) ==
 static volatile uint8_t rx_ring[RX_RING];
 static volatile uint8_t rx_head, rx_tail;
 
-#if HAL_UART_ERRCOUNT
+#if CFG_UART_ERRCOUNT
 /* sc-1 (FIRMWARE_SCENARIO_PLAN.md §3a, scenario 4): the USART's own error bits, which no shipped variant reads. FE0
  * (the stop bit was 0) and DOR0 (a byte arrived while UDR0 was full) are valid only BEFORE UDR0 is read
  * (DS40002061B §20.11.2), so the status is read first; a full ring drop is counted too. The byte is still queued:
@@ -124,11 +124,11 @@ void hal_tick_init(void)
 }
 
 /* g_ms is FOUR bytes the tick ISR writes; reading it is four `lds`. The atomic block masks interrupts across them
- * (+6 B, +3 cycles). HAL_MILLIS_ATOMIC 0 is the scenario variant uno-sim-rig-torn (sc-0, FIRMWARE_SCENARIO_PLAN.md
+ * (+6 B, +3 cycles). CFG_MILLIS_ATOMIC 0 is the scenario variant uno-sim-rig-torn (sc-0, FIRMWARE_SCENARIO_PLAN.md
  * §3): the bare read, which a tick landing between the loads TEARS (0x000000FF reads back as 0x000001FF = 511). It
  * exists only so the fault can be forced and shown on the twin — never ship it. */
-#ifndef HAL_MILLIS_ATOMIC
-#define HAL_MILLIS_ATOMIC 1
+#ifndef CFG_MILLIS_ATOMIC
+#define CFG_MILLIS_ATOMIC 1
 #endif
 
 POLARI_NODE(hal_millis, out(return, "ms", "milliseconds since hal_tick_init, from the Timer2 1 ms tick"),
@@ -136,7 +136,7 @@ POLARI_NODE(hal_millis, out(return, "ms", "milliseconds since hal_tick_init, fro
 uint32_t hal_millis(void)
 {
     uint32_t v;
-#if HAL_MILLIS_ATOMIC
+#if CFG_MILLIS_ATOMIC
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_ms; }
 #else
     v = g_ms;
@@ -144,23 +144,23 @@ uint32_t hal_millis(void)
     return v;
 }
 
-/* ---- sc-1 scenario 3: a button on D2 = INT0 (falling edge, pull-up). HAL_INT0_DEBOUNCE_MS 0 counts EVERY edge (the
+/* ---- sc-1 scenario 3: a button on D2 = INT0 (falling edge, pull-up). CFG_INT0_DEBOUNCE_MS 0 counts EVERY edge (the
  * BEFORE build: a ringing contact gives two edges, two counts); > 0 ignores edges within that many ms of the last one
  * it counted (the Technique `debounce`). g_ms is read bare inside the ISR: interrupts are off there, so its four loads
  * cannot be split by the tick. ---- */
-#if HAL_INT0 && !HAL_BUTTON_ROUTE   /* fgm-5a: HAL_BUTTON_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = pin-change interrupt, 2 = ADC threshold: that route is rendered into hal_button_*.c from catoms/read-button/ and this INT0 block is off */
+#if CFG_INT0 && !CFG_BUTTON_ROUTE   /* fgm-5a: CFG_BUTTON_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = pin-change interrupt, 2 = ADC threshold: that route is rendered into hal_button_*.c from catoms/read-button/ and this INT0 block is off */
 static volatile uint16_t g_presses;
 static volatile uint8_t g_toggle_pending;   /* ucd-0e2: set by the ISR, consumed (cleared) by hal_take_toggle_pending */
-#if HAL_INT0_DEBOUNCE_MS
+#if CFG_INT0_DEBOUNCE_MS
 static uint32_t g_last_press;
 static uint8_t g_pressed_once;
 #endif
 
 ISR(HAL_BUTTON_EDGE_VECTOR)                            /* INT0_vect on D2 (the generated header) */
 {
-#if HAL_INT0_DEBOUNCE_MS
+#if CFG_INT0_DEBOUNCE_MS
     uint32_t now = g_ms;
-    if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)HAL_INT0_DEBOUNCE_MS) return;
+    if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)CFG_INT0_DEBOUNCE_MS) return;
     g_pressed_once = 1u;
     g_last_press = now;
 #endif
@@ -179,7 +179,7 @@ void hal_button_init(void)
 #ifndef POLARI_PIN_CONFIG
     /* a GENERATED pin_config_init() (cmod.custom.pin_config_gen) owns these DDRD/PORTD/EICRA/EIFR/EIMSK writes when
      * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run. EICRA/EIMSK are read-modify-write: D3's sense
-     * atom (HAL_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
+     * atom (CFG_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
     HAL_BUTTON_INPUT();
     HAL_BUTTON_PULL_UP();                              /* pull-up: the button pulls D2 to ground */
     HAL_BUTTON_EDGE_ENABLE_FALLING();                  /* EICRA ISC01:00 = 10 (ISC1x untouched), clear INTF0 (w1c), EIMSK |= INT0 (INT1 may already be on) */
@@ -207,7 +207,7 @@ uint8_t hal_take_toggle_pending(void)
  * independent witness that the LED line (wired D6->D3 on the bench/twin) really switched. The ISR ONLY counts and
  * stamps (reads g_ms bare: interrupts are off inside an ISR, so its four loads cannot be split by the tick); emitting
  * sense_rise/sense_fall ButtonClockEvents is the main loop's job (button_clock.c), never the ISR's. ---- */
-#if HAL_INT1 && !HAL_SENSE_ROUTE   /* fgm-5b: HAL_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = polled, 2 = pin-change interrupt: that route is rendered into hal_sense_*.c from catoms/sense-led-line/ and this INT1 block is off */
+#if CFG_INT1 && !CFG_SENSE_ROUTE   /* fgm-5b: CFG_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = polled, 2 = pin-change interrupt: that route is rendered into hal_sense_*.c from catoms/sense-led-line/ and this INT1 block is off */
 static volatile uint16_t g_sense_rises, g_sense_falls;
 static volatile uint32_t g_last_edge_ms;
 
@@ -240,8 +240,8 @@ void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
 
 /* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON at its shortest period
  * (DS40002061B §10.9.2), so a firmware that does not clear both before main resets forever; .init3 runs before the
- * C runtime's .init4..9 and main. HAL_WDT 0 (every shipped variant) compiles none of this. ---- */
-#if HAL_WDT
+ * C runtime's .init4..9 and main. CFG_WDT 0 (every shipped variant) compiles none of this. ---- */
+#if CFG_WDT
 void hal_wdt_boot(void) __attribute__((naked, used, section(".init3")));
 void hal_wdt_boot(void)
 {

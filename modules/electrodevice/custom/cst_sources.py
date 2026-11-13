@@ -66,7 +66,7 @@ def hal_init_modes(config):
         hal_macros = _hal_macros(d)
         out = {}
         for src in sorted(f for f in os.listdir(d) if f.endswith('.c')):
-            # only the functions the preprocessor leaves in THIS config's build count (hal_button_init sits under #if HAL_INT0): the parsed TU names them
+            # only the functions the preprocessor leaves in THIS config's build count (hal_button_init sits under #if CFG_INT0): the parsed TU names them
             walk, _probs = FS._parse_tu(os.path.join(d, src), r['include_dirs'])
             compiled = set(walk.funcs)
             for fn, body in FS._raw_bodies(os.path.join(d, src)).items():

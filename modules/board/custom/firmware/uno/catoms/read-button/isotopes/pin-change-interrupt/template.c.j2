@@ -8,8 +8,8 @@
 #include "hal.h"
 #include "{{ hal_header|c_comment }}"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
-#if !HAL_INT0 || HAL_BUTTON_ROUTE != {{ route_code|c_int }}
-#error "hal_button_pcint.c is the button route {{ route_code|c_int }} (pin-change interrupt): board_config.h must set HAL_INT0 1 and HAL_BUTTON_ROUTE {{ route_code|c_int }}"
+#if !CFG_INT0 || CFG_BUTTON_ROUTE != {{ route_code|c_int }}
+#error "hal_button_pcint.c is the button route {{ route_code|c_int }} (pin-change interrupt): board_config.h must set CFG_INT0 1 and CFG_BUTTON_ROUTE {{ route_code|c_int }}"
 #endif
 
 static volatile uint16_t g_presses;
