@@ -293,6 +293,20 @@ def main():
           not _re.search(r'^\s*(DDR[BCD]|PORT[BCD]|EICRA|EIFR|EIMSK)\s*[|&]?=', src, _re.M) and 'PIND &' not in src)
     check('the template\'s own polari_hal_atmega328p.h is the uno-sim-rig build\'s (as its board_config.h is): no drift',
           open(_os.path.join(uno_dir, 'polari_hal_atmega328p.h')).read() == BG.hal_header_for('uno-sim-rig')['header']['text'])
+    import json as _jj
+    from firmwarefaults.custom.scenarios import scenario_variants as _SVS
+    from board.custom import variants as _V
+    _pins = BG.board_pins('uno')[0]
+    _bc = dict(next(x for x in _SVS() if x['name'] == 'uno-button-count'))
+    _roles = [b['role'] + ':' + b['pin'] for b in BG.base_roles(_V.resolve(_bc, {}, base=_pins))]
+    _k = _jj.loads(_bc['knobs_json']); _k['button_pin'] = 7
+    try:
+        _V.resolve(dict(_bc, knobs_json=_jj.dumps(_k)), {}, base=_pins); _refused = ''
+    except _V.VariantRefused as e:
+        _refused = str(e)
+    check('the build-flag INT0 path (uno-button-count, HAL_INT0=1) gets its BUTTON role on D2; button_pin 7 on that path is REFUSED in words '
+          '(hal.c\'s INT0 block is hardware-fixed to D2: the header must never put the button on another pin while the ISR listens on D2)',
+          'BUTTON:PD2' in _roles and 'hardware-fixed to D2' in _refused, (_roles, _refused[-120:]))
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-echo')
     check('a firmware with no HAL units answers no rows and says why', rs.media['rows'] == [] and 'no HAL units' in rs.media['note'])
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'no-such-firmware')

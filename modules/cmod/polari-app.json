@@ -633,7 +633,13 @@
   "cmod_pin_profile_selftest",
   "cmod_selftest",
   "cmod_solve_selftest",
-  "cmod_task_plan_selftest"
+  "cmod_task_plan_selftest",
+  "cmod_bands_selftest",
+  "cmod_clock_config_selftest",
+  "cmod_measure_selftest",
+  "cmod_procedure_selftest",
+  "cmod_rulings_selftest",
+  "cmod_sigrok_selftest"
  ],
  "security": {
   "profile": "web-app",

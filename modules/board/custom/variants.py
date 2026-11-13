@@ -440,6 +440,11 @@ def resolve(variant, overrides=None, base=None):
             why.append('build flag %s redefines a knob — set the knob instead' % m.group(1))
         else:
             flags.append((m.group(1), int(m.group(2))))
+    # hal-3a (econ's review, 2026-11-13): a build FLAG can turn hal.c's INT0 button on without the button feature (uno-button-count);
+    # that block is hardware-fixed to D2 / INT0_vect exactly as the feature path above, so the same pin rule applies to it
+    if dict(flags).get('HAL_INT0') and not feats['button'] and k['button_pin'] != 2:
+        why.append('button_pin D%d with build flag HAL_INT0=1: hal.c\'s INT0 button is hardware-fixed to D2 (INT0) — no other pin\'s '
+                   'EICRA/EIMSK bits are wired for it' % k['button_pin'])
     if why:
         raise VariantRefused('variant %s: %s' % (variant.get('name'), '; '.join(why)))
     return {'name': variant.get('name', ''), 'app': app, 'classes': classes, 'features': feats, 'knobs': k, 'flags': flags}

@@ -262,7 +262,8 @@ def base_roles(r):
     HAL_INT1 without a sense route (the INT1 sense), FEATURE_PWM on a Timer0 / Timer1 output (its direction only). `init` = the
     operations hal.c calls from init code, which gets the unguarded _INIT form (interrupts are still off there)."""
     f, k = r['features'], r['knobs']
-    flags = {n: v for n, v in (r.get('flags') or [])}   # a build flag can turn hal.c's INT0 / INT1 blocks on too (uno-button-count: HAL_INT0=1)
+    flags = {n: v for n, v in (r.get('flags') or [])}   # a build flag can turn hal.c's INT0 block on too (uno-button-count: HAL_INT0=1);
+    # HAL_INT1 is a RESERVED knob name (variants.RESERVED), so no flag reaches the INT1 branch below — kept so the two blocks read alike
     out = []
     if f.get('led'):
         out.append({'role': 'LED', 'variable': 'led_pin', 'pin': uno_soc_pin(k['led_pin']), 'ops': ['gpio.output', 'gpio.set_high', 'gpio.set_low']})
