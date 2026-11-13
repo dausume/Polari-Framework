@@ -34,11 +34,11 @@ def table():
     hb = {}
     for r in hregs:
         hb[r['block']] = hb.get(r['block'], 0) + 1
-    check('hal-3a (the HAL families\' registers): LEDC 43 (pwm, with its interrupt bits), APB_SARADC 8 (adc one-time sampling + its clock), SYSTIMER 8 (COMP0 alarm), INTMTX 3 (the '
-          'LEDC / SYSTIMER_TARGET0 / APB_ADC maps) = 62 registers / 221 fields (4 of them LEDC / APB_SARADC clock + reset bits in the drawing set\'s SYSTEM registers); '
+    check('hal-3a (the HAL families\' registers): LEDC 43 (pwm, with its interrupt bits), APB_SARADC 8 (adc one-time sampling + its clock), SYSTIMER 8 (COMP0 alarm), '
+          'INTMTX 3 (the LEDC / SYSTIMER_TARGET0 / APB_ADC maps), UART0 4 (the uart family\'s interrupt registers) = 66 registers / 301 fields (4 of them LEDC / APB_SARADC clock + reset bits in the drawing set\'s SYSTEM registers); '
           'together %d registers / %d fields' % (len(R.REGISTERS), len(R.FIELDS)),
-          (len(hregs), len(hflds)) == (62, 221) and hb == {'LEDC': 43, 'APB_SARADC': 8, 'SYSTIMER': 8, 'INTMTX': 3}
-          and (len(R.REGISTERS), len(R.FIELDS)) == (153, 982) and {r['part'] for r in R.REGISTERS} == {'drawing', 'hal-3a'}
+          (len(hregs), len(hflds)) == (66, 301) and hb == {'LEDC': 43, 'APB_SARADC': 8, 'SYSTIMER': 8, 'INTMTX': 3, 'UART0': 4}
+          and (len(R.REGISTERS), len(R.FIELDS)) == (157, 1062) and {r['part'] for r in R.REGISTERS} == {'drawing', 'hal-3a'}
           and {f['part'] for f in R.FIELDS} == {'drawing', 'hal-3a'} and len([f for f in hflds if f['register'].startswith('SYSTEM_')]) == 4,
           (len(hregs), len(hflds), hb, len(R.REGISTERS), len(R.FIELDS)))
     tick = [f for f in hflds if f['field'] == 'TICK_SEL']
@@ -104,8 +104,8 @@ def chain():
     flds = [f for f in t['RegisterField'] if f['soc'] == 'esp32c3']
     sig, sp = {r['name'] for r in t['PeripheralSignal']}, {r['name'] for r in t['SocPin']}
     per = {r['peripheral']: r for r in t['Peripheral'] if r['soc'] == 'esp32c3'}
-    check('rm-2b + hal-3a IN THE CHAIN: 153 Register + 982 RegisterField rows for esp32c3 (the drawing set 91 / 761 + hal-3a 62 / 221); every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
-          'GPIO / UART0 / LEDC / ADC1 / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (153, 982)
+    check('rm-2b + hal-3a IN THE CHAIN: 157 Register + 1062 RegisterField rows for esp32c3 (the drawing set 91 / 761 + hal-3a 66 / 301); every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
+          'GPIO / UART0 / LEDC / ADC1 / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (157, 1062)
           and all(f['affects_pin'] in sp for f in flds if f['affects_pin']) and all(f['affects_signal'] in sig for f in flds if f['affects_signal'])
           and {f.get('datasheet') for f in flds} == {'espressif-esp32-c3-trm'}
           and all(json.loads(per[p]['registers_refs_json']) for p in ('GPIO', 'UART0', 'LEDC', 'ADC1', 'SYSTIMER', 'SYSTEM', 'RTC_CNTL', 'INTMTX'))

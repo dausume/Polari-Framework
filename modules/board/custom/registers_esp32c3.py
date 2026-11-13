@@ -23,7 +23,7 @@ the generated HAL's families need, starting with the pwm family's LEDC (Chapter 
 DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF); the adc family's SAR ADC1 one-time sampling (Chapter 34: CTRL, ONETIME_SAMPLE, 1_DATA_STATUS, the ADC1_DONE
 interrupt bits, CLKM_CONF); the alarm family's SYSTIMER COMP0 (TARGET0_HI / LO / CONF, COMP0_LOAD, the TARGET0 interrupt bits); the LEDC / APB_SARADC
 clock + reset bits (in the drawing set's SYSTEM registers: `part` is per field); and the LEDC / SYSTIMER_TARGET0 / APB_ADC interrupt maps. Its codes and sentences are accepted only where the TRM field name AND the register header agree; its bit
-positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (221 / 221; LEDC's interrupt bits read from the TRM's rendered pages). Every field also carries
+positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (301 / 301; LEDC's interrupt bits read from the TRM's rendered pages). Every field also carries
 `trm_access`, the TRM code verbatim: the generated HAL's access table maps from it, never from the lossy `access` word. A field the TRM does not describe
 (LEDC TICK_SEL) has an empty trm_access and says so, so the HAL treats it as missing.
 
@@ -239,8 +239,13 @@ for bit, what, rst_name in ((29, 'SYSTIMER', 'SYSTIMER'), (24, 'UART_MEM', 'UART
 # ---- UART0 (Chapter 26 registers at UART0's base)
 _NOT_ALL_U = 'only the frame format, FIFO, line and clock fields the drawing needs are ingested; the rest is documented in the TRM, not ingested'
 _reg('UART0_FIFO_REG', 'UART0', 0x0000, 'UART_FIFO_REG of UART Controller 0: FIFO data', 'Register 26.1, p.571', '0x00000000')
-FIELDS.append(_f('UART0_FIFO_REG', 'RXFIFO_RD_BYTE', 7, 0, 'RO-fifo', 0, 'UARTn accesses FIFO via this field', {'read': 'the next byte of the RX FIFO'}, 'Register 26.1 UART_FIFO_REG, p.571',
-                 notes='every read moves the RX FIFO (the FIFO is the data path, §26.4)'))
+FIELDS.append(_f('UART0_FIFO_REG', 'RXFIFO_RD_BYTE', 7, 0, 'RO-fifo', 0, 'UARTn accesses FIFO via this field',
+                 {'read': 'the next byte of the RX FIFO ("Reading UART_RXFIFO_RD_BYTE retrieves the data from the RX FIFO")',
+                  'write': 'the byte is pushed into the TX FIFO ("Writing to UART_RXFIFO_RD_BYTE stores the data into the TX FIFO")'},
+                 'Register 26.1 UART_FIFO_REG, p.571; §26.4.2 UART RAM, pp.552-553',
+                 notes='every read moves the RX FIFO (the FIFO is the data path, §26.4); hal-3a: BY ACTION - §26.4.2: "As UART_RXFIFO_RD_BYTE is a read-only '
+                       'register field, the hardware does not actually perform a write operation on UART_RXFIFO_RD_BYTE; instead, upon detecting a write request '
+                       'to this field\'s address, it passes the corresponding write data to the TX FIFO via a separate bypass." Never read-modify-written'))
 _reg('UART0_CLKDIV_REG', 'UART0', 0x0014, 'UART_CLKDIV_REG of UART Controller 0: the baud divisor', 'Register 26.7, p.579', '0x000002B6')
 FIELDS.extend([
     _f('UART0_CLKDIV_REG', 'CLKDIV_FRAG', 23, 20, 'R/W', 0, 'The fractional part of the frequency divisor', {'any': 'fractional divisor'}, 'Register 26.7 UART_CLKDIV_REG, p.579'),
@@ -385,6 +390,146 @@ for name, off, t, pg, kind, code, (w_tim, w_end, w_ovf), vals in _LEDC_INT:
         FIELDS.append(_f(name, 'DUTY_CHNG_END_CH%d_INT_%s' % (n, kind), 4 + n, 4 + n, code, 0, w_end.replace('%d', str(n)), vals, where))
     for n in range(_LEDC_CH):
         FIELDS.append(_f(name, 'OVF_CNT_CH%d_INT_%s' % (n, kind), 10 + n, 10 + n, code, 0, w_ovf.replace('%d', str(n)), vals, where))
+
+# ---- hal-3a, the uart family: UART0's interrupt registers (Registers 26.3-26.6, pp.572-579), all 20 events each. Codes + sentences name-and-header accepted
+# (RAW R/WTC/SS, ST RO, ENA R/W, CLR WT); bits / offsets / resets from the SVD, checked against ESP-IDF v5.5.5 soc/uart_reg.h. Line-break hyphens of the
+# pdftotext text are rejoined ("com- pletes"); the TRM's own slips are kept verbatim and flagged [sic] in notes.
+_UART_INT_EVENTS = (   # (bit, event, ((code, page, the TRM sentence) for RAW, ST, ENA, CLR)) - Registers 26.3-26.6, pp.572-579
+    (0, 'RXFIFO_FULL', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver receives more data than what UART_RXFIFO_FULL_THRHD specifies.'),
+        ('RO', 574, 'This is the status bit for UART_RXFIFO_FULL_INT when UART_RXFIFO_FULL_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_RXFIFO_FULL_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_THE RXFIFO_FULL_INT interrupt.'),
+    )),
+    (1, 'TXFIFO_EMPTY', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the amount of data in TX FIFO is less than what UART_TXFIFO_EMPTY_THRHD specifies.'),
+        ('RO', 574, 'This is the status bit for UART_TXFIFO_EMPTY_INT when UART_TXFIFO_EMPTY_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_TXFIFO_EMPTY_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_TXFIFO_EMPTY_INT interrupt.'),
+    )),
+    (2, 'PARITY_ERR', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects a parity error in the data.'),
+        ('RO', 574, 'This is the status bit for UART_PARITY_ERR_INT when UART_PARITY_ERR_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_PARITY_ERR_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_PARITY_ERR_INT interrupt.'),
+    )),
+    (3, 'FRM_ERR', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects a data frame error.'),
+        ('RO', 574, 'This is the status bit for UART_FRM_ERR_INT when UART_FRM_ERR_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_FRM_ERR_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_FRM_ERR_INT interrupt.'),
+    )),
+    (4, 'RXFIFO_OVF', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver receives more data than the capacity of RX FIFO.'),
+        ('RO', 574, 'This is the status bit for UART_RXFIFO_OVF_INT when UART_RXFIFO_OVF_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_RXFIFO_OVF_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_UART_RXFIFO_OVF_INT interrupt.'),
+    )),
+    (5, 'DSR_CHG', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects the edge change of DSRn signal.'),
+        ('RO', 574, 'This is the status bit for UART_DSR_CHG_INT when UART_DSR_CHG_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_DSR_CHG_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_DSR_CHG_INT interrupt.'),
+    )),
+    (6, 'CTS_CHG', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects the edge change of CTSn signal.'),
+        ('RO', 574, 'This is the status bit for UART_CTS_CHG_INT when UART_CTS_CHG_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_CTS_CHG_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_CTS_CHG_INT interrupt.'),
+    )),
+    (7, 'BRK_DET', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects a 0 after the stop bit.'),
+        ('RO', 574, 'This is the status bit for UART_BRK_DET_INT when UART_BRK_DET_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_BRK_DET_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_BRK_DET_INT interrupt.'),
+    )),
+    (8, 'RXFIFO_TOUT', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver takes more time than UART_RX_TOUT_THRHD to receive a byte.'),
+        ('RO', 574, 'This is the status bit for UART_RXFIFO_TOUT_INT when UART_RXFIFO_TOUT_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_RXFIFO_TOUT_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_RXFIFO_TOUT_INT interrupt.'),
+    )),
+    (9, 'SW_XON', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver receives an XON character and UART_SW_FLOW_CON_EN is set to 1.'),
+        ('RO', 574, 'This is the status bit for UART_SW_XON_INT when UART_SW_XON_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_SW_XON_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_SW_XON_INT interrupt.'),
+    )),
+    (10, 'SW_XOFF', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver receives an XOFF character and UART_SW_FLOW_CON_EN is set to 1.'),
+        ('RO', 574, 'This is the status bit for UART_SW_XOFF_INT when UART_SW_XOFF_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_SW_XOFF_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_SW_XOFF_INT interrupt.'),
+    )),
+    (11, 'GLITCH_DET', (
+        ('R/WTC/SS', 572, 'This interrupt raw bit turns to high level when the receiver detects a glitch in the middle of a start bit.'),
+        ('RO', 574, 'This is the status bit for UART_GLITCH_DET_INT when UART_GLITCH_DET_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_GLITCH_DET_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_GLITCH_DET_INT interrupt.'),
+    )),
+    (12, 'TX_BRK_DONE', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the transmitter completes sending NULL characters, after all data in TX FIFO are sent.'),
+        ('RO', 574, 'This is the status bit for UART_TX_BRK_DONE_INT when UART_TX_BRK_DONE_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_TX_BRK_DONE_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_TX_BRK_DONE_INT interrupt.'),
+    )),
+    (13, 'TX_BRK_IDLE_DONE', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the transmitter has kept the shortest duration after sending the last data.'),
+        ('RO', 575, 'This is the status bit for UART_TX_BRK_IDLE_DONE_INT when UART_TX_BRK_IDLE_DONE_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_TX_BRK_IDLE_DONE_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_TX_BRK_IDLE_DONE_INT interrupt.'),
+    )),
+    (14, 'TX_DONE', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the transmitter has sent out all data in FIFO.'),
+        ('RO', 575, 'This is the status bit for UART_TX_DONE_INT when UART_TX_DONE_INT_ENA is set to 1.'),
+        ('R/W', 576, 'This is the enable bit for UART_TX_DONE_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_TX_DONE_INT interrupt.'),
+    )),
+    (15, 'RS485_PARITY_ERR', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the receiver detects a parity error from the echo of the transmitter in RS485 mode.'),
+        ('RO', 575, 'This is the status bit for UART_RS485_PARITY_ERR_INT when UART_RS485_PARITY_INT_ENA is set to 1.'),
+        ('R/W', 577, 'This is the enable bit for UART_RS485_PARITY_ERR_INT.'),
+        ('WT', 578, 'Set this bit to clear the UART_RS485_PARITY_ERR_INT interrupt.'),
+    )),
+    (16, 'RS485_FRM_ERR', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the receiver detects a data frame error from the echo of the transmitter in RS485 mode.'),
+        ('RO', 575, 'This is the status bit for UART_RS485_FRM_ERR_INT when UART_RS485_FRM_ERR_INT_ENA is set to 1.'),
+        ('R/W', 577, 'This is the enable bit for UART_RS485_PARITY_ERR_INT.'),
+        ('WT', 579, 'Set this bit to clear the UART_RS485_FRM_ERR_INT interrupt.'),
+    )),
+    (17, 'RS485_CLASH', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when a collision is detected between the transmitter and the receiver in RS485 mode.'),
+        ('RO', 575, 'This is the status bit for UART_RS485_CLASH_INT when UART_RS485_CLASH_INT_ENA is set to 1.'),
+        ('R/W', 577, 'This is the enable bit for UART_RS485_CLASH_INT.'),
+        ('WT', 579, 'Set this bit to clear the UART_RS485_CLASH_INT interrupt.'),
+    )),
+    (18, 'AT_CMD_CHAR_DET', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the receiver detects the configured UART_AT_CMD_CHAR.'),
+        ('RO', 575, 'This is the status bit for UART_AT_CMD_CHAR_DET_INT when UART_AT_CMD_CHAR_DET_INT_ENA is set to 1.'),
+        ('R/W', 577, 'This is the enable bit for UART_AT_CMD_CHAR_DET_INT.'),
+        ('WT', 579, 'Set this bit to clear the UART_AT_CMD_CHAR_DET_INT interrupt.'),
+    )),
+    (19, 'WAKEUP', (
+        ('R/WTC/SS', 573, 'This interrupt raw bit turns to high level when the input RXD edge changes more times than what (UART_ACTIVE_THRESHOLD + 3) specifies in Light-sleep mode.'),
+        ('RO', 575, 'This is the status bit for UART_WAKEUP_INT when UART_WAKEUP_INT_ENA is set to 1.'),
+        ('R/W', 577, 'This is the enable bit for UART_WAKEUP_INT.'),
+        ('WT', 579, 'Set this bit to clear the UART_WAKEUP_INT interrupt.'),
+    )),
+)
+_UART_INT_SIC = {(0, 'CLR'): 'the TRM prints "UART_THE RXFIFO_FULL_INT"', (4, 'CLR'): 'the TRM prints "UART_UART_RXFIFO_OVF_INT"',
+                 (15, 'ST'): 'the TRM names the enable "UART_RS485_PARITY_INT_ENA"; the field is UART_RS485_PARITY_ERR_INT_ENA',
+                 (16, 'ENA'): 'the TRM\'s sentence names UART_RS485_PARITY_ERR_INT; this bit (16) enables UART_RS485_FRM_ERR_INT (its RAW / ST / CLR at bit 16 and the SVD / ESP-IDF agree)'}
+_UART_INT_VALUES = {'RAW': {'1': 'the event occurred (set by hardware; write 1 to UART_INT_CLR_REG to clear)'}, 'ST': {'1': 'raw and enabled'},
+                    'ENA': {'0': 'disabled', '1': 'enabled'}, 'CLR': {'1': 'clear'}}
+for k, (name, off, t, pg, reset) in enumerate((('UART0_INT_RAW_REG', 0x0004, '26.3', '572-573', '0x00000002'), ('UART0_INT_ST_REG', 0x0008, '26.4', '574-575', '0x00000000'),
+                                              ('UART0_INT_ENA_REG', 0x000C, '26.5', '576-577', '0x00000000'), ('UART0_INT_CLR_REG', 0x0010, '26.6', '578-579', '0x00000000'))):
+    kind = name.split('_INT_')[1][:-4]
+    _reg(name, 'UART0', off, 'UART_INT_%s_REG of UART Controller 0' % kind, 'Register %s, pp.%s' % (t, pg), reset, 'bits 20-31 reserved')
+    for bit, event, parts in _UART_INT_EVENTS:
+        code, page, words = parts[k]
+        sic = _UART_INT_SIC.get((bit, kind))
+        FIELDS.append(_f(name, '%s_INT_%s' % (event, kind), bit, bit, code, 1 if (kind == 'RAW' and event == 'TXFIFO_EMPTY') else 0, words, _UART_INT_VALUES[kind],
+                         'Register %s UART_INT_%s_REG, p.%d' % (t, kind, page), notes=('[sic] ' + sic) if sic else ''))
 
 # ---- hal-3a, the adc family: SAR ADC1 one-time sampling (Chapter 34 Registers 34.1 / 34.6 / 34.9 / 34.14-34.17 / 34.19, pp.879-888; base Table 3.3-3
 # cont'd p.99). Same acceptance and checks as LEDC: codes + sentences name-and-header accepted; bits / offsets / resets from the SVD, checked against

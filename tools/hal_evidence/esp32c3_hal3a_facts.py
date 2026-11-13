@@ -21,7 +21,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-SVD_BLOCK = {'LEDC': 'LEDC', 'APB_SARADC': 'APB_SARADC', 'SYSTIMER': 'SYSTIMER', 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTERRUPT_CORE0'}
+SVD_BLOCK = {'LEDC': 'LEDC', 'APB_SARADC': 'APB_SARADC', 'SYSTIMER': 'SYSTIMER', 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTERRUPT_CORE0', 'UART0': 'UART0'}
 
 
 def _sha(path):
@@ -41,6 +41,8 @@ def idf_names(block, register, field):
         return 'LEDC_CONF', ['LEDC_' + field]
     if block == 'INTMTX':
         return register[:-4], [register[:-4]]
+    if block == 'UART0':   # ESP-IDF's uart_reg.h takes the controller as (i): UART_INT_RAW_REG(i); our rows name UART0's
+        return 'UART_' + register[len('UART0_'):-4], ['UART_' + field]
     if block == 'APB_SARADC':
         return register[:-4], ['APB_SARADC_' + field, 'APB_' + field]
     return register[:-4], [block + '_' + field]
