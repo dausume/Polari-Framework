@@ -4,8 +4,9 @@ The sweep runs every module named in an app's polari-app.json top-level "selftes
 directory (upstream/ and __pycache__/ excluded) is then classed:
   listed          in "selftests" (swept)
   covered         not listed, but REACHED from a listed selftest of the same app: imported (`from app.mod import ...`,
-                  `import app.mod`, `from app.parent import mod`, importlib.import_module('app.mod')) or named as a quoted
-                  runner-table entry ('app.mod' / 'mod'); reaching is transitive through covered files. A comment never counts.
+                  `import app.mod`, `from app.parent import mod`, importlib.import_module('app.mod')) or named by a quoted string that is an
+                  ELEMENT - a list / tuple / dict item or a call argument ('app.mod' / 'mod'); reaching is transitive through
+                  covered files. A comment, a docstring or a name quoted inside prose never counts.
   PACKAGED-UNRUN  shipped in files.selftests, but neither listed nor reached
   UNLISTED        in no list and reached by nothing
   MISSING-FILE    listed, but no such file
@@ -24,9 +25,40 @@ SWEPT = ('listed', 'PACKAGED-UNRUN', 'UNLISTED')
 
 
 def _strip_comments(src):
-    """drop # comments and docstrings, so a mention in prose never reaches a file"""
-    src = re.sub(r'(?s)("""|\'\'\').*?\1', '""', src)
-    return '\n'.join(re.sub(r'(^|\s)#.*$', '', line) for line in src.splitlines())
+    """-> (code, elements): the source without comments and docstrings (tokenize, so a '#' inside a string stays), and the
+    string literals that sit as an ELEMENT - a list / tuple / set / dict item or a call argument. A quoted name inside a
+    message or any other prose string is never an element, so it never covers."""
+    import io
+    import tokenize
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return re.sub(r'(?m)^\s*#.*$', '', src), []
+    STMT = (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING)
+    sig = [t for t in toks if t.type not in (tokenize.NL, tokenize.COMMENT)]
+    lines = src.splitlines(True)
+    drop = [t for t in toks if t.type == tokenize.COMMENT]
+    elements = []
+    for i, t in enumerate(sig):
+        prev = sig[i - 1] if i else None
+        nxt = sig[i + 1] if i + 1 < len(sig) else None
+        if t.type == tokenize.STRING:
+            if (prev is None or prev.type in STMT) and (nxt is None or nxt.type in (tokenize.NEWLINE, tokenize.ENDMARKER)):
+                drop.append(t)   # a whole statement that is only a string: a docstring
+                continue
+            if prev is not None and prev.type == tokenize.OP and prev.string in ('[', '(', '{', ',') and \
+                    nxt is not None and nxt.type == tokenize.OP and nxt.string in (',', ']', ')', '}', ':'):
+                elements.append(re.sub(r'^[rRbBuUfF]*([\'"]{1,3})(.*)\1$', r'\2', t.string, flags=re.S))
+    for t in sorted(drop, key=lambda t: t.start, reverse=True):   # blank the span in the ORIGINAL text, so dotted names stay intact
+        (r0, c0), (r1, c1) = t.start, t.end
+        if r0 == r1:
+            lines[r0 - 1] = lines[r0 - 1][:c0] + ' ' * (c1 - c0) + lines[r0 - 1][c1:]
+        else:
+            lines[r0 - 1] = lines[r0 - 1][:c0] + '\n'
+            for r in range(r0, r1 - 1):
+                lines[r] = '\n'
+            lines[r1 - 1] = ' ' * c1 + lines[r1 - 1][c1:]
+    return ''.join(lines), elements
 
 
 def _mod(entry, pkg):
@@ -35,15 +67,17 @@ def _mod(entry, pkg):
     return e.split('.', 1)[1] if e.startswith(pkg + '.') else e
 
 
-def reaches(src, pkg, mod):
-    """does this (comment-free) source import or table-name <pkg>.<mod>?"""
+def reaches(stripped, pkg, mod):
+    """does this source (as _strip_comments returns it) import or table-name <pkg>.<mod>?"""
+    src, elements = stripped
+    if pkg + '.' + mod in elements or mod in elements:
+        return True
     full = re.escape(pkg + '.' + mod)
     parent, _, base = (pkg + '.' + mod).rpartition('.')
     pats = [r'\bfrom\s+%s\s+import\b' % full,
             r'\bimport\s+%s\b' % full,
             r'\bfrom\s+%s\s+import\s+(?:\(\s*)?(?:[\w\s,]*,\s*)?%s\b' % (re.escape(parent), re.escape(base)),
-            r'import_module\(\s*[\'"]%s[\'"]' % full,
-            r'[\'"](?:%s|%s)[\'"]' % (full, re.escape(mod))]
+            r'import_module\(\s*[\'"]%s[\'"]' % full]
     return any(re.search(p, src) for p in pats)
 
 

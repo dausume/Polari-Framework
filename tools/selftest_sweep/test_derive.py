@@ -40,11 +40,15 @@ def run():
         _app(root, 'gamma', ['gamma_selftest', 'gamma_gone_selftest'], files={
             'gamma_selftest.py': "RUNNERS = ['gamma.gamma_table_selftest']\nimport importlib\nimportlib.import_module('gamma.gamma_dyn_selftest')\n",
             'gamma_table_selftest.py': '', 'gamma_dyn_selftest.py': ''})
+        _app(root, 'delta', ['delta_selftest'], files={   # pol review: a quoted name in prose must not cover; a '#' in a string must not cut code
+            'delta_selftest.py': "check('delta_prose_selftest runs as part of this', True)\n"
+                                 "HDR = '#define X 1'; from delta.delta_after_hash_selftest import run\n",
+            'delta_prose_selftest.py': '', 'delta_after_hash_selftest.py': ''})
         os.makedirs(os.path.join(root, 'modules', 'alpha', 'custom', 'upstream'))
         open(os.path.join(root, 'modules', 'alpha', 'custom', 'upstream', 'vendor_selftest.py'), 'w').write('')
         n, rows = derive.classify(root)
         cls = {m: c for _p, m, c in rows}
-        check('three apps found', n == 3, n)
+        check('four apps found', n == 4, n)
         check('a listed selftest is listed', cls.get('alpha.alpha_selftest') == 'listed', cls)
         check('a direct `from ... import` covers', cls.get('alpha.custom.selftest_parts') == 'covered', cls)
         check('a plain `import app.mod` covers', cls.get('alpha.custom.selftest_more') == 'covered', cls)
@@ -55,6 +59,8 @@ def run():
         check('a DOCSTRING mention does not cover -> UNLISTED', cls.get('beta.beta_doc_selftest') == 'UNLISTED', cls)
         check('a runner-table entry covers', cls.get('gamma.gamma_table_selftest') == 'covered', cls)
         check('importlib.import_module covers', cls.get('gamma.gamma_dyn_selftest') == 'covered', cls)
+        check('a module name quoted inside a prose string does not cover -> UNLISTED', cls.get('delta.delta_prose_selftest') == 'UNLISTED', cls)
+        check('a \'#\' inside a string literal does not cut the import after it', cls.get('delta.delta_after_hash_selftest') == 'covered', cls)
         check('a listed name with no file -> MISSING-FILE', cls.get('gamma.gamma_gone_selftest') == 'MISSING-FILE', cls)
         import io, contextlib
         out, err = io.StringIO(), io.StringIO()
@@ -66,6 +72,7 @@ def run():
               {'beta.beta_shipped_selftest', 'beta.beta_comment_selftest'} <= swept and 'alpha.custom.selftest_parts' not in swept, swept)
         _app(root, 'beta', ['beta_selftest', 'beta_shipped_selftest', 'beta_comment_selftest', 'beta_doc_selftest'])
         _app(root, 'gamma', ['gamma_selftest'])
+        _app(root, 'delta', ['delta_selftest', 'delta_prose_selftest'])
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             rc = derive.main(['derive', root])
         check('main exits 0 once every file is listed or covered', rc == 0, rc)
