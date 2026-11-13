@@ -20,6 +20,11 @@ SVD = '''<?xml version="1.0" encoding="utf-8"?>
         <enumeratedValue><name>BY5</name><description>divide   by five</description><value>5</value></enumeratedValue></enumeratedValues></field>
       <field><name>MODE</name><bitRange>[9:8]</bitRange><access>read-only</access></field>
      </fields></register>
+    <register><name>INT_RAW</name><addressOffset>0x8</addressOffset><modifiedWriteValues>oneToClear</modifiedWriteValues><resetMask>0x0000FF00</resetMask>
+     <resetValue>0x00001200</resetValue>
+     <fields><field><name>DONE</name><bitOffset>0</bitOffset><bitWidth>1</bitWidth><readAction>clear</readAction></field>
+      <field><name>LEVEL</name><bitOffset>8</bitOffset><bitWidth>8</bitWidth><writeConstraint><range><minimum>0</minimum><maximum>15</maximum></range></writeConstraint></field>
+      <field><name>MIX</name><bitOffset>4</bitOffset><bitWidth>8</bitWidth></field></fields></register>
     <register><name>CH%s_CNT</name><addressOffset>0x10</addressOffset><dim>3</dim><dimIncrement>0x8</dimIncrement>
      <fields><field><name>CNT</name><bitOffset>0</bitOffset><bitWidth>16</bitWidth></field></fields></register>
     <register><name>CMP[%s]</name><addressOffset>0x40</addressOffset><dim>2</dim><dimIncrement>4</dimIncrement><dimIndex>A,B</dimIndex>
@@ -97,6 +102,14 @@ def run():
     check('dim [%s] with a dimIndex list: CMPA 0x40, CMPB 0x44', (t['CMPA']['offset'], t['CMPB']['offset']) == (0x40, 0x44))
     check('a dimmed cluster with a dimIndex range: T3_LOAD 0x84, T4_LOAD 0xA4 (cluster offset + element + register offset)',
           (t['T3_LOAD']['offset'], t['T4_LOAD']['offset']) == (0x84, 0xA4), sorted(t))
+    ir = {f['field']: f for f in t['INT_RAW']['fields']}
+    check('svd_semantics: the register\'s modifiedWriteValues oneToClear is inherited by its fields, a field adds its own readAction clear / '
+          'writeConstraint range; a field with none has {}', ir['DONE']['svd_semantics'] == {'modifiedWriteValues': 'oneToClear', 'readAction': 'clear'}
+          and ir['LEVEL']['svd_semantics'] == {'modifiedWriteValues': 'oneToClear', 'writeConstraint': 'range 0..15'} and conf['EN']['svd_semantics'] == {},
+          (ir['DONE']['svd_semantics'], ir['LEVEL']['svd_semantics']))
+    check('resetMask: a field wholly under 0 mask bits has reset \'undefined (resetMask)\', a field wholly under 1s its number (LEVEL 0x12), one '
+          'straddling the mask says so - never a number', ir['DONE']['reset_value'] == 'undefined (resetMask)' and ir['LEVEL']['reset_value'] == '18'
+          and ir['MIX']['reset_value'].startswith('partly undefined'), (ir['DONE']['reset_value'], ir['LEVEL']['reset_value'], ir['MIX']['reset_value']))
     R, F = S.rows(chip, 'TIMG', block='TIMG')
     check('rows(): the generator\'s shape - <PERIPH>_<NAME>_REG, every field trm_access \'\' (missing until an overlay cites a code), the SVD word kept as svd_access',
           R[0]['register'] == 'TIMG_CONF_REG' and all(f['trm_access'] == '' and f['svd_access'] for f in F) and S.address(chip, 'TIMG1', 0x84) == 0x60002084)
@@ -104,6 +117,9 @@ def run():
     check('refused: a register derivedFrom (not supported, said)', _refused(base, 'derivedFrom register is not supported'))
     check('refused: dim without dimIncrement', _refused(SVD.replace('<dimIncrement>0x8</dimIncrement>', ''), 'dim without dimIncrement'))
     check('refused: a dimIndex that names a different count than dim', _refused(SVD.replace('<dimIndex>A,B</dimIndex>', '<dimIndex>A,B,C</dimIndex>'), 'names 3 elements, dim says 2'))
+    check('refused: a dim PERIPHERAL array (CMSIS 1.3) - not handled yet, said', _refused(
+        SVD.replace('<peripheral><name>TIMG</name>', '<peripheral><name>TIMG[%s]</name><dim>2</dim><dimIncrement>0x1000</dimIncrement>'),
+        'a dim peripheral array'))
     check('refused: a peripheral derivedFrom an unknown one', _refused(SVD.replace('derivedFrom="TIMG"', 'derivedFrom="NOPE"'), 'derivedFrom unknown NOPE'))
     proof_checks()
     total, ok = len(_results), sum(_results)

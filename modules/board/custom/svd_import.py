@@ -13,7 +13,9 @@ Handled (CMSIS-SVD 1.3): device defaults (size / access / resetValue / resetMask
 peripheral derivedFrom (registers copied, base and name its own); register / cluster dim arrays (%s and [%s], dimIndex lists and
 ranges); nested clusters (offsets add); fields by bitOffset + bitWidth, lsb + msb, or bitRange "[msb:lsb]"; field-level
 enumeratedValues -> values. Not handled, and refused in words rather than guessed: a register derivedFrom, alternateGroup
-aliases (kept, flagged), dimArrayIndex enum names.
+aliases (kept, flagged), dimArrayIndex enum names, a dim PERIPHERAL array. modifiedWriteValues / readAction / writeConstraint, where a
+vendor emits them, are kept per field as svd_semantics (register-level ones inherited); resetMask is applied (a field under a 0 mask bit
+has reset 'undefined (resetMask)', never a number).
 """
 import re
 import xml.etree.ElementTree as ET
@@ -75,6 +77,27 @@ def _bits(f, name):
     raise SvdRefused('field %s: no bitOffset/bitWidth, lsb/msb or bitRange' % name)
 
 
+SEMANTICS = ('modifiedWriteValues', 'readAction', 'writeConstraint')
+
+
+def _semantics(el, inherited):
+    """what a vendor says beyond the access word (CMSIS-SVD modifiedWriteValues oneToClear / clear / ..., readAction clear / modify ...,
+    writeConstraint): kept as svd_semantics so the HAL's access table can map from the SVD where the SVD says it; the field's own wins"""
+    out = dict(inherited)
+    for k in SEMANTICS:
+        x = el.find(k)
+        if x is None:
+            continue
+        if k == 'writeConstraint':
+            r = x.find('range')
+            out[k] = ('range %s..%s' % (r.findtext('minimum'), r.findtext('maximum')) if r is not None else
+                      'useEnumeratedValues' if (x.findtext('useEnumeratedValues') or '').strip() == 'true' else
+                      'writeAsRead' if (x.findtext('writeAsRead') or '').strip() == 'true' else 'present')
+        else:
+            out[k] = (x.text or '').strip()
+    return out
+
+
 def _values(f):
     out = {}
     for ev in f.iter('enumeratedValue'):
@@ -93,11 +116,13 @@ def load(path):
     raw = {p.findtext('name'): p for p in root.iter('peripheral')}
     out, notes = {}, []
     for pname, p in raw.items():
+        if p.find('dim') is not None:
+            raise SvdRefused('peripheral %s: a dim peripheral array (CMSIS 1.3 <peripheral><dim>) is not handled yet' % pname)
         src = raw.get(p.get('derivedFrom')) if p.get('derivedFrom') else p
         if src is None:
             raise SvdRefused('peripheral %s derivedFrom unknown %s' % (pname, p.get('derivedFrom')))
         pd = dict(dflt, size=_int(src.findtext('size'), dflt['size']), access=src.findtext('access') or dflt['access'],
-                  reset=_int(src.findtext('resetValue'), dflt['reset']))
+                  reset=_int(src.findtext('resetValue'), dflt['reset']), mask=_int(src.findtext('resetMask'), dflt['mask']))
         regs = []
 
         def walk(parent, base_off, prefix, inh):
@@ -109,7 +134,8 @@ def load(path):
                     raise SvdRefused('%s.%s: a derivedFrom %s is not supported' % (pname, el.findtext('name'), tag))
                 name, off = el.findtext('name'), _int(el.findtext('addressOffset'), 0)
                 here = dict(inh, size=_int(el.findtext('size'), inh['size']), access=el.findtext('access') or inh['access'],
-                            reset=_int(el.findtext('resetValue'), inh['reset']))
+                            reset=_int(el.findtext('resetValue'), inh['reset']), mask=_int(el.findtext('resetMask'), inh['mask']))
+                sem = _semantics(el, {})
                 for nm, extra in _expand(el, name):
                     if tag == 'cluster':
                         walk(el, base_off + off + extra, prefix + nm + '_', here)
@@ -118,9 +144,13 @@ def load(path):
                     for f in el.iter('field'):
                         fn = f.findtext('name')
                         lo, w = _bits(f, fn)
+                        fm = ((1 << w) - 1) << lo
+                        defined = here['mask'] & fm
                         fields.append({'field': fn, 'bit_lo': lo, 'width': w, 'bit_hi': lo + w - 1,
-                                       'svd_access': f.findtext('access') or here['access'],
-                                       'reset_value': str((here['reset'] >> lo) & ((1 << w) - 1)),
+                                       'svd_access': f.findtext('access') or here['access'], 'svd_semantics': _semantics(f, sem),
+                                       'reset_value': (str((here['reset'] >> lo) & ((1 << w) - 1)) if defined == fm else
+                                                       'undefined (resetMask)' if not defined else
+                                                       'partly undefined (resetMask 0x%X over these bits)' % (defined >> lo)),
                                        'description': ' '.join((f.findtext('description') or '').split()), 'values': _values(f)})
                     regs.append({'register': prefix + nm, 'offset': base_off + off + extra, 'size': here['size'], 'reset': here['reset'],
                                  'svd_access': here['access'], 'alternate': el.findtext('alternateRegister') or el.findtext('alternateGroup') or '',
@@ -141,11 +171,11 @@ def rows(chip, peripheral, block=None, name_prefix=None):
     R, F = [], []
     for r in p['registers']:
         rn = pre + r['register'] + '_REG'
-        R.append({'register': rn, 'block': block, 'offset': r['offset'], 'reset': '0x%08X' % r['reset'], 'svd_access': r['svd_access'],
+        R.append({'register': rn, 'svd_register': r['register'], 'block': block, 'offset': r['offset'], 'reset': '0x%08X' % r['reset'], 'svd_access': r['svd_access'],
                   'title': r['description'], 'where': 'SVD %s.%s' % (peripheral, r['register']), 'undetermined': '', 'part': 'svd'})
         for f in r['fields']:
-            F.append({'register': rn, 'field': f['field'], 'bit_hi': f['bit_hi'], 'bit_lo': f['bit_lo'], 'width': f['width'],
-                      'reset_value': f['reset_value'], 'svd_access': f['svd_access'], 'trm_access': '', 'access': '',
+            F.append({'register': rn, 'svd_register': r['register'], 'field': f['field'], 'bit_hi': f['bit_hi'], 'bit_lo': f['bit_lo'], 'width': f['width'],
+                      'reset_value': f['reset_value'], 'svd_access': f['svd_access'], 'svd_semantics': f['svd_semantics'], 'trm_access': '', 'access': '',
                       'description': f['description'], 'values': f['values'] or {}, 'page_table': 'SVD %s.%s.%s' % (peripheral, r['register'], f['field']),
                       'affects_pin': '', 'affects_signal': '', 'notes': 'imported from the SVD: no cited access code yet (missing to choose())', 'part': 'svd'})
     return R, F
