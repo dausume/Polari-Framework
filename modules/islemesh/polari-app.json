@@ -52,6 +52,9 @@
       "objects/islemesh/IsleEngine",
       "objects/islemesh/IsleIngestReceipt",
       "objects/islemesh/IsleProtocolPermit",
+      "objects/islemesh/IsleStoragePlacementView",
+      "objects/islemesh/IsleStorageReceipt",
+      "objects/islemesh/IsleStorageWitness",
       "objects/islemesh/IsleUplink",
       "objects/islemesh/MeshAppRealization"
     ],
@@ -71,9 +74,13 @@
       "islemesh_capabilities_selftest",
       "islemesh_component_roles_selftest",
       "islemesh_consumer_persistence_selftest",
+      "islemesh_ingest_concurrency_selftest",
       "islemesh_plan_library_usage_selftest",
       "islemesh_planning_selftest",
-      "islemesh_selftest"
+      "islemesh_selftest",
+      "islemesh_storage_doors_selftest",
+      "islemesh_storage_plan_selftest",
+      "islemesh_storage_removal_selftest"
     ],
     "custom": [
       "custom/islemesh_capabilities",
@@ -86,6 +93,7 @@
       "custom/islemesh_plan_safety",
       "custom/islemesh_planning",
       "custom/islemesh_roles",
+      "custom/islemesh_storage_plan",
       "custom/islemesh_test_requirements",
       "custom/islemesh_usage"
     ]
@@ -99,6 +107,9 @@
     "IsleIngestReceipt",
     "IsleMeshAPI",
     "IsleProtocolPermit",
+    "IsleStoragePlacementView",
+    "IsleStorageReceipt",
+    "IsleStorageWitness",
     "IsleUplink",
     "MeshAppRealization"
   ],
@@ -113,6 +124,9 @@
         "IsleEngine",
         "IsleIngestReceipt",
         "IsleProtocolPermit",
+        "IsleStoragePlacementView",
+        "IsleStorageReceipt",
+        "IsleStorageWitness",
         "IsleUplink",
         "MeshAppRealization"
       ]
@@ -141,9 +155,13 @@
     "islemesh_capabilities_selftest",
     "islemesh_component_roles_selftest",
     "islemesh_consumer_persistence_selftest",
+    "islemesh_ingest_concurrency_selftest",
     "islemesh_plan_library_usage_selftest",
     "islemesh_planning_selftest",
-    "islemesh_selftest"
+    "islemesh_selftest",
+    "islemesh_storage_doors_selftest",
+    "islemesh_storage_plan_selftest",
+    "islemesh_storage_removal_selftest"
   ],
   "security": {
     "profile": "web-app",

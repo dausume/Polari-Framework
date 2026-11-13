@@ -51,6 +51,7 @@ KIND = 'polari-topology-self'
 PEER_TAG = '(tpl-2 peer:'
 CLASSES = ('PolariNodeMachine', 'InstanceDefinition', 'ModuleAssignment', 'ModuleDependencyEdge', 'ServiceConnection')
 PEERS_KNOB, FILE_KNOB, PULL_KNOB = 'POLARI_TOPOLOGY_PEERS', 'POLARI_TOPOLOGY_PEERS_FILE', 'POLARI_TOPOLOGY_PEER_PULL_S'
+STORE_KNOB = 'POLARI_TOPOLOGY_PEERS_STORE'   # rel-87: where operator-added peers are kept (default /data/topology-peers.json)
 CHECK_KNOB = 'POLARI_TOPOLOGY_PEER_CHECK_S'
 DEFAULT_PULL_S, DEFAULT_CHECK_S, NUDGE_MIN_S = 300, 15, 2
 DIGEST_KIND = 'polari-topology-self-digest'
@@ -142,6 +143,8 @@ def peer_sources(manager):
             entry['sources'].append(source)
     for p in _rows(manager, 'PeerNode'):
         add(getattr(p, 'name', ''), getattr(p, 'base_url', ''), 'agreed')
+    for e in operator_peers():
+        add(e.get('name', ''), e.get('url', ''), 'operator')
     for item in (os.environ.get(PEERS_KNOB) or '').split(','):
         item = item.strip()
         if item:
@@ -160,6 +163,77 @@ def peer_sources(manager):
             found['!file'] = {'name': '', 'url': '', 'sources': ['configured-file'],
                               'error': '%s=%s unreadable (%s: %s)' % (FILE_KNOB, path, type(exc).__name__, exc)}
     return sorted(found.values(), key=lambda e: (e['name'], e['url']))
+
+
+def store_path():
+    """rel-87: the operator-added peer list - a JSON file on the backend's data volume, so it survives restarts and
+    redeploys without editing the deployment config. Knob POLARI_TOPOLOGY_PEERS_STORE; default /data/topology-peers.json
+    when /data exists (as the tpl-6 backups), else ./topology-peers.json."""
+    knob = (os.environ.get(STORE_KNOB) or '').strip()
+    if knob:
+        return knob
+    return '/data/topology-peers.json' if os.path.isdir('/data') else os.path.abspath('topology-peers.json')
+
+
+def operator_peers():
+    """-> [{name, url, addedAt}] from the store; [] when absent or unreadable (peer_sources must never stop on it)."""
+    try:
+        with open(store_path(), encoding='utf-8') as fh:
+            data = json.load(fh)
+        return [e for e in (data or []) if isinstance(e, dict) and e.get('url')]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _write_store(entries):
+    path = store_path()
+    d = os.path.dirname(path) or '.'
+    os.makedirs(d, exist_ok=True)
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as fh:
+        json.dump(entries, fh, indent=2, sort_keys=True)
+        fh.write('\n')
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+
+
+def add_peer(name, url):
+    """Operator: name a peer backend (rel-87). -> {ok, words, peer}. Refuses a bad URL or this backend itself."""
+    url = _norm(str(url or ''))
+    name = str(name or '').strip()
+    if not url.startswith(('https://', 'http://')):
+        return {'ok': False, 'words': 'refused: the peer URL must start with https:// (got %r)' % url}
+    name = name or _name_from_url(url)
+    from topology.topology_self import instance_name
+    me = instance_name()
+    if name == me or _name_from_url(url) == me:
+        return {'ok': False, 'words': 'refused: %s is this backend itself (%s)' % (name, me)}
+    entries = [e for e in operator_peers() if _norm(e.get('url', '')) != url and e.get('name') != name]
+    peer = {'name': name, 'url': url, 'addedAt': _now().isoformat(timespec='seconds')}
+    entries.append(peer)
+    try:
+        _write_store(sorted(entries, key=lambda e: e['name']))
+    except OSError as exc:
+        return {'ok': False, 'words': 'not saved: %s (%s: %s); nothing changed' % (store_path(), type(exc).__name__, exc)}
+    local_changed()
+    return {'ok': True, 'peer': peer, 'store': store_path(),
+            'words': 'peer %s = %s saved in %s; it is pulled within seconds (pol topology peers shows it)' % (name, url, store_path())}
+
+
+def remove_peer(name_or_url):
+    """Operator: stop naming a peer. Its copies here stay until retired by hand or re-pulled (said)."""
+    key = str(name_or_url or '').strip()
+    entries = operator_peers()
+    keep = [e for e in entries if e.get('name') != key and _norm(e.get('url', '')) != _norm(key)]
+    if len(keep) == len(entries):
+        return {'ok': False, 'words': 'no operator-added peer named %r (env / file / agreed peers are not removed here)' % key}
+    try:
+        _write_store(keep)
+    except OSError as exc:
+        return {'ok': False, 'words': 'not saved: %s (%s: %s); nothing changed' % (store_path(), type(exc).__name__, exc)}
+    return {'ok': True, 'store': store_path(),
+            'words': 'peer %s removed from %s; the copies already pulled from it stay (marked peer copies)' % (key, store_path())}
 
 
 def _default_fetch(name, url, timeout=10):

@@ -1163,6 +1163,7 @@ class polariServer(treeObject):
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
             MeshAppRealization, IsleProtocolPermit, IsleEngine,
             IsleCatalogEntry, IsleIngestReceipt,
+            IsleStoragePlacementView, IsleStorageReceipt, IsleStorageWitness,
             # vpn (vpn-1): the isle-vpn mirror + proposal inbox.
             *(VPN_CLASSES or []),
             # mqtt-1: brokers / topic bindings / message ledger.

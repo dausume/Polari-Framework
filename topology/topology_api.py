@@ -70,6 +70,8 @@ class TopologyAPI(treeObject):
             add('/api/topology/self', self, suffix='self_description')
             add('/api/topology/peers', self, suffix='peers')
             add('/api/topology/peers/pull', self, suffix='peers_pull')
+            add('/api/topology/peers/add', self, suffix='peers_add')        # rel-87: operator-only
+            add('/api/topology/peers/remove', self, suffix='peers_remove')  # rel-87: operator-only
             add('/api/topology/self/digest', self, suffix='self_digest')
             add('/api/topology/peers/nudge', self, suffix='peers_nudge')
             add('/api/topology/example-rows', self, suffix='example_rows')
@@ -201,6 +203,32 @@ class TopologyAPI(treeObject):
             return self._refuse(response, err)
         result = nudge(self.manager, (payload or {}).get('from'))
         if not result.get('ok') and result.get('pulled') is None:
+            response.status = '404 Not Found'
+        response.media = result
+
+    def on_post_peers_add(self, request, response):
+        """rel-87: name a peer backend ({name, url}). Host operator (docker exec) or a Polari administrator only."""
+        from topology.topology_peering import add_peer
+        if self._operator_only(request, response):
+            return
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = add_peer((payload or {}).get('name'), (payload or {}).get('url'))
+        if not result.get('ok'):
+            response.status = '409 Conflict'
+        response.media = result
+
+    def on_post_peers_remove(self, request, response):
+        """rel-87: stop naming a peer ({peer: name or url}). Host operator or a Polari administrator only."""
+        from topology.topology_peering import remove_peer
+        if self._operator_only(request, response):
+            return
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = remove_peer((payload or {}).get('peer'))
+        if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 

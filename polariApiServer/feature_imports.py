@@ -908,6 +908,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('islemesh.islemesh_basis', (
             'IsleApp', 'IsleAppService', 'IsleCatalogEntry', 'IsleDevice',
             'IsleEngine', 'IsleIngestReceipt', 'IsleProtocolPermit',
+            'IsleStoragePlacementView', 'IsleStorageReceipt', 'IsleStorageWitness',
             'IsleUplink', 'MeshAppRealization',
         )),
         ('islemesh.islemesh_catalog', (

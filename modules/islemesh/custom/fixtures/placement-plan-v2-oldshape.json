@@ -1,0 +1,75 @@
+{
+ "baselineInitialized": true,
+ "items": [
+  {
+   "access": "occasional",
+   "app": "books",
+   "cpus": 0.5,
+   "device": "econ-core",
+   "diskMiB": 2048.5,
+   "id": "books",
+   "kind": "catalog",
+   "multiplier": 1.5,
+   "notes": "library app",
+   "originDevice": "",
+   "protectedRoles": [],
+   "ramMiB": 512,
+   "requirementsBased": true,
+   "state": "planned",
+   "title": "Books",
+   "volume": "/srv/books"
+  },
+  {
+   "access": "frequent",
+   "app": "apt",
+   "cpus": 1,
+   "device": "isle-core",
+   "diskMiB": 16384,
+   "id": "apt",
+   "kind": "polari",
+   "multiplier": 1,
+   "notes": "",
+   "originDevice": "",
+   "protectedRoles": [
+    "apt"
+   ],
+   "ramMiB": null,
+   "requirementsBased": false,
+   "state": "existing",
+   "title": "apt",
+   "volume": "/"
+  },
+  {
+   "access": "archive",
+   "app": "",
+   "cpus": 2,
+   "device": "",
+   "diskMiB": null,
+   "id": "move-me",
+   "kind": "task",
+   "multiplier": 2,
+   "notes": "unassigned",
+   "originDevice": "econ-core",
+   "protectedRoles": [],
+   "ramMiB": null,
+   "requirementsBased": false,
+   "state": "deferred",
+   "title": "Backup job",
+   "volume": "/mnt"
+  }
+ ],
+ "removals": [
+  {
+   "app": "old-app",
+   "device": "econ-core",
+   "title": "Old app"
+  },
+  {
+   "app": "books",
+   "device": "econ-core",
+   "title": "dup"
+  }
+ ],
+ "revision": 3,
+ "title": "Old shape plan"
+}

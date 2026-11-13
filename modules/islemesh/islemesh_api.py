@@ -25,7 +25,12 @@ Thin Falcon shell — parsing lives in islemesh_parse.
   - islemesh.islemesh_selftest (function-level)
 """
 
+import contextlib
+import os
 import hashlib
+import ipaddress
+import re
+import threading
 import json
 
 from datetime import datetime, timezone
@@ -34,10 +39,11 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from islemesh.islemesh_basis import (
     IsleApp, IsleAppService, IsleDevice, IsleEngine,
-    IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
-    MeshAppRealization,
+    IsleIngestReceipt, IsleProtocolPermit, IsleStoragePlacementView, IsleStorageReceipt,
+    IsleStorageWitness, IsleUplink, MeshAppRealization,
 )
-from islemesh.custom.islemesh_engines import bind_engine, record_engine, sync_from_registry, _TrackedSave, _default_save
+from islemesh.custom.islemesh_engines import (MUTATION_LOCK as _MUTATION_LOCK, bind_engine, record_engine,
+                                               sync_from_registry, _TrackedSave, _default_save)
 from islemesh.islemesh_catalog import (
     ai_tool_install_plan, ai_tool_options, install_plan,
     instances_of, option_install_plan, polari_app_options,
@@ -56,6 +62,66 @@ from islemesh.custom.islemesh_parse import parse_fragments, parse_registry
 _REGISTRY_CLASSES = ('IsleApp', 'IsleAppService')
 _FRAGMENT_CLASSES = ('IsleProtocolPermit',)
 _DEVICE_CLASSES = ('IsleUplink',)
+
+#: The islemesh mutation lock lives in custom/islemesh_engines (every mutator imports it); every
+#: mutating door here takes it for its WHOLE replace+insert+dedup+receipt sequence (_serialized).
+#: Readers stay lock-free. engines_sync is not wrapped: sync_from_registry fetches the registry
+#: OUTSIDE the lock and takes it for its apply phase itself (a slow core must not stall ingests).
+_TRACKING = threading.local()
+
+
+def _serialized(handler):
+    """Run a mutating Falcon responder under the module mutation lock."""
+    def wrapper(self, request, response, *args, **kwargs):
+        with _MUTATION_LOCK:
+            return handler(self, request, response, *args, **kwargs)
+    wrapper.__name__ = handler.__name__
+    wrapper.__doc__ = handler.__doc__
+    wrapper.__wrapped__ = handler
+    return wrapper
+
+
+#: stm-2b (docs/STORAGE-MIGRATION-CONTRACT.md 2.6, 5, 6): what the storage doors accept.
+_STORAGE_KINDS = ('isle.storage.migrate', 'isle.storage.sync', 'isle.storage.cutover', 'isle.storage.rollback',
+                  'isle.storage.witness', 'isle.storage.accept', 'isle.storage.reconcile-address',
+                  'isle.storage.authorize', 'isle.storage.mark-migrated', 'isle.storage.recover')
+_PLACEMENT_STATES = ('authorized', 'migrated', 'cutover', 'hosting', 'recovery-needed')
+_ACTION_ID = re.compile(r'isle\.storage\.[a-z][a-z-]{0,30}:([a-z0-9][a-z0-9-]{0,63})@([A-Za-z0-9_.-]{1,100}):([a-f0-9]{64})\Z')
+_DEVICE_TOKEN = re.compile(r'[A-Za-z0-9_.-]{1,100}\Z')
+_MAX_STORAGE_BODY = 262144
+_MAX_VIEW_ENTRIES = 256
+
+
+def _canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False)
+
+
+def _is_int(value, minimum=0):
+    return type(value) is int and value >= minimum
+
+
+def _hex_or_none(value):
+    from islemesh.custom.islemesh_storage_plan import HEX64
+    return value is None or (isinstance(value, str) and bool(HEX64.match(value)))
+
+
+def _agent_address(payload, facts):
+    """The agent's own IPv4 address when the device self-report carries one (facts.agent_address, or
+    top-level agent_address); None otherwise. A connection hint only, so a bad value is ignored, not refused."""
+    for candidate in ((facts or {}).get('agent_address'), (payload or {}).get('agent_address')):
+        if isinstance(candidate, str):
+            try:
+                return str(ipaddress.IPv4Address(candidate.strip()))
+            except ValueError:
+                continue
+    return None
+
+
+def _bearer(request):
+    getter = getattr(request, 'get_header', None)
+    value = (getter('Authorization') if callable(getter) else None) or ''
+    scheme, _, token = value.partition(' ')
+    return token.strip() if scheme.lower() == 'bearer' else ''
 
 
 def _now_iso():
@@ -98,11 +164,18 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/updates', self, suffix='updates')
             add('/api/islemesh/removal-check', self, suffix='removal_check')
             add('/api/islemesh/mock', self, suffix='mock')
+            add('/api/islemesh/storage/placement', self, suffix='storage_placement')
+            add('/api/islemesh/storage/receipt', self, suffix='storage_receipt')
+            add('/api/islemesh/storage/witness', self, suffix='storage_witness')
+            add('/api/islemesh/storage/receipts', self, suffix='storage_receipts')
+            add('/api/islemesh/storage/witnesses', self, suffix='storage_witnesses')
 
     def on_get_placement_plan(self, request, response):
         from islemesh.custom.islemesh_planning import PlanStore
+        from islemesh.custom.islemesh_storage_plan import attach_planned_actions
         try:
             response.media = {'ok':True, 'plan':PlanStore().read(request.get_param('id'), request.get_param_as_int('revision')), 'advisoryOnly':True}
+            attach_planned_actions(response.media, self)
         except (OSError, ValueError, RuntimeError):
             response.status = '503 Service Unavailable'
             response.media = {'ok':False, 'error':'Shared plan storage is not available.'}
@@ -141,6 +214,17 @@ class IsleMeshAPI(treeObject):
         issues=[]
         for role in target_roles:
             if role=='router' or not any(n is not target and role in (roles({'app':n.get('label','')})+n.get('component_roles',[])) for n in nodes):issues.append(REASONS[role])
+        try:
+            from islemesh.custom.islemesh_planning import PlanStore
+            from islemesh.custom.islemesh_storage_plan import source_removal_allowed
+            import os
+            if not os.environ.get('DATABASE_PATH'):raise NotImplementedError  # no persistent plan store configured: no storage plan can exist
+            previous=PlanStore().read()
+            remaining=dict(previous,items=[i for i in previous.get('items',[]) if not ((i.get('app') or i.get('title','').lower())==app and i.get('device')==device)])
+            issues+=source_removal_allowed(previous,remaining,self)
+        except NotImplementedError:pass
+        except (OSError,ValueError,RuntimeError) as error:
+            issues.append('storage removal check unavailable: %s'%(str(error) or type(error).__name__))
         response.media={'ok':True,'allowed':not issues,'reasons':issues,'app':app,'device':device}
 
     def on_put_placement_plan(self, request, response):
@@ -176,7 +260,7 @@ class IsleMeshAPI(treeObject):
                     req = self._planning_requirements(entry) if entry else {'minimum':dict(ramMiB=None,diskMiB=None,cpus=None)}
                     for key, value in req['minimum'].items():
                         item[key] = round(value * scale, 3) if value is not None else None
-            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs'),'advisoryOnly':True}
+            response.media = {'ok':True,'plan':store.save(payload,as_new=payload.get('operation')=='saveAs',rows=self),'advisoryOnly':True}
         except Conflict as exc:
             response.status='409 Conflict';response.media={'ok':False,'error':str(exc)}
         except (ValueError, TypeError) as exc:
@@ -197,26 +281,85 @@ class IsleMeshAPI(treeObject):
         return (getattr(self.manager, 'objectTables', None)
                 or {}).get(class_name, {})
 
-    def _save(self, row):
+    # Persistence truth (handoff 2026-11-09, item B): a save that raises or returns False and a
+    # delete that raises or reports the database unavailable are RECORDED on the tracker of the
+    # mutating door running on this thread (_persistence()), so the door answers 500/persisted:false
+    # instead of a green receipt for rows that will vanish (or return) on restart. Outside a tracked
+    # door the words still go to the log, as before. Thread-local, so it needs no instance state
+    # (treeObject attribute handling is not relied on) and nests: an inner door's failures (the mock
+    # seeder re-posts through the ingest doors) are handed to the outer one on exit.
+    @contextlib.contextmanager
+    def _persistence(self):
+        previous = getattr(_TRACKING, 'failures', None)
+        failures = []
+        _TRACKING.failures = failures
         try:
-            self.manager.db.saveInstanceInDB(row)
-        except Exception:
-            pass
+            yield failures
+        finally:
+            _TRACKING.failures = previous
+            if previous is not None:
+                previous.extend(failures)
+
+    def _record_failure(self, words):
+        print('[islemesh] ' + words, flush=True)
+        failures = getattr(_TRACKING, 'failures', None)
+        if failures is not None:
+            failures.append(words)
+
+    def _save(self, row):
+        """Persist a row; True when the DB accepted it, False (recorded) otherwise."""
+        db = getattr(self.manager, 'db', None)
+        if db is None or not hasattr(db, 'saveInstanceInDB'):
+            self._record_failure('%s %s not persisted: no database'
+                                 % (type(row).__name__, getattr(row, 'name', '?')))
+            return False
+        try:
+            result = db.saveInstanceInDB(row)
+        except Exception as e:  # noqa: BLE001 - the words are the point
+            self._record_failure('%s %s not persisted: %s: %s'
+                                 % (type(row).__name__, getattr(row, 'name', '?'),
+                                    type(e).__name__, e))
+            return False
+        if result is False:
+            self._record_failure('%s %s not persisted: database refused the save'
+                                 % (type(row).__name__, getattr(row, 'name', '?')))
+            return False
+        return True
 
     def _delete(self, row):
         """Tree removal is the caller's pop; this scrubs the DB row
         (the CRUDE-DELETE discipline: deleteRowsWhere by id, failure
-        reported not raised — the row would return on restart)."""
+        recorded not raised — the row would return on restart).
+        True when scrubbed or nothing to scrub, False when recorded."""
         db = getattr(self.manager, 'db', None)
         row_id = getattr(row, 'id', None)
         if db is None or not hasattr(db, 'deleteRowsWhere') \
                 or not row_id:
-            return
+            return True
         try:
-            db.deleteRowsWhere(type(row).__name__, 'id', row_id)
-        except Exception as e:
-            print('[islemesh] %s id=%s not scrubbed from DB (%s)'
-                  % (type(row).__name__, row_id, e), flush=True)
+            result = db.deleteRowsWhere(type(row).__name__, 'id', row_id)
+        except Exception as e:  # noqa: BLE001 - the words are the point
+            self._record_failure('%s id=%s not scrubbed from DB (%s)'
+                                 % (type(row).__name__, row_id, e))
+            return False
+        if result is False or (isinstance(result, int) and result < 0):
+            self._record_failure('%s id=%s not scrubbed from DB (database unavailable)'
+                                 % (type(row).__name__, row_id))
+            return False
+        return True
+
+    def _pop_and_delete(self, table, key):
+        """Remove key from the live table if it is STILL there and scrub its row. A key that
+        vanished since the snapshot was taken is not an error: someone already removed it."""
+        row = table.pop(key, None)
+        if row is not None:
+            self._delete(row)
+
+    def _not_persisted(self, response, failures, **fields):
+        response.status = '500 Internal Server Error'
+        response.media = dict(fields, ok=False, persisted=False,
+                              error='accepted in memory but not persisted: '
+                                    + '; '.join(failures) + ' (retry the ingest)')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -232,7 +375,7 @@ class IsleMeshAPI(treeObject):
                       if getattr(row, 'device_name', '')
                       == device_name]
             for key in doomed:
-                self._delete(table.pop(key))
+                self._pop_and_delete(table, key)
 
     #: Fields reset when a device flips mock<->real — a real ingest
     #: must never inherit mock-era facts it didn't supply (and vice
@@ -240,7 +383,7 @@ class IsleMeshAPI(treeObject):
     _DEVICE_RESET = {'isle_name': '', 'agent_mode': '',
                      'agent_present': False, 'hosts_router': False,
                      'router_running': False,
-                     'connectivity_mode': '', 'notes': '',
+                     'connectivity_mode': '', 'notes': '', 'agent_address': '',
                      'capability_evidence_json': '{}', 'capability_received_at': ''}
 
     def _upsert_device(self, device_name, is_mock, **fields):
@@ -291,6 +434,7 @@ class IsleMeshAPI(treeObject):
 
     # ---- ingest -----------------------------------------------------
 
+    @_serialized
     def on_post_ingest_registry(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -305,6 +449,13 @@ class IsleMeshAPI(treeObject):
                 "registry.json object)")
         parsed = parse_registry(registry, device_name,
                                 is_mock=is_mock)
+        with self._persistence() as failures:
+            self._ingest_registry_rows(parsed, registry, device_name, is_mock, response)
+        if failures:
+            self._not_persisted(response, failures, counts=response.media.get('counts'),
+                                mock_network=is_mock)
+
+    def _ingest_registry_rows(self, parsed, registry, device_name, is_mock, response):
         self._replace_device_rows(_REGISTRY_CLASSES, device_name)
         for app in parsed['apps']:
             row = IsleApp(manager=self.manager, **{
@@ -329,7 +480,7 @@ class IsleMeshAPI(treeObject):
             else:
                 seen_pairs.add(pair)
         for key in doomed_apps:
-            self._delete(app_table.pop(key))
+            self._pop_and_delete(app_table, key)
         # Referential sweep: a service must belong to a live app AND
         # carry its device (deviceless rows are pre-schema orphans or
         # restart-flush resurrections — every legit row has one). A
@@ -351,7 +502,7 @@ class IsleMeshAPI(treeObject):
             else:
                 seen_names.add(svc_name)
         for key in orphans:
-            self._delete(svc_table.pop(key))
+            self._pop_and_delete(svc_table, key)
         # A readable registry proves the agent is CONFIGURED, not
         # that its container runs — agent_present stays the device
         # ingest's fact; this notes the registry only.
@@ -366,6 +517,7 @@ class IsleMeshAPI(treeObject):
                           'receipt': receipt.name,
                           'mock_network': is_mock}
 
+    @_serialized
     def on_post_ingest_fragments(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -380,20 +532,24 @@ class IsleMeshAPI(treeObject):
                 "({'<app>.conf': '<nginx text>', ...})")
         permits = parse_fragments(fragments, device_name,
                                   is_mock=is_mock)
-        self._replace_device_rows(_FRAGMENT_CLASSES, device_name)
-        for permit in permits:
-            self._save(IsleProtocolPermit(manager=self.manager,
-                                          **permit))
-        self._upsert_device(device_name, is_mock)
-        counts = {'IsleProtocolPermit': len(permits)}
-        receipt = self._receipt(
-            device_name, 'fragments',
-            json.dumps(fragments, sort_keys=True).encode(), counts,
-            is_mock)
+        with self._persistence() as failures:
+            self._replace_device_rows(_FRAGMENT_CLASSES, device_name)
+            for permit in permits:
+                self._save(IsleProtocolPermit(manager=self.manager,
+                                              **permit))
+            self._upsert_device(device_name, is_mock)
+            counts = {'IsleProtocolPermit': len(permits)}
+            receipt = self._receipt(
+                device_name, 'fragments',
+                json.dumps(fragments, sort_keys=True).encode(), counts,
+                is_mock)
         response.media = {'ok': True, 'counts': counts,
                           'receipt': receipt.name,
                           'mock_network': is_mock}
+        if failures:
+            self._not_persisted(response, failures, counts=counts, mock_network=is_mock)
 
+    @_serialized
     def on_post_ingest_device(self, request, response):
         payload, err = self._payload(request)
         if err:
@@ -406,18 +562,21 @@ class IsleMeshAPI(treeObject):
             # wrong name): drop its row + everything attributed to
             # it. Receipts stay — they are history.
             table = self._table('IsleDevice')
-            doomed = [key for key, row in list(table.items())
-                      if getattr(row, 'name', '') == device_name]
-            for key in doomed:
-                self._delete(table.pop(key))
-            self._replace_device_rows(
-                _REGISTRY_CLASSES + _FRAGMENT_CLASSES
-                + _DEVICE_CLASSES, device_name)
-            self._receipt(device_name, 'device', b'retire',
-                          {'retired': len(doomed)}, is_mock,
-                          notes='device retired')
+            with self._persistence() as failures:
+                doomed = [key for key, row in list(table.items())
+                          if getattr(row, 'name', '') == device_name]
+                for key in doomed:
+                    self._pop_and_delete(table, key)
+                self._replace_device_rows(
+                    _REGISTRY_CLASSES + _FRAGMENT_CLASSES
+                    + _DEVICE_CLASSES, device_name)
+                self._receipt(device_name, 'device', b'retire',
+                              {'retired': len(doomed)}, is_mock,
+                              notes='device retired')
             response.media = {'ok': True,
                               'retired': bool(doomed)}
+            if failures:
+                self._not_persisted(response, failures, retired=bool(doomed))
             return
         evidence_json = None
         received_at = None
@@ -455,6 +614,17 @@ class IsleMeshAPI(treeObject):
                       if isinstance(pools, list) else None)
         ports_json = (json.dumps(ports)
                       if isinstance(ports, list) else None)
+        with self._persistence() as failures:
+            self._ingest_device_rows(payload, device_name, is_mock, facts, mode, agent_mode,
+                                     exposures_json, pools_json, ports_json, evidence_json,
+                                     received_at, report if evidence_json else None, response)
+        if failures:
+            self._not_persisted(response, failures, counts=response.media.get('counts'),
+                                mock_network=is_mock)
+
+    def _ingest_device_rows(self, payload, device_name, is_mock, facts, mode, agent_mode,
+                            exposures_json, pools_json, ports_json, evidence_json,
+                            received_at, report, response):
         self._upsert_device(
             device_name, is_mock,
             isle_name=facts.get('isle_name'),
@@ -463,6 +633,7 @@ class IsleMeshAPI(treeObject):
             agent_present=facts.get('agent_present'),
             hosts_router=facts.get('hosts_router'),
             router_running=facts.get('router_running'),
+            agent_address=_agent_address(payload, facts),
             connectivity_mode=mode,
             is_entrypoint=facts.get('is_entrypoint'),
             exposures_json=exposures_json,
@@ -509,6 +680,421 @@ class IsleMeshAPI(treeObject):
                           'receipt': receipt.name,
                           'mock_network': is_mock}
 
+    # ---- storage migration doors (stm-2b) ----------------------------------
+    # The backend STORES evidence and a read-only hint; it decides nothing. Identity here is weak until real
+    # auth exists: the body names a device, and the presented Bearer is only RECORDED (sha256 fingerprint, never
+    # the token, never logged). The core CLI verifies the poster against the CA members list before it acts.
+
+    def _poster(self, request, body_subject):
+        token = _bearer(request)
+        return (hashlib.sha256(token.encode()).hexdigest() if token else ''), (body_subject or '')
+
+    def _view_dict(self, row):
+        try:
+            pending = json.loads(getattr(row, 'pending_json', 'null') or 'null')
+        except ValueError:
+            pending = None
+        try:
+            addresses = json.loads(getattr(row, 'addresses_json', 'null') or 'null')
+        except ValueError:
+            addresses = None
+        plan = None
+        if getattr(row, 'planId', ''):
+            plan = {'id': row.planId, 'revision': row.planRevision, 'digest': row.planDigest}
+        return {'dataset': row.dataset, 'domain': row.domain, 'device': row.device, 'state': row.state,
+                'generation': row.generation, 'plan': plan, 'pending': pending,
+                'sourceDevice': row.source_device, 'addresses': addresses,
+                'updatedAt': row.updated_at, 'postedBy': row.posted_by}
+
+    _VIEW_MAX_AGE = 600  # seconds; the core rewrites the file every 120 s
+
+    def _storage_view_file(self):
+        """The core writes the view into the data directory (docker exec, atomic rename, only after the lock
+        commit), like isle-catalog-releases.json.  Shape {schemaVersion: 1, writtenAt, writtenBy, datasets:
+        {dataset: entry}}.  Returns None when the file is ABSENT; a dataset -> view dict when valid; raises
+        ValueError when present but torn, malformed or older than 600 s (fail closed, never merged with rows)."""
+        from pathlib import Path
+        from datetime import datetime, timezone
+        db = os.environ.get('DATABASE_PATH')
+        if not db:
+            return None
+        path = Path(db).parent / 'isle-storage-placement-view.json'
+        try:
+            text = path.read_text()
+        except FileNotFoundError:
+            return None
+        except OSError as error:
+            raise ValueError('placement view unreadable') from error
+        try:
+            document = json.loads(text)
+            if not isinstance(document, dict) or document.get('schemaVersion') != 1 \
+                    or isinstance(document.get('schemaVersion'), bool):
+                raise ValueError('schema')
+            written = document.get('writtenAt')
+            if not isinstance(written, str):
+                raise ValueError('writtenAt')
+            stamp = datetime.fromisoformat(written.replace('Z', '+00:00'))
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=timezone.utc)
+            if abs((datetime.now(timezone.utc) - stamp).total_seconds()) > self._VIEW_MAX_AGE:
+                raise ValueError('stale')
+            by, datasets = document.get('writtenBy'), document.get('datasets')
+            if not isinstance(by, str) or not by or not isinstance(datasets, dict) \
+                    or len(datasets) > _MAX_VIEW_ENTRIES:
+                raise ValueError('shape')
+            out = {}
+            for key, raw in datasets.items():
+                if not isinstance(raw, dict) or raw.get('dataset', key) != key:
+                    raise ValueError('entry')
+                entry = self._view_entry(dict(raw, dataset=key))
+                plan = ({'id': entry['planId'], 'revision': entry['planRevision'], 'digest': entry['planDigest']}
+                        if entry['planId'] else None)
+                out[key] = {
+                    'dataset': key, 'domain': entry['domain'], 'device': entry['device'],
+                    'state': entry['state'], 'generation': entry['generation'], 'plan': plan,
+                    'pending': json.loads(entry['pending_json']), 'sourceDevice': entry['source_device'],
+                    'addresses': json.loads(entry['addresses_json']), 'updatedAt': written,
+                    'postedBy': 'file:%s' % by[:100]}
+            return out
+        except (ValueError, TypeError, OverflowError) as error:
+            raise ValueError('placement view unavailable') from error
+
+    def _storage_views_source(self):
+        """(source, views): ('file', ...) when the core-written file is valid, ('door', rows) when it is
+        absent, ('unavailable', {}) when present but torn, malformed or stale.  Never merged."""
+        try:
+            from_file = self._storage_view_file()
+        except ValueError:
+            return 'unavailable', {}
+        if from_file is not None:
+            return 'file', from_file
+        return 'door', {r.dataset: self._view_dict(r) for r in list(self._table('IsleStoragePlacementView').values())}
+
+    def _storage_views(self):
+        """dataset -> placement view dict (lock-free read).  The GET door and the planned actions / status
+        derivation read through the same source selection; an unavailable view is empty (fails closed)."""
+        return self._storage_views_source()[1]
+
+    def _storage_receipt_documents(self):
+        out = []
+        for row in list(self._table('IsleStorageReceipt').values()):
+            try:
+                document = json.loads(row.receipt_json)
+            except ValueError:
+                continue
+            if isinstance(document, dict):
+                out.append(document)
+        return out
+
+    def _core_names(self):
+        return {getattr(r, 'name', '') for r in list(self._table('IsleDevice').values())
+                if getattr(r, 'agent_mode', '') == 'core' and not getattr(r, 'is_mock', False)}
+
+    def _view_entry(self, raw):
+        """Validate one placement view entry; returns the normalized dict or raises ValueError."""
+        from islemesh.custom.islemesh_storage_plan import DATASET, DOMAIN, HEX64, PLAN_ID
+        if not isinstance(raw, dict):
+            raise ValueError('each view entry must be an object')
+        dataset, domain = raw.get('dataset'), raw.get('domain')
+        if not isinstance(dataset, str) or not DATASET.match(dataset):
+            raise ValueError('view entry dataset must match [a-z0-9][a-z0-9-]{0,63}')
+        if not isinstance(domain, str) or len(domain) > 253 or not DOMAIN.match(domain):
+            raise ValueError('view entry domain must be a .isle hostname')
+        device = raw.get('device')
+        if not isinstance(device, str) or not _DEVICE_TOKEN.match(device):
+            raise ValueError('view entry device is not a device name')
+        if raw.get('state') not in _PLACEMENT_STATES:
+            raise ValueError('view entry state must be one of %s' % ', '.join(_PLACEMENT_STATES))
+        if not _is_int(raw.get('generation')):
+            raise ValueError('view entry generation must be an integer of at least 0')
+        plan = raw.get('plan')
+        if plan is not None:
+            if not (isinstance(plan, dict) and isinstance(plan.get('id'), str) and PLAN_ID.match(plan['id'])
+                    and _is_int(plan.get('revision')) and isinstance(plan.get('digest'), str)
+                    and HEX64.match(plan['digest'])):
+                raise ValueError('view entry plan must be {id 32 hex, revision int, digest 64 hex}')
+        pending = raw.get('pending')
+        if pending is not None and not isinstance(pending, dict):
+            raise ValueError('view entry pending must be an object or null')
+        source = raw.get('sourceDevice', '')
+        if source is None:
+            source = ''
+        if not isinstance(source, str) or (source and not _DEVICE_TOKEN.match(source)):
+            raise ValueError('view entry sourceDevice is not a device name')
+        addresses = raw.get('addresses')
+        if addresses is not None:
+            if not (isinstance(addresses, dict) and set(addresses) <= {'source', 'target'}
+                    and all(v is None or (isinstance(v, str) and len(v) <= 64) for v in addresses.values())):
+                raise ValueError('view entry addresses must be {source, target} strings or null')
+        pending_json = _canonical(pending)
+        if len(pending_json) > 4096:
+            raise ValueError('view entry pending is too large')
+        return {'dataset': dataset, 'domain': domain, 'device': device, 'state': raw['state'],
+                'generation': raw['generation'], 'planId': (plan or {}).get('id', ''),
+                'planRevision': (plan or {}).get('revision', 0), 'planDigest': (plan or {}).get('digest', ''),
+                'pending_json': pending_json, 'source_device': source,
+                'addresses_json': _canonical(addresses)}
+
+    @_serialized
+    def on_post_storage_placement(self, request, response):
+        """The core pushes a read-only placement view (a FULL view: it replaces every stored entry). Accepted only
+        when body.device is the core device AND a Bearer is presented (recorded as a fingerprint, not verified)."""
+        payload, err = self._payload(request)
+        if err or not isinstance(payload, dict):
+            return self._refuse(response, err or 'placement view must be a JSON object')
+        device = payload.get('device')
+        if not _bearer(request):
+            return self._refuse(response, 'the placement view needs the core identity (Authorization: Bearer)',
+                                '401 Unauthorized')
+        if not isinstance(device, str) or device not in self._core_names():
+            return self._refuse(response, 'the placement view is accepted from the core device only',
+                                '403 Forbidden')
+        entries = payload.get('entries')
+        if not isinstance(entries, list) or len(entries) > _MAX_VIEW_ENTRIES:
+            return self._refuse(response, "'entries' must be a list of at most %d placement view entries" % _MAX_VIEW_ENTRIES)
+        try:
+            clean = [self._view_entry(e) for e in entries]
+        except ValueError as error:
+            return self._refuse(response, str(error))
+        if len({e['dataset'] for e in clean}) != len(clean):
+            return self._refuse(response, 'placement view lists a dataset twice')
+        fingerprint, _ = self._poster(request, device)
+        stamp, by = _now_iso(), '%s:%s' % (device, fingerprint[:16])
+        table = self._table('IsleStoragePlacementView')
+        with self._persistence() as failures:
+            wanted = set()
+            for entry in clean:
+                wanted.add(entry['dataset'])
+                fields = dict(entry, planId=entry['planId'], updated_at=stamp, posted_by=by)
+                row = next((r for r in list(table.values()) if getattr(r, 'name', '') == entry['dataset']), None)
+                if row is None:
+                    row = IsleStoragePlacementView(name=entry['dataset'], manager=self.manager)
+                for key, value in fields.items():
+                    setattr(row, key, value)
+                self._save(row)
+            for key, row in list(table.items()):
+                if getattr(row, 'name', '') not in wanted:
+                    self._pop_and_delete(table, key)
+        response.media = {'ok': True, 'count': len(clean)}
+        if failures:
+            self._not_persisted(response, failures, count=len(clean))
+
+    def on_get_storage_placement(self, request, response):
+        """The read-only hint. ?dataset= and/or ?domain= select the single entry (404 when none)."""
+        source, found_views = self._storage_views_source()
+        if source == 'unavailable':
+            response.status = '503 Service Unavailable'
+            response.media = {'ok': False, 'error': 'placement view unavailable'}
+            return
+        views = sorted(found_views.values(), key=lambda v: v['dataset'])
+        dataset, domain = request.get_param('dataset'), request.get_param('domain')
+        if dataset is None and domain is None:
+            response.media = {'ok': True, 'source': source, 'view': views}
+            return
+        found = next((v for v in views if (dataset is None or v['dataset'] == dataset)
+                      and (domain is None or v['domain'] == domain)), None)
+        if found is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False, 'error': 'no placement view for that dataset or domain'}
+            return
+        response.media = {'ok': True, 'source': source, 'view': found}
+
+    def _validate_receipt(self, body):
+        """Shape-check a section 2.6 receipt; returns (action_id_match, plan) or raises ValueError."""
+        from islemesh.custom.islemesh_storage_plan import DATASET, ITEM_ID, PLAN_ID, HEX64
+        if body.get('kind') not in _STORAGE_KINDS:
+            raise ValueError('receipt kind must be one of %s' % ', '.join(_STORAGE_KINDS))
+        action = _ACTION_ID.match(body.get('actionId') if isinstance(body.get('actionId'), str) else '')
+        if not action:
+            raise ValueError("receipt actionId must be 'isle.storage.<verb>:<dataset>@<device>:<64 hex>'")
+        dataset = body.get('dataset')
+        if not isinstance(dataset, str) or not DATASET.match(dataset) or dataset != action.group(1):
+            raise ValueError('receipt dataset must be the dataset named by its actionId')
+        plan = body.get('plan')
+        if not (isinstance(plan, dict) and isinstance(plan.get('id'), str) and PLAN_ID.match(plan['id'])
+                and _is_int(plan.get('revision')) and isinstance(plan.get('digest'), str)
+                and HEX64.match(plan['digest']) and isinstance(plan.get('itemId'), str)
+                and ITEM_ID.match(plan['itemId'])):
+            raise ValueError('receipt plan must be {id 32 hex, revision int, itemId, digest 64 hex}')
+        if plan['digest'] != action.group(3):
+            raise ValueError('receipt plan.digest must equal the digest in its actionId')
+        if not _is_int(body.get('epoch')):
+            raise ValueError('receipt epoch must be an integer of at least 0')
+        if not _hex_or_none(body.get('contentSha')) or not _hex_or_none(body.get('manifestSha')):
+            raise ValueError('receipt contentSha and manifestSha must be 64 lowercase hex characters or null')
+        if type(body.get('ok')) is not bool:
+            raise ValueError('receipt ok must be true or false')
+        attempt = body.get('attempt', 1)
+        if not _is_int(attempt, 1):
+            raise ValueError('receipt attempt must be an integer of at least 1')
+        return action, plan
+
+    def _plan_holds(self, plan):
+        """None when the core's stored plan revision has an item whose storage digest equals plan.digest,
+        otherwise the refusal words. Raises OSError/RuntimeError when plan storage is unavailable."""
+        from islemesh.custom.islemesh_planning import PlanStore
+        from islemesh.custom.islemesh_storage_plan import storage_digest
+        words = 'receipt names a plan or digest the core does not hold'
+        try:
+            stored = PlanStore().read(plan['id'], plan['revision'])
+        except ValueError:
+            return words
+        item = next((i for i in stored.get('items', []) if isinstance(i, dict) and i.get('id') == plan['itemId']
+                     and i.get('kind') == 'storage'), None)
+        try:
+            ok = item is not None and storage_digest(stored.get('id', plan['id']), stored.get('revision', plan['revision']), item) == plan['digest']
+        except ValueError:
+            ok = False
+        return None if ok else words
+
+    @_serialized
+    def on_post_storage_receipt(self, request, response):
+        """Store a section 2.6 receipt as unverified evidence. Decides nothing."""
+        body, err = self._payload(request)
+        if err or not isinstance(body, dict):
+            return self._refuse(response, err or 'receipt must be a JSON object')
+        try:
+            canonical = _canonical(body)
+            if len(canonical) > _MAX_STORAGE_BODY:
+                raise ValueError('receipt exceeds 256 KiB')
+            action, plan = self._validate_receipt(body)
+        except (ValueError, TypeError) as error:
+            return self._refuse(response, str(error))
+        try:
+            words = self._plan_holds(plan)
+        except (OSError, RuntimeError):
+            return self._refuse(response, 'Shared plan storage is not available.', '503 Service Unavailable')
+        if words:
+            return self._refuse(response, words, '409 Conflict')
+        attempt = body.get('attempt', 1)
+        name = '%s/%s/%d' % (body['dataset'], hashlib.sha256(body['actionId'].encode()).hexdigest()[:16], attempt)
+        table = self._table('IsleStorageReceipt')
+        existing = next((r for r in list(table.values()) if getattr(r, 'name', '') == name), None)
+        if existing is not None:
+            if existing.receipt_json != canonical:
+                return self._refuse(response, 'a different receipt is already stored for this actionId and attempt',
+                                    '409 Conflict')
+            with self._persistence() as failures:
+                existing.seen = existing.seen + 1
+                self._save(existing)
+            response.media = {'ok': True, 'stored': True, 'idempotent': True, 'verified': False,
+                              'seen': existing.seen, 'receipt': name}
+            if failures:
+                self._not_persisted(response, failures, receipt=name)
+            return
+        target = body.get('target') if isinstance(body.get('target'), dict) else {}
+        subject = target.get('device') if isinstance(target.get('device'), str) else body.get('device')
+        fingerprint, subject = self._poster(request, subject if isinstance(subject, str) else '')
+        stage = body.get('stage')
+        with self._persistence() as failures:
+            row = IsleStorageReceipt(
+                name=name, kind=body['kind'], action_id=body['actionId'], attempt=attempt,
+                dataset=body['dataset'], device=action.group(2), plan_id=plan['id'],
+                plan_revision=plan['revision'], plan_digest=plan['digest'], epoch=body['epoch'],
+                content_sha=body.get('contentSha') or '', manifest_sha=body.get('manifestSha') or '',
+                ok=body['ok'], stage=stage[:100] if isinstance(stage, str) else '', receipt_json=canonical,
+                poster_fingerprint=fingerprint, poster_subject=subject[:100], verified=False, seen=1,
+                received_at=_now_iso(), manager=self.manager)
+            self._save(row)
+        response.media = {'ok': True, 'stored': True, 'idempotent': False, 'verified': False, 'seen': 1,
+                          'receipt': name}
+        if failures:
+            self._not_persisted(response, failures, receipt=name)
+
+    def _validate_witness(self, body):
+        from islemesh.custom.islemesh_storage_plan import DATASET
+        dataset = body.get('dataset')
+        if not isinstance(dataset, str) or not DATASET.match(dataset):
+            raise ValueError('witness dataset must match [a-z0-9][a-z0-9-]{0,63}')
+        if not isinstance(body.get('device'), str) or not _DEVICE_TOKEN.match(body['device']):
+            raise ValueError('witness device is not a device name')
+        if not _is_int(body.get('generation')):
+            raise ValueError('witness generation must be an integer of at least 0')
+        if 'epoch' in body and body['epoch'] != body['generation']:
+            raise ValueError('witness epoch, when given, must equal generation')
+        if not isinstance(body.get('contentSha'), str) or not _hex_or_none(body['contentSha']):
+            raise ValueError('witness contentSha must be 64 lowercase hex characters')
+        action = _ACTION_ID.match(body.get('actionId') if isinstance(body.get('actionId'), str) else '')
+        if not action or action.group(1) != dataset:
+            raise ValueError("witness actionId must be 'isle.storage.<verb>:<dataset>@<device>:<64 hex>' for the same dataset")
+        address = body.get('resolvedAddress')
+        if address is not None:
+            try:
+                ipaddress.IPv4Address(address)
+            except (ValueError, TypeError):
+                raise ValueError('witness resolvedAddress must be an IPv4 address or null')
+        at = body.get('at')
+        try:
+            datetime.fromisoformat(at.replace('Z', '+00:00'))
+        except (AttributeError, ValueError):
+            raise ValueError('witness at must be an ISO 8601 time')
+        if not isinstance(body.get('sampled'), list) or len(body['sampled']) > 16:
+            raise ValueError('witness sampled must be a list of at most 16 samples')
+        return address
+
+    @_serialized
+    def on_post_storage_witness(self, request, response):
+        """Store a witness as unverified evidence. Identical re-post is idempotent; a different witness for the
+        same (dataset, generation, device) is a conflict (a witness is evidence of a moment)."""
+        body, err = self._payload(request)
+        if err or not isinstance(body, dict):
+            return self._refuse(response, err or 'witness must be a JSON object')
+        try:
+            canonical = _canonical(body)
+            if len(canonical) > _MAX_STORAGE_BODY:
+                raise ValueError('witness exceeds 256 KiB')
+            address = self._validate_witness(body)
+        except (ValueError, TypeError) as error:
+            return self._refuse(response, str(error))
+        name = '%s/%d/%s' % (body['dataset'], body['generation'], body['device'])
+        table = self._table('IsleStorageWitness')
+        existing = next((r for r in list(table.values()) if getattr(r, 'name', '') == name), None)
+        if existing is not None:
+            if existing.witness_json != canonical:
+                return self._refuse(response, 'conflicting witness for this epoch and device', '409 Conflict')
+            with self._persistence() as failures:
+                existing.seen = existing.seen + 1
+                self._save(existing)
+            response.media = {'ok': True, 'stored': True, 'idempotent': True, 'verified': False,
+                              'seen': existing.seen, 'witness': name}
+            if failures:
+                self._not_persisted(response, failures, witness=name)
+            return
+        fingerprint, subject = self._poster(request, body['device'])
+        with self._persistence() as failures:
+            row = IsleStorageWitness(
+                name=name, dataset=body['dataset'], device=body['device'], generation=body['generation'],
+                content_sha=body['contentSha'], action_id=body['actionId'], resolved_address=address or '',
+                route_json=_canonical(body.get('route')), at=body['at'], witness_json=canonical,
+                poster_fingerprint=fingerprint, poster_subject=subject, verified=False, seen=1,
+                received_at=_now_iso(), manager=self.manager)
+            self._save(row)
+        response.media = {'ok': True, 'stored': True, 'idempotent': False, 'verified': False, 'seen': 1,
+                          'witness': name}
+        if failures:
+            self._not_persisted(response, failures, witness=name)
+
+    def _stored_documents(self, class_name, json_attr, key, request):
+        dataset = request.get_param('dataset')
+        out = []
+        for row in sorted(list(self._table(class_name).values()), key=lambda r: getattr(r, 'received_at', '')):
+            if dataset is not None and row.dataset != dataset:
+                continue
+            try:
+                document = json.loads(getattr(row, json_attr))
+            except ValueError:
+                document = None
+            out.append({'name': row.name, key: document, 'dataset': row.dataset, 'device': row.device,
+                        'posterPresented': {'fingerprint': row.poster_fingerprint, 'subject': row.poster_subject},
+                        'verified': bool(row.verified), 'seen': row.seen, 'receivedAt': row.received_at})
+        return out
+
+    def on_get_storage_receipts(self, request, response):
+        response.media = {'ok': True, 'receipts': self._stored_documents('IsleStorageReceipt', 'receipt_json', 'receipt', request)}
+
+    def on_get_storage_witnesses(self, request, response):
+        response.media = {'ok': True, 'witnesses': self._stored_documents('IsleStorageWitness', 'witness_json', 'witness', request)}
+
     # ---- mock -------------------------------------------------------
 
     class _FakeRequest:
@@ -526,6 +1112,7 @@ class IsleMeshAPI(treeObject):
                     return self._data
             self.bounded_stream = _Stream(body)
 
+    @_serialized
     def on_post_mock(self, request, response):
         """Seed the built-in MOCK isle network (Dustin 2026-08-07):
         every payload declares mock_network=true, so the summary
@@ -569,6 +1156,7 @@ class IsleMeshAPI(treeObject):
 
     # ---- engines (§20.4) --------------------------------------------
 
+    @_serialized
     def on_post_ingest_engine(self, request, response):
         """An isle app declares it provides a polari engine. Record
         the IsleEngine row AND bind it into the consuming module's
@@ -713,6 +1301,7 @@ class IsleMeshAPI(treeObject):
                 'is_mock': getattr(row, 'is_mock', False),
                 'agent_mode': getattr(row, 'agent_mode', ''),
                 'hosts_router': getattr(row, 'hosts_router', False),
+                'agent_address': getattr(row, 'agent_address', '') or None,
                 'last_seen': getattr(row, 'last_seen', ''),
                 'capability_received_at': getattr(row, 'capability_received_at', ''),
                 'capability_evidence': report,

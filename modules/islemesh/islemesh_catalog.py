@@ -93,6 +93,21 @@ SEED_CATALOG = [
         'provides_engine': 'cad', 'category': 'engine',
         'source': 'official',
     },
+    {
+        # storage migration (STORAGE-MIGRATION-CONTRACT.md, Isle-Mesh): the app that SERVES a migrated dataset read-only. Its versioned
+        # release (isle-cli/releases/isle-content-host: release.json + docker-compose.yml + nginx.conf) is published by `isle store publish`
+        # into isle-catalog-releases.json; this row is the catalog entry that release attaches to (without it the release is unreachable:
+        # GET /api/islemesh/catalog/isle-content-host answered 404 after release 86, defect 2).
+        'name': 'isle-content-host',
+        'title': 'Isle content host (migrated dataset, read-only)',
+        'description': 'Serves a storage dataset that was migrated off the core, read-only over HTTP (nginx), from the device that now holds it; '
+                       'the storage cutover points the dataset\'s address here. Its health path is /.well-known/isle-storage/current.',
+        'kind': 'mesh-app',
+        'source_ref': 'isle-cli/releases/isle-content-host (versioned release: release.json, docker-compose.yml, nginx.conf)',
+        'service': 'content', 'port': 80,
+        'category': 'infrastructure',   # = release.json (isle-content-host 2026.11.1); the store groups by it
+        'source': 'official',
+    },
     # ti-3a: the hardware engine workers (slice of TEST_ISLE_PLAN) — deploying one binds its
     # consumer through the EngineProviderBinding row, key = provides_engine.
     {

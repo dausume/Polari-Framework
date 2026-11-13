@@ -32,6 +32,7 @@ words in the result, retryable, and never a claim of compile/simulation readines
   - islemesh.islemesh_selftest
 """
 import json
+import threading
 import os
 
 
@@ -169,6 +170,14 @@ def bind_engine(manager, app_name, provides, url, save):
 
 
 # ---- fix 11, the consumer half: pull the isle's engine registry ----------------
+#: ONE writer at a time for the islemesh tables (core 84 live evidence, 2026-11-08: two ingests for
+#: the same device overlapped on the threaded WSGI server and `table.pop` raised KeyError). Owned here
+#: because every mutator imports this module: the API doors (islemesh_api) wrap themselves in it, and
+#: sync_from_registry takes it for its APPLY phase from every caller (boot after_boot, engines/sync
+#: door, polari-cli) while the registry FETCH stays outside it (a slow core must not stall ingests).
+#: Reentrant: the mock seeder re-posts through the doors; a door may call the sync.
+MUTATION_LOCK = threading.RLock()
+
 REGISTRY_KNOB = 'ISLE_CORE_API'          # e.g. https://api.polari.isle ; unset = no isle (compose stacks keep working)
 REGISTRY_PATH = '/api/islemesh/engines'  # the EXISTING registry door on the isle core (Codex's contract 2026-11-06)
 REGISTRY_MARK = '[isle registry] '       # notes prefix on IsleEngine rows this pull wrote (so only those can be retired)
@@ -343,61 +352,65 @@ def sync_from_registry(manager, source='boot', save=None, delete=None, fetch=Non
         out['ok'] = False
         out['words'] = words
         return out
-    out['seen'] = len(entries)
-    listed = set()
-    for entry in entries:
-        key, app, provides, url, problem = _entry_identity(entry)
-        if problem:
-            out['uncertain'].append({'engine': key or str((entry or {}).get('name') if isinstance(entry, dict) else entry)[:80],
-                                     'note': problem + '; existing binding (if any) preserved'})
-            continue
-        if entry.get('is_mock'):
-            out['skipped_mock'].append(key)   # mock entries never enter real placement
-            continue
-        listed.add(key)
-        device = str(entry.get('device') or '').strip() or 'unknown'  # core80's installed backend omits it
-        before = len(save.failures)
-        bound, bound_to, note = bind_engine(manager, app, provides, url, save)
-        record_engine(manager, save, app, provides, url, device, bound, bound_to,
-                      REGISTRY_MARK + note)
-        if len(save.failures) > before:
-            out['failed'].append({'engine': key, 'note': 'not persisted: ' + '; '.join(save.failures[before:])
-                                  + ' (in memory only; retry the sync)'})
-        elif bound:
-            out['bound'].append({'engine': key, 'bound_to': bound_to, 'url': url, 'device': device})
-        else:
-            out['unbound'].append({'engine': key, 'note': note, 'device': device})
-    out['authoritative'] = not out['uncertain']
-    if out['authoritative']:
-        # retire what THIS pull once recorded and the registry no longer lists (never a direct ingest)
-        for row in _engine_rows(manager):
-            notes = getattr(row, 'notes', '') or ''
-            name = getattr(row, 'name', '')
-            if not notes.startswith(REGISTRY_MARK) or name in listed:
+    # APPLY under the islemesh mutation lock: the snapshot of the tables this phase reads stays true
+    # until its saves/pops are done; the fetch above ran outside it (B2) and the topology notify below
+    # runs outside it too (it only reads).
+    with MUTATION_LOCK:
+        out['seen'] = len(entries)
+        listed = set()
+        for entry in entries:
+            key, app, provides, url, problem = _entry_identity(entry)
+            if problem:
+                out['uncertain'].append({'engine': key or str((entry or {}).get('name') if isinstance(entry, dict) else entry)[:80],
+                                         'note': problem + '; existing binding (if any) preserved'})
                 continue
-            if not getattr(row, 'bound', False) and 'retired:' in notes:
-                continue   # already retired on an earlier pull
-            result = retire_binding(manager, getattr(row, 'provides', ''), getattr(row, 'url', ''), delete)
-            if result.startswith('failed'):
-                out['failed'].append({'engine': name, 'note': result + ' (binding kept; retry the sync)'})
+            if entry.get('is_mock'):
+                out['skipped_mock'].append(key)   # mock entries never enter real placement
                 continue
-            row.bound = False
-            row.bound_to = ''
-            row.notes = REGISTRY_MARK + 'retired: no longer listed by the isle registry'
-            if save(row):
-                out['retired'].append(name)
+            listed.add(key)
+            device = str(entry.get('device') or '').strip() or 'unknown'  # core80's installed backend omits it
+            before = len(save.failures)
+            bound, bound_to, note = bind_engine(manager, app, provides, url, save)
+            record_engine(manager, save, app, provides, url, device, bound, bound_to,
+                          REGISTRY_MARK + note)
+            if len(save.failures) > before:
+                out['failed'].append({'engine': key, 'note': 'not persisted: ' + '; '.join(save.failures[before:])
+                                      + ' (in memory only; retry the sync)'})
+            elif bound:
+                out['bound'].append({'engine': key, 'bound_to': bound_to, 'url': url, 'device': device})
             else:
-                # The binding deletion succeeded but its durable receipt did not.
-                # Do not mark this as an already-completed retirement on retry.
-                row.notes = REGISTRY_MARK + 'retirement pending persistence; retry the sync'
-                out['failed'].append({'engine': name, 'note': 'binding removed but the IsleEngine row '
-                                      'could not be saved as retired: %s (retry the sync)' % save.failures[-1]})
-    if out['failed']:
-        out['ok'] = False
-    out['words'] = '%d listed, %d bound, %d unbound, %d mock skipped, %d retired, %d uncertain, %d failed (%s)%s' % (
-        out['seen'], len(out['bound']), len(out['unbound']), len(out['skipped_mock']),
-        len(out['retired']), len(out['uncertain']), len(out['failed']), origin,
-        '' if out['authoritative'] else '; snapshot not authoritative: nothing retired')
+                out['unbound'].append({'engine': key, 'note': note, 'device': device})
+        out['authoritative'] = not out['uncertain']
+        if out['authoritative']:
+            # retire what THIS pull once recorded and the registry no longer lists (never a direct ingest)
+            for row in _engine_rows(manager):
+                notes = getattr(row, 'notes', '') or ''
+                name = getattr(row, 'name', '')
+                if not notes.startswith(REGISTRY_MARK) or name in listed:
+                    continue
+                if not getattr(row, 'bound', False) and 'retired:' in notes:
+                    continue   # already retired on an earlier pull
+                result = retire_binding(manager, getattr(row, 'provides', ''), getattr(row, 'url', ''), delete)
+                if result.startswith('failed'):
+                    out['failed'].append({'engine': name, 'note': result + ' (binding kept; retry the sync)'})
+                    continue
+                row.bound = False
+                row.bound_to = ''
+                row.notes = REGISTRY_MARK + 'retired: no longer listed by the isle registry'
+                if save(row):
+                    out['retired'].append(name)
+                else:
+                    # The binding deletion succeeded but its durable receipt did not.
+                    # Do not mark this as an already-completed retirement on retry.
+                    row.notes = REGISTRY_MARK + 'retirement pending persistence; retry the sync'
+                    out['failed'].append({'engine': name, 'note': 'binding removed but the IsleEngine row '
+                                          'could not be saved as retired: %s (retry the sync)' % save.failures[-1]})
+        if out['failed']:
+            out['ok'] = False
+        out['words'] = '%d listed, %d bound, %d unbound, %d mock skipped, %d retired, %d uncertain, %d failed (%s)%s' % (
+            out['seen'], len(out['bound']), len(out['unbound']), len(out['skipped_mock']),
+            len(out['retired']), len(out['uncertain']), len(out['failed']), origin,
+            '' if out['authoritative'] else '; snapshot not authoritative: nothing retired')
     if notify and (out['bound'] or out['retired']):
         try:
             from topology.topology_self import on_binding_changed
