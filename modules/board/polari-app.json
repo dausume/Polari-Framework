@@ -242,7 +242,8 @@
    "board_target_compat_selftest",
    "board_twin_session_selftest",
    "board_uno_selftest",
-   "board_variant_twin_selftest"
+   "board_variant_twin_selftest",
+   "board_hal_roles_selftest"
   ],
   "custom": [
    "custom/attach",
@@ -676,7 +677,8 @@
   "board_target_compat_selftest",
   "board_twin_session_selftest",
   "board_uno_selftest",
-  "board_variant_twin_selftest"
+  "board_variant_twin_selftest",
+  "board_hal_roles_selftest"
  ],
  "security": {
   "profile": "web-app",
