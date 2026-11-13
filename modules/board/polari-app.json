@@ -245,9 +245,11 @@
    "board_variant_twin_selftest",
    "board_hal_roles_selftest",
    "board_registers_c3_facts_selftest",
-   "board_svd_import_selftest"
+   "board_svd_import_selftest",
+   "board_access_overlay_selftest"
   ],
   "custom": [
+   "custom/access_overlay",
    "custom/attach",
    "custom/attach_cli",
    "custom/bench",
@@ -683,7 +685,8 @@
   "board_variant_twin_selftest",
   "board_hal_roles_selftest",
   "board_registers_c3_facts_selftest",
-  "board_svd_import_selftest"
+  "board_svd_import_selftest",
+  "board_access_overlay_selftest"
  ],
  "security": {
   "profile": "web-app",
