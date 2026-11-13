@@ -244,7 +244,8 @@
    "board_uno_selftest",
    "board_variant_twin_selftest",
    "board_hal_roles_selftest",
-   "board_registers_c3_facts_selftest"
+   "board_registers_c3_facts_selftest",
+   "board_svd_import_selftest"
   ],
   "custom": [
    "custom/attach",
@@ -388,6 +389,7 @@
    "custom/register_view",
    "custom/registers",
    "custom/registers_esp32c3",
+   "custom/svd_import",
    "custom/selftest_light_samples",
    "custom/selftest_light_variants",
    "custom/sense_routes",
@@ -680,7 +682,8 @@
   "board_uno_selftest",
   "board_variant_twin_selftest",
   "board_hal_roles_selftest",
-  "board_registers_c3_facts_selftest"
+  "board_registers_c3_facts_selftest",
+  "board_svd_import_selftest"
  ],
  "security": {
   "profile": "web-app",
