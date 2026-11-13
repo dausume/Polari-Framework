@@ -18,6 +18,13 @@ field for field; the TRM is the citation, the headers the cross-check.
   UART0                          UART_FIFO / CLKDIV / CONF0 / CONF1 / STATUS at UART0's base (Register 26.1 / 26.7 / 26.9 / 26.10 / 26.19, pp.571-586)
 Absolute address = the module base (Table 3.3-3 Module/Peripheral Address Mapping, p.98) + the register's printed offset.
 
+hal-3a (2026-11-13, econ) adds a second PART beside rm-2b's drawing set (each register's 'part': 'drawing' | 'hal-3a'; part(name) -> rows): the registers
+the generated HAL's families need, starting with the pwm family's LEDC (Chapter 32, Registers 32.1-32.8, pp.836-839: CH0..5 CONF0 / HPOINT / DUTY / CONF1 /
+DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF). Its codes and sentences are accepted only where the TRM field name AND the register header agree; its bit
+positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (120 / 120). Every field also carries
+`trm_access`, the TRM code verbatim: the generated HAL's access table maps from it, never from the lossy `access` word. A field the TRM does not describe
+(LEDC TICK_SEL) has an empty trm_access and says so, so the HAL treats it as missing.
+
 The TRM's OWN access code (R/W, RO, R/W/SS, WT, WO, R/SS/WTC ..., legend "Access Types for Registers" p.893) is kept verbatim on every field (`notes`: "TRM access
 ...") beside Polari's access word (board.custom.register_access). A register the drawing does not touch is NOT here; a wide register lists only the fields the drawing
 needs and says the rest is documented, not ingested. Where the TRM gives no value codes (UART frame format) the row quotes its words and says so - never a guess.
@@ -26,10 +33,11 @@ from board.custom import esp32c3_evidence as EV
 
 SOC = EV.SOC
 PADS = range(22)
-BASES = {'UART0': 0x60000000, 'GPIO': 0x60004000, 'RTC_CNTL': 0x60008000, 'IO_MUX': 0x60009000, 'SYSTIMER': 0x60023000, 'SYSTEM': 0x600C0000, 'INTMTX': 0x600C2000}
+BASES = {'UART0': 0x60000000, 'GPIO': 0x60004000, 'RTC_CNTL': 0x60008000, 'IO_MUX': 0x60009000, 'LEDC': 0x60019000, 'SYSTIMER': 0x60023000, 'SYSTEM': 0x600C0000,
+         'INTMTX': 0x600C2000}
 BASE_CITE = 'Table 3.3-3 Module/Peripheral Address Mapping, p.98'
 #: the block a register belongs to -> the Peripheral row (esp32c3_chain_meta): IO MUX registers belong to the GPIO block's chapter (TRM Chapter 5 "IO MUX and GPIO Matrix")
-PERIPHERAL_OF = {'UART0': 'UART0', 'GPIO': 'GPIO', 'IO_MUX': 'GPIO', 'RTC_CNTL': 'RTC_CNTL', 'SYSTIMER': 'SYSTIMER', 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTMTX'}
+PERIPHERAL_OF = {'UART0': 'UART0', 'GPIO': 'GPIO', 'IO_MUX': 'GPIO', 'RTC_CNTL': 'RTC_CNTL', 'LEDC': 'LEDC', 'SYSTIMER': 'SYSTIMER', 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTMTX'}
 
 #: Table 5.12-1 p.174: the pads whose drive codes 1 and 2 are swapped ("GPIO2, GPIO3, GPIO4, GPIO5, GPIO18, GPIO19"; Register 5.21's own text prints GPIO18 twice
 #: and omits GPIO4 - the table is taken)
@@ -51,22 +59,24 @@ RESET_CAUSES = {'0x01': 'Chip reset (power-on or brown-out)', '0x0F': 'Brown-out
                 '0x0D': 'RWDT CPU reset', '0x11': 'MWDT1 CPU reset'}
 
 #: the TRM access code -> Polari's access word (board.custom.register_access); the code itself rides on every field
-ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'RO': 'r', 'R/SS/WTC': 'r', 'WT': 'w-strobe', 'WO': 'w-strobe', 'WT-set': 'w1-set', 'WT-clear': 'w1-clear', 'RO-fifo': 'fifo'}
+ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw', 'RO': 'r', 'R/SS/WTC': 'r', 'WT': 'w-strobe', 'WO': 'w-strobe', 'WT-set': 'w1-set', 'WT-clear': 'w1-clear', 'RO-fifo': 'fifo'}
 
 
 def _f(register, field, hi, lo, code, reset, description, values, where, pin='', signal='', notes=''):
     trm = code.split('-')[0]
     return {'register': register, 'field': field, 'bit_hi': hi, 'bit_lo': lo, 'width': hi - lo + 1, 'access': ACCESS[code], 'reset_value': str(reset),
             'description': description, 'values': values, 'page_table': where, 'affects_pin': pin, 'affects_signal': signal,
+            'trm_access': trm,   # hal-3a: the TRM's own code, verbatim - hal-3b's access table maps from THIS, never from the lossy `access` word
             'notes': ('TRM access %s' % trm) + ('; ' + notes if notes else '')}
 
 
-REGISTERS = []   # (name, block, offset, title, where, reset, undetermined)
+REGISTERS = []   # (name, block, offset, title, where, reset, undetermined, part)
 FIELDS = []
+_PART = 'drawing'   # rm-2b's drawing set; hal-3a's rows (the HAL families' registers) are part 'hal-3a'
 
 
 def _reg(name, block, offset, title, where, reset, undetermined=''):
-    REGISTERS.append({'register': name, 'block': block, 'offset': offset, 'title': title, 'where': where, 'reset': reset, 'undetermined': undetermined})
+    REGISTERS.append({'register': name, 'block': block, 'offset': offset, 'title': title, 'where': where, 'reset': reset, 'undetermined': undetermined, 'part': _PART})
 
 
 def _per_pad(register, prefix, code, where, words, values, reset='0', notes=''):
@@ -256,6 +266,97 @@ FIELDS.extend([
     _f('UART0_STATUS_REG', 'TXFIFO_CNT', 25, 16, 'RO', 0, 'the number of data bytes in TX FIFO', {'any': 'byte count'}, 'Register 26.19 UART_STATUS_REG, pp.585-586'),
     _f('UART0_STATUS_REG', 'RXD', 15, 15, 'RO', 1, 'the level of the internal UART RXD signal', {'0': 'low', '1': 'high'}, 'Register 26.19 UART_STATUS_REG, pp.585-586'),
     _f('UART0_STATUS_REG', 'RXFIFO_CNT', 9, 0, 'RO', 0, 'the number of valid data bytes in RX FIFO', {'any': 'byte count'}, 'Register 26.19 UART_STATUS_REG, pp.585-586')])
+
+
+# ---- LEDC: the LED PWM controller (Chapter 32; hal-3a for the pwm family). Base Table 3.3-3 p.98 (0x6001_9000).
+# Codes and sentences: TRM v1.4 Registers 32.1-32.8, pp.836-839, accepted only where the field name AND the register header agree (econ's TRM/SVD
+# overlay; two-register pages print out of order in pdftotext). Bit positions + register offsets: Espressif's SVD (espressif/svd be20aa12
+# esp32c3.svd v18), each checked against ESP-IDF v5.5.5 soc/ledc_reg.h (sha256 10983be1...) - 120 / 120 field instances agree. Resets: the SVD's
+# register resetValue (the TRM prints each reset row as a bit diagram pdftotext cannot read), cross-checked against the TRM where the TRM's
+# words state it (DUTY_INC "1: Increase" with reset 1; RST "the counter will show 0 after reset" with reset 1 = held).
+_PART = 'hal-3a'
+_LEDC_SVD = 'Espressif SVD esp32c3.svd v18 (espressif/svd be20aa12) resetValue; bits checked against ESP-IDF v5.5.5 soc/ledc_reg.h'
+_LEDC_UPDATE = ('takes effect only after LEDC_PARA_UP_CHn is set (Register 32.1 p.836 lists HPOINT, DUTY_START, SIG_OUT_EN, TIMER_SEL, DUTY_NUM, '
+                'DUTY_CYCLE, DUTY_SCALE, DUTY_INC, OVF_CNT_EN)')
+_LEDC_CH = 6
+_LEDC_TIMERS = 4
+for n in range(_LEDC_CH):
+    base, sig = 0x14 * n, 'ledc_ls_sig_out%d' % n
+    w0, w1, wh, wd, wr = ('Register 32.%d LEDC_CHn_%s_REG (n: 0-5), p.%d' % (t, nm, pg)
+                          for t, nm, pg in ((1, 'CONF0', 836), (2, 'CONF1', 837), (4, 'HPOINT', 838), (5, 'DUTY', 838), (6, 'DUTY_R', 838)))
+    _reg('LEDC_CH%d_CONF0_REG' % n, 'LEDC', base + 0x00, 'LEDC channel %d configuration 0' % n, 'Register 32.1, p.836', '0x00000000')
+    FIELDS.extend([
+        _f('LEDC_CH%d_CONF0_REG' % n, 'TIMER_SEL', 1, 0, 'R/W', 0, 'This field is used to select one of the timers for channel n.',
+           {'0': 'select Timer0', '1': 'select Timer1', '2': 'select Timer2', '3': 'select Timer3'}, w0, signal=sig, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'SIG_OUT_EN', 2, 2, 'R/W', 0, 'Set this bit to enable signal output on channel n.',
+           {'0': 'output off (the line holds LEDC_IDLE_LV_CHn)', '1': 'signal output enabled'}, w0, signal=sig, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'IDLE_LV', 3, 3, 'R/W', 0, 'This bit is used to control the output value when channel n is inactive (when LEDC_SIG_OUT_EN_CHn is 0).',
+           {'0': 'low while inactive', '1': 'high while inactive'}, w0, signal=sig),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'PARA_UP', 4, 4, 'WT', 0, 'This bit is used to update the listed fields below for channel n, and will be automatically cleared by hardware.',
+           {'1': 'latch the listed channel fields (HPOINT, DUTY_START, SIG_OUT_EN, TIMER_SEL, DUTY_NUM, DUTY_CYCLE, DUTY_SCALE, DUTY_INC, OVF_CNT_EN)'}, w0),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'OVF_NUM', 14, 5, 'R/W', 0, 'This field is used to configure the maximum times of overflow minus 1. The LEDC_OVF_CNT_CHn_INT '
+           'interrupt will be triggered when channel n overflows for (LEDC_OVF_NUM_CHn + 1) times.', {'any': 'overflow count minus 1'}, w0),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'OVF_CNT_EN', 15, 15, 'R/W', 0, 'This bit is used to count the number of times when the timer selected by channel n overflows.',
+           {'0': 'not counted', '1': 'counted'}, w0, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF0_REG' % n, 'OVF_CNT_RESET', 16, 16, 'WT', 0, 'Set this bit to reset the timer-overflow counter of channel n.', {'1': 'reset the counter'}, w0)])
+    _reg('LEDC_CH%d_HPOINT_REG' % n, 'LEDC', base + 0x04, 'LEDC channel %d high point' % n, 'Register 32.4, p.838', '0x00000000')
+    FIELDS.append(_f('LEDC_CH%d_HPOINT_REG' % n, 'HPOINT', 13, 0, 'R/W', 0, 'The output value changes to high when the selected timer for this channel has reached the value '
+                     'specified by this field.', {'any': 'the timer count at which the output goes high'}, wh, signal=sig, notes=_LEDC_UPDATE))
+    _reg('LEDC_CH%d_DUTY_REG' % n, 'LEDC', base + 0x08, 'LEDC channel %d initial duty' % n, 'Register 32.5, p.838', '0x00000000')
+    FIELDS.append(_f('LEDC_CH%d_DUTY_REG' % n, 'DUTY', 18, 0, 'R/W', 0, 'This field is used to change the output duty by controlling the Lpoint. The output value turns to '
+                     'low when the selected timer for this channel has reached the Lpoint.', {'any': 'the Lpoint (the TRM gives no fixed-point split of these 19 bits here)'},
+                     wd, signal=sig, notes='applied with DUTY_START (Register 32.2)'))
+    _reg('LEDC_CH%d_CONF1_REG' % n, 'LEDC', base + 0x0C, 'LEDC channel %d configuration 1 (fading)' % n, 'Register 32.2, p.837', '0x40000000')
+    FIELDS.extend([
+        _f('LEDC_CH%d_CONF1_REG' % n, 'DUTY_START', 31, 31, 'R/W/SC', 0, 'If this bit is set to 1, other configured fields in LEDC_CHn_CONF1_REG will take effect upon the next '
+           'timer overflow.', {'1': 'apply the CONF1 fields at the next overflow (cleared by hardware: SC)'}, w1, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF1_REG' % n, 'DUTY_INC', 30, 30, 'R/W', 1, 'This bit determines whether the duty cycle of the output signal on channel n increases or decreases.',
+           {'0': 'Decrease', '1': 'Increase'}, w1, notes=_LEDC_UPDATE + '; reset 1 (SVD resetValue 0x40000000)'),
+        _f('LEDC_CH%d_CONF1_REG' % n, 'DUTY_NUM', 29, 20, 'R/W', 0, 'This field controls the number of times the duty cycle will be changed.', {'any': 'number of fade steps'},
+           w1, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF1_REG' % n, 'DUTY_CYCLE', 19, 10, 'R/W', 0, 'The duty will change every LEDC_DUTY_CYCLE_CHn cycle on channel n.', {'any': 'cycles per fade step'},
+           w1, notes=_LEDC_UPDATE),
+        _f('LEDC_CH%d_CONF1_REG' % n, 'DUTY_SCALE', 9, 0, 'R/W', 0, 'This field configures the step size of the duty cycle change during fading.', {'any': 'fade step size'},
+           w1, notes=_LEDC_UPDATE)])
+    _reg('LEDC_CH%d_DUTY_R_REG' % n, 'LEDC', base + 0x10, 'LEDC channel %d current duty' % n, 'Register 32.6, p.838', '0x00000000')
+    FIELDS.append(_f('LEDC_CH%d_DUTY_R_REG' % n, 'DUTY_R', 18, 0, 'RO', 0, 'This field stores the current duty cycle of the output signal on channel n.',
+                     {'read': 'the duty now in effect'}, wr, notes='ESP-IDF names this field LEDC_DUTY_LSCHn, the same macro as DUTY\'s (shift 0, mask 0x7FFFF)'))
+_LEDC_TICK = ('bit 24 TICK_SEL: in Espressif\'s SVD and ESP-IDF v5.5.5 (LEDC_TICK_SEL_LSTIMERn, shift 24) but not in TRM v1.4 - its row carries no TRM code '
+              '(trm_access empty), so hal-3b treats it as missing and fails closed')
+for x in range(_LEDC_TIMERS):
+    wt, wv = 'Register 32.7 LEDC_TIMERx_CONF_REG (x: 0-3), p.839', 'Register 32.8 LEDC_TIMERx_VALUE_REG (x: 0-3), p.839'
+    _reg('LEDC_TIMER%d_CONF_REG' % x, 'LEDC', 0xA0 + 8 * x, 'LEDC timer %d configuration' % x, 'Register 32.7, p.839', '0x00800000', _LEDC_TICK)
+    FIELDS.extend([
+        _f('LEDC_TIMER%d_CONF_REG' % x, 'PARA_UP', 25, 25, 'WT', 0, 'Set this bit to update LEDC_CLK_DIV_TIMERx and LEDC_TIMERx_DUTY_RES.', {'1': 'latch CLK_DIV and DUTY_RES'}, wt),
+        _f('LEDC_TIMER%d_CONF_REG' % x, 'RST', 23, 23, 'R/W', 1, 'This bit is used to reset timer x. The counter will show 0 after reset.',
+           {'0': 'timer runs', '1': 'timer held in reset (counter 0)'}, wt, notes='reset 1 (SVD resetValue 0x00800000): every timer starts held in reset'),
+        _f('LEDC_TIMER%d_CONF_REG' % x, 'PAUSE', 22, 22, 'R/W', 0, 'This bit is used to suspend the counter in timer x.', {'0': 'counting', '1': 'suspended'}, wt),
+        _f('LEDC_TIMER%d_CONF_REG' % x, 'CLK_DIV', 21, 4, 'R/W', 0, 'This field is used to configure the divisor for the divider in timer x. The least significant eight bits '
+           'represent the fractional part.', {'any': 'divisor: bits 21..12 integer, bits 11..4 fraction (the TRM\'s "least significant eight bits")'}, wt,
+           notes='applied with PARA_UP'),
+        _f('LEDC_TIMER%d_CONF_REG' % x, 'DUTY_RES', 3, 0, 'R/W', 0, 'This field is used to control the range of the counter in timer x.',
+           {'any': 'the counter range (the TRM states no bit-count formula in this register\'s words)'}, wt, notes='applied with PARA_UP')])
+    # no TRM code exists for this bit: the row is built by hand so nothing in it claims one ('access' is the SVD's read-write, marked as such)
+    FIELDS.append({'register': 'LEDC_TIMER%d_CONF_REG' % x, 'field': 'TICK_SEL', 'bit_hi': 24, 'bit_lo': 24, 'width': 1, 'access': 'rw', 'reset_value': '0',
+                   'description': 'not described in TRM v1.4',
+                   'values': {'any': 'no meaning given: the TRM does not describe this bit; the SVD and ESP-IDF only name it TICK_SEL'}, 'page_table': 'not in TRM v1.4; ' + _LEDC_SVD, 'affects_pin': '', 'affects_signal': '',
+                   'trm_access': '', 'notes': 'NO TRM access code; access rw = the SVD\'s read-write, not the TRM\'s; ' + _LEDC_TICK})
+    _reg('LEDC_TIMER%d_VALUE_REG' % x, 'LEDC', 0xA4 + 8 * x, 'LEDC timer %d current count' % x, 'Register 32.8, p.839', '0x00000000')
+    FIELDS.append(_f('LEDC_TIMER%d_VALUE_REG' % x, 'CNT', 13, 0, 'RO', 0, 'This field stores the current counter value of timer x.', {'read': 'the counter now'}, wv))
+_reg('LEDC_CONF_REG', 'LEDC', 0xD0, 'LEDC global configuration', 'Register 32.3, p.837', '0x00000000')
+FIELDS.extend([
+    _f('LEDC_CONF_REG', 'CLK_EN', 31, 31, 'R/W', 0, 'This bit is used to control the clock.',
+       {'0': 'Support clock only when application writes registers', '1': 'Force clock on for register'}, 'Register 32.3 LEDC_CONF_REG, p.837'),
+    _f('LEDC_CONF_REG', 'APB_CLK_SEL', 1, 0, 'R/W', 0, 'This field is used to select the common clock source for all the 4 timers.',
+       {'1': 'APB_CLK', '2': 'RC_FAST_CLK', '3': 'XTAL_CLK'}, 'Register 32.3 LEDC_CONF_REG, p.837',
+       notes='0 (the reset value) is given no meaning by the TRM: no clock selected until software writes 1-3')])
+
+
+def part(name):
+    """the rows of one part: 'drawing' (rm-2b) or 'hal-3a' -> (registers, fields)"""
+    regs = [r for r in REGISTERS if r['part'] == name]
+    names = {r['register'] for r in regs}
+    return regs, [f for f in FIELDS if f['register'] in names]
 
 
 def address(r):

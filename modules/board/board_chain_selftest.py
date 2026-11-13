@@ -55,7 +55,7 @@ def run_chain(check):
           len(P) >= 15 and len(S) >= 80
           and len([f for f in F if f['soc'] == 'atmega328p']) == 23 + sum(len(json.loads(s['functions_json'])) for s in tables['SocPin'] if s['soc'] == 'atmega328p')   # c3pf: + the ESP32-C3's own rows (board_c3_pins_selftest)
           and len(G) == len(__import__('board.custom.registers', fromlist=['load']).load('atmega328p')['registers']) and len(X) == len(RF.FIELDS)
-          and (len(G_all) - len(G), len(X_all) - len(X)) == (91, 761))
+          and (len(G_all) - len(G), len(X_all) - len(X)) == (130, 881))   # the C3: rm-2b's 91 / 761 + hal-3a LEDC 39 / 120
     check('chain: every row has a name, an origin and a soc; names are unique per class',
           all(r['name'] and r['origin'] and r['soc'] for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField') for r in tables[c])
           and all(len({r['name'] for r in tables[c]}) == len(tables[c]) for c in ('Peripheral', 'PeripheralSignal', 'PinFunction', 'Register', 'RegisterField')))
