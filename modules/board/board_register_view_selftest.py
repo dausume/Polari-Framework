@@ -23,9 +23,9 @@ def model():
     from board.custom import register_view as RV
     s = {r['soc']: r for r in RV.socs()}
     c3 = RV.categories('esp32c3')
-    check('BOTH CHIPS ANSWER: the 328P has 96 registers / 208 fields (Port C cited 2026-11-11; Timer0/1, OCR2A, ADC 2026-11-12), the C3 its rm-2b drawing set + hal-3a, 149 registers / 918 fields; the C3 register categories carry '
+    check('BOTH CHIPS ANSWER: the 328P has 96 registers / 208 fields (Port C cited 2026-11-11; Timer0/1, OCR2A, ADC 2026-11-12), the C3 its rm-2b drawing set + hal-3a, 153 registers / 982 fields; the C3 register categories carry '
           'counts (pins, matrix, UART, timer, clock, reset, interrupt vectors) and a category none of its registers lands in stays future scope',
-          (s['atmega328p']['registers'], s['atmega328p']['fields']) == (96, 208) and (s['esp32c3']['registers'], s['esp32c3']['fields']) == (149, 918)
+          (s['atmega328p']['registers'], s['atmega328p']['fields']) == (96, 208) and (s['esp32c3']['registers'], s['esp32c3']['fields']) == (153, 982)
           and {r['path'] for r in c3 if r['count']} >= {'mcu-pin/interrupt', 'soc-interconnect/matrix', 'mcu-peripheral/uart', 'mcu-peripheral/timer', 'mcu-system/clock'}
           and all(r['state'] == 'future scope' for r in c3 if not r['count']), s)
     t = {r['path']: r for r in RV.categories('atmega328p')}

@@ -36,6 +36,8 @@ def idf_names(block, register, field):
             return 'LEDC_LSCH%s_%s' % (m.group(2), m.group(3)), ['LEDC_%s_LSCH%s' % (field, m.group(2)), 'LEDC_DUTY_LSCH%s' % m.group(2)]
         if m:
             return 'LEDC_LSTIMER%s_%s' % (m.group(2), m.group(3)), ['LEDC_%s_LSTIMER%s' % (field, m.group(2)), 'LEDC_LSTIMER%s_%s' % (m.group(2), field)]
+        if register.startswith('LEDC_INT_'):   # the TRM's TIMERx / CHn are ESP-IDF's LSTIMERx / LSCHn
+            return register[:-4], ['LEDC_' + re.sub(r'(^|_)(CH|TIMER)(\d)', r'\1LS\2\3', field)]
         return 'LEDC_CONF', ['LEDC_' + field]
     if block == 'INTMTX':
         return register[:-4], [register[:-4]]

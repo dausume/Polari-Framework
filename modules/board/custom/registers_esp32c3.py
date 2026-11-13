@@ -23,7 +23,7 @@ the generated HAL's families need, starting with the pwm family's LEDC (Chapter 
 DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF); the adc family's SAR ADC1 one-time sampling (Chapter 34: CTRL, ONETIME_SAMPLE, 1_DATA_STATUS, the ADC1_DONE
 interrupt bits, CLKM_CONF); the alarm family's SYSTIMER COMP0 (TARGET0_HI / LO / CONF, COMP0_LOAD, the TARGET0 interrupt bits); the LEDC / APB_SARADC
 clock + reset bits (in the drawing set's SYSTEM registers: `part` is per field); and the LEDC / SYSTIMER_TARGET0 / APB_ADC interrupt maps. Its codes and sentences are accepted only where the TRM field name AND the register header agree; its bit
-positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (157 / 157). Every field also carries
+positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (221 / 221; LEDC's interrupt bits read from the TRM's rendered pages). Every field also carries
 `trm_access`, the TRM code verbatim: the generated HAL's access table maps from it, never from the lossy `access` word. A field the TRM does not describe
 (LEDC TICK_SEL) has an empty trm_access and says so, so the HAL treats it as missing.
 
@@ -356,6 +356,35 @@ FIELDS.extend([
        {'1': 'APB_CLK', '2': 'RC_FAST_CLK', '3': 'XTAL_CLK'}, 'Register 32.3 LEDC_CONF_REG, p.837',
        notes='0 (the reset value) is given no meaning by the TRM: no clock selected until software writes 1-3')])
 
+
+# ---- hal-3a, LEDC's interrupt bits (Registers 32.9-32.12, pp.840-841). pdftotext prints these two-register pages out of order, so the overlay could
+# not accept them: each code and sentence below was READ FROM THE RENDERED PAGE (2026-11-13, econ), and the bit layout from its bit diagram - bits 0-3
+# TIMERx_OVF, 4-9 DUTY_CHNG_END_CHn, 10-15 OVF_CNT_CHn, 16-31 reserved, every reset 0 - agrees with the SVD and ESP-IDF v5.5.5 (they call them LSTIMERx /
+# LSCHn). The TRM's own names are kept.
+_LEDC_INT = (('LEDC_INT_RAW_REG', 0x00C0, '32.9', 840, 'RAW', 'R/WTC/SS',
+              ('Triggered when the timer%d has reached its maximum counter value.', 'Interrupt raw bit for channel %d. Triggered when the gradual change of duty has finished.',
+               'Interrupt raw bit for channel %d. Triggered when the ovf_cnt has reached the value specified by LEDC_OVF_NUM_CH%d.'),
+              {'1': 'the event occurred (set by hardware; cleared through LEDC_INT_CLR_REG)'}),
+             ('LEDC_INT_ST_REG', 0x00C4, '32.10', 840, 'ST', 'RO',
+              ('This is the masked interrupt status bit for the LEDC_TIMER%d_OVF_INT interrupt when LEDC_TIMER%d_OVF_INT_ENA is set to 1.',
+               'This is the masked interrupt status bit for the LEDC_DUTY_CHNG_END_CH%d_INT interrupt when LEDC_DUTY_CHNG_END_CH%d_INT_ENA is set to 1.',
+               'This is the masked interrupt status bit for the LEDC_OVF_CNT_CH%d_INT interrupt when LEDC_OVF_CNT_CH%d_INT_ENA is set to 1.'),
+              {'1': 'raw and enabled'}),
+             ('LEDC_INT_ENA_REG', 0x00C8, '32.11', 841, 'ENA', 'R/W',
+              ('The interrupt enable bit for the LEDC_TIMER%d_OVF_INT interrupt.', 'The interrupt enable bit for the LEDC_DUTY_CHNG_END_CH%d_INT interrupt.',
+               'The interrupt enable bit for the LEDC_OVF_CNT_CH%d_INT interrupt.'), {'0': 'disabled', '1': 'enabled'}),
+             ('LEDC_INT_CLR_REG', 0x00CC, '32.12', 841, 'CLR', 'WT',
+              ('Set this bit to clear the LEDC_TIMER%d_OVF_INT interrupt.', 'Set this bit to clear the LEDC_DUTY_CHNG_END_CH%d_INT interrupt.',
+               'Set this bit to clear the LEDC_OVF_CNT_CH%d_INT interrupt.'), {'1': 'clear'}))
+for name, off, t, pg, kind, code, (w_tim, w_end, w_ovf), vals in _LEDC_INT:
+    where = 'Register %s %s, p.%d (read from the rendered page)' % (t, name, pg)
+    _reg(name, 'LEDC', off, 'LEDC interrupt %s' % kind.lower(), 'Register %s, p.%d' % (t, pg), '0x00000000', 'bits 16-31 reserved')
+    for x in range(_LEDC_TIMERS):
+        FIELDS.append(_f(name, 'TIMER%d_OVF_INT_%s' % (x, kind), x, x, code, 0, w_tim.replace('%d', str(x)), vals, where))
+    for n in range(_LEDC_CH):
+        FIELDS.append(_f(name, 'DUTY_CHNG_END_CH%d_INT_%s' % (n, kind), 4 + n, 4 + n, code, 0, w_end.replace('%d', str(n)), vals, where))
+    for n in range(_LEDC_CH):
+        FIELDS.append(_f(name, 'OVF_CNT_CH%d_INT_%s' % (n, kind), 10 + n, 10 + n, code, 0, w_ovf.replace('%d', str(n)), vals, where))
 
 # ---- hal-3a, the adc family: SAR ADC1 one-time sampling (Chapter 34 Registers 34.1 / 34.6 / 34.9 / 34.14-34.17 / 34.19, pp.879-888; base Table 3.3-3
 # cont'd p.99). Same acceptance and checks as LEDC: codes + sentences name-and-header accepted; bits / offsets / resets from the SVD, checked against
