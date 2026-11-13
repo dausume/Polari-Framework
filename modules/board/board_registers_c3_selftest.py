@@ -31,10 +31,16 @@ def table():
           'clock/reset enables, UART0)', (len(dregs), len(dflds)) == (91, 761) and {'GPIO_PIN21_REG', 'IO_MUX_GPIO0_REG', 'GPIO_FUNC6_IN_SEL_CFG_REG', 'GPIO_STRAP_REG',
                                                                                          'RTC_CNTL_RESET_STATE_REG', 'INTERRUPT_CORE0_UART_INTR_MAP_REG', 'SYSTIMER_UNIT0_VALUE_LO_REG',
                                                                                          'SYSTEM_PERIP_CLK_EN0_REG', 'UART0_CONF0_REG'} <= set(regs), (len(dregs), len(dflds)))
-    check('hal-3a LEDC (the pwm family): 39 registers / 120 fields - CH0..5 CONF0 / HPOINT / DUTY / CONF1 / DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF; every part row '
-          'is one of the two parts (91 + 39 = %d registers, 761 + 120 = %d fields)' % (len(R.REGISTERS), len(R.FIELDS)),
-          (len(hregs), len(hflds)) == (39, 120) and {r['block'] for r in hregs} == {'LEDC'} and (len(R.REGISTERS), len(R.FIELDS)) == (130, 881)
-          and {r['part'] for r in R.REGISTERS} == {'drawing', 'hal-3a'}, (len(hregs), len(hflds), len(R.REGISTERS), len(R.FIELDS)))
+    hb = {}
+    for r in hregs:
+        hb[r['block']] = hb.get(r['block'], 0) + 1
+    check('hal-3a (the HAL families\' registers): LEDC 39 (pwm), APB_SARADC 8 (adc one-time sampling + its clock), SYSTIMER 8 (COMP0 alarm), INTMTX 3 (the '
+          'LEDC / SYSTIMER_TARGET0 / APB_ADC maps) = 58 registers / 157 fields (4 of them LEDC / APB_SARADC clock + reset bits in the drawing set\'s SYSTEM registers); '
+          'together %d registers / %d fields' % (len(R.REGISTERS), len(R.FIELDS)),
+          (len(hregs), len(hflds)) == (58, 157) and hb == {'LEDC': 39, 'APB_SARADC': 8, 'SYSTIMER': 8, 'INTMTX': 3}
+          and (len(R.REGISTERS), len(R.FIELDS)) == (149, 918) and {r['part'] for r in R.REGISTERS} == {'drawing', 'hal-3a'}
+          and {f['part'] for f in R.FIELDS} == {'drawing', 'hal-3a'} and len([f for f in hflds if f['register'].startswith('SYSTEM_')]) == 4,
+          (len(hregs), len(hflds), hb, len(R.REGISTERS), len(R.FIELDS)))
     tick = [f for f in hflds if f['field'] == 'TICK_SEL']
     check('hal-3a trm_access: every field carries the TRM\'s code verbatim (hal-3b maps from it); LEDC TICK_SEL x4 - in the SVD and ESP-IDF, NOT in TRM v1.4 - carries '
           'none, and says so', all('trm_access' in f for f in R.FIELDS) and all(f['trm_access'] for f in R.FIELDS if f['field'] != 'TICK_SEL')
@@ -98,11 +104,11 @@ def chain():
     flds = [f for f in t['RegisterField'] if f['soc'] == 'esp32c3']
     sig, sp = {r['name'] for r in t['PeripheralSignal']}, {r['name'] for r in t['SocPin']}
     per = {r['peripheral']: r for r in t['Peripheral'] if r['soc'] == 'esp32c3'}
-    check('rm-2b + hal-3a IN THE CHAIN: 130 Register + 881 RegisterField rows for esp32c3 (the drawing set 91 / 761 + LEDC 39 / 120); every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
-          'GPIO / UART0 / LEDC / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (130, 881)
+    check('rm-2b + hal-3a IN THE CHAIN: 149 Register + 918 RegisterField rows for esp32c3 (the drawing set 91 / 761 + hal-3a 58 / 157); every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
+          'GPIO / UART0 / LEDC / ADC1 / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (149, 918)
           and all(f['affects_pin'] in sp for f in flds if f['affects_pin']) and all(f['affects_signal'] in sig for f in flds if f['affects_signal'])
           and {f.get('datasheet') for f in flds} == {'espressif-esp32-c3-trm'}
-          and all(json.loads(per[p]['registers_refs_json']) for p in ('GPIO', 'UART0', 'LEDC', 'SYSTIMER', 'SYSTEM', 'RTC_CNTL', 'INTMTX'))
+          and all(json.loads(per[p]['registers_refs_json']) for p in ('GPIO', 'UART0', 'LEDC', 'ADC1', 'SYSTIMER', 'SYSTEM', 'RTC_CNTL', 'INTMTX'))
           and per['I2C0']['undetermined'].startswith('no register of this block'), (len(regs), len(flds)))
 
 

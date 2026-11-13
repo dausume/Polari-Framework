@@ -20,8 +20,10 @@ Absolute address = the module base (Table 3.3-3 Module/Peripheral Address Mappin
 
 hal-3a (2026-11-13, econ) adds a second PART beside rm-2b's drawing set (each register's 'part': 'drawing' | 'hal-3a'; part(name) -> rows): the registers
 the generated HAL's families need, starting with the pwm family's LEDC (Chapter 32, Registers 32.1-32.8, pp.836-839: CH0..5 CONF0 / HPOINT / DUTY / CONF1 /
-DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF). Its codes and sentences are accepted only where the TRM field name AND the register header agree; its bit
-positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (120 / 120). Every field also carries
+DUTY_R, TIMER0..3 CONF / VALUE, LEDC_CONF); the adc family's SAR ADC1 one-time sampling (Chapter 34: CTRL, ONETIME_SAMPLE, 1_DATA_STATUS, the ADC1_DONE
+interrupt bits, CLKM_CONF); the alarm family's SYSTIMER COMP0 (TARGET0_HI / LO / CONF, COMP0_LOAD, the TARGET0 interrupt bits); the LEDC / APB_SARADC
+clock + reset bits (in the drawing set's SYSTEM registers: `part` is per field); and the LEDC / SYSTIMER_TARGET0 / APB_ADC interrupt maps. Its codes and sentences are accepted only where the TRM field name AND the register header agree; its bit
+positions and register offsets come from Espressif's SVD and are checked against ESP-IDF v5.5.5's own soc/*_reg.h (157 / 157). Every field also carries
 `trm_access`, the TRM code verbatim: the generated HAL's access table maps from it, never from the lossy `access` word. A field the TRM does not describe
 (LEDC TICK_SEL) has an empty trm_access and says so, so the HAL treats it as missing.
 
@@ -33,11 +35,13 @@ from board.custom import esp32c3_evidence as EV
 
 SOC = EV.SOC
 PADS = range(22)
-BASES = {'UART0': 0x60000000, 'GPIO': 0x60004000, 'RTC_CNTL': 0x60008000, 'IO_MUX': 0x60009000, 'LEDC': 0x60019000, 'SYSTIMER': 0x60023000, 'SYSTEM': 0x600C0000,
-         'INTMTX': 0x600C2000}
+BASES = {'UART0': 0x60000000, 'GPIO': 0x60004000, 'RTC_CNTL': 0x60008000, 'IO_MUX': 0x60009000, 'LEDC': 0x60019000, 'SYSTIMER': 0x60023000,
+         'APB_SARADC': 0x60040000, 'SYSTEM': 0x600C0000, 'INTMTX': 0x600C2000}
+#: hal-3a: the ADC controller's base is printed on the table's continuation page (Table 3.3-3 cont'd, p.99: "ADC Controller 0x6004_0000")
 BASE_CITE = 'Table 3.3-3 Module/Peripheral Address Mapping, p.98'
 #: the block a register belongs to -> the Peripheral row (esp32c3_chain_meta): IO MUX registers belong to the GPIO block's chapter (TRM Chapter 5 "IO MUX and GPIO Matrix")
-PERIPHERAL_OF = {'UART0': 'UART0', 'GPIO': 'GPIO', 'IO_MUX': 'GPIO', 'RTC_CNTL': 'RTC_CNTL', 'LEDC': 'LEDC', 'SYSTIMER': 'SYSTIMER', 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTMTX'}
+PERIPHERAL_OF = {'UART0': 'UART0', 'GPIO': 'GPIO', 'IO_MUX': 'GPIO', 'RTC_CNTL': 'RTC_CNTL', 'LEDC': 'LEDC', 'SYSTIMER': 'SYSTIMER', 'APB_SARADC': 'ADC1',
+                 'SYSTEM': 'SYSTEM', 'INTMTX': 'INTMTX'}
 
 #: Table 5.12-1 p.174: the pads whose drive codes 1 and 2 are swapped ("GPIO2, GPIO3, GPIO4, GPIO5, GPIO18, GPIO19"; Register 5.21's own text prints GPIO18 twice
 #: and omits GPIO4 - the table is taken)
@@ -59,13 +63,14 @@ RESET_CAUSES = {'0x01': 'Chip reset (power-on or brown-out)', '0x0F': 'Brown-out
                 '0x0D': 'RWDT CPU reset', '0x11': 'MWDT1 CPU reset'}
 
 #: the TRM access code -> Polari's access word (board.custom.register_access); the code itself rides on every field
-ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw', 'RO': 'r', 'R/SS/WTC': 'r', 'WT': 'w-strobe', 'WO': 'w-strobe', 'WT-set': 'w1-set', 'WT-clear': 'w1-clear', 'RO-fifo': 'fifo'}
+ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw', 'RO': 'r', 'R/SS/WTC': 'r', 'R/WTC/SS': 'r', 'WT': 'w-strobe', 'WO': 'w-strobe', 'WT-set': 'w1-set', 'WT-clear': 'w1-clear', 'RO-fifo': 'fifo'}
 
 
 def _f(register, field, hi, lo, code, reset, description, values, where, pin='', signal='', notes=''):
     trm = code.split('-')[0]
     return {'register': register, 'field': field, 'bit_hi': hi, 'bit_lo': lo, 'width': hi - lo + 1, 'access': ACCESS[code], 'reset_value': str(reset),
             'description': description, 'values': values, 'page_table': where, 'affects_pin': pin, 'affects_signal': signal,
+            'part': _PART,
             'trm_access': trm,   # hal-3a: the TRM's own code, verbatim - hal-3b's access table maps from THIS, never from the lossy `access` word
             'notes': ('TRM access %s' % trm) + ('; ' + notes if notes else '')}
 
@@ -340,7 +345,7 @@ for x in range(_LEDC_TIMERS):
     FIELDS.append({'register': 'LEDC_TIMER%d_CONF_REG' % x, 'field': 'TICK_SEL', 'bit_hi': 24, 'bit_lo': 24, 'width': 1, 'access': 'rw', 'reset_value': '0',
                    'description': 'not described in TRM v1.4',
                    'values': {'any': 'no meaning given: the TRM does not describe this bit; the SVD and ESP-IDF only name it TICK_SEL'}, 'page_table': 'not in TRM v1.4; ' + _LEDC_SVD, 'affects_pin': '', 'affects_signal': '',
-                   'trm_access': '', 'notes': 'NO TRM access code; access rw = the SVD\'s read-write, not the TRM\'s; ' + _LEDC_TICK})
+                   'part': _PART, 'trm_access': '', 'notes': 'NO TRM access code; access rw = the SVD\'s read-write, not the TRM\'s; ' + _LEDC_TICK})
     _reg('LEDC_TIMER%d_VALUE_REG' % x, 'LEDC', 0xA4 + 8 * x, 'LEDC timer %d current count' % x, 'Register 32.8, p.839', '0x00000000')
     FIELDS.append(_f('LEDC_TIMER%d_VALUE_REG' % x, 'CNT', 13, 0, 'RO', 0, 'This field stores the current counter value of timer x.', {'read': 'the counter now'}, wv))
 _reg('LEDC_CONF_REG', 'LEDC', 0xD0, 'LEDC global configuration', 'Register 32.3, p.837', '0x00000000')
@@ -352,11 +357,103 @@ FIELDS.extend([
        notes='0 (the reset value) is given no meaning by the TRM: no clock selected until software writes 1-3')])
 
 
+# ---- hal-3a, the adc family: SAR ADC1 one-time sampling (Chapter 34 Registers 34.1 / 34.6 / 34.9 / 34.14-34.17 / 34.19, pp.879-888; base Table 3.3-3
+# cont'd p.99). Same acceptance and checks as LEDC: codes + sentences name-and-header accepted; bits / offsets / resets from the SVD, checked against
+# ESP-IDF v5.5.5 soc/apb_saradc_reg.h. The SVD spells three of these bits differently (APB_SARADC1_DONE_INT_*, SARADC1_ONETIME_SAMPLE); the TRM and
+# ESP-IDF agree (APB_SARADC_ADC1_DONE_INT_*, APB_SARADC1_ONETIME_SAMPLE), so the TRM's names are kept.
+_NOT_ALL_A = 'only the one-time-sampling (ADC1) and clock fields the adc family needs are ingested; the rest is documented in the TRM, not ingested'
+_reg('APB_SARADC_CTRL_REG', 'APB_SARADC', 0x0000, 'SAR ADC control register 1', 'Register 34.1, p.879', '0x40038240', _NOT_ALL_A)
+_A1 = 'Register 34.1 APB_SARADC_CTRL_REG, p.879'
+FIELDS.extend([
+    _f('APB_SARADC_CTRL_REG', 'XPD_SAR_FORCE', 28, 27, 'R/W', 0, 'Force select XPD SAR.', {'any': 'the SAR power select (the TRM gives no value codes here)'}, _A1),
+    _f('APB_SARADC_CTRL_REG', 'SAR_CLK_DIV', 14, 7, 'R/W', 4, 'SAR ADC clock divider. This value should be no less than 2.', {'any': 'the divider (>= 2)'}, _A1),
+    _f('APB_SARADC_CTRL_REG', 'SAR_CLK_GATED', 6, 6, 'R/W', 1, 'SAR ADC clock gate enable bit.', {'0': 'gate off', '1': 'gate enabled'}, _A1),
+    _f('APB_SARADC_CTRL_REG', 'START', 1, 1, 'R/W', 0, 'Write 1 here to start the SAR ADC by software. Valid only when APB_SARADC_START_FORCE = 1.',
+       {'1': 'start (with START_FORCE = 1)'}, _A1),
+    _f('APB_SARADC_CTRL_REG', 'START_FORCE', 0, 0, 'R/W', 0, 'Select who starts the SAR ADC.',
+       {'0': 'select FSM to start SAR ADC', '1': 'select software to start SAR ADC'}, _A1)])
+_reg('APB_SARADC_ONETIME_SAMPLE_REG', 'APB_SARADC', 0x0020, 'SAR ADC one-time sampling configuration', 'Register 34.6, p.881', '0x1A000000')
+_A6 = 'Register 34.6 APB_SARADC_ONETIME_SAMPLE_REG, p.881'
+FIELDS.extend([
+    _f('APB_SARADC_ONETIME_SAMPLE_REG', 'SARADC1_ONETIME_SAMPLE', 31, 31, 'R/W', 0, 'Enable SAR ADC1 one-time sampling.', {'0': 'off', '1': 'enabled'}, _A6,
+       notes='TRM / ESP-IDF name APB_SARADC1_ONETIME_SAMPLE; the SVD calls it SARADC1_ONETIME_SAMPLE'),
+    _f('APB_SARADC_ONETIME_SAMPLE_REG', 'SARADC2_ONETIME_SAMPLE', 30, 30, 'R/W', 0, 'Enable SAR ADC2 one-time sampling.', {'0': 'off', '1': 'enabled'}, _A6,
+       notes='TRM / ESP-IDF name APB_SARADC2_ONETIME_SAMPLE; ADC2: see the Peripheral row (the TRM notes its DIG controller does not work properly)'),
+    _f('APB_SARADC_ONETIME_SAMPLE_REG', 'ONETIME_START', 29, 29, 'R/W', 0, 'Start SAR ADC one-time sampling.', {'1': 'start one sample'}, _A6),
+    _f('APB_SARADC_ONETIME_SAMPLE_REG', 'ONETIME_CHANNEL', 28, 25, 'R/W', 13, 'Configure the channel for a one-time sampling.', {'any': 'the channel'}, _A6,
+       notes='reset 13 (SVD resetValue 0x1A000000)'),
+    _f('APB_SARADC_ONETIME_SAMPLE_REG', 'ONETIME_ATTEN', 24, 23, 'R/W', 0, 'Configure the attenuation for a one-time sampling.',
+       {'any': 'the attenuation (the TRM gives no code-to-dB table in this register)'}, _A6)])
+_reg('APB_SARADC_1_DATA_STATUS_REG', 'APB_SARADC', 0x002C, 'SAR ADC1 sampling data register', 'Register 34.9, p.883', '0x00000000')
+FIELDS.append(_f('APB_SARADC_1_DATA_STATUS_REG', 'ADC1_DATA', 16, 0, 'RO', 0, 'SAR ADC1 conversion data.', {'read': 'the last ADC1 conversion'},
+                 'Register 34.9 APB_SARADC_1_DATA_STATUS_REG, p.883', notes='the SVD calls it APB_SARADC1_DATA'))
+for name, off, t, pg, code, what, vals in (
+        ('APB_SARADC_INT_ENA_REG', 0x0040, '34.14', 885, 'R/W', 'Enable bit of APB_SARADC_ADC1_DONE_INT interrupt.', {'0': 'disabled', '1': 'enabled'}),
+        ('APB_SARADC_INT_RAW_REG', 0x0044, '34.15', 886, 'RO', 'Raw bit of APB_SARADC_ADC1_DONE_INT interrupt.', {'1': 'ADC1 completed one conversion'}),
+        ('APB_SARADC_INT_ST_REG', 0x0048, '34.16', 886, 'RO', 'Status of APB_SARADC_ADC1_DONE_INT interrupt.', {'1': 'pending and enabled'}),
+        ('APB_SARADC_INT_CLR_REG', 0x004C, '34.17', 887, 'WO', 'Clear bit of APB_SARADC_ADC1_DONE_INT interrupt.', {'1': 'clear'})):
+    _reg(name, 'APB_SARADC', off, 'SAR ADC interrupt %s' % name.split('_INT_')[1][:-4].lower(), 'Register %s, p.%d' % (t, pg), '0x00000000',
+         'only ADC1_DONE (bit 31) is ingested; ADC2_DONE and the threshold bits are documented in the TRM, not ingested')
+    FIELDS.append(_f(name, 'ADC1_DONE_INT_' + name.split('_INT_')[1][:-4], 31, 31, code, 0, what, vals, 'Register %s %s, p.%d' % (t, name, pg),
+                     notes='APB_SARADC_ADC1_DONE_INT: "Triggered when SAR ADC1 completes one data conversion" (§34.5 p.877); the SVD spells it APB_SARADC1_DONE_INT_*'))
+_reg('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'APB_SARADC', 0x0054, 'SAR ADC clock (CLKM) configuration', 'Register 34.19, p.888', '0x00000004')
+_A19 = 'Register 34.19 APB_SARADC_APB_ADC_CLKM_CONF_REG, p.888'
+FIELDS.extend([
+    _f('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'CLK_SEL', 22, 21, 'R/W', 0, 'Select the ADC clock source.',
+       {'0': 'Use APB_CLK as clock source', '1': 'use divided-down PLL_240 as clock source'}, _A19, notes='codes 2 and 3 are given no meaning by the TRM'),
+    _f('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'CLK_EN', 20, 20, 'R/W', 0, 'Enable the SAR ADC register clock.', {'0': 'off', '1': 'enabled'}, _A19),
+    _f('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'CLKM_DIV_A', 19, 14, 'R/W', 0, 'The denominator value of fractional clock divider.', {'any': 'denominator'}, _A19),
+    _f('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'CLKM_DIV_B', 13, 8, 'R/W', 0, 'The numerator value of fractional clock divider.', {'any': 'numerator'}, _A19),
+    _f('APB_SARADC_APB_ADC_CLKM_CONF_REG', 'CLKM_DIV_NUM', 7, 0, 'R/W', 4, 'The integer part of ADC clock divider. Divider value = APB_SARADC_CLKM_DIV_NUM + '
+       'APB_SARADC_CLKM_DIV_B/APB_SARADC_CLKM_DIV_A.', {'any': 'the integer divider'}, _A19)])
+
+# ---- hal-3a, the alarm family: SYSTIMER comparator 0 (Registers 10.14-10.17 / 10.26-10.29, pp.282-287), the same checks against soc/systimer_reg.h
+_reg('SYSTIMER_TARGET0_HI_REG', 'SYSTIMER', 0x001C, 'system timer COMP0 alarm value, high', 'Register 10.14, p.282', '0x00000000')
+FIELDS.append(_f('SYSTIMER_TARGET0_HI_REG', 'TIMER_TARGET0_HI', 19, 0, 'R/W', 0, 'The alarm value to be loaded to COMP0, high 20 bits.', {'any': 'alarm bits 51..32'},
+                 'Register 10.14 SYSTIMER_TARGET0_HI_REG, p.282', notes='loaded into COMP0 by TIMER_COMP0_LOAD'))
+_reg('SYSTIMER_TARGET0_LO_REG', 'SYSTIMER', 0x0020, 'system timer COMP0 alarm value, low', 'Register 10.15, p.282', '0x00000000')
+FIELDS.append(_f('SYSTIMER_TARGET0_LO_REG', 'TIMER_TARGET0_LO', 31, 0, 'R/W', 0, 'The alarm value to be loaded to COMP0, low 32 bits.', {'any': 'alarm bits 31..0'},
+                 'Register 10.15 SYSTIMER_TARGET0_LO_REG, p.282', notes='loaded into COMP0 by TIMER_COMP0_LOAD'))
+_reg('SYSTIMER_TARGET0_CONF_REG', 'SYSTIMER', 0x0034, 'system timer COMP0 configuration', 'Register 10.16, p.282', '0x00000000')
+_T16 = 'Register 10.16 SYSTIMER_TARGET0_CONF_REG, p.282'
+FIELDS.extend([
+    _f('SYSTIMER_TARGET0_CONF_REG', 'TARGET0_TIMER_UNIT_SEL', 31, 31, 'R/W', 0, 'Select which unit to compare for COMP0.',
+       {'any': 'which unit (UNIT0 / UNIT1) COMP0 compares against - the TRM names no code for each'}, _T16),
+    _f('SYSTIMER_TARGET0_CONF_REG', 'TARGET0_PERIOD_MODE', 30, 30, 'R/W', 0, 'Set COMP0 to period mode.', {'0': 'target (one-shot) mode', '1': 'period mode'}, _T16),
+    _f('SYSTIMER_TARGET0_CONF_REG', 'TARGET0_PERIOD', 25, 0, 'R/W', 0, 'COMP0 alarm period.', {'any': 'the period in timer ticks (period mode)'}, _T16)])
+_reg('SYSTIMER_COMP0_LOAD_REG', 'SYSTIMER', 0x0050, 'system timer COMP0 synchronization', 'Register 10.17, p.283', '0x00000000')
+FIELDS.append(_f('SYSTIMER_COMP0_LOAD_REG', 'TIMER_COMP0_LOAD', 0, 0, 'WT', 0, 'COMP0 synchronization enable signal. Set this bit to reload the alarm value/period to COMP0.',
+                 {'1': 'reload TARGET0_HI / LO / PERIOD into COMP0'}, 'Register 10.17 SYSTIMER_COMP0_LOAD_REG, p.283'))
+for name, off, t, pg, code, what, vals in (
+        ('SYSTIMER_INT_ENA_REG', 0x0064, '10.26', 286, 'R/W', 'SYSTIMER_TARGET0_INT enable bit.', {'0': 'disabled', '1': 'enabled'}),
+        ('SYSTIMER_INT_RAW_REG', 0x0068, '10.27', 286, 'R/WTC/SS', 'SYSTIMER_TARGET0_INT raw bit.', {'1': 'COMP0 alarm occurred (set by hardware; write 1 to clear)'}),
+        ('SYSTIMER_INT_CLR_REG', 0x006C, '10.28', 287, 'WT', 'SYSTIMER_TARGET0_INT clear bit.', {'1': 'clear'}),
+        ('SYSTIMER_INT_ST_REG', 0x0070, '10.29', 287, 'RO', 'SYSTIMER_TARGET0_INT status bit.', {'1': 'pending and enabled'})):
+    _reg(name, 'SYSTIMER', off, 'system timer interrupt %s' % name.split('_INT_')[1][:-4].lower(), 'Register %s, p.%d' % (t, pg), '0x00000000',
+         'only TARGET0 (bit 0) is ingested; TARGET1 / TARGET2 are documented in the TRM, not ingested')
+    FIELDS.append(_f(name, 'TARGET0_INT_' + name.split('_INT_')[1][:-4], 0, 0, code, 0, what, vals, 'Register %s %s, p.%d' % (t, name, pg)))
+
+# ---- hal-3a: the clocks + resets of LEDC and the ADC controller, in the drawing set's SYSTEM registers (Register 16.3 p.435 / 16.5 p.437)
+for bit, what, reset in ((11, 'LEDC', 0), (28, 'APB_SARADC', 1)):
+    FIELDS.append(_f('SYSTEM_PERIP_CLK_EN0_REG', '%s_CLK_EN' % what, bit, bit, 'R/W', reset, 'Set this bit to enable %s clock' % what, {'0': 'clock gated', '1': 'clock enabled'},
+                     'Register 16.3 SYSTEM_PERIP_CLK_EN0_REG, p.435; Table 16.3-2 p.430', notes='reset %d (SVD resetValue 0xF9C1E06F, bit %d)' % (reset, bit)))
+    FIELDS.append(_f('SYSTEM_PERIP_RST_EN0_REG', '%s_RST' % what, bit, bit, 'R/W', 0, 'Set this bit to reset %s' % what, {'0': 'released', '1': 'held in reset'},
+                     'Register 16.5 SYSTEM_PERIP_RST_EN0_REG, p.437; Table 16.3-2 p.430'))
+
+# ---- hal-3a: the three sources the families interrupt through (Registers 8.13 / 8.27 / 8.33; the shared SOURCE_X_MAP field p.214; Table 8.3-1 pp.204-205)
+for name, off, src, what, t, tp in (('INTERRUPT_CORE0_LEDC_INT_MAP_REG', 0x005C, 23, 'LEDC_INTR', '8.13', 'p.213', ),
+                                    ('INTERRUPT_CORE0_SYSTIMER_TARGET0_INT_MAP_REG', 0x0094, 37, 'SYSTIMER_TARGET0_INTR', '8.27', 'p.213'),
+                                    ('INTERRUPT_CORE0_APB_ADC_INT_MAP_REG', 0x00AC, 43, 'APB_ADC_INTR (the TRM prints "vDIGTAL_ADC_INTR")', '8.33', 'p.214')):
+    tbl = 'p.204' if src < 37 else 'p.205'
+    _reg(name, 'INTMTX', off, 'interrupt matrix: map source %d, %s' % (src, what), 'Register %s, %s; source Table 8.3-1 %s' % (t, tp, tbl), '0x00000000')
+    FIELDS.append(_f(name, 'MAP', 4, 0, 'R/W', 0, 'Map the interrupt source (SOURCE_X) into one CPU interrupt', {'any': 'the CPU interrupt this source is mapped to (a 5-bit field)'},
+                     'the INTERRUPT_CORE0_SOURCE_X_MAP field, p.214; Table 8.3-1 %s (source %d)' % (tbl, src)))
+
+
 def part(name):
-    """the rows of one part: 'drawing' (rm-2b) or 'hal-3a' -> (registers, fields)"""
-    regs = [r for r in REGISTERS if r['part'] == name]
-    names = {r['register'] for r in regs}
-    return regs, [f for f in FIELDS if f['register'] in names]
+    """the rows of one part: 'drawing' (rm-2b) or 'hal-3a' -> (registers, fields). A part's fields may sit in the other part's registers
+    (hal-3a adds LEDC / APB_SARADC bits to the drawing set's SYSTEM_PERIP_CLK_EN0 / _RST_EN0)."""
+    return [r for r in REGISTERS if r['part'] == name], [f for f in FIELDS if f['part'] == name]
 
 
 def address(r):
