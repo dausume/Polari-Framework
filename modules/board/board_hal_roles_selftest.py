@@ -2,8 +2,8 @@
 roles gen.base_roles asks the generated HAL header for are exactly the blocks the shared uno/hal.c turns on, judged from that
 variant's OWN rendered board_config.h (render_config) through hal.c's own guards:
     LED    <- #if FEATURE_LED
-    BUTTON <- #if HAL_INT0 && !HAL_BUTTON_ROUTE      (a build flag HAL_INT0=1 turns it on too: uno-button-count)
-    SENSE  <- #if HAL_INT1 && !HAL_SENSE_ROUTE
+    BUTTON <- #if CFG_INT0 && !CFG_BUTTON_ROUTE      (a build flag CFG_INT0=1 turns it on too: uno-button-count)
+    SENSE  <- #if CFG_INT1 && !CFG_SENSE_ROUTE
     PWM    <- #if FEATURE_PWM                        (hal.c #errors on any PWM_PIN but 5 / 6 / 9 / 10)
 plus each role's pin (BUTTON D2 = INT0, SENSE D3 = INT1: hal.c's blocks are hardware-fixed to them). A proof that cannot fail is
 not a proof, so the comparator is also run on a role set and on a config that must FAIL it.
@@ -14,7 +14,7 @@ import re
 
 _results = []
 
-HAL_C_GUARDS = ('FEATURE_LED', 'HAL_INT0 && !HAL_BUTTON_ROUTE', 'HAL_INT1 && !HAL_SENSE_ROUTE', 'FEATURE_PWM')   # guarded_roles mirrors these
+HAL_C_GUARDS = ('FEATURE_LED', 'CFG_INT0 && !CFG_BUTTON_ROUTE', 'CFG_INT1 && !CFG_SENSE_ROUTE', 'FEATURE_PWM')   # guarded_roles mirrors these
 FIXED_PIN = {'BUTTON': 'PD2', 'SENSE': 'PD3'}   # hal.c: ISR(INT0_vect) on D2, ISR(INT1_vect) on D3
 
 
@@ -33,9 +33,9 @@ def guarded_roles(d):
     out = set()
     if g('FEATURE_LED'):
         out.add('LED')
-    if g('HAL_INT0') and not g('HAL_BUTTON_ROUTE'):
+    if g('CFG_INT0') and not g('CFG_BUTTON_ROUTE'):
         out.add('BUTTON')
-    if g('HAL_INT1') and not g('HAL_SENSE_ROUTE'):
+    if g('CFG_INT1') and not g('CFG_SENSE_ROUTE'):
         out.add('SENSE')
     if g('FEATURE_PWM'):
         out.add('PWM')
@@ -72,18 +72,18 @@ def run():
         except V.VariantRefused as e:
             check('%s variant %s resolves' % (kind, v['name']), False, e)
             continue
-        flagged += any(n == 'HAL_INT0' for n, _ in r.get('flags') or [])
+        flagged += any(n == 'CFG_INT0' for n, _ in r.get('flags') or [])
         why = judge(G.base_roles(r), V.render_config(r))
         check('%s variant %s: base_roles == the hal.c blocks its board_config.h turns on' % (kind, v['name']), not why, '; '.join(why))
-    check('the build-flag path is exercised (a variant sets HAL_INT0 as a flag: uno-button-count / -debounce)', flagged >= 1, flagged)
+    check('the build-flag path is exercised (a variant sets CFG_INT0 as a flag: uno-button-count / -debounce)', flagged >= 1, flagged)
     # controls: the comparator must fail
-    cfg = '#define FEATURE_LED  1\n#define FEATURE_PWM  0\n#define HAL_INT0     1\n#define HAL_BUTTON_ROUTE 1\n'
-    check('control: a route-rendered button (HAL_BUTTON_ROUTE 1) turns hal.c\'s INT0 block OFF', guarded_roles(defines(cfg)) == {'LED'})
+    cfg = '#define FEATURE_LED  1\n#define FEATURE_PWM  0\n#define CFG_INT0     1\n#define CFG_BUTTON_ROUTE 1\n'
+    check('control: a route-rendered button (CFG_BUTTON_ROUTE 1) turns hal.c\'s INT0 block OFF', guarded_roles(defines(cfg)) == {'LED'})
     check('control: a role hal.c does not turn on is caught',
           judge([{'role': 'LED', 'pin': 'PB5'}, {'role': 'BUTTON', 'pin': 'PD2'}], cfg) != [])
     check('control: a missing role is caught', judge([], cfg) != [])
     check('control: a button off D2 is caught',
-          judge([{'role': 'LED', 'pin': 'PB5'}, {'role': 'BUTTON', 'pin': 'PD7'}], cfg.replace('#define HAL_BUTTON_ROUTE 1\n', '')) != [])
+          judge([{'role': 'LED', 'pin': 'PB5'}, {'role': 'BUTTON', 'pin': 'PD7'}], cfg.replace('#define CFG_BUTTON_ROUTE 1\n', '')) != [])
     total, ok = len(_results), sum(_results)
     print('\n%d/%d checks passed' % (ok, total))
     return ok == total
