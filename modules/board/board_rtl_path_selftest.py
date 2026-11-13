@@ -1,9 +1,9 @@
-"""board_rtl_path_selftest - hal-4: the "our own RTL" path with no reference manual. custom/evidence/toy_rtl/toyperiph.rdl (SystemRDL, one
-field of each access kind) -> toyperiph.expected.svd (HAND-WRITTEN: the SVD we expect peakrdl-cmsis to emit; regenerate with the real tool
-and diff once installing PeakRDL is allowed) -> board.custom.svd_import -> access_overlay.apply_svd: every field gets the HAL access word
-from the SVD alone, cited. The SVD is checked against the RDL field by field, by a reader for this RDL subset only, so an SVD that drops
-the RDL's meaning (onwrite = woclr, sw = r ...) is caught. Finding, kept as a check: SystemRDL `singlepulse` has no CMSIS-SVD form, so
-from the SVD alone `go` is a plain store ('w'), never 'w-strobe'.
+"""board_rtl_path_selftest - hal-4: the "our own RTL" path. custom/evidence/toy_rtl/toyperiph.rdl (SystemRDL, one field of each access kind)
+is read DIRECTLY by board.custom.rdl_import (a reader for the SystemRDL subset our RTL uses; anything outside it refused in words), and every
+field gets its HAL access word from the RDL alone, cited to its line: go -> w-strobe (singlepulse), done -> r-w1c (woclr). pol's decision
+2026-11-13: own silicon is read from SystemRDL, because CMSIS-SVD has no singlepulse form. toyperiph.expected.svd (HAND-WRITTEN: the SVD we
+expect peakrdl-cmsis to emit; regenerate with the real tool and diff once installing PeakRDL is allowed) is the cross-check that the two
+paths agree on everything an SVD CAN say - and from the SVD alone go is only a plain store 'w'.
 
     PYTHONPATH=.:modules python3 -m board.board_rtl_path_selftest      # from polari-framework/ (standalone)
 """
@@ -20,41 +20,26 @@ def check(label, cond, extra=''):
     print('  [%s] %s%s' % ('PASS' if cond else 'FAIL', label, ('  ' + str(extra)[:300]) if (extra and not cond) else ''))
 
 
-def rdl_fields(text):
-    """THIS FILE's SystemRDL subset only (one addrmap of regs, each `field { props } name[hi:lo | width] = reset;`, `} inst @ off;`)
-    -> {(reg instance, FIELD): {sw, onwrite, singlepulse, lo, width, offset}}. Not a SystemRDL compiler."""
-    out = {}
-    for body, inst, off in re.findall(r'reg\s*\{(.*?)\}\s*(\w+)\s*@\s*(0x[0-9A-Fa-f]+)\s*;', text, re.S):
-        for props, name, rng in re.findall(r'field\s*\{(.*?)\}\s*(\w+)\s*\[([^\]]+)\]', body, re.S):
-            if ':' in rng:
-                hi, lo = (int(x) for x in rng.split(':'))
-                w = hi - lo + 1
-            else:
-                lo, w = 0, int(rng)
-            p = re.sub(r'desc\s*=\s*"[^"]*"\s*;', '', props)
-            out[(inst.upper(), name.upper())] = {'sw': re.search(r'\bsw\s*=\s*(\w+)', p).group(1), 'onwrite': (re.search(r'\bonwrite\s*=\s*(\w+)', p) or [None, ''])[1],
-                                                 'singlepulse': bool(re.search(r'\bsinglepulse\b', p)), 'lo': lo, 'width': w, 'offset': int(off, 16)}
-    return out
-
-
-SW = {'rw': 'read-write', 'r': 'read-only', 'w': 'write-only'}
-ONWRITE = {'': '', 'woclr': 'oneToClear', 'woset': 'oneToSet', 'wot': 'oneToToggle'}
-
-
-def consistent(rdl, chip):
-    """every RDL field is in the SVD at the same offset / bits, with the access and modifiedWriteValues the RDL implies -> [] or the differences"""
-    regs = {r['register']: r for r in chip['peripherals']['TOYPERIPH']['registers']}
+def agree(rdl_rows, svd_rows):
+    """the RDL path vs the SVD path on everything an SVD can say: the same registers at the same offsets, the same fields at the same bits
+    with the same reset, and access words that agree - where the RDL says w-strobe the SVD can only say w (no singlepulse form)
+    -> [] or the differences"""
+    (rr, rf), (sr, sf) = rdl_rows, svd_rows
     why = []
-    for (reg, name), x in sorted(rdl.items()):
-        r = regs.get(reg)
-        f = next((f for f in (r or {}).get('fields', []) if f['field'] == name), None)
-        if not r or not f:
-            why.append('%s.%s: not in the SVD' % (reg, name))
+    ro, so = {r['register']: r['offset'] for r in rr}, {r['register']: r['offset'] for r in sr}
+    if ro != so:
+        why.append('registers / offsets differ: %s vs %s' % (sorted(ro.items()), sorted(so.items())))
+    a = {(f['register'], f['field']): f for f in rf}
+    b = {(f['register'], f['field']): f for f in sf}
+    for k in sorted(set(a) | set(b)):
+        x, y = a.get(k), b.get(k)
+        if not x or not y:
+            why.append('%s.%s only in the %s path' % (k[0], k[1], 'RDL' if x else 'SVD'))
             continue
-        if (r['offset'], f['bit_lo'], f['width']) != (x['offset'], x['lo'], x['width']):
-            why.append('%s.%s at 0x%X [%d +%d], RDL 0x%X [%d +%d]' % (reg, name, r['offset'], f['bit_lo'], f['width'], x['offset'], x['lo'], x['width']))
-        if f['svd_access'] != SW[x['sw']] or f['svd_semantics'].get('modifiedWriteValues', '') != ONWRITE[x['onwrite']]:
-            why.append('%s.%s: SVD %s %s, RDL sw=%s onwrite=%s' % (reg, name, f['svd_access'], f['svd_semantics'], x['sw'], x['onwrite'] or '-'))
+        if (x['bit_lo'], x['width'], x['reset_value']) != (y['bit_lo'], y['width'], y['reset_value']):
+            why.append('%s.%s bits / reset %s vs %s' % (k[0], k[1], (x['bit_lo'], x['width'], x['reset_value']), (y['bit_lo'], y['width'], y['reset_value'])))
+        if not (x['access_word'] == y['access_word'] or (x['access_word'] == 'w-strobe' and y['access_word'] == 'w')):
+            why.append('%s.%s access RDL %s vs SVD %s' % (k[0], k[1], x['access_word'], y['access_word']))
     return why
 
 
@@ -69,38 +54,113 @@ def _load(text):
         os.unlink(path)
 
 
+def _rdl(text):
+    from board.custom import rdl_import as D
+    fd, path = tempfile.mkstemp(suffix='.rdl')
+    with os.fdopen(fd, 'w') as fh:
+        fh.write(text)
+    try:
+        return D.load(path)
+    finally:
+        os.unlink(path)
+
+
+def _refused(text, words):
+    from board.custom import rdl_import as D
+    try:
+        _rdl(text)
+    except D.RdlRefused as e:
+        return words in str(e)
+    return False
+
+
+UNIT = """// a comment
+addrmap unit { /* block comment */
+    default sw = rw;
+    reg { field { desc = "a"; } a[4] = 4'h9; field { sw = r; } b[4] = 'd3; field { } c[8:8]; } r0 @ 0x0;
+    reg { field { sw = rw; onread = rclr; } rc[0:0] = 0; field { sw = rw; singlepulse; } sp[1:1] = 0;
+          field { sw = rw; onwrite = woset; } ws[2:2] = 0; field { sw = w; singlepulse = true; } go[3:3] = 0; } r1 @ 0x4;
+    reg { regwidth = 16; field { sw = r; } v[15:0] = 0x1234; } arr[3] @ 0x10 += 0x8;
+};
+"""
+
+
+def unit():
+    from board.custom import rdl_import as D
+    a = _rdl(UNIT)
+    regs = {r['register']: r for r in a['registers']}
+    r0 = {f['field']: f for f in regs['R0']['fields']}
+    check('comments are skipped; a WIDTH-only field is packed at the next free bit (lsb0): a[3:0], b[7:4], then c[8:8] given explicitly',
+          [(r0[k]['bit_hi'], r0[k]['bit_lo']) for k in ('A', 'B', 'C')] == [(3, 0), (7, 4), (8, 8)], r0)
+    check('numbers: 4\'h9 -> 9, \'d3 -> 3, 0x1234; a field with no reset says so (never a number)',
+          (r0['A']['reset_value'], r0['B']['reset_value'], regs['ARR0']['fields'][0]['reset_value']) == ('9', '3', '4660')
+          and r0['C']['reset_value'].startswith('undefined'), (r0['A']['reset_value'], r0['B']['reset_value'], r0['C']['reset_value']))
+    check('`default sw = rw` applies to fields that do not set sw (a, c), a field\'s own wins (b sw = r)', (r0['A']['sw'], r0['B']['sw'], r0['C']['sw']) == ('rw', 'r', 'rw'))
+    check('an array reg arr[3] @ 0x10 += 0x8 -> ARR0 / ARR1 / ARR2 at 0x10 / 0x18 / 0x20, regwidth 16 kept',
+          [(regs['ARR%d' % i]['offset'], regs['ARR%d' % i]['regwidth']) for i in range(3)] == [(0x10, 16), (0x18, 16), (0x20, 16)])
+    R, F, left = D.rows(a, block='U', prefix='U')
+    w = {(f['register'], f['field']): f['access_word'] for f in F}
+    lw = {(x['register'], x['field']): x['why'] for x in left}
+    check('access words: sw = w + singlepulse -> w-strobe; sw = r -> r; sw = rw -> rw (each cited to its RDL line)',
+          w[('U_R1_REG', 'GO')] == 'w-strobe' and w[('U_R0_REG', 'B')] == 'r' and w[('U_R0_REG', 'A')] == 'rw'
+          and all(f['access_cite'].startswith('tmp') or '.rdl line' in f['access_cite'] for f in F if f['access_word']), w)
+    check('NO word, said: onread = rclr (a read side effect), singlepulse on a READABLE field, onwrite = woset (no agreed word yet)',
+          set(lw) == {('U_R1_REG', 'RC'), ('U_R1_REG', 'SP'), ('U_R1_REG', 'WS')} and 'onread = rclr' in lw[('U_R1_REG', 'RC')]
+          and 'only a write-only singlepulse' in lw[('U_R1_REG', 'SP')] and 'woset' in lw[('U_R1_REG', 'WS')], lw)
+    good = 'addrmap m { reg { field { } f[0:0] = 0; } r @ 0x0; };'
+    for label, text, words in (
+            ('parameters', 'addrmap m { reg #(longint W = 8) { field { } f[0:0]; } r @ 0x0; };', 'parameters'),
+            ('a named reg definition', 'addrmap m { reg myreg { field { } f[0:0]; }; myreg r @ 0x0; };', 'named reg definition'),
+            ('an enum', 'addrmap m { enum e { A = 0; }; };', 'enum is outside'),
+            ('a regfile', 'addrmap m { regfile { }; };', 'regfile is outside'),
+            ('a user-defined property', 'addrmap m { property p { type = boolean; }; };', 'a user-defined property'),
+            ('a dynamic property assignment', 'addrmap m { reg { field { } f[0:0]; } r @ 0x0; r.f->reset = 1; };', 'outside the subset'),
+            ('a property outside the subset (swmod)', 'addrmap m { reg { field { swmod; } f[0:0]; } r @ 0x0; };', "property 'swmod' is not in the subset"),
+            ('a reg without @ (automatic addressing)', 'addrmap m { reg { field { } f[0:0]; } r; };', 'no @ offset'),
+            ('overlapping fields', 'addrmap m { reg { field { } a[3:0]; field { } b[2:2]; } r @ 0x0; };', 'overlaps'),
+            ('overlapping registers', 'addrmap m { reg { field { } a[0:0]; } r @ 0x0; reg { field { } b[0:0]; } s @ 0x2; };', 'overlaps R at byte'),
+            ('a reversed (msb0) range', 'addrmap m { reg { field { } a[0:3]; } r @ 0x0; };', 'msb0'),
+            ('a reset that does not fit', 'addrmap m { reg { field { } a[1:0] = 7; } r @ 0x0; };', 'does not fit'),
+            ('a nested addrmap', 'addrmap m { addrmap n { }; };', 'nested addrmap'),
+            ('sw = rw1 (not a SystemRDL value in the subset)', 'addrmap m { reg { field { sw = rw1; } a[0:0]; } r @ 0x0; };', 'outside the subset')):
+        check('refused in words: %s' % label, _refused(text, words), text)
+    check('control: the minimal good file reads (so the refusals above are about their one change)', _rdl(good)['registers'][0]['register'] == 'R')
+
+
 def run():
     from board.custom import access_overlay as O
+    from board.custom import rdl_import as D
     from board.custom import svd_import as S
-    rdl_text = open(os.path.join(HERE, 'toyperiph.rdl')).read()
+    unit()
     svd_text = open(os.path.join(HERE, 'toyperiph.expected.svd')).read()
-    rdl = rdl_fields(rdl_text)
-    check('the RDL declares one field of each kind: rw (gpio_out.out, ctrl.en, ctrl.mode[2:1]), a woclr flag (status.done), a singlepulse '
-          'write (cmd.go), a read-only counter (count.count[15:0])', set(rdl) == {('GPIO_OUT', 'OUT'), ('CTRL', 'EN'), ('CTRL', 'MODE'), ('STATUS', 'DONE'),
-          ('CMD', 'GO'), ('COUNT', 'COUNT')} and rdl[('STATUS', 'DONE')]['onwrite'] == 'woclr' and rdl[('CMD', 'GO')]['singlepulse']
-          and (rdl[('CTRL', 'MODE')]['lo'], rdl[('CTRL', 'MODE')]['width']) == (1, 2), sorted(rdl))
+    amap = D.load(os.path.join(HERE, 'toyperiph.rdl'))
+    rr, rf, left = D.rows(amap, block='TOY', prefix='TOY')
+    words = {(f['register'], f['field']): f['access_word'] for f in rf}
+    check('toyperiph.rdl READ DIRECTLY: every field gets its HAL access word from the RDL alone, cited to its line - out / en / mode rw, done r-w1c '
+          '(sw = rw; onwrite = woclr), go w-strobe (sw = w; singlepulse), count r', not left and words == {
+              ('TOY_GPIO_OUT_REG', 'OUT'): 'rw', ('TOY_CTRL_REG', 'EN'): 'rw', ('TOY_CTRL_REG', 'MODE'): 'rw', ('TOY_STATUS_REG', 'DONE'): 'r-w1c',
+              ('TOY_CMD_REG', 'GO'): 'w-strobe', ('TOY_COUNT_REG', 'COUNT'): 'r'}
+          and all(f['access_source'] == 'rdl' and f['access_cite'].startswith('toyperiph.rdl line ') for f in rf), words)
+    go = next(f for f in rf if f['field'] == 'GO')
+    check('the cite names the line and the properties that decided it (go: "toyperiph.rdl line 26: sw = w; hw = r; singlepulse")',
+          go['access_cite'] == 'toyperiph.rdl line 26: sw = w; hw = r; singlepulse', go['access_cite'])
     check('the hand SVD says it is hand-written and that the singlepulse form is UNVERIFIED (until the real tool regenerates it)',
           'HAND-WRITTEN' in svd_text and 'UNVERIFIED' in svd_text and 'NOT generated by the tool' in svd_text)
     chip = S.load(os.path.join(HERE, 'toyperiph.expected.svd'))
-    why = consistent(rdl, chip)
-    check('the SVD agrees with the RDL field for field (offset, bits, sw -> access, onwrite = woclr -> modifiedWriteValues oneToClear)', not why, why)
-    R, F = S.rows(chip, 'TOYPERIPH', block='TOY', name_prefix='TOY')
-    out, left = O.apply_svd(F)
-    words = {(f['register'], f['field']): f['access_word'] for f in out}
-    check('import + svd_semantics -> the HAL\'s access words with NO manual: OUT / EN / MODE rw, DONE r-w1c, COUNT r - each cited to the SVD element',
-          words == {('TOY_GPIO_OUT_REG', 'OUT'): 'rw', ('TOY_CTRL_REG', 'EN'): 'rw', ('TOY_CTRL_REG', 'MODE'): 'rw', ('TOY_STATUS_REG', 'DONE'): 'r-w1c',
-                    ('TOY_CMD_REG', 'GO'): 'w', ('TOY_COUNT_REG', 'COUNT'): 'r'} and not left
-          and all(f['access_source'] == 'svd' and f['access_cite'].startswith('SVD TOYPERIPH.') for f in out), words)
-    check('FINDING: SystemRDL singlepulse has no CMSIS-SVD form, so from the SVD alone cmd.go is a plain store \'w\', never \'w-strobe\' - a strobe '
-          'that needs the self-clear must read the RDL itself (or a vendor extension), not the SVD', words[('TOY_CMD_REG', 'GO')] == 'w')
-    # must-fail controls
+    sr, sf = S.rows(chip, 'TOYPERIPH', block='TOY', name_prefix='TOY')
+    sf, sleft = O.apply_svd(sf)
+    why = agree((rr, rf), (sr, sf))
+    check('the two paths agree on everything an SVD can say (registers, offsets, bits, resets, access) - the RDL\'s w-strobe is the SVD\'s plain w',
+          not why and not sleft, why)
+    check('FINDING kept: from the SVD alone go is a plain store \'w\' (no singlepulse form), from the RDL it is \'w-strobe\' - own silicon is read from SystemRDL',
+          next(f for f in sf if f['field'] == 'GO')['access_word'] == 'w' and go['access_word'] == 'w-strobe')
     dropped = _load(svd_text.replace('<modifiedWriteValues>oneToClear</modifiedWriteValues>', ''))
-    check('control: an SVD that drops the RDL\'s woclr is caught by the RDL cross-check (and would have mapped DONE to plain rw)',
-          consistent(rdl, dropped) != [] and O.from_svd(next(f for f in S.rows(dropped, 'TOYPERIPH')[1] if f['field'] == 'DONE'))[0] == 'rw')
+    dr, df = S.rows(dropped, 'TOYPERIPH', block='TOY', name_prefix='TOY')
+    df, _ = O.apply_svd(df)
+    check('control: an SVD that drops the RDL\'s woclr disagrees with the RDL path (done r-w1c vs rw) and is caught', agree((rr, rf), (dr, df)) != [])
     ra = _load(svd_text.replace('<access>read-only</access>', '<access>read-only</access><readAction>clear</readAction>'))
     w, why_ra = O.from_svd(next(f for f in S.rows(ra, 'TOYPERIPH')[1] if f['field'] == 'COUNT'))
-    check('control: a field with a readAction (clear-on-read) gets NO word and says why (no agreed word for a read side effect yet)',
-          w is None and 'readAction clear' in why_ra, why_ra)
+    check('control: an SVD field with a readAction (clear-on-read) gets NO word and says why', w is None and 'readAction clear' in why_ra, why_ra)
     total, ok = len(_results), sum(_results)
     print('\n%d/%d checks passed' % (ok, total))
     return ok == total

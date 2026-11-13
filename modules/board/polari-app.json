@@ -383,6 +383,7 @@
    "custom/pv_shapes",
    "custom/reachability",
    "custom/readiness",
+   "custom/rdl_import",
    "custom/register_access",
    "custom/register_fields_atmega328p",
    "custom/register_import",
