@@ -18,7 +18,7 @@ The subset:
 
 Rows: the generator's shape (svd_import.rows'), with access_word / access_source 'rdl' / access_cite = the RDL file, line and the
 properties that decided it. The access words (plan §4b): sw=rw -> rw; sw=r -> r; sw=w -> w; sw=w + singlepulse -> w-strobe;
-sw=rw + onwrite=woclr -> r-w1c. Any other combination (onread side effects, woset / wot, singlepulse on a readable field ...) gets no
+sw=rw + onwrite=woclr -> r-w1c; sw=rw + hwclr -> rw-sc (read-write, cleared by hardware: what `wait` polls). Any other combination (onread side effects, woset / wot, singlepulse on a readable field ...) gets no
 word and says why, so choose() fails closed.
 """
 import re
@@ -122,6 +122,8 @@ def _word(f):
         return 'w-strobe', 'sw = w; singlepulse'
     if ow == 'woclr' and sw == 'rw':
         return 'r-w1c', 'sw = rw; onwrite = woclr'
+    if f.get('hwclr') and sw == 'rw' and not ow:   # pol 2026-11-13: the hardware clear is what `wait` polls for (TRM R/W/SC; no SVD form)
+        return 'rw-sc', 'sw = rw; hwclr'
     if ow:
         return None, 'onwrite = %s with sw = %s: no HAL access word agreed' % (ow, sw)
     return {'rw': 'rw', 'r': 'r', 'w': 'w'}[sw], 'sw = %s' % sw

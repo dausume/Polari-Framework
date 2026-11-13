@@ -14,6 +14,7 @@ addrmap toyperiph {
         name = "Control";
         field { desc = "Enable the peripheral."; sw = rw; hw = r; } en[0:0] = 0;
         field { desc = "Operating mode: 0 idle, 1 run, 2 step, 3 test."; sw = rw; hw = r; } mode[2:1] = 0;
+        field { desc = "Write 1 to start a calibration; hardware clears it when the calibration is done."; sw = rw; hw = r; hwclr; } start[3:3] = 0;
     } ctrl @ 0x4;
 
     reg {

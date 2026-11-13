@@ -5,6 +5,7 @@
      UNVERIFIED: how peakrdl-cmsis represents `singlepulse`. CMSIS-SVD's modifiedWriteValues has no "self-clearing" value
      (oneToClear / oneToSet / oneToToggle / zeroToClear / zeroToSet / zeroToToggle / clear / set / modify), so this file emits
      plain write-only and nothing else for go. If the tool emits more, the regeneration diff will show it.
+     Likewise `hwclr` (ctrl.start): CMSIS-SVD has no "cleared by hardware" form, so start is emitted as plain read-write.
      To be replaced by the tool's own output once installing PeakRDL is allowed, and diffed against this file. -->
 <device schemaVersion="1.3">
   <name>toyperiph</name>
@@ -26,6 +27,7 @@
           <fields>
             <field><name>EN</name><description>Enable the peripheral.</description><bitOffset>0</bitOffset><bitWidth>1</bitWidth><access>read-write</access></field>
             <field><name>MODE</name><description>Operating mode: 0 idle, 1 run, 2 step, 3 test.</description><bitOffset>1</bitOffset><bitWidth>2</bitWidth><access>read-write</access></field>
+            <field><name>START</name><description>Write 1 to start a calibration; hardware clears it when the calibration is done.</description><bitOffset>3</bitOffset><bitWidth>1</bitWidth><access>read-write</access></field>
           </fields>
         </register>
         <register>
