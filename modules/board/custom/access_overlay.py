@@ -173,3 +173,38 @@ def merge(fields, ov, document):
                         page_table='Register %s %s, p.%d (%s)' % (a['table'], a['header'], a['page'], document),
                         notes='TRM access %s (overlay: name + register header agree)' % c))
     return out, conflicts
+
+
+#: the HAL access table's words (agreed with pol, plan §4b) that an SVD can say by itself: (svd access, modifiedWriteValues) -> word
+SVD_WORDS = {('read-write', ''): 'rw', ('read-only', ''): 'r', ('write-only', ''): 'w', ('read-write', 'oneToClear'): 'r-w1c'}
+
+
+def from_svd(field):
+    """For a chip with no reference manual of its own (our own RTL: SystemRDL -> SVD), the SVD IS the spec: its access word and
+    svd_semantics -> (the HAL access word, the cite) or (None, why). Only the combinations in SVD_WORDS are mapped; anything else (a
+    readAction, oneToSet, writeConstraint ...) has no agreed word yet and stays missing, said - never guessed. A self-clearing
+    write (SystemRDL singlepulse) has no CMSIS-SVD form, so from the SVD alone it is a plain 'w', never 'w-strobe'."""
+    sem = field.get('svd_semantics') or {}
+    if sem.get('readAction'):
+        return None, 'readAction %s: no HAL access word agreed for a read side effect yet' % sem['readAction']
+    if sem.get('writeConstraint'):
+        return None, 'writeConstraint %s: not mapped yet' % sem['writeConstraint']
+    key = (field.get('svd_access', ''), sem.get('modifiedWriteValues', ''))
+    word = SVD_WORDS.get(key)
+    if word is None:
+        return None, 'SVD access %s / modifiedWriteValues %s: no HAL access word agreed' % (key[0] or '-', key[1] or '-')
+    return word, 'SVD %s: access %s%s' % (field.get('page_table', '').replace('SVD ', ''), key[0], ', modifiedWriteValues ' + key[1] if key[1] else '')
+
+
+def apply_svd(fields):
+    """from_svd over imported rows -> (fields with access_word / access_source 'svd' / access_cite, the fields left without a word + why).
+    trm_access stays '' (there is no manual): the HAL's access table reads access_word when access_source is 'svd'."""
+    out, left = [], []
+    for f in fields:
+        word, why = from_svd(f)
+        if word:
+            out.append(dict(f, access_word=word, access_source='svd', access_cite=why))
+        else:
+            out.append(dict(f, access_word='', access_source='', access_cite=''))
+            left.append({'register': f['register'], 'field': f['field'], 'why': why})
+    return out, left

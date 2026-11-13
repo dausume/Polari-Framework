@@ -246,7 +246,8 @@
    "board_hal_roles_selftest",
    "board_registers_c3_facts_selftest",
    "board_svd_import_selftest",
-   "board_access_overlay_selftest"
+   "board_access_overlay_selftest",
+   "board_rtl_path_selftest"
   ],
   "custom": [
    "custom/access_overlay",
@@ -686,7 +687,8 @@
   "board_hal_roles_selftest",
   "board_registers_c3_facts_selftest",
   "board_svd_import_selftest",
-  "board_access_overlay_selftest"
+  "board_access_overlay_selftest",
+  "board_rtl_path_selftest"
  ],
  "security": {
   "profile": "web-app",
