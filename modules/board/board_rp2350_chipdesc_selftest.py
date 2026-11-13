@@ -15,6 +15,37 @@ def check(label, cond, extra=''):
     print('  [%s] %s%s' % ('PASS' if cond else 'FAIL', label, ('  ' + str(extra)[:300]) if (extra and not cond) else ''))
 
 
+PROBE = ('#include "polari_hal_rp2350.h"\nvoid a(void){HAL_GPIO_SET_HIGH_GPIO25();}\nvoid b(void){HAL_GPIO_SET_LOW_GPIO25();}\n'
+         'void c(void){HAL_GPIO_TOGGLE_GPIO25();}\nvoid d(void){HAL_GPIO_OUTPUT_GPIO25();}\nint e(void){return HAL_GPIO_READ_GPIO25();}\n')
+
+
+def _bodies(asm):
+    """-> {function: [instruction lines]} from gcc -S output (directives dropped)"""
+    out, cur = {}, None
+    for line in asm.splitlines():
+        t = line.strip()
+        if t.endswith(':') and not t.startswith('.'):
+            cur = t[:-1]
+            out[cur] = []
+        elif cur and t and not t.startswith('.'):
+            out[cur].append(' '.join(t.split()))
+    return out
+
+
+def _compile(header):
+    """riscv-gcc -march=rv32imac (the Hazard3's ISA) -Os -Werror over a probe of the header -> (asm, how) or (None, why)"""
+    try:
+        from board.custom import engine_run as ER
+        r = ER.run('riscv-gcc', ['-march=rv32imac', '-mabi=ilp32', '-Os', '-std=c11', '-ffreestanding', '-Wall', '-Wextra', '-Werror', '-S', '-o', 'p.s', 'p.c'],
+                   files={'polari_hal_rp2350.h': header.encode(), 'p.c': PROBE.encode()}, timeout=120)
+    except Exception as e:
+        return None, 'riscv-gcc refused: %s' % str(e)[:200]
+    asm = (r.get('files') or {}).get('p.s')
+    if r.get('returncode') != 0 or not asm:
+        return None, 'riscv-gcc ran (%s) but failed (rc %s): %s' % (r.get('how'), r.get('returncode'), (r.get('stderr') or '')[:200])
+    return asm.decode(), '%s %s' % (r.get('how'), r.get('where'))
+
+
 def run():
     from board.custom import chipdesc_provider as CP
     from board.custom import chipdesc_rp2350 as RP
@@ -71,6 +102,21 @@ def run():
         check('render.header writes polari_hal_rp2350.h with all six macros, "Facts from:" the vendor SVD, nothing refused',
               not h['refused'] and all(('HAL_%s_GPIO25(' % o.upper().replace('.', '_')) in h['text'] for o in u) and 'Facts from: board.custom.svd_import(Raspberry Pi pico-sdk 2.2.0' in h['text'],
               h['refused'])
+        asm, how = _compile(h['text'])
+        if asm is None:
+            print('  [SKIP] riscv-gcc compile of the RP2350 header: %s' % how)
+        else:
+            f = _bodies(asm)
+            base, bit = 'li a5,-805306368', 'li a4,33554432'   # 0xD0000000 (SIO), 1 << 25
+            check('riscv-gcc -march=rv32imac -Os -Werror (%s): set_high / set_low are ONE store to SIO+0x18 / +0x20, no load' % how,
+                  f.get('a') == [base, bit, 'sw a4,24(a5)', 'ret'] and f.get('b') == [base, bit, 'sw a4,32(a5)', 'ret'], (f.get('a'), f.get('b')))
+            check('...toggle is load / xor / store at SIO+0x10 (GPIO_OUT rmw; the XOR alias waits for w1-toggle); read loads SIO+0x04 and shifts by 25',
+                  f.get('c') == [base, 'lw a4,16(a5)', 'li a3,33554432', 'xor a4,a4,a3', 'sw a4,16(a5)', 'ret']
+                  and f.get('e', [])[:3] == [base, 'lw a0,4(a5)', 'srli a0,a0,25'], (f.get('c'), f.get('e')))
+            d = f.get('d', [])
+            check('...output writes FUNCSEL 5 at 0x400280CC (0x40028000 + 204), clears ISO (bit 8) at 0x40038068 (+104), then stores OE_SET at SIO+0x38 - in order',
+                  d[:6] == ['li a4,1073905664', 'addi a4,a4,204', 'lw a5,0(a4)', 'andi a5,a5,-32', 'ori a5,a5,5', 'sw a5,0(a4)']
+                  and d[6:10] == ['li a5,1073971200', 'lw a4,104(a5)', 'andi a4,a4,-257', 'sw a4,104(a5)'] and d[-2:] == ['sw a4,56(a5)', 'ret'], d)
     finally:
         CP.unregister('rp2350')
     after = (sorted(SR.PROVIDERS), sorted(SR.RULES), sorted(SR.DOCS))

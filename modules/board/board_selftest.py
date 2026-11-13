@@ -149,8 +149,8 @@ def engines():
         else:
             os.environ[be.IMAGE_KNOB] = old_img
         be._IMG_CACHE.clear()
-        check('engines: the worker image carries the six UNO engines (avr-gcc/objcopy/size, avrdude, simavr, avr-twin), all RULE 2 kinds',
-              set(be.IMAGE_ENGINES) == {'avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin'} and all(be.rule2_ok(e) for e in be.IMAGE_ENGINES))
+        check('engines: the worker image carries the six UNO engines (avr-gcc/objcopy/size, avrdude, simavr, avr-twin) and the RISC-V compiler (riscv-gcc, hal-4), all RULE 2 kinds',
+              set(be.IMAGE_ENGINES) == {'avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin', 'riscv-gcc'} and all(be.rule2_ok(e) for e in be.IMAGE_ENGINES))
         os.environ[be.KNOB] = 'http://127.0.0.1:9'   # a declared worker that is not there
         be._CAP_CACHE.clear()
         r = be.resolve('avrdude')
