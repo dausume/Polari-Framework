@@ -33,8 +33,8 @@ from hal.custom import soc_rules as SR
 def _boards():
     """board -> soc, from each chip's RULES 'boards' (data), never a hard-coded map."""
     return {b: soc for soc in SR.PROVIDERS for b in (SR.RULES.get(soc, {}).get('boards') or ())}
-WANT = {'set': ('w1-set', 'rw', 'rw-sc'), 'clear': ('w1-clear', 'w1c', 'r-w1c', 'rw', 'rw-sc', 'w'), 'toggle': ('rw-toggle', 'rw'),
-        'read': ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'),
+WANT = {'set': ('w1-set', 'rw', 'rw-sc'), 'clear': ('w1-clear', 'w1c', 'r-w1c', 'w0c', 'rw', 'rw-sc', 'w'), 'toggle': ('rw-toggle', 'rw'),
+        'read': ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c', 'w0c'),
         'lookup': ('rw', 'r', 'w1c', 'r-w1c', 'rw-toggle', 'w1-set', 'w1-clear', 'rw-sc', 'w', 'w-strobe'),
         # hal-3b value actions (the access words of the access table, plan §4d)
         'write': ('rw', 'w', 'rw-sc', 'fifo'), 'read_value': ('r', 'rw', 'rw-sc', 'r-w1c', 'fifo'), 'strobe': ('w-strobe',)}
@@ -150,12 +150,57 @@ def _binding(soc, tr, unit_key, op_name, pin, part, purpose, field, action, valu
                      'fmask': SR.c_field(soc, field['bit_lo'], width, 0)['fmask']})
     elif value is not None:
         fill.update(SR.c_field(soc, field['bit_lo'], width, value))
+    if mech == 'w0c-flag':   # 1 in the OTHER w0c flags (writing 1 has no effect on them), 0 in the one cleared and in reserved bits
+        fill['others'] = SR.RULES[soc]['c']['field_forms']['fmask'].format(m=_access_mask(soc, reg, ('w0c',), field['field']))
     b['c_text'] = tpl.format(**fill)
+    keep0 = _w1c_siblings(soc, reg, field) if mech in RMW_MECHANISMS else 0
+    if keep0:
+        # hal-3b step 1: a read-modify-write writes back what it read; a write-1-to-clear flag that happened to be set (ADCSRA.ADIF,
+        # UCSR0A.TXC0, WDTCSR.WDIF) would be CLEARED by that write-back. Those bits are written as 0 instead ("writing zero has no effect").
+        km = SR.RULES[soc]['c']['field_forms']['fmask'].format(m=keep0)
+        b['c_text'] = _keep_w1c(b['c_text'], creg, km)
+        tr.add('w1c-keep', 'Write-1-to-clear flags in %s' % reg, ', '.join('%s.%s' % (reg, f['field']) for f in SR.fields(soc)
+               if f['register'] == reg and f['access'] in ('w1c', 'r-w1c') and f['field'] != field['field']),
+               'a read-modify-write must write 0 to them (a 1 written back would clear a pending flag)', b['c_text'],
+               'hal.custom.generate (_keep_w1c)', 'the w1c access of each field: %s' % SR.fields_source(soc))
     b['status'] = 'resolved'
     tr.add('c-statement', 'The C for %s.%s' % (reg, field['field']), 'template %r with reg=%s, bit=%d%s' % (
         tpl, creg, field['bit_lo'], ', value=%s' % value if value is not None else ''), 'fill the template', b['c_text'],
         'hal.custom.mechanisms (%s)' % mech, SR.RULES[soc]['c']['mask'].format(bit='n') + ' is this SoC\'s bit mask form')
     return b
+
+
+RMW_MECHANISMS = ('avr-io-byte-rmw', 'mem-rmw', 'rmw-field', 'field-write', 'strobe')
+
+
+def _access_mask(soc, reg, accesses, but=None):
+    """the mask of the register's cited fields with one of these access words, except the field named `but`"""
+    m = 0
+    for f in SR.fields(soc):
+        if f['register'] == reg and f['access'] in accesses and f['field'] != but:
+            m |= ((1 << (f['bit_hi'] - f['bit_lo'] + 1)) - 1) << f['bit_lo']
+    return m
+
+
+def _w1c_siblings(soc, reg, field):
+    """the mask of the OTHER write-1-to-clear fields in the register (0 if none)"""
+    m = 0
+    for f in SR.fields(soc):
+        if f['register'] == reg and f['access'] in ('w1c', 'r-w1c') and f['field'] != field['field']:
+            m |= ((1 << (f['bit_hi'] - f['bit_lo'] + 1)) - 1) << f['bit_lo']
+    return m
+
+
+def _keep_w1c(c, creg, km):
+    """rewrite a read-modify-write statement so the register's value READ is masked with ~km before it is written back:
+    every read of `creg` on the right-hand side becomes (creg & ~km). Covers the |= / &= / ^= and the `reg = (reg & ...)` forms."""
+    ce = re.escape(creg)
+    m = re.match(r'^\s*%s\s*([|&^])=\s*(.*);\s*$' % ce, c)
+    if m:   # REG op= X  ->  REG = (REG & ~km) op X   (for &=, the cleared bits join km: REG &= ~(X | km) reads the same)
+        op, rhs = m.group(1), m.group(2)
+        return '%s = (%s & ~%s) %s %s;' % (creg, creg, km, op, rhs)
+    lhs, eq, rhs = c.partition('=')
+    return lhs + eq + re.sub(r'(?<![\w.])%s(?![\w])' % ce, '(%s & ~%s)' % (creg, km), rhs, count=1)
 
 
 def _part_value(soc, role, p, vars_, args, tr, i, functions, field=None):
@@ -176,8 +221,14 @@ def _part_value(soc, role, p, vars_, args, tr, i, functions, field=None):
             expr = role['value_expr'].format(**env)
         except KeyError as e:
             raise LookupError('value_expr needs {%s}' % e.args[0])
-        tr.add('value', 'Part %d: the value' % i, role['value_expr'], 'role value_expr over args + cited chip facts', expr, 'hal.custom.soc_rules',
-               '; '.join('%s = %s' % kv for kv in sorted(facts.items())))
+        if role.get('range_bits'):
+            # hal-3b step 1: a computed register value that does not fit its field (a baud rate too slow for UBRR's 12 bits, a tick too slow
+            # for an 8-bit top) is a COMPILE error, never a silent truncation - the same bit-field guard as the divider (constants only)
+            top = (1 << int(role['range_bits'])) - 1
+            expr = '(0u * sizeof(struct { int hal_value_out_of_range : ((%s) <= %dUL) ? 1 : -1; }) + (%s))' % (expr, top, expr)
+        tr.add('value', 'Part %d: the value' % i, role['value_expr'], 'role value_expr over args + cited chip facts%s' % (
+            '; checked at compile time to fit %d bits' % role['range_bits'] if role.get('range_bits') else ''), expr, 'hal.custom.soc_rules',
+            '; '.join('%s = %s' % kv for kv in sorted(facts.items())))
         return expr, 'value_expr %s' % role['value_expr']
     if isinstance(v, str) and v.startswith('@derive:'):
         kind, _, rest = v[len('@derive:'):].partition(':')
@@ -267,6 +318,78 @@ def _wide_binding(soc, tr, unit_key, op_name, pin, part, purpose, field, wide, a
             'mechanism': mech, 'c_text': c, 'status': 'resolved', 'why': ''}
 
 
+def _blank(unit_key, soc, op_name, pin, part, purpose):
+    return {'unit': unit_key, 'soc': soc, 'operation': op_name, 'pin': pin, 'part': part, 'purpose': purpose, 'register': '', 'field': '',
+            'bit_lo': 0, 'bit_hi': 0, 'access': '', 'value': '', 'cite': '', 'address': '', 'space': '', 'mechanism': '', 'c_text': '', 'status': '', 'why': ''}
+
+
+def _call_binding(soc, tr, unit_key, op_name, pin, part, role, i, args, op):
+    """hal-3b step 1: a part that is a cited LIBRARY call (avr-libc wdt_enable: the WDT's timed sequence). Refused unless the chip rules
+    DECLARE the library (name, version, licence) and the role says why the call is interrupt-safe. A ranged argument is checked at compile
+    time with the bit-field guard - which also means a NON-constant argument does not compile (refused, never clamped at run time)."""
+    cl = role['call']
+    b = _blank(unit_key, soc, op_name, pin, part, role.get('purpose') or op['intent'])
+    b['cite'] = role.get('cite', '')
+    libs = SR.RULES[soc].get('libraries') or {}
+    lib = libs.get(cl.get('library'))
+    if lib is None:
+        b.update(status='refused', why='%s declares no library %r (declared: %s): a call needs a provider-declared library; a chip without one '
+                 'uses register rows (keyed-write)' % (soc, cl.get('library'), ', '.join(sorted(libs)) or 'none'))
+        tr.add('call', 'Part %d: the library call' % i, cl.get('function', ''), 'the chip rules must declare the library', 'refused: ' + b['why'],
+               'hal.custom.soc_rules RULES[%s].libraries' % soc)
+        return b
+    if not cl.get('isr_safe_basis'):
+        b.update(status='refused', why='the call role gives no isr_safe_basis (why an interrupt cannot split the sequence): never assumed')
+        return b
+    env = {a: '(%s)' % a for a in args}
+    argv = []
+    for a_text in cl.get('args') or []:
+        try:
+            expr = a_text.format(**env)
+        except KeyError as e:
+            b.update(status='refused', why='the call argument needs {%s}, which is no argument of the operation' % e.args[0])
+            return b
+        name = a_text.strip('{}')
+        rng = (cl.get('arg_range') or {}).get(name)
+        if rng:
+            expr = '(0u * sizeof(struct { int hal_arg_out_of_range : ((unsigned)(%s) <= %du) ? 1 : -1; }) + (%s))' % (expr, rng[1], expr)
+        argv.append(expr)
+    m = MX.by_name('library-call')
+    b.update(mechanism='library-call', c_text=m['templates']['call'].format(function=cl['function'], args=', '.join(argv)), status='resolved',
+             value=', '.join(argv))
+    tr.add('call', 'Part %d: the library call' % i, '%s from %s (%s)' % (cl['function'], cl['include'], cl['library']),
+           'a sequence plain writes cannot express: %s' % cl.get('why', ''), b['c_text'],
+           'hal.custom.soc_rules RULES[%s].libraries[%s] = %s' % (soc, cl['library'], lib.get('version', '')),
+           '%s; interrupt-safe: %s%s' % (role.get('cite', ''), cl['isr_safe_basis'],
+                                          '; %s must be a constant in %d..%d (else a compile error, never a run-time clamp)' % (
+                                              ', '.join(cl['arg_range']), *next(iter(cl['arg_range'].values()))) if cl.get('arg_range') else ''))
+    return b
+
+
+def _clear_all_binding(soc, tr, unit_key, op_name, pin, part, role, i, vars_, op):
+    """every flag of one register cleared by ONE store (MCUSR = 0): only when EVERY cited field of the register has the role's access word
+    (w0c: writing 0 clears, the reserved bits are written 0) - checked against the field rows, never assumed."""
+    ca = role['clear_all']
+    reg = _fill(ca['register'], vars_)
+    b = _blank(unit_key, soc, op_name, pin, part, role.get('purpose') or op['intent'])
+    b.update(register=reg, cite=role.get('cite', ''))
+    flds = [f for f in SR.fields(soc) if f['register'] == reg]
+    facts = SR.register_facts(soc, reg)
+    bad = [f['field'] for f in flds if f['access'] != ca['access']]
+    if ca['access'] != 'w0c' or not flds or bad or facts is None:
+        b.update(status='refused', why='clear_all of %s needs every cited field w0c (fields: %s; not w0c: %s)' % (
+            reg, ', '.join(f['field'] for f in flds) or 'none', ', '.join(bad) or 'none'))
+        return b
+    m = MX.by_name('w0c-flag')
+    c = m['templates']['clear'].format(reg=SR.c_register(soc, reg, facts), others=SR.RULES[soc]['c']['field_forms']['fmask'].format(m=0))
+    b.update(field=', '.join(f['field'] for f in flds), bit_lo=min(f['bit_lo'] for f in flds), bit_hi=max(f['bit_hi'] for f in flds),
+             access='w0c', value='0', address=facts['address'], space=facts['space'], mechanism='w0c-flag', c_text=c, status='resolved')
+    tr.add('field', 'Part %d: every flag of %s' % (i, reg), ', '.join('%s %s' % (f['field'], f['access']) for f in flds),
+           'clear_all: every cited field must be w0c', 'all w0c: one store of 0 clears them all, no read', SR.fields_source(soc), role.get('cite', ''))
+    tr.add('c-statement', 'The C for %s' % reg, m['templates']['clear'], 'fill the template', c, 'hal.custom.mechanisms (w0c-flag)', m['cite'])
+    return b
+
+
 def _isr_safe(b):
     return MX.by_name(b['mechanism'].split(' / ')[-1])['isr_safe']
 
@@ -321,6 +444,10 @@ def unit(soc, operation, pin, board=''):
         tr.add('peripheral', 'The peripheral', pin, 'lookup', 'variables %s; signals %s' % (
             ', '.join('%s=%s' % kv for kv in sorted(per['vars'].items())) or 'none', ', '.join(per.get('signals') or []) or 'none'),
             'hal.custom.soc_rules RULES[%s].peripherals' % soc, per.get('cite', ''))
+        if op['family'] not in (per.get('families') or ()):
+            tr.add('peripheral', 'The peripheral', pin, 'family', '%s serves %s, not %s' % (pin, ', '.join(per.get('families') or ()) or 'nothing', op['family']),
+                   'hal.custom.soc_rules RULES[%s].peripherals' % soc, per.get('cite', ''))
+            return stop('refused', '%s is not a %s peripheral (it serves %s)' % (pin, op['family'], ', '.join(per.get('families') or ()) or 'no family'))
         vars_ = dict(per['vars'])
         functions = list(per.get('signals') or [])
     else:
@@ -363,6 +490,7 @@ def unit(soc, operation, pin, board=''):
     # parts
     symbols = []
     reads = []
+    extra_includes = []
     args = [x['name'] for x in op.get('args') or []]
     for i, p in enumerate(parts, 1):
         role = rules['roles'].get(p['role'])
@@ -372,14 +500,30 @@ def unit(soc, operation, pin, board=''):
             tr.add('role', 'Part %d: role %s' % (i, p['role']), soc, 'hal.custom.soc_rules', 'inherent: ' + role['inherent']['words'],
                    'hal.custom.soc_rules', role['inherent'].get('cite', ''))
             continue
+        if role and role.get('call') and p['action'] == 'call':   # hal-3b step 1: a cited library function (econ's review folded in)
+            b = _call_binding(soc, tr, uk, operation, pin, len(bindings) + 1, role, i, args, op)
+            bindings.append(b)
+            if b['status'] != 'resolved':
+                return stop(b['status'], 'part %d (%s): %s' % (i, p['role'], b['why']))
+            extra_includes.append(role['call']['include'])
+            continue
+        if role and role.get('clear_all') and p['action'] == 'clear':   # every flag of a register at once (MCUSR = 0)
+            b = _clear_all_binding(soc, tr, uk, operation, pin, len(bindings) + 1, role, i, vars_, op)
+            bindings.append(b)
+            if b['status'] != 'resolved':
+                return stop(b['status'], 'part %d (%s): %s' % (i, p['role'], b['why']))
+            continue
         if role and role.get('fields') and p['action'] in ('write', 'set'):   # hal-3b: one logical value over several fields
             try:
                 value_c, vwhy = _part_value(soc, role, p, vars_, args, tr, i, functions)
             except LookupError as e:
                 return stop('refused', 'part %d (%s): %s' % (i, p['role'], e))
             for j, cf in enumerate(role['fields'], 1):
-                reg = _fill(cf['register'], vars_)
-                names = [_fill(x, vars_) for x in (cf['field'] if isinstance(cf['field'], list) else [cf['field']])]
+                try:
+                    reg = _fill(cf['register'], vars_)
+                    names = [_fill(x, vars_) for x in (cf['field'] if isinstance(cf['field'], list) else [cf['field']])]
+                except LookupError as e:
+                    return stop('refused', 'part %d (%s): %s' % (i, p['role'], e))
                 f = next((x for x in SR.fields(soc) if x['register'] == reg and x['field'] in names), None)
                 if f is None:
                     return stop('undetermined', 'composite part %d.%d: no cited field %s on %s' % (i, j, '/'.join(names), reg))
@@ -488,6 +632,7 @@ def unit(soc, operation, pin, board=''):
                ('guarded: %s' % ', '.join('%s.%s' % (b['register'], b['field']) for b in unsafe)) if unsafe else 'none needed: every write is one indivisible write',
                'hal.custom.mechanisms (isr_safe) + hal.custom.soc_rules (guard)', c['guard_why'] if unsafe else '')
     includes = list(c['includes']) + ([c['guard_include']] if unsafe and c['guard_include'] else [])
+    includes += [x for x in extra_includes if x not in includes]
     params = '(%s)' % ', '.join(args)
     if symbols:
         text = '#define %s %s' % (name, symbols[0])

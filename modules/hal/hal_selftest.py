@@ -102,8 +102,8 @@ def main():
         for r in rows:
             cls(**r, manager=m)
     check('six classes; two seeded (operations, mechanisms)', len(HAL_CLASSES) == 6 and [p[0] for p in HAL_SEED_PAIRS] == ['HalOperation', 'HalAccessMechanism'])
-    check('23 operations (8 GPIO + 10 interrupt + 5 pwm, hal-3b), every part\'s role and action in the vocabulary',
-          len(OPS.OPERATIONS) == 23 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
+    check('50 operations (10 GPIO + 10 interrupt + 5 pwm, hal-3b; 13 uart + 3 timer + 5 adc + 4 wdt, hal-3b step 1; gpio.pull_none + gpio.digital_input_off for the analog isotope), every part\'s role and action in the vocabulary',
+          len(OPS.OPERATIONS) == 50 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
           and all(o['basis'] for o in OPS.OPERATIONS))
     check('every implemented access mechanism has templates for its actions and a cite',
           all(mm['cite'] and (mm['kind'] == 'setup' or not mm.get('implemented', True) or mm['templates']) for mm in MX.MECHANISMS))
@@ -205,11 +205,11 @@ def main():
     n328 = [x for x in allu['atmega328p'] if x['unit']['status'] == 'resolved']
     nc3 = [x for x in allu['esp32c3'] if x['unit']['status'] == 'resolved']
     g328 = [x for x in gpio['atmega328p'] if x['unit']['status'] == 'resolved']
-    check('GPIO coverage: the UNO resolves 7 ops x 23 pins (Ports B, C, D), the C3 8 ops x 22 pads',
-          len(g328) == 7 * 23 and len([x for x in gpio['esp32c3'] if x['unit']['status'] == 'resolved']) == 8 * 22)
+    check('GPIO coverage: the UNO resolves 8 ops x 23 pins (Ports B, C, D; no pull-down) + digital_input_off on its 6 ADC pins (DIDR0 ADC0D..ADC5D), the C3 9 ops x 22 pads',
+          len(g328) == 8 * 23 + 6 and len([x for x in gpio['esp32c3'] if x['unit']['status'] == 'resolved']) == 9 * 22, len(g328))
     check('interrupt coverage: UNO 4 pin-change ops x 23 pins + 6 edge ops x 2 (PD2 INT0, PD3 INT1) = 104; C3 8 ops x 22 = 176 (no vectors)',
-          len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']) == 104 and len(nc3) - 8 * 22 == 176,
-          '%d / %d' % (len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']), len(nc3) - 176))
+          len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']) == 104 and len(nc3) - 9 * 22 == 176,
+          '%d / %d' % (len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']), len(nc3) - 9 * 22))
 
     print('-- cross-checks')
     ck = [c for x in n328 for c in CX.checks(x)]
@@ -233,10 +233,11 @@ def main():
     print('-- doors + page')
     api = HalAPI(polServer=None, manager=m)
     rs = _Resp(); api.on_get_units(_Req(), rs, 'atmega328p')
-    check('/api/hal/socs/atmega328p/units: one row per op x pin (18 x 23), 7 x 23 gpio + 104 interrupt resolved',
-          rs.media['ok'] and rs.media['count'] == 23 * 23 and rs.media['resolved'] == 7 * 23 + 104 + 29, (rs.media['count'], rs.media['resolved']))
+    check('/api/hal/socs/atmega328p/units: one row per pin op x pin (25 x 23) + one per peripheral op x its own instance (25: USART0 13, TIMER2 3, ADC 5, WDT 4), '
+          '8 x 23 + 6 gpio + 104 interrupt + 29 pwm + 25 peripheral resolved',
+          rs.media['ok'] and rs.media['count'] == 25 * 23 + 25 and rs.media['resolved'] == 8 * 23 + 6 + 104 + 29 + 25, (rs.media['count'], rs.media['resolved']))
     rs = _Resp(); api.on_get_units(_Req({'board': 'arduino-uno-r3', 'pins': 'D13,D2'}), rs, 'atmega328p')
-    check('?board=&pins= reads board pins', rs.media['count'] == 46 and rs.media['rows'][0]['board_pin'] == 'D13')
+    check('?board=&pins= reads board pins (2 pins x 25 pin ops)', rs.media['count'] == 50 and rs.media['rows'][0]['board_pin'] == 'D13')
     for view in ('steps', 'levels', 'bindings', 'checks'):
         rs = _Resp(); api.on_get_unit(_Req({'view': view}), rs, 'esp32c3:gpio.output:GPIO8')
         check('/api/hal/units/{key}?view=%s answers rows' % view, rs.media['ok'] and rs.media['count'] > 0)
@@ -253,7 +254,7 @@ def main():
     check('/api/hal/socs/esp32c3/header?pins=GPIO8 previews just that pin: the file + its lines',
           rs.media['ok'] and 0 < rs.media['units'] < 30 and rs.media['rows'][0]['line'] == 1, rs.media.get('units'))
     rs = _Resp(); api.on_get_operations(_Req(), rs)
-    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 23)
+    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 50)
     page = SEED_HAL_PAGE_DISPLAYS[0]
     import json as _j
     blob = page['definition']
@@ -270,15 +271,15 @@ def main():
     from board.custom import gen as BG
     rs = _Resp(); api.on_get_firmware(_Req(), rs)
     fw = {r['variant']: r for r in rs.media['rows']}
-    check('/api/hal/firmware: one row per firmware variant, each header only what THAT build needs - uno-light 9 units (hal.c led_pin + '
-          'button_pin, sense:poll sense_pin), uno-light-all-pcint 12, uno-echo none (said why)',
-          fw['uno-light']['units'] == 9 and fw['uno-light']['required_by'] == 'hal.c button_pin, hal.c led_pin, sense:poll sense_pin'
-          and fw['uno-light-all-pcint']['units'] == 12 and fw['uno-echo']['units'] == 0 and 'no HAL units' in fw['uno-echo']['why'],
+    check('/api/hal/firmware: one row per firmware variant, each header only what THAT build needs - uno-light 21 units (hal.c led_pin + '
+          'button_pin, sense:poll sense_pin, and hal-3b step 1 its uart 9 + tick 3), uno-light-all-pcint 24, uno-echo 12 (uart + tick only)',
+          fw['uno-light']['units'] == 21 and fw['uno-light']['required_by'] == 'hal.c button_pin, hal.c led_pin, hal.c tick, hal.c uart, sense:poll sense_pin'
+          and fw['uno-light-all-pcint']['units'] == 24 and fw['uno-echo']['units'] == 12 and fw['uno-echo']['required_by'] == 'hal.c tick, hal.c uart',
           {k: (v['units'], v['required_by']) for k, v in fw.items()})
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-light')
     built = BG.hal_header_for('uno-light')['header']
     check('the page shows EXACTLY the header the build writes (gen.render_routes, the one function gen() and the page share)',
-          rs.media['text'] == built['text'] and rs.media['units'] == 9, rs.media.get('units'))
+          rs.media['text'] == built['text'] and rs.media['units'] == 21, rs.media.get('units'))
     check('hal-3a: the header names the ROLES hal.c calls, each pointing at this build\'s unit (HAL_LED_SET_HIGH -> PD6, the INT0 vector by name)',
           '#define HAL_LED_SET_HIGH() HAL_GPIO_SET_HIGH_PD6()' in built['text'] and '#define HAL_BUTTON_EDGE_VECTOR HAL_INT_EDGE_VECTOR_PD2' in built['text']
           and '#define HAL_BUTTON_EDGE_ENABLE_FALLING() HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT()' in built['text'])
@@ -309,7 +310,11 @@ def main():
           '(hal.c\'s INT0 block is hardware-fixed to D2: the header must never put the button on another pin while the ISR listens on D2)',
           'BUTTON:PD2' in _roles and 'hardware-fixed to D2' in _refused, (_roles, _refused[-120:]))
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-echo')
-    check('a firmware with no HAL units answers no rows and says why', rs.media['rows'] == [] and 'no HAL units' in rs.media['note'])
+    check('hal-3b step 1: every build drives its USART link and tick through the HAL, so uno-echo (no pins) gets ONLY those units (12), '
+          'each under its role (HAL_UART_WRITE, HAL_TICK_VECTOR) - and no pin unit', rs.media['units'] == 12
+          and all(':uart.' in u['key'] or ':timer.' in u['key'] for u in rs.media.get('unit_rows') or [{'key': r['unit']} for r in rs.media['rows'] if r.get('unit')])
+          and '#define HAL_UART_WRITE(byte) HAL_UART_WRITE_USART0(byte)' in rs.media['text'] and '#define HAL_TICK_VECTOR HAL_TIMER_VECTOR_TIMER2' in rs.media['text'],
+          (rs.media.get('units'), rs.media.get('note')))
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'no-such-firmware')
     check('an unknown firmware is 422 in words', rs.status.startswith('422'))
 
@@ -439,13 +444,43 @@ def main():
     check('the build\'s reserved names hold its knobs, its flags (CFG_INT0) and its board_config.h defines, and none is HAL_',
           'CFG_INT0' in resv and 'LED_PIN' in resv and not any(n.startswith('HAL_') for n in resv), sorted(resv)[:12])
 
+    print('-- peripheral families (hal-3b step 1: uart / timer / adc on the ATmega328P)')
+    bu = G.unit('atmega328p', 'uart.set_baud_x2', 'USART0')
+    check('uart.set_baud_x2 on USART0: U2X0 set, then UBRR0H BEFORE UBRR0L (p.204: writing UBRRnL updates the prescaler), the divider the '
+          'Table 20-1 formula checked at compile time to fit 12 bits',
+          bu['unit']['status'] == 'resolved' and [(b['register'], b['field']) for b in bu['bindings']] == [('UCSR0A', 'U2X0'), ('UBRR0H', 'UBRR0_11_8'), ('UBRR0L', 'UBRR0_7_0')]
+          and 'hal_value_out_of_range' in bu['unit']['c_text'] and '4095UL' in bu['unit']['c_text'], [(b['register'], b['field']) for b in bu['bindings']])
+    check('W1C-KEEP: a read-modify-write of UCSR0A / ADCSRA writes 0 to their write-1-to-clear flags (TXC0 0x40, ADIF 0x10), never back the 1 it read',
+          'UCSR0A = (UCSR0A & ~(uint8_t)0x40)' in bu['bindings'][0]['c_text']
+          and 'ADCSRA = (ADCSRA & ~(uint8_t)0x10) | _BV(6);' in G.unit('atmega328p', 'adc.start', 'ADC')['bindings'][0]['c_text']
+          and any(r['step'] == 'w1c-keep' for r in bu['steps']), bu['bindings'][0]['c_text'])
+    check('...and a register with no w1c field is untouched (TIMSK2 |= _BV(1))',
+          G.unit('atmega328p', 'timer.irq_enable', 'TIMER2')['bindings'][0]['c_text'] == 'TIMSK2 |= _BV(1);')
+    tk = G.unit('atmega328p', 'timer.init_ctc', 'TIMER2')
+    check('timer.init_ctc on TIMER2: mode 2 CTC from the cited mode words (WGM21:20 = 10, WGM22 = 0), clock select derived from the cited '
+          'divider table, top = F_CPU / (prescaler * hz) - 1 checked to fit 8 bits',
+          tk['unit']['status'] == 'resolved' and [(b['register'], b['field']) for b in tk['bindings']] == [('TCCR2A', 'WGM2_10'), ('TCCR2B', 'WGM22'), ('TCCR2B', 'CS2'), ('OCR2A', 'OCR2A')]
+          and tk['bindings'][0]['value'] == '2' and '255UL' in tk['unit']['c_text'], [(b['register'], b['field'], b['value'][:20]) for b in tk['bindings']])
+    check('adc.result reads through the wide symbol ADC (low byte first, p.247); adc.start sets ADSC, whose access is rw-sc (self-clearing, p.258)',
+          G.unit('atmega328p', 'adc.result', 'ADC')['unit']['c_text'] == '#define HAL_ADC_RESULT_ADC() (uint16_t)(ADC)'
+          and G.unit('atmega328p', 'adc.start', 'ADC')['bindings'][0]['access'] == 'rw-sc')
+    check('a peripheral op on the wrong instance is refused in words (uart on TIMER2), and an unknown instance too',
+          G.unit('atmega328p', 'uart.set_baud', 'TIMER2')['unit']['why'] == 'TIMER2 is not a uart peripheral (it serves timer)'
+          and 'no peripheral' in G.unit('atmega328p', 'uart.write', 'USART9')['unit']['why'])
+    check('the C3 has no peripheral instances yet: a uart op there is refused, not borrowed from the 328P',
+          G.unit('esp32c3', 'uart.write', 'USART0')['unit']['status'] == 'refused')
+
     print('-- isotope fit (hal-2)')
     from hal.custom import isotopes as ISO
     rs = _Resp(); api.on_get_isotopes(_Req(), rs)
     pci = next(r for r in rs.media['rows'] if r['key'] == 'read-button:pin-change-interrupt')
     check('read-button/pin-change-interrupt requires 5 HAL operations on button_pin and fits all 23 UNO chip pins (Port C cited)',
           pci['requires'].count(',') == 4 and pci['atmega328p_fits'] == '23 of 23 pins', pci)
-    check('isotopes not yet written against the HAL say so', any(r['atmega328p_fits'] == 'not written against the HAL yet' for r in rs.media['rows']))
+    # hal-3b step 1: every isotope of the sample now names its HAL operations (none left 'not written against the HAL yet'), and every one fits the UNO
+    check('every isotope is written against the HAL and fits the UNO (13 isotopes, the sample\'s jobs)',
+          len(rs.media['rows']) == 13 and not [r for r in rs.media['rows'] if r['atmega328p_fits'] == 'not written against the HAL yet' or not r['requires']]
+          and all(r['atmega328p_fits'].startswith('fits') or r['atmega328p_fits'].split(' of ')[0] not in ('0', '') for r in rs.media['rows']),
+          [(r['key'], r['atmega328p_fits']) for r in rs.media['rows']])
     rs = _Resp(); api.on_get_isotope_fit(_Req({'soc': 'esp32c3'}), rs, 'read-button:pin-change-interrupt')
     check('on the C3 it fits no pad, and the only missing operation is the vector (interrupt matrix: an ESP-IDF isotope is the way)',
           rs.media['fits'] == 0 and {r['missing'] for r in rs.media['rows']} == {'int.pin_change_vector'})

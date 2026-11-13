@@ -68,10 +68,53 @@ def _body(project, atom):
     return _strip_comments('\n'.join(lines))
 
 
-def scan_body(src):
-    """{busy_waits: [(register, flag)], byte_loops: [var], other_loops: n} over a comment-stripped function body."""
+# hal-3b step 1: a busy-wait spoken through the GENERATED HAL (`while (!HAL_UART_TX_READY()) { }`): the role names a one-bit read unit
+# whose register and field the header itself states (its "/* uart.tx_ready on USART0: UCSR0A.UDRE0 via read-bit */" line)
+_HAL_BUSY = re.compile(r'while\s*\(\s*!?\s*(HAL_\w+)\s*\(\s*\)\s*\)\s*(?:\{\s*\}|;)')
+_UNIT_LINE = re.compile(r'^/\* [\w.]+ on \w+(?: \(\w+\))?: (\w+)\.(\w+) via read-bit \*/$')
+
+
+def hal_reads(header_text):
+    """{macro: (register, field)} for every ONE-BIT READ unit of a generated HAL header, and every role naming one."""
+    lines = (header_text or '').splitlines()
+    units = {}
+    for i, ln in enumerate(lines):
+        m = _UNIT_LINE.match(ln)
+        if m:
+            d = next((x for x in lines[i + 1:i + 4] if x.startswith('#define ')), '')
+            name = re.match(r'#define (\w+)', d)
+            if name:
+                units[name.group(1)] = (m.group(1), m.group(2))
+    out = dict(units)
+    for ln in lines:   # roles: #define HAL_UART_TX_READY() HAL_UART_TX_READY_USART0()
+        r = re.match(r'#define (HAL_\w+)\(\) (HAL_\w+)\(\)$', ln)
+        if r and r.group(2) in units:
+            out[r.group(1)] = units[r.group(2)]
+    return out
+
+
+def _project_hal_reads(project):
+    """hal_reads() over the generated HAL header(s) in the project's root (none -> {})."""
+    import os
+    from cmod.custom import projects as P
+    root = P.resolve(project)['root']
+    out = {}
+    for fn in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        if fn.startswith('polari_hal_') and fn.endswith('.h'):
+            with open(os.path.join(root, fn)) as fh:
+                out.update(hal_reads(fh.read()))
+    return out
+
+
+def scan_body(src, hal=None):
+    """{busy_waits: [(register, flag)], byte_loops: [var], other_loops: n} over a comment-stripped function body. `hal` = hal_reads() of the
+    project's generated header: a wait on a HAL read role counts as the wait on its register's flag."""
     waits = [(m.group(1), m.group(2)) for m in _BUSY.finditer(src)]
     rest = _BUSY.sub('', src)
+    for m in _HAL_BUSY.finditer(rest):
+        if m.group(1) in (hal or {}):
+            waits.append(hal[m.group(1)])
+    rest = _HAL_BUSY.sub(lambda m: '' if m.group(1) in (hal or {}) else m.group(0), rest)
     # drop the signature's own braces from consideration: keywords only count inside the body
     body = rest[rest.find('{') + 1:] if '{' in rest else rest
     bl = [m.group(1) for m in _BYTE_LOOP.finditer(body)]
@@ -95,7 +138,7 @@ def _analyse_bound(project, atom, ctx, _seen=None):
         out['unbounded'].append('%s has no measured size, so no cycle bound' % atom['name'])
         return out
     try:
-        scan = scan_body(_body(project, atom))
+        scan = scan_body(_body(project, atom), _project_hal_reads(project))
     except Exception as e:  # noqa: BLE001 - an unreadable body is unbounded, said
         out['bounded'] = False
         out['unbounded'].append('%s: source not readable (%s)' % (atom['name'], e))

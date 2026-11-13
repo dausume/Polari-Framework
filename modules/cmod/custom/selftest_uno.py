@@ -59,8 +59,9 @@ def uno_parts(check):
               [(x['name'], x['direction'], x['polari_type'], x['unit']) for x in m['ports']] == [('return', 'out', 'int64', 'ms')]
               and m['globals']['g_ms']['inside_atomic'] and not m['globals']['g_ms']['outside_atomic'] and m['isr_safe'] == 'yes')
         r = AN.resources(a['hal.hal_adc_read'])
-        check('hal_adc_read touches ADMUX (w), ADCSRA (rw), ADC (r) — all peripheral ADC; ports in channel, out return [count]',
-              {(x['name'], x['access'], x['peripheral']) for x in r if x['kind'] == 'register'} == {('ADMUX', 'w', 'ADC'), ('ADCSRA', 'rw', 'ADC'), ('ADC', 'r', 'ADC')}
+        # hal-3b step 1: through the generated HAL (HAL_ADC_SELECT is a field write that keeps REFS) ADMUX is read-modify-written, so rw
+        check('hal_adc_read touches ADMUX (rw: the HAL\'s channel field write keeps the reference bits), ADCSRA (rw), ADC (r) — all peripheral ADC; ports in channel, out return [count]',
+              {(x['name'], x['access'], x['peripheral']) for x in r if x['kind'] == 'register'} == {('ADMUX', 'rw', 'ADC'), ('ADCSRA', 'rw', 'ADC'), ('ADC', 'r', 'ADC')}
               and [x['name'] for x in a['hal.hal_adc_read']['ports']] == ['channel', 'return'])
         rx = a['hal.USART_RX_vect']
         check('ISR(USART_RX_vect) (both #if branches, unioned) reads UCSR0A + UDR0 (USART0), writes rx_head / rx_ring and the error counters',
@@ -143,8 +144,8 @@ def uno_parts(check):
         check('make ALONE built every configuration (13/13, the .hex sha recorded) — no Polari in that loop',
               len(mk) == 13 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
-        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (57461b96…, unchanged by the annotations; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before)',
-              sim['make_alone']['hex_sha256'].startswith('57461b96fc508227'), sim['make_alone']['hex_sha256'][:16])
+        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (49328ce3…, unchanged by the annotations; hal-3b step 1 (2026-11-13): USART0 / Timer2 / ADC through the generated HAL (behaviour-identical, twin-proven: raw UART identical on all 17 variants) - 57461b96 before; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before)',
+              sim['make_alone']['hex_sha256'].startswith('49328ce31933efdc'), sim['make_alone']['hex_sha256'][:16])
         check('the build block reads the flags FROM the Makefile and states the measurement (shipped / noinline)',
               m['build']['from'] == 'the project Makefile' and '-Werror' in m['build']['cflags'] and 'noinline' in m['build']['measure'])
 

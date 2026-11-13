@@ -85,9 +85,9 @@ void hal_sense_init(void);
 void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms);   /* atomic snapshot of all three */
 #endif
 #if CFG_WDT
-#include <avr/wdt.h>
-#define hal_wdt_init() wdt_enable(CFG_WDT_PERIOD)
-#define hal_wdt_kick() wdt_reset()
+#include "polari_hal_atmega328p.h"   /* hal-3b step 1: the watchdog through the generated HAL (avr-libc wdt_* as cited library calls) */
+#define hal_wdt_init() HAL_WDT_ENABLE(CFG_WDT_PERIOD)
+#define hal_wdt_kick() HAL_WDT_KICK()
 #endif
 
 #if FEATURE_LED

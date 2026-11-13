@@ -11,11 +11,6 @@
 #include "hal.h"
 #include "polari_hal_atmega328p.h"   /* hal-3a: the GENERATED HAL units this build needs (its pins, its features), under role names */
 
-#if USART_U2X
-#define UBRR0_VALUE 16u            /* U2X0 = 1: +2.1 % (what Optiboot and the 16U2 side use) */
-#else
-#define UBRR0_VALUE 8u             /* U2X0 = 0: -3.5 % (works on the twin; marginal against the 16U2) */
-#endif
 #ifndef RX_RING
 #define RX_RING 64u                /* power of two; a variant may set it (build flag RX_RING=N) */
 #endif
@@ -40,12 +35,12 @@ static volatile uint8_t rx_head, rx_tail;
  * the parser's CRC + resync decides. Counters, never a policy. */
 static volatile uint16_t g_uart_fe, g_uart_dor, g_rx_dropped;
 
-ISR(USART_RX_vect)
+ISR(HAL_UART_RX_VECTOR)                               /* USART_RX_vect (the generated header) */
 {
-    uint8_t st = UCSR0A;
-    uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
-    if (st & _BV(FE0)) g_uart_fe++;
-    if (st & _BV(DOR0)) g_uart_dor++;
+    uint8_t fe = HAL_UART_FRAME_ERROR(), dor = HAL_UART_OVERRUN();   /* both before the byte is read: they belong to it */
+    uint8_t b = HAL_UART_READ(), next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
+    if (fe) g_uart_fe++;
+    if (dor) g_uart_dor++;
     if (next != rx_tail) {
         rx_ring[rx_head] = b;
         rx_head = next;
@@ -61,9 +56,9 @@ uint16_t hal_uart_errors(uint8_t which)
     return v;
 }
 #else
-ISR(USART_RX_vect)
+ISR(HAL_UART_RX_VECTOR)                               /* USART_RX_vect (the generated header) */
 {
-    uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
+    uint8_t b = HAL_UART_READ(), next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
     if (next != rx_tail) {         /* full: the byte is dropped; the parser's CRC + resync recovers */
         rx_ring[rx_head] = b;
         rx_head = next;
@@ -83,20 +78,22 @@ int hal_rx_pop(uint8_t *b)
 }
 #endif
 
+/* hal-3b: USART0 through the generated HAL roles (HAL_UART_*): the divider is the datasheet's Table 20-1 formula rounded to the
+ * nearest setting, checked at compile time (115200 at 16 MHz: 16 with U2X0, 8 without - the values Table 20-7 lists) */
 void hal_usart_init(void)
 {
-    UBRR0H = (uint8_t)(UBRR0_VALUE >> 8);
-    UBRR0L = (uint8_t)UBRR0_VALUE;
 #if USART_U2X
-    UCSR0A = _BV(U2X0);
+    HAL_UART_SET_BAUD_X2(115200UL);                    /* U2X0 = 1: +2.1 % (what Optiboot and the 16U2 side use) */
 #else
-    UCSR0A = 0;
+    HAL_UART_SET_BAUD(115200UL);                       /* U2X0 = 0: -3.5 % (works on the twin; marginal against the 16U2) */
 #endif
-    UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);               /* 8N1 */
+    HAL_UART_FRAME_8N1();
+    HAL_UART_TX_ENABLE();
 #if FEATURE_COMMANDS
-    UCSR0B = _BV(RXEN0) | _BV(TXEN0) | _BV(RXCIE0);
+    HAL_UART_RX_ENABLE();
+    HAL_UART_RX_IRQ_ENABLE();
 #else
-    UCSR0B = _BV(TXEN0);                               /* transmit only */
+    HAL_UART_RX_DISABLE();                             /* transmit only */
 #endif
 }
 
@@ -105,22 +102,20 @@ POLARI_NODE(hal_usart_send, in(b, "bytes", "the frame to send"), in(n, "B", "how
 void hal_usart_send(const uint8_t *b, size_t n)
 {
     while (n--) {
-        while (!(UCSR0A & _BV(UDRE0))) { }
-        UDR0 = *b++;
+        while (!HAL_UART_TX_READY()) { }
+        HAL_UART_WRITE(*b++);
     }
 }
 
 /* ---- Timer2: CTC, /128, OCR2A = 124 → 16 MHz / 128 / 125 = 1000 Hz ---- */
 static volatile uint32_t g_ms;
 
-ISR(TIMER2_COMPA_vect) { g_ms++; }
+ISR(HAL_TICK_VECTOR) { g_ms++; }                     /* TIMER2_COMPA_vect (the generated header) */
 
 void hal_tick_init(void)
 {
-    TCCR2A = _BV(WGM21);
-    TCCR2B = _BV(CS22) | _BV(CS20);                    /* clk/128 */
-    OCR2A = 124u;
-    TIMSK2 = _BV(OCIE2A);
+    HAL_TICK_INIT_CTC(128u, 1000UL);                   /* CTC, clk/128, top = 16 MHz / 128 / 1000 - 1 = 124 */
+    HAL_TICK_IRQ_ENABLE();
 }
 
 /* g_ms is FOUR bytes the tick ISR writes; reading it is four `lds`. The atomic block masks interrupts across them
@@ -238,15 +233,16 @@ void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
 }
 #endif
 
-/* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON at its shortest period
- * (DS40002061B §10.9.2), so a firmware that does not clear both before main resets forever; .init3 runs before the
- * C runtime's .init4..9 and main. CFG_WDT 0 (every shipped variant) compiles none of this. ---- */
+/* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON (DS40002061B §11.8 p.61:
+ * "clear the Watchdog System Reset Flag (WDRF) and the WDE control bit in the initialization routine"), and WDRF holds WDE on
+ * (§11.9.2 p.64: "To clear WDE, WDRF must be cleared first"), so the flags go first; .init3 runs before the C runtime's
+ * .init4..9 and main. hal-3b step 1: through the generated HAL (HAL_WDT_*). CFG_WDT 0 (every shipped variant) compiles none of this. ---- */
 #if CFG_WDT
 void hal_wdt_boot(void) __attribute__((naked, used, section(".init3")));
 void hal_wdt_boot(void)
 {
-    MCUSR = 0u;
-    wdt_disable();
+    HAL_WDT_RESET_FLAGS_CLEAR();                       /* MCUSR = 0: every reset flag is w0c */
+    HAL_WDT_DISABLE();                                 /* WDRF already 0; then avr-libc wdt_disable's timed sequence */
 }
 #endif
 
@@ -324,17 +320,16 @@ int64_t hal_pwm_apply(int64_t duty)
 #if FEATURE_ADC
 void hal_adc_init(void)
 {
-    ADMUX = _BV(REFS0);                                /* AVcc, channel 0, right-adjusted */
-    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
+    HAL_ADC_INIT(128u);                                /* AVcc reference, ADC on, clk/128 (125 kHz) */
 }
 
 POLARI_NODE(hal_adc_read, in(channel, "", "A0..A5 (0..5)"), out(return, "count", "10-bit ADC = Vin*1024/Vref, 0..1023"),
             role("one blocking ADC conversion, AVcc reference"))
 uint16_t hal_adc_read(uint8_t channel)
 {
-    ADMUX = (uint8_t)(_BV(REFS0) | (channel & 0x07u));
-    ADCSRA |= _BV(ADSC);
-    while (ADCSRA & _BV(ADSC)) { }
-    return ADC;
+    HAL_ADC_SELECT(channel & 0x07u);
+    HAL_ADC_START();
+    while (HAL_ADC_BUSY()) { }
+    return HAL_ADC_RESULT();
 }
 #endif

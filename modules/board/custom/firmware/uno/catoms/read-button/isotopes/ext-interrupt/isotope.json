@@ -1,0 +1,19 @@
+{
+ "isotope": "ext-interrupt",
+ "variant_row": "read-button:ext-interrupt",
+ "implemented_by": "hal.c hal_button_init / INT0 ISR (button_route int0)",
+ "template": "",
+ "firmware_variants": [
+  "uno-light"
+ ],
+ "minimum_level": "bare-c",
+ "requires": {
+  "button_pin": [
+   "gpio.input",
+   "gpio.pull_up",
+   "int.edge_enable_falling",
+   "int.edge_vector"
+  ]
+ },
+ "requires_note": "hal-3b step 1 (2026-11-13, AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): this isotope is the shared uno/hal.c code, written over the generated HAL (role macros HAL_<ROLE>_<OP>, board.custom.gen.base_roles). `requires` names the HAL operations it calls, so isotope fit (hal.custom.isotopes) answers for every chip; a peripheral variable is answered by the chip's own instances."
+}

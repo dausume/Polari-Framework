@@ -177,8 +177,8 @@ def graph_parts(check):
               len(p['stimulus']['commands']) == 3 and len(p['stimulus']['command_frames_sha256']) == 3
               and any(s['status'] == 'commanded' and s['led_on'] and s['pwm_duty'] == 42 for s in p['samples'])
               and p['samples'][-1]['pwm_duty'] == 100)
-        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (57461b96…; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before), sizes recorded for both',
-              p['reference']['hex_sha256'].startswith('57461b96fc508227') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
+        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (49328ce3…; hal-3b step 1 (2026-11-13): USART0 / Timer2 / ADC through the generated HAL (behaviour-identical, twin-proven: raw UART identical on all 17 variants) - 57461b96 before; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before), sizes recorded for both',
+              p['reference']['hex_sha256'].startswith('49328ce31933efdc') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
         check('…the record still matches the committed render (proof.files_sha256 = files_sha256): nothing proven is stale',
               p.get('files_sha256') == rec['files_sha256'] and b.get('files_sha256') == rec['files_sha256'])
         conf = rec.get('conformed') or {}
@@ -195,8 +195,11 @@ def graph_parts(check):
               g['status'] == 'proven' and (g['node_count'], g['edge_count'], g['atom_count']) == (18, 15, 13) and len(own) == 1
               and own[0]['equivalent'], (g['status'], g['node_count'], g['edge_count'], g['atom_count']))
         nodes = {n['instance']: n for n in gr['CGraphNode']}
-        check('node rows carry the atom\'s derived ports / cost / ISR-safety (adc: in channel, out return; 36 B as a node)',
-              'in channel:int64' in nodes['adc']['ports_summary'] and nodes['adc']['cost_bytes'] == 36 and nodes['adc']['isr_safe'] == 'yes')
+        # hal-3b step 1: 36 -> 78 B. HAL_ADC_SELECT / HAL_ADC_START are read-modify-writes the generator guards (ATOMIC_BLOCK) because it
+        # cannot know that no ISR of THIS firmware touches ADMUX / ADCSRA; cmod does know (the atoms' ISR register sets) - guarding only the
+        # registers an ISR shares is the follow-up that gives the bytes back
+        check('node rows carry the atom\'s derived ports / cost / ISR-safety (adc: in channel, out return; 78 B as a node, the HAL\'s guards included)',
+              'in channel:int64' in nodes['adc']['ports_summary'] and nodes['adc']['cost_bytes'] == 78 and nodes['adc']['isr_safe'] == 'yes')
 
     def cost_estimate():
         from cmod.custom import glue as GL

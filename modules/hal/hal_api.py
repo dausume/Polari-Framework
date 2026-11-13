@@ -39,10 +39,21 @@ def _csv(v):
 
 
 def unit_rows(soc, pins=None, board=''):
-    if board:
-        results = [G.unit(soc, op['name'], p, board) for p in pins for op in OPS.OPERATIONS]
-    else:
-        results = [G.unit(soc, op['name'], p) for p in (pins or G.default_pins(soc)) for op in OPS.OPERATIONS]
+    """pin operations x pins, and (hal-3b step 1) peripheral operations x the chip's peripheral instances (USART0, TIMER2, ADC).
+    `pins` may name instances too; an instance is never handed to a pin operation, nor a pin to a peripheral operation."""
+    inst = list((SR.RULES[soc].get('peripherals') or {}))
+    want = pins or G.default_pins(soc)
+    pin_targets = [p for p in want if p not in inst]
+    per_targets = [p for p in pins if p in inst] if pins else inst
+    results = []
+    for op in OPS.OPERATIONS:
+        if op.get('target') == 'peripheral':   # only the instances that serve the op's family (USART0 for uart, never TIMER2)
+            fams = SR.RULES[soc].get('peripherals') or {}
+            results += [G.unit(soc, op['name'], p) for p in per_targets if op['family'] in (fams[p].get('families') or ())]
+        elif board:
+            results += [G.unit(soc, op['name'], p, board) for p in pin_targets]
+        else:
+            results += [G.unit(soc, op['name'], p) for p in pin_targets]
     rows = []
     for res in results:
         u = res['unit']

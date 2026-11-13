@@ -157,10 +157,14 @@ def sc1_parts(check):
         rig, scn = open(os.path.join(fw, 'apps', 'sim_rig.c')).read(), open(os.path.join(fw, 'apps', 'scenario_rig.c')).read()
         check('hal.h: every sc-1 knob defaults to 0 (CFG_UART_ERRCOUNT, CFG_INT0, CFG_INT0_DEBOUNCE_MS, CFG_WDT) — a shipped build compiles none of it',
               all('#define %s 0' % k in halh for k in ('CFG_UART_ERRCOUNT', 'CFG_INT0', 'CFG_INT0_DEBOUNCE_MS', 'CFG_WDT')))
-        check('hal.c: the RX ISR reads UCSR0A BEFORE UDR0 under CFG_UART_ERRCOUNT (FE0/DOR0 are valid only before the read) and keeps the '
-              'shipped ISR verbatim under #else; .init3 clears MCUSR + the WDT under CFG_WDT',
-              'uint8_t st = UCSR0A;\n    uint8_t b = UDR0' in hal and '#else\nISR(USART_RX_vect)\n{\n    uint8_t b = UDR0, next' in hal
-              and 'section(".init3")' in hal and 'MCUSR = 0u;\n    wdt_disable();' in hal)
+        # hal-3b step 1: the ISR speaks the generated HAL's roles (HAL_UART_FRAME_ERROR / HAL_UART_OVERRUN read UCSR0A.FE0 / DOR0,
+        # HAL_UART_READ reads UDR0); the property is the same: both flags are taken BEFORE the byte
+        fe_at, rd_at = hal.find('HAL_UART_FRAME_ERROR(), dor = HAL_UART_OVERRUN()'), hal.find('uint8_t b = HAL_UART_READ(), next')
+        check('hal.c: the RX ISR reads the frame-error and overrun flags (UCSR0A) BEFORE the byte (UDR0) under CFG_UART_ERRCOUNT (FE0/DOR0 are '
+              'valid only before the read) and keeps the plain ISR under #else; .init3 clears MCUSR, THEN the WDT, under CFG_WDT (hal-3b step 1: through '
+              'HAL_WDT_*; WDRF holds WDE on, DS40002061B p.64, so the flags go first)',
+              0 <= fe_at < rd_at and '#else\nISR(HAL_UART_RX_VECTOR)' in hal and hal.count('uint8_t b = HAL_UART_READ(), next') == 2
+              and 'section(".init3")' in hal and 0 <= hal.find('HAL_WDT_RESET_FLAGS_CLEAR();') < hal.find('HAL_WDT_DISABLE();'))
         check('sim_rig.c: the watchdog init + kick exist only under #if CFG_WDT (uno-sim-rig stays byte-identical)',
               rig.count('#if CFG_WDT') == 2 and 'hal_wdt_kick();' in rig)
         check('scenario_rig.c: BEFORE/AFTER differ in exactly the technique — the blocking ack wait vs ack_step(); the in-place record vs the '
@@ -183,4 +187,15 @@ def sc1_parts(check):
         check('…and an unknown parser is a ValueError, never a silent default', ok)
 
     sc1_outcomes.__name__ = 'sc1_outcomes'
-    return (sc1_outcomes, sc1_payloads_and_flags, sc1_rtos_and_variants, sc1_keep_tail_header)
+    def sc1_wdt_order():
+        # hal-3b step 1 (econ's review): the order rule on the twin, both arms from the generated HAL (firmwarefaults.custom.wdt_order)
+        from firmwarefaults.custom import wdt_order as WO
+        r = WO.run(9.0)
+        a, b = r['A'], r['B']
+        check('wdt order (twin, 9 s > WDTO_8S): after a watchdog reset, HAL_WDT_DISABLE (WDRF cleared FIRST, then wdt_disable) stays off - exactly '
+              'the 1 deliberate reset (WDRF), never kicked (%s)' % WO.CITE,
+              a.get('ok') and a.get('resets') == 1 and a.get('wdrf_all'), a)
+        check('…and the SAME program with wdt_disable() alone (WDRF left set) reset-loops: a WDRF reset every time-out (>= 32: the twin\'s log holds 32) '
+              '- the ordering is what fixes it, not just that the fixed build runs',
+              b.get('ok') and (b.get('resets') or 0) >= 32 and b.get('wdrf_all') and b['cycles'][1] - b['cycles'][0] < 300000, b)
+    return (sc1_outcomes, sc1_payloads_and_flags, sc1_rtos_and_variants, sc1_keep_tail_header, sc1_wdt_order)

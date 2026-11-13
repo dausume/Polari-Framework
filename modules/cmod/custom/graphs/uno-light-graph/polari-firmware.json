@@ -14,7 +14,7 @@
   "licence": "BSD-3-Clause",
   "runs": "in the framework process (pure Python; cffi already pins it — requirements.txt pycparser==2.21)",
   "preprocessor": "pycparser.ply.cpp (pure Python) + cmod fake avr-libc headers",
-  "fake_headers_sha256": "35cf5dc88acbab00b5fac625254e8959c38bed1185fcf517d60b2d9541b7f40b",
+  "fake_headers_sha256": "4d6f9c79f6da6ead96d6d167a8a0b2f9924b40f80bcc75570937bdccb91d6d70",
   "registers": {
    "mcu": "atmega328p",
    "avr_libc": "2.2.1",
@@ -59,8 +59,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "5d342ddbfba4b23d47eb4fa437b1fc3bb14ea02605bd47dbbd0c48473f7926d5",
-    "noinline": "77191d35eba6fac17ec65d265744d07c69f27b78f26cc6eb93dc16c3e7cf7b99"
+    "shipped": "dcb363fbb59a7417ea4bbbb91e9142f768221438ef03915e2ffebe2c5d04f28f",
+    "noinline": "ec9be670e8a1826d4a5151c5d188ac678167779497155d43d1d3836b1b9f6bfe"
    }
   }
  ],
@@ -71,11 +71,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
+     "sha256": "e7f7473eb29734b2adfd2ba15b79613a2edc77f938e2ecca0594fdbef48e44e3"
     },
     {
      "path": "hal.h",
-     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
+     "sha256": "6524751de0f2e65c8b5dcccddb2ebfaa650714eed181ef45bb17f98f9b9afcd1"
     }
    ],
    "atoms": [
@@ -135,7 +135,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "d127464d87c50e4c89363a058be3734ebe2fdd71f56c2ef496217248fbc71727"
+     "sha256": "1352fd3a34d7fed7bed2cf8ef4159da5bd250fcf01d4931a022fb780e7e13f27"
     }
    ],
    "atoms": [
@@ -187,7 +187,7 @@
    "files": [
     {
      "path": "polari_hal_atmega328p.h",
-     "sha256": "5c9b2ec0a9633a10244e03dc700b50a72cd7c42f0db51341a1377501bcdc1662"
+     "sha256": "e16e868a506740ea760a72ed9bbaf5265415f6337704ecf0eefccd5decb43bf1"
     }
    ],
    "atoms": []
@@ -198,7 +198,7 @@
    "name": "hal.INT0_vect",
    "function": "__polari_isr_INT0_vect",
    "module": "hal.c",
-   "line": 159,
+   "line": 154,
    "kind": "isr",
    "isr_vector": "INT0_vect",
    "signature": "ISR(INT0_vect)",
@@ -282,7 +282,7 @@
    "name": "hal.TIMER2_COMPA_vect",
    "function": "__polari_isr_TIMER2_COMPA_vect",
    "module": "hal.c",
-   "line": 116,
+   "line": 113,
    "kind": "isr",
    "isr_vector": "TIMER2_COMPA_vect",
    "signature": "ISR(TIMER2_COMPA_vect)",
@@ -338,7 +338,7 @@
    "name": "hal.USART_RX_vect",
    "function": "__polari_isr_USART_RX_vect",
    "module": "hal.c",
-   "line": 64,
+   "line": 59,
    "kind": "isr",
    "isr_vector": "USART_RX_vect",
    "signature": "ISR(USART_RX_vect)",
@@ -415,7 +415,7 @@
    "name": "hal.hal_button_init",
    "function": "hal_button_init",
    "module": "hal.c",
-   "line": 177,
+   "line": 172,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_init(void)",
@@ -477,7 +477,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 175,
+    "line": 170,
     "role": "D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)",
     "uses": [
      "BUTTON_PIN"
@@ -507,7 +507,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 279,
+   "line": 275,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -552,7 +552,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 277,
+    "line": 273,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -582,7 +582,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 266,
+   "line": 262,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -631,7 +631,7 @@
    "name": "hal.hal_millis",
    "function": "hal_millis",
    "module": "hal.c",
-   "line": 136,
+   "line": 131,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t hal_millis(void)",
@@ -669,7 +669,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 134,
+    "line": 129,
     "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
     "uses": [],
     "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
@@ -697,7 +697,7 @@
    "name": "hal.hal_presses",
    "function": "hal_presses",
    "module": "hal.c",
-   "line": 191,
+   "line": 186,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_presses(void)",
@@ -742,7 +742,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 189,
+    "line": 184,
     "role": "atomic read of the INT0 press counter",
     "uses": [
      "BUTTON_PIN"
@@ -773,7 +773,7 @@
    "name": "hal.hal_rx_pop",
    "function": "hal_rx_pop",
    "module": "hal.c",
-   "line": 77,
+   "line": 72,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_rx_pop(uint8_t * b)",
@@ -842,7 +842,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 74,
+    "line": 69,
     "role": "pop one byte from the USART0 RX ring the RX ISR fills",
     "uses": [
      "USART0"
@@ -872,7 +872,7 @@
    "name": "hal.hal_take_toggle_pending",
    "function": "hal_take_toggle_pending",
    "module": "hal.c",
-   "line": 198,
+   "line": 193,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint8_t hal_take_toggle_pending(void)",
@@ -932,7 +932,7 @@
    "name": "hal.hal_tick_init",
    "function": "hal_tick_init",
    "module": "hal.c",
-   "line": 118,
+   "line": 115,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_tick_init(void)",
@@ -950,21 +950,21 @@
     {
      "kind": "register",
      "name": "TCCR2A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TCCR2B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TIMSK2",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     }
@@ -982,17 +982,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_tick_init",
-    "text_bytes": 24,
+    "text_bytes": 48,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 24,
+    "text_bytes_noinline": 48,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     24,
-     24
+     48,
+     48
     ]
    },
    "title": "",
@@ -1002,7 +1002,7 @@
    "name": "hal.hal_usart_init",
    "function": "hal_usart_init",
    "module": "hal.c",
-   "line": 86,
+   "line": 83,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_init(void)",
@@ -1013,7 +1013,7 @@
     {
      "kind": "register",
      "name": "UBRR0H",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
@@ -1027,21 +1027,21 @@
     {
      "kind": "register",
      "name": "UCSR0A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "UCSR0B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "UCSR0C",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     }
@@ -1059,17 +1059,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_usart_init",
-    "text_bytes": 30,
+    "text_bytes": 80,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 30,
+    "text_bytes_noinline": 80,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     30,
-     30
+     80,
+     80
     ]
    },
    "title": "",
@@ -1079,7 +1079,7 @@
    "name": "hal.hal_usart_send",
    "function": "hal_usart_send",
    "module": "hal.c",
-   "line": 105,
+   "line": 102,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
@@ -1134,7 +1134,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 103,
+    "line": 100,
     "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
     "uses": [],
     "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
@@ -1944,5 +1944,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T07:49:03"
+ "conformed_at": "2026-11-13T12:40:08"
 }

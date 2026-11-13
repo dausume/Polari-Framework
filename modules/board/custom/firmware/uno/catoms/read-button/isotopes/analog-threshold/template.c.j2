@@ -5,6 +5,7 @@
 #include <util/atomic.h>
 
 #include "hal.h"
+#include "{{ hal_header|c_comment }}"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
 #if !CFG_INT0 || CFG_BUTTON_ROUTE != {{ route_code|c_int }}
 #error "hal_button_adc.c is the button route {{ route_code|c_int }} (analog threshold): board_config.h must set CFG_INT0 1 and CFG_BUTTON_ROUTE {{ route_code|c_int }}"
@@ -21,20 +22,21 @@ static volatile uint16_t g_presses;
 static uint8_t g_pressed;                   /* 1 = the switch is closed (below the press threshold), updated on every look */
 {{ L.lockout_state() }}
 
+/* hal-3b step 1: every register access is a generated HAL unit (the header above); this file names no register */
 static uint16_t button_counts(void)
 {
-    ADMUX = (uint8_t)(_BV(REFS0) | {{ channel|c_int }}u);       /* AVcc reference, channel {{ channel|c_int }}, right-adjusted */
-    ADCSRA |= _BV(ADSC);
-    while (ADCSRA & _BV(ADSC)) { }
-    return ADC;
+    {{ hal_ops.select|c_ident }}({{ channel|c_int }}u);                     /* channel {{ channel|c_int }} (the reference was set by the init: AVcc) */
+    {{ hal_ops.start|c_ident }}();
+    while ({{ hal_ops.busy|c_ident }}()) { }
+    return {{ hal_ops.result|c_ident }}();
 }
 
 void hal_button_init(void)
 {
-    {{ ddr_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});         /* input */
-    {{ port_reg|c_ident }} &= (uint8_t)~_BV({{ pin_bit|c_ident }});        /* internal pull-up OFF: the external resistor holds the level */
-    DIDR0 |= _BV({{ didr_bit|c_ident }});                       /* digital input buffer off on this ADC pin (DS40002061B §24.9.5) */
-    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);   /* enable, clk/128 = 125 kHz */
+    {{ hal_ops.input|c_ident }}();                              /* input */
+    {{ hal_ops.pull_none|c_ident }}();                          /* internal pull-up OFF: the external resistor holds the level */
+    {{ hal_ops.digital_input_off|c_ident }}();                  /* digital input buffer off on this ADC pin (DS40002061B §24.9.5) */
+    {{ hal_ops.init|c_ident }}(128u);                           /* AVcc reference, enabled, clk/128 = 125 kHz */
     g_pressed = button_counts() < BUTTON_PRESS_BELOW;             /* a switch already closed at boot is not a press */
 }
 

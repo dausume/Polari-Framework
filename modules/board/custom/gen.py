@@ -267,8 +267,13 @@ def _role_suffix(op, role=''):
     """HAL_GPIO_SET_HIGH -> SET_HIGH, HAL_INT_EDGE_VECTOR -> EDGE_VECTOR, HAL_PWM_SET_DUTY -> PWM_SET_DUTY (LED role: HAL_LED_PWM_SET_DUTY);
     a suffix that repeats the role drops the repeat (PWM role: HAL_PWM_SET_DUTY, never HAL_PWM_PWM_SET_DUTY)."""
     from hal.custom import operations as OPS
-    sfx = OPS.by_name(op)['c_name'][len('HAL_'):].replace('GPIO_', '', 1) if OPS.by_name(op)['c_name'].startswith('HAL_GPIO_') else \
-        OPS.by_name(op)['c_name'].replace('HAL_INT_', '').replace('HAL_', '', 1)
+    o = OPS.by_name(op)
+    if o.get('target') == 'peripheral':   # hal-3b step 1: a peripheral op drops its family (HAL_TIMER_INIT_CTC, role TICK -> HAL_TICK_INIT_CTC)
+        fam = 'HAL_%s_' % o['family'].upper()
+        sfx = o['c_name'][len(fam):] if o['c_name'].startswith(fam) else o['c_name'][len('HAL_'):]
+        return sfx
+    sfx = o['c_name'][len('HAL_'):].replace('GPIO_', '', 1) if o['c_name'].startswith('HAL_GPIO_') else \
+        o['c_name'].replace('HAL_INT_', '').replace('HAL_', '', 1)
     return sfx[len(role) + 1:] if role and sfx.startswith(role + '_') else sfx
 
 
@@ -297,6 +302,28 @@ def base_roles(r):
     if f.get('pwm') and int(k['pwm_pin']) in (5, 6, 9, 10):
         out.append({'role': 'PWM', 'variable': 'pwm_pin', 'pin': uno_soc_pin(k['pwm_pin']),
                     'ops': ['gpio.output', 'pwm.init_fast', 'pwm.connect', 'pwm.set_duty'], 'init': ('pwm.init_fast', 'pwm.connect')})
+    # hal-3b step 1: the peripherals every UNO build's hal.c drives (its USART link and its 1 ms tick), and the ADC when FEATURE_ADC.
+    # Only the ops THIS build calls: the baud op its USART_U2X knob picks, the receive path only with FEATURE_COMMANDS, the error
+    # flags only with CFG_UART_ERRCOUNT.
+    baud = 'uart.set_baud_x2' if k.get('usart_u2x') else 'uart.set_baud'
+    uart = [baud, 'uart.frame_8n1', 'uart.tx_enable', 'uart.tx_ready', 'uart.write']
+    uinit = [baud, 'uart.frame_8n1', 'uart.tx_enable']
+    if f.get('commands'):
+        uart += ['uart.rx_enable', 'uart.rx_irq_enable', 'uart.read', 'uart.rx_vector']
+        uinit += ['uart.rx_enable', 'uart.rx_irq_enable']
+        if int(flags.get('CFG_UART_ERRCOUNT') or 0):
+            uart += ['uart.frame_error', 'uart.overrun']
+    else:
+        uart += ['uart.rx_disable']
+        uinit += ['uart.rx_disable']
+    out.append({'role': 'UART', 'variable': 'uart', 'pin': 'USART0', 'ops': uart, 'init': tuple(uinit)})
+    out.append({'role': 'TICK', 'variable': 'tick', 'pin': 'TIMER2', 'ops': ['timer.init_ctc', 'timer.irq_enable', 'timer.vector'],
+                'init': ('timer.init_ctc', 'timer.irq_enable')})
+    if f.get('adc'):
+        out.append({'role': 'ADC', 'variable': 'adc', 'pin': 'ADC', 'ops': ['adc.init', 'adc.select', 'adc.start', 'adc.busy', 'adc.result'],
+                    'init': ('adc.init',)})
+    if int(flags.get('CFG_WDT') or 0):   # sc-1's watchdog (uno-sim-rig-wdt): the .init3 boot path and the app's enable / kick
+        out.append({'role': 'WDT', 'variable': 'wdt', 'pin': 'WDT', 'ops': ['wdt.reset_flags_clear', 'wdt.disable', 'wdt.enable', 'wdt.kick'], 'init': ()})
     return out
 
 

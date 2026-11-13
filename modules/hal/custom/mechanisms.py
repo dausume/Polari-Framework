@@ -120,6 +120,20 @@ MECHANISMS = [
      'selects_when': 'a read_value whose role names a `wide` symbol (ADC) that differs from the field\'s own byte register',
      'templates': {'read_value': '({ctype})({wide})'},
      'cite': 'DS40002061B section 24.9.3 ADCL and ADCH "ADCL must be read first, then ADCH" p.259; avr-libc _SFR_MEM16(ADC)'},
+    # hal-3b step 1, the watchdog (econ's review 2026-11-13 folded in)
+    {'name': 'w0c-flag', 'title': 'Write-0-to-clear status flag (one store)', 'kind': 'access', 'isr_safe': True, 'chips': 'AVR MCUSR',
+     'meaning': 'a flag cleared by writing 0, where writing 1 has no effect: ONE store with 0 in the flag(s) to clear and 1 in the register\'s other '
+                'write-0-to-clear flags (kept), 0 in reserved bits - no read, so a flag the hardware sets meanwhile is never cleared by a write-back',
+     'selects_when': 'a clear of a field with access w0c (and a role clear_all: every cited field of the register w0c -> a store of 0)',
+     'templates': {'clear': '{reg} = {others};'},
+     'cite': 'DS40002061B section 11.9.1 MCUSR p.63 (the flags reset by writing a logic zero); register_access w0c caution'},
+    {'name': 'library-call', 'title': 'A cited library function (a timed or keyed sequence)', 'kind': 'call', 'isr_safe': True, 'chips': 'AVR (avr-libc <avr/wdt.h>)',
+     'meaning': 'a sequence plain register writes cannot express safely (the WDT change: WDCE + WDE, then the new value within four cycles) is a call to a '
+                'library the chip rules DECLARE (name, version, licence); the role must say why the call is interrupt-safe, else it is refused',
+     'selects_when': 'a part with action call, on a chip whose rules declare the named library; chips without libraries (a SystemRDL-only chip) are '
+                     'refused and use keyed-write register rows instead',
+     'templates': {'call': '{function}({args});'},
+     'cite': 'econ\'s review 2026-11-13 (call needs a provider-declared library; the version is pinned in the cite)'},
     {'name': 'atomic-alias-window', 'title': 'Atomic alias address windows (xor / set / clear)', 'kind': 'access', 'isr_safe': True,
      'chips': 'RP2040, RP2350', 'implemented': False,
      'meaning': 'every peripheral register is also reachable at fixed offsets where a write xors, sets or clears the bits written',
@@ -184,6 +198,8 @@ def choose(f):
         return 'w1c-alias', 'rule 2: a clear, and this field is a write-1-to-clear alias'
     if a == 'clear' and acc in ('w1c', 'r-w1c'):
         return 'w1c-flag', 'rule 3: a clear of a write-1-to-clear flag (access %s)' % acc
+    if a == 'clear' and acc == 'w0c':
+        return 'w0c-flag', 'rule 3c: a clear of a write-0-to-clear flag: one store, 0 in the flag, 1 in the other w0c flags (no effect), no read'
     if a == 'clear' and acc == 'w' and f.get('clear_by_store'):
         return 'w1c-flag', 'rule 3b: a write-only clear register (the role says a store of the mask clears): never read-modify-written'
     if acc == 'missing':
@@ -191,7 +207,7 @@ def choose(f):
     if a == 'toggle' and acc == 'rw-toggle':
         return 'toggle-by-input-write', 'rule 4: a toggle, and writing 1 to this field toggles the output'
     if a == 'read':
-        if acc in ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'):   # (a FIFO is never read as a bit: it pops)
+        if acc in ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c', 'w0c'):   # (a FIFO is never read as a bit: it pops)
             return 'read-bit', 'rule 5: a read of a readable field (access %s)' % acc
         return None, 'a read of a field with access %r' % acc
     if acc not in ('rw', 'rw-sc'):

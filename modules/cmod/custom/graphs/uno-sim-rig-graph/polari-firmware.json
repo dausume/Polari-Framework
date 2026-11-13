@@ -14,7 +14,7 @@
   "licence": "BSD-3-Clause",
   "runs": "in the framework process (pure Python; cffi already pins it — requirements.txt pycparser==2.21)",
   "preprocessor": "pycparser.ply.cpp (pure Python) + cmod fake avr-libc headers",
-  "fake_headers_sha256": "35cf5dc88acbab00b5fac625254e8959c38bed1185fcf517d60b2d9541b7f40b",
+  "fake_headers_sha256": "4d6f9c79f6da6ead96d6d167a8a0b2f9924b40f80bcc75570937bdccb91d6d70",
   "registers": {
    "mcu": "atmega328p",
    "avr_libc": "2.2.1",
@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "fbb17ea3726c37d2602a061adf1b95a1bbc803a43108f7556e06238fc67eebf8",
-    "noinline": "09fc520bc6742091302cc7088ae3cbf57717cbfbc75e55b9cdccf9f87b8ce0bb"
+    "shipped": "e5d702c70aed1b75e321576daf000d0bd8c0a23f6f34aa420dd0c07e06bba9d2",
+    "noinline": "2df6383f918eada418dc0b2e073a85a2c9799941d7ea17283f52ae3e423cd7b1"
    }
   }
  ],
@@ -70,11 +70,11 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "e504d858f85c4a587b3979d5f65fd330cf0de50b6f8965c7122f089e20c61088"
+     "sha256": "e7f7473eb29734b2adfd2ba15b79613a2edc77f938e2ecca0594fdbef48e44e3"
     },
     {
      "path": "hal.h",
-     "sha256": "8f0de7249e798eebc3bd044471ac5acab158d0c5bfc7a7091b3ac9d07936d6ff"
+     "sha256": "6524751de0f2e65c8b5dcccddb2ebfaa650714eed181ef45bb17f98f9b9afcd1"
     }
    ],
    "atoms": [
@@ -120,7 +120,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "51cf71357cbb6abbd3544bb6a0b27444e6e7e175bc197e9335ac4e27bb8afe5f"
+     "sha256": "2757c2f9b7917aab151d4e14a441f3f0aa27e559b940067f8924c94792dfd92f"
     }
    ],
    "atoms": [
@@ -146,7 +146,7 @@
    "files": [
     {
      "path": "polari_hal_atmega328p.h",
-     "sha256": "2cb2168e869854d1d4d578b7b5fc608dcb0e6f10908d0ad3799ce931498ca7b6"
+     "sha256": "41960c5631bf99161efabaa4accd1b7c162cf213badd2f178efa1e7be19a7047"
     }
    ],
    "atoms": []
@@ -168,7 +168,7 @@
    "name": "hal.TIMER2_COMPA_vect",
    "function": "__polari_isr_TIMER2_COMPA_vect",
    "module": "hal.c",
-   "line": 116,
+   "line": 113,
    "kind": "isr",
    "isr_vector": "TIMER2_COMPA_vect",
    "signature": "ISR(TIMER2_COMPA_vect)",
@@ -224,7 +224,7 @@
    "name": "hal.USART_RX_vect",
    "function": "__polari_isr_USART_RX_vect",
    "module": "hal.c",
-   "line": 64,
+   "line": 59,
    "kind": "isr",
    "isr_vector": "USART_RX_vect",
    "signature": "ISR(USART_RX_vect)",
@@ -301,7 +301,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 325,
+   "line": 321,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -312,14 +312,14 @@
     {
      "kind": "register",
      "name": "ADCSRA",
-     "access": "w",
+     "access": "rw",
      "peripheral": "ADC",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "ADMUX",
-     "access": "w",
+     "access": "rw",
      "peripheral": "ADC",
      "detail": ""
     }
@@ -337,17 +337,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_adc_init",
-    "text_bytes": 14,
+    "text_bytes": 34,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 14,
+    "text_bytes_noinline": 34,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     14,
-     14
+     34,
+     34
     ]
    },
    "title": "",
@@ -357,7 +357,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 333,
+   "line": 328,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -403,7 +403,7 @@
     {
      "kind": "register",
      "name": "ADMUX",
-     "access": "w",
+     "access": "rw",
      "peripheral": "ADC",
      "detail": ""
     }
@@ -413,13 +413,13 @@
    "pure_why": "touches register ADC, ADCSRA, ADMUX",
    "isr_safe": "yes",
    "isr_safe_why": "",
-   "atomic_block": false,
+   "atomic_block": true,
    "configs": [
     "default"
    ],
    "annotation": {
     "form": "macro",
-    "line": 331,
+    "line": 326,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -427,17 +427,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_adc_read",
-    "text_bytes": 36,
+    "text_bytes": 56,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 36,
+    "text_bytes_noinline": 78,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
-    "stack_bytes_noinline": 2,
+    "stack_bytes_noinline": 4,
     "text_bytes_range": [
-     36,
-     36
+     56,
+     56
     ]
    },
    "title": "",
@@ -447,7 +447,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 279,
+   "line": 275,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -492,7 +492,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 277,
+    "line": 273,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -522,7 +522,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 266,
+   "line": 262,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -571,7 +571,7 @@
    "name": "hal.hal_millis",
    "function": "hal_millis",
    "module": "hal.c",
-   "line": 136,
+   "line": 131,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t hal_millis(void)",
@@ -609,7 +609,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 134,
+    "line": 129,
     "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
     "uses": [],
     "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
@@ -637,7 +637,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 314,
+   "line": 310,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -692,7 +692,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 312,
+    "line": 308,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -722,7 +722,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 302,
+   "line": 298,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -792,7 +792,7 @@
    "name": "hal.hal_rx_pop",
    "function": "hal_rx_pop",
    "module": "hal.c",
-   "line": 77,
+   "line": 72,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_rx_pop(uint8_t * b)",
@@ -861,7 +861,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 74,
+    "line": 69,
     "role": "pop one byte from the USART0 RX ring the RX ISR fills",
     "uses": [
      "USART0"
@@ -891,7 +891,7 @@
    "name": "hal.hal_tick_init",
    "function": "hal_tick_init",
    "module": "hal.c",
-   "line": 118,
+   "line": 115,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_tick_init(void)",
@@ -909,21 +909,21 @@
     {
      "kind": "register",
      "name": "TCCR2A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TCCR2B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TIMSK2",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER2",
      "detail": ""
     }
@@ -941,17 +941,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_tick_init",
-    "text_bytes": 24,
+    "text_bytes": 48,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 24,
+    "text_bytes_noinline": 48,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     24,
-     24
+     48,
+     48
     ]
    },
    "title": "",
@@ -961,7 +961,7 @@
    "name": "hal.hal_usart_init",
    "function": "hal_usart_init",
    "module": "hal.c",
-   "line": 86,
+   "line": 83,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_init(void)",
@@ -972,7 +972,7 @@
     {
      "kind": "register",
      "name": "UBRR0H",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
@@ -986,21 +986,21 @@
     {
      "kind": "register",
      "name": "UCSR0A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "UCSR0B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "UCSR0C",
-     "access": "w",
+     "access": "rw",
      "peripheral": "USART0",
      "detail": ""
     }
@@ -1018,17 +1018,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_usart_init",
-    "text_bytes": 30,
+    "text_bytes": 80,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 30,
+    "text_bytes_noinline": 80,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     30,
-     30
+     80,
+     80
     ]
    },
    "title": "",
@@ -1038,7 +1038,7 @@
    "name": "hal.hal_usart_send",
    "function": "hal_usart_send",
    "module": "hal.c",
-   "line": 105,
+   "line": 102,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
@@ -1093,7 +1093,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 103,
+    "line": 100,
     "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
     "uses": [],
     "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
@@ -1454,5 +1454,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T08:41:27"
+ "conformed_at": "2026-11-13T12:38:49"
 }

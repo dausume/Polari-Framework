@@ -175,7 +175,8 @@
    "custom/stack_static",
    "custom/static_rules",
    "custom/statistics",
-   "custom/taxonomy"
+   "custom/taxonomy",
+   "custom/wdt_order"
   ]
  },
  "classes": [

@@ -181,7 +181,7 @@ def _hal_header(route, p):
     HAL, the HAL feeds this one render (the cmod generator env is imported the same way above)."""
     from hal.custom import project as HP
     try:
-        return HP.isotope_header(isotope_dir(route), 'atmega328p', {'button_pin': p['soc_pin']})
+        return HP.isotope_header(isotope_dir(route), 'atmega328p', {'button_pin': p['soc_pin'], 'adc': 'ADC'})   # hal-3b step 1: the ADC instance
     except HP.HalRefused as e:
         raise RouteRefused('the HAL cannot give this isotope what it requires on %s: %s' % (p['soc_pin'], e))
 
