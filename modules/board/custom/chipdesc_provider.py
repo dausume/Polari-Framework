@@ -53,7 +53,7 @@ def provider_parts(soc, registers, fields, meta):
             raise ChipdescRefused('%s: pin %s names bit %d of %s.%s, which is %d bits wide' % (soc, pin, bit, reg, field, f['width']))
         k = f['bit_lo'] + bit
         rv = f['reset_value']
-        rows.append(dict(f, field='%s_%d' % (field, bit), bit_lo=k, bit_hi=k, width=1, affects_pin=pin,
+        rows.append(dict(f, field=pin_view_name(field, bit), bit_lo=k, bit_hi=k, width=1, affects_pin=pin,
                          reset_value=str((int(rv) >> bit) & 1) if str(rv).isdigit() else rv,
                          page_table='%s (bit %d of %s.%s, pin %s per the chip description\'s pin table)' % (f['page_table'], bit, reg, field, pin)))
     pins = {pin: {'port': '', 'bit': f_bit_lo(by, reg, field) + bit, 'n': n}
@@ -100,15 +100,21 @@ def _crosscheck_fn(soc, second, first_source):
         if not cover:
             return dict(row, second='', result='no-second-source',
                         why='the second description has no field covering bits %d-%d of %s' % (b['bit_hi'], b['bit_lo'], b['register']))
-        f = cover[0]
+        # the exact (bit_lo, bit_hi) row first, then the narrowest covering one (a wide register-level row never wins over the field)
+        f = min(cover, key=lambda r: ((r['bit_lo'], r['bit_hi']) != (b['bit_lo'], b['bit_hi']), r['bit_hi'] - r['bit_lo']))
         diff = []
-        if (f['bit_lo'], f['bit_hi']) != (b['bit_lo'], b['bit_hi']) and not (b['bit_lo'] == b['bit_hi'] and f['field'] + '_%d' % (b['bit_lo'] - f['bit_lo']) == b['field']):
+        if (f['bit_lo'], f['bit_hi']) != (b['bit_lo'], b['bit_hi']) and not (b['bit_lo'] == b['bit_hi'] and pin_view_name(f['field'], b['bit_lo'] - f['bit_lo']) == b['field']):
             diff.append('position: %s.%s is bits %d-%d there' % (f['register'], f['field'], f['bit_hi'], f['bit_lo']))
         if f['access'] != b['access']:
             diff.append('access: %s there, %s here' % (f['access'], b['access']))
         return dict(row, second='%s.%s bits %d-%d %s' % (f['register'], f['field'], f['bit_hi'], f['bit_lo'], f['access']),
                     result='fail' if diff else 'pass', why='; '.join(diff))
     return crosscheck
+
+
+def pin_view_name(field, bit):
+    """the one-bit pin view of bit k of FIELD is FIELD_k (the ONE place this naming lives; the crosscheck reads it back)"""
+    return '%s_%d' % (field, bit)
 
 
 def f_bit_lo(by, reg, field):

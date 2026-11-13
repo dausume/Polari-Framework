@@ -89,6 +89,16 @@ def run():
         xgo = SR.PROVIDERS['toyperiph']['crosscheck']({'key': 'probe'}, {'register': go['register'], 'field': 'GO', 'bit_lo': go['bit_lo'],
                                                                        'bit_hi': go['bit_hi'], 'access': go['access']})
         xno = SR.PROVIDERS['toyperiph']['crosscheck']({'key': 'probe'}, {'register': 'TOYPERIPH_GPIO_OUT_REG', 'field': 'X', 'bit_lo': 8, 'bit_hi': 8, 'access': 'rw'})
+        wide = dict(next(f for f in F2 if f['field'] == 'OUT'), field='WHOLE', bit_lo=0, bit_hi=31, width=32)
+        CP.register('toyperiph_wide', R, F, dict(meta(), second_source={'fields': [wide] + list(F2), 'source': 'SVD rows with a 32-bit register-level row listed first'}))
+        try:
+            xw = CX.checks(G.unit('toyperiph_wide', 'gpio.set_high', 'TOY_OUT3'))
+        finally:
+            CP.unregister('toyperiph_wide')
+        check('the crosscheck takes the narrowest covering row: a 32-bit register-level row listed before OUT does not make a false position fail',
+              len(xw) == 1 and xw[0]['result'] == 'pass' and '.OUT bits 7-0' in xw[0]['second'], xw)
+        check('the pin view naming lives in one helper the crosscheck reuses (pin_view_name(OUT, 3) == OUT_3, the row provider_parts made)',
+              CP.pin_view_name('OUT', 3) == 'OUT_3' and any(f['field'] == 'OUT_3' and f['affects_pin'] == 'TOY_OUT3' for f in SR.fields('toyperiph')))
         check('...and says where they differ: GO is w-strobe from the RDL but w from the SVD -> fail, "access: w there, w-strobe here"; bits the SVD lacks -> no-second-source',
               xgo['result'] == 'fail' and 'access: w there, w-strobe here' in xgo['why'] and xno['result'] == 'no-second-source', (xgo, xno))
         rows = {(f['register'], f['field']): f for f in SR.fields('toyperiph')}
