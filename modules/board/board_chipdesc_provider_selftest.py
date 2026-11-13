@@ -56,9 +56,13 @@ def run():
     before = (sorted(SR.PROVIDERS), sorted(SR.RULES), sorted(SR.DOCS))
     u0 = G.unit('toyperiph', 'gpio.set_high', 'TOY_OUT3')['unit']
     check('before registration the generator refuses the chip in words (no default provider)', u0['status'] == 'refused' and 'no HAL provider' in u0['why'], u0['why'])
+    from hal.custom import crosscheck as CX
     R, F = _rdl_rows()
+    R2, F2 = _svd_rows()
     try:
-        CP.register('toyperiph', R, F, meta())
+        CP.register('toyperiph', R, F, dict(meta(), second_source={'fields': F2, 'source': 'board.custom.svd_import(toyperiph.expected.svd) + access_overlay'}))
+        check('the registered chip is listed and documented through the interface: SR.socs() has it, SR.doc() is its chip description, SR.DOCS is untouched',
+              'toyperiph' in SR.socs() and SR.doc('toyperiph') == meta()['source'] and 'toyperiph' not in SR.DOCS, (SR.socs(), SR.doc('toyperiph')))
         u = {(op, pin): G.unit('toyperiph', op, pin)['unit'] for op, pin in (('gpio.set_high', 'TOY_OUT3'), ('gpio.set_low', 'TOY_OUT0'), ('gpio.toggle', 'TOY_OUT7'),
                                                                              ('gpio.output', 'TOY_OUT3'), ('gpio.read', 'TOY_OUT3'), ('gpio.set_high', 'PB5'))}
         hi = u[('gpio.set_high', 'TOY_OUT3')]
@@ -75,6 +79,18 @@ def run():
         check('render.header writes polari_hal_toyperiph.h: the C facts from the chip description (stdint, POLARI_HAL_ATOMIC prelude), both macros',
               '#include <stdint.h>' in h['text'] and '#define POLARI_HAL_ATOMIC(stmt)' in h['text'] and 'HAL_GPIO_SET_HIGH_TOY_OUT3()' in h['text']
               and 'HAL_GPIO_TOGGLE_TOY_OUT7()' in h['text'] and not h['refused'], h['refused'])
+        check('the header\'s "Facts from:" line names the chip description (SR.doc), not a copied cite',
+              ' * Chip: toyperiph (own-RTL stand-in). Facts from: %s.' % meta()['source'] in h['text'], [l for l in h['text'].splitlines() if 'Facts from' in l])
+        cx = CX.checks(G.unit('toyperiph', 'gpio.set_high', 'TOY_OUT3'))
+        check('crosscheck: the RDL and the SVD agree on set_high TOY_OUT3\'s field (bit 3 of OUT, rw) -> one pass row naming both sources',
+              len(cx) == 1 and cx[0]['result'] == 'pass' and 'svd_import' in cx[0]['second_source'] and 'rdl_import' in cx[0]['first_source']
+              and cx[0]['second'].startswith('TOYPERIPH_GPIO_OUT_REG.OUT bits 7-0 rw'), cx)
+        go = next(f for f in SR.fields('toyperiph') if f['field'] == 'GO')
+        xgo = SR.PROVIDERS['toyperiph']['crosscheck']({'key': 'probe'}, {'register': go['register'], 'field': 'GO', 'bit_lo': go['bit_lo'],
+                                                                       'bit_hi': go['bit_hi'], 'access': go['access']})
+        xno = SR.PROVIDERS['toyperiph']['crosscheck']({'key': 'probe'}, {'register': 'TOYPERIPH_GPIO_OUT_REG', 'field': 'X', 'bit_lo': 8, 'bit_hi': 8, 'access': 'rw'})
+        check('...and says where they differ: GO is w-strobe from the RDL but w from the SVD -> fail, "access: w there, w-strobe here"; bits the SVD lacks -> no-second-source',
+              xgo['result'] == 'fail' and 'access: w there, w-strobe here' in xgo['why'] and xno['result'] == 'no-second-source', (xgo, xno))
         rows = {(f['register'], f['field']): f for f in SR.fields('toyperiph')}
         words = {k[1]: f['access'] for k, f in rows.items() if k[1] in ('OUT', 'DONE', 'GO', 'START', 'COUNT', 'OUT_3')}
         check('the access table reads the RDL\'s words: OUT / OUT_3 rw, DONE r-w1c, GO w-strobe, START rw-sc, COUNT r (the lossy word is not used)',
@@ -91,11 +107,12 @@ def run():
         check('choose() over the RDL\'s words: clear DONE -> w1c-flag, strobe GO -> strobe, write START -> field-write, read_value COUNT -> read-reg / read-field, '
               'read DONE -> read-bit', mech['clear DONE'] == 'w1c-flag' and mech['strobe GO'] == 'strobe' and mech['write START'] == 'field-write'
               and mech['read_value COUNT'] in ('read-field', 'read-reg') and mech['read DONE'] == 'read-bit', mech)
-        R2, F2 = _svd_rows()
         CP.register('toyperiph_svd', R2, F2, dict(meta(), title='toyperiph via its SVD', source='board.custom.svd_import(toyperiph.expected.svd)'))
         hi2 = G.unit('toyperiph_svd', 'gpio.set_high', 'TOY_OUT3')['unit']
         check('the same chip registered from the SVD path gives the SAME code where an SVD can say the same thing (set_high TOY_OUT3)',
               hi2['status'] == 'resolved' and hi2['c_text'].replace('TOYPERIPH', '') == hi['c_text'].replace('TOYPERIPH', ''), hi2['c_text'] or hi2['why'])
+        check('a chip registered with no second source has no crosscheck fn and gets no rows (never another chip\'s rule)',
+              'crosscheck' not in SR.PROVIDERS['toyperiph_svd'] and CX.checks(G.unit('toyperiph_svd', 'gpio.set_high', 'TOY_OUT3')) == [])
         go2 = next(f for f in SR.fields('toyperiph_svd') if f['field'] == 'GO')
         check('...and the strobe it cannot know stays refused: from the SVD, GO is w, and choose(strobe, w) refuses (decision ii)',
               go2['access'] == 'w' and MX.choose(dict(base, action='strobe', access='w', width=1, lo=0))[0] is None)
@@ -127,6 +144,7 @@ def run():
     finally:
         CP.unregister('toyperiph')
         CP.unregister('toyperiph_svd')
+    check('unregistered chips leave SR.socs() as the built-ins', SR.socs() == SR.SOCS, SR.socs())
     after = (sorted(SR.PROVIDERS), sorted(SR.RULES), sorted(SR.DOCS))
     check('every registration undone: PROVIDERS / RULES / DOCS are exactly as before (%s)' % ', '.join(after[0]), after == before, (before, after))
     total, ok = len(_results), sum(_results)
