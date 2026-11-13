@@ -58,8 +58,8 @@
    "generated": [],
    "source_sha": "",
    "elf_sha256": {
-    "shipped": "c729b6f258e00583835deee8e7ad86ea816422d16954aed2694450bf5de8daae",
-    "noinline": "797661a332c0af867391778d0b20bd063b8ebe200139d2b963d697f7ab9585e5"
+    "shipped": "fbb17ea3726c37d2602a061adf1b95a1bbc803a43108f7556e06238fc67eebf8",
+    "noinline": "09fc520bc6742091302cc7088ae3cbf57717cbfbc75e55b9cdccf9f87b8ce0bb"
    }
   }
  ],
@@ -70,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
+     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
     },
     {
      "path": "hal.h",
@@ -120,7 +120,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "c37167459ceb868ef8e8f9cc726408e5ec230dbe0dc82ae48301a5ad40116a67"
+     "sha256": "4ac6268db2ed70c7e7194b44f92f76b44d78723cca82704b3aaf5c473444144c"
     }
    ],
    "atoms": [
@@ -146,7 +146,7 @@
    "files": [
     {
      "path": "polari_hal_atmega328p.h",
-     "sha256": "7f0eaa074dd1710d50e9e0449ebd81be7e006f2c0d4aa8e2e31bf9ad686d5dc4"
+     "sha256": "b66f13845c72e5164328bb7b7739102815d937d2f6b4b6846d6707bfa2771167"
     }
    ],
    "atoms": []
@@ -301,7 +301,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 346,
+   "line": 325,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -357,7 +357,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 354,
+   "line": 333,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -419,7 +419,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 352,
+    "line": 331,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -447,7 +447,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 285,
+   "line": 279,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -492,7 +492,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 283,
+    "line": 277,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -522,7 +522,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 271,
+   "line": 266,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -637,7 +637,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 335,
+   "line": 314,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -692,7 +692,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 333,
+    "line": 312,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -722,7 +722,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 315,
+   "line": 302,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -747,14 +747,14 @@
     {
      "kind": "register",
      "name": "TCCR0A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TCCR0B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER0",
      "detail": ""
     }
@@ -772,17 +772,17 @@
    "cost": {
     "measured_in": "default",
     "symbol": "hal_pwm_init",
-    "text_bytes": 12,
+    "text_bytes": 32,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 12,
+    "text_bytes_noinline": 32,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     12,
-     12
+     32,
+     32
     ]
    },
    "title": "",
@@ -1454,5 +1454,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-12T22:28:20"
+ "conformed_at": "2026-11-13T01:52:04"
 }

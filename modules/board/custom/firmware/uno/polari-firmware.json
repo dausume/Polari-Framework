@@ -57,14 +57,14 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "d99fafd272be9a2859803013d693205ee7496ec20e0cb7ddcac6bca44168ddc8",
+   "source_sha": "0dbb70edbaa0d6e744efd85dd42833175e0a00743925f3b8feca603a2c28c6b7",
    "elf_sha256": {
-    "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
-    "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
+    "shipped": "93612b166d5894c5aac6f1d37ee080c1879ae21035dc522ceaf4a95e445bc876",
+    "noinline": "b2c80e83aea30d3d2dcd034cabd504f2e459b2d03b0823b81086e3be3e08396e"
    },
    "make_alone": {
     "ok": true,
-    "hex_sha256": "4188f6ae7d65bfc7a29070239525c58e697b65e7f8457f495f5cc5ef293a0c06"
+    "hex_sha256": "57461b96fc508227c4b3bbf09867a45a4c9398cccd258ea2608caf70c3e6a8c9"
    }
   },
   {
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "32b71dcbce33d7203352ce64de4080c4518a3daa5448394c847d62b02272bddb",
+   "source_sha": "34780c53687b2f60d995d7d0f7670744bfa07ba5f28783acaf4b09858a1fd67d",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a9bf87655ab820d7e018d82eb21a9a7defcf28d0786be435f9ef2b01487accfe",
+   "source_sha": "1d80497a3fcb5f4a06093f569c29a07537b82216ca06627a72271b11e4de4f0b",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "fc2d6a4c96e47fd745897598984d583a6927938a059bacd9f4111d9cb050d160",
+   "source_sha": "4bc97428529767e030f6fdee942b4c8a1f08a7ed6958b4713a8d483d00cf5698",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "466aba51be4528881bf7b4ee8db6c4cc09f6b30e3513318e6a42ae7fe0bd5a57",
+   "source_sha": "f5ff344a4453207684ad7e9f8be41d974c37fb3c23bac896aa61caff09ee80b5",
    "elf_sha256": {
     "shipped": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
     "noinline": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08"
@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f02cce59aa40d21914909f1823395f935d53627489c29d850b64eebe489524af",
+   "source_sha": "bc6ffb9959561819cf64bbb782035ce201f736a20203865ca9ab8ee39b263459",
    "elf_sha256": {
     "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
     "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
@@ -197,7 +197,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "5f8e1491ed1d953f3264cea1faafa33f68aaeddbd049fe18ea449abd045ac031",
+   "source_sha": "b604bf7926d9a166321f8e6fe32a7a095c8a2dbf297d2d00960180b799618412",
    "elf_sha256": {
     "shipped": "57210995276cc7267155d84d72056a95afc9608c4f6702a18e4322247840f466",
     "noinline": "c34cef762717cbca3ce5d4b4b0a17d161b823ae415c985ce911a0d1a8a1f2aef"
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "83c996fef0f54f3bf11fec602f3636bca6455d3593d23f34ad0bfa947f39d52f",
+   "source_sha": "c389bfdf1a0e9bee427b58fd49e0f7a4e52787fe0521166e567ed3a6c6052e18",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -245,7 +245,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c4d39b5596d30ca8fca531dafed7c10655ec7972f293f9c59f76ffccd0419519",
+   "source_sha": "f2989ca19421db703d1e31f701e4547cdabb4a2500a0ccf3fd87ea5009a8f1b9",
    "elf_sha256": {
     "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
     "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
@@ -270,7 +270,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f37652802995b49e2293343dbe06141749a172724d025c1b719b8157095ad97d",
+   "source_sha": "961f9c9257fd21a79edc5f3cdc1e18892cc8058252f2d632e39a39f58ac7450a",
    "elf_sha256": {
     "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
     "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
@@ -295,7 +295,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "3de49cfe06d9b68144f1b9025184c4e6b36b6ee005d8659142cccf556e4b3e14",
+   "source_sha": "46de827a48e1d1af5185f5dc2e99f6799a4073fa5731c5a94105b0fbce4107c3",
    "elf_sha256": {
     "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
     "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
@@ -326,7 +326,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "54dd7cb37dadbe27f2d6cf957eef970224bb410a3a2e894c9a118c4c0adc0c04",
+   "source_sha": "7a2e2ae54be01b26c069c005362902a1d83ce2a299440e93ed694b271d6a3092",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -353,7 +353,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "4ec045a267e703aba3c9deb3c9ef177f4eeaa05cc2b41022604fa4969f72f0fb",
+   "source_sha": "5a826de8e0ff61eae5aa466bfa8ef82fc70f549179aaef0be1c0915db9369157",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -371,7 +371,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
+     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
     },
     {
      "path": "hal.h",
@@ -4095,7 +4095,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 346,
+   "line": 325,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -4152,7 +4152,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 354,
+   "line": 333,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -4215,7 +4215,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 352,
+    "line": 331,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -4341,7 +4341,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 285,
+   "line": 279,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -4403,7 +4403,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 283,
+    "line": 277,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -4433,7 +4433,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 271,
+   "line": 266,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -4658,7 +4658,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 335,
+   "line": 314,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -4713,7 +4713,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 333,
+    "line": 312,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -4743,7 +4743,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 315,
+   "line": 302,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -4768,14 +4768,14 @@
     {
      "kind": "register",
      "name": "TCCR0A",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER0",
      "detail": ""
     },
     {
      "kind": "register",
      "name": "TCCR0B",
-     "access": "w",
+     "access": "rw",
      "peripheral": "TIMER0",
      "detail": ""
     }
@@ -4793,17 +4793,17 @@
    "cost": {
     "measured_in": "uno-sim-rig",
     "symbol": "hal_pwm_init",
-    "text_bytes": 14,
+    "text_bytes": 34,
     "in_shipped_build": true,
     "inlined": false,
-    "text_bytes_noinline": 14,
+    "text_bytes_noinline": 34,
     "stack_bytes": 2,
     "stack_kind": "static",
     "stack_from": "shipped",
     "stack_bytes_noinline": 2,
     "text_bytes_range": [
-     14,
-     14
+     34,
+     34
     ]
    },
    "title": "",
@@ -6642,5 +6642,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-12T21:51:00"
+ "conformed_at": "2026-11-13T02:34:37"
 }

@@ -255,15 +255,10 @@ void hal_wdt_boot(void)
 
 #if LED_ROUTE_PWM
 /* smp-1 (drive-led:pwm): the LED pin is Timer0's compare output (D6 = OC0A, D5 = OC0B), PHASE-CORRECT PWM (TOP 255, ~490 Hz at clk/64). "On" connects the output at
- * OCR = 255 (100 % duty: the pin stays HIGH, no edges for a sense line to count); "off" disconnects it and drives the pin low. The PORT bit
- * is kept equal to the level the pin has, so everything that reads the LED line as a port bit still reads the truth. */
-#if LED_PIN == 6
-#define LED_OCR  OCR0A
-#define LED_COM  COM0A1
-#elif LED_PIN == 5
-#define LED_OCR  OCR0B
-#define LED_COM  COM0B1
-#else
+ * duty 255 (100 %: the pin stays HIGH, no edges for a sense line to count); "off" disconnects it and drives the pin low. The PORT bit
+ * is kept equal to the level the pin has, so everything that reads the LED line as a port bit still reads the truth.
+ * hal-3b: which timer, which compare register and which COM bits are the generated header's (HAL_LED_PWM_*: the pin's OCnx function). */
+#if LED_PIN != 6 && LED_PIN != 5
 #error "LED_ROUTE_PWM needs LED_PIN 5 or 6 (Timer0's outputs); D3/D11 belong to Timer2, the 1 ms tick"
 #endif
 #endif
@@ -274,9 +269,8 @@ void hal_led_init(void)
     HAL_LED_OUTPUT();          /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
 #if LED_ROUTE_PWM
-    TCCR0A = _BV(WGM00);                               /* phase-correct PWM (TOP = 255), output disconnected */
-    TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
-    LED_OCR = 255u;
+    HAL_LED_PWM_INIT_PHASE(64u);                       /* phase-correct PWM (TOP = 255) at clk/64, output still disconnected */
+    HAL_LED_PWM_SET_DUTY(255u);
 #endif
 }
 
@@ -287,9 +281,9 @@ void hal_led(uint8_t on)
 #if LED_ROUTE_PWM
     if (on) {
         HAL_LED_SET_HIGH();
-        TCCR0A |= _BV(LED_COM);
+        HAL_LED_PWM_CONNECT();
     } else {
-        TCCR0A &= (uint8_t)~_BV(LED_COM);
+        HAL_LED_PWM_DISCONNECT();
         HAL_LED_SET_LOW();
     }
 #else
@@ -298,36 +292,21 @@ void hal_led(uint8_t on)
 }
 #endif
 
-/* ---- PWM on PWM_PIN (~976 Hz on Timer0, ~976 Hz 8-bit fast PWM on Timer1), duty a percentage 0..100 ---- */
+/* ---- PWM on PWM_PIN (~976 Hz 8-bit fast PWM: Timer0 on D5/D6, Timer1 mode 5 on D9/D10), duty a percentage 0..100.
+ * hal-3b: the timer, its mode bits, clock select and compare register are the generated header's (HAL_PWM_*, from the pin's OCnx). ---- */
 #if FEATURE_PWM
-#if PWM_PIN == 6
-#define PWM_OCR OCR0A
-#elif PWM_PIN == 5
-#define PWM_OCR OCR0B
-#elif PWM_PIN == 9
-#define PWM_OCR OCR1A
-#elif PWM_PIN == 10
-#define PWM_OCR OCR1B
-#else
+#if PWM_PIN != 6 && PWM_PIN != 5 && PWM_PIN != 9 && PWM_PIN != 10
 #error "PWM_PIN must be 5, 6 (Timer0) or 9, 10 (Timer1) — D3/D11 belong to Timer2, the 1 ms tick"
 #endif
 
 void hal_pwm_init(void)
 {
-#if PWM_PIN == 6 || PWM_PIN == 5
 #ifndef POLARI_PIN_CONFIG
-    HAL_PWM_OUTPUT();                               /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_PWM_OUTPUT();                                  /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
-    TCCR0A = ((PWM_PIN == 6) ? _BV(COM0A1) : _BV(COM0B1)) | _BV(WGM01) | _BV(WGM00);
-    TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
-#else
-#ifndef POLARI_PIN_CONFIG
-    HAL_PWM_OUTPUT();                               /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
-#endif
-    TCCR1A = ((PWM_PIN == 9) ? _BV(COM1A1) : _BV(COM1B1)) | _BV(WGM10);   /* fast PWM 8-bit (mode 5) */
-    TCCR1B = _BV(WGM12) | _BV(CS11) | _BV(CS10);       /* clk/64 */
-#endif
-    PWM_OCR = 0u;
+    HAL_PWM_INIT_FAST(64u);                            /* fast PWM 8-bit at clk/64 */
+    HAL_PWM_CONNECT();                                 /* non-inverting compare output */
+    HAL_PWM_SET_DUTY(0u);
 }
 
 POLARI_NODE(hal_pwm_apply, in(duty, "%", "requested duty 0..100 (clamped)"), out(return, "%", "the duty applied"),
@@ -336,7 +315,7 @@ int64_t hal_pwm_apply(int64_t duty)
 {
     if (duty < 0) duty = 0;
     if (duty > 100) duty = 100;
-    PWM_OCR = (uint8_t)(((uint16_t)duty * 255u) / 100u);
+    HAL_PWM_SET_DUTY((uint8_t)(((uint16_t)duty * 255u) / 100u));
     return duty;
 }
 #endif

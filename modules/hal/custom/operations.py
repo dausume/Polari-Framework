@@ -104,9 +104,44 @@ OPERATIONS += [
      'basis': 'avr-libc <avr/interrupt.h> ISR(vector) naming'},
 ]
 
+# hal-3b: the PWM family, pin-keyed: the pin's own compare-output function (OCnx on the AVR; an LEDC channel on the C3) names the
+# timer. Arguments are the physical quantities (a prescaler division factor, a compare level 0..TOP), never register codes.
+_ZP = 'Zephyr include/zephyr/drivers/pwm.h (Apache-2.0): pwm_set(dev, channel, period, pulse, flags), API shape only'
+_AP = 'ArduinoCore-avr cores/arduino/wiring_analog.c (LGPL-2.1-or-later): analogWrite(pin, value), API shape only'
+OPERATIONS += [
+    {'name': 'pwm.init_fast', 'family': 'pwm', 'title': 'Set the pin\'s timer to fast PWM (8-bit) at a prescaler', 'setup': '',
+     'args': [{'name': 'prescaler', 'ctype': 'unsigned', 'meaning': 'the clock division factor (1, 8, 64, 256, 1024 on the ATmega328P)'}],
+     'parts': [{'role': 'pwm_mode', 'action': 'write', 'value': '@derive:mode:fast_pwm_8bit'},
+               {'role': 'pwm_clock', 'action': 'write', 'value': '@derive:divider:{prescaler}'}],
+     'returns': 'void', 'c_name': 'HAL_PWM_INIT_FAST',
+     'intent': 'the timer that drives this pin counts 0..TOP and the output can switch once per count (single-slope, 8-bit TOP)',
+     'basis': '%s; %s (init(): fast PWM on Timer0, phase correct on Timer1/2)' % (_ZP, _AP)},
+    {'name': 'pwm.init_phase', 'family': 'pwm', 'title': 'Set the pin\'s timer to phase-correct PWM (8-bit) at a prescaler', 'setup': '',
+     'args': [{'name': 'prescaler', 'ctype': 'unsigned', 'meaning': 'the clock division factor'}],
+     'parts': [{'role': 'pwm_mode', 'action': 'write', 'value': '@derive:mode:phase_correct_8bit'},
+               {'role': 'pwm_clock', 'action': 'write', 'value': '@derive:divider:{prescaler}'}],
+     'returns': 'void', 'c_name': 'HAL_PWM_INIT_PHASE',
+     'intent': 'the timer counts up then down (dual-slope): half the frequency of fast PWM, with a symmetric output',
+     'basis': '%s; %s' % (_ZP, _AP)},
+    {'name': 'pwm.connect', 'family': 'pwm', 'title': 'Connect the PWM output to the pin (non-inverting)', 'setup': '',
+     'parts': [{'role': 'pwm_output', 'action': 'set', 'value': 'non_inverting'}], 'returns': 'void', 'c_name': 'HAL_PWM_CONNECT',
+     'intent': 'the compare output overrides the pin\'s port function: high until the compare level, low after (the pin must be an output)',
+     'basis': '%s (PWM_POLARITY_NORMAL); %s' % (_ZP, _AP)},
+    {'name': 'pwm.disconnect', 'family': 'pwm', 'title': 'Disconnect the PWM output (the port drives the pin again)', 'setup': '',
+     'parts': [{'role': 'pwm_output', 'action': 'set', 'value': 'disconnected'}], 'returns': 'void', 'c_name': 'HAL_PWM_DISCONNECT',
+     'intent': 'normal port operation returns: the pin shows its PORT bit',
+     'basis': '%s (turnOffPWM in wiring_digital.c)' % _AP},
+    {'name': 'pwm.set_duty', 'family': 'pwm', 'title': 'Set the compare level (the duty)', 'setup': '',
+     'args': [{'name': 'level', 'ctype': 'unsigned', 'meaning': 'the compare level 0..TOP (255 for the 8-bit modes)'}],
+     'parts': [{'role': 'pwm_duty', 'action': 'write', 'value': '{level}'}, {'role': 'pwm_update', 'action': 'strobe'}],
+     'returns': 'void', 'c_name': 'HAL_PWM_SET_DUTY',
+     'intent': 'the output is high for level / (TOP + 1) of each period (non-inverting)', 'basis': '%s (pulse); %s (OCRnx = val)' % (_ZP, _AP)},
+]
+
 ROLES = ('direction', 'output', 'input', 'pull_up', 'pull_down', 'pcint_mask', 'pcint_flag', 'pcint_bank', 'pcint_vector',
-         'edge_sense', 'edge_flag', 'edge_mask', 'edge_vector')
-ACTIONS = ('set', 'clear', 'toggle', 'read', 'lookup', 'symbol')
+         'edge_sense', 'edge_flag', 'edge_mask', 'edge_vector',
+         'pwm_output', 'pwm_duty', 'pwm_mode', 'pwm_clock', 'pwm_update', 'route_out', 'route_in', 'io_mux_func')
+ACTIONS = ('set', 'clear', 'toggle', 'read', 'lookup', 'symbol', 'write', 'read_value', 'strobe', 'wait')
 
 
 def parts(op):

@@ -102,8 +102,8 @@ def main():
         for r in rows:
             cls(**r, manager=m)
     check('six classes; two seeded (operations, mechanisms)', len(HAL_CLASSES) == 6 and [p[0] for p in HAL_SEED_PAIRS] == ['HalOperation', 'HalAccessMechanism'])
-    check('18 operations (8 GPIO + 10 interrupt), every part\'s role and action in the vocabulary',
-          len(OPS.OPERATIONS) == 18 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
+    check('23 operations (8 GPIO + 10 interrupt + 5 pwm, hal-3b), every part\'s role and action in the vocabulary',
+          len(OPS.OPERATIONS) == 23 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
           and all(o['basis'] for o in OPS.OPERATIONS))
     check('every implemented access mechanism has templates for its actions and a cite',
           all(mm['cite'] and (mm['kind'] == 'setup' or not mm.get('implemented', True) or mm['templates']) for mm in MX.MECHANISMS))
@@ -208,7 +208,8 @@ def main():
     check('GPIO coverage: the UNO resolves 7 ops x 23 pins (Ports B, C, D), the C3 8 ops x 22 pads',
           len(g328) == 7 * 23 and len([x for x in gpio['esp32c3'] if x['unit']['status'] == 'resolved']) == 8 * 22)
     check('interrupt coverage: UNO 4 pin-change ops x 23 pins + 6 edge ops x 2 (PD2 INT0, PD3 INT1) = 104; C3 8 ops x 22 = 176 (no vectors)',
-          len(n328) - len(g328) == 104 and len(nc3) - 8 * 22 == 176, '%d / %d' % (len(n328) - len(g328), len(nc3) - 176))
+          len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']) == 104 and len(nc3) - 8 * 22 == 176,
+          '%d / %d' % (len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']), len(nc3) - 176))
 
     print('-- cross-checks')
     ck = [c for x in n328 for c in CX.checks(x)]
@@ -233,9 +234,9 @@ def main():
     api = HalAPI(polServer=None, manager=m)
     rs = _Resp(); api.on_get_units(_Req(), rs, 'atmega328p')
     check('/api/hal/socs/atmega328p/units: one row per op x pin (18 x 23), 7 x 23 gpio + 104 interrupt resolved',
-          rs.media['ok'] and rs.media['count'] == 18 * 23 and rs.media['resolved'] == 7 * 23 + 104, (rs.media['count'], rs.media['resolved']))
+          rs.media['ok'] and rs.media['count'] == 23 * 23 and rs.media['resolved'] == 7 * 23 + 104 + 29, (rs.media['count'], rs.media['resolved']))
     rs = _Resp(); api.on_get_units(_Req({'board': 'arduino-uno-r3', 'pins': 'D13,D2'}), rs, 'atmega328p')
-    check('?board=&pins= reads board pins', rs.media['count'] == 36 and rs.media['rows'][0]['board_pin'] == 'D13')
+    check('?board=&pins= reads board pins', rs.media['count'] == 46 and rs.media['rows'][0]['board_pin'] == 'D13')
     for view in ('steps', 'levels', 'bindings', 'checks'):
         rs = _Resp(); api.on_get_unit(_Req({'view': view}), rs, 'esp32c3:gpio.output:GPIO8')
         check('/api/hal/units/{key}?view=%s answers rows' % view, rs.media['ok'] and rs.media['count'] > 0)
@@ -252,7 +253,7 @@ def main():
     check('/api/hal/socs/esp32c3/header?pins=GPIO8 previews just that pin: the file + its lines',
           rs.media['ok'] and 0 < rs.media['units'] < 30 and rs.media['rows'][0]['line'] == 1, rs.media.get('units'))
     rs = _Resp(); api.on_get_operations(_Req(), rs)
-    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 18)
+    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 23)
     page = SEED_HAL_PAGE_DISPLAYS[0]
     import json as _j
     blob = page['definition']
@@ -311,6 +312,56 @@ def main():
     check('a firmware with no HAL units answers no rows and says why', rs.media['rows'] == [] and 'no HAL units' in rs.media['note'])
     rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'no-such-firmware')
     check('an unknown firmware is 422 in words', rs.status.startswith('422'))
+
+    print('-- pwm family (hal-3b: args, composite fields, derived values, wide access, fail-closed)')
+    def _ct(op, pin):
+        x = G.unit('atmega328p', op, pin)['unit']
+        return x['status'], x.get('c_text_init') or x.get('c_text') or x.get('why', '')
+    st, txt = _ct('pwm.init_fast', 'PD6')
+    check('pwm.init_fast on D6 (OC0A): Timer0, the cited mode table gives fast PWM 8-bit = mode 3 (WGM01:00 = 11 in TCCR0A, WGM02 = 0 in '
+          'TCCR0B), the clock code is DERIVED from Table 15-9 as a C conditional over the prescaler argument',
+          st == 'resolved' and '(uint8_t)(3u << 0)' in txt and '(uint8_t)(0u << 3)' in txt and '== 64u ? 3u' in txt and '(prescaler)' in txt, txt[:200])
+    st, txt = _ct('pwm.init_fast', 'PB1')
+    check('pwm.init_fast on D9 (OC1A): Timer1, fast PWM 8-bit = mode 5 split WGM11:10 = 01 / WGM13:12 = 01 (Table 16-4)',
+          st == 'resolved' and 'TCCR1A' in txt and '(uint8_t)(1u << 0)' in txt and '(uint8_t)(1u << 3)' in txt, txt[:200])
+    st, txt = _ct('pwm.init_phase', 'PB3')
+    check('pwm.init_phase on D11 (OC2A): Timer2\'s OWN clock table (Table 18-9) has /32 and /128, so /128 -> 5 there (Timer0/1 have no /128)',
+          st == 'resolved' and '== 128u ? 5u' in txt and '== 32u ? 3u' in txt, txt[:200])
+    st, txt = 'resolved', G.unit('atmega328p', 'pwm.set_duty', 'PB1')['unit']['c_text']
+    check('pwm.set_duty on D9 writes the 16-bit OCR1A through its wide symbol (TEMP: guarded), on D6 one store to OCR0A',
+          st == 'resolved' and 'OCR1A = (uint16_t)' in txt and 'ATOMIC_BLOCK' in txt and _ct('pwm.set_duty', 'PD6')[1].endswith('OCR0A = (uint8_t)((level)); } while (0)'), txt)
+    check('pwm on D2 is unsupported (no OCnx function, said); pwm.set_duty on D3 is undetermined (OCR2B not cited yet: a table gap, never a guess)',
+          _ct('pwm.connect', 'PD2')[0] == 'unsupported' and _ct('pwm.set_duty', 'PD3')[0] == 'undetermined')
+    pu = G.unit('atmega328p', 'pwm.set_duty', 'PD6')
+    check('the 328P\'s pwm_update role is INHERENT (OCRnx double-buffered by the timer): nothing emitted, and the trace says why',
+          any(st_['output'].startswith('inherent:') for st_ in pu['steps']))
+    keys = ['atmega328p:pwm.init_fast:PD6', 'atmega328p:pwm.connect:PD6', 'atmega328p:pwm.set_duty:PD6', 'atmega328p:pwm.init_fast:PB1',
+            'atmega328p:pwm.set_duty:PB1', 'atmega328p:pwm.init_phase:PB3']
+    hp = RD.header('atmega328p', keys)
+    good = ('#include <avr/io.h>\n#include "polari_hal_atmega328p.h"\n'
+            'void a(void){ HAL_PWM_INIT_FAST_PD6_INIT(64u); HAL_PWM_CONNECT_PD6_INIT(); }\nvoid b(uint8_t x){ HAL_PWM_SET_DUTY_PD6(x); }\n'
+            'void c(void){ HAL_PWM_INIT_FAST_PB1_INIT(64u); }\nvoid d(uint16_t x){ HAL_PWM_SET_DUTY_PB1(x); }\nvoid e(void){ HAL_PWM_INIT_PHASE_PB3_INIT(128u); }\n')
+    try:
+        from board.custom import engine_run as _ER
+        def _cc(src):
+            r_ = _ER.run('avr-gcc', ['-mmcu=atmega328p', '-Os', '-std=gnu99', '-Wall', '-Werror', '-S', '-o', 'p.s', 'p.c'],
+                         {'p.c': src.encode(), 'polari_hal_atmega328p.h': hp['text'].encode()}, timeout=120)
+            a_ = (r_.get('files') or {}).get('p.s') or b''
+            return r_.get('returncode'), a_.decode() if isinstance(a_, bytes) else a_
+        rc, asm = _cc(good)
+    except Exception as e:  # noqa: BLE001
+        rc, asm = None, str(e)
+    if rc is None:
+        print('  [SKIP] avr-gcc proof of the pwm units: %s' % asm[:160])
+    else:
+        fa, fb, fd = ('\n'.join(_fn_body(asm, x)) for x in 'abd')
+        check('avr-gcc (-Wall -Werror): D6 fast PWM /64 + connect = TCCR0A |= 3, TCCR0B WGM02 cleared + CS0 = 3, COM0A = 10 (andi 63 / ori -128); '
+              'the duty is ONE out to OCR0A (0x27); D9\'s 16-bit duty writes the high byte (136+1) before the low, with interrupts off',
+              rc == 0 and 'ori r24,lo8(3)' in fa and 'andi r24,lo8(63)' in fa and 'ori r24,lo8(-128)' in fa and fb.strip().splitlines()[0].strip() == 'out 0x27,r24'
+              and 'cli' in fd and fd.index('136+1') < fd.index('sts 136,'), (fa[:200], fb[:80], fd[:200]))
+        rc2, _ = _cc(good + 'void z(void){ HAL_PWM_INIT_FAST_PD6_INIT(100u); }\n')
+        check('an unlisted prescaler (100) does NOT COMPILE: the derived divider is a negative array size, never a silent wrong clock code',
+              rc2 not in (0, None), rc2)
 
     print('-- isotope fit (hal-2)')
     from hal.custom import isotopes as ISO

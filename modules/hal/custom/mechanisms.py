@@ -79,6 +79,47 @@ MECHANISMS = [
      'selects_when': 'the SoC rules name a setup for the operation (gpio-out / gpio-in on the ESP32-C3)',
      'templates': {}, 'cite': '%s Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OUT_SEL 128 = GPIO_OUT/GPIO_ENABLE drive the pad); '
      'Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL)' % TRM},
+    # hal-3b: VALUES (an op argument, a derived code, a value_expr) written into / read out of a field or a whole register
+    {'name': 'reg-write', 'title': 'Whole-register store of a value', 'kind': 'access', 'isr_safe': True, 'chips': 'every MCU',
+     'meaning': 'the field IS the whole register: one store of the value, nothing to preserve, nothing an interrupt can split',
+     'selects_when': 'a write of a value whose field spans the whole register (an 8-bit OCRnx, UDR0, a 32-bit C3 data register)',
+     'templates': {'write': '{reg} = ({ctype})({value});'},
+     'cite': 'the general case; each binding cites its own register'},
+    {'name': 'field-write', 'title': 'Field write of a value (read-modify-write)', 'kind': 'access', 'isr_safe': False, 'chips': 'every MCU',
+     'meaning': 'a value is put into part of a register: the other fields are kept, so the register is read, changed and written back',
+     'selects_when': 'a write of a value into a read-write field narrower than its register (WGMn, CSn, MUX, a composite slice)',
+     'templates': {'write': '{reg} = ({reg} & ~{fmask}) | ({ctype})((({ctype})({value}) << {lo}) & {fmask});'},
+     'cite': 'the general case; each binding cites its own register'},
+    {'name': 'w-store', 'title': 'Store into a write-only field', 'kind': 'access', 'isr_safe': True, 'chips': 'every MCU',
+     'meaning': 'a write-only register cannot be read back, so it is never read-modify-written: the value is stored as is '
+                '(the fail-closed rule for a coarse write-only access fact)',
+     'selects_when': 'a write of a value into a field with access w',
+     'templates': {'write': '{reg} = ({ctype})((({ctype})({value}) << {lo}) & {fmask});'},
+     'cite': 'econ, 2026-11-12 (plan §4b): write-only means a plain store, never a read-modify-write'},
+    {'name': 'read-reg', 'title': 'Read a whole register', 'kind': 'access', 'isr_safe': True, 'chips': 'every MCU',
+     'meaning': 'the register is read as a value (UDR0: reading it also takes the byte out of the receiver)',
+     'selects_when': 'a read_value of a field spanning the whole register',
+     'templates': {'read_value': '({ctype})({reg})'}, 'cite': 'the general case; each binding cites its own register'},
+    {'name': 'read-field', 'title': 'Read a field as a value', 'kind': 'access', 'isr_safe': True, 'chips': 'every MCU',
+     'meaning': 'the register is read and the field shifted down to a number',
+     'selects_when': 'a read_value of a readable field narrower than its register',
+     'templates': {'read_value': '({ctype})((({reg}) & {fmask}) >> {lo})'}, 'cite': 'the general case; each binding cites its own register'},
+    {'name': 'strobe', 'title': 'Self-clearing strobe bit', 'kind': 'access', 'isr_safe': True, 'chips': 'AVR FOCnx; ESP32 *_UPDATE (WT); LiteX update_value',
+     'meaning': 'writing 1 makes the hardware act once; the bit reads back 0, so it is never read-modify-written into other fields',
+     'selects_when': 'a set of a field whose access says it self-clears (w-strobe)',
+     'templates': {'set': '{reg} |= {mask};'},
+     'cite': 'DS40002061B section 15.9.2 FOC0A "always read as zero" p.116; the C3 WT code (econ\'s overlay)'},
+    {'name': 'wide-write', 'title': 'Write through the chip\'s wide-access symbol', 'kind': 'access', 'isr_safe': False, 'chips': 'AVR 16-bit timer/ADC registers',
+     'meaning': 'a value wider than the registers goes through the 16-bit symbol; the compiler writes the high byte (into TEMP) first, '
+                'then the low byte, which latches both - an interrupt touching another 16-bit register in between corrupts TEMP',
+     'selects_when': 'a write whose role names a `wide` symbol (OCR1A) that differs from the field\'s own byte register',
+     'templates': {'write': '{wide} = ({ctype})({value});'},
+     'cite': 'DS40002061B section 16.3 Accessing 16-bit Registers (the TEMP register; not re-read this session); avr-libc _SFR_MEM16'},
+    {'name': 'wide-read', 'title': 'Read through the chip\'s wide-access symbol', 'kind': 'access', 'isr_safe': False, 'chips': 'AVR 16-bit timer/ADC registers',
+     'meaning': 'the low byte is read first (it latches the high byte into TEMP), then the high byte: the compiler orders it for the 16-bit symbol',
+     'selects_when': 'a read_value whose role names a `wide` symbol (ADC) that differs from the field\'s own byte register',
+     'templates': {'read_value': '({ctype})({wide})'},
+     'cite': 'DS40002061B section 24.9.3 ADCL and ADCH "ADCL must be read first, then ADCH" p.259; avr-libc _SFR_MEM16(ADC)'},
     {'name': 'atomic-alias-window', 'title': 'Atomic alias address windows (xor / set / clear)', 'kind': 'access', 'isr_safe': True,
      'chips': 'RP2040, RP2350', 'implemented': False,
      'meaning': 'every peripheral register is also reachable at fixed offsets where a write xors, sets or clears the bits written',
@@ -111,6 +152,24 @@ def seed_rows():
 def choose(f):
     """f = {arch, action, access, width, space, io_addr (int or None)} -> (mechanism name, the rule that chose it) or (None, why)."""
     a, acc = f['action'], f['access']
+    if a == 'write':   # hal-3b: a value (argument / derived / value_expr)
+        if acc == 'w':
+            return 'w-store', 'fail-closed: a write-only field is stored, never read-modify-written'
+        if acc not in ('rw',):
+            return None, 'a value write into a field with access %r: no mechanism writes it that way' % acc
+        if f['width'] >= f.get('reg_width', 8) and f.get('lo', 0) == 0:
+            return 'reg-write', 'the field spans the whole %d-bit register: one store' % f['width']
+        return 'field-write', 'a value into a %d-bit field of a %d-bit register: read-modify-write' % (f['width'], f.get('reg_width', 8))
+    if a == 'read_value':
+        if acc not in ('r', 'rw', 'rw-sc', 'r-w1c'):
+            return None, 'a value read of a field with access %r' % acc
+        if f['width'] >= f.get('reg_width', 8) and f.get('lo', 0) == 0:
+            return 'read-reg', 'the field spans the whole register: read it'
+        return 'read-field', 'a value read of a %d-bit field' % f['width']
+    if a == 'strobe' or (a == 'set' and acc == 'w-strobe'):
+        if acc != 'w-strobe':
+            return None, 'access semantics unknown for a strobe (access %r): needs a cited self-clearing access (fail closed)' % acc
+        return 'strobe', 'a set of a self-clearing strobe bit'
     if a == 'field':
         if acc in ('rw',):
             return 'rmw-field', 'rule 9: a value written into a %d-bit read-write field' % f['width']
@@ -126,10 +185,10 @@ def choose(f):
     if a == 'toggle' and acc == 'rw-toggle':
         return 'toggle-by-input-write', 'rule 4: a toggle, and writing 1 to this field toggles the output'
     if a == 'read':
-        if acc in ('r', 'rw', 'rw-toggle'):
+        if acc in ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'):
             return 'read-bit', 'rule 5: a read of a readable field (access %s)' % acc
         return None, 'a read of a field with access %r' % acc
-    if acc != 'rw':
+    if acc not in ('rw', 'rw-sc'):
         return None, 'a %s of a field with access %r: no mechanism writes it that way' % (a, acc)
     if f['arch'] == 'avr' and f['space'] == 'io' and f['io_addr'] is not None:
         if f['io_addr'] < 0x20 and a in ('set', 'clear'):

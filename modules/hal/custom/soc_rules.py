@@ -57,9 +57,40 @@ RULES = {
             'edge_mask': {'registers': ['EIMSK'], 'match': 'signal', 'signal_re': r'^INT\d$', 'yields': {'signum': (r'^INT(\d)$', 'signal')},
                           'cite': 'section 13.2.2 EIMSK, p.81'},
             'edge_vector': {'vector': 'INT{signum}_vect', 'cite': 'avr-libc <avr/io.h> vector table (INT0_vect, INT1_vect)'},
+            # hal-3b, pwm family: the pin's OCnx alternate function names the timer (t) and the channel (ch)
+            'pwm_output': {'registers': ['TCCR0A', 'TCCR1A', 'TCCR2A'], 'match': 'signal', 'signal_re': r'^OC\d[AB]$',
+                           'yields': {'t': (r'^OC(\d)[AB]$', 'signal'), 'ch': (r'^OC\d([AB])$', 'signal')},
+                           'values': {'disconnected': 0, 'non_inverting': 2, 'inverting': 3},
+                           'cite': 'DS40002061B section 15.9.1 TCCR0A Tables 15-3/15-4 p.114, section 16.11.1 TCCR1A Tables 16-2/16-3 p.141, '
+                                   'section 18.11.1 TCCR2A p.162: COMnx1:0 = 10 clear on match (non-inverting), 11 set on match (inverting), 00 disconnected'},
+            'pwm_duty': {'registers': ['OCR{t}{ch}', 'OCR{t}{ch}L'], 'match': 'signal', 'signal_re': r'^OC\d[AB]$', 'wide': 'OCR{t}{ch}',
+                         'cite': 'section 15.9.4/15.9.5 OCR0A/B p.117, section 16.11.5/16.11.6 OCR1A/B p.144 (16-bit: the wide symbol), '
+                                 'section 18.11.4 OCR2A p.166'},
+            'pwm_mode': {'fields': [{'register': 'TCCR{t}A', 'field': 'WGM{t}_10', 'lo': 0},
+                                    {'register': 'TCCR{t}B', 'field': ['WGM{t}2', 'WGM{t}_32'], 'lo': 2}],
+                         'modes': {'fast_pwm_8bit': [['Fast PWM', 'TOP 0xFF'], ['Fast PWM', '8-bit']],
+                                   'phase_correct_8bit': [['PWM, Phase Correct', 'TOP 0xFF'], ['PWM, Phase Correct, 8-bit']],
+                                   'ctc_top_ocra': [['CTC', 'TOP OCRA'], ['CTC', 'TOP OCR1A']]},
+                         'cite': 'section 15.9.1/15.9.2 Table 15-8 p.115, section 16.11.1/16.11.2 Table 16-4 p.141, section 18.11.1/18.11.2 Table 18-8 p.164: '
+                                 'the mode number is split WGMn1:0 in TCCRnA and WGMn2 (WGMn3:2 on Timer1) in TCCRnB'},
+            'pwm_clock': {'registers': ['TCCR{t}B'], 'match': 'name', 'field': 'CS{t}',
+                          'cite': 'section 15.9.2 Table 15-9 p.117, section 16.11.2 Table 16-5 p.143, section 18.11.2 Table 18-9 p.165: the clock select codes'},
+            'pwm_update': {'inherent': {'words': 'the ATmega328P double-buffers OCRnx itself (updated at TOP / BOTTOM by the timer): no update strobe exists',
+                                        'cite': 'section 15.9.4 OCR0A p.117; Table 15-8 "Update of OCRx at"'}},
+            # routing roles (C3 GPIO matrix / IO MUX): fixed by silicon on the 328P - each pin's functions are hard-wired
+            'route_out': {'inherent': {'words': 'no output routing matrix: an alternate function drives its pin directly once enabled',
+                                       'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
+            'route_in': {'inherent': {'words': 'no input routing matrix: a peripheral reads its pin directly',
+                                      'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
+            'io_mux_func': {'inherent': {'words': 'no pad function select: the enabled peripheral overrides the port function',
+                                         'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
         },
+        'peripherals': {},
+        'signal_vars': [(r'^OC(\d)([AB])$', {'t': 1, 'ch': 2})],   # a compare output names its timer and channel (OC0A: Timer0, channel A)
+        'facts': {'f_cpu': 'F_CPU'},
         'setups': {},
-        'c': {'includes': ['<avr/io.h>'], 'mask': '_BV({bit})', 'guard_include': '<util/atomic.h>',
+        'c': {'includes': ['<avr/io.h>'], 'mask': '_BV({bit})', 'guard_include': '<util/atomic.h>', 'ctype': 'uint8_t', 'wide_ctype': 'uint16_t',
+              'access_style': 'symbol',
               'guard': 'ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { %s }',
               'guard_why': 'avr-libc util/atomic.h: interrupts off for the statement, the previous state restored after',
               'init_rule': 'an _INIT form drops the guard: init code runs before global interrupts are enabled (every UNO app calls sei() after its *_init calls), so nothing can split the write',
@@ -111,7 +142,7 @@ RULES = {
                  'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (FUN_IE)'},
             ],
         },
-        'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '',
+        'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '', 'ctype': 'uint32_t', 'access_style': 'address',
               'guard': 'POLARI_HAL_ATOMIC(%s);',
               'guard_why': 'POLARI_HAL_ATOMIC defaults to the bare statement (one core, and no ISR of ours writes these registers); a firmware '
                            'whose ISR shares the register defines it as a critical section (FreeRTOS portENTER_CRITICAL / portEXIT_CRITICAL)',
@@ -122,6 +153,12 @@ RULES = {
 
 
 # ------------------------------------------------------------------ facts (read from board, with where they came from)
+
+def chip_facts(soc):
+    """hal-3b: the named facts a role's value_expr may use, as C ({f_cpu} -> F_CPU: the build's own -DF_CPU, which the board facts cite
+    as 16000000 for the arduino-uno-r3, uno_facts build.f_cpu)."""
+    return dict(RULES[soc].get('facts') or {})
+
 
 def pin_parts(soc, pin):
     """-> {port, bit, n} or None. ATmega328P: PB5 -> port B, bit 5 (the pin name IS the port + bit, Figure 1-1); ESP32-C3: GPIO8 -> n 8."""

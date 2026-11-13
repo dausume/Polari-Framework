@@ -16,6 +16,7 @@ The header is plain C a normal build compiles (RULE 2): avr-libc names on the AV
 names its own sources and the digest of every unit's trace, so the file says how it was made.
 """
 import hashlib
+import re
 
 from hal.custom import generate as G
 from hal.custom import soc_rules as SR
@@ -123,14 +124,14 @@ def header(soc, keys, aliases=None):
         put('/* roles: what the firmware calls -> the unit above that does it on this build\'s pin */')
         for a in roles:
             u = have[a['key']]
-            if a.get('form') == 'symbol':
+            m = re.match(r'#define %s(\([^)]*\))' % re.escape(u['macro']), u['c_text'])
+            params = m.group(1) if m else ''   # hal-3b: a role passes the unit's own arguments through (HAL_PWM_SET_DUTY(level))
+            if a.get('form') == 'symbol' or not m:
                 put('#define %s %s' % (a['name'], u['macro']), u['key'], 'role')
             elif a.get('form') == 'init' and u.get('c_text_init'):
-                put('#define %s() %s_INIT()' % (a['name'], u['macro']), u['key'], 'role')
-            elif u['c_text'].startswith('#define %s()' % u['macro']):
-                put('#define %s() %s()' % (a['name'], u['macro']), u['key'], 'role')
+                put('#define %s%s %s_INIT%s' % (a['name'], params, u['macro'], params), u['key'], 'role')
             else:
-                put('#define %s %s' % (a['name'], u['macro']), u['key'], 'role')
+                put('#define %s%s %s%s' % (a['name'], params, u['macro'], params), u['key'], 'role')
     put('')
     put('#endif /* %s */' % guard)
     text = '\n'.join(t for t, _, _ in out) + '\n'

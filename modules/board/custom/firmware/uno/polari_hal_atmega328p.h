@@ -7,6 +7,7 @@
 #ifndef POLARI_HAL_ATMEGA328P_H
 #define POLARI_HAL_ATMEGA328P_H
 #include <avr/io.h>
+#include <util/atomic.h>
 #include <stdint.h>
 
 /* gpio.output on PB5: DDRB.DDB5 via avr-io-bit */
@@ -22,13 +23,30 @@
 #define HAL_GPIO_SET_LOW_PB5() do { PORTB &= (uint8_t)~_BV(5); } while (0)
 
 /* gpio.output on PD6: DDRD.DDD6 via avr-io-bit */
-/*   steps sha256 88296e7683c17153bb0cface42572786f949307c794f5fe6740c442b903c825a */
+/*   steps sha256 946d5e8fe3eab15f5834d40b54ceda44459fad2064b45cb6fe226eee88ee8b55 */
 #define HAL_GPIO_OUTPUT_PD6() do { DDRD |= _BV(6); } while (0)
+
+/* pwm.init_fast on PD6: TCCR0A.WGM0_10 via rmw-field; TCCR0B.WGM02 via rmw-field; TCCR0B.CS0 via field-write */
+/*   steps sha256 17e3586be36974b7542fc6d3afca1bf05644d8f83d58faee9cf9e8bc0bd406fa */
+#define HAL_PWM_INIT_FAST_PD6(prescaler) do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR0A = (TCCR0A & ~(uint8_t)0x03) | (uint8_t)(3u << 0); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR0B = (TCCR0B & ~(uint8_t)0x08) | (uint8_t)(0u << 3); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR0B = (TCCR0B & ~(uint8_t)0x07) | (uint8_t)(((uint8_t)((0u * sizeof(char[(((prescaler)) == 1u || ((prescaler)) == 8u || ((prescaler)) == 64u || ((prescaler)) == 256u || ((prescaler)) == 1024u) ? 1 : -1]) + (((prescaler)) == 1u ? 1u : ((prescaler)) == 8u ? 2u : ((prescaler)) == 64u ? 3u : ((prescaler)) == 256u ? 4u : ((prescaler)) == 1024u ? 5u : 0u))) << 0) & (uint8_t)0x07); } } while (0)
+#define HAL_PWM_INIT_FAST_PD6_INIT(prescaler) do { TCCR0A = (TCCR0A & ~(uint8_t)0x03) | (uint8_t)(3u << 0); TCCR0B = (TCCR0B & ~(uint8_t)0x08) | (uint8_t)(0u << 3); TCCR0B = (TCCR0B & ~(uint8_t)0x07) | (uint8_t)(((uint8_t)((0u * sizeof(char[(((prescaler)) == 1u || ((prescaler)) == 8u || ((prescaler)) == 64u || ((prescaler)) == 256u || ((prescaler)) == 1024u) ? 1 : -1]) + (((prescaler)) == 1u ? 1u : ((prescaler)) == 8u ? 2u : ((prescaler)) == 64u ? 3u : ((prescaler)) == 256u ? 4u : ((prescaler)) == 1024u ? 5u : 0u))) << 0) & (uint8_t)0x07); } while (0)
+
+/* pwm.connect on PD6: TCCR0A.COM0A via rmw-field */
+/*   steps sha256 f29ee63de426ba639078cd454c68348c6dc4a17e32d2f237f273ae837a7c5436 */
+#define HAL_PWM_CONNECT_PD6() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR0A = (TCCR0A & ~(uint8_t)0xC0) | (uint8_t)(2u << 6); } } while (0)
+#define HAL_PWM_CONNECT_PD6_INIT() do { TCCR0A = (TCCR0A & ~(uint8_t)0xC0) | (uint8_t)(2u << 6); } while (0)
+
+/* pwm.set_duty on PD6: OCR0A.OCR0A via reg-write */
+/*   steps sha256 53b6e27b9228c5a406a10ace7792ecc146f42954566fd9f71655e692ad8a66d1 */
+#define HAL_PWM_SET_DUTY_PD6(level) do { OCR0A = (uint8_t)((level)); } while (0)
 
 /* roles: what the firmware calls -> the unit above that does it on this build's pin */
 #define HAL_LED_OUTPUT() HAL_GPIO_OUTPUT_PB5()
 #define HAL_LED_SET_HIGH() HAL_GPIO_SET_HIGH_PB5()
 #define HAL_LED_SET_LOW() HAL_GPIO_SET_LOW_PB5()
 #define HAL_PWM_OUTPUT() HAL_GPIO_OUTPUT_PD6()
+#define HAL_PWM_INIT_FAST(prescaler) HAL_PWM_INIT_FAST_PD6_INIT(prescaler)
+#define HAL_PWM_CONNECT() HAL_PWM_CONNECT_PD6_INIT()
+#define HAL_PWM_SET_DUTY(level) HAL_PWM_SET_DUTY_PD6(level)
 
 #endif /* POLARI_HAL_ATMEGA328P_H */

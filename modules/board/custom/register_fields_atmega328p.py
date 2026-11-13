@@ -123,6 +123,15 @@ def _RF(event, also):
     return {'1': 'set if %s occurs' % event, '0': 'cleared by writing a logic zero%s' % (' (or by a Power-on Reset)' if also else ' only')}
 
 
+def _split_modes(table, hi_bits, hi_name):
+    """A mode table keyed by the FULL mode code -> keyed by the low two bits, each key naming EVERY mode it belongs to (one per value
+    of the high bits), so no mode is lost (hal-3b: a dict comprehension keyed by the low bits alone kept only the last one)."""
+    out = {}
+    for code, words in sorted(table.items()):
+        out.setdefault(code[hi_bits:], []).append('with %s=%s: %s' % (hi_name, code[:hi_bits], words))
+    return {k: '; '.join(v) for k, v in out.items()}
+
+
 def _f(register, field, hi, lo, access, reset, description, values, where, signal='', pin='', notes=''):
     return {'register': register, 'field': field, 'bit_hi': hi, 'bit_lo': lo, 'width': hi - lo + 1, 'access': access,
             'reset_value': reset, 'description': description, 'values': values, 'page_table': where,
@@ -184,7 +193,7 @@ FIELDS = [
     _f('TCCR2A', 'COM2A', 7, 6, 'rw', '0', 'Compare Match Output A Mode (COM2A1:0)', _COM_A, '§18.11.1 TCCR2A, Table 18-2, p.162', signal='OC2A'),
     _f('TCCR2A', 'COM2B', 5, 4, 'rw', '0', 'Compare Match Output B Mode (COM2B1:0)', _COM_B, '§18.11.1 TCCR2A, Table 18-5, p.163', signal='OC2B'),
     _f('TCCR2A', 'WGM2_10', 1, 0, 'rw', '0', 'Waveform Generation Mode bits 1:0 (WGM21, WGM20) — with TCCR2B.WGM22 the 3-bit mode',
-       {k[1:]: 'with WGM22=%s: %s' % (k[0], v) for k, v in _WGM.items()}, '§18.11.1 TCCR2A, Table 18-8, p.164'),
+       _split_modes(_WGM, 1, 'WGM22'), '§18.11.1 TCCR2A, Table 18-8, p.164'),
     _f('TCCR2B', 'FOC2A', 7, 7, 'w-strobe', '0', 'Force Output Compare A', {'1': 'an immediate Compare Match is forced on the Waveform Generation '
        'unit (non-PWM modes only); always read as zero'}, '§18.11.2 TCCR2B, p.165', signal='OC2A'),
     _f('TCCR2B', 'FOC2B', 6, 6, 'w-strobe', '0', 'Force Output Compare B', {'1': 'an immediate Compare Match is forced on the Waveform Generation '
@@ -313,7 +322,7 @@ FIELDS += [
     _f('TCCR0A', 'COM0A', 7, 6, 'rw', '0', 'Compare Match Output A Mode (COM0A1:0)', _COM_PWM, '§15.9.1 TCCR0A, Tables 15-2..15-4, p.113-114', signal='OC0A'),
     _f('TCCR0A', 'COM0B', 5, 4, 'rw', '0', 'Compare Match Output B Mode (COM0B1:0)', _COM_PWM, '§15.9.1 TCCR0A, Tables 15-5..15-7, p.114-115', signal='OC0B'),
     _f('TCCR0A', 'WGM0_10', 1, 0, 'rw', '0', 'Waveform Generation Mode bits 1:0 (WGM01, WGM00) - with TCCR0B.WGM02 the 3-bit mode',
-       {k[1:]: 'with WGM02=%s: %s' % (k[0], v) for k, v in _WGM0.items()}, '§15.9.1 TCCR0A, Table 15-8, p.115'),
+       _split_modes(_WGM0, 1, 'WGM02'), '§15.9.1 TCCR0A, Table 15-8, p.115'),
     _f('TCCR0B', 'FOC0A', 7, 7, 'w-strobe', '0', 'Force Output Compare A', {'1': 'an immediate Compare Match on the Waveform Generation unit (non-PWM modes only); always read as zero'},
        '§15.9.2 TCCR0B, p.116', signal='OC0A'),
     _f('TCCR0B', 'FOC0B', 6, 6, 'w-strobe', '0', 'Force Output Compare B', {'1': 'an immediate Compare Match on the Waveform Generation unit (non-PWM modes only); always read as zero'},
@@ -330,7 +339,7 @@ FIELDS += [
     _f('TCCR1A', 'COM1A', 7, 6, 'rw', '0', 'Compare Output Mode for Channel A (COM1A1:0)', _COM_PWM, '§16.11.1 TCCR1A, Tables 16-1..16-3, p.140-141', signal='OC1A'),
     _f('TCCR1A', 'COM1B', 5, 4, 'rw', '0', 'Compare Output Mode for Channel B (COM1B1:0)', _COM_PWM, '§16.11.1 TCCR1A, Tables 16-1..16-3, p.140-141', signal='OC1B'),
     _f('TCCR1A', 'WGM1_10', 1, 0, 'rw', '0', 'Waveform Generation Mode bits 1:0 (WGM11, WGM10) - with TCCR1B.WGM13:12 the 4-bit mode',
-       {k[2:]: 'with WGM13:12=%s: %s' % (k[:2], v) for k, v in _WGM1.items()}, '§16.11.1 TCCR1A, Table 16-4, p.141'),
+       _split_modes(_WGM1, 2, 'WGM13:12'), '§16.11.1 TCCR1A, Table 16-4, p.141'),
     _f('TCCR1B', 'ICNC1', 7, 7, 'rw', '0', 'Input Capture Noise Canceler', _ENABLE, '§16.11.2 TCCR1B, p.142'),
     _f('TCCR1B', 'ICES1', 6, 6, 'rw', '0', 'Input Capture Edge Select', {'0': 'falling edge', '1': 'rising edge'}, '§16.11.2 TCCR1B, p.142'),
     _f('TCCR1B', 'WGM1_32', 4, 3, 'rw', '0', 'Waveform Generation Mode bits 3:2 (WGM13, WGM12)',

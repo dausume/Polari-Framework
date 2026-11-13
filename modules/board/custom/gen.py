@@ -239,7 +239,7 @@ def render_routes(r):
     base_hdr = HP.project_header('atmega328p', {b['variable']: b['ops'] for b in base}, {b['variable']: b['pin'] for b in base}) if base else None
     headers = ([base_hdr] if base_hdr else []) + [x['hal_header'] for x in parts]
     sources = (['hal.c'] if base_hdr else []) + [x['route'] for x in parts]
-    aliases = [{'name': 'HAL_%s_%s' % (b['role'], _role_suffix(op)), 'key': (base_hdr['macros_keys'][(b['variable'], op)]),
+    aliases = [{'name': 'HAL_%s_%s' % (b['role'], _role_suffix(op, b['role'])), 'key': (base_hdr['macros_keys'][(b['variable'], op)]),
                 'form': 'init' if op in b.get('init', ()) else 'call'} for b in base for op in b['ops']]
     hal_hdr = HP.merged_header('atmega328p', headers, sources, aliases=aliases, always=True)
     return rendered, rendered_sense, hal_hdr
@@ -251,9 +251,13 @@ def uno_soc_pin(n):
     return 'PD%d' % n if n < 8 else 'PB%d' % (n - 8) if n < 14 else 'PC%d' % (n - 14)
 
 
-def _role_suffix(op):
+def _role_suffix(op, role=''):
+    """HAL_GPIO_SET_HIGH -> SET_HIGH, HAL_INT_EDGE_VECTOR -> EDGE_VECTOR, HAL_PWM_SET_DUTY -> PWM_SET_DUTY (LED role: HAL_LED_PWM_SET_DUTY);
+    a suffix that repeats the role drops the repeat (PWM role: HAL_PWM_SET_DUTY, never HAL_PWM_PWM_SET_DUTY)."""
     from hal.custom import operations as OPS
-    return OPS.by_name(op)['c_name'].replace('HAL_GPIO_', '').replace('HAL_INT_', '')
+    sfx = OPS.by_name(op)['c_name'][len('HAL_'):].replace('GPIO_', '', 1) if OPS.by_name(op)['c_name'].startswith('HAL_GPIO_') else \
+        OPS.by_name(op)['c_name'].replace('HAL_INT_', '').replace('HAL_', '', 1)
+    return sfx[len(role) + 1:] if role and sfx.startswith(role + '_') else sfx
 
 
 def base_roles(r):
@@ -266,7 +270,12 @@ def base_roles(r):
     # HAL_INT1 is a RESERVED knob name (variants.RESERVED), so no flag reaches the INT1 branch below — kept so the two blocks read alike
     out = []
     if f.get('led'):
-        out.append({'role': 'LED', 'variable': 'led_pin', 'pin': uno_soc_pin(k['led_pin']), 'ops': ['gpio.output', 'gpio.set_high', 'gpio.set_low']})
+        led_ops = ['gpio.output', 'gpio.set_high', 'gpio.set_low']
+        led_init = ()
+        if str(k.get('led_route') or 'gpio') == 'pwm':   # smp-1 drive-led:pwm (LED_ROUTE_PWM): the LED pin is its timer's compare output
+            led_ops += ['pwm.init_phase', 'pwm.set_duty', 'pwm.connect', 'pwm.disconnect']
+            led_init = ('pwm.init_phase',)
+        out.append({'role': 'LED', 'variable': 'led_pin', 'pin': uno_soc_pin(k['led_pin']), 'ops': led_ops, 'init': led_init})
     if (f.get('button') or int(flags.get('HAL_INT0') or 0)) and str(k.get('button_route') or 'int0') == 'int0':
         out.append({'role': 'BUTTON', 'variable': 'button_pin', 'pin': uno_soc_pin(k['button_pin']),
                     'ops': ['gpio.input', 'gpio.pull_up', 'int.edge_enable_falling', 'int.edge_vector'], 'init': ('int.edge_enable_falling',)})
@@ -274,7 +283,8 @@ def base_roles(r):
         out.append({'role': 'SENSE', 'variable': 'sense_pin', 'pin': uno_soc_pin(k['sense_pin']),
                     'ops': ['gpio.input', 'gpio.read', 'int.edge_enable', 'int.edge_vector'], 'init': ('int.edge_enable',)})
     if f.get('pwm') and int(k['pwm_pin']) in (5, 6, 9, 10):
-        out.append({'role': 'PWM', 'variable': 'pwm_pin', 'pin': uno_soc_pin(k['pwm_pin']), 'ops': ['gpio.output']})
+        out.append({'role': 'PWM', 'variable': 'pwm_pin', 'pin': uno_soc_pin(k['pwm_pin']),
+                    'ops': ['gpio.output', 'pwm.init_fast', 'pwm.connect', 'pwm.set_duty'], 'init': ('pwm.init_fast', 'pwm.connect')})
     return out
 
 

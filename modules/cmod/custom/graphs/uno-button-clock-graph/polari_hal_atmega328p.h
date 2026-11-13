@@ -28,32 +28,32 @@
 #define HAL_INT_EDGE_VECTOR_PD2 INT0_vect
 
 /* gpio.output on PD6: DDRD.DDD6 via avr-io-bit */
-/*   steps sha256 88296e7683c17153bb0cface42572786f949307c794f5fe6740c442b903c825a */
+/*   steps sha256 946d5e8fe3eab15f5834d40b54ceda44459fad2064b45cb6fe226eee88ee8b55 */
 #define HAL_GPIO_OUTPUT_PD6() do { DDRD |= _BV(6); } while (0)
 
 /* gpio.set_high on PD6: PORTD.PORTD6 via avr-io-bit */
-/*   steps sha256 66da6be8dd976e2839edee67ee18c5158ed0770dd4690101d79bb23ef0ae32c7 */
+/*   steps sha256 a4694f66cb908457aa66e6af7d72590b1a477076480a43bdad202fa55eaa1f78 */
 #define HAL_GPIO_SET_HIGH_PD6() do { PORTD |= _BV(6); } while (0)
 
 /* gpio.set_low on PD6: PORTD.PORTD6 via avr-io-bit */
-/*   steps sha256 a88cdb11b513873eb36a03b2a0d6633ca05263dd26a04223b3cf63b964c1acf5 */
+/*   steps sha256 1e0d1734260eef65aa172766b71e8ca4845b9176596015eb211f47d1b9743202 */
 #define HAL_GPIO_SET_LOW_PD6() do { PORTD &= (uint8_t)~_BV(6); } while (0)
 
 /* gpio.input on PD3: DDRD.DDD3 via avr-io-bit */
-/*   steps sha256 f61e61d7a91cc1f445a9f154853059efa6752369385b18783ae83b6fc5c21276 */
+/*   steps sha256 f25df427575b533a12e45cc043433ea58e11d9f8a6b797555960cda256b6e98c */
 #define HAL_GPIO_INPUT_PD3() do { DDRD &= (uint8_t)~_BV(3); } while (0)
 
 /* gpio.read on PD3: PIND.PIND3 via read-bit */
-/*   steps sha256 6c37818b9a77e8342ce76d53ddcac546946f03a4135dfad60bac2bc30fbe7985 */
+/*   steps sha256 8c9551ae0813cbbbcb7d3d30a01affab033901d751c3ab4e837faf2357cfdccf */
 #define HAL_GPIO_READ_PD3() (uint8_t)((PIND & _BV(3)) != 0u)
 
 /* int.edge_enable on PD3: EICRA.ISC1 via rmw-field; EIFR.INTF1 via w1c-flag; EIMSK.INT1 via avr-io-bit */
-/*   steps sha256 163b7395fc6da9571d838f7883ad7ae9cbce9579e015239af4f6cf9576710905 */
+/*   steps sha256 e6eea3de2497acd0baaff5a67ad402d1ef2199093255fcbc17a0bb0dd71fde7e */
 #define HAL_INT_EDGE_ENABLE_PD3() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { EICRA = (EICRA & ~(uint8_t)0x0C) | (uint8_t)(1u << 2); } EIFR = _BV(1); EIMSK |= _BV(1); } while (0)
 #define HAL_INT_EDGE_ENABLE_PD3_INIT() do { EICRA = (EICRA & ~(uint8_t)0x0C) | (uint8_t)(1u << 2); EIFR = _BV(1); EIMSK |= _BV(1); } while (0)
 
 /* int.edge_vector on PD3:  */
-/*   steps sha256 acd3984b0553793a7aebae54f0dbea93584d3d67acf6f74b6a05ea2c5be3c55e */
+/*   steps sha256 31fd393171160b809ff4695dd8097fc2147326691afaa344df13d595932092b7 */
 #define HAL_INT_EDGE_VECTOR_PD3 INT1_vect
 
 /* roles: what the firmware calls -> the unit above that does it on this build's pin */

@@ -71,7 +71,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
+     "sha256": "33d82099f34280f3e2b12713f08da9bd5f3d63ca37025212168066a143790a27"
     },
     {
      "path": "hal.h",
@@ -135,7 +135,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "cb138eefd7b44a919487acec74f6a6bc2c25b81ecb9280918aa1a29c2d6e670e"
+     "sha256": "3e3c71ab46a9bbb3e3610214c96e1abb15f7d2dfbcee90c9e041c8899c7a3da7"
     }
    ],
    "atoms": [
@@ -187,7 +187,7 @@
    "files": [
     {
      "path": "polari_hal_atmega328p.h",
-     "sha256": "4d2fd80d319710affa024c23f61423d94c51497a8c56042394d3e7980ce484b4"
+     "sha256": "74dfacd4838d28cd0ebc6989cab8c15862d08e3e64018a1244679a176773cdc4"
     }
    ],
    "atoms": []
@@ -507,7 +507,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 285,
+   "line": 279,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -552,7 +552,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 283,
+    "line": 277,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -582,7 +582,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 271,
+   "line": 266,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -1944,5 +1944,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-12T22:29:09"
+ "conformed_at": "2026-11-13T01:53:05"
 }
