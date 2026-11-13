@@ -247,7 +247,8 @@
    "board_registers_c3_facts_selftest",
    "board_svd_import_selftest",
    "board_access_overlay_selftest",
-   "board_rtl_path_selftest"
+   "board_rtl_path_selftest",
+   "board_chipdesc_provider_selftest"
   ],
   "custom": [
    "custom/access_overlay",
@@ -283,6 +284,7 @@
    "custom/button_clock_acceptance",
    "custom/button_routes",
    "custom/c3_retire",
+   "custom/chipdesc_provider",
    "custom/chip_ladder",
    "custom/chip_ladder_seed",
    "custom/clock_skew_run",
@@ -689,7 +691,8 @@
   "board_registers_c3_facts_selftest",
   "board_svd_import_selftest",
   "board_access_overlay_selftest",
-  "board_rtl_path_selftest"
+  "board_rtl_path_selftest",
+  "board_chipdesc_provider_selftest"
  ],
  "security": {
   "profile": "web-app",
