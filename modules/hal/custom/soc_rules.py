@@ -33,7 +33,7 @@ DOCS = {
 
 RULES = {
     'atmega328p': {
-        'arch': 'avr', 'title': 'Microchip ATmega328P (Arduino UNO R3)', 'reg_width': 8,
+        'arch': 'avr', 'title': 'Microchip ATmega328P (Arduino UNO R3)', 'reg_width': 8, 'boards': ('arduino-uno-r3',),
         'roles': {
             'direction': {'registers': ['DDR{port}'], 'cite': 'DS40002061B section 14.2.1 Configuring the Pin, p.85: DDxn selects the direction'},
             'output': {'registers': ['PORT{port}', 'PIN{port}'],
@@ -91,6 +91,10 @@ RULES = {
         'setups': {},
         'c': {'includes': ['<avr/io.h>'], 'mask': '_BV({bit})', 'guard_include': '<util/atomic.h>', 'ctype': 'uint8_t', 'wide_ctype': 'uint16_t',
               'access_style': 'symbol',
+              'field_forms': {'fmask': '(uint8_t)0x{m:02X}', 'fval': '(uint8_t)({v}u << {lo})'},
+              # rule 6/7 of mechanisms.choose: a window of addresses with single-bit instructions (AVR sbi / cbi below I/O 0x20), as DATA
+              'bit_instr_window': {'space': 'io', 'below': 0x20, 'mechanism': 'avr-io-bit', 'byte_mechanism': 'avr-io-byte-rmw'},
+              'header_includes': ['<stdint.h>'], 'prelude': [],
               'guard': 'ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { %s }',
               'guard_why': 'avr-libc util/atomic.h: interrupts off for the statement, the previous state restored after',
               'init_rule': 'an _INIT form drops the guard: init code runs before global interrupts are enabled (every UNO app calls sei() after its *_init calls), so nothing can split the write',
@@ -143,6 +147,9 @@ RULES = {
             ],
         },
         'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '', 'ctype': 'uint32_t', 'access_style': 'address',
+              'field_forms': {'fmask': '0x{m:X}UL', 'fval': '((uint32_t){v} << {lo})'},
+              'header_includes': [],
+              'prelude': ['#ifndef POLARI_HAL_ATOMIC', '/* {guard_why} */', '#define POLARI_HAL_ATOMIC(stmt) do {{ stmt }} while (0)', '#endif'],
               'guard': 'POLARI_HAL_ATOMIC(%s);',
               'guard_why': 'POLARI_HAL_ATOMIC defaults to the bare statement (one core, and no ISR of ours writes these registers); a firmware '
                            'whose ISR shares the register defines it as a critical section (FreeRTOS portENTER_CRITICAL / portEXIT_CRITICAL)',
@@ -152,110 +159,190 @@ RULES = {
 }
 
 
-# ------------------------------------------------------------------ facts (read from board, with where they came from)
+# ------------------------------------------------------------------ facts: one PROVIDER per SoC (econ's review 2026-11-13)
+# Every fact the generator reads about a chip comes from that chip's provider, and an UNKNOWN soc is refused in words: there is no
+# implicit "else" that would hand a third chip (our own RTL, a LiteX SoC) another chip's fields, addresses or pads. A chip
+# description (board.custom.chipdesc_provider, econ) registers a provider the same way.
 
-def chip_facts(soc):
-    """hal-3b: the named facts a role's value_expr may use, as C ({f_cpu} -> F_CPU: the build's own -DF_CPU, which the board facts cite
-    as 16000000 for the arduino-uno-r3, uno_facts build.f_cpu)."""
-    return dict(RULES[soc].get('facts') or {})
-
-
-def pin_parts(soc, pin):
-    """-> {port, bit, n} or None. ATmega328P: PB5 -> port B, bit 5 (the pin name IS the port + bit, Figure 1-1); ESP32-C3: GPIO8 -> n 8."""
-    if soc == 'atmega328p':
-        if pin not in S328.PINS:
-            return None
-        return {'port': pin[1], 'bit': int(pin[2:]), 'n': int(pin[2:])}
-    if soc == 'esp32c3':
-        if not pin.startswith('GPIO') or not pin[4:].isdigit() or int(pin[4:]) not in RC3.PADS:
-            return None
-        return {'port': '', 'bit': int(pin[4:]), 'n': int(pin[4:])}
-    return None
+class SocUnknown(KeyError):
+    pass
 
 
-def pin_source(soc):
-    if soc == 'atmega328p':
-        return 'board.custom.soc_atmega328p.PINS', '%s %s' % (U.M328_DOC, S328.FIG)
-    return 'board.custom.registers_esp32c3.PADS', '%s: GPIO0-21' % E.TRM_DOC
-
-
-def fields_source(soc):
-    return ('board.custom.register_fields_atmega328p.FIELDS' if soc == 'atmega328p' else 'board.custom.registers_esp32c3.FIELDS')
-
-
-def fields(soc):
-    return F328.FIELDS if soc == 'atmega328p' else RC3.FIELDS
-
-
-def register_facts(soc, register):
-    """-> {address, space, io_addr, source, cite} or None."""
-    if soc == 'atmega328p':
-        snap = R328.load('atmega328p')
-        regs = snap['registers']
-        r = regs.get(register)
-        if not r:
-            return None
-        addr = int(r['addr'], 16)
-        data = addr + 0x20 if r['space'] == 'io' else addr
-        libc = snap.get('avr_libc', '')
-        return {'address': '0x%02X' % data, 'space': r['space'], 'io_addr': addr if r['space'] == 'io' else None,
-                'source': 'board.custom.registers_atmega328p.json (avr-libc %s <avr/io.h>, -dM snapshot)' % libc,
-                'cite': '_SFR_%s8(0x%02X)%s' % ('IO' if r['space'] == 'io' else 'MEM', addr,
-                                                 ' = data address 0x%02X' % data if r['space'] == 'io' else '')}
-    reg = next((r for r in RC3.REGISTERS if r['register'] == register), None)
-    if reg is None:
+def _m328_register_facts(register):
+    snap = R328.load('atmega328p')
+    r = snap['registers'].get(register)
+    if not r:
         return None
-    return {'address': RC3.address(reg), 'space': 'mem', 'io_addr': None,
-            'source': 'board.custom.registers_esp32c3 (REGISTERS + address())',
-            'cite': '%s base 0x%08X (%s) + offset 0x%04X; %s' % (reg['block'], RC3.BASES[reg['block']], RC3.BASE_CITE, reg['offset'], reg['where'])}
+    addr = int(r['addr'], 16)
+    data = addr + 0x20 if r['space'] == 'io' else addr
+    return {'address': '0x%02X' % data, 'space': r['space'], 'io_addr': addr if r['space'] == 'io' else None,
+            'source': 'board.custom.registers_atmega328p.json (avr-libc %s <avr/io.h>, -dM snapshot)' % snap.get('avr_libc', ''),
+            'cite': '_SFR_%s8(0x%02X)%s' % ('IO' if r['space'] == 'io' else 'MEM', addr, ' = data address 0x%02X' % data if r['space'] == 'io' else '')}
 
 
-def c_register(soc, register, facts):
-    """The register as C: avr-libc's own name on the AVR (its <avr/io.h> defines it), a volatile pointer at the address on the C3."""
-    if soc == 'atmega328p':
-        return register
-    return '(*(volatile uint32_t *)%su)' % facts['address']
+def _m328_pin_parts(pin):
+    if pin not in S328.PINS:
+        return None
+    return {'port': pin[1], 'bit': int(pin[2:]), 'n': int(pin[2:])}
 
 
-def c_mask(soc, bit):
-    return RULES[soc]['c']['mask'].format(bit=bit)
-
-
-def datasheet_data_address(register):
-    """The data-space address the ATmega328P datasheet prints beside a register (REGISTER_CITES), or '' — the cross-check's second source."""
-    c = F328.REGISTER_CITES.get(register)
-    return (c[3] if c and len(c) > 3 else '') or ''
-
-
-def pin_functions(soc, pin):
-    """The pin's alternate-function names (ATmega328P: Table 14-3/6/9 via soc_atmega328p.PINS; ESP32-C3: none needed by the rules)."""
-    if soc == 'atmega328p':
-        return list((S328.PINS.get(pin) or ('', []))[1])
-    return []
-
-
-def pin_caveat(soc, pin):
-    """A cited fact that makes a pin's GPIO use conditional, or ''. ATmega328P PC6: RESET by default (Table 14-6, p.94)."""
-    if soc == 'atmega328p' and 'RESET' in pin_functions(soc, pin):
+def _m328_pin_caveat(pin):
+    if 'RESET' in list((S328.PINS.get(pin) or ('', []))[1]):
         return ('%s is the RESET pin unless the RSTDISBL fuse is programmed (Table 14-6, p.94): the code is generated, '
                 'but it only drives the pin on a chip with that fuse set' % pin)
     return ''
 
 
+def _c3_register_facts(register):
+    reg = next((r for r in RC3.REGISTERS if r['register'] == register), None)
+    if reg is None:
+        return None
+    return {'address': RC3.address(reg), 'space': 'mem', 'io_addr': None, 'source': 'board.custom.registers_esp32c3 (REGISTERS + address())',
+            'cite': '%s base 0x%08X (%s) + offset 0x%04X; %s' % (reg['block'], RC3.BASES[reg['block']], RC3.BASE_CITE, reg['offset'], reg['where'])}
+
+
+def _c3_pin_parts(pin):
+    if not pin.startswith('GPIO') or not pin[4:].isdigit() or int(pin[4:]) not in RC3.PADS:
+        return None
+    return {'port': '', 'bit': int(pin[4:]), 'n': int(pin[4:])}
+
+
+# hal-3b: THE ACCESS TABLE (plan §4d): a field's cited source code -> the access word choose() reads. The lossy `access` word is read
+# only where it is MORE specific than the code can be: a write-1-to-set / -clear alias register (the code says WT for both, the
+# register name says which) and the FIFO data register (one RO field, by action). Anything unmapped is `missing` (fail closed).
+TRM_ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw-sc', 'RO': 'r', 'WO': 'w', 'WT': 'w-strobe',
+              'R/SS/WTC': 'r-w1c', 'R/WTC/SS': 'r-w1c'}
+_ALIAS_WORDS = ('w1-set', 'w1-clear', 'fifo')
+
+
+def access_word(field):
+    """-> (word, why) for one field row: access_word (own RTL / SVD-as-spec) > trm_access via TRM_ACCESS > the row's own word where it
+    carries no source code at all (the 328P hand rows); an EMPTY trm_access (review-queued, or a field the manual never describes) is
+    'missing'."""
+    if field.get('access_word'):
+        return field['access_word'], '%s: %s' % (field.get('access_source', ''), field.get('access_cite', ''))
+    if 'trm_access' not in field:
+        return field['access'], 'the row\'s own cited access word'
+    code = field['trm_access']
+    if field.get('access') in _ALIAS_WORDS:
+        return field['access'], 'TRM %s, an alias / FIFO register: the row\'s specific word %s' % (code, field['access'])
+    if not code:
+        return 'missing', 'no cited access code (review queue, or not in the manual): fail closed'
+    w = TRM_ACCESS.get(code)
+    return (w, 'TRM %s' % code) if w else ('missing', 'TRM code %r is not in the access table: fail closed' % code)
+
+
+def _c3_fields():
+    """the C3 rows with `access` = the access table's word (the lossy word kept as access_lossy, the TRM code as trm_access)"""
+    global _C3_CACHE
+    if _C3_CACHE is None:
+        _C3_CACHE = [dict(f, access=access_word(f)[0], access_lossy=f.get('access', ''), access_why=access_word(f)[1]) for f in RC3.FIELDS]
+    return _C3_CACHE
+
+
+_C3_CACHE = None
+
+
+PROVIDERS = {
+    'atmega328p': {
+        'fields': lambda: F328.FIELDS, 'fields_source': 'board.custom.register_fields_atmega328p.FIELDS',
+        'register_facts': _m328_register_facts, 'pin_parts': _m328_pin_parts,
+        'pin_functions': lambda pin: list((S328.PINS.get(pin) or ('', []))[1]),
+        'pin_source': ('board.custom.soc_atmega328p.PINS', '%s %s' % (U.M328_DOC, S328.FIG)),
+        'pin_caveat': _m328_pin_caveat,
+        'vectors': lambda: dict(R328.load('atmega328p').get('vectors') or {}),
+        'vectors_source': 'board.custom.registers_atmega328p.json vectors (avr-libc <avr/io.h> _VECTOR(n))',
+        'c_register': lambda register, facts: register,   # avr-libc's own name (its <avr/io.h> defines it)
+        'datasheet_address': lambda register: ((F328.REGISTER_CITES.get(register) or ('', '', '', ''))[3:4] or [''])[0] or '',
+    },
+    'esp32c3': {
+        'fields': _c3_fields, 'fields_source': 'board.custom.registers_esp32c3.FIELDS (access via the access table)',
+        'register_facts': _c3_register_facts, 'pin_parts': _c3_pin_parts,
+        'pin_functions': lambda pin: [],
+        'pin_source': ('board.custom.registers_esp32c3.PADS', '%s: GPIO0-21' % E.TRM_DOC),
+        'pin_caveat': lambda pin: '',
+        'vectors': lambda: {}, 'vectors_source': 'none (ESP32-C3 interrupt matrix not ingested)',
+        'c_register': lambda register, facts: '(*(volatile uint32_t *)%su)' % facts['address'],   # a volatile pointer at the address
+        'datasheet_address': lambda register: '',
+    },
+}
+
+#: the RULES[soc]['c'] facts the generator REQUIRES (a missing one is refused, never defaulted to an 8-bit form)
+REQUIRED_C = ('ctype', 'mask', 'field_forms')
+
+
+def provider(soc):
+    p = PROVIDERS.get(soc)
+    if p is None or soc not in RULES:
+        raise SocUnknown('soc %r has no HAL provider (known: %s): register one (rules + provider), never a default' % (soc, ', '.join(sorted(PROVIDERS))))
+    missing = [k for k in REQUIRED_C if k not in RULES[soc].get('c', {})] + ([] if 'reg_width' in RULES[soc] else ['reg_width'])
+    if missing:
+        raise SocUnknown('soc %r rules lack required C facts: %s' % (soc, ', '.join(missing)))
+    return p
+
+
+def chip_facts(soc):
+    """hal-3b: the named facts a role's value_expr may use, as C ({f_cpu} -> F_CPU: the build's own -DF_CPU, which the board facts cite
+    as 16000000 for the arduino-uno-r3, uno_facts build.f_cpu)."""
+    provider(soc)
+    return dict(RULES[soc].get('facts') or {})
+
+
+def pin_parts(soc, pin):
+    """-> {port, bit, n} or None. ATmega328P: PB5 -> port B, bit 5 (the pin name IS the port + bit, Figure 1-1); ESP32-C3: GPIO8 -> n 8."""
+    return provider(soc)['pin_parts'](pin)
+
+
+def pin_source(soc):
+    return provider(soc)['pin_source']
+
+
+def fields_source(soc):
+    return provider(soc)['fields_source']
+
+
+def fields(soc):
+    return provider(soc)['fields']()
+
+
+def register_facts(soc, register):
+    """-> {address, space, io_addr, source, cite} or None."""
+    return provider(soc)['register_facts'](register)
+
+
+def c_register(soc, register, facts):
+    return provider(soc)['c_register'](register, facts)
+
+
+def c_mask(soc, bit):
+    provider(soc)
+    return RULES[soc]['c']['mask'].format(bit=bit)
+
+
+def datasheet_data_address(register, soc='atmega328p'):
+    """The data-space address the datasheet prints beside a register, or '' (the cross-check's second source)."""
+    return provider(soc)['datasheet_address'](register)
+
+
+def pin_functions(soc, pin):
+    return provider(soc)['pin_functions'](pin)
+
+
+def pin_caveat(soc, pin):
+    return provider(soc)['pin_caveat'](pin)
+
+
 def vectors(soc):
-    """{vector name: number} — avr-libc's own table on the AVR (the -dM snapshot); none modelled on the C3 (interrupt matrix)."""
-    if soc == 'atmega328p':
-        return dict(R328.load('atmega328p').get('vectors') or {})
-    return {}
+    return provider(soc)['vectors']()
 
 
 def vectors_source(soc):
-    return 'board.custom.registers_atmega328p.json vectors (avr-libc <avr/io.h> _VECTOR(n))' if soc == 'atmega328p' else 'none (ESP32-C3 interrupt matrix not ingested)'
+    return provider(soc)['vectors_source']
 
 
 def c_field(soc, lo, width, value):
-    """{fmask, fval} for a field write, in the register's own width (uint8_t on the AVR, uint32_t on the C3)."""
+    """{fmask, fval} for a field write, in the chip's own C forms (RULES c.field_forms: data, not a width test)."""
+    provider(soc)
+    forms = RULES[soc]['c']['field_forms']
     fmask = ((1 << width) - 1) << lo
-    if RULES[soc]['reg_width'] == 8:
-        return {'fmask': '(uint8_t)0x%02X' % fmask, 'fval': '(uint8_t)(%du << %d)' % (value, lo)}
-    return {'fmask': '0x%XUL' % fmask, 'fval': '((uint32_t)%d << %d)' % (value, lo)}
+    return {'fmask': forms['fmask'].format(m=fmask), 'fval': forms['fval'].format(v=value, lo=lo)}

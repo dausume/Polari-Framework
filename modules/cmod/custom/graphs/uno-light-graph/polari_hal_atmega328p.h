@@ -11,40 +11,40 @@
 #include <stdint.h>
 
 /* gpio.input on PD2: DDRD.DDD2 via avr-io-bit */
-/*   steps sha256 b19e3f56130d7d989a86375a6bb97cdf76103faae6d1c1660a59ac3446ee35e3 */
+/*   steps sha256 431d1dfd85a95435fe877dfed1cfd217175466bba4ee87e1a7545920b1665048 */
 #define HAL_GPIO_INPUT_PD2() do { DDRD &= (uint8_t)~_BV(2); } while (0)
 
 /* gpio.pull_up on PD2: PORTD.PORTD2 via avr-io-bit */
-/*   steps sha256 9f782226353fc1301de0979f653ad2e0c3b548a3c4e4237a1daa30a7f7d9091e */
+/*   steps sha256 38c366953f0e9947d455e5e7800cb0baefdd8001a32489a82a06e14fe272db1a */
 #define HAL_GPIO_PULL_UP_PD2() do { PORTD |= _BV(2); } while (0)
 
 /* int.edge_enable_falling on PD2: EICRA.ISC0 via rmw-field; EIFR.INTF0 via w1c-flag; EIMSK.INT0 via avr-io-bit */
-/*   steps sha256 b39e55c918e6acbc30f24ccd871f2dfb17eb62717ec5fb3802543757a2af2f7e */
+/*   steps sha256 1967d19d8d9b5a02936d3908b2eefd9fe04ee6467781f0302fab328eef970e28 */
 #define HAL_INT_EDGE_ENABLE_FALLING_PD2() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); } EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
 #define HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT() do { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
 
 /* int.edge_vector on PD2:  */
-/*   steps sha256 772befa2f11198bdeda0b9bd1c62d2834eb15d6797d27509ea66e6b0edeca29e */
+/*   steps sha256 cf92dc7bff21e051761b1ec3abe35cdbec2f5f80b5639e080e8792919fb02578 */
 #define HAL_INT_EDGE_VECTOR_PD2 INT0_vect
 
 /* gpio.output on PD6: DDRD.DDD6 via avr-io-bit */
-/*   steps sha256 946d5e8fe3eab15f5834d40b54ceda44459fad2064b45cb6fe226eee88ee8b55 */
+/*   steps sha256 e3ef32bc797617c199e3f6509858f688f5e61b11e83830308243bc55be658208 */
 #define HAL_GPIO_OUTPUT_PD6() do { DDRD |= _BV(6); } while (0)
 
 /* gpio.set_high on PD6: PORTD.PORTD6 via avr-io-bit */
-/*   steps sha256 a4694f66cb908457aa66e6af7d72590b1a477076480a43bdad202fa55eaa1f78 */
+/*   steps sha256 af78092b98ba9730c4daa29c6d1e9430e025046cf771cc2d56027f4fd1925697 */
 #define HAL_GPIO_SET_HIGH_PD6() do { PORTD |= _BV(6); } while (0)
 
 /* gpio.set_low on PD6: PORTD.PORTD6 via avr-io-bit */
-/*   steps sha256 1e0d1734260eef65aa172766b71e8ca4845b9176596015eb211f47d1b9743202 */
+/*   steps sha256 9f9f99842c41178c39dcd50ee6236f8cf5372c62508daf0a266f1b7fbba45a62 */
 #define HAL_GPIO_SET_LOW_PD6() do { PORTD &= (uint8_t)~_BV(6); } while (0)
 
 /* gpio.input on PD3: DDRD.DDD3 via avr-io-bit */
-/*   steps sha256 f25df427575b533a12e45cc043433ea58e11d9f8a6b797555960cda256b6e98c */
+/*   steps sha256 9a44f4a15e6b2c4e288bcb16c8aa4296db831d577cef3eb6a156041f3720e735 */
 #define HAL_GPIO_INPUT_PD3() do { DDRD &= (uint8_t)~_BV(3); } while (0)
 
 /* gpio.read on PD3: PIND.PIND3 via read-bit */
-/*   steps sha256 8c9551ae0813cbbbcb7d3d30a01affab033901d751c3ab4e837faf2357cfdccf */
+/*   steps sha256 9f9246e3705746cf7688e2335af04f9c5be0f44bcf72fdc692f5d07d714bc143 */
 #define HAL_GPIO_READ_PD3() (uint8_t)((PIND & _BV(3)) != 0u)
 
 /* roles: what the firmware calls -> the unit above that does it on this build's pin */

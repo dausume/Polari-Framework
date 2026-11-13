@@ -1,8 +1,8 @@
 {
  "solution": "uno-temp-split",
  "compiler": "hwnocode.custom.split 1",
- "split_sha256": "9cd67da9f56034b874e796e2ce1daa1f1023928a672aacc8e0b74ce940b7e068",
- "rendered_at": "2026-11-13T02:35:26",
+ "split_sha256": "4ffc2d61536aa85b063778a1f72609d3400764ac50a79bbb06bf6c8ab4a45a20",
+ "rendered_at": "2026-11-13T05:15:46",
  "placement_summary": "twin 18, bridge 2, backend 3, browser 1",
  "runtime": {
   "value": "bare-c",
@@ -215,14 +215,14 @@
    "pin_config.c": "da4a335ecae9ebc20be8867825ca050779a3f6b1fd4fa46b3a6a0f365526569c",
    "pin_config.h": "524fb5d0e230b9bbbffb8f068b39fc6baa2a93c4ddad7d68ae97f681997dbf60",
    "polari_graph.c": "c7ef89d18e8dc37aecd9692f787cf80c8f66f347256cf000ea3932e9218b08d7",
-   "polari_graph.h": "4ac6268db2ed70c7e7194b44f92f76b44d78723cca82704b3aaf5c473444144c",
-   "polari_hal_atmega328p.h": "b66f13845c72e5164328bb7b7739102815d937d2f6b4b6846d6707bfa2771167",
+   "polari_graph.h": "e8e29dbd93b771e65980a7597096fbd4034ddd8b31cc6ca5670a8bdd5b61099f",
+   "polari_hal_atmega328p.h": "2cb2168e869854d1d4d578b7b5fc608dcb0e6f10908d0ad3799ce931498ca7b6",
    "simrigstate_packets.h": "6b748742dd2ca30afc26695c1e356c5ad53bd76e9023d79a924b54826176ec0b"
   },
-  "files_sha256": "b2b6fb38bb5434245e6b733279b5ee5f87a7da4a1b8f4371d5a24025f9f214d9",
+  "files_sha256": "b6fc66db4b96aa0643e5782802ecfc43b2aa200001e2335d5fbbf33758c5182c",
   "equal_to_cmod_record": true,
   "cmod_record": {
-   "files_sha256": "b2b6fb38bb5434245e6b733279b5ee5f87a7da4a1b8f4371d5a24025f9f214d9",
+   "files_sha256": "b6fc66db4b96aa0643e5782802ecfc43b2aa200001e2335d5fbbf33758c5182c",
    "graph_sha256": "e5ea718e89a45da51a08875efccced559a04f2e1640d8aad53cf77aa186b89b4",
    "hex_sha256": "6dfbfe22945ecd60de1cfdff0dfbdd4f5077b9212c57c1b5ab5f4e172a17fa5c"
   }
@@ -247,8 +247,8 @@
   "size_bss": 483,
   "flash_bytes": 4336,
   "ram_bytes": 491,
-  "wall_s": 0.59,
-  "built_at": "2026-11-13T02:35:44"
+  "wall_s": 0.82,
+  "built_at": "2026-11-13T05:16:04"
  },
  "proof": null,
  "costs": null,

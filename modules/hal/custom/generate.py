@@ -30,11 +30,14 @@ from hal.custom import mechanisms as MX
 from hal.custom import operations as OPS
 from hal.custom import soc_rules as SR
 
-BOARDS = {'arduino-uno-r3': 'atmega328p'}
-WANT = {'set': ('w1-set', 'rw'), 'clear': ('w1-clear', 'w1c', 'rw'), 'toggle': ('rw-toggle', 'rw'), 'read': ('r', 'rw', 'rw-toggle'),
-        'lookup': ('rw', 'r', 'w1c', 'rw-toggle', 'w1-set', 'w1-clear'),
-        # hal-3b value actions
-        'write': ('rw', 'w', 'rw-sc'), 'read_value': ('r', 'rw', 'rw-sc', 'r-w1c'), 'strobe': ('w-strobe',)}
+def _boards():
+    """board -> soc, from each chip's RULES 'boards' (data), never a hard-coded map."""
+    return {b: soc for soc in SR.PROVIDERS for b in (SR.RULES.get(soc, {}).get('boards') or ())}
+WANT = {'set': ('w1-set', 'rw', 'rw-sc'), 'clear': ('w1-clear', 'w1c', 'r-w1c', 'rw', 'rw-sc', 'w'), 'toggle': ('rw-toggle', 'rw'),
+        'read': ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'),
+        'lookup': ('rw', 'r', 'w1c', 'r-w1c', 'rw-toggle', 'w1-set', 'w1-clear', 'rw-sc', 'w', 'w-strobe'),
+        # hal-3b value actions (the access words of the access table, plan §4d)
+        'write': ('rw', 'w', 'rw-sc', 'fifo'), 'read_value': ('r', 'rw', 'rw-sc', 'r-w1c', 'fifo'), 'strobe': ('w-strobe',)}
 
 
 def key(soc, operation, pin):
@@ -116,7 +119,7 @@ def _binding(soc, tr, unit_key, op_name, pin, part, purpose, field, action, valu
          'value': '' if value is None else str(value), 'cite': field.get('page_table', ''), 'address': '', 'space': '',
          'mechanism': '', 'c_text': '', 'status': '', 'why': ''}
     if facts is None:
-        b.update(status='undetermined', why='register %s has no address in %s' % (reg, 'the avr-libc snapshot' if soc == 'atmega328p' else 'REGISTERS'))
+        b.update(status='undetermined', why='register %s has no address in the chip\'s register facts (%s)' % (reg, SR.fields_source(soc)))
         tr.add('register', 'Where %s is' % reg, reg, 'lookup', b['why'], SR.fields_source(soc))
         return b
     b.update(address=facts['address'], space=facts['space'])
@@ -125,9 +128,10 @@ def _binding(soc, tr, unit_key, op_name, pin, part, purpose, field, action, valu
            facts['source'], facts['cite'])
     width = field['bit_hi'] - field['bit_lo'] + 1
     valued = action in ('write', 'read_value')   # hal-3b: a value goes in / comes out (vs a named field constant)
-    mech, rule = MX.choose({'arch': SR.RULES[soc]['arch'], 'action': action if valued else ('field' if value is not None else action),
+    mech, rule = MX.choose({'action': action if valued else ('field' if value is not None else action),
                             'access': field['access'], 'width': width, 'space': facts['space'], 'io_addr': facts['io_addr'],
-                            'reg_width': SR.RULES[soc]['reg_width'], 'lo': field['bit_lo']})
+                            'reg_width': SR.RULES[soc]['reg_width'], 'lo': field['bit_lo'],
+                            'bit_instr_window': SR.RULES[soc]['c'].get('bit_instr_window'), 'clear_by_store': bool(field.get('clear_by_store'))})
     inputs = 'action %s, access %s, width %d, space %s%s' % ('field=%s' % value if value is not None else action, field['access'], width,
                                                            facts['space'], ', I/O 0x%02X' % facts['io_addr'] if facts['io_addr'] is not None else '')
     if mech is None:
@@ -142,7 +146,7 @@ def _binding(soc, tr, unit_key, op_name, pin, part, purpose, field, action, valu
     tpl = m['templates'][action if valued else ('field' if value is not None else action)]
     fill = {'reg': creg, 'bit': field['bit_lo'], 'mask': SR.c_mask(soc, field['bit_lo'])}
     if valued:
-        fill.update({'value': value, 'lo': field['bit_lo'], 'ctype': SR.RULES[soc]['c'].get('ctype', 'uint8_t'),
+        fill.update({'value': value, 'lo': field['bit_lo'], 'ctype': SR.RULES[soc]['c']['ctype'],   # required (SR.provider refuses a chip without it)
                      'fmask': SR.c_field(soc, field['bit_lo'], width, 0)['fmask']})
     elif value is not None:
         fill.update(SR.c_field(soc, field['bit_lo'], width, value))
@@ -190,8 +194,10 @@ def _part_value(soc, role, p, vars_, args, tr, i, functions, field=None):
                     pairs.append((n, int(code, 2)))
             arg = rest.format(**env)
             ok = ' || '.join('(%s) == %du' % (arg, n) for n, _ in pairs)
-            # an unlisted factor is a COMPILE error for a constant argument (a negative array size), never a silent wrong code
-            expr = '(0u * sizeof(char[(%s) ? 1 : -1]) + (%s0u))' % (ok, ''.join('(%s) == %du ? %du : ' % (arg, n, c) for n, c in pairs))
+            # an unlisted factor is a COMPILE error ("negative width in bit-field 'hal_unlisted_prescaler'"), and so is a NON-constant
+            # argument ("width not an integer constant"): a bit-field width must be an integer constant expression (econ's review, 2026-11-13;
+            # a char array would have been a silent VLA at run time)
+            expr = '(0u * sizeof(struct { int hal_unlisted_prescaler : (%s) ? 1 : -1; }) + (%s0u))' % (ok, ''.join('(%s) == %du ? %du : ' % (arg, n, c) for n, c in pairs))
             tr.add('value', 'Part %d: the code for a division factor' % i, '%s.%s values' % (f['register'], f['field']),
                    'derive divider: each cited value whose words name a division factor', ', '.join('/%d -> %d' % pc for pc in pairs),
                    SR.fields_source(soc), f.get('page_table', ''))
@@ -245,9 +251,13 @@ def _wide_binding(soc, tr, unit_key, op_name, pin, part, purpose, field, wide, a
     """hal-3b: a value wider than the chip's registers through its wide-access symbol (avr-libc OCR1A / ADC: avr-gcc orders the byte
     accesses the datasheet requires - the high byte through TEMP first on a write, the low byte first on a read)."""
     facts = SR.register_facts(soc, wide)
+    if 'wide_ctype' not in SR.RULES[soc]['c']:
+        return {'unit': unit_key, 'soc': soc, 'operation': op_name, 'pin': pin, 'part': part, 'purpose': purpose, 'register': wide, 'field': field['field'],
+                'bit_lo': field['bit_lo'], 'bit_hi': field['bit_hi'], 'access': field['access'], 'value': '', 'cite': '', 'address': '', 'space': '',
+                'mechanism': '', 'c_text': '', 'status': 'refused', 'why': 'the role names a wide symbol but the chip rules give no wide_ctype (never a default)'}
     mech = 'wide-write' if action == 'write' else 'wide-read'
     m = MX.by_name(mech)
-    c = m['templates'][action].format(wide=SR.c_register(soc, wide, facts), value=value, ctype=SR.RULES[soc]['c'].get('wide_ctype', 'uint16_t'))
+    c = m['templates'][action].format(wide=SR.c_register(soc, wide, facts), value=value, ctype=SR.RULES[soc]['c']['wide_ctype'])
     tr.add('mechanism', 'How %s is reached' % wide, 'a value wider than the %d-bit registers' % SR.RULES[soc]['reg_width'], 'the role\'s wide symbol',
            '%s — %s' % (mech, m['title']), 'hal.custom.mechanisms', m['cite'])
     tr.add('c-statement', 'The C for %s' % wide, m['templates'][action], 'fill the template', c, 'hal.custom.mechanisms (%s)' % mech)
@@ -266,12 +276,14 @@ def unit(soc, operation, pin, board=''):
     tr = _Trace('')
     out = {'unit': None, 'bindings': [], 'steps': tr.rows}
     op = OPS.by_name(operation)
-    if soc not in SR.RULES:
-        out['unit'] = {'key': key(soc, operation, pin), 'status': 'refused', 'why': 'unknown soc %r (known: %s)' % (soc, ', '.join(SR.SOCS))}
+    try:
+        SR.provider(soc)
+    except SR.SocUnknown as e:
+        out['unit'] = {'key': key(soc, operation, pin), 'status': 'refused', 'why': str(e).strip('"')}
         return out
     pin_note = ('', '')
     if board:
-        if BOARDS.get(board) != soc:
+        if _boards().get(board) != soc:
             out['unit'] = {'key': key(soc, operation, pin), 'status': 'refused', 'why': 'board %r is not on soc %r' % (board, soc)}
             return out
         soc_pin, src, cite = _board_pin(board, pin)
@@ -502,4 +514,4 @@ def unit(soc, operation, pin, board=''):
 def default_pins(soc):
     """Every pin the cited field tables reach, in chip order (PB0..PB7, PC0.., PD0..PD7; GPIO0..GPIO21)."""
     pins = {f.get('affects_pin') for f in SR.fields(soc) if f.get('affects_pin') and SR.pin_parts(soc, f['affects_pin'])}
-    return sorted(pins, key=lambda p: (p[:2] if soc == 'atmega328p' else '', int(''.join(ch for ch in p if ch.isdigit()) or 0)))
+    return sorted(pins, key=lambda p: ((SR.pin_parts(soc, p) or {}).get('port', ''), int(''.join(ch for ch in p if ch.isdigit()) or 0)))

@@ -123,7 +123,7 @@
     },
     {
      "path": "polari_graph.h",
-     "sha256": "dbb9a15f232b2d05ff7766d423de9cba3f7a2fd572e903ea978adde0d2d4a6d8"
+     "sha256": "3a5d7b6ea72c84f775d642535448daa23477f7a7fa9d8602c0aecccb1bfd5f09"
     }
    ],
    "atoms": [
@@ -193,7 +193,7 @@
    "files": [
     {
      "path": "polari_hal_atmega328p.h",
-     "sha256": "2a9a41b5dad8e59b0c7a28d6be46aa2b75087178d74786c99c45decd9f30ed88"
+     "sha256": "7b34ffdaa87ea440a485745b16cf94dd86399197396ec53aeef114811f2c8674"
     }
    ],
    "atoms": []
@@ -2716,5 +2716,5 @@
   "hal.hal_pwm_apply"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-13T01:54:08"
+ "conformed_at": "2026-11-13T05:15:02"
 }

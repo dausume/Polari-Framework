@@ -363,6 +363,44 @@ def main():
         check('an unlisted prescaler (100) does NOT COMPILE: the derived divider is a negative array size, never a silent wrong clock code',
               rc2 not in (0, None), rc2)
 
+    print('-- the access table + chip independence (hal-3b slice 2a, econ\'s review)')
+    from hal.custom import mechanisms as _MX
+    def _ch(action, acc, **kw):
+        f = dict({'action': action, 'access': acc, 'width': 1, 'space': 'mem', 'io_addr': None, 'reg_width': 32, 'lo': 0, 'bit_instr_window': None}, **kw)
+        return _MX.choose(f)[0]
+    check('econ\'s probes, fixed: write + rw-sc -> field-write; clear + r-w1c -> w1c-flag (a store of the mask); clear + w with a clear-by-store role '
+          '-> w1c-flag; write + fifo -> w-store and read_value + fifo -> read-reg (by action)',
+          _ch('write', 'rw-sc', width=1, lo=31) == 'field-write' and _ch('clear', 'r-w1c') == 'w1c-flag' and _ch('clear', 'w', clear_by_store=True) == 'w1c-flag'
+          and _ch('write', 'fifo', width=8) == 'w-store' and _ch('read_value', 'fifo', width=8) == 'read-reg')
+    check('fail closed: strobe on a plain w is REFUSED (self-clear not known), strobe on w-strobe -> strobe, clear on a plain w without the role is '
+          'refused, any action on `missing` is refused',
+          _ch('strobe', 'w') is None and _ch('strobe', 'w-strobe') == 'strobe' and _ch('clear', 'w') is None
+          and all(_ch(a_, 'missing') is None for a_ in ('set', 'clear', 'read', 'write', 'read_value')))
+    check('no 8-bit default: a whole-register store needs the field to span reg_width (an 8-bit field at lo 0 of a 32-bit register is a field-write)',
+          _ch('write', 'rw', width=8, lo=0, reg_width=32) == 'field-write' and _ch('write', 'rw', width=32, lo=0, reg_width=32) == 'reg-write')
+    check('the AVR single-bit window is a CHIP FACT: with no bit_instr_window an I/O-space bit is a mem-rmw, with the 328P\'s it is avr-io-bit',
+          _ch('set', 'rw', space='io', io_addr=0x05) == 'mem-rmw'
+          and _ch('set', 'rw', space='io', io_addr=0x05, bit_instr_window=SR.RULES['atmega328p']['c']['bit_instr_window']) == 'avr-io-bit')
+    # rows shaped exactly as econ's hal-c3-rows (trm_access verbatim, the lossy word beside it); the real rows fold in at the 88
+    # integration, where this same table reads them
+    _row = lambda code, lossy='rw', **kw: dict({'register': 'R', 'field': 'F', 'access': lossy, 'trm_access': code}, **kw)
+    check('the access table reads the CITED code, never the lossy word: R/W/SC -> rw-sc (LEDC DUTY_START), R/SS/WTC and R/WTC/SS -> r-w1c '
+          '(SYSTIMER VALUE_VALID, UART INT_RAW), WT -> w-strobe, WO -> w, RO -> r; an empty code (TICK_SEL, review queue) and an unknown '
+          'code -> missing; an alias / FIFO register keeps its specific word (GPIO_OUT_W1TS w1-set, UART_FIFO fifo); own RTL\'s access_word wins',
+          SR.access_word(_row('R/W/SC'))[0] == 'rw-sc' and SR.access_word(_row('R/SS/WTC', 'r'))[0] == 'r-w1c'
+          and SR.access_word(_row('R/WTC/SS', 'r'))[0] == 'r-w1c' and SR.access_word(_row('WT', 'w-strobe'))[0] == 'w-strobe'
+          and SR.access_word(_row('WO', 'w-strobe'))[0] == 'w' and SR.access_word(_row('RO', 'r'))[0] == 'r'
+          and SR.access_word(_row('', 'rw'))[0] == 'missing' and SR.access_word(_row('R/WC/SS'))[0] == 'missing'
+          and SR.access_word(_row('WT', 'w1-set'))[0] == 'w1-set' and SR.access_word(_row('RO', 'fifo'))[0] == 'fifo'
+          and SR.access_word(_row('', '', access_word='w-strobe', access_source='rdl', access_cite='toy.rdl line 27'))[0] == 'w-strobe'
+          and SR.access_word({'access': 'w1c'})[0] == 'w1c')
+    check('the C3 provider serves its rows through the access table, and its existing units are unchanged (GPIO_OUT_W1TS stays w1-set)',
+          next(x for x in SR.fields('esp32c3') if x['register'] == 'GPIO_OUT_W1TS_REG')['access'] == 'w1-set'
+          and all('access_why' in x for x in SR.fields('esp32c3')))
+    zu = G.unit('toychip', 'gpio.output', 'PA0')['unit']
+    check('an UNKNOWN soc is refused in words (no implicit else: a third chip never gets another chip\'s fields, addresses or pads)',
+          zu['status'] == 'refused' and 'no HAL provider' in zu['why'], zu['why'])
+
     print('-- isotope fit (hal-2)')
     from hal.custom import isotopes as ISO
     rs = _Resp(); api.on_get_isotopes(_Req(), rs)

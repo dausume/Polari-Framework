@@ -61,12 +61,9 @@ def levels(res):
 
 
 def _guard_prelude(soc):
-    if soc != 'esp32c3':
-        return []
-    return ['#ifndef POLARI_HAL_ATOMIC',
-            '/* %s */' % SR.RULES[soc]['c']['guard_why'],
-            '#define POLARI_HAL_ATOMIC(stmt) do { stmt } while (0)',
-            '#endif']
+    """The chip's own prelude lines (RULES c.prelude: the C3's POLARI_HAL_ATOMIC default), data, never a chip-name test."""
+    c = SR.RULES[soc]['c']
+    return [ln.format(guard_why=c.get('guard_why', '')) for ln in c.get('prelude') or []]
 
 
 def header(soc, keys, aliases=None):
@@ -99,8 +96,9 @@ def header(soc, keys, aliases=None):
     put('#define %s' % guard)
     for inc in includes:
         put('#include %s' % inc)
-    if soc == 'atmega328p':
-        put('#include <stdint.h>')
+    for inc in SR.RULES[soc]['c'].get('header_includes') or []:   # RULES data (the 328P's <stdint.h>), not a chip-name test
+        if inc not in includes:
+            put('#include %s' % inc)
     for ln in _guard_prelude(soc):
         put(ln, '', 'guard')
     for r in units:

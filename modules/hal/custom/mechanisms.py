@@ -153,17 +153,19 @@ def choose(f):
     """f = {arch, action, access, width, space, io_addr (int or None)} -> (mechanism name, the rule that chose it) or (None, why)."""
     a, acc = f['action'], f['access']
     if a == 'write':   # hal-3b: a value (argument / derived / value_expr)
-        if acc == 'w':
+        if acc in ('w', 'fifo'):   # write-only, or a FIFO data register written by action (push): a plain store, never RMW
             return 'w-store', 'fail-closed: a write-only field is stored, never read-modify-written'
-        if acc not in ('rw',):
+        if acc not in ('rw', 'rw-sc'):
             return None, 'a value write into a field with access %r: no mechanism writes it that way' % acc
-        if f['width'] >= f.get('reg_width', 8) and f.get('lo', 0) == 0:
+        if f['width'] >= f['reg_width'] and f['lo'] == 0:   # reg_width is a REQUIRED fact (no 8-bit default: a 32-bit store would clobber)
             return 'reg-write', 'the field spans the whole %d-bit register: one store' % f['width']
-        return 'field-write', 'a value into a %d-bit field of a %d-bit register: read-modify-write' % (f['width'], f.get('reg_width', 8))
+        return 'field-write', 'a value into a %d-bit field of a %d-bit register: read-modify-write' % (f['width'], f['reg_width'])
     if a == 'read_value':
+        if acc == 'fifo':
+            return 'read-reg', 'a FIFO data register read by action: the read pops one entry'
         if acc not in ('r', 'rw', 'rw-sc', 'r-w1c'):
             return None, 'a value read of a field with access %r' % acc
-        if f['width'] >= f.get('reg_width', 8) and f.get('lo', 0) == 0:
+        if f['width'] >= f['reg_width'] and f['lo'] == 0:
             return 'read-reg', 'the field spans the whole register: read it'
         return 'read-field', 'a value read of a %d-bit field' % f['width']
     if a == 'strobe' or (a == 'set' and acc == 'w-strobe'):
@@ -180,18 +182,23 @@ def choose(f):
         return 'w1s-alias', 'rule 1: a set, and this field is a write-1-to-set alias'
     if a == 'clear' and acc == 'w1-clear':
         return 'w1c-alias', 'rule 2: a clear, and this field is a write-1-to-clear alias'
-    if a == 'clear' and acc == 'w1c':
-        return 'w1c-flag', 'rule 3: a clear of a write-1-to-clear flag'
+    if a == 'clear' and acc in ('w1c', 'r-w1c'):
+        return 'w1c-flag', 'rule 3: a clear of a write-1-to-clear flag (access %s)' % acc
+    if a == 'clear' and acc == 'w' and f.get('clear_by_store'):
+        return 'w1c-flag', 'rule 3b: a write-only clear register (the role says a store of the mask clears): never read-modify-written'
+    if acc == 'missing':
+        return None, 'access semantics unknown (no cited access code for this field): fail closed'
     if a == 'toggle' and acc == 'rw-toggle':
         return 'toggle-by-input-write', 'rule 4: a toggle, and writing 1 to this field toggles the output'
     if a == 'read':
-        if acc in ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'):
+        if acc in ('r', 'rw', 'rw-toggle', 'rw-sc', 'r-w1c', 'w1c'):   # (a FIFO is never read as a bit: it pops)
             return 'read-bit', 'rule 5: a read of a readable field (access %s)' % acc
         return None, 'a read of a field with access %r' % acc
     if acc not in ('rw', 'rw-sc'):
         return None, 'a %s of a field with access %r: no mechanism writes it that way' % (a, acc)
-    if f['arch'] == 'avr' and f['space'] == 'io' and f['io_addr'] is not None:
-        if f['io_addr'] < 0x20 and a in ('set', 'clear'):
-            return 'avr-io-bit', 'rule 6: AVR I/O address 0x%02X < 0x20, one bit, %s' % (f['io_addr'], a)
-        return 'avr-io-byte-rmw', 'rule 7: AVR I/O address 0x%02X (byte access only)' % f['io_addr']
+    w = f.get('bit_instr_window')   # a CHIP FACT (RULES c.bit_instr_window), never an architecture name: chips without one skip rules 6/7
+    if w and f['space'] == w['space'] and f['io_addr'] is not None:
+        if f['io_addr'] < w['below'] and a in ('set', 'clear'):
+            return w['mechanism'], 'rule 6: %s address 0x%02X < 0x%02X (the chip\'s single-bit instruction window), one bit, %s' % (w['space'], f['io_addr'], w['below'], a)
+        return w['byte_mechanism'], 'rule 7: %s address 0x%02X (byte access only)' % (w['space'], f['io_addr'])
     return 'mem-rmw', 'rule 8: a read-write bit at an ordinary address (space %s)' % (f['space'] or 'mem')
