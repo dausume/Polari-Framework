@@ -45,27 +45,30 @@ def provider_parts(soc, registers, fields, meta):
         word, why = SR.access_word(f)
         rows.append(dict(f, access=word, access_lossy=f.get('access', ''), access_why=why))
     by = {(f['register'], f['field']): f for f in rows}
-    for pin, (reg, field, bit) in sorted((meta.get('pins') or {}).items()):
+    pin_bits = {}
+    for pin, reg, field, bit in _pin_entries(meta):
         f = by.get((reg, field))
         if f is None:
             raise ChipdescRefused('%s: pin %s names %s.%s, which the chip description does not have' % (soc, pin, reg, field))
         if not 0 <= bit < f['width']:
             raise ChipdescRefused('%s: pin %s names bit %d of %s.%s, which is %d bits wide' % (soc, pin, bit, reg, field, f['width']))
         k = f['bit_lo'] + bit
+        if pin_bits.setdefault(pin, k) != k:
+            raise ChipdescRefused('%s: pin %s is bit %d of one register and bit %d of another (one pin, one bit position)' % (soc, pin, pin_bits[pin], k))
         rv = f['reset_value']
         rows.append(dict(f, field=pin_view_name(field, bit), bit_lo=k, bit_hi=k, width=1, affects_pin=pin,
                          reset_value=str((int(rv) >> bit) & 1) if str(rv).isdigit() else rv,
                          page_table='%s (bit %d of %s.%s, pin %s per the chip description\'s pin table)' % (f['page_table'], bit, reg, field, pin)))
-    pins = {pin: {'port': '', 'bit': f_bit_lo(by, reg, field) + bit, 'n': n}
-            for n, (pin, (reg, field, bit)) in enumerate(sorted((meta.get('pins') or {}).items()))}
+    pins = {pin: {'port': '', 'bit': k, 'n': (meta.get('pin_numbers') or {}).get(pin, n)} for n, (pin, k) in enumerate(sorted(pin_bits.items()))}
 
     def register_facts(register):
         r = regs.get(register)
         if r is None:
             return None
-        addr = meta['base'] + r['offset']
+        base = r.get('base', meta['base'])   # a register row may carry its own block's base (several blocks); else the chip's one base
+        addr = base + r['offset']
         return {'address': '0x%08X' % addr, 'space': 'mem', 'io_addr': None, 'source': meta['source'],
-                'cite': 'base 0x%08X (%s) + offset 0x%04X; %s' % (meta['base'], meta['cite'], r['offset'], r.get('where', ''))}
+                'cite': 'base 0x%08X (%s) + offset 0x%04X; %s' % (base, meta['cite'], r['offset'], r.get('where', ''))}
 
     ctype = meta['c']['ctype']
     rules = {'arch': meta['arch'], 'title': meta['title'], 'reg_width': meta['reg_width'], 'boards': tuple(meta.get('boards') or ()),
@@ -117,8 +120,14 @@ def pin_view_name(field, bit):
     return '%s_%d' % (field, bit)
 
 
-def f_bit_lo(by, reg, field):
-    return by[(reg, field)]['bit_lo']
+def _pin_entries(meta):
+    """meta['pins'][pin] is one (register, field, bit) or a list of them (a pin seen through several registers: the RP2350's GPIOn is bit
+    n of GPIO_OUT, its SET / CLR aliases, GPIO_OE and GPIO_IN) -> [(pin, register, field, bit)]"""
+    out = []
+    for pin, spec in sorted((meta.get('pins') or {}).items()):
+        for reg, field, bit in ([spec] if isinstance(spec, tuple) else list(spec)):
+            out.append((pin, reg, field, bit))
+    return out
 
 
 def register(soc, registers, fields, meta):
