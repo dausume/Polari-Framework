@@ -44,9 +44,10 @@ def graph_parts(check):
               'added or removed file)', d['clean'], {k: d[k] for k in ('stale', 'hand_edited', 'added', 'removed')})
         files = sorted(a['files'])
         check('the rendered project = polari_graph.c/.h + Makefile + the atom files (hal.c/hal.h verbatim) + board_config.h + the class header '
-              '+ the GENERATED pin_config.h/.c (ucd-0b, uno-sim-rig-graph has a FirmwareSolution) — only .c/.h + Makefile (RULE 2)',
+              '+ the GENERATED pin_config.h/.c (ucd-0b, uno-sim-rig-graph has a FirmwareSolution) + the GENERATED polari_hal_atmega328p.h (hal-3a: the HAL '
+              'units hal.c needs for this build) — only .c/.h + Makefile (RULE 2)',
               files == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'pin_config.c', 'pin_config.h', 'polari_graph.c', 'polari_graph.h',
-                        'simrigstate_packets.h'], files)
+                        'polari_hal_atmega328p.h', 'simrigstate_packets.h'], files)
         from cmod.custom import projects as P
         root = P.resolve('uno')['root']
         check('hal.c / hal.h are copied VERBATIM (byte-identical to the template)',
@@ -128,8 +129,8 @@ def graph_parts(check):
             rows['graph']['generated_project'] = os.path.join(tmp, 'proj')   # an absolute path: project_dir joins it as is
             r1 = GL.render(G, rows=rows)
             r2 = GL.render(G, rows=rows)
-            check('render writes the 9 files INTO the project (incl. the GENERATED pin_config.h/.c, ucd-0b); a second render writes nothing (idempotent)',
-                  len(r1['written']) == 9 and r2['unchanged'] and not r2['written'], (r1['written'], r2['written']))
+            check('render writes the 10 files INTO the project (incl. the GENERATED pin_config.h/.c, ucd-0b, and polari_hal_atmega328p.h, hal-3a); a second render writes nothing (idempotent)',
+                  len(r1['written']) == 10 and r2['unchanged'] and not r2['written'], (r1['written'], r2['written']))
             p = os.path.join(tmp, 'proj', 'polari_graph.c')
             open(p, 'a').write('/* a person\'s edit */\n')
             d = GL.diff(G, rows=rows)

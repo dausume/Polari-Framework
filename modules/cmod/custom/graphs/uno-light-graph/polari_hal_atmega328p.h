@@ -7,7 +7,37 @@
 #ifndef POLARI_HAL_ATMEGA328P_H
 #define POLARI_HAL_ATMEGA328P_H
 #include <avr/io.h>
+#include <util/atomic.h>
 #include <stdint.h>
+
+/* gpio.input on PD2: DDRD.DDD2 via avr-io-bit */
+/*   steps sha256 b19e3f56130d7d989a86375a6bb97cdf76103faae6d1c1660a59ac3446ee35e3 */
+#define HAL_GPIO_INPUT_PD2() do { DDRD &= (uint8_t)~_BV(2); } while (0)
+
+/* gpio.pull_up on PD2: PORTD.PORTD2 via avr-io-bit */
+/*   steps sha256 9f782226353fc1301de0979f653ad2e0c3b548a3c4e4237a1daa30a7f7d9091e */
+#define HAL_GPIO_PULL_UP_PD2() do { PORTD |= _BV(2); } while (0)
+
+/* int.edge_enable_falling on PD2: EICRA.ISC0 via rmw-field; EIFR.INTF0 via w1c-flag; EIMSK.INT0 via avr-io-bit */
+/*   steps sha256 b39e55c918e6acbc30f24ccd871f2dfb17eb62717ec5fb3802543757a2af2f7e */
+#define HAL_INT_EDGE_ENABLE_FALLING_PD2() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); } EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
+#define HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT() do { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
+
+/* int.edge_vector on PD2:  */
+/*   steps sha256 772befa2f11198bdeda0b9bd1c62d2834eb15d6797d27509ea66e6b0edeca29e */
+#define HAL_INT_EDGE_VECTOR_PD2 INT0_vect
+
+/* gpio.output on PD6: DDRD.DDD6 via avr-io-bit */
+/*   steps sha256 88296e7683c17153bb0cface42572786f949307c794f5fe6740c442b903c825a */
+#define HAL_GPIO_OUTPUT_PD6() do { DDRD |= _BV(6); } while (0)
+
+/* gpio.set_high on PD6: PORTD.PORTD6 via avr-io-bit */
+/*   steps sha256 66da6be8dd976e2839edee67ee18c5158ed0770dd4690101d79bb23ef0ae32c7 */
+#define HAL_GPIO_SET_HIGH_PD6() do { PORTD |= _BV(6); } while (0)
+
+/* gpio.set_low on PD6: PORTD.PORTD6 via avr-io-bit */
+/*   steps sha256 a88cdb11b513873eb36a03b2a0d6633ca05263dd26a04223b3cf63b964c1acf5 */
+#define HAL_GPIO_SET_LOW_PD6() do { PORTD &= (uint8_t)~_BV(6); } while (0)
 
 /* gpio.input on PD3: DDRD.DDD3 via avr-io-bit */
 /*   steps sha256 f61e61d7a91cc1f445a9f154853059efa6752369385b18783ae83b6fc5c21276 */
@@ -16,5 +46,14 @@
 /* gpio.read on PD3: PIND.PIND3 via read-bit */
 /*   steps sha256 6c37818b9a77e8342ce76d53ddcac546946f03a4135dfad60bac2bc30fbe7985 */
 #define HAL_GPIO_READ_PD3() (uint8_t)((PIND & _BV(3)) != 0u)
+
+/* roles: what the firmware calls -> the unit above that does it on this build's pin */
+#define HAL_LED_OUTPUT() HAL_GPIO_OUTPUT_PD6()
+#define HAL_LED_SET_HIGH() HAL_GPIO_SET_HIGH_PD6()
+#define HAL_LED_SET_LOW() HAL_GPIO_SET_LOW_PD6()
+#define HAL_BUTTON_INPUT() HAL_GPIO_INPUT_PD2()
+#define HAL_BUTTON_PULL_UP() HAL_GPIO_PULL_UP_PD2()
+#define HAL_BUTTON_EDGE_ENABLE_FALLING() HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT()
+#define HAL_BUTTON_EDGE_VECTOR HAL_INT_EDGE_VECTOR_PD2
 
 #endif /* POLARI_HAL_ATMEGA328P_H */

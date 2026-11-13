@@ -97,7 +97,7 @@ def gen_and_compat(check, tmp):
     hdr = open(os.path.join(proj, 'unoanalogstate_packets.h')).read()
     check('gen uno-adc-sweep: the project carries unoanalogstate_packets.h (target avr, contract v1 hash 078e20a0f939956b) — the generator handles a second class',
           'UNOANALOGSTATE_MSG_TYPE' in hdr and 'target avr' in hdr and 'contract v1   hash 078e20a0f939956b' in hdr and 'int64_t a0;' in hdr
-          and sorted(os.listdir(proj)) == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'unoanalogstate_packets.h'])
+          and sorted(os.listdir(proj)) == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'polari_hal_atmega328p.h', 'unoanalogstate_packets.h'])
     check('gen: header_sha256 + tag order captured on the row (the wire order, from the header itself)',
           all(r['header_sha256'] == json.loads(r['classes_json'])[0]['header_sha256'] for r in rows.values())
           and json.loads(a['tag_order_json']) == {'UnoAnalogState': ['a0', 'a1', 'a2', 'name', 'status', 'uptime_ms']}

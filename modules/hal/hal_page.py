@@ -3,7 +3,10 @@
 
 /display/hal — the HAL review page (hal-0): what the generalized HAL generates on each chip, and EXACTLY how — every step, the
 data each step read and where it came from, the code at each level of abstraction, the cross-checks, and the final header line by
-line (the user, 2026-11-11). Configured tables only (no raw JSON). A link opens it on one unit, e.g. from a finalized Bench
+line (the user, 2026-11-11). hal-1 (the user, 2026-11-12): the chip tabs are the CATALOGUE, every operation x pin the chip
+could give, none of it emitted on its own. A firmware's header holds only the units its isotopes require on the pins its
+configuration chose (the Firmware headers tab: the same text the build writes). Operations and Access mechanisms come first.
+Configured tables only (no raw JSON). A link opens it on one unit, e.g. from a finalized Bench
 Simulation: /display/hal?tab=atmega328p&unit=atmega328p:gpio.set_high:PB5 (`scope_query` seeds the `unit` scope from the URL).
 """
 from polariApiServer.module_pages_seed import _page, _row, _tab, _table
@@ -16,10 +19,12 @@ _CODE = 'c_text:code'
 def _soc_rows(soc):
     title = SR.RULES[soc]['title']
     return [
-        _row(0, [_table('hal-units-%s' % soc, 0, 12, 'Generated units on the %s (click one to see how it was made)' % title, 'HalCodeUnit',
+        _row(0, [_table('hal-units-%s' % soc, 0, 12, 'HAL catalogue on the %s: every operation x pin it could give (click one to see how it is made)' % title, 'HalCodeUnit',
                         columns='operation,pin,status,mechanisms,c_text,why', column_formats=_CODE, max_height=420,
                         data_path='/api/hal/socs/%s/units' % soc, select_field='key', select_scope='unit', selected_value='{scope:unit}',
-                        description='One row = one generalized HAL operation on one pin of this chip. status: resolved (C generated), '
+                        description='The catalogue: what the HAL CAN give on this chip. Nothing here goes into a build by itself; a '
+                                    'firmware header holds only the units its isotopes require (see Firmware headers). '
+                                    'One row = one generalized HAL operation on one pin of this chip. status: resolved (C can be generated), '
                                     'unsupported (the chip has no register for it, said why), undetermined (the cited tables do not reach it '
                                     'yet). mechanisms = how each register write is done (port-mapped bit, set/clear alias, read-modify-write ...).')]),
         _row(1, [_table('hal-levels-%s' % soc, 0, 12, 'The code at each level of abstraction', 'HalCodeUnit',
@@ -43,11 +48,18 @@ def _soc_rows(soc):
     ]
 
 
-def _header_rows(soc):
-    return [_row(0, [_table('hal-header-%s' % soc, 0, 12, 'polari_hal_%s.h — the final generated header, line by line' % soc, 'HalCodeUnit',
-                            columns='line,text,unit,step', column_formats='text:code', data_path='/api/hal/socs/%s/header' % soc,
-                            max_height=640, description='Every resolved unit of the chip. unit = the unit a line belongs to (its trace is on '
-                                                        'the chip tab), step = the generation step that wrote it.')])]
+def _firmware_rows():
+    return [_row(0, [_table('hal-firmware', 0, 12, 'Firmware and the HAL header each build includes (click one to see its header)', 'HalCodeUnit',
+                            columns='variant,title,units,required_by,routes,file,sha256,why', data_path='/api/hal/firmware',
+                            select_field='variant', select_scope='firmware', selected_value='{scope:firmware}',
+                            description='units = how many HAL units that firmware\'s header holds: only what its isotopes require on the pins its '
+                                        'configuration chose, never the whole chip. required_by = the isotope route and pin variable that asked '
+                                        'for them. 0 = the build includes no generated HAL header (its routes still name registers).')]),
+            _row(1, [_table('hal-firmware-header', 0, 12, 'polari_hal_<chip>.h of the picked firmware, line by line', 'HalCodeUnit',
+                            columns='line,text,unit,required_by,step', column_formats='text:code', data_path='/api/hal/firmware/{scope:firmware}/header',
+                            max_height=640, empty_text='Pick a firmware above.',
+                            description='Exactly the file the build writes (board.custom.gen.render_routes). unit = the catalogue entry the line '
+                                        'comes from (its trace is on the chip tab); required_by = who needed it; step = the generation step.')])]
 
 
 def _isotope_rows():
@@ -70,13 +82,13 @@ SEED_HAL_PAGE_DISPLAYS = [
           'how the C is written (port-mapped vs memory-mapped, set/clear aliases, routing matrices), and the exact steps behind every '
           'generated line.',
           'HalOperation', [], title='HAL',
-          tabs=[_tab(soc, SR.RULES[soc]['title'], _soc_rows(soc)) for soc in SR.SOCS]
-               + [_tab('%s-header' % soc, '%s header' % soc, _header_rows(soc)) for soc in SR.SOCS]
-               + [_tab('isotopes', 'Isotope fit', _isotope_rows())]
-               + [_tab('operations', 'Operations', [_row(0, [_table('hal-operations', 0, 12, 'HAL operations (the generalized vocabulary)',
-                                                                    'HalOperation', columns='name,title,role,action,setup,returns,c_name,intent,basis')])]),
-                  _tab('mechanisms', 'Access mechanisms', [_row(0, [_table('hal-mechanisms', 0, 12, 'Access mechanisms (data that drives code generation)',
-                                                                           'HalAccessMechanism',
-                                                                           columns='name,title,kind,meaning,selects_when,isr_safe,chips,implemented,cite')])])],
-          scope_query=['unit', 'isotope']),
+          tabs=[_tab('operations', 'Operations', [_row(0, [_table('hal-operations', 0, 12, 'HAL operations (the generalized vocabulary)',
+                                                                   'HalOperation', columns='name,title,role,action,setup,returns,c_name,intent,basis')])]),
+                _tab('mechanisms', 'Access mechanisms', [_row(0, [_table('hal-mechanisms', 0, 12, 'Access mechanisms (data that drives code generation)',
+                                                                          'HalAccessMechanism',
+                                                                          columns='name,title,kind,meaning,selects_when,isr_safe,chips,implemented,cite')])])]
+               + [_tab(soc, '%s catalogue' % SR.RULES[soc]['title'], _soc_rows(soc)) for soc in SR.SOCS]
+               + [_tab('firmware', 'Firmware headers', _firmware_rows()),
+                  _tab('isotopes', 'Isotope fit', _isotope_rows())],
+          scope_query=['unit', 'isotope', 'firmware']),
 ]

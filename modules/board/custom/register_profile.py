@@ -68,6 +68,15 @@ FIELD_RULES = {
     ('MCUCR', 'PUD'): (PIN, 'Pull-up Disable: disables the pull-ups of every I/O port pin even when DDxn/PORTxn enable them', '§14.4.1 MCUCR bit 4, p.100; §14.1 p.84'),
     ('TIMSK2', 'OCIE2B'): (PER, 'Output Compare Match B Interrupt Enable: enables the on-chip compare interrupt only; the OC2B pin is driven by COM2B (TCCR2A), not by this bit', '§18.11.6 TIMSK2, p.166'),
     ('TIMSK2', 'OCIE2A'): (PER, 'Output Compare Match A Interrupt Enable: enables the on-chip compare interrupt only; the OC2A pin is driven by COM2A (TCCR2A), not by this bit', '§18.11.6 TIMSK2, p.166-167'),
+    # hal-3b (2026-11-12): Timer0/1/2 rows that carry an OCnx signal tag so the HAL can reach them FROM a pin (PD6 -> OC0A -> OCR0A), but
+    # they operate the peripheral: the pin is driven by COMnx, not by these (same verdict as OCIE2x above)
+    ('TIMSK0', 'OCIE0B'): (PER, 'Output Compare Match B Interrupt Enable: enables the on-chip compare interrupt only; the OC0B pin is driven by COM0B (TCCR0A)', '§15.9.6 TIMSK0, p.118'),
+    ('TIMSK0', 'OCIE0A'): (PER, 'Output Compare Match A Interrupt Enable: enables the on-chip compare interrupt only; the OC0A pin is driven by COM0A (TCCR0A)', '§15.9.6 TIMSK0, p.118'),
+    ('OCR0A', 'OCR0A'): (PER, 'Output Compare Register A: the compare value (the PWM duty); the OC0A pin is connected by COM0A (TCCR0A), not by this register', '§15.9.4 OCR0A, p.117'),
+    ('OCR0B', 'OCR0B'): (PER, 'Output Compare Register B: the compare value; the OC0B pin is connected by COM0B (TCCR0A)', '§15.9.5 OCR0B, p.117'),
+    ('OCR1AL', 'OCR1A_7_0'): (PER, 'Output Compare Register 1 A (low byte): the compare value; the OC1A pin is connected by COM1A (TCCR1A)', '§16.11.5 OCR1AH and OCR1AL, p.144'),
+    ('OCR1BL', 'OCR1B_7_0'): (PER, 'Output Compare Register 1 B (low byte): the compare value; the OC1B pin is connected by COM1B (TCCR1A)', '§16.11.6 OCR1BH and OCR1BL, p.144'),
+    ('OCR2A', 'OCR2A'): (PER, 'Output Compare Register A (Timer/Counter2): the compare value (the 1 ms tick TOP in CTC); the OC2A pin is connected by COM2A (TCCR2A)', '§18.11.4 OCR2A, p.166'),
 }
 #: register -> (class, why, cite): the registers that are not peripheral operation or GPIO (derived from their peripheral id is NOT enough:
 #: the CPU block mixes the stack pointer, flash self-programming and system control)

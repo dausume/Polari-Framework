@@ -38,8 +38,8 @@ def run_register_profile(check):
     check('rp-0: EVERY ATmega328P Register row (%d) gets a class or `mixed`; the four pure counts + mixed add up to all of them' % len(t['Register']),
           len(R) == len(t['Register']) == 96 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in R.values())
           and sum(tot['pure'].values()) + tot['mixed'] == 96, str(tot['pure']))
-    check('rp-0: all 169 RegisterField rows (148 + 21 Port C, 2026-11-11) are classified (source RegisterField) and every one of them is a field of a profiled register',
-          tot['fields_from_rows'] == len(t['RegisterField']) == 169 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
+    check('rp-0: all 208 RegisterField rows (148 + 21 Port C 2026-11-11 + 39 Timer0/1, OCR2A, ADC for the HAL, hal-3b 2026-11-12) are classified (source RegisterField) and every one of them is a field of a profiled register',
+          tot['fields_from_rows'] == len(t['RegisterField']) == 208 and {f['register'] for f in prof['fields'] if f['source'] == 'RegisterField'} <= set(R))
     check('rp-0: DDRB / PORTB / PINB (and the D and C ports) are pin-configuration, pure',
           all(R[x]['class'] == PIN for x in ('DDRB', 'PORTB', 'PINB', 'DDRD', 'PORTD', 'PIND', 'DDRC', 'PORTC', 'PINC')))
     check('rp-0: the external / pin-change interrupt sense and mask registers (EICRA, EIMSK, PCICR, PCMSK0-2) and DIDR0/DIDR1 are pin-configuration; their flag registers (EIFR, PCIFR) are peripheral-operation',
@@ -57,7 +57,7 @@ def run_register_profile(check):
     check('rp-0: the other alternate-function enables - SPE (SPCR), TWEN (TWCR), COM0A/COM0B (TCCR0A), COM1A/COM1B (TCCR1A), the COM2x/FOC2x rows (TCCR2A/B), FOC0x - are pin-configuration inside MIXED registers; WGM and CS bits stay peripheral-operation',
           others['SPCR']['SPE'] == PIN and others['TWCR']['TWEN'] == PIN and others['TCCR0A']['COM0A'] == others['TCCR0A']['COM0B'] == PIN and others['TCCR1A']['COM1A'] == others['TCCR1A']['COM1B'] == PIN
           and others['TCCR2A']['COM2A'] == others['TCCR2A']['COM2B'] == PIN and others['TCCR2B']['FOC2A'] == PIN and others['TCCR0B']['FOC0A'] == PIN
-          and others['TCCR2A']['WGM2_10'] == others['TCCR2B']['CS2'] == others['TCCR0B']['CS02'] == others['TCCR1A']['WGM10'] == PER
+          and others['TCCR2A']['WGM2_10'] == others['TCCR2B']['CS2'] == others['TCCR0B']['CS0'] == others['TCCR1A']['WGM1_10'] == PER   # hal-3b: Timer0/1 are RegisterField rows now (the multi-bit field names)
           and all(R[k]['class'] == RP.MIXED for k in others), str(others))
     check('rp-0: EEAR / EEARL / EEARH / EEDR / EECR are memory-nvm; SPMCSR is memory-nvm; SP / SPL / SPH are memory-nvm',
           all(R[x]['class'] == MEM for x in ('EEAR', 'EEARL', 'EEARH', 'EEDR', 'EECR', 'SPMCSR', 'SP', 'SPL', 'SPH')))
@@ -69,8 +69,9 @@ def run_register_profile(check):
           set(tot['mixed_registers']) == {'MCUCR', 'UCSR0B', 'SPCR', 'TWCR', 'TCCR0A', 'TCCR0B', 'TCCR1A', 'TCCR2A', 'TCCR2B'} and all(len(r['classes']) > 1 for r in R.values() if r['mixed'])
           and all(len(r['classes']) == 1 for r in R.values() if not r['mixed']))
     no_rows = [r for r in R.values() if r['fields_note'].startswith('fields not modelled')]
+    # 48 = 63 minus the 15 hal-3b registers that gained cited rows (Timer0/1, OCR2A, ADC, DIDR0)
     check('rp-0: a register with no field rows says `fields not modelled` (%d of them) and is still classified' % len(no_rows),
-          len(no_rows) == tot['registers_without_field_rows'] == 63 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
+          len(no_rows) == tot['registers_without_field_rows'] == 48 and all(r['class'] in RP.CLASSES + (RP.MIXED,) for r in no_rows))
     bad = [(r['register'], 'reason' if not r['reason'] else 'cite') for r in R.values() if not r['reason'] or not r['cite']]
     badf = [(f['register'], f['field']) for f in prof['fields'] if not f['reason'] or 'p.' not in f['cite'] or not f['cite'].strip()]
     check('rp-0: EVERY verdict carries a reason and a citation naming a page - %d registers, %d fields' % (len(R), len(prof['fields'])), not bad and not badf, str((bad[:3], badf[:3])))

@@ -58,6 +58,22 @@ REGISTER_CITES = {
     'MCUSR': ('MCU Status Register', '§11.9.1, p.63', 'see bit description (the flags of the reset source)', '0x54'),
     'WDTCSR': ('Watchdog Timer Control Register', '§11.9.2, p.63', '0x00 except WDE = X', ''),
     'UDR0': ('USART I/O Data Register 0', '§20.11.1, p.200', '0x00', ''),
+    # hal-3b (read 2026-11-12 from the downloaded DS40002061B, sha256 b9b9d83c..9320e): Timer/Counter0, Timer/Counter1, OCR2A, the ADC
+    'TCCR0A': ('Timer/Counter Control Register A', '§15.9.1, p.113', '0x00', ''),
+    'TCCR0B': ('Timer/Counter Control Register B', '§15.9.2, p.116', '0x00', ''),
+    'OCR0A': ('Output Compare Register A', '§15.9.4, p.117', '0x00', ''),
+    'OCR0B': ('Output Compare Register B', '§15.9.5, p.117', '0x00', ''),
+    'TIMSK0': ('Timer/Counter Interrupt Mask Register', '§15.9.6, p.118', '0x00', ''),
+    'TCCR1A': ('Timer/Counter1 Control Register A', '§16.11.1, p.140', '0x00', ''),
+    'TCCR1B': ('Timer/Counter1 Control Register B', '§16.11.2, p.142', '0x00', ''),
+    'OCR1AL': ('Output Compare Register 1 A, low byte', '§16.11.5, p.144', '0x00', ''),
+    'OCR1BL': ('Output Compare Register 1 B, low byte', '§16.11.6, p.144', '0x00', ''),
+    'OCR2A': ('Output Compare Register A (Timer/Counter2)', '§18.11.4, p.166', '0x00', ''),
+    'ADMUX': ('ADC Multiplexer Selection Register', '§24.9.1, p.257', '0x00', ''),
+    'ADCSRA': ('ADC Control and Status Register A', '§24.9.2, p.258', '0x00', ''),
+    'ADCL': ('The ADC Data Register, low byte (ADLAR = 0)', '§24.9.3.1, p.259', '0x00', ''),
+    'ADCH': ('The ADC Data Register, high byte (ADLAR = 0)', '§24.9.3.1, p.259', '0x00', ''),
+    'DIDR0': ('Digital Input Disable Register 0', '§24.9.5, p.260', '0x00', ''),
     'UCSR0A': ('USART Control and Status Register 0 A', '§20.11.2, p.200', '0x20', ''),
     'UCSR0B': ('USART Control and Status Register 0 B', '§20.11.3, p.201', '0x00', ''),
     'UCSR0C': ('USART Control and Status Register 0 C', '§20.11.4, p.202', '0x06', ''),
@@ -269,6 +285,76 @@ FIELDS = [
     _f('UBRR0L', 'UBRR0_7_0', 7, 0, 'rw', '0', 'USART Baud Rate Register bits 7:0', {'any': 'with UBRR0H the 12-bit baud rate setting; writing UBRR0L updates the prescaler '
        'at once'}, '§20.11.5 UBRRnL and UBRRnH, p.204', notes='changing the baud rate corrupts ongoing transmissions'),
 ]
+
+
+# hal-3b (read 2026-11-12, DS40002061B): the timers' PWM outputs and the ADC, for the HAL's pwm / tick / adc families. The value
+# tables are the datasheet's own words; COMnx PWM-mode meanings are Tables 15-3/15-4 (fast / phase-correct PWM, OC0A) and 16-2/16-3.
+_COM_PWM = {'00': 'Normal port operation, OCnx disconnected', '01': 'Table 15-3/15-4: toggle on compare (WGMn2 = 1) or normal port operation',
+            '10': 'non-inverting: Clear OCnx on Compare Match (fast PWM: set at BOTTOM; phase correct: set when down-counting)',
+            '11': 'inverting: Set OCnx on Compare Match (fast PWM: clear at BOTTOM; phase correct: clear when down-counting)'}
+_CS01 = {'000': 'No clock source (Timer/Counter stopped)', '001': 'clkI/O/(No prescaling)', '010': 'clkI/O/8 (From prescaler)',
+         '011': 'clkI/O/64 (From prescaler)', '100': 'clkI/O/256 (From prescaler)', '101': 'clkI/O/1024 (From prescaler)',
+         '110': 'External clock source on Tn pin. Clock on falling edge.', '111': 'External clock source on Tn pin. Clock on rising edge.'}
+_WGM0 = {'000': 'mode 0 Normal, TOP 0xFF', '001': 'mode 1 PWM, Phase Correct, TOP 0xFF', '010': 'mode 2 CTC, TOP OCRA',
+         '011': 'mode 3 Fast PWM, TOP 0xFF', '100': 'mode 4 Reserved', '101': 'mode 5 PWM, Phase Correct, TOP OCRA',
+         '110': 'mode 6 Reserved', '111': 'mode 7 Fast PWM, TOP OCRA'}
+_WGM1 = {'0000': 'mode 0 Normal, TOP 0xFFFF', '0001': 'mode 1 PWM, Phase Correct, 8-bit, TOP 0x00FF', '0010': 'mode 2 PWM, Phase Correct, 9-bit',
+         '0011': 'mode 3 PWM, Phase Correct, 10-bit', '0100': 'mode 4 CTC, TOP OCR1A', '0101': 'mode 5 Fast PWM, 8-bit, TOP 0x00FF',
+         '0110': 'mode 6 Fast PWM, 9-bit', '0111': 'mode 7 Fast PWM, 10-bit', '1000': 'mode 8 PWM, Phase and Frequency Correct, TOP ICR1',
+         '1001': 'mode 9 PWM, Phase and Frequency Correct, TOP OCR1A', '1010': 'mode 10 PWM, Phase Correct, TOP ICR1',
+         '1011': 'mode 11 PWM, Phase Correct, TOP OCR1A', '1100': 'mode 12 CTC, TOP ICR1'}
+_REFS = {'00': 'AREF, Internal Vref turned off', '01': 'AVCC with external capacitor at AREF pin', '10': 'Reserved',
+         '11': 'Internal 1.1V Voltage Reference with external capacitor at AREF pin'}
+_MUX = dict([('%04d' % int(bin(n)[2:]), 'ADC%d' % n) for n in range(8)] + [('1000', 'ADC8 (temperature sensor)'), ('1110', '1.1V (VBG)'), ('1111', '0V (GND)')]
+            + [('%04d' % int(bin(n)[2:]), '(reserved)') for n in range(9, 14)])
+_ADPS = {'%03d' % int(bin(n)[2:]): 'division factor %d' % max(2, 1 << n) for n in range(8)}
+
+FIELDS += [
+    _f('TCCR0A', 'COM0A', 7, 6, 'rw', '0', 'Compare Match Output A Mode (COM0A1:0)', _COM_PWM, '§15.9.1 TCCR0A, Tables 15-2..15-4, p.113-114', signal='OC0A'),
+    _f('TCCR0A', 'COM0B', 5, 4, 'rw', '0', 'Compare Match Output B Mode (COM0B1:0)', _COM_PWM, '§15.9.1 TCCR0A, Tables 15-5..15-7, p.114-115', signal='OC0B'),
+    _f('TCCR0A', 'WGM0_10', 1, 0, 'rw', '0', 'Waveform Generation Mode bits 1:0 (WGM01, WGM00) - with TCCR0B.WGM02 the 3-bit mode',
+       {k[1:]: 'with WGM02=%s: %s' % (k[0], v) for k, v in _WGM0.items()}, '§15.9.1 TCCR0A, Table 15-8, p.115'),
+    _f('TCCR0B', 'FOC0A', 7, 7, 'w-strobe', '0', 'Force Output Compare A', {'1': 'an immediate Compare Match on the Waveform Generation unit (non-PWM modes only); always read as zero'},
+       '§15.9.2 TCCR0B, p.116', signal='OC0A'),
+    _f('TCCR0B', 'FOC0B', 6, 6, 'w-strobe', '0', 'Force Output Compare B', {'1': 'an immediate Compare Match on the Waveform Generation unit (non-PWM modes only); always read as zero'},
+       '§15.9.2 TCCR0B, p.116', signal='OC0B'),
+    _f('TCCR0B', 'WGM02', 3, 3, 'rw', '0', 'Waveform Generation Mode bit 2', {'0': 'modes 0-3', '1': 'modes 4-7'}, '§15.9.2 TCCR0B, Table 15-8, p.115-116'),
+    _f('TCCR0B', 'CS0', 2, 0, 'rw', '0', 'Clock Select (CS02:0)', _CS01, '§15.9.2 TCCR0B, Table 15-9, p.117'),
+    _f('OCR0A', 'OCR0A', 7, 0, 'rw', '0', 'Output Compare Register A: compared with TCNT0; a match drives OC0A or raises an interrupt',
+       {'0-255': 'the compare value'}, '§15.9.4 OCR0A, p.117', signal='OC0A'),
+    _f('OCR0B', 'OCR0B', 7, 0, 'rw', '0', 'Output Compare Register B: compared with TCNT0; a match drives OC0B or raises an interrupt',
+       {'0-255': 'the compare value'}, '§15.9.5 OCR0B, p.117', signal='OC0B'),
+    _f('TIMSK0', 'OCIE0B', 2, 2, 'rw', '0', 'Timer/Counter0 Output Compare Match B Interrupt Enable', _ENABLE, '§15.9.6 TIMSK0, p.118', signal='OC0B'),
+    _f('TIMSK0', 'OCIE0A', 1, 1, 'rw', '0', 'Timer/Counter0 Output Compare Match A Interrupt Enable', _ENABLE, '§15.9.6 TIMSK0, p.118', signal='OC0A'),
+    _f('TIMSK0', 'TOIE0', 0, 0, 'rw', '0', 'Timer/Counter0 Overflow Interrupt Enable', _ENABLE, '§15.9.6 TIMSK0, p.118'),
+    _f('TCCR1A', 'COM1A', 7, 6, 'rw', '0', 'Compare Output Mode for Channel A (COM1A1:0)', _COM_PWM, '§16.11.1 TCCR1A, Tables 16-1..16-3, p.140-141', signal='OC1A'),
+    _f('TCCR1A', 'COM1B', 5, 4, 'rw', '0', 'Compare Output Mode for Channel B (COM1B1:0)', _COM_PWM, '§16.11.1 TCCR1A, Tables 16-1..16-3, p.140-141', signal='OC1B'),
+    _f('TCCR1A', 'WGM1_10', 1, 0, 'rw', '0', 'Waveform Generation Mode bits 1:0 (WGM11, WGM10) - with TCCR1B.WGM13:12 the 4-bit mode',
+       {k[2:]: 'with WGM13:12=%s: %s' % (k[:2], v) for k, v in _WGM1.items()}, '§16.11.1 TCCR1A, Table 16-4, p.141'),
+    _f('TCCR1B', 'ICNC1', 7, 7, 'rw', '0', 'Input Capture Noise Canceler', _ENABLE, '§16.11.2 TCCR1B, p.142'),
+    _f('TCCR1B', 'ICES1', 6, 6, 'rw', '0', 'Input Capture Edge Select', {'0': 'falling edge', '1': 'rising edge'}, '§16.11.2 TCCR1B, p.142'),
+    _f('TCCR1B', 'WGM1_32', 4, 3, 'rw', '0', 'Waveform Generation Mode bits 3:2 (WGM13, WGM12)',
+       {k[:2]: 'with WGM11:10=%s: %s' % (k[2:], v) for k, v in _WGM1.items()}, '§16.11.2 TCCR1B, Table 16-4, p.141-142'),
+    _f('TCCR1B', 'CS1', 2, 0, 'rw', '0', 'Clock Select (CS12:0)', _CS01, '§16.11.2 TCCR1B, Table 16-5, p.143'),
+    _f('OCR1AL', 'OCR1A_7_0', 7, 0, 'rw', '0', 'Output Compare Register 1 A, bits 7:0 (16-bit register; the high byte is written first)',
+       {'0-255': 'the low byte of the compare value'}, '§16.11.5 OCR1AH and OCR1AL, p.144', signal='OC1A'),
+    _f('OCR1BL', 'OCR1B_7_0', 7, 0, 'rw', '0', 'Output Compare Register 1 B, bits 7:0 (16-bit register; the high byte is written first)',
+       {'0-255': 'the low byte of the compare value'}, '§16.11.6 OCR1BH and OCR1BL, p.144', signal='OC1B'),
+    _f('OCR2A', 'OCR2A', 7, 0, 'rw', '0', 'Output Compare Register A (Timer/Counter2): compared with TCNT2; CTC mode 2 clears the counter on the match',
+       {'0-255': 'the compare value'}, '§18.11.4 OCR2A, p.166', signal='OC2A'),
+    _f('ADMUX', 'REFS', 7, 6, 'rw', '0', 'Reference Selection Bits (REFS1:0)', _REFS, '§24.9.1 ADMUX, Table 24-3, p.257'),
+    _f('ADMUX', 'ADLAR', 5, 5, 'rw', '0', 'ADC Left Adjust Result', {'0': 'right adjusted (ADCL holds bits 7:0)', '1': 'left adjusted'}, '§24.9.1 ADMUX, p.257'),
+    _f('ADMUX', 'MUX', 3, 0, 'rw', '0', 'Analog Channel Selection Bits (MUX3:0)', _MUX, '§24.9.1 ADMUX, Table 24-4, p.258'),
+    _f('ADCSRA', 'ADEN', 7, 7, 'rw', '0', 'ADC Enable', _ENABLE, '§24.9.2 ADCSRA, p.258'),
+    _f('ADCSRA', 'ADSC', 6, 6, 'rw', '0', 'ADC Start Conversion', {'1': 'start a conversion; reads one while it is in progress, zero when it completes'}, '§24.9.2 ADCSRA, p.258'),
+    _f('ADCSRA', 'ADATE', 5, 5, 'rw', '0', 'ADC Auto Trigger Enable', _ENABLE, '§24.9.2 ADCSRA, p.258'),
+    _f('ADCSRA', 'ADIF', 4, 4, 'w1c', '0', 'ADC Interrupt Flag', {'1': 'a conversion completed; cleared by writing a logical one'}, '§24.9.2 ADCSRA, p.258'),
+    _f('ADCSRA', 'ADIE', 3, 3, 'rw', '0', 'ADC Interrupt Enable', _ENABLE, '§24.9.2 ADCSRA, p.258'),
+    _f('ADCSRA', 'ADPS', 2, 0, 'rw', '0', 'ADC Prescaler Select Bits (ADPS2:0)', _ADPS, '§24.9.2 ADCSRA, Table 24-5, p.259'),
+    _f('ADCL', 'ADC_7_0', 7, 0, 'r', '0', 'ADC conversion result bits 7:0 (ADLAR = 0); read ADCL first, then ADCH', {'0-255': 'the low byte'}, '§24.9.3.1 ADCL and ADCH, p.259'),
+    _f('ADCH', 'ADC_9_8', 1, 0, 'r', '0', 'ADC conversion result bits 9:8 (ADLAR = 0)', {'0-3': 'the high bits'}, '§24.9.3.1 ADCL and ADCH, p.259'),
+] + [_f('DIDR0', 'ADC%dD' % n, n, n, 'rw', '0', 'ADC%d Digital Input Disable' % n, {'1': 'the digital input buffer on the ADC%d pin is disabled (PIN bit reads 0)' % n},
+        '§24.9.5 DIDR0, p.260', signal='ADC%d' % n) for n in range(6)]
 
 #: rm-2a: the access words are rows of their own (board.custom.register_access.ACCESS_KINDS -> RegisterAccessKind): what a read and a write do, the UVM / SVD names
 from board.custom.register_access import WORDS as ACCESS_KINDS  # noqa: E402

@@ -9,6 +9,7 @@
 #include <util/atomic.h>
 
 #include "hal.h"
+#include "polari_hal_atmega328p.h"   /* hal-3a: the GENERATED HAL units this build needs (its pins, its features), under role names */
 
 #if USART_U2X
 #define UBRR0_VALUE 16u            /* U2X0 = 1: +2.1 % (what Optiboot and the 16U2 side use) */
@@ -155,7 +156,7 @@ static uint32_t g_last_press;
 static uint8_t g_pressed_once;
 #endif
 
-ISR(INT0_vect)
+ISR(HAL_BUTTON_EDGE_VECTOR)                            /* INT0_vect on D2 (the generated header) */
 {
 #if HAL_INT0_DEBOUNCE_MS
     uint32_t now = g_ms;
@@ -179,11 +180,9 @@ void hal_button_init(void)
     /* a GENERATED pin_config_init() (cmod.custom.pin_config_gen) owns these DDRD/PORTD/EICRA/EIFR/EIMSK writes when
      * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run. EICRA/EIMSK are read-modify-write: D3's sense
      * atom (HAL_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
-    DDRD &= (uint8_t)~_BV(PD2);
-    PORTD |= _BV(PD2);                                 /* pull-up: the button pulls D2 to ground */
-    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC01) | _BV(ISC00))) | _BV(ISC01));   /* falling edge, ISC1x untouched */
-    EIFR = _BV(INTF0);                                 /* w1c: clears only INTF0 (DS40002061B §13.2.5) */
-    EIMSK |= _BV(INT0);                                 /* OR, not assign: INT1 may already be enabled (HAL_INT1) */
+    HAL_BUTTON_INPUT();
+    HAL_BUTTON_PULL_UP();                              /* pull-up: the button pulls D2 to ground */
+    HAL_BUTTON_EDGE_ENABLE_FALLING();                  /* EICRA ISC01:00 = 10 (ISC1x untouched), clear INTF0 (w1c), EIMSK |= INT0 (INT1 may already be on) */
 #endif
 }
 
@@ -212,9 +211,9 @@ uint8_t hal_take_toggle_pending(void)
 static volatile uint16_t g_sense_rises, g_sense_falls;
 static volatile uint32_t g_last_edge_ms;
 
-ISR(INT1_vect)
+ISR(HAL_SENSE_EDGE_VECTOR)                             /* INT1_vect on D3 (the generated header) */
 {
-    uint8_t level = (PIND & _BV(PD3)) != 0u;
+    uint8_t level = HAL_SENSE_READ();
     g_last_edge_ms = g_ms;
     if (level) g_sense_rises++; else g_sense_falls++;
 }
@@ -225,10 +224,8 @@ POLARI_NODE(hal_sense_init, uses(SENSE_PIN),
 void hal_sense_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
-    DDRD &= (uint8_t)~_BV(PD3);                        /* D3 input (the wired/witness pin, never driven by this build) */
-    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC11) | _BV(ISC10))) | _BV(ISC10));   /* ISC11:10 = 01: any logical change */
-    EIFR = _BV(INTF1);                                 /* w1c: clears only INTF1 */
-    EIMSK |= _BV(INT1);                                 /* OR, not assign: INT0 may already be enabled (HAL_INT0) */
+    HAL_SENSE_INPUT();                                 /* D3 input (the wired/witness pin, never driven by this build) */
+    HAL_SENSE_EDGE_ENABLE();                           /* EICRA ISC11:10 = 01 any logical change, clear INTF1 (w1c), EIMSK |= INT1 (INT0 may already be on) */
 #endif
 }
 
@@ -253,17 +250,8 @@ void hal_wdt_boot(void)
 }
 #endif
 
-/* ---- the LED on LED_PIN ---- */
+/* ---- the LED on LED_PIN (hal-3a: its port, bit and registers are the generated header's: HAL_LED_*) ---- */
 #if FEATURE_LED
-#if LED_PIN < 8
-#define LED_PORT PORTD
-#define LED_DDR  DDRD
-#define LED_BIT  (LED_PIN)
-#else
-#define LED_PORT PORTB
-#define LED_DDR  DDRB
-#define LED_BIT  ((LED_PIN) - 8)
-#endif
 
 #if LED_ROUTE_PWM
 /* smp-1 (drive-led:pwm): the LED pin is Timer0's compare output (D6 = OC0A, D5 = OC0B), PHASE-CORRECT PWM (TOP 255, ~490 Hz at clk/64). "On" connects the output at
@@ -283,7 +271,7 @@ void hal_wdt_boot(void)
 void hal_led_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
-    LED_DDR |= _BV(LED_BIT);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_LED_OUTPUT();          /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
 #if LED_ROUTE_PWM
     TCCR0A = _BV(WGM00);                               /* phase-correct PWM (TOP = 255), output disconnected */
@@ -298,14 +286,14 @@ void hal_led(uint8_t on)
 {
 #if LED_ROUTE_PWM
     if (on) {
-        LED_PORT |= _BV(LED_BIT);
+        HAL_LED_SET_HIGH();
         TCCR0A |= _BV(LED_COM);
     } else {
         TCCR0A &= (uint8_t)~_BV(LED_COM);
-        LED_PORT &= (uint8_t)~_BV(LED_BIT);
+        HAL_LED_SET_LOW();
     }
 #else
-    if (on) LED_PORT |= _BV(LED_BIT); else LED_PORT &= (uint8_t)~_BV(LED_BIT);
+    if (on) HAL_LED_SET_HIGH(); else HAL_LED_SET_LOW();
 #endif
 }
 #endif
@@ -328,13 +316,13 @@ void hal_pwm_init(void)
 {
 #if PWM_PIN == 6 || PWM_PIN == 5
 #ifndef POLARI_PIN_CONFIG
-    DDRD |= (PWM_PIN == 6) ? _BV(PD6) : _BV(PD5);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_PWM_OUTPUT();                               /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
     TCCR0A = ((PWM_PIN == 6) ? _BV(COM0A1) : _BV(COM0B1)) | _BV(WGM01) | _BV(WGM00);
     TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
 #else
 #ifndef POLARI_PIN_CONFIG
-    DDRB |= (PWM_PIN == 9) ? _BV(PB1) : _BV(PB2);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_PWM_OUTPUT();                               /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
     TCCR1A = ((PWM_PIN == 9) ? _BV(COM1A1) : _BV(COM1B1)) | _BV(WGM10);   /* fast PWM 8-bit (mode 5) */
     TCCR1B = _BV(WGM12) | _BV(CS11) | _BV(CS10);       /* clk/64 */

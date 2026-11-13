@@ -57,7 +57,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "b75fc4fa9c949b20f9c1d0729463d326f97bf0ebcb3df3963caefbd37cfcbebf",
+   "source_sha": "d99fafd272be9a2859803013d693205ee7496ec20e0cb7ddcac6bca44168ddc8",
    "elf_sha256": {
     "shipped": "a6607a9847a237a860d6d141de8a1abce0ff05820714441e0cb641136cba3e0d",
     "noinline": "e2400645d0eb3b104417a818259fe57195bcc3ea1d8c49a3412c6ebfdec35d0a"
@@ -80,7 +80,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "6ca5b7e816cf6313fb4bb61e85ff992d88360658ab8aae5fc106712403f76781",
+   "source_sha": "32b71dcbce33d7203352ce64de4080c4518a3daa5448394c847d62b02272bddb",
    "elf_sha256": {
     "shipped": "bf9d8af1004a2116e10aa324bbda4bd4f0985933512c75e65f3f7f71fb7c8d72",
     "noinline": "da89e4954e3a730b1744c56f058a5602b4c6b711dcefa9adec66fe9b384c6b4e"
@@ -103,7 +103,7 @@
     "unoanalogstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "9c0183f31b863efcdb09be801a9fa0b5ceedb7ee0ecfd68e463ced2cef0db558",
+   "source_sha": "a9bf87655ab820d7e018d82eb21a9a7defcf28d0786be435f9ef2b01487accfe",
    "elf_sha256": {
     "shipped": "937f8e68000aca50c0ac5b37b86cc6d47ab6b3506b613271ed45591f96b30abb",
     "noinline": "707f9f07ed5a10f7236042fa527afab29b7e41bffe2d8619506cab157965e724"
@@ -126,7 +126,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "22e68800b46826dddebe6d40f550066c69ca07a03e6dcd543a59cafbd912706a",
+   "source_sha": "fc2d6a4c96e47fd745897598984d583a6927938a059bacd9f4111d9cb050d160",
    "elf_sha256": {
     "shipped": "51985b302b5c868d43bf693d0177d65cb2e16d5a5aa681e4b166cf81e86d25e8",
     "noinline": "06631105a02f905e496c0bf31f858ebf3aba762e80bfe788c0384c7d50fd082c"
@@ -150,7 +150,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "c2395a06bd6cebfaa873fbfdc390acd629cb60076f6a3097efb999b931fa94de",
+   "source_sha": "466aba51be4528881bf7b4ee8db6c4cc09f6b30e3513318e6a42ae7fe0bd5a57",
    "elf_sha256": {
     "shipped": "268e37cb5e7da66b63a736330b4afa5bd13f00c43904e2b7512812520056ca25",
     "noinline": "202df5bf0dc38569064fe1d6e7968a738fd5103db3b9862fa04ed6f91d4aec08"
@@ -173,7 +173,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "f1183d01ab8a5e71bd6dc7c70c5819d48987557375357a4de7bf2a9be08b03a7",
+   "source_sha": "f02cce59aa40d21914909f1823395f935d53627489c29d850b64eebe489524af",
    "elf_sha256": {
     "shipped": "3e1d05d087b1ec65014d3fc9d4fe7412daa0c4f013cdbff1e625e6474d5f3bd8",
     "noinline": "a7dbfd3afb79af0a1276b137b82bdc7ac9e4161961f228514e8584858b1432b0"
@@ -197,7 +197,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "9ae8f5bdd482421bd722e1cdbed8f710144bc95d0fe915e41e3b6e123a321d02",
+   "source_sha": "5f8e1491ed1d953f3264cea1faafa33f68aaeddbd049fe18ea449abd045ac031",
    "elf_sha256": {
     "shipped": "57210995276cc7267155d84d72056a95afc9608c4f6702a18e4322247840f466",
     "noinline": "c34cef762717cbca3ce5d4b4b0a17d161b823ae415c985ce911a0d1a8a1f2aef"
@@ -221,7 +221,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "36c803ab233caf362b4f42d4678872f8c3f77bc5dfe711ec382f8407409a013c",
+   "source_sha": "83c996fef0f54f3bf11fec602f3636bca6455d3593d23f34ad0bfa947f39d52f",
    "elf_sha256": {
     "shipped": "8394c07e3b7817dd71be0418abba7e0b9d58a3764f79ba9af8ab4aaffa464b8b",
     "noinline": "b25fb4613d965ab6fde1850d622329c8bd7d6e70216d694b60cf65c48948d5e6"
@@ -245,7 +245,7 @@
     "lightstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a67fb22581c08da123f33422fc3561122b149e82f0876178adf63516cc9e087c",
+   "source_sha": "c4d39b5596d30ca8fca531dafed7c10655ec7972f293f9c59f76ffccd0419519",
    "elf_sha256": {
     "shipped": "01a80266d04f98d9ed3007ab6119ccdeb12636e2ba74acf1b906b604206ae859",
     "noinline": "76bf709953469e1d741cb55b5681fe590e2d70daa4b99f4a2f1cbed681a54938"
@@ -270,7 +270,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "7819ef92c3ffb492008b0962ccd095cfbbb82ad80ba7e2854bce2d95e6864260",
+   "source_sha": "f37652802995b49e2293343dbe06141749a172724d025c1b719b8157095ad97d",
    "elf_sha256": {
     "shipped": "f4bc41d5c0fb8a7c1229894656fab1290a9ae42946301f192e2895abcbebc684",
     "noinline": "d72612576dcf5b39c864b05b1151808a6575294ac1c80fe9c612cff7b0f6dc27"
@@ -295,7 +295,7 @@
     "buttonclockstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "8f25e127bc1ab6b7431dc86f23d158595b7e454610ed42e8c79543c6e354d33f",
+   "source_sha": "3de49cfe06d9b68144f1b9025184c4e6b36b6ee005d8659142cccf556e4b3e14",
    "elf_sha256": {
     "shipped": "47aa45a4978626e341ad7a2d4fa22c25a1dbfafc3f0ce6fa7b084a883bc954da",
     "noinline": "3a95ff8554a6727305fab67357b2cc82286557875c02a6b51cedecbd919ac3de"
@@ -326,7 +326,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "896afc4dab874c32bc96ab6f70220bd71575d403c2250c797517367905829d81",
+   "source_sha": "54dd7cb37dadbe27f2d6cf957eef970224bb410a3a2e894c9a118c4c0adc0c04",
    "elf_sha256": {
     "shipped": "72e278b88b088547809ae2aa36acf0c674a7c07b30be46f3ee40fbea20fbed93",
     "noinline": "740b7128cd1104ae9eb2ab636daa9a322b4c2135d795544ce2bf2f6e3f200187"
@@ -353,7 +353,7 @@
     "simrigstate_packets.h",
     "board_config.h"
    ],
-   "source_sha": "a7c3bbfff231d16d6b24ef98fd1f6f785f55ac90af4d3003a8c95532f4880ae1",
+   "source_sha": "4ec045a267e703aba3c9deb3c9ef177f4eeaa05cc2b41022604fa4969f72f0fb",
    "elf_sha256": {
     "shipped": "09379f05062d7180a447913a9d0b7485f91bec5b2ed5c5bb8152c6b117b67970",
     "noinline": "12250b57e79b5fc2d52a3c36d5a8f28d503ca195b02e0169bfd5a9c94d039b76"
@@ -371,7 +371,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
+     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
     },
     {
      "path": "hal.h",
@@ -3738,7 +3738,7 @@
    "name": "hal.INT0_vect",
    "function": "__polari_isr_INT0_vect",
    "module": "hal.c",
-   "line": 158,
+   "line": 159,
    "kind": "isr",
    "isr_vector": "INT0_vect",
    "signature": "ISR(INT0_vect)",
@@ -3828,7 +3828,7 @@
    "name": "hal.INT1_vect",
    "function": "__polari_isr_INT1_vect",
    "module": "hal.c",
-   "line": 215,
+   "line": 214,
    "kind": "isr",
    "isr_vector": "INT1_vect",
    "signature": "ISR(INT1_vect)",
@@ -3912,7 +3912,7 @@
    "name": "hal.TIMER2_COMPA_vect",
    "function": "__polari_isr_TIMER2_COMPA_vect",
    "module": "hal.c",
-   "line": 115,
+   "line": 116,
    "kind": "isr",
    "isr_vector": "TIMER2_COMPA_vect",
    "signature": "ISR(TIMER2_COMPA_vect)",
@@ -3980,7 +3980,7 @@
    "name": "hal.USART_RX_vect",
    "function": "__polari_isr_USART_RX_vect",
    "module": "hal.c",
-   "line": 63,
+   "line": 64,
    "kind": "isr",
    "isr_vector": "USART_RX_vect",
    "signature": "ISR(USART_RX_vect)",
@@ -4095,7 +4095,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 358,
+   "line": 346,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -4152,7 +4152,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 366,
+   "line": 354,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -4215,7 +4215,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 364,
+    "line": 352,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -4243,7 +4243,7 @@
    "name": "hal.hal_button_init",
    "function": "hal_button_init",
    "module": "hal.c",
-   "line": 176,
+   "line": 177,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_init(void)",
@@ -4311,7 +4311,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 174,
+    "line": 175,
     "role": "D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)",
     "uses": [
      "BUTTON_PIN"
@@ -4341,7 +4341,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 297,
+   "line": 285,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -4403,7 +4403,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 295,
+    "line": 283,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -4433,7 +4433,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 283,
+   "line": 271,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -4499,7 +4499,7 @@
    "name": "hal.hal_millis",
    "function": "hal_millis",
    "module": "hal.c",
-   "line": 135,
+   "line": 136,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t hal_millis(void)",
@@ -4549,7 +4549,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 133,
+    "line": 134,
     "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
     "uses": [],
     "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
@@ -4577,7 +4577,7 @@
    "name": "hal.hal_presses",
    "function": "hal_presses",
    "module": "hal.c",
-   "line": 192,
+   "line": 191,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_presses(void)",
@@ -4628,7 +4628,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 190,
+    "line": 189,
     "role": "atomic read of the INT0 press counter",
     "uses": [
      "BUTTON_PIN"
@@ -4658,7 +4658,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 347,
+   "line": 335,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -4713,7 +4713,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 345,
+    "line": 333,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -4743,7 +4743,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 327,
+   "line": 315,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -4813,7 +4813,7 @@
    "name": "hal.hal_rx_pop",
    "function": "hal_rx_pop",
    "module": "hal.c",
-   "line": 76,
+   "line": 77,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_rx_pop(uint8_t * b)",
@@ -4892,7 +4892,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 73,
+    "line": 74,
     "role": "pop one byte from the USART0 RX ring the RX ISR fills",
     "uses": [
      "USART0"
@@ -4922,7 +4922,7 @@
    "name": "hal.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal.c",
-   "line": 225,
+   "line": 224,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -4977,7 +4977,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 223,
+    "line": 222,
     "role": "D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)",
     "uses": [
      "SENSE_PIN"
@@ -5007,7 +5007,7 @@
    "name": "hal.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal.c",
-   "line": 238,
+   "line": 235,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -5086,7 +5086,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 235,
+    "line": 232,
     "role": "atomic snapshot of the INT1 edge counters + the last edge's timestamp",
     "uses": [
      "SENSE_PIN"
@@ -5116,7 +5116,7 @@
    "name": "hal.hal_take_toggle_pending",
    "function": "hal_take_toggle_pending",
    "module": "hal.c",
-   "line": 199,
+   "line": 198,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint8_t hal_take_toggle_pending(void)",
@@ -5182,7 +5182,7 @@
    "name": "hal.hal_tick_init",
    "function": "hal_tick_init",
    "module": "hal.c",
-   "line": 117,
+   "line": 118,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_tick_init(void)",
@@ -5264,7 +5264,7 @@
    "name": "hal.hal_uart_errors",
    "function": "hal_uart_errors",
    "module": "hal.c",
-   "line": 56,
+   "line": 57,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_uart_errors(uint8_t which)",
@@ -5349,7 +5349,7 @@
    "name": "hal.hal_usart_init",
    "function": "hal_usart_init",
    "module": "hal.c",
-   "line": 85,
+   "line": 86,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_init(void)",
@@ -5438,7 +5438,7 @@
    "name": "hal.hal_usart_send",
    "function": "hal_usart_send",
    "module": "hal.c",
-   "line": 104,
+   "line": 105,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
@@ -5505,7 +5505,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 102,
+    "line": 103,
     "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
     "uses": [],
     "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
@@ -5533,7 +5533,7 @@
    "name": "hal.hal_wdt_boot",
    "function": "hal_wdt_boot",
    "module": "hal.c",
-   "line": 249,
+   "line": 246,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_wdt_boot(void)",
@@ -6642,5 +6642,5 @@
  "problems": [],
  "annotated_not_compiled": [],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-11-11T12:05:24"
+ "conformed_at": "2026-11-12T21:51:00"
 }

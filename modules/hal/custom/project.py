@@ -54,7 +54,8 @@ def project_header(soc, reqs, pins):
             keys.append(u['key'])
     h = RD.header(soc, keys)
     return {'file': h['name'], 'text': h['text'], 'sha256': h['sha256'], 'keys': keys,
-            'macros': {(u['variable'], u['operation']): u['macro'] for u in r['units']}, 'units': r['units']}
+            'macros': {(u['variable'], u['operation']): u['macro'] for u in r['units']},
+            'macros_keys': {(u['variable'], u['operation']): u['key'] for u in r['units']}, 'units': r['units']}
 
 
 def isotope_header(isotope_dir, soc, pins):
@@ -63,15 +64,24 @@ def isotope_header(isotope_dir, soc, pins):
     return project_header(soc, reqs, pins) if reqs else None
 
 
-def merged_header(soc, headers):
+def merged_header(soc, headers, sources=None, aliases=None, always=False):
     """One header for every isotope of a project (a firmware with two isotopes includes ONE polari_hal_<soc>.h): the union of their
-    units, in the order they first appear."""
-    keys = []
-    for h in headers:
+    units, in the order they first appear — and nothing else of the chip's catalogue. `sources` names each header's requirer (e.g.
+    'sense:poll'); every unit and every line of the result then says who required it (hal-1: the page shows exactly this file)."""
+    keys, units, by = [], [], {}
+    for i, h in enumerate(headers):
+        src = sources[i] if sources and i < len(sources) else ''
+        for u in (h or {}).get('units', []):
+            req = ('%s %s' % (src, u['variable'])).strip()
+            by.setdefault(u['key'], [])
+            if req not in by[u['key']]:
+                by[u['key']].append(req)
+            units.append(dict(u, required_by=req))
         for k in (h or {}).get('keys', []):
             if k not in keys:
                 keys.append(k)
-    if not keys:
+    if not keys and not always:
         return None
-    hdr = RD.header(soc, keys)
-    return {'file': hdr['name'], 'text': hdr['text'], 'sha256': hdr['sha256'], 'keys': keys}
+    hdr = RD.header(soc, keys, aliases)
+    lines = [dict(ln, required_by=', '.join(by.get(ln['unit'], []))) for ln in hdr['lines']]
+    return {'file': hdr['name'], 'text': hdr['text'], 'sha256': hdr['sha256'], 'keys': keys, 'units': units, 'lines': lines}

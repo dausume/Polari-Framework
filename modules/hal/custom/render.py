@@ -7,8 +7,9 @@ running finalized Bench Simulations to show the exact rendered code at different
   levels(unit_result)          -> rows, top to bottom: the operation an isotope calls, the board pin, the chip pin, each register
                                   binding (register / field / bit / value), its access mechanism, its C statement, the macro, and
                                   where the macro lands in the final header. Each row says where its content came from.
-  header(soc, keys)            -> {name, text, sha256, lines[], units[]}: the final generated header for a set of units
-                                  (soc:operation:pin keys) — every line carries the unit and the generation step it came from.
+  header(soc, keys)            -> {name, text, sha256, lines[], units[]}: the generated header for EXACTLY the given units
+                                  (soc:operation:pin keys: the ones a firmware's isotopes require, hal.custom.project) — every
+                                  line carries the unit and the generation step it came from. Never the whole chip (hal-1).
   header_lines(header)         -> one row per line of the file (line, text, unit, step), for a line-by-line page table.
 
 The header is plain C a normal build compiles (RULE 2): avr-libc names on the AVR, volatile address casts on the ESP32-C3. It
@@ -53,7 +54,8 @@ def levels(res):
     hdr = header(u['soc'], [u['key']])
     line = next((ln for ln in hdr['lines'] if ln['unit'] == u['key'] and ln['text'].startswith('#define')), None)
     rows.append({'level': 8, 'layer': 'final file', 'code': '%s line %d' % (hdr['name'], line['line'] if line else 0),
-                 'what': 'the header a firmware project includes; the page lists it line by line', 'source': 'hal.custom.render.header'})
+                 'what': 'where it lands in polari_hal_%s.h, which holds ONLY the units a firmware requires; this unit is in it only '
+                         'when an isotope of that firmware requires it (the Firmware headers tab)' % u['soc'], 'source': 'hal.custom.render.header'})
     return rows
 
 
@@ -66,7 +68,7 @@ def _guard_prelude(soc):
             '#endif']
 
 
-def header(soc, keys):
+def header(soc, keys, aliases=None):
     name = 'polari_hal_%s.h' % soc
     guard = 'POLARI_HAL_%s_H' % soc.upper()
     units, refused = [], []
@@ -112,6 +114,23 @@ def header(soc, keys):
     for k, why in refused:
         put('')
         put('/* not generated: %s - %s */' % (k, why), k, 'refused')
+    # hal-3a: ROLE names (the firmware's own words: HAL_LED_SET_HIGH) pointing at the unit that plays them on this build's pin
+    # (HAL_GPIO_SET_HIGH_PD6). The template code calls the role; which pin, which register, is the header's business only.
+    have = {r['unit']['key']: r['unit'] for r in units}
+    roles = [a for a in (aliases or []) if a['key'] in have]
+    if roles:
+        put('')
+        put('/* roles: what the firmware calls -> the unit above that does it on this build\'s pin */')
+        for a in roles:
+            u = have[a['key']]
+            if a.get('form') == 'symbol':
+                put('#define %s %s' % (a['name'], u['macro']), u['key'], 'role')
+            elif a.get('form') == 'init' and u.get('c_text_init'):
+                put('#define %s() %s_INIT()' % (a['name'], u['macro']), u['key'], 'role')
+            elif u['c_text'].startswith('#define %s()' % u['macro']):
+                put('#define %s() %s()' % (a['name'], u['macro']), u['key'], 'role')
+            else:
+                put('#define %s %s' % (a['name'], u['macro']), u['key'], 'role')
     put('')
     put('#endif /* %s */' % guard)
     text = '\n'.join(t for t, _, _ in out) + '\n'

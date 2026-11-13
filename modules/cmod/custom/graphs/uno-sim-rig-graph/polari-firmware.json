@@ -70,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
+     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
     },
     {
      "path": "hal.h",
@@ -116,11 +116,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "bcebaac9c4f2a7dd78d1aa32c82a2b40e30afbd6600ac6ded765feb2bede4434"
+     "sha256": "c7ef89d18e8dc37aecd9692f787cf80c8f66f347256cf000ea3932e9218b08d7"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "c6af74ee69c288a23c0ddeae37aefee2f2daaea7539b7dd70fb0ee8b1f2de5b4"
+     "sha256": "c37167459ceb868ef8e8f9cc726408e5ec230dbe0dc82ae48301a5ad40116a67"
     }
    ],
    "atoms": [
@@ -136,6 +136,17 @@
     {
      "path": "board_config.h",
      "sha256": "7501b89751a370e92db8343aa1095510300209281cd64f3f4689d980af473e7b"
+    }
+   ],
+   "atoms": []
+  },
+  {
+   "name": "polari_hal_atmega328p",
+   "role": "header",
+   "files": [
+    {
+     "path": "polari_hal_atmega328p.h",
+     "sha256": "7f0eaa074dd1710d50e9e0449ebd81be7e006f2c0d4aa8e2e31bf9ad686d5dc4"
     }
    ],
    "atoms": []
@@ -157,7 +168,7 @@
    "name": "hal.TIMER2_COMPA_vect",
    "function": "__polari_isr_TIMER2_COMPA_vect",
    "module": "hal.c",
-   "line": 115,
+   "line": 116,
    "kind": "isr",
    "isr_vector": "TIMER2_COMPA_vect",
    "signature": "ISR(TIMER2_COMPA_vect)",
@@ -213,7 +224,7 @@
    "name": "hal.USART_RX_vect",
    "function": "__polari_isr_USART_RX_vect",
    "module": "hal.c",
-   "line": 63,
+   "line": 64,
    "kind": "isr",
    "isr_vector": "USART_RX_vect",
    "signature": "ISR(USART_RX_vect)",
@@ -290,7 +301,7 @@
    "name": "hal.hal_adc_init",
    "function": "hal_adc_init",
    "module": "hal.c",
-   "line": 358,
+   "line": 346,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_adc_init(void)",
@@ -346,7 +357,7 @@
    "name": "hal.hal_adc_read",
    "function": "hal_adc_read",
    "module": "hal.c",
-   "line": 366,
+   "line": 354,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_adc_read(uint8_t channel)",
@@ -408,7 +419,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 364,
+    "line": 352,
     "role": "one blocking ADC conversion, AVcc reference",
     "uses": [],
     "raw": "POLARI_NODE(hal_adc_read, in(channel, \"\", \"A0..A5 (0..5)\"), out(return, \"count\", \"10-bit ADC = Vin*1024/Vref, 0..1023\"), role(\"one blocking ADC conversion, AVcc reference\"))"
@@ -436,7 +447,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 297,
+   "line": 285,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -481,7 +492,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 295,
+    "line": 283,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -511,7 +522,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 283,
+   "line": 271,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -560,7 +571,7 @@
    "name": "hal.hal_millis",
    "function": "hal_millis",
    "module": "hal.c",
-   "line": 135,
+   "line": 136,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t hal_millis(void)",
@@ -598,7 +609,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 133,
+    "line": 134,
     "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
     "uses": [],
     "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
@@ -626,7 +637,7 @@
    "name": "hal.hal_pwm_apply",
    "function": "hal_pwm_apply",
    "module": "hal.c",
-   "line": 347,
+   "line": 335,
    "kind": "function",
    "isr_vector": "",
    "signature": "int64_t hal_pwm_apply(int64_t duty)",
@@ -681,7 +692,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 345,
+    "line": 333,
     "role": "set the PWM duty on PWM_PIN (OCR = duty*255/100)",
     "uses": [
      "PWM_PIN"
@@ -711,7 +722,7 @@
    "name": "hal.hal_pwm_init",
    "function": "hal_pwm_init",
    "module": "hal.c",
-   "line": 327,
+   "line": 315,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pwm_init(void)",
@@ -781,7 +792,7 @@
    "name": "hal.hal_rx_pop",
    "function": "hal_rx_pop",
    "module": "hal.c",
-   "line": 76,
+   "line": 77,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_rx_pop(uint8_t * b)",
@@ -850,7 +861,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 73,
+    "line": 74,
     "role": "pop one byte from the USART0 RX ring the RX ISR fills",
     "uses": [
      "USART0"
@@ -880,7 +891,7 @@
    "name": "hal.hal_tick_init",
    "function": "hal_tick_init",
    "module": "hal.c",
-   "line": 117,
+   "line": 118,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_tick_init(void)",
@@ -950,7 +961,7 @@
    "name": "hal.hal_usart_init",
    "function": "hal_usart_init",
    "module": "hal.c",
-   "line": 85,
+   "line": 86,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_init(void)",
@@ -1027,7 +1038,7 @@
    "name": "hal.hal_usart_send",
    "function": "hal_usart_send",
    "module": "hal.c",
-   "line": 104,
+   "line": 105,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
@@ -1082,7 +1093,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 102,
+    "line": 103,
     "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
     "uses": [],
     "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
@@ -1166,7 +1177,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 44,
+   "line": 45,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1222,7 +1233,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 42,
+    "line": 43,
     "role": "apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded",
     "uses": [
      "LED_PIN",
@@ -1254,7 +1265,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 67,
+   "line": 68,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -1361,7 +1372,7 @@
    "name": "polari_graph.sensor_value",
    "function": "sensor_value",
    "module": "polari_graph.c",
-   "line": 29,
+   "line": 30,
    "kind": "function",
    "isr_vector": "",
    "signature": "polari_avr_double_t sensor_value(uint16_t adc)",
@@ -1401,7 +1412,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 26,
+    "line": 27,
     "role": "ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)",
     "uses": [],
     "raw": "POLARI_NODE(sensor_value, in(adc, \"count\", \"10-bit ADC reading\"), out(return, \"degC\", \"TMP36 temperature (or the raw count when TEMP_TMP36 is 0)\"), role(\"ADC count -> the rig's temp_c (TMP36: (mV - 500) / 10)\"))"
@@ -1443,5 +1454,5 @@
   "hal.hal_sense_read"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T09:00:25"
+ "conformed_at": "2026-11-12T22:28:20"
 }

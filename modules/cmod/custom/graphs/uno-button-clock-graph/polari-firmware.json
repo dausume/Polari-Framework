@@ -70,7 +70,7 @@
    "files": [
     {
      "path": "hal.c",
-     "sha256": "25f36ae0386b7dd0012920c3c439f2b8804898373ff7658e56f9a148a1899aa2"
+     "sha256": "90913b721aca4793943d3548de988e241f36fa16036fb8edbcc786b24273d66f"
     },
     {
      "path": "hal.h",
@@ -119,11 +119,11 @@
    "files": [
     {
      "path": "polari_graph.c",
-     "sha256": "68c6d03e80ebe1f8ea304fe895ed59f729645007ccc935c5330d6705aef54b5d"
+     "sha256": "b81d093e3831c82a2e5cd7af980b1eddb8252d9dc1b2e80f6ad61ad12a990230"
     },
     {
      "path": "polari_graph.h",
-     "sha256": "89d17ba19cf049078c92beafc74237195a2ce3ae5cb26a027bb1d238f5f91b4d"
+     "sha256": "3e88dc2e3cbcd15fdcea72fceab2564c81d74487883c787f79df924cb006a0aa"
     }
    ],
    "atoms": [
@@ -186,6 +186,17 @@
     }
    ],
    "atoms": []
+  },
+  {
+   "name": "polari_hal_atmega328p",
+   "role": "header",
+   "files": [
+    {
+     "path": "polari_hal_atmega328p.h",
+     "sha256": "594eccf44c95bb4f8470b9476f4086933772fa0fc4a743ab5efb7eb7ad1ee3f0"
+    }
+   ],
+   "atoms": []
   }
  ],
  "atoms": [
@@ -193,7 +204,7 @@
    "name": "hal.INT0_vect",
    "function": "__polari_isr_INT0_vect",
    "module": "hal.c",
-   "line": 158,
+   "line": 159,
    "kind": "isr",
    "isr_vector": "INT0_vect",
    "signature": "ISR(INT0_vect)",
@@ -277,7 +288,7 @@
    "name": "hal.INT1_vect",
    "function": "__polari_isr_INT1_vect",
    "module": "hal.c",
-   "line": 215,
+   "line": 214,
    "kind": "isr",
    "isr_vector": "INT1_vect",
    "signature": "ISR(INT1_vect)",
@@ -361,7 +372,7 @@
    "name": "hal.TIMER2_COMPA_vect",
    "function": "__polari_isr_TIMER2_COMPA_vect",
    "module": "hal.c",
-   "line": 115,
+   "line": 116,
    "kind": "isr",
    "isr_vector": "TIMER2_COMPA_vect",
    "signature": "ISR(TIMER2_COMPA_vect)",
@@ -417,7 +428,7 @@
    "name": "hal.USART_RX_vect",
    "function": "__polari_isr_USART_RX_vect",
    "module": "hal.c",
-   "line": 63,
+   "line": 64,
    "kind": "isr",
    "isr_vector": "USART_RX_vect",
    "signature": "ISR(USART_RX_vect)",
@@ -494,7 +505,7 @@
    "name": "hal.hal_button_init",
    "function": "hal_button_init",
    "module": "hal.c",
-   "line": 176,
+   "line": 177,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_init(void)",
@@ -556,7 +567,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 174,
+    "line": 175,
     "role": "D2 input + pull-up, EICRA ISC01:00 falling, clear INTF0, enable INT0 (EICRA/EIFR/EIMSK are read-modify-write: hal_sense_init shares them)",
     "uses": [
      "BUTTON_PIN"
@@ -586,7 +597,7 @@
    "name": "hal.hal_led",
    "function": "hal_led",
    "module": "hal.c",
-   "line": 297,
+   "line": 285,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led(uint8_t on)",
@@ -631,7 +642,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 295,
+    "line": 283,
     "role": "set the LED on LED_PIN",
     "uses": [
      "LED_PIN"
@@ -661,7 +672,7 @@
    "name": "hal.hal_led_init",
    "function": "hal_led_init",
    "module": "hal.c",
-   "line": 283,
+   "line": 271,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_init(void)",
@@ -710,7 +721,7 @@
    "name": "hal.hal_millis",
    "function": "hal_millis",
    "module": "hal.c",
-   "line": 135,
+   "line": 136,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t hal_millis(void)",
@@ -748,7 +759,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 133,
+    "line": 134,
     "role": "read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)",
     "uses": [],
     "raw": "POLARI_NODE(hal_millis, out(return, \"ms\", \"milliseconds since hal_tick_init, from the Timer2 1 ms tick\"), role(\"read the 1 ms tick counter (4 bytes the tick ISR writes, read inside an atomic block)\"))"
@@ -776,7 +787,7 @@
    "name": "hal.hal_presses",
    "function": "hal_presses",
    "module": "hal.c",
-   "line": 192,
+   "line": 191,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint16_t hal_presses(void)",
@@ -821,7 +832,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 190,
+    "line": 189,
     "role": "atomic read of the INT0 press counter",
     "uses": [
      "BUTTON_PIN"
@@ -851,7 +862,7 @@
    "name": "hal.hal_rx_pop",
    "function": "hal_rx_pop",
    "module": "hal.c",
-   "line": 76,
+   "line": 77,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_rx_pop(uint8_t * b)",
@@ -920,7 +931,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 73,
+    "line": 74,
     "role": "pop one byte from the USART0 RX ring the RX ISR fills",
     "uses": [
      "USART0"
@@ -950,7 +961,7 @@
    "name": "hal.hal_sense_init",
    "function": "hal_sense_init",
    "module": "hal.c",
-   "line": 225,
+   "line": 224,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_init(void)",
@@ -1005,7 +1016,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 223,
+    "line": 222,
     "role": "D3 input, EICRA ISC11:10 any-edge, clear INTF1, enable INT1 (EICRA/EIFR/EIMSK are read-modify-write: hal_button_init shares them)",
     "uses": [
      "SENSE_PIN"
@@ -1035,7 +1046,7 @@
    "name": "hal.hal_sense_read",
    "function": "hal_sense_read",
    "module": "hal.c",
-   "line": 238,
+   "line": 235,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_sense_read(uint16_t * rises, uint16_t * falls, uint32_t * last_ms)",
@@ -1114,7 +1125,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 235,
+    "line": 232,
     "role": "atomic snapshot of the INT1 edge counters + the last edge's timestamp",
     "uses": [
      "SENSE_PIN"
@@ -1144,7 +1155,7 @@
    "name": "hal.hal_take_toggle_pending",
    "function": "hal_take_toggle_pending",
    "module": "hal.c",
-   "line": 199,
+   "line": 198,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint8_t hal_take_toggle_pending(void)",
@@ -1204,7 +1215,7 @@
    "name": "hal.hal_tick_init",
    "function": "hal_tick_init",
    "module": "hal.c",
-   "line": 117,
+   "line": 118,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_tick_init(void)",
@@ -1274,7 +1285,7 @@
    "name": "hal.hal_usart_init",
    "function": "hal_usart_init",
    "module": "hal.c",
-   "line": 85,
+   "line": 86,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_init(void)",
@@ -1351,7 +1362,7 @@
    "name": "hal.hal_usart_send",
    "function": "hal_usart_send",
    "module": "hal.c",
-   "line": 104,
+   "line": 105,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_usart_send(const uint8_t * b, size_t n)",
@@ -1406,7 +1417,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 102,
+    "line": 103,
     "role": "send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)",
     "uses": [],
     "raw": "POLARI_NODE(hal_usart_send, in(b, \"bytes\", \"the frame to send\"), in(n, \"B\", \"how many bytes\"), role(\"send n bytes on USART0, blocking on UDRE0 per byte (115200 8N1)\"))"
@@ -1518,7 +1529,7 @@
    "name": "polari_graph.apply_command",
    "function": "apply_command",
    "module": "polari_graph.c",
-   "line": 214,
+   "line": 215,
    "kind": "function",
    "isr_vector": "",
    "signature": "void apply_command(const polari_rx_t * r)",
@@ -1570,7 +1581,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 212,
+    "line": 213,
     "role": "SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now",
     "uses": [],
     "raw": "POLARI_NODE(apply_command, in(r, \"frame\", \"a parsed PolariPacket ButtonClockState command\"), role(\"SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now\"))"
@@ -1599,7 +1610,7 @@
    "name": "polari_graph.boot_session_mint",
    "function": "boot_session_mint",
    "module": "polari_graph.c",
-   "line": 43,
+   "line": 44,
    "kind": "function",
    "isr_vector": "",
    "signature": "uint32_t boot_session_mint(void)",
@@ -1647,7 +1658,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 41,
+    "line": 42,
     "role": "mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)",
     "uses": [],
     "raw": "POLARI_NODE(boot_session_mint, out(return, \"\", \"the freshly-minted boot_session (1 on a virgin chip, else +1)\"), role(\"mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)\"))"
@@ -1676,7 +1687,7 @@
    "name": "polari_graph.clock_set",
    "function": "clock_set",
    "module": "polari_graph.c",
-   "line": 70,
+   "line": 71,
    "kind": "function",
    "isr_vector": "",
    "signature": "void clock_set(int64_t set_epoch_s, int64_t set_ms, int64_t set_sync_generation, uint32_t now_ms)",
@@ -1767,7 +1778,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 67,
+    "line": 68,
     "role": "record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on",
     "uses": [],
     "raw": "POLARI_NODE(clock_set, in(set_epoch_s, \"s\", \"the host's SET_TIME\"), in(set_ms, \"ms\", \"...within the second\"), in(set_sync_generation, \"\", \"the host's generation counter\"), in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on\"))"
@@ -1796,7 +1807,7 @@
    "name": "polari_graph.clock_tick",
    "function": "clock_tick",
    "module": "polari_graph.c",
-   "line": 56,
+   "line": 57,
    "kind": "function",
    "isr_vector": "",
    "signature": "void clock_tick(uint32_t now_ms, int64_t * epoch_s, int64_t * ms)",
@@ -1875,7 +1886,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 53,
+    "line": 54,
     "role": "advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it",
     "uses": [],
     "raw": "POLARI_NODE(clock_tick, in(now_ms, \"ms\", \"hal_millis() right now\"), out(epoch_s, \"s\", \"the device's current wall-clock estimate\"), out(ms, \"ms\", \"...within the second\"), role(\"advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it\"))"
@@ -1903,7 +1914,7 @@
    "name": "polari_graph.events_drain",
    "function": "events_drain",
    "module": "polari_graph.c",
-   "line": 162,
+   "line": 163,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_drain(void)",
@@ -1981,7 +1992,7 @@
    "name": "polari_graph.events_queue",
    "function": "events_queue",
    "module": "polari_graph.c",
-   "line": 91,
+   "line": 92,
    "kind": "function",
    "isr_vector": "",
    "signature": "void events_queue(uint8_t kind, uint32_t at_ms)",
@@ -2059,7 +2070,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 88,
+    "line": 89,
     "role": "push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events",
     "uses": [],
     "raw": "POLARI_NODE(events_queue, in(kind, \"enum\", \"press | led_on | led_off | sense_rise | sense_fall | sync\"), in(at_ms, \"ms\", \"device uptime at the moment of the event\"), role(\"push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events\"))"
@@ -2087,7 +2098,7 @@
    "name": "polari_graph.l_led_init",
    "function": "l_led_init",
    "module": "polari_graph.c",
-   "line": 25,
+   "line": 26,
    "kind": "function",
    "isr_vector": "",
    "signature": "void l_led_init(void)",
@@ -2103,9 +2114,7 @@
      "detail": ""
     }
    ],
-   "calls": [
-    "_BV"
-   ],
+   "calls": [],
    "pure": false,
    "pure_why": "touches register DDRB",
    "isr_safe": "yes",
@@ -2139,7 +2148,7 @@
    "name": "polari_graph.l_led_set",
    "function": "l_led_set",
    "module": "polari_graph.c",
-   "line": 35,
+   "line": 36,
    "kind": "function",
    "isr_vector": "",
    "signature": "void l_led_set(uint8_t on)",
@@ -2173,9 +2182,7 @@
      "detail": "POLARI_NODE uses()"
     }
    ],
-   "calls": [
-    "_BV"
-   ],
+   "calls": [],
    "pure": false,
    "pure_why": "touches register PORTB",
    "isr_safe": "yes",
@@ -2186,7 +2193,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 33,
+    "line": 34,
     "role": "mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)",
     "uses": [
      "L_LED_PIN"
@@ -2217,7 +2224,7 @@
    "name": "polari_graph.led_follow_state",
    "function": "led_follow_state",
    "module": "polari_graph.c",
-   "line": 202,
+   "line": 203,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_follow_state(void)",
@@ -2254,7 +2261,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 201,
+    "line": 202,
     "role": "each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it",
     "uses": [
      "LED_PIN"
@@ -2285,7 +2292,7 @@
    "name": "polari_graph.led_toggle",
    "function": "led_toggle",
    "module": "polari_graph.c",
-   "line": 120,
+   "line": 121,
    "kind": "function",
    "isr_vector": "",
    "signature": "void led_toggle(uint32_t now_ms)",
@@ -2328,7 +2335,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 119,
+    "line": 120,
     "role": "on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)",
     "uses": [],
     "raw": "POLARI_NODE(led_toggle, role(\"on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)\"))"
@@ -2357,7 +2364,7 @@
    "name": "polari_graph.main",
    "function": "main",
    "module": "polari_graph.c",
-   "line": 246,
+   "line": 247,
    "kind": "entry",
    "isr_vector": "",
    "signature": "int main(void)",
@@ -2451,7 +2458,7 @@
    "name": "polari_graph.queue_pop",
    "function": "queue_pop",
    "module": "polari_graph.c",
-   "line": 109,
+   "line": 110,
    "kind": "function",
    "isr_vector": "",
    "signature": "int queue_pop(qevent_t * out)",
@@ -2536,7 +2543,7 @@
    "name": "polari_graph.sense_isr",
    "function": "sense_isr",
    "module": "polari_graph.c",
-   "line": 138,
+   "line": 139,
    "kind": "function",
    "isr_vector": "",
    "signature": "void sense_isr(void)",
@@ -2574,7 +2581,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 137,
+    "line": 138,
     "role": "drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges",
     "uses": [
      "SENSE_PIN"
@@ -2605,7 +2612,7 @@
    "name": "polari_graph.telemetry_send",
    "function": "telemetry_send",
    "module": "polari_graph.c",
-   "line": 185,
+   "line": 186,
    "kind": "function",
    "isr_vector": "",
    "signature": "void telemetry_send(uint32_t now_ms)",
@@ -2670,7 +2677,7 @@
    ],
    "annotation": {
     "form": "macro",
-    "line": 183,
+    "line": 184,
     "role": "one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames",
     "uses": [],
     "raw": "POLARI_NODE(telemetry_send, in(now_ms, \"ms\", \"hal_millis() right now\"), role(\"one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames\"))"
@@ -2709,5 +2716,5 @@
   "hal.hal_pwm_apply"
  ],
  "derived_by": "cmod.custom.manifest generate — never edit by hand except title / description / notes (top and per atom)",
- "conformed_at": "2026-10-19T09:00:46"
+ "conformed_at": "2026-11-12T22:29:57"
 }

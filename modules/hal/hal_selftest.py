@@ -246,7 +246,11 @@ def main():
     rs = _Resp(); api.on_get_units(_Req(), rs, 'z80')
     check('an unknown soc is 422', rs.status.startswith('422'))
     rs = _Resp(); api.on_get_header(_Req(), rs, 'esp32c3')
-    check('/api/hal/socs/esp32c3/header: the file + its lines', rs.media['ok'] and rs.media['units'] == 352 and rs.media['rows'][0]['line'] == 1)
+    check('hal-1: /api/hal/socs/esp32c3/header with nothing picked renders NO header (the catalogue is never one file), with a note',
+          rs.media['ok'] and rs.media['rows'] == [] and rs.media['units'] == 0 and 'firmware' in rs.media['note'])
+    rs = _Resp(); api.on_get_header(_Req({'pins': 'GPIO8'}), rs, 'esp32c3')
+    check('/api/hal/socs/esp32c3/header?pins=GPIO8 previews just that pin: the file + its lines',
+          rs.media['ok'] and 0 < rs.media['units'] < 30 and rs.media['rows'][0]['line'] == 1, rs.media.get('units'))
     rs = _Resp(); api.on_get_operations(_Req(), rs)
     check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 18)
     page = SEED_HAL_PAGE_DISPLAYS[0]
@@ -256,7 +260,43 @@ def main():
     check('the page has no raw JSON panel', 'api-json-panel' not in blob)
     paths = [it['componentProps']['inputs'].get('dataPath', '') for tab in page['definition']['tabs'] for row in tab['rows'] for it in row['items']]
     check('every API-backed table reads a /api/hal door', all(p.startswith('/api/hal/') for p in paths if p) and len([p for p in paths if p]) == 15, len(paths))
-    check('the page is linkable to one unit or isotope (scope_query)', page['definition'].get('scope_from_query') == ['unit', 'isotope'])
+    check('the page is linkable to one unit, isotope or firmware (scope_query)', page['definition'].get('scope_from_query') == ['unit', 'isotope', 'firmware'])
+    tabs = [t.get('name') or t.get('key') or t.get('id') for t in page['definition']['tabs']]
+    check('hal-1 (the user): Operations and Access mechanisms are the first two tabs; the chip tabs are catalogues; no per-chip header tab',
+          tabs[:2] == ['operations', 'mechanisms'] and not any(str(t).endswith('-header') for t in tabs) and 'firmware' in tabs, tabs)
+
+    print('-- firmware headers (hal-1) + uno/hal.c on the HAL (hal-3a)')
+    from board.custom import gen as BG
+    rs = _Resp(); api.on_get_firmware(_Req(), rs)
+    fw = {r['variant']: r for r in rs.media['rows']}
+    check('/api/hal/firmware: one row per firmware variant, each header only what THAT build needs - uno-light 9 units (hal.c led_pin + '
+          'button_pin, sense:poll sense_pin), uno-light-all-pcint 12, uno-echo none (said why)',
+          fw['uno-light']['units'] == 9 and fw['uno-light']['required_by'] == 'hal.c button_pin, hal.c led_pin, sense:poll sense_pin'
+          and fw['uno-light-all-pcint']['units'] == 12 and fw['uno-echo']['units'] == 0 and 'no HAL units' in fw['uno-echo']['why'],
+          {k: (v['units'], v['required_by']) for k, v in fw.items()})
+    rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-light')
+    built = BG.hal_header_for('uno-light')['header']
+    check('the page shows EXACTLY the header the build writes (gen.render_routes, the one function gen() and the page share)',
+          rs.media['text'] == built['text'] and rs.media['units'] == 9, rs.media.get('units'))
+    check('hal-3a: the header names the ROLES hal.c calls, each pointing at this build\'s unit (HAL_LED_SET_HIGH -> PD6, the INT0 vector by name)',
+          '#define HAL_LED_SET_HIGH() HAL_GPIO_SET_HIGH_PD6()' in built['text'] and '#define HAL_BUTTON_EDGE_VECTOR HAL_INT_EDGE_VECTOR_PD2' in built['text']
+          and '#define HAL_BUTTON_EDGE_ENABLE_FALLING() HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT()' in built['text'])
+    check('every unit line of that header says who required it',
+          all(ln['required_by'] for ln in rs.media['rows'] if ln['unit'] and ln['text'].startswith('#define HAL_GPIO')))
+    check('a firmware header holds a small slice of the catalogue, never the whole chip',
+          rs.media['units'] < len(n328) // 10, len(n328))
+    import os as _os
+    uno_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'board', 'custom', 'firmware', 'uno')
+    src = open(_os.path.join(uno_dir, 'hal.c')).read()
+    import re as _re
+    check('hal-3a: uno/hal.c writes no pin register by hand any more (no DDRx / PORTx / PINx / EICRA / EIFR / EIMSK statement): every pin goes through a role',
+          not _re.search(r'^\s*(DDR[BCD]|PORT[BCD]|EICRA|EIFR|EIMSK)\s*[|&]?=', src, _re.M) and 'PIND &' not in src)
+    check('the template\'s own polari_hal_atmega328p.h is the uno-sim-rig build\'s (as its board_config.h is): no drift',
+          open(_os.path.join(uno_dir, 'polari_hal_atmega328p.h')).read() == BG.hal_header_for('uno-sim-rig')['header']['text'])
+    rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'uno-echo')
+    check('a firmware with no HAL units answers no rows and says why', rs.media['rows'] == [] and 'no HAL units' in rs.media['note'])
+    rs = _Resp(); api.on_get_firmware_header(_Req(), rs, 'no-such-firmware')
+    check('an unknown firmware is 422 in words', rs.status.startswith('422'))
 
     print('-- isotope fit (hal-2)')
     from hal.custom import isotopes as ISO

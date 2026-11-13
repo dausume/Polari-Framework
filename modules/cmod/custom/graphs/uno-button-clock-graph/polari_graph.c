@@ -14,6 +14,7 @@
 #include "buttonclockevent_packets.h"
 #include "hal.h"
 #include "pin_config.h"
+#include "polari_hal_atmega328p.h"
 #include "buttonclockstate_packets.h"   /* GENERATED (c_twin target=avr) */
 #include "polari_graph.h"
 

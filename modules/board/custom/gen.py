@@ -206,6 +206,97 @@ def hal_check(variant, knobs, manager=None):
     return hal
 
 
+def render_routes(r):
+    """The catom route files of a resolved variant and the ONE HAL header they need -> (rendered button route | None,
+    rendered sense route | None, merged HAL header | None). Writes nothing: gen() writes them into the project and the HAL page
+    shows the same header (hal-1), so the page and the build can never differ."""
+    # fgm-5a: a non-INT0 button route is RENDERED (Jinja2, catoms/read-button/isotopes/<iso>/template.c.j2) into one extra .c file
+    route = str(r['knobs'].get('button_route') or 'int0')
+    rendered = None
+    if r['features']['button'] and route != 'int0':
+        from board.custom import button_routes as BR
+        try:
+            rendered = BR.render(route, r['knobs'])
+        except BR.RouteRefused as e:
+            raise GenRefused(str(e))
+        rendered['route'] = 'button:%s' % route
+    # fgm-5b: the same for a non-INT1 sense route (catoms/sense-led-line/isotopes/<iso>/template.c.j2 -> hal_sense_*.c)
+    sroute = str(r['knobs'].get('sense_route') or 'int1')
+    rendered_sense = None
+    if r['features']['sense'] and sroute != 'int1':
+        from board.custom import sense_routes as SR
+        try:
+            rendered_sense = SR.render(sroute, r['knobs'])
+        except SR.RouteRefused as e:
+            raise GenRefused(str(e))
+        rendered_sense['route'] = 'sense:%s' % sroute
+    # hal-2: ONE generated HAL header for every isotope of the project (the union of what each requires: polari_hal_<soc>.h)
+    # hal-3a: plus the units the shared template uno/hal.c needs for THIS build's features and pins (base_roles), each also
+    # under its role name (HAL_LED_SET_HIGH ...). Always written: hal.c includes it; a build needing nothing gets an empty one.
+    from hal.custom import project as HP
+    parts = [x for x in (rendered, rendered_sense) if (x or {}).get('hal_header')]
+    base = base_roles(r)
+    base_hdr = HP.project_header('atmega328p', {b['variable']: b['ops'] for b in base}, {b['variable']: b['pin'] for b in base}) if base else None
+    headers = ([base_hdr] if base_hdr else []) + [x['hal_header'] for x in parts]
+    sources = (['hal.c'] if base_hdr else []) + [x['route'] for x in parts]
+    aliases = [{'name': 'HAL_%s_%s' % (b['role'], _role_suffix(op)), 'key': (base_hdr['macros_keys'][(b['variable'], op)]),
+                'form': 'init' if op in b.get('init', ()) else 'call'} for b in base for op in b['ops']]
+    hal_hdr = HP.merged_header('atmega328p', headers, sources, aliases=aliases, always=True)
+    return rendered, rendered_sense, hal_hdr
+
+
+# hal-3a: digital pin n of the UNO -> the ATmega328P pin (D0-D7 = PD0-7, D8-D13 = PB0-5, D14-D19 = A0-A5 = PC0-5; Figure 1-1 p.12)
+def uno_soc_pin(n):
+    n = int(n)
+    return 'PD%d' % n if n < 8 else 'PB%d' % (n - 8) if n < 14 else 'PC%d' % (n - 14)
+
+
+def _role_suffix(op):
+    from hal.custom import operations as OPS
+    return OPS.by_name(op)['c_name'].replace('HAL_GPIO_', '').replace('HAL_INT_', '')
+
+
+def base_roles(r):
+    """hal-3a: what the shared uno/hal.c asks of the HAL for this resolved variant, per role -> [{role, variable, pin, ops, init}].
+    The same conditions board_config.h turns hal.c's blocks on with: FEATURE_LED, HAL_INT0 without a button route (the INT0 button),
+    HAL_INT1 without a sense route (the INT1 sense), FEATURE_PWM on a Timer0 / Timer1 output (its direction only). `init` = the
+    operations hal.c calls from init code, which gets the unguarded _INIT form (interrupts are still off there)."""
+    f, k = r['features'], r['knobs']
+    flags = {n: v for n, v in (r.get('flags') or [])}   # a build flag can turn hal.c's INT0 / INT1 blocks on too (uno-button-count: HAL_INT0=1)
+    out = []
+    if f.get('led'):
+        out.append({'role': 'LED', 'variable': 'led_pin', 'pin': uno_soc_pin(k['led_pin']), 'ops': ['gpio.output', 'gpio.set_high', 'gpio.set_low']})
+    if (f.get('button') or int(flags.get('HAL_INT0') or 0)) and str(k.get('button_route') or 'int0') == 'int0':
+        out.append({'role': 'BUTTON', 'variable': 'button_pin', 'pin': uno_soc_pin(k['button_pin']),
+                    'ops': ['gpio.input', 'gpio.pull_up', 'int.edge_enable_falling', 'int.edge_vector'], 'init': ('int.edge_enable_falling',)})
+    if (f.get('sense') or int(flags.get('HAL_INT1') or 0)) and str(k.get('sense_route') or 'int1') == 'int1':
+        out.append({'role': 'SENSE', 'variable': 'sense_pin', 'pin': uno_soc_pin(k['sense_pin']),
+                    'ops': ['gpio.input', 'gpio.read', 'int.edge_enable', 'int.edge_vector'], 'init': ('int.edge_enable',)})
+    if f.get('pwm') and int(k['pwm_pin']) in (5, 6, 9, 10):
+        out.append({'role': 'PWM', 'variable': 'pwm_pin', 'pin': uno_soc_pin(k['pwm_pin']), 'ops': ['gpio.output']})
+    return out
+
+
+def hal_header_for(variant, board='uno', manager=None, variant_rows=None, board_tables=None):
+    """hal-1: the HAL header ONE firmware variant's build includes, without building it -> {variant, title, app, routes, header | None,
+    why}. Only the units its isotopes require on the pins its configuration chose are in it; header None = the build includes no
+    generated HAL header (its routes still name registers directly), said in `why`."""
+    board = board_name(board)
+    v = pick_variant([], variant, variant_rows)
+    pins, _src, _bsha, _brows = board_pins(board, manager, board_tables)
+    try:
+        r = V.resolve(v, {}, base=pins)
+    except V.VariantRefused as e:
+        raise GenRefused(str(e))
+    rendered, rendered_sense, hdr = render_routes(r)
+    routes = [x['route'] for x in (rendered, rendered_sense) if x]
+    hdr = hdr if hdr and hdr['keys'] else None   # always=True gives an EMPTY header file for the build; as a page answer that is "none"
+    why = ('%d HAL unit(s), required by %s' % (len(hdr['keys']), ', '.join(sorted({u['required_by'] for u in hdr['units']}))) if hdr else
+           'no HAL units: %s' % ('its routes (%s) still name registers directly' % ', '.join(routes) if routes
+                                 else 'it uses no LED, button, sense or PWM pin; its USART / tick / ADC code still names registers (hal-3b)'))
+    return {'variant': r['name'], 'title': v.get('title', ''), 'app': r['app'], 'routes': routes, 'header': hdr, 'why': why}
+
+
 def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None, variant_rows=None, board_tables=None, **knobs):
     board = board_name(board)
     v = pick_variant(list(classes or []), variant, variant_rows)
@@ -235,32 +326,10 @@ def gen(board='uno', classes=None, work=None, api='', variant=None, manager=None
     extra_headers = APP_EXTRA_HEADERS.get(r['app'], ())
     for rel in extra_headers:
         shutil.copy(os.path.join(tpl, rel), os.path.join(project, os.path.basename(rel)))
-    # fgm-5a: a non-INT0 button route is RENDERED (Jinja2, catoms/read-button/isotopes/<iso>/template.c.j2) into one extra .c file
-    route = str(r['knobs'].get('button_route') or 'int0')
-    rendered = None
-    if r['features']['button'] and route != 'int0':
-        from board.custom import button_routes as BR
-        try:
-            rendered = BR.render(route, r['knobs'])
-        except BR.RouteRefused as e:
-            raise GenRefused(str(e))
-        open(os.path.join(project, rendered['file']), 'w').write(rendered['text'])
-    # fgm-5b: the same for a non-INT1 sense route (catoms/sense-led-line/isotopes/<iso>/template.c.j2 -> hal_sense_*.c)
-    sroute = str(r['knobs'].get('sense_route') or 'int1')
-    rendered_sense = None
-    if r['features']['sense'] and sroute != 'int1':
-        from board.custom import sense_routes as SR
-        try:
-            rendered_sense = SR.render(sroute, r['knobs'])
-        except SR.RouteRefused as e:
-            raise GenRefused(str(e))
-        open(os.path.join(project, rendered_sense['file']), 'w').write(rendered_sense['text'])
-    # hal-2: ONE generated HAL header for every isotope of the project (the union of what each requires: polari_hal_<soc>.h)
-    hal_hdr = None
-    if (rendered or {}).get('hal_header') or (rendered_sense or {}).get('hal_header'):
-        from hal.custom import project as HP
-        hal_hdr = HP.merged_header('atmega328p', [(rendered or {}).get('hal_header'), (rendered_sense or {}).get('hal_header')])
-        open(os.path.join(project, hal_hdr['file']), 'w').write(hal_hdr['text'])
+    rendered, rendered_sense, hal_hdr = render_routes(r)
+    for f in (rendered, rendered_sense, hal_hdr):
+        if f:
+            open(os.path.join(project, f['file']), 'w').write(f['text'])
     class_rows, orders = [], {}
     bridge = str(r['knobs'].get('bridge') or '')
     rx_parser = str(r['knobs'].get('rx_parser') or 'resync')
