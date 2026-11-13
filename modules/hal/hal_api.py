@@ -112,17 +112,17 @@ class HalAPI(treeObject):
         response.media = {'ok': False, 'error': text}
 
     def _soc_ok(self, response, soc):
-        if soc not in SR.SOCS:
-            self._fail(response, falcon.HTTP_422, 'soc must be one of %s' % ', '.join(SR.SOCS))
+        if soc not in SR.socs():
+            self._fail(response, falcon.HTTP_422, 'soc must be one of %s' % ', '.join(SR.socs()))
             return False
         return True
 
     def on_get_socs(self, request, response):
         rows = []
-        for soc in SR.SOCS:
+        for soc in SR.socs():
             us = unit_rows(soc)
             rows.append({'soc': soc, 'title': SR.RULES[soc]['title'], 'arch': SR.RULES[soc]['arch'], 'units': len(us),
-                         'resolved': sum(u['status'] == 'resolved' for u in us), 'facts_from': SR.DOCS[soc]})
+                         'resolved': sum(u['status'] == 'resolved' for u in us), 'facts_from': SR.doc(soc)})
         response.media = {'ok': True, 'count': len(rows), 'rows': rows}
 
     def on_get_operations(self, request, response):

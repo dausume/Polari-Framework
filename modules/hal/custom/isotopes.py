@@ -59,7 +59,7 @@ def summary():
     for c in catalogue():
         row = {'catom': c['catom'], 'isotope': c['isotope'], 'key': '%s:%s' % (c['catom'], c['isotope']),
                'requires': '; '.join('%s: %s' % (v, ', '.join(ops)) for v, ops in sorted(c['requires'].items()))}
-        for soc in SR.SOCS:
+        for soc in SR.socs():
             rows = fit(c['catom'], c['isotope'], soc) if c['requires'] else []
             row['%s_fits' % soc] = ('%d of %d pins' % (sum(r['verdict'] == 'fits' for r in rows), len(rows))) if rows else ('not written against the HAL yet' if not c['requires'] else '0 pins')
         out.append(row)

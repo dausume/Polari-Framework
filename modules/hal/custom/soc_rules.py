@@ -24,7 +24,7 @@ from board.custom import soc_atmega328p as S328
 from board.custom import uno_facts as U
 from board.custom import esp32c3_evidence as E
 
-SOCS = ('atmega328p', 'esp32c3')
+SOCS = ('atmega328p', 'esp32c3')   # the BUILT-IN chips only; callers that list chips use socs() (registered chips included)
 
 DOCS = {
     'atmega328p': '%s; %s' % (U.M328_DOC, U.M328_URL),
@@ -243,6 +243,26 @@ def _c3_fields():
 _C3_CACHE = None
 
 
+def _m328_crosscheck(u, b):
+    ds = PROVIDERS['atmega328p']['datasheet_address'](b['register'])
+    if not ds:
+        return {'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'], 'first_source': 'avr-libc <avr/io.h> snapshot',
+                'second': '', 'second_source': 'DS40002061B register section', 'result': 'no-second-source',
+                'why': 'the datasheet section cited for %s prints no data-space address' % b['register']}
+    same = int(ds, 16) == int(b['address'], 16)
+    return {'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'], 'first_source': 'avr-libc <avr/io.h> snapshot (I/O + 0x20)',
+            'second': ds, 'second_source': 'DS40002061B %s' % (F328.REGISTER_CITES[b['register']][1]),
+            'result': 'pass' if same else 'fail', 'why': '' if same else 'the two sources disagree'}
+
+
+def _c3_crosscheck(u, b):
+    return {'unit': u['key'], 'subject': '%s.%s position' % (b['register'], b['field']),
+            'first': 'bits %d-%d @ %s' % (b['bit_hi'], b['bit_lo'], b['address']), 'first_source': 'TRM v1.4 (%s)' % b['cite'],
+            'second': 'ESP-IDF v5.5.5 components/soc/esp32c3/register/soc/*.h',
+            'second_source': 'recorded when the TRM rows were read (rm-2b, board.custom.registers_esp32c3)',
+            'result': 'recorded', 'why': 'cited, not re-run here: the IDF headers are not in this repo'}
+
+
 PROVIDERS = {
     'atmega328p': {
         'fields': lambda: F328.FIELDS, 'fields_source': 'board.custom.register_fields_atmega328p.FIELDS',
@@ -254,6 +274,7 @@ PROVIDERS = {
         'vectors_source': 'board.custom.registers_atmega328p.json vectors (avr-libc <avr/io.h> _VECTOR(n))',
         'c_register': lambda register, facts: register,   # avr-libc's own name (its <avr/io.h> defines it)
         'datasheet_address': lambda register: ((F328.REGISTER_CITES.get(register) or ('', '', '', ''))[3:4] or [''])[0] or '',
+        'crosscheck': _m328_crosscheck,
     },
     'esp32c3': {
         'fields': _c3_fields, 'fields_source': 'board.custom.registers_esp32c3.FIELDS (access via the access table)',
@@ -264,6 +285,7 @@ PROVIDERS = {
         'vectors': lambda: {}, 'vectors_source': 'none (ESP32-C3 interrupt matrix not ingested)',
         'c_register': lambda register, facts: '(*(volatile uint32_t *)%su)' % facts['address'],   # a volatile pointer at the address
         'datasheet_address': lambda register: '',
+        'crosscheck': _c3_crosscheck,
     },
 }
 
@@ -279,6 +301,17 @@ def provider(soc):
     if missing:
         raise SocUnknown('soc %r rules lack required C facts: %s' % (soc, ', '.join(missing)))
     return p
+
+
+def socs():
+    """Every chip the HAL can generate for, at call time: the built-ins plus any registered (board.custom.chipdesc_provider), in order."""
+    return tuple(x for x in PROVIDERS if x in RULES)
+
+
+def doc(soc):
+    """The chip's facts source, for headers and pages: RULES[soc]['doc'] (the built-ins' from DOCS), refused for an unknown chip."""
+    provider(soc)
+    return RULES[soc].get('doc') or DOCS.get(soc) or ''
 
 
 def chip_facts(soc):
@@ -319,7 +352,7 @@ def c_mask(soc, bit):
     return RULES[soc]['c']['mask'].format(bit=bit)
 
 
-def datasheet_data_address(register, soc='atmega328p'):
+def datasheet_data_address(soc, register):
     """The data-space address the datasheet prints beside a register, or '' (the cross-check's second source)."""
     return provider(soc)['datasheet_address'](register)
 

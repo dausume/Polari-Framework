@@ -64,12 +64,12 @@ def _firmware_rows():
 
 def _isotope_rows():
     rows = [_row(0, [_table('hal-isotopes', 0, 12, 'Isotopes and what they require of the HAL (click one to see where it fits)', 'HalCodeUnit',
-                            columns='catom,isotope,requires,%s' % ','.join('%s_fits' % soc for soc in SR.SOCS), data_path='/api/hal/isotopes',
+                            columns='catom,isotope,requires,%s' % ','.join('%s_fits' % soc for soc in SR.socs()), data_path='/api/hal/isotopes',
                             select_field='key', select_scope='isotope', selected_value='{scope:isotope}',
                             description='An isotope is one way of doing a catom\'s job. It fits a pin when every HAL operation it requires resolves '
                                         'on that chip, so one isotope can run on several boards. "not written against the HAL yet" = it still names '
                                         'registers directly.')])]
-    for i, soc in enumerate(SR.SOCS, 1):
+    for i, soc in enumerate(SR.socs(), 1):
         rows.append(_row(i, [_table('hal-isotope-fit-%s' % soc, 0, 12, 'Where it fits on the %s' % SR.RULES[soc]['title'], 'HalCodeUnit',
                                     columns='pin,verdict,missing,why', data_path='/api/hal/isotopes/{scope:isotope}/fit?soc=%s' % soc,
                                     empty_text='Pick an isotope above.')]))
@@ -87,7 +87,7 @@ SEED_HAL_PAGE_DISPLAYS = [
                 _tab('mechanisms', 'Access mechanisms', [_row(0, [_table('hal-mechanisms', 0, 12, 'Access mechanisms (data that drives code generation)',
                                                                           'HalAccessMechanism',
                                                                           columns='name,title,kind,meaning,selects_when,isr_safe,chips,implemented,cite')])])]
-               + [_tab(soc, '%s catalogue' % SR.RULES[soc]['title'], _soc_rows(soc)) for soc in SR.SOCS]
+               + [_tab(soc, '%s catalogue' % SR.RULES[soc]['title'], _soc_rows(soc)) for soc in SR.socs()]
                + [_tab('firmware', 'Firmware headers', _firmware_rows()),
                   _tab('isotopes', 'Isotope fit', _isotope_rows())],
           scope_query=['unit', 'isotope', 'firmware']),
