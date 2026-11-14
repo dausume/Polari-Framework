@@ -185,6 +185,25 @@ def run():
           'resets to JTAG / USB-Serial-JTAG still becomes a GPIO', hal.get((0x60009004, 0x1000)) == 1 and (0x80, 1) in led_matrix, led_matrix)
     check('the measured caveat is kept with the evidence: the stub reads 0, so the clears come from the ESP-IDF source, not from values',
           'read returns 0' in ev['caveat'] and 'source' in ev['caveat'], ev['caveat'][:80])
+    # ---- gate 2 on arm C (pol pt-2's polari-block: reads return the modelled register, so the read-modify-writes carry real values)
+    dv = ev.get('device_arm_c') or {}
+    def _addrs(rows):
+        out = {}
+        for a, v, n in rows:
+            out[a] = out.get(a, 0) + n
+        return out
+    check('gate 2 ON THE DEVICE (arm C, layout 5f3423f0): the SAME four images, and every build writes the same addresses the same number of times as under the stub '
+          '(ESP-IDF 40, HAL 33) - only the read-modify-write values differ',
+          dv.get('layout_sha256', '').startswith('5f3423f0') and dv.get('flash_sha256', {}).get('idf') == [ev['builds']['idf']['shim0_flash_sha256'], ev['builds']['idf']['shim1_flash_sha256']]
+          and dv['flash_sha256'].get('hal') == [ev['builds']['hal']['shim0_flash_sha256'], ev['builds']['hal']['shim1_flash_sha256']]
+          and all(_addrs(dv['writes'][t]) == _addrs(ev['builds'][t]['writes']) for t in ('idf', 'hal'))
+          and [sum(n for _, _, n in dv['writes'][t]) for t in ('idf', 'hal')] == [40, 33], {t: sum(n for _, _, n in dv.get('writes', {}).get(t, [])) for t in ('idf', 'hal')})
+    fr = dv.get('final_registers', {})
+    differ = {n: (int(v['idf'], 16) ^ int(v['hal'], 16)) for n, v in fr.items() if v['idf'] != v['hal']}
+    check('gate 2 ON THE DEVICE, final state: the two builds\' pin registers end equal but for ONE field, GPIO_FUNC0_OUT_SEL_CFG_REG.OEN_SEL (bit 9: ESP-IDF 0, HAL 1 - '
+          'both drive GPIO0, pol pt-2), the PIN_SHIM 1 builds end identical, and the light pins end LED 0, SENSE 0 (pull-down), BUTTON 1 (pull-up) in both',
+          differ == {'GPIO_FUNC0_OUT_SEL_CFG_REG': 0x200} and int(fr['GPIO_FUNC0_OUT_SEL_CFG_REG']['hal'], 16) & 0x200 and dv.get('shim1_final_equal') is True
+          and all({'0=0', '1=0', '3=1'} <= set(dv['final_pins'][t]) for t in ('idf', 'hal')), differ)
     # ---- gate 3
     g3 = ev['shim1_app_bin']
     check('gate 3 NO COLLATERAL CHANGE: the PIN_SHIM 1 (twin) app.bin differs in %d bytes, all inside its hash fields (app_elf_sha256 177-208; the image\'s checksum byte '
