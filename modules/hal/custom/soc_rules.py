@@ -58,6 +58,13 @@ RULES = {
             'edge_sense': {'registers': ['EICRA'], 'match': 'signal', 'signal_re': r'^INT\d$', 'values': {'any_edge': 1, 'falling': 2, 'rising': 3},
                            'yields': {'signum': (r'^INT(\d)$', 'signal')},
                            'cite': 'section 13.2.1 EICRA, Tables 13-1 / 13-2 p.80: ISCn1:0 = 01 any logical change, 10 the falling edge, 11 the rising edge of INTn'},
+            # hal-iso (2026-11-14): the level settings of the same ISCn field. `lacks` = a setting the chip does NOT have, cited, so an
+            # isotope needing it is told "the chip lacks it", never "not recorded"
+            'level_sense': {'registers': ['EICRA'], 'match': 'signal', 'signal_re': r'^INT\d$', 'values': {'low_level': 0},
+                            'yields': {'signum': (r'^INT(\d)$', 'signal')},
+                            'lacks': {'high_level': 'Tables 13-1 / 13-2 p.80 list four ISCn1:0 settings (low level, any change, falling, rising): '
+                                                    'there is no high-level trigger'},
+                            'cite': 'section 13.2.1 EICRA, Tables 13-1 / 13-2 p.80: ISCn1:0 = 00 the low level of INTn generates an interrupt request'},
             'edge_flag': {'registers': ['EIFR'], 'match': 'signal', 'signal_re': r'^INT\d$', 'cite': 'section 13.2.3 EIFR, p.81 (cleared by writing one)'},
             'edge_mask': {'registers': ['EIMSK'], 'match': 'signal', 'signal_re': r'^INT\d$', 'yields': {'signum': (r'^INT(\d)$', 'signal')},
                           'cite': 'section 13.2.2 EIMSK, p.81'},

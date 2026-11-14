@@ -610,6 +610,10 @@ def unit(soc, operation, pin, board=''):
                     return stop('refused', 'part %d (%s): %s' % (i, p['role'], e))
             else:
                 value = (role.get('values') or {}).get(vkey)
+            if value is None and vkey in (role.get('lacks') or {}):   # hal-iso: a setting the chip does not have, cited
+                tr.add('value', 'Part %d: the setting %s' % (i, vkey), '%s.%s' % (f['register'], f['field']), 'hal.custom.soc_rules lacks',
+                       'unsupported: ' + role['lacks'][vkey], 'hal.custom.soc_rules', role.get('cite', ''))
+                return stop('unsupported', 'the chip has no %s setting: %s' % (vkey, role['lacks'][vkey]))
             if value is None:
                 return stop('refused', 'a %d-bit field %s.%s needs a value for %r (role rule values)' % (width, f['register'], f['field'], vkey))
         lit = re.fullmatch(r'\(?(\d+)u\)?', value) if isinstance(value, str) else None

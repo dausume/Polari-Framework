@@ -70,9 +70,18 @@ def _isotope_rows():
                                         'on that chip, so one isotope can run on several boards. "not written against the HAL yet" = it still names '
                                         'registers directly.')])]
     for i, soc in enumerate(SR.socs(), 1):
-        rows.append(_row(i, [_table('hal-isotope-fit-%s' % soc, 0, 12, 'Where it fits on the %s' % SR.RULES[soc]['title'], 'HalCodeUnit',
+        rows.append(_row(2 * i - 1, [_table('hal-isotope-fit-%s' % soc, 0, 12, 'Where it fits on the %s' % SR.RULES[soc]['title'], 'HalCodeUnit',
                                     columns='pin,verdict,missing,why', data_path='/api/hal/isotopes/{scope:isotope}/fit?soc=%s' % soc,
+                                    select_field='pin', select_scope='pin_%s' % soc, selected_value='{scope:pin_%s}' % soc,
                                     empty_text='Pick an isotope above.')]))
+        # hal-iso: what the hardware GIVES the isotope on the picked pin, per need (not only fits / missing)
+        rows.append(_row(2 * i, [_table('hal-isotope-needs-%s' % soc, 0, 12, 'What the %s gives it on that pin' % SR.RULES[soc]['title'],
+                                          'HalIsotopeNeed', columns='variable,need_name,verdict,settings,yields,cites,why',
+                                          data_path='/api/hal/isotopes/{scope:isotope}/needs?soc=%s&pin={scope:pin_%s}' % (soc, soc),
+                                          empty_text='Pick a pin in the table above.',
+                                          description='One row per need (a variable x HAL operation of the isotope). need_name = the isotope\'s '
+                                                      'own word, the same on every chip. verdict: fits | chip-lacks (a cited fact about the chip) | '
+                                                      'not-recorded (a gap in our tables, not a fact about the chip) | refused.')]))
     return rows
 
 
@@ -90,5 +99,5 @@ SEED_HAL_PAGE_DISPLAYS = [
                + [_tab(soc, '%s catalogue' % SR.RULES[soc]['title'], _soc_rows(soc)) for soc in SR.socs()]
                + [_tab('firmware', 'Firmware headers', _firmware_rows()),
                   _tab('isotopes', 'Isotope fit', _isotope_rows())],
-          scope_query=['unit', 'isotope', 'firmware']),
+          scope_query=['unit', 'isotope', 'firmware'] + ['pin_%s' % s for s in SR.socs()]),
 ]

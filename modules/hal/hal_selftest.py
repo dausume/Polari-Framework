@@ -101,9 +101,9 @@ def main():
     for _n, cls, rows in HAL_SEED_PAIRS:
         for r in rows:
             cls(**r, manager=m)
-    check('six classes; two seeded (operations, mechanisms)', len(HAL_CLASSES) == 6 and [p[0] for p in HAL_SEED_PAIRS] == ['HalOperation', 'HalAccessMechanism'])
-    check('50 operations (10 GPIO + 10 interrupt + 5 pwm, hal-3b; 13 uart + 3 timer + 5 adc + 4 wdt, hal-3b step 1; gpio.pull_none + gpio.digital_input_off for the analog isotope), every part\'s role and action in the vocabulary',
-          len(OPS.OPERATIONS) == 50 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
+    check('seven classes (+ HalIsotopeNeed, hal-iso); two seeded (operations, mechanisms)', len(HAL_CLASSES) == 7 and [p[0] for p in HAL_SEED_PAIRS] == ['HalOperation', 'HalAccessMechanism'])
+    check('52 operations (10 GPIO + 12 interrupt incl. the two level triggers, hal-iso + 5 pwm, hal-3b; 13 uart + 3 timer + 5 adc + 4 wdt, hal-3b step 1; gpio.pull_none + gpio.digital_input_off for the analog isotope), every part\'s role and action in the vocabulary',
+          len(OPS.OPERATIONS) == 52 and all(p['role'] in OPS.ROLES and p['action'] in OPS.ACTIONS for o in OPS.OPERATIONS for p in OPS.parts(o))
           and all(o['basis'] for o in OPS.OPERATIONS))
     check('every implemented access mechanism has templates for its actions and a cite',
           all(mm['cite'] and (mm['kind'] == 'setup' or not mm.get('implemented', True) or mm['templates']) for mm in MX.MECHANISMS))
@@ -215,8 +215,8 @@ def main():
     g328 = [x for x in gpio['atmega328p'] if x['unit']['status'] == 'resolved']
     check('GPIO coverage: the UNO resolves 8 ops x 23 pins (Ports B, C, D; no pull-down) + digital_input_off on its 6 ADC pins (DIDR0 ADC0D..ADC5D), the C3 9 ops x 22 pads',
           len(g328) == 8 * 23 + 6 and len([x for x in gpio['esp32c3'] if x['unit']['status'] == 'resolved']) == 9 * 22, len(g328))
-    check('interrupt coverage: UNO 4 pin-change ops x 23 pins + 6 edge ops x 2 (PD2 INT0, PD3 INT1) = 104; C3 8 ops x 22 = 176 (no vectors)',
-          len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']) == 104 and len(nc3) - 9 * 22 == 176,
+    check('interrupt coverage: UNO 4 pin-change ops x 23 pins + 7 edge/level ops x 2 (PD2 INT0, PD3 INT1; level high: chip lacks, hal-iso) = 106; C3 10 ops x 22 = 220 (no vectors)',
+          len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']) == 106 and len(nc3) - 9 * 22 == 220,
           '%d / %d' % (len([x for x in n328 if OPS.by_name(x['unit']['operation'])['family'] == 'interrupt']), len(nc3) - 9 * 22))
 
     print('-- cross-checks')
@@ -241,11 +241,11 @@ def main():
     print('-- doors + page')
     api = HalAPI(polServer=None, manager=m)
     rs = _Resp(); api.on_get_units(_Req(), rs, 'atmega328p')
-    check('/api/hal/socs/atmega328p/units: one row per pin op x pin (25 x 23) + one per peripheral op x its own instance (25: USART0 13, TIMER2 3, ADC 5, WDT 4), '
-          '8 x 23 + 6 gpio + 104 interrupt + 29 pwm + 25 peripheral resolved',
-          rs.media['ok'] and rs.media['count'] == 25 * 23 + 25 and rs.media['resolved'] == 8 * 23 + 6 + 104 + 29 + 25, (rs.media['count'], rs.media['resolved']))
+    check('/api/hal/socs/atmega328p/units: one row per pin op x pin (27 x 23) + one per peripheral op x its own instance (25: USART0 13, TIMER2 3, ADC 5, WDT 4), '
+          '8 x 23 + 6 gpio + 106 interrupt + 29 pwm + 25 peripheral resolved',
+          rs.media['ok'] and rs.media['count'] == 27 * 23 + 25 and rs.media['resolved'] == 8 * 23 + 6 + 106 + 29 + 25, (rs.media['count'], rs.media['resolved']))
     rs = _Resp(); api.on_get_units(_Req({'board': 'arduino-uno-r3', 'pins': 'D13,D2'}), rs, 'atmega328p')
-    check('?board=&pins= reads board pins (2 pins x 25 pin ops)', rs.media['count'] == 50 and rs.media['rows'][0]['board_pin'] == 'D13')
+    check('?board=&pins= reads board pins (2 pins x 27 pin ops)', rs.media['count'] == 54 and rs.media['rows'][0]['board_pin'] == 'D13')
     for view in ('steps', 'levels', 'bindings', 'checks'):
         rs = _Resp(); api.on_get_unit(_Req({'view': view}), rs, 'esp32c3:gpio.output:GPIO8')
         check('/api/hal/units/{key}?view=%s answers rows' % view, rs.media['ok'] and rs.media['count'] > 0)
@@ -262,15 +262,15 @@ def main():
     check('/api/hal/socs/esp32c3/header?pins=GPIO8 previews just that pin: the file + its lines',
           rs.media['ok'] and 0 < rs.media['units'] < 30 and rs.media['rows'][0]['line'] == 1, rs.media.get('units'))
     rs = _Resp(); api.on_get_operations(_Req(), rs)
-    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 50)
+    check('/api/hal/operations reads the loaded rows', rs.media['from'] == 'rows' and rs.media['count'] == 52)
     page = SEED_HAL_PAGE_DISPLAYS[0]
     import json as _j
     blob = page['definition']
     page = dict(page, definition=_j.loads(page['definition']))
     check('the page has no raw JSON panel', 'api-json-panel' not in blob)
     paths = [it['componentProps']['inputs'].get('dataPath', '') for tab in page['definition']['tabs'] for row in tab['rows'] for it in row['items']]
-    check('every API-backed table reads a /api/hal door', all(p.startswith('/api/hal/') for p in paths if p) and len([p for p in paths if p]) == 15, len(paths))
-    check('the page is linkable to one unit, isotope or firmware (scope_query)', page['definition'].get('scope_from_query') == ['unit', 'isotope', 'firmware'])
+    check('every API-backed table reads a /api/hal door', all(p.startswith('/api/hal/') for p in paths if p) and len([p for p in paths if p]) == 15 + len(SR.socs()), len([p for p in paths if p]))
+    check('the page is linkable to one unit, isotope, firmware or a picked pin per chip (scope_query)', page['definition'].get('scope_from_query') == ['unit', 'isotope', 'firmware'] + ['pin_%s' % x for x in SR.socs()])
     tabs = [t.get('name') or t.get('key') or t.get('id') for t in page['definition']['tabs']]
     check('hal-1 (the user): Operations and Access mechanisms are the first two tabs; the chip tabs are catalogues; no per-chip header tab',
           tabs[:2] == ['operations', 'mechanisms'] and not any(str(t).endswith('-header') for t in tabs) and 'firmware' in tabs, tabs)

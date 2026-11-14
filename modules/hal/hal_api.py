@@ -16,6 +16,8 @@ GET /api/hal/firmware/{variant}/header              that firmware's polari_hal_<
                                                     step) — the same text the build writes (board.custom.gen.render_routes)
 GET /api/hal/isotopes                              hal-2: every catom isotope, what it REQUIRES of the HAL, and on how many pins of each chip it fits
 GET /api/hal/isotopes/{key}/fit?soc=S              one isotope (key = catom:isotope) on one chip: per pin fits | missing, the missing operations, why
+GET /api/hal/isotopes/{key}/needs?soc=S&pin=P      hal-iso: what the hardware GIVES that isotope on that pin, per need: verdict fits |
+                                                    chip-lacks | not-recorded | refused, its own name, the settings, yields, cites
 GET /api/hal/units/{key}[?view=V]                   one unit (key = soc:operation:pin). view = steps | levels | bindings | checks answers
                                                     that list as rows; no view = the unit with all four
 An empty key (nothing picked yet on a page) answers no rows with a note; an unknown soc is 422, a malformed key 422.
@@ -27,6 +29,7 @@ from hal.custom import crosscheck as CX
 from hal.custom import generate as G
 from hal.custom import isotopes as ISO
 from hal.custom import mechanisms as MX
+from hal.custom import needs as ND
 from hal.custom import operations as OPS
 from hal.custom import render as RD
 from hal.custom import soc_rules as SR
@@ -114,6 +117,7 @@ class HalAPI(treeObject):
             add('/api/hal/firmware/{variant}/header', self, suffix='firmware_header')
             add('/api/hal/isotopes', self, suffix='isotopes')
             add('/api/hal/isotopes/{key}/fit', self, suffix='isotope_fit')
+            add('/api/hal/isotopes/{key}/needs', self, suffix='isotope_needs')
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -210,6 +214,21 @@ class HalAPI(treeObject):
         rows = ISO.fit(catom, iso, soc)
         response.media = {'ok': True, 'key': key, 'soc': soc, 'count': len(rows), 'rows': rows,
                           'fits': sum(r['verdict'] == 'fits' for r in rows)}
+
+    def on_get_isotope_needs(self, request, response, key):
+        soc, pin = request.get_param('soc') or '', request.get_param('pin') or ''
+        if not key or key == '-' or not pin or pin == '-':
+            response.media = {'ok': True, 'count': 0, 'rows': [], 'note': 'pick an isotope, then a pin it was checked on'}
+            return
+        if not self._soc_ok(response, soc):
+            return
+        if pin not in G.default_pins(soc):
+            response.media = {'ok': True, 'count': 0, 'rows': [], 'note': '%s is not a pin of %s' % (pin, soc)}
+            return
+        catom, _, iso = key.partition(':')
+        rows = ND.rows(catom, iso, soc, pin)
+        response.media = {'ok': True, 'key': key, 'soc': soc, 'pin': pin, 'count': len(rows), 'rows': rows,
+                          'viable': bool(rows) and all(r['verdict'] == 'fits' for r in rows)}
 
     def on_get_firmware(self, request, response):
         soc = request.get_param('soc') or ''

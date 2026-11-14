@@ -102,6 +102,19 @@ OPERATIONS += [
      'returns': 'void', 'c_name': 'HAL_INT_EDGE_ENABLE_RISING',
      'intent': 'a low-to-high edge on the pin raises its external interrupt',
      'basis': '%s (GPIO_INT_EDGE_RISING); %s (RISING)' % (_ZI, _AI)},
+    # hal-iso (2026-11-14): the LEVEL triggers. Same flag + mask parts as the edge ops; the chip rules say which levels exist
+    # (the 328P has low only, cited `lacks` high; the C3 has both), so an isotope needing one is answered per chip, never assumed.
+    # A level request re-asserts while the level holds: the isotope must mask or clear in its handler (ESP-IDF gpio.c:491-504).
+    {'name': 'int.level_enable_low', 'family': 'interrupt', 'title': 'Interrupt while the pin is low (dedicated external interrupt)', 'setup': '',
+     'parts': [{'role': 'level_sense', 'action': 'set', 'value': 'low_level'}, {'role': 'edge_flag', 'action': 'clear'}, {'role': 'edge_mask', 'action': 'set'}],
+     'returns': 'void', 'c_name': 'HAL_INT_LEVEL_ENABLE_LOW',
+     'intent': 'the pin raises its external interrupt for as long as it is held low (it re-asserts until masked or released)',
+     'basis': 'Zephyr include/zephyr/drivers/gpio.h (Apache-2.0): GPIO_INT_LEVEL_LOW, API shape only'},
+    {'name': 'int.level_enable_high', 'family': 'interrupt', 'title': 'Interrupt while the pin is high (dedicated external interrupt)', 'setup': '',
+     'parts': [{'role': 'level_sense', 'action': 'set', 'value': 'high_level'}, {'role': 'edge_flag', 'action': 'clear'}, {'role': 'edge_mask', 'action': 'set'}],
+     'returns': 'void', 'c_name': 'HAL_INT_LEVEL_ENABLE_HIGH',
+     'intent': 'the pin raises its external interrupt for as long as it is held high (it re-asserts until masked or released)',
+     'basis': 'Zephyr include/zephyr/drivers/gpio.h (Apache-2.0): GPIO_INT_LEVEL_HIGH, API shape only'},
     {'name': 'int.edge_disable', 'family': 'interrupt', 'title': 'Stop the pin\'s external interrupt', 'setup': '',
      'parts': [{'role': 'edge_mask', 'action': 'clear'}], 'returns': 'void', 'c_name': 'HAL_INT_EDGE_DISABLE',
      'intent': 'the pin\'s external interrupt is masked', 'basis': '%s (GPIO_INT_DISABLE); %s (detachInterrupt)' % (_ZI, _AI)},
@@ -256,7 +269,7 @@ OPERATIONS += [
 ]
 
 ROLES = ('direction', 'output', 'input', 'pull_up', 'pull_down', 'digital_input_disable', 'pcint_mask', 'pcint_flag', 'pcint_bank', 'pcint_vector',
-         'edge_sense', 'edge_flag', 'edge_mask', 'edge_vector',
+         'edge_sense', 'level_sense', 'edge_flag', 'edge_mask', 'edge_vector',
          'pwm_output', 'pwm_duty', 'pwm_mode', 'pwm_clock', 'pwm_update', 'route_out', 'route_in', 'io_mux_func',
          'uart_baud', 'uart_baud_x2', 'uart_double_speed', 'uart_frame_bits', 'uart_parity', 'uart_stop_bits', 'uart_tx_enable',
          'uart_rx_enable', 'uart_rx_irq', 'uart_tx_ready', 'uart_data', 'uart_frame_error', 'uart_overrun', 'uart_rx_vector',

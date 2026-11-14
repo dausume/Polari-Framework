@@ -1422,7 +1422,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - HalOperation / HalAccessMechanism seeded; the rest derived per SoC pin
     ('hal', (
-        ('hal.hal_basis', ('HalOperation', 'HalAccessMechanism', 'HalBinding', 'HalCodeUnit', 'HalGenerationStep', 'HalCrossCheck', 'HAL_CLASSES')),
+        ('hal.hal_basis', ('HalOperation', 'HalAccessMechanism', 'HalBinding', 'HalCodeUnit', 'HalGenerationStep', 'HalCrossCheck', 'HalIsotopeNeed', 'HAL_CLASSES')),
         ('hal.hal_seed', ('HAL_SEED_PAIRS',)),
         ('hal.hal_page', ('SEED_HAL_PAGE_DISPLAYS',)),
     )),
