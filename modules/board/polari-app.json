@@ -130,6 +130,9 @@
    "objects/board/ProtectionPart",
    "objects/board/Register",
    "objects/board/RegisterAccessKind",
+   "objects/board/BlockBehaviour",
+   "objects/board/SimulatedChip",
+   "objects/board/SimOverlay",
    "objects/board/RegisterAddressMapping",
    "objects/board/RegisterBlock",
    "objects/board/RegisterField",
@@ -251,7 +254,8 @@
    "board_chipdesc_provider_selftest",
    "board_rp2350_chipdesc_selftest",
    "board_c3_hal_gate_selftest",
-   "board_acts_on_selftest"
+   "board_acts_on_selftest",
+   "board_sim_layout_selftest"
   ],
   "custom": [
    "custom/access_overlay",
@@ -405,9 +409,11 @@
    "custom/sense_routes",
    "custom/sexpr",
    "custom/signal_kinds",
+   "custom/sim_bindings",
    "custom/sim_cost",
    "custom/sim_cost_c3",
    "custom/sim_gate",
+   "custom/sim_layout",
    "custom/soc_atmega16u2",
    "custom/soc_atmega328p",
    "custom/soc_functions",
@@ -514,6 +520,9 @@
   "ProtectionPart",
   "Register",
   "RegisterAccessKind",
+  "BlockBehaviour",
+  "SimulatedChip",
+  "SimOverlay",
   "RegisterAddressMapping",
   "RegisterBlock",
   "RegisterField",
@@ -576,6 +585,9 @@
     "RegisterSetting",
     "RegisterFieldSetting",
     "RegisterAccessKind",
+    "BlockBehaviour",
+    "SimulatedChip",
+    "SimOverlay",
     "BoardPinNet",
     "AddressSpace",
     "RegisterAddressMapping",
@@ -699,7 +711,8 @@
   "board_chipdesc_provider_selftest",
   "board_rp2350_chipdesc_selftest",
   "board_c3_hal_gate_selftest",
-  "board_acts_on_selftest"
+  "board_acts_on_selftest",
+  "board_sim_layout_selftest"
  ],
  "security": {
   "profile": "web-app",

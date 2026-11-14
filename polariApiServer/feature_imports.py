@@ -1372,7 +1372,7 @@ FEATURE_IMPORT_BLOCKS = (
                                'BoardPin', 'RuntimeProfile', 'BoardConflict', 'BoardView', 'TargetCompatibilityRule', 'KitPart',
                                'ChipLadderEntry', 'Bench',   # chp-0 + bench-0 (BreadboardModel merged into electrodevice BoardModel, D-bob-3) (were never named here: their seeds silently skipped - fixed 2026-10-29)
                                'Peripheral', 'PeripheralSignal', 'PinFunction', 'SignalRoute', 'Register', 'RegisterField', 'RegisterSetting',
-                               'RegisterFieldSetting', 'RegisterAccessKind', 'BoardPinNet', 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion',
+                               'RegisterFieldSetting', 'RegisterAccessKind', 'BlockBehaviour', 'SimulatedChip', 'SimOverlay', 'BoardPinNet', 'AddressSpace', 'RegisterAddressMapping', 'RegisterBlock', 'MemoryRegion',
                                'ButtonClockState', 'ButtonClockEvent', 'LightState', 'LightStateV2', 'LightCommand', 'Datasheet',
                                'PackageDefinition', 'PackageContact', 'UsbInterfaceDefinition', 'BoardComponent', 'ElectricalCharacteristic', 'PinGroupBudget',
                                'PinLifecycleConstraint',   # fgm-2: the UNO hardware truth (seven)

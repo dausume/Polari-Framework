@@ -46,6 +46,9 @@ from board.objects.board.RegisterField import RegisterField  # noqa: F401
 from board.objects.board.RegisterSetting import RegisterSetting  # noqa: F401
 from board.objects.board.RegisterFieldSetting import RegisterFieldSetting  # noqa: F401
 from board.objects.board.RegisterAccessKind import RegisterAccessKind  # noqa: F401  (rm-2a: the access vocabulary as rows)
+from board.objects.board.BlockBehaviour import BlockBehaviour  # noqa: F401  (pt-1a)
+from board.objects.board.SimulatedChip import SimulatedChip  # noqa: F401  (pt-1a)
+from board.objects.board.SimOverlay import SimOverlay  # noqa: F401  (pt-1a)
 from board.objects.board.BoardPinNet import BoardPinNet  # noqa: F401
 # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9) — AddressSpace, RegisterAddressMapping,
 # RegisterBlock, MemoryRegion; materialized beside the hardware chain, atmega328p only (Phase 2 for the C3)
@@ -109,6 +112,7 @@ BOARD_CLASSES = [BoardDefinition, BoardInstance, FirmwareBuild, ProgrammerKind, 
                  Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting,
                  BoardPinNet,   # ucd-0a: the hardware chain (nine)
                  RegisterAccessKind,   # rm-2a: what each RegisterField.access word means (read / write effect, UVM / SVD names)
+                 BlockBehaviour, SimulatedChip, SimOverlay,   # pt-1a: what a block does when simulated, and who models each span
                  AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,   # ucd-0b2a: address space as rows (four)
                  ButtonClockState, ButtonClockEvent,   # ucd-0e1: the third and fourth wire classes
                  LightState,   # ucd-light: the light test's one wire struct

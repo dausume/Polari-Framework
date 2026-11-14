@@ -1341,6 +1341,7 @@ class polariServer(treeObject):
             # ucd-0a: THE HARDWARE CHAIN — Peripheral / PeripheralSignal / PinFunction / SignalRoute / Register / RegisterField (+ the
             # settings rows ucd-0b fills and the circuit link ucd-0c fills), navigable both ways
             Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, RegisterAccessKind, BoardPinNet,
+            BlockBehaviour, SimulatedChip, SimOverlay,   # pt-1a: the pin twin's behaviour + simulation-binding rows (PIN_TWIN_PLAN.md §2a)
             # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9)
             AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,
             # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
