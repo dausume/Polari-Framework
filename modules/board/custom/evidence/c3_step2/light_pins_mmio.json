@@ -373,7 +373,9 @@
     ]
    ],
    "not_in_shim0": [],
-   "hal_header_sha256": "aaa58e24e6e1b2d36cb7a865686ca3214c7a3b45373331cd3d2c77a251547b32"
+   "measured_header_sha256": "aaa58e24e6e1b2d36cb7a865686ca3214c7a3b45373331cd3d2c77a251547b32",
+   "hal_header_code_sha256": "d2613175e4d47a8e53527435b966b08270405a13ed06fddbb392a0cceb9a5c11",
+   "code_sha_rule": "sha256 of the header with every /* */ comment removed and blank lines dropped (board_c3_hal_gate_selftest._code_sha): a cite or trace-digest comment may change without re-measuring; any C change may not"
   }
  },
  "shim1_app_bin": {

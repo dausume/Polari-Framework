@@ -97,6 +97,13 @@ def check(label, cond, extra=''):
     print('  [%s] %s%s' % ('PASS' if cond else 'FAIL', label, ('  <- ' + str(extra)[:400]) if (extra and not cond) else ''))
 
 
+def _code_sha(text):
+    """the header's C alone: comments (unit notes, trace digests, cites) removed, blank lines dropped"""
+    import hashlib
+    code = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    return hashlib.sha256('\n'.join(l.rstrip() for l in code.splitlines() if l.strip()).encode()).hexdigest()
+
+
 def _compile(header):
     try:
         from board.custom import engine_run as ER
@@ -145,8 +152,9 @@ def run():
     check('gate 2 static: every field read-modify-write in the header (%d) writes its value inside its own mask, so every other bit is written back as read' % rmws,
           rmws >= 10 and not bad, bad[:2])
     # ---- gate 2: measured, both ways
-    check('the evidence was measured with THIS header (sha %s...): a changed RULES row or knob means re-measuring (tools/hal_evidence/c3_mmio_trace.sh), not a stale pass'
-          % ev['builds']['hal']['hal_header_sha256'][:12], ev['builds']['hal']['hal_header_sha256'] == hdr['sha256'], hdr['sha256'])
+    check('the evidence was measured with THIS header\'s C (code sha %s...; comments - cites, trace digests - may change): a changed RULES row or knob '
+          'means re-measuring (tools/hal_evidence/c3_mmio_trace.sh), not a stale pass' % ev['builds']['hal']['hal_header_code_sha256'][:12],
+          ev['builds']['hal']['hal_header_code_sha256'] == _code_sha(text), _code_sha(text))
     for row in WRITES:
         assert any(row[7] == v or row[7].startswith(v) for v in VERDICTS), row
     idf = {(int(a, 16), int(v, 16)): n for a, v, n in ev['builds']['idf']['writes']}

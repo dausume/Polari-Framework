@@ -196,8 +196,9 @@ RULES = {
             'pad_input_enable': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_IE', 'values': {'on': 1, 'off': 0},
                                  'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_IE (1 = input enabled)'},
             'pad_function': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'MCU_SEL', 'values': {'gpio': 1},
-                             'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: MCU_SEL; function 1 = GPIOn on every pad: datasheet Table 2-4 pp.19-20 '
-                                     '(board.custom.soc_functions) - the TRM\'s own IO MUX table not re-read this session'},
+                             'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: MCU_SEL; function 1 = GPIOn on every pad GPIO0-21: TRM Table 5.12-1 '
+                                     '"IO MUX Pin Functions" p.174 (read 2026-11-13 from the v1.4 PDF, sha256 90ef8256...7423; function 0 is MTMS / MTDI / MTCK / '
+                                     'MTDO on GPIO4-7, SPIHD..SPIQ on GPIO12-17, U0RXD / U0TXD on GPIO20-21) and datasheet Table 2-4 pp.19-20 (board.custom.soc_functions)'},
             'output_route': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_SEL', 'values': {'gpio_out': 128},
                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_SEL 128 = the pad driven by GPIO_OUT_REG bit n '
                                      '(ESP-IDF v5.5.5 SIG_GPIO_OUT_IDX 128 agrees)'},
@@ -246,7 +247,7 @@ RULES = {
                 # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1,
                  'purpose': 'select the pad\'s GPIO function (function 1)',
-                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
+                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); TRM Table 5.12-1 p.174 + datasheet Table 2-4: function 1 = GPIOn on every pad'},
             ],
             'gpio-in': [
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'FUN_IE', 'value': 1, 'purpose': 'enable the pad\'s input buffer',
@@ -260,7 +261,7 @@ RULES = {
                  'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_INV_SEL 0 = do not invert)'},
                 # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1, 'purpose': 'select the pad\'s GPIO function (function 1)',
-                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
+                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); TRM Table 5.12-1 p.174 + datasheet Table 2-4: function 1 = GPIOn on every pad'},
             ],
         },
         'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '', 'ctype': 'uint32_t', 'access_style': 'address',
