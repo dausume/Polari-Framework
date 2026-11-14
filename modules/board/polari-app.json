@@ -363,6 +363,7 @@
    "custom/pinmap_svg",
    "custom/power_pins",
    "custom/press_latency",
+   "custom/private_tmp",
    "custom/profile_overlap",
    "custom/profile_overlap_cites",
    "custom/profile_overlap_kinds",
