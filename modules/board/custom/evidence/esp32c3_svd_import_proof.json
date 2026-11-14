@@ -4,7 +4,8 @@
   "drawing: exact; field reset agrees": 517,
   "drawing: inside a wider SVD field; field reset agrees": 201,
   "drawing: no SVD field covers these bits; field reset agrees": 22,
-  "hal-3a: exact; field reset agrees": 301
+  "hal-3a: exact; field reset agrees": 301,
+  "pt-1a: inside a wider SVD field; field reset agrees": 44
  },
  "findings": [
   {
@@ -4110,11 +4111,759 @@
    "svd_register": "STRAP",
    "svd_register_reset": "0x00000000",
    "svd_reset": 0
+  },
+  {
+   "bits": [
+    0,
+    0
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_0",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    1,
+    1
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_1",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    2,
+    2
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_2",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    3,
+    3
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_3",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    4,
+    4
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_4",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    5,
+    5
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_5",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    6,
+    6
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_6",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    7,
+    7
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_7",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    8,
+    8
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_8",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    9,
+    9
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_9",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    10,
+    10
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_10",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    11,
+    11
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_11",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    12,
+    12
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_12",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    13,
+    13
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_13",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    14,
+    14
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_14",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    15,
+    15
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_15",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    16,
+    16
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_16",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    17,
+    17
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_17",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    18,
+    18
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_18",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    19,
+    19
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_19",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    20,
+    20
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_20",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    21,
+    21
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "STATUS_W1TS_21",
+   "part": "pt-1a",
+   "register": "GPIO_STATUS_W1TS_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "STATUS_W1TS[25:0]"
+   ],
+   "svd_register": "STATUS_W1TS",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    0,
+    0
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_0",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    1,
+    1
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_1",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    2,
+    2
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_2",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    3,
+    3
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_3",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    4,
+    4
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_4",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    5,
+    5
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_5",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    6,
+    6
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_6",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    7,
+    7
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_7",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    8,
+    8
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_8",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    9,
+    9
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_9",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    10,
+    10
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_10",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    11,
+    11
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_11",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    12,
+    12
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_12",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    13,
+    13
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_13",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    14,
+    14
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_14",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    15,
+    15
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_15",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    16,
+    16
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_16",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    17,
+    17
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_17",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    18,
+    18
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_18",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    19,
+    19
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_19",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    20,
+    20
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_20",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
+  },
+  {
+   "bits": [
+    21,
+    21
+   ],
+   "class": "inside a wider SVD field; field reset agrees",
+   "field": "PROCPU_INT_21",
+   "part": "pt-1a",
+   "register": "GPIO_PCPU_INT_REG",
+   "row_reset": "0",
+   "svd_fields_here": [
+    "PROCPU_INT[25:0]"
+   ],
+   "svd_register": "PCPU_INT",
+   "svd_register_reset": "0x00000000",
+   "svd_reset": 0
   }
  ],
  "rows": {
-  "fields": 1062,
-  "registers": 157
+  "fields": 1106,
+  "registers": 159
  },
  "svd": {
   "commit": "be20aa12560889d6125d144cdb48cf615ac17628",

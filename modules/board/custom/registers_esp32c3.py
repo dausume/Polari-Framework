@@ -625,8 +625,22 @@ for name, off, src, what, t, tp in (('INTERRUPT_CORE0_LEDC_INT_MAP_REG', 0x005C,
                      'the INTERRUPT_CORE0_SOURCE_X_MAP field, p.214; Table 8.3-1 %s (source %d)' % (tbl, src)))
 
 
+# ---- pt-1a review (econ, 2026-11-13): the two GPIO interrupt registers the twin needs (Register summary p.177; Registers 5.11 p.182, 5.13 p.183).
+# ESP-IDF's GPIO ISR reads GPIO_PCPU_INT_REG (gpio.c:517 -> gpio_ll.h:112-115 `*status = hw->pcpu_int.intr`); without its row a simulated
+# pin interrupt reads 0 and is never served. GPIO_PCPU_NMI_INT (IDF struct offset 0x60) is NOT in the TRM's register summary, so it has no row.
+# Their own part 'pt-1a': per-pad bits of one wide SVD / ESP-IDF field, like the drawing set's GPIO rows, so c3_svd_import_proof covers them (not the hal-3a facts).
+_PART = 'pt-1a'
+_reg('GPIO_STATUS_W1TS_REG', 'GPIO', 0x0048, 'GPIO0 ~ 21 interrupt status set register', 'Register 5.11, p.182', '0x0000000', _INVALID)
+_per_pad('GPIO_STATUS_W1TS_REG', 'STATUS_W1TS_', 'WT-set', 'Register 5.11 GPIO_STATUS_W1TS_REG, p.182', 'set GPIO%d\'s bit of GPIO_STATUS_REG (its interrupt status)',
+         {'1': 'the corresponding bit in GPIO_STATUS_INTERRUPT (GPIO_STATUS_REG) is set to 1 ("Recommended operation: use this register to set GPIO_STATUS_INTERRUPT")'},
+         acts_on='GPIO_STATUS_REG')
+_reg('GPIO_PCPU_INT_REG', 'GPIO', 0x005C, 'GPIO0 ~ 21 PRO_CPU interrupt status register', 'Register 5.13, p.183', '0x0000000', _INVALID)
+_per_pad('GPIO_PCPU_INT_REG', 'PROCPU_INT_', 'RO', 'Register 5.13 GPIO_PCPU_INT_REG, p.183', 'GPIO%d PRO_CPU interrupt status',
+         {'1': 'pending to the CPU: "corresponding to the bit in GPIO_STATUS_REG when assert (high) enable signal (bit13 of GPIO_PINn_REG)"'},
+         notes='one bit of GPIO_PROCPU_INT: STATUS AND GPIO_PINn_REG.INT_ENA bit 0 (register bit 13)')
+
 def part(name):
-    """the rows of one part: 'drawing' (rm-2b) or 'hal-3a' -> (registers, fields). A part's fields may sit in the other part's registers
+    """the rows of one part: 'drawing' (rm-2b), 'hal-3a' or 'pt-1a' -> (registers, fields). A part's fields may sit in the other part's registers
     (hal-3a adds LEDC / APB_SARADC bits to the drawing set's SYSTEM_PERIP_CLK_EN0 / _RST_EN0)."""
     return [r for r in REGISTERS if r['part'] == name], [f for f in FIELDS if f['part'] == name]
 

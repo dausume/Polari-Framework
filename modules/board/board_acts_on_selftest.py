@@ -34,9 +34,9 @@ def run():
           aliases and all(f.get('acts_on') for f in aliases) and not any(f.get('acts_on') for f in RC.FIELDS if f['access'] not in ('w1-set', 'w1-clear')),
           [f['register'] for f in aliases if not f.get('acts_on')][:3])
     pairs = sorted({(f['register'], f['acts_on']) for f in aliases})
-    check('C3: the five alias registers and their targets', pairs == [('GPIO_ENABLE_W1TC_REG', 'GPIO_ENABLE_REG'), ('GPIO_ENABLE_W1TS_REG', 'GPIO_ENABLE_REG'),
+    check('C3: the six alias registers and their targets', pairs == [('GPIO_ENABLE_W1TC_REG', 'GPIO_ENABLE_REG'), ('GPIO_ENABLE_W1TS_REG', 'GPIO_ENABLE_REG'),
                                                                        ('GPIO_OUT_W1TC_REG', 'GPIO_OUT_REG'), ('GPIO_OUT_W1TS_REG', 'GPIO_OUT_REG'),
-                                                                       ('GPIO_STATUS_W1TC_REG', 'GPIO_STATUS_REG')], pairs)
+                                                                       ('GPIO_STATUS_W1TC_REG', 'GPIO_STATUS_REG'), ('GPIO_STATUS_W1TS_REG', 'GPIO_STATUS_REG')], pairs)
     by_reg = {}
     for f in RC.FIELDS:
         by_reg.setdefault(f['register'], []).append(f)

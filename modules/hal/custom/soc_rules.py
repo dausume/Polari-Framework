@@ -198,7 +198,12 @@ RULES = {
             'pad_function': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'MCU_SEL', 'values': {'gpio': 1},
                              'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: MCU_SEL; function 1 = GPIOn on every pad GPIO0-21: TRM Table 5.12-1 '
                                      '"IO MUX Pin Functions" p.174 (read 2026-11-13 from the v1.4 PDF, sha256 90ef8256...7423; function 0 is MTMS / MTDI / MTCK / '
-                                     'MTDO on GPIO4-7, SPIHD..SPIQ on GPIO12-17, U0RXD / U0TXD on GPIO20-21) and datasheet Table 2-4 pp.19-20 (board.custom.soc_functions)'},
+                                     'MTDO on GPIO4-7, SPIHD..SPIQ on GPIO12-17, U0RXD / U0TXD on GPIO20-21) and datasheet Table 2-4 pp.19-20 (board.custom.soc_functions)',
+                             # pt-1a review: the generator always writes 1, but a SIMULATOR must know every MCU_SEL value that is GPIO on a pad:
+                             # Table 5.12-1 p.174 prints GPIOn in BOTH Function 0 and Function 1 on GPIO0-3, 8-11, 18, 19 (MCU_SEL resets to 0)
+                             # per pad (pin number -> every MCU_SEL value that makes it GPIOn); pol's export refuses a pinbank without it
+                             'gpio_functions': {str(n): ([0, 1] if n in (0, 1, 2, 3, 8, 9, 10, 11, 18, 19) else [1]) for n in range(22)},
+                             'gpio_functions_cite': 'TRM Table 5.12-1 "IO MUX Pin Functions" p.174, columns Function 0 and Function 1'},
             'output_route': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_SEL', 'values': {'gpio_out': 128},
                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_SEL 128 = the pad driven by GPIO_OUT_REG bit n '
                                      '(ESP-IDF v5.5.5 SIG_GPIO_OUT_IDX 128 agrees)'},
@@ -206,6 +211,18 @@ RULES = {
                                      'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG'},
             'output_driver': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'PAD_DRIVER', 'values': {'push_pull': 0, 'open_drain': 1},
                               'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184: PAD_DRIVER 0 = normal output, 1 = open drain'},
+            # pt-1a review (econ, for pol's pinbank): the CPU's view of the pin interrupts - what ESP-IDF's GPIO ISR reads (gpio.c:517 ->
+            # gpio_ll.h:112-115 `*status = hw->pcpu_int.intr`) - with the AND it is, as data; and the level / invert values the device logs until modelled
+            'interrupt_status_cpu': {'registers': ['GPIO_PCPU_INT_REG'],
+                                     'from': {'status': 'GPIO_STATUS_REG', 'enable_register': 'GPIO_PIN{n}_REG', 'enable_field': 'INT_ENA', 'enable_bit': 0},
+                                     'cite': 'TRM Register 5.13 GPIO_PCPU_INT_REG p.183: "GPIO0 ~ 21 PRO_CPU interrupt status ... corresponding to the bit in '
+                                             'GPIO_STATUS_REG when assert (high) enable signal (bit13 of GPIO_PINn_REG)" (INT_ENA is bits 17:13, so bit 0 of the field)'},
+            'level_sense': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'INT_TYPE', 'values': {'low_level': 4, 'high_level': 5},
+                            'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184: INT_TYPE 4 = low level trigger, 5 = high level trigger'},
+            'output_invert': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_INV_SEL', 'values': {'normal': 0, 'inverted': 1},
+                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_INV_SEL 1 = invert the output value'},
+            'enable_invert': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OEN_INV_SEL', 'values': {'normal': 0, 'inverted': 1},
+                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OEN_INV_SEL 1 = invert the output enable signal'},
             'interrupt_source': {'registers': ['INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG'], 'values': {'source': 16},
                                  'cite': 'TRM Table 8.3-1 p.204: GPIO_PROCPU_INTR is interrupt source 16; Register 8.7 p.213 maps it (board.custom.registers_esp32c3)'},
             # hal-1 interrupts: every pad has its own edge / level interrupt (no separate pin-change unit): the pin-change and the
