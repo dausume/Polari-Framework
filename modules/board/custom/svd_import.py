@@ -177,7 +177,8 @@ def rows(chip, peripheral, block=None, name_prefix=None):
             F.append({'register': rn, 'svd_register': r['register'], 'field': f['field'], 'bit_hi': f['bit_hi'], 'bit_lo': f['bit_lo'], 'width': f['width'],
                       'reset_value': f['reset_value'], 'svd_access': f['svd_access'], 'svd_semantics': f['svd_semantics'], 'trm_access': '', 'access': '',
                       'description': f['description'], 'values': f['values'] or {}, 'page_table': 'SVD %s.%s.%s' % (peripheral, r['register'], f['field']),
-                      'affects_pin': '', 'affects_signal': '', 'notes': 'imported from the SVD: no cited access code yet (missing to choose())', 'part': 'svd'})
+                      'affects_pin': '', 'affects_signal': '', 'notes': 'imported from the SVD: no cited access code yet (missing to choose())', 'part': 'svd',
+                      'acts_on': ''})   # CMSIS-SVD states no alias target as data: a chip's refiner (chipdesc_rp2350.ALIASES) fills it from cited text
     return R, F
 
 

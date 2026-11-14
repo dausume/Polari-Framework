@@ -125,7 +125,8 @@ def register_fields():
                     'bit_hi': f['bit_hi'], 'bit_lo': f['bit_lo'], 'width': f['width'], 'access': f['access'], 'reset_value': f['reset_value'], 'description': f['description'],
                     'values_json': json.dumps(f['values']), 'affects_signal': sig_ref, 'affects_pin': ('%s:%s' % (SOC, f['affects_pin'])) if f['affects_pin'] else '',
                     'origin': 'cited', 'undetermined': '', 'notes': f['notes'], **_trm_cite(f['page_table']),
-                    'roles_json': json.dumps(TX.field_roles(SOC, f['register'], f), sort_keys=True)})
+                    'roles_json': json.dumps(TX.field_roles(SOC, f['register'], f), sort_keys=True),
+                    'acts_on': ('%s:%s' % (SOC, f['acts_on'])) if f.get('acts_on') else ''})
     return out
 
 

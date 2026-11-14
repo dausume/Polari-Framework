@@ -35,6 +35,10 @@ ALIASES = {
     ('SIO_GPIO_OE_SET_REG', 'GPIO_OE_SET'): ('w1-set', 'Perform an atomic bit-set on GPIO_OE, i.e. `GPIO_OE |= wdata`'),
     ('SIO_GPIO_OE_CLR_REG', 'GPIO_OE_CLR'): ('w1-clear', 'Perform an atomic bit-clear on GPIO_OE, i.e. `GPIO_OE &= ~wdata`'),
 }
+#: hal-3b (pin twin): the register each alias acts on - the one its cited text names (`GPIO_OUT |= wdata` -> SIO_GPIO_OUT_REG); refine() refuses a
+#: target the text does not name
+ACTS_ON = {('SIO_GPIO_OUT_SET_REG', 'GPIO_OUT_SET'): 'SIO_GPIO_OUT_REG', ('SIO_GPIO_OUT_CLR_REG', 'GPIO_OUT_CLR'): 'SIO_GPIO_OUT_REG',
+           ('SIO_GPIO_OE_SET_REG', 'GPIO_OE_SET'): 'SIO_GPIO_OE_REG', ('SIO_GPIO_OE_CLR_REG', 'GPIO_OE_CLR'): 'SIO_GPIO_OE_REG'}
 
 
 class Rp2350Refused(Exception):
@@ -63,7 +67,10 @@ def refine(F):
             word, text = ALIASES[k]
             if f.get('description', '').strip() != text:
                 raise Rp2350Refused('%s.%s: the SVD description is %r, not the cited %r - refused, not guessed' % (k + (f.get('description'), text)))
-            F[i] = dict(f, access_word=word, access_source='svd-description', access_cite='SVD %s.%s <description>: "%s"' % (k + (text,)))
+            tgt = ACTS_ON[k]
+            if '`%s ' % tgt[len('SIO_'):-len('_REG')] not in text:
+                raise Rp2350Refused('%s.%s acts on %s, but its cited text does not name it - refused, not guessed' % (k + (tgt,)))
+            F[i] = dict(f, access_word=word, access_source='svd-description', access_cite='SVD %s.%s <description>: "%s"' % (k + (text,)), acts_on=tgt)
             seen.add(k)
     if seen != set(ALIASES):
         raise Rp2350Refused('alias fields missing from the SVD: %s' % sorted(set(ALIASES) - seen))

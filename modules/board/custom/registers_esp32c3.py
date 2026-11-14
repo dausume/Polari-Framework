@@ -66,12 +66,13 @@ RESET_CAUSES = {'0x01': 'Chip reset (power-on or brown-out)', '0x0F': 'Brown-out
 ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw', 'RO': 'r', 'R/SS/WTC': 'r', 'R/WTC/SS': 'r', 'WT': 'w-strobe', 'WO': 'w-strobe', 'WT-set': 'w1-set', 'WT-clear': 'w1-clear', 'RO-fifo': 'fifo'}
 
 
-def _f(register, field, hi, lo, code, reset, description, values, where, pin='', signal='', notes=''):
+def _f(register, field, hi, lo, code, reset, description, values, where, pin='', signal='', notes='', acts_on=''):
     trm = code.split('-')[0]
     return {'register': register, 'field': field, 'bit_hi': hi, 'bit_lo': lo, 'width': hi - lo + 1, 'access': ACCESS[code], 'reset_value': str(reset),
             'description': description, 'values': values, 'page_table': where, 'affects_pin': pin, 'affects_signal': signal,
             'part': _PART,
             'trm_access': trm,   # hal-3a: the TRM's own code, verbatim - hal-3b's access table maps from THIS, never from the lossy `access` word
+            'acts_on': acts_on,  # hal-3b: the register a set / clear alias acts on (the TRM's own words name it: board_acts_on_selftest)
             'notes': ('TRM access %s' % trm) + ('; ' + notes if notes else '')}
 
 
@@ -84,9 +85,9 @@ def _reg(name, block, offset, title, where, reset, undetermined=''):
     REGISTERS.append({'register': name, 'block': block, 'offset': offset, 'title': title, 'where': where, 'reset': reset, 'undetermined': undetermined, 'part': _PART})
 
 
-def _per_pad(register, prefix, code, where, words, values, reset='0', notes=''):
+def _per_pad(register, prefix, code, where, words, values, reset='0', notes='', acts_on=''):
     for n in PADS:
-        FIELDS.append(_f(register, '%s%d' % (prefix, n), n, n, code, reset, words % n, values, where, pin='GPIO%d' % n, notes=notes))
+        FIELDS.append(_f(register, '%s%d' % (prefix, n), n, n, code, reset, words % n, values, where, pin='GPIO%d' % n, notes=notes, acts_on=acts_on))
 
 
 _INVALID = 'bits 22-25 are invalid (the TRM: "bit22 ~ bit25 are invalid")'
@@ -97,19 +98,19 @@ _per_pad('GPIO_OUT_REG', 'OUT_DATA_ORIG_', 'R/W/SS', 'Register 5.2 GPIO_OUT_REG,
          {'0': 'drive low', '1': 'drive high (when its output is enabled and FUNCn_OUT_SEL = 128)'}, notes='one bit of GPIO_OUT_DATA_ORIG')
 _reg('GPIO_OUT_W1TS_REG', 'GPIO', 0x0008, 'GPIO0 ~ 21 output set register', 'Register 5.3, p.180', '0x0000000', _INVALID)
 _per_pad('GPIO_OUT_W1TS_REG', 'OUT_W1TS_', 'WT-set', 'Register 5.3 GPIO_OUT_W1TS_REG, p.180', 'set GPIO%d\'s bit of GPIO_OUT_REG',
-         {'1': 'the corresponding bit in GPIO_OUT_REG is set to 1 ("Recommended operation: use this register to set GPIO_OUT_REG")'})
+         {'1': 'the corresponding bit in GPIO_OUT_REG is set to 1 ("Recommended operation: use this register to set GPIO_OUT_REG")'}, acts_on='GPIO_OUT_REG')
 _reg('GPIO_OUT_W1TC_REG', 'GPIO', 0x000C, 'GPIO0 ~ 21 output clear register', 'Register 5.4, p.180', '0x0000000', _INVALID)
 _per_pad('GPIO_OUT_W1TC_REG', 'OUT_W1TC_', 'WT-clear', 'Register 5.4 GPIO_OUT_W1TC_REG, p.180', 'clear GPIO%d\'s bit of GPIO_OUT_REG',
-         {'1': 'the corresponding bit in GPIO_OUT_REG is cleared'})
+         {'1': 'the corresponding bit in GPIO_OUT_REG is cleared'}, acts_on='GPIO_OUT_REG')
 _reg('GPIO_ENABLE_REG', 'GPIO', 0x0020, 'GPIO output enable register', 'Register 5.5, p.180', '0x0000000', _INVALID)
 _per_pad('GPIO_ENABLE_REG', 'ENABLE_DATA_', 'R/W/SS', 'Register 5.5 GPIO_ENABLE_REG, p.180', 'GPIO%d output enable', {'0': 'output disabled', '1': 'output enabled'},
          notes='one bit of GPIO_ENABLE_DATA; used when FUNCn_OEN_SEL forces the enable from here (Register 5.17)')
 _reg('GPIO_ENABLE_W1TS_REG', 'GPIO', 0x0024, 'GPIO output enable set register', 'Register 5.6, p.181', '0x0000000', _INVALID)
 _per_pad('GPIO_ENABLE_W1TS_REG', 'ENABLE_W1TS_', 'WT-set', 'Register 5.6 GPIO_ENABLE_W1TS_REG, p.181', 'set GPIO%d\'s bit of GPIO_ENABLE_REG',
-         {'1': 'the corresponding bit in GPIO_ENABLE_REG is set to 1'})
+         {'1': 'the corresponding bit in GPIO_ENABLE_REG is set to 1'}, acts_on='GPIO_ENABLE_REG')
 _reg('GPIO_ENABLE_W1TC_REG', 'GPIO', 0x0028, 'GPIO output enable clear register', 'Register 5.7, p.181', '0x0000000', _INVALID)
 _per_pad('GPIO_ENABLE_W1TC_REG', 'ENABLE_W1TC_', 'WT-clear', 'Register 5.7 GPIO_ENABLE_W1TC_REG, p.181', 'clear GPIO%d\'s bit of GPIO_ENABLE_REG',
-         {'1': 'the corresponding bit in GPIO_ENABLE_REG is cleared'})
+         {'1': 'the corresponding bit in GPIO_ENABLE_REG is cleared'}, acts_on='GPIO_ENABLE_REG')
 _reg('GPIO_IN_REG', 'GPIO', 0x003C, 'GPIO0 ~ 21 input register', 'Register 5.9, p.182', '0x0000000', _INVALID)
 _per_pad('GPIO_IN_REG', 'IN_DATA_NEXT_', 'RO', 'Register 5.9 GPIO_IN_REG, p.182', 'GPIO%d input value', {'0': 'low level', '1': 'high level'}, notes='one bit of GPIO_IN_DATA_NEXT')
 
@@ -119,7 +120,7 @@ _per_pad('GPIO_STATUS_REG', 'STATUS_INTERRUPT_', 'R/W/SS', 'Register 5.10 GPIO_S
          {'1': 'an interrupt is pending on this pad (hardware sets it; clear it through GPIO_STATUS_W1TC_REG)'}, notes='one bit of GPIO_STATUS_INTERRUPT')
 _reg('GPIO_STATUS_W1TC_REG', 'GPIO', 0x004C, 'GPIO0 ~ 21 interrupt status clear register', 'Register 5.12, p.183', '0x0000000', _INVALID)
 _per_pad('GPIO_STATUS_W1TC_REG', 'STATUS_W1TC_', 'WT-clear', 'Register 5.12 GPIO_STATUS_W1TC_REG, p.183', 'clear GPIO%d\'s interrupt status',
-         {'1': 'the corresponding bit in GPIO_STATUS_INTERRUPT is cleared ("Recommended operation: use this register to clear GPIO_STATUS_INTERRUPT")'})
+         {'1': 'the corresponding bit in GPIO_STATUS_INTERRUPT is cleared ("Recommended operation: use this register to clear GPIO_STATUS_INTERRUPT")'}, acts_on='GPIO_STATUS_REG')
 _INT_TYPE = {'0': 'GPIO interrupt disabled', '1': 'rising edge trigger', '2': 'falling edge trigger', '3': 'any edge trigger', '4': 'low level trigger', '5': 'high level trigger'}
 _SYNC = {'0': 'no synchronization', '1': 'synchronized on falling edge', '2': 'synchronized on rising edge', '3': 'synchronized on rising edge'}
 for n in PADS:

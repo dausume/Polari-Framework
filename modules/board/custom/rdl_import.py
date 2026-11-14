@@ -307,6 +307,8 @@ def rows(amap, block=None, prefix=None, base=0):
                       'description': f['desc'], 'values': {'any': f['desc']} if f['desc'] else {'any': 'no description in the RDL'},
                       'page_table': '%s line %d' % (amap['path'], f['line']), 'trm_access': '', 'access': '', 'access_word': word or '',
                       'access_source': 'rdl' if word else '', 'access_cite': cite if word else '', 'affects_pin': '', 'affects_signal': '',
+                      'acts_on': '',   # SystemRDL has no alias-target property: blank = not stated by the source, never guessed
+                     
                       'notes': ('access %s (%s)' % (word, why)) if word else ('NO access word: %s' % why), 'part': 'rdl',
                       'rdl': {k: f[k] for k in ('sw', 'hw', 'onwrite', 'onread', 'singlepulse', 'hwset', 'hwclr', 'counter')}})
             if not word:
