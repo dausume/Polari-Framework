@@ -12,7 +12,8 @@ What it reads, and never re-types:
     firmware generator reads) to a cited RegisterField per pin;
   * layer 3, the binding: the SimOverlay rows (span, mode, device, params).
 
-Refusals are words, never a half-written layout (LayoutRefused): a role the behaviour needs that the chip's rules lack (or mark `missing`), a role
+Refusals are words, never a half-written layout (LayoutRefused): a role the behaviour needs that the chip's rules lack (or mark `missing`), or
+without the extra data the behaviour needs of it (pinbank: pad_function's per-pad gpio_functions, interrupt_status_cpu's `from`), a role
 whose register or field is not a row inside the device's spans, a w1-set / w1-clear field with no acts_on, an access word the device does not
 interpret, a reset that is neither hex nor composable from its fields, a register the fields contradict.
 
@@ -95,7 +96,7 @@ def _runs(offsets, size):
     return runs, gaps
 
 
-def _resolve(role, binding, pins, by_name, soc):
+def _resolve(role, binding, pins, by_name, soc, need_data=()):
     if binding is None:
         raise LayoutRefused('role %r: not in hal soc_rules RULES[%r][\'roles\'] (add it there, so the firmware generator gains it too)' % (role, soc))
     if binding.get('missing'):
@@ -114,7 +115,37 @@ def _resolve(role, binding, pins, by_name, soc):
             if fld is None:
                 raise LayoutRefused('role %r, pin %d: %s has no field %s' % (role, n, name, binding.get('field') or ('for GPIO%d' % n)))
             per_pin.append({'pin': n, 'register': name, 'field': fld['name']})
-    return {'values': binding.get('values', {}), 'cite': binding.get('cite', ''), 'per_pin': per_pin}
+    out = {'values': binding.get('values', {}), 'cite': binding.get('cite', ''), 'per_pin': per_pin}
+    for key in need_data:
+        if key not in binding:
+            raise LayoutRefused('role %r on %s carries no %r (the behaviour needs it: a simulator must not fall back to a guess)' % (role, soc, key))
+        out[key] = _data(role, key, binding[key], pins, by_name, binding)
+    return out
+
+
+def _data(role, key, val, pins, by_name, binding):
+    """validate + resolve one role's extra data per pin"""
+    if key == 'gpio_functions':
+        have = sorted(val, key=int)
+        if have != [str(n) for n in range(pins)] or not all(isinstance(v, list) and v and all(isinstance(x, int) for x in v) for v in val.values()):
+            raise LayoutRefused('role %r: gpio_functions must give every pad 0..%d a non-empty list of function numbers (has %s)' % (role, pins - 1, have))
+        return {k: sorted(val[k]) for k in have}
+    if key == 'from':
+        st = by_name.get(val.get('status', ''))
+        if st is None:
+            raise LayoutRefused('role %r: from.status %r is not a register this device models' % (role, val.get('status')))
+        per_pin = []
+        for n in range(pins):
+            sf = next((f for f in st['fields'] if f['pin'] == 'GPIO%d' % n), None)
+            en = by_name.get(val.get('enable_register', '').replace('{n}', str(n)))
+            ef = en and next((f for f in en['fields'] if f['name'] == val.get('enable_field')), None)
+            bit = val.get('enable_bit')
+            if sf is None or ef is None or not isinstance(bit, int) or not 0 <= bit < ef['width']:
+                raise LayoutRefused('role %r, pin %d: from = %s.%s AND %s.%s bit %s does not resolve to modelled field rows'
+                                    % (role, n, val.get('status'), 'GPIO%d' % n, val.get('enable_register'), val.get('enable_field'), bit))
+            per_pin.append({'pin': n, 'status': [st['name'], sf['name']], 'enable': [en['name'], ef['name'], bit]})
+        return {'op': 'and', 'per_pin': per_pin}
+    raise LayoutRefused('role %r: data key %r has no export rule' % (role, key))
 
 
 def layout(chip_name, registers=None, fields=None, rules=None):
@@ -163,7 +194,7 @@ def layout(chip_name, registers=None, fields=None, rules=None):
                     if f['acts_on'] and f['acts_on'] not in by_name:
                         raise LayoutRefused('%s.%s acts on %s, which this device does not model' % (r['name'], f['name'], f['acts_on']))
         pins = int(dev['params'].get('pins', 0))
-        dev['roles'] = {role: _resolve(role, rules.get(role), pins, by_name, soc) for role in need['modelled']}
+        dev['roles'] = {role: _resolve(role, rules.get(role), pins, by_name, soc, need.get('data', {}).get(role, ())) for role in need['modelled']}
         dev['values'] = {}
         for role in need['values']:
             b = rules.get(role)

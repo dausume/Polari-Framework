@@ -29,16 +29,22 @@ PINBANK_RULE = ('A pad DRIVES when its pad function is one of THAT PAD\'s GPIO f
                 'or the peripheral. A driving pad drives the output bit; with output_driver = open_drain it drives only a 0 and a 1 releases the '
                 'pad. A pad that does not drive takes the level driven from outside, else its pull (pull_up / pull_down), else it floats (z). The '
                 'input register reads level AND pad_input_enable. An edge of the kind edge_sense names sets the pad\'s status bit (edge_flag clears '
-                'it); the CPU\'s interrupt status reads status AND edge_mask (C3: GPIO_PCPU_INT = STATUS AND INT_ENA bit 0, the register ESP-IDF\'s '
-                'ISR reads), and the interrupt line to interrupt_source is the OR of that CPU status, not of the raw status bits. A value the '
-                'behaviour does not model (C3: INT_TYPE 4 / 5 level triggers, OUT_INV_SEL / OEN_INV_SEL = 1) is logged by the device as an '
-                'unmodelled value, never silently read as 0.')
+                'it); a level of the kind level_sense names keeps setting it while the level holds. output_invert / enable_invert invert the out '
+                'value / the enable before the pad. The CPU\'s interrupt status (interrupt_status_cpu) reads status AND the per-pin enable bit its '
+                '`from` names (C3: GPIO_PCPU_INT = STATUS AND INT_ENA bit 0, the register ESP-IDF\'s ISR reads), and the interrupt line to '
+                'interrupt_source is the OR of that CPU status, not of the raw status bits. A value no role names (an INT_TYPE above 5, a pad '
+                'function outside the pad\'s GPIO functions read as a pad the GPIO does not own) is logged by the device as unmodelled, never '
+                'silently read as 0.')
 
 BLOCK_BEHAVIOURS = [
     {'name': 'pinbank', 'title': 'a bank of pads: output, enable, input, pulls, pad function, output route, open drain, pin interrupts',
      'roles_json': json.dumps({'modelled': ['output', 'direction', 'input', 'pull_up', 'pull_down', 'pad_input_enable', 'pad_function',
-                                            'output_route', 'output_enable_source', 'output_driver', 'edge_sense', 'edge_mask', 'edge_flag'],
-                               'values': ['interrupt_source']}),
+                                            'output_route', 'output_enable_source', 'output_driver', 'output_invert', 'enable_invert',
+                                            'edge_sense', 'level_sense', 'edge_mask', 'edge_flag', 'interrupt_status_cpu'],
+                               'values': ['interrupt_source'],
+                               # the data a role must carry beyond its register / field (econ's pt-1a review): each pad's own GPIO functions,
+                               # and how the CPU's interrupt status is formed from the raw status and the per-pin enable
+                               'data': {'pad_function': ['gpio_functions'], 'interrupt_status_cpu': ['from']}}),
      'rules': PINBANK_RULE,
      'basis': 'PIN_TWIN_PLAN.md §2 (pol, 2026-11-13); roles bound per chip in hal.custom.soc_rules RULES (C3: econ, hal-3b step 2)'},
 ]

@@ -67,6 +67,16 @@ def run():
           {(n, f['acts_on']) for n, r in regs.items() for f in r['fields'] if f['access'] in L.ALIASES} >=
           {('GPIO_OUT_W1TS_REG', 'GPIO_OUT_REG'), ('GPIO_STATUS_W1TC_REG', 'GPIO_STATUS_REG')}
           and all(f['acts_on'] in regs for r in regs.values() for f in r['fields'] if f['acts_on']))
+    pf, cpu = dev['roles']['pad_function'], dev['roles']['interrupt_status_cpu']
+    check('export (econ\'s pt-1a review): each pad carries its own GPIO functions - GPIO8 0 and 1 (reset 0 already drives), GPIO4 1 only (0 = MTMS)',
+          pf['gpio_functions']['8'] == [0, 1] and pf['gpio_functions']['4'] == [1] and len(pf['gpio_functions']) == pins, pf.get('gpio_functions'))
+    check('export: the CPU interrupt status (GPIO_PCPU_INT, what ESP-IDF\'s ISR reads) is modelled and formed per pin as STATUS AND PINn.INT_ENA bit 0',
+          'GPIO_PCPU_INT_REG' in regs and cpu['from']['op'] == 'and'
+          and all(p['status'] == ['GPIO_STATUS_REG', 'STATUS_INTERRUPT_%d' % p['pin']] and p['enable'] == ['GPIO_PIN%d_REG' % p['pin'], 'INT_ENA', 0]
+                  for p in cpu['from']['per_pin']) and len(cpu['from']['per_pin']) == pins)
+    check('export: GPIO_STATUS_W1TS sets GPIO_STATUS (acts_on), and level / invert are roles, not silent zeros',
+          {f['acts_on'] for f in regs['GPIO_STATUS_W1TS_REG']['fields']} == {'GPIO_STATUS_REG'}
+          and {'level_sense', 'output_invert', 'enable_invert'} <= set(dev['roles']))
     io4 = regs['IO_MUX_GPIO4_REG']
     check('export: resets - OUT_SEL 0x80 printed; IO_MUX_GPIO4 composed from its fields (printed in words): FUN_IE 1, FUN_DRV 2, MCU_SEL 0 (MTMS at reset)',
           regs['GPIO_FUNC4_OUT_SEL_CFG_REG']['reset'] == 0x80 and io4['reset_from'].startswith('composed')
@@ -106,6 +116,14 @@ def run():
     rules['pull_up'] = dict(rules['pull_up'], field='FUN_WPU_TYPO')
     why = _refused(lambda: L.layout('esp32c3-qemu', rules=rules))
     check('control: a role naming a field that is not a row fails, named (register + field + pin)', 'FUN_WPU_TYPO' in why and 'pin 0' in why, why)
+    rules = copy.deepcopy(SR.RULES['esp32c3']['roles'])
+    del rules['pad_function']['gpio_functions']
+    why = _refused(lambda: L.layout('esp32c3-qemu', rules=rules))
+    check('control: pad_function without per-pad gpio_functions fails, named (no fallback to "1 only")', 'gpio_functions' in why, why)
+    rules = copy.deepcopy(SR.RULES['esp32c3']['roles'])
+    rules['interrupt_status_cpu']['from'] = dict(rules['interrupt_status_cpu']['from'], enable_field='INT_EN')
+    why = _refused(lambda: L.layout('esp32c3-qemu', rules=rules))
+    check('control: a CPU-status `from` that does not resolve to field rows fails, named', 'interrupt_status_cpu' in why and 'INT_EN' in why, why)
     F2 = [dict(f, acts_on='') if f['name'] == 'esp32c3:GPIO_OUT_W1TS_REG.OUT_W1TS_3' else f for f in F]
     why = _refused(lambda: L.layout('esp32c3-qemu', registers=R, fields=F2))
     check('control: a set alias with no acts_on fails, named', 'OUT_W1TS_3' in why and 'acts_on' in why, why)
