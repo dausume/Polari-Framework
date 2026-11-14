@@ -65,8 +65,10 @@
   "custom": [
    "custom/crosscheck",
    "custom/generate",
+   "custom/isotopes",
    "custom/mechanisms",
    "custom/operations",
+   "custom/project",
    "custom/render",
    "custom/soc_rules"
   ]

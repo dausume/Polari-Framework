@@ -74,9 +74,11 @@ def _bundle(check):
           set(names) == {'uno-light-app', 'uno-light'} and names['uno-light-app']['category'] == 'hardware-app'
           and names['uno-light']['category'] == 'cross-domain' and isinstance(names['uno-light-app']['definition'], dict))
     readme = open(os.path.join(d, 'README.md')).read()
-    check('demo-bundle: the README names every file with its real sha256',
-          all(('`%s` (sha256 `%s`)' % (f, _sha(open(os.path.join(d, f), 'rb').read()))) in readme
-              for f in files - {'README.md'}), readme[:300])
+    unlisted = sorted(f for f in files - {'README.md'}
+                      if ('`%s` (sha256 `%s`)' % (f, _sha(open(os.path.join(d, f), 'rb').read()))) not in readme)
+    check('demo-bundle: the README names every file with its real sha256', unlisted == [],
+          {'files whose real sha the README lacks': unlisted,
+           'README lines naming them': [ln for ln in readme.splitlines() if any('`%s`' % f in ln for f in unlisted)]})
     if 'polari-hw-bridge.jar' in files:
         jar = open(os.path.join(d, 'polari-hw-bridge.jar'), 'rb').read()
         check('demo-bundle: the bridge jar was built (a real zip, over 100 kB)', jar[:2] == b'PK' and len(jar) > 100000, len(jar))
