@@ -113,6 +113,8 @@ def _readme(solution, hex_sha, shas, bridge_note, target):
              ('app-definition.json', 'The Hardware App\'s steps and the light demo\'s steps, as Polari holds them.'),
              ('usb-interfaces.json', 'The USB-serial chips this board design can have (the genuine bridge and known clones), their USB ids and '
                                      'whether each is confirmed by a document: the app\'s Detect step finds the board with these.')]
+    if 'BRIDGE-NOT-BUILT.txt' in shas:   # no JDK / mvn here: the README names the note written in the jar's place, with its sha
+        names.insert(4, ('BRIDGE-NOT-BUILT.txt', 'Why the bridge program is not in this bundle, and what to install to build it.'))
     lines = ['# %s: demo bundle' % solution, '',
              'Everything the Hardware App needs to run the light demo from this one folder. Open it in the Hardware App (it checks',
              'the firmware, finds the board, flashes it and starts the bridge), or follow INSTALL.md by hand.', '',
