@@ -4,7 +4,7 @@
  "kind": "idf",
  "title": "ESP32-C3 firmware (board module, ESP-IDF + FreeRTOS)",
  "description": "",
- "notes": "parsed by cmod.custom.c3_atoms (the chip HAL: pin_shim=0); registers through the ESP-IDF drivers, cited; cost not measured",
+ "notes": "parsed by cmod.custom.c3_atoms (the chip HAL: pin_shim=0); registers through the generated HAL (polari_hal_esp32c3.h, each unit's TRM rows) and the ESP-IDF drivers, cited; cost not measured",
  "root": "board/custom/firmware/esp32c3",
  "board": "esp32-c3",
  "mcu": "esp32c3",
@@ -59,7 +59,7 @@
    "files": [
     {
      "path": "apps/light_hal.h",
-     "sha256": "65316c8e3845c02fff8003aaf4a5c635a97fe0363d22d4f483715e31668fa6fe"
+     "sha256": "0b50a7f2fbee5db8b0adab2a6eadf4ccb1e01c60ab4fb47b923686f4c2508ef3"
     }
    ],
    "atoms": [
@@ -1097,7 +1097,7 @@
    "name": "apps/light_hal.button_isr",
    "function": "button_isr",
    "module": "apps/light_hal.h",
-   "line": 72,
+   "line": 79,
    "kind": "function",
    "isr_vector": "",
    "signature": "void button_isr(void * arg)",
@@ -1154,7 +1154,7 @@
    "name": "apps/light_hal.hal_button_arm",
    "function": "hal_button_arm",
    "module": "apps/light_hal.h",
-   "line": 91,
+   "line": 102,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_button_arm(TaskHandle_t task)",
@@ -1226,7 +1226,7 @@
    "name": "apps/light_hal.hal_led_write",
    "function": "hal_led_write",
    "module": "apps/light_hal.h",
-   "line": 98,
+   "line": 109,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_led_write(int level)",
@@ -1257,26 +1257,24 @@
      "name": "LED_PIN",
      "access": "",
      "peripheral": "",
-     "detail": "the raw body names LED_GPIO (= 0, the HAL value LED_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+     "detail": "the raw body calls the generated role HAL_LED_SET_HIGH, HAL_LED_SET_LOW (rendered for LED_GPIO = 0, the HAL value LED_PIN: board_config.h + polari_hal_esp32c3.h) - read from the source text"
     },
     {
      "kind": "register",
      "name": "GPIO_OUT_W1TS_REG",
      "access": "w",
      "peripheral": "",
-     "detail": "through gpio_set_level() pin 0: components/esp_driver_gpio/src/gpio.c:245-248 gpio_set_level -> components/hal/include/hal/gpio_hal.h:225 gpio_hal_set_level -> components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_LED_SET_HIGH -> HAL_GPIO_SET_HIGH_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_OUT_W1TS_REG.OUT_W1TS_0 via w1s-alias (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "GPIO_OUT_W1TC_REG",
      "access": "w",
      "peripheral": "",
-     "detail": "through gpio_set_level() pin 0: components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1tc (level 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_LED_SET_LOW -> HAL_GPIO_SET_LOW_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_OUT_W1TC_REG.OUT_W1TC_0 via w1c-alias (the unit's TRM row: board.custom.registers_esp32c3)"
     }
    ],
-   "calls": [
-    "gpio_set_level"
-   ],
+   "calls": [],
    "pure": false,
    "pure_why": "touches s_led_level, GPIO_OUT_W1TS_REG, GPIO_OUT_W1TC_REG",
    "isr_safe": "undetermined",
@@ -1296,7 +1294,7 @@
    "name": "apps/light_hal.hal_pins_init",
    "function": "hal_pins_init",
    "module": "apps/light_hal.h",
-   "line": 80,
+   "line": 87,
    "kind": "function",
    "isr_vector": "",
    "signature": "void hal_pins_init(void)",
@@ -1316,79 +1314,100 @@
      "name": "LED_PIN",
      "access": "",
      "peripheral": "",
-     "detail": "the raw body names LED_GPIO (= 0, the HAL value LED_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+     "detail": "the raw body calls the generated role HAL_LED_OUTPUT, HAL_LED_PULL_NONE, HAL_LED_SET_LOW (rendered for LED_GPIO = 0, the HAL value LED_PIN: board_config.h + polari_hal_esp32c3.h) - read from the source text"
     },
     {
      "kind": "declared",
      "name": "SENSE_PIN",
      "access": "",
      "peripheral": "",
-     "detail": "the raw body names SENSE_GPIO (= 1, the HAL value SENSE_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+     "detail": "the raw body calls the generated role HAL_SENSE_INPUT, HAL_SENSE_PULL_DOWN, HAL_SENSE_PULL_NONE (rendered for SENSE_GPIO = 1, the HAL value SENSE_PIN: board_config.h + polari_hal_esp32c3.h) - read from the source text"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_FUNC0_OUT_SEL_CFG_REG",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "through HAL_LED_OUTPUT -> HAL_GPIO_OUTPUT_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_FUNC0_OUT_SEL_CFG_REG.OUT_SEL via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_PIN0_REG",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "through HAL_LED_OUTPUT -> HAL_GPIO_OUTPUT_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_PIN0_REG.PAD_DRIVER via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "IO_MUX_GPIO0_REG",
-     "access": "w",
+     "access": "rw",
      "peripheral": "",
-     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_LED_OUTPUT -> HAL_GPIO_OUTPUT_GPIO0 (polari_hal_esp32c3.h, generated): IO_MUX_GPIO0_REG.MCU_SEL via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "GPIO_ENABLE_W1TS_REG",
      "access": "w",
      "peripheral": "",
-     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:222-227 gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:245 gpio_ll_output_enable: hw->enable_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
-    },
-    {
-     "kind": "register",
-     "name": "GPIO_FUNC0_OUT_SEL_CFG_REG",
-     "access": "w",
-     "peripheral": "",
-     "detail": "through gpio_config() pin 0: components/esp_driver_gpio/src/gpio.c:225 gpio_hal_matrix_out_default (no peripheral output routed: simple GPIO, 128) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_LED_OUTPUT -> HAL_GPIO_OUTPUT_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_ENABLE_W1TS_REG.ENABLE_W1TS_0 via w1s-alias (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "IO_MUX_GPIO1_REG",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "through HAL_SENSE_INPUT -> HAL_GPIO_INPUT_GPIO1 (polari_hal_esp32c3.h, generated): IO_MUX_GPIO1_REG.FUN_IE via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_FUNC1_OUT_SEL_CFG_REG",
+     "access": "rw",
+     "peripheral": "",
+     "detail": "through HAL_SENSE_INPUT -> HAL_GPIO_INPUT_GPIO1 (polari_hal_esp32c3.h, generated): GPIO_FUNC1_OUT_SEL_CFG_REG.OEN_SEL via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_ENABLE_W1TC_REG",
      "access": "w",
      "peripheral": "",
-     "detail": "through gpio_config() pin 1: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_SENSE_INPUT -> HAL_GPIO_INPUT_GPIO1 (polari_hal_esp32c3.h, generated): GPIO_ENABLE_W1TC_REG.ENABLE_W1TC_1 via w1c-alias (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "IO_MUX_GPIO3_REG",
-     "access": "w",
+     "access": "rw",
      "peripheral": "",
-     "detail": "through gpio_config() pin 3: components/esp_driver_gpio/src/gpio.c:347 gpio_config -> gpio_input_enable / gpio_pullup_en / gpio_pulldown_en -> components/hal/esp32c3/include/hal/gpio_ll.h:199 / :46 / :75 (FUN_IE, FUN_PU, FUN_PD of IO_MUX_GPIOn); gpio_output_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:293 gpio_ll_func_sel (MCU_SEL) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_BUTTON_INPUT -> HAL_GPIO_INPUT_GPIO3 (polari_hal_esp32c3.h, generated): IO_MUX_GPIO3_REG.FUN_IE via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
-     "name": "GPIO_PIN3_REG",
-     "access": "w",
+     "name": "GPIO_FUNC3_OUT_SEL_CFG_REG",
+     "access": "rw",
      "peripheral": "",
-     "detail": "through gpio_config() pin 3: components/esp_driver_gpio/src/gpio.c:414 gpio_set_intr_type -> components/hal/esp32c3/include/hal/gpio_ll.h:99 gpio_ll_set_intr_type: hw->pin[n].int_type; gpio_intr_enable -> components/hal/esp32c3/include/hal/gpio_ll.h:162 int_ena (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
-    },
-    {
-     "kind": "register",
-     "name": "GPIO_OUT_W1TS_REG",
-     "access": "w",
-     "peripheral": "",
-     "detail": "through gpio_set_level() pin 0: components/esp_driver_gpio/src/gpio.c:245-248 gpio_set_level -> components/hal/include/hal/gpio_hal.h:225 gpio_hal_set_level -> components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1ts (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_BUTTON_INPUT -> HAL_GPIO_INPUT_GPIO3 (polari_hal_esp32c3.h, generated): GPIO_FUNC3_OUT_SEL_CFG_REG.OEN_SEL via signal-routing-matrix / rmw-field (the unit's TRM row: board.custom.registers_esp32c3)"
     },
     {
      "kind": "register",
      "name": "GPIO_OUT_W1TC_REG",
      "access": "w",
      "peripheral": "",
-     "detail": "through gpio_set_level() pin 0: components/hal/esp32c3/include/hal/gpio_ll.h:310 gpio_ll_set_level: hw->out_w1tc (level 0) (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_LED_SET_LOW -> HAL_GPIO_SET_LOW_GPIO0 (polari_hal_esp32c3.h, generated): GPIO_OUT_W1TC_REG.OUT_W1TC_0 via w1c-alias (the unit's TRM row: board.custom.registers_esp32c3)"
+    },
+    {
+     "kind": "register",
+     "name": "GPIO_PIN3_REG",
+     "access": "w",
+     "peripheral": "",
+     "detail": "through gpio_set_intr_type() pin 3: components/esp_driver_gpio/src/gpio.c:159-172 gpio_set_intr_type -> gpio_hal_set_intr_type -> components/hal/esp32c3/include/hal/gpio_ll.h:99 gpio_ll_set_intr_type: hw->pin[n].int_type (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
     }
    ],
    "calls": [
     "__polari_error_check",
-    "gpio_config",
-    "gpio_set_level"
+    "gpio_set_intr_type",
+    "gpio_intr_enable"
    ],
    "pure": false,
-   "pure_why": "touches IO_MUX_GPIO0_REG, GPIO_ENABLE_W1TS_REG, GPIO_FUNC0_OUT_SEL_CFG_REG, IO_MUX_GPIO1_REG, IO_MUX_GPIO3_REG, GPIO_PIN3_REG",
+   "pure_why": "touches GPIO_FUNC0_OUT_SEL_CFG_REG, GPIO_PIN0_REG, IO_MUX_GPIO0_REG, GPIO_ENABLE_W1TS_REG, IO_MUX_GPIO1_REG, GPIO_FUNC1_OUT_SEL_CFG_REG",
    "isr_safe": "undetermined",
    "isr_safe_why": "cmod's ISR-safety rules are the AVR's (ATOMIC_BLOCK, one-byte reads); the FreeRTOS build's tasks / critical sections / ISR notifications are not analysed by them",
    "atomic_block": false,
@@ -1406,7 +1425,7 @@
    "name": "apps/light_hal.hal_sense_read",
    "function": "hal_sense_read",
    "module": "apps/light_hal.h",
-   "line": 104,
+   "line": 118,
    "kind": "function",
    "isr_vector": "",
    "signature": "int hal_sense_read(void)",
@@ -1430,19 +1449,17 @@
      "name": "SENSE_PIN",
      "access": "",
      "peripheral": "",
-     "detail": "the raw body names SENSE_GPIO (= 1, the HAL value SENSE_PIN: board_config.h / board_pins.h) - read from the source text, the AST has its number"
+     "detail": "the raw body calls the generated role HAL_SENSE_READ (rendered for SENSE_GPIO = 1, the HAL value SENSE_PIN: board_config.h + polari_hal_esp32c3.h) - read from the source text"
     },
     {
      "kind": "register",
      "name": "GPIO_IN_REG",
      "access": "r",
      "peripheral": "",
-     "detail": "through gpio_get_level() pin 1: components/esp_driver_gpio/src/gpio.c:252-254 gpio_get_level -> components/hal/include/hal/gpio_hal.h:239 gpio_hal_get_level -> components/hal/esp32c3/include/hal/gpio_ll.h:332 gpio_ll_get_level: hw->in.data (ESP-IDF v5.5.5 (/opt/esp/idf in prf-esp-engines:noble))"
+     "detail": "through HAL_SENSE_READ -> HAL_GPIO_READ_GPIO1 (polari_hal_esp32c3.h, generated): GPIO_IN_REG.IN_DATA_NEXT_1 via read-bit (the unit's TRM row: board.custom.registers_esp32c3)"
     }
    ],
-   "calls": [
-    "gpio_get_level"
-   ],
+   "calls": [],
    "pure": false,
    "pure_why": "touches GPIO_IN_REG",
    "isr_safe": "undetermined",

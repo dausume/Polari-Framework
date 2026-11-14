@@ -249,7 +249,8 @@
    "board_access_overlay_selftest",
    "board_rtl_path_selftest",
    "board_chipdesc_provider_selftest",
-   "board_rp2350_chipdesc_selftest"
+   "board_rp2350_chipdesc_selftest",
+   "board_c3_hal_gate_selftest"
   ],
   "custom": [
    "custom/access_overlay",
@@ -695,7 +696,8 @@
   "board_access_overlay_selftest",
   "board_rtl_path_selftest",
   "board_chipdesc_provider_selftest",
-  "board_rp2350_chipdesc_selftest"
+  "board_rp2350_chipdesc_selftest",
+  "board_c3_hal_gate_selftest"
  ],
  "security": {
   "profile": "web-app",

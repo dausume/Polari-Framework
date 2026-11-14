@@ -144,13 +144,21 @@ def main():
     print('-- ESP32-C3: memory-mapped, set/clear aliases, routing matrix')
     o = _u('esp32c3', 'gpio.output', 'GPIO8')
     bs = o['bindings']
-    check('output GPIO8 = 3 bindings in order: OUT_SEL=128, MCU_SEL=1 (routing), then ENABLE_W1TS bit 8',
-          [(b['register'], b['field'], b['value']) for b in bs] == [('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OUT_SEL', '128'), ('IO_MUX_GPIO8_REG', 'MCU_SEL', '1'),
+    check('output GPIO8 = 7 bindings in order: the matrix route OUT_SEL=128, OUT_INV_SEL=0, OEN_SEL=1 (enable from GPIO_ENABLE), OEN_INV_SEL=0, '
+          'PAD_DRIVER=0 (push-pull), THEN the pad function MCU_SEL=1, then ENABLE_W1TS bit 8 (hal-3b step 2: set, not trusted to reset)',
+          [(b['register'], b['field'], b['value']) for b in bs] == [('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OUT_SEL', '128'), ('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OUT_INV_SEL', '0'),
+                                                                   ('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OEN_SEL', '1'), ('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OEN_INV_SEL', '0'),
+                                                                   ('GPIO_PIN8_REG', 'PAD_DRIVER', '0'), ('IO_MUX_GPIO8_REG', 'MCU_SEL', '1'),
                                                                    ('GPIO_ENABLE_W1TS_REG', 'ENABLE_W1TS_8', '')], [(b['register'], b['field'], b['value']) for b in bs])
-    check('the routing writes are rmw-field via the matrix; the enable is a w1s-alias',
-          [b['mechanism'] for b in bs] == ['signal-routing-matrix / rmw-field'] * 2 + ['w1s-alias'])
-    check('addresses from the TRM base + offset (0x60004574, 0x60009024, 0x60004024)',
-          [b['address'] for b in bs] == ['0x60004574', '0x60009024', '0x60004024'])
+    check('the routing / pad writes are rmw-field via the matrix; the enable is a w1s-alias',
+          [b['mechanism'] for b in bs] == ['signal-routing-matrix / rmw-field'] * 6 + ['w1s-alias'])
+    check('addresses from the TRM base + offset (FUNC8_OUT_SEL_CFG 0x60004574 x4, PIN8 0x60004094, IO_MUX_GPIO8 0x60009024, ENABLE_W1TS 0x60004024)',
+          [b['address'] for b in bs] == ['0x60004574'] * 4 + ['0x60004094', '0x60009024', '0x60004024'], [b['address'] for b in bs])
+    gi = _u('esp32c3', 'gpio.input', 'GPIO8')['bindings']
+    check('input GPIO8: FUN_IE=1, the enable source OEN_SEL=1 / OEN_INV_SEL=0 (no peripheral keeps the pad\'s output enable), THEN MCU_SEL=1, then ENABLE_W1TC bit 8',
+          [(b['register'], b['field'], b['value']) for b in gi] == [('IO_MUX_GPIO8_REG', 'FUN_IE', '1'), ('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OEN_SEL', '1'),
+                                                                   ('GPIO_FUNC8_OUT_SEL_CFG_REG', 'OEN_INV_SEL', '0'), ('IO_MUX_GPIO8_REG', 'MCU_SEL', '1'),
+                                                                   ('GPIO_ENABLE_W1TC_REG', 'ENABLE_W1TC_8', '')], [(b['register'], b['field'], b['value']) for b in gi])
     h = _u('esp32c3', 'gpio.set_high', 'GPIO8')
     check('set_high GPIO8 = one write to GPIO_OUT_W1TS (w1s-alias), no guard',
           [b['mechanism'] for b in h['bindings']] == ['w1s-alias'] and not h['unit']['guarded'] and '0x60004008u) = (1UL << 8);' in h['unit']['c_text'])

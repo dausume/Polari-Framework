@@ -191,6 +191,22 @@ RULES = {
             'pull_up': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_WPU', 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_WPU'},
             'pull_down': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_WPD', 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_WPD'},
             'digital_input_disable': {'registers': [], 'cite': '', 'missing': 'no cited C3 field row for an analog pad\'s input buffer yet (econ: C3 rows)'},
+            # hal-3b step 2 (econ, for pol's pin twin: the simulator reads THESE bindings, never a table of its own): the pad and matrix facts
+            # gpio.output / gpio.input already write as setups (setups below), named as roles so firmware and simulator cannot disagree on a bit
+            'pad_input_enable': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_IE', 'values': {'on': 1, 'off': 0},
+                                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_IE (1 = input enabled)'},
+            'pad_function': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'MCU_SEL', 'values': {'gpio': 1},
+                             'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: MCU_SEL; function 1 = GPIOn on every pad: datasheet Table 2-4 pp.19-20 '
+                                     '(board.custom.soc_functions) - the TRM\'s own IO MUX table not re-read this session'},
+            'output_route': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_SEL', 'values': {'gpio_out': 128},
+                             'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_SEL 128 = the pad driven by GPIO_OUT_REG bit n '
+                                     '(ESP-IDF v5.5.5 SIG_GPIO_OUT_IDX 128 agrees)'},
+            'output_enable_source': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OEN_SEL', 'values': {'gpio_enable': 1, 'peripheral': 0},
+                                     'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG'},
+            'output_driver': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'PAD_DRIVER', 'values': {'push_pull': 0, 'open_drain': 1},
+                              'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184: PAD_DRIVER 0 = normal output, 1 = open drain'},
+            'interrupt_source': {'registers': ['INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG'], 'values': {'source': 16},
+                                 'cite': 'TRM Table 8.3-1 p.204: GPIO_PROCPU_INTR is interrupt source 16; Register 8.7 p.213 maps it (board.custom.registers_esp32c3)'},
             # hal-1 interrupts: every pad has its own edge / level interrupt (no separate pin-change unit): the pin-change and the
             # edge operations land on the same GPIO_PINn_REG fields
             'pcint_mask': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'INT_TYPE', 'values': {'set': 3, 'clear': 0},
@@ -216,15 +232,35 @@ RULES = {
                 {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OUT_SEL', 'value': 128,
                  'purpose': 'route the pad\'s output to GPIO_OUT / GPIO_ENABLE (signal 128) instead of a peripheral',
                  'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OUT_SEL 128)'},
+                # hal-3b step 2 (econ, gate 2 two-sided vs ESP-IDF v5.5.5 gpio_config / gpio_output_enable): a pad left inverted, open-drain or
+                # with its output enable taken from a peripheral by earlier code would not drive GPIO_OUT as written - set every one, not trust reset
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OUT_INV_SEL', 'value': 0, 'purpose': 'do not invert the output value',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OUT_INV_SEL 0 = do not invert)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_SEL', 'value': 1,
+                 'purpose': 'take the output enable from bit n of GPIO_ENABLE_REG (which gpio.output then sets), never from a peripheral',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_INV_SEL', 'value': 0, 'purpose': 'do not invert the output enable',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_INV_SEL 0 = do not invert)'},
+                {'register': 'GPIO_PIN{n}_REG', 'field': 'PAD_DRIVER', 'value': 0, 'purpose': 'a normal (push-pull) output, not open drain',
+                 'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184 (PAD_DRIVER 0 = normal output)'},
+                # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1,
                  'purpose': 'select the pad\'s GPIO function (function 1)',
                  'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
             ],
             'gpio-in': [
-                {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1, 'purpose': 'select the pad\'s GPIO function (function 1)',
-                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'FUN_IE', 'value': 1, 'purpose': 'enable the pad\'s input buffer',
                  'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (FUN_IE)'},
+                # hal-3b step 2 (econ, gate 2 vs ESP-IDF v5.5.5 gpio_output_disable -> gpio_hal_set_output_enable_ctrl(false, false)): with
+                # OEN_SEL 0 a peripheral routed to this pad earlier would still own its output enable and could drive an "input"
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_SEL', 'value': 1,
+                 'purpose': 'take the output enable from bit n of GPIO_ENABLE_REG (which gpio.input then clears), never from a peripheral',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_INV_SEL', 'value': 0, 'purpose': 'do not invert the output enable',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_INV_SEL 0 = do not invert)'},
+                # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
+                {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1, 'purpose': 'select the pad\'s GPIO function (function 1)',
+                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
             ],
         },
         'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '', 'ctype': 'uint32_t', 'access_style': 'address',
