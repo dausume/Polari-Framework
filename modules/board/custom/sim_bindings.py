@@ -20,12 +20,19 @@ from board.custom import registers_esp32c3 as R3
 _FORK = 'Espressif QEMU fork esp-develop-9.2.2-20260417 (commit 40edccac), hw/riscv/esp32c3.c read 2026-11-13'
 
 #: the pin-level rule (PIN_TWIN_PLAN.md §2), the rule the polari-block device runs for a `pinbank`
-PINBANK_RULE = ('A pad DRIVES when its output is enabled (from GPIO_ENABLE when output_enable_source = gpio_enable), its pad function is GPIO '
-                '(pad_function = gpio) and its output route is the plain GPIO output (output_route = gpio_out): it drives the output bit. With '
-                'output_driver = open_drain it drives only a 0; a 1 releases the pad. A pad that does not drive takes the level driven from outside, '
-                'else its pull (pull_up / pull_down), else it floats (z). The input register reads level AND pad_input_enable. An edge of the kind '
-                'edge_sense names, on a pad whose edge_mask is set, sets its status bit (edge_flag clears it); any status bit set raises the '
-                'interrupt line to interrupt_source.')
+PINBANK_RULE = ('A pad DRIVES when its pad function is one of THAT PAD\'s GPIO functions (pad_function: on the C3 function 1 on every pad, and '
+                'function 0 too on GPIO0-3, 8-11, 18, 19 - TRM Table 5.12-1 p.174, econ 2026-11-13; MCU_SEL resets to 0, so firmware that never '
+                'writes it still drives GPIO8), its output route is the plain GPIO output (output_route = gpio_out) and its output is enabled. With '
+                'output_route = gpio_out the enable is the pad\'s GPIO_ENABLE bit WHATEVER output_enable_source says (an inference from ESP-IDF\'s '
+                'working path - gpio_ll_matrix_out_default writes OUT_SEL_CFG = 128, so OEN_SEL = 0, and the LED drives on silicon; TRM §5.5.3 p.165 '
+                'names only OUT_SEL = 128 + GPIO_OUT - not the TRM\'s own words); for a peripheral route, output_enable_source picks GPIO_ENABLE '
+                'or the peripheral. A driving pad drives the output bit; with output_driver = open_drain it drives only a 0 and a 1 releases the '
+                'pad. A pad that does not drive takes the level driven from outside, else its pull (pull_up / pull_down), else it floats (z). The '
+                'input register reads level AND pad_input_enable. An edge of the kind edge_sense names sets the pad\'s status bit (edge_flag clears '
+                'it); the CPU\'s interrupt status reads status AND edge_mask (C3: GPIO_PCPU_INT = STATUS AND INT_ENA bit 0, the register ESP-IDF\'s '
+                'ISR reads), and the interrupt line to interrupt_source is the OR of that CPU status, not of the raw status bits. A value the '
+                'behaviour does not model (C3: INT_TYPE 4 / 5 level triggers, OUT_INV_SEL / OEN_INV_SEL = 1) is logged by the device as an '
+                'unmodelled value, never silently read as 0.')
 
 BLOCK_BEHAVIOURS = [
     {'name': 'pinbank', 'title': 'a bank of pads: output, enable, input, pulls, pad function, output route, open drain, pin interrupts',
