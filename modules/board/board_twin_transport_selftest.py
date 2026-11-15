@@ -223,8 +223,46 @@ def _tls(check, td):
                     name_ok = str(e)
                 check('td-2 TLS: the NAME is checked too: the same certificate under another host name is refused: %s' % name_ok[-90:],
                       'certificate verify failed' in name_ok.lower(), name_ok)
+                _one_thread(check, v['ctl_url'])
     finally:
         _cleanup(mgr, worker, door)
+
+
+def _one_thread(check, url, opens=30):
+    """The door channel reads and writes on ONE thread of its own. The threaded client lost about 1 TLS 1.3 handshake in 15 through the isle agent
+    (2026-11-15, the installed door); the answer was one I/O thread, never a TLS 1.2 cap. Here: many opens in a row, each refused by the door's own code."""
+    import threading
+    from board.custom import twin_ctl_hub as HUB
+    failed, versions, ended, added, io = [], set(), set(), set(), []
+
+    async def _who():
+        return threading.current_thread()
+
+    for _ in range(opens):
+        try:
+            ch = HUB.open_channel(url, timeout=3)
+        except (OSError, RuntimeError) as e:
+            failed.append(str(e))
+            continue
+        added.add(ch._on_loop(_who(), 2) is ch._thread and ch._thread.name == 'twin-door-io')   # the connection's loop runs on the channel's own thread
+        io.append(ch._thread)
+        tls = ch.ws.transport.get_extra_info('ssl_object')
+        versions.add(tls.version() if tls else 'no TLS')
+        try:
+            ch.send(json.dumps({'token': 'not the token'}))
+        except OSError:
+            pass
+        for _line in ch.lines():
+            pass
+        ended.add(ch.ended)
+        ch.close()
+    for t in io:
+        t.join(3)
+    left = [t.name for t in io if t.is_alive()]
+    check('td-2 TLS: %d opens in a row over wss:// all complete (TLS %s, never capped), each on ONE I/O thread of its own, each refused by the door\'s code '
+          '(4403), and no I/O thread is left behind' % (opens, '/'.join(sorted(versions))),
+          not failed and versions == {'TLSv1.3'} and added == {True} and len(ended) == 1 and '4403' in next(iter(ended)) and not left,
+          (failed[:2], versions, added, ended, left))
 
 
 if __name__ == '__main__':

@@ -15,7 +15,9 @@ td-2 (TWIN_DOOR_PLAN.md §3, §5): the channel is a URL (board.custom.twin_trans
                              the door pings, this client answers. ws:// is accepted for a loopback test only.
 Either way the Hub sees lines: `_dial` returns a small line channel (send / lines / close) and nothing above it knows which wire it is.
 """
+import asyncio
 import collections
+import concurrent.futures
 import json
 import queue
 import socket
@@ -94,37 +96,103 @@ class _TcpLines:
 
 
 class _WsLines:
-    """One JSON line per WebSocket text frame (the worker's twin door). A frame that carries several lines, or a trailing newline, is accepted too."""
+    """One JSON line per WebSocket text frame (the worker's twin door). A frame that carries several lines, or a trailing newline, is accepted too.
 
-    def __init__(self, ws):
-        self.ws, self.ended = ws, ''
+    Every read and write of the connection happens on ONE thread: an asyncio loop this channel owns. The threaded websockets client reads on one thread
+    while the caller writes on another, and over TLS 1.3 through the isle agent that lost about 1 handshake in 15 (measured 2026-11-15 against the
+    installed door: 2/40 from the host, 2/30 inside the backend image, each "timed out during handshake"; the asyncio client 0/40). TLS is NOT capped to
+    1.2 to hide it. The asyncio client also keeps the connection alive with its own pings."""
+
+    def __init__(self, url, ctx, timeout):
+        self.ended, self.ws = '', None
+        self._frames = queue.Queue()
+        self._close_lock, self._closed = threading.Lock(), False
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._run, daemon=True, name='twin-door-io')
+        self._thread.start()
+        try:
+            self.ws = self._on_loop(self._open(url, ctx, timeout), timeout + 2)
+        except BaseException:
+            self._stop()
+            raise
+        asyncio.run_coroutine_threadsafe(self._pump(), self._loop)
+
+    def _run(self):
+        asyncio.set_event_loop(self._loop)
+        try:
+            self._loop.run_forever()
+            left = asyncio.all_tasks(self._loop)
+            for t in left:
+                t.cancel()
+            if left:
+                self._loop.run_until_complete(asyncio.gather(*left, return_exceptions=True))
+        finally:
+            self._loop.close()
+
+    def _stop(self):
+        try:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        except RuntimeError:   # the loop is already closed
+            pass
+
+    def _on_loop(self, coro, timeout):
+        """Run one coroutine on the channel's loop from any other thread and wait for it."""
+        try:
+            fut = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        except RuntimeError:
+            coro.close()
+            raise OSError('the twin door connection is closed')
+        try:
+            return fut.result(timeout)
+        except concurrent.futures.TimeoutError:
+            fut.cancel()
+            raise OSError('no answer from the twin door within %gs' % timeout)
+
+    @staticmethod
+    async def _open(url, ctx, timeout):
+        from websockets.asyncio.client import connect
+        return await connect(url, ssl=ctx, open_timeout=timeout, close_timeout=2)
+
+    async def _pump(self):
+        try:
+            async for frame in self.ws:
+                self._frames.put(frame)
+        except Exception:  # noqa: BLE001 - an abnormal close ends the stream like a normal one; the reason is read in lines()
+            pass
+        finally:
+            self._frames.put(None)
 
     def send(self, text):
         try:
-            self.ws.send(text)
+            self._on_loop(self.ws.send(text), 5)
         except Exception as e:  # noqa: BLE001 - websockets raises its own ConnectionClosed; the Hub speaks OSError
             raise OSError(str(e) or type(e).__name__)
 
     def lines(self):
-        try:
-            for frame in self.ws:
-                if isinstance(frame, str):
-                    frame = frame.encode()
-                for line in frame.split(b'\n'):
-                    if line.strip():
-                        yield line
-        except Exception:  # noqa: BLE001 - an abnormal close ends the stream like a normal one; the reason is read below
-            pass
+        while True:
+            frame = self._frames.get()
+            if frame is None:
+                break
+            if isinstance(frame, str):
+                frame = frame.encode()
+            for line in frame.split(b'\n'):
+                if line.strip():
+                    yield line
         proto = getattr(self.ws, 'protocol', None)   # websockets 13 keeps the close frame on the sans-IO protocol object
         code, reason = getattr(proto, 'close_code', None), getattr(proto, 'close_reason', None)
         if code not in (None, 1000, 1001):   # the door's codes (TWIN_DOOR_PLAN §3a): 4403 wrong token, 4404 unknown session, 4410 ended, 4409 replaced, 4502 twin unreachable
             self.ended = 'the twin door closed the connection (code %s%s)' % (code, ': %s' % reason if reason else '')
 
     def close(self):
+        with self._close_lock:
+            if self._closed:
+                return
+            self._closed = True
         try:
-            self.ws.close()
+            self._on_loop(self.ws.close(), 3)
         except Exception:  # noqa: BLE001
             pass
+        self._stop()
 
 
 def _tls_context(url):
@@ -143,11 +211,11 @@ def open_channel(url, timeout=5.0):
     if scheme == 'tcp':
         return _TcpLines(socket.create_connection((host, port), timeout=timeout))
     try:
-        from websockets.sync.client import connect
+        import websockets.asyncio.client  # noqa: F401
     except ImportError:
         raise RuntimeError('this server has no `websockets` package, which a twin door (%s) needs' % url)
     try:
-        return _WsLines(connect(url, ssl=_tls_context(url) if scheme == 'wss' else None, open_timeout=timeout, close_timeout=2))
+        return _WsLines(url, _tls_context(url) if scheme == 'wss' else None, timeout)
     except (OSError, RuntimeError):
         raise
     except Exception as e:  # noqa: BLE001 - a refused upgrade (the agent answers 404/502 when the door is down) is a websockets exception
