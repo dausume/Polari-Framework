@@ -364,6 +364,9 @@ public final class SerialCdcPort implements DevicePort {
     private long framesSinceOpen;
     private int openAttempts;
     private long reconnectCount;
+    /** set by close(): the stream ending after it is this bridge
+     *  stopping, not a lost device - never a reason to dial again */
+    private volatile boolean closing;
 
     public SerialCdcPort(String device, int baud) throws Exception {
         this(device, baud, null);
@@ -418,6 +421,9 @@ public final class SerialCdcPort implements DevicePort {
                 framesSinceOpen++;
                 return p;
             } catch (IOException lost) {  // EOFException IS an IOException
+                if (closing) {
+                    throw new java.io.EOFException("closed here");
+                }
                 System.out.println("{\"t\":\"" + kind + "-lost\",\"device\":\""
                         + device + "\",\"after_frames\":" + framesSinceOpen
                         + "}");
@@ -433,6 +439,9 @@ public final class SerialCdcPort implements DevicePort {
     private void reopenWithBackoff() throws Exception {
         long backoffMs = 500;
         while (true) {
+            if (closing) {
+                throw new java.io.EOFException("closed here");
+            }
             try {
                 open();
                 return;
@@ -481,6 +490,7 @@ public final class SerialCdcPort implements DevicePort {
 
     @Override
     public void close() throws Exception {
+        closing = true;
         closeQuiet();
     }
 
