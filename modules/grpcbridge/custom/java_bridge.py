@@ -25,6 +25,7 @@ import tarfile
 from datetime import datetime, timezone
 
 from grpcbridge.custom import java_bridge_codegen as jcg
+from grpcbridge.custom import java_bridge_door as jd
 from grpcbridge.custom import java_bridge_templates as jt
 from grpcbridge.custom import java_bridge_wire as jw
 from grpcbridge.custom import wire_contract as wc
@@ -195,6 +196,9 @@ def generate_project(manager, bridge, row_factory=None):
         jt.SIMULATED_DEVICE_JAVA
     files[f'{JAVA_DIR}/SerialCdcPort.java'] = jt.SERIAL_PORT_JAVA
     files[f'{JAVA_DIR}/TcpDevicePort.java'] = jt.TCP_PORT_JAVA   # brg-0: source=twin-tcp
+    files[f'{JAVA_DIR}/IsleTrust.java'] = jd.ISLE_TRUST_JAVA     # td-4: whose certificates a bridge trusts (twin door, gRPC)
+    files[f'{JAVA_DIR}/WsDevicePort.java'] = jd.WS_PORT_JAVA     # td-4: a twin session through the worker's door (wss)
+    files[f'{JAVA_DIR}/TwinPort.java'] = jd.TWIN_PORT_JAVA       # td-4: tcp or door, read from twin.uart
     files[f'{JAVA_DIR}/BridgeConfig.java'] = jt.BRIDGE_CONFIG_JAVA
     files[f'{JAVA_DIR}/BridgeMain.java'] = jt.BRIDGE_MAIN_JAVA
     files[f'{JAVA_DIR}/LoopbackSelfTest.java'] = \
@@ -236,6 +240,8 @@ def generate_project(manager, bridge, row_factory=None):
         f'twin.host={getattr(bridge, "twin_host", "127.0.0.1")}',
         f'twin.port={getattr(bridge, "twin_port", 9831)}',
         'twin.connect_timeout_s=30',
+        # td-4: twin.uart=wss://<door>/sessions/<id>/uart (with source=twin-door and the token in the environment variable TWIN_TOKEN) or tcp://host:port
+        # replaces the two lines above; the hosted-bridge worker writes it per session, so it is not set here.
         f'sim.rate_hz={getattr(bridge, "sim_rate_hz", 10)}',
         'max_frames=0',
         f'device.id={getattr(bridge, "device_id", 1)}',
@@ -243,6 +249,9 @@ def generate_project(manager, bridge, row_factory=None):
         f'{str(bool(getattr(bridge, "grpc_enabled", False))).lower()}',
         f'grpc.target='
         f'{getattr(bridge, "grpc_target", "localhost:3002")}',
+        # td-4: verified = TLS checked against the isle trust bundle (what the bridge assumes when this line is absent); plaintext is written here because
+        # Polari's gRPC port speaks no TLS today (grpc_server.add_insecure_port) - an explicit, visible knob, said aloud in the bridge's log.
+        f'grpc.tls={getattr(bridge, "grpc_tls", "") or "plaintext"}',
     ] + jw.properties_lines(
         bridge_name, [r for c in names for r in bound.get(c, [])]) + [''])
     files[f'systemd/polari-hw-bridge-{bridge_name}.service'] = \

@@ -28,8 +28,9 @@ cat pom.xml > target/polari-hw-bridge.jar
 echo "built $(wc -c < target/polari-hw-bridge.jar) bytes"
 '''
 FAKE_JAVA = '''#!/bin/sh
-# fake java -Xmx.. -XX.. -Xss.. -jar JAR PROPS: prints the properties it was given and stays alive (the command line carries the .jar)
-exec python3 -c "import sys,time; print(open(sys.argv[2]).read(), flush=True); time.sleep(300)" "$5" "$6"
+# fake java -Xmx.. -XX.. -Xss.. -jar JAR PROPS: prints the properties it was given, then whether TWIN_TOKEN is in its environment (as a sha256, never the
+# value), and stays alive (the command line carries the .jar)
+exec python3 -c "import hashlib,os,sys,time; t=os.environ.get('TWIN_TOKEN'); print(open(sys.argv[2]).read()); print('token-env=' + (hashlib.sha256(t.encode()).hexdigest() if t else 'unset'), flush=True); time.sleep(300)" "$5" "$6"
 '''
 
 
@@ -46,9 +47,10 @@ def _load_worker(tmp):
     return mod
 
 
-def worker_logic(check, skip):
+def worker_logic(check, skip, checks=None, label='sim-2 worker logic'):
+    """Run `checks(check, bh, falcon, FT, tmp, count)` (default: the sim-2 ones below) against the real worker module in a scratch directory."""
     if not os.path.isfile(os.path.join(WORKER_DIR, 'bridge_hosted.py')):
-        return skip('sim-2 worker logic', 'the prf-bridge-engines source is not beside this framework checkout')
+        return skip(label, 'the prf-bridge-engines source is not beside this framework checkout')
     import falcon
     import falcon.testing as FT
     with tempfile.TemporaryDirectory(prefix='bridge-worker-test-') as tmp:
@@ -65,7 +67,7 @@ def worker_logic(check, skip):
                 bh = _load_worker(tmp)
             finally:
                 sys.path.remove(WORKER_DIR)
-            _worker_checks(check, bh, falcon, FT, tmp, count)
+            (checks or _worker_checks)(check, bh, falcon, FT, tmp, count)
         finally:
             for k, v in old.items():
                 if v is None:
@@ -182,32 +184,43 @@ def _worker_checks(check, bh, falcon, FT, tmp, count):
 
 
 # ---------------------------------------------------------------------------------------------------------------- the JVM
+def light_core(tmp):
+    """Write the generated uno-light project under `tmp` and compile its core (everything but the gRPC half, which needs the Maven dependencies) into
+    tmp/out. -> (the generation report, javac's CompletedProcess or None when the project did not generate)."""
+    from hwnocode.custom import offline_project as OP
+    rep = OP.light_project(grpc_target='localhost:3002')
+    if not rep.get('ok'):
+        return rep, None
+    for path, text in rep['files'].items():
+        dest = os.path.join(tmp, path)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, 'w') as f:
+            f.write(text)
+    core = [os.path.join(dp, fn) for dp, _d, fns in os.walk(os.path.join(tmp, 'src/main/java')) for fn in fns if fn.endswith('.java') and '/grpc' not in dp]
+    return rep, subprocess.run([shutil.which('javac'), '--release', '17', '-d', os.path.join(tmp, 'out')] + core, capture_output=True, text=True)
+
+
+def light_frame(seq, led_on=False, toggles=0, source='command'):
+    """One LightState frame as the uno-light firmware sends it, from the independent Python reference codec."""
+    from board.custom import light_twin as LT
+    from grpcbridge.custom import wire_ref
+    _fmap, spec = LT._spec()
+    vals = dict(name='uno-light', seq=seq, status='idle', boot_session=77, led_on=led_on, toggles=toggles, source=source)
+    return wire_ref.frame(1, 1, seq, wire_ref.encode(spec, vals), version=spec['wire_version'])
+
+
 def jvm_twin_mode(check, skip):
     javac, java = shutil.which('javac'), shutil.which('java')
     if not (javac and java):
         return skip('brg-0 JVM twin mode', 'no JDK on PATH')
-    from board.custom import light_twin as LT
-    from grpcbridge.custom import wire_ref
-    from hwnocode.custom import offline_project as OP
     from grpcbridge.custom.hosted_fakes import FakeUsart
-    rep = OP.light_project(grpc_target='localhost:3002')
-    if not rep.get('ok'):
-        return check('brg-0: the uno-light project generates', False, str(rep.get('error')))
-    fmap, spec = LT._spec()
-
-    def frame(seq, led_on=False, toggles=0, source='command'):
-        vals = dict(name='uno-light', seq=seq, status='idle', boot_session=77, led_on=led_on, toggles=toggles, source=source)
-        return wire_ref.frame(1, 1, seq, wire_ref.encode(spec, vals), version=spec['wire_version'])
-
+    frame = light_frame
     usart = FakeUsart([[frame(1), frame(2, True, 1, 'button')], [frame(3, False, 2, 'command')]])
     with tempfile.TemporaryDirectory(prefix='polari-brg0-') as tmp:
-        for path, text in rep['files'].items():
-            dest = os.path.join(tmp, path)
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            with open(dest, 'w') as f:
-                f.write(text)
-        core = [os.path.join(dp, fn) for dp, _d, fns in os.walk(os.path.join(tmp, 'src/main/java')) for fn in fns if fn.endswith('.java') and '/grpc' not in dp]
-        comp = subprocess.run([javac, '--release', '17', '-d', os.path.join(tmp, 'out')] + core, capture_output=True, text=True)
+        rep, comp = light_core(tmp)
+        if comp is None:
+            usart.close()
+            return check('brg-0: the uno-light project generates', False, str(rep.get('error')))
         check('brg-0: the generated uno-light core (with TcpDevicePort) compiles with javac', comp.returncode == 0, comp.stderr[:600])
         if comp.returncode != 0:
             return

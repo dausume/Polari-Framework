@@ -39,8 +39,8 @@ def _call(api, method, path, body=None, timeout=120):
 
 
 def line(s):
-    return ('%-22s %-9s %-24s %-8s %s  :%s/:%s  %6.0fs left  %s' % (s['name'], s['state'], s['participant'], s['config'], s['firmware']['sha256'][:12],
-                                                                   s['tcp_port'], s['ctl_port'], s['remaining_s'], s['host']))
+    return ('%-22s %-9s %-24s %-8s %s  %-4s :%s/:%s  %6.0fs left  %s' % (s['name'], s['state'], s['participant'], s['config'], s['firmware']['sha256'][:12],
+                                                                        s.get('transport') or 'tcp', s['tcp_port'], s['ctl_port'], s['remaining_s'], s['host']))
 
 
 def render_start(d):
@@ -48,7 +48,9 @@ def render_start(d):
     return '\n'.join([
         'started %s as %s on %s' % (d['name'], d['participant'], d['host']),
         '  firmware   %s (built by the shipped gen + build pipeline), %d bytes, sha256 %s - LOCKED while the session runs' % (d['config'], f['bytes'], f['sha256']),
-        '  serial     tcp %s:%s (the USART0 report)    control  %s:%s (JSON lines)' % (d['host'], d['tcp_port'], d['host'], d['ctl_port']),
+        '  control    %s (JSON lines)' % (d.get('ctl_url') or 'tcp://%s:%s' % (d['host'], d['ctl_port'])),
+        '  serial     %s (the USART0 report)' % (d.get('uart_url') or 'tcp://%s:%s' % (d['host'], d['tcp_port'])),
+        '  reached    %s' % (d.get('transport_why') or 'on the session\'s TCP ports'),
         '  token      %s    (shown once: a bridge needs it; the server re-derives it, no row stores it)' % d['token'],
         '  ends       in %.0f s unless stopped (pol board twin session stop %s)' % (d['remaining_s'], d['name'])])
 

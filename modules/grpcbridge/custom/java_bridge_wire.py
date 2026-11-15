@@ -78,12 +78,14 @@ import java.util.concurrent.LinkedBlockingQueue;
  * port (the twin accepts one client), so every binding shares ONE
  * TcpDevicePort; frames carry no sourcePort (the port check is skipped)
  * and a command for any binding goes down that one connection.
+ * td-4: that one port is whatever TwinPort opens - the raw TCP port or
+ * the worker's twin door (twin.uart) - so the door needs nothing here.
  */
 public final class BindingRouter implements DevicePort {
     private static final Object END = new Object();
     private static final Object CORRUPT = new Object();
     private final BridgeConfig cfg;
-    private static final String TWIN = "twin-tcp";
+    private static final String TWIN = "twin";
     private final boolean twin;
     private final Map<String, DevicePort> ports = new LinkedHashMap<>();
     private final BlockingQueue<Object> queue = new LinkedBlockingQueue<>();
@@ -91,10 +93,9 @@ public final class BindingRouter implements DevicePort {
 
     public BindingRouter(BridgeConfig cfg) throws Exception {
         this.cfg = cfg;
-        this.twin = TWIN.equals(cfg.source);
+        this.twin = TwinPort.is(cfg.source);
         if (twin) {
-            ports.put(TWIN, new TcpDevicePort(cfg.twinHost, cfg.twinPort,
-                    cfg.twinConnectTimeoutS));
+            ports.put(TWIN, TwinPort.open(cfg));
         } else {
             for (BridgeBinding b : cfg.bindings) {
                 if (!ports.containsKey(b.port)) {
@@ -161,8 +162,8 @@ public final class BindingRouter implements DevicePort {
     @Override
     public String describe() {
         return twin
-                ? "bindings " + cfg.bindings.size() + " on twin-tcp "
-                        + cfg.twinHost + ":" + cfg.twinPort
+                ? "bindings " + cfg.bindings.size() + " on "
+                        + ports.get(TWIN).describe()
                 : "bindings " + cfg.bindings.size() + " on ports "
                         + ports.keySet();
     }

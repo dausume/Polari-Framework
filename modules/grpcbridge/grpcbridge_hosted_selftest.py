@@ -65,7 +65,7 @@ def _mgr():
 
 # ---------------------------------------------------------------------------------------------------------------- offline
 def offline():
-    from grpcbridge.custom import bridge_engines as be, hosted_bridges as HB, hosted_checks as HC
+    from grpcbridge.custom import bridge_engines as be, hosted_bridges as HB, hosted_checks as HC, hosted_door_checks as DC
     from grpcbridge.custom.hosted_fakes import FakeBridgeWorker
     from board.custom import twin_sessions as TS
     from board.custom.twin_session_fakes import FakeWorker
@@ -93,6 +93,9 @@ def offline():
 
         HC.worker_logic(check, skip)
         HC.jvm_twin_mode(check, skip)
+        DC.worker_door(check, skip)
+        DC.jvm_door_mode(check, skip)
+        DC.grpc_tls_mode(check, skip)
 
         with tempfile.TemporaryDirectory(prefix='hosted-selftest-') as td, _env(POLARI_TWIN_TOKEN_FILE=os.path.join(td, 'secret'), POLARI_TWIN_TOKEN_SECRET=None):
             board = FakeWorker(sessions=True)
@@ -102,6 +105,7 @@ def offline():
                     be.forget()
                     _backend(mgr, TS, HB, new, board)
                     _doors(mgr, TS, new)
+                DC.backend_door(check, mgr, TS, HB, _env, HEX)
             finally:
                 for s in list(TS._rows(mgr)):
                     if s.state == 'running':
@@ -121,7 +125,8 @@ def _registration(check):
     from grpcbridge.hosted_basis import HostedBridge
     check('sim-2: HostedBridge is a row class with plain_words, registered in the module manifest (object, basis, doors, custom, selftest) and in the server', HostedBridge.plain_words
           and 'objects/hosted/HostedBridge' in app['files']['objects'] and 'hosted_basis' in app['files']['basis'] and 'hosted_bridges_api' in app['files']['api']
-          and {'custom/bridge_engines', 'custom/hosted_bridges', 'custom/hosted_worker', 'custom/hosted_cli', 'custom/hosted_fakes', 'custom/hosted_checks', 'custom/hosted_proof'} <= set(app['files']['custom'])
+          and {'custom/bridge_engines', 'custom/hosted_bridges', 'custom/hosted_worker', 'custom/hosted_cli', 'custom/hosted_fakes', 'custom/hosted_checks', 'custom/hosted_proof',
+             'custom/hosted_door_checks', 'custom/java_bridge_door'} <= set(app['files']['custom'])
           and 'grpcbridge_hosted_selftest' in app['selftests'] and 'HostedBridge' in app['classes']
           and "'HostedBridge'" in open(os.path.join(fw, 'polariApiServer', 'feature_imports.py')).read()
           and 'HostedBridge' in open(os.path.join(fw, 'polariApiServer', 'polariServer.py')).read()
@@ -145,6 +150,8 @@ def _backend(mgr, TS, HB, bworker, board):
           'and the gRPC target derived from the host asked (testnode.example:3002, the demo bundle\'s derivation)', v['state'] == 'running' and v['session'] == ts['name']
           and sent['twin_host'] == ts['host'] and sent['twin_port'] == ts['tcp_port'] and 'src/main/java/org/polari/bridge/TcpDevicePort.java' in sent['files'] and 'pom.xml' in sent['files']
           and sent['grpc_target'] == 'testnode.example:3002' and v['grpc'] and 'twin.port=' in sent['files']['bridge.properties'], str(v)[:300])
+    check('td-3: a session on plain TCP (a worker with no door) says so to the bridge worker - twin_uart = tcp://<host>:<its USART port> - and NO token is sent',
+          sent.get('twin_uart') == 'tcp://%s:%s' % (ts['host'], ts['tcp_port']) and 'token' not in sent, str({k: x for k, x in sent.items() if k != 'files'}))
     check('sim-2: the project comes from the code-owned uno-light rows when the server has none, and says so', 'code-owned rows' in v['project_source'], v.get('project_source'))
     v2 = HB.start(mgr, ts['name'], grpc_target_='other.example:4000')
     v3 = HB.start(mgr, ts['name'], log_only=True, api_host='ignored.example')

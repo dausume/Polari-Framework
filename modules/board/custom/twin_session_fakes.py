@@ -1,6 +1,7 @@
 """board.custom.twin_session_fakes - test support for board_twin_session_selftest: a FAKE engines worker (HTTP /capability + /sessions) and a FAKE twin control port
 (the JSON-line protocol of prf-board-engines/twin_ctl.h) so the backend half of sim-1 is proven with no worker and no docker. The fake mirrors the PROTOCOL only;
 the real twin and worker are proven by the live half of the selftest."""
+import contextlib
 import json
 import socket
 import threading
@@ -82,11 +83,86 @@ class FakeTwin:
                 pass
 
 
-class FakeWorker:
-    """GET /capability, POST/GET/DELETE /sessions - the shape of prf-board-engines/board_sessions.py. sessions=False = an image older than sim-0."""
+class FakeDoor:
+    """The worker's twin door (TWIN_DOOR_PLAN.md §3, §3a) in front of a FakeWorker's FakeTwins: a WebSocket server on loopback, `/sessions/<id>/ctl` joined
+    to the twin's control port. First frame {"token"} (checked here, then passed on so the twin's own ack is the first frame back); one JSON line per text
+    frame, sent WITHOUT the trailing newline; close codes 4400 bad first frame, 4403 wrong token, 4404 unknown session, 4410 the twin closed, 4502 the twin's
+    port could not be reached. `tls` = (certfile, keyfile) serves wss://. The fake mirrors the PROTOCOL only; the real door is prf-board-engines/twin_door.py."""
 
-    def __init__(self, sessions=True, ttl_expire_after=None):
-        self.sessions_cap, self.twins, self.requests, self.ttl_expire_after = sessions, {}, [], ttl_expire_after
+    def __init__(self, worker, tls=None, host='127.0.0.1'):
+        import ssl
+        from websockets.sync.server import serve
+        self.worker, self.seen = worker, []
+        ctx = None
+        if tls:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(*tls)
+        self.srv = serve(self._handle, '127.0.0.1', 0, ssl=ctx)
+        self.port = self.srv.socket.getsockname()[1]
+        self.base = '%s://%s:%d' % ('wss' if tls else 'ws', host, self.port)
+        self.transports = {'ctl': self.base + '/sessions/{id}/ctl', 'uart': self.base + '/sessions/{id}/uart'}
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+    def _handle(self, ws):
+        parts = ws.request.path.strip('/').split('/')
+        self.seen.append(ws.request.path)
+        if len(parts) != 3 or parts[0] != 'sessions' or parts[2] not in ('ctl', 'uart'):
+            return ws.close(4404, 'no such door path')
+        t = self.worker.twins.get(parts[1])
+        if t is None:
+            return ws.close(4404, 'no session %s on this worker' % parts[1])
+        try:
+            first = json.loads(ws.recv(timeout=5))
+        except Exception:  # noqa: BLE001
+            return ws.close(4400, 'the first frame must be {"token": "..."}')
+        if not isinstance(first, dict) or first.get('token') != t['body']['token']:
+            return ws.close(4403, 'the token is wrong')
+        if parts[2] == 'uart':
+            return ws.close(4502, 'the fake twin has no serial port')
+        try:
+            sock = socket.create_connection(('127.0.0.1', t['twin'].port), timeout=3)
+        except OSError:
+            return ws.close(4502, 'the twin control port could not be reached')
+        sock.sendall((json.dumps(first) + '\n').encode())
+
+        def down():
+            buf = b''
+            try:
+                while True:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                    while b'\n' in buf:
+                        line, buf = buf.split(b'\n', 1)
+                        ws.send(line.decode())
+            except Exception:  # noqa: BLE001
+                pass
+            with contextlib.suppress(Exception):
+                ws.close(4410, 'the twin closed the stream')
+        threading.Thread(target=down, daemon=True).start()
+        try:
+            for frame in ws:
+                if not isinstance(frame, str):
+                    ws.close(4400, 'the control stream takes text frames')
+                    break
+                sock.sendall((frame.rstrip('\n') + '\n').encode())
+        except Exception:  # noqa: BLE001
+            pass
+        with contextlib.suppress(OSError):
+            sock.close()
+
+    def close(self):
+        self.srv.shutdown()
+
+
+class FakeWorker:
+    """GET /capability, POST/GET/DELETE /sessions - the shape of prf-board-engines/board_sessions.py. sessions=False = an image older than sim-0.
+    `transports` (a dict, e.g. a FakeDoor's) is advertised as the top-level "transports" of /capability when set."""
+
+    def __init__(self, sessions=True, ttl_expire_after=None, transports=None):
+        self.sessions_cap, self.twins, self.requests, self.ttl_expire_after, self.transports = sessions, {}, [], ttl_expire_after, transports
+        self.made = []   # every FakeTwin ever started here (a stopped one leaves `twins`): `made[n].conn is None` = its control port was never dialled
         outer = self
 
         class H(BaseHTTPRequestHandler):
@@ -107,6 +183,8 @@ class FakeWorker:
                     cap = {'worker': 'board-engines', 'engines': {'avr-twin': {'available': True}}}
                     if outer.sessions_cap:
                         cap['sessions'] = {'available': True, 'max': 8}
+                    if outer.transports is not None:
+                        cap['transports'] = outer.transports
                     return self._json(200, cap)
                 sid = self.path.rsplit('/', 1)[-1]
                 if self.path.startswith('/sessions/') and sid in outer.twins:
@@ -122,6 +200,7 @@ class FakeWorker:
                 sid = 'f%05d' % (len(outer.twins) + 1)
                 twin = FakeTwin(body['token'])
                 outer.twins[sid] = {'twin': twin, 'body': body}
+                outer.made.append(twin)
                 now = time.time()
                 self._json(200, {'ok': True, 'id': sid, 'ports': {'tcp': 0, 'ctl': twin.port}, 'started': now, 'expires': now + body['ttl_s'], 'status': {'t': 'status', 'cycle': 0}})
 

@@ -241,6 +241,7 @@
    "board_solution_rename_selftest",
    "board_target_compat_selftest",
    "board_twin_session_selftest",
+   "board_twin_transport_selftest",
    "board_uno_selftest",
    "board_variant_twin_selftest"
   ],
@@ -408,6 +409,7 @@
    "custom/twin_session_worker",
    "custom/twin_sessions",
    "custom/twin_sessions_cli",
+   "custom/twin_transport",
    "custom/twin_token",
    "custom/uart_sampling",
    "custom/uno_evidence",
@@ -674,6 +676,7 @@
   "board_solution_rename_selftest",
   "board_target_compat_selftest",
   "board_twin_session_selftest",
+  "board_twin_transport_selftest",
   "board_uno_selftest",
   "board_variant_twin_selftest"
  ],

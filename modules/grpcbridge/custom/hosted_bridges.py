@@ -4,7 +4,8 @@
 sim-2 (HARDWARE_BENCH_CONVERGENCE_PLAN.md section 3): HOSTED BRIDGES as HostedBridge rows over the bridge-engines worker's /bridges door.
 
     start(manager, session, bridge_name='uno-light', grpc_target='', api_host='', ttl_s=None, owner='', log_only=False) -> view
-                    take the TwinSession (its host + USART tcp port), generate the bridge's project (the generate door's own code: live rows, else for
+                    take the TwinSession (its serial channel: the worker's twin door when the session went through one - td-3, TWIN_DOOR_PLAN.md - else its
+                    host + USART tcp port), generate the bridge's project (the generate door's own code: live rows, else for
                     uno-light the code-owned rows the demo bundle uses), POST it to the worker (grpcbridge.custom.bridge_engines.resolve), write the row.
                     The bridge's gRPC target = THIS backend's gRPC bridge port on the host the request came from (the demo bundle's derivation,
                     hwnocode.custom.export_demo.grpc_target) unless `grpc_target` is given; `log_only` = no gRPC, the bridge only logs the frames it decodes.
@@ -67,7 +68,7 @@ def _new_row(manager, **kw):
 def view(row):
     now = time.time()
     return {'name': row.name, 'session': row.session, 'bridge_name': row.bridge_name, 'state': row.state, 'worker': row.worker_url,
-            'worker_bridge': row.worker_bridge, 'twin': '%s:%s' % (row.twin_host, row.twin_port), 'grpc_target': row.grpc_target, 'grpc': bool(row.grpc_target),
+            'worker_bridge': row.worker_bridge, 'twin': getattr(row, 'twin_uart', '') or '%s:%s' % (row.twin_host, row.twin_port), 'grpc_target': row.grpc_target, 'grpc': bool(row.grpc_target),
             'build_fp': row.build_fp, 'jar_sha256': row.jar_sha256, 'owner': row.owner, 'started_at': row.started_at, 'expires_at': row.expires_at,
             'ttl_s': row.ttl_s, 'remaining_s': max(0.0, round(row.expires_at - now, 1)) if row.state in ('building', 'running') else 0,
             'ended_at': row.ended_at, 'end_reason': row.end_reason,
@@ -148,14 +149,30 @@ def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_hos
     worker = _worker()
     target = '' if log_only else (grpc_target_ or grpc_target(api_host))
     ttl = int(ttl_s or min(max(sess['remaining_s'], 10), TTL_MAX))
+    # td-3: the bridge reaches the session's serial stream the way the SESSION went (twin_transport's choice, on the row) - never a second guess here.
+    from board.custom import twin_token, twin_transport as TT
+    uart = sess.get('uart_url') or 'tcp://%s:%s' % (sess['host'], sess['tcp_port'])
+    door = TT.kind(uart) == 'door'
+    body = {'session_id': sess['name'], 'twin_host': sess['host'], 'twin_port': sess['tcp_port'], 'twin_uart': uart, 'bridge_name': bridge_name, 'files': files,
+            'grpc_target': target, 'ttl_s': ttl, 'owner': owner}
+    if door:
+        body['token'] = twin_token.derive(sess['name'])   # in the POST body over verified TLS only: never a URL, a row, a view or a log
     try:
-        w = W.start(worker, {'session_id': sess['name'], 'twin_host': sess['host'], 'twin_port': sess['tcp_port'], 'bridge_name': bridge_name, 'files': files,
-                             'grpc_target': target, 'ttl_s': ttl, 'owner': owner})
+        w = W.start(worker, body)
     except W.WorkerRefused as e:
         raise HostedRefused(str(e), 424 if e.status in (0, 503) else (e.status or 502))
+    if door and w.get('twin_uart') != uart:
+        # D4: a worker that does not know twin_uart would read the session's TCP port, which a door worker does not publish - refuse, never a silent fall back
+        try:
+            W.stop(worker, w.get('id'))
+        except W.WorkerRefused:
+            pass
+        raise HostedRefused('the bridge worker at %s started the bridge WITHOUT the twin door (its answer does not repeat twin_uart, so it is older than the '
+                            'twin-door release); the bridge was stopped rather than left reading a TCP port that the session\'s worker does not publish. The '
+                            'session is reached at %s' % (worker, uart), 424)
     name = '%s-%s' % (bridge_name, secrets.token_hex(3))
     row = _new_row(manager, name=name, session=sess['name'], bridge_name=bridge_name, state='building', worker_url=worker, worker_bridge=w['id'],
-                   twin_host=sess['host'], twin_port=int(sess['tcp_port']), grpc_target=target, build_fp=w.get('build_fp', ''), owner=owner,
+                   twin_host=sess['host'], twin_port=int(sess['tcp_port']), twin_uart=uart, grpc_target=target, build_fp=w.get('build_fp', ''), owner=owner,
                    started_at=w['started'], expires_at=w['expires'], ttl_s=ttl)
     _apply(manager, row, w)
     return dict(view(row), project_source=source, build=w.get('build'))

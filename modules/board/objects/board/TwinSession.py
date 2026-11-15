@@ -16,8 +16,10 @@ class TwinSession(treeObject):
     Fields: `config` is the firmware variant that was built and loaded; `board` the board design (a BoardDefinition name); `participant` the name the
     Hardware Solution lists (`twin:arduino-uno-r3#0`; `instance_index` is its number among the running sessions of that board); `state` is `running` | `ended`;
     `hex_sha256` / `hex_bytes` the locked firmware; `worker_url` the engines worker that runs the twin and `worker_session` its id there; `host`, `tcp_port`
-    and `ctl_port` where the twin listens (the serial report on `tcp_port`, the control channel on `ctl_port`, both behind the session's token, which is
-    derived on the server and never stored in this row); `started_at` / `expires_at` UTC seconds (a session that nobody stops ends at `expires_at`);
+    and `ctl_port` where the twin listens on the worker (the serial report on `tcp_port`, the control channel on `ctl_port`); `ctl_url` / `uart_url` are how this
+    server and a bridge actually REACH those two streams - `wss://<the worker's twin door>/sessions/<id>/ctl|uart` when the worker advertises a door, else
+    `tcp://host:port` - and `transport_why` says in words which way was chosen and why (both ways sit behind the session's token, which is derived on the
+    server and never stored in this row); `started_at` / `expires_at` UTC seconds (a session that nobody stops ends at `expires_at`);
     `ended_at` / `end_reason` say when and why it stopped; `watch_json` the pins whose changes are streamed; `last_status_json` the twin's latest status line.
 
     Related concepts: FirmwareVariant (the config), FirmwareBuild (the build record), BoardInstance (`twin:<board>#<n>` names also appear on its bindings),
@@ -30,7 +32,7 @@ class TwinSession(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', config: str = '', board: str = '', participant: str = '', instance_index: int = 0, state: str = 'running',
                  hex_sha256: str = '', hex_bytes: int = 0, firmware_locked: bool = True, worker_url: str = '', worker_session: str = '', host: str = '',
-                 tcp_port: int = 0, ctl_port: int = 0, owner: str = '', started_at: float = 0.0, expires_at: float = 0.0, ttl_s: int = 0,
+                 tcp_port: int = 0, ctl_port: int = 0, ctl_url: str = '', uart_url: str = '', transport_why: str = '', owner: str = '', started_at: float = 0.0, expires_at: float = 0.0, ttl_s: int = 0,
                  ended_at: float = 0.0, end_reason: str = '', watch_json: str = '[]', last_status_json: str = '{}', manager=None):
         self.name = name  # '<config>-<6 hex>'
         self.config = config  # the firmware variant that was built and loaded
@@ -46,6 +48,9 @@ class TwinSession(treeObject):
         self.host = host
         self.tcp_port = tcp_port  # the USART0 report
         self.ctl_port = ctl_port  # the control channel
+        self.ctl_url = ctl_url  # how the control channel is reached: wss://<door>/sessions/<id>/ctl | tcp://host:port
+        self.uart_url = uart_url  # how the serial report is reached (the hosted bridge dials this)
+        self.transport_why = transport_why  # the choice in words (read from the worker's /capability)
         self.owner = owner
         self.started_at = started_at
         self.expires_at = expires_at
