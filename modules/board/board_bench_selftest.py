@@ -172,7 +172,7 @@ def page_checks():
           st['sim-sessions']['dataPath'].startswith('/api/board/twins') and st['sim-sessions']['selectScope'] == 'session' and st['sim-firmwares']['rowAction']['path'] == '/api/board/twins'
           and st['sim-firmwares']['rowAction']['body_template'] == {'config': '{name}'} and st['sim-firmwares']['rowAction']['then_scope'] == {'key': 'session', 'from': 'name'})
     check('sim-3: the firmware panel shows config, the LOCKED hex sha256, board, ports, time left, and has a Stop session row action; the bridge table has "Attach a bridge" posting to /api/grpc/hosted-bridges',
-          all(c in st['sim-firmware-panel']['columns'] for c in ('config', 'hex_sha256', 'locked_text', 'board', 'ports', 'remaining_s')) and st['sim-firmware-panel']['rowAction']['label'] == 'Stop session'
+          all(c in st['sim-firmware-panel']['columns'] for c in ('config', 'hex_sha256', 'locked_text', 'board', 'reached_by', 'transport_why', 'ports', 'remaining_s')) and 'twin' in st['sim-bridges']['columns'] and st['sim-firmware-panel']['rowAction']['label'] == 'Stop session'
           and st['sim-firmware-panel']['rowAction']['path'] == '/api/board/twins/{name}/stop' and st['sim-bridge-attach']['rowAction']['path'] == '/api/grpc/hosted-bridges'
           and st['sim-bridge-attach']['rowAction']['body_template'] == {'session': '{name}'})
     check('sim-3: "Record this session as evidence" posts to /api/board/twins/{name}/record', st['sim-record']['rowAction']['label'] == 'Record this session as evidence' and st['sim-record']['rowAction']['path'] == '/api/board/twins/{name}/record')
@@ -257,7 +257,8 @@ def _backend():
             one = cl.simulate_get('/api/board/twins?name=%s' % name).json
             check('sim-3: by-query doors: interactions needs ?session= (400 in words), ?session=all lists every session\'s rows, /api/board/twins?name= keeps the one session with the firmware-panel fields',
                   no.status_code == 400 and allr['count'] == 4 and one['count'] == 1 and one['rows'][0]['hex_sha256'] == hashlib.sha256(HEX).hexdigest() and one['rows'][0]['running_now'] is True
-                  and 'locked' in one['rows'][0]['locked_text'] and one['rows'][0]['ports'].startswith('serial report'))
+                  and 'locked' in one['rows'][0]['locked_text'] and one['rows'][0]['ports'].startswith('control tcp://') and 'serial report tcp://' in one['rows'][0]['ports']
+                  and one['rows'][0]['reached_by'].startswith('plain TCP') and 'no twin door' in one['rows'][0]['transport_why'], str(one['rows'][0])[:400])
             rec = cl.simulate_post('/api/board/twins/%s/record' % name, json={})
             run = [r for r in mgr.objectTables.get('ScenarioRun', {}).values()]
             check('sim-3 (D-hbc-4): "record as evidence" writes ONE ScenarioRun of kind attested, side bench-session, outcome undetermined (nobody judged it), with the locked firmware sha256 and every interaction in repro_json; it is not a proof',

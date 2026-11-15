@@ -87,6 +87,7 @@ def view(row):
             'worker': row.worker_url, 'worker_session': row.worker_session, 'host': row.host, 'tcp_port': row.tcp_port, 'ctl_port': row.ctl_port,
             'hex_sha256': row.hex_sha256, 'firmware_locked': bool(row.firmware_locked), 'locked_text': 'locked: no edit or reflash while the session runs' if row.firmware_locked else 'unlocked',
             'ctl_url': ctl_url, 'uart_url': uart_url, 'transport': TT.kind(ctl_url), 'transport_why': getattr(row, 'transport_why', ''),
+            'reached_by': 'the worker\'s twin door (WebSocket over HTTPS, by name)' if TT.kind(ctl_url) == 'door' else 'plain TCP on the session\'s own ports',
             'ports': 'control %s, serial report %s' % (ctl_url, uart_url),
             'owner': row.owner, 'started_at': row.started_at, 'expires_at': row.expires_at, 'ttl_s': row.ttl_s,
             'remaining_s': 0 if row.state != 'running' else max(0.0, round(row.expires_at - now, 1)),

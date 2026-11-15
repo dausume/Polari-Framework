@@ -6,7 +6,7 @@ mode, bound to a TwinSession, with every table configured (no raw JSON, no new c
 
     Bench tab     the picture (press / turn / set a temperature on the parts; the LED follows the board) |
                   firmware you can run (row action: start a session) | the sessions (click one to bind the picture) |
-                  the firmware panel of the picked session: config, the LOCKED hex sha256, board, ports, time left, row action: stop |
+                  the firmware panel of the picked session: config, the LOCKED hex sha256, board, how it is reached and why (td-5), ports, time left, row action: stop |
                   the bridge for the picked session (row action: attach a bridge; the bridge worker's refusal is said in words) |
                   THE APP UI: the demo page's own LightState table and its "Turn the light on / off" action (reused from hwnocode.light_page, not copied) |
                   what was done on the bench (BenchInteraction rows) | row action: record this session as evidence (a ScenarioRun of kind attested, never auto-promoted)
@@ -29,8 +29,8 @@ _TEXT = ('Sim bench - a simulated board you can touch. Start a session of a firm
          'as evidence" saves them as a ScenarioRun that a person attests - it is never turned into a proof by itself. A session that nobody stops ends by itself when its time is up.')
 
 _SESSION_COLS = 'name,config,participant,state,remaining_s,owner'
-_PANEL_COLS = 'config,hex_sha256,locked_text,board,ports,remaining_s,state,owner'
-_BRIDGE_COLS = 'name,session,state,grpc_target,remaining_s,end_reason'
+_PANEL_COLS = 'config,hex_sha256,locked_text,board,reached_by,transport_why,ports,remaining_s,state,owner'
+_BRIDGE_COLS = 'name,session,state,twin,grpc_target,remaining_s,end_reason'
 _INTERACTION_COLS = 'seq,at_text,who,part,what,twin_cycle_text,ok,reply'
 LIGHT_DOOR = '/api/board/twins/light-state?rev=r{scope:rev}'
 
@@ -54,8 +54,9 @@ def _bench_rows():
         _row(2, [_table('sim-firmware-panel', 0, 12, 'Firmware panel - what the picked session is running', '', data_path='/api/board/twins?name={scope:session}&rev=r{scope:rev}',
                         empty_text='Pick a session above to see its firmware.',
                         description='What this is for: what is loaded into the picked simulated board. One row = the picked session. config is the firmware variant; hex_sha256 is the fingerprint of the exact '
-                                    'program loaded (locked: it cannot be edited or reflashed from this page); board is the board design; ports are where the board listens (the serial report '
-                                    'and the control channel); remaining_s the seconds left. Press "Stop session" to switch it off.',
+                                    'program loaded (locked: it cannot be edited or reflashed from this page); board is the board design; reached_by is how this server talks to the simulated '
+                                    'board (the worker\'s twin door, or plain TCP ports) and transport_why says why that way was chosen (it is read from the worker, never guessed); '
+                                    'ports are the two addresses themselves (the control channel and the serial report); remaining_s the seconds left. Press "Stop session" to switch it off.',
                         columns=_PANEL_COLS,
                         row_action={'label': 'Stop session', 'method': 'POST', 'path': '/api/board/twins/{name}/stop', 'show_when_field': 'running_now',
                                     'body_template': {}})], min_height=160),
@@ -67,8 +68,8 @@ def _bench_rows():
                    columns='name,config,state',
                    row_action={'label': 'Attach a bridge', 'method': 'POST', 'path': '/api/grpc/hosted-bridges', 'body_template': {'session': '{name}'}}, max_height=160),
             _table('sim-bridges', 1, 6, 'Bridges - which are attached', '', data_path='/api/grpc/hosted-bridges?rev=r{scope:rev}',
-                   description='What this is for: whether a bridge is attached to the picked session. One row = one hosted bridge: the session it serves, its state (building, running, ended), where it sends '
-                               'the board\'s reports (grpc_target) and why it ended. A row whose session is the picked one means the App UI path is live.',
+                   description='What this is for: whether a bridge is attached to the picked session. One row = one hosted bridge: the session it serves, its state (building, running, ended), twin the '
+                               'address where it reads the board\'s serial report, where it sends the board\'s reports (grpc_target) and why it ended. A row whose session is the picked one means the App UI path is live.',
                    columns=_BRIDGE_COLS, max_height=200)], css_class='side-by-side', min_height=200),
         _row(4, [light_state_table('sim-light-state', 0, 12, data_path=LIGHT_DOOR)], min_height=200),
         _row(5, [
