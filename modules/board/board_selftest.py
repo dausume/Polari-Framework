@@ -463,6 +463,8 @@ def main():
     run_clock_skew(check)
     from board.board_twin_session_selftest import run_twin_session   # sim-1: twin sessions - the backend half against a fake worker + fake control port (the live half is its own module)
     run_twin_session(check, live=False)
+    from board.board_twin_transport_selftest import run_twin_transport   # td-1/td-2: the twin door - transport read from /capability, the Hub over WebSocket, verified TLS
+    run_twin_transport(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

@@ -14,6 +14,7 @@ sim-1 (HARDWARE_BENCH_CONVERGENCE_PLAN.md §8): twin SESSIONS as TwinSession row
 
 Every refusal is a SessionRefused carrying plain words and an HTTP status the door passes on.
 """
+import contextlib
 import json
 import secrets
 import shutil
@@ -21,7 +22,7 @@ import tempfile
 import time
 from urllib.parse import urlparse
 
-from board.custom import board_engines as be, twin_session_worker as W, twin_token
+from board.custom import board_engines as be, twin_session_worker as W, twin_token, twin_transport as TT
 from board.custom.twin_ctl_hub import Hub, HubRefused
 
 DEFAULT_TTL_S = 1800
@@ -71,15 +72,23 @@ def _new_row(manager, **kw):
     return row
 
 
+def channels(row):
+    """(ctl_url, uart_url) of a row. A row written before td-1 has no URLs: it was reached on its TCP ports, so that is what it says."""
+    return (getattr(row, 'ctl_url', '') or 'tcp://%s:%s' % (row.host, row.ctl_port), getattr(row, 'uart_url', '') or 'tcp://%s:%s' % (row.host, row.tcp_port))
+
+
 def view(row):
     """The row as the doors show it - no token anywhere."""
     now = time.time()
+    ctl_url, uart_url = channels(row)
     last = json.loads(row.last_status_json or '{}')
     return {'name': row.name, 'config': row.config, 'board': row.board, 'participant': row.participant, 'instance_index': row.instance_index, 'state': row.state, 'running_now': row.state == 'running',
             'firmware': {'sha256': row.hex_sha256, 'bytes': row.hex_bytes, 'locked': bool(row.firmware_locked), 'config': row.config},
             'worker': row.worker_url, 'worker_session': row.worker_session, 'host': row.host, 'tcp_port': row.tcp_port, 'ctl_port': row.ctl_port,
             'hex_sha256': row.hex_sha256, 'firmware_locked': bool(row.firmware_locked), 'locked_text': 'locked: no edit or reflash while the session runs' if row.firmware_locked else 'unlocked',
-            'ports': 'serial report %s, control %s' % (row.tcp_port, row.ctl_port),
+            'ctl_url': ctl_url, 'uart_url': uart_url, 'transport': TT.kind(ctl_url), 'transport_why': getattr(row, 'transport_why', ''),
+            'reached_by': 'the worker\'s twin door (WebSocket over HTTPS, by name)' if TT.kind(ctl_url) == 'door' else 'plain TCP on the session\'s own ports',
+            'ports': 'control %s, serial report %s' % (ctl_url, uart_url),
             'owner': row.owner, 'started_at': row.started_at, 'expires_at': row.expires_at, 'ttl_s': row.ttl_s,
             'remaining_s': 0 if row.state != 'running' else max(0.0, round(row.expires_at - now, 1)),
             'ended_at': row.ended_at, 'end_reason': row.end_reason, 'watch': json.loads(row.watch_json or '[]'), 'status': last,
@@ -145,21 +154,32 @@ def start(manager, config, ttl_s=DEFAULT_TTL_S, owner='', watch=None, free=False
     except W.WorkerRefused as e:
         raise SessionRefused(str(e), 424 if e.status in (0, 503) else (e.status or 502))
     host = urlparse(worker).hostname or ''
+    try:
+        way = TT.pick(be.remote_capability(worker), worker, w['id'], w['ports'])
+    except TT.TransportRefused as e:
+        with contextlib.suppress(W.WorkerRefused):
+            W.stop(worker, w['id'])
+        raise SessionRefused('the session started on the worker but the way to reach it cannot be read: %s; it was stopped' % e, 502)
     idx = _next_index(manager, BOARD)
     watch = list(watch or DEFAULT_WATCH)
     row = _new_row(manager, name=name, config=config, board=BOARD, participant='twin:%s#%d' % (BOARD, idx), instance_index=idx, state='running', hex_sha256=sha,
                    hex_bytes=len(hex_bytes), firmware_locked=True, worker_url=worker, worker_session=w['id'], host=host, tcp_port=w['ports']['tcp'],
-                   ctl_port=w['ports']['ctl'], owner=owner, started_at=w['started'], expires_at=w['expires'], ttl_s=int(ttl_s), watch_json=json.dumps(watch),
+                   ctl_port=w['ports']['ctl'], ctl_url=way['ctl_url'], uart_url=way['uart_url'], transport_why=way['why'], owner=owner, started_at=w['started'], expires_at=w['expires'], ttl_s=int(ttl_s), watch_json=json.dumps(watch),
                    last_status_json=json.dumps(w.get('status') or {}))
     try:
-        HUBS[name] = Hub(host, row.ctl_port, token).connect(watch=watch)
+        HUBS[name] = Hub(way['ctl_url'], token).connect(watch=watch)
     except HubRefused as e:
         try:
             W.stop(worker, w['id'])
         finally:
             _end(manager, row, 'the control connection could not be made: %s' % e)
-        raise SessionRefused('the session started on the worker but its control port could not be reached from here (%s); it was stopped. Is the port range '
-                             '9832-9863 published and open between this device and the worker?' % e, 502)
+        if TT.kind(way['ctl_url']) == 'door':   # D4: a declared door that is down refuses, it never falls back to the TCP ports
+            raise SessionRefused('the session started on the worker but its twin door could not be used from here (%s); it was stopped. The worker advertises '
+                                 'that door in its /capability, so plain TCP is not tried instead: check that the door\'s app is installed and running on '
+                                 'the worker\'s device and that this device resolves and trusts its name' % e, 502)
+        raise SessionRefused('the session started on the worker but its control port could not be reached from here (%s); it was stopped. This worker advertises '
+                             'no twin door, so the session is reached on plain TCP: is the port range 9832-9863 published and open between this device and '
+                             'the worker? (An isle app publishes no ports: its worker needs the twin door.)' % e, 502)
     _save(manager, row)
     return dict(view(row), token=token, token_note='shown once: a bridge or the CLI needs it to attach; it is derived on this server, never stored in the row')
 
@@ -213,9 +233,9 @@ def _hub(manager, row):
     hub = HUBS.get(row.name)
     if hub is None or hub.dead:   # a backend restart (or a dropped connection): derive the token again and reconnect
         try:
-            HUBS[row.name] = hub = Hub(row.host, row.ctl_port, twin_token.derive(row.name)).connect(watch=json.loads(row.watch_json or '[]'))
+            HUBS[row.name] = hub = Hub(channels(row)[0], twin_token.derive(row.name)).connect(watch=json.loads(row.watch_json or '[]'))
         except HubRefused as e:
-            raise SessionRefused('cannot reach the twin control port: %s' % e, 502)
+            raise SessionRefused('cannot reach the twin control channel: %s' % e, 502)
     return hub
 
 

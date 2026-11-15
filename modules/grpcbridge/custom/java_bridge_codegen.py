@@ -320,6 +320,8 @@ def render_forwarder(classes):
         f'                    break;' for c, _ in classes)
     command_starts = '\n'.join(
         f'        startCommands{c}();' for c, _ in classes)
+    push_finishes = '\n'.join(
+        f'        open += finish({c[0].lower() + c[1:]}Push);' for c, _ in classes)
     per_class = []
     for c, field_map in classes:
         lower = c[0].lower() + c[1:]
@@ -454,13 +456,16 @@ def render_forwarder(classes):
     nl = ''.join(per_class)
     return f'''package org.polari.bridge.grpc;
 
+import io.grpc.Grpc;
+import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.TlsChannelCredentials;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.atomic.AtomicLong;
 import org.polari.bridge.BridgeBinding;
 import org.polari.bridge.BridgeConfig;
 import org.polari.bridge.DevicePort;
+import org.polari.bridge.IsleTrust;
 import org.polari.bridge.PolariPacket;
 import org.polari.bridge.codec.*;
 import org.polari.sync.*;
@@ -480,13 +485,43 @@ public final class GrpcForwarder {{
     private final java.util.Map<String, Integer> seenVersion =
             new java.util.concurrent.ConcurrentHashMap<>();
     private long refused;
+    /** one permit per Push stream the server has answered (or failed) */
+    private final java.util.concurrent.Semaphore answered =
+            new java.util.concurrent.Semaphore(0);
 {push_fields}
 
-    public GrpcForwarder(String target, DevicePort port, BridgeConfig cfg) {{
-        this.channel = ManagedChannelBuilder.forTarget(target)
-                .usePlaintext().build();
+    public GrpcForwarder(String target, DevicePort port, BridgeConfig cfg)
+            throws Exception {{
+        this.channel = open(target, cfg.grpcTls);
         this.port = port;
         this.cfg = cfg;
+    }}
+
+    /** td-4: the channel to Polari, by the knob grpc.tls.
+     *  verified (what an absent key means): TLS, the server's
+     *  certificate checked against IsleTrust. plaintext: an explicit
+     *  choice, said aloud at start. Anything else is refused - there
+     *  is no "TLS without checking". */
+    private static ManagedChannel open(String target, String tls)
+            throws Exception {{
+        if ("plaintext".equals(tls)) {{
+            System.out.println("[grpc] channel to " + target
+                    + " is PLAINTEXT (grpc.tls=plaintext): nothing on "
+                    + "this link is encrypted or checked");
+            return Grpc.newChannelBuilder(target,
+                    InsecureChannelCredentials.create()).build();
+        }}
+        if (!"verified".equals(tls)) {{
+            throw new IllegalArgumentException("grpc.tls=" + tls
+                    + " is neither verified nor plaintext");
+        }}
+        java.io.File pem = IsleTrust.bundle();
+        System.out.println("[grpc] channel to " + target
+                + " is TLS, verified against " + IsleTrust.describe());
+        return Grpc.newChannelBuilder(target, pem == null
+                ? TlsChannelCredentials.create()
+                : TlsChannelCredentials.newBuilder().trustManager(pem)
+                        .build()).build();
     }}
 
     /** Telemetry up: decoded packet -> proto -> Push stream (a frame
@@ -508,9 +543,37 @@ public final class GrpcForwarder {{
     public void startCommands() {{
 {command_starts}
     }}
+
+    /** The bridge is ending: close every Push stream and wait (up to
+     *  5 s) for the server's answer, so the last frames decoded are
+     *  delivered - not dropped with the process - and the ack (or the
+     *  error) is printed. Then the channel is closed. */
+    public void finish() {{
+        int open = 0;
+{push_finishes}
+        try {{
+            answered.tryAcquire(open, 5,
+                    java.util.concurrent.TimeUnit.SECONDS);
+        }} catch (InterruptedException ie) {{
+            Thread.currentThread().interrupt();
+        }}
+        channel.shutdownNow();
+    }}
+
+    private static int finish(StreamObserver<?> push) {{
+        if (push == null) {{
+            return 0;
+        }}
+        try {{
+            push.onCompleted();
+        }} catch (RuntimeException alreadyOver) {{
+            // the stream failed earlier: its error was printed then
+        }}
+        return 1;
+    }}
 {nl}
 
-    private static final class AckObserver
+    private final class AckObserver
             implements StreamObserver<PushSummary> {{
         private final String label;
 
@@ -529,10 +592,12 @@ public final class GrpcForwarder {{
         public void onError(Throwable t) {{
             System.out.println("[grpc] " + label + " push error: "
                     + t);
+            answered.release();
         }}
 
         @Override
         public void onCompleted() {{
+            answered.release();
         }}
     }}
 }}

@@ -336,11 +336,28 @@ public final class SerialCdcPort implements DevicePort {
                 throws Exception;
     }
 
+    /**
+     * td-4: an opener's way to say THIS PORT IS OVER - a reason a
+     * reopen cannot change (a twin door that refuses the token, a
+     * session that is gone). It is never retried: it leaves next()
+     * and the reopen loop as it is, for the port's owner to put in
+     * words. A CDC device and a raw socket never throw it.
+     */
+    static final class Over extends RuntimeException {
+        final int code;
+
+        Over(int code, String why) {
+            super(why);
+            this.code = code;
+        }
+    }
+
     private final String device;
     private final int baud;
     private final Opener opener;
     /** log-event prefix: "serial" for a CDC device, "tcp" when the
-     *  TcpDevicePort drives this lifecycle over a socket. */
+     *  TcpDevicePort drives this lifecycle over a socket, "ws" when
+     *  the WsDevicePort drives it through a twin door. */
     private final String kind;
     private PushbackInputStream in;
     private OutputStream out;
@@ -419,6 +436,8 @@ public final class SerialCdcPort implements DevicePort {
             try {
                 open();
                 return;
+            } catch (Over over) {
+                throw over;         // td-4: a reopen cannot change it
             } catch (Exception failed) {
                 try {
                     Thread.sleep(backoffMs);
@@ -1024,17 +1043,24 @@ public final class BridgeConfig {
     /** grpc-j4: this bridge's name + its hardware-interface bindings. */
     public final String bridgeName;
     public final List<BridgeBinding> bindings = new ArrayList<>();
-    public final String source;        // simulated | serial | twin-tcp
+    /** simulated | serial | twin-tcp | twin-door */
+    public final String source;
     public final String serialDevice;
     public final int baud;
     public final String twinHost;      // brg-0: source=twin-tcp
     public final int twinPort;
     public final int twinConnectTimeoutS;
+    /** td-4: tcp://host:port | wss://door/sessions/id/uart; "" = the
+     *  twin.host / twin.port above (TwinPort chooses). */
+    public final String twinUart;
     public final int simRateHz;        // 0 = as fast as possible
     public final long maxFrames;       // 0 = run forever
     public final int deviceId;
     public final boolean grpcEnabled;
     public final String grpcTarget;
+    /** td-4: verified (TLS, checked against IsleTrust) | plaintext
+     *  (said aloud at start). An absent key means verified. */
+    public final String grpcTls;
 
     private BridgeConfig(Properties p) {
         this.source = p.getProperty("source", "simulated");
@@ -1047,6 +1073,7 @@ public final class BridgeConfig {
                 p.getProperty("twin.port", "9831"));
         this.twinConnectTimeoutS = Integer.parseInt(
                 p.getProperty("twin.connect_timeout_s", "30"));
+        this.twinUart = p.getProperty("twin.uart", "").trim();
         this.simRateHz = Integer.parseInt(
                 p.getProperty("sim.rate_hz", "10"));
         this.maxFrames = Long.parseLong(
@@ -1057,6 +1084,7 @@ public final class BridgeConfig {
                 p.getProperty("grpc.enabled", "false"));
         this.grpcTarget =
                 p.getProperty("grpc.target", "localhost:3002");
+        this.grpcTls = p.getProperty("grpc.tls", "verified").trim();
         this.bridgeName = p.getProperty("bridge.name", "");
         int n = Integer.parseInt(p.getProperty("binding.count", "0"));
         for (int i = 0; i < n; i++) {
@@ -1135,11 +1163,11 @@ public final class BridgeMain {
         // (class, instance index); none → the single legacy port.
         // brg-0: source=twin-tcp reaches a twin SESSION's raw USART
         // port (twin.host / twin.port) with the serial port's own
-        // frames and lifecycle.
-        boolean twin = "twin-tcp".equals(cfg.source);
+        // frames and lifecycle. td-4: TwinPort chooses the raw port or
+        // the worker's twin door (twin.uart), never by guessing.
+        boolean twin = TwinPort.is(cfg.source);
         DevicePort port = twin && cfg.bindings.isEmpty()
-                ? new TcpDevicePort(cfg.twinHost, cfg.twinPort,
-                        cfg.twinConnectTimeoutS)
+                ? TwinPort.open(cfg)
                 : !twin && !"serial".equals(cfg.source)
                 ? new SimulatedDevice(cfg.deviceId, cfg.simRateHz)
                 : !twin && cfg.bindings.isEmpty()
@@ -1175,7 +1203,9 @@ public final class BridgeMain {
                 try {
                     packet = port.next();
                 } catch (java.io.EOFException end) {
-                    System.out.println("[bridge] source ended");
+                    System.out.println("[bridge] source ended"
+                            + (end.getMessage() == null ? ""
+                               : ": " + end.getMessage()));
                     break;
                 }
                 if (packet == null) {
@@ -1211,6 +1241,10 @@ public final class BridgeMain {
             }
         } finally {
             port.close();
+            if (forwarder != null) {
+                // deliver what was decoded before the process ends
+                forwarder.getClass().getMethod("finish").invoke(forwarder);
+            }
         }
         double secs = (System.nanoTime() - started) / 1e9;
         System.out.printf(
@@ -1564,6 +1598,24 @@ Both directions run through the same seam (`DevicePort`):
 Set `grpc.enabled=true` + `grpc.target=<host>:3002` to connect to
 Polari's gRPC server (grpc-2): decoded telemetry is Pushed up and
 the per-class Commands streams are wired down to the device.
+
+`grpc.tls` says how that channel is protected: `verified` (TLS, the
+server's certificate checked against the bundle below; what the
+bridge assumes when the line is absent) or `plaintext` (said aloud in
+the log at start). There is no "TLS without checking".
+
+## A simulated board (a twin session)
+
+`source=twin-tcp` reads a twin session's raw serial port
+(`twin.host` / `twin.port`, or `twin.uart=tcp://host:port`).
+`source=twin-door` with `twin.uart=wss://<door>/sessions/<id>/uart`
+reaches it through the engines worker's twin door instead: WebSocket
+over HTTPS, the session's token taken from the environment variable
+`TWIN_TOKEN` (never from this file).
+
+Certificates are checked against the PEM bundle named by
+`ISLE_TRUST_BUNDLE`, else `/etc/isle-trust/ca-certificates.crt` when
+it is there, else Java's own trust store.
 
 ## Install as a service (Ubuntu)
 

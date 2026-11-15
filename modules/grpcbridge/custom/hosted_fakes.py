@@ -1,6 +1,6 @@
 """grpcbridge.custom.hosted_fakes - test support for grpcbridge_hosted_selftest: a FAKE bridge-engines worker (HTTP /capability + /bridges, the shape of
 prf-bridge-engines/bridge_hosted.py) and a FAKE twin USART port that sends real LightState frames (the independent Python reference codec) and records what
-the bridge sends down. The fakes mirror the PROTOCOL only; the real worker logic is exercised by the selftest through the worker's own module, the real twin and
+the bridge sends down; td-4: a FAKE twin door's UART stream (FakeUartDoor, WebSocket). The fakes mirror the PROTOCOL only; the real worker logic is exercised by the selftest through the worker's own module, the real twin and
 worker by its live half."""
 import json
 import socket
@@ -10,10 +10,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class FakeBridgeWorker:
-    """GET /capability, POST/GET/DELETE /bridges, GET /bridges/{id}/logs. bridges=False = a worker that does not host bridges."""
+    """GET /capability, POST/GET/DELETE /bridges, GET /bridges/{id}/logs. bridges=False = a worker that does not host bridges; knows_door=False = a worker
+    older than td-4, which ignores `twin_uart` (its answer does not repeat it) and reads the TCP port."""
 
-    def __init__(self, bridges=True):
-        self.bridges_cap, self.items, self.requests = bridges, {}, []
+    def __init__(self, bridges=True, knows_door=True):
+        self.bridges_cap, self.knows_door, self.items, self.requests = bridges, knows_door, {}, []
         outer = self
 
         class H(BaseHTTPRequestHandler):
@@ -53,7 +54,12 @@ class FakeBridgeWorker:
                 view = {'id': bid, 'session_id': body['session_id'], 'bridge_name': body['bridge_name'], 'twin_host': body['twin_host'], 'twin_port': body['twin_port'],
                         'grpc_target': body.get('grpc_target', ''), 'started': now, 'expires': now + body['ttl_s'], 'ttl_s': body['ttl_s'], 'build_fp': 'f' * 16,
                         'jar_sha256': 'a' * 64, 'build': {'cached': False, 'wall_s': 0.1}}
-                outer.items[bid] = {'body': body, 'view': view, 'state': 'running', 'lines': ['[bridge] source=twin-tcp %s:%s' % (body['twin_host'], body['twin_port'])]}
+                line = '[bridge] source=twin-tcp %s:%s' % (body['twin_host'], body['twin_port'])
+                if outer.knows_door:
+                    view['twin_uart'] = body.get('twin_uart', '')
+                    if view['twin_uart'].startswith('ws'):
+                        line = '[bridge] source=twin-door %s' % view['twin_uart']
+                outer.items[bid] = {'body': body, 'view': view, 'state': 'running', 'lines': [line]}
                 self._json(200, dict(view, state='running', ok=True))
 
             def do_DELETE(self):
@@ -113,6 +119,8 @@ class FakeUsart:
                             got += chunk
                     except (socket.timeout, OSError):
                         pass
+            except OSError:   # the client left before the script was sent (a bridge that refused to start)
+                pass
             finally:
                 self.received.append(bytes(got))
                 conn.close()
@@ -124,3 +132,70 @@ class FakeUsart:
             self.srv.close()
         except OSError:
             pass
+
+
+class FakeUartDoor:
+    """The UART stream of a worker's twin door (TWIN_DOOR_PLAN.md section 3a), protocol only: a WebSocket server on loopback at /sessions/<session>/uart. The
+    first frame must be the text {"token": "..."} (anything else closes 4400, a wrong token 4403, another path 4404); after it every frame is binary serial
+    bytes. `script` = a list of connections, each a list of frames (bytes) to send, after which the door closes THAT connection with 4410 (the twin closed the
+    stream) - the last one is kept open until the client leaves. `received` = the bytes the client sent down, per accepted connection; `refused` = the close
+    codes of the connections turned away. tls=(certfile, keyfile) serves wss:// (give host='localhost' to match a test certificate)."""
+
+    def __init__(self, script, token, session='f00001', tls=None, host='127.0.0.1'):
+        import ssl
+        from websockets.sync.server import serve
+        self.script, self.token, self.path = script, token, '/sessions/%s/uart' % session
+        self.received, self.refused, self.connections, self.done, self.finished = [], [], 0, threading.Event(), threading.Event()
+        self._lock = threading.Lock()
+        ctx = None
+        if tls:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(*tls)
+        self.srv = serve(self._handle, '127.0.0.1', 0, ssl=ctx)
+        self.port = self.srv.socket.getsockname()[1]
+        self.url = '%s://%s:%d%s' % ('wss' if tls else 'ws', host, self.port, self.path)
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+    def _turn_away(self, ws, code, why):
+        self.refused.append(code)
+        ws.close(code, why)
+
+    def _handle(self, ws):
+        if ws.request.path != self.path:
+            return self._turn_away(ws, 4404, 'no such session')
+        try:
+            first = json.loads(ws.recv(timeout=5))
+            tok = first.get('token')
+        except Exception:  # noqa: BLE001 - a binary frame, not JSON, not an object, or nothing in time
+            return self._turn_away(ws, 4400, 'the first frame must be {"token": "..."}')
+        if tok != self.token:
+            return self._turn_away(ws, 4403, 'the token is wrong')
+        with self._lock:
+            i = self.connections
+            self.connections += 1
+        frames, last, got = (self.script[i] if i < len(self.script) else []), i >= len(self.script) - 1, bytearray()
+        try:
+            for fr in frames:
+                ws.send(fr)
+                time.sleep(0.05)
+                try:
+                    m = ws.recv(timeout=0.3)
+                    got += m if isinstance(m, bytes) else b''
+                except TimeoutError:
+                    pass
+            if last:
+                self.done.set()
+                while True:
+                    m = ws.recv(timeout=30)
+                    got += m if isinstance(m, bytes) else b''
+            else:
+                ws.close(4410, 'the twin closed the stream')
+        except Exception:  # noqa: BLE001 - the client left
+            pass
+        finally:
+            self.received.append(bytes(got))
+            if last:
+                self.finished.set()
+
+    def close(self):
+        self.srv.shutdown()

@@ -14,7 +14,8 @@ class HostedBridge(treeObject):
 
     Fields: `name` is `<bridge>-<6 hex>`; `session` the TwinSession it is attached to; `bridge_name` the HardwareBridgeDefinition whose generated project runs
     (for example uno-light); `state` is `building` (the jar is being made, or found in the worker's cache) | `running` | `failed` | `ended`; `worker_url` and
-    `worker_bridge` the bridge-engines worker and the bridge's id there; `twin_host` / `twin_port` the session's serial port the bridge reads; `grpc_target`
+    `worker_bridge` the bridge-engines worker and the bridge's id there; `twin_host` / `twin_port` the session's serial port and `twin_uart` the channel the bridge actually reads it on (`wss://<door>/sessions/<id>/uart` through
+    the worker's twin door, or `tcp://host:port`; the session's token is never part of it); `grpc_target`
     the Polari backend gRPC port the bridge pushes to (empty = the bridge only logs what it decodes); `build_fp` the fingerprint (sha256 prefix) of the
     generated code, the key of the worker's jar cache, and `jar_sha256` the jar that runs; `owner`; `started_at` / `expires_at` UTC seconds (a bridge nobody
     stops ends at `expires_at`, or when its session ends); `ended_at` / `end_reason` say when and why it stopped.
@@ -27,7 +28,7 @@ class HostedBridge(treeObject):
 
     @treeObjectInit
     def __init__(self, name: str = '', session: str = '', bridge_name: str = '', state: str = 'building', worker_url: str = '', worker_bridge: str = '',
-                 twin_host: str = '', twin_port: int = 0, grpc_target: str = '', build_fp: str = '', jar_sha256: str = '', owner: str = '',
+                 twin_host: str = '', twin_port: int = 0, twin_uart: str = '', grpc_target: str = '', build_fp: str = '', jar_sha256: str = '', owner: str = '',
                  started_at: float = 0.0, expires_at: float = 0.0, ttl_s: int = 0, ended_at: float = 0.0, end_reason: str = '', manager=None):
         self.name = name  # '<bridge>-<6 hex>'
         self.session = session  # a TwinSession name
@@ -37,6 +38,7 @@ class HostedBridge(treeObject):
         self.worker_bridge = worker_bridge
         self.twin_host = twin_host
         self.twin_port = twin_port
+        self.twin_uart = twin_uart  # td-3: tcp://host:port | wss://<door>/sessions/<id>/uart
         self.grpc_target = grpc_target
         self.build_fp = build_fp
         self.jar_sha256 = jar_sha256

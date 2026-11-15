@@ -589,6 +589,9 @@ def main():
                 f'{jb.JAVA_DIR}/SimulatedDevice.java',
                 f'{jb.JAVA_DIR}/SerialCdcPort.java',
                 f'{jb.JAVA_DIR}/TcpDevicePort.java',   # brg-0
+                f'{jb.JAVA_DIR}/IsleTrust.java',       # td-4
+                f'{jb.JAVA_DIR}/WsDevicePort.java',    # td-4
+                f'{jb.JAVA_DIR}/TwinPort.java',        # td-4
                 f'{jb.JAVA_DIR}/BridgeMain.java',
                 f'{jb.JAVA_DIR}/CodecRegistry.java',
                 f'{jb.JAVA_DIR}/codec/WidgetCodec.java',
