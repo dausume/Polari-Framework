@@ -171,7 +171,7 @@ def jvm_door_mode(check, skip):
             got = [ln for ln in out.splitlines() if 'LightState' in ln and '[bridge] seq=' in ln]
             check('td-4: source=twin-door - the bridge dialled the door over wss:// (certificate checked against ISLE_TRUST_BUNDLE), sent the token first and DECODED the '
                   'LightState frames carried as binary WebSocket frames (led_on / toggles / source as sent, in order)', rc == 0 and len(got) == 3
-                  and 'on twin-door %s' % door.url in out and 'toggles=1' in got[1] and 'toggles=2' in got[2] and not door.refused, out[-900:])
+                  and 'on twin-door %s' % door.url in out and 'toggles=1' in got[1] and 'toggles=2' in got[2] and not door.refused, 'rc=%s refused=%s connections=%s %s' % (rc, door.refused, door.connections, out[-900:]))
             check('td-4: the door closing the stream (4410, the twin closed it) is a RECONNECT, not a crash: ws-lost, then ws-open attempt 2 with the token sent again, no gap '
                   'in the sequence, reconnects=1', '"t":"ws-lost"' in out and '"t":"ws-open"' in out and '"attempt":2' in out and bool(got) and 'gaps=0' in got[-1]
                   and 'reconnects=1' in got[-1] and door.connections == 2, out[-600:])
