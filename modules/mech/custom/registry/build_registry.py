@@ -3,7 +3,7 @@
 @module mech.custom.registry.build_registry
 
 Polari critical-materials registry + per-part-family material roles — the
-mech module's copy of /home/dausume/collab/mech-parts/data/build_materials.py
+mech module's copy of ~/collab/mech-parts/data/build_materials.py
 (econ-core, 2026-11-03), adapted: writes JSON next to itself, no CSV, and
 adds the two WOOD rows the drawer plan needs (birch plywood, MDF — marked
 `source='mech-mxc-1'`; everything else is the collab registry verbatim,
