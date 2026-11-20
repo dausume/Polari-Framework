@@ -1,6 +1,6 @@
 """sc-0 + sc-1 + sc-2 PROBE — the scenarios on the REAL simavr UNO twin, then the module on a live boot.
 
-Part A (offline runner, the CLI's path): BEFORE (uno-sim-rig-torn, HAL_MILLIS_ATOMIC 0) with the tick IRQ forced at the PC between
+Part A (offline runner, the CLI's path): BEFORE (uno-sim-rig-torn, CFG_MILLIS_ATOMIC 0) with the tick IRQ forced at the PC between
 the 1st and 2nd `lds` of g_ms (found in the build's own disassembly) → refuted at a named cycle, uptime_ms 511 then 400, CRC fine,
 VCD sha; AFTER (uno-sim-rig) with the same forcing → witnessed, landed after `out SREG`; the cost pair (+6 B, +3 cycles, the
 ISR-latency delta); both re-run BIT-IDENTICALLY from row + seed; the natural run (10 s, no forcing) → the measured rate on the
@@ -237,7 +237,7 @@ def part_s2(worker=False):
     else:
         fs = {n: formal.run_check(n, sink) for n in ('hal-millis-not-torn@uno-sim-rig', 'hal-millis-not-torn@uno-sim-rig-torn', 'rx-ring-index-bound@uno-sim-rig-ring512')}
         a, t, r5 = fs['hal-millis-not-torn@uno-sim-rig'], fs['hal-millis-not-torn@uno-sim-rig-torn'], fs['rx-ring-index-bound@uno-sim-rig-ring512']
-        check('CBMC: hal_millis with HAL_MILLIS_ATOMIC 1 → %s (%s, %.2f s, %.1f MB)' % (a['outcome'], a['claim_status'], a['wall_s'], a['peak_rss_mb']),
+        check('CBMC: hal_millis with CFG_MILLIS_ATOMIC 1 → %s (%s, %.2f s, %.1f MB)' % (a['outcome'], a['claim_status'], a['wall_s'], a['peak_rss_mb']),
               a['outcome'] == 'decided' and a['claim_status'] == 'decided (bounded, k=2)', a['outcome_words'])
         cx = json.loads(t['counterexample_json'])
         v = cx.get('values', {})
@@ -247,7 +247,7 @@ def part_s2(worker=False):
         reconstructed = v.get('b0', 0) | (v.get('b1', 0) << 8) | (v.get('b2', 0) << 16) | (v.get('b3', 0) << 24)
         words = cx.get('reads') or ('bytes b0..b3 = 0x%02X 0x%02X 0x%02X 0x%02X reconstruct 0x%08X vs pre 0x%08X / init 0x%08X'
                                      % (v.get('b0', 0), v.get('b1', 0), v.get('b2', 0), v.get('b3', 0), reconstructed, v.get('pre', 0), v.get('init', 0)))
-        check('CBMC: HAL_MILLIS_ATOMIC 0 → refuted with a C trace (sha %s…): %s' % (t['trace_sha256'][:12], words),
+        check('CBMC: CFG_MILLIS_ATOMIC 0 → refuted with a C trace (sha %s…): %s' % (t['trace_sha256'][:12], words),
               t['outcome'] == 'refuted' and t['trace_sha256']
               and all(k in v for k in ('init', 'pre', 'b0', 'b1', 'b2', 'b3'))
               and reconstructed not in (v.get('pre'), v.get('init')), t['outcome_words'])

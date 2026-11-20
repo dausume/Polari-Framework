@@ -29,7 +29,7 @@ _SU = re.compile(r'^(.*?):(\d+):(\d+):(\S+)\t(\d+)\t(\S+)$')
 
 
 #: added to the Makefile's flags for the measurement builds only. -fstack-usage changes no code; -Wno-error because GCC
-#: WARNS (unconditionally) that it cannot compute a naked function's stack (hal_wdt_boot under HAL_WDT) and the
+#: WARNS (unconditionally) that it cannot compute a naked function's stack (hal_wdt_boot under CFG_WDT) and the
 #: Makefile's -Werror would turn the measurement into a refusal — the Makefile's own -Werror build is proven by make_alone.
 MEASURE_FLAGS = ['-fstack-usage', '-Wno-error']
 

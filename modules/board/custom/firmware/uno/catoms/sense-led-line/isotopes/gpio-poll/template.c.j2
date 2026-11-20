@@ -6,8 +6,8 @@
 #include "hal.h"
 #include "{{ hal_header|c_comment }}"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
-#if !HAL_INT1 || HAL_SENSE_ROUTE != {{ route_code|c_int }}
-#error "hal_sense_poll.c is the sense route {{ route_code|c_int }} (polled): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE {{ route_code|c_int }}"
+#if !CFG_INT1 || CFG_SENSE_ROUTE != {{ route_code|c_int }}
+#error "hal_sense_poll.c is the sense route {{ route_code|c_int }} (polled): board_config.h must set CFG_INT1 1 and CFG_SENSE_ROUTE {{ route_code|c_int }}"
 #endif
 
 /* Everything here runs in the main loop, never in an interrupt, so nothing needs to be volatile or atomic. */

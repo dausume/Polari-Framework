@@ -137,6 +137,41 @@ def apply_sdkconfig(text, board_lines):
     return '\n'.join(out) + ('\n' if text.endswith('\n') else ''), changed, added
 
 
+def light_roles(r):
+    """hal-3b step 2: what apps/light_hal.h's chip half (PIN_SHIM 0) asks of the HAL, per role, on THIS variant's pins (the light knobs are
+    GPIO numbers). The same three pins ESP-IDF's gpio_config configured before: the LED a push-pull output with no pulls, the sense line an
+    input with the pull-down, the button an input with the pull-up. The button's falling-edge interrupt stays on ESP-IDF's gpio driver
+    (gpio_set_intr_type / gpio_intr_enable / the ISR service): the C3 has no int family in the HAL yet - said, not hidden."""
+    k = r['knobs']
+    init_all = lambda ops: tuple(o for o in ops if o not in ('gpio.set_high', 'gpio.set_low', 'gpio.read'))
+    roles = [('LED', 'led_pin', ['gpio.output', 'gpio.pull_none', 'gpio.set_high', 'gpio.set_low']),
+             ('SENSE', 'sense_pin', ['gpio.input', 'gpio.pull_none', 'gpio.pull_down', 'gpio.read']),
+             ('BUTTON', 'button_pin', ['gpio.input', 'gpio.pull_none', 'gpio.pull_up'])]
+    return [{'role': role, 'variable': var, 'pin': 'GPIO%d' % int(k[var]), 'ops': ops, 'init': init_all(ops)} for role, var, ops in roles]
+
+
+def c3_reserved(r):
+    """every name this C3 build already gives a meaning (its board_config.h #defines and build flags) -> why (hal-3b 2b's guard)"""
+    out = {n: 'a build flag of variant %s' % r['name'] for n, _ in r['flags']}
+    for n in re.findall(r'^#define\s+(\w+)', V.render_config(r), re.M):
+        out.setdefault(n, 'a board_config.h #define')
+    return out
+
+
+def c3_hal_header(r):
+    """-> the merged project header (hal.custom.project) with each unit also under its role name (HAL_LED_SET_HIGH ...), init forms for
+    the setup ops (hal_pins_init runs before the button ISR is attached)."""
+    from hal.custom import project as HP
+    roles = light_roles(r)
+    try:
+        base = HP.project_header('esp32c3', {x['variable']: x['ops'] for x in roles}, {x['variable']: x['pin'] for x in roles})
+        aliases = [{'name': 'HAL_%s_%s' % (x['role'], gen._role_suffix(op, x['role'])), 'key': base['macros_keys'][(x['variable'], op)],
+                    'form': 'init' if op in x['init'] else 'call'} for x in roles for op in x['ops']]
+        return HP.merged_header('esp32c3', [base], ['apps/light_hal.h'], aliases=aliases, always=True, reserved=c3_reserved(r))
+    except Exception as e:   # HalRefused / HalNameRefused: in words, never a half-written project
+        raise gen.GenRefused('the C3 light pins through the generated HAL: %s' % e)
+
+
 def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, board_tables=None, **knobs):
     try:
         v = V.find(variant or V.DEFAULT_VARIANT, variant_rows)
@@ -179,6 +214,12 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
         assert 'REQUIRES esp_driver_uart esp_partition esp_timer freertos' in txt, 'the template main/CMakeLists.txt moved: update gen_c3'
         open(cm, 'w').write(txt.replace('REQUIRES esp_driver_uart esp_partition esp_timer freertos', 'REQUIRES esp_driver_uart esp_partition esp_timer freertos ' + ' '.join(V.APP_REQUIRES[r['app']])))
     open(os.path.join(project, 'main', 'board_config.h'), 'w').write(V.render_config(r))
+    # hal-3b step 2: the light app's pin layer (apps/light_hal.h, PIN_SHIM 0) calls the GENERATED HAL for its three pins; the header is
+    # written for every light build (the PIN_SHIM 1 half never includes it, so the twin's binary is unchanged) and for no other app.
+    hal_hdr = None
+    if r['app'] == 'light':
+        hal_hdr = c3_hal_header(r)
+        open(os.path.join(project, 'main', hal_hdr['file']), 'w').write(hal_hdr['text'])
     viol = rule2_violations(project)
     if viol:
         raise gen.GenRefused('RULE 2: a generated C3 project holds only .c/.h + ESP-IDF\'s CMakeLists.txt / sdkconfig.defaults / partitions.csv — found %s' % viol)
@@ -202,7 +243,9 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
                                     'board_object': {'board': BOARD, 'board_sha': bsha, 'board_pins_h_sha256': gen.sha256(pins_h),
                                                      'sdkconfig_board_lines': sorted(sdk_board.values()), 'sdkconfig_changed': sdk_changed,
                                                      'sdkconfig_added': sdk_added},
-                                    **({'catom_hal': hal} if hal else {})}),
+                                    **({'catom_hal': hal} if hal else {}),
+                                    **({'generated_hal': {'file': 'main/' + hal_hdr['file'], 'sha256': hal_hdr['sha256'], 'units': hal_hdr['keys'],
+                                                          'roles': [{k: x[k] for k in ('role', 'pin', 'ops')} for x in light_roles(r)]}} if hal_hdr else {})}),
            'notes': 'generated (variant %s, ESP-IDF project); `pol board build c3` compiles it' % r['name'], 'project_dir': project, 'work_dir': work}
     gen.write_record(work, row)
     return row

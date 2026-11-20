@@ -7,14 +7,120 @@
 #ifndef POLARI_HAL_ATMEGA328P_H
 #define POLARI_HAL_ATMEGA328P_H
 #include <avr/io.h>
+#include <util/atomic.h>
 #include <stdint.h>
 
+/* gpio.input on PD2: DDRD.DDD2 via avr-io-bit */
+/*   steps sha256 2a6b1f289033863f7f9479f5350d9aee46a65e527d0aa5ef1b6497389d38d371 */
+#define HAL_GPIO_INPUT_PD2() do { DDRD &= (uint8_t)~_BV(2); } while (0)
+
+/* gpio.pull_up on PD2: PORTD.PORTD2 via avr-io-bit */
+/*   steps sha256 38c366953f0e9947d455e5e7800cb0baefdd8001a32489a82a06e14fe272db1a */
+#define HAL_GPIO_PULL_UP_PD2() do { PORTD |= _BV(2); } while (0)
+
+/* int.edge_enable_falling on PD2: EICRA.ISC0 via rmw-field; EIFR.INTF0 via w1c-flag; EIMSK.INT0 via avr-io-bit */
+/*   steps sha256 136117dfdb6b28a59101f85d249eb4fceffba88f43fab8743a8fb36939fc42db */
+#define HAL_INT_EDGE_ENABLE_FALLING_PD2() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); } EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
+#define HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT() do { EICRA = (EICRA & ~(uint8_t)0x03) | (uint8_t)(2u << 0); EIFR = _BV(0); EIMSK |= _BV(0); } while (0)
+
+/* int.edge_vector on PD2:  */
+/*   steps sha256 cf92dc7bff21e051761b1ec3abe35cdbec2f5f80b5639e080e8792919fb02578 */
+#define HAL_INT_EDGE_VECTOR_PD2 INT0_vect
+
+/* gpio.output on PD6: DDRD.DDD6 via avr-io-bit */
+/*   steps sha256 e3ef32bc797617c199e3f6509858f688f5e61b11e83830308243bc55be658208 */
+#define HAL_GPIO_OUTPUT_PD6() do { DDRD |= _BV(6); } while (0)
+
+/* gpio.set_high on PD6: PORTD.PORTD6 via avr-io-bit */
+/*   steps sha256 af78092b98ba9730c4daa29c6d1e9430e025046cf771cc2d56027f4fd1925697 */
+#define HAL_GPIO_SET_HIGH_PD6() do { PORTD |= _BV(6); } while (0)
+
+/* gpio.set_low on PD6: PORTD.PORTD6 via avr-io-bit */
+/*   steps sha256 5355daf8cd142622dc60909923943f5af26e8b9aec31ffd6af4329d8d6ee40d9 */
+#define HAL_GPIO_SET_LOW_PD6() do { PORTD &= (uint8_t)~_BV(6); } while (0)
+
+/* timer.init_ctc on TIMER2: TCCR2A.WGM2_10 via rmw-field; TCCR2B.WGM22 via rmw-field; TCCR2B.CS2 via field-write; OCR2A.OCR2A via reg-write */
+/*   steps sha256 709980e17a0bf77173e3c7976c31130a7c3323f58da92cade731a7d5f9400a15 */
+#define HAL_TIMER_INIT_CTC_TIMER2(prescaler, hz) do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR2A = (TCCR2A & ~(uint8_t)0x03) | (uint8_t)(2u << 0); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR2B = (TCCR2B & ~(uint8_t)0x08) | (uint8_t)(0u << 3); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TCCR2B = (TCCR2B & ~(uint8_t)0x07) | (uint8_t)(((uint8_t)((0u * sizeof(struct { int hal_unlisted_prescaler : (((prescaler)) == 1u || ((prescaler)) == 8u || ((prescaler)) == 32u || ((prescaler)) == 64u || ((prescaler)) == 128u || ((prescaler)) == 256u || ((prescaler)) == 1024u) ? 1 : -1; }) + (((prescaler)) == 1u ? 1u : ((prescaler)) == 8u ? 2u : ((prescaler)) == 32u ? 3u : ((prescaler)) == 64u ? 4u : ((prescaler)) == 128u ? 5u : ((prescaler)) == 256u ? 6u : ((prescaler)) == 1024u ? 7u : 0u))) << 0) & (uint8_t)0x07); } OCR2A = (uint8_t)((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) / ((unsigned long)(prescaler) * (hz))) - 1UL)) <= 255UL) ? 1 : -1; }) + ((((F_CPU) / ((unsigned long)(prescaler) * (hz))) - 1UL)))); } while (0)
+#define HAL_TIMER_INIT_CTC_TIMER2_INIT(prescaler, hz) do { TCCR2A = (TCCR2A & ~(uint8_t)0x03) | (uint8_t)(2u << 0); TCCR2B = (TCCR2B & ~(uint8_t)0x08) | (uint8_t)(0u << 3); TCCR2B = (TCCR2B & ~(uint8_t)0x07) | (uint8_t)(((uint8_t)((0u * sizeof(struct { int hal_unlisted_prescaler : (((prescaler)) == 1u || ((prescaler)) == 8u || ((prescaler)) == 32u || ((prescaler)) == 64u || ((prescaler)) == 128u || ((prescaler)) == 256u || ((prescaler)) == 1024u) ? 1 : -1; }) + (((prescaler)) == 1u ? 1u : ((prescaler)) == 8u ? 2u : ((prescaler)) == 32u ? 3u : ((prescaler)) == 64u ? 4u : ((prescaler)) == 128u ? 5u : ((prescaler)) == 256u ? 6u : ((prescaler)) == 1024u ? 7u : 0u))) << 0) & (uint8_t)0x07); OCR2A = (uint8_t)((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) / ((unsigned long)(prescaler) * (hz))) - 1UL)) <= 255UL) ? 1 : -1; }) + ((((F_CPU) / ((unsigned long)(prescaler) * (hz))) - 1UL)))); } while (0)
+
+/* timer.irq_enable on TIMER2: TIMSK2.OCIE2A via mem-rmw */
+/*   steps sha256 30abbce596bb5f53d3681a33d520737edcfbd7723b3a2f257aa8dbe37249e79e */
+#define HAL_TIMER_IRQ_ENABLE_TIMER2() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { TIMSK2 |= _BV(1); } } while (0)
+#define HAL_TIMER_IRQ_ENABLE_TIMER2_INIT() do { TIMSK2 |= _BV(1); } while (0)
+
+/* timer.vector on TIMER2:  */
+/*   steps sha256 16d27707f1e47ff949ddc65893dc1b87dc7dc6d7c6a6f22cb380ddd99a5f883b */
+#define HAL_TIMER_VECTOR_TIMER2 TIMER2_COMPA_vect
+
+/* uart.set_baud_x2 on USART0: UCSR0A.U2X0 via mem-rmw; UBRR0H.UBRR0_11_8 via field-write; UBRR0L.UBRR0_7_0 via reg-write */
+/*   steps sha256 f649e18f0cc95a513d0886ef9a2af50b19aba50c50d30442882834e33460af27 */
+#define HAL_UART_SET_BAUD_X2_USART0(baud) do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0A = (UCSR0A & ~(uint8_t)0x40) | _BV(1); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UBRR0H = (UBRR0H & ~(uint8_t)0x0F) | (uint8_t)(((uint8_t)((((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)) <= 4095UL) ? 1 : -1; }) + ((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)))) >> 8) & 0xFu) << 0) & (uint8_t)0x0F); } UBRR0L = (uint8_t)((((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)) <= 4095UL) ? 1 : -1; }) + ((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)))) >> 0) & 0xFFu); } while (0)
+#define HAL_UART_SET_BAUD_X2_USART0_INIT(baud) do { UCSR0A = (UCSR0A & ~(uint8_t)0x40) | _BV(1); UBRR0H = (UBRR0H & ~(uint8_t)0x0F) | (uint8_t)(((uint8_t)((((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)) <= 4095UL) ? 1 : -1; }) + ((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)))) >> 8) & 0xFu) << 0) & (uint8_t)0x0F); UBRR0L = (uint8_t)((((0u * sizeof(struct { int hal_value_out_of_range : (((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)) <= 4095UL) ? 1 : -1; }) + ((((F_CPU) + 4UL * (baud)) / (8UL * (baud)) - 1UL)))) >> 0) & 0xFFu); } while (0)
+
+/* uart.frame_8n1 on USART0: UCSR0C.UCSZ0 via rmw-field; UCSR0B.UCSZ02 via rmw-field; UCSR0C.UPM0 via rmw-field; UCSR0C.USBS0 via mem-rmw */
+/*   steps sha256 30d90bd452b28df0dfcf10d1050d67c0b08218d5fde89719be4f635bbf294518 */
+#define HAL_UART_FRAME_8N1_USART0() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0C = (UCSR0C & ~(uint8_t)0x06) | (uint8_t)(3u << 1); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0B = (UCSR0B & ~(uint8_t)0x04) | (uint8_t)(0u << 2); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0C = (UCSR0C & ~(uint8_t)0x30) | (uint8_t)(0u << 4); } ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0C |= _BV(3); } } while (0)
+#define HAL_UART_FRAME_8N1_USART0_INIT() do { UCSR0C = (UCSR0C & ~(uint8_t)0x06) | (uint8_t)(3u << 1); UCSR0B = (UCSR0B & ~(uint8_t)0x04) | (uint8_t)(0u << 2); UCSR0C = (UCSR0C & ~(uint8_t)0x30) | (uint8_t)(0u << 4); UCSR0C |= _BV(3); } while (0)
+
+/* uart.tx_enable on USART0: UCSR0B.TXEN0 via mem-rmw */
+/*   steps sha256 1005b5c35eea8a6f68ab00f6c53daca910a50c042d210b50e52991bf99ed404b */
+#define HAL_UART_TX_ENABLE_USART0() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0B |= _BV(3); } } while (0)
+#define HAL_UART_TX_ENABLE_USART0_INIT() do { UCSR0B |= _BV(3); } while (0)
+
+/* uart.tx_ready on USART0: UCSR0A.UDRE0 via read-bit */
+/*   steps sha256 e957820237360a6cddcda580e7eeb2d28cf33c6fdc5b944ff0d81caf0a6789df */
+#define HAL_UART_TX_READY_USART0() (uint8_t)((UCSR0A & _BV(5)) != 0u)
+
+/* uart.write on USART0: UDR0.UDR0 via w-store */
+/*   steps sha256 48e014b8a89b42c8ca248474d79a29197a0898c3c7f8fb3d592399d7ef00706d */
+#define HAL_UART_WRITE_USART0(byte) do { UDR0 = (uint8_t)(((uint8_t)((byte)) << 0) & (uint8_t)0xFF); } while (0)
+
+/* uart.rx_enable on USART0: UCSR0B.RXEN0 via mem-rmw */
+/*   steps sha256 fc43f2b1e3991d2edea77681e4563d1798c48aa41586c97613b9ce058a05ce7b */
+#define HAL_UART_RX_ENABLE_USART0() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0B |= _BV(4); } } while (0)
+#define HAL_UART_RX_ENABLE_USART0_INIT() do { UCSR0B |= _BV(4); } while (0)
+
+/* uart.rx_irq_enable on USART0: UCSR0B.RXCIE0 via mem-rmw */
+/*   steps sha256 bfa291fd524e54882abc62a14ffbb84f7e5176fc93492dd817580bce709344d7 */
+#define HAL_UART_RX_IRQ_ENABLE_USART0() do { ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { UCSR0B |= _BV(7); } } while (0)
+#define HAL_UART_RX_IRQ_ENABLE_USART0_INIT() do { UCSR0B |= _BV(7); } while (0)
+
+/* uart.read on USART0: UDR0.UDR0 via read-reg */
+/*   steps sha256 44c1b50a9148cd50254ead4f9fb3b3ead1a8b813e400da57c88ca9878097896e */
+#define HAL_UART_READ_USART0() (uint8_t)(UDR0)
+
+/* uart.rx_vector on USART0:  */
+/*   steps sha256 3a15750fa81b55523f6fb00c0835c92562366ea062ee5ed9ec77cc9bccdff038 */
+#define HAL_UART_RX_VECTOR_USART0 USART_RX_vect
+
 /* gpio.input on PD3: DDRD.DDD3 via avr-io-bit */
-/*   steps sha256 f61e61d7a91cc1f445a9f154853059efa6752369385b18783ae83b6fc5c21276 */
+/*   steps sha256 9d38f68b81bd73815119f43c9bf84a7c9d4aef8853cf4010ba0e331ee9776b35 */
 #define HAL_GPIO_INPUT_PD3() do { DDRD &= (uint8_t)~_BV(3); } while (0)
 
 /* gpio.read on PD3: PIND.PIND3 via read-bit */
-/*   steps sha256 6c37818b9a77e8342ce76d53ddcac546946f03a4135dfad60bac2bc30fbe7985 */
+/*   steps sha256 2544615591fe1866a958675c29a4be04dc0c45d859dd6b7c8b642c269bf8f448 */
 #define HAL_GPIO_READ_PD3() (uint8_t)((PIND & _BV(3)) != 0u)
+
+/* roles: what the firmware calls -> the unit above that does it on this build's pin */
+#define HAL_LED_OUTPUT() HAL_GPIO_OUTPUT_PD6()
+#define HAL_LED_SET_HIGH() HAL_GPIO_SET_HIGH_PD6()
+#define HAL_LED_SET_LOW() HAL_GPIO_SET_LOW_PD6()
+#define HAL_BUTTON_INPUT() HAL_GPIO_INPUT_PD2()
+#define HAL_BUTTON_PULL_UP() HAL_GPIO_PULL_UP_PD2()
+#define HAL_BUTTON_EDGE_ENABLE_FALLING() HAL_INT_EDGE_ENABLE_FALLING_PD2_INIT()
+#define HAL_BUTTON_EDGE_VECTOR HAL_INT_EDGE_VECTOR_PD2
+#define HAL_UART_SET_BAUD_X2(baud) HAL_UART_SET_BAUD_X2_USART0_INIT(baud)
+#define HAL_UART_FRAME_8N1() HAL_UART_FRAME_8N1_USART0_INIT()
+#define HAL_UART_TX_ENABLE() HAL_UART_TX_ENABLE_USART0_INIT()
+#define HAL_UART_TX_READY() HAL_UART_TX_READY_USART0()
+#define HAL_UART_WRITE(byte) HAL_UART_WRITE_USART0(byte)
+#define HAL_UART_RX_ENABLE() HAL_UART_RX_ENABLE_USART0_INIT()
+#define HAL_UART_RX_IRQ_ENABLE() HAL_UART_RX_IRQ_ENABLE_USART0_INIT()
+#define HAL_UART_READ() HAL_UART_READ_USART0()
+#define HAL_UART_RX_VECTOR HAL_UART_RX_VECTOR_USART0
+#define HAL_TICK_INIT_CTC(prescaler, hz) HAL_TIMER_INIT_CTC_TIMER2_INIT(prescaler, hz)
+#define HAL_TICK_IRQ_ENABLE() HAL_TIMER_IRQ_ENABLE_TIMER2_INIT()
+#define HAL_TICK_VECTOR HAL_TIMER_VECTOR_TIMER2
 
 #endif /* POLARI_HAL_ATMEGA328P_H */

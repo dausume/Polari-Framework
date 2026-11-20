@@ -59,8 +59,9 @@ def uno_parts(check):
               [(x['name'], x['direction'], x['polari_type'], x['unit']) for x in m['ports']] == [('return', 'out', 'int64', 'ms')]
               and m['globals']['g_ms']['inside_atomic'] and not m['globals']['g_ms']['outside_atomic'] and m['isr_safe'] == 'yes')
         r = AN.resources(a['hal.hal_adc_read'])
-        check('hal_adc_read touches ADMUX (w), ADCSRA (rw), ADC (r) — all peripheral ADC; ports in channel, out return [count]',
-              {(x['name'], x['access'], x['peripheral']) for x in r if x['kind'] == 'register'} == {('ADMUX', 'w', 'ADC'), ('ADCSRA', 'rw', 'ADC'), ('ADC', 'r', 'ADC')}
+        # hal-3b step 1: through the generated HAL (HAL_ADC_SELECT is a field write that keeps REFS) ADMUX is read-modify-written, so rw
+        check('hal_adc_read touches ADMUX (rw: the HAL\'s channel field write keeps the reference bits), ADCSRA (rw), ADC (r) — all peripheral ADC; ports in channel, out return [count]',
+              {(x['name'], x['access'], x['peripheral']) for x in r if x['kind'] == 'register'} == {('ADMUX', 'rw', 'ADC'), ('ADCSRA', 'rw', 'ADC'), ('ADC', 'r', 'ADC')}
               and [x['name'] for x in a['hal.hal_adc_read']['ports']] == ['channel', 'return'])
         rx = a['hal.USART_RX_vect']
         check('ISR(USART_RX_vect) (both #if branches, unioned) reads UCSR0A + UDR0 (USART0), writes rx_head / rx_ring and the error counters',
@@ -78,11 +79,11 @@ def uno_parts(check):
         from cmod.custom import analyse as AN
         w = tempfile.mkdtemp(prefix='cmod-torn-')
         v = {'name': 'cmod-torn', 'app': 'sim_rig', 'board_definition': 'arduino-uno-r3', 'classes_json': '["SimRigState"]',
-             'features_json': '{"led": true, "pwm": true, "adc": true, "commands": true}', 'knobs_json': '{}', 'build_flags_json': '["HAL_MILLIS_ATOMIC=0"]'}
+             'features_json': '{"led": true, "pwm": true, "adc": true, "commands": true}', 'knobs_json': '{}', 'build_flags_json': '["CFG_MILLIS_ATOMIC=0"]'}
         row = gen.gen('uno', work=w, variant='cmod-torn', variant_rows=[v])
         p = AN.parse_project(row['project_dir'])
         a = p['atoms']
-        check('the TORN build (HAL_MILLIS_ATOMIC=0, scenario 1\'s BEFORE) parsed as a plain project: hal_millis → isr_safe no — "g_ms (4 B, '
+        check('the TORN build (CFG_MILLIS_ATOMIC=0, scenario 1\'s BEFORE) parsed as a plain project: hal_millis → isr_safe no — "g_ms (4 B, '
               'written by ISR …) … tears it" — the scanner sees the fault firmwarefaults forces on the twin',
               a['hal.hal_millis']['isr_safe'] == 'no' and 'g_ms (4 B' in a['hal.hal_millis']['isr_safe_why'], a['hal.hal_millis']['isr_safe_why'])
         check('…and main, which calls it, inherits the verdict (calls hal_millis)', a['main.main']['isr_safe'] == 'no'
@@ -143,8 +144,8 @@ def uno_parts(check):
         check('make ALONE built every configuration (13/13, the .hex sha recorded) — no Polari in that loop',
               len(mk) == 13 and all(x.get('ok') and len(x.get('hex_sha256', '')) == 64 for x in mk))
         sim = next(c for c in m['configurations'] if c['name'] == 'uno-sim-rig')
-        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (4188f6ae…, unchanged by the annotations)',
-              sim['make_alone']['hex_sha256'].startswith('4188f6ae7d65bfc7'), sim['make_alone']['hex_sha256'][:16])
+        check('uno-sim-rig built by make alone = the .hex board\'s own pipeline builds (49328ce3…, unchanged by the annotations; hal-3b step 1 (2026-11-13): USART0 / Timer2 / ADC through the generated HAL (behaviour-identical, twin-proven: raw UART identical on all 17 variants) - 57461b96 before; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before)',
+              sim['make_alone']['hex_sha256'].startswith('49328ce31933efdc'), sim['make_alone']['hex_sha256'][:16])
         check('the build block reads the flags FROM the Makefile and states the measurement (shipped / noinline)',
               m['build']['from'] == 'the project Makefile' and '-Werror' in m['build']['cflags'] and 'noinline' in m['build']['measure'])
 

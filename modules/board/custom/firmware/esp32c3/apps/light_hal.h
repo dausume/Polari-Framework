@@ -6,7 +6,7 @@
  *   hal_led_write(level)  drive the LED pin
  *   hal_sense_read()      read the sense pin (the jumper from the LED pin)
  *
- * PIN_SHIM 0 = the CHIP HAL (ESP-IDF's gpio driver; button = interrupt service routine -> task notification). PIN_SHIM 1 = THE TWIN SHIM: Espressif's QEMU
+ * PIN_SHIM 0 = the CHIP HAL (the generated Polari HAL for the pins, hal-3b step 2; button = ESP-IDF's GPIO interrupt service -> task notification). PIN_SHIM 1 = THE TWIN SHIM: Espressif's QEMU
  * esp32c3 machine models the GPIO block as a register stub (writes are dropped, GPIO_IN never moves; measured 2026-10-19: GPIO_OUT stays 0 after
  * gpio_set_level), so a pin cannot be pressed or read from outside. The shim keeps the pin levels in RAM instead:
  *   the LED level is a variable, logged on the trace line `@LED <ms> <level>` when it is written;
@@ -14,6 +14,7 @@
  *   the button follows a SCRIPT from the params partition (a[0] first press ms, a[1] gap ms, a[2] hold ms, a[3] presses, a[4] the GPIO the script presses);
  *   a press on a pin other than BUTTON_GPIO never reaches the button task - a negative control.
  * Everything above the HAL (the tasks, the struct, the frames) is identical in both builds. The chip HAL has NOT run on a chip (no C3 on the bench).
+ * hal-3b step 2: PIN_SHIM 0 = the GENERATED HAL (polari_hal_esp32c3.h) for the pins; the button interrupt stays on ESP-IDF's gpio driver.
  */
 #ifndef LIGHT_HAL_H
 #define LIGHT_HAL_H
@@ -67,6 +68,12 @@ static int hal_sense_read(void) { return g_params.a[5] ? s_led_level : 0; }
 
 #else /* the chip HAL */
 
+/* hal-3b step 2: the pins go through the GENERATED HAL (main/polari_hal_esp32c3.h, rendered by board.custom.gen_c3 for this variant's
+ * LED_GPIO / SENSE_GPIO / BUTTON_GPIO; each macro names its TRM rows and its trace digest). What stays on ESP-IDF's gpio driver, and why:
+ * the button's falling-edge interrupt (gpio_set_intr_type, gpio_intr_enable, the ISR service) - the C3 has no int family in the HAL yet.
+ * Gate 2 of step 2 (board_c3_hal_selftest) lists every GPIO / IO_MUX access the ESP-IDF version made against these, both ways. */
+#include "polari_hal_esp32c3.h"
+
 static TaskHandle_t s_button_target;
 
 static void IRAM_ATTR button_isr(void *arg)
@@ -79,13 +86,17 @@ static void IRAM_ATTR button_isr(void *arg)
 
 static void hal_pins_init(void)
 {
-    const gpio_config_t led = {.pin_bit_mask = 1ULL << LED_GPIO, .mode = GPIO_MODE_OUTPUT};
-    const gpio_config_t sense = {.pin_bit_mask = 1ULL << SENSE_GPIO, .mode = GPIO_MODE_INPUT, .pull_down_en = GPIO_PULLDOWN_ENABLE};
-    const gpio_config_t button = {.pin_bit_mask = 1ULL << BUTTON_GPIO, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE, .intr_type = GPIO_INTR_NEGEDGE};
-    ESP_ERROR_CHECK(gpio_config(&led));
-    ESP_ERROR_CHECK(gpio_config(&sense));
-    ESP_ERROR_CHECK(gpio_config(&button));
-    ESP_ERROR_CHECK(gpio_set_level(LED_GPIO, 0));
+    HAL_LED_OUTPUT();          /* GPIO matrix out = the GPIO's own output, pad function GPIO, output enabled */
+    HAL_LED_PULL_NONE();
+    HAL_SENSE_INPUT();         /* pad function GPIO, input buffer on, output disabled */
+    HAL_SENSE_PULL_NONE();
+    HAL_SENSE_PULL_DOWN();
+    HAL_BUTTON_INPUT();
+    HAL_BUTTON_PULL_NONE();
+    HAL_BUTTON_PULL_UP();
+    ESP_ERROR_CHECK(gpio_set_intr_type(BUTTON_GPIO, GPIO_INTR_NEGEDGE));   /* ESP-IDF: no C3 int family in the HAL yet */
+    ESP_ERROR_CHECK(gpio_intr_enable(BUTTON_GPIO));
+    HAL_LED_SET_LOW();
 }
 
 static void hal_button_arm(TaskHandle_t task)
@@ -98,10 +109,13 @@ static void hal_button_arm(TaskHandle_t task)
 static void hal_led_write(int level)
 {
     s_led_level = level;
-    gpio_set_level(LED_GPIO, level);
+    if (level)
+        HAL_LED_SET_HIGH();
+    else
+        HAL_LED_SET_LOW();
 }
 
-static int hal_sense_read(void) { return gpio_get_level(SENSE_GPIO); }
+static int hal_sense_read(void) { return HAL_SENSE_READ(); }
 
 #endif /* PIN_SHIM */
 

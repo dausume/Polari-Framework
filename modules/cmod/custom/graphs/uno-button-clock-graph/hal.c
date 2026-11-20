@@ -9,12 +9,8 @@
 #include <util/atomic.h>
 
 #include "hal.h"
+#include "polari_hal_atmega328p.h"   /* hal-3a: the GENERATED HAL units this build needs (its pins, its features), under role names */
 
-#if USART_U2X
-#define UBRR0_VALUE 16u            /* U2X0 = 1: +2.1 % (what Optiboot and the 16U2 side use) */
-#else
-#define UBRR0_VALUE 8u             /* U2X0 = 0: -3.5 % (works on the twin; marginal against the 16U2) */
-#endif
 #ifndef RX_RING
 #define RX_RING 64u                /* power of two; a variant may set it (build flag RX_RING=N) */
 #endif
@@ -32,19 +28,19 @@ _Static_assert(RX_RING >= 2u && RX_RING <= 256u && (RX_RING & (RX_RING - 1u)) ==
 static volatile uint8_t rx_ring[RX_RING];
 static volatile uint8_t rx_head, rx_tail;
 
-#if HAL_UART_ERRCOUNT
+#if CFG_UART_ERRCOUNT
 /* sc-1 (FIRMWARE_SCENARIO_PLAN.md §3a, scenario 4): the USART's own error bits, which no shipped variant reads. FE0
  * (the stop bit was 0) and DOR0 (a byte arrived while UDR0 was full) are valid only BEFORE UDR0 is read
  * (DS40002061B §20.11.2), so the status is read first; a full ring drop is counted too. The byte is still queued:
  * the parser's CRC + resync decides. Counters, never a policy. */
 static volatile uint16_t g_uart_fe, g_uart_dor, g_rx_dropped;
 
-ISR(USART_RX_vect)
+ISR(HAL_UART_RX_VECTOR)                               /* USART_RX_vect (the generated header) */
 {
-    uint8_t st = UCSR0A;
-    uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
-    if (st & _BV(FE0)) g_uart_fe++;
-    if (st & _BV(DOR0)) g_uart_dor++;
+    uint8_t fe = HAL_UART_FRAME_ERROR(), dor = HAL_UART_OVERRUN();   /* both before the byte is read: they belong to it */
+    uint8_t b = HAL_UART_READ(), next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
+    if (fe) g_uart_fe++;
+    if (dor) g_uart_dor++;
     if (next != rx_tail) {
         rx_ring[rx_head] = b;
         rx_head = next;
@@ -60,9 +56,9 @@ uint16_t hal_uart_errors(uint8_t which)
     return v;
 }
 #else
-ISR(USART_RX_vect)
+ISR(HAL_UART_RX_VECTOR)                               /* USART_RX_vect (the generated header) */
 {
-    uint8_t b = UDR0, next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
+    uint8_t b = HAL_UART_READ(), next = (uint8_t)((rx_head + 1u) & (RX_RING - 1u));
     if (next != rx_tail) {         /* full: the byte is dropped; the parser's CRC + resync recovers */
         rx_ring[rx_head] = b;
         rx_head = next;
@@ -82,20 +78,22 @@ int hal_rx_pop(uint8_t *b)
 }
 #endif
 
+/* hal-3b: USART0 through the generated HAL roles (HAL_UART_*): the divider is the datasheet's Table 20-1 formula rounded to the
+ * nearest setting, checked at compile time (115200 at 16 MHz: 16 with U2X0, 8 without - the values Table 20-7 lists) */
 void hal_usart_init(void)
 {
-    UBRR0H = (uint8_t)(UBRR0_VALUE >> 8);
-    UBRR0L = (uint8_t)UBRR0_VALUE;
 #if USART_U2X
-    UCSR0A = _BV(U2X0);
+    HAL_UART_SET_BAUD_X2(115200UL);                    /* U2X0 = 1: +2.1 % (what Optiboot and the 16U2 side use) */
 #else
-    UCSR0A = 0;
+    HAL_UART_SET_BAUD(115200UL);                       /* U2X0 = 0: -3.5 % (works on the twin; marginal against the 16U2) */
 #endif
-    UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);               /* 8N1 */
+    HAL_UART_FRAME_8N1();
+    HAL_UART_TX_ENABLE();
 #if FEATURE_COMMANDS
-    UCSR0B = _BV(RXEN0) | _BV(TXEN0) | _BV(RXCIE0);
+    HAL_UART_RX_ENABLE();
+    HAL_UART_RX_IRQ_ENABLE();
 #else
-    UCSR0B = _BV(TXEN0);                               /* transmit only */
+    HAL_UART_RX_DISABLE();                             /* transmit only */
 #endif
 }
 
@@ -104,30 +102,28 @@ POLARI_NODE(hal_usart_send, in(b, "bytes", "the frame to send"), in(n, "B", "how
 void hal_usart_send(const uint8_t *b, size_t n)
 {
     while (n--) {
-        while (!(UCSR0A & _BV(UDRE0))) { }
-        UDR0 = *b++;
+        while (!HAL_UART_TX_READY()) { }
+        HAL_UART_WRITE(*b++);
     }
 }
 
 /* ---- Timer2: CTC, /128, OCR2A = 124 → 16 MHz / 128 / 125 = 1000 Hz ---- */
 static volatile uint32_t g_ms;
 
-ISR(TIMER2_COMPA_vect) { g_ms++; }
+ISR(HAL_TICK_VECTOR) { g_ms++; }                     /* TIMER2_COMPA_vect (the generated header) */
 
 void hal_tick_init(void)
 {
-    TCCR2A = _BV(WGM21);
-    TCCR2B = _BV(CS22) | _BV(CS20);                    /* clk/128 */
-    OCR2A = 124u;
-    TIMSK2 = _BV(OCIE2A);
+    HAL_TICK_INIT_CTC(128u, 1000UL);                   /* CTC, clk/128, top = 16 MHz / 128 / 1000 - 1 = 124 */
+    HAL_TICK_IRQ_ENABLE();
 }
 
 /* g_ms is FOUR bytes the tick ISR writes; reading it is four `lds`. The atomic block masks interrupts across them
- * (+6 B, +3 cycles). HAL_MILLIS_ATOMIC 0 is the scenario variant uno-sim-rig-torn (sc-0, FIRMWARE_SCENARIO_PLAN.md
+ * (+6 B, +3 cycles). CFG_MILLIS_ATOMIC 0 is the scenario variant uno-sim-rig-torn (sc-0, FIRMWARE_SCENARIO_PLAN.md
  * §3): the bare read, which a tick landing between the loads TEARS (0x000000FF reads back as 0x000001FF = 511). It
  * exists only so the fault can be forced and shown on the twin — never ship it. */
-#ifndef HAL_MILLIS_ATOMIC
-#define HAL_MILLIS_ATOMIC 1
+#ifndef CFG_MILLIS_ATOMIC
+#define CFG_MILLIS_ATOMIC 1
 #endif
 
 POLARI_NODE(hal_millis, out(return, "ms", "milliseconds since hal_tick_init, from the Timer2 1 ms tick"),
@@ -135,7 +131,7 @@ POLARI_NODE(hal_millis, out(return, "ms", "milliseconds since hal_tick_init, fro
 uint32_t hal_millis(void)
 {
     uint32_t v;
-#if HAL_MILLIS_ATOMIC
+#if CFG_MILLIS_ATOMIC
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { v = g_ms; }
 #else
     v = g_ms;
@@ -143,23 +139,23 @@ uint32_t hal_millis(void)
     return v;
 }
 
-/* ---- sc-1 scenario 3: a button on D2 = INT0 (falling edge, pull-up). HAL_INT0_DEBOUNCE_MS 0 counts EVERY edge (the
+/* ---- sc-1 scenario 3: a button on D2 = INT0 (falling edge, pull-up). CFG_INT0_DEBOUNCE_MS 0 counts EVERY edge (the
  * BEFORE build: a ringing contact gives two edges, two counts); > 0 ignores edges within that many ms of the last one
  * it counted (the Technique `debounce`). g_ms is read bare inside the ISR: interrupts are off there, so its four loads
  * cannot be split by the tick. ---- */
-#if HAL_INT0 && !HAL_BUTTON_ROUTE   /* fgm-5a: HAL_BUTTON_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = pin-change interrupt, 2 = ADC threshold: that route is rendered into hal_button_*.c from catoms/read-button/ and this INT0 block is off */
+#if CFG_INT0 && !CFG_BUTTON_ROUTE   /* fgm-5a: CFG_BUTTON_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = pin-change interrupt, 2 = ADC threshold: that route is rendered into hal_button_*.c from catoms/read-button/ and this INT0 block is off */
 static volatile uint16_t g_presses;
 static volatile uint8_t g_toggle_pending;   /* ucd-0e2: set by the ISR, consumed (cleared) by hal_take_toggle_pending */
-#if HAL_INT0_DEBOUNCE_MS
+#if CFG_INT0_DEBOUNCE_MS
 static uint32_t g_last_press;
 static uint8_t g_pressed_once;
 #endif
 
-ISR(INT0_vect)
+ISR(HAL_BUTTON_EDGE_VECTOR)                            /* INT0_vect on D2 (the generated header) */
 {
-#if HAL_INT0_DEBOUNCE_MS
+#if CFG_INT0_DEBOUNCE_MS
     uint32_t now = g_ms;
-    if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)HAL_INT0_DEBOUNCE_MS) return;
+    if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)CFG_INT0_DEBOUNCE_MS) return;
     g_pressed_once = 1u;
     g_last_press = now;
 #endif
@@ -178,12 +174,10 @@ void hal_button_init(void)
 #ifndef POLARI_PIN_CONFIG
     /* a GENERATED pin_config_init() (cmod.custom.pin_config_gen) owns these DDRD/PORTD/EICRA/EIFR/EIMSK writes when
      * POLARI_PIN_CONFIG is defined (ucd-0b) — the two never both run. EICRA/EIMSK are read-modify-write: D3's sense
-     * atom (HAL_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
-    DDRD &= (uint8_t)~_BV(PD2);
-    PORTD |= _BV(PD2);                                 /* pull-up: the button pulls D2 to ground */
-    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC01) | _BV(ISC00))) | _BV(ISC01));   /* falling edge, ISC1x untouched */
-    EIFR = _BV(INTF0);                                 /* w1c: clears only INTF0 (DS40002061B §13.2.5) */
-    EIMSK |= _BV(INT0);                                 /* OR, not assign: INT1 may already be enabled (HAL_INT1) */
+     * atom (CFG_INT1, below) shares both registers (EICRA's ISC1x bits, EIMSK's INT1 bit) and may init either first. */
+    HAL_BUTTON_INPUT();
+    HAL_BUTTON_PULL_UP();                              /* pull-up: the button pulls D2 to ground */
+    HAL_BUTTON_EDGE_ENABLE_FALLING();                  /* EICRA ISC01:00 = 10 (ISC1x untouched), clear INTF0 (w1c), EIMSK |= INT0 (INT1 may already be on) */
 #endif
 }
 
@@ -208,13 +202,13 @@ uint8_t hal_take_toggle_pending(void)
  * independent witness that the LED line (wired D6->D3 on the bench/twin) really switched. The ISR ONLY counts and
  * stamps (reads g_ms bare: interrupts are off inside an ISR, so its four loads cannot be split by the tick); emitting
  * sense_rise/sense_fall ButtonClockEvents is the main loop's job (button_clock.c), never the ISR's. ---- */
-#if HAL_INT1 && !HAL_SENSE_ROUTE   /* fgm-5b: HAL_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = polled, 2 = pin-change interrupt: that route is rendered into hal_sense_*.c from catoms/sense-led-line/ and this INT1 block is off */
+#if CFG_INT1 && !CFG_SENSE_ROUTE   /* fgm-5b: CFG_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant is unchanged) 1 = polled, 2 = pin-change interrupt: that route is rendered into hal_sense_*.c from catoms/sense-led-line/ and this INT1 block is off */
 static volatile uint16_t g_sense_rises, g_sense_falls;
 static volatile uint32_t g_last_edge_ms;
 
-ISR(INT1_vect)
+ISR(HAL_SENSE_EDGE_VECTOR)                             /* INT1_vect on D3 (the generated header) */
 {
-    uint8_t level = (PIND & _BV(PD3)) != 0u;
+    uint8_t level = HAL_SENSE_READ();
     g_last_edge_ms = g_ms;
     if (level) g_sense_rises++; else g_sense_falls++;
 }
@@ -225,10 +219,8 @@ POLARI_NODE(hal_sense_init, uses(SENSE_PIN),
 void hal_sense_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
-    DDRD &= (uint8_t)~_BV(PD3);                        /* D3 input (the wired/witness pin, never driven by this build) */
-    EICRA = (uint8_t)((EICRA & (uint8_t)~(_BV(ISC11) | _BV(ISC10))) | _BV(ISC10));   /* ISC11:10 = 01: any logical change */
-    EIFR = _BV(INTF1);                                 /* w1c: clears only INTF1 */
-    EIMSK |= _BV(INT1);                                 /* OR, not assign: INT0 may already be enabled (HAL_INT0) */
+    HAL_SENSE_INPUT();                                 /* D3 input (the wired/witness pin, never driven by this build) */
+    HAL_SENSE_EDGE_ENABLE();                           /* EICRA ISC11:10 = 01 any logical change, clear INTF1 (w1c), EIMSK |= INT1 (INT0 may already be on) */
 #endif
 }
 
@@ -241,41 +233,28 @@ void hal_sense_read(uint16_t *rises, uint16_t *falls, uint32_t *last_ms)
 }
 #endif
 
-/* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON at its shortest period
- * (DS40002061B §10.9.2), so a firmware that does not clear both before main resets forever; .init3 runs before the
- * C runtime's .init4..9 and main. HAL_WDT 0 (every shipped variant) compiles none of this. ---- */
-#if HAL_WDT
+/* ---- sc-1 (plan §4): the watchdog. After a watchdog reset WDRF stays set and the WDT stays ON (DS40002061B §11.8 p.61:
+ * "clear the Watchdog System Reset Flag (WDRF) and the WDE control bit in the initialization routine"), and WDRF holds WDE on
+ * (§11.9.2 p.64: "To clear WDE, WDRF must be cleared first"), so the flags go first; .init3 runs before the C runtime's
+ * .init4..9 and main. hal-3b step 1: through the generated HAL (HAL_WDT_*). CFG_WDT 0 (every shipped variant) compiles none of this. ---- */
+#if CFG_WDT
 void hal_wdt_boot(void) __attribute__((naked, used, section(".init3")));
 void hal_wdt_boot(void)
 {
-    MCUSR = 0u;
-    wdt_disable();
+    HAL_WDT_RESET_FLAGS_CLEAR();                       /* MCUSR = 0: every reset flag is w0c */
+    HAL_WDT_DISABLE();                                 /* WDRF already 0; then avr-libc wdt_disable's timed sequence */
 }
 #endif
 
-/* ---- the LED on LED_PIN ---- */
+/* ---- the LED on LED_PIN (hal-3a: its port, bit and registers are the generated header's: HAL_LED_*) ---- */
 #if FEATURE_LED
-#if LED_PIN < 8
-#define LED_PORT PORTD
-#define LED_DDR  DDRD
-#define LED_BIT  (LED_PIN)
-#else
-#define LED_PORT PORTB
-#define LED_DDR  DDRB
-#define LED_BIT  ((LED_PIN) - 8)
-#endif
 
 #if LED_ROUTE_PWM
 /* smp-1 (drive-led:pwm): the LED pin is Timer0's compare output (D6 = OC0A, D5 = OC0B), PHASE-CORRECT PWM (TOP 255, ~490 Hz at clk/64). "On" connects the output at
- * OCR = 255 (100 % duty: the pin stays HIGH, no edges for a sense line to count); "off" disconnects it and drives the pin low. The PORT bit
- * is kept equal to the level the pin has, so everything that reads the LED line as a port bit still reads the truth. */
-#if LED_PIN == 6
-#define LED_OCR  OCR0A
-#define LED_COM  COM0A1
-#elif LED_PIN == 5
-#define LED_OCR  OCR0B
-#define LED_COM  COM0B1
-#else
+ * duty 255 (100 %: the pin stays HIGH, no edges for a sense line to count); "off" disconnects it and drives the pin low. The PORT bit
+ * is kept equal to the level the pin has, so everything that reads the LED line as a port bit still reads the truth.
+ * hal-3b: which timer, which compare register and which COM bits are the generated header's (HAL_LED_PWM_*: the pin's OCnx function). */
+#if LED_PIN != 6 && LED_PIN != 5
 #error "LED_ROUTE_PWM needs LED_PIN 5 or 6 (Timer0's outputs); D3/D11 belong to Timer2, the 1 ms tick"
 #endif
 #endif
@@ -283,12 +262,11 @@ void hal_wdt_boot(void)
 void hal_led_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
-    LED_DDR |= _BV(LED_BIT);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_LED_OUTPUT();          /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
 #if LED_ROUTE_PWM
-    TCCR0A = _BV(WGM00);                               /* phase-correct PWM (TOP = 255), output disconnected */
-    TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
-    LED_OCR = 255u;
+    HAL_LED_PWM_INIT_PHASE(64u);                       /* phase-correct PWM (TOP = 255) at clk/64, output still disconnected */
+    HAL_LED_PWM_SET_DUTY(255u);
 #endif
 }
 
@@ -298,48 +276,33 @@ void hal_led(uint8_t on)
 {
 #if LED_ROUTE_PWM
     if (on) {
-        LED_PORT |= _BV(LED_BIT);
-        TCCR0A |= _BV(LED_COM);
+        HAL_LED_SET_HIGH();
+        HAL_LED_PWM_CONNECT();
     } else {
-        TCCR0A &= (uint8_t)~_BV(LED_COM);
-        LED_PORT &= (uint8_t)~_BV(LED_BIT);
+        HAL_LED_PWM_DISCONNECT();
+        HAL_LED_SET_LOW();
     }
 #else
-    if (on) LED_PORT |= _BV(LED_BIT); else LED_PORT &= (uint8_t)~_BV(LED_BIT);
+    if (on) HAL_LED_SET_HIGH(); else HAL_LED_SET_LOW();
 #endif
 }
 #endif
 
-/* ---- PWM on PWM_PIN (~976 Hz on Timer0, ~976 Hz 8-bit fast PWM on Timer1), duty a percentage 0..100 ---- */
+/* ---- PWM on PWM_PIN (~976 Hz 8-bit fast PWM: Timer0 on D5/D6, Timer1 mode 5 on D9/D10), duty a percentage 0..100.
+ * hal-3b: the timer, its mode bits, clock select and compare register are the generated header's (HAL_PWM_*, from the pin's OCnx). ---- */
 #if FEATURE_PWM
-#if PWM_PIN == 6
-#define PWM_OCR OCR0A
-#elif PWM_PIN == 5
-#define PWM_OCR OCR0B
-#elif PWM_PIN == 9
-#define PWM_OCR OCR1A
-#elif PWM_PIN == 10
-#define PWM_OCR OCR1B
-#else
+#if PWM_PIN != 6 && PWM_PIN != 5 && PWM_PIN != 9 && PWM_PIN != 10
 #error "PWM_PIN must be 5, 6 (Timer0) or 9, 10 (Timer1) — D3/D11 belong to Timer2, the 1 ms tick"
 #endif
 
 void hal_pwm_init(void)
 {
-#if PWM_PIN == 6 || PWM_PIN == 5
 #ifndef POLARI_PIN_CONFIG
-    DDRD |= (PWM_PIN == 6) ? _BV(PD6) : _BV(PD5);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
+    HAL_PWM_OUTPUT();                                  /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
 #endif
-    TCCR0A = ((PWM_PIN == 6) ? _BV(COM0A1) : _BV(COM0B1)) | _BV(WGM01) | _BV(WGM00);
-    TCCR0B = _BV(CS01) | _BV(CS00);                    /* clk/64 */
-#else
-#ifndef POLARI_PIN_CONFIG
-    DDRB |= (PWM_PIN == 9) ? _BV(PB1) : _BV(PB2);   /* a GENERATED pin_config_init() owns this DDR write when POLARI_PIN_CONFIG is defined (ucd-0b) */
-#endif
-    TCCR1A = ((PWM_PIN == 9) ? _BV(COM1A1) : _BV(COM1B1)) | _BV(WGM10);   /* fast PWM 8-bit (mode 5) */
-    TCCR1B = _BV(WGM12) | _BV(CS11) | _BV(CS10);       /* clk/64 */
-#endif
-    PWM_OCR = 0u;
+    HAL_PWM_INIT_FAST(64u);                            /* fast PWM 8-bit at clk/64 */
+    HAL_PWM_CONNECT();                                 /* non-inverting compare output */
+    HAL_PWM_SET_DUTY(0u);
 }
 
 POLARI_NODE(hal_pwm_apply, in(duty, "%", "requested duty 0..100 (clamped)"), out(return, "%", "the duty applied"),
@@ -348,7 +311,7 @@ int64_t hal_pwm_apply(int64_t duty)
 {
     if (duty < 0) duty = 0;
     if (duty > 100) duty = 100;
-    PWM_OCR = (uint8_t)(((uint16_t)duty * 255u) / 100u);
+    HAL_PWM_SET_DUTY((uint8_t)(((uint16_t)duty * 255u) / 100u));
     return duty;
 }
 #endif
@@ -357,17 +320,16 @@ int64_t hal_pwm_apply(int64_t duty)
 #if FEATURE_ADC
 void hal_adc_init(void)
 {
-    ADMUX = _BV(REFS0);                                /* AVcc, channel 0, right-adjusted */
-    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
+    HAL_ADC_INIT(128u);                                /* AVcc reference, ADC on, clk/128 (125 kHz) */
 }
 
 POLARI_NODE(hal_adc_read, in(channel, "", "A0..A5 (0..5)"), out(return, "count", "10-bit ADC = Vin*1024/Vref, 0..1023"),
             role("one blocking ADC conversion, AVcc reference"))
 uint16_t hal_adc_read(uint8_t channel)
 {
-    ADMUX = (uint8_t)(_BV(REFS0) | (channel & 0x07u));
-    ADCSRA |= _BV(ADSC);
-    while (ADCSRA & _BV(ADSC)) { }
-    return ADC;
+    HAL_ADC_SELECT(channel & 0x07u);
+    HAL_ADC_START();
+    while (HAL_ADC_BUSY()) { }
+    return HAL_ADC_RESULT();
 }
 #endif

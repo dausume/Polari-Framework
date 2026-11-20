@@ -31,7 +31,8 @@ class RegisterField(treeObject):
     def __init__(self, name: str = '', soc: str = '', register: str = '', field: str = '', bit_hi: int = 0, bit_lo: int = 0,
                  width: int = 1, access: str = 'rw', reset_value: str = '0', description: str = '', values_json: str = '{}',
                  affects_signal: str = '', affects_pin: str = '', document: str = '', page_table: str = '', url: str = '',
-                 origin: str = 'cited', undetermined: str = '', notes: str = '', datasheet: str = '', roles_json: str = '{}', manager=None):
+                 origin: str = 'cited', undetermined: str = '', notes: str = '', datasheet: str = '', roles_json: str = '{}', acts_on: str = '',
+                 manager=None):
         self.name = name                    # '<soc>:<REGISTER>.<FIELD>' (atmega328p:EICRA.ISC1)
         self.soc = soc
         self.register = register            # the Register row name ('<soc>:EICRA')
@@ -53,3 +54,5 @@ class RegisterField(treeObject):
         self.notes = notes
         self.datasheet = datasheet          # ucd-doc: the Datasheet row this (document, url) resolves to
         self.roles_json = roles_json        # rm-0: {read: [...], write: [...]} - the register's roles refined by this field's access (register_taxonomy.field_roles)
+        self.acts_on = acts_on              # hal-3b (pin twin): the Register row a write-1-to-set / -clear alias field acts on ('esp32c3:GPIO_OUT_REG' for
+                                            # GPIO_OUT_W1TS_REG.OUT_W1TS_n), as data; '' = not an alias, or the source does not say (never guessed)

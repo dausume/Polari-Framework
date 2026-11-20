@@ -19,10 +19,10 @@
 #define SEND_NAME    1     /* 0: telemetry omits `name` (the binding is the identity) */
 #define FEATURE_BUTTON 1
 #define FEATURE_SENSE  1
-#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */
-#define HAL_INT0_DEBOUNCE_MS 30u
+#define CFG_INT0     1              /* ucd-0e2: the button atom (hal.c) */
+#define CFG_INT0_DEBOUNCE_MS 30u
 #define BUTTON_PIN   2
-#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */
+#define CFG_INT1     1              /* ucd-0e2: the sense atom (hal.c) */
 #define SENSE_PIN    3
 #define EVENT_QUEUE_LEN 16u
 

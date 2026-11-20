@@ -66,7 +66,7 @@ def hal_init_modes(config):
         hal_macros = _hal_macros(d)
         out = {}
         for src in sorted(f for f in os.listdir(d) if f.endswith('.c')):
-            # only the functions the preprocessor leaves in THIS config's build count (hal_button_init sits under #if HAL_INT0): the parsed TU names them
+            # only the functions the preprocessor leaves in THIS config's build count (hal_button_init sits under #if CFG_INT0): the parsed TU names them
             walk, _probs = FS._parse_tu(os.path.join(d, src), r['include_dirs'])
             compiled = set(walk.funcs)
             for fn, body in FS._raw_bodies(os.path.join(d, src)).items():
@@ -77,7 +77,11 @@ def hal_init_modes(config):
                     shown = code
                     # hal-0: the generated HAL writes the register through a function-like macro (HAL_GPIO_INPUT_PD3() -> DDRD &= (uint8_t)~_BV(3)):
                     # expand it from the rendered polari_hal_<soc>.h so the same register regex reads it, and name the macro in the source words
-                    code = re.sub(r'\b(HAL_\w+)\(\)', lambda mm: hal_macros.get(mm.group(1), mm.group(0)), code)
+                    for _ in range(4):   # hal-3a: a role (HAL_LED_OUTPUT()) names a unit macro, which names the register write
+                        expanded = re.sub(r'\b(HAL_\w+)\(\)', lambda mm: hal_macros.get(mm.group(1), mm.group(0)), code)
+                        if expanded == code:
+                            break
+                        code = expanded
                     m = re.search(r'(DDR|PORT)([BCD])\s*(\|=|&=)\s*(?:\(uint8_t\))?\s*~?\s*_BV\((?:P([BCD]))?(\d)\)', code)
                     macro = re.search(r'(LED_DDR|LED_PORT)\s*(\|=|&=)\s*~?\s*_BV\(LED_BIT\)', code)
                     if macro:

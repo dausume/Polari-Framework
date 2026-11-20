@@ -92,7 +92,7 @@ destroys the same bytes), intact = an offline greedy scan of the bytes that reac
 
 The line's own loss agrees with the bit model: 9 destructive bits per byte (8 data + the start bit; a flipped stop bit is a framing error with
 the data intact) → 1 − (1 − p)^225 = 20.1 % / 2.22 % / 0.225 % for one 25-byte frame. FE0 counts and zero DOR0 / ring drops are on every run
-(`HAL_UART_ERRCOUNT`); each stream ends with 128 idle zero bytes so no candidate is left waiting for a corrupted length at the end. Found on the
+(`CFG_UART_ERRCOUNT`); each stream ends with 128 idle zero bytes so no candidate is left waiting for a corrupted length at the end. Found on the
 way: board's reference `StreamParser` (max payload 1024) undercounts at the end of a stream (it waits for a corrupted length's bytes) — it is
 not an ideal reference, so `payloads.ideal_frames` is.
 
@@ -138,8 +138,8 @@ re-runs from its row (`pol faults campaign run <name>`, `pol faults formal run a
 
 | FormalCheck | outcome | bound | wall | peak RSS |
 |---|---|---|---|---|
-| `hal-millis-not-torn@uno-sim-rig` (HAL_MILLIS_ATOMIC 1) | **decided (bounded, k=2)** — never proved | ≤ 2 ticks in any gap between the 4 loads + `--isr` at statement boundaries, unwind 4 (unwinding assertions hold) | **0.097 s** | **13.8 MB** |
-| `hal-millis-not-torn@uno-sim-rig-torn` (HAL_MILLIS_ATOMIC 0) | **refuted** — trace sha256 `1bc980ea…4ee2c` (301 steps): pre 0xFEFFFFFD, the loads read FE FF FF FF around two ticks, **returned 0xFFFFFFFE**, post 0xFF000001 (a carry into byte 3 — CBMC's own pick; the twin's was 0xFF → 0x1FF) | same | **0.109 s** | **14.9 MB** |
+| `hal-millis-not-torn@uno-sim-rig` (CFG_MILLIS_ATOMIC 1) | **decided (bounded, k=2)** — never proved | ≤ 2 ticks in any gap between the 4 loads + `--isr` at statement boundaries, unwind 4 (unwinding assertions hold) | **0.097 s** | **13.8 MB** |
+| `hal-millis-not-torn@uno-sim-rig-torn` (CFG_MILLIS_ATOMIC 0) | **refuted** — trace sha256 `1bc980ea…4ee2c` (301 steps): pre 0xFEFFFFFD, the loads read FE FF FF FF around two ticks, **returned 0xFFFFFFFE**, post 0xFF000001 (a carry into byte 3 — CBMC's own pick; the twin's was 0xFF → 0x1FF) | same | **0.109 s** | **14.9 MB** |
 | `rx-ring-index-bound@uno-sim-rig` (RX_RING 64) | **decided (bounded, k=4)** — indices in 0..63, fill = accepted − popped, FIFO order, from ANY valid start state | 4 steps + `--isr` inside hal_rx_pop, unwind 6 | **107.7 s** | **81.5 MB** |
 | `rx-ring-index-bound@uno-sim-rig-ring512` | **inapplicable** — hal.c's `_Static_assert` refuses the source | — | 0.024 s | 12.4 MB |
 
@@ -207,8 +207,8 @@ Same host (pol-core, i5-4590, 4 cpus, 16 GB). Every number re-runs: `pol faults 
 
 | FormalCheck | outcome | Mthread's decisive lines | wall | peak RSS |
 |---|---|---|---|---|
-| `hal-millis-race@uno-sim-rig` (HAL_MILLIS_ATOMIC 1) | **decided (unbounded)** — g_ms PROTECTED | `read by <main> at hal.c:132, protected by polari_irq_mutex` · `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.42–0.63 s | 104.9–105.2 MB |
-| `hal-millis-race@uno-sim-rig-torn` (HAL_MILLIS_ATOMIC 0) | **refuted** — g_ms (4 B) can TEAR | `read by <main> at hal.c:134, unprotected` vs `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.41–0.45 s | 104.7–104.8 MB |
+| `hal-millis-race@uno-sim-rig` (CFG_MILLIS_ATOMIC 1) | **decided (unbounded)** — g_ms PROTECTED | `read by <main> at hal.c:132, protected by polari_irq_mutex` · `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.42–0.63 s | 104.9–105.2 MB |
+| `hal-millis-race@uno-sim-rig-torn` (CFG_MILLIS_ATOMIC 0) | **refuted** — g_ms (4 B) can TEAR | `read by <main> at hal.c:134, unprotected` vs `write by polari_tick_isr at hal.c:110, protected by polari_irq_mutex` | 0.41–0.45 s | 104.7–104.8 MB |
 | `rx-ring-race@uno-sim-rig` | **decided (unbounded)** — rx_head / rx_tail / rx_ring BYTE-ATOMIC (Mthread lists all three as unprotected shared accesses by main; one byte, one writer each) | `rx_tail: write by <main> at hal.c:77, unprotected` (its only writer) · `rx_head: write by polari_rx_isr at hal.c:68, protected` (its only writer) · `rx_ring[0..63]: write by polari_rx_isr at hal.c:67` | 0.44–0.47 s | 104.8 MB |
 | `rx-ring-race@uno-sim-rig+broken-flush` (NEGATIVE CONTROL, no claim) | **refuted** — rx_head written by two threads (an update can be LOST) | `write by <main> at rx_ring_race.c:33, unprotected` vs `write by polari_rx_isr at hal.c:68, protected by polari_irq_mutex` | 0.44–0.45 s | 105.0–105.2 MB |
 | `rx-ring-race@uno-sim-rig-ring512` | **inapplicable** — `hal.c:25: static assertion failed: RX_RING must be a power of two in 2..256` | — | 0.36–0.41 s | 101.4–102.0 MB |

@@ -44,9 +44,10 @@ def graph_parts(check):
               'added or removed file)', d['clean'], {k: d[k] for k in ('stale', 'hand_edited', 'added', 'removed')})
         files = sorted(a['files'])
         check('the rendered project = polari_graph.c/.h + Makefile + the atom files (hal.c/hal.h verbatim) + board_config.h + the class header '
-              '+ the GENERATED pin_config.h/.c (ucd-0b, uno-sim-rig-graph has a FirmwareSolution) — only .c/.h + Makefile (RULE 2)',
+              '+ the GENERATED pin_config.h/.c (ucd-0b, uno-sim-rig-graph has a FirmwareSolution) + the GENERATED polari_hal_atmega328p.h (hal-3a: the HAL '
+              'units hal.c needs for this build) — only .c/.h + Makefile (RULE 2)',
               files == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'pin_config.c', 'pin_config.h', 'polari_graph.c', 'polari_graph.h',
-                        'simrigstate_packets.h'], files)
+                        'polari_hal_atmega328p.h', 'simrigstate_packets.h'], files)
         from cmod.custom import projects as P
         root = P.resolve('uno')['root']
         check('hal.c / hal.h are copied VERBATIM (byte-identical to the template)',
@@ -104,7 +105,7 @@ def graph_parts(check):
         refused('free C in a binding (channel=ADC_CHANNEL+1)', lambda r: _node(r, 'adc').update(bindings='channel=ADC_CHANNEL+1'), 'never carries free C')
         refused('an unknown atom', lambda r: _node(r, 'adc').update(atom='uno:hal.hal_adc_reed'), 'no atom')
         refused('an ISR as a node', lambda r: _node(r, 'clock').update(atom='uno:hal.TIMER2_COMPA_vect'), 'ISR')
-        refused('an atom not compiled in the base configuration (hal_presses: HAL_INT0 only)',
+        refused('an atom not compiled in the base configuration (hal_presses: CFG_INT0 only)',
                 lambda r: _node(r, 'clock').update(atom='uno:hal.hal_presses'), 'not compiled in the base configuration')
         refused('a calls edge the C does not have (apply_command never calls hal_adc_read)',
                 lambda r: (_node(r, 'pwm').update(atom='uno:hal.hal_adc_read'), r['edges'][3].update(to_port='channel')), 'does not call')
@@ -128,8 +129,8 @@ def graph_parts(check):
             rows['graph']['generated_project'] = os.path.join(tmp, 'proj')   # an absolute path: project_dir joins it as is
             r1 = GL.render(G, rows=rows)
             r2 = GL.render(G, rows=rows)
-            check('render writes the 9 files INTO the project (incl. the GENERATED pin_config.h/.c, ucd-0b); a second render writes nothing (idempotent)',
-                  len(r1['written']) == 9 and r2['unchanged'] and not r2['written'], (r1['written'], r2['written']))
+            check('render writes the 10 files INTO the project (incl. the GENERATED pin_config.h/.c, ucd-0b, and polari_hal_atmega328p.h, hal-3a); a second render writes nothing (idempotent)',
+                  len(r1['written']) == 10 and r2['unchanged'] and not r2['written'], (r1['written'], r2['written']))
             p = os.path.join(tmp, 'proj', 'polari_graph.c')
             open(p, 'a').write('/* a person\'s edit */\n')
             d = GL.diff(G, rows=rows)
@@ -176,8 +177,8 @@ def graph_parts(check):
               len(p['stimulus']['commands']) == 3 and len(p['stimulus']['command_frames_sha256']) == 3
               and any(s['status'] == 'commanded' and s['led_on'] and s['pwm_duty'] == 42 for s in p['samples'])
               and p['samples'][-1]['pwm_duty'] == 100)
-        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (4188f6ae…), sizes recorded for both',
-              p['reference']['hex_sha256'].startswith('4188f6ae7d65bfc7') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
+        check('…the hand-written build it replaces = board\'s own uno-sim-rig .hex (49328ce3…; hal-3b step 1 (2026-11-13): USART0 / Timer2 / ADC through the generated HAL (behaviour-identical, twin-proven: raw UART identical on all 17 variants) - 57461b96 before; hal-3b (2026-11-13): the FEATURE_PWM init writes fields through the generated HAL (behaviour-identical, twin-proven: raw UART identical) - 4188f6ae before), sizes recorded for both',
+              p['reference']['hex_sha256'].startswith('49328ce31933efdc') and p['reference']['size_text'] > 0 and p['glue']['size_text'] > 0)
         check('…the record still matches the committed render (proof.files_sha256 = files_sha256): nothing proven is stale',
               p.get('files_sha256') == rec['files_sha256'] and b.get('files_sha256') == rec['files_sha256'])
         conf = rec.get('conformed') or {}
@@ -194,8 +195,11 @@ def graph_parts(check):
               g['status'] == 'proven' and (g['node_count'], g['edge_count'], g['atom_count']) == (18, 15, 13) and len(own) == 1
               and own[0]['equivalent'], (g['status'], g['node_count'], g['edge_count'], g['atom_count']))
         nodes = {n['instance']: n for n in gr['CGraphNode']}
-        check('node rows carry the atom\'s derived ports / cost / ISR-safety (adc: in channel, out return; 36 B as a node)',
-              'in channel:int64' in nodes['adc']['ports_summary'] and nodes['adc']['cost_bytes'] == 36 and nodes['adc']['isr_safe'] == 'yes')
+        # hal-3b step 1: 36 -> 78 B. HAL_ADC_SELECT / HAL_ADC_START are read-modify-writes the generator guards (ATOMIC_BLOCK) because it
+        # cannot know that no ISR of THIS firmware touches ADMUX / ADCSRA; cmod does know (the atoms' ISR register sets) - guarding only the
+        # registers an ISR shares is the follow-up that gives the bytes back
+        check('node rows carry the atom\'s derived ports / cost / ISR-safety (adc: in channel, out return; 78 B as a node, the HAL\'s guards included)',
+              'in channel:int64' in nodes['adc']['ports_summary'] and nodes['adc']['cost_bytes'] == 78 and nodes['adc']['isr_safe'] == 'yes')
 
     def cost_estimate():
         from cmod.custom import glue as GL

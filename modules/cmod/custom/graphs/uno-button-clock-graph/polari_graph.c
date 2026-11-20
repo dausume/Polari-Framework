@@ -14,6 +14,7 @@
 #include "buttonclockevent_packets.h"
 #include "hal.h"
 #include "pin_config.h"
+#include "polari_hal_atmega328p.h"
 #include "buttonclockstate_packets.h"   /* GENERATED (c_twin target=avr) */
 #include "polari_graph.h"
 
@@ -21,7 +22,7 @@
 static ButtonClockState_t state;   /* class node state: the ButtonClockState instance the frames carry */
 static polari_rx_t rx;   /* parser node rx: the generated header's receiver */
 
-/* atom apps/button_clock.l_led_init — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 52-57 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.l_led_init — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 52-57 (sha256 b305a4345899f57b) */
 static void l_led_init(void)
 {
 #ifndef POLARI_PIN_CONFIG
@@ -29,7 +30,7 @@ static void l_led_init(void)
 #endif
 }
 
-/* atom apps/button_clock.l_led_set — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 63-68 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.l_led_set — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 63-68 (sha256 b305a4345899f57b) */
 POLARI_NODE(l_led_set, in(on, "bool", "0 = off, anything else = on"), uses(L_LED_PIN),
             role("mirror led_on onto the on-board L LED (D13, fixed — never a configurable knob)"))
 static void l_led_set(uint8_t on)
@@ -37,7 +38,7 @@ static void l_led_set(uint8_t on)
     if (on) L_LED_PORT |= _BV(L_LED_BIT); else L_LED_PORT &= (uint8_t)~_BV(L_LED_BIT);
 }
 
-/* atom apps/button_clock.boot_session_mint — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 75-84 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.boot_session_mint — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 75-84 (sha256 b305a4345899f57b) */
 POLARI_NODE(boot_session_mint, out(return, "", "the freshly-minted boot_session (1 on a virgin chip, else +1)"),
             role("mint this boot's session counter from EEPROM (ucd-0e2b: wired as an init field into state.boot_session, after the class memset, before sei)"))
 static uint32_t boot_session_mint(void)
@@ -49,7 +50,7 @@ static uint32_t boot_session_mint(void)
     return v;
 }
 
-/* atom apps/button_clock.clock_tick — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 96-107 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.clock_tick — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 96-107 (sha256 b305a4345899f57b) */
 POLARI_NODE(clock_tick, in(now_ms, "ms", "hal_millis() right now"), out(epoch_s, "s", "the device's current wall-clock estimate"),
             out(ms, "ms", "...within the second"),
             role("advance the wall-clock estimate = the last SET_TIME's host time + elapsed uptime since it"))
@@ -63,7 +64,7 @@ static void clock_tick(uint32_t now_ms, int64_t *epoch_s, int64_t *ms)
     *ms = (int64_t)(total_ms % 1000u);
 }
 
-/* atom apps/button_clock.clock_set — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 114-132 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.clock_set — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 114-132 (sha256 b305a4345899f57b) */
 POLARI_NODE(clock_set, in(set_epoch_s, "s", "the host's SET_TIME"), in(set_ms, "ms", "...within the second"),
             in(set_sync_generation, "", "the host's generation counter"), in(now_ms, "ms", "hal_millis() right now"),
             role("record one SET_TIME sync: bump sync_generation, set sync_uncertainty_ms, measure drift_ms from the 2nd sync on"))
@@ -84,7 +85,7 @@ static void clock_set(int64_t set_epoch_s, int64_t set_ms, int64_t set_sync_gene
     state.clock_synced = 1u;
 }
 
-/* atom apps/button_clock.events_queue — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 136-154 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.events_queue — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 136-154 (sha256 b305a4345899f57b) */
 POLARI_NODE(events_queue, in(kind, "enum", "press | led_on | led_off | sense_rise | sense_fall | sync"),
             in(at_ms, "ms", "device uptime at the moment of the event"),
             role("push one transition into the bounded ring; drop-oldest on overflow, counted in dropped_events"))
@@ -105,7 +106,7 @@ static void events_queue(uint8_t kind, uint32_t at_ms)
     g_qcount++;
 }
 
-/* atom apps/button_clock.queue_pop — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 156-163 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.queue_pop — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 156-163 (sha256 b305a4345899f57b) */
 static int queue_pop(qevent_t *out)
 {
     if (!g_qcount) return 0;
@@ -115,11 +116,11 @@ static int queue_pop(qevent_t *out)
     return 1;
 }
 
-/* atom apps/button_clock.led_toggle — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 168-183 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.led_toggle — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 168-183 (sha256 b305a4345899f57b) */
 POLARI_NODE(led_toggle, role("on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)"))
 static void led_toggle(uint32_t now_ms)
 {
-#if HAL_INT0
+#if CFG_INT0
     int64_t es, ms;
     if (!hal_take_toggle_pending()) return;
     state.button_presses = (int64_t)hal_presses();
@@ -133,11 +134,11 @@ static void led_toggle(uint32_t now_ms)
 #endif
 }
 
-/* atom apps/button_clock.sense_isr — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 187-209 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.sense_isr — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 187-209 (sha256 b305a4345899f57b) */
 POLARI_NODE(sense_isr, uses(SENSE_PIN), role("drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges"))
 static void sense_isr(void)
 {
-#if HAL_INT1
+#if CFG_INT1
     static uint16_t g_prev_rises, g_prev_falls;
     uint16_t rises, falls, dr, df;
     uint32_t last_ms;
@@ -158,7 +159,7 @@ static void sense_isr(void)
 #endif
 }
 
-/* atom apps/button_clock.events_drain — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 213-231 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.events_drain — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 213-231 (sha256 b305a4345899f57b) */
 static void events_drain(void)
 {
     qevent_t e;
@@ -179,7 +180,7 @@ static void events_drain(void)
     }
 }
 
-/* atom apps/button_clock.telemetry_send — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 237-252 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.telemetry_send — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 237-252 (sha256 b305a4345899f57b) */
 POLARI_NODE(telemetry_send, in(now_ms, "ms", "hal_millis() right now"),
             role("one ButtonClockState frame (atomic snapshot) then drain events.queue as ButtonClockEvent frames"))
 static void telemetry_send(uint32_t now_ms)
@@ -197,7 +198,7 @@ static void telemetry_send(uint32_t now_ms)
     events_drain();
 }
 
-/* atom apps/button_clock.led_follow_state — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 256-264 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.led_follow_state — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 256-264 (sha256 b305a4345899f57b) */
 POLARI_NODE(led_follow_state, uses(LED_PIN), role("each pass: when state.led_on differs from the value last written to the pins, drive D6 + D13 to it"))
 static void led_follow_state(void)
 {
@@ -208,7 +209,7 @@ static void led_follow_state(void)
     l_led_set(pin);
 }
 
-/* atom apps/button_clock.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 266-298 (sha256 10d1b9e72b485291) */
+/* atom apps/button_clock.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/button_clock.c lines 266-298 (sha256 b305a4345899f57b) */
 POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket ButtonClockState command"),
             role("SET_TIME -> clock_set; SET_LED -> state.led_on (the pins follow: led_follow_state); SNAPSHOT -> a frame + queue replay now"))
 static void apply_command(const polari_rx_t *r)

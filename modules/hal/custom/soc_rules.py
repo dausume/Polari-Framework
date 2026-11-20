@@ -24,7 +24,7 @@ from board.custom import soc_atmega328p as S328
 from board.custom import uno_facts as U
 from board.custom import esp32c3_evidence as E
 
-SOCS = ('atmega328p', 'esp32c3')
+SOCS = ('atmega328p', 'esp32c3')   # the BUILT-IN chips only; callers that list chips use socs() (registered chips included)
 
 DOCS = {
     'atmega328p': '%s; %s' % (U.M328_DOC, U.M328_URL),
@@ -33,7 +33,7 @@ DOCS = {
 
 RULES = {
     'atmega328p': {
-        'arch': 'avr', 'title': 'Microchip ATmega328P (Arduino UNO R3)', 'reg_width': 8,
+        'arch': 'avr', 'title': 'Microchip ATmega328P (Arduino UNO R3)', 'reg_width': 8, 'boards': ('arduino-uno-r3',),
         'roles': {
             'direction': {'registers': ['DDR{port}'], 'cite': 'DS40002061B section 14.2.1 Configuring the Pin, p.85: DDxn selects the direction'},
             'output': {'registers': ['PORT{port}', 'PIN{port}'],
@@ -43,7 +43,12 @@ RULES = {
                         'cite': 'section 14.2.1 p.85: PORTxn written 1 while the pin is an input activates the pull-up (and MCUCR.PUD = 0)',
                         'condition': 'the pin must be an input (gpio.input) and MCUCR.PUD must be 0 (its reset value)'},
             'pull_down': {'registers': [], 'cite': '',
-                          'missing': 'no cited ATmega328P register field offers an internal pull-down (the port pins have a pull-up only)'},
+                          'missing': 'no cited ATmega328P register field offers an internal pull-down (the port pins have a pull-up only)',
+                          # hal-3b step 1: "no pull-down" is already true of every pin - a CLEAR has nothing to write (gpio.pull_none)
+                          'by_action': {'clear': {'inherent': {'words': 'the ATmega328P has no internal pull-down, so it is always off',
+                                                               'cite': 'section 14.2.1 p.85 (the port pins have a pull-up only)'}}}},
+            'digital_input_disable': {'registers': ['DIDR0'], 'match': 'signal', 'signal_re': r'^ADC\d$',
+                                      'cite': 'section 24.9.5 DIDR0 p.260: writing 1 disables the digital input buffer of the ADCn pin'},
             # hal-1 interrupts: the pin-change unit (3 banks of 8) and the two dedicated external interrupts
             'pcint_mask': {'registers': ['PCMSK0', 'PCMSK1', 'PCMSK2'], 'match': 'pin', 'yields': {'bank': (r'^PCMSK(\d)$', 'register')},
                            'cite': 'DS40002061B section 13.2.6-13.2.8 PCMSK2/1/0, p.83: one mask bit per pin; the register number is the bank'},
@@ -53,13 +58,130 @@ RULES = {
             'edge_sense': {'registers': ['EICRA'], 'match': 'signal', 'signal_re': r'^INT\d$', 'values': {'any_edge': 1, 'falling': 2, 'rising': 3},
                            'yields': {'signum': (r'^INT(\d)$', 'signal')},
                            'cite': 'section 13.2.1 EICRA, Tables 13-1 / 13-2 p.80: ISCn1:0 = 01 any logical change, 10 the falling edge, 11 the rising edge of INTn'},
+            # hal-iso (2026-11-14): the level settings of the same ISCn field. `lacks` = a setting the chip does NOT have, cited, so an
+            # isotope needing it is told "the chip lacks it", never "not recorded"
+            'level_sense': {'registers': ['EICRA'], 'match': 'signal', 'signal_re': r'^INT\d$', 'values': {'low_level': 0},
+                            'yields': {'signum': (r'^INT(\d)$', 'signal')},
+                            'lacks': {'high_level': 'Tables 13-1 / 13-2 p.80 list four ISCn1:0 settings (low level, any change, falling, rising): '
+                                                    'there is no high-level trigger'},
+                            'cite': 'section 13.2.1 EICRA, Tables 13-1 / 13-2 p.80: ISCn1:0 = 00 the low level of INTn generates an interrupt request'},
             'edge_flag': {'registers': ['EIFR'], 'match': 'signal', 'signal_re': r'^INT\d$', 'cite': 'section 13.2.3 EIFR, p.81 (cleared by writing one)'},
             'edge_mask': {'registers': ['EIMSK'], 'match': 'signal', 'signal_re': r'^INT\d$', 'yields': {'signum': (r'^INT(\d)$', 'signal')},
                           'cite': 'section 13.2.2 EIMSK, p.81'},
             'edge_vector': {'vector': 'INT{signum}_vect', 'cite': 'avr-libc <avr/io.h> vector table (INT0_vect, INT1_vect)'},
+            # hal-3b, pwm family: the pin's OCnx alternate function names the timer (t) and the channel (ch)
+            'pwm_output': {'registers': ['TCCR0A', 'TCCR1A', 'TCCR2A'], 'match': 'signal', 'signal_re': r'^OC\d[AB]$',
+                           'yields': {'t': (r'^OC(\d)[AB]$', 'signal'), 'ch': (r'^OC\d([AB])$', 'signal')},
+                           'values': {'disconnected': 0, 'non_inverting': 2, 'inverting': 3},
+                           'cite': 'DS40002061B section 15.9.1 TCCR0A Tables 15-3/15-4 p.114, section 16.11.1 TCCR1A Tables 16-2/16-3 p.141, '
+                                   'section 18.11.1 TCCR2A p.162: COMnx1:0 = 10 clear on match (non-inverting), 11 set on match (inverting), 00 disconnected'},
+            'pwm_duty': {'registers': ['OCR{t}{ch}', 'OCR{t}{ch}L'], 'match': 'signal', 'signal_re': r'^OC\d[AB]$', 'wide': 'OCR{t}{ch}',
+                         'cite': 'section 15.9.4/15.9.5 OCR0A/B p.117, section 16.11.5/16.11.6 OCR1A/B p.144 (16-bit: the wide symbol), '
+                                 'section 18.11.4 OCR2A p.166'},
+            'pwm_mode': {'fields': [{'register': 'TCCR{t}A', 'field': 'WGM{t}_10', 'lo': 0},
+                                    {'register': 'TCCR{t}B', 'field': ['WGM{t}2', 'WGM{t}_32'], 'lo': 2}],
+                         'modes': {'fast_pwm_8bit': [['Fast PWM', 'TOP 0xFF'], ['Fast PWM', '8-bit']],
+                                   'phase_correct_8bit': [['PWM, Phase Correct', 'TOP 0xFF'], ['PWM, Phase Correct, 8-bit']],
+                                   'ctc_top_ocra': [['CTC', 'TOP OCRA'], ['CTC', 'TOP OCR1A']]},
+                         'cite': 'section 15.9.1/15.9.2 Table 15-8 p.115, section 16.11.1/16.11.2 Table 16-4 p.141, section 18.11.1/18.11.2 Table 18-8 p.164: '
+                                 'the mode number is split WGMn1:0 in TCCRnA and WGMn2 (WGMn3:2 on Timer1) in TCCRnB'},
+            'pwm_clock': {'registers': ['TCCR{t}B'], 'match': 'name', 'field': 'CS{t}',
+                          'cite': 'section 15.9.2 Table 15-9 p.117, section 16.11.2 Table 16-5 p.143, section 18.11.2 Table 18-9 p.165: the clock select codes'},
+            'pwm_update': {'inherent': {'words': 'the ATmega328P double-buffers OCRnx itself (updated at TOP / BOTTOM by the timer): no update strobe exists',
+                                        'cite': 'section 15.9.4 OCR0A p.117; Table 15-8 "Update of OCRx at"'}},
+            # routing roles (C3 GPIO matrix / IO MUX): fixed by silicon on the 328P - each pin's functions are hard-wired
+            'route_out': {'inherent': {'words': 'no output routing matrix: an alternate function drives its pin directly once enabled',
+                                       'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
+            'route_in': {'inherent': {'words': 'no input routing matrix: a peripheral reads its pin directly',
+                                      'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
+            'io_mux_func': {'inherent': {'words': 'no pad function select: the enabled peripheral overrides the port function',
+                                         'cite': 'DS40002061B section 14.3 Alternate Port Functions p.88'}},
+            # hal-3b step 1, uart family (peripheral USART{u}): DS40002061B §20, field rows in board.custom.register_fields_atmega328p
+            'uart_baud': {'fields': [{'register': 'UBRR{u}H', 'field': 'UBRR{u}_11_8', 'lo': 8}, {'register': 'UBRR{u}L', 'field': 'UBRR{u}_7_0', 'lo': 0}],
+                          'value_expr': '((({f_cpu}) + 8UL * {baud}) / (16UL * {baud}) - 1UL)', 'range_bits': 12,
+                          'cite': 'Table 20-1 p.182: UBRRn = fOSC / (16 BAUD) - 1 (U2Xn = 0), rounded to the nearest setting as Table 20-7 p.199 does '
+                                  '(16 MHz, 115.2k: 8, -3.5 %); UBRRn is 0-4095 (p.182); UBRRnH first: "Writing UBRRnL will trigger an immediate update" (p.204)'},
+            'uart_baud_x2': {'fields': [{'register': 'UBRR{u}H', 'field': 'UBRR{u}_11_8', 'lo': 8}, {'register': 'UBRR{u}L', 'field': 'UBRR{u}_7_0', 'lo': 0}],
+                             'value_expr': '((({f_cpu}) + 4UL * {baud}) / (8UL * {baud}) - 1UL)', 'range_bits': 12,
+                             'cite': 'Table 20-1 p.182: UBRRn = fOSC / (8 BAUD) - 1 (U2Xn = 1), rounded to the nearest as Table 20-7 p.199 (16 MHz, 115.2k: 16, '
+                                     '+2.1 %); UBRRnH first (p.204)'},
+            'uart_double_speed': {'registers': ['UCSR{u}A'], 'match': 'name', 'field': 'U2X{u}', 'cite': '§20.3.2 Double Speed Operation p.182; §20.11.2 UCSRnA'},
+            'uart_frame_bits': {'fields': [{'register': 'UCSR{u}C', 'field': 'UCSZ{u}', 'lo': 0}, {'register': 'UCSR{u}B', 'field': 'UCSZ{u}2', 'lo': 2}],
+                                'values': {'eight': 3}, 'cite': '§20.11.4 UCSRnC Table 20-11 p.203: UCSZn2:0 = 011 8-bit (UCSZn2 in UCSRnB)'},
+            'uart_parity': {'registers': ['UCSR{u}C'], 'match': 'name', 'field': 'UPM{u}', 'values': {'none': 0},
+                            'cite': '§20.11.4 UCSRnC Table 20-9 p.203: UPMn1:0 = 00 disabled'},
+            'uart_stop_bits': {'registers': ['UCSR{u}C'], 'match': 'name', 'field': 'USBS{u}', 'values': {'one': 0},
+                               'cite': '§20.11.4 UCSRnC Table 20-10 p.203: USBSn = 0 1-bit'},
+            'uart_tx_enable': {'registers': ['UCSR{u}B'], 'match': 'name', 'field': 'TXEN{u}', 'cite': '§20.11.3 UCSRnB p.202 (TXENn)'},
+            'uart_rx_enable': {'registers': ['UCSR{u}B'], 'match': 'name', 'field': 'RXEN{u}', 'cite': '§20.11.3 UCSRnB p.202 (RXENn)'},
+            'uart_rx_irq': {'registers': ['UCSR{u}B'], 'match': 'name', 'field': 'RXCIE{u}', 'cite': '§20.11.3 UCSRnB p.201 (RXCIEn)'},
+            'uart_tx_ready': {'registers': ['UCSR{u}A'], 'match': 'name', 'field': 'UDRE{u}', 'cite': '§20.11.2 UCSRnA p.201 (UDREn)'},
+            'uart_data': {'registers': ['UDR{u}'], 'match': 'name', 'field': 'UDR{u}',
+                          'cite': '§20.11.1 UDRn p.200: one address, the receive buffer on read and the transmit buffer on write'},
+            'uart_frame_error': {'registers': ['UCSR{u}A'], 'match': 'name', 'field': 'FE{u}', 'cite': '§20.11.2 UCSRnA p.201 (FEn: valid until UDRn is read)'},
+            'uart_overrun': {'registers': ['UCSR{u}A'], 'match': 'name', 'field': 'DOR{u}', 'cite': '§20.11.2 UCSRnA p.201 (DORn: valid until UDRn is read)'},
+            'uart_rx_vector': {'vector': 'USART_RX_vect', 'cite': 'avr-libc <avr/io.h> vector table (the ATmega328P\'s one USART: USART_RX_vect, no number)'},
+            # tick (timer family, peripheral TIMER{t}): the same WGM composite as pwm_mode, the CTC top in OCRnA
+            'timer_mode': {'fields': [{'register': 'TCCR{t}A', 'field': 'WGM{t}_10', 'lo': 0},
+                                      {'register': 'TCCR{t}B', 'field': ['WGM{t}2', 'WGM{t}_32'], 'lo': 2}],
+                           'modes': {'ctc_top_ocra': [['CTC', 'TOP OCRA'], ['CTC', 'TOP OCR1A']]},
+                           'cite': 'section 18.11.1/18.11.2 Table 18-8 p.164 (Timer2), Table 15-8 p.115 (Timer0): mode 2 CTC, TOP OCRA'},
+            'timer_clock': {'registers': ['TCCR{t}B'], 'match': 'name', 'field': 'CS{t}', 'cite': 'Table 18-9 p.165 (Timer2) / Table 15-9 p.117: the clock select codes'},
+            'timer_top': {'registers': ['OCR{t}A'], 'match': 'name', 'field': 'OCR{t}A',
+                          'value_expr': '((({f_cpu}) / ((unsigned long){prescaler} * {hz})) - 1UL)', 'range_bits': 8,
+                          'cite': '§18.7.2 CTC mode p.155: the counter clears when it matches OCR2A, so a period is (OCR2A + 1) prescaled clocks; '
+                                  'section 18.11.4 OCR2A p.166 (8-bit)'},
+            'timer_irq_enable': {'registers': ['TIMSK{t}'], 'match': 'name', 'field': 'OCIE{t}A', 'cite': '§18.11.6 TIMSK2 p.166-167 (OCIE2A)'},
+            'timer_vector': {'vector': 'TIMER{t}_COMPA_vect', 'cite': 'avr-libc <avr/io.h> vector table (TIMER2_COMPA_vect)'},
+            # adc family (peripheral ADC)
+            'adc_reference': {'registers': ['ADMUX'], 'match': 'name', 'field': 'REFS', 'values': {'supply': 1},
+                              'cite': '§24.9.1 ADMUX Table 24-3 p.257: REFS1:0 = 01 AVCC with external capacitor at AREF'},
+            'adc_enable': {'registers': ['ADCSRA'], 'match': 'name', 'field': 'ADEN', 'cite': '§24.9.2 ADCSRA p.258 (ADEN)'},
+            'adc_prescaler': {'registers': ['ADCSRA'], 'match': 'name', 'field': 'ADPS', 'cite': '§24.9.2 ADCSRA Table 24-5 p.259: the division factors'},
+            'adc_channel': {'registers': ['ADMUX'], 'match': 'name', 'field': 'MUX', 'cite': '§24.9.1 ADMUX Table 24-4 p.258: MUX3:0 = the single-ended input ADCn'},
+            'adc_start': {'registers': ['ADCSRA'], 'match': 'name', 'field': 'ADSC',
+                          'cite': '§24.9.2 ADCSRA p.258: write one to start; "ADSC will read as one as long as a conversion is in progress"'},
+            'adc_busy': {'registers': ['ADCSRA'], 'match': 'name', 'field': 'ADSC', 'cite': '§24.9.2 ADCSRA p.258 (ADSC reads one while converting)'},
+            'adc_result': {'registers': ['ADCL'], 'match': 'name', 'field': 'ADC_7_0', 'wide': 'ADC',
+                           'cite': '§24.9.3 ADCL/ADCH p.259; p.247: "ADCL must be read first, then ADCH" (the wide symbol ADC: avr-gcc reads the low byte first)'},
+            # hal-3b step 1, wdt family (peripheral WDT): the WDT change is a TIMED sequence (WDCE + WDE, then the new value "within four cycles"),
+            # so it is a call to the declared avr-libc, not register rows; the reset flags are w0c register rows
+            'wdt_enable': {'call': {'library': 'avr-libc', 'include': '<avr/wdt.h>', 'function': 'wdt_enable', 'args': ['{period}'],
+                                    'arg_range': {'period': [0, 9]}, 'why': 'the WDT change: WDCE + WDE, then WDE + the prescaler within four cycles',
+                                    'isr_safe_basis': 'avr-libc 2.2.1 wdt.h: in __tmp_reg__,SREG; cli; wdr; the two stores; SREG restored'},
+                           'cite': 'DS40002061B §11.8 Watchdog Timer p.62 (the timed sequence: "Got four cycles to set the new values"); avr-libc 2.2.1 '
+                                   'include/avr/wdt.h wdt_enable (WDTO_15MS = 0 .. WDTO_8S = 9)'},
+            'wdt_kick': {'call': {'library': 'avr-libc', 'include': '<avr/wdt.h>', 'function': 'wdt_reset', 'args': [], 'why': 'the wdr instruction',
+                                  'isr_safe_basis': 'one instruction (wdr): nothing to split'},
+                         'cite': 'DS40002061B §11.8 p.60-61 (the WDR instruction restarts the timer); avr-libc 2.2.1 wdt.h wdt_reset = "wdr"'},
+            'wdt_disable': {'call': {'library': 'avr-libc', 'include': '<avr/wdt.h>', 'function': 'wdt_disable', 'args': [],
+                                     'why': 'the WDT change: WDCE + WDE, then 0 within four cycles',
+                                     'isr_safe_basis': 'avr-libc 2.2.1 wdt.h: SREG saved, cli, wdr, the two stores, SREG restored'},
+                            'cite': 'DS40002061B §11.8 p.61 (WDT_off example); avr-libc 2.2.1 wdt.h wdt_disable'},
+            'wdt_reset_flag': {'registers': ['MCUSR'], 'match': 'name', 'field': 'WDRF',
+                               'cite': '§11.9.2 WDTCSR p.64: "WDE is overridden by WDRF in MCUSR ... To clear WDE, WDRF must be cleared first"'},
+            'wdt_reset_flags': {'clear_all': {'register': 'MCUSR', 'access': 'w0c'},
+                                'cite': '§11.9.1 MCUSR p.63 (each flag reset by writing a logic zero); p.61: clear WDRF in the initialization routine'},
         },
+        # hal-3b step 1 (econ's review): the libraries a `call` role may name - version + licence pinned, since the timing now lives there
+        'libraries': {'avr-libc': {'version': '2.2.1 (Debian 1:2.2.1-1, image prf-board-engines:trixie)', 'licence': 'BSD-3-Clause',
+                                   'source': 'https://github.com/avrdudes/avr-libc include/avr/wdt.h'}},
+        # hal-3b step 1: peripheral INSTANCES -> the variables their role rules fill ({u} USART, {t} timer)
+        'peripherals': {
+            'USART0': {'families': ['uart'], 'vars': {'u': '0'}, 'signals': ['RXD', 'TXD'], 'cite': 'DS40002061B §20 USART0 (the one USART; RXD = PD0, TXD = PD1)'},
+            'TIMER2': {'families': ['timer'], 'vars': {'t': '2'}, 'signals': ['OC2A', 'OC2B'], 'cite': 'DS40002061B §18 8-bit Timer/Counter2 with PWM and Asynchronous Operation'},
+            'ADC': {'families': ['adc'], 'vars': {}, 'signals': ['ADC0', 'ADC1', 'ADC2', 'ADC3', 'ADC4', 'ADC5'], 'cite': 'DS40002061B §24 Analog-to-Digital Converter'},
+            'WDT': {'families': ['wdt'], 'vars': {}, 'signals': [], 'cite': 'DS40002061B §11.8 Watchdog Timer (reset mode; WDTCSR + MCUSR)'},
+        },
+        'signal_vars': [(r'^OC(\d)([AB])$', {'t': 1, 'ch': 2})],   # a compare output names its timer and channel (OC0A: Timer0, channel A)
+        'facts': {'f_cpu': 'F_CPU'},
         'setups': {},
-        'c': {'includes': ['<avr/io.h>'], 'mask': '_BV({bit})', 'guard_include': '<util/atomic.h>',
+        'c': {'includes': ['<avr/io.h>'], 'mask': '_BV({bit})', 'guard_include': '<util/atomic.h>', 'ctype': 'uint8_t', 'wide_ctype': 'uint16_t',
+              'access_style': 'symbol',
+              'field_forms': {'fmask': '(uint8_t)0x{m:02X}', 'fval': '(uint8_t)({v}u << {lo})'},
+              # rule 6/7 of mechanisms.choose: a window of addresses with single-bit instructions (AVR sbi / cbi below I/O 0x20), as DATA
+              'bit_instr_window': {'space': 'io', 'below': 0x20, 'mechanism': 'avr-io-bit', 'byte_mechanism': 'avr-io-byte-rmw'},
+              'header_includes': ['<stdint.h>'], 'prelude': [],
               'guard': 'ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { %s }',
               'guard_why': 'avr-libc util/atomic.h: interrupts off for the statement, the previous state restored after',
               'init_rule': 'an _INIT form drops the guard: init code runs before global interrupts are enabled (every UNO app calls sei() after its *_init calls), so nothing can split the write',
@@ -75,6 +197,41 @@ RULES = {
             'input': {'registers': ['GPIO_IN_REG'], 'cite': 'TRM Register 5.9 GPIO_IN_REG p.182'},
             'pull_up': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_WPU', 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_WPU'},
             'pull_down': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_WPD', 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_WPD'},
+            'digital_input_disable': {'registers': [], 'cite': '', 'missing': 'no cited C3 field row for an analog pad\'s input buffer yet (econ: C3 rows)'},
+            # hal-3b step 2 (econ, for pol's pin twin: the simulator reads THESE bindings, never a table of its own): the pad and matrix facts
+            # gpio.output / gpio.input already write as setups (setups below), named as roles so firmware and simulator cannot disagree on a bit
+            'pad_input_enable': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'FUN_IE', 'values': {'on': 1, 'off': 0},
+                                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: FUN_IE (1 = input enabled)'},
+            'pad_function': {'registers': ['IO_MUX_GPIO{n}_REG'], 'field': 'MCU_SEL', 'values': {'gpio': 1},
+                             'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188: MCU_SEL; function 1 = GPIOn on every pad GPIO0-21: TRM Table 5.12-1 '
+                                     '"IO MUX Pin Functions" p.174 (read 2026-11-13 from the v1.4 PDF, sha256 90ef8256...7423; function 0 is MTMS / MTDI / MTCK / '
+                                     'MTDO on GPIO4-7, SPIHD..SPIQ on GPIO12-17, U0RXD / U0TXD on GPIO20-21) and datasheet Table 2-4 pp.19-20 (board.custom.soc_functions)',
+                             # pt-1a review: the generator always writes 1, but a SIMULATOR must know every MCU_SEL value that is GPIO on a pad:
+                             # Table 5.12-1 p.174 prints GPIOn in BOTH Function 0 and Function 1 on GPIO0-3, 8-11, 18, 19 (MCU_SEL resets to 0)
+                             # per pad (pin number -> every MCU_SEL value that makes it GPIOn); pol's export refuses a pinbank without it
+                             'gpio_functions': {str(n): ([0, 1] if n in (0, 1, 2, 3, 8, 9, 10, 11, 18, 19) else [1]) for n in range(22)},
+                             'gpio_functions_cite': 'TRM Table 5.12-1 "IO MUX Pin Functions" p.174, columns Function 0 and Function 1'},
+            'output_route': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_SEL', 'values': {'gpio_out': 128},
+                             'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_SEL 128 = the pad driven by GPIO_OUT_REG bit n '
+                                     '(ESP-IDF v5.5.5 SIG_GPIO_OUT_IDX 128 agrees)'},
+            'output_enable_source': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OEN_SEL', 'values': {'gpio_enable': 1, 'peripheral': 0},
+                                     'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG'},
+            'output_driver': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'PAD_DRIVER', 'values': {'push_pull': 0, 'open_drain': 1},
+                              'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184: PAD_DRIVER 0 = normal output, 1 = open drain'},
+            # pt-1a review (econ, for pol's pinbank): the CPU's view of the pin interrupts - what ESP-IDF's GPIO ISR reads (gpio.c:517 ->
+            # gpio_ll.h:112-115 `*status = hw->pcpu_int.intr`) - with the AND it is, as data; and the level / invert values the device logs until modelled
+            'interrupt_status_cpu': {'registers': ['GPIO_PCPU_INT_REG'],
+                                     'from': {'status': 'GPIO_STATUS_REG', 'enable_register': 'GPIO_PIN{n}_REG', 'enable_field': 'INT_ENA', 'enable_bit': 0},
+                                     'cite': 'TRM Register 5.13 GPIO_PCPU_INT_REG p.183: "GPIO0 ~ 21 PRO_CPU interrupt status ... corresponding to the bit in '
+                                             'GPIO_STATUS_REG when assert (high) enable signal (bit13 of GPIO_PINn_REG)" (INT_ENA is bits 17:13, so bit 0 of the field)'},
+            'level_sense': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'INT_TYPE', 'values': {'low_level': 4, 'high_level': 5},
+                            'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184: INT_TYPE 4 = low level trigger, 5 = high level trigger'},
+            'output_invert': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OUT_INV_SEL', 'values': {'normal': 0, 'inverted': 1},
+                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OUT_INV_SEL 1 = invert the output value'},
+            'enable_invert': {'registers': ['GPIO_FUNC{n}_OUT_SEL_CFG_REG'], 'field': 'OEN_INV_SEL', 'values': {'normal': 0, 'inverted': 1},
+                              'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186: OEN_INV_SEL 1 = invert the output enable signal'},
+            'interrupt_source': {'registers': ['INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG'], 'values': {'source': 16},
+                                 'cite': 'TRM Table 8.3-1 p.204: GPIO_PROCPU_INTR is interrupt source 16; Register 8.7 p.213 maps it (board.custom.registers_esp32c3)'},
             # hal-1 interrupts: every pad has its own edge / level interrupt (no separate pin-change unit): the pin-change and the
             # edge operations land on the same GPIO_PINn_REG fields
             'pcint_mask': {'registers': ['GPIO_PIN{n}_REG'], 'field': 'INT_TYPE', 'values': {'set': 3, 'clear': 0},
@@ -100,18 +257,41 @@ RULES = {
                 {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OUT_SEL', 'value': 128,
                  'purpose': 'route the pad\'s output to GPIO_OUT / GPIO_ENABLE (signal 128) instead of a peripheral',
                  'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OUT_SEL 128)'},
+                # hal-3b step 2 (econ, gate 2 two-sided vs ESP-IDF v5.5.5 gpio_config / gpio_output_enable): a pad left inverted, open-drain or
+                # with its output enable taken from a peripheral by earlier code would not drive GPIO_OUT as written - set every one, not trust reset
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OUT_INV_SEL', 'value': 0, 'purpose': 'do not invert the output value',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OUT_INV_SEL 0 = do not invert)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_SEL', 'value': 1,
+                 'purpose': 'take the output enable from bit n of GPIO_ENABLE_REG (which gpio.output then sets), never from a peripheral',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_INV_SEL', 'value': 0, 'purpose': 'do not invert the output enable',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_INV_SEL 0 = do not invert)'},
+                {'register': 'GPIO_PIN{n}_REG', 'field': 'PAD_DRIVER', 'value': 0, 'purpose': 'a normal (push-pull) output, not open drain',
+                 'cite': 'TRM Register 5.14 GPIO_PINn_REG p.184 (PAD_DRIVER 0 = normal output)'},
+                # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1,
                  'purpose': 'select the pad\'s GPIO function (function 1)',
-                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
+                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); TRM Table 5.12-1 p.174 + datasheet Table 2-4: function 1 = GPIOn on every pad'},
             ],
             'gpio-in': [
-                {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1, 'purpose': 'select the pad\'s GPIO function (function 1)',
-                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); datasheet Table 2-4: F1 = GPIOn (board.custom.soc_functions)'},
                 {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'FUN_IE', 'value': 1, 'purpose': 'enable the pad\'s input buffer',
                  'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (FUN_IE)'},
+                # hal-3b step 2 (econ, gate 2 vs ESP-IDF v5.5.5 gpio_output_disable -> gpio_hal_set_output_enable_ctrl(false, false)): with
+                # OEN_SEL 0 a peripheral routed to this pad earlier would still own its output enable and could drive an "input"
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_SEL', 'value': 1,
+                 'purpose': 'take the output enable from bit n of GPIO_ENABLE_REG (which gpio.input then clears), never from a peripheral',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_SEL 1 = forced from bit n of GPIO_ENABLE_REG)'},
+                {'register': 'GPIO_FUNC{n}_OUT_SEL_CFG_REG', 'field': 'OEN_INV_SEL', 'value': 0, 'purpose': 'do not invert the output enable',
+                 'cite': 'TRM Register 5.17 GPIO_FUNCn_OUT_SEL_CFG_REG pp.185-186 (OEN_INV_SEL 0 = do not invert)'},
+                # (econ step 2) MCU_SEL LAST: the pad becomes a GPIO only once its matrix route, inversion, enable source and driver are set
+                {'register': 'IO_MUX_GPIO{n}_REG', 'field': 'MCU_SEL', 'value': 1, 'purpose': 'select the pad\'s GPIO function (function 1)',
+                 'cite': 'TRM Register 5.21 IO_MUX_GPIOn_REG pp.187-188 (MCU_SEL); TRM Table 5.12-1 p.174 + datasheet Table 2-4: function 1 = GPIOn on every pad'},
             ],
         },
-        'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '',
+        'c': {'includes': ['<stdint.h>'], 'mask': '(1UL << {bit})', 'guard_include': '', 'ctype': 'uint32_t', 'access_style': 'address',
+              'field_forms': {'fmask': '0x{m:X}UL', 'fval': '((uint32_t){v} << {lo})'},
+              'header_includes': [],
+              'prelude': ['#ifndef POLARI_HAL_ATOMIC', '/* {guard_why} */', '#define POLARI_HAL_ATOMIC(stmt) do {{ stmt }} while (0)', '#endif'],
               'guard': 'POLARI_HAL_ATOMIC(%s);',
               'guard_why': 'POLARI_HAL_ATOMIC defaults to the bare statement (one core, and no ISR of ours writes these registers); a firmware '
                            'whose ISR shares the register defines it as a critical section (FreeRTOS portENTER_CRITICAL / portEXIT_CRITICAL)',
@@ -121,104 +301,226 @@ RULES = {
 }
 
 
-# ------------------------------------------------------------------ facts (read from board, with where they came from)
+# ------------------------------------------------------------------ facts: one PROVIDER per SoC (econ's review 2026-11-13)
+# Every fact the generator reads about a chip comes from that chip's provider, and an UNKNOWN soc is refused in words: there is no
+# implicit "else" that would hand a third chip (our own RTL, a LiteX SoC) another chip's fields, addresses or pads. A chip
+# description (board.custom.chipdesc_provider, econ) registers a provider the same way.
 
-def pin_parts(soc, pin):
-    """-> {port, bit, n} or None. ATmega328P: PB5 -> port B, bit 5 (the pin name IS the port + bit, Figure 1-1); ESP32-C3: GPIO8 -> n 8."""
-    if soc == 'atmega328p':
-        if pin not in S328.PINS:
-            return None
-        return {'port': pin[1], 'bit': int(pin[2:]), 'n': int(pin[2:])}
-    if soc == 'esp32c3':
-        if not pin.startswith('GPIO') or not pin[4:].isdigit() or int(pin[4:]) not in RC3.PADS:
-            return None
-        return {'port': '', 'bit': int(pin[4:]), 'n': int(pin[4:])}
-    return None
+class SocUnknown(KeyError):
+    pass
 
 
-def pin_source(soc):
-    if soc == 'atmega328p':
-        return 'board.custom.soc_atmega328p.PINS', '%s %s' % (U.M328_DOC, S328.FIG)
-    return 'board.custom.registers_esp32c3.PADS', '%s: GPIO0-21' % E.TRM_DOC
-
-
-def fields_source(soc):
-    return ('board.custom.register_fields_atmega328p.FIELDS' if soc == 'atmega328p' else 'board.custom.registers_esp32c3.FIELDS')
-
-
-def fields(soc):
-    return F328.FIELDS if soc == 'atmega328p' else RC3.FIELDS
-
-
-def register_facts(soc, register):
-    """-> {address, space, io_addr, source, cite} or None."""
-    if soc == 'atmega328p':
-        snap = R328.load('atmega328p')
-        regs = snap['registers']
-        r = regs.get(register)
-        if not r:
-            return None
-        addr = int(r['addr'], 16)
-        data = addr + 0x20 if r['space'] == 'io' else addr
-        libc = snap.get('avr_libc', '')
-        return {'address': '0x%02X' % data, 'space': r['space'], 'io_addr': addr if r['space'] == 'io' else None,
-                'source': 'board.custom.registers_atmega328p.json (avr-libc %s <avr/io.h>, -dM snapshot)' % libc,
-                'cite': '_SFR_%s8(0x%02X)%s' % ('IO' if r['space'] == 'io' else 'MEM', addr,
-                                                 ' = data address 0x%02X' % data if r['space'] == 'io' else '')}
-    reg = next((r for r in RC3.REGISTERS if r['register'] == register), None)
-    if reg is None:
+def _m328_register_facts(register):
+    snap = R328.load('atmega328p')
+    r = snap['registers'].get(register)
+    if not r:
         return None
-    return {'address': RC3.address(reg), 'space': 'mem', 'io_addr': None,
-            'source': 'board.custom.registers_esp32c3 (REGISTERS + address())',
-            'cite': '%s base 0x%08X (%s) + offset 0x%04X; %s' % (reg['block'], RC3.BASES[reg['block']], RC3.BASE_CITE, reg['offset'], reg['where'])}
+    addr = int(r['addr'], 16)
+    data = addr + 0x20 if r['space'] == 'io' else addr
+    return {'address': '0x%02X' % data, 'space': r['space'], 'io_addr': addr if r['space'] == 'io' else None,
+            'source': 'board.custom.registers_atmega328p.json (avr-libc %s <avr/io.h>, -dM snapshot)' % snap.get('avr_libc', ''),
+            'cite': '_SFR_%s8(0x%02X)%s' % ('IO' if r['space'] == 'io' else 'MEM', addr, ' = data address 0x%02X' % data if r['space'] == 'io' else '')}
 
 
-def c_register(soc, register, facts):
-    """The register as C: avr-libc's own name on the AVR (its <avr/io.h> defines it), a volatile pointer at the address on the C3."""
-    if soc == 'atmega328p':
-        return register
-    return '(*(volatile uint32_t *)%su)' % facts['address']
+def _m328_pin_parts(pin):
+    if pin not in S328.PINS:
+        return None
+    return {'port': pin[1], 'bit': int(pin[2:]), 'n': int(pin[2:])}
 
 
-def c_mask(soc, bit):
-    return RULES[soc]['c']['mask'].format(bit=bit)
-
-
-def datasheet_data_address(register):
-    """The data-space address the ATmega328P datasheet prints beside a register (REGISTER_CITES), or '' — the cross-check's second source."""
-    c = F328.REGISTER_CITES.get(register)
-    return (c[3] if c and len(c) > 3 else '') or ''
-
-
-def pin_functions(soc, pin):
-    """The pin's alternate-function names (ATmega328P: Table 14-3/6/9 via soc_atmega328p.PINS; ESP32-C3: none needed by the rules)."""
-    if soc == 'atmega328p':
-        return list((S328.PINS.get(pin) or ('', []))[1])
-    return []
-
-
-def pin_caveat(soc, pin):
-    """A cited fact that makes a pin's GPIO use conditional, or ''. ATmega328P PC6: RESET by default (Table 14-6, p.94)."""
-    if soc == 'atmega328p' and 'RESET' in pin_functions(soc, pin):
+def _m328_pin_caveat(pin):
+    if 'RESET' in list((S328.PINS.get(pin) or ('', []))[1]):
         return ('%s is the RESET pin unless the RSTDISBL fuse is programmed (Table 14-6, p.94): the code is generated, '
                 'but it only drives the pin on a chip with that fuse set' % pin)
     return ''
 
 
+def _c3_register_facts(register):
+    reg = next((r for r in RC3.REGISTERS if r['register'] == register), None)
+    if reg is None:
+        return None
+    return {'address': RC3.address(reg), 'space': 'mem', 'io_addr': None, 'source': 'board.custom.registers_esp32c3 (REGISTERS + address())',
+            'cite': '%s base 0x%08X (%s) + offset 0x%04X; %s' % (reg['block'], RC3.BASES[reg['block']], RC3.BASE_CITE, reg['offset'], reg['where'])}
+
+
+def _c3_pin_parts(pin):
+    if not pin.startswith('GPIO') or not pin[4:].isdigit() or int(pin[4:]) not in RC3.PADS:
+        return None
+    return {'port': '', 'bit': int(pin[4:]), 'n': int(pin[4:])}
+
+
+# hal-3b: THE ACCESS TABLE (plan §4d): a field's cited source code -> the access word choose() reads. The lossy `access` word is read
+# only where it is MORE specific than the code can be: a write-1-to-set / -clear alias register (the code says WT for both, the
+# register name says which) and the FIFO data register (one RO field, by action). Anything unmapped is `missing` (fail closed).
+TRM_ACCESS = {'R/W': 'rw', 'R/W/SS': 'rw', 'R/W/SC': 'rw-sc', 'RO': 'r', 'WO': 'w', 'WT': 'w-strobe',
+              'R/SS/WTC': 'r-w1c', 'R/WTC/SS': 'r-w1c'}
+_ALIAS_WORDS = ('w1-set', 'w1-clear', 'fifo')
+
+
+def access_word(field):
+    """-> (word, why) for one field row: access_word (own RTL / SVD-as-spec) > trm_access via TRM_ACCESS > the row's own word where it
+    carries no source code at all (the 328P hand rows); an EMPTY trm_access (review-queued, or a field the manual never describes) is
+    'missing'."""
+    if field.get('access_word'):
+        return field['access_word'], '%s: %s' % (field.get('access_source', ''), field.get('access_cite', ''))
+    if 'trm_access' not in field:
+        return field['access'], 'the row\'s own cited access word'
+    code = field['trm_access']
+    if field.get('access') in _ALIAS_WORDS:
+        return field['access'], 'TRM %s, an alias / FIFO register: the row\'s specific word %s' % (code, field['access'])
+    if not code:
+        return 'missing', 'no cited access code (review queue, or not in the manual): fail closed'
+    w = TRM_ACCESS.get(code)
+    return (w, 'TRM %s' % code) if w else ('missing', 'TRM code %r is not in the access table: fail closed' % code)
+
+
+def _c3_fields():
+    """the C3 rows with `access` = the access table's word (the lossy word kept as access_lossy, the TRM code as trm_access)"""
+    global _C3_CACHE
+    if _C3_CACHE is None:
+        _C3_CACHE = [dict(f, access=access_word(f)[0], access_lossy=f.get('access', ''), access_why=access_word(f)[1]) for f in RC3.FIELDS]
+    return _C3_CACHE
+
+
+_C3_CACHE = None
+
+
+def _m328_crosscheck(u, b):
+    ds = PROVIDERS['atmega328p']['datasheet_address'](b['register'])
+    if not ds:
+        return {'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'], 'first_source': 'avr-libc <avr/io.h> snapshot',
+                'second': '', 'second_source': 'DS40002061B register section', 'result': 'no-second-source',
+                'why': 'the datasheet section cited for %s prints no data-space address' % b['register']}
+    same = int(ds, 16) == int(b['address'], 16)
+    return {'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'], 'first_source': 'avr-libc <avr/io.h> snapshot (I/O + 0x20)',
+            'second': ds, 'second_source': 'DS40002061B %s' % (F328.REGISTER_CITES[b['register']][1]),
+            'result': 'pass' if same else 'fail', 'why': '' if same else 'the two sources disagree'}
+
+
+def _c3_crosscheck(u, b):
+    return {'unit': u['key'], 'subject': '%s.%s position' % (b['register'], b['field']),
+            'first': 'bits %d-%d @ %s' % (b['bit_hi'], b['bit_lo'], b['address']), 'first_source': 'TRM v1.4 (%s)' % b['cite'],
+            'second': 'ESP-IDF v5.5.5 components/soc/esp32c3/register/soc/*.h',
+            'second_source': 'recorded when the TRM rows were read (rm-2b, board.custom.registers_esp32c3)',
+            'result': 'recorded', 'why': 'cited, not re-run here: the IDF headers are not in this repo'}
+
+
+PROVIDERS = {
+    'atmega328p': {
+        'fields': lambda: F328.FIELDS, 'fields_source': 'board.custom.register_fields_atmega328p.FIELDS',
+        'register_facts': _m328_register_facts, 'pin_parts': _m328_pin_parts,
+        'pin_functions': lambda pin: list((S328.PINS.get(pin) or ('', []))[1]),
+        'pin_source': ('board.custom.soc_atmega328p.PINS', '%s %s' % (U.M328_DOC, S328.FIG)),
+        'pin_caveat': _m328_pin_caveat,
+        'vectors': lambda: dict(R328.load('atmega328p').get('vectors') or {}),
+        'vectors_source': 'board.custom.registers_atmega328p.json vectors (avr-libc <avr/io.h> _VECTOR(n))',
+        'c_register': lambda register, facts: register,   # avr-libc's own name (its <avr/io.h> defines it)
+        'datasheet_address': lambda register: ((F328.REGISTER_CITES.get(register) or ('', '', '', ''))[3:4] or [''])[0] or '',
+        'crosscheck': _m328_crosscheck,
+    },
+    'esp32c3': {
+        'fields': _c3_fields, 'fields_source': 'board.custom.registers_esp32c3.FIELDS (access via the access table)',
+        'register_facts': _c3_register_facts, 'pin_parts': _c3_pin_parts,
+        'pin_functions': lambda pin: [],
+        'pin_source': ('board.custom.registers_esp32c3.PADS', '%s: GPIO0-21' % E.TRM_DOC),
+        'pin_caveat': lambda pin: '',
+        'vectors': lambda: {}, 'vectors_source': 'none (ESP32-C3 interrupt matrix not ingested)',
+        'c_register': lambda register, facts: '(*(volatile uint32_t *)%su)' % facts['address'],   # a volatile pointer at the address
+        'datasheet_address': lambda register: '',
+        'crosscheck': _c3_crosscheck,
+    },
+}
+
+#: the RULES[soc]['c'] facts the generator REQUIRES (a missing one is refused, never defaulted to an 8-bit form)
+REQUIRED_C = ('ctype', 'mask', 'field_forms')
+
+
+def provider(soc):
+    p = PROVIDERS.get(soc)
+    if p is None or soc not in RULES:
+        raise SocUnknown('soc %r has no HAL provider (known: %s): register one (rules + provider), never a default' % (soc, ', '.join(sorted(PROVIDERS))))
+    missing = [k for k in REQUIRED_C if k not in RULES[soc].get('c', {})] + ([] if 'reg_width' in RULES[soc] else ['reg_width'])
+    if missing:
+        raise SocUnknown('soc %r rules lack required C facts: %s' % (soc, ', '.join(missing)))
+    return p
+
+
+def socs():
+    """Every chip the HAL can generate for, at call time: the built-ins plus any registered (board.custom.chipdesc_provider), in order."""
+    return tuple(x for x in PROVIDERS if x in RULES)
+
+
+def doc(soc):
+    """The chip's facts source, for headers and pages: RULES[soc]['doc'] (the built-ins' from DOCS), refused for an unknown chip."""
+    provider(soc)
+    d = RULES[soc].get('doc') or DOCS.get(soc)
+    if not d:   # econ's 1d4b4a30 review: never print "Facts from: ." - a chip with no cited source is refused, like an unknown one
+        raise SocUnknown('soc %r names no facts source (RULES[soc][\'doc\']): register it with its datasheet / RDL / SVD cited' % soc)
+    return d
+
+
+def chip_facts(soc):
+    """hal-3b: the named facts a role's value_expr may use, as C ({f_cpu} -> F_CPU: the build's own -DF_CPU, which the board facts cite
+    as 16000000 for the arduino-uno-r3, uno_facts build.f_cpu)."""
+    provider(soc)
+    return dict(RULES[soc].get('facts') or {})
+
+
+def pin_parts(soc, pin):
+    """-> {port, bit, n} or None. ATmega328P: PB5 -> port B, bit 5 (the pin name IS the port + bit, Figure 1-1); ESP32-C3: GPIO8 -> n 8."""
+    return provider(soc)['pin_parts'](pin)
+
+
+def pin_source(soc):
+    return provider(soc)['pin_source']
+
+
+def fields_source(soc):
+    return provider(soc)['fields_source']
+
+
+def fields(soc):
+    return provider(soc)['fields']()
+
+
+def register_facts(soc, register):
+    """-> {address, space, io_addr, source, cite} or None."""
+    return provider(soc)['register_facts'](register)
+
+
+def c_register(soc, register, facts):
+    return provider(soc)['c_register'](register, facts)
+
+
+def c_mask(soc, bit):
+    provider(soc)
+    return RULES[soc]['c']['mask'].format(bit=bit)
+
+
+def datasheet_data_address(soc, register):
+    """The data-space address the datasheet prints beside a register, or '' (the cross-check's second source)."""
+    return provider(soc)['datasheet_address'](register)
+
+
+def pin_functions(soc, pin):
+    return provider(soc)['pin_functions'](pin)
+
+
+def pin_caveat(soc, pin):
+    return provider(soc)['pin_caveat'](pin)
+
+
 def vectors(soc):
-    """{vector name: number} — avr-libc's own table on the AVR (the -dM snapshot); none modelled on the C3 (interrupt matrix)."""
-    if soc == 'atmega328p':
-        return dict(R328.load('atmega328p').get('vectors') or {})
-    return {}
+    return provider(soc)['vectors']()
 
 
 def vectors_source(soc):
-    return 'board.custom.registers_atmega328p.json vectors (avr-libc <avr/io.h> _VECTOR(n))' if soc == 'atmega328p' else 'none (ESP32-C3 interrupt matrix not ingested)'
+    return provider(soc)['vectors_source']
 
 
 def c_field(soc, lo, width, value):
-    """{fmask, fval} for a field write, in the register's own width (uint8_t on the AVR, uint32_t on the C3)."""
+    """{fmask, fval} for a field write, in the chip's own C forms (RULES c.field_forms: data, not a width test)."""
+    provider(soc)
+    forms = RULES[soc]['c']['field_forms']
     fmask = ((1 << width) - 1) << lo
-    if RULES[soc]['reg_width'] == 8:
-        return {'fmask': '(uint8_t)0x%02X' % fmask, 'fval': '(uint8_t)(%du << %d)' % (value, lo)}
-    return {'fmask': '0x%XUL' % fmask, 'fval': '((uint32_t)%d << %d)' % (value, lo)}
+    return {'fmask': forms['fmask'].format(m=fmask), 'fval': forms['fval'].format(v=value, lo=lo)}

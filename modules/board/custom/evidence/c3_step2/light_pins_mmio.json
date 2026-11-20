@@ -1,0 +1,742 @@
+{
+ "schema": "econ-c3-step2-mmio/1",
+ "what": "the light pins' own GPIO (esp32.gpio) / IO_MUX (0x60009xxx) accesses: the PIN_SHIM 0 build minus the PIN_SHIM 1 build of the SAME tree, as multisets; QEMU esp_develop_9.2.2_20260417 -d trace:memory_region_ops_write,trace:memory_region_ops_read, -icount shift=3, 25 s wall, no button press (tools/hal_evidence/c3_mmio_trace.sh in prf-esp-engines:noble)",
+ "caveat": "the fork's GPIO is a stub and IO_MUX has no device: every read returns 0, so a read-modify-write shows only the bits it SETS (a clear writes 0); the clears are taken from ESP-IDF v5.5.5's source (gpio.c / gpio_ll.h, cited per entry in board_c3_hal_gate_selftest), not from the values",
+ "builds": {
+  "idf": {
+   "shim0_flash_sha256": "905d8b380a96ee06b7583f4cf93ffb9afe897db5877a49c4b6d42ec2dc5c1981",
+   "shim1_flash_sha256": "b5b6635b05e062e379af7876a25e1e2e14df3b05c562a341c99601aa966e3ac7",
+   "writes": [
+    [
+     "0x6000400c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004024",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000008",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000008",
+     3
+    ],
+    [
+     "0x60004074",
+     "0x00000000",
+     3
+    ],
+    [
+     "0x60004078",
+     "0x00000000",
+     3
+    ],
+    [
+     "0x60004080",
+     "0x00000000",
+     2
+    ],
+    [
+     "0x60004080",
+     "0x00000100",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00002000",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009004",
+     "0x00000000",
+     3
+    ],
+    [
+     "0x60009004",
+     "0x00001000",
+     2
+    ],
+    [
+     "0x60009008",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00001000",
+     2
+    ],
+    [
+     "0x60009010",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00000100",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00001000",
+     2
+    ]
+   ],
+   "reads": [
+    [
+     "0x60004024",
+     1
+    ],
+    [
+     "0x60004028",
+     2
+    ],
+    [
+     "0x6000403c",
+     "poll"
+    ],
+    [
+     "0x6000404c",
+     5
+    ],
+    [
+     "0x60004074",
+     3
+    ],
+    [
+     "0x60004078",
+     3
+    ],
+    [
+     "0x60004080",
+     5
+    ],
+    [
+     "0x60004558",
+     2
+    ],
+    [
+     "0x60004560",
+     2
+    ],
+    [
+     "0x60009004",
+     5
+    ],
+    [
+     "0x60009008",
+     5
+    ],
+    [
+     "0x60009010",
+     5
+    ]
+   ],
+   "not_in_shim0": []
+  },
+  "hal": {
+   "shim0_flash_sha256": "6954ab158591a3d8c3028741531e5161777214e9a7fd2cd7ce4ee4997ae97030",
+   "shim1_flash_sha256": "ad9c1e84486cfd36ca03e1bc93478cff19fa11e7b2711606b0ac8ae7e076c772",
+   "writes": [
+    [
+     "0x6000400c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004024",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000008",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000008",
+     3
+    ],
+    [
+     "0x60004074",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00000100",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00002000",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000000",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60004554",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009004",
+     "0x00000000",
+     2
+    ],
+    [
+     "0x60009004",
+     "0x00001000",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00000000",
+     2
+    ],
+    [
+     "0x60009008",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00001000",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00000000",
+     2
+    ],
+    [
+     "0x60009010",
+     "0x00000100",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00000200",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00001000",
+     1
+    ]
+   ],
+   "reads": [
+    [
+     "0x6000403c",
+     "poll"
+    ],
+    [
+     "0x6000404c",
+     3
+    ],
+    [
+     "0x60004074",
+     1
+    ],
+    [
+     "0x60004080",
+     4
+    ],
+    [
+     "0x60004554",
+     4
+    ],
+    [
+     "0x60004558",
+     2
+    ],
+    [
+     "0x60004560",
+     2
+    ],
+    [
+     "0x60009004",
+     3
+    ],
+    [
+     "0x60009008",
+     5
+    ],
+    [
+     "0x60009010",
+     5
+    ]
+   ],
+   "not_in_shim0": [],
+   "measured_header_sha256": "aaa58e24e6e1b2d36cb7a865686ca3214c7a3b45373331cd3d2c77a251547b32",
+   "hal_header_code_sha256": "d2613175e4d47a8e53527435b966b08270405a13ed06fddbb392a0cceb9a5c11",
+   "code_sha_rule": "sha256 of the header with every /* */ comment removed and blank lines dropped (board_c3_hal_gate_selftest._code_sha): a cite or trace-digest comment may change without re-measuring; any C change may not"
+  }
+ },
+ "shim1_app_bin": {
+  "what": "gate 3 (no collateral change): the PIN_SHIM 1 app.bin before (8292a2ad) vs after (step 2), byte by byte",
+  "size": 179216,
+  "differing_bytes": 64,
+  "ranges_1based": [
+   [
+    177,
+    208
+   ],
+   [
+    179184,
+    179198
+   ],
+   [
+    179200,
+    179216
+   ]
+  ],
+  "why": "bytes 177-208 = esp_app_desc_t.app_elf_sha256 (offset 0xb0, 32 B: the ELF differs only in light_hal.h's DWARF line info - the shim half gained no code); byte 179184 = the image's one-byte checksum (the last byte before the hash, ESP-IDF app image format) and 179185-179216 = its appended SHA-256 (byte 179199 equal by chance). Every loaded code / data byte is identical."
+ },
+ "device_arm_c": {
+  "final_pins": {
+   "idf": [
+    "0=0",
+    "1=0",
+    "2=z",
+    "3=1",
+    "4=z",
+    "5=z",
+    "6=z",
+    "7=z",
+    "8=z",
+    "9=1",
+    "10=z",
+    "11=z",
+    "12=1",
+    "13=1",
+    "14=1",
+    "15=1",
+    "16=1",
+    "17=1",
+    "18=z",
+    "19=z",
+    "20=1",
+    "21=1"
+   ],
+   "hal": [
+    "0=0",
+    "1=0",
+    "2=z",
+    "3=1",
+    "4=z",
+    "5=z",
+    "6=z",
+    "7=z",
+    "8=z",
+    "9=1",
+    "10=z",
+    "11=z",
+    "12=1",
+    "13=1",
+    "14=1",
+    "15=1",
+    "16=1",
+    "17=1",
+    "18=z",
+    "19=z",
+    "20=1",
+    "21=1"
+   ]
+  },
+  "final_registers": {
+   "GPIO_ENABLE_REG": {
+    "hal": "0x00000011",
+    "idf": "0x00000011",
+    "shim1": "0x00000010"
+   },
+   "GPIO_FUNC0_OUT_SEL_CFG_REG": {
+    "hal": "0x00000280",
+    "idf": "0x00000080",
+    "shim1": "0x00000080"
+   },
+   "GPIO_FUNC1_OUT_SEL_CFG_REG": {
+    "hal": "0x00000280",
+    "idf": "0x00000280",
+    "shim1": "0x00000080"
+   },
+   "GPIO_FUNC3_OUT_SEL_CFG_REG": {
+    "hal": "0x00000280",
+    "idf": "0x00000280",
+    "shim1": "0x00000080"
+   },
+   "GPIO_IN_REG": {
+    "hal": "0x0013f208",
+    "idf": "0x0013f208",
+    "shim1": "0x0013f200"
+   },
+   "GPIO_PIN3_REG": {
+    "hal": "0x00002100",
+    "idf": "0x00002100",
+    "shim1": "0x00000000"
+   },
+   "IO_MUX_GPIO0_REG": {
+    "hal": "0x00001802",
+    "idf": "0x00001802",
+    "shim1": "0x00000802"
+   },
+   "IO_MUX_GPIO1_REG": {
+    "hal": "0x00001a82",
+    "idf": "0x00001a82",
+    "shim1": "0x00000802"
+   },
+   "IO_MUX_GPIO3_REG": {
+    "hal": "0x00001b02",
+    "idf": "0x00001b02",
+    "shim1": "0x00000a02"
+   }
+  },
+  "finding": "same write addresses and counts as the stub run (40 / 33); the values differ only where the firmware read-modify-writes (the stub read 0); the final register state of the two builds differs in ONE field, GPIO_FUNC0_OUT_SEL_CFG_REG.OEN_SEL (ESP-IDF 0, HAL 1) - both drive GPIO0 (pol pt-2, measured)",
+  "flash_sha256": {
+   "hal": [
+    "6954ab158591a3d8c3028741531e5161777214e9a7fd2cd7ce4ee4997ae97030",
+    "ad9c1e84486cfd36ca03e1bc93478cff19fa11e7b2711606b0ac8ae7e076c772"
+   ],
+   "idf": [
+    "905d8b380a96ee06b7583f4cf93ffb9afe897db5877a49c4b6d42ec2dc5c1981",
+    "b5b6635b05e062e379af7876a25e1e2e14df3b05c562a341c99601aa966e3ac7"
+   ]
+  },
+  "image": "prf-esp-engines:pt2-polari sha256:69c00e4c53699a4a323a9bacb45ee066a2bfccf7bc5a0ab5e459a7a457391a9a (pol pol-pt2-gate-ctx.tgz sha256 4347f171...b3eacd, FROM prf-esp-engines:noble)",
+  "layout_sha256": "5f3423f0b28747145c77c699ff5c36507df2f06c78d9922789b831184e692a42",
+  "qemu": "QEMU emulator version 9.2.2 (polari-stock-esp_develop_9.2.2_20260417), polari-block 40b75b4 + 691d6b5",
+  "shim1_final_equal": true,
+  "what": "gate 2 re-measured on arm C (pol pt-2): the same four flash images under polari-block with the pt-1a layout, so a read returns the modelled register (the real reset, then what was written) instead of the stub's 0; light writes = shim0 minus shim1 as multisets, -d trace:memory_region_ops_write/read, -icount shift=3, 25 s wall, no input (tools/hal_evidence/c3_armc_trace.sh)",
+  "writes": {
+   "hal": [
+    [
+     "0x6000400c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004024",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000008",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000008",
+     3
+    ],
+    [
+     "0x60004074",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00000100",
+     2
+    ],
+    [
+     "0x60004080",
+     "0x00002100",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000080",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000280",
+     2
+    ],
+    [
+     "0x60004558",
+     "0x00000280",
+     2
+    ],
+    [
+     "0x60004560",
+     "0x00000280",
+     2
+    ],
+    [
+     "0x60009004",
+     "0x00001802",
+     3
+    ],
+    [
+     "0x60009008",
+     "0x00000a02",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00001a02",
+     3
+    ],
+    [
+     "0x60009008",
+     "0x00001a82",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00000a02",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00001a02",
+     3
+    ],
+    [
+     "0x60009010",
+     "0x00001b02",
+     1
+    ]
+   ],
+   "idf": [
+    [
+     "0x6000400c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004024",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x60004028",
+     "0x00000008",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000001",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000002",
+     1
+    ],
+    [
+     "0x6000404c",
+     "0x00000008",
+     3
+    ],
+    [
+     "0x60004074",
+     "0x00000000",
+     3
+    ],
+    [
+     "0x60004078",
+     "0x00000000",
+     3
+    ],
+    [
+     "0x60004080",
+     "0x00000000",
+     1
+    ],
+    [
+     "0x60004080",
+     "0x00000100",
+     2
+    ],
+    [
+     "0x60004080",
+     "0x00002100",
+     2
+    ],
+    [
+     "0x60004554",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60004558",
+     "0x00000280",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000080",
+     1
+    ],
+    [
+     "0x60004560",
+     "0x00000280",
+     1
+    ],
+    [
+     "0x60009004",
+     "0x00000802",
+     1
+    ],
+    [
+     "0x60009004",
+     "0x00001802",
+     4
+    ],
+    [
+     "0x60009008",
+     "0x00000a02",
+     1
+    ],
+    [
+     "0x60009008",
+     "0x00001a02",
+     2
+    ],
+    [
+     "0x60009008",
+     "0x00001a82",
+     2
+    ],
+    [
+     "0x60009010",
+     "0x00000a02",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00001a02",
+     1
+    ],
+    [
+     "0x60009010",
+     "0x00001b02",
+     3
+    ]
+   ]
+  }
+ }
+}

@@ -50,9 +50,9 @@ def run_circuit_states(check):
     print('  -- circuit states (cst-0/1)')
     t = _tables()
     init = SRC.hal_init_modes('uno-light')
-    check('cst-0 SOURCE: the HAL init modes of uno-light are read from the rendered sources — D2 input + pull-up (hal_button_init), D6 output low (hal_led_init via LED_DDR/LED_BIT -> LED_PIN 6), D3 input, no pull (hal_sense_init in the route file)',
+    check('cst-0 SOURCE: the HAL init modes of uno-light are read from the rendered sources — D2 input + pull-up (hal_button_init), D6 output low (hal_led_init via the generated role HAL_LED_OUTPUT -> HAL_GPIO_OUTPUT_PD6), D3 input, no pull (hal_sense_init in the route file)',
           init.get('D2', {}).get('mode') == 'input' and init['D2']['pull'] == 'up' and 'hal_button_init' in init['D2']['source']
-          and init.get('D6', {}).get('mode') == 'output' and init['D6']['initial'] == 'low' and 'LED_DDR' in init['D6']['source']
+          and init.get('D6', {}).get('mode') == 'output' and init['D6']['initial'] == 'low' and 'HAL_LED_OUTPUT' in init['D6']['source']
           and init.get('D3', {}).get('mode') == 'input' and init['D3']['pull'] == 'none' and 'hal_sense_poll.c' in init['D3']['source'], init)
     w = SRC.pin_writer('uno-light')
     check('cst-0 SOURCE: the pin writer from the parsed atoms — LightState.led_on, written by apply_command + led_toggle (and transiently by telemetry_send since the sense '

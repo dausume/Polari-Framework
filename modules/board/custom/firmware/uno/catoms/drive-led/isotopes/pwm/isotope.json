@@ -1,0 +1,20 @@
+{
+ "isotope": "pwm",
+ "variant_row": "drive-led:pwm",
+ "implemented_by": "hal.c LED_ROUTE_PWM (led_route pwm)",
+ "template": "",
+ "firmware_variants": [
+  "uno-light-pwm-analog"
+ ],
+ "minimum_level": "bare-c",
+ "requires": {
+  "led_pin": [
+   "gpio.output",
+   "pwm.init_phase",
+   "pwm.set_duty",
+   "pwm.connect",
+   "pwm.disconnect"
+  ]
+ },
+ "requires_note": "hal-3b step 1 (2026-11-13, AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): this isotope is the shared uno/hal.c code, written over the generated HAL (role macros HAL_<ROLE>_<OP>, board.custom.gen.base_roles). `requires` names the HAL operations it calls, so isotope fit (hal.custom.isotopes) answers for every chip; a peripheral variable is answered by the chip's own instances."
+}

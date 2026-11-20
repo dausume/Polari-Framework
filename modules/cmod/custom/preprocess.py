@@ -41,7 +41,10 @@ FAKE_HEADERS = {
     'avr/wdt.h': '',
     'avr/sleep.h': '',
     'util/delay.h': '',
-    'avr/interrupt.h': '#define ISR(vector, ...) void __polari_isr_##vector(void)\n#define ISR_NAKED\n#define ISR_BLOCK\n#define ISR_NOBLOCK\n',
+    # hal-3b step 1: two levels, so a vector given as a MACRO (ISR(HAL_TICK_VECTOR), the generated HAL's role) is expanded before the
+    # paste, as avr-libc's own ISR (no ##) expands it: an argument next to ## is never macro-expanded (C99 6.10.3.1)
+    'avr/interrupt.h': ('#define ISR(vector, ...) __POLARI_ISR_(vector)\n#define __POLARI_ISR_(v) void __polari_isr_##v(void)\n'
+                        '#define ISR_NAKED\n#define ISR_BLOCK\n#define ISR_NOBLOCK\n'),
     'util/atomic.h': '#define ATOMIC_BLOCK(type) if (__polari_atomic_block(type))\n#define NONATOMIC_BLOCK(type) if (__polari_nonatomic_block(type))\n',
 }
 #: GCC extensions erased before parsing (pycparser is C99); written here so the parse is reproducible

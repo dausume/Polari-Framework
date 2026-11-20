@@ -10,7 +10,7 @@ row it implements is `read-button:<route>` (`cmod.custom.isotope_variants_seeds`
 | `analog-threshold` | `hal_button_adc.c` | `isotopes/analog-threshold/template.c.j2` | uno-light-analog (button on A0) |
 
 Each rendered file supplies the three functions `hal.h` declares for a button (`hal_button_init`, `hal_presses`,
-`hal_take_toggle_pending`) and switches hal.c's INT0 block off with `HAL_BUTTON_ROUTE` (board_config.h), so the app (light.c) is
+`hal_take_toggle_pending`) and switches hal.c's INT0 block off with `CFG_BUTTON_ROUTE` (board_config.h), so the app (light.c) is
 unchanged and the existing variants' bytes are unchanged (the identical-hex gate).
 
 - `catom.json` - the contract and the HAL variables (families: drive / register / protocol / signal / execution, plan 5b).

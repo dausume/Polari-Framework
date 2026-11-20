@@ -60,7 +60,7 @@ TWIN_LINK_DEFAULT = '/tmp/polari-uno-attach-twin-uart'
 TWIN_TCP_DEFAULT = 9833
 START_CYCLE = 1600000            # 100 ms in — past every *_init() at the top of main() (ucd-0e2's own margin)
 HOLD_CYCLES = 80000              # ~5 ms "held" before release
-MIN_GAP_CYCLES = 2400000         # 150 ms: >= 3x the firmware's HAL_INT0_DEBOUNCE_MS (ucd-0e2's own spacing rule)
+MIN_GAP_CYCLES = 2400000         # 150 ms: >= 3x the firmware's CFG_INT0_DEBOUNCE_MS (ucd-0e2's own spacing rule)
 MCU_HZ = 16000000
 
 

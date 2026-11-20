@@ -3,7 +3,7 @@
  * (the catom sense-led-line, isotope gpio-poll), for variant knobs sense_pin=3. No timestamp is written
  * here, so rendering the same knobs again gives the same bytes. EDIT THE TEMPLATE, never this file.
  *
- * It replaces hal.c's INT1 sense block (HAL_SENSE_ROUTE is non-zero, so hal.c skips that block) and supplies the SAME two
+ * It replaces hal.c's INT1 sense block (CFG_SENSE_ROUTE is non-zero, so hal.c skips that block) and supplies the SAME two
  * functions hal.h declares for a sense pin - hal_sense_init / hal_sense_read - so the app (button_clock.c) is unchanged.
  * The sense pin is only ever an INPUT here (it is a wire FROM the LED line, never driven by this build). PLAIN C on avr-libc.
  * cited: DDRD.DDD3 - ATmega328P DS40002061B §14.4.9 DDRD, p.101; §14.2.1 p.85
@@ -16,8 +16,8 @@
 #include "hal.h"
 #include "polari_hal_atmega328p.h"   /* the generated HAL units this isotope requires (isotope.json requires) */
 
-#if !HAL_INT1 || HAL_SENSE_ROUTE != 1
-#error "hal_sense_poll.c is the sense route 1 (polled): board_config.h must set HAL_INT1 1 and HAL_SENSE_ROUTE 1"
+#if !CFG_INT1 || CFG_SENSE_ROUTE != 1
+#error "hal_sense_poll.c is the sense route 1 (polled): board_config.h must set CFG_INT1 1 and CFG_SENSE_ROUTE 1"
 #endif
 
 /* Everything here runs in the main loop, never in an interrupt, so nothing needs to be volatile or atomic. */

@@ -4,7 +4,7 @@
  * (the catom read-button, isotope {{ b.isotope|c_comment }}), for variant knobs {{ b.knobs|c_comment }}. No timestamp is written
  * here, so rendering the same knobs again gives the same bytes. EDIT THE TEMPLATE, never this file.
  *
- * It replaces hal.c's INT0 button block (HAL_BUTTON_ROUTE is non-zero, so hal.c skips that block) and supplies the SAME three
+ * It replaces hal.c's INT0 button block (CFG_BUTTON_ROUTE is non-zero, so hal.c skips that block) and supplies the SAME three
  * functions hal.h declares for a button - hal_button_init / hal_presses / hal_take_toggle_pending - so the app (light.c) is
  * unchanged. PLAIN C on avr-libc.
 {% for c in b.cites %}
@@ -12,14 +12,14 @@
 {% endfor %}
  */
 {% endmacro %}
-{#- the lockout debounce of hal.c's INT0 isotope: an edge within HAL_INT0_DEBOUNCE_MS of the last COUNTED one is ignored -#}
+{#- the lockout debounce of hal.c's INT0 isotope: an edge within CFG_INT0_DEBOUNCE_MS of the last COUNTED one is ignored -#}
 {% macro lockout_state() %}
 static uint32_t g_last_press;
 static uint8_t g_pressed_once;
 {% endmacro %}
 {% macro lockout_accept(indent) %}
 {{ indent }}now = hal_millis();
-{{ indent }}if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)HAL_INT0_DEBOUNCE_MS) {{ caller() }}
+{{ indent }}if (g_pressed_once && (uint32_t)(now - g_last_press) < (uint32_t)CFG_INT0_DEBOUNCE_MS) {{ caller() }}
 {{ indent }}g_pressed_once = 1u;
 {{ indent }}g_last_press = now;
 {% endmacro %}

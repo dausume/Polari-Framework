@@ -86,8 +86,9 @@ def run_uno(check):
         row = gen.gen('uno', ['SimRigState'], work, rig_name='uno-rig', device_id=3)
         proj = row['project_dir']
         names = sorted(os.listdir(proj))
-        check('gen: the project is main.c (the variant app) + hal.c/hal.h + Makefile + board_config.h + simrigstate_packets.h — RULE 2 clean',
-              names == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'simrigstate_packets.h'] and not gen.rule2_violations(proj), names)
+        check('gen: the project is main.c (the variant app) + hal.c/hal.h + Makefile + board_config.h + polari_hal_atmega328p.h (hal-3a: the HAL units '
+              'THIS build needs) + simrigstate_packets.h — RULE 2 clean',
+              names == ['Makefile', 'board_config.h', 'hal.c', 'hal.h', 'main.c', 'polari_hal_atmega328p.h', 'simrigstate_packets.h'] and not gen.rule2_violations(proj), names)
         hdr = open(os.path.join(proj, 'simrigstate_packets.h')).read()
         cls = json.loads(row['classes_json'])[0]
         check('gen: the header is c_twin target=avr of SimRigState contract v2 (hash 2bcc9d1a2774ef33), its sha recorded',

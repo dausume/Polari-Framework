@@ -26,7 +26,7 @@ timeout lasts 1/(1+e) s). Bytes "intact" = the byte the sender meant; framing er
 
 Limits said, not hidden: (a) a framing error is counted at the receiver but the byte is still delivered - the default build's RX ISR and
 arduino-usbserial's both read UDR without checking FE (hal.c; Arduino-usbserial.c USART1_RX_vect), so that is what each firmware does with
-it; a HAL_UART_ERRCOUNT build would count it, which the twin cannot be told (it injects bytes, not flags); (b') the board's own bytes are
+it; a CFG_UART_ERRCOUNT build would count it, which the twin cannot be told (it injects bytes, not flags); (b') the board's own bytes are
 re-timed to the chip's byte time within a burst (chip_times: the twin's UART is slower than the chip's); (b) the twin feeds injected bytes
 no closer than its own byte time (10 bits at 115200 over f) - about 2 % slower than the 16U2's 117647 Bd, so the arrival times slip by up
 to that; (c) the sampling phase is a knob (0.5 of a sample); (d) the 16U2's clock is a knob (peer_pct, default 0 = exact): the UNO R3

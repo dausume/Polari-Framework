@@ -18,25 +18,11 @@ from hal.custom import soc_rules as SR
 
 
 def checks(res):
+    """One HalCrossCheck row per binding that the chip's provider can check against a second source (provider 'crosscheck'); a chip
+    with no second source gets none (said by the absence, never by another chip's rule)."""
     u = res['unit'] or {}
-    out = []
-    for b in res['bindings']:
-        if u.get('soc') == 'atmega328p':
-            ds = SR.datasheet_data_address(b['register'])
-            if not ds:
-                out.append({'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'],
-                            'first_source': 'avr-libc <avr/io.h> snapshot', 'second': '', 'second_source': 'DS40002061B register section',
-                            'result': 'no-second-source', 'why': 'the datasheet section cited for %s prints no data-space address' % b['register']})
-                continue
-            same = int(ds, 16) == int(b['address'], 16)
-            out.append({'unit': u['key'], 'subject': '%s address' % b['register'], 'first': b['address'],
-                        'first_source': 'avr-libc <avr/io.h> snapshot (I/O + 0x20)', 'second': ds,
-                        'second_source': 'DS40002061B %s' % (SR.F328.REGISTER_CITES[b['register']][1]),
-                        'result': 'pass' if same else 'fail', 'why': '' if same else 'the two sources disagree'})
-        elif u.get('soc') == 'esp32c3':
-            out.append({'unit': u['key'], 'subject': '%s.%s position' % (b['register'], b['field']),
-                        'first': 'bits %d-%d @ %s' % (b['bit_hi'], b['bit_lo'], b['address']), 'first_source': 'TRM v1.4 (%s)' % b['cite'],
-                        'second': 'ESP-IDF v5.5.5 components/soc/esp32c3/register/soc/*.h',
-                        'second_source': 'recorded when the TRM rows were read (rm-2b, board.custom.registers_esp32c3)',
-                        'result': 'recorded', 'why': 'cited, not re-run here: the IDF headers are not in this repo'})
-    return out
+    soc = u.get('soc')
+    if soc not in SR.PROVIDERS:
+        return []
+    fn = SR.PROVIDERS[soc].get('crosscheck')
+    return [r for r in (fn(u, b) for b in res['bindings']) if r] if fn else []

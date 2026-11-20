@@ -9,7 +9,7 @@ extra file of the generated project:
     route 2  pin-change-interrupt   hal_sense_pcint.c   the sense pin on ANY pin that carries a PCINTn function (an ISR counts and stamps every edge)
 
 Both supply the SAME two functions hal.h declares for a sense pin (hal_sense_init / hal_sense_read), so the app (apps/button_clock.c) is unchanged, and switch hal.c's INT1 block off with
-HAL_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant's bytes are unchanged). The layout is `catoms/sense-led-line/{catom.json, README.md, _common.j2,
+CFG_SENSE_ROUTE (board_config.h; undefined = 0, so every existing variant's bytes are unchanged). The layout is `catoms/sense-led-line/{catom.json, README.md, _common.j2,
 isotopes/<iso>/{isotope.json, substitutions.json, template.c.j2}}` under board/custom/firmware/uno/ (the manifests rule allows only objects/ custom/ initialData/ as module subfolders).
 
 Nothing reaches a template as free text: every register, bit and vector comes from the board's own rows (BoardPin / SocPin / the cited RegisterField rows) through the same helpers fgm-5a uses,
@@ -26,7 +26,7 @@ GENERATOR = 'board.custom.sense_routes'
 BOARD = BR.BOARD
 RouteRefused = BR.RouteRefused
 
-#: knob value of `sense_route` -> (HAL_SENSE_ROUTE code, isotope dir, rendered file, catalogue variant)
+#: knob value of `sense_route` -> (CFG_SENSE_ROUTE code, isotope dir, rendered file, catalogue variant)
 ROUTES = {'poll': (1, 'gpio-poll', 'hal_sense_poll.c', 'sense-led-line:gpio-poll'),
           'pcint': (2, 'pin-change-interrupt', 'hal_sense_pcint.c', 'sense-led-line:pin-change-interrupt')}
 ROUTE_NAMES = ('int1',) + tuple(ROUTES)

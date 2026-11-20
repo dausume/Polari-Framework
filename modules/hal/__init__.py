@@ -8,6 +8,6 @@ read-modify-write, routing matrices ...), and what the generator derives per SoC
 Requires the board module (its SoC, pin and register tables).
 """
 from hal.hal_basis import (HAL_CLASSES, HalAccessMechanism, HalBinding, HalCodeUnit, HalCrossCheck,  # noqa: F401
-                           HalGenerationStep, HalOperation)
+                           HalGenerationStep, HalIsotopeNeed, HalOperation)
 from hal.hal_seed import HAL_SEED_PAIRS  # noqa: F401
 from hal.hal_page import SEED_HAL_PAGE_DISPLAYS  # noqa: F401

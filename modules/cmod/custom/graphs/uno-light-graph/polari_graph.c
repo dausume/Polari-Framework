@@ -21,7 +21,7 @@
 static LightState_t state;   /* class node state: the LightState instance the frames carry */
 static polari_rx_t rx;   /* parser node rx: the generated header's receiver */
 
-/* atom apps/light.boot_session_mint — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 29-38 (sha256 952da7280fd01988) */
+/* atom apps/light.boot_session_mint — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 29-38 (sha256 a67ecda933fab5f8) */
 POLARI_NODE(boot_session_mint, out(return, "", "the freshly-minted boot_session (1 on a virgin chip, else +1)"),
             role("mint this start's session number from EEPROM; it differs after every reset"))
 static uint32_t boot_session_mint(void)
@@ -33,11 +33,11 @@ static uint32_t boot_session_mint(void)
     return v;
 }
 
-/* atom apps/light.led_toggle — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 44-54 (sha256 952da7280fd01988) */
+/* atom apps/light.led_toggle — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 44-54 (sha256 a67ecda933fab5f8) */
 POLARI_NODE(led_toggle, role("on a debounced button press: flip state.led_on, count the change, source = button (the pin follows the struct: led_follow_state)"))
 static void led_toggle(void)
 {
-#if HAL_INT0
+#if CFG_INT0
     if (!hal_take_toggle_pending()) return;
     state.led_on = state.led_on ? 0u : 1u;
     state.toggles++;
@@ -46,7 +46,7 @@ static void led_toggle(void)
 #endif
 }
 
-/* atom apps/light.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 57-73 (sha256 952da7280fd01988) */
+/* atom apps/light.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 57-73 (sha256 a67ecda933fab5f8) */
 POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket LightState command"),
             role("SET_LED: set state.led_on from the host; a real change counts and says source = command (the pin follows the struct: led_follow_state)"))
 static void apply_command(const polari_rx_t *r)
@@ -65,7 +65,7 @@ static void apply_command(const polari_rx_t *r)
     }
 }
 
-/* atom apps/light.led_follow_state — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 78-85 (sha256 952da7280fd01988) */
+/* atom apps/light.led_follow_state — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 78-85 (sha256 a67ecda933fab5f8) */
 POLARI_NODE(led_follow_state, uses(LED_PIN), role("each pass: when state.led_on differs from the value last written to the pin, drive the pin to it"))
 static void led_follow_state(void)
 {
@@ -75,8 +75,8 @@ static void led_follow_state(void)
     hal_led(pin);
 }
 
-/* atom apps/light.sense_poll — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 90-97 (sha256 952da7280fd01988) */
-#if HAL_INT1
+/* atom apps/light.sense_poll — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 90-97 (sha256 a67ecda933fab5f8) */
+#if CFG_INT1
 POLARI_NODE(sense_poll, uses(SENSE_PIN), role("each pass: read the sense line's rise and fall counts and keep the level it has now (high when it has risen once more than it has fallen) for the report"))
 static void sense_poll(void)
 {
@@ -87,11 +87,11 @@ static void sense_poll(void)
 }
 #endif
 
-/* atom apps/light.telemetry_send — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 100-114 (sha256 952da7280fd01988) */
+/* atom apps/light.telemetry_send — copied VERBATIM from board/custom/firmware/uno/apps/light.c lines 100-114 (sha256 a67ecda933fab5f8) */
 POLARI_NODE(telemetry_send, role("one LightState frame: the light, how often it changed, who changed it last (the light is the SENSED level when the board has a sense line)"))
 static void telemetry_send(void)
 {
-#if HAL_INT1
+#if CFG_INT1
     /* the report carries the SENSED level in led_on; the struct's own led_on (the command) is put back at once */
     uint8_t commanded = state.led_on;
     state.led_on = g_sensed;
@@ -99,7 +99,7 @@ static void telemetry_send(void)
     state.seq = (int64_t)g_seq;
     hal_usart_send(wire, LightState_frame(wire, DEVICE_ID, g_seq, payload, TX_ENCODE(&state, payload, TELEMETRY_MASK)));
     g_seq++;
-#if HAL_INT1
+#if CFG_INT1
     state.led_on = commanded;
 #endif
 }

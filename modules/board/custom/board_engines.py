@@ -49,7 +49,8 @@ ENGINES = {
     'avrdude': ('avrdude', 'flasher', 'GPL-2.0 (github.com/avrdudes/avrdude)'),
     'simavr': ('simavr', 'simulator', 'GPL-3.0 (github.com/buserror/simavr)'),
     'avr-twin': ('polari-avr-twin', 'simulator', 'GPL-3.0 (links libsimavr; built in prf-board-engines — USART0↔TCP, ADC0 stimulus, PORTB5 trace)'),
-    'riscv-gcc': ('riscv64-unknown-elf-gcc', 'c-compiler', 'GPL-3.0+ with the runtime exception'),
+    'riscv-gcc': ('riscv64-unknown-elf-gcc', 'c-compiler', 'Debian trixie gcc-riscv64-unknown-elf 14.2.0+19 (multilib rv32 / rv64, in prf-board-engines), '
+                  'GPL-3.0+ with the runtime exception'),
     'arm-gcc': ('arm-none-eabi-gcc', 'c-compiler', 'GPL-3.0+ with the runtime exception'),
     'esptool': ('esptool.py', 'flasher', 'GPL-2.0+'),
     # sc-3: the ESP32-C3 family (prf-esp-engines)
@@ -71,7 +72,7 @@ ENGINES = {
     'libero': ('libero', 'hdl-toolchain', 'PROPRIETARY (Microchip Libero SoC, Silver licence) — an engine only, D-brd-2'),
 }
 #: the engines the board worker image carries (polari-rf-node/prf-board-engines/Dockerfile)
-IMAGE_ENGINES = ('avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin')
+IMAGE_ENGINES = ('avr-gcc', 'avr-objcopy', 'avr-size', 'avrdude', 'simavr', 'avr-twin', 'riscv-gcc')
 #: sc-3: the families — each engine resolves on ITS family's knob, image and provider
 ESP_IMAGE_ENGINES = ('idf-build', 'c3-run', 'qemu-esp32c3', 'esptool', 'riscv32-esp-elf-nm')
 FAMILIES = {

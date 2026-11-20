@@ -1,0 +1,11 @@
+{
+ "catom": "report-state",
+ "job": "report-state",
+ "title": "Send the board's state to Polari as a frame",
+ "owner_module": "board",
+ "isotopes": [
+  "uart-tx"
+ ],
+ "status": "declared over the HAL (hal-3b step 1); the code is uno/hal.c",
+ "notes": "hal-3b step 1 (2026-11-13, AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): this isotope is the shared uno/hal.c code, written over the generated HAL (role macros HAL_<ROLE>_<OP>, board.custom.gen.base_roles). `requires` names the HAL operations it calls, so isotope fit (hal.custom.isotopes) answers for every chip; a peripheral variable is answered by the chip's own instances."
+}

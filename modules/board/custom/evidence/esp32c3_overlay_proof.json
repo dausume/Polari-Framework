@@ -1,0 +1,631 @@
+{
+ "chapters": {
+  "APB_SARADC": {
+   "accepted": 83,
+   "ambiguous": 0,
+   "no_code": 0,
+   "pages": [
+    877,
+    900
+   ],
+   "review": 0,
+   "unmatched": 0
+  },
+  "INTMTX": {
+   "accepted": 58,
+   "ambiguous": 0,
+   "no_code": 0,
+   "pages": [
+    213,
+    218
+   ],
+   "review": 0,
+   "unmatched": 3
+  },
+  "LEDC": {
+   "accepted": 127,
+   "ambiguous": 0,
+   "no_code": 9,
+   "pages": [
+    836,
+    848
+   ],
+   "review": 6,
+   "unmatched": 0
+  },
+  "SYSTEM": {
+   "accepted": 83,
+   "ambiguous": 0,
+   "no_code": 0,
+   "pages": [
+    434,
+    460
+   ],
+   "review": 0,
+   "unmatched": 5
+  },
+  "SYSTIMER": {
+   "accepted": 53,
+   "ambiguous": 0,
+   "no_code": 0,
+   "pages": [
+    277,
+    290
+   ],
+   "review": 0,
+   "unmatched": 0
+  },
+  "UART0": {
+   "accepted": 180,
+   "ambiguous": 0,
+   "no_code": 0,
+   "pages": [
+    571,
+    600
+   ],
+   "review": 0,
+   "unmatched": 1
+  }
+ },
+ "conflicts": [
+  {
+   "field": "TIMER_UNIT0_VALUE_VALID",
+   "page": 278,
+   "register": "SYSTIMER_UNIT0_OP_REG",
+   "svd": "read-only",
+   "trm": "R/SS/WTC"
+  },
+  {
+   "field": "TIMER_UNIT1_VALUE_VALID",
+   "page": 280,
+   "register": "SYSTIMER_UNIT1_OP_REG",
+   "svd": "read-only",
+   "trm": "R/SS/WTC"
+  },
+  {
+   "field": "RXFIFO_RD_BYTE",
+   "page": 571,
+   "register": "UART0_FIFO_REG",
+   "svd": "read-write",
+   "trm": "RO"
+  }
+ ],
+ "counts": {
+  "drawing: same code": 43,
+  "hal-3a: missing in both": 4,
+  "hal-3a: overlay missing, hand cited": 54,
+  "hal-3a: same code": 243
+ },
+ "findings": [
+  {
+   "class": "missing in both",
+   "field": "TICK_SEL",
+   "hand": "",
+   "hand_cite": "not in TRM v1.4; Espressif SVD esp32c3.svd v18 (espressif/svd be20aa12) resetValue; bits checked against ESP-IDF v5.5.5 soc/ledc_reg.h",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_TIMER0_CONF_REG"
+  },
+  {
+   "class": "missing in both",
+   "field": "TICK_SEL",
+   "hand": "",
+   "hand_cite": "not in TRM v1.4; Espressif SVD esp32c3.svd v18 (espressif/svd be20aa12) resetValue; bits checked against ESP-IDF v5.5.5 soc/ledc_reg.h",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_TIMER1_CONF_REG"
+  },
+  {
+   "class": "missing in both",
+   "field": "TICK_SEL",
+   "hand": "",
+   "hand_cite": "not in TRM v1.4; Espressif SVD esp32c3.svd v18 (espressif/svd be20aa12) resetValue; bits checked against ESP-IDF v5.5.5 soc/ledc_reg.h",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_TIMER2_CONF_REG"
+  },
+  {
+   "class": "missing in both",
+   "field": "TICK_SEL",
+   "hand": "",
+   "hand_cite": "not in TRM v1.4; Espressif SVD esp32c3.svd v18 (espressif/svd be20aa12) resetValue; bits checked against ESP-IDF v5.5.5 soc/ledc_reg.h",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_TIMER3_CONF_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER0_OVF_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER1_OVF_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER2_OVF_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER3_OVF_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH0_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH1_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH2_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH3_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH4_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH5_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH0_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH1_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH2_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH3_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH4_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH5_INT_RAW",
+   "hand": "R/WTC/SS",
+   "hand_cite": "Register 32.9 LEDC_INT_RAW_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_RAW_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER0_OVF_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER1_OVF_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER2_OVF_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER3_OVF_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH0_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH1_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH2_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH3_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH4_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH5_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH0_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH1_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH2_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH3_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH4_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH5_INT_ST",
+   "hand": "RO",
+   "hand_cite": "Register 32.10 LEDC_INT_ST_REG, p.840 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ST_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER0_OVF_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER1_OVF_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER2_OVF_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "TIMER3_OVF_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH0_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH1_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH2_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH3_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH4_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH5_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH0_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH1_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH2_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH3_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH4_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "OVF_CNT_CH5_INT_ENA",
+   "hand": "R/W",
+   "hand_cite": "Register 32.11 LEDC_INT_ENA_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_ENA_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH0_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH1_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH2_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH3_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH4_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  },
+  {
+   "class": "overlay missing, hand cited",
+   "field": "DUTY_CHNG_END_CH5_INT_CLR",
+   "hand": "WT",
+   "hand_cite": "Register 32.12 LEDC_INT_CLR_REG, p.841 (read from the rendered page)",
+   "overlay": "",
+   "part": "hal-3a",
+   "register": "LEDC_INT_CLR_REG"
+  }
+ ],
+ "rows": {
+  "fields": 1062,
+  "registers": 157
+ },
+ "svd_sha256": "9ef33dbff56d807996fd8edfa4aa4ad008b5a861c241d36280caa0dedbbca41a",
+ "trm_sha256": "90ef825653e7a2657dc1bb294041aace9f9b69da87d775c2f1b5bd11eb317423",
+ "trm_text_sha256": "10ab093b6d782b4455cfa44f5be242c522c1684ca3fcc4c5911124dd0ba466cf",
+ "what": "hal-4 proof 2: svd_import + access_overlay (TRM text) vs the hand-cited trm_access of board.custom.registers_esp32c3"
+}

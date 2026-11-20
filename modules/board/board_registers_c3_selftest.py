@@ -25,12 +25,39 @@ def table():
     from board.custom import registers_esp32c3 as R
     from board.custom import register_access as RA
     regs = {r['register']: r for r in R.REGISTERS}
+    dregs, dflds = R.part('drawing')
+    hregs, hflds = R.part('hal-3a')
     check('rm-2b THE DRAWING SET: 91 registers / 761 fields (pins x22 per-pad registers, the matrix, strap + reset cause, the GPIO + UART interrupt map, the system timer, '
-          'clock/reset enables, UART0)', (len(R.REGISTERS), len(R.FIELDS)) == (91, 761) and {'GPIO_PIN21_REG', 'IO_MUX_GPIO0_REG', 'GPIO_FUNC6_IN_SEL_CFG_REG', 'GPIO_STRAP_REG',
+          'clock/reset enables, UART0)', (len(dregs), len(dflds)) == (91, 761) and {'GPIO_PIN21_REG', 'IO_MUX_GPIO0_REG', 'GPIO_FUNC6_IN_SEL_CFG_REG', 'GPIO_STRAP_REG',
                                                                                          'RTC_CNTL_RESET_STATE_REG', 'INTERRUPT_CORE0_UART_INTR_MAP_REG', 'SYSTIMER_UNIT0_VALUE_LO_REG',
-                                                                                         'SYSTEM_PERIP_CLK_EN0_REG', 'UART0_CONF0_REG'} <= set(regs), (len(R.REGISTERS), len(R.FIELDS)))
+                                                                                         'SYSTEM_PERIP_CLK_EN0_REG', 'UART0_CONF0_REG'} <= set(regs), (len(dregs), len(dflds)))
+    hb = {}
+    for r in hregs:
+        hb[r['block']] = hb.get(r['block'], 0) + 1
+    check('hal-3a (the HAL families\' registers): LEDC 43 (pwm, with its interrupt bits), APB_SARADC 8 (adc one-time sampling + its clock), SYSTIMER 8 (COMP0 alarm), '
+          'INTMTX 3 (the LEDC / SYSTIMER_TARGET0 / APB_ADC maps), UART0 4 (the uart family\'s interrupt registers) = 66 registers / 301 fields (4 of them LEDC / APB_SARADC clock + reset bits in the drawing set\'s SYSTEM registers); '
+          'together %d registers / %d fields' % (len(R.REGISTERS), len(R.FIELDS)),
+          (len(hregs), len(hflds)) == (66, 301) and hb == {'LEDC': 43, 'APB_SARADC': 8, 'SYSTIMER': 8, 'INTMTX': 3, 'UART0': 4}
+          and (len(R.REGISTERS), len(R.FIELDS)) == (159, 1106) and {r['part'] for r in R.REGISTERS} == {'drawing', 'hal-3a', 'pt-1a'}
+          and {f['part'] for f in R.FIELDS} == {'drawing', 'hal-3a', 'pt-1a'} and len([f for f in hflds if f['register'].startswith('SYSTEM_')]) == 4,
+          (len(hregs), len(hflds), hb, len(R.REGISTERS), len(R.FIELDS)))
+    pregs, pflds = R.part('pt-1a')
+    check('pt-1a (the twin\'s two GPIO interrupt registers): GPIO_STATUS_W1TS_REG 0x48 (Register 5.11 p.182, acts_on GPIO_STATUS_REG) and GPIO_PCPU_INT_REG 0x5C '
+          '(Register 5.13 p.183, RO) - the offsets ESP-IDF v5.5.5 gpio_reg.h:130 / :146 prints - 22 one-bit per-pad fields each = 2 registers / 44 fields',
+          sorted((r['register'], r['offset'], r['block']) for r in pregs) == [('GPIO_PCPU_INT_REG', 0x5C, 'GPIO'), ('GPIO_STATUS_W1TS_REG', 0x48, 'GPIO')]
+          and len(pflds) == 44 and all(f['width'] == 1 and f['affects_pin'] == 'GPIO%d' % f['bit_lo'] for f in pflds)
+          and {(f['register'], f['access'], f['acts_on']) for f in pflds} == {('GPIO_STATUS_W1TS_REG', 'w1-set', 'GPIO_STATUS_REG'), ('GPIO_PCPU_INT_REG', 'r', '')},
+          (len(pregs), len(pflds)))
+    tick = [f for f in hflds if f['field'] == 'TICK_SEL']
+    check('hal-3a trm_access: every field carries the TRM\'s code verbatim (hal-3b maps from it); LEDC TICK_SEL x4 - in the SVD and ESP-IDF, NOT in TRM v1.4 - carries '
+          'none, and says so', all('trm_access' in f for f in R.FIELDS) and all(f['trm_access'] for f in R.FIELDS if f['field'] != 'TICK_SEL')
+          and len(tick) == 4 and all(f['trm_access'] == '' and 'not in TRM v1.4' in f['notes'] for f in tick), [f['register'] for f in tick])
     check('rm-2b CITED: every field names its TRM Register section + page and keeps the TRM\'s own access code ("TRM access R/W" ...); every register its section, page and '
-          'reset', all('p.' in f['page_table'] and f['notes'].startswith('TRM access ') for f in R.FIELDS) and all('p.' in r['where'] and r['reset'] for r in R.REGISTERS))
+          'reset; a field the TRM does not describe (empty trm_access: LEDC TICK_SEL) says so, claims no TRM code and cites the SVD + ESP-IDF instead',
+          all('p.' in f['page_table'] and f['notes'].startswith('TRM access ') for f in R.FIELDS if f['trm_access'])
+          and all(f['notes'].startswith('NO TRM access code') and 'not in TRM v1.4' in f['page_table'] and 'ESP-IDF' in f['page_table']
+                  for f in R.FIELDS if not f['trm_access'])
+          and all('p.' in r['where'] and r['reset'] for r in R.REGISTERS))
     overlap = []
     for name in regs:
         bits = {}
@@ -84,11 +111,11 @@ def chain():
     flds = [f for f in t['RegisterField'] if f['soc'] == 'esp32c3']
     sig, sp = {r['name'] for r in t['PeripheralSignal']}, {r['name'] for r in t['SocPin']}
     per = {r['peripheral']: r for r in t['Peripheral'] if r['soc'] == 'esp32c3'}
-    check('rm-2b IN THE CHAIN: 91 Register + 761 RegisterField rows for esp32c3; every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
-          'GPIO / UART0 / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (91, 761)
+    check('rm-2b + hal-3a IN THE CHAIN: 159 Register + 1106 RegisterField rows for esp32c3 (the drawing set 91 / 761 + hal-3a 66 / 301 + pt-1a 2 / 44); every affects_pin is a SocPin, every affects_signal a PeripheralSignal; the TRM is their Datasheet; '
+          'GPIO / UART0 / LEDC / ADC1 / SYSTIMER / SYSTEM / RTC_CNTL / INTMTX list their registers, a block with none says so', (len(regs), len(flds)) == (159, 1106)
           and all(f['affects_pin'] in sp for f in flds if f['affects_pin']) and all(f['affects_signal'] in sig for f in flds if f['affects_signal'])
           and {f.get('datasheet') for f in flds} == {'espressif-esp32-c3-trm'}
-          and all(json.loads(per[p]['registers_refs_json']) for p in ('GPIO', 'UART0', 'SYSTIMER', 'SYSTEM', 'RTC_CNTL', 'INTMTX'))
+          and all(json.loads(per[p]['registers_refs_json']) for p in ('GPIO', 'UART0', 'LEDC', 'ADC1', 'SYSTIMER', 'SYSTEM', 'RTC_CNTL', 'INTMTX'))
           and per['I2C0']['undetermined'].startswith('no register of this block'), (len(regs), len(flds)))
 
 

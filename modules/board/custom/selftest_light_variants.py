@@ -6,7 +6,6 @@ fsc-6 selftest part (called by board.board_light_selftest.run_light): the four P
     every negative control rejected, and no temp directory left behind
 SKIPS honestly with no twin.
 """
-import glob
 import os
 import tempfile
 
@@ -32,16 +31,19 @@ def run_variants(check):
         return
     from firmwarefaults.custom import acceptance as ACC
     from firmwarefaults.custom import sink as S
-    before = set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc6-*'))) | set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc0b-*')))
-    for cfg in SENSE:
-        runs = {n: ACC.run(n, 'digital-twin', sink=S.LocalSink(), variant=cfg) for n in SCENARIOS}
-        check('fsc-6 TWIN: all four Purposes\' own scenarios pass on %s\'s own build, each stored with variant = %s: %s' % (cfg, cfg, {n.split('-acceptance')[0]: r['outcome'] for n, r in runs.items()}),
-              all(r['outcome'] == 'passed' and r['variant'] == cfg and r['scenario'] == n and r['frames_seen'] > 0 for n, r in runs.items()), {n: r['verdict_words'][:160] for n, r in runs.items() if r['outcome'] != 'passed'})
-        obs = {n: __import__('json').loads(r['observed_json']).get('controls', []) for n, r in runs.items()}
-        check('fsc-6 TWIN: …every negative control through the same judges was rejected (boot 4, button 2, command 3 (the struct write unchanged, a telemetry-only write, a quiet run), observe 2)',
-              {n: len(c) for n, c in obs.items()} == {SCENARIOS[0]: 4, SCENARIOS[1]: 2, SCENARIOS[2]: 3, SCENARIOS[3]: 2} and not any(x['judged_ok'] for c in obs.values() for x in c), obs)
-    after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc6-*'))) | set(glob.glob(os.path.join(tempfile.gettempdir(), 'fsc0b-*')))
-    check('fsc-6 TWIN: the twin runners leave no temp directory behind', after <= before, sorted(after - before))
+    # econ 2b sweep (2026-11-13): a private temp root per run, so a suite run in parallel cannot look like a leak (board.custom.private_tmp)
+    from board.custom import private_tmp as PT
+    with PT.private_tmp('fsc6') as tmp_root:
+        for cfg in SENSE:
+            runs = {n: ACC.run(n, 'digital-twin', sink=S.LocalSink(), variant=cfg) for n in SCENARIOS}
+            check('fsc-6 TWIN: all four Purposes\' own scenarios pass on %s\'s own build, each stored with variant = %s: %s' % (cfg, cfg, {n.split('-acceptance')[0]: r['outcome'] for n, r in runs.items()}),
+                  all(r['outcome'] == 'passed' and r['variant'] == cfg and r['scenario'] == n and r['frames_seen'] > 0 for n, r in runs.items()), {n: r['verdict_words'][:160] for n, r in runs.items() if r['outcome'] != 'passed'})
+            obs = {n: __import__('json').loads(r['observed_json']).get('controls', []) for n, r in runs.items()}
+            check('fsc-6 TWIN: …every negative control through the same judges was rejected (boot 4, button 2, command 3 (the struct write unchanged, a telemetry-only write, a quiet run), observe 2)',
+                  {n: len(c) for n, c in obs.items()} == {SCENARIOS[0]: 4, SCENARIOS[1]: 2, SCENARIOS[2]: 3, SCENARIOS[3]: 2} and not any(x['judged_ok'] for c in obs.values() for x in c), obs)
+    left = PT.leftovers(tmp_root)
+    PT.cleanup(tmp_root)
+    check("fsc-6 TWIN: the twin runners leave no temp directory behind (checked in this run's own temp root)", left == [], left)
 
 
 def run_scl(check):

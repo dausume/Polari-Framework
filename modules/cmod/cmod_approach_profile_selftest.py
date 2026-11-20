@@ -121,8 +121,8 @@ def approach_profile_parts(check):
         r = lt()
         t = r['tiers']
         mem = {m['what']: m for m in t['bare-c']['memory']}
-        check('rt-0: UNO bare C is AVAILABLE: the recorded build (3380 B flash, 524 B static RAM, MEASURED; smp-2 moved them from 3132 / 514 with the sense line, scl from 3110 / 513) fits the cited limits (32256 B after Optiboot, 2048 B)',
-              t['bare-c']['state'] == 'available' and mem['flash']['application']['value'] == 3380 and mem['flash']['application']['kind'] == 'measured'
+        check('rt-0: UNO bare C is AVAILABLE: the recorded build (3454 B flash, 524 B static RAM, MEASURED; hal-3b step 1 (2026-11-13, USART0 / Timer2 / ADC through the generated HAL, behaviour-identical, twin-proven: raw UART identical on all 17 variants) moved flash from 3380; smp-2 from 3132 / 514 with the sense line, scl from 3110 / 513) fits the cited limits (32256 B after Optiboot, 2048 B)',
+              t['bare-c']['state'] == 'available' and mem['flash']['application']['value'] == 3454 and mem['flash']['application']['kind'] == 'measured'
               and mem['static RAM']['application']['value'] == 524 and mem['flash']['limit']['value'] == 32256 and mem['flash']['limit']['kind'] == 'cited'
               and mem['static RAM']['free_after_application']['value'] == 2048 - 524, t['bare-c']['memory'])
         fr = t['freertos']

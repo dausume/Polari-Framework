@@ -15,5 +15,20 @@
   ]
  },
  "minimum_level": "bare-c",
- "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default)."
+ "notes": "Rebuilt 2026-10-18 from the README, board.custom.button_routes and the templates (the first copies were never committed: the repo ignores *.json by default).",
+ "requires": {
+  "button_pin": [
+   "gpio.input",
+   "gpio.pull_none",
+   "gpio.digital_input_off"
+  ],
+  "adc": [
+   "adc.init",
+   "adc.select",
+   "adc.start",
+   "adc.busy",
+   "adc.result"
+  ]
+ },
+ "requires_note": "hal-3b step 1 (AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): the HAL operations this isotope calls - on the button pin, and on the ADC peripheral (variable adc = the chip's ADC instance). The isotope fits a board when every one resolves on its chip; it is written against the macros, never the registers."
 }

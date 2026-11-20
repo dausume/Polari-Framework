@@ -1341,6 +1341,7 @@ class polariServer(treeObject):
             # ucd-0a: THE HARDWARE CHAIN — Peripheral / PeripheralSignal / PinFunction / SignalRoute / Register / RegisterField (+ the
             # settings rows ucd-0b fills and the circuit link ucd-0c fills), navigable both ways
             Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting, RegisterFieldSetting, RegisterAccessKind, BoardPinNet,
+            BlockBehaviour, SimulatedChip, SimOverlay,   # pt-1a: the pin twin's behaviour + simulation-binding rows (PIN_TWIN_PLAN.md §2a)
             # ucd-0b2a: address space as rows (UNO_CORE_DEMO_PLAN.md §5h B3/D-ucd-9)
             AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion,
             # ucd-doc: datasheets as documents — one row per cited document, kinded (soc/board/programming/combined/other)
@@ -1427,6 +1428,7 @@ class polariServer(treeObject):
             HalVariableState,
             # hal-0 (HAL_CATOM_CATALOGUE_PLAN.md §4a): the generalized HAL - the vocabulary + access mechanisms (seeded), bindings / code units / generation steps / cross-checks (derived)
             HalOperation, HalAccessMechanism, HalBinding, HalCodeUnit, HalGenerationStep, HalCrossCheck,
+            HalIsotopeNeed,   # hal-iso: what the hardware gives an isotope, per need (derived)
             # cfg-0: catom configurations - options, the per-firmware-solution configuration + choices, the per-Bench-Solution verdicts + check results
             ConfigOption, CatomConfiguration, ConfigChoice, ConfigOptionGrade, ConfigOptionResult,
             IsotopeStepRule, HardwareEvent, StructNode, StructNodeRequirement, StructNodeExecution, StructNodeCollateral, StructEdge, StructNodePath, StructFieldSamples,   # bss-1: the Hardware Event topology

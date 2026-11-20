@@ -38,6 +38,13 @@ ACCESS_KINDS = [
     _k('w-strobe', 'write to act (strobe)', 'always returns 0', 'writing 1 makes the hardware do something once (no state is kept)',
        '(no exact UVM policy: a write-only, self-clearing bit)', 'write-only (readAction none; reads as zero)', 'TCCR2B.FOC2A (force output compare A)',
        'reading it tells you nothing; writing it again repeats the action'),
+    # hal-3b step 1 (plan §4d, pol's R/W/SC decision): software sets it, the HARDWARE clears it when the action is done
+    _k('rw-sc', 'read / write, self-clearing', 'returns 1 while the action it started is in progress, 0 once the hardware has finished',
+       'writing 1 starts the action; writing 0 has no effect', '(no exact UVM policy: an RW bit the hardware clears)',
+       '(no exact SVD value; SystemRDL: sw = rw + hwclr; the ESP32-C3 TRM code R/W/SC)',
+       'ADCSRA.ADSC (start conversion: "ADSC will read as one as long as a conversion is in progress", DS40002061B p.258)',
+       'polling it is the way to wait (while (ADSC) {}); a read-modify-write of its register while it reads 1 writes the 1 back - what that '
+       'does is the chip\'s to say (DS40002061B p.258 names only the zero write), so change that register only once the bit reads 0'),
     _k('rw-toggle', 'write one to toggle another bit', 'returns the pin\'s logic level', 'writing 1 TOGGLES the matching bit of ANOTHER register (PORTxn); 0 has no effect',
        '(no exact UVM policy: like W1T, but the toggled bit is in PORTx)', '(no exact SVD value: oneToToggle names a toggle of the bit itself)',
        'PIND.PIND3 (toggles PORTD3, §14.2.2)', 'a read-modify-write (PIND |= bit) toggles every PORTD bit whose pin reads high; write only the one bit'),

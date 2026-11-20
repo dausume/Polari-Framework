@@ -1,0 +1,20 @@
+{
+ "isotope": "reset-mode",
+ "variant_row": "",
+ "implemented_by": "hal.c .init3 hal_wdt_boot + hal.h hal_wdt_init / hal_wdt_kick (CFG_WDT)",
+ "template": "",
+ "firmware_variants": [
+  "uno-sim-rig-wdt"
+ ],
+ "minimum_level": "bare-c",
+ "requires": {
+  "wdt": [
+   "wdt.reset_flags_clear",
+   "wdt.disable",
+   "wdt.enable",
+   "wdt.kick"
+  ]
+ },
+ "requires_note": "hal-3b step 1 (2026-11-13, AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): this isotope is the shared uno/hal.c code, written over the generated HAL (role macros HAL_<ROLE>_<OP>, board.custom.gen.base_roles). `requires` names the HAL operations it calls, so isotope fit (hal.custom.isotopes) answers for every chip; a peripheral variable is answered by the chip's own instances.",
+ "notes": "no seeded job / isotope-variant row for watchdog yet (cmod.custom.isotope_variants_seeds): the catom is declared here first"
+}

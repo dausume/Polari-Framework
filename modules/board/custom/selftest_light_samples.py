@@ -9,7 +9,6 @@ smp-1 selftest part (called by board.board_light_selftest.run_light): THE SAMPLE
   - F2 (uno-light-slow-loop): the press-to-light time re-measured on the twin repeats the committed record, is over the deadline, and the fast build is far under it
 SKIPS honestly with no twin.
 """
-import glob
 import os
 import shutil
 import tempfile
@@ -69,36 +68,39 @@ def run_samples(check):
     if not ready:
         check('SKIP smp-1 (the sample configs on the twin): no simavr twin here - %s' % why, True)
         return
-    before = set(glob.glob(os.path.join(tempfile.gettempdir(), 'smp-*')))
-    work = tempfile.mkdtemp(prefix='smp-st-')
-    try:
-        h3, h1 = _hex('uno-light-pwm-analog', work), _hex('uno-light', work)
-        r_on, w_on, f_on, bad_on, e_on = _run('uno-light-pwm-analog', h3, True)
-        r_off, w_off, f_off, bad_off, e_off = _run('uno-light-pwm-analog', h3, False)
-        r_s1, w_s1, f_s1, _b, _e = _run('uno-light', h1, True)
-        r_nw, w_nw, f_nw, bad_nw, _e = _run('uno-light', h1, True, wired=False)
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    check('smp-1 SENSED: with the jumper the REPORT\'s led_on follows the light pin (S1: SET_LED 1 -> led_on %s, D6 %s); with NO jumper the board still drives D6 (%s) but reports led_on %s - it reports what it senses, not what it was told, and the wire contract is unchanged'
-          % (f_s1.get('led_on'), 'high' if w_s1.get('PORTD', 0) & 64 else 'low', 'high' if w_nw.get('PORTD', 0) & 64 else 'low', f_nw.get('led_on')),
-          r_s1['ok'] and bool(f_s1.get('led_on')) and bool(w_s1.get('PORTD', 0) & 64) and r_nw['ok'] and bad_nw == 0 and bool(w_nw.get('PORTD', 0) & 64) and not f_nw.get('led_on') and f_nw.get('toggles') == 1
-          and f_nw.get('source') == 'command', (f_s1, f_nw))
-    com = 0x80      # COM0A1
-    check('smp-1 S3 PWM (twin): while the struct says ON the LED pin is Timer0\'s output - OCR0A %s, COM0A1 %s, D6 %s - and the board reports (senses) led_on %s' % (w_on.get('OCR0A'), 'set' if w_on.get('TCCR0A', 0) & com else 'clear', 'high' if w_on.get('PORTD', 0) & 64 else 'low', f_on.get('led_on')),
-          r_on['ok'] and bad_on == 0 and w_on.get('OCR0A') == 255 and bool(w_on.get('TCCR0A', 0) & com) and bool(w_on.get('PORTD', 0) & 64) and bool(f_on.get('led_on')), w_on)
-    levels = [e['v'] for e in e_off]
-    check('smp-1 S3 PWM (twin): after the struct says OFF the output is disconnected (COM0A1 clear) and D6 is low, and the sense jumper saw exactly ONE rise and ONE fall for the two changes (edges %s)' % levels,
-          r_off['ok'] and bad_off == 0 and not (w_off.get('TCCR0A', 0) & com) and not (w_off.get('PORTD', 0) & 64) and not f_off.get('led_on') and levels[-2:] == [1, 0] and levels.count(1) == 1, (w_off, levels))
-    check('smp-1 S3 PWM (control): the SAME run on S1 (a plain output pin) never connects the timer output (COM0A1 clear, OCR0A %s) while D6 is %s - the watch tells the two routes apart' % (w_s1.get('OCR0A'), 'high' if w_s1.get('PORTD', 0) & 64 else 'low'),
-          not (w_s1.get('TCCR0A', 0) & com) and bool(w_s1.get('PORTD', 0) & 64) and bool(f_s1.get('led_on')), w_s1)
-    from board.custom import press_latency as PL
-    rec = PL.load('uno-light-slow-loop')
-    fast = PL.load('uno-light')
-    check('smp-1 F2 (record): the committed press-to-light record of the slow loop is over the Purpose\'s 100 ms (%s ms), the fast build\'s (S1, uno-light) is far under (%s ms)' % (rec and rec['worst_ms'], fast and fast['worst_ms']),
-          bool(rec) and bool(fast) and rec['worst_ms'] > 100 and fast['worst_ms'] < 5)
-    if rec:
-        again = PL.measure('uno-light-slow-loop')
-        check('smp-1 F2 (twin): measuring the slow loop AGAIN repeats the committed record - every press time within 1 ms (the twin is deterministic): %s vs %s' % ([r['latency_ms'] for r in again['runs']], [r['latency_ms'] for r in rec['runs']]),
-              all(abs(a['latency_ms'] - b['latency_ms']) < 1.0 for a, b in zip(again['runs'], rec['runs'])) and again['worst_ms'] > 100)
-    after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'smp-*')))
-    check('smp-1 TWIN: the sample runners leave no temp directory behind', after <= before, sorted(after - before))
+    # econ 2b sweep (2026-11-13): a private temp root per run, so a suite run in parallel cannot look like a leak (board.custom.private_tmp)
+    from board.custom import private_tmp as PT
+    with PT.private_tmp('smp') as tmp_root:
+        work = tempfile.mkdtemp(prefix='smp-st-')
+        try:
+            h3, h1 = _hex('uno-light-pwm-analog', work), _hex('uno-light', work)
+            r_on, w_on, f_on, bad_on, e_on = _run('uno-light-pwm-analog', h3, True)
+            r_off, w_off, f_off, bad_off, e_off = _run('uno-light-pwm-analog', h3, False)
+            r_s1, w_s1, f_s1, _b, _e = _run('uno-light', h1, True)
+            r_nw, w_nw, f_nw, bad_nw, _e = _run('uno-light', h1, True, wired=False)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        check('smp-1 SENSED: with the jumper the REPORT\'s led_on follows the light pin (S1: SET_LED 1 -> led_on %s, D6 %s); with NO jumper the board still drives D6 (%s) but reports led_on %s - it reports what it senses, not what it was told, and the wire contract is unchanged'
+              % (f_s1.get('led_on'), 'high' if w_s1.get('PORTD', 0) & 64 else 'low', 'high' if w_nw.get('PORTD', 0) & 64 else 'low', f_nw.get('led_on')),
+              r_s1['ok'] and bool(f_s1.get('led_on')) and bool(w_s1.get('PORTD', 0) & 64) and r_nw['ok'] and bad_nw == 0 and bool(w_nw.get('PORTD', 0) & 64) and not f_nw.get('led_on') and f_nw.get('toggles') == 1
+              and f_nw.get('source') == 'command', (f_s1, f_nw))
+        com = 0x80      # COM0A1
+        check('smp-1 S3 PWM (twin): while the struct says ON the LED pin is Timer0\'s output - OCR0A %s, COM0A1 %s, D6 %s - and the board reports (senses) led_on %s' % (w_on.get('OCR0A'), 'set' if w_on.get('TCCR0A', 0) & com else 'clear', 'high' if w_on.get('PORTD', 0) & 64 else 'low', f_on.get('led_on')),
+              r_on['ok'] and bad_on == 0 and w_on.get('OCR0A') == 255 and bool(w_on.get('TCCR0A', 0) & com) and bool(w_on.get('PORTD', 0) & 64) and bool(f_on.get('led_on')), w_on)
+        levels = [e['v'] for e in e_off]
+        check('smp-1 S3 PWM (twin): after the struct says OFF the output is disconnected (COM0A1 clear) and D6 is low, and the sense jumper saw exactly ONE rise and ONE fall for the two changes (edges %s)' % levels,
+              r_off['ok'] and bad_off == 0 and not (w_off.get('TCCR0A', 0) & com) and not (w_off.get('PORTD', 0) & 64) and not f_off.get('led_on') and levels[-2:] == [1, 0] and levels.count(1) == 1, (w_off, levels))
+        check('smp-1 S3 PWM (control): the SAME run on S1 (a plain output pin) never connects the timer output (COM0A1 clear, OCR0A %s) while D6 is %s - the watch tells the two routes apart' % (w_s1.get('OCR0A'), 'high' if w_s1.get('PORTD', 0) & 64 else 'low'),
+              not (w_s1.get('TCCR0A', 0) & com) and bool(w_s1.get('PORTD', 0) & 64) and bool(f_s1.get('led_on')), w_s1)
+        from board.custom import press_latency as PL
+        rec = PL.load('uno-light-slow-loop')
+        fast = PL.load('uno-light')
+        check('smp-1 F2 (record): the committed press-to-light record of the slow loop is over the Purpose\'s 100 ms (%s ms), the fast build\'s (S1, uno-light) is far under (%s ms)' % (rec and rec['worst_ms'], fast and fast['worst_ms']),
+              bool(rec) and bool(fast) and rec['worst_ms'] > 100 and fast['worst_ms'] < 5)
+        if rec:
+            again = PL.measure('uno-light-slow-loop')
+            check('smp-1 F2 (twin): measuring the slow loop AGAIN repeats the committed record - every press time within 1 ms (the twin is deterministic): %s vs %s' % ([r['latency_ms'] for r in again['runs']], [r['latency_ms'] for r in rec['runs']]),
+                  all(abs(a['latency_ms'] - b['latency_ms']) < 1.0 for a, b in zip(again['runs'], rec['runs'])) and again['worst_ms'] > 100)
+    left = PT.leftovers(tmp_root)
+    PT.cleanup(tmp_root)
+    check("smp-1 TWIN: the sample runners leave no temp directory behind (checked in this run's own temp root)", left == [], left)

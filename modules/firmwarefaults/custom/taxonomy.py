@@ -48,7 +48,7 @@ def _a(name, statement, who, checkable='scenario', holds='yes', holder='arduino-
 SEED_ASSUMPTIONS = [
     _a('g-ms-read-atomic', 'A 32-bit read of g_ms in hal_millis sees ONE tick\'s value — the tick ISR cannot change it between the '
        'four loads.', HAL + ':hal_millis; ' + APP + ':main ((int32_t)(now - next_ms) < 0)', notes='true in the shipped build (ATOMIC_BLOCK); '
-       'false in uno-sim-rig-torn (HAL_MILLIS_ATOMIC 0) — scenario torn-millis-read'),
+       'false in uno-sim-rig-torn (CFG_MILLIS_ATOMIC 0) — scenario torn-millis-read'),
     _a('rx-index-single-load', 'rx_head and rx_tail are each read in ONE instruction, so the ISR and the main loop never see half an '
        'index.', HAL + ':hal_rx_pop, ISR(USART_RX_vect)', checkable='static', notes='holds while RX_RING <= 256 (uint8_t indices); the '
        '_Static_assert in hal.c refuses any other build (scenario rx-ring-over-256)'),
@@ -57,7 +57,7 @@ SEED_ASSUMPTIONS = [
     _a('every-message-arrives', 'Every frame / ack sent is received.', 'board/custom/firmware/uno/apps/scenario_rig.c' + ':main (SC_ACK_WAIT: the request/ack of variants uno-ack-wait '
        '/ uno-ack-wait-timeout)', holds='n/a', notes='no shipped variant waits for an ack; scenario lost-ack-hang (sc-1) drops the first '
        'one — uno-ack-wait relies on it, uno-ack-wait-timeout does not'),
-    _a('one-edge-one-interrupt', 'One press or one transition raises one interrupt.', HAL + ':ISR(INT0_vect) (HAL_INT0: variants '
+    _a('one-edge-one-interrupt', 'One press or one transition raises one interrupt.', HAL + ':ISR(INT0_vect) (CFG_INT0: variants '
        'uno-button-count / uno-button-debounce)', holds='n/a', notes='scenario button-bounce-double-count (sc-1)'),
     _a('rejected-span-one-frame', 'A byte span the parser rejects holds at most one frame.', 'grpcbridge c_twin polari_rx_feed (the '
        'generated header)', holds='no', notes='GRPC_BRIDGE_PLAN Finding 3: a valid frame inside a rejected span is lost — scenario 4 (sc-1)'),
@@ -66,7 +66,7 @@ SEED_ASSUMPTIONS = [
        notes='scenario brownout-mid-eeprom-write (sc-1); simavr has no brown-out model — the harness stops the core and avr_reset()s it'),
     _a('main-loop-returns', 'Every main-loop pass comes back to the top of the loop (nothing waits forever, no runaway).',
        APP + ':main (and every app\'s for (;;))', notes='sc-1 plan §4: no shipped variant enables the watchdog, so a pass that never '
-       'returns freezes the board; uno-sim-rig-wdt (HAL_WDT 1) restores it — scenario runaway-hang-watchdog'),
+       'returns freezes the board; uno-sim-rig-wdt (CFG_WDT 1) restores it — scenario runaway-hang-watchdog'),
     _a('locks-one-order', 'Every task takes locks in one global order.', 'board/custom/firmware/esp32c3/apps/two_lock.c:round_of (variants '
        'c3-two-lock / c3-two-lock-ordered / c3-two-lock-backoff)', holds='n/a', holder='the ESP32-C3 two_lock app (sc-3)',
        notes='scenario two-lock-deadlock (sc-3): BEFORE breaks it (T2 takes B then A)'),
@@ -120,7 +120,7 @@ SEED_TECHNIQUES = [
        'main-loop-returns', '', 'wdt_enable(WDTO_250MS); … wdt_reset(); /* in the loop, never in an ISR */  + .init3: MCUSR = 0; wdt_disable();',
        source='sc-1 measures it (scenario runaway-hang-watchdog: uno-sim-rig → uno-sim-rig-wdt)',
        caveats='after a watchdog reset WDRF stays set and the WDT stays on at 15 ms — clear both before main or the board resets forever',
-       notes='until sc-1 no UNO variant enabled the WDT (plan §4); HAL_WDT 1 is a variant knob, every shipped variant leaves it 0'),
+       notes='until sc-1 no UNO variant enabled the WDT (plan §4); CFG_WDT 1 is a variant knob, every shipped variant leaves it 0'),
     _t('write-then-commit', 'Write the new record, then a commit flag (or two copies with a sequence + CRC): a cut write is detected.',
        'write-completes', '', 'write value + seq into the slot NOT in use; write crc8(value, seq) LAST; boot: the valid slot with the newer seq',
        source='sc-1 measures it (scenario brownout-mid-eeprom-write: uno-eeprom-record → uno-eeprom-commit)',

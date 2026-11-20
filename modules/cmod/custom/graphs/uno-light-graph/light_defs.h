@@ -27,7 +27,7 @@ static uint8_t payload[LIGHTSTATE_PAYLOAD_MAX];
 static uint8_t wire[POLARI_HEADER_LEN + LIGHTSTATE_PAYLOAD_MAX + 4u];
 static uint32_t g_seq;   /* wire frame sequence */
 
-#if HAL_INT1
+#if CFG_INT1
 static uint8_t g_sensed;   /* smp-2: the level the sense line has now (written once per pass by sense_poll, read by telemetry_send) */
 #endif
 

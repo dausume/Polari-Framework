@@ -1,0 +1,18 @@
+{
+ "isotope": "gpio-out",
+ "variant_row": "drive-led:gpio-out",
+ "implemented_by": "hal.c hal_led_init / hal_led (FEATURE_LED)",
+ "template": "",
+ "firmware_variants": [
+  "uno-light"
+ ],
+ "minimum_level": "bare-c",
+ "requires": {
+  "led_pin": [
+   "gpio.output",
+   "gpio.set_high",
+   "gpio.set_low"
+  ]
+ },
+ "requires_note": "hal-3b step 1 (2026-11-13, AI-Notes/plans/HAL_CATOM_CATALOGUE_PLAN.md): this isotope is the shared uno/hal.c code, written over the generated HAL (role macros HAL_<ROLE>_<OP>, board.custom.gen.base_roles). `requires` names the HAL operations it calls, so isotope fit (hal.custom.isotopes) answers for every chip; a peripheral variable is answered by the chip's own instances."
+}

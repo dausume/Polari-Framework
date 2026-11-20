@@ -104,7 +104,7 @@ def context(g):
         # needs that class's own generated header on disk to compile. Carried here, always rendered (never gated
         # on an atom "using" it — nothing in `model` names a header file, only a class_name).
         # smp-2: a route the base configuration's knobs pick (sense_route / button_route) is RENDERED by board gen into ONE extra .c file next to hal.c (hal_sense_poll.c, hal_button_pcint.c ...);
-        # the graph's project carries it (its hal.c block for that function is switched off by HAL_SENSE_ROUTE / HAL_BUTTON_ROUTE in board_config.h)
+        # the graph's project carries it (its hal.c block for that function is switched off by CFG_SENSE_ROUTE / CFG_BUTTON_ROUTE in board_config.h)
         # hal-2: the generated HAL header those route files include (polari_hal_<soc>.h) travels with them
         route_files = {fn: open(os.path.join(d, fn)).read() for fn in sorted(os.listdir(d))
                        if (fn.startswith(('hal_sense_', 'hal_button_')) and fn.endswith('.c')) or (fn.startswith('polari_hal_') and fn.endswith('.h'))}
@@ -373,8 +373,11 @@ def render(name, manager=None, write=True, force=False, out_dir=None, rows=None)
             os.remove(os.path.join(d, f))
     files_sha = sha(''.join('%s %s\n' % (f, fresh[f]) for f in sorted(fresh)))
     tprov = template_provenance(files)
+    # hal-3b: a manifest-only change (the atoms re-conformed: new costs, same files) must refresh the record too, or its cost estimate and the
+    # manifest sha it names go stale while the project on disk is unchanged
+    man_rec = next((i.get('sha256') for i in (rec or {}).get('inputs') or [] if i.get('label') == 'atoms manifest'), None)
     if write and out_dir is None and ((rec or {}).get('files_sha256') != files_sha or (rec or {}).get('graph_sha256') != model['sha']
-                                      or any((rec or {}).get(k) != v for k, v in tprov.items())):
+                                      or any((rec or {}).get(k) != v for k, v in tprov.items()) or man_rec != ctx['manifest_sha256']):
         keep = rec if rec and rec.get('files_sha256') == files_sha else None
         rec = {'graph': name, 'graph_sha256': model['sha'], 'generator': GENERATOR, 'generated_project': g['generated_project'],
                'files': fresh, 'files_sha256': files_sha, 'rendered_at': datetime.datetime.now().isoformat(timespec='seconds'),

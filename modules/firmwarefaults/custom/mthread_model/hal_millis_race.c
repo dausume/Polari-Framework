@@ -4,7 +4,7 @@
  *
  * The firmware is NOT edited: the variant's own generated hal.c is #included here, preprocessed with -DPOLARI_MTHREAD against
  * mt_stubs/ (cli/sei/ATOMIC_BLOCK → the interrupt lock) then stubs/ (the CBMC stubs: registers as bytes, AVR widths). Its
- * board_config.h sets HAL_MILLIS_ATOMIC, so the SAME source gives the shipped read (1: ATOMIC_BLOCK) or the bare one (0).
+ * board_config.h sets CFG_MILLIS_ATOMIC, so the SAME source gives the shipped read (1: ATOMIC_BLOCK) or the bare one (0).
  *
  *   thread polari_tick_isr : the real ISR(TIMER2_COMPA_vect) — g_ms++ — under the interrupt lock, as often as it may fire
  *   thread <main>          : the real hal_millis(), as often as the main loop calls it

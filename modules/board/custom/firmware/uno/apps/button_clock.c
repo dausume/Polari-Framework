@@ -9,8 +9,8 @@
  *   clock_tick     uptime_ms (hal_millis, wrap-safe) -> the device's wall-clock ESTIMATE (sync offset + elapsed)
  *   clock_set      a SET_TIME: records the sync, bumps sync_generation, sets sync_uncertainty_ms, measures drift_ms
  *                  from the SECOND sync on
- *   led_toggle     on the button atom's (hal.c HAL_INT0) toggle-pending flag: flips D6 + D13, stamps led_changed_at
- *   sense_isr      drains the sense atom's (hal.c HAL_INT1) rise/fall counters + last-edge stamp; the real ISR only
+ *   led_toggle     on the button atom's (hal.c CFG_INT0) toggle-pending flag: flips D6 + D13, stamps led_changed_at
+ *   sense_isr      drains the sense atom's (hal.c CFG_INT1) rise/fall counters + last-edge stamp; the real ISR only
  *                  counts (hal.c ISR(INT1_vect)) — this main-loop task emits the sense_rise/sense_fall events
  *   events_queue   the bounded ButtonClockEvent ring: drop-oldest on overflow, counted in dropped_events
  *   telemetry_send every TELEMETRY_HZ: one ButtonClockState frame (an ATOMIC_BLOCK snapshot — §5e "Adopted":
@@ -162,13 +162,13 @@ static int queue_pop(qevent_t *out)
     return 1;
 }
 
-/* ---- led.toggle: the main-loop half of "the button" (hal.c's HAL_INT0 ISR only counts + marks toggle-pending). One
+/* ---- led.toggle: the main-loop half of "the button" (hal.c's CFG_INT0 ISR only counts + marks toggle-pending). One
  * debounced press = exactly one `press` event, one LED flip, one `led_on`/`led_off` event — the invariant the proof
  * checks (sense_rises + sense_falls == button_presses when D6 is wired to D3; led_on == sense_rises > sense_falls). */
 POLARI_NODE(led_toggle, role("on the button atom's toggle-pending flag: flip state.led_on, stamp led_changed_at, emit events (the pins follow the struct: led_follow_state)"))
 static void led_toggle(uint32_t now_ms)
 {
-#if HAL_INT0
+#if CFG_INT0
     int64_t es, ms;
     if (!hal_take_toggle_pending()) return;
     state.button_presses = (int64_t)hal_presses();
@@ -187,7 +187,7 @@ static void led_toggle(uint32_t now_ms)
 POLARI_NODE(sense_isr, uses(SENSE_PIN), role("drain the sense atom's rise/fall counters; emit sense_rise/sense_fall for new edges"))
 static void sense_isr(void)
 {
-#if HAL_INT1
+#if CFG_INT1
     static uint16_t g_prev_rises, g_prev_falls;
     uint16_t rises, falls, dr, df;
     uint32_t last_ms;
@@ -306,10 +306,10 @@ int main(void)
     hal_tick_init();
     hal_led_init();
     l_led_init();
-#if HAL_INT0
+#if CFG_INT0
     hal_button_init();
 #endif
-#if HAL_INT1
+#if CFG_INT1
     hal_sense_init();
 #endif
     memset(&state, 0, sizeof state);

@@ -69,6 +69,7 @@ def facts():
 
 
 def plan_budget():
+    from board.custom import cycle_records as CR
     from cmod.custom import budget as BG
     from cmod.custom import budget_suggest as SG
     plan = light_plan()
@@ -86,8 +87,12 @@ def plan_budget():
     sense = next(p for p in hb['polls'] if p['atom_short'] == 'apps/light.sense_poll')
     usart = next(i for i in hb['interrupts'] if i['vector'] == 'USART_RX_vect')
     timer = next(i for i in hb['interrupts'] if i['vector'] == 'TIMER2_COMPA_vect')
-    check('ipb-1 PLAN: numbers come from the cycle record - sense_poll cycles 130..250 measured; USART_RX length mean 48 / latency 5 with a twin-seen rate; TIMER2 rate = 1000 / 100 ms period',
-          sense['cycles_min'] == 130 and sense['cycles_max'] == 250 and usart['length_mean'] == 48.0 and usart['latency_max'] == 5 and usart['expected_rate_hz'] > 0
+    # hal-3b step 1 (2026-11-13; found by econ's standalone run): USART_RX latency_max is a SAMPLE the twin measured (where the stimulus landed in this
+    # binary's timing: 5 before step 1, 1 after; INT0 2 -> 14 = a press inside hal_millis's 9-cycle ATOMIC window + the 4-cycle response, within the
+    # budget's worst bound 4 + 9 + 116), so it is read from the record, not typed here
+    rec_rx = ((CR.load('uno-light') or {}).get('isrs') or {}).get('USART_RX_vect') or {}
+    check('ipb-1 PLAN: numbers come from the cycle record - sense_poll cycles 130..250 measured; USART_RX length mean 48 / latency = the record\'s sample (%s) with a twin-seen rate; TIMER2 rate = 1000 / 100 ms period' % rec_rx.get('latency_max'),
+          sense['cycles_min'] == 130 and sense['cycles_max'] == 250 and usart['length_mean'] == 48.0 and rec_rx and usart['latency_max'] == rec_rx['latency_max'] and usart['expected_rate_hz'] > 0
           and 'twin' in usart['rate_basis'] and timer['expected_rate_hz'] == 10.0 and 'period' in timer['rate_basis'])
     d = hb['derived']
     check('ipb-1 PLAN: derived - polls_per_scan = the poll count (dividers 1), scan_cycles a bound beside the twin\'s measured worst gap, scan_ms at 16 MHz, deadline defaulted '

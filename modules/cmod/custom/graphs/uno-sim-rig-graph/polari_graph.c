@@ -12,6 +12,7 @@
 #include "board_config.h"
 #include "hal.h"
 #include "pin_config.h"
+#include "polari_hal_atmega328p.h"
 #include "simrigstate_packets.h"   /* GENERATED (c_twin target=avr) */
 #include "polari_graph.h"
 
@@ -21,7 +22,7 @@ static polari_rx_t rx;   /* parser node rx: the generated header's receiver */
 static uint8_t frame_payload[SIMRIGSTATE_PAYLOAD_MAX];   /* frame node frame */
 static uint8_t frame_wire[POLARI_HEADER_LEN + SIMRIGSTATE_PAYLOAD_MAX + 4u];
 
-/* atom apps/sim_rig.sensor_value — copied VERBATIM from board/custom/firmware/uno/apps/sim_rig.c lines 43-55 (sha256 3c38b4bb48aad452) */
+/* atom apps/sim_rig.sensor_value — copied VERBATIM from board/custom/firmware/uno/apps/sim_rig.c lines 43-55 (sha256 5aaea62098ce1ec7) */
 #if FEATURE_ADC
 POLARI_NODE(sensor_value, in(adc, "count", "10-bit ADC reading"),
             out(return, "degC", "TMP36 temperature (or the raw count when TEMP_TMP36 is 0)"),
@@ -38,7 +39,7 @@ static polari_avr_double_t sensor_value(uint16_t adc)
 }
 #endif
 
-/* atom apps/sim_rig.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/sim_rig.c lines 69-92 (sha256 3c38b4bb48aad452) */
+/* atom apps/sim_rig.apply_command — copied VERBATIM from board/custom/firmware/uno/apps/sim_rig.c lines 69-92 (sha256 5aaea62098ce1ec7) */
 POLARI_NODE(apply_command, in(r, "frame", "a parsed PolariPacket SimRigState command"), uses(LED_PIN, PWM_PIN),
             role("apply a command's PRESENT actuator fields (led_on, pwm_duty); status becomes commanded"))
 static void apply_command(const polari_rx_t *r)

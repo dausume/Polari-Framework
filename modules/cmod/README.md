@@ -39,7 +39,7 @@ GET /api/cmod · /projects · /atoms[?project=&kind=] · /atoms/{atom} · /ports
 
 **cmod-0 measured (2026-10-02, avr-gcc 14.2.0, prf-board-engines:trixie):** the UNO template = 34 atoms over 6
 configurations (uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-echo + two coverage configurations turning every sc-1 knob
-on), 32 ports, 3 ISRs, 2 pure, 12 annotated, 0 not ISR-safe; the torn build (HAL_MILLIS_ATOMIC=0) → hal_millis and main
+on), 32 ports, 3 ISRs, 2 pure, 12 annotated, 0 not ISR-safe; the torn build (CFG_MILLIS_ATOMIC=0) → hal_millis and main
 not ISR-safe. The 12 annotations leave every .hex byte-identical (17/17 builds: the 5 seeded variants, uno-pair ×2 and the
 11 scenario variants incl. the one refused build). `make` alone builds all 6 configurations; uno-sim-rig's .hex = board's
 own (4188f6ae…). A conform: ~16 s (12 compiles + 12 nm + 6 make, all on the local image); a parse alone: ~0.9 s.

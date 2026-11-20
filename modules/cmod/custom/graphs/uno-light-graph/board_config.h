@@ -19,11 +19,11 @@
 #define SEND_NAME    1     /* 0: telemetry omits `name` (the binding is the identity) */
 #define FEATURE_BUTTON 1
 #define FEATURE_SENSE  1
-#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */
-#define HAL_INT0_DEBOUNCE_MS 30u
+#define CFG_INT0     1              /* ucd-0e2: the button atom (hal.c) */
+#define CFG_INT0_DEBOUNCE_MS 30u
 #define BUTTON_PIN   2
-#define HAL_INT1     1              /* the app's sense guard; the atom itself is the rendered hal_sense_*.c */
-#define HAL_SENSE_ROUTE 1          /* fgm-5b: gpio-poll (catoms/sense-led-line) */
+#define CFG_INT1     1              /* the app's sense guard; the atom itself is the rendered hal_sense_*.c */
+#define CFG_SENSE_ROUTE 1          /* fgm-5b: gpio-poll (catoms/sense-led-line) */
 #define SENSE_PIN    3
 #define EVENT_QUEUE_LEN 16u
 

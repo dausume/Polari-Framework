@@ -46,7 +46,7 @@ static polari_rx_t rx;
 /* a press of the board's button: flip the light, count it, say it was the button. last_command_* are NOT touched. */
 static void led_toggle(void)
 {
-#if HAL_INT0
+#if CFG_INT0
     if (!hal_take_toggle_pending()) return;
     state.led_on = state.led_on ? 0u : 1u;
     state.toggles++;

@@ -3,7 +3,7 @@
  * with its companion translation unit g_ms_avr_model.c.
  *
  * The firmware is NOT edited: this file #includes the variant's own generated hal.c (its board_config.h sets
- * HAL_MILLIS_ATOMIC), compiled against stubs/ (registers as bytes, SREG.I as `polari_sreg_i`, ATOMIC_BLOCK = save I,
+ * CFG_MILLIS_ATOMIC), compiled against stubs/ (registers as bytes, SREG.I as `polari_sreg_i`, ATOMIC_BLOCK = save I,
  * clear, restore). `static` is defined away around the include so g_ms and the tick ISR get external linkage — the
  * companion unit then names g_ms WITHOUT `volatile` (see there why). The INTERRUPT is CBMC nondeterminism:
  *

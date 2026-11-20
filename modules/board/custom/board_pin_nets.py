@@ -8,7 +8,7 @@ posture as every other "seed, keep a person's own row" class in this arc.
 
 The bench (UNO_CORE_DEMO_PLAN.md §1, the bare numbers board.custom.board_uno already cites):
   - a pushbutton on **D2** (INT0), internal pull-up — `target_compat` rates `interrupt-in` ok only on INT0/INT1
-    (the HAL_INT0 atom already exists); no external pull resistor on this net (the circuit side, electrodevice's
+    (the CFG_INT0 atom already exists); no external pull resistor on this net (the circuit side, electrodevice's
     `uno-button-clock` row SW1), so the pull is DEFINED only once a task's `PinClaim` on D2 carries `pull='up'`
     (ucd-0e2, firmware scope — not yet authored; `electrical_check`'s own pull rule names the gap honestly);
   - an LED on **D6** through the kit's 220 Ω resistor to GND (D6 already carries the LED in `uno-sim-rig`);

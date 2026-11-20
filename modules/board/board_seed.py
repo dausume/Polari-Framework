@@ -27,6 +27,7 @@ from board.board_basis import ButtonClockState, ButtonClockEvent, LightState   #
 from board.custom.register_map import board_rows, adapter_rows, road_rows, tech_tree_rows
 from board.board_basis import (Peripheral, PeripheralSignal, PinFunction, SignalRoute, Register, RegisterField, RegisterSetting,
                                RegisterFieldSetting, BoardPinNet, RegisterAccessKind)   # ucd-0a: the hardware chain (+ rm-2a the access vocabulary)
+from board.board_basis import BlockBehaviour, SimulatedChip, SimOverlay   # pt-1a
 from board.board_basis import AddressSpace, RegisterAddressMapping, RegisterBlock, MemoryRegion   # ucd-0b2a: address space as rows
 from board.custom.programmers import SEED_PROGRAMMER_KINDS
 from board.custom.uno_facts import SEED_UNO_FACTS
@@ -43,6 +44,7 @@ from board.custom.protection_parts import SEED as SEED_PROTECTION_PARTS   # esd-
 from board.custom.bench_seed import SEED_BENCHES   # bench-0 (its breadboard models moved to electrodevice BoardModel, D-bob-3)
 from board.custom import board_pin_nets as BPN
 from board.custom import register_access as RACC   # rm-2a
+from board.custom import sim_bindings as SIMB   # pt-1a
 
 SEED_BOARD_DEFINITIONS = board_rows()
 for _b in SEED_BOARD_DEFINITIONS:   # brd-bo: the Identity layer gains the board object's links (soc, revision, upstream board)
@@ -184,6 +186,10 @@ BOARD_SEED_PAIRS = [
     ('SignalRoute', SignalRoute, []), ('RegisterSetting', RegisterSetting, []), ('RegisterFieldSetting', RegisterFieldSetting, []),
     # rm-2a: the access vocabulary - code-owned (board.custom.register_access.ACCESS_KINDS), every RegisterField.access names one row
     ('RegisterAccessKind', RegisterAccessKind, _register_owned(RACC.ACCESS_KINDS)),
+    # pt-1a (PIN_TWIN_PLAN.md §2a): layers 2 + 3 of the pin twin - code-owned (board.custom.sim_bindings), exported by board.custom.sim_layout
+    ('BlockBehaviour', BlockBehaviour, _register_owned(SIMB.BLOCK_BEHAVIOURS)),
+    ('SimulatedChip', SimulatedChip, _register_owned(SIMB.SIMULATED_CHIPS)),
+    ('SimOverlay', SimOverlay, _register_owned(SIMB.SIM_OVERLAYS)),
     # ucd-0c: the demo bench's four BoardPinNet rows — code-owned (board.custom.board_pin_nets.SEED_BOARD_PIN_NETS,
     # cited to the plan's bench + board_uno's own facts); a person's own canvas wiring is kept, never converged away
     ('BoardPinNet', BoardPinNet, _register_owned(BPN.SEED_BOARD_PIN_NETS)),

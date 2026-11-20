@@ -32,16 +32,21 @@ def main():
 
     def declared(n):
         return [r['name'] for r in A[n]['resources'] if r['kind'] == 'declared']
-    check('CHIP HAL: hal_led_write -> GPIO_OUT_W1TS / W1TC (gpio_set_level), declares LED_PIN; hal_sense_read -> GPIO_IN, SENSE_PIN; hal_button_arm -> the GPIO '
-          'interrupt map + GPIO_PIN3 (gpio_isr_handler_add on BUTTON_GPIO), BUTTON_PIN',
+    check('CHIP HAL (hal-3b step 2: the generated HAL): hal_led_write -> GPIO_OUT_W1TS / W1TC (HAL_LED_SET_HIGH / _LOW), declares LED_PIN; hal_sense_read -> '
+          'GPIO_IN (HAL_SENSE_READ), SENSE_PIN; hal_button_arm -> the GPIO interrupt map + GPIO_PIN3 (gpio_isr_handler_add on BUTTON_GPIO, still ESP-IDF), BUTTON_PIN',
           regs('apps/light_hal.hal_led_write') == ['GPIO_OUT_W1TS_REG', 'GPIO_OUT_W1TC_REG'] and declared('apps/light_hal.hal_led_write') == ['LED_PIN']
           and regs('apps/light_hal.hal_sense_read') == ['GPIO_IN_REG'] and declared('apps/light_hal.hal_sense_read') == ['SENSE_PIN']
-          and regs('apps/light_hal.hal_button_arm') == ['INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG', 'GPIO_PIN3_REG'], regs('apps/light_hal.hal_button_arm'))
+          and regs('apps/light_hal.hal_button_arm') == ['INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG', 'GPIO_PIN3_REG'],
+          (regs('apps/light_hal.hal_led_write'), declared('apps/light_hal.hal_led_write'), regs('apps/light_hal.hal_sense_read'), declared('apps/light_hal.hal_sense_read')))
     init = set(regs('apps/light_hal.hal_pins_init'))
-    check('PER CALL, NOT PER BODY: hal_pins_init\'s three gpio_config calls are judged on their own initializers - output enable + matrix select only for the LED (GPIO0), '
-          'the interrupt type only for the button (GPIO3), the IO MUX pad of all three; never an output register for an input pin',
-          {'IO_MUX_GPIO0_REG', 'IO_MUX_GPIO1_REG', 'IO_MUX_GPIO3_REG', 'GPIO_ENABLE_W1TS_REG', 'GPIO_FUNC0_OUT_SEL_CFG_REG', 'GPIO_PIN3_REG'} <= init
-          and not {'GPIO_FUNC1_OUT_SEL_CFG_REG', 'GPIO_FUNC3_OUT_SEL_CFG_REG', 'GPIO_PIN0_REG', 'GPIO_PIN1_REG'} & init, sorted(init))
+    ires = {r['name']: r['detail'] for r in A['apps/light_hal.hal_pins_init']['resources'] if r['kind'] == 'register'}
+    check('PER UNIT, NOT PER BODY: hal_pins_init\'s HAL units each reach their OWN pin - the LED (GPIO0) its matrix route, push-pull driver, output enable; the '
+          'input pins (GPIO1 / GPIO3) only their output-enable SOURCE in the matrix (OEN_SEL, never an OUT_SEL route) and the enable clear; the IO MUX pad of all three; '
+          'the button\'s interrupt type + enable (GPIO_PIN3) through ESP-IDF; nothing on the sense pin\'s GPIO_PIN1',
+          {'IO_MUX_GPIO0_REG', 'IO_MUX_GPIO1_REG', 'IO_MUX_GPIO3_REG', 'GPIO_ENABLE_W1TS_REG', 'GPIO_ENABLE_W1TC_REG', 'GPIO_FUNC0_OUT_SEL_CFG_REG', 'GPIO_PIN0_REG',
+           'GPIO_PIN3_REG'} <= init and 'GPIO_PIN1_REG' not in init
+          and all('OEN_SEL' in ires.get(r, '') and 'OUT_SEL_CFG_REG.OUT_SEL ' not in ires.get(r, '') for r in ('GPIO_FUNC1_OUT_SEL_CFG_REG', 'GPIO_FUNC3_OUT_SEL_CFG_REG')),
+          sorted(init))
     up = [(r['kind'], r['name']) for r in A['main/polari_c3.uart_up']['resources'] if r['kind'] in ('register', 'note')]
     check('PORTS FROM THE CALLERS: uart_up(port, ...) configures UART0 (clock, reset, baud, frame, its interrupt) through its FRAME_UART caller; its TRACE_UART caller is '
           'UART1 - "not ingested", said; the guarded uart_set_pin adds no UART0 pin routing (the FRAME caller passes -1); polari_line writes the trace UART1, not UART0\'s FIFO',
@@ -49,8 +54,10 @@ def main():
           and ('note', '(UART1 - its registers are not ingested)') in up and not any('OUT_SEL' in n or 'IN_SEL' in n for _k, n in up)
           and 'UART0_FIFO_REG' not in regs('main/polari_c3.polari_line'), up)
     cited = [r['detail'] for a in committed['atoms'] for r in a['resources'] if r['kind'] == 'register']
-    check('CITED: every register link names the ESP-IDF file:line chain it was read from (components/...:NNN) and the IDF version', cited
-          and all('components/' in d and 'ESP-IDF v5.5.5' in d and any(ch.isdigit() for ch in d.split('components/')[1][:60]) for d in cited), cited[:1])
+    idf = lambda d: 'components/' in d and 'ESP-IDF v5.5.5' in d and any(ch.isdigit() for ch in d.split('components/')[1][:60])   # noqa: E731
+    hal = lambda d: '(polari_hal_esp32c3.h, generated)' in d and 'board.custom.registers_esp32c3' in d   # noqa: E731
+    check('CITED: every register link names the ESP-IDF file:line chain it was read from (components/...:NNN) and the IDF version, or (hal-3b step 2) the generated '
+          'HAL unit and its TRM row', cited and all(idf(d) or hal(d) for d in cited) and any(hal(d) for d in cited), [d for d in cited if not (idf(d) or hal(d))][:2])
     tel = A['main/polari_c3.telemetry_task']
     check('the timestamp: esp_timer_get_time reaches SYSTIMER UNIT0 (SYSTIMER_COUNTER_ESPTIMER = 0); the frames go out UART0\'s FIFO',
           {'SYSTIMER_UNIT0_OP_REG', 'SYSTIMER_UNIT0_VALUE_LO_REG', 'UART0_FIFO_REG'} <= set(regs('main/polari_c3.telemetry_task')), regs('main/polari_c3.telemetry_task'))
@@ -66,9 +73,9 @@ def main():
     from board.custom import register_view as RV
     u0 = RV.pin_uses('esp32c3', 'GPIO0')
     certain = [r['name'] for r in u0 if r['kind'] == 'C atom' and r['status'] == 'certain']
-    check('THE PINS SHOW THEIR CODE: C3 GPIO0 -> hal_led_write and hal_pins_init are CERTAIN ("its body names LED_GPIO (the HAL value LED_PIN)"), no UNO atom on a C3 pin, '
+    check('THE PINS SHOW THEIR CODE: C3 GPIO0 -> hal_led_write and hal_pins_init are CERTAIN (its body names LED_GPIO, or calls a generated HAL_LED_ role rendered for it - the HAL value LED_PIN), no UNO atom on a C3 pin, '
           'and the C3 register GPIO_OUT_W1TS lists only C3 code', set(certain) == {'c3:apps/light_hal.hal_led_write', 'c3:apps/light_hal.hal_pins_init'}
-          and not any(r['name'].startswith('uno:') for r in u0) and any('names LED_GPIO' in r['how'] for r in u0 if r['kind'] == 'C atom')
+          and not any(r['name'].startswith('uno:') for r in u0) and any('LED_GPIO' in r['how'] for r in u0 if r['kind'] == 'C atom')
           and all(x['atom'].startswith('c3:') for x in RV.detail('esp32c3', 'GPIO_OUT_W1TS_REG', 'atoms')), certain)
     from moduleService.manifests import conform
     r = conform('cmod')

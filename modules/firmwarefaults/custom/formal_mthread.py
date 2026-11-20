@@ -11,8 +11,8 @@ hal.c, unedited, preprocessed with -DPOLARI_MTHREAD against mthread_model/stubs 
 acquire/release of ONE global interrupt lock) then the CBMC stubs (registers as bytes, the AVR's integer widths). The
 ISR runs in a Frama_C_thread_create'd thread holding that lock for its body; the main loop is the other thread.
 
-    hal-millis-race@uno-sim-rig            HAL_MILLIS_ATOMIC 1 → expected decided (unbounded)
-    hal-millis-race@uno-sim-rig-torn       HAL_MILLIS_ATOMIC 0 → expected refuted: g_ms read bare in hal_millis vs g_ms++ in the tick
+    hal-millis-race@uno-sim-rig            CFG_MILLIS_ATOMIC 1 → expected decided (unbounded)
+    hal-millis-race@uno-sim-rig-torn       CFG_MILLIS_ATOMIC 0 → expected refuted: g_ms read bare in hal_millis vs g_ms++ in the tick
     rx-ring-race@uno-sim-rig               the ring: ISR writes rx_head + the slot, main writes rx_tail → expected decided (unbounded)
     rx-ring-race@uno-sim-rig+broken-flush  NEGATIVE CONTROL (the harness's own broken flush also writes rx_head from main) →
                                            expected refuted; it speaks to NO claim (the firmware is not the broken code)
@@ -85,9 +85,9 @@ def _mc(name, title, variant, base, expected, notes='', defines=(), claim=True):
 
 
 MTHREAD_CHECKS = [
-    _mc('hal-millis-race@uno-sim-rig', 'g_ms is never touched outside the interrupt lock — the shipped build (HAL_MILLIS_ATOMIC 1)', 'uno-sim-rig',
+    _mc('hal-millis-race@uno-sim-rig', 'g_ms is never touched outside the interrupt lock — the shipped build (CFG_MILLIS_ATOMIC 1)', 'uno-sim-rig',
         _MILLIS, 'decided', 'scenario 1\'s AFTER build: ATOMIC_BLOCK → the lock, held by both sides'),
-    _mc('hal-millis-race@uno-sim-rig-torn', 'g_ms is read bare against the tick — the torn build (HAL_MILLIS_ATOMIC 0)', 'uno-sim-rig-torn',
+    _mc('hal-millis-race@uno-sim-rig-torn', 'g_ms is read bare against the tick — the torn build (CFG_MILLIS_ATOMIC 0)', 'uno-sim-rig-torn',
         _MILLIS, 'refuted', 'scenario 1\'s BEFORE build: the four-byte g_ms read in hal_millis with the lock NOT held'),
     _mc('rx-ring-race@uno-sim-rig', 'the RX ring: one writer per index, one byte each — the shipped ring (RX_RING 64)', 'uno-sim-rig',
         _RING, 'decided', 'scenario 1b\'s safe side: rx_head written only by the ISR, rx_tail only by main, uint8_t each'),

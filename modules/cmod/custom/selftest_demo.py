@@ -74,9 +74,11 @@ def _bundle(check):
           set(names) == {'uno-light-app', 'uno-light'} and names['uno-light-app']['category'] == 'hardware-app'
           and names['uno-light']['category'] == 'cross-domain' and isinstance(names['uno-light-app']['definition'], dict))
     readme = open(os.path.join(d, 'README.md')).read()
-    check('demo-bundle: the README names every file with its real sha256',
-          all(('`%s` (sha256 `%s`)' % (f, _sha(open(os.path.join(d, f), 'rb').read()))) in readme
-              for f in files - {'README.md'}), readme[:300])
+    unlisted = sorted(f for f in files - {'README.md'}
+                      if ('`%s` (sha256 `%s`)' % (f, _sha(open(os.path.join(d, f), 'rb').read()))) not in readme)
+    check('demo-bundle: the README names every file with its real sha256', unlisted == [],
+          {'files whose real sha the README lacks': unlisted,
+           'README lines naming them': [ln for ln in readme.splitlines() if any('`%s`' % f in ln for f in unlisted)]})
     if 'polari-hw-bridge.jar' in files:
         jar = open(os.path.join(d, 'polari-hw-bridge.jar'), 'rb').read()
         check('demo-bundle: the bridge jar was built (a real zip, over 100 kB)', jar[:2] == b'PK' and len(jar) > 100000, len(jar))
@@ -106,6 +108,11 @@ def _no_jdk(check):
     check('demo-bundle with java/mvn hidden: still succeeds, no jar, BRIDGE-NOT-BUILT.txt names the missing tool, README says so',
           row['status'] == 'created' and 'polari-hw-bridge.jar' not in files and 'java is not installed' in note
           and 'The bridge was not built' in open(os.path.join(row['path'], 'README.md')).read(), (sorted(files), note[:120]))
+    readme = open(os.path.join(row['path'], 'README.md')).read()
+    unlisted = sorted(f for f in files - {'README.md'}
+                      if ('`%s` (sha256 `%s`)' % (f, _sha(open(os.path.join(row['path'], f), 'rb').read()))) not in readme)
+    check('demo-bundle with java/mvn hidden: the README names every file with its real sha256, BRIDGE-NOT-BUILT.txt included '
+          '(econ\'s no-JDK host found it unlisted)', unlisted == [], unlisted)
     check('demo-bundle: with no server address known the target falls back to localhost:3002',
           'grpc.target=localhost:3002' in open(os.path.join(row['path'], 'bridge.properties')).read())
     check('demo-bundle: grpc_target() never invents a host (url, host:port, bare host, empty)',

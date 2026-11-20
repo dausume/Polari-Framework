@@ -145,7 +145,7 @@ def _refusals(check):
           'not written for it' in refused('uno-light-v2', button_route='pcint'), refused('uno-light-v2', button_route='pcint')[:120])
     check('the INT0 variants are unchanged: uno-light still refuses any button pin but D2', 'hardware-fixed to D2' in refused('uno-light', button_pin=4))
     cfg = {n: V.render_config(V.resolve(V.find(n))) for n in ('uno-light', 'uno-button-clock', 'uno-sim-rig')}
-    check('the existing variants\' board_config.h carry no route line at all (their bytes cannot have moved)', all('HAL_BUTTON_ROUTE' not in t for t in cfg.values()))
+    check('the existing variants\' board_config.h carry no route line at all (their bytes cannot have moved)', all('CFG_BUTTON_ROUTE' not in t for t in cfg.values()))
     check('BR.check agrees with resolve (RouteRefused is the same refusal)', _raises(BR, 'pcint', {'button_pin': 0}))
 
 
@@ -186,8 +186,8 @@ def _compiles(check):
         check('%s records its isotope template + macros by sha256 in the repro block, and the rendered file as a project input' % name,
               'isotope template (jinja2)' in labels and 'isotope template macros (jinja2)' in labels
               and any(i['path'].endswith('hal_button_%s.c' % ('pcint' if name.endswith('pcint') else 'adc')) for i in repro['inputs']))
-    check('the light without its sense line (uno-light-unsensed = the old uno-light) still builds to its committed hex 1e75dab5... (scl moved it from 94b9b77f on purpose: led_follow_state; the route guards changed no byte of it)',
-          builds['uno-light-unsensed']['artifact_sha256'].startswith('1e75dab5ee7eb758'), builds['uno-light-unsensed']['artifact_sha256'])
+    check('the light without its sense line (uno-light-unsensed = the old uno-light) still builds to its committed hex bceda9dd... (hal-3b step 1 (2026-11-13): USART0 / Timer2 / ADC through the generated HAL (behaviour-identical, twin-proven: raw UART identical on all 17 variants) - 1e75dab5 before; scl moved it from 94b9b77f on purpose: led_follow_state; the route guards changed no byte of it)',
+          builds['uno-light-unsensed']['artifact_sha256'].startswith('bceda9ddcdbd0e70'), builds['uno-light-unsensed']['artifact_sha256'])
     check('uno-light-pcint and uno-light-analog hexes differ from uno-light-unsensed and from each other',
           len({builds[n]['artifact_sha256'] for n in ('uno-light-unsensed', 'uno-light-pcint', 'uno-light-analog')}) == 3)
 

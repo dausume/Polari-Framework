@@ -174,10 +174,25 @@ def frames_of(uart):
 
 
 # ------------------------------------------------------------------ the twin's UART is not the chip's
+def _hal_ubrr(hal, files, u2x):
+    """hal-3b step 1: hal.c sets the baud through the generated HAL (HAL_UART_SET_BAUD[_X2](baud)); the divisor is the SoC rule's own value_expr
+    (hal.custom.soc_rules, Table 20-1 rounded), evaluated with the build's own F_CPU (board.custom.build.CFLAGS) - the same arithmetic the compiler does.
+    None when unread."""
+    from hal.custom import soc_rules as SR
+    m = re.search(r'HAL_UART_SET_BAUD%s\((\d+)UL?\)' % ('_X2' if u2x else r'(?!_X2)'), hal)
+    fc = re.match(r'(\d+)', str(B.F_CPU))
+    if not (m and fc):
+        return None
+    expr = SR.RULES['atmega328p']['roles']['uart_baud_x2' if u2x else 'uart_baud']['value_expr']
+    expr = re.sub(r'(\d+)UL\b', r'\1', expr.format(f_cpu=fc.group(1), baud=m.group(1))).replace('(unsigned long)', '').replace('/', '//')
+    return eval(expr, {'__builtins__': {}})  # digits and + - * // ( ) only, from our own rule text
+
+
 def uart_model(txlog, files):
     """The byte time of the TWIN's USART0 (the smallest spacing between consecutive transmitted bytes in the twin's own tx log) against the CHIP's from the
-    firmware's own divisor (UBRR0_VALUE in hal.c, USART_U2X in board_config.h): 10 bit times x 8 (U2X) or 16 x (UBRR+1) cycles. simavr times a byte as if
-    U2X were off (the firmware writes UBRR before U2X and simavr does not re-derive the baud), so a measured send wait is longer than the chip's."""
+    firmware's own divisor (UBRR0_VALUE in hal.c - or, since hal-3b step 1, the HAL_UART_SET_BAUD[_X2] call, see _hal_ubrr - and USART_U2X in board_config.h):
+    10 bit times x 8 (U2X) or 16 x (UBRR+1) cycles. The pre-HAL firmware wrote UBRR before U2X and simavr did not re-derive the baud, so it timed a byte as
+    if U2X were off (3000 cycles); the HAL sets U2X first and the twin's spacing is near the chip's (1505 vs 1360) - either way the twin is measured, not assumed."""
     import struct
     cy = [struct.unpack_from('<Q', txlog, i * 9)[0] for i in range(len(txlog) // 9)]
     gaps = [b - a for a, b in zip(cy, cy[1:])]
@@ -192,6 +207,11 @@ def uart_model(txlog, files):
         u2x = int(mu.group(1))
         ubrr = int(m_on.group(1) if u2x else m_off.group(1))
         chip = 10 * (8 if u2x else 16) * (ubrr + 1)
+    elif mu:
+        u2x = int(mu.group(1))
+        ubrr = _hal_ubrr(hal, files, u2x)
+        if ubrr is not None:
+            chip = 10 * (8 if u2x else 16) * (ubrr + 1)
     return {'twin_cycles_per_byte_min': twin, 'bytes_logged': len(cy), 'chip_cycles_per_byte': chip, 'ubrr': ubrr, 'u2x': u2x,
             'chip_formula': '10 bit times x (8 if U2X else 16) x (UBRR+1) cycles (ATmega328P USART baud equations; the divisor is read from the build\'s own hal.c / board_config.h)',
             'note': ('the twin spaces bytes %s cycles apart, the chip %s: the twin\'s send wait is %.2fx the chip\'s' % (twin, chip, twin / float(chip))) if twin and chip else ''}

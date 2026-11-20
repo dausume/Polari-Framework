@@ -83,15 +83,15 @@ FLAG_RE = re.compile(r'^([A-Z_][A-Z0-9_]{0,31})=(-?\d{1,9})$')
 #: names a build flag may not redefine (they are the knobs; set the knob instead)
 RESERVED = {'RIG_NAME', 'DEVICE_ID', 'USART_U2X', 'TELEMETRY_HZ', 'FEATURE_LED', 'FEATURE_PWM', 'FEATURE_ADC', 'LED_PIN',
             'PWM_PIN', 'ADC_CHANNEL', 'TEMP_TMP36', 'BLINK_MS', 'F_CPU', 'INSTANCE_INDEX', 'SEND_NAME', 'FEATURE_COMMANDS',
-            # ucd-0e2's own new knobs — NOT HAL_INT0/HAL_INT0_DEBOUNCE_MS, which firmwarefaults' own sc-1 scenario
+            # ucd-0e2's own new knobs — NOT CFG_INT0/CFG_INT0_DEBOUNCE_MS, which firmwarefaults' own sc-1 scenario
             # variants (uno-button-count etc.) already set directly as build flags, predating the 'button' feature
-            'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'HAL_INT1', 'EVENT_QUEUE_LEN',
+            'FEATURE_BUTTON', 'FEATURE_SENSE', 'BUTTON_PIN', 'SENSE_PIN', 'CFG_INT1', 'EVENT_QUEUE_LEN',
             # fgm-5a: the button route (hal_button_*.c rendered from catoms/read-button/)
-            'HAL_BUTTON_ROUTE',
+            'CFG_BUTTON_ROUTE',
             # smp-1: the LED route (Timer0 PWM output) and the sample failure's slow main loop
             'LED_ROUTE_PWM', 'LOOP_DELAY_MS',
             # fgm-5b: the sense route (hal_sense_*.c rendered from catoms/sense-led-line/)
-            'HAL_SENSE_ROUTE'}
+            'CFG_SENSE_ROUTE'}
 
 
 class VariantRefused(ValueError):
@@ -421,7 +421,7 @@ def resolve(variant, overrides=None, base=None):
     if feats['sense'] and feats['led'] and k['sense_pin'] == k['led_pin']:
         why.append('sense_pin and led_pin are the same pin (D%d) — the sense pin must be a wire FROM the LED pin, not the LED pin itself' % k['led_pin'])
     if feats['button'] and not 1 <= k['debounce_ms'] <= 1000:
-        why.append('debounce_ms %d: 1..1000 (HAL_INT0_DEBOUNCE_MS — 0 would count contact bounce as presses)' % k['debounce_ms'])
+        why.append('debounce_ms %d: 1..1000 (CFG_INT0_DEBOUNCE_MS — 0 would count contact bounce as presses)' % k['debounce_ms'])
     if feats['button'] or feats['sense']:
         if not 2 <= k['event_queue_len'] <= 64:
             why.append('event_queue_len %d: 2..64 (a ButtonClockEvent queue entry is ~11 B; the 2 KB SRAM budget is cited in the README)' % k['event_queue_len'])
@@ -436,10 +436,17 @@ def resolve(variant, overrides=None, base=None):
         m = FLAG_RE.match(str(f))
         if not m:
             why.append('build flag %r: NAME=integer only (a define in board_config.h, never a compiler argument)' % f)
+        elif m.group(1).startswith('HAL_'):   # hal-3b 2b: HAL_ = generated macros only (plan §4b); config flags are CFG_
+            why.append('build flag %s: HAL_ names are the generated HAL macros only - name a config flag CFG_...' % m.group(1))
         elif m.group(1) in RESERVED:
             why.append('build flag %s redefines a knob — set the knob instead' % m.group(1))
         else:
             flags.append((m.group(1), int(m.group(2))))
+    # hal-3a (econ's review, 2026-11-13): a build FLAG can turn hal.c's INT0 button on without the button feature (uno-button-count);
+    # that block is hardware-fixed to D2 / INT0_vect exactly as the feature path above, so the same pin rule applies to it
+    if dict(flags).get('CFG_INT0') and not feats['button'] and k['button_pin'] != 2:
+        why.append('button_pin D%d with build flag CFG_INT0=1: hal.c\'s INT0 button is hardware-fixed to D2 (INT0) — no other pin\'s '
+                   'EICRA/EIMSK bits are wired for it' % k['button_pin'])
     if why:
         raise VariantRefused('variant %s: %s' % (variant.get('name'), '; '.join(why)))
     return {'name': variant.get('name', ''), 'app': app, 'classes': classes, 'features': feats, 'knobs': k, 'flags': flags}
@@ -474,24 +481,24 @@ def render_config(r, indexed=False):
         if f['button']:
             route = str(k.get('button_route', 'int0'))
             if route == 'int0':
-                lines += ['#define HAL_INT0     1              /* ucd-0e2: the button atom (hal.c) */',
-                           '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
+                lines += ['#define CFG_INT0     1              /* ucd-0e2: the button atom (hal.c) */',
+                           '#define CFG_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
                            '#define BUTTON_PIN   %d' % k['button_pin']]
-            else:   # fgm-5a: the button atom is rendered into hal_button_*.c; hal.c's INT0 block is off, the app still sees HAL_INT0
+            else:   # fgm-5a: the button atom is rendered into hal_button_*.c; hal.c's INT0 block is off, the app still sees CFG_INT0
                 from board.custom import button_routes as BR
-                lines += ['#define HAL_INT0     1              /* the app\'s button guard; the atom itself is the rendered hal_button_*.c */',
-                           '#define HAL_BUTTON_ROUTE %d          /* fgm-5a: %s (catoms/read-button) */' % (BR.ROUTES[route][0], BR.ROUTES[route][1]),
-                           '#define HAL_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
+                lines += ['#define CFG_INT0     1              /* the app\'s button guard; the atom itself is the rendered hal_button_*.c */',
+                           '#define CFG_BUTTON_ROUTE %d          /* fgm-5a: %s (catoms/read-button) */' % (BR.ROUTES[route][0], BR.ROUTES[route][1]),
+                           '#define CFG_INT0_DEBOUNCE_MS %du' % k['debounce_ms'],
                            '#define BUTTON_PIN   %d' % (k['button_pin'] if route == 'pcint' else 14 + int(k.get('button_adc_channel', 0)))]
         if f['sense']:
             sroute = str(k.get('sense_route', 'int1'))
             if sroute == 'int1':
-                lines += ['#define HAL_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
+                lines += ['#define CFG_INT1     1              /* ucd-0e2: the sense atom (hal.c) */',
                            '#define SENSE_PIN    %d' % k['sense_pin']]
-            else:   # fgm-5b: the sense atom is rendered into hal_sense_*.c; hal.c's INT1 block is off, the app still sees HAL_INT1
+            else:   # fgm-5b: the sense atom is rendered into hal_sense_*.c; hal.c's INT1 block is off, the app still sees CFG_INT1
                 from board.custom import sense_routes as SR
-                lines += ['#define HAL_INT1     1              /* the app\'s sense guard; the atom itself is the rendered hal_sense_*.c */',
-                           '#define HAL_SENSE_ROUTE %d          /* fgm-5b: %s (catoms/sense-led-line) */' % (SR.ROUTES[sroute][0], SR.ROUTES[sroute][1]),
+                lines += ['#define CFG_INT1     1              /* the app\'s sense guard; the atom itself is the rendered hal_sense_*.c */',
+                           '#define CFG_SENSE_ROUTE %d          /* fgm-5b: %s (catoms/sense-led-line) */' % (SR.ROUTES[sroute][0], SR.ROUTES[sroute][1]),
                            '#define SENSE_PIN    %d' % k['sense_pin']]
         lines.append('#define EVENT_QUEUE_LEN %du' % k['event_queue_len'])
     if str(k.get('led_route', 'gpio')) == 'pwm':

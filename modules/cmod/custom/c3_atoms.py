@@ -45,6 +45,8 @@ MODULE_OF = {'app.c': ('apps/light', 'apps/light.c'), 'light_hal.h': ('apps/ligh
              'polari_trace.h': ('main/polari_trace', 'main/polari_trace.h')}
 SOURCES = ('app.c', 'polari_c3.c', 'polari_trace.c')
 #: the pin macros -> the HAL variable (cmod.custom.catom_variables esp32c3-light) the value IS
+#: hal-3b step 2: a generated role macro HAL_<ROLE>_... is that role's pin (gen_c3.light_roles: LED on LED_GPIO ...) -> the pin macro it was rendered from
+ROLE_PIN_MACRO = {'LED': 'LED_GPIO', 'SENSE': 'SENSE_GPIO', 'BUTTON': 'BUTTON_GPIO'}
 PIN_MACROS = {'LED_GPIO': 'LED_PIN', 'BUTTON_GPIO': 'BUTTON_PIN', 'SENSE_GPIO': 'SENSE_PIN', 'POLARI_FRAME_TX_GPIO': 'UART0_TX_PIN', 'POLARI_FRAME_RX_GPIO': 'UART0_RX_PIN'}
 
 _G, _U, _T = 'components/esp_driver_gpio/src/gpio.c', 'components/esp_driver_uart/src/uart.c', 'components/esp_timer/src/esp_timer_impl_systimer.c'
@@ -61,6 +63,9 @@ API_REGISTERS = {
                     ('GPIO_PIN{n}_REG', 'w', '%s:414 gpio_set_intr_type -> %s:99 gpio_ll_set_intr_type: hw->pin[n].int_type; gpio_intr_enable -> %s:162 int_ena' % (_G, _GLL, _GLL))],
     'gpio_install_isr_service': [('INTERRUPT_CORE0_GPIO_INTERRUPT_PRO_MAP_REG', 'w', '%s:532-543 gpio_install_isr_service -> gpio_isr_register -> %s:612 esp_intr_alloc '
                                                                                  '(the GPIO interrupt source, mapped to a CPU interrupt by the interrupt matrix)' % (_G, _G))],
+    # hal-3b step 2: the button's interrupt setup the light keeps on ESP-IDF (no C3 int family in the HAL yet)
+    'gpio_set_intr_type': [('GPIO_PIN{n}_REG', 'w', '%s:159-172 gpio_set_intr_type -> gpio_hal_set_intr_type -> %s:99 gpio_ll_set_intr_type: hw->pin[n].int_type' % (_G, _GLL))],
+    'gpio_intr_enable': [('GPIO_PIN{n}_REG', 'w', '%s:181-189 gpio_intr_enable -> gpio_intr_enable_on_core -> %s:162 gpio_ll_intr_enable_on_core: pin[n].int_ena' % (_G, _GLL))],
     'gpio_isr_handler_add': [('GPIO_PIN{n}_REG', 'w', '%s:559-569 gpio_isr_handler_add -> gpio_intr_enable_on_core -> %s:162 gpio_ll_intr_enable_on_core: pin[n].int_ena' % (_G, _GLL))],
     'uart_param_config': [('UART0_CLKDIV_REG', 'w', '%s:994-1035 uart_param_config -> uart_hal_set_baudrate (%s:223 uart_ll_set_baudrate)' % (_U, _ULL)),
                           ('UART0_CONF0_REG', 'w', '%s:1046-1048 uart_hal_set_parity / set_data_bit_num / set_stop_bits' % _U),
@@ -245,6 +250,44 @@ def _call_registers(call, raw, defines, params, callers):
     return out
 
 
+HAL_HEADER = 'polari_hal_esp32c3.h'   # hal-3b step 2: the generated HAL the light's chip pins call (board.custom.gen_c3.c3_hal_header)
+_MECH_ACCESS = (('w1s-alias', 'w'), ('w1c-alias', 'w'), ('read-bit', 'r'), ('rmw', 'rw'), ('mem-rmw', 'rw'))
+
+
+def _hal_units(main_dir):
+    """{role or unit macro: (unit macro, [(register, field, mechanism)])} from the GENERATED header's own lines: each unit's comment
+    `/* <op> on <pin>: REG.FIELD via <mechanism>; ... */` above its #define, and the role lines `#define HAL_LED_OUTPUT() HAL_GPIO_OUTPUT_GPIO0_INIT()`.
+    The header is the evidence (as the UNO's cmod reads hal.c's HAL role waits through the header's unit lines); {} when the build has none."""
+    p = os.path.join(main_dir, HAL_HEADER)
+    if not os.path.exists(p):
+        return {}
+    text = open(p).read()
+    units = {}
+    for m in re.finditer(r'^/\* (\S+) on (\w+): (.+?) \*/\n(?:/\*.*\*/\n)?#define (HAL_\w+)\(', text, re.M):
+        binds = [tuple(re.match(r'(\w+)\.(\w+) via (.+)', b.strip()).groups()) for b in m.group(3).split(';') if re.match(r'\s*\w+\.\w+ via ', b)]
+        units[m.group(4)] = (m.group(4), binds)
+        units[m.group(4) + '_INIT'] = (m.group(4), binds)
+    for m in re.finditer(r'^#define (HAL_\w+)\(\) (HAL_\w+)\(\)$', text, re.M):
+        if m.group(2) in units:
+            units[m.group(1)] = units[m.group(2)]
+    return units
+
+
+def _hal_registers(raw, hal_units):
+    """[(register, access, cite, how)] for every generated-HAL macro the raw body calls (the preprocessor has already expanded them into
+    volatile stores, so the raw text is the evidence, as for the pin macros)."""
+    out = []
+    for name in dict.fromkeys(re.findall(r'\b(HAL_\w+)\s*\(', raw)):
+        if name not in hal_units:
+            continue
+        unit, binds = hal_units[name]
+        for reg, field, mech in binds:
+            acc = next((a for k, a in _MECH_ACCESS if k in mech), 'rw')
+            out.append((reg, acc, '%s.%s via %s (the unit\'s TRM row: board.custom.registers_esp32c3)' % (reg, field, mech),
+                        '%s -> %s (%s, generated)' % (name, unit, HAL_HEADER) if name != unit else '%s (%s, generated)' % (unit, HAL_HEADER)))
+    return out
+
+
 def _atoms_of(path, main_dir, defines, params_of=None, raw_of=None):
     text, problems = preprocess(path, [main_dir], fake_dirs=[F.fake_dir()])
     ast = c_parser.CParser().parse(text, os.path.basename(path))
@@ -276,7 +319,18 @@ def _atoms_of(path, main_dir, defines, params_of=None, raw_of=None):
             res.append({'kind': 'declared', 'name': PIN_MACROS[m], 'access': '', 'peripheral': '',
                         'detail': 'the raw body names %s (= %s, the HAL value %s: board_config.h / board_pins.h) - read from the source text, the AST has its number'
                                   % (m, defines.get(m, '?'), PIN_MACROS[m])})
+        for role, m in ROLE_PIN_MACRO.items():
+            calls = sorted(set(re.findall(r'\b(HAL_%s_\w+)\s*\(' % role, raw)))
+            if calls and m not in macros:
+                res.append({'kind': 'declared', 'name': PIN_MACROS[m], 'access': '', 'peripheral': '',
+                            'detail': 'the raw body calls the generated role %s (rendered for %s = %s, the HAL value %s: board_config.h + polari_hal_esp32c3.h) - read from '
+                                      'the source text' % (', '.join(calls), m, defines.get(m, '?'), PIN_MACROS[m])})
         seen = set()
+        for r, acc, cite, how in _hal_registers(raw, _hal_units(main_dir)):
+            if (r, acc) in seen:
+                continue
+            seen.add((r, acc))
+            res.append({'kind': 'register', 'name': r, 'access': acc, 'peripheral': '', 'detail': 'through %s: %s' % (how, cite)})
         for call in dict.fromkeys(s.calls):
             for r, acc, cite, how in _call_registers(call, raw, defines, params_of.get((file_, fname), []), callers_of(fname)):
                 if (r, acc) in seen:
@@ -352,7 +406,7 @@ def generate():
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return {'schema': 'polari-firmware/1', 'project': PROJECT, 'kind': 'idf', 'title': 'ESP32-C3 firmware (board module, ESP-IDF + FreeRTOS)', 'description': '',
-            'notes': 'parsed by cmod.custom.c3_atoms (the chip HAL: pin_shim=0); registers through the ESP-IDF drivers, cited; cost not measured',
+            'notes': 'parsed by cmod.custom.c3_atoms (the chip HAL: pin_shim=0); registers through the generated HAL (polari_hal_esp32c3.h, each unit\'s TRM rows) and the ESP-IDF drivers, cited; cost not measured',
             'root': ROOT_REL, 'board': 'esp32-c3', 'mcu': 'esp32c3',
             'parser': {'engine': 'pycparser + cmod.custom.c3_fake_headers', 'version': __import__('pycparser').__version__, 'fake_headers_sha256': F.sha(), 'abi': RV32_ABI['name']},
             'build': {'cc': 'riscv32-esp-elf-gcc (ESP-IDF, prf-esp-engines)', 'cc_version': '', 'cflags': []},
