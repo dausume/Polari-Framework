@@ -256,6 +256,41 @@ def migrate_qualifies(receipt, action_id, digest):
             and all(receipt.get(key) is True for key in ('ok', 'contentVerified', 'stagedDeploy', 'readinessVerified')))
 
 
+OPERATION_ID = re.compile(r'[0-9a-f]{32}\Z')
+STAGE_LABEL = re.compile(r'[a-z][a-z-]{0,39}\Z')
+PAST_MIGRATE = ('migrated', 'cutover', 'hosting')
+
+
+def last_unfinished(receipts, action_id, digest):
+    """The stored migrate receipt with the highest attempt for this action and digest, when no stored receipt
+    proves the migrate finished; else None.  It is unverified text from a device: callers print only the fields
+    checked in _unfinished_words."""
+    mine = [r for r in receipts if isinstance(r, dict) and r.get('kind') == 'isle.storage.migrate'
+            and r.get('actionId') == action_id and (r.get('plan') or {}).get('digest') == digest]
+    if not mine or any(migrate_qualifies(r, action_id, digest) for r in mine):
+        return None
+    number = lambda r: r['attempt'] if type(r.get('attempt')) is int and r['attempt'] >= 1 else 1
+    return max(mine, key=number)
+
+
+def _unfinished_words(receipt, device):
+    """(statusWords, operation id or None) for a stored receipt that does not prove a finished migrate."""
+    attempt = receipt['attempt'] if type(receipt.get('attempt')) is int and receipt['attempt'] >= 1 else 1
+    stage = receipt.get('failedStage')
+    operation = receipt.get('operation')
+    operation = operation if isinstance(operation, str) and OPERATION_ID.match(operation) else None
+    if receipt.get('ok') is True:
+        missing = [k for k in ('contentVerified', 'stagedDeploy', 'readinessVerified') if receipt.get(k) is not True]
+        what = 'the stored receipt of attempt %d does not show %s' % (attempt, ', '.join(missing))
+    elif isinstance(stage, str) and STAGE_LABEL.match(stage):
+        what = 'the stored receipt of attempt %d says the migrate stopped at %s' % (attempt, stage)
+    else:
+        what = 'the stored receipt of attempt %d says the migrate did not finish' % attempt
+    resume = ('resume that operation on %s' if operation else 'run the migrate again on %s') % device
+    return ('%s (poster not verified by the backend); %s. If it has finished there since, its receipt did not '
+            'reach the core: typing the migrate command again there posts a new one.' % (what, resume)), operation
+
+
 def _action(verb, device, block, plan_id, revision, item, digest, depends, view):
     state = (view or {}).get('state')
     return {'kind': 'isle.storage.' + verb,
@@ -275,8 +310,10 @@ def planned_actions(plan, core_device, placement_view=None, receipts=None):
     placement_view maps dataset -> view dict (state, generation, planDigest or plan.digest); receipts is a list
     of parsed section 2.6 receipts as stored (unverified). Status is derived from those only (never from the plan
     revision): planned when every dependsOn is satisfied and nothing is recorded, blocked otherwise, succeeded when
-    the stored evidence shows it done. `execute` is always null; operatorCommand is the section 2.1 argv text for a
-    planned action only. Items that cannot be digested are skipped."""
+    the stored evidence shows it done. A migrate whose stored receipts do not prove it finished is failed, with the
+    resume (`isle operation retry <id>`) as its command; one the placement has moved past with no finished receipt
+    stored here is interrupted ("receipt not delivered"). `execute` is always null; operatorCommand is the section
+    2.1 argv text, for an action a person can run now. Items that cannot be digested are skipped."""
     out = []
     views, receipts = placement_view or {}, receipts or []
     for item in plan.get('items', []):
@@ -305,12 +342,23 @@ def planned_actions(plan, core_device, placement_view=None, receipts=None):
                  _argv_text(['storage', 'authorize', '--dataset', block['dataset'], '--plan', plan['id'],
                              '--revision', str(plan['revision']), '--item', item['id'], '--digest', digest]))
         done = next((r for r in receipts if migrate_qualifies(r, mig['id'], digest)), None)
+        again = _argv_text(['storage', 'migrate', '--dataset', block['dataset'], '--plan', plan['id'],
+                            '--revision', str(plan['revision']), '--item', item['id'], '--digest', digest])
+        unfinished = None if done is not None else last_unfinished(receipts, mig['id'], digest)
+        undelivered = done is None and authorized and state in PAST_MIGRATE
         if done is not None:
             _set(mig, 'succeeded', 'receipt stored (poster not verified by the backend)')
+        elif undelivered:
+            # The core moved the placement on with its own copy of the receipt; this door holds none that proves it.
+            _set(mig, 'interrupted', 'receipt not delivered: the placement shows %s for this plan digest, but no '
+                 'finished migrate receipt is stored here' % state, again if state == 'migrated' else None)
+        elif authorized and unfinished is not None:
+            words, operation = _unfinished_words(unfinished, mig['device'])
+            _set(mig, 'failed', words, _argv_text(['operation', 'retry', operation]) if operation else again)
         elif authorized:
-            _set(mig, 'planned', 'authorized; ready to run on the target',
-                 _argv_text(['storage', 'migrate', '--dataset', block['dataset'], '--plan', plan['id'],
-                             '--revision', str(plan['revision']), '--item', item['id'], '--digest', digest]))
+            # No receipt of this action is stored: not run yet, or run with a receipt that never arrived. The door
+            # cannot tell these apart, so it says what it holds.
+            _set(mig, 'planned', 'authorized; ready to run on the target (no migrate receipt is stored here)', again)
         else:
             _set(mig, 'blocked', 'blocked until the authorize action is satisfied')
         generation = (view or {}).get('generation')
@@ -321,6 +369,8 @@ def planned_actions(plan, core_device, placement_view=None, receipts=None):
             if type(generation) is int and generation >= 1:
                 command = _argv_text(['storage', 'cutover', '--dataset', block['dataset'], '--generation', str(generation)])
             _set(cut, 'planned', 'migrated; ready for the core to cut over', command)
+        elif undelivered and state == 'migrated':
+            _set(cut, 'blocked', 'blocked: the placement is migrated, but the migrate receipt is not stored here (receipt not delivered)')
         else:
             _set(cut, 'blocked', 'blocked until the migrate receipt is stored and the placement is migrated')
         out.extend([auth, mig, cut])

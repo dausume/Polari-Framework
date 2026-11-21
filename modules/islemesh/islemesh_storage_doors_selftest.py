@@ -295,11 +295,26 @@ def main():
     media = {'ok': True, 'plan': PlanStore().read(plan_id, revision)}
     sp.attach_planned_actions(media, api2)
     st = {x['kind'].split('.')[-1]: x['status'] for x in media['plannedActions']}
-    check('receipt without readinessVerified: migrate stays planned', st['migrate'] == 'planned' and st['cutover'] == 'blocked', str(st))
-    call(api2, 'on_post_storage_receipt', receipt(attempt=2, ok=False))
-    media = {'ok': True, 'plan': PlanStore().read(plan_id, revision)}
-    sp.attach_planned_actions(media, api2)
-    check('a failed (ok false) receipt does not make migrate succeed', {x['kind'].split('.')[-1]: x['status'] for x in media['plannedActions']}['migrate'] == 'planned')
+    check('receipt without readinessVerified: migrate is failed, not planned', st['migrate'] == 'failed' and st['cutover'] == 'blocked', str(st))
+
+    def actions2():
+        media = {'ok': True, 'plan': PlanStore().read(plan_id, revision)}
+        sp.attach_planned_actions(media, api2)
+        return {x['kind'].split('.')[-1]: x for x in media['plannedActions']}
+    call(api2, 'on_post_storage_receipt', receipt(attempt=2, ok=False, failedStage='deploying-host', operation='ab' * 16))
+    mig = actions2()['migrate']
+    check('a stored failed receipt: migrate is failed and says where it stopped', mig['status'] == 'failed'
+          and 'attempt 2 says the migrate stopped at deploying-host' in mig['statusWords'], str(mig))
+    check('its command is the resume of that operation', mig['operatorCommand'] == 'sudo isle operation retry ' + 'ab' * 16, str(mig))
+    call(api2, 'on_post_storage_placement', {'device': 'isle-core', 'entries': [view(state='migrated', generation=2)]})
+    a2 = actions2()
+    check('placement migrated with no finished receipt stored: receipt not delivered',
+          a2['migrate']['status'] == 'interrupted' and a2['migrate']['statusWords'].startswith('receipt not delivered')
+          and a2['cutover']['status'] == 'blocked' and 'receipt not delivered' in a2['cutover']['statusWords'], str(a2))
+    call(api2, 'on_post_storage_receipt', receipt(attempt=3))
+    a2 = actions2()
+    check('the finished receipt arrives under the next attempt: migrate succeeded, cutover planned',
+          a2['migrate']['status'] == 'succeeded' and a2['cutover']['status'] == 'planned', str(a2))
 
     # ---- 6. witness door ----
     def witness(**over):

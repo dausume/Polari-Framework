@@ -230,6 +230,82 @@ class StoragePlan(unittest.TestCase):
         self.assertEqual(sp.planned_actions(dict(plan, id='default'), 'isle-core'), [])
         self.assertEqual(sp.planned_actions({'id': PID, 'revision': 1, 'items': [{'kind': 'task'}]}, 'c'), [])
 
+    def migrate_with(self, receipts, state='authorized', **view):
+        """(migrate, cutover) of the vector's plan with the placement in `state` for its digest and these stored receipts."""
+        v = vector()
+        plan = {'id': v['planId'], 'revision': v['revision'], 'items': [item()]}
+        d = v['expectedDigest']
+        action = 'isle.storage.migrate:apt-public-repo@pol-core:' + d
+        stored = [dict({'kind': 'isle.storage.migrate', 'actionId': action, 'plan': {'digest': d}}, **r) for r in receipts]
+        views = {'apt-public-repo': dict({'state': state, 'generation': 2, 'planDigest': d}, **view)}
+        acts = sp.planned_actions(plan, 'isle-core', views, stored)
+        return acts[1], acts[2], d
+
+    def test_a_stored_failure_is_shown_as_failed_with_the_resume(self):
+        op = 'c0' * 16
+        mig, cut, d = self.migrate_with([{'ok': False, 'attempt': 1, 'failedStage': 'receiving-content', 'operation': op}])
+        self.assertEqual((mig['status'], cut['status']), ('failed', 'blocked'))
+        self.assertIn('attempt 1 says the migrate stopped at receiving-content', mig['statusWords'])
+        self.assertIn('resume that operation on pol-core', mig['statusWords'])
+        self.assertIn('its receipt did not reach the core', mig['statusWords'])
+        self.assertEqual(mig['operatorCommand'], 'sudo isle operation retry ' + op)
+        again = 'sudo isle storage migrate --dataset apt-public-repo --plan %s --revision 2 --item apt-repo-to-pol-core --digest %s' % (PID, d)
+        # the highest attempt is the one shown, whatever order the rows come in
+        mig, _, _ = self.migrate_with([{'ok': False, 'attempt': 3, 'failedStage': 'deploying-host', 'operation': op},
+                                       {'ok': False, 'attempt': 2, 'failedStage': 'receiving-content', 'operation': op}])
+        self.assertIn('attempt 3 says the migrate stopped at deploying-host', mig['statusWords'])
+        # an ok receipt that lacks a proof is not a finished migrate
+        mig, _, _ = self.migrate_with([{'ok': True, 'attempt': 1, 'contentVerified': True, 'stagedDeploy': True, 'operation': op}])
+        self.assertEqual(mig['status'], 'failed')
+        self.assertIn('attempt 1 does not show readinessVerified', mig['statusWords'])
+        # what a device wrote is never printed unless it has the expected shape
+        for bad in ('x; rm -rf /', 'C0' * 16, 'c0' * 17, 7, None):
+            mig, _, _ = self.migrate_with([{'ok': False, 'attempt': 1, 'failedStage': 'Stage one\n$(x)', 'operation': bad}])
+            self.assertEqual(mig['operatorCommand'], again)
+            self.assertIn('attempt 1 says the migrate did not finish', mig['statusWords'])
+            self.assertIn('run the migrate again on pol-core', mig['statusWords'])
+            self.assertNotIn('$(x)', json.dumps(mig))
+        mig, _, _ = self.migrate_with([{'ok': False, 'attempt': 'nine', 'operation': op}])
+        self.assertIn('attempt 1 says', mig['statusWords'])
+
+    def test_a_finished_receipt_wins_over_failed_ones(self):
+        good = {'ok': True, 'attempt': 2, 'contentVerified': True, 'stagedDeploy': True, 'readinessVerified': True}
+        mig, cut, _ = self.migrate_with([{'ok': False, 'attempt': 1}, good, {'ok': False, 'attempt': 3}], state='migrated')
+        self.assertEqual((mig['status'], mig['operatorCommand'], cut['status']), ('succeeded', None, 'planned'))
+
+    def test_receipts_of_another_action_or_digest_do_not_count(self):
+        v = vector()
+        plan = {'id': v['planId'], 'revision': v['revision'], 'items': [item()]}
+        d = v['expectedDigest']
+        views = {'apt-public-repo': {'state': 'authorized', 'planDigest': d}}
+        action = 'isle.storage.migrate:apt-public-repo@pol-core:' + d
+        for other in ({'kind': 'isle.storage.migrate', 'actionId': action, 'plan': {'digest': 'a' * 64}, 'ok': False},
+                      {'kind': 'isle.storage.migrate', 'actionId': action.replace('pol-core', 'other'), 'plan': {'digest': d}, 'ok': False},
+                      {'kind': 'isle.storage.sync', 'actionId': action, 'plan': {'digest': d}, 'ok': False}, 'not a receipt'):
+            mig = sp.planned_actions(plan, 'isle-core', views, [other])[1]
+            self.assertEqual((mig['status'], mig['statusWords']), ('planned', 'authorized; ready to run on the target (no migrate receipt is stored here)'))
+        # a failed receipt does not unblock a migrate that is not authorized for this digest
+        failed = {'kind': 'isle.storage.migrate', 'actionId': action, 'plan': {'digest': d}, 'ok': False}
+        mig = sp.planned_actions(plan, 'isle-core', {'apt-public-repo': {'state': 'authorized', 'planDigest': 'a' * 64}}, [failed])[1]
+        self.assertEqual((mig['status'], mig['operatorCommand']), ('blocked', None))
+
+    def test_receipt_not_delivered(self):
+        mig, cut, d = self.migrate_with([], state='migrated')
+        self.assertEqual((mig['status'], cut['status']), ('interrupted', 'blocked'))
+        self.assertTrue(mig['statusWords'].startswith('receipt not delivered: the placement shows migrated'))
+        self.assertTrue(mig['operatorCommand'].startswith('sudo isle storage migrate --dataset apt-public-repo '))
+        self.assertIn('receipt not delivered', cut['statusWords'])
+        self.assertIsNone(cut['operatorCommand'])
+        # a failed receipt is not a finished one: still not delivered
+        mig, _, _ = self.migrate_with([{'ok': False, 'attempt': 1}], state='migrated')
+        self.assertEqual(mig['status'], 'interrupted')
+        for state in ('cutover', 'hosting'):        # past cutover a migrate cannot be typed again, so no command
+            mig, cut, _ = self.migrate_with([], state=state)
+            self.assertEqual((mig['status'], mig['operatorCommand'], cut['status']), ('interrupted', None, 'succeeded'))
+            self.assertIn('the placement shows %s' % state, mig['statusWords'])
+        # every status is one the contract names
+        self.assertLessEqual({mig['status'], cut['status']}, {'planned', 'blocked', 'running', 'succeeded', 'failed', 'interrupted'})
+
     def test_attach(self):
         plan = {'id': PID, 'revision': 2, 'items': [item()]}
         media = {'ok': True, 'plan': plan}
