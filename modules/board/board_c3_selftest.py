@@ -30,23 +30,34 @@ FLASH_ARGS = ('--flash_mode dio --flash_freq 80m --flash_size 4MB\n0x0 bootloade
               '0x8000 partition_table/partition-table.bin\n')
 
 FAKE_RUN = r'''#!/usr/bin/env python3
-# a FAKE polari-c3-run for the twin lifecycle check: --serve PORT → a TCP server that echoes (one select loop), a ready line, a trace file
+# a FAKE polari-c3-run for the twin lifecycle check: --serve PORT → a TCP server that echoes (one select loop), a ready line, a trace file;
+# pt-4: with --pins-port a second port that speaks the pin channel's lines (three pads reported on connect; a press on pad 3 flips pads 0 and 1)
 import json, select, socket, sys
 a = sys.argv[1:]
 port = int(a[a.index('--serve') + 1]); trace = a[a.index('--trace') + 1]
 open(trace, 'w').write('@BOOT app=fake\n')
-s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', port)); s.listen(4)
-print(json.dumps({'t': 'ready', 'tcp': port, 'fake': True}), flush=True)
-conns = []
+def listen(n):
+    s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', n)); s.listen(4)
+    return s
+s = listen(port)
+ps = listen(int(a[a.index('--pins-port') + 1])) if '--pins-port' in a else None
+print(json.dumps({'t': 'ready', 'tcp': port, 'fake': True, 'argv': a}), flush=True)
+conns, pads = [], []
 while True:
-    r, _, _ = select.select([s] + conns, [], [], 1.0)
+    r, _, _ = select.select([s] + ([ps] if ps else []) + conns + pads, [], [], 1.0)
     for c in r:
         if c is s:
             conns.append(s.accept()[0])
             continue
+        if c is ps:
+            pads.append(ps.accept()[0])
+            pads[-1].sendall(b'@1000 0 0\n@1000 1 0\n@1000 3 1\n')
+            continue
         d = c.recv(4096)
         if not d:
-            conns.remove(c); c.close()
+            (pads if c in pads else conns).remove(c); c.close()
+        elif c in pads:
+            c.sendall(b'@2000 3 0\n@2500 0 1\n@2500 1 1\n' if d == b'3 0\n' else b'@2000 ' + d)
         else:
             c.sendall(d)
 '''
@@ -221,6 +232,7 @@ def twin_fake(check, tmp):
         d = twin_c3.down(work)
         check('twin c3 down: the link removed, the state cleared, the trace tail returned', d['state'] == 'down' and not os.path.islink(link)
               and twin_c3.status(work)['state'] == 'down' and d['trace_tail'] == ['@BOOT app=fake'], d)
+        twin_pads(check, tmp, work, port, link)
     finally:
         if old_knob is not None:
             os.environ['ESP_ENGINES_URL'] = old_knob
@@ -229,6 +241,61 @@ def twin_fake(check, tmp):
             twin_c3.down(work)
         except Exception:
             pass
+
+
+def twin_pads(check, tmp, work, port, link):
+    """pt-4: the live twin on the pin model, against the FAKE engine's pin port (the real device's port is proven by board_light_c3_selftest's runs and the engine README)."""
+    from board.custom import light_c3_run as R, sim_layout as SL, twin_c3, twin_c3_pins as TP
+    s = socket.socket()
+    s.bind(('127.0.0.1', 0))
+    pport = s.getsockname()[1]
+    s.close()
+    keep = dict(R._FEATURES)
+    chip = {'variant': R.VARIANT, 'repro_json': json.dumps({'knobs': {'pin_shim': 0}})}
+    shim = {'variant': R.VARIANT, 'repro_json': json.dumps({'knobs': {'pin_shim': 1}})}
+
+    def refused(fn, *words):
+        try:
+            fn()
+            return False
+        except (twin_c3.TwinRefused, TP.PinsRefused) as e:
+            return all(w in str(e) for w in words)
+    try:
+        R._FEATURES.update(why='', pins='the c3-run engine (test) has no pin model (no --pins / --wires)')
+        check('pt-4 twin: `up --pins` on an engine WITHOUT the pin model is REFUSED with the engine\'s own words (never the GPIO stub in silence)',
+              refused(lambda: twin_c3.up(work, tcp=port, link=link, pins=True), 'no pin model') and twin_c3.status(work)['state'] == 'down')
+        check('pt-4 twin: a chip-HAL light build is REFUSED too on that engine - it does not start on the stub', refused(lambda: TP.plan(chip), 'no pin model'))
+        R._FEATURES.update(why='', pins='')
+        pl = TP.plan(chip)
+        check('pt-4 twin: a chip-HAL light build (PIN_SHIM 0) asks for the pin model by itself, with the LED-to-sense jumper as a board wire and the exported layout',
+              pl is not None and pl['wires'] == '%d-%d' % (R.knobs_of(chip)['led_pin'], R.knobs_of(chip)['sense_pin']) and pl['layout'] == SL.text(SL.layout(R.SIM_CHIP)), pl and pl['wires'])
+        check('pt-4 twin: REFUSED - the chip-HAL build with --no-pins; the shim build with --pins; --wires without --pins; a wire that is not pad-pad',
+              refused(lambda: TP.plan(chip, False), 'PIN_SHIM 0') and refused(lambda: TP.plan(shim, True), 'PIN_SHIM 1')
+              and refused(lambda: TP.plan({'variant': 'c3-sim-rig'}, None, '0-1'), '--wires needs') and refused(lambda: TP.plan({'variant': 'c3-sim-rig'}, True, '0-x'), 'pad-pad'))
+        check('pt-4 twin: a build with no pads asked stays as it was (no pin model, no pin port)', TP.plan({'variant': 'c3-sim-rig'}) is None and TP.plan(shim) is None)
+        st = twin_c3.up(work, tcp=port, link=link, wait_s=15)
+        check('pt-4 twin: a twin that is up WITHOUT the pin model refuses `pins` / `pin` and says how to get them',
+              not st.get('pins_tcp') and refused(lambda: twin_c3.pad_levels(work), 'WITHOUT the pin model') and refused(lambda: twin_c3.pad_set(3, '0', work), 'up --pins'))
+        twin_c3.down(work)
+        check('pt-4 twin: with no twin up, `pins` is REFUSED', refused(lambda: twin_c3.pad_levels(work), 'not up'))
+        st = twin_c3.up(work, tcp=port, link=link, wait_s=15, pins=True, wires='0-1', pins_tcp=pport)
+        argv = (st.get('ready') or {}).get('argv') or []
+        lay = os.path.join(work, 'pins', 'layout.json')
+        check('pt-4 twin: `up --pins --wires 0-1` hands the engine the exported layout, the wire and the pin port; the state records them',
+              st['alive'] and st.get('pins_tcp') == pport and st.get('wires') == '0-1' and argv[argv.index('--pins') + 1] == lay and argv[argv.index('--wires') + 1] == '0-1'
+              and argv[argv.index('--pins-port') + 1] == str(pport) and open(lay).read() == SL.text(SL.layout(R.SIM_CHIP)), argv)
+        lv = twin_c3.pad_levels(work)
+        check('pt-4 twin: `pins` reads every pad\'s level off the port\'s on-connect report', lv == {0: '0', 1: '0', 3: '1'}, lv)
+        r = twin_c3.pad_set(3, '0', work)
+        check('pt-4 twin: `pin 3 0` drives the pad and returns what was there before and the changes that followed (stamped in virtual ns)',
+              r['before'][3] == '1' and r['changes'] == [(2000, 3, '0'), (2500, 0, '1'), (2500, 1, '1')], r)
+        check('pt-4 twin: REFUSED - a pad that is not in the layout; a level that is not 0 / 1 / z',
+              refused(lambda: twin_c3.pad_set(9, '0', work), 'not in the layout') and refused(lambda: twin_c3.pad_set(3, '2', work), '0 or 1'))
+        check('pt-4 twin: the channel parser keeps complete lines only', TP.parse('@12 3 0\n@POWER-CYCLE 1\n@13 0 z\n@14 1') == [(12, 3, '0'), (13, 0, 'z')])
+        twin_c3.down(work)
+    finally:
+        R._FEATURES.clear()
+        R._FEATURES.update(keep)
 
 
 def cost(check):

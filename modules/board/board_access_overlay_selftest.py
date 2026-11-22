@@ -113,8 +113,17 @@ def proof():
     rows' trm_access; the only gaps are the ones the hand rows explain."""
     from board.custom import registers_esp32c3 as R
     doc = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'custom', 'evidence', 'esp32c3_overlay_proof.json')))
-    check('proof 2 is current: it covers today\'s %d registers / %d fields (a row change makes it stale: rerun c3_overlay_proof.py)' % (len(R.REGISTERS), len(R.FIELDS)),
-          doc['rows'] == {'registers': len(R.REGISTERS), 'fields': len(R.FIELDS)}, doc['rows'])
+    # The proof walks the hand rows of its six chapters only, so it is stale when THOSE rows change, not when a register is added elsewhere
+    # (the GPIO rows of pt-1a). Current = it classed every field the six chapters hold today, and each finding still quotes today's hand
+    # row (its code and its citation). doc['rows'] stays the size of the whole table on the day the proof ran.
+    block = {r['register']: r['block'] for r in R.REGISTERS}
+    hand = {(f['register'], f['field']): f for f in R.FIELDS if block[f['register']] in doc['chapters']}
+    moved = [x for x in doc['findings'] if (x['register'], x['field']) not in hand or hand[(x['register'], x['field'])]['trm_access'] != x['hand']
+             or hand[(x['register'], x['field'])]['page_table'] != x['hand_cite']]
+    check('proof 2 is current: it classed each of the %d fields its six chapters hold today, and every finding quotes today\'s hand row (a change '
+          'to those rows makes it stale: rerun c3_overlay_proof.py)' % len(hand),
+          sum(doc['counts'].values()) == len(hand) and not moved and doc['rows']['fields'] <= len(R.FIELDS),
+          {'classed': sum(doc['counts'].values()), 'today': len(hand), 'moved': moved[:2]})
     check('proof 2: no field gets a DIFFERENT code from the overlay than from the hand rows, and none the overlay cites that the hand rows leave missing',
           not [x for x in doc['findings'] if x['class'] in ('DIFFERENT code', 'overlay cited, hand missing', 'no imported field')],
           [x for x in doc['findings'] if x['class'] in ('DIFFERENT code', 'overlay cited, hand missing')][:3])

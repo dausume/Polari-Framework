@@ -102,7 +102,7 @@ SEED_POLARI_BRIDGES = [
      'notes': 'the USB serial joins hardware_id once hwmap scans pol-core'},
     {'name': C3_BRIDGE, 'hardware_id': 'twin: esp32c3-light (QEMU esp32c3)', 'polari_node': 'polari-pol', 'polari_node_url': node_url('polari-pol'), 'mode': 'simulated',
      'path': C3_PATH, 'bench': HOME_BENCH, 'pins': 'GPIO21,GPIO20', 'maps': 'ButtonClockState_t->ButtonClockState', 'bridge_definition': 'esp32c3-light',
-     'status': 'gap', 'status_why': '', 'basis': 'board.custom.light_c3_run (the C3 twin runner: the real ESP-IDF build in Espressif\'s QEMU, pins a RAM shim)',
+     'status': 'gap', 'status_why': '', 'basis': 'board.custom.light_c3_run (the C3 twin runner: the real ESP-IDF build in Espressif\'s QEMU; pins a RAM shim, or modelled pads where the esp engines hold the pin model)',
      'notes': 'simulated: no C3 board is on the bench; serial is the design\'s path once a board is cabled'},
 ]
 
@@ -144,7 +144,7 @@ def _get(o, k, d=''):
 TWIN_WORKER = {'name': 'board', 'kind': 'worker', 'tile': 'board-engines'}
 TWIN_HOP_KINDS = ('chip-pins', 'twin', 'userspace')
 #: the twin of a board: what it is (said on the twin hop) + the worker engine that runs it (the C3's is Espressif's QEMU on esp-engines)
-TWINS = {'esp32-c3': ('the QEMU esp32c3 twin of %s: its UART0 on the engine (the PIN_SHIM build: the pins are a RAM shim)',
+TWINS = {'esp32-c3': ('the QEMU esp32c3 twin of %s: its UART0 on the engine (the pins are a RAM shim, or modelled pads where the engine holds the pin model)',
                       {'name': 'esp', 'kind': 'worker', 'tile': 'esp-engines'})}
 
 

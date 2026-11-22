@@ -185,7 +185,8 @@ def registered():
     from hwnocode.custom import cross_domain as CD
     check('REGISTERED: HalVariableState is in CMOD_CLASSES + HAL_NODE_KIND_CLASSES with a palette (category HAL); the Purpose / Mission validators read the same table',
           B.HalVariableState in B.CMOD_CLASSES and B.HAL_NODE_KIND_CLASSES == [B.HalVariableState] and B.HalVariableState.statePalette['category'] == 'HAL'
-          and set(CD.DECLARATIVE) == {'purpose', 'mission', 'hal'})
+          and {CD.PURPOSE_CATEGORY, CD.MISSION_CATEGORY, CD.HAL_CATEGORY} <= set(CD.DECLARATIVE) and CD.DECLARATIVE[CD.HAL_CATEGORY][1] == 'HAL',
+          sorted(CD.DECLARATIVE))
     from moduleService.manifests import conform
     r = conform('cmod')
     check('MANIFEST: pol modules conform cmod is clean with HalVariableState + hal_nocode + this selftest listed', r['ok'], r.get('findings'))

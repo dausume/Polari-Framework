@@ -6,10 +6,13 @@ board.custom.light_twin.prove returns, so firmwarefaults.custom.acceptance_confi
 every result: the C3 TWIN (Espressif QEMU `-machine esp32c3`, the real ESP-IDF FreeRTOS build) with the pin HAL replaced by a RAM shim - QEMU's C3 GPIO is a register stub. No C3 board
 is on the bench; nothing here is a chip result (board.custom.light_c3_run says what the twin is and is not).
 
+pt-4: where the esp engines hold the PIN MODEL (R.pin_model() == ''), the config is built and proven as the CHIP HAL (PIN_SHIM 0) on modelled pads - the image a chip is flashed
+with; the level words say which of the two a result is. An engine without the pin model proves the shim build, as before, and says so.
+
 The judges are the ones the UNO sense configs use (board.custom.light_variant_twin: ButtonClockState stand-ins for the light check), and the boot judge is board.custom.light_boot_twin's:
 
   button   (ensure-button-controls-light / ensure-polari-observes-hardware-state)  3 presses -> button_presses == 3, led_on flips each time, status idle, 3 `press` events; AND the LED
-           line: the shim's pin writes flip with the presses and the sense line counted one edge per change (sense_rises + sense_falls == 3, led_on == rises > falls)
+           line: the LED pin (the shim's writes; on the pin model the pad's level) flips with the presses and the sense line counted one edge per change (sense_rises + sense_falls == 3, led_on == rises > falls)
   polari   (ensure-polari-can-control-light)  STARTS FROM THE STRUCT: board.custom.light_struct.Session runs the backend solution light-toggle, the command frames are DERIVED from the
            committed change, sent over UART0 RX: the board's struct takes it, the LED pin follows, the next report says status commanded; then OFF; the quiet run stays quiet
   boot     (initialization)  the first report arrives within 100 ms of the app's start and names a boot_session; after a power cycle (flash kept) the first report names a NEW one
@@ -27,6 +30,10 @@ from board.custom import light_variant_twin as LVT
 VARIANT = R.VARIANT
 HOW = 'board.custom.light_c3_twin (QEMU esp32c3 via the esp engines c3-run: UART0 frames decoded by the Python reference codec; pin writes read off the trace; the LED/sense/button pins are a RAM shim)'
 LEVEL = ('ON THE C3 TWIN (Espressif QEMU esp32c3 running the real ESP-IDF FreeRTOS build; its GPIO is a register stub, so the pins are a RAM shim) - NOT a chip: no C3 board is on the bench. ')
+HOW_PADS = ('board.custom.light_c3_twin (QEMU esp32c3 + the polari-block pin model via the esp engines c3-run --pins: UART0 frames decoded by the Python reference codec; the LED read off its '
+            'pad on the pin channel; presses are stamped levels on the button pad; the LED-to-sense jumper is a board wire)')
+LEVEL_PADS = ('ON THE C3 TWIN WITH THE PIN MODEL (Espressif QEMU esp32c3 + the polari-block pads exported from Polari\'s chip rows, running the real ESP-IDF FreeRTOS build with the CHIP HAL, '
+              'PIN_SHIM 0 - the image a chip is flashed with; pads are levels, not voltages) - NOT a chip: no C3 board is on the bench. ')
 
 
 _BUILT = {}
@@ -37,7 +44,7 @@ def built(variant=VARIANT):
     if variant not in _BUILT:
         work = tempfile.mkdtemp(prefix='smp-c3-')
         atexit.register(shutil.rmtree, work, True)
-        _BUILT[variant] = R.build(work, variant)
+        _BUILT[variant] = R.build(work, variant, **({} if R.pin_model() else {'pin_shim': 0}))
     return _BUILT[variant]
 
 
@@ -128,6 +135,9 @@ def prove(which='both', mode='digital-twin', variant=VARIANT, row=None):
     row = row or built(variant)
     if row.get('state') != 'built':
         return {'ok': False, 'route': 'digital-twin', 'why': '%s did not build: %s' % (variant, row.get('notes'))}
+    pads = R.on_pads(row)
+    if pads and R.pin_model():
+        return {'ok': False, 'route': 'refused', 'why': 'the chip-HAL build (PIN_SHIM 0) needs the pin model: %s' % R.pin_model()}
     ok, parts, seen, ctl = True, [], 0, []
     for name, fn in (('button', prove_button), ('polari', prove_polari), ('boot', prove_boot)):
         if which == name or (which == 'both' and name != 'boot'):
@@ -136,5 +146,6 @@ def prove(which='both', mode='digital-twin', variant=VARIANT, row=None):
             parts.append(w)
     ctl_ok = all(not passed for _l, passed in ctl)
     return {'ok': ok and ctl_ok, 'route': 'digital-twin', 'frames_compared': seen, 'sha256': row.get('artifact_sha256', ''),
-            'why': '%s%s; negative controls all rejected by the same judge: %s%s' % (LEVEL, '; '.join(parts), ctl_ok, '' if ctl_ok else ' [' + '; '.join(l for l, p in ctl if p) + ' WRONGLY PASSED]'),
-            'controls': [{'control': l, 'judged_ok': p} for l, p in ctl], 'how': HOW}
+            'why': '%s%s; negative controls all rejected by the same judge: %s%s' % (LEVEL_PADS if pads else LEVEL, '; '.join(parts), ctl_ok,
+                                                                                    '' if ctl_ok else ' [' + '; '.join(l for l, p in ctl if p) + ' WRONGLY PASSED]'),
+            'controls': [{'control': l, 'judged_ok': p} for l, p in ctl], 'how': HOW_PADS if pads else HOW, 'pin_model': pads}

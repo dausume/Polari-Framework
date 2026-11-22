@@ -111,7 +111,14 @@ def scene_checks():
     check('lay-2: a missing config is refused in words (400), an unknown one in words (not a 200)', cl.simulate_get('/api/layout/steps').status_code == 400 and cl.simulate_get('/api/layout/verdict?config=nope').status_code != 200)
     models = cl.simulate_get('/api/layout/models').json
     boards = cl.simulate_get('/api/layout/boards').json
-    check('lay-2: /api/layout/models and /api/layout/boards serve `rows` for the Board models / Boards tables (5 models; the boards on the bench)', models['count'] == 5 and boards['rows'] == boards['boards'] and len(boards['rows']) >= 3)
+    from electrodevice.custom import board_models as BM
+    composed = sorted(BM.composed(None))
+    served = sorted(m['name'] for m in models['rows'])
+    check('lay-2: /api/layout/models and /api/layout/boards serve `rows` for the Board models / Boards tables (every composed model, %d today, with the five '
+          'first ones among them; the boards on the bench)' % len(composed),
+          models['count'] == len(served) == len(composed) and served == composed
+          and {'breadboard-half', 'breadboard-full', 'mini-170', 'protoboard', 'pcb'} <= set(served)
+          and boards['rows'] == boards['boards'] and len(boards['rows']) >= 3, {'served': served, 'composed': composed})
     wc = cl.simulate_get('/api/layout/wire-colors').json
     DOORS['/api/layout/steps?'] = steps['rows']
     DOORS['/api/layout/verdict?'] = ver['rows']

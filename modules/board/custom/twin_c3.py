@@ -18,6 +18,12 @@ is a long-lived TCP port, not a /run request.
 
 State lives in <work>/twin.json; the twin's ready line in <work>/twin.log; the trace lines stay in the twin
 (`status` reads their tail).
+
+pt-4, THE PADS: `up --pins` starts the twin on the pin model (the polari-block QEMU of the esp engines; an engine without it
+REFUSES, never a silent fall back to the GPIO stub). A chip-HAL light build (PIN_SHIM 0) asks for it by itself. The pin
+channel is a second TCP port on 127.0.0.1 (`--pins-tcp`, default the UART port + 1); `--wires 0-1` joins pads outside the
+chip (a jumper). `pins` reads every pad's level, `pin <pad> 0|1|z` drives one from outside or lets it go
+(board.custom.twin_c3_pins). Pads are levels, not voltages.
 """
 import datetime
 import json
@@ -28,6 +34,7 @@ import time
 
 from board.custom import board_engines as be, gen, gen_c3
 from board.custom import twin as T
+from board.custom import twin_c3_pins as TP
 
 DEFAULT_TCP = 9832
 DEFAULT_LINK = '/tmp/polari-c3-twin-uart'
@@ -40,11 +47,13 @@ class TwinRefused(RuntimeError):
     pass
 
 
-def serve_args(image, tcp, trace):
-    return [image, '--serve', str(int(tcp)), '--trace', trace]
+def serve_args(image, tcp, trace, layout='', wires='', pins_port=0):
+    pins = (['--pins', layout, '--pins-port', str(int(pins_port))] + (['--wires', wires] if wires else [])) if layout else []
+    return [image, '--serve', str(int(tcp)), '--trace', trace] + pins
 
 
-def up(work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, wait_s=30.0, build_dir=None, docker='docker'):
+def up(work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, wait_s=30.0, build_dir=None, docker='docker', pins=None, wires=None, pins_tcp=0):
+    """`pins`: None = the build decides (a chip-HAL light build runs on the pin model), True = asked, False = refused for a chip-HAL build."""
     work = work or gen_c3.default_work()
     st = T.read_state(work)
     if st and status(work)['alive']:
@@ -58,20 +67,35 @@ def up(work=None, tcp=DEFAULT_TCP, link=DEFAULT_LINK, wait_s=30.0, build_dir=Non
     if where['how'] not in ('local-binary', be.LOCAL_IMAGE):
         raise TwinRefused('no C3 twin here: %s' % (where['why'] if where['how'] == 'refused' else
                                                   'c3-run resolves to a %s worker, but the twin is a long-lived TCP port on this device' % where['how']))
+    try:
+        pp = TP.plan(row, pins, wires)
+    except TP.PinsRefused as e:
+        raise TwinRefused(str(e))
     os.makedirs(work, exist_ok=True)
+    lay = ''
+    if pp:
+        pins_tcp = int(pins_tcp or tcp + 1)
+        lay = os.path.join(work, 'pins', 'layout.json')
+        os.makedirs(os.path.dirname(lay), exist_ok=True)
+        open(lay, 'w').write(pp['layout'])
     log_path = os.path.join(work, 'twin.log')
     log = open(log_path, 'w')
     state = {'board': gen_c3.BOARD, 'twin': TWIN, 'how': where['how'], 'where': where['where'], 'tcp': tcp, 'link': link, 'image': img,
              'image_sha256': row.get('artifact_sha256', ''), 'build': row['name'], 'variant': row.get('variant', ''),
              'started_at': datetime.datetime.now().isoformat(timespec='seconds'), 'log': log_path}
+    if pp:
+        state.update(pins_tcp=pins_tcp, wires=pp['wires'])
     if where['how'] == 'local-binary':
         trace = os.path.join(work, 'trace.log')
-        p = subprocess.Popen([where['where']] + serve_args(img, tcp, trace), stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        p = subprocess.Popen([where['where']] + serve_args(img, tcp, trace, lay, pp['wires'] if pp else '', pins_tcp), stdout=log, stderr=subprocess.STDOUT,
+                             start_new_session=True)
         state.update(pid=p.pid, trace=trace)
     else:
         subprocess.run([docker, 'rm', '-f', CONTAINER], capture_output=True, timeout=30)
-        argv = [docker, 'run', '-d', '--name', CONTAINER, '-p', '127.0.0.1:%d:%d' % (tcp, INNER_TCP), '-v', '%s:/fw:ro' % os.path.dirname(img),
-                where['where'], 'polari-c3-run'] + serve_args('/fw/%s' % os.path.basename(img), INNER_TCP, '/tmp/trace.log')
+        pads = ['-p', '127.0.0.1:%d:%d' % (pins_tcp, INNER_TCP + 1), '-v', '%s:/pins:ro' % os.path.dirname(lay)] if pp else []
+        argv = ([docker, 'run', '-d', '--name', CONTAINER, '-p', '127.0.0.1:%d:%d' % (tcp, INNER_TCP), '-v', '%s:/fw:ro' % os.path.dirname(img)] + pads
+                + [where['where'], 'polari-c3-run']
+                + serve_args('/fw/%s' % os.path.basename(img), INNER_TCP, '/tmp/trace.log', '/pins/layout.json' if pp else '', pp['wires'] if pp else '', INNER_TCP + 1))
         r = subprocess.run(argv, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise TwinRefused('docker run failed: %s' % r.stderr.strip()[-500:])
@@ -143,28 +167,69 @@ def down(work=None, docker='docker'):
     return {'board': gen_c3.BOARD, 'state': 'down', 'trace_tail': tail}
 
 
+def pins_port(work=None):
+    """The pin port of the twin that is up in `work`, or a refusal that says what is missing."""
+    s = status(work)
+    if not s.get('twin_alive'):
+        raise TwinRefused('the C3 twin is not up — `pol board twin c3 up --pins` first')
+    if not s.get('pins_tcp'):
+        raise TwinRefused('the C3 twin is up WITHOUT the pin model (its pins are the GPIO stub) — `pol board twin c3 down`, then `up --pins`')
+    return s['pins_tcp']
+
+
+def pad_levels(work=None):
+    return TP.levels(pins_port(work))
+
+
+def pad_set(pad, level, work=None):
+    return TP.set_pad(pins_port(work), pad, level)
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol board twin c3')
     ap.add_argument('board')
-    ap.add_argument('verb', choices=('up', 'down', 'status'))
+    ap.add_argument('verb', choices=('up', 'down', 'status', 'pins', 'pin'))
+    ap.add_argument('rest', nargs='*', help='pin: <pad> 0|1|z')
     ap.add_argument('--work')
     ap.add_argument('--tcp', type=int, default=DEFAULT_TCP)
     ap.add_argument('--link', default=DEFAULT_LINK)
+    ap.add_argument('--pins', dest='pins', action='store_const', const=True, default=None, help='run on the pin model (modelled pads)')
+    ap.add_argument('--no-pins', dest='pins', action='store_const', const=False)
+    ap.add_argument('--wires', default=None, help='pads joined outside the chip: 0-1,4-5')
+    ap.add_argument('--pins-tcp', type=int, default=0)
     a = ap.parse_args(argv)
     try:
         if a.verb == 'up':
-            s = up(a.work, a.tcp, a.link)
+            s = up(a.work, a.tcp, a.link, pins=a.pins, wires=a.wires, pins_tcp=a.pins_tcp)
             print('[ OK ] the C3 twin is up (%s: %s), build %s (variant %s)' % (s['how'], s.get('container') or s.get('pid'), s['build'], s['variant']))
             print('       UART0 pty  %s   (bridge: source=serial, serialDevice=%s)' % (s['link'], s['link']))
             print('       UART1      the trace lines — `pol board twin c3 status` shows their tail')
+            if s.get('pins_tcp'):
+                print('       pads       the pin model on 127.0.0.1:%d%s — `pol board twin c3 pins` reads the levels, `pin <pad> 0|1|z` drives one'
+                      % (s['pins_tcp'], (', wires %s' % s['wires']) if s.get('wires') else ''))
+            else:
+                print('       pads       none: QEMU\'s GPIO is a register stub here (`up --pins` runs the pin model)')
+        elif a.verb == 'pins':
+            lv = pad_levels(a.work)
+            print('[ OK ] %d pads (levels, not voltages; z = nothing drives or pulls it)' % len(lv))
+            print('       ' + '  '.join('%d=%s' % (p, lv[p]) for p in sorted(lv)))
+        elif a.verb == 'pin':
+            if len(a.rest) != 2 or not a.rest[0].isdigit():
+                raise TwinRefused('usage: pol board twin c3 pin <pad> 0|1|z')
+            r = pad_set(int(a.rest[0]), a.rest[1], a.work)
+            print('[ OK ] pad %s was %s, now driven %s from outside%s' % (a.rest[0], r['before'][int(a.rest[0])], a.rest[1], '' if a.rest[1] != 'z' else ' (let go)'))
+            for ns, pad, lvl in r['changes']:
+                print('       @%.3f ms  pad %d -> %s' % (ns / 1e6, pad, lvl))
+            if not r['changes']:
+                print('       no pad changed level')
         elif a.verb == 'down':
             s = down(a.work)
             print('[ OK ] C3 twin down%s' % (('; trace tail: ' + ' | '.join(s['trace_tail'])) if s.get('trace_tail') else ''))
         else:
             s = status(a.work)
             print(json.dumps({k: v for k, v in s.items() if k != 'docker_argv'}, indent=1))
-    except (gen.GenRefused, TwinRefused) as e:
+    except (gen.GenRefused, TwinRefused, TP.PinsRefused) as e:
         print('[REFUSED] %s' % e)
         return 1
     return 0

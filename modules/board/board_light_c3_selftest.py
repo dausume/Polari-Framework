@@ -1,12 +1,15 @@
 """board_light_c3_selftest - smp S5: the light Mission on the ESP32-C3 under FreeRTOS, proven on the C3 TWIN (QEMU esp32c3; no C3 board is on the bench; the pins are a RAM shim because QEMU's C3
-GPIO is a register stub). SKIPS honestly without the esp engines image. Parts:
+GPIO is a register stub - or, pt-4, modelled pads where the esp engines hold the polari-block QEMU). SKIPS honestly without the esp engines image. Parts:
 
   pins     the chosen GPIOs carry no constraint row in board.custom.lifecycle_c3 (no strapping / USB / UART0 / flash / JTAG), the knob validator refuses the ones that do
   gen      the C3 light project holds the ButtonClockState + ButtonClockEvent headers, light_hal.h and the extra REQUIRES; the other C3 variants' projects are untouched
   build    the shim build and the chip-HAL build compile; a forced rebuild gives the same image sha256; the cost (wall, CPU, peak RSS, sizes) is measured
   twin     the four Purposes' own acceptance scenarios, run on the config through firmwarefaults.custom.acceptance (variant=esp32c3-light), all four passed ScenarioRuns, every negative
            control rejected; fsc_link reads the config as finished; the board is refused for the UNO's pin route check
-  chip HAL the chip-HAL build boots on the twin and speaks frames, but the LED write is NOT observable (no pin trace) - the twin's stated limit, measured
+  chip HAL an engine WITHOUT the pin model: the chip-HAL build boots on the twin and speaks frames, but the LED write is NOT observable (no pin trace) - the twin's stated limit, measured
+  pt-4     an engine WITH the pin model (c3-run --pins, the polari-block QEMU): the four Purposes above are proven on the CHIP-HAL build (PIN_SHIM 0) - presses are stamped pad levels, the
+           LED is read off its pad, the jumper is a board wire; the run repeats to the nanosecond; the shim build still passes its own proof; the same image on the prebuilt QEMU still
+           sees no button (the stub's limit stands)
 
     PYTHONPATH=.:modules python3 -m board.board_light_c3_selftest      # from polari-framework/ (standalone)
 """
@@ -81,6 +84,9 @@ def run_light_c3(check):
         check('smp S5 build: the CHIP HAL build (pin_shim=0, the gpio driver + interrupt service routine) compiles too: app %s B' % chip.get('flash_bytes'), chip.get('state') == 'built', chip.get('notes'))
         if shim.get('state') != 'built':
             return
+        pads = not R.pin_model()
+        check('pt-4: the esp engines here %s' % ('hold the PIN MODEL: the Purposes below are proven on the CHIP-HAL build (PIN_SHIM 0), the image a chip is flashed with' if pads
+                                                 else 'have NO pin model (%s): the Purposes below are proven on the shim build' % R.pin_model()), True)
 
         # ---- the four Purposes through the per-config mechanism, then fsc_link
         from cmod.custom import approach_profile_input as AI
@@ -98,22 +104,53 @@ def run_light_c3(check):
             r = ACC.run(sc, 'digital-twin', manager=mgr, sink=sink, variant=V3.LIGHT_NAME)
             runs[p['purpose']] = r
             check('smp S5 PURPOSE %s: %s on %s -> %s (%s frames); %s' % (p['purpose'], sc, V3.LIGHT_NAME, r['outcome'], r.get('frames_seen'), r['verdict_words'][:700]),
-                  r['outcome'] == 'passed' and r['variant'] == V3.LIGHT_NAME and 'NOT a chip' in r['verdict_words'] and 'rejected by the same judge: True' in r['verdict_words'], r['verdict_words'][:400])
+                  r['outcome'] == 'passed' and r['variant'] == V3.LIGHT_NAME and 'NOT a chip' in r['verdict_words'] and 'rejected by the same judge: True' in r['verdict_words']
+                  and ('PIN_SHIM 0' in r['verdict_words']) == pads and ('RAM shim' in r['verdict_words']) != pads, r['verdict_words'][:400])
         state = fsc_link.config_state(V3.LIGHT_NAME, {'purposes': purposes}, mgr)
         check('smp S5 LINK: fsc_link reads the C3 config as %s - %s' % (state['state'], state['why'][:300]), state['state'] == 'finished', state)
         links, _unm = fsc_link.resolve(['drive-led'], [{'id': 'x', 'routes': {'drive-led': 'gpio-out'}, 'rank': 1, 'assignment': []}], mgr, {'purposes': purposes, 'job_purposes': {}})
         check('smp S5 LINK: the config is a built config of the Mission (the Purpose scenarios are accepted for it) and takes NO UNO solver candidate away from a UNO config',
               fsc_link.proof_config_refusal(V3.LIGHT_NAME, CAP.find('initialization')['acceptance_scenario'], mgr) == '' and V3.LIGHT_NAME not in {v['config'] for v in links.values()}, links)
 
-        # ---- what the twin cannot show (chip HAL)
+        # ---- the chip HAL: on the pin model (pt-4) its pins are pads; on the prebuilt QEMU they are a register stub (the limit, still measured)
+        if chip.get('state') != 'built':
+            return
+        k = R.knobs_of(chip)
+        stub = R.run(chip, R.params(R.WINDOW_MS, R.N_PRESSES, R.BUTTON_GPIO, 1))          # no pads: the prebuilt QEMU, whatever the engine holds
+        check('smp S5 LIMIT: the CHIP-HAL build on the prebuilt QEMU (GPIO a register stub) speaks frames (%d) but has no pins: %d pin-trace lines, no pin channel, button_presses=%s'
+              % (len(stub['states']), len(stub['pin']), stub['states'][-1].get('button_presses') if stub['states'] else None),
+              bool(stub['states']) and not stub['pin'] and not stub['pad_lines'] and not stub['states'][-1].get('button_presses'))
+        if not pads:
+            res = R.command_run(chip, [L3.LVT.set_led_frame(1, True)])
+            check('pt-4 REFUSED: with no pin model the chip-HAL build cannot be run on pads - the run says so and is not a pass (%s)' % res['stderr'][-160:], not res['ok'] and res['stale_image'])
+            proof = L3.prove('button', row=chip)
+            check('pt-4 REFUSED: its proof is refused, not passed on the stub: %s' % proof['why'][:200], proof['route'] == 'refused' and not proof['ok'])
+            return
         res = R.command_run(chip, [L3.LVT.set_led_frame(1, True)])
         last = res['states'][-1] if res['states'] else {}
-        check('smp S5 LIMIT: the CHIP-HAL build on the twin speaks frames (%d), takes SET_LED into its struct (led_on=%s, status %s) but the LED write is not observable: %d pin-trace lines '
-              '(QEMU esp32c3 GPIO is a register stub)' % (len(res['states']), last.get('led_on'), last.get('status'), len(res['pin'])),
-              bool(last.get('led_on')) and last.get('status') == 'commanded' and not res['pin'])
-        pr = R.press_run(chip)
-        check('smp S5 LIMIT: the same chip-HAL build with a scripted press does nothing on the twin (no button input exists): button_presses=%s' % (pr['states'][-1].get('button_presses') if pr['states'] else None),
-              bool(pr['states']) and not pr['states'][-1].get('button_presses'))
+        check('pt-4 PADS: SET_LED on the chip-HAL build reaches the LED pad: struct led_on=%s status %s, GPIO%d changes %s on the pin channel (%d pad lines)'
+              % (last.get('led_on'), last.get('status'), k['led_pin'], res['pin'], len(res['pad_lines'].splitlines())),
+              bool(last.get('led_on')) and last.get('status') == 'commanded' and res['pin'] and [lv for _m, lv in res['pin']] == [1] and res['on_pads'])
+        pr, again = R.press_run(chip), R.press_run(chip)
+        plast = pr['states'][-1] if pr['states'] else {}
+        btn = [lv for _ns, lv in R.pad_levels(pr['pad_lines'], k['button_pin'])[0]]
+        check('pt-4 PADS: %d stamped presses on GPIO%d reach the firmware through the GPIO interrupt: button_presses=%s, the button pad went %s, the dump counts the interrupts and '
+              'names the wire' % (R.N_PRESSES, k['button_pin'], plast.get('button_presses'), ''.join(btn)),
+              plast.get('button_presses') == R.N_PRESSES and btn == ['z', '1'] + ['0', '1'] * R.N_PRESSES and 'interrupts %d)' % R.N_PRESSES in pr['pin_dump']
+              and '# wire %d-%d' % (k['led_pin'], k['sense_pin']) in pr['pin_dump'], pr['pin_dump'][-400:])
+        led, sense = R.pad_levels(pr['pad_lines'], k['led_pin'])[0], R.pad_levels(pr['pad_lines'], k['sense_pin'])[0]
+        check('pt-4 PADS: the sense pad follows the LED pad through the board wire at the same virtual instant, every change (%d): %s' % (len(led), ''.join(lv for _n, lv in led)),
+              len(led) == 2 + R.N_PRESSES and led == sense, (led, sense))
+        check('pt-4 PADS: the run repeats exactly - a second press run gives the same pin channel, byte for byte (the presses land on the same instruction)',
+              bool(pr['pad_lines']) and pr['pad_lines'] == again['pad_lines'])
+        nowire = R.press_run(chip, jumper=0)
+        check('pt-4 PADS: with the wire off the sense pad never moves from its pull-down and the firmware counts no sense edge (%s rises, %s falls) while the LED pad still flips'
+              % (nowire['states'][-1].get('sense_rises') if nowire['states'] else None, nowire['states'][-1].get('sense_falls') if nowire['states'] else None),
+              bool(nowire['states']) and not nowire['states'][-1].get('sense_rises') and not nowire['states'][-1].get('sense_falls')
+              and [lv for _m, lv in nowire['pin']] == [1, 0, 1] and '# wire' not in nowire['pin_dump'])
+        sp = L3.prove('both', row=shim)
+        check('pt-4: the shim build still passes its own proof on this engine, and its words still say RAM shim: %s' % sp['why'][:160],
+              sp['ok'] and 'RAM shim' in sp['why'] and not sp.get('pin_model'), sp['why'][:400])
         check('smp S5 COST: the twin runs cost %s' % [(c.get('wall_s'), c.get('peak_rss_mb')) for c in (res['run'].get('boots') or [])], True)
     finally:
         shutil.rmtree(work, ignore_errors=True)

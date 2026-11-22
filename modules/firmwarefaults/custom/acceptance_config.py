@@ -11,7 +11,8 @@ own name, its own steps, its own negative controls) on V's build and stores the 
                                                             (smp-1: the press is made on THE CONFIG'S OWN button - INT0 on D2, a pin-change pin, or a voltage on A0 - read from its knobs by board.custom.light_button)
                                                             V's app is `button_clock` -> board.custom.light_variant_twin.prove(which, V, mode)   (ButtonClockState stand-ins, named there)
 
-smp S5: a config of the ESP32-C3 (board.custom.variants_c3.LIGHT_NAME) is proven on the C3 TWIN by board.custom.light_c3_twin (boot / button / polari; the pins are a RAM shim and no C3 is on the bench - its result says so).
+smp S5: a config of the ESP32-C3 (board.custom.variants_c3.LIGHT_NAME) is proven on the C3 TWIN by board.custom.light_c3_twin (boot / button / polari; no C3 is on the bench. The pins are a RAM shim,
+or - pt-4, where the esp engines hold the pin model - modelled pads under the chip-HAL build; its result says which).
 
 Refused (route 'refused', so the run is stored `inapplicable` and proves nothing) when V is not a built config of the Mission or the Scenario is not a Purpose's own (`fsc_link.proof_config_refusal`),
 or when no runner exists for the Scenario. The server's Purpose door applies the same refusal to a pushed run.
