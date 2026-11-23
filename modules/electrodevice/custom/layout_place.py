@@ -72,11 +72,13 @@ def place(design, geo, header_board):
 
     # 1. rails first
     rails = []
-    for net, pol, label in ([(gnd, RAIL_GND, 'GND')] + [(n, RAIL_SUPPLY, '+5V') for n in sorted(supply)]):
+    supply_label = design.get('supply_label', '+5V')   # the board's own supply pin (layout_boards)
+    sup = supply_label.lstrip('+').lower()             # the wire-name stem: +5V -> 5v
+    for net, pol, label in ([(gnd, RAIL_GND, 'GND')] + [(n, RAIL_SUPPLY, supply_label) for n in sorted(supply)]):
         if net in design['nets']:
             rails.append((net, pol, label))
     for net, pol, label in rails:
-        wire('w-%s-header' % ('gnd' if pol == RAIL_GND else '5v'), 'header', (header_board, label), (geo.name, 'rail:%s:%s:1' % (RAIL_POS, pol)), net, 'ground' if pol == RAIL_GND else 'power',
+        wire('w-%s-header' % ('gnd' if pol == RAIL_GND else sup), 'header', (header_board, label), (geo.name, 'rail:%s:%s:1' % (RAIL_POS, pol)), net, 'ground' if pol == RAIL_GND else 'power',
              'from the %s pin of the board to the %s rail' % (label, 'ground (-)' if pol == RAIL_GND else 'supply (+)'))
     rail_of = {net: pol for net, pol, _ in rails}
 
@@ -86,7 +88,7 @@ def place(design, geo, header_board):
             raise LayoutRefused("row %d has no free hole left for the %s wire" % (row, net))
         hole = bd.take(row, col, 'wire %s' % who)
         pol = rail_of[net]
-        wire('w-%s-r%d%s' % ('gnd' if pol == RAIL_GND else '5v', row, side.lower()), 'jumper', (geo.name, hole), (geo.name, 'rail:%s:%s:%d' % (RAIL_POS, pol, min(row, geo.rail_holes))), net,
+        wire('w-%s-r%d%s' % ('gnd' if pol == RAIL_GND else sup, row, side.lower()), 'jumper', (geo.name, hole), (geo.name, 'rail:%s:%s:%d' % (RAIL_POS, pol, min(row, geo.rail_holes))), net,
              'ground' if pol == RAIL_GND else 'power', 'from this strip to the %s rail' % ('ground (-)' if pol == RAIL_GND else 'supply (+)'))
 
     def land(net, row, side, who):

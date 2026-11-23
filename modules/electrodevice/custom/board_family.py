@@ -58,14 +58,12 @@ def derived_ties(model):
 
 
 def devboard_pins(board_definition):
-    """The header labels of a development board: its BoardPin canonical names + the connector power labels. () when the board module is not loaded or has no such board."""
+    """The header labels of a development board: its BoardPin canonical names + that board's own power labels (electrodevice.custom.layout_boards). () when the board module is not loaded or has no such board."""
     try:
         from board.custom import board_object as bo
-        from board.custom import board_uno
+        from electrodevice.custom import layout_boards
         pins = {p['canonical'] for p in bo.rows_for(board_definition)['pins']}
-        for _conn, (_ref, _kind, _fp, labels, _order) in board_uno.CONNECTORS.items():
-            pins |= {l for l in labels if l != 'NC'}
-        return frozenset(pins)
+        return frozenset(pins | layout_boards.power_labels(board_definition))
     except Exception:   # noqa: BLE001 - the board module is optional here; the caller says so in words
         return frozenset()
 
@@ -128,6 +126,7 @@ def side_of(col):
     return 'L' if col in LEFT_COLS else 'R'
 
 
-def header_label(tie):
-    """A person's spelling of a header pin -> the label the connectors use (5V -> +5V); anything else unchanged."""
-    return POWER_ALIASES.get(tie, tie)
+def header_label(tie, pins=()):
+    """A person's spelling of a header pin -> the label the connectors use (5V -> +5V); anything else unchanged. A tie that is itself one of the board's `pins` is kept as it is
+    (the C3 header has a pin printed 3V3 and one printed 5V; the UNO's labels are +3V3 and +5V)."""
+    return tie if tie in pins else POWER_ALIASES.get(tie, tie)

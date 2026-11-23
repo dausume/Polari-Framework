@@ -84,7 +84,7 @@ class LayoutAPI(treeObject):
         config = request.get_param('config') or ''
         if not config:
             response.status = falcon.HTTP_400
-            response.media = {'ok': False, 'error': 'name the config: ?config=uno-light'}
+            response.media = {'ok': False, 'error': 'name the config: ?config=uno-light (or esp32c3-light)'}
         return config
 
     def on_get_steps_q(self, request, response):

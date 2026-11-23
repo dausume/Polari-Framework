@@ -140,7 +140,7 @@ class BoardInstallerAPI(treeObject):
 
     def on_get_doc(self, request, response):
         from board.custom.installer import document
-        self._guard(request, response, lambda b: document(self.manager))
+        self._guard(request, response, lambda b: document(self.manager, board=request.get_param('board') or None))   # ins-c3-1: ?board=uno|c3 (default the UNO)
 
     def on_get_variants(self, request, response):
         from board.custom import variants as V
@@ -151,14 +151,19 @@ class BoardInstallerAPI(treeObject):
         response.media = {'ok': True, 'variants': vs, 'rows': vs}   # lay-2/sim-3: `rows` too, for a configured table
 
     def on_post_build(self, request, response):
+        from board.custom import install_kinds as IK
         from board.custom.installer import build_variant, InstallRefused
 
         def go(b):
             if not b.get('variant'):
                 raise InstallRefused('name a variant to build', '400 Bad Request')
             rec = build_variant(self.manager, b['variant'])
+            flash_b, ram_b = rec.get('flash_bytes'), rec.get('ram_bytes')
+            steps = IK.steps(IK.of_build(rec))   # ins-c3-1: a C3 record states its own sizes
+            if steps is not None:
+                flash_b, ram_b = steps.sizes(rec)
             return {'build': rec['name'], 'state': rec['state'], 'variant': rec.get('variant'), 'notes': rec.get('notes'),
-                    'flash_bytes': rec.get('flash_bytes'), 'ram_bytes': rec.get('ram_bytes'), 'artifact_sha256': rec.get('artifact_sha256')}
+                    'flash_bytes': flash_b, 'ram_bytes': ram_b, 'artifact_sha256': rec.get('artifact_sha256')}
         self._guard(request, response, go)
 
     def on_get_compat(self, request, response, build):
@@ -175,12 +180,12 @@ class BoardInstallerAPI(treeObject):
             p = plan(self.manager, b['instance'], b['build'], install_anyway=b.get('install_anyway') is True, reason=str(b.get('reason') or ''))
             p.pop('row', None)
             if p['refused']:
-                raise InstallRefused(p['why'], plan=p['name'], compat=p['compat'], argv_text=p['argv_text'], gate=p.get('gate_detail'))
+                raise InstallRefused(p['why'], plan=p['name'], compat=p['compat'], argv_text=p['argv_text'], gate=p.get('gate_detail'), checks=p.get('checks'))
             return {'plan': p['name'], 'argv': json.loads(p['argv_json']), 'argv_text': p['argv_text'], 'wrapper_text': p['wrapper_text'],
                     'engine': p['engine'], 'engine_how': p['engine_how'], 'engine_where': p['engine_where'], 'adapter': p['adapter'],
                     'compat': p['compat'], 'compat_why': p['compat_why'], 'will_stamp': p['will_stamp'], 'target_kind': p['target_kind'],
                     'host': p['host'], 'port': p['port'], 'state': p['state'], 'install_mode': p['install_mode'], 'gate': p['gate'],
-                    'gate_words': p['gate_words'], 'override_reason': p['override_reason'], 'notes': p['notes']}
+                    'gate_words': p['gate_words'], 'override_reason': p['override_reason'], 'notes': p['notes'], 'checks': p.get('checks') or []}
         self._guard(request, response, go)
 
     def on_post_run(self, request, response):

@@ -465,6 +465,10 @@ def main():
     run_twin_session(check, live=False)
     from board.board_twin_transport_selftest import run_twin_transport   # td-1/td-2: the twin door - transport read from /capability, the Hub over WebSocket, verified TLS
     run_twin_transport(check)
+    from board.board_twin_session_c3_selftest import run_twin_session_c3   # c3g-3: a C3 twin session through the same backend (a made-up esp worker and C3 twin)
+    run_twin_session_c3(check)
+    from board.board_installer_c3_selftest import run_installer_c3   # ins-c3-1: the installer takes an ESP32-C3 (a made-up C3 build store, esp worker and esptool)
+    run_installer_c3(check)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

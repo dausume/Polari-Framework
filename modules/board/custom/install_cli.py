@@ -3,8 +3,13 @@
 
 CLI parity with the installer page (brd-fi): the same doors, the same rows, the same refusals.
 
-  pol board install uno --sim|--real [--variant V] [--dry-run | --yes] [--anyway REASON] [--api URL]
-        plan + run + attach in one: picks (or builds) the variant's newest compatible build, prints the plan's argv
+  pol board install uno|c3 --sim|--real [--variant V] [--dry-run | --yes] [--anyway REASON] [--api URL]
+        ins-c3-1: the board word picks the board (uno | arduino-uno-r3 | c3 | esp32c3 | esp32-c3); --variant defaults to that board's own (uno-sim-rig | esp32c3-light).
+        A C3 --sim starts a twin session on the ESP engines worker with the build's own image (no bridge is attached: press it on the Sim bench or with
+        `pol board twin session inject`); a C3 --real prints esptool's exact command and the three checks (chip-HAL build, the three files are the image the twin
+        ran, the Purposes ran this image) and runs only past them and the gate; with no board detected it plans against `undetected:<board>`, prints the dry run
+        and its checks, and refuses (exit 3) only with --yes.
+        UNO: plan + run + attach in one: picks (or builds) the variant's newest compatible build, prints the plan's argv
         VERBATIM (the DRY-RUN — the default), and only with --yes runs it, attaches the bridge and prints the first
         frames. ins-0: --sim = the twin (--twin is the old spelling), --real = the UNO detected on the server's host.
         ins-1: a --real install of a Mission config is offered only past THE CONFIRMED-SIM GATE (the four Purposes
@@ -139,16 +144,32 @@ def _sim_purposes(api, variant):
         print('[%s] %-40s %s' % ({'passed': 'PASS', 'failed': 'FAIL'}.get(p.get('outcome'), ' ?? '), p['purpose'], (p.get('words') or '')[:120]))
 
 
-def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180, anyway=''):
-    doc = _call(api, 'GET', '/api/board/installer')
+def _print_checks(checks, indent='          '):
+    for c in checks or []:
+        print('%s[%s] %-20s %s' % (indent, ' ok ' if c['ok'] else 'MISSING', c['name'], c['words']))
+
+
+def kind_of(word):
+    """The installer kind a board word names (uno, c3 ...), or None."""
+    from board.custom import install_kinds as IK
+    return IK.of_alias(word)
+
+
+def install(api, variant='', twin=False, yes=False, wait_s=180, anyway='', board='uno'):
+    kind = kind_of(board)
+    variant = variant or kind['default_variant']
+    doc = _call(api, 'GET', '/api/board/installer?board=%s' % kind['name'])
     if not doc.get('ok'):
         return _refused(doc)
     if twin:
-        target = 'twin:arduino-uno-r3'
+        target = kind['twin']
     elif doc.get('boards'):
         target = doc['boards'][0]['name']
+    elif not yes:
+        target = 'undetected:%s' % kind['board']   # nothing is plugged in: the plan can still be READ (and is refused)
+        print('[ .. ] no %s is detected on %s (%s): planning against %s to show the command and its checks' % (kind['label'], doc['host'], doc.get('scan_note'), target))
     else:
-        print('[REFUSED] no UNO is detected on %s (%s) — plug it in, or add --sim to install into the simavr twin' % (doc['host'], doc.get('scan_note')))
+        print('[REFUSED] no %s is detected on %s (%s) — plug it in, or add --sim to install into %s' % (kind['label'], doc['host'], doc.get('scan_note'), 'the twin' if kind['steps'] else 'the simavr twin'))
         return REFUSED
     print('[MODE] %s install — %s' % ('SIM' if twin else 'REAL', next((m['words'] for m in doc.get('modes') or [] if m['name'] == ('sim' if twin else 'real')), target)))
     fit = [b for b in doc['builds'] if b.get('variant') == variant and b.get('installable')]
@@ -173,8 +194,12 @@ def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180, anywa
         body.update(install_anyway=True, reason=anyway)
     p = _call(api, 'POST', '/api/board/installer/plan', body)
     if not p.get('ok'):
+        if p.get('argv_text'):   # a refused plan still shows the command that would run, and its checks
+            print('[DRY-RUN] %s' % p['argv_text'])
+            _print_checks(p.get('checks'))
         return _refused(p)
     print('[DRY-RUN] %s' % p['argv_text'])
+    _print_checks(p.get('checks'))
     if p.get('wrapper_text'):
         print('          runs as: %s' % p['wrapper_text'])
     print('          engine %s (%s)   compat %s   target %s on %s   mode %s   gate %s' % (p['engine'], p['engine_how'], p['compat'], p['target_kind'], p['host'],
@@ -194,6 +219,9 @@ def install(api, variant='uno-sim-rig', twin=False, yes=False, wait_s=180, anywa
     if twin:
         _sim_purposes(api, variant)
         print('          when you have watched it: pol board confirm-sim %s --api %s   (or tick it on the installer page / the sim bench)' % (variant, api))
+    if kind['steps']:   # a C3 session has no bridge to attach and no frames to wait for: the record names the session and how to press it
+        print('          %s' % r.get('notes'))
+        return 0
     a = _call(api, 'POST', '/api/board/installer/attach', {'record': r['name']})
     if not a.get('ok'):
         print('[REFUSED] attach: %s' % a.get('error'))
@@ -219,7 +247,7 @@ def main(argv):
     ap = argparse.ArgumentParser(prog='pol board')
     ap.add_argument('verb', choices=('install', 'variants', 'result', 'gate', 'confirm-sim'))
     ap.add_argument('rest', nargs='*')
-    ap.add_argument('--variant', default='uno-sim-rig')
+    ap.add_argument('--variant', default='')
     ap.add_argument('--twin', action='store_true')
     ap.add_argument('--sim', action='store_true')
     ap.add_argument('--real', action='store_true')
@@ -243,8 +271,8 @@ def main(argv):
             print('[REFUSED] name the config: pol board %s <config>' % a.verb)
             return REFUSED
         return gate(a.api, a.rest[0]) if a.verb == 'gate' else confirm_sim(a.api, a.rest[0], a.hex, a.build, a.words)
-    if a.rest and a.rest[0] not in ('uno', 'arduino-uno-r3'):
-        print('[REFUSED] only the UNO has firmware variants so far (plan §8a)')
+    if a.rest and kind_of(a.rest[0]) is None:
+        print('[REFUSED] the installer has firmware for the UNO (uno) and the ESP32-C3 (c3) so far, not %r (plan §8a)' % a.rest[0])
         return REFUSED
     if a.sim and a.real:
         print('[REFUSED] pick one mode: --sim (the twin) or --real (a detected board)')
@@ -252,7 +280,7 @@ def main(argv):
     if not (a.sim or a.real or a.twin):
         print('[REFUSED] say which install: --sim (the twin; validate and confirm there first) or --real (a detected board)')
         return REFUSED
-    return install(a.api, a.variant, a.twin or a.sim, a.yes and not a.dry_run, anyway=a.anyway)
+    return install(a.api, a.variant, a.twin or a.sim, a.yes and not a.dry_run, anyway=a.anyway, board=a.rest[0] if a.rest else 'uno')
 
 
 if __name__ == '__main__':

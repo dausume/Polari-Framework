@@ -298,6 +298,8 @@ class Hub:
                 return {'t': 'refused', 'why': 'the control connection is closed (%s)' % (self.dead_why or 'not connected')}
             while not self._replies.empty():
                 self._replies.get_nowait()
+            if self.dead:   # a door that closed at once (an unknown session) queued its refusal before the drain: say its words now, not a 5 s timeout later
+                return {'t': 'refused', 'why': self.dead_why}
             try:
                 self.chan.send(json.dumps(cmd))
                 return self._replies.get(timeout=timeout)

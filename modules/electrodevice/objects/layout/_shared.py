@@ -14,6 +14,8 @@ SEED_BENCH_BOARDS = [
      'notes': 'A full-size breadboard (830 ties), for builds that need more room.', 'migrated_from': ''},
     {'name': 'bench-uno-1', 'model_name': 'uno-r3', 'label': 'Arduino UNO', 'owner': '',
      'notes': 'The UNO the breadboard is wired to.', 'migrated_from': ''},
+    {'name': 'bench-c3-1', 'model_name': 'esp32-c3-devkitm-1', 'label': 'ESP32-C3 dev kit (design only: none is on the bench)', 'owner': '',
+     'notes': 'NOT on the bench. This row exists so a C3 config has a board to draw its wires from; confirm the header order against the real board when one arrives.', 'migrated_from': ''},
 ]
 
 

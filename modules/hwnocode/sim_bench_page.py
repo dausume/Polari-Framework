@@ -26,7 +26,13 @@ _TEXT = ('Sim bench - a simulated board you can touch. Start a session of a firm
          'focus), turn the potentiometer, set the TMP36\'s temperature. What the board does shows on the picture: the LED lights when the board drives its pin high. Beside the picture is the App UI - '
          'the same rows the demo page shows: press "Turn the light on / off" there and the LED on the picture follows; press the pushbutton on the picture and the row reads source = button. '
          'That second path needs a bridge attached to the session (see "Bridge"). Every action you take is kept as a row (who, what, when, and the simulated board\'s own clock cycle); "Record this session '
-         'as evidence" saves them as a ScenarioRun that a person attests - it is never turned into a proof by itself. A session that nobody stops ends by itself when its time is up.')
+         'as evidence" saves them as a ScenarioRun that a person attests - it is never turned into a proof by itself. A session that nobody stops ends by itself when its time is up. '
+         'A session of the ESP32-C3 config draws the C3\'s own picture - the design only: no C3 board is on the bench. There a release lets the pad go (nothing drives it) instead of driving it high, '
+         'an edge is stamped with the twin\'s virtual time in nanoseconds and not a cycle, and the C3 twin has no analog input, pause or reset yet.')
+
+# The picture's own words. The page text above is printed once, under the page title; the picture used to repeat all of it (finding 6 of release 93).
+_VIEW_TEXT = ('The simulated board of the picked session. Hold the pushbutton (mouse down is a press, mouse up a release), turn the potentiometer, set the TMP36\'s temperature; '
+              'the LED lights when the board drives its pin high. A C3 session draws the C3 dev kit (design only). Click a part or a wire to see its row; click again, or press Escape, to clear.')
 
 _SESSION_COLS = 'name,config,participant,state,remaining_s,owner'
 _PANEL_COLS = 'config,hex_sha256,locked_text,board,reached_by,transport_why,ports,remaining_s,state,owner'
@@ -37,7 +43,7 @@ LIGHT_DOOR = '/api/board/twins/light-state?rev=r{scope:rev}'
 
 def _bench_rows():
     return [
-        _row(0, [_layout_view('sim-view', 0, 12, 'The bench - parts you can touch, outputs that follow the board', _TEXT, mode='bench', config='uno-light', session='{scope:session}')], min_height=640),
+        _row(0, [_layout_view('sim-view', 0, 12, 'The bench - parts you can touch, outputs that follow the board', _VIEW_TEXT, mode='bench', config='uno-light', session='{scope:session}')], min_height=640),
         _row(1, [
             _table('sim-firmwares', 0, 5, 'Firmware you can run', '', data_path='/api/board/variants',
                    description='What this is for: the firmware configurations a simulated board can run. One row = one firmware variant (a config). Press "Start a session" to build it and switch on a '
@@ -77,7 +83,7 @@ def _bench_rows():
                    empty_text='Pick a session above to see what was done on it.',
                    description='What this is for: the record of a manual test. One row = one thing you did to the simulated board (a press, a release, a turn of the knob, a reset). seq is its number, at_text '
                                'the time, who the person (blank when the request carried no sign-in), part the part on the picture, what the action in words, twin_cycle_text the simulated '
-                               'board\'s own clock cycle when it took effect ("not reported" for an analog input: the twin\'s acknowledgement carries no cycle), ok whether the board accepted it.',
+                               'board\'s own clock cycle when it took effect ("not reported" for an analog input: the twin\'s acknowledgement carries no cycle; also "not reported" for an action on the C3, which has no cycle count), ok whether the board accepted it.',
                    columns=_INTERACTION_COLS, max_height=360),
             _table('sim-record', 1, 4, 'Record this session as evidence', '', data_path='/api/board/twins?name={scope:session}&rev=r{scope:rev}',
                    empty_text='Pick a session above, do something on the bench, then record it.',

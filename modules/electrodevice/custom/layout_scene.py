@@ -7,11 +7,13 @@ holds no part knowledge of its own:
   boards   every board of the picture, in drawing order (the development board first, then the bench board): kind, geometry numbers (rows, holes per side, rail holes, pitch)
            and, for a development board, its header connectors (labels in pin order, from board.custom.board_uno.CONNECTORS - nothing is stored here);
   parts    per placed part: the sprite kind, the INTERACTION it offers and the OUTPUT it shows, both DERIVED from the KitPart row (D-hbc-3: no per-part UI code);
-  pins     the board's header label -> the twin's port pin name (D6 -> PD6) and the ADC channel of an analog pin (A0 -> 0);
+  pins     the board's header label -> the twin's pad name (UNO: D6 -> PD6; C3: GPIO3 -> GPIO3) and the ADC channel of an analog pin (UNO: A0 -> 0; the C3's twin has none);
+  clock    the unit an edge is stamped in: {unit: cycle, hz: 16000000} (UNO) or {unit: ns, hz: 1000000000} (C3), from board.custom.twin_kinds;
   watch    every twin pin the layout drives an output on (the LED's pin), which the sim bench asks the session to watch.
 
 Interaction kinds (the browser draws exactly these, whatever the part):
-  press    a momentary switch (KitPart interface digital-in, the pushbutton): holding it drives `pin` to `pressed_level` (the level the switch's other side sits at), releasing it to the opposite
+  press    a momentary switch (KitPart interface digital-in, the pushbutton): holding it drives `pin` to `pressed_level` (the level the switch's other side sits at), releasing it to `released_level`:
+             the opposite level on a chip whose twin cannot let a pad go (the UNO), the string 'z' (let go) on one that can (the C3)
   toggle   a latching switch (digital-in, the tilt sensor): on = `pressed_level`
   slider   an analog source (analog-in): the value `x` in `unit` between min and max becomes `mv = offset_mv + per_unit_mv * x` on ADC channel `adc`
              potentiometer   x in % of the turn, 0-100, 0 mV at 0 % and 5000 mV at 100 % (the book: "0-5V at the wiper when the ends are at 5V/GND"; the twin accepts 0..5000 mV)
@@ -21,6 +23,8 @@ A part whose KitPart has no interaction kind gets none and draws as a plain spri
 this layer does not know (said, not guessed).
 Output kinds: led (lit by the level of the pin that drives it through any series resistor), tone (a piezo on a digital-out pin).
 """
+from electrodevice.custom import layout_boards as LB
+
 #: (KitPart interface_kind, kit key) -> the interaction. The ONE table; adding a part kind is a row here, never browser code.
 INTERACTIONS = {
     ('digital-in', 'pushbutton'): {'control': 'press', 'label': 'Press and hold'},
@@ -33,25 +37,36 @@ INTERACTIONS = {
 #: (KitPart interface_kind, kit key) -> the output a part shows
 OUTPUTS = {('digital-out', 'led'): 'led', ('digital-out', 'piezo'): 'tone'}
 ADC_MAX_MV = 5000
+NO_ADC_NOTE = "this board's twin has no analog input yet, so there is nothing to drive"
 
 
-def twin_pin(label):
-    """'D6' -> 'PD6', 'A0' -> 'PC0', anything that is not a port pin of the UNO -> ''."""
+def _kind(board):
+    """The twin facts of the chip (board.custom.twin_kinds.of_board): {clock, release}; the AVR values when the board module is not importable."""
     try:
-        from board.custom import board_uno
+        from board.custom import twin_kinds
+        k = twin_kinds.of_board(board)
+        return {'clock': dict(k['clock']), 'release': bool(k['release'])}
+    except Exception:   # noqa: BLE001 - the board module is optional here
+        return {'clock': {'unit': 'cycle', 'hz': 16000000}, 'release': False}
+
+
+def twin_pin(label, board=LB.UNO):
+    """UNO: 'D6' -> 'PD6', 'A0' -> 'PC0', anything that is not a port pin -> ''. C3: 'GPIO3' -> 'GPIO3'. Without the board module -> ''."""
+    try:
+        return LB.twin_pin(board, label)
     except Exception:   # noqa: BLE001 - the board module is optional here
         return ''
-    row = board_uno.D_PINS.get(label) or board_uno.A_PINS.get(label)
-    return row[0] if row else ''
 
 
-def adc_channel(label):
+def adc_channel(label, board=LB.UNO):
     try:
-        from board.custom import board_uno
+        return LB.adc_channel(board, label)
     except Exception:   # noqa: BLE001
         return None
-    row = board_uno.A_PINS.get(label)
-    return row[1] if row else None
+
+
+def _board(design):
+    return design.get('board') or LB.UNO   # a hand-made design (a test's) names no board: the UNO
 
 
 def _hdr(design, net):
@@ -59,7 +74,7 @@ def _hdr(design, net):
 
 
 def _signal_pins(design, net):
-    return [p for p in _hdr(design, net) if twin_pin(p)]
+    return [p for p in _hdr(design, net) if twin_pin(p, _board(design))]
 
 
 def _level_of(design, net):
@@ -67,7 +82,7 @@ def _level_of(design, net):
     pins = _hdr(design, net)
     if 'GND' in pins:
         return 0
-    if any(p in ('+5V', '5V', '+3V3', 'VIN') for p in pins):
+    if any(p in ('+5V', '5V', '+3V3', '3V3', 'VIN') for p in pins):
         return 1
     return None
 
@@ -123,14 +138,16 @@ def _interaction(design, comps, comp):
         pin = _pick(design, _signal_pins(design, sig['net']))
         other = next((t for t in comp['terminals'] if t is not sig), None)
         lvl = _level_of(design, other['net']) if other else None
-        out.update(pin=pin, twin_pin=twin_pin(pin), pressed_level=0 if lvl is None else lvl,
+        pressed = 0 if lvl is None else lvl
+        out.update(pin=pin, twin_pin=twin_pin(pin, _board(design)), pressed_level=pressed, released_level='z' if _kind(_board(design))['release'] else 1 - pressed,
                    note='' if lvl is not None else 'the other side is not joined to GND or the supply; assumed GND (pressed = 0)')
     else:
-        sig = next((t for t in comp['terminals'] if any(adc_channel(p) is not None for p in _hdr(design, t['net']))), None)
+        b = _board(design)
+        sig = next((t for t in comp['terminals'] if any(adc_channel(p, b) is not None for p in _hdr(design, t['net']))), None)
         if sig is None:
-            return dict(out, pin='', adc=None, note='no analog pin is wired to this part, so there is nothing to drive')
-        pin = next(p for p in _hdr(design, sig['net']) if adc_channel(p) is not None)
-        out.update(pin=pin, adc=adc_channel(pin), twin_pin=twin_pin(pin), note='')
+            return dict(out, pin='', adc=None, note='no analog pin is wired to this part, so there is nothing to drive' if _adc_max(b) else NO_ADC_NOTE)
+        pin = next(p for p in _hdr(design, sig['net']) if adc_channel(p, b) is not None)
+        out.update(pin=pin, adc=adc_channel(pin, b), twin_pin=twin_pin(pin, b), note='')
     return out
 
 
@@ -140,7 +157,12 @@ def _output(design, comps, comp):
         return None
     names = ('anode',) if kind == 'led' else tuple(t['name'] for t in comp['terminals'])
     pin = _drive_pin(design, comps, comp, names)
-    return {'kind': kind, 'pin': pin, 'twin_pin': twin_pin(pin), 'note': '' if pin else 'no header pin drives this part'}
+    return {'kind': kind, 'pin': pin, 'twin_pin': twin_pin(pin, _board(design)), 'note': '' if pin else 'no header pin drives this part'}
+
+
+def _adc_max(board):
+    """The top of the range the board's twin takes on an analog input, in mV; 0 = no analog input (layout_boards)."""
+    return LB.BOARDS.get(board, LB.BOARDS[LB.UNO])['adc_max_mv']
 
 
 def _board_row(geo, label, role):
@@ -148,8 +170,7 @@ def _board_row(geo, label, role):
            'rail_holes': geo.rail_holes, 'pitch_mm': 2.54, 'reserved': bool(geo.reserved)}
     if geo.kind == 'devboard':
         try:
-            from board.custom import board_uno
-            row['connectors'] = [{'name': n, 'ref': ref, 'labels': list(labels), 'order': order} for n, (ref, _k, _fp, labels, order) in board_uno.CONNECTORS.items()]
+            row['connectors'] = LB.connectors(geo.board_definition or LB.UNO)
         except Exception:   # noqa: BLE001 - without the board module the header is drawn as a labelled strip from the wires' own pins
             row['connectors'] = []
     return row
@@ -169,9 +190,9 @@ def scene(geo, header_geo, design, placements, label='', header_label=''):
         if out and out['twin_pin'] and out['twin_pin'] not in watch:
             watch.append(out['twin_pin'])
         parts[p['name']] = {'kit_key': _kit_key(comp), 'interface': _interface(comp), 'interaction': _interaction(design, comps, comp), 'output': out}
-    pins = {}
+    b, pins = _board(design), {}
     for labels in (m[4:] for nets in design['nets'].values() for m in nets if m.startswith('hdr:')):
-        if twin_pin(labels):
-            pins[labels] = {'twin_pin': twin_pin(labels), 'adc': adc_channel(labels)}
+        if twin_pin(labels, b):
+            pins[labels] = {'twin_pin': twin_pin(labels, b), 'adc': adc_channel(labels, b)}
     boards = [_board_row(header_geo, header_label, 'header'), _board_row(geo, label, 'bench')]
-    return {'boards': boards, 'parts': parts, 'pins': pins, 'watch': sorted(watch), 'adc_max_mv': ADC_MAX_MV}
+    return {'boards': boards, 'parts': parts, 'pins': pins, 'watch': sorted(watch), 'adc_max_mv': _adc_max(b), 'clock': _kind(b)['clock'], 'board_definition': b}

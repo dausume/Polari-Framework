@@ -49,30 +49,33 @@ class FakeTwin:
                     authed = True
                     self._send({'t': 'ack', 'of': 'token'})
                     continue
-                self.cycle += 800000
-                if 'set' in m:
-                    if m['set'] not in ('PD2', 'PD3', 'PD6', 'PB5'):
-                        self._send({'t': 'refused', 'why': '%s is not a pin of atmega328p' % m['set']})
-                        continue
-                    self._send({'t': 'ack', 'of': 'set', 'pin': m['set'], 'level': m['level'], 'cycle': self.cycle})
-                    if m['set'] in self.watch:
-                        self._send({'t': 'pin', 'pin': m['set'], 'level': m['level'], 'cycle': self.cycle})
-                    if m['set'] == 'PD2' and m['level'] == 1 and 'PD6' in self.watch:   # the "firmware": a release lights D6
-                        self._send({'t': 'pin', 'pin': 'PD6', 'level': 1, 'cycle': self.cycle + 500000})
-                elif 'adc' in m:
-                    self.adc[m['adc']] = m['mv']
-                    self._send({'t': 'ack', 'of': 'adc', 'adc': m['adc'], 'mv': m['mv']})
-                elif 'watch' in m:
-                    self.watch = set(m['watch'])
-                    self._send({'t': 'ack', 'of': 'watch', 'watch': m['watch']})
-                elif 'run' in m:
-                    self.paused = not m['run']
-                    self._send({'t': 'ack', 'of': 'run', 'run': bool(m['run'])})
-                elif 'status' in m:
-                    self._send({'t': 'status', 'cycle': self.cycle, 'adc0_mv': self.adc[0], 'paused': int(self.paused)})
-                elif 'reset' in m:
-                    self.cycle = 0
-                    self._send({'t': 'ack', 'of': 'reset', 'cycle': 0})
+                self._command(m)
+
+    def _command(self, m):
+        self.cycle += 800000
+        if 'set' in m:
+            if m['set'] not in ('PD2', 'PD3', 'PD6', 'PB5'):
+                self._send({'t': 'refused', 'why': '%s is not a pin of atmega328p' % m['set']})
+                return
+            self._send({'t': 'ack', 'of': 'set', 'pin': m['set'], 'level': m['level'], 'cycle': self.cycle})
+            if m['set'] in self.watch:
+                self._send({'t': 'pin', 'pin': m['set'], 'level': m['level'], 'cycle': self.cycle})
+            if m['set'] == 'PD2' and m['level'] == 1 and 'PD6' in self.watch:   # the "firmware": a release lights D6
+                self._send({'t': 'pin', 'pin': 'PD6', 'level': 1, 'cycle': self.cycle + 500000})
+        elif 'adc' in m:
+            self.adc[m['adc']] = m['mv']
+            self._send({'t': 'ack', 'of': 'adc', 'adc': m['adc'], 'mv': m['mv']})
+        elif 'watch' in m:
+            self.watch = set(m['watch'])
+            self._send({'t': 'ack', 'of': 'watch', 'watch': m['watch']})
+        elif 'run' in m:
+            self.paused = not m['run']
+            self._send({'t': 'ack', 'of': 'run', 'run': bool(m['run'])})
+        elif 'status' in m:
+            self._send({'t': 'status', 'cycle': self.cycle, 'adc0_mv': self.adc[0], 'paused': int(self.paused)})
+        elif 'reset' in m:
+            self.cycle = 0
+            self._send({'t': 'ack', 'of': 'reset', 'cycle': 0})
 
     def close(self):
         self.closed = True
@@ -160,8 +163,9 @@ class FakeWorker:
     """GET /capability, POST/GET/DELETE /sessions - the shape of prf-board-engines/board_sessions.py. sessions=False = an image older than sim-0.
     `transports` (a dict, e.g. a FakeDoor's) is advertised as the top-level "transports" of /capability when set."""
 
-    def __init__(self, sessions=True, ttl_expire_after=None, transports=None):
+    def __init__(self, sessions=True, ttl_expire_after=None, transports=None, kind='avr', twin=None):
         self.sessions_cap, self.twins, self.requests, self.ttl_expire_after, self.transports = sessions, {}, [], ttl_expire_after, transports
+        self.kind, self.twin_class = kind, twin or FakeTwin   # c3g-3: kind 'c3' = the esp-engines worker (image_b64 + layout, see twin_session_fakes_c3)
         self.made = []   # every FakeTwin ever started here (a stopped one leaves `twins`): `made[n].conn is None` = its control port was never dialled
         outer = self
 
@@ -180,9 +184,9 @@ class FakeWorker:
             def do_GET(self):
                 outer.requests.append(('GET', self.path))
                 if self.path == '/capability':
-                    cap = {'worker': 'board-engines', 'engines': {'avr-twin': {'available': True}}}
+                    cap = {'worker': 'board-engines', 'engines': {'avr-twin': {'available': True}}} if outer.kind == 'avr' else {'worker': 'esp-engines', 'engines': {'c3-run': {'available': True}}}
                     if outer.sessions_cap:
-                        cap['sessions'] = {'available': True, 'max': 8}
+                        cap['sessions'] = {'available': True, 'max': 8, 'kind': outer.kind}
                     if outer.transports is not None:
                         cap['transports'] = outer.transports
                     return self._json(200, cap)
@@ -195,10 +199,13 @@ class FakeWorker:
             def do_POST(self):
                 outer.requests.append(('POST', self.path))
                 body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
-                if self.path != '/sessions' or not body.get('hex_b64'):
-                    return self._json(400, {'ok': False, 'error': 'POST /sessions needs hex_b64'})
+                needs = 'hex_b64' if outer.kind == 'avr' else 'image_b64'
+                if self.path != '/sessions' or not body.get(needs):
+                    return self._json(400, {'ok': False, 'error': 'POST /sessions needs %s' % needs})
+                if outer.kind == 'c3' and (not isinstance(body.get('layout'), str) or body.get('free')):
+                    return self._json(400, {'ok': False, 'error': 'POST /sessions needs layout (the pin layout, JSON text) and takes no "free"'})
                 sid = 'f%05d' % (len(outer.twins) + 1)
-                twin = FakeTwin(body['token'])
+                twin = outer.twin_class(body['token']) if outer.kind == 'avr' else outer.twin_class(body['token'], body)
                 outer.twins[sid] = {'twin': twin, 'body': body}
                 outer.made.append(twin)
                 now = time.time()

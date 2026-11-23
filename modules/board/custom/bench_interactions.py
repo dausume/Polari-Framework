@@ -60,6 +60,8 @@ def _describe(cmd, meta):
         lvl = cmd['level']
         kind = meta.get('kind') if meta.get('kind') in KINDS else 'set'
         verb = {'press': 'pressed', 'release': 'released', 'toggle': 'switched'}.get(kind, 'set')
+        if lvl == 'z':   # c3g-3: a C3 pad let go - nothing drives it, so no level is recorded for it (-1, never a guess)
+            return kind, '%s%s: %s let go (no longer driven)' % (verb, who_part, cmd['set']), cmd['set'], -1.0
         return kind, '%s%s: %s driven to %d' % (verb, who_part, cmd['set'], lvl), cmd['set'], float(lvl)
     if 'adc' in cmd:
         return 'adc', 'analog input %d held at %d mV%s' % (cmd['adc'], cmd['mv'], who_part), 'ADC%d' % cmd['adc'], float(cmd['mv'])

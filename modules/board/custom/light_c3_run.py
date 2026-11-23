@@ -43,9 +43,12 @@ def params(window_ms=0, presses=0, press_gpio=BUTTON_GPIO, jumper=1):
 
 
 def engine_ready():
+    """(ready, why). c3-run is a batch engine - files in, files out, nothing attached - so a worker reached over the ladder (the ESP_ENGINES_URL knob, or the isle's
+    `esp` binding) proves the light as well as a local one does. (The UNO's light twin is different: its bridge attaches to a process on this device, so it stays local.)
+    Until release 93 this said no to a remote worker, and on the isle - where the engines are a store app on another device - the C3 light could not be proven at all."""
     from board.custom import board_engines as be
     where = be.resolve('c3-run')
-    return where['how'] in ('local-binary', be.LOCAL_IMAGE), where['why']
+    return where['how'] in ('local-binary', be.LOCAL_IMAGE, be.REMOTE), where['why']
 
 
 _FEATURES = {}

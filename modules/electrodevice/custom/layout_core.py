@@ -17,6 +17,7 @@ import hashlib
 import json
 
 from electrodevice.custom import board_family as BF
+from electrodevice.custom import layout_boards as LB
 from electrodevice.custom import layout_colors as LCOL
 from electrodevice.custom import layout_edits as LE
 from electrodevice.custom import layout_gate as LG
@@ -60,7 +61,8 @@ def _board_summary(geo, label):
 def layout_place(config, board_instance=None, manager=None, scheme=None, header_board=None, with_edits=True, extra_edits=None):
     """The whole layout of `config` on the BenchBoard `board_instance` (default: the half breadboard). -> a dict (see the module words); a LayoutRefused names why it cannot be built."""
     board = board_instance or BENCH_DEFAULT
-    header_board = header_board or HEADER_DEFAULT
+    board_def = S.board_of(manager, config)
+    header_board = header_board or LB.of(board_def)['header_board']
     geo = BF.resolve(manager, board)
     if geo is None:
         raise LayoutRefused("no board %r on the bench (boards: %s)" % (board, ', '.join(BF.known_boards(manager))), status=404)
@@ -68,13 +70,15 @@ def layout_place(config, board_instance=None, manager=None, scheme=None, header_
         raise LayoutRefused("board %s is a %s%s: layouts are placed on breadboards so far" % (board, geo.kind, ' (reserved: no geometry built yet)' if geo.reserved else ''))
     hgeo = BF.resolve(manager, header_board)
     if hgeo is None or hgeo.kind != 'devboard':
-        raise LayoutRefused("%r is not a development board on the bench (the board the wires start from; default %s)" % (header_board, HEADER_DEFAULT), status=404)
+        raise LayoutRefused("%r is not a development board on the bench (the board the wires start from; default for %s: %s)" % (header_board, board_def, LB.of(board_def)['header_board']), status=404)
+    if (hgeo.board_definition or board_def) != board_def:
+        raise LayoutRefused("config %s is for the board %s, but the header board %s is a %s: its wires cannot start from that board (use %s)" % (config, board_def, header_board, hgeo.board_definition, LB.of(board_def)['header_board']))
     design = S.design_of(manager, config)
     derived = LP.place(design, geo, header_board)
     edits = (LE.load(manager, config, board) if with_edits else []) + list(extra_edits or [])
     laid, overrides, applied, problems = LE.apply(derived, edits)
     sch = scheme if isinstance(scheme, dict) else LCOL.get_scheme(manager, scheme)
-    LCOL.colour_wires(laid['wires'], sch, overrides, manager)
+    LCOL.colour_wires(laid['wires'], sch, overrides, manager, board_def)
     try:
         verdict = LG.gate(manager, design, laid, board, header_board)
     except LayoutRefused as exc:
@@ -85,7 +89,7 @@ def layout_place(config, board_instance=None, manager=None, scheme=None, header_
         verdict['findings'] = occ + verdict['findings']
         verdict['ok'] = False
         verdict['words'] = 'REFUSED: ' + ' | '.join(f['words'] for f in occ) + ('' if verdict['ok'] or not verdict['words'].startswith('REFUSED: ') else ' | ' + verdict['words'][len('REFUSED: '):])
-    pin_where = lambda label: S.pin_where(manager, label)   # noqa: E731
+    pin_where = lambda label: S.pin_where(manager, label, board_def)   # noqa: E731
     steps = LS.build_steps(design, laid, board, pin_where, header_board)
     scene = LSC.scene(geo, hgeo, design, laid['placements'], getattr(geo.instance, 'label', ''), getattr(hgeo.instance, 'label', ''))   # lay-2: what the renderer draws
     core = {'placements': laid['placements'], 'wires': laid['wires']}

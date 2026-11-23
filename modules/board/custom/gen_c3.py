@@ -21,7 +21,10 @@ partitions.csv) — ESP-IDF requires CMake; the firmware's language is C. Anythi
 Work dir layout as the UNO's (gen.py): <work>/project, <work>/out, <work>/firmware_build.json, <work>/builds/<build>/.
 Default work: gen.default_work('esp32-c3') — /app/data/board/esp32-c3/ inside a backend container, ~/.cache/polari-board/esp32-c3/ on a bare host.
 
-    python3 -m board.custom.gen_c3 c3 [--variant V] [--out DIR] [--api URL] [--rig-name N] [--device-id N]
+    python3 -m board.custom.gen_c3 c3 [--variant V] [--out DIR] [--api URL] [--rig-name N] [--device-id N] [--knob NAME=VALUE ...]
+
+`--knob` sets any knob the variant has (the light's pads and `pin_shim`: 0 = the chip HAL, which the pin model needs; 1 = the RAM pin shim).
+A knob the variant does not have is refused, never dropped.
 """
 import datetime
 import json
@@ -251,6 +254,27 @@ def gen_c3(variant=None, work=None, api='', manager=None, variant_rows=None, boa
     return row
 
 
+def cli_knobs(variant, words):
+    """`--knob NAME=VALUE` words -> {name: value} for the variant; a word that is not NAME=VALUE, a knob the variant does not have and a knob named twice
+    are refused (V.resolve drops a name it does not know, which on a command line would read as done)."""
+    try:
+        v = V.find(variant or V.DEFAULT_VARIANT, None)
+    except V.VariantRefused as e:
+        raise gen.GenRefused(str(e))
+    has = sorted(set(V.DEFAULT_KNOBS) | (set(V.LIGHT_KNOBS) if v.get('app') == 'light' else set()))
+    out = {}
+    for word in words:
+        name, mark, value = word.partition('=')
+        if not mark or not value:
+            raise gen.GenRefused('--knob wants NAME=VALUE, not %r' % word)
+        if name not in has:
+            raise gen.GenRefused('variant %s has no knob %s; it has %s' % (v.get('name'), name, ', '.join(has)))
+        if name in out:
+            raise gen.GenRefused('--knob names %s twice' % name)
+        out[name] = value
+    return out
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol board gen c3')
@@ -260,9 +284,16 @@ def main(argv):
     ap.add_argument('--api', default='')
     ap.add_argument('--rig-name')
     ap.add_argument('--device-id', type=int)
+    ap.add_argument('--knob', action='append', default=[], metavar='NAME=VALUE')
     a = ap.parse_args(argv)
     try:
-        row = gen_c3(a.variant or None, a.out, a.api, rig_name=a.rig_name, device_id=a.device_id)
+        knobs = cli_knobs(a.variant, a.knob)
+        for name, value in (('rig_name', a.rig_name), ('device_id', a.device_id)):      # the two older options: the same knobs by their own flag
+            if value is not None:
+                if name in knobs:
+                    raise gen.GenRefused('%s is given twice: by its own option and by --knob' % name)
+                knobs[name] = value
+        row = gen_c3(a.variant or None, a.out, a.api, **knobs)
     except gen.GenRefused as e:
         print('[REFUSED] %s' % e)
         return 1
@@ -272,6 +303,8 @@ def main(argv):
     print('       header   %s  contract v%s hash %s  (%s, target=%s)  sha256 %s' % (c['header'], c['contract_version'], c['contract_hash'], c['source'],
                                                                               TARGET, c['header_sha256'][:16]))
     print('       wire v2  hash2 %s  order %s' % (c.get('hash_v2'), ', '.join(c['tag_order'])))
+    k = json.loads(row['repro_json'])['knobs']
+    print('       knobs    %s' % '  '.join('%s=%s' % (n, k[n]) for n in sorted(k) if n not in ('variant', 'app', 'build_flags')))
     print('       next     pol board build c3')
     return 0
 

@@ -89,7 +89,7 @@ def _family():
     check('the default bench board is the half breadboard (the kit page does not say which)', LB.BENCH_DEFAULT == 'bench-half-1'
           and next(b for b in LB.SEED_BENCH_BOARDS_ALL if b['name'] == 'bench-half-1')['model_name'] == 'breadboard-half')
     m = _seeded_manager()
-    check('the seeded rows build as real objects (BoardModel + its BreadboardLayout / BoardOutline / BoardRating, BenchBoard, WireColorScheme)', len(m.objectTables['BoardModel']) == 8 and len(m.objectTables['BreadboardLayout']) == 5 and len(m.objectTables['WireColorScheme']) == 1
+    check('the seeded rows build as real objects (BoardModel + its BreadboardLayout / BoardOutline / BoardRating, BenchBoard, WireColorScheme)', len(m.objectTables['BoardModel']) == 9 and len(m.objectTables['BreadboardLayout']) == 5 and len(m.objectTables['WireColorScheme']) == 1
           and len(m.objectTables['BenchBoard']) == len(LB.SEED_BENCH_BOARDS_ALL))
     geo = BF.resolve(m, 'bb-demo-a')
     check('a migrated board resolves to the half geometry', geo is not None and geo.rows == 30 and geo.rail_holes == 25 and geo.kind == 'breadboard', vars(geo) if geo else None)
@@ -336,7 +336,7 @@ def _edits_and_doors():
     resp = lambda: types.SimpleNamespace(media=None, status='200 OK')   # noqa: E731
     r1 = resp()
     api.on_get_boards(Req(), r1)
-    check('door GET /api/layout/boards: models, boards, defaults', r1.media['ok'] and len(r1.media['models']) == 8 and r1.media['default_board'] == 'bench-half-1')
+    check('door GET /api/layout/boards: models, boards, defaults', r1.media['ok'] and len(r1.media['models']) == 9 and r1.media['default_board'] == 'bench-half-1')
     r2 = resp()
     api.on_get_layout(Req(), r2, 'uno-light')
     check('door GET /api/layout/<config>: placements, wires, nets and the verdict (no private keys sent)', r2.media['ok'] and r2.media['verdict']['ok'] and r2.media['placements'] and not any(k.startswith('_') for k in r2.media))
@@ -424,6 +424,8 @@ def run_checks():
         _refusals()
         _edits_and_doors()
         _three_lead()
+        from electrodevice import layout_c3_selftest
+        layout_c3_selftest.run_checks(check, _seeded_manager)
 
 
 def main():

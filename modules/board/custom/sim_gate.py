@@ -200,11 +200,19 @@ def sim_install(manager, config, mission=None, api=''):
     is_gated, gwhy = gated(config, manager, mission)
     if not is_gated:
         raise _refused('no Purposes to run for %s: %s' % (config, gwhy), '409 Conflict')
-    from board.custom import light_twin as LT
-    ready, why = LT.engine_ready()
-    if not ready:
-        raise _refused('this server cannot run the twin itself (%s) — run the four Purposes from a host with the simavr twin and push them here: %s'
-                       % (why, prove_command(config, api)), '409 Conflict', retry=prove_command(config, api))
+    from board.custom import install_kinds as IK
+    if IK.of_variant(config) is IK.C3:   # ins-c3-1: a C3 config's Purposes run on the ESP engines (a worker reached over the ladder serves them), not on the UNO's twin
+        from board.custom import light_c3_run as LT
+        ready, why = LT.engine_ready()
+        if not ready:
+            raise _refused('this server has no ESP engines that can run the ESP32-C3 twin (%s) — run the four Purposes from a host that has them and push them here: %s'
+                           % (why, prove_command(config, api)), '409 Conflict', retry=prove_command(config, api))
+    else:
+        from board.custom import light_twin as LT
+        ready, why = LT.engine_ready()
+        if not ready:
+            raise _refused('this server cannot run the twin itself (%s) — run the four Purposes from a host with the simavr twin and push them here: %s'
+                           % (why, prove_command(config, api)), '409 Conflict', retry=prove_command(config, api))
     if manager is None or getattr(manager, 'objectTables', None) is None:
         raise _refused('no live manager on this server to store the runs on', '422 Unprocessable Entity')
     from firmwarefaults.custom import acceptance as ACC

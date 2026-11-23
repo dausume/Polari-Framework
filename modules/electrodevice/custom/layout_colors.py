@@ -48,23 +48,23 @@ def families_table(manager=None):
     return dict(F.FALLBACK_HEX)
 
 
-def derived_colour(scheme, cls, manager=None):
+def derived_colour(scheme, cls, manager=None, board=None):
     """The scheme's colour NAME for a wire class: 'ground' | 'power' | 'pin:<label>' (via the pin's family) | anything else -> default."""
     c = scheme['colors']
     if cls in ('ground', 'power'):
         return c.get(cls) or c.get('default', 'grey')
     if cls.startswith('pin:'):
         from electrodevice.custom import layout_sources as S
-        fam, _hex = S.pin_family(manager, cls[4:])
+        fam, _hex = S.pin_family(manager, cls[4:], board or S.BOARD)
         return c.get(fam) or c.get('default', 'grey')
     return c.get('default', 'grey')
 
 
-def colour_wires(wires, scheme, overrides=None, manager=None):
+def colour_wires(wires, scheme, overrides=None, manager=None, board=None):
     """Add `colour` (derived), `colour_override` ('' if none), `colour_effective` and `hex` to every wire (in place; -> wires). `overrides` is {wire name: colour name}."""
     overrides = overrides or {}
     for w in wires:
-        w['colour'] = derived_colour(scheme, w['class'], manager)
+        w['colour'] = derived_colour(scheme, w['class'], manager, board)
         w['colour_override'] = overrides.get(w['name'], '')
         w['colour_effective'] = w['colour_override'] or w['colour']
         w['hex'] = WIRE_COLOURS.get(w['colour_effective'], '')

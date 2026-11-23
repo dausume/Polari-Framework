@@ -26,7 +26,7 @@ import json
 import os
 import time
 
-from board.custom import compat, gen, variants as V
+from board.custom import compat, gen, install_kinds as IK, variants as V
 
 UNO = 'arduino-uno-r3'
 TWIN = 'twin:%s' % UNO
@@ -135,11 +135,11 @@ def work_dir():
 # ------------------------------------------------------------------ builds
 def all_builds(manager, work=None):
     """FirmwareBuild rows ∪ the local build store (a build the CLI made before the server saw it is still installable
-    here). The store's record wins for hex_path (it is THIS host's file)."""
+    here). The store's record wins for hex_path (it is THIS host's file). ins-c3-1: the C3's build store is read too (its own folder; `work` is the UNO's store)."""
     out = {}
     for r in _rows(manager, 'FirmwareBuild'):
         out[r.name] = {k: v for k, v in vars(r).items() if not k.startswith('_')}
-    for rec in gen.stored_builds(work or work_dir()):
+    for rec in gen.stored_builds(work or work_dir()) + gen.stored_builds(IK.steps(IK.C3).work_dir()):
         out[rec['name']] = dict(out.get(rec['name'], {}), **rec)
     return out
 
@@ -157,11 +157,15 @@ def build_variant(manager, variant, work=None, run=None, instance_index=None):
     index among the variant's bridge's bound instances (uno-pair: build it with 0 and with 1)."""
     from board.custom import build as B
     from board.board_basis import FirmwareBuild
-    work = work or work_dir()
+    steps = IK.steps(IK.of_variant(variant))   # ins-c3-1: a C3 variant is built by the C3's steps, into the C3's own store
+    work = work or (steps.work_dir() if steps else work_dir())
     try:
-        gen.gen('uno', work=work, variant=variant, manager=manager, variant_rows=_rows(manager, 'FirmwareVariant'),
-                instance_index=instance_index)
-        rec = B.build('uno', work, **({'run': run} if run else {}))
+        if steps is not None:
+            rec = steps.build(manager, variant, work, run)
+        else:
+            gen.gen('uno', work=work, variant=variant, manager=manager, variant_rows=_rows(manager, 'FirmwareVariant'),
+                    instance_index=instance_index)
+            rec = B.build('uno', work, **({'run': run} if run else {}))
     except gen.GenRefused as e:
         raise InstallRefused(str(e), '400 Bad Request')
     if rec['state'] == 'built':
@@ -185,9 +189,18 @@ def detected(scan=None, manager=None):
 
 
 def target(instance, scan=None, manager=None):
-    """The install target: the twin, or a detected board on THIS host (a live scan first, then BoardInstance rows)."""
+    """The install target: the twin of a board, or a detected board on THIS host (a live scan first, then BoardInstance rows). `undetected:<board>` is a board
+    that was never plugged in: a plan for it can be READ (the command that would run) and is always refused."""
     if instance in (TWIN, 'twin'):
         return {'name': TWIN, 'kind': 'twin', 'definition': UNO, 'host': this_host(), 'port': TWIN_LINK, 'adapter': ''}
+    tk = IK.of_twin(instance)
+    if tk is not None:
+        return {'name': tk['twin'], 'kind': 'twin', 'definition': tk['board'], 'host': this_host(), 'port': '', 'adapter': ''}
+    if str(instance).startswith('undetected:'):
+        uk = IK.of_board(str(instance)[len('undetected:'):])
+        if uk is None:
+            raise InstallRefused('%s names no board the installer knows (%s)' % (instance, ', '.join('undetected:' + k['board'] for k in IK.KINDS)), '404 Not Found')
+        return {'name': instance, 'kind': 'board', 'definition': uk['board'], 'host': this_host(), 'port': '', 'adapter': '', 'instance': None, 'undetected': True}
     inst = next((i for i in detected(scan, manager)['instances'] if i.get('name') == instance), None)
     if inst is None:
         row = _by_name(manager, 'BoardInstance', instance)
@@ -200,8 +213,8 @@ def target(instance, scan=None, manager=None):
         board, adapter = inst['target_board'], inst['definition']
     else:
         board, adapter = inst.get('definition'), ''
-    if board != UNO:
-        raise InstallRefused('%s is a %s — only the UNO has firmware variants so far (plan §8a: the rest are roads)' % (instance, board))
+    if IK.of_board(board) is None:
+        raise InstallRefused('%s is a %s — only the UNO (%s) and the ESP32-C3 (%s) have firmware variants so far (plan §8a: the rest are roads)' % (instance, board, UNO, IK.C3['board']))
     return {'name': inst['name'], 'kind': 'board', 'definition': board, 'host': inst.get('host', ''), 'adapter': adapter,
             'port': inst.get('by_id_path') or inst.get('port') or '', 'instance': inst}
 
@@ -230,13 +243,17 @@ def plan(manager, instance, build_name, work=None, scan=None, install_anyway=Fal
     t = target(instance, scan, manager)
     c = compat.check(b, manager)
     variant = b.get('variant', '')
+    kind = IK.of_build(b)
+    steps = IK.steps(kind)   # None = the UNO's own functions below
     n = len([p for p in _rows(manager, 'InstallPlan') if getattr(p, 'build', '') == b['name']]) + 1
     mode = 'sim' if t['kind'] == 'twin' else 'real'
     base = {'name': 'plan-%s-%d' % (b['name'], n), 'build': b['name'], 'variant': variant, 'instance': t['name'], 'target_kind': t['kind'],
             'host': t['host'] or this_host(), 'port': t['port'], 'adapter': t['adapter'], 'compat': c['verdict'], 'compat_why': c['plain'],
             'artifact_sha256': b.get('artifact_sha256', ''), 'planned_at': _now(), 'install_mode': mode, 'gate': 'not-gated', 'gate_words': '', 'override_reason': ''}
     why = []
-    gate = None
+    gate, checks, argv_text = None, [], None
+    if t.get('undetected'):
+        why.append('no %s is detected on this host: nothing can be installed. This is the command that would run once one is plugged in and detected' % kind['label'])
     if mode == 'real':
         gate = G.verdict(manager, variant, b.get('artifact_sha256', ''))
         base['gate'], base['gate_words'] = ('offered' if gate['offered'] else 'not-offered') if gate['gated'] else 'not-gated', gate['words']
@@ -247,16 +264,32 @@ def plan(manager, instance, build_name, work=None, scan=None, install_anyway=Fal
                 why.append('REFUSED: "install anyway" needs the reason, in words — it is recorded on the plan and the record. The gate says: %s' % gate['words'])
             else:
                 why.append('REFUSED (sim not confirmed): %s. %s' % (gate['words'], gate['offer']))
+        if steps is not None:   # ins-c3-1: the C3's checks. "Install anyway" passes the gate (and the proving runs it counts), never the chip-HAL or the image-is-the-files check
+            checks = steps.checks(manager, b, gate)
+            for ck in (x for x in checks if not x['ok']):
+                if ck['name'] == 'runs-on-this-image' and install_anyway and str(reason or '').strip():
+                    base['gate'], base['override_reason'] = 'overridden', str(reason).strip()[:300]
+                else:
+                    why.append('REFUSED (%s): %s' % (ck['name'], ck['words']))
     if b.get('state') not in ('built', 'flashed') or not b.get('hex_path'):
         why.append('build %s is %r, not built — nothing to install' % (b['name'], b.get('state')))
     elif not os.path.isfile(b['hex_path']):
-        why.append('the .hex of %s is not on this host (%s) — build it here' % (b['name'], this_host()))
+        why.append('the %s of %s is not on this host (%s) — build it here' % (kind['artifact'], b['name'], this_host()))
     if b.get('board_definition') != t['definition']:
         why.append('build %s is for %s, the target is a %s' % (b['name'], b.get('board_definition'), t['definition']))
     if c['verdict'] != 'compatible':
         why.append('REFUSED (%s): %s' % (c['verdict'], c['plain']))
     hex_path = b.get('hex_path') or '{hex}'
-    if t['kind'] == 'twin':
+    if steps is not None:
+        pl = steps.plan_twin(manager, b, variant) if t['kind'] == 'twin' else steps.plan_board(b, t['port'], t['name'])
+        argv, wrapper, where = pl['argv'], pl['wrapper'], pl['where']
+        argv_text = pl.get('argv_text') or ' '.join(argv)
+        base.update(programmer=pl['programmer'], engine=pl['engine'], will_stamp=pl['will_stamp'])
+        if pl['refused']:
+            why.append(pl['refused'])
+        elif where['how'] == 'refused':
+            why.append(where['why'])
+    elif t['kind'] == 'twin':
         argv, wrapper, where = _twin_argv(hex_path, V.stimulus(_variant(manager, variant)))
         base.update(programmer='simavr-load (the twin)', engine='avr-twin',
                     will_stamp='the twin runs %s (sha256 %s); no BoardInstance is stamped — it is the twin' % (b['name'], base['artifact_sha256'][:16]))
@@ -276,9 +309,10 @@ def plan(manager, instance, build_name, work=None, scan=None, install_anyway=Fal
                                % (t['name'], base['artifact_sha256'][:16], b['name']))
         if where['how'] == 'refused':
             why.append(where['why'])
-    base.update(argv_json=json.dumps(argv), argv_text=' '.join(argv), wrapper_text=' '.join(wrapper), engine_how=where['how'],
+    base.update(argv_json=json.dumps(argv), argv_text=argv_text if argv_text is not None else ' '.join(argv), wrapper_text=' '.join(wrapper), engine_how=where['how'],
                 engine_where=where.get('where') or where.get('why', ''), state='refused' if why else 'planned',
-                notes='; '.join(why) if why else 'DRY-RUN: nothing was opened. Install needs this plan AND confirm.')
+                notes='; '.join(why) if why else 'DRY-RUN: nothing was opened. Install needs this plan AND confirm.'
+                + ''.join(' · check %s: %s' % (x['name'], x['words']) for x in checks if x['ok'] and not why))
     if base['override_reason']:
         base['notes'] = 'INSTALLED ANYWAY past the sim gate (%s) — reason given: %s · %s' % (gate['words'], base['override_reason'], base['notes'])
     # his rulings 2026-10-09: the plan carries the firmware's proof summary and ADVISES (never blocks) a real-board install
@@ -286,7 +320,7 @@ def plan(manager, instance, build_name, work=None, scan=None, install_anyway=Fal
     if advice:
         base['notes'] = base['notes'] + ' · ' + advice
     row = upsert(manager, InstallPlan, base)
-    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row, advice=advice, gate_detail=gate)
+    return dict(base, refused=bool(why), why='; '.join(why), compat_detail=c, row=row, advice=advice, gate_detail=gate, checks=checks)
 
 
 def _proof_advice(manager, variant, target_kind, board):
@@ -334,14 +368,22 @@ def run(manager, plan_name, confirm=False, work=None, scan=None, flash_run=None)
         p.state, p.notes = 'refused', 'at run time: %s' % c['plain']
         _save(manager, p)
         raise InstallRefused('REFUSED (%s): %s' % (c['verdict'], c['plain']), verdict=c['verdict'])
+    from board.custom import sim_gate as G
     if p.target_kind == 'board' and not getattr(p, 'override_reason', ''):
         # ins-1: the gate is read again NOW — a confirmation voided since the plan (a new hex) refuses the run
-        from board.custom import sim_gate as G
         g = G.verdict(manager, b.get('variant', ''), b.get('artifact_sha256', ''))
         if g['gated'] and not g['offered']:
             p.state, p.notes, p.gate, p.gate_words = 'refused', 'at run time: %s' % g['words'], 'not-offered', g['words']
             _save(manager, p)
             raise InstallRefused('REFUSED (sim not confirmed): %s. %s' % (g['words'], g['offer']), gate=g)
+    steps = IK.steps(IK.of_build(b))
+    if p.target_kind == 'board' and steps is not None:
+        # ins-c3-1: the C3's checks are read again NOW too (the files or the proving runs may have changed since the plan); only the proving-runs check can be passed by "install anyway"
+        for ck in steps.checks(manager, b, G.verdict(manager, b.get('variant', ''), b.get('artifact_sha256', ''))):
+            if not ck['ok'] and not (ck['name'] == 'runs-on-this-image' and getattr(p, 'override_reason', '')):
+                p.state, p.notes = 'refused', 'at run time: REFUSED (%s): %s' % (ck['name'], ck['words'])
+                _save(manager, p)
+                raise InstallRefused('REFUSED (%s): %s' % (ck['name'], ck['words']), check=ck['name'])
     t0, started = time.time(), _now()
     n = len([r for r in _rows(manager, 'InstallRecord') if getattr(r, 'build', '') == b['name']]) + 1
     rec = {'name': 'install-%s-%d' % (b['name'], n), 'plan': p.name, 'build': b['name'], 'variant': b.get('variant', ''), 'instance': p.instance,
@@ -375,6 +417,9 @@ def run(manager, plan_name, confirm=False, work=None, scan=None, flash_run=None)
 
 
 def _run_twin(manager, b, work):
+    steps = IK.steps(IK.of_build(b))
+    if steps is not None:
+        return steps.run_twin(manager, b)
     from board.custom import twin
     work = work or work_dir()
     stim = V.stimulus(_variant(manager, b.get('variant', '')))
@@ -398,6 +443,9 @@ def _run_board(manager, p, b, work, scan, flash_run):
     t = target(p.instance, scan, manager)
     if t['port'] != p.port:
         raise InstallRefused('the board moved: the plan says %s, it is now at %s — plan again' % (p.port, t['port']))
+    steps = IK.steps(IK.of_build(b))
+    if steps is not None:
+        return steps.run_board(manager, p, b, t, flash_run)
     kw = {'run': flash_run} if flash_run else {}
     try:
         res = flash.flash(UNO, os.path.dirname(b['hex_path']), port=p.port, yes=True, instance=t['instance'], **kw)
@@ -417,47 +465,77 @@ MODES = [{'name': 'sim', 'title': 'Sim install', 'target_kind': 'twin', 'words':
          {'name': 'real', 'title': 'Real install', 'target_kind': 'board', 'words': 'a detected board on this host, over USB. Offered for a config only after its sim '
                                                                                'install ran the four Purposes on the twin AND a person ticked the confirmation.'}]
 
+#: ins-c3-2: the words the Install Firmware page shows for this board (the page names no board itself)
+PAGE = {'twin_note': 'The simavr twin runs the very same .hex a real UNO is flashed with. A real install is offered only after the firmware ran its '
+                      'Purposes here and you confirmed what you saw.',
+        'no_board': 'Plug the UNO in and press Refresh — or do the sim install first.', 'artifact': '.hex', 'on_twin': 'the twin (simavr)', 'attach': True}
 
-def document(manager, work=None, scan=None):
+
+def _pct(n, mx):
+    return round(100.0 * n / mx, 1) if n is not None and mx else None   # a limit (or a size) the record does not state has no percent
+
+
+def _of_kind(kind, variant):
+    return IK.of_variant(variant) is kind
+
+
+def document(manager, work=None, scan=None, board=None):
+    """The page's document. `board` (a board name or an alias: uno, c3 ...; default the UNO) picks the kind: its limits, builds, variants, targets, twin and modes."""
     from board.custom import build as B, twin
     from board.custom import sim_gate as G
-    flash_max, ram_max, cite = B.limits(UNO)
+    kind = IK.of_alias(board) if board else IK.UNO
+    if kind is None:
+        raise InstallRefused('no installer board %r — one of %s' % (board, ', '.join(k['name'] for k in IK.KINDS)), '400 Bad Request')
+    steps = IK.steps(kind)
+    flash_max, ram_max, cite = B.limits(UNO) if steps is None else steps.limits()
     det = detected(scan, manager)
-    boards = [i for i in det['instances'] if i.get('definition') == UNO and i.get('state') == 'board present']
+    boards = [i for i in det['instances'] if i.get('definition') == kind['board'] and i.get('state') == 'board present']
     adapters = [i for i in det['instances'] if i.get('definition_kind') == 'adapter']
     builds = []
     for b in sorted(all_builds(manager, work).values(), key=lambda r: r.get('built_at', ''), reverse=True):
-        if b.get('board_definition') != UNO:
+        if b.get('board_definition') != kind['board']:
             continue
         c = compat.check(b, manager)
         engines = json.loads(b.get('engines_json') or '{}') if isinstance(b.get('engines_json'), str) else (b.get('engines_json') or {})
-        flash_b = int(b.get('size_text') or 0) + int(b.get('size_data') or 0)
-        ram_b = int(b.get('size_data') or 0) + int(b.get('size_bss') or 0)
+        if steps is None:
+            flash_b = int(b.get('size_text') or 0) + int(b.get('size_data') or 0)
+            ram_b = int(b.get('size_data') or 0) + int(b.get('size_bss') or 0)
+            b_flash_max, b_ram_max = flash_max, ram_max
+        else:
+            flash_b, ram_b = steps.sizes(b)
+            b_flash_max, b_ram_max = steps.limits(b)[:2]
         g = G.verdict(manager, b.get('variant', ''), b.get('artifact_sha256', ''))   # ins-1: the Real side's words for this exact program
-        builds.append(dict(_fields(b, _BUILD_KEYS), flash_bytes=flash_b, flash_max=flash_max, ram_bytes=ram_b, ram_max=ram_max,
-                           flash_pct=round(100.0 * flash_b / flash_max, 1), ram_pct=round(100.0 * ram_b / ram_max, 1),
+        builds.append(dict(_fields(b, _BUILD_KEYS), flash_bytes=flash_b, flash_max=b_flash_max, ram_bytes=ram_b, ram_max=b_ram_max,
+                           flash_pct=_pct(flash_b, b_flash_max), ram_pct=_pct(ram_b, b_ram_max),
                            compat=c['verdict'], compat_why=c['plain'], installable=c['verdict'] == 'compatible' and b.get('state') in ('built', 'flashed')
                            and bool(b.get('hex_path')) and os.path.isfile(b.get('hex_path') or ''),
                            engines=', '.join('%s %s' % (k, (v.get('version') or v.get('id') or '')[:40]) for k, v in engines.items()),
                            gate={k: g[k] for k in ('gated', 'offered', 'words', 'missing', 'offer', 'anyway')},
                            gate_purposes=g['purposes'], gate_confirmation=g['confirmation']))
-    vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
-    vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
+    if steps is None:
+        vrows = _rows(manager, 'FirmwareVariant') or [dict(v) for v in V.SEED_FIRMWARE_VARIANTS]
+        vrows = [v for v in vrows if (v.get('board_definition') if isinstance(v, dict) else getattr(v, 'board_definition', UNO)) in (UNO, '', None)]   # sc-3: the C3's are not the UNO's
+    else:
+        from board.custom import variants_c3 as V3
+        vrows = [v for v in _rows(manager, 'FirmwareVariant') if getattr(v, 'board_definition', '') == kind['board']] or [dict(v) for v in V3.SEED_C3_VARIANTS]
     vlist = group_variants([_fields(v, ('name', 'title', 'purpose', 'app', 'classes_json', 'what_to_watch')) for v in vrows], True, sample_names(manager))
-    ts = twin.status(UNO, work or work_dir())
-    recs = sorted(_rows(manager, 'InstallRecord'), key=lambda r: getattr(r, 'started_at', ''), reverse=True)
-    plans = sorted(_rows(manager, 'InstallPlan'), key=lambda r: getattr(r, 'planned_at', ''), reverse=True)
-    targets = [{'name': TWIN, 'kind': 'twin', 'label': 'the simavr twin of the UNO (this host)', 'port': TWIN_LINK}] + \
-        [{'name': i['name'], 'kind': 'board', 'label': 'UNO at %s' % (i.get('by_id_path') or i.get('port')), 'port': i.get('by_id_path') or i.get('port')} for i in boards]
-    return {'ok': True, 'host': this_host(), 'host_label': host_label(), 'board': UNO, 'limits': {'flash_b': flash_max, 'ram_b': ram_max, 'cited': cite},
+    ts = twin.status(UNO, work or work_dir()) if steps is None else steps.twin_status(manager)
+    recs = sorted((r for r in _rows(manager, 'InstallRecord') if _of_kind(kind, getattr(r, 'variant', ''))), key=lambda r: getattr(r, 'started_at', ''), reverse=True)
+    plans = sorted((p for p in _rows(manager, 'InstallPlan') if _of_kind(kind, getattr(p, 'variant', ''))), key=lambda r: getattr(r, 'planned_at', ''), reverse=True)
+    twin_label = 'the simavr twin of the UNO (this host)' if steps is None else 'the pin-model twin of the ESP32-C3 (a twin session on the ESP engines worker)'
+    targets = [{'name': kind['twin'], 'kind': 'twin', 'label': twin_label, 'port': TWIN_LINK if steps is None else ''}] + \
+        [{'name': i['name'], 'kind': 'board', 'label': '%s at %s' % (kind['label'], i.get('by_id_path') or i.get('port')), 'port': i.get('by_id_path') or i.get('port')} for i in boards]
+    return {'ok': True, 'host': this_host(), 'host_label': host_label(), 'board': kind['board'], 'limits': {'flash_b': flash_max, 'ram_b': ram_max, 'cited': cite},
+            'kind': kind['name'], 'kinds': [{'name': k['name'], 'board': k['board'], 'label': k['label']} for k in IK.KINDS],
             'targets': targets, 'boards': boards, 'adapters': adapters, 'unadmitted': det.get('unadmitted', []),
             # ins-0: the two install modes; the page opens on real when a board is plugged in, else on sim
-            'modes': MODES, 'default_mode': 'real' if boards else 'sim', 'attest': G.ATTEST,
-            'confirmations': G.confirmations(manager)[:20],
+            'page': PAGE if steps is None else steps.PAGE,
+            'modes': MODES if steps is None else steps.MODES, 'default_mode': 'real' if boards else 'sim', 'attest': G.ATTEST,
+            'confirmations': [c for c in G.confirmations(manager) if _of_kind(kind, c.get('config', ''))][:20],
             'prove_command': G.prove_command('<config>'),
             'scan_note': det.get('error') or ('%d board(s), %d adapter(s), %d unadmitted on %s' % (len(boards), len(adapters), len(det.get('unadmitted', [])), this_host())),
             'variants': vlist, 'builds': builds,
-            'twin': {k: ts.get(k) for k in ('state', 'build', 'variant', 'hex_sha256', 'link', 'adc0', 'adc_mv', 'started_at')},
+            'twin': {k: ts.get(k) for k in ('state', 'build', 'variant', 'hex_sha256', 'link', 'adc0', 'adc_mv', 'started_at', 'session') if steps is not None or k != 'session'},
             'plans': [_fields(p, ('name', 'build', 'variant', 'instance', 'target_kind', 'argv_text', 'wrapper_text', 'engine', 'engine_how',
                                   'compat', 'compat_why', 'will_stamp', 'state', 'planned_at', 'notes', 'install_mode', 'gate', 'gate_words', 'override_reason')) for p in plans[:10]],
             'records': [_fields(r, ('name', 'plan', 'build', 'variant', 'instance', 'target_kind', 'verdict', 'verify', 'verified_bytes', 'firmware_sha',

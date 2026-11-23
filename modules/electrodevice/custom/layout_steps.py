@@ -67,7 +67,7 @@ def _final_checks(design, laid, steps_before):
         if p['kind'] == 'led':
             a = next(l for l in p['legs'] if l['name'] == 'anode')
             checks.append("The LED's longer leg is in row %d (the row joined to the resistor), its shorter leg in row %d." % (a['row'], next(l for l in p['legs'] if l['name'] == 'cathode')['row']))
-    checks.append("Compare the board with the drawing, then plug the UNO in. Polari's netlist gate has already checked that this layout makes exactly the design's nets.")
+    checks.append("Compare the board with the drawing, then plug %s in. Polari's netlist gate has already checked that this layout makes exactly the design's nets." % design.get('board_said', 'the UNO'))
     return checks
 
 
@@ -76,7 +76,8 @@ def build_steps(design, laid, board_label, pin_where, header_label):
     wires = [dict(w, _header=header_label) for w in laid['wires']]
     rail_wires = [w for w in wires if w['name'].endswith('-header')]
     other = [w for w in wires if w not in rail_wires]
-    raw = [('unplug', 'Unplug the board', "Unplug the UNO from USB and from any other power, and take any old wires off %s. Nothing is wired while it has power." % board_label, [], [])]
+    said = design.get('board_said', 'the UNO')
+    raw = [('unplug', 'Unplug the board', "Unplug %s from USB and from any other power, and take any old wires off %s. Nothing is wired while it has power." % (said, board_label), [], [])]
     if rail_wires:
         raw.append(('rails', 'Wire the rails', ' '.join(_wire_text(w, pin_where, header_label) for w in rail_wires), [], [w['name'] for w in rail_wires]))
     for p in laid['placements']:

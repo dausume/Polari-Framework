@@ -6,9 +6,12 @@ sim-1 (HARDWARE_BENCH_CONVERGENCE_PLAN.md §8): twin SESSIONS as TwinSession row
     start(manager, config, ttl_s=1800, owner='', watch=None) -> view + {'token': ...}   build the config's firmware (the shipped gen + build pipeline: the
                                   same .hex `pol board build` writes), POST it to the worker (board_engines.resolve_sessions), connect the ONE backend control
                                   connection, write the row. The hex sha256 on the row is the LOCKED firmware.
+                                  c3g-3: the chip is the config's (board.custom.twin_kinds): a C3 variant builds the chip-HAL flash image and goes to the
+                                  esp-engines worker with its pin layout; the row's hex_sha256 / hex_bytes are then the image's.
     listing(manager) / one(manager, name)    refresh each running row from the worker first (an ended or reaped session is marked, never left "running")
     stop(manager, name)                      DELETE on the worker, close the connection, mark the row ended
     inject(manager, name, body)              {"set":"PD2","level":0} | {"adc":0,"mv":750} | {"reset":1} | {"watch":[..]} | {"run":false} | {"status":1}
+                                             a C3 pad is GPIO<n> and also takes "level":"z" (let it go); what a twin cannot do it refuses in its own words
     events(manager, name, replay=0)          a Subscription on the session's control stream (see twin_ctl_hub)
     participants(manager)                    the running sessions as Hardware Solution participants (`twin:<board>#<n>`)
 
@@ -22,13 +25,11 @@ import tempfile
 import time
 from urllib.parse import urlparse
 
-from board.custom import board_engines as be, twin_session_worker as W, twin_token, twin_transport as TT
+from board.custom import board_engines as be, twin_kinds as K, twin_session_worker as W, twin_token, twin_transport as TT
 from board.custom.twin_ctl_hub import Hub, HubRefused
 
 DEFAULT_TTL_S = 1800
-DEFAULT_WATCH = ['PB5', 'PD2', 'PD3', 'PD4', 'PD5', 'PD6', 'PD7']
-BOARD = 'arduino-uno-r3'
-MCU = 'atmega328p'
+DEFAULT_WATCH, BOARD, MCU = K.AVR['watch'], K.AVR['board'], K.AVR['mcu']   # the UNO's, kept by name for their readers; every kind is in twin_kinds
 CLASS = 'TwinSession'
 HUBS = {}   # row name -> Hub (this backend process's one control connection per session)
 _FALLBACK = {}   # rows when there is no manager (the CLI's offline path, selftests)
@@ -116,8 +117,8 @@ def build_hex(config):
 
 
 # ------------------------------------------------------------------ the worker
-def _worker():
-    where = be.resolve_sessions()
+def _worker(family='avr'):
+    where = be.resolve_sessions(family)
     if where['how'] != be.REMOTE:
         raise SessionRefused(where['why'], 424)   # 424, not 503: the proxy masks a 503 as "Backend unavailable" and the words are lost
     return where['where']
@@ -141,16 +142,25 @@ def _end(manager, row, why, hub_close=True):
 
 
 def start(manager, config, ttl_s=DEFAULT_TTL_S, owner='', watch=None, free=False, hex_bytes=None):
-    worker = _worker()
-    if hex_bytes is None:
-        hex_bytes, sha = build_hex(config)
-    else:
-        import hashlib
-        sha = hashlib.sha256(hex_bytes).hexdigest()
+    """`hex_bytes` = firmware already built (the UNO's .hex, the C3's merged flash image): nothing is built then."""
+    kind = K.of(config)
+    try:
+        K.admit(kind, config, free)   # before the worker is asked or anything is built
+    except K.KindRefused as e:
+        raise SessionRefused(str(e), e.status)
+    worker = _worker(kind['family'])
     name = '%s-%s' % (config, secrets.token_hex(3))
     token = twin_token.derive(name)
     try:
-        w = W.start(worker, hex_bytes, BOARD, MCU, ttl_s, token, owner=owner, free=free)
+        if hex_bytes is None and kind is K.AVR:
+            hex_bytes = build_hex(config)[0]
+        fw = K.firmware(kind, config, hex_bytes)
+        asked = K.request(kind, fw, ttl_s, token, owner=owner, free=free)
+    except K.KindRefused as e:
+        raise SessionRefused(str(e), e.status)
+    hex_bytes, sha, board = fw['bytes'], fw['sha256'], kind['board']
+    try:
+        w = W.post(worker, asked, timeout=kind['post_timeout'])
     except W.WorkerRefused as e:
         raise SessionRefused(str(e), 424 if e.status in (0, 503) else (e.status or 502))
     host = urlparse(worker).hostname or ''
@@ -160,9 +170,9 @@ def start(manager, config, ttl_s=DEFAULT_TTL_S, owner='', watch=None, free=False
         with contextlib.suppress(W.WorkerRefused):
             W.stop(worker, w['id'])
         raise SessionRefused('the session started on the worker but the way to reach it cannot be read: %s; it was stopped' % e, 502)
-    idx = _next_index(manager, BOARD)
-    watch = list(watch or DEFAULT_WATCH)
-    row = _new_row(manager, name=name, config=config, board=BOARD, participant='twin:%s#%d' % (BOARD, idx), instance_index=idx, state='running', hex_sha256=sha,
+    idx = _next_index(manager, board)
+    watch = list(watch or fw['watch'])
+    row = _new_row(manager, name=name, config=config, board=board, participant='twin:%s#%d' % (board, idx), instance_index=idx, state='running', hex_sha256=sha,
                    hex_bytes=len(hex_bytes), firmware_locked=True, worker_url=worker, worker_session=w['id'], host=host, tcp_port=w['ports']['tcp'],
                    ctl_port=w['ports']['ctl'], ctl_url=way['ctl_url'], uart_url=way['uart_url'], transport_why=way['why'], owner=owner, started_at=w['started'], expires_at=w['expires'], ttl_s=int(ttl_s), watch_json=json.dumps(watch),
                    last_status_json=json.dumps(w.get('status') or {}))
@@ -239,13 +249,15 @@ def _hub(manager, row):
     return hub
 
 
-def _command(body):
+def _command(body, kind=K.AVR):
+    """The checked line for the twin. Only the SHAPE is checked here; what a twin cannot do (a C3 has no adc, reset or pause yet) it refuses in its own words."""
     if not isinstance(body, dict) or not body:
-        raise SessionRefused('inject takes {"set":"PD2","level":0|1}, {"adc":0,"mv":750}, {"reset":1}, {"watch":["PD6"]}, {"run":true|false} or {"status":1}', 400)
+        raise SessionRefused(kind['usage'], 400)
     if 'set' in body:
-        if body.get('level') not in (0, 1, True, False):
-            raise SessionRefused('"set" needs "level": 0 or 1', 400)
-        return {'set': str(body['set']), 'level': int(body['level'])}
+        try:
+            return K.command_set(kind, body)
+        except K.KindRefused as e:
+            raise SessionRefused(str(e), 400)
     if 'adc' in body:
         try:
             return {'adc': int(body['adc']), 'mv': int(body['mv'])}
@@ -271,7 +283,7 @@ META_KEYS = ('part', 'what', 'kind')
 def inject(manager, name, body, who=''):
     row = _find(manager, name)
     meta = {k: body[k] for k in META_KEYS if isinstance(body, dict) and k in body}
-    cmd = _command({k: v for k, v in body.items() if k not in META_KEYS} if isinstance(body, dict) else body)
+    cmd = _command({k: v for k, v in body.items() if k not in META_KEYS} if isinstance(body, dict) else body, K.of_board(row.board))
     reply = _hub(manager, row).request(cmd)
     if 'watch' in cmd and reply.get('t') == 'ack':
         row.watch_json = json.dumps(cmd['watch'])

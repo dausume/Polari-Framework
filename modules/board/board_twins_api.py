@@ -85,7 +85,7 @@ class BoardTwinsAPI(treeObject):
             return
         if not body.get('config'):
             response.status = falcon.HTTP_400
-            response.media = {'ok': False, 'error': 'POST /api/board/twins needs "config": a firmware variant such as uno-light (GET /api/board/variants lists them)'}
+            response.media = {'ok': False, 'error': 'POST /api/board/twins needs "config": a firmware variant such as uno-light or esp32c3-light (GET /api/board/variants lists them)'}
             return
         try:
             kw = dict(ttl_s=int(body.get('ttl_s') or TS.DEFAULT_TTL_S), owner=str(body.get('owner') or ''), watch=body.get('watch'), free=bool(body.get('free')))

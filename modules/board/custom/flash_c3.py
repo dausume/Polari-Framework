@@ -114,8 +114,10 @@ def main(argv):
         print('          engine: esptool %s (%s)' % (res['engine']['how'], res['engine']['where'] or res['engine']['why']))
         print('          merged image sha256 %s · app.bin sha256 %s' % (res['image_sha256'], res['app_sha256']))
         print('          %s' % res['why'])
+        print('          this verb asks no confirmed-sim gate; `pol board install c3 --real` does (and checks the files are the image the twin ran)')
         return 0
     print('[ OK ] flashed %s → %s; every image hash-verified by esptool' % (res['row']['name'], res['port']))
+    print('       this verb asked no confirmed-sim gate; `pol board install c3 --real` does')
     return 0
 
 

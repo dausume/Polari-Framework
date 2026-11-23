@@ -154,6 +154,9 @@ def page_checks():
               (page in SEED_BOARD_PAGE_DISPLAYS or page in SEED_HWNOCODE_PAGE_DISPLAYS))
         check('%s: only configured tables + the ONE sanctioned renderer (no api-json-panel, no other custom component), exactly %d renderer' % (label, nrender),
               names == {'class-rows-table', 'hardware-layout-view'} and sum(1 for i in items if i['componentProps']['componentName'] == 'hardware-layout-view') == nrender, names)
+        said = [page['description']] + [i.get('description') or '' for i in items]
+        check('%s: the page text is printed once - no panel repeats it, and no two panels carry the same words' % label,
+              page['description'] and len([s for s in said if s]) == len({s for s in said if s}), [i['id'] for i in items if i.get('description') == page['description']])
         tables = [i for i in items if i['componentProps']['componentName'] == 'class-rows-table']
         check('%s: every table says in plain words what it is for and what one row is' % label, all('What this is for' in i['description'] and 'One row' in i['description'] for i in tables if i['id'] != 'light-state' and i['id'] != 'sim-light-state'),
               [i['id'] for i in tables if 'One row' not in i['description']])

@@ -35,9 +35,14 @@ def _call(method, url, body=None, timeout=20):
         raise WorkerRefused('the worker at %s is unreachable: %s' % (url.rsplit('/sessions', 1)[0], e))
 
 
+def post(worker, body, timeout=30):
+    """POST /sessions with a body as the worker's kind takes it (board.custom.twin_kinds.request writes it)."""
+    return _call('POST', '%s/sessions' % worker, body, timeout=timeout)
+
+
 def start(worker, hex_bytes, board, mcu, ttl_s, token, owner='', free=False):
-    body = {'hex_b64': base64.b64encode(hex_bytes).decode(), 'board': board, 'mcu': mcu, 'ttl_s': int(ttl_s), 'token': token, 'owner': owner, 'free': bool(free)}
-    return _call('POST', '%s/sessions' % worker, body, timeout=30)
+    """The UNO's body, by its parts."""
+    return post(worker, {'hex_b64': base64.b64encode(hex_bytes).decode(), 'board': board, 'mcu': mcu, 'ttl_s': int(ttl_s), 'token': token, 'owner': owner, 'free': bool(free)})
 
 
 def get(worker, sid):

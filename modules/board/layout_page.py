@@ -25,13 +25,17 @@ _TEXT = ('Layout - where each part and wire goes on the breadboard, drawn from t
          'highlighted and the rest dimmed; the step stays in the address (?step=). "Whole build" shows everything. Drag to pan, scroll to zoom, Fit to see it all. The tables beside the picture '
          'are the same build as words: the steps, the verdict of the netlist gate (the layout\'s nets must EQUAL the design\'s nets), the wire colours and the boards.')
 
+# The picture's own words. The page text above is printed once, under the page title; the picture used to repeat all of it (finding 6 of release 93).
+_VIEW_TEXT = ('The build, drawn from the real geometry of the boards. Click a hole, a part or a wire to see it; click again, or press Escape, to clear. '
+              'Drag to pan, scroll to zoom, Fit to see it all.')
+
 _STEPS_COLS = 'step,kind,title,text'
 _VERDICT_COLS = 'status,check,subject,words'
 
 
 def _build_rows():
     return [
-        _row(0, [_layout_view('lay-view', 0, 12, 'Layout - the build on the bench', _TEXT, mode='build', config=DEFAULT_CONFIG)], min_height=620),
+        _row(0, [_layout_view('lay-view', 0, 12, 'Layout - the build on the bench', _VIEW_TEXT, mode='build', config=DEFAULT_CONFIG)], min_height=620),
         _row(1, [
             _table('lay-steps', 0, 6, 'Build steps', '', data_path='/api/layout/steps?config={scope:config}&board={scope:board}&scheme={scope:scheme}',
                    empty_text='Opening the layout... (the steps appear when the picture has said which config it shows)',

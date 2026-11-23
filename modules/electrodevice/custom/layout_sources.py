@@ -5,7 +5,8 @@ lay-1: WHERE A BUILT CONFIG'S LAYOUT INPUT COMES FROM — the one file of the la
 still loads without them). A config is a firmware variant (`board.custom.variants`); its input is
   - the PARTS its routes need (`cmod` isotope variants' `parts_json`: the `_pt` kit parts, each with the KitPart key it is),
   - its PIN ASSIGNMENT (the variant's own knobs: led_pin, button_pin, sense_pin; the sense pin only when the config has the sense feature),
-  - its CIRCUIT NETS (the electrodevice circuit `uno-button-clock`: the physical bench as rows, with `board_pins_refs_json` naming the BoardPin rows on each net).
+  - its CIRCUIT NETS (the board's electrodevice circuit, named in `layout_boards`: `uno-button-clock` for the UNO, `c3-light` for the C3; the physical bench as rows,
+    with `board_pins_refs_json` naming the BoardPin rows on each net).
 The output is a DESIGN: components with named terminals, and the nets (terminal sets) a correct layout must reproduce. Nothing here is typed per config: a config that needs
 a part the circuit rows do not hold is REFUSED in words (a second circuit is a row to add, not code).
 
@@ -15,6 +16,7 @@ D6->D3), and the design says so (`notes`). The moment the config itself carries 
 import json
 import types
 
+from electrodevice.custom import layout_boards as LB
 from electrodevice.custom.layout_words import LayoutRefused
 
 CIRCUIT = 'uno-button-clock'
@@ -51,28 +53,36 @@ def variant_of(manager, config):
     v = configs.get(config)
     if v is None:
         raise LayoutRefused("no built config %r (configs: %s)" % (config, ', '.join(sorted(configs))), status=404)
-    if (v.get('board_definition') or BOARD) != BOARD:
-        raise LayoutRefused("config %r is for the board %s: layouts are built for the %s only so far" % (config, v.get('board_definition'), BOARD))
+    try:
+        LB.of(v.get('board_definition'))
+    except LayoutRefused as exc:
+        raise LayoutRefused("config %r is for the board %s: %s" % (config, v.get('board_definition'), exc))
     return v
+
+
+def board_of(manager, config):
+    """The board_definition a config's layout is drawn for (the UNO when the config names none)."""
+    return variant_of(manager, config).get('board_definition') or BOARD
 
 
 def pin_assignment(manager, config):
     """-> {led, button, sense (each 'D<n>' | None), 'notes': [words], 'standin': variant | ''}."""
-    from board.custom import variants as V
     v = variant_of(manager, config)
+    board = v.get('board_definition') or BOARD
+    fmt, defaults = LB.of(board)['pin'], LB.default_knobs(board)
     f, k = _j(v.get('features_json'), {}), _j(v.get('knobs_json'), {})
     notes, standin = [], ''
 
     def pin(key, default_key):
-        n = k.get(key, V.DEFAULT_KNOBS.get(default_key))
-        return 'D%d' % n if isinstance(n, int) else None
+        n = k.get(key, defaults.get(default_key))
+        return fmt % n if isinstance(n, int) else None
     out = {'led': pin('led_pin', 'led_pin') if f.get('led') else None, 'button': pin('button_pin', 'button_pin') if f.get('button') else None, 'sense': None}
     if f.get('sense'):
         out['sense'] = pin('sense_pin', 'sense_pin')
-    elif f.get('led') and config in STAND_INS:
+    elif f.get('led') and config in STAND_INS and board == BOARD:
         other = variant_of(manager, STAND_INS[config])
         ok = _j(other.get('knobs_json'), {})
-        n = ok.get('sense_pin', V.DEFAULT_KNOBS.get('sense_pin'))
+        n = ok.get('sense_pin', defaults.get('sense_pin'))
         out['sense'], standin = 'D%d' % n, STAND_INS[config]
         notes.append("config %s has no sense line on this branch (its features: %s), so the sense jumper is STAND-IN wiring from %s: D%s -> %s. "
                      "When %s itself carries the sense feature, its own sense_pin is read instead."
@@ -104,6 +114,7 @@ def route_parts(manager, config):
 
 # ------------------------------------------------------------------ the circuit nets
 def circuit_rows(manager, name=CIRCUIT):
+    """The circuit's component and net rows (live, else seeds); `name` is the board's circuit (layout_boards)."""
     from electrodevice.objects.circuit._shared import SEED_CIRCUIT_COMPONENTS, SEED_CIRCUIT_NETS
     comps = [r for r in _rows(manager, 'CircuitComponentDefinition') if _g(r, 'circuit_name') == name] or [types.SimpleNamespace(**r) for r in SEED_CIRCUIT_COMPONENTS if r['circuit_name'] == name]
     nets = [r for r in _rows(manager, 'CircuitNetDefinition') if _g(r, 'circuit_name') == name] or [types.SimpleNamespace(**dict({'is_ground': False}, **r)) for r in SEED_CIRCUIT_NETS if r['circuit_name'] == name]
@@ -124,7 +135,9 @@ def design_of(manager, config):
     'ground_net', 'supply_nets', 'nets': {net: sorted terminal ids}, 'notes', 'drift', 'assignment'}."""
     asg = pin_assignment(manager, config)
     parts = route_parts(manager, config)
-    comps, net_rows = circuit_rows(manager)
+    board = asg['variant'].get('board_definition') or BOARD
+    circuit = LB.of(board)['circuit']
+    comps, net_rows = circuit_rows(manager, circuit)
     ground = next((_g(n, 'net') for n in net_rows if _g(n, 'is_ground', False)), 'GND')
     wanted, unmapped = [], []
     for p in parts:
@@ -139,7 +152,7 @@ def design_of(manager, config):
             wanted.append((p, hit))
     if unmapped:
         raise LayoutRefused("config %s needs part(s) the circuit rows of %s do not hold: %s. Add the circuit (rows) for this build; the placer reads nets from circuit rows and "
-                            "does not invent a connection." % (config, CIRCUIT, '; '.join(unmapped)))
+                            "does not invent a connection." % (config, circuit, '; '.join(unmapped)))
     if not wanted:
         raise LayoutRefused("config %s has no part that goes on a breadboard (its routes need none)" % config)
     kit = _kit_rows()
@@ -180,9 +193,9 @@ def design_of(manager, config):
         have = sorted(a['pin'] for a in attach.get(_g(n, 'net'), []) if a['role'] != 'ground')
         if refs != have and _g(n, 'net') in nets:
             drift.append("circuit net %s lists BoardPin(s) %s but config %s puts %s on it: the config's pin assignment is used" % (_g(n, 'net'), refs or 'none', config, have or 'none'))
-    return {'config': config, 'board': BOARD, 'components': components, 'attach': attach, 'ground_net': ground, 'supply_nets': [], 'nets': {k: sorted(v) for k, v in nets.items()},
-            'notes': list(asg['notes']), 'drift': drift, 'assignment': {k: asg[k] for k in ('led', 'button', 'sense', 'standin')}, 'circuit': CIRCUIT,
-            'sense_pin': asg['sense']}
+    return {'config': config, 'board': board, 'components': components, 'attach': attach, 'ground_net': ground, 'supply_nets': [], 'nets': {k: sorted(v) for k, v in nets.items()},
+            'notes': list(asg['notes']) + LB.notes(board, components), 'drift': drift, 'assignment': {k: asg[k] for k in ('led', 'button', 'sense', 'standin')}, 'circuit': circuit,
+            'sense_pin': asg['sense'], 'supply_label': LB.of(board)['supply'], 'board_said': LB.of(board)['said']}
 
 
 # ------------------------------------------------------------------ board / part facts (lazy reads of the board module)
@@ -212,17 +225,6 @@ def pin_family(manager, label, board=BOARD):
 
 
 def pin_where(manager, label, board=BOARD):
-    """'DIGITAL_L header, pin 7' for a BoardPin; the first connector pin that carries a power label (GND -> POWER header, pin 6)."""
-    bp = board_pins(manager, board).get(label)
-    if bp and bp.get('connector_pin'):
-        c, _, n = bp['connector_pin'].partition(':')
-        return '%s header, pin %s' % (c, n)
-    from board.custom import board_uno
-    for conn, (_ref, _kind, _fp, labels, _order) in board_uno.CONNECTORS.items():
-        if label in labels:
-            return '%s header, pin %d' % (conn, labels.index(label) + 1)
-    return 'the %s header' % board
+    """'DIGITAL_L header, pin 7' for a BoardPin; a power label where it first sits in the connectors; the C3's words add what is printed (layout_boards.pin_where)."""
+    return LB.pin_where(board, label, board_pins(manager, board).get(label))
 
-
-def power_label(kind):
-    return {'ground': 'GND', 'supply': '+5V'}[kind]

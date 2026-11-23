@@ -13,6 +13,7 @@ GPIO is a register stub - or, pt-4, modelled pads where the esp engines hold the
 
     PYTHONPATH=.:modules python3 -m board.board_light_c3_selftest      # from polari-framework/ (standalone)
 """
+import json
 import shutil
 import tempfile
 
@@ -60,10 +61,49 @@ def run_light_c3(check):
         bf = gen_c3.project_files(base['project_dir'])
         check('smp S5 gen: a C3 variant that is not the light is untouched (no extra header or file): %s' % bf, bf == sorted(set(gen_c3.TEMPLATE_FILES) | {'main/app.c', 'main/board_config.h', 'main/board_pins.h',
                                                                                                          'main/simrigstate_packets.h'}), bf)
+        # ---- the command line: `pol board gen c3 --variant esp32c3-light --knob pin_shim=0` (the chip-HAL build as a CLI step)
+        import contextlib
+        import io
+        from board.custom import gen as G
+
+        def cli(*words):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                rc = gen_c3.main(['c3', '--out', work] + list(words))
+            return rc, out.getvalue()
+        rc, said = cli('--variant', V3.LIGHT_NAME, '--knob', 'pin_shim=0', '--knob', 'debounce_ms=40', '--device-id', '9')
+        cfg = open(work + '/project/main/board_config.h').read()
+        kept = json.loads(G.read_record(work)['repro_json'])['knobs']
+        check('smp S5 CLI: --knob pin_shim=0 generates the chip-HAL light (PIN_SHIM 0 in board_config.h, the knob in the record and in what is printed)',
+              rc == 0 and '#define PIN_SHIM 0 ' in cfg and kept['pin_shim'] == 0 and kept['debounce_ms'] == 40 and kept['device_id'] == 9 and 'pin_shim=0' in said, said)
+        rc, said = cli('--variant', V3.LIGHT_NAME)
+        check('smp S5 CLI: without the knob the light keeps the RAM pin shim (PIN_SHIM 1)', rc == 0 and '#define PIN_SHIM 1 ' in open(work + '/project/main/board_config.h').read()
+              and 'pin_shim=1' in said, said)
+        refusals = {'a knob the variant does not have': (['--variant', 'c3-sim-rig', '--knob', 'pin_shim=0'], 'has no knob pin_shim'),
+                    'an unknown knob': (['--variant', V3.LIGHT_NAME, '--knob', 'pin_shmi=0'], 'has no knob pin_shmi'),
+                    'a word without a value': (['--variant', V3.LIGHT_NAME, '--knob', 'pin_shim'], 'wants NAME=VALUE'),
+                    'a knob named twice': (['--variant', V3.LIGHT_NAME, '--knob', 'pin_shim=0', '--knob', 'pin_shim=1'], 'twice'),
+                    'a knob given by its own option and by --knob': (['--variant', V3.LIGHT_NAME, '--rig-name', 'a', '--knob', 'rig_name=b'], 'given twice'),
+                    'a value outside the knob': (['--variant', V3.LIGHT_NAME, '--knob', 'pin_shim=2'], 'pin_shim is 0 (the chip HAL) or 1')}
+        got = {n: cli(*words) for n, (words, _) in refusals.items()}
+        check('smp S5 CLI: refused with exit 1 and the reason, never dropped: %s' % ', '.join(refusals),
+              all(got[n][0] == 1 and '[REFUSED]' in got[n][1] and want in got[n][1] for n, (_, want) in refusals.items()), {n: g[1][:160] for n, g in got.items()})
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
     from board.custom import light_c3_run as R
+    from board.custom import board_engines as BE
+    real = BE.resolve
+    try:
+        seen = {}
+        for how in ('local-binary', BE.LOCAL_IMAGE, BE.REMOTE, 'refused'):
+            BE.resolve = lambda engine, flash=False, how=how: {'how': how, 'where': 'x', 'kind': 'sim', 'why': 'said by the test'}
+            seen[how] = R.engine_ready()
+    finally:
+        BE.resolve = real
+    check('smp S5 engine: the C3 light is provable on a local engine AND on a worker over the ladder (c3-run is a batch engine); a refused ladder is not ready, with its reason: %s'
+          % {h: r[0] for h, r in seen.items()}, [seen[h][0] for h in ('local-binary', BE.LOCAL_IMAGE, BE.REMOTE, 'refused')] == [True, True, True, False]
+          and seen['refused'][1] == 'said by the test', seen)
     ready, why = R.engine_ready()
     if not ready:
         check('SKIP smp S5 (the light on the C3 twin): no esp engines here - %s' % why, True)

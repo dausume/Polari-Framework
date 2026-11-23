@@ -9,7 +9,9 @@ sim-1: `pol board twin session ...` - a thin client of the twin-session doors (/
   pol board twin session show <name> [--api URL]
   pol board twin session stop <name> [--api URL]
   pol board twin session inject <name> set PD2 0|1 | adc 0 750 | reset | watch PD6,PB5 | run true|false | status [--api URL]
+                                      a C3 session's pads are GPIO<n>: set GPIO3 0|1|z (z lets the pad go); it has no adc, reset or pause yet
   pol board twin session events <name> [--seconds S] [--limit N] [--replay N] [--api URL]    the pin edges as they happen, one line each
+                                      (a UNO edge is stamped with the twin's cycle, a C3 edge with its virtual ns)
 
 Add --json for the raw answer. Exit 0 ok, 1 refused (the words are printed), 2 bad usage.
 """
@@ -49,18 +51,32 @@ def render_start(d):
         'started %s as %s on %s' % (d['name'], d['participant'], d['host']),
         '  firmware   %s (built by the shipped gen + build pipeline), %d bytes, sha256 %s - LOCKED while the session runs' % (d['config'], f['bytes'], f['sha256']),
         '  control    %s (JSON lines)' % (d.get('ctl_url') or 'tcp://%s:%s' % (d['host'], d['ctl_port'])),
-        '  serial     %s (the USART0 report)' % (d.get('uart_url') or 'tcp://%s:%s' % (d['host'], d['tcp_port'])),
+        '  serial     %s (the %s report)' % (d.get('uart_url') or 'tcp://%s:%s' % (d['host'], d['tcp_port']), 'UART0' if d.get('board') == 'esp32-c3' else 'USART0'),
         '  reached    %s' % (d.get('transport_why') or 'on the session\'s TCP ports'),
         '  token      %s    (shown once: a bridge needs it; the server re-derives it, no row stores it)' % d['token'],
         '  ends       in %.0f s unless stopped (pol board twin session stop %s)' % (d['remaining_s'], d['name'])])
+
+
+def event_line(ev):
+    """One pin event as a line. The UNO's twin stamps a cycle; the C3's stamps virtual ns, and its pad can be let go (no level)."""
+    stamp = 'cycle %-12s' % ev['cycle'] if 'cycle' in ev else 'ns %-15s' % ev.get('ns', '?')
+    return '%s %s -> %s' % (stamp, ev['pin'], 'let go' if ev.get('z') or ev.get('level') is None else '%d' % ev['level'])
+
+
+def status_line(st):
+    if st.get('chip') == 'esp32c3':   # the C3 twin's status: virtual time and every driven pad
+        pads = st.get('pads') or {}
+        return '  status: virtual %s ns, pads %s (the others are not driven)' % (st.get('ns'), ' '.join('%s=%s' % (p, pads[p]) for p in pads if pads[p] != 'z') or 'none driven')
+    return '  status: cycle %s, sim %s ms, adc_mv %s, pb5 %s, serial bytes out %s, paused %s' % (st.get('cycle'), st.get('sim_ms'), st.get('adc_mv'), st.get('pb5'),
+                                                                                             st.get('uart_tx_bytes'), st.get('paused'))
 
 
 def _inject_body(words):
     if not words:
         raise ValueError('inject needs set|adc|reset|watch|run|status')
     verb, rest = words[0], words[1:]
-    if verb == 'set' and len(rest) == 2 and rest[1] in ('0', '1'):
-        return {'set': rest[0], 'level': int(rest[1])}
+    if verb == 'set' and len(rest) == 2 and rest[1] in ('0', '1', 'z'):
+        return {'set': rest[0], 'level': 'z' if rest[1] == 'z' else int(rest[1])}
     if verb == 'adc' and len(rest) == 2 and all(r.isdigit() for r in rest):
         return {'adc': int(rest[0]), 'mv': int(rest[1])}
     if verb == 'reset' and not rest:
@@ -71,7 +87,7 @@ def _inject_body(words):
         return {'run': rest[0] in ('true', '1')}
     if verb == 'status' and not rest:
         return {'status': 1}
-    raise ValueError('usage: inject <name> set PD2 0|1 | adc 0 750 | reset | watch PD6,PB5 | run true|false | status')
+    raise ValueError('usage: inject <name> set PD2 0|1 | adc 0 750 | reset | watch PD6,PB5 | run true|false | status   (a C3 pad: set GPIO3 0|1|z)')
 
 
 def _events(api, name, seconds, limit, replay, as_json):
@@ -88,7 +104,7 @@ def _events(api, name, seconds, limit, replay, as_json):
                 if as_json:
                     print(json.dumps(ev), flush=True)
                 elif ev.get('t') == 'pin':
-                    print('cycle %-12s %s -> %d' % (ev['cycle'], ev['pin'], ev['level']), flush=True)
+                    print(event_line(ev), flush=True)
                 else:
                     print('%s %s' % (ev.get('t'), {k: v for k, v in ev.items() if k not in ('t', 'seq')} or ''), flush=True)
         return 0
@@ -158,8 +174,7 @@ def main(argv=None):
         print(line(d))
         st = d.get('status') or {}
         if st:
-            print('  status: cycle %s, sim %s ms, adc_mv %s, pb5 %s, serial bytes out %s, paused %s' % (st.get('cycle'), st.get('sim_ms'), st.get('adc_mv'), st.get('pb5'),
-                                                                                                   st.get('uart_tx_bytes'), st.get('paused')))
+            print(status_line(st))
         if d.get('end_reason'):
             print('  ended: %s' % d['end_reason'])
     else:

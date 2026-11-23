@@ -32,7 +32,7 @@ def _roles(design):
         for a in atts:
             out['hdr:%s' % a['pin']] = a['role']
     for s in design.get('supply_nets') or []:
-        out['hdr:+5V'] = 'supply'
+        out['hdr:%s' % design.get('supply_label', '+5V')] = 'supply'
     return out
 
 

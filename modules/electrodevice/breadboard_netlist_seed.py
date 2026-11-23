@@ -42,7 +42,7 @@ def tie_net(board, tie):
     board_row = board if isinstance(board, str) else board.name
     ident = board_row.replace('-', '_')
     if getattr(board, 'kind', 'breadboard') == 'devboard':
-        label = BF.header_label(tie)
+        label = BF.header_label(tie, getattr(board, 'pins', ()))
         return '0' if label == 'GND' else f"{ident}_{label.lstrip('+').lower()}"
     parsed = BF.parse_tie(tie)
     if parsed is None:
@@ -69,7 +69,7 @@ def _validate_tie(board_row, tie, owner):
                 f"board whose header pins are unknown here (the board "
                 f"module is not loaded, or it has no BoardPin rows for "
                 f"'{board_row.board_definition}')")
-        if BF.header_label(tie) not in pins:
+        if BF.header_label(tie, pins) not in pins:
             raise ValueError(
                 f"{owner}: {tie!r} is not a header pin of board "
                 f"'{board_row.name}' ({board_row.board_definition}); "

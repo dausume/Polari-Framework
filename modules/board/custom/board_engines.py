@@ -223,25 +223,31 @@ def _sessions_cap(cap):
     return bool(cap and (cap.get('sessions') or {}).get('available'))
 
 
-def resolve_sessions():
+#: c3g-3: the words of a sessions refusal, per family: the worker's name and the slice its image must hold
+SESSION_WORKERS = {'avr': ('board-engines', 'sim-0'), 'esp': ('esp-engines', 'c3g-2')}
+
+
+def resolve_sessions(fam='avr'):
     """sim-0/1: where twin SESSIONS can run -> {'how': 'remote'|'refused', 'where': worker url, 'why'}. A session is a WORKER-level door
-    (a detached twin with a live control port, /sessions on the board-engines worker), so a local binary or a local image never serves it. Ladder:
-    BOARD_ENGINES_URL (that worker, ALWAYS - one that cannot list sessions is a refusal, never a silent fallback) -> the topology provider
-    board.engines when its worker lists sessions -> refusal in words."""
-    url = knob_url('avr')
+    (a detached twin with a live control port, /sessions on the family's engines worker), so a local binary or a local image never serves it. Ladder:
+    the family's knob (that worker, ALWAYS - one that cannot list sessions is a refusal, never a silent fallback) -> the family's binding row or
+    topology provider when its worker lists sessions -> refusal in words. `fam`: avr (the UNO twin, BOARD_ENGINES_URL) or esp (the C3 twin, ESP_ENGINES_URL)."""
+    knob, provider = FAMILIES[fam]['knob'], FAMILIES[fam]['provider']
+    worker, since = SESSION_WORKERS[fam]
+    url = knob_url(fam)
     if url:
         cap = remote_capability(url)
         if cap is None:
-            return {'how': 'refused', 'where': url, 'why': '%s=%s is set but the worker is unreachable - refusing (a declared worker never silently falls back)' % (KNOB, url)}
+            return {'how': 'refused', 'where': url, 'why': '%s=%s is set but the worker is unreachable - refusing (a declared worker never silently falls back)' % (knob, url)}
         if not _sessions_cap(cap):
-            return {'how': 'refused', 'where': url, 'why': '%s=%s reached, but that worker does not list sessions (an engines image older than sim-0 - roll the '
-                                                           'board-engines service onto the new image)' % (KNOB, url)}
+            return {'how': 'refused', 'where': url, 'why': '%s=%s reached, but that worker does not list sessions (an engines image older than %s - roll the '
+                                                           '%s service onto the new image)' % (knob, url, since, worker)}
         return {'how': REMOTE, 'where': url, 'why': 'knob'}
-    url = topology_url('avr')
+    url = topology_url(fam)
     if url and _sessions_cap(remote_capability(url)):
-        return {'how': REMOTE, 'where': url, 'why': 'topology provider %s' % PROVIDER_MODULE}
-    return {'how': 'refused', 'where': '', 'why': 'no worker lists twin sessions: set %s to a board-engines worker running the sim-0 image, or `pol allocate %s <instance>`; '
-                                                  'a session is a worker-level door, so a local binary or image cannot serve it' % (KNOB, PROVIDER_MODULE)}
+        return {'how': REMOTE, 'where': url, 'why': 'topology provider %s' % provider}
+    return {'how': 'refused', 'where': '', 'why': 'no worker lists twin sessions: set %s to a %s worker running the %s image, or `pol allocate %s <instance>`; '
+                                                  'a session is a worker-level door, so a local binary or image cannot serve it' % (knob, worker, since, provider)}
 
 
 def placement(engines=None):
