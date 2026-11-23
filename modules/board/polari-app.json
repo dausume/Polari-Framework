@@ -424,6 +424,7 @@
    "custom/timing_drift",
    "custom/twin",
    "custom/twin_c3",
+   "custom/twin_c3_pins",
    "custom/twin_ctl_hub",
    "custom/twin_pty",
    "custom/twin_session_fakes",
