@@ -13,8 +13,8 @@ class FakeBridgeWorker:
     """GET /capability, POST/GET/DELETE /bridges, GET /bridges/{id}/logs. bridges=False = a worker that does not host bridges; knows_door=False = a worker
     older than td-4, which ignores `twin_uart` (its answer does not repeat it) and reads the TCP port."""
 
-    def __init__(self, bridges=True, knows_door=True):
-        self.bridges_cap, self.knows_door, self.items, self.requests = bridges, knows_door, {}, []
+    def __init__(self, bridges=True, knows_door=True, knows_tls=True):
+        self.bridges_cap, self.knows_door, self.knows_tls, self.items, self.requests = bridges, knows_door, knows_tls, {}, []
         outer = self
 
         class H(BaseHTTPRequestHandler):
@@ -55,6 +55,8 @@ class FakeBridgeWorker:
                         'grpc_target': body.get('grpc_target', ''), 'started': now, 'expires': now + body['ttl_s'], 'ttl_s': body['ttl_s'], 'build_fp': 'f' * 16,
                         'jar_sha256': 'a' * 64, 'build': {'cached': False, 'wall_s': 0.1}}
                 line = '[bridge] source=twin-tcp %s:%s' % (body['twin_host'], body['twin_port'])
+                if outer.knows_tls:   # a worker older than the bridge link ignores grpc_tls: its answer does not repeat it
+                    view['grpc_tls'] = body.get('grpc_tls', '')
                 if outer.knows_door:
                     view['twin_uart'] = body.get('twin_uart', '')
                     if view['twin_uart'].startswith('ws'):

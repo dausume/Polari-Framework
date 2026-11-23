@@ -74,6 +74,8 @@
   ],
   "custom": [
    "custom/bridge_engines",
+   "custom/bridge_link",
+   "custom/bridge_link_checks",
    "custom/bridge_paths",
    "custom/c_twin",
    "custom/c_twin_v2",

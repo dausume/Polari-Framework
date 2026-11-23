@@ -65,7 +65,7 @@ def _mgr():
 
 # ---------------------------------------------------------------------------------------------------------------- offline
 def offline():
-    from grpcbridge.custom import bridge_engines as be, hosted_bridges as HB, hosted_checks as HC, hosted_door_checks as DC
+    from grpcbridge.custom import bridge_engines as be, hosted_bridges as HB, hosted_checks as HC, hosted_door_checks as DC, bridge_link_checks as BLC
     from grpcbridge.custom.hosted_fakes import FakeBridgeWorker
     from board.custom import twin_sessions as TS
     from board.custom.twin_session_fakes import FakeWorker
@@ -96,6 +96,8 @@ def offline():
         DC.worker_door(check, skip)
         DC.jvm_door_mode(check, skip)
         DC.grpc_tls_mode(check, skip)
+        BLC.link_rules(check)
+        BLC.worker_tls(check, skip)
 
         with tempfile.TemporaryDirectory(prefix='hosted-selftest-') as td, _env(POLARI_TWIN_TOKEN_FILE=os.path.join(td, 'secret'), POLARI_TWIN_TOKEN_SECRET=None):
             board = FakeWorker(sessions=True)
@@ -106,6 +108,7 @@ def offline():
                     _backend(mgr, TS, HB, new, board)
                     _doors(mgr, TS, new)
                 DC.backend_door(check, mgr, TS, HB, _env, HEX)
+                BLC.backend_instance(check, mgr, TS, HB, _env, HEX)
             finally:
                 for s in list(TS._rows(mgr)):
                     if s.state == 'running':

@@ -62,6 +62,7 @@ def main(argv=None):
     ap.add_argument('--ttl', type=int, default=0)
     ap.add_argument('--owner', default='')
     ap.add_argument('--grpc-target', default='')
+    ap.add_argument('--instance', default='', help='a PolariBridgeInstance: its bridge, pushing to its own Polari node on the isle')
     ap.add_argument('--log-only', action='store_true')
     ap.add_argument('--wait', type=float, default=300.0)
     ap.add_argument('--tail', type=int, default=100)
@@ -91,7 +92,12 @@ def main(argv=None):
         body = {'session': a.target, 'bridge_name': a.bridge, 'owner': a.owner, 'log_only': a.log_only}
         if a.ttl:
             body['ttl_s'] = a.ttl
-        if a.grpc_target:
+        if a.instance:   # the instance names its bridge and its node: nothing else is derived here
+            body['instance'] = a.instance
+            body.pop('bridge_name')
+            if a.grpc_target:
+                body['grpc_target'] = a.grpc_target   # the door refuses it in words
+        elif a.grpc_target:
             body['grpc_target'] = a.grpc_target
         elif not a.log_only:   # the host the person reached the server at (the demo bundle's derivation), sent explicitly: a proxy may hide it from the door
             from grpcbridge.custom.hosted_bridges import grpc_target

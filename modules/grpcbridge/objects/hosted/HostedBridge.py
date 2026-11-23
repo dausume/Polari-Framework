@@ -18,7 +18,8 @@ class HostedBridge(treeObject):
     the worker's twin door, or `tcp://host:port`; the session's token is never part of it); `grpc_target`
     the Polari backend gRPC port the bridge pushes to (empty = the bridge only logs what it decodes); `build_fp` the fingerprint (sha256 prefix) of the
     generated code, the key of the worker's jar cache, and `jar_sha256` the jar that runs; `owner`; `started_at` / `expires_at` UTC seconds (a bridge nobody
-    stops ends at `expires_at`, or when its session ends); `ended_at` / `end_reason` say when and why it stopped.
+    stops ends at `expires_at`, or when its session ends); `ended_at` / `end_reason` say when and why it stopped. `instance` the PolariBridgeInstance it
+    runs for (its definition, its maps, its node: the same bridge a cabled board would run) and `grpc_tls` how its gRPC leg is protected.
 
     Related concepts: TwinSession (the simulated board it reads), HardwareBridgeDefinition (what is generated), LightState (the row it keeps current).
     """
@@ -29,7 +30,8 @@ class HostedBridge(treeObject):
     @treeObjectInit
     def __init__(self, name: str = '', session: str = '', bridge_name: str = '', state: str = 'building', worker_url: str = '', worker_bridge: str = '',
                  twin_host: str = '', twin_port: int = 0, twin_uart: str = '', grpc_target: str = '', build_fp: str = '', jar_sha256: str = '', owner: str = '',
-                 started_at: float = 0.0, expires_at: float = 0.0, ttl_s: int = 0, ended_at: float = 0.0, end_reason: str = '', manager=None):
+                 started_at: float = 0.0, expires_at: float = 0.0, ttl_s: int = 0, ended_at: float = 0.0, end_reason: str = '', instance: str = '',
+                 grpc_tls: str = '', manager=None):
         self.name = name  # '<bridge>-<6 hex>'
         self.session = session  # a TwinSession name
         self.bridge_name = bridge_name  # a HardwareBridgeDefinition name
@@ -48,3 +50,5 @@ class HostedBridge(treeObject):
         self.ttl_s = ttl_s
         self.ended_at = ended_at
         self.end_reason = end_reason
+        self.instance = instance  # the PolariBridgeInstance it runs for ('' = started by bridge name + target, the older way)
+        self.grpc_tls = grpc_tls  # verified when the target came from the instance's node; '' = the generated project's own setting

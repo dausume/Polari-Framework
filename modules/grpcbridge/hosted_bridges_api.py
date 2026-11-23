@@ -5,7 +5,8 @@ sim-2 (HARDWARE_BENCH_CONVERGENCE_PLAN.md section 3): the hosted-bridge doors - 
 
 GET    /api/grpc/hosted-bridges               every hosted bridge (`rows` for a configured table): session, state, the jar, time left
 POST   /api/grpc/hosted-bridges               {session, bridge_name?, grpc_target?, ttl_s?, owner?, log_only?}  start one beside a TwinSession; the bridge's
-                                              gRPC target is this server's gRPC bridge port on the host the request came to unless `grpc_target` is given
+                                              gRPC target is this server's gRPC bridge port on the host the request came to unless `grpc_target` is given;
+                                              {instance} instead: a PolariBridgeInstance's bridge, pushing to its node's isle name (bridge_link)
 GET    /api/grpc/hosted-bridges/{name}        one bridge (+ the tail of its output, the process's RSS and CPU seconds)
 DELETE /api/grpc/hosted-bridges/{name}        stop it
 GET    /api/grpc/hosted-bridges/{name}/logs   ?tail=N&which=run|build  the bridge's output lines
@@ -73,7 +74,7 @@ class HostedBridgesAPI(treeObject):
         host = request.forwarded_host or request.host or ''
         out = self._run(response, HB.start, str(body['session']), bridge_name=str(body.get('bridge_name') or HB.DEFAULT_BRIDGE),
                         grpc_target_=str(body.get('grpc_target') or ''), api_host=host, ttl_s=ttl, owner=str(body.get('owner') or ''),
-                        log_only=bool(body.get('log_only')))
+                        log_only=bool(body.get('log_only')), instance=str(body.get('instance') or ''))
         if out is not None:
             response.status = falcon.HTTP_201
             response.media = dict(out, ok=True)

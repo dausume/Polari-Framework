@@ -9,6 +9,10 @@ sim-2 (HARDWARE_BENCH_CONVERGENCE_PLAN.md section 3): HOSTED BRIDGES as HostedBr
                     uno-light the code-owned rows the demo bundle uses), POST it to the worker (grpcbridge.custom.bridge_engines.resolve), write the row.
                     The bridge's gRPC target = THIS backend's gRPC bridge port on the host the request came from (the demo bundle's derivation,
                     hwnocode.custom.export_demo.grpc_target) unless `grpc_target` is given; `log_only` = no gRPC, the bridge only logs the frames it decodes.
+                    `instance` = a PolariBridgeInstance name: the bridge is then the one a cabled board would run (bridge_link). Its definition is the
+                    instance's bridge_definition and its target is the instance's node on the isle (grpc.<node>.isle:443, grpc.tls=verified), with
+                    no host or port given here. A bridge_name or grpc_target given beside it is refused, so the instance stays the one source. The
+                    worker must repeat grpc_tls in its answer, or the bridge is stopped and the start refused (424), never run in plaintext.
     listing(manager) / one(manager, name)    refresh each live row from the worker first (an ended session ends its bridge)
     stop(manager, name) / logs(manager, name, tail, which)
 
@@ -69,6 +73,7 @@ def view(row):
     now = time.time()
     return {'name': row.name, 'session': row.session, 'bridge_name': row.bridge_name, 'state': row.state, 'worker': row.worker_url,
             'worker_bridge': row.worker_bridge, 'twin': getattr(row, 'twin_uart', '') or '%s:%s' % (row.twin_host, row.twin_port), 'grpc_target': row.grpc_target, 'grpc': bool(row.grpc_target),
+            'instance': getattr(row, 'instance', '') or '', 'grpc_tls': getattr(row, 'grpc_tls', '') or '',
             'build_fp': row.build_fp, 'jar_sha256': row.jar_sha256, 'owner': row.owner, 'started_at': row.started_at, 'expires_at': row.expires_at,
             'ttl_s': row.ttl_s, 'remaining_s': max(0.0, round(row.expires_at - now, 1)) if row.state in ('building', 'running') else 0,
             'ended_at': row.ended_at, 'end_reason': row.end_reason,
@@ -137,8 +142,25 @@ def _apply(manager, row, w):
     _save(manager, row)
 
 
-def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_host='', ttl_s=None, owner='', log_only=False):
+def _instance_link(manager, instance, bridge_name, grpc_target_):
+    from grpcbridge.custom import bridge_link as BL
+    if grpc_target_:
+        raise HostedRefused('a bridge for instance %s pushes to its own Polari node; a grpc_target given beside it is refused (the instance is the one '
+                            'source of where it reports)' % instance, 409)
+    try:
+        link = BL.link(BL.instance(manager, instance))
+    except BL.LinkRefused as e:
+        raise HostedRefused(str(e), e.status)
+    if bridge_name not in ('', None, DEFAULT_BRIDGE, link['definition']):
+        raise HostedRefused('instance %s runs the bridge %s; bridge_name %r beside it is refused' % (instance, link['definition'], bridge_name), 409)
+    return link
+
+
+def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_host='', ttl_s=None, owner='', log_only=False, instance=''):
     from board.custom import twin_sessions as TS
+    link = _instance_link(manager, instance, bridge_name, grpc_target_) if instance else None
+    if link:
+        bridge_name = link['definition']
     try:
         sess = TS.one(manager, session)
     except TS.SessionRefused as e:
@@ -147,7 +169,11 @@ def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_hos
         raise HostedRefused('session %s has ended (%s) - start a new one' % (session, sess['end_reason']), 409)
     files, source = project(manager, bridge_name)
     worker = _worker()
-    target = '' if log_only else (grpc_target_ or grpc_target(api_host))
+    if link:
+        target = '' if log_only else link['target']
+    else:
+        target = '' if log_only else (grpc_target_ or grpc_target(api_host))
+    tls = link['tls'] if link and target else ''
     ttl = int(ttl_s or min(max(sess['remaining_s'], 10), TTL_MAX))
     # td-3: the bridge reaches the session's serial stream the way the SESSION went (twin_transport's choice, on the row) - never a second guess here.
     from board.custom import twin_token, twin_transport as TT
@@ -155,6 +181,8 @@ def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_hos
     door = TT.kind(uart) == 'door'
     body = {'session_id': sess['name'], 'twin_host': sess['host'], 'twin_port': sess['tcp_port'], 'twin_uart': uart, 'bridge_name': bridge_name, 'files': files,
             'grpc_target': target, 'ttl_s': ttl, 'owner': owner}
+    if tls:
+        body['grpc_tls'] = tls
     if door:
         body['token'] = twin_token.derive(sess['name'])   # in the POST body over verified TLS only: never a URL, a row, a view or a log
     try:
@@ -170,12 +198,23 @@ def start(manager, session, bridge_name=DEFAULT_BRIDGE, grpc_target_='', api_hos
         raise HostedRefused('the bridge worker at %s started the bridge WITHOUT the twin door (its answer does not repeat twin_uart, so it is older than the '
                             'twin-door release); the bridge was stopped rather than left reading a TCP port that the session\'s worker does not publish. The '
                             'session is reached at %s' % (worker, uart), 424)
+    if tls and w.get('grpc_tls') != tls:
+        # the same rule for the gRPC leg: a worker that does not know grpc_tls keeps the generated grpc.tls=plaintext and would dial the isle's TLS port in clear
+        try:
+            W.stop(worker, w.get('id'))
+        except W.WorkerRefused:
+            pass
+        raise HostedRefused('the bridge worker at %s started the bridge WITHOUT grpc_tls=%s (its answer does not repeat it, so it is older than the bridge '
+                            'link); the bridge was stopped rather than left to reach %s in plaintext' % (worker, tls, target), 424)
     name = '%s-%s' % (bridge_name, secrets.token_hex(3))
     row = _new_row(manager, name=name, session=sess['name'], bridge_name=bridge_name, state='building', worker_url=worker, worker_bridge=w['id'],
                    twin_host=sess['host'], twin_port=int(sess['tcp_port']), twin_uart=uart, grpc_target=target, build_fp=w.get('build_fp', ''), owner=owner,
-                   started_at=w['started'], expires_at=w['expires'], ttl_s=ttl)
+                   started_at=w['started'], expires_at=w['expires'], ttl_s=ttl, instance=instance or '', grpc_tls=tls)
     _apply(manager, row, w)
-    return dict(view(row), project_source=source, build=w.get('build'))
+    out = dict(view(row), project_source=source, build=w.get('build'))
+    if link:
+        out['link'] = {k: link[k] for k in ('node', 'node_url', 'maps', 'mode', 'hardware_id', 'why')}
+    return out
 
 
 def _refresh(manager, row):
