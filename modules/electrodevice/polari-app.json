@@ -93,6 +93,7 @@
       "circuit_states_selftest",
       "electrodevice_selftest",
       "layout_selftest",
+      "layout_c3_selftest",
       "level_bridge_selftest"
     ],
     "custom": [
@@ -116,6 +117,7 @@
       "custom/layout_scene",
       "custom/layout_sources",
       "custom/layout_steps",
+      "custom/layout_boards",
       "custom/layout_words",
       "custom/ngspice_shared",
       "custom/ngspice_shared_runner",
@@ -250,6 +252,7 @@
     "circuit_states_selftest",
     "electrodevice_selftest",
     "layout_selftest",
+    "layout_c3_selftest",
     "level_bridge_selftest"
   ],
   "security": {
