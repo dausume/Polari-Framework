@@ -220,25 +220,32 @@ def _last(out, about=''):
 # ---------------------------------------------------------------------------------------------------------------- gRPC over TLS (D5)
 class _Recorder:
     """A gRPC server on loopback that takes ANY service's Push (client stream) and Commands (server stream) and counts what arrives - the Polari backend's
-    side of the bridge link, protocol only. tls=(crt, key) serves TLS."""
+    side of the bridge link, protocol only. tls=(crt, key) serves TLS. flaky=True stands in for a backend restart or the isle agent's stream timeout: the
+    FIRST Push stream is ended in an error after its first frame, and the FIRST Commands stream is closed at once."""
 
-    def __init__(self, tls=None):
+    def __init__(self, tls=None, flaky=False):
         from concurrent import futures
         import grpc
-        self.pushed, self.calls = 0, []
+        self.pushed, self.calls, self.streams = 0, [], 0
         outer = self
 
         class Any(grpc.GenericRpcHandler):
             def service(self, details):
                 outer.calls.append(details.method.rsplit('/', 1)[-1])
                 if details.method.endswith('/Push'):
-                    def push(frames, _ctx):
+                    def push(frames, ctx):
+                        outer.streams += 1
+                        first = outer.streams == 1
                         for _f in frames:
                             outer.pushed += 1
+                            if flaky and first:
+                                ctx.abort(grpc.StatusCode.UNAVAILABLE, 'stand-in for a backend restart')
                         return b''
                     return grpc.stream_unary_rpc_method_handler(push)
                 if details.method.endswith('/Commands'):
                     def commands(_req, ctx):
+                        if flaky and outer.calls.count('Commands') == 1:
+                            return iter(())
                         end = time.time() + 20
                         while ctx.is_active() and time.time() < end:
                             time.sleep(0.05)
@@ -298,9 +305,10 @@ def grpc_tls_mode(check, skip):
         base = [ln for ln in rep['files']['bridge.properties'].splitlines()
                 if ln.split('=', 1)[0] not in ('source', 'twin.host', 'twin.port', 'twin.uart', 'grpc.enabled', 'grpc.target', 'grpc.tls', 'serial.device')]
 
-        def run(name, server_tls, knob, bundle):
-            rec = _Recorder(tls if server_tls else None)
-            usart = FakeUsart([[HC.light_frame(1), HC.light_frame(2, True, 1, 'button'), HC.light_frame(3, False, 2, 'command')]])
+        def run(name, server_tls, knob, bundle, frames=3, flaky=False):
+            rec = _Recorder(tls if server_tls else None, flaky)
+            usart = FakeUsart([[HC.light_frame(1), HC.light_frame(2, True, 1, 'button'), HC.light_frame(3, False, 2, 'command')]
+                               + [HC.light_frame(4 + i, i % 2 == 0, 3 + i, 'button') for i in range(frames - 3)]])
             props = os.path.join(tmp, name + '.properties')
             with open(props, 'w') as f:
                 f.write('\n'.join(base + ['source=twin-tcp', 'twin.host=127.0.0.1', 'twin.port=%d' % usart.port, 'grpc.enabled=true', 'grpc.target=localhost:%d' % rec.port]
@@ -309,7 +317,7 @@ def grpc_tls_mode(check, skip):
             if bundle:
                 env['ISLE_TRUST_BUNDLE'] = bundle
             try:
-                p = subprocess.run([java, '-jar', jar, props, '--max-frames=3'], capture_output=True, text=True, timeout=60, env=env)
+                p = subprocess.run([java, '-jar', jar, props, '--max-frames=%d' % frames], capture_output=True, text=True, timeout=60, env=env)
                 rc, out = p.returncode, p.stdout + p.stderr
             except subprocess.TimeoutExpired as e:
                 rc, out = 124, b''.join(x for x in (e.stdout, e.stderr) if isinstance(x, bytes)).decode(errors='replace')
@@ -334,6 +342,13 @@ def grpc_tls_mode(check, skip):
         rc, out, rec = run('plain', False, 'plaintext', None)
         check('td-4 (D5): grpc.tls=plaintext is the explicit knob for that port: the 3 frames arrive and the bridge prints that nothing on the link is encrypted or checked',
               rc == 0 and rec.pushed == 3 and 'is PLAINTEXT (grpc.tls=plaintext)' in out, '%s pushed=%s %s' % (rc, rec.pushed, _grpc(out)))
+        rc, out, rec = run('flaky', True, 'verified', tls[0], frames=10, flaky=True)
+        check('ii-push: the server ends the first Push stream in an error after one frame (a backend restart, the agent\'s stream timeout) - the bridge opens '
+              'a new one on the next frame and the rest arrive on it: %s' % _last(out, 'reopened'),
+              rc == 0 and rec.streams >= 2 and rec.pushed >= 8 and 'push stream reopened after an error' in out,
+              '%s streams=%s pushed=%s %s' % (rc, rec.streams, rec.pushed, _grpc(out)))
+        check('ii-push: the server closes the first Commands stream - the bridge subscribes again (commands from the node keep reaching the board)',
+              rec.calls.count('Commands') >= 2 and 'subscribing again' in out, '%s %s' % (rec.calls, _grpc(out)))
         rc, out, rec = run('bogus', False, 'off', None)
         check('td-4 (D5): any other grpc.tls value is refused in words (not read as "no TLS")', rc not in (0, 124) and 'grpc.tls=off is neither verified nor plaintext' in out
               and rec.pushed == 0, '%s %s' % (rc, out[-300:]))

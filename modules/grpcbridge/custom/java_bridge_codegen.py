@@ -313,7 +313,8 @@ def render_forwarder(classes):
     core app loads it reflectively when grpc.enabled=true."""
     push_fields = '\n'.join(
         f'    private StreamObserver<org.polari.sync.{c}> '
-        f'{c[0].lower() + c[1:]}Push;' for c, _ in classes)
+        f'{c[0].lower() + c[1:]}Push;\n'
+        f'    private AckObserver {c[0].lower() + c[1:]}Ack;' for c, _ in classes)
     push_cases = '\n'.join(
         f'                case {c}Codec.MSG_TYPE:\n'
         f'                    push{c}(packet);\n'
@@ -321,7 +322,8 @@ def render_forwarder(classes):
     command_starts = '\n'.join(
         f'        startCommands{c}();' for c, _ in classes)
     push_finishes = '\n'.join(
-        f'        open += finish({c[0].lower() + c[1:]}Push);' for c, _ in classes)
+        f'        open.add(finish({c[0].lower() + c[1:]}Push, '
+        f'{c[0].lower() + c[1:]}Ack));' for c, _ in classes)
     per_class = []
     for c, field_map in classes:
         lower = c[0].lower() + c[1:]
@@ -363,9 +365,24 @@ def render_forwarder(classes):
                     .setObjectName(b.objectName)
                     .setContractHash(b.contractHash);
         }}
-        if ({lower}Push == null) {{
-            {lower}Push = {c}SyncGrpc.newStub(channel)
-                    .push(new AckObserver("{c}"));
+        AckObserver ack = {lower}Ack;
+        if (ack == null || ack.failed) {{
+            // ii-push: a Push stream the server ended in an error (a backend
+            // restart, the isle agent's stream timeout, a refused handshake)
+            // is opened again on the next frame, at most once a second; the
+            // frames in between are counted, not queued (telemetry: the
+            // newest state wins).
+            if (ack != null && !reopenDue("{c}")) {{
+                dropped++;
+                return;
+            }}
+            ack = new AckObserver("{c}");
+            {lower}Push = {c}SyncGrpc.newStub(channel).push(ack);
+            if ({lower}Ack != null) {{
+                System.out.println("[grpc] {c} push stream reopened after an "
+                        + "error (" + dropped + " frame(s) dropped while it was down)");
+            }}
+            {lower}Ack = ack;
         }}
         {lower}Push.onNext(toProto{c}(f.record).toBuilder()
                 .setHardwareInterface(hw).build());
@@ -431,12 +448,14 @@ def render_forwarder(classes):
                     public void onError(Throwable t) {{
                         System.out.println(
                                 "[grpc] {c} commands error: " + t);
+                        resubscribe("{c}", () -> startCommands{c}());
                     }}
 
                     @Override
                     public void onCompleted() {{
                         System.out.println(
                                 "[grpc] {c} commands completed");
+                        resubscribe("{c}", () -> startCommands{c}());
                     }}
                 }});
     }}
@@ -485,9 +504,20 @@ public final class GrpcForwarder {{
     private final java.util.Map<String, Integer> seenVersion =
             new java.util.concurrent.ConcurrentHashMap<>();
     private long refused;
-    /** one permit per Push stream the server has answered (or failed) */
-    private final java.util.concurrent.Semaphore answered =
-            new java.util.concurrent.Semaphore(0);
+    /** frames not pushed because their class's Push stream was down */
+    private long dropped;
+    /** set by finish(): no stream is reopened or re-subscribed after it */
+    private volatile boolean closing;
+    private final java.util.Map<String, Long> lastReopen =
+            new java.util.HashMap<>();
+    private static final long REOPEN_MS = 1000;
+    private static final long RESUBSCRIBE_MS = 2000;
+    private final java.util.concurrent.ScheduledExecutorService retry =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {{
+                Thread t = new Thread(r, "grpc-retry");
+                t.setDaemon(true);
+                return t;
+            }});
 {push_fields}
 
     public GrpcForwarder(String target, DevicePort port, BridgeConfig cfg)
@@ -549,33 +579,83 @@ public final class GrpcForwarder {{
      *  delivered - not dropped with the process - and the ack (or the
      *  error) is printed. Then the channel is closed. */
     public void finish() {{
-        int open = 0;
+        closing = true;
+        retry.shutdownNow();
+        java.util.List<AckObserver> open = new java.util.ArrayList<>();
 {push_finishes}
+        long deadline = System.nanoTime() + 5_000_000_000L;
         try {{
-            answered.tryAcquire(open, 5,
-                    java.util.concurrent.TimeUnit.SECONDS);
+            for (AckObserver a : open) {{
+                if (a == null) {{
+                    continue;
+                }}
+                long left = deadline - System.nanoTime();
+                if (left <= 0) {{
+                    break;
+                }}
+                a.done.await(left, java.util.concurrent.TimeUnit.NANOSECONDS);
+            }}
         }} catch (InterruptedException ie) {{
             Thread.currentThread().interrupt();
         }}
         channel.shutdownNow();
     }}
 
-    private static int finish(StreamObserver<?> push) {{
-        if (push == null) {{
-            return 0;
+    /** The current Push stream of a class, half-closed so the server
+     *  answers; null when there is none or it already failed (its
+     *  error was printed then). */
+    private static AckObserver finish(StreamObserver<?> push,
+            AckObserver ack) {{
+        if (push == null || ack == null || ack.failed) {{
+            return null;
         }}
         try {{
             push.onCompleted();
         }} catch (RuntimeException alreadyOver) {{
-            // the stream failed earlier: its error was printed then
+            return null;
         }}
-        return 1;
+        return ack;
+    }}
+
+    /** At most one Push reopen per class per REOPEN_MS. */
+    private boolean reopenDue(String cls) {{
+        long now = System.currentTimeMillis();
+        Long last = lastReopen.get(cls);
+        if (last != null && now - last < REOPEN_MS) {{
+            return false;
+        }}
+        lastReopen.put(cls, now);
+        return true;
+    }}
+
+    /** ii-push: a Commands stream that ended (an error, the server or
+     *  the isle agent closing it) is subscribed again after
+     *  RESUBSCRIBE_MS, unless the bridge is ending. */
+    private void resubscribe(String cls, Runnable start) {{
+        if (closing) {{
+            return;
+        }}
+        System.out.println("[grpc] " + cls + " commands stream ended; "
+                + "subscribing again in " + RESUBSCRIBE_MS + " ms");
+        try {{
+            retry.schedule(() -> {{
+                if (!closing) {{
+                    start.run();
+                }}
+            }}, RESUBSCRIBE_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }} catch (java.util.concurrent.RejectedExecutionException ending) {{
+            // finish() shut the retry thread down meanwhile
+        }}
     }}
 {nl}
 
     private final class AckObserver
             implements StreamObserver<PushSummary> {{
         private final String label;
+        /** the server ended this stream in an error: push reopens it */
+        volatile boolean failed;
+        final java.util.concurrent.CountDownLatch done =
+                new java.util.concurrent.CountDownLatch(1);
 
         AckObserver(String label) {{
             this.label = label;
@@ -592,12 +672,13 @@ public final class GrpcForwarder {{
         public void onError(Throwable t) {{
             System.out.println("[grpc] " + label + " push error: "
                     + t);
-            answered.release();
+            failed = true;
+            done.countDown();
         }}
 
         @Override
         public void onCompleted() {{
-            answered.release();
+            done.countDown();
         }}
     }}
 }}
