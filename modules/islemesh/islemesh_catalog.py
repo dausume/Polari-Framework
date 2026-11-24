@@ -348,16 +348,27 @@ def instances_of(app_rows, entry_name):
     tracking half: how many, on which devices. Pure function."""
     import re
     pattern = re.compile(r'^%s(-\d+)*$' % re.escape(entry_name))
+    door_of = re.compile(r'^(%s(?:-\d+)*)--([a-z0-9][a-z0-9-]{0,30})$' % re.escape(entry_name))
+    doors = {}   # (app, device) -> [{name, domain}]: a store release's doors, registered as <app>--<door> (isle app deploy --door)
+    for row in app_rows:
+        m = door_of.match(row.get('name', ''))
+        if m and not row.get('is_mock'):
+            doors.setdefault((m.group(1), row.get('device_name', '')), []).append(
+                {'name': m.group(2), 'domain': row.get('domain', '')})
     found = []
     for row in app_rows:
         if row.get('is_mock'):
             continue
         app_name = row.get('name', '')
         if pattern.match(app_name):
-            found.append({'app': app_name,
-                          'device': row.get('device_name', ''),
-                          'domain': row.get('domain', ''),
-                          'modules': modules_of(row)})
+            inst = {'app': app_name,
+                    'device': row.get('device_name', ''),
+                    'domain': row.get('domain', ''),
+                    'modules': modules_of(row)}
+            mine = doors.get((app_name, inst['device']))
+            if mine:   # a door is part of its app's instance (the core publishes its name too), never another instance
+                inst['doors'] = sorted(mine, key=lambda d: d['name'])
+            found.append(inst)
     found.sort(key=lambda i: (i['app'], i['device']))
     return found
 

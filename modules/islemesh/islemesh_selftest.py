@@ -531,6 +531,17 @@ def main():
           all(i['app'] != 'whoami-extra' for i in inst)
           and all(i['device'] != 'mockdev' for i in inst)
           and len(instances_of(app_rows, 'odoo')) == 1)
+    door_rows = app_rows + [
+        {'name': 'whoami--twin', 'device_name': 'isle-core', 'domain': 'twin.whoami.isle', 'is_mock': False},
+        {'name': 'whoami-2--twin', 'device_name': 'pol-core', 'domain': 'twin.whoami-2.isle', 'is_mock': False},
+        {'name': 'whoami--twin', 'device_name': 'elsewhere', 'domain': 'twin.other.isle', 'is_mock': False},
+        {'name': 'whoami--twin', 'device_name': 'mockdev', 'domain': 'twin.mock.isle', 'is_mock': True}]
+    inst = instances_of(door_rows, 'whoami')
+    check('instances: a store release\'s doors (<app>--<door>, isle app deploy --door) belong to their app on the same device and are '
+          'never counted as instances',
+          [i['app'] for i in inst] == ['whoami', 'whoami-2']
+          and [i.get('doors') for i in inst] == [[{'name': 'twin', 'domain': 'twin.whoami.isle'}], [{'name': 'twin', 'domain': 'twin.whoami-2.isle'}]]
+          and 'doors' not in instances_of(door_rows, 'odoo')[0], inst)
 
     # ---- topology coherence (joined isle x polari view) -------------
     from islemesh.custom.islemesh_coherence import assess_topology
