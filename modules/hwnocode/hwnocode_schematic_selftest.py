@@ -152,8 +152,8 @@ def pages():
                     if miss:
                         bad.append('%s columns %s' % (it['id'], miss))
     check('every class named is a registered class with the columns asked for, and nothing reads a door (no new route)', not bad, bad)
-    check('the pages use the two new generic components and configured tables only',
-          sorted(set(comps)) == ['class-rows-table', 'feature-cards-table', 'schematic-component-cards'], sorted(set(comps)))
+    check('the pages use the three new generic components and configured tables only',
+          sorted(set(comps)) == ['class-rows-table', 'feature-cards-table', 'schematic-component-cards', 'solution-schematic'], sorted(set(comps)))
     from hwnocode.objects.hwnocode.HardwareFeature import HardwareFeature
     params = set(inspect.signature(HardwareFeature.__init__).parameters)
     bad = [c['key'] for c in FEATURE_COLUMNS if c['source_key'] not in params or any(v not in params for v in (c.get('fields') or {}).values())

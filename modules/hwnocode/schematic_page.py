@@ -56,8 +56,16 @@ SCHEMATIC_PAGES = [
           'a filter capacitor as close to the pin as possible. A component whose parts were never worked out is drawn red. The cards come '
           'first; the tables below hold the same ports and parts as rows.',
           'SchematicComponent', [
-              _row(0, [components_cards()], min_height=420),
-              _row(1, [_table('schematic-component-ports', 0, 6, 'Ports - where each component connects', 'SchematicComponentPort',
+              _row(0, [_component('solution-schematics', 0, 12, 'The whole schematic of each hardware solution - every component around its chip',
+                                  'solution-schematic', dict({k: v for k, v in CLASSES.items() if k != 'checkClass'}, solution=''),
+                                  description='What this is for: one drawing per hardware solution with all of its schematic components '
+                                              'together, each drawn as its card draws it, every line running on to the chip pin it '
+                                              'lands on (the chip is the box on the right, its pins named inside). Red where a '
+                                              'component is not solved. The same solution as one real KiCad sheet - checked by KiCad, '
+                                              'its netlist compared with these rows - comes from: pol hwnocode features <solution> --kicad.')],
+                   min_height=320),
+              _row(1, [components_cards()], min_height=420),
+              _row(2, [_table('schematic-component-ports', 0, 6, 'Ports - where each component connects', 'SchematicComponentPort',
                               description='One row = one port of one component. kind is signal, supply or ground; chip and pin say where a '
                                           'signal port lands (empty = left open for the pin solver); pin_source says whether a person '
                                           'chose the pin (held) or a solver suggested it.',
@@ -67,7 +75,7 @@ SCHEMATIC_PAGES = [
                                           'the port the part sits on; value is empty until it is worked out; placed_by and rule say who or '
                                           'what placed it and why.',
                               columns='component,ref,role,part_kind,value,port,placed_by,rule')], min_height=260),
-              _row(2, [_table('schematic-component-checks', 0, 12, 'What the solver decided - one rule per row', 'SchematicComponentCheck',
+              _row(3, [_table('schematic-component-checks', 0, 12, 'What the solver decided - one rule per row', 'SchematicComponentCheck',
                               description='One row = one decision of the schematic solver about one component (component empty = about the '
                                           'whole solution). rule is pull, series, guard or filter (the conditioning rules) or one of the '
                                           'board\'s electrical rules; status is placed, not-needed or needed for a conditioning rule, and ok, '

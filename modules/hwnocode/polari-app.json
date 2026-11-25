@@ -115,7 +115,8 @@
    "custom/schematic_derive",
    "custom/schematic_rules",
    "custom/feature_derive",
-   "custom/schematic_solve"
+   "custom/schematic_solve",
+   "custom/schematic_kicad"
   ]
  },
  "classes": [

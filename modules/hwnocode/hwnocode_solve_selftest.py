@@ -177,6 +177,47 @@ def seeded(fresh):
     check('every check status is from the class\'s own list', all(r['status'] in K.STATUSES for r in pairs['SchematicComponentCheck'][1]))
 
 
+def kicad(tables):
+    """cb-6: the whole solution as one KiCad sheet. The design needs no engine; the render does (skipped, said, when none is reachable)."""
+    from hwnocode.custom import schematic_kicad as K
+    from hwnocode.custom import schematic_solve as S
+    rec = S.load(SOL)
+    d = K.design(rec, tables)
+    parts = {c['ref']: c for c in d['components'] if c['role'] != 'header'}
+    check('the sheet carries the physical parts: LED1, R1, SW1 (the chip\'s own pull-up is not a part on it, and is listed as inside the chip)',
+          sorted(parts) == ['LED1', 'R1', 'SW1'] and any('internal-pull-up on D2' in x for x in d['inside_chip']), (sorted(parts), d['inside_chip']))
+    circuit = {c['name']: c for c in tables['CircuitComponentDefinition'] if c.get('circuit_name') == 'uno-button-clock'}
+    from board.custom import electrical_check as EC
+    same = all(sorted(parts[r]['pins'].values()) == sorted(EC._pins(circuit[n])) for r, n in (('LED1', 'ubc-led1'), ('R1', 'ubc-r1'), ('SW1', 'ubc-sw1')))
+    check('every part pin is on the net its circuit row names (LED anode/cathode, R1, SW1)', same and parts['LED1']['pins'] == {'A': 'LED_ANODE', 'K': 'GND'},
+          {r: c['pins'] for r, c in parts.items()})
+    hdr = {(c['value'], pin): net for c in d['components'] if c['role'] == 'header' for pin, net in c['pins'].items()}
+    check('the UNO headers are wired by the board\'s own rows: D2 -> BUTTON_INPUT, D3 and D6 -> LED_CONTROL (the jumper), GND pins -> GND',
+          hdr.get(('DIGITAL_L', '3')) == 'BUTTON_INPUT' and hdr.get(('DIGITAL_L', '4')) == 'LED_CONTROL' and hdr.get(('DIGITAL_L', '7')) == 'LED_CONTROL'
+          and hdr.get(('POWER', '6')) == 'GND' and set(hdr.values()) == {'BUTTON_INPUT', 'LED_CONTROL', 'GND'}, hdr)
+    libs = {'Device:LED': '(symbol "LED" (pin passive line (name "K") (number "1")) (pin passive line (name "A") (number "2")))'}
+    libs.update({k: '(symbol "x")' for k in K.libs_needed(d) if k not in libs})
+    want = {}
+    for c in d['components']:
+        for pin, net in c['pins'].items():
+            want.setdefault(net, []).append((c['ref'], {'A': '2', 'K': '1'}.get(pin, pin) if c['ref'] == 'LED1' else pin))
+    net = '(export (nets %s))' % ' '.join('(net (code "%d") (name "/%s") %s)' % (i, n, ' '.join('(node (ref "%s") (pin "%s"))' % x for x in v))
+                                          for i, (n, v) in enumerate(sorted(want.items())))
+    ok, diff = K.parity(d, libs, net)
+    bad = net.replace('(node (ref "R1") (pin "1"))', '')
+    ok2, diff2 = K.parity(d, libs, bad)
+    check('the netlist check: KiCad\'s nets equal to the rows pass; a pin KiCad does not see on its net is named', ok and not ok2 and 'R1.1' in diff2[0],
+          (diff, diff2))
+    from pcb.custom import pcb_engines as E
+    r = E.resolve()
+    if r['how'] == 'refused':
+        print('  [SKIP] the KiCad render (sheet, check, netlist, drawing): no pcb engine here - %s' % r['why'][:90])
+        return
+    res = K.render(rec, tables)
+    check('rendered by KiCad: its own netlist has the same nets as the rows; the only errors are the header pins left unconnected on purpose',
+          res['parity'][0] and set(res['erc']['by_type']) <= {'error pin_not_connected', 'warning lib_symbol_issues'} and res['svg'], (res['parity'], res['erc']))
+
+
 def main():
     from board.custom import electrical_check as EC
     tables = EC.tables_for(None)
@@ -187,6 +228,7 @@ def main():
     live_rules(tables, fresh)
     second_chip(tables)
     seeded(fresh)
+    kicad(tables)
     print('hwnocode solve selftest: %d/%d passed' % (passed, total))
     return 0 if passed == total else 1
 

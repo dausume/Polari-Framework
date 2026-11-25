@@ -22,7 +22,9 @@ and `pol hwnocode features <solution>` solve again and compare: a different inpu
   record(name) / load(name) / seed_rows()    -> write / read the record; every record's rows by class
   compare(name)                              -> (fresh, recorded, same: bool, why)
 
-`python3 -m hwnocode.custom.schematic_solve <hardware-solution> [--write]` | `--circuit C --board B --variant V` (`pol hwnocode features`).
+`python3 -m hwnocode.custom.schematic_solve <hardware-solution> [--write]` | `--circuit C --board B --variant V` (`pol hwnocode features`);
+`<hardware-solution> --kicad [--out DIR]`: the whole solution as ONE KiCad sheet (hwnocode.custom.schematic_kicad), checked and drawn by the pcb
+engine, KiCad's own netlist compared with the rows.
 """
 import hashlib
 import json
@@ -203,6 +205,39 @@ def _print(res):
             print('      %-20s %-9s %s' % (col['label'], col['source'], col['value'][:140]))
 
 
+def _kicad(name, out):
+    from hwnocode.custom import schematic_kicad as K
+    from pcb.custom.pcb_engines import EngineRefused
+    rec = load(name)
+    if rec is None:
+        print('refused: no record for %r (pol hwnocode features %s --write first)' % (name, name))
+        return 2
+    try:
+        r = K.render(rec)
+    except (EngineRefused, K.DesignRefused) as e:
+        print('refused: %s' % e)
+        return 2
+    if not out:
+        from polariApiServer.module_home import module_home
+        out = os.path.join(module_home('hwnocode', os.environ.get('POLARI_HWNOCODE_HOME')), name, 'schematic')
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, r['name']), 'w') as fh:
+        fh.write(r['kicad_sch'])
+    if r['svg']:
+        with open(os.path.join(out, r['name'].replace('.kicad_sch', '.svg')), 'w') as fh:
+            fh.write(r['svg'])
+    same, diff = r['parity']
+    print('%s: one KiCad sheet from the solved components (sha256 %s)' % (name, r['sha256'][:16]))
+    print('  written: %s (+ .svg)' % os.path.join(out, r['name']))
+    print('  KiCad netlist vs the rows: %s' % ('the same nets' if same else 'DIFFERENT'))
+    for x in diff:
+        print('    %s' % x)
+    print('  electrical-rule check: %d errors, %d warnings %s' % (r['erc']['errors'], r['erc']['warnings'], r['erc']['by_type']))
+    for x in r['report'].get('inside_chip', []):
+        print('  inside the chip (not a part on the sheet): %s' % x)
+    return 0 if same else 1
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog='pol hwnocode features')
@@ -211,7 +246,11 @@ def main(argv):
     ap.add_argument('--circuit', default='')
     ap.add_argument('--board', default='')
     ap.add_argument('--variant', default='')
+    ap.add_argument('--kicad', action='store_true', help='also write the whole solution as one KiCad sheet, check it and draw it (pcb engine)')
+    ap.add_argument('--out', default='')
     a = ap.parse_args(argv)
+    if a.kicad:
+        return _kicad(a.solution, a.out)
     if a.circuit:
         if not (a.board and a.variant):
             print('refused: --circuit needs --board and --variant')
