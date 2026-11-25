@@ -233,3 +233,7 @@ SEED_HWNOCODE_PAGE_DISPLAYS += LIGHT_PAGES
 # sim-3: /display/sim-bench - the layout renderer bound to a twin session, the App UI (the light rows) beside it
 from hwnocode.sim_bench_page import SIM_BENCH_PAGES   # noqa: E402
 SEED_HWNOCODE_PAGE_DISPLAYS += SIM_BENCH_PAGES
+
+# cb-1 / cb-2 (AI-Notes/plans/COMPONENT_BINDING_PLAN.md): the schematic components and the hardware features, a prototype
+from hwnocode.schematic_page import SCHEMATIC_PAGES   # noqa: E402
+SEED_HWNOCODE_PAGE_DISPLAYS += SCHEMATIC_PAGES

@@ -9,3 +9,8 @@ from hwnocode.objects.hwnocode.SimRigTempDerived import SimRigTempDerived  # noq
 from hwnocode.objects.hwnocode.Runtime import Runtime  # noqa: F401
 from hwnocode.objects.hwnocode.FirmwareRunState import FirmwareRunState  # noqa: F401
 from hwnocode.objects.hwnocode.ButtonClockDerived import ButtonClockDerived  # noqa: F401
+from hwnocode.objects.hwnocode.SchematicComponent import SchematicComponent  # noqa: F401
+from hwnocode.objects.hwnocode.SchematicComponentPort import SchematicComponentPort  # noqa: F401
+from hwnocode.objects.hwnocode.SchematicComponentPart import SchematicComponentPart  # noqa: F401
+from hwnocode.objects.hwnocode.HardwareFeature import HardwareFeature  # noqa: F401
+from hwnocode.objects.hwnocode.SchematicComponentCheck import SchematicComponentCheck  # noqa: F401

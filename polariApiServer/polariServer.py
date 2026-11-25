@@ -1442,6 +1442,9 @@ class polariServer(treeObject):
             FirmwareRunState,
             # ucd-1: the uno-button-clock demo's own derived ledger row (SimRigTempDerived's sibling)
             ButtonClockDerived,
+            # cb-1 / cb-2 (COMPONENT_BINDING_PLAN.md): schematic components (+ ports, parts) and the rough HardwareFeature row, a prototype
+            SchematicComponent, SchematicComponentPort, SchematicComponentPart, HardwareFeature,
+            SchematicComponentCheck,   # cb-3: the schematic solver's decisions
             # ucd-2: the UNO core demo's own readiness row — one per composed part + the composition's weakest-link status
             DemoReadiness]
         # modsplit-1: each instance registers ONLY its assigned

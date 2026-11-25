@@ -6,13 +6,19 @@ re-exports them and holds the class list the server registers. NODE_KIND_CLASSES
 `statePalette` rides GET /stateSpaceClasses so the ONE canvas's palette learns them as data.
 """
 from hwnocode.objects.hwnocode import (HardwareNoCodeSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom,  # noqa: F401
-                                       SimRigTempSample, SimRigTempDerived, Runtime, FirmwareRunState, ButtonClockDerived)
+                                       SimRigTempSample, SimRigTempDerived, Runtime, FirmwareRunState, ButtonClockDerived,
+                                       SchematicComponent, SchematicComponentPort, SchematicComponentPart, HardwareFeature,
+                                       SchematicComponentCheck)
 
 #: every row class of the module, in registration order; fs-0/fs-2: FirmwareRunState — the ONE new Cross-Domain node
 #: kind (DEMONSTRABLES_PLAN.md §9); Bridge/Relay/API-call/Frontend-emit reuse HardwareInterface/BackendStateChange/
 #: StateChangeCommit/AnalysisCall/EmitFrontendEvent, categorized (not duplicated) by hwnocode.custom.cross_domain.
 #: ucd-1: ButtonClockDerived — the uno-button-clock demo's own derived ledger row (SimRigTempDerived's sibling).
 HWNOCODE_CLASSES = [HardwareNoCodeSolution, HardwareNodePlacement, HardwareSubgraph, HardwareInterface, CAtom, SimRigTempSample,
-                    SimRigTempDerived, Runtime, FirmwareRunState, ButtonClockDerived]
+                    SimRigTempDerived, Runtime, FirmwareRunState, ButtonClockDerived,
+                    # cb-1 / cb-2 prototype (COMPONENT_BINDING_PLAN.md): schematic components and the rough HardwareFeature row
+                    SchematicComponent, SchematicComponentPort, SchematicComponentPart, HardwareFeature,
+                    # cb-3: the schematic solver's decisions, one rule per row (hwnocode.custom.schematic_solve)
+                    SchematicComponentCheck]
 #: the canvas node kinds (palette data via /stateSpaceClasses)
 NODE_KIND_CLASSES = [HardwareSubgraph, HardwareInterface, CAtom, FirmwareRunState]

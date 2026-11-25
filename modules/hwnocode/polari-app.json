@@ -59,7 +59,12 @@
    "objects/hwnocode/HardwareSubgraph",
    "objects/hwnocode/Runtime",
    "objects/hwnocode/SimRigTempDerived",
-   "objects/hwnocode/SimRigTempSample"
+   "objects/hwnocode/SimRigTempSample",
+   "objects/hwnocode/SchematicComponent",
+   "objects/hwnocode/SchematicComponentPort",
+   "objects/hwnocode/SchematicComponentPart",
+   "objects/hwnocode/HardwareFeature",
+   "objects/hwnocode/SchematicComponentCheck"
   ],
   "basis": [
    "hwnocode_basis"
@@ -76,10 +81,13 @@
   "page": [
    "hwnocode_page",
    "light_page",
-   "sim_bench_page"
+   "sim_bench_page",
+   "schematic_page"
   ],
   "selftests": [
-   "hwnocode_selftest"
+   "hwnocode_selftest",
+   "hwnocode_schematic_selftest",
+   "hwnocode_solve_selftest"
   ],
   "custom": [
    "custom/app_solution",
@@ -101,19 +109,30 @@
    "custom/solutions",
    "custom/split",
    "custom/suggest",
-   "custom/temp_analysis"
+   "custom/temp_analysis",
+   "custom/feature_columns",
+   "custom/schematic_seed",
+   "custom/schematic_derive",
+   "custom/schematic_rules",
+   "custom/feature_derive",
+   "custom/schematic_solve"
   ]
  },
  "classes": [
   "ButtonClockDerived",
   "CAtom",
   "FirmwareRunState",
+  "HardwareFeature",
   "HardwareInterface",
   "HardwareNodePlacement",
   "HardwareNoCodeSolution",
   "HardwareSubgraph",
   "HwNoCodeAPI",
   "Runtime",
+  "SchematicComponent",
+  "SchematicComponentCheck",
+  "SchematicComponentPart",
+  "SchematicComponentPort",
   "SimRigTempDerived",
   "SimRigTempSample"
  ],
@@ -131,6 +150,11 @@
     "Runtime",
     "FirmwareRunState",
     "ButtonClockDerived",
+    "SchematicComponent",
+    "SchematicComponentPort",
+    "SchematicComponentPart",
+    "HardwareFeature",
+    "SchematicComponentCheck",
     "HWNOCODE_CLASSES"
    ]
   ],
@@ -155,7 +179,9 @@
  "derivedSeeds": false,
  "initialData": false,
  "selftests": [
-  "hwnocode_selftest"
+  "hwnocode_selftest",
+  "hwnocode_schematic_selftest",
+  "hwnocode_solve_selftest"
  ],
  "security": {
   "profile": "web-app",

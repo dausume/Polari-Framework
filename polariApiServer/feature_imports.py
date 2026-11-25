@@ -1428,7 +1428,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     # hn-0 (HARDWARE_NOCODE_PLAN): a HardwareNoCodeSolution across board / bridge / backend / browser; the placement rule; hn-split
     ('hwnocode', (
-        ('hwnocode.hwnocode_basis', ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'ButtonClockDerived', 'HWNOCODE_CLASSES')),
+        ('hwnocode.hwnocode_basis', ('HardwareNoCodeSolution', 'HardwareNodePlacement', 'HardwareSubgraph', 'HardwareInterface', 'CAtom', 'SimRigTempSample', 'SimRigTempDerived', 'Runtime', 'FirmwareRunState', 'ButtonClockDerived', 'SchematicComponent', 'SchematicComponentPort', 'SchematicComponentPart', 'HardwareFeature', 'SchematicComponentCheck', 'HWNOCODE_CLASSES')),
         ('hwnocode.hwnocode_seed', ('HWNOCODE_SEED_PAIRS',)),
         ('hwnocode.hwnocode_page', ('SEED_HWNOCODE_PAGE_DISPLAYS',)),
     )),

@@ -8,7 +8,10 @@ the grpcbridge HardwareInterfaceBinding that IS its hw-interface node, and the G
 hand-set fields: `firmware_runtime` (the person's knob, D-hn-3), titles and notes; the trigger's knobs (`inputs_json`) and
 `enabled` stay as the instance has them.
 """
-from hwnocode.hwnocode_basis import HardwareNoCodeSolution, HardwareNodePlacement, Runtime
+from hwnocode.hwnocode_basis import (HardwareNoCodeSolution, HardwareNodePlacement, Runtime, SchematicComponent, SchematicComponentPort,
+                                     SchematicComponentPart, SchematicComponentCheck, HardwareFeature)
+from hwnocode.custom import schematic_seed as SS
+from hwnocode.custom import schematic_solve as _SOLVE
 from hwnocode.custom import seed_rows as SR
 from hwnocode.custom.runtimes import RUNTIME_ROWS
 
@@ -18,6 +21,7 @@ def _owned(rows, keep=('title', 'notes')):
 
 
 def _pairs():
+    SOLVED = _SOLVE.seed_rows()
     from polariApiServer.solutionDefinition import SolutionDefinition
     from polariNoCode.analysis_calls import AnalysisDefinition
     from polariNoCode.event_triggers import EventTrigger
@@ -34,6 +38,16 @@ def _pairs():
         ('HardwareInterfaceBinding', HardwareInterfaceBinding, _owned(SR.BINDINGS, keep=('notes', 'port'))),
         ('GraphDefinition', GraphDefinition, _owned(SEED_HWNOCODE_GRAPHS, keep=('description',))),
         ('Runtime', Runtime, _owned(RUNTIME_ROWS, keep=('notes',))),
+        # cb-1 / cb-2 prototype (COMPONENT_BINDING_PLAN.md): the user's drawing as rows. A feature is a person's to edit, so
+        # nothing on it converges; components, ports and parts follow the code except what a person fills in.
+        # cb-3: the SOLVED rows of every recorded HardwareSolution (custom/solved/*.json, hwnocode.custom.schematic_solve) - derived, so
+        # code-owned: re-solve and re-record, the rows follow (a person's notes stay)
+        ('SchematicComponent', SchematicComponent, _owned(SS.COMPONENTS, keep=('title', 'notes', 'protocol')) + _owned(SOLVED['SchematicComponent'], keep=('notes',))),
+        ('SchematicComponentPort', SchematicComponentPort, _owned(SS.PORTS, keep=('notes', 'chip', 'pin', 'pin_source'))
+         + _owned(SOLVED['SchematicComponentPort'], keep=())),
+        ('SchematicComponentPart', SchematicComponentPart, _owned(SS.PARTS, keep=('notes', 'value')) + _owned(SOLVED['SchematicComponentPart'], keep=())),
+        ('SchematicComponentCheck', SchematicComponentCheck, _owned(SOLVED['SchematicComponentCheck'], keep=('notes',))),
+        ('HardwareFeature', HardwareFeature, _owned(SS.FEATURES, keep=tuple(k for f in SS.FEATURES for k in f)) + _owned(SOLVED['HardwareFeature'], keep=('notes',))),
     ]
 
 

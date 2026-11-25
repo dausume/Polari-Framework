@@ -404,7 +404,10 @@ def seeds_page_api():
           'own hand-built backend half + the 0e2b button-clock graph\'s own), 2 AnalysisDefinitions, 2 EventTriggers, 3 HardwareInterfaceBindings (ucd-light: + uno-light/LightState/0), '
           '2 GraphDefinitions, 6 Runtimes (demo-4b)', counts == {
               'HardwareNoCodeSolution': 2, 'HardwareNodePlacement': 59, 'SolutionDefinition': 17, 'AnalysisDefinition': 2, 'EventTrigger': 2,
-              'HardwareInterfaceBinding': 3, 'GraphDefinition': 2, 'Runtime': 6}, counts)
+              'HardwareInterfaceBinding': 3, 'GraphDefinition': 2, 'Runtime': 6,
+              # cb-1 / cb-2 prototype: the user's drawing (hwnocode_schematic_selftest checks these rows themselves)
+              'SchematicComponent': 6, 'SchematicComponentPort': 15, 'SchematicComponentPart': 14, 'HardwareFeature': 4,
+              'SchematicComponentCheck': 25}, counts)
     # selfix 2026-10-05 (prf-urgent): the live canvas showed Object `AdditionTester` + Solution
     # `uno-temp-split` with an EMPTY canvas. Root cause (his steer): the seed's states carried NO
     # canvas position/shape — graph_builder.node() deliberately emits none (shared, parity-pinned
