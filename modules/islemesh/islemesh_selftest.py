@@ -418,6 +418,11 @@ def main():
     check('defect 2 (release 86): isle-content-host has a catalog entry (mesh-app, service content:80, category infrastructure as its release.json says) for its published release to attach to',
           ch.get('kind') == 'mesh-app' and ch.get('service') == 'content' and ch.get('port') == 80 and ch.get('source') == 'official'
           and ch.get('category') == 'infrastructure')
+    for name, service, port in (('registry', 'registry', 5000), ('file-store', 'store', 8333)):
+        e = by_name.get(name) or {}
+        check('the storage app %s has a catalog entry (mesh-app, service %s:%d, category infrastructure as its release.json says) for its published release to attach to' % (name, service, port),
+              e.get('kind') == 'mesh-app' and e.get('service') == service and e.get('port') == port and e.get('source') == 'official'
+              and e.get('category') == 'infrastructure')
     import os, tempfile
     from pathlib import Path
     from unittest.mock import patch

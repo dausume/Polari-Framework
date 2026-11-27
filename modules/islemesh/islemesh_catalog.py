@@ -108,6 +108,31 @@ SEED_CATALOG = [
         'category': 'infrastructure',   # = release.json (isle-content-host 2026.11.1); the store groups by it
         'source': 'official',
     },
+    # The two storage apps of the isle (STORAGE_ROLES_PLAN.md 9.13 + 9.15). Same reason as above: each has a versioned release in
+    # isle-cli/releases/<name> that `isle store publish` attaches to this row; without it `isle store install <name>` finds no
+    # catalog entry (seen on pol-core 2026-11-27 after the registry release was published).
+    {
+        'name': 'registry',
+        'title': 'Image registry (the isle\'s container images)',
+        'description': 'A plain Docker registry at registry.isle, no sign-in: every device of the isle pushes to it and pulls from it. Its images '
+                       'live in the storage slot images (role registry) on the partition the device binds; it is never started without it.',
+        'kind': 'mesh-app',
+        'source_ref': 'isle-cli/releases/registry (versioned release: release.json, docker-compose.yml)',
+        'service': 'registry', 'port': 5000,
+        'category': 'infrastructure',   # = release.json (registry 2026.11.1)
+        'source': 'official',
+    },
+    {
+        'name': 'file-store',
+        'title': 'File store (one store on one partition)',
+        'description': 'The stock SeaweedFS file store as one process on one partition, with its S3 door; its files live in the storage slot '
+                       'files (role blob) on the partition the device binds; it is never started without it.',
+        'kind': 'mesh-app',
+        'source_ref': 'isle-cli/releases/file-store (versioned release: release.json, docker-compose.yml)',
+        'service': 'store', 'port': 8333,
+        'category': 'infrastructure',   # = release.json (file-store 2026.11.1)
+        'source': 'official',
+    },
     # ti-3a: the hardware engine workers (slice of TEST_ISLE_PLAN) — deploying one binds its
     # consumer through the EngineProviderBinding row, key = provides_engine.
     {
